@@ -581,6 +581,40 @@ egress extra. **Spot / reserved** can cut 40–70%.
 **Guide:** dev/burst → RunPod/Vast/Modal (cheap, per‑second); production video → rented A100/H100 or a
 cloud with reserved/spot; data‑residency → Indian providers; serverless media models → Replicate/fal.
 
+### Hyperscalers rent the WHOLE box (CPU + RAM + GPU + network)
+A GPU instance is **not just a GPU**: you rent vCPU + RAM + GPU(s) + network, and (usually separately)
+disk. Some have **local NVMe included**; most use attached block storage. **Bare‑metal GPU** is also
+available (full machine, no hypervisor).
+
+| Provider | Example instance | GPU | vCPU / RAM | ~USD/hr | ~₹/hr |
+|---|---|---|---|---|---|
+| AWS | `g4dn.xlarge` | 1× T4 16 GB | 4 / 16 GB | ~0.5–0.7 | ~₹45–60 |
+| AWS | `g5.xlarge` | 1× A10G 24 GB | 4 / 16 GB | ~1.0–1.3 | ~₹85–110 |
+| AWS | `g6.xlarge` | 1× L4 24 GB | 4 / 16 GB | ~0.8–1.0 | ~₹70–85 |
+| AWS | `p4d.24xlarge` | 8× A100 40 GB | 96 / 1152 GB | ~$26–32 | ~₹2,200–2,700 |
+| AWS | `p5.48xlarge` | 8× H100 80 GB | 192 / 2 TB | ~$80–100 | ~₹6,800–8,500 |
+| GCP | `a2-highgpu-1g` | 1× A100 40 GB | 12 / 85 GB | ~$3.3 | ~₹280 |
+| GCP | `g2-standard-4` | 1× L4 24 GB | 4 / 16 GB | ~$0.8 | ~₹70 |
+| Azure | `ND96asr_v4` | 8× A100 40 GB | 96 / 900 GB | ~$27 | ~₹2,300 |
+| Azure | `ND-H100-v5` | 8× H100 | 96 / 640 GB | ~$80–98 | ~₹6,800–8,300 |
+| Oracle OCI | `BM.GPU4.8` | 8× A100 40 GB | — / ~2 TB | ~$24–30 | ~₹2,000–2,600 |
+
+**India regions:** AWS **Mumbai / Hyderabad** · GCP **Mumbai / Delhi NCR** · Azure **Pune / Chennai** ·
+Oracle **Mumbai / Hyderabad**. Newest GPUs (H100) can be **quota‑limited / scarce** there.
+
+**How billed:** per‑second (min 60 s) on AWS/GCP/Azure/Oracle · **spot −60–70 %** · reserved/committed
+−30–60 % · storage ~$0.08–0.10/GB‑month (gp3/PD) · **egress ~$0.08–0.12/GB** · inter‑AZ traffic charged.
+Approx **24/7 monthly**: 1×T4 ≈ ₹35–45 k · 1×L4/A10G ≈ ₹50–65 k · 1×A100 ≈ ₹1.8–2.0 L · 8×A100 ≈
+₹16–20 L · 8×H100 ≈ ₹50–60 L (spot/reserved much less).
+
+**Managed AI (bundles the box + MLOps):** AWS **SageMaker**, GCP **Vertex AI**, Azure **ML** — same
+hardware, plus notebooks/pipelines/endpoints; **serverless inference**: AWS **Bedrock**, Vertex,
+Azure AI — pay per request/token (no server management).
+
+**Cheaper than hyperscalers** for the same GPUs: **RunPod, Vast.ai, Lambda, CoreWeave, Modal** (per‑second/
+serverless). Use hyperscalers when you need **compliance, ecosystem, reserved capacity, or Indian
+data‑residency**; use the others for **dev/burst/video**.
+
 ---
 
 ## 27. Where this is documented — standards & open‑source skills
