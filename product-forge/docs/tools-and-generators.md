@@ -267,3 +267,174 @@ pluggable/standards.
 BI-0208 sensor/IoT pack · BI-0209 OCR/doc pack · BI-0210 post-ideation gate · BI-0211 tool licence
 catalog · BI-0212 multi-modal e2e test · **BI-0213 capability-gated pipeline composition** (inject `0f`/`4m`
 + roster per pack into the existing 0..13b order).
+
+---
+
+## 14. Models vs Tools — the mental model
+
+- **Model (weights)** = the *brain*: a task-specific artifact that does image / video / voice / music /
+  3D / OCR / understanding. It **cannot run alone**; a tool loads it. Downloaded from Hugging Face /
+  ModelScope. (FLUX, Wan, Kokoro, Whisper, ACE-Step, TripoSR, Qwen-VL.)
+- **Tool (runtime / library / binary)** = the *engine + hands*: code that either **runs a model**
+  (PyTorch, diffusers, transformers, onnxruntime) or does **deterministic media work with no AI model**
+  (FFmpeg, Pillow, OpenCV, MoviePy, trimesh).
+- Analogy: a **tool is the app/player** (VLC); a **model is the codec/content** it plays. Install the
+  tool once; fetch the model per need.
+
+**Three kinds of tools**
+1. **Model runners / frameworks** (load weights): PyTorch, diffusers, transformers, onnxruntime,
+   accelerate, safetensors, llama.cpp.
+2. **Deterministic tools** (no AI model): FFmpeg, Pillow, OpenCV, scikit-image, PyAV, imageio, MoviePy,
+   pydub, soundfile, librosa, trimesh, open3d, pygltflib.
+3. **Tools that ship their own model**: Tesseract (+tessdata), whisper.cpp (+ggml model), Piper (+.onnx
+   voice), Vosk (+model).
+
+**We need BOTH**: tools installed (once, always present) **and** model weights downloaded (per capability).
+Tools are installed with the product / dev env (licence-gated, BI-0211); models are fetched on demand by
+the **ModelDownloader** (BI-0206) into `product-forge/models/`.
+
+---
+
+## 15. Model families — is it an LLM?
+
+**LLM** = Large *Language* Model (text). Most media models are **not** LLMs.
+
+| Modality | Model family | LLM? |
+|---|---|---|
+| Text / reasoning | LLM (transformers) | yes |
+| Understand image/video | **VLM** = LLM + vision | yes (LLM-based) |
+| Image gen | Diffusion (FLUX, Sana) | no |
+| Video gen | Diffusion/DiT (Wan, Mochi) | no |
+| Voice TTS | Neural TTS (Kokoro, Piper) | no |
+| Voice STT | ASR (Whisper) | no (transformer, not LLM) |
+| Music | Diffusion/DiT (ACE-Step) | no |
+| 3D | Triplane/NeRF/DiT (TripoSR) | no |
+| OCR | CNN/transformer (PaddleOCR) | no |
+| Embedding/rerank | Encoder transformer (BERT-family) | no |
+
+The catalog's `kind` field is what tells the router *which type* of model it is (LLM or not) and which
+adapter/tool runs it.
+
+---
+
+## 16. Download (self-host) vs API — same as LLMs
+
+Media is **not different from LLMs**: you can **download** open-weights and run locally, **or call an
+online model with an API key** (no download). Some models exist only one way.
+
+| | Local / download (self-host) | Online / API key |
+|---|---|---|
+| Text LLM | Llama/Qwen + `llama.cpp`/Ollama | OpenAI / Anthropic / Gemini |
+| Image | FLUX/Sana + `diffusers` | GPT-Image/Imagen, fal, Replicate |
+| Video | Wan/Mochi + `diffusers`/`ffmpeg` | Runway, Luma, Kling, Sora, Veo |
+| Voice | Kokoro/Piper/Whisper + tools | ElevenLabs, OpenAI TTS/Whisper, Cartesia, Deepgram |
+| Music | ACE-Step + tools | Suno, Udio |
+| 3D | TripoSR/TRELLIS + tools | Meshy, Tripo |
+| OCR | Tesseract/PaddleOCR (local) | Google Doc AI, AWS Textract, Azure DI |
+| Understand (VLM) | Qwen2.5-VL + tools | GPT-4o / Gemini / Claude vision |
+
+Both are wired the same way in the router — only `provider_kind` differs (`self-host` | `direct` |
+`aggregator`). Downloading is **only** the self-host/free path; the API path downloads nothing.
+
+---
+
+## 17. Open-weight sizes by type (approx.)
+
+| Type | Example (permissive) | Disk (fp16) | Disk (quantized) | VRAM |
+|---|---|---|---|---|
+| Image | Sana (0.6–1.6B) | 1–3 GB | 0.8–2 GB | 4–8 GB |
+| Image | FLUX.1-schnell (12B) | ~24 GB | 6–12 GB | 8–16 GB |
+| Video | CogVideoX (2–5B) | 4–20 GB | 3–10 GB | 8–20 GB |
+| Video | Wan 2.2 (1.3–14B) | 3–28 GB | 2–14 GB | 8–24 GB+ |
+| Video | Mochi 1 (10B) | ~20 GB | ~10 GB | 20 GB+ |
+| Voice TTS | Piper | 20–60 MB/voice | — | CPU |
+| Voice TTS | Kokoro (82M) | ~0.3 GB | ~0.15 GB | 1–2 GB |
+| Voice TTS | Parler-TTS (0.9B) | ~1.8 GB | ~0.9 GB | 2–4 GB |
+| Voice STT | Whisper tiny → large-v3 | 75 MB → 1.5 GB | 40 MB → 1.5 GB | 1–6 GB |
+| Voice STT | Vosk | 40 MB → 1.8 GB | — | CPU |
+| Music | ACE-Step (3.5B) | ~7 GB | 3–4 GB | 8–12 GB |
+| 3D | TripoSR | ~1.5 GB | — | 6–8 GB |
+| 3D | TRELLIS / InstantMesh | 2–8 GB | — | 8–16 GB |
+| Understand | SmolVLM (0.25–2B) | 0.5–4 GB | 0.3–2 GB | 2–6 GB |
+| Understand | Qwen2.5-VL (3B/7B) | 6–16 GB | 3–6 GB | 6–16 GB |
+| Embed/rerank | BGE / E5 / GTE | 0.13–2.3 GB | 0.1–1 GB | CPU–4 GB |
+| OCR | Tesseract tessdata | 15–50 MB/lang | — | CPU |
+| OCR | PaddleOCR / RapidOCR / docTR | 15–200 MB | — | CPU–4 GB |
+
+Rules of thumb: **disk ≈ params × 2 bytes** (fp16), **q4 ≈ params × 0.5 bytes**;
+**VRAM ≈ weights + 20–100 %** overhead (higher for video/3D).
+
+---
+
+## 18. Hardware feasibility (dev laptop → workstation)
+
+On a **Dell 5560 (32 GB RAM, 4 GB GPU)** the 4 GB VRAM is the bottleneck:
+
+| Modality | 4 GB laptop | Notes |
+|---|---|---|
+| TTS / STT-small / OCR / embeddings | ✅ | CPU, real-time-ish |
+| Small VLM (SmolVLM, Moondream q4) | ✅/⚠️ | CPU or 4 GB tight |
+| Image (Sana 0.6B, SDXL-Turbo, quantized) | ⚠️ | CPU slow; 4 GB small only |
+| FLUX / music / 3D / video / big VLM | ❌ local | use API |
+
+Fine for **development/demo** of light modalities; heavy media needs a GPU box or API.
+
+---
+
+## 19. Recommended hardware to run ALL open-weights locally
+
+| Tier | VRAM | System RAM | Storage | What it runs |
+|---|---|---|---|---|
+| Minimum viable (quantized, slow) | **16 GB** (e.g. RTX 4080/5070Ti) | 64 GB | 2 TB NVMe | image (FLUX q4), audio, OCR, small VLM, 3D (slow); video marginal |
+| **Recommended** (all local, quantized, comfortable) | **24–32 GB** (RTX 4090 / 5090 32 GB) | 64–128 GB | 4 TB NVMe | image fp16, **video usable**, music, 3D, VLM 7B |
+| Comfortable / Pro (video fp16 + concurrency) | **48–96 GB** (RTX 6000 Blackwell / 2×24–48 GB) | 128 GB+ | 4 TB+ NVMe | everything fp16, multiple jobs, larger video |
+| Alternative | Apple Silicon unified 64–128 GB | — | 2 TB+ | LLM/VLM great; some diffusion slower |
+
+- **GPU:** NVIDIA/CUDA strongly preferred (diffusers/torch ecosystem); AMD via ROCm possible but rocky.
+- **CPU:** 12–24 cores for ffmpeg encode, OCR, and CPU inference fallback.
+- **Storage:** fast NVMe (model load + 40–90 GB weights + media assets).
+- **Burst:** rent a cloud GPU (L40S/A100/H100) for video when needed instead of buying top-end.
+
+Per-modality VRAM targets: image 6–16 GB · video 8–24 GB+ · audio CPU–4 GB · 3D 6–16 GB · VLM 4–16 GB.
+
+---
+
+## 20. Shipping a product that needs runtime multi-modal AI
+
+Three shapes; the right answer is usually **hybrid**.
+
+- **A) Bundle / self-host** — weights in the installer, or download on first run; runs on the end-user's
+  machine. + no per-call cost, offline, private, no vendor keys. − big download, hardware needs, model
+  updates = new release, **licence must be bundle-safe**.
+- **B) API / BYOK** — product calls a provider with the **user's key**. + tiny app, best models, no
+  hardware, easy updates. − per-call cost, internet + keys, data leaves, vendor lock.
+- **C) Hosted service** — you run the models behind **your own API**; the product just calls it. + no user
+  GPU, you control quality/cost. − you pay for GPUs, build/run a service.
+
+**Recommended (same as Product Forge):** local-first for light modalities (audio/OCR/embeddings/small
+image/VLM), **API (BYOK or hosted)** for heavy/premium (video/music/3D/voice). Add a **setup wizard**
+(detect hardware → recommend local vs API → ask for keys). Ship either an **offline SKU** (weights) or a
+**thin SKU** (API only).
+
+**How it works in the shipped product** — it embeds the same abstraction:
+```
+runtime request ("generate image")
+ -> capability + policy (baked at build time)
+ -> router picks: self-host (load weights from bundle/cache) OR API (key from user/env)
+ -> adapter runs it -> artifact returned to the product UI
+```
+So the build-time choice (capability pack + strategy gate) is the **default**, but the product can
+**fall back at runtime** (no GPU -> API; no key -> local). Bundling requires `bundle_allowed` weights;
+restricted weights are reachable **only via API**.
+
+---
+
+## 21. Default model-selection policy (decision rule)
+
+> **Self-host open-weights by default (free, shippable, private); fall back to API only for real gaps
+> (top video/voice/3D, or no GPU / zero-download); reach paid models through a single aggregator key —
+> always pluggable.**
+
+Tiers: **0)** permissive open-weights · **1)** free-tier API · **2)** paid API/aggregator.
+`provider_kind = self-host | direct | aggregator`; chosen per project by the model-strategy gate
+(BI-0192 / BI-0210), configurable in the capability pack.
