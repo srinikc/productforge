@@ -514,3 +514,98 @@ rather than build bespoke.
 - **Cloud** — best for spikes/video; no capex, pay per hour.
 - **Verdict:** a **self-built RTX 5090 (32 GB) + 128 GB RAM + 4 TB NVMe (~₹4.5–5.5 L)** covers all
   modalities comfortably; rent cloud GPUs for heavy video instead of a 96 GB card.
+
+---
+
+## 24. Used GPUs — cost & where to buy (India)
+
+> Approx., 2026, volatile. Used = **no warranty**; many 3090s were mining cards. **Test before paying.**
+
+| Used GPU | VRAM | Approx. price | Notes |
+|---|---|---|---|
+| RTX 3060 | 12 GB | ₹15 – 22 k | entry; small models only |
+| RTX 3090 | 24 GB | ₹55 – 90 k | **best VRAM-per-rupee**; NVLink-capable |
+| RTX 3090 Ti / 4070 Ti | 24/12 GB | ₹70 k – 1.0 L | — |
+| RTX 4090 | 24 GB | ₹1.2 – 1.7 L | fast; check for blower/AIB |
+| RTX A6000 | 48 GB | ₹2.0 – 3.2 L | pro; video fp16 |
+| Whole used workstation (Dell Precision / HP Z + GPU) | 24–48 GB | ₹1.5 – 4 L | often good value |
+
+**Where:** OLX, Facebook Marketplace, **TechEnclave** (forum marketplace), r/IndianGaming, local markets
+(Nehru Place, Lamington Rd, SP Rd), eBay (import — duty applies).
+**Test checklist:** GPU-Z (fake check), VRAM stress (OCCT/GpuMemTest), thermal + fan test, run a real
+diffusion/VLM job, check artifacts/ECC, verify no mining BIOS.
+
+---
+
+## 25. Home hosting — cooling & power cost
+
+**Power draw (system under load):** RTX 3090 ~450–550 W · 4090 ~550–650 W · **5090 ~750–900 W**.
+**Electricity (India, ~₹8/unit):**
+
+| Build | 8 h/day | 24/7 |
+|---|---|---|
+| RTX 3090 system (~0.5 kW) | ~₹1,000 / month | ~₹2,900 / month |
+| RTX 5090 system (~0.85 kW) | ~₹1,600 / month | ~₹4,900 / month |
+
+**Cooling / environment (India ~35–40 °C ambient matters):**
+- Good case airflow + 3–6 fans: ₹3–8 k. High‑end GPUs need a **large airflow case** (₹8–20 k).
+- **Room AC is often required** for sustained load: AC ₹30–50 k + running ~₹2–4 k/month.
+- **UPS / inverter** (1–1.5 kVA) to protect the GPU: ₹8–15 k.
+- Noise under load is significant — plan a separate room.
+
+**Home‑hosting verdict:** fine for **one GPU / dev**; not ideal for 24/7 production (heat, noise, power,
+uptime, static IP, cooling). Use cloud for sustained production, or a rented colo.
+
+---
+
+## 26. Cloud GPU providers — who, configs, how they charge
+
+Cloud GPUs come in three billing shapes: **per‑hour** (AWS/GCP/Azure/Lambda), **per‑second** (Modal,
+RunPod, Vast), and **serverless** (Replicate, Modal — pay only while running). Storage is per GB‑month;
+egress extra. **Spot / reserved** can cut 40–70%.
+
+| Provider | Type | Typical GPUs | How charged | Rough on‑demand (USD/hr) |
+|---|---|---|---|---|
+| **AWS** | hyperscaler | T4, L4, A10G, L40S, A100, H100 | per‑sec (min 1 min) | T4 ~0.4 · A10G ~1.0 · H100 ~3–4 |
+| **GCP** | hyperscaler | T4, L4, A100, H100 | per‑sec | L4 ~0.7 · A100 ~2 · H100 ~3–4 |
+| **Azure** | hyperscaler | T4, A100, H100 | per‑sec | similar to AWS/GCP |
+| **Oracle OCI** | hyperscaler | A100, H100 | per‑sec | often **cheaper** than AWS/GCP |
+| **Lambda Labs** | GPU cloud | A10, A100, H100 | per‑sec | A100 ~1.3 · H100 ~2.5 |
+| **CoreWeave** | GPU cloud | A100, H100, L40S | per‑sec | competitive |
+| **RunPod** | GPU cloud/marketplace | 3090, 4090, A100, H100 | per‑sec | 4090 ~0.35–0.7 · A100 ~1.2 |
+| **Vast.ai** | marketplace | consumer + datacenter | per‑sec | 3090 ~0.2–0.4 (cheapest) |
+| **Modal** | serverless | A10G, A100, H100 | per‑second, scale‑to‑zero | A100 ~2 · H100 ~3 |
+| **Replicate / fal / Together / Fireworks / Baseten** | serverless inference | many media models | per‑second / per‑unit | pay per run |
+| **India: E2E Networks, NeevCloud, Yotta, Jio Cloud, Krutrim** | regional | L40S, A100, H100 | per‑hour | ₹‑denominated; competitive, data‑residency |
+
+**Guide:** dev/burst → RunPod/Vast/Modal (cheap, per‑second); production video → rented A100/H100 or a
+cloud with reserved/spot; data‑residency → Indian providers; serverless media models → Replicate/fal.
+
+---
+
+## 27. Where this is documented — standards & open‑source skills
+
+**Docs / blogs / books**
+- **Hugging Face** (huggingface.co): docs + blog for `transformers`, `diffusers`, **Model Cards**, Hub
+  (models/datasets/spaces) — the de‑facto multi‑modal hub.
+- **Anthropic** docs (**MCP**), **OpenAI** Cookbook, **Google** (A2A), **CopilotKit** (AG‑UI) — agent standards.
+- **OpenTelemetry** docs (GenAI semantic conventions) · **C2PA** spec · **EBU R128** spec.
+- **MLOps:** MLOps.community, Made‑With‑ML (Goku Mohandas), Chip Huyen (“Designing ML Systems”) + blog,
+  Eugene Yan blog, **ThoughtWorks Tech Radar** (Ports & Adapters, architecture patterns).
+- **NVIDIA Developer blog** (Triton, TensorRT‑LLM), AWS/GCP/Azure architecture centers.
+- **Papers with Code**, **arXiv** for the models themselves.
+
+**Open‑source repos (the “skills”/patterns, on GitHub)**
+- Provider abstraction / gateways: **LiteLLM**, **LangChain**, **LlamaIndex**, **Vercel AI SDK**.
+- Serving: **vLLM**, **TGI**, **Ollama**, **Triton**, **KServe**, **BentoML**, **Ray Serve**.
+- Media: **diffusers**, **ComfyUI**, **AUTOMATIC1111**, **Real‑ESRGAN**, **whisper.cpp**, **so‑vits/piper**.
+- Agents: **OpenAI Agents SDK**, **LangGraph**, **AutoGen**, **CrewAI**, **Semantic Kernel**,
+  **modelcontextprotocol/servers**, **google/A2A**, **CopilotKit/AG‑UI**.
+- MLOps: **MLflow**, **Kubeflow**, **Ray**, **Feast**, **DVC**.
+- Curated lists (“awesome‑*”): `awesome-mlops`, `awesome-llm-apps`, `awesome-diffusion-models`,
+  `awesome-ai-agents`, `awesome-mcp-servers`, `awesome-vector-databases`.
+- Agent **skills** (emerging): Anthropic **Claude Skills**, MCP servers as reusable tools,
+  `awesome-claude-skills`‑style collections.
+
+**Takeaway:** everything in this document is documented industry practice — use these sources to
+implement the adapters/generators/packs/agents rather than writing from scratch.
