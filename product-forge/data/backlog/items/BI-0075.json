@@ -1,0 +1,36 @@
+{
+  "id": "BI-0075",
+  "type": "bug",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "pipeline",
+  "external_id": "forge:reasoning-leak-content",
+  "label": "PF Backlog 75",
+  "title": "BUG: LLM client puts model REASONING into the artifact content (reasoning-only outputs)",
+  "body": "Observed: stage-0a discovery-output.md (model nex-agi/nex-n2.5-mini:free) contains the model's raw chain-of-thought ('We need answer discovery doc... Need parse... We have no tools') rather than a document; 10547 reasoning tokens. The client appears to take the reasoning/first choice content instead of the FINAL assistant content. Fix in core/orchestrator/llm_client.py response extraction: prefer the final assistant message content; if the chosen field is reasoning, discard it; strip/【exclude】reasoning. Combined with BI-0034 (detect + retry empty/truncated/reasoning-only artifacts and never cache them) this prevents garbage artifacts from reaching downstream stages. Refs: core/orchestrator/llm_client.py _extract_response_content; BI-0034.",
+  "source": "code-audit",
+  "status": "completed",
+  "priority": null,
+  "moscow": "Must",
+  "value": 5,
+  "effort": 3,
+  "risk": 3,
+  "deps": [],
+  "links": {},
+  "decisions": [],
+  "follow_up": {},
+  "created_at": "2026-09-22T02:45:00.928923",
+  "updated_at": "2026-09-23T01:09:03.230757",
+  "score": 0.83,
+  "tags": [
+    "Dash"
+  ],
+  "_note": "verified: test_llm_extract_no_reasoning.py PASS",
+  "dashboard_impact": {
+    "needs_dashboard": false,
+    "reason": "backend-internal; no user-facing surface",
+    "dashboard_item": null,
+    "reviewed_by": "owner-review-2026-09-22",
+    "reviewed_at": "2026-09-22T20:41:02.827868"
+  }
+}

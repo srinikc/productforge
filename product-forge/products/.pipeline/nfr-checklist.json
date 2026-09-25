@@ -1,0 +1,194 @@
+{
+  "version": "1.0",
+  "description": "System-level NFR checklist for Product Forge pipeline. Validated at each stage.",
+  "stages": {
+    "design": {
+      "validates": ["User-experience NFRs (perf targets, a11y, i18n UX, help system, onboarding)"],
+      "checks": [
+        "Page load targets defined (<2s)",
+        "Time to Interactive targets defined (<3s)",
+        "Accessibility targets defined (WCAG 2.1 AA)",
+        "Empty states defined for all lists",
+        "Loading states defined for all async operations",
+        "Error states defined (inline, toast, 404, 500)",
+        "Onboarding flow defined",
+        "Help system designed (tooltips, in-app help)",
+        "Notification UX designed",
+        "Mobile UX designed (touch targets, gestures)",
+        "Internationalization UX designed",
+        "Color contrast documented (4.5:1 text, 3:1 UI)"
+      ]
+    },
+    "architect": {
+      "validates": ["System NFRs (perf, scale, security arch, caching, deploy)"],
+      "checks": [
+        "Performance architecture (caching layers, indexes)",
+        "Scalability strategy (horizontal, vertical, sharding)",
+        "Load handling (LB, auto-scaling, queue)",
+        "Caching architecture (HTTP, app, DB, CDN)",
+        "Rendering strategy (SSR/SSG/ISR/CSR)",
+        "Reliability (circuit breakers, retries, fallbacks)",
+        "Availability (multi-AZ, failover, health checks)",
+        "Security architecture (encryption, auth, OWASP)",
+        "Privacy architecture (data isolation, GDPR)",
+        "Compliance (SOC 2, HIPAA, PCI ready)",
+        "Observability (logs, metrics, tracing)",
+        "API design (REST, OpenAPI, versioning)",
+        "Email/notification architecture",
+        "Mobile architecture (offline sync, push)",
+        "Cost estimates",
+        "Backup/DR strategy",
+        "Migration strategy",
+        "Data retention policies",
+        "Rate limiting strategy",
+        "Feature flags architecture",
+        "Multi-tenancy (if applicable)",
+        "CI/CD architecture",
+        "Packaging strategy (Docker, Helm, mobile binaries)"
+      ]
+    },
+    "review": {
+      "validates": ["All NFRs from design + architect are covered, no conflicts"],
+      "checks": [
+        "All FRs have NFRs (no orphan FRs)",
+        "All NFRs have measurable targets",
+        "All NFRs have measurement methods",
+        "No conflicting NFRs (e.g., security vs UX)",
+        "Missing NFRs identified and flagged"
+      ]
+    },
+    "implement": {
+      "validates": ["Code-level NFRs (real caching, real logging, real auth)"],
+      "checks": [
+        "NFR-1: Caching - Redis used, HTTP cache headers set",
+        "NFR-2: Error handling - HTTPException, no bare except",
+        "NFR-3: Logging - JSON structured logs, correlation IDs",
+        "NFR-4: Rate limiting - 100 req/min/user enforced",
+        "NFR-5: Input validation - Pydantic on all requests",
+        "NFR-6: SQL injection - SQLAlchemy ORM, no string concat",
+        "NFR-7: Authentication - Depends(get_current_user) on all routes",
+        "NFR-8: Health endpoints - /health, /health/ready",
+        "NFR-9: Metrics - /metrics in Prometheus format",
+        "NFR-10: Email - SendGrid/SES client, not raw SMTP",
+        "NFR-11: Mobile push - FCM + APNs client code",
+        "NFR-12: File upload - S3 client, magic byte validation",
+        "NFR-13: Search - PG FTS with GIN indexes",
+        "NFR-14: Time zones - UTC in DB, convert for display",
+        "NFR-15: i18n - i18next, no hardcoded strings",
+        "NFR-16: Accessibility - semantic HTML, ARIA labels",
+        "NFR-17: Performance - indexes, no N+1, async I/O",
+        "NFR-18: API versioning - /api/v1/ prefix",
+        "NFR-19: Audit logging - all auth/data events",
+        "NFR-20: Feature flags - LaunchDarkly or similar"
+      ]
+    },
+    "code_review": {
+      "validates": ["Code NFRs are properly implemented (not just claimed)"],
+      "checks": [
+        "Caching actually used (not just imported)",
+        "Real error handling (not bare except)",
+        "Structured logging in JSON format",
+        "Rate limiting middleware in place",
+        "Input validation on all endpoints",
+        "Parameterized queries (no SQL injection)",
+        "Auth dependency on every route",
+        "Health endpoints accessible",
+        "Metrics endpoint returns Prometheus format",
+        "Email client code (not string concat)",
+        "Push notification code (not polling)",
+        "S3 client for files (not local storage)",
+        "PostgreSQL FTS used (not LIKE)",
+        "Timezones UTC in DB",
+        "i18n keys used (not hardcoded)",
+        "Semantic HTML + ARIA",
+        "DB indexes, eager loading, async I/O",
+        "All routes under /api/v1/",
+        "Auth events audited",
+        "Feature flags wrapping new features"
+      ]
+    },
+    "validate": {
+      "validates": ["Runtime NFRs (load tests, security scans, a11y)"],
+      "checks": [
+        "Performance: p95 < 500ms under load",
+        "Load: 1000 RPS sustained",
+        "Security: OWASP ZAP scan clean",
+        "Security: Snyk/Trivy no critical vulnerabilities",
+        "Accessibility: axe-core clean",
+        "Accessibility: pa11y clean",
+        "Browser compatibility: Chrome, Firefox, Safari, Edge",
+        "API contract: OpenAPI validation passes",
+        "E2E: Critical user flows pass"
+      ]
+    },
+    "document": {
+      "validates": ["Doc NFRs (user docs, ops docs, API docs)"],
+      "checks": [
+        "API documentation (OpenAPI auto-generated)",
+        "User help articles (per feature)",
+        "Onboarding guide",
+        "FAQ",
+        "Architecture docs (ADRs)",
+        "Operations runbook (deployment, monitoring, incident response)",
+        "Security disclosure policy",
+        "Terms of Service",
+        "Privacy policy",
+        "SLA documentation",
+        "Contribution guide",
+        "Code of conduct"
+      ]
+    },
+    "package": {
+      "validates": ["Package NFRs (install, upgrade, version)"],
+      "checks": [
+        "Docker images build successfully",
+        "Helm charts valid",
+        "Mobile binaries built (iOS .ipa, Android .aab)",
+        "SBOM generated (CycloneDX)",
+        "License attribution",
+        "Checksums generated",
+        "Signatures applied",
+        "Install script tested",
+        "Upgrade script tested (backwards compat)",
+        "Uninstall script tested (data cleanup)",
+        "Version follows SemVer",
+        "Changelog generated"
+      ]
+    }
+  },
+  "additional_stages_recommended": [
+    {
+      "stage": "10_performance",
+      "after": "9_package",
+      "purpose": "Run load tests, measure latency under load, generate performance report",
+      "tools": ["k6", "Locust", "Apache Bench"],
+      "deliverable": "performance-report.md"
+    },
+    {
+      "stage": "11_security_audit",
+      "after": "10_performance",
+      "purpose": "Run security scans, penetration testing, vulnerability assessment",
+      "tools": ["OWASP ZAP", "Snyk", "Trivy"],
+      "deliverable": "security-audit-report.md"
+    },
+    {
+      "stage": "12_a11y_audit",
+      "after": "11_security_audit",
+      "purpose": "Run accessibility audit, screen reader testing, WCAG validation",
+      "tools": ["axe-core", "pa11y", "WAVE"],
+      "deliverable": "a11y-audit-report.md"
+    },
+    {
+      "stage": "13_release",
+      "after": "12_a11y_audit",
+      "purpose": "Generate changelog, release notes, tag git, publish to distribution",
+      "deliverable": "release-notes.md + Git tags + Distribution artifacts"
+    },
+    {
+      "stage": "14_operations",
+      "after": "13_release",
+      "purpose": "Configure monitoring, alerting, runbooks, backups",
+      "deliverable": "ops-setup.md + Monitoring configured"
+    }
+  ]
+}

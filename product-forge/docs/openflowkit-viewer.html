@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenFlowKit Viewer</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background: #1a1a2e; color: #fff; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        h1 { text-align: center; margin-bottom: 20px; color: #00d4ff; }
+        .viewer { background: #16213e; border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+        .diagram { background: #fff; border-radius: 8px; padding: 20px; min-height: 400px; }
+        .controls { display: flex; gap: 10px; margin-bottom: 20px; }
+        button { background: #00d4ff; color: #000; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        button:hover { background: #00b4d8; }
+        .info { background: #0f3460; padding: 15px; border-radius: 8px; margin-top: 20px; }
+        .info h3 { color: #00d4ff; margin-bottom: 10px; }
+        .info ul { margin-left: 20px; }
+        .info li { margin: 5px 0; }
+        .file-input { background: #0f3460; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+        textarea { width: 100%; height: 200px; background: #1a1a2e; color: #fff; border: 1px solid #00d4ff; border-radius: 6px; padding: 10px; font-family: monospace; resize: vertical; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>OpenFlowKit Viewer</h1>
+        
+        <div class="file-input">
+            <h3>Paste OpenFlowKit DSL:</h3>
+            <textarea id="dslInput" placeholder="Paste your OpenFlowKit DSL here...">flow: Multi-Agent Multi-Project Pipeline
+direction: LR
+
+[start] user: User Input { icon: "User", color: "blue" }
+[process] ideation: "Stage 0: Ideation" { icon: "Lightbulb", color: "violet" }
+[process] design: "Stage 1: Design" { icon: "Palette", color: "teal" }
+[process] architect: "Stage 2: Architect" { icon: "Building", color: "teal" }
+[process] review: "Stage 3: Review" { icon: "CheckCircle", color: "amber" }
+[decision] gate: "Approved?" { color: "emerald" }
+[process] implement: "Stage 4: Implement" { icon: "Code", color: "orange" }
+[process] validate: "Stage 5-6: Review+Validate" { icon: "Bug", color: "purple" }
+[process] fix: "Stage 7: Fix" { icon: "Wrench", color: "red" }
+[end] done: "Done" { icon: "Check", color: "emerald" }
+
+user ==> ideation
+ideation ==> design
+design ==> architect
+architect ==> review
+review -> gate
+gate ->|APPROVED| implement
+gate ->|CHANGES| review
+implement ==> validate
+validate ->|issues| fix
+fix ==> implement
+validate ->|PASS| done</textarea>
+        </div>
+        
+        <div class="controls">
+            <button onclick="renderDiagram()">Render Diagram</button>
+            <button onclick="exportToOpenFlowKit()">Open in OpenFlowKit App</button>
+            <button onclick="copyToClipboard()">Copy DSL</button>
+        </div>
+        
+        <div class="viewer">
+            <div id="diagram" class="diagram">
+                <p style="color: #666; text-align: center;">Click "Render Diagram" to visualize</p>
+            </div>
+        </div>
+        
+        <div class="info">
+            <h3>How to Use</h3>
+            <ul>
+                <li><strong>Paste DSL:</strong> Copy your OpenFlowKit DSL into the textarea above</li>
+                <li><strong>Render:</strong> Click "Render Diagram" to see a basic visualization</li>
+                <li><strong>Open in App:</strong> Click to open in the official OpenFlowKit web app (recommended)</li>
+                <li><strong>Copy:</strong> Copy DSL to clipboard for use elsewhere</li>
+            </ul>
+            
+            <h3 style="margin-top: 20px;">OpenFlowKit App Features</h3>
+            <ul>
+                <li>Interactive drag-and-drop editing</li>
+                <li>Real-time collaboration</li>
+                <li>Export to PNG, SVG, PDF</li>
+                <li>AI-assisted diagram generation</li>
+                <li>Version history</li>
+            </ul>
+        </div>
+    </div>
+    
+    <script>
+        function renderDiagram() {
+            const dsl = document.getElementById('dslInput').value;
+            const diagram = document.getElementById('diagram');
+            
+            // Simple parser for basic visualization
+            const lines = dsl.split('\n');
+            let html = '<div style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: center;">';
+            
+            lines.forEach(line => {
+                if (line.includes('[start]') || line.includes('[process]') || line.includes('[decision]') || line.includes('[end]')) {
+                    const match = line.match(/:\s*"([^"]+)"/);
+                    if (match) {
+                        const label = match[1];
+                        const isDecision = line.includes('[decision]');
+                        const isEnd = line.includes('[end]');
+                        const isStart = line.includes('[start]');
+                        
+                        let bgColor = '#00d4ff';
+                        if (isDecision) bgColor = '#90ee90';
+                        if (isEnd) bgColor = '#90ee90';
+                        if (isStart) bgColor = '#4a90d9';
+                        
+                        html += `<div style="background: ${bgColor}; color: #000; padding: 15px; border-radius: 8px; font-weight: bold; min-width: 150px; text-align: center;">${label}</div>`;
+                    }
+                }
+            });
+            
+            html += '</div>';
+            html += '<div style="margin-top: 20px; text-align: center; color: #666;">';
+            html += '<p>For full interactive features, click "Open in OpenFlowKit App"</p>';
+            html += '</div>';
+            
+            diagram.innerHTML = html;
+        }
+        
+        function exportToOpenFlowKit() {
+            const dsl = document.getElementById('dslInput').value;
+            const encoded = encodeURIComponent(dsl);
+            const url = `https://openflowkit.app/?dsl=${encoded}`;
+            window.open(url, '_blank');
+        }
+        
+        function copyToClipboard() {
+            const dsl = document.getElementById('dslInput').value;
+            navigator.clipboard.writeText(dsl).then(() => {
+                alert('DSL copied to clipboard!');
+            });
+        }
+    </script>
+</body>
+</html>

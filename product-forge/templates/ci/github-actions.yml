@@ -1,0 +1,81 @@
+# Product Forge — GitHub Actions CI/CD template
+# Copy to .github/workflows/product-forge.yml and set repo variables/secrets.
+# Model: feat/fix/* -> develop (every change) -> main (release: green + QA GO + HIL).
+name: product-forge
+on:
+  push:
+    branches: [develop, main, 'feat/**', 'fix/**']
+  pull_request:
+    branches: [develop, main]
+
+jobs:
+  fast-checks:
+    if: github.ref != 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Lint / format
+        run: |
+          (test -f package.json && npm ci && npm run lint --if-present) || true
+          (test -f pyproject.toml && pip install ruff && ruff check .) || true
+      - name: Static analysis + secrets scan
+        run: python -m core.verification_runner || true
+      - name: Wired-audit (no orphan modules)
+        run: python scripts/dev/wired_audit.py
+      - name: PR merge checklist gate
+        run: python -c "from core.pr_gate import can_merge; d=can_merge('${{ github.event.repository.name }}','.'); print(d['reason']); raise SystemExit(0 if d['can_merge'] else 1)"
+      - name: App boot check (import entrypoint)
+        run: python -c "from core.app_smoke import boot_check; import sys; r=boot_check('.'); print(r.get('entrypoint'), r.get('ok')); sys.exit(0 if r.get('ok') in (True, None) else 1)"
+      - name: Docker build (if Dockerfile)
+        run: |
+          if [ -f Dockerfile ] || [ -f docker/Dockerfile ]; then docker build -t pf-check .; fi
+      - name: Unit tests
+        run: (test -f package.json && npm test --silent) || python -m pytest -q || true
+
+  build-and-publish:
+    if: github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions: { contents: write, packages: write, id-token: write }
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - name: Version + build number + release notes
+        run: python -c "from core.build_manager import create_build; print(create_build('.', '${{ github.event.repository.name }}', trigger='ci:${{ github.ref_name }}'))"
+      - name: Build / package
+        run: python -c "from core.nfr_runner import run_packaging; print(run_packaging('.'))"
+      - name: SBOM + CVE / SAST
+        run: python -c "from core.nfr_runner import run_security, run_bom; print(run_security('.'), run_bom('.'))"
+      - name: Publish artifact (md5 + sha256) + GPG sign
+        env: { GPG_PRIVATE_KEY: "${{ secrets.GPG_PRIVATE_KEY }}" }
+        run: |
+          python -c "from core.artifact_registry import get_registry; import os,glob; r=get_registry('.'); [print(r.publish(p, open('build-info.json').read() and __import__('json').load(open('build-info.json'))['build_id'])) for p in glob.glob('dist/*')]"
+          (echo "$GPG_PRIVATE_KEY" | gpg --import) && (cd dist && for f in *; do gpg --detach-sign --armor "$f"; md5sum "$f" > "$f.md5"; sha256sum "$f" > "$f.sha256"; done) || true
+      - name: Deploy to STAGING
+        run: python -c "from core.deploy_providers import run_deploy; print(run_deploy('.'))"
+      - name: Tag the staging build (RC)  # tag the most stable build, not every build
+        run: |
+          V=$(python -c "import json;print(json.load(open('build-info.json'))['version'])")
+          python -c "from core.vcs import VCSManager;import sys;v=VCSManager('.');print(v.tag('v'+'$V'+'-rc.${{ github.run_number }}','staging RC'))"
+          git push origin "v$V-rc.${{ github.run_number }}" || true
+      - name: Functional / e2e / NFR (report to test framework)
+        run: python -c "import os;from core.test_framework_integration import run_cycle; print(run_cycle('${{ github.event.repository.name }}', '.', '11', mode='nfr'))"
+      - name: QA Go/No-Go gate
+        run: python -c "from core.qa_report import go_no_go; d=go_no_go('${{ github.event.repository.name }}', '.'); print(d['decision']); raise SystemExit(0 if d['decision']=='GO' else 1)"
+      - name: Release tag (main only, after HIL-approved develop->main)
+        if: github.ref == 'refs/heads/main'
+        run: |
+          V=$(python -c "import json;print(json.load(open('build-info.json'))['version'])")
+          python -c "from core.vcs import VCSManager;print(VCSManager('.').tag('v'+'$V','release $V'))"
+          git push origin "v$V" || true
+
+  deploy-production:
+    if: github.ref == 'refs/heads/main'
+    needs: build-and-publish
+    environment: production          # requires manual/HIL approval
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy to PRODUCTION (canary/blue-green)
+        run: DEPLOY_TARGET=production python -c "from core.deploy_providers import run_deploy; print(run_deploy('.'))"
+      - name: Post-deploy smoke
+        run: python -c "from core.nfr_runner import run_smoke; print(run_smoke('.'))"

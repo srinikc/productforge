@@ -1,0 +1,33 @@
+{
+  "id": "BI-0145",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "intake",
+  "external_id": "forge:canonical-id-index",
+  "label": "PF Backlog 145",
+  "title": "Canonical id index: ONE format-independent id query for every consumer (+ manifest)",
+  "body": "Problem: spec ids (FR/NFR/US + local families) were parsed by several modules with DIFFERENT regexes (output_checklist, nfr_coverage, progress, compliance_check, agent_runner, agent_requirements, integration_advisor, test_matrix, traceability), so the same id could be seen differently and detection depended on LLM formatting (headings vs tables vs bullets vs bold).\n\nDONE: new core/id_index.py — single reader for config/spec-id-families.json, format-independent token extraction (FR-1/FR1/FR_1/**FR-1**/| FR-1 |/### FR-1), normalize/ids/iter_ids/scopes/defined_in_scopes/duplicates/counts. Rewired: nfr_coverage, progress, output_checklist.id_families (delegates). Gate now validates table-style feature files cleanly (0 undefined) and surfaces 16 REAL duplicate US ids in docs/requirements.md.\n\nREMAINING: migrate the other consumers (compliance_check, integration_advisor, test_matrix, traceability/requirement_link) to id_index so every search/operation uses the SAME query. DURABLE UPGRADE: emit a machine-readable requirements manifest (id -> feature) from the design stage and validate against it, removing prose heuristics for definitions/duplicates entirely.",
+  "source": "owner",
+  "status": "completed",
+  "priority": null,
+  "moscow": "Should",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [],
+  "links": {},
+  "decisions": [],
+  "follow_up": {},
+  "created_at": "2026-09-24T00:44:50.025604",
+  "updated_at": "2026-09-24T21:15:08.849581",
+  "score": 0.75,
+  "dashboard_impact": {
+    "needs_dashboard": false,
+    "reason": "Backend/parse-layer only; no new dashboard surface.",
+    "dashboard_item": null,
+    "reviewed_by": "owner-review-2026-09-23",
+    "reviewed_at": "2026-09-24T00:44:50.032994"
+  },
+  "_note": "All id consumers centralized on core/id_index (hubs: output_checklist, nfr_coverage, progress, compliance_check, traceability). Verified grep: 0 ad-hoc FR-/NFR-/US- regexes left in core. Machine-readable manifest = traceability.json id_index (single source). wired_audit=0."
+}

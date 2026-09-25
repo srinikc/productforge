@@ -1,0 +1,33 @@
+{
+  "id": "BI-0148",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "intake",
+  "external_id": "forge:run-linkage-resume-reconcile",
+  "label": "PF Backlog 148",
+  "title": "Run/attempt linkage + preserve-first resume reconciliation (no data clearing)",
+  "body": "New core/run_state.py — pipeline-runs.json registry (run_id, resumed_from, stopped_run, stages_completed); run_id stamped on approval records; reconcile() marks stages that already have a fully-approved approval set + artifacts as completed so resume SKIPS done work and NEVER clears user-entered data. Wired into scripts/run_pipeline.py.\n\nRUN-ID (single mint + stamping, done): new_run_id()/norm_run_id() in pipeline_executor is the ONE mint point (canonical 'run-<epoch>'; pipeline-<epoch> accepted via norm_run_id). Run id is now STAMPED on: approvals (pipeline_executor._create_approval_request), audit entries (audit_trail.AuditTrail.log_action + current_run_id()), artifact metadata (artifact_store.create_or_update_artifact metadata.run_id), and the run registry (run_state.pipeline-runs.json). Back-fill stamps a provable run window else 'legacy' (never guesses); annotate_run() gives read-side 'run X'/'legacy'; check_live_action() strictly validates an action's run_id against the live lock. Wired into scripts/run_pipeline.py (backfill + reconcile before execute).",
+  "source": "owner",
+  "status": "completed",
+  "priority": null,
+  "moscow": "Should",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [],
+  "links": {},
+  "decisions": [],
+  "follow_up": {},
+  "created_at": "2026-09-24T11:01:59.795520",
+  "updated_at": "2026-09-24T11:22:57.128112",
+  "score": 0.75,
+  "dashboard_impact": {
+    "needs_dashboard": false,
+    "reason": "Backend/infra change; dashboard reads the new index as data only.",
+    "dashboard_item": null,
+    "reviewed_by": "owner-review-2026-09-23",
+    "reviewed_at": "2026-09-24T11:01:59.802848"
+  },
+  "_note": "Implemented core/run_state.py: pipeline-runs.json registry (run_id/resumed_from/stopped_run/stages_completed); run_id stamped on approval records (pipeline_executor._create_approval_request); reconcile() marks already-approved+built stages completed so resume SKIPS them; NEVER clears user data. Wired into scripts/run_pipeline.py."
+}

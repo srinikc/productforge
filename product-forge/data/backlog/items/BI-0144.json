@@ -1,0 +1,33 @@
+{
+  "id": "BI-0144",
+  "type": "bug",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "intake",
+  "external_id": "forge:0a-discovery-output-artifact",
+  "label": "PF Backlog 144",
+  "title": "BUG: 0a must write its canonical artifact artifacts/0a/discovery-output.md (+ .html/.xlsx)",
+  "body": "Stage 0a (core/pipeline_executor.py:_run_stage_0a) writes docs/idea-refined.md, docs/product-plan.md, docs/domain-analysis.md, discovery-panel.json and discovery-questions.json, but NEVER writes its canonical stage artifact artifacts/0a/discovery-output.md. Only core/pipeline_tailoring.py:45 READS it.\n\nCompounding cause: _clear_stale_stage_artifacts (core/pipeline_executor.py:848, BI-0088) deletes stale '<agent>-output.md' on rerun -> the old discovery-output.md is removed and never regenerated, leaving an orphan artifacts/0a/discovery-output.xlsx with no .md.\n\nFIX: 0a writes artifacts/0a/discovery-output.md (the discovery output: ALL panel Q&A + recommendations + synthesis (per-project count, config-driven by max_questions_per_agent x agents)) as the canonical artifact and lets artifact_formats derive .html/.xlsx from it. Regenerate from the EXISTING panel/docs where present (no need to re-ask the 90 questions). Ensure the cleanup only removes what the stage will rewrite.\n\nHARDENING (all augmentation stages): the artifact is now written as soon as the answers are final (before synthesis), then refreshed with the refined text, so a later synthesis/step failure cannot lose it (rerun cleanup deletes the previous -output.md first). _run_design_augmentations now attributes failures per stage ([Design:<stage>]). Verified: artifact survives a simulated synthesis failure.",
+  "source": "owner",
+  "status": "completed",
+  "priority": null,
+  "moscow": "Must",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [],
+  "links": {},
+  "decisions": [],
+  "follow_up": {},
+  "created_at": "2026-09-23T23:41:43.003613",
+  "updated_at": "2026-09-23T23:54:18.736793",
+  "score": 0.75,
+  "dashboard_impact": {
+    "needs_dashboard": false,
+    "reason": "Existing artifact view already lists stage artifacts; the fix is backend-only (no new UI).",
+    "dashboard_item": null,
+    "reviewed_by": "owner-review-2026-09-23",
+    "reviewed_at": "2026-09-23T23:41:43.012722"
+  },
+  "_note": "0a now writes artifacts/0a/discovery-output.md (canonical) + derives .html/.xlsx via artifact_formats; config/artifact-formats.json adds discovery -> md/html/xlsx. Regenerated for ProductForge-Dashboard (md 152KB, html 164KB, xlsx 5.5KB)."
+}

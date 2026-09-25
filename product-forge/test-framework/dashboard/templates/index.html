@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PRODUCT FORGE - MULTI-AGENT ORCHESTRATOR / PIPELINE - QA Console</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: system-ui, -apple-system, sans-serif; background: #0d1117; color: #e6edf3; }
+        .header { background: #161b22; border-bottom: 1px solid #30363d; padding: 16px 24px; display: flex; justify-content: space-between; align-items: center; }
+        .header h1 { font-size: 1.3rem; }
+        .header-user { display: flex; align-items: center; gap: 16px; }
+        .header-user span { color: #8b949e; font-size: 0.85rem; }
+        .logout-btn { padding: 6px 12px; background: #da3633; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.8rem; }
+        .container { max-width: 1400px; margin: 0 auto; padding: 24px; }
+        .nav { display: flex; gap: 8px; margin-bottom: 24px; flex-wrap: wrap; }
+        .nav-btn { padding: 8px 16px; border-radius: 6px; font-size: 0.8rem; text-decoration: none; color: #8b949e; background: #161b22; border: 1px solid #30363d; cursor: pointer; transition: all 0.2s; }
+        .nav-btn:hover, .nav-btn.active { background: #58a6ff; color: #0d1117; border-color: #58a6ff; }
+        .section { display: none; }
+        .section.active { display: block; }
+        .stats-bar { display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 24px; }
+        .stat-card { flex: 1; min-width: 150px; padding: 16px; background: #161b22; border: 1px solid #30363d; border-radius: 8px; }
+        .stat-value { font-size: 1.8rem; font-weight: 600; }
+        .stat-label { font-size: 0.75rem; color: #8b949e; text-transform: uppercase; }
+        .passed { color: #3fb950; }
+        .failed { color: #f85149; }
+        .skipped { color: #d29922; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 16px; margin-bottom: 24px; }
+        .card { background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 20px; }
+        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+        .card-title { font-size: 1rem; font-weight: 600; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #30363d; font-size: 0.85rem; }
+        th { background: #0d1117; color: #8b949e; text-transform: uppercase; font-size: 0.7rem; }
+        tr:hover { background: rgba(88, 166, 255, 0.1); }
+        .badge { padding: 3px 8px; border-radius: 12px; font-size: 0.7rem; font-weight: 600; text-transform: uppercase; }
+        .badge-critical { background: rgba(248, 81, 73, 0.2); color: #f85149; }
+        .badge-high { background: rgba(210, 153, 34, 0.2); color: #d29922; }
+        .badge-medium { background: rgba(88, 166, 255, 0.2); color: #58a6ff; }
+        .badge-low { background: rgba(63, 185, 80, 0.2); color: #3fb950; }
+        .badge-open { background: rgba(248, 81, 73, 0.2); color: #f85149; }
+        .badge-fixed { background: rgba(63, 185, 80, 0.2); color: #3fb950; }
+        .chart-container { height: 250px; position: relative; }
+        .empty { color: #8b949e; font-style: italic; padding: 20px; text-align: center; }
+        .btn { padding: 8px 16px; border-radius: 6px; border: none; cursor: pointer; font-size: 0.8rem; transition: all 0.2s; }
+        .btn-primary { background: #238636; color: white; }
+        .btn-primary:hover { background: #2ea043; }
+        .btn-secondary { background: #30363d; color: #e6edf3; }
+        .btn-secondary:hover { background: #3d444d; }
+        .feature-item { display: flex; align-items: center; gap: 12px; padding: 12px; background: #0d1117; border: 1px solid #30363d; border-radius: 8px; margin-bottom: 8px; }
+        .feature-status { width: 10px; height: 10px; border-radius: 50%; }
+        .feature-status.working { background: #3fb950; }
+        .feature-status.broken { background: #f85149; }
+        .feature-status.partial { background: #d29922; }
+        select { background: #0d1117; color: #e6edf3; border: 1px solid #30363d; border-radius: 6px; padding: 8px 12px; font-size: 0.85rem; }
+        .refresh-btn { position: fixed; bottom: 24px; right: 24px; padding: 12px 24px; background: #58a6ff; color: #0d1117; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+        .refresh-btn:hover { background: #79c0ff; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>PRODUCT FORGE — MULTI-AGENT ORCHESTRATOR / PIPELINE · QA Console</h1>
+        <div class="header-user">
+            <select id="projectSelect">
+                <option value="myworld">MyWorld</option>
+            </select>
+            <span id="currentUser">admin</span>
+            <button class="logout-btn" onclick="logout()">Logout</button>
+        </div>
+    </div>
+    
+    <div class="container">
+        <div class="nav">
+            <button class="nav-btn active" onclick="showSection('overview')">Overview</button>
+            <button class="nav-btn" onclick="showSection('defects')">Defects</button>
+            <button class="nav-btn" onclick="showSection('features')">Features</button>
+            <button class="nav-btn" onclick="showSection('rcca')">RCCA</button>
+            <button class="nav-btn" onclick="showSection('trends')">Trends</button>
+            <button class="nav-btn" onclick="showSection('agents')">Agents</button>
+            <button class="nav-btn" onclick="showSection('builds')">Builds</button>
+            <button class="nav-btn" onclick="showSection('cycles')">Cycles</button>
+            <button class="nav-btn" onclick="showSection('suites')">Suites</button>
+            <button class="nav-btn" onclick="showSection('specreview')">Spec Reviews</button>
+            <button class="nav-btn" onclick="showSection('traceability')">Traceability</button>
+            <button class="nav-btn" onclick="showSection('insights')">Insights</button>
+            <button class="nav-btn" onclick="showSection('qir')">QIR</button>
+            <button class="nav-btn" onclick="showSection('gonogo')">Go/No-Go</button>
+            <button class="nav-btn" onclick="showSection('checkins')">Check-ins</button>
+        </div>
+        
+        <div id="overview" class="section active">
+            <div class="stats-bar">
+                <div class="stat-card">
+                    <div class="stat-value" id="totalTests">0</div>
+                    <div class="stat-label">Total Tests</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value passed" id="passedTests">0</div>
+                    <div class="stat-label">Passed</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value failed" id="failedTests">0</div>
+                    <div class="stat-label">Failed</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value skipped" id="skippedTests">0</div>
+                    <div class="stat-label">Skipped</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="passRate">0%</div>
+                    <div class="stat-label">Pass Rate</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="openDefects">0</div>
+                    <div class="stat-label">Open Defects</div>
+                </div>
+            </div>
+            
+            <div class="grid">
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">Test Execution Trend</span>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="trendChart"></canvas>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">Feature Status</span>
+                    </div>
+                    <div id="featureStatus">
+                        <div class="empty">Loading...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="defects" class="section">
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">Open Defects</span>
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Title</th>
+                            <th>Severity</th>
+                            <th>Status</th>
+                            <th>Created</th>
+                        </tr>
+                    </thead>
+                    <tbody id="defectsTable">
+                        <tr><td colspan="5" class="empty">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <div id="features" class="section">
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">Feature Status</span>
+                </div>
+                <div id="featuresList">
+                    <div class="empty">Loading...</div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="rcca" class="section">
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">Root Cause Analysis Summary</span>
+                </div>
+                <div id="rccaSummary">
+                    <div class="empty">Loading...</div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="trends" class="section">
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">Test Trends (Last 30 Days)</span>
+                </div>
+                <div class="chart-container" style="height: 300px;">
+                    <canvas id="trendsChart"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <div id="agents" class="section">
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">Agent Prevention Rules</span>
+                </div>
+                <div id="agentHistory">
+                    <div class="empty">Loading...</div>
+                </div>
+            </div>
+        </div>
+
+        <div id="builds" class="section">
+            <div class="card"><div class="card-header"><span class="card-title">Builds</span></div>
+                <div id="buildsInfo"><div class="empty">Loading...</div></div></div>
+            <div class="card" style="margin-top:16px"><div class="card-header"><span class="card-title">Release Notes</span></div>
+                <pre id="releaseNotes" style="white-space:pre-wrap;font-size:0.8rem;color:#c9d1d9">Loading...</pre></div>
+        </div>
+
+        <div id="cycles" class="section">
+            <div class="card"><div class="card-header"><span class="card-title">Test Cycles</span></div>
+                <table><thead><tr><th>Cycle</th><th>Phase</th><th>Build</th><th>Status</th><th>Started</th></tr></thead>
+                <tbody id="cyclesTable"></tbody></table></div>
+        </div>
+
+        <div id="suites" class="section">
+            <div class="card"><div class="card-header"><span class="card-title">Suites (QA-owned)</span></div>
+                <div id="suitesList"><div class="empty">Loading...</div></div></div>
+        </div>
+
+        <div id="specreview" class="section">
+            <div class="card"><div class="card-header"><span class="card-title">Spec Reviews</span></div>
+                <div id="specReviewSummary"></div>
+                <table style="margin-top:12px"><thead><tr><th>Artifact</th><th>Owner</th><th>Status</th><th>Findings</th></tr></thead>
+                <tbody id="specReviewTable"></tbody></table></div>
+        </div>
+
+        <div id="traceability" class="section">
+            <div class="card"><div class="card-header"><span class="card-title">Requirement Traceability</span></div>
+                <table><thead><tr><th>Requirement</th><th>Tests</th><th>Status</th></tr></thead>
+                <tbody id="traceTable"></tbody></table></div>
+        </div>
+
+        <div id="insights" class="section">
+            <div class="card"><div class="card-header"><span class="card-title">AI Trend Insights</span></div>
+                <div id="insightsList"><div class="empty">Loading...</div></div></div>
+        </div>
+
+        <div id="qir" class="section">
+            <div class="card"><div class="card-header"><span class="card-title">Quality Index Report (QIR)</span></div>
+                <div id="qirBody"><div class="empty">Loading...</div></div></div>
+        </div>
+
+        <div id="gonogo" class="section">
+            <div class="card"><div class="card-header"><span class="card-title">QA Go/No-Go</span></div>
+                <div id="gonogoBody"><div class="empty">Loading...</div></div></div>
+        </div>
+
+        <div id="checkins" class="section">
+            <div class="card"><div class="card-header"><span class="card-title">PR Merge Checklist</span></div>
+                <div id="prGateBody"><div class="empty">Loading...</div></div></div>
+            <div class="card" style="margin-top:16px"><div class="card-header"><span class="card-title">Check-ins / Commits</span></div>
+                <table><thead><tr><th>Commit</th><th>PR</th><th>Author</th><th>Date</th><th>Change</th></tr></thead>
+                <tbody id="checkinsTable"></tbody></table></div>
+        </div>
+    </div>
+    
+    <button class="refresh-btn" onclick="loadData()">Refresh</button>
+    
+    <script>
+        let token = localStorage.getItem('auth_token');
+        let currentProject = 'myworld';
+        let trendChart = null;
+        let trendsChart = null;
+        
+        // Check authentication
+        if (!token) {
+            window.location.href = '/';
+        }
+        
+        function showSection(section) {
+            document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            document.getElementById(section).classList.add('active');
+        }
+        
+        function logout() {
+            localStorage.removeItem('auth_token');
+            window.location.href = '/';
+        }
+        
+        async function loadData() {
+            try {
+                // Load metrics
+                const metricsRes = await fetch(`/api/metrics?project=${currentProject}&token=${token}`);
+                const metrics = await metricsRes.json();
+                
+                document.getElementById('totalTests').textContent = metrics.total_tests || 0;
+                document.getElementById('passedTests').textContent = metrics.total_passed || 0;
+                document.getElementById('failedTests').textContent = metrics.total_failed || 0;
+                document.getElementById('skippedTests').textContent = metrics.total_skipped || 0;
+                document.getElementById('passRate').textContent = (metrics.overall_pass_rate || 0).toFixed(1) + '%';
+                
+                // Load defect summary
+                const defectRes = await fetch(`/api/defects/summary?project=${currentProject}&token=${token}`);
+                const defectSummary = await defectRes.json();
+                document.getElementById('openDefects').textContent = defectSummary.open || 0;
+                
+                // Load trends
+                const trendsRes = await fetch(`/api/trends?project=${currentProject}&token=${token}`);
+                const trends = await trendsRes.json();
+                renderTrendChart(trends);
+                
+                // Load features
+                const featuresRes = await fetch(`/api/features?project=${currentProject}&token=${token}`);
+                const features = await featuresRes.json();
+                renderFeatures(features);
+                
+                // Load defects
+                const defectsRes = await fetch(`/api/defects?project=${currentProject}&token=${token}`);
+                const defects = await defectsRes.json();
+                renderDefects(defects);
+                
+                // Load RCCA
+                const rccaRes = await fetch(`/api/rcca?token=${token}`);
+                const rcca = await rccaRes.json();
+                renderRCCA(rcca);
+                
+                // Load agent history
+                const agentRes = await fetch(`/api/agents/history?agent=ideation&token=${token}`);
+                const agentHistory = await agentRes.json();
+                renderAgentHistory(agentHistory);
+
+                // QA console
+                try {
+                    const projectsRes = await fetch(`/api/projects?token=${token}`);
+                    populateProjects(await projectsRes.json());
+                } catch (e) {}
+                await loadQAConsole();
+            } catch (e) {
+                console.error('Error loading data:', e);
+            }
+        }
+
+        // ── QA console ──────────────────────────────────────────
+        async function api(pathname) {
+            const sep = pathname.includes('?') ? '&' : '?';
+            const r = await fetch(`${pathname}${sep}project=${currentProject}&token=${token}`);
+            return r.json();
+        }
+        function populateProjects(projects) {
+            const sel = document.getElementById('projectSelect');
+            if (!Array.isArray(projects) || !projects.length) return;
+            const keep = sel.value;
+            sel.innerHTML = projects.map(p => `<option value="${p}">${p}</option>`).join('');
+            if (projects.includes(keep)) sel.value = keep;
+            else if (projects.includes(currentProject)) sel.value = currentProject;
+        }
+        async function loadQAConsole() {
+            const [builds, cycles, spec, trace, insights, qir, gng, notes] = await Promise.all([
+                api('/api/builds'), api('/api/cycles'), api('/api/spec-review'),
+                api('/api/traceability'), api('/api/insights'), api('/api/qir'),
+                api('/api/gonogo'), api('/api/release-notes')
+            ]);
+            renderBuilds(builds, notes);
+            renderCycles(cycles);
+            renderSuites(cycles.suites || {});
+            renderSpecReview(spec);
+            renderTraceability(trace);
+            renderInsights(insights);
+            renderQIR(qir);
+            renderGoNoGo(gng);
+            try {
+                const [ck, gate] = await Promise.all([api('/api/checkins'), api('/api/pr-gate')]);
+                renderCheckins(ck, gate);
+            } catch (e) {}
+        }
+        function ragBadge(r) {
+            const c = {green:'badge-low', yellow:'badge-high', red:'badge-critical'}[r] || 'badge-medium';
+            return `<span class="badge ${c}">${r || 'n/a'}</span>`;
+        }
+        function renderBuilds(b, notes) {
+            const el = document.getElementById('buildsInfo');
+            const l = b.latest || {};
+            el.innerHTML = l.build_id ? `<p><strong>Latest:</strong> ${l.build_id} (v${l.version}, build ${l.build_number})</p>
+                <p><strong>Trigger:</strong> ${l.trigger || ''} &middot; <strong>Commit:</strong> ${l.commit || 'n/a'}</p>
+                <p><strong>Artifacts:</strong> ${(l.artifacts || []).map(a => a.name).join(', ') || 'none'}</p>` +
+                `<table style="margin-top:12px"><thead><tr><th>Build</th><th>Version</th><th>#</th><th>Trigger</th><th>Created</th></tr></thead><tbody>` +
+                (b.history || []).slice().reverse().map(h => `<tr><td>${h.build_id}</td><td>${h.version}</td><td>${h.build_number}</td><td>${h.trigger}</td><td>${(h.created_at||'').slice(0,19)}</td></tr>`).join('') +
+                `</tbody></table>` : '<div class="empty">No builds</div>';
+            document.getElementById('releaseNotes').textContent = (notes && notes.notes) || 'No release notes';
+        }
+        function renderCycles(c) {
+            document.getElementById('cyclesTable').innerHTML = (c.cycles || []).length
+                ? c.cycles.slice().reverse().map(x => `<tr><td>${x.cycle_id}</td><td>${x.phase}</td><td>${x.build_version||''}</td>
+                    <td>${ragBadge(x.status==='passed'?'green':(x.status==='failed'?'red':'yellow'))}</td>
+                    <td>${(x.started_at||'').slice(0,19)}</td></tr>`).join('')
+                : '<tr><td colspan="5" class="empty">No cycles</td></tr>';
+        }
+        function renderSuites(suites) {
+            const el = document.getElementById('suitesList');
+            const keys = Object.keys(suites);
+            el.innerHTML = keys.length ? keys.map(k => `<div class="feature-item">
+                <strong style="min-width:90px">${k}</strong>
+                <span style="font-size:0.8rem;color:#8b949e">${(suites[k].categories||[]).join(', ')}</span></div>`).join('')
+                : '<div class="empty">No suites defined</div>';
+        }
+        function renderSpecReview(spec) {
+            const s = spec.summary || {};
+            document.getElementById('specReviewSummary').innerHTML =
+                `<p>blocking=${s.blocking_open||0} optional=${s.optional_open||0} resolved=${s.resolved||0} waived=${s.waived||0} ${ragBadge(s.rag)}</p>`;
+            const rows = (spec.reviews || []).map(r => {
+                const blk = (r.findings||[]).filter(f=>f.class==='BLOCKING').length;
+                const opt = (r.findings||[]).filter(f=>f.class!=='BLOCKING').length;
+                return `<tr><td>${r.artifact}</td><td>${r.owner}</td><td>${r.status}</td><td>${blk} blocking / ${opt} optional</td></tr>`;
+            }).join('');
+            document.getElementById('specReviewTable').innerHTML = rows || '<tr><td colspan="4" class="empty">No spec review</td></tr>';
+        }
+        function renderTraceability(trace) {
+            const rows = (Array.isArray(trace) ? trace : (trace.entries || [])).map(t =>
+                `<tr><td>${t.requirement_id || t.id || ''}</td><td>${(t.tests||t.test_ids||[]).join(', ')}</td><td>${t.status||''}</td></tr>`).join('');
+            document.getElementById('traceTable').innerHTML = rows || '<tr><td colspan="3" class="empty">No traceability data</td></tr>';
+        }
+        function renderInsights(ins) {
+            const list = ins.insights || [];
+            document.getElementById('insightsList').innerHTML = list.length ? list.map(i =>
+                `<div class="feature-item" style="flex-direction:column;align-items:flex-start">
+                    <div>${ragBadge(i.severity==='high'?'red':(i.severity==='medium'?'yellow':'green'))}
+                    <strong>${i.type}</strong> &middot; <span style="color:#8b949e">${JSON.stringify(i.scope)}</span></div>
+                    <div style="font-size:0.8rem;margin-top:4px">${i.recommended_action||''}</div></div>`).join('')
+                : '<div class="empty">No insights</div>';
+        }
+        function renderQIR(q) {
+            const el = document.getElementById('qirBody');
+            if (!q || q.number === undefined) { el.innerHTML = '<div class="empty">No QIR computed</div>'; return; }
+            el.innerHTML = `<div class="stats-bar"><div class="stat-card">
+                <div class="stat-value ${q.band==='green'?'passed':(q.band==='red'?'failed':'skipped')}">${q.number}</div>
+                <div class="stat-label">QIR (${q.band})</div></div>
+                <div class="stat-card"><div class="stat-value">${(q.trend||{}).delta ?? 0}</div>
+                <div class="stat-label">Trend (${(q.trend||{}).direction||'flat'})</div></div></div>` +
+                `<table><thead><tr><th>Characteristic</th><th>Weight</th><th>Score</th><th>Evidence</th></tr></thead><tbody>` +
+                (q.profile||[]).map(p => `<tr><td>${p.characteristic}</td><td>${p.weight}</td><td>${p.score}</td><td style="color:#8b949e">${p.evidence||''}</td></tr>`).join('') +
+                `</tbody></table>`;
+        }
+        function renderCheckins(ck, gate) {
+            const gEl = document.getElementById('prGateBody');
+            if (gate && gate.evaluation) {
+                const items = gate.evaluation.items || {};
+                gEl.innerHTML = `<p><b>${gate.can_merge ? 'MERGE ALLOWED' : 'MERGE BLOCKED'}</b> — ${gate.reason||''}</p>` +
+                    `<table><thead><tr><th>Checklist item</th><th>Status</th><th>Detail</th></tr></thead><tbody>` +
+                    Object.entries(items).map(([k,v]) => {
+                        const cls = v.status==='pass'?'green':(v.status==='fail'?'red':'yellow');
+                        return `<tr><td>${k}</td><td class='${cls}'>${v.status}</td><td>${v.detail||''}</td></tr>`;
+                    }).join('') + `</tbody></table>` +
+                    (gate.override && gate.override.approved ? '<p>HIL override approved.</p>' : '');
+            } else { gEl.innerHTML = '<div class="empty">No PR gate data</div>'; }
+            const rows = (ck && ck.checkins) || [];
+            document.getElementById('checkinsTable').innerHTML = rows.length
+                ? rows.map(c => `<tr><td>${c.sha}</td><td>${c.pr||''}</td><td>${c.author}</td><td>${(c.date||'').slice(0,10)}</td><td>${c.brief||''}</td></tr>`).join('')
+                : `<tr><td colspan="5" class="empty">${(ck&&ck.note)||'No check-ins'}</td></tr>`;
+        }
+
+        function renderGoNoGo(g) {
+            const el = document.getElementById('gonogoBody');
+            if (!g || !g.decision) { el.innerHTML = '<div class="empty">No Go/No-Go computed</div>'; return; }
+            el.innerHTML = `<h3>Decision: ${g.decision} ${ragBadge((g.qir||{}).band)} ${g.qir && g.qir.number!==undefined ? '(QIR '+g.qir.number+')' : ''}</h3>` +
+                `<table style="margin-top:12px"><thead><tr><th>Dimension</th><th>RAG</th><th>Detail</th></tr></thead><tbody>` +
+                (g.matrix||[]).map(r => `<tr><td>${r.dimension}</td><td>${ragBadge(r.rag)}</td><td style="color:#8b949e">${r.detail}</td></tr>`).join('') +
+                `</tbody></table>`;
+        }
+        
+        function renderTrendChart(trends) {
+            const ctx = document.getElementById('trendChart').getContext('2d');
+            
+            if (trendChart) {
+                trendChart.destroy();
+            }
+            
+            const labels = trends.map(t => new Date(t.date).toLocaleDateString());
+            const passed = trends.map(t => t.passed || 0);
+            const failed = trends.map(t => t.failed || 0);
+            
+            trendChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels,
+                    datasets: [
+                        { label: 'Passed', data: passed, borderColor: '#3fb950', backgroundColor: 'rgba(63, 185, 80, 0.1)', fill: true },
+                        { label: 'Failed', data: failed, borderColor: '#f85149', backgroundColor: 'rgba(248, 81, 73, 0.1)', fill: true }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { labels: { color: '#8b949e' } } },
+                    scales: {
+                        x: { ticks: { color: '#8b949e' }, grid: { color: '#30363d' } },
+                        y: { ticks: { color: '#8b949e' }, grid: { color: '#30363d' } }
+                    }
+                }
+            });
+        }
+        
+        function renderFeatures(features) {
+            const container = document.getElementById('featuresList');
+            const statusContainer = document.getElementById('featureStatus');
+            
+            if (!features.length) {
+                container.innerHTML = '<div class="empty">No features tracked</div>';
+                statusContainer.innerHTML = '<div class="empty">No features</div>';
+                return;
+            }
+            
+            container.innerHTML = features.map(f => `
+                <div class="feature-item">
+                    <div class="feature-status ${f.status}"></div>
+                    <div style="flex: 1;">
+                        <strong>${f.feature_name}</strong>
+                        <p style="font-size: 0.75rem; color: #8b949e;">Coverage: ${f.test_coverage}%</p>
+                    </div>
+                </div>
+            `).join('');
+            
+            const working = features.filter(f => f.status === 'working').length;
+            const broken = features.filter(f => f.status === 'broken').length;
+            const partial = features.filter(f => f.status === 'partial').length;
+            
+            statusContainer.innerHTML = `
+                <p><span class="passed">Working: ${working}</span> | <span class="failed">Broken: ${broken}</span> | <span class="skipped">Partial: ${partial}</span></p>
+            `;
+        }
+        
+        function renderDefects(defects) {
+            const tbody = document.getElementById('defectsTable');
+            
+            if (!defects.length) {
+                tbody.innerHTML = '<tr><td colspan="5" class="empty">No open defects</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = defects.map(d => `
+                <tr>
+                    <td>${d.defect_id}</td>
+                    <td>${d.title}</td>
+                    <td><span class="badge badge-${d.severity}">${d.severity}</span></td>
+                    <td><span class="badge badge-${d.status}">${d.status}</span></td>
+                    <td>${new Date(d.created_at).toLocaleDateString()}</td>
+                </tr>
+            `).join('');
+        }
+        
+        function renderRCCA(rcca) {
+            const container = document.getElementById('rccaSummary');
+            
+            if (!rcca.total_reports) {
+                container.innerHTML = '<div class="empty">No RCCA reports</div>';
+                return;
+            }
+            
+            container.innerHTML = `
+                <p><strong>Total Reports:</strong> ${rcca.total_reports}</p>
+                <p><strong>By Stage:</strong></p>
+                <ul style="margin-left: 20px; margin-top: 8px;">
+                    ${Object.entries(rcca.by_stage || {}).map(([stage, count]) => 
+                        `<li>${stage}: ${count}</li>`
+                    ).join('')}
+                </ul>
+            `;
+        }
+        
+        function renderAgentHistory(history) {
+            const container = document.getElementById('agentHistory');
+            
+            if (!history || !history.length) {
+                container.innerHTML = '<div class="empty">No prevention rules added</div>';
+                return;
+            }
+            
+            container.innerHTML = history.map(h => `
+                <div style="padding: 12px; background: #0d1117; border: 1px solid #30363d; border-radius: 8px; margin-bottom: 8px;">
+                    <p><strong>Defect:</strong> ${h.defect_id || 'N/A'}</p>
+                    <p><strong>Rule:</strong> ${h.rule || 'N/A'}</p>
+                    <p style="font-size: 0.75rem; color: #8b949e;"><strong>Date:</strong> ${h.date || 'N/A'}</p>
+                </div>
+            `).join('');
+        }
+        
+        // Project change handler
+        document.getElementById('projectSelect').addEventListener('change', (e) => {
+            currentProject = e.target.value;
+            loadData();
+        });
+        
+        // Project from URL (?project=...)
+        const urlProject = new URLSearchParams(window.location.search).get('project');
+        if (urlProject) {
+            currentProject = urlProject;
+            document.getElementById('projectSelect').value = urlProject;
+        }
+
+        // Load data on page load
+        loadData();
+        
+        // Auto-refresh every 30 seconds
+        setInterval(loadData, 30000);
+    </script>
+</body>
+</html>

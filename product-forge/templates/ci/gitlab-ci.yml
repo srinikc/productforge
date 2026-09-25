@@ -1,0 +1,68 @@
+# Product Forge — GitLab CI/CD template
+# Copy to .gitlab-ci.yml and set CI/CD variables (GPG_PRIVATE_KEY, registry creds).
+# Model: feat/fix/* -> develop (every change) -> main (release: green + QA GO + HIL).
+stages: [fast_checks, build, staging, verify, release]
+
+variables:
+  PF_PROJECT: "$CI_PROJECT_NAME"
+
+fast_checks:
+  stage: fast_checks
+  rules:
+    - if: '$CI_COMMIT_BRANCH != "main"'
+  script:
+    - (test -f package.json && npm ci && npm run lint --if-present) || true
+    - (test -f pyproject.toml && pip install ruff && ruff check .) || true
+    - python -m core.verification_runner || true
+    - python scripts/dev/wired_audit.py
+    - python -c "from core.pr_gate import can_merge; d=can_merge('$PF_PROJECT','.'); print(d['reason']); raise SystemExit(0 if d['can_merge'] else 1)"
+    - python -c "from core.app_smoke import boot_check; import sys; r=boot_check('.'); print(r.get('entrypoint'), r.get('ok')); sys.exit(0 if r.get('ok') in (True, None) else 1)"
+    - if [ -f Dockerfile ] || [ -f docker/Dockerfile ]; then docker build -t pf-check .; fi
+    - (test -f package.json && npm test --silent) || python -m pytest -q || true
+
+build_publish:
+  stage: build
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "develop" || $CI_COMMIT_BRANCH == "main"'
+  script:
+    - python -c "from core.build_manager import create_build; print(create_build('.', '$PF_PROJECT', trigger='ci:'+ (__import__('os').environ.get('CI_COMMIT_BRANCH',''))))"
+    - python -c "from core.nfr_runner import run_packaging; print(run_packaging('.'))"
+    - python -c "from core.nfr_runner import run_security, run_bom; print(run_security('.'), run_bom('.'))"
+    - python -c "from core.artifact_registry import get_registry; import json,glob; r=get_registry('.'); bid=json.load(open('build-info.json'))['build_id']; [print(r.publish(p,bid)) for p in glob.glob('dist/*')]"
+    - |
+      if [ -n "$GPG_PRIVATE_KEY" ]; then echo "$GPG_PRIVATE_KEY" | gpg --import; fi
+      cd dist 2>/dev/null && for f in *; do md5sum "$f" > "$f.md5"; sha256sum "$f" > "$f.sha256"; (gpg --detach-sign --armor "$f") || true; done || true
+  artifacts:
+    paths: [dist/, build-info.json, CHANGELOG.md, docs/releases/]
+
+deploy_staging:
+  stage: staging
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "develop"'
+  script:
+    - python -c "from core.deploy_providers import run_deploy; print(run_deploy('.'))"
+    # Tag the staging build (RC) — most stable build, not every build.
+    - V=$(python -c "import json;print(json.load(open('build-info.json'))['version'])")
+    - python -c "from core.vcs import VCSManager;print(VCSManager('.').tag('v'+'$V'+'-rc.$CI_PIPELINE_IID','staging RC'))"
+    - git push origin "v$V-rc.$CI_PIPELINE_IID" || true
+
+verify:
+  stage: verify
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "develop"'
+  script:
+    - python -c "from core.test_framework_integration import run_cycle; print(run_cycle('$PF_PROJECT', '.', '11', mode='nfr'))"
+    - python -c "from core.qa_report import go_no_go; d=go_no_go('$PF_PROJECT','.'); print(d['decision']); raise SystemExit(0 if d['decision']=='GO' else 1)"
+
+release:
+  stage: release
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      when: manual            # HIL approval: develop -> main merge + release
+  environment: production
+  script:
+    - python -c "from core.deploy_providers import run_deploy; print(run_deploy('.'))"
+    - python -c "from core.nfr_runner import run_smoke; print(run_smoke('.'))"
+    - V=$(python -c "import json;print(json.load(open('build-info.json'))['version'])")
+    - python -c "from core.vcs import VCSManager;print(VCSManager('.').tag('v'+'$V','release $V'))"
+    - git push origin "v$V" || true

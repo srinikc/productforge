@@ -1,0 +1,37 @@
+{
+  "id": "BI-0132",
+  "type": "feature",
+  "scope": "project",
+  "project": "ProductForge-Dashboard",
+  "origin": "intake",
+  "external_id": "dash:agent-overlays-ui",
+  "label": "ProductForge-Dashboard Backlog 136",
+  "title": "Agents window UI: edit agent card (instructions + per-agent MODEL via model browser); stop agent -> re-run with updated model (whole pipeline)",
+  "body": "## Problem / why\nThe per-agent model is resolved DYNAMICALLY (agent card / tier) with no way to see or change it\nfrom the UI. Operators cannot try a different model for one agent without editing backend config,\nand cannot re-run just that agent afterwards. The dashboard Agents window must let a human edit an\nagent card's model (and instructions), STOP the agent, then RE-RUN with the updated model.\n\n## Goal & value\n- See and control the model each agent actually runs.\n- Browse/search ALL models by capability / behaviour / reasoning / modality / cost / context.\n- Change one agent's model at runtime and re-run only what is affected (no full rebuild).\n\n## In scope\n- Agents window listing every agent/stage with its current RESOLVED model + source (override/tier/default).\n- Per-agent model override (edit the agent card), PERSISTED.\n- Model browser: free-text search + facets (capability, reasoning, modality in/out, behaviour, cost, context),\n  with per-agent fit shown.\n- Instruction overlay edit (append/replace; project + global).\n- Stop agent -> apply change -> re-run agent + affected subtree (incremental/amend) with a change note.\n- Show BEFORE vs AFTER (model + overlay) and which downstream agents will amend.\n\n## Out of scope\n- Editing the global model catalog / pricing (owner: BI-0173).\n- Auto model-selection policy (owner: tier_builder, BI-0174).\n- Per-request multi-model routing within a single agent.\n\n## User flow (dashboard)\n1. Agents window -> table: agent, stage, resolved model, model source, status.\n2. Click agent -> drawer: instruction-overlay editor + current model + \"Change model\".\n3. Change model -> model browser (search + facets) -> select -> preview fit vs agent needs -> Save override.\n4. Stop the agent (per-agent control, BI-0046). Apply -> Re-run (incremental/amend) with a change note.\n5. Show before/after (model + overlay) + downstream agents affected.\n\n## Backend flow (consumed, by id)\n- Agent+model SSOT (BI-0121): agent->model resolution.\n- Model catalog (BI-0173): capabilities/modalities/reasoning/pricing/context for search + display.\n- Model capability fit (BI-0077): validate the chosen model vs the agent's requirements.\n- Per-agent control start/stop/pause/resume (BI-0046): stop + re-run.\n- Incremental/amend mode (BI-0167): re-run the subtree without a rebuild.\n- Overlays: core/prompt_overlays.py (existing store).\n\n## Acceptance criteria (testable)\n- Given an agent resolved to model M, when I set an override to M', then the window shows M' with\n  source=override AND it persists across restart.\n- Given a STOPPED agent with an override, when I re-run, then ONLY that agent + affected subtree run,\n  and the downstream list is shown.\n- Given the model browser, when I filter (modality=image / reasoning=true / max_cost), then only\n  matching models appear, each showing context window + fit status.\n\n## Data model (what is stored, where, owner)\n- Per-agent MODEL OVERRIDE: NOT PRESENT today. Resolution is `core/orchestrator/model_router.py:get_agent_model_config` = stage.model > parent-stage > agent.model > default_model (from the tier config). A RUNTIME override needs a NEW persisted store + precedence `override > stage > agent > default`; single writer = the owning backend module.\n- Instruction overlay: core/prompt_overlays.py store (existing).\n- Re-run scope: derived from agent deps (no new store).\n\n## API contract (endpoints + payloads)\n- `GET  /api/agents` -> [{agent, stage, model, model_source, status}]\n- `GET  /api/models?q=&capability=&reasoning=&modality=&max_cost=&min_context=`\n  -> [{id, provider, context_window, modalities, reasoning, pricing, fit}]\n- `GET  /api/agents/{agent}/model` -> {model, source}\n- `PUT  /api/agents/{agent}/model` -> {model, source}   (persists the override)\n- `POST /api/agents/{agent}/stop`\n- `POST /api/agents/{agent}/rerun` {mode: amend|full, note}\n- `GET  /api/agents/{agent}/rerun-plan` -> downstream agents affected\n\n## UX (screens / elements / states)\n- Table + drawer; facet chips; sticky search; model card with badges (reasoning, tools, modalities,\n  cost/token, context window); before/after DIFF; explicit confirm for stop + re-run.\n\n## Edge cases & errors\n- Chosen model cannot fit the agent needs -> warn but ALLOW (explicit override).\n- Agent is running -> must stop first; block editing while running.\n- Override removed -> fall back to tier/default.\n- Re-run with no changes -> no-op.\n- Model not in catalog -> allow manual entry, flag as unverified.\n\n## Dependencies & links\n- paired_with: product_forge:BI-0167\n- backend_capability: BI-0173 (catalog), BI-0077 (fit), BI-0046 (control), BI-0121 (SSOT)\n- Absorbs former BI-0003 (Agent orchestration controls).\n\n## Open questions\n- CONFIRMED: no per-agent model override layer exists (model_router.get_agent_model_config reads tier config only). Q: add a small backend item for the override store + precedence (`override > stage > agent > default`)?\n- Is \"stop agent\" per-AGENT or per-STAGE granularity?\n- Should overrides be project-scoped or global?\n\n## Verification / test plan\n- API contract tests for each endpoint (incl. persistence of the override).\n- E2E: change model -> stop -> re-run -> assert the artifact is re-generated and ONLY the subtree ran.\n- Persistence test: override survives restart; removing it falls back to tier/default.\n",
+  "source": "owner",
+  "status": "new",
+  "priority": null,
+  "moscow": "Should",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [],
+  "links": {
+    "paired_with": [
+      "product_forge:BI-0167",
+      "product_forge:BI-0178"
+    ],
+    "backend_capability": [
+      "per-agent model override (agent card / tier)",
+      "model catalog search (BI-0173)",
+      "model capability fit (BI-0077)",
+      "per-agent control start/stop/pause/resume (BI-0046)",
+      "agent+model SSOT (BI-0121)"
+    ]
+  },
+  "decisions": [],
+  "follow_up": {},
+  "created_at": "2026-09-24T15:57:08.052829",
+  "updated_at": "2026-09-24T21:27:28.648813",
+  "score": 0.75
+}

@@ -1,0 +1,42 @@
+{
+  "id": "BI-0049",
+  "type": "tech-debt",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "pipeline",
+  "external_id": "forge:api-surface-reconcile",
+  "label": "PF Backlog 49",
+  "title": "Reconcile backend API surface: register WS route, mount/retire intake_api, decide git_manager",
+  "body": "Code audit findings needing backend resolution (backend-first):\n1) WEB SOCKETS: core/websocket_manager.py defines ws_manager/WSEventType/setup_ws_events but NO live WS route is registered (dashboard/server.py only lists event types; stdlib server can't serve WS). The dashboard MVP needs live status/logs (P12) - register a real WS/SSE endpoint.\n2) INTAKE API: core/intake_api.py (FastAPI router) is marked DEPRECATED and is NOT mounted anywhere (no include_router); intake runs via dashboard/server.py + pipeline_dashboard/api/router.py handlers. Decide: mount it behind the new dashboard API or retire it and keep the router handlers.\n3) GIT: two paths - core/vcs.py (wired, orchestrator-owned, MVP) vs core/git_manager.py (worktrees; reachable only via the capability probe). Decide whether worktrees are needed or git_manager retires.\n4) AUDIT SEMANTICS: invocation_audit/wired_audit count *reachability* (string dispatch + allowlist), so a module only invoked by the extended-capabilities probe passes as RUNTIME. Add an 'exercised on main path' distinction so probe-only modules (e.g. memory_api) are flagged for wiring review.",
+  "source": "code-audit",
+  "status": "completed",
+  "priority": null,
+  "moscow": "Must",
+  "value": 5,
+  "effort": 3,
+  "risk": 2,
+  "deps": [],
+  "links": {},
+  "decisions": [
+    {
+      "at": "2026-09-22T01:49:59.098684",
+      "action": "triage",
+      "note": "[P1] Foundational: reconcile API surface (WS route, intake_api mount/retire, git_manager, audit semantics)."
+    }
+  ],
+  "follow_up": {},
+  "created_at": "2026-09-22T01:28:07.566600",
+  "updated_at": "2026-09-23T01:09:02.643485",
+  "score": 1.25,
+  "tags": [
+    "Dash"
+  ],
+  "_note": "verified: dashboard/api/app.py route surface",
+  "dashboard_impact": {
+    "needs_dashboard": false,
+    "reason": "backend-internal; no user-facing surface",
+    "dashboard_item": null,
+    "reviewed_by": "owner-review-2026-09-22",
+    "reviewed_at": "2026-09-22T20:41:02.114212"
+  }
+}

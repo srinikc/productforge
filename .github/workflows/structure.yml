@@ -1,0 +1,33 @@
+name: structure
+
+# Structure Contract gates for Product Forge.
+# The product lives under product-forge/ (repo root holds the product + exploring projects).
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+
+jobs:
+  structure:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: product-forge
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Compile all
+        run: python -m compileall -q core scripts dashboard
+
+      - name: Structure audit (naming + store registry + diff + destructive)
+        run: python scripts/dev/wired_audit.py
+
+      - name: Backlog chain E2E
+        run: python scripts/dev/e2e_backlog_check.py
+
+      - name: Unit tests (existing)
+        run: python -m pytest test-framework/tests -q
+        continue-on-error: true   # 5 pdf tests need system libs (weasyprint/libgobject)

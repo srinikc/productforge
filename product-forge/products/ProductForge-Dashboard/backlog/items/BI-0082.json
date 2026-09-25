@@ -1,0 +1,32 @@
+{
+  "id": "BI-0082",
+  "type": "feature",
+  "scope": "project",
+  "project": "ProductForge-Dashboard",
+  "origin": "intake",
+  "external_id": "dash:capability-reciprocity",
+  "label": "ProductForge-Dashboard Backlog 82",
+  "title": "Review backend<->dashboard capability reciprocity (record a dashboard_impact decision; dashboard item only when needed)",
+  "body": "STANDING RULE (owner refinement): the reciprocity rule is a REVIEW requirement, NOT a forced 1:1 mapping.\n\nEvery backend-scope work item MUST be REVIEWED for dashboard presence and the DECISION recorded in item.dashboard_impact:\n  dashboard_impact = {\n    \"needs_dashboard\": true|false,\n    \"reason\": \"<why>\",\n    \"dashboard_item\": \"<scope-qualified BI ref>\"|null,   # required ONLY when needs_dashboard=true\n    \"reviewed_by\": \"<agent>\",\n    \"reviewed_at\": \"<iso>\"\n  }\n\n- needs_dashboard=false with a reason is perfectly valid (no dashboard item required).\n- Only when needs_dashboard=true is a dashboard item required, and it MUST be linked reciprocally via the canonical cross-link.\n- Nothing is silently missed (every backend change is reviewed), but we do NOT force a dashboard UI/page for every backend change.\n\nCANONICAL CROSS-LINK (core/backlog.py):\n  links.paired_with        scope-qualified ref of the counterpart item, RECIPROCAL on both sides (backend item <-> dashboard item).\n  links.backend_capability dashboard -> backend capability descriptor(s): module:core.x, route:POST /api/v1/..., stage:1a, store:foo.json.\n  links.capability_ref     item-ref bucket; read-compat alias folding the legacy backend_item / backend_ref / dashboard_item / dashboard_ref keys (old keys still parsed).\n\nNON-FATAL VALIDATOR: core.backlog.reciprocity_warnings() flags (a) a backend-scope item missing a dashboard_impact decision,\n(b) a dashboard item claiming a backend capability with no reciprocal link, (c) needs_dashboard=true with a missing/unresolvable/\nnon-reciprocal dashboard_item. Surfaced as advisories by scripts/dev/wired_audit.py (warnings only, never fatal).\n\nSUPERSEDES the earlier 'no orphan capabilities' framing that forced every backend capability to have a dashboard item.",
+  "source": "audit",
+  "status": "new",
+  "priority": null,
+  "moscow": "Must",
+  "value": 4,
+  "effort": 3,
+  "risk": 2,
+  "deps": [],
+  "links": {},
+  "decisions": [
+    {
+      "at": "2026-09-22T20:08:41.654812",
+      "action": "rule-refined",
+      "note": "Owner refinement: reciprocity = a recorded dashboard_impact REVIEW decision, not a forced 1:1 dashboard item."
+    }
+  ],
+  "follow_up": {},
+  "created_at": "2026-09-22T19:49:45.522701",
+  "updated_at": "2026-09-22T20:08:41.655790",
+  "score": 1.0,
+  "_note": "reframed to REVIEW model (dashboard_impact decision; dashboard item only when needed)"
+}

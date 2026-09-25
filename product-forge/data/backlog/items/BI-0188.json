@@ -1,0 +1,35 @@
+{
+  "id": "BI-0188",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "intake",
+  "external_id": "backend:generator-model-adapters",
+  "label": "PF Backlog 197",
+  "title": "Backend: generator-model adapters (open-weights image/video/audio)",
+  "body": "## Problem / why\nNo model in our catalog OUTPUTS media, so image/video/audio generation is impossible.\n\n## Goal\nRegister generator models + provider adapters (local open-weights and/or APIs) and expose them to the\nmodality layer (core/modality.py generators_needed()).\n\n## In scope\n- Adapters for open-weights first (Wan 2.2 Apache-2.0, FLUX.1-schnell Apache-2.0, Kokoro/Whisper, ACE-Step).\n- License metadata per generator (permissive vs restricted) so distribution is safe.\n\n## Acceptance criteria\n- generators_needed() reports 0 for a supported modality once its generator is registered.\n- Each generator carries license info and is only offered when permitted.\n\n## Verification / test plan\n- Generate one image + one audio clip through the adapter; license field present.\n\n## Added — provider-agnostic generator infra (from docs/multimodal_orchestration.md §10–16)\n- Support ALL provider kinds (not text-only): chat/vision/image-gen/video-gen/tts/stt/music/3d/embedding/timeseries/rerank.\n- Two provider shapes: DIRECT (OpenAI Images, Google Imagen/Veo, ElevenLabs, Stability, Runway, Meshy/Tripo)\n  and AGGREGATORS (fal.ai, Replicate, kie.ai - one key/base URL, many models).\n- Adapter contract: submit(kind,payload)->job, status(job), fetch(job)->artifact, cancel, cost(job).\n  Handle ASYNC jobs (video/music/3d: submit->poll/webhook->fetch) vs sync (image/tts/chat).\n- Include FREE (self-host open-weights: Wan 2.2, FLUX.1-schnell, Kokoro, Whisper, MusicGen/ACE-Step)\n  AND paid providers; carry license + open_weights + free flags.\n- Catalog entries need: kind, provider_kind, billing_unit, unit_price, free, open_weights, license.\n\n## Acceptance criteria (add)\n- An agent can call a non-text kind end-to-end through the adapter interface (image+audio at least).\n- Aggregator provider usable with one key; a self-host provider usable with no key.\n",
+  "source": "generic",
+  "status": "new",
+  "priority": null,
+  "moscow": "Should",
+  "value": 4,
+  "effort": 4,
+  "risk": 3,
+  "deps": [],
+  "links": {
+    "epic": "product_forge:BI-0185"
+  },
+  "decisions": [],
+  "follow_up": {},
+  "created_at": "2026-09-24T23:39:15.610685",
+  "updated_at": "2026-09-25T10:50:23.223573",
+  "score": 0.5,
+  "dashboard_impact": {
+    "needs_dashboard": false,
+    "reason": "Backend capability; consumed via API, no UI change.",
+    "dashboard_item": null,
+    "reviewed_by": "agent",
+    "reviewed_at": "2026-09-24T23:39:15.617120"
+  },
+  "_note": "dashboard_impact reviewed"
+}

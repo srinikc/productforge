@@ -1,0 +1,173 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://product-forge.dev/schemas/agent-contract.v1.schema.json",
+  "title": "Agent Contract",
+  "description": "Schema for .opencode/agent/<agent_id>.md files. Defines the common structure that all agents must follow, plus whitelisted agent-specific sections.",
+  "type": "object",
+  "required": ["frontmatter", "sections"],
+  "additionalProperties": false,
+  "properties": {
+    "frontmatter": {
+      "type": "object",
+      "description": "YAML frontmatter at the top of the .md file",
+      "required": ["description", "mode", "model", "agent_id", "version", "spec_version"],
+      "additionalProperties": false,
+      "properties": {
+        "description": {
+          "type": "string",
+          "minLength": 10,
+          "maxLength": 200,
+          "description": "One-line description of what this agent does"
+        },
+        "mode": {
+          "type": "string",
+          "enum": ["subagent", "primary"],
+          "description": "Agent mode: subagent (invoked by orchestrator) or primary (orchestrator itself)"
+        },
+        "model": {
+          "type": "string",
+          "description": "Model ID to use (e.g., 'opencode/mimo-v2.5-free')"
+        },
+        "agent_id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]{0,62}$",
+          "description": "Unique agent identifier (kebab-case)"
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
+          "description": "Agent version (semver)"
+        },
+        "spec_version": {
+          "type": "string",
+          "const": "1.0",
+          "description": "Agent contract spec version this agent conforms to"
+        },
+        "permission": {
+          "type": "object",
+          "description": "Agent permissions",
+          "properties": {
+            "bash": { "type": "string", "enum": ["deny", "allow"] },
+            "edit": { "type": "string", "enum": ["deny", "allow"] },
+            "web": { "type": "string", "enum": ["deny", "allow"] },
+            "skill": { "type": "object", "additionalProperties": { "type": "string", "enum": ["allow", "deny"] } }
+          }
+        }
+      }
+    },
+    "title": {
+      "type": "string",
+      "description": "Agent title (H1 heading)"
+    },
+    "sections": {
+      "type": "array",
+      "description": "Ordered list of sections in the agent .md file",
+      "items": { "$ref": "#/definitions/Section" },
+      "minItems": 9,
+      "maxItems": 30
+    }
+  },
+  "definitions": {
+    "Section": {
+      "type": "object",
+      "required": ["number", "title", "level", "required"],
+      "additionalProperties": false,
+      "properties": {
+        "number": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 30,
+          "description": "Section number (0-30)"
+        },
+        "title": {
+          "type": "string",
+          "description": "Section title (e.g., 'ROLE', 'INPUTS')"
+        },
+        "level": {
+          "type": "integer",
+          "enum": [2, 3],
+          "description": "Heading level (## = 2, ### = 3)"
+        },
+        "required": {
+          "type": "boolean",
+          "description": "Whether this section is required (sections 0-8 are required, 9+ are optional)"
+        },
+        "agent_specific": {
+          "type": "boolean",
+          "description": "Whether this is a whitelisted agent-specific section (e.g., STAGE FLOWS for orchestrator)"
+        },
+        "content": {
+          "type": "string",
+          "description": "Section content (markdown)"
+        },
+        "rules": {
+          "type": "array",
+          "description": "Extracted rules from this section (for sections 4.* and 7)",
+          "items": { "$ref": "#/definitions/Rule" }
+        },
+        "checks": {
+          "type": "array",
+          "description": "Extracted quality checks from this section (for section 7)",
+          "items": { "$ref": "#/definitions/Check" }
+        }
+      }
+    },
+    "Rule": {
+      "type": "object",
+      "required": ["text", "type", "severity"],
+      "additionalProperties": false,
+      "properties": {
+        "text": { "type": "string", "description": "Rule text" },
+        "type": { "type": "string", "enum": ["do", "dont", "conditional"], "description": "Rule type" },
+        "severity": { "type": "string", "enum": ["critical", "high", "medium", "low", "info"], "description": "Rule severity" },
+        "verification": { "type": "string", "enum": ["auto", "llm", "human"], "description": "How to verify" },
+        "condition": { "type": "string", "description": "For conditional rules, the condition text" }
+      }
+    },
+    "Check": {
+      "type": "object",
+      "required": ["text", "verify"],
+      "additionalProperties": false,
+      "properties": {
+        "text": { "type": "string" },
+        "verify": { "type": "string", "description": "How to verify this check" },
+        "severity": { "type": "string", "enum": ["critical", "high", "medium", "low", "info"] }
+      }
+    },
+    "CommonSections": {
+      "type": "object",
+      "description": "Whitelist of common section numbers and titles",
+      "properties": {
+        "0": { "const": "METADATA" },
+        "1": { "const": "ROLE" },
+        "2": { "const": "INPUTS" },
+        "3": { "const": "OUTPUTS" },
+        "4": { "const": "RULES" },
+        "5": { "const": "WORKFLOW" },
+        "6": { "const": "ARTIFACTS" },
+        "7": { "const": "QUALITY CHECKS" },
+        "8": { "const": "STATE UPDATES" },
+        "9": { "const": "TIMING" },
+        "10": { "const": "DEPENDENCIES" },
+        "11": { "const": "ERRORS" },
+        "12": { "const": "EXAMPLES" }
+      }
+    },
+    "WhitelistedAgentSpecificSections": {
+      "type": "object",
+      "description": "Allowed agent-specific sections (with restricted agent applicability)",
+      "properties": {
+        "13_PROMPTS": { "type": "string", "const": "PROMPTS", "description": "Any agent" },
+        "14_TOOLS": { "type": "string", "const": "TOOLS", "description": "Any agent" },
+        "15_INTEGRATION": { "type": "string", "const": "INTEGRATION", "description": "Any agent" },
+        "16_SECURITY": { "type": "string", "const": "SECURITY", "description": "security, security-audit only" },
+        "17_PERFORMANCE": { "type": "string", "const": "PERFORMANCE", "description": "performance only" },
+        "18_BILLING": { "type": "string", "const": "BILLING", "description": "finops only" },
+        "19_STAGE_FLOWS": { "type": "string", "const": "STAGE FLOWS", "description": "orchestrator only" },
+        "20_COMPLIANCE_GATES": { "type": "string", "const": "COMPLIANCE GATES", "description": "orchestrator only" },
+        "21_PARALLEL_EXECUTION": { "type": "string", "const": "PARALLEL EXECUTION", "description": "orchestrator only" },
+        "22_RECOVERY": { "type": "string", "const": "RECOVERY", "description": "orchestrator only" }
+      }
+    }
+  }
+}

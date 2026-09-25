@@ -1,0 +1,35 @@
+{
+  "id": "BI-0184",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "intake",
+  "external_id": "backend:run-mode-quality-gate",
+  "label": "PF Backlog 193",
+  "title": "Backend: run-mode-aware quality gate (item/amend runs run compileall+wired_audit; e2e skips)",
+  "body": "## Problem / why\nThe repo quality gate (`compileall` + `wired_audit`: store-registry, unwired, diff-contract,\ndestructive, reciprocity, tier-models, agent-knowledge, legacy-frozen) runs only in CI / the PR\nmerge gate (`core/pr_gate.py`). When a human executes a BACKLOG ITEM as a run (scoped amend), that\ngate is what is really needed - but it never runs on the run path. A full e2e pipeline run does NOT\nneed it (per-agent compliance already runs for every agent).\n\n## Goal & value\nA run carries a MODE. `item`/amend runs execute the repo quality gate and record pass/fail on the\nrun; `e2e` runs skip it. Reuse existing primitives: `run_scope` (only_stages/only_agents) and\n`core/pr_gate.py` (which already invokes wired_audit).\n\n## In scope\n- A `mode` (e2e | item) on the run (run-scope / run record).\n- For `item` mode: run compileall + the wired_audit subset (or pr_gate) and store the result\n  (pass/fail + reasons) on the run; do not gate e2e.\n- Expose the gate result for the dashboard to read.\n\n## Out of scope\n- Per-agent compliance (already runs in BOTH modes). Dashboard UI (separate dashboard item).\n\n## Acceptance criteria (testable)\n- item-mode run records `quality_gate: {passed, reasons}`; e2e run records it as skipped/absent.\n- A failing gate on an item run is surfaced (and can block the run per policy).\n\n## Open questions\n- Block the item run on gate failure, or report-only?\n- Full wired_audit (fatal checks) or only the relevant subset (store/diff/legacy)?\n\n## Verification / test plan\n- Run an item-scoped run with a deliberately broken store -> gate fails + recorded; e2e run unaffected.\n",
+  "source": "generic",
+  "status": "completed",
+  "priority": null,
+  "moscow": "Should",
+  "value": 3,
+  "effort": 2,
+  "risk": 2,
+  "deps": [],
+  "links": {
+    "paired_with": "project:ProductForge-Dashboard:BI-0137"
+  },
+  "decisions": [],
+  "follow_up": {},
+  "created_at": "2026-09-24T22:56:28.200630",
+  "updated_at": "2026-09-24T23:15:36.885460",
+  "score": 1.12,
+  "dashboard_impact": {
+    "needs_dashboard": true,
+    "reason": "Enables the dashboard 'Run item' flow to enforce the repo quality gate.",
+    "dashboard_item": "project:ProductForge-Dashboard:BI-0137",
+    "reviewed_by": "agent",
+    "reviewed_at": "2026-09-24T22:56:28.420689"
+  },
+  "_note": "core/run_quality_gate.py (single writer of quality-gate.json): should_gate(mode), mode_from_scope, evaluate() [compileall + wired_audit subprocess], record(), latest(), gate_if_item_run(). Wired into core/pipeline_executor.py at run end: mode = 'item' when a selective run-scope (only_stages/only_agents) is set, else 'e2e'; item/amend runs run the gate + record quality-gate.json, e2e skips. Store registered. VERIFIED: e2e -> None (skipped); item -> gate ran (passed) + quality-gate.json recorded; latest() reads it. Dashboard half = BI-0137 (paired, not implemented). compileall=0, wired_audit=0, run_quality_gate=RUNTIME."
+}

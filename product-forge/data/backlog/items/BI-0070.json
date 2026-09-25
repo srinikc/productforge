@@ -1,0 +1,39 @@
+{
+  "id": "BI-0070",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "pipeline",
+  "external_id": "forge:operator-build-separation",
+  "label": "PF Backlog 70",
+  "title": "Backend: build-time separation of operator vs customer packages (operator APIs absent in customer build)",
+  "body": "Owner concern: customers must NOT be able to discover operator/onboarding/licensing-management surfaces by reading the shipped code or flipping settings. Decision: BUILD-TIME separation from one codebase. (1) Platform/Operator build = onboarding + customer mgmt + licensing admin + operator console (our instance/SaaS). (2) Customer/Tenant build = only the tenant dashboard + their admin; operator modules/routes/APIs are EXCLUDED at build time (separate entry / dead-code elimination), NOT merely hidden. (3) Operator APIs live only in the operator backend so a customer instance has nothing to call. (4) Defense-in-depth: INSTANCE_ROLE + platform_admin gating still applied. (5) Licensing caveat: the customer build contains license VALIDATION (to enforce their tier) but not the operator console; use signed licenses + periodic/offline validation + tamper-evidence. Refs: forge:instance-role-separation (BI-0069), forge:lic-* items.",
+  "source": "discovery",
+  "status": "completed",
+  "priority": null,
+  "moscow": "Must",
+  "value": 5,
+  "effort": 4,
+  "risk": 3,
+  "deps": [],
+  "links": {
+    "dashboard_item": "project:ProductForge-Dashboard:BI-0060"
+  },
+  "decisions": [],
+  "follow_up": {},
+  "created_at": "2026-09-22T02:13:19.988445",
+  "updated_at": "2026-09-23T01:09:03.111623",
+  "score": 0.62,
+  "tags": [
+    "Dash",
+    "licensing"
+  ],
+  "_note": "verified: _OPERATOR_PATH_PREFIXES stripped on tenant build",
+  "dashboard_impact": {
+    "needs_dashboard": false,
+    "reason": "backend-internal; no user-facing surface",
+    "dashboard_item": null,
+    "reviewed_by": "owner-review-2026-09-22",
+    "reviewed_at": "2026-09-22T20:41:02.691569"
+  }
+}

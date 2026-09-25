@@ -1,0 +1,253 @@
+# Test Suite Definitions
+# Defines which tests belong to each suite and when to run them
+
+suites:
+  smoke:
+    description: "Quick sanity tests - critical paths only"
+    duration: "5-10 min"
+    schedule: "after_deploy"
+    categories: ["unit", "api"]
+    auto_run: true
+    required: true
+    tags: ["quick", "critical", "smoke"]
+    
+  sanity:
+    description: "Core functionality verification"
+    duration: "15-30 min"
+    schedule: "after_major_change"
+    categories: ["unit", "api", "integration"]
+    auto_run: false
+    required: true
+    tags: ["core", "functionality", "sanity"]
+    
+  feature:
+    description: "Feature-specific tests for current phase"
+    duration: "20-40 min"
+    schedule: "per_phase"
+    categories: ["unit", "api", "integration", "e2e"]
+    auto_run: true
+    required: true
+    tags: ["feature", "phase-specific"]
+    
+  nfr:
+    description: "Non-functional requirements tests"
+    duration: "1-2 hours"
+    schedule: "after_implementation"
+    categories: ["performance", "security", "accessibility"]
+    auto_run: false
+    required: true
+    tags: ["nfr", "non-functional"]
+    
+  packaging:
+    description: "Package build and install/uninstall tests"
+    duration: "30-60 min"
+    schedule: "before_release"
+    categories: ["install", "packaging"]
+    auto_run: false
+    required: true
+    tags: ["packaging", "install", "release"]
+    
+  daily:
+    description: "Full regression test suite"
+    duration: "30-60 min"
+    schedule: "nightly"
+    categories: ["unit", "api", "integration", "e2e"]
+    auto_run: true
+    required: true
+    tags: ["regression", "comprehensive", "daily"]
+    
+  weekly:
+    description: "Comprehensive tests including non-functional"
+    duration: "2-4 hours"
+    schedule: "weekend"
+    categories: ["all"]
+    auto_run: true
+    required: false
+    tags: ["full", "non-functional", "weekly"]
+    
+  full:
+    description: "Complete test suite including install/uninstall"
+    duration: "4-8 hours"
+    schedule: "manual"
+    categories: ["all"]
+    auto_run: false
+    required: false
+    tags: ["release", "complete", "full"]
+
+# Test categories and what they include
+categories:
+  unit:
+    description: "Unit tests for individual components"
+    tools: ["pytest", "jest"]
+    timeout: 60
+    phase_test: true
+    
+  api:
+    description: "API endpoint tests"
+    tools: ["pytest", "httpx"]
+    timeout: 120
+    phase_test: true
+    
+  db:
+    description: "Database layer tests"
+    tools: ["pytest", "sqlalchemy"]
+    timeout: 120
+    phase_test: true
+    
+  integration:
+    description: "Integration tests between components"
+    tools: ["pytest"]
+    timeout: 180
+    phase_test: true
+    
+  e2e:
+    description: "End-to-end user flow tests"
+    tools: ["playwright", "pytest"]
+    timeout: 300
+    phase_test: true
+    
+  visual:
+    description: "Visual regression tests"
+    tools: ["playwright", "pytest"]
+    timeout: 300
+    phase_test: false
+    
+  performance:
+    description: "Performance and load tests"
+    tools: ["pytest-benchmark", "locust"]
+    timeout: 600
+    phase_test: false
+    
+  security:
+    description: "Security vulnerability tests"
+    tools: ["bandit", "safety"]
+    timeout: 300
+    phase_test: false
+    
+  accessibility:
+    description: "Accessibility compliance tests (WCAG)"
+    tools: ["axe-playwright", "pytest"]
+    timeout: 300
+    phase_test: false
+    
+  install:
+    description: "Install/uninstall/upgrade tests"
+    tools: ["custom"]
+    timeout: 600
+    phase_test: false
+    
+  packaging:
+    description: "Package build and validation tests"
+    tools: ["custom"]
+    timeout: 600
+    phase_test: false
+    
+  stress:
+    description: "Stress and endurance tests"
+    tools: ["locust", "k6"]
+    timeout: 900
+    phase_test: false
+    
+  mobile_ios:
+    description: "iOS simulator tests"
+    tools: ["vitest-mobile", "stowaway"]
+    timeout: 300
+    phase_test: true
+    
+  mobile_android:
+    description: "Android emulator tests"
+    tools: ["vitest-mobile", "stowaway"]
+    timeout: 300
+    phase_test: true
+
+# Test modes - which categories to run in each mode
+test_modes:
+  sanity:
+    description: "Quick sanity check - critical paths only"
+    categories: ["unit", "api"]
+    timeout: 600
+    
+  feature:
+    description: "Feature-specific tests for current phase"
+    categories: ["unit", "api", "db", "integration", "e2e", "mobile_ios", "mobile_android"]
+    timeout: 1800
+    
+  nfr:
+    description: "Non-functional requirements validation"
+    categories: ["performance", "security", "accessibility"]
+    timeout: 3600
+    
+  packaging:
+    description: "Package build and install verification"
+    categories: ["install", "packaging"]
+    timeout: 3600
+    
+  full:
+    description: "Complete test suite - all categories"
+    categories: ["all"]
+    timeout: 14400
+
+# Schedule definitions
+schedules:
+  after_deploy:
+    trigger: "deployment"
+    suite: "smoke"
+    blocking: true
+    
+  after_major_change:
+    trigger: "manual"
+    suite: "sanity"
+    blocking: false
+    
+  per_phase:
+    trigger: "phase_complete"
+    suite: "feature"
+    blocking: true
+    
+  after_implementation:
+    trigger: "implementation_complete"
+    suite: "nfr"
+    blocking: true
+    
+  before_release:
+    trigger: "manual"
+    suite: "packaging"
+    blocking: true
+    
+  nightly:
+    trigger: "cron"
+    cron: "0 2 * * *"  # 2 AM daily
+    suite: "daily"
+    blocking: false
+    
+  weekend:
+    trigger: "cron"
+    cron: "0 3 * * 0"  # 3 AM Sunday
+    suite: "weekly"
+    blocking: false
+
+# Phase-specific test mapping
+phase_tests:
+  phase_4a:
+    features: ["auth", "dashboard", "search", "todo"]
+    categories: ["unit", "api", "db", "integration", "e2e", "mobile_ios", "mobile_android"]
+    
+  phase_4b:
+    features: ["calendar", "goals", "news", "health"]
+    categories: ["unit", "api", "db", "integration", "e2e", "mobile_ios", "mobile_android"]
+    
+  phase_4c:
+    features: ["exploratory", "spiritual", "documents", "financial"]
+    categories: ["unit", "api", "db", "integration", "e2e", "mobile_ios", "mobile_android"]
+    
+  phase_5:
+    features: ["security"]
+    categories: ["security"]
+    
+  phase_6:
+    features: ["nfr"]
+    categories: ["performance", "accessibility"]
+    
+  phase_7:
+    features: ["full"]
+    categories: ["all"]

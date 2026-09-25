@@ -1,0 +1,36 @@
+{
+  "id": "BI-0082",
+  "type": "bug",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "pipeline",
+  "external_id": "forge:scope-qualified-backlog-refs",
+  "label": "PF Backlog 82",
+  "title": "Backlog ids collide across scopes - standardize scope-qualified references (links/item_id/artifacts/dashboard)",
+  "body": "Design holds: open.json/closed.json/counters.json/history/*.jsonl are the per-scope single source of truth (product-forge/backlog for the pipeline backend; products/<p>/backlog for each project incl. the dashboard). BI-#### are ids INSIDE those files. BUT ids are allocated per-scope by counters.json, so the SAME id exists in multiple scopes (observed: BI-0025..BI-0063 collide between product_forge and project:ProductForge-Dashboard - 39 collisions). A bare 'BI-0042' is therefore ambiguous. This breaks: cross-scope links (backend_item/dashboard_item), item_id references in derived .md/artifacts (feature-status.md, product-plan, agent_ledger), and the dashboard console. FIX: standardize a scope-qualified reference format (e.g. 'product_forge:BI-0042', 'project:ProductForge-Dashboard:BI-0042') used in links, item_id fields and derived artifacts; add a resolver (parse id -> load correct scope store); enforce in core/backlog.link and in the backlog API; migrate existing cross-links. Consider also a short scope prefix in labels for humans. Refs: core/backlog.py (_paths/_next_id/link), core/backlog_link.py, docs/INTAKE-AND-BACKLOG-DESIGN.md.",
+  "source": "code-audit",
+  "status": "completed",
+  "priority": null,
+  "moscow": "Must",
+  "value": 5,
+  "effort": 3,
+  "risk": 3,
+  "deps": [],
+  "links": {},
+  "decisions": [],
+  "follow_up": {},
+  "created_at": "2026-09-22T12:00:36.699670",
+  "updated_at": "2026-09-23T01:09:03.382502",
+  "score": 0.83,
+  "tags": [
+    "Dash"
+  ],
+  "_note": "verified: backlog.qualify/parse_ref + migrated refs",
+  "dashboard_impact": {
+    "needs_dashboard": false,
+    "reason": "backend-internal; no user-facing surface",
+    "dashboard_item": null,
+    "reviewed_by": "owner-review-2026-09-22",
+    "reviewed_at": "2026-09-22T20:41:03.019925"
+  }
+}

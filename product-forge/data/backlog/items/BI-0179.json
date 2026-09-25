@@ -1,0 +1,33 @@
+{
+  "id": "BI-0179",
+  "type": "tech-debt",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "intake",
+  "external_id": "backend:backlog-storage-layout",
+  "label": "PF Backlog 187",
+  "title": "Backend: split backlog storage into per-item files (truth) + DERIVED index + content journal (one-time change)",
+  "body": "## Problem / why\nThe backlog keeps ALL items in one array file (`open.json` / `closed.json`) and rewrites the whole\nfile on every change (`core/backlog.py:_wj`). Per-item `history/<ID>.jsonl` records STATUS only,\nnot content. There is no lean tracker view; the array is truth AND the detail store at once.\n\n## Goal & value\nSplit \"tracking\" from \"detail\", ONCE, in a single change:\n- index (`open.json`/`index.json`) = id, status, one-liner, created/updated (tracking/journal view);\n- per-item file = the FULL item (today's rich format);\n- per-item `history/<ID>.jsonl` = a CONTENT journal (title/body/link before -> after), not status only.\nValue: smaller diffs, O(1) writes, real per-item history, a clean tracker view. Internal only.\n\n## In scope\n- Stage 1 (low risk): enrich `history/<ID>.jsonl` to a content journal AND generate a compact DERIVED\n  `index.json` (id, status, one-liner, created_at, updated_at) beside the existing `index.html`.\n- Stage 2 (structural): per-item files `items/<ID>.json` become the TRUTH; `open.json`/`index.json`\n  become DERIVED (regenerated), never hand-edited.\n- Single-source migration of all existing items + journals; keep a read-fallback for the old layout.\n\n## Out of scope\n- Any change to item SEMANTICS (fields, statuses, ids, links) or to the backlog API signatures.\n- The dashboard UI; other stores (intake `items.jsonl`, events) - only referenced for consistency.\n\n## Flow\n1. Writer updates the per-item file (truth) + appends the content journal.\n2. Writer regenerates the derived index (id/status/one-liner/dates).\n3. Readers use the SAME API (`list_open`, `get_by_ref`, `update`) - unchanged.\n\n## Acceptance criteria (testable)\n- Given the refactor, all existing items/journals migrate with ZERO data loss (count + content hashes match).\n- Given a change to an item, only that item's file + the derived index change (O(1) diff).\n- Given any consumer, behaviour is identical (same API, same results) - no code changes outside\n  `core/backlog.py` (+ migration + views/audit).\n- Given the old layout still present, a read-fallback works (no hard cutover).\n\n## Data model (what is stored, where, owner)\n- `items/<ID>.json` = full item (truth) · `history/<ID>.jsonl` = content+status journal ·\n  `open.json`/`index.json` = DERIVED index · `counters.json` unchanged. Single writer: `core/backlog.py`.\n  Register/adjust in `config/store-registry.json`.\n\n## API contract\n- UNCHANGED public API (`core/backlog.py`). Storage layout is an implementation detail - all consumers\n  already go through the API.\n\n## Edge cases & errors\n- Migration idempotent + re-runnable; backup before write; abort on hash mismatch.\n- Concurrency: keep the `.lock` + atomic `os.replace`; index regeneration inside the same lock.\n- Partial migration -> read-fallback covers mixed state.\n\n## Dependencies & links\n- Related (not blocking): BI-0168 (static index.html, completed), BI-0153 (log conventions, completed).\n- Consistency reference: per-item `products/intake/*/items.jsonl` already use the jsonl pattern.\n\n## Open questions\n- Do Stage 1 now and Stage 2 later, or both together?\n- Journal granularity: full body before/after, or a diff/hash to keep files small?\n- Keep `open.json` as the derived index, or introduce a separate `index.json`?\n\n## Verification / test plan\n- Migration test: item count + content hashes equal before/after; re-run is a no-op.\n- Round-trip test: add/update/close an item -> per-item file + journal + derived index all correct.\n- Consumer regression: `python -m core.backlog`, `current views.py index.html`, dashboard API unchanged.\n- Gates: `compileall` + `wired_audit` green; store-registry updated.\n",
+  "source": "generic",
+  "status": "completed",
+  "priority": null,
+  "moscow": "Could",
+  "value": 2,
+  "effort": 3,
+  "risk": 3,
+  "deps": [],
+  "links": {},
+  "decisions": [],
+  "follow_up": {},
+  "created_at": "2026-09-24T21:39:23.648605",
+  "updated_at": "2026-09-24T21:51:48.215316",
+  "score": 0.33,
+  "dashboard_impact": {
+    "needs_dashboard": false,
+    "reason": "Internal storage refactor; all consumers use the backlog API, so no dashboard/UI change.",
+    "dashboard_item": null,
+    "reviewed_by": "agent",
+    "reviewed_at": "2026-09-24T21:39:23.651199"
+  },
+  "_note": "core/backlog.py now: items/<ID>.json = TRUTH; open.json/closed.json = DERIVED lean index (id/status/one-liner/dates, no body/links); history/<ID>.jsonl = content journal (status + field diffs). New API: list_items/get/history/index_view/archive/delete + migrate_scope. Bypasses fixed: core/views.py:_all_backlog_items + dashboard/api/app.py:backlog_history now use the API. Migrated 316 items (product_forge=179, ProductForge-Dashboard=136, test-project=1) - counts MATCH; idempotent. scripts/dev/migrate_backlog_storage.py. Registered items/ + history/ in store-registry + allow glob. Round-trip verified (add/update/complete/archive/delete + journal diff). Gate: compileall=0, wired_audit=0."
+}

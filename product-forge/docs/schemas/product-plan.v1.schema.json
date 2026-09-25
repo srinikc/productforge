@@ -1,0 +1,177 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://product-forge.dev/schemas/product-plan.v1.schema.json",
+  "title": "Product Plan",
+  "description": "Schema for products/<project>/product-plan.json. Defines the product vision, tech stack, layers, features, and pipeline configuration.",
+  "type": "object",
+  "required": ["spec_version", "project", "created_at", "updated_at", "status", "layers", "tech_stack", "pipeline_config"],
+  "additionalProperties": false,
+  "properties": {
+    "spec_version": {
+      "type": "string",
+      "const": "1.0"
+    },
+    "project": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]{0,62}$"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["draft", "active", "paused", "completed"]
+    },
+    "vision": {
+      "type": "object",
+      "properties": {
+        "product_name": { "type": "string" },
+        "tagline": { "type": "string" },
+        "description": { "type": "string" },
+        "target_market": { "type": "string" },
+        "success_metrics": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "personas": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/Persona" }
+    },
+    "e2e_workflows": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/Workflow" }
+    },
+    "features": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/Feature" }
+    },
+    "layers": {
+      "type": "array",
+      "description": "Implementation layers (e.g., frontend, backend, data)",
+      "items": { "$ref": "#/definitions/Layer" },
+      "minItems": 1
+    },
+    "tech_stack": {
+      "type": "object",
+      "description": "Technology selections per layer",
+      "properties": {
+        "selected": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/TechSelection" }
+        },
+        "services": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/ServiceSelection" }
+        },
+        "ports": {
+          "type": "object",
+          "description": "Dynamic port mappings (e.g., {\"frontend\": 3000, \"backend\": 8000})",
+          "additionalProperties": { "type": "integer" }
+        }
+      }
+    },
+    "pipeline_config": {
+      "$ref": "#/definitions/PipelineConfig"
+    },
+    "quality_checks": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/QualityCheck" }
+    }
+  },
+  "definitions": {
+    "Persona": {
+      "type": "object",
+      "required": ["name", "role", "goals"],
+      "properties": {
+        "name": { "type": "string" },
+        "role": { "type": "string" },
+        "goals": { "type": "array", "items": { "type": "string" } },
+        "pain_points": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "Workflow": {
+      "type": "object",
+      "required": ["name", "steps"],
+      "properties": {
+        "name": { "type": "string" },
+        "trigger": { "type": "string" },
+        "steps": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "Feature": {
+      "type": "object",
+      "required": ["id", "name", "priority"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^F-[0-9]{3}$" },
+        "name": { "type": "string" },
+        "priority": { "type": "string", "enum": ["must_have", "should_have", "nice_to_have"] },
+        "description": { "type": "string" }
+      }
+    },
+    "Layer": {
+      "type": "object",
+      "required": ["id", "name"],
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "tech": { "type": "string" }
+      }
+    },
+    "TechSelection": {
+      "type": "object",
+      "required": ["layer", "technology"],
+      "properties": {
+        "layer": { "type": "string" },
+        "technology": { "type": "string" },
+        "version": { "type": "string" },
+        "rationale": { "type": "string" }
+      }
+    },
+    "ServiceSelection": {
+      "type": "object",
+      "required": ["service"],
+      "properties": {
+        "service": { "type": "string" },
+        "tier": { "type": "string", "enum": ["free", "starter", "pro"] },
+        "config": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/ConfigItem" }
+        }
+      }
+    },
+    "ConfigItem": {
+      "type": "object",
+      "required": ["key", "value"],
+      "properties": {
+        "key": { "type": "string" },
+        "value": { "type": "string" },
+        "source": { "type": "string", "enum": ["default", "user", "discovered"] }
+      }
+    },
+    "PipelineConfig": {
+      "type": "object",
+      "properties": {
+        "concurrent_stages": { "type": "integer", "minimum": 1, "default": 1 },
+        "human_gates": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "max_retry_per_stage": { "type": "integer", "minimum": 1, "default": 3 },
+        "auto_approve": { "type": "boolean", "default": false }
+      }
+    },
+    "QualityCheck": {
+      "type": "object",
+      "required": ["name", "applies_to"],
+      "properties": {
+        "name": { "type": "string" },
+        "applies_to": { "type": "array", "items": { "type": "string" } },
+        "type": { "type": "string", "enum": ["auto", "llm", "human"] }
+      }
+    }
+  }
+}

@@ -1,0 +1,143 @@
+{
+  "id": "book-journal",
+  "version": "1.0.0",
+  "name": "Book to Journal Pipeline",
+  "description": "Read a book, extract insights, create summary and journal entries",
+  "type": "dynamic",
+  "category": "content",
+  "extends": "content-creation",
+  "stages": {
+    "0": {
+      "name": "Ideation",
+      "agent": "ideation",
+      "type": "sequential",
+      "depends_on": [],
+      "description": "Define goals, book source, output format",
+      "knowledge_required": ["ui-ux"],
+      "skills_required": [],
+      "outputs": ["docs/product-plan.md", "pipeline.json"]
+    },
+    "1": {
+      "name": "Content Reading",
+      "agent": "content-reader",
+      "type": "sequential",
+      "depends_on": ["0"],
+      "description": "Read and extract text from the book",
+      "knowledge_required": [],
+      "skills_required": ["content-analysis"],
+      "outputs": ["docs/extracted/"]
+    },
+    "2": {
+      "name": "Insight Extraction",
+      "agent": "insight-extractor",
+      "type": "parallel",
+      "depends_on": ["1"],
+      "parallel_with": ["3"],
+      "description": "Extract key insights, quotes, and ideas",
+      "knowledge_required": [],
+      "skills_required": ["content-analysis"],
+      "outputs": ["docs/insights/"]
+    },
+    "3": {
+      "name": "Theme Analysis",
+      "agent": "theme-analyzer",
+      "type": "parallel",
+      "depends_on": ["1"],
+      "parallel_with": ["2"],
+      "description": "Identify themes, patterns, and connections",
+      "knowledge_required": [],
+      "skills_required": ["content-analysis"],
+      "outputs": ["docs/themes/"]
+    },
+    "4": {
+      "name": "Summary Creation",
+      "agent": "summary-creator",
+      "type": "sequential",
+      "depends_on": ["2", "3"],
+      "description": "Create executive summary from insights and themes",
+      "knowledge_required": [],
+      "skills_required": ["writing"],
+      "outputs": ["docs/summary.md"]
+    },
+    "5": {
+      "name": "Journal Writing",
+      "agent": "journal-writer",
+      "type": "sequential",
+      "depends_on": ["4"],
+      "description": "Create reflective journal entries from summary",
+      "knowledge_required": [],
+      "skills_required": ["writing"],
+      "outputs": ["docs/journal.md"]
+    },
+    "6": {
+      "name": "Document",
+      "agent": "document",
+      "type": "sequential",
+      "depends_on": ["5"],
+      "description": "Format final output with metadata",
+      "knowledge_required": [],
+      "skills_required": [],
+      "outputs": ["docs/final/"]
+    }
+  },
+  "agents": {
+    "ideation": {
+      "source": ".opencode/agent/ideation.md",
+      "description": "Define project goals and scope",
+      "required": true
+    },
+    "content-reader": {
+      "source": ".opencode/agent/content-reader.md",
+      "description": "Read content from txt, pdf, epub formats",
+      "required": true
+    },
+    "insight-extractor": {
+      "source": ".opencode/agent/insight-extractor.md",
+      "description": "Extract key insights, quotes, and ideas",
+      "required": true
+    },
+    "theme-analyzer": {
+      "source": ".opencode/agent/theme-analyzer.md",
+      "description": "Identify themes, patterns, and connections",
+      "required": true
+    },
+    "summary-creator": {
+      "source": ".opencode/agent/summary-creator.md",
+      "description": "Create executive summary",
+      "required": true
+    },
+    "journal-writer": {
+      "source": ".opencode/agent/journal-writer.md",
+      "description": "Create reflective journal entries",
+      "required": true
+    },
+    "document": {
+      "source": ".opencode/agent/document.md",
+      "description": "Format final output",
+      "required": false
+    }
+  },
+  "knowledge_domains": ["book-summarization", "writing", "content-analysis"],
+  "flow": {
+    "type": "dag",
+    "description": "Sequential with parallel extract/analyze"
+  },
+  "compliance": {
+    "default_checks": ["file_exists", "content_quality", "audit_updated"],
+    "stage_overrides": {
+      "1": {
+        "checks": ["file_exists", "content_not_empty", "format_valid"]
+      },
+      "2": {
+        "checks": ["file_exists", "insights_count_above_threshold"]
+      }
+    }
+  },
+  "metadata": {
+    "author": "ideation-agent",
+    "created_at": "2026-09-02T00:00:00Z",
+    "updated_at": "2026-09-02T00:00:00Z",
+    "tags": ["content", "book", "summary", "journal", "reading"],
+    "examples": ["atomic-habits-journal", "deep-work-digest", "book-of-month"]
+  }
+}

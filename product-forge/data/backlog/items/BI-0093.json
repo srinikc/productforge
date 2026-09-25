@@ -1,0 +1,38 @@
+{
+  "id": "BI-0093",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "pipeline",
+  "external_id": "forge:hil-decision-model",
+  "label": "PF Backlog 93",
+  "title": "Backend: full HIL approval decision model (states + notes + wait/snooze + timeout policy)",
+  "body": "Approvals currently only support pending/approved/rejected (timeout==reject). Implement the full state set: pending; approved; approved_with_conditions (+conditions); changes (amend -> re-run agent WITH notes, bounded, re-ask); regenerate (re-run agent as-is, bounded); skip (skip agent/stage, continue); rejected (fail stage); abort (stop whole pipeline); expired (timeout policy: wait|fail|skip|approve). Plus WAIT responses: snooze (defer N minutes), wait_further (extend), wait_indefinitely. Interactive default policy = wait indefinitely. Engine: core/pipeline_executor._wait_for_approval_ex() returns {decision, notes, conditions}; _wait_for_approval() stays bool for compat. CLI: approve.py gains --changes/--regenerate/--skip/--abort/--conditions/--snooze/--wait-minutes/--wait-indefinite. agent_execution handles each decision (re-run with feedback for changes; bounded 2). Paired dashboard item: dash:hil-decision-dialog (BI logged next).",
+  "source": "discovery",
+  "status": "completed",
+  "priority": null,
+  "moscow": "Must",
+  "value": 5,
+  "effort": 4,
+  "risk": 3,
+  "deps": [],
+  "links": {
+    "dashboard_item": "project:ProductForge-Dashboard:BI-0075"
+  },
+  "decisions": [],
+  "follow_up": {},
+  "created_at": "2026-09-22T15:07:31.927935",
+  "updated_at": "2026-09-23T01:17:33.479835",
+  "score": 0.62,
+  "tags": [
+    "Dash"
+  ],
+  "dashboard_impact": {
+    "needs_dashboard": true,
+    "reason": "HIL prompt/approval surface exists (dashboard HIL decision dialog)",
+    "dashboard_item": "project:ProductForge-Dashboard:BI-0075",
+    "reviewed_by": "owner-review-2026-09-22",
+    "reviewed_at": "2026-09-22T20:41:03.305574"
+  },
+  "_note": "verified: test_hil_decisions.py PASS; approve --changes/regenerate verified"
+}

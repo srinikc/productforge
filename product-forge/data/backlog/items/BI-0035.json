@@ -1,0 +1,42 @@
+{
+  "id": "BI-0035",
+  "type": "bug",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "pipeline",
+  "external_id": "forge:discovery-ask-bridge",
+  "label": "PF Backlog 35",
+  "title": "0a discovery questions were never asked (360-degree discovery produced a hollow artifact)",
+  "body": "0a Discovery generated the 18 360-degree questions (3 perspectives) and wrote products/<p>/discovery-questions.json, but NOTHING asked them: no prompt was bridged, no answers were collected, and run_discovery() then synthesized EMPTY domain_analysis / stakeholder_map / user_personas (discovery_engine explicitly refuses to fabricate answers). Result: 360-degree discovery silently produced a hollow artifact and the pipeline advanced. Fixed: added core.interactive.ask_many() (queue N prompts, poll all, fall back to defaults); run_discovery() now accepts caller answers; pipeline_executor._collect_discovery_answers() bridges every question (auto mode defers to the agent) and _run_design_augmentations('0a') synthesizes docs/domain-analysis.md + stakeholder-map.md + user-personas.md + product-plan.md from the real answers. Verified: compileall + wired_audit green.",
+  "source": "pipeline",
+  "status": "completed",
+  "priority": null,
+  "moscow": "Must",
+  "value": 4,
+  "effort": 2,
+  "risk": 1,
+  "deps": [],
+  "links": {},
+  "decisions": [
+    {
+      "at": "2026-09-22T01:49:59.868746",
+      "action": "triage",
+      "note": "[P4] 0a discovery must actually ask (regression guard)."
+    }
+  ],
+  "follow_up": {},
+  "created_at": "2026-09-21T20:18:37.701877",
+  "updated_at": "2026-09-23T01:09:02.401415",
+  "score": 2.0,
+  "tags": [
+    "Dash"
+  ],
+  "_note": "verified: discovery questions bridged via panel/executor",
+  "dashboard_impact": {
+    "needs_dashboard": true,
+    "reason": "user-facing discovery surface exists (live 360-degree discovery panel)",
+    "dashboard_item": "project:ProductForge-Dashboard:BI-0025",
+    "reviewed_by": "owner-review-2026-09-22",
+    "reviewed_at": "2026-09-22T20:41:01.772104"
+  }
+}

@@ -1,0 +1,1759 @@
+{
+  "version": "2.2",
+  "description": "Product Factory orchestration model - 16 stages with discovery, product design spec, UX/IA, design critic, visual QA, approval gates, budget tracking, and factory supervisor",
+  "orchestration": {
+    "engine": "pipeline_executor",
+    "supervisor": "factory_supervisor",
+    "context_manager": true,
+    "budget_tracker": true,
+    "stop_conditions": true,
+    "squad_manager": true,
+    "human_controls": true,
+    "forced_convergence": true,
+    "cross_project_learning": true,
+    "model_registry": true,
+    "circuit_breaker": true,
+    "design_tokens": true,
+    "product_design_spec": true,
+    "quality_metrics": true,
+    "issue_tracker": true
+  },
+  "stages": {
+    "0": {
+      "name": "Ideation",
+      "ideal_flow": [
+        "ideation"
+      ],
+      "on_complete": "discovery",
+      "sub_agents": {},
+      "approval_gate": null,
+      "budget_limit": 0.05,
+      "design_critic": false,
+      "visual_qa": false,
+      "depends_on": [],
+      "parallel_safe": false,
+      "agent_dependencies": {
+        "ideation": []
+      },
+      "display_id": "S1.1",
+      "phase": "P1 Ideation & Discovery"
+    },
+    "0a": {
+      "name": "Discovery",
+      "ideal_flow": [
+        "discovery"
+      ],
+      "on_complete": "orchestrator",
+      "sub_agents": {},
+      "approval_gate": null,
+      "budget_limit": 0.05,
+      "design_critic": false,
+      "visual_qa": false,
+      "auto_stage": true,
+      "agent_contract": "discovery_engine",
+      "depends_on": [
+        "0"
+      ],
+      "parallel_safe": false,
+      "agent_dependencies": {
+        "discovery": []
+      },
+      "display_id": "S1.2",
+      "phase": "P1 Ideation & Discovery"
+    },
+    "1": {
+      "name": "Design",
+      "ideal_flow": [
+        "design"
+      ],
+      "on_complete": "design_critic",
+      "sub_agents": {},
+      "approval_gate": "AG-scope-change",
+      "budget_limit": 0.15,
+      "design_critic": true,
+      "visual_qa": false,
+      "depends_on": [
+        "0a",
+        "0e"
+      ],
+      "parallel_safe": false,
+      "agent_dependencies": {
+        "design": []
+      },
+      "display_id": "S3.1",
+      "phase": "P3 Design"
+    },
+    "1a": {
+      "name": "Product Design Spec",
+      "ideal_flow": [
+        "product-design-spec"
+      ],
+      "on_complete": "orchestrator",
+      "sub_agents": {},
+      "approval_gate": null,
+      "budget_limit": 0.05,
+      "design_critic": false,
+      "visual_qa": false,
+      "auto_stage": true,
+      "agent_contract": "product_design_spec",
+      "depends_on": [
+        "1"
+      ],
+      "parallel_safe": false,
+      "agent_dependencies": {
+        "product-design-spec": []
+      },
+      "display_id": "S3.2",
+      "phase": "P3 Design"
+    },
+    "1b": {
+      "name": "Design Review",
+      "ideal_flow": [
+        "design_critic"
+      ],
+      "on_complete": "orchestrator",
+      "sub_agents": {},
+      "approval_gate": null,
+      "budget_limit": 0.03,
+      "design_critic": false,
+      "visual_qa": false,
+      "auto_stage": true,
+      "depends_on": [
+        "1a"
+      ],
+      "parallel_safe": true,
+      "agent_dependencies": {
+        "design_critic": []
+      },
+      "display_id": "S3.3",
+      "phase": "P3 Design"
+    },
+    "1c": {
+      "name": "UX/IA Review",
+      "ideal_flow": [
+        "ux-ia"
+      ],
+      "on_complete": "orchestrator",
+      "sub_agents": {},
+      "approval_gate": null,
+      "budget_limit": 0.05,
+      "design_critic": false,
+      "visual_qa": false,
+      "auto_stage": true,
+      "agent_contract": "design_tokens",
+      "depends_on": [
+        "1a"
+      ],
+      "parallel_safe": true,
+      "agent_dependencies": {
+        "ux-ia": []
+      },
+      "display_id": "S3.4",
+      "phase": "P3 Design"
+    },
+    "2": {
+      "name": "Architect",
+      "ideal_flow": [
+        "architect"
+      ],
+      "on_complete": "orchestrator",
+      "sub_agents": {},
+      "approval_gate": "AG-architecture",
+      "budget_limit": 0.1,
+      "design_critic": false,
+      "visual_qa": false,
+      "depends_on": [
+        "1b",
+        "1c",
+        "1d"
+      ],
+      "parallel_safe": false,
+      "agent_dependencies": {
+        "architect": []
+      },
+      "display_id": "S4.1",
+      "phase": "P4 Architecture"
+    },
+    "3": {
+      "name": "Refine Requirements",
+      "ideal_flow": [
+        "orchestrator"
+      ],
+      "on_complete": "orchestrator",
+      "sub_agents": {},
+      "approval_gate": null,
+      "budget_limit": 0.05,
+      "design_critic": false,
+      "visual_qa": false,
+      "depends_on": [
+        "2"
+      ],
+      "parallel_safe": false,
+      "agent_dependencies": {
+        "orchestrator": []
+      },
+      "display_id": "S4.2",
+      "phase": "P4 Architecture"
+    },
+    "3a": {
+      "name": "QA Spec Review",
+      "ideal_flow": [
+        "validate"
+      ],
+      "on_complete": "orchestrator",
+      "sub_agents": {},
+      "approval_gate": null,
+      "budget_limit": 0.05,
+      "design_critic": false,
+      "visual_qa": false,
+      "depends_on": [
+        "1",
+        "1a",
+        "1c",
+        "2",
+        "3"
+      ],
+      "parallel_safe": false,
+      "agent_dependencies": {
+        "validate": []
+      },
+      "display_id": "S4.3",
+      "phase": "P4 Architecture"
+    },
+    "4-0": {
+      "name": "Skeleton",
+      "ideal_flow": [
+        "implement",
+        "devops"
+      ],
+      "on_complete": "orchestrator",
+      "sub_agents": {
+        "implement": {
+          "sub_flow": [
+            "implement-db",
+            "implement-api",
+            "implement-ui"
+          ],
+          "can_invoke": [
+            "devops"
+          ],
+          "sub_agent_dependencies": {
+            "implement-db": [],
+            "implement-api": [
+              "implement-db"
+            ],
+            "implement-ui": [
+              "implement-logic"
+            ]
+          }
+        }
+      },
+      "approval_gate": null,
+      "budget_limit": 0.1,
+      "design_critic": false,
+      "visual_qa": false,
+      "depends_on": [
+        "3a"
+      ],
+      "parallel_safe": false,
+      "agent_dependencies": {
+        "implement": [],
+        "devops": [
+          "implement"
+        ]
+      },
+      "display_id": "S5.0",
+      "phase": "P5 Implementation"
+    },
+    "4a": {
+      "name": "Implementation Iteration 1",
+      "ideal_flow": [
+        "implement",
+        "devops",
+        "code-review",
+        "validate"
+      ],
+      "on_complete": "visual_qa",
+      "sub_agents": {
+        "implement": {
+          "sub_flow": [
+            "implement-db",
+            "implement-api",
+            "implement-logic",
+            "implement-ui"
+          ],
+          "can_invoke": [
+            "devops",
+            "implement-db",
+            "implement-api",
+            "implement-logic",
+            "implement-ui"
+          ],
+          "decision_logic": {
+            "db_issue": "implement-db",
+            "api_issue": "implement-api",
+            "logic_issue": "implement-logic",
+            "ui_issue": "implement-ui",
+            "architecture_issue": "architect",
+            "build_needed": "devops"
+          },
+          "sub_agent_dependencies": {
+            "implement-db": [],
+            "implement-api": [
+              "implement-db"
+            ],
+            "implement-logic": [
+              "implement-api"
+            ],
+            "implement-ui": [
+              "implement-logic"
+            ]
+          }
+        },
+        "devops": {
+          "can_invoke": [
+            "code-review"
+          ],
+          "on_complete": "code-review"
+        },
+        "code-review": {
+          "can_invoke": [
+            "fix",
+            "architect",
+            "orchestrator"
+          ],
+          "decision_logic": {
+            "code_issue": "fix",
+            "architecture_issue": "architect",
+            "human_change": "orchestrator",
+            "approved": "validate"
+          }
+        },
+        "fix": {
+          "can_invoke": [
+            "validate",
+            "code-review",
+            "implement"
+          ],
+          "decision_logic": {
+            "fixed": "validate",
+            "still_broken": "code-review",
+            "major_change_needed": "implement"
+          }
+        },
+        "validate": {
+          "can_invoke": [
+            "orchestrator"
+          ],
+          "on_complete": "orchestrator"
+        }
+      },
+      "approval_gate": null,
+      "budget_limit": 0.2,
+      "design_critic": false,
+      "visual_qa": true,
+      "depends_on": [
+        "4-0"
+      ],
+      "parallel_safe": false,
+      "agent_dependencies": {
+        "implement": [],
+        "devops": [
+          "implement"
+        ],
+        "code-review": [
+          "devops"
+        ],
+        "validate": [
+          "code-review"
+        ]
+      },
+      "display_id": "S5.1",
+      "phase": "P5 Implementation"
+    },
+    "4a-vqa": {
+      "name": "Visual QA (Iteration 1)",
+      "ideal_flow": [
+        "visual_qa"
+      ],
+      "on_complete": "orchestrator",
+      "sub_agents": {},
+      "approval_gate": null,
+      "budget_limit": 0.03,
+      "design_critic": false,
+      "visual_qa": false,
+      "auto_stage": true,
+      "depends_on": [
+        "4a"
+      ],
+      "parallel_safe": false,
+      "agent_dependencies": {
+        "visual_qa": []
+      },
+      "display_id": "S5.1a",
+      "phase": "P5 Implementation"
+    },
+    "4b": {
+      "name": "Implementation Iteration 2",
+      "ideal_flow": [
+        "implement",
+        "devops",
+        "code-review",
+        "validate"
+      ],
+      "on_complete": "visual_qa",
+      "sub_agents": {
+        "implement": {
+          "sub_flow": [
+            "implement-db",
+            "implement-api",
+            "implement-logic",
+            "implement-ui"
+          ],
+          "can_invoke": [
+            "devops",
+            "implement-db",
+            "implement-api",
+            "implement-logic",
+            "implement-ui"
+          ],
+          "decision_logic": {
+            "db_issue": "implement-db",
+            "api_issue": "implement-api",
+            "logic_issue": "implement-logic",
+            "ui_issue": "implement-ui",
+            "architecture_issue": "architect",
+            "build_needed": "devops"
+          },
+          "sub_agent_dependencies": {
+            "implement-db": [],
+            "implement-api": [
+              "implement-db"
+            ],
+            "implement-logic": [
+              "implement-api"
+            ],
+            "implement-ui": [
+              "implement-logic"
+            ]
+          }
+        },
+        "devops": {
+          "can_invoke": [
+            "code-review"
+          ],
+          "on_complete": "code-review"
+        },
+        "code-review": {
+          "can_invoke": [
+            "fix",
+            "architect",
+            "orchestrator"
+          ],
+          "decision_logic": {
+            "code_issue": "fix",
+            "architecture_issue": "architect",
+            "human_change": "orchestrator",
+            "approved": "validate"
+          }
+        },
+        "fix": {
+          "can_invoke": [
+            "validate",
+            "code-review",
+            "implement"
+          ],
+          "decision_logic": {
+            "fixed": "validate",
+            "still_broken": "code-review",
+            "major_change_needed": "implement"
+          }
+        },
+        "validate": {
+          "can_invoke": [
+            "orchestrator"
+          ],
+          "on_complete": "orchestrator"
+        }
+      },
+      "approval_gate": null,
+      "budget_limit": 0.2,
+      "design_critic": false,
+      "visual_qa": true,
+      "depends_on": [
+        "4a-vqa"
+      ],
+      "parallel_safe": false,
+      "agent_dependencies": {
+        "implement": [],
+        "devops": [
+          "implement"
+        ],
+        "code-review": [
+          "devops"
+        ],
+        "validate": [
+          "code-review"
+        ]
+      },
+      "display_id": "S5.2",
+      "phase": "P5 Implementation"
+    },
+    "4b-vqa": {
+      "name": "Visual QA (Iteration 2)",
+      "ideal_flow": [
+        "visual_qa"
+      ],
+      "on_complete": "orchestrator",
+      "sub_agents": {},
+      "approval_gate": null,
+      "budget_limit": 0.03,
+      "design_critic": false,
+      "visual_qa": false,
+      "auto_stage": true,
+      "depends_on": [
+        "4b"
+      ],
+      "parallel_safe": false,
+      "agent_dependencies": {
+        "visual_qa": []
+      },
+      "display_id": "S5.2a",
+      "phase": "P5 Implementation"
+    },
+    "4c": {
+      "name": "Implementation Iteration 3",
+      "ideal_flow": [
+        "implement",
+        "devops",
+        "code-review",
+        "validate"
+      ],
+      "on_complete": "visual_qa",
+      "sub_agents": {
+        "implement": {
+          "sub_flow": [
+            "implement-db",
+            "implement-api",
+            "implement-logic",
+            "implement-ui"
+          ],
+          "can_invoke": [
+            "devops",
+            "implement-db",
+            "implement-api",
+            "implement-logic",
+            "implement-ui"
+          ],
+          "decision_logic": {
+            "db_issue": "implement-db",
+            "api_issue": "implement-api",
+            "logic_issue": "implement-logic",
+            "ui_issue": "implement-ui",
+            "architecture_issue": "architect",
+            "build_needed": "devops"
+          },
+          "sub_agent_dependencies": {
+            "implement-db": [],
+            "implement-api": [
+              "implement-db"
+            ],
+            "implement-logic": [
+              "implement-api"
+            ],
+            "implement-ui": [
+              "implement-logic"
+            ]
+          }
+        },
+        "devops": {
+          "can_invoke": [
+            "code-review"
+          ],
+          "on_complete": "code-review"
+        },
+        "code-review": {
+          "can_invoke": [
+            "fix",
+            "architect",
+            "orchestrator"
+          ],
+          "decision_logic": {
+            "code_issue": "fix",
+            "architecture_issue": "architect",
+            "human_change": "orchestrator",
+            "approved": "validate"
+          }
+        },
+        "fix": {
+          "can_invoke": [
+            "validate",
+            "code-review",
+            "implement"
+          ],
+          "decision_logic": {
+            "fixed": "validate",
+            "still_broken": "code-review",
+            "major_change_needed": "implement"
+          }
+        },
+        "validate": {
+          "can_invoke": [
+            "orchestrator"
+          ],
+          "on_complete": "orchestrator"
+        }
+      },
+      "approval_gate": null,
+      "budget_limit": 0.2,
+      "design_critic": false,
+      "visual_qa": true,
+      "depends_on": [
+        "4b-vqa"
+      ],
+      "parallel_safe": false,
+      "agent_dependencies": {
+        "implement": [],
+        "devops": [
+          "implement"
+        ],
+        "code-review": [
+          "devops"
+        ],
+        "validate": [
+          "code-review"
+        ]
+      },
+      "display_id": "S5.3",
+      "phase": "P5 Implementation"
+    },
+    "4c-vqa": {
+      "name": "Visual QA (Iteration 3)",
+      "ideal_flow": [
+        "visual_qa"
+      ],
+      "on_complete": "orchestrator",
+      "sub_agents": {},
+      "approval_gate": null,
+      "budget_limit": 0.03,
+      "design_critic": false,
+      "visual_qa": false,
+      "auto_stage": true,
+      "depends_on": [
+        "4c"
+      ],
+      "parallel_safe": false,
+      "agent_dependencies": {
+        "visual_qa": []
+      },
+      "display_id": "S5.3a",
+      "phase": "P5 Implementation"
+    },
+    "4d": {
+      "name": "Implementation Iteration 4",
+      "ideal_flow": [
+        "implement",
+        "devops",
+        "code-review",
+        "validate"
+      ],
+      "on_complete": "visual_qa",
+      "sub_agents": {
+        "implement": {
+          "sub_flow": [
+            "implement-db",
+            "implement-api",
+            "implement-logic",
+            "implement-ui"
+          ],
+          "can_invoke": [
+            "devops",
+            "implement-db",
+            "implement-api",
+            "implement-logic",
+            "implement-ui"
+          ],
+          "decision_logic": {
+            "db_issue": "implement-db",
+            "api_issue": "implement-api",
+            "logic_issue": "implement-logic",
+            "ui_issue": "implement-ui",
+            "architecture_issue": "architect",
+            "build_needed": "devops"
+          },
+          "sub_agent_dependencies": {
+            "implement-db": [],
+            "implement-api": [
+              "implement-db"
+            ],
+            "implement-logic": [
+              "implement-api"
+            ],
+            "implement-ui": [
+              "implement-logic"
+            ]
+          }
+        },
+        "devops": {
+          "can_invoke": [
+            "code-review"
+          ],
+          "on_complete": "code-review"
+        },
+        "code-review": {
+          "can_invoke": [
+            "fix",
+            "architect",
+            "orchestrator"
+          ],
+          "decision_logic": {
+            "code_issue": "fix",
+            "architecture_issue": "architect",
+            "human_change": "orchestrator",
+            "approved": "validate"
+          }
+        },
+        "fix": {
+          "can_invoke": [
+            "validate",
+            "code-review",
+            "implement"
+          ],
+          "decision_logic": {
+            "fixed": "validate",
+            "still_broken": "code-review",
+            "major_change_needed": "implement"
+          }
+        },
+        "validate": {
+          "can_invoke": [
+            "orchestrator"
+          ],
+          "on_complete": "orchestrator"
+        }
+      },
+      "approval_gate": null,
+      "budget_limit": 0.2,
+      "design_critic": false,
+      "visual_qa": true,
+      "depends_on": [
+        "4c-vqa"
+      ],
+      "parallel_safe": false,
+      "agent_dependencies": {
+        "implement": [],
+        "devops": [
+          "implement"
+        ],
+        "code-review": [
+          "devops"
+        ],
+        "validate": [
+          "code-review"
+        ]
+      },
+      "runs_after": "4c-vqa",
+      "display_id": "S5.4",
+      "phase": "P5 Implementation"
+    },
+    "4d-vqa": {
+      "name": "Visual QA (Iteration 4)",
+      "ideal_flow": [
+        "visual_qa"
+      ],
+      "on_complete": "orchestrator",
+      "sub_agents": {},
+      "approval_gate": null,
+      "budget_limit": 0.03,
+      "design_critic": false,
+      "visual_qa": false,
+      "auto_stage": true,
+      "depends_on": [
+        "4d"
+      ],
+      "parallel_safe": false,
+      "agent_dependencies": {
+        "visual_qa": []
+      },
+      "runs_after": "4d",
+      "display_id": "S5.4a",
+      "phase": "P5 Implementation"
+    },
+    "4e": {
+      "name": "Implementation Iteration 5",
+      "ideal_flow": [
+        "implement",
+        "devops",
+        "code-review",
+        "validate"
+      ],
+      "on_complete": "visual_qa",
+      "sub_agents": {
+        "implement": {
+          "sub_flow": [
+            "implement-db",
+            "implement-api",
+            "implement-logic",
+            "implement-ui"
+          ],
+          "can_invoke": [
+            "devops",
+            "implement-db",
+            "implement-api",
+            "implement-logic",
+            "implement-ui"
+          ],
+          "decision_logic": {
+            "db_issue": "implement-db",
+            "api_issue": "implement-api",
+            "logic_issue": "implement-logic",
+            "ui_issue": "implement-ui",
+            "architecture_issue": "architect",
+            "build_needed": "devops"
+          },
+          "sub_agent_dependencies": {
+            "implement-db": [],
+            "implement-api": [
+              "implement-db"
+            ],
+            "implement-logic": [
+              "implement-api"
+            ],
+            "implement-ui": [
+              "implement-logic"
+            ]
+          }
+        },
+        "devops": {
+          "can_invoke": [
+            "code-review"
+          ],
+          "on_complete": "code-review"
+        },
+        "code-review": {
+          "can_invoke": [
+            "fix",
+            "architect",
+            "orchestrator"
+          ],
+          "decision_logic": {
+            "code_issue": "fix",
+            "architecture_issue": "architect",
+            "human_change": "orchestrator",
+            "approved": "validate"
+          }
+        },
+        "fix": {
+          "can_invoke": [
+            "validate",
+            "code-review",
+            "implement"
+          ],
+          "decision_logic": {
+            "fixed": "validate",
+            "still_broken": "code-review",
+            "major_change_needed": "implement"
+          }
+        },
+        "validate": {
+          "can_invoke": [
+            "orchestrator"
+          ],
+          "on_complete": "orchestrator"
+        }
+      },
+      "approval_gate": null,
+      "budget_limit": 0.2,
+      "design_critic": false,
+      "visual_qa": true,
+      "depends_on": [
+        "4d-vqa"
+      ],
+      "parallel_safe": false,
+      "agent_dependencies": {
+        "implement": [],
+        "devops": [
+          "implement"
+        ],
+        "code-review": [
+          "devops"
+        ],
+        "validate": [
+          "code-review"
+        ]
+      },
+      "runs_after": "4d-vqa",
+      "display_id": "S5.5",
+      "phase": "P5 Implementation"
+    },
+    "4e-vqa": {
+      "name": "Visual QA (Iteration 5)",
+      "ideal_flow": [
+        "visual_qa"
+      ],
+      "on_complete": "orchestrator",
+      "sub_agents": {},
+      "approval_gate": null,
+      "budget_limit": 0.03,
+      "design_critic": false,
+      "visual_qa": false,
+      "auto_stage": true,
+      "depends_on": [
+        "4e"
+      ],
+      "parallel_safe": false,
+      "agent_dependencies": {
+        "visual_qa": []
+      },
+      "runs_after": "4e",
+      "display_id": "S5.5a",
+      "phase": "P5 Implementation"
+    },
+    "4f": {
+      "name": "Implementation Iteration 6",
+      "ideal_flow": [
+        "implement",
+        "devops",
+        "code-review",
+        "validate"
+      ],
+      "on_complete": "visual_qa",
+      "sub_agents": {
+        "implement": {
+          "sub_flow": [
+            "implement-db",
+            "implement-api",
+            "implement-logic",
+            "implement-ui"
+          ],
+          "can_invoke": [
+            "devops",
+            "implement-db",
+            "implement-api",
+            "implement-logic",
+            "implement-ui"
+          ],
+          "decision_logic": {
+            "db_issue": "implement-db",
+            "api_issue": "implement-api",
+            "logic_issue": "implement-logic",
+            "ui_issue": "implement-ui",
+            "architecture_issue": "architect",
+            "build_needed": "devops"
+          },
+          "sub_agent_dependencies": {
+            "implement-db": [],
+            "implement-api": [
+              "implement-db"
+            ],
+            "implement-logic": [
+              "implement-api"
+            ],
+            "implement-ui": [
+              "implement-logic"
+            ]
+          }
+        },
+        "devops": {
+          "can_invoke": [
+            "code-review"
+          ],
+          "on_complete": "code-review"
+        },
+        "code-review": {
+          "can_invoke": [
+            "fix",
+            "architect",
+            "orchestrator"
+          ],
+          "decision_logic": {
+            "code_issue": "fix",
+            "architecture_issue": "architect",
+            "human_change": "orchestrator",
+            "approved": "validate"
+          }
+        },
+        "fix": {
+          "can_invoke": [
+            "validate",
+            "code-review",
+            "implement"
+          ],
+          "decision_logic": {
+            "fixed": "validate",
+            "still_broken": "code-review",
+            "major_change_needed": "implement"
+          }
+        },
+        "validate": {
+          "can_invoke": [
+            "orchestrator"
+          ],
+          "on_complete": "orchestrator"
+        }
+      },
+      "approval_gate": null,
+      "budget_limit": 0.2,
+      "design_critic": false,
+      "visual_qa": true,
+      "depends_on": [
+        "4e-vqa"
+      ],
+      "parallel_safe": false,
+      "agent_dependencies": {
+        "implement": [],
+        "devops": [
+          "implement"
+        ],
+        "code-review": [
+          "devops"
+        ],
+        "validate": [
+          "code-review"
+        ]
+      },
+      "runs_after": "4e-vqa",
+      "display_id": "S5.6",
+      "phase": "P5 Implementation"
+    },
+    "4f-vqa": {
+      "name": "Visual QA (Iteration 6)",
+      "ideal_flow": [
+        "visual_qa"
+      ],
+      "on_complete": "orchestrator",
+      "sub_agents": {},
+      "approval_gate": null,
+      "budget_limit": 0.03,
+      "design_critic": false,
+      "visual_qa": false,
+      "auto_stage": true,
+      "depends_on": [
+        "4f"
+      ],
+      "parallel_safe": false,
+      "agent_dependencies": {
+        "visual_qa": []
+      },
+      "runs_after": "4f",
+      "display_id": "S5.6a",
+      "phase": "P5 Implementation"
+    },
+    "5": {
+      "name": "Security Scan",
+      "ideal_flow": [
+        "security"
+      ],
+      "on_complete": "orchestrator",
+      "sub_agents": {
+        "security": {
+          "can_invoke": [
+            "fix",
+            "orchestrator"
+          ],
+          "decision_logic": {
+            "issues_found": "fix",
+            "clean": "orchestrator"
+          }
+        }
+      },
+      "approval_gate": "AG-security-critical",
+      "budget_limit": 0.05,
+      "design_critic": false,
+      "visual_qa": false,
+      "depends_on": [
+        "4f-vqa"
+      ],
+      "parallel_safe": true,
+      "agent_dependencies": {
+        "security": []
+      },
+      "display_id": "S6.1",
+      "phase": "P6 Verification"
+    },
+    "6": {
+      "name": "NFR Tests",
+      "ideal_flow": [
+        "validate"
+      ],
+      "on_complete": "orchestrator",
+      "sub_agents": {},
+      "approval_gate": null,
+      "budget_limit": 0.05,
+      "design_critic": false,
+      "visual_qa": false,
+      "depends_on": [
+        "4f-vqa"
+      ],
+      "parallel_safe": true,
+      "agent_dependencies": {
+        "validate": []
+      },
+      "display_id": "S6.2",
+      "phase": "P6 Verification"
+    },
+    "7": {
+      "name": "Full Test Suite",
+      "ideal_flow": [
+        "validate"
+      ],
+      "on_complete": "orchestrator",
+      "sub_agents": {},
+      "approval_gate": null,
+      "budget_limit": 0.05,
+      "design_critic": false,
+      "visual_qa": false,
+      "depends_on": [
+        "5",
+        "6"
+      ],
+      "parallel_safe": false,
+      "agent_dependencies": {
+        "validate": []
+      },
+      "display_id": "S6.3",
+      "phase": "P6 Verification"
+    },
+    "8": {
+      "name": "Document",
+      "ideal_flow": [
+        "document"
+      ],
+      "on_complete": "orchestrator",
+      "sub_agents": {},
+      "approval_gate": null,
+      "budget_limit": 0.05,
+      "design_critic": false,
+      "visual_qa": false,
+      "depends_on": [
+        "7"
+      ],
+      "parallel_safe": false,
+      "agent_dependencies": {
+        "document": []
+      },
+      "display_id": "S7.1",
+      "phase": "P7 Delivery"
+    },
+    "9": {
+      "name": "Package",
+      "ideal_flow": [
+        "package"
+      ],
+      "on_complete": "orchestrator",
+      "sub_agents": {},
+      "approval_gate": null,
+      "budget_limit": 0.03,
+      "design_critic": false,
+      "visual_qa": false,
+      "depends_on": [
+        "8"
+      ],
+      "parallel_safe": false,
+      "agent_dependencies": {
+        "package": []
+      },
+      "display_id": "S7.2",
+      "phase": "P7 Delivery"
+    },
+    "10": {
+      "name": "Pre-Production",
+      "ideal_flow": [
+        "devops",
+        "orchestrator"
+      ],
+      "on_complete": "orchestrator",
+      "sub_agents": {
+        "devops": {
+          "can_invoke": [
+            "orchestrator"
+          ],
+          "on_complete": "orchestrator"
+        }
+      },
+      "approval_gate": "AG-deploy",
+      "budget_limit": 0.05,
+      "design_critic": false,
+      "visual_qa": false,
+      "depends_on": [
+        "9"
+      ],
+      "parallel_safe": false,
+      "agent_dependencies": {
+        "devops": [],
+        "orchestrator": [
+          "devops"
+        ]
+      },
+      "display_id": "S7.3",
+      "phase": "P7 Delivery"
+    },
+    "10a": {
+      "name": "QA Go/No-Go",
+      "ideal_flow": [
+        "validate"
+      ],
+      "on_complete": "orchestrator",
+      "sub_agents": {},
+      "approval_gate": null,
+      "budget_limit": 0.05,
+      "design_critic": false,
+      "visual_qa": false,
+      "depends_on": [
+        "10"
+      ],
+      "parallel_safe": false,
+      "agent_dependencies": {
+        "validate": []
+      },
+      "display_id": "S7.4",
+      "phase": "P7 Delivery"
+    },
+    "11": {
+      "name": "Deploy",
+      "ideal_flow": [
+        "devops",
+        "production-deploy"
+      ],
+      "on_complete": "orchestrator",
+      "sub_agents": {
+        "devops": {
+          "can_invoke": [
+            "orchestrator"
+          ],
+          "on_complete": "orchestrator"
+        }
+      },
+      "approval_gate": "AG-deploy",
+      "budget_limit": 0.05,
+      "design_critic": false,
+      "visual_qa": false,
+      "depends_on": [
+        "10a"
+      ],
+      "parallel_safe": false,
+      "agent_dependencies": {
+        "devops": [],
+        "production-deploy": [
+          "devops"
+        ]
+      },
+      "display_id": "S7.5",
+      "phase": "P7 Delivery"
+    },
+    "12": {
+      "name": "Exit",
+      "ideal_flow": [
+        "orchestrator"
+      ],
+      "on_complete": "orchestrator",
+      "sub_agents": {},
+      "approval_gate": null,
+      "budget_limit": 0.01,
+      "design_critic": false,
+      "visual_qa": false,
+      "depends_on": [
+        "11"
+      ],
+      "parallel_safe": false,
+      "agent_dependencies": {
+        "orchestrator": []
+      },
+      "display_id": "S7.6",
+      "phase": "P7 Delivery"
+    },
+    "1d": {
+      "name": "Research",
+      "ideal_flow": [
+        "researcher"
+      ],
+      "depends_on": [
+        "1a"
+      ],
+      "parallel_safe": true,
+      "agent_dependencies": {
+        "researcher": []
+      },
+      "sub_agents": {},
+      "approval_gate": false,
+      "design_critic": false,
+      "visual_qa": false,
+      "display_id": "S3.5",
+      "phase": "P3 Design"
+    },
+    "0b": {
+      "name": "Business & Product Definition",
+      "ideal_flow": [
+        "product-owner"
+      ],
+      "on_complete": "orchestrator",
+      "sub_agents": {},
+      "approval_gate": "AG-business",
+      "budget_limit": 0.05,
+      "design_critic": false,
+      "visual_qa": false,
+      "optional": true,
+      "depends_on": [
+        "0a"
+      ],
+      "parallel_safe": false,
+      "agent_dependencies": {
+        "product-owner": []
+      },
+      "display_id": "S2.1",
+      "phase": "P2 Business, Market & Monetization"
+    },
+    "0c": {
+      "name": "Market, Competition & Positioning",
+      "ideal_flow": [
+        "researcher"
+      ],
+      "on_complete": "orchestrator",
+      "sub_agents": {
+        "researcher": [
+          "scout",
+          "analyst"
+        ]
+      },
+      "approval_gate": "AG-market",
+      "budget_limit": 0.05,
+      "design_critic": false,
+      "visual_qa": false,
+      "optional": true,
+      "depends_on": [
+        "0b"
+      ],
+      "parallel_safe": false,
+      "agent_dependencies": {
+        "researcher": []
+      },
+      "display_id": "S2.2",
+      "phase": "P2 Business, Market & Monetization"
+    },
+    "0d": {
+      "name": "Monetization & Unit Economics",
+      "ideal_flow": [
+        "pricing-strategist"
+      ],
+      "on_complete": "orchestrator",
+      "sub_agents": {
+        "pricing-strategist": [
+          "finops"
+        ]
+      },
+      "approval_gate": "AG-monetization",
+      "budget_limit": 0.05,
+      "design_critic": false,
+      "visual_qa": false,
+      "optional": true,
+      "depends_on": [
+        "0b",
+        "0c"
+      ],
+      "parallel_safe": false,
+      "agent_dependencies": {
+        "pricing-strategist": []
+      },
+      "display_id": "S2.3",
+      "phase": "P2 Business, Market & Monetization"
+    },
+    "0e": {
+      "name": "Go-to-Market & Customer Journey",
+      "ideal_flow": [
+        "marketing"
+      ],
+      "on_complete": "orchestrator",
+      "sub_agents": {
+        "marketing": [
+          "growth",
+          "customer-onboarding"
+        ]
+      },
+      "approval_gate": "AG-gtm",
+      "budget_limit": 0.05,
+      "design_critic": false,
+      "visual_qa": false,
+      "optional": true,
+      "depends_on": [
+        "0b",
+        "0c",
+        "0d"
+      ],
+      "parallel_safe": false,
+      "agent_dependencies": {
+        "marketing": []
+      },
+      "display_id": "S2.4",
+      "phase": "P2 Business, Market & Monetization"
+    },
+    "13": {
+      "name": "Operate & Observability",
+      "ideal_flow": [
+        "observer"
+      ],
+      "on_complete": "orchestrator",
+      "sub_agents": {
+        "observer": [
+          "post-production",
+          "maintenance",
+          "performance"
+        ]
+      },
+      "approval_gate": "AG-operate",
+      "budget_limit": 0.05,
+      "design_critic": false,
+      "visual_qa": false,
+      "optional": true,
+      "depends_on": [
+        "12"
+      ],
+      "parallel_safe": false,
+      "agent_dependencies": {
+        "observer": []
+      },
+      "display_id": "S8.1",
+      "phase": "P8 Operate, Grow & Engage"
+    },
+    "13a": {
+      "name": "Customer Success & Support",
+      "ideal_flow": [
+        "customer-success"
+      ],
+      "on_complete": "orchestrator",
+      "sub_agents": {
+        "customer-success": [
+          "customer-onboarding"
+        ]
+      },
+      "approval_gate": null,
+      "budget_limit": 0.05,
+      "design_critic": false,
+      "visual_qa": false,
+      "auto_stage": true,
+      "optional": true,
+      "depends_on": [
+        "13"
+      ],
+      "parallel_safe": false,
+      "agent_dependencies": {
+        "customer-success": []
+      },
+      "display_id": "S8.2",
+      "phase": "P8 Operate, Grow & Engage"
+    },
+    "13b": {
+      "name": "Growth, Engagement & Feedback",
+      "ideal_flow": [
+        "growth"
+      ],
+      "on_complete": "orchestrator",
+      "sub_agents": {
+        "growth": [
+          "community-social",
+          "analyst",
+          "insight-extractor"
+        ]
+      },
+      "approval_gate": null,
+      "budget_limit": 0.05,
+      "design_critic": false,
+      "visual_qa": false,
+      "auto_stage": true,
+      "optional": true,
+      "depends_on": [
+        "13",
+        "13a"
+      ],
+      "parallel_safe": false,
+      "agent_dependencies": {
+        "growth": []
+      },
+      "display_id": "S8.3",
+      "phase": "P8 Operate, Grow & Engage"
+    }
+  },
+  "agent_capabilities": {
+    "orchestrator": {
+      "scope": "manage_pipeline",
+      "can_invoke": [
+        "ideation",
+        "design",
+        "architect",
+        "implement",
+        "devops",
+        "code-review",
+        "fix",
+        "validate",
+        "security",
+        "document",
+        "package",
+        "discovery",
+        "product-design-spec",
+        "ux-ia"
+      ],
+      "on_complete": "human_approval"
+    },
+    "ideation": {
+      "scope": "capture_idea",
+      "can_invoke": [
+        "design"
+      ],
+      "on_complete": "design"
+    },
+    "discovery": {
+      "scope": "multi_perspective_ideation",
+      "sub_agents": [
+        "product-analyst",
+        "business-analyst",
+        "ux-researcher"
+      ],
+      "can_invoke": [
+        "design",
+        "orchestrator"
+      ],
+      "on_complete": "design",
+      "model_preferences": {
+        "product-analyst": "gpt-4o",
+        "business-analyst": "claude-3-sonnet",
+        "ux-researcher": "gpt-4o-mini"
+      }
+    },
+    "design": {
+      "scope": "create_requirements_and_design",
+      "can_invoke": [
+        "architect"
+      ],
+      "on_complete": "design_critic"
+    },
+    "product-design-spec": {
+      "scope": "create_product_design_specification",
+      "can_invoke": [
+        "design-critic",
+        "orchestrator"
+      ],
+      "on_complete": "design_critic",
+      "artifact_type": "product-design-spec"
+    },
+    "design_critic": {
+      "scope": "review_design_quality",
+      "can_invoke": [
+        "orchestrator",
+        "design"
+      ],
+      "decision_logic": {
+        "passed": "orchestrator",
+        "failed": "design"
+      },
+      "on_complete": "orchestrator"
+    },
+    "ux-ia": {
+      "scope": "review_ux_and_information_architecture",
+      "can_invoke": [
+        "orchestrator"
+      ],
+      "on_complete": "orchestrator",
+      "artifact_type": "design-tokens"
+    },
+    "architect": {
+      "scope": "create_architecture",
+      "can_invoke": [
+        "implement",
+        "orchestrator"
+      ],
+      "on_complete": "orchestrator"
+    },
+    "implement": {
+      "scope": "write_code",
+      "sub_agents": [
+        "implement-db",
+        "implement-api",
+        "implement-logic",
+        "implement-ui"
+      ],
+      "can_invoke": [
+        "devops",
+        "code-review",
+        "architect",
+        "implement-db",
+        "implement-api",
+        "implement-logic",
+        "implement-ui"
+      ],
+      "on_complete": "devops"
+    },
+    "implement-db": {
+      "scope": "write_database_code",
+      "can_invoke": [
+        "implement-api",
+        "implement"
+      ],
+      "on_complete": "implement-api"
+    },
+    "implement-api": {
+      "scope": "write_api_code",
+      "can_invoke": [
+        "implement-logic",
+        "implement-db",
+        "implement"
+      ],
+      "on_complete": "implement-logic"
+    },
+    "implement-logic": {
+      "scope": "write_business_logic",
+      "can_invoke": [
+        "implement-ui",
+        "implement-api",
+        "implement"
+      ],
+      "on_complete": "implement-ui"
+    },
+    "implement-ui": {
+      "scope": "write_ui_code",
+      "can_invoke": [
+        "implement",
+        "devops"
+      ],
+      "on_complete": "devops"
+    },
+    "devops": {
+      "scope": "build_and_deploy",
+      "can_invoke": [
+        "code-review",
+        "orchestrator"
+      ],
+      "on_complete": "code-review"
+    },
+    "code-review": {
+      "scope": "review_code",
+      "can_invoke": [
+        "fix",
+        "architect",
+        "validate",
+        "orchestrator"
+      ],
+      "decision_logic": {
+        "code_issue": "fix",
+        "architecture_issue": "architect",
+        "approved": "validate",
+        "human_change": "orchestrator"
+      },
+      "on_complete": "validate"
+    },
+    "fix": {
+      "scope": "fix_issues",
+      "can_invoke": [
+        "validate",
+        "code-review",
+        "implement"
+      ],
+      "decision_logic": {
+        "fixed": "code-review",
+        "reviewed": "validate",
+        "still_broken": "code-review",
+        "major_change_needed": "implement"
+      },
+      "on_complete": "code-review"
+    },
+    "validate": {
+      "scope": "run_tests",
+      "can_invoke": [
+        "orchestrator",
+        "fix"
+      ],
+      "decision_logic": {
+        "tests_pass": "orchestrator",
+        "tests_fail": "fix"
+      },
+      "on_complete": "orchestrator"
+    },
+    "security": {
+      "scope": "security_scan",
+      "can_invoke": [
+        "fix",
+        "orchestrator"
+      ],
+      "decision_logic": {
+        "issues_found": "fix",
+        "clean": "orchestrator"
+      },
+      "on_complete": "orchestrator"
+    },
+    "visual_qa": {
+      "scope": "validate_visual_output",
+      "can_invoke": [
+        "orchestrator",
+        "fix"
+      ],
+      "decision_logic": {
+        "passed": "orchestrator",
+        "failed": "fix"
+      },
+      "on_complete": "orchestrator"
+    },
+    "document": {
+      "scope": "create_documentation",
+      "can_invoke": [
+        "orchestrator"
+      ],
+      "on_complete": "orchestrator"
+    },
+    "package": {
+      "scope": "package_artifacts",
+      "can_invoke": [
+        "orchestrator"
+      ],
+      "on_complete": "orchestrator"
+    }
+  },
+  "budget_tracking": {
+    "enabled": true,
+    "total_budget": 100.0,
+    "alert_threshold": 80,
+    "currency": "USD"
+  },
+  "stuck_detection": {
+    "timeout_minutes": 10,
+    "check_interval_minutes": 2,
+    "max_retries": 3,
+    "on_stuck": "factory_supervisor_intervenes"
+  },
+  "loop_detection": {
+    "max_repeats": 3,
+    "on_loop": "forced_convergence"
+  },
+  "convergence": {
+    "max_idle_cycles": 5,
+    "escalate_after_cycles": 3,
+    "actions": [
+      "skip",
+      "escalate",
+      "force_complete",
+      "auto_resolve",
+      "terminate"
+    ]
+  },
+  "parallel_groups": [
+    {
+      "name": "design-reviews",
+      "stages": [
+        "1b",
+        "1c"
+      ],
+      "runs_after": [
+        "1a"
+      ],
+      "converges_at": "2"
+    },
+    {
+      "name": "verification",
+      "stages": [
+        "5",
+        "6"
+      ],
+      "runs_after": [
+        "4c-vqa"
+      ],
+      "converges_at": "7"
+    }
+  ]
+}

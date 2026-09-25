@@ -1,0 +1,377 @@
+{
+  "title": "Multi-Agent Multi-Project Pipeline — E2E Architecture",
+  "direction": "TB",
+  "groups": [
+    {
+      "id": "user_layer",
+      "label": "User Layer",
+      "vendor": "generic"
+    },
+    {
+      "id": "ideation_layer",
+      "label": "Stage 0: Ideation (Orchestrator)",
+      "vendor": "generic"
+    },
+    {
+      "id": "design_layer",
+      "label": "Stages 1-3: Design & Review",
+      "vendor": "generic"
+    },
+    {
+      "id": "implementation_layer",
+      "label": "Stages 4-7: Implementation & Validation",
+      "vendor": "generic"
+    },
+    {
+      "id": "recovery_layer",
+      "label": "Failure Recovery",
+      "vendor": "generic"
+    },
+    {
+      "id": "observability_layer",
+      "label": "Observability & State",
+      "vendor": "generic"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "user",
+      "service": "actor.user",
+      "label": "User\n(IDE / CLI)",
+      "group": "user_layer"
+    },
+    {
+      "id": "pipeline_cli",
+      "service": "interface.cli",
+      "label": "/pipeline command\nor natural language",
+      "group": "user_layer"
+    },
+    {
+      "id": "ideation_agent",
+      "service": "process.orchestrator",
+      "label": "Ideation Agent\n(Orchestrator)\nmimo-v2.5",
+      "group": "ideation_layer"
+    },
+    {
+      "id": "idea_input",
+      "service": "input.text",
+      "label": "Idea Input\n(Text or File)",
+      "group": "ideation_layer"
+    },
+    {
+      "id": "summary_confirm",
+      "service": "process.decision",
+      "label": "Summary &\nConfirmation",
+      "group": "ideation_layer"
+    },
+    {
+      "id": "agent_queries",
+      "service": "process.parallel",
+      "label": "Agent Query\nMeeting\n(All 7 agents)",
+      "group": "ideation_layer"
+    },
+    {
+      "id": "optional_req",
+      "service": "process.filter",
+      "label": "Optional\nRequirements\nCollection",
+      "group": "ideation_layer"
+    },
+    {
+      "id": "product_plan",
+      "service": "document.output",
+      "label": "product-plan.md\n(MUST-HAVE +\nOPTIONAL)",
+      "group": "ideation_layer"
+    },
+    {
+      "id": "design_agent",
+      "service": "process.step",
+      "label": "Design Agent\nminimax-m3",
+      "group": "design_layer"
+    },
+    {
+      "id": "architect_agent",
+      "service": "process.step",
+      "label": "Architect Agent\nqwen3.7-max",
+      "group": "design_layer"
+    },
+    {
+      "id": "review_agent",
+      "service": "process.decision",
+      "label": "Review Agent\nqwen3.7-plus\n(APPROVED gate)",
+      "group": "design_layer"
+    },
+    {
+      "id": "requirements_md",
+      "service": "document.output",
+      "label": "requirements.md",
+      "group": "design_layer"
+    },
+    {
+      "id": "design_md",
+      "service": "document.output",
+      "label": "design.md",
+      "group": "design_layer"
+    },
+    {
+      "id": "architecture_md",
+      "service": "document.output",
+      "label": "architecture.md\n+ ADRs",
+      "group": "design_layer"
+    },
+    {
+      "id": "review_md",
+      "service": "document.output",
+      "label": "review.md\n(APPROVED / CHANGES)",
+      "group": "design_layer"
+    },
+    {
+      "id": "implement_agent",
+      "service": "process.step",
+      "label": "Implement Agent\nkimi-k2.7-code",
+      "group": "implementation_layer"
+    },
+    {
+      "id": "code_review_agent",
+      "service": "process.step",
+      "label": "Code Review Agent\nkimi-k2.7-code",
+      "group": "implementation_layer"
+    },
+    {
+      "id": "validate_agent",
+      "service": "process.step",
+      "label": "Validate Agent\ndeepseek-v4-flash",
+      "group": "implementation_layer"
+    },
+    {
+      "id": "fix_agent",
+      "service": "process.loop",
+      "label": "Fix Agent\nkimi-k2.7-code\n(Fix Loop)",
+      "group": "implementation_layer"
+    },
+    {
+      "id": "src_code",
+      "service": "storage.code",
+      "label": "src/\n(Source Code)",
+      "group": "implementation_layer"
+    },
+    {
+      "id": "code_review_md",
+      "service": "document.output",
+      "label": "code-review.md",
+      "group": "implementation_layer"
+    },
+    {
+      "id": "issues_md",
+      "service": "document.output",
+      "label": "issues.md",
+      "group": "implementation_layer"
+    },
+    {
+      "id": "checkpoints",
+      "service": "storage.state",
+      "label": "checkpoints/\n(After each agent)",
+      "group": "recovery_layer"
+    },
+    {
+      "id": "dlq",
+      "service": "storage.queue",
+      "label": "Dead Letter Queue\n(Failed tasks)",
+      "group": "recovery_layer"
+    },
+    {
+      "id": "circuit_breakers",
+      "service": "process.control",
+      "label": "Circuit Breakers\n(5 failures = OPEN)",
+      "group": "recovery_layer"
+    },
+    {
+      "id": "pipeline_state",
+      "service": "document.audit",
+      "label": "pipeline-state.md\n(Audit log)",
+      "group": "observability_layer"
+    },
+    {
+      "id": "model_tiers",
+      "service": "config.tier",
+      "label": "Model Tiers\n(Recommended/Cheap/\nHybrid/Free)",
+      "group": "observability_layer"
+    }
+  ],
+  "edges": [
+    {
+      "source": "user",
+      "target": "pipeline_cli",
+      "label": "New Idea / Fix / Change"
+    },
+    {
+      "source": "pipeline_cli",
+      "target": "ideation_agent",
+      "label": "Stage 0 trigger"
+    },
+    {
+      "source": "ideation_agent",
+      "target": "idea_input",
+      "label": "Accept idea"
+    },
+    {
+      "source": "idea_input",
+      "target": "summary_confirm",
+      "label": "Summarize & show"
+    },
+    {
+      "source": "summary_confirm",
+      "target": "user",
+      "label": "Confirm / Changes?"
+    },
+    {
+      "source": "summary_confirm",
+      "target": "agent_queries",
+      "label": "User confirms"
+    },
+    {
+      "source": "agent_queries",
+      "target": "optional_req",
+      "label": "Collect optional reqs"
+    },
+    {
+      "source": "optional_req",
+      "target": "product_plan",
+      "label": "Synthesize"
+    },
+    {
+      "source": "product_plan",
+      "target": "design_agent",
+      "label": "Stage 1"
+    },
+    {
+      "source": "design_agent",
+      "target": "requirements_md",
+      "label": "Writes"
+    },
+    {
+      "source": "design_agent",
+      "target": "design_md",
+      "label": "Writes"
+    },
+    {
+      "source": "requirements_md",
+      "target": "architect_agent",
+      "label": "Stage 2"
+    },
+    {
+      "source": "design_md",
+      "target": "architect_agent",
+      "label": "Stage 2"
+    },
+    {
+      "source": "architect_agent",
+      "target": "architecture_md",
+      "label": "Writes"
+    },
+    {
+      "source": "architecture_md",
+      "target": "review_agent",
+      "label": "Stage 3"
+    },
+    {
+      "source": "review_agent",
+      "target": "review_md",
+      "label": "Writes verdict"
+    },
+    {
+      "source": "review_md",
+      "target": "implement_agent",
+      "label": "Stage 4 (MUST be APPROVED)"
+    },
+    {
+      "source": "implement_agent",
+      "target": "src_code",
+      "label": "Writes code"
+    },
+    {
+      "source": "src_code",
+      "target": "code_review_agent",
+      "label": "Stage 5"
+    },
+    {
+      "source": "code_review_agent",
+      "target": "code_review_md",
+      "label": "Writes"
+    },
+    {
+      "source": "code_review_md",
+      "target": "validate_agent",
+      "label": "Stage 6"
+    },
+    {
+      "source": "validate_agent",
+      "target": "issues_md",
+      "label": "Writes issues"
+    },
+    {
+      "source": "issues_md",
+      "target": "fix_agent",
+      "label": "Stage 7 (if issues)"
+    },
+    {
+      "source": "fix_agent",
+      "target": "src_code",
+      "label": "Fix code"
+    },
+    {
+      "source": "fix_agent",
+      "target": "validate_agent",
+      "label": "Re-validate loop"
+    },
+    {
+      "source": "ideation_agent",
+      "target": "checkpoints",
+      "label": "Save state"
+    },
+    {
+      "source": "design_agent",
+      "target": "checkpoints",
+      "label": "Save state"
+    },
+    {
+      "source": "architect_agent",
+      "target": "checkpoints",
+      "label": "Save state"
+    },
+    {
+      "source": "review_agent",
+      "target": "checkpoints",
+      "label": "Save state"
+    },
+    {
+      "source": "implement_agent",
+      "target": "checkpoints",
+      "label": "Save state"
+    },
+    {
+      "source": "code_review_agent",
+      "target": "checkpoints",
+      "label": "Save state"
+    },
+    {
+      "source": "validate_agent",
+      "target": "checkpoints",
+      "label": "Save state"
+    },
+    {
+      "source": "fix_agent",
+      "target": "checkpoints",
+      "label": "Save state"
+    },
+    {
+      "source": "ideation_agent",
+      "target": "pipeline_state",
+      "label": "Audit log"
+    },
+    {
+      "source": "circuit_breakers",
+      "target": "dlq",
+      "label": "5+ failures"
+    }
+  ]
+}

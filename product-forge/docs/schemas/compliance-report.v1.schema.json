@@ -1,0 +1,90 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://product-forge.dev/schemas/compliance-report.v1.schema.json",
+  "title": "Compliance Report",
+  "description": "Schema for products/<project>/compliance/<agent>-compliance.md. Records compliance check results per agent run.",
+  "type": "object",
+  "required": ["spec_version", "project", "agent", "timestamp", "overall_score", "overall_status", "categories"],
+  "additionalProperties": false,
+  "properties": {
+    "spec_version": {
+      "type": "string",
+      "const": "1.0"
+    },
+    "project": {
+      "type": "string"
+    },
+    "agent": {
+      "type": "string"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "overall_score": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100,
+      "description": "Overall compliance percentage"
+    },
+    "overall_status": {
+      "type": "string",
+      "enum": ["pass", "partial", "fail"],
+      "description": "Overall compliance status"
+    },
+    "categories": {
+      "type": "array",
+      "description": "Compliance categories checked",
+      "items": { "$ref": "#/definitions/Category" }
+    },
+    "artifacts_verified": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "artifacts_missing": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "recommendations": {
+      "type": "array",
+      "description": "Recommended fixes",
+      "items": { "type": "string" }
+    },
+    "verifier": {
+      "type": "string",
+      "enum": ["auto", "llm"],
+      "description": "Who ran this verification"
+    },
+    "verifier_model": {
+      "type": ["string", "null"],
+      "description": "Model used for LLM verification"
+    }
+  },
+  "definitions": {
+    "Category": {
+      "type": "object",
+      "required": ["name", "status", "score", "items"],
+      "properties": {
+        "name": { "type": "string" },
+        "status": { "type": "string", "enum": ["pass", "partial", "fail", "skipped"] },
+        "score": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "items": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/CheckItem" }
+        }
+      }
+    },
+    "CheckItem": {
+      "type": "object",
+      "required": ["name", "severity", "status"],
+      "properties": {
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "severity": { "type": "string", "enum": ["critical", "high", "medium", "low", "info"] },
+        "status": { "type": "string", "enum": ["pass", "fail", "partial", "unknown", "skipped"] },
+        "detail": { "type": "string" },
+        "auto_verifiable": { "type": "boolean" }
+      }
+    }
+  }
+}

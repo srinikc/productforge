@@ -1,0 +1,3490 @@
+"""
+Pipeline Execution Engine
+Real execution engine that wires together all components:
+- DAGExecutor for stage management
+- KnowledgeRouter for knowledge loading
+- ComplianceCheck for verification
+- AgentMemory for state persistence
+- ReasoningSkills for decision-making
+- Context Manager for minimum context per agent
+- Budget Protection for cost control
+- Design Critic for quality review
+- Visual QA for UI validation
+- Product Design Spec for structured specs
+- Design Tokens for consistent styling
+- Model Registry for model routing
+- Artifact Store for artifact management
+- Human Controls for approval gates
+- Forced Convergence for stuck detection
+- Factory Constitution for rule enforcement
+- Circuit Breakers for failure handling
+- Squad Manager for dynamic agent selection
+- Cross-Project Learning for insights
+- Discovery Engine for multi-perspective ideation
+- Dashboard Archetypes for layout templates
+- Budget Conservation for graceful degradation
+- Quality Metrics for performance tracking
+- Issue Tracker for structured issues
+
+This is the bridge between the Python infrastructure and the pipeline workflow.
+"""
+
+import json
+import os
+import sys
+import hashlib
+import re
+import time
+import threading
+from datetime import datetime
+from typing import Dict, List, Optional, Any, Callable, Tuple
+from dataclasses import dataclass, field, asdict
+from enum import Enum
+from pathlib import Path
+
+# Add parent directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from core.knowledge_router import KnowledgeRouter, RoutingDecision
+from core.agent_memory import AgentMemory, MemoryType, MemoryEntry, MemoryQuery
+from core.knowledge_compiler import KnowledgeCompiler
+from core.skill_contracts import SkillContractRegistry
+from core.agent_runtime import AgentRuntime, AgentState, AgentContext
+from core.dag_executor import DAGExecutor, StageStatus, StageType
+from core.reasoning_skills import ReasoningSkills
+from core.budget_protection import BudgetManager, BudgetType, safe_knowledge_route
+from core.context_manager import build_context_package, get_contract, check_budget as ctx_check_budget
+from core.stop_conditions import StopConditionManager
+from core.budget_tracker import BudgetTracker
+
+# Newly wired modules
+from core.product_design_spec import create_spec_from_artifacts, save_spec
+from core.design_tokens import get_default_tokens, tokens_to_css_custom_properties, save_tokens
+from core.model_registry import ModelCapabilityRegistry
+from core.artifact_store import scan_project_artifacts, create_or_update_artifact, get_artifacts_for_context
+from core.human_controls import request_approval, check_gate_required, human_controls_to_dict
+from core.forced_convergence import ConvergenceState, check_convergence, force_complete_stage, convergence_to_dict
+from core.factory_constitution import check_rule, check_quality_gate, constitution_to_dict
+from core.circuit_breaker import CircuitBreakerRegistry
+from core.squad_manager import SquadManager
+from core.cross_project_learning import build_learning_index, get_relevant_insights
+from core.discovery_engine import run_discovery, discovery_to_dict  # noqa: F401 (available; not invoked in the core loop)
+from core.dashboard_archetypes import select_archetype, get_archetype, archetype_to_dict
+from core.budget_conservation import create_conservation_state, apply_conservation_actions, should_skip_agent, conservation_state_to_dict
+from core.quality_metrics import QualityMetrics, calculate_quality_score, save_quality_metrics, generate_quality_report
+
+# Knowledge compliance and action handling
+from core.knowledge_compliance_checker import KnowledgeComplianceChecker, GuidelineContentLoader
+from core.compliance_action_handler import ComplianceActionHandler
+from core.issue_tracker import create_issue_list, add_issue, save_issue_list, generate_issue_report, prioritize_issues
+from core.project_journal import ProjectJournal
+from core.run_breaker import RunBreaker
+from core.delegation import DelegationRouter, DelegationBudget
+from core.iteration_planner import (plan_iterations, iteration_feature_map,
+                                    ITERATION_STAGES as PHASE_STAGES)
+from core.tech_stack import (detect_tech_from_text, stack_to_layers, is_web_stack,
+                             parse_tech_stack_block, build_decision, load_tech_stack,
+                             save_tech_stack)
+
+
+# Last-resort defaults. These are ONLY used when no model-tier config can be
+# found anywhere. They are overridable via environment variables so that model
+# selection is never truly hardcoded in the pipeline logic.
+FALLBACK_MODEL = os.getenv("PIPELINE_FALLBACK_MODEL", "mimo-v2.5")
+FALLBACK_PROVIDER = os.getenv("PIPELINE_FALLBACK_PROVIDER", "opencode-go")
+FALLBACK_ENDPOINT = os.getenv(
+    "PIPELINE_FALLBACK_ENDPOINT",
+    "https://opencode.ai/zen/go/v1/chat/completions",
+)
+
+
+# Extracted to core/orchestrator/* (modularity - 1A.11)
+from core.orchestrator.storage import AgentAuditLog, LLMCache, ArtifactSummarizer
+from core.orchestrator.types import PipelinePhase, AgentExecution, PipelineExecution
+
+
+class PipelineExecutor:
+    """
+    Real pipeline execution engine that wires all components together.
+    
+    Usage:
+        executor = PipelineExecutor(products_dir="products", project="<project>")
+        success = executor.execute_pipeline("pipeline-definition.json")
+    """
+    
+    def __init__(self, products_dir: str = "products", project: str = "default"):
+        self.products_dir = products_dir
+        self.project = project
+        self.project_dir = os.path.join(products_dir, project)
+        
+        # Initialize all components
+        self.knowledge_router = KnowledgeRouter(products_dir)
+        self.memory = AgentMemory(products_dir, project)
+        self.compiler = KnowledgeCompiler()
+        self.skills = SkillContractRegistry()
+        self.runtime = AgentRuntime(products_dir, project)
+        self.reasoning = ReasoningSkills()
+        
+        # Budget protection
+        self.budget_manager = BudgetManager(products_dir, project)
+        self.budget_tracker = BudgetTracker(products_dir)
+        self.stop_conditions = StopConditionManager(products_dir)
+        self._initialize_budgets()
+        
+        # Newly wired components
+        self.model_registry = ModelCapabilityRegistry()
+        self.circuit_breakers = CircuitBreakerRegistry(project)
+        self.squad_manager = SquadManager()
+        self.conservation_state = create_conservation_state()
+        
+        # Audit logging, caching, and summarization
+        self.audit_log = AgentAuditLog(os.path.join(products_dir, project))
+        self.llm_cache = LLMCache(os.path.join(products_dir, project))
+        self.summarizer = ArtifactSummarizer()
+        
+        # Knowledge compliance and action handling
+        self.knowledge_compliance = KnowledgeComplianceChecker(products_dir, "docs/guidelines")
+        self.guideline_loader = GuidelineContentLoader("docs/guidelines")
+        self.compliance_handler = ComplianceActionHandler(products_dir, project)
+        
+        # Pipeline state
+        self.pipeline_def: Optional[Dict] = None
+        self.dag_executor: Optional[DAGExecutor] = None
+        self.execution: Optional[PipelineExecution] = None
+        self.iteration_count: int = 0
+        self.max_iterations: int = 100
+        self._stop_requested: bool = False
+        self._pause_requested: bool = False
+        
+        # Orchestrator: Time Management
+        self.pipeline_start_time: float = 0
+        self.stage_durations: List[float] = []  # History of stage durations
+        self.stage_timings: Dict[str, Dict] = {}  # stage_id -> {started_at, completed_at, duration_s}
+        self.agent_timings: List[Dict] = []  # per-agent {stage, agent, started_at, completed_at, duration_s}
+        self.max_total_time: int = 1800  # 30 min default
+        self.per_stage_timeout: int = 300  # 5 min per stage
+        self.min_remaining_time: int = 120  # Minimum 2 min to continue
+        
+        # Orchestrator: Human-in-the-Loop
+        self.auto_approve: bool = False  # Default: HITL required
+        self.approval_mode: str = "interactive"  # interactive, auto, semi
+        self.budget_spec: Dict = {}  # project budget (soft/hard/tolerance)
+        self.project_idea: str = ""  # intended product brief for Stage 0
+        self.tech_stack_hints: List[str] = []  # project-declared tech stack
+        self.requested_tech_stack: List[str] = []  # user-requested stack (constraint)
+        self.tech_stack: Dict = {}  # agreed stack decision (docs/tech-stack.json)
+        self.max_compliance_retries: int = 2  # bounded re-run on compliance retry
+        self.pending_approvals: List[Dict] = []
+        
+        # Orchestrator: Parallel Execution
+        self.max_parallel_stages: int = 3
+        self.parallel_enabled: bool = True
+        self._state_lock = threading.Lock()  # guards shared mutable state across threads
+        
+        # Orchestrator: Checkpoint/Resume
+        self.state_file: str = os.path.join(self.project_dir, "pipeline-state.json")
+        self.checkpoint_data: Dict = {}
+        
+        # Orchestrator: Self-Monitoring
+        self.health_log: List[Dict] = []
+        self.anomaly_threshold: float = 3.0  # 3x average = anomaly
+        
+        # Orchestrator: Decision Log
+        self.decision_log: List[Dict] = []
+        
+        # Issue tracking
+        self.security_issues = create_issue_list(project, "security", "security")
+        self.nfr_issues = create_issue_list(project, "nfr", "validate")
+        self.test_issues = create_issue_list(project, "tests", "validate")
+        
+        # Quality metrics
+        self.quality_metrics = QualityMetrics(
+            run_id=f"run-{int(datetime.now().timestamp())}",
+            project=project,
+            started_at=datetime.now().isoformat(),
+        )
+        
+        # Ensure directories exist
+        os.makedirs(self.project_dir, exist_ok=True)
+        os.makedirs(os.path.join(self.project_dir, "compliance"), exist_ok=True)
+        os.makedirs(os.path.join(self.project_dir, "memory"), exist_ok=True)
+        os.makedirs(os.path.join(self.project_dir, "artifacts"), exist_ok=True)
+        os.makedirs(os.path.join(self.project_dir, "issues"), exist_ok=True)
+        os.makedirs(os.path.join(self.project_dir, "specs"), exist_ok=True)
+        os.makedirs(os.path.join(self.project_dir, "approvals"), exist_ok=True)
+        os.makedirs(os.path.join(self.project_dir, "docs"), exist_ok=True)
+        
+        # Load project config (auto_approve, etc.)
+        self._load_project_config()
+        # Materialize the canonical project-config.json expected by compliance
+        self._ensure_project_config()
+        # Reconcile token budgets with the project budget spec
+        self._apply_budget_spec()
+        # Live journal / project state (best-effort)
+        try:
+            self.journal = ProjectJournal(products_dir, project)
+        except Exception:
+            self.journal = None
+        # Run breaker + alerts (budget-spec driven)
+        try:
+            self.run_breaker = RunBreaker(project, products_dir, self.budget_spec)
+        except Exception:
+            self.run_breaker = None
+        self._force_cheap = False
+        # Delegation (orchestrator-routed A2A) - opt-in, off by default
+        self.delegation_enabled = False
+        self.delegation_router = None
+        self.delegations: List[Dict] = []
+        # Framework-agnostic AgentSpec + ToolRegistry
+        self.enable_tools = True  # default ON; per-agent gated by spec.tools
+        try:
+            from core.agent_spec import load_specs
+            from core.tool_registry import ToolRegistry
+            _root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            self.agent_specs = load_specs(os.path.join(_root, "agents"))
+            self.tool_registry = ToolRegistry()
+        except Exception as _e:
+            print(f"[Executor] agent specs/tools unavailable: {_e}")
+            self.agent_specs = {}
+            self.tool_registry = None
+        # Dynamic implementation phasing
+        self.phase_plan: List = []
+        self.phase_feature_map: Dict[str, List[str]] = {}
+        self._phases_planned = False
+        self.phases_override = None  # int or None (auto)
+
+    def _apply_budget_spec(self):
+        """Align the pipeline token budget with the project budget spec."""
+        try:
+            cap = self.budget_spec.get("hard_tokens") or self.budget_spec.get("soft_tokens")
+            if cap:
+                self.budget_manager.create_budget(
+                    "pipeline_total", BudgetType.PIPELINE_TOTAL,
+                    max_tokens=int(cap), scope=self.project)
+        except Exception:
+            pass
+
+    def _ensure_project_config(self):
+        """Write project-config.json (canonical layout) from project.json.
+
+        The compliance checklists expect product_type/product_domain/
+        tech_stack_hints in project-config.json, not project.json.
+        """
+        src = os.path.join(self.project_dir, "project.json")
+        dst = os.path.join(self.project_dir, "project-config.json")
+        config = {}
+        if os.path.exists(src):
+            try:
+                with open(src, 'r', encoding='utf-8') as f:
+                    config = json.load(f)
+            except Exception:
+                config = {}
+        existing = {}
+        if os.path.exists(dst):
+            try:
+                with open(dst, 'r', encoding='utf-8') as f:
+                    existing = json.load(f)
+            except Exception:
+                existing = {}
+        existing.setdefault("product_type", config.get("business_model", config.get("product_type", "web_app")))
+        existing.setdefault("product_domain", config.get("product_domain", "technology"))
+        existing.setdefault("tech_stack_hints", config.get("tech_stack_hints", []))
+        try:
+            with open(dst, 'w', encoding='utf-8') as f:
+                json.dump(existing, f, indent=2, ensure_ascii=False)
+        except Exception as e:
+            print(f"[Orchestrator] Could not write project-config.json: {e}")
+
+    # Canonical document each agent's output maps to (compliance layout).
+    CANONICAL_DOC_MAP = {
+        "ideation": ["docs/product-plan.md"],
+        "design": ["docs/requirements.md", "docs/design.md"],
+        "architect": ["docs/architecture.md"],
+    }
+
+    def _materialize_canonical_artifacts(self, agent_id: str, stage_id: str, artifacts: List[str]):
+        """Copy an agent's output to the canonical doc path(s) compliance expects.
+
+        Agents return markdown; the rule-based compliance checklists look for
+        docs/*.md files. Writing the output there lets file/content checks run
+        against the real generated content instead of always failing on a path
+        mismatch.
+        """
+        doc_paths = self.CANONICAL_DOC_MAP.get(agent_id)
+        if not doc_paths or not artifacts:
+            return
+        # Use the latest artifact produced by this agent.
+        source = artifacts[-1]
+        try:
+            with open(source, 'r', encoding='utf-8') as f:
+                content = f.read()
+        except Exception:
+            return
+        for rel in doc_paths:
+            target = os.path.join(self.project_dir, rel)
+            os.makedirs(os.path.dirname(target), exist_ok=True)
+            try:
+                with open(target, 'w', encoding='utf-8') as f:
+                    f.write(content)
+            except Exception as e:
+                print(f"[Compliance] Could not write {rel}: {e}")
+
+    def _append_agent_audit_md(self, agent_id: str, stage_id: str, status: str):
+        """Append a line to agent-audit.md (canonical audit layout)."""
+        audit_md = os.path.join(self.project_dir, "agent-audit.md")
+        line = (f"- {datetime.now().isoformat()} | agent={agent_id} | "
+                f"stage={stage_id} | status={status}\n")
+        try:
+            new_file = not os.path.exists(audit_md)
+            with open(audit_md, 'a', encoding='utf-8') as f:
+                if new_file:
+                    f.write("# Agent Audit Log\n\n")
+                f.write(line)
+        except Exception:
+            pass
+    
+    def _load_project_config(self):
+        """Load project config including auto_approve setting."""
+        config_file = os.path.join(self.project_dir, "project.json")
+        if os.path.exists(config_file):
+            try:
+                with open(config_file, 'r', encoding='utf-8') as f:
+                    config = json.load(f)
+                self.auto_approve = config.get("auto_approve", False)
+                self.approval_mode = config.get("approval_mode", "interactive")
+                self.max_total_time = config.get("max_total_time", 1800)
+                self.parallel_enabled = config.get("parallel_stages", True)
+                self.budget_spec = config.get("budget", {}) if isinstance(config.get("budget"), dict) else {}
+                self.delegation_enabled = bool(config.get("enable_delegation", False))
+                # Tools are ON by default (code agents write real files); set
+                # "enable_tools": false for cheap markdown-only runs.
+                self.enable_tools = bool(config.get("enable_tools", True))
+                # Intended product idea/brief (so Stage 0 works on OUR product).
+                self.project_idea = config.get("idea") or config.get("description") or ""
+                self.tech_stack_hints = config.get("tech_stack_hints", []) or []
+                # Requested stack = explicit config + anything detected in the idea.
+                explicit = list(config.get("tech_stack") or []) + list(self.tech_stack_hints)
+                detected = detect_tech_from_text(self.project_idea)
+                self.requested_tech_stack = sorted(set([str(x).lower() for x in explicit] + detected))
+                # Previously agreed stack (resume).
+                self.tech_stack = load_tech_stack(self.project_dir)
+                idea_file = os.path.join(self.project_dir, "idea.md")
+                if os.path.exists(idea_file):
+                    try:
+                        with open(idea_file, "r", encoding="utf-8") as f:
+                            self.project_idea = f.read().strip() or self.project_idea
+                    except Exception:
+                        pass
+                # Dynamic phasing override: "auto" (default) or an integer.
+                ip = config.get("implementation_phases", "auto")
+                try:
+                    self.phases_override = None if (isinstance(ip, str) and ip.lower() == "auto") else int(ip)
+                except (TypeError, ValueError):
+                    self.phases_override = None
+                msg = f"[Orchestrator] Loaded config: auto_approve={self.auto_approve}, mode={self.approval_mode}"
+                if self.budget_spec:
+                    msg += (f", budget(soft_cost={self.budget_spec.get('soft_cost')}, "
+                            f"hard_cost={self.budget_spec.get('hard_cost')}, "
+                            f"tolerance={self.budget_spec.get('tolerance_percent', 10)}%)")
+                print(msg)
+            except Exception as e:
+                print(f"[Orchestrator] Warning: Could not load project config: {e}")
+    
+    def _log_decision(self, decision_type: str, details: str, reason: str):
+        """Log orchestrator decision for audit trail."""
+        entry = {
+            "timestamp": datetime.now().isoformat(),
+            "type": decision_type,
+            "details": details,
+            "reason": reason,
+            "elapsed_time": time.time() - self.pipeline_start_time if self.pipeline_start_time else 0
+        }
+        self.decision_log.append(entry)
+        print(f"[Orchestrator Decision] {decision_type}: {details} ({reason})")
+    
+    def _check_time_budget(self) -> Tuple[bool, str]:
+        """Check if pipeline should continue based on time budget.
+        
+        Returns:
+            (should_continue, reason)
+        """
+        if not self.pipeline_start_time:
+            return True, "pipeline not started"
+        
+        elapsed = time.time() - self.pipeline_start_time
+        remaining_stages = len(self.dag_executor.get_ready_stages()) if self.dag_executor else 0
+        
+        # Calculate average stage duration
+        avg_duration = (sum(self.stage_durations) / len(self.stage_durations)) if self.stage_durations else 45
+        
+        # Estimate remaining time
+        estimated_remaining = avg_duration * remaining_stages
+        
+        # Check if we should continue
+        if elapsed + estimated_remaining > self.max_total_time:
+            return False, f"estimated time ({elapsed + estimated_remaining:.0f}s) exceeds max ({self.max_total_time}s)"
+        
+        if elapsed + self.min_remaining_time > self.max_total_time:
+            return False, f"insufficient remaining time ({self.max_total_time - elapsed:.0f}s < {self.min_remaining_time}s)"
+        
+        return True, f"on track ({elapsed:.0f}s elapsed, ~{estimated_remaining:.0f}s remaining)"
+    
+    def _record_stage_duration(self, duration: float):
+        """Record stage duration for time estimation."""
+        self.stage_durations.append(duration)
+        self._log_decision("stage_duration", f"{duration:.1f}s", "recorded for time estimation")
+    
+    def _save_checkpoint(self):
+        """Save pipeline state for checkpoint/resume (pipeline-state.v1)."""
+        now = datetime.now().isoformat()
+        # stages map (status per stage) from the DAG + executions
+        stages_state = {}
+        try:
+            if self.dag_executor:
+                stages_state = self.dag_executor.export_state().get("stages", {})
+        except Exception:
+            stages_state = {}
+        checkpoint = {
+            "project": self.project,
+            "spec_version": "1.0",
+            "created_at": self.execution.started_at if self.execution else now,
+            "updated_at": now,
+            "current_stage": self.execution.current_stage if self.execution else "",
+            "pipeline_complete": bool(self.execution and self.execution.completed_at),
+            "completed_at": self.execution.completed_at if self.execution else "",
+            "stages": stages_state,
+            # extended (allowed by schema)
+            "pipeline_id": self.execution.pipeline_id if self.execution else "",
+            "started_at": self.execution.started_at if self.execution else now,
+            "current_iteration": self.iteration_count,
+            "completed_stages": list(self.execution.stage_executions.keys()) if self.execution else [],
+            "total_tokens": self.execution.total_tokens if self.execution else 0,
+            "total_cost": self.execution.total_cost if self.execution else 0,
+            "stage_durations": self.stage_durations,
+            "decision_log": self.decision_log[-50:],
+            "saved_at": now,
+        }
+        try:
+            with open(self.state_file, 'w', encoding='utf-8') as f:
+                json.dump(checkpoint, f, indent=2, ensure_ascii=False)
+        except Exception as e:
+            print(f"[Orchestrator] Warning: Could not save checkpoint: {e}")
+    
+    def _load_checkpoint(self) -> Optional[Dict]:
+        """Load pipeline state from checkpoint."""
+        if os.path.exists(self.state_file):
+            try:
+                with open(self.state_file, 'r', encoding='utf-8') as f:
+                    return json.load(f)
+            except Exception:
+                return None
+        return None
+    
+    def _create_approval_request(self, agent_id: str, stage_id: str, artifacts: List[str], gate_id: str = None) -> Dict:
+        """Create an approval request for human review."""
+        request_id = f"approval-{datetime.now().strftime('%Y%m%d-%H%M%S')}-{agent_id}"
+        
+        # Get review instructions from orchestrator.md or use default
+        review_instructions = self._get_review_instructions(agent_id, stage_id)
+        
+        request = {
+            "request_id": request_id,
+            "stage_id": stage_id,
+            "agent_id": agent_id,
+            "gate_id": gate_id,
+            "status": "pending",
+            "artifacts": artifacts,
+            "created_at": datetime.now().isoformat(),
+            "review_instructions": review_instructions,
+            "approved_by": None,
+            "approved_at": None,
+            "notes": ""
+        }
+        
+        # Save approval request
+        approval_dir = os.path.join(self.project_dir, "approvals", stage_id)
+        os.makedirs(approval_dir, exist_ok=True)
+        approval_file = os.path.join(approval_dir, f"{agent_id}-approval.json")
+        with open(approval_file, 'w', encoding='utf-8') as f:
+            json.dump(request, f, indent=2, ensure_ascii=False)
+        
+        self.pending_approvals.append(request)
+        return request
+    
+    def _get_review_instructions(self, agent_id: str, stage_id: str) -> str:
+        """Get review instructions for an agent's output."""
+        instructions = {
+            "ideation": "Review ideation document. Check: problem statement clarity, target user definition, requirements completeness.",
+            "design": "Review design document. Check: requirements coverage, architecture feasibility, API contracts.",
+            "architect": "Review architecture. Check: component design, file structure, technology choices, security.",
+            "implement": "Review implementation. Check: code quality, error handling, configuration.",
+            "validate": "Review validation results. Check: test coverage, NFR compliance.",
+            "security": "Review security findings. Check: severity ratings, remediation suggestions.",
+            "code-review": "Review code review findings. Check: issues identified, suggestions quality.",
+        }
+        return instructions.get(agent_id, f"Review {agent_id} output for stage {stage_id}. Check completeness and quality.")
+    
+    def _check_approval_status(self, agent_id: str, stage_id: str) -> str:
+        """Check if an agent's output has been approved."""
+        approval_file = os.path.join(self.project_dir, "approvals", stage_id, f"{agent_id}-approval.json")
+        if os.path.exists(approval_file):
+            try:
+                with open(approval_file, 'r', encoding='utf-8') as f:
+                    request = json.load(f)
+                return request.get("status", "pending")
+            except Exception:
+                return "pending"
+        return "no_request"
+    
+    def _wait_for_approval(self, agent_id: str, stage_id: str, artifacts: List[str]) -> bool:
+        """Wait for human approval. Returns True if approved."""
+        # Check auto_approve first
+        if self.auto_approve:
+            print(f"  [AUTO-APPROVE] {agent_id} (auto_approve=true)")
+            self._log_decision("auto_approve", f"{agent_id} in stage {stage_id}", "auto_approve enabled")
+            return True
+        
+        # Check approval mode
+        if self.approval_mode == "auto":
+            print(f"  [AUTO-APPROVE] {agent_id} (mode=auto)")
+            return True
+        
+        # Create approval request
+        request = self._create_approval_request(agent_id, stage_id, artifacts)
+        print(f"\n  [WAITING APPROVAL] {agent_id} in stage {stage_id}")
+        print(f"  Artifacts: {len(artifacts)} files")
+        print(f"  Approval file: approvals/{stage_id}/{agent_id}-approval.json")
+        print(f"  Review instructions: {request['review_instructions']}")
+        print(f"  To approve: python approve.py --stage {stage_id} --agent {agent_id} --approve")
+        print(f"  To reject: python approve.py --stage {stage_id} --agent {agent_id} --reject")
+        
+        # In interactive mode, wait for approval file to be updated
+        if self.approval_mode == "interactive":
+            # Mark pipeline as paused
+            if self.execution:
+                self.execution.phase = PipelinePhase.PAUSED
+            
+            # Wait loop (check every 5 seconds)
+            max_wait = 3600  # 1 hour max wait
+            waited = 0
+            while waited < max_wait:
+                status = self._check_approval_status(agent_id, stage_id)
+                if status == "approved":
+                    print(f"  [APPROVED] {agent_id} approved by human")
+                    self._log_decision("approved", f"{agent_id} in stage {stage_id}", "human approval")
+                    return True
+                elif status == "rejected":
+                    print(f"  [REJECTED] {agent_id} rejected by human")
+                    self._log_decision("rejected", f"{agent_id} in stage {stage_id}", "human rejection")
+                    return False
+                
+                time.sleep(5)
+                waited += 5
+                if waited % 30 == 0:
+                    print(f"  [WAITING] Still waiting for approval... ({waited}s)")
+            
+            print(f"  [TIMEOUT] Approval wait timed out after {max_wait}s")
+            return False
+        
+        return True
+    
+    def _check_approval_gate(self, stage_id: str) -> bool:
+        """Check if stage has an approval gate and wait for approval."""
+        if not self.pipeline_def:
+            return True
+        
+        stage_def = self.pipeline_def.get("stages", {}).get(stage_id, {})
+        gate_id = stage_def.get("approval_gate")
+        
+        if not gate_id:
+            return True  # No gate defined
+        
+        print(f"\n  [APPROVAL GATE] Stage {stage_id} requires gate approval: {gate_id}")
+        return self._wait_for_approval(f"gate-{gate_id}", stage_id, [])
+    
+    def _detect_anomaly(self, stage_id: str, duration: float) -> bool:
+        """Detect if stage took unusually long."""
+        if len(self.stage_durations) < 3:
+            return False
+        
+        avg = sum(self.stage_durations) / len(self.stage_durations)
+        if duration > avg * self.anomaly_threshold:
+            print(f"  [ANOMALY] Stage {stage_id} took {duration:.1f}s (avg: {avg:.1f}s, threshold: {self.anomaly_threshold}x)")
+            self._log_decision("anomaly", f"stage {stage_id} duration {duration:.1f}s", f"exceeds {self.anomaly_threshold}x average")
+            return True
+        return False
+    
+    def _initialize_budgets(self):
+        """Initialize token budgets for the pipeline."""
+        # Pipeline-wide budget
+        self.budget_manager.create_budget(
+            "pipeline_total",
+            BudgetType.PIPELINE_TOTAL,
+            max_tokens=100000,  # 100K tokens total per pipeline
+            scope=self.project
+        )
+        
+        # Per-knowledge-load budget (default)
+        self.budget_manager.create_budget(
+            "knowledge_default",
+            BudgetType.KNOWLEDGE_LOAD,
+            max_tokens=5000,  # 5K tokens per knowledge load
+            scope=self.project
+        )
+    
+    def _tier_config_candidates(self) -> List[str]:
+        """Ordered list of locations to look for the shared model-tier config."""
+        repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        return [
+            os.path.join(self.project_dir, "model-tier.json"),
+            os.path.join(self.products_dir, "pipeline_dashboard", "model-tier.json"),
+            os.path.join(self.products_dir, "model-tier.json"),
+            os.path.join(repo_root, "model-tier.json"),
+            os.path.join(repo_root, "config", "model-tier.json"),
+        ]
+
+    def _load_tier_config(self) -> Dict:
+        """Load the shared model-tier config, checking project then shared paths.
+
+        Results are cached on the instance to avoid re-reading per LLM call.
+        """
+        if getattr(self, "_tier_config_cache", None) is not None:
+            return self._tier_config_cache
+
+        config: Dict = {}
+        for path in self._tier_config_candidates():
+            if os.path.exists(path):
+                try:
+                    with open(path, "r", encoding="utf-8-sig") as f:
+                        config = json.load(f)
+                    print(f"[ModelRouter] Loaded tier config from {path}")
+                    break
+                except Exception as e:
+                    print(f"[ModelRouter] Warning: could not read tier config {path}: {e}")
+
+        self._tier_config_cache = config
+        return config
+
+    def _get_model_tier(self, agent_id: str, stage_id: str) -> Optional[str]:
+        """Get model tier for agent from project or shared pipeline config."""
+        config = self._load_tier_config()
+        if config:
+            # Stage-specific tier has precedence, then agent, then default
+            if stage_id in config.get("stages", {}):
+                tier = config["stages"][stage_id].get("tier")
+                if tier:
+                    return tier
+            if agent_id in config.get("agents", {}):
+                tier = config["agents"][agent_id].get("tier")
+                if tier:
+                    return tier
+            if config.get("default_tier"):
+                return config["default_tier"]
+        
+        # Check pipeline-level config
+        if self.pipeline_def:
+            pipeline_config = self.pipeline_def.get("model_config", {})
+            if agent_id in pipeline_config.get("agents", {}):
+                return pipeline_config["agents"][agent_id].get("tier")
+            return pipeline_config.get("default_tier")
+        
+        # Default tier
+        return "recommended"
+    
+    def load_pipeline(self, pipeline_file: str) -> bool:
+        """Load a pipeline definition from file."""
+        try:
+            with open(pipeline_file, 'r', encoding='utf-8') as f:
+                self.pipeline_def = json.load(f)
+            
+            # Create DAG executor
+            self.dag_executor = DAGExecutor(self.pipeline_def)
+            
+            # Initialize execution state
+            self.execution = PipelineExecution(
+                pipeline_id=f"pipeline-{int(datetime.now().timestamp())}",
+                project=self.project,
+                pipeline_file=pipeline_file,
+                phase=PipelinePhase.INIT,
+                started_at=datetime.now().isoformat()
+            )
+
+            self._init_delegation()
+            return True
+        except Exception as e:
+            print(f"[PipelineExecutor] Error loading pipeline: {e}")
+            return False
+
+    def _init_delegation(self):
+        """(Re)build the delegation router from the loaded pipeline definition."""
+        try:
+            budget = DelegationBudget(
+                max_invocations_per_stage=int(os.getenv("DELEGATION_MAX_PER_STAGE", "2")),
+                max_total_invocations=int(os.getenv("DELEGATION_MAX_TOTAL", "8")),
+                max_payload_chars=int(os.getenv("DELEGATION_MAX_PAYLOAD_CHARS", "4000")),
+            )
+            messenger = None
+            try:
+                from core.agent_messenger import AgentMessenger
+                messenger = AgentMessenger(self.products_dir, self.project)
+            except Exception:
+                messenger = None
+            self.delegation_router = DelegationRouter(
+                self.pipeline_def, project=self.project,
+                products_dir=self.products_dir, budget=budget, messenger=messenger)
+        except Exception:
+            self.delegation_router = None
+    
+    def load_pipeline_from_dict(self, pipeline_def: Dict) -> bool:
+        """Load pipeline from dictionary."""
+        try:
+            self.pipeline_def = pipeline_def
+            self.dag_executor = DAGExecutor(pipeline_def)
+            
+            self.execution = PipelineExecution(
+                pipeline_id=f"pipeline-{int(datetime.now().timestamp())}",
+                project=self.project,
+                pipeline_file="inline",
+                phase=PipelinePhase.INIT,
+                started_at=datetime.now().isoformat()
+            )
+
+            self._init_delegation()
+            return True
+        except Exception as e:
+            print(f"[PipelineExecutor] Error loading pipeline dict: {e}")
+            return False
+    
+    def get_knowledge_for_agent(self, agent_id: str, stage_id: str, task: str) -> RoutingDecision:
+        """Get relevant knowledge for an agent with budget protection."""
+        # Map every real agent id to a knowledge domain present in docs/guidelines.
+        domain_map = {
+            "ideation": "business",
+            "discovery": "business-models",
+            "design": "frontend",
+            "product-design-spec": "frontend",
+            "design_critic": "frontend",
+            "ux-ia": "ui-ux",
+            "visual_qa": "ui-ux",
+            "architect": "architecture",
+            "implement": "backend",
+            "implement-db": "database",
+            "implement-api": "api",
+            "implement-logic": "backend",
+            "implement-ui": "frontend",
+            "devops": "infrastructure",
+            "code-review": "coding",
+            "validate": "testing",
+            "security": "security",
+            "document": "shared",
+            "package": "packaging",
+            "orchestrator": "shared",
+        }
+        
+        domain = domain_map.get(agent_id, None)
+        
+        # Knowledge is loaded once per agent run, so give each agent a fresh
+        # budget (avoids the persisted per-run budget cap of 5K blocking large
+        # guides like the React/FastAPI docs).
+        budget_id = f"knowledge_{stage_id}_{agent_id}"
+        self.budget_manager.create_budget(
+            budget_id,
+            BudgetType.KNOWLEDGE_LOAD,
+            max_tokens=12000,
+            scope=f"knowledge:{agent_id}@{stage_id}",
+        )
+
+        # Use safe routing with budget protection.
+        return safe_knowledge_route(
+            self.knowledge_router,
+            task=task,
+            budget_manager=self.budget_manager,
+            budget_id=budget_id,
+            max_tokens=12000,
+            domain=domain,
+            stage=stage_id,
+            agent=agent_id
+        )
+    
+    def use_reasoning(self, skill_name: str, problem: str, context: Dict = None) -> Any:
+        """Use a reasoning skill."""
+        return self.reasoning.execute(skill_name, problem, context or {})
+    
+    def store_memory(self, memory_type: str, content: str, source: str, 
+                     confidence: float = 0.9, tags: List[str] = None) -> bool:
+        """Store a memory entry."""
+        result = self.memory.store(
+            memory_type=memory_type,
+            content=content,
+            source=source,
+            confidence=confidence,
+            tags=tags or []
+        )
+        return result is not None
+    
+    def run_compliance_check(self, agent_id: str, stage_id: str) -> Dict:
+        """Run compliance check for an agent."""
+        try:
+            from core.compliance_check import ComplianceChecker
+            
+            checker = ComplianceChecker(
+                products_dir=self.products_dir,
+                project=self.project
+            )
+            
+            # Run compliance check
+            report = checker.check_agent(agent_id)
+            
+            # Convert to dict if it's a ComplianceReport object
+            if hasattr(report, 'to_dict'):
+                report_dict = report.to_dict()
+            elif hasattr(report, '__dict__'):
+                report_dict = report.__dict__
+            else:
+                report_dict = report
+            
+            # Store compliance report
+            compliance_dir = os.path.join(self.project_dir, "compliance")
+            os.makedirs(compliance_dir, exist_ok=True)
+            report_file = os.path.join(compliance_dir, f"{agent_id}-compliance.json")
+            
+            with open(report_file, 'w', encoding='utf-8') as f:
+                json.dump(report_dict, f, indent=2, ensure_ascii=False)
+            
+            # Determine if passed based on overall_status
+            passed = report_dict.get("overall_status", "unknown") == "pass"
+            
+            return {"passed": passed, "report": report_dict}
+        except Exception as e:
+            print(f"[PipelineExecutor] Compliance check error: {e}")
+            return {"error": str(e), "passed": False}
+    
+    def execute_agent(self, agent_id: str, stage_id: str, task: str) -> AgentExecution:
+        """Execute a single agent with full integration:
+        Context Manager -> Budget Check -> Model Routing -> Skill Routing -> 
+        Circuit Breaker Check -> Agent Execution -> Artifacts -> Compliance -> 
+        Design Critic -> Visual QA -> Issue Tracking -> Memory
+        """
+        execution = AgentExecution(
+            agent_id=agent_id,
+            stage_id=stage_id,
+            status="running",
+            started_at=datetime.now().isoformat()
+        )
+        
+        try:
+            # 0. Check circuit breaker
+            cb_name = f"{agent_id}_{stage_id}"
+            if not self.circuit_breakers.can_execute(cb_name):
+                execution.status = "blocked"
+                execution.error = "Circuit breaker open - too many failures"
+                execution.completed_at = datetime.now().isoformat()
+                return execution
+            
+            # 1. Check conservation mode - skip if needed
+            if should_skip_agent(agent_id, self.conservation_state):
+                execution.status = "skipped"
+                execution.error = f"Skipped due to budget conservation ({self.conservation_state.mode} mode)"
+                execution.completed_at = datetime.now().isoformat()
+                self.conservation_state.skipped_agents.append(agent_id)
+                return execution
+            
+# 2. Build minimum context package (Context Manager)
+            context_pkg = build_context_package(
+                agent_name=agent_id,
+                project=self.project,
+                stage=stage_id,
+                artifacts=self._collect_stage_artifacts(stage_id),
+            )
+            execution.context_tokens = context_pkg.get("tokens_used", 0)
+            
+            # 3. Budget check before execution
+            contract = get_contract(agent_id)
+            estimated_cost = (execution.context_tokens / 1000) * 0.002  # rough estimate
+            stage_budget_id = f"stage_{stage_id}"
+            can_proceed = self.budget_manager.request_tokens(
+                stage_budget_id, execution.context_tokens
+            )
+            
+            if not can_proceed:
+                execution.status = "blocked"
+                execution.error = "Budget exceeded for stage"
+                execution.completed_at = datetime.now().isoformat()
+                return execution
+            
+            # 4. Model routing - resolve from tier config (single source of truth)
+            #    The same resolver is used by _call_llm so the reported model
+            #    always matches the model actually invoked. No model names are
+            #    hardcoded here.
+            try:
+                model_cfg = self._get_agent_model_config(agent_id, stage_id)
+                selected_model = model_cfg.get("model")
+            except Exception as e:
+                print(f"[WARNING] Model resolution failed: {e}")
+                selected_model = None
+            
+            # Check for conservation mode model downgrade
+            from core.budget_conservation import get_model_downgrade
+            downgrade = get_model_downgrade(agent_id, self.conservation_state)
+            if downgrade:
+                selected_model = downgrade
+                self.conservation_state.model_downgrades.append(f"{agent_id}: {downgrade}")
+            
+            # 5. Get knowledge for this agent (Skill Routing)
+            knowledge = self.get_knowledge_for_agent(agent_id, stage_id, task)
+            execution.knowledge_used = knowledge.selected_resources
+            
+            # 6. Use reasoning if needed
+            if agent_id in ["design", "architect", "ideation", "design_critic"]:
+                reasoning_result = self.use_reasoning(
+                    "problem_restatement",
+                    task,
+                    {"agent": agent_id, "stage": stage_id, "context_tokens": execution.tokens_used}
+                )
+                execution.reasoning_used = reasoning_result.skill
+            
+            # 7. Store episodic memory
+            self.store_memory(
+                memory_type="episodic",
+                content=f"Agent {agent_id} started stage {stage_id}: {task} | Context: {execution.tokens_used} tokens | Skills: {len(knowledge.selected_resources)} | Model: {selected_model}",
+                source=agent_id,
+                confidence=0.95,
+                tags=[stage_id, agent_id]
+            )
+            
+            # 8. Generate structured artifacts with token tracking
+            artifacts, agent_execution = self._generate_agent_artifacts(agent_id, stage_id, task)
+
+            # Transient LLM failure (fallback): retry a couple of times before failing.
+            _llm_attempts = 0
+            while (agent_execution.status == "failed"
+                   and "LLM unavailable" in (agent_execution.error or "")
+                   and _llm_attempts < 2):
+                _llm_attempts += 1
+                print(f"    [LLM RETRY {_llm_attempts}/2] {agent_id}: transient failure, retrying")
+                time.sleep(3)
+                artifacts, agent_execution = self._generate_agent_artifacts(agent_id, stage_id, task)
+
+            # Hard failure (e.g. LLM unavailable): do not continue as success.
+            if agent_execution.status == "failed":
+                execution.status = "failed"
+                execution.error = agent_execution.error or "agent generation failed"
+                execution.completed_at = datetime.now().isoformat()
+                self.circuit_breakers.record_failure(cb_name)
+                self.store_memory(
+                    memory_type="failure",
+                    content=f"Agent {agent_id} failed in stage {stage_id}: {execution.error}",
+                    source=agent_id, confidence=0.95,
+                    tags=[stage_id, agent_id, "failed"])
+                print(f"    Status: failed ({execution.error})")
+                return execution
+
+            execution.artifacts = artifacts
+            
+            # Copy token info from agent_execution to execution
+            execution.input_tokens = agent_execution.input_tokens
+            execution.output_tokens = agent_execution.output_tokens
+            execution.cached_tokens = agent_execution.cached_tokens
+            execution.reasoning_tokens = agent_execution.reasoning_tokens
+            execution.total_tokens = agent_execution.total_tokens
+            execution.selected_model = agent_execution.selected_model
+            execution.selected_provider = agent_execution.selected_provider
+            execution.model_cost_per_1k_input = agent_execution.model_cost_per_1k_input
+            execution.model_cost_per_1k_output = agent_execution.model_cost_per_1k_output
+            execution.cost = agent_execution.cost
+            execution.tokens_used = agent_execution.total_tokens  # For backward compatibility
+            
+            # Log to audit log (with explicit start/end timings)
+            audit_end = execution.completed_at or datetime.now().isoformat()
+            execution.duration_ms = int((datetime.fromisoformat(audit_end) -
+                                        datetime.fromisoformat(execution.started_at)).total_seconds() * 1000)
+            audit_entry = {
+                "entry_id": f"audit-{int(time.time()*1000)}-{agent_id}",
+                "agent": agent_id,
+                "stage": stage_id,
+                "action": "execute",
+                "agent_id": agent_id,
+                "stage_id": stage_id,
+                "model": execution.selected_model or selected_model,
+                "provider": execution.selected_provider,
+                "input_tokens": execution.input_tokens,
+                "output_tokens": execution.output_tokens,
+                "cached_tokens": execution.cached_tokens,
+                "total_tokens": execution.total_tokens,
+                "cost": execution.cost,
+                "cache_hit": agent_execution.cache_hit if hasattr(agent_execution, 'cache_hit') else False,
+                "chunking_used": agent_execution.chunking_used if hasattr(agent_execution, 'chunking_used') else False,
+                "chunks_count": agent_execution.chunks_count if hasattr(agent_execution, 'chunks_count') else 1,
+                "model_context_window": agent_execution.model_context_window if hasattr(agent_execution, 'model_context_window') else 0,
+                "prompt_chars": agent_execution.prompt_chars if hasattr(agent_execution, 'prompt_chars') else 0,
+                "output_chars": agent_execution.output_chars if hasattr(agent_execution, 'output_chars') else 0,
+                "artifacts_used": agent_execution.artifacts_used if hasattr(agent_execution, 'artifacts_used') else [],
+                "started_at": execution.started_at,
+                "completed_at": audit_end,
+                "duration_ms": execution.duration_ms,
+                "duration_seconds": round(execution.duration_ms / 1000.0, 2),
+                "finish_reason": execution.finish_reason,
+                "truncated": execution.truncated,
+                "retries": execution.retries,
+                "compaction_used": execution.compaction_used,
+                "compaction_saved_chars": execution.compaction_saved_chars,
+                "continuations": execution.continuations,
+                "timestamp": datetime.now().isoformat(),
+                "status": execution.status
+            }
+            self.audit_log.log_agent_execution(audit_entry)
+            
+            # 9. Store artifacts in artifact store
+            for artifact_path in artifacts:
+                try:
+                    create_or_update_artifact(
+                        project=self.project,
+                        artifact_path=artifact_path,
+                        agent=agent_id,
+                        stage=stage_id,
+                    )
+                except Exception:
+                    pass
+            
+            # 10. Record spend in budget tracker
+            self.budget_tracker.record_spend(
+                project=self.project,
+                agent=agent_id,
+                model=execution.selected_model or selected_model,
+                tokens_input=execution.input_tokens,
+                tokens_output=execution.output_tokens,
+                cost=execution.cost
+            )
+            
+            # 10b. Materialize canonical artifacts for compliance + audit trail
+            #      (docs/*.md, project-config.json, agent-audit.md)
+            self._materialize_canonical_artifacts(agent_id, stage_id, artifacts)
+            self._append_agent_audit_md(agent_id, stage_id, execution.status)
+            
+            # 11. Run compliance check
+            compliance_result = self.run_compliance_check(agent_id, stage_id)
+            execution.compliance_report = compliance_result.get("report", compliance_result)
+            execution.compliance_passed = compliance_result.get("passed", False)
+            
+            # 11b. Run knowledge-based compliance check
+            try:
+                knowledge_result = self.knowledge_compliance.check_agent_compliance(
+                    agent_id=agent_id,
+                    stage_id=stage_id,
+                    project=self.project,
+                    artifact_paths=artifacts
+                )
+                execution.compliance_report["knowledge_compliance"] = knowledge_result.to_dict()
+                
+                # Merge violations into main compliance result (as dicts)
+                if knowledge_result.violations:
+                    compliance_result["violations"] = [
+                        v.to_dict() if hasattr(v, "to_dict") else v
+                        for v in knowledge_result.violations
+                    ]
+                    compliance_result["passed"] = knowledge_result.passed
+                    execution.compliance_passed = knowledge_result.passed
+            except Exception as e:
+                print(f"[KnowledgeCompliance] Error: {e}")
+
+            # 11b2. Code-quality gate (no stubs/mocks) + real verification
+            try:
+                from core.code_quality_gate import gate_agent_output
+                gate = gate_agent_output(agent_id, artifacts, self.project_dir)
+                execution.compliance_report["code_quality_gate"] = gate
+                if not gate.get("passed", True):
+                    findings = [{"id": f"stub::{f['file']}", "severity": "high",
+                                 "detail": f"{f['pattern']} in {f['file']}"}
+                                for f in gate.get("findings", [])]
+                    if not isinstance(compliance_result.get("violations"), list):
+                        compliance_result["violations"] = []
+                    compliance_result["violations"].extend(findings)
+                    compliance_result["passed"] = False
+                    execution.compliance_passed = False
+                    print(f"  [GATE] {agent_id}: {len(gate['findings'])} stub/mock finding(s)")
+            except Exception as e:
+                print(f"[CodeQualityGate] {e}")
+
+            # Stack compliance: code must not import frameworks outside the agreed stack.
+            try:
+                stack_viol = self._stack_compliance()
+                if stack_viol:
+                    execution.compliance_report["stack_compliance"] = stack_viol
+                    if not isinstance(compliance_result.get("violations"), list):
+                        compliance_result["violations"] = []
+                    compliance_result["violations"].extend(
+                        [{"id": f"stack::{v['file']}", "severity": "high",
+                          "detail": f"unrequested framework '{v['framework']}' in {v['file']}"}
+                         for v in stack_viol])
+                    compliance_result["passed"] = False
+                    execution.compliance_passed = False
+                    print(f"  [STACK] {agent_id}: {len(stack_viol)} unrequested framework import(s)")
+            except Exception as e:
+                print(f"[StackCompliance] {e}")
+
+            if agent_id == "validate":
+                try:
+                    from core.verification_runner import run_verification
+                    ver = run_verification(self.project_dir, getattr(self, "tech_stack_hints", []))
+                    execution.compliance_report["verification"] = ver
+                    if ver.get("ran"):
+                        print(f"  [VERIFY] {ver.get('detected')} verification ran; passed={ver.get('passed')}")
+                        if not ver.get("passed"):
+                            compliance_result["passed"] = False
+                            execution.compliance_passed = False
+                    else:
+                        print("  [VERIFY] no project files detected; verification skipped")
+                except Exception as e:
+                    print(f"[Verification] {e}")
+
+            # 11c. Handle compliance actions (retry, approve, escalate)
+            try:
+                compliance_action = self.compliance_handler.handle_compliance_result(
+                    agent_id=agent_id,
+                    stage_id=stage_id,
+                    compliance_result=compliance_result,
+                    artifacts=artifacts,
+                    auto_approve=self.auto_approve
+                )
+                execution.compliance_report["compliance_action"] = compliance_action.to_dict()
+                
+                if compliance_action.action == "retry":
+                    print(f"  [COMPLIANCE] Retrying {agent_id}: {compliance_action.reason}")
+                    # Store feedback for agent retry
+                    execution.compliance_report["retry_feedback"] = compliance_action.feedback_prompt
+                    # Agent will be retried in next iteration
+                    execution.status = "needs_retry"
+                    execution.error = compliance_action.reason
+                    execution.completed_at = datetime.now().isoformat()
+                    return execution
+                elif compliance_action.action == "escalate":
+                    print(f"  [COMPLIANCE] Escalating {agent_id}: {compliance_action.reason}")
+                    execution.status = "escalated"
+                    execution.error = compliance_action.reason
+                    execution.completed_at = datetime.now().isoformat()
+                    return execution
+                elif compliance_action.action == "approve":
+                    print(f"  [COMPLIANCE] Requires approval for {agent_id}: {compliance_action.reason}")
+                    # Will be handled by HITL below
+            except Exception as e:
+                print(f"[ComplianceAction] Error: {e}")
+            
+            # 12. Run design critic for design stage
+            if stage_id == "design":
+                try:
+                    from core.design_critic import critique_design, critique_to_dict
+                    for art_path in artifacts:
+                        if art_path.endswith(".md"):
+                            with open(art_path, "r", encoding="utf-8") as f:
+                                art_content = f.read()
+                            critique = critique_design(art_content, art_path)
+                            if not critique.passed:
+                                execution.compliance_report["design_critic"] = critique_to_dict(critique)
+                except Exception:
+                    pass
+            
+            # 13. Run visual QA for implement stage
+            if stage_id == "implement":
+                try:
+                    from core.visual_qa import run_visual_qa, qa_to_dict
+                    for art_path in artifacts:
+                        if art_path.endswith(".html"):
+                            with open(art_path, "r", encoding="utf-8") as f:
+                                html_content = f.read()
+                            qa = run_visual_qa(html_content, art_path)
+                            if not qa.passed:
+                                execution.compliance_report["visual_qa"] = qa_to_dict(qa)
+                except Exception:
+                    pass
+            
+            # 14. Track issues for security/NFR/test stages
+            if stage_id == "security":
+                self._track_security_issues(agent_id, artifacts)
+            elif stage_id in ["nfr", "tests"]:
+                self._track_test_issues(agent_id, stage_id, artifacts)
+            
+            # 15. Record circuit breaker success
+            self.circuit_breakers.record_success(cb_name)
+            
+            # 16. Store completion memory
+            self.store_memory(
+                memory_type="episodic",
+                content=f"Agent {agent_id} completed stage {stage_id}. Artifacts: {len(artifacts)} | Cost: ${estimated_cost:.4f} | Model: {selected_model}",
+                source=agent_id,
+                confidence=0.9,
+                tags=[stage_id, agent_id, "completed"]
+            )
+            
+            # 17. Human-in-the-Loop approval check
+            approved = self._wait_for_approval(agent_id, stage_id, artifacts)
+            if not approved:
+                execution.status = "rejected"
+                execution.error = "Human rejected agent output"
+                execution.completed_at = datetime.now().isoformat()
+                self._log_decision("agent_rejected", f"{agent_id} in stage {stage_id}", "human rejection")
+                return execution
+            
+            execution.status = "completed"
+            execution.completed_at = datetime.now().isoformat()
+            # Preserve the real API cost captured from token usage; only fall back
+            # to the rough estimate when no usage data was returned.
+            if not execution.cost:
+                execution.cost = estimated_cost
+            
+        except Exception as e:
+            execution.status = "failed"
+            execution.error = str(e)
+            execution.completed_at = datetime.now().isoformat()
+            
+            # Record circuit breaker failure
+            self.circuit_breakers.record_failure(cb_name)
+            
+            self.store_memory(
+                memory_type="failure",
+                content=f"Agent {agent_id} failed in stage {stage_id}: {str(e)}",
+                source=agent_id,
+                confidence=0.95,
+                tags=[stage_id, agent_id, "failed"]
+            )
+        
+        return execution
+    
+    def _delegation_signals(self, execution: "AgentExecution") -> List[str]:
+        """Candidate delegation signals derived from an agent's outcome."""
+        if execution.status in ("completed", "skipped"):
+            return []
+        return ["fix", "code_issue", "logic_issue", "api_issue", "db_issue",
+                "ui_issue", "issues_found", "major_change_needed", "build_needed"]
+
+    def _maybe_delegate(self, stage_id: str, from_agent: str, execution: "AgentExecution"):
+        """Orchestrator-routed delegation with capped payload + message budget."""
+        if not self.delegation_enabled or not self.delegation_router:
+            return
+        signals = self._delegation_signals(execution)
+        if not signals:
+            return
+        target = self.delegation_router.resolve(stage_id, from_agent, signals)
+        if not target or target == from_agent:
+            return
+        if not self.delegation_router.budget.can_invoke(stage_id):
+            print(f"  [DELEGATION] budget exhausted; skipping {from_agent} -> {target}")
+            return
+        payload = ""
+        try:
+            if execution.artifacts:
+                with open(execution.artifacts[-1], 'r', encoding='utf-8') as f:
+                    payload = self.delegation_router.cap_payload(f.read())
+        except Exception:
+            pass
+        rec = self.delegation_router.dispatch(stage_id, from_agent, target, signals[0], payload)
+        print(f"  [DELEGATION] {from_agent} -> {target} (signal={signals[0]}, "
+              f"payload={rec.payload_chars} chars)")
+        try:
+            delegated = self.execute_agent(target, stage_id,
+                                           f"Delegated from {from_agent}: {signals[0]}")
+            rec.status = delegated.status
+            rec.tokens = delegated.total_tokens
+            rec.cost = delegated.cost
+        except Exception as e:
+            print(f"[Delegation] failed: {e}")
+        self.delegation_router.budget.record(stage_id)
+        self.delegations.append(rec.to_dict())
+        self._log_decision("delegation", f"{from_agent}->{target}@{stage_id}", signals[0])
+
+    def _track_security_issues(self, agent_id: str, artifacts: List[str]):
+        """Track security issues from security agent artifacts."""
+        for artifact_path in artifacts:
+            if artifact_path.endswith(".md"):
+                try:
+                    with open(artifact_path, "r", encoding="utf-8") as f:
+                        content = f.read()
+                    
+                    # Parse security issues from content (simplified)
+                    issue_id = f"SEC-{len(self.security_issues.issues) + 1:03d}"
+                    from core.issue_tracker import create_security_issue
+                    issue = create_security_issue(
+                        issue_id=issue_id,
+                        title=f"Security finding from {agent_id}",
+                        description=content[:500] if len(content) > 500 else content,
+                        severity="medium",
+                        file=artifact_path,
+                    )
+                    add_issue(self.security_issues, issue)
+                except Exception:
+                    pass
+    
+    def _track_test_issues(self, agent_id: str, stage_id: str, artifacts: List[str]):
+        """Track test/NFR issues from validate agent artifacts."""
+        for artifact_path in artifacts:
+            if artifact_path.endswith(".md"):
+                try:
+                    with open(artifact_path, "r", encoding="utf-8") as f:
+                        content = f.read()
+                    
+                    # Parse test issues from content (simplified)
+                    issue_id = f"TEST-{len(self.test_issues.issues) + 1:03d}"
+                    from core.issue_tracker import create_test_issue
+                    issue = create_test_issue(
+                        issue_id=issue_id,
+                        title=f"Test finding from {stage_id}",
+                        description=content[:500] if len(content) > 500 else content,
+                        severity="medium",
+                        test_type=stage_id,
+                        file=artifact_path,
+                    )
+                    add_issue(self.test_issues, issue)
+                except Exception:
+                    pass
+    
+    def _call_llm(self, prompt: str, agent_id: str, stage_id: str) -> Tuple[Optional[str], Dict]:
+        """Call LLM with cache, chunking, and runtime model capability check.
+        
+        Strategy:
+        1. Check application cache first (zero cost)
+        2. Get model's context_window from registry (runtime)
+        3. If prompt fits → single call
+        4. If prompt too long → chunk by artifact, call each chunk, merge
+        5. Cache result for future calls
+        """
+        start_time = time.time()
+        max_retries = 2
+        retry_delay = 5
+        
+        session_id = f"pipeline-{self.project}-{agent_id}-{stage_id}"
+        
+        # Get model from tier config (dynamic per agent)
+        tier_config = self._get_agent_model_config(agent_id, stage_id)
+        primary_model = tier_config["model"]
+        provider = tier_config.get("provider", FALLBACK_PROVIDER)
+        api_endpoint = tier_config.get("api_endpoint", FALLBACK_ENDPOINT)
+        
+        # Get model profile for context_window and capabilities (runtime lookup)
+        model_profile = self.model_registry.get_model(primary_model)
+        model_context_window = model_profile.context_window if model_profile else 1000000
+
+        # Output cap comes from the AGENT CONTRACT (per-agent), not a hardcoded
+        # global. Fall back to the model profile only if the contract is absent.
+        contract = get_contract(agent_id)
+        contract_max_out = contract.get("max_output_tokens", 0) or 0
+        model_default_out = getattr(model_profile, "max_output_tokens", 0) if model_profile else 0
+        model_max_output = contract_max_out or model_default_out or 16000
+
+        # Continuation token ceiling: bound total (input+output) spend per agent
+        # so auto-continue can't run away re-sending the growing context.
+        try:
+            factor = float(os.getenv("CONTINUATION_MAX_TOKENS_FACTOR", "1.5"))
+        except (TypeError, ValueError):
+            factor = 1.5
+        contract_max_in = contract.get("max_input_tokens", 8000) or 8000
+        max_total_tokens = int((contract_max_in + max(contract_max_out, 4000)) * factor)
+        
+        # Calculate usable context (80% of model's window)
+        usable_context = int(model_context_window * 0.8)
+        prompt_chars = len(prompt)
+        prompt_tokens_est = prompt_chars // 4  # rough estimate
+        
+        # Check cache first
+        cached = self.llm_cache.get(prompt, primary_model, agent_id)
+        if cached:
+            print(f"  [CACHE HIT] {agent_id} - reusing cached response")
+            cached["cache_hit"] = True
+            return cached.get("content"), cached
+        
+        # Check if prompt fits in single call
+        if prompt_tokens_est <= usable_context:
+            # Single call
+            content, token_info = self._call_llm_single(
+                prompt, primary_model, provider, api_endpoint, 
+                session_id, agent_id, stage_id, model_max_output,
+                max_total_tokens=max_total_tokens
+            )
+            if content:
+                token_info["cache_hit"] = False
+                token_info["chunking_used"] = False
+                token_info["chunks_count"] = 1
+                token_info["model_context_window"] = model_context_window
+                # Cache result
+                cache_entry = {"content": content, **token_info}
+                self.llm_cache.set(prompt, primary_model, agent_id, cache_entry)
+            return content, token_info
+        else:
+            # Need to chunk - split prompt by artifacts
+            print(f"  [CHUNKING] {agent_id} - prompt ({prompt_tokens_est} tokens) exceeds model context ({usable_context} tokens)")
+            return self._call_llm_chunked(
+                prompt, primary_model, provider, api_endpoint,
+                session_id, agent_id, stage_id, model_max_output, model_context_window
+            )
+    
+    def _call_llm_single(self, prompt: str, model_name: str, provider: str, 
+                         api_endpoint: str, session_id: str, agent_id: str, 
+                         stage_id: str, max_output_tokens: int,
+                         max_total_tokens: Optional[int] = None) -> Tuple[Optional[str], Dict]:
+        """Single LLM call with retries and auto-continuation on truncation.
+
+        If the provider stops because it hit max_tokens (finish_reason=length),
+        follow-up calls continue the output and the pieces are merged, up to
+        max_continuations. This prevents silent truncation of large artifacts.
+        """
+        import requests
+        from dotenv import load_dotenv
+        load_dotenv()
+
+        max_retries = 2
+        retry_delay = 5
+        max_continuations = 3
+
+        api_key = self._get_api_key(provider)
+        if not api_key:
+            print(f"[WARNING] No API key for provider: {provider}")
+            return None, {"input_tokens": 0, "output_tokens": 0,
+                          "cached_tokens": 0, "total_tokens": 0, "cost": 0.0,
+                          "selected_model": "", "selected_provider": ""}
+
+        headers = self._build_api_headers(provider, api_key, session_id)
+
+        messages = [{"role": "user", "content": prompt}]
+        all_content = ""
+        total_input = total_output = total_cached = total_reasoning = 0
+        finish_reason = ""
+        continuations = 0
+        last_attempt = 0
+        attempt = 0
+
+        while attempt < max_retries:
+            attempt += 1
+            last_attempt = attempt
+            try:
+                data = self._build_api_request_messages(model_name, messages, max_output_tokens)
+                response = requests.post(api_endpoint, json=data, headers=headers, timeout=180)
+
+                if response.status_code != 200:
+                    print(f"[WARNING] {model_name} API error: {response.status_code}")
+                    if attempt < max_retries:
+                        time.sleep(retry_delay)
+                        retry_delay *= 2
+                        continue
+                    break
+
+                result = response.json()
+                content = self._extract_response_content(result, provider) or ""
+                choices = result.get('choices', [{}])
+                finish_reason = choices[0].get('finish_reason', '') if choices else ''
+
+                usage = result.get('usage', {}) or {}
+                in_tok = usage.get('prompt_tokens', 0) or max(1, len(prompt) // 4)
+                out_tok = usage.get('completion_tokens', 0) or max(1, len(content) // 4)
+                cached_tok = usage.get('prompt_tokens_details', {}).get('cached_tokens', 0)
+                reason_tok = usage.get('completion_tokens_details', {}).get('reasoning_tokens', 0)
+
+                all_content += content
+                total_input += in_tok
+                total_output += out_tok
+                total_cached += cached_tok
+                total_reasoning += reason_tok
+
+                if finish_reason == 'length':
+                    spent = total_input + total_output
+                    if max_total_tokens and spent >= max_total_tokens:
+                        print(f"  [CONTINUE-STOP] {agent_id} reached continuation token "
+                              f"ceiling ({spent}/{max_total_tokens}); stopping")
+                        break
+                    # Only continue when there is usable content and budget for it.
+                    # (Some providers return finish_reason=length with empty
+                    # content; retrying then just wastes calls.)
+                    if content and continuations < max_continuations:
+                        continuations += 1
+                        print(f"  [CONTINUE] {agent_id} output truncated (length); "
+                              f"continuation {continuations}/{max_continuations}")
+                        messages = [
+                            {"role": "user", "content": prompt},
+                            {"role": "assistant", "content": all_content},
+                            {"role": "user", "content": "Continue exactly where you stopped. "
+                                                        "Output only the continuation; do not repeat earlier content."},
+                        ]
+                        attempt = 0  # reset retry budget for the continuation request
+                        retry_delay = 5
+                        continue
+                    break
+
+                return all_content, self._build_token_info(
+                    model_name, provider, total_input, total_output, total_cached,
+                    total_reasoning, finish_reason, continuations, max(0, last_attempt - 1))
+
+            except Exception as e:
+                error_msg = str(e)
+                if '429' in error_msg or 'rate' in error_msg.lower():
+                    if attempt < max_retries:
+                        print(f"[RETRY] Rate limited on {model_name}, waiting {retry_delay}s...")
+                        time.sleep(retry_delay)
+                        retry_delay *= 2
+                        continue
+                    break
+                else:
+                    print(f"[WARNING] {model_name} failed: {str(error_msg)[:100]}")
+                    break
+
+        # Partial content across continuations is better than a template fallback.
+        if all_content:
+            return all_content, self._build_token_info(
+                model_name, provider, total_input, total_output, total_cached,
+                total_reasoning, finish_reason or "error", continuations, max(0, last_attempt - 1))
+
+        # Fallback to template
+        print(f"[WARNING] LLM failed for {agent_id}, using template")
+        template_content = self._generate_template_output(agent_id, stage_id, prompt)
+        return template_content, {"input_tokens": 0, "output_tokens": 0, 
+                                  "cached_tokens": 0, "total_tokens": 0, "cost": 0.0,
+                                  "selected_model": "", "selected_provider": "",
+                                  "cost_per_1k_input": 0.0, "cost_per_1k_output": 0.0,
+                                  "fallback": True}
+
+    def _build_token_info(self, model_name: str, provider: str, total_input: int,
+                          total_output: int, total_cached: int, total_reasoning: int,
+                          finish_reason: str, continuations: int, retries: int) -> Dict:
+        """Assemble token_info dict (with cost) for a (possibly continued) call."""
+        token_info = {
+            "input_tokens": total_input,
+            "output_tokens": total_output,
+            "cached_tokens": total_cached,
+            "reasoning_tokens": total_reasoning,
+            "total_tokens": total_input + total_output,
+            "cost": 0.0,
+            "selected_model": model_name,
+            "selected_provider": provider,
+            "cost_per_1k_input": 0.0,
+            "cost_per_1k_output": 0.0,
+            "finish_reason": finish_reason,
+            "truncated": finish_reason == "length",
+            "continuations": continuations,
+            "retries": retries,
+        }
+        model_profile = self.model_registry.get_model(model_name)
+        if model_profile:
+            token_info["cost_per_1k_input"] = model_profile.cost_per_1k_input
+            token_info["cost_per_1k_output"] = model_profile.cost_per_1k_output
+            token_info["cost"] = (total_input / 1000 * model_profile.cost_per_1k_input +
+                                  total_output / 1000 * model_profile.cost_per_1k_output)
+        return token_info
+
+    def _call_llm_messages(self, messages: List[Dict], agent_id: str, stage_id: str) -> Tuple[str, Dict]:
+        """Single completion for a full messages array (used by the tool loop)."""
+        import requests
+        from dotenv import load_dotenv
+        load_dotenv()
+        tier = self._get_agent_model_config(agent_id, stage_id)
+        model = tier["model"]
+        provider = tier.get("provider", FALLBACK_PROVIDER)
+        endpoint = tier.get("api_endpoint", FALLBACK_ENDPOINT)
+        api_key = self._get_api_key(provider)
+        if not api_key:
+            return "", self._build_token_info(model, provider, 0, 0, 0, 0, "no_api_key", 0, 0)
+        headers = self._build_api_headers(provider, api_key, f"toolp-{self.project}-{agent_id}")
+        contract = get_contract(agent_id)
+        max_out = contract.get("max_output_tokens", 4000)
+        try:
+            data = self._build_api_request_messages(model, messages, max_out)
+            r = requests.post(endpoint, json=data, headers=headers, timeout=180)
+            if r.status_code != 200:
+                return "", self._build_token_info(model, provider, 0, 0, 0, 0, f"http_{r.status_code}", 0, 0)
+            res = r.json()
+            content = self._extract_response_content(res, provider) or ""
+            usage = res.get("usage", {}) or {}
+            in_tok = usage.get("prompt_tokens", 0) or (sum(len(m.get("content", "")) for m in messages) // 4)
+            out_tok = usage.get("completion_tokens", 0) or (len(content) // 4)
+            cached = usage.get("prompt_tokens_details", {}).get("cached_tokens", 0)
+            fr = (res.get("choices", [{}])[0].get("finish_reason", "") if res.get("choices") else "")
+            return content, self._build_token_info(model, provider, in_tok, out_tok, cached, 0, fr, 0, 0)
+        except Exception as e:
+            return "", self._build_token_info(model, provider, 0, 0, 0, 0, f"error:{str(e)[:60]}", 0, 0)
+
+    def _call_llm_chunked(self, full_prompt: str, model_name: str, provider: str,
+                          api_endpoint: str, session_id: str, agent_id: str,
+                          stage_id: str, max_output_tokens: int, model_context_window: int) -> Tuple[Optional[str], Dict]:
+        """Chunk prompt by artifacts and call LLM for each chunk."""
+        # Split prompt into instruction + artifacts
+        # The prompt format is: INSTRUCTIONS\n\nCONTEXT FROM PREVIOUS STAGES:\n\n--- artifact1 ---\n...\n\n--- artifact2 ---\n...\n\nWrite the output to: ...
+        
+        # Extract instruction part (everything before "CONTEXT FROM PREVIOUS STAGES:")
+        context_marker = "CONTEXT FROM PREVIOUS STAGES:"
+        if context_marker in full_prompt:
+            instruction_part = full_prompt.split(context_marker)[0]
+            context_and_output = full_prompt.split(context_marker, 1)[1]
+        else:
+            instruction_part = full_prompt
+            context_and_output = ""
+        
+        # Extract output file path
+        output_marker = "Write the output to:"
+        if output_marker in context_and_output:
+            output_file = context_and_output.split(output_marker)[-1].strip()
+            context_part = context_and_output.split(output_marker)[0]
+        else:
+            output_file = ""
+            context_part = context_and_output
+        
+        # Split context into individual artifacts
+        artifacts = []
+        parts = context_part.split("\n\n---")
+        for i, part in enumerate(parts):
+            if part.strip():
+                prefix = "---" if i > 0 else ""
+                artifacts.append(prefix + part)
+        
+        # Calculate usable context per chunk
+        instruction_tokens = len(instruction_part) // 4
+        overhead_tokens = 500  # for output instructions, formatting
+        artifact_budget = (int(model_context_window * 0.8) - instruction_tokens - overhead_tokens)
+        
+        # Group artifacts into chunks
+        chunks = []
+        current_chunk = []
+        current_size = 0
+        
+        for artifact in artifacts:
+            artifact_tokens = len(artifact) // 4
+            if current_size + artifact_tokens > artifact_budget and current_chunk:
+                chunks.append("\n\n".join(current_chunk))
+                current_chunk = [artifact]
+                current_size = artifact_tokens
+            else:
+                current_chunk.append(artifact)
+                current_size += artifact_tokens
+        
+        if current_chunk:
+            chunks.append("\n\n".join(current_chunk))
+        
+        if not chunks:
+            chunks = [context_part]
+        
+        print(f"  [CHUNKS] {len(chunks)} chunks created for {agent_id}")
+        
+        # Call LLM for each chunk
+        all_contents = []
+        total_input_tokens = 0
+        total_output_tokens = 0
+        total_cached_tokens = 0
+        total_cost = 0.0
+        
+        for i, chunk in enumerate(chunks):
+            chunk_prompt = f"""{instruction_part}
+
+CONTEXT FROM PREVIOUS STAGES:
+{chunk}
+
+Write the output to: {output_file}"""
+            
+            content, token_info = self._call_llm_single(
+                chunk_prompt, model_name, provider, api_endpoint,
+                session_id, agent_id, stage_id, max_output_tokens
+            )
+            
+            if content and not token_info.get("fallback"):
+                all_contents.append(content)
+                total_input_tokens += token_info.get("input_tokens", 0)
+                total_output_tokens += token_info.get("output_tokens", 0)
+                total_cached_tokens += token_info.get("cached_tokens", 0)
+                total_cost += token_info.get("cost", 0.0)
+        
+        # Merge all chunk outputs
+        merged_content = "\n\n---\n\n".join(all_contents) if all_contents else None
+        
+        merged_token_info = {
+            "input_tokens": total_input_tokens,
+            "output_tokens": total_output_tokens,
+            "cached_tokens": total_cached_tokens,
+            "reasoning_tokens": 0,
+            "total_tokens": total_input_tokens + total_output_tokens,
+            "cost": total_cost,
+            "selected_model": model_name,
+            "selected_provider": provider,
+            "cost_per_1k_input": token_info.get("cost_per_1k_input", 0.0) if all_contents else 0.0,
+            "cost_per_1k_output": token_info.get("cost_per_1k_output", 0.0) if all_contents else 0.0,
+            "cache_hit": False,
+            "chunking_used": True,
+            "chunks_count": len(chunks),
+            "model_context_window": model_context_window,
+            "fallback": len(all_contents) == 0,
+        }
+        
+        # Cache merged result
+        if merged_content:
+            cache_entry = {"content": merged_content, **merged_token_info}
+            self.llm_cache.set(full_prompt, model_name, agent_id, cache_entry)
+        
+        return merged_content, merged_token_info
+    
+    def _extract_features(self) -> List[Dict]:
+        """Extract feature list (id + title + priority) from the product plan."""
+        import re
+        candidates = [
+            os.path.join(self.project_dir, "docs", "product-plan.md"),
+            os.path.join(self.project_dir, "artifacts", "0", "ideation-output.md"),
+        ]
+        for p in candidates:
+            if not os.path.exists(p):
+                continue
+            try:
+                with open(p, "r", encoding="utf-8") as f:
+                    txt = f.read()
+            except Exception:
+                continue
+            seen, out = set(), []
+            for line in txt.splitlines():
+                m = re.search(r"F-(\d+)\s*[:\-]\s*([^:(\n]+)", line)
+                if not m:
+                    continue
+                fid = f"F-{m.group(1)}"
+                if fid in seen:
+                    continue
+                seen.add(fid)
+                prio = "nice-to-have" if re.search(r"nice.to.have", line, re.I) else (
+                    "must-have" if re.search(r"must.have", line, re.I) else "")
+                title = m.group(2).replace("**", "").strip(" :*-")
+                out.append({"id": fid, "title": title, "priority": prio})
+            if out:
+                return out
+        return []
+
+    def _plan_phases(self):
+        """Compute a dynamic implementation phase plan from the feature list."""
+        feats = self._extract_features()
+        iterations = plan_iterations(feats, override=self.phases_override)
+        self.phase_plan = iterations
+        self.phase_feature_map = iteration_feature_map(iterations)
+        self._phases_planned = True
+        if iterations:
+            print(f"  [ITERATIONS] {len(iterations)} implementation iteration(s): "
+                  + ", ".join(f"{it.stage_id}({len(it.feature_subset)}f,~{it.est_output_tokens}tok)"
+                              for it in iterations))
+        else:
+            print("  [ITERATIONS] no features found; implementation iterations will be skipped")
+
+    def _features_for_phase(self, stage_id: str) -> List[str]:
+        if not self._phases_planned:
+            self._plan_phases()
+        return self.phase_feature_map.get(stage_id, [])
+
+    def _is_inactive_phase_stage(self, stage_id: str) -> bool:
+        if not self._phases_planned:
+            return False
+        active = {p.stage_id for p in self.phase_plan}
+        if stage_id in PHASE_STAGES:
+            return stage_id not in active
+        for s in PHASE_STAGES:
+            if stage_id == s + "-vqa":
+                return s not in active
+        return False
+
+    def _chat_with_tools(self, messages: List[Dict], agent_id: str, stage_id: str,
+                         tools: List[Dict]) -> Tuple[Dict, Dict]:
+        """Native function-calling chat. Returns (assistant_message, token_info)."""
+        import requests
+        from dotenv import load_dotenv
+        load_dotenv()
+        tier = self._get_agent_model_config(agent_id, stage_id)
+        model = tier["model"]
+        provider = tier.get("provider", FALLBACK_PROVIDER)
+        endpoint = tier.get("api_endpoint", FALLBACK_ENDPOINT)
+        api_key = self._get_api_key(provider)
+        if not api_key:
+            return {}, self._build_token_info(model, provider, 0, 0, 0, 0, "no_api_key", 0, 0)
+        headers = self._build_api_headers(provider, api_key, f"toolp-{self.project}-{agent_id}")
+        max_out = get_contract(agent_id).get("max_output_tokens", 4000)
+        data = {"model": model, "messages": messages, "max_tokens": max_out, "temperature": 0.3}
+        if tools:
+            data["tools"] = tools
+            data["tool_choice"] = "auto"
+        try:
+            r = requests.post(endpoint, json=data, headers=headers, timeout=180)
+            if r.status_code != 200:
+                return {}, self._build_token_info(model, provider, 0, 0, 0, 0, f"http_{r.status_code}", 0, 0)
+            res = r.json()
+            choice = (res.get("choices") or [{}])[0]
+            msg = choice.get("message", {}) or {}
+            usage = res.get("usage", {}) or {}
+            in_tok = usage.get("prompt_tokens", 0) or (len(str(messages)) // 4)
+            out_tok = usage.get("completion_tokens", 0) or 0
+            cached = usage.get("prompt_tokens_details", {}).get("cached_tokens", 0)
+            ti = self._build_token_info(model, provider, in_tok, out_tok, cached, 0,
+                                        choice.get("finish_reason", ""), 0, 0)
+            return msg, ti
+        except Exception as e:
+            return {}, self._build_token_info(model, provider, 0, 0, 0, 0, f"error:{str(e)[:60]}", 0, 0)
+
+    def _finalize_tech_stack(self, stage_executions):
+        """Parse the architect's tech-stack JSON, persist docs/tech-stack.json, gate on change."""
+        text = ""
+        for ex in stage_executions:
+            for a in (ex.artifacts or []):
+                try:
+                    with open(a, "r", encoding="utf-8") as f:
+                        text += f.read() + "\n"
+                except Exception:
+                    pass
+        block = parse_tech_stack_block(text)
+        rationale = ""
+        declared_changed = None
+        if block:
+            rationale = str(block.pop("rationale", "") or "")
+            block.pop("requested", None)
+            declared_changed = block.pop("changed_from_request", None)
+            chosen = {k: block.get(k) for k in
+                      ("kind", "languages", "frameworks", "database", "cache", "deploy", "runtime")}
+        else:
+            req = list(getattr(self, "requested_tech_stack", []) or [])
+            chosen = {"kind": "cli", "languages": req, "frameworks": [],
+                      "database": None, "cache": None, "deploy": None, "runtime": None}
+
+        decision = build_decision(self.requested_tech_stack, chosen, rationale)
+        decision["chosen"] = chosen
+        if declared_changed is not None:
+            decision["changed_from_request"] = bool(declared_changed)
+        path = save_tech_stack(self.project_dir, decision)
+        self.tech_stack = decision
+        print(f"  [TECHSTACK] kind={chosen.get('kind')} languages={chosen.get('languages')} "
+              f"frameworks={chosen.get('frameworks')} changed_from_request={decision['changed_from_request']}")
+
+        if decision["changed_from_request"] and self.requested_tech_stack:
+            print(f"  [STACK CHANGE] architect changed requested stack "
+                  f"{decision['requested']} -> {chosen.get('languages')} {chosen.get('frameworks')}; "
+                  f"requires user agreement")
+            approved = self._wait_for_approval("architect", "2", [path])
+            decision["approved_by"] = "auto" if approved else None
+            decision["approved_at"] = datetime.now().isoformat() if approved else None
+            save_tech_stack(self.project_dir, decision)
+        return decision
+
+    def _stack_compliance(self):
+        """Flag code that imports frameworks not present in the agreed stack."""
+        ts = getattr(self, "tech_stack", {}) or {}
+        chosen = ts.get("chosen") or {}
+        if not chosen:
+            return []
+        import re
+        allowed_fw = set(str(x).lower() for x in (chosen.get("frameworks") or []))
+        forbidden = []
+        for base in ("src", "apps", "app", "backend", "server"):
+            root = os.path.join(self.project_dir, base)
+            if not os.path.isdir(root):
+                continue
+            for dp, _d, fs in os.walk(root):
+                for fn in fs:
+                    if not fn.endswith(".py"):
+                        continue
+                    try:
+                        with open(os.path.join(dp, fn), "r", encoding="utf-8", errors="ignore") as f:
+                            t = f.read()
+                    except Exception:
+                        continue
+                    for fw in ("fastapi", "flask", "django", "starlette", "tornado"):
+                        if fw in allowed_fw:
+                            continue
+                        if re.search(r"\b(import|from)\s+" + fw + r"\b", t):
+                            forbidden.append({"file": os.path.relpath(os.path.join(dp, fn), self.project_dir),
+                                              "framework": fw})
+        return forbidden
+
+    def _generate_with_tools(self, agent_id: str, stage_id: str, prompt: str, spec) -> Tuple[str, Dict]:
+        """Run the agent with a bounded NATIVE tool loop (falls back to text protocol)."""
+        from core.agent_tool_loop import run_native_tool_loop
+        acc = {"input_tokens": 0, "output_tokens": 0, "cached_tokens": 0, "reasoning_tokens": 0,
+               "total_tokens": 0, "cost": 0.0, "selected_model": "", "selected_provider": "",
+               "cost_per_1k_input": 0.0, "cost_per_1k_output": 0.0, "finish_reason": "",
+               "truncated": False, "retries": 0, "continuations": 0, "fallback": False,
+               "tool_calls": 0, "tool_iterations": 0}
+
+        def _acc(ti):
+            for k in ("input_tokens", "output_tokens", "cached_tokens", "reasoning_tokens",
+                      "total_tokens", "cost"):
+                acc[k] = acc.get(k, 0) + (ti.get(k, 0) or 0)
+            for k in ("selected_model", "selected_provider", "cost_per_1k_input", "cost_per_1k_output"):
+                if ti.get(k):
+                    acc[k] = ti[k]
+
+        contract = get_contract(agent_id)
+        try:
+            _f = float(os.getenv("TOOL_LOOP_TOKEN_FACTOR", "3"))
+        except (TypeError, ValueError):
+            _f = 3.0
+        tool_token_cap = int((contract.get("max_input_tokens", 8000) +
+                              max(contract.get("max_output_tokens", 4000), 4000)) * _f)
+
+        def _run(seed_messages):
+            def chat_fn(msgs, tools):
+                msg, ti = self._chat_with_tools(msgs, agent_id, stage_id, tools)
+                _acc(ti)
+                return msg
+            return run_native_tool_loop(chat_fn, self.tool_registry, spec, self.project_dir,
+                                        seed_messages,
+                                        max_iters=int(os.getenv("TOOL_LOOP_MAX_ITERS", "6")),
+                                        stop_check=lambda: acc["total_tokens"] >= tool_token_cap,
+                                        require_write_first=(agent_id.startswith("implement")
+                                                             or agent_id in ("devops", "fix")))
+
+        def _needs_retry(stats):
+            if not getattr(spec, "tools", None):
+                return False
+            code_or_test = (agent_id.startswith("implement")
+                            or agent_id in ("devops", "fix", "validate"))
+            if stats.get("tool_calls", 0) == 0 and code_or_test:
+                return True
+            if ("write_file" in spec.tools and stats.get("writes", 0) == 0
+                    and (agent_id.startswith("implement")
+                         or agent_id in ("devops", "package", "fix"))):
+                return True
+            return False
+
+        try:
+            final, _m, stats = _run([{"role": "user", "content": prompt}])
+            if _needs_retry(stats):
+                print(f"  [TOOLS] {agent_id}: no effective file writes; retrying strict")
+                strict = [{"role": "system", "content":
+                           "You MUST use the write_file tool to create the required files in the "
+                           "workspace (e.g. src/..., tests/...). Do NOT describe code — actually write it."},
+                          {"role": "user", "content": prompt}]
+                final, _m, stats = _run(strict)
+            acc["tool_calls"] = stats.get("tool_calls", 0)
+            acc["tool_iterations"] = stats.get("iterations", 0)
+            acc["tool_writes"] = stats.get("writes", 0)
+            print(f"  [TOOLS] {agent_id}: {acc['tool_calls']} tool call(s), "
+                  f"{acc['tool_writes']} write(s) in {acc['tool_iterations']} iteration(s)")
+            return final, acc
+        except Exception as e:
+            print(f"  [TOOLS] {agent_id} native loop error ({e}); falling back to single call")
+            return self._call_llm(prompt, agent_id, stage_id)
+
+
+    def _generate_agent_artifacts(self, agent_id: str, stage_id: str, task: str) -> Tuple[List[str], AgentExecution]:
+        """Generate structured artifacts for an agent by calling LLM.
+        
+        Returns:
+            Tuple of (artifact_files_list, agent_execution_with_token_info)
+        """
+        artifacts = []
+        
+        stage_dir = os.path.join(self.project_dir, "artifacts", stage_id)
+        os.makedirs(stage_dir, exist_ok=True)
+        
+        artifact_file = os.path.join(stage_dir, f"{agent_id}-output.md")
+        contract = get_contract(agent_id)
+        
+        # Build the prompt for the LLM
+        prompt = self._build_agent_prompt(agent_id, stage_id, task, contract, artifact_file)
+        
+        # Call LLM to generate real content - now returns both content and token info
+        _spec = getattr(self, "agent_specs", {}).get(agent_id)
+        if (getattr(self, "enable_tools", False) and _spec is not None
+                and getattr(_spec, "tools", None) and self.tool_registry):
+            content, token_info = self._generate_with_tools(agent_id, stage_id, prompt, _spec)
+        else:
+            content, token_info = self._call_llm(prompt, agent_id, stage_id)
+
+        # LLM fallback (template) is NOT success: never write a stub artifact or
+        # mark the agent completed. Surface a hard failure so retries / circuit
+        # breakers / stop-conditions can react.
+        if token_info.get("fallback") or token_info.get("selected_model") == "":
+            print(f"[ERROR] {agent_id}@{stage_id}: LLM unavailable; marking FAILED "
+                  f"(no template artifact written)")
+            execution = AgentExecution(
+                agent_id=agent_id,
+                stage_id=stage_id,
+                status="failed",
+                started_at=datetime.now().isoformat(),
+                completed_at=datetime.now().isoformat(),
+                error="LLM unavailable (fallback) - no usable response",
+                selected_model="",
+                selected_provider="",
+            )
+            return [], execution
+
+        if content:
+            # Format with metadata
+            formatted_content = self._format_llm_output(
+                agent_id, stage_id,
+                token_info.get("selected_model", ""),
+                token_info.get("selected_provider", ""),
+                content,
+                token_info.get("input_tokens", 0),
+                token_info.get("output_tokens", 0),
+                token_info.get("cached_tokens", 0),
+                token_info.get("reasoning_tokens", 0),
+                token_info.get("total_tokens", 0),
+                token_info.get("cost_per_1k_input", 0.0),
+                token_info.get("cost_per_1k_output", 0.0),
+                token_info.get("cost", 0.0)
+            )
+            
+            with open(artifact_file, 'w', encoding='utf-8') as f:
+                f.write(formatted_content)
+            
+            artifacts.append(artifact_file)
+        
+        # Create AgentExecution with detailed token info
+        execution = AgentExecution(
+            agent_id=agent_id,
+            stage_id=stage_id,
+            status="completed",
+            started_at=datetime.now().isoformat(),
+            completed_at=datetime.now().isoformat(),
+            artifacts=artifacts,
+            input_tokens=token_info.get("input_tokens", 0),
+            output_tokens=token_info.get("output_tokens", 0),
+            cached_tokens=token_info.get("cached_tokens", 0),
+            reasoning_tokens=token_info.get("reasoning_tokens", 0),
+            total_tokens=token_info.get("total_tokens", 0),
+            selected_model=token_info.get("selected_model", ""),
+            selected_provider=token_info.get("selected_provider", ""),
+            model_cost_per_1k_input=token_info.get("cost_per_1k_input", 0.0),
+            model_cost_per_1k_output=token_info.get("cost_per_1k_output", 0.0),
+            cost=token_info.get("cost", 0.0),
+            # Audit fields
+            model_context_window=token_info.get("model_context_window", 0),
+            prompt_chars=len(prompt),
+            output_chars=len(content) if content else 0,
+            artifacts_used=[{"name": k, "chars": len(v)} for k, v in self._collect_stage_artifacts(stage_id).items()],
+            chunking_used=token_info.get("chunking_used", False),
+            chunks_count=token_info.get("chunks_count", 1),
+            cache_hit=token_info.get("cache_hit", False),
+            finish_reason=token_info.get("finish_reason", ""),
+            truncated=token_info.get("truncated", False),
+            retries=token_info.get("retries", 0),
+            compaction_used=getattr(self, "_last_compaction_saved", 0) > 0,
+            compaction_saved_chars=getattr(self, "_last_compaction_saved", 0),
+            continuations=token_info.get("continuations", 0),
+        )
+        
+        # A code-producing agent that used the tool loop but wrote no files is a
+        # failure (prevents "passed" runs with no real output).
+        if (token_info.get("tool_writes") is not None and
+                (agent_id.startswith("implement") or agent_id in ("devops", "package", "fix")) and
+                token_info.get("tool_writes", 0) == 0):
+            execution.status = "failed"
+            execution.error = "No files written by the tool loop"
+
+        return artifacts, execution
+    
+    def _build_agent_prompt(self, agent_id: str, stage_id: str, task: str, contract: dict, artifact_file: str) -> str:
+        """Build a prompt for the agent with smart context management.
+        
+        Context management strategy:
+        1. Filter artifacts by contract.allowed_inputs
+        2. Summarize older artifacts (extract headers + first bullet)
+        3. Cap total context at min(contract.max_input_tokens, model.context_window * 0.8)
+        4. Always include full instructions and task (never truncate)
+        """
+        saved_chars = 0  # chars removed by compaction (vs full artifact)
+        # Get model config to know context_window
+        tier_config = self._get_agent_model_config(agent_id, stage_id)
+        model_name = tier_config["model"]
+        
+        # Get model profile for context_window
+        model_profile = self.model_registry.get_model(model_name)
+        model_context_window = model_profile.context_window if model_profile else 1000000
+        
+        # Calculate max context tokens (80% of model's context window, or contract limit)
+        max_context_tokens = min(
+            contract.get("max_input_tokens", 100000),
+            int(model_context_window * 0.8)
+        )
+        max_context_chars = max_context_tokens * 4  # rough estimate: 1 token ≈ 4 chars
+        
+        # Get allowed inputs from contract
+        allowed_inputs = contract.get("allowed_inputs", [])
+        
+        # Collect and filter artifacts
+        prev_artifacts = self._collect_stage_artifacts(stage_id)
+        filtered_artifacts = {}
+        for key, path in prev_artifacts.items():
+            # Check if this artifact is allowed for this agent
+            if allowed_inputs and key not in allowed_inputs:
+                continue
+            filtered_artifacts[key] = path
+        
+        # Build context with smart summarization
+        context_parts = []
+        total_chars = 0
+        artifact_count = len(filtered_artifacts)
+        
+        for i, (key, path) in enumerate(filtered_artifacts.items()):
+            try:
+                with open(path, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                
+                # Recent artifacts (last 3) get full content, older ones get summarized
+                is_recent = i >= (artifact_count - 3)
+                
+                if is_recent:
+                    # Full content for recent artifacts
+                    artifact_text = content
+                else:
+                    # Summarize older artifacts (deterministic, zero-token cost)
+                    artifact_text = self.summarizer.summarize(content, max_chars=500)
+                    saved_chars += max(0, len(content) - len(artifact_text))
+                
+                artifact_entry = f"\n\n--- {key} ---\n{artifact_text}"
+                artifact_chars = len(artifact_entry)
+                
+                # Check if adding this artifact exceeds limit
+                if total_chars + artifact_chars > max_context_chars:
+                    # Truncate to fit
+                    remaining = max_context_chars - total_chars
+                    if remaining > 100:
+                        artifact_entry = artifact_entry[:remaining] + "...[truncated to fit context limit]"
+                        context_parts.append(artifact_entry)
+                    break
+                
+                context_parts.append(artifact_entry)
+                total_chars += artifact_chars
+            except Exception:
+                pass
+        
+        context = "".join(context_parts) if context_parts else ""
+        
+        # Build the instruction part (always full, never truncated)
+        instruction_templates = {
+            "ideation": """You are the Ideation Agent for Product Factory.
+
+TASK: {task}
+
+REQUIREMENTS:
+- Analyze the idea and extract key requirements
+- Identify target users and their needs
+- Define success criteria
+- List features with priorities (must-have vs nice-to-have)
+
+OUTPUT FORMAT:
+Write a comprehensive ideation document using EXACTLY these markdown headings:
+# Vision
+# Target Users / Personas
+# E2E Workflow / User Journey
+# Features
+# Success Criteria
+# Risk Assessment
+
+Under # Features, list each feature as a bullet with an id (F-1, F-2, ...) and a must-have/nice-to-have priority.""",
+            "design": """You are the Design Agent for Product Factory.
+
+TASK: {task}
+
+REQUIREMENTS:
+- Create detailed requirements document
+- Design system architecture
+- Define data models and API contracts
+- Create UI/UX wireframes description
+
+OUTPUT FORMAT:
+Write a comprehensive design document using EXACTLY these markdown headings:
+## Functional Requirements
+(list each as FR-1, FR-2, ...)
+## Non-Functional Requirements
+(list each as NFR-1, NFR-2, ...)
+## User Stories
+(list each as US-1: As a ... I want ... so that ...)
+## Design Direction
+## Components
+## Data Models
+## API Contracts""",
+            "architect": """You are the Architect Agent for Product Factory.
+
+TASK: {task}
+
+REQUIREMENTS:
+- Design technical architecture
+- Define component boundaries
+- Create file structure
+- Specify technology stack
+
+OUTPUT FORMAT:
+Write a comprehensive architecture document using EXACTLY these markdown headings:
+## Architecture Style
+(microservices / modular monolith / event-driven / serverless, plus rationale)
+## Tech Stack
+## Components
+## File Structure
+## Data / Database (Entities)
+## Deployment / Infrastructure
+## Integration Points
+## Security Considerations
+## ADRs
+(list each decision as ADR-1, ADR-2, ...)""",
+            "implement": """You are the Implement Agent for Product Factory.
+
+TASK: {task}
+
+REQUIREMENTS:
+- Write actual code files
+- Follow the architecture from previous stages
+- Include error handling
+- Add comments where necessary
+
+OUTPUT FORMAT:
+Write the implementation with:
+1. Complete code files
+2. File structure as specified in architecture
+3. Proper error handling
+4. Configuration files"""
+        }
+        
+        # Instruction source: AgentSpec (preferred, framework-agnostic) or template fallback
+        spec = getattr(self, "agent_specs", {}).get(agent_id)
+        if spec and getattr(spec, "instructions", ""):
+            directive = self._tool_directive(agent_id, stage_id, task)
+            if directive and (agent_id.startswith("implement") or agent_id in ("devops", "fix")):
+                # Tool-first code agents: use the directive + requirements, NOT the
+                # opencode card (which references a 'Task' tool / sub-agents and
+                # derails the model into exploring instead of writing).
+                instruction = (directive + f"\n\nYou are the {agent_id} agent.\n"
+                               + self._output_requirements(agent_id) + f"\n\nTASK: {task}")
+            else:
+                instruction = ((directive + "\n\n") if directive else "") + \
+                    spec.instructions + f"\n\nTASK: {task}"
+                instruction += self._output_requirements(agent_id)
+        else:
+            template = instruction_templates.get(agent_id, """You are agent {agent_id} for Product Factory.
+
+TASK: {task}
+
+Execute this task and produce the required output.""")
+            instruction = template.format(task=task, agent_id=agent_id)
+
+        instruction += self._scope_guard()
+        
+        # Assemble final prompt: instructions + context + knowledge
+        prompt = f"""{instruction}
+
+CONTEXT FROM PREVIOUS STAGES:
+{context if context else "No previous context (first stage)"}
+
+Write the output to: {artifact_file}"""
+        
+        # Inject knowledge from knowledge base based on agent type and techstack
+        try:
+            knowledge_content = self._load_knowledge_for_agent(agent_id, stage_id, contract)
+            if knowledge_content:
+                prompt = f"""{instruction}
+
+RELEVANT GUIDELINES AND KNOWLEDGE:
+{knowledge_content}
+
+CONTEXT FROM PREVIOUS STAGES:
+{context if context else "No previous context (first stage)"}
+
+Write the output to: {artifact_file}"""
+        except Exception as e:
+            print(f"[KnowledgeInjection] Error loading knowledge: {e}")
+        
+        self._last_compaction_saved = saved_chars
+        return prompt
+
+    def _tool_directive(self, agent_id: str, stage_id: str, task: str) -> str:
+        """Strong override prepended for tool-using agents (anti-exploration)."""
+        if not (getattr(self, "enable_tools", False) and
+                (agent_id.startswith("implement") or agent_id in ("devops", "fix", "validate"))):
+            return ""
+        lines = [
+            "CRITICAL DIRECTIVES (highest priority — these override everything below):",
+            "- You are a SINGLE agent. IGNORE any instruction about a 'Task' tool or sub-agents.",
+            "- Create real files with the write_file tool. Do NOT call list_dir/read_file just to explore.",
+        ]
+        if agent_id.startswith("implement") or agent_id in ("devops", "fix"):
+            pkg = re.sub(r"[^a-z0-9_]", "_", (self.project or "app").lower())
+            lines += [
+                "- Start writing files IMMEDIATELY with write_file. If the workspace is empty, first create a",
+                "  minimal runnable skeleton: src/<package>/__init__.py, src/<package>/main.py,",
+                "  tests/test_<name>.py, requirements.txt.",
+                f"- Use ONE Python package named '{pkg}' (files under src/{pkg}/). Do NOT create other",
+                f"  top-level packages. Tests go in tests/test_{pkg}.py.",
+                "- Then implement the task/features by writing or overwriting files.",
+                "- No mocks, no TODOs, no placeholders. Use run_command with `python -c \"...\"` when needed",
+                "  (do NOT use `ls`/`dir`/`cat` — they are not available).",
+            ]
+        if agent_id == "validate":
+            lines += ["- Use run_command to actually run `python -m pytest -q` and report the real results."]
+        return "\n".join(lines)
+
+    def _scope_guard(self) -> str:
+        """Remind the agent of the agreed tech stack (no hardcoded stack)."""
+        ts = getattr(self, "tech_stack", {}) or {}
+        chosen = ts.get("chosen") or {}
+        if chosen:
+            desc = (f"kind={chosen.get('kind')}, languages={chosen.get('languages')}, "
+                    f"frameworks={chosen.get('frameworks') or []}")
+            return ("\n\nSCOPE & TECH STACK (MUST follow docs/tech-stack.json): " + desc +
+                    ". Do NOT add frameworks, databases, servers, authentication, or a UI not listed there.")
+        req = getattr(self, "requested_tech_stack", []) or []
+        hints = ", ".join(req) or "unspecified"
+        return ("\n\nSCOPE & TECH STACK (MUST follow): " + hints +
+                ". Do NOT introduce frameworks/DB/auth/UI beyond the request unless the brief requires it.")
+
+    def _output_requirements(self, agent_id: str) -> str:
+        """Append strict output requirements so downstream parsing/verification works."""
+        if agent_id == "ideation":
+            return ("\n\nOUTPUT REQUIREMENTS:\nUse exactly these headings:\n# Vision\n"
+                    "# Target Users / Personas\n# E2E Workflow / User Journey\n# Features\n"
+                    "# Success Criteria\n# Risk Assessment\n"
+                    "Under # Features list each feature as: "
+                    "- **F-1: <name> (must-have):** <description>. "
+                    "Label every feature must-have or nice-to-have.")
+        if agent_id == "product-design-spec":
+            return ("\n\nOUTPUT REQUIREMENTS:\nInclude these headings: ## Screens, ## Flows, "
+                    "## Components, ## States, ## Data. No placeholders.")
+        if agent_id == "design":
+            return ("\n\nOUTPUT REQUIREMENTS:\nUse exactly these headings:\n"
+                    "## Functional Requirements\n(list each as FR-1, FR-2, ...)\n"
+                    "## Non-Functional Requirements\n(list each as NFR-1, ...)\n"
+                    "## User Stories\n(list each as US-1: As a ... I want ... so that ...)\n"
+                    "## Design Direction\n## Components\n## Data Models\n## API Contracts")
+        if agent_id == "architect":
+            req = ", ".join(getattr(self, "requested_tech_stack", []) or []) or "none (you decide)"
+            return ("\n\nOUTPUT REQUIREMENTS:\nUse headings: ## Architecture Style, ## Tech Stack, "
+                    "## Components, ## File Structure, ## Data / Database (Entities), "
+                    "## Deployment / Infrastructure, ## Integration Points, ## Security Considerations, "
+                    "## ADRs\n(list each as ADR-1, ...)\n"
+                    f"USER-REQUESTED TECH STACK (constraint): {req}.\n"
+                    "You are the architect: choose the RIGHT stack for this product. If you change the "
+                    "requested stack, you MUST justify it (rationale + trade-offs).\n"
+                    "Also output EXACTLY ONE fenced ```json block describing the decision with keys: "
+                    "kind (cli|library|web-app|api|mobile|service), languages, frameworks, database, "
+                    "cache, deploy, runtime, requested (list), changed_from_request (bool), rationale.")
+        if agent_id.startswith("implement") or agent_id in ("devops", "fix"):
+            return ("\n\nIMPORTANT — ACTUAL FILES REQUIRED:\nYou MUST use the write_file tool to create "
+                    "real files in the project workspace (e.g. src/..., tests/...). Do NOT just describe "
+                    "code. After writing, run tests with run_command where applicable, then give a short "
+                    "final summary. No mocks, no TODOs, no placeholders.")
+        if agent_id == "validate":
+            return ("\n\nIMPORTANT:\nUse run_command to actually run the test suite in the workspace and "
+                    "report the real results. If tests are missing or failing, say so explicitly.")
+        return ""
+
+    def get_tools_for_agent(self, agent_id: str) -> List[Dict]:
+        """Return framework-agnostic tool schemas allowed for an agent (from its spec)."""
+        if not self.tool_registry:
+            return []
+        spec = getattr(self, "agent_specs", {}).get(agent_id)
+        if not spec or not getattr(spec, "tools", None):
+            return []
+        return self.tool_registry.schemas(spec.tools)
+
+    def execute_agent_tool(self, agent_id: str, tool: str, args: Dict) -> Dict:
+        """Execute a tool on behalf of an agent, sandboxed to the project workspace."""
+        if not self.tool_registry:
+            return {"ok": False, "error": "tool registry unavailable"}
+        spec = getattr(self, "agent_specs", {}).get(agent_id)
+        if spec is not None and tool not in (getattr(spec, "tools", None) or []):
+            return {"ok": False, "error": f"tool '{tool}' not permitted for {agent_id}"}
+        res = self.tool_registry.execute(tool, args, self.project_dir)
+        return res.to_dict()
+
+    def _load_knowledge_for_agent(self, agent_id: str, stage_id: str, contract: dict) -> str:
+        """Load relevant knowledge from knowledge base for an agent."""
+        # Map agent types to relevant knowledge layers
+        agent_knowledge_map = {
+            "ideation": ["business_logic"],
+            "design": ["api", "frontend", "backend"],
+            "architect": ["api", "database", "backend", "architecture"],
+            "implement": ["api", "database", "frontend", "backend", "caching", "packaging"],
+            "code-review": ["api", "database", "frontend", "backend", "security"],
+            "validate": ["testing"],
+            "security": ["security"],
+            "document": ["packaging"],
+        }
+        
+        # Get layers for this agent
+        layers = list(agent_knowledge_map.get(agent_id, []))
+
+        # Preferred: knowledge derived from the ARCHITECT's agreed tech stack
+        # (docs/tech-stack.json). This makes knowledge follow the decision.
+        ts = getattr(self, "tech_stack", {}) or {}
+        chosen = ts.get("chosen") or {}
+        if chosen:
+            layers = stack_to_layers(chosen)
+            if agent_id.startswith("implement") or agent_id in ("validate", "code-review", "fix"):
+                layers.append("testing")
+            if agent_id == "security":
+                layers.append("security")
+            if agent_id == "ideation" and not layers:
+                layers = ["business_logic"]
+            seen, dedup = set(), []
+            for l in layers:
+                if l not in seen:
+                    seen.add(l)
+                    dedup.append(l)
+            layers = dedup
+        else:
+            # Pre-architect: use the requested stack (if any) instead of a fixed map.
+            hints = [str(h).lower() for h in
+                     (getattr(self, "requested_tech_stack", []) or getattr(self, "tech_stack_hints", []) or [])]
+            web_markers = {"fastapi", "flask", "django", "express", "nestjs", "rails",
+                           "spring", "dotnet", "asp.net", "laravel", "php", "react",
+                           "nextjs", "next.js", "vue", "angular", "svelte", "node",
+                           "web", "http", "rest", "graphql", "postgres", "postgresql",
+                           "mysql", "mongodb", "redis", "supabase"}
+            is_web = any(any(m in h for m in web_markers) for h in hints) or not hints
+            if not is_web:
+                layers = [l for l in layers if l not in ("api", "frontend", "database", "caching", "backend")]
+                coding = []
+                if any("python" in h for h in hints):
+                    coding.append("python")
+                if any(("typescript" in h or "javascript" in h or "node" in h) for h in hints):
+                    coding.append("typescript")
+                if any("go" in h for h in hints):
+                    coding.append("go")
+                if agent_id.startswith("implement") or agent_id in ("code-review", "fix"):
+                    coding = coding + ["testing"]
+                layers = coding + [l for l in layers if l not in coding]
+                if not layers:
+                    layers = ["business_logic"]
+
+        # Load guidelines for these layers
+        if layers:
+            knowledge = self.guideline_loader.load_guidelines_for_layers(layers, max_tokens=3000)
+            return knowledge
+        
+        return ""
+    
+
+    
+    def _get_api_key(self, provider: str) -> str:
+        """Get API key based on provider."""
+        import os
+        from dotenv import load_dotenv
+        load_dotenv()
+        
+        key_map = {
+            "opencode-go": "OPENCODE_ZEN_API_KEY",
+            "opencode-zen": "OPENCODE_ZEN_API_KEY",
+            "gemini": "GEMINI_API_KEY",
+            "openrouter": "OPENROUTER_API_KEY",
+            "openai": "OPENAI_API_KEY",
+            "anthropic": "ANTHROPIC_API_KEY",
+        }
+        
+        env_key = key_map.get(provider, "OPENCODE_ZEN_API_KEY")
+        return os.getenv(env_key, "")
+    
+    def _build_api_headers(self, provider: str, api_key: str, session_id: str) -> dict:
+        """Build API headers based on provider."""
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        }
+        
+        # Add provider-specific headers
+        if provider in ["opencode-go", "opencode-zen"]:
+            headers["x-opencode-session"] = session_id
+            headers["User-Agent"] = "product-factory-pipeline/1.0"
+        
+        return headers
+    
+    def _build_api_request(self, model_name: str, prompt: str, max_output_tokens: int = 16000) -> dict:
+        """Build API request data with model-specific max_output_tokens."""
+        return {
+            "model": model_name,
+            "messages": [{"role": "user", "content": prompt}],
+            "max_tokens": max_output_tokens,
+            "temperature": 0.7
+        }
+
+    def _build_api_request_messages(self, model_name: str, messages: list, max_output_tokens: int = 16000) -> dict:
+        """Build an API request from a full messages array (used for continuation)."""
+        return {
+            "model": model_name,
+            "messages": messages,
+            "max_tokens": max_output_tokens,
+            "temperature": 0.7
+        }
+    
+    def _extract_response_content(self, result: dict, provider: str) -> str:
+        """Extract content from API response based on provider."""
+        try:
+            message = result['choices'][0]['message']
+            
+            # Handle different response formats
+            content = message.get('content') or message.get('reasoning') or ""
+            
+            return content
+        except (KeyError, IndexError):
+            return ""
+    
+    def _format_llm_output(self, agent_id: str, stage_id: str, model_name: str, provider: str, content: str,
+                           input_tokens: int = 0, output_tokens: int = 0, cached_tokens: int = 0,
+                           reasoning_tokens: int = 0, total_tokens: int = 0,
+                           model_cost_per_1k_input: float = 0.0, model_cost_per_1k_output: float = 0.0,
+                           cost: float = 0.0) -> str:
+        """Format LLM output with metadata and token usage."""
+        return f"""# {agent_id.upper()} Output - Stage {stage_id}
+
+**Task:** Generated by LLM
+**Agent:** {agent_id}
+**Stage:** {stage_id}
+**Timestamp:** {datetime.now().isoformat()}
+**Model:** {model_name}
+**Provider:** {provider}
+
+## Token Usage
+- **Input Tokens:** {input_tokens}
+- **Output Tokens:** {output_tokens}
+- **Cached Tokens:** {cached_tokens}
+- **Reasoning Tokens:** {reasoning_tokens}
+- **Total Tokens:** {total_tokens}
+- **Cost:** ${cost:.6f}
+- **Cost per 1K input:** ${model_cost_per_1k_input}
+- **Cost per 1K output:** ${model_cost_per_1k_output}
+
+## Output
+
+{content}
+
+---
+*Generated by PipelineExecutor via {provider} API*
+"""
+    
+    def _cheapest_opencode_go_model(self):
+        """Cheapest enabled opencode-go model (cached). Used by breaker throttle."""
+        cached = getattr(self, "_cheap_model_cache", None)
+        if cached is not None:
+            return cached
+        try:
+            models = [m for m in self.model_registry.list_models()
+                      if getattr(m, "enabled", True) and getattr(m, "provider", "") == "opencode-go"]
+            if models:
+                cheap = min(models, key=lambda m: (m.cost_per_1k_input or 0) + (m.cost_per_1k_output or 0))
+                self._cheap_model_cache = cheap
+                return cheap
+        except Exception:
+            pass
+        self._cheap_model_cache = None
+        return None
+
+    def _get_parent_stage_id(self, stage_id: str) -> Optional[str]:
+        """Return the parent stage id for a derived stage.
+
+        Examples:
+            "4a-vqa" -> "4a"
+            "4-0"    -> "4"
+            "4a"     -> None   (no hyphen, nothing to inherit)
+        """
+        if stage_id and "-" in stage_id:
+            return stage_id.rsplit("-", 1)[0]
+        return None
+
+    def _get_agent_model_config(self, agent_id: str, stage_id: str) -> dict:
+        """Get model configuration for an agent from tier config.
+
+        Resolution order (most specific wins):
+          1. stage entry in the shared/project model-tier.json
+          2. parent stage entry (e.g. "4a-vqa" inherits from "4a", "4-0" from "4")
+          3. agent entry in the shared/project model-tier.json
+          4. project config defaults
+          5. env-overridable last-resort fallback
+        """
+        config = self._load_tier_config()
+
+        # Breaker throttle: force the cheapest capable opencode-go model.
+        if getattr(self, "_force_cheap", False):
+            cheap = self._cheapest_opencode_go_model()
+            if cheap:
+                return {
+                    "model": cheap.name,
+                    "provider": cheap.provider,
+                    "api_endpoint": config.get("api_endpoint", FALLBACK_ENDPOINT),
+                    "fallback_models": [],
+                    "tier": config.get("default_tier", "opencode-go-cheap"),
+                }
+
+        if config:
+            try:
+                default_provider = FALLBACK_PROVIDER
+                default_endpoint = config.get("api_endpoint", FALLBACK_ENDPOINT)
+
+                agent_cfg = config.get("agents", {}).get(agent_id, {})
+                stage_cfg = config.get("stages", {}).get(stage_id, {})
+
+                # Derived stages (VQA, skeleton) inherit their parent stage's
+                # model when the stage itself has no explicit entry.
+                parent_cfg = {}
+                if not stage_cfg.get("model"):
+                    parent_id = self._get_parent_stage_id(stage_id)
+                    if parent_id:
+                        parent_cfg = config.get("stages", {}).get(parent_id, {})
+
+                model = (
+                    stage_cfg.get("model")
+                    or parent_cfg.get("model")
+                    or agent_cfg.get("model")
+                    or FALLBACK_MODEL
+                )
+                provider = (
+                    stage_cfg.get("provider")
+                    or parent_cfg.get("provider")
+                    or agent_cfg.get("provider")
+                    or default_provider
+                )
+                endpoint = (
+                    stage_cfg.get("api_endpoint")
+                    or parent_cfg.get("api_endpoint")
+                    or agent_cfg.get("api_endpoint")
+                    or default_endpoint
+                )
+                fallbacks = agent_cfg.get("fallback_models", [])
+
+                return {
+                    "model": model,
+                    "provider": provider,
+                    "api_endpoint": endpoint,
+                    "fallback_models": fallbacks,
+                    "tier": config.get("default_tier", "opencode-go-cheap"),
+                }
+            except Exception as e:
+                print(f"[WARNING] Error resolving tier config: {e}")
+
+        # No tier config found anywhere - use configurable last-resort defaults
+        return {
+            "model": FALLBACK_MODEL,
+            "provider": FALLBACK_PROVIDER,
+            "api_endpoint": FALLBACK_ENDPOINT,
+        }
+    
+    def _generate_template_output(self, agent_id: str, stage_id: str, prompt: str) -> str:
+        """Generate template output as fallback."""
+        contract = get_contract(agent_id)
+        return f"""# {agent_id.upper()} Output - Stage {stage_id}
+
+**Task:** {prompt[:200]}...
+**Agent:** {agent_id}
+**Stage:** {stage_id}
+**Timestamp:** {datetime.now().isoformat()}
+**Status:** Generated from template (LLM unavailable)
+
+## Task Description
+{prompt[:1000]}
+
+## Quality Checks
+- [x] Context package built ({contract['max_input_tokens']} token budget)
+- [x] Knowledge routed
+- [x] Budget checked
+
+---
+*Generated by PipelineExecutor (template fallback)*
+"""
+    
+    def _collect_stage_artifacts(self, stage_id: str) -> Dict[str, Any]:
+        """Collect artifacts from previous stages for context building."""
+        artifacts = {}
+        if self.execution and self.execution.stage_executions:
+            # Snapshot to avoid "dict changed size during iteration" when stages
+            # execute concurrently.
+            with self._state_lock:
+                snapshot = list(self.execution.stage_executions.items())
+            for prev_stage, executions in snapshot:
+                if prev_stage == stage_id:
+                    continue
+                for ex in executions:
+                    if ex.status == "completed" and ex.artifacts:
+                        for artifact_path in ex.artifacts:
+                            artifact_name = os.path.basename(artifact_path).replace("-output.md", "")
+                            artifacts[f"{prev_stage}_{artifact_name}"] = artifact_path
+        return artifacts
+    
+    def check_stop_conditions(self, stage_id: str) -> tuple:
+        """Check if pipeline should stop based on conditions."""
+        metrics = {
+            "retries": self.iteration_count,
+            "tokens": self.execution.total_tokens if self.execution else 0,
+            "cost_usd": self.execution.total_cost if self.execution else 0,
+            "duration_seconds": 0,
+            "failures": sum(
+                1 for execs in (self.execution.stage_executions or {}).values()
+                for e in execs if e.status == "failed"
+            ) if self.execution else 0,
+        }
+        
+        if self.execution and self.execution.started_at:
+            try:
+                started = datetime.fromisoformat(self.execution.started_at)
+                metrics["duration_seconds"] = (datetime.now() - started).total_seconds()
+            except (ValueError, TypeError):
+                pass
+        
+        return self.stop_conditions.check_conditions(
+            self.project,
+            hash(stage_id) % 100,
+            metrics
+        )
+    
+    def stop(self):
+        """Request pipeline stop."""
+        self._stop_requested = True
+    
+    def pause(self):
+        """Request pipeline pause."""
+        self._pause_requested = True
+    
+    def resume(self):
+        """Resume paused pipeline."""
+        self._pause_requested = False
+    
+    def execute_pipeline(self) -> bool:
+        """Execute the full pipeline with orchestrator controls:
+        Time management, HITL approval, checkpoint/resume, parallel execution,
+        budget enforcement, stop conditions, and self-monitoring."""
+        if not self.dag_executor or not self.execution:
+            print("[Orchestrator] No pipeline loaded")
+            return False
+        
+        print(f"\n{'='*70}")
+        print(f"ORCHESTRATOR: {self.project}")
+        print(f"{'='*70}")
+        print(f"Mode: {'auto-approve' if self.auto_approve else 'interactive (HITL)'}")
+        print(f"Max time: {self.max_total_time}s | Parallel: {self.max_parallel_stages if self.parallel_enabled else 1}")
+        
+        # Initialize time tracking
+        self.pipeline_start_time = time.time()
+        self.execution.phase = PipelinePhase.PLANNING
+        self.execution.started_at = datetime.now().isoformat()
+        if self.journal:
+            try:
+                self.journal.start(self.execution.pipeline_id)
+            except Exception:
+                pass
+        self.quality_metrics.started_at = self.execution.started_at
+        
+        # Check for checkpoint to resume
+        checkpoint = self._load_checkpoint()
+        if checkpoint:
+            print(f"[Orchestrator] Resuming from checkpoint: {checkpoint.get('saved_at', 'unknown')}")
+            self.iteration_count = checkpoint.get("current_iteration", 0)
+        else:
+            self.iteration_count = 0
+        
+        while self.iteration_count < self.max_iterations:
+            self.iteration_count += 1
+            
+            # Check pause
+            while self._pause_requested and not self._stop_requested:
+                time.sleep(1)
+            
+            # Check stop
+            if self._stop_requested:
+                print("[Orchestrator] Stop requested")
+                self.execution.phase = PipelinePhase.FAILED
+                self.execution.error = "Stop requested by user"
+                self._log_decision("stop", "pipeline stopped", "user request")
+                break
+            
+            # Check time budget
+            should_continue, time_reason = self._check_time_budget()
+            if not should_continue:
+                print(f"[Orchestrator] TIME BUDGET EXCEEDED: {time_reason}")
+                self._log_decision("time_exceeded", time_reason, "dynamic timeout")
+                self.execution.phase = PipelinePhase.COMPLETION
+                self.execution.error = f"Time budget: {time_reason}"
+                break
+            
+            # Check budget conservation mode
+            budget_total = self.budget_manager.get_total_usage()
+            budget_used_percent = budget_total.get("used_percent", 0.0)
+            self.conservation_state = apply_conservation_actions(self.conservation_state, budget_used_percent)
+            
+            if self.conservation_state.mode == "emergency":
+                print(f"[Orchestrator] EMERGENCY MODE - Budget at {budget_used_percent:.1f}%")
+                self._log_decision("emergency", f"budget at {budget_used_percent:.1f}%", "conservation mode")
+                break
+            
+            # Get ready stages
+            ready_stages = self.dag_executor.get_ready_stages()
+            
+            if not ready_stages:
+                progress = self.dag_executor.get_progress()
+                if progress["completed"] == progress["total"]:
+                    print("[Orchestrator] All stages completed")
+                    break
+                elif progress["failed"] > 0:
+                    self.execution.phase = PipelinePhase.FAILED
+                    self.execution.error = f"{progress['failed']} stages failed"
+                    break
+                else:
+                    continue
+            
+            # Execute ready stages (parallel if enabled and all are parallel-safe)
+            parallel_ready = [s for s in ready_stages if self._stage_is_parallel_safe(s)]
+            if (self.parallel_enabled and len(ready_stages) > 1
+                    and len(parallel_ready) == len(ready_stages)):
+                # Run independent stages in parallel
+                self._execute_stages_parallel(ready_stages)
+            else:
+                # Run stages sequentially
+                for stage_id in ready_stages:
+                    self._execute_stage_sequential(stage_id)
+            
+            # Save checkpoint after each iteration
+            self._save_checkpoint()
+            
+            if self.execution.phase == PipelinePhase.FAILED:
+                break
+        
+        # Finalize execution
+        self.execution.completed_at = datetime.now().isoformat()
+        self.quality_metrics.completed_at = self.execution.completed_at
+        
+        if self.execution.phase != PipelinePhase.FAILED:
+            self.execution.phase = PipelinePhase.COMPLETION
+        
+        # Log final time stats
+        total_duration = time.time() - self.pipeline_start_time
+        self._log_decision("pipeline_complete", f"total duration: {total_duration:.1f}s", "final")
+        
+        # Collect all artifacts
+        for stage_id, executions in self.execution.stage_executions.items():
+            for execution in executions:
+                self.execution.artifacts_generated.extend(execution.artifacts)
+        
+        # Get memory stats
+        self.execution.memory_stats = self.memory.get_stats()
+        
+        # Calculate quality metrics
+        self._calculate_quality_metrics()
+        
+        # Generate final report
+        self._generate_final_report()
+
+        # Finalize live journal / project state
+        if self.journal:
+            try:
+                self.journal.finish(self.execution.phase.value)
+                self.journal.write_status(self.execution)
+            except Exception:
+                pass
+        
+        # Save issue lists
+        self._save_issues()
+        
+        # Save quality metrics
+        save_quality_metrics(self.quality_metrics, self.products_dir)
+        
+        # Extract cross-project learning
+        try:
+            build_learning_index(self.products_dir)
+        except Exception:
+            pass
+        
+        # Print summary
+        self._print_summary()
+        
+        return self.execution.phase == PipelinePhase.COMPLETION
+    
+    def _stage_is_parallel_safe(self, stage_id: str) -> bool:
+        """Return True if a stage is explicitly marked safe to run concurrently."""
+        if not self.pipeline_def:
+            return False
+        sdef = self.pipeline_def.get("stages", {}).get(stage_id, {})
+        return bool(sdef.get("parallel_safe", False))
+
+    def _execute_stages_parallel(self, stage_ids: List[str]):
+        """Execute multiple independent stages in parallel."""
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+        
+        print(f"\n[Orchestrator] Executing {len(stage_ids)} stages in parallel: {stage_ids}")
+        
+        # Limit concurrent stages
+        stages_to_run = stage_ids[:self.max_parallel_stages]
+        
+        with ThreadPoolExecutor(max_workers=len(stages_to_run)) as executor:
+            futures = {
+                executor.submit(self._execute_stage_sequential, stage_id): stage_id
+                for stage_id in stages_to_run
+            }
+            
+            for future in as_completed(futures):
+                stage_id = futures[future]
+                try:
+                    future.result()
+                except Exception as e:
+                    print(f"[Orchestrator] Parallel stage {stage_id} failed: {e}")
+                    self._log_decision("parallel_failure", f"stage {stage_id}", str(e))
+    
+    def _execute_stage_sequential(self, stage_id: str):
+        """Execute a single stage sequentially."""
+        stage_start = time.time()
+        
+        print(f"\n--- Stage: {stage_id} (iteration {self.iteration_count}) ---")
+        
+        # Check stop conditions before each stage
+        should_stop, triggered = self.check_stop_conditions(stage_id)
+        if should_stop:
+            print(f"[Orchestrator] Stop conditions triggered: {[c.name for c in triggered]}")
+            self.execution.phase = PipelinePhase.FAILED
+            self.execution.error = f"Stop conditions: {[c.name for c in triggered]}"
+            self._log_decision("stop_condition", f"stage {stage_id}", str([c.name for c in triggered]))
+            return
+        
+        # Check max iterations
+        if self.iteration_count >= self.max_iterations:
+            print(f"[Orchestrator] Max iterations ({self.max_iterations}) reached")
+            self.execution.phase = PipelinePhase.FAILED
+            self.execution.error = f"Max iterations {self.max_iterations} reached"
+            return
+        
+        # Check forced convergence
+        convergence_state = ConvergenceState(project=self.project)
+        convergence_result = check_convergence(convergence_state, stage_id)
+        if convergence_result and convergence_result.action == "terminate":
+            print(f"[Orchestrator] Forced convergence: terminating pipeline")
+            self.execution.phase = PipelinePhase.FAILED
+            self.execution.error = "Forced convergence: too many idle cycles"
+            self._log_decision("convergence_terminate", f"stage {stage_id}", "too many idle cycles")
+            return
+        elif convergence_result and convergence_result.action == "skip":
+            print(f"[Orchestrator] Forced convergence: skipping stage {stage_id}")
+            self.dag_executor.mark_completed(stage_id, {"skipped": True, "reason": "forced_convergence"})
+            self._log_decision("convergence_skip", f"stage {stage_id}", "forced convergence")
+            return
+        
+        # Check factory constitution rules
+        from core.factory_constitution import Constitution, DEFAULT_RULES
+        constitution = Constitution(version="1.0", rules=DEFAULT_RULES)
+        for rule_id in ["R001", "R002", "R003", "R004", "R005"]:
+            rule_check = check_rule(constitution, rule_id, {"stage": stage_id, "project": self.project})
+            if not rule_check.get("passed", True):
+                print(f"[Orchestrator] Constitution rule {rule_id} violated: {rule_check.get('reason', 'unknown')}")
+                self._log_decision("rule_violation", f"stage {stage_id} rule {rule_id}", rule_check.get('reason', 'unknown'))
+        
+        # Get stage definition
+        stage_def = self.pipeline_def.get("stages", {}).get(stage_id, {})
+        stage_name = stage_def.get("name", stage_id)
+        stage_type = stage_def.get("type", "sequential")
+        agents = stage_def.get("ideal_flow", [])
+
+        # Dynamic implementation iterations: plan once, then skip any iteration
+        # stage (or its VQA) beyond the computed plan.
+        if stage_id in PHASE_STAGES or any(stage_id == s + "-vqa" for s in PHASE_STAGES):
+            if not self._phases_planned:
+                self._plan_phases()
+            if self._is_inactive_phase_stage(stage_id):
+                print(f"  Stage {stage_id}: SKIPPED (beyond planned iterations)")
+                self.dag_executor.mark_completed(stage_id, {"skipped": True, "reason": "iteration_plan"})
+                self._log_decision("iteration_skip", f"stage {stage_id}", "beyond planned iterations")
+                return
+        
+        # Create stage budget derived from the agents' contracts (reconciled)
+        budget_limit = stage_def.get("budget_limit", 3.0)
+        try:
+            stage_token_cap = sum(
+                (get_contract(a).get("max_input_tokens", 0) + get_contract(a).get("max_output_tokens", 0))
+                for a in agents) or 30000
+            stage_token_cap = int(stage_token_cap * 1.5)
+        except Exception:
+            stage_token_cap = 30000
+        self.budget_manager.create_budget(
+            f"stage_{stage_id}",
+            BudgetType.STAGE_TOTAL,
+            max_tokens=stage_token_cap,
+            scope=stage_id
+        )
+        
+        # Mark stage as running
+        self.dag_executor.mark_running(stage_id)
+        self.execution.current_stage = stage_id
+        stage_started_at = datetime.now().isoformat()
+
+        print(f"  Stage: {stage_name} ({stage_type})")
+        print(f"  Stage depends_on: {self.dag_executor.stages.get(stage_id).depends_on if self.dag_executor.stages.get(stage_id) else []}")
+        print(f"  Agents: {len(agents)}")
+        print(f"  Budget: ${budget_limit}")
+        print(f"  Stage start: {stage_started_at}")
+        agent_deps = stage_def.get("agent_dependencies", {})
+        if agent_deps:
+            chain = " -> ".join(agents)
+            print(f"  Agent order: {chain}")
+            for a, preds in agent_deps.items():
+                if preds:
+                    print(f"    {a} runs after {preds}")
+
+        # Execute agents for this stage
+        stage_executions = []
+        # Feature subsets only apply to implementation-iteration stages; planning
+        # is triggered lazily (after ideation/design) so it sees the features.
+        phase_features = self._features_for_phase(stage_id) if stage_id in PHASE_STAGES else []
+        if phase_features:
+            print(f"  Phase features ({stage_id}): {phase_features}")
+        for agent_id in agents:
+            agent_task = f"Execute {stage_name}"
+            if agent_id == "implement" and phase_features:
+                agent_task = (
+                    f"Implement ONLY the following features for {stage_name}: "
+                    + "; ".join(phase_features)
+                    + ". Do NOT implement features assigned to other phases. "
+                    "Produce concise, complete output for these features only."
+                )
+            elif stage_id == "0" and self.project_idea:
+                agent_task = (
+                    "Product brief (build THIS product, do not invent a different one):\n"
+                    f"{self.project_idea}\n\nProduce the ideation document for this product."
+                )
+
+            model_cfg = self._get_agent_model_config(agent_id, stage_id)
+            print(f"    Executing agent: {agent_id} [model={model_cfg.get('model')}]")
+
+            execution = self.execute_agent(agent_id, stage_id, agent_task)
+
+            # Compliance-driven bounded retry: re-run the agent with the
+            # violation feedback until it passes or the retry cap is hit.
+            attempts = 0
+            while execution.status == "needs_retry" and attempts < self.max_compliance_retries:
+                attempts += 1
+                feedback = ""
+                try:
+                    feedback = (execution.compliance_report or {}).get("retry_feedback", "")
+                except Exception:
+                    feedback = ""
+                print(f"    [COMPLIANCE RETRY {attempts}/{self.max_compliance_retries}] "
+                      f"{agent_id} re-running with feedback")
+                retry_task = agent_task + (
+                    "\n\nCOMPLIANCE FEEDBACK — fix these issues in this output:\n"
+                    + (feedback or "(see compliance report)"))
+                execution = self.execute_agent(agent_id, stage_id, retry_task)
+
+            stage_executions.append(execution)
+
+            # Accumulate totals + record timing under lock (parallel-safe)
+            # Per-agent timing
+            try:
+                a_start = datetime.fromisoformat(execution.started_at)
+                a_end = datetime.fromisoformat(execution.completed_at) if execution.completed_at else datetime.now()
+                a_dur = (a_end - a_start).total_seconds()
+            except Exception:
+                a_start = a_end = None
+                a_dur = 0.0
+            timing = {
+                "stage_id": stage_id,
+                "agent_id": agent_id,
+                "model": execution.selected_model or model_cfg.get("model"),
+                "status": execution.status,
+                "started_at": execution.started_at,
+                "completed_at": execution.completed_at,
+                "duration_seconds": round(a_dur, 2),
+            }
+            with self._state_lock:
+                self.execution.total_tokens += execution.tokens_used
+                self.execution.total_cost += execution.cost
+                self.agent_timings.append(timing)
+
+            # Live journal: record what this agent did
+            if self.journal:
+                try:
+                    self.journal.record_agent(
+                        agent_id, stage_id, execution.status,
+                        getattr(execution, "artifacts", []),
+                        execution.total_tokens, execution.cost, a_dur)
+                except Exception:
+                    pass
+
+            # Run breaker: enforce hard wall + rate/loop detection
+            if self.run_breaker:
+                try:
+                    dec = self.run_breaker.add_usage(execution.total_tokens, execution.cost)
+                    if dec.action == "stop":
+                        print(f"  [BREAKER] STOP: {dec.reason}")
+                        self._log_decision("breaker_stop", f"{agent_id}@{stage_id}", dec.reason)
+                        self.execution.phase = PipelinePhase.FAILED
+                        self.execution.error = f"Run breaker: {dec.reason}"
+                        break
+                    elif dec.action == "throttle":
+                        print(f"  [BREAKER] THROTTLE: {dec.reason} -> using cheapest capable model next")
+                        self._force_cheap = True
+                        self._log_decision("breaker_throttle", f"{agent_id}@{stage_id}", dec.reason)
+                except Exception:
+                    pass
+
+            print(f"    Status: {execution.status}")
+            print(f"    Tokens: {execution.tokens_used} | Cost: ${execution.cost:.4f}")
+            print(f"    Knowledge: {len(execution.knowledge_used)} resources")
+            print(f"    Compliance: {'PASS' if execution.compliance_passed else 'FAIL'}")
+            print(f"    Time: {execution.started_at} -> {execution.completed_at} "
+                  f"({a_dur:.1f}s)")
+
+            # Orchestrator-routed delegation (opt-in)
+            self._maybe_delegate(stage_id, agent_id, execution)
+
+            # If agent rejected, stop stage
+            if execution.status == "rejected":
+                print(f"  Stage {stage_id}: ABORTED (agent {agent_id} rejected)")
+                break
+        
+        # Store stage executions
+        with self._state_lock:
+            self.execution.stage_executions[stage_id] = stage_executions
+
+        # Architect decides the tech stack -> persist + gate on change
+        if stage_id == "2":
+            try:
+                self._finalize_tech_stack(stage_executions)
+            except Exception as e:
+                print(f"[TechStack] {e}")
+        
+        # Check if all agents completed
+        all_passed = all(e.status in ["completed", "skipped"] for e in stage_executions)
+        compliance_passed = all(e.compliance_passed for e in stage_executions if e.status == "completed")
+        
+        if all_passed:
+            self.dag_executor.mark_completed(stage_id, {
+                "agents": len(stage_executions),
+                "artifacts": [a for e in stage_executions for a in e.artifacts],
+                "compliance_passed": compliance_passed,
+                "total_tokens": sum(e.tokens_used for e in stage_executions),
+                "total_cost": sum(e.cost for e in stage_executions),
+            })
+            if compliance_passed:
+                print(f"  Stage {stage_id}: COMPLETED (compliance PASS)")
+            else:
+                print(f"  Stage {stage_id}: COMPLETED (compliance warnings)")
+        else:
+            failed_agents = [e.agent_id for e in stage_executions if e.status not in ["completed", "skipped"]]
+            self.dag_executor.mark_failed(stage_id, f"Failed agents: {failed_agents}")
+            print(f"  Stage {stage_id}: FAILED (agents failed)")
+        
+        # Record stage duration for time estimation
+        stage_duration = time.time() - stage_start
+        stage_completed_at = datetime.now().isoformat()
+        with self._state_lock:
+            self.stage_timings[stage_id] = {
+                "name": stage_name,
+                "started_at": stage_started_at,
+                "completed_at": stage_completed_at,
+                "duration_seconds": round(stage_duration, 2),
+                "agents": [e.agent_id for e in stage_executions],
+            }
+        print(f"  Stage {stage_id} end: {stage_completed_at} (stage time {stage_duration:.1f}s)")
+        self._record_stage_duration(stage_duration)
+
+        # Live journal: refresh project status after each stage
+        if self.journal:
+            try:
+                self.journal.write_status(self.execution)
+            except Exception:
+                pass
+        
+        # Check for anomalies
+        self._detect_anomaly(stage_id, stage_duration)
+        
+        # Check for approval gate after stage completes
+        if not self._check_approval_gate(stage_id):
+            print(f"  Stage {stage_id}: PAUSED (approval gate pending)")
+            self.execution.phase = PipelinePhase.PAUSED
+    
+    def _calculate_quality_metrics(self):
+        """Calculate quality metrics from pipeline execution."""
+        if not self.execution:
+            return
+        
+        # Calculate basic metrics
+        total_cost = self.execution.total_cost
+        total_tokens = self.execution.total_tokens
+        
+        # Calculate quality score based on compliance and issues
+        total_agents = sum(len(execs) for execs in self.execution.stage_executions.values())
+        passed_agents = sum(
+            1 for execs in self.execution.stage_executions.values()
+            for e in execs if e.compliance_passed
+        )
+        compliance_rate = (passed_agents / total_agents * 100) if total_agents > 0 else 0
+        
+        # Count issues
+        critical_issues = self.security_issues.critical_count + self.nfr_issues.critical_count + self.test_issues.critical_count
+        high_issues = self.security_issues.high_count + self.nfr_issues.high_count + self.test_issues.high_count
+        
+        # Calculate quality score (0-100)
+        quality_score = compliance_rate
+        quality_score -= critical_issues * 10  # -10 per critical issue
+        quality_score -= high_issues * 5  # -5 per high issue
+        quality_score = max(0, min(100, quality_score))
+        
+        # Update quality metrics
+        self.quality_metrics.total_tokens = total_tokens
+        self.quality_metrics.total_cost = total_cost
+        self.quality_metrics.input_tokens_per_product = total_tokens
+        self.quality_metrics.output_tokens_per_product = total_tokens // 2
+        self.quality_metrics.cost_per_product = total_cost
+        self.quality_metrics.quality_score = quality_score
+        self.quality_metrics.design_quality = compliance_rate
+        self.quality_metrics.code_quality = compliance_rate
+        self.quality_metrics.test_coverage = compliance_rate
+        self.quality_metrics.security_score = max(0, 100 - critical_issues * 20 - high_issues * 10)
+        self.quality_metrics.nfr_compliance = compliance_rate
+        self.quality_metrics.budget_utilization = (total_cost / 100.0) * 100  # Assuming $100 budget
+    
+    def _save_issues(self):
+        """Save all issue lists to files."""
+        try:
+            save_issue_list(self.security_issues, self.products_dir)
+            save_issue_list(self.nfr_issues, self.products_dir)
+            save_issue_list(self.test_issues, self.products_dir)
+        except Exception as e:
+            print(f"[PipelineExecutor] Error saving issues: {e}")
+    
+    def _generate_final_report(self):
+        """Generate final pipeline execution report with all integrated data."""
+        if not self.execution:
+            return
+        
+        total_duration = 0.0
+        if self.pipeline_start_time:
+            total_duration = round(time.time() - self.pipeline_start_time, 2)
+
+        report = {
+            "pipeline_id": self.execution.pipeline_id,
+            "project": self.execution.project,
+            "phase": self.execution.phase.value,
+            "started_at": self.execution.started_at,
+            "completed_at": self.execution.completed_at,
+            "total_duration_seconds": total_duration,
+            "iterations": self.iteration_count,
+            "total_tokens": self.execution.total_tokens,
+            "total_cost": self.execution.total_cost,
+            "timings": {
+                "pipeline": {
+                    "started_at": self.execution.started_at,
+                    "completed_at": self.execution.completed_at,
+                    "duration_seconds": total_duration,
+                },
+                "stages": self.stage_timings,
+                "agents": self.agent_timings,
+            },
+            "stage_summary": {},
+            "compliance_summary": {},
+            "artifacts": self.execution.artifacts_generated,
+            "memory_stats": self.execution.memory_stats,
+            "delegations": self.delegations,
+            "conservation_state": conservation_state_to_dict(self.conservation_state),
+            "quality_metrics": self.quality_metrics.to_dict(),
+            "issues": {
+                "security": self.security_issues.to_dict(),
+                "nfr": self.nfr_issues.to_dict(),
+                "test": self.test_issues.to_dict(),
+            },
+        }
+        
+        # Stage summary
+        for stage_id, executions in self.execution.stage_executions.items():
+            report["stage_summary"][stage_id] = {
+                "total_agents": len(executions),
+                "completed": sum(1 for e in executions if e.status == "completed"),
+                "failed": sum(1 for e in executions if e.status == "failed"),
+                "skipped": sum(1 for e in executions if e.status == "skipped"),
+                "compliance_passed": sum(1 for e in executions if e.compliance_passed),
+                "total_tokens": sum(e.total_tokens for e in executions),
+                "total_cost": sum(e.cost for e in executions),
+                "agents": [
+                    {
+                        "agent_id": e.agent_id,
+                        "status": e.status,
+                        "input_tokens": e.input_tokens,
+                        "output_tokens": e.output_tokens,
+                        "cached_tokens": e.cached_tokens,
+                        "reasoning_tokens": e.reasoning_tokens,
+                        "total_tokens": e.total_tokens,
+                        "cost": e.cost,
+                        "selected_model": e.selected_model,
+                        "selected_provider": e.selected_provider,
+                        "model_cost_per_1k_input": e.model_cost_per_1k_input,
+                        "model_cost_per_1k_output": e.model_cost_per_1k_output,
+                    }
+                    for e in executions
+                ]
+            }
+        
+        # Compliance summary
+        total_agents = sum(len(execs) for execs in self.execution.stage_executions.values())
+        passed_agents = sum(
+            1 for execs in self.execution.stage_executions.values()
+            for e in execs if e.compliance_passed
+        )
+        
+        report["compliance_summary"] = {
+            "total_agents": total_agents,
+            "passed": passed_agents,
+            "failed": total_agents - passed_agents,
+            "pass_rate": (passed_agents / total_agents * 100) if total_agents > 0 else 0
+        }
+        
+        # Budget summary
+        report["budget_summary"] = self.budget_manager.get_total_usage()
+        report["budget_statuses"] = self.budget_manager.get_all_statuses()[:20]  # Top 20 budgets
+        report["budget_alerts"] = [
+            asdict(a) for a in self.budget_manager.get_alerts()
+        ]
+        
+        # Audit log summary
+        report["audit_summary"] = self.audit_log.get_summary()
+        
+        # Save report
+        report_file = os.path.join(self.project_dir, "pipeline-execution-report.json")
+        with open(report_file, 'w', encoding='utf-8') as f:
+            json.dump(report, f, indent=2, ensure_ascii=False)
+        
+        print(f"\nFinal report saved to: {report_file}")
+    
+    def _print_summary(self):
+        """Print execution summary with all integrated data."""
+        if not self.execution:
+            return
+        
+        print(f"\n{'='*70}")
+        print(f"PIPELINE EXECUTION SUMMARY")
+        print(f"{'='*70}")
+        print(f"Pipeline ID: {self.execution.pipeline_id}")
+        print(f"Project: {self.execution.project}")
+        print(f"Phase: {self.execution.phase.value}")
+        print(f"Started: {self.execution.started_at}")
+        print(f"Completed: {self.execution.completed_at}")
+        print(f"Iterations: {self.iteration_count}")
+        print(f"Total Tokens: {self.execution.total_tokens}")
+        print(f"Total Cost: ${self.execution.total_cost:.4f}")
+        if self.pipeline_start_time:
+            total_duration = time.time() - self.pipeline_start_time
+            print(f"Pipeline duration: {total_duration:.1f}s ({total_duration/60:.2f} min)")
+        
+        # Stage summary with timings
+        print(f"\nStage Summary:")
+        for stage_id, executions in self.execution.stage_executions.items():
+            completed = sum(1 for e in executions if e.status == "completed")
+            skipped = sum(1 for e in executions if e.status == "skipped")
+            total = len(executions)
+            stage_tokens = sum(e.total_tokens for e in executions)
+            stage_cost = sum(e.cost for e in executions)
+            timing = self.stage_timings.get(stage_id, {})
+            dur = timing.get("duration_seconds", 0)
+            print(f"  {stage_id}: {completed}/{total} agents completed, {skipped} skipped, "
+                  f"{stage_tokens} tokens, ${stage_cost:.6f}, {dur:.1f}s")
+        
+        # Compliance summary
+        total_agents = sum(len(execs) for execs in self.execution.stage_executions.values())
+        passed_agents = sum(
+            1 for execs in self.execution.stage_executions.values()
+            for e in execs if e.compliance_passed
+        )
+        
+        print(f"\nCompliance Summary:")
+        print(f"  Total agents: {total_agents}")
+        print(f"  Passed: {passed_agents}")
+        print(f"  Failed: {total_agents - passed_agents}")
+        print(f"  Pass rate: {passed_agents/total_agents*100:.1f}%" if total_agents > 0 else "  Pass rate: N/A")
+        
+        # Artifacts
+        print(f"\nArtifacts Generated: {len(self.execution.artifacts_generated)}")
+        for artifact in self.execution.artifacts_generated[:10]:
+            print(f"  - {artifact}")
+        
+        # Per-agent token/cost summary
+        print(f"\nPer-Agent Token/Cost Summary:")
+        for stage_id, executions in self.execution.stage_executions.items():
+            for e in executions:
+                if e.status == "completed" and e.total_tokens > 0:
+                    print(f"  Stage {stage_id} - {e.agent_id}: {e.total_tokens} tokens, "
+                          f"${e.cost:.6f}, {e.selected_model} ({e.selected_provider})")
+        
+        # Per-agent timing summary
+        print(f"\nPer-Agent Timing Summary:")
+        print(f"  {'Stage':<8} {'Agent':<22} {'Start':<26} {'End':<26} {'Time(s)':>8}")
+        for t in self.agent_timings:
+            print(f"  {t['stage_id']:<8} {t['agent_id']:<22} "
+                  f"{str(t.get('started_at','')):<26} {str(t.get('completed_at','')):<26} "
+                  f"{t.get('duration_seconds',0):>8.1f}")
+        total_agent_time = sum(t.get('duration_seconds', 0) for t in self.agent_timings)
+        print(f"  {'-'*90}")
+        print(f"  Total agent time: {total_agent_time:.1f}s across {len(self.agent_timings)} agent runs")
+        
+        # Audit log summary
+        audit_summary = self.audit_log.get_summary()
+        print(f"\nAudit Log Summary:")
+        print(f"  Total executions: {audit_summary['total_executions']}")
+        print(f"  Total tokens: {audit_summary['total_tokens']}")
+        print(f"  Total cost: ${audit_summary['total_cost']:.6f}")
+        print(f"  Cache hits: {audit_summary['cache_hits']}")
+        print(f"  Chunked calls: {audit_summary['chunked_calls']}")
+        print(f"  Models used: {', '.join(audit_summary['models_used'])}")
+        
+        # Memory stats
+        print(f"\nMemory Stats:")
+        for key, value in self.execution.memory_stats.items():
+            print(f"  {key}: {value}")
+        
+        # Budget stats
+        budget_total = self.budget_manager.get_total_usage()
+        print(f"\nBudget Summary:")
+        print(f"  Total tokens used: {budget_total['total_used']}")
+        print(f"  Total tokens max: {budget_total['total_max']}")
+        print(f"  Total used %: {budget_total['used_percent']:.1f}%")
+        print(f"  Active budgets: {budget_total['active_budgets']}")
+        if budget_total['alerts'] > 0:
+            print(f"  Budget alerts: {budget_total['alerts']}")
+        
+        # Conservation mode
+        print(f"\nConservation Mode: {self.conservation_state.mode.upper()}")
+        if self.conservation_state.skipped_agents:
+            print(f"  Skipped Agents: {', '.join(self.conservation_state.skipped_agents)}")
+        if self.conservation_state.model_downgrades:
+            print(f"  Model Downgrades: {', '.join(self.conservation_state.model_downgrades)}")
+        
+        # Issues summary
+        print(f"\nIssues Summary:")
+        print(f"  Security: {self.security_issues.total_count} (Critical: {self.security_issues.critical_count}, High: {self.security_issues.high_count})")
+        print(f"  NFR: {self.nfr_issues.total_count} (Critical: {self.nfr_issues.critical_count}, High: {self.nfr_issues.high_count})")
+        print(f"  Tests: {self.test_issues.total_count} (Critical: {self.test_issues.critical_count}, High: {self.test_issues.high_count})")
+        
+        # Quality metrics
+        print(f"\nQuality Score: {self.quality_metrics.quality_score:.1f}/100")
+        
+        print(f"\n{'='*70}")
+        
+        # Detailed per-agent summary
+        print(f"\n{'='*70}")
+        print(f"PER-AGENT TOKEN/COST SUMMARY")
+        print(f"{'='*70}")
+        for stage_id, executions in self.execution.stage_executions.items():
+            for e in executions:
+                if e.status == "completed" and e.total_tokens > 0:
+                    print(f"  Stage {stage_id} - {e.agent_id}: {e.total_tokens} tokens, "
+                          f"${e.cost:.6f} cost, {e.selected_model}, {e.selected_provider}")
+        
+        print(f"\n{'='*70}")
+    
+    def get_status(self) -> Dict:
+        """Get current pipeline status."""
+        if not self.execution:
+            return {"status": "no_pipeline_loaded"}
+        
+        return {
+            "pipeline_id": self.execution.pipeline_id,
+            "project": self.execution.project,
+            "phase": self.execution.phase.value,
+            "current_stage": self.execution.current_stage,
+            "progress": self.dag_executor.get_progress() if self.dag_executor else {},
+            "memory_stats": self.memory.get_stats()
+        }
+
+
+# Convenience function
+def execute_pipeline(project: str, pipeline_file: str, products_dir: str = "products") -> bool:
+    """Execute a pipeline for a project."""
+    executor = PipelineExecutor(products_dir=products_dir, project=project)
+    
+    if not executor.load_pipeline(pipeline_file):
+        return False
+    
+    return executor.execute_pipeline()
+
+
+if __name__ == "__main__":
+    # Test the executor
+    import argparse
+    
+    parser = argparse.ArgumentParser(description="Pipeline Execution Engine")
+    parser.add_argument("--project", default="test-pipeline", help="Project name")
+    parser.add_argument("--pipeline", default="pipeline-definition.json", help="Pipeline definition file")
+    parser.add_argument("--products-dir", default="products", help="Products directory")
+    
+    args = parser.parse_args()
+    
+    success = execute_pipeline(args.project, args.pipeline, args.products_dir)
+    sys.exit(0 if success else 1)

@@ -1,0 +1,36 @@
+{
+  "id": "BI-0072",
+  "type": "bug",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "pipeline",
+  "external_id": "forge:stop-condition-duration-bug",
+  "label": "PF Backlog 72",
+  "title": "BUG: max_duration_per_stage compares TOTAL pipeline elapsed time and counts HIL wait time",
+  "body": "Observed live: a run stopped with 'Stop conditions triggered: [max_duration_per_stage]' after the 57-question interactive discovery panel waited ~5.4h for answers. Root cause in core/pipeline_executor.py check_stop_conditions() (~line 1904): metrics['duration_seconds'] = (now - execution.started_at) i.e. TOTAL PIPELINE elapsed time, but it is checked against the PER-STAGE condition max_duration_per_stage (3600s, core/stop_conditions.py). So (a) any run over 1h total trips it, and (b) human-wait time (interactive prompts + approvals) is counted as work time. FIX: (1) measure the ACTUAL stage duration (per-stage start time), not total pipeline time; (2) EXCLUDE human-wait seconds (accumulate time spent in interactive.ask and approval wait loops and subtract); (3) keep a separate per-run total time budget if desired. Also ensure interactive/HIL waits do not count toward tokens/cost/retry stop metrics.",
+  "source": "code-audit",
+  "status": "completed",
+  "priority": null,
+  "moscow": "Must",
+  "value": 5,
+  "effort": 2,
+  "risk": 2,
+  "deps": [],
+  "links": {},
+  "decisions": [],
+  "follow_up": {},
+  "created_at": "2026-09-22T02:32:30.067906",
+  "updated_at": "2026-09-23T01:09:03.160069",
+  "score": 1.88,
+  "tags": [
+    "Dash"
+  ],
+  "_note": "verified: test_stop_conditions_duration.py PASS",
+  "dashboard_impact": {
+    "needs_dashboard": false,
+    "reason": "backend-internal; no user-facing surface",
+    "dashboard_item": null,
+    "reviewed_by": "owner-review-2026-09-22",
+    "reviewed_at": "2026-09-22T20:41:02.749778"
+  }
+}

@@ -1,0 +1,147 @@
+{
+  "id": "content-creation",
+  "version": "1.0.0",
+  "name": "Content Creation Pipeline",
+  "description": "Base template for content creation: books, articles, social media, videos",
+  "type": "dynamic",
+  "category": "content",
+  "stages": {
+    "0": {
+      "name": "Ideation",
+      "agent": "ideation",
+      "type": "sequential",
+      "depends_on": [],
+      "description": "Define goals, audience, content type, output format",
+      "knowledge_required": ["ui-ux"],
+      "skills_required": [],
+      "outputs": ["docs/product-plan.md", "pipeline.json"]
+    },
+    "1": {
+      "name": "Content Research",
+      "agent": "researcher",
+      "type": "sequential",
+      "depends_on": ["0"],
+      "description": "Research topic, gather sources, collect data",
+      "knowledge_required": [],
+      "skills_required": ["research"],
+      "outputs": ["docs/research/"]
+    },
+    "2": {
+      "name": "Content Processing",
+      "type": "swarm",
+      "depends_on": ["1"],
+      "agents": [
+        {
+          "id": "content-reader",
+          "role": "reader",
+          "description": "Read and extract content from sources"
+        },
+        {
+          "id": "insight-extractor",
+          "role": "analyzer",
+          "description": "Extract key insights and ideas"
+        },
+        {
+          "id": "theme-analyzer",
+          "role": "pattern-finder",
+          "description": "Identify themes and patterns"
+        }
+      ],
+      "coordination": {
+        "pattern": "producer-consumer",
+        "completion": "all-agents-idle"
+      },
+      "knowledge_required": [],
+      "skills_required": ["content-analysis"],
+      "outputs": ["docs/insights/", "docs/themes/"]
+    },
+    "3": {
+      "name": "Content Creation",
+      "agent": "content-creator",
+      "type": "sequential",
+      "depends_on": ["2"],
+      "description": "Create the main content piece",
+      "knowledge_required": [],
+      "skills_required": ["writing"],
+      "outputs": ["docs/content/"]
+    },
+    "4": {
+      "name": "Review",
+      "agent": "review",
+      "type": "sequential",
+      "depends_on": ["3"],
+      "description": "Review content for quality, accuracy, style",
+      "knowledge_required": [],
+      "skills_required": [],
+      "outputs": ["docs/review/"]
+    },
+    "5": {
+      "name": "Document",
+      "agent": "document",
+      "type": "sequential",
+      "depends_on": ["4"],
+      "description": "Format and publish final content",
+      "knowledge_required": [],
+      "skills_required": [],
+      "outputs": ["docs/final/"]
+    }
+  },
+  "agents": {
+    "ideation": {
+      "source": ".opencode/agent/ideation.md",
+      "description": "Define project goals and scope",
+      "required": true
+    },
+    "researcher": {
+      "source": ".opencode/agent/researcher.md",
+      "description": "Research topic and gather sources",
+      "required": true
+    },
+    "content-reader": {
+      "source": ".opencode/agent/content-reader.md",
+      "description": "Read content from various formats",
+      "required": true
+    },
+    "insight-extractor": {
+      "source": ".opencode/agent/insight-extractor.md",
+      "description": "Extract key insights",
+      "required": true
+    },
+    "theme-analyzer": {
+      "source": ".opencode/agent/theme-analyzer.md",
+      "description": "Identify themes and patterns",
+      "required": true
+    },
+    "content-creator": {
+      "source": ".opencode/agent/content-creator.md",
+      "description": "Create the main content piece",
+      "required": true
+    },
+    "review": {
+      "source": ".opencode/agent/review.md",
+      "description": "Review content quality",
+      "required": false
+    },
+    "document": {
+      "source": ".opencode/agent/document.md",
+      "description": "Format final output",
+      "required": false
+    }
+  },
+  "knowledge_domains": ["content-creation", "writing", "research"],
+  "flow": {
+    "type": "dag",
+    "description": "Sequential with parallel content processing"
+  },
+  "compliance": {
+    "default_checks": ["file_exists", "content_quality", "audit_updated"],
+    "stage_overrides": {}
+  },
+  "metadata": {
+    "author": "ideation-agent",
+    "created_at": "2026-09-02T00:00:00Z",
+    "updated_at": "2026-09-02T00:00:00Z",
+    "tags": ["content", "creation", "writing", "research"],
+    "examples": ["blog-post", "article", "social-media", "book-summary"]
+  }
+}

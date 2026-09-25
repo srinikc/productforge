@@ -1,0 +1,33 @@
+{
+  "id": "BI-0182",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "intake",
+  "external_id": "backend:agent-knowledge-coverage",
+  "label": "PF Backlog 191",
+  "title": "Backend: declare required knowledge+skills for ALL agents + advisory coverage + compliance for every agent",
+  "body": "## Problem / why\n`_load_knowledge_for_agent` reads the SSOT (fixed in BI-0171), but the SSOT only DECLARES knowledge\nfor 13 agents. 31 of 62 agents declare no knowledge anywhere (caps + card + fallback all empty), so\nthey load NO role knowledge and `check_agent_compliance` has no role_layers to enforce.\n\n## Goal & value\nEvery agent declares its required knowledge layers + skills; every agent loads non-empty role\nknowledge; compliance runs (and can enforce) for all agents.\n\n## In scope\n- Declare `knowledge` + `skills` for the 31 uncovered agents in `config/agent-capabilities.json`\n  (mapped to real `docs/guidelines/<layer>` dirs).\n- Extend the loader alias map so declared names resolve to real dirs (legal->compliance-legal,\n  design->ui-ux).\n- Advisory coverage check in `wired_audit`: any agent with no declared knowledge is flagged.\n\n## Acceptance criteria (testable)\n- For all 62 agents, the knowledge loader returns non-empty layers.\n- wired_audit advisory: 0 agents without declared knowledge.\n- compliance checker has role_layers for every agent that runs.\n\n## Out of scope\n- Sourcing NEW guideline content (BI-0172 covers OSS/HF sourcing).\n\n## Verification / test plan\n- Script loads knowledge for all 62 agents -> none empty; gate green.\n",
+  "source": "generic",
+  "status": "completed",
+  "priority": null,
+  "moscow": "Should",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [],
+  "links": {},
+  "decisions": [],
+  "follow_up": {},
+  "created_at": "2026-09-24T22:50:10.065790",
+  "updated_at": "2026-09-24T22:53:02.464749",
+  "score": 0.75,
+  "dashboard_impact": {
+    "needs_dashboard": false,
+    "reason": "Backend capability/knowledge + spec generation; consumed via API, no UI change.",
+    "dashboard_item": null,
+    "reviewed_by": "agent",
+    "reviewed_at": "2026-09-24T22:50:10.072688"
+  },
+  "_note": "IMPLEMENTED + VERIFIED (not just declared): added knowledge+skills for the 31 uncovered agents in config/agent-capabilities.json (now 44 agent entries) -> all 62 cards covered. Extended the loader alias map in core/orchestrator/agent_runner.py (_ALIAS: legal->compliance-legal, design->ui-ux+rendering, business_logic->business). Added advisory agent_knowledge_audit() to scripts/dev/wired_audit.py (flags any agent whose declared layers resolve to no live guidelines). VERIFIED: wired_audit prints 'agent-knowledge: all agents declare knowledge that resolves to live guidelines'; real GuidelineContentLoader loads 15-20KB per previously-uncovered agent (security-audit/quality_gate/finops/performance/maintenance/static_verifier/strategist/product-analyzer). Compliance for all agents confirmed wired: stage_runner:339 -> execute_agent (compliance step 11) and delegated sub-agents reuse execute_agent (delegation_coord). compileall=0, wired_audit=0. Root cause: BI-0123/0171/0172 were marked complete but never validated all-agent coverage."
+}

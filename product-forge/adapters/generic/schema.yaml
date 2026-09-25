@@ -1,0 +1,55 @@
+openapi: 3.1.0
+info:
+  title: Product Forge Intake API (generic)
+  description: Generic adapter — call this from any app to send ideas, changes, or context to Product Forge.
+  version: 1.0.0
+servers:
+  - url: http://localhost:3020
+    description: Product Forge dashboard API (adjust host/port)
+paths:
+  /api/intake:
+    post:
+      operationId: sendIntake
+      summary: Send one item (idea / change / bug / context / new project)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IntakeInput'
+      responses:
+        '200':
+          description: Item recorded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IntakeResult'
+components:
+  schemas:
+    IntakeInput:
+      type: object
+      required: [title]
+      properties:
+        source:   { type: string, default: generic }
+        title:    { type: string }
+        body:     { type: string }
+        scope:    { type: string, enum: [project, pipeline], default: project }
+        project:  { type: string, description: required when scope=project }
+        kind:
+          type: string
+          enum: [feature, bug, enhancement, change, idea, context, tech-debt]
+        value:  { type: integer, minimum: 1, maximum: 5 }
+        effort: { type: integer, minimum: 1, maximum: 5 }
+        risk:   { type: integer, minimum: 1, maximum: 5 }
+        moscow: { type: string, enum: [Must, Should, Could, Wont] }
+        deps:   { type: array, items: { type: string } }
+        links:  { type: object }
+    IntakeResult:
+      type: object
+      properties:
+        id:              { type: string, description: BacklogItem id (BI-####) }
+        label:           { type: string, description: 'display label, e.g. "PF Backlog 7"' }
+        status:          { type: string }
+        scope:           { type: string }
+        conversation_id: { type: string }
+        raw:             { type: string, description: archived raw payload path }

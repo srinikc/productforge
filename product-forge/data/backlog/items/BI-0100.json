@@ -1,0 +1,38 @@
+{
+  "id": "BI-0100",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "pipeline",
+  "external_id": "forge:cache-correctness",
+  "label": "PF Backlog 100",
+  "title": "Cache correctness: outputs always regenerate; input-side fingerprint cache; --no-cache; never cache bad output",
+  "body": "Owner rule (cache correctness): LLM outputs are NON-DETERMINISTIC, so a stored output is never a valid\nsubstitute for a fresh run. Refactor caching from an output-reuse store into an input-fingerprint ledger\nso nothing stale or bad is ever replayed.\n\nFOUR LAYERS:\n1) Outputs always regenerate - never serve a previously cached LLM OUTPUT as the result of a run; every run\n   regenerates artifacts. (Removes the .llm-cache output replay: core/orchestrator/storage.py LLMCache.get/set\n   + the cache consult in core/orchestrator/llm_client.py.)\n2) Input-side fingerprint cache only - cache the FINGERPRINT of the inputs (hash of prompt + model + agent +\n   resolved context) to detect identical/changed inputs and record lineage + hit/miss; NEVER to re-serve an\n   output. products/<p>/.llm-cache is reframed as an input-fingerprint ledger.\n3) --no-cache - a run-level flag (CLI scripts/run_pipeline.py + project/config + dashboard control) that\n   disables ALL caching (fingerprints included).\n4) Never cache bad output - empty / truncated / reasoning-only / malformed outputs are validated and NEVER\n   written to any cache (ties to BI-0034 unusable-artifact detection + BI-0075 reasoning-leak fix); such a\n   response triggers retry/fallback on the next model.\n\nPHILOSOPHY: outputs are non-deterministic by nature, so correctness requires regeneration; caching outputs is\ndemoted to an input-fingerprint + audit surface (hit/miss counts recorded per agent).",
+  "source": "discovery",
+  "status": "completed",
+  "priority": null,
+  "moscow": "Must",
+  "value": 5,
+  "effort": 4,
+  "risk": 3,
+  "deps": [],
+  "links": {
+    "paired_with": "project:ProductForge-Dashboard:BI-0083"
+  },
+  "decisions": [],
+  "follow_up": {},
+  "created_at": "2026-09-22T20:08:41.662492",
+  "updated_at": "2026-09-23T01:17:33.022831",
+  "score": 0.62,
+  "dashboard_impact": {
+    "needs_dashboard": true,
+    "reason": "Cache correctness needs a dashboard control surface: clear cache, bypass/regenerate toggle, and per-agent input-cache hit/miss view.",
+    "dashboard_item": "project:ProductForge-Dashboard:BI-0083",
+    "reviewed_by": "owner-refinement",
+    "reviewed_at": "2026-09-22T20:08:41.715227"
+  },
+  "_note": "verified: test_cache_policy.py: outputs always regen; InputCache; --no-cache",
+  "tags": [
+    "Dash"
+  ]
+}

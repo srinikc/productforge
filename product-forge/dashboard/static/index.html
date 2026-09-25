@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Product Forge — Overall Backlog</title>
+<style>
+  :root{
+    --bg:#0f1115; --panel:#161a21; --line:#242a34; --ink:#e8ebf0; --muted:#9aa4b2;
+    --accent:#7c9cff; --ok:#54c98c; --warn:#e0b251; --bad:#e06c6c; --chip:#1e2430;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px}
+  header{display:flex;align-items:baseline;gap:14px;padding:16px 20px;border-bottom:1px solid var(--line)}
+  header h1{font-size:16px;margin:0;letter-spacing:.14em;text-transform:uppercase;font-weight:600}
+  header .sub{color:var(--muted);font-size:12px}
+  header .spacer{flex:1}
+  .wrap{display:grid;grid-template-columns:280px 1fr;gap:18px;padding:18px 20px;align-items:start}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px}
+  .card h2{margin:0;padding:12px 14px;border-bottom:1px solid var(--line);font-size:12px;letter-spacing:.1em;
+           text-transform:uppercase;color:var(--muted);font-weight:600}
+  .card .body{padding:12px 14px}
+  label{display:block;color:var(--muted);font-size:11px;margin:8px 0 4px;letter-spacing:.04em;text-transform:uppercase}
+  input,select,textarea,button{font-family:inherit;font-size:13px}
+  input,select,textarea{width:100%;background:#0d1015;border:1px solid var(--line);color:var(--ink);
+                        border-radius:7px;padding:8px 9px}
+  textarea{min-height:64px;resize:vertical}
+  button{background:var(--accent);color:#0b0e13;border:0;border-radius:7px;padding:8px 11px;font-weight:600;cursor:pointer}
+  button.ghost{background:transparent;color:var(--ink);border:1px solid var(--line);font-weight:500}
+  button.mini{padding:3px 7px;font-size:11px;border-radius:6px;background:transparent;color:var(--ink);border:1px solid var(--line)}
+  button.mini.b{border-color:var(--accent);color:var(--accent)}
+  button.mini.g{border-color:var(--ok);color:var(--ok)}
+  button.mini.r{border-color:var(--bad);color:var(--bad)}
+  .row{display:flex;gap:8px}.row>*{flex:1}
+  .lanes{display:flex;flex-direction:column;gap:14px}
+  .lane .body{padding:6px 8px}
+  table{width:100%;border-collapse:collapse}
+  th{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);text-align:left;padding:6px 8px}
+  td{padding:7px 8px;border-top:1px solid var(--line);vertical-align:top}
+  .id{font-family:var(--mono);color:var(--muted);white-space:nowrap}
+  .label{font-family:var(--mono);color:var(--accent);white-space:nowrap;font-size:12px}
+  .title{font-weight:500}
+  .body-txt{color:var(--muted);font-size:12px;margin-top:2px}
+  .chip{display:inline-block;background:var(--chip);border:1px solid var(--line);border-radius:20px;
+        padding:1px 8px;font-size:11px;color:var(--muted);white-space:nowrap}
+  .chip.ok{color:var(--ok);border-color:#274032}.chip.warn{color:var(--warn);border-color:#403a27}
+  .chip.bad{color:var(--bad);border-color:#402727}.chip.acc{color:var(--accent);border-color:#27324a}
+  .muted{color:var(--muted)}
+  .empty{color:var(--muted);padding:10px;font-style:italic}
+  .acts{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end}
+  .count{color:var(--muted);font-weight:400;margin-left:6px}
+  #toast{position:fixed;right:18px;bottom:18px;background:var(--panel);border:1px solid var(--line);
+         border-left:3px solid var(--accent);padding:10px 14px;border-radius:8px;display:none;max-width:420px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Product Forge</h1>
+  <span class="sub">Overall Backlog</span>
+  <span class="spacer"></span>
+  <span class="sub" id="forge-state">forge: —</span>
+  <button class="ghost" onclick="loadAll()">Refresh</button>
+</header>
+
+<div class="wrap">
+  <!-- LEFT: intake + forge -->
+  <div class="lanes">
+    <section class="card">
+      <h2>Intake</h2>
+      <div class="body">
+        <label>Title *</label><input id="in-title" placeholder="Add CSV export…" />
+        <label>Details</label><textarea id="in-body" placeholder="context, requirements, links…"></textarea>
+        <div class="row">
+          <div><label>Destination</label>
+            <select id="in-scope">
+              <option value="pipeline">Product Forge backlog</option>
+              <option value="project">A project backlog</option>
+            </select>
+          </div>
+          <div><label>Project</label><input id="in-project" placeholder="e2e-free" /></div>
+        </div>
+        <div class="row">
+          <div><label>Kind</label>
+            <select id="in-kind">
+              <option>feature</option><option>enhancement</option><option>bug</option>
+              <option>idea</option><option>context</option><option>tech-debt</option>
+            </select>
+          </div>
+          <div><label>MoSCoW</label>
+            <select id="in-moscow"><option>Should</option><option>Must</option><option>Could</option></select>
+          </div>
+        </div>
+        <div class="row">
+          <div><label>Value</label><input id="in-value" type="number" min="1" max="5" value="3" /></div>
+          <div><label>Effort</label><input id="in-effort" type="number" min="1" max="5" value="3" /></div>
+          <div><label>Risk</label><input id="in-risk" type="number" min="1" max="5" value="2" /></div>
+        </div>
+        <div style="margin-top:12px"><button onclick="submitIntake()">Send to backlog</button></div>
+        <div class="muted" style="margin-top:8px;font-size:11px" id="in-note">
+          Lands as an item (<span class="id">origin=intake</span>); ideas are parked with a weekly follow-up.
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Product Forge</h2>
+      <div class="body" id="forge-body"><div class="empty">loading…</div></div>
+    </section>
+  </div>
+
+  <!-- RIGHT: lanes -->
+  <div class="lanes" id="lanes">
+    <section class="card lane"><h2>Loading…</h2><div class="body"></div></section>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const api = (p, opt) => fetch(p, opt).then(r => r.json());
+function toast(msg, bad) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.style.borderLeftColor = bad ? 'var(--bad)' : 'var(--ok)';
+  t.style.display = 'block'; clearTimeout(t._h); t._h = setTimeout(() => t.style.display='none', 4000);
+}
+const esc = s => (s ?? '').toString().replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+async function submitIntake() {
+  const title = document.getElementById('in-title').value.trim();
+  if (!title) return toast('Title is required', true);
+  const scope = document.getElementById('in-scope').value;
+  const body = {
+    source: 'dashboard', title, body: document.getElementById('in-body').value,
+    scope, kind: document.getElementById('in-kind').value,
+    moscow: document.getElementById('in-moscow').value,
+    value: +document.getElementById('in-value').value,
+    effort: +document.getElementById('in-effort').value,
+    risk: +document.getElementById('in-risk').value,
+  };
+  if (scope === 'project') body.project = document.getElementById('in-project').value.trim();
+  const r = await api('/api/intake', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+  if (r && r.id) { toast(`Created ${r.id} (${r.label || ''})`); document.getElementById('in-title').value=''; document.getElementById('in-body').value=''; loadAll(); }
+  else toast('Intake failed: ' + JSON.stringify(r).slice(0,160), true);
+}
+
+async function act(scope, project, id, action, extra) {
+  const body = Object.assign({scope, project}, extra || {});
+  const r = await api(`/api/backlog/${id}/${action}`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+  toast(`${action} ${id} → ${r.status || JSON.stringify(r).slice(0,80)}`);
+  loadAll();
+}
+
+function rows(items, scope, project) {
+  if (!items || !items.length) return `<tr><td colspan="5" class="empty">none</td></tr>`;
+  return items.map(i => `
+    <tr>
+      <td><div class="label">${esc(i.label)}</div><div class="id">${esc(i.id)}</div></td>
+      <td>
+        <div class="title">${esc(i.title)}</div>
+        ${i.body ? `<div class="body-txt">${esc(String(i.body).slice(0,140))}</div>` : ''}
+      </td>
+      <td>
+        <span class="chip ${['done','verified'].includes(i.status)?'ok':(i.status==='parked'?'warn':(i.status==='rejected'?'bad':'acc'))}">${esc(i.status)}</span>
+        <span class="chip">${esc(i.type)}</span>
+        <span class="chip">${esc(i.origin)}</span>
+        ${i.moscow ? `<span class="chip">${esc(i.moscow)}</span>` : ''}
+        ${(i.follow_up && i.follow_up.at) ? `<span class="chip warn">follow-up ${esc(String(i.follow_up.at).slice(0,10))}</span>` : ''}
+      </td>
+      <td class="muted" style="white-space:nowrap">${i.score ?? ''}</td>
+      <td>
+        <div class="acts">
+          ${i.status==='new'||i.status==='parked' ? `<button class="mini b" onclick="act('${scope}','${project||''}','${i.id}','triage',{recommendation:'reviewed'})">triage</button>` : ''}
+          ${i.status!=='done'&&i.status!=='rejected' ? `<button class="mini g" onclick="act('${scope}','${project||''}','${i.id}','accept',{when:'now'})">accept now</button>` : ''}
+          ${i.status!=='done'&&i.status!=='rejected' ? `<button class="mini" onclick="act('${scope}','${project||''}','${i.id}','accept',{when:'later'})">later</button>` : ''}
+          ${i.status!=='done'&&i.status!=='rejected' ? `<button class="mini r" onclick="act('${scope}','${project||''}','${i.id}','close',{status:'rejected'})">reject</button>` : ''}
+        </div>
+      </td>
+    </tr>`).join('');
+}
+
+function lane(title, items, scope, project, note) {
+  return `<section class="card lane">
+    <h2>${title} <span class="count">${items.length}</span></h2>
+    ${note ? `<div class="body" style="padding-bottom:0"><span class="muted">${note}</span></div>` : ''}
+    <div class="body"><table>
+      <thead><tr><th>Label</th><th>Item</th><th>State</th><th>Score</th><th></th></tr></thead>
+      <tbody>${rows(items, scope, project)}</tbody>
+    </table></div></section>`;
+}
+
+async function loadAll() {
+  try {
+    const [pf, projects, forgePlan, forgeState] = await Promise.all([
+      api('/api/backlog?scope=product_forge'),
+      api('/api/projects'),
+      api('/api/forge/plan'), api('/api/forge/state'),
+    ]);
+    const pfItems = (pf && pf.open) || [];
+    const projList = (projects && (projects.projects || projects)) || [];
+
+    document.getElementById('forge-state').textContent =
+      `forge: ${(forgeState && forgeState.status) || '—'} · goals ${((forgePlan && forgePlan.goals) || []).length}`;
+    document.getElementById('forge-body').innerHTML = `
+      <div class="muted" style="font-size:12px">
+        plan: <span class="id">product-forge/plan.json</span> · state: <span class="id">product-forge/state.json</span><br/>
+        open items: <b>${pfItems.length}</b> · projects: <b>${projList.length}</b>
+      </div>`;
+
+    const intake = pfItems.filter(i => i.origin === 'intake' && i.section === 'intake');
+    const pipeline = pfItems.filter(i => i.origin === 'pipeline');
+    const parking = pfItems.filter(i => i.status === 'parked' || i.type === 'idea' || i.type === 'explore');
+    const newProjects = pfItems.filter(i => i.type === 'project');
+    const pipeNoPark = pipeline.filter(i => !parking.includes(i));
+
+    const projectLanes = [];
+    for (const pr of projList.slice(0, 12)) {
+      const r = await api('/api/backlog?scope=project&project=' + encodeURIComponent(pr));
+      const items = (r && r.open) || [];
+      if (items.length) projectLanes.push(lane('Project · ' + esc(pr), items, 'project', pr));
+    }
+
+    document.getElementById('lanes').innerHTML =
+      lane('Inbox (intake)', intake, 'product_forge', '', 'new arrivals from adapters / dashboard') +
+      lane('Ideas / Parking', parking, 'product_forge', '', 'nothing scheduled — weekly follow-up, snoozable') +
+      lane('New Projects', newProjects, 'product_forge', '', 'candidate products (promote needs HIL approval)') +
+      lane('Product Forge · Pipeline', pipeNoPark, 'product_forge', '', 'self-observed improvements, tech-debt, bugs') +
+      (projectLanes.join('') || lane('Projects', [], 'project', '', 'no project items yet — send a change to a project to see it here'));
+  } catch (e) {
+    document.getElementById('lanes').innerHTML = `<section class="card lane"><h2>Error</h2><div class="body">${esc(e)}</div></section>`;
+  }
+}
+loadAll();
+setInterval(loadAll, 30000);
+</script>
+</body>
+</html>

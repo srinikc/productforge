@@ -1,0 +1,33 @@
+{
+  "id": "BI-0180",
+  "type": "tech-debt",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "intake",
+  "external_id": "backend:tier-model-drift",
+  "label": "PF Backlog 189",
+  "title": "Backend: reconcile model-tier drift (model ids not in registry + stage keys)",
+  "body": "## Problem / why\n`python scripts/dev/wired_audit.py` (advisory) reports 17 model ids used in `config/model-tier.json`\nthat are NOT in the model registry, plus 2 stage-key drifts (`[actual]`, `[actual-balanced]` reference\nstage `4`). Non-fatal, but causes silent model fallbacks / resolution surprises.\n\n## Goal & value\nReconcile the tier model ids + stage keys with the registry so `tier-models` reports 0 drift.\n\n## Acceptance criteria (testable)\n- `wired_audit` tier-models advisory: 0 model-id drift and 0 stage-key drift (or an explicit allow).\n\n## Out of scope\n- Model catalog contents/pricing (BI-0173). Auto tier policy (BI-0174).\n\n## Verification / test plan\n- `python scripts/dev/wired_audit.py` clean on the tier-models advisory; pipeline still resolves models.\n",
+  "source": "generic",
+  "status": "completed",
+  "priority": null,
+  "moscow": "Could",
+  "value": 2,
+  "effort": 1,
+  "risk": 1,
+  "deps": [],
+  "links": {},
+  "decisions": [],
+  "follow_up": {},
+  "created_at": "2026-09-24T22:41:24.743464",
+  "updated_at": "2026-09-24T22:45:59.258605",
+  "score": 2.0,
+  "dashboard_impact": {
+    "needs_dashboard": false,
+    "reason": "Internal/data-quality fix; no dashboard/UI behaviour change.",
+    "dashboard_item": null,
+    "reviewed_by": "agent",
+    "reviewed_at": "2026-09-24T22:41:24.749992"
+  },
+  "_note": "config/model-tier.json reconciled: remapped 14 free-trial + 3 free-trial-fast OpenRouter ids to registry-known free models (deepseek-v4-flash-free/mimo-v2.5-free/hy3-free/nemotron-3-ultra-free/nemotron-3.5-lightning-free/laguna-s-2.1-free); removed invalid stage key 4 (valid are 4-0/4a..4f) from base + actual-balanced. check_tier_models + wired_audit: tier-models 0 drift. Backup: Temp/opencode/model-tier.backup-*.json"
+}

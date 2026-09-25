@@ -1,0 +1,33 @@
+{
+  "id": "BI-0149",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "intake",
+  "external_id": "forge:guarded-run-entrypoints",
+  "label": "PF Backlog 149",
+  "title": "Guaranteed guarded run: every entry point (CLI + dashboard) goes through core.run_entry",
+  "body": "New core/run_entry.py — begin_run(project) stops any other instance (run_guard), acquires the lock WITH a minted run id, back-fills run linkage, and reconciles already-approved stages; end_run releases. scripts/run_pipeline.py now routes through begin_run (accepts --run-id) and the executor adopts the lock's run id. dashboard/server.py _spawn_run registers the run id up front, refuses if a run is already active, and passes --run-id (returns run_id to the UI). execute_pipeline() now REFUSES to run without a held run lock (bypass guard; PIPELINE_ALLOW_UNGUARDED=1 overrides), so no path can run unguarded/unstamped.",
+  "source": "owner",
+  "status": "completed",
+  "priority": null,
+  "moscow": "Must",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [],
+  "links": {},
+  "decisions": [],
+  "follow_up": {},
+  "created_at": "2026-09-24T11:32:35.974402",
+  "updated_at": "2026-09-24T11:33:03.207727",
+  "score": 0.75,
+  "dashboard_impact": {
+    "needs_dashboard": true,
+    "reason": "Dashboard shows/uses the run_id from /api/run and the active-run state.",
+    "dashboard_item": null,
+    "reviewed_by": "owner-review-2026-09-23",
+    "reviewed_at": "2026-09-24T11:32:35.984094"
+  },
+  "_note": "core/run_entry.py (begin_run/end_run/active) is the ONE guarded entry point. run_pipeline.py routes through begin_run (--run-id, executor adopts lock run id). dashboard/server.py _spawn_run mints/registers run id, refuses if active, passes --run-id, returns run_id. execute_pipeline() refuses without a held lock (PIPELINE_ALLOW_UNGUARDED=1 override). Verified: begin_run acquired lock w/ run id; unguarded execute refused; lock cleanly released."
+}

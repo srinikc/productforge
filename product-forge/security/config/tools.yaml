@@ -1,0 +1,118 @@
+# Security Tool Configuration
+# Tools are installed at pipeline level and shared across all projects
+
+tools:
+  # Static Analysis (SAST)
+  bandit:
+    version: "1.9.4"
+    install_command: "pip install bandit==1.9.4"
+    purpose: "Python security linter"
+    languages: ["python"]
+    owasp_mapping: ["A05", "A04", "A10"]
+    auto_install: true
+    enabled: true
+    
+  semgrep:
+    version: "1.173.0"
+    install_command: "pip install semgrep==1.173.0"
+    purpose: "Multi-language SAST engine"
+    languages: ["python", "javascript", "typescript", "java", "go", "ruby", "php", "c", "cpp"]
+    owasp_mapping: ["A01", "A03", "A05", "A06", "A08"]
+    auto_install: true
+    enabled: true
+    
+  eslint-security:
+    version: "4.0.0"
+    install_command: "npm install -g eslint-plugin-security"
+    purpose: "JavaScript/Node.js security rules"
+    languages: ["javascript", "typescript"]
+    owasp_mapping: ["A05", "A07"]
+    auto_install: true
+    enabled: true
+
+  # Software Composition Analysis (SCA)
+  trivy:
+    version: "0.71.2"
+    install_command: "choco install trivy"
+    purpose: "Dependency + Container + IaC scanning"
+    languages: ["*"]
+    owasp_mapping: ["A02", "A03", "A08"]
+    auto_install: true
+    enabled: true
+    
+  safety:
+    version: "3.8.1"
+    install_command: "pip install safety==3.8.1"
+    purpose: "Python dependency vulnerability scanner"
+    languages: ["python"]
+    owasp_mapping: ["A03"]
+    auto_install: true
+    enabled: true
+    
+  npm-audit:
+    version: "latest"
+    install_command: "npm install -g npm"
+    purpose: "Node.js dependency auditor"
+    languages: ["javascript", "typescript"]
+    owasp_mapping: ["A03", "A08"]
+    auto_install: true
+    enabled: true
+
+  # Secret Detection
+  trufflehog:
+    version: "3.x"
+    install_command: "pip install trufflehog"
+    purpose: "Secret detection and validation"
+    languages: ["*"]
+    owasp_mapping: ["A03", "A04", "A08"]
+    auto_install: true
+    enabled: true
+    
+  gitleaks:
+    version: "8.x"
+    install_command: "choco install gitleaks"
+    purpose: "Git repository secret scanner"
+    languages: ["*"]
+    owasp_mapping: ["A03", "A04", "A08"]
+    auto_install: true
+    enabled: true
+
+  # Dynamic Analysis (DAST)
+  zap:
+    version: "2.17.0"
+    install_command: "docker pull owasp/zap2docker-stable"
+    purpose: "Web application security scanner"
+    languages: ["*"]
+    owasp_mapping: ["A01", "A02", "A04", "A05", "A07"]
+    auto_install: true
+    enabled: true
+    requires_docker: true
+    
+  nuclei:
+    version: "3.x"
+    install_command: "go install -v github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest"
+    purpose: "Vulnerability template scanner"
+    languages: ["*"]
+    owasp_mapping: ["A01", "A02", "A05", "A07"]
+    auto_install: true
+    enabled: true
+
+# Tool execution settings
+execution:
+  timeout_seconds: 300
+  parallel_execution: true
+  max_parallel_tools: 3
+  retry_count: 2
+  retry_delay_seconds: 5
+
+# Output settings
+output:
+  format: "json"
+  include_recommendations: true
+  include_references: true
+  severity_threshold: "low"
+
+# SARIF integration
+sarif:
+  enabled: true
+  output_dir: "security/reports/sarif"

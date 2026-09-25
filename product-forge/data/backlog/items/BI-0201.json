@@ -1,0 +1,35 @@
+{
+  "id": "BI-0201",
+  "type": "tech-debt",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "intake",
+  "external_id": "backend:decouple-opencode-cards",
+  "label": "PF Backlog 210",
+  "title": "Backend: decouple agent cards/loaders from .opencode (framework-agnostic)",
+  "body": "## Problem / why\nThe pipeline is framework-agnostic by design (core/agent_spec.load_specs reads agents/*.agent.json),\nbut residual coupling remains: agent_card_loader defaults to .opencode/agent, agent_rules lists from\n.opencode/agent, pipeline.py prints .opencode paths, and dev scripts read/write .opencode/agent/*.md.\nTwo parallel card sets exist (agents/*.agent.json canonical + .opencode/agent/*.md legacy).\n\n## Goal\nMake the pipeline truly opencode-independent: loaders read agents/ (JSON) or a neutral cards dir;\ndev scripts use that dir; .opencode/agent/*.md becomes legacy/archived.\n\n## Acceptance criteria\n- No runtime module reads .opencode/agent; grep shows 0 runtime refs.\n- agents still load (all 62) and the pipeline runs identically.\n\n## Verification\n- grep + a pipeline smoke; wired_audit green.\n",
+  "source": "generic",
+  "status": "new",
+  "priority": null,
+  "moscow": "Should",
+  "value": 3,
+  "effort": 3,
+  "risk": 3,
+  "deps": [],
+  "links": {
+    "epic": "product_forge:BI-0195"
+  },
+  "decisions": [],
+  "follow_up": {},
+  "created_at": "2026-09-25T15:04:35.146896",
+  "updated_at": "2026-09-25T15:04:35.180377",
+  "score": 0.5,
+  "dashboard_impact": {
+    "needs_dashboard": false,
+    "reason": "Backend structural; no UI change.",
+    "dashboard_item": null,
+    "reviewed_by": "agent",
+    "reviewed_at": "2026-09-25T15:04:35.154733"
+  },
+  "_note": "dashboard_impact reviewed"
+}

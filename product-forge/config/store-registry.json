@@ -1,0 +1,1212 @@
+{
+  "$schema": "store-registry-v1",
+  "description": "Authoritative data stores for Product Forge. One truth per concern, one writer per file. Enforced by scripts/dev/wired_audit.py (store_audit).",
+  "rules": [
+    "work items live only in backlog/items/<ID>.json (truth), written only by core/backlog.py; open/closed.json are DERIVED indexes",
+    "every artifact about work references item_id (BI-####); technical detail adds feature_id (F-x)",
+    "derived files are generated, never hand-edited (kind=derived)",
+    "new per-scope stores must live under products/<project>/ or product-forge/"
+  ],
+  "stores": {
+    "open.json": {
+      "owner": "core/backlog.py",
+      "kind": "work-items",
+      "scope": "project|product_forge",
+      "concern": "DERIVED lean index of non-terminal work items (id/status/one-liner/dates)",
+      "visibility": "shared"
+    },
+    "closed.json": {
+      "owner": "core/backlog.py",
+      "kind": "work-items",
+      "scope": "project|product_forge",
+      "concern": "DERIVED lean index of terminal work items (no full copies)",
+      "visibility": "shared"
+    },
+    "counters.json": {
+      "owner": "core/backlog.py",
+      "kind": "work-items",
+      "scope": "project|product_forge",
+      "concern": "id/label counters",
+      "visibility": "shared"
+    },
+    "conversations.json": {
+      "owner": "core/conversation_models.py",
+      "kind": "intake-raw",
+      "scope": "global",
+      "concern": "raw conversations",
+      "visibility": "shared"
+    },
+    "ideas.json": {
+      "owner": "core/conversation_models.py",
+      "kind": "intake-raw",
+      "scope": "global",
+      "concern": "extracted ideas (staging)",
+      "visibility": "shared"
+    },
+    "requirements.json": {
+      "owner": "core/conversation_models.py",
+      "kind": "intake-raw",
+      "scope": "global",
+      "concern": "extracted requirements (staging)",
+      "visibility": "shared"
+    },
+    "decisions.json": {
+      "owner": "core/conversation_models.py",
+      "kind": "intake-raw",
+      "scope": "global",
+      "concern": "extracted decisions",
+      "visibility": "shared"
+    },
+    "change_packages.json": {
+      "owner": "core/conversation_models.py",
+      "kind": "intake-raw",
+      "scope": "global",
+      "concern": "change packages",
+      "visibility": "shared"
+    },
+    "implementation_plans.json": {
+      "owner": "core/conversation_models.py",
+      "kind": "intake-raw",
+      "scope": "global",
+      "concern": "implementation plans",
+      "visibility": "shared"
+    },
+    "product-plan.json": {
+      "owner": "core/product_plan.py",
+      "kind": "decomposition",
+      "scope": "project",
+      "concern": "modules/features (technical)",
+      "visibility": "shared"
+    },
+    "traceability.json": {
+      "owner": "core/traceability.py",
+      "kind": "trace",
+      "scope": "project",
+      "concern": "requirement<->feature<->test matrix + cross-agent id hub (id_index: declared-family ids per artifact/stage/agent, undeclared-prefix findings, coverage)",
+      "visibility": "shared"
+    },
+    "agent_ledger.json": {
+      "owner": "core/agent_ledger.py",
+      "kind": "evidence",
+      "scope": "project",
+      "concern": "canonical agent work ledger (source=core|test-framework; item_id/feature_id)",
+      "visibility": "scope-local"
+    },
+    "defects.json": {
+      "owner": "test-framework/core/defect_tracker.py",
+      "kind": "problems",
+      "scope": "project|product_forge",
+      "concern": "defects (item_id, affected_features)",
+      "visibility": "shared"
+    },
+    "pipeline-state.json": {
+      "owner": "core/pipeline_executor.py",
+      "kind": "execution",
+      "scope": "project",
+      "concern": "stage execution state",
+      "visibility": "scope-local"
+    },
+    "project-status.json": {
+      "owner": "core/pipeline_executor.py",
+      "kind": "derived",
+      "scope": "project",
+      "concern": "status projection",
+      "visibility": "scope-local"
+    },
+    "quality-metrics.json": {
+      "owner": "core/quality_metrics.py",
+      "kind": "derived",
+      "scope": "project",
+      "concern": "run metrics",
+      "visibility": "scope-local"
+    },
+    "qa-manifest.json": {
+      "owner": "core/qa_manifest.py",
+      "kind": "derived",
+      "scope": "project",
+      "concern": "QA snapshot",
+      "visibility": "scope-local"
+    },
+    "qir.json": {
+      "owner": "core/qir.py",
+      "kind": "derived",
+      "scope": "project",
+      "concern": "QA intelligence report",
+      "visibility": "scope-local"
+    },
+    "go-no-go.json": {
+      "owner": "core/qa_report.py",
+      "kind": "derived",
+      "scope": "project",
+      "concern": "release gate verdict",
+      "visibility": "scope-local"
+    },
+    "spec-review.json": {
+      "owner": "core/spec_review.py",
+      "kind": "derived",
+      "scope": "project",
+      "concern": "spec review gate",
+      "visibility": "scope-local"
+    },
+    "insights.json": {
+      "owner": "core/insights.py",
+      "kind": "insights",
+      "scope": "global",
+      "visibility": "shared",
+      "concern": "canonical cross-project insights store (qa_intelligence + cross_project_learning imported; promotes actionable insights to Product Forge items via B8)"
+    },
+    "build-info.json": {
+      "owner": "core/build_manager.py",
+      "kind": "builds",
+      "scope": "project",
+      "concern": "build truth",
+      "visibility": "scope-local"
+    },
+    "version.json": {
+      "owner": "core/version_manager.py",
+      "kind": "builds",
+      "scope": "project",
+      "concern": "version truth",
+      "visibility": "scope-local"
+    },
+    "audit-trail.json": {
+      "owner": "core/audit_trail.py",
+      "kind": "audit",
+      "scope": "project",
+      "concern": "governance events",
+      "visibility": "scope-local"
+    },
+    "control.json": {
+      "owner": "core/human_controls.py",
+      "kind": "control",
+      "scope": "project",
+      "concern": "stop/pause/resume",
+      "visibility": "scope-local"
+    },
+    "prompts.json": {
+      "owner": "core/interactive.py",
+      "kind": "control",
+      "scope": "project|global",
+      "concern": "TTY-less prompt bridge (runtime prompts -> requests/answers; BI-0026)",
+      "visibility": "scope-local"
+    },
+    "discovery-questions.json": {
+      "owner": "core/pipeline_executor.py",
+      "kind": "derived",
+      "scope": "project",
+      "concern": "360-degree discovery questions (3 perspectives) emitted at stage 0a (BI-0028)",
+      "visibility": "scope-local"
+    },
+    "discovery-panel.json": {
+      "owner": "core/discovery_panel.py",
+      "kind": "intake-raw",
+      "scope": "project",
+      "concern": "360-degree discovery panel: per-agent clarifying questions + recommended answers + human accept/override",
+      "visibility": "scope-local"
+    },
+    "discovery-panel-settings.json": {
+      "owner": "core/discovery_panel.py",
+      "kind": "config",
+      "scope": "global",
+      "concern": "discovery panel settings (agents, sub-agent rollup, max questions)",
+      "visibility": "shared"
+    },
+    "notifications.json": {
+      "owner": "core/orchestrator/notifications.py",
+      "kind": "control",
+      "scope": "project",
+      "concern": "notifications (link item_id)",
+      "visibility": "scope-local"
+    },
+    "portfolio-registry.json": {
+      "owner": "core/portfolio.py",
+      "kind": "scheduling",
+      "scope": "global",
+      "concern": "portfolio registry (moved -> product-forge/portfolio/registry.json)",
+      "visibility": "shared"
+    },
+    "portfolio-state.json": {
+      "owner": "core/portfolio.py",
+      "kind": "scheduling",
+      "scope": "global",
+      "concern": "portfolio state (moved -> product-forge/portfolio/state.json)",
+      "visibility": "shared"
+    },
+    "projects.yaml": {
+      "owner": "test-framework/core/suite_manager.py",
+      "kind": "config",
+      "scope": "global",
+      "concern": "test suites",
+      "visibility": "scope-local"
+    },
+    "test-matrix.json": {
+      "owner": "core/test_matrix.py",
+      "kind": "config",
+      "scope": "global",
+      "concern": "test categories",
+      "visibility": "shared"
+    },
+    "capacity.json": {
+      "owner": "core/capacity.py",
+      "kind": "config",
+      "scope": "global",
+      "concern": "capacity limits",
+      "visibility": "shared"
+    },
+    "persona.json": {
+      "owner": "core/persona.py",
+      "kind": "config",
+      "scope": "global",
+      "concern": "owner persona",
+      "visibility": "shared"
+    },
+    "model-tier.json": {
+      "owner": "core/orchestrator/model_router.py",
+      "kind": "config",
+      "scope": "global",
+      "concern": "model routing tiers (authoritative: config/model-tier.json; legacy fallback kept)",
+      "visibility": "shared"
+    },
+    "agent-hierarchy.json": {
+      "owner": "core/agent_hierarchy.py",
+      "kind": "config",
+      "scope": "global",
+      "concern": "agent parent->sub",
+      "visibility": "shared"
+    },
+    "spec-id-families.json": {
+      "owner": "core/output_checklist.py",
+      "kind": "config",
+      "scope": "global",
+      "concern": "spec id families (GLOBAL unique vs per-feature LOCAL)",
+      "visibility": "shared"
+    },
+    "agent-requirements.json": {
+      "owner": "core/agent_requirements.py",
+      "kind": "config",
+      "scope": "global",
+      "concern": "agent capability matrix",
+      "visibility": "shared"
+    },
+    "pipeline-definition.json": {
+      "owner": "core/pipeline_executor.py",
+      "kind": "config",
+      "scope": "global",
+      "concern": "stage DAG",
+      "visibility": "shared"
+    },
+    "integration_choices.json": {
+      "owner": "core/integration_advisor.py",
+      "kind": "config",
+      "scope": "project",
+      "concern": "integration decisions",
+      "visibility": "shared"
+    },
+    "feature_flags.json": {
+      "owner": "core/feature_flags.py",
+      "kind": "config",
+      "scope": "project",
+      "concern": "flags",
+      "visibility": "shared"
+    },
+    "product_forge_context.json": {
+      "owner": "pipeline_dashboard/api/router.py",
+      "kind": "intake-raw",
+      "scope": "product_forge",
+      "concern": "Product Forge context (file renamed from factory_context.json; owner still the deprecated dashboard - reassign on rewrite, BI-0050)",
+      "visibility": "scope-local"
+    },
+    "agent-audit-log.json": {
+      "owner": "core/orchestrator/storage.py",
+      "kind": "audit",
+      "scope": "project",
+      "concern": "agent call audit",
+      "visibility": "scope-local"
+    },
+    "BOM.json": {
+      "owner": "core/nfr_runner.py",
+      "kind": "derived",
+      "scope": "project",
+      "concern": "software bill of materials",
+      "visibility": "module-local"
+    },
+    "analysis-report.json": {
+      "owner": "core/product_analyzer.py",
+      "kind": "derived",
+      "scope": "project",
+      "concern": "code analysis report",
+      "visibility": "module-local"
+    },
+    "agents-live.json": {
+      "owner": "core/pipeline_executor.py",
+      "kind": "derived",
+      "scope": "project",
+      "concern": "live agents snapshot (read by dashboard)",
+      "visibility": "scope-local"
+    },
+    "alerts.json": {
+      "owner": "core/run_breaker.py",
+      "kind": "control",
+      "scope": "project",
+      "concern": "run/budget alerts",
+      "visibility": "module-local"
+    },
+    "budget-tracking.json": {
+      "owner": "core/budget_protection.py",
+      "kind": "control",
+      "scope": "project",
+      "concern": "legacy (migrated into budget.json -> state)",
+      "visibility": "module-local"
+    },
+    "budget_allocations.json": {
+      "owner": "core/budget_allocator.py",
+      "kind": "control",
+      "scope": "project",
+      "concern": "legacy (migrated into budget.json -> allocations)",
+      "visibility": "module-local"
+    },
+    "adaptive_reasoning.json": {
+      "owner": "core/phase3_advanced.py",
+      "kind": "control",
+      "scope": "global",
+      "concern": "adaptive reasoning state (.pipeline)",
+      "visibility": "module-local"
+    },
+    "byot_config.json": {
+      "owner": "core/byot_integration.py",
+      "kind": "config",
+      "scope": "global",
+      "concern": "bring-your-own-tokens config",
+      "visibility": "module-local"
+    },
+    "agent_ledger.jsonl": {
+      "owner": "test-framework/core/agent_ledger.py",
+      "kind": "evidence",
+      "scope": "project",
+      "concern": "legacy fallback only when core unavailable (standalone test-framework)",
+      "visibility": "module-local"
+    },
+    "circuit-breakers.json": {
+      "owner": "core/circuit_breaker.py",
+      "kind": "control",
+      "scope": "global|project",
+      "concern": "circuit breaker registry",
+      "visibility": "module-local"
+    },
+    "compliance-retry-state.json": {
+      "owner": "core/compliance_action_handler.py",
+      "kind": "control",
+      "scope": "project",
+      "concern": "compliance retry state",
+      "visibility": "module-local"
+    },
+    "cost_metrics.jsonl": {
+      "owner": "core/cost_kpi.py",
+      "kind": "derived",
+      "scope": "project",
+      "concern": "legacy (migrated into budget.json -> history)",
+      "visibility": "module-local"
+    },
+    "cross-reviews.json": {
+      "owner": "core/cross_review.py",
+      "kind": "evidence",
+      "scope": "project",
+      "concern": "canonical reviews+feedback store (merged reviews.json + feedback.json)",
+      "visibility": "scope-local"
+    },
+    "cycles.json": {
+      "owner": "core/qa_cycles.py",
+      "kind": "derived",
+      "scope": "project",
+      "concern": "QA test cycles",
+      "visibility": "scope-local"
+    },
+    "dead-letter-queue.json": {
+      "owner": "core/dead_letter_queue.py",
+      "kind": "control",
+      "scope": "global",
+      "concern": "dead letter queue",
+      "visibility": "module-local"
+    },
+    "delegations.json": {
+      "owner": "core/delegation.py",
+      "kind": "evidence",
+      "scope": "project",
+      "concern": "agent delegations",
+      "visibility": "scope-local"
+    },
+    "design-spec.json": {
+      "owner": "core/product_design_spec.py",
+      "kind": "derived",
+      "scope": "project",
+      "concern": "product design spec artifact",
+      "visibility": "scope-local"
+    },
+    "discovery-result.json": {
+      "owner": "core/discovery_engine.py",
+      "kind": "derived",
+      "scope": "project",
+      "concern": "discovery output",
+      "visibility": "scope-local"
+    },
+    "model-fit.json": {
+      "owner": "core/model_fit.py",
+      "kind": "derived",
+      "scope": "project",
+      "concern": "per-tier model/agent capability-fit report + applied substitutions (BI-0076)",
+      "visibility": "scope-local"
+    },
+    "escalations.jsonl": {
+      "owner": "core/stop_conditions.py",
+      "kind": "control",
+      "scope": "global",
+      "concern": "stop-condition escalations",
+      "visibility": "module-local"
+    },
+    "extended-capabilities.json": {
+      "owner": "core/pipeline_capabilities.py",
+      "kind": "derived",
+      "scope": "project",
+      "concern": "extended capabilities report",
+      "visibility": "module-local"
+    },
+    "final-report.json": {
+      "owner": "core/orchestrator/reporting.py",
+      "kind": "derived",
+      "scope": "project",
+      "concern": "final pipeline report (derived)",
+      "visibility": "scope-local"
+    },
+    "final.json": {
+      "owner": "core/compliance_check.py",
+      "kind": "derived",
+      "scope": "project",
+      "concern": "compliance final report (derived)",
+      "visibility": "scope-local"
+    },
+    "features.json": {
+      "owner": "test-framework/core/reporter.py",
+      "kind": "derived",
+      "scope": "project",
+      "concern": "test-run feature results, keyed by feature_id -> links product-plan (item via feature.backlog_id)",
+      "visibility": "scope-local"
+    },
+    "feedback.json": {
+      "owner": "test-framework/core/cross_review.py",
+      "kind": "evidence",
+      "scope": "project",
+      "concern": "legacy (migrated into cross-reviews.json)",
+      "visibility": "module-local"
+    },
+    "generation-state.json": {
+      "owner": "core/orchestrator/agent_runner.py",
+      "kind": "control",
+      "scope": "project",
+      "concern": "generation state",
+      "visibility": "module-local"
+    },
+    "infra.json": {
+      "owner": "core/pipeline_executor.py",
+      "kind": "config",
+      "scope": "project",
+      "concern": "deployment/infra descriptor (docs/infra.json)",
+      "visibility": "shared"
+    },
+    "initial-context.json": {
+      "owner": "core/intent_router.py",
+      "kind": "config",
+      "scope": "project",
+      "concern": "initial project context from intake (context/)",
+      "visibility": "scope-local"
+    },
+    "kit.json": {
+      "owner": "core/test_matrix.py",
+      "kind": "config",
+      "scope": "project",
+      "concern": "per-kit test spec",
+      "visibility": "module-local"
+    },
+    "knowledge_graph.json": {
+      "owner": "core/phase3_advanced.py",
+      "kind": "control",
+      "scope": "global",
+      "concern": "knowledge graph state (.pipeline)",
+      "visibility": "module-local"
+    },
+    "knowledge_index.json": {
+      "owner": "core/knowledge_router.py",
+      "kind": "derived",
+      "scope": "global",
+      "concern": "knowledge index (built by tooling)",
+      "visibility": "module-local"
+    },
+    "llm-errors.json": {
+      "owner": "core/llm_error_handler.py",
+      "kind": "control",
+      "scope": "global",
+      "concern": "LLM error log",
+      "visibility": "module-local"
+    },
+    "messages.json": {
+      "owner": "core/agent_messenger.py",
+      "kind": "evidence",
+      "scope": "project",
+      "concern": "agent messages",
+      "visibility": "module-local"
+    },
+    "model_registry.json": {
+      "owner": "core/model_registry.py",
+      "kind": "config",
+      "scope": "global",
+      "concern": "model capability registry",
+      "visibility": "module-local"
+    },
+    "pipeline-execution-report.json": {
+      "owner": "core/orchestrator/reporting.py",
+      "kind": "derived",
+      "scope": "project",
+      "concern": "pipeline execution report (derived; companion to final-report.json)",
+      "visibility": "scope-local"
+    },
+    "pipeline.json": {
+      "owner": "core/pipeline_executor.py",
+      "kind": "derived",
+      "scope": "project",
+      "concern": "DERIVED projection of project.json + pipeline-state.json (legacy readers; BI-0005 split+retire)",
+      "visibility": "scope-local"
+    },
+    "pipeline_cost_history.json": {
+      "owner": "core/pipeline_telemetry.py",
+      "kind": "derived",
+      "scope": "global",
+      "concern": "legacy (migrated into budget.json -> history)",
+      "visibility": "module-local"
+    },
+    "ports.json": {
+      "owner": "core/pipeline_executor.py",
+      "kind": "derived",
+      "scope": "project",
+      "concern": "allocated dev ports (docs/ports.json)",
+      "visibility": "scope-local"
+    },
+    "presentation.json": {
+      "owner": "core/presentation_generator.py",
+      "kind": "derived",
+      "scope": "project",
+      "concern": "presentation config/artifact",
+      "visibility": "module-local"
+    },
+    "project-config.json": {
+      "owner": "core/intent_router.py",
+      "kind": "config",
+      "scope": "project",
+      "concern": "project config (name/type/domain/hints)",
+      "visibility": "shared"
+    },
+    "project.json": {
+      "owner": "core/project_store.py",
+      "kind": "config",
+      "scope": "project",
+      "concern": "project descriptor/truth (single-writer facade core/project_store.py; reads unchanged)",
+      "visibility": "shared"
+    },
+    "qa-weights.json": {
+      "owner": "core/qir.py",
+      "kind": "config",
+      "scope": "global",
+      "concern": "QA weights (config/qa-weights.json)",
+      "visibility": "module-local"
+    },
+    "qir-history.json": {
+      "owner": "core/qir.py",
+      "kind": "derived",
+      "scope": "project",
+      "concern": "QIR history (test-framework/results)",
+      "visibility": "module-local"
+    },
+    "recommendations.json": {
+      "owner": "core/integration_advisor.py",
+      "kind": "config",
+      "scope": "project",
+      "concern": "integration recommendations (dynamic + HIL)",
+      "visibility": "shared"
+    },
+    "release-manifest.json": {
+      "owner": "core/release_manager.py",
+      "kind": "derived",
+      "scope": "project",
+      "concern": "release manifest (build cluster: version.json/build-info.json)",
+      "visibility": "scope-local"
+    },
+    "reviews.json": {
+      "owner": "test-framework/core/cross_review.py",
+      "kind": "evidence",
+      "scope": "project",
+      "concern": "legacy (migrated into cross-reviews.json)",
+      "visibility": "module-local"
+    },
+    "run-scope.json": {
+      "owner": "core/pipeline_executor.py",
+      "kind": "control",
+      "scope": "project",
+      "concern": "run scope (stages/features covered by this run)",
+      "visibility": "scope-local"
+    },
+    "semantic_cache.json": {
+      "owner": "core/phase3_advanced.py",
+      "kind": "control",
+      "scope": "global",
+      "concern": "semantic cache (.pipeline)",
+      "visibility": "module-local"
+    },
+    "sizing.json": {
+      "owner": "core/sizing.py",
+      "kind": "derived",
+      "scope": "project",
+      "concern": "sizing/footprint",
+      "visibility": "scope-local"
+    },
+    "skills-registry.json": {
+      "owner": "core/skills_registry.py",
+      "kind": "config",
+      "scope": "global",
+      "concern": "skills registry (canonical spelling; legacy skills_registry.json -> BI-0006)",
+      "visibility": "scope-local"
+    },
+    "stop_conditions.json": {
+      "owner": "core/stop_conditions.py",
+      "kind": "control",
+      "scope": "global",
+      "concern": "stop conditions",
+      "visibility": "module-local"
+    },
+    "supervisor_state.json": {
+      "owner": "core/forge_supervisor.py",
+      "kind": "control",
+      "scope": "global",
+      "concern": "supervisor state",
+      "visibility": "module-local"
+    },
+    "supervision_cycles.jsonl": {
+      "owner": "core/forge_supervisor.py",
+      "kind": "evidence",
+      "scope": "global",
+      "concern": "supervision cycle log",
+      "visibility": "module-local"
+    },
+    "targets.json": {
+      "owner": "core/target_advisor.py",
+      "kind": "config",
+      "scope": "project",
+      "concern": "deployment/external target recommendation",
+      "visibility": "shared"
+    },
+    "tech-stack.json": {
+      "owner": "core/tech_stack.py",
+      "kind": "config",
+      "scope": "project",
+      "concern": "chosen tech stack (docs/tech-stack.json)",
+      "visibility": "shared"
+    },
+    "test-comments.json": {
+      "owner": "test-framework/core/reporter.py",
+      "kind": "derived",
+      "scope": "project",
+      "concern": "test comments/report",
+      "visibility": "module-local"
+    },
+    "test-cycle.json": {
+      "owner": "core/mobile_tester.py",
+      "kind": "derived",
+      "scope": "project",
+      "concern": "mobile test cycle",
+      "visibility": "scope-local"
+    },
+    "tokens.json": {
+      "owner": "core/design_tokens.py",
+      "kind": "derived",
+      "scope": "project",
+      "concern": "design tokens",
+      "visibility": "module-local"
+    },
+    "tool_cache.json": {
+      "owner": "core/tool_cache.py",
+      "kind": "control",
+      "scope": "global",
+      "concern": "tool result cache",
+      "visibility": "module-local"
+    },
+    "trends.json": {
+      "owner": "test-framework/core/reporter.py",
+      "kind": "derived",
+      "scope": "project",
+      "concern": "test trends",
+      "visibility": "module-local"
+    },
+    "usage.jsonl": {
+      "owner": "test-framework/core/budget_tracker.py",
+      "kind": "derived",
+      "scope": "project",
+      "concern": "budget usage stream (budget cluster -> BI-0002)",
+      "visibility": "module-local"
+    },
+    "skills_registry.json": {
+      "owner": "test-framework/core/skills_registry.py",
+      "kind": "config",
+      "scope": "global",
+      "concern": "legacy alias spelling (migrated -> skills-registry.json)",
+      "visibility": "module-local"
+    },
+    "portfolio.db": {
+      "owner": "core/portfolio.py",
+      "kind": "scheduling",
+      "scope": "global",
+      "concern": "portfolio queue DB (actual path: product-forge/portfolio/portfolio.db)",
+      "visibility": "shared"
+    },
+    "index.json": {
+      "owner": "scripts/pipeline_helpers.py",
+      "kind": "config",
+      "scope": "global",
+      "concern": "project registry (products/index.json) - list of known projects",
+      "visibility": "shared"
+    },
+    "queue.json": {
+      "owner": "core/queue_manager.py",
+      "kind": "scheduling",
+      "scope": "global",
+      "concern": "priority run queue (products/queue.json)",
+      "visibility": "shared"
+    },
+    ".agent.json": {
+      "owner": "scripts/dev/generate_agent_cards.py",
+      "kind": "derived",
+      "scope": "global",
+      "concern": "generated agent cards/specs",
+      "visibility": "scope-local"
+    },
+    "design-tokens.json": {
+      "owner": "core/design_tokens.py",
+      "kind": "derived",
+      "scope": "project",
+      "concern": "per-project design tokens artifact",
+      "visibility": "module-local"
+    },
+    "security-issues.json": {
+      "owner": "core/product_analyzer.py",
+      "kind": "derived",
+      "scope": "project",
+      "concern": "security issues report",
+      "visibility": "scope-local"
+    },
+    "test-suites.yaml": {
+      "owner": "test-framework/core/suite_manager.py",
+      "kind": "config",
+      "scope": "global",
+      "concern": "test suites config",
+      "visibility": "shared"
+    },
+    "system_config.json": {
+      "owner": "scripts/pipeline_helpers.py",
+      "kind": "config",
+      "scope": "project",
+      "concern": "pipeline helper system config",
+      "visibility": "module-local"
+    },
+    "schema.yaml": {
+      "owner": "adapters/chatgpt/schema.yaml",
+      "kind": "config",
+      "scope": "global",
+      "concern": "adapter OpenAPI/intake schema",
+      "visibility": "module-local"
+    },
+    "budget.json": {
+      "owner": "core/budget.py",
+      "kind": "control",
+      "scope": "project|global",
+      "visibility": "shared",
+      "concern": "unified budget/cost store {limits,usage,allocations,state,history}"
+    },
+    "issues.json": {
+      "owner": "core/issue_tracker.py",
+      "kind": "evidence",
+      "scope": "project",
+      "visibility": "scope-local",
+      "concern": "stage agent issue reports (evidence; folded into defects + bug items via defect_loop.route_stage_issues)"
+    },
+    "licenses.json": {
+      "owner": "core/licensing.py",
+      "kind": "control",
+      "scope": "product_forge",
+      "concern": "issued license keys (signed) + status (BI-0057/0061)",
+      "visibility": "scope-local"
+    },
+    "tenants.json": {
+      "owner": "core/licensing.py",
+      "kind": "config",
+      "scope": "product_forge",
+      "concern": "tenants/subscriptions (tier, seats, trial, expiry) (BI-0060/0065)",
+      "visibility": "scope-local"
+    },
+    "licensing-tiers.json": {
+      "owner": "core/licensing.py",
+      "kind": "config",
+      "scope": "global",
+      "concern": "license tiers + feature-group entitlements (BI-0062)",
+      "visibility": "shared"
+    },
+    "control-plane.db": {
+      "owner": "core/control_plane.py",
+      "kind": "control",
+      "scope": "product_forge",
+      "concern": "dashboard control-plane DB: tenants/users/sessions/settings (BI-0043)",
+      "visibility": "scope-local"
+    },
+    "members.json": {
+      "owner": "core/tenancy.py",
+      "kind": "evidence",
+      "scope": "product_forge",
+      "concern": "tenant members/teams/roles/seats (BI-0068)",
+      "visibility": "scope-local"
+    },
+    "archive-registry.json": {
+      "owner": "core/project_archive.py",
+      "kind": "control",
+      "scope": "product_forge",
+      "concern": "archived (soft-deleted) projects + retention/expiry (BI-0071)",
+      "visibility": "scope-local"
+    },
+    "plan.json": {
+      "owner": "core/enhance.py",
+      "kind": "config",
+      "scope": "product_forge",
+      "visibility": "scope-local",
+      "concern": "Product Forge plan truth (product-forge/plan.json)"
+    },
+    "state.json": {
+      "owner": "core/forge_store.py",
+      "kind": "execution",
+      "scope": "product_forge",
+      "visibility": "scope-local",
+      "concern": "Product Forge run state (product-forge/state.json)"
+    },
+    "events.jsonl": {
+      "owner": "core/event_bus.py",
+      "kind": "evidence",
+      "scope": "global",
+      "visibility": "module-local",
+      "concern": "orchestration event stream (stuck/anomaly/conflict/coverage_gap/escalation/follow_up_due)"
+    },
+    "ops-report.json": {
+      "owner": "core/ops_phase.py",
+      "kind": "derived",
+      "scope": "project",
+      "visibility": "scope-local",
+      "concern": "LIVE/OPS monitor report (stage 13)"
+    },
+    "incidents.json": {
+      "owner": "core/ops_phase.py",
+      "kind": "derived",
+      "scope": "project",
+      "visibility": "scope-local",
+      "concern": "LIVE/OPS incident records (stage 13a)"
+    },
+    "ops-run.json": {
+      "owner": "core/ops_phase.py",
+      "kind": "derived",
+      "scope": "project",
+      "visibility": "scope-local",
+      "concern": "LIVE/OPS run summary (13/13a/13b)"
+    },
+    "artifact-formats.json": {
+      "owner": "core/artifact_formats.py",
+      "kind": "config",
+      "scope": "global",
+      "concern": "dynamic artifact output formats (default md; agent/kind/project extras + content heuristics) (BI-0110)",
+      "visibility": "shared"
+    },
+    "agent-capabilities.json": {
+      "owner": "core/skills_registry.py",
+      "kind": "config",
+      "scope": "global",
+      "concern": "per-agent capability binding (knowledge/skills/MCP/domain/business) SSOT",
+      "visibility": "shared"
+    },
+    "pipeline-plan.json": {
+      "owner": "core/pipeline_tailoring.py",
+      "kind": "config",
+      "scope": "project",
+      "concern": "per-project customized pipeline plan (enabled optional stages + display numbering)",
+      "visibility": "shared"
+    },
+    "business-models-kb.json": {
+      "owner": "core/business_models_kb.py",
+      "kind": "knowledge-base",
+      "scope": "global",
+      "concern": "business models/pricing/unit-economics/GTM/growth KB (+ learned entries)",
+      "visibility": "shared"
+    },
+    ".learned-knowledge.json": {
+      "owner": "core/business_models_kb.py",
+      "kind": "knowledge-base",
+      "scope": "project",
+      "concern": "per-project learned knowledge (needs researched on the net)",
+      "visibility": "shared"
+    },
+    "cost-model.json": {
+      "owner": "core/capability_bridge.py",
+      "kind": "derived",
+      "scope": "project",
+      "concern": "per-project infrastructure/product cost estimate (capability bridge)",
+      "visibility": "shared"
+    },
+    "docker-compose.generated.json": {
+      "owner": "core/capability_bridge.py",
+      "kind": "derived",
+      "scope": "project",
+      "concern": "generated docker-compose config (capability bridge)",
+      "visibility": "shared"
+    },
+    "capabilities-*.json": {
+      "owner": "core/capability_bridge.py",
+      "kind": "derived",
+      "scope": "project",
+      "concern": "per-stage capability-bridge hook results",
+      "visibility": "shared"
+    },
+    "review-ledger.json": {
+      "owner": "core/review_ledger.py",
+      "kind": "ledger",
+      "scope": "project",
+      "concern": "review/feedback ledger (producer, artifact, reviewer, feedback, resolution)",
+      "visibility": "shared"
+    },
+    "git-config.json": {
+      "owner": "core/vcs.py",
+      "kind": "config",
+      "scope": "project",
+      "concern": "per-project git repo config (provider/remote/branch model)",
+      "visibility": "shared"
+    },
+    "dashboard-blueprint.json": {
+      "owner": "core/dashboard_blueprint.py",
+      "kind": "config",
+      "scope": "global|project",
+      "concern": "reusable dashboard+API blueprint (Product Forge + every project)",
+      "visibility": "shared"
+    },
+    "techstack-catalog.json": {
+      "owner": "core/knowledge_refresh.py",
+      "kind": "knowledge-base",
+      "scope": "global",
+      "concern": "tech-stack/knowledge catalog (seed + monthly refresh + staleness)",
+      "visibility": "shared"
+    },
+    "idea-consolidation.json": {
+      "owner": "core/knowledge_refresh.py",
+      "kind": "derived",
+      "scope": "project",
+      "concern": "consolidated idea outcome (multi-idea -> single + conflicts)",
+      "visibility": "shared"
+    },
+    "rerun-review.json": {
+      "owner": "core/rerun_review.py",
+      "kind": "derived",
+      "scope": "project",
+      "concern": "latest rerun review (existing inputs + recommendations + operator decision)",
+      "visibility": "shared"
+    },
+    "artifact-paths.json": {
+      "owner": "core/stage_paths.py",
+      "kind": "config",
+      "scope": "global",
+      "concern": "artifact stage-directory naming ('stage-name' -> '1 - Design' | 'id')",
+      "visibility": "shared"
+    },
+    "pipeline-runs.json": {
+      "owner": "core/run_state.py",
+      "kind": "derived",
+      "scope": "project",
+      "concern": "run attempts registry (run_id linkage: resumed_from/stopped_run/stages)",
+      "visibility": "shared"
+    },
+    "_stage.json": {
+      "owner": "core/stage_paths.py",
+      "kind": "derived",
+      "scope": "project",
+      "concern": "per-stage display name + agents + artifacts index (3a)",
+      "visibility": "shared"
+    },
+    "INDEX.md": {
+      "owner": "core/stage_paths.py",
+      "kind": "derived",
+      "scope": "project",
+      "concern": "human artifacts index (stages -> agents -> artifacts) (3a)",
+      "visibility": "shared"
+    },
+    "log-conventions.json": {
+      "owner": "core/log_router.py",
+      "kind": "config",
+      "scope": "global",
+      "concern": "log layout + file naming (product runs / pipeline backend / dashboard)",
+      "visibility": "shared"
+    },
+    "INDEX.json": {
+      "owner": "core/log_router.py",
+      "kind": "derived",
+      "scope": "project",
+      "concern": "per-run log index (logs/<run_id>/INDEX.json: which agents logged, sizes)",
+      "visibility": "shared"
+    },
+    "env-flags.json": {
+      "owner": "core/env_flags.py",
+      "kind": "config",
+      "scope": "global",
+      "concern": "central env-flag registry (default/purpose/owner)",
+      "visibility": "shared"
+    },
+    "intake-channels.json": {
+      "owner": "core/intake_channels.py",
+      "kind": "config",
+      "scope": "global",
+      "concern": "intake funnel channels + source categories",
+      "visibility": "shared"
+    },
+    "items.jsonl": {
+      "owner": "core/intake_channels.py",
+      "kind": "intake-raw",
+      "scope": "product_forge|project",
+      "concern": "append-only intake entries per channel (IN-#### + source)",
+      "visibility": "shared"
+    },
+    "queue.html": {
+      "owner": "core/views.py",
+      "kind": "derived",
+      "scope": "product_forge",
+      "concern": "static queue/jobs view",
+      "visibility": "shared"
+    },
+    "verification-policy.json": {
+      "owner": "core/close_loop.py",
+      "kind": "config",
+      "scope": "global",
+      "concern": "close-on-verify criteria per scope + report locations",
+      "visibility": "shared"
+    },
+    "verification.html": {
+      "owner": "core/views.py",
+      "kind": "derived",
+      "scope": "project",
+      "concern": "static close-on-verify status + attached report links",
+      "visibility": "shared"
+    },
+    "agent-overlays.json": {
+      "owner": "core/prompt_overlays.py",
+      "kind": "config",
+      "scope": "global|project",
+      "concern": "runtime instruction overlays per agent (append/replace)",
+      "visibility": "shared"
+    },
+    "context-policy.json": {
+      "owner": "core/context_policy.py",
+      "kind": "config",
+      "scope": "global|project",
+      "concern": "per-agent FULL vs SUMMARY input policy + required inputs",
+      "visibility": "shared"
+    },
+    "model-catalog.json": {
+      "owner": "core/model_catalog.py",
+      "kind": "knowledge-base",
+      "scope": "global",
+      "concern": "per-model capability metadata fetched from providers (context/max_output/tools/reasoning/structured/modality/pricing)",
+      "visibility": "shared"
+    },
+    "knowledge-registry.json": {
+      "owner": "core/knowledge_registry.py",
+      "kind": "knowledge-base",
+      "scope": "global",
+      "concern": "add/modify/view knowledge bases, skills, techstacks, domains, guidelines, MCP (router/catalog source)",
+      "visibility": "shared"
+    },
+    "legacy-frozen.json": {
+      "owner": "scripts/dev/wired_audit.py",
+      "kind": "config",
+      "scope": "global",
+      "concern": "frozen legacy files (hash guard: do not edit/delete)",
+      "visibility": "shared"
+    },
+    "items/<ID>.json": {
+      "owner": "core/backlog.py",
+      "kind": "work-items",
+      "scope": "project|product_forge",
+      "concern": "TRUTH - one full work item per file (the API reads/writes only this)",
+      "visibility": "scope-local"
+    },
+    "history/<ID>.jsonl": {
+      "owner": "core/backlog.py",
+      "kind": "derived",
+      "scope": "project|product_forge",
+      "concern": "append-only journal per item (status + content changes)",
+      "visibility": "scope-local"
+    },
+    "agent-model-overrides.json": {
+      "owner": "core/agent_model_override.py",
+      "kind": "control",
+      "scope": "project",
+      "concern": "per-agent runtime model overrides (BI-0178)",
+      "visibility": "scope-local"
+    },
+    "changes/<ID>-functional.md": {
+      "owner": "core/change_spec.py",
+      "kind": "derived",
+      "scope": "project",
+      "concern": "auto-generated functional spec for change/new backlog items (BI-0183)",
+      "visibility": "scope-local"
+    },
+    "quality-gate.json": {
+      "owner": "core/run_quality_gate.py",
+      "kind": "evidence",
+      "scope": "project",
+      "concern": "latest repo quality-gate result for item/amend runs (BI-0184)",
+      "visibility": "scope-local"
+    }
+  },
+  "allow": [
+    "*.schema.json",
+    "dashboard/**",
+    "test-framework/tests/**",
+    "Chart.yaml",
+    "compose.yml",
+    "docker-compose.yaml",
+    "docker-compose.yml",
+    "deploy.yaml",
+    "deployment.yaml",
+    "k8s.yaml",
+    "playbook.yaml",
+    "playbook.yml",
+    ".gitlab-ci.yml",
+    "pubspec.yaml",
+    "tauri.conf.json",
+    "framework.yaml",
+    "tools.yaml",
+    "compliance.yaml",
+    "app.db",
+    "gcp-key.json",
+    "nfr-checklist.json",
+    "template.json",
+    "**/history/*.jsonl",
+    "**/*.schema.json",
+    "**/memory/**",
+    "**/compliance/*.json",
+    "**/approvals/**",
+    "dist/build-manifest-*.json",
+    "build-manifest-*.json",
+    "capabilities-*.json",
+    "prompts-archive-*.json",
+    "**/logs/**",
+    "**/intake/**",
+    "**/intake/**/items.jsonl",
+    "**/backlog/items/*.json",
+    "product-forge/archive/**"
+  ]
+}

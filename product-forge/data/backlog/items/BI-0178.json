@@ -1,0 +1,35 @@
+{
+  "id": "BI-0178",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "intake",
+  "external_id": "backend:agent-model-override",
+  "label": "PF Backlog 186",
+  "title": "Backend: per-agent runtime MODEL OVERRIDE store + precedence (override > stage > agent > default)",
+  "body": "## Problem / why\nThe dashboard (BI-0132) needs to change a SINGLE agent's model at runtime and have it PERSIST, but\nthe backend has no per-agent override. `core/orchestrator/model_router.py:get_agent_model_config`\nresolves the model from the TIER CONFIG only (stage.model > parent-stage > agent.model > default_model).\nChanging a model today means editing `config/model-tier.json`.\n\n## Goal & value\nA persisted, project-scoped per-agent model OVERRIDE with precedence\n`override > stage > agent > default`, so the dashboard can set/clear an agent's model and the\npipeline honours it on the next run.\n\n## In scope\n- Single-writer store for per-agent model overrides (project scope).\n- Resolution precedence integrated into `model_router.get_agent_model_config`.\n- Read/write API: get effective model + SOURCE (override|tier|default); set/clear override.\n\n## Out of scope\n- The dashboard UI (BI-0132). - Model catalog/pricing (BI-0173) and fit (BI-0077).\n- Auto model selection (owner: tier_builder, BI-0174).\n\n## Flow\n1. `get_agent_model_config(agent, stage)` checks the override store FIRST; if present returns\n   `{model, source: \"override\"}`.\n2. Dashboard `GET` returns effective `{model, source}`; `PUT` writes/clears the override.\n3. The next run / re-run resolves the overridden model.\n\n## Acceptance criteria (testable)\n- Given an override for agent A set to M', when `get_agent_model_config(A)` runs, then it returns M'\n  with source=override.\n- Given no override, resolution is UNCHANGED (stage > agent > default).\n- Given an override is cleared, resolution falls back and the store entry is removed.\n\n## Data model (what is stored, where, owner)\n- NEW store: per-agent model overrides (project-scoped), e.g.\n  `products/<project>/agent-model-overrides.json`; single writer = the new module; register it in\n  `config/store-registry.json` (kind `control`, scope `project`).\n\n## API contract (internal + HTTP)\n- `get_override(project, agent) -> {model} | None`\n- `set_override(project, agent, model, note)`\n- `clear_override(project, agent)`\n- HTTP (dashboard layer): `GET/PUT /api/agents/{agent}/model`\n\n## Edge cases & errors\n- Override model not in catalog -> allow, flag unverified.\n- Sub-agents inherit the parent's resolved model (keep existing inheritance; override applies to the\n  resolved agent).\n- Concurrent write -> last-writer-wins with `updated_at`.\n\n## Dependencies & links\n- Consumed by: BI-0132 (dashboard), BI-0121 (agent/model SSOT), BI-0046 (stop/re-run), BI-0077 (fit).\n\n## Open questions\n- Scope: per-project only, or also a global override?\n- Granularity: per `(agent)` or per `(agent, stage)`?\n\n## Verification / test plan\n- Unit: precedence `override > stage > agent > default`; set + clear.\n- Integration: `model_router` returns the override; the pipeline uses it.\n- Store registered; `compileall` + `wired_audit` green.\n",
+  "source": "generic",
+  "status": "completed",
+  "priority": null,
+  "moscow": "Should",
+  "value": 3,
+  "effort": 2,
+  "risk": 2,
+  "deps": [],
+  "links": {
+    "paired_with": "project:ProductForge-Dashboard:BI-0132"
+  },
+  "decisions": [],
+  "follow_up": {},
+  "created_at": "2026-09-24T21:27:18.598234",
+  "updated_at": "2026-09-24T22:43:38.492596",
+  "score": 1.12,
+  "dashboard_impact": {
+    "needs_dashboard": true,
+    "reason": "Enables the dashboard Agents window (BI-0132) to change an agent's model at runtime.",
+    "dashboard_item": "project:ProductForge-Dashboard:BI-0132",
+    "reviewed_by": "agent",
+    "reviewed_at": "2026-09-24T21:27:18.649526"
+  },
+  "_note": "core/agent_model_override.py (single writer): products/<project>/agent-model-overrides.json with load/get/set/clear/effective + CLI. Wired into core/orchestrator/model_router.get_agent_model_config (precedence override > stage > agent > default; returns source=override, overridden=True). Store registered in config/store-registry.json. Verified: researcher@0c mimo-v2.5 (tier) -> override gpt-5.6-sol (source=override) -> clear -> mimo-v2.5. compileall=0, wired_audit=0, RUNTIME."
+}

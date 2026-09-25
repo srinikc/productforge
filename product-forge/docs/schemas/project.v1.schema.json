@@ -1,0 +1,179 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://product-forge.dev/schemas/project.v1.schema.json",
+  "title": "Project Config",
+  "description": "Schema for products/<project>/project.json",
+  "type": "object",
+  "required": [
+    "name"
+  ],
+  "properties": {
+    "name": {
+      "type": "string"
+    },
+    "idea": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "auto_approve": {
+      "type": "boolean"
+    },
+    "approval_mode": {
+      "type": "string",
+      "enum": [
+        "interactive",
+        "auto",
+        "semi"
+      ]
+    },
+    "max_total_time": {
+      "type": "integer"
+    },
+    "parallel_stages": {
+      "type": "boolean"
+    },
+    "business_model": {
+      "type": "string"
+    },
+    "product_domain": {
+      "type": "string"
+    },
+    "tech_stack": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "tech_stack_hints": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "implementation_iterations": {
+      "oneOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "integer"
+        }
+      ]
+    },
+    "enable_delegation": {
+      "type": "boolean"
+    },
+    "enable_tools": {
+      "type": "boolean"
+    },
+    "budget": {
+      "type": "object",
+      "properties": {
+        "currency": {
+          "type": "string"
+        },
+        "soft_cost": {
+          "type": "number"
+        },
+        "hard_cost": {
+          "type": "number"
+        },
+        "soft_tokens": {
+          "type": "integer"
+        },
+        "hard_tokens": {
+          "type": "integer"
+        },
+        "variance_percent": {
+          "type": "number"
+        },
+        "rate_limit_tokens_per_min": {
+          "type": "integer"
+        }
+      }
+    },
+    "test": {
+      "type": "object",
+      "description": "Test configuration (platform-agnostic).",
+      "properties": {
+        "command": {
+          "oneOf": [
+            { "type": "string" },
+            { "type": "array", "items": { "type": "string" } }
+          ],
+          "description": "Universal escape hatch: any stack/tool test command."
+        },
+        "framework": { "type": "string" },
+        "categories": { "type": "array", "items": { "type": "string" } },
+        "generate": {
+          "type": "boolean",
+          "description": "Generate FR/NFR-tagged test scaffolds before the implement agent runs (opt-in)."
+        },
+        "enforce_coverage": {
+          "type": "boolean",
+          "description": "Fail validate when FR/NFR requirement ids have no referencing test (opt-in)."
+        }
+      }
+    },
+    "deploy": {
+      "type": "object",
+      "description": "Deployment provider config used to bring the app up/down around UI/e2e tests.",
+      "properties": {
+        "target": {
+          "type": "string",
+          "description": "docker|local|command|kubernetes|helm|terraform|ansible|chef|puppet|paas|installer|aws|gcp|azure"
+        },
+        "url": { "type": "string" },
+        "base_url": { "type": "string" },
+        "health": { "type": "string" },
+        "timeout": { "type": "integer" },
+        "commands": {
+          "type": "object",
+          "properties": {
+            "apply": { "type": "array" },
+            "verify": { "type": "array" },
+            "destroy": { "type": "array" }
+          }
+        }
+      }
+    },
+    "mobile": {
+      "type": "object",
+      "description": "Mobile platform config (simulator/emulator or external device farm).",
+      "properties": {
+        "ios": { "$ref": "#/definitions/mobilePlatform" },
+        "android": { "$ref": "#/definitions/mobilePlatform" }
+      }
+    },
+    "created_at": {
+      "type": "string"
+    }
+  },
+  "definitions": {
+    "mobilePlatform": {
+      "type": "object",
+      "properties": {
+        "bundle_id": { "type": "string" },
+        "package": { "type": "string" },
+        "app_path": { "type": "string" },
+        "apk_path": { "type": "string" },
+        "test_command": {
+          "oneOf": [
+            { "type": "string" },
+            { "type": "array", "items": { "type": "string" } }
+          ],
+          "description": "External runner (Appium/BrowserStack/Firebase/Maestro); supports {platform}."
+        },
+        "farm_command": {
+          "oneOf": [
+            { "type": "string" },
+            { "type": "array", "items": { "type": "string" } }
+          ]
+        }
+      }
+    }
+  },
+  "additionalProperties": true
+}

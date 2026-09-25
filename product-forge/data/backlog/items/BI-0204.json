@@ -1,0 +1,35 @@
+{
+  "id": "BI-0204",
+  "type": "tech-debt",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "intake",
+  "external_id": "backend:single-source-paths",
+  "label": "PF Backlog 213",
+  "title": "Backend: single source for paths (core/paths.py ROOT + derived dirs; relative-to-root, not CWD)",
+  "body": "## Problem / why\nThe repo root is recomputed in many modules via os.path.dirname(...) chains and paths are opened\nCWD-relative; there is no single source. Moving the product (BI-0203) needs one authoritative root.\n\n## Goal & value\nONE module (core/paths.py) exposes ROOT (absolute, from __file__, PF_ROOT-env override) + derived dirs\n(PRODUCTS_DIR, CONFIG_DIR, DOCS_DIR, FORGE_HOME, FORGE_DATA_DIR, ...). All code derives paths from\nROOT (relative to ROOT - never CWD, never absolute literals, no dirname chains).\n\n## Acceptance criteria (testable)\n- Only core/paths.py computes the repo root; every other module imports from it.\n- Running a command from any CWD yields identical paths.\n- grep: no new os.path.dirname(dirname(...)) root computations.\n\n## Dependencies & links\n- Part of BI-0203 (repo restructure). FORGE_DATA_DIR concept from the data-move decision.\n\n## Verification / test plan\n- Run tests from repo root AND a subdir; identical results; compileall + wired_audit green.\n",
+  "source": "generic",
+  "status": "new",
+  "priority": null,
+  "moscow": "Should",
+  "value": 3,
+  "effort": 2,
+  "risk": 2,
+  "deps": [],
+  "links": {
+    "relates_to": "product_forge:BI-0203"
+  },
+  "decisions": [],
+  "follow_up": {},
+  "created_at": "2026-09-25T16:02:08.926717",
+  "updated_at": "2026-09-25T16:02:08.956745",
+  "score": 1.12,
+  "dashboard_impact": {
+    "needs_dashboard": false,
+    "reason": "Backend structural; no UI change.",
+    "dashboard_item": null,
+    "reviewed_by": "agent",
+    "reviewed_at": "2026-09-25T16:02:08.933759"
+  },
+  "_note": "dashboard_impact reviewed"
+}

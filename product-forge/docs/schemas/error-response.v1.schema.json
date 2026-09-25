@@ -1,0 +1,74 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://product-forge.dev/schemas/error-response.v1.schema.json",
+  "title": "Error Response",
+  "description": "Standard error response format returned by agents when they encounter failures.",
+  "type": "object",
+  "required": ["error_code", "error_type", "message", "recoverable"],
+  "additionalProperties": false,
+  "properties": {
+    "error_code": {
+      "type": "string",
+      "pattern": "^E[A-Z]{2}-[0-9]{4}$",
+      "description": "Unique error code (e.g., EIM-0001 for implementation errors)"
+    },
+    "error_type": {
+      "type": "string",
+      "enum": [
+        "validation_error",
+        "file_not_found",
+        "permission_denied",
+        "dependency_missing",
+        "test_failure",
+        "compliance_failure",
+        "build_failure",
+        "deploy_failure",
+        "budget_exceeded",
+        "timeout",
+        "circuit_breaker_open",
+        "dlq_capacity",
+        "unknown"
+      ]
+    },
+    "message": {
+      "type": "string",
+      "description": "Human-readable error message"
+    },
+    "recoverable": {
+      "type": "boolean",
+      "description": "Whether this error is recoverable"
+    },
+    "severity": {
+      "type": "string",
+      "enum": ["critical", "high", "medium", "low"],
+      "default": "high"
+    },
+    "context": {
+      "type": "object",
+      "description": "Additional error context",
+      "additionalProperties": true
+    },
+    "retry_count": {
+      "type": "integer",
+      "minimum": 0,
+      "default": 0
+    },
+    "max_retries": {
+      "type": "integer",
+      "minimum": 0,
+      "default": 3
+    },
+    "suggested_fix": {
+      "type": "string",
+      "description": "Suggested fix for the error"
+    },
+    "stack_trace": {
+      "type": "string",
+      "description": "Stack trace (for code errors)"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

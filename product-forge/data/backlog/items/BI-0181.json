@@ -1,0 +1,33 @@
+{
+  "id": "BI-0181",
+  "type": "tech-debt",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "intake",
+  "external_id": "backend:journal-backfill-bi-0131",
+  "label": "PF Backlog 190",
+  "title": "Backend: backfill missing journal for backlog item BI-0131 (pre-existing gap)",
+  "body": "## Problem / why\nDashboard item `BI-0131` has NO `history/BI-0131.jsonl` (pre-existing gap from a historical direct\nwrite that bypassed core/backlog.py). The schema expects every item to have a journal.\n\n## Goal & value\nBackfill a single, clearly-marked first journal line so every item has a journal. Do NOT fabricate a\nreal transition - mark it as a backfill.\n\n## Acceptance criteria (testable)\n- `backlog.history('project','ProductForge-Dashboard','BI-0131')` returns 1 entry whose\n  `event == \"backfill\"`, `at` = the item's `created_at`, note = \"journal created retroactively\".\n\n## Data model\n- Writes `history/BI-0131.jsonl` only (owner core/backlog.py). No item change.\n\n## Verification / test plan\n- item count == journal count for the dashboard scope; gate green.\n",
+  "source": "generic",
+  "status": "completed",
+  "priority": null,
+  "moscow": "Could",
+  "value": 2,
+  "effort": 1,
+  "risk": 1,
+  "deps": [],
+  "links": {},
+  "decisions": [],
+  "follow_up": {},
+  "created_at": "2026-09-24T22:41:24.837916",
+  "updated_at": "2026-09-24T22:41:53.396693",
+  "score": 2.0,
+  "dashboard_impact": {
+    "needs_dashboard": false,
+    "reason": "Internal/data-quality fix; no dashboard/UI behaviour change.",
+    "dashboard_item": null,
+    "reviewed_by": "agent",
+    "reviewed_at": "2026-09-24T22:41:24.844542"
+  },
+  "_note": "core/backlog.py:backfill_journal(scope,project,eid) added (idempotent, never fabricates). Wrote 1 backfill line for products/ProductForge-Dashboard/backlog/history/BI-0131.jsonl. Dashboard item/journal counts now match."
+}

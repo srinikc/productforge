@@ -1,0 +1,42 @@
+{
+  "id": "BI-0054",
+  "type": "bug",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "pipeline",
+  "external_id": "forge:wiring-gaps-remediate",
+  "label": "PF Backlog 54",
+  "title": "Wiring gaps (backend): memory_api, ports single-writer, knowledge-graph persist, on_complete, intent_router",
+  "body": "1) core/memory_api.py is probe-only (reachable via pipeline_capabilities string, never exercised) -> wire or retire its surface. 2) ports: core/port_config.update_ports_from_config is effectively dead; runtime writer is pipeline_executor._derive_ports -> single writer. 3) core/phase3_advanced knowledge graph is in-memory only (graph_file assigned, never saved) -> persist or declare ephemeral. 4) pipeline-definition.json on_complete is never executed -> remove or implement. 5) core/intent_router.py is header-marked DEPRECATED yet sits on the live intake path -> un-deprecate or replace. Refs: core/pipeline_capabilities.py:177, core/port_config.py:1121, core/phase3_advanced.py:204, pipeline-definition.json, core/intent_router.py:1.",
+  "source": "code-audit",
+  "status": "completed",
+  "priority": null,
+  "moscow": "Must",
+  "value": 4,
+  "effort": 3,
+  "risk": 2,
+  "deps": [],
+  "links": {},
+  "decisions": [
+    {
+      "at": "2026-09-22T01:49:59.157900",
+      "action": "triage",
+      "note": "[P1] Foundational wiring: memory_api, ports single-writer, KG persist, on_complete, intent_router."
+    }
+  ],
+  "follow_up": {},
+  "created_at": "2026-09-22T01:41:07.671814",
+  "updated_at": "2026-09-23T01:09:02.759134",
+  "score": 1.0,
+  "tags": [
+    "Dash"
+  ],
+  "_note": "verified: core/intent_router.py wired",
+  "dashboard_impact": {
+    "needs_dashboard": false,
+    "reason": "backend-internal; no user-facing surface",
+    "dashboard_item": null,
+    "reviewed_by": "owner-review-2026-09-22",
+    "reviewed_at": "2026-09-22T20:41:02.248538"
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "id": "BI-0183",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "intake",
+  "external_id": "backend:change-item-functional-spec",
+  "label": "PF Backlog 192",
+  "title": "Backend: auto-create a functional spec for backlog items that are changes/new (not planned features)",
+  "body": "## Problem / why\nWhen a backlog item is a CHANGE from the original design or a NEW item that is NOT part of the\nplanned features (no feature_id / not in design+architect output), it has no functional spec - so\nits design is unclear. Planned features get `artifacts/1 - Design/features/F-x-functional.md`; ad-hoc\nchanges do not.\n\n## Goal & value\nFor every backlog item that is a change/new (not a planned feature), create a per-item FUNCTIONAL\nSPEC so the item is clear and design-authoritative, referenced by the item.\n\n## In scope\n- Detect items that are changes/new (no feature_id, or flagged as change vs original design).\n- Generate a functional spec from the item's rich context (template: problem/scope/behaviour/\n  acceptance/edge cases/API), sourced from the item + its linked artifacts/items.\n- Store at `products/<p>/artifacts/1 - Design/changes/<id>-functional.md` (owner = generator),\n  append-only; link it back on the item (links.spec).\n- Register the store; wire into the item lifecycle (on create/accept) so it is not a manual step.\n\n## Acceptance criteria (testable)\n- A change/new item gets a functional spec file + `links.spec` set; planned-feature items do not.\n- Re-run is idempotent (no duplicate spec; spec updated only when the item body changes).\n\n## Out of scope\n- Full design/review of the spec (human/agent review is separate).\n\n## Open questions\n- Trigger point: on create, on triage/accept, or a batch job?\n- Should the generator use an LLM call or a template filled from the item context?\n\n## Verification / test plan\n- Create a change item -> spec file exists + linked; planned feature item -> unchanged; gate green.\n",
+  "source": "generic",
+  "status": "completed",
+  "priority": null,
+  "moscow": "Should",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [],
+  "links": {},
+  "decisions": [],
+  "follow_up": {},
+  "created_at": "2026-09-24T22:50:10.159521",
+  "updated_at": "2026-09-24T23:14:19.762879",
+  "score": 0.75,
+  "dashboard_impact": {
+    "needs_dashboard": false,
+    "reason": "Backend capability/knowledge + spec generation; consumed via API, no UI change.",
+    "dashboard_item": null,
+    "reviewed_by": "agent",
+    "reviewed_at": "2026-09-24T22:50:10.168109"
+  },
+  "_note": "core/change_spec.py: changes/<ID>-functional.md generator for change/new items (no feature_id + type feature/change/tech-debt). Wired into core/intake.py on item creation; CLI `python -m core.change_spec --project <p>`. Idempotent via src-body-sha256; links back links.spec; planned-feature items skipped. Store registered. VERIFIED: change item -> spec + links.spec; re-run changed=False; body change -> refresh; planned feature -> None. compileall=0, wired_audit=0."
+}

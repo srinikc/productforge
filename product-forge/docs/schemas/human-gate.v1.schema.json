@@ -1,0 +1,78 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://product-forge.dev/schemas/human-gate.v1.schema.json",
+  "title": "Human Gate",
+  "description": "Schema for human approval gates in the pipeline. Defines when human review is required and the decision structure.",
+  "type": "object",
+  "required": ["gate_id", "stage", "agent", "trigger", "decision"],
+  "additionalProperties": false,
+  "properties": {
+    "gate_id": {
+      "type": "string",
+      "pattern": "^HG-[0-9]{3}$",
+      "description": "Unique gate ID (e.g., HG-001)"
+    },
+    "stage": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 12,
+      "description": "Pipeline stage this gate is at"
+    },
+    "agent": {
+      "type": "string",
+      "description": "Agent that triggers this gate"
+    },
+    "trigger": {
+      "type": "string",
+      "enum": ["auto", "always", "on_failure", "on_threshold", "manual"],
+      "description": "When this gate is triggered"
+    },
+    "trigger_config": {
+      "type": "object",
+      "description": "Configuration for threshold-based triggers",
+      "properties": {
+        "threshold_type": { "type": "string", "enum": ["compliance_score", "test_coverage", "defect_count"] },
+        "threshold_value": { "type": "number" },
+        "operator": { "type": "string", "enum": ["lt", "lte", "gt", "gte"] }
+      }
+    },
+    "context": {
+      "type": "object",
+      "description": "Context provided to the reviewer",
+      "additionalProperties": true
+    },
+    "decision": {
+      "type": ["object", "null"],
+      "description": "Decision made (null if pending)",
+      "properties": {
+        "by": { "type": "string", "description": "Who made the decision" },
+        "at": { "type": "string", "format": "date-time", "description": "When the decision was made" },
+        "choice": {
+          "type": "string",
+          "enum": ["approve", "request_changes", "reject", "skip"],
+          "description": "Decision choice"
+        },
+        "notes": { "type": "string", "description": "Decision notes" },
+        "changes_requested": {
+          "type": "array",
+          "description": "Specific changes requested (for request_changes)",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "timeout_minutes": {
+      "type": "integer",
+      "minimum": 1,
+      "default": 60,
+      "description": "Minutes before gate expires (auto-skip)"
+    },
+    "escalation": {
+      "type": "object",
+      "description": "Escalation policy if gate times out",
+      "properties": {
+        "on_timeout": { "type": "string", "enum": ["skip", "escalate", "fail"] },
+        "escalate_to": { "type": "string", "description": "Who to escalate to" }
+      }
+    }
+  }
+}

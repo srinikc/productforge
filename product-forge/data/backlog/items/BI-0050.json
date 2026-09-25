@@ -1,0 +1,42 @@
+{
+  "id": "BI-0050",
+  "type": "bug",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "pipeline",
+  "external_id": "forge:registry-drift",
+  "label": "PF Backlog 50",
+  "title": "Fix store-registry drift: unregistered live stores, portfolio.db/queue.db path, factory_context naming",
+  "body": "Code sweep found registry drift that must be fixed backend-first:\n1) UNREGISTERED LIVE STORES: products/index.json (writer core/global_orchestrator.py:89, scripts/pipeline_helpers.py:30) and products/queue.json (writer core/queue_manager.py:59, scripts/pipeline.py:770) have no store-registry entry, no API route and no dashboard item.\n2) DB PATH MISMATCH: registry entry for portfolio.db says 'moved -> product-forge/portfolio/queue.db' but the file is still portfolio.db and queue.db does not exist; the live queue is products/queue.json.\n3) NAMING: product_forge_context/factory_context.json contains the FORBIDDEN token 'factory' and is the wrong filename vs what the router reads (product_forge_context/product_forge_context.json).\n4) UNREGISTERED PROJECT DIRS: products/<project>/{memory/, compliance/, approvals/} hold data with no registered store.\nFix: add missing registry entries (or fold), correct the DB path/name, rename+clean the context file, and extend wired_audit's factory check to cover these paths.",
+  "source": "code-audit",
+  "status": "completed",
+  "priority": null,
+  "moscow": "Must",
+  "value": 5,
+  "effort": 3,
+  "risk": 2,
+  "deps": [],
+  "links": {},
+  "decisions": [
+    {
+      "at": "2026-09-22T01:49:59.040205",
+      "action": "triage",
+      "note": "[P1] Foundational: fix store-registry drift so the truths are correct before anything reads them."
+    }
+  ],
+  "follow_up": {},
+  "created_at": "2026-09-22T01:30:53.588991",
+  "updated_at": "2026-09-23T01:09:02.665674",
+  "score": 1.25,
+  "tags": [
+    "Dash"
+  ],
+  "_note": "verified: config/store-registry.json reconciled",
+  "dashboard_impact": {
+    "needs_dashboard": false,
+    "reason": "backend-internal; no user-facing surface",
+    "dashboard_item": null,
+    "reviewed_by": "owner-review-2026-09-22",
+    "reviewed_at": "2026-09-22T20:41:02.138795"
+  }
+}

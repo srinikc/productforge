@@ -1,0 +1,42 @@
+{
+  "id": "BI-0048",
+  "type": "bug",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "pipeline",
+  "external_id": "forge:prompt-timeout-silent-accept",
+  "label": "PF Backlog 48",
+  "title": "Discovery panel prompt timeout silently accepts the recommendation (owner wants to verify each)",
+  "body": "Observed: core/interactive.ask() for a discovery-panel question fell back to the default after PIPELINE_PROMPT_TIMEOUT (3600s) and core/discovery_panel.record_answers() treats an empty answer as 'accept the recommendation' - so an unanswered question is recorded as accepted with NO explicit owner decision (P27 was auto-accepted this way). Owner wants to verify each answer. Fix options: (a) do not auto-accept on timeout - mark the question as 'timed_out/unanswered' and require an explicit accept; (b) raise/allow per-question timeout; (c) surface timed-out questions to the dashboard for review. Refs: core/interactive.py:ask(), core/discovery_panel.py:record_answers().",
+  "source": "pipeline",
+  "status": "completed",
+  "priority": null,
+  "moscow": "Should",
+  "value": 3,
+  "effort": 2,
+  "risk": 2,
+  "deps": [],
+  "links": {},
+  "decisions": [
+    {
+      "at": "2026-09-22T01:49:59.721114",
+      "action": "triage",
+      "note": "[P3] Prompt timeout must not silently accept; require explicit accept."
+    }
+  ],
+  "follow_up": {},
+  "created_at": "2026-09-22T01:18:28.739862",
+  "updated_at": "2026-09-23T01:09:59.905500",
+  "score": 1.12,
+  "tags": [
+    "Dash"
+  ],
+  "_note": "verified: empty/timed-out discovery answer is now 'unanswered' (needs_verification), not auto-accepted; only explicit 'accept' accepts",
+  "dashboard_impact": {
+    "needs_dashboard": true,
+    "reason": "HIL prompt/approval surface exists (dashboard HIL decision dialog)",
+    "dashboard_item": "project:ProductForge-Dashboard:BI-0075",
+    "reviewed_by": "owner-review-2026-09-22",
+    "reviewed_at": "2026-09-22T20:41:02.086478"
+  }
+}

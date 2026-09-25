@@ -1,0 +1,302 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://product-forge.dev/schemas/pipeline-state.v1.schema.json",
+  "title": "Pipeline State",
+  "description": "Schema for products/<project>/pipeline.json. Tracks the state of all pipeline stages, human gates, blockers, and runtime configuration.",
+  "type": "object",
+  "required": [
+    "project",
+    "spec_version",
+    "created_at",
+    "updated_at",
+    "current_stage",
+    "stages"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "project": {
+      "type": "string",
+      "description": "Project name (kebab-case, e.g., 'myworld')",
+      "pattern": "^[a-z][a-z0-9-]{0,62}$"
+    },
+    "spec_version": {
+      "type": "string",
+      "description": "Pipeline state schema version",
+      "const": "1.0"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the pipeline started (ISO 8601)"
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Last update time (ISO 8601)"
+    },
+    "current_stage": {
+      "type": [
+        "integer",
+        "string"
+      ],
+      "description": "Current stage id (stage ids may be non-numeric, e.g. '4a')"
+    },
+    "current_agent": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Currently running agent (or null if paused)"
+    },
+    "pipeline_complete": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether the entire pipeline is complete"
+    },
+    "completed_at": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time",
+      "description": "When pipeline completed (ISO 8601)"
+    },
+    "stages": {
+      "type": "object",
+      "description": "Map of stage number (as string) to stage state",
+      "additionalProperties": {
+        "$ref": "#/definitions/StageState"
+      }
+    },
+    "human_gates": {
+      "type": "object",
+      "description": "Map of gate_id to gate state",
+      "additionalProperties": {
+        "$ref": "#/definitions/HumanGate"
+      }
+    },
+    "blockers": {
+      "type": "array",
+      "description": "Active blockers preventing pipeline progression",
+      "items": {
+        "type": "object",
+        "required": [
+          "type",
+          "message",
+          "since"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "defect",
+              "compliance",
+              "human",
+              "budget",
+              "external"
+            ]
+          },
+          "message": {
+            "type": "string"
+          },
+          "since": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "resolved_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        }
+      }
+    },
+    "config": {
+      "type": "object",
+      "description": "Runtime configuration overrides",
+      "additionalProperties": true
+    },
+    "pipeline_id": {
+      "type": "string"
+    },
+    "started_at": {
+      "type": "string"
+    },
+    "current_iteration": {
+      "type": "integer"
+    },
+    "completed_stages": {
+      "type": "array"
+    },
+    "total_tokens": {
+      "type": "integer"
+    },
+    "total_cost": {
+      "type": "number"
+    },
+    "stage_durations": {
+      "type": "array"
+    },
+    "decision_log": {
+      "type": "array"
+    },
+    "saved_at": {
+      "type": "string"
+    }
+  },
+  "definitions": {
+    "StageState": {
+      "type": "object",
+      "required": [
+        "status"
+      ],
+      "additionalProperties": true,
+      "properties": {
+        "agent": {
+          "type": "string",
+          "description": "Agent name for this stage"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "ready",
+            "blocked",
+            "running",
+            "in_progress",
+            "completed",
+            "failed",
+            "skipped",
+            "stale",
+            "needs_retry",
+            "escalated"
+          ],
+          "description": "Stage execution status"
+        },
+        "error": {
+          "type": "string"
+        },
+        "started_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "completed_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "verdict": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "APPROVED",
+            "REJECTED",
+            "CHANGES_REQUIRED",
+            "N/A",
+            null
+          ]
+        },
+        "compliance_score": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 100
+        },
+        "artifacts": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "call_count": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Number of times this stage has been invoked (for multi-call tracking)"
+        },
+        "last_call_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "notes": {
+          "type": "string"
+        }
+      }
+    },
+    "HumanGate": {
+      "type": "object",
+      "required": [
+        "stage",
+        "agent",
+        "required"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "stage": {
+          "type": "integer"
+        },
+        "agent": {
+          "type": "string"
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "triggered_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "expires_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "context": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "decision": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "by": {
+              "type": "string"
+            },
+            "at": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "choice": {
+              "type": "string",
+              "enum": [
+                "approve",
+                "request_changes",
+                "reject",
+                "skip"
+              ]
+            },
+            "notes": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,27 @@
+flow: Multi-Agent Multi-Project Pipeline
+direction: LR
+
+[start] user: User Input { icon: "User", color: "blue" }
+[process] ideation: "0 Ideation - mimo-v2.5 - ~0.02" { icon: "Lightbulb", color: "violet" }
+[process] design: "1 Design - minimax-m3 - ~0.04" { icon: "Palette", color: "teal" }
+[process] architect: "2 Architect - qwen3.7-max - ~0.53" { icon: "Building", color: "teal" }
+[process] review: "3 Review - qwen3.7-plus - ~0.07" { icon: "CheckCircle", color: "amber" }
+[decision] gate: Approved? { color: "emerald" }
+[process] implement: "4 Implement - kimi-k2.7-code - ~0.62" { icon: "Code", color: "orange" }
+[process] code-review: "5 Code Review - kimi-k2.7-code - ~0.37" { icon: "Search", color: "purple" }
+[process] validate: "6 Validate - deepseek-v4-flash - ~0.04" { icon: "Bug", color: "purple" }
+[process] fix: "7 Fix - kimi-k2.7-code - ~0.31" { icon: "Wrench", color: "red" }
+[end] done: "Done - Total: ~2.00" { icon: "Check", color: "emerald" }
+
+user ==> ideation
+ideation ==> design
+design ==> architect
+architect ==> review
+review -> gate
+gate ->|APPROVED| implement
+gate ->|CHANGES| review
+implement ==> code-review
+code-review ==> validate
+validate ->|issues| fix
+fix ==> implement
+validate ->|PASS| done

@@ -1,0 +1,455 @@
+openapi: 3.1.0
+info:
+  title: Product Forge Intake API
+  description: Send conversations from ChatGPT to Product Forge for processing.
+  version: 1.0.0
+
+servers:
+  - url: https://jumbo-submersed-escargot.ngrok-free.dev
+    description: ngrok tunnel to local factory
+
+paths:
+  /api/v1/intake/upload-chunk:
+    post:
+      operationId: uploadChunk
+      summary: Upload a chunk of file content
+      description: Upload a chunk of file content for large files. Send all chunks, then call upload-complete.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChunkInput'
+      responses:
+        '200':
+          description: Chunk received
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChunkResponse'
+
+  /api/v1/intake/upload-complete:
+    post:
+      operationId: uploadComplete
+      summary: Signal all chunks uploaded and process file
+      description: Called after all chunks are uploaded. Combines chunks and processes the complete file.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UploadCompleteInput'
+      responses:
+        '200':
+          description: File processed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IntakeResponse'
+
+  /api/v1/intake:
+    post:
+      operationId: sendConversation
+      summary: Send a conversation to Product Forge
+      description: Sends a conversation for processing. The factory extracts ideas, requirements, and decisions.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConversationInput'
+      responses:
+        '201':
+          description: Conversation received
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IntakeResponse'
+        '400':
+          description: Invalid request
+        '409':
+          description: Conversation already received (dedup)
+
+  /api/v1/intake/{conversation_id}:
+    get:
+      operationId: getConversationStatus
+      summary: Get conversation status and extracted data
+      parameters:
+        - name: conversation_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Conversation status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConversationStatus'
+
+  /api/v1/intake/{conversation_id}/plan:
+    get:
+      operationId: getImplementationPlan
+      summary: Get implementation plan for factory improvement
+      description: Returns the implementation plan with file changes, risk assessment, and diff previews.
+      parameters:
+        - name: conversation_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Implementation plan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImplementationPlan'
+
+  /api/v1/intake/{conversation_id}/execute:
+    post:
+      operationId: executeChanges
+      summary: Execute approved changes
+      description: Execute the approved file changes from the implementation plan.
+      parameters:
+        - name: conversation_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExecuteInput'
+      responses:
+        '200':
+          description: Execution result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExecutionResult'
+
+  /api/v1/conversations:
+    get:
+      operationId: listConversations
+      summary: List all conversations
+      parameters:
+        - name: source
+          in: query
+          schema:
+            type: string
+            enum: [chatgpt, gemini, claude, manual]
+        - name: status
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of conversations
+
+  /api/v1/ideas:
+    get:
+      operationId: listIdeas
+      summary: List all extracted ideas
+      responses:
+        '200':
+          description: List of ideas
+
+  /api/v1/projects:
+    get:
+      operationId: listProjects
+      summary: List all projects
+      responses:
+        '200':
+          description: List of projects
+
+components:
+  schemas:
+    ChunkInput:
+      type: object
+      required:
+        - conversation_id
+        - chunk_index
+        - total_chunks
+        - content
+      properties:
+        conversation_id:
+          type: string
+          description: Unique conversation identifier (use same ID for all chunks)
+        chunk_index:
+          type: integer
+          description: Current chunk number (0-based)
+        total_chunks:
+          type: integer
+          description: Total number of chunks
+        content:
+          type: string
+          description: The chunk content (up to 50K chars)
+
+    ChunkResponse:
+      type: object
+      properties:
+        received:
+          type: boolean
+        chunks_received:
+          type: integer
+        total_chunks:
+          type: integer
+        complete:
+          type: boolean
+
+    UploadCompleteInput:
+      type: object
+      required:
+        - conversation_id
+        - title
+        - intent
+      properties:
+        conversation_id:
+          type: string
+          description: Must match the ID used in upload-chunk calls
+        source_platform:
+          type: string
+          enum: [chatgpt, gemini, claude, manual]
+          default: chatgpt
+        title:
+          type: string
+          description: Short title for the conversation
+        intent:
+          type: string
+          enum: [save_idea, new_project, new_project_quick, modify_project, add_context, product_forge_improvement]
+        extracted_ideas:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExtractedIdea'
+        extracted_requirements:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExtractedRequirement'
+        extracted_decisions:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExtractedDecision'
+
+    ConversationInput:
+      type: object
+      required:
+        - intent
+        - messages
+      properties:
+        source_platform:
+          type: string
+          enum: [chatgpt, gemini, claude, manual]
+          default: chatgpt
+        conversation_id:
+          type: string
+        intent:
+          type: string
+          enum: [save_idea, new_project, new_project_quick, modify_project, add_context, product_forge_improvement]
+        target_project_name:
+          type: string
+        project_name:
+          type: string
+        title:
+          type: string
+        messages:
+          type: array
+          items:
+            $ref: '#/components/schemas/Message'
+        extracted_ideas:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExtractedIdea'
+          description: 'REQUIRED: Extract ideas from the conversation. Include at least 1 idea.'
+        extracted_requirements:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExtractedRequirement'
+          description: 'REQUIRED: Extract requirements from the conversation. What needs to be built?'
+        extracted_decisions:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExtractedDecision'
+          description: 'REQUIRED: Extract decisions from the conversation. What choices were made?'
+        metadata:
+          type: object
+          additionalProperties: true
+
+    Message:
+      type: object
+      required:
+        - role
+        - content
+      properties:
+        role:
+          type: string
+          enum: [user, assistant]
+        content:
+          type: string
+
+    ExtractedIdea:
+      type: object
+      properties:
+        title:
+          type: string
+          description: Brief title for the idea
+        description:
+          type: string
+          description: Detailed description
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: Confidence score (0.0 to 1.0)
+
+    ExtractedRequirement:
+      type: object
+      properties:
+        requirement_text:
+          type: string
+          description: What is needed
+        requirement_type:
+          type: string
+          enum: [functional, non-functional, technical, business]
+          description: Type of requirement
+        priority:
+          type: string
+          enum: [low, medium, high, critical]
+          description: Priority level
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: Confidence score (0.0 to 1.0)
+
+    ExtractedDecision:
+      type: object
+      properties:
+        decision_text:
+          type: string
+          description: What was decided
+        rationale:
+          type: string
+          description: Why this decision was made
+
+    IntakeResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        status:
+          type: string
+        message:
+          type: string
+        chunks_processed:
+          type: integer
+        content_length:
+          type: integer
+
+    ConversationStatus:
+      type: object
+      properties:
+        id:
+          type: string
+        source_platform:
+          type: string
+        intent:
+          type: string
+        title:
+          type: string
+        status:
+          type: string
+        ideas_extracted:
+          type: integer
+        requirements_extracted:
+          type: integer
+        created_at:
+          type: string
+
+    ImplementationPlan:
+      type: object
+      properties:
+        id:
+          type: string
+        conversation_id:
+          type: string
+        file_changes:
+          type: array
+          items:
+            $ref: '#/components/schemas/FileChange'
+        risk_level:
+          type: string
+          enum: [low, medium, high]
+        requires_tests:
+          type: boolean
+        rollback_available:
+          type: boolean
+        status:
+          type: string
+
+    FileChange:
+      type: object
+      properties:
+        id:
+          type: string
+        file_path:
+          type: string
+        operation:
+          type: string
+          enum: [modify, create, delete]
+        line_start:
+          type: integer
+        line_end:
+          type: integer
+        old_code:
+          type: string
+        new_code:
+          type: string
+        explanation:
+          type: string
+        risk_level:
+          type: string
+        selected:
+          type: boolean
+
+    ExecuteInput:
+      type: object
+      properties:
+        approved_changes:
+          type: array
+          items:
+            type: string
+          description: List of file paths to execute (if empty, executes all selected)
+
+    ExecutionResult:
+      type: object
+      properties:
+        id:
+          type: string
+        plan_id:
+          type: string
+        conversation_id:
+          type: string
+        files_modified:
+          type: array
+          items:
+            type: string
+        tests_passed:
+          type: boolean
+        syntax_valid:
+          type: boolean
+        success:
+          type: boolean
+        rolled_back:
+          type: boolean
+        error_message:
+          type: string
+        backup_paths:
+          type: array
+          items:
+            type: string
+        executed_at:
+          type: string

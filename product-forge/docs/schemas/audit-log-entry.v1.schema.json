@@ -1,0 +1,211 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://product-forge.dev/schemas/audit-log-entry.v1.schema.json",
+  "title": "Audit Log Entry",
+  "description": "Schema for individual entries in products/<project>/agent-audit.md. One entry per agent action.",
+  "type": "object",
+  "required": [
+    "entry_id",
+    "timestamp",
+    "agent",
+    "stage",
+    "action",
+    "status"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "entry_id": {
+      "type": "string",
+      "pattern": "^AUD-[0-9]{6,}$",
+      "description": "Unique entry ID (e.g., AUD-000001)"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the action occurred (ISO 8601)"
+    },
+    "agent": {
+      "type": "string",
+      "description": "Agent name (matches agent_id in agent-contract)"
+    },
+    "agent_version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
+      "description": "Agent version that produced this entry"
+    },
+    "stage": {
+      "type": [
+        "integer",
+        "string"
+      ],
+      "description": "Pipeline stage number (0-12) or phase identifier (e.g., '4a')"
+    },
+    "action": {
+      "type": "string",
+      "enum": [
+        "agent_start",
+        "agent_complete",
+        "agent_fail",
+        "agent_pause",
+        "agent_resume",
+        "stage_start",
+        "stage_complete",
+        "stage_fail",
+        "file_write",
+        "file_delete",
+        "defect_log",
+        "defect_fix",
+        "defect_resolve",
+        "test_run",
+        "test_pass",
+        "test_fail",
+        "human_review",
+        "human_approve",
+        "human_reject",
+        "human_request_changes",
+        "compliance_run",
+        "compliance_pass",
+        "compliance_fail",
+        "compliance_partial",
+        "build_run",
+        "build_pass",
+        "build_fail",
+        "deploy_run",
+        "deploy_pass",
+        "deploy_fail",
+        "notification_sent",
+        "circuit_breaker_triggered",
+        "dlq_added",
+        "dlq_retried",
+        "custom"
+      ],
+      "description": "Type of action"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "success",
+        "warning",
+        "failure",
+        "in_progress"
+      ],
+      "description": "Action outcome status"
+    },
+    "input": {
+      "type": "string",
+      "description": "What was provided to the agent (file paths, context)"
+    },
+    "output": {
+      "type": "string",
+      "description": "What the agent produced (file paths, artifacts)"
+    },
+    "duration_seconds": {
+      "type": "number",
+      "minimum": 0,
+      "description": "How long the action took"
+    },
+    "compliance_score": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0,
+      "maximum": 100,
+      "description": "Compliance check score (0-100), null if not checked"
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Additional action-specific metadata",
+      "additionalProperties": true
+    },
+    "notes": {
+      "type": "string",
+      "description": "Free-form notes"
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Tags for filtering (e.g., ['compliance', 'critical'])"
+    },
+    "agent_id": {
+      "type": "string"
+    },
+    "stage_id": {
+      "type": "string"
+    },
+    "model": {
+      "type": "string"
+    },
+    "provider": {
+      "type": "string"
+    },
+    "input_tokens": {
+      "type": "integer"
+    },
+    "output_tokens": {
+      "type": "integer"
+    },
+    "cached_tokens": {
+      "type": "integer"
+    },
+    "reasoning_tokens": {
+      "type": "integer"
+    },
+    "total_tokens": {
+      "type": "integer"
+    },
+    "cost": {
+      "type": "number"
+    },
+    "cache_hit": {
+      "type": "boolean"
+    },
+    "chunking_used": {
+      "type": "boolean"
+    },
+    "chunks_count": {
+      "type": "integer"
+    },
+    "model_context_window": {
+      "type": "integer"
+    },
+    "prompt_chars": {
+      "type": "integer"
+    },
+    "output_chars": {
+      "type": "integer"
+    },
+    "artifacts_used": {
+      "type": "array"
+    },
+    "started_at": {
+      "type": "string"
+    },
+    "completed_at": {
+      "type": "string"
+    },
+    "duration_ms": {
+      "type": "integer"
+    },
+    "finish_reason": {
+      "type": "string"
+    },
+    "truncated": {
+      "type": "boolean"
+    },
+    "retries": {
+      "type": "integer"
+    },
+    "compaction_used": {
+      "type": "boolean"
+    },
+    "compaction_saved_chars": {
+      "type": "integer"
+    },
+    "continuations": {
+      "type": "integer"
+    }
+  }
+}

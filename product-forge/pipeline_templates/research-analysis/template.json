@@ -1,0 +1,110 @@
+{
+  "id": "research-analysis",
+  "version": "1.0.0",
+  "name": "Research Analysis Pipeline",
+  "description": "Research a topic, analyze data, extract insights, and create a comprehensive report",
+  "type": "dynamic",
+  "category": "research",
+  "stages": {
+    "0": {
+      "name": "Ideation",
+      "agent": "ideation",
+      "type": "sequential",
+      "depends_on": [],
+      "description": "Define research goals, scope, and methodology",
+      "knowledge_required": [],
+      "skills_required": [],
+      "outputs": ["docs/product-plan.md", "pipeline.json"]
+    },
+    "1": {
+      "name": "Research",
+      "agent": "researcher",
+      "type": "sequential",
+      "depends_on": ["0"],
+      "description": "Gather data from multiple sources, conduct web research",
+      "knowledge_required": [],
+      "skills_required": ["research"],
+      "outputs": ["docs/research/"]
+    },
+    "2": {
+      "name": "Analysis",
+      "agent": "analyst",
+      "type": "sequential",
+      "depends_on": ["1"],
+      "description": "Analyze gathered data, identify patterns and insights",
+      "knowledge_required": [],
+      "skills_required": ["analysis"],
+      "outputs": ["docs/analysis/"]
+    },
+    "3": {
+      "name": "Review",
+      "agent": "review",
+      "type": "sequential",
+      "depends_on": ["2"],
+      "description": "Review analysis for accuracy, completeness, and bias",
+      "knowledge_required": [],
+      "skills_required": [],
+      "outputs": ["docs/review/"]
+    },
+    "4": {
+      "name": "Document",
+      "agent": "document",
+      "type": "sequential",
+      "depends_on": ["3"],
+      "description": "Create final research report with findings and recommendations",
+      "knowledge_required": [],
+      "skills_required": ["writing"],
+      "outputs": ["docs/final/"]
+    }
+  },
+  "agents": {
+    "ideation": {
+      "source": ".opencode/agent/ideation.md",
+      "description": "Define research goals and scope",
+      "required": true
+    },
+    "researcher": {
+      "source": ".opencode/agent/researcher.md",
+      "description": "Gather data from multiple sources",
+      "required": true
+    },
+    "analyst": {
+      "source": ".opencode/agent/analyst.md",
+      "description": "Analyze data and extract insights",
+      "required": true
+    },
+    "review": {
+      "source": ".opencode/agent/review.md",
+      "description": "Review analysis for quality and accuracy",
+      "required": false
+    },
+    "document": {
+      "source": ".opencode/agent/document.md",
+      "description": "Create final research report",
+      "required": false
+    }
+  },
+  "knowledge_domains": ["research", "analysis", "data-science"],
+  "flow": {
+    "type": "dag",
+    "description": "Sequential research and analysis pipeline"
+  },
+  "compliance": {
+    "default_checks": ["file_exists", "content_quality", "audit_updated"],
+    "stage_overrides": {
+      "1": {
+        "checks": ["file_exists", "sources_count_above_threshold"]
+      },
+      "2": {
+        "checks": ["file_exists", "insights_count_above_threshold"]
+      }
+    }
+  },
+  "metadata": {
+    "author": "system",
+    "created_at": "2026-09-03T00:00:00Z",
+    "updated_at": "2026-09-03T00:00:00Z",
+    "tags": ["research", "analysis", "data", "report"],
+    "examples": ["market-research", "tech-evaluation", "competitive-analysis"]
+  }
+}

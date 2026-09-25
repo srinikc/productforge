@@ -1,0 +1,1040 @@
+# 360-degree Discovery - ProductForge-Dashboard
+
+> Dashboard that is the face of the Product Forge pipeline (multi-agent, multi-project) — all operations happen through this dashboard UI. Scope: handle ALL operations/inputs/configs/customization and everything else in the pipeline, made available and orchestrated through the dashboard. This is the one-stop solution showing proper status of projects/operations/agents. Core capabilities: - Create a new project with an idea; provide/select model tiers, customize a tier, or create a new tier from the list of LLM models and providers. - Initiate project creation and the E2E workflow per the pipeline in the backend; monitor/track/provide inputs and control operations from the agent and orchestrator point of view. - Portfolio: multiple projects; run multi-project simultaneously and manage E2E for each running project; create multi-project runs going through all defined agents. - Everything that is interactive today (inputs/selection/outputs) in the pipeline must be managed through good UI dialogs/windows, well orchestrated in the UI and workflow. - Top-notch UI/UX: themes/components for lists, windows, dialogs, checkboxes, popups, notifications, alerts, text boxes/entry boxes, etc. Well-orchestrated dashboard to create/manage a portfolio of projects through the UI. - Global AI chat companion that understands the entire portfolio and projects, plus dashboard operations/control, queryable and orchestratable via chat. Build it with voice support (TTS/STT), English for now, with a wake word like Alexa. Active only when enabled and when the dashboard is up/focused/open. - Mobile app for the dashboard complementing the web dashboard — design/implement the workflows feasible/needed on mobile. - Tests: high quality across test types (functional, non-functional, security, others), written and managed through our test framework for design/creation/execution/results reporting and issue tracking of the dashboard. - Dashboard UI components/pages for ALL features/config implemented in the pipeline — go through the features/modules we have implemented. - Voice support: refer to the mymoney project at C:\Users\ADMIN\Documents\Srinikc\AI Products\mymoney. - Deployable from public sites (e.g. Vercel) talking to the pipeline backend; support backend and dashboard at one place or separate; implement deployment options for this. - API-first: anyone can call APIs to get relevant info and show it in a customized app. Analyze and decide whether we need all APIs in the dashboard or can reuse the pipeline APIs plus only the additional ones the dashboard needs; design/implement what is required. - Auto mode: the pipeline can create a new project with auto mode that runs the entire pipeline automatically without human inputs — orchestrate this workflow in the UI and show pipeline logs as they execute.
+
+_Generated 2026-09-21T21:08:50.809664. 19 agents - 57 questions - 90 answered._
+
+| Agent | Questions | Answered |
+| --- | --- | --- |
+| product-analyzer | 3 | 3 |
+| researcher | 3 | 3 |
+| analyst | 3 | 3 |
+| strategist | 3 | 3 |
+| ux-ia | 3 | 3 |
+| design | 3 | 3 |
+| design_critic | 3 | 3 |
+| product-design-spec | 3 | 3 |
+| architect | 3 | 3 |
+| security | 3 | 3 |
+| implement | 3 | 3 |
+| code-review | 3 | 3 |
+| validate | 3 | 3 |
+| devops | 3 | 3 |
+| document | 3 | 3 |
+| package | 3 | 3 |
+| orchestrator | 3 | 3 |
+| guardian | 3 | 3 |
+| finops | 3 | 3 |
+| product-owner | 3 | 3 |
+| marketing | 3 | 3 |
+| growth | 3 | 3 |
+| customer-onboarding | 3 | 3 |
+| scout | 3 | 3 |
+| pricing-strategist | 3 | 3 |
+| customer-success | 3 | 3 |
+| community-social | 3 | 3 |
+| sales-crm | 3 | 3 |
+| legal-privacy | 3 | 3 |
+| product-analytics | 3 | 3 |
+| **Total** | **57** | **90** |
+
+## product-analyzer - Product Analyzer: # Product Analyzer Agent
+
+### product-analyzer:1 - What is the first-release scope, and which capabilities are non-negotiable for MVP?
+
+- **Recommendation:** Prioritize project creation, model-tier selection/customization, multi-project portfolio view, agent orchestration controls, and real-time pipeline monitoring/logging. Defer mobile, voice-enabled chat companion, and advanced auto mode until the core dashboard is stable.
+- **Answer:** MVP scope (working E2E, production quality - NOT a prototype). MUST:
+1) Project intake: create from an idea; select / customize / create a model tier from the model+provider catalog.
+2) E2E orchestration: start / continue / pause / resume / stop; run-scope selection; resume from checkpoint.
+3) Live monitoring: stage & agent progress, streaming pipeline-run.log, tokens/cost, per-stage artifacts.
+4) HIL dialog console: every pipeline prompt as a proper dialog - the 4 gates (AG-scope-change, AG-architecture, AG-security-critical, AG-deploy), per-agent approvals, and the 360-degree discovery panel (accept/override recommendations).
+5) Advanced auto mode: fully available - unattended E2E runs via human-proxy decisions with live logs.
+6) Portfolio: multi-project create/list/run in parallel; per-project E2E management and capacity.
+7) Work management: backlog items + defects/issues + approvals/audit trail.
+8) Quality surface: QA cycles, Go/No-Go, compliance, traceability.
+9) API-first backend: read-only views over the truths; actions routed through core modules; auth + secrets hygiene.
+10) Tests via our own framework (functional / E2E / security / NFR) with results + issue tracking.
+11) Deployable: container/public target; backend + dashboard co-located or split.
+
+ALSO IN MVP (added by owner): presentations/marketing/video generator UIs; multi-tenant teams.
+
+DEFERRED (parked with weekly follow-up reminders): voice AI companion (TTS/STT/wake word), mobile app companion, non-English i18n, ops/post-production console.
+- **Status:** overridden
+
+### product-analyzer:2 - What deployment and backend/API boundary should the dashboard use?
+
+- **Recommendation:** Use a separate dashboard frontend, deployable on a public platform such as Vercel, communicating with the existing Product Forge backend through authenticated APIs. Reuse pipeline APIs where possible and add dashboard-specific aggregation, orchestration, and notification endpoints.
+- **Answer:** ﻿Use a separate dashboard frontend, deployable on a public platform such as Vercel, communicating with the existing Product Forge backend through authenticated APIs. Reuse pipeline APIs where possible and add dashboard-specific aggregation, orchestration, and notification endpoints.
+- **Status:** overridden
+
+### product-analyzer:3 - What authentication, authorization, and data-isolation model is required?
+
+- **Recommendation:** Support user accounts with workspace/project-level roles, project-level permissions, secure API authentication, audit logging, and protection of model/provider credentials. Design the data model so multiple projects and users cannot access one another's data.
+- **Answer:** Accept the recommendation, plus explicit dashboard user management and user-level limits.
+
+AuthZ / user management (dashboard):
+- User accounts with roles per portfolio/project: owner / admin, create (write), and read-only. Users can be granted access to specific portfolios/projects, or create new ones subject to their plan.
+- Secure API authentication (token/session), audit logging of every action, and per-tenant protection of model/provider credentials.
+- Data isolation: users and tenants must not be able to read one another's projects, logs, artifacts or credentials.
+
+User-level limits (tie to the EXISTING capacity implementation):
+- The pipeline already enforces global limits via config/capacity.json + core/capacity.py (max_parallel_projects, max_created_projects, max_supervisors, max_concurrent_agents_per_project, provider_limits, global_budget).
+- Extend that governor to evaluate limits WITH A USER/TENANT CONTEXT: each user has a capacity profile (overrides/quotas over the global defaults) so a user may only create and run up to their allowed number of projects concurrently and in total. Global limits remain the hard ceiling; the user quota is the effective limit (min of the two).
+- Enforce it on every create/start action in the dashboard (same can_add()/can_start() checks, parameterized by user), so the UI blocks/queues beyond the user's quota.
+
+This must be a first-class part of the MVP (working, E2E) - together with multi-tenant teams.
+- **Status:** overridden
+
+## researcher - Researcher: Research agent. Conducts thorough research on topics using web search, academic sources, and industry knowledge.
+
+### researcher:1 - What should be included in the first releasable MVP, given that the concept spans full portfolio orchestration, model-tier customization, mobile, voice, chat, APIs, and deployment?
+
+- **Recommendation:** Use F-1 through F-5 plus auto-mode as the launch scope: an authenticated web dashboard for project creation, model tiers, portfolio/status, run controls, and live logs. Defer native mobile, wake-word/STT/TTS, full conversational control, and a broad external API catalog until the core control plane is proven.
+- **Answer:** P1/P3 are authoritative. First releasable MVP (working E2E, production quality) = F-1..F-5 (project creation, portfolio/status, run controls, model tier) PLUS advanced auto mode, HIL dialog console, work management, quality surface (QA/Go-No-Go/compliance), API-first (reuse pipeline APIs + dashboard-specific), tests via our framework, deployable, user management + per-user/tenant limits, multi-tenant teams, presentations/marketing/video UIs, and the text AI chat companion (portfolio/project-aware chat that can query and trigger actions; voice deferred).
+
+ALSO IN MVP - Intake API and its end-to-end management (adapters + API + routing + backlog):
+- Adapters that capture conversations from external assistants: ChatGPT, Claude (incl. MCP server), Gemini (browser extension), and a generic adapter (instructions + schema.yaml). Managed/configured from the dashboard.
+- Intake API endpoints: POST /intake with intents save_idea, new_project, new_project_quick, modify_project, add_context, product_forge_improvement; plus compile, approve, idea/change-package actions, conversation list/stats.
+- Routing (core/intent_router.py): route an intake to (a) Product Forge ITSELF for improvement (.product_forge_improvements), (b) a NEW project (create + start pipeline), or (c) an EXISTING project as additional work/idea (change package / add context).
+- Compile + human approve step, then promotion into the backlog as work items (core/backlog_link.py:promote_conversation) for the target scope (project OR product_forge), with status/labels handled by core/backlog.py.
+- Dashboard management views for the whole intake pipeline: conversations, extracted ideas/requirements/decisions, change packages, implementation plans, and their promotion/backlog status; plus per-user routing and limits.
+- This is the "bring any idea/feedback into Product Forge or any project, review, approve, and turn into scheduled work" workflow.
+
+DEFER (parked, monthly follow-up): native mobile app companion, voice (wake-word/STT/TTS), non-English i18n, ops/post-production console, broad external API catalog.
+- **Status:** overridden
+
+### researcher:2 - Who is the initial deployment context: a private single-user/small-team tool, or a multi-tenant SaaS product with public access and strict tenant isolation?
+
+- **Recommendation:** Start as a private, authenticated single-tenant or small-team deployment, with clear project and operation permissions and an easy self-hosted/backend-plus-frontend option. Treat public hosting/Vercel and multi-tenant isolation as later phases, not launch blockers.
+- **Answer:** The recommendation is accepted as the operational starting posture, but with a hard correction: multi-tenancy must be COMPLETE and FULLY IMPLEMENTED in the MVP - not merely designed or deferred.
+
+- Operationally, the owner/small team is the first tenant, and a private authenticated deployment (self-hosted or co-located backend+dashboard) is a supported and easy option.
+- BUT the product must ship COMPLETE multi-tenancy in the MVP, working end to end:
+  - full tenant model + strict tenant isolation of projects, logs, artifacts, runs and credentials (no cross-tenant access, ever);
+  - teams within tenants, users with roles (owner/admin, create/write, read-only) per portfolio/project;
+  - per-tenant and per-user capacity quotas enforced by the existing capacity governor (core/capacity.py) with a user/tenant context;
+  - tenant-scoped API authn/authz + audit logging; per-tenant model/provider credential protection;
+  - dashboard UI for tenant/team/user management, invitations, role assignment, and quota management.
+- Public hosting (e.g. Vercel frontend + authenticated API) and self-hosted/co-located are BOTH supported in the MVP.
+- Public access + multi-tenant isolation are NOT later phases / NOT launch blockers-deferred: they are in MVP.
+- **Status:** overridden
+
+### researcher:3 - What pipeline modules and APIs already exist, and which system should be the source of truth for project, agent, run, and log state?
+
+- **Recommendation:** Treat the existing pipeline as the source of truth. Reuse its APIs for execution and state, and add dashboard-specific read/query/orchestration APIs plus a stable event/status contract; avoid duplicating pipeline state in the dashboard.
+- **Answer:** Accept the recommendation: the existing pipeline is the single source of truth.
+
+- The dashboard REUSES the pipeline APIs for execution and state and adds only dashboard-specific read/query/orchestration/notification endpoints plus a stable event/status contract. Never duplicate pipeline state in the dashboard (README-read over the truths; actions route through core modules).
+
+ADDITION (owner): the dashboard must depict the COMPLETE backend pipeline implementation as first-class features, configs and workflows. Every implemented and wired module/feature/config/stage/agent/gate/store/capability must be represented and manageable in the dashboard UI - not a curated subset. Concretely:
+- All 32 pipeline stages + the 4 HIL gates, with per-stage agents, dependencies, budgets and artifacts.
+- All agents (19 leads / 55 cards incl. sub-agents), their models, tiers and hierarchy.
+- All configs: model tiers (config/model-tier.json + per-project overrides), capacity (config/capacity.json), agent requirements/hierarchy, test matrix, feature flags, integrations, targets, tech stack.
+- All workflows: project lifecycle (ideation -> discovery -> design -> architect -> implement -> review -> validate -> security -> document -> package -> pre-prod -> deploy -> exit), auto mode, portfolio/multi-project, defect->fix->RCCA, QA cycles + Go/No-Go, intake->backlog, follow-ups, ops.
+- All stores/truths surfaced read-only (120 registered stores) with actions routed through their owner modules.
+- **Status:** overridden
+
+## analyst - Analyst: Analyst agent. Analyzes data, identifies patterns, extracts insights, and provides data-driven recommendations.
+
+### analyst:1 - What is the minimum viable release boundary, and which capabilities are true release blockers?
+
+- **Recommendation:** Treat F-1 through F-5 as the core, include a constrained auto-mode run with start/stop/cancel and streamed logs in v1, deliver responsive web/mobile-web support, and defer native mobile, voice-enabled chat, broad public APIs, and advanced customization beyond the required model-tier workflow.
+- **Answer:** Release boundary = the full owner-approved MVP (P1-P6), production-quality, working E2E (not a prototype).
+
+TRUE RELEASE BLOCKERS:
+- The dashboard must represent the COMPLETE backend: all 176 core modules and their workflows, 32 stages + 4 gates, all agents (19 leads / 55 cards), all configs, all 120 registered stores - each with designed, proper UI/UX showing the workflow end to end. NOT a curated subset. (BI-0015)
+- Project intake: Intake API + adapters (ChatGPT/Claude/Gemini/generic) + routing to Product Forge itself / a new project / an existing project, plus compile/approve and backlog management.
+- E2E orchestration + live monitoring + control (start/continue/pause/resume/stop, run scope).
+- HIL dialog console: all 4 gates + per-agent approvals + the 360-degree discovery panel.
+- Advanced (FULL) auto mode - unattended E2E with human-proxy decisions + streamed logs. Not a constrained auto mode.
+- Portfolio / multi-project with per-user and per-tenant capacity limits.
+- COMPLETE multi-tenancy: tenant isolation, teams, user roles/RBAC, audit logging, tenant-scoped credentials. Fully implemented, not designed-only.
+- Quality surface: QA cycles, Go/No-Go, compliance, traceability + tests via our own framework.
+- Deployable: public hosting (e.g. Vercel) AND self-hosted/co-located backend+dashboard; API-first (reuse pipeline APIs + dashboard-specific).
+- Responsive web AND mobile-web.
+- Presentations/marketing/video generator UIs; text AI chat companion.
+
+DEFER (parked with monthly follow-up): native mobile app, voice (wake-word/STT/TTS), non-English i18n, ops/post-production console, broad external API catalog.
+- **Status:** overridden
+
+### analyst:2 - Is the first deployment a single-tenant internal dashboard or a multi-tenant team product?
+
+- **Recommendation:** Assume one organization/workspace for the first release, with admin/operator roles, audit logging, and idempotent controls; defer SSO, team isolation, and external sharing.
+- **Answer:** Multi-TENANT TEAM PRODUCT, not an internal single-tenant dashboard.
+
+- Operationally the owner's organization is the first workspace/tenant, but the first release SHIPS COMPLETE multi-tenancy (per P5): strict tenant isolation, teams + user RBAC, audit logging, tenant-scoped credentials, per-user/tenant quotas, idempotent controls, invitations/external sharing where appropriate. Team isolation is NOT deferred.
+- Authentication options required: Google sign-in, GitHub sign-in, AND locally-created users managed by the dashboard's own user management. Full account lifecycle: password reset/recovery (forgot-password + reset flow), email verification, session/token management. SSO-ready.
+
+ALSO IN MVP - Test management (our test framework):
+- The pipeline dashboard itself must have ALL types of tests - functional, non-functional, API, and every category in config/test-matrix.json (unit, db, api, integration, ui, e2e, e2e_bdd, visual, accessibility, performance, security, reliability, scalability, smoke, sanity, install, packaging) - with test CREATION, EXECUTION, REPORTING and STORAGE handled through the test framework we already have (not a separate/ad-hoc harness).
+- The SAME must apply to every project the dashboard creates: for each generated project, tests are created, executed, reported and stored through the same test framework, managed/visible from the dashboard.
+
+This is a release blocker (part of MVP).
+- **Status:** overridden
+
+### analyst:3 - What is the integration and deployment boundary between the dashboard and the existing pipeline backend?
+
+- **Recommendation:** Use the existing backend/orchestrator as the source of truth; the dashboard should consume existing pipeline APIs and add only dashboard-specific endpoints. Support a Vercel-hosted frontend with a configurable backend, with same-origin deployment available later.
+- **Answer:** Accept. The existing backend/orchestrator is the source of truth; the dashboard consumes existing pipeline APIs and adds only dashboard-specific (read/query/orchestration/notification) endpoints plus a stable event/status contract. Deployment supports BOTH: (a) a Vercel-hosted frontend with a configurable backend, and (b) self-hosted/co-located backend+dashboard. Both are in the MVP (not later).
+- **Status:** overridden
+
+## strategist - Strategist: Strategist agent. Develops strategies, creates plans, and provides strategic guidance for complex initiatives.
+
+### strategist:1 - What should be included in the first MVP, and what can be deferred?
+
+- **Recommendation:** Ship the web dashboard MVP first: project creation, model-tier selection/customization, portfolio view, per-project status/logs, manual run controls, and auto mode. Defer voice, mobile, and the full AI chat companion until the core dashboard is stable.
+- **Answer:** MVP = the full owner-approved scope (P1-P9), production-quality and working E2E, including the TEXT AI chat companion (portfolio/project-aware, can query and trigger actions).
+
+Included (release blockers): project creation + model-tier select/customize/create; portfolio/multi-project with per-user/tenant limits; live monitoring (stage/agent, streamed logs, tokens/cost, artifacts); manual run controls (start/continue/pause/resume/stop, run scope); advanced (full) auto mode; HIL dialog console (4 gates + per-agent approvals + 360 discovery panel); complete multi-tenancy + teams + RBAC + auth (Google, GitHub, local users, password reset/recovery, SSO-ready); project intake (Intake API + adapters + routing to Product Forge itself / new project / existing project) + backlog management; the dashboard must surface ALL 176 backend modules + workflows with designed UI/UX; full test management via our test framework for the dashboard AND every created project (all categories: functional, non-functional, API, unit, db, integration, ui, e2e, e2e_bdd, visual, a11y, performance, security, reliability, scalability, smoke, sanity, install, packaging) with creation/execution/reporting/storage; quality surface (QA cycles, Go/No-Go, compliance, traceability); presentations/marketing/video generator UIs; API-first (reuse pipeline APIs + dashboard-specific); deployable BOTH public (Vercel) and self-hosted/co-located; responsive web + mobile-web.
+
+Deferred (parked, monthly follow-up): native mobile app companion, voice (wake-word/STT/TTS), non-English i18n, ops/post-production console, broad external API catalog.
+- **Status:** overridden
+
+### strategist:2 - What pipeline APIs and backend capabilities already exist that the dashboard must orchestrate?
+
+- **Recommendation:** Treat the existing Product Forge pipeline as the source of truth. Reuse its project, agent, model, run, and log APIs wherever possible, and add only dashboard-specific APIs for authentication, notifications, and UI orchestration.
+- **Answer:** Accept: the existing Product Forge pipeline is the source of truth. The dashboard reuses its project, agent, model, run and log APIs wherever possible and adds only dashboard-specific APIs (authentication, notifications, UI orchestration, intake mgmt).
+
+ADDITION (owner) - the dashboard must DEPICT the backend comprehensively in MVP, not just call it:
+- CONFIGS: every config the backend has (config/model-tier.json incl. per-project overrides, capacity.json, agent-hierarchy.json, agent-requirements.json, test-matrix.json, persona.json, qa-weights.json, discovery-panel-settings.json, store-registry.json, feature flags, integrations, targets, tech-stack) - viewable, and editable where safe, with validation.
+- SCRIPTS / PARAMETERS: for each entrypoint and module (.py) show the parameters/flags it accepts and the inputs/outputs it produces, and let the user invoke it from the UI. This includes scripts/pipeline.py deterministic subcommands (list, agents, runs, test, health, checkpoints, dlq, status), run_pipeline.py (new/continue/fix/changes/run/resume/retry/abort/run-agent, --tier, --only-stage, --from-stage, --control, --interactive, --step), run_portfolio.py, approve.py, core/interactive.py.
+- CONTROL OPERATIONS: for agents AND the pipeline itself - start/stop/pause/resume/retry/abort/run-agent/invalidate-for-rerun, run-scope selection, from-stage/only-stage - all visible and operable.
+- ALERTS + NOTIFICATIONS: portfolio-wide, project-specific, and intake-related.
+- INTAKE MANAGEMENT: the whole intake workflow in MVP - conversations, extracted ideas/requirements/decisions, change packages, implementation plans, compile/approve, promotion to backlog for a project OR Product Forge itself, plus INTAKE-RELATED FOLLOW-UP and PARKED management (parked items, follow-up dates, reminders, snooze, promotion).
+
+All of the above is part of MVP (release blockers).
+- **Status:** overridden
+
+### strategist:3 - What deployment, security, and real-time requirements should guide the architecture?
+
+- **Recommendation:** Start with a separate public web frontend and private backend API, deploy the frontend to a platform such as Vercel, secure all dashboard APIs with authentication, and use WebSocket or Server-Sent Events for real-time project status and logs.
+- **Answer:** Accept the recommendation, enriched (all in MVP unless marked otherwise):
+
+DEPLOYMENT
+- Separate public web frontend + private authenticated backend API; frontend hostable on a platform such as Vercel; BOTH public hosting AND self-hosted/co-located backend+dashboard supported in MVP.
+- PWA: the current web implementation is NOT PWA as-is (dashboard is just server.py + static/index.html, no manifest/service worker). ADD PWA support in MVP (web app manifest, service worker, installable, offline shell + push where supported) so mobile-web covers the deferred native app.
+
+SECURITY
+- COMPLETE multi-tenancy: strict tenant isolation, teams/users with RBAC, audit logging, tenant-scoped credential/secret protection, HTTPS, CSP, rate-limiting; secure every dashboard API with authentication.
+
+REAL-TIME
+- WebSocket via the existing core/websocket_manager (setup_ws_events + /api/ws/events), SSE fallback; live project/agent status and streamed logs.
+
+WEBHOOKS (needed; add in MVP)
+- INBOUND: the Intake API (POST /intake) is the inbound intake surface used by adapters (ChatGPT/Claude/Gemini/generic) - add signature verification/auth for external senders.
+- OUTBOUND: webhooks to external systems for alerts/notifications (driven by core/event_bus.py events - stuck/anomaly/coverage_gap/escalation/follow_up_due + pipeline/project failures). HMAC-signed, retry with backoff, per-endpoint subscription + delivery log. MVP.
+
+EMAIL FACILITY (new; MVP)
+- Configurable email channel for pipeline/project EXECUTION STATUS and ALERTS. Per-USER and per-PROJECT settings: enable email + frequency (immediate / per-stage / daily / weekly digest).
+- Content: current state, what is NEXT, WHERE in the pipeline it currently is, time taken per stage/agent, and TOTAL time taken; plus any failure/issue needing attention. Properly formatted template with relevant info and control links/actions.
+- Notify on ANY failure/issue with the pipeline/project, or when attention/approval is needed.
+- REPLY-BY-EMAIL control actions (approve, answer pipeline queries/inputs, trigger/act) - DESIGN NOW, IMPLEMENTATION DEFERRED (explicitly a designed-but-deferred capability).
+
+NOTIFICATIONS
+- Portfolio-wide, project-specific AND intake-related (per P11), delivered through in-app + email + webhook channels, with acknowledge/routing and failure/attention alerts.
+- **Status:** overridden
+
+## ux-ia - Ux Ia: Define UX and information architecture + design tokens.
+
+### ux-ia:1 - What is the primary delivery target for the dashboard (web-first responsive UI) and should the mobile companion be a separate native app or a progressive web app sharing the same codebase?
+
+- **Recommendation:** Web-first responsive UI using a shared design system; mobile companion as a PWA / responsive view to leverage same design tokens and reduce duplication.
+- **Answer:** Accept: web-first responsive UI with a shared design system; the mobile companion is a PWA / responsive view sharing the same codebase and design tokens (no separate native app in MVP; native deferred).
+
+ADDITION (owner) - explicit process/architecture rule for this build:
+1. BACKEND FIRST: when dashboard design/implementation reveals a capability that must be added or changed in the backend pipeline (e.g. a new API endpoint, webhook channel, email channel, per-user/per-tenant capacity context, tenant model, PWA support, script parameters, control operations), the required backend change/design MUST be implemented in the pipeline backend BEFORE the dashboard consumes it. Backend changes are prerequisites, not afterthoughts.
+2. DUAL BACKLOG TRACKING: for every such change, create a linked backlog item in BOTH scopes for tracking and monitoring:
+   - pipeline backend scope (product_forge backlog) for the backend change/design; and
+   - dashboard scope (ProductForge-Dashboard project backlog) for the UI/consumption work.
+   The two items are cross-linked by id (backend item referenced from the dashboard item and vice versa), so status can be tracked and monitored on both sides. This convention is explicit and applies for the whole dashboard build.
+- **Status:** overridden
+
+### ux-ia:2 - How should the AI chat companion be integrated into the dashboard UI (persistent side panel, modal, or floating button) and under what conditions should voice wake word be active?
+
+- **Recommendation:** Persistent collapsible side panel accessible via a header icon; voice wake word active only when the dashboard is focused and the companion is enabled, using the same design tokens for chat bubbles and voice indicators.
+- **Answer:** Persistent collapsible side panel opened from a header icon (with a floating-button shortcut), sharing the same design tokens. The TEXT companion is in MVP. Voice/wake-word activation rules are DESIGNED now (active only when the dashboard is focused AND the companion is enabled, with mute/indicator and push-to-talk fallback), but VOICE (TTS/STT/wake word) implementation is DEFERRED (BI-0011). Design the panel so voice can be added later without rework.
+- **Status:** overridden
+
+### ux-ia:3 - Should the dashboard rely exclusively on existing pipeline APIs for all data and operations, or are additional dashboard‑specific aggregation APIs needed for portfolio overview, real‑time status, and chat companion orchestration?
+
+- **Recommendation:** Reuse pipeline APIs where possible and add a thin dashboard‑specific aggregation layer (e.g., /dashboard/projects/summary, /dashboard/agent/status, /dashboard/chat) to avoid over‑fetching and to support UI‑only features like auto‑mode logs.
+- **Answer:** Accept: reuse the existing pipeline APIs wherever possible and add a THIN dashboard-specific aggregation/orchestration layer (e.g. /dashboard/projects/summary, /dashboard/agent/status, /dashboard/chat) to avoid over-fetching and to support UI-only features such as auto-mode logs and chat-companion orchestration.
+
+STORAGE MODEL (owner decision):
+- HYBRID. Pipeline backend truths stay as FILE stores exactly as today (one truth per concern, one writer per file; 120 registered stores; JSON/JSONL/Markdown), and the dashboard reads them read-only and acts only through core modules - it never writes a pipeline store directly. The only existing DB is the portfolio scheduling queue (SQLite: product-forge/portfolio/queue.db).
+- The dashboard's OWN control-plane data (tenants, users, sessions, invitations, per-user/project email + webhook settings, dashboard audit log) lives in a DATABASE owned by a SINGLE dashboard control-plane module: SQLite for self-hosted, Postgres for multi-tenant SaaS. Register the store(s) in config/store-registry.json.
+
+FUTURE (backlog, not MVP-blocking): later we can consolidate ALL data (pipeline + dashboard) into a DB, which would also enable better management/querying and retrieval through RAG. Track as a backlog item.
+- **Status:** overridden
+
+## design - Design: Design agent. Extracts formal requirements and produces a design doc from the product plan. PROHIBITS scope reduction without explicit user approval.
+
+### design:1 - Should the initial release (MVP) include all listed features, or should we prioritize the 'must-have' features (F1-F5) and defer the 'nice-to-have' items (F6-F9) to later phases?
+
+- **Recommendation:** Prioritize the must-have features (project creation, multi‑portfolio view, agent orchestration, model tier selection, pipeline monitoring) for the MVP; treat nice‑to‑have features as future enhancements.
+- **Answer:** MVP includes ALL the listed features (F-1 through F-10), not just F1-F5 - PLUS the owner-added scope.
+
+- F-1 Project creation, F-2 Multi-project portfolio, F-3 Agent orchestration controls, F-4 Model tier select/customize, F-5 Pipeline monitoring/logging: all MVP.
+- F-6 AI chat companion: MVP as TEXT (portfolio/project-aware chat that can query + trigger actions). Voice deferred.
+- F-7 Mobile responsive: MVP as responsive web + PWA (installable). Native mobile app deferred.
+- F-8 Auto mode: MVP as ADVANCED/full auto mode (unattended E2E via human-proxy + live logs).
+- F-9 API access endpoints: MVP, API-first (reuse pipeline APIs + thin dashboard-specific aggregation/orchestration layer).
+- F-10 Theme/customization: MVP.
+
+PLUS owner-added MVP scope: complete multi-tenancy + user/team management + RBAC + auth (Google/GitHub/local, password reset/recovery); project intake (Intake API + adapters + routing + follow-up/parked mgmt); full test management via our framework (dashboard + every created project); email facility + webhooks; alerts/notifications (portfolio/project/intake); dashboard must surface ALL 176 backend modules + workflows with designed UI/UX; presentations/marketing/video generator UIs.
+
+DEFER (parked, monthly follow-up): native mobile app, voice (wake-word/STT/TTS), non-English i18n, ops/post-production console, broad external API catalog.
+- **Status:** overridden
+
+### design:2 - For the AI chat companion, is it required to launch with full voice support (wake word, TTS/STT) or can we start with a text‑only chat and add voice capabilities later?
+
+- **Recommendation:** Launch with a text‑only chat companion first; voice support (wake word, TTS/STT) can be added in a subsequent iteration.
+- **Answer:** Launch with a text-only chat companion first; voice support (wake word, TTS/STT) is added in a subsequent iteration (deferred, BI-0011). Design the companion so voice can be added later without rework.
+- **Status:** overridden
+
+### design:3 - Is a separate native mobile application required, or can we meet mobile needs with a responsive web dashboard that adapts to touch interactions?
+
+- **Recommendation:** Begin with a responsive web dashboard that works well on mobile browsers; evaluate the need for a native mobile app after validating core usage patterns.
+- **Answer:** Start with a responsive web dashboard (with PWA support) that works well on mobile browsers. A separate native mobile app is NOT in MVP - full mobile support is tracked in the backlog (BI-0012) and implemented later after validating core usage patterns.
+- **Status:** overridden
+
+## design_critic - Design_Critic: Review the design for quality and completeness.
+
+### design_critic:1 - What tenancy, collaboration, and authorization model must the dashboard support in v1?
+
+- **Recommendation:** Start with authenticated, single-user portfolios. Defer multi-team workspaces, role-based access, SSO, and project sharing until later.
+- **Answer:** v1 ships COMPLETE multi-tenancy and collaboration - none of it deferred:
+- Tenants/workspaces; teams within tenants; role-based access (owner/admin, create/write, read-only) per portfolio/project.
+- Project sharing + invitations; external sharing where appropriate.
+- SSO-ready auth: Google sign-in, GitHub sign-in, and locally-created users managed by the dashboard; password reset/recovery, email verification, session/token management.
+- Per-user and per-tenant capacity quotas enforced by the capacity governor with a user/tenant context.
+- Audit logging of actions; strict tenant data isolation (no cross-tenant access to projects, logs, artifacts, credentials); tenant-scoped credential/secret protection.
+- Webhook + email settings scoped per user/project/tenant.
+- **Status:** overridden
+
+### design_critic:2 - How mature is the existing backend API contract, and what canonical project lifecycle and auto-mode behavior must the dashboard expose?
+
+- **Recommendation:** Keep the backend orchestrator as the source of truth, reuse pipeline APIs, add only dashboard-specific APIs, and use REST plus SSE/WebSocket for live status. Support Draft, Configured, Queued, Running, Blocked, Completed, Failed, and Canceled states; auto mode should pause when human input is required.
+- **Answer:** Accept, with two corrections:
+
+API CONTRACT: the backend orchestrator is the source of truth; the dashboard reuses its APIs and adds only dashboard-specific ones; REST + SSE/WebSocket for live status.
+
+CANONICAL PROJECT LIFECYCLE: expose the backend's ACTUAL states, not invented ones.
+- ProjectState (core/state_machine.py): idle, queued, locked, running, paused, completed, error, cancelled - with the defined valid transitions.
+- PipelinePhase (core/orchestrator/types.py): init, planning, execution, paused, verification, completion, failed.
+The dashboard must render these states + transitions faithfully.
+
+AUTO-MODE BEHAVIOR: Auto mode = UNATTENDED E2E. The human-proxy makes HIL decisions, so auto mode does NOT pause for routine approvals/gates. It pauses only for genuine hard blocks (missing credentials/config, budget emergency stop, or an owner-marked blocking gate), and remains stoppable/pausable on demand. Pausing at every human-input point applies only to INTERACTIVE mode, not auto.
+- **Status:** overridden
+
+### design_critic:3 - Is the mobile requirement a native app, or can the web dashboard be delivered as a responsive PWA in v1?
+
+- **Recommendation:** Deliver a mobile-optimized responsive PWA in v1 and defer a native mobile app until core dashboard workflows are validated.
+- **Answer:** Deliver a mobile-optimized responsive PWA in v1 and defer a native mobile app until core dashboard workflows are validated (native app tracked as BI-0012).
+- **Status:** overridden
+
+## product-design-spec - Product Design Spec: Produce a structured product design specification.
+
+### product-design-spec:1 - Who is the first production audience, and does v1 need multi-user, role-based access or only a single operator per dashboard?
+
+- **Recommendation:** Start with AI product builders and developers managing multiple projects in one organization, with authenticated users and simple Owner/Admin/Operator roles from v1.
+- **Answer:** First production audience = AI product builders, developers and teams who manage multiple projects/portfolios (this product itself is for exactly that).
+
+v1 needs FULL multi-user and multi-tenant, not a single operator and not single-org-only:
+- tenants/workspaces + teams within tenants;
+- RBAC: Owner/Admin, create/write, read-only (per portfolio/project);
+- invitations + project sharing; per-user and per-tenant capacity quotas;
+- audit logging and strict tenant data isolation; SSO-ready auth (Google/GitHub/local + password reset/recovery).
+- **Status:** overridden
+
+### product-design-spec:2 - What should be included in the first releasable MVP given the broad scope?
+
+- **Recommendation:** Prioritize project creation, model-tier configuration, portfolio status, per-project orchestration controls, real-time logs/errors, and API-backed data; include a basic auto-run mode but defer native mobile and the full voice-enabled companion.
+- **Answer:** MVP = full owner-approved scope (P1-P22), including ADVANCED (FULL) auto mode - unattended E2E via human-proxy.
+
+Included: project creation + tiers; portfolio/multi-project with per-user/tenant limits; live monitoring; orchestration controls; HIL dialog console (all gates/approvals + 360 live discovery); complete multi-tenancy + teams + RBAC + auth; intake + backlog mgmt; full test management via our framework; email + webhooks + alerts/notifications; surface ALL 176 backend modules + workflows with designed UI/UX (BI-0015/BI-0027); presentations/marketing/video UIs; text chat companion.
+
+ALSO (owner): the E2E pipeline view must depict ALL stages/phases of ALL agents WITH their sub-agents grouped, and show, per agent, the selected TIER and the MODEL each agent is running (from config/model-tier.json + per-project overrides).
+
+Deferred (parked, monthly follow-up): native mobile app, voice (wake-word/STT/TTS), non-English i18n, ops/post-production console, broad external API catalog.
+- **Status:** overridden
+
+### product-design-spec:3 - Should the dashboard own pipeline execution, or should it act as an orchestration UI over the existing backend?
+
+- **Recommendation:** Treat the existing pipeline backend as the source of truth for projects, agents, runs, logs, and model tiers; make the dashboard an API-first orchestration layer with separate deployable frontend/backend components.
+- **Answer:** Accept: the existing pipeline backend is the single source of truth for projects, agents, runs, logs and model tiers; the dashboard is an API-first orchestration UI with separately deployable frontend/backend components.
+- **Status:** overridden
+
+## architect - Architect: Architect agent. Chooses the tech stack and produces the architecture document (ADRs) from the requirements and design.
+
+### architect:1 - Should the dashboard be deployed as a standalone SPA (e.g., on Vercel) that consumes the existing pipeline APIs, or do we need a tightly coupled backend/frontend monolith deployed together?
+
+- **Recommendation:** Deploy as a standalone SPA (e.g., Vercel) consuming the pipeline APIs via an API‑first approach; keep backend and dashboard separate for scalability and independent releases.
+- **Answer:** Accept: deploy the dashboard as a standalone SPA (e.g. on Vercel) that consumes the existing pipeline APIs API-first; keep backend and dashboard separate for scalability and independent releases. Self-hosted/co-located deployment is also supported (per P6/P9/P12).
+- **Status:** overridden
+
+### architect:2 - For mobile support, should we build dedicated native iOS/Android apps or start with a responsive web/PWA that reuses the dashboard UI?
+
+- **Recommendation:** Start with a responsive web/PWA that adapts to mobile devices; this satisfies the mobile companion requirement while minimizing effort, with native apps considered later if needed.
+- **Answer:** Start with a responsive web/PWA that reuses the dashboard UI; native iOS/Android apps considered later (BI-0012).
+- **Status:** overridden
+
+### architect:3 - Regarding the AI chat companion, should we implement full wake‑word voice (STT/TTS) support now, or begin with a text‑based chat interface and add voice later as a nice‑to‑have?
+
+- **Recommendation:** Begin with a text‑based chat companion; voice (wake‑word, STT/TTS) can be added later as an optional enhancement once the core dashboard is stable.
+- **Answer:** Begin with a text‑based chat companion; voice (wake‑word, STT/TTS) can be added later as an optional enhancement once the core dashboard is stable.
+- **Status:** overridden
+
+## security - Security: "Security analysis with threat modeling, OWASP checks, and vulnerability assessment"
+
+### security:1 - What authentication and authorization strategy will be employed for the dashboard (e.g., OAuth2/OIDC, JWT, role-based access control) and will it support multi-tenant isolation?
+
+- **Recommendation:** Adopt OAuth2/OpenID Connect with JWT tokens and role-based access (Viewer, Builder, Admin) to secure dashboard and API endpoints.
+- **Answer:** Accept the recommendation, enriched: OAuth2/OpenID Connect + JWT sessions; sign-in via Google + GitHub and locally-created users managed in the dashboard; password reset/recovery + email verification; RBAC roles (owner/admin, create/write, read-only) per portfolio/project; COMPLETE multi-tenant isolation of projects/logs/artifacts/credentials; per-user and per-tenant capacity quotas; audit logging; SSO-ready.
+- **Status:** overridden
+
+### security:2 - Will the dashboard expose internal pipeline APIs directly to clients, or will there be an API gateway/service mesh handling authentication, rate limiting, input validation, and encryption?
+
+- **Recommendation:** Place an API gateway (e.g., Kong, AWS API Gateway) in front of all backend services, enforce HTTPS, JWT validation, rate limiting, and sanitize inputs to mitigate OWASP risks.
+- **Answer:** Keep it DIRECT for now: the dashboard API layer is the only public surface, with authentication + rate limiting + input validation built into it; no separate gateway/service mesh in v1. The pluggable-gateway proposal (nginx/Traefik/Caddy self-hosted; Vercel edge public; optional Kong/AWS API Gateway in cloud, with TLS + JWT validation + per-tenant rate limiting + OWASP input sanitization) is recorded as a BACKLOG item to review later.
+- **Status:** overridden
+
+### security:3 - What accessibility standards (WCAG level) will the UI target, and have we planned for keyboard navigation, ARIA labeling, screen‑reader support, and sufficient color contrast for all components including dialogs, notifications, and the voice‑enabled chat companion?
+
+- **Recommendation:** Target WCAG 2.1 AA compliance: use semantic HTML, ARIA roles/labels, ensure full keyboard operability, provide text alternatives for audio, and maintain contrast ratio ≥4.5:1 for text.
+- **Answer:** Target WCAG 2.1 AA. Semantic HTML + ARIA roles/labels, full keyboard operability (including escape/enter handling), visible focus indicators (2px), screen-reader support, text alternatives for all audio/icon-only controls, and contrast >= 4.5:1 for text / 3:1 for UI; applies to ALL components including dialogs, notifications, tables, and the chat companion. Honor prefers-reduced-motion; no flashing > 3Hz. Voice is deferred, but design the companion so the voice UI can meet AA later.
+- **Status:** overridden
+
+## implement - Implement: Implement agent. Builds the code from the approved design, architecture, and requirements. Orchestrates sub-agents (DB, API, Logic, UI) for layered implementation. PROHIBITS scaffolding, mocks, or partial implementation. Also used as the Fix agent.
+
+### implement:1 - Which technology stack should we use for the dashboard frontend and its backend API (if separate)?
+
+- **Recommendation:** Use React with TypeScript for the frontend (leveraging a component library like Ant Design or Material‑UI) and a Python FastAPI backend to reuse existing pipeline services and keep the stack consistent with the rest of the Forge.
+- **Answer:** Frontend: Next.js 15 (React 19) + TypeScript per docs/guidelines/frontend/react.md; Tailwind CSS + cva-based primitives (shadcn-style) + design tokens per docs/guidelines/ui-ux/accessibility.md; TanStack Query for server state, Zustand for client state, React Hook Form + Zod; Vitest + Testing Library + Playwright; eslint-plugin-jsx-a11y + axe-core/Pa11y + Lighthouse a11y >=95. Backend: Python FastAPI dashboard API layer reusing pipeline services; the pipeline stays the single source of truth. Deployable to Vercel (and other static/edge hosts) and self-hostable (FastAPI can serve the built frontend). UI/UX delivered using the pipeline skills: design-taste, frontend-design, google-stitch-uiux, design-dna-extractor (if a reference is given), visual-regression-aesthetics, heuristic-evaluation.
+- **Status:** overridden
+
+### implement:2 - For the voice‑enabled AI chat companion, which STT/TTS and wake‑word solutions should we integrate?
+
+- **Recommendation:** Start with the browser Web Speech API for STT/TTS (zero‑cost, works in Chrome/Edge/Firefox) and add Porcupine for wake‑word detection; optionally allow fallback to Azure Cognitive Services or Google Cloud for higher accuracy when online.
+- **Answer:** Voice is DEFERRED in the MVP, but design it now to match the mymoney project's proven stack: STT = browser Web Speech API (free, on-device; only the transcript leaves the browser) behind a provider abstraction with an optional server fallback (Whisper/Vosk); TTS = speechSynthesis primary with an optional server /api/tts; WAKE WORD = Sherpa-ONNX KWS native models (free, offline, Apache-2.0) with a per-user configurable wake phrase (admin API + BPE tokens) - Porcupine is an acceptable alternative if a managed option is preferred. Gate the feature behind a voice_input feature flag; active only when enabled AND the dashboard is focused. Design the chat companion so voice slots in later without rework. Multi-language later.
+- **Status:** overridden
+
+### implement:3 - How should we deliver the mobile companion – as a cross‑platform hybrid app, a PWA, or separate native builds?
+
+- **Recommendation:** Build a cross‑platform React Native app that shares UI components with the web dashboard (via React Native for Web) and optionally package it as a PWA for browsers, giving a single codebase while still supporting native device features.
+- **Answer:** MVP = PWA: the responsive Next.js dashboard, installable, sharing the same codebase, design tokens and API as the web dashboard (covers mobile-web). A native/cross-platform mobile app is DEFERRED (BI-0012); when built, follow the mymoney approach - a separate Expo/React Native app sharing a common layer (types/API/design tokens) with web, NOT a single RN-for-Web codebase. No separate native builds in MVP.
+- **Status:** overridden
+
+## code-review - Code Review: Code Review agent (Stage 5). Reviews implemented code for completeness, bugs, security, performance, quality. REJECTS scaffolding/mocks.
+
+### code-review:1 - Which frontend framework and UI component library will be used to build the dashboard (e.g., React/Vue/Angular with Ant Design, Material-UI, etc.)?
+
+- **Recommendation:** Use React with TypeScript and Ant Design (or Material-UI) for a rich, themeable component set and strong ecosystem support.
+- **Answer:** Confirmed as the P31 stack, which is both the repo's binding standard and the latest/scalable choice: Next.js 15 (React 19) + TypeScript; Tailwind CSS + cva primitives (shadcn-style) + design tokens; TanStack Query + Zustand; React Hook Form + Zod; Vitest + Testing Library + Playwright. NOT Ant Design/MUI. Rationale: docs/guidelines/frontend/react.md mandates React 19 + Next.js 15; docs/guidelines/ui-ux/accessibility.md mandates Tailwind + cva + tokens; it matches the project idea (API-first, real-time, multi-tenant, Vercel-deployable, PWA) and scales via RSC/streaming, code-splitting, a separate FastAPI backend, edge/CDN and hybrid storage.
+- **Status:** overridden
+
+### code-review:2 - Will the dashboard consume only the existing pipeline backend APIs, or will it require additional dashboard‑specific APIs (e.g., for UI state, chat companion, project metadata)?
+
+- **Recommendation:** Reuse the pipeline APIs wherever possible and add a thin dashboard‑specific API layer for UI‑centric operations (preferences, chat sessions) to keep the backend clean.
+- **Answer:** Accept (consistent with P11/P15/P24): the dashboard consumes the existing pipeline APIs and adds only a THIN dashboard-specific API layer for UI-centric operations (user/tenant preferences, chat sessions, notifications, UI orchestration). The pipeline remains the single source of truth; no pipeline state is duplicated in the dashboard.
+- **Status:** overridden
+
+### code-review:3 - How will voice wake‑word detection and TTS/STT be implemented (client‑side Web Speech API vs third‑party service, specific libraries)?
+
+- **Recommendation:** Leverage the browser Web Speech API for STT/TTS and an open‑source wake‑word engine like Porcupine for client‑side wake‑word detection, ensuring privacy and offline capability.
+- **Answer:** Per the ACTUAL mymoney implementation files (voice deferred, design now): STT = browser Web Speech API (src/ai/stt/stt-provider.ts BrowserSTTProvider); mobile STT = expo-speech-recognition (mobile/hooks/useSpeechRecognition.ts); optional server fallback Whisper/Vosk behind a provider abstraction. TTS = speechSynthesis (BrowserTTSProvider) with a server neural TTS route /api/tts using msedge-tts (Microsoft Edge neural voices, MP3). WAKE WORD = Sherpa-ONNX KWS (@siteed/sherpa-onnx.rn on RN; AudioContext->AudioWorklet->Sherpa KWS on web), per-user configurable phrase via /api/admin/wake-word (BPE tokens); Porcupine is an acceptable managed alternative. All client-side/on-device for privacy + offline; feature-flagged (voice_input); active only when enabled and the dashboard is focused.
+- **Status:** overridden
+
+## validate - QA Engineer (Senior): Senior QA Engineer. Owns the product's entire test lifecycle: designs the test strategy, authors every test type (unit, db, api, logic, integration, functional, e2e, visual/BDD, performance, security, accessibility, deploy/smoke/sanity), defines suites and test cycles, executes them through the test framework, keeps the requirement traceability matrix (FR/NFR), logs defects, hands them to the fix agent, verifies fixes, performs RCCA, and reports results to the dashboard. Owns the validate role.
+
+### validate:1 - What is the exact v1 release boundary: which capabilities are required for the first production release, and what must be deferred?
+
+- **Recommendation:** Define v1 as the web dashboard MVP covering project creation/configuration, model-tier management, portfolio view, pipeline start/stop controls, real-time status, and logs. Defer the mobile companion, wake-word voice/TTS/STT, global chat companion, auto mode, and custom public-site deployment patterns. Require 100% traceability for v1 must-haves, passing functional/API/integration/security/accessibility tests, no open Sev-1/Sev-2 defects, and successful deploy/smoke validation before release.
+- **Answer:** v1 = the full owner-approved MVP (P1-P36). Deferred: native mobile app, voice (wake-word/STT/TTS), non-English i18n, ops/post-production console, broad external API catalog. RELEASE GATES (keep): 100% traceability for must-have capabilities; functional + API + integration + security + accessibility (WCAG 2.1 AA) tests passing via our test framework; no open Sev-1/Sev-2 defects; successful deploy + smoke validation; Go/No-Go verdict before release.
+- **Status:** overridden
+
+### validate:2 - Who can access portfolio data and operations, and what is the authoritative state and API boundary between the dashboard and pipeline backend?
+
+- **Recommendation:** Assume authenticated SSO/OAuth with RBAC roles such as owner, admin, member, and viewer; enforce project-level isolation and audit all privileged actions. The backend should own project, run, agent, and log state and validate every mutation; the dashboard should consume existing pipeline APIs and add only dashboard-specific orchestration endpoints. Add API contract tests, authorization tests, and secret-handling checks so frontend actions cannot bypass backend enforcement.
+- **Answer:** Accept with enrichment. Access model: COMPLETE multi-tenancy (tenants/workspaces + teams), not just project-level isolation. OAuth2/OIDC with Google + GitHub + locally-created users (password reset/recovery, email verification). RBAC roles owner/admin, create/write, read-only per portfolio/project; per-user and per-tenant capacity quotas; audit all privileged actions; strict tenant isolation (no cross-tenant access to projects/logs/artifacts/credentials). Authoritative state: the pipeline backend owns project/run/agent/log state and validates every mutation; the dashboard consumes existing pipeline APIs and adds only a thin dashboard-specific orchestration layer. Tests required: API contract tests, authorization + tenant-isolation tests, and secret-handling checks so frontend actions cannot bypass backend enforcement.
+- **Status:** overridden
+
+### validate:3 - What scale, latency, availability, and deployment targets should define production readiness?
+
+- **Recommendation:** Use provisional targets of 100 concurrent users, 100 projects, 20 concurrent pipeline runs, real-time status updates within 5 seconds, dashboard read p95 under 500 ms, action acknowledgement p95 under 2 seconds, and 99.9% backend API availability. Support separate dashboard/backend deployment with a same-origin production option; gate release on load, stress, resilience, logging-volume, accessibility, and security-performance testing.
+- **Answer:** Accept with the capacity tie-in. Provisional production targets: 100 concurrent users, 100 projects, 20 concurrent pipeline runs; real-time status updates within 5s; dashboard read p95 < 500ms; action acknowledgement p95 < 2s; 99.9% backend API availability; support separate dashboard/backend deployment AND a same-origin option. Concurrency is governed by the EXISTING capacity governor (config/capacity.json: max_parallel_projects, max_created_projects, max_supervisors, max_concurrent_agents_per_project, provider_limits, global_budget) enforced PER USER and PER TENANT (user quota = effective limit, global = hard ceiling). Release is gated on load, stress, resilience, logging-volume, accessibility (WCAG 2.1 AA) and security-performance testing via our test framework.
+- **Status:** overridden
+
+## devops - Devops: # DevOps Agent
+
+### devops:1 - Should the first production release use a hosted, separately deployable dashboard/API/worker architecture, or a single/self-hosted deployment?
+
+- **Recommendation:** Use a hosted SaaS default: deploy the static dashboard on Vercel, run the API and durable pipeline workers in a managed cloud region, and use managed database, object-storage, and queue services. Package them separately and configure dev, staging, and production environments; add self-hosting later.
+- **Answer:** Support BOTH from v1:
+(a) Hosted SaaS default - static dashboard on Vercel; API + durable pipeline workers in a managed cloud region; managed DB/object-storage/queue.
+(b) Self-hosted / co-located - backend + dashboard on one host (SQLite/SQLite-or-Postgres).
+AND additionally: the user SELECTS the deployment target at run time, which may be a REMOTE Linux or Windows system (e.g. deploy over SSH/Docker/WinRM to a chosen host), driven by the pipeline's target advisor / deploy providers. So deployment targets are user-selectable: Vercel, managed cloud, local self-hosted, or a remote Linux/Windows machine.
+Environments: dev, staging, production. Containerized/packageable; documented for each target.
+- **Status:** overridden
+
+### devops:2 - What access and tenancy model must be enforced for users and API clients?
+
+- **Recommendation:** Use authenticated multi-tenant accounts with a workspace/project hierarchy, role-based permissions, invite-based users, project-scoped API tokens, and MFA/SSO for administrators. Keep every control and data API project-scoped and audit all changes.
+- **Answer:** Accept enriched. Complete multi-tenancy: tenants/workspaces + teams within tenants. Roles per portfolio/project: owner/admin, create/write, read-only. Auth: Google + GitHub + locally-created users, password reset/recovery, email verification, SSO-ready, MFA for administrators. Invite-based user onboarding + project sharing. Tenant-scoped API tokens (bound to tenant/project, never global). Per-user and per-tenant capacity quotas. Audit every change. All control and data APIs are tenant-scoped and project-scoped; strict tenant isolation.
+- **Status:** overridden
+
+### devops:3 - Which privacy, retention, and voice requirements are mandatory for the first release?
+
+- **Recommendation:** Treat prompts, logs, outputs, and credentials as sensitive: encrypt in transit and at rest, use provider allowlists and secret management, configure retention and backups, and publish an audit trail. Ship text chat in the MVP and defer wake-word/continuous STT/TTS until latency, privacy, and cost requirements are approved.
+- **Answer:** Accept enriched. Treat prompts/logs/outputs/credentials as sensitive: encrypt in transit and at rest; provider allowlists; secret management; tenant-scoped credential protection. Retention: configurable per-tenant retention policies, backups, data-residency/PII handling. Privacy: no audio stored (on-device STT when voice lands; only transcripts leave the browser). Publish an audit trail. Ship TEXT chat in MVP; wake-word/continuous STT/TTS deferred (per BI-0011).
+- **Status:** overridden
+
+## document - Document: Documentation agent. Generates comprehensive documentation for the completed software product including README, user guides, API documentation, architecture diagrams, and PDF exports.
+
+### document:1 - What should be included in the first release versus deferred to later phases?
+
+- **Recommendation:** Release the web portfolio dashboard, project creation, model-tier configuration, orchestration controls, real-time monitoring/logs, and notifications. Defer voice support, a separate mobile app, chat-companion orchestration, and third-party API customization to later phases; keep auto mode as an early capability if backend automation already exists.
+- **Answer:** v1 = the full owner-approved MVP (P1-P42) PLUS the licensing/portal suite (operator console, customer/tenant admin, public customer portal, tier/entitlement enforcement). Deferred: native mobile app, voice (wake-word/STT/TTS), non-English i18n, ops/post-production console, broad external API catalog. Operator isolation is build-time: the Operator/Super-Admin build holds ALL customers/tenants, the customer-onboarding portal, tenant management, licensing/keys/tiers/trials/pricing, flags and usage; the Customer/Tenant build ships only the tenant dashboard + tenant admin + license validation (operator code absent, not hidden).
+- **Status:** overridden
+
+### document:2 - What is the intended primary audience and access model?
+
+- **Recommendation:** Target AI product builders and technical operators managing multiple projects. Use role-based access with authenticated individual accounts, team membership, and project-level permissions; initially support one owner/admin and collaborators rather than complex organizational roles.
+- **Answer:** Accept enriched. Primary audience = AI product builders, developers, and teams/organizations managing multiple projects/portfolios. Access = COMPLETE multi-tenancy (tenants/workspaces + teams within tenants), authenticated accounts (Google + GitHub + locally-created users), invite-based membership, RBAC (owner/admin, create/write, read-only) per portfolio/project, SEATS governed by the license tier, project-level permissions, and strict tenant isolation. Not just one owner/admin + collaborators.
+- **Status:** overridden
+
+### document:3 - What architecture and API model should documentation assume?
+
+- **Recommendation:** Treat the existing pipeline as the system of record and expose its capabilities through REST/JSON APIs with OpenAPI documentation. Keep the web dashboard as a separate frontend deployed on a platform such as Vercel, communicating with a centrally hosted backend; add only dashboard-specific endpoints for notifications, activity feeds, and companion state.
+- **Answer:** Accept enriched. The pipeline is the system of record; expose capabilities through REST/JSON APIs with OpenAPI documentation (FastAPI backend). Real-time via SSE/WebSocket. APIs are tenant-scoped with auth/RBAC. Dashboard is a separate frontend (Vercel-deployable) communicating with a centrally hosted backend; add dashboard-specific endpoints for notifications, activity/timeline feeds, companion state, licensing/entitlements, and the operator surfaces (present only in the operator build). Document a public API for external consumers.
+- **Status:** overridden
+
+## package - Package: Packaging agent. Builds platform-specific packages, installers, and artifacts for the completed software product including BOM, security audits, licenses, and cross-platform packaging.
+
+### package:1 - For v1, should the mobile app be delivered as native iOS/Android packages, a responsive web/PWA, or both?
+
+- **Recommendation:** Use native iOS and Android packages plus a responsive web/PWA fallback; defer desktop installers.
+- **Answer:** v1 = responsive PWA only (installable, offline shell, same codebase/design tokens/API as the web dashboard). Native iOS/Android packages are DEFERRED (BI-0012). Desktop installers are not applicable to the dashboard itself (packaging applies to GENERATED projects, not the dashboard).
+- **Status:** overridden
+
+### package:2 - Should the dashboard and pipeline backend be packaged and deployed as separate artifacts or as one combined product?
+
+- **Recommendation:** Support separate static dashboard and containerized backend as the primary model, with a combined self-hosted bundle/archive as an additional option.
+- **Answer:** Accept: primary model = separate artifacts (static dashboard on Vercel/CDN + containerized backend/API/workers), which supports the user-selectable deployment targets (Vercel, managed cloud, self-hosted, remote Linux/Windows). ALSO provide a combined self-hosted bundle/archive (backend + built dashboard on one host) as a supported option. Both operator and customer builds follow this packaging.
+- **Status:** overridden
+
+### package:3 - Which runtime, platform, signing, and software-compliance requirements must the release artifacts satisfy?
+
+- **Recommendation:** Target browser clients, Node.js LTS backend, and OCI/Docker containers; generate an SBOM and license inventory, run dependency vulnerability/license scans, document supported platforms, and sign release artifacts.
+- **Answer:** Accept with correction: clients = modern browsers (Chrome/Edge/Firefox/Safari) + PWA; frontend = Next.js on Node LTS (toolchain/build only); BACKEND = Python (FastAPI), not Node; containers = OCI/Docker; generate SBOM (BOM.json / CycloneDX) + license inventory; run dependency vulnerability + license scans (bandit/pip-audit/trivy/snyk); document supported platforms/OS (Linux/Windows) and the browser matrix; sign release artifacts and license keys via core/signing.py.
+- **Status:** overridden
+
+## orchestrator - Project Coordinator: Project Coordinator (judgment plane). Consulted by the runtime at stages 3/10/12 and on events (stuck/anomaly/conflict/coverage-gap) for decisions rules cannot make. The runtime PipelineExecutor is the control plane/SSOT; this agent does NOT own execution.
+
+### orchestrator:1 - Should the dashboard be the exclusive human entry point for pipeline operations, or should existing CLI/API workflows remain supported?
+
+- **Recommendation:** Make it the primary human control plane for supported operations while preserving backend APIs and CLI/automation access; the backend remains the source of truth.
+- **Answer:** Accept: the dashboard is the PRIMARY human control plane for all supported operations, but the backend APIs and CLI/automation access REMAIN supported (auto mode, scripts, CI, external API consumers). The pipeline backend stays the single source of truth; the dashboard is one client of it.
+- **Status:** overridden
+
+### orchestrator:2 - What should be included in the first releasable MVP versus the full dashboard vision?
+
+- **Recommendation:** Ship portfolio overview, project creation/configuration, model-tier selection/customization, run start/pause/stop/cancel, stage status and logs, and basic auto-run; defer native mobile, voice companion, and exhaustive migration of every existing interaction until the core flows are stable.
+- **Answer:** v1 = the FULL owner-approved MVP (P1-P49) including ALL 176 modules/workflows surfaced with UI/UX (BI-0015/BI-0027) AND the licensing/portal suite. Deferred: native mobile app, voice (wake-word/STT/TTS), non-English i18n, ops/post-production console, broad external API catalog. Not a reduced subset; not 'basic auto-run' - advanced/full auto mode is in.
+- **Status:** overridden
+
+### orchestrator:3 - What is the preferred initial deployment and access model?
+
+- **Recommendation:** Use a web-first responsive dashboard deployed on Vercel with a separate pipeline backend/API, shared authentication, initial single-organization/team support with role-based access, and API keys/OAuth for integrations; add native mobile and broader multi-tenancy later.
+- **Answer:** Accept enriched. Both deployment modes from v1: (a) Vercel/CDN dashboard + managed cloud backend, and (b) self-hosted/co-located/remote Linux or Windows host (user-selectable target). EXPLICIT SPLIT OPTION: the pipeline BACKEND can run in one place and the DASHBOARD in another, with ALL interaction over the APIs (API-first; CORS/auth/network configurable; no coupling). COMPLETE multi-tenancy (tenants+teams) in v1, not later. Shared auth (Google/GitHub/local + password reset); RBAC + seats; tenant-scoped API keys/OAuth for integrations. Native mobile + voice deferred.
+- **Status:** overridden
+
+## guardian - Guardian: Guardian agent. Protects systems, enforces policies, and ensures security and compliance across operations.
+
+### guardian:1 - Who will be allowed to access the dashboard and pipeline APIs, and what deployment boundary is required?
+
+- **Recommendation:** Assume a private, authenticated product with organization-level tenants. Require SSO/OIDC, role-based access control, tenant isolation, and a separate backend/dashboard deployment. Do not expose unauthenticated or public write APIs.
+- **Answer:** Accept enriched. Private, authenticated product with COMPLETE multi-tenancy (tenants+teams). Auth via OIDC (Google/GitHub) + locally-created users (password reset/recovery); SSO-ready; MFA for admins. RBAC (owner/admin, create/write, read-only) + seats. Strict tenant isolation; tenant-scoped API tokens. Split deployment supported: dashboard and pipeline backend may run on separate hosts, all interaction over authenticated APIs. NO unauthenticated public write APIs; only explicitly published endpoints (authenticated, or deliberately public read-only).
+- **Status:** overridden
+
+### guardian:2 - What types of data will projects, prompts, logs, and uploads contain, and what retention or privacy obligations apply?
+
+- **Recommendation:** Treat all pipeline data as confidential by default. Encrypt data in transit and at rest, use approved providers with no-training settings, keep secrets out of prompts and UI, minimize and redact logs, and define retention and deletion policies before enabling regulated data.
+- **Answer:** Accept enriched: treat ALL pipeline data (projects, prompts, logs, outputs, uploads, credentials) as confidential by default. Encrypt in transit and at rest. Use approved providers with no-training settings. Keep secrets out of prompts and UI. Minimize + redact logs. Define tenant-scoped retention + deletion policies (configurable), data-residency/PII handling, and configurable backups. Publish an audit trail. No audio stored (on-device STT). Per-tenant credential/secret isolation. Define retention/delete before enabling regulated data.
+- **Status:** overridden
+
+### guardian:3 - Which dashboard actions and auto-mode operations require approval, audit, or safeguards?
+
+- **Recommendation:** Require explicit approval for destructive, expensive, external, or production-affecting actions. Audit all control and API events, use least privilege, idempotency, rate limits, circuit breakers, and human confirmation for voice-controlled or critical pipeline operations.
+- **Answer:** Accept the recommendation + HIL model: explicit approval required for destructive, expensive, external, or production-affecting actions; audit all control + API events; least privilege; idempotency; rate limits; circuit breakers; human confirmation for voice-controlled or critical pipeline operations. Ties to the existing gates (AG-scope-change, AG-architecture, AG-security-critical, AG-deploy), per-agent approvals, and the interactive HIL console.
+- **Status:** overridden
+
+## finops - Finops: # FinOps Agent
+
+### finops:1 - What FinOps outcomes must the dashboard guarantee: cost attribution, budget control, forecasting, anomaly detection, or chargeback?
+
+- **Recommendation:** Start with per-project, per-agent, and per-model-tier cost attribution, budget alerts, and auto-mode cost caps. Defer chargeback and advanced forecasting until usage data is reliable.
+- **Answer:** Accept, covering the FULL backend budget/cost/token machinery: per tenant/user/project/stage/agent/model/tier cost attribution; budget limits + 70/90/100% alerts; auto-mode cost caps; cost KPIs + FinOps report; basic forecasting + anomaly detection on spend; per-tenant usage/cost reporting (chargeback-ready). Must surface all of: core/budget.py (budget.json limits/usage/allocations/state/history), budget_allocator, budget_conservation, budget_planner (propose_tier/apply_proposal), budget_protection, budget_tracker, cost_kpi, cost_modeling, finops, pipeline_telemetry, run_breaker (alerts.json); config/capacity.json global_budget + provider_limits + max_concurrent_agents_per_project; per-call token fields (input/output/cached/total, cost, cache_hit, chunking, context_window, truncated, retries, continuations, duration); stores budget.json, alerts.json, pipeline_cost_history.json, usage.jsonl, cost_metrics.jsonl, quality-metrics.json, pipeline-execution-report.json, byot_config.json (BYOT).
+- **Status:** overridden
+
+### finops:2 - Is the dashboard intended for one internal team or multiple external customers, and who owns the cloud and LLM-provider spend?
+
+- **Recommendation:** Treat the first release as an internal single-tenant dashboard. The backend should own cost accounting and billing integration; the dashboard should provide read-only visibility and limited operational controls.
+- **Answer:** Multi-tenant SaaS serving external customers (NOT internal single-tenant). Spend ownership: platform operator owns cloud/infra spend; LLM/provider spend is either the customer's own keys (BYOT) or the platform's keys attributed per tenant and billed. The backend owns cost accounting + billing integration; the dashboard provides per-tenant/user cost visibility plus budget/cap controls; per-tenant cost attribution feeds licensing/billing (chargeback-ready).
+- **Status:** overridden
+
+### finops:3 - What cost telemetry, latency, and retention are available from the pipeline backend and LLM providers?
+
+- **Recommendation:** Instrument costs at operation, agent, and model-invocation level; aggregate every few minutes, retain at least 90 days of detailed data, archive longer-term summaries, and reconcile provider invoices monthly.
+- **Answer:** Accept, tied to the actual backend telemetry: instrument at operation/agent/model-invocation level using pipeline_telemetry.build_telemetry + cost history and the per-call records in agent-audit-log.json (input/output/cached/total tokens, cost, duration_seconds=latency, cache_hit, chunking_used/chunks_count, model_context_window, truncated, retries, continuations), plus budget.json and alerts.json. Expose per tenant/user/project/stage/agent/model. Aggregate on a short cadence; retain >=90 days of detailed data (tenant-configurable) and archive longer-term summaries; reconcile provider invoices monthly.
+- **Status:** overridden
+
+## product-owner - Product Owner (Ideation Partner): Works WITH the ideation and discovery agents to distill the idea into product goals, vision, scope, personas and success metrics. Invoked ONLY in auto mode.
+
+### product-owner:1 - What measurable success criteria (product goals / KPIs) should define a successful v1 — e.g., share of pipeline operations performed via dashboard vs CLI, time-to-first-project, reduction in stalled runs awaiting input, chat/voice companion adoption?
+
+- **Recommendation:** v1 succeeds if: ≥80% of routine pipeline operations (create/run/monitor/input) are done via the dashboard, time-to-first-running-project <10 minutes, stalled runs awaiting human input reduced vs baseline, and the AI companion is used at least weekly by the primary operator. Defer vanity metrics like DAU.
+- **Answer:** v1 succeeds if: ≥80% of routine pipeline operations (create/run/monitor/input) are done via the dashboard, time-to-first-running-project <10 minutes, stalled runs awaiting human input reduced vs baseline, and the AI companion is used at least weekly by the primary operator. Defer vanity metrics like DAU.
+- **Status:** overridden
+
+### product-owner:2 - When scope or UX trade-offs arise, how should we prioritize the personas — confirm Priya (Portfolio Operator) as the primary persona, Marco (API/integrator) as secondary, and Sam (mobile supervisor) as tertiary for v1?
+
+- **Recommendation:** Confirm Priya as the decisive persona for all v1 trade-offs (portfolio clarity, steerable runs, human-input dialogs); Marco's API-first needs are a close secondary since they're cheap to uphold; Sam's mobile needs are limited to monitoring + input/approval, deferring heavy mobile workflows to later phases.
+- **Answer:** Confirm Priya as the decisive persona for all v1 trade-offs (portfolio clarity, steerable runs, human-input dialogs); Marco's API-first needs are a close secondary since they're cheap to uphold; Sam's mobile needs are limited to monitoring + input/approval, deferring heavy mobile workflows to later phases.
+- **Status:** overridden
+
+### product-owner:3 - What is the intended business goal of this product for v1 and beyond — internal enablement tool for the Product Forge pipeline, or a productized offering (internal-team SaaS or externally sellable dashboard) that pricing/monetization strategy must eventually cover?
+
+- **Recommendation:** Treat v1 as an internal-first control plane that must not block later productization: no pricing/billing in v1, but keep tenancy, usage/cost telemetry, and API surfaces clean enough that a pricing-strategist can later model tiers (seat, usage/token, or portfolio-scale pricing) without a rewrite.
+- **Answer:** Treat v1 as an internal-first control plane that must not block later productization: no pricing/billing in v1, but keep tenancy, usage/cost telemetry, and API surfaces clean enough that a pricing-strategist can later model tiers (seat, usage/token, or portfolio-scale pricing) without a rewrite.
+- **Status:** overridden
+
+## marketing - Marketing: # Marketing Agent
+
+### marketing:1 - For v1, does marketing own an internal adoption/rollout deliverable (launch announcement, onboarding tour copy, short demo, training/README) to drive Priya's and Sam's switch from CLI to dashboard, or does marketing activity start only after the release ships?
+
+- **Recommendation:** Include a lightweight internal launch kit in v1 scope — in-product onboarding tour, README/getting-started page, and a short demo — and defer broader enablement campaigns (workshops, email sequences) to post-launch.
+- **Answer:** Include a lightweight internal launch kit in v1 scope — in-product onboarding tour, README/getting-started page, and a short demo — and defer broader enablement campaigns (workshops, email sequences) to post-launch.
+- **Status:** overridden
+
+### marketing:2 - Since the API-first surface (Marco, the Builder-Integrator) is a core pillar, should v1 include public-facing API documentation/developer landing page as a marketing deliverable, or are internal-only docs sufficient for launch?
+
+- **Recommendation:** Ship internal API docs as part of v1; defer the public developer portal/landing page to a later phase until the API contract is proven with internal users.
+- **Answer:** Ship internal API docs as part of v1; defer the public developer portal/landing page to a later phase until the API contract is proven with internal users.
+- **Status:** overridden
+
+### marketing:3 - Should the dashboard carry its own product name/brand identity distinct from 'Product Forge' (e.g., a standalone landing/messaging identity for future external positioning), or does it simply ship under the existing Product Forge brand with no separate branding work in v1?
+
+- **Recommendation:** Ship under the existing Product Forge brand with no separate naming or branding effort in v1; revisit standalone positioning only if the business-goal decision later productizes the dashboard.
+- **Answer:** Ship under the existing Product Forge brand with no separate naming or branding effort in v1; revisit standalone positioning only if the business-goal decision later productizes the dashboard.
+- **Status:** overridden
+
+## growth - Growth Lead: Growth lead. Owns acquisition/activation/retention/referral, funnel, growth loops and experiments.
+
+### growth:1 - How will new users be activated — should v1 ship a seeded demo/starter project plus a guided first-run tour (empty-state CTA → idea → tier → auto-mode kick-off) so a new Priya reaches a completed first run without reading the CLI README?
+
+- **Recommendation:** Yes — include a one-click starter project template and a 5-step onboarding tour in v1; this is the activation lever that converts existing CLI users to the dashboard.
+- **Answer:** Yes — include a one-click starter project template and a 5-step onboarding tour in v1; this is the activation lever that converts existing CLI users to the dashboard.
+- **Status:** overridden
+
+### growth:2 - Should v1 include an out-of-band notification channel (email, Slack/webhook, or push) that fires when a run needs input or fails — since the dashboard/voice companion is only active when the tab is open, retention depends on reaching users when they are away (Sam's core loop)?
+
+- **Recommendation:** Yes — at least one notification channel (email or Slack webhook) is a v1 requirement; without it, runs stall and the dashboard loses its primary retention trigger.
+- **Answer:** Yes — at least one notification channel (email or Slack webhook) is a v1 requirement; without it, runs stall and the dashboard loses its primary retention trigger.
+- **Status:** overridden
+
+### growth:3 - For referral/advocacy, should v1 include any shareable growth artifact (e.g., a read-only portfolio/run-summary share link or public project showcase) to fuel word-of-mouth among pipeline users, or is advocacy limited to organic word-of-mouth from API docs and demos?
+
+- **Recommendation:** Defer public showcases — v1 advocacy relies on the marketing deliverables (demo, announcement, API docs); add a shareable read-only run-summary link in v2 as a low-cost growth loop.
+- **Answer:** Defer public showcases — v1 advocacy relies on the marketing deliverables (demo, announcement, API docs); add a shareable read-only run-summary link in v2 as a low-cost growth loop.
+- **Status:** overridden
+
+## customer-onboarding - Customer Onboarding: # Customer Onboarding Agent
+
+### customer-onboarding:1 - Existing pipeline users already have projects, runs, and tier configs created via CLI — must onboarding include importing/adopting that existing state into the dashboard (e.g., a 'your existing projects appear here' flow), or does onboarding only assume net-new users creating projects from scratch in the dashboard?
+
+- **Recommendation:** Since the pipeline backend is the source of truth, existing projects/tiers created via CLI should automatically appear in the dashboard with no separate migration step — onboarding should just recognize portfolio-empty vs portfolio-populated states and tailor the first-run guidance accordingly (skip the create-project tour if projects already exist).
+- **Answer:** Since the pipeline backend is the source of truth, existing projects/tiers created via CLI should automatically appear in the dashboard with no separate migration step — onboarding should just recognize portfolio-empty vs portfolio-populated states and tailor the first-run guidance accordingly (skip the create-project tour if projects already exist).
+
+ADOPT EXTERNAL PROJECTS (owner): the dashboard must also onboard projects built OUTSIDE the pipeline - scan the external codebase (flows, structure, code, paths, interfaces, APIs, tech stack) plus its goals/vision, create a folder under products/, copy the files in, and add the pipeline management files so the project is fully managed (CLI + dashboard UI). OPEN DECISION to evaluate: copy the external project INTO products/ vs leave it in place and add only the pipeline management files under product forge - assess which scales better.
+- **Status:** overridden
+
+### customer-onboarding:2 - Does first-run onboarding need a guided setup step for backend/LLM provider credentials (API keys, provider config) before a user can create their first project, or are those assumed pre-configured on the pipeline backend outside the dashboard?
+
+- **Recommendation:** Assume credentials are pre-configured on the backend for MVP; the onboarding flow's first-run wizard should only cover idea → tier preset → run mode, with a non-blocking 'check backend connection/keys' status indicator rather than a full key-management wizard (defer key management UI to a later phase).
+- **Answer:** Assume credentials are pre-configured on the backend for MVP; the onboarding flow's first-run wizard should only cover idea → tier preset → run mode, with a non-blocking 'check backend connection/keys' status indicator rather than a full key-management wizard (defer key management UI to a later phase).
+
+ADD (owner): include a guided backend/LLM provider credential setup walk-through (API keys, provider config) in onboarding.
+- **Status:** overridden
+
+### customer-onboarding:3 - What in-app onboarding/help surfaces must v1 ship — contextual empty-state guidance and inline tooltips, a dismissible guided tour, an in-app help/docs panel, or a feedback/support channel — and which are launch blockers vs post-launch?
+
+- **Recommendation:** V1 launch blockers: rich empty-state CTAs with inline hints on every page plus a dismissible first-run tour of the core loop (create → run → respond to input); defer a full in-app help center, video walkthroughs, and feedback widget to post-launch, linking out to external docs instead.
+- **Answer:** V1 launch blockers: rich empty-state CTAs with inline hints on every page plus a dismissible first-run tour of the core loop (create → run → respond to input); defer a full in-app help center, video walkthroughs, and feedback widget to post-launch, linking out to external docs instead.
+
+ADD (owner): in-app help for ALL dashboard pages; a downloadable setup/user guide linked from the dashboard; and a <3-4 min captioned video walkthrough covering first-time onboarding -> creating the first project -> all stages/agents -> project completion with artifacts shown.
+- **Status:** overridden
+
+## scout - Scout: Scout agent. Explores new territories, discovers opportunities, and identifies emerging trends and technologies.
+
+### scout:1 - Should the AI companion be built on an emerging agent-interop standard (e.g., Model Context Protocol / tool-calling registry) so its 'understands the whole portfolio and can orchestrate dashboard operations' capability is powered by a standard tool layer rather than bespoke hardcoded intents — making it extensible as new pipeline modules appear?
+
+- **Recommendation:** Yes — expose pipeline operations as MCP-style tools registered from the existing API surface; this is the fastest emerging-trend path to a companion that stays in sync with new features without custom NLU per operation.
+- **Answer:** Yes — expose pipeline operations as MCP-style tools registered from the existing API surface; this is the fastest emerging-trend path to a companion that stays in sync with new features without custom NLU per operation.
+- **Status:** overridden
+
+### scout:2 - Should we benchmark and adopt proven observability UX patterns from leading agent-ops tools (LangSmith, Arize/Phoenix, Temporal UI) — specifically a per-run trace timeline with agent-span drill-down, token/cost waterfall, and replayable step history — as the target pattern for our project/run detail views?
+
+- **Recommendation:** Yes — these patterns are becoming the de-facto expectation for multi-agent dashboards; adopting the trace-timeline + cost-waterfall pattern in v1 differentiates us from raw-log viewers and matches what Priya/Marco already recognize from other tools.
+- **Answer:** Yes — these patterns are becoming the de-facto expectation for multi-agent dashboards; adopting the trace-timeline + cost-waterfall pattern in v1 differentiates us from raw-log viewers and matches what Priya/Marco already recognize from other tools.
+- **Status:** overridden
+
+### scout:3 - For real-time portfolio status and streaming pipeline logs, should we scout and standardize on SSE (Server-Sent Events) for dashboard log/status streams, reserving WebSocket only for bidirectional chat/voice — given SSE's resilience through proxies (Vercel, CDNs) and simpler one-way log streaming?
+
+- **Recommendation:** Yes — SSE for logs/status (retry-friendly, works on static-hosted SPAs behind CDNs) and WebSocket (or WebRTC for voice) only for the chat companion; this split is the pragmatic emerging pattern for deployable dashboards talking to a separate pipeline backend.
+- **Answer:** Yes — SSE for logs/status (retry-friendly, works on static-hosted SPAs behind CDNs) and WebSocket (or WebRTC for voice) only for the chat companion; this split is the pragmatic emerging pattern for deployable dashboards talking to a separate pipeline backend.
+- **Status:** overridden
+
+## pricing-strategist - Pricing Strategist: Pricing & monetization lead. Owns revenue model, pricing, packaging, unit economics, cost, profit and forecast.
+
+### pricing-strategist:1 - When the product becomes revenue-generating, what pricing model should underpin it: seat-based subscription, usage-based pricing (metered per pipeline run / LLM tokens), or a hybrid (platform fee + usage overage)?
+
+- **Recommendation:** Hybrid: a per-seat platform subscription for dashboard/API access plus metered usage for pipeline runs (passed-through or marked-up LLM/compute cost), because run cost varies widely by model tier and seat count alone fails to recover variable LLM spend.
+- **Answer:** Hybrid: a per-seat platform subscription for dashboard/API access plus metered usage for pipeline runs (passed-through or marked-up LLM/compute cost), because run cost varies widely by model tier and seat count alone fails to recover variable LLM spend.
+
+ADD (owner): subscription must be based on (a) number of SEATS, (b) number of PROJECTS they can create, (c) PROJECTS that can run CONCURRENTLY - scaling parameters per the pipeline capacity governor (config/capacity.json). Offer 3-4 tiers bundling features + scaling params (two axes: a standard tier for features, and a limit/scale axis for projects/parallelism).
+- **Status:** overridden
+
+### pricing-strategist:2 - Should v1 (even if internal/unpriced) ship metering instrumentation — per-run and per-tenant usage counters, model-tier cost attribution, and budget-cap events — so unit economics can be measured from day one rather than retrofitted later?
+
+- **Recommendation:** Yes: v1 must emit per-run/per-tenant usage and cost telemetry in a stable, queryable format (telemetry only, no billing UI), since retrofitting metering onto an existing pipeline is expensive and pricing/packaging decisions need real unit-cost data within the first release cycle.
+- **Answer:** Yes: v1 must emit per-run/per-tenant usage and cost telemetry in a stable, queryable format (telemetry only, no billing UI), since retrofitting metering onto an existing pipeline is expensive and pricing/packaging decisions need real unit-cost data within the first release cycle.
+- **Status:** overridden
+
+### pricing-strategist:3 - For packaging, should API access be a separate priced SKU (like Marco's integrator tier), or bundled with dashboard seats where differentiation is only rate limits and support level?
+
+- **Recommendation:** Bundle API access with the same tiers and differentiate only by rate limits, quotas, and support SLA in v1–v2 — pricing API separately too early fragments the offering and suppresses Marco's integration adoption, which is the main growth channel.
+- **Answer:** Bundle API access with the same tiers and differentiate only by rate limits, quotas, and support SLA in v1–v2 — pricing API separately too early fragments the offering and suppresses Marco's integration adoption, which is the main growth channel.
+- **Status:** overridden
+
+## customer-success - Customer Success Lead: Customer success lead. Owns onboarding, support, customer health, retention and lifecycle.
+
+### customer-success:1 - What is the v1 support operating model for dashboard users: which channel do users report issues or get help through (in-app feedback form, Slack/email, issue tracker), who triages it, and what response/escalation targets apply when a run failure or dashboard bug is reported — especially since this support intake should feed the existing test/issue-tracking framework?
+
+- **Recommendation:** Ship a lightweight in-app 'Report an issue / Get help' entry that captures user, project, run ID, and logs and files directly into our existing test/issue-tracking framework, with the Customer Success Lead triaging within one business day and escalating pipeline-level failures to the pipeline engineering owner.
+- **Answer:** Ship a lightweight in-app 'Report an issue / Get help' entry that captures user, project, run ID, and logs and files directly into our existing test/issue-tracking framework, with the Customer Success Lead triaging within one business day and escalating pipeline-level failures to the pipeline engineering owner.
+- **Status:** overridden
+
+### customer-success:2 - What customer-health signals should Customer Success monitor from day one to catch at-risk users and stalled adoption (e.g., zero dashboard logins after onboarding, runs stalled awaiting input beyond a threshold, repeated failed runs, no project created in first N days), and what outreach playbook triggers when a user's health score drops?
+
+- **Recommendation:** Define a simple health score tracked weekly: activated (first completed run within 7 days), weekly active operators, count/duration of stalled runs, and failed-run rate — with the CS lead personally reaching out within 48 hours of a stalled-run or activation threshold breach.
+- **Answer:** Define a simple health score tracked weekly: activated (first completed run within 7 days), weekly active operators, count/duration of stalled runs, and failed-run rate — with the CS lead personally reaching out within 48 hours of a stalled-run or activation threshold breach.
+- **Status:** overridden
+
+### customer-success:3 - What user-lifecycle management must v1 support for retention and offboarding — team-member invitation, role changes, deprovisioning (revoke dashboard sessions and API keys immediately when a user leaves), and account/project data handling on departure — beyond the access/tenancy model already decided?
+
+- **Recommendation:** v1 includes admin invite + role change (admin/operator/viewer) with one-click deprovision that revokes sessions and API keys and logs the action to an audit trail; data deletion/export requests are handled manually by the CS lead until volume justifies automation.
+- **Answer:** v1 includes admin invite + role change (admin/operator/viewer) with one-click deprovision that revokes sessions and API keys and logs the action to an audit trail; data deletion/export requests are handled manually by the CS lead until volume justifies automation.
+
+ADD (owner): project/user DELETION must ARCHIVE data for 7 days, with an email notification and a reminder 1-2 days before the archive expires to take action.
+- **Status:** overridden
+
+## community-social - Community & Social Lead: Community & social media lead. Owns community, social channels, engagement and advocacy.
+
+### community-social:1 - What community channel (e.g., dedicated Slack/Discord workspace, existing team channel, or discussion forum) should v1 establish as the home for dashboard users to ask questions, share results, and report feedback — and is opening it a launch blocker or post-launch?
+
+- **Recommendation:** Launch blocker as a lightweight channel: reuse an existing internal Slack/Teams channel for v1 rather than spinning up a new Discord/community platform; formalize a dedicated public community space only when/if the dashboard becomes an externally sold product.
+- **Answer:** Launch blocker as a lightweight channel: reuse an existing internal Slack/Teams channel for v1 rather than spinning up a new Discord/community platform; formalize a dedicated public community space only when/if the dashboard becomes an externally sold product.
+
+RECONSIDER (owner): not sure a Slack/community channel is planned. What else can we plan so v1 is production-ready and shippable to revenue-generating customers (without assuming an unplanned community channel)?
+- **Status:** overridden
+
+### community-social:2 - What social-proof and shareable content should be produced at launch (e.g., announcement post, demo GIF/video of a portfolio run, user testimonial from an existing CLI user, public changelog/release-notes feed) and who owns creating it — should marketing commit to a fixed launch-content package for v1?
+
+- **Recommendation:** Yes — commit to a minimal launch-content package owned by marketing: one internal launch announcement with a short demo GIF of a live run, plus a public changelog/release-notes feed; defer testimonials and external social posts until real users have adopted the dashboard.
+- **Answer:** Yes — commit to a minimal launch-content package owned by marketing: one internal launch announcement with a short demo GIF of a live run, plus a public changelog/release-notes feed; defer testimonials and external social posts until real users have adopted the dashboard.
+- **Status:** overridden
+
+### community-social:3 - Should v1 seed an early-adopter/evangelist cohort (recruit 3-5 existing pipeline CLI users to trial the dashboard, give feedback, and act as internal advocates during rollout) or does adoption rely purely on organic discovery of the dashboard?
+
+- **Recommendation:** Yes — recruit a small early-adopter cohort of existing CLI users pre-launch; their feedback de-risks v1 and their advocacy is the most credible driver of the CLI-to-dashboard switch among Priya and Sam personas.
+- **Answer:** Yes — recruit a small early-adopter cohort of existing CLI users pre-launch; their feedback de-risks v1 and their advocacy is the most credible driver of the CLI-to-dashboard switch among Priya and Sam personas.
+
+ADD (owner): trial users must have EXPIRY; they must be able to UPGRADE to a paid subscription with their data transitioned to production-level and managed exactly like a normal paid user. The full trial->paid workflow must be managed E2E with the relevant UI (inside or outside the dashboard) for seamless customer onboarding/engagement.
+- **Status:** overridden
+
+## sales-crm - Sales & CRM Lead: Sales & CRM lead (optional). Owns sales pipeline, CRM process, deal desk and B2B motions.
+
+### sales-crm:1 - Which CRM system of record and sales pipeline stages should we configure to track this dashboard product from first touch to close (e.g., Discovery → Demo → Pilot → Closed Won), and are we adding this as a new pipeline/product line in the existing CRM or standing up new objects (products, quotes, licenses)?
+
+- **Recommendation:** Reuse the existing company CRM (create a 'Product Forge Dashboard' product line with stages: Sourced → Discovery → Demo → Pilot/POC → Proposal/Quote → Closed Won/Lost); only create a new CRM instance if none exists, in which case HubSpot with these same stages.
+- **Answer:** Reuse the existing company CRM (create a 'Product Forge Dashboard' product line with stages: Sourced → Discovery → Demo → Pilot/POC → Proposal/Quote → Closed Won/Lost); only create a new CRM instance if none exists, in which case HubSpot with these same stages.
+- **Status:** overridden
+
+### sales-crm:2 - What is the initial ICP and sales motion for v1 — outbound-led (we prospect named accounts), inbound-led (API docs and launch content drive signups), or product-led (self-serve signup with sales only for larger/team deals) — and who is the economic buyer we build the pitch and qualification criteria around?
+
+- **Recommendation:** Product-led with sales-assist: self-serve dashboard/API access for individual operators, with sales engaging team/enterprise conversations; economic buyer is the engineering or product leader who owns AI-pipeline tooling budgets.
+- **Answer:** Product-led with sales-assist: self-serve dashboard/API access for individual operators, with sales engaging team/enterprise conversations; economic buyer is the engineering or product leader who owns AI-pipeline tooling budgets.
+- **Status:** overridden
+
+### sales-crm:3 - What deal-desk rules must we define for v1 pricing execution — discount authority levels, approval path for pricing exceptions, standard contract terms (billing cycle, overage handling for usage-based fees), and pilot/POC terms (length, success criteria, conversion path)?
+
+- **Recommendation:** Standard terms: annual billing with monthly usage overage billed in arrears, 30-day POC with agreed success criteria, discount authority capped at 10% for reps and anything above routed to leadership approval; start simple and formalize once first deals arrive.
+- **Answer:** Standard terms: annual billing with monthly usage overage billed in arrears, 30-day POC with agreed success criteria, discount authority capped at 10% for reps and anything above routed to leadership approval; start simple and formalize once first deals arrive.
+
+ADD (owner): define HOW/WHERE/WHAT for billing, monthly usage, and revenue/sales/customer tracking - run it IN the dashboard, with a SUPER-ADMIN (our local/production instance) that has these features, NOT visible to regular customers. Same build/deployment-separation mechanism already discussed (different builds surface details to the relevant personas/instances) - check the pipeline backend and build accordingly.
+- **Status:** overridden
+
+## legal-privacy - Legal & Privacy Counsel: Legal & privacy counsel. Owns ToS, privacy policy, DPA, licensing, IP and compliance posture.
+
+### legal-privacy:1 - Which LLM providers will process user content (prompts, project ideas, logs, uploads), what contractual/data-processing terms must be in place with them (DPA, sub-processor list, no-training/no-retention commitments, data residency), and does any user content ever contain third-party confidential or personal data that triggers GDPR-style obligations?
+
+- **Recommendation:** Use only provider API endpoints with no-training and short/no-retention data terms, sign a DPA with each provider, maintain a documented sub-processor list, and document in the privacy policy that content is sent to named LLM providers as processors. Assume prompts/projects may contain personal or confidential data, so apply minimization and encryption in transit/at rest by default.
+- **Answer:** Use only provider API endpoints with no-training and short/no-retention data terms, sign a DPA with each provider, maintain a documented sub-processor list, and document in the privacy policy that content is sent to named LLM providers as processors. Assume prompts/projects may contain personal or confidential data, so apply minimization and encryption in transit/at rest by default.
+
+OWNER: revisit - needs more thought and planning.
+- **Status:** overridden
+
+### legal-privacy:2 - For the voice companion (wake word, STT, TTS): is audio processed entirely on-device/client-side, or streamed to a cloud STT service — and what are the requirements for audio retention, user consent/notice for ambient microphone capture, and whether any voice data could qualify as biometric/special-category data under applicable privacy law?
+
+- **Recommendation:** Process wake-word detection and, where feasible, STT locally (Web Speech API / on-device models), never persist raw audio or voiceprints, show a clear visible+audible indicator whenever the mic is active, and include a one-line consent notice on first enable. This keeps voice out of biometric-data territory and avoids an audio-retention regime in v1.
+- **Answer:** Process wake-word detection and, where feasible, STT locally (Web Speech API / on-device models), never persist raw audio or voiceprints, show a clear visible+audible indicator whenever the mic is active, and include a one-line consent notice on first enable. This keeps voice out of biometric-data territory and avoids an audio-retention regime in v1.
+- **Status:** overridden
+
+### legal-privacy:3 - What is the IP/licensing posture for launch: (a) license policy for third-party OSS dependencies in the dashboard and voice stack (permissive-only vs copyleft), (b) ownership of pipeline-generated outputs and the dashboard's own code, and (c) what ToS/API terms must exist at release — even for internal v1 — covering acceptable API use, rate limits, and liability disclaimers for third parties calling the API-first surface?
+
+- **Recommendation:** Adopt a permissive-only dependency policy (MIT/Apache-2.0/ISC; flag anything GPL/AGPL/EUPL for approval), state that pipeline outputs are owned by the customer/operator, and ship a lightweight internal ToS + API terms addendum covering acceptable use, rate limits, and 'as-is' disclaimer from day one — even if the v1 is internal/unpriced — since the API-first surface invites external callers.
+- **Answer:** Adopt a permissive-only dependency policy (MIT/Apache-2.0/ISC; flag anything GPL/AGPL/EUPL for approval), state that pipeline outputs are owned by the customer/operator, and ship a lightweight internal ToS + API terms addendum covering acceptable use, rate limits, and 'as-is' disclaimer from day one — even if the v1 is internal/unpriced — since the API-first surface invites external callers.
+- **Status:** overridden
+
+## product-analytics - Product Analytics Lead: Product analytics lead. Owns product metrics, instrumentation, KPIs and experimentation design.
+
+### product-analytics:1 - Does the existing pipeline backend emit a structured event/stream of run lifecycle transitions (run_started, agent_stage_changed, human_input_required, run_completed, run_failed, tokens_used), or must we build an event collection/instrumentation layer (e.g., a tracked events endpoint or telemetry store) before dashboard analytics can be reliable?
+
+- **Recommendation:** The backend almost certainly does not emit a product-analytics event taxonomy today — assume we must define a canonical event schema (project/run/agent/user dimensions) and add a lightweight event ingestion endpoint or have the dashboard log events directly to an analytics store in v1, with the pipeline backend emitting run-lifecycle events as the primary source.
+- **Answer:** The backend almost certainly does not emit a product-analytics event taxonomy today — assume we must define a canonical event schema (project/run/agent/user dimensions) and add a lightweight event ingestion endpoint or have the dashboard log events directly to an analytics store in v1, with the pipeline backend emitting run-lifecycle events as the primary source.
+
+OWNER: this must be done in the PIPELINE BACKEND (not the dashboard) - the backend emits the canonical run-lifecycle event taxonomy; the dashboard CONSUMES it. Add the requirement as a backend backlog item.
+- **Status:** overridden
+
+### product-analytics:2 - Is there enough expected dashboard traffic (user count, run volume) to justify A/B testing / experimentation infrastructure in v1, or should experimentation be deferred in favor of descriptive metrics (funnels, adoption, latency) plus qualitative feedback?
+
+- **Recommendation:** Defer formal experimentation infrastructure to post-v1. The initial audience is a small internal user base (Priya/Sam/Marco personas) — v1 should ship descriptive instrumentation only (event logging, dashboards, funnels), with no A/B framework until there is sufficient volume.
+- **Answer:** Defer formal experimentation infrastructure to post-v1. The initial audience is a small internal user base (Priya/Sam/Marco personas) — v1 should ship descriptive instrumentation only (event logging, dashboards, funnels), with no A/B framework until there is sufficient volume.
+- **Status:** overridden
+
+### product-analytics:3 - Before we can claim 'reduction in stalled runs' or 'adoption vs CLI' as KPIs, do we need to capture a pre-launch baseline from current CLI usage (e.g., run counts, average time-to-completion, stall rate) — and can that data be derived today from existing pipeline logs/state, or must we instrument the CLI too?
+
+- **Recommendation:** Yes — require a pre-launch baseline captured from existing pipeline run logs/state (run volume, completion time, stall/timeout rate, per-run token cost) for at least the last ~30 days before dashboard launch; instrumenting the CLI itself is unnecessary if run records already persist these fields, but we must confirm and document where that history lives before sprint 1.
+- **Answer:** Yes — require a pre-launch baseline captured from existing pipeline run logs/state (run volume, completion time, stall/timeout rate, per-run token cost) for at least the last ~30 days before dashboard launch; instrumenting the CLI itself is unnecessary if run records already persist these fields, but we must confirm and document where that history lives before sprint 1.
+- **Status:** overridden
+
+---
+
+## Refined idea / product plan
+
+# Refined Idea
+
+## Original Idea
+
+Dashboard that is the face of the Product Forge pipeline (multi-agent, multi-project) — all operations happen through this dashboard UI.
+
+Scope: handle ALL operations/inputs/configs/customization and everything else in the pipeline, made available and orchestrated through the dashboard. This is the one-stop solution showing proper status of projects/operations/agents.
+
+Core capabilities:
+- Create a new project with an idea; provide/select model tiers, customize a tier, or create a new tier from the list of LLM models and providers.
+- Initiate project creation and the E2E workflow per the pipeline in the backend; monitor/track/provide inputs and control operations from the agent and orchestrator point of view.
+- Portfolio: multiple projects; run multi-project simultaneously and manage E2E for each running project; create multi-project runs going through all defined agents.
+- Everything that is interactive today (inputs/selection/outputs) in the pipeline must be managed through good UI dialogs/windows, well orchestrated in the UI and workflow.
+- Top-notch UI/UX: themes/components for lists, windows, dialogs, checkboxes, popups, notifications, alerts, text boxes/entry boxes, etc. Well-orchestrated dashboard to create/manage a portfolio of projects through the UI.
+- Global AI chat companion that understands the entire portfolio and projects, plus dashboard operations/control, queryable and orchestratable via chat. Build it with voice support (TTS/STT), English for now, with a wake word like Alexa. Active only when enabled and when the dashboard is up/focused/open.
+- Mobile app for the dashboard complementing the web dashboard — design/implement the workflows feasible/needed on mobile.
+- Tests: high quality across test types (functional, non-functional, security, others), written and managed through our test framework for design/creation/execution/results reporting and issue tracking of the dashboard.
+- Dashboard UI components/pages for ALL features/config implemented in the pipeline — go through the features/modules we have implemented.
+- Voice support: refer to the mymoney project at C:\Users\ADMIN\Documents\Srinikc\AI Products\mymoney.
+- Deployable from public sites (e.g. Vercel) talking to the pipeline backend; support backend and dashboard at one place or separate; implement deployment options for this.
+- API-first: anyone can call APIs to get relevant info and show it in a customized app. Analyze and decide whether we need all APIs in the dashboard or can reuse the pipeline APIs plus only the additional ones the dashboard needs; design/implement what is required.
+- Auto mode: the pipeline can create a new project with auto mode that runs the entire pipeline automatically without human inputs — orchestrate this workflow in the UI and show pipeline logs as they execute.
+
+## Clarifications
+
+- **What is the first-release scope, and which capabilities are non-negotiable for MVP?**
+  - Prioritize project creation, model-tier selection/customization, multi-project portfolio view, agent orchestration controls, and real-time pipeline monitoring/logging. Defer mobile, voice-enabled chat companion, and advanced auto mode until the core dashboard is stable.
+- **What deployment and backend/API boundary should the dashboard use?**
+  - Use a separate dashboard frontend, deployable on a public platform such as Vercel, communicating with the existing Product Forge backend through authenticated APIs. Reuse pipeline APIs where possible and add dashboard-specific aggregation, orchestration, and notification endpoints.
+- **What authentication, authorization, and data-isolation model is required?**
+  - Support user accounts with workspace/project-level roles, project-level permissions, secure API authentication, audit logging, and protection of model/provider credentials. Design the data model so multiple projects and users cannot access one another's data.
+- **What should be included in the first releasable MVP, given that the concept spans full portfolio orchestration, model-tier customization, mobile, voice, chat, APIs, and deployment?**
+  - Use F-1 through F-5 plus auto-mode as the launch scope: an authenticated web dashboard for project creation, model tiers, portfolio/status, run controls, and live logs. Defer native mobile, wake-word/STT/TTS, full conversational control, and a broad external API catalog until the core control plane is proven.
+- **Who is the initial deployment context: a private single-user/small-team tool, or a multi-tenant SaaS product with public access and strict tenant isolation?**
+  - Start as a private, authenticated single-tenant or small-team deployment, with clear project and operation permissions and an easy self-hosted/backend-plus-frontend option. Treat public hosting/Vercel and multi-tenant isolation as later phases, not launch blockers.
+- **What pipeline modules and APIs already exist, and which system should be the source of truth for project, agent, run, and log state?**
+  - Treat the existing pipeline as the source of truth. Reuse its APIs for execution and state, and add dashboard-specific read/query/orchestration APIs plus a stable event/status contract; avoid duplicating pipeline state in the dashboard.
+- **What is the minimum viable release boundary, and which capabilities are true release blockers?**
+  - Treat F-1 through F-5 as the core, include a constrained auto-mode run with start/stop/cancel and streamed logs in v1, deliver responsive web/mobile-web support, and defer native mobile, voice-enabled chat, broad public APIs, and advanced customization beyond the required model-tier workflow.
+- **Is the first deployment a single-tenant internal dashboard or a multi-tenant team product?**
+  - Assume one organization/workspace for the first release, with admin/operator roles, audit logging, and idempotent controls; defer SSO, team isolation, and external sharing.
+- **What is the integration and deployment boundary between the dashboard and the existing pipeline backend?**
+  - Use the existing backend/orchestrator as the source of truth; the dashboard should consume existing pipeline APIs and add only dashboard-specific endpoints. Support a Vercel-hosted frontend with a configurable backend, with same-origin deployment available later.
+- **What should be included in the first MVP, and what can be deferred?**
+  - Ship the web dashboard MVP first: project creation, model-tier selection/customization, portfolio view, per-project status/logs, manual run controls, and auto mode. Defer voice, mobile, and the full AI chat companion until the core dashboard is stable.
+- **What pipeline APIs and backend capabilities already exist that the dashboard must orchestrate?**
+  - Treat the existing Product Forge pipeline as the source of truth. Reuse its project, agent, model, run, and log APIs wherever possible, and add only dashboard-specific APIs for authentication, notifications, and UI orchestration.
+- **What deployment, security, and real-time requirements should guide the architecture?**
+  - Start with a separate public web frontend and private backend API, deploy the frontend to a platform such as Vercel, secure all dashboard APIs with authentication, and use WebSocket or Server-Sent Events for real-time project status and logs.
+- **What is the primary delivery target for the dashboard (web-first responsive UI) and should the mobile companion be a separate native app or a progressive web app sharing the same codebase?**
+  - Web-first responsive UI using a shared design system; mobile companion as a PWA / responsive view to leverage same design tokens and reduce duplication.
+- **How should the AI chat companion be integrated into the dashboard UI (persistent side panel, modal, or floating button) and under what conditions should voice wake word be active?**
+  - Persistent collapsible side panel accessible via a header icon; voice wake word active only when the dashboard is focused and the companion is enabled, using the same design tokens for chat bubbles and voice indicators.
+- **Should the dashboard rely exclusively on existing pipeline APIs for all data and operations, or are additional dashboard‑specific aggregation APIs needed for portfolio overview, real‑time status, and chat companion orchestration?**
+  - Reuse pipeline APIs where possible and add a thin dashboard‑specific aggregation layer (e.g., /dashboard/projects/summary, /dashboard/agent/status, /dashboard/chat) to avoid over‑fetching and to support UI‑only features like auto‑mode logs.
+- **Should the initial release (MVP) include all listed features, or should we prioritize the 'must-have' features (F1-F5) and defer the 'nice-to-have' items (F6-F9) to later phases?**
+  - Prioritize the must-have features (project creation, multi‑portfolio view, agent orchestration, model tier selection, pipeline monitoring) for the MVP; treat nice‑to‑have features as future enhancements.
+- **For the AI chat companion, is it required to launch with full voice support (wake word, TTS/STT) or can we start with a text‑only chat and add voice capabilities later?**
+  - Launch with a text‑only chat companion first; voice support (wake word, TTS/STT) can be added in a subsequent iteration.
+- **Is a separate native mobile application required, or can we meet mobile needs with a responsive web dashboard that adapts to touch interactions?**
+  - Begin with a responsive web dashboard that works well on mobile browsers; evaluate the need for a native mobile app after validating core usage patterns.
+- **What tenancy, collaboration, and authorization model must the dashboard support in v1?**
+  - Start with authenticated, single-user portfolios. Defer multi-team workspaces, role-based access, SSO, and project sharing until later.
+- **How mature is the existing backend API contract, and what canonical project lifecycle and auto-mode behavior must the dashboard expose?**
+  - Keep the backend orchestrator as the source of truth, reuse pipeline APIs, add only dashboard-specific APIs, and use REST plus SSE/WebSocket for live status. Support Draft, Configured, Queued, Running, Blocked, Completed, Failed, and Canceled states; auto mode should pause when human input is required.
+- **Is the mobile requirement a native app, or can the web dashboard be delivered as a responsive PWA in v1?**
+  - Deliver a mobile-optimized responsive PWA in v1 and defer a native mobile app until core dashboard workflows are validated.
+- **Who is the first production audience, and does v1 need multi-user, role-based access or only a single operator per dashboard?**
+  - Start with AI product builders and developers managing multiple projects in one organization, with authenticated users and simple Owner/Admin/Operator roles from v1.
+- **What should be included in the first releasable MVP given the broad scope?**
+  - Prioritize project creation, model-tier configuration, portfolio status, per-project orchestration controls, real-time logs/errors, and API-backed data; include a basic auto-run mode but defer native mobile and the full voice-enabled companion.
+- **Should the dashboard own pipeline execution, or should it act as an orchestration UI over the existing backend?**
+  - Treat the existing pipeline backend as the source of truth for projects, agents, runs, logs, and model tiers; make the dashboard an API-first orchestration layer with separate deployable frontend/backend components.
+- **Should the dashboard be deployed as a standalone SPA (e.g., on Vercel) that consumes the existing pipeline APIs, or do we need a tightly coupled backend/frontend monolith deployed together?**
+  - Deploy as a standalone SPA (e.g., Vercel) consuming the pipeline APIs via an API‑first approach; keep backend and dashboard separate for scalability and independent releases.
+- **For mobile support, should we build dedicated native iOS/Android apps or start with a responsive web/PWA that reuses the dashboard UI?**
+  - Start with a responsive web/PWA that adapts to mobile devices; this satisfies the mobile companion requirement while minimizing effort, with native apps considered later if needed.
+- **Regarding the AI chat companion, should we implement full wake‑word voice (STT/TTS) support now, or begin with a text‑based chat interface and add voice later as a nice‑to‑have?**
+  - Begin with a text‑based chat companion; voice (wake‑word, STT/TTS) can be added later as an optional enhancement once the core dashboard is stable.
+- **What authentication and authorization strategy will be employed for the dashboard (e.g., OAuth2/OIDC, JWT, role-based access control) and will it support multi-tenant isolation?**
+  - Adopt OAuth2/OpenID Connect with JWT tokens and role-based access (Viewer, Builder, Admin) to secure dashboard and API endpoints.
+- **Will the dashboard expose internal pipeline APIs directly to clients, or will there be an API gateway/service mesh handling authentication, rate limiting, input validation, and encryption?**
+  - Place an API gateway (e.g., Kong, AWS API Gateway) in front of all backend services, enforce HTTPS, JWT validation, rate limiting, and sanitize inputs to mitigate OWASP risks.
+- **What accessibility standards (WCAG level) will the UI target, and have we planned for keyboard navigation, ARIA labeling, screen‑reader support, and sufficient color contrast for all components including dialogs, notifications, and the voice‑enabled chat companion?**
+  - Target WCAG 2.1 AA compliance: use semantic HTML, ARIA roles/labels, ensure full keyboard operability, provide text alternatives for audio, and maintain contrast ratio ≥4.5:1 for text.
+- **Which technology stack should we use for the dashboard frontend and its backend API (if separate)?**
+  - Use React with TypeScript for the frontend (leveraging a component library like Ant Design or Material‑UI) and a Python FastAPI backend to reuse existing pipeline services and keep the stack consistent with the rest of the Forge.
+- **For the voice‑enabled AI chat companion, which STT/TTS and wake‑word solutions should we integrate?**
+  - Start with the browser Web Speech API for STT/TTS (zero‑cost, works in Chrome/Edge/Firefox) and add Porcupine for wake‑word detection; optionally allow fallback to Azure Cognitive Services or Google Cloud for higher accuracy when online.
+- **How should we deliver the mobile companion – as a cross‑platform hybrid app, a PWA, or separate native builds?**
+  - Build a cross‑platform React Native app that shares UI components with the web dashboard (via React Native for Web) and optionally package it as a PWA for browsers, giving a single codebase while still supporting native device features.
+- **Which frontend framework and UI component library will be used to build the dashboard (e.g., React/Vue/Angular with Ant Design, Material-UI, etc.)?**
+  - Use React with TypeScript and Ant Design (or Material-UI) for a rich, themeable component set and strong ecosystem support.
+- **Will the dashboard consume only the existing pipeline backend APIs, or will it require additional dashboard‑specific APIs (e.g., for UI state, chat companion, project metadata)?**
+  - Reuse the pipeline APIs wherever possible and add a thin dashboard‑specific API layer for UI‑centric operations (preferences, chat sessions) to keep the backend clean.
+- **How will voice wake‑word detection and TTS/STT be implemented (client‑side Web Speech API vs third‑party service, specific libraries)?**
+  - Leverage the browser Web Speech API for STT/TTS and an open‑source wake‑word engine like Porcupine for client‑side wake‑word detection, ensuring privacy and offline capability.
+- **What is the exact v1 release boundary: which capabilities are required for the first production release, and what must be deferred?**
+  - Define v1 as the web dashboard MVP covering project creation/configuration, model-tier management, portfolio view, pipeline start/stop controls, real-time status, and logs. Defer the mobile companion, wake-word voice/TTS/STT, global chat companion, auto mode, and custom public-site deployment patterns. Require 100% traceability for v1 must-haves, passing functional/API/integration/security/accessibility tests, no open Sev-1/Sev-2 defects, and successful deploy/smoke validation before release.
+- **Who can access portfolio data and operations, and what is the authoritative state and API boundary between the dashboard and pipeline backend?**
+  - Assume authenticated SSO/OAuth with RBAC roles such as owner, admin, member, and viewer; enforce project-level isolation and audit all privileged actions. The backend should own project, run, agent, and log state and validate every mutation; the dashboard should consume existing pipeline APIs and add only dashboard-specific orchestration endpoints. Add API contract tests, authorization tests, and secret-handling checks so frontend actions cannot bypass backend enforcement.
+- **What scale, latency, availability, and deployment targets should define production readiness?**
+  - Use provisional targets of 100 concurrent users, 100 projects, 20 concurrent pipeline runs, real-time status updates within 5 seconds, dashboard read p95 under 500 ms, action acknowledgement p95 under 2 seconds, and 99.9% backend API availability. Support separate dashboard/backend deployment with a same-origin production option; gate release on load, stress, resilience, logging-volume, accessibility, and security-performance testing.
+- **Should the first production release use a hosted, separately deployable dashboard/API/worker architecture, or a single/self-hosted deployment?**
+  - Use a hosted SaaS default: deploy the static dashboard on Vercel, run the API and durable pipeline workers in a managed cloud region, and use managed database, object-storage, and queue services. Package them separately and configure dev, staging, and production environments; add self-hosting later.
+- **What access and tenancy model must be enforced for users and API clients?**
+  - Use authenticated multi-tenant accounts with a workspace/project hierarchy, role-based permissions, invite-based users, project-scoped API tokens, and MFA/SSO for administrators. Keep every control and data API project-scoped and audit all changes.
+- **Which privacy, retention, and voice requirements are mandatory for the first release?**
+  - Treat prompts, logs, outputs, and credentials as sensitive: encrypt in transit and at rest, use provider allowlists and secret management, configure retention and backups, and publish an audit trail. Ship text chat in the MVP and defer wake-word/continuous STT/TTS until latency, privacy, and cost requirements are approved.
+- **What should be included in the first release versus deferred to later phases?**
+  - Release the web portfolio dashboard, project creation, model-tier configuration, orchestration controls, real-time monitoring/logs, and notifications. Defer voice support, a separate mobile app, chat-companion orchestration, and third-party API customization to later phases; keep auto mode as an early capability if backend automation already exists.
+- **What is the intended primary audience and access model?**
+  - Target AI product builders and technical operators managing multiple projects. Use role-based access with authenticated individual accounts, team membership, and project-level permissions; initially support one owner/admin and collaborators rather than complex organizational roles.
+- **What architecture and API model should documentation assume?**
+  - Treat the existing pipeline as the system of record and expose its capabilities through REST/JSON APIs with OpenAPI documentation. Keep the web dashboard as a separate frontend deployed on a platform such as Vercel, communicating with a centrally hosted backend; add only dashboard-specific endpoints for notifications, activity feeds, and companion state.
+- **For v1, should the mobile app be delivered as native iOS/Android packages, a responsive web/PWA, or both?**
+  - Use native iOS and Android packages plus a responsive web/PWA fallback; defer desktop installers.
+- **Should the dashboard and pipeline backend be packaged and deployed as separate artifacts or as one combined product?**
+  - Support separate static dashboard and containerized backend as the primary model, with a combined self-hosted bundle/archive as an additional option.
+- **Which runtime, platform, signing, and software-compliance requirements must the release artifacts satisfy?**
+  - Target browser clients, Node.js LTS backend, and OCI/Docker containers; generate an SBOM and license inventory, run dependency vulnerability/license scans, document supported platforms, and sign release artifacts.
+- **Should the dashboard be the exclusive human entry point for pipeline operations, or should existing CLI/API workflows remain supported?**
+  - Make it the primary human control plane for supported operations while preserving backend APIs and CLI/automation access; the backend remains the source of truth.
+- **What should be included in the first releasable MVP versus the full dashboard vision?**
+  - Ship portfolio overview, project creation/configuration, model-tier selection/customization, run start/pause/stop/cancel, stage status and logs, and basic auto-run; defer native mobile, voice companion, and exhaustive migration of every existing interaction until the core flows are stable.
+- **What is the preferred initial deployment and access model?**
+  - Use a web-first responsive dashboard deployed on Vercel with a separate pipeline backend/API, shared authentication, initial single-organization/team support with role-based access, and API keys/OAuth for integrations; add native mobile and broader multi-tenancy later.
+- **Who will be allowed to access the dashboard and pipeline APIs, and what deployment boundary is required?**
+  - Assume a private, authenticated product with organization-level tenants. Require SSO/OIDC, role-based access control, tenant isolation, and a separate backend/dashboard deployment. Do not expose unauthenticated or public write APIs.
+- **What types of data will projects, prompts, logs, and uploads contain, and what retention or privacy obligations apply?**
+  - Treat all pipeline data as confidential by default. Encrypt data in transit and at rest, use approved providers with no-training settings, keep secrets out of prompts and UI, minimize and redact logs, and define retention and deletion policies before enabling regulated data.
+- **Which dashboard actions and auto-mode operations require approval, audit, or safeguards?**
+  - Require explicit approval for destructive, expensive, external, or production-affecting actions. Audit all control and API events, use least privilege, idempotency, rate limits, circuit breakers, and human confirmation for voice-controlled or critical pipeline operations.
+- **What FinOps outcomes must the dashboard guarantee: cost attribution, budget control, forecasting, anomaly detection, or chargeback?**
+  - Start with per-project, per-agent, and per-model-tier cost attribution, budget alerts, and auto-mode cost caps. Defer chargeback and advanced forecasting until usage data is reliable.
+- **Is the dashboard intended for one internal team or multiple external customers, and who owns the cloud and LLM-provider spend?**
+  - Treat the first release as an internal single-tenant dashboard. The backend should own cost accounting and billing integration; the dashboard should provide read-only visibility and limited operational controls.
+- **What cost telemetry, latency, and retention are available from the pipeline backend and LLM providers?**
+  - Instrument costs at operation, agent, and model-invocation level; aggregate every few minutes, retain at least 90 days of detailed data, archive longer-term summaries, and reconcile provider invoices monthly.
+- **What measurable success criteria (product goals / KPIs) should define a successful v1 — e.g., share of pipeline operations performed via dashboard vs CLI, time-to-first-project, reduction in stalled runs awaiting input, chat/voice companion adoption?**
+  - v1 succeeds if: ≥80% of routine pipeline operations (create/run/monitor/input) are done via the dashboard, time-to-first-running-project <10 minutes, stalled runs awaiting human input reduced vs baseline, and the AI companion is used at least weekly by the primary operator. Defer vanity metrics like DAU.
+- **When scope or UX trade-offs arise, how should we prioritize the personas — confirm Priya (Portfolio Operator) as the primary persona, Marco (API/integrator) as secondary, and Sam (mobile supervisor) as tertiary for v1?**
+  - Confirm Priya as the decisive persona for all v1 trade-offs (portfolio clarity, steerable runs, human-input dialogs); Marco's API-first needs are a close secondary since they're cheap to uphold; Sam's mobile needs are limited to monitoring + input/approval, deferring heavy mobile workflows to later phases.
+- **What is the intended business goal of this product for v1 and beyond — internal enablement tool for the Product Forge pipeline, or a productized offering (internal-team SaaS or externally sellable dashboard) that pricing/monetization strategy must eventually cover?**
+  - Treat v1 as an internal-first control plane that must not block later productization: no pricing/billing in v1, but keep tenancy, usage/cost telemetry, and API surfaces clean enough that a pricing-strategist can later model tiers (seat, usage/token, or portfolio-scale pricing) without a rewrite.
+- **For v1, does marketing own an internal adoption/rollout deliverable (launch announcement, onboarding tour copy, short demo, training/README) to drive Priya's and Sam's switch from CLI to dashboard, or does marketing activity start only after the release ships?**
+  - Include a lightweight internal launch kit in v1 scope — in-product onboarding tour, README/getting-started page, and a short demo — and defer broader enablement campaigns (workshops, email sequences) to post-launch.
+- **Since the API-first surface (Marco, the Builder-Integrator) is a core pillar, should v1 include public-facing API documentation/developer landing page as a marketing deliverable, or are internal-only docs sufficient for launch?**
+  - Ship internal API docs as part of v1; defer the public developer portal/landing page to a later phase until the API contract is proven with internal users.
+- **Should the dashboard carry its own product name/brand identity distinct from 'Product Forge' (e.g., a standalone landing/messaging identity for future external positioning), or does it simply ship under the existing Product Forge brand with no separate branding work in v1?**
+  - Ship under the existing Product Forge brand with no separate naming or branding effort in v1; revisit standalone positioning only if the business-goal decision later productizes the dashboard.
+- **How will new users be activated — should v1 ship a seeded demo/starter project plus a guided first-run tour (empty-state CTA → idea → tier → auto-mode kick-off) so a new Priya reaches a completed first run without reading the CLI README?**
+  - Yes — include a one-click starter project template and a 5-step onboarding tour in v1; this is the activation lever that converts existing CLI users to the dashboard.
+- **Should v1 include an out-of-band notification channel (email, Slack/webhook, or push) that fires when a run needs input or fails — since the dashboard/voice companion is only active when the tab is open, retention depends on reaching users when they are away (Sam's core loop)?**
+  - Yes — at least one notification channel (email or Slack webhook) is a v1 requirement; without it, runs stall and the dashboard loses its primary retention trigger.
+- **For referral/advocacy, should v1 include any shareable growth artifact (e.g., a read-only portfolio/run-summary share link or public project showcase) to fuel word-of-mouth among pipeline users, or is advocacy limited to organic word-of-mouth from API docs and demos?**
+  - Defer public showcases — v1 advocacy relies on the marketing deliverables (demo, announcement, API docs); add a shareable read-only run-summary link in v2 as a low-cost growth loop.
+- **Existing pipeline users already have projects, runs, and tier configs created via CLI — must onboarding include importing/adopting that existing state into the dashboard (e.g., a 'your existing projects appear here' flow), or does onboarding only assume net-new users creating projects from scratch in the dashboard?**
+  - Since the pipeline backend is the source of truth, existing projects/tiers created via CLI should automatically appear in the dashboard with no separate migration step — onboarding should just recognize portfolio-empty vs portfolio-populated states and tailor the first-run guidance accordingly (skip the create-project tour if projects already exist).
+- **Does first-run onboarding need a guided setup step for backend/LLM provider credentials (API keys, provider config) before a user can create their first project, or are those assumed pre-configured on the pipeline backend outside the dashboard?**
+  - Assume credentials are pre-configured on the backend for MVP; the onboarding flow's first-run wizard should only cover idea → tier preset → run mode, with a non-blocking 'check backend connection/keys' status indicator rather than a full key-management wizard (defer key management UI to a later phase).
+- **What in-app onboarding/help surfaces must v1 ship — contextual empty-state guidance and inline tooltips, a dismissible guided tour, an in-app help/docs panel, or a feedback/support channel — and which are launch blockers vs post-launch?**
+  - V1 launch blockers: rich empty-state CTAs with inline hints on every page plus a dismissible first-run tour of the core loop (create → run → respond to input); defer a full in-app help center, video walkthroughs, and feedback widget to post-launch, linking out to external docs instead.
+- **Should the AI companion be built on an emerging agent-interop standard (e.g., Model Context Protocol / tool-calling registry) so its 'understands the whole portfolio and can orchestrate dashboard operations' capability is powered by a standard tool layer rather than bespoke hardcoded intents — making it extensible as new pipeline modules appear?**
+  - Yes — expose pipeline operations as MCP-style tools registered from the existing API surface; this is the fastest emerging-trend path to a companion that stays in sync with new features without custom NLU per operation.
+- **Should we benchmark and adopt proven observability UX patterns from leading agent-ops tools (LangSmith, Arize/Phoenix, Temporal UI) — specifically a per-run trace timeline with agent-span drill-down, token/cost waterfall, and replayable step history — as the target pattern for our project/run detail views?**
+  - Yes — these patterns are becoming the de-facto expectation for multi-agent dashboards; adopting the trace-timeline + cost-waterfall pattern in v1 differentiates us from raw-log viewers and matches what Priya/Marco already recognize from other tools.
+- **For real-time portfolio status and streaming pipeline logs, should we scout and standardize on SSE (Server-Sent Events) for dashboard log/status streams, reserving WebSocket only for bidirectional chat/voice — given SSE's resilience through proxies (Vercel, CDNs) and simpler one-way log streaming?**
+  - Yes — SSE for logs/status (retry-friendly, works on static-hosted SPAs behind CDNs) and WebSocket (or WebRTC for voice) only for the chat companion; this split is the pragmatic emerging pattern for deployable dashboards talking to a separate pipeline backend.
+- **When the product becomes revenue-generating, what pricing model should underpin it: seat-based subscription, usage-based pricing (metered per pipeline run / LLM tokens), or a hybrid (platform fee + usage overage)?**
+  - Hybrid: a per-seat platform subscription for dashboard/API access plus metered usage for pipeline runs (passed-through or marked-up LLM/compute cost), because run cost varies widely by model tier and seat count alone fails to recover variable LLM spend.
+- **Should v1 (even if internal/unpriced) ship metering instrumentation — per-run and per-tenant usage counters, model-tier cost attribution, and budget-cap events — so unit economics can be measured from day one rather than retrofitted later?**
+  - Yes: v1 must emit per-run/per-tenant usage and cost telemetry in a stable, queryable format (telemetry only, no billing UI), since retrofitting metering onto an existing pipeline is expensive and pricing/packaging decisions need real unit-cost data within the first release cycle.
+- **For packaging, should API access be a separate priced SKU (like Marco's integrator tier), or bundled with dashboard seats where differentiation is only rate limits and support level?**
+  - Bundle API access with the same tiers and differentiate only by rate limits, quotas, and support SLA in v1–v2 — pricing API separately too early fragments the offering and suppresses Marco's integration adoption, which is the main growth channel.
+- **What is the v1 support operating model for dashboard users: which channel do users report issues or get help through (in-app feedback form, Slack/email, issue tracker), who triages it, and what response/escalation targets apply when a run failure or dashboard bug is reported — especially since this support intake should feed the existing test/issue-tracking framework?**
+  - Ship a lightweight in-app 'Report an issue / Get help' entry that captures user, project, run ID, and logs and files directly into our existing test/issue-tracking framework, with the Customer Success Lead triaging within one business day and escalating pipeline-level failures to the pipeline engineering owner.
+- **What customer-health signals should Customer Success monitor from day one to catch at-risk users and stalled adoption (e.g., zero dashboard logins after onboarding, runs stalled awaiting input beyond a threshold, repeated failed runs, no project created in first N days), and what outreach playbook triggers when a user's health score drops?**
+  - Define a simple health score tracked weekly: activated (first completed run within 7 days), weekly active operators, count/duration of stalled runs, and failed-run rate — with the CS lead personally reaching out within 48 hours of a stalled-run or activation threshold breach.
+- **What user-lifecycle management must v1 support for retention and offboarding — team-member invitation, role changes, deprovisioning (revoke dashboard sessions and API keys immediately when a user leaves), and account/project data handling on departure — beyond the access/tenancy model already decided?**
+  - v1 includes admin invite + role change (admin/operator/viewer) with one-click deprovision that revokes sessions and API keys and logs the action to an audit trail; data deletion/export requests are handled manually by the CS lead until volume justifies automation.
+- **What community channel (e.g., dedicated Slack/Discord workspace, existing team channel, or discussion forum) should v1 establish as the home for dashboard users to ask questions, share results, and report feedback — and is opening it a launch blocker or post-launch?**
+  - Launch blocker as a lightweight channel: reuse an existing internal Slack/Teams channel for v1 rather than spinning up a new Discord/community platform; formalize a dedicated public community space only when/if the dashboard becomes an externally sold product.
+- **What social-proof and shareable content should be produced at launch (e.g., announcement post, demo GIF/video of a portfolio run, user testimonial from an existing CLI user, public changelog/release-notes feed) and who owns creating it — should marketing commit to a fixed launch-content package for v1?**
+  - Yes — commit to a minimal launch-content package owned by marketing: one internal launch announcement with a short demo GIF of a live run, plus a public changelog/release-notes feed; defer testimonials and external social posts until real users have adopted the dashboard.
+- **Should v1 seed an early-adopter/evangelist cohort (recruit 3-5 existing pipeline CLI users to trial the dashboard, give feedback, and act as internal advocates during rollout) or does adoption rely purely on organic discovery of the dashboard?**
+  - Yes — recruit a small early-adopter cohort of existing CLI users pre-launch; their feedback de-risks v1 and their advocacy is the most credible driver of the CLI-to-dashboard switch among Priya and Sam personas.
+- **Which CRM system of record and sales pipeline stages should we configure to track this dashboard product from first touch to close (e.g., Discovery → Demo → Pilot → Closed Won), and are we adding this as a new pipeline/product line in the existing CRM or standing up new objects (products, quotes, licenses)?**
+  - Reuse the existing company CRM (create a 'Product Forge Dashboard' product line with stages: Sourced → Discovery → Demo → Pilot/POC → Proposal/Quote → Closed Won/Lost); only create a new CRM instance if none exists, in which case HubSpot with these same stages.
+- **What is the initial ICP and sales motion for v1 — outbound-led (we prospect named accounts), inbound-led (API docs and launch content drive signups), or product-led (self-serve signup with sales only for larger/team deals) — and who is the economic buyer we build the pitch and qualification criteria around?**
+  - Product-led with sales-assist: self-serve dashboard/API access for individual operators, with sales engaging team/enterprise conversations; economic buyer is the engineering or product leader who owns AI-pipeline tooling budgets.
+- **What deal-desk rules must we define for v1 pricing execution — discount authority levels, approval path for pricing exceptions, standard contract terms (billing cycle, overage handling for usage-based fees), and pilot/POC terms (length, success criteria, conversion path)?**
+  - Standard terms: annual billing with monthly usage overage billed in arrears, 30-day POC with agreed success criteria, discount authority capped at 10% for reps and anything above routed to leadership approval; start simple and formalize once first deals arrive.
+- **Which LLM providers will process user content (prompts, project ideas, logs, uploads), what contractual/data-processing terms must be in place with them (DPA, sub-processor list, no-training/no-retention commitments, data residency), and does any user content ever contain third-party confidential or personal data that triggers GDPR-style obligations?**
+  - Use only provider API endpoints with no-training and short/no-retention data terms, sign a DPA with each provider, maintain a documented sub-processor list, and document in the privacy policy that content is sent to named LLM providers as processors. Assume prompts/projects may contain personal or confidential data, so apply minimization and encryption in transit/at rest by default.
+- **For the voice companion (wake word, STT, TTS): is audio processed entirely on-device/client-side, or streamed to a cloud STT service — and what are the requirements for audio retention, user consent/notice for ambient microphone capture, and whether any voice data could qualify as biometric/special-category data under applicable privacy law?**
+  - Process wake-word detection and, where feasible, STT locally (Web Speech API / on-device models), never persist raw audio or voiceprints, show a clear visible+audible indicator whenever the mic is active, and include a one-line consent notice on first enable. This keeps voice out of biometric-data territory and avoids an audio-retention regime in v1.
+- **What is the IP/licensing posture for launch: (a) license policy for third-party OSS dependencies in the dashboard and voice stack (permissive-only vs copyleft), (b) ownership of pipeline-generated outputs and the dashboard's own code, and (c) what ToS/API terms must exist at release — even for internal v1 — covering acceptable API use, rate limits, and liability disclaimers for third parties calling the API-first surface?**
+  - Adopt a permissive-only dependency policy (MIT/Apache-2.0/ISC; flag anything GPL/AGPL/EUPL for approval), state that pipeline outputs are owned by the customer/operator, and ship a lightweight internal ToS + API terms addendum covering acceptable use, rate limits, and 'as-is' disclaimer from day one — even if the v1 is internal/unpriced — since the API-first surface invites external callers.
+- **Does the existing pipeline backend emit a structured event/stream of run lifecycle transitions (run_started, agent_stage_changed, human_input_required, run_completed, run_failed, tokens_used), or must we build an event collection/instrumentation layer (e.g., a tracked events endpoint or telemetry store) before dashboard analytics can be reliable?**
+  - The backend almost certainly does not emit a product-analytics event taxonomy today — assume we must define a canonical event schema (project/run/agent/user dimensions) and add a lightweight event ingestion endpoint or have the dashboard log events directly to an analytics store in v1, with the pipeline backend emitting run-lifecycle events as the primary source.
+- **Is there enough expected dashboard traffic (user count, run volume) to justify A/B testing / experimentation infrastructure in v1, or should experimentation be deferred in favor of descriptive metrics (funnels, adoption, latency) plus qualitative feedback?**
+  - Defer formal experimentation infrastructure to post-v1. The initial audience is a small internal user base (Priya/Sam/Marco personas) — v1 should ship descriptive instrumentation only (event logging, dashboards, funnels), with no A/B framework until there is sufficient volume.
+- **Before we can claim 'reduction in stalled runs' or 'adoption vs CLI' as KPIs, do we need to capture a pre-launch baseline from current CLI usage (e.g., run counts, average time-to-completion, stall rate) — and can that data be derived today from existing pipeline logs/state, or must we instrument the CLI too?**
+  - Yes — require a pre-launch baseline captured from existing pipeline run logs/state (run volume, completion time, stall/timeout rate, per-run token cost) for at least the last ~30 days before dashboard launch; instrumenting the CLI itself is unnecessary if run records already persist these fields, but we must confirm and document where that history lives before sprint 1.

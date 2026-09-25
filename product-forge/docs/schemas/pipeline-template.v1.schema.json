@@ -1,0 +1,248 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "pipeline-template-v1.schema.json",
+  "title": "Pipeline Template Schema",
+  "description": "Schema for pipeline templates that define reusable workflow patterns",
+  "type": "object",
+  "required": ["id", "version", "name", "type", "stages"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]+$",
+      "description": "Unique template identifier (kebab-case)"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
+      "description": "Semantic version (e.g., 1.0.0)"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 100,
+      "description": "Human-readable template name"
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 500,
+      "description": "What this template is for"
+    },
+    "type": {
+      "type": "string",
+      "enum": ["fixed", "dynamic"],
+      "description": "fixed = traditional SDLC (stages 0-12), dynamic = custom workflow"
+    },
+    "category": {
+      "type": "string",
+      "enum": ["software", "content", "automation", "research", "monitoring", "swarm", "hybrid"],
+      "description": "Template category"
+    },
+    "extends": {
+      "type": "string",
+      "description": "Parent template ID (for template inheritance)"
+    },
+    "stages": {
+      "type": "object",
+      "description": "Map of stage ID to stage definition",
+      "additionalProperties": {
+        "$ref": "#/definitions/stage"
+      }
+    },
+    "agents": {
+      "type": "object",
+      "description": "Map of agent ID to agent definition",
+      "additionalProperties": {
+        "$ref": "#/definitions/agent"
+      }
+    },
+    "knowledge_domains": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Knowledge domains this template uses"
+    },
+    "flow": {
+      "$ref": "#/definitions/flow"
+    },
+    "compliance": {
+      "$ref": "#/definitions/compliance"
+    },
+    "metadata": {
+      "$ref": "#/definitions/metadata"
+    }
+  },
+  "definitions": {
+    "stage": {
+      "type": "object",
+      "required": ["name", "type", "depends_on"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Human-readable stage name"
+        },
+        "agent": {
+          "type": "string",
+          "description": "Single agent ID (for sequential stages)"
+        },
+        "agents": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/swarm-agent" },
+          "description": "Multiple agents (for swarm stages)"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["sequential", "parallel", "conditional", "swarm"],
+          "description": "Stage execution type"
+        },
+        "depends_on": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Stage IDs this stage depends on"
+        },
+        "condition": {
+          "type": "object",
+          "description": "For conditional stages: when to run this stage",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["file_exists", "file_contains", "stage_status", "custom"]
+            },
+            "target": { "type": "string" },
+            "value": { "type": "string" }
+          }
+        },
+        "description": {
+          "type": "string",
+          "description": "What this stage does"
+        },
+        "knowledge_required": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Knowledge domains needed for this stage"
+        },
+        "skills_required": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Skills needed for this stage"
+        },
+        "outputs": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Files/directories produced by this stage"
+        },
+        "config": {
+          "type": "object",
+          "description": "Stage-specific configuration"
+        }
+      }
+    },
+    "swarm-agent": {
+      "type": "object",
+      "required": ["id", "role"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Agent ID"
+        },
+        "role": {
+          "type": "string",
+          "description": "Agent's role in the swarm"
+        },
+        "description": {
+          "type": "string"
+        },
+        "config": {
+          "type": "object",
+          "description": "Agent-specific configuration"
+        }
+      }
+    },
+    "agent": {
+      "type": "object",
+      "required": ["source", "description"],
+      "properties": {
+        "source": {
+          "type": "string",
+          "description": "Path to agent .md file"
+        },
+        "description": {
+          "type": "string"
+        },
+        "required": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether this agent is required for the pipeline"
+        },
+        "config": {
+          "type": "object",
+          "description": "Agent-specific configuration overrides"
+        }
+      }
+    },
+    "flow": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["linear", "dag", "swarm", "custom"],
+          "description": "Flow type"
+        },
+        "description": {
+          "type": "string"
+        }
+      }
+    },
+    "compliance": {
+      "type": "object",
+      "properties": {
+        "default_checks": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Default compliance checks for all stages"
+        },
+        "stage_overrides": {
+          "type": "object",
+          "description": "Per-stage compliance check overrides",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "checks": {
+                "type": "array",
+                "items": { "type": "string" }
+              },
+              "severity_overrides": {
+                "type": "object",
+                "additionalProperties": { "type": "string" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "properties": {
+        "author": {
+          "type": "string",
+          "description": "Who created this template"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updated_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "tags": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "examples": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Example projects that use this template"
+        }
+      }
+    }
+  }
+}

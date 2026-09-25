@@ -1,0 +1,39 @@
+{
+  "id": "BI-0076",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "pipeline",
+  "external_id": "forge:model-capability-fit",
+  "label": "PF Backlog 76",
+  "title": "Model capability fit: registry enrichment + per-agent requirements + per-tier preflight (call out, auto-substitute)",
+  "body": "Owner request: the pipeline should discover model capabilities for the SELECTED TIER, compare against what the pipeline/agents require, call out mismatches, and pick the right model WITHIN that tier - so we never hit reasoning-only/empty/tool-unsupported failures.\nDesign: (1) enrich core/model_registry.py ModelProfile with runtime flags: output_mode (content vs reasoning-leak risk), max_output_tokens, supports_tools, supports_json, supports_streaming, supports_vision, cost, latency class, provider, rate limits. (2) per-agent REQUIREMENTS in config/agent-requirements.json (artifact_output, min_output_tokens, no_reasoning_only, tools, json). (3) NEW core/model_fit.py preflight: for the selected tier resolve each agent's model and report OK/AT_RISK/INCOMPATIBLE; auto-substitute a compatible model from the SAME tier catalog; else fail fast with a clear callout. (4) runtime guard: if a call yields empty/reasoning-only content, mark the model unfit for that agent this run and switch to the tier fallback. (5) optional live capability PROBE (tiny call per model) cached in the registry. Wire at run start + expose via describe_tiers/--tier-info. Refs: model_router, model_recommendation, budget_planner, BI-0074/BI-0075.",
+  "source": "discovery",
+  "status": "completed",
+  "priority": null,
+  "moscow": "Must",
+  "value": 5,
+  "effort": 4,
+  "risk": 3,
+  "deps": [],
+  "links": {
+    "discovery_question": "P12/P14",
+    "dashboard_item": "project:ProductForge-Dashboard:BI-0062"
+  },
+  "decisions": [],
+  "follow_up": {},
+  "created_at": "2026-09-22T02:50:35.494803",
+  "updated_at": "2026-09-23T01:09:03.250499",
+  "score": 0.62,
+  "tags": [
+    "Dash"
+  ],
+  "_note": "verified: core/model_fit.py",
+  "dashboard_impact": {
+    "needs_dashboard": true,
+    "reason": "model capability-fit view surface exists",
+    "dashboard_item": "project:ProductForge-Dashboard:BI-0062",
+    "reviewed_by": "owner-review-2026-09-22",
+    "reviewed_at": "2026-09-22T20:41:02.858041"
+  }
+}

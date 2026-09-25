@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Test Dashboard</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: system-ui, -apple-system, sans-serif; background: #0d1117; color: #e6edf3; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+        .login-container { background: #161b22; border: 1px solid #30363d; border-radius: 12px; padding: 40px; width: 100%; max-width: 400px; }
+        .login-header { text-align: center; margin-bottom: 32px; }
+        .login-header h1 { font-size: 1.5rem; margin-bottom: 8px; }
+        .login-header p { color: #8b949e; font-size: 0.9rem; }
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; font-size: 0.85rem; color: #8b949e; margin-bottom: 8px; }
+        .form-group input { width: 100%; padding: 12px; background: #0d1117; border: 1px solid #30363d; border-radius: 6px; color: #e6edf3; font-size: 1rem; }
+        .form-group input:focus { outline: none; border-color: #58a6ff; }
+        .login-btn { width: 100%; padding: 12px; background: #238636; color: white; border: none; border-radius: 6px; font-size: 1rem; cursor: pointer; transition: background 0.2s; }
+        .login-btn:hover { background: #2ea043; }
+        .error-message { color: #f85149; font-size: 0.85rem; margin-top: 12px; text-align: center; display: none; }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-header">
+            <h1>Test Dashboard</h1>
+            <p>Pipeline Test Framework</p>
+        </div>
+        
+        <form id="loginForm">
+            <div class="form-group">
+                <label for="username">Username</label>
+                <input type="text" id="username" name="username" required autocomplete="username">
+            </div>
+            
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" required autocomplete="current-password">
+            </div>
+            
+            <button type="submit" class="login-btn">Login</button>
+            
+            <div class="error-message" id="errorMessage"></div>
+        </form>
+    </div>
+    
+    <script>
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const errorDiv = document.getElementById('errorMessage');
+            
+            try {
+                const response = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    localStorage.setItem('auth_token', data.token);
+                    window.location.href = '/dashboard';
+                } else {
+                    errorDiv.textContent = data.error || 'Invalid credentials';
+                    errorDiv.style.display = 'block';
+                }
+            } catch (err) {
+                errorDiv.textContent = 'Connection error';
+                errorDiv.style.display = 'block';
+            }
+        });
+        
+        // Redirect if already logged in
+        if (localStorage.getItem('auth_token')) {
+            window.location.href = '/dashboard';
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,176 @@
+{
+  "version": 1,
+  "description": "Canonical test catalogue: requirement type x layer -> category -> framework/path/runner. Owned by the QA agent (validate).",
+  "requirement_types": {
+    "functional": {
+      "categories": ["unit", "db", "api", "integration", "e2e", "e2e_bdd", "visual"],
+      "note": "each FR id must have at least one test in each applicable layer"
+    },
+    "non_functional": {
+      "categories": ["performance", "security", "accessibility", "reliability", "scalability"],
+      "note": "each NFR id must have at least one test in its category"
+    },
+    "operational": {
+      "categories": ["smoke", "sanity", "install", "packaging"],
+      "note": "deploy/package readiness"
+    }
+  },
+  "layers": {
+    "logic": { "categories": ["unit"] },
+    "db": { "categories": ["db"] },
+    "api": { "categories": ["api"] },
+    "integration": { "categories": ["integration"] },
+    "ui": { "categories": ["ui", "e2e", "e2e_bdd", "visual"] }
+  },
+  "categories": {
+    "unit": {
+      "layer": "logic",
+      "framework": "pytest | jest/vitest | go test | cargo test",
+      "path": "tests/unit",
+      "naming": "test_<layer>_<name>",
+      "requirement": "functional",
+      "runner": "adapter"
+    },
+    "db": {
+      "layer": "db",
+      "framework": "pytest+SQLAlchemy | jest+Prisma/TypeORM | Go sql mock",
+      "path": "tests/db",
+      "naming": "test_db_<entity>",
+      "requirement": "functional",
+      "runner": "adapter"
+    },
+    "api": {
+      "layer": "api",
+      "framework": "pytest+httpx/requests | supertest | jest | REST-assured | newman",
+      "path": "tests/api",
+      "naming": "test_api_<endpoint>",
+      "requirement": "functional",
+      "runner": "adapter"
+    },
+    "integration": {
+      "layer": "integration",
+      "framework": "pytest | jest | go test -tags=integration",
+      "path": "tests/integration",
+      "naming": "test_integration_<flow>",
+      "requirement": "functional",
+      "runner": "adapter"
+    },
+    "ui": {
+      "layer": "ui",
+      "framework": "Playwright | Testing Library | Vitest browser",
+      "path": "tests/ui",
+      "naming": "test_ui_<view>",
+      "requirement": "functional",
+      "runner": "adapter"
+    },
+    "e2e": {
+      "layer": "ui",
+      "framework": "Playwright",
+      "path": "tests/e2e",
+      "naming": "test_e2e_<flow>",
+      "requirement": "functional",
+      "runner": "playwright"
+    },
+    "e2e_bdd": {
+      "layer": "ui",
+      "framework": "Playwright-BDD (Gherkin: features + step defs)",
+      "path": "features",
+      "naming": "<feature>.feature + steps/<feature>.steps.ts",
+      "requirement": "functional",
+      "runner": "playwright_bdd"
+    },
+    "visual": {
+      "layer": "ui",
+      "framework": "Playwright screenshots / pytest-visual",
+      "path": "tests/visual",
+      "naming": "test_visual_<view>",
+      "requirement": "functional",
+      "runner": "playwright"
+    },
+    "accessibility": {
+      "layer": "ui",
+      "framework": "axe-core via Playwright | pa11y | jest-axe",
+      "path": "tests/a11y",
+      "naming": "test_a11y_<view>",
+      "requirement": "non_functional",
+      "runner": "nfr"
+    },
+    "performance": {
+      "layer": "api",
+      "framework": "k6 | Locust | pytest-benchmark | autocannon",
+      "path": "tests/performance",
+      "naming": "perf_<target>",
+      "requirement": "non_functional",
+      "runner": "nfr"
+    },
+    "security": {
+      "layer": "api",
+      "framework": "bandit | pip-audit | npm audit | OWASP ZAP | semgrep",
+      "path": "tests/security",
+      "naming": "security_<scope>",
+      "requirement": "non_functional",
+      "runner": "nfr"
+    },
+    "reliability": {
+      "layer": "integration",
+      "framework": "pytest fault-injection | chaos toolkit",
+      "path": "tests/reliability",
+      "naming": "test_reliability_<scenario>",
+      "requirement": "non_functional",
+      "runner": "adapter"
+    },
+    "scalability": {
+      "layer": "api",
+      "framework": "k6 | Locust",
+      "path": "tests/scalability",
+      "naming": "scale_<target>",
+      "requirement": "non_functional",
+      "runner": "nfr"
+    },
+    "smoke": {
+      "layer": "integration",
+      "framework": "framework smoke suite",
+      "path": "tests/smoke",
+      "naming": "test_smoke_<flow>",
+      "requirement": "operational",
+      "runner": "framework"
+    },
+    "sanity": {
+      "layer": "integration",
+      "framework": "framework sanity suite",
+      "path": "tests/sanity",
+      "naming": "test_sanity_<flow>",
+      "requirement": "operational",
+      "runner": "framework"
+    },
+    "install": {
+      "layer": "integration",
+      "framework": "nfr_runner install",
+      "path": "tests/install",
+      "naming": "install_<target>",
+      "requirement": "operational",
+      "runner": "nfr"
+    },
+    "packaging": {
+      "layer": "integration",
+      "framework": "nfr_runner packaging",
+      "path": "tests/package",
+      "naming": "package_<artifact>",
+      "requirement": "operational",
+      "runner": "nfr"
+    }
+  },
+  "product_kinds": {
+    "web": { "categories": ["unit", "api", "db", "integration", "e2e", "e2e_bdd", "visual", "accessibility", "performance", "security"] },
+    "desktop": { "categories": ["unit", "integration", "e2e", "visual", "performance", "security"] },
+    "mobile": { "categories": ["unit", "integration", "e2e", "e2e_bdd", "performance", "security"], "platforms": ["mobile_ios", "mobile_android"] },
+    "api": { "categories": ["unit", "db", "api", "integration", "performance", "security"] },
+    "cli": { "categories": ["unit", "integration", "security"] },
+    "default": { "categories": ["unit", "integration", "e2e", "security"] }
+  },
+  "traceability": {
+    "marker": "test_<fr|nfr>_<id>_<name> (or a `# FR-<id>` / `# NFR-<id>` comment)",
+    "matrix": "test-framework/results/<project>/traceability.json",
+    "ids": ["FR-<n>", "NFR-<n>"]
+  }
+}
