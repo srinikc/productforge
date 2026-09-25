@@ -643,3 +643,61 @@ data‑residency**; use the others for **dev/burst/video**.
 
 **Takeaway:** everything in this document is documented industry practice — use these sources to
 implement the adapters/generators/packs/agents rather than writing from scratch.
+
+---
+
+## 28. GPU models explained (what T4 / A10G / L4 / A100 / H100 are)
+
+| GPU | Arch / year | VRAM | Power | Best for |
+|---|---|---|---|---|
+| **T4** | Turing 2018 | 16 GB GDDR6 | ~70 W | cheap inference; STT / OCR / small image |
+| **V100** | Volta 2017 | 16/32 GB HBM2 | 250–300 W | legacy training |
+| **A10G** | Ampere 2021 | 24 GB GDDR6 | ~150 W | inference + light media; image / small video |
+| **A40** | Ampere 2021 | 48 GB GDDR6 | ~300 W | pro graphics + inference |
+| **L4** | Ada 2023 | 24 GB GDDR6 | ~72 W | efficient inference + **video** (NVENC/NVDEC) |
+| **L40S** | Ada 2023 | 48 GB GDDR6 | ~350 W | diffusion / video / 3D + graphics; FP8 |
+| **A100** | Ampere 2020 | 40 / 80 GB HBM2e | 250–400 W | training + heavy inference; **video-gen** |
+| **H100** | Hopper 2022 | 80 GB HBM3 | 350–700 W | top training / large models; FP8, NVLink |
+| **H200** | Hopper 2024 | 141 GB HBM3e | ~700 W | LLM inference (big memory) |
+| **B200 / GB200** | Blackwell 2024–25 | 192 GB HBM3e | ~1000 W+ | frontier |
+| **RTX A6000 / 6000 Ada** | Ampere / Ada | 48 GB | ~300 W | workstation (same family) |
+| AWS **Trainium/Inferentia**, Google **TPU** | vendor | — | — | vendor accelerators |
+
+**Rule of thumb:** T4 / A10G / L4 = **cheap inference** (L4 also video); L40S / A100 / H100 =
+**generation, video, training**; more VRAM = bigger models/video.
+
+---
+
+## 29. Cheaper GPU clouds & India providers
+
+**Cheaper than hyperscalers** (all **usable online from India**, pay by card; data sits in their region):
+
+| Provider | Type | Notes |
+|---|---|---|
+| **Vast.ai** | marketplace | cheapest; hosts worldwide (filter by region); 3090/4090/A100 |
+| **RunPod** | GPU cloud | per-second; community + secure clouds; 4090/A100/H100 |
+| **Lambda Labs** | GPU cloud | A100/H100; reservations |
+| **CoreWeave** | GPU cloud | H100/A100/L40S; enterprise |
+| **Modal** | serverless | per-second, scale-to-zero; A100/H100 |
+| **Together / Fireworks / Replicate / fal / Baseten** | serverless inference | pay per run / token |
+| TensorDock, Hyperstack, DataCrunch, Nebius, Paperspace, Salad | GPU clouds | alternatives |
+
+- **Do they need to be in India?** No — they are **accessed fully online** and latency from India is
+  fine. Pick an India region only for **data-residency / compliance**. (Vast's marketplace may have some
+  India hosts; most others are US/EU/Asia.)
+
+**India GPU providers (besides AWS/GCP/Azure/Oracle):**
+
+| Provider | Notes |
+|---|---|
+| **E2E Networks** | NVIDIA partner; GPU cloud; INR |
+| **NeevCloud** | India GPU cloud; A100/H100 |
+| **Yotta (Shakti Cloud)** | Hiranandani; GPUs + datacenters |
+| **Jio Cloud** | Reliance; GPU/AI cloud (freemium) |
+| **Krutrim (Ola)** | cloud + GPUs |
+| **Jarvislabs.ai** | India GPU cloud; INR billing; per-hour |
+| Sify / CtrlS / ESDS / NTT Netmagic / Tata Comm | datacenter + GPU / colocation |
+| **IndiaAI Mission compute portal** | govt-backed subsidised GPU access |
+
+**Guide:** dev/burst → Vast / RunPod / Modal · video production → A100/H100 (spot / reserved) ·
+India data-residency → E2E / NeevCloud / Yotta / Jio / Krutrim / Jarvislabs · subsidised → IndiaAI compute.
