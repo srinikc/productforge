@@ -92,24 +92,108 @@ A plain text/LLM project enables **no** capability pack: same 40 stages, same 62
 
 ---
 
-## 4. New media / IoT agents (pack-gated)
+## 4. Media / IoT agents — role & what they do
 
-| Agent | Role | Model(s) | Stages |
+Eight new agents, **added to the roster only when their capability pack is enabled**. Each reuses the
+existing orchestrator / stage / job / QA machinery — they do not fork the pipeline.
+
+| Agent | Role | What it does | Key models / tools |
 |---|---|---|---|
-| capability-strategist | detect modalities → enable packs → pick kinds + free/paid | existing text tier | `0f` (new) |
-| media-analyst | understand assets (alt-text, scenes, transcripts, tags) | Qwen2.5-VL / InternVL / SmolVLM, Whisper, CLAP | `0a`,`1d`,`1`,`4m` |
-| media-generator | generate image / video / music / 3D / voice | FLUX.1-schnell·Sana, Wan 2.2·Mochi·CogVideoX, ACE-Step, TripoSR·TRELLIS, Kokoro·Piper, Whisper | `4m` (new) |
-| media-editor | cut/merge/render/transcode/subtitles | FFmpeg, MoviePy, Blender (external) | `4m`, `9` |
-| asset-librarian | index, metadata, phash dedupe, provenance/licence | BGE / CLIP embeddings | cross-stage |
-| doc-analyst | OCR/document → structured text/tables | Tesseract·PaddleOCR·RapidOCR·docTR (+Qwen-VL) | `0a`,`1`,`4m` |
-| sensor-analyst | time-series ingest, anomaly, forecast, TinyML | IsolationForest/autoencoder, DLinear/PatchTST/Chronos | `1b`,`2`,`4m` |
-| media-qa | probe, loudness, phash, A-V sync, captions | — (validators) | `5`,`6` |
+| **capability-strategist** | Decide *what* multi-modal capability is needed | After ideation it reads the idea, detects modalities, enables the matching capability packs, picks model **kinds** + a free/paid mix, and writes `capabilities.json` — so design/architecture know what media exists. | existing text tier; `core/modality.py`, catalog, packs |
+| **media-analyst** | *Understand* media | Alt-text, scene/shot summaries, transcripts, tags for any provided or generated asset. | Qwen2.5-VL / InternVL / SmolVLM · Whisper (ASR) · CLAP |
+| **media-generator** | *Produce* media | Generates image / video / music / 3D / voice from prompts + specs via adapters. | FLUX.1-schnell·Sana · Wan 2.2·Mochi·CogVideoX · ACE-Step · TripoSR·TRELLIS · Kokoro·Piper · Whisper |
+| **media-editor** | *Process / assemble* media | Cut, merge, transcode, subtitles/burn-in, format packs — turns raw assets into deliverables. | FFmpeg · MoviePy · Blender (external) |
+| **asset-librarian** | *Organize* media | Indexes the asset store, metadata, dedupe (perceptual hash), provenance + licence tracking. Cross-stage. | BGE / CLIP embeddings · phash · asset store |
+| **doc-analyst** | *Read documents* | OCR/document → structured text/tables/layout. | Tesseract·PaddleOCR·RapidOCR·docTR (+Qwen-VL) |
+| **sensor-analyst** | *Handle IoT / time-series* | Ingest (MQTT/serial/BLE/Modbus), anomaly detection, forecasting, TinyML packaging. | IsolationForest/autoencoder · DLinear/PatchTST/Chronos · TFLite Micro |
+| **media-qa** | *Validate* media | ffprobe (codec/duration), loudness (EBU R128), perceptual hash, A/V sync, caption/schema checks. | validators (ffprobe, loudness, phash) |
 
-Existing agents gaining media duties: architect, document, a11y-audit, security, package, finops/pricing-strategist.
+**Grouping by job:** decide (`capability-strategist`) · understand (`media-analyst`, `doc-analyst`,
+`sensor-analyst`) · create (`media-generator`, `media-editor`) · organize (`asset-librarian`) ·
+verify (`media-qa`).
+
+**Per-agent I/O**
+
+| Agent | Input | Output |
+|---|---|---|
+| capability-strategist | idea / requirements text (+detected modalities) | `capabilities.json`, enabled packs, kind + free/paid plan |
+| media-analyst | image / audio / video (+ text context) | descriptions, transcripts, tags, scene breakdowns |
+| media-generator | prompts / specs + reference assets + chosen kind/model | generated image / video / audio / music / 3D / speech assets |
+| media-editor | raw assets + edit spec (timeline, captions) | composed media (cut/merged/subtitled/transcoded) |
+| asset-librarian | all assets + metadata | indexed asset store, dedupe, provenance/licence records |
+| doc-analyst | documents / scans / PDFs / images | structured text, tables, layout, page confidence |
+| sensor-analyst | time-series / sensor streams | cleaned series, anomalies, forecasts, TinyML models |
+| media-qa | finished media artifacts | pass/fail + metrics (probe/loudness/phash/A-V sync) |
 
 ---
 
-## 5. Component locations
+## 5. Inputs → agents → final product (the processing flow)
+
+Inputs are **not only a text idea**. A project can start from (or accumulate) any of:
+
+- **text idea** (always) — the pipeline's normal entry.
+- **image / video / voice / audio** — reference or source assets (brand, footage, recordings).
+- **documents** — PDFs, scans, spreadsheets (OCR).
+- **sensor / time-series** — device data or streams.
+- **existing files / datasets / URLs** — anything already produced upstream.
+
+All inputs pass through **one flow** (the existing stages, plus the two new media stages):
+
+```
+ INPUTS                    STRATEGY              UNDERSTAND              CREATE / EDIT           ORGANIZE / VERIFY        OUTPUT
+ ┌────────────┐         ┌──────────────┐       ┌──────────────┐       ┌───────────────┐       ┌────────────────┐     ┌──────────────┐
+ │ text idea  │         │ capability-  │       │ media-analyst│       │ media-generator│      │ asset-librarian│     │ FINAL PRODUCT│
+ │ image      │         │ strategist 0f│       │ doc-analyst  │       │ media-editor   │      │ media-qa       │     │  app + media │
+ │ video  ────┼──ingest►│  (kinds +    │─packs►│ sensor-analyst│─specs►│  (adapters →   │─assets►│  (index, phash,│────►│  bundle +    │
+ │ voice/audio│         │  free/paid)  │       │              │       │   models)      │      │   QA)          │     │  docs/assets │
+ │ document   │         │  writes      │       │              │       │                │      │                │     │              │
+ │ sensor     │         │  capabilities│       │              │       │                │      │                │     │              │
+ │ files/URL  │         │  .json       │       │              │       │                │      │                │     │              │
+ └────────────┘         └──────────────┘       └──────────────┘       └───────────────┘       └────────────────┘     └──────────────┘
+```
+
+**How it works:**
+1. **Strategy (0f):** `capability-strategist` transforms the idea + any inputs into a capability profile
+   (which modalities, which packs, which kinds, free/paid) → `capabilities.json`.
+2. **Understand:** `media-analyst` / `doc-analyst` / `sensor-analyst` extract meaning from the provided
+   inputs (descriptions, transcripts, tables, anomalies) → these become design/architecture context.
+3. **Create/edit (4m):** `media-generator` produces new assets via adapters/models; `media-editor`
+   assembles them into deliverables.
+4. **Organize/verify:** `asset-librarian` indexes + tracks provenance/licence; `media-qa` validates.
+5. **Output:** the existing `document`/`package`/`deploy` stages ship the **final product**, now
+   including media assets, transcripts/captions, and licence records.
+
+A **text-only** project simply skips strategy-media/understand-media/create steps (no pack enabled) and
+produces the same output as today.
+
+---
+
+## 6. Are only these agents needed?
+
+**Short answer: yes, the eight cover the lifecycle.** The pipeline needs *decide → understand → create →
+edit → organize → verify*, and those eight do exactly that. To avoid roster bloat, **related duties are
+folded into existing agents** rather than spawning new ones:
+
+| Need | Handled by (extend, don't add) |
+|---|---|
+| Media services in the tech stack / asset-store design | `architect` |
+| Storyboards, shot lists, visual/IA design | `design`, `product-design-spec`, `ux-ia` |
+| Media docs, captions, transcripts docs | `document` |
+| Alt-text / caption accessibility | `a11y-audit` |
+| Media/asset threat surface (upload, generated content) | `security` |
+| Rights: likeness/voice consent, input-asset licensing, PII | `legal-privacy` (+ `asset-librarian`) |
+| Content safety / moderation of generated media | `guardian` (+ `media-qa` validators) |
+| Per-unit media cost, ROI | `finops`, `pricing-strategist` |
+| Bundle-licence compliance | `package` (via BI-0211 catalogue) |
+| Growth / personalization of media products | `growth`, `product-analytics` |
+
+**Optional, only if we want stricter separation** (not required e2e): a dedicated `media-safety`
+(moderation), `media-localizer` (translation/dubbing), or `media-planner` (storyboard) agent. These can
+be split out later if the folded duties grow; today they are covered by the agents above.
+
+---
+
+## 7. Component locations
 
 | Concern | Location | Backlog |
 |---|---|---|
