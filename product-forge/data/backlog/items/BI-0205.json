@@ -1,0 +1,39 @@
+{
+  "id": "BI-0205",
+  "type": "tech-debt",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "intake",
+  "external_id": "backend:pr-process",
+  "label": "PF Backlog 214",
+  "title": "Process: PR workflow -- branch -> pre-check gates (syntax/audit/lint/tests/secrets) -> code review -> merge to develop/main + branch protection",
+  "body": "## Problem / why\nWork is (so far) committed straight to `develop` with no PR, no required review, and no CI gate on the\nchange itself -- only `.github/workflows/structure.yml` on push. There is no enforced pre-check (syntax,\naudits, tests, lint, secret scan) before code lands, so errors can reach `develop`/`main`.\n\n## Goal & value\nEvery change lands via a Pull Request that (a) passes automated pre-checks, (b) gets a human review BEFORE\ncheck-in/merge, and (c) is protected by branch rules -- so `develop` always builds and `main` stays releasable.\n\n## Requirements\n### Branch model\n- `main` = releases only; `develop` = integration; work on `feat/<BI-id>-slug`, `fix/<BI-id>-slug`, `hotfix/<slug>`.\n- No direct pushes to `main`/`develop` (enforced by branch protection).\n### Pre-check gates (ALL must pass; run by a local hook AND in CI)\n- syntax: `python -m compileall -q core scripts dashboard`\n- contracts/audits: `python scripts/dev/wired_audit.py` (naming, store-registry, diff, destructive,\n  reciprocity, tier/cost, agent-knowledge, PATHS, legacy-frozen)\n- tests: `python -m pytest test-framework/tests`\n- lint + format + types: add `ruff` (lint/format) and a type check (mypy/pyright) as a new gate\n- secret scan: gitleaks/detect-secrets + assert no `.env` / `*.key` is staged\n- one aggregate entrypoint `scripts/dev/precheck.py` runs every gate and exits non-zero on any failure\n### PR rules\n- PR target = `develop`; release PR = `develop` -> `main`.\n- PR template: summary, backlog item ref (BI-####), test evidence, risk/rollback.\n- CI fails if the PR carries no `BI-####` reference.\n- >=1 approving review required; `core/**`, `scripts/**`, `config/**`, and CI files gated via CODEOWNERS.\n- All required status checks green; branch must be up-to-date before merge.\n### Merge + release\n- Feature PRs: squash-merge into `develop` (conventional-commit title).\n- Release: merge-commit `develop` -> `main`, then tag and run `core/run_quality_gate.py`.\n- Documented in `docs/PR-PROCESS.md` (+ `CONTRIBUTING.md`), seeding from the current `structure.yml`.\n\n## Acceptance criteria (testable)\n- `docs/PR-PROCESS.md` + `.github/pull_request_template.md` + `.github/CODEOWNERS` exist.\n- CI workflow runs on `pull_request` to `develop`/`main` and runs all gates above.\n- Branch protection on `develop` + `main`: require PR + review + status checks + no force-push.\n- A demo PR with an intentional syntax error is blocked; fixed -> green -> approved -> merged.\n- A direct push to `develop` is rejected.\n\n## Verification / test plan\n- Open a test PR (bad syntax) -> CI red, merge blocked; fix -> CI green.\n- Attempt a direct push to `develop` -> rejected.\n- `python scripts/dev/precheck.py` locally -> non-zero on an injected error, zero when clean.\n",
+  "source": "generic",
+  "status": "new",
+  "priority": null,
+  "moscow": "Should",
+  "value": 4,
+  "effort": 3,
+  "risk": 3,
+  "deps": [],
+  "links": {
+    "relates_to": [
+      "product_forge:BI-0203",
+      "product_forge:BI-0204",
+      "product_forge:BI-0024"
+    ]
+  },
+  "decisions": [],
+  "follow_up": {},
+  "created_at": "2026-09-25T20:53:14.433526",
+  "updated_at": "2026-09-25T20:53:36.155480",
+  "score": 0.67,
+  "dashboard_impact": {
+    "needs_dashboard": false,
+    "reason": "Repo/CI process only; no product UI change.",
+    "dashboard_item": null,
+    "reviewed_by": "agent",
+    "reviewed_at": "2026-09-25T20:53:14.440664"
+  },
+  "_note": "relates_to BI-0024 (extends its CI/PR gating to a full review+protection process)"
+}
