@@ -131,6 +131,26 @@ ROUTER ──picks model by (kind, modality, cost, free/paid)──► ADAPTER (
                                                           the MODEL (generator) runs on the provider side
 ```
 
+### What we write vs what we reuse
+
+We do **not** reimplement providers. Existing online libraries/SDKs do the transport + inference; we write
+only the uniform contract and the glue that normalizes them.
+
+| Layer | Reuse (existing, online / PyPI) | We write (glue) |
+|---|---|---|
+| Local model run (self-host) | `diffusers`, `transformers`, `onnxruntime`, `whisper.cpp`, `piper`, `kokoro`, `ffmpeg`, `trimesh` | `LocalModelAdapter` subclasses (one per kind, not per model) |
+| Direct vendor API | vendor SDKs: `openai`, `google-genai`, `elevenlabs`, `stability-sdk`, `runwayml`; raw REST otherwise | thin `DirectVendorAdapter` per vendor; raw-REST wrappers for Meshy/Tripo/Luma/Pika/Kling/Suno |
+| Aggregator | `fal-client`, `replicate`, `kie.ai`, `together`, `openrouter` clients | **one** generic `AggregatorAdapter` (auth + model-slug + job normalize) |
+| Weights download | `huggingface_hub`, `hf_transfer`, `modelscope` | `ModelDownloaderAdapter` + licence gate + `models.lock` |
+| **Uniform contract, registry, kind-router, licence/cost hooks, artifact normalize, job integration** | — (this is our design) | **YES — the ~20% glue that is genuinely ours** |
+
+**Bottom line:** ~80–90% is reuse (provider SDKs + model libraries). We hand-write:
+- the `submit/status/fetch/cancel/cost` **contract** + adapter **registry** (BI-0193);
+- a **handful** of provider adapters — roughly: 1 local + 3–4 aggregators + ~6–8 direct vendors — plus
+  model-download (BI-0206) and key (BI-0207) adapters;
+- per-**model** differences are **config** (model slug + params + `billing_unit`/licence in the catalog),
+  **not** new code. Adding a new model on an already-supported provider is a catalog entry, not a module.
+
 ---
 
 ## 4. Existing pipeline it plugs into (unchanged when no pack is on)
