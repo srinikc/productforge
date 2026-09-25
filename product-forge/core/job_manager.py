@@ -21,12 +21,25 @@ Ordering when a slot frees (lowest `rank`, then priority, then enqueued_at):
 Key ids aligned end-to-end on every job:
   job_id(=project row) · run_id · backlog item(s) · intake IN-id · source · actor
 """
+try:
+    from core.paths import ROOT as _PF_ROOT
+except ImportError:  # executed as a script: seed the repo root on sys.path, then retry
+    import os as _pf_os
+    import sys as _pf_sys
+    _pf_d = _pf_os.path.abspath(__file__)
+    for _pf_i in range(3):
+        _pf_d = _pf_os.path.dirname(_pf_d)
+        if _pf_os.path.isfile(_pf_os.path.join(_pf_d, 'core', 'paths.py')):
+            _pf_sys.path.insert(0, _pf_d)
+            break
+    from core.paths import ROOT as _PF_ROOT
+
 import os
 import sqlite3
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+REPO = str(_PF_ROOT)
 PRODUCTS = os.path.join(REPO, "products")
 
 # Reuse the exact DB the existing queue uses.

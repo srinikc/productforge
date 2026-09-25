@@ -10,6 +10,19 @@ project-status.json.
 
 All operations are best-effort (never raise into the pipeline).
 """
+try:
+    from core.paths import ROOT as _PF_ROOT
+except ImportError:  # executed as a script: seed the repo root on sys.path, then retry
+    import os as _pf_os
+    import sys as _pf_sys
+    _pf_d = _pf_os.path.abspath(__file__)
+    for _pf_i in range(3):
+        _pf_d = _pf_os.path.dirname(_pf_d)
+        if _pf_os.path.isfile(_pf_os.path.join(_pf_d, 'core', 'paths.py')):
+            _pf_sys.path.insert(0, _pf_d)
+            break
+    from core.paths import ROOT as _PF_ROOT
+
 import json
 import os
 import re
@@ -52,7 +65,7 @@ def _read_json(path: str) -> Optional[Any]:
 
 
 def _pipeline_stage_order() -> List[str]:
-    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    root = str(_PF_ROOT)
     data = _read_json(os.path.join(root, "pipeline-definition.json")) or {}
     return list((data.get("stages", {}) or {}).keys())
 

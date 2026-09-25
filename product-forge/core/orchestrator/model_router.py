@@ -5,6 +5,19 @@ Resolves the model/provider/endpoint for an agent+stage from the shared tier
 config (project override -> repo config -> products -> repo root).
 No model names are hardcoded in pipeline logic; only env-overridable fallbacks.
 """
+try:
+    from core.paths import ROOT as _PF_ROOT
+except ImportError:  # executed as a script: seed the repo root on sys.path, then retry
+    import os as _pf_os
+    import sys as _pf_sys
+    _pf_d = _pf_os.path.abspath(__file__)
+    for _pf_i in range(3):
+        _pf_d = _pf_os.path.dirname(_pf_d)
+        if _pf_os.path.isfile(_pf_os.path.join(_pf_d, 'core', 'paths.py')):
+            _pf_sys.path.insert(0, _pf_d)
+            break
+    from core.paths import ROOT as _PF_ROOT
+
 import json
 import os
 from typing import Dict, List, Optional
@@ -16,7 +29,7 @@ FALLBACK_ENDPOINT = os.getenv(
     "https://opencode.ai/zen/go/v1/chat/completions",
 )
 
-_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+_REPO_ROOT = str(_PF_ROOT)
 
 
 def tier_config_candidates(products_dir: str = "products", project_dir: str = "") -> List[str]:
@@ -78,7 +91,7 @@ class ModelRouter:
 
     def tier_config_candidates(self) -> List[str]:
         # config/ is authoritative (BI-0025): per-project override > repo config.
-        repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        repo_root = str(_PF_ROOT)
         return [
             os.path.join(self.project_dir, "model-tier.json"),
             os.path.join(repo_root, "config", "model-tier.json"),

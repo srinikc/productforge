@@ -11,13 +11,26 @@ recommendations. Offline-safe: on fetch failure the existing catalog is kept.
 
 CLI: `python -m core.model_catalog --refresh`
 """
+try:
+    from core.paths import ROOT as _PF_ROOT
+except ImportError:  # executed as a script: seed the repo root on sys.path, then retry
+    import os as _pf_os
+    import sys as _pf_sys
+    _pf_d = _pf_os.path.abspath(__file__)
+    for _pf_i in range(3):
+        _pf_d = _pf_os.path.dirname(_pf_d)
+        if _pf_os.path.isfile(_pf_os.path.join(_pf_d, 'core', 'paths.py')):
+            _pf_sys.path.insert(0, _pf_d)
+            break
+    from core.paths import ROOT as _PF_ROOT
+
 import json
 import os
 import urllib.request
 from datetime import datetime
 from typing import Dict, List, Optional
 
-REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+REPO = str(_PF_ROOT)
 OUT = os.path.join(REPO, "config", "model-catalog.json")
 REGISTRY = os.path.join(REPO, "products", ".pipeline", "model_registry.json")
 OR_URL = "https://openrouter.ai/api/v1/models"

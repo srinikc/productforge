@@ -1,6 +1,19 @@
 """
 Notification System - Notifies humans of important events
 """
+try:
+    from core.paths import ROOT as _PF_ROOT
+except ImportError:  # executed as a script: seed the repo root on sys.path, then retry
+    import os as _pf_os
+    import sys as _pf_sys
+    _pf_d = _pf_os.path.abspath(__file__)
+    for _pf_i in range(3):
+        _pf_d = _pf_os.path.dirname(_pf_d)
+        if _pf_os.path.isfile(_pf_os.path.join(_pf_d, 'core', 'paths.py')):
+            _pf_sys.path.insert(0, _pf_d)
+            break
+    from core.paths import ROOT as _PF_ROOT
+
 import time
 import json
 from pathlib import Path
@@ -37,7 +50,7 @@ class NotificationSystem:
     
     def __init__(self, project: str):
         self.project = project
-        self.notifications_file = Path(__file__).parent.parent / "products" / project / "notifications.json"
+        self.notifications_file = _PF_ROOT / "products" / project / "notifications.json"
         self.notifications: List[Notification] = self._load_notifications()
     
     def _load_notifications(self) -> List[Notification]:

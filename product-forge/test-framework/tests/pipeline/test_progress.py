@@ -27,7 +27,7 @@ def test_snapshot_running_agent_first_stage(temp_products_dir):
     assert s["stage_id"] == "0"
     assert s["agent"] == "ideation"
     assert s["status"] == "running"
-    assert s["phase"].endswith("Ideation")
+    assert s["phase"].endswith("Ideation & Discovery")
     assert s["stage_index"] == 1
     assert s["stage_total"] == len(P.ORDER)
     assert "discovery" in s["next"]
@@ -35,11 +35,11 @@ def test_snapshot_running_agent_first_stage(temp_products_dir):
 
 
 def test_snapshot_advances_to_next_incomplete_stage(temp_products_dir):
-    d = _mk(temp_products_dir, "prod-b",
-            {"project": "prod-b", "stages": {"0": {"status": "completed"},
-                                             "0a": {"status": "completed"},
-                                             "1": {"status": "pending"}}},
-            {})
+    # Every canonical stage before "1" is complete, so the snapshot must advance to "1".
+    before = P.ORDER[:P.ORDER.index("1")]
+    stages = {sid: {"status": "completed"} for sid in before}
+    stages["1"] = {"status": "pending"}
+    d = _mk(temp_products_dir, "prod-b", {"project": "prod-b", "stages": stages}, {})
     s = P.snapshot(d)
     assert s["stage_id"] == "1"
     assert s["status"] == "pending"

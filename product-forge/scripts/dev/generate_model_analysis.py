@@ -11,13 +11,26 @@ Data sources:
   - agents/*.agent.json                            (what agents need: tools, role)
   - docs/zen pricing (embedded)                   (Zen per-1M pricing)
 """
+try:
+    from core.paths import ROOT as _PF_ROOT
+except ImportError:  # executed as a script: seed the repo root on sys.path, then retry
+    import os as _pf_os
+    import sys as _pf_sys
+    _pf_d = _pf_os.path.abspath(__file__)
+    for _pf_i in range(3):
+        _pf_d = _pf_os.path.dirname(_pf_d)
+        if _pf_os.path.isfile(_pf_os.path.join(_pf_d, 'core', 'paths.py')):
+            _pf_sys.path.insert(0, _pf_d)
+            break
+    from core.paths import ROOT as _PF_ROOT
+
 import glob
 import json
 import os
 import urllib.request
 from datetime import datetime
 
-ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+ROOT = str(_PF_ROOT)
 OUT = os.path.join(ROOT, "docs", "modelanalysis.md")
 REGISTRY = os.path.join(ROOT, "products", ".pipeline", "model_registry.json")
 

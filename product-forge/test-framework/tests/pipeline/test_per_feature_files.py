@@ -23,6 +23,12 @@ import pytest
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
 from core.pipeline_executor import PipelineExecutor  # noqa: E402
+from core import stage_paths  # noqa: E402
+
+
+def _features_dir(project_dir, stage):
+    """The stage's features dir, resolved via the canonical (config-driven) naming."""
+    return Path(stage_paths.stage_dir(str(project_dir), stage, create=True)) / "features"
 
 
 class _Prof:
@@ -123,7 +129,7 @@ def test_t1_per_feature_files_match_merged_sections(tmp_path, agent, stage, suff
 
     arts, _execution = ex._generate_agent_artifacts(agent, stage, "task")
 
-    fdir = tmp_path / "TestProj" / "artifacts" / stage / "features"
+    fdir = _features_dir(tmp_path / "TestProj", stage)
     assert (fdir / f"F-1-{suffix}.md").exists()
     assert (fdir / f"F-2-{suffix}.md").exists()
 
@@ -163,7 +169,7 @@ def test_t3_regeneration_removes_stale_feature_files(tmp_path):
     ex = _make_executor(tmp_path)
     ex._generate_agent_artifacts("design", "1", "task")
 
-    fdir = tmp_path / "TestProj" / "artifacts" / "1" / "features"
+    fdir = _features_dir(tmp_path / "TestProj", "1")
     stale = fdir / "F-9-functional.md"
     stale.write_text("## F-9: Gone\nold content\n", encoding="utf-8")
 

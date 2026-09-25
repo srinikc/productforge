@@ -14,6 +14,19 @@ standalone:  ``python -m core.progress --project <p>``
 Note: the position is measured over the canonical stage order below (the Build
 phase expands to the implementation iterations present in this pipeline).
 """
+try:
+    from core.paths import ROOT as _PF_ROOT
+except ImportError:  # executed as a script: seed the repo root on sys.path, then retry
+    import os as _pf_os
+    import sys as _pf_sys
+    _pf_d = _pf_os.path.abspath(__file__)
+    for _pf_i in range(3):
+        _pf_d = _pf_os.path.dirname(_pf_d)
+        if _pf_os.path.isfile(_pf_os.path.join(_pf_d, 'core', 'paths.py')):
+            _pf_sys.path.insert(0, _pf_d)
+            break
+    from core.paths import ROOT as _PF_ROOT
+
 import argparse
 import json
 import os
@@ -41,7 +54,7 @@ def _derive_phases() -> List[Tuple[str, List[str]]]:
     """Build (label, stage-ids) per phase from pipeline-definition.json phase metadata."""
     try:
         defn = json.load(open(os.path.join(
-            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            str(_PF_ROOT),
             "pipeline-definition.json"), encoding="utf-8-sig"))
         stages = defn.get("stages") or {}
         groups: "Dict[str, List[str]]" = {}
@@ -70,7 +83,7 @@ GATES = {"1": "AG-scope-change", "2": "AG-architecture", "5": "AG-security-criti
          "10": "AG-deploy", "11": "AG-deploy"}
 _DONE = ("completed", "skipped")
 
-_REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_REPO = str(_PF_ROOT)
 
 
 def _rj(path: str, default):

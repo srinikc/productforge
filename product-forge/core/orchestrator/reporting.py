@@ -5,6 +5,19 @@ Generates the final execution report (JSON) and prints the human-readable
 summary. Holds the run's reporting inputs explicitly so it doesn't depend on
 the executor.
 """
+try:
+    from core.paths import ROOT as _PF_ROOT
+except ImportError:  # executed as a script: seed the repo root on sys.path, then retry
+    import os as _pf_os
+    import sys as _pf_sys
+    _pf_d = _pf_os.path.abspath(__file__)
+    for _pf_i in range(3):
+        _pf_d = _pf_os.path.dirname(_pf_d)
+        if _pf_os.path.isfile(_pf_os.path.join(_pf_d, 'core', 'paths.py')):
+            _pf_sys.path.insert(0, _pf_d)
+            break
+    from core.paths import ROOT as _PF_ROOT
+
 import json
 import os
 import time
@@ -423,7 +436,7 @@ class Reporter:
         print(f"{'='*70}")
         try:
             import json as _json
-            _repo = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            _repo = str(_PF_ROOT)
             _pd = _json.load(open(os.path.join(_repo, "pipeline-definition.json"), encoding="utf-8-sig"))
         except Exception:
             _pd = {}

@@ -13,6 +13,19 @@ Reads (read-only, no execution):
 This module is intentionally pure (no I/O side effects beyond reading and an
 opt-in cost-history append) so it can be safely called from the dashboard API.
 """
+try:
+    from core.paths import ROOT as _PF_ROOT
+except ImportError:  # executed as a script: seed the repo root on sys.path, then retry
+    import os as _pf_os
+    import sys as _pf_sys
+    _pf_d = _pf_os.path.abspath(__file__)
+    for _pf_i in range(3):
+        _pf_d = _pf_os.path.dirname(_pf_d)
+        if _pf_os.path.isfile(_pf_os.path.join(_pf_d, 'core', 'paths.py')):
+            _pf_sys.path.insert(0, _pf_d)
+            break
+    from core.paths import ROOT as _PF_ROOT
+
 import json
 import os
 from datetime import datetime
@@ -51,7 +64,7 @@ def _read_json(path: str) -> Optional[Any]:
 def _find_tier_config(project_dir: str, products_dir: str) -> Dict:
     for p in [
         os.path.join(project_dir, "model-tier.json"),
-        os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "config", "model-tier.json"),
+        os.path.join(str(_PF_ROOT), "config", "model-tier.json"),
         os.path.join(products_dir, "model-tier.json"),
     ]:
         data = _read_json(p)

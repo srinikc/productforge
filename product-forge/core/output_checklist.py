@@ -6,6 +6,19 @@ heading match). Missing an essential section fails compliance; a missing
 recommended section is a warning. Reusable for any agent whose document must
 follow a fixed structure.
 """
+try:
+    from core.paths import ROOT as _PF_ROOT
+except ImportError:  # executed as a script: seed the repo root on sys.path, then retry
+    import os as _pf_os
+    import sys as _pf_sys
+    _pf_d = _pf_os.path.abspath(__file__)
+    for _pf_i in range(3):
+        _pf_d = _pf_os.path.dirname(_pf_d)
+        if _pf_os.path.isfile(_pf_os.path.join(_pf_d, 'core', 'paths.py')):
+            _pf_sys.path.insert(0, _pf_d)
+            break
+    from core.paths import ROOT as _PF_ROOT
+
 import os
 import re
 from typing import Dict, List, Optional
@@ -42,7 +55,7 @@ _DEFAULT_FAMILIES = {
     "local_default": True,
 }
 _FAMILIES_PATH = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    str(_PF_ROOT),
     "config", "spec-id-families.json")
 _FAMILIES_CACHE = None
 
@@ -293,6 +306,30 @@ def _allocation_from_text(text, prefixes):
     return alloc
 
 
+def _allocation_from_outline(text, prefixes):
+    """Per-feature id ranges from the FEATURE OUTLINE (deterministic block scheme).
+
+    Mirrors what generation uses (``agent_requirements.id_allocation``): feature
+    index i owns fixed-size FR/NFR/US blocks, so the ranges are contiguous and the
+    gate can flag an out-of-range id such as ``FR-999``. Falls back to
+    ``_allocation_from_text`` when no outline can be derived.
+    """
+    fids = [fid for fid, _ in _feature_sections(text)]
+    if not fids:
+        return {}
+    try:
+        from core.agent_requirements import id_allocation
+        alloc = id_allocation(fids)
+    except Exception:
+        return _allocation_from_text(text, prefixes)
+    out = {}
+    for fid, entry in (alloc or {}).items():
+        e = {p: tuple(entry[p]) for p in prefixes if entry.get(p)}
+        if e:
+            out[fid] = e
+    return out
+
+
 def check_id_integrity(text, allocation=None, block_sizes=None, families=None):
     """Deterministic GLOBAL (FR/NFR/US) id gate over MERGED spec content.
 
@@ -310,9 +347,12 @@ def check_id_integrity(text, allocation=None, block_sizes=None, families=None):
     _global_id_re = _id_re(_global_prefixes)
     _derived = allocation is None
     if allocation is None:
-        # Derive per-feature ranges from the ACTUAL ids (running-number scheme), so
-        # the gate never flags the current contiguous numbering as out-of-range.
-        allocation = _allocation_from_text(text, _global_prefixes)
+        # Derive per-feature ranges from the FEATURE OUTLINE (the same deterministic
+        # block scheme generation used), so out-of-range ids are caught and the
+        # contiguous-in-plan-order invariant actually holds. Fall back to the ids
+        # present in the text when no outline is derivable.
+        allocation = _allocation_from_outline(text, _global_prefixes) \
+            or _allocation_from_text(text, _global_prefixes)
     allocation = dict(allocation or {})
 
     defs = _count_definitions(text, _global_prefixes)

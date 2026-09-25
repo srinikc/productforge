@@ -12,13 +12,26 @@ directory carries an INDEX.json so the UI/API can list/stream per agent.
 
 One writer per file: this module owns log-file creation; callers only append events.
 """
+try:
+    from core.paths import ROOT as _PF_ROOT
+except ImportError:  # executed as a script: seed the repo root on sys.path, then retry
+    import os as _pf_os
+    import sys as _pf_sys
+    _pf_d = _pf_os.path.abspath(__file__)
+    for _pf_i in range(3):
+        _pf_d = _pf_os.path.dirname(_pf_d)
+        if _pf_os.path.isfile(_pf_os.path.join(_pf_d, 'core', 'paths.py')):
+            _pf_sys.path.insert(0, _pf_d)
+            break
+    from core.paths import ROOT as _PF_ROOT
+
 import json
 import os
 import re
 from datetime import datetime
 from typing import Dict, Optional
 
-REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+REPO_ROOT = str(_PF_ROOT)
 _CONFIG = os.path.join(REPO_ROOT, "config", "log-conventions.json")
 
 _DEFAULT = {

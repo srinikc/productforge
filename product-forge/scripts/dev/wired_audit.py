@@ -9,6 +9,19 @@ Classifies each core/*.py module by WHO references it:
 Run: python scripts/dev/wired_audit.py
 Exit code 1 if any UNWIRED (not allowlisted). Wire it into CI.
 """
+try:
+    from core.paths import ROOT as _PF_ROOT
+except ImportError:  # executed as a script: seed the repo root on sys.path, then retry
+    import os as _pf_os
+    import sys as _pf_sys
+    _pf_d = _pf_os.path.abspath(__file__)
+    for _pf_i in range(3):
+        _pf_d = _pf_os.path.dirname(_pf_d)
+        if _pf_os.path.isfile(_pf_os.path.join(_pf_d, 'core', 'paths.py')):
+            _pf_sys.path.insert(0, _pf_d)
+            break
+    from core.paths import ROOT as _PF_ROOT
+
 import os
 import sys
 
@@ -420,7 +433,7 @@ def legacy_guard_audit():
     """
     import hashlib
     import json
-    _root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    _root = str(_PF_ROOT)
     cfg_path = os.path.join(_root, "config", "legacy-frozen.json")
     try:
         cfg = json.load(open(cfg_path, encoding="utf-8-sig"))
@@ -499,6 +512,47 @@ def agent_knowledge_audit():
     return 0
 
 
+_PATHS_ALLOW = "core/paths.py"
+
+
+def paths_audit():
+    """Fatal: the repo root is computed ONLY in core/paths.py (BI-0204).
+
+    Flags nested ``dirname`` chains and ``__file__``-based parent chains that re-derive
+    the root outside ``core/paths.py``. A ``sys.path.insert`` bootstrap seed is allowed
+    -- that seeds the interpreter, it is not domain path logic.
+    """
+    import re
+    dirname_re = re.compile(r"os\.path\.dirname\(\s*os\.path\.dirname\(")
+    parent_re = re.compile(r"Path\(\s*__file__\s*\)(?:\.resolve\(\))?\.parent\.parent")
+    import json as _json
+    frozen = set()
+    try:
+        frozen = set(_json.load(open("config/legacy-frozen.json", encoding="utf-8")).get("files", {}))
+    except Exception:
+        pass
+    violations = []
+    for f in _iter_py(["core", "dashboard", "scripts"]):
+        rel = f.replace("\\", "/")
+        if rel.endswith(_PATHS_ALLOW) or rel in frozen:
+            continue
+        for i, line in enumerate(_read(f).splitlines(), 1):
+            if "sys.path.insert" in line:
+                continue  # interpreter bootstrap seed
+            if dirname_re.search(line) or parent_re.search(line):
+                violations.append(f"{f}:{i}: {line.strip()}")
+    if violations:
+        print(f"\nPATHS-CONTRACT: {len(violations)} root computation(s) outside core/paths.py")
+        for v in violations[:20]:
+            print("   ", v)
+        if len(violations) > 20:
+            print(f"   ... and {len(violations) - 20} more")
+        print("   -> import ROOT from core.paths (see core/paths.py); never re-derive it")
+        return 1
+    print("\npaths: single-source root (core/paths.py only)")
+    return 0
+
+
 def main():
     all_files = list(_iter_py(["core", "scripts", "tests",
                                "test-framework/core", "test-framework/dashboard",
@@ -552,6 +606,7 @@ def main():
     rc |= tier_model_audit()
     rc |= cost_registry_audit()
     rc |= agent_knowledge_audit()
+    rc |= paths_audit()
     rc |= legacy_guard_audit()
     return rc
 

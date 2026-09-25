@@ -13,6 +13,19 @@ Idempotent: a spec is (re)written only when the item's body changes (tracked by 
 
 Owner: this module. Wired: core/intake.py (on item creation).
 """
+try:
+    from core.paths import ROOT as _PF_ROOT
+except ImportError:  # executed as a script: seed the repo root on sys.path, then retry
+    import os as _pf_os
+    import sys as _pf_sys
+    _pf_d = _pf_os.path.abspath(__file__)
+    for _pf_i in range(3):
+        _pf_d = _pf_os.path.dirname(_pf_d)
+        if _pf_os.path.isfile(_pf_os.path.join(_pf_d, 'core', 'paths.py')):
+            _pf_sys.path.insert(0, _pf_d)
+            break
+    from core.paths import ROOT as _PF_ROOT
+
 import hashlib
 import json
 import os
@@ -24,7 +37,7 @@ _SPEC_TYPES = {"feature", "change", "tech-debt"}
 
 
 def _project_dir(project: str) -> str:
-    repo = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    repo = str(_PF_ROOT)
     return os.path.join(repo, "products", project)
 
 

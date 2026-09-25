@@ -10,6 +10,19 @@ Files:
   products/portfolio-state.json     project -> {status, pid, run_id, started_at, rc}
   products/.locks/portfolio.lock    supervisor pid lock
 """
+try:
+    from core.paths import ROOT as _PF_ROOT
+except ImportError:  # executed as a script: seed the repo root on sys.path, then retry
+    import os as _pf_os
+    import sys as _pf_sys
+    _pf_d = _pf_os.path.abspath(__file__)
+    for _pf_i in range(3):
+        _pf_d = _pf_os.path.dirname(_pf_d)
+        if _pf_os.path.isfile(_pf_os.path.join(_pf_d, 'core', 'paths.py')):
+            _pf_sys.path.insert(0, _pf_d)
+            break
+    from core.paths import ROOT as _PF_ROOT
+
 import json
 import os
 import sqlite3
@@ -19,7 +32,7 @@ import time
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+REPO = str(_PF_ROOT)
 PRODUCTS = os.path.join(REPO, "products")
 def _forge_path(new_name, legacy_name):
     """Prefer product-forge/portfolio/<new>; fall back to legacy products/<file>."""

@@ -1,6 +1,19 @@
 """
 Dead Letter Queue - Captures failed tasks
 """
+try:
+    from core.paths import ROOT as _PF_ROOT
+except ImportError:  # executed as a script: seed the repo root on sys.path, then retry
+    import os as _pf_os
+    import sys as _pf_sys
+    _pf_d = _pf_os.path.abspath(__file__)
+    for _pf_i in range(3):
+        _pf_d = _pf_os.path.dirname(_pf_d)
+        if _pf_os.path.isfile(_pf_os.path.join(_pf_d, 'core', 'paths.py')):
+            _pf_sys.path.insert(0, _pf_d)
+            break
+    from core.paths import ROOT as _PF_ROOT
+
 import time
 import json
 from pathlib import Path
@@ -32,7 +45,7 @@ class DeadLetterQueue:
     def __init__(self, project: str, max_retries: int = 3):
         self.project = project
         self.max_retries = max_retries
-        self.dlq_file = Path(__file__).parent.parent / "products" / project / "dead-letter-queue.json"
+        self.dlq_file = _PF_ROOT / "products" / project / "dead-letter-queue.json"
         self.items: List[DLQItem] = self._load_items()
     
     def _load_items(self) -> List[DLQItem]:

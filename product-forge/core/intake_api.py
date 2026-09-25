@@ -7,6 +7,19 @@ FastAPI router for receiving conversations from ChatGPT, Gemini, Claude,
 and manual sources. Handles deduplication, acknowledgment, and routing.
 """
 
+try:
+    from core.paths import ROOT as _PF_ROOT
+except ImportError:  # executed as a script: seed the repo root on sys.path, then retry
+    import os as _pf_os
+    import sys as _pf_sys
+    _pf_d = _pf_os.path.abspath(__file__)
+    for _pf_i in range(3):
+        _pf_d = _pf_os.path.dirname(_pf_d)
+        if _pf_os.path.isfile(_pf_os.path.join(_pf_d, 'core', 'paths.py')):
+            _pf_sys.path.insert(0, _pf_d)
+            break
+    from core.paths import ROOT as _PF_ROOT
+
 import os
 import json
 import hashlib
@@ -75,7 +88,7 @@ router = APIRouter()
 
 # Import conversation store
 import sys
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, str(_PF_ROOT))
 from core.conversation_models import (
     ConversationStore, Conversation, ConversationMessage,
     ExtractedIdea, ExtractedRequirement, ExtractedDecision,
@@ -381,7 +394,7 @@ async def idea_action(idea_id: str, req: IdeaActionRequest):
 @router.get("/projects")
 async def list_projects():
     """List all projects in products/ folder."""
-    products_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "products")
+    products_dir = os.path.join(str(_PF_ROOT), "products")
     projects = []
     if os.path.exists(products_dir):
         for entry in os.listdir(products_dir):

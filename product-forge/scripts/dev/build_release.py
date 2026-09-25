@@ -8,12 +8,25 @@ Usage:
     python scripts/dev/build_release.py            # verify both builds
     python scripts/dev/build_release.py --write    # write dist/build-manifest-<role>.json
 """
+try:
+    from core.paths import ROOT as _PF_ROOT
+except ImportError:  # executed as a script: seed the repo root on sys.path, then retry
+    import os as _pf_os
+    import sys as _pf_sys
+    _pf_d = _pf_os.path.abspath(__file__)
+    for _pf_i in range(3):
+        _pf_d = _pf_os.path.dirname(_pf_d)
+        if _pf_os.path.isfile(_pf_os.path.join(_pf_d, 'core', 'paths.py')):
+            _pf_sys.path.insert(0, _pf_d)
+            break
+    from core.paths import ROOT as _PF_ROOT
+
 import json
 import os
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent.parent
+ROOT = _PF_ROOT
 sys.path.insert(0, str(ROOT))
 
 OPERATOR_MARKERS = ("/api/v1/licensing/keys", "/api/v1/licensing/tenants",
