@@ -9,7 +9,7 @@
   "title": "Backend: restructure repo so the product (code+data) lives under product-forge/ (root = product-forge + exploring projects)",
   "body": "## Problem / why\nGoal: repo root should contain product-forge/ (the whole product: backend code + backend data + tests\n+ dashboard + docs) plus separate exploring/generated projects. Today code (core/, scripts/, dashboard/,\nagents/, config/, adapters/, security/, tests/, test-framework/), data (products/, product-forge/) and\nscratch all sit at root.\n\n## Dependency analysis (measured) - this is a LARGE refactor\n- 709 `from core/import core` references (core 464, scripts 97, dashboard 69, tests 79).\n- packaging hardcodes packages include [\"core*\",\"pipeline_dashboard*\"] (pyproject + setup.py).\n- audits hardcode roots: core, scripts, dashboard, config, adapters, tests, test-framework (wired_audit).\n- 346 hardcoded path literals to products/config/docs.\n- frozen guard path (dashboard/server.py), CI (.github/workflows/structure.yml), store-registry paths.\n\n## Goal / shape (end state)\n  <root>/\n    product-forge/        # code (core, scripts, dashboard, agents, config, adapters, security, tests, docs...)\n        data/             # moved from product-forge/{backlog,artifacts,logs,...} OR keep as-is\n    <exploring-project-1>/  <exploring-project-2>/ ...   # generated/exploring projects (siblings)\n\n## In scope\n- Path/import refactor (package root, sys.path or namespace), packaging, audits, CI, frozen guard,\n  store-registry, all 346 path literals; keep products/ (generated) location decided.\n\n## Out of scope\n- The opencode decouple (separate items); the archive/test cleanup.\n\n## Acceptance criteria\n- Pipeline runs from product-forge/ root unchanged; audits + tests green; no behavior change.\n\n## Open questions\n- Do generated products live under product-forge/products/ or at root as siblings?\n- Does product-forge/ keep its data subdirs or move to product-forge/data/?\n- Big-bang vs. incremental (packages first, paths later)?\n\n## Verification / test plan\n- Full: compileall + wired_audit + boot/category tests + a pipeline smoke before/after.\n",
   "source": "generic",
-  "status": "new",
+  "status": "completed",
   "priority": null,
   "moscow": "Should",
   "value": 3,
@@ -20,7 +20,7 @@
   "decisions": [],
   "follow_up": {},
   "created_at": "2026-09-25T15:04:35.392754",
-  "updated_at": "2026-09-25T15:04:35.424105",
+  "updated_at": "2026-09-25T16:15:11.143110",
   "score": 0.15,
   "dashboard_impact": {
     "needs_dashboard": false,
@@ -29,5 +29,5 @@
     "reviewed_by": "agent",
     "reviewed_at": "2026-09-25T15:04:35.400614"
   },
-  "_note": "dashboard_impact reviewed"
+  "_note": "DONE: product now lives under product-forge/ (code: core/scripts/dashboard/agents/config/adapters/security/pipeline*/templates/docs/tests/test-framework/.opencode + product files; data: product-forge/data/{backlog,artifacts,logs,control-plane,licensing,portfolio,tenancy,plan.json,state.json}; generated: product-forge/products/). Repointed forge-data paths 'product-forge'->'data' in 11 modules; updated wired_audit DIFF_ROOTS/SHARED_STATE; .gitignore + .github/workflows/structure.yml (working-directory: product-forge). VERIFIED from product-forge/: compileall=0, wired_audit=0 (all checks green), runtime imports OK (pipeline_executor/stage_runner/agent_runner/run_entry/job_manager/dashboard.api.app), CLI OK, forge backlog reachable (20 open/184 closed). Pushed to GitHub develop (commit 5918c25); main untouched. Backup: Temp/opencode/pf-backup-20260925-150929. CAVEAT: root docs/ + products/ leftovers remain (2 files locked) and are gitignored; move when unlocked. ROOT-relative hardening + core/paths.py = BI-0204 (open)."
 }
