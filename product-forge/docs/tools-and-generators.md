@@ -701,3 +701,35 @@ implement the adapters/generators/packs/agents rather than writing from scratch.
 
 **Guide:** dev/burst → Vast / RunPod / Modal · video production → A100/H100 (spot / reserved) ·
 India data-residency → E2E / NeevCloud / Yotta / Jio / Krutrim / Jarvislabs · subsidised → IndiaAI compute.
+
+---
+
+## 30. Cloud GPU comparison (hyperscalers · other clouds · India)
+
+Cost = approx. on‑demand, 2026, volatile; in INR/hr unless noted. **All are pay‑per‑use** (per‑hour or
+per‑second; serverless = scale‑to‑zero). Spot/reserved cut 40–70 %.
+
+| Provider | Category | GPU models (VRAM) | Purpose | Cost (₹/hr, approx) | Pay‑per‑use |
+|---|---|---|---|---|---|
+| **AWS** | hyperscaler | T4(16), A10G(24), L4(24), L40S(48), A100(40/80), H100(80) | inference→training→video | ₹45 → ₹8,500 | ✅ per‑second (min 60s) |
+| **GCP** | hyperscaler | T4(16), L4(24), A100(40/80), H100(80) | same | ₹70 → ₹8,500 | ✅ per‑second |
+| **Azure** | hyperscaler | T4(16), A10(24), A100(40/80), H100(80) | same | ₹50 → ₹8,300 | ✅ per‑second |
+| **Oracle OCI** | hyperscaler | A10(24), L40S(48), A100(40/80), H100(80) | same; often cheaper | ₹60 → ₹8,000 | ✅ per‑second |
+| **RunPod** | GPU cloud | 3090(24), 4090(24), L40S(48), A100(40/80), H100(80) | dev→video/training | ₹18 → ₹350 | ✅ per‑second |
+| **Vast.ai** | marketplace | 3060(12)→4090(24), A100, H100 | cheapest dev/media | ₹15 → ₹300 | ✅ per‑second |
+| **Lambda** | GPU cloud | A10(24), A100(40/80), H100(80) | training/video | ₹100 → ₹350 | ✅ per‑second |
+| **CoreWeave** | GPU cloud | A100, H100, L40S(48) | enterprise training/media | ₹120 → ₹400 | ✅ per‑second |
+| **Modal** | serverless | A10G(24), A100, H100 | bursty jobs | per‑second, **scale‑to‑zero** | ✅ pay only while running |
+| **Together / Fireworks / Replicate / fal / Baseten** | serverless inference | many media/LLM models | call models, no servers | **per run / token / second** | ✅ per use |
+| **E2E Networks** | India | A100(40/80), H100, L40S(48) | India data residency | ₹‑denominated, competitive | ✅ per‑hour |
+| **NeevCloud** | India | A100(80), H100(80) | India AI cloud | ₹‑denominated | ✅ per‑hour |
+| **Yotta (Shakti)** | India | A100, H100, L40S(48) | India + datacenter | ₹‑denominated | ✅ per‑hour |
+| **Jio Cloud** | India | GPU/AI (freemium) | India AI cloud | ₹‑denominated / free tier | ✅ per use |
+| **Krutrim (Ola)** | India | GPUs (A100/H100) | India AI cloud | ₹‑denominated | ✅ per use |
+| **Jarvislabs.ai** | India | A6000(48), A100, H100, RTX | India dev/media | ₹‑denominated; per‑hour | ✅ per‑hour |
+| **Sify / CtrlS / ESDS / NTT / Tata Comm** | India | colo + GPU | datacenter / colocation | ₹‑denominated | ✅ per‑hour |
+| **IndiaAI Mission compute** | India (govt) | A100/H100 via partners | subsidised research/build | subsidised (low/free) | ⚠️ allocated/portal |
+
+**Purpose key:** T4/A10G/L4 → cheap inference (L4 also video) · L40S/A100 → diffusion / video / 3D + training ·
+H100/H200 → large‑model training / top video. **India residency** → E2E / NeevCloud / Yotta / Jio / Krutrim /
+Jarvislabs · **cheapest dev/burst** → Vast / RunPod / Modal.
