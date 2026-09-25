@@ -438,3 +438,79 @@ restricted weights are reachable **only via API**.
 Tiers: **0)** permissive open-weights · **1)** free-tier API · **2)** paid API/aggregator.
 `provider_kind = self-host | direct | aggregator`; chosen per project by the model-strategy gate
 (BI-0192 / BI-0210), configurable in the capability pack.
+
+---
+
+## 22. Industry standards & prior art (we are not inventing this)
+
+Our concepts map onto established architecture patterns, frameworks and standards. Adopt these rather
+than invent — there is **no single "multi-modal standard"**, but there are well-known practices per layer.
+
+| Our concept | Industry practice / standard it aligns with |
+|---|---|
+| Adapter / provider abstraction | **Ports & Adapters (Hexagonal) architecture**; in AI: **LiteLLM**, **Vercel AI SDK**, LangChain/LlamaIndex provider abstractions, Hugging Face `transformers`/`diffusers` pipelines, **ONNX Runtime**; “**OpenAI-compatible API**” convention |
+| Aggregator / one-key gateway | **API Gateway pattern**; AI gateways: **OpenRouter**, **LiteLLM proxy**, **Portkey**, **Cloudflare AI Gateway** |
+| Model serving / loading | **MLOps serving**: NVIDIA **Triton**, **TorchServe**, **vLLM**, **TGI** (HF), **Ollama**, **KServe**, **BentoML**, **Ray Serve** |
+| Model registry / metadata | **MLflow Model Registry**, HF **Model Cards**, **safetensors** / **GGUF** / **ONNX** artifacts |
+| Async job (submit→poll→fetch) | Standard **task-queue / job** pattern (**Celery**, **RQ**, **Temporal**, **Argo Workflows**); media providers expose exactly this (Replicate/Runway/fal) |
+| Agent interop & tool use | **MCP** (Model Context Protocol), **A2A** (Agent2Agent), **AG-UI**, OpenAI Agents SDK, LangGraph, AutoGen, CrewAI (all in BI-0195..0200) |
+| Observability | **OpenTelemetry GenAI** semantic conventions (BI-0199) |
+| Media formats | **glTF/GLB** (3D), **HLS/DASH** (video), **MIME types**, **EXIF/IPTC/XMP** (image metadata), **IIIF** (image delivery) |
+| Audio QC | **EBU R128 / ITU-R BS.1770** loudness (BI-0191) |
+| Content provenance | **C2PA / Content Credentials** (label AI-generated media) |
+| Licensing / model governance | **SPDX** license IDs, **OpenRAIL** licenses, **Model Cards**; **NIST AI RMF**, **EU AI Act** (compliance) |
+| IoT / sensor | **MQTT**, **Sparkplug B**, **OPC-UA**, **OMA LwM2M**, **W3C WoT**; time-series stores (**InfluxDB**) |
+| Digital asset management | **DAM** concepts (asset store, metadata, provenance) |
+
+**Conclusion:** the adapters/generators/aggregators/media-agents design is **industry-standard practice**
+(Ports & Adapters + AI gateways + MLOps serving + agentic standards). Our job is to **wire the adopted
+standards** (MCP/A2A/AG-UI/OTel in BI-0195..0200, C2PA/EBU R128 in BI-0191, MQTT/Sparkplug in BI-0208)
+rather than build bespoke.
+
+---
+
+## 23. Hardware to run all open-weights — India cost, where to buy, build vs buy
+
+> Prices are **approximate, 2026, India street, incl. ~18 % GST, volatile** — verify with retailers.
+> GPU prices in India typically run **10–30 % above** global MSRP.
+
+### GPU options (approx.)
+| GPU | VRAM | Approx. India price | Notes |
+|---|---|---|---|
+| RTX 5070 Ti / 4070 Ti Super | 16 GB | ₹80 k – 1.1 L | entry (quantized only) |
+| RTX 5080 / 4080 Super | 16 GB | ₹1.0 – 1.4 L | entry |
+| **RTX 4090** | 24 GB | ₹1.7 – 2.2 L | recommended (scarcer now) |
+| **RTX 5090** | 32 GB | ₹2.6 – 3.6 L | **best single-GPU pick** for all modalities |
+| RTX A6000 / RTX 6000 Ada | 48 GB | ₹3.5 – 5.0 L | pro; video fp16 |
+| RTX 6000 Blackwell | 96 GB | ₹7 – 9 L+ | comfortable/pro |
+| Used RTX 3090 | 24 GB | ₹55 – 85 k | budget 24 GB (warranty risk) |
+| Apple Mac Studio (M4 Max) | 64–128 GB unified | ₹2.5 – 4.5 L | alternative; slower for some diffusion |
+
+### Full “all-local recommended” build (RTX 5090 class)
+| Part | Approx. |
+|---|---|
+| GPU (RTX 5090 32 GB) | ₹2.6 – 3.6 L |
+| CPU (Ryzen 9 9950X / i9 class) | ₹45 – 70 k |
+| Motherboard (X870/Z790) | ₹25 – 45 k |
+| RAM 128 GB DDR5 | ₹40 – 65 k |
+| NVMe 4 TB | ₹25 – 40 k |
+| PSU 1000–1200 W (80+ Gold) | ₹15 – 30 k |
+| Case + cooling | ₹15 – 35 k |
+| **Total (self-build)** | **≈ ₹4.2 – 6.0 L** |
+| Prebuilt workstation (Dell Precision / Lenovo ThinkStation, 48 GB pro GPU) | ₹6 – 12 L |
+
+### Where to buy (India)
+- **Online:** Amazon.in, Flipkart, **MDComputers**, **Vedant Computers**, **PrimeABGB**, **TheITDepot**,
+  **EliteHubs**, **PC Studio**, **Nehru Place** (Delhi) / **SP Road** (Bengaluru) / **Lamington Road** (Mumbai).
+- **Pro GPUs (A6000/RTX 6000):** authorized distributors (NVIDIA partners), not consumer retail.
+- **Used:** OLX, Facebook Marketplace, **TechEnclave**, r/IndianGaming (test before buying).
+- **Cloud (burst, no capex):** AWS/GCP/Azure; **India:** E2E Networks, NeevCloud, Yotta, Jio Cloud, Krutrim
+  (rent a L40S/A100/H100 by the hour).
+
+### Build vs buy
+- **Self-assemble (desktop)** — cheapest for 24–32 GB; standard ATX, but watch **PSU wattage, GPU
+  clearance (3–4 slot), cooling, PCIe layout**.
+- **Multi-GPU (48–96 GB)** — needs a workstation/server board + big PSU; harder, or buy prebuilt.
+- **Cloud** — best for spikes/video; no capex, pay per hour.
+- **Verdict:** a **self-built RTX 5090 (32 GB) + 128 GB RAM + 4 TB NVMe (~₹4.5–5.5 L)** covers all
+  modalities comfortably; rent cloud GPUs for heavy video instead of a 96 GB card.
