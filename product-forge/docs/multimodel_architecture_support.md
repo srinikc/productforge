@@ -75,7 +75,65 @@ idea
 
 ---
 
-## 3. Existing pipeline it plugs into (unchanged when no pack is on)
+## 3. Adapters, Generators & Aggregators — what / why / how
+
+One line: **a generator is the *model*; an adapter is *how we call* a model; an aggregator is a *provider*
+that hosts many models behind one key.** Providers come in three shapes (`provider_kind`), and each maps
+to an adapter family:
+
+| provider_kind | Meaning | Adapter family | Key needed |
+|---|---|---|---|
+| `self-host` | open weights we download and run ourselves | `LocalModelAdapter` | no |
+| `direct` | one vendor's own API | `DirectVendorAdapter` (one per vendor) | yes |
+| `aggregator` | a gateway fronting many vendors' models | `AggregatorAdapter` (generic) | one |
+
+### Adapters — what / why / how
+- **What:** a thin code layer that speaks ONE provider's transport and returns results in OUR uniform
+  shape. It hides vendor differences from the router, agents and pipeline.
+- **Why:** (1) **API shapes differ** — chat is sync request/response; video/music/3D are **async jobs**
+  (submit → poll/webhook → fetch), so a chat-shaped call path cannot run media; (2) **transports differ**
+  (local GPU vs direct HTTPS vs aggregator portal); (3) the router/agents must be **provider-agnostic**
+  (swap fal.ai for Replicate or a local FLUX with no pipeline change); (4) **central policy** — licence,
+  cost caps, retries and key handling live in one place.
+- **How:** one contract used by every adapter —
+  `submit(kind,payload)->job · status(job) · fetch(job)->artifact · cancel(job) · cost(job)->(units,price,cur)`.
+  A catalog entry names its `provider`/`provider_kind`; the registry maps that to an adapter; the router
+  resolves `(kind, modality, cost, free/paid)` → model → adapter; the executor drives async via the job
+  manager; the artifact lands in the asset store; `cost(job)` is booked to the budget.
+
+### Generators — what / why / how
+- **What:** a **model whose OUTPUT is media** — image (`image-gen`), video (`video-gen`),
+  speech (`tts`/`stt`), music (`music-gen`), 3D (`3d-gen`), plus `ocr` and `embedding/rerank`.
+- **Why:** our catalog today is **text-output only**, so `core/modality.generators_needed()` reports every
+  media-OUT modality as blocked. Registering generators drives that to **0** and makes media products
+  buildable end-to-end.
+- **How:** register each as a catalog entry with `kind, provider_kind, billing_unit, unit_price, free,
+  open_weights, license`; the model-strategy gate (post-ideation + post-architect) picks the generator per
+  modality/agent; an **adapter** runs it; `media-qa` validates the artifact; per-unit cost is booked.
+  Only `bundle_allowed` or API-hosted generators are offered for shipped products.
+
+### Aggregators — what / why / how
+- **What:** a provider gateway that fronts **many models/vendors behind one API key + base URL**
+  (e.g. fal.ai, Replicate, kie.ai, Together, OpenRouter).
+- **Why:** **one integration instead of N vendor integrations**, immediate access to a wide catalogue of
+  media models, and far simpler key management — a good **default paid path** while direct/self-host stay
+  available for cost or control.
+- **How:** a single `AggregatorAdapter` with unified auth; the request names the **model slug**; the
+  gateway runs it and returns a job/artifacts; we still normalize, enforce the **allowlist**, licence and
+  cost caps, and record per-unit cost. **Trade-offs:** price markup, rate limits and lock-in — hence we
+  keep direct and self-host options and never hardcode one aggregator.
+
+```
+ROUTER ──picks model by (kind, modality, cost, free/paid)──► ADAPTER (plumbing) ──► PROVIDER
+                                                              ├─ LocalModelAdapter     -> self-host (open weights)
+                                                              ├─ DirectVendorAdapter   -> OpenAI/Google/ElevenLabs/…
+                                                              └─ AggregatorAdapter     -> fal.ai/Replicate/kie.ai/…
+                                                          the MODEL (generator) runs on the provider side
+```
+
+---
+
+## 4. Existing pipeline it plugs into (unchanged when no pack is on)
 
 | Phase | Stages | Agents |
 |---|---|---|
@@ -92,7 +150,7 @@ A plain text/LLM project enables **no** capability pack: same 40 stages, same 62
 
 ---
 
-## 4. Media / IoT agents — role & what they do
+## 5. Media / IoT agents — role & what they do
 
 Eight new agents, **added to the roster only when their capability pack is enabled**. Each reuses the
 existing orchestrator / stage / job / QA machinery — they do not fork the pipeline.
@@ -127,7 +185,7 @@ verify (`media-qa`).
 
 ---
 
-## 5. Inputs → agents → final product (the processing flow)
+## 6. Inputs → agents → final product (the processing flow)
 
 Inputs are **not only a text idea**. A project can start from (or accumulate) any of:
 
@@ -168,7 +226,7 @@ produces the same output as today.
 
 ---
 
-## 6. Are only these agents needed?
+## 7. Are only these agents needed?
 
 **Short answer: yes, the eight cover the lifecycle.** The pipeline needs *decide → understand → create →
 edit → organize → verify*, and those eight do exactly that. To avoid roster bloat, **related duties are
@@ -193,7 +251,7 @@ be split out later if the folded duties grow; today they are covered by the agen
 
 ---
 
-## 7. Component locations
+## 8. Component locations
 
 | Concern | Location | Backlog |
 |---|---|---|
