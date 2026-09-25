@@ -7,7 +7,7 @@
   "external_id": "backend:media-agents",
   "label": "PF Backlog 199",
   "title": "Backend: media agents (media-analyst / media-generator / media-editor / asset-librarian)",
-  "body": "## Problem / why\nNo agent understands, generates, edits, or organises media.\n\n## Goal\nAdd pluggable media agents, enabled only when the capability pack is active:\n- media-analyst: VLM understanding of image/audio/video.\n- media-generator: drive generator models.\n- media-editor: cut/merge/render (ffmpeg/MoviePy/Blender).\n- asset-librarian: index/manage the asset store.\n\n## Acceptance criteria\n- Agents are added to the roster + stages and gated by the capability pack.\n- Each agent declares knowledge/skills (agent-knowledge audit stays green).\n\n## Verification / test plan\n- Enable the media pack -> agents appear and run in the media stages; disabled otherwise.\n",
+  "body": "## Problem / why\nNo agent understands, generates, edits, or organises media.\n\n## Goal\nAdd pluggable media agents, enabled only when the capability pack is active:\n- media-analyst: VLM understanding of image/audio/video.\n- media-generator: drive generator models.\n- media-editor: cut/merge/render (ffmpeg/MoviePy/Blender).\n- asset-librarian: index/manage the asset store.\n\n## Acceptance criteria\n- Agents are added to the roster + stages and gated by the capability pack.\n- Each agent declares knowledge/skills (agent-knowledge audit stays green).\n\n## Verification / test plan\n- Enable the media pack -> agents appear and run in the media stages; disabled otherwise.\n\n\n## Roster (8 agents) - role, model(s), tools, stage placement\n- **capability-strategist** -> new stage `0f` (post-ideation): detect modalities, enable packs, pick\n  kinds + free/paid mix (uses the existing text tier). Tools: core/modality.py, catalog, capability-packs.\n- **media-analyst** -> `0a`/`1d`/`1` (+`4m`): VLM (Qwen2.5-VL / InternVL / SmolVLM), Whisper (ASR),\n  CLAP (audio tags). Consumers of media ingest (BI-0187).\n- **media-generator** -> new stage `4m`: FLUX.1-schnell/Sana (image), Wan 2.2/Mochi/CogVideoX (video),\n  ACE-Step (music), TripoSR/TRELLIS (3D), Kokoro/Piper (TTS), Whisper (STT) via adapters (BI-0188/0193).\n- **media-editor** -> `4m`, `9`: FFmpeg / MoviePy / Blender (external).\n- **asset-librarian** -> cross-stage: BGE/CLIP embeddings; asset store (BI-0187), phash dedupe, provenance/licence.\n- **doc-analyst** -> `0a`/`1`, `4m`: Tesseract/PaddleOCR/RapidOCR/docTR (+ Qwen-VL for hard pages) (BI-0209).\n- **sensor-analyst** -> `1b`/`2`, `4m`: IsolationForest/autoencoder (anomaly), DLinear/PatchTST/Chronos\n  (forecast); ingest adapters (BI-0208).\n- **media-qa** -> `5`/`6`: ffprobe / loudness / phash / A-V sync / caption validators (BI-0191).\n\nExisting agents that GAIN media duties: architect (media services in stack), document (captions),\na11y-audit (alt-text/captions), security (media threats), package (bundle-licence check), finops &\npricing-strategist (per-unit media cost).\n\nStage-composition mechanics (how `0f`/`4m`/media-QA are injected per pack) -> BI-0213.\nFull reference: docs/tools-and-generators.md (SS9-12).",
   "source": "generic",
   "status": "new",
   "priority": null,
@@ -17,19 +17,22 @@
   "risk": 2,
   "deps": [],
   "links": {
-    "epic": "product_forge:BI-0185"
+    "epic": "product_forge:BI-0185",
+    "paired_with": [
+      "project:ProductForge-Dashboard:BI-0141"
+    ]
   },
   "decisions": [],
   "follow_up": {},
   "created_at": "2026-09-24T23:39:15.802938",
-  "updated_at": "2026-09-24T23:39:15.831168",
+  "updated_at": "2026-09-25T21:25:45.945935",
   "score": 0.56,
   "dashboard_impact": {
-    "needs_dashboard": false,
-    "reason": "Backend capability; consumed via API, no UI change.",
-    "dashboard_item": null,
+    "needs_dashboard": true,
+    "reason": "Has a dashboard surface (see paired item).",
+    "dashboard_item": "project:ProductForge-Dashboard:BI-0141",
     "reviewed_by": "agent",
-    "reviewed_at": "2026-09-24T23:39:15.809503"
+    "reviewed_at": "2026-09-25T21:25:45.921571"
   },
   "_note": "dashboard_impact reviewed"
 }

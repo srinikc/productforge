@@ -1,0 +1,39 @@
+{
+  "id": "BI-0211",
+  "type": "tech-debt",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "intake",
+  "external_id": "backend:tool-license-catalog",
+  "label": "PF Backlog 220",
+  "title": "Backend: tool/SDK/vendor catalog with license metadata + bundle_allowed (feeds packaging & PR gate)",
+  "body": "## Problem / why\nWe choose tools/models but have no machine-readable record of their license, so we cannot prove that\nonly redistributable components get bundled, and packaging/review cannot enforce it.\n\n## Goal & value\nA single catalog (config/tool-catalog.json) of every tool/SDK/vendor + generator with license class and\n`bundle_allowed`, consumed by selection, packaging, and the PR/pre-check gate.\n\n## In scope\n- Schema per entry: name, kind, modality, license_id, license_class\n  (permissive|weak-copyleft|strong-copyleft|network-copyleft|restricted|proprietary), bundle_allowed,\n  source (pypi/system/api), version pin, notes.\n- Seed from docs/tools-and-generators.md (tools, models, APIs).\n- **Packaging hook:** fail the build if a bundled artifact's license_class is not bundle_allowed.\n- **PR/pre-check hook (BI-0205):** adding a dependency requires a catalog entry (else the check fails).\n- `bundle_allowed` also gates model weights (ties to BI-0206 license gate).\n\n## Acceptance criteria (testable)\n- Every bundled tool/model resolves to a catalog entry with a license_class.\n- Packaging fails on a non-bundle_allowed component; passes when only permissive/LGPL-unmodified.\n- Adding an unlisted dependency fails the pre-check until catalogued.\n\n## Verification / test plan\n- Unit: license_class decision table; catalog lookup.\n- Integration: a synthetic non-bundle_allowed entry blocks packaging; removing it passes.\n",
+  "source": "generic",
+  "status": "new",
+  "priority": null,
+  "moscow": "Should",
+  "value": 4,
+  "effort": 3,
+  "risk": 3,
+  "deps": [],
+  "links": {
+    "relates_to": [
+      "product_forge:BI-0188",
+      "product_forge:BI-0205",
+      "product_forge:BI-0200"
+    ]
+  },
+  "decisions": [],
+  "follow_up": {},
+  "created_at": "2026-09-25T21:20:45.454498",
+  "updated_at": "2026-09-25T21:20:45.485978",
+  "score": 0.67,
+  "dashboard_impact": {
+    "needs_dashboard": false,
+    "reason": "Backend capability/infra; dashboard surfacing tracked separately.",
+    "dashboard_item": null,
+    "reviewed_by": "agent",
+    "reviewed_at": "2026-09-25T21:20:45.462493"
+  },
+  "_note": "dashboard_impact reviewed"
+}

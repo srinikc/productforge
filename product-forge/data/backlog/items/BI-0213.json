@@ -1,0 +1,40 @@
+{
+  "id": "BI-0213",
+  "type": "tech-debt",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "intake",
+  "external_id": "backend:pipeline-composition",
+  "label": "PF Backlog 222",
+  "title": "Backend: capability-gated pipeline composition - inject media/IoT stages (0f, 4m, media-QA) + agents into the existing 0..13b order per enabled pack",
+  "body": "## Problem / why\nBI-0190 defines media agents and BI-0189 defines packs, but nothing says HOW the orchestrator weaves\noptional stages (`0f` capability strategy, `4m` media production, media-QA in `5/6`) and their agents into\nthe FIXED existing 0..13b stage order. Without this, media support would fork the pipeline instead of\nplugging into it, and a non-media project could regress.\n\n## Goal & value\nOne composition layer that, given the enabled capability packs, produces the run's effective stage order\nand agent roster by ADDING optional stages/agents - leaving a non-media run byte-identical to today.\n\n## In scope\n- `core/capability_packs.py` (single writer) reads `config/capability-packs.json` and exposes\n  `effective_stages(base=pipeline-definition)`, `effective_agents(base_roster)`, `enabled_tools/models`.\n- Optional stages are declared in the pack with an ANCHOR (insert-after stage id) + `requires` modalities,\n  e.g. `0f` after `0a`; `4m` after `4-0` (and per-iteration media steps); media-QA hooks into `5`,`6`.\n- Roster injection: pack agents appended to the affected stages' `ideal_flow` only when enabled.\n- Executor/stage_runner/agent_runner consume the EFFECTIVE definition (not the raw file) per run.\n- Guard: with no packs enabled, `effective_*` == base (asserted in tests).\n\n## Acceptance criteria (testable)\n- No pack -> effective stage order + roster identical to `pipeline-definition.json` (regression guard).\n- Image/video pack -> `0f` and `4m` present in order, media agents on the right stages, existing stages intact.\n- Disabling a pack removes its stages/agents with no residue.\n\n## Verification / test plan\n- Unit: composition decision table (packs -> stages/agents), anchor insertion, idempotency.\n- Integration: run an app idea vs a reels idea; diff the effective stage list.\n",
+  "source": "generic",
+  "status": "new",
+  "priority": null,
+  "moscow": "Should",
+  "value": 4,
+  "effort": 3,
+  "risk": 3,
+  "deps": [],
+  "links": {
+    "relates_to": [
+      "product_forge:BI-0189",
+      "product_forge:BI-0190",
+      "product_forge:BI-0192",
+      "product_forge:BI-0210"
+    ]
+  },
+  "decisions": [],
+  "follow_up": {},
+  "created_at": "2026-09-25T21:25:11.165168",
+  "updated_at": "2026-09-25T21:25:11.197436",
+  "score": 0.67,
+  "dashboard_impact": {
+    "needs_dashboard": false,
+    "reason": "Pipeline composition is backend; dashboard surfacing tracked separately.",
+    "dashboard_item": null,
+    "reviewed_by": "agent",
+    "reviewed_at": "2026-09-25T21:25:11.171910"
+  },
+  "_note": "dashboard_impact reviewed"
+}

@@ -1,0 +1,42 @@
+{
+  "id": "BI-0206",
+  "type": "tech-debt",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "intake",
+  "external_id": "backend:model-downloader",
+  "label": "PF Backlog 215",
+  "title": "Backend: model downloader + local cache + license-acceptance gate + models.lock (open-weights)",
+  "body": "## Problem / why\nOpen-weights models (image/video/tts/stt/music/3d/ocr/vlm/embedding) must be fetched, verified, cached,\nand license-gated before a self-host adapter can run them. Today there is no downloader, no cache, no\nlicense enforcement, so `provider_kind=self-host` cannot work and packaging could accidentally ship\nrestricted weights.\n\n## Goal & value\nOne owner module that downloads only the weights a project's capability pack needs, into a gitignored\nlocal cache, refusing non-bundle-usable weights unless explicitly overridden.\n\n## In scope\n- `core/model_manager.py` (single writer): resolve model -> source (HF Hub / ModelScope / URL),\n  download with `huggingface_hub` + `hf_transfer`, resume, checksum (sha256).\n- Cache layout `product-forge/models/<provider>/<model>@<rev>/` (gitignored) + `models.lock` manifest\n  (id, revision, size, sha256, license, fetched_at).\n- **License-acceptance gate:** read catalog `license`/`open_weights`/`bundle_allowed`; block\n  non-bundle-safe weights unless `PF_ALLOW_RESTRICTED_WEIGHTS=1`.\n- Disk/VRAM preflight (size vs free space) + \"download only required modalities\" (pack-driven).\n- CLI: `python -m core.model_manager --list/--ensure <model>/--verify/--prune`.\n\n## Acceptance criteria (testable)\n- `ensure(\"FLUX.1-schnell\")` downloads once, records sha256+license in models.lock, second call is a no-op.\n- A restricted model (`FLUX.1-dev`) is refused with a clear message unless the override env is set.\n- Downloading is pack-scoped: a text-only project downloads nothing.\n\n## Verification / test plan\n- Unit: source resolution, license gate decision table, lock idempotency (fake source, no network).\n- Integration: download one small model (e.g. a Piper voice / tesseract tessdata) and verify checksum.\n",
+  "source": "generic",
+  "status": "new",
+  "priority": null,
+  "moscow": "Should",
+  "value": 4,
+  "effort": 3,
+  "risk": 2,
+  "deps": [],
+  "links": {
+    "relates_to": [
+      "product_forge:BI-0188",
+      "product_forge:BI-0189",
+      "product_forge:BI-0193"
+    ],
+    "paired_with": [
+      "project:ProductForge-Dashboard:BI-0144"
+    ]
+  },
+  "decisions": [],
+  "follow_up": {},
+  "created_at": "2026-09-25T21:20:44.879245",
+  "updated_at": "2026-09-25T21:25:46.191484",
+  "score": 1.0,
+  "dashboard_impact": {
+    "needs_dashboard": true,
+    "reason": "Has a dashboard surface (see paired item).",
+    "dashboard_item": "project:ProductForge-Dashboard:BI-0144",
+    "reviewed_by": "agent",
+    "reviewed_at": "2026-09-25T21:25:46.157349"
+  },
+  "_note": "dashboard_impact reviewed"
+}

@@ -1,0 +1,39 @@
+{
+  "id": "BI-0209",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "intake",
+  "external_id": "backend:ocr-pack",
+  "label": "PF Backlog 218",
+  "title": "Backend: OCR/document capability pack + doc-parse kind + OCR generators/adapters",
+  "body": "## Problem / why\nOCR/document understanding is a listed need but has no dedicated kind, pack, or adapters, so scanned/\nPDF/table content cannot be ingested reliably across products.\n\n## Goal & value\nAn `ocr` capability pack with a `ocr/doc-parse` kind, permissive self-host defaults, and paid API\noptions -- enabled only for projects that need documents.\n\n## In scope\n- **Kind** `ocr/doc-parse` + adapter contract (batch: images/PDF in -> text/tables/layout out).\n- **Self-host (permissive):** Tesseract (+tessdata), PaddleOCR, RapidOCR, docTR; PDF text via\n  pdfplumber/pypdf/pypdfium2.\n- **Paid API:** Google Document AI, AWS Textract, Azure Document Intelligence, Mistral OCR.\n- **Pipeline:** document ingest -> layout/segmentation -> OCR -> structured output -> asset store;\n  `doc-analyst` agent gated by the pack.\n- **Explicitly excluded** (never bundled): PyMuPDF, poppler, Surya/Marker weights.\n\n## Acceptance criteria (testable)\n- A document-heavy idea enables the ocr pack; a plain app enables none.\n- E2E: a scanned PDF -> extracted structured text/tables as an artifact, with per-page confidence.\n- Bundled OCR tools are all permissive; restricted libs absent from the package.\n\n## Verification / test plan\n- Unit: adapter contract with a fixture image; language/resolution selection.\n- Integration: sample PDF -> text+table artifact; store-registry + wired_audit green.\n",
+  "source": "generic",
+  "status": "new",
+  "priority": null,
+  "moscow": "Should",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [],
+  "links": {
+    "relates_to": [
+      "product_forge:BI-0188",
+      "product_forge:BI-0189",
+      "product_forge:BI-0187"
+    ]
+  },
+  "decisions": [],
+  "follow_up": {},
+  "created_at": "2026-09-25T21:20:45.220692",
+  "updated_at": "2026-09-25T21:20:45.255929",
+  "score": 0.75,
+  "dashboard_impact": {
+    "needs_dashboard": false,
+    "reason": "Backend capability/infra; dashboard surfacing tracked separately.",
+    "dashboard_item": null,
+    "reviewed_by": "agent",
+    "reviewed_at": "2026-09-25T21:20:45.231229"
+  },
+  "_note": "dashboard_impact reviewed"
+}
