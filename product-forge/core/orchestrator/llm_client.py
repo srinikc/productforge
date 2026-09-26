@@ -633,22 +633,28 @@ class LLMClient:
         except Exception as e:
             return {}, self._build_token_info(model, provider, 0, 0, 0, 0, f"error:{str(e)[:60]}", 0, 0)
     def _get_api_key(self, provider: str) -> str:
-        """Get API key based on provider."""
-        import os
-        from dotenv import load_dotenv
-        load_dotenv()
-        
-        key_map = {
-            "opencode-go": "OPENCODE_ZEN_API_KEY",
-            "opencode-zen": "OPENCODE_ZEN_API_KEY",
-            "gemini": "GEMINI_API_KEY",
-            "openrouter": "OPENROUTER_API_KEY",
-            "openai": "OPENAI_API_KEY",
-            "anthropic": "ANTHROPIC_API_KEY",
-        }
-        
-        env_key = key_map.get(provider, "OPENCODE_ZEN_API_KEY")
-        return os.getenv(env_key, "")
+        """Resolve a provider's API key via the central registry (BI-0207).
+
+        ROOT-anchored (works from any CWD) with a safe inline fallback so the
+        legacy provider map keeps working even if core.credentials is unavailable.
+        """
+        try:
+            from core import credentials as _cred
+            return _cred.key_for(provider)
+        except Exception:
+            import os
+            from dotenv import load_dotenv
+            load_dotenv()
+            key_map = {
+                "opencode-go": "OPENCODE_ZEN_API_KEY",
+                "opencode-zen": "OPENCODE_ZEN_API_KEY",
+                "gemini": "GEMINI_API_KEY",
+                "openrouter": "OPENROUTER_API_KEY",
+                "openai": "OPENAI_API_KEY",
+                "anthropic": "ANTHROPIC_API_KEY",
+            }
+            env_key = key_map.get(provider, "OPENCODE_ZEN_API_KEY")
+            return os.getenv(env_key, "")
     def _build_api_headers(self, provider: str, api_key: str, session_id: str) -> dict:
         """Build API headers based on provider."""
         headers = {

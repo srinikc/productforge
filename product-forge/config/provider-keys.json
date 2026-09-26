@@ -1,0 +1,22 @@
+{
+  "_doc": "Provider credential REFERENCES + budget caps (BI-0207). Owner: core/credentials.py. Stores ENV VAR NAMES only, never raw secrets. Tiers choose a provider (config/model-tier.json); this maps provider -> env var + kind + what it is required for.",
+  "load_order": ["process env", ".env (ROOT)", ".env.local (ROOT)"],
+  "providers": {
+    "opencode-go": {"kind": "direct", "env": "OPENCODE_ZEN_API_KEY", "required_for": ["llm"]},
+    "opencode-zen": {"kind": "direct", "env": "OPENCODE_ZEN_API_KEY", "required_for": ["llm"]},
+    "openrouter": {"kind": "aggregator", "env": "OPENROUTER_API_KEY", "required_for": ["llm"]},
+    "gemini": {"kind": "direct", "env": "GEMINI_API_KEY", "required_for": ["llm", "image", "vision"]},
+    "openai": {"kind": "direct", "env": "OPENAI_API_KEY", "required_for": ["llm", "image", "tts", "stt"]},
+    "anthropic": {"kind": "direct", "env": "ANTHROPIC_API_KEY", "required_for": ["llm"]},
+    "fal": {"kind": "aggregator", "env": "FAL_KEY", "required_for": ["image", "video", "3d", "music"]},
+    "replicate": {"kind": "aggregator", "env": "REPLICATE_API_TOKEN", "required_for": ["image", "video", "3d", "music"]},
+    "kie": {"kind": "aggregator", "env": "KIE_API_KEY", "required_for": ["image", "video"]},
+    "elevenlabs": {"kind": "direct", "env": "ELEVENLABS_API_KEY", "required_for": ["tts"]},
+    "deepgram": {"kind": "direct", "env": "DEEPGRAM_API_KEY", "required_for": ["stt"]}
+  },
+  "budget": {
+    "per_run_cap_usd": 0,
+    "per_provider_cap_usd": 0,
+    "_doc": "0 = no cap (unlimited). Set >0 to enforce a hard stop; caps are advisory-checked by core/credentials.check_budget()."
+  }
+}
