@@ -715,6 +715,76 @@ def pipeline_templates():
     return {"count": len(out), "templates": out}
 
 
+# ── BI-0216 product one-stop page (read model) ─────────────────────────────
+def _require_project(project: str) -> None:
+    if not (PRODUCTS / project).exists():
+        raise HTTPException(404, f"unknown project: {project}")
+
+
+@app.get("/api/v1/products/{project}/page", dependencies=[Depends(auth)])
+def product_page_full(project: str):
+    """One-stop payload: identity+lifecycle+progress+features+artifacts+quality+cost+bom+releases+activity."""
+    _require_project(project)
+    from core import product_page as pp
+    return pp.page(project)
+
+
+@app.get("/api/v1/products/{project}/progress", dependencies=[Depends(auth)])
+def product_page_progress(project: str):
+    _require_project(project)
+    from core import product_page as pp
+    return pp.progress(project)
+
+
+@app.get("/api/v1/products/{project}/features", dependencies=[Depends(auth)])
+def product_page_features(project: str):
+    _require_project(project)
+    from core import product_page as pp
+    return pp.features(project)
+
+
+@app.get("/api/v1/products/{project}/artifacts", dependencies=[Depends(auth)])
+def product_page_artifacts(project: str):
+    _require_project(project)
+    from core import product_page as pp
+    return pp.artifacts(project)
+
+
+@app.get("/api/v1/products/{project}/quality", dependencies=[Depends(auth)])
+def product_page_quality(project: str):
+    _require_project(project)
+    from core import product_page as pp
+    return pp.quality(project)
+
+
+@app.get("/api/v1/products/{project}/cost", dependencies=[Depends(auth)])
+def product_page_cost(project: str):
+    _require_project(project)
+    from core import product_page as pp
+    return pp.cost(project)
+
+
+@app.get("/api/v1/products/{project}/bom", dependencies=[Depends(auth)])
+def product_page_bom(project: str):
+    _require_project(project)
+    from core import product_page as pp
+    return pp.bom(project)
+
+
+@app.get("/api/v1/products/{project}/releases", dependencies=[Depends(auth)])
+def product_page_releases(project: str):
+    _require_project(project)
+    from core import product_page as pp
+    return pp.releases(project)
+
+
+@app.get("/api/v1/products/{project}/activity", dependencies=[Depends(auth)])
+def product_page_activity(project: str, limit: int = 50):
+    _require_project(project)
+    from core import product_page as pp
+    return pp.activity(project, limit)
+
+
 # ── BI-0086/0089 git config + history ──────────────────────────────────────
 @app.get("/api/v1/projects/{project}/git", dependencies=[Depends(auth)])
 def git_history(project: str, limit: int = 100):
