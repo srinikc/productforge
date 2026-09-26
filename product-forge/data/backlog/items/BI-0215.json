@@ -1,0 +1,38 @@
+{
+  "id": "BI-0215",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "intake",
+  "external_id": "backend:product-registry",
+  "label": "PF Backlog 224",
+  "title": "Backend: product registry + lifecycle state + metadata/links store (products/<p>/product.json)",
+  "body": "## Problem / why\nThere is no single record of a product's identity after creation: owner, lifecycle state, launch URL,\ndocs/sales/support links, versions. The one-stop page (dashboard BI-0147) needs one source.\n\n## Goal & value\nOne owner module + store `products/<project>/product.json` (single writer; register in store-registry.json)\nholding identity + metadata + links, and a DERIVED lifecycle state.\n\n## In scope\n- Fields: name, owner, created_at, links{launch, docs, sales, onboarding, support, status},\n  versions[], metadata; editable via API (validated).\n- Lifecycle state: ideation|designing|building|verifying|built|launching|live|maintaining|on-hold|archived\n  DERIVED from pipeline-state + run_quality_gate GO + deploy/observability signals.\n- Read API + update API; idempotent; no duplication of backlog/artifact truth.\n\n## Acceptance criteria (testable)\n- product.json is the single writer for identity/links; lifecycle updates as stages progress without manual edits.\n- Editing a link persists and validates; nothing else writes this file.\n\n## Verification / test plan\n- Unit: lifecycle derivation table (state inputs -> lifecycle); link schema validation; idempotency.\n\n## Links\ndocs/product-portal.md; dashboard BI-0147/0149.",
+  "source": "generic",
+  "status": "new",
+  "priority": null,
+  "moscow": "Should",
+  "value": 4,
+  "effort": 2,
+  "risk": 2,
+  "deps": [],
+  "links": {
+    "paired_with": [
+      "project:ProductForge-Dashboard:BI-0147",
+      "project:ProductForge-Dashboard:BI-0149"
+    ]
+  },
+  "decisions": [],
+  "follow_up": {},
+  "created_at": "2026-09-26T09:42:23.313538",
+  "updated_at": "2026-09-26T09:42:24.210838",
+  "score": 1.5,
+  "_note": "dashboard_impact reviewed",
+  "dashboard_impact": {
+    "needs_dashboard": true,
+    "reason": "One-stop product page surface.",
+    "dashboard_item": "project:ProductForge-Dashboard:BI-0149",
+    "reviewed_by": "agent",
+    "reviewed_at": "2026-09-26T09:42:24.176781"
+  }
+}
