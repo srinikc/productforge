@@ -9,7 +9,7 @@
   "title": "Backend: provider/vendor API-key registry + cloud allowlist + per-provider cost caps",
   "body": "## Problem / why\nPaid/free-tier API models need credentials, an allow/deny list (which vendors a project may call), and\nhard cost caps so a media run cannot overspend. Keys are currently ad-hoc env reads.\n\n## Goal & value\nA single registry that every adapter/router consults for auth, enablement, and spend limits.\n\n## In scope\n- `config/provider-keys.json` (schema) + resolver: key source = env var/secret ref per provider\n  (direct vendors AND aggregators: fal.ai, Replicate, kie.ai, Together, OpenRouter).\n- **Cloud allowlist/denylist** per project (`products/<p>/capabilities.json`) — a compliance switch.\n- **Per-provider + per-run cost caps** feeding `budget_allocator` (BI-0194); hard stop on breach.\n- Adapter/router integration: registry presence = provider usable; missing key = graceful fallback to\n  a self-host or free-tier model, else clear failure.\n- Never log key material (secret hygiene); audit that no key is committed.\n\n## Acceptance criteria (testable)\n- A provider without a configured key is skipped by the router (falls back, no crash).\n- A run that would exceed the cap is blocked with a clear reason and a partial-cost report.\n- Denylisted provider is never called even if keyed.\n\n## Verification / test plan\n- Unit: key resolution precedence, allowlist enforcement, cap arithmetic (fake providers).\n- Audit: grep shows no secret values in the repo; wired_audit stays green.\n",
   "source": "generic",
-  "status": "new",
+  "status": "completed",
   "priority": null,
   "moscow": "Should",
   "value": 4,
@@ -29,7 +29,7 @@
   "decisions": [],
   "follow_up": {},
   "created_at": "2026-09-25T21:20:44.991448",
-  "updated_at": "2026-09-25T21:25:46.271591",
+  "updated_at": "2026-09-26T10:31:16.489858",
   "score": 1.0,
   "dashboard_impact": {
     "needs_dashboard": true,
@@ -38,5 +38,5 @@
     "reviewed_by": "agent",
     "reviewed_at": "2026-09-25T21:25:46.245993"
   },
-  "_note": "dashboard_impact reviewed"
+  "_note": "DONE: core/credentials.py (single owner) + config/provider-keys.json (env-var REFERENCES only, never secrets; kind direct|aggregator; required_for kinds) + budget caps (per_run_cap_usd/per_provider_cap_usd). Loader is ROOT-anchored (product-forge/.env then .env.local), never overrides process env, never logs values. API: key_for/has/provider_kind/required_for/missing_for/check_budget/status; CLI python -m core.credentials --status|--missing. Wired into core/orchestrator/llm_client._get_api_key (with inline fallback). .env.example + docs/credentials.md. Tests: 6 (env resolution, metadata, missing_for, budget caps, redaction). VERIFIED: suite 478 passed; compileall 0; wired_audit 0 (provider-keys.json registered). Readiness: opencode-go/opencode-zen/openrouter/gemini keyed."
 }
