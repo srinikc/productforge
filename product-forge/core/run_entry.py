@@ -47,6 +47,11 @@ def begin_run(project: str, products_dir: str = "products",
         _ev.emit(project_dir, "run_started", run_id=rid, project=project)
     except Exception:
         pass
+    try:
+        from core import run_status as _rs
+        _rs.update(project_dir, "run_started", run_id=rid)
+    except Exception:
+        pass
 
     if not stop_existing:
         lm = LockManager(products_dir)

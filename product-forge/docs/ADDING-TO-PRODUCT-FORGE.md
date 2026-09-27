@@ -81,7 +81,7 @@ Reference example: dashboard `BI-0132` (Agents window: edit agent card + model b
 3. Expose a small API; no import-time side effects (no writes at import).
 4. **Wire it** into the runtime path (executor / orchestrator / portfolio / dashboard) — the audit fails otherwise.
 5. If it writes data → recipe C. If it's a status-bearing thing → it must reference `item_id`.
-6. Add a test; update `docs/IMPLEMENTED-FEATURES-WIRING.md`.
+6. Add a test; update `docs/archive/IMPLEMENTED-FEATURES-WIRING.md`.
 
 ## C. New data store
 1. Add an entry to `config/store-registry.json`:
@@ -116,7 +116,7 @@ Reference example: dashboard `BI-0132` (Agents window: edit agent card + model b
    wrong place, move it (back-compat read for one release).
 6. **If it represents work** → it carries `item_id` (`BI-####`), and `feature_id` where technical.
 7. **Wire it** — confirm it is actually written/updated on the runtime path and read by its consumers;
-   update `docs/IMPLEMENTED-FEATURES-WIRING.md`. Unwired stores get deleted, not registered.
+   update `docs/archive/IMPLEMENTED-FEATURES-WIRING.md`. Unwired stores get deleted, not registered.
 8. **Register it** in `config/store-registry.json` (owner, kind, scope, concern) and run:
    ```
    python scripts/dev/wired_audit.py        # must exit 0 (naming + stores + diff)
@@ -150,7 +150,7 @@ you are probably about to create a duplicate — stop and fold instead.
 1. Add to `pipeline-definition.json`: id, deps (must be satisfiable), agent, inputs, outputs.
 2. Artifacts go to `products/<p>/artifacts/<stage-id>/` by convention.
 3. Gates: if it can block, define the gate + HIL override rule (mirror `10a`/`3a`).
-4. Update `docs/ORCHESTRATION.md` + the stage list in `docs/IMPLEMENTED-FEATURES-WIRING.md`.
+4. Update `docs/archive/ORCHESTRATION.md` + the stage list in `docs/archive/IMPLEMENTED-FEATURES-WIRING.md`.
 
 ## H. New API endpoint
 1. Prefer the **new dashboard** (`dashboard/server.py`); legacy router only for adapter-visible contracts.
@@ -210,7 +210,7 @@ you are probably about to create a duplicate — stop and fold instead.
 | Rules | `docs/STRUCTURE-CONTRACT.md` |
 | Truth registry | `config/store-registry.json` |
 | Binding agent rules | `AGENTS.md` |
-| Wiring inventory | `docs/IMPLEMENTED-FEATURES-WIRING.md` |
-| Orchestration/stages | `docs/ORCHESTRATION.md`, `pipeline-definition.json` |
+| Wiring inventory | `docs/archive/IMPLEMENTED-FEATURES-WIRING.md` |
+| Orchestration/stages | `docs/archive/ORCHESTRATION.md`, `pipeline-definition.json` |
 | Gates | `core/pr_gate.py` (`structure_contract`), `core/qa_report.py` (Go/No-Go) |
 | Checks | `python -m compileall -q core scripts dashboard` · `python scripts/dev/wired_audit.py` |

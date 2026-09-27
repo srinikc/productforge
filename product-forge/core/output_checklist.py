@@ -535,8 +535,12 @@ def check(agent_id: str, paths: List[str], allocation: Optional[Dict] = None) ->
         _is_per_feature = agent_id in {"design", "product-design-spec"}
     if _is_per_feature and (text or "").strip():
         id_integrity = check_id_integrity_all(text, allocation=allocation)
-        if not id_integrity.get("ok", True) and "requirement_ids" not in missing_e:
-            missing_e = missing_e + ["requirement_ids"]
+        if not id_integrity.get("ok", True):
+            # ADVISORY: id-integrity noise must NOT trigger a full re-run of a large
+            # per-feature agent (expensive + often a false positive on merge). Surface
+            # it in `recommended_missing`; never fold into `essential_missing`.
+            if "requirement_ids" not in missing_r:
+                missing_r = missing_r + ["requirement_ids"]
 
     present = present_e + present_r
     total = len(present_e) + len(missing_e) + len(present_r) + len(missing_r)

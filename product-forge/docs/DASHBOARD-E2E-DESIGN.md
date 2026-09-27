@@ -1,3 +1,5 @@
+> **SUPERSEDED** (historical/implementation detail). Current architecture & design live in `docs/productforge_full_architecture.md` — do not treat this file as current.
+
 # E2E Pipeline Dashboard — Design (from scratch)
 
 > One dashboard for the whole Product Forge lifecycle: **idea → design → build →

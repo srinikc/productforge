@@ -9,12 +9,33 @@ Dependencies are injected so this stays framework-agnostic and testable.
 """
 import json
 import os
+import threading
 import time
 from datetime import datetime
 from typing import Dict, Optional, Tuple, List
 
 from core.context_manager import get_contract
 from core.orchestrator.storage import no_cache, output_cache_allowed
+
+# Provider rate pacing: a global minimum interval between requests (per key),
+# so a free tier is not burst past its rpm limit. 0 = no pacing.
+_PACE_LOCK = threading.Lock()
+_LAST_CALL: Dict[str, float] = {}
+
+
+def _pace(key: str) -> None:
+    try:
+        mi = float(os.getenv("PIPELINE_MIN_REQUEST_INTERVAL_SECONDS", "0") or "0")
+    except (TypeError, ValueError):
+        mi = 0.0
+    if mi <= 0:
+        return
+    k = str(key or "default")
+    with _PACE_LOCK:
+        wait = mi - (time.time() - _LAST_CALL.get(k, 0.0))
+        if wait > 0:
+            time.sleep(min(wait, 30.0))
+        _LAST_CALL[k] = time.time()
 
 FALLBACK_MODEL = os.getenv("PIPELINE_FALLBACK_MODEL", "mimo-v2.5")
 FALLBACK_PROVIDER = os.getenv("PIPELINE_FALLBACK_PROVIDER", "opencode-go")
@@ -33,6 +54,18 @@ class LLMClient:
         self.llm_cache = llm_cache
         self.project = project
         self.semantic_cache = None  # opt-in (4.9)
+
+    def _ledger_dir(self) -> str:
+        """Resolve the project DIRECTORY for the call ledger (robust to how the
+        client was constructed: project_dir > products/<project> > project)."""
+        d = getattr(self, "project_dir", "") or ""
+        if d:
+            return d
+        p = getattr(self, "project", "") or ""
+        if p:
+            cand = os.path.join("products", p)
+            return cand if os.path.isdir(cand) else p
+        return ""
 
     def _call_llm(self, prompt: str, agent_id: str, stage_id: str,
                   pin_model: str = "") -> Tuple[Optional[str], Dict]:
@@ -247,6 +280,19 @@ class LLMClient:
         except Exception:
             max_continuations = 3
 
+        # Per-call wall cap: a slow free-tier model with chained continuations/retries
+        # must not monopolize an agent. 0 = unlimited. (BI: agent wall-cap)
+        try:
+            _cap = int(os.getenv("PIPELINE_AGENT_MAX_SECONDS", "600") or "600")
+        except (TypeError, ValueError):
+            _cap = 600
+        agent_deadline = (time.time() + _cap) if _cap > 0 else 0.0
+        # A per-agent deadline (set by the agent runner) caps the WHOLE agent across
+        # its calls/retries/continuations, not just this one call.
+        _agent_dl = float(getattr(self, "_agent_deadline", 0.0) or 0.0)
+        if _agent_dl and (not agent_deadline or _agent_dl < agent_deadline):
+            agent_deadline = _agent_dl
+
         api_key = self._get_api_key(provider)
         if not api_key:
             print(f"[WARNING] No API key for provider: {provider}")
@@ -263,16 +309,43 @@ class LLMClient:
         continuations = 0
         last_attempt = 0
         attempt = 0
+        rl_attempts = 0
 
         while attempt < max_retries:
+            if agent_deadline and time.time() > agent_deadline:
+                print(f"  [WALL-CAP] {agent_id} exceeded {_cap}s wall budget; stopping call")
+                break
             attempt += 1
             last_attempt = attempt
             try:
                 data = self._build_api_request_messages(model_name, messages, max_output_tokens)
+                _pace(provider)
+                _t_call = time.time()
+                print(f"  [LLM] {agent_id} -> {model_name} ({provider}) attempt={attempt} "
+                      f"prompt_chars={len(prompt)} max_out={max_output_tokens}")
                 response = requests.post(api_endpoint, json=data, headers=headers, timeout=180)
 
                 if response.status_code != 200:
                     print(f"[WARNING] {model_name} API error: {response.status_code}")
+                    # 429: back off and retry the SAME model. When candidates exist
+                    # (fast_fail) do a SINGLE short backoff then move to the next
+                    # candidate — otherwise a healthy cross-provider fallback (Zen)
+                    # waits behind 3 long OpenRouter backoffs.
+                    _rl_cap = 1 if fast_fail else 3
+                    if response.status_code == 429 and rl_attempts < _rl_cap:
+                        rl_attempts += 1
+                        try:
+                            wait = float(response.headers.get("Retry-After") or retry_delay)
+                        except (TypeError, ValueError):
+                            wait = retry_delay
+                        wait = min(max(wait, 3.0), 30.0)
+                        print(f"  [RATE-LIMIT] {model_name} 429; waiting {wait:.0f}s "
+                              f"(backoff {rl_attempts}/{_rl_cap})")
+                        time.sleep(wait)
+                        retry_delay = min(retry_delay * 2, 60)
+                        if attempt >= max_retries:
+                            max_retries += 1
+                        continue
                     # With a fallback candidate list, don't burn time retrying a
                     # throttled/unavailable model - move to the next candidate.
                     if fast_fail:
@@ -302,6 +375,22 @@ class LLMClient:
                 total_cached += cached_tok
                 total_reasoning += reason_tok
 
+                # Call ledger: one record per LLM HTTP call (payload accounting).
+                try:
+                    from core import call_ledger as _cl
+                    _cl.append(self._ledger_dir(), {
+                        "kind": "llm", "agent": agent_id, "stage": stage_id,
+                        "run_id": str(getattr(getattr(self, "execution", None), "pipeline_id", "") or ""),
+                        "model": model_name, "provider": provider, "attempt": attempt,
+                        "continuation": continuations, "max_out": max_output_tokens,
+                        "prompt_chars": len(prompt), "prompt_tokens": int(in_tok or 0),
+                        "output_tokens": int(out_tok or 0),
+                        "reasoning_tokens": int(reason_tok or 0),
+                        "cached_tokens": int(cached_tok or 0), "finish_reason": finish_reason,
+                        "duration_ms": int((time.time() - _t_call) * 1000)})
+                except Exception:
+                    pass
+
                 if finish_reason == 'length':
                     spent = total_input + total_output
                     if max_total_tokens and spent >= max_total_tokens:
@@ -312,6 +401,10 @@ class LLMClient:
                     # (Some providers return finish_reason=length with empty
                     # content; retrying then just wastes calls.)
                     if content and continuations < max_continuations:
+                        if agent_deadline and time.time() > agent_deadline:
+                            print(f"  [WALL-CAP] {agent_id} exceeded {_cap}s wall budget; "
+                                  f"stopping continuations")
+                            break
                         continuations += 1
                         print(f"  [CONTINUE] {agent_id} output truncated (length); "
                               f"continuation {continuations}/{max_continuations}")
@@ -407,6 +500,7 @@ class LLMClient:
         max_out = contract.get("max_output_tokens", 4000)
         try:
             data = self._build_api_request_messages(model, messages, max_out)
+            _pace(provider)
             r = requests.post(endpoint, json=data, headers=headers, timeout=180)
             if r.status_code != 200:
                 return "", self._build_token_info(model, provider, 0, 0, 0, 0, f"http_{r.status_code}", 0, 0)
@@ -617,6 +711,8 @@ class LLMClient:
             data["tools"] = tools
             data["tool_choice"] = "auto"
         try:
+            _pace(provider)
+            _t_tool = time.time()
             r = requests.post(endpoint, json=data, headers=headers, timeout=180)
             if r.status_code != 200:
                 return {}, self._build_token_info(model, provider, 0, 0, 0, 0, f"http_{r.status_code}", 0, 0)
@@ -629,6 +725,18 @@ class LLMClient:
             cached = usage.get("prompt_tokens_details", {}).get("cached_tokens", 0)
             ti = self._build_token_info(model, provider, in_tok, out_tok, cached, 0,
                                         choice.get("finish_reason", ""), 0, 0)
+            try:
+                from core import call_ledger as _cl
+                _cl.append(getattr(self, "project_dir", ""), {
+                    "kind": "llm", "agent": agent_id, "stage": stage_id, "model": model,
+                    "provider": provider, "mode": "tool-loop",
+                    "run_id": str(getattr(getattr(self, "execution", None), "pipeline_id", "") or ""),
+                    "prompt_chars": len(str(messages)), "prompt_tokens": int(in_tok or 0),
+                    "output_tokens": int(out_tok or 0), "tool_calls": len(msg.get("tool_calls") or []),
+                    "finish_reason": choice.get("finish_reason", ""),
+                    "duration_ms": int((time.time() - _t_tool) * 1000)})
+            except Exception:
+                pass
             return msg, ti
         except Exception as e:
             return {}, self._build_token_info(model, provider, 0, 0, 0, 0, f"error:{str(e)[:60]}", 0, 0)
@@ -668,7 +776,7 @@ class LLMClient:
         headers["User-Agent"] = os.getenv("PIPELINE_USER_AGENT", "product-forge-pipeline/1.0")
 
         # Add provider-specific headers
-        if provider in ["opencode-go", "opencode-zen"]:
+        if provider in ["opencode-go", "opencode-zen", "opencode"]:
             headers["x-opencode-session"] = session_id
 
         return headers

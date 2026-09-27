@@ -182,6 +182,12 @@ class PipelineExecutor(AgentExecutionMixin, AgentRunnerMixin, StageRunnerMixin):
         self.summarizer = ArtifactSummarizer()
         self.llm = LLMClient(self.model_registry, self._get_agent_model_config,
                              self.llm_cache, project=project)
+        # The LLM client needs the resolved project DIRECTORY for the call ledger
+        # (self.project is only the project name).
+        try:
+            self.llm.project_dir = self.project_dir
+        except Exception:
+            pass
         self.model_router = ModelRouter(self.model_registry, products_dir,
                                         self.project_dir, getattr(self, "pipeline_def", None))
         
@@ -601,6 +607,35 @@ class PipelineExecutor(AgentExecutionMixin, AgentRunnerMixin, StageRunnerMixin):
         self.decision_log.append(entry)
         print(f"[Orchestrator Decision] {decision_type}: {details} ({reason})")
     
+    def _add_human_wait(self, seconds: float):
+        """Accumulate human-wait for the CURRENT stage (per-stage; parallel-safe)."""
+        try:
+            d = getattr(self, "_stage_human_wait", None)
+            if d is None:
+                d = {}
+                self._stage_human_wait = d
+            sid = ""
+            try:
+                sid = str(getattr(getattr(self, "execution", None), "current_stage", "") or "")
+            except Exception:
+                sid = ""
+            d[sid] = float(d.get(sid, 0.0)) + max(0.0, float(seconds or 0.0))
+        except Exception:
+            pass
+
+    def _stage_wait(self, stage_id: str) -> float:
+        try:
+            return float((getattr(self, "_stage_human_wait", {}) or {}).get(str(stage_id), 0.0) or 0.0)
+        except Exception:
+            return 0.0
+
+    def _human_wait_total(self) -> float:
+        d = getattr(self, "_stage_human_wait", {}) or {}
+        try:
+            return sum(float(v or 0.0) for v in d.values())
+        except Exception:
+            return 0.0
+
     def _check_time_budget(self) -> Tuple[bool, str]:
         """Check if pipeline should continue based on time budget.
         
@@ -611,9 +646,8 @@ class PipelineExecutor(AgentExecutionMixin, AgentRunnerMixin, StageRunnerMixin):
             return True, "pipeline not started"
         
         elapsed = time.time() - self.pipeline_start_time
-        # Human-wait (approvals/prompts) is not pipeline WORK time.
-        human_wait = float(getattr(self, "_total_human_wait_seconds", 0.0)) + \
-            float(getattr(self, "_stage_human_wait_seconds", 0.0))
+        # Human-wait (approvals/prompts) is not pipeline WORK time (per-stage, parallel-safe).
+        human_wait = self._human_wait_total()
         work_elapsed = max(0.0, elapsed - human_wait)
 
         # 0/unset budget = unlimited (interactive sessions).
@@ -1142,8 +1176,7 @@ class PipelineExecutor(AgentExecutionMixin, AgentRunnerMixin, StageRunnerMixin):
             return {"decision": "rejected", "notes": "approval timed out", "conditions": ""}
         finally:
             # Human-wait time must not count against the stage time budget (BI-0074).
-            self._stage_human_wait_seconds = float(
-                getattr(self, "_stage_human_wait_seconds", 0.0)) + (time.time() - _aw0)
+            self._add_human_wait(time.time() - _aw0)
 
     def _wait_for_approval(self, agent_id: str, stage_id: str, artifacts: List[str]) -> bool:
         """Wait for human approval. Returns True if approved (back-compat bool)."""
@@ -1906,15 +1939,19 @@ class PipelineExecutor(AgentExecutionMixin, AgentRunnerMixin, StageRunnerMixin):
 
     def _notify(self, ntype: str, title: str, message: str, priority: str = "medium",
                 agent: str = "", stage: int = -1):
-        """Send a human notification (best-effort; opt-in system)."""
-        if not getattr(self, "notifications", None):
-            return
+        """Send a human notification (best-effort) + email on high/critical alerts."""
         try:
-            from core.notification_system import NotificationType
-            valid = {t.value for t in NotificationType}
-            t = NotificationType(ntype) if ntype in valid else NotificationType.CUSTOM
-            self.notifications.send_notification(
-                t, title, message, agent=agent, stage=stage, priority=priority)
+            if getattr(self, "notifications", None):
+                from core.notification_system import NotificationType
+                valid = {t.value for t in NotificationType}
+                t = NotificationType(ntype) if ntype in valid else NotificationType.CUSTOM
+                self.notifications.send_notification(
+                    t, title, message, agent=agent, stage=stage, priority=priority)
+        except Exception:
+            pass
+        try:
+            from core import alerts as _al
+            _al.email(f"[{ntype}] {title}", message, priority=priority)
         except Exception:
             pass
 
@@ -2201,7 +2238,7 @@ class PipelineExecutor(AgentExecutionMixin, AgentRunnerMixin, StageRunnerMixin):
             try:
                 started = datetime.fromisoformat(started_iso)
                 dur = (datetime.now() - started).total_seconds()
-                dur -= float(getattr(self, "_stage_human_wait_seconds", 0.0) or 0.0)
+                dur -= self._stage_wait(stage_id)
                 metrics["duration_seconds"] = max(0.0, dur)
             except (ValueError, TypeError):
                 pass
@@ -2600,7 +2637,7 @@ class PipelineExecutor(AgentExecutionMixin, AgentRunnerMixin, StageRunnerMixin):
                     "The quick brown fox jumps over the lazy dog.",
                     model, provider, endpoint,
                     session_id=f"fit-{model}", agent_id="model_probe", stage_id="preflight",
-                    max_output_tokens=max_tokens, fast_fail=True)
+                    max_output_tokens=max_tokens, allow_template=False, fast_fail=True)
             except Exception as e:
                 return {"ok": False, "content_len": 0, "error": str(e)}
             txt = (text or "").strip()
@@ -2664,7 +2701,9 @@ class PipelineExecutor(AgentExecutionMixin, AgentRunnerMixin, StageRunnerMixin):
             model_fit.save_report(self.project_dir, report)
             return
 
-        # Ask (short window); default = apply the recommendation.
+        # Ask (short window). RECOMMENDED-ONLY by default: do NOT silently substitute
+        # models. Opt in to auto-apply with PIPELINE_MODEL_FIT_APPLY=1; interactive
+        # mode still asks the operator.
         answer = ""
         try:
             from core import interactive
@@ -2674,8 +2713,10 @@ class PipelineExecutor(AgentExecutionMixin, AgentRunnerMixin, StageRunnerMixin):
                     "(answer 'keep' to keep as-is; blank = apply recommendation)",
                     default="", project_dir=self.project_dir, products_dir=self.products_dir,
                     timeout=float(os.getenv("MODEL_FIT_TIMEOUT", "300"))) or ""
+            elif str(os.getenv("PIPELINE_MODEL_FIT_APPLY", "0")).lower() not in ("1", "true", "yes"):
+                answer = "keep"
         except Exception:
-            pass
+            answer = "keep"
         report = model_fit.apply_state(report, answer)
         model_fit.save_report(self.project_dir, report)
 
@@ -2730,8 +2771,7 @@ class PipelineExecutor(AgentExecutionMixin, AgentRunnerMixin, StageRunnerMixin):
                 products_dir=self.products_dir)
         finally:
             # Discovery/HIL answering is human time, not stage work time.
-            self._stage_human_wait_seconds = float(
-                getattr(self, "_stage_human_wait_seconds", 0.0)) + (time.time() - _w0)
+            self._add_human_wait(time.time() - _w0)
         parsed = _dp.parse_review_file(review_path)
         valid = {q.get("id") for q in qs}
         return {k: v for k, v in parsed.items() if k in valid}
@@ -2767,8 +2807,7 @@ class PipelineExecutor(AgentExecutionMixin, AgentRunnerMixin, StageRunnerMixin):
                 answers[q["id"]] = str(val) if (val not in (None, "")) else prev
         finally:
             # Discovery/HIL answering is human time, not stage work time.
-            self._stage_human_wait_seconds = float(
-                getattr(self, "_stage_human_wait_seconds", 0.0)) + (time.time() - _w0)
+            self._add_human_wait(time.time() - _w0)
         return answers
 
     # ── live per-agent status (so the dashboard sees an agent while it runs) ──
@@ -2871,12 +2910,145 @@ class PipelineExecutor(AgentExecutionMixin, AgentRunnerMixin, StageRunnerMixin):
         else:
             self.iteration_count = 0
 
-        # Preflight: reconcile the selected tier's models with agent requirements
-        # (probe + callout + apply recommended substitution). BI-0076.
+        # Refresh the model capability catalog (all providers) and run the capability
+        # gate: validate each agent's assigned model against its needs; RECOMMEND
+        # (never auto-apply). Blocking is opt-in (PIPELINE_MODEL_GATE=block or
+        # project.json model_gate.mode=block).
         try:
-            self._run_model_fit_preflight()
-        except Exception as e:
-            print(f"[ModelFit] preflight skipped: {e}")
+            from core import model_catalog as _mc
+            _ttl = int(os.getenv("PIPELINE_CATALOG_TTL_SECONDS", "0") or "0")
+            _mc.refresh_if_stale(_ttl)
+        except Exception as _ce:
+            print(f"[ModelCatalog] refresh skipped: {_ce}")
+        _gs = {}
+        try:
+            from core import model_gate as _mg
+            _grep = _mg.run(self)
+            _gs = _grep.get("summary", {})
+            print(f"  [ModelGate] catalog_last_refreshed={_gs.get('catalog_last_refreshed', '?')} | "
+                  f"{_gs.get('ok', 0)} ok, {_gs.get('unknown', 0)} unknown, "
+                  f"{_gs.get('incompatible', 0)} incompatible")
+            for _e in _grep.get("entries", []):
+                if _e.get("status") != "OK":
+                    print(f"    - {_e['agent']}: {_e['model']} -> {_e['status']} "
+                          f"({'; '.join((_e.get('reasons') or [])[:2])}); "
+                          f"recommended: {_e.get('recommended') or 'none'}")
+            _block = str(os.getenv("PIPELINE_MODEL_GATE", "")).lower() in ("block", "1", "true")
+            if not _block:
+                try:
+                    _pj = os.path.join(self.project_dir, "project.json")
+                    if os.path.exists(_pj):
+                        _pcfg = json.load(open(_pj, encoding="utf-8")) or {}
+                        _block = str((_pcfg.get("model_gate") or {}).get("mode", "")).lower() == "block"
+                except Exception:
+                    pass
+            if _block and _gs.get("incompatible", 0) > 0:
+                print(f"[ModelGate] BLOCKING run: {_gs.get('incompatible')} agent(s) have no capable "
+                      f"model {_gs.get('blocked_agents')}. Fix the tier or set "
+                      f"PIPELINE_MODEL_GATE=warn to proceed.")
+                self.execution.phase = PipelinePhase.FAILED
+                self.execution.error = f"Model capability gate blocked: {_gs.get('blocked_agents')}"
+                return False
+        except Exception as _ge:
+            print(f"[ModelGate] skipped: {_ge}")
+
+        # Idea-based dynamic run plan. Deferred until discovery (0a) exists, when the
+        # evaluator can recommend optional capability groups from the requirements;
+        # a confirmed plan is applied and (interactive) the user may extend it.
+        try:
+            from core import run_plan as _rp
+            _plan = _rp.ensure_plan(self.project_dir, self.project)
+            if _plan.get("confirmed"):
+                _skipped = _rp.apply_to_dag(self.dag_executor, _plan)
+                self._plan_done = True
+                print(f"[RunPlan] kind={_plan.get('kind')} include={_plan.get('include_optional')} "
+                      f"skip={_skipped}")
+                for _w in (_plan.get("warnings") or []):
+                    print(f"  [RunPlan] WARN {_w}")
+            else:
+                print("[RunPlan] will decide optional stages after discovery (0a)")
+        except Exception as _rpe:
+            print(f"[RunPlan] skipped: {_rpe}")
+
+        # Per-agent work estimate (calls/time) — reference before running, improved by
+        # call-ledger history. Written to work-estimate.json; API/ dashboard readable.
+        try:
+            from core import work_estimate as _we
+            _tier = ""
+            try:
+                _tier = str(self.model_router.active_profile_name() or "")
+            except Exception:
+                _tier = ""
+            _est = _we.estimate_all(self.project_dir, tier=_tier)
+            _tt = _est.get("totals", {})
+            print(f"  [Estimate] {_tt.get('agents', 0)} agents | "
+                  f"llm~{_tt.get('llm_typical', 0)} calls, tools~{_tt.get('tools_typical', 0)}, "
+                  f"~{_tt.get('est_minutes', 0)} min (work-estimate.json)")
+        except Exception as _ee:
+            print(f"[Estimate] skipped: {_ee}")
+
+        # Brief sufficiency (GENERIC, no placeholder list): never INVENT a product.
+        # Always raise a clarification request; interactive -> wait for the user;
+        # auto without an answer -> BLOCK by default (PIPELINE_ON_UNCLEAR=assume to
+        # record explicit assumptions and proceed).
+        try:
+            from core import brief_check as _bc
+            _br = _bc.assess(getattr(self, "project_idea", ""), llm=self.llm)
+            _on_unclear = str(os.getenv("PIPELINE_ON_UNCLEAR",
+                                        _bc.policy().get("on_unclear", "ask"))).lower()
+            if not _br.get("ok"):
+                _q = _br.get("question") or "Please provide a clearer product brief."
+                print(f"[Brief] UNCLEAR ({_br.get('source')}: {_br.get('reason')}). "
+                      f"Question: {_q}")
+                self._notify("human_required", "Clarify the product brief", _q, priority="high")
+                self._emit_lifecycle("brief_insufficient", stage="0",
+                                     reason=str(_br.get("reason", "")))
+                _ans = ""
+                try:
+                    from core import alerts as _al
+                    _ans = _al.ask_and_wait(_q, self.project_dir,
+                                            subject=f"Clarify product brief: {self.project}") or ""
+                except Exception:
+                    _ans = ""
+                if _ans.strip():
+                    self.project_idea = _ans.strip()
+                    try:
+                        _pj = os.path.join(self.project_dir, "project.json")
+                        _cfg = json.load(open(_pj, encoding="utf-8")) or {}
+                        _cfg["idea"] = self.project_idea
+                        with open(_pj, "w", encoding="utf-8") as _f:
+                            json.dump(_cfg, _f, indent=2, ensure_ascii=False)
+                    except Exception:
+                        pass
+                    print(f"[Brief] clarified by user: {self.project_idea[:140]}")
+                elif _on_unclear == "assume":
+                    self.project_idea = (f"{self.project_idea}\n\n[ASSUMPTION] brief unclear "
+                                         f"({_br.get('reason')}). Clarification sought: {_q}")
+                    print("[Brief] on_unclear=assume -> proceeding WITH recorded "
+                          "assumptions (not inventing).")
+                else:
+                    print("[Brief] BLOCKED: brief is unclear and no clarification received. "
+                          "Provide a real brief, run interactively, or set "
+                          "PIPELINE_ON_UNCLEAR=assume.")
+                    self.execution.phase = PipelinePhase.FAILED
+                    self.execution.error = f"Brief unclear: {_br.get('reason')} — {_q}"
+                    return False
+        except Exception as _be:
+            print(f"[Brief] check skipped: {_be}")
+
+        # Live probe preflight (BI-0076) — only when the offline capability gate
+        # could NOT confirm fit, or when explicitly forced. This avoids a 429 storm
+        # at startup on free tiers when the gate is already healthy.
+        _gate_ok = bool(_gs.get("incompatible", 0) == 0)
+        _force_probe = str(os.getenv("PIPELINE_MODEL_FIT_PROBE", "0")).lower() in ("1", "true", "yes")
+        if _gate_ok and not _force_probe:
+            print("[ModelFit] live probe skipped (capability gate healthy; "
+                  "set PIPELINE_MODEL_FIT_PROBE=1 to force)")
+        else:
+            try:
+                self._run_model_fit_preflight()
+            except Exception as e:
+                print(f"[ModelFit] preflight skipped: {e}")
 
         while self.iteration_count < self.max_iterations:
             self.iteration_count += 1
@@ -2914,8 +3086,10 @@ class PipelineExecutor(AgentExecutionMixin, AgentRunnerMixin, StageRunnerMixin):
             if not should_continue:
                 print(f"[Orchestrator] TIME BUDGET EXCEEDED: {time_reason}")
                 self._log_decision("time_exceeded", time_reason, "dynamic timeout")
-                self.execution.phase = PipelinePhase.COMPLETION
-                self.execution.error = f"Time budget: {time_reason}"
+                # A budget stop is NOT a completion: stages remain pending, so the run
+                # must stay resumable (previously marked COMPLETION -> false "complete").
+                self.execution.phase = PipelinePhase.FAILED
+                self.execution.error = f"Stopped (time budget): {time_reason}"
                 self._notify("budget_warning", "Time budget exceeded", time_reason, priority="high")
                 break
             
@@ -2947,7 +3121,14 @@ class PipelineExecutor(AgentExecutionMixin, AgentRunnerMixin, StageRunnerMixin):
                            for s in self.only_stages if s in self.dag_executor.states):
                         print(f"[Orchestrator] Selected stage(s) finished: {sorted(self.only_stages)}")
                         break
-                if progress["completed"] == progress["total"]:
+                _term = {"completed", "failed", "skipped"}
+                try:
+                    _all_done = bool(self.dag_executor.states) and all(
+                        self.dag_executor.states[s].status.value in _term
+                        for s in self.dag_executor.states)
+                except Exception:
+                    _all_done = False
+                if _all_done and progress["failed"] == 0:
                     print("[Orchestrator] All stages completed")
                     self._notify("pipeline_complete", "Pipeline completed",
                                  f"{self.project}: all stages completed")
@@ -2990,12 +3171,31 @@ class PipelineExecutor(AgentExecutionMixin, AgentRunnerMixin, StageRunnerMixin):
             if self.execution.phase == PipelinePhase.FAILED:
                 break
         
-        # Finalize execution. Only a genuinely completed run is marked complete;
-        # a stopped/failed run must NOT look "complete" (else `continue` skips it).
-        if self.execution.phase != PipelinePhase.FAILED:
+        # Finalize execution: COMPLETE only when the executed scope is terminal with
+        # no failures (SKIPPED counts as terminal). A max-iterations or leftover-pending
+        # exit is NOT completion (else `continue` would skip remaining work).
+        _term = {"completed", "failed", "skipped"}
+        _scope = getattr(self, "only_stages", None)
+        try:
+            _ids = list(_scope) if _scope else list(self.dag_executor.states)
+            _scope_done = bool(_ids) and all(
+                self.dag_executor.states[s].status.value in _term
+                for s in _ids if s in self.dag_executor.states)
+            _scope_failed = sum(1 for s in _ids if s in self.dag_executor.states
+                                and self.dag_executor.states[s].status.value == "failed")
+        except Exception:
+            _scope_done, _scope_failed = False, 0
+        if self.execution.phase != PipelinePhase.FAILED and _scope_done and _scope_failed == 0:
             self.execution.completed_at = datetime.now().isoformat()
             self.quality_metrics.completed_at = self.execution.completed_at
             self.execution.phase = PipelinePhase.COMPLETION
+        elif self.execution.phase != PipelinePhase.FAILED:
+            _pending = [s for s in self.dag_executor.states
+                        if self.dag_executor.states[s].status.value not in _term]
+            self.execution.phase = PipelinePhase.FAILED
+            self.execution.error = (self.execution.error or
+                                    f"Incomplete: max iterations reached or stages not terminal "
+                                    f"(pending={_pending[:8]})")
         
         # Log final time stats
         total_duration = time.time() - self.pipeline_start_time

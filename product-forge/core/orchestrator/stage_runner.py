@@ -8,6 +8,7 @@ pipeline_executor.py.
 """
 import os
 import sys
+import threading
 import time
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
@@ -21,6 +22,40 @@ from core.iteration_planner import ITERATION_STAGES as PHASE_STAGES
 
 
 class StageRunnerMixin:
+    def _emit_lifecycle(self, event_type: str, *, stage: str = "", agent: str = "", **fields):
+        """Emit one canonical lifecycle event (run/stage/agent). Best-effort."""
+        try:
+            from core import events as _ev
+            _rid = ""
+            try:
+                _rid = str(getattr(getattr(self, "execution", None), "pipeline_id", "") or "")
+            except Exception:
+                _rid = ""
+            _ev.emit(getattr(self, "project_dir", ""), event_type,
+                     run_id=_rid, stage=stage, agent=agent, **fields)
+        except Exception:
+            pass
+        try:
+            from core import run_status as _rs
+            _rs.update(getattr(self, "project_dir", ""), event_type, run_id=_rid,
+                       stage=stage, agent=agent, status=str(fields.get("status", "") or ""))
+        except Exception:
+            pass
+
+    def _start_heartbeat(self, agent_id: str, stage_id: str, stop_event):
+        """Background ping: a long agent stays visibly 'alive' (>2min -> every 60s)."""
+        def _hb():
+            t0 = time.time()
+            while not stop_event.wait(60):
+                el = int(time.time() - t0)
+                if el >= 120:
+                    print(f"    [HEARTBEAT] {agent_id}@{stage_id} alive {el}s (still working)")
+                    self._emit_lifecycle("agent_heartbeat", stage=stage_id, agent=agent_id,
+                                         elapsed=el)
+        t = threading.Thread(target=_hb, daemon=True)
+        t.start()
+        return t
+
     def _stage_is_parallel_safe(self, stage_id: str) -> bool:
         """Return True if a stage is explicitly marked safe to run concurrently."""
         if not self.pipeline_def:
@@ -209,18 +244,18 @@ class StageRunnerMixin:
         # Mark stage as running
         self.dag_executor.mark_running(stage_id)
         self.execution.current_stage = stage_id
+        self._emit_lifecycle("stage_started", stage=stage_id, agents=len(agents))
         stage_started_at = datetime.now().isoformat()
         # Per-stage timing for stop conditions: measure THIS stage, and exclude
-        # time spent waiting on a human (interactive prompts / approvals).
-        # Roll the previous stage's human-wait into the pipeline total, then reset.
+        # time spent waiting on a human (approvals/prompts). Human-wait is tracked
+        # PER STAGE (dict) so parallel stages never clobber each other.
         try:
-            self._total_human_wait_seconds = float(
-                getattr(self, "_total_human_wait_seconds", 0.0)) + float(
-                getattr(self, "_stage_human_wait_seconds", 0.0))
+            if not isinstance(getattr(self, "_stage_human_wait", None), dict):
+                self._stage_human_wait = {}
+            self._stage_human_wait[stage_id] = 0.0
         except Exception:
-            self._total_human_wait_seconds = 0.0
+            pass
         self._stage_started_at = stage_started_at
-        self._stage_human_wait_seconds = 0.0
 
         print(f"  Stage: {stage_name} ({stage_type})")
         print(f"  Stage depends_on: {self.dag_executor.stages.get(stage_id).depends_on if self.dag_executor.stages.get(stage_id) else []}")
@@ -321,6 +356,15 @@ class StageRunnerMixin:
 
             model_cfg = self._get_agent_model_config(agent_id, stage_id)
             print(f"    Executing agent: {agent_id} [model={model_cfg.get('model')}]")
+            try:
+                from core import work_estimate as _we
+                _e = _we.estimate_agent(self.project_dir, agent_id, stage_id,
+                                        model=model_cfg.get("model", ""))
+                print(f"    [Estimate] {agent_id}: strategy={_e['strategy']} "
+                      f"llm~{_e['llm_typical']} ({_e['llm_min']}-{_e['llm_max']}) "
+                      f"tools~{_e['tools_typical']} ~{_e['est_minutes']}min ({_e['basis']})")
+            except Exception:
+                pass
             if agent_id == "orchestrator":
                 try:
                     print(f"    [Coordinator] judgment-plane invoked @ stage {stage_id} "
@@ -336,8 +380,24 @@ class StageRunnerMixin:
 
             self._show_progress(stage_id, agent_id, "running")
             self._live_set(agent_id, stage_id, "running")
-            execution = self.execute_agent(agent_id, stage_id, agent_task)
+            self._emit_lifecycle("agent_started", stage=stage_id, agent=agent_id,
+                                 model=model_cfg.get("model"))
+            _hb_stop = threading.Event()
+            self._start_heartbeat(agent_id, stage_id, _hb_stop)
+            try:
+                execution = self.execute_agent(agent_id, stage_id, agent_task)
+            finally:
+                _hb_stop.set()
             self._live_clear(agent_id, stage_id)
+            _est = str(getattr(execution, "status", "completed"))
+            self._emit_lifecycle(
+                "agent_completed" if _est in ("completed", "skipped") else
+                ("agent_failed" if _est == "failed" else "agent_stage_changed"),
+                stage=stage_id, agent=agent_id, status=_est,
+                model=getattr(execution, "selected_model", "") or model_cfg.get("model"),
+                tokens=getattr(execution, "tokens_used", 0),
+                cost=getattr(execution, "cost", 0.0),
+                artifacts=len(getattr(execution, "artifacts", []) or []))
             try:
                 self._show_progress(stage_id, agent_id, str(getattr(execution, "status", "completed")))
             except Exception:
@@ -376,8 +436,20 @@ class StageRunnerMixin:
                     "\n\nCOMPLIANCE FEEDBACK — fix these issues in this output:\n"
                     + (feedback or "(see compliance report)"))
                 self._live_set(agent_id, stage_id, "running")
-                execution = self.execute_agent(agent_id, stage_id, retry_task)
+                self._emit_lifecycle("agent_started", stage=stage_id, agent=agent_id,
+                                     retry=attempts)
+                _hb_stop2 = threading.Event()
+                self._start_heartbeat(agent_id, stage_id, _hb_stop2)
+                try:
+                    execution = self.execute_agent(agent_id, stage_id, retry_task)
+                finally:
+                    _hb_stop2.set()
                 self._live_clear(agent_id, stage_id)
+                _rst = str(getattr(execution, "status", "completed"))
+                self._emit_lifecycle(
+                    "agent_completed" if _rst in ("completed", "skipped") else
+                    ("agent_failed" if _rst == "failed" else "agent_stage_changed"),
+                    stage=stage_id, agent=agent_id, status=_rst, retry=attempts)
             stage_executions.append(execution)
             self._record_cost_kpi(agent_id, stage_id, execution)
             if execution.status not in ("completed", "skipped"):
@@ -433,8 +505,24 @@ class StageRunnerMixin:
                 except Exception:
                     pass
 
+            _amodel = getattr(execution, "selected_model", "") or model_cfg.get("model")
+            _aarts = len(getattr(execution, "artifacts", []) or [])
             print(f"    Status: {execution.status}")
-            print(f"    Tokens: {execution.tokens_used} | Cost: ${execution.cost:.4f}")
+            print(f"    Model: {_amodel} | provider: {getattr(execution, 'selected_provider', '')}")
+            print(f"    Started: {execution.started_at}")
+            print(f"    Ended:   {execution.completed_at}")
+            print(f"    Duration: {a_dur:.1f}s | Artifacts: {_aarts} | "
+                  f"Tokens: {execution.tokens_used} | Cost: ${execution.cost:.4f}")
+            try:
+                from core import call_ledger as _cl
+                # Agent-scoped totals (the LLM client has no run_id, so filter by agent).
+                _cs = _cl.summary(self.project_dir, agent=agent_id).get("totals", {})
+                print(f"    Calls: llm={_cs.get('llm_calls', 0)} tools={_cs.get('tool_calls', 0)} "
+                      f"| prompt_tokens={_cs.get('prompt_tokens', 0)} "
+                      f"output_tokens={_cs.get('output_tokens', 0)} "
+                      f"reasoning={_cs.get('reasoning_tokens', 0)}")
+            except Exception:
+                pass
             print(f"    Knowledge: {len(execution.knowledge_used)} resources")
             print(f"    Compliance: {'PASS' if execution.compliance_passed else 'FAIL'}")
             print(f"    Time: {execution.started_at} -> {execution.completed_at} "
@@ -465,6 +553,17 @@ class StageRunnerMixin:
             stage_executions = prior + stage_executions
         with self._state_lock:
             self.execution.stage_executions[stage_id] = stage_executions
+            # Totals derived from the authoritative per-agent executions (idempotent;
+            # prevents double-counting/drift on subset or resume reruns).
+            try:
+                self.execution.total_tokens = sum(
+                    e.tokens_used for execs in self.execution.stage_executions.values()
+                    for e in execs)
+                self.execution.total_cost = sum(
+                    e.cost for execs in self.execution.stage_executions.values()
+                    for e in execs)
+            except Exception:
+                pass
 
         # Architect decides the tech stack -> persist + gate on change
         if stage_id == "2":
@@ -475,7 +574,9 @@ class StageRunnerMixin:
         
         # Check if all agents completed
         all_passed = all(e.status in ["completed", "skipped"] for e in stage_executions)
-        compliance_passed = all(e.compliance_passed for e in stage_executions if e.status == "completed")
+        # Compliance is judged over ALL agents (a failed/blocked agent must NOT be
+        # excluded, else a stage could report compliance=true while its agent failed).
+        compliance_passed = bool(stage_executions) and all(e.compliance_passed for e in stage_executions)
         
         if all_passed:
             self.dag_executor.mark_completed(stage_id, {
@@ -528,11 +629,13 @@ class StageRunnerMixin:
             failed_agents = [e.agent_id for e in stage_executions if e.status not in ["completed", "skipped"]]
             self.dag_executor.mark_failed(stage_id, f"Failed agents: {failed_agents}")
             print(f"  Stage {stage_id}: FAILED (agents failed)")
+            self._emit_lifecycle("stage_failed", stage=stage_id,
+                                 failed_agents=",".join(failed_agents))
         
         # Record stage duration for time estimation. Exclude human-wait so the
         # time budget reflects WORK, not the time a person took to answer.
         _wall = time.time() - stage_start
-        _human = float(getattr(self, "_stage_human_wait_seconds", 0.0))
+        _human = self._stage_wait(stage_id)
         stage_duration = max(0.0, _wall - _human)
         stage_completed_at = datetime.now().isoformat()
         with self._state_lock:
@@ -549,14 +652,39 @@ class StageRunnerMixin:
         self._record_stage_duration(stage_duration)
 
         # Auto mode: ideation partner (product-owner) distills the idea (stage 0 only).
+        # SKIP when a dedicated business stage (0b) owns product-owner, else the agent
+        # runs twice (wasted calls + duplicate compliance churn).
         if stage_id == "0":
             try:
                 from core.human_proxy import is_auto, ideation_partner
-                if is_auto(self.project_dir):
+                _has_0b = bool((self.pipeline_def or {}).get("stages", {}).get("0b"))
+                if is_auto(self.project_dir) and not _has_0b:
                     print("  [AUTO] ideation partner (product-owner) distilling the idea …")
                     ideation_partner(self, "0")
+                elif is_auto(self.project_dir) and _has_0b:
+                    print("  [AUTO] ideation partner skipped (product-owner runs in stage 0b)")
             except Exception as e:
                 print(f"[HumanProxy] {e}")
+
+        # Post-discovery: evaluate + confirm the optional-capability plan from the
+        # discovery output and apply it (skip unneeded optional stages). Dependency
+        # warnings are surfaced; a confirmed plan is never re-planned on resume.
+        if stage_id == "0a" and not getattr(self, "_plan_done", False):
+            try:
+                from core import run_plan as _rp
+                _plan = _rp.ensure_plan(self.project_dir, self.project, force=True)
+                if _plan.get("confirmed"):
+                    _skipped = _rp.apply_to_dag(self.dag_executor, _plan)
+                    self._plan_done = True
+                    print(f"[RunPlan] kind={_plan.get('kind')} "
+                          f"include={_plan.get('include_optional')} skip={_skipped}")
+                    for _w in (_plan.get("warnings") or []):
+                        print(f"  [RunPlan] WARN {_w}")
+                    self._emit_lifecycle("plan_confirmed", stage="0a",
+                                         include=",".join(_plan.get("include_optional") or []),
+                                         skip=",".join(_plan.get("skip_optional") or []))
+            except Exception as _pe:
+                print(f"[RunPlan] post-discovery failed: {_pe}")
 
         # Live journal + standardized checkpoint docs (agent-context, compact, feature-status)
         self._write_stage_checkpoints(stage_id, stage_executions)

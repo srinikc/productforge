@@ -1,3 +1,5 @@
+> **SUPERSEDED** (historical/implementation detail). Current architecture & design live in `docs/productforge_full_architecture.md` — do not treat this file as current.
+
 # Entry Points — which script to use
 
 Product Forge has two scripts; they serve different purposes.

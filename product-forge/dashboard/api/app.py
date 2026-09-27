@@ -34,7 +34,7 @@ import time
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-from fastapi import Depends, FastAPI, Header, HTTPException, Query
+from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 
@@ -291,6 +291,43 @@ def intake_instructions(source: str = "generic"):
         raise HTTPException(500, str(e))
 
 
+# Any-file intake (.md/.txt/.pdf/.docx/.doc/.rtf/images/...): stored verbatim under
+# products/intake/_files/<source>/ and text extracted (owner: core/intake_files.py).
+@app.post("/api/v1/intake/file", dependencies=[Depends(auth)])
+async def intake_file(file: UploadFile = File(...), source: str = Form("manual"),
+                      scope: str = Form(""), project: str = Form(""), title: str = Form(""),
+                      kind: str = Form(""), intent: str = Form("")):
+    try:
+        from core import intake_files
+        data = await file.read()
+        return intake_files.ingest_file(data=data, filename=file.filename or "file",
+                                        source=source, scope=scope, project=project,
+                                        title=title, kind=kind, intent=intent)
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+
+@app.post("/api/v1/intake/file-base64", dependencies=[Depends(auth)])
+def intake_file_base64(body: Dict[str, Any]):
+    """JSON/base64 variant for senders that cannot do multipart (e.g. CustomGPT)."""
+    import base64
+    from core import intake_files
+    b64 = str(body.get("content_base64") or body.get("content") or "")
+    if not b64:
+        raise HTTPException(400, "content_base64 required")
+    try:
+        data = base64.b64decode(b64)
+    except Exception as e:
+        raise HTTPException(400, f"bad base64: {e}")
+    return intake_files.ingest_file(data=data, filename=str(body.get("filename") or "file"),
+                                    source=str(body.get("source") or "manual"),
+                                    scope=str(body.get("scope") or ""),
+                                    project=str(body.get("project") or ""),
+                                    title=str(body.get("title") or ""),
+                                    kind=str(body.get("kind") or ""),
+                                    intent=str(body.get("intent") or ""))
+
+
 # ── backlog (BI-0081) ────────────────────────────────────────────────────────
 def _scope_parts(scope: str) -> tuple:
     """scope: 'product_forge' | 'project:<id>' -> (scope, project)."""
@@ -402,6 +439,93 @@ def model_fit_agent(agent: str, project: str = Query(...)):
         raise HTTPException(404, "no report")
     return {"agent": agent,
             "entries": [e for e in rep.get("entries", []) if e.get("agent") == agent]}
+
+
+# ── agent readiness checklist (PRE-execution) ────────────────────────────────
+@app.get("/api/v1/readiness", dependencies=[Depends(auth)])
+def readiness_get(project: str = Query(...)):
+    """Whole-project readiness report + rollup counts (blocked agents, etc.)."""
+    from core import agent_readiness
+    pj = str(PRODUCTS / project)
+    rep = agent_readiness.load_report(pj)
+    if not rep:
+        raise HTTPException(404, "no readiness report for this project yet")
+    return {"summary": agent_readiness.summary(pj), "report": rep}
+
+
+@app.get("/api/v1/readiness/agent/{agent}", dependencies=[Depends(auth)])
+def readiness_agent(agent: str, project: str = Query(...)):
+    from core import agent_readiness
+    rep = agent_readiness.load_report(str(PRODUCTS / project)) or {}
+    return {"agent": agent,
+            "entries": [a for a in rep.get("agents", []) if a.get("agent") == agent]}
+
+
+# ── model capability gate (PRE-run) ──────────────────────────────────────────
+@app.get("/api/v1/model-gate", dependencies=[Depends(auth)])
+def model_gate_get(project: str = Query(...)):
+    from core import model_gate
+    rep = model_gate.load_report(str(PRODUCTS / project))
+    if not rep:
+        raise HTTPException(404, "no model-gate report for this project yet")
+    return rep
+
+
+@app.get("/api/v1/model-catalog", dependencies=[Depends(auth)])
+def model_catalog_get(refreshed: bool = Query(False)):
+    """Live model capability catalog (all providers) + last_refreshed stamp."""
+    from core import model_catalog
+    if refreshed:
+        model_catalog.refresh()
+    return {"last_refreshed": model_catalog.last_refreshed(),
+            "models": model_catalog.load()}
+
+
+# ── compliance (POST-execution checklist) ────────────────────────────────────
+@app.get("/api/v1/compliance", dependencies=[Depends(auth)])
+def compliance_get(project: str = Query(...)):
+    """Per-agent compliance reports + final rollup (post-execution checklist)."""
+    from core.compliance_check import ComplianceChecker
+    c = ComplianceChecker(project, products_dir=str(PRODUCTS))
+    return {"reports": c.get_all_reports(), "final": c.generate_final_report()}
+
+
+# ── dynamic run plan + run status ────────────────────────────────────────────
+@app.get("/api/v1/run-plan", dependencies=[Depends(auth)])
+def run_plan_get(project: str = Query(...)):
+    """Idea-based plan: product kind + optional stages to include/skip + rationale."""
+    from core import run_plan
+    pj = str(PRODUCTS / project)
+    return run_plan.load(pj) or run_plan.generate(pj, project)
+
+
+@app.get("/api/v1/run-status", dependencies=[Depends(auth)])
+def run_status_get(project: str = Query(...)):
+    """Accurate run/stage/agent status (single writer, derived from lifecycle)."""
+    from core import run_status
+    pj = str(PRODUCTS / project)
+    return {"summary": run_status.summary(pj), "status": run_status.load(pj)}
+
+
+# ── LLM / tool call ledger (payload accounting) ──────────────────────────────
+@app.get("/api/v1/call-ledger", dependencies=[Depends(auth)])
+def call_ledger_get(project: str = Query(...), agent: str = Query(""),
+                    recent: int = Query(0)):
+    from core import call_ledger
+    pj = str(PRODUCTS / project)
+    out = call_ledger.summary(pj, agent=agent)
+    if recent:
+        out["recent"] = call_ledger.read(pj, limit=recent)
+    return out
+
+
+@app.get("/api/v1/work-estimate", dependencies=[Depends(auth)])
+def work_estimate_get(project: str = Query(...), refresh: bool = Query(False)):
+    from core import work_estimate
+    pj = str(PRODUCTS / project)
+    if refresh:
+        work_estimate.estimate_all(pj)
+    return work_estimate.summary(pj)
 
 
 @app.post("/api/v1/model-fit/run", dependencies=[Depends(auth)])

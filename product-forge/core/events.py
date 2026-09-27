@@ -16,8 +16,9 @@ from typing import Dict, List, Optional
 
 TYPES = ("run_started", "run_completed", "run_failed",
          "stage_started", "stage_completed", "stage_failed",
-         "agent_started", "agent_completed", "agent_stage_changed",
-         "human_input_required", "tokens_used")
+         "agent_started", "agent_completed", "agent_failed", "agent_blocked",
+         "agent_heartbeat", "plan_confirmed", "agent_stage_changed",
+         "readiness_failed", "brief_insufficient", "human_input_required", "tokens_used")
 
 FILENAME = "events.jsonl"
 

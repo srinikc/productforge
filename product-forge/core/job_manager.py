@@ -194,9 +194,25 @@ def finish(project: str, rc: int) -> Dict:
         verified = None
     try:
         from core import events as _ev
+        _rid = str((row or {}).get("run_id") or "")
+        if not _rid:
+            # Direct (non-queued) run: fall back to the run lock's id so terminal
+            # events stay correlated to the run (empty run_id broke dashboards).
+            try:
+                from core.lock_manager import LockManager
+                _info = LockManager(PRODUCTS).get_lock_info(project)
+                _rid = str(getattr(_info, "run_id", "") or "")
+            except Exception:
+                _rid = ""
         _ev.emit(os.path.join(PRODUCTS, project),
                  "run_completed" if rc == 0 else "run_failed",
-                 run_id=str((row or {}).get("run_id") or ""), project=project, rc=rc)
+                 run_id=_rid, project=project, rc=rc)
+    except Exception:
+        pass
+    try:
+        from core import run_status as _rs
+        _rs.update(os.path.join(PRODUCTS, project),
+                   "run_completed" if rc == 0 else "run_failed", run_id=_rid)
     except Exception:
         pass
     return {"job": row or {}, "auto_queued": resumed, "verification": verified}

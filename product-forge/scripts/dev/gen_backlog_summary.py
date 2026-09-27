@@ -1,9 +1,16 @@
 """Generate docs/BACKLOG-SUMMARY.md for both scopes (regenerable)."""
 import os
+import re
 from datetime import datetime
 from core import backlog
 
 OUT = "docs/BACKLOG-SUMMARY.md"
+
+
+def _n(it):
+    """Numeric part of an id (handles both BI-#### and BI-<TAG>-####)."""
+    return int(re.sub(r"\D", "", str(it.get("id") or "")) or 0)
+
 
 # category rules: (label, predicate on external_id/title)
 def cat(it):
@@ -57,7 +64,7 @@ def render(scope, project=None, title=""):
         L.append(f"### {st} ({len(arr)})")
         L.append("| ID | MoSCoW | Type | Title |")
         L.append("|---|---|---|---|")
-        for it in sorted(arr, key=lambda e: int(e["id"].split("-")[1])):
+        for it in sorted(arr, key=_n):
             L.append(f"| {it['id']} | {it.get('moscow')} | {it.get('type')} | {it.get('title')} |")
         L.append("")
 
@@ -67,7 +74,7 @@ def render(scope, project=None, title=""):
         groups.setdefault(cat(it), []).append(it)
     L.append(f"### new, by category ({len(news)})")
     for g in sorted(groups):
-        arr = sorted(groups[g], key=lambda e: int(e["id"].split("-")[1]))
+        arr = sorted(groups[g], key=_n)
         L.append(f"**{g}** ({len(arr)})")
         L.append("| ID | MoSCoW | Type | Title |")
         L.append("|---|---|---|---|")

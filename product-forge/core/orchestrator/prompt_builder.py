@@ -65,6 +65,34 @@ def _spec_id_convention(agent_id: str = "") -> str:
     return txt
 
 
+def _required_sections_directive(agent_id: str) -> str:
+    """Exact headings from agent-requirements.json (the compliance checklist SSOT).
+
+    The gate matches top-level headings against each ESSENTIAL section's keywords.
+    Emitting one heading per section that contains its first keyword guarantees a
+    match and keeps output structured, without hardcoding per-agent headings here.
+    """
+    try:
+        from core.agent_requirements import required_sections
+        spec = required_sections(agent_id) or {}
+    except Exception:
+        spec = {}
+    essential = spec.get("essential") or {}
+    if not essential:
+        return ""
+    labels = []
+    for key, kws in essential.items():
+        if isinstance(kws, list) and kws:
+            kw = str(kws[0])
+        else:
+            kw = str(key).replace("_", " ")
+        labels.append(kw.strip().title())
+    headings = "\n".join(f"## {l}" for l in labels)
+    return ("\n\nOUTPUT REQUIREMENTS (required sections):\n"
+            "Emit EVERY one of these top-level headings EXACTLY (in order, even if "
+            "brief — never rename, merge, or omit):\n" + headings)
+
+
 def output_requirements(agent_id: str, requested_tech_stack: Optional[List[str]] = None,
                         allocation: Optional[Dict] = None) -> str:
     """Strict output requirements so downstream parsing/verification works.
@@ -186,8 +214,9 @@ def output_requirements(agent_id: str, requested_tech_stack: Optional[List[str]]
             kb_hint = ""
         return ("\n\nOUTPUT REQUIREMENTS (business agent):\nProduce a role-appropriate artifact with "
                 "explicit sections, defined metrics/assumptions, and sourced reasoning. State every "
-                "assumption; never fabricate market numbers. Mark estimates as estimates." + kb_hint)
-    return ""
+                "assumption; never fabricate market numbers. Mark estimates as estimates." + kb_hint
+                + _required_sections_directive(agent_id))
+    return _required_sections_directive(agent_id)
 
 
 _RESEARCH_AGENTS = {"researcher", "scout"}
@@ -267,6 +296,17 @@ def infra_awareness_guard(agent_id: str) -> str:
             "do NOT invent them. Mark them 'unknown'/'user_to_provide' and RECOMMEND a research step "
             "(web search + knowledge base + skills). Ask the user (HITL) for environment/credentials/lab details.\n"
             "- Derive infra from the product KIND + requirements/NFRs; keep it minimal for simple products.")
+
+
+def no_invention_guard(agent_id: str) -> str:
+    """Binding directive: build ONLY the user's product; never invent one."""
+    return ("\n\nNO INVENTION (binding, highest priority): Build ONLY the product "
+            "described by the user's brief. Do NOT invent a different product, rename it, "
+            "add unrelated features, or hallucinate facts/sources. If the brief is unclear, "
+            "ambiguous, or missing required detail, do NOT fabricate a substitute — "
+            "explicitly list what is missing, ask focused clarifying questions, and mark "
+            "the output `needs_clarification`. Label any assumption as `[ASSUMPTION]`. "
+            "Never present invented content as if it came from the brief.")
 
 
 def scope_guard(tech_stack: Optional[Dict], requested_tech_stack: Optional[List[str]]) -> str:

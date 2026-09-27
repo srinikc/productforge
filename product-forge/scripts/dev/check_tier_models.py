@@ -89,6 +89,77 @@ def _check(name, prof, reg, agents, stages, unknown):
             unknown["stages"].setdefault(name, set()).add(k)
 
 
+def _live_provider_models(provider):
+    """Live model ids for a provider from its /models endpoint (best-effort, cached).
+
+    Returns (ids:set, note:str). Empty set + note on any failure (missing key,
+    network, unknown provider) so the caller can SKIP silently - never fatal.
+    """
+    provider = str(provider or "").lower()
+    endpoints = {
+        "openrouter": ("https://openrouter.ai/api/v1/models", "OPENROUTER_API_KEY"),
+        "openai": ("https://api.openai.com/v1/models", "OPENAI_API_KEY"),
+        "deepinfra": ("https://api.deepinfra.com/v1/openai/models", "DEEPINFRA_API_KEY"),
+    }
+    if provider not in endpoints:
+        return set(), f"no live-check for provider {provider!r} (skipped)"
+    url, env = endpoints[provider]
+    try:
+        from core import credentials as _cred
+        key = _cred.key_for(provider)
+    except Exception:
+        key = os.getenv(env, "")
+    if not key:
+        return set(), f"no key for {provider} (skipped)"
+    try:
+        import urllib.request
+        req = urllib.request.Request(url, headers={"Authorization": f"Bearer {key}"})
+        with urllib.request.urlopen(req, timeout=20) as r:
+            data = json.load(r)
+    except Exception as e:
+        return set(), f"live fetch failed for {provider}: {e} (skipped)"
+    rows = data.get("data") if isinstance(data, dict) else data
+    ids = {m.get("id") or m.get("name") for m in (rows or []) if isinstance(m, dict)}
+    return {i for i in ids if i}, f"{len(ids)} live models from {provider}"
+
+
+def _profile_models(prof):
+    ids = set()
+    ids |= _models_in_section(prof.get("agents") or {})
+    ids |= _models_in_section(prof.get("stages") or {})
+    ids |= set((prof.get("models") or {}).keys())
+    if prof.get("default_model"):
+        ids.add(prof["default_model"])
+    ids |= set(prof.get("default_fallback_models") or [])
+    return ids
+
+
+def live_provider_audit(tier):
+    """Advisory: tier model ids must exist on the tier's LIVE provider catalog.
+
+    Catches upstream model renames/retirements (e.g. ':free' slugs dropped) that the
+    offline registry check cannot see. Skips silently with no key/network.
+    """
+    drift = 0
+    for pname, prof in (tier.get("profiles") or {}).items():
+        if not isinstance(prof, dict):
+            continue
+        provider = prof.get("provider") or ""
+        live, note = _live_provider_models(provider)
+        if not live:
+            print(f"tier-live: [{pname}] {provider}: SKIP - {note}")
+            continue
+        missing = sorted(m for m in _profile_models(prof) if m not in live)
+        if missing:
+            drift += len(missing)
+            shown = ", ".join(missing[:12]) + (" ..." if len(missing) > 12 else "")
+            print(f"tier-live: [{pname}] {provider}: {len(missing)} model id(s) NOT on live provider: {shown}")
+        else:
+            print(f"tier-live: [{pname}] {provider}: ok ({note})")
+    print(f"tier-live: advisory drift={drift} (never fatal)")
+    return 0
+
+
 def main():
     tier = _load(os.path.join("config", "model-tier.json"))
     reg = _registry_models()
@@ -119,6 +190,7 @@ def main():
             shown = ", ".join(vals[:12]) + (" ..." if len(vals) > 12 else "")
             print(f"   [{prof}] {len(vals)}: {shown}")
     print(f"tier-models: advisory total={total} (never fatal)")
+    live_provider_audit(tier)
     return 0
 
 

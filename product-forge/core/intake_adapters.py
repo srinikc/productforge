@@ -40,7 +40,7 @@ _BUILTIN = {
     "claude": {"instructions": "Claude MCP/desktop: send the conversation + title."},
     "gemini": {"instructions": "Gemini extension: title/name, prompt/body, project, type."},
     "dashboard": {"instructions": "Dashboard form maps 1:1 to the intake schema."},
-    "file": {"instructions": "Offline drop: JSON/JSONL file with the intake schema (title required)."},
+    "file": {"instructions": "Offline drop: any file (.md/.txt/.pdf/.docx/.doc/.rtf/images) via `python -m core.intake_files <path>` or POST /api/v1/intake/file (multipart / file-base64); text is extracted. JSON/JSONL with the intake schema is also accepted (title required)."},
 }
 
 _KIND_ALIASES = {

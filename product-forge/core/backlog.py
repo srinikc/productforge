@@ -9,13 +9,16 @@ Storage (per scope):
   items/<ID>.json      THE TRUTH - one full item per file (single writer)
   open.json            DERIVED index of non-terminal items (lean: id/status/one-liner/dates)
   closed.json          DERIVED index of terminal items
-  counters.json        next BI id + next "Backlog N" label
+  counters.json        next "Backlog N" label
   history/<ID>.jsonl   append-only journal (status + content changes)
+
+Ids: new items are ``BI-<TAG>-<nnn>`` where TAG is the destination (PF | DASH | IN |
+<PROJECT-SLUG>); legacy ``BI-####`` ids remain valid and are read the same way.
 
 Never read/write these files directly - use this module's API (list/get/update/history).
 
 Model: BacklogItem
-  id, scope, project, origin(intake|pipeline), type(idea|project|change|feature|bug|tech-debt|explore),
+  id, tag, scope, project, origin(intake|pipeline), type(idea|project|change|feature|bug|tech-debt|explore),
   section(derived: intake|pipeline|done), label("Backlog N"), title, body, source, status,
   moscow, value/effort/risk/score, deps[], links{feature_id,defect_ids,conversation_id,idea_ids,
   cp_ids,iteration_ids,commit,artifacts,paired_with,backend_capability,capability_ref},
@@ -218,9 +221,39 @@ def _num(eid: str) -> int:
         return 0
 
 
-def _next_id(open_items, closed_items) -> str:
+def _slug(project: str) -> str:
+    """Uppercase alnum tag for a project name (max 10 chars)."""
+    return re.sub(r"[^A-Za-z0-9]", "", str(project or "")).upper()[:10]
+
+
+def tag_for(scope: str, project: Optional[str] = None, origin: str = "",
+            type_: str = "") -> str:
+    """Short DESTINATION tag encoded in new ids (``BI-<TAG>-<nnn>``).
+
+    Makes the destination recognizable from the id alone:
+      * ``PF``     - Product Forge backend/pipeline (``scope=product_forge``)
+      * ``DASH``   - the ProductForge-Dashboard
+      * ``IN``     - a raw intake idea/explore/context not yet routed to a build target
+      * ``<PROJ>`` - an uppercase slug of the project being built / existing project
+    Legacy ``BI-####`` ids stay as-is (readers tolerate both).
+    """
+    p = str(project or "").strip()
+    if p:
+        if p.lower() == _DASHBOARD_PROJECT.lower():
+            return "DASH"
+        s = _slug(p)
+        if s:
+            return s
+    if _norm_scope(scope) == "product_forge":
+        if origin == "intake" and type_ in ("idea", "explore", "context"):
+            return "IN"
+        return "PF"
+    return "PRJ"
+
+
+def _next_id(open_items, closed_items, tagname: str) -> str:
     mx = max([_num(e.get("id")) for e in list(open_items) + list(closed_items)] or [0])
-    return f"BI-{mx + 1:04d}"
+    return f"BI-{tagname or 'GEN'}-{mx + 1:04d}"
 
 
 def _label_prefix(scope: str, project: Optional[str]) -> str:
@@ -395,8 +428,11 @@ def add_epic(scope: str, project: Optional[str], title: str, body: str = "",
              source: str = "generic", type_: str = "feature", origin: str = "intake",
              value: int = 3, effort: int = 3, risk: int = 2, moscow: str = "Should",
              deps: Optional[List[str]] = None, links: Optional[Dict] = None,
-             external_id: str = "") -> Dict:
-    """Create a work item. `external_id` (e.g. feature_id/defect_id/conversation_id) makes it idempotent."""
+             external_id: str = "", tag: str = "") -> Dict:
+    """Create a work item. `external_id` (e.g. feature_id/defect_id/conversation_id) makes it idempotent.
+
+    `tag` overrides the destination tag encoded in the id (see ``tag_for``).
+    """
     scope = _norm_scope(scope)
     d, of, cf, _h, ctr = _paths(scope, project)
     lp = _lock(d)
@@ -417,8 +453,10 @@ def add_epic(scope: str, project: Optional[str], title: str, body: str = "",
                   "EXTEND/MERGE an existing item instead of creating a new one:")
             for s in _sims:
                 print(f"   - {s['ref']} (score {s['score']}) [{s['status']}]: {s['title']}")
+        _tag = str(tag or "").strip().upper() or tag_for(scope, project, origin, type_)
         item = {
-            "id": _next_id(op, cl), "type": type_, "scope": scope, "project": project or "",
+            "id": _next_id(op, cl, _tag),
+            "tag": _tag, "type": type_, "scope": scope, "project": project or "",
             "origin": origin, "external_id": external_id, "label": _next_label(counters, scope, project),
             "title": title, "body": body, "source": source, "status": "new",
             "priority": None, "moscow": moscow, "value": value, "effort": effort, "risk": risk,
@@ -437,7 +475,7 @@ def add_epic(scope: str, project: Optional[str], title: str, body: str = "",
 
 
 def ensure_item(scope: str, project: Optional[str], external_id: str, title: str,
-                type_: str = "feature", origin: str = "pipeline", **fields) -> Dict:
+                type_: str = "feature", origin: str = "pipeline", tag: str = "", **fields) -> Dict:
     """Idempotent get-or-create keyed by `external_id` (for the bridges)."""
     scope = _norm_scope(scope)
     d, of, cf, _h, _c = _paths(scope, project)
@@ -459,14 +497,14 @@ def ensure_item(scope: str, project: Optional[str], external_id: str, title: str
     finally:
         _unlock(lp)
     return add_epic(scope, project, title, type_=type_, origin=origin,
-                    external_id=external_id, **fields)
+                    external_id=external_id, tag=tag, **fields)
 
 
 def set_status(scope: str, project: Optional[str], eid: str, status: str, note: str = "") -> Optional[Dict]:
     return update(scope, project, eid, status=status, _note=note)
 
 
-_BARE_BI_RE = re.compile(r"^BI-\d+$")
+_BARE_BI_RE = re.compile(r"^BI-(?:[A-Za-z0-9]+-)?\d+$")
 
 
 def link(scope: str, project: Optional[str], eid: str, **refs) -> Optional[Dict]:

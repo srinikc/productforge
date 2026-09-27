@@ -13,6 +13,31 @@ from dataclasses import dataclass, asdict
 from datetime import datetime, timedelta
 
 
+def _pid_from_holder(holder: str) -> Optional[int]:
+    """Lock holders are written as 'run-<pid>'; return the pid if present."""
+    h = str(holder or "").strip()
+    if h.startswith("run-"):
+        h = h[4:]
+    return int(h) if h.isdigit() else None
+
+
+def _pid_alive(pid: Optional[int]) -> bool:
+    """Best-effort liveness check (Windows tasklist, POSIX kill 0)."""
+    if not pid:
+        return False
+    try:
+        import subprocess
+        out = subprocess.run(["tasklist", "/FI", f"PID eq {pid}"],
+                             capture_output=True, text=True, timeout=10)
+        return str(pid) in (out.stdout or "")
+    except Exception:
+        try:
+            os.kill(pid, 0)
+            return True
+        except Exception:
+            return False
+
+
 @dataclass
 class LockInfo:
     """Lock information"""
@@ -104,8 +129,16 @@ class LockManager:
                     if holder and existing_lock.holder == holder:
                         # Same holder, refresh lock
                         return self._refresh_lock(project, holder, ttl_seconds, run_id)
-                    # Different holder, lock is held
-                    return None
+                    # Different holder: if its process is DEAD the lock is stale
+                    # (e.g. a killed run) -> reclaim now instead of blocking the
+                    # next run for the whole TTL.
+                    _pid = _pid_from_holder(existing_lock.holder)
+                    if _pid and not _pid_alive(_pid):
+                        print(f"[Lock] reclaiming stale lock for '{project}' "
+                              f"(holder {existing_lock.holder} is no longer running)")
+                        self._remove_lock(project)
+                    else:
+                        return None
                 else:
                     # Lock is expired, clean it up
                     self._remove_lock(project)
@@ -212,6 +245,14 @@ class LockManager:
         lock_path = self._get_lock_path(project)
         if lock_path.exists():
             lock_path.unlink()
+
+    def force_unlock(self, project: str) -> bool:
+        """Operator escape hatch: drop a project's lock unconditionally."""
+        lock_path = self._get_lock_path(project)
+        if lock_path.exists():
+            self._remove_lock(project)
+            return True
+        return False
     
     def is_locked(self, project: str) -> bool:
         """

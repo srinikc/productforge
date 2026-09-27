@@ -2,11 +2,19 @@
 
 **Multi-Agent Multi-Project System**
 
-A comprehensive pipeline orchestration system with 17 specialized agents, workflow documentation, PDF generation, and a modern dashboard interface.
+A comprehensive pipeline orchestration system with 60+ specialized agents, workflow documentation, PDF generation, and a modern dashboard interface.
+
+## Documentation
+
+- **Docs index (HTML):** [`docs/documentation-index.html`](docs/documentation-index.html) — every doc with its purpose and whether it is **implemented / planned / archived**.
+- **Architecture & design SSOT:** [`docs/productforge_full_architecture.md`](docs/productforge_full_architecture.md)
+- **Docs SSOT rules:** [`docs/README.md`](docs/README.md)
+- **Backlog:** [`data/backlog/index.html`](data/backlog/index.html)
+- Regenerate the index after adding/moving docs: `python scripts/dev/gen_docs_index.py`
 
 ## Features
 
-- **17 Specialized Agents**: Ideation, Design, Architect, Security, Implement, Code Review, Validate, Document, Package, DevOps, Customer Onboarding, Marketing, Presentation, Maintenance, FinOps, Domain Research, Product Analyzer
+- **60+ Specialized Agents**: Ideation, Discovery, Business/Product, Design, Architect, Implement, Code Review, Validate, Security, Document, Package, DevOps, Delivery/Ops, and business/content agents (see `docs/agents_prompts_instructions.md`)
 - **Workflow Documentation**: Auto-generated HTML, Draw.io diagrams, and PDF for pipeline and all agents
 - **Modern Dashboard**: Real-time monitoring with Simple/Advanced mode toggle
 - **Multi-Project Support**: Manage multiple projects from a single dashboard

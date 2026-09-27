@@ -29,7 +29,7 @@ import sys
 sys.path.insert(0, str(_PF_ROOT))
 from core import backlog  # noqa: E402
 
-BARE = re.compile(r"^BI-\d+$")
+BARE = re.compile(r"^BI-(?:[A-Za-z0-9]+-)?\d+$")
 DASH_PROJECT = "ProductForge-Dashboard"
 APPLY = "--apply" in sys.argv
 

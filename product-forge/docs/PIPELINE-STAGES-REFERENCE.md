@@ -1,3 +1,5 @@
+> **SUPERSEDED** (historical/implementation detail). Current architecture & design live in `docs/productforge_full_architecture.md` — do not treat this file as current.
+
 # Product Forge — Pipeline Stages & Agents Reference
 
 > **Generated** from `pipeline-definition.json` + `agents/*.agent.json` (`scripts/gen_pipeline_reference.py`). Do not hand-edit — re-run the generator.

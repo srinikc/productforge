@@ -100,35 +100,96 @@ def _match(or_by_id: Dict, name: str) -> Optional[Dict]:
 
 
 def refresh() -> Dict:
-    """Fetch provider metadata and (re)write config/model-catalog.json. Offline-safe."""
+    """Fetch provider metadata and (re)write config/model-catalog.json. Offline-safe.
+
+    Stores ALL OpenRouter models (id-keyed, so 'provider/model:free' ids resolve),
+    registry-name enrichments (back-compat keys), and OpenCode Zen models. Stamps
+    `last_refreshed`; entries not seen in a successful fetch are marked `retired`.
+    """
+    now = datetime.now().isoformat(timespec="seconds")
     or_data = _get(OR_URL)
     or_models = or_data.get("data", []) if isinstance(or_data, dict) else []
-    by_id = {m.get("id"): m for m in or_models if m.get("id")}
+    or_fetched_at = now if or_models else ""
     zen = _get(ZEN_URL, "OPENCODE_ZEN_API_KEY")
-    zen_ids = [m.get("id") for m in (zen.get("data", []) if isinstance(zen, dict) else [])]
+    zen_models = zen.get("data", []) if isinstance(zen, dict) else []
+    zen_fetched_at = now if zen_models else ""
 
-    models: Dict[str, Dict] = {}
-    # our registry names -> try to enrich from OpenRouter
+    try:
+        prev = json.load(open(OUT, encoding="utf-8")).get("models", {})
+    except Exception:
+        prev = {}
+
+    models: Dict[str, Dict] = dict(prev)  # never lose prior entries
+    seen = set()
+
+    # 1) ALL OpenRouter models, id-keyed (canonical).
+    for m in or_models:
+        mid = m.get("id")
+        if not mid:
+            continue
+        entry = _enrich_one(m)
+        entry["registry_name"] = mid.split("/")[-1]
+        entry.setdefault("first_seen", now)
+        entry["last_seen"] = now
+        entry["retired"] = False
+        models[mid] = entry
+        seen.add(mid)
+
+    # 2) Registry-name enrichments (kept for back-compat keys like 'mimo-v2.5-free').
+    by_id = {m.get("id"): m for m in or_models if m.get("id")}
     for name in _load_registry_names():
         m = _match(by_id, name)
         if m:
             entry = _enrich_one(m)
             entry["registry_name"] = name
+            entry.setdefault("first_seen", now)
+            entry["last_seen"] = now
+            entry["retired"] = False
             models[name] = entry
-        else:
+        elif name not in models:
             models[name] = {"registry_name": name, "source": "registry-only",
-                            "context_window": None, "tools": None, "reasoning": None}
-    # keep any existing catalog entries we couldn't re-fetch this run
-    try:
-        prev = json.load(open(OUT, encoding="utf-8")).get("models", {})
-        for k, v in prev.items():
-            models.setdefault(k, v)
-    except Exception:
-        pass
+                            "context_window": None, "tools": None, "reasoning": None,
+                            "first_seen": now, "last_seen": now, "retired": False}
+        seen.add(name)
+
+    # 3) OpenCode Zen models (provider=opencode; liveness/capabilities best-effort).
+    for m in zen_models:
+        mid = m.get("id") or m.get("name")
+        if not mid:
+            continue
+        arch = m.get("architecture") or {}
+        models[mid] = {
+            "id": mid, "name": m.get("name") or mid, "provider": "opencode", "source": "zen",
+            "context_window": m.get("context_length") or m.get("context_window"),
+            "max_output": m.get("max_completion_tokens") or m.get("max_output"),
+            "input_modalities": arch.get("input_modalities") or ["text"],
+            "output_modalities": arch.get("output_modalities") or ["text"],
+            "supported_parameters": m.get("supported_parameters") or [],
+            "tools": None, "reasoning": None, "structured_outputs": None,
+            "registry_name": str(mid).split("/")[-1],
+            "first_seen": (models.get(mid) or {}).get("first_seen", now),
+            "last_seen": now, "retired": False,
+        }
+        seen.add(mid)
+
+    # 4) Retire not-seen entries PER SOURCE that actually fetched successfully
+    #    (a failed Zen fetch must never retire Zen models; same for OpenRouter).
+    for k, v in models.items():
+        if k in seen or not isinstance(v, dict):
+            continue
+        src = v.get("source", "")
+        if src == "openrouter" and or_fetched_at:
+            v["retired"] = True
+        elif src == "zen" and zen_fetched_at:
+            v["retired"] = True
+        elif src == "registry-only" and or_fetched_at:
+            v["retired"] = True
 
     catalog = {
-        "fetched_at": datetime.now().isoformat(timespec="seconds"),
-        "sources": {"openrouter_count": len(or_models), "zen_count": len(zen_ids)},
+        "last_refreshed": now,
+        "fetched_at": now,  # back-compat
+        "sources": {"openrouter_count": len(or_models), "zen_count": len(zen_models),
+                    "or_fetched_at": or_fetched_at, "zen_fetched_at": zen_fetched_at},
         "legend": {"tools": "function/tool calling", "reasoning": "reasoning/thinking",
                    "structured_outputs": "JSON schema / response_format"},
         "models": models,
@@ -137,8 +198,27 @@ def refresh() -> Dict:
     with open(OUT, "w", encoding="utf-8", newline="\n") as f:
         json.dump(catalog, f, indent=2, ensure_ascii=False)
     print(f"[ModelCatalog] wrote {OUT} ({len(models)} models; "
-          f"openrouter={len(or_models)}, zen={len(zen_ids)})")
+          f"openrouter={len(or_models)}, zen={len(zen_models)}; refreshed {now})")
     return catalog
+
+
+def is_stale(max_age_seconds: int = 0) -> bool:
+    """True when the catalog is older than max_age_seconds (0 => always stale)."""
+    try:
+        data = json.load(open(OUT, encoding="utf-8"))
+        ts = data.get("last_refreshed") or data.get("fetched_at") or ""
+        if not ts:
+            return True
+        return (datetime.now() - datetime.fromisoformat(ts)).total_seconds() > max_age_seconds
+    except Exception:
+        return True
+
+
+def refresh_if_stale(max_age_seconds: int = 0) -> Dict:
+    """Refresh the catalog when older than max_age_seconds (default: every run)."""
+    if is_stale(max_age_seconds):
+        return refresh()
+    return {"skipped": True, "reason": "fresh"}
 
 
 def load() -> Dict:
@@ -148,10 +228,34 @@ def load() -> Dict:
         return {}
 
 
+def last_refreshed() -> str:
+    try:
+        d = json.load(open(OUT, encoding="utf-8"))
+        return d.get("last_refreshed") or d.get("fetched_at") or ""
+    except Exception:
+        return ""
+
+
 def capabilities(model_name: str) -> Dict:
-    """The capability fields for a model (from the catalog; {} if unknown)."""
-    c = load().get(model_name) or {}
-    return c
+    """Capability fields for a model, robust to id / registry-name / ':free' variants."""
+    models = load()
+    if not models:
+        return {}
+    if isinstance(models.get(model_name), dict):
+        return models[model_name]
+    tail = str(model_name).split("/")[-1]
+    for k, v in models.items():
+        if not isinstance(v, dict):
+            continue
+        if v.get("id") == model_name or v.get("registry_name") == model_name:
+            return v
+        if str(k).split("/")[-1] == tail:
+            return v
+    base = tail.replace(":free", "")
+    for k, v in models.items():
+        if isinstance(v, dict) and str(k).split("/")[-1].replace(":free", "") == base:
+            return v
+    return {}
 
 
 def fit(model_name: str, needs: Dict) -> Dict:

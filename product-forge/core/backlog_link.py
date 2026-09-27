@@ -128,6 +128,11 @@ def promote_conversation(conv, project: str = "") -> Optional[Dict]:
         title = getattr(conv, "title", "") or (f"{item_type.title()} from {getattr(conv, 'source_platform', 'intake')}")
         body = getattr(conv, "compiled_summary", "") or ""
         meta = dict(getattr(conv, "metadata", None) or {})
+        # Destination tag in the id (BI-<TAG>-<nnn>): a new project uses its own
+        # project slug; everything else derives from scope/project/origin/type.
+        _tag = ""
+        if intent in ("new_project", "new_project_quick") and str(target_project).strip():
+            _tag = _backlog().tag_for("project", target_project, "intake", item_type)
         item = _backlog().ensure_item(
             scope, target_project if scope == "project" else None,
             f"conversation:{getattr(conv, 'id', '')}",
@@ -135,6 +140,7 @@ def promote_conversation(conv, project: str = "") -> Optional[Dict]:
             source=str(getattr(conv, "source_platform", "") or "intake"),
             value=int(meta.get("value", 3) or 3), effort=int(meta.get("effort", 3) or 3),
             risk=int(meta.get("risk", 2) or 2), moscow=str(meta.get("moscow", "Should")),
+            tag=_tag,
             links={"conversation_id": getattr(conv, "id", ""),
                    **({"idea_ids": [i for i in idea_ids if i]} if idea_ids else {})},
         )

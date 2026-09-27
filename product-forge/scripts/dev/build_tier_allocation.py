@@ -13,31 +13,43 @@ sys.path.insert(0, os.getcwd())
 from core.agent_hierarchy import descendants, parents
 
 P = "config/model-tier.json"
-M1 = "nvidia/nemotron-3.5-lightning:free"
-M2 = "cohere/north-mini-code:free"
-M3 = "dots-studio/dots-3-note-preview:free"
-M4 = "nemotron-3.5-lightning-free"
+# Live OpenRouter free models (verified live by scripts/dev/check_tier_models.py).
+M1 = "nvidia/nemotron-3.5-lightning:free"   # fast reasoning / light planning
+M2 = "qwen/qwen3.8-27b:free"                # structured specs, code, build, verify
+M3 = "google/gemma-4-31b-it:free"           # content, docs, business writing
+# Cross-provider fallback: OpenCode GO (paid, cheap). NOTE: OpenCode Zen FREE models
+# are rejected by the API ("free tier can only be used from within OpenCode"), so we
+# use the go endpoint's deepseek-v4.1-flash (verified 200 with the same key).
+MZ = "deepseek-v4.1-flash"
+ZEN_PROVIDER = "opencode-go"
+ZEN_ENDPOINT = "https://opencode.ai/zen/go/v1/chat/completions"
 FREE = [M1, M2, M3]
 
 # LEAD agents -> capability-appropriate primary model
 LEAD = {
-    # reasoning / planning
-    "ideation": M1, "discovery": M1, "design": M1, "architect": M1, "researcher": M1,
+    # reasoning / planning (light, fast)
+    "ideation": M1, "discovery": M1, "researcher": M1,
     "orchestrator": M1, "consensus": M1, "iterative_evaluator": M1, "guardian": M1,
     "observer": M1, "strategist": M1, "analyst": M1, "inference": M1, "product-analyzer": M1,
     "security": M1,
+    # structured specs / architecture / product definition
+    "design": M2, "architect": M2, "product-owner": M2,
     # code / build / ops
-    "implement": M2, "fix": M2, "devops": M2, "code-review": M2,
+    "implement": M2, "implement-ui": M2, "fix": M2, "devops": M2, "code-review": M2,
+    "production-deploy": M2, "agent_config": M2, "ingestion": M2,
     # verification / QA
     "validate": M2,
-    # content / docs / analysis
-    "document": M3, "finops": M3, "customer-onboarding": M3, "agent_config": M2, "ingestion": M2,
+    # content / docs / business
+    "document": M3, "finops": M3, "customer-onboarding": M3,
+    "marketing": M3, "growth": M3, "customer-success": M3,
 }
-DEFAULT = M1
+DEFAULT = M2
 
 
 def fallbacks(m):
-    return [x for x in FREE if x != m] + [M4]
+    # OpenCode Zen first (separate quota => survives OpenRouter 429s), then the
+    # remaining OpenRouter free models.
+    return [MZ] + [x for x in FREE if x != m]
 
 
 def build(tier):
@@ -62,7 +74,7 @@ def build(tier):
         M1: {"provider": "openrouter", "api_endpoint": "https://openrouter.ai/api/v1/chat/completions"},
         M2: {"provider": "openrouter", "api_endpoint": "https://openrouter.ai/api/v1/chat/completions"},
         M3: {"provider": "openrouter", "api_endpoint": "https://openrouter.ai/api/v1/chat/completions"},
-        M4: {"provider": "opencode-go", "api_endpoint": "https://opencode.ai/zen/v1/chat/completions"},
+        MZ: {"provider": ZEN_PROVIDER, "api_endpoint": ZEN_ENDPOINT},
     }
     json.dump(d, open(P, "w", encoding="utf-8"), indent=2)
     return agents

@@ -106,8 +106,19 @@ class AgentExecutionMixin:
             from core.budget_conservation import get_model_downgrade
             downgrade = get_model_downgrade(agent_id, self.conservation_state)
             if downgrade:
-                selected_model = downgrade
-                self.conservation_state.model_downgrades.append(f"{agent_id}: {downgrade}")
+                # Only accept a downgrade we can validate against the live catalog.
+                _known = True
+                try:
+                    from core import model_catalog as _mc
+                    _known = bool(_mc.capabilities(downgrade))
+                except Exception:
+                    _known = True
+                if _known:
+                    selected_model = downgrade
+                    self.conservation_state.model_downgrades.append(f"{agent_id}: {downgrade}")
+                else:
+                    print(f"    [CONSERVATION] downgrade '{downgrade}' unknown in catalog; kept "
+                          f"'{selected_model}'")
             
             # 5. Get knowledge for this agent (Skill Routing)
             knowledge = self.get_knowledge_for_agent(agent_id, stage_id, task)
@@ -131,6 +142,78 @@ class AgentExecutionMixin:
                 tags=[stage_id, agent_id]
             )
             
+            # 7b. Readiness checklist (PRE-execution). Must-have gaps BLOCK the
+            # agent; warnings are surfaced. Writes readiness.json + events/alarms.
+            try:
+                from core import agent_readiness as _ar
+                _arts = self._collect_stage_artifacts(stage_id)
+                _keys = list(_arts.keys())
+                _chars = 0
+                for _p in _arts.values():
+                    try:
+                        _chars += os.path.getsize(_p)
+                    except Exception:
+                        pass
+                # Augment with on-disk upstream outputs so readiness never false-blocks
+                # on resume/selective runs (artifacts exist but weren't rehydrated).
+                try:
+                    import glob as _glob
+                    _base = os.path.join(self.project_dir, "artifacts")
+                    for _d in os.listdir(_base):
+                        _dd = os.path.join(_base, _d)
+                        if not os.path.isdir(_dd):
+                            continue
+                        _sid = _d.split(" ")[0]
+                        for _o in _glob.glob(os.path.join(_dd, "*-output.md")):
+                            _keys.append(_sid)
+                            _keys.append(f"{_sid}_{os.path.basename(_o).replace('-output.md', '')}")
+                            try:
+                                _chars += os.path.getsize(_o)
+                            except Exception:
+                                pass
+                except Exception:
+                    pass
+                _verdict = _ar.evaluate(
+                    agent_id, stage_id=stage_id, available_keys=_keys,
+                    context_chars=_chars, model=selected_model or "",
+                    provider=(model_cfg.get("provider") if isinstance(model_cfg, dict) else ""))
+                try:
+                    _ar.record(self.project_dir,
+                               run_id=str(getattr(self.execution, "pipeline_id", "") or ""),
+                               stage=stage_id, agent=agent_id, verdict=_verdict)
+                except Exception:
+                    pass
+                if not _verdict.get("ok"):
+                    _reason = "; ".join(c["detail"] for c in _verdict.get("checks", [])
+                                        if c.get("status") == "fail")
+                    print(f"    [READINESS] {agent_id}@{stage_id}: BLOCKED - {_reason}")
+                    self._emit_lifecycle("agent_blocked", stage=stage_id, agent=agent_id,
+                                         reason=_reason)
+                    self._emit_lifecycle("readiness_failed", stage=stage_id, agent=agent_id,
+                                         reason=_reason)
+                    try:
+                        add_issue(self.project, stage_id, agent_id, "readiness",
+                                  _reason, severity="high")
+                    except Exception:
+                        pass
+                    try:
+                        self._notify("agent_error", f"Agent {agent_id} not ready",
+                                     _reason, priority="high")
+                    except Exception:
+                        pass
+                    execution.status = "failed"
+                    execution.error = f"readiness: {_reason}"
+                    execution.completed_at = datetime.now().isoformat()
+                    self.circuit_breakers.record_failure(cb_name)
+                    self._append_agent_audit_md(agent_id, stage_id, "blocked")
+                    return execution
+                _warn = [c["detail"] for c in _verdict.get("checks", [])
+                         if c.get("status") == "warn"]
+                if _warn:
+                    print(f"    [READINESS] {agent_id}@{stage_id}: WARN - " + "; ".join(_warn))
+            except Exception as _re:
+                print(f"    [READINESS] check skipped: {_re}")
+
             # 8. Generate structured artifacts with token tracking
             self._audit_trail_log("agent_start", agent_id, stage_id)
             artifacts, agent_execution = self._generate_agent_artifacts(agent_id, stage_id, task)
@@ -151,6 +234,7 @@ class AgentExecutionMixin:
                 execution.error = agent_execution.error or "agent generation failed"
                 execution.completed_at = datetime.now().isoformat()
                 self.circuit_breakers.record_failure(cb_name)
+                self._append_agent_audit_md(agent_id, stage_id, "failed")
                 self.store_memory(
                     memory_type="failure",
                     content=f"Agent {agent_id} failed in stage {stage_id}: {execution.error}",
@@ -165,6 +249,7 @@ class AgentExecutionMixin:
                 execution.status = "needs_retry"
                 execution.error = agent_execution.error or "output truncated (incomplete artifact)"
                 execution.completed_at = datetime.now().isoformat()
+                self._append_agent_audit_md(agent_id, stage_id, "needs_retry")
                 self.store_memory(
                     memory_type="failure",
                     content=f"Agent {agent_id} needs_retry in stage {stage_id}: {execution.error}",

@@ -1,28 +1,89 @@
 # Backlog Summary
 
-> GENERATED 2026-09-23T10:59:41 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-09-27T17:52:32 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 113  |  **Closed:** 27
-- `completed`: 110
-- `parked`: 3
+- **Open:** 45  |  **Closed:** 187
+- `new`: 45
 
-### parked (3)
+### new, by category (45)
+**API / reports / HIL / misc** (2)
 | ID | MoSCoW | Type | Title |
 |---|---|---|---|
-| BI-0044 | Could | idea | Future: consolidate all stores (pipeline + dashboard) into a DB to enable RAG-based management |
-| BI-0055 | Could | enhancement | Pluggable API gateway/service mesh (review later) - parked |
-| BI-0084 | Should | idea | dedup smoke test |
+| BI-0216 | Should | feature | Backend: product one-stop read-model API (identity, lifecycle, progress, features, artifacts, quality, cost, BOM, links) |
+| BI-0229 | Should | feature | Verbose-gated logging + loops/tool-calls in the summary report |
 
-### new, by category (0)
+**Discovery / HIL / prompts** (5)
+| ID | MoSCoW | Type | Title |
+|---|---|---|---|
+| BI-0189 | Should | feature | Backend: capability-pack registry + config + discovery->enablement (the pluggable switch) |
+| BI-0199 | Should | feature | Backend: OpenTelemetry GenAI observability (spans incl. multimodal prompts/responses) |
+| BI-0218 | Should | feature | Backend: AI-era operations layer (evals + prompt/model/agent versioning + feedback loop + model-quality observability) |
+| BI-0228 | Should | feature | OSS role-prompt review + standardize agent role sections |
+| BI-PF-0232 | Must | feature | Intake: accept any file type (.md/.txt/.pdf/.docx/.doc/.rtf/images) + text extraction |
+
+**Knowledge / KB** (2)
+| ID | MoSCoW | Type | Title |
+|---|---|---|---|
+| BI-0187 | Should | feature | Backend: media ingest + segmentation/tiling + asset store |
+| BI-0208 | Should | feature | Backend: sensor/IoT capability pack + ingest adapters (MQTT/serial/BLE/Modbus/CAN) + time-series/anomaly models |
+
+**Licensing / tenancy** (2)
+| ID | MoSCoW | Type | Title |
+|---|---|---|---|
+| BI-0211 | Should | tech-debt | Backend: tool/SDK/vendor catalog with license metadata + bundle_allowed (feeds packaging & PR gate) |
+| BI-0217 | Should | feature | Backend: product BOM / footprint artifact at packaging (deps, licenses, sizes, model weights, runtime requirements) |
+
+**Specs / cache / context / artifacts** (6)
+| ID | MoSCoW | Type | Title |
+|---|---|---|---|
+| BI-0206 | Should | tech-debt | Backend: model downloader + local cache + license-acceptance gate + models.lock (open-weights) |
+| BI-0221 | Should | feature | Capability vector per agent (reasoning level, structured, vision, long_context, tools) |
+| BI-0223 | Should | feature | Reasoning on/off by role/stage/context |
+| BI-0224 | Should | feature | Structured-output-first + deterministic render for spec agents |
+| BI-0225 | Should | feature | Parallel section/feature generation |
+| BI-0226 | Should | feature | Context discipline: compact pack + current item (stop growth) |
+
+**Wiring / tech-debt / API** (28)
+| ID | MoSCoW | Type | Title |
+|---|---|---|---|
+| BI-0185 | Should | feature | EPIC: Multi-modal / media orchestration (pluggable capability packs) |
+| BI-0186 | Should | feature | Backend: multimodal LLM plumbing (attach image/audio/video parts in llm_client) |
+| BI-0188 | Should | feature | Backend: generator-model adapters (open-weights image/video/audio) |
+| BI-0190 | Should | feature | Backend: media agents (media-analyst / media-generator / media-editor / asset-librarian) |
+| BI-0191 | Should | feature | Backend: media QA validators (probe / loudness / perceptual-hash / A-V sync) |
+| BI-0192 | Should | feature | Backend: two-phase model selection - post-architect MODEL & CAPABILITY strategy gate |
+| BI-0193 | Should | feature | Backend: provider-kind abstraction + adapters/aggregators + kind-aware model router (all kinds) |
+| BI-0194 | Should | feature | Backend: per-unit cost model (per image/second/char/track/mesh) + costing at project creation/tier assignment |
+| BI-0195 | Should | feature | EPIC: Pluggable/modular core + industry-standards adoption (MCP, A2A, AG-UI, OTel) |
+| BI-0196 | Should | feature | Backend: adopt MCP - expose our tools as MCP servers + consume external MCP tools |
+| BI-0197 | Should | feature | Backend: adopt A2A - expose/consume agents over Agent2Agent for cross-system interop |
+| BI-0198 | Should | feature | Backend: AG-UI event stream - typed run/tool/message events for the dashboard |
+| BI-0200 | Should | feature | Backend: plugin/registry framework (ports+adapters for providers/tools/agents/stages/validators) |
+| BI-0201 | Should | tech-debt | Backend: decouple agent cards/loaders from .opencode (framework-agnostic) |
+| BI-0202 | Should | tech-debt | Backend: move bundled tools (drawio) out of .opencode to a neutral vendor location |
+| BI-0205 | Should | tech-debt | Process: PR workflow -- branch -> pre-check gates (syntax/audit/lint/tests/secrets) -> code review -> merge to develop/main + branch protection |
+| BI-0209 | Should | feature | Backend: OCR/document capability pack + doc-parse kind + OCR generators/adapters |
+| BI-0210 | Should | tech-debt | Backend: post-ideation capability & model-strategy gate (select modalities/kinds/models right after ideation) |
+| BI-0212 | Should | tech-debt | Backend: multi-modal end-to-end acceptance test (one golden path per modality) |
+| BI-0213 | Should | tech-debt | Backend: capability-gated pipeline composition - inject media/IoT stages (0f, 4m, media-QA) + agents into the existing 0..13b order per enabled pack |
+| BI-0214 | Should | feature | Backend: two-phase feasibility & capability triage - BUILD-HOST at ideation (now) + DESTINATION runtime at packaging (later); go/conditional/no-go + delivery mode |
+| BI-0215 | Should | feature | Backend: product registry + lifecycle state + metadata/links store (products/<p>/product.json) |
+| BI-0219 | Should | feature | Backend: output guardrails/moderation + model/data cards + provenance (C2PA) + governance mapping |
+| BI-0220 | Should | feature | EPIC: pipeline E2E reliability - events, readiness checklist, model registry/capability gate, lock/status fixes |
+| BI-0222 | Should | feature | Capability-aware request builder (apply capabilities per call) |
+| BI-0227 | Should | feature | Capability fallback + escalate-on-failure routing |
+| BI-0230 | Should | feature | Incremental section/feature artifact writes |
+| BI-PF-0231 | Must | change | Backlog destination-tagged ids (BI-<TAG>-<nnn>) |
+
 ---
 
 ## Dashboard (ProductForge-Dashboard) (`project:ProductForge-Dashboard`)
 
-- **Open:** 97  |  **Closed:** 1
-- `new`: 92
+- **Open:** 146  |  **Closed:** 3
+- `new`: 141
 - `parked`: 5
 
 ### parked (5)
@@ -34,8 +95,8 @@
 | BI-0014 | Could | feature | Deferred: ops / post-production console (stage 13 + incidents) |
 | BI-0022 | Could | enhancement | Deferred (designed): reply-by-email control actions (approve / answer / act) |
 
-### new, by category (92)
-**API / reports / HIL / misc** (12)
+### new, by category (141)
+**API / reports / HIL / misc** (18)
 | ID | MoSCoW | Type | Title |
 |---|---|---|---|
 | BI-0009 | Must | feature | API access endpoints |
@@ -50,8 +111,14 @@
 | BI-0076 | Should | feature | MVP: telemetry + metrics view (JSON telemetry + Prometheus /metrics scrape target) |
 | BI-0091 | Should | feature | AI-Integration recommendation view (+ optional implement toggle) |
 | BI-0096 | Must | feature | Project page: final report link + live PROJECT-STATUS (content/frequency) |
+| BI-0116 | Must | feature | Test results reporting |
+| BI-0124 | Must | feature | API surface for dashboard data |
+| BI-0125 | Must | feature | API reuse analysis & design |
+| BI-0129 | Should | feature | Traceability view + API over the id hub (keeps id-only data; consumes backend index) |
+| BI-0130 | Should | feature | Dashboard logs: dashboard/logs/dashboard.log + per-run streaming/API of agent logs |
+| BI-0135 | Should | feature | Tier-creation UI: show all model attributes + per-agent fit while creating/assigning; auto-create |
 
-**Discovery / HIL / prompts** (6)
+**Discovery / HIL / prompts** (7)
 | ID | MoSCoW | Type | Title |
 |---|---|---|---|
 | BI-0017 | Must | feature | MVP: intake follow-up + parked management + full intake lifecycle in the dashboard |
@@ -60,8 +127,9 @@
 | BI-0052 | Must | feature | UI: entitlement-aware navigation (locked features + upgrade prompts) |
 | BI-0073 | Must | feature | MVP: Ideas workspace - idea-only intake, review/follow-up, promote-to-project, consolidate multiple ideas |
 | BI-0090 | Should | feature | Agent Builder UI (create/add dynamic MAIN agent: capabilities, model, prompts, inputs, artifacts, deps) |
+| BI-0126 | Should | feature | Discovery review UI: id + question + recommendation + per-question text box (add/discard), scrollable dialog |
 
-**Dynamic pipeline / agents** (6)
+**Dynamic pipeline / agents** (7)
 | ID | MoSCoW | Type | Title |
 |---|---|---|---|
 | BI-0064 | Must | feature | MVP: project creation wizard E2E (idea, dir, tiers/per-agent models, git, localization, branding, target, budget, integrations, template, team) |
@@ -70,16 +138,18 @@
 | BI-0092 | Should | feature | Template gallery & selection UI (pipeline_templates) |
 | BI-0094 | Should | feature | Model-tier editor: new agents |
 | BI-0095 | Should | feature | Agent capability-binding view (per-agent prompt + knowledge/skills/MCP/domain/business bindings) |
+| BI-0102 | Must | feature | Interaction templates |
 
-**Knowledge / KB** (4)
+**Knowledge / KB** (5)
 | ID | MoSCoW | Type | Title |
 |---|---|---|---|
 | BI-0032 | Must | feature | MVP: onboard/analyze an EXISTING product (product analyzer + ingestion) |
 | BI-0040 | Must | feature | MVP: dashboard surfaces knowledge graph + agent memory as first-class views/management |
 | BI-0093 | Should | feature | Knowledge & Skills browser (incl. business-models pack + what was learned) |
 | BI-0098 | Should | feature | Tech-stack & knowledge catalog browser (staleness + refresh status + approve new entries) |
+| BI-0136 | Should | feature | Knowledge/skills registry UI: add/modify/view knowledge, skills, techstack, domain, MCP |
 
-**Licensing / tenancy** (9)
+**Licensing / tenancy** (10)
 | ID | MoSCoW | Type | Title |
 |---|---|---|---|
 | BI-0045 | Must | feature | MVP: Platform Operator console - tenants, licenses/keys, trials, tiers, pricing, provisioning |
@@ -91,6 +161,7 @@
 | BI-0053 | Must | feature | UI: seat + quota usage and limits |
 | BI-0054 | Must | feature | Operator UI: configure + monitor trials |
 | BI-0055 | Must | feature | Onboarding UI: activate license / provision tenant |
+| BI-0140 | Should | feature | Multi-modal: model & kind strategy view (chosen kind/provider/model, free/paid, license badge, override) |
 
 **Model fit** (1)
 | ID | MoSCoW | Type | Title |
@@ -103,7 +174,7 @@
 | BI-0087 | Should | feature | Business/Market/Monetization views (stages 0b-0e) |
 | BI-0088 | Should | feature | Operate/Grow/Engage views (stages 13-13b) |
 
-**Specs / cache / context / artifacts** (10)
+**Specs / cache / context / artifacts** (11)
 | ID | MoSCoW | Type | Title |
 |---|---|---|---|
 | BI-0019 | Must | feature | MVP: alerts + notifications - portfolio-wide, project-specific, and intake-related |
@@ -116,13 +187,13 @@
 | BI-0083 | Must | feature | Cache controls + hit/miss surfacing (clear cache, bypass/regenerate toggle, per-agent input-cache view) |
 | BI-0084 | Should | feature | Context Inspector: per-agent assembled context + per-phase handoff snapshot |
 | BI-0085 | Should | feature | Run view: concurrent/parallel agent execution + speedup indicator |
+| BI-0144 | Should | feature | Multi-modal: providers & models management (keys, allowlist, cost caps, model download cache) |
 
-**Wiring / tech-debt / API** (42)
+**Wiring / tech-debt / API** (80)
 | ID | MoSCoW | Type | Title |
 |---|---|---|---|
 | BI-0001 | Must | feature | Project creation workflow |
 | BI-0002 | Must | feature | Multi-project portfolio view |
-| BI-0003 | Must | feature | Agent orchestration controls |
 | BI-0004 | Must | feature | Model tier selection and customization |
 | BI-0005 | Must | feature | Pipeline monitoring and logging |
 | BI-0006 | Must | feature | AI chat companion |
@@ -162,9 +233,48 @@
 | BI-0078 | Must | feature | MVP: Reviews & Feedback tracking (project page + portfolio process-health widget + inline on artifact) |
 | BI-0082 | Must | feature | Review backend<->dashboard capability reciprocity (record a dashboard_impact decision; dashboard item only when needed) |
 | BI-0097 | Must | feature | Run view: implementation iterations (dynamic count + feature batch) + orchestrate controls |
+| BI-0099 | Must | feature | Stage/agent gating visibility |
+| BI-0100 | Could | feature | Cost/token analytics |
+| BI-0101 | Must | feature | Reusable component library |
+| BI-0103 | Must | feature | Notification & alert center |
+| BI-0104 | Must | feature | Theming |
+| BI-0105 | Must | feature | Responsive web layout |
+| BI-0106 | Could | feature | Keyboard shortcuts / command palette |
+| BI-0107 | Must | feature | Global AI chat companion |
+| BI-0108 | Must | feature | Chat-driven control & orchestration |
+| BI-0109 | Must | feature | Voice support — TTS/STT |
+| BI-0110 | Must | feature | Wake-word activation |
+| BI-0111 | Must | feature | Voice activation guard |
+| BI-0112 | Must | feature | Mobile app |
+| BI-0113 | Must | feature | Mobile monitoring & light control |
+| BI-0114 | Must | feature | Push notifications |
+| BI-0115 | Must | feature | Test framework integration |
+| BI-0117 | Must | feature | Issue tracking |
+| BI-0118 | Must | feature | Multi-type test coverage |
+| BI-0119 | Must | feature | UI for every pipeline feature/config |
+| BI-0120 | Could | feature | Config change history |
+| BI-0121 | Must | feature | Deployable from public sites |
+| BI-0122 | Must | feature | Combined or split deployment |
+| BI-0123 | Must | feature | Deployment configuration options |
+| BI-0127 | Should | feature | Analytics view consumes backend run-lifecycle events |
+| BI-0128 | Should | feature | Adopt external project UI (scan + import/reference + manage) |
+| BI-0132 | Should | feature | Agents window UI: edit agent card (instructions + per-agent MODEL via model browser); stop agent -> re-run with updated model (whole pipeline) |
+| BI-0133 | Should | feature | Backlog orchestration UI: triage/accept/execute/schedule/manage backlogs (both scopes) |
+| BI-0134 | Should | feature | Multi-modal I/O UI: upload/capture image/audio/video, preview/play generated media, manage assets |
+| BI-0137 | Should | feature | Dashboard: run a backlog item (scoped amend run) + surface the quality gate (block on failure) |
+| BI-0138 | Should | feature | EPIC: multi-modal support surfaces (packs, model/kind selection, assets, media QA, cost, providers) |
+| BI-0139 | Should | feature | Multi-modal: capability packs view (detected modalities, enable/disable, pack contents) |
+| BI-0141 | Should | feature | Multi-modal: asset library + media preview (image/video/audio/3D viewers, transcripts, provenance) |
+| BI-0142 | Should | feature | Multi-modal: media QA results view (probe/loudness/phash/A-V sync, per-artifact pass/fail) |
+| BI-0143 | Should | feature | Multi-modal: per-unit cost view (per image/second/char/track/mesh; budget vs actual) |
+| BI-0145 | Should | feature | Multi-modal: dashboard e2e (visual) - packs/models/assets/QA/cost for a media project |
+| BI-0146 | Should | feature | Multi-modal: feasibility triage view - build-host feasibility (ideation) + destination runtime & shipping mode (post-build) |
+| BI-0147 | Must | feature | EPIC: Product one-stop page (Project Management + Product modes) - per-product dynamic page |
+| BI-0148 | Must | feature | Product page: Project Management tab (progress %, features+status, artifacts, quality summary, blockers, cost, activity) |
+| BI-0149 | Must | feature | Product page: Product tab (details, launch, docs/guides, install/deploy, BOM/footprint, links, releases, maintenance) |
 
 ---
 
 ## Totals
-- backend: 113 open / 27 closed
-- dashboard: 97 open / 1 closed
+- backend: 45 open / 187 closed
+- dashboard: 146 open / 3 closed

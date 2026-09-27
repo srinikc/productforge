@@ -151,11 +151,12 @@ def add_item(products_dir: str, *, intent: str, source: str = "manual",
              title: str = "", body: str = "", target_project: str = "",
              target_kind: str = "", conversation_id: str = "",
              idea_ids: Optional[List[str]] = None,
-             scope: str = "") -> Dict:
+             scope: str = "", attachments: Optional[List[Dict]] = None) -> Dict:
     """Record one intake entry in its channel and return it (with IN-id)."""
     channel = channel_for(intent, target_project, target_kind)
     iid = _next_id(products_dir)
     d = channel_dir(products_dir, channel, target_project)
+    files = [str(a.get("path")) for a in (attachments or []) if a and a.get("path")]
     item = {
         "id": iid, "channel": channel, "source": _norm_source(source),
         "intent": intent, "title": title or "", "body": body or "",
@@ -163,9 +164,10 @@ def add_item(products_dir: str, *, intent: str, source: str = "manual",
         "scope": scope or "",                       # research|explore|prototype|build|entire
         "conversation_id": conversation_id,
         "idea_ids": idea_ids or [],
+        "attachments": [a for a in (attachments or []) if isinstance(a, dict)],
         "status": "received", "backlog_ref": "",
         "created_at": datetime.now().isoformat(), "updated_at": datetime.now().isoformat(),
-        "links": {},
+        "links": {"files": files} if files else {},
     }
     # append to items.jsonl
     with open(os.path.join(d, "items.jsonl"), "a", encoding="utf-8") as f:
@@ -176,7 +178,7 @@ def add_item(products_dir: str, *, intent: str, source: str = "manual",
     idx.setdefault("items", {})[iid] = {
         "source": item["source"], "intent": intent, "status": "received",
         "target_project": target_project, "backlog_ref": "", "scope": item["scope"],
-        "created_at": item["created_at"],
+        "created_at": item["created_at"], "files": files,
     }
     idx["updated_at"] = item["updated_at"]
     _wj(ip, idx)

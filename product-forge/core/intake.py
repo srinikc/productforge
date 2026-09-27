@@ -5,6 +5,10 @@ Flow (one path only):
                     -> core.intent_router (existing engine)
                     -> core.backlog_link.promote_conversation -> BacklogItem (origin=intake)
 
+Any file (.md/.txt/.pdf/.docx/.doc/.rtf/images) enters via `core.intake_files`, which
+stores the original under `products/intake/_files/<source>/`, extracts text, then calls
+`ingest(..., attachments=[...])` here; the stored paths land on the item (`links.files`).
+
 Raw payloads are archived under `products/inbox/<source>/` for audit.
 """
 try:
@@ -23,7 +27,7 @@ except ImportError:  # executed as a script: seed the repo root on sys.path, the
 import json
 import os
 from datetime import datetime
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 
 from core import intake_adapters as _adapters
 
@@ -55,8 +59,13 @@ def normalize(source: str, payload: Dict) -> Dict:
 
 
 def ingest(source: str, payload: Dict, scope: Optional[str] = None,
-           project: Optional[str] = None) -> Dict:
+           project: Optional[str] = None,
+           attachments: Optional[List[Dict]] = None) -> Dict:
     """Archive + normalize an incoming item and run it through the intake engine.
+
+    ``attachments`` is a list of stored-file descriptors (``{path, name, ext,
+    method, note}``) from ``core.intake_files``; they are linked on the promoted
+    backlog item (``links.files``).
 
     Returns the resulting backlog item (with provenance), or an error dict.
     """
@@ -113,7 +122,8 @@ def ingest(source: str, payload: Dict, scope: Optional[str] = None,
                 target_project=conv_payload.get("target_project_name") or "",
                 target_kind=str(payload.get("target_kind") or ""),
                 conversation_id=conv.id,
-                scope=str(payload.get("scope") or ""))
+                scope=str(payload.get("scope") or ""),
+                attachments=attachments or [])
         except Exception:
             intake_item = None
 
@@ -123,6 +133,8 @@ def ingest(source: str, payload: Dict, scope: Optional[str] = None,
             from core import backlog
             found = _find(item, fields)
             if found:
+                _link_attachments(fields, found["id"], attachments)
+                found = _find(item, fields) or found
                 found["raw"] = raw_path
                 found["adapter"] = source
                 if intake_item:
@@ -150,6 +162,7 @@ def ingest(source: str, payload: Dict, scope: Optional[str] = None,
                                   value=fields["value"], effort=fields["effort"],
                                   risk=fields["risk"], moscow=fields["moscow"],
                                   links={"raw": raw_path})
+            _link_attachments({"scope": scope_f, "project": proj or ""}, it["id"], attachments)
             # BI-0183: change/new items (not planned features) get a functional spec.
             try:
                 from core import change_spec
@@ -159,6 +172,20 @@ def ingest(source: str, payload: Dict, scope: Optional[str] = None,
             return it
         except Exception as e2:
             return {"error": f"intake failed: {e} / {e2}", "raw": raw_path}
+
+
+def _link_attachments(fields: Dict, eid: str, attachments: Optional[List[Dict]]) -> None:
+    """Attach stored intake-file paths to the promoted backlog item (best-effort)."""
+    paths = [str(a.get("path")) for a in (attachments or []) if a and a.get("path")]
+    if not paths or not eid:
+        return
+    try:
+        from core import backlog
+        scope = "product_forge" if fields.get("scope") == "product_forge" else "project"
+        proj = fields.get("project") if scope == "project" else None
+        backlog.link(scope, proj, eid, files=paths)
+    except Exception:
+        pass
 
 
 def _find(item: Dict, fields: Dict) -> Optional[Dict]:

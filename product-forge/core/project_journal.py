@@ -42,7 +42,7 @@ def _compact_text(text: str, max_chars: int = 0) -> str:
     lines = text.splitlines()
     keep_head = re.compile(r"^#{1,6}\s")
     keep_bullet = re.compile(r"^\s*[-*+]\s")
-    keep_id = re.compile(r"\b(FR|NFR|US|F|KF|M|N|G|ADR|CMP|DM|AC|BR|EC|API|T|V|OQ|IN|BI)-?\d+\b")
+    keep_id = re.compile(r"\b(FR|NFR|US|F|KF|M|N|G|ADR|CMP|DM|AC|BR|EC|API|T|V|OQ|IN|BI)(?:-[A-Za-z0-9]+)?-?\d+\b")
     struct = [ln for ln in lines if keep_head.match(ln) or keep_bullet.match(ln) or keep_id.search(ln)]
     out = "\n".join(struct) if struct else text
     if max_chars and len(out) > max_chars:

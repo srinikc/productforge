@@ -35,6 +35,60 @@
     "product-design-spec": "sectioned",
     "document": "auto"
   },
+  "brief_check": {
+    "_doc": "Brief sufficiency policy (owner core/brief_check.py). mode=llm validates every brief with a model (generic language judgement, no word list); on_unclear=ask|block|assume is the caller behaviour when the brief is judged unclear and no clarification arrives.",
+    "mode": "llm",
+    "on_unclear": "ask"
+  },
+  "readiness": {
+    "_doc": "PRE-execution readiness per agent (owner: core/agent_readiness.py). Key is '<agent>' or '<agent>@<stage>'. required_inputs = substrings that MUST appear in the collected upstream context keys (missing => FAIL/BLOCK + event). min_context_chars = warn if context thinner. require_model = fail if no model assigned. require_provider_key = warn if provider key missing.",
+    "default": {
+      "required_inputs": [],
+      "min_context_chars": 0,
+      "require_model": true,
+      "require_provider_key": true
+    },
+    "discovery@0a": {
+      "min_context_chars": 200
+    },
+    "product-owner@0b": {
+      "min_context_chars": 300
+    },
+    "researcher@0c": {
+      "min_context_chars": 200
+    },
+    "design@1": {
+      "min_context_chars": 500
+    },
+    "architect@2": {
+      "min_context_chars": 500
+    }
+  },
+  "capabilities": {
+    "_doc": "Per-agent MODEL capability needs for the Model Capability Gate (core/model_gate.py). needs_tools/needs_reasoning = model MUST support it; min_output/min_context = model limits. Used to flag/recommend, never auto-apply.",
+    "default": {
+      "needs_tools": false,
+      "needs_reasoning": false,
+      "needs_structured": false,
+      "min_output": 2000,
+      "min_context": 0
+    },
+    "ideation": { "min_output": 4000 },
+    "discovery": { "min_output": 8000 },
+    "design": { "min_output": 16000, "min_context": 32000 },
+    "architect": { "min_output": 10000, "min_context": 32000 },
+    "product-design-spec": { "min_output": 8000 },
+    "ux-ia": { "min_output": 8000 },
+    "implement": { "needs_tools": true, "min_output": 16000 },
+    "implement-ui": { "needs_tools": true },
+    "fix": { "needs_tools": true },
+    "devops": { "needs_tools": true },
+    "validate": { "needs_tools": true },
+    "code-review": { "min_output": 8000 },
+    "product-owner": { "min_output": 6000 },
+    "researcher": { "min_output": 6000 },
+    "document": { "min_output": 8000 }
+  },
   "required_sections": {
     "architect": {
       "essential": {

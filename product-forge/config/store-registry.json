@@ -85,6 +85,55 @@
       "concern": "product identity, lifecycle, owner, links, versions (BI-0215)",
       "visibility": "shared"
     },
+    "readiness.json": {
+      "owner": "core/agent_readiness.py",
+      "kind": "derived",
+      "scope": "project",
+      "concern": "per-agent PRE-execution readiness verdicts (required inputs, context size, model assigned, provider key) with reasons - surfaced via API/events/alarms",
+      "visibility": "shared"
+    },
+    "model-gate.json": {
+      "owner": "core/model_gate.py",
+      "kind": "derived",
+      "scope": "project",
+      "concern": "per-agent model capability-fit verdicts (OK/UNKNOWN/INCOMPATIBLE) + recommended substitutes + catalog last_refreshed",
+      "visibility": "shared"
+    },
+    "run-plan.json": {
+      "owner": "core/run_plan.py",
+      "kind": "derived",
+      "scope": "project",
+      "concern": "idea-based dynamic run plan: product kind + which OPTIONAL stages to include/skip + rationale (overridable via project.json run_plan)",
+      "visibility": "shared"
+    },
+    "plan-review.json": {
+      "owner": "core/plan_evaluator.py",
+      "kind": "derived",
+      "scope": "project",
+      "concern": "human-readable review of optional-capability groups (descriptions + recommendations + evidence) presented before applying the run plan",
+      "visibility": "shared"
+    },
+    "call-ledger.jsonl": {
+      "owner": "core/call_ledger.py",
+      "kind": "derived",
+      "scope": "project",
+      "concern": "per-LLM-call and per-tool-call payload accounting (prompt/output/reasoning tokens, tool arg/result size, duration) + per-agent/run totals",
+      "visibility": "shared"
+    },
+    "work-estimate.json": {
+      "owner": "core/work_estimate.py",
+      "kind": "derived",
+      "scope": "project",
+      "concern": "per-agent predicted call shape (llm min/typical/max, tool calls, est minutes) from strategy + plan + call-ledger history",
+      "visibility": "shared"
+    },
+    "run-status.json": {
+      "owner": "core/run_status.py",
+      "kind": "derived",
+      "scope": "project",
+      "concern": "single-writer run/stage/agent status derived from lifecycle events (current stage/phase/agents)",
+      "visibility": "shared"
+    },
     "provider-keys.json": {
       "owner": "core/credentials.py",
       "kind": "provider-registry",
@@ -300,6 +349,20 @@
       "kind": "config",
       "scope": "global",
       "concern": "agent capability matrix",
+      "visibility": "shared"
+    },
+    "plan-groups.json": {
+      "owner": "core/plan_evaluator.py",
+      "kind": "config",
+      "scope": "global",
+      "concern": "optional-capability groups for the post-discovery run planner",
+      "visibility": "shared"
+    },
+    "alerts.json": {
+      "owner": "core/alerts.py",
+      "kind": "config",
+      "scope": "global",
+      "concern": "alert delivery config (email opt-in; password is an ENV VAR NAME) + clarify timeout",
       "visibility": "shared"
     },
     "pipeline-definition.json": {
@@ -1091,6 +1154,13 @@
       "kind": "intake-raw",
       "scope": "product_forge|project",
       "concern": "append-only intake entries per channel (IN-#### + source)",
+      "visibility": "shared"
+    },
+    "intake-files/<name>": {
+      "owner": "core/intake_files.py",
+      "kind": "intake-raw",
+      "scope": "product_forge|project",
+      "concern": "stored original intake files (any type: md/txt/pdf/doc/docx/rtf/images) under products/intake/_files/<source>/ + best-effort extracted text",
       "visibility": "shared"
     },
     "queue.html": {

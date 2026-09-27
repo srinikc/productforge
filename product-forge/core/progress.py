@@ -147,6 +147,7 @@ def snapshot(project_dir: str) -> Dict:
 
     si = ORDER.index(sid) + 1 if sid in ORDER else 0
     ai = (agents.index(agent) + 1) if agent in agents else 1
+    _skipped_count = sum(1 for s in ORDER if _stage_status(state, s) == "skipped")
 
     total_agents = sum(len(stage_agents(defn, s)) for s in ORDER)
     done_agents = 0
@@ -172,6 +173,8 @@ def snapshot(project_dir: str) -> Dict:
         "stage_name": stage_name(defn, sid),
         "stage_index": si,
         "stage_total": len(ORDER),
+        "stages_skipped": _skipped_count,
+        "stages_run_total": max(0, len(ORDER) - _skipped_count),
         "agent": agent,
         "agent_index": ai,
         "agent_total_stage": len(agents),
@@ -198,7 +201,8 @@ def render(s: Dict, event: str = "") -> str:
     lines = [
         "=" * 76,
         f" {head} | {s['project']}",
-        f" Phase {s['phase']}   |   Stage {s['stage_index']}/{s['stage_total']} "
+        f" Phase {s['phase']}   |   Stage {s['stage_index']}/{s.get('stages_run_total', s['stage_total'])}"
+        f" (+{s.get('stages_skipped', 0)} skipped) "
         f"({s['stage_id']} {s['stage_name']})   |   "
         f"Agent {s['agent_index']}/{s['agent_total_stage']} ({s['agent']})"
         f"  ~ overall agent {s['agent_index_global']}/{s['agent_total_global']}",

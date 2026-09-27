@@ -22,6 +22,7 @@ except ImportError:  # executed as a script: seed the repo root on sys.path, the
 
 import os
 import re
+import time
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -39,6 +40,29 @@ _REASONING_MARKERS = (
     "need honor brief", "need parse", "let me think", "chain of thought",
     "thinking process:", "we should produce", "we need to produce",
 )
+
+
+def _builder_sig() -> str:
+    """Cheap signature of the prompt-building code + section config. Folded into the
+    input-cache fingerprint so ANY instruction/knowledge change invalidates cached
+    prompts (otherwise a prompt fix can be silently ignored)."""
+    import hashlib
+    here = os.path.abspath(__file__)
+    try:
+        from core.paths import ROOT as _ROOT
+        req = os.path.join(str(_ROOT), "config", "agent-requirements.json")
+    except Exception:
+        req = ""
+    parts = []
+    for p in (os.path.join(os.path.dirname(here), "prompt_builder.py"), here, req):
+        if not p:
+            continue
+        try:
+            st = os.stat(p)
+            parts.append(f"{os.path.basename(p)}:{int(st.st_mtime)}:{st.st_size}")
+        except Exception:
+            pass
+    return hashlib.sha256("|".join(parts).encode("utf-8")).hexdigest()[:16]
 
 
 def _unusable_artifact_reason(content) -> str:
@@ -120,7 +144,9 @@ class AgentRunnerMixin:
             return run_native_tool_loop(chat_fn, self.tool_registry, spec, self.project_dir,
                                         seed_messages,
                                         max_iters=max_iters,
-                                        stop_check=lambda: acc["total_tokens"] >= tool_token_cap,
+                                        stop_check=lambda: (acc["total_tokens"] >= tool_token_cap
+                                                            or bool(getattr(self, "_agent_deadline", 0)
+                                                                    and time.time() > getattr(self, "_agent_deadline", 0))),
                                         require_write_first=(agent_id.startswith("implement")
                                                              or agent_id in ("devops", "fix")))
 
@@ -207,6 +233,11 @@ class AgentRunnerMixin:
                    "requested": list(getattr(self, "requested_tech_stack", []) or [])}
         except Exception:
             cfg = {}
+        try:
+            # Invalidate cached prompts when prompt builders / section config change.
+            cfg["builders"] = _builder_sig()
+        except Exception:
+            pass
         return fingerprint_inputs(upstream_digests=upstream, feedback=task or "",
                                   notes="", conditions="",
                                   section_id=f"{stage_id}/{agent_id}", config=cfg)
@@ -232,6 +263,15 @@ class AgentRunnerMixin:
             Tuple of (artifact_files_list, agent_execution_with_token_info)
         """
         artifacts = []
+        
+        # Per-attempt AGENT budget: a shared deadline across ALL of this agent's LLM
+        # calls/retries/continuations (honored in llm_client), so one agent cannot
+        # monopolize the stage. 0 = unlimited.
+        try:
+            _base = int(os.getenv("PIPELINE_AGENT_BUDGET_SECONDS", "900") or "900")
+            self._agent_deadline = (time.time() + _base) if _base > 0 else 0.0
+        except Exception:
+            self._agent_deadline = 0.0
         
         from core import stage_paths as _sp
         stage_dir = _sp.stage_dir(self.project_dir, stage_id, create=True)
@@ -397,6 +437,12 @@ class AgentRunnerMixin:
                 f.write(formatted_content)
             
             artifacts.append(artifact_file)
+            # A good artifact supersedes the debug .partial from a prior retry.
+            try:
+                if os.path.exists(artifact_file + ".partial"):
+                    os.remove(artifact_file + ".partial")
+            except Exception:
+                pass
 
             # Per-feature agents (design / product-design-spec): ADDITIONALLY emit
             # one file per feature F-<n> plus an index, next to the merged artifact.
@@ -1186,7 +1232,8 @@ Execute this task and produce the required output.""")
         instruction += self._scope_guard()
         try:
             from core.orchestrator.prompt_builder import (conciseness_guard, infra_awareness_guard,
-                                                           research_guard)
+                                                           research_guard, no_invention_guard)
+            instruction += no_invention_guard(agent_id)
             instruction += conciseness_guard(agent_id)
             instruction += infra_awareness_guard(agent_id)
             instruction += research_guard(agent_id)
@@ -1455,8 +1502,19 @@ Write the output to: {artifact_file}"""
             cached = cache.get(tool, args)
             if cached is not None:
                 return cached
+        _tt = time.time()
         res = self.tool_registry.execute(tool, args, self.project_dir)
         result = self._compress_tool_result(tool, res.to_dict())
+        try:
+            from core import call_ledger as _cl
+            _cl.append(getattr(self, "project_dir", ""), {
+                "kind": "tool", "agent": agent_id, "tool": tool,
+                "run_id": str(getattr(getattr(self, "execution", None), "pipeline_id", "") or ""),
+                "args_chars": len(str(args or {})), "result_chars": len(str(result or {})),
+                "ok": bool(isinstance(result, dict) and result.get("ok", True)),
+                "duration_ms": int((time.time() - _tt) * 1000)})
+        except Exception:
+            pass
         if cache is not None:
             if tool in ("write_file", "delete_file", "move_file"):
                 cache.invalidate()
