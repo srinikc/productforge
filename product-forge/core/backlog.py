@@ -1077,6 +1077,49 @@ def print_reciprocity_warnings(scope: str = "", project: Optional[str] = None) -
     return len(warns)
 
 
+def verify(scope: str, project: Optional[str] = None) -> Dict:
+    """Cross-store integrity check (BU-C02/BZ-C02): items/ truth vs derived indexes.
+
+    Reads the truth (``items/<ID>.json``) and the derived ``open.json``/``closed.json`` lean
+    indexes and reports drift: an index row with no item (``missing_item``), a status that
+    disagrees with the item (``status_mismatch``), or an item absent from both indexes
+    (``unindexed_item``). A legacy (not-yet-migrated) scope is treated as OK.
+    """
+    d, of, cf, _h, _c = _paths(scope, project)
+    idir = _items_dir(d)
+    ids: Dict[str, str] = {}
+    try:
+        for fn in (os.listdir(idir) if os.path.isdir(idir) else []):
+            if not fn.endswith(".json"):
+                continue
+            it = _rj(os.path.join(idir, fn), None)
+            if isinstance(it, dict) and it.get("id"):
+                ids[str(it["id"])] = _normalize_status(it.get("status", "new"))
+    except Exception:
+        pass
+    drift: List[Dict] = []
+    indexed = set()
+    for path in (of, cf):
+        rows = _rj(path, [])
+        rows = rows.get("items") if isinstance(rows, dict) else rows
+        for r in (rows or []):
+            if not isinstance(r, dict) or not r.get("id"):
+                continue
+            rid = str(r["id"])
+            indexed.add(rid)
+            if rid not in ids:
+                drift.append({"kind": "missing_item", "id": rid})
+                continue
+            st = _normalize_status(r.get("status") or "")
+            if st != ids[rid]:
+                drift.append({"kind": "status_mismatch", "id": rid, "index": st, "item": ids[rid]})
+    for rid in ids:
+        if rid not in indexed:
+            drift.append({"kind": "unindexed_item", "id": rid})
+    return {"ok": (not ids) or (not drift), "scope": scope,
+            "counts": {"items": len(ids), "indexed": len(indexed)}, "drift": drift}
+
+
 def _cli(argv=None) -> int:
     """Dedup-before-add guard CLI: ``python -m core.backlog --similar "<text>"`` etc."""
     import argparse

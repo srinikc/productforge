@@ -373,6 +373,33 @@ def backlog_duplicate_audit():
     return 0
 
 
+def backlog_integrity_audit():
+    """Advisory (NON-FATAL): backlog items/ truth vs derived open/closed indexes must agree.
+
+    Surfaces ``core.backlog.verify()`` per scope (BU-C02/BZ-C02). Drift means a write was
+    interrupted or an index was hand-edited - a data-integrity smell. Advisory: returns 0.
+    """
+    try:
+        if os.getcwd() not in sys.path:
+            sys.path.insert(0, os.getcwd())
+        from core import backlog as _bl
+        drift = 0
+        checked = 0
+        for scope, project in _bl._all_scopes():
+            r = _bl.verify(scope, project)
+            checked += 1
+            if not r.get("ok"):
+                drift += 1
+                print(f"  backlog-integrity: {scope}/{project or ''} "
+                      f"items={r['counts']['items']} indexed={r['counts']['indexed']} "
+                      f"drift={r['drift'][:3]}")
+        print(f"\nbacklog-integrity: {'OK' if not drift else str(drift) + ' scope(s) with drift'} "
+              f"({checked} scope(s) checked) [advisory]")
+    except Exception as e:
+        print(f"\nbacklog-integrity: SKIPPED (advisory) - {e}")
+    return 0
+
+
 def tier_model_audit():
     """Advisory (NON-FATAL): kctier/model-tier drift vs the model registry.
 
@@ -616,6 +643,7 @@ def main():
     rc |= invocation_audit()
     rc |= reciprocity_audit()
     rc |= backlog_duplicate_audit()
+    rc |= backlog_integrity_audit()
     rc |= tier_model_audit()
     rc |= cost_registry_audit()
     rc |= agent_knowledge_audit()
