@@ -1,4 +1,5 @@
-import os, tempfile
+import os, sys, tempfile
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from core.code_quality_gate import gate_agent_output
 from core.verification_runner import run_verification
 
@@ -24,3 +25,12 @@ open(os.path.join(pydir, "test_ok.py"), "w").write("def test_ok():\n    assert T
 v = run_verification(pydir)
 print("verify python  -> ran=%s detected=%s passed=%s cmds=%s" % (
     v["ran"], v["detected"], v["passed"], [r["cmd"] for r in v["results"]]))
+
+# PF-172: a diagnostic script must FAIL NONZERO when the gates misbehave.
+import sys as _sys
+try:
+    _ok = (g1.get("passed") is False) and (g2.get("passed") is True) and (v.get("passed") is True)
+except Exception:
+    _ok = False
+print("RESULT:", "OK" if _ok else "FAILED")
+_sys.exit(0 if _ok else 1)

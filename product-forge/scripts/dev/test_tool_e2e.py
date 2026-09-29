@@ -1,4 +1,5 @@
-import os
+import os, sys
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from core.pipeline_executor import PipelineExecutor
 
 PROJ = "tooltest"
@@ -31,6 +32,14 @@ for p in ["src/hello.py", "tests/test_hello.py"]:
 
 from core.code_quality_gate import gate_agent_output
 from core.verification_runner import run_verification
-print("\ngate:", gate_agent_output("implement", [], os.path.join("products", PROJ)))
+_g = gate_agent_output("implement", [], os.path.join("products", PROJ))
+print("\ngate:", _g)
 v = run_verification(os.path.join("products", PROJ))
 print("verify: ran=%s detected=%s passed=%s" % (v["ran"], v["detected"], v["passed"]))
+
+# PF-195: fail nonzero if the e2e produced no files or failed the gate/verify.
+import sys as _sys
+_ok = (all(os.path.exists(os.path.join("products", PROJ, p)) for p in ["src/hello.py", "tests/test_hello.py"])
+       and bool(_g.get("passed")) and bool(v.get("passed")))
+print("RESULT:", "OK" if _ok else "FAILED")
+_sys.exit(0 if _ok else 1)
