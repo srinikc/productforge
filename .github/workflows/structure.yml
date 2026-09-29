@@ -31,6 +31,23 @@ jobs:
       - name: Backlog chain E2E
         run: python scripts/dev/e2e_backlog_check.py
 
+      - name: Generated docs are fresh (BI-PF-0258)
+        run: |
+          export PYTHONPATH=.
+          python scripts/dev/gen_docs_index.py
+          python scripts/dev/gen_backlog_summary.py
+          ok=1
+          for f in docs/documentation-index.html docs/README.md docs/BACKLOG-SUMMARY.md; do
+            git show HEAD:"$f" 2>/dev/null | grep -vE 'Generated |GENERATED ' > /tmp/head.txt || true
+            grep -vE 'Generated |GENERATED ' "$f" > /tmp/work.txt || true
+            if ! diff -q /tmp/head.txt /tmp/work.txt >/dev/null; then
+              echo "STALE generated doc: $f (run gen_docs_index.py + gen_backlog_summary.py and commit)"
+              ok=0
+            fi
+          done
+          [ "$ok" = 1 ] || exit 1
+          echo "generated docs are fresh"
+
       - name: Pipeline + M0 acceptance tests (REQUIRED)
         run: python -m pytest test-framework/tests/pipeline -q -o addopts=""
 
