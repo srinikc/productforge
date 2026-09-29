@@ -105,6 +105,30 @@ def update(project_dir: str, event_type: str, *, run_id: str = "", stage: str = 
     return d
 
 
+def rebuild(project_dir: str) -> Dict:
+    """Event-sourcing read model (Section D P3): rebuild run-status STRICTLY from the
+    canonical event stream. State is a pure projection - the stream is the source of truth."""
+    import os as _os
+    for _f in ("run-status.json", "PROJECT-STATUS.md"):
+        try:
+            _os.remove(_os.path.join(project_dir, _f))
+        except Exception:
+            pass
+    try:
+        from core import events as _ev
+        evs = _ev.read(project_dir)
+    except Exception:
+        evs = []
+    for e in evs:
+        t = str(e.get("type") or e.get("kind") or "")
+        if not t:
+            continue
+        update(project_dir, t, run_id=str(e.get("run_id") or ""),
+               stage=str(e.get("stage") or ""), agent=str(e.get("agent") or ""),
+               status=str(e.get("status") or ""))
+    return load(project_dir)
+
+
 def summary(project_dir: str) -> Dict:
     d = load(project_dir)
     stages = d.get("stages") or {}

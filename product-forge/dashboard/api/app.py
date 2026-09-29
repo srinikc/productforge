@@ -672,6 +672,30 @@ def issues_action(iid: str, action: str, body: Dict[str, Any]):
     raise HTTPException(400, f"unknown action: {action}")
 
 
+# ── SLIs / trace / OTel (Section D P4-P6, BI-PF-0244) ────────────────────────
+@app.get("/api/v1/sli", dependencies=[Depends(auth)])
+def sli_get(project: str = Query(...)):
+    from core import sli
+    return sli.summary(str(PRODUCTS / project))
+
+
+@app.get("/api/v1/trace", dependencies=[Depends(auth)])
+def trace_get(project: str = Query(...), trace_id: str = Query(...)):
+    """All events for one trace (trace_id = run_id), in order."""
+    from core import events
+    evs = [e for e in events.read(str(PRODUCTS / project))
+           if str(e.get("trace_id") or e.get("run_id") or "") == trace_id]
+    return {"project": project, "trace_id": trace_id, "count": len(evs), "spans": evs}
+
+
+@app.post("/api/v1/otel/export", dependencies=[Depends(auth)])
+def otel_export(project: str = Query(...)):
+    from core import otel
+    return {"project": project, "enabled": otel.enabled(),
+            "path": otel.export(str(PRODUCTS / project))}
+
+
+
 @app.post("/api/v1/model-fit/run", dependencies=[Depends(auth)])
 def model_fit_run_endpoint(body: Dict[str, Any]):
     """Run the fit for a project using its resolved tier (probe each model)."""
