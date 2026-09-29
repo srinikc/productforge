@@ -58,6 +58,7 @@ TOP = {
     "PROVIDER-FALLBACK.md": ("Implemented", "Provider fallback policy: Zen free unusable; opencode-go/kctier (BI-PF-0247)", 100),
     "PR-WORKFLOW.md": ("Implemented", "Branch -> pre-check gates -> review -> merge (BI-0205)", 100),
     "BOM-DESIGN.md": ("Design", "Product BOM/footprint at packaging design (BI-0217)", 100),
+    "RCCA-CLOSURE-INTEGRITY-DESIGN.md": ("Design", "RCCA closure integrity: guideline truth + G8 + learning loop (BI-PF-0270)", 100),
     "Product_Forge_Audit_Organized_Executive_Master_With_Execution_Guardrails_20260929.md": ("Analysis (reference)", "Organized audit master (source register)", 100),
     "ENGINEERING_OPERATING_STANDARD.md": ("SSOT", "Binding engineering standard: how we think/design/build/verify (+DoD)", 100),
     "Agent_llm_process.md": ("Review (pending)", "Agent<->LLM process analysis + recommendations", 0),

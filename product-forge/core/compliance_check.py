@@ -94,6 +94,27 @@ def _check_agent_output(project_dir: Path, agent: str,
             "evidence": [str(p.name)]}
 
 
+def _check_failure_modes(project_dir: Path, agent: str) -> Dict[str, Any]:
+    """G8: an output that claims a design/plan must state non-happy paths ("what must NOT
+    happen" / failure modes / error handling). Fail-closed: absence => UNKNOWN (not PASS)."""
+    p = _agent_output_artifact(project_dir, agent)
+    if p is None:
+        return {"status": CheckStatus.UNKNOWN.value,
+                "details": f"{agent}: no artifact to inspect for failure modes", "evidence": []}
+    try:
+        text = p.read_text(encoding="utf-8", errors="ignore").lower()
+    except Exception:
+        return {"status": CheckStatus.UNKNOWN.value,
+                "details": f"{agent}: artifact unreadable", "evidence": [str(p.name)]}
+    markers = ("must not", "must-not", "failure mode", "failure-mode", "non-happy",
+               "error handling", "edge case", "fail closed", "fail-closed", "reject",
+               "what could go wrong", "risk", "blocked")
+    hit = any(m in text for m in markers)
+    return {"status": CheckStatus.PASS.value if hit else CheckStatus.UNKNOWN.value,
+            "details": f"{agent}: non-happy-path coverage {'present' if hit else 'not stated'}",
+            "evidence": [str(p.name)]}
+
+
 def derived_checklist(agent: str) -> Dict:
     """A deterministic checklist for ANY agent from its required output sections.
 
@@ -121,6 +142,14 @@ def derived_checklist(agent: str) -> Dict:
             "severity": "high",
             "check": (lambda pd, a=agent, kws=kw: _check_agent_output(pd, a, kws)),
         })
+    # G8 (design non-happy-paths first): a design/plan must state failure modes. Advisory
+    # (medium severity) so it surfaces without blocking, and fail-closed to UNKNOWN (never PASS).
+    items.append({
+        "id": "failure-modes", "name": "Non-happy-path / failure-mode coverage (G8)",
+        "description": f"{agent} output should state what must NOT happen / failure modes",
+        "severity": "medium",
+        "check": (lambda pd, a=agent: _check_failure_modes(pd, a)),
+    })
     return {"derived": {"description": f"Derived checks for '{agent}'",
                         "items": items}}
 

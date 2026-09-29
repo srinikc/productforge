@@ -207,9 +207,16 @@ def raise_issue(scope: str, project: Optional[str], title: str, *, body: str = "
         _write_indexes(d, op, cl)
         _wj(ctr, counters)
         _hist(d, item, "created")
-        return item
     finally:
         _unlock(lp)
+    # 1:1 reciprocal mapping: keep raise_issue(backlog_ref=...) consistent with link_backlog
+    # so the fail-closed close gate (backlog.links.issue) actually engages.
+    if backlog_ref:
+        try:
+            return link_backlog(scope, project, iid, backlog_ref) or item
+        except Exception:
+            pass
+    return item
 
 
 def ingest_defects(scope: str, project: str) -> List[Dict]:
