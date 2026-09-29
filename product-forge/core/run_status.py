@@ -76,12 +76,18 @@ def update(project_dir: str, event_type: str, *, run_id: str = "", stage: str = 
     et = str(event_type)
     if et == "run_started":
         d["state"] = "running"
-    elif et == "run_completed":
-        d["state"] = "completed"
+    elif et in ("run_completed", "run_failed"):
+        final = "completed" if et == "run_completed" else "failed"
+        d["state"] = final
         d["current_stage"] = ""
-    elif et == "run_failed":
-        d["state"] = "failed"
-        d["current_stage"] = ""
+        # BI-PF-0234: reconcile leftovers so the derived status cannot disagree with
+        # the terminal state (e.g. state=failed while stages still show 'running').
+        for _s, _st in list((d.get("stages") or {}).items()):
+            if _st == "running":
+                d["stages"][_s] = "interrupted"
+        for _a, _st in list((d.get("agents") or {}).items()):
+            if _st == "running":
+                d["agents"][_a] = "failed" if final == "failed" else "completed"
     elif et == "stage_started":
         d["stages"][stage] = "running"
         d["current_stage"] = stage

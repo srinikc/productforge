@@ -11,6 +11,10 @@
 - The **11-scenario acceptance suite** (`test_m0_acceptance.py`) passes; the **execution contract** is wired into `execute_agent`.
 - Active work now on branch **`feature/m0-followups-f1-f2`**.
 - The discipline is **in every agent** (prompt `discipline_guard` + knowledge `kb-engineering-principles`).
+- **Latest deltas:** guard restored to the explicit **THINK → DESIGN → PLAN → 360 → PRODUCE** order (role-agnostic,
+  applies to any deliverable, not code-only); EOS §0 keeps the original sentences + “Think before you do”;
+  **F2 hygiene `BI-PF-0255/0256/0257` done**; **F1 started** — `BI-PF-0234` (terminal events carry `run_id`;
+  `run-status` reconciles leftover `running` stages/agents on completion/failure).
 
 ## 2. Audit PF-xx coverage
 

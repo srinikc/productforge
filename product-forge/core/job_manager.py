@@ -192,18 +192,24 @@ def finish(project: str, rc: int) -> Dict:
                                                    item_ids=item_ids)
     except Exception:
         verified = None
+    # BI-PF-0234: terminal events MUST carry a run_id (row.run_id -> run lock ->
+    # audit-trail/pipeline-state) so dashboards/status can correlate them.
+    _rid = str((row or {}).get("run_id") or "")
+    if not _rid:
+        try:
+            from core.lock_manager import LockManager
+            _info = LockManager(PRODUCTS).get_lock_info(project)
+            _rid = str(getattr(_info, "run_id", "") or "")
+        except Exception:
+            _rid = ""
+    if not _rid:
+        try:
+            from core.audit_trail import current_run_id as _cur
+            _rid = _cur(project) or ""
+        except Exception:
+            _rid = ""
     try:
         from core import events as _ev
-        _rid = str((row or {}).get("run_id") or "")
-        if not _rid:
-            # Direct (non-queued) run: fall back to the run lock's id so terminal
-            # events stay correlated to the run (empty run_id broke dashboards).
-            try:
-                from core.lock_manager import LockManager
-                _info = LockManager(PRODUCTS).get_lock_info(project)
-                _rid = str(getattr(_info, "run_id", "") or "")
-            except Exception:
-                _rid = ""
         _ev.emit(os.path.join(PRODUCTS, project),
                  "run_completed" if rc == 0 else "run_failed",
                  run_id=_rid, project=project, rc=rc)
