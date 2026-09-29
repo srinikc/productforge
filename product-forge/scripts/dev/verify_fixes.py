@@ -1,4 +1,6 @@
 import json
+import os, sys
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from core.knowledge_compliance_checker import GuidelineContentLoader
 from core.pipeline_executor import PipelineExecutor
 from core.dag_executor import DAGExecutor
@@ -20,3 +22,12 @@ dag = DAGExecutor(d)
 print('DAG ready (iteration 1):', dag.get_ready_stages())
 print('4b depends_on:', dag.stages['4b'].depends_on)
 print('12 depends_on:', dag.stages['12'].depends_on)
+
+# PF-195: fail nonzero if the diagnostic found nothing usable.
+import sys as _sys
+try:
+    _ok = bool(out) and bool(dag.stages) and bool(dag.stages.get('4b'))
+except Exception:
+    _ok = False
+print('RESULT:', 'OK' if _ok else 'FAILED')
+_sys.exit(0 if _ok else 1)
