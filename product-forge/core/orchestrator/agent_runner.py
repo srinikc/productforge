@@ -704,6 +704,25 @@ class AgentRunnerMixin:
             pack += "\n\nUPSTREAM CONTEXT (condensed):\n" + digest
         return pack
 
+    def _structured_output_enabled(self) -> bool:
+        """BI-0224: request compact JSON per section and render markdown deterministically."""
+        return os.getenv("PIPELINE_STRUCTURED_OUTPUT", "0").strip().lower() in ("1", "true", "yes", "on")
+
+    def _structured_render(self, content: str, label: str) -> str:
+        """Render a JSON section payload to markdown; fall back to the raw text on failure."""
+        if not self._structured_output_enabled() or not content:
+            return content
+        try:
+            from core import render as _r
+            obj = _r.extract_json(content)
+            if obj is None:
+                return content
+            out = _r.render_section(obj) if isinstance(obj, dict) and ("heading" in obj or "title" in obj) \
+                else _r.render_payload(obj, title=label)
+            return out or content
+        except Exception:
+            return content
+
     def _normalize_merged(self, agent_id: str, text: str) -> str:
         """Deterministic cleanup: collapse blank lines, drop repeated headings, ensure title."""
         out, prev_head, blank = [], None, False
@@ -959,34 +978,53 @@ class AgentRunnerMixin:
 
             def _call_section(key, digest, concise=False):
                 label = self._section_label(key)
-                sec_prompt = (shared +
-                              f"\n\nIGNORE any instruction to write the full document. "
-                              f"WRITE ONLY the '## {label}' section now; do not write any other section."
-                              + (" Keep it concise (bullet lists)." if concise else "")
-                              + (f"\n\nALREADY WRITTEN (stay consistent with these names/IDs):\n{digest}"
-                                 if digest else ""))
+                if self._structured_output_enabled():
+                    sec_prompt = (shared +
+                                  f"\n\nIGNORE any instruction to write the full document. Output ONLY a "
+                                  f"fenced ```json object for the '## {label}' section with keys: "
+                                  f"heading, bullets (array of strings), text. No prose outside the fence."
+                                  + (f"\n\nALREADY WRITTEN (stay consistent with these names/IDs):\n{digest}"
+                                     if digest else ""))
+                else:
+                    sec_prompt = (shared +
+                                  f"\n\nIGNORE any instruction to write the full document. "
+                                  f"WRITE ONLY the '## {label}' section now; do not write any other section."
+                                  + (" Keep it concise (bullet lists)." if concise else "")
+                                  + (f"\n\nALREADY WRITTEN (stay consistent with these names/IDs):\n{digest}"
+                                     if digest else ""))
                 content, ti = self._call_llm(sec_prompt, agent_id, stage_id, pin_model=pin["model"])
                 _accumulate(ti)
                 if not pin["model"] and ti.get("selected_model"):
                     pin["model"] = ti["selected_model"]
+                content = self._structured_render(content, label)
                 return content, ti
 
             def _call_feature(fid_label, digest):
                 kind = self._PER_FEATURE_KIND.get(agent_id, "spec")
                 _fid = self._feature_id(fid_label) or fid_label
                 _range_line = format_feature_range(_fid, alloc.get(_fid) or {})
-                sec_prompt = (shared +
-                              (f"\n\n{_range_line}" if _range_line else "") +
-                              f"\n\nIGNORE any instruction to write the full document. "
-                              f"WRITE ONLY the '## {fid_label}' section now for this ONE feature — a {kind}. "
-                              f"Do NOT write any other feature or section. "
-                              f"Start your answer with the exact heading '## {fid_label}'."
-                              + (f"\n\nALREADY WRITTEN (stay consistent with these names/IDs):\n{digest}"
-                                 if digest else ""))
+                if self._structured_output_enabled():
+                    sec_prompt = (shared +
+                                  (f"\n\n{_range_line}" if _range_line else "") +
+                                  f"\n\nIGNORE any instruction to write the full document. Output ONLY a "
+                                  f"fenced ```json object for '## {fid_label}' (a {kind}) with keys: "
+                                  f"heading, bullets (array of strings), text. No prose outside the fence."
+                                  + (f"\n\nALREADY WRITTEN (stay consistent with these names/IDs):\n{digest}"
+                                     if digest else ""))
+                else:
+                    sec_prompt = (shared +
+                                  (f"\n\n{_range_line}" if _range_line else "") +
+                                  f"\n\nIGNORE any instruction to write the full document. "
+                                  f"WRITE ONLY the '## {fid_label}' section now for this ONE feature — a {kind}. "
+                                  f"Do NOT write any other feature or section. "
+                                  f"Start your answer with the exact heading '## {fid_label}'."
+                                  + (f"\n\nALREADY WRITTEN (stay consistent with these names/IDs):\n{digest}"
+                                     if digest else ""))
                 content, ti = self._call_llm(sec_prompt, agent_id, stage_id, pin_model=pin["model"])
                 _accumulate(ti)
                 if not pin["model"] and ti.get("selected_model"):
                     pin["model"] = ti["selected_model"]
+                content = self._structured_render(content, fid_label)
                 return content, ti
 
             assembled, digest = [], ""
