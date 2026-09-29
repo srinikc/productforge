@@ -10,7 +10,8 @@
 ---
 
 ## 0. Prime directive
-Make it **truthful, safe, observable** — never trade correctness for the appearance of completion.
+**Think before you do.** Understand the problem, state the design/plan/360°, *then* act — never jump straight to
+doing. Make it **truthful, safe, observable** — never trade correctness for the appearance of completion.
 “It completed” is only true when the *right, current-run, executed* evidence passed.
 
 ---
