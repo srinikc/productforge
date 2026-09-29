@@ -52,18 +52,26 @@ Make it **truthful, safe, observable** — never trade correctness for the appea
 - Tests **can fail** (assertions, nonzero exit); tests are **hermetic** (no coupling to real config/env state).
 - Keep the change reviewable: one concern per commit; rationale in the message; link backlog IDs.
 
-## 4. The mandatory change workflow
+## 4. The mandatory change workflow — **Design → Plan → 360° analysis → Implement → Verify**
+
+> This order is a **gate, not a suggestion**: do **not** write or change code before steps 1–4 are done and
+> stated. Product Forge builds a product along the same path (design specs → plan/architecture →
+> 360° discovery → implementation).
+
 1. **Branch:** `feature/<scope>` from `develop` (never commit to `develop`/`main` directly).
-2. **Recon + 360 dependency map:** callers, consumers, config, stores, tests; blast radius.
-3. **Plan + acceptance criteria**, including the **failure modes** (what must NOT happen).
-4. **Implement** the smallest correct change; preserve the invariants in §2.
-5. **Add/extend regression tests** — happy path **and** non-happy (empty/skipped/unknown/stale/race/oversized).
-6. **Run the gates:** `compileall` + `wired_audit` + `workflow_matrix_check` + `pytest` (pipeline suite).
-7. **Verify baseline:** if a test fails, confirm via a stash comparison whether it is pre-existing; **fix it**
+2. **DESIGN:** state the intended outcome, the invariants to preserve, the boundaries touched, and the
+   acceptance criteria **including the failure modes** (what must NOT happen). Concise but explicit.
+3. **PLAN:** break it into the smallest correct change(s); sequence them; note the rollback.
+4. **360° ANALYSIS:** map **every** caller/consumer/config/store/test and the blast radius; list **all**
+   places that must change together so the whole end-to-end flow stays correct.
+5. **IMPLEMENT** the smallest correct change; preserve the invariants in §2.
+6. **Add/extend regression tests** — happy path **and** non-happy (empty/skipped/unknown/stale/race/oversized).
+7. **Run the gates:** `compileall` + `wired_audit` + `workflow_matrix_check` + `pytest` (pipeline suite).
+8. **Verify baseline:** if a test fails, confirm via a stash comparison whether it is pre-existing; **fix it**
    (product bug or stale test) — do not leave it.
-8. **Self-review:** regression, security/authz, concurrency, cost, observability.
-9. **Commit on the branch** with rationale + backlog IDs; update doc/backlog status.
-10. **PR → merge gate** (never bypass; HIL-only override with audit).
+9. **Self-review:** regression, security/authz, concurrency, cost, observability.
+10. **Commit on the branch** with rationale + backlog IDs; update doc/backlog status.
+11. **PR → merge gate** (never bypass; HIL-only override with audit).
 
 ## 5. Required tools
 `git` (feature branch) · `python -m compileall` · `scripts/dev/wired_audit.py` ·
@@ -104,7 +112,7 @@ Make it **truthful, safe, observable** — never trade correctness for the appea
   cannot recur silently.
 
 ## 9. Definition of Done (per change)
-- [ ] Feature branch; 360° dependency map done.
+- [ ] Feature branch; **design + plan stated**, and the 360° dependency/blast-radius map done.
 - [ ] Failure modes specified and tested.
 - [ ] `compileall` + `wired_audit` + `workflow_matrix_check` + `pytest` green (no new failures; pre-existing fixed).
 - [ ] No fail-open on gate paths; unknown ⇒ blocked.
@@ -216,6 +224,12 @@ Agnostic of Product Forge or language; these are the durable rules distilled fro
     parallel workers** — never report only the last attempt's numbers.
 23. **Bound and validate every recursion / delegation.** Cap invocations and payload size, validate the target,
     and fail closed — no unbounded fan-out.
+24. **Design → Plan → 360° analysis → Produce (in that order), for ANY deliverable.** Never produce the
+    work — code, a design, an architecture, a plan, a spec, or an analysis — before stating the design (outcome
+    + invariants + acceptance/failure modes), the plan, and the 360° dependency/blast-radius analysis. This is
+    a general **way of working** for every agent/role (a design agent designs first, an architect plans the
+    architecture first, a coding agent codes last) and for how Product Forge builds a product (design specs →
+    plan/architecture → 360° discovery → implementation). It does **not** mean every agent writes code.
 
 ---
 
@@ -239,6 +253,7 @@ The learnings are not just documented — they are being **encoded into the prod
 | Bounded + validated delegation | `core/delegation.py` dispatch (budget + target check) | no unbounded fan-out (PF-147) | **done (F0-6)** |
 | Atomic writes everywhere | temp+replace across stores (F0-4) | crash-safe state (PF-011/016/026/032/033) | **done (F0-4)** |
 | Fail-closed boundaries | tool DENY without spec; operator/SSE auth; path containment (F0-5) | deny-by-default (PF-004/021/023/227) | **done (F0-5)** |
+| **Design → Plan → 360° → Implement** | pipeline stages: 0a discovery (360°) → 1 / 1a design specs → 2 architect (plan) → 3a/4 implement; enforced by the DAG + `discipline_guard` | the product is built in that order; agents state design/plan/360° before code | **done (stages + guard)** |
 
 **Net:** the standard is being made *structural* — encoded in the pipeline’s **gates/checks/provenance** (F0),
 its **knowledge/guidelines + agent cards** (to-do), and its **acceptance suite/CI** — so Product Forge builds
