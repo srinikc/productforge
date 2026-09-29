@@ -61,7 +61,8 @@ def test_t2_duplicate_id_fails_with_offending_ids(tmp_path):
     res = _gate(tmp_path, text)
     assert res["ok"] is False
     assert "FR-2" in res["id_integrity"]["duplicates"]
-    assert "requirement_ids" in res["essential_missing"]
+    # id-integrity is ADVISORY by design: surfaced in recommended_missing (not essential).
+    assert "requirement_ids" in res["recommended_missing"]
 
 
 def test_t3_out_of_range_and_undefined_reference_fail(tmp_path):
@@ -130,6 +131,7 @@ def test_t6_local_id_duplicate_in_same_feature_fails(tmp_path):
     res = _gate(tmp_path, text)
     assert res["id_integrity"]["ok"] is False
     assert "AC-1 in F-1" in res["id_integrity"]["local_duplicates"]
+    # LOCAL within-feature id errors are DECISIVE -> essential_missing.
     assert "requirement_ids" in res["essential_missing"]
     assert res["ok"] is False
 

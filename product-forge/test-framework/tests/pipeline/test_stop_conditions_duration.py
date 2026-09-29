@@ -24,7 +24,8 @@ def _executor(tmp_path, pipeline_started_hours_ago, stage_started_seconds_ago,
         started_at=(datetime.now() - timedelta(hours=pipeline_started_hours_ago)).isoformat(),
     )
     ex._stage_started_at = (datetime.now() - timedelta(seconds=stage_started_seconds_ago)).isoformat()
-    ex._stage_human_wait_seconds = human_wait_seconds
+    # Per-stage human wait is tracked as a dict keyed by stage id (parallel-safe).
+    ex._stage_human_wait = {"0a": human_wait_seconds}
     return ex
 
 

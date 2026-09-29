@@ -102,7 +102,8 @@ class VerificationReport:
 
     @property
     def passed(self) -> bool:
-        return all(r.passed for r in self.results)
+        # Fail-closed (PF-039): an empty verification set is NOT a pass.
+        return bool(self.results) and all(r.passed for r in self.results)
 
     @property
     def pass_count(self) -> int:

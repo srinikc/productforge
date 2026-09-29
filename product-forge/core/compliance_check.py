@@ -379,7 +379,8 @@ class ComplianceChecker:
             },
             "agents": agent_summaries,
             "anomalies": all_anomalies,
-            "conformed": total_critical_failed == 0 and total_failed == 0,
+            # Fail-closed (BU-C07): zero executed checks is NOT conformance.
+            "conformed": total_checks > 0 and total_critical_failed == 0 and total_failed == 0,
         }
         
         # Save final report

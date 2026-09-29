@@ -496,9 +496,10 @@ def check_id_integrity_all(text, allocation=None, block_sizes=None, families=Non
 def check(agent_id: str, paths: List[str], allocation: Optional[Dict] = None) -> Dict:
     """Check an agent's output against its essential/recommended sections.
 
-    For per-feature agents (design / product-design-spec) this also enforces the
-    deterministic FR/NFR/US id-integrity gate; a failure is folded into
-    `essential_missing` so it follows the existing checklist failure path.
+    For per-feature agents (design / product-design-spec) this also runs the
+    deterministic FR/NFR/US id-integrity gate. LOCAL within-feature id errors
+    (duplicate/undefined) are decisive -> `essential_missing`; GLOBAL cross-feature
+    merge noise (sectioned calls renumber on merge) is ADVISORY -> `recommended_missing`.
     """
     spec = _spec_for(agent_id)
 
@@ -536,11 +537,17 @@ def check(agent_id: str, paths: List[str], allocation: Optional[Dict] = None) ->
     if _is_per_feature and (text or "").strip():
         id_integrity = check_id_integrity_all(text, allocation=allocation)
         if not id_integrity.get("ok", True):
-            # ADVISORY: id-integrity noise must NOT trigger a full re-run of a large
-            # per-feature agent (expensive + often a false positive on merge). Surface
-            # it in `recommended_missing`; never fold into `essential_missing`.
-            if "requirement_ids" not in missing_r:
-                missing_r = missing_r + ["requirement_ids"]
+            # LOCAL within-feature id errors are decisive (genuine defects); GLOBAL
+            # cross-feature merge noise is advisory (sectioned calls renumber on merge,
+            # and a full re-run of a large per-feature agent is expensive/false-positive).
+            local_bad = bool(id_integrity.get("local_duplicates")
+                             or id_integrity.get("local_undefined_refs"))
+            target = missing_e if local_bad else missing_r
+            if "requirement_ids" not in target:
+                if local_bad:
+                    missing_e = missing_e + ["requirement_ids"]
+                else:
+                    missing_r = missing_r + ["requirement_ids"]
 
     present = present_e + present_r
     total = len(present_e) + len(missing_e) + len(present_r) + len(missing_r)
