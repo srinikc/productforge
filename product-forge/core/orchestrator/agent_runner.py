@@ -991,6 +991,15 @@ class AgentRunnerMixin:
 
             assembled, digest = [], ""
             pf_blocks: List[Tuple[str, str]] = []
+
+            def _flush():
+                # BI-0230: flush progress to a .partial file so long agents are observable
+                # mid-run (promoted/removed once the artifact is complete).
+                try:
+                    with open(artifact_file + ".partial", "w", encoding="utf-8") as _f:
+                        _f.write("\n\n".join(assembled).strip())
+                except Exception:
+                    pass
             if is_pf:
                 for fid in feat_labels:
                     content, ti = _call_feature(fid, digest)
@@ -1004,6 +1013,7 @@ class AgentRunnerMixin:
                         pf_blocks.append((self._feature_id(fid) or fid, block))
                         digest += "\n" + self._section_digest(block)
                         acc["sections"] += 1
+                        _flush()
                     else:
                         print(f"  [GENERATION] {agent_id}: feature '{fid}' empty")
 
@@ -1018,6 +1028,7 @@ class AgentRunnerMixin:
                     assembled.append(block)
                     digest += "\n" + self._section_digest(block)
                     acc["sections"] += 1
+                    _flush()
                 else:
                     print(f"  [GENERATION] {agent_id}: section '{key}' empty")
 
