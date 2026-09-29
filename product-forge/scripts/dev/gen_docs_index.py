@@ -53,6 +53,7 @@ TOP = {
     "m0_status_and_coverage.md": ("Analysis (current)", "M0 status: PF-xx coverage, Section D status, open backlog", 100),
     "SECTION-D-OBSERVABILITY-DESIGN.md": ("Design", "Section D observability design + plan (BI-PF-0244)", 30),
     "AUDIT-REGISTER-TRIAGE.md": ("Analysis (current)", "Audit PF/candidate disposition: fixed / tracked / new (BI-PF-0254)", 100),
+    "CAPABILITY-STEERING-DESIGN.md": ("Design", "Capability steering design + plan (BI-0221..BI-0230)", 20),
     "ENGINEERING_OPERATING_STANDARD.md": ("SSOT", "Binding engineering standard: how we think/design/build/verify (+DoD)", 100),
     "Agent_llm_process.md": ("Review (pending)", "Agent<->LLM process analysis + recommendations", 0),
     "agents_prompts_instructions.md": ("Current", "All 61 agent cards + prompt assembly (mirror of .opencode/agent/*)", 100),
