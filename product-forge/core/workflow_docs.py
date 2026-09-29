@@ -7,6 +7,7 @@ from datetime import datetime
 from typing import Optional, Dict, List, Any
 from dataclasses import dataclass, field
 import json
+import os
 
 
 @dataclass
@@ -784,7 +785,6 @@ h2 {{
     <p>🤖 <span class="brand">{self.PRODUCT_NAME}</span> - {self.PRODUCT_TAGLINE}</p>
     <p>Generated: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}</p>
     <p>For the Draw.io diagram, see <a href="pipeline-workflow.drawio" style="color: #58a6ff">pipeline-workflow.drawio</a></p>
-    <p>For PDF version, see <a href="pipeline-workflow.pdf" style="color: #58a6ff">pipeline-workflow.pdf</a></p>
 </div>
 
 </div>
@@ -1144,41 +1144,41 @@ h2 {{
 '''
         return xml
 
+    def _write_atomic(self, path, text: str) -> None:
+        """Atomic publish (BI-PF-0249): write to a temp sibling, then os.replace."""
+        tmp = str(path) + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            f.write(text)
+        os.replace(tmp, str(path))
+
     def save_all_documentation(self):
-        """Generate and save all documentation"""
+        """Generate and save all documentation (atomic per-file publish)."""
         saved_files = []
 
         # 1. Pipeline HTML
-        pipeline_html = self.generate_pipeline_html()
         pipeline_html_path = self.docs_dir / "pipeline-workflow.html"
-        pipeline_html_path.write_text(pipeline_html, encoding="utf-8")
+        self._write_atomic(pipeline_html_path, self.generate_pipeline_html())
         saved_files.append(str(pipeline_html_path))
 
         # 2. Pipeline Draw.io
-        pipeline_drawio = self.generate_pipeline_drawio()
         pipeline_drawio_path = self.docs_dir / "pipeline-workflow.drawio"
-        pipeline_drawio_path.write_text(pipeline_drawio, encoding="utf-8")
+        self._write_atomic(pipeline_drawio_path, self.generate_pipeline_drawio())
         saved_files.append(str(pipeline_drawio_path))
 
         # 3. Agent documentation
         agent_workflows = self.get_agent_workflows()
         for workflow in agent_workflows:
-            # HTML
-            agent_html = self.generate_agent_html(workflow)
             agent_html_path = self.docs_dir / f"agent-{workflow.agent_name}.html"
-            agent_html_path.write_text(agent_html, encoding="utf-8")
+            self._write_atomic(agent_html_path, self.generate_agent_html(workflow))
             saved_files.append(str(agent_html_path))
 
-            # Draw.io
-            agent_drawio = self.generate_agent_drawio(workflow)
             agent_drawio_path = self.docs_dir / f"agent-{workflow.agent_name}.drawio"
-            agent_drawio_path.write_text(agent_drawio, encoding="utf-8")
+            self._write_atomic(agent_drawio_path, self.generate_agent_drawio(workflow))
             saved_files.append(str(agent_drawio_path))
 
         # 4. Index page
-        index_html = self._generate_index_page(agent_workflows)
         index_path = self.docs_dir / "index.html"
-        index_path.write_text(index_html, encoding="utf-8")
+        self._write_atomic(index_path, self._generate_index_page(agent_workflows))
         saved_files.append(str(index_path))
 
         return saved_files
