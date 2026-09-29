@@ -83,12 +83,20 @@ def evaluate(profile: Dict) -> Dict:
         if status == "INCOMPATIBLE":
             blocked.append(agent)
 
+    # PF-017: make UNKNOWN explicit, and flag capability-critical agents (tools /
+    # reasoning) whose fit is UNKNOWN for confirmation instead of silent pass.
+    _unknown = [e["agent"] for e in entries if e["status"] == "UNKNOWN"]
+    _confirm = [e["agent"] for e in entries if e["status"] == "UNKNOWN"
+                and any(e["needs"].get(k) for k in ("needs_tools", "needs_reasoning"))]
+
     summary = {
         "total": len(entries),
         "ok": sum(1 for e in entries if e["status"] == "OK"),
         "unknown": sum(1 for e in entries if e["status"] == "UNKNOWN"),
         "incompatible": len(blocked),
         "blocked_agents": blocked,
+        "unknown_agents": _unknown,
+        "needs_confirmation": _confirm,
         "catalog_last_refreshed": model_catalog.last_refreshed(),
     }
     return {"tier": profile.get("default_tier", ""),
