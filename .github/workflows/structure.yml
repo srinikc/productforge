@@ -25,9 +25,15 @@ jobs:
       - name: Structure audit (naming + store registry + diff + destructive)
         run: python scripts/dev/wired_audit.py
 
+      - name: Workflow matrix check (stage/agent matrix)
+        run: python scripts/dev/workflow_matrix_check.py
+
       - name: Backlog chain E2E
         run: python scripts/dev/e2e_backlog_check.py
 
-      - name: Unit tests (existing)
+      - name: Pipeline + M0 acceptance tests (REQUIRED)
+        run: python -m pytest test-framework/tests/pipeline -q -o addopts=""
+
+      - name: Full test suite (optional; some tests need system libs)
         run: python -m pytest test-framework/tests -q
         continue-on-error: true   # 5 pdf tests need system libs (weasyprint/libgobject)
