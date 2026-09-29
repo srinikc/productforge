@@ -52,6 +52,7 @@ TOP = {
     "RCCA_productForge.md": ("Analysis (current)", "Root-cause + corrective/preventive guidelines for the audit/issues gaps", 100),
     "m0_status_and_coverage.md": ("Analysis (current)", "M0 status: PF-xx coverage, Section D status, open backlog", 100),
     "SECTION-D-OBSERVABILITY-DESIGN.md": ("Design", "Section D observability design + plan (BI-PF-0244)", 30),
+    "AUDIT-REGISTER-TRIAGE.md": ("Analysis (current)", "Audit PF/candidate disposition: fixed / tracked / new (BI-PF-0254)", 100),
     "ENGINEERING_OPERATING_STANDARD.md": ("SSOT", "Binding engineering standard: how we think/design/build/verify (+DoD)", 100),
     "Agent_llm_process.md": ("Review (pending)", "Agent<->LLM process analysis + recommendations", 0),
     "agents_prompts_instructions.md": ("Current", "All 61 agent cards + prompt assembly (mirror of .opencode/agent/*)", 100),
@@ -593,8 +594,8 @@ def main():
         unk = [u for u, s, _a, _p, _pd, _r, _b in main_docs if "verify" in s.lower()]
         nr = [u for u, _s, _a, p, _pd, _r, _b in main_docs if p is None]
         print("unclassified docs:", unk or "none")
-        print("not-referenced docs (no %):", nr or "none")
-        return 0
+        print("not-referenced docs (no impl %):", nr or "none")
+        return 1 if unk else 0   # PF-174: CI can gate on missing classification
     open(HTMLOUT, "w", encoding="utf-8").write(html_index(main_docs, subs, root, assets))
     write_readme(main_docs, subs, root, assets)
     print(f"[docs-index] wrote HTML + README | main={len(main_docs)} "
