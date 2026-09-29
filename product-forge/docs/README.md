@@ -56,6 +56,8 @@
 | [`PIPELINE-OPERATIONS.md`](PIPELINE-OPERATIONS.md) | Implemented | 100% | Operations: run modes, control, state, status | — | — |
 | [`PIPELINE-RESUME-ProductForge-Dashboard.md`](PIPELINE-RESUME-ProductForge-Dashboard.md) | Adopted (reference) | 50% | Old resume notes for a project | Partial - resume notes reused. | — |
 | [`PIPELINE-STAGES-REFERENCE.md`](PIPELINE-STAGES-REFERENCE.md) | Generated | 100% | Regenerable stages/agents reference | — | — |
+| [`Product_Forge_Audit_Organized_Executive_Master_With_Execution_Guardrails_20260929.md`](Product_Forge_Audit_Organized_Executive_Master_With_Execution_Guardrails_20260929.md) | Reference (verify) | 50% | unclassified - confirm before relying on it | — | — |
+| [`RCCA_productForge.md`](RCCA_productForge.md) | Analysis (current) | 100% | Root-cause + corrective/preventive guidelines for the audit/issues gaps | — | — |
 | [`RE-RUN-IMPACT-ANALYSIS.md`](RE-RUN-IMPACT-ANALYSIS.md) | Implemented | 100% | Rerun / impact invalidation model | — | — |
 | [`SCHEMA-GUIDE.md`](SCHEMA-GUIDE.md) | Implemented | 100% | Data + schema reference (validators) | — | — |
 | [`SECTIONED-GENERATION-ANALYSIS.md`](SECTIONED-GENERATION-ANALYSIS.md) | Implemented | 100% | Long-output (sectioned) generation design | — | — |
@@ -70,6 +72,7 @@
 | [`credentials.md`](credentials.md) | Implemented | 100% | Credentials + budget registry (BI-0207) | — | — |
 | [`design.md`](design.md) | Runtime | 100% | Design notes (runtime output) | — | — |
 | [`feature-status.md`](feature-status.md) | Runtime | 100% | Derived feature status | — | — |
+| [`final_required_changes.md`](final_required_changes.md) | Analysis (current) | 100% | Consolidated final change plan: audit M0/M1/M2 reconciled with backlog + our docs | — | — |
 | [`huggingface.md`](huggingface.md) | Adopted (reference) | 40% | HuggingFace / open-weights references | Partly adopted; model downloader planned (BI-0206). | — |
 | [`input_needed.md`](input_needed.md) | Adopted (reference) | 70% | Required-inputs notes | Adopted: readiness checklist (BI-0220). | — |
 | [`model-tier-timing-and-multimodal-flow.md`](model-tier-timing-and-multimodal-flow.md) | Design | 80% | Tier timing + multimodal flow | **Pending: post-architect two-phase MODEL/CAPABILITY strategy gate.** | BI-0192, BI-0210 |
@@ -90,6 +93,7 @@
 | [`review.md`](review.md) | Runtime | 100% | Review notes (runtime output) | — | — |
 | [`test.md`](test.md) | Placeholder | not referenced | Empty/unused placeholder | — | — |
 | [`todo.md`](todo.md) | Placeholder | not referenced | Scratch todo (no content of value) | — | — |
+| [`todo_sept292026.md`](todo_sept292026.md) | TODO (current) | 100% | Actionable to-do (Sep 29 2026): log SSOT changes + seamless-execution standards + non-backlog fixes | — | — |
 | [`token-audit.md`](token-audit.md) | Adopted (reference) | 70% | Token audit | Adopted: token accounting. | — |
 | [`token_context_model.md`](token_context_model.md) | Adopted (reference) | 75% | Token/context model | Adopted: token/context budgeting. | — |
 | [`tools-and-generators.md`](tools-and-generators.md) | Adopted (reference) | 80% | Tools & generators catalogue | Adopted: tool/generator registry. | — |
