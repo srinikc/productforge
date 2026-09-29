@@ -43,6 +43,7 @@
 | [`Agent_llm_process.md`](Agent_llm_process.md) | Review (pending) | 0% | Agent<->LLM process analysis + recommendations | **Findings not yet implemented: per-call capability steering, reasoning on/off, and verbose loop/tool-call logging.** | BI-0221–BI-0229 |
 | [`BACKLOG-AND-INTAKE.md`](BACKLOG-AND-INTAKE.md) | Implemented | 100% | Backlog + intake design | — | — |
 | [`BACKLOG-SUMMARY.md`](BACKLOG-SUMMARY.md) | Generated | 100% | Regenerable backlog summary | — | — |
+| [`CAPABILITY-STEERING-DESIGN.md`](CAPABILITY-STEERING-DESIGN.md) | Design | 20% | Capability steering design + plan (BI-0221..BI-0230) | — | — |
 | [`CONSTITUTION.md`](CONSTITUTION.md) | Implemented | 100% | Constitution: governance + non-negotiables | — | — |
 | [`DASHBOARD-E2E-DESIGN.md`](DASHBOARD-E2E-DESIGN.md) | Design | 70% | Dashboard E2E design (front-end not built yet) | **Front-end MVP not built: every dashboard screen/view described here (backend-first).** | ProductForge-Dashboard BI-0001–0149 (epic BI-0043) |
 | [`DEVOPS-WORKFLOW-ANALYSIS.md`](DEVOPS-WORKFLOW-ANALYSIS.md) | Design | 70% | DevOps / PR-CI workflow analysis | **Not wired: PR branch -> pre-check gates (syntax/audit/lint/tests/secrets) -> review workflow.** | BI-0205 |

@@ -35,6 +35,16 @@ def needs_for(agent_id: str) -> Dict:
     c = (_cfg().get("capabilities") or {})
     n = dict(c.get("default") or {})
     n.update(c.get(agent_id) or {})
+    # BI-0221/BI-0222: the per-agent capability vector drives the gate needs.
+    try:
+        from core import agent_capabilities as _ac
+        v = _ac.vector(agent_id)
+        for k in ("needs_reasoning", "needs_structured", "needs_tools", "needs_vision",
+                  "min_output", "min_context"):
+            if k in v:
+                n[k] = v[k]
+    except Exception:
+        pass
     return n
 
 
