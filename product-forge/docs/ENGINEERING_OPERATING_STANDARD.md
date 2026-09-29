@@ -159,6 +159,21 @@ Concrete lessons from building M0; they are part of the standard.
 - Fix root cause + add a **regression test that can fail**; keep tests hermetic.
 - After each slice: gates green + full pipeline suite green, then update backlog/docs status.
 
+### From F0-3…F0-5 (provenance, transactional state, authorization)
+- **Atomic by default:** acquire exclusive locks with **`O_CREAT|O_EXCL`** (never “rename = lock”); write
+  every store via **unique temp + replace**; **reclaim stale locks by mtime**; never proceed after a lock
+  timeout — **fail closed**.
+- **One truth first:** write the canonical item/record first, then derive indexes; a crash must never lose the
+  truth, and a **partial migration must never hide data** (merge legacy + new on load).
+- **A mechanism that isn't *called* is inert.** Budget reservation, authz and provenance must be **wired to the
+  execution path** — providing the function is not enough (this lesson is why `discipline_guard` is injected into
+  every prompt rather than left in a doc).
+- **Fail closed at every boundary:** missing identity / spec / approval ⇒ **DENY**, never bypass. Authorization
+  must **authenticate** (server-side token/principal), never trust **client-supplied** roles/headers.
+- **Validate caller-supplied identifiers** (project names, paths) for containment at the trust boundary
+  (traversal/absolute ⇒ reject).
+- **Prove it:** add contention / deny / traversal regression tests (a gate that can’t fail isn’t a gate).
+
 ---
 
 ## 11. General principles (transferable — any project, any session)
@@ -194,6 +209,13 @@ Agnostic of Product Forge or language; these are the durable rules distilled fro
     its dependencies; find **every** affected caller, interface/contract, config, store and test; then apply
     **all** required changes together so the whole end-to-end flow stays correct (no orphaned callers, no broken
     interfaces, no stale references).
+21. **A control has a lifecycle: implemented → wired → tested → observable.** A guard that is never invoked on the
+    real path is *documentation*, not a control. Wire it into the execution path, prove it with a negative test,
+    and make its effect visible (logs/metrics).
+22. **Aggregate across attempts.** Cost, tokens, tool-calls and provenance must **sum over retries, fallbacks and
+    parallel workers** — never report only the last attempt's numbers.
+23. **Bound and validate every recursion / delegation.** Cap invocations and payload size, validate the target,
+    and fail closed — no unbounded fan-out.
 
 ---
 
@@ -213,6 +235,10 @@ The learnings are not just documented — they are being **encoded into the prod
 | RCCA loop | `docs/RCCA_productForge.md` + new guards per defect | 5-Why → test/gate/guideline | **done** |
 | Discoverability | `docs/documentation-index.html` | EOS + RCCA + issues indexed | **done** |
 | CI enforcement | `BI-PF-0259` | compileall + wired_audit + workflow_matrix + tests on PR | **to-do** |
+| Aggregate accounting across attempts | `agent_runner` tool-loop counters (sum over retries) | cost/tool usage totals are correct (PF-067) | **done (F0-6)** |
+| Bounded + validated delegation | `core/delegation.py` dispatch (budget + target check) | no unbounded fan-out (PF-147) | **done (F0-6)** |
+| Atomic writes everywhere | temp+replace across stores (F0-4) | crash-safe state (PF-011/016/026/032/033) | **done (F0-4)** |
+| Fail-closed boundaries | tool DENY without spec; operator/SSE auth; path containment (F0-5) | deny-by-default (PF-004/021/023/227) | **done (F0-5)** |
 
 **Net:** the standard is being made *structural* — encoded in the pipeline’s **gates/checks/provenance** (F0),
 its **knowledge/guidelines + agent cards** (to-do), and its **acceptance suite/CI** — so Product Forge builds
