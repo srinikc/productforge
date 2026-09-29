@@ -139,11 +139,22 @@ def _load_all(scope: str, project: Optional[str]):
     except Exception:
         names = []
     if names:
+        seen = set()
         for fn in sorted(names):
             it = _rj(os.path.join(idir, fn), None)
             if not isinstance(it, dict) or not it.get("id"):
                 continue
             (cl if _normalize_status(it.get("status", "new")) in _CLOSED else op).append(it)
+            seen.add(str(it.get("id")))
+        # BZ-C01/BU-C02: also surface legacy-only items so an interrupted/partial
+        # migration never hides work; dedup by id (post-migration indexes share ids).
+        lo, lc = _rj(of, []), _rj(cf, [])
+        lo = lo.get("items") if isinstance(lo, dict) else lo
+        lc = lc.get("items") if isinstance(lc, dict) else lc
+        for it in list(lo or []) + list(lc or []):
+            if isinstance(it, dict) and it.get("id") and str(it["id"]) not in seen:
+                (cl if _normalize_status(it.get("status", "new")) in _CLOSED else op).append(it)
+                seen.add(str(it["id"]))
         return op, cl
     lo, lc = _rj(of, []), _rj(cf, [])               # legacy layout
     lo = lo.get("items") if isinstance(lo, dict) else lo
