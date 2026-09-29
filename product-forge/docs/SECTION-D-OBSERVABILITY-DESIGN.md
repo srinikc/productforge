@@ -42,5 +42,7 @@
 - `run_status`/projections are pure derivations of the stream.
 - SLIs surfaced; export flag-gated; nothing bloats prompts.
 
-## 5. Slice 1 (this change)
-`core/tracing.py` + `trace_id`/`span_id` on events + log lines + `/api/v1/logs?trace_id=` filter + tests.
+## 5. Progress
+- **P1 done:** `core/tracing.py` + `trace_id`/`span_id` on every event + `/api/v1/logs?trace_id=`.
+- **P2 done:** canonical `level` on events; **secret redaction** applied to every log line + JSONL event write
+  (`log_router.redact`).

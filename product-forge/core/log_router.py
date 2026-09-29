@@ -48,6 +48,30 @@ _DEFAULT = {
 }
 
 
+_SECRET_KEY_RE = re.compile(
+    r"(?i)(pass(word|wd)?|secret|token|authorization|api[_-]?key|access[_-]?key|client[_-]?secret|private[_-]?key)")
+_SECRET_VAL_RE = re.compile(
+    r"(sk-[A-Za-z0-9]{12,}|ghp_[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{16}|xox[baprs]-[A-Za-z0-9-]{10,}"
+    r"|-----BEGIN [A-Z ]*PRIVATE KEY-----)")
+
+
+def redact(obj):
+    """Recursively redact secret-looking keys/values (Section D P2)."""
+    if isinstance(obj, dict):
+        out = {}
+        for k, v in obj.items():
+            if isinstance(k, str) and _SECRET_KEY_RE.search(k):
+                out[k] = "***REDACTED***"
+            else:
+                out[k] = redact(v)
+        return out
+    if isinstance(obj, list):
+        return [redact(x) for x in obj]
+    if isinstance(obj, str):
+        return _SECRET_VAL_RE.sub("***REDACTED***", obj)
+    return obj
+
+
 def config(path: Optional[str] = None) -> Dict:
     cfg = json.loads(json.dumps(_DEFAULT))
     try:
@@ -112,7 +136,7 @@ def log_event(path: str, *, run_id: str = "", stage: str = "", agent: str = "",
     try:
         os.makedirs(os.path.dirname(path), exist_ok=True)
         ts = datetime.now().isoformat(timespec="seconds")
-        msg = " ".join(str(message or "").split())
+        msg = redact(" ".join(str(message or "").split()))
         line = f"{ts} | {level.upper()} | {run_id or '-'} | {stage or '-'} | {agent or '-'} | {event or '-'} | {msg}\n"
         with open(path, "a", encoding="utf-8") as f:
             f.write(line)
@@ -148,7 +172,7 @@ def append_jsonl(path: str, record: Dict) -> None:
     try:
         os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(path, "a", encoding="utf-8") as f:
-            f.write(json.dumps(record, ensure_ascii=False, default=str) + "\n")
+            f.write(json.dumps(redact(record), ensure_ascii=False, default=str) + "\n")
     except Exception:
         pass
 

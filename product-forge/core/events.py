@@ -40,8 +40,8 @@ def emit(project_dir: str, event_type: str, *, run_id: str = "", stage: str = ""
     """Append one canonical event. Best-effort (never raises)."""
     try:
         ev = {"ts": datetime.now().isoformat(timespec="seconds"),
-              "type": str(event_type), "run_id": run_id, "stage": stage, "agent": agent,
-              "trace_id": str(run_id or ""), "span_id": _span_id()}
+              "type": str(event_type), "level": "INFO", "run_id": run_id, "stage": stage,
+              "agent": agent, "trace_id": str(run_id or ""), "span_id": _span_id()}
         ev.update({k: v for k, v in fields.items() if v not in (None, "")})
         # BI-PF-0233: route the append through log_router (single owner of paths + writes).
         try:
