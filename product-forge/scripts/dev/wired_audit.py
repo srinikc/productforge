@@ -580,6 +580,19 @@ def paths_audit():
     return 0
 
 
+def model_registry_audit():
+    """Advisory (NON-FATAL): catalog freshness + tier/catalog drift (BI-PF-0246)."""
+    try:
+        here = os.path.dirname(os.path.abspath(__file__))
+        if here not in sys.path:
+            sys.path.insert(0, here)
+        import model_registry_audit as _mra
+        return _mra.main()
+    except Exception as e:
+        print(f"\nmodel-registry: SKIPPED (advisory) - {e}")
+        return 0
+
+
 def provider_fallback_audit():
     """Advisory (NON-FATAL): profiles routing to the unusable Zen free endpoint (BI-PF-0247)."""
     try:
@@ -662,6 +675,7 @@ def main():
     rc |= agent_knowledge_audit()
     rc |= role_prompt_audit()
     rc |= provider_fallback_audit()
+    rc |= model_registry_audit()
     rc |= paths_audit()
     rc |= legacy_guard_audit()
     return rc

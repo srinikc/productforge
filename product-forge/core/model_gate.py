@@ -99,14 +99,21 @@ def evaluate(profile: Dict) -> Dict:
     _confirm = [e["agent"] for e in entries if e["status"] == "UNKNOWN"
                 and any(e["needs"].get(k) for k in ("needs_tools", "needs_reasoning"))]
 
+    # BI-PF-0246: fail closed on unknown capability for capability-critical agents unless
+    # explicitly overridden (MODEL_GATE_REJECT_UNKNOWN=0).
+    _reject = _confirm if os.getenv("MODEL_GATE_REJECT_UNKNOWN", "1").strip().lower() not in (
+        "0", "false", "no", "off") else []
+    blocked_all = sorted(set(blocked) | set(_reject))
+
     summary = {
         "total": len(entries),
         "ok": sum(1 for e in entries if e["status"] == "OK"),
         "unknown": sum(1 for e in entries if e["status"] == "UNKNOWN"),
         "incompatible": len(blocked),
-        "blocked_agents": blocked,
+        "blocked_agents": blocked_all,
         "unknown_agents": _unknown,
         "needs_confirmation": _confirm,
+        "rejected_unknown": _reject,
         "catalog_last_refreshed": model_catalog.last_refreshed(),
     }
     return {"tier": profile.get("default_tier", ""),
