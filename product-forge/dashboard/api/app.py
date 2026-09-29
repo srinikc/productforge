@@ -221,7 +221,9 @@ def agent_control(agent: str, body: Dict[str, Any]):
 @app.get("/api/v1/events", dependencies=[Depends(auth)])
 def events(project: str = Query("")):
     def _gen():
-        ev = PRODUCTS / ".orchestration" / "events.jsonl"
+        # BI-PF-0233: read the canonical per-project stream when a project is given;
+        # fall back to the global orchestration bus otherwise (was: global-only).
+        ev = (PRODUCTS / project / "events.jsonl") if project else (PRODUCTS / ".orchestration" / "events.jsonl")
         pos = 0
         last_beat = 0.0
         while True:

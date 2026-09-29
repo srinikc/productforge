@@ -34,7 +34,9 @@ def emit(project_dir: str, event_type: str, *, run_id: str = "", stage: str = ""
         ev = {"ts": datetime.now().isoformat(timespec="seconds"),
               "type": str(event_type), "run_id": run_id, "stage": stage, "agent": agent}
         ev.update({k: v for k, v in fields.items() if v not in (None, "")})
-        with open(path(project_dir), "a", encoding="utf-8") as f:
+        p = path(project_dir)
+        os.makedirs(os.path.dirname(p) or ".", exist_ok=True)
+        with open(p, "a", encoding="utf-8") as f:
             f.write(json.dumps(ev, ensure_ascii=False) + "\n")
         return ev
     except Exception:
