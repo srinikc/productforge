@@ -61,6 +61,7 @@
 | [`RCCA_productForge.md`](RCCA_productForge.md) | Analysis (current) | 100% | Root-cause + corrective/preventive guidelines for the audit/issues gaps | — | — |
 | [`RE-RUN-IMPACT-ANALYSIS.md`](RE-RUN-IMPACT-ANALYSIS.md) | Implemented | 100% | Rerun / impact invalidation model | — | — |
 | [`SCHEMA-GUIDE.md`](SCHEMA-GUIDE.md) | Implemented | 100% | Data + schema reference (validators) | — | — |
+| [`SECTION-D-OBSERVABILITY-DESIGN.md`](SECTION-D-OBSERVABILITY-DESIGN.md) | Design | 30% | Section D observability design + plan (BI-PF-0244) | — | — |
 | [`SECTIONED-GENERATION-ANALYSIS.md`](SECTIONED-GENERATION-ANALYSIS.md) | Implemented | 100% | Long-output (sectioned) generation design | — | — |
 | [`STRUCTURE-CONTRACT.md`](STRUCTURE-CONTRACT.md) | Implemented | 100% | Binding repo structure contract (folders + owners) | — | — |
 | [`UNWIRED-MODULES-TRIAGE.md`](UNWIRED-MODULES-TRIAGE.md) | Adopted (reference) | 90% | Deprecated/legacy module triage | Triage applied; retired modules removed. | — |

@@ -552,7 +552,7 @@ def _parse_agent_log(line: str, project: str) -> Optional[Dict[str, Any]]:
 @app.get("/api/v1/logs", dependencies=[Depends(auth)])
 def logs_get(project: str = Query(...), run: str = Query(""), stage: str = Query(""),
              agent: str = Query(""), level: str = Query(""), q: str = Query(""),
-             limit: int = Query(500)):
+             trace_id: str = Query(""), limit: int = Query(500)):
     """Query the canonical per-project events + per-agent logs (BI-PF-0235).
 
     Reads the SSOT (products/<project>/events.jsonl + logs/<run>/<stage>-<agent>.log),
@@ -596,6 +596,8 @@ def logs_get(project: str = Query(...), run: str = Query(""), stage: str = Query
 
     def _keep(e: Dict[str, Any]) -> bool:
         if run and str(e.get("run_id") or "") != run:
+            return False
+        if trace_id and str(e.get("trace_id") or e.get("run_id") or "") != trace_id:
             return False
         if stage and str(e.get("stage") or "") != stage:
             return False
