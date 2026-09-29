@@ -1821,6 +1821,29 @@ def exit_pipeline(project):
     print("To restart: /pipeline continue {project}")
 
 
+def show_bom(project=None):
+    """Build/write the product BOM/footprint (BI-0217) and print a summary."""
+    project = resolve_project_arg(project)
+    if not project:
+        print("project required")
+        return 2
+    from core import bom as _bom
+    pdir = str(PRODUCTS_DIR / project)
+    p = _bom.write(pdir)
+    if not p:
+        print("BOM build failed")
+        return 1
+    data = _bom.load(pdir)
+    fp = data.get("footprint", {}) or {}
+    deps = data.get("dependencies", {}) or {}
+    print(f"BOM: {p}")
+    print(f"  files={fp.get('file_count')} bytes={fp.get('total_bytes')} "
+          f"checksums={len(fp.get('checksums') or {})}")
+    print(f"  python deps={len(deps.get('python') or [])} node deps={len(deps.get('node') or [])} "
+          f"licenses={data.get('licenses') or []}")
+    return 0
+
+
 def show_compliance(project=None, agent=None, stage=None):
     """
     Run compliance check for one or all agents in a project.
@@ -2175,6 +2198,12 @@ def main():
         stage = args[2] if len(args) > 2 else None
         if project:
             sys.exit(show_compliance(project, agent, stage) or 0)
+        print("project required")
+        sys.exit(2)
+    elif command == "bom":
+        project = resolve_project_arg(args[0] if args else None)
+        if project:
+            sys.exit(show_bom(project) or 0)
         print("project required")
         sys.exit(2)
     elif command == "adopt":

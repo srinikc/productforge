@@ -726,6 +726,16 @@ class StageRunnerMixin:
         # Feature-level status tracking (ProductPlan)
         self._track_features_for_stage(stage_id, stage_executions)
 
+        # BI-0217: the package stage emits the product BOM/footprint artifact.
+        if stage_id == "9":
+            try:
+                from core import bom as _bom
+                _p = _bom.write(self.project_dir)
+                if _p:
+                    print(f"  [BOM] wrote {os.path.relpath(_p, self.project_dir)}")
+            except Exception as e:
+                print(f"[BOM] {e}")
+
         # Post-deploy validation (8.3/8.4) after a deployment agent runs
         if any(getattr(e, "agent_id", "") == "production-deploy" for e in stage_executions):
             try:
