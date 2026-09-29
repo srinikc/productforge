@@ -188,6 +188,12 @@ Agnostic of Product Forge or language; these are the durable rules distilled fro
 16. **Least surprise & compatibility.** Explicit deprecation; no silent behaviour flips.
 17. **Trust nothing static blindly.** Verify third-party/static claims against the live system.
 18. **Centralize at single-writer points.** Put provenance/audit where the write happens, so nothing is missed.
+19. **No placeholders.** Never ship TODO/FIXME/stub/dummy/mock/“not implemented” code, fake data, or empty
+    functions. Implement the real, working behaviour end to end.
+20. **360° impact analysis before any change.** For every change/update/feature: inspect the existing code and
+    its dependencies; find **every** affected caller, interface/contract, config, store and test; then apply
+    **all** required changes together so the whole end-to-end flow stays correct (no orphaned callers, no broken
+    interfaces, no stale references).
 
 ---
 

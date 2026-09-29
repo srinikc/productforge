@@ -26,6 +26,10 @@
 16. **Least surprise & compatibility.** Explicit deprecation; no silent behaviour flips.
 17. **Verify claims against the live system** — never trust static/third-party assertions blindly.
 18. **Centralize at single-writer points** so provenance/audit cannot be missed.
+19. **No placeholders.** Never ship TODO/FIXME/stub/dummy/mock/“not implemented” code, fake data, or empty
+    functions — implement the real, working behaviour end to end.
+20. **360° impact analysis before any change.** Inspect existing code + dependencies; find every affected
+    caller/contract/config/store/test; apply ALL required changes together so the end-to-end flow stays correct.
 
 ## How to apply (checklist)
 - Before: feature branch · map dependencies/blast radius · state the failure modes.

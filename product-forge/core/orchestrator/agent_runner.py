@@ -651,6 +651,11 @@ class AgentRunnerMixin:
         except Exception:
             pass
         try:
+            from core.orchestrator.prompt_builder import discipline_guard
+            pack += discipline_guard(agent_id)
+        except Exception:
+            pass
+        try:
             pack += self._output_requirements(agent_id)
         except Exception:
             pass
@@ -1244,8 +1249,11 @@ Execute this task and produce the required output.""")
 
         instruction += self._scope_guard()
         try:
-            from core.orchestrator.prompt_builder import (conciseness_guard, infra_awareness_guard,
-                                                           research_guard, no_invention_guard)
+            from core.orchestrator.prompt_builder import (conciseness_guard, discipline_guard,
+                                                           infra_awareness_guard, research_guard,
+                                                           no_invention_guard)
+            # Global engineering discipline (all agents, all products).
+            instruction += discipline_guard(agent_id)
             instruction += no_invention_guard(agent_id)
             instruction += conciseness_guard(agent_id)
             instruction += infra_awareness_guard(agent_id)

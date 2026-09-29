@@ -309,6 +309,34 @@ def no_invention_guard(agent_id: str) -> str:
             "Never present invented content as if it came from the brief.")
 
 
+_ENGINEERING_DISCIPLINE = (
+    "\n\nENGINEERING DISCIPLINE (binding — applies to every task and every product you build):\n"
+    "1. EVIDENCE OVER ASSERTION: verify real execution/state, not presence; a file existing proves nothing. "
+    "Unknown/missing/skipped/exception => report BLOCKED/UNVERIFIED, never PASS.\n"
+    "2. NO PLACEHOLDERS: never emit TODO/FIXME/stub/dummy/mock/'not implemented' code, placeholder text, "
+    "fake data, or empty functions. Implement the real, working behaviour end to end.\n"
+    "3. 360° IMPACT ANALYSIS BEFORE ANY CHANGE: for EVERY change/update/feature, first inspect the existing "
+    "code and its dependencies; find every affected caller, interface/contract, config, store and test; then "
+    "apply ALL required changes together so the whole end-to-end flow stays correct (no orphaned callers, no "
+    "broken interfaces, no stale references). State the impact you found and exactly what you changed.\n"
+    "4. BOUNDED AUTONOMY: no unbounded loops/retries; stop on no-progress; ask (HIL) when blocked instead of "
+    "guessing.\n"
+    "5. TESTS THAT CAN FAIL: add/adjust tests (including edge and failure cases) that would fail if the "
+    "behaviour regressed; actually run them and report the real results.\n"
+    "6. SECURITY & OBSERVABILITY BY DEFAULT: least privilege, validate inputs at trust boundaries, and emit "
+    "clear structured status/logs.\n"
+)
+
+
+def discipline_guard(agent_id: str = "") -> str:
+    """Binding, project-agnostic engineering discipline injected into EVERY agent prompt.
+
+    Ensures Product Forge (and any product it builds) applies the same standards as
+    docs/ENGINEERING_OPERATING_STANDARD.md / docs/guidelines/engineering/operating-principles.md.
+    """
+    return _ENGINEERING_DISCIPLINE
+
+
 def scope_guard(tech_stack: Optional[Dict], requested_tech_stack: Optional[List[str]]) -> str:
     """Remind the agent of the agreed tech stack (no hardcoded stack)."""
     chosen = (tech_stack or {}).get("chosen") or {}
