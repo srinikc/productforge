@@ -1266,6 +1266,15 @@ Execute this task and produce the required output.""")
             instruction += conciseness_guard(agent_id)
             instruction += infra_awareness_guard(agent_id)
             instruction += research_guard(agent_id)
+            # LEARNINGS: a SEPARATE, de-duplicated, size-capped additive block (never
+            # merged into the intact main guidelines). Bounded so prompts don't bloat.
+            try:
+                from core import learnings as _ln
+                _lb = _ln.render()
+                if _lb:
+                    instruction += _lb
+            except Exception:
+                pass
         except Exception:
             pass
         try:

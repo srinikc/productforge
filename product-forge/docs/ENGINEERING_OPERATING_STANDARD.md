@@ -231,6 +231,10 @@ Agnostic of Product Forge or language; these are the durable rules distilled fro
     a general **way of working** for every agent/role (a design agent designs first, an architect plans the
     architecture first, a coding agent codes last) and for how Product Forge builds a product (design specs →
     plan/architecture → 360° discovery → implementation). It does **not** mean every agent writes code.
+25. **De-duplicate and compact the guidance.** Never append a learning/rule blindly: **merge** semantically
+    similar ones (a `learnings` registry does this) and keep the injected guidance **small and bounded** — a
+    bloated prompt overwhelms agents and burns tokens. Prefer few, sharp, deduped rules over many verbose ones.
+    Relevance-filter per role/area rather than loading everything everywhere.
 
 ---
 
@@ -284,3 +288,14 @@ the RCCA is complete; the learning is routed back into the guidelines and the pr
   (`core/issues.py`) tracks FINDINGS; the API/dashboard expose both and show the 1:1 pair + RCCA status
   (`GET /api/v1/issues`, `GET /api/v1/backlog`).
 - **CLI:** `python -m core.issues --list|--show IS-…|--stats`.
+
+### Two layers of guidance — keep the MAIN ones intact
+- **MAIN guidelines (curated, stable, intact):** this EOS (§2–§11), the injected `discipline_guard`, and
+  `docs/guidelines/engineering/operating-principles.md`. These are **hand-curated and versioned** — never
+  auto-mutated by findings.
+- **LEARNINGS (additive, de-duplicated, compact):** `core/learnings.py` — distilled from RCCA
+  (`issues.set_rcca(..., generalized=True)` → `learnings.add`, which **merges** similar rules and is
+  **size-capped**). Injected as a **separate, bounded block** (`learnings.render()`, ≤ ~1.6k chars) after the
+  main guidelines — never merged into them.
+- **Why:** the main guidance stays clear and stable; learnings grow without duplicates and without bloating
+  prompts (agents aren't overwhelmed; token use stays bounded).

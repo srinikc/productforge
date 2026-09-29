@@ -309,6 +309,16 @@ def set_rcca(scope: str, project: Optional[str], iid: str, *, root_cause: str = 
                 e["updated_at"] = datetime.now().isoformat()
                 _save_item(d, e)
                 _hist(d, e, "rcca")
+                # Routing: a GENERALIZED learning is added to the deduped, compact
+                # learnings registry (never appended blindly; similar rules merge).
+                try:
+                    if rcca.get("generalized"):
+                        from core import learnings as _ln
+                        _rule = rcca.get("preventive") or rcca.get("root_cause") or ""
+                        if _rule:
+                            _ln.add(_rule, area=str(e.get("module") or ""), source_ref=iid)
+                except Exception:
+                    pass
                 return e
     finally:
         _unlock(lp)
