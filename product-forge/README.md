@@ -128,7 +128,6 @@ After running `productforge docs`, you'll find generated files in `pipeline_dash
 - **Pipeline Documentation**:
   - `pipeline-workflow.html` - Full pipeline diagram
   - `pipeline-workflow.drawio` - Draw.io format
-  - `pipeline-workflow.pdf` - Printable PDF
 
 - **Agent Documentation** (17 agents):
   - `agent-<name>.html` - Agent workflow details
