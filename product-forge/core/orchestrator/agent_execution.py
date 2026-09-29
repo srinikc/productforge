@@ -391,7 +391,8 @@ class AgentExecutionMixin:
             )
             execution.compliance_report = compliance_outcome["execution_report"]
             execution.compliance_passed = compliance_outcome["passed"]
-            # BI-0227: on a failed gate, emit an escalate-on-failure recommendation.
+            # BI-0227: on a failed gate, emit an escalate-on-failure recommendation,
+            # and (opt-in) auto-route the retry to the stronger tier.
             if not execution.compliance_passed:
                 try:
                     from core import escalation as _esc, events as _ev
@@ -400,6 +401,14 @@ class AgentExecutionMixin:
                              run_id=str(getattr(self.execution, "pipeline_id", "") or ""),
                              stage=stage_id, agent=agent_id,
                              escalate_to=_rec.get("escalate_to", ""))
+                    if _esc.auto_enabled() and _rec.get("escalate_to"):
+                        _esc.set_override(agent_id, _rec["escalate_to"])
+                except Exception:
+                    pass
+            else:
+                try:
+                    from core import escalation as _esc
+                    _esc.clear_override(agent_id)
                 except Exception:
                     pass
 

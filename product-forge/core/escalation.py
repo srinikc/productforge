@@ -54,3 +54,59 @@ def next_tier(tier: str) -> str:
 def recommend(agent_id: str, tier: str = "") -> Dict:
     """Escalation recommendation for an agent that failed a gate."""
     return {"agent": agent_id, "from_tier": tier, "escalate_to": next_tier(tier)}
+
+
+# ── auto-route (BI-0227 execution) ───────────────────────────────────────────
+# In-process, per-run overrides: agent_id -> tier. Consulted by the model resolver so a
+# retry after a failed gate runs on the stronger tier. Never persisted (state) — the loop
+# clears it on success. Opt-in via PIPELINE_AUTO_ESCALATE=1 (default off).
+_OVERRIDES: Dict[str, str] = {}
+
+_PROFILE_CACHE = None
+
+
+def _config() -> Dict:
+    global _PROFILE_CACHE
+    if _PROFILE_CACHE is None:
+        try:
+            with open(_TIER_CFG, "r", encoding="utf-8-sig") as f:
+                _PROFILE_CACHE = json.load(f) or {}
+        except Exception:
+            _PROFILE_CACHE = {}
+    return _PROFILE_CACHE
+
+
+def auto_enabled() -> bool:
+    return os.getenv("PIPELINE_AUTO_ESCALATE", "0").strip().lower() in ("1", "true", "yes", "on")
+
+
+def set_override(agent_id: str, tier: str) -> None:
+    if agent_id:
+        _OVERRIDES[str(agent_id)] = str(tier or "")
+
+
+def get_override(agent_id: str) -> str:
+    return _OVERRIDES.get(str(agent_id), "")
+
+
+def clear_override(agent_id: str = "") -> None:
+    if agent_id:
+        _OVERRIDES.pop(str(agent_id), None)
+    else:
+        _OVERRIDES.clear()
+
+
+def tier_agent_model(tier: str, agent_id: str):
+    """Resolve a profile's model/provider/endpoint for an agent, or None if the profile
+    defines no usable model (e.g. the base ``actual`` profile - no cross-profile change)."""
+    prof = (_config().get("profiles") or {}).get(str(tier or ""))
+    if not isinstance(prof, dict):
+        return None
+    entry = (prof.get("agents") or {}).get(str(agent_id)) or {}
+    model = entry.get("model") or prof.get("default_model")
+    if not model:
+        return None
+    meta = (prof.get("models") or {}).get(model) or {}
+    return {"model": model,
+            "provider": meta.get("provider") or prof.get("provider") or "",
+            "api_endpoint": meta.get("api_endpoint") or prof.get("api_endpoint") or ""}
