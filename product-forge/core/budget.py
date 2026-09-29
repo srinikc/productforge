@@ -43,19 +43,24 @@ def _empty() -> Dict:
 
 
 def _lock(p: str):
-    try:
-        os.makedirs(os.path.dirname(p) or ".", exist_ok=True)
-        lp = p + ".lock"
-        for _ in range(50):
+    os.makedirs(os.path.dirname(p) or ".", exist_ok=True)
+    lp = p + ".lock"
+    for _ in range(50):
+        try:
+            fd = os.open(lp, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            os.close(fd)
+            return lp
+        except FileExistsError:
+            # Reclaim a stale lock left by a dead/hung writer.
             try:
-                fd = os.open(lp, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
-                os.close(fd)
-                return lp
-            except FileExistsError:
-                time.sleep(0.1)
-    except Exception:
-        pass
-    return None
+                if time.time() - os.path.getmtime(lp) > 300:
+                    os.remove(lp)
+                    continue
+            except Exception:
+                pass
+            time.sleep(0.1)
+    # Fail closed (PF-011): never mutate the budget store without the lock.
+    raise TimeoutError(f"[Budget] could not acquire lock {lp} within timeout")
 
 
 def _unlock(lp):
