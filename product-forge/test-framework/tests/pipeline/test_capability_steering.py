@@ -27,3 +27,20 @@ def test_build_request_enables_only_supported():
 def test_build_request_degrades_and_flags():
     r = ac.build_request("design", {"structured_outputs": False, "reasoning": True})
     assert r["structured"] is False and "structured" in r["degraded"]
+
+
+def test_apply_to_request_noop_on_empty_decision():
+    req = {"model": "m", "max_tokens": 100, "reasoning": {"effort": "high"}}
+    assert ac.apply_to_request(dict(req), {}, "openrouter") == req
+
+
+def test_apply_to_request_raises_min_output():
+    req = {"model": "m", "max_tokens": 100}
+    out = ac.apply_to_request(req, {"min_output": 8000, "reasoning": False}, "opencode-go")
+    assert out["max_tokens"] == 8000 and "reasoning" not in out
+
+
+def test_apply_to_request_reasoning_only_for_openrouter():
+    d = {"min_output": 0, "reasoning": True, "reasoning_effort": "low"}
+    assert "reasoning" not in ac.apply_to_request({"model": "m"}, dict(d), "opencode-go")
+    assert ac.apply_to_request({"model": "m"}, dict(d), "openrouter")["reasoning"] == {"effort": "low"}

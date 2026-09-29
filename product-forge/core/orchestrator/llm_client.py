@@ -319,6 +319,7 @@ class LLMClient:
             last_attempt = attempt
             try:
                 data = self._build_api_request_messages(model_name, messages, max_output_tokens)
+                data = self._capability_steer(data, model_name, agent_id, stage_id, provider)
                 _pace(provider)
                 _t_call = time.time()
                 # BI-0229: verbose per-call logging is gated (off = concise).
@@ -507,6 +508,7 @@ class LLMClient:
         max_out = contract.get("max_output_tokens", 4000)
         try:
             data = self._build_api_request_messages(model, messages, max_out)
+            data = self._capability_steer(data, model, agent_id, stage_id, provider)
             _pace(provider)
             r = requests.post(endpoint, json=data, headers=headers, timeout=180)
             if r.status_code != 200:
@@ -714,6 +716,7 @@ class LLMClient:
         headers = self._build_api_headers(provider, api_key, f"toolp-{self.project}-{agent_id}")
         max_out = get_contract(agent_id).get("max_output_tokens", 4000)
         data = {"model": model, "messages": messages, "max_tokens": max_out, "temperature": 0.3}
+        data = self._capability_steer(data, model, agent_id, stage_id, provider)
         if tools:
             data["tools"] = tools
             data["tool_choice"] = "auto"
@@ -803,6 +806,29 @@ class LLMClient:
             "max_tokens": max_output_tokens,
             "temperature": 0.7
         }
+    def _capability_steer(self, data: dict, model_name: str, agent_id: str,
+                          stage_id: str, provider: str) -> dict:
+        """BI-0222/0223 execution: apply the agent's capability vector to the request.
+
+        Opt-in (``PIPELINE_CAPABILITY_STEER=1``); default off so behavior is unchanged until
+        a smoke run confirms it. Enables capabilities only when the agent needs them AND the
+        chosen model supports them; otherwise it degrades (no-op). Never fatal.
+        """
+        import os as _os
+        if str(_os.getenv("PIPELINE_CAPABILITY_STEER", "0")).strip().lower() not in ("1", "true", "yes", "on"):
+            return data
+        try:
+            from core import agent_capabilities as _ac
+            caps = {}
+            try:
+                from core import model_catalog as _mc
+                caps = _mc.capabilities(model_name) or {}
+            except Exception:
+                caps = {}
+            decision = _ac.build_request(agent_id, caps)
+            return _ac.apply_to_request(data, decision, provider)
+        except Exception:
+            return data
     def _extract_response_content(self, result: dict, provider: str) -> str:
         """Extract content from API response based on provider."""
         try:
