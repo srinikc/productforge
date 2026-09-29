@@ -105,7 +105,9 @@ def main():
         print('  none')
 
     print('\nTotal stages:', len(ids))
+    return 1 if problems else 0   # PF-171: CI can gate on unknown deps/cycles
 
 
 if __name__ == '__main__':
-    main()
+    import sys as _sys
+    _sys.exit(main())

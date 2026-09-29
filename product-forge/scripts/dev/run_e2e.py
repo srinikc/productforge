@@ -10,7 +10,11 @@ if __name__ == "__main__":
     try:
         success = execute_pipeline("test-pipeline", "pipeline-definition.json", "products")
         print(f"PIPELINE RUNNER FINISHED success={success}", flush=True)
+        raise SystemExit(0 if success else 1)   # PF-138: never exit 0 on failure
+    except SystemExit:
+        raise
     except Exception as e:
         import traceback
         print(f"PIPELINE RUNNER CRASHED: {e}", flush=True)
         traceback.print_exc()
+        raise SystemExit(1)

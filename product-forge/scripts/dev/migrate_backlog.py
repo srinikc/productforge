@@ -77,6 +77,7 @@ def main():
     print(f"migrate_backlog {'(dry-run)' if DRY else ''}")
     ensure_forge()
     total = {"features": 0, "defects": 0, "conversations": 0}
+    failed = False
     for pr in _projects():
         r = migrate_project(pr)
         if any(r.values()):
@@ -97,8 +98,9 @@ def main():
         print(f"  conversations promoted (global, once): {n}")
     except Exception as e:
         print(f"  conversations skipped: {e}")
+        failed = True
     print(f"totals: {total}")
-    return 0
+    return 1 if failed else 0   # PF-195: signal incomplete migration
 
 
 if __name__ == "__main__":
