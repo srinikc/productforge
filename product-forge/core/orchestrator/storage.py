@@ -99,8 +99,11 @@ class AgentAuditLog:
 
     def _save(self):
         os.makedirs(os.path.dirname(self.log_file), exist_ok=True)
-        with open(self.log_file, 'w', encoding='utf-8') as f:
+        # PF-032: atomic write (temp + replace) so a crash cannot corrupt the log.
+        tmp = self.log_file + ".tmp"
+        with open(tmp, 'w', encoding='utf-8') as f:
             json.dump(self.entries, f, indent=2, ensure_ascii=False)
+        os.replace(tmp, self.log_file)
 
     def log_agent_execution(self, entry: Dict):
         with self._lock:
@@ -147,8 +150,11 @@ class LLMCache:
     def set(self, prompt: str, model: str, agent_id: str, result: Dict):
         cache_key = self._hash_prompt(prompt, model, agent_id)
         cache_file = os.path.join(self.cache_dir, f"{cache_key}.json")
-        with open(cache_file, 'w', encoding='utf-8') as f:
+        # PF-033: atomic write so an interrupted write cannot corrupt a cache entry.
+        tmp = cache_file + ".tmp"
+        with open(tmp, 'w', encoding='utf-8') as f:
             json.dump(result, f, indent=2, ensure_ascii=False)
+        os.replace(tmp, cache_file)
 
     def clear(self):
         for f in os.listdir(self.cache_dir):
@@ -187,8 +193,12 @@ class InputCache:
             payload = dict(result or {})
             payload.setdefault("agent_id", agent_id)
             payload.setdefault("stage_id", stage_id)
-            with open(self._path(key), 'w', encoding='utf-8') as f:
+            # PF-033: atomic write.
+            _p = self._path(key)
+            tmp = _p + ".tmp"
+            with open(tmp, 'w', encoding='utf-8') as f:
                 json.dump(payload, f, indent=2, ensure_ascii=False)
+            os.replace(tmp, _p)
             return True
         except Exception:
             return False
