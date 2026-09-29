@@ -76,6 +76,7 @@
 | [`final_required_changes.md`](final_required_changes.md) | Analysis (current) | 100% | Consolidated final change plan: audit M0/M1/M2 reconciled with backlog + our docs | — | — |
 | [`huggingface.md`](huggingface.md) | Adopted (reference) | 40% | HuggingFace / open-weights references | Partly adopted; model downloader planned (BI-0206). | — |
 | [`input_needed.md`](input_needed.md) | Adopted (reference) | 70% | Required-inputs notes | Adopted: readiness checklist (BI-0220). | — |
+| [`m0_status_and_coverage.md`](m0_status_and_coverage.md) | Analysis (current) | 100% | M0 status: PF-xx coverage, Section D status, open backlog | — | — |
 | [`model-tier-timing-and-multimodal-flow.md`](model-tier-timing-and-multimodal-flow.md) | Design | 80% | Tier timing + multimodal flow | **Pending: post-architect two-phase MODEL/CAPABILITY strategy gate.** | BI-0192, BI-0210 |
 | [`modelanalysis.md`](modelanalysis.md) | Adopted (reference) | 80% | Model capability matrix + tier recommendations | Adopted: model tiers + config/model-catalog.json. | — |
 | [`multimodal_orchestration.md`](multimodal_orchestration.md) | Design | 70% | Multimodal orchestration | **Not built: media capability packs, media agents, media QA validators, asset store.** | BI-0185 (epic), BI-0186–BI-0191, BI-0213 |
