@@ -695,6 +695,12 @@ class AgentRunnerMixin:
         except Exception:
             pass
         if digest:
+            # BI-0226: bound the upstream context so per-section calls stop growing.
+            try:
+                from core import context_discipline as _cd
+                digest = _cd.cap(digest)
+            except Exception:
+                pass
             pack += "\n\nUPSTREAM CONTEXT (condensed):\n" + digest
         return pack
 
