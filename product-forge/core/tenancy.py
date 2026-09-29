@@ -158,3 +158,25 @@ def seats(tenant: str, tier: str = "") -> Dict[str, Any]:
         pass
     return {"tenant": tenant, "tier": tier, "used": used, "limit": limit,
             "available": (limit - used) if limit else None}
+
+
+def instance_tenant() -> str:
+    """The tenant this instance is bound to (``INSTANCE_TENANT``), or '' if unset."""
+    return os.getenv("INSTANCE_TENANT", "").strip()
+
+
+def cross_tenant_allowed(role: str, bound_tenant: str, requested: str,
+                         platform_admin: bool) -> bool:
+    """Fail-closed tenant-scope decision (PF-022).
+
+    A platform admin may access any tenant. A tenant instance may only access the tenant it
+    is bound to (an unbound tenant instance is denied). Operators without platform-admin are
+    denied. An empty ``requested`` (e.g. list-all) requires platform admin.
+    """
+    if platform_admin:
+        return True
+    if (role or "").strip().lower() != "tenant":
+        return False
+    if not requested:
+        return False
+    return bool(bound_tenant) and bound_tenant == requested
