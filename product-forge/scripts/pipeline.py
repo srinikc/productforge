@@ -1885,13 +1885,13 @@ def show_compliance(project=None, agent=None, stage=None):
     else:
         print(json.dumps(result, indent=2))
     
-    # Return exit code based on status
+    # Return exit code based on status (BW-C01: allowlist verified PASS only).
     status = result.get("overall_status", "unknown")
+    if status == "pass":
+        return 0
     if status == "fail":
         return 2  # Critical issues
-    elif status == "partial":
-        return 1  # Warnings
-    return 0
+    return 1  # partial / unknown / skipped / missing -> nonzero (never silent success)
 
 
 def show_cost_kpi(project=None):

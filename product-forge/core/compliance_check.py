@@ -698,26 +698,72 @@ def docker_build_works(project_dir: Path) -> Dict[str, Any]:
     }
 
 
+def _executed_test_summary(project_dir: Path) -> Optional[Dict[str, Any]]:
+    """Latest EXECUTED test-cycle for this project (test-framework/results/test-cycles), else None."""
+    import glob
+    try:
+        proj = project_dir.name
+        d = None
+        cur = project_dir
+        for _ in range(6):
+            cand = cur / "test-framework" / "results" / "test-cycles"
+            if cand.is_dir():
+                d = cand
+                break
+            cur = cur.parent
+        if d is None:
+            return None
+        best = None
+        for f in sorted(glob.glob(str(d / f"{proj}_*.json"))):
+            try:
+                c = json.loads(Path(f).read_text(encoding="utf-8"))
+            except Exception:
+                continue
+            if best is None or str(c.get("started_at", "")) > str(best.get("started_at", "")):
+                best = c
+        if not best:
+            return None
+        runs = best.get("test_runs") or []
+        total = sum(int(r.get("tests_run", 0) or 0) for r in runs)
+        passed = sum(int(r.get("tests_passed", 0) or 0) for r in runs)
+        return {"total": total, "passed": passed, "runs": len(runs),
+                "at": str(best.get("started_at", ""))}
+    except Exception:
+        return None
+
+
 def tests_pass(project_dir: Path) -> Dict[str, Any]:
-    """Check if tests pass (run pytest if available)"""
+    """PASS only when tests were EXECUTED and passed for this project (PF-036).
+
+    Test-file EXISTENCE alone is not a pass (use ``test_files_exist`` for that);
+    with no executed evidence the status is UNKNOWN/SKIPPED, never PASS.
+    """
     test_dirs = [
         project_dir / "tests",
         project_dir / "apps" / "api" / "tests",
     ]
-    
     has_tests = any(d.exists() for d in test_dirs)
-    if not has_tests:
+
+    ex = _executed_test_summary(project_dir)
+    if ex and ex.get("total", 0) > 0:
+        if ex["passed"] >= ex["total"]:
+            return {"status": CheckStatus.PASS.value,
+                    "details": f"Executed tests passed ({ex['passed']}/{ex['total']})",
+                    "evidence": [f"test-cycle {ex.get('at','')}"]}
+        return {"status": CheckStatus.FAIL.value,
+                "details": f"Executed tests failed ({ex['passed']}/{ex['total']})",
+                "evidence": [f"test-cycle {ex.get('at','')}"]}
+
+    if has_tests:
         return {
-            "status": CheckStatus.SKIPPED.value,
-            "details": "No test directories found",
-            "evidence": [],
+            "status": CheckStatus.UNKNOWN.value,
+            "details": "Test files exist but were not executed - run the test framework to verify",
+            "evidence": [str(d) for d in test_dirs if d.exists()],
         }
-    
-    # Don't actually run tests (too slow), just check they exist
     return {
-        "status": CheckStatus.PASS.value,
-        "details": "Test files exist (run separately to verify they pass)",
-        "evidence": [str(d) for d in test_dirs if d.exists()],
+        "status": CheckStatus.SKIPPED.value,
+        "details": "No test directories found",
+        "evidence": [],
     }
 
 

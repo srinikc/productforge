@@ -93,5 +93,12 @@ def gate_agent_output(agent_id: str, artifacts: List[str], project_dir: str) -> 
         for pat, label in FORBIDDEN:
             if re.search(pat, text, re.IGNORECASE | re.MULTILINE):
                 res.findings.append(GateFinding(os.path.relpath(path, project_dir), label).to_dict())
+    # Fail-closed (PF-145): a code agent with NO scanable source is indeterminate,
+    # not a pass (previously passed=True on an empty/unreadable tree).
+    if res.scanned_files == 0:
+        res.passed = False
+        res.findings.append(GateFinding(
+            "(project)", "no source files scanned - cannot verify no-placeholder gate", "high"))
+        return res.to_dict()
     res.passed = len(res.findings) == 0
     return res.to_dict()
