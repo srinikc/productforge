@@ -433,8 +433,12 @@ class AgentRunnerMixin:
                 token_info.get("cost", 0.0)
             )
             
-            with open(artifact_file, 'w', encoding='utf-8') as f:
+            # BV-C05: atomic canonical write (temp + replace) so a crash/disk-full
+            # cannot truncate the previously good artifact.
+            _tmp_art = artifact_file + ".tmp"
+            with open(_tmp_art, 'w', encoding='utf-8') as f:
                 f.write(formatted_content)
+            os.replace(_tmp_art, artifact_file)
             
             artifacts.append(artifact_file)
             # F0-3: bind the published artifact to the current run (run-bound provenance).

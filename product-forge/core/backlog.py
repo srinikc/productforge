@@ -194,6 +194,9 @@ def migrate_scope(scope: str, project: Optional[str] = None) -> Dict:
         _unlock(lp)
 
 
+_LOCK_STALE_SECONDS = 300
+
+
 def _lock(d):
     os.makedirs(d, exist_ok=True)
     lp = os.path.join(d, ".lock")
@@ -203,8 +206,16 @@ def _lock(d):
             os.close(fd)
             return lp
         except FileExistsError:
+            # Reclaim a lock left behind by a dead/hung writer (stale by mtime).
+            try:
+                if time.time() - os.path.getmtime(lp) > _LOCK_STALE_SECONDS:
+                    os.remove(lp)
+                    continue
+            except Exception:
+                pass
             time.sleep(0.1)
-    return None
+    # Fail closed (PF-025): never mutate the store without holding the lock.
+    raise TimeoutError(f"[Backlog] could not acquire lock {lp} within timeout")
 
 
 def _unlock(lp):
