@@ -84,3 +84,26 @@ def build_request(agent_id: str, model_caps: Dict) -> Dict:
         degraded.append("vision")
     out["degraded"] = degraded
     return out
+
+
+def apply_to_request(request: Dict, decision: Dict, provider: str = "") -> Dict:
+    """Apply a capability decision to an API request dict (BI-0222 execution).
+
+    Only mutates what the decision justifies; a falsy/empty decision is a safe no-op.
+    Reasoning is only attached for providers known to accept it (openrouter); when the
+    decision says no reasoning, any stale ``reasoning`` key is dropped.
+    """
+    if not isinstance(request, dict) or not decision:
+        return request
+    try:
+        want = int(decision.get("min_output") or 0)
+        if want and int(request.get("max_tokens") or 0) < want:
+            request["max_tokens"] = want
+    except Exception:
+        pass
+    if decision.get("reasoning"):
+        if provider in ("openrouter", "openrouter.ai"):
+            request["reasoning"] = {"effort": str(decision.get("reasoning_effort") or "low")}
+    else:
+        request.pop("reasoning", None)
+    return request
