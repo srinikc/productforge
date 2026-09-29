@@ -44,5 +44,8 @@
 
 ## 5. Progress
 - **P1 done:** `core/tracing.py` + `trace_id`/`span_id` on every event + `/api/v1/logs?trace_id=`.
-- **P2 done:** canonical `level` on events; **secret redaction** applied to every log line + JSONL event write
-  (`log_router.redact`).
+- **P2 done:** canonical `level` on events; **secret redaction** applied to every log line + JSONL event write.
+- **P3 done:** `run_status.rebuild()` derives status **strictly from the event stream** (CQRS read model).
+- **P4 done:** `core/sli.py` SLIs (success rate, run counts, tokens/tool-calls) + `GET /api/v1/sli`.
+- **P5 done:** `core/otel.py` maps events → OTel-style spans; flag-gated export (`PIPELINE_OTEL`) + `POST /api/v1/otel/export`.
+- **P6 done:** `GET /api/v1/trace?trace_id=` (full trace); JSONL retention (`log_router.trim_jsonl` applied to events at run start) + run-dir retention.

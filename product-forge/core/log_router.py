@@ -206,3 +206,22 @@ def rotate_runs(project_dir: str, keep_runs: Optional[int] = None) -> int:
         except Exception:
             pass
     return removed
+
+
+def trim_jsonl(path: str, max_lines: int = 20000) -> int:
+    """Retention for append-only JSONL streams (e.g. events.jsonl): keep the last N lines."""
+    try:
+        if not os.path.isfile(path):
+            return 0
+        with open(path, encoding="utf-8", errors="ignore") as f:
+            lines = f.readlines()
+        if len(lines) <= max_lines:
+            return 0
+        keep = lines[-max_lines:]
+        tmp = path + ".tmp"
+        with open(tmp, "w", encoding="utf-8", newline="\n") as f:
+            f.writelines(keep)
+        os.replace(tmp, path)
+        return len(lines) - len(keep)
+    except Exception:
+        return 0

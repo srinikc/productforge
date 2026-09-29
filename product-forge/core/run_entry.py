@@ -35,9 +35,13 @@ def begin_run(project: str, products_dir: str = "products",
     # Backend log (data/logs/pipeline-backend.log) + run log.
     try:
         from core import log_router as _lr
-        # Retention (BI-PF-0233): prune old run-log dirs before starting a new one.
+        # Retention (BI-PF-0233): prune old run-log dirs + trim the event stream.
         try:
             _lr.rotate_runs(project_dir)
+        except Exception:
+            pass
+        try:
+            _lr.trim_jsonl(_lr.run_events_path(project_dir))
         except Exception:
             pass
         _lr.log_event(_lr.backend_log_path(), run_id=rid, event="begin_run",
