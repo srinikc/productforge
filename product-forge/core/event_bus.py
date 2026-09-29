@@ -45,6 +45,21 @@ def emit(kind: str, **payload) -> Dict:
             f.write(json.dumps(ev, ensure_ascii=False, default=str) + "\n")
     except Exception:
         pass
+    # BI-PF-0233: mirror project-scoped bus events into the canonical per-project
+    # stream (products/<project>/events.jsonl) so the live feed + analytics read ONE
+    # store per project instead of a diverging global file.
+    _proj = str(payload.get("project") or "")
+    if _proj:
+        try:
+            from core import events as _ev
+            _extra = {k: v for k, v in payload.items()
+                      if k not in ("project", "run_id", "stage", "agent")}
+            _ev.emit(os.path.join(_REPO, "products", _proj), kind,
+                     run_id=str(payload.get("run_id") or ""),
+                     stage=str(payload.get("stage") or ""),
+                     agent=str(payload.get("agent") or ""), **_extra)
+        except Exception:
+            pass
     for fn in _HANDLERS.get(kind, []) + _HANDLERS.get("*", []):
         try:
             fn(ev)

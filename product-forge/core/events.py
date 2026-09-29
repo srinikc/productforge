@@ -23,6 +23,14 @@ TYPES = ("run_started", "run_completed", "run_failed",
 FILENAME = "events.jsonl"
 
 
+def _span_id() -> str:
+    try:
+        from core import tracing
+        return tracing.new_span_id()
+    except Exception:
+        return ""
+
+
 def path(project_dir: str) -> str:
     return os.path.join(project_dir, FILENAME)
 
@@ -32,10 +40,18 @@ def emit(project_dir: str, event_type: str, *, run_id: str = "", stage: str = ""
     """Append one canonical event. Best-effort (never raises)."""
     try:
         ev = {"ts": datetime.now().isoformat(timespec="seconds"),
-              "type": str(event_type), "run_id": run_id, "stage": stage, "agent": agent}
+              "type": str(event_type), "level": "INFO", "run_id": run_id, "stage": stage,
+              "agent": agent, "trace_id": str(run_id or ""), "span_id": _span_id()}
         ev.update({k: v for k, v in fields.items() if v not in (None, "")})
-        with open(path(project_dir), "a", encoding="utf-8") as f:
-            f.write(json.dumps(ev, ensure_ascii=False) + "\n")
+        # BI-PF-0233: route the append through log_router (single owner of paths + writes).
+        try:
+            from core import log_router as _lr
+            _lr.append_jsonl(_lr.run_events_path(project_dir), ev)
+        except Exception:
+            p = path(project_dir)
+            os.makedirs(os.path.dirname(p) or ".", exist_ok=True)
+            with open(p, "a", encoding="utf-8") as f:
+                f.write(json.dumps(ev, ensure_ascii=False) + "\n")
         return ev
     except Exception:
         return None

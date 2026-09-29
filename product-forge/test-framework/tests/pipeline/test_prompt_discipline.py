@@ -18,6 +18,10 @@ def test_discipline_guard_covers_key_rules():
     # no placeholders rule
     assert "todo" in low and "placeholder" in low
     # 360 impact analysis rule
-    assert "360" in t and "dependencies" in low
+    assert "360" in t and "dependency" in low
+    # order: think/design/plan/360 then produce (role-agnostic, not code-only)
+    assert "design" in low and "plan" in low and ("produce" in low or "implement" in low)
+    # no placeholders rule (any artifact, not only code)
+    assert "placeholder" in low and "todo" in low
     # fail-closed evidence rule
     assert "blocked" in low or "unverified" in low

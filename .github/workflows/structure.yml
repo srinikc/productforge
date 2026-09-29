@@ -25,9 +25,32 @@ jobs:
       - name: Structure audit (naming + store registry + diff + destructive)
         run: python scripts/dev/wired_audit.py
 
+      - name: Workflow matrix check (stage/agent matrix)
+        run: python scripts/dev/workflow_matrix_check.py
+
       - name: Backlog chain E2E
         run: python scripts/dev/e2e_backlog_check.py
 
-      - name: Unit tests (existing)
+      - name: Generated docs are fresh (BI-PF-0258)
+        run: |
+          export PYTHONPATH=.
+          python scripts/dev/gen_docs_index.py
+          python scripts/dev/gen_backlog_summary.py
+          ok=1
+          for f in docs/documentation-index.html docs/README.md docs/BACKLOG-SUMMARY.md; do
+            git show HEAD:"$f" 2>/dev/null | grep -vE 'Generated |GENERATED ' > /tmp/head.txt || true
+            grep -vE 'Generated |GENERATED ' "$f" > /tmp/work.txt || true
+            if ! diff -q /tmp/head.txt /tmp/work.txt >/dev/null; then
+              echo "STALE generated doc: $f (run gen_docs_index.py + gen_backlog_summary.py and commit)"
+              ok=0
+            fi
+          done
+          [ "$ok" = 1 ] || exit 1
+          echo "generated docs are fresh"
+
+      - name: Pipeline + M0 acceptance tests (REQUIRED)
+        run: python -m pytest test-framework/tests/pipeline -q -o addopts=""
+
+      - name: Full test suite (optional; some tests need system libs)
         run: python -m pytest test-framework/tests -q
         continue-on-error: true   # 5 pdf tests need system libs (weasyprint/libgobject)

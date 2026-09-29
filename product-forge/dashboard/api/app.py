@@ -221,7 +221,9 @@ def agent_control(agent: str, body: Dict[str, Any]):
 @app.get("/api/v1/events", dependencies=[Depends(auth)])
 def events(project: str = Query("")):
     def _gen():
-        ev = PRODUCTS / ".orchestration" / "events.jsonl"
+        # BI-PF-0233: read the canonical per-project stream when a project is given;
+        # fall back to the global orchestration bus otherwise (was: global-only).
+        ev = (PRODUCTS / project / "events.jsonl") if project else (PRODUCTS / ".orchestration" / "events.jsonl")
         pos = 0
         last_beat = 0.0
         while True:
@@ -533,6 +535,141 @@ def work_estimate_get(project: str = Query(...), refresh: bool = Query(False)):
     if refresh:
         work_estimate.estimate_all(pj)
     return work_estimate.summary(pj)
+
+
+# ── logs query API (BI-PF-0235) ──────────────────────────────────────────────
+def _parse_agent_log(line: str, project: str) -> Optional[Dict[str, Any]]:
+    """Parse one `ts | level | run_id | stage | agent | event | message` line."""
+    parts = [p.strip() for p in str(line).split("|")]
+    if len(parts) < 6:
+        return None
+    return {"ts": parts[0], "level": (parts[1] or "INFO").upper(), "run_id": parts[2],
+            "stage": parts[3], "agent": parts[4], "event": parts[5],
+            "message": " | ".join(parts[6:]) if len(parts) > 6 else "", "project": project,
+            "source": "agent-log"}
+
+
+@app.get("/api/v1/logs", dependencies=[Depends(auth)])
+def logs_get(project: str = Query(...), run: str = Query(""), stage: str = Query(""),
+             agent: str = Query(""), level: str = Query(""), q: str = Query(""),
+             trace_id: str = Query(""), limit: int = Query(500)):
+    """Query the canonical per-project events + per-agent logs (BI-PF-0235).
+
+    Reads the SSOT (products/<project>/events.jsonl + logs/<run>/<stage>-<agent>.log),
+    filters by run/stage/agent/level and a free-text `q`, returns newest-last.
+    """
+    import glob
+    pj = PRODUCTS / project
+    entries: List[Dict[str, Any]] = []
+
+    # 1. canonical event stream
+    ev = pj / "events.jsonl"
+    if ev.exists():
+        try:
+            with open(ev, encoding="utf-8", errors="replace") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        e = json.loads(line)
+                    except Exception:
+                        continue
+                    e.setdefault("level", "INFO")
+                    e["source"] = "event"
+                    entries.append(e)
+        except Exception:
+            pass
+
+    # 2. per-agent logs (logs/<run_id>/<stage>-<agent>.log)
+    for lf in glob.glob(str(pj / "logs" / "**" / "*.log"), recursive=True):
+        try:
+            with open(lf, encoding="utf-8", errors="replace") as f:
+                for line in f:
+                    if "|" not in line:
+                        continue
+                    e = _parse_agent_log(line, project)
+                    if e:
+                        entries.append(e)
+        except Exception:
+            continue
+
+    def _keep(e: Dict[str, Any]) -> bool:
+        if run and str(e.get("run_id") or "") != run:
+            return False
+        if trace_id and str(e.get("trace_id") or e.get("run_id") or "") != trace_id:
+            return False
+        if stage and str(e.get("stage") or "") != stage:
+            return False
+        if agent and str(e.get("agent") or "") != agent:
+            return False
+        if level and str(e.get("level") or "").upper() != level.upper():
+            return False
+        if q and q.lower() not in json.dumps(e, ensure_ascii=False).lower():
+            return False
+        return True
+
+    entries = [e for e in entries if _keep(e)]
+    entries.sort(key=lambda e: str(e.get("ts") or e.get("at") or ""))
+    return {"project": project, "count": len(entries), "returned": min(len(entries), limit),
+            "entries": entries[-limit:]}
+
+
+# ── issue tracker ⇄ backlog (BI-PF-0262) ─────────────────────────────────────
+@app.get("/api/v1/issues", dependencies=[Depends(auth)])
+def issues_list(scope: str = Query("product_forge"), state: str = Query("open"),
+                priority: str = Query(""), module: str = Query("")):
+    from core import issues
+    s, p = _scope_parts(scope)
+    items = issues.list_closed(s, p) if state == "closed" else issues.list_open(s, p, priority, module)
+    return {"scope": scope, "state": state, "count": len(items), "items": items,
+            "stats": issues.stats(s, p)}
+
+
+@app.get("/api/v1/issues/{iid}", dependencies=[Depends(auth)])
+def issues_get(iid: str, scope: str = Query("product_forge")):
+    from core import issues
+    s, p = _scope_parts(scope)
+    it = issues.get(s, p, iid)
+    if not it:
+        raise HTTPException(404, "issue not found")
+    return it
+
+
+@app.post("/api/v1/issues", dependencies=[Depends(auth)])
+def issues_create(body: Dict[str, Any]):
+    from core import issues
+    s, p = _scope_parts(str(body.get("scope") or "product_forge"))
+    if not body.get("title"):
+        raise HTTPException(400, "title required")
+    return issues.raise_issue(
+        s, p, body["title"], body=body.get("body", ""), kind=body.get("kind", "issue"),
+        priority=body.get("priority", "P2"), severity=body.get("severity", ""),
+        module=body.get("module", ""), source=body.get("source", "review"),
+        backlog_ref=body.get("backlog_ref", ""), source_ref=body.get("source_ref", ""))
+
+
+@app.post("/api/v1/issues/{iid}/{action}", dependencies=[Depends(auth)])
+def issues_action(iid: str, action: str, body: Dict[str, Any]):
+    from core import issues
+    s, p = _scope_parts(str(body.get("scope") or "product_forge"))
+    if action == "rcca":
+        return issues.set_rcca(s, p, iid, root_cause=body.get("root_cause", ""),
+                               corrective=body.get("corrective", ""),
+                               preventive=body.get("preventive", ""),
+                               fixed_where=body.get("fixed_where", ""),
+                               generalized=bool(body.get("generalized", False)),
+                               guideline_ref=body.get("guideline_ref", ""),
+                               product_ref=body.get("product_ref", ""))
+    if action == "link":
+        return issues.link_backlog(s, p, iid, str(body.get("backlog_ref") or ""))
+    if action == "status":
+        try:
+            return issues.set_status(s, p, iid, str(body.get("status") or ""),
+                                     note=body.get("note", ""), force=bool(body.get("force", False)))
+        except ValueError as e:
+            raise HTTPException(409, str(e))
+    raise HTTPException(400, f"unknown action: {action}")
 
 
 @app.post("/api/v1/model-fit/run", dependencies=[Depends(auth)])
