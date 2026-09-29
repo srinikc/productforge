@@ -1063,6 +1063,14 @@ def print_reciprocity_warnings(scope: str = "", project: Optional[str] = None) -
 def _cli(argv=None) -> int:
     """Dedup-before-add guard CLI: ``python -m core.backlog --similar "<text>"`` etc."""
     import argparse
+    # BI-PF-0257: Windows consoles default to cp1252 and crash on non-Latin chars
+    # (e.g. '→' in item titles). Force UTF-8 with replacement, never raise on print.
+    try:
+        import sys as _sys
+        _sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        _sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
     p = argparse.ArgumentParser(
         prog="python -m core.backlog",
         description="Backlog dedup guard: find near-duplicates BEFORE adding a work item.")

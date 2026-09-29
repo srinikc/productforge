@@ -3,7 +3,7 @@
 Convention (config/log-conventions.json):
   products/<project>/logs/<run_id>/<stage>-<agent>.log   per-agent (run-scoped)
   products/<project>/logs/<run_id>/<run_id>-pipeline.log overall, per run
-  product-forge/logs/pipeline-backend.log                the pipeline backend itself
+  data/logs/pipeline-backend.log                         the pipeline backend itself
   dashboard/logs/dashboard.log                           the dashboard (when built)
 
 Agents/                                                                                                                                                                       say must be attributable:
