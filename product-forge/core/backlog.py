@@ -522,7 +522,24 @@ def ensure_item(scope: str, project: Optional[str], external_id: str, title: str
                     external_id=external_id, tag=tag, **fields)
 
 
-def set_status(scope: str, project: Optional[str], eid: str, status: str, note: str = "") -> Optional[Dict]:
+def set_status(scope: str, project: Optional[str], eid: str, status: str, note: str = "",
+               force: bool = False) -> Optional[Dict]:
+    # RCCA gate (1:1 with the issue tracker): a backlog item linked to an issue may only
+    # reach a COMPLETED state after that issue records a complete RCCA (root_cause +
+    # corrective + fixed_where). Fail closed unless forced with an audited override.
+    if not force and status in {"completed", "closed", "done"}:
+        it = get_epic(scope, project, eid)
+        _ref = ((it or {}).get("links") or {}).get("issue")
+        _refs = _ref if isinstance(_ref, list) else ([_ref] if _ref else [])
+        for _r in _refs:
+            try:
+                from core import issues as _iss
+                ok, reason = _iss.can_close_ref(_r)
+            except Exception as e:
+                ok, reason = False, f"issue check failed: {e}"
+            if not ok:
+                print(f"[Backlog] refusing to close {eid}: {reason}")
+                return it
     return update(scope, project, eid, status=status, _note=note)
 
 

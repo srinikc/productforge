@@ -259,3 +259,28 @@ The learnings are not just documented — they are being **encoded into the prod
 **Net:** the standard is being made *structural* — encoded in the pipeline’s **gates/checks/provenance** (F0),
 its **knowledge/guidelines + agent cards** (to-do), and its **acceptance suite/CI** — so Product Forge builds
 future projects with the same discipline automatically.
+
+---
+
+## 13. Issue tracker ⇄ backlog ⇄ RCCA ⇄ learning loop (reuse + enhance)
+
+**Every finding becomes an issue; every issue maps 1:1 to a backlog item; the backlog item cannot close until
+the RCCA is complete; the learning is routed back into the guidelines and the product.**
+
+- **Raise an issue** (`core/issues.py`): `IS-<TAG>-<nnn>` (same destination tags as the backlog: `PF | DASH | IN |
+  <PROJECT-SLUG>`), with **priority (P0–P3), module, severity, kind (issue|bug|risk|gap)** — reusing the existing
+  detectors: `core/issue_tracker.py` (security/NFR/test), `core/defect_loop.py` (defects + RCCA),
+  `deps`/`backlog.qualify` and `backlog.link`/`pair` for references.
+- **1:1 mapping:** each issue stores exactly one `backlog_ref`; `issues.link_backlog()` writes the **reciprocal**
+  `links.issue` on the backlog item. Idempotent by `(source, source_ref)` so re-ingesting a defect / issue_tracker
+  id / audit PF id never duplicates.
+- **RCCA gate (fail closed):** a backlog item linked to an issue **cannot reach `completed`/`closed`/`done`**
+  until the issue records a complete RCCA — `root_cause` + `corrective` + **`fixed_where`** — enforced in
+  `backlog.set_status` (`force=True` = audited override only).
+- **Learning routing:** `rcca.generalized=true` + `guideline_ref` → fold the lesson into the **general guidelines**
+  (this EOS §11 + `docs/guidelines/...`); a role/area-specific fix → that **agent card / knowledge layer**; and
+  `product_ref` → the **product’s own gates/checks**. So the same gap cannot recur silently.
+- **Two trackers, one report:** the **backlog** (`core/backlog.py`) tracks WORK; the **issue tracker**
+  (`core/issues.py`) tracks FINDINGS; the API/dashboard expose both and show the 1:1 pair + RCCA status
+  (`GET /api/v1/issues`, `GET /api/v1/backlog`).
+- **CLI:** `python -m core.issues --list|--show IS-…|--stats`.

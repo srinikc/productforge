@@ -613,6 +613,63 @@ def logs_get(project: str = Query(...), run: str = Query(""), stage: str = Query
             "entries": entries[-limit:]}
 
 
+# ── issue tracker ⇄ backlog (BI-PF-0262) ─────────────────────────────────────
+@app.get("/api/v1/issues", dependencies=[Depends(auth)])
+def issues_list(scope: str = Query("product_forge"), state: str = Query("open"),
+                priority: str = Query(""), module: str = Query("")):
+    from core import issues
+    s, p = _scope_parts(scope)
+    items = issues.list_closed(s, p) if state == "closed" else issues.list_open(s, p, priority, module)
+    return {"scope": scope, "state": state, "count": len(items), "items": items,
+            "stats": issues.stats(s, p)}
+
+
+@app.get("/api/v1/issues/{iid}", dependencies=[Depends(auth)])
+def issues_get(iid: str, scope: str = Query("product_forge")):
+    from core import issues
+    s, p = _scope_parts(scope)
+    it = issues.get(s, p, iid)
+    if not it:
+        raise HTTPException(404, "issue not found")
+    return it
+
+
+@app.post("/api/v1/issues", dependencies=[Depends(auth)])
+def issues_create(body: Dict[str, Any]):
+    from core import issues
+    s, p = _scope_parts(str(body.get("scope") or "product_forge"))
+    if not body.get("title"):
+        raise HTTPException(400, "title required")
+    return issues.raise_issue(
+        s, p, body["title"], body=body.get("body", ""), kind=body.get("kind", "issue"),
+        priority=body.get("priority", "P2"), severity=body.get("severity", ""),
+        module=body.get("module", ""), source=body.get("source", "review"),
+        backlog_ref=body.get("backlog_ref", ""), source_ref=body.get("source_ref", ""))
+
+
+@app.post("/api/v1/issues/{iid}/{action}", dependencies=[Depends(auth)])
+def issues_action(iid: str, action: str, body: Dict[str, Any]):
+    from core import issues
+    s, p = _scope_parts(str(body.get("scope") or "product_forge"))
+    if action == "rcca":
+        return issues.set_rcca(s, p, iid, root_cause=body.get("root_cause", ""),
+                               corrective=body.get("corrective", ""),
+                               preventive=body.get("preventive", ""),
+                               fixed_where=body.get("fixed_where", ""),
+                               generalized=bool(body.get("generalized", False)),
+                               guideline_ref=body.get("guideline_ref", ""),
+                               product_ref=body.get("product_ref", ""))
+    if action == "link":
+        return issues.link_backlog(s, p, iid, str(body.get("backlog_ref") or ""))
+    if action == "status":
+        try:
+            return issues.set_status(s, p, iid, str(body.get("status") or ""),
+                                     note=body.get("note", ""), force=bool(body.get("force", False)))
+        except ValueError as e:
+            raise HTTPException(409, str(e))
+    raise HTTPException(400, f"unknown action: {action}")
+
+
 @app.post("/api/v1/model-fit/run", dependencies=[Depends(auth)])
 def model_fit_run_endpoint(body: Dict[str, Any]):
     """Run the fit for a project using its resolved tier (probe each model)."""
