@@ -78,3 +78,18 @@ atomic + legacy-merge done; full transaction journal + migration manifest pendin
 3. **M0 follow-ups** — context caps (PF-019/038/204), tenant authz (PF-022), websocket (PF-027), registry HIL
    (PF-123-125), backlog transaction journal (BU-C02/BZ-C02), dollar reservation wiring (PF-013).
 4. **`BI-PF-0254`** register triage (dedupe candidate IDs → permanent PF IDs, evidence labels).
+
+---
+
+## 6. Update — sections S1–S4 (merged to `develop`)
+- **S1** (`265f057`): F1 logs/events SSOT `0233/0234/0235`; Section D P1–P2; F2 `0255/0256/0257/0258/0259`;
+  issue tracker `IS-<TAG>-<nnn>` + 1:1 backlog + RCCA-gated close (`0262`); deduped learnings.
+- **S2** (`912f11a`): Section D P3–P6 `0244` (event-sourced status rebuild, SLIs, OTel export, trace, retention, redaction).
+- **S3** (`4e63b86`/`e5de5cd`): F2 `0253` (script exit codes, partial), docs `--check` gate, `0254` register triage.
+- **S4** (slices): `0221/0222/0223` capability vector/builder/reasoning (`4ec2b46`); `0229` verbose gate (`4675d5e`);
+  `0226` context discipline (`0a10374`); `0227` escalation signal (`f8924f7`); `0228` role-prompt standard (`0a4696f`).
+- **Gate:** `compileall` 0 · `wired_audit` 0 · `workflow_matrix` PASS · 540 tests.
+- **Still pending:** S4 slice6 (`0224` structured-output/render, `0230` incremental writes, wire the capability
+  builder into `llm_client`, auto-route escalation, `BI-PF-0245/0246/0247`); S5 (M0 follow-ups: context caps,
+  tenant authz, websocket, registry HIL, backlog transaction journal, reservation wiring); S6 (auto-ingest
+  defects→issues, area-filtered learnings; residual F2 `0249/0250/0251/0252/0253-rest/0260`).
