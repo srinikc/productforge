@@ -127,7 +127,8 @@ def compute_qir(project: str, project_dir: str, tech_stack: Optional[Dict] = Non
         "compatibility": neutral,
         "interaction": 1.0 - min(1.0, optional * 0.1) if spec else neutral,
         "reliability": rel,
-        "security": max(neutral, sec) if s.get("open_high") is not None else neutral,
+        # PF-158: never floor security at the neutral baseline when high/critical defects are open.
+        "security": sec if s.get("open_high") is not None else neutral,
         "maintainability": 1.0 - min(1.0, blocking * 0.2),
         "flexibility": neutral,
         "safety": neutral,
