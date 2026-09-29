@@ -1520,7 +1520,10 @@ Write the output to: {artifact_file}"""
         if not self.tool_registry:
             return {"ok": False, "error": "tool registry unavailable"}
         spec = getattr(self, "agent_specs", {}).get(agent_id)
-        if spec is not None and tool not in (getattr(spec, "tools", None) or []):
+        # PF-004/BV-C02: fail closed — a missing agent spec must DENY, not bypass the allowlist.
+        if spec is None:
+            return {"ok": False, "error": f"no agent spec for '{agent_id}': tool execution denied"}
+        if tool not in (getattr(spec, "tools", None) or []):
             return {"ok": False, "error": f"tool '{tool}' not permitted for {agent_id}"}
         cache = getattr(self, "tool_cache", None)
         if cache is not None:

@@ -73,9 +73,22 @@ def data(*parts) -> Path:
 
 
 def products(project: str = "", *parts) -> Path:
-    """Absolute path under ``products/`` (all projects, or one project)."""
+    """Absolute path under ``products/`` (all projects, or one project).
+
+    PF-227: a caller-supplied project name/fragment is validated so it cannot escape
+    ``products/`` (path traversal / absolute path).
+    """
+    if project:
+        p = Path(project)
+        if p.is_absolute() or ".." in p.parts or os.sep in str(project) or "/" in str(project):
+            raise ValueError(f"invalid project name: {project!r}")
     base = PRODUCTS_DIR / project if project else PRODUCTS_DIR
-    return base.joinpath(*parts)
+    out = base.joinpath(*parts)
+    try:
+        out.resolve().relative_to(PRODUCTS_DIR.resolve())
+    except Exception:
+        raise ValueError(f"path escapes products/: {project!r} {parts!r}")
+    return out
 
 
 def project_dir(project: str, *parts) -> Path:
