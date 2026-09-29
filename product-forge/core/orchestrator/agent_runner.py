@@ -437,6 +437,19 @@ class AgentRunnerMixin:
                 f.write(formatted_content)
             
             artifacts.append(artifact_file)
+            # F0-3: bind the published artifact to the current run (run-bound provenance).
+            try:
+                from core import run_manifest as _rm
+                _rid = ""
+                try:
+                    _rid = (self._get_run_id() if hasattr(self, "_get_run_id")
+                            else getattr(getattr(self, "execution", None), "pipeline_id", "") or "")
+                except Exception:
+                    _rid = ""
+                if _rid:
+                    _rm.record_artifact(self.project_dir, _rid, stage_id, agent_id, artifact_file)
+            except Exception:
+                pass
             # A good artifact supersedes the debug .partial from a prior retry.
             try:
                 if os.path.exists(artifact_file + ".partial"):

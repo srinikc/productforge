@@ -38,7 +38,28 @@ from typing import Dict, List, Optional, Any, Callable
 
 
 def _agent_output_artifact(project_dir: Path, agent: str) -> Optional[Path]:
-    """Find this agent's output artifact under artifacts/*/ (any stage dir)."""
+    """Find this agent's output artifact under artifacts/*/ (any stage dir).
+
+    F0-3 (BU-C06): prefer the artifact recorded for the CURRENT run (hash-verified); only
+    fall back to a directory scan when the run has no manifest (legacy runs).
+    """
+    try:
+        from core import run_manifest as _rm
+        from core.audit_trail import current_run_id as _cur
+        rid = ""
+        try:
+            rid = _cur(project_dir.name) or ""
+        except Exception:
+            rid = ""
+        if rid and _rm.has(str(project_dir), rid):
+            for key, rec in (_rm.get(str(project_dir), rid).get("artifacts") or {}).items():
+                if str(key).split("/")[-1] == agent:
+                    p = Path(str(rec.get("path") or ""))
+                    if p.exists() and _rm.verify_artifact(str(project_dir), rid, str(p)):
+                        return p
+    except Exception:
+        pass
+    # legacy fallback: no run-bound entry available
     try:
         adir = project_dir / "artifacts"
         if not adir.is_dir():
