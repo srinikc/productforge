@@ -593,6 +593,19 @@ def model_registry_audit():
         return 0
 
 
+def agent_card_audit():
+    """Advisory (NON-FATAL): agent-card tools/permission/model consistency (BI-PF-0252)."""
+    try:
+        here = os.path.dirname(os.path.abspath(__file__))
+        if here not in sys.path:
+            sys.path.insert(0, here)
+        import agent_card_audit as _aca
+        return _aca.main()
+    except Exception as e:
+        print(f"\nagent-cards: SKIPPED (advisory) - {e}")
+        return 0
+
+
 def provider_fallback_audit():
     """Advisory (NON-FATAL): profiles routing to the unusable Zen free endpoint (BI-PF-0247)."""
     try:
@@ -674,6 +687,7 @@ def main():
     rc |= cost_registry_audit()
     rc |= agent_knowledge_audit()
     rc |= role_prompt_audit()
+    rc |= agent_card_audit()
     rc |= provider_fallback_audit()
     rc |= model_registry_audit()
     rc |= paths_audit()
