@@ -32,9 +32,14 @@ def begin_run(project: str, products_dir: str = "products",
     report: Dict = {"project": project, "run_id": rid, "ok": False,
                     "lock_holder": "", "stopped_run": "", "marked_completed": []}
 
-    # Backend log (product-forge/logs/pipeline-backend.log) + run log.
+    # Backend log (data/logs/pipeline-backend.log) + run log.
     try:
         from core import log_router as _lr
+        # Retention (BI-PF-0233): prune old run-log dirs before starting a new one.
+        try:
+            _lr.rotate_runs(project_dir)
+        except Exception:
+            pass
         _lr.log_event(_lr.backend_log_path(), run_id=rid, event="begin_run",
                       message=f"project={project} products_dir={products_dir}")
         _lr.log_event(_lr.run_log_path(project_dir, rid), run_id=rid, event="run_start",

@@ -28,6 +28,7 @@ except ImportError:  # executed as a script: seed the repo root on sys.path, the
 import json
 import os
 import re
+import shutil
 from datetime import datetime
 from typing import Dict, Optional
 
@@ -139,3 +140,45 @@ def update_index(project_dir: str, run_id: str = "", extra: Optional[Dict] = Non
             json.dump(idx, f, indent=2, ensure_ascii=False)
     except Exception:
         pass
+
+
+def append_jsonl(path: str, record: Dict) -> None:
+    """Append one JSON line to a canonical JSONL stream. Branch-PF-0233: log_router is the
+    single owner of where/how log + event lines are written. Best-effort (never raises)."""
+    try:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "a", encoding="utf-8") as f:
+            f.write(json.dumps(record, ensure_ascii=False, default=str) + "\n")
+    except Exception:
+        pass
+
+
+def run_events_path(project_dir: str) -> str:
+    """Canonical per-project event stream path (single tree: products/<project>/events.jsonl)."""
+    return os.path.join(project_dir, "events.jsonl")
+
+
+def rotate_runs(project_dir: str, keep_runs: Optional[int] = None) -> int:
+    """Retention (BI-PF-0233): keep the newest ``keep_runs`` run dirs under logs/ and drop
+    the rest. Default comes from config/log-conventions.json rotation.keep_runs (20)."""
+    try:
+        if keep_runs is None:
+            keep_runs = int((config().get("rotation") or {}).get("keep_runs", 20) or 20)
+    except Exception:
+        keep_runs = 20
+    base = os.path.join(project_dir, "logs")
+    if not os.path.isdir(base):
+        return 0
+    try:
+        dirs = [d for d in os.listdir(base) if os.path.isdir(os.path.join(base, d))]
+    except Exception:
+        return 0
+    dirs.sort(key=lambda d: os.path.getmtime(os.path.join(base, d)), reverse=True)
+    removed = 0
+    for d in dirs[keep_runs:]:
+        try:
+            shutil.rmtree(os.path.join(base, d), ignore_errors=True)
+            removed += 1
+        except Exception:
+            pass
+    return removed
