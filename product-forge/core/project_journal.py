@@ -5,8 +5,8 @@ Maintains a project-level "done / pending / current state" view during and
 after a pipeline run, wiring together:
   - StateMachine  (project lifecycle: idle/running/paused/completed/error)
   - AgentLedger   (what each agent did, with status)
-and emitting a human-readable PROJECT-STATUS.md plus a machine-readable
-project-status.json.
+and emitting a human-readable project-status.md plus a machine-readable
+project-status.json. (PROJECT-STATUS.md is owned solely by core/run_status.)
 
 All operations are best-effort (never raise into the pipeline).
 """
@@ -76,7 +76,9 @@ class ProjectJournal:
         self.project = project
         self.project_dir = os.path.join(products_dir, project)
         self.status_file = os.path.join(self.project_dir, "project-status.json")
-        self.status_md = os.path.join(self.project_dir, "PROJECT-STATUS.md")
+        # BI-PF-0260: PROJECT-STATUS.md is owned SOLELY by core/run_status (event-sourced),
+        # so this richer human view goes to a distinct file to avoid a double-writer.
+        self.status_md = os.path.join(self.project_dir, "project-status.md")
         self._stage_order = _pipeline_stage_order()
         self._state_machine = None
         self._ledger = None
@@ -131,6 +133,7 @@ class ProjectJournal:
     def write_status(self, execution=None):
         try:
             status = self.build_status(execution)
+            os.makedirs(self.project_dir, exist_ok=True)
             with open(self.status_file, "w", encoding="utf-8") as f:
                 json.dump(status, f, indent=2, ensure_ascii=False)
             with open(self.status_md, "w", encoding="utf-8") as f:
