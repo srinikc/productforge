@@ -1787,6 +1787,22 @@ Write the output to: {artifact_file}"""
                 cfg["provider"] = chosen["provider"]
             if chosen.get("api_endpoint"):
                 cfg["api_endpoint"] = chosen["api_endpoint"]
+        # BI-0227 auto-route: a failed gate may set an escalation override; run the retry
+        # on the stronger tier's model (opt-in via PIPELINE_AUTO_ESCALATE).
+        try:
+            from core import escalation as _esc
+            if _esc.auto_enabled():
+                _tier = _esc.get_override(agent_id)
+                _sub = _esc.tier_agent_model(_tier, agent_id) if _tier else None
+                if _sub and _sub.get("model"):
+                    cfg = dict(cfg)
+                    cfg["model"] = _sub["model"]
+                    if _sub.get("provider"):
+                        cfg["provider"] = _sub["provider"]
+                    if _sub.get("api_endpoint"):
+                        cfg["api_endpoint"] = _sub["api_endpoint"]
+        except Exception:
+            pass
         return cfg
     
     
