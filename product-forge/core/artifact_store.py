@@ -195,6 +195,14 @@ def create_or_update_artifact(
     with open(fpath, "w", encoding="utf-8") as f:
         f.write(content)
 
+    run_id = _current_run_id(project_dir)
+    # F0-3: bind the promoted artifact to the current run (run-bound provenance).
+    try:
+        from core import run_manifest as _rm
+        _rm.record_artifact(project_dir, run_id, stage, agent, fpath)
+    except Exception:
+        pass
+
     return ArtifactMeta(
         artifact_id=f"{stage}/{fname}",
         stage=stage,
@@ -207,7 +215,7 @@ def create_or_update_artifact(
         version=version,
         tags=tags or [],
         validation_status="pending",
-        metadata={"run_id": _current_run_id(project_dir)},
+        metadata={"run_id": run_id},
     )
 
 

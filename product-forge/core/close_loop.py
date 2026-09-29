@@ -198,6 +198,17 @@ def verify_and_close(project_dir: str, run_id: str = "",
     ids = [i.strip() for i in (item_ids or []) if str(i).strip()]
     scope = _scope_for(project_dir, ids)
     res = verify_run(project_dir, scope)
+    # F0-3 / PF-006: when this run has a provenance manifest, verification must be
+    # satisfied by a RUN-BOUND artifact (hash still matches) - not just any markdown.
+    try:
+        from core import run_manifest as _rm
+        if run_id and _rm.has(project_dir, run_id):
+            if not _rm.verify_any_artifact(project_dir, run_id):
+                res["evidence"]["artifact_exists"] = False
+                res["reasons"].append("artifact_exists: no run-bound artifact (missing/hash mismatch/stale)")
+            res["verified"] = all(res["evidence"].values()) if res["evidence"] else False
+    except Exception:
+        pass
     res.update({"run_id": run_id, "item_ids": ids, "closed_backlog": [], "closed_intake": []})
     if not ids:
         res["note"] = "no backlog item linked; nothing to close"

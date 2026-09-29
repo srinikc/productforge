@@ -1127,11 +1127,29 @@ class PipelineExecutor(AgentExecutionMixin, AgentRunnerMixin, StageRunnerMixin):
 
                 if status in _status.APPROVAL_DECIDED or status in ("changes", "regenerate", "skip"):
                     req = self._read_approval_request(agent_id, stage_id)
+                    _run_id = (getattr(self.execution, "pipeline_id", "") if self.execution else "") or ""
+                    _req_run = str(req.get("run_id") or "")
+                    if _run_id and _req_run and _req_run != _run_id:
+                        # CB-C02: an approval from a DIFFERENT run must not be applied to this one.
+                        print(f"  [STALE APPROVAL] {agent_id}@{stage_id}: "
+                              f"run_id {_req_run} != {_run_id}; recreating request")
+                        self._log_decision("stale_approval", f"{agent_id} in stage {stage_id}",
+                                           f"run {_req_run} != {_run_id}")
+                        self._create_approval_request(agent_id, stage_id, artifacts)
+                        time.sleep(1)
+                        continue
                     notes = req.get("notes", "") or ""
                     conditions = req.get("conditions", "") or ""
                     print(f"  [DECISION] {agent_id} in stage {stage_id}: {status.upper()}")
                     self._log_decision(status, f"{agent_id} in stage {stage_id}",
                                        (notes or conditions or f"human {status}")[:160])
+                    # F0-3: record the decision bound to this run (and artifact digest when known).
+                    try:
+                        from core import run_manifest as _rm
+                        _rm.record_approval(self.project_dir, _run_id, stage_id, agent_id,
+                                            status, notes=notes)
+                    except Exception:
+                        pass
                     return {"decision": status, "notes": notes, "conditions": conditions}
 
                 if status == "snoozed":
