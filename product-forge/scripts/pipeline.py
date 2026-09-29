@@ -489,6 +489,7 @@ def test_infrastructure(project=None):
     # Overall result
     overall = all(checks)
     print(f"\nOverall: {'PASS' if overall else 'FAIL'}")
+    return 0 if overall else 1  # BW-C05: fail nonzero when infra is incomplete
 
 
 def show_health(project=None):
@@ -1342,23 +1343,26 @@ def continue_pipeline(project=None):
 
 
 def mark_stage_complete(project, stage_num, verdict=None):
-    """Mark a stage as complete in pipeline.json."""
+    """Mark a stage as complete (atomic). Returns 0 on success, nonzero on unknown stage/project."""
     pipeline_file = PRODUCTS_DIR / project / "pipeline.json"
     if not pipeline_file.exists():
         print(f"Pipeline file not found for {project}")
-        return
+        return 2
 
     with open(pipeline_file) as f:
         config = json.load(f)
 
     stages = config.get("stages", {})
-    stage_key = str(stage_num)
+    stage_key = str(stage_num) if stage_num is not None else ""
 
-    if stage_key in stages:
-        stages[stage_key]["status"] = "completed"
-        stages[stage_key]["timestamp"] = datetime.now().isoformat()
-        if verdict:
-            stages[stage_key]["verdict"] = verdict
+    if not stage_key or stage_key not in stages:
+        print(f"Unknown stage '{stage_num}' for {project}; known: {', '.join(sorted(stages)) or 'none'}")
+        return 2
+
+    stages[stage_key]["status"] = "completed"
+    stages[stage_key]["timestamp"] = datetime.now().isoformat()
+    if verdict:
+        stages[stage_key]["verdict"] = verdict
 
     # Check if all stages are done
     all_done = all(
@@ -1370,10 +1374,13 @@ def mark_stage_complete(project, stage_num, verdict=None):
         config["pipeline_complete"] = True
         config["completed_at"] = datetime.now().isoformat()
 
-    with open(pipeline_file, 'w') as f:
+    tmp = str(pipeline_file) + ".tmp"
+    with open(tmp, 'w') as f:
         json.dump(config, f, indent=2)
+    os.replace(tmp, str(pipeline_file))
 
     print(f"Stage {stage_num} marked as complete for {project}")
+    return 0
 
 
 # ======================================================================
@@ -1826,13 +1833,13 @@ def show_compliance(project=None, agent=None, stage=None):
     """
     project = resolve_project_arg(project)
     if not project:
-        return
-    
+        return 2  # unknown project must not exit 0 (BW-C02)
+
     try:
         from core.compliance_check import run_compliance_check
     except ImportError as e:
         print(f"Could not import compliance_check: {e}")
-        return
+        return 2
     
     # Run the check
     result = run_compliance_check(project, agent, stage, products_dir=str(PRODUCTS_DIR))
@@ -2060,7 +2067,7 @@ def main():
         if project: list_selective_runs(project)
     elif command == "test":
         project = resolve_project_arg(args[0] if args else None)
-        if project: test_infrastructure(project)
+        if project: sys.exit(test_infrastructure(project) or 0)
     elif command == "health":
         project = resolve_project_arg(args[0] if args else None)
         if project: show_health(project)
@@ -2152,9 +2159,11 @@ def main():
     elif command == "mark-complete":
         project = resolve_project_arg(args[0] if args else None)
         if project:
-            stage = int(args[1]) if len(args) > 1 else None
+            stage = args[1] if len(args) > 1 else None  # alphanumeric (e.g. 7a) supported
             verdict = args[2] if len(args) > 2 else None
-            mark_stage_complete(project, stage, verdict)
+            sys.exit(mark_stage_complete(project, stage, verdict) or 0)
+        print("project required")
+        sys.exit(2)
     elif command == "exit":
         project = resolve_project_arg(args[0] if args else None)
         if project:
@@ -2166,6 +2175,8 @@ def main():
         stage = args[2] if len(args) > 2 else None
         if project:
             sys.exit(show_compliance(project, agent, stage) or 0)
+        print("project required")
+        sys.exit(2)
     elif command == "adopt":
         adopt_external(args)
     else:
