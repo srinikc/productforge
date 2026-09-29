@@ -116,3 +116,98 @@ Make it **truthful, safe, observable** — never trade correctness for the appea
 
 > **Refer to this standard before every change.** Product Forge is expected to encode §2–§4 and §9 into its
 > agent prompts, gates and the M0 acceptance suite so the same discipline is automatic.
+
+---
+
+## 10. Lessons learned (running log — append as we go)
+
+Concrete lessons from building M0; they are part of the standard.
+
+### Repository & tooling reality
+- **Repo root is the parent dir** (`…/Exploring`); the product lives under `product-forge/`. Run **git from the
+  repo root**, or use **cwd-relative** paths — a mismatched pathspec silently no-ops (a commit can “succeed” with
+  nothing staged). Always `git status`/`git log` after committing.
+- Run the gates (`compileall`, `wired_audit`, `workflow_matrix_check`) **from `product-forge/`**, not the repo root.
+- **`pytest.ini` is fail-fast** (`-x`). Run the whole suite with `-o addopts=""`.
+- **Baseline before blaming yourself:** stash tracked changes and re-run to prove whether a failing test is
+  pre-existing; then fix it (product bug **or** stale test) — do not leave red.
+- **Generated `dashboard/docs/*` produce recurring EOL/content churn** — restore them (`git restore`) before
+  committing so the branch stays clean (candidate `.gitignore`/`.gitattributes` hygiene).
+
+### Audit is static — verify against live code
+- Treat each finding as a hypothesis: **read the current code** before fixing. Some “failures” are **stale tests**
+  (per-stage human-wait dict; id-integrity classification), others are **real** (proxy decision discard). Fix the
+  right one; never “fix” a test to hide a real bug.
+
+### Fail-closed nuances that recur
+- **Existence ≠ execution; empty set ≠ pass.** Require positive, executed, current-run evidence.
+- **Not all violations are equal:** e.g. **local** within-feature id errors are *decisive*, **global** cross-feature
+  merge noise is *advisory*. Encode the distinction; don’t blanket-block or blanket-ignore.
+- **Never floor a score** at a neutral baseline when real defects are open (QIR security).
+- Unavailable policy/unknown state ⇒ **red/blocked**, not green.
+
+### Wiring & provenance
+- A **new core module must be imported on the runtime path** or `wired_audit` reports UNWIRED; a **new data store
+  must be registered** in `config/store-registry.json`.
+- **Don’t put `*.json` filename literals in code/tests** (`store_audit`) — build them dynamically (f-strings).
+- **Centralize at the single writer:** record provenance at the canonical **artifact-publish** point so
+  run-binding is complete (no false negatives); prefer run-bound lookups but keep a legacy fallback for old runs.
+- **Bind approvals to the run** and reject stale decisions from a different run.
+
+### Process that worked
+- Small, cohesive commits on the **feature branch**, each with rationale + backlog IDs.
+- Fix root cause + add a **regression test that can fail**; keep tests hermetic.
+- After each slice: gates green + full pipeline suite green, then update backlog/docs status.
+
+---
+
+## 11. General principles (transferable — any project, any session)
+
+Agnostic of Product Forge or language; these are the durable rules distilled from §1–§10.
+
+1. **Truth over appearance.** “It completed” is only true when the right evidence passed. Never trade correctness
+   for the look of success.
+2. **Evidence over assertion.** Verify *execution* and *state*, not *presence*. A file existing proves nothing.
+3. **Fail closed.** Unknown / missing / unreadable / timeout / exception ⇒ BLOCKED / UNVERIFIED — never PASS.
+4. **Bind evidence to identity.** Every artifact/test/approval carries the run/version/attempt **and a content
+   hash**; reject stale evidence from a prior run.
+5. **One source of truth; one writer.** Derive, don’t duplicate. If two things can disagree, make one derived.
+6. **Enforce at the boundary, not in prose.** Permissions, limits and validation are code at the execution edge
+   (API/tool/DB), never a comment or a prompt.
+7. **Assume concurrency and partial failure.** Atomic writes, exclusive locks/leases with fencing, idempotency
+   keys, transactions, dead-letter + retries.
+8. **Bound autonomy.** Cap loops/attempts/tokens/cost/time; escalate on failure; terminate only after *verified*
+   acceptance.
+9. **Budget the scarce resource.** Context/tokens/latency/money are design inputs; compact, route, cache, and cap.
+10. **Small, reversible, verified steps.** Branch; change one concern; run the gates; be able to roll back.
+11. **Baseline before blaming.** Distinguish pre-existing failures from regressions before concluding.
+12. **Root-cause (5-Why); every fix adds a guard.** A defect without a new test/gate will recur.
+13. **Tests that can fail, hermetic and non-happy-first.** Add the failure-mode test, not only the happy path.
+14. **Observability is design, not an add-on.** Correlation ids, structured events, SLIs/SLOs.
+15. **Security by default.** Authenticate, authorize, least privilege, tenant isolation, secret hygiene.
+16. **Least surprise & compatibility.** Explicit deprecation; no silent behaviour flips.
+17. **Trust nothing static blindly.** Verify third-party/static claims against the live system.
+18. **Centralize at single-writer points.** Put provenance/audit where the write happens, so nothing is missed.
+
+---
+
+## 12. How these standards enter Product Forge itself (where · what)
+
+The learnings are not just documented — they are being **encoded into the product**. Integration points:
+
+| Standard / learning | Product surface (where) | What it looks like | Status |
+|---|---|---|---|
+| Agent discipline (fail-closed, evidence, bounded autonomy) | `.opencode/agent/*.md` role prompts + `docs/guidelines/engineering/operating-principles.md` | a shared "Engineering discipline" block every agent follows | **to-do** (new item) |
+| Knowledge binding | `config/agent-capabilities.json` (knowledge layer `engineering` → `docs/guidelines/engineering/`) | agents (implement/architect/validate/code-review/quality-gate/guardian) load the principles | **to-do** (new item) |
+| Gates **as code** | M0 fixes (`BI-PF-0236…0243`) in `core/*` | fail-closed defaults, run-bound provenance, boundary authz | **in progress** |
+| Acceptance suite | `BI-PF-0243` (11 scenarios) | regression gate proving the invariants | **to-do** |
+| Run-bound provenance | `core/run_manifest.py` + artifact publish | per-run artifact hashes + approvals | **done (F0-3)** |
+| Compliance checklists | `core/compliance_check.py` (derived + `AGENT_CHECKLISTS`) | add "failure modes covered" checks | **partial** |
+| Contract / reference | `AGENTS.md` + `docs/ENGINEERING_OPERATING_STANDARD.md` | binding standard for humans + agents | **done** |
+| RCCA loop | `docs/RCCA_productForge.md` + new guards per defect | 5-Why → test/gate/guideline | **done** |
+| Discoverability | `docs/documentation-index.html` | EOS + RCCA + issues indexed | **done** |
+| CI enforcement | `BI-PF-0259` | compileall + wired_audit + workflow_matrix + tests on PR | **to-do** |
+
+**Net:** the standard is being made *structural* — encoded in the pipeline’s **gates/checks/provenance** (F0),
+its **knowledge/guidelines + agent cards** (to-do), and its **acceptance suite/CI** — so Product Forge builds
+future projects with the same discipline automatically.

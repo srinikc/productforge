@@ -104,7 +104,7 @@
 |---|---|---|---|
 | `archive/` (23) | Implemented then superseded | see files | SUPERSEDED docs - implemented then replaced; history only (see %; % is a curated adoption estimate) |
 | `compact/` (1) | Runtime | 100% | Compact summaries produced by the pipeline |
-| `guidelines/` (60) | Implemented | 100% | Knowledge/guidelines used by the knowledge router |
+| `guidelines/` (61) | Implemented | 100% | Knowledge/guidelines used by the knowledge router |
 | `knowledge/` (2) | Generated | 100% | Compiled knowledge (knowledge-compiler output) |
 | `plans/` (11) | Adopted (historical) | see files | Roadmaps/plans - historical; most items were adopted (see %; % is a curated adoption estimate) |
 | `research/` (15) | Adopted (reference) | see files | External research/notes - patterns adopted into Product Forge (see %; % is a curated adoption estimate) |
@@ -214,6 +214,7 @@
 | [`guidelines/customer-acquisition/channels.md`](guidelines/customer-acquisition/channels.md) | Implemented | 100% | Customer Acquisition | no | — |
 | [`guidelines/database/postgresql.md`](guidelines/database/postgresql.md) | Implemented | 100% | Database Design Standards (PostgreSQL) | no | — |
 | [`guidelines/domain/README.md`](guidelines/domain/README.md) | Implemented | 100% | Domain Research Guidelines | no | — |
+| [`guidelines/engineering/operating-principles.md`](guidelines/engineering/operating-principles.md) | Implemented | 100% | Engineering Operating Principles (general) | no | — |
 | [`guidelines/frontend/react.md`](guidelines/frontend/react.md) | Implemented | 100% | Frontend Engineering Standards | no | — |
 | [`guidelines/go-to-market/strategies.md`](guidelines/go-to-market/strategies.md) | Implemented | 100% | Go-to-Market (GTM) Strategies | no | — |
 | [`guidelines/growth/patterns.md`](guidelines/growth/patterns.md) | Implemented | 100% | Growth Patterns & Loops | no | — |
