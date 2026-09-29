@@ -60,7 +60,7 @@ def main():
     bug = backlog_link.link_defect(PROJ, "F-1", "D-9", title="CSV has wrong delimiter")
     check("defect -> bug item", bool(bug and bug.get("type") == "bug"), str(bug and bug.get("id")))
     resolved = backlog_link.resolve_defect(PROJ, "D-9")
-    check("defect resolved -> item done", (resolved or {}).get("status") == "done",
+    check("defect resolved -> item completed", (resolved or {}).get("status") == "completed",
           str((resolved or {}).get("status")))
 
     # 6) parked idea via intake (explore) -> follow-up
