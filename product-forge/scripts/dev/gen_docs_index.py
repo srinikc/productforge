@@ -50,6 +50,7 @@ TOP = {
     "todo_sept292026.md": ("TODO (current)", "Actionable to-do (Sep 29 2026): log SSOT changes + seamless-execution standards + non-backlog fixes", 100),
     "final_required_changes.md": ("Analysis (current)", "Consolidated final change plan: audit M0/M1/M2 reconciled with backlog + our docs", 100),
     "RCCA_productForge.md": ("Analysis (current)", "Root-cause + corrective/preventive guidelines for the audit/issues gaps", 100),
+    "m0_status_and_coverage.md": ("Analysis (current)", "M0 status: PF-xx coverage, Section D status, open backlog", 100),
     "ENGINEERING_OPERATING_STANDARD.md": ("SSOT", "Binding engineering standard: how we think/design/build/verify (+DoD)", 100),
     "Agent_llm_process.md": ("Review (pending)", "Agent<->LLM process analysis + recommendations", 0),
     "agents_prompts_instructions.md": ("Current", "All 61 agent cards + prompt assembly (mirror of .opencode/agent/*)", 100),
