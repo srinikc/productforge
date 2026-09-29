@@ -35,6 +35,9 @@ def test_missing_for_kinds(monkeypatch):
 
 
 def test_budget_caps(monkeypatch):
+    # Hermetic: the repo's config/provider-keys.json may define caps, so pin the cache
+    # explicitly instead of assuming the default is uncapped (config-coupled test bug).
+    monkeypatch.setattr(C, "_cache", {})
     # uncapped by default -> ok
     ok, reason = C.check_budget("openrouter", spent_usd=999, run_spent_usd=999)
     assert ok is True and reason == ""

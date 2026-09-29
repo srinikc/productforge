@@ -140,6 +140,21 @@ from core.orchestrator.agent_execution import AgentExecutionMixin
 from core.orchestrator.feature_tracker import FeatureTracker
 
 
+# Normalize the auto-mode HIL proxy decision to the executor's HIL vocabulary (BV-C01).
+# Unknown / unparseable / blocked -> rejected (fail closed; never silently approved).
+_HIL_DECISION_MAP = {
+    "approve": "approved", "approved": "approved",
+    "approve_with_conditions": "approved_with_conditions",
+    "approved_with_conditions": "approved_with_conditions",
+    "changes": "changes", "change": "changes",
+    "regenerate": "regenerate",
+    "skip": "skip",
+    "reject": "rejected", "rejected": "rejected",
+    "abort": "abort",
+    "blocked": "rejected", "expired": "rejected",
+}
+
+
 class PipelineExecutor(AgentExecutionMixin, AgentRunnerMixin, StageRunnerMixin):
     """
     Real pipeline execution engine that wires all components together.
@@ -1037,11 +1052,19 @@ class PipelineExecutor(AgentExecutionMixin, AgentRunnerMixin, StageRunnerMixin):
                 from core.human_proxy import is_auto, decide
                 if is_auto(self.project_dir):
                     d = decide(self, agent_id, stage_id, artifacts)
-                    print(f"  [HUMAN-PROXY] {agent_id}@{stage_id}: {d.get('decision')} "
+                    raw = str(d.get("decision") or "").strip().lower()
+                    mapped = _HIL_DECISION_MAP.get(raw, "rejected")
+                    notes = str(d.get("notes") or "")
+                    conditions = str(d.get("conditions") or "")
+                    if mapped == "rejected" and not notes:
+                        notes = ("; ".join(d.get("reasons") or [])
+                                 or f"proxy decision {raw or 'unknown'} not approved (fail-closed)")
+                    print(f"  [HUMAN-PROXY] {agent_id}@{stage_id}: raw={raw or '-'} -> {mapped} "
                           f"[{'; '.join(d.get('reasons') or [])[:120]}]")
                     self._log_decision("human_proxy", f"{agent_id} in stage {stage_id}",
-                                       str(d.get("decision")))
-                    return _ok
+                                       f"{raw or 'unknown'}->{mapped}")
+                    # BV-C01: propagate the ACTUAL proxy decision (was: return _ok unconditionally).
+                    return {"decision": mapped, "notes": notes, "conditions": conditions}
         except Exception as e:
             print(f"[HumanProxy] {e}")
         # Check auto_approve first
@@ -1182,6 +1205,18 @@ class PipelineExecutor(AgentExecutionMixin, AgentRunnerMixin, StageRunnerMixin):
         """Wait for human approval. Returns True if approved (back-compat bool)."""
         res = self._wait_for_approval_ex(agent_id, stage_id, artifacts)
         return str(res.get("decision", "")) in ("approved", "approved_with_conditions")
+
+    def _run_repo_quality_gate(self, mode: str):
+        """Run the item/amend repo quality gate (compileall + wired_audit) BEFORE the run is
+        finalized. Fail-closed (PF-060): a gate error is a FAILURE, never ignored."""
+        self._repo_gate = None
+        try:
+            from core import run_quality_gate as _qg
+            self._repo_gate = _qg.gate_if_item_run(self.project_dir, mode)
+        except Exception as _qe:
+            self._repo_gate = {"passed": False, "mode": mode,
+                               "reasons": [f"gate error: {_qe}"], "checks": []}
+        return self._repo_gate
     
     def _check_approval_gate(self, stage_id: str) -> bool:
         """Check if stage has an approval gate and wait for approval."""
@@ -3175,17 +3210,38 @@ class PipelineExecutor(AgentExecutionMixin, AgentRunnerMixin, StageRunnerMixin):
         # no failures (SKIPPED counts as terminal). A max-iterations or leftover-pending
         # exit is NOT completion (else `continue` would skip remaining work).
         _term = {"completed", "failed", "skipped"}
-        _scope = getattr(self, "only_stages", None)
+        _scope = list(getattr(self, "only_stages", None) or [])
+        # PF-069: requested stage IDs MUST exist in the DAG - never silently filter them
+        # away (an unknown-only scope previously satisfied all([]) -> false COMPLETION).
+        _unknown_scope = [s for s in _scope if s not in self.dag_executor.states]
         try:
-            _ids = list(_scope) if _scope else list(self.dag_executor.states)
+            _ids = _scope if _scope else list(self.dag_executor.states)
             _scope_done = bool(_ids) and all(
-                self.dag_executor.states[s].status.value in _term
-                for s in _ids if s in self.dag_executor.states)
-            _scope_failed = sum(1 for s in _ids if s in self.dag_executor.states
-                                and self.dag_executor.states[s].status.value == "failed")
+                self.dag_executor.states[s].status.value in _term for s in _ids)
+            _scope_failed = sum(1 for s in _ids
+                                if self.dag_executor.states[s].status.value == "failed")
         except Exception:
             _scope_done, _scope_failed = False, 0
-        if self.execution.phase != PipelinePhase.FAILED and _scope_done and _scope_failed == 0:
+
+        if _unknown_scope:
+            self.execution.phase = PipelinePhase.FAILED
+            self.execution.error = f"Unknown selected stage id(s): {_unknown_scope}"
+            self._log_decision("invalid_scope", self.execution.error, "fail-closed")
+
+        # PF-060: the item/amend repo quality gate is a MANDATORY release condition.
+        # Run it BEFORE finalizing and honour its result (previously run after
+        # COMPLETION and ignored). Fail-closed on gate error.
+        _gate_mode = ("item" if (_scope or getattr(self, "only_agents", None)) else "e2e")
+        _gate = self._run_repo_quality_gate(_gate_mode)
+        _gate_failed = bool(_gate is not None and not _gate.get("passed"))
+        if self.execution.phase != PipelinePhase.FAILED and _gate_failed:
+            self.execution.phase = PipelinePhase.FAILED
+            self.execution.error = ("Repo quality gate failed: "
+                                    + ", ".join(_gate.get("reasons") or ["unknown"]))
+            self._log_decision("quality_gate_failed", self.execution.error, "fail-closed")
+
+        if (self.execution.phase != PipelinePhase.FAILED and _scope_done
+                and _scope_failed == 0 and not _unknown_scope):
             self.execution.completed_at = datetime.now().isoformat()
             self.quality_metrics.completed_at = self.execution.completed_at
             self.execution.phase = PipelinePhase.COMPLETION
@@ -3197,9 +3253,14 @@ class PipelineExecutor(AgentExecutionMixin, AgentRunnerMixin, StageRunnerMixin):
                                     f"Incomplete: max iterations reached or stages not terminal "
                                     f"(pending={_pending[:8]})")
         
-        # Log final time stats
+        # Log final time stats (accurate terminal event - BV-C08: not always "complete")
         total_duration = time.time() - self.pipeline_start_time
-        self._log_decision("pipeline_complete", f"total duration: {total_duration:.1f}s", "final")
+        if self.execution.phase == PipelinePhase.COMPLETION:
+            self._log_decision("pipeline_completed", f"total duration: {total_duration:.1f}s", "final")
+        else:
+            self._log_decision("pipeline_failed",
+                               f"total duration: {total_duration:.1f}s; "
+                               f"{self.execution.error or self.execution.phase.value}", "final")
         
         # Collect all artifacts
         for stage_id, executions in self.execution.stage_executions.items():
@@ -3230,14 +3291,11 @@ class PipelineExecutor(AgentExecutionMixin, AgentRunnerMixin, StageRunnerMixin):
             self._save_checkpoint()
         except Exception:
             pass
-        # BI-0184: item/amend runs enforce the repo quality gate; e2e runs skip it.
-        try:
-            from core import run_quality_gate as _qg
-            _mode = ("item" if (getattr(self, "only_stages", None)
-                                or getattr(self, "only_agents", None)) else "e2e")
-            _qg.gate_if_item_run(self.project_dir, _mode)
-        except Exception as _qe:
-            print(f"  [QualityGate] skipped: {_qe}")
+        # BI-0184 / PF-060: the repo quality gate ran BEFORE finalization and its result
+        # decided the terminal phase; here we only surface it (no second execution).
+        if getattr(self, "_repo_gate", None) is not None:
+            print(f"  [QualityGate] mode={self._repo_gate.get('mode')} "
+                  f"passed={self._repo_gate.get('passed')}")
         # Selective run scope is one-shot
         self._clear_run_scope()
 
