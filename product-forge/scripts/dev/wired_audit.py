@@ -580,6 +580,19 @@ def paths_audit():
     return 0
 
 
+def provider_fallback_audit():
+    """Advisory (NON-FATAL): profiles routing to the unusable Zen free endpoint (BI-PF-0247)."""
+    try:
+        here = os.path.dirname(os.path.abspath(__file__))
+        if here not in sys.path:
+            sys.path.insert(0, here)
+        import provider_fallback_audit as _pfa
+        return _pfa.main()
+    except Exception as e:
+        print(f"\nprovider-fallback: SKIPPED (advisory) - {e}")
+        return 0
+
+
 def role_prompt_audit():
     """Advisory (NON-FATAL): agent cards should match the role-prompt standard (BI-0228)."""
     try:
@@ -648,6 +661,7 @@ def main():
     rc |= cost_registry_audit()
     rc |= agent_knowledge_audit()
     rc |= role_prompt_audit()
+    rc |= provider_fallback_audit()
     rc |= paths_audit()
     rc |= legacy_guard_audit()
     return rc
