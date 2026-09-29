@@ -391,6 +391,17 @@ class AgentExecutionMixin:
             )
             execution.compliance_report = compliance_outcome["execution_report"]
             execution.compliance_passed = compliance_outcome["passed"]
+            # BI-0227: on a failed gate, emit an escalate-on-failure recommendation.
+            if not execution.compliance_passed:
+                try:
+                    from core import escalation as _esc, events as _ev
+                    _rec = _esc.recommend(agent_id, "")
+                    _ev.emit(self.project_dir, "agent_escalation",
+                             run_id=str(getattr(self.execution, "pipeline_id", "") or ""),
+                             stage=stage_id, agent=agent_id,
+                             escalate_to=_rec.get("escalate_to", ""))
+                except Exception:
+                    pass
 
             # 11c. Handle compliance actions (retry, approve, escalate)
             if compliance_outcome["action"] is not None:
