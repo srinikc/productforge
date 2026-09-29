@@ -22,6 +22,7 @@ def _steps():
         ("wired-audit", [sys.executable, "scripts/dev/wired_audit.py"]),
         ("workflow-matrix", [sys.executable, "scripts/dev/workflow_matrix_check.py"]),
         ("backlog-e2e", [sys.executable, "scripts/dev/e2e_backlog_check.py"]),
+        ("docs-fresh", [sys.executable, "scripts/dev/check_docs_fresh.py"]),
         ("secret-scan", [sys.executable, "scripts/dev/secret_scan.py"]),
         ("pipeline-tests", [sys.executable, "-m", "pytest", "test-framework/tests/pipeline",
                             "-q", "-o", "addopts="]),
