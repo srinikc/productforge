@@ -87,6 +87,26 @@ def operator_guard(authorization: Optional[str] = Header(default=None),
         raise HTTPException(status_code=403, detail="platform admin required")
 
 
+def tenant_guard(tenant: str = "", authorization: Optional[str] = Header(default=None),
+                 x_roles: Optional[str] = Header(default=None)) -> None:
+    """Tenant-scoped authorization (PF-022, fail closed).
+
+    When no token is configured, behavior matches ``auth`` (dev). Otherwise the caller must
+    present the token AND be allowed to touch ``tenant``: platform admin (operator) may access
+    any tenant; a tenant instance only its bound ``INSTANCE_TENANT``; everything else is 403.
+    """
+    from core import licensing, tenancy
+    want = _token()
+    if not want:
+        return
+    if not authorization or authorization.split()[-1] != want:
+        raise HTTPException(status_code=401, detail="unauthorized")
+    roles = [r.strip() for r in (x_roles or "").split(",") if r.strip()]
+    if not tenancy.cross_tenant_allowed(licensing.instance_role(), tenancy.instance_tenant(),
+                                        tenant, licensing.is_platform_admin(roles)):
+        raise HTTPException(status_code=403, detail="cross-tenant access denied")
+
+
 def _rj(p: Path, default):
     try:
         with open(p, encoding="utf-8") as f:
@@ -135,20 +155,20 @@ def cp_tenants():
     return {"tenants": cp.list_tenants()}
 
 
-@app.get("/api/v1/cp/users", dependencies=[Depends(auth)])
+@app.get("/api/v1/cp/users", dependencies=[Depends(tenant_guard)])
 def cp_users(tenant: str = Query("")):
     from core import control_plane as cp
     return {"users": cp.list_users(tenant)}
 
 
 # ── tenant admin: members/roles/seats (BI-0068) ──────────────────────────────
-@app.get("/api/v1/tenants/{tenant}/members", dependencies=[Depends(auth)])
+@app.get("/api/v1/tenants/{tenant}/members", dependencies=[Depends(tenant_guard)])
 def tenant_members(tenant: str):
     from core import tenancy
     return {"tenant": tenant, "members": tenancy.members(tenant)}
 
 
-@app.post("/api/v1/tenants/{tenant}/members", dependencies=[Depends(auth)])
+@app.post("/api/v1/tenants/{tenant}/members", dependencies=[Depends(tenant_guard)])
 def tenant_invite(tenant: str, body: Dict[str, Any]):
     from core import tenancy
     try:
@@ -157,7 +177,7 @@ def tenant_invite(tenant: str, body: Dict[str, Any]):
         raise HTTPException(400, str(e))
 
 
-@app.post("/api/v1/tenants/{tenant}/members/{email}/role", dependencies=[Depends(auth)])
+@app.post("/api/v1/tenants/{tenant}/members/{email}/role", dependencies=[Depends(tenant_guard)])
 def tenant_set_role(tenant: str, email: str, body: Dict[str, Any]):
     from core import tenancy
     try:
@@ -169,13 +189,13 @@ def tenant_set_role(tenant: str, email: str, body: Dict[str, Any]):
     return r
 
 
-@app.delete("/api/v1/tenants/{tenant}/members/{email}", dependencies=[Depends(auth)])
+@app.delete("/api/v1/tenants/{tenant}/members/{email}", dependencies=[Depends(tenant_guard)])
 def tenant_remove(tenant: str, email: str):
     from core import tenancy
     return {"removed": tenancy.remove_member(tenant, email)}
 
 
-@app.get("/api/v1/tenants/{tenant}/seats", dependencies=[Depends(auth)])
+@app.get("/api/v1/tenants/{tenant}/seats", dependencies=[Depends(tenant_guard)])
 def tenant_seats(tenant: str, tier: str = Query("")):
     from core import tenancy
     return tenancy.seats(tenant, tier)
