@@ -537,6 +537,82 @@ def work_estimate_get(project: str = Query(...), refresh: bool = Query(False)):
     return work_estimate.summary(pj)
 
 
+# ── logs query API (BI-PF-0235) ──────────────────────────────────────────────
+def _parse_agent_log(line: str, project: str) -> Optional[Dict[str, Any]]:
+    """Parse one `ts | level | run_id | stage | agent | event | message` line."""
+    parts = [p.strip() for p in str(line).split("|")]
+    if len(parts) < 6:
+        return None
+    return {"ts": parts[0], "level": (parts[1] or "INFO").upper(), "run_id": parts[2],
+            "stage": parts[3], "agent": parts[4], "event": parts[5],
+            "message": " | ".join(parts[6:]) if len(parts) > 6 else "", "project": project,
+            "source": "agent-log"}
+
+
+@app.get("/api/v1/logs", dependencies=[Depends(auth)])
+def logs_get(project: str = Query(...), run: str = Query(""), stage: str = Query(""),
+             agent: str = Query(""), level: str = Query(""), q: str = Query(""),
+             limit: int = Query(500)):
+    """Query the canonical per-project events + per-agent logs (BI-PF-0235).
+
+    Reads the SSOT (products/<project>/events.jsonl + logs/<run>/<stage>-<agent>.log),
+    filters by run/stage/agent/level and a free-text `q`, returns newest-last.
+    """
+    import glob
+    pj = PRODUCTS / project
+    entries: List[Dict[str, Any]] = []
+
+    # 1. canonical event stream
+    ev = pj / "events.jsonl"
+    if ev.exists():
+        try:
+            with open(ev, encoding="utf-8", errors="replace") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        e = json.loads(line)
+                    except Exception:
+                        continue
+                    e.setdefault("level", "INFO")
+                    e["source"] = "event"
+                    entries.append(e)
+        except Exception:
+            pass
+
+    # 2. per-agent logs (logs/<run_id>/<stage>-<agent>.log)
+    for lf in glob.glob(str(pj / "logs" / "**" / "*.log"), recursive=True):
+        try:
+            with open(lf, encoding="utf-8", errors="replace") as f:
+                for line in f:
+                    if "|" not in line:
+                        continue
+                    e = _parse_agent_log(line, project)
+                    if e:
+                        entries.append(e)
+        except Exception:
+            continue
+
+    def _keep(e: Dict[str, Any]) -> bool:
+        if run and str(e.get("run_id") or "") != run:
+            return False
+        if stage and str(e.get("stage") or "") != stage:
+            return False
+        if agent and str(e.get("agent") or "") != agent:
+            return False
+        if level and str(e.get("level") or "").upper() != level.upper():
+            return False
+        if q and q.lower() not in json.dumps(e, ensure_ascii=False).lower():
+            return False
+        return True
+
+    entries = [e for e in entries if _keep(e)]
+    entries.sort(key=lambda e: str(e.get("ts") or e.get("at") or ""))
+    return {"project": project, "count": len(entries), "returned": min(len(entries), limit),
+            "entries": entries[-limit:]}
+
+
 @app.post("/api/v1/model-fit/run", dependencies=[Depends(auth)])
 def model_fit_run_endpoint(body: Dict[str, Any]):
     """Run the fit for a project using its resolved tier (probe each model)."""
