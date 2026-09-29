@@ -46,6 +46,7 @@
 | [`DASHBOARD-E2E-DESIGN.md`](DASHBOARD-E2E-DESIGN.md) | Design | 70% | Dashboard E2E design (front-end not built yet) | **Front-end MVP not built: every dashboard screen/view described here (backend-first).** | ProductForge-Dashboard BI-0001–0149 (epic BI-0043) |
 | [`DEVOPS-WORKFLOW-ANALYSIS.md`](DEVOPS-WORKFLOW-ANALYSIS.md) | Design | 70% | DevOps / PR-CI workflow analysis | **Not wired: PR branch -> pre-check gates (syntax/audit/lint/tests/secrets) -> review workflow.** | BI-0205 |
 | [`Diagram-Generation-Spec.md`](Diagram-Generation-Spec.md) | Implemented | 100% | Diagram generation spec (mermaid/drawio/svg) | — | — |
+| [`ENGINEERING_OPERATING_STANDARD.md`](ENGINEERING_OPERATING_STANDARD.md) | SSOT | 100% | Binding engineering standard: how we think/design/build/verify (+DoD) | — | — |
 | [`ENTRYPOINTS.md`](ENTRYPOINTS.md) | Implemented | 100% | Which entry script/API to use | — | — |
 | [`EXTERNAL-TARGETS-WORKFLOW.md`](EXTERNAL-TARGETS-WORKFLOW.md) | Design | 80% | External delivery targets workflow | **Pending: some external delivery targets + their dashboard selection/UI.** | BI-0044, BI-0071, BI-0121–BI-0123 |
 | [`Failure-Recovery-System.md`](Failure-Recovery-System.md) | Implemented | 100% | Failure / retry / checkpoint recovery | — | — |

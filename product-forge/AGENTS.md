@@ -16,10 +16,16 @@ Route every addition by kind:
 - detail/evidence → attach to the owner store and reference `item_id`
 - new concern → register in `config/store-registry.json` with a single writer
 
+## Standards (binding)
+Follow **`docs/ENGINEERING_OPERATING_STANDARD.md` (EOS)** for every change: feature branch (never commit to
+`develop`/`main` directly), 360° dependency analysis, fail-closed gates (unknown ⇒ blocked), run-bound evidence,
+atomic single-writer state, authorization at the boundary, tests that can fail, and the Definition of Done.
+Root-cause every defect via **`docs/RCCA_productForge.md`** (5-Why + a new guard).
+
 1. **One truth per concern, one writer per file.** Only the owning module writes a store.
 2. **Work items live in the backlog** (`core/backlog.py`) — one backlog per scope
    (`products/<project>/backlog/`, `product-forge/backlog/`). Never create a new file for work.
-3. **Reference by id:** artifacts carry `item_id` (`BI-####`) and `feature_id` (`F-x`) where technical.
+3. **Reference by id:** artifacts carry `item_id` (`BI-<TAG>-<nnn>`; legacy `BI-####`) and `feature_id` (`F-x`) where technical.
    Never duplicate status/logic in a second store.
 4. **Derived files are generated**, never hand-edited (`feature-status.md`, reports, manifests).
 5. **Placement:** `products/<project>/`, `product-forge/`, or `config/`. No new top-level directories.
