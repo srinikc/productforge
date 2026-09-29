@@ -38,7 +38,28 @@ from typing import Dict, List, Optional, Any, Callable
 
 
 def _agent_output_artifact(project_dir: Path, agent: str) -> Optional[Path]:
-    """Find this agent's output artifact under artifacts/*/ (any stage dir)."""
+    """Find this agent's output artifact under artifacts/*/ (any stage dir).
+
+    F0-3 (BU-C06): prefer the artifact recorded for the CURRENT run (hash-verified); only
+    fall back to a directory scan when the run has no manifest (legacy runs).
+    """
+    try:
+        from core import run_manifest as _rm
+        from core.audit_trail import current_run_id as _cur
+        rid = ""
+        try:
+            rid = _cur(project_dir.name) or ""
+        except Exception:
+            rid = ""
+        if rid and _rm.has(str(project_dir), rid):
+            for key, rec in (_rm.get(str(project_dir), rid).get("artifacts") or {}).items():
+                if str(key).split("/")[-1] == agent:
+                    p = Path(str(rec.get("path") or ""))
+                    if p.exists() and _rm.verify_artifact(str(project_dir), rid, str(p)):
+                        return p
+    except Exception:
+        pass
+    # legacy fallback: no run-bound entry available
     try:
         adir = project_dir / "artifacts"
         if not adir.is_dir():
@@ -303,16 +324,24 @@ class ComplianceChecker:
         return report
     
     def _save_report(self, report: ComplianceReport):
-        """Save compliance report to disk"""
+        """Save compliance report to disk (run-bound: carries the current run_id, PF-031)."""
+        try:
+            from core.audit_trail import current_run_id as _cur
+            rid = _cur(self.project) or ""
+        except Exception:
+            rid = ""
+        payload = report.to_dict()
+        if rid:
+            payload["run_id"] = rid
         filename = f"{report.agent}-{report.stage or 'run'}-{report.timestamp.replace(':', '-')}.json"
         filepath = self.compliance_dir / filename
         with open(filepath, 'w') as f:
-            json.dump(report.to_dict(), f, indent=2)
+            json.dump(payload, f, indent=2)
         
         # Also save latest
         latest = self.compliance_dir / f"{report.agent}-{report.stage or 'run'}-latest.json"
         with open(latest, 'w') as f:
-            json.dump(report.to_dict(), f, indent=2)
+            json.dump(payload, f, indent=2)
     
     def get_all_reports(self) -> List[Dict[str, Any]]:
         """Get all compliance reports for this project"""
@@ -379,7 +408,8 @@ class ComplianceChecker:
             },
             "agents": agent_summaries,
             "anomalies": all_anomalies,
-            "conformed": total_critical_failed == 0 and total_failed == 0,
+            # Fail-closed (BU-C07): zero executed checks is NOT conformance.
+            "conformed": total_checks > 0 and total_critical_failed == 0 and total_failed == 0,
         }
         
         # Save final report
@@ -697,26 +727,72 @@ def docker_build_works(project_dir: Path) -> Dict[str, Any]:
     }
 
 
+def _executed_test_summary(project_dir: Path) -> Optional[Dict[str, Any]]:
+    """Latest EXECUTED test-cycle for this project (test-framework/results/test-cycles), else None."""
+    import glob
+    try:
+        proj = project_dir.name
+        d = None
+        cur = project_dir
+        for _ in range(6):
+            cand = cur / "test-framework" / "results" / "test-cycles"
+            if cand.is_dir():
+                d = cand
+                break
+            cur = cur.parent
+        if d is None:
+            return None
+        best = None
+        for f in sorted(glob.glob(str(d / f"{proj}_*.json"))):
+            try:
+                c = json.loads(Path(f).read_text(encoding="utf-8"))
+            except Exception:
+                continue
+            if best is None or str(c.get("started_at", "")) > str(best.get("started_at", "")):
+                best = c
+        if not best:
+            return None
+        runs = best.get("test_runs") or []
+        total = sum(int(r.get("tests_run", 0) or 0) for r in runs)
+        passed = sum(int(r.get("tests_passed", 0) or 0) for r in runs)
+        return {"total": total, "passed": passed, "runs": len(runs),
+                "at": str(best.get("started_at", ""))}
+    except Exception:
+        return None
+
+
 def tests_pass(project_dir: Path) -> Dict[str, Any]:
-    """Check if tests pass (run pytest if available)"""
+    """PASS only when tests were EXECUTED and passed for this project (PF-036).
+
+    Test-file EXISTENCE alone is not a pass (use ``test_files_exist`` for that);
+    with no executed evidence the status is UNKNOWN/SKIPPED, never PASS.
+    """
     test_dirs = [
         project_dir / "tests",
         project_dir / "apps" / "api" / "tests",
     ]
-    
     has_tests = any(d.exists() for d in test_dirs)
-    if not has_tests:
+
+    ex = _executed_test_summary(project_dir)
+    if ex and ex.get("total", 0) > 0:
+        if ex["passed"] >= ex["total"]:
+            return {"status": CheckStatus.PASS.value,
+                    "details": f"Executed tests passed ({ex['passed']}/{ex['total']})",
+                    "evidence": [f"test-cycle {ex.get('at','')}"]}
+        return {"status": CheckStatus.FAIL.value,
+                "details": f"Executed tests failed ({ex['passed']}/{ex['total']})",
+                "evidence": [f"test-cycle {ex.get('at','')}"]}
+
+    if has_tests:
         return {
-            "status": CheckStatus.SKIPPED.value,
-            "details": "No test directories found",
-            "evidence": [],
+            "status": CheckStatus.UNKNOWN.value,
+            "details": "Test files exist but were not executed - run the test framework to verify",
+            "evidence": [str(d) for d in test_dirs if d.exists()],
         }
-    
-    # Don't actually run tests (too slow), just check they exist
     return {
-        "status": CheckStatus.PASS.value,
-        "details": "Test files exist (run separately to verify they pass)",
-        "evidence": [str(d) for d in test_dirs if d.exists()],
+        "status": CheckStatus.SKIPPED.value,
+        "details": "No test directories found",
+        "evidence": [],
     }
 
 

@@ -56,7 +56,8 @@ def _verification_row(project_dir: str, tech_stack: Optional[Dict] = None) -> Di
         from core.verification_policy import policy
         p = policy(project_dir, tech_stack)
     except Exception:
-        return _row("Verification coverage", "green", "policy unavailable")
+        # Fail-closed (PF-157): an unavailable policy cannot be verified -> not green.
+        return _row("Verification coverage", "red", "policy unavailable (cannot verify)")
     not_run, external = p.get("not_run", []), p.get("external", [])
     if not_run:
         rag = "red" if len(not_run) >= 3 else "yellow"
@@ -70,6 +71,22 @@ def _verification_row(project_dir: str, tech_stack: Optional[Dict] = None) -> Di
 
 def _rag(green: bool, yellow: bool) -> str:
     return "green" if green else ("yellow" if yellow else "red")
+
+
+def _packaging_row(project_dir: str) -> Dict[str, Any]:
+    """Install/Packaging RAG from real build evidence (PF-157) - never hardcoded green."""
+    try:
+        p = os.path.join(project_dir, "build-info.json")
+        if os.path.isfile(p):
+            with open(p, "r", encoding="utf-8") as f:
+                d = json.load(f)
+            st = str((d or {}).get("status", "")).lower()
+            if st in ("built", "packaged", "released"):
+                return _row("Install/Packaging", "green", f"build status={st}")
+            return _row("Install/Packaging", "yellow", f"build status={st or 'unknown'}")
+    except Exception:
+        pass
+    return _row("Install/Packaging", "yellow", "packaging not verified (no build-info)")
 
 
 def go_no_go(project: str, project_dir: str, tech_stack: Optional[Dict] = None,
@@ -157,7 +174,8 @@ def go_no_go(project: str, project_dir: str, tech_stack: Optional[Dict] = None,
              f"fr_coverage={None if fr_ratio is None else round(fr_ratio,2)}"),
         _row("Deploy/Smoke", _rag(last_status == "passed", last_status != "failed"),
              f"last_cycle_status={last_status or 'n/a'}"),
-        _row("Install/Packaging", _rag(True, True), "checked in packaging stage"),
+        _row("Install/Packaging", _packaging_row(project_dir)["rag"],
+             _packaging_row(project_dir)["detail"]),
         _row("Regression trend", _rag(not has_regression, not has_regression),
              f"regression={has_regression}"),
         _row("RCCA completeness",

@@ -139,11 +139,22 @@ def _load_all(scope: str, project: Optional[str]):
     except Exception:
         names = []
     if names:
+        seen = set()
         for fn in sorted(names):
             it = _rj(os.path.join(idir, fn), None)
             if not isinstance(it, dict) or not it.get("id"):
                 continue
             (cl if _normalize_status(it.get("status", "new")) in _CLOSED else op).append(it)
+            seen.add(str(it.get("id")))
+        # BZ-C01/BU-C02: also surface legacy-only items so an interrupted/partial
+        # migration never hides work; dedup by id (post-migration indexes share ids).
+        lo, lc = _rj(of, []), _rj(cf, [])
+        lo = lo.get("items") if isinstance(lo, dict) else lo
+        lc = lc.get("items") if isinstance(lc, dict) else lc
+        for it in list(lo or []) + list(lc or []):
+            if isinstance(it, dict) and it.get("id") and str(it["id"]) not in seen:
+                (cl if _normalize_status(it.get("status", "new")) in _CLOSED else op).append(it)
+                seen.add(str(it["id"]))
         return op, cl
     lo, lc = _rj(of, []), _rj(cf, [])               # legacy layout
     lo = lo.get("items") if isinstance(lo, dict) else lo
@@ -194,6 +205,9 @@ def migrate_scope(scope: str, project: Optional[str] = None) -> Dict:
         _unlock(lp)
 
 
+_LOCK_STALE_SECONDS = 300
+
+
 def _lock(d):
     os.makedirs(d, exist_ok=True)
     lp = os.path.join(d, ".lock")
@@ -203,8 +217,16 @@ def _lock(d):
             os.close(fd)
             return lp
         except FileExistsError:
+            # Reclaim a lock left behind by a dead/hung writer (stale by mtime).
+            try:
+                if time.time() - os.path.getmtime(lp) > _LOCK_STALE_SECONDS:
+                    os.remove(lp)
+                    continue
+            except Exception:
+                pass
             time.sleep(0.1)
-    return None
+    # Fail closed (PF-025): never mutate the store without holding the lock.
+    raise TimeoutError(f"[Backlog] could not acquire lock {lp} within timeout")
 
 
 def _unlock(lp):

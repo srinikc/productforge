@@ -4,6 +4,8 @@ Priority-based project scheduling for concurrent execution
 """
 
 import json
+import os
+import time
 from pathlib import Path
 from typing import Optional, Dict, Any, List
 from dataclasses import dataclass, asdict
@@ -83,6 +85,31 @@ class QueueManager:
             if temp_path.exists():
                 temp_path.unlink()
             raise Exception(f"Failed to save queue: {e}")
+
+    def _lock(self):
+        """Exclusive lock around a queue read-modify-write (PF-014)."""
+        lp = str(self.queue_path) + ".lock"
+        for _ in range(50):
+            try:
+                fd = os.open(lp, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+                os.close(fd)
+                return lp
+            except FileExistsError:
+                try:
+                    if time.time() - os.path.getmtime(lp) > 300:
+                        os.remove(lp)
+                        continue
+                except Exception:
+                    pass
+                time.sleep(0.1)
+        return None
+
+    def _unlock(self, lp):
+        try:
+            if lp:
+                os.remove(lp)
+        except Exception:
+            pass
     
     def enqueue(
         self,
@@ -103,27 +130,31 @@ class QueueManager:
         Returns:
             True if added successfully
         """
-        queue = self._load_queue()
-        
-        # Check if already in queue
-        if any(item["project"] == project for item in queue):
-            return False
-        
-        item = QueueItem(
-            project=project,
-            priority=priority.value,
-            queued_at=datetime.now().isoformat(),
-            reason=reason,
-            estimated_duration_minutes=estimated_duration_minutes
-        )
-        
-        queue.append(item.to_dict())
-        
-        # Sort by priority (lower number = higher priority)
-        queue.sort(key=lambda x: (x["priority"], x["queued_at"]))
-        
-        self._save_queue(queue)
-        return True
+        lp = self._lock()
+        try:
+            queue = self._load_queue()
+
+            # Check if already in queue
+            if any(item["project"] == project for item in queue):
+                return False
+
+            item = QueueItem(
+                project=project,
+                priority=priority.value,
+                queued_at=datetime.now().isoformat(),
+                reason=reason,
+                estimated_duration_minutes=estimated_duration_minutes
+            )
+
+            queue.append(item.to_dict())
+
+            # Sort by priority (lower number = higher priority)
+            queue.sort(key=lambda x: (x["priority"], x["queued_at"]))
+
+            self._save_queue(queue)
+            return True
+        finally:
+            self._unlock(lp)
     
     def dequeue(self, project: str) -> Optional[QueueItem]:
         """
@@ -135,15 +166,19 @@ class QueueManager:
         Returns:
             Removed QueueItem if found, None otherwise
         """
-        queue = self._load_queue()
-        
-        for i, item in enumerate(queue):
-            if item["project"] == project:
-                removed = queue.pop(i)
-                self._save_queue(queue)
-                return QueueItem.from_dict(removed)
-        
-        return None
+        lp = self._lock()
+        try:
+            queue = self._load_queue()
+
+            for i, item in enumerate(queue):
+                if item["project"] == project:
+                    removed = queue.pop(i)
+                    self._save_queue(queue)
+                    return QueueItem.from_dict(removed)
+
+            return None
+        finally:
+            self._unlock(lp)
     
     def get_next(self) -> Optional[QueueItem]:
         """

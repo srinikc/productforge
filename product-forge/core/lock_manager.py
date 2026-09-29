@@ -116,63 +116,50 @@ class LockManager:
             Exception: If lock acquisition fails
         """
         lock_path = self._get_lock_path(project)
-        
-        # Check if lock exists and is valid
-        if lock_path.exists():
-            try:
-                with open(lock_path, 'r') as f:
-                    lock_data = json.load(f)
-                existing_lock = LockInfo.from_dict(lock_data)
-                
-                # If lock is not expired, check if it's held by same process
-                if not existing_lock.is_expired():
-                    if holder and existing_lock.holder == holder:
-                        # Same holder, refresh lock
-                        return self._refresh_lock(project, holder, ttl_seconds, run_id)
-                    # Different holder: if its process is DEAD the lock is stale
-                    # (e.g. a killed run) -> reclaim now instead of blocking the
-                    # next run for the whole TTL.
-                    _pid = _pid_from_holder(existing_lock.holder)
-                    if _pid and not _pid_alive(_pid):
-                        print(f"[Lock] reclaiming stale lock for '{project}' "
-                              f"(holder {existing_lock.holder} is no longer running)")
-                        self._remove_lock(project)
-                    else:
-                        return None
-                else:
-                    # Lock is expired, clean it up
-                    self._remove_lock(project)
-            except (json.JSONDecodeError, KeyError):
-                # Corrupted lock file, remove it
-                self._remove_lock(project)
-        
-        # Create new lock
+        holder = holder or self._get_session_id()
         now = datetime.now()
         expires = now + timedelta(seconds=ttl_seconds)
-        
         lock_info = LockInfo(
-            holder=holder or self._get_session_id(),
+            holder=holder,
             acquired_at=now.isoformat(),
             expires_at=expires.isoformat(),
             project=project,
             run_id=run_id or self._get_session_id(),
-            ttl_seconds=ttl_seconds
+            ttl_seconds=ttl_seconds,
         )
-        
-        # Atomic write: write to temp file, then rename
-        temp_path = lock_path.with_suffix('.tmp')
-        try:
-            with open(temp_path, 'w') as f:
-                json.dump(lock_info.to_dict(), f, indent=2)
-            
-            # Atomic rename (on same filesystem)
-            temp_path.rename(lock_path)
-            return lock_info
-        except Exception as e:
-            # Clean up temp file on failure
-            if temp_path.exists():
-                temp_path.unlink()
-            raise Exception(f"Failed to acquire lock for {project}: {e}")
+
+        # PF-024: acquire atomically with O_CREAT|O_EXCL (exclusive create). Two
+        # contenders can no longer both "win" via rename; exactly one creates the file.
+        for _ in range(5):
+            try:
+                fd = os.open(str(lock_path), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+                try:
+                    os.write(fd, json.dumps(lock_info.to_dict(), indent=2).encode("utf-8"))
+                finally:
+                    os.close(fd)
+                return lock_info
+            except FileExistsError:
+                try:
+                    with open(lock_path, 'r') as f:
+                        existing = LockInfo.from_dict(json.load(f))
+                except Exception:
+                    self._remove_lock(project)
+                    continue
+                if holder and existing.holder == holder:
+                    return self._refresh_lock(project, holder, ttl_seconds, run_id)
+                if existing.is_expired():
+                    self._remove_lock(project)
+                    continue
+                _pid = _pid_from_holder(existing.holder)
+                if _pid and not _pid_alive(_pid):
+                    print(f"[Lock] reclaiming stale lock for '{project}' "
+                          f"(holder {existing.holder} is no longer running)")
+                    self._remove_lock(project)
+                    continue
+                return None
+            except Exception as e:
+                raise Exception(f"Failed to acquire lock for {project}: {e}")
+        return None
     
     def _refresh_lock(
         self, 

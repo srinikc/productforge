@@ -170,6 +170,10 @@ def run_tool_loop(llm_fn: Callable[[List[Dict]], str],
             if calls_made >= tool_budget:
                 results.append(f"{name} -> skipped (tool budget reached)")
                 continue
+            # PF-004/BV-C02: enforce the per-agent allowlist in the TEXT tool loop too.
+            if name not in tool_names:
+                results.append(f"{name} -> denied (not permitted for this agent)")
+                continue
             res = registry.execute(name, args, workspace)
             calls_made += 1
             results.append(f"{name} -> {'ok' if res.ok else 'ERROR'}: {(res.output or res.error)[:1500]}")

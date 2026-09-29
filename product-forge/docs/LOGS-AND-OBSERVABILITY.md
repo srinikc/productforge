@@ -137,3 +137,42 @@ There is **no single record** that answers "what did this agent do, on which mod
 3. Then **BI-PF-0235** (query API + live index).
 
 > This document is the **as-is map**. It should be updated to the target once the SSOT lands.
+
+---
+
+## Appendix D — Industry-standard blueprint for **seamless execution & observability**
+
+The target is not PF-specific; it is the well-established OSS/industry stack. Adopt the standards, keep PF's
+artifact contracts on top.
+
+| Standard | What it gives | PF change to make |
+|---|---|---|
+| **OpenTelemetry (OTel) — traces/metrics/logs** + **GenAI semantic conventions** | one vendor-neutral model for the 3 pillars; a **span per LLM/tool call** with `gen_ai.system/model/usage.*` | emit one OTel span per agent + per LLM call + per tool call; export via OTLP (local file/collector) in addition to files |
+| **W3C Trace Context** (`traceparent`/`trace_id`/`span_id`) | end-to-end correlation across services/processes | carry `trace_id`(=run_id) + `span_id` on **every** record; never blank (fixes the `run_id=""` bug) |
+| **Structured logging (JSON Lines, one schema)** + **log levels** | machine-queryable, low-parse-cost, uniform | `{ts, level, trace_id, run_id, project, stage, agent, event, message, data}` for every line; human `.log` is a render |
+| **Event sourcing + CQRS** | append-only event log = SSOT; **state is derived**, never stored twice | make the unified event stream the SSOT; generate `run-status`/`project-status`/`agents-live` from it (kills the 5-file disagreement) |
+| **Correlation/context propagation** (like request-scoped context) | trace a step across pipeline→project→agent→LLM→tool | thread one context object; no "-" or empty ids anywhere |
+| **Three pillars (logs·metrics·traces) + RED/USE + SLIs/SLOs** | fast "what's wrong, where" | per-stage/agent SLIs (duration, tokens, cost, retries, failure rate); SLOs on run success + p95 latency |
+| **12-Factor App** (logs = event stream to stdout; config via env; disposability) | portable, restartable, container-friendly | stdout logger + OTLP; all tuning via env/`config/*.json`; graceful shutdown |
+| **OpenLLMetry / Langfuse / Helicone / LangSmith patterns** | per-run LLM trace UI (prompt→response→tokens→cost→tool calls) | mirror the model: a **run→agent→call tree**, opt-in prompt/response capture (PII-redacted) |
+| **Idempotency + checkpoint/resume + DLQ + backpressure** | seamless recovery | events carry ids; resume from last checkpoint; DLQ for failed calls (PF already has DLQ/circuit-breakers — wire them to the stream) |
+| **Retention / rotation / sampling / PII redaction** | cost + compliance | `log_router` enforces `keep_runs`, `max_bytes`; redact secrets/prompts by policy |
+
+**"Seamless execution" mechanics** (beyond logging): planner-once + cheap executors (**ReWOO**-style),
+capability steering (reasoning/structured/tools per agent), **structured outputs**, parallel independent
+sections, bounded retries + **escalate-on-failure**, and a **trace-per-run** view. These are the BI-0221–BI-0230
+items; the observability standards above make them *verifiable*.
+
+---
+
+## Appendix E — Other fixes to make (outside the backlog)
+
+These are process/hygiene/tooling issues, not work items:
+
+1. **Don't version throwaway run artifacts.** `products/e2e-smoke/`, `products/smoke-all/`, `test-framework/reports/*` are test output — add to `.gitignore` and `git rm --cached` (the last commit tracked them).
+2. **Config vs reality paths.** Fix `config/log-conventions.json` (or the writers): `product-forge/logs/` and `dashboard/logs/` are declared but absent; the backend log actually goes to `data/logs/pipeline-backend.log`.
+3. **Windows console encoding bug.** `python -m core.backlog --similar …` crashes on `cp1252` when a title contains `→` (`UnicodeEncodeError`). Set UTF-8 stdout or sanitize output.
+4. **Auto-refresh generated docs.** Run `scripts/dev/gen_docs_index.py` and `gen_backlog_summary.py` in pre-commit/CI so the index never goes stale.
+5. **Backlog hygiene (advisory → clean).** Record `dashboard_impact` on the 11 backend items; merge the 11 near-duplicate open pairs; refresh `model-tier` registry (3 drift) and the live-model check (1 drift).
+6. **CI gate.** Ensure `compileall` + `wired_audit` + `workflow_matrix_check` run on every PR (BI-0205 scopes the PR workflow; the gate wiring itself is still manual).
+7. **State-file consolidation.** Once the event stream is SSOT, retire/auto-generate the overlapping projections (`project-status.json`, `PROJECT-STATUS.md`, `agents-live.json`, `pipeline-runs.json`).

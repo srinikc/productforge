@@ -23,6 +23,7 @@ except ImportError:  # executed as a script: seed the repo root on sys.path, the
 
 import json
 import os
+import time
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
@@ -47,6 +48,33 @@ def _wj(p: str, data) -> None:
     os.replace(tmp, p)
 
 
+def _lock():
+    """Exclusive lock around membership read-modify-write (PF-015)."""
+    lp = STORE + ".lock"
+    for _ in range(50):
+        try:
+            fd = os.open(lp, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            os.close(fd)
+            return lp
+        except FileExistsError:
+            try:
+                if time.time() - os.path.getmtime(lp) > 300:
+                    os.remove(lp)
+                    continue
+            except Exception:
+                pass
+            time.sleep(0.1)
+    return None
+
+
+def _unlock(lp):
+    try:
+        if lp:
+            os.remove(lp)
+    except Exception:
+        pass
+
+
 def _norm_roles(roles) -> List[str]:
     if isinstance(roles, str):
         roles = [roles]
@@ -62,48 +90,60 @@ def members(tenant: str) -> List[Dict[str, Any]]:
 
 
 def invite(tenant: str, email: str, roles=None, team: str = "") -> Dict[str, Any]:
-    """Invite a member (idempotent by tenant+email)."""
+    """Invite a member (idempotent by tenant+email). Locked (PF-015)."""
     email = (email or "").strip().lower()
     if not email:
         raise ValueError("email required")
-    data = _rj(STORE, {}) or {}
-    bucket = data.setdefault(tenant, [])
-    rr = _norm_roles(roles or ["read"])
-    for m in bucket:
-        if m.get("email") == email:
-            m["roles"] = rr
-            m["team"] = team or m.get("team", "")
-            m["updated_at"] = datetime.now().isoformat()
-            _wj(STORE, data)
-            return m
-    rec = {"tenant": tenant, "email": email, "roles": rr, "team": team,
-           "status": "invited", "invited_at": datetime.now().isoformat(),
-           "updated_at": datetime.now().isoformat()}
-    bucket.append(rec)
-    _wj(STORE, data)
-    return rec
+    lp = _lock()
+    try:
+        data = _rj(STORE, {}) or {}
+        bucket = data.setdefault(tenant, [])
+        rr = _norm_roles(roles or ["read"])
+        for m in bucket:
+            if m.get("email") == email:
+                m["roles"] = rr
+                m["team"] = team or m.get("team", "")
+                m["updated_at"] = datetime.now().isoformat()
+                _wj(STORE, data)
+                return m
+        rec = {"tenant": tenant, "email": email, "roles": rr, "team": team,
+               "status": "invited", "invited_at": datetime.now().isoformat(),
+               "updated_at": datetime.now().isoformat()}
+        bucket.append(rec)
+        _wj(STORE, data)
+        return rec
+    finally:
+        _unlock(lp)
 
 
 def set_role(tenant: str, email: str, roles) -> Optional[Dict[str, Any]]:
-    data = _rj(STORE, {}) or {}
-    for m in data.get(tenant, []):
-        if m.get("email") == (email or "").strip().lower():
-            m["roles"] = _norm_roles(roles)
-            m["updated_at"] = datetime.now().isoformat()
-            _wj(STORE, data)
-            return m
-    return None
+    lp = _lock()
+    try:
+        data = _rj(STORE, {}) or {}
+        for m in data.get(tenant, []):
+            if m.get("email") == (email or "").strip().lower():
+                m["roles"] = _norm_roles(roles)
+                m["updated_at"] = datetime.now().isoformat()
+                _wj(STORE, data)
+                return m
+        return None
+    finally:
+        _unlock(lp)
 
 
 def remove_member(tenant: str, email: str) -> bool:
-    data = _rj(STORE, {}) or {}
-    bucket = data.get(tenant, [])
-    n = len(bucket)
-    data[tenant] = [m for m in bucket if m.get("email") != (email or "").strip().lower()]
-    if len(data[tenant]) != n:
-        _wj(STORE, data)
-        return True
-    return False
+    lp = _lock()
+    try:
+        data = _rj(STORE, {}) or {}
+        bucket = data.get(tenant, [])
+        n = len(bucket)
+        data[tenant] = [m for m in bucket if m.get("email") != (email or "").strip().lower()]
+        if len(data[tenant]) != n:
+            _wj(STORE, data)
+            return True
+        return False
+    finally:
+        _unlock(lp)
 
 
 def seats(tenant: str, tier: str = "") -> Dict[str, Any]:

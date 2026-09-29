@@ -66,18 +66,25 @@ def auth(authorization: Optional[str] = Header(default=None)) -> None:
         raise HTTPException(status_code=401, detail="unauthorized")
 
 
-def operator_guard(x_roles: Optional[str] = Header(default=None)) -> None:
-    """Operator endpoints exist ONLY on an operator instance (BI-0069).
+def operator_guard(authorization: Optional[str] = Header(default=None),
+                   x_roles: Optional[str] = Header(default=None)) -> None:
+    """Operator endpoints exist ONLY on an operator instance (BI-0069), and ALWAYS
+    require authentication + platform-admin (PF-021: fail closed, was role-header-only).
 
-    On a tenant instance they 404 (invisible), never 403.
+    On a tenant instance they 404 (invisible). On an operator instance they require a
+    configured token (401 if unset) and platform-admin roles (403 otherwise).
     """
     from core import licensing
     if licensing.instance_role() != "operator":
         raise HTTPException(status_code=404, detail="not found")
+    want = _token()
+    if not want:
+        raise HTTPException(status_code=401, detail="operator token not configured")
+    if not authorization or authorization.split()[-1] != want:
+        raise HTTPException(status_code=401, detail="unauthorized")
     roles = [r.strip() for r in (x_roles or "").split(",") if r.strip()]
-    if _token() or roles:
-        if roles and not licensing.is_platform_admin(roles):
-            raise HTTPException(status_code=404, detail="not found")
+    if not roles or not licensing.is_platform_admin(roles):
+        raise HTTPException(status_code=403, detail="platform admin required")
 
 
 def _rj(p: Path, default):
@@ -211,7 +218,7 @@ def agent_control(agent: str, body: Dict[str, Any]):
 
 
 # ── SSE live events (BI-0056) ────────────────────────────────────────────────
-@app.get("/api/v1/events")
+@app.get("/api/v1/events", dependencies=[Depends(auth)])
 def events(project: str = Query("")):
     def _gen():
         ev = PRODUCTS / ".orchestration" / "events.jsonl"

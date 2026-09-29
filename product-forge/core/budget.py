@@ -43,19 +43,24 @@ def _empty() -> Dict:
 
 
 def _lock(p: str):
-    try:
-        os.makedirs(os.path.dirname(p) or ".", exist_ok=True)
-        lp = p + ".lock"
-        for _ in range(50):
+    os.makedirs(os.path.dirname(p) or ".", exist_ok=True)
+    lp = p + ".lock"
+    for _ in range(50):
+        try:
+            fd = os.open(lp, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            os.close(fd)
+            return lp
+        except FileExistsError:
+            # Reclaim a stale lock left by a dead/hung writer.
             try:
-                fd = os.open(lp, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
-                os.close(fd)
-                return lp
-            except FileExistsError:
-                time.sleep(0.1)
-    except Exception:
-        pass
-    return None
+                if time.time() - os.path.getmtime(lp) > 300:
+                    os.remove(lp)
+                    continue
+            except Exception:
+                pass
+            time.sleep(0.1)
+    # Fail closed (PF-011): never mutate the budget store without the lock.
+    raise TimeoutError(f"[Budget] could not acquire lock {lp} within timeout")
 
 
 def _unlock(lp):
@@ -147,6 +152,60 @@ def record_usage(project: Optional[str], tokens: int = 0, cost: float = 0.0,
         usage["cost_used"] = float(usage.get("cost_used", 0.0)) + float(cost or 0.0)
         hist = d.setdefault("history", [])
         hist.append(entry)
+        d["history"] = hist[-5000:]
+    return _mutate(project, _fn, products_dir)
+
+
+def reserve(project: Optional[str], amount: float, key: str = "",
+            products_dir: str = _DEFAULT_PRODUCTS) -> Dict:
+    """Atomically reserve `amount` against the budget (PF-013).
+
+    Returns {ok, reason, reserved_total}. Fail-closed: if a configured cap
+    (limits.per_run_cap_usd|total_cap_usd) would be exceeded, ok=False and nothing
+    is reserved. The reservation is recorded in state.reservations[key].
+    """
+    out = {"ok": True, "reason": "", "reserved_total": 0.0}
+
+    def _fn(d):
+        lim = d.get("limits") or {}
+        usage = d.get("usage") or {}
+        st = d.setdefault("state", {})
+        rsv = st.setdefault("reservations", {})
+        reserved = sum(float(v or 0.0) for v in rsv.values())
+        cap = float(lim.get("per_run_cap_usd") or lim.get("total_cap_usd") or 0.0)
+        used = float(usage.get("cost_used", 0.0) or 0.0)
+        if cap and (used + reserved + float(amount or 0.0)) > cap:
+            out["ok"] = False
+            out["reason"] = (f"budget cap {cap} exceeded "
+                             f"(used={used}, reserved={reserved}, add={amount})")
+        else:
+            rsv[str(key or "anon")] = float(amount or 0.0)
+            out["reserved_total"] = reserved + float(amount or 0.0)
+    _mutate(project, _fn, products_dir)
+    return out
+
+
+def release(project: Optional[str], key: str = "",
+            products_dir: str = _DEFAULT_PRODUCTS) -> None:
+    """Release a reservation without charging usage."""
+    def _fn(d):
+        st = d.setdefault("state", {})
+        st.setdefault("reservations", {}).pop(str(key or "anon"), None)
+    _mutate(project, _fn, products_dir)
+
+
+def commit_reservation(project: Optional[str], key: str = "", actual_cost: float = 0.0,
+                       tokens: int = 0, products_dir: str = _DEFAULT_PRODUCTS) -> Dict:
+    """Convert a reservation into real usage (cost/tokens) and drop the reservation."""
+    def _fn(d):
+        st = d.setdefault("state", {})
+        st.setdefault("reservations", {}).pop(str(key or "anon"), None)
+        usage = d.setdefault("usage", {})
+        usage["cost_used"] = float(usage.get("cost_used", 0.0) or 0.0) + float(actual_cost or 0.0)
+        usage["tokens_used"] = int(usage.get("tokens_used", 0) or 0) + int(tokens or 0)
+        hist = d.setdefault("history", [])
+        hist.append({"at": datetime.now().isoformat(), "tokens": int(tokens or 0),
+                     "cost": float(actual_cost or 0.0), "reservation": str(key or "anon")})
         d["history"] = hist[-5000:]
     return _mutate(project, _fn, products_dir)
 

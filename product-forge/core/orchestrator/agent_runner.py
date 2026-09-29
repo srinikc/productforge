@@ -165,6 +165,10 @@ class AgentRunnerMixin:
 
         try:
             final, _m, stats = _run([{"role": "user", "content": prompt}])
+            # PF-067: aggregate tool usage across ALL attempts (not just the last one).
+            acc["tool_calls"] = acc.get("tool_calls", 0) + stats.get("tool_calls", 0)
+            acc["tool_iterations"] = acc.get("tool_iterations", 0) + stats.get("iterations", 0)
+            acc["tool_writes"] = acc.get("tool_writes", 0) + stats.get("writes", 0)
             if _needs_retry(stats):
                 print(f"  [TOOLS] {agent_id}: no effective file writes; retrying strict")
                 strict = [{"role": "system", "content":
@@ -172,9 +176,9 @@ class AgentRunnerMixin:
                            "workspace (e.g. src/..., tests/...). Do NOT describe code — actually write it."},
                           {"role": "user", "content": prompt}]
                 final, _m, stats = _run(strict)
-            acc["tool_calls"] = stats.get("tool_calls", 0)
-            acc["tool_iterations"] = stats.get("iterations", 0)
-            acc["tool_writes"] = stats.get("writes", 0)
+                acc["tool_calls"] += stats.get("tool_calls", 0)
+                acc["tool_iterations"] += stats.get("iterations", 0)
+                acc["tool_writes"] += stats.get("writes", 0)
             print(f"  [TOOLS] {agent_id}: {acc['tool_calls']} tool call(s), "
                   f"{acc['tool_writes']} write(s) in {acc['tool_iterations']} iteration(s)")
             if not (final or "").strip():
@@ -199,9 +203,9 @@ class AgentRunnerMixin:
                     final2, _m2, stats2 = _run(tool_use)
                     f2 = (final2 or "").strip()
                     if f2 and (stats2.get("writes", 0) > 0 or len(f2) >= 300):
-                        acc["tool_calls"] = stats2.get("tool_calls", 0)
-                        acc["tool_iterations"] = stats2.get("iterations", 0)
-                        acc["tool_writes"] = stats2.get("writes", 0)
+                        acc["tool_calls"] += stats2.get("tool_calls", 0)
+                        acc["tool_iterations"] += stats2.get("iterations", 0)
+                        acc["tool_writes"] += stats2.get("writes", 0)
                         print(f"  [TOOLS] {agent_id}: recovered WITH tools "
                               f"({acc['tool_calls']} calls, {acc['tool_writes']} writes)")
                         return final2, acc
@@ -433,10 +437,27 @@ class AgentRunnerMixin:
                 token_info.get("cost", 0.0)
             )
             
-            with open(artifact_file, 'w', encoding='utf-8') as f:
+            # BV-C05: atomic canonical write (temp + replace) so a crash/disk-full
+            # cannot truncate the previously good artifact.
+            _tmp_art = artifact_file + ".tmp"
+            with open(_tmp_art, 'w', encoding='utf-8') as f:
                 f.write(formatted_content)
+            os.replace(_tmp_art, artifact_file)
             
             artifacts.append(artifact_file)
+            # F0-3: bind the published artifact to the current run (run-bound provenance).
+            try:
+                from core import run_manifest as _rm
+                _rid = ""
+                try:
+                    _rid = (self._get_run_id() if hasattr(self, "_get_run_id")
+                            else getattr(getattr(self, "execution", None), "pipeline_id", "") or "")
+                except Exception:
+                    _rid = ""
+                if _rid:
+                    _rm.record_artifact(self.project_dir, _rid, stage_id, agent_id, artifact_file)
+            except Exception:
+                pass
             # A good artifact supersedes the debug .partial from a prior retry.
             try:
                 if os.path.exists(artifact_file + ".partial"):
@@ -635,6 +656,11 @@ class AgentRunnerMixin:
         pack = instr + f"\n\nTASK: {task}"
         try:
             pack += self._scope_guard()
+        except Exception:
+            pass
+        try:
+            from core.orchestrator.prompt_builder import discipline_guard
+            pack += discipline_guard(agent_id)
         except Exception:
             pass
         try:
@@ -1231,8 +1257,11 @@ Execute this task and produce the required output.""")
 
         instruction += self._scope_guard()
         try:
-            from core.orchestrator.prompt_builder import (conciseness_guard, infra_awareness_guard,
-                                                           research_guard, no_invention_guard)
+            from core.orchestrator.prompt_builder import (conciseness_guard, discipline_guard,
+                                                           infra_awareness_guard, research_guard,
+                                                           no_invention_guard)
+            # Global engineering discipline (all agents, all products).
+            instruction += discipline_guard(agent_id)
             instruction += no_invention_guard(agent_id)
             instruction += conciseness_guard(agent_id)
             instruction += infra_awareness_guard(agent_id)
@@ -1495,7 +1524,10 @@ Write the output to: {artifact_file}"""
         if not self.tool_registry:
             return {"ok": False, "error": "tool registry unavailable"}
         spec = getattr(self, "agent_specs", {}).get(agent_id)
-        if spec is not None and tool not in (getattr(spec, "tools", None) or []):
+        # PF-004/BV-C02: fail closed — a missing agent spec must DENY, not bypass the allowlist.
+        if spec is None:
+            return {"ok": False, "error": f"no agent spec for '{agent_id}': tool execution denied"}
+        if tool not in (getattr(spec, "tools", None) or []):
             return {"ok": False, "error": f"tool '{tool}' not permitted for {agent_id}"}
         cache = getattr(self, "tool_cache", None)
         if cache is not None:

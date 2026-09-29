@@ -52,6 +52,26 @@ class AgentExecutionMixin:
         )
         
         try:
+            # 0a. Enforce the execution contract (M0.7 / BI-PF-0243): in a real run
+            #     (run_id present) a missing/unverifiable contract is BLOCKED, never run.
+            try:
+                from core import execution_contract as _ec
+                _rid = (getattr(self.execution, "pipeline_id", "") if self.execution else "") or ""
+                _c = _ec.build(self.project, _rid, stage_id, agent_id, task,
+                               [f"{agent_id}-output.md"])
+                _cv = _ec.validate(_c)
+                try:
+                    execution.contract = _cv
+                except Exception:
+                    pass
+                if _rid and not _cv.get("ok"):
+                    execution.status = "blocked"
+                    execution.error = f"execution contract invalid: missing {_cv.get('missing')}"
+                    execution.completed_at = datetime.now().isoformat()
+                    return execution
+            except Exception:
+                pass
+
             # 0. Check circuit breaker
             cb_name = f"{agent_id}_{stage_id}"
             if not self.circuit_breakers.can_execute(cb_name):

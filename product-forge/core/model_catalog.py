@@ -195,8 +195,12 @@ def refresh() -> Dict:
         "models": models,
     }
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
-    with open(OUT, "w", encoding="utf-8", newline="\n") as f:
+    # PF-016: atomic write (temp + replace) so an interrupted refresh never leaves a
+    # partial/truncated catalog.
+    _tmp = OUT + ".tmp"
+    with open(_tmp, "w", encoding="utf-8", newline="\n") as f:
         json.dump(catalog, f, indent=2, ensure_ascii=False)
+    os.replace(_tmp, OUT)
     print(f"[ModelCatalog] wrote {OUT} ({len(models)} models; "
           f"openrouter={len(or_models)}, zen={len(zen_models)}; refreshed {now})")
     return catalog

@@ -95,13 +95,19 @@ def _tests_passed(project_dir: str) -> bool:
     return False
 
 
-def _compliance_passed(project_dir: str) -> bool:
+def _compliance_passed(project_dir: str, run_id: str = "") -> bool:
+    """Run-bound (PF-031): when a run id is known, only a report from THAT run counts."""
     files = glob.glob(os.path.join(project_dir, "compliance", "*-latest.json"))
     for f in files:
         d = _rj(f, {}) or {}
         st = str(d.get("status") or d.get("result") or "").lower()
-        if st in ("pass", "passed", "ok"):
-            return True
+        if st not in ("pass", "passed", "ok"):
+            continue
+        if run_id:
+            if str(d.get("run_id") or "") == str(run_id):
+                return True
+            continue  # stale/other-run report -> not evidence for this run
+        return True
     return False
 
 
@@ -162,7 +168,7 @@ def collect_reports(project_dir: str) -> Dict[str, str]:
     return out
 
 
-def verify_run(project_dir: str, scope: str = "") -> Dict:
+def verify_run(project_dir: str, scope: str = "", run_id: str = "") -> Dict:
     """Decide verified/not for a completed run (scope-aware). No side effects."""
     pol = policy()
     sc = (scope or "entire").lower()
@@ -171,7 +177,10 @@ def verify_run(project_dir: str, scope: str = "") -> Dict:
     reasons: List[str] = []
     for req in require:
         fn = _EVIDENCE.get(req)
-        ok = bool(fn and fn(project_dir))
+        if req == "compliance_passed":
+            ok = bool(fn and fn(project_dir, run_id=run_id))
+        else:
+            ok = bool(fn and fn(project_dir))
         evidence[req] = ok
         if not ok:
             reasons.append(f"missing/failed: {req}")
@@ -197,7 +206,18 @@ def verify_and_close(project_dir: str, run_id: str = "",
     """Verify a finished run and, if verified, close its backlog + intake items."""
     ids = [i.strip() for i in (item_ids or []) if str(i).strip()]
     scope = _scope_for(project_dir, ids)
-    res = verify_run(project_dir, scope)
+    res = verify_run(project_dir, scope, run_id)
+    # F0-3 / PF-006: when this run has a provenance manifest, verification must be
+    # satisfied by a RUN-BOUND artifact (hash still matches) - not just any markdown.
+    try:
+        from core import run_manifest as _rm
+        if run_id and _rm.has(project_dir, run_id):
+            if not _rm.verify_any_artifact(project_dir, run_id):
+                res["evidence"]["artifact_exists"] = False
+                res["reasons"].append("artifact_exists: no run-bound artifact (missing/hash mismatch/stale)")
+            res["verified"] = all(res["evidence"].values()) if res["evidence"] else False
+    except Exception:
+        pass
     res.update({"run_id": run_id, "item_ids": ids, "closed_backlog": [], "closed_intake": []})
     if not ids:
         res["note"] = "no backlog item linked; nothing to close"

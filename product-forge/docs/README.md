@@ -46,6 +46,7 @@
 | [`DASHBOARD-E2E-DESIGN.md`](DASHBOARD-E2E-DESIGN.md) | Design | 70% | Dashboard E2E design (front-end not built yet) | **Front-end MVP not built: every dashboard screen/view described here (backend-first).** | ProductForge-Dashboard BI-0001–0149 (epic BI-0043) |
 | [`DEVOPS-WORKFLOW-ANALYSIS.md`](DEVOPS-WORKFLOW-ANALYSIS.md) | Design | 70% | DevOps / PR-CI workflow analysis | **Not wired: PR branch -> pre-check gates (syntax/audit/lint/tests/secrets) -> review workflow.** | BI-0205 |
 | [`Diagram-Generation-Spec.md`](Diagram-Generation-Spec.md) | Implemented | 100% | Diagram generation spec (mermaid/drawio/svg) | — | — |
+| [`ENGINEERING_OPERATING_STANDARD.md`](ENGINEERING_OPERATING_STANDARD.md) | SSOT | 100% | Binding engineering standard: how we think/design/build/verify (+DoD) | — | — |
 | [`ENTRYPOINTS.md`](ENTRYPOINTS.md) | Implemented | 100% | Which entry script/API to use | — | — |
 | [`EXTERNAL-TARGETS-WORKFLOW.md`](EXTERNAL-TARGETS-WORKFLOW.md) | Design | 80% | External delivery targets workflow | **Pending: some external delivery targets + their dashboard selection/UI.** | BI-0044, BI-0071, BI-0121–BI-0123 |
 | [`Failure-Recovery-System.md`](Failure-Recovery-System.md) | Implemented | 100% | Failure / retry / checkpoint recovery | — | — |
@@ -56,6 +57,8 @@
 | [`PIPELINE-OPERATIONS.md`](PIPELINE-OPERATIONS.md) | Implemented | 100% | Operations: run modes, control, state, status | — | — |
 | [`PIPELINE-RESUME-ProductForge-Dashboard.md`](PIPELINE-RESUME-ProductForge-Dashboard.md) | Adopted (reference) | 50% | Old resume notes for a project | Partial - resume notes reused. | — |
 | [`PIPELINE-STAGES-REFERENCE.md`](PIPELINE-STAGES-REFERENCE.md) | Generated | 100% | Regenerable stages/agents reference | — | — |
+| [`Product_Forge_Audit_Organized_Executive_Master_With_Execution_Guardrails_20260929.md`](Product_Forge_Audit_Organized_Executive_Master_With_Execution_Guardrails_20260929.md) | Reference (verify) | 50% | unclassified - confirm before relying on it | — | — |
+| [`RCCA_productForge.md`](RCCA_productForge.md) | Analysis (current) | 100% | Root-cause + corrective/preventive guidelines for the audit/issues gaps | — | — |
 | [`RE-RUN-IMPACT-ANALYSIS.md`](RE-RUN-IMPACT-ANALYSIS.md) | Implemented | 100% | Rerun / impact invalidation model | — | — |
 | [`SCHEMA-GUIDE.md`](SCHEMA-GUIDE.md) | Implemented | 100% | Data + schema reference (validators) | — | — |
 | [`SECTIONED-GENERATION-ANALYSIS.md`](SECTIONED-GENERATION-ANALYSIS.md) | Implemented | 100% | Long-output (sectioned) generation design | — | — |
@@ -70,6 +73,7 @@
 | [`credentials.md`](credentials.md) | Implemented | 100% | Credentials + budget registry (BI-0207) | — | — |
 | [`design.md`](design.md) | Runtime | 100% | Design notes (runtime output) | — | — |
 | [`feature-status.md`](feature-status.md) | Runtime | 100% | Derived feature status | — | — |
+| [`final_required_changes.md`](final_required_changes.md) | Analysis (current) | 100% | Consolidated final change plan: audit M0/M1/M2 reconciled with backlog + our docs | — | — |
 | [`huggingface.md`](huggingface.md) | Adopted (reference) | 40% | HuggingFace / open-weights references | Partly adopted; model downloader planned (BI-0206). | — |
 | [`input_needed.md`](input_needed.md) | Adopted (reference) | 70% | Required-inputs notes | Adopted: readiness checklist (BI-0220). | — |
 | [`model-tier-timing-and-multimodal-flow.md`](model-tier-timing-and-multimodal-flow.md) | Design | 80% | Tier timing + multimodal flow | **Pending: post-architect two-phase MODEL/CAPABILITY strategy gate.** | BI-0192, BI-0210 |
@@ -90,6 +94,7 @@
 | [`review.md`](review.md) | Runtime | 100% | Review notes (runtime output) | — | — |
 | [`test.md`](test.md) | Placeholder | not referenced | Empty/unused placeholder | — | — |
 | [`todo.md`](todo.md) | Placeholder | not referenced | Scratch todo (no content of value) | — | — |
+| [`todo_sept292026.md`](todo_sept292026.md) | TODO (current) | 100% | Actionable to-do (Sep 29 2026): log SSOT changes + seamless-execution standards + non-backlog fixes | — | — |
 | [`token-audit.md`](token-audit.md) | Adopted (reference) | 70% | Token audit | Adopted: token accounting. | — |
 | [`token_context_model.md`](token_context_model.md) | Adopted (reference) | 75% | Token/context model | Adopted: token/context budgeting. | — |
 | [`tools-and-generators.md`](tools-and-generators.md) | Adopted (reference) | 80% | Tools & generators catalogue | Adopted: tool/generator registry. | — |
@@ -99,7 +104,7 @@
 |---|---|---|---|
 | `archive/` (23) | Implemented then superseded | see files | SUPERSEDED docs - implemented then replaced; history only (see %; % is a curated adoption estimate) |
 | `compact/` (1) | Runtime | 100% | Compact summaries produced by the pipeline |
-| `guidelines/` (60) | Implemented | 100% | Knowledge/guidelines used by the knowledge router |
+| `guidelines/` (61) | Implemented | 100% | Knowledge/guidelines used by the knowledge router |
 | `knowledge/` (2) | Generated | 100% | Compiled knowledge (knowledge-compiler output) |
 | `plans/` (11) | Adopted (historical) | see files | Roadmaps/plans - historical; most items were adopted (see %; % is a curated adoption estimate) |
 | `research/` (15) | Adopted (reference) | see files | External research/notes - patterns adopted into Product Forge (see %; % is a curated adoption estimate) |
@@ -209,6 +214,7 @@
 | [`guidelines/customer-acquisition/channels.md`](guidelines/customer-acquisition/channels.md) | Implemented | 100% | Customer Acquisition | no | — |
 | [`guidelines/database/postgresql.md`](guidelines/database/postgresql.md) | Implemented | 100% | Database Design Standards (PostgreSQL) | no | — |
 | [`guidelines/domain/README.md`](guidelines/domain/README.md) | Implemented | 100% | Domain Research Guidelines | no | — |
+| [`guidelines/engineering/operating-principles.md`](guidelines/engineering/operating-principles.md) | Implemented | 100% | Engineering Operating Principles (general) | no | — |
 | [`guidelines/frontend/react.md`](guidelines/frontend/react.md) | Implemented | 100% | Frontend Engineering Standards | no | — |
 | [`guidelines/go-to-market/strategies.md`](guidelines/go-to-market/strategies.md) | Implemented | 100% | Go-to-Market (GTM) Strategies | no | — |
 | [`guidelines/growth/patterns.md`](guidelines/growth/patterns.md) | Implemented | 100% | Growth Patterns & Loops | no | — |

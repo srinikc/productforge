@@ -46,7 +46,9 @@ def _parse(text: str) -> Dict[str, Any]:
             return json.loads(m.group(1))
         except Exception:
             pass
-    return {"decision": "approve", "reasons": ["decision not parsed"], "gate": ""}
+    # Fail closed (PF-001): an unparseable decision must NEVER become approval.
+    return {"decision": "blocked", "reasons": ["decision not parsed - failing closed"],
+            "gate": "", "parse_error": True}
 
 
 def _record(project_dir: str, stage_id: str, agent_id: str, decision: Dict):
@@ -83,7 +85,8 @@ def decide(executor, agent_id: str, stage_id: str,
         _record(getattr(executor, "project_dir", ""), stage_id, agent_id, decision)
         return decision
     except Exception as e:
-        return {"decision": "approve", "reasons": [f"proxy error: {e}"], "gate": stage_id}
+        # Fail closed (PF-001): a proxy error must NEVER become approval.
+        return {"decision": "blocked", "reasons": [f"proxy error: {e} - failing closed"], "gate": stage_id}
 
 
 def ideation_partner(executor, stage_id: str = "0") -> Optional[Any]:
