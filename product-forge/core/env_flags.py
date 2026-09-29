@@ -63,3 +63,8 @@ def get(name: str, default: Optional[str] = None) -> Optional[str]:
 
 def docs() -> List[Dict]:
     return [{"name": k, **v} for k, v in sorted(load().items())]
+
+
+def verbose() -> bool:
+    """BI-0229: verbose per-call/loop logging gate (PIPELINE_VERBOSE)."""
+    return str(get("PIPELINE_VERBOSE", "0") or "0").strip().lower() in ("1", "true", "yes", "on")

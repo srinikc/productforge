@@ -321,8 +321,15 @@ class LLMClient:
                 data = self._build_api_request_messages(model_name, messages, max_output_tokens)
                 _pace(provider)
                 _t_call = time.time()
-                print(f"  [LLM] {agent_id} -> {model_name} ({provider}) attempt={attempt} "
-                      f"prompt_chars={len(prompt)} max_out={max_output_tokens}")
+                # BI-0229: verbose per-call logging is gated (off = concise).
+                try:
+                    from core import env_flags as _ef
+                    _verbose = _ef.verbose()
+                except Exception:
+                    _verbose = False
+                if _verbose:
+                    print(f"  [LLM] {agent_id} -> {model_name} ({provider}) attempt={attempt} "
+                          f"prompt_chars={len(prompt)} max_out={max_output_tokens}")
                 response = requests.post(api_endpoint, json=data, headers=headers, timeout=180)
 
                 if response.status_code != 200:
