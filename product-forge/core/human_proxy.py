@@ -28,6 +28,29 @@ from typing import Any, Dict, Optional
 
 _REPO = str(_PF_ROOT)
 
+# BI-PF-0245: at most ONE proxy decision per gate per run, and surface it. Repeated asks for
+# the same gate return the first decision without another (expensive) proxy invocation.
+_DECISIONS: Dict[str, Dict[str, Any]] = {}
+_STATS = {"invocations": 0, "cache_hits": 0}
+
+
+def _cache_key(project_dir: str, stage_id: str) -> str:
+    return f"{project_dir}|{stage_id}"
+
+
+def clear_cache(project_dir: str = "") -> None:
+    if project_dir:
+        for k in [k for k in _DECISIONS if k.startswith(project_dir + "|")]:
+            _DECISIONS.pop(k, None)
+    else:
+        _DECISIONS.clear()
+
+
+def stats() -> Dict[str, int]:
+    """Proxy invocation counters (invocations = LLM-backed proxy runs; cache_hits = reuses)."""
+    return dict(_STATS, cached=len(_DECISIONS))
+
+
 
 def is_auto(project_dir: str) -> bool:
     try:
@@ -66,7 +89,17 @@ def _record(project_dir: str, stage_id: str, agent_id: str, decision: Dict):
 
 def decide(executor, agent_id: str, stage_id: str,
            artifacts: Optional[list] = None) -> Dict[str, Any]:
-    """Invoke the `human` agent to make the gate decision (auto mode)."""
+    """Invoke the `human` agent to make the gate decision (auto mode).
+
+    Bounded (BI-PF-0245): one decision per gate per run — a repeat ask returns the cached
+    decision without another proxy invocation. The decision is surfaced as an event and in the
+    human-review journal so its cost/latency is visible.
+    """
+    project_dir = str(getattr(executor, "project_dir", "") or "")
+    key = _cache_key(project_dir, stage_id)
+    if key in _DECISIONS:
+        _STATS["cache_hits"] += 1
+        return dict(_DECISIONS[key])
     task = (f"Decide as the human owner for gate '{stage_id}' (agent '{agent_id}'). "
             "Review the stage context and artifacts, then output ONLY the JSON decision "
             "{\"decision\":\"approve\"|\"changes\", \"gate\":..., \"reasons\":[...], \"notes\":...}.")
@@ -82,7 +115,16 @@ def decide(executor, agent_id: str, stage_id: str,
         text += "\n" + str(getattr(ex, "error", "") or "")
         decision = _parse(text)
         decision.setdefault("gate", stage_id)
-        _record(getattr(executor, "project_dir", ""), stage_id, agent_id, decision)
+        _STATS["invocations"] += 1
+        _record(project_dir, stage_id, agent_id, decision)
+        try:
+            from core import events as _ev
+            _ev.emit(project_dir, "hil_proxy_decision", stage=stage_id, agent=agent_id,
+                     decision=decision.get("decision"), reasons=decision.get("reasons"),
+                     invocations=_STATS["invocations"])
+        except Exception:
+            pass
+        _DECISIONS[key] = dict(decision)
         return decision
     except Exception as e:
         # Fail closed (PF-001): a proxy error must NEVER become approval.
