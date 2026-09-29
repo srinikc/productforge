@@ -62,7 +62,8 @@ class ComplianceOrchestrator:
 
             compliance_dir = os.path.join(self.project_dir, "compliance")
             os.makedirs(compliance_dir, exist_ok=True)
-            report_file = os.path.join(compliance_dir, f"{agent_id}-compliance.json")
+            # PF-031: stage-scoped filename (was agent-only -> overwrote across stages/runs).
+            report_file = os.path.join(compliance_dir, f"{agent_id}-{stage_id or 'run'}-compliance.json")
             with open(report_file, "w", encoding="utf-8") as f:
                 json.dump(report_dict, f, indent=2, ensure_ascii=False)
 

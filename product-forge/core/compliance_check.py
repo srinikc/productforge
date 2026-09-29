@@ -324,16 +324,24 @@ class ComplianceChecker:
         return report
     
     def _save_report(self, report: ComplianceReport):
-        """Save compliance report to disk"""
+        """Save compliance report to disk (run-bound: carries the current run_id, PF-031)."""
+        try:
+            from core.audit_trail import current_run_id as _cur
+            rid = _cur(self.project) or ""
+        except Exception:
+            rid = ""
+        payload = report.to_dict()
+        if rid:
+            payload["run_id"] = rid
         filename = f"{report.agent}-{report.stage or 'run'}-{report.timestamp.replace(':', '-')}.json"
         filepath = self.compliance_dir / filename
         with open(filepath, 'w') as f:
-            json.dump(report.to_dict(), f, indent=2)
+            json.dump(payload, f, indent=2)
         
         # Also save latest
         latest = self.compliance_dir / f"{report.agent}-{report.stage or 'run'}-latest.json"
         with open(latest, 'w') as f:
-            json.dump(report.to_dict(), f, indent=2)
+            json.dump(payload, f, indent=2)
     
     def get_all_reports(self) -> List[Dict[str, Any]]:
         """Get all compliance reports for this project"""

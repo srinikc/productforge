@@ -699,6 +699,22 @@ class PipelineExecutor(AgentExecutionMixin, AgentRunnerMixin, StageRunnerMixin):
         self.stage_durations.append(duration)
         self._log_decision("stage_duration", f"{duration:.1f}s", "recorded for time estimation")
     
+    def _artifact_hashes(self) -> Dict:
+        """{stage_id: {agent: sha256}} for this run's published artifacts (CB-C01)."""
+        out: Dict = {}
+        try:
+            from core import run_manifest as _rm
+            for sid, execs in (self.execution.stage_executions or {}).items():
+                m = {}
+                for e in execs:
+                    for a in (getattr(e, "artifacts", None) or []):
+                        m[getattr(e, "agent_id", "")] = _rm.sha256_file(a)
+                if m:
+                    out[sid] = m
+        except Exception:
+            pass
+        return out
+
     def _save_checkpoint(self):
         """Save pipeline state for checkpoint/resume (pipeline-state.v1)."""
         now = datetime.now().isoformat()
@@ -727,6 +743,7 @@ class PipelineExecutor(AgentExecutionMixin, AgentRunnerMixin, StageRunnerMixin):
             "total_cost": self.execution.total_cost if self.execution else 0,
             "stage_durations": self.stage_durations,
             "decision_log": self.decision_log[-50:],
+            "artifact_hashes": self._artifact_hashes(),
             "saved_at": now,
         }
         try:
@@ -758,12 +775,31 @@ class PipelineExecutor(AgentExecutionMixin, AgentRunnerMixin, StageRunnerMixin):
     def _restore_from_checkpoint(self, checkpoint: Dict):
         """Restore DAG stage states (+ rehydrate artifacts) so resume skips done work."""
         stages = (checkpoint or {}).get("stages") or {}
+        _hashes = (checkpoint or {}).get("artifact_hashes") or {}
+        import glob as _glob
         # A stage left `running` by a killed process is not runnable and blocks its
-        # dependents forever — reset it so resume re-runs it.
+        # dependents forever — reset it so resume re-runs it. CB-C01: a completed stage
+        # whose artifact hash no longer matches the checkpoint is STALE -> reset to re-run.
         for _sid, _info in list(stages.items()):
-            if isinstance(_info, dict) and _info.get("status") == "running":
+            if not isinstance(_info, dict):
+                continue
+            if _info.get("status") == "running":
                 _info["status"] = "pending"
                 _info["started_at"] = ""
+            elif _info.get("status") == "completed" and (_hashes.get(_sid) or {}):
+                try:
+                    from core import run_manifest as _rm
+                    adir = _sp.find_stage_dir(self.project_dir, _sid)
+                    for _a in sorted(_glob.glob(os.path.join(adir, "*-output.md"))):
+                        _ag = os.path.basename(_a).replace("-output.md", "")
+                        _rec = (_hashes.get(_sid) or {}).get(_ag)
+                        if _rec and _rm.sha256_file(_a) != _rec:
+                            _info["status"] = "pending"
+                            _info["started_at"] = ""
+                            print(f"[Resume] stage {_sid}: stale/changed artifact ({_ag}) -> re-run")
+                            break
+                except Exception:
+                    pass
         try:
             if self.dag_executor and stages:
                 self.dag_executor.restore_states(stages)
