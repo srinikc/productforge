@@ -165,6 +165,10 @@ class AgentRunnerMixin:
 
         try:
             final, _m, stats = _run([{"role": "user", "content": prompt}])
+            # PF-067: aggregate tool usage across ALL attempts (not just the last one).
+            acc["tool_calls"] = acc.get("tool_calls", 0) + stats.get("tool_calls", 0)
+            acc["tool_iterations"] = acc.get("tool_iterations", 0) + stats.get("iterations", 0)
+            acc["tool_writes"] = acc.get("tool_writes", 0) + stats.get("writes", 0)
             if _needs_retry(stats):
                 print(f"  [TOOLS] {agent_id}: no effective file writes; retrying strict")
                 strict = [{"role": "system", "content":
@@ -172,9 +176,9 @@ class AgentRunnerMixin:
                            "workspace (e.g. src/..., tests/...). Do NOT describe code — actually write it."},
                           {"role": "user", "content": prompt}]
                 final, _m, stats = _run(strict)
-            acc["tool_calls"] = stats.get("tool_calls", 0)
-            acc["tool_iterations"] = stats.get("iterations", 0)
-            acc["tool_writes"] = stats.get("writes", 0)
+                acc["tool_calls"] += stats.get("tool_calls", 0)
+                acc["tool_iterations"] += stats.get("iterations", 0)
+                acc["tool_writes"] += stats.get("writes", 0)
             print(f"  [TOOLS] {agent_id}: {acc['tool_calls']} tool call(s), "
                   f"{acc['tool_writes']} write(s) in {acc['tool_iterations']} iteration(s)")
             if not (final or "").strip():
@@ -199,9 +203,9 @@ class AgentRunnerMixin:
                     final2, _m2, stats2 = _run(tool_use)
                     f2 = (final2 or "").strip()
                     if f2 and (stats2.get("writes", 0) > 0 or len(f2) >= 300):
-                        acc["tool_calls"] = stats2.get("tool_calls", 0)
-                        acc["tool_iterations"] = stats2.get("iterations", 0)
-                        acc["tool_writes"] = stats2.get("writes", 0)
+                        acc["tool_calls"] += stats2.get("tool_calls", 0)
+                        acc["tool_iterations"] += stats2.get("iterations", 0)
+                        acc["tool_writes"] += stats2.get("writes", 0)
                         print(f"  [TOOLS] {agent_id}: recovered WITH tools "
                               f"({acc['tool_calls']} calls, {acc['tool_writes']} writes)")
                         return final2, acc

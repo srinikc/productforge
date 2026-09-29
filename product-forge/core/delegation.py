@@ -129,6 +129,24 @@ class DelegationRouter:
     # ── dispatch ─────────────────────────────────────────────────
     def dispatch(self, stage_id: str, from_agent: str, to_agent: str,
                  signal: str, payload: str) -> DelegationRecord:
+        # PF-147: enforce the delegation budget (fail closed) BEFORE any side effect.
+        if not self.budget.can_invoke(stage_id):
+            rec = DelegationRecord(
+                stage_id=stage_id, from_agent=from_agent, to_agent=to_agent,
+                signal=signal, payload_chars=len(payload or ""),
+                status="blocked_budget", timestamp=datetime.now().isoformat())
+            self.records.append(rec)
+            self._persist(rec)
+            return rec
+        if not str(to_agent or "").strip():
+            rec = DelegationRecord(
+                stage_id=stage_id, from_agent=from_agent, to_agent=to_agent,
+                signal=signal, payload_chars=len(payload or ""),
+                status="invalid_target", timestamp=datetime.now().isoformat())
+            self.records.append(rec)
+            self._persist(rec)
+            return rec
+        self.budget.record(stage_id)
         message_id = ""
         if self.messenger is not None:
             try:
@@ -146,7 +164,7 @@ class DelegationRouter:
         rec = DelegationRecord(
             stage_id=stage_id, from_agent=from_agent, to_agent=to_agent,
             signal=signal, payload_chars=len(payload or ""),
-            message_id=message_id, timestamp=datetime.now().isoformat())
+            status="requested", message_id=message_id, timestamp=datetime.now().isoformat())
         self.records.append(rec)
         self._persist(rec)
         return rec
@@ -160,8 +178,11 @@ class DelegationRouter:
                 with open(path, "r", encoding="utf-8") as f:
                     data = json.load(f)
             data.append(rec.to_dict())
-            with open(path, "w", encoding="utf-8") as f:
+            # PF-147: atomic write (temp + replace).
+            tmp = path + ".tmp"
+            with open(tmp, "w", encoding="utf-8") as f:
                 json.dump(data, f, indent=2, ensure_ascii=False)
+            os.replace(tmp, path)
         except Exception:
             pass
 
