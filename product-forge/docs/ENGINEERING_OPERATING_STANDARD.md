@@ -203,8 +203,8 @@ The learnings are not just documented — they are being **encoded into the prod
 
 | Standard / learning | Product surface (where) | What it looks like | Status |
 |---|---|---|---|
-| Agent discipline (fail-closed, evidence, bounded autonomy) | `.opencode/agent/*.md` role prompts + `docs/guidelines/engineering/operating-principles.md` | a shared "Engineering discipline" block every agent follows | **to-do** (new item) |
-| Knowledge binding | `config/agent-capabilities.json` (knowledge layer `engineering` → `docs/guidelines/engineering/`) | agents (implement/architect/validate/code-review/quality-gate/guardian) load the principles | **to-do** (new item) |
+| Agent discipline (fail-closed, evidence, no placeholders, 360° impact, bounded autonomy) | `core/orchestrator/prompt_builder.discipline_guard`, injected in `agent_runner` (both prompt paths) | a binding **ENGINEERING DISCIPLINE** block in EVERY agent prompt (main + section/per-feature) | **done** |
+| Knowledge binding | `config/knowledge-registry.json` entry `kb-engineering-principles` (agents `*`) → `docs/guidelines/engineering/operating-principles.md` | every agent also **loads** the principles as knowledge (appended post tech-stack override) | **done** |
 | Gates **as code** | M0 fixes (`BI-PF-0236…0243`) in `core/*` | fail-closed defaults, run-bound provenance, boundary authz | **in progress** |
 | Acceptance suite | `BI-PF-0243` (11 scenarios) | regression gate proving the invariants | **to-do** |
 | Run-bound provenance | `core/run_manifest.py` + artifact publish | per-run artifact hashes + approvals | **done (F0-3)** |
