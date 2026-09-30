@@ -735,6 +735,15 @@ class StageRunnerMixin:
                     print(f"  [BOM] wrote {os.path.relpath(_p, self.project_dir)}")
             except Exception as e:
                 print(f"[BOM] {e}")
+            # BI-0214: feasibility Phase 2 (DESTINATION) at packaging.
+            try:
+                from core import feasibility as _fs
+                _fd = _fs.evaluate(self.project_dir, phase="destination").get("phase2_destination", {})
+                if _fd:
+                    print(f"  [Feasibility] destination verdict={_fd.get('verdict')} "
+                          f"shipping={_fd.get('shipping_mode')} sku={_fd.get('sku')}")
+            except Exception:
+                pass
 
         # Post-deploy validation (8.3/8.4) after a deployment agent runs
         if any(getattr(e, "agent_id", "") == "production-deploy" for e in stage_executions):

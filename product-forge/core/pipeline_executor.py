@@ -2792,6 +2792,16 @@ class PipelineExecutor(AgentExecutionMixin, AgentRunnerMixin, StageRunnerMixin):
                     print(f"  [MediaIngest] {len(_m)} asset(s); modalities={_as.modalities(self.project_dir)}")
             except Exception:
                 pass
+            # BI-0214: two-phase feasibility — Phase 1 (BUILD-HOST) at ideation.
+            try:
+                from core import feasibility as _fs
+                _fb = _fs.evaluate(self.project_dir, phase="build").get("phase1_build_host", {})
+                if _fb:
+                    print(f"  [Feasibility] build-host verdict={_fb.get('verdict')} "
+                          f"modalities={[r.get('modality') for r in (_fb.get('per_modality') or [])]} "
+                          f"risks={len(_fb.get('risks') or [])}")
+            except Exception:
+                pass
         except Exception:
             pass
         s = report.get("summary", {})
