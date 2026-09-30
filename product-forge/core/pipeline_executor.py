@@ -2775,6 +2775,15 @@ class PipelineExecutor(AgentExecutionMixin, AgentRunnerMixin, StageRunnerMixin):
             _caps = _mod.capabilities_for_project(_idea)
             _need = _caps.get("generators_needed") or []
             print(f"  [Modality] {_caps.get('modalities')}; generators needed: {_need or 'none'}")
+            # BI-0189: persist the project's required capabilities (discovery -> capability profile).
+            try:
+                from core import capability_packs as _cp
+                _prof = _cp.persist_required(self.project_dir, _idea)
+                if _prof.get("required_capabilities"):
+                    print(f"  [CapabilityPacks] required={_prof['required_capabilities']} "
+                          f"enabled={_prof.get('enabled_packs')}")
+            except Exception:
+                pass
         except Exception:
             pass
         s = report.get("summary", {})
