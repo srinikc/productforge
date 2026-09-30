@@ -67,6 +67,7 @@ TOP = {
     "MEDIA-INGEST-DESIGN.md": ("Design", "Media ingest + segmentation/tiling + asset store (BI-0187)", 100),
     "MEDIA-AGENTS-DESIGN.md": ("Design", "Media agents: analyst/generator/editor/librarian (BI-0190)", 100),
     "MEDIA-CONTEXT-DESIGN.md": ("Design", "Media context: asset->prompt selection + summary/native parts (BI-PF-0287)", 100),
+    "MEDIA-CHUNKING-DESIGN.md": ("Design", "Media chunking + markdown asset-ref resolution (BI-PF-0288)", 100),
     "GENERATOR-ADAPTERS-DESIGN.md": ("Design", "Generator-model adapters (image/video/audio/music/3d) (BI-0188)", 100),
     "FEASIBILITY-TRIAGE-DESIGN.md": ("Design", "Two-phase feasibility & capability triage (BI-0214)", 100),
     "PIPELINE-COMPOSITION-DESIGN.md": ("Design", "Capability-gated pipeline composition (BI-0213)", 100),

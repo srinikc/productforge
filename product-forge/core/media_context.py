@@ -22,6 +22,7 @@ _MEDIA_AGENTS = {"media-analyst", "media-generator", "media-editor", "asset-libr
                  "doc-analyst", "sensor-analyst"}
 
 _REF_RE = re.compile(r"(AS-[0-9a-fA-F]{6,}(?:-\d+)?)")
+_MD_LINK_RE = re.compile(r"!?\[[^\]]*\]\(\s*(?:\./)?assets/(AS-[0-9a-fA-F]{6,}(?:-\d+)?)[^)]*\)")
 MAX_PARTS = 6                    # bound parts per call
 MAX_SUMMARY_CHARS = 2000
 
@@ -34,6 +35,14 @@ def _mode() -> str:
         return os.getenv("PIPELINE_MEDIA_CONTEXT", "summary").lower()
 
 
+def _budget_tokens() -> int:
+    try:
+        from core import env_flags as _ef
+        return int(_ef.get("PIPELINE_MEDIA_BUDGET_TOKENS", "6000") or 6000)
+    except Exception:
+        return 6000
+
+
 def _summary_budget() -> int:
     try:
         from core import env_flags as _ef
@@ -43,7 +52,9 @@ def _summary_budget() -> int:
 
 
 def _referenced_assets(text: str) -> List[str]:
-    return list(dict.fromkeys(_REF_RE.findall(text or "")))
+    """Resolve asset ids referenced in text: bare AS-* tokens AND markdown asset links."""
+    found = _MD_LINK_RE.findall(text or "") + _REF_RE.findall(text or "")
+    return list(dict.fromkeys(found))
 
 
 def select_assets(project_dir: str, agent_id: str = "",
@@ -95,6 +106,26 @@ def _summary(project_dir: str, assets: List[Dict]) -> str:
     return txt[:max(200, _summary_budget())]
 
 
+def chunk_media(project_dir: str, parts: List[Dict], budget_tokens: int = 0) -> List[Dict]:
+    """Bound parts to a token budget by dropping the least-priority parts (children come first).
+
+    Fail-closed: if even the first part exceeds the budget, return [] (caller falls back to summary)."""
+    budget = budget_tokens or _budget_tokens()
+    out: List[Dict] = []
+    used = 0
+    for p in (parts or []):
+        cost = estimate_tokens([p])
+        if out and used + cost > budget:
+            break
+        if not out and cost > budget:
+            return []  # a single part already over budget -> summary-only
+        out.append(p)
+        used += cost
+        if len(out) >= MAX_PARTS:
+            break
+    return out
+
+
 def for_agent(project_dir: str, agent_id: str, model_name: str = "",
               contract: Optional[Dict] = None,
               upstream_text: str = "") -> Tuple[List[Dict], str, int]:
@@ -123,6 +154,10 @@ def for_agent(project_dir: str, agent_id: str, model_name: str = "",
             if len(parts) >= MAX_PARTS:
                 parts = parts[:MAX_PARTS]
                 break
+        if not parts:
+            return [], summary, 0
+        # BI-PF-0288: bound media to the per-call budget (drop least-priority parts; summary fallback).
+        parts = chunk_media(project_dir, parts)
         if not parts:
             return [], summary, 0
         return parts, summary, estimate_tokens(parts)
