@@ -43,6 +43,9 @@ TEXT_EXTS = {".md", ".markdown", ".txt", ".text", ".csv", ".tsv", ".json", ".jso
              ".cfg", ".conf", ".toml", ".env", ".srt", ".vtt"}
 DOC_EXTS = {".pdf", ".doc", ".docx", ".rtf"}
 IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".svg", ".tif", ".tiff"}
+AUDIO_EXTS = {".wav", ".mp3", ".m4a", ".flac", ".ogg", ".aac"}
+VIDEO_EXTS = {".mp4", ".mov", ".mkv", ".webm", ".avi"}
+MEDIA_EXTS = IMAGE_EXTS | AUDIO_EXTS | VIDEO_EXTS
 MAX_TEXT = 200_000     # extracted-text cap (chars) kept in memory / attached
 
 
@@ -178,6 +181,12 @@ def extract(path: str) -> dict:
         elif ext in IMAGE_EXTS:
             res["method"] = "image"
             res["note"] = "image stored (no OCR); title/summary used as body"
+        elif ext in AUDIO_EXTS:
+            res["method"] = "audio"
+            res["note"] = "audio stored; typed for the project asset store (BI-0187)"
+        elif ext in VIDEO_EXTS:
+            res["method"] = "video"
+            res["note"] = "video stored; typed for the project asset store (BI-0187)"
         else:
             try:
                 res["text"] = _read_text(path)
@@ -186,7 +195,7 @@ def extract(path: str) -> dict:
                 res["method"] = "binary"
                 res["note"] = "binary stored (no extraction)"
         res["text"] = (res["text"] or "").strip()[:MAX_TEXT]
-        res["ok"] = bool(res["text"]) or res["method"] in ("image", "binary")
+        res["ok"] = bool(res["text"]) or res["method"] in ("image", "audio", "video", "binary")
     except Exception as e:  # pragma: no cover - defensive
         res["note"] = f"extract failed: {e}"
     return res
