@@ -1910,6 +1910,27 @@ def show_feasibility(project=None, phase="build"):
     return 0
 
 
+def show_strategy(project=None, gate="a"):
+    """Run/print the two-phase model & capability strategy gate (BI-0192)."""
+    project = resolve_project_arg(project)
+    if not project:
+        print("project required")
+        return 2
+    from core import model_strategy as _ms
+    pdir = str(PRODUCTS_DIR / project)
+    res = _ms.gate_b(pdir) if gate == "b" else _ms.gate_a(pdir)
+    if res.get("noop"):
+        print(f"model strategy gate {gate}: no-op (no media capability required)")
+        return 0
+    sec = res.get("gate_a") if gate == "a" else res.get("gate_b")
+    print(f"model strategy gate {gate}:")
+    print(f"  packs={sec.get('enabled_packs')} verdict={sec.get('feasibility_verdict', '')}")
+    for row in (sec.get("assignments") or []):
+        print(f"  - {row.get('modality', row.get('agent'))}: kind={row.get('kind')} "
+              f"generator={row.get('generator', '')} model={row.get('model', '')}")
+    return 0
+
+
 def show_compliance(project=None, agent=None, stage=None):
     """
     Run compliance check for one or all agents in a project.
@@ -2292,6 +2313,13 @@ def main():
         phase = args[1] if len(args) > 1 else "build"
         if project:
             sys.exit(show_feasibility(project, phase) or 0)
+        print("project required")
+        sys.exit(2)
+    elif command == "strategy":
+        project = resolve_project_arg(args[0] if args else None)
+        gate = args[1] if len(args) > 1 else "a"
+        if project:
+            sys.exit(show_strategy(project, gate) or 0)
         print("project required")
         sys.exit(2)
     elif command == "adopt":
