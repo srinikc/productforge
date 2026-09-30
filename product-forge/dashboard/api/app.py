@@ -311,6 +311,36 @@ def agui_run(run_id: str, project: str = Query(...)):
             "types": agui.types()}
 
 
+# ── A2A (Agent2Agent) interop (BI-0197) ──────────────────────────────────────
+@app.get("/.well-known/" + "agent." + "json")
+def a2a_well_known():
+    """A2A Agent Card for the Product Forge orchestrator (framework-agnostic)."""
+    from core import a2a
+    return a2a.agent_card()
+
+
+@app.get("/api/v1/a2a/card", dependencies=[Depends(auth)])
+def a2a_card(agent: Optional[str] = None):
+    """A2A Agent Card (orchestrator, or a specific agent)."""
+    from core import a2a
+    card = a2a.agent_card(agent) if agent else a2a.agent_card()
+    return {"card": card, "contract": a2a.CONTRACT}
+
+
+@app.post("/api/v1/a2a/rpc", dependencies=[Depends(auth)])
+def a2a_rpc(body: Dict[str, Any]):
+    """A2A JSON-RPC server surface (message/send, tasks/get)."""
+    from core import a2a
+    return a2a.handle(body)
+
+
+@app.get("/api/v1/a2a/remotes", dependencies=[Depends(auth)])
+def a2a_remotes():
+    """Configured remote A2A peers."""
+    from core import a2a
+    return {"count": len(a2a.list_remotes()), "remotes": a2a.list_remotes()}
+
+
 # ── MCP (Model Context Protocol) interop (BI-0196) ───────────────────────────
 @app.get("/api/v1/mcp/tools", dependencies=[Depends(auth)])
 def mcp_tools():
