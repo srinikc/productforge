@@ -468,10 +468,11 @@ class AgentExecutionMixin:
                 except Exception:
                     pass
             
-            # 14. Track issues for security/NFR/test stages
-            if stage_id == "security":
+            # 14. Track issues for security/NFR/test stages (BI-PF-0272: real stage IDs 5/6/7,
+            # not the legacy names "security"/"nfr"/"tests" which never matched a real run).
+            if stage_id == "5":
                 self._track_security_issues(agent_id, artifacts)
-            elif stage_id in ["nfr", "tests"]:
+            elif stage_id in ("6", "7"):
                 self._track_test_issues(agent_id, stage_id, artifacts)
             
             # 15. Record circuit breaker success

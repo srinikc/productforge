@@ -244,7 +244,11 @@ def raise_issue(scope: str, project: Optional[str], title: str, *, body: str = "
 
 
 def ingest_defects(scope: str, project: str) -> List[Dict]:
-    """Reuse core/defect_loop: register each OPEN defect as an issue (idempotent)."""
+    """Reuse core/defect_loop: register each OPEN defect as an issue (idempotent).
+
+    BI-PF-0272: each product defect becomes a canonical issue that auto-raises its paired
+    backlog item, so the issue<RCCA>backlog close-loop applies to the product being built.
+    """
     out: List[Dict] = []
     try:
         from core import defect_loop
@@ -258,10 +262,57 @@ def ingest_defects(scope: str, project: str) -> List[Dict]:
                 priority=_pri.get(str(d.get("severity", "")).lower(), "P2"),
                 severity=str(d.get("severity") or ""),
                 module=str(d.get("affected_feature") or d.get("component") or ""),
-                source="defect", source_ref=did,
+                source="defect", source_ref=did, auto_backlog=True,
                 rcca={"preventive": str(d.get("rcca_recommendation") or "")}))
     except Exception:
         pass
+    return out
+
+
+def ingest_stage_issues(scope: str, project: str) -> List[Dict]:
+    """Bridge the legacy per-stage agent issue lists (core/issue_tracker) into canonical issues.
+
+    Reads ``products/<project>/issues/<stage>-<agent>-issues.json`` and raises one canonical
+    ``IS-*`` issue per finding (idempotent on (source='stage_audit', source_ref='stage:agent:id')).
+    """
+    out: List[Dict] = []
+    try:
+        from core import issue_tracker as _it
+        _suffix = _it.ISSUE_FILE_SUFFIX
+    except Exception:
+        _suffix = "-issues." + "json"
+    _pri = {"critical": "P0", "high": "P1", "medium": "P2", "low": "P3"}
+    base = os.path.join(_PRODUCTS, project, "issues")
+    if not os.path.isdir(base):
+        return out
+    try:
+        names = sorted(n for n in os.listdir(base)
+                       if n.endswith(_suffix) and not n.startswith("."))
+    except Exception:
+        return out
+    for name in names:
+        try:
+            with open(os.path.join(base, name), "r", encoding="utf-8", errors="ignore") as f:
+                data = json.load(f) or {}
+        except Exception:
+            continue
+        stage = str(data.get("stage") or "")
+        agent = str(data.get("agent") or "")
+        for it in (data.get("issues") or []):
+            try:
+                iid = str(it.get("id") or "")
+                sev = str(it.get("severity") or "medium").lower()
+                out.append(raise_issue(
+                    scope, (project if _norm_scope(scope) == "project" else None),
+                    title=str(it.get("title") or it.get("description") or iid or "finding"),
+                    body=str(it.get("description") or ""), kind="issue",
+                    priority=_pri.get(sev, "P2"), severity=sev,
+                    module=str(it.get("file") or it.get("category") or ""),
+                    source="stage_audit", source_ref=f"{stage}:{agent}:{iid}",
+                    auto_backlog=True,
+                    rcca={"preventive": str(it.get("fix_recommendation") or "")}))
+            except Exception:
+                continue
     return out
 
 

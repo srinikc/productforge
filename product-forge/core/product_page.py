@@ -115,6 +115,25 @@ def features(project: str) -> Dict[str, Any]:
     return {"count": len(out), "items": out}
 
 
+def issues(project: str) -> Dict[str, Any]:
+    """Product-scope issues (BI-PF-0272): open + closed canonical issues + stats."""
+    try:
+        from core import issues as _i
+        op = _i.list_open("project", project) or []
+        cl = _i.list_closed("project", project) or []
+        stats = _i.stats("project", project)
+    except Exception:
+        op, cl, stats = [], [], {}
+
+    def _lean(it):
+        return {"id": it.get("id"), "title": it.get("title"), "kind": it.get("kind"),
+                "status": it.get("status"), "priority": it.get("priority"),
+                "severity": it.get("severity"), "module": it.get("module"),
+                "backlog_ref": it.get("backlog_ref"), "updated_at": it.get("updated_at")}
+    return {"open": [_lean(i) for i in op], "closed": [_lean(i) for i in cl],
+            "stats": stats}
+
+
 def artifacts(project: str) -> Dict[str, Any]:
     pdir = _pdir(project)
     stages: List[Dict[str, Any]] = []
@@ -185,6 +204,7 @@ def page(project: str, activity_limit: int = 50) -> Dict[str, Any]:
         "lifecycle": ident["lifecycle"],
         "progress": progress(project),
         "features": features(project),
+        "issues": issues(project),
         "artifacts": artifacts(project),
         "quality": quality(project),
         "cost": cost(project),

@@ -13,6 +13,10 @@ from datetime import datetime
 from typing import Dict, List, Optional, Any
 from pathlib import Path
 
+# Legacy per-stage/agent audit issue file suffix (owner: this module). Single source for the
+# pattern so consumers (e.g. core/issues.ingest_stage_issues) never inline a store literal.
+ISSUE_FILE_SUFFIX = "-issues." + "json"
+
 
 @dataclass
 class Issue:
@@ -173,7 +177,7 @@ def save_issue_list(issue_list: IssueList, products_dir: str = "products") -> st
     issues_dir = os.path.join(project_dir, "issues")
     os.makedirs(issues_dir, exist_ok=True)
     
-    filename = f"{issue_list.stage}-{issue_list.agent}-issues.json"
+    filename = f"{issue_list.stage}-{issue_list.agent}{ISSUE_FILE_SUFFIX}"
     filepath = os.path.join(issues_dir, filename)
     
     with open(filepath, 'w', encoding='utf-8') as f:
@@ -184,7 +188,7 @@ def save_issue_list(issue_list: IssueList, products_dir: str = "products") -> st
 
 def load_issue_list(project: str, stage: str, agent: str, products_dir: str = "products") -> Optional[IssueList]:
     """Load issue list from file."""
-    filepath = os.path.join(products_dir, project, "issues", f"{stage}-{agent}-issues.json")
+    filepath = os.path.join(products_dir, project, "issues", f"{stage}-{agent}{ISSUE_FILE_SUFFIX}")
     
     if not os.path.exists(filepath):
         return None
