@@ -9,7 +9,7 @@
   "title": "Backend: media ingest + segmentation/tiling + asset store",
   "body": "## Problem / why\nLarge media (e.g. a 5MB image, long audio, video) cannot be fed as-is; media is not tokenized by bytes.\nThere is no ingest/normalize/split layer nor an asset store.\n\n## Goal\nIngest media -> normalize -> TILE images / segment audio / frame-sample video -> per-asset summaries;\nstore assets with ids and reuse the text map-reduce for large sets.\n\n## Acceptance criteria\n- Given a large image/video/audio, the pipeline splits intelligently (tiles/segments/frames) and merges results.\n- Every asset has a stable id + metadata (codec/res/duration) in the asset store.\n\n## Data model\n- New asset store (single writer) under products/<p>/; register in store-registry.json.\n\n## Verification / test plan\n- Ingest a video: frames sampled + audio extracted + per-asset summary produced.\n",
   "source": "generic",
-  "status": "new",
+  "status": "completed",
   "priority": null,
   "moscow": "Should",
   "value": 3,
@@ -20,12 +20,15 @@
     "epic": "product_forge:BI-0185",
     "paired_with": [
       "project:ProductForge-Dashboard:BI-0141"
-    ]
+    ],
+    "issue": "product_forge:IS-PF-0007",
+    "issue_closed": true,
+    "fixed_where": "core/asset_store.py; core/intake_files.py; core/pipeline_executor.py (preflight); scripts/pipeline.py (media); config/store-registry.json; test-framework/tests/pipeline/test_asset_store.py"
   },
   "decisions": [],
   "follow_up": {},
   "created_at": "2026-09-24T23:39:15.507690",
-  "updated_at": "2026-09-25T21:25:45.869924",
+  "updated_at": "2026-09-30T15:17:02.665590",
   "score": 0.75,
   "dashboard_impact": {
     "needs_dashboard": true,
@@ -34,5 +37,5 @@
     "reviewed_by": "agent",
     "reviewed_at": "2026-09-25T21:25:45.845490"
   },
-  "_note": "dashboard_impact reviewed"
+  "_note": "closed via issue IS-PF-0007: core/asset_store.py; core/intake_files.py; core/pipeline_executor.py (preflight); scripts/pipeline.py (media); config/store-registry.json; test-framework/tests/pipeline/test_asset_store.py"
 }
