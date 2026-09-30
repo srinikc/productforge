@@ -9,7 +9,7 @@
   "title": "Backend: provider-kind abstraction + adapters/aggregators + kind-aware model router (all kinds)",
   "body": "## Problem / why\nOur model layer is text/chat-centric: one call shape, per-token cost. Media providers differ by KIND\nand by async job shape, and span direct providers, aggregators, and self-host. Without an abstraction\nthe pipeline cannot route non-text models.\n\n## Goal & value\nA uniform, provider-agnostic layer so ANY model kind works e2e like text:\n- a Provider/Adapter interface (submit/status/fetch/cancel/cost) covering sync + async,\n- aggregator support (fal.ai/Replicate/kie.ai: one key, many models),\n- a KIND-AWARE ROUTER that resolves models by kind + modality + cost + free/paid,\n- mirrors the existing text path (tier -> agent model -> client).\n\n## In scope\n- Provider registry (direct | aggregator | self-host) + adapter registry.\n- Adapter contract + async job handling (poll/webhook).\n- Kind-aware router integrated with model_router / agent model resolution.\n- Catalog fields: kind, provider_kind, billing_unit, unit_price, free, open_weights, license.\n\n## Out of scope\n- Generating the model list itself (BI-0188 adapters); media pipeline (BI-0187/0190); costing UI (BI-0194).\n\n## Acceptance criteria (testable)\n- Resolve + call at least image-gen and tts through the router with a fake adapter; async path exercised.\n- A text-only agent is unaffected; a media agent routes to a media model by kind.\n\n## Dependencies & links\n- epic BI-0185; BI-0188 (generator adapters); BI-0173 (catalog); BI-0192 (strategy picks kind/provider).\n\n## Verification / test plan\n- Unit: router picks by kind/modality/cost; adapter contract for a no-op + an async fake provider.\n",
   "source": "generic",
-  "status": "new",
+  "status": "completed",
   "priority": null,
   "moscow": "Should",
   "value": 4,
@@ -21,12 +21,15 @@
     "relates_to": "product_forge:BI-0188",
     "paired_with": [
       "project:ProductForge-Dashboard:BI-0140"
-    ]
+    ],
+    "issue": "product_forge:IS-PF-0004",
+    "issue_closed": true,
+    "fixed_where": "core/provider_kinds.py; core/orchestrator/llm_client.py; config/env-flags.json; test-framework/tests/pipeline/test_provider_kinds.py"
   },
   "decisions": [],
   "follow_up": {},
   "created_at": "2026-09-25T10:50:23.404621",
-  "updated_at": "2026-09-25T21:25:45.790937",
+  "updated_at": "2026-09-30T14:42:23.309312",
   "score": 0.5,
   "dashboard_impact": {
     "needs_dashboard": true,
@@ -35,5 +38,5 @@
     "reviewed_by": "agent",
     "reviewed_at": "2026-09-25T21:25:45.766822"
   },
-  "_note": "dashboard_impact reviewed"
+  "_note": "closed via issue IS-PF-0004: core/provider_kinds.py; core/orchestrator/llm_client.py; config/env-flags.json; test-framework/tests/pipeline/test_provider_kinds.py"
 }
