@@ -686,6 +686,38 @@ class StageRunnerMixin:
             except Exception as _pe:
                 print(f"[RunPlan] post-discovery failed: {_pe}")
 
+        # BI-0210 Gate A: post-ideation model & capability strategy. Enables packs + recomposes
+        # the DAG (so pack stages like 4m exist for stage 1+). No-op for plain-text projects.
+        if stage_id == "0a" and not getattr(self, "_strategy_a_done", False):
+            try:
+                from core import model_strategy as _ms
+                _sa = _ms.gate_a(self.project_dir)
+                self._strategy_a_done = True
+                if not _sa.get("noop"):
+                    _packs = (_sa.get("gate_a") or {}).get("enabled_packs") or []
+                    print(f"[ModelStrategy] gate A: packs={_packs} "
+                          f"feasibility={(_sa.get('gate_a') or {}).get('feasibility_verdict')}")
+                    # re-compose the effective definition and reconcile the running DAG
+                    try:
+                        from core import pipeline_composition as _pc
+                        _st = self.dag_executor.export_state() if hasattr(self.dag_executor, "export_state") else None
+                        self.pipeline_def = _pc.effective_definition(self.pipeline_def, self.project_dir)
+                        if getattr(self, "model_router", None):
+                            self.model_router.pipeline_def = self.pipeline_def
+                        from core.dag_executor import DAGExecutor as _DAG
+                        self.dag_executor = _DAG(self.pipeline_def)
+                        if _st is not None and hasattr(self.dag_executor, "restore_states"):
+                            try:
+                                self.dag_executor.restore_states(_st)
+                            except Exception:
+                                pass
+                        print(f"  [ModelStrategy] recomposed stages={len(self.pipeline_def.get('stages') or {})}")
+                    except Exception as _ce:
+                        print(f"  [ModelStrategy] recompose skipped: {_ce}")
+                    self._emit_lifecycle("model_strategy_a", stage="0a", packs=",".join(_packs))
+            except Exception as _se:
+                print(f"[ModelStrategy] gate A failed: {_se}")
+
         # Live journal + standardized checkpoint docs (agent-context, compact, feature-status)
         self._write_stage_checkpoints(stage_id, stage_executions)
         # Refresh the final report after every stage -> it is always current (even before the
@@ -723,6 +755,22 @@ class StageRunnerMixin:
                       f"recommended={[c['key'] for c in r['recommended']]}")
             except Exception as e:
                 print(f"[Targets] {e}")
+            # BI-0192 Gate B: post-architect model & capability strategy refinement (no-op for text).
+            if not getattr(self, "_strategy_b_done", False):
+                try:
+                    from core import model_strategy as _ms
+                    _sb = _ms.gate_b(self.project_dir)
+                    if not _sb.get("noop"):
+                        _ms.apply(self.project_dir, self)
+                        _asm = (_sb.get("gate_b") or {}).get("assignments") or []
+                        _ov = (_sb.get("applied") or {}).get("overrides") or {}
+                        print(f"[ModelStrategy] gate B: {len(_asm)} assignment(s), "
+                              f"applied={len(_ov or {})}")
+                        self._emit_lifecycle("model_strategy_b", stage="2",
+                                             assignments=str(len(_asm)))
+                    self._strategy_b_done = True
+                except Exception as _be:
+                    print(f"[ModelStrategy] gate B failed: {_be}")
         # Feature-level status tracking (ProductPlan)
         self._track_features_for_stage(stage_id, stage_executions)
 

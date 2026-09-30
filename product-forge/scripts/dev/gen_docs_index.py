@@ -68,6 +68,7 @@ TOP = {
     "GENERATOR-ADAPTERS-DESIGN.md": ("Design", "Generator-model adapters (image/video/audio/music/3d) (BI-0188)", 100),
     "FEASIBILITY-TRIAGE-DESIGN.md": ("Design", "Two-phase feasibility & capability triage (BI-0214)", 100),
     "PIPELINE-COMPOSITION-DESIGN.md": ("Design", "Capability-gated pipeline composition (BI-0213)", 100),
+    "MODEL-STRATEGY-DESIGN.md": ("Design", "Two-phase model & capability strategy gate (BI-0192/BI-0210)", 100),
     "Product_Factory_Multi_Model_Adapters_Aggregators.md": ("Analysis (reference)", "Multi-model architecture: adapters/registry/router/generator/aggregator separation", 100),
     "Product_Factory_AI_Model_Strategy_Orchestration.md": ("Analysis (reference)", "Multi-model strategy: routing, cost-per-accepted, intelligence loop", 100),
     "Product_Forge_Audit_Organized_Executive_Master_With_Execution_Guardrails_20260929.md": ("Analysis (reference)", "Organized audit master (source register)", 100),
