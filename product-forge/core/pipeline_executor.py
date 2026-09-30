@@ -3438,6 +3438,18 @@ class PipelineExecutor(AgentExecutionMixin, AgentRunnerMixin, StageRunnerMixin):
                 route_stage_issues(self.project, kind, items)
         except Exception as e:
             print(f"[PipelineExecutor] issue->defect routing skipped: {e}")
+        # BI-PF-0272: fold this product's defects + legacy stage-audit issues into the canonical
+        # issue registry (IS-*) with their paired backlog items, so the RCCA close-loop applies
+        # to the product being built. Idempotent; best-effort.
+        try:
+            from core import issues as _issues
+            _ned = len(_issues.ingest_defects("project", self.project) or [])
+            _nst = len(_issues.ingest_stage_issues("project", self.project) or [])
+            if _ned or _nst:
+                print(f"[PipelineExecutor] product issues: {_ned} defect + {_nst} stage-audit "
+                      f"-> scope=project:{self.project}")
+        except Exception as e:
+            print(f"[PipelineExecutor] product issue ingestion skipped: {e}")
     
     def _generate_final_report(self):
         """Delegates to core/orchestrator/reporting (1A.11)."""

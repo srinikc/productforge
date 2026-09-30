@@ -1055,6 +1055,37 @@ def product_page_features(project: str):
     return pp.features(project)
 
 
+@app.get("/api/v1/products/{project}/issues", dependencies=[Depends(auth)])
+def product_issues(project: str, state: str = "open", priority: str = "", module: str = ""):
+    """Product-scope issues (BI-PF-0272): the issue<RCCA>backlog loop for the product being built."""
+    _require_project(project)
+    from core import issues as _i
+    if state == "closed":
+        items = _i.list_closed("project", project)
+    else:
+        items = _i.list_open("project", project, priority=priority, module=module)
+    return {"scope": f"project:{project}", "state": state, "count": len(items or []),
+            "items": items or [], "stats": _i.stats("project", project)}
+
+
+@app.get("/api/v1/products/{project}/issues/{iid}", dependencies=[Depends(auth)])
+def product_issue_get(project: str, iid: str):
+    _require_project(project)
+    from core import issues as _i
+    it = _i.get("project", project, iid)
+    if not it:
+        raise HTTPException(404, f"issue not found: {iid}")
+    return it
+
+
+@app.get("/api/v1/products/{project}/backlog", dependencies=[Depends(auth)])
+def product_backlog(project: str):
+    """Product-scope backlog index (open + closed), dashboard-ready."""
+    _require_project(project)
+    from core import backlog as _b
+    return _b.index_view("project", project)
+
+
 @app.get("/api/v1/products/{project}/artifacts", dependencies=[Depends(auth)])
 def product_page_artifacts(project: str):
     _require_project(project)
