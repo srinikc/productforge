@@ -66,7 +66,9 @@ ALLOWLIST = {
 NAMING_ROOTS = ("core", "scripts", "dashboard")
 NAMING_ALLOW = ("default_factory", "artifactory", "factory_state", "factory_improvement",
                 "factory_improvements", "FACTORY_IMPROVEMENT", "factory_supervisor",
-                "factory_constitution", "send-to-factory")
+                "factory_constitution", "send-to-factory",
+                # upstream reference doc FILENAMES (quoted verbatim; not our surface)
+                "product_factory_multi_model", "product_factory_ai_model")
 
 
 def naming_audit():

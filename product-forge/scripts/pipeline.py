@@ -1882,6 +1882,34 @@ def show_generate(project=None, kind="", prompt=""):
     return 0
 
 
+def show_feasibility(project=None, phase="build"):
+    """Run/print the two-phase feasibility triage (BI-0214)."""
+    project = resolve_project_arg(project)
+    if not project:
+        print("project required")
+        return 2
+    from core import feasibility as _fs
+    res = _fs.evaluate(str(PRODUCTS_DIR / project), phase=phase)
+    key = "phase1_build_host" if phase == "build" else "phase2_destination"
+    sec = res.get(key, {})
+    print(f"feasibility[{phase}] verdict={sec.get('verdict')}")
+    if phase == "build":
+        h = sec.get("host", {})
+        print(f"  host: gpu={h.get('gpu_model') or 'none'} vram={h.get('vram_gb')}GB "
+              f"ram={h.get('ram_gb')}GB cores={h.get('cpu_cores')} degraded={h.get('degraded')}")
+        for r in sec.get("per_modality", []):
+            print(f"  - {r.get('modality')}: {r.get('build_mode')} (gen={r.get('generator')}, "
+                  f"license={r.get('license')}, fits_local={r.get('fits_local')})")
+    else:
+        print(f"  shipping={sec.get('shipping_mode')} sku={sec.get('sku')} "
+              f"keys={sec.get('required_keys')} hw={sec.get('required_hardware')}")
+    for x in sec.get("risks", []):
+        print(f"  risk: {x}")
+    for x in sec.get("reasons", []):
+        print(f"  reason: {x}")
+    return 0
+
+
 def show_compliance(project=None, agent=None, stage=None):
     """
     Run compliance check for one or all agents in a project.
@@ -2257,6 +2285,13 @@ def main():
         prompt = args[2] if len(args) > 2 else ""
         if project:
             sys.exit(show_generate(project, kind, prompt) or 0)
+        print("project required")
+        sys.exit(2)
+    elif command == "feasibility":
+        project = resolve_project_arg(args[0] if args else None)
+        phase = args[1] if len(args) > 1 else "build"
+        if project:
+            sys.exit(show_feasibility(project, phase) or 0)
         print("project required")
         sys.exit(2)
     elif command == "adopt":
