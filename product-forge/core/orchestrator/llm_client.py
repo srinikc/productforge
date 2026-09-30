@@ -68,7 +68,7 @@ class LLMClient:
         return ""
 
     def _call_llm(self, prompt: str, agent_id: str, stage_id: str,
-                  pin_model: str = "") -> Tuple[Optional[str], Dict]:
+                  pin_model: str = "", media: Optional[List[Dict]] = None) -> Tuple[Optional[str], Dict]:
         """Call LLM with cache, chunking, and runtime model capability check.
         
         Strategy:
@@ -206,7 +206,7 @@ class LLMClient:
                     prompt, cand_model, cand_provider, cand_endpoint,
                     session_id, agent_id, stage_id, model_max_output,
                     max_total_tokens=max_total_tokens, allow_template=False,
-                    fast_fail=True
+                    fast_fail=True, media=media
                 )
                 if content:
                     if cand_model != primary_model:
@@ -249,7 +249,7 @@ class LLMClient:
                             prompt, cm, c.get("provider", provider),
                             c.get("api_endpoint", api_endpoint), session_id, agent_id,
                             stage_id, model_max_output, max_total_tokens=max_total_tokens,
-                            allow_template=False, fast_fail=True)
+                            allow_template=False, fast_fail=True, media=media)
             except Exception:
                 pass
             # Need to chunk - split prompt by artifacts (and by SIZE within an
@@ -257,14 +257,31 @@ class LLMClient:
             print(f"  [CHUNKING] {agent_id} - prompt ({prompt_tokens_est} tokens) exceeds model context ({usable_context} tokens)")
             return self._call_llm_chunked(
                 prompt, primary_model, provider, api_endpoint,
-                session_id, agent_id, stage_id, model_max_output, model_context_window
+                session_id, agent_id, stage_id, model_max_output, model_context_window,
+                media=media
             )
+    def _with_media_info(self, token_info: Dict, media, dropped) -> Dict:
+        """BI-0186: annotate token_info with multimodal outcome."""
+        try:
+            if media:
+                token_info = dict(token_info)
+                token_info["media_requested"] = len(media)
+                token_info["media_attached"] = max(0, len(media) - len(dropped or []))
+                token_info["degraded_media"] = [
+                    {"modality": d.get("modality"), "ref": d.get("ref"),
+                     "error": d.get("error", "unsupported_modality")}
+                    for d in (dropped or [])]
+        except Exception:
+            pass
+        return token_info
+
     def _call_llm_single(self, prompt: str, model_name: str, provider: str, 
                          api_endpoint: str, session_id: str, agent_id: str, 
                          stage_id: str, max_output_tokens: int,
                          max_total_tokens: Optional[int] = None,
                          allow_template: bool = True,
-                         fast_fail: bool = False) -> Tuple[Optional[str], Dict]:
+                         fast_fail: bool = False,
+                         media: Optional[List[Dict]] = None) -> Tuple[Optional[str], Dict]:
         """Single LLM call with retries and auto-continuation on truncation.
 
         If the provider stops because it hit max_tokens (finish_reason=length),
@@ -317,6 +334,21 @@ class LLMClient:
         last_attempt = 0
         attempt = 0
         rl_attempts = 0
+        # BI-0186: attach multimodal parts (gated by the model's input_modalities, fail-closed).
+        # Media is attached to the FIRST user message only; continuations stay text-only.
+        _media_applied = False
+        _dropped_media: list = []
+        if media:
+            try:
+                from core import multimodal as _mm
+                _mc, _dropped_media = _mm.build(model_name, prompt, media)
+                messages = [{"role": "user", "content": _mc}]
+                _media_applied = isinstance(_mc, list)
+                if _dropped_media:
+                    print(f"  [MULTIMODAL] {agent_id}: {len(_dropped_media)} media part(s) "
+                          f"dropped (model '{model_name}' lacks the modality)")
+            except Exception:
+                pass
 
         while attempt < max_retries:
             if agent_deadline and time.time() > agent_deadline:
@@ -434,9 +466,10 @@ class LLMClient:
                         continue
                     break
 
-                return all_content, self._build_token_info(
+                return all_content, self._with_media_info(self._build_token_info(
                     model_name, provider, total_input, total_output, total_cached,
-                    total_reasoning, finish_reason, continuations, max(0, last_attempt - 1))
+                    total_reasoning, finish_reason, continuations, max(0, last_attempt - 1)),
+                    media, _dropped_media)
 
             except Exception as e:
                 error_msg = str(e)
@@ -453,9 +486,10 @@ class LLMClient:
 
         # Partial content across continuations is better than a template fallback.
         if all_content:
-            return all_content, self._build_token_info(
+            return all_content, self._with_media_info(self._build_token_info(
                 model_name, provider, total_input, total_output, total_cached,
-                total_reasoning, finish_reason or "error", continuations, max(0, last_attempt - 1))
+                total_reasoning, finish_reason or "error", continuations, max(0, last_attempt - 1)),
+                media, _dropped_media)
 
         # Caller (fallback loop) may want to try another model instead of a stub.
         if not allow_template:
@@ -532,7 +566,8 @@ class LLMClient:
             return "", self._build_token_info(model, provider, 0, 0, 0, 0, f"error:{str(e)[:60]}", 0, 0)
     def _call_llm_chunked(self, full_prompt: str, model_name: str, provider: str,
                           api_endpoint: str, session_id: str, agent_id: str,
-                          stage_id: str, max_output_tokens: int, model_context_window: int) -> Tuple[Optional[str], Dict]:
+                          stage_id: str, max_output_tokens: int, model_context_window: int,
+                          media: Optional[List[Dict]] = None) -> Tuple[Optional[str], Dict]:
         """Chunk prompt by artifacts and call LLM for each chunk."""
         # Split prompt into instruction + artifacts
         # The prompt format is: INSTRUCTIONS\n\nCONTEXT FROM PREVIOUS STAGES:\n\n--- artifact1 ---\n...\n\n--- artifact2 ---\n...\n\nWrite the output to: ...
@@ -641,7 +676,8 @@ class LLMClient:
                 f"final artifact and do NOT add commentary.\n\n"
                 f"CONTEXT PART {i + 1}/{len(chunks)}:\n{chunk}")
             c, ti = self._call_llm_single(map_prompt, model_name, provider, api_endpoint,
-                                          session_id, agent_id, stage_id, max_output_tokens)
+                                          session_id, agent_id, stage_id, max_output_tokens,
+                                          media=(media if i == 0 else None))
             _acc(ti)
             if c and not ti.get("fallback"):
                 digests.append(c)
