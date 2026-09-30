@@ -1,0 +1,32 @@
+{
+  "id": "IS-PF-0010",
+  "tag": "PF",
+  "scope": "product_forge",
+  "project": "",
+  "title": "No capability-gated composition: packs persisted but never injected stages/agents; media support would fork the pipeline",
+  "body": "BI-0213: effective stage order + roster from enabled packs; non-pack run byte-identical.",
+  "kind": "gap",
+  "priority": "P1",
+  "severity": "",
+  "module": "core/pipeline_composition.py",
+  "status": "closed",
+  "rcca": {
+    "root_cause": "Capability packs were a profile only; there was no mechanism to weave optional stages/agents into the fixed 0..13b order, and the only composition was skip/removal.",
+    "corrective": "core/pipeline_composition.py (pure anchor-insert + roster append; identity when no pack); pack schema extended (stages/agents/validators); wired pre-DAGExecutor in both load paths.",
+    "preventive": "Non-pack runs return the base object unchanged (byte-identical guard test); unknown anchor is fail-closed (no removal of required stages); reuses DAG skip, not a 4th enable path.",
+    "fixed_where": "core/pipeline_composition.py; config/capability-packs.json; core/pipeline_executor.py (load_pipeline, load_pipeline_from_dict); test-framework/tests/pipeline/test_pipeline_composition.py",
+    "generalized": false,
+    "guideline_ref": "EOS one-truth-per-concern; CAPABILITY-PACKS-DESIGN (no 4th enable path)",
+    "product_ref": "BI-0213"
+  },
+  "backlog_ref": "BI-0213",
+  "source": "review",
+  "source_ref": "",
+  "evidence": [],
+  "links": {
+    "backlog": "BI-0213"
+  },
+  "created_at": "2026-09-30T16:58:12.278903",
+  "updated_at": "2026-09-30T16:58:12.377116",
+  "note": "delivered"
+}
