@@ -42,9 +42,17 @@ def models_for_input(modality: str, limit: int = 8) -> List[str]:
 
 
 def models_for_output(modality: str, limit: int = 8) -> List[str]:
-    """Catalog models that EMIT this modality (today: text only)."""
-    return [n for n, m in (mc.load() or {}).items()
-            if modality in (m.get("output_modalities") or [])][:limit]
+    """Models that EMIT this modality: chat-model outputs UNION the generator catalog (BI-0188)."""
+    out = [n for n, m in (mc.load() or {}).items()
+           if modality in (m.get("output_modalities") or [])]
+    try:
+        from core import generator_adapters as _ga
+        for gid in _ga.models_for_output(modality):
+            if gid not in out:
+                out.append(gid)
+    except Exception:
+        pass
+    return out[:limit]
 
 
 def generators_needed(modalities: List[str]) -> List[str]:
