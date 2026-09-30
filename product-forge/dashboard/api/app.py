@@ -311,6 +311,29 @@ def agui_run(run_id: str, project: str = Query(...)):
             "types": agui.types()}
 
 
+# ── MCP (Model Context Protocol) interop (BI-0196) ───────────────────────────
+@app.get("/api/v1/mcp/tools", dependencies=[Depends(auth)])
+def mcp_tools():
+    """Our tools as MCP tool descriptors."""
+    from core import mcp
+    tools = mcp.describe_tools()
+    return {"count": len(tools), "tools": tools, "protocolVersion": mcp.PROTOCOL_VERSION}
+
+
+@app.post("/api/v1/mcp/rpc", dependencies=[Depends(auth)])
+def mcp_rpc(body: Dict[str, Any]):
+    """JSON-RPC endpoint = our MCP server surface (initialize/tools/list/tools/call)."""
+    from core import mcp
+    return mcp.handle(body, approved=bool(body.get("_approved", False)))
+
+
+@app.get("/api/v1/mcp/servers", dependencies=[Depends(auth)])
+def mcp_servers():
+    """Configured external MCP servers."""
+    from core import mcp
+    return {"count": len(mcp.list_servers()), "servers": mcp.list_servers()}
+
+
 # ── intake (BI-0051/0052/0053) ───────────────────────────────────────────────
 @app.post("/api/intake", dependencies=[Depends(auth)])
 @app.post("/api/v1/intake", dependencies=[Depends(auth)])
