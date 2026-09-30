@@ -103,6 +103,13 @@ class LLMClient:
         if pin_model and pin_model != primary_model:
             candidate_cfgs = [{"model": pin_model, "provider": provider, "api_endpoint": api_endpoint}] \
                 + [c for c in candidate_cfgs if c.get("model") != pin_model]
+        # BI-0193: kind-aware candidate ordering + fail-closed unknown-provider rejection.
+        try:
+            from core import provider_kinds as _pk
+            candidate_cfgs = _pk.order_candidates(
+                candidate_cfgs or [], prefer_kind=os.getenv("PIPELINE_PREFER_KIND", ""))
+        except Exception:
+            pass
         
         # Get model profile for context_window and capabilities (runtime lookup)
         model_profile = self.model_registry.get_model(primary_model)
@@ -774,7 +781,12 @@ class LLMClient:
             env_key = key_map.get(provider, "OPENCODE_ZEN_API_KEY")
             return os.getenv(env_key, "")
     def _build_api_headers(self, provider: str, api_key: str, session_id: str) -> dict:
-        """Build API headers based on provider."""
+        """Build API headers based on provider (BI-0193: via the provider-kind adapter)."""
+        try:
+            from core import provider_kinds as _pk
+            return _pk.headers(provider, api_key, session_id)
+        except Exception:
+            pass
         headers = {
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
@@ -830,7 +842,14 @@ class LLMClient:
         except Exception:
             return data
     def _extract_response_content(self, result: dict, provider: str) -> str:
-        """Extract content from API response based on provider."""
+        """Extract content from API response based on provider (BI-0193: shared adapter)."""
+        try:
+            from core import provider_kinds as _pk
+            txt = _pk.extract_content(provider, result)
+            if txt:
+                return txt
+        except Exception:
+            pass
         try:
             message = result['choices'][0]['message']
 
