@@ -9,7 +9,7 @@
   "title": "Backend: multi-modal end-to-end acceptance test (one golden path per modality)",
   "body": "## Problem / why\nWe are adding kinds, adapters, packs, and models with no single e2e proof that a media/sensor project\nruns start-to-finish. Unit tests will not catch integration gaps across router+adapter+store+QA.\n\n## Goal & value\nA hermetic (fake-adapter) e2e test that proves each modality's happy path through the real pipeline\ncontrol flow, plus one optional live smoke behind a flag.\n\n## In scope\n- Fake adapters for each kind: image-gen, video-gen(async), tts, stt, music-gen(async), 3d-gen(async),\n  ocr, embedding, timeseries/sensor -- returning deterministic fixtures (tiny files).\n- For each modality: idea -> capability gate -> pack enable -> model strategy -> router -> adapter ->\n  asset store -> media QA -> artifact assertions.\n- Assertions: artifact exists + type, QA passes, cost booked with correct billing_unit, text-only\n  project path unchanged (regression guard).\n- Optional live smoke (`PF_E2E_LIVE=1`) hitting free-tier/self-host for one image + one audio.\n\n## Acceptance criteria (testable)\n- One test per modality, all green with fakes, no network; suite stays fast (<30s).\n- A text-only project produces no media artifacts and no media cost.\n- Async path (submit->poll->fetch) exercised for video/music/3d.\n\n## Verification / test plan\n- Run in CI; wired_audit + compileall green. Live smoke documented, non-blocking.\n",
   "source": "generic",
-  "status": "new",
+  "status": "completed",
   "priority": null,
   "moscow": "Should",
   "value": 4,
@@ -24,12 +24,15 @@
     ],
     "paired_with": [
       "project:ProductForge-Dashboard:BI-0145"
-    ]
+    ],
+    "issue": "product_forge:IS-PF-0019",
+    "issue_closed": true,
+    "fixed_where": "test-framework/tests/pipeline/test_multimodal_e2e.py; docs/MULTIMODAL-E2E-DESIGN.md"
   },
   "decisions": [],
   "follow_up": {},
   "created_at": "2026-09-25T21:20:45.564597",
-  "updated_at": "2026-09-25T21:25:46.356866",
+  "updated_at": "2026-09-30T20:07:32.671821",
   "score": 0.67,
   "dashboard_impact": {
     "needs_dashboard": true,
@@ -38,5 +41,5 @@
     "reviewed_by": "agent",
     "reviewed_at": "2026-09-25T21:25:46.332369"
   },
-  "_note": "dashboard_impact reviewed"
+  "_note": "closed via issue IS-PF-0019: test-framework/tests/pipeline/test_multimodal_e2e.py; docs/MULTIMODAL-E2E-DESIGN.md"
 }
