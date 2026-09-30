@@ -77,6 +77,7 @@ TOP = {
     "AGUI-DESIGN.md": ("Design", "AG-UI typed event stream (BI-0198)", 100),
     "MCP-DESIGN.md": ("Design", "MCP interop: expose tools + consume external servers (BI-0196)", 100),
     "A2A-DESIGN.md": ("Design", "A2A interop: agnostic, contract-based, pipeline-tracked agent delegation (BI-0197)", 100),
+    "PER-UNIT-COST-DESIGN.md": ("Design", "Per-unit media cost model + projection (BI-0194)", 100),
     "GENERATOR-ADAPTERS-DESIGN.md": ("Design", "Generator-model adapters (image/video/audio/music/3d) (BI-0188)", 100),
     "FEASIBILITY-TRIAGE-DESIGN.md": ("Design", "Two-phase feasibility & capability triage (BI-0214)", 100),
     "PIPELINE-COMPOSITION-DESIGN.md": ("Design", "Capability-gated pipeline composition (BI-0213)", 100),
