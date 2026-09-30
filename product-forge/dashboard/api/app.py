@@ -311,6 +311,25 @@ def agui_run(run_id: str, project: str = Query(...)):
             "types": agui.types()}
 
 
+# ── Agent cards (framework-agnostic resolver, BI-0201) ───────────────────────
+@app.get("/api/v1/agents", dependencies=[Depends(auth)])
+def list_agents():
+    """All agent ids + the neutral source each resolves from (spec/cards/legacy)."""
+    from core import agent_spec
+    ids = agent_spec.list_agent_ids()
+    rows = [{"id": i, "source": agent_spec.source_kind(agent_spec.resolve_card_path(i))}
+            for i in ids]
+    return {"count": len(rows), "agents": rows,
+            "legacy_enabled": agent_spec.allow_legacy()}
+
+
+@app.get("/api/v1/agents/{agent_id}/card", dependencies=[Depends(auth)])
+def agent_card_resolved(agent_id: str):
+    """Resolved card for an agent + provenance (neutral-first, no default .opencode)."""
+    from core import agent_spec
+    return agent_spec.card_for(agent_id)
+
+
 # ── Per-unit cost model (BI-0194) ────────────────────────────────────────────
 @app.get("/api/v1/costs/schema", dependencies=[Depends(auth)])
 def costs_schema():

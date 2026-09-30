@@ -67,16 +67,23 @@ class AgentCardLoader:
     REQUIRED_FRONTMATTER_FIELDS = []
     IDENTITY_FIELDS = ["name", "agent_id"]
 
-    def __init__(self, agent_dir: str = ".opencode/agent"):
+    def __init__(self, agent_dir: str = ""):
+        # Neutral by default (framework-agnostic); never defaults to .opencode (BI-0201).
+        if not agent_dir:
+            try:
+                from core.agent_spec import agents_dir as _ad
+                agent_dir = _ad()
+            except Exception:
+                agent_dir = "agents"
         self.agent_dir = Path(agent_dir)
 
     def load_all(self) -> List[AgentCard]:
-        """Load all agent cards from the directory."""
+        """Load all agent cards from the neutral directory (agnostic)."""
         cards = []
         if not self.agent_dir.exists():
             return cards
 
-        for md_file in self.agent_dir.glob("*.md"):
+        for md_file in sorted(self.agent_dir.glob("*.md")):
             card = self.load_card(str(md_file))
             cards.append(card)
 
