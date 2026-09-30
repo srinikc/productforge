@@ -793,6 +793,20 @@ class StageRunnerMixin:
             except Exception:
                 pass
 
+        # BI-0191: media QA — validate media outputs when media exists (no-op otherwise).
+        if any(getattr(e, "agent_id", "") == "validate" for e in stage_executions):
+            try:
+                from core import media_qa as _mqa
+                _r = _mqa.validate_project(self.project_dir)
+                if not _r.get("noop"):
+                    print(f"  [MediaQA] ok={_r.get('ok')} findings={len(_r.get('findings') or [])} "
+                          f"degraded={_r.get('degraded')}")
+                    self._emit_lifecycle("media_qa", stage=stage_id,
+                                         ok=str(_r.get("ok")),
+                                         findings=str(len(_r.get("findings") or [])))
+            except Exception as _qe:
+                print(f"[MediaQA] {_qe}")
+
         # Post-deploy validation (8.3/8.4) after a deployment agent runs
         if any(getattr(e, "agent_id", "") == "production-deploy" for e in stage_executions):
             try:
