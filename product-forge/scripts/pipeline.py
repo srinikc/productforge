@@ -1862,6 +1862,26 @@ def show_media(project=None, src=""):
     return 0
 
 
+def show_generate(project=None, kind="", prompt=""):
+    """Select/submit a media generation for a project (BI-0188). Fail-closed when none available."""
+    project = resolve_project_arg(project)
+    if not project:
+        print("project required")
+        return 2
+    from core import generator_adapters as _ga
+    avail = _ga.eligible(kind) if kind else []
+    print(f"generators for kind '{kind or 'any'}': {[g['id'] for g in avail] or 'none'}")
+    if not kind:
+        return 0
+    res = _ga.generate(kind, {"prompt": prompt}, str(PRODUCTS_DIR / project))
+    if not res.get("ok"):
+        print(f"generation not available: {res.get('error')}")
+        return 1
+    job = res.get("job", {})
+    print(f"job {job.get('job_id')} state={job.get('state')} note={job.get('note', '')}")
+    return 0
+
+
 def show_compliance(project=None, agent=None, stage=None):
     """
     Run compliance check for one or all agents in a project.
@@ -2229,6 +2249,14 @@ def main():
         src = args[1] if len(args) > 1 else ""
         if project:
             sys.exit(show_media(project, src) or 0)
+        print("project required")
+        sys.exit(2)
+    elif command == "generate":
+        project = resolve_project_arg(args[0] if args else None)
+        kind = args[1] if len(args) > 1 else ""
+        prompt = args[2] if len(args) > 2 else ""
+        if project:
+            sys.exit(show_generate(project, kind, prompt) or 0)
         print("project required")
         sys.exit(2)
     elif command == "adopt":

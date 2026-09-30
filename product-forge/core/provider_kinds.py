@@ -19,7 +19,7 @@ from typing import Dict, List, Optional
 KINDS = ("direct", "aggregator", "self-host")
 
 # Features a provider may or may not support; unknown => not supported (fail-closed).
-FEATURES = ("chat", "tools", "json_mode", "images", "audio", "video")
+FEATURES = ("chat", "tools", "json_mode", "images", "audio", "video", "3d", "music")
 
 # Per-provider feature support. Absent => the kind defaults below apply.
 _PROVIDER_FEATURES: Dict[str, Dict[str, bool]] = {
@@ -27,6 +27,13 @@ _PROVIDER_FEATURES: Dict[str, Dict[str, bool]] = {
     "gemini": {"images": True, "tools": True, "json_mode": True},
     "anthropic": {"tools": True, "json_mode": True},
     "openrouter": {"tools": True, "json_mode": True},
+    # generator providers (BI-0188)
+    "fal": {"images": True, "video": True, "3d": True, "music": True},
+    "replicate": {"images": True, "video": True, "3d": True, "music": True},
+    "kie": {"images": True, "video": True},
+    "elevenlabs": {"audio": True},
+    "deepgram": {"audio": True},
+    "self-host": {"images": True, "video": True, "audio": True, "3d": True, "music": True},
 }
 
 # Kind-level capability defaults (coarse), applied when a provider has no explicit entry.
