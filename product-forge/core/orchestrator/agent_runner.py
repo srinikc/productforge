@@ -365,7 +365,11 @@ class AgentRunnerMixin:
         elif use_tools:
             content, token_info = self._generate_with_tools(agent_id, stage_id, prompt, _spec)
         else:
-            content, token_info = self._call_llm(prompt, agent_id, stage_id)
+            _media = getattr(self, "_last_media_parts", None)
+            if _media:
+                content, token_info = self._call_llm(prompt, agent_id, stage_id, media=_media)
+            else:
+                content, token_info = self._call_llm(prompt, agent_id, stage_id)
             if token_info.get("truncated"):
                 # Remember: this agent needs sectioned generation next time.
                 self._mark_sectioned(agent_id)
@@ -1430,6 +1434,27 @@ Write the output to: {artifact_file}"""
             print(f"[DefectBrief] {e}")
 
         self._last_compaction_saved = saved_chars
+
+        # BI-PF-0287: media context — attach native media parts when the chosen model accepts the
+        # modality, else inject a bounded media summary. No assets => no-op. Fail-closed, never raises.
+        self._last_media_parts = []
+        try:
+            from core import media_context as _mctx
+            _model = (self._get_agent_model_config(agent_id, stage_id) or {}).get("model", "")
+            _parts, _msum, _mtoks = _mctx.for_agent(
+                self.project_dir, agent_id, _model, contract,
+                upstream_text=(context or "") + "\n" + prompt)
+            if _msum:
+                prompt += "\n\n" + _msum
+            self._last_media_parts = _parts or []
+            self._last_media_tokens = _mtoks or 0
+            if _parts:
+                print(f"  [MediaContext] {agent_id}: {len(_parts)} native part(s), ~{_mtoks} tok")
+            elif _msum:
+                print(f"  [MediaContext] {agent_id}: summary only ({len(_msum)} chars)")
+        except Exception:
+            self._last_media_parts = []
+
         return prompt
 
     def _tool_directive(self, agent_id: str, stage_id: str, task: str) -> str:
@@ -1882,9 +1907,9 @@ Write the output to: {artifact_file}"""
             pass
         return artifacts
 
-    def _call_llm(self, prompt: str, agent_id: str, stage_id: str, pin_model: str = ""):
+    def _call_llm(self, prompt: str, agent_id: str, stage_id: str, pin_model: str = "", media=None):
         try:
-            return self.llm._call_llm(prompt, agent_id, stage_id, pin_model=pin_model)
+            return self.llm._call_llm(prompt, agent_id, stage_id, pin_model=pin_model, media=media)
         except TypeError:
             return self.llm._call_llm(prompt, agent_id, stage_id)
 

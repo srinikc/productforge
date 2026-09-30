@@ -163,6 +163,14 @@ class LLMClient:
         usable_context = int(model_context_window * 0.8)
         prompt_chars = len(prompt)
         prompt_tokens_est = prompt_chars // 4  # rough estimate
+        # BI-PF-0287: charge attached media against the context budget so the fit/chunk decision
+        # reacts (media can be thousands of tokens; text-only estimate would silently overflow).
+        if media:
+            try:
+                from core import media_context as _mctx
+                prompt_tokens_est += _mctx.estimate_tokens(media)
+            except Exception:
+                pass
         
         # Layer 1: generation OUTPUT is never served from cache (always regenerate).
         # The legacy prompt-keyed output cache and the semantic cache are both
