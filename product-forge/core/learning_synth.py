@@ -174,16 +174,29 @@ def _apply(c: Dict) -> Dict:
         return _po.set_overlay(pdir, "*", text, by="learning_synth", mode="append")
     if kind == "knowledge":
         from core import knowledge_registry as _kr
-        return _kr.add("guideline", name=c.get("id", ""), layers=[area] if area else [],
+        layer = area or "shared"
+        if not _live_layer(layer):
+            return {"ok": False, "error": f"no live guideline dir for layer '{layer}'"}
+        return _kr.add("guideline", name=c.get("id", ""), layers=[layer],
                        notes=text, added_by="learning_synth")
     if kind == "skill":
         from core import skills_registry as _sr
         try:
-            return _sr.SkillsRegistry().add_skill(name=c.get("id", ""), description=text,
-                                                  agent_types=[])
-        except Exception:
-            return {"ok": False}
+            sk = _sr.Skill(id=c.get("id", ""), name=c.get("id", ""), description=text[:400],
+                           category="general", agent_types=[], tools=[], source="learning_synth")
+            return _sr.SkillsRegistry().add_skill(sk)
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
     return {"ok": False}
+
+
+def _live_layer(layer: str) -> bool:
+    """A registered knowledge layer must resolve to a live docs/guidelines/<layer>/*.md dir."""
+    try:
+        d = os.path.join(str(_ROOT), "docs", "guidelines", str(layer))
+        return os.path.isdir(d) and any(f.endswith(".md") for f in os.listdir(d))
+    except Exception:
+        return False
 
 
 def approve(cid: str, by: str = "operator") -> Dict:
@@ -195,7 +208,13 @@ def approve(cid: str, by: str = "operator") -> Dict:
     c["status"] = "approved"
     c["approved_by"] = by
     c["approved_at"] = datetime.now().isoformat()
-    c["applied"] = bool(applied)
+    # an apply that returns {"ok": False, ...} is NOT applied (fail-closed)
+    if isinstance(applied, dict):
+        c["applied"] = bool(applied.get("ok", True))
+        if not c["applied"]:
+            c["apply_error"] = applied.get("error", "apply_failed")
+    else:
+        c["applied"] = bool(applied)
     data["candidates"][cid] = c
     _save(data)
     return {"ok": True, "candidate": c}
