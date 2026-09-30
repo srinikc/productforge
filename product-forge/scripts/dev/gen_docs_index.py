@@ -65,6 +65,7 @@ TOP = {
     "CAPABILITY-PACKS-DESIGN.md": ("Design", "Capability-pack registry + discovery->enablement (BI-0189)", 100),
     "MULTIMODAL-LLM-DESIGN.md": ("Design", "Multimodal LLM plumbing: media parts in llm_client (BI-0186)", 100),
     "MEDIA-INGEST-DESIGN.md": ("Design", "Media ingest + segmentation/tiling + asset store (BI-0187)", 100),
+    "MEDIA-AGENTS-DESIGN.md": ("Design", "Media agents: analyst/generator/editor/librarian (BI-0190)", 100),
     "GENERATOR-ADAPTERS-DESIGN.md": ("Design", "Generator-model adapters (image/video/audio/music/3d) (BI-0188)", 100),
     "FEASIBILITY-TRIAGE-DESIGN.md": ("Design", "Two-phase feasibility & capability triage (BI-0214)", 100),
     "PIPELINE-COMPOSITION-DESIGN.md": ("Design", "Capability-gated pipeline composition (BI-0213)", 100),
