@@ -283,6 +283,25 @@ class LLMClient:
             pass
         return token_info
 
+    def _emit_gen_ai(self, agent_id: str, stage_id: str, provider: str, model_name: str,
+                     token_info: Dict, media) -> None:
+        """BI-0199: emit a canonical gen_ai_call event (counts/ids only; never content). Best-effort."""
+        try:
+            from core import events as _ev
+            pdir = getattr(self, "project_dir", "") or ""
+            if not pdir:
+                return
+            mods = sorted({str(p.get("type")) for p in (media or []) if isinstance(p, dict)})
+            _ev.emit(pdir, "gen_ai_call", agent=agent_id, stage=stage_id,
+                     provider=provider, model=model_name, operation="chat",
+                     input_tokens=int(token_info.get("input_tokens") or 0),
+                     output_tokens=int(token_info.get("output_tokens") or 0),
+                     media_requested=int(token_info.get("media_requested") or 0),
+                     media_attached=int(token_info.get("media_attached") or 0),
+                     input_modalities=mods)
+        except Exception:
+            pass
+
     def _call_llm_single(self, prompt: str, model_name: str, provider: str, 
                          api_endpoint: str, session_id: str, agent_id: str, 
                          stage_id: str, max_output_tokens: int,
@@ -474,10 +493,12 @@ class LLMClient:
                         continue
                     break
 
-                return all_content, self._with_media_info(self._build_token_info(
+                _ti = self._with_media_info(self._build_token_info(
                     model_name, provider, total_input, total_output, total_cached,
                     total_reasoning, finish_reason, continuations, max(0, last_attempt - 1)),
                     media, _dropped_media)
+                self._emit_gen_ai(agent_id, stage_id, provider, model_name, _ti, media)
+                return all_content, _ti
 
             except Exception as e:
                 error_msg = str(e)
@@ -494,10 +515,12 @@ class LLMClient:
 
         # Partial content across continuations is better than a template fallback.
         if all_content:
-            return all_content, self._with_media_info(self._build_token_info(
+            _ti = self._with_media_info(self._build_token_info(
                 model_name, provider, total_input, total_output, total_cached,
                 total_reasoning, finish_reason or "error", continuations, max(0, last_attempt - 1)),
                 media, _dropped_media)
+            self._emit_gen_ai(agent_id, stage_id, provider, model_name, _ti, media)
+            return all_content, _ti
 
         # Caller (fallback loop) may want to try another model instead of a stub.
         if not allow_template:
