@@ -732,6 +732,57 @@ def learning_effectiveness():
     return learning_synth.effectiveness()
 
 
+# ── plugin / registry framework (ports & adapters, BI-0200) ──────────────────
+@app.get("/api/v1/plugins", dependencies=[Depends(auth)])
+def plugins_list(kind: str = Query(""), enabled: str = Query("1")):
+    from core import plugins
+    return {"count": len(plugins.list_plugins(kind, enabled != "0")),
+            "items": plugins.list_plugins(kind, enabled != "0")}
+
+
+@app.get("/api/v1/plugins/kinds", dependencies=[Depends(auth)])
+def plugins_kinds():
+    from core import plugins
+    return plugins.describe()
+
+
+@app.get("/api/v1/plugins/{pid}", dependencies=[Depends(auth)])
+def plugins_get(pid: str):
+    from core import plugins
+    p = plugins.view(pid)
+    if not p:
+        raise HTTPException(404, "plugin not found")
+    return p
+
+
+@app.post("/api/v1/plugins", dependencies=[Depends(operator_guard)])
+def plugins_register(body: Dict[str, Any]):
+    from core import plugins
+    r = plugins.register(str(body.get("id") or ""), str(body.get("kind") or ""),
+                         str(body.get("adapter") or ""), enabled=bool(body.get("enabled", True)),
+                         provides=body.get("provides"), requires=body.get("requires"),
+                         config=body.get("config"), title=str(body.get("title") or ""))
+    if not r.get("ok"):
+        raise HTTPException(422, r.get("error", "register failed"))
+    return r
+
+
+@app.post("/api/v1/plugins/{pid}/{action}", dependencies=[Depends(operator_guard)])
+def plugins_action(pid: str, action: str, body: Dict[str, Any]):
+    from core import plugins
+    if action == "enable":
+        r = plugins.set_enabled(pid, True)
+    elif action == "disable":
+        r = plugins.set_enabled(pid, False)
+    elif action == "validate":
+        r = plugins.resolve(pid)
+    else:
+        raise HTTPException(400, f"unknown action: {action}")
+    if not r.get("ok"):
+        raise HTTPException(404, r.get("error", "failed"))
+    return r
+
+
 # ── SLIs / trace / OTel (Section D P4-P6, BI-PF-0244) ────────────────────────
 @app.get("/api/v1/sli", dependencies=[Depends(auth)])
 def sli_get(project: str = Query(...)):
