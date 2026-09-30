@@ -75,6 +75,7 @@ TOP = {
     "PLUGINS-DESIGN.md": ("Design", "Plugin/registry framework (ports & adapters) (BI-0200)", 100),
     "OTEL-GENAI-DESIGN.md": ("Design", "OpenTelemetry GenAI observability incl. multimodal (BI-0199)", 100),
     "AGUI-DESIGN.md": ("Design", "AG-UI typed event stream (BI-0198)", 100),
+    "MCP-DESIGN.md": ("Design", "MCP interop: expose tools + consume external servers (BI-0196)", 100),
     "GENERATOR-ADAPTERS-DESIGN.md": ("Design", "Generator-model adapters (image/video/audio/music/3d) (BI-0188)", 100),
     "FEASIBILITY-TRIAGE-DESIGN.md": ("Design", "Two-phase feasibility & capability triage (BI-0214)", 100),
     "PIPELINE-COMPOSITION-DESIGN.md": ("Design", "Capability-gated pipeline composition (BI-0213)", 100),

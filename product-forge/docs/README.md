@@ -38,12 +38,14 @@
 |---|---|---|---|---|---|
 | [`ADDING-TO-PRODUCT-FORGE.md`](ADDING-TO-PRODUCT-FORGE.md) | Implemented | 100% | Recipes/checklists to add anything | — | — |
 | [`AGENT_CONTRACT_STANDARD.md`](AGENT_CONTRACT_STANDARD.md) | Implemented | 100% | AgentSpec / agent-card contract standard | — | — |
+| [`AGUI-DESIGN.md`](AGUI-DESIGN.md) | Design | 100% | AG-UI typed event stream (BI-0198) | — | — |
 | [`AUDIT-REGISTER-TRIAGE.md`](AUDIT-REGISTER-TRIAGE.md) | Analysis (current) | 100% | Audit PF/candidate disposition: fixed / tracked / new (BI-PF-0254) | — | — |
 | [`Agent-LLM-PromptHandling.md`](Agent-LLM-PromptHandling.md) | Design | 60% | Agent/LLM prompt handling | **Pending: capability vectors per agent, capability-aware request builder, structured-output-first render.** | BI-0221–BI-0224, BI-0228 |
 | [`Agent_llm_process.md`](Agent_llm_process.md) | Review (pending) | 0% | Agent<->LLM process analysis + recommendations | **Findings not yet implemented: per-call capability steering, reasoning on/off, and verbose loop/tool-call logging.** | BI-0221–BI-0229 |
 | [`BACKLOG-AND-INTAKE.md`](BACKLOG-AND-INTAKE.md) | Implemented | 100% | Backlog + intake design | — | — |
 | [`BACKLOG-SUMMARY.md`](BACKLOG-SUMMARY.md) | Generated | 100% | Regenerable backlog summary | — | — |
 | [`BOM-DESIGN.md`](BOM-DESIGN.md) | Design | 100% | Product BOM/footprint at packaging design (BI-0217) | — | — |
+| [`CAPABILITY-PACKS-DESIGN.md`](CAPABILITY-PACKS-DESIGN.md) | Design | 100% | Capability-pack registry + discovery->enablement (BI-0189) | — | — |
 | [`CAPABILITY-STEERING-DESIGN.md`](CAPABILITY-STEERING-DESIGN.md) | Design | 20% | Capability steering design + plan (BI-0221..BI-0230) | — | — |
 | [`CONSTITUTION.md`](CONSTITUTION.md) | Implemented | 100% | Constitution: governance + non-negotiables | — | — |
 | [`DASHBOARD-E2E-DESIGN.md`](DASHBOARD-E2E-DESIGN.md) | Design | 70% | Dashboard E2E design (front-end not built yet) | **Front-end MVP not built: every dashboard screen/view described here (backend-first).** | ProductForge-Dashboard BI-0001–0149 (epic BI-0043) |
@@ -52,21 +54,43 @@
 | [`ENGINEERING_OPERATING_STANDARD.md`](ENGINEERING_OPERATING_STANDARD.md) | SSOT | 100% | Binding engineering standard: how we think/design/build/verify (+DoD) | — | — |
 | [`ENTRYPOINTS.md`](ENTRYPOINTS.md) | Implemented | 100% | Which entry script/API to use | — | — |
 | [`EXTERNAL-TARGETS-WORKFLOW.md`](EXTERNAL-TARGETS-WORKFLOW.md) | Design | 80% | External delivery targets workflow | **Pending: some external delivery targets + their dashboard selection/UI.** | BI-0044, BI-0071, BI-0121–BI-0123 |
+| [`FEASIBILITY-TRIAGE-DESIGN.md`](FEASIBILITY-TRIAGE-DESIGN.md) | Design | 100% | Two-phase feasibility & capability triage (BI-0214) | — | — |
 | [`Failure-Recovery-System.md`](Failure-Recovery-System.md) | Implemented | 100% | Failure / retry / checkpoint recovery | — | — |
+| [`GENERATOR-ADAPTERS-DESIGN.md`](GENERATOR-ADAPTERS-DESIGN.md) | Design | 100% | Generator-model adapters (image/video/audio/music/3d) (BI-0188) | — | — |
 | [`HOW-TO-START-NEW-PROJECT.md`](HOW-TO-START-NEW-PROJECT.md) | Implemented | 100% | Step-by-step to start a project | — | — |
 | [`INTAKE-AND-BACKLOG-DESIGN.md`](INTAKE-AND-BACKLOG-DESIGN.md) | Implemented | 100% | Intake & backlog design | — | — |
+| [`ISSUE-CLOSE-LOOP-DESIGN.md`](ISSUE-CLOSE-LOOP-DESIGN.md) | Design | 100% | Issue<->backlog bidirectional close loop (BI-PF-0271) | — | — |
+| [`LEARNING-PIPELINE-DESIGN.md`](LEARNING-PIPELINE-DESIGN.md) | Design | 100% | Evidence-gated learning pipeline (BI-PF-0293/0294/0295) | — | — |
 | [`LOGS-AND-OBSERVABILITY.md`](LOGS-AND-OBSERVABILITY.md) | Analysis (current) | 100% | As-is map of every log/event/state file + the no-SSOT gap to fix (BI-PF-0233/0234/0235) | — | — |
+| [`MCP-DESIGN.md`](MCP-DESIGN.md) | Design | 100% | MCP interop: expose tools + consume external servers (BI-0196) | — | — |
+| [`MEDIA-AGENTS-DESIGN.md`](MEDIA-AGENTS-DESIGN.md) | Design | 100% | Media agents: analyst/generator/editor/librarian (BI-0190) | — | — |
+| [`MEDIA-CHUNKING-DESIGN.md`](MEDIA-CHUNKING-DESIGN.md) | Design | 100% | Media chunking + markdown asset-ref resolution (BI-PF-0288) | — | — |
+| [`MEDIA-CONTEXT-DESIGN.md`](MEDIA-CONTEXT-DESIGN.md) | Design | 100% | Media context: asset->prompt selection + summary/native parts (BI-PF-0287) | — | — |
+| [`MEDIA-INGEST-DESIGN.md`](MEDIA-INGEST-DESIGN.md) | Design | 100% | Media ingest + segmentation/tiling + asset store (BI-0187) | — | — |
+| [`MEDIA-QA-DESIGN.md`](MEDIA-QA-DESIGN.md) | Design | 100% | Media QA validators (BI-0191) | — | — |
+| [`MODEL-STRATEGY-DESIGN.md`](MODEL-STRATEGY-DESIGN.md) | Design | 100% | Two-phase model & capability strategy gate (BI-0192/BI-0210) | — | — |
+| [`MULTIMODAL-E2E-DESIGN.md`](MULTIMODAL-E2E-DESIGN.md) | Design | 100% | Multimodal end-to-end acceptance (BI-0212) | — | — |
+| [`MULTIMODAL-LLM-DESIGN.md`](MULTIMODAL-LLM-DESIGN.md) | Design | 100% | Multimodal LLM plumbing: media parts in llm_client (BI-0186) | — | — |
 | [`Multi-Agent-Multi-Project-Unique-Features.md`](Multi-Agent-Multi-Project-Unique-Features.md) | Design | 80% | Unique multi-agent / multi-project features | Informational only: a few nice-to-have surfaces, not tracked as work. | — |
+| [`OTEL-GENAI-DESIGN.md`](OTEL-GENAI-DESIGN.md) | Design | 100% | OpenTelemetry GenAI observability incl. multimodal (BI-0199) | — | — |
+| [`PIPELINE-COMPOSITION-DESIGN.md`](PIPELINE-COMPOSITION-DESIGN.md) | Design | 100% | Capability-gated pipeline composition (BI-0213) | — | — |
 | [`PIPELINE-OPERATIONS.md`](PIPELINE-OPERATIONS.md) | Implemented | 100% | Operations: run modes, control, state, status | — | — |
 | [`PIPELINE-RESUME-ProductForge-Dashboard.md`](PIPELINE-RESUME-ProductForge-Dashboard.md) | Adopted (reference) | 50% | Old resume notes for a project | Partial - resume notes reused. | — |
 | [`PIPELINE-STAGES-REFERENCE.md`](PIPELINE-STAGES-REFERENCE.md) | Generated | 100% | Regenerable stages/agents reference | — | — |
+| [`PLUGINS-DESIGN.md`](PLUGINS-DESIGN.md) | Design | 100% | Plugin/registry framework (ports & adapters) (BI-0200) | — | — |
 | [`PR-WORKFLOW.md`](PR-WORKFLOW.md) | Implemented | 100% | Branch -> pre-check gates -> review -> merge (BI-0205) | — | — |
+| [`PRODUCT-ISSUE-LOOP-DESIGN.md`](PRODUCT-ISSUE-LOOP-DESIGN.md) | Design | 100% | Product-scope issue/RCCA/backlog integration + API (BI-PF-0272) | — | — |
 | [`PROVIDER-FALLBACK.md`](PROVIDER-FALLBACK.md) | Implemented | 100% | Provider fallback policy: Zen free unusable; opencode-go/kctier (BI-PF-0247) | — | — |
+| [`PROVIDER-KINDS-DESIGN.md`](PROVIDER-KINDS-DESIGN.md) | Design | 100% | Provider-kind abstraction + kind-aware router (BI-0193) | — | — |
+| [`product_forge_AI_Model_Strategy_Orchestration.md`](Product_Factory_AI_Model_Strategy_Orchestration.md) | Analysis (reference) | 100% | Multi-model strategy: routing, cost-per-accepted, intelligence loop | — | — |
+| [`product_forge_Multi_Model_Adapters_Aggregators.md`](Product_Factory_Multi_Model_Adapters_Aggregators.md) | Analysis (reference) | 100% | Multi-model architecture: adapters/registry/router/generator/aggregator separation | — | — |
 | [`Product_Forge_Audit_Organized_Executive_Master_With_Execution_Guardrails_20260929.md`](Product_Forge_Audit_Organized_Executive_Master_With_Execution_Guardrails_20260929.md) | Analysis (reference) | 100% | Organized audit master (source register) | — | — |
+| [`RCCA-CLOSURE-INTEGRITY-DESIGN.md`](RCCA-CLOSURE-INTEGRITY-DESIGN.md) | Design | 100% | RCCA closure integrity: guideline truth + G8 + learning loop (BI-PF-0270) | — | — |
 | [`RCCA_productForge.md`](RCCA_productForge.md) | Analysis (current) | 100% | Root-cause + corrective/preventive guidelines for the audit/issues gaps | — | — |
 | [`RE-RUN-IMPACT-ANALYSIS.md`](RE-RUN-IMPACT-ANALYSIS.md) | Implemented | 100% | Rerun / impact invalidation model | — | — |
 | [`ROLE-PROMPT-STANDARD.md`](ROLE-PROMPT-STANDARD.md) | Implemented | 100% | Standard for agent role-prompts + advisory audit (BI-0228) | — | — |
 | [`SCHEMA-GUIDE.md`](SCHEMA-GUIDE.md) | Implemented | 100% | Data + schema reference (validators) | — | — |
+| [`SCOPED-LEARNINGS-DESIGN.md`](SCOPED-LEARNINGS-DESIGN.md) | Design | 100% | Scoped learnings + memory read-back (BI-PF-0294) | — | — |
 | [`SECTION-D-OBSERVABILITY-DESIGN.md`](SECTION-D-OBSERVABILITY-DESIGN.md) | Design | 30% | Section D observability design + plan (BI-PF-0244) | — | — |
 | [`SECTIONED-GENERATION-ANALYSIS.md`](SECTIONED-GENERATION-ANALYSIS.md) | Implemented | 100% | Long-output (sectioned) generation design | — | — |
 | [`STRUCTURE-CONTRACT.md`](STRUCTURE-CONTRACT.md) | Implemented | 100% | Binding repo structure contract (folders + owners) | — | — |
