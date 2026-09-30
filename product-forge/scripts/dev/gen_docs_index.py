@@ -63,6 +63,7 @@ TOP = {
     "PRODUCT-ISSUE-LOOP-DESIGN.md": ("Design", "Product-scope issue/RCCA/backlog integration + API (BI-PF-0272)", 100),
     "PROVIDER-KINDS-DESIGN.md": ("Design", "Provider-kind abstraction + kind-aware router (BI-0193)", 100),
     "CAPABILITY-PACKS-DESIGN.md": ("Design", "Capability-pack registry + discovery->enablement (BI-0189)", 100),
+    "MULTIMODAL-LLM-DESIGN.md": ("Design", "Multimodal LLM plumbing: media parts in llm_client (BI-0186)", 100),
     "Product_Forge_Audit_Organized_Executive_Master_With_Execution_Guardrails_20260929.md": ("Analysis (reference)", "Organized audit master (source register)", 100),
     "ENGINEERING_OPERATING_STANDARD.md": ("SSOT", "Binding engineering standard: how we think/design/build/verify (+DoD)", 100),
     "Agent_llm_process.md": ("Review (pending)", "Agent<->LLM process analysis + recommendations", 0),
