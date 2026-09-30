@@ -1,0 +1,32 @@
+{
+  "id": "IS-PF-0002",
+  "tag": "PF",
+  "scope": "product_forge",
+  "project": "",
+  "title": "Issue<->backlog close loop not wired end-to-end (pieces existed, loop never exercised)",
+  "body": "Gap from BI-PF-0262: raise_issue did not auto-raise the paired backlog and issue close did not propagate back with fixed_where.",
+  "kind": "issue",
+  "priority": "P1",
+  "severity": "",
+  "module": "core/issues.py",
+  "status": "closed",
+  "rcca": {
+    "root_cause": "Verification proved the PARTS existed (unit-level) but not the PROCESS end-to-end (RC-1 failure mode: existence != execution); the loop was assumed wired without an e2e test of the described sequence.",
+    "corrective": "raise_issue(auto_backlog=True) now raises the paired backlog (dedup-checked) and links 1:1; issues.set_status(closed) propagates completion + fixed_where to the backlog item; fail-closed both ways.",
+    "preventive": "For every process claim, write the e2e test of the exact sequence FIRST; parts-only verification is insufficient.",
+    "fixed_where": "core/issues.py (raise_issue auto_backlog, _propagate_close); test-framework/tests/pipeline/test_issue_close_loop.py",
+    "generalized": true,
+    "guideline_ref": "EOS G2/G6 (run-bound evidence; a check must be able to fail)",
+    "product_ref": "BI-PF-0271"
+  },
+  "backlog_ref": "BI-PF-0271",
+  "source": "review",
+  "source_ref": "",
+  "evidence": [],
+  "links": {
+    "backlog": "BI-PF-0271"
+  },
+  "created_at": "2026-09-30T13:05:13.659353",
+  "updated_at": "2026-09-30T13:05:26.252309",
+  "note": "delivered"
+}
