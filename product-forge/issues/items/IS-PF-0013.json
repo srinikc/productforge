@@ -1,0 +1,32 @@
+{
+  "id": "IS-PF-0013",
+  "tag": "PF",
+  "scope": "product_forge",
+  "project": "",
+  "title": "Media never reached agents: to_media/multimodal orphaned, no asset->prompt selection, no media token accounting",
+  "body": "BI-PF-0287: media context pipeline.",
+  "kind": "gap",
+  "priority": "P1",
+  "severity": "",
+  "module": "core/media_context.py",
+  "status": "closed",
+  "rcca": {
+    "root_cause": "The multimodal plumbing existed but had no caller: agent_runner dropped media=, nothing selected assets for a prompt, and media bytes were never charged to the context budget.",
+    "corrective": "core/media_context.py (select assets; native parts when the model accepts the modality, else bounded summary; estimate media tokens) + agent_runner threads media= and injects the summary + llm_client charges media tokens.",
+    "preventive": "Fail-closed (unknown model/asset => summary/nothing); text-only/no-asset runs are a no-op; opt-in PIPELINE_MEDIA_CONTEXT (summary default); reuses asset_store/multimodal, no new store.",
+    "fixed_where": "core/media_context.py; core/orchestrator/agent_runner.py; core/orchestrator/llm_client.py; config/env-flags.json; test-framework/tests/pipeline/test_media_context.py",
+    "generalized": false,
+    "guideline_ref": "MEDIA-CONTEXT-DESIGN; EOS fail-closed",
+    "product_ref": "BI-PF-0287"
+  },
+  "backlog_ref": "BI-PF-0287",
+  "source": "review",
+  "source_ref": "",
+  "evidence": [],
+  "links": {
+    "backlog": "BI-PF-0287"
+  },
+  "created_at": "2026-09-30T19:00:17.450704",
+  "updated_at": "2026-09-30T19:00:17.562792",
+  "note": "delivered"
+}
