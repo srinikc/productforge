@@ -119,6 +119,18 @@ class StageRunnerMixin:
             except Exception as e:
                 print(f"[Capabilities] {e}")
 
+        # One-time: plugin registry (BI-0200) — validate/resolve enabled plugins (ports & adapters).
+        if not getattr(self, "_plugins_done", False):
+            self._plugins_done = True
+            try:
+                from core import plugins as _pl
+                _v = _pl.validate()
+                if _v.get("enabled"):
+                    print(f"  [Plugins] {_v['resolved']}/{_v['enabled']} resolved; "
+                          f"warnings={_v.get('warnings')}")
+            except Exception as e:
+                print(f"[Plugins] {e}")
+
         # One-time: deployment target selection (declared, or HIL prompt; default local).
         if not getattr(self, "_target_selected", False):
             self._target_selected = True

@@ -72,6 +72,7 @@ TOP = {
     "LEARNING-PIPELINE-DESIGN.md": ("Design", "Evidence-gated learning pipeline (BI-PF-0293/0294/0295)", 100),
     "SCOPED-LEARNINGS-DESIGN.md": ("Design", "Scoped learnings + memory read-back (BI-PF-0294)", 100),
     "MULTIMODAL-E2E-DESIGN.md": ("Design", "Multimodal end-to-end acceptance (BI-0212)", 100),
+    "PLUGINS-DESIGN.md": ("Design", "Plugin/registry framework (ports & adapters) (BI-0200)", 100),
     "GENERATOR-ADAPTERS-DESIGN.md": ("Design", "Generator-model adapters (image/video/audio/music/3d) (BI-0188)", 100),
     "FEASIBILITY-TRIAGE-DESIGN.md": ("Design", "Two-phase feasibility & capability triage (BI-0214)", 100),
     "PIPELINE-COMPOSITION-DESIGN.md": ("Design", "Capability-gated pipeline composition (BI-0213)", 100),
