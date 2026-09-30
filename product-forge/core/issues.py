@@ -174,7 +174,7 @@ def raise_issue(scope: str, project: Optional[str], title: str, *, body: str = "
                 kind: str = "issue", priority: str = "P2", severity: str = "",
                 module: str = "", source: str = "review", evidence: Optional[List] = None,
                 rcca: Optional[Dict] = None, backlog_ref: str = "",
-                source_ref: str = "") -> Dict:
+                source_ref: str = "", auto_backlog: bool = False) -> Dict:
     """Create one finding. Returns the issue (with an IS-<TAG>-<nnn> id).
 
     Idempotent by ``(source, source_ref)`` so re-ingesting the same underlying finding
@@ -214,6 +214,30 @@ def raise_issue(scope: str, project: Optional[str], title: str, *, body: str = "
     if backlog_ref:
         try:
             return link_backlog(scope, project, iid, backlog_ref) or item
+        except Exception:
+            pass
+    elif auto_backlog:
+        # BI-PF-0271: raise the paired backlog item automatically (dedup-checked), then link.
+        try:
+            from core import backlog
+            bscope = _norm_scope(scope)
+            bproj = project if bscope == "project" else None
+            bid = ""
+            try:
+                for cand in (backlog.find_similar(bscope, bproj, title) or []):
+                    if isinstance(cand, dict) and cand.get("id"):
+                        bid = cand["id"]
+                        break
+            except Exception:
+                bid = ""
+            if not bid:
+                bitem = backlog.add_epic(
+                    bscope, bproj, title, body=body or "", type_="task",
+                    origin="issue", tag=(item.get("tag") or ""),
+                    links={"issue": backlog.qualify(scope, project, iid)})
+                bid = (bitem or {}).get("id") or ""
+            if bid:
+                return link_backlog(scope, project, iid, bid) or item
         except Exception:
             pass
     return item
@@ -286,9 +310,35 @@ def set_status(scope: str, project: Optional[str], iid: str, status: str,
         _save_item(d, found)
         _write_indexes(d, op2, cl2)
         _hist(d, found, f"status:{status}")
-        return found
+        _closed = found if status in _CLOSED else None
     finally:
         _unlock(lp)
+    # BI-PF-0271: close the loop back to the paired backlog item, recording where the fix was done.
+    if _closed is not None:
+        try:
+            _propagate_close(_closed)
+        except Exception:
+            pass
+    return found
+
+
+def _propagate_close(issue: Dict) -> None:
+    """On issue close: complete the linked backlog item + stamp the fix location (both sides)."""
+    ref = issue.get("backlog_ref") or (issue.get("links") or {}).get("backlog")
+    if not ref:
+        return
+    from core import backlog
+    bscope, bproj, bid = backlog.parse_ref(ref)
+    if not bscope:
+        bid = ref
+        bscope = _norm_scope(issue.get("scope") or "")
+        bproj = issue.get("project") if bscope == "project" else None
+    if not bid:
+        return
+    fixed_where = (issue.get("rcca") or {}).get("fixed_where", "")
+    backlog.link(bscope, bproj, bid, issue_closed=True, fixed_where=fixed_where)
+    backlog.set_status(bscope, bproj, bid, "completed", force=True,
+                       note=f"closed via issue {issue.get('id')}: {fixed_where}")
 
 
 def set_rcca(scope: str, project: Optional[str], iid: str, *, root_cause: str = "",
