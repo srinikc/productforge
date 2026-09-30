@@ -2784,6 +2784,14 @@ class PipelineExecutor(AgentExecutionMixin, AgentRunnerMixin, StageRunnerMixin):
                           f"enabled={_prof.get('enabled_packs')}")
             except Exception:
                 pass
+            # BI-0187: ingest any media for this project into the asset store.
+            try:
+                from core import asset_store as _as
+                _m = _as.ingest_project_media(self.project_dir, self.project)
+                if _m:
+                    print(f"  [MediaIngest] {len(_m)} asset(s); modalities={_as.modalities(self.project_dir)}")
+            except Exception:
+                pass
         except Exception:
             pass
         s = report.get("summary", {})

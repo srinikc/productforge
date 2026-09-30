@@ -1844,6 +1844,24 @@ def show_bom(project=None):
     return 0
 
 
+def show_media(project=None, src=""):
+    """Ingest + list project media assets (BI-0187)."""
+    project = resolve_project_arg(project)
+    if not project:
+        print("project required")
+        return 2
+    from core import asset_store as _as
+    pdir = str(PRODUCTS_DIR / project)
+    if src:
+        added = _as.ingest_dir(pdir, src, recursive=True, split=True)
+        print(f"ingested {len([a for a in added if not a.get('error')])} asset(s) from {src}")
+    for a in _as.list_assets(pdir):
+        print(f"  {a.get('asset_id')} | {a.get('type')} | {a.get('bytes')}B | "
+              f"children={len(a.get('children') or [])} | degraded={a.get('degraded')}")
+    print(f"modalities: {_as.modalities(pdir)}")
+    return 0
+
+
 def show_compliance(project=None, agent=None, stage=None):
     """
     Run compliance check for one or all agents in a project.
@@ -2204,6 +2222,13 @@ def main():
         project = resolve_project_arg(args[0] if args else None)
         if project:
             sys.exit(show_bom(project) or 0)
+        print("project required")
+        sys.exit(2)
+    elif command == "media":
+        project = resolve_project_arg(args[0] if args else None)
+        src = args[1] if len(args) > 1 else ""
+        if project:
+            sys.exit(show_media(project, src) or 0)
         print("project required")
         sys.exit(2)
     elif command == "adopt":
