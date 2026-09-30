@@ -692,6 +692,46 @@ def issues_action(iid: str, action: str, body: Dict[str, Any]):
     raise HTTPException(400, f"unknown action: {action}")
 
 
+# ── learning pipeline (evidence-gated candidates, BI-PF-0293) ────────────────
+@app.get("/api/v1/learning/candidates", dependencies=[Depends(auth)])
+def learning_candidates(status: str = Query(""), scope: str = Query("")):
+    from core import learning_synth
+    items = learning_synth.list_candidates(status, scope)
+    return {"count": len(items), "items": items, "effectiveness": learning_synth.effectiveness()}
+
+
+@app.get("/api/v1/learning/candidates/{cid}", dependencies=[Depends(auth)])
+def learning_candidate_get(cid: str):
+    from core import learning_synth
+    c = learning_synth.get(cid)
+    if not c:
+        raise HTTPException(404, "candidate not found")
+    return c
+
+
+@app.post("/api/v1/learning/candidates/{cid}/{action}", dependencies=[Depends(auth)])
+def learning_candidate_action(cid: str, action: str, body: Dict[str, Any]):
+    from core import learning_synth
+    by = str(body.get("by") or "operator")
+    if action == "approve":
+        r = learning_synth.approve(cid, by=by)
+    elif action == "reject":
+        r = learning_synth.reject(cid, by=by, reason=body.get("reason", ""))
+    elif action == "edit":
+        r = learning_synth.edit(cid, text=body.get("text", ""), scope=body.get("scope", ""), by=by)
+    else:
+        raise HTTPException(400, f"unknown action: {action}")
+    if not r.get("ok"):
+        raise HTTPException(404, r.get("error", "failed"))
+    return r
+
+
+@app.get("/api/v1/learning/effectiveness", dependencies=[Depends(auth)])
+def learning_effectiveness():
+    from core import learning_synth
+    return learning_synth.effectiveness()
+
+
 # ── SLIs / trace / OTel (Section D P4-P6, BI-PF-0244) ────────────────────────
 @app.get("/api/v1/sli", dependencies=[Depends(auth)])
 def sli_get(project: str = Query(...)):

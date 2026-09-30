@@ -3416,6 +3416,16 @@ class PipelineExecutor(AgentExecutionMixin, AgentRunnerMixin, StageRunnerMixin):
             build_learning_index(self.products_dir)
         except Exception:
             pass
+
+        # BI-PF-0293: evidence-gated learning — PROPOSE candidates at teardown (never auto-apply;
+        # approval promotes into the owner stores). No-op when there is no evidence.
+        try:
+            from core import learning_synth as _ls
+            _cands = _ls.propose(self.project_dir, self.project)
+            if _cands:
+                print(f"  [Learning] {len(_cands)} candidate(s) proposed (await approval via API/HIL)")
+        except Exception:
+            pass
         
         # Print summary
         self._print_summary()

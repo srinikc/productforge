@@ -69,6 +69,7 @@ TOP = {
     "MEDIA-CONTEXT-DESIGN.md": ("Design", "Media context: asset->prompt selection + summary/native parts (BI-PF-0287)", 100),
     "MEDIA-CHUNKING-DESIGN.md": ("Design", "Media chunking + markdown asset-ref resolution (BI-PF-0288)", 100),
     "MEDIA-QA-DESIGN.md": ("Design", "Media QA validators (BI-0191)", 100),
+    "LEARNING-PIPELINE-DESIGN.md": ("Design", "Evidence-gated learning pipeline (BI-PF-0293/0294/0295)", 100),
     "GENERATOR-ADAPTERS-DESIGN.md": ("Design", "Generator-model adapters (image/video/audio/music/3d) (BI-0188)", 100),
     "FEASIBILITY-TRIAGE-DESIGN.md": ("Design", "Two-phase feasibility & capability triage (BI-0214)", 100),
     "PIPELINE-COMPOSITION-DESIGN.md": ("Design", "Capability-gated pipeline composition (BI-0213)", 100),
