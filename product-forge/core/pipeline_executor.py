@@ -1355,6 +1355,18 @@ class PipelineExecutor(AgentExecutionMixin, AgentRunnerMixin, StageRunnerMixin):
                 print(f"[Tailoring] skipped: {_te}")
             if getattr(self, "model_router", None):
                 self.model_router.pipeline_def = self.pipeline_def
+            # BI-0213: capability-gated composition (insert optional stages/agents per enabled packs).
+            # Identity when no real pack is enabled, so non-media runs stay byte-identical.
+            try:
+                from core import pipeline_composition as _pc
+                self.pipeline_def = _pc.effective_definition(self.pipeline_def, self.project_dir)
+                _comp = self.pipeline_def.get("_composition") or {}
+                if _comp.get("packs"):
+                    print(f"  [Composition] packs={_comp['packs']} stages={len(self.pipeline_def.get('stages') or {})}")
+            except Exception as _ce:
+                print(f"[Composition] skipped: {_ce}")
+            if getattr(self, "model_router", None):
+                self.model_router.pipeline_def = self.pipeline_def
             
             # Create DAG executor
             self.dag_executor = DAGExecutor(self.pipeline_def)
@@ -1382,9 +1394,14 @@ class PipelineExecutor(AgentExecutionMixin, AgentRunnerMixin, StageRunnerMixin):
         """Load pipeline from dictionary."""
         try:
             self.pipeline_def = pipeline_def
+            try:
+                from core import pipeline_composition as _pc
+                self.pipeline_def = _pc.effective_definition(self.pipeline_def, self.project_dir)
+            except Exception:
+                pass
             if getattr(self, "model_router", None):
                 self.model_router.pipeline_def = self.pipeline_def
-            self.dag_executor = DAGExecutor(pipeline_def)
+            self.dag_executor = DAGExecutor(self.pipeline_def)
             
             self.execution = PipelineExecution(
                 pipeline_id=new_run_id(),
