@@ -31,6 +31,18 @@ from datetime import datetime
 from typing import Dict, List, Optional
 
 _FILE = os.path.join(str(_PF_ROOT), "data", "learnings.json")
+
+
+def _file(project: str = "") -> str:
+    """Resolve the learnings store: project-scoped when a project is given, else global.
+
+    Project learnings live at products/<project>/learnings.json (single writer: this module).
+    """
+    p = str(project or "").strip()
+    if p:
+        return os.path.join(str(_PF_ROOT), "products", p, "learnings.json")
+    return _FILE
+
 RULE_MAX = 240          # max chars per rule
 STORE_MAX = 120         # max learnings kept
 MERGE_AT = 0.6          # similarity at/above which a new rule merges into an existing one
@@ -50,21 +62,22 @@ def _sim(a: set, b: set) -> float:
     return (inter / min(len(a), len(b))) if inter else 0.0
 
 
-def _load() -> List[Dict]:
+def _load(project: str = "") -> List[Dict]:
     try:
-        with open(_FILE, "r", encoding="utf-8") as f:
+        with open(_file(project), "r", encoding="utf-8") as f:
             d = json.load(f)
             return d if isinstance(d, list) else []
     except Exception:
         return []
 
 
-def _save(items: List[Dict]) -> None:
-    os.makedirs(os.path.dirname(_FILE), exist_ok=True)
-    tmp = _FILE + ".tmp"
+def _save(items: List[Dict], project: str = "") -> None:
+    path = _file(project)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    tmp = path + ".tmp"
     with open(tmp, "w", encoding="utf-8", newline="\n") as f:
         json.dump(items, f, indent=2, ensure_ascii=False)
-    os.replace(tmp, _FILE)
+    os.replace(tmp, path)
 
 
 def _next_id(items: List[Dict]) -> str:
@@ -77,12 +90,15 @@ def _next_id(items: List[Dict]) -> str:
     return f"LN-{mx + 1:04d}"
 
 
-def add(rule: str, area: str = "", source_ref: str = "") -> Dict:
-    """Add a learning, DE-DUPLICATING: a similar existing rule merges instead of appending."""
+def add(rule: str, area: str = "", source_ref: str = "", project: str = "") -> Dict:
+    """Add a learning, DE-DUPLICATING: a similar existing rule merges instead of appending.
+
+    ``project`` scopes the write to products/<project>/learnings.json; empty = global store.
+    """
     rule = " ".join(str(rule or "").split())[:RULE_MAX]
     if not rule:
         return {}
-    items = _load()
+    items = _load(project)
     toks = _tokens(rule)
     for e in items:
         if _sim(toks, _tokens(e.get("rule", ""))) >= MERGE_AT:
@@ -93,7 +109,7 @@ def add(rule: str, area: str = "", source_ref: str = "") -> Dict:
             if source_ref and source_ref not in (e.get("sources") or []):
                 e.setdefault("sources", []).append(source_ref)
                 e["sources"] = e["sources"][-20:]
-            _save(items)
+            _save(items, project)
             return e
     rec = {"id": _next_id(items), "area": area, "rule": rule,
            "sources": [source_ref] if source_ref else [], "count": 1,
@@ -103,18 +119,43 @@ def add(rule: str, area: str = "", source_ref: str = "") -> Dict:
     if len(items) > STORE_MAX:
         items = sorted(items, key=lambda e: (int(e.get("count", 1)), str(e.get("at", ""))),
                        reverse=True)[:STORE_MAX]
-    _save(items)
+    _save(items, project)
     return rec
 
 
-def all_learnings() -> List[Dict]:
-    return sorted(_load(), key=lambda e: int(e.get("count", 1)), reverse=True)
+def all_learnings(project: str = "") -> List[Dict]:
+    """Learnings for a project: UNION of global + project store (project wins on id, keeps both).
+
+    With no project, returns the global list (unchanged legacy behavior).
+    """
+    if not project:
+        return sorted(_load(), key=lambda e: int(e.get("count", 1)), reverse=True)
+    glob = _load()
+    proj = _load(project)
+    seen_rules = set()
+    merged: List[Dict] = []
+    for e in proj:                       # project entries first (need-based)
+        seen_rules.add(_sim_key(e))
+        merged.append(e)
+    for e in glob:
+        # dedup by RULE (ids are per-store and can collide across stores)
+        if _sim_key(e) not in seen_rules:
+            merged.append(e)
+    return sorted(merged, key=lambda e: int(e.get("count", 1)), reverse=True)
 
 
-def render(area: str = "", max_learnings: int = 15, max_chars: int = 1600) -> str:
-    """A COMPACT bullet block for prompt/guideline injection (bounded size)."""
+def _sim_key(e: Dict) -> str:
+    return " ".join(str(e.get("rule", "")).lower().split())
+
+
+def render(area: str = "", project: str = "", agent: str = "",
+           max_learnings: int = 15, max_chars: int = 1600) -> str:
+    """A COMPACT bullet block for prompt/guideline injection (bounded size), selected on need.
+
+    ``project`` unions global + project learnings; ``area`` filters by module/area.
+    """
     out, total = [], 0
-    for e in all_learnings():
+    for e in all_learnings(project):
         if area and e.get("area") and e.get("area") != area:
             continue
         line = f"- {e.get('rule')}"

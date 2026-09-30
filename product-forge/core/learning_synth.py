@@ -164,7 +164,9 @@ def _apply(c: Dict) -> Dict:
     area = scope.split(":", 1)[1] if scope.startswith("area:") else ""
     if kind == "learning":
         from core import learnings as _ln
-        return _ln.add(text, area=area, source_ref=c.get("id", ""))
+        # need-based: a project-scope candidate is written to the project store
+        proj = scope.split(":", 1)[1] if scope.startswith("project:") else ""
+        return _ln.add(text, area=area, source_ref=c.get("id", ""), project=proj)
     if kind == "overlay":
         from core import prompt_overlays as _po
         proj = scope.split(":", 1)[1] if scope.startswith("project:") else ""

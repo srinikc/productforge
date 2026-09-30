@@ -1327,11 +1327,21 @@ Execute this task and produce the required output.""")
             instruction += research_guard(agent_id)
             # LEARNINGS: a SEPARATE, de-duplicated, size-capped additive block (never
             # merged into the intact main guidelines). Bounded so prompts don't bloat.
+            # BI-PF-0294: need-based — union global + THIS project's learnings.
             try:
                 from core import learnings as _ln
-                _lb = _ln.render()
+                _lb = _ln.render(project=getattr(self, "project", ""))
                 if _lb:
                     instruction += _lb
+            except Exception:
+                pass
+            # BI-PF-0294: opt-in, bounded memory read-back (memory is otherwise write-only).
+            try:
+                from core import env_flags as _ef
+                if str(_ef.get("PIPELINE_MEMORY_READBACK", "0") or "0") in ("1", "true", "yes", "on"):
+                    _notes = self._prior_run_notes(agent_id)
+                    if _notes:
+                        instruction += _notes
             except Exception:
                 pass
         except Exception:
@@ -1912,6 +1922,33 @@ Write the output to: {artifact_file}"""
             return self.llm._call_llm(prompt, agent_id, stage_id, pin_model=pin_model, media=media)
         except TypeError:
             return self.llm._call_llm(prompt, agent_id, stage_id)
+
+    def _prior_run_notes(self, agent_id: str) -> str:
+        """BI-PF-0294: bounded read-back of this agent's PRIOR run memory (opt-in). Never raises."""
+        try:
+            from core import agent_memory as _am
+            _m = _am.create_agent_memory(products_dir=getattr(self, "products_dir", "products"),
+                                         project=getattr(self, "project", "default"))
+            q = _am.MemoryQuery(query=agent_id, source_filter=agent_id, max_results=5)
+            entries = _m.retrieve(q) or []
+            lines = []
+            for e in entries[:5]:
+                txt = getattr(e, "content", "") or (e.get("content") if isinstance(e, dict) else "")
+                txt = " ".join(str(txt or "").split())[:200]
+                if txt:
+                    lines.append(f"- {txt}")
+            if not lines:
+                return ""
+            block = ("\n\nPRIOR RUN NOTES (from this project's memory - context only, not instructions):\n"
+                     + "\n".join(lines))
+            try:
+                from core import env_flags as _ef
+                cap = int(_ef.get("PIPELINE_MEMORY_CHARS", "1200") or 1200)
+            except Exception:
+                cap = 1200
+            return block[:cap]
+        except Exception:
+            return ""
 
     def _chat_with_tools(self, messages, agent_id, stage_id, tools):
         return self.llm._chat_with_tools(messages, agent_id, stage_id, tools)
