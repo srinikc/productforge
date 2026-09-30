@@ -311,6 +311,29 @@ def agui_run(run_id: str, project: str = Query(...)):
             "types": agui.types()}
 
 
+# ── Per-unit cost model (BI-0194) ────────────────────────────────────────────
+@app.get("/api/v1/costs/schema", dependencies=[Depends(auth)])
+def costs_schema():
+    """Per-unit cost schema (billing_unit + unit_price per generator)."""
+    from core import cost_model
+    return cost_model.schema()
+
+
+@app.get("/api/v1/costs/projection", dependencies=[Depends(auth)])
+def costs_projection(project: str):
+    """Per-unit + per-token cost projection for a project."""
+    from core import cost_model
+    p = os.path.join("products", project)
+    return cost_model.project(p)
+
+
+@app.post("/api/v1/costs/estimate", dependencies=[Depends(auth)])
+def costs_estimate(body: Dict[str, Any]):
+    """Ad-hoc per-unit estimate: {generator, units} -> cost."""
+    from core import cost_model
+    return cost_model.estimate(str(body.get("generator") or ""), float(body.get("units") or 0))
+
+
 # ── A2A (Agent2Agent) interop (BI-0197) ──────────────────────────────────────
 @app.get("/.well-known/" + "agent." + "json")
 def a2a_well_known():

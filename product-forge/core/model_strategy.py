@@ -118,16 +118,39 @@ def assess(project_dir: str, phase: str = "a") -> Dict:
                 billing = g.get("billing_unit", "")
         except Exception:
             pass
+        _unit_price = 0.0
+        _proj_cost = 0.0
+        try:
+            from core import cost_model as _cm
+            _up = _cm.unit_price(gen)
+            _unit_price = _up.get("unit_price", 0.0)
+            _proj_cost = _cm.cost_of(gen, 1) if gen else 0.0
+        except Exception:
+            pass
         assignments.append({
             "modality": m, "kind": "generator", "model": "", "generator": gen,
             "provider": provider, "provider_kind": row.get("provider_kind", ""),
-            "billing_unit": billing, "build_mode": row.get("build_mode", ""),
+            "billing_unit": billing, "unit_price": _unit_price, "projected_cost": _proj_cost,
+            "build_mode": row.get("build_mode", ""),
             "license": row.get("license", ""), "bundle_allowed": row.get("bundle_allowed", False),
         })
+    # per-unit cost projection (BI-0194): media per-unit + text per-token
+    cost_projection: Dict = {}
+    try:
+        from core import cost_model as _cm
+        quantities = {a["generator"]: 1 for a in assignments if a.get("generator")}
+        cost_projection = _cm.project(project_dir, quantities)
+        media_cost = round(sum(a.get("projected_cost", 0.0) for a in assignments), 6)
+        cost_projection["media_cost"] = media_cost
+        cost_projection["total_cost"] = round(
+            cost_projection.get("text_cost", 0.0) + media_cost, 6)
+    except Exception:
+        cost_projection = {}
     return {"phase": phase, "modalities": mods, "enabled_packs": enabled,
             "generators_needed": (feas.get("verdict") and [] or []),
             "feasibility_verdict": feas.get("verdict", ""),
-            "assignments": assignments, "warnings": warnings}
+            "assignments": assignments, "cost_projection": cost_projection,
+            "warnings": warnings}
 
 
 def _resolve_agent_models(assignments: List[Dict]) -> Dict[str, Dict]:
