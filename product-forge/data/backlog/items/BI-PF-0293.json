@@ -10,17 +10,22 @@
   "title": "Evidence-gated learning pipeline: auto-propose candidate learnings from outcomes; approve via API/HIL then apply (learning_synth + candidates store + API)",
   "body": "Evidence-gated, approval-based (never auto-inject). At run teardown, collect evidence (closed RCCAs via core/issues, review-ledger feedback, defect_loop reconciles, media-QA findings via core/media_qa, quality/QIR deltas) -> cluster+score (reuse learnings._sim) -> write candidates to data/learning-candidates.json (new owner core/learning_synth.py; single writer). Candidates carry {id,kind:learning|overlay|skill|knowledge,text,rationale,evidence[],confidence,scope:project:<p>|area:<module>|global,status:proposed}. Approval (HIL/API) promotes into the OWNER store via its API (learnings.add / prompt_overlays.set_overlay / knowledge_registry.add / SkillsRegistry.add_skill) - never writes them directly. Static instructions untouched. API-first: GET/POST /api/v1/learning/candidates[...]/approve|reject|edit + /learning/effectiveness (owner modules write, API reads). Reversible + audited. Default scope = project/area; global only on deliberate promotion (recurrence evidence).",
   "source": "generic",
-  "status": "new",
+  "status": "completed",
   "priority": null,
   "moscow": "Should",
   "value": 4,
   "effort": 3,
   "risk": 2,
   "deps": [],
-  "links": {},
+  "links": {
+    "issue": "product_forge:IS-PF-0016",
+    "issue_closed": true,
+    "fixed_where": "core/learning_synth.py; core/pipeline_executor.py (teardown); dashboard/api/app.py; config/store-registry.json; test-framework/tests/pipeline/test_learning_synth.py"
+  },
   "decisions": [],
   "follow_up": {},
   "created_at": "2026-09-30T19:27:37.236654",
-  "updated_at": "2026-09-30T19:27:37.236683",
-  "score": 1.0
+  "updated_at": "2026-09-30T19:32:40.109035",
+  "score": 1.0,
+  "_note": "closed via issue IS-PF-0016: core/learning_synth.py; core/pipeline_executor.py (teardown); dashboard/api/app.py; config/store-registry.json; test-framework/tests/pipeline/test_learning_synth.py"
 }
