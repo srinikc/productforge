@@ -206,3 +206,113 @@ def save_spec(spec: AgentSpec, specs_dir: str = "agents"):
     with open(path, "w", encoding="utf-8") as f:
         json.dump(spec.to_dict(), f, indent=2, ensure_ascii=False)
     return path
+
+
+# ── neutral card resolver (BI-0201: framework-agnostic, no default .opencode) ──
+def _root() -> str:
+    try:
+        from core.paths import ROOT
+        return str(ROOT)
+    except Exception:
+        return os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+
+
+def agents_dir() -> str:
+    """Canonical agnostic specs dir (``agents/*.agent.json``)."""
+    return os.path.join(_root(), "agents")
+
+
+def cards_dir() -> str:
+    """Optional neutral markdown/JSON card dir a host framework may provide."""
+    return os.path.join(_root(), "cards")
+
+
+def allow_legacy() -> bool:
+    """Legacy ``.opencode/agent`` is read ONLY when explicitly enabled."""
+    return str(os.environ.get("ALLOW_OPENCODE_LEGACY", "")).strip().lower() in ("1", "true", "yes")
+
+
+def legacy_dir() -> str:
+    return os.path.join(_root(), ".opencode", "agent")
+
+
+def resolve_card_path(agent_id: str) -> Optional[str]:
+    """Absolute path to the neutral card for an agent, else legacy (only if allowed).
+
+    Order: agents/<id>.agent.json -> cards/<id>.agent.json -> cards/<id>.md -> legacy/<id>.md.
+    Default returns None when no neutral card exists and legacy is not enabled.
+    """
+    if not agent_id:
+        return None
+    a = os.path.join(agents_dir(), f"{agent_id}.agent.json")
+    if os.path.isfile(a):
+        return a
+    for cand in (os.path.join(cards_dir(), f"{agent_id}.agent.json"),
+                 os.path.join(cards_dir(), f"{agent_id}.md")):
+        if os.path.isfile(cand):
+            return cand
+    if allow_legacy():
+        lg = os.path.join(legacy_dir(), f"{agent_id}.md")
+        if os.path.isfile(lg):
+            return lg
+    return None
+
+
+def source_kind(path: Optional[str]) -> str:
+    """Provenance of a resolved card: spec | cards | legacy | ''."""
+    if not path:
+        return ""
+    p = os.path.abspath(path).replace("\\", "/")
+    if p.startswith(os.path.abspath(agents_dir()).replace("\\", "/")):
+        return "spec"
+    if p.startswith(os.path.abspath(cards_dir()).replace("\\", "/")):
+        return "cards"
+    if p.startswith(os.path.abspath(legacy_dir()).replace("\\", "/")):
+        return "legacy"
+    return ""
+
+
+def list_agent_ids() -> List[str]:
+    """All known agent ids (neutral-first; legacy only if allowed). Deduped, sorted."""
+    ids = set()
+    for d in (agents_dir(), cards_dir()):
+        if os.path.isdir(d):
+            for fn in os.listdir(d):
+                if fn.endswith(".agent.json"):
+                    ids.add(fn[:-len(".agent.json")])
+                elif fn.endswith(".md"):
+                    ids.add(fn[:-3])
+    if allow_legacy() and os.path.isdir(legacy_dir()):
+        for fn in os.listdir(legacy_dir()):
+            if fn.endswith(".md"):
+                ids.add(fn[:-3])
+    return sorted(ids)
+
+
+def card_for(agent_id: str) -> Dict:
+    """Resolved card for an agent as a neutral dict + provenance (never raises)."""
+    path = resolve_card_path(agent_id)
+    if not path:
+        return {"id": agent_id, "found": False, "source": "", "card": {}}
+    try:
+        if path.endswith(".agent.json"):
+            with open(path, "r", encoding="utf-8-sig") as f:
+                data = json.load(f)
+            return {"id": agent_id, "found": True, "source": source_kind(path),
+                    "card": data, "path": path}
+        with open(path, "r", encoding="utf-8") as f:
+            raw = f.read()
+        fm, body = _extract_frontmatter_pub(raw)
+        return {"id": agent_id, "found": True, "source": source_kind(path),
+                "card": {"frontmatter": fm, "body": body}, "path": path}
+    except Exception as e:
+        return {"id": agent_id, "found": False, "source": source_kind(path), "card": {},
+                "error": str(e)}
+
+
+def _extract_frontmatter_pub(raw: str):
+    """Thin public wrapper over the internal frontmatter extractor (best-effort)."""
+    try:
+        return _split_frontmatter(raw)
+    except Exception:
+        return {}, raw

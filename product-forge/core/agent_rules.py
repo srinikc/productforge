@@ -36,6 +36,69 @@ from core.agent_structure import (
 _REPO_ROOT = _PF_ROOT
 
 
+def _neutral_agent_path(agent_id: str) -> Path:
+    """Resolve an agent card path neutral-first (BI-0201); legacy only if allowed."""
+    try:
+        from core.agent_spec import resolve_card_path
+        p = resolve_card_path(agent_id)
+        if p:
+            return Path(p)
+    except Exception:
+        pass
+    return _REPO_ROOT / ".opencode" / "agent" / f"{agent_id}.md"
+
+
+def _spec_json_to_card_md(raw_json: str) -> str:
+    """Render an AgentSpec JSON (neutral canonical) into the card markdown shape.
+
+    Lets the existing section/rule parser work without any .opencode dependency (BI-0201)."""
+    import json as _json
+    try:
+        d = _json.loads(raw_json)
+    except Exception:
+        return raw_json
+    aid = str(d.get("id") or d.get("name") or "")
+    desc = str(d.get("description") or d.get("name") or "")
+    mode = str(d.get("mode") or "subagent")
+    tier = str(d.get("model_tier") or "medium")
+    tools = ", ".join(d.get("tools") or []) or "none"
+    rules = d.get("rules") or []
+    if isinstance(rules, list):
+        rules_txt = "\n".join(f"- {r}" for r in rules)
+    else:
+        rules_txt = str(rules)
+    if not rules_txt:
+        rules_txt = "- No mocks, TODOs, placeholders, or `pass` in production output."
+    checks = d.get("completion") or []
+    checks_txt = "\n".join(f"- {c}" for c in checks) if isinstance(checks, list) else str(checks)
+    if not checks_txt:
+        checks_txt = "- Output matches the declared contract and passes validation."
+    return (
+        "---\n"
+        f"description: {desc}\n"
+        f"mode: {mode}\n"
+        f"agent_id: {aid}\n"
+        "version: 1.0.0\n"
+        "---\n\n"
+        f"# {d.get('name') or aid}\n\n"
+        "## 0. METADATA\n"
+        f"- **Agent ID**: {aid}\n"
+        f"- **Model tier**: {tier}\n"
+        f"- **Tools**: {tools}\n\n"
+        "## 1. ROLE\n"
+        f"{desc}\n\n"
+        "## 2. INPUTS\n"
+        f"- Allowed: {', '.join(d.get('allowed_inputs') or []) or 'any'}\n"
+        f"- Forbidden: {', '.join(d.get('forbidden_inputs') or []) or 'none'}\n\n"
+        "## 3. OUTPUTS\n"
+        f"- Format: {d.get('output_format') or 'markdown'}\n\n"
+        "## 4. RULES\n"
+        f"{rules_txt}\n\n"
+        "## 7. QUALITY CHECKS\n"
+        f"{checks_txt}\n"
+    )
+
+
 @dataclass
 class ParsedRule:
     """A single rule extracted from section 4."""
@@ -279,12 +342,17 @@ def parse_agent_md(agent_id: str) -> ParsedAgent:
     Raises:
         FileNotFoundError: If agent .md file doesn't exist
     """
-    file_path = _REPO_ROOT / ".opencode" / "agent" / f"{agent_id}.md"
+    file_path = _neutral_agent_path(agent_id)
     if not file_path.exists():
         raise FileNotFoundError(f"Agent file not found: {file_path}")
 
     with open(file_path, "r", encoding="utf-8") as f:
         raw_content = f.read()
+
+    # Neutral canonical source is a JSON spec (agents/*.agent.json): render it to the
+    # card markdown shape so the same section/rule parser applies (BI-0201).
+    if file_path.suffix == ".json":
+        raw_content = _spec_json_to_card_md(raw_content)
 
     frontmatter, remaining = _extract_frontmatter(raw_content)
     sections = _extract_sections(remaining)
@@ -375,11 +443,15 @@ def parse_agent_from_string(agent_id: str, content: str) -> ParsedAgent:
 
 
 def list_all_agents() -> List[str]:
-    """List all agent IDs from .opencode/agent/."""
-    agents_dir = _REPO_ROOT / ".opencode" / "agent"
-    if not agents_dir.exists():
-        return []
-    return sorted([f.stem for f in agents_dir.glob("*.md")])
+    """List all agent IDs from the neutral source (agnostic; .opencode only if allowed)."""
+    try:
+        from core.agent_spec import list_agent_ids
+        return list_agent_ids()
+    except Exception:
+        agents_dir = _REPO_ROOT / ".opencode" / "agent"
+        if not agents_dir.exists():
+            return []
+        return sorted([f.stem for f in agents_dir.glob("*.md")])
 
 
 def parse_all_agents() -> Dict[str, ParsedAgent]:

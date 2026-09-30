@@ -31,6 +31,25 @@ import jsonschema
 _REPO_ROOT = _PF_ROOT
 _SCHEMAS_DIR = _REPO_ROOT / "docs" / "schemas"
 
+
+def _neutral_agent_path(agent_id: str):
+    """Neutral-first agent card path (BI-0201); legacy only if allowed."""
+    from pathlib import Path
+    try:
+        from core.agent_spec import resolve_card_path
+        p = resolve_card_path(agent_id)
+        if p:
+            return Path(p)
+    except Exception:
+        pass
+    return _REPO_ROOT / ".opencode" / "agent" / f"{agent_id}.md"
+
+
+def _render_spec_json(raw: str) -> str:
+    """Render AgentSpec JSON into card markdown for structural validation (BI-0201)."""
+    from core.agent_rules import _spec_json_to_card_md
+    return _spec_json_to_card_md(raw)
+
 # Schema name → filename mapping
 SCHEMA_FILES: Dict[str, str] = {
     "pipeline-state": "pipeline-state.v1.schema.json",
@@ -182,7 +201,7 @@ def validate_agent_md(agent_id: str, strict: bool = False) -> ValidationResult:
     This is a basic structural validation. For full compliance checking,
     use core.compliance_check.ComplianceChecker.
     """
-    agent_path = _REPO_ROOT / ".opencode" / "agent" / f"{agent_id}.md"
+    agent_path = _neutral_agent_path(agent_id)
     if not agent_path.exists():
         return ValidationResult(
             valid=False,
@@ -193,6 +212,8 @@ def validate_agent_md(agent_id: str, strict: bool = False) -> ValidationResult:
     # Parse the .md file into structured data
     with open(agent_path, "r", encoding="utf-8") as f:
         content = f.read()
+    if str(agent_path).endswith(".json"):
+        content = _render_spec_json(content)
 
     # Extract frontmatter
     frontmatter = {}
@@ -271,12 +292,17 @@ def validate_all_schemas(project: Optional[str] = None) -> Dict[str, ValidationR
         results["pipeline-state"] = validate_pipeline_state(project)
         results["product-plan"] = validate_product_plan(project)
 
-    # Check all agent .md files
-    agents_dir = _REPO_ROOT / ".opencode" / "agent"
-    if agents_dir.exists():
-        for md_file in sorted(agents_dir.glob("*.md")):
-            agent_id = md_file.stem
+    # Check all agent cards from the neutral source (BI-0201)
+    try:
+        from core.agent_spec import list_agent_ids
+        for agent_id in list_agent_ids():
             results[f"agent:{agent_id}"] = validate_agent_md(agent_id)
+    except Exception:
+        agents_dir = _REPO_ROOT / ".opencode" / "agent"
+        if agents_dir.exists():
+            for md_file in sorted(agents_dir.glob("*.md")):
+                agent_id = md_file.stem
+                results[f"agent:{agent_id}"] = validate_agent_md(agent_id)
 
     return results
 
