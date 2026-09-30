@@ -265,6 +265,52 @@ def events(project: str = Query("")):
     return StreamingResponse(_gen(), media_type="text/event-stream")
 
 
+# ── AG-UI typed event stream (BI-0198) ───────────────────────────────────────
+@app.get("/api/v1/agui/events", dependencies=[Depends(auth)])
+def agui_events(project: str = Query("")):
+    """SSE stream of AG-UI typed events (projection of the canonical event bus)."""
+    def _gen():
+        ev = (PRODUCTS / project / "events.jsonl") if project else (PRODUCTS / ".orchestration" / "events.jsonl")
+        pos = 0
+        last_beat = 0.0
+        from core import agui
+        while True:
+            try:
+                if ev.exists():
+                    with open(ev, encoding="utf-8", errors="replace") as f:
+                        f.seek(pos)
+                        for line in f:
+                            line = line.strip()
+                            if not line:
+                                continue
+                            try:
+                                raw = json.loads(line)
+                            except Exception:
+                                continue
+                            m = agui.map_event(raw)
+                            if m:
+                                yield f"data: {json.dumps(m, ensure_ascii=False)}\n\n"
+                        pos = f.tell()
+            except Exception:
+                pass
+            if time.time() - last_beat > 15:
+                last_beat = time.time()
+                yield ": heartbeat\n\n"
+            time.sleep(1)
+    return StreamingResponse(_gen(), media_type="text/event-stream")
+
+
+@app.get("/api/v1/agui/run/{run_id}", dependencies=[Depends(auth)])
+def agui_run(run_id: str, project: str = Query(...)):
+    """Ordered AG-UI typed events for one run (read-only replay)."""
+    if not (PRODUCTS / project).exists():
+        raise HTTPException(404, f"unknown project: {project}")
+    from core import agui
+    items = agui.map_all(str(PRODUCTS / project), run_id=run_id)
+    return {"project": project, "runId": run_id, "count": len(items), "events": items,
+            "types": agui.types()}
+
+
 # ── intake (BI-0051/0052/0053) ───────────────────────────────────────────────
 @app.post("/api/intake", dependencies=[Depends(auth)])
 @app.post("/api/v1/intake", dependencies=[Depends(auth)])
