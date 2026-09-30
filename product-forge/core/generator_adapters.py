@@ -152,6 +152,7 @@ def submit(gid: str, payload: Dict, project_dir: str = "") -> Dict:
     if project_dir:
         _save_job(project_dir, job)
     _ledger(project_dir, job)
+    _emit_gen_ai(project_dir, job, g)
     return {"ok": True, "job": job}
 
 
@@ -212,5 +213,20 @@ def _ledger(project_dir: str, job: Dict) -> None:
         call_ledger.append(project_dir, {"kind": "generator", "generator": job.get("generator"),
                                          "modality": job.get("kind"), "state": job.get("state"),
                                          "usd": job.get("usd", 0.0), "duration_ms": 0})
+    except Exception:
+        pass
+
+
+def _emit_gen_ai(project_dir: str, job: Dict, g: Dict) -> None:
+    """BI-0199: emit a gen_ai_call span event for a media generation (counts/ids only)."""
+    if not project_dir:
+        return
+    try:
+        from core import events as _ev
+        _ev.emit(project_dir, "gen_ai_call", agent="media-generator",
+                 provider=str(g.get("provider") or ""), model=str(g.get("model_ref") or ""),
+                 operation=str(g.get("kind") or "media"), kind=str(g.get("kind") or ""),
+                 billing_unit=str(g.get("billing_unit") or ""),
+                 output_modalities=list(g.get("output_modalities") or []))
     except Exception:
         pass

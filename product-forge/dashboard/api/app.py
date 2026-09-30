@@ -806,6 +806,16 @@ def otel_export(project: str = Query(...)):
             "path": otel.export(str(PRODUCTS / project))}
 
 
+@app.get("/api/v1/otel/spans", dependencies=[Depends(auth)])
+def otel_spans(project: str = Query(...)):
+    """Map the canonical event stream to GenAI spans (read-only; BI-0199)."""
+    if not (PRODUCTS / project).exists():
+        raise HTTPException(404, f"unknown project: {project}")
+    from core import otel
+    items = otel.spans(str(PRODUCTS / project))
+    return {"project": project, "enabled": otel.enabled(), "count": len(items), "items": items}
+
+
 
 @app.post("/api/v1/model-fit/run", dependencies=[Depends(auth)])
 def model_fit_run_endpoint(body: Dict[str, Any]):

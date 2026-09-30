@@ -60,7 +60,8 @@ def redact(obj):
     if isinstance(obj, dict):
         out = {}
         for k, v in obj.items():
-            if isinstance(k, str) and _SECRET_KEY_RE.search(k):
+            # a secret is never a bare number: keep numeric COUNTS (e.g. input_tokens=100)
+            if isinstance(k, str) and _SECRET_KEY_RE.search(k) and not isinstance(v, (int, float, bool)):
                 out[k] = "***REDACTED***"
             else:
                 out[k] = redact(v)
