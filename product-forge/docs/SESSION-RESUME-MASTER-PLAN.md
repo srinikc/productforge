@@ -34,7 +34,7 @@ unreliable turn/tool-execution boundary (tool calls mixed with prose were droppe
     single writer of the registered `task-contracts.json` store + validator), task endpoints on
     `api/routers/engineering.py` (`/api/v1/engineering/tasks[...]`), `scripts/dev/task_contract_check.py`
     (precheck schema gate), `docs/ENG-1-TASK-CONTRACT.md`; ENG-0 flow step `task_contract` flipped planned→exists.
-    57 OpenAPI paths total.
+    56 OpenAPI paths total.
 
 ## Binding decisions (do not violate)
 
@@ -66,7 +66,7 @@ python scripts/dev/precheck.py                                # expect precheck:
 
 - API-1..API-3, ENG-0, ENG-1 committed; working tree has only unrelated dashboard/config/conversation churn.
 - `wired_audit` = 0; `api_contract_check` OK; `engineering_flow_check` OK; `task_contract_check` OK; full suite green; `precheck` PASS.
-- `api/` has 16 routers; **57 OpenAPI paths**; API-2 core reads + API-3 engineering reads all 200.
+- `api/` has 16 routers; **56 OpenAPI paths**; API-2 core reads + API-3 engineering reads all 200.
 - `core/result_aggregator.py` (BI-PF-0277) dangling-integrity gap was repaired in MASTER-0 commit.
 
 ## IMMEDIATE NEXT STEPS (from the ENG-1 commit)
