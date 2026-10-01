@@ -788,6 +788,21 @@ class StageRunnerMixin:
 
         # BI-0217: the package stage emits the product BOM/footprint artifact.
         if stage_id == "9":
+            # BI-0219: emit governance report (model/data cards + provenance + checkpoints) before BOM.
+            try:
+                from core import guardrails as _gr
+                _models = []
+                try:
+                    from core import model_router as _mr
+                except Exception:
+                    _mr = None
+                _rep = _gr.build_report(self.project_dir, models=_models)
+                _gr.write_report(self.project_dir, _rep)
+                _blocked = int(_rep.get("blocked") or 0)
+                if _blocked:
+                    print(f"  [Guardrails] {_blocked} blocked finding(s) recorded")
+            except Exception as e:
+                print(f"[Guardrails] {e}")
             try:
                 from core import bom as _bom
                 _p = _bom.write(self.project_dir)
