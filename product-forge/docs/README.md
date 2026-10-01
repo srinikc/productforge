@@ -45,6 +45,7 @@
 | [`API-0.1-CONTRACT-RECONCILIATION.md`](API-0.1-CONTRACT-RECONCILIATION.md) | Design | 100% | API-0.1 canonical contract: envelopes, errors, IDs, idempotency, versioning | — | — |
 | [`API-1-FOUNDATION.md`](API-1-FOUNDATION.md) | Design | 100% | API-1 foundation: canonical api/ surface (context, errors, auth, idempotency, health, intake) | — | — |
 | [`API-2-CORE-APIS.md`](API-2-CORE-APIS.md) | Design | 100% | API-2 core PF APIs: projects/runs/pipeline/stages/tasks/artifacts/evidence/backlog | — | — |
+| [`API-3-ENGINEERING-APIS.md`](API-3-ENGINEERING-APIS.md) | Design | 100% | API-3 engineering/validation APIs: validation/tests/gates/issues/vcs/workers/agents | — | — |
 | [`AUDIT-REGISTER-TRIAGE.md`](AUDIT-REGISTER-TRIAGE.md) | Analysis (current) | 100% | Audit PF/candidate disposition: fixed / tracked / new (BI-PF-0254) | — | — |
 | [`Agent-LLM-PromptHandling.md`](Agent-LLM-PromptHandling.md) | Design | 60% | Agent/LLM prompt handling | **Pending: capability vectors per agent, capability-aware request builder, structured-output-first render.** | BI-0221–BI-0224, BI-0228 |
 | [`Agent_llm_process.md`](Agent_llm_process.md) | Review (pending) | 0% | Agent<->LLM process analysis + recommendations | **Findings not yet implemented: per-call capability steering, reasoning on/off, and verbose loop/tool-call logging.** | BI-0221–BI-0229 |

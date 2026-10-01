@@ -20,6 +20,11 @@ unreliable turn/tool-execution boundary (tool calls mixed with prose were droppe
     `test-framework/tests/pipeline/test_api_core.py` (12 tests), `docs/API-2-CORE-APIS.md`,
     regenerated `docs/README.md` + `docs/documentation-index.html`, `data/backlog` (new `BI-PF-0331`;
     28 test-residue intake items removed). `data/api/idempotency.json` residue deleted pre-commit.
+  - `API-3` (this session): engineering/validation APIs — `api/routers/{validation,tests,gates,issues,vcs,workers,agents}.py`
+    + `api/routers/_common.py`, `api/app.py` (15 routers), read-only `status()`/`branches()` added to `core/vcs.py`,
+    `scripts/dev/api_contract_check.py` (engineering surface + fail-closed unknown project),
+    `test-framework/tests/pipeline/test_api_engineering.py` (7 tests), `docs/API-3-ENGINEERING-APIS.md`,
+    regenerated docs index. 49 OpenAPI paths total.
 
 ## Binding decisions (do not violate)
 
@@ -49,19 +54,20 @@ python scripts/dev/precheck.py                                # expect precheck:
 
 ## Verified state at hand-off
 
-- API-1 committed; API-2 code on disk, **not yet committed**.
-- `wired_audit` = 0; API tests 17 passed; full pipeline suite 738 passed, 1 skipped.
-- `api/` has 8 routers; 25 OpenAPI paths; health/pipeline/backlog/projects/stages/tasks/evidence/runs/artifacts all 200.
+- API-1, API-2, API-3 committed; working tree has only unrelated dashboard/config/conversation churn.
+- `wired_audit` = 0; `api_contract_check` OK; full pipeline suite green; `precheck` PASS.
+- `api/` has 15 routers; **49 OpenAPI paths**; API-2 core reads + API-3 engineering reads all 200.
 - `core/result_aggregator.py` (BI-PF-0277) dangling-integrity gap was repaired in MASTER-0 commit.
 
-## IMMEDIATE NEXT STEPS (from the API-2 commit)
+## IMMEDIATE NEXT STEPS (from the API-3 commit)
 
-1. **Proceed to API-3** (engineering/validation APIs: validation, evidence, defect/RCCA, test, gate, git/vcs,
-   task, worker, agent — mapping to existing internal systems; no shadow DBs).
-2. Optionally close MASTER-0..API-2 via the Issue Tracker/RCCA loop per EOS.
-3. Optional follow-up found in API-2 review: consolidate `control.json` ownership — `config/store-registry.json`
-   names owner `core/human_controls.py` (source absent, stale `.pyc` only); actual writers are
-   `core.portfolio.control`, `core.run_guard._write_control`, `scripts/run_pipeline.py`.
+1. **Proceed to ENG-0** (engineering factory architecture over the API-1..API-3 contracts) — and/or **API-4**
+   (enterprise/SaaS/OEM) which may run in parallel once dependencies are available.
+2. Optionally close MASTER-0..API-3 via the Issue Tracker/RCCA loop per EOS.
+3. Optional follow-up: `core/git_manager.py` (worktrees, PF-050) is unwired/buggy — consolidate into `core/vcs.py` in ENG-3.
+4. Optional follow-up: consolidate `control.json` ownership — `config/store-registry.json` names owner
+   `core/human_controls.py` (source absent, stale `.pyc` only); actual writers are `core.portfolio.control`,
+   `core.run_guard._write_control`, `scripts/run_pipeline.py`.
 
 ### Defects fixed during API-2 review (RCCA-lite; see `docs/API-2-CORE-APIS.md`)
 

@@ -122,6 +122,23 @@ class VCSManager:
         out = self._git(["diff", "--name-only", "--diff-filter=U"]).get("out", "")
         return [x for x in out.splitlines() if x.strip()]
 
+    def status(self) -> Dict[str, Any]:
+        """Working-tree status: branch + modified/untracked files (read-only)."""
+        if not self.is_repo():
+            return {"is_repo": False, "clean": True, "branch": "",
+                    "modified": [], "untracked": [], "remote": False}
+        rows = [x for x in (self._git(["status", "--porcelain"]).get("out") or "").splitlines()
+                if x.strip()]
+        return {"is_repo": True, "clean": not rows, "branch": self.current_branch(),
+                "modified": [x[3:].strip() for x in rows if not x.startswith("??")],
+                "untracked": [x[3:].strip() for x in rows if x.startswith("??")],
+                "remote": self.has_remote(), "conflicts": self.has_conflicts()}
+
+    def branches(self) -> List[str]:
+        """Local branch names (read-only)."""
+        out = self._git(["branch", "--format=%(refname:short)"]).get("out", "")
+        return [x.strip() for x in out.splitlines() if x.strip()]
+
     # ── branches ────────────────────────────────────────────────
     def ensure_develop(self) -> Dict[str, Any]:
         r = self._git(["rev-parse", "--verify", self.integration_branch])
