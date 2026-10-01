@@ -4,6 +4,9 @@
 **Status:** Implemented (planning core) — gate PASS
 **Depends on:** ENG-1 (`docs/ENG-1-TASK-CONTRACT.md`), ENG-0 (`docs/ENG-0-ENGINEERING-ARCHITECTURE.md`)
 
+> **Entry path (§2A):** the scheduler consumes task contracts from the **direct engineering entry** (Task/Work
+> API); tasks are scheduled regardless of origin. Intake is not required and does not gate scheduling.
+
 ## What this phase builds
 
 The planner/scheduler becomes a first-class Product Forge capability. ENG-2 delivers the **deterministic

@@ -214,6 +214,15 @@ def available_providers() -> List[Dict[str, Any]]:
             for p in _PROVIDERS.values()]
 
 
+def _new_run_id() -> str:
+    """Canonical Product Forge run identity (same namespace as pipeline runs)."""
+    try:
+        from core.pipeline_executor import new_run_id
+        return str(new_run_id())
+    except Exception:
+        return f"run-{int(time.time())}"
+
+
 def _git(cwd: str, *args: str) -> str:
     try:
         r = subprocess.run(["git", *args], cwd=cwd, capture_output=True, text=True, timeout=120)
@@ -234,7 +243,7 @@ def run_task(task: Dict[str, Any], project_dir: str, provider: str = "noop", bas
     from core.vcs import VCSManager
 
     res = WorkerResult(task_id=str(task.get("task_id") or ""), provider=str(provider),
-                       run_id=run_id or f"wrun-{int(time.time())}",
+                       run_id=run_id or _new_run_id(),
                        worker_id=str(task.get("required_worker_type") or "worker"),
                        created_at=datetime.now().isoformat())
     res.lifecycle.append("ASSIGNED")

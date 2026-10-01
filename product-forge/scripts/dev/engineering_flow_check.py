@@ -33,9 +33,16 @@ def main() -> int:
     for e in res.get("errors", []):
         FAILS.append(e)
 
+    # entry-path contract: engineering flow starts at the direct entry and never routes via Intake
+    eng = engineering_flow.flow()
+    _check(bool(eng) and str(eng[0].get("id")) == "task_contract",
+           "engineering flow must start at the direct entry 'task_contract'")
+    _check(all(str(s.get("owner")) != "core/intake.py" for s in eng),
+           "engineering flow must not contain an intake-owned step")
+
     from api.app import app
     paths = set(app.openapi().get("paths", {}).keys())
-    for s in engineering_flow.flow():
+    for s in engineering_flow.flow() + engineering_flow.external_ingestion():
         if str(s.get("status")) == "planned":
             continue
         api = str(s.get("api") or "")
@@ -47,7 +54,8 @@ def main() -> int:
         for f in FAILS:
             print("   -", f)
         return 1
-    print(f"engineering-flow: OK ({res.get('checked', 0)} steps, {res.get('planned', 0)} planned)")
+    print(f"engineering-flow: OK ({res.get('engineering', 0)} engineering steps, "
+          f"{res.get('external_ingestion', 0)} ingestion steps, {res.get('planned', 0)} planned)")
     return 0
 
 

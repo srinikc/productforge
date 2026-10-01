@@ -63,6 +63,19 @@ test-framework/tests/pipeline/test_api_core.py             # 12 tests (read + co
 - **Backlog** uses `core.backlog` services only.
 - **Pagination** is a local helper (API-0.1 §9); no new persistence.
 
+## Task API boundary (updated plan §9 / §2A)
+
+Two distinct "task" surfaces, deliberately separate:
+
+- `GET /api/v1/tasks` — the pipeline **stage×agent projection** (read-model over `pipeline-definition.json` +
+  `pipeline-state.json`). This is **not** the engineering work item.
+- The **engineering Task/Work API** (`/api/v1/engineering/tasks`, delivered ENG-1) — the **direct engineering
+  entry point**: resolve/create/claim/assign a task → run → scheduler → worker. It must **not** manufacture a
+  conversation record merely to start work, and it does **not** require Intake.
+
+Intake (external ingestion) may produce a backlog work item that a task references
+(`epic_id`/`feature_id`), but is **not** an engineering prerequisite (updated plan §2A).
+
 ## Long-running actions
 
 `POST /runs/start` never executes a pipeline inline. It returns a run/operation identity

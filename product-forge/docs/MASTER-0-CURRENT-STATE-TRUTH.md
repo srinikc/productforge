@@ -35,8 +35,15 @@ POST /api/v1/intake  (dashboard/api/app.py:527)
   → core/intent_router.py:71 IntentRouter.process_conversation()
       → ConversationCompiler.compile_conversation()
       → core/backlog_link.py:115 promote_conversation() → core/backlog.py (items/<ID>.json)
-      → new_project → intent_router.py:575 _start_pipeline() → PipelineExecutor.execute_pipeline() in a thread
+      → new_project → intent_router.py _start_pipeline() → core.run_entry.enqueue() (canonical run; NOT a direct executor)
 ```
+
+**Entry-path contract (retrofit, updated plan §2A).** Intake is an **external ingestion** path only: it
+normalizes an external request into a work item and **enqueues** execution through the canonical run entry
+(`core.run_entry`) — it never instantiates/executes a pipeline executor. Engineering work has its **own direct
+entry**: `OpenCode/CLI/coding agent/human → Task/Work API → run → scheduler → worker` (updated plan §40.2). The
+two paths are **independent** — Intake is **not** a prerequisite for engineering tasks/workers.
+`core/intent_router._start_pipeline` was corrected accordingly (removed the direct `PipelineExecutor` thread).
 
 **Deprecation correction required (API-1 scope):** `core/intent_router.py:1-4` states intake is NOT replaced by
 PipelineExecutor (PipelineExecutor supersedes it only for stage execution). But several modules still carry the

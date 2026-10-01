@@ -4,6 +4,9 @@
 **Status:** Implemented (runtime + provider abstraction) — gate PASS
 **Depends on:** ENG-1 (task contract), ENG-2 (scheduler), ENG-3 (worktree isolation)
 
+> **Entry path (§2A):** the worker executes tasks from the **direct engineering entry** (Task/Work API). It never
+> reads Intake and never creates a conversation; result `run_id` uses the canonical PF run identity.
+
 ## What this phase builds
 
 A worker executes **one scheduled task contract** inside an isolated worktree and returns a **PF-owned,

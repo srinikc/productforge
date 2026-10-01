@@ -1,13 +1,13 @@
 # NOT deprecated for intake: this module IS on the live intake path -
 # core/intake.py routes conversations through IntentRouter to core/backlog_link
-# (BI-0054). (The old "superseded by PipelineExecutor" note was wrong for intake;
-# PipelineExecutor supersedes it only for pipeline stage execution.)
+# (BI-0054). Intake only INGESTS: it normalizes an external request into a work item and enqueues
+# execution through the canonical run entry - it never instantiates or runs a pipeline executor itself.
 """
 Conversation & Idea Ingestion - Intent Router
 
 Routes conversations based on intent:
 - save_idea: Store extracted ideas
-- new_project: Create project + start pipeline
+- new_project: Create project + enqueue a run through the canonical run entry
 - new_project_quick: Create project + just prototype
 - modify_project: Create change package + start pipeline
 - add_context: Attach context to project
@@ -573,58 +573,19 @@ class IntentRouter:
             json.dump(context, f, indent=2, default=str)
 
     def _start_pipeline(self, project_name: str, conv: Conversation) -> Dict[str, Any]:
-        """Start pipeline execution for a project."""
+        """Enqueue execution through the canonical run entry (ONE run path).
+
+        Intake only ingests: it must not instantiate a pipeline executor directly. Execution is enqueued
+        through ``core.run_entry`` so the run gets a canonical identity, lock and queue slot, exactly like
+        every other entry path (CLI / API / direct Task-Work). No direct executor thread.
+        """
         try:
-            from core.pipeline_executor import PipelineExecutor
-
-            executor = PipelineExecutor(
-                products_dir=self.products_dir,
-                project=project_name
-            )
-
-            # Load pipeline definition
-            pipeline_def = os.path.join(
-                os.path.dirname(self.products_dir),
-                "pipeline-definition.json"
-            )
-            if os.path.exists(pipeline_def):
-                executor.load_pipeline(pipeline_def)
-                # Start pipeline in background thread
-                import threading
-                thread = threading.Thread(
-                    target=self._run_pipeline_thread,
-                    args=(executor, project_name, conv.id),
-                    daemon=True
-                )
-                thread.start()
-                return {"status": "started", "project": project_name}
-            else:
-                return {"status": "pipeline_def_not_found", "error": "pipeline-definition.json not found"}
-        except ImportError as e:
-            return {"status": "error", "error": f"Pipeline executor not available: {e}"}
+            from core import run_entry
+            res = run_entry.enqueue(project_name, self.products_dir, source="intake", actor="intake")
+            return {"status": "enqueued", "project": project_name,
+                    "run_id": str((res or {}).get("run_id") or "")}
         except Exception as e:
             return {"status": "error", "error": str(e)}
-
-    def _run_pipeline_thread(self, executor, project_name: str, conv_id: str):
-        """Run pipeline in background thread."""
-        try:
-            success = executor.execute_pipeline()
-            # Update conversation status based on result
-            conv = self.store.get_conversation(conv_id)
-            if conv:
-                if success:
-                    conv.status = ConversationStatus.BUILD_COMPLETE.value
-                else:
-                    conv.status = ConversationStatus.BUILD_FAILED.value
-                conv.updated_at = datetime.utcnow().isoformat()
-                self.store.update_conversation(conv)
-        except Exception as e:
-            print(f"[IntentRouter] Pipeline error for {project_name}: {e}")
-            conv = self.store.get_conversation(conv_id)
-            if conv:
-                conv.status = ConversationStatus.BUILD_FAILED.value
-                conv.updated_at = datetime.utcnow().isoformat()
-                self.store.update_conversation(conv)
 
     def _create_change_package(self, conv: Conversation, project_name: str) -> ChangePackage:
         """Create a change package from conversation."""

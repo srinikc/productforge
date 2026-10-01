@@ -4,6 +4,9 @@
 **Status:** Implemented (core primitives) — gate PASS
 **Depends on:** ENG-2 (`docs/ENG-2-WORK-PLANNER-SCHEDULER.md`), ENG-0
 
+> **Entry path (§2A):** git/worktree isolation serves the **direct engineering path** (Task/Work → worker).
+> Intake is not involved.
+
 ## What this phase builds
 
 Git is the source-control execution layer; workers must each get an **isolated** working directory and a

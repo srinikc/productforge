@@ -81,7 +81,9 @@ No `services/` package — API imports `core/*` directly. Services: `core/intake
    actor/authorization, idempotency_key, api_version, pagination, deprecation, OpenAPI ownership.
 2. **API-1** foundation in new `api/`: app boundary, `/api/v1`, request context (IDs), auth/authz boundary, tenant
    context, common errors, idempotency, audit, health/readiness, OpenAPI foundation, pagination/filter conventions.
-   Strengthen Intake (redirect it through `run_entry`; fix stale deprecations) — **without editing `dashboard/`**.
+   Establish/reuse the **direct engineering control surface** (`OpenCode/CLI → Task/Work API → task/run/worker`).
+   Keep **Intake as an external ingestion path only** (it enqueues through `run_entry`; fix stale deprecations) —
+   **without editing `dashboard/`**. Two independent entry paths; Intake is not an engineering prerequisite (§2A).
 3. **API-2** core PF APIs: project → run → pipeline → stage → task → artifact → evidence → backlog, via canonical services.
 4. **API-3** engineering/validation APIs: validation, evidence, defect/RCCA, test, gate, git/vcs, task, worker, agent.
 5. **API-5** hardening: contract governance, security, contract tests, event API formalization.

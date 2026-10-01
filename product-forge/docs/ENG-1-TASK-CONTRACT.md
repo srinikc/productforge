@@ -4,6 +4,10 @@
 **Status:** Implemented — gate PASS
 **Depends on:** ENG-0 (`docs/ENG-0-ENGINEERING-ARCHITECTURE.md`), API-1..API-3
 
+> **Entry path (§2A):** the task contract is the **direct engineering entry** (Task/Work API). It is created
+> without a conversation/intake record. Intake (external ingestion) is an *optional* producer of the backlog work
+> items a contract may reference — never a prerequisite.
+
 ## What this phase builds
 
 A task is **not merely a backlog title** — it is a structured contract **any compatible worker can execute**.

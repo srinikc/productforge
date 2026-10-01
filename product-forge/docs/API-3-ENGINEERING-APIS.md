@@ -99,7 +99,7 @@ python scripts/dev/precheck.py                                    # precheck: PA
 | Test API | ✅ matrix plan/gaps + cycle summaries |
 | Gate API | ✅ PR / quality / Go-No-Go |
 | Git/VCS API | ✅ branch/status/commits (read-only) |
-| Task API | ✅ stage×agent tasks (API-2) over definition/state (no shadow store) |
+| Task API | ✅ pipeline stage×agent projection (API-2) + the **direct engineering Task/Work API** (`/api/v1/engineering/tasks`, ENG-1); Intake is not a prerequisite (§2A) |
 | Worker API | ✅ queue/capacity + pause/resume |
 | Agent API | ✅ specs + capability vectors |
 | Maps to existing systems / no shadow DB | ✅ every endpoint delegates to a canonical owner |

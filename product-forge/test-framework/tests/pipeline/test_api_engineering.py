@@ -146,9 +146,12 @@ def test_engineering_flow_is_valid_and_covered(client):
     assert r.status_code == 200
     data = r.json()["data"]
     assert data.get("flow") and data.get("invariants") and data.get("forbidden")
+    assert data.get("external_ingestion")  # Intake is a separate, independent path
+    assert data["flow"][0]["id"] == "task_contract"  # direct engineering entry
     r2 = client.get("/api/v1/engineering/coverage")
     assert r2.status_code == 200
-    assert r2.json()["data"]["total"] == res["checked"]
+    assert r2.json()["data"]["total"] == res["engineering"]
+    assert r2.json()["data"]["direct_entry"] == "task_contract"
 
 
 def test_engineering_stage_lookup(client):

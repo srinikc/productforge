@@ -3,6 +3,17 @@
 **Purpose:** hand-off notes to resume the master-plan execution in a fresh session. This session developed an
 unreliable turn/tool-execution boundary (tool calls mixed with prose were dropped), so resume fresh.
 
+## Governing plan (updated)
+The authoritative plan is now
+`docs/PRODUCT_FORGE_MASTER_API_FIRST_ENGINEERING_FACTORY_E2E_EXECUTION_PLAN-updated.md`. Its **§2A Entry-Path
+Contract** is normative and was retrofitted across MASTER-0 → ENG-4:
+- **External ingestion** (Intake API → requirement → backlog/change work item) is an **independent** path.
+- **Direct engineering** (OpenCode/CLI/agent/human → **Task/Work API** → run → scheduler → worker) is the normal
+  path for the single-OpenCode-session use case.
+- **Intake is NOT a prerequisite for engineering work**; engineering must not manufacture a conversation record.
+The ENG-0 descriptor now models the two paths with **no edge** between them; `core/intent_router` no longer runs a
+pipeline executor directly (it enqueues via `core.run_entry`). See `docs/ENG-0-ENGINEERING-ARCHITECTURE.md`.
+
 ## Repo / branch state
 
 - Repo root: `C:\Users\ADMIN\Documents\Srinikc\AI Products\Exploring`
@@ -83,12 +94,19 @@ python scripts/dev/precheck.py                                # expect precheck:
 
 ## Verified state at hand-off
 
-- API-1..API-3, ENG-0..ENG-4 committed; working tree has only unrelated dashboard/config/conversation churn.
-- `wired_audit` = 0; `api_contract_check` OK; `engineering_flow_check` OK; `task_contract_check` OK; `scheduler_check` OK; `vcs_worktree_check` OK; `worker_check` OK; full suite green; `precheck` PASS.
+- API-1..API-3, ENG-0..ENG-4 committed; **entry-path retrofit applied** (MASTER-0→ENG-4 re-audited).
+- `wired_audit` = 0; `api_contract_check` OK; `engineering_flow_check` OK; `task_contract_check` OK; `scheduler_check` OK; `vcs_worktree_check` OK; `worker_check` OK; `test_entry_paths` OK; full suite green; `precheck` PASS.
 - `api/` has 16 routers; **64 OpenAPI paths**; API-2 core reads + API-3/ENG reads all 200.
 - `core/result_aggregator.py` (BI-PF-0277) dangling-integrity gap was repaired in MASTER-0 commit.
 
-## IMMEDIATE NEXT STEPS (from the ENG-4 commit)
+### Entry-path retrofit (this session; updated plan §2A)
+- ENG-0 descriptor split into two INDEPENDENT paths: `external_ingestion` (Intake, no edge) + `flow` (starts at the
+  direct entry `task_contract`). Gate asserts no engineering step is owned by `core/intake.py`.
+- `core/intent_router._start_pipeline` no longer instantiates a pipeline executor; it enqueues via
+  `core.run_entry` (canonical run identity). Worker runs use the canonical PF run id.
+- Docs MASTER-0, API-0/0.1/1/2, ENG-0..4 updated with the two-entry-path contract.
+
+## IMMEDIATE NEXT STEPS (after the entry-path retrofit; continue from the current phase)
 
 1. **Proceed to ENG-5 — GitHub / PR / CI Orchestration**: push the worker branch, create a PR with exact-commit
    evidence (RUN_ID, task_id, commit SHA, base SHA, tests, validation result), CI status, and the integration
@@ -111,8 +129,8 @@ python scripts/dev/precheck.py                                # expect precheck:
 
 ## Phase order remaining (governing plan)
 
-`docs/PRODUCT_FORGE_MASTER_API_FIRST_ENGINEERING_FACTORY_E2E_EXECUTION_PLAN.md`
-(branch commits so far: MASTER-0, API-0, API-0.1, API-1, API-2≈done)
+`docs/PRODUCT_FORGE_MASTER_API_FIRST_ENGINEERING_FACTORY_E2E_EXECUTION_PLAN-updated.md`
+(branch progress: MASTER-0, API-0/0.1/1/2/3, ENG-0..ENG-4 done + entry-path retrofit)
 
 ```
 API-3 → ENG-0 → ENG-1 (TaskContract) → ENG-2 (scheduler) → ENG-3 (git/worktree; consolidate vcs.py+git_manager.py) →

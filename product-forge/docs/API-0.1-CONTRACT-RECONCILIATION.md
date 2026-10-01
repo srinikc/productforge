@@ -128,8 +128,10 @@ stack trace. Secret redaction applied to `message`/`details`.
 
 ## 12. Migration sequence (legacy → canonical)
 
-1. API-1 builds `api/` foundation + `/api/v1/health`, `/ready`, `/intake` (strengthened) with the envelopes above.
-2. API-2/API-3 add resource routers via canonical services.
+1. API-1 builds `api/` foundation + `/api/v1/health`, `/ready`, `/intake` (external ingestion) with the envelopes
+   above, and the **direct engineering control surface** (Task/Work API → task/run/worker). Two independent entry
+   paths: Intake is external ingestion only and is **not** an engineering prerequisite (updated plan §2A/§8).
+2. API-2/API-3 add resource routers via canonical services; the Task API is the direct engineering entry.
 3. API-5 adds hardening, contract tests, committed OpenAPI, event API formalization.
 4. Consumers (adapters, MCP, CLI) may point at the new base (`API_BASE_URL`); legacy app remains untouched as a
    frozen reference until explicitly retired (deferred, human decision if endpoint parity is broken).

@@ -1,124 +1,124 @@
 # ENG-0 — Engineering Architecture
 
-**Phase:** ENG-0 of `PRODUCT_FORGE_MASTER_API_FIRST_ENGINEERING_FACTORY_E2E_EXECUTION_PLAN.md` (§12)
-**Status:** Implemented — gate PASS
-**Depends on:** API-0/0.1 contract, API-1 foundation, API-2 core APIs, API-3 engineering/validation APIs
+**Phase:** ENG-0 of `PRODUCT_FORGE_MASTER_API_FIRST_ENGINEERING_FACTORY_E2E_EXECUTION_PLAN-updated.md` (§12)
+**Status:** Implemented — gate PASS (superseded by the entry-path retrofit §2A)
+**Depends on:** API-1..API-3
 
 ## What this phase builds
 
-ENG-0 *defines the engineering architecture over the API-1..API-3 contracts* — as an executable artifact, not
-prose. The ordered requirement → deploy flow is captured in one canonical descriptor, each step mapped to its
-**canonical owner file** and the **`/api/v1` route** that exposes it, with an explicit status
-(`exists` | `partial` | `planned`).
+ENG-0 defines the engineering architecture over the API-1..API-3 contracts as an **executable descriptor**
+(`config/engineering-flow.json`), read by `core/engineering_flow.py`, served by
+`GET /api/v1/engineering[/stages|/coverage]`, and gated by `scripts/dev/engineering_flow_check.py` (in precheck).
+
+**Retrofit (§2A): two INDEPENDENT entry paths.** The descriptor was corrected so the engineering flow is **not**
+rooted at Intake:
 
 ```
-config/engineering-flow.json              # architecture descriptor (data only; no engine)
-core/engineering_flow.py                  # single reader/validator (load/stage/coverage/validate)
-api/routers/engineering.py                # GET /api/v1/engineering[/stages|/coverage]
-scripts/dev/engineering_flow_check.py     # gate: owners exist AND routes are wired (in precheck)
-test-framework/tests/pipeline/test_api_engineering.py   # +2 architecture tests
+config/engineering-flow.json          # descriptor (data only; no engine)
+  external_ingestion : [...]          # SEPARATE path; NO edge into engineering
+  flow               : [...]          # engineering execution; starts at the direct entry
+core/engineering_flow.py              # reader/validator (flow/external_ingestion/entries/coverage/validate)
 ```
 
-The descriptor is the reference the later phases (ENG-1..ENG-10, REL-0) build against: each phase flips its
-step from `planned` → `partial`/`exists` and points at the real owner + route. An architecture that names a
-non-existent owner or route **cannot pass** the gate.
+## Path 1 — External ingestion (already implemented; independent)
 
-## The flow (23 steps)
+```
+external client → Intake API → requirement/change normalization → backlog / change (work item)
+```
 
-| # | Step | Phase | Canonical owner | API route | Status |
+| Step | Owner | API | Status |
+|---|---|---|---|
+| Intake API | `core/intake.py` | `POST /api/v1/intake` | exists |
+| Requirement / change normalization | `core/intake_adapters.py` | — | exists |
+| Backlog / change (work item) | `core/backlog.py` | `GET /api/v1/backlog` | exists |
+| Product Plan | `core/product_plan.py` | `GET /api/v1/projects` | exists |
+| Architecture | `core/orchestrator/stage_runner.py` | `GET /api/v1/pipeline` | exists |
+| Epic / Feature decomposition | `core/product_plan.py` | `GET /api/v1/backlog` | exists |
+
+**This path has no dependency edge into the engineering flow.** Intake *may* produce a backlog work item that a
+task can reference (`epic_id`/`feature_id`), but it is **never a prerequisite** for engineering work. Intake only
+**ingests and enqueues** — it must not instantiate a pipeline executor (see `core/intent_router.py`).
+
+## Path 2 — Direct engineering (canonical; starts at the Task/Work API)
+
+```
+OpenCode / CLI / Coding Agent / Human → Task/Work API → resolve/create task → run → scheduler → worker
+```
+
+| # | Step | Phase | Owner | API | Status |
 |---|---|---|---|---|---|
-| 1 | Product Requirement | API-1 | `core/intake.py` | `POST /api/v1/intake` | exists |
-| 2 | Product Plan | runtime | `core/product_plan.py` | `GET /api/v1/projects` | exists |
-| 3 | Architecture | runtime | `core/orchestrator/stage_runner.py` | `GET /api/v1/pipeline` | exists |
-| 4 | Epic | runtime | `core/backlog.py` | `GET /api/v1/backlog` | exists |
-| 5 | Feature | runtime | `core/product_plan.py` | `GET /api/v1/backlog` | exists |
-| 6 | Task | runtime | `core/backlog.py` | `GET /api/v1/tasks` | exists |
-| 7 | Task Contract | ENG-1 | `core/task_contract.py` | `GET /api/v1/engineering/tasks` | exists |
-| 8 | Scheduler | ENG-2 | `core/scheduler.py` | `GET /api/v1/engineering/schedule` | exists |
-| 9 | Worker Queue | runtime | `core/job_manager.py` | `GET /api/v1/workers/queue` | exists |
-| 10 | Worker Runtime | ENG-4 | `core/worker.py` | `GET /api/v1/engineering/tasks` | exists |
-| 11 | Worktree / Branch | ENG-3 | `core/vcs.py` | `GET /api/v1/vcs` | exists |
-| 12 | Implementation | runtime | `core/pipeline_executor.py` | `GET /api/v1/runs` | exists |
-| 13 | Tests | runtime | `core/test_framework_integration.py` | `GET /api/v1/tests/matrix` | exists |
-| 14 | Commit | runtime | `core/vcs.py` | `GET /api/v1/vcs/commits` | exists |
-| 15 | Pull Request | ENG-5 | `core/vcs.py` | — | planned |
-| 16 | CI | ENG-5 | — | — | planned |
-| 17 | FEATURE_PR | ENG-7 | — | — | planned |
-| 18 | Review / Gates | runtime | `core/pr_gate.py` | `GET /api/v1/gates/pr` | exists |
-| 19 | Merge | ENG-3 | `core/vcs.py` | — | partial |
-| 20 | Integration | ENG-8 | — | — | planned |
-| 21 | Dogfood | ENG-9 | — | — | planned |
-| 22 | Release | ENG-10 | — | — | planned |
-| 23 | Package / Entitle / Deploy | REL-0 | — | — | planned |
+| 1 | **Task Contract (direct engineering entry)** | ENG-1 | `core/task_contract.py` | `GET/POST /api/v1/engineering/tasks` | exists |
+| 2 | Scheduler | ENG-2 | `core/scheduler.py` | `GET /api/v1/engineering/schedule` | exists |
+| 3 | Worker Queue | runtime | `core/job_manager.py` | `GET /api/v1/workers/queue` | exists |
+| 4 | Worker Runtime | ENG-4 | `core/worker.py` | `GET /api/v1/engineering/tasks` | exists |
+| 5 | Worktree / Branch | ENG-3 | `core/vcs.py` | `GET /api/v1/vcs` | exists |
+| 6 | Implementation | runtime | `core/pipeline_executor.py` | `GET /api/v1/runs` | exists |
+| 7 | Tests | runtime | `core/test_framework_integration.py` | `GET /api/v1/tests/matrix` | exists |
+| 8 | Commit | runtime | `core/vcs.py` | `GET /api/v1/vcs/commits` | exists |
+| 9 | Pull Request | ENG-5 | `core/vcs.py` | — | planned |
+| 10 | CI | ENG-5 | — | — | planned |
+| 11 | FEATURE_PR | ENG-7 | — | — | planned |
+| 12 | Review / Gates | runtime | `core/pr_gate.py` | `GET /api/v1/gates/pr` | exists |
+| 13 | Merge | ENG-3 | `core/vcs.py` | — | partial |
+| 14 | Integration | ENG-8 | — | — | planned |
+| 15 | Dogfood | ENG-9 | — | — | planned |
+| 16 | Release | ENG-10 | — | — | planned |
+| 17 | Package / Entitle / Deploy | REL-0 | — | — | planned |
 
-**Status:** 15 exists · 1 partial · 7 planned.
-
-## Layer model (authority order)
-
-```
-Clients (OpenCode · MCP · CLI · future Dashboard)      adapters only — never own canonical state
-        │  (control plane)
-Canonical API  /api/v1   ── API-1 foundation · API-2 core · API-3 engineering
-        │  (delegates to owners)
-Owners / engines  core/*  ── one writer per concern (config/store-registry.json)
-        │  (state)
-Stores  data/, products/<project>/, config/*.json
-```
+**Engineering status:** 9 exists · 1 partial · 7 planned (17 steps). The direct entry is `task_contract`.
 
 ## Invariants (must hold)
 
-1. One owner per concern; no duplicate engines/stores (authority: `config/store-registry.json`).
-2. Every step maps to a canonical owner file and, where an API exists, a canonical `/api/v1` route.
-3. Clients are adapters over the API surface; none owns canonical state.
-4. Exactly one git owner (`core/vcs.py`), one pipeline executor, one validation decision (`core/close_loop`).
+1. **Two independent entry paths** — external ingestion vs direct engineering; no shared prerequisite.
+2. **Intake is not a prerequisite for engineering work** — no step in `flow` is owned by `core/intake.py`, and
+   `external_ingestion` has no dependency edge into `flow`.
+3. The direct engineering entry (Task/Work API) is reachable **without creating a conversation or intake record**.
+4. One owner per concern; no duplicate engines/stores (`config/store-registry.json`).
+5. Exactly one git owner (`core/vcs.py`), one pipeline executor, one validation decision (`core/close_loop`).
 
-## Forbidden (from plan §41 — recorded in the descriptor)
+## Forbidden (recorded in the descriptor)
 
-`second pipeline executor` · `second validation engine` · `second backlog` · `second defect store` ·
-`second artifact store` · `second event source of truth` · `third git manager` · OpenCode-dependent
-architecture · Dashboard-dependent architecture · worker-specific state as canonical state · direct
-client-to-store mutation.
+`making Intake a prerequisite for engineering tasks/workers` · `manufacturing a conversation record to start
+engineering work` · second pipeline executor · second validation engine · second backlog · second defect store ·
+second artifact store · second event source · third git manager · OpenCode-dependent architecture ·
+Dashboard-dependent architecture · worker-specific state as canonical state · direct client-to-store mutation.
 
 ## Gap analysis (what the later phases add)
 
 | Planned/partial step | Phase | Missing capability |
 |---|---|---|
-| Task Contract | ENG-1 | ✅ delivered (`docs/ENG-1-TASK-CONTRACT.md`) |
-| Scheduler | ENG-2 | ✅ delivered (`docs/ENG-2-WORK-PLANNER-SCHEDULER.md`) |
-| Worktree / Merge | ENG-3 | ✅ worktree isolation + one git owner (`docs/ENG-3-GIT-WORKTREE-ORCHESTRATION.md`); merge sequencing (ENG-5) pending |
-| Worker Runtime | ENG-4 | ✅ normalized `WorkerResult` + provider adapters (`docs/ENG-4-WORKER-RUNTIME.md`) |
-| Pull Request / CI | ENG-5 | GitHub PR + CI orchestration, exact-commit evidence |
+| Pull Request / CI | ENG-5 | push, PR, exact-commit evidence, integration queue |
+| Merge | ENG-3/5 | controlled merge sequencing |
 | FEATURE_PR / Integration / Dogfood / Release | ENG-6..ENG-10 | the single Validation Engine + E2E stages |
 | Package / Entitle / Deploy | REL-0 | packaging, entitlement, deployment validation |
 
 ## 360° dependency check
 
-- New descriptor is a **config** store, registered in `config/store-registry.json` (owner
-  `core/engineering_flow.py`); no runtime state, no engine.
-- `core/engineering_flow.py` is read-only (never writes the store); it is wired via `api/routers/engineering.py`
-  and `scripts/dev/engineering_flow_check.py`, so invocation/store audits stay green.
-- No edits to `dashboard/` (frozen); no new pipeline/validation/backlog/artifact/event/defect/git engines.
-- Reads are authenticated; the descriptor is a read-only surface.
+- Descriptor is a registered **config** store (owner `core/engineering_flow.py`); no runtime state, no engine.
+- `core/engineering_flow.py` is read-only; wired via `api/routers/engineering.py` and the precheck gate.
+- No edits to `dashboard/` (frozen); no new engines/stores.
+- Gate asserts: engineering flow starts at `task_contract`, **no intake-owned engineering step**, and every
+  non-planned step's route is wired in the live OpenAPI (for **both** paths).
 
 ## Verification (executed)
 
 ```
 python -m compileall -q api core scripts dashboard                # 0
 python scripts/dev/wired_audit.py                                 # OK (unwired 0, naming 0)
+python scripts/dev/engineering_flow_check.py                      # OK (17 engineering, 6 ingestion, 7 planned)
 python scripts/dev/api_contract_check.py                          # api-contract: OK
-python scripts/dev/engineering_flow_check.py                      # engineering-flow: OK (23 steps, 9 planned)
 python -m pytest test-framework/tests/pipeline -q -o addopts=""   # full suite green
-python scripts/dev/precheck.py                                    # precheck: PASS (now includes engineering-flow)
+python scripts/dev/precheck.py                                    # precheck: PASS
 ```
 
-## Gate (plan §12)
+## Gate (plan §12 / §2A)
 
 | Criterion | Result |
 |---|---|
-| Engineering architecture defined over the API contracts | ✅ `config/engineering-flow.json` + this doc |
-| Every step has a canonical owner | ✅ non-planned owners exist on disk (gate) |
-| Every exposed step has a canonical API route | ✅ routes verified against the live OpenAPI (gate) |
-| No duplicate engines/stores; boundaries recorded | ✅ invariants + forbidden list; one owner per concern |
-| Executable / verifiable (not prose) | ✅ reader + API + precheck gate + tests |
+| Architecture defined over the API contracts | ✅ descriptor + this doc |
+| Two independent entry paths | ✅ `external_ingestion` (no edge) + `flow` (direct entry `task_contract`) |
+| Intake is not an engineering prerequisite | ✅ gate: no intake-owned step; no conversation required |
+| No duplicate engines/stores; boundaries recorded | ✅ invariants + forbidden |
+| Executable / verifiable | ✅ reader + API + precheck gate + tests |
 
-**ENG-0 GATE: PASS.** Next: **ENG-1 — Engineering Task Contract** (`core/task_contract.py`).
+**ENG-0 GATE: PASS.** Next: continue the current phase (**ENG-5 — GitHub/PR/CI**), per the resume plan.

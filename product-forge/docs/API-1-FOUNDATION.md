@@ -24,9 +24,17 @@ scripts/dev/api_contract_check.py   exercises the surface (wired into precheck)
 test-framework/tests/pipeline/test_api_foundation.py   8 tests
 ```
 
+## Two entry paths (updated plan §2A)
+
+Intake is an **external ingestion** path only. The **direct engineering** control surface is
+`OpenCode/CLI/coding agent/human → Task/Work API → task/run/worker` — delivered in **ENG-1**
+(`core/task_contract.py` + `/api/v1/engineering/tasks`). The paths are **independent**: Intake is not a
+prerequisite for engineering work, and engineering work does not create a conversation record.
+
 ## Reuse (no duplicate engines/stores)
 
-- **Intake:** reuses the canonical facade `core.intake.ingest` unchanged (Conversation → IntentRouter → backlog).
+- **Intake (external ingestion):** reuses the canonical facade `core.intake.ingest` unchanged. It ingests →
+  work item and enqueues execution via `core.run_entry`; it is **not** an engineering prerequisite.
 - **Readiness:** probes the canonical `core.backlog` + `core.events` stores (no shadow store).
 - **Events:** all canonical; no new event source of truth.
 - **Config:** adds flags `API_TOKEN`, `API_ALLOW_ANON`, `API_PORT`, `API_ALLOW_ORIGINS` (owner `api/*`).
@@ -75,7 +83,8 @@ python -m pytest test-framework/tests/pipeline -q -o addopts=""   # 729 passed, 
 | errors conform | ✅ canonical error contract |
 | IDs propagate | ✅ |
 | idempotency works | ✅ replay + conflict |
-| Intake works | ✅ via canonical facade |
+| External ingestion (Intake) works | ✅ via canonical facade; enqueues via `run_entry` (no direct executor) |
+| Direct engineering control surface | ✅ delivered ENG-1 (`/api/v1/engineering/tasks`); intake not required |
 | OpenAPI validates | ✅ FastAPI `/openapi.json` (committed schema + drift check = API-5) |
 | API tests pass | ✅ 8 tests + contract check |
 
