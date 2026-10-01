@@ -57,10 +57,10 @@ TOP = {
     "ROLE-PROMPT-STANDARD.md": ("Implemented", "Standard for agent role-prompts + advisory audit (BI-0228)", 100),
     "PROVIDER-FALLBACK.md": ("Implemented", "Provider fallback policy: Zen free unusable; opencode-go/kctier (BI-PF-0247)", 100),
     "PR-WORKFLOW.md": ("Implemented", "Branch -> pre-check gates -> review -> merge (BI-0205)", 100),
-    "PRODUCT_FORGE_MASTER_API_FIRST_ENGINEERING_FACTORY_E2E_EXECUTION_PLAN.md": ("SSOT", "Governing master API-first -> engineering factory -> E2E execution plan", 0),
     "MASTER-0-CURRENT-STATE-TRUTH.md": ("Design", "MASTER-0 current-state architecture truth + discovery gate", 100),
     "API-0-DISCOVERY.md": ("Design", "API-0 API discovery: legacy surface, intake path, consumers, gaps", 100),
     "API-0.1-CONTRACT-RECONCILIATION.md": ("Design", "API-0.1 canonical contract: envelopes, errors, IDs, idempotency, versioning", 100),
+    "API-1-FOUNDATION.md": ("Design", "API-1 foundation: canonical api/ surface (context, errors, auth, idempotency, health, intake)", 100),
     "design-plan-BI0218.md": ("Design", "AI-era operations layer (evals/versioning/feedback) design - parked (BI-0218)", 0),
     "BOM-DESIGN.md": ("Design", "Product BOM/footprint at packaging design (BI-0217)", 100),
     "RCCA-CLOSURE-INTEGRITY-DESIGN.md": ("Design", "RCCA closure integrity: guideline truth + G8 + learning loop (BI-PF-0270)", 100),
@@ -378,6 +378,8 @@ def scan():
         if n == "README.md":
             continue
         st, about, pct = TOP.get(n, ("Reference (verify)", "unclassified - confirm before relying on it", 50))
+        if n.startswith("PRODUCT_FORGE_MASTER_API_FIRST"):
+            st, about, pct = ("SSOT", "Governing master API-first -> engineering -> E2E execution plan", 0)
         pend, req, bl = gap_for(n)
         main.append((rel(p), st, _clean(about), pct, _clean(pend), req, bl))
     subs = {}

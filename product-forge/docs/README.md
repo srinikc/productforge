@@ -43,6 +43,7 @@
 | [`AGUI-DESIGN.md`](AGUI-DESIGN.md) | Design | 100% | AG-UI typed event stream (BI-0198) | — | — |
 | [`API-0-DISCOVERY.md`](API-0-DISCOVERY.md) | Design | 100% | API-0 API discovery: legacy surface, intake path, consumers, gaps | — | — |
 | [`API-0.1-CONTRACT-RECONCILIATION.md`](API-0.1-CONTRACT-RECONCILIATION.md) | Design | 100% | API-0.1 canonical contract: envelopes, errors, IDs, idempotency, versioning | — | — |
+| [`API-1-FOUNDATION.md`](API-1-FOUNDATION.md) | Design | 100% | API-1 foundation: canonical api/ surface (context, errors, auth, idempotency, health, intake) | — | — |
 | [`AUDIT-REGISTER-TRIAGE.md`](AUDIT-REGISTER-TRIAGE.md) | Analysis (current) | 100% | Audit PF/candidate disposition: fixed / tracked / new (BI-PF-0254) | — | — |
 | [`Agent-LLM-PromptHandling.md`](Agent-LLM-PromptHandling.md) | Design | 60% | Agent/LLM prompt handling | **Pending: capability vectors per agent, capability-aware request builder, structured-output-first render.** | BI-0221–BI-0224, BI-0228 |
 | [`Agent_llm_process.md`](Agent_llm_process.md) | Review (pending) | 0% | Agent<->LLM process analysis + recommendations | **Findings not yet implemented: per-call capability steering, reasoning on/off, and verbose loop/tool-call logging.** | BI-0221–BI-0229 |
@@ -88,7 +89,7 @@
 | [`PLUGINS-DESIGN.md`](PLUGINS-DESIGN.md) | Design | 100% | Plugin/registry framework (ports & adapters) (BI-0200) | — | — |
 | [`PR-WORKFLOW.md`](PR-WORKFLOW.md) | Implemented | 100% | Branch -> pre-check gates -> review -> merge (BI-0205) | — | — |
 | [`PRODUCT-ISSUE-LOOP-DESIGN.md`](PRODUCT-ISSUE-LOOP-DESIGN.md) | Design | 100% | Product-scope issue/RCCA/backlog integration + API (BI-PF-0272) | — | — |
-| [`PRODUCT_FORGE_MASTER_API_FIRST_ENGINEERING_product-forge_E2E_EXECUTION_PLAN.md`](PRODUCT_FORGE_MASTER_API_FIRST_ENGINEERING_FACTORY_E2E_EXECUTION_PLAN.md) | SSOT | 0% | Governing master API-first -> engineering Product Forge -> E2E execution plan | — | — |
+| [`PRODUCT_FORGE_MASTER_API_FIRST_ENGINEERING_product-forge_E2E_EXECUTION_PLAN.md`](PRODUCT_FORGE_MASTER_API_FIRST_ENGINEERING_FACTORY_E2E_EXECUTION_PLAN.md) | SSOT | 0% | Governing master API-first -> engineering -> E2E execution plan | — | — |
 | [`PROVIDER-FALLBACK.md`](PROVIDER-FALLBACK.md) | Implemented | 100% | Provider fallback policy: Zen free unusable; opencode-go/kctier (BI-PF-0247) | — | — |
 | [`PROVIDER-HEALTH-DESIGN.md`](PROVIDER-HEALTH-DESIGN.md) | Design | 100% | Provider health tracking feeding routing (BI-PF-0279) | — | — |
 | [`PROVIDER-KINDS-DESIGN.md`](PROVIDER-KINDS-DESIGN.md) | Design | 100% | Provider-kind abstraction + kind-aware router (BI-0193) | — | — |

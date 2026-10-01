@@ -18,9 +18,10 @@ _ROOT = str(_PF_ROOT)
 
 def _steps():
     return [
-        ("compile", [sys.executable, "-m", "compileall", "-q", "core", "scripts", "dashboard"]),
+        ("compile", [sys.executable, "-m", "compileall", "-q", "core", "scripts", "dashboard", "api"]),
         ("wired-audit", [sys.executable, "scripts/dev/wired_audit.py"]),
         ("workflow-matrix", [sys.executable, "scripts/dev/workflow_matrix_check.py"]),
+        ("api-contract", [sys.executable, "scripts/dev/api_contract_check.py"]),
         ("backlog-e2e", [sys.executable, "scripts/dev/e2e_backlog_check.py"]),
         ("docs-fresh", [sys.executable, "scripts/dev/check_docs_fresh.py"]),
         ("secret-scan", [sys.executable, "scripts/dev/secret_scan.py"]),
