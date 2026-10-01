@@ -1,0 +1,39 @@
+{
+  "$schema": "model-policy-v1",
+  "_doc": "Versioned per-model eligibility policy (BI-PF-0278). Owner: core/model_policy.py. Rules (allowed/restricted tasks, cost ceiling, quality threshold, fallback, independent_review) consumed by model_gate + model_strategy. Empty allowed_tasks = any task; restricted always wins; unknown model => deny (fail-closed).",
+  "schema_version": 1,
+  "defaults": {
+    "allowed_tasks": [],
+    "restricted_tasks": [],
+    "quality_threshold": 0.0,
+    "max_task_cost": 0.0,
+    "fallback": [],
+    "independent_review": false
+  },
+  "models": {
+    "gpt-5.6-sol": {
+      "allowed_tasks": ["chat", "vision", "coding", "reasoning"],
+      "restricted_tasks": [],
+      "quality_threshold": 0.7,
+      "max_task_cost": 0.0,
+      "fallback": ["gpt-5.6-terra"],
+      "independent_review": true
+    },
+    "gpt-5.6-terra": {
+      "allowed_tasks": ["chat", "vision", "coding"],
+      "restricted_tasks": [],
+      "quality_threshold": 0.5,
+      "max_task_cost": 0.5,
+      "fallback": ["gpt-5.6-luna"],
+      "independent_review": false
+    },
+    "gpt-5.6-luna": {
+      "allowed_tasks": ["chat"],
+      "restricted_tasks": ["medical_advice", "legal_advice"],
+      "quality_threshold": 0.3,
+      "max_task_cost": 0.1,
+      "fallback": [],
+      "independent_review": false
+    }
+  }
+}

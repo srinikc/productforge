@@ -159,11 +159,29 @@ def assess(project_dir: str, phase: str = "a") -> Dict:
                 provider_health[prov] = {"state": _ph.state(prov), "score": _ph.score(prov)}
     except Exception:
         provider_health = {}
+    # model eligibility policy surfacing (BI-PF-0278): verdicts per assignment model
+    model_policy: Dict = {}
+    try:
+        from core import model_policy as _mp
+        for a in assignments:
+            m = str(a.get("model") or a.get("generator") or "")
+            if not m:
+                continue
+            verdict = _mp.eligible(m, str(a.get("task") or ""), critical=False)
+            if verdict.get("policy_found"):
+                a["policy_ok"] = verdict.get("ok")
+                model_policy[m] = {"ok": verdict.get("ok"), "reasons": verdict.get("reasons", []),
+                                   "independent_review": verdict.get("independent_review", False)}
+                if not verdict.get("ok"):
+                    warnings.append(f"model '{m}' blocked by policy: {'; '.join(verdict.get('reasons') or [])}")
+    except Exception:
+        model_policy = {}
     return {"phase": phase, "modalities": mods, "enabled_packs": enabled,
             "generators_needed": (feas.get("verdict") and [] or []),
             "feasibility_verdict": feas.get("verdict", ""),
             "assignments": assignments, "cost_projection": cost_projection,
             "provider_health": provider_health,
+            "model_policy": model_policy,
             "warnings": warnings}
 
 

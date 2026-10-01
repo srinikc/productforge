@@ -78,19 +78,34 @@ def evaluate(profile: Dict) -> Dict:
         fn = _fit_needs(needs)
         res = model_catalog.fit(model, fn) if model else {"ok": None, "reasons": ["no model assigned"]}
         status = "OK" if res.get("ok") else ("UNKNOWN" if res.get("ok") is None else "INCOMPATIBLE")
+        # Policy eligibility (BI-PF-0278): restricted/over-budget/unmet-quality => POLICY_BLOCKED.
+        pol = {"ok": True, "policy_found": False, "reasons": [], "fallback": [], "independent_review": False}
+        try:
+            from core import model_policy
+            task = str((cfg or {}).get("task") or "")
+            crit = bool((cfg or {}).get("critical")) or bool(needs.get("needs_reasoning"))
+            pol = model_policy.eligible(model, task, critical=crit) if model else pol
+        except Exception:
+            pass
+        if not pol.get("ok"):
+            status = "POLICY_BLOCKED"
         rec = ""
         if status != "OK":
-            for cand in pool:
+            # prefer the policy's declared fallback, then any capability-fitting pool model
+            for cand in list(pol.get("fallback") or []) + pool:
                 if cand == model:
                     continue
                 if model_catalog.fit(cand, fn).get("ok"):
                     rec = cand
                     break
+        reasons = list(res.get("reasons", [])) + list(pol.get("reasons") or [])
         entries.append({"agent": agent, "model": model, "status": status,
-                        "reasons": res.get("reasons", []), "recommended": rec,
+                        "reasons": reasons, "recommended": rec,
+                        "independent_review": bool(pol.get("independent_review", False)),
+                        "policy_found": bool(pol.get("policy_found", False)),
                         "needs": {k: needs.get(k) for k in ("needs_tools", "needs_reasoning",
                                                             "min_output", "min_context")}})
-        if status == "INCOMPATIBLE":
+        if status in ("INCOMPATIBLE", "POLICY_BLOCKED"):
             blocked.append(agent)
 
     # PF-017: make UNKNOWN explicit, and flag capability-critical agents (tools /
@@ -110,6 +125,7 @@ def evaluate(profile: Dict) -> Dict:
         "ok": sum(1 for e in entries if e["status"] == "OK"),
         "unknown": sum(1 for e in entries if e["status"] == "UNKNOWN"),
         "incompatible": len(blocked),
+        "policy_blocked": sum(1 for e in entries if e["status"] == "POLICY_BLOCKED"),
         "blocked_agents": blocked_all,
         "unknown_agents": _unknown,
         "needs_confirmation": _confirm,
