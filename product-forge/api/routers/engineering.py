@@ -12,6 +12,7 @@ from ..auth import authenticate, require_operator
 from ..envelope import from_request
 from ..errors import ApiError
 from ..pagination import paginate
+from . import _common
 
 router = APIRouter(prefix="/engineering", tags=["engineering"])
 
@@ -127,3 +128,47 @@ def set_task_status(task_id: str, body: Dict[str, Any], request: Request,
     if res is None:
         raise ApiError("NOT_FOUND", "task contract not found")
     return from_request(request, res, resource="task_contract", resource_id=task_id)
+
+
+# ── ENG-4: worker runtime (providers + run + results) ───────────────────────
+
+@router.get("/worker-providers", dependencies=[Depends(authenticate)])
+def worker_providers(request: Request, ctx: Dict[str, Any] = Depends(authenticate)):
+    from core import worker
+    return from_request(request, worker.available_providers(), resource="worker")
+
+
+@router.get("/tasks/{task_id}/results", dependencies=[Depends(authenticate)])
+def task_results(task_id: str, request: Request, scope: str = "product_forge", project: str = "",
+                 ctx: Dict[str, Any] = Depends(authenticate)):
+    from core import worker
+    s, p = _scope_project(scope, project)
+    return from_request(request, worker.list_results(s, p, task_id),
+                        resource="worker", resource_id=task_id)
+
+
+@router.post("/tasks/{task_id}/run", dependencies=[Depends(require_operator)])
+def run_task(task_id: str, body: Dict[str, Any], request: Request,
+             ctx: Dict[str, Any] = Depends(require_operator)):
+    from core import task_contract, worker
+    s, p = _scope_project(str(body.get("scope") or "product_forge"), str(body.get("project") or ""))
+    task = task_contract.get(s, p, task_id)
+    if not task:
+        raise ApiError("NOT_FOUND", "task contract not found")
+    if s == "project":
+        _common.project_dir(p)  # fail-closed if the project dir is missing
+    pdir = worker.task_project_dir(s, p)
+    try:
+        res = worker.run_task(task, pdir, provider=str(body.get("provider") or "noop"),
+                              base=str(body.get("base") or ""), run_id=str(body.get("run_id") or ""),
+                              command=body.get("command"), commit=bool(body.get("commit") or False),
+                              timeout=int(body.get("timeout") or 1800))
+    except Exception as e:
+        raise ApiError("INTERNAL", f"worker run failed: {type(e).__name__}")
+    d = res.to_dict()
+    worker.record_result(s, p, d)
+    try:
+        task_contract.set_status(s, p, task_id, worker.contract_status_for(d))
+    except Exception:
+        pass
+    return from_request(request, d, resource="worker", resource_id=task_id)

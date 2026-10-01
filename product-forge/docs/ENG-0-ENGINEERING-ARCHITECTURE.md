@@ -36,7 +36,7 @@ non-existent owner or route **cannot pass** the gate.
 | 7 | Task Contract | ENG-1 | `core/task_contract.py` | `GET /api/v1/engineering/tasks` | exists |
 | 8 | Scheduler | ENG-2 | `core/scheduler.py` | `GET /api/v1/engineering/schedule` | exists |
 | 9 | Worker Queue | runtime | `core/job_manager.py` | `GET /api/v1/workers/queue` | exists |
-| 10 | Worker Runtime | ENG-4 | `core/orchestrator/agent_runner.py` | — | partial |
+| 10 | Worker Runtime | ENG-4 | `core/worker.py` | `GET /api/v1/engineering/tasks` | exists |
 | 11 | Worktree / Branch | ENG-3 | `core/vcs.py` | `GET /api/v1/vcs` | exists |
 | 12 | Implementation | runtime | `core/pipeline_executor.py` | `GET /api/v1/runs` | exists |
 | 13 | Tests | runtime | `core/test_framework_integration.py` | `GET /api/v1/tests/matrix` | exists |
@@ -51,7 +51,7 @@ non-existent owner or route **cannot pass** the gate.
 | 22 | Release | ENG-10 | — | — | planned |
 | 23 | Package / Entitle / Deploy | REL-0 | — | — | planned |
 
-**Status:** 14 exists · 2 partial · 7 planned.
+**Status:** 15 exists · 1 partial · 7 planned.
 
 ## Layer model (authority order)
 
@@ -86,7 +86,7 @@ client-to-store mutation.
 | Task Contract | ENG-1 | ✅ delivered (`docs/ENG-1-TASK-CONTRACT.md`) |
 | Scheduler | ENG-2 | ✅ delivered (`docs/ENG-2-WORK-PLANNER-SCHEDULER.md`) |
 | Worktree / Merge | ENG-3 | ✅ worktree isolation + one git owner (`docs/ENG-3-GIT-WORKTREE-ORCHESTRATION.md`); merge sequencing (ENG-5) pending |
-| Worker Runtime | ENG-4 | normalized worker result + OpenCode/CLI adapter |
+| Worker Runtime | ENG-4 | ✅ normalized `WorkerResult` + provider adapters (`docs/ENG-4-WORKER-RUNTIME.md`) |
 | Pull Request / CI | ENG-5 | GitHub PR + CI orchestration, exact-commit evidence |
 | FEATURE_PR / Integration / Dogfood / Release | ENG-6..ENG-10 | the single Validation Engine + E2E stages |
 | Package / Entitle / Deploy | REL-0 | packaging, entitlement, deployment validation |

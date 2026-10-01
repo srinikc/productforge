@@ -1,6 +1,7 @@
 """API-3: engineering/validation APIs — validation, tests, gates, issues, vcs, workers, agents."""
 import os
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -14,6 +15,20 @@ from api.app import app  # noqa: E402
 from core import paths as _paths  # noqa: E402
 
 _SCRATCH = "_test_api3_eng"
+
+
+def _force_rmtree(p) -> None:
+    """rmtree that clears read-only bits (git objects on Windows) before removing."""
+    p = Path(p)
+    if not p.exists():
+        return
+    for root, _dirs, files in os.walk(p, topdown=False):
+        for name in files:
+            try:
+                os.chmod(os.path.join(root, name), 0o700)
+            except Exception:
+                pass
+    shutil.rmtree(p, ignore_errors=True)
 
 
 @pytest.fixture()
@@ -31,6 +46,38 @@ def scratch_project():
     yield _SCRATCH
     if d.exists():
         shutil.rmtree(d)
+
+
+@pytest.fixture()
+def git_project():
+    """A scratch project that is its own git repo (isolated worktrees, no main-repo pollution)."""
+    name = "_test_api4_worker"
+    d = Path(_paths.PRODUCTS_DIR) / name
+    wtroot = Path(_paths.PRODUCTS_DIR) / (name + "-worktrees")
+    for p in (wtroot, d):
+        _force_rmtree(p)
+    d.mkdir(parents=True, exist_ok=True)
+
+    def g(*a):
+        subprocess.run(["git", *a], cwd=str(d), capture_output=True, text=True)
+
+    g("init", "-q")
+    g("config", "user.email", "t@local")
+    g("config", "user.name", "test")
+    (d / "README.md").write_text("x\n", encoding="utf-8")
+    g("add", "-A")
+    g("commit", "-q", "-m", "init")
+    yield name
+    try:
+        from core.vcs import VCSManager
+        m = VCSManager(str(d))
+        for w in m.list_worktrees():
+            if os.path.normcase(w.get("path", "")).startswith(os.path.normcase(str(wtroot))):
+                m.remove_worktree(os.path.basename(w.get("path", "")))
+    except Exception:
+        pass
+    for p in (wtroot, d):
+        _force_rmtree(p)
 
 
 def test_agents_list_and_capabilities(client):
@@ -115,6 +162,33 @@ def test_engineering_stage_lookup(client):
     assert r2.json()["data"]["id"] == sid
     r3 = client.get("/api/v1/engineering/stages/does-not-exist-xyz")
     assert r3.status_code == 404
+
+
+def test_worker_providers_and_run_noop(client, git_project):
+    r = client.get("/api/v1/engineering/worker-providers")
+    assert r.status_code == 200
+    names = {p["name"] for p in r.json()["data"]}
+    assert {"noop", "human", "command", "opencode"} <= names
+
+    scope = {"scope": "project", "project": git_project}
+    created = client.post("/api/v1/engineering/tasks",
+                          json=dict(scope, title="t", objective="o", acceptance_criteria=["a"]))
+    tid = created.json()["resource_id"]
+    rr = client.post(f"/api/v1/engineering/tasks/{tid}/run", json=dict(scope, provider="noop"))
+    assert rr.status_code == 200, rr.text
+    data = rr.json()["data"]
+    assert data["status"] == "NEEDS_REVIEW" and data["worktree_id"]
+    res = client.get(f"/api/v1/engineering/tasks/{tid}/results", params=scope)
+    assert res.status_code == 200 and len(res.json()["data"]) == 1
+    task = client.get(f"/api/v1/engineering/tasks/{tid}", params=scope).json()["data"]
+    assert task["status"] == "review"
+
+
+def test_worker_run_unknown_task_404(client, scratch_project):
+    r = client.post("/api/v1/engineering/tasks/TC-NOPE-9999/run",
+                    json={"scope": "project", "project": scratch_project, "provider": "noop"})
+    assert r.status_code == 404
+    assert r.json()["error"]["code"] == "NOT_FOUND"
 
 
 def test_vcs_branch_name_and_worktrees(client, scratch_project):
