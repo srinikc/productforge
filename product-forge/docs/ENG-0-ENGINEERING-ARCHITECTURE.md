@@ -34,7 +34,7 @@ non-existent owner or route **cannot pass** the gate.
 | 5 | Feature | runtime | `core/product_plan.py` | `GET /api/v1/backlog` | exists |
 | 6 | Task | runtime | `core/backlog.py` | `GET /api/v1/tasks` | exists |
 | 7 | Task Contract | ENG-1 | `core/task_contract.py` | `GET /api/v1/engineering/tasks` | exists |
-| 8 | Scheduler | ENG-2 | `core/scheduler.py` | `GET /api/v1/engineering/schedule` | planned |
+| 8 | Scheduler | ENG-2 | `core/scheduler.py` | `GET /api/v1/engineering/schedule` | exists |
 | 9 | Worker Queue | runtime | `core/job_manager.py` | `GET /api/v1/workers/queue` | exists |
 | 10 | Worker Runtime | ENG-4 | `core/orchestrator/agent_runner.py` | — | partial |
 | 11 | Worktree / Branch | ENG-3 | `core/vcs.py` | `GET /api/v1/vcs` | partial |
@@ -51,7 +51,7 @@ non-existent owner or route **cannot pass** the gate.
 | 22 | Release | ENG-10 | — | — | planned |
 | 23 | Package / Entitle / Deploy | REL-0 | — | — | planned |
 
-**Status:** 12 exists · 3 partial · 8 planned.
+**Status:** 13 exists · 3 partial · 7 planned.
 
 ## Layer model (authority order)
 
@@ -84,7 +84,7 @@ client-to-store mutation.
 | Planned/partial step | Phase | Missing capability |
 |---|---|---|
 | Task Contract | ENG-1 | ✅ delivered (`docs/ENG-1-TASK-CONTRACT.md`) |
-| Scheduler | ENG-2 | dependency graph, capability matching, elastic scheduling |
+| Scheduler | ENG-2 | ✅ delivered (`docs/ENG-2-WORK-PLANNER-SCHEDULER.md`) |
 | Worktree / Merge | ENG-3 | consolidate `git_manager.py` (PF-050) into `core/vcs.py`; worktree isolation |
 | Worker Runtime | ENG-4 | normalized worker result + OpenCode/CLI adapter |
 | Pull Request / CI | ENG-5 | GitHub PR + CI orchestration, exact-commit evidence |

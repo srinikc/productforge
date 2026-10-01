@@ -60,6 +60,24 @@ def coverage(request: Request, ctx: Dict[str, Any] = Depends(authenticate)):
     return from_request(request, engineering_flow.coverage(), resource="engineering")
 
 
+# ── ENG-2: worker pool + elastic schedule ───────────────────────────────────
+
+@router.get("/workers", dependencies=[Depends(authenticate)])
+def workers(request: Request, ctx: Dict[str, Any] = Depends(authenticate)):
+    from core import scheduler
+    reg = scheduler.workers()
+    return from_request(request, {"registry": reg, "slots": scheduler.worker_slots(reg)},
+                        resource="engineering")
+
+
+@router.get("/schedule", dependencies=[Depends(authenticate)])
+def schedule(request: Request, scope: str = "product_forge", project: str = "",
+             ctx: Dict[str, Any] = Depends(authenticate)):
+    from core import scheduler
+    s, p = _scope_project(scope, project)
+    return from_request(request, scheduler.plan(s, p), resource="engineering")
+
+
 # ── ENG-1: engineering task contracts ───────────────────────────────────────
 
 @router.get("/tasks", dependencies=[Depends(authenticate)])

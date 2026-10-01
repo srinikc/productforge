@@ -117,6 +117,34 @@ def test_engineering_stage_lookup(client):
     assert r3.status_code == 404
 
 
+def test_engineering_workers_and_schedule(client):
+    r = client.get("/api/v1/engineering/workers")
+    assert r.status_code == 200
+    data = r.json()["data"]
+    assert "slots" in data and "registry" in data
+    r2 = client.get("/api/v1/engineering/schedule")
+    assert r2.status_code == 200
+    counts = r2.json()["data"]["counts"]
+    assert counts["assigned"] <= counts["capacity"]
+
+
+def test_scheduler_plan_unit():
+    from core import scheduler
+    slots = [{"slot_id": "s-1", "worker_id": "w", "type": "local-agent",
+              "capabilities": ["python"], "max_concurrency": 1}]
+    tasks = [
+        {"task_id": "T1", "status": "ready", "priority": "P1", "risk": "low",
+         "dependencies": [], "blocked_by": [], "allowed_paths": ["src/a.py"],
+         "affected_files": [], "required_capabilities": ["python"], "required_worker_type": ""},
+        {"task_id": "T2", "status": "ready", "priority": "P0", "risk": "low",
+         "dependencies": ["T1"], "blocked_by": [], "allowed_paths": ["src/b.py"],
+         "affected_files": [], "required_capabilities": ["python"], "required_worker_type": ""},
+    ]
+    p = scheduler.plan(tasks=tasks, slots=slots)
+    assert {a["task_id"] for a in p["assignments"]} == {"T1"}
+    assert any(b["task_id"] == "T2" for b in p["blocked"])
+
+
 def test_task_contract_validate_unit():
     from core import task_contract
     assert task_contract.validate({"title": "t"})["ok"] is False
