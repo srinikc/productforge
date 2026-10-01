@@ -55,6 +55,21 @@ Both must pass (0 unwired, 0 naming violations). The same audit runs in CI and i
   it reciprocally with `links.paired_with`, and rely on the advisory validator
   (`core/backlog.reciprocity_warnings()` via `wired_audit`, non-fatal).
 
+## Pre-implementation architecture review (mandatory)
+Before implementing **any** new design, flow, review recommendation, or external document:
+1. Restate the proposed change in one line.
+2. Check it against the governing plan
+   (`docs/PRODUCT_FORGE_MASTER_API_FIRST_ENGINEERING_FACTORY_E2E_EXECUTION_PLAN-updated.md`), the canonical
+   owners (`config/store-registry.json`), the authoritative API surface (`api/`), and the fixed decisions
+   (one writer per concern; no duplicate engines/stores; legacy dashboard frozen; OpenCode is an adapter, not a
+   dependency; the two independent entry paths).
+3. Produce an **IMPACT REVIEW** table:
+   `claim | verdict (aligned | violates | new-path | derails | stale) | evidence (file:line) | recommendation`.
+4. If **any** verdict is not `aligned`: **STOP** — highlight the conflict to the user and ask **yes/no** before
+   writing code.
+5. Implement only after explicit approval, then verify against the same authority and report.
+Never implement an un-audited external prescription. A **new path** always requires explicit user approval.
+
 ## Safety (state)
 - **Never recursively delete shared state.** Tests and scripts may only delete their own
   uniquely-named scratch path (`products/_test_<name>/`); deleting `product-forge/`,
