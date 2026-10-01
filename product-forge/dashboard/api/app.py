@@ -311,6 +311,15 @@ def agui_run(run_id: str, project: str = Query(...)):
             "types": agui.types()}
 
 
+# ── Vendored tools (neutral tool locations, BI-0202) ─────────────────────────
+@app.get("/api/v1/vendor/tools", dependencies=[Depends(auth)])
+def vendor_tools():
+    """Which vendored tools are resolvable + their neutral paths/source."""
+    from core import vendor
+    tools = vendor.list_tools()
+    return {"vendor_dir": vendor.vendor_dir(), "count": len(tools), "tools": tools}
+
+
 # ── Per-model eligibility policy (BI-PF-0278) ────────────────────────────────
 @app.get("/api/v1/model-policy", dependencies=[Depends(auth)])
 def model_policy_all():
