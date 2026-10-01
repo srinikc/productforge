@@ -63,6 +63,7 @@ TOP = {
     "API-1-FOUNDATION.md": ("Design", "API-1 foundation: canonical api/ surface (context, errors, auth, idempotency, health, intake)", 100),
     "API-2-CORE-APIS.md": ("Design", "API-2 core PF APIs: projects/runs/pipeline/stages/tasks/artifacts/evidence/backlog", 100),
     "API-3-ENGINEERING-APIS.md": ("Design", "API-3 engineering/validation APIs: validation/tests/gates/issues/vcs/workers/agents", 100),
+    "ENG-0-ENGINEERING-ARCHITECTURE.md": ("Design", "ENG-0 engineering architecture: requirement->deploy flow mapped to canonical owners + APIs", 100),
     "SESSION-RESUME-MASTER-PLAN.md": ("Analysis (current)", "Session hand-off notes to resume master-plan execution", 100),
     "design-plan-BI0218.md": ("Design", "AI-era operations layer (evals/versioning/feedback) design - parked (BI-0218)", 0),
     "BOM-DESIGN.md": ("Design", "Product BOM/footprint at packaging design (BI-0217)", 100),

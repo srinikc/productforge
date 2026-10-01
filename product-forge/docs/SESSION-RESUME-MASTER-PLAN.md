@@ -25,6 +25,11 @@ unreliable turn/tool-execution boundary (tool calls mixed with prose were droppe
     `scripts/dev/api_contract_check.py` (engineering surface + fail-closed unknown project),
     `test-framework/tests/pipeline/test_api_engineering.py` (7 tests), `docs/API-3-ENGINEERING-APIS.md`,
     regenerated docs index. 49 OpenAPI paths total.
+  - `ENG-0` (this session): engineering architecture as an executable descriptor —
+    `config/engineering-flow.json` (23-step requirement→deploy flow → canonical owner files + `/api/v1` routes,
+    registered in store-registry), `core/engineering_flow.py` (read/validate), `api/routers/engineering.py`
+    (`GET /api/v1/engineering[/stages|/coverage]`), `scripts/dev/engineering_flow_check.py` (precheck gate:
+    owners exist + routes wired), `docs/ENG-0-ENGINEERING-ARCHITECTURE.md`. 53 OpenAPI paths total.
 
 ## Binding decisions (do not violate)
 
@@ -54,18 +59,20 @@ python scripts/dev/precheck.py                                # expect precheck:
 
 ## Verified state at hand-off
 
-- API-1, API-2, API-3 committed; working tree has only unrelated dashboard/config/conversation churn.
-- `wired_audit` = 0; `api_contract_check` OK; full pipeline suite green; `precheck` PASS.
-- `api/` has 15 routers; **49 OpenAPI paths**; API-2 core reads + API-3 engineering reads all 200.
+- API-1, API-2, API-3, ENG-0 committed; working tree has only unrelated dashboard/config/conversation churn.
+- `wired_audit` = 0; `api_contract_check` OK; `engineering_flow_check` OK; full pipeline suite green; `precheck` PASS.
+- `api/` has 16 routers; **53 OpenAPI paths**; API-2 core reads + API-3 engineering reads all 200.
 - `core/result_aggregator.py` (BI-PF-0277) dangling-integrity gap was repaired in MASTER-0 commit.
 
-## IMMEDIATE NEXT STEPS (from the API-3 commit)
+## IMMEDIATE NEXT STEPS (from the ENG-0 commit)
 
-1. **Proceed to ENG-0** (engineering factory architecture over the API-1..API-3 contracts) — and/or **API-4**
-   (enterprise/SaaS/OEM) which may run in parallel once dependencies are available.
-2. Optionally close MASTER-0..API-3 via the Issue Tracker/RCCA loop per EOS.
-3. Optional follow-up: `core/git_manager.py` (worktrees, PF-050) is unwired/buggy — consolidate into `core/vcs.py` in ENG-3.
-4. Optional follow-up: consolidate `control.json` ownership — `config/store-registry.json` names owner
+1. **Proceed to ENG-1 — Engineering Task Contract** (`core/task_contract.py`): implement the structured task
+   contract + store, expose it via `/api/v1/engineering/tasks`, and flip the ENG-0 flow step
+   `task_contract` from `planned` → `exists` in `config/engineering-flow.json`.
+2. **API-4** (enterprise/SaaS/OEM) may run in parallel once its dependencies are available.
+3. Optional: close MASTER-0..ENG-0 via the Issue Tracker/RCCA loop per EOS.
+4. Optional follow-up: `core/git_manager.py` (worktrees, PF-050) is unwired/buggy — consolidate into `core/vcs.py` in ENG-3.
+5. Optional follow-up: consolidate `control.json` ownership — `config/store-registry.json` names owner
    `core/human_controls.py` (source absent, stale `.pyc` only); actual writers are `core.portfolio.control`,
    `core.run_guard._write_control`, `scripts/run_pipeline.py`.
 

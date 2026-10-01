@@ -88,3 +88,30 @@ def test_project_scoped_reads_on_scratch(client, scratch_project):
         r = client.get(path, params={"project": scratch_project})
         assert r.status_code == 200, f"{path} -> {r.status_code}"
         assert "data" in r.json(), path
+
+
+def test_engineering_flow_is_valid_and_covered(client):
+    from core import engineering_flow
+    res = engineering_flow.validate()
+    assert res["ok"], res["errors"]
+    assert res["checked"] > 0
+    r = client.get("/api/v1/engineering")
+    assert r.status_code == 200
+    data = r.json()["data"]
+    assert data.get("flow") and data.get("invariants") and data.get("forbidden")
+    r2 = client.get("/api/v1/engineering/coverage")
+    assert r2.status_code == 200
+    assert r2.json()["data"]["total"] == res["checked"]
+
+
+def test_engineering_stage_lookup(client):
+    r = client.get("/api/v1/engineering/stages")
+    assert r.status_code == 200
+    steps = r.json()["data"]
+    assert steps
+    sid = steps[0]["id"]
+    r2 = client.get(f"/api/v1/engineering/stages/{sid}")
+    assert r2.status_code == 200
+    assert r2.json()["data"]["id"] == sid
+    r3 = client.get("/api/v1/engineering/stages/does-not-exist-xyz")
+    assert r3.status_code == 404

@@ -1,0 +1,48 @@
+{
+  "_doc": "ENG-0 engineering architecture: the ordered requirement->deploy flow, each step mapped to its canonical owner file and (where one exists) the canonical /api/v1 route that exposes it. Data-only descriptor (no engine). Reader: core/engineering_flow.py. Gate: scripts/dev/engineering_flow_check.py. phase = the plan phase that realizes the step; status = exists | partial | planned.",
+  "version": 1,
+  "flow": [
+    {"id": "requirement", "name": "Product Requirement", "phase": "API-1", "owner": "core/intake.py", "api": "/api/v1/intake", "status": "exists"},
+    {"id": "product_plan", "name": "Product Plan", "phase": "runtime", "owner": "core/product_plan.py", "api": "/api/v1/projects", "status": "exists"},
+    {"id": "architecture", "name": "Architecture", "phase": "runtime", "owner": "core/orchestrator/stage_runner.py", "api": "/api/v1/pipeline", "status": "exists"},
+    {"id": "epic", "name": "Epic", "phase": "runtime", "owner": "core/backlog.py", "api": "/api/v1/backlog", "status": "exists"},
+    {"id": "feature", "name": "Feature", "phase": "runtime", "owner": "core/product_plan.py", "api": "/api/v1/backlog", "status": "exists"},
+    {"id": "task", "name": "Task", "phase": "runtime", "owner": "core/backlog.py", "api": "/api/v1/tasks", "status": "exists"},
+    {"id": "task_contract", "name": "Task Contract", "phase": "ENG-1", "owner": "core/task_contract.py", "api": "/api/v1/engineering/tasks", "status": "planned"},
+    {"id": "scheduler", "name": "Scheduler", "phase": "ENG-2", "owner": "core/scheduler.py", "api": "/api/v1/engineering/schedule", "status": "planned"},
+    {"id": "worker_queue", "name": "Worker Queue", "phase": "runtime", "owner": "core/job_manager.py", "api": "/api/v1/workers/queue", "status": "exists"},
+    {"id": "worker_runtime", "name": "Worker Runtime", "phase": "ENG-4", "owner": "core/orchestrator/agent_runner.py", "api": "", "status": "partial"},
+    {"id": "worktree", "name": "Worktree / Branch", "phase": "ENG-3", "owner": "core/vcs.py", "api": "/api/v1/vcs", "status": "partial"},
+    {"id": "implementation", "name": "Implementation", "phase": "runtime", "owner": "core/pipeline_executor.py", "api": "/api/v1/runs", "status": "exists"},
+    {"id": "tests", "name": "Tests", "phase": "runtime", "owner": "core/test_framework_integration.py", "api": "/api/v1/tests/matrix", "status": "exists"},
+    {"id": "commit", "name": "Commit", "phase": "runtime", "owner": "core/vcs.py", "api": "/api/v1/vcs/commits", "status": "exists"},
+    {"id": "pr", "name": "Pull Request", "phase": "ENG-5", "owner": "core/vcs.py", "api": "", "status": "planned"},
+    {"id": "ci", "name": "CI", "phase": "ENG-5", "owner": "", "api": "", "status": "planned"},
+    {"id": "feature_pr", "name": "FEATURE_PR", "phase": "ENG-7", "owner": "", "api": "", "status": "planned"},
+    {"id": "review_gates", "name": "Review / Gates", "phase": "runtime", "owner": "core/pr_gate.py", "api": "/api/v1/gates/pr", "status": "exists"},
+    {"id": "merge", "name": "Merge", "phase": "ENG-3", "owner": "core/vcs.py", "api": "", "status": "partial"},
+    {"id": "integration", "name": "Integration", "phase": "ENG-8", "owner": "", "api": "", "status": "planned"},
+    {"id": "dogfood", "name": "Dogfood", "phase": "ENG-9", "owner": "", "api": "", "status": "planned"},
+    {"id": "release", "name": "Release", "phase": "ENG-10", "owner": "", "api": "", "status": "planned"},
+    {"id": "package_deploy", "name": "Package / Entitle / Deploy", "phase": "REL-0", "owner": "", "api": "", "status": "planned"}
+  ],
+  "invariants": [
+    "One owner per concern; no duplicate engines/stores (authority: config/store-registry.json).",
+    "Every step maps to a canonical owner file and, where an API exists, a canonical /api/v1 route.",
+    "Clients (OpenCode, MCP, CLI, future Dashboard) are adapters over this API surface; none owns canonical state.",
+    "Exactly one git owner (core/vcs.py); one pipeline executor; one validation decision (core/close_loop)."
+  ],
+  "forbidden": [
+    "second pipeline executor",
+    "second validation engine",
+    "second backlog",
+    "second defect store",
+    "second artifact store",
+    "second event source of truth",
+    "third git manager",
+    "OpenCode-dependent architecture",
+    "Dashboard-dependent architecture",
+    "worker-specific state as canonical state",
+    "direct client-to-store mutation"
+  ]
+}
