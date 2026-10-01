@@ -40,6 +40,13 @@ unreliable turn/tool-execution boundary (tool calls mixed with prose were droppe
     assignment), `config/engineering-workers.json` (declared pool, registered), `GET /api/v1/engineering/workers`
     + `/engineering/schedule`, `scripts/dev/scheduler_check.py` (precheck gate), `docs/ENG-2-WORK-PLANNER-SCHEDULER.md`;
     ENG-0 flow step `scheduler` flipped planned→exists. 58 OpenAPI paths total.
+  - `ENG-3` (this session): git/worktree orchestration — consolidated the duplicate `core/git_manager.py`
+    (PF-050 bug) into the ONE owner `core/vcs.py` (removed git_manager; repointed `capability_bridge` +
+    `pipeline_capabilities` + `core/__init__`); added `feature_branch_name`/`validation_branch_name`/`is_protected`/
+    `worktree_root`/`add_worktree`/`list_worktrees`/`remove_worktree`; API `GET /vcs/branch-name`, `/vcs/worktrees`,
+    `POST /vcs/worktrees[/{name}/remove]`; `scripts/dev/vcs_worktree_check.py` (precheck gate);
+    `docs/ENG-3-GIT-WORKTREE-ORCHESTRATION.md`; ENG-0 flow step `worktree` flipped partial→exists.
+    61 OpenAPI paths total.
 
 ## Binding decisions (do not violate)
 
@@ -69,19 +76,20 @@ python scripts/dev/precheck.py                                # expect precheck:
 
 ## Verified state at hand-off
 
-- API-1..API-3, ENG-0..ENG-2 committed; working tree has only unrelated dashboard/config/conversation churn.
-- `wired_audit` = 0; `api_contract_check` OK; `engineering_flow_check` OK; `task_contract_check` OK; `scheduler_check` OK; full suite green; `precheck` PASS.
-- `api/` has 16 routers; **58 OpenAPI paths**; API-2 core reads + API-3 engineering reads all 200.
+- API-1..API-3, ENG-0..ENG-3 committed; working tree has only unrelated dashboard/config/conversation churn.
+- `wired_audit` = 0; `api_contract_check` OK; `engineering_flow_check` OK; `task_contract_check` OK; `scheduler_check` OK; `vcs_worktree_check` OK; full suite green; `precheck` PASS.
+- `api/` has 16 routers; **61 OpenAPI paths**; API-2 core reads + API-3 engineering reads all 200.
 - `core/result_aggregator.py` (BI-PF-0277) dangling-integrity gap was repaired in MASTER-0 commit.
 
-## IMMEDIATE NEXT STEPS (from the ENG-2 commit)
+## IMMEDIATE NEXT STEPS (from the ENG-3 commit)
 
-1. **Proceed to ENG-3 — Git / Worktree / Branch Orchestration**: consolidate `core/git_manager.py` (worktrees,
-   PF-050 bug: `create_branch(create=...)`) into the one git owner `core/vcs.py`; add per-task worktree + branch
-   isolation; flip the `worktree` flow step toward `exists` in `config/engineering-flow.json`.
-2. **ENG-4** worker runtime + adapter follows (normalized worker result; execution of the ENG-2 plan).
+1. **Proceed to ENG-4 — Worker Runtime & OpenCode Adapter**: a normalized worker result contract + a task-level
+   worker loop that CLAIMS an ENG-2 assignment, creates an isolated ENG-3 worktree/branch, executes, and reports
+   back (status/artifacts/evidence). OpenCode/CLI/MCP are adapters (clients), never dependencies. Flip the
+   `worker_runtime` flow step `partial` → `exists`.
+2. **ENG-5 — GitHub/PR/CI**: push, PR creation, exact-commit evidence, integration queue (also unblocks API-5).
 3. **API-4** (enterprise/SaaS/OEM) may run in parallel once its dependencies are available.
-4. Optional: close MASTER-0..ENG-2 via the Issue Tracker/RCCA loop per EOS.
+4. Optional: close MASTER-0..ENG-3 via the Issue Tracker/RCCA loop per EOS.
 5. Optional follow-up: consolidate `control.json` ownership — `config/store-registry.json` names owner
    `core/human_controls.py` (source absent, stale `.pyc` only); actual writers are `core.portfolio.control`,
    `core.run_guard._write_control`, `scripts/run_pipeline.py`.

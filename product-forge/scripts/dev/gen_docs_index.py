@@ -66,6 +66,7 @@ TOP = {
     "ENG-0-ENGINEERING-ARCHITECTURE.md": ("Design", "ENG-0 engineering architecture: requirement->deploy flow mapped to canonical owners + APIs", 100),
     "ENG-1-TASK-CONTRACT.md": ("Design", "ENG-1 engineering task contract: executable unit of work (model + store + API + schema gate)", 100),
     "ENG-2-WORK-PLANNER-SCHEDULER.md": ("Design", "ENG-2 planner/scheduler: dependency graph, capability match, file-overlap, elastic K<=N", 100),
+    "ENG-3-GIT-WORKTREE-ORCHESTRATION.md": ("Design", "ENG-3 git/worktree orchestration: one git owner, branch naming, isolated worktrees (PF-050 fixed)", 100),
     "SESSION-RESUME-MASTER-PLAN.md": ("Analysis (current)", "Session hand-off notes to resume master-plan execution", 100),
     "design-plan-BI0218.md": ("Design", "AI-era operations layer (evals/versioning/feedback) design - parked (BI-0218)", 0),
     "BOM-DESIGN.md": ("Design", "Product BOM/footprint at packaging design (BI-0217)", 100),

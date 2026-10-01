@@ -24,7 +24,6 @@ from .state_machine import StateMachine, ProjectState
 from .write_safety import WriteSafety
 from .queue_manager import QueueManager
 from .budget_tracker import BudgetTracker
-from .git_manager import GitManager
 from .product_plan import ProductPlan
 from .traceability import TraceabilityMatrix
 from .agent_ledger import AgentLedger
@@ -88,7 +87,6 @@ __all__ = [
     "WriteSafety",
     "QueueManager",
     "BudgetTracker",
-    "GitManager",
     "ProductPlan",
     "TraceabilityMatrix",
     "AgentLedger",

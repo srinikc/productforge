@@ -92,12 +92,13 @@ def plan_release(project_dir: str) -> Dict[str, Any]:
 
 
 def git_status(project_dir: str) -> Dict[str, Any]:
+    # one git owner: core.vcs (the legacy duplicate git_manager was consolidated in ENG-3)
     try:
-        from core.git_manager import GitManager
-        gm = GitManager(project_dir)
-        is_repo = gm.is_git_repo() if hasattr(gm, "is_git_repo") else False
-        st = gm.get_status() if is_repo and hasattr(gm, "get_status") else None
-        return {"is_repo": bool(is_repo), "status": getattr(st, "__dict__", st)}
+        from core.vcs import VCSManager
+        m = VCSManager(project_dir)
+        if not m.is_repo():
+            return {"is_repo": False, "status": None}
+        return {"is_repo": True, "status": m.status()}
     except Exception as e:
         return {"error": str(e)}
 

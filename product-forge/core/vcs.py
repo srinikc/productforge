@@ -37,6 +37,24 @@ class VCSManager:
                       "base_branch": "develop", "release_branch": "main",
                       "protected": ["main"], "sign_tags": False}
 
+    # ── branch naming (ENG-3) ───────────────────────────────────
+    @staticmethod
+    def _slug(s: Any) -> str:
+        return re.sub(r"[^a-z0-9._-]+", "-", str(s or "").strip().lower()).strip("-")
+
+    @staticmethod
+    def feature_branch_name(area: str, task_id: str) -> str:
+        return f"feature/{VCSManager._slug(area) or 'task'}/{VCSManager._slug(task_id) or 'unknown'}"
+
+    @staticmethod
+    def validation_branch_name(run_id: str) -> str:
+        return f"validation/{VCSManager._slug(run_id) or 'run'}"
+
+    def is_protected(self, branch: str = "") -> bool:
+        """develop/main (integration/release) are never written directly - only a controlled merge."""
+        b = str(branch or self.current_branch() or "")
+        return b in (set(self.protected) | {self.integration_branch, self.release_branch})
+
     @classmethod
     def config_path(cls, project_dir: str) -> str:
         return os.path.join(project_dir, cls.CONFIG_FILE)
@@ -138,6 +156,72 @@ class VCSManager:
         """Local branch names (read-only)."""
         out = self._git(["branch", "--format=%(refname:short)"]).get("out", "")
         return [x.strip() for x in out.splitlines() if x.strip()]
+
+    # ── worktrees (ENG-3: workers never share a mutable working dir) ──
+    def worktree_root(self) -> str:
+        """Sibling ``<repo>-worktrees/`` unless configured (git-config.json -> worktree_root)."""
+        cfg = str(self.cfg.get("worktree_root") or "").strip()
+        if cfg:
+            return cfg if os.path.isabs(cfg) else os.path.abspath(os.path.join(self.project_dir, cfg))
+        p = os.path.normpath(self.project_dir)
+        return os.path.join(os.path.dirname(p), os.path.basename(p) + "-worktrees")
+
+    def list_worktrees(self) -> List[Dict[str, Any]]:
+        if not self.is_repo():
+            return []
+        out = self._git(["worktree", "list", "--porcelain"]).get("out", "")
+        rows: List[Dict[str, Any]] = []
+        cur: Dict[str, Any] = {}
+        for line in (out or "").splitlines():
+            line = line.strip()
+            if not line:
+                if cur:
+                    rows.append(cur)
+                    cur = {}
+                continue
+            if line.startswith("worktree "):
+                cur["path"] = line[len("worktree "):]
+            elif line.startswith("HEAD "):
+                cur["head"] = line[len("HEAD "):]
+            elif line.startswith("branch "):
+                cur["branch"] = line[len("branch "):].replace("refs/heads/", "")
+            elif line == "bare":
+                cur["bare"] = True
+        if cur:
+            rows.append(cur)
+        return rows
+
+    def add_worktree(self, name: str, branch: str = "", base: str = "") -> Dict[str, Any]:
+        """Create an isolated worktree on a feature branch (fixes PF-050: no bad create kwarg)."""
+        if not self.is_repo():
+            return {"ok": False, "error": "not a git repository"}
+        safe = self._slug(name)
+        if not safe:
+            return {"ok": False, "error": "invalid worktree name"}
+        path = os.path.join(self.worktree_root(), safe)
+        branch = str(branch or "").strip() or f"worktree/{safe}"
+        base_ref = ""
+        try:
+            os.makedirs(self.worktree_root(), exist_ok=True)
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+        if self._git(["rev-parse", "--verify", branch]).get("ok"):
+            r = self._git(["worktree", "add", path, branch])
+        else:
+            base_ref = str(base or "").strip()
+            if not base_ref or not self._git(["rev-parse", "--verify", base_ref]).get("ok"):
+                base_ref = self.integration_branch
+            if not self._git(["rev-parse", "--verify", base_ref]).get("ok"):
+                base_ref = self.current_branch() or "HEAD"
+            r = self._git(["worktree", "add", "-b", branch, path, base_ref])
+        return {"ok": r.get("ok", False), "name": safe, "path": path, "branch": branch,
+                "base": base_ref, "error": r.get("error", "")}
+
+    def remove_worktree(self, name: str) -> Dict[str, Any]:
+        path = os.path.join(self.worktree_root(), self._slug(name))
+        r = self._git(["worktree", "remove", path, "--force"])
+        self._git(["worktree", "prune"])
+        return {"ok": r.get("ok", False), "path": path, "error": r.get("error", "")}
 
     # ── branches ────────────────────────────────────────────────
     def ensure_develop(self) -> Dict[str, Any]:

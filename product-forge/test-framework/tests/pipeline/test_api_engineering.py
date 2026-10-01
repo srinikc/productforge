@@ -117,6 +117,26 @@ def test_engineering_stage_lookup(client):
     assert r3.status_code == 404
 
 
+def test_vcs_branch_name_and_worktrees(client, scratch_project):
+    r = client.get("/api/v1/vcs/branch-name", params={"task_id": "TC-PF-0001", "area": "Web UI"})
+    assert r.status_code == 200
+    assert r.json()["data"]["feature"] == "feature/web-ui/tc-pf-0001"
+    r2 = client.get("/api/v1/vcs/worktrees", params={"project": scratch_project})
+    assert r2.status_code == 200
+    assert "worktrees" in r2.json()["data"] and "root" in r2.json()["data"]
+
+
+def test_vcs_worktree_naming_and_protection_unit():
+    from core.vcs import VCSManager
+    assert VCSManager.feature_branch_name("eng", "TC-PF-0002") == "feature/eng/tc-pf-0002"
+    assert VCSManager.validation_branch_name("run-1") == "validation/run-1"
+    m = VCSManager.__new__(VCSManager)
+    m.protected = {"main"}
+    m.integration_branch = "develop"
+    m.release_branch = "main"
+    assert m.is_protected("main") and m.is_protected("develop")
+
+
 def test_engineering_workers_and_schedule(client):
     r = client.get("/api/v1/engineering/workers")
     assert r.status_code == 200

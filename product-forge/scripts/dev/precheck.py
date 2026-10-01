@@ -25,6 +25,7 @@ def _steps():
         ("engineering-flow", [sys.executable, "scripts/dev/engineering_flow_check.py"]),
         ("task-contract", [sys.executable, "scripts/dev/task_contract_check.py"]),
         ("scheduler", [sys.executable, "scripts/dev/scheduler_check.py"]),
+        ("vcs-worktree", [sys.executable, "scripts/dev/vcs_worktree_check.py"]),
         ("backlog-e2e", [sys.executable, "scripts/dev/e2e_backlog_check.py"]),
         ("docs-fresh", [sys.executable, "scripts/dev/check_docs_fresh.py"]),
         ("secret-scan", [sys.executable, "scripts/dev/secret_scan.py"]),

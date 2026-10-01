@@ -78,19 +78,18 @@ def run(project_dir: str, project: str, domain: str = "", product_kind: str = ""
     """Invoke every extended capability once; persist a consolidated report."""
     results = []
 
-    # git_manager — repository snapshot (no repo = handled result, not a failure)
+    # git — repository snapshot via the one git owner core.vcs (no repo = handled result)
     def _git():
         import subprocess
         if not os.path.isdir(os.path.join(project_dir, ".git")):
             return {"status": "no-repo"}
-        g = _mk("core.git_manager:GitManager", project_dir)
+        g = _mk("core.vcs:VCSManager", project_dir)
         try:
-            s = _call(g, "get_status")
-            return (s.to_dict() if hasattr(s, "to_dict") else s)
+            return _call(g, "status")
         except Exception:
             return subprocess.run(["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=project_dir,
                                   capture_output=True, text=True).stdout.strip()
-    results.append(_probe("git_manager", _git))
+    results.append(_probe("git", _git))
 
     # model_recommendation
     def _model():

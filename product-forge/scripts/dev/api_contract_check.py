@@ -79,7 +79,8 @@ def main() -> int:
     for path in ("/api/v1/agents", "/api/v1/workers/queue", "/api/v1/workers/capacity",
                  "/api/v1/issues/stats", "/api/v1/engineering", "/api/v1/engineering/coverage",
                  "/api/v1/engineering/tasks", "/api/v1/engineering/workers",
-                 "/api/v1/engineering/schedule", "/api/v1/backlog/stats"):
+                 "/api/v1/engineering/schedule", "/api/v1/vcs/branch-name",
+                 "/api/v1/backlog/stats"):
         r = c.get(path)
         _check(r.status_code == 200, f"{path} status {r.status_code}")
         _check(SUCCESS_KEYS <= set(r.json()), f"{path} envelope keys")
