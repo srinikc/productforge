@@ -311,6 +311,51 @@ def agui_run(run_id: str, project: str = Query(...)):
             "types": agui.types()}
 
 
+# ── Output guardrails + governance (BI-0219) ─────────────────────────────────
+@app.get("/api/v1/guardrails/policy", dependencies=[Depends(auth)])
+def guardrails_policy():
+    """Guardrail policy + schema validation."""
+    from core import guardrails
+    return {"policy": guardrails.load_policy(), "errors": guardrails.validate_policy()}
+
+
+@app.get("/api/v1/guardrails/report", dependencies=[Depends(auth)])
+def guardrails_report(project: str):
+    """Latest Guardrail-Report for a project (or null)."""
+    from core import guardrails
+    return {"project": project, "report": guardrails.load_report(os.path.join("products", project))}
+
+
+@app.post("/api/v1/guardrails/check", dependencies=[Depends(auth)])
+def guardrails_check(body: Dict[str, Any]):
+    """Ad-hoc guardrail check: {content, channel} -> action/findings (fail-closed)."""
+    from core import guardrails
+    return guardrails.check(str(body.get("content") or ""), str(body.get("channel") or "text"))
+
+
+@app.get("/api/v1/governance/checkpoints", dependencies=[Depends(auth)])
+def governance_checkpoints():
+    """NIST AI RMF / EU AI Act governance checkpoints."""
+    from core import guardrails
+    return {"checkpoints": guardrails.governance_checkpoints()}
+
+
+# ── Result aggregator (BI-PF-0277) ───────────────────────────────────────────
+@app.get("/api/v1/aggregate/report", dependencies=[Depends(auth)])
+def aggregate_report(project: str):
+    """Latest Aggregation-Report for a project (or null)."""
+    from core import result_aggregator
+    return {"project": project, "report": result_aggregator.load_report(os.path.join("products", project))}
+
+
+@app.post("/api/v1/aggregate", dependencies=[Depends(auth)])
+def aggregate(body: Dict[str, Any]):
+    """Aggregate a posted list of contributions ({contributions:[...], quorum:int})."""
+    from core import result_aggregator
+    return result_aggregator.aggregate(body.get("contributions") or [],
+                                       quorum=int(body.get("quorum") or 0))
+
+
 # ── Vendored tools (neutral tool locations, BI-0202) ─────────────────────────
 @app.get("/api/v1/vendor/tools", dependencies=[Depends(auth)])
 def vendor_tools():

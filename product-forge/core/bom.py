@@ -142,7 +142,7 @@ def _source_dir(project_dir: str) -> str:
 def build(project_dir: str) -> Dict:
     """Deterministic footprint dict for the packaged product (no side effects)."""
     src = _source_dir(project_dir)
-    return {
+    out = {
         "schema": SCHEMA,
         "project": os.path.basename(os.path.normpath(project_dir)),
         "generated_at": datetime.now().isoformat(),
@@ -152,6 +152,18 @@ def build(project_dir: str) -> Dict:
         "footprint": _footprint(src),
         "limits": {"max_files": MAX_FILES, "max_bytes_per_file": MAX_BYTES_PER_FILE},
     }
+    # BI-0219: governance — model/data cards + provenance + checkpoints into the BOM.
+    try:
+        from core import guardrails as _gr
+        rep = _gr.load_report(project_dir) or {}
+        out["model_cards"] = rep.get("model_cards", [])
+        out["data_cards"] = rep.get("data_cards", [])
+        out["governance"] = rep.get("governance", _gr.governance_checkpoints())
+    except Exception:
+        out.setdefault("model_cards", [])
+        out.setdefault("data_cards", [])
+        out.setdefault("governance", [])
+    return out
 
 
 def write(project_dir: str) -> str:

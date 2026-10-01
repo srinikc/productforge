@@ -1,0 +1,33 @@
+{
+  "$schema": "guardrail-policy-v1",
+  "_doc": "Versioned output guardrail policy (BI-0219). Owner: core/guardrails.py. Per-channel categories with actions (allow|flag|block|redact). High-severity categories never silently allow. Malformed policy => block (fail-closed).",
+  "schema_version": 1,
+  "default_action": "flag",
+  "channels": {
+    "text": {
+      "secret":            {"action": "redact", "severity": "high", "patterns": ["api[_-]?key", "secret", "password", "bearer ", "-----BEGIN", "sk-[A-Za-z0-9]{10,}"]},
+      "pii":               {"action": "flag", "severity": "high", "patterns": ["\\b\\d{3}-\\d{2}-\\d{4}\\b", "\\b\\d{16}\\b", "\\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}\\b"]},
+      "toxicity":          {"action": "flag", "severity": "medium", "patterns": ["\\b(idiot|moron|hate you|kill)\\b"]},
+      "prompt_injection":  {"action": "flag", "severity": "high", "patterns": ["ignore (all )?previous instructions", "disregard the system prompt", "you are now ", "jailbreak"]}
+    },
+    "image": {
+      "nsfw":              {"action": "block", "severity": "high", "patterns": ["nsfw", "explicit"]}
+    },
+    "audio": {},
+    "video": {
+      "nsfw":              {"action": "block", "severity": "high", "patterns": ["nsfw", "explicit"]}
+    }
+  },
+  "governance": {
+    "frameworks": ["NIST-AI-RMF", "EU-AI-Act"],
+    "checkpoints": [
+      {"id": "nist-govern", "framework": "NIST-AI-RMF", "function": "GOVERN", "desc": "Policies/accountability recorded"},
+      {"id": "nist-map", "framework": "NIST-AI-RMF", "function": "MAP", "desc": "Context/risks mapped"},
+      {"id": "nist-measure", "framework": "NIST-AI-RMF", "function": "MEASURE", "desc": "Guardrails/metrics applied"},
+      {"id": "nist-manage", "framework": "NIST-AI-RMF", "function": "MANAGE", "desc": "Risks prioritized/handled"},
+      {"id": "eu-transparency", "framework": "EU-AI-Act", "function": "TRANSPARENCY", "desc": "AI interaction disclosed"},
+      {"id": "eu-data-governance", "framework": "EU-AI-Act", "function": "DATA-GOVERNANCE", "desc": "Data provenance/licensing"},
+      {"id": "eu-provenance", "framework": "EU-AI-Act", "function": "PROVENANCE", "desc": "Generated content marked (C2PA)"}
+    ]
+  }
+}
