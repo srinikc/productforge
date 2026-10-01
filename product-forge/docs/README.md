@@ -36,8 +36,10 @@
 ## Main docs (docs/*.md)
 | Doc | Status | Impl % | What it's about | Pending / note | Backlog |
 |---|---|---|---|---|---|
+| [`A2A-DESIGN.md`](A2A-DESIGN.md) | Design | 100% | A2A interop: agnostic, contract-based, pipeline-tracked agent delegation (BI-0197) | — | — |
 | [`ADDING-TO-PRODUCT-FORGE.md`](ADDING-TO-PRODUCT-FORGE.md) | Implemented | 100% | Recipes/checklists to add anything | — | — |
 | [`AGENT_CONTRACT_STANDARD.md`](AGENT_CONTRACT_STANDARD.md) | Implemented | 100% | AgentSpec / agent-card contract standard | — | — |
+| [`AGNOSTIC-CARDS-DESIGN.md`](AGNOSTIC-CARDS-DESIGN.md) | Design | 100% | Framework-agnostic agent card resolver, no .opencode default (BI-0201) | — | — |
 | [`AGUI-DESIGN.md`](AGUI-DESIGN.md) | Design | 100% | AG-UI typed event stream (BI-0198) | — | — |
 | [`AUDIT-REGISTER-TRIAGE.md`](AUDIT-REGISTER-TRIAGE.md) | Analysis (current) | 100% | Audit PF/candidate disposition: fixed / tracked / new (BI-PF-0254) | — | — |
 | [`Agent-LLM-PromptHandling.md`](Agent-LLM-PromptHandling.md) | Design | 60% | Agent/LLM prompt handling | **Pending: capability vectors per agent, capability-aware request builder, structured-output-first render.** | BI-0221–BI-0224, BI-0228 |
@@ -57,22 +59,26 @@
 | [`FEASIBILITY-TRIAGE-DESIGN.md`](FEASIBILITY-TRIAGE-DESIGN.md) | Design | 100% | Two-phase feasibility & capability triage (BI-0214) | — | — |
 | [`Failure-Recovery-System.md`](Failure-Recovery-System.md) | Implemented | 100% | Failure / retry / checkpoint recovery | — | — |
 | [`GENERATOR-ADAPTERS-DESIGN.md`](GENERATOR-ADAPTERS-DESIGN.md) | Design | 100% | Generator-model adapters (image/video/audio/music/3d) (BI-0188) | — | — |
+| [`GUARDRAILS-DESIGN.md`](GUARDRAILS-DESIGN.md) | Design | 100% | Output guardrails + model/data cards + C2PA provenance + NIST/EU governance (BI-0219) | — | — |
 | [`HOW-TO-START-NEW-PROJECT.md`](HOW-TO-START-NEW-PROJECT.md) | Implemented | 100% | Step-by-step to start a project | — | — |
 | [`INTAKE-AND-BACKLOG-DESIGN.md`](INTAKE-AND-BACKLOG-DESIGN.md) | Implemented | 100% | Intake & backlog design | — | — |
 | [`ISSUE-CLOSE-LOOP-DESIGN.md`](ISSUE-CLOSE-LOOP-DESIGN.md) | Design | 100% | Issue<->backlog bidirectional close loop (BI-PF-0271) | — | — |
 | [`LEARNING-PIPELINE-DESIGN.md`](LEARNING-PIPELINE-DESIGN.md) | Design | 100% | Evidence-gated learning pipeline (BI-PF-0293/0294/0295) | — | — |
 | [`LOGS-AND-OBSERVABILITY.md`](LOGS-AND-OBSERVABILITY.md) | Analysis (current) | 100% | As-is map of every log/event/state file + the no-SSOT gap to fix (BI-PF-0233/0234/0235) | — | — |
+| [`MASTER-0-CURRENT-STATE-TRUTH.md`](MASTER-0-CURRENT-STATE-TRUTH.md) | Design | 100% | MASTER-0 current-state architecture truth + discovery gate | — | — |
 | [`MCP-DESIGN.md`](MCP-DESIGN.md) | Design | 100% | MCP interop: expose tools + consume external servers (BI-0196) | — | — |
 | [`MEDIA-AGENTS-DESIGN.md`](MEDIA-AGENTS-DESIGN.md) | Design | 100% | Media agents: analyst/generator/editor/librarian (BI-0190) | — | — |
 | [`MEDIA-CHUNKING-DESIGN.md`](MEDIA-CHUNKING-DESIGN.md) | Design | 100% | Media chunking + markdown asset-ref resolution (BI-PF-0288) | — | — |
 | [`MEDIA-CONTEXT-DESIGN.md`](MEDIA-CONTEXT-DESIGN.md) | Design | 100% | Media context: asset->prompt selection + summary/native parts (BI-PF-0287) | — | — |
 | [`MEDIA-INGEST-DESIGN.md`](MEDIA-INGEST-DESIGN.md) | Design | 100% | Media ingest + segmentation/tiling + asset store (BI-0187) | — | — |
 | [`MEDIA-QA-DESIGN.md`](MEDIA-QA-DESIGN.md) | Design | 100% | Media QA validators (BI-0191) | — | — |
+| [`MODEL-POLICY-DESIGN.md`](MODEL-POLICY-DESIGN.md) | Design | 100% | Versioned per-model eligibility policy schema (BI-PF-0278) | — | — |
 | [`MODEL-STRATEGY-DESIGN.md`](MODEL-STRATEGY-DESIGN.md) | Design | 100% | Two-phase model & capability strategy gate (BI-0192/BI-0210) | — | — |
 | [`MULTIMODAL-E2E-DESIGN.md`](MULTIMODAL-E2E-DESIGN.md) | Design | 100% | Multimodal end-to-end acceptance (BI-0212) | — | — |
 | [`MULTIMODAL-LLM-DESIGN.md`](MULTIMODAL-LLM-DESIGN.md) | Design | 100% | Multimodal LLM plumbing: media parts in llm_client (BI-0186) | — | — |
 | [`Multi-Agent-Multi-Project-Unique-Features.md`](Multi-Agent-Multi-Project-Unique-Features.md) | Design | 80% | Unique multi-agent / multi-project features | Informational only: a few nice-to-have surfaces, not tracked as work. | — |
 | [`OTEL-GENAI-DESIGN.md`](OTEL-GENAI-DESIGN.md) | Design | 100% | OpenTelemetry GenAI observability incl. multimodal (BI-0199) | — | — |
+| [`PER-UNIT-COST-DESIGN.md`](PER-UNIT-COST-DESIGN.md) | Design | 100% | Per-unit media cost model + projection (BI-0194) | — | — |
 | [`PIPELINE-COMPOSITION-DESIGN.md`](PIPELINE-COMPOSITION-DESIGN.md) | Design | 100% | Capability-gated pipeline composition (BI-0213) | — | — |
 | [`PIPELINE-OPERATIONS.md`](PIPELINE-OPERATIONS.md) | Implemented | 100% | Operations: run modes, control, state, status | — | — |
 | [`PIPELINE-RESUME-ProductForge-Dashboard.md`](PIPELINE-RESUME-ProductForge-Dashboard.md) | Adopted (reference) | 50% | Old resume notes for a project | Partial - resume notes reused. | — |
@@ -80,7 +86,9 @@
 | [`PLUGINS-DESIGN.md`](PLUGINS-DESIGN.md) | Design | 100% | Plugin/registry framework (ports & adapters) (BI-0200) | — | — |
 | [`PR-WORKFLOW.md`](PR-WORKFLOW.md) | Implemented | 100% | Branch -> pre-check gates -> review -> merge (BI-0205) | — | — |
 | [`PRODUCT-ISSUE-LOOP-DESIGN.md`](PRODUCT-ISSUE-LOOP-DESIGN.md) | Design | 100% | Product-scope issue/RCCA/backlog integration + API (BI-PF-0272) | — | — |
+| [`PRODUCT_FORGE_MASTER_API_FIRST_ENGINEERING_product-forge_E2E_EXECUTION_PLAN.md`](PRODUCT_FORGE_MASTER_API_FIRST_ENGINEERING_FACTORY_E2E_EXECUTION_PLAN.md) | SSOT | 0% | Governing master API-first -> engineering Product Forge -> E2E execution plan | — | — |
 | [`PROVIDER-FALLBACK.md`](PROVIDER-FALLBACK.md) | Implemented | 100% | Provider fallback policy: Zen free unusable; opencode-go/kctier (BI-PF-0247) | — | — |
+| [`PROVIDER-HEALTH-DESIGN.md`](PROVIDER-HEALTH-DESIGN.md) | Design | 100% | Provider health tracking feeding routing (BI-PF-0279) | — | — |
 | [`PROVIDER-KINDS-DESIGN.md`](PROVIDER-KINDS-DESIGN.md) | Design | 100% | Provider-kind abstraction + kind-aware router (BI-0193) | — | — |
 | [`product_forge_AI_Model_Strategy_Orchestration.md`](Product_Factory_AI_Model_Strategy_Orchestration.md) | Analysis (reference) | 100% | Multi-model strategy: routing, cost-per-accepted, intelligence loop | — | — |
 | [`product_forge_Multi_Model_Adapters_Aggregators.md`](Product_Factory_Multi_Model_Adapters_Aggregators.md) | Analysis (reference) | 100% | Multi-model architecture: adapters/registry/router/generator/aggregator separation | — | — |
@@ -95,6 +103,7 @@
 | [`SECTIONED-GENERATION-ANALYSIS.md`](SECTIONED-GENERATION-ANALYSIS.md) | Implemented | 100% | Long-output (sectioned) generation design | — | — |
 | [`STRUCTURE-CONTRACT.md`](STRUCTURE-CONTRACT.md) | Implemented | 100% | Binding repo structure contract (folders + owners) | — | — |
 | [`UNWIRED-MODULES-TRIAGE.md`](UNWIRED-MODULES-TRIAGE.md) | Adopted (reference) | 90% | Deprecated/legacy module triage | Triage applied; retired modules removed. | — |
+| [`VENDORED-TOOLS.md`](VENDORED-TOOLS.md) | Design | 100% | Neutral vendored tools location (drawio), no .opencode coupling (BI-0202) | — | — |
 | [`_knowledge_workflow.md`](_knowledge_workflow.md) | Adopted (reference) | 75% | Knowledge workflow note | Adopted: knowledge compiler/router. | — |
 | [`agent-audit.md`](agent-audit.md) | Runtime | 100% | Agent audit (runtime output) | — | — |
 | [`agent-context.md`](agent-context.md) | Runtime | 100% | Agent context (runtime output) | — | — |
@@ -102,6 +111,7 @@
 | [`agent_prompt_current_vs_recommended.md`](agent_prompt_current_vs_recommended.md) | Review (pending) | 0% | Per-agent concrete current<->recommendation | **Still open: per-agent prompt upgrades + capability declarations from the recommendation tables.** | BI-0228, BI-0221–BI-0223 |
 | [`agents_prompts_instructions.md`](agents_prompts_instructions.md) | Current | 100% | All 61 agent cards + prompt assembly (mirror of .opencode/agent/*) | — | — |
 | [`credentials.md`](credentials.md) | Implemented | 100% | Credentials + budget registry (BI-0207) | — | — |
+| [`design-plan-BI0218.md`](design-plan-BI0218.md) | Design | 0% | AI-era operations layer (evals/versioning/feedback) design - parked (BI-0218) | — | — |
 | [`design.md`](design.md) | Runtime | 100% | Design notes (runtime output) | — | — |
 | [`feature-status.md`](feature-status.md) | Runtime | 100% | Derived feature status | — | — |
 | [`final_required_changes.md`](final_required_changes.md) | Analysis (current) | 100% | Consolidated final change plan: audit M0/M1/M2 reconciled with backlog + our docs | — | — |
