@@ -115,3 +115,36 @@ def test_engineering_stage_lookup(client):
     assert r2.json()["data"]["id"] == sid
     r3 = client.get("/api/v1/engineering/stages/does-not-exist-xyz")
     assert r3.status_code == 404
+
+
+def test_task_contract_validate_unit():
+    from core import task_contract
+    assert task_contract.validate({"title": "t"})["ok"] is False
+    ok = task_contract.validate({"title": "t", "objective": "o", "acceptance_criteria": ["a"]})
+    assert ok["ok"] is True, ok["errors"]
+
+
+def test_task_contract_api_roundtrip(client, scratch_project):
+    scope = {"scope": "project", "project": scratch_project}
+    body = dict(scope, title="Add CSV export", objective="Export table to CSV",
+                acceptance_criteria=["CSV has headers", "UTF-8"], risk="low", priority="P1")
+    r = client.post("/api/v1/engineering/tasks", json=body)
+    assert r.status_code == 200, r.text
+    tid = r.json()["resource_id"]
+    assert tid.startswith("TC-")
+
+    r2 = client.get("/api/v1/engineering/tasks", params=scope)
+    assert r2.status_code == 200
+    assert any(t["task_id"] == tid for t in r2.json()["data"])
+
+    r3 = client.get(f"/api/v1/engineering/tasks/{tid}", params=scope)
+    assert r3.status_code == 200
+    assert r3.json()["data"]["objective"] == "Export table to CSV"
+
+    r4 = client.post(f"/api/v1/engineering/tasks/{tid}/status", json=dict(scope, status="ready"))
+    assert r4.status_code == 200
+    assert r4.json()["data"]["status"] == "ready"
+
+    bad = client.post("/api/v1/engineering/tasks", json=dict(scope, title="no criteria"))
+    assert bad.status_code == 400
+    assert bad.json()["error"]["code"] == "VALIDATION_FAILED"
