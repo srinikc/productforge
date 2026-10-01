@@ -13,15 +13,22 @@ from fastapi.middleware.cors import CORSMiddleware
 from .auth import authenticate
 from .context import context_middleware
 from .errors import install_handlers
-from .routers import health, intake
+from .routers import artifacts, backlog, evidence, health, intake, pipeline, projects, runs
 
 API_VERSION = "v1"
 
 app = FastAPI(title="Product Forge API", version="1.0.0", docs_url="/docs", openapi_url="/openapi.json")
 
+_CORS = ["*"]
+try:
+    from core import env_flags
+    _CORS = [o.strip() for o in str(env_flags.get("API_ALLOW_ORIGINS", "*")).split(",") if o.strip()] or ["*"]
+except Exception:
+    pass
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_CORS,
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -31,8 +38,11 @@ context_middleware(app)
 install_handlers(app)
 
 app.include_router(health.router)
-app.include_router(intake.router, prefix="/api/v1")
 app.include_router(health.router, prefix="/api/v1")
+
+for _r in (intake.router, projects.router, runs.router, pipeline.router,
+           artifacts.router, evidence.router, backlog.router):
+    app.include_router(_r, prefix="/api/v1")
 
 
 def main() -> None:

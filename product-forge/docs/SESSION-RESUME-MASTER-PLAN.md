@@ -14,17 +14,12 @@ unreliable turn/tool-execution boundary (tool calls mixed with prose were droppe
   - `cc791f8` API-0: API discovery artifact + gate
   - `b236efa` API-0.1: contract reconciliation artifact + gate
   - `e57037a` API-1: canonical `api/` foundation
-- **UNCOMMITTED (working tree) — needs to be committed as API-2:**
-  - `product-forge/api/routers/{projects,runs,pipeline,artifacts,evidence,backlog}.py`
-  - `product-forge/api/pagination.py`
-  - `product-forge/api/app.py` (wired 8 routers)
-  - `product-forge/scripts/dev/api_contract_check.py` (extended for API-2)
-  - `product-forge/test-framework/tests/pipeline/test_api_core.py`
-  - `product-forge/docs/API-2-CORE-APIS.md` (NEW — MUST be classified in gen_docs_index.py)
-  - `product-forge/scripts/dev/gen_docs_index.py` (classified MASTER-0/API-0/API-0.1/API-1)
-  - `product-forge/config/store-registry.json` + `config/env-flags.json` (idempotency store + API_* flags) — already committed in API-1? verify
-  - `product-forge/data/backlog/...` (new item BI-PF-0331 OS/shell neutrality)
-  - `product-forge/data/api/idempotency.json` is TEST RESIDUE — delete before commit.
+  - `API-2` (this session): core PF APIs — `api/routers/{projects,runs,pipeline,artifacts,evidence,backlog}.py`,
+    `api/pagination.py`, `api/app.py` (8 routers), `scripts/dev/api_contract_check.py` (core GET surface +
+    validation error), `scripts/dev/gen_docs_index.py` (classifies API-2 + this resume doc),
+    `test-framework/tests/pipeline/test_api_core.py` (12 tests), `docs/API-2-CORE-APIS.md`,
+    regenerated `docs/README.md` + `docs/documentation-index.html`, `data/backlog` (new `BI-PF-0331`;
+    28 test-residue intake items removed). `data/api/idempotency.json` residue deleted pre-commit.
 
 ## Binding decisions (do not violate)
 
@@ -59,17 +54,22 @@ python scripts/dev/precheck.py                                # expect precheck:
 - `api/` has 8 routers; 25 OpenAPI paths; health/pipeline/backlog/projects/stages/tasks/evidence/runs/artifacts all 200.
 - `core/result_aggregator.py` (BI-PF-0277) dangling-integrity gap was repaired in MASTER-0 commit.
 
-## IMMEDIATE NEXT STEPS
+## IMMEDIATE NEXT STEPS (from the API-2 commit)
 
-1. Delete residue: `Remove-Item product-forge/data/api/idempotency.json` (if present).
-2. Classify `API-2-CORE-APIS.md` in `gen_docs_index.py`; run `python scripts/dev/gen_docs_index.py`.
-3. Run gates above; confirm all pass.
-4. Commit API-2 (stage ONLY: api/**, scripts/dev/api_contract_check.py, scripts/dev/gen_docs_index.py,
-   test-framework/tests/pipeline/test_api_core.py, docs/API-2-CORE-APIS.md, docs/README.md,
-   docs/documentation-index.html, data/backlog changes). Do NOT stage dashboard/config churn or conversations.
-5. Optionally close MASTER-0..API-2 via Issue Tracker/RCCA loop per EOS.
-6. **Proceed to API-3** (engineering/validation APIs: validation, evidence, defect/RCCA, test, gate, git/vcs,
+1. **Proceed to API-3** (engineering/validation APIs: validation, evidence, defect/RCCA, test, gate, git/vcs,
    task, worker, agent — mapping to existing internal systems; no shadow DBs).
+2. Optionally close MASTER-0..API-2 via the Issue Tracker/RCCA loop per EOS.
+3. Optional follow-up found in API-2 review: consolidate `control.json` ownership — `config/store-registry.json`
+   names owner `core/human_controls.py` (source absent, stale `.pyc` only); actual writers are
+   `core.portfolio.control`, `core.run_guard._write_control`, `scripts/run_pipeline.py`.
+
+### Defects fixed during API-2 review (RCCA-lite; see `docs/API-2-CORE-APIS.md`)
+
+- `POST /runs/start {now:true}` raised: bad `run_now_on_priority` call (keyword-only `by`, no `actor`).
+- `POST /runs/stop` was a no-op: called non-existent `pipeline_executor.request_stop`; now cancels the queue
+  job and writes the canonical `control.json` stop signal.
+- `GET /artifacts/{stage}/{agent}` always 404: wrong `get_artifact_content` signature; now resolves via
+  `scan_project_artifacts` + `a.path`.
 
 ## Phase order remaining (governing plan)
 

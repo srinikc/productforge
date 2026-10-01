@@ -44,6 +44,7 @@
 | [`API-0-DISCOVERY.md`](API-0-DISCOVERY.md) | Design | 100% | API-0 API discovery: legacy surface, intake path, consumers, gaps | — | — |
 | [`API-0.1-CONTRACT-RECONCILIATION.md`](API-0.1-CONTRACT-RECONCILIATION.md) | Design | 100% | API-0.1 canonical contract: envelopes, errors, IDs, idempotency, versioning | — | — |
 | [`API-1-FOUNDATION.md`](API-1-FOUNDATION.md) | Design | 100% | API-1 foundation: canonical api/ surface (context, errors, auth, idempotency, health, intake) | — | — |
+| [`API-2-CORE-APIS.md`](API-2-CORE-APIS.md) | Design | 100% | API-2 core PF APIs: projects/runs/pipeline/stages/tasks/artifacts/evidence/backlog | — | — |
 | [`AUDIT-REGISTER-TRIAGE.md`](AUDIT-REGISTER-TRIAGE.md) | Analysis (current) | 100% | Audit PF/candidate disposition: fixed / tracked / new (BI-PF-0254) | — | — |
 | [`Agent-LLM-PromptHandling.md`](Agent-LLM-PromptHandling.md) | Design | 60% | Agent/LLM prompt handling | **Pending: capability vectors per agent, capability-aware request builder, structured-output-first render.** | BI-0221–BI-0224, BI-0228 |
 | [`Agent_llm_process.md`](Agent_llm_process.md) | Review (pending) | 0% | Agent<->LLM process analysis + recommendations | **Findings not yet implemented: per-call capability steering, reasoning on/off, and verbose loop/tool-call logging.** | BI-0221–BI-0229 |
@@ -104,6 +105,7 @@
 | [`SCOPED-LEARNINGS-DESIGN.md`](SCOPED-LEARNINGS-DESIGN.md) | Design | 100% | Scoped learnings + memory read-back (BI-PF-0294) | — | — |
 | [`SECTION-D-OBSERVABILITY-DESIGN.md`](SECTION-D-OBSERVABILITY-DESIGN.md) | Design | 30% | Section D observability design + plan (BI-PF-0244) | — | — |
 | [`SECTIONED-GENERATION-ANALYSIS.md`](SECTIONED-GENERATION-ANALYSIS.md) | Implemented | 100% | Long-output (sectioned) generation design | — | — |
+| [`SESSION-RESUME-MASTER-PLAN.md`](SESSION-RESUME-MASTER-PLAN.md) | Analysis (current) | 100% | Session hand-off notes to resume master-plan execution | — | — |
 | [`STRUCTURE-CONTRACT.md`](STRUCTURE-CONTRACT.md) | Implemented | 100% | Binding repo structure contract (folders + owners) | — | — |
 | [`UNWIRED-MODULES-TRIAGE.md`](UNWIRED-MODULES-TRIAGE.md) | Adopted (reference) | 90% | Deprecated/legacy module triage | Triage applied; retired modules removed. | — |
 | [`VENDORED-TOOLS.md`](VENDORED-TOOLS.md) | Design | 100% | Neutral vendored tools location (drawio), no .opencode coupling (BI-0202) | — | — |

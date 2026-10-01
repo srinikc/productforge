@@ -1,0 +1,85 @@
+"""Backlog API (API-2): inspect/update the canonical backlog via core.backlog services."""
+
+from typing import Any, Dict, List
+
+from fastapi import APIRouter, Depends, Request
+
+from ..auth import authenticate, require_operator
+from ..envelope import from_request
+from ..errors import ApiError
+from ..pagination import paginate
+
+router = APIRouter(prefix="/backlog", tags=["backlog"])
+
+
+def _scope_project(request: Request, scope: str, project: str):
+    s = str(scope or "product_forge").strip()
+    p = str(project or "").strip() or None
+    if s not in ("product_forge", "project"):
+        raise ApiError("VALIDATION_FAILED", "scope must be product_forge or project",
+                       details={"scope": s})
+    if s == "project" and not p:
+        raise ApiError("VALIDATION_FAILED", "project required for project scope")
+    return s, p
+
+
+@router.get("", dependencies=[Depends(authenticate)])
+def list_backlog(request: Request, scope: str = "product_forge", project: str = "",
+                 status: str = "", limit: int = 50, cursor: str = "",
+                 ctx: Dict[str, Any] = Depends(authenticate)):
+    from core import backlog
+    s, p = _scope_project(request, scope, project)
+    items: List[Dict[str, Any]] = backlog.list_items(s, p, status=status) if status else \
+        (backlog.list_open(s, p) + backlog.list_closed(s, p))
+    page, links = paginate(items, limit=limit, cursor=cursor)
+    return from_request(request, page, resource="backlog", links=links)
+
+
+@router.get("/stats", dependencies=[Depends(authenticate)])
+def stats(request: Request, scope: str = "product_forge", project: str = "",
+          ctx: Dict[str, Any] = Depends(authenticate)):
+    from core import backlog
+    s, p = _scope_project(request, scope, project)
+    return from_request(request, backlog.stats(s, p), resource="backlog")
+
+
+@router.get("/items/{item_id}", dependencies=[Depends(authenticate)])
+def get_item(item_id: str, request: Request, scope: str = "product_forge", project: str = "",
+             ctx: Dict[str, Any] = Depends(authenticate)):
+    from core import backlog
+    s, p = _scope_project(request, scope, project)
+    it = backlog.get(s, p, item_id)
+    if not it:
+        raise ApiError("NOT_FOUND", "backlog item not found")
+    return from_request(request, it, resource="backlog", resource_id=item_id)
+
+
+@router.post("/items", dependencies=[Depends(require_operator)])
+def add_item(body: Dict[str, Any], request: Request, ctx: Dict[str, Any] = Depends(require_operator)):
+    from core import backlog
+    s, p = _scope_project(request, str(body.get("scope") or "product_forge"), str(body.get("project") or ""))
+    title = str(body.get("title") or "").strip()
+    if not title:
+        raise ApiError("VALIDATION_FAILED", "title required")
+    it = backlog.add_epic(s, p, title, body=str(body.get("body") or ""),
+                          source="api", type_=str(body.get("type") or "feature"),
+                          origin="api", tag=str(body.get("tag") or ""))
+    return from_request(request, it, resource="backlog", resource_id=str(it.get("id") or ""))
+
+
+@router.post("/items/{item_id}/status", dependencies=[Depends(require_operator)])
+def set_status(item_id: str, body: Dict[str, Any], request: Request,
+               ctx: Dict[str, Any] = Depends(require_operator)):
+    from core import backlog
+    s, p = _scope_project(request, str(body.get("scope") or "product_forge"), str(body.get("project") or ""))
+    status = str(body.get("status") or "").strip()
+    if not status:
+        raise ApiError("VALIDATION_FAILED", "status required")
+    try:
+        res = backlog.set_status(s, p, item_id, status, note=str(body.get("note") or ""))
+    except Exception as e:
+        raise ApiError("CONFLICT", f"status change refused: {type(e).__name__}")
+    if res is None:
+        raise ApiError("NOT_FOUND", "backlog item not found")
+    return from_request(request, res, resource="backlog", resource_id=item_id)
+

@@ -63,6 +63,18 @@ def main() -> int:
     _check(r2.status_code == 200 and (r2.json().get("data") or {}).get("replayed") is True,
            "idempotent replay detected")
 
+    # API-2 core resources: canonical envelope + reachable
+    for path in ("/api/v1/pipeline", "/api/v1/pipeline/stages", "/api/v1/tasks",
+                 "/api/v1/backlog", "/api/v1/backlog/stats", "/api/v1/projects"):
+        r = c.get(path)
+        _check(r.status_code == 200, f"{path} status {r.status_code}")
+        _check(SUCCESS_KEYS <= set(r.json()), f"{path} envelope keys")
+
+    # canonical validation error on missing required query param
+    r = c.get("/api/v1/runs")
+    _check(r.status_code == 400, f"runs missing-project status {r.status_code}")
+    _check((r.json().get("error") or {}).get("code") == "VALIDATION_FAILED", "runs validation error code")
+
     if FAILS:
         print("api-contract: FAIL")
         for f in FAILS:
