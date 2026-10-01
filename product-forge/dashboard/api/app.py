@@ -311,6 +311,34 @@ def agui_run(run_id: str, project: str = Query(...)):
             "types": agui.types()}
 
 
+# ── Provider health (BI-PF-0279) ─────────────────────────────────────────────
+@app.get("/api/v1/provider-health", dependencies=[Depends(auth)])
+def provider_health_snapshot():
+    """Rolling provider health (availability/rate-limits/errors/latency)."""
+    from core import provider_health
+    snap = provider_health.snapshot()
+    return {"count": len(snap), "providers": snap}
+
+
+@app.get("/api/v1/provider-health/{provider}", dependencies=[Depends(auth)])
+def provider_health_one(provider: str):
+    """Health state + score for one provider."""
+    from core import provider_health
+    return {"provider": provider, "state": provider_health.state(provider),
+            "score": provider_health.score(provider), "cooldown": provider_health.cooldown(provider),
+            "detail": provider_health.snapshot().get(provider, {})}
+
+
+@app.post("/api/v1/provider-health/record", dependencies=[Depends(operator_guard)])
+def provider_health_record(body: Dict[str, Any]):
+    """Operator override: record a provider outcome {provider, ok, status, latency_ms, error}."""
+    from core import provider_health
+    return provider_health.record(str(body.get("provider") or ""), ok=bool(body.get("ok")),
+                                  status=int(body.get("status") or 0),
+                                  latency_ms=float(body.get("latency_ms") or 0),
+                                  error=str(body.get("error") or ""))
+
+
 # ── Agent cards (framework-agnostic resolver, BI-0201) ───────────────────────
 @app.get("/api/v1/agents", dependencies=[Depends(auth)])
 def list_agents():
