@@ -6,8 +6,9 @@ renderer, selected via env ``PIPELINE_DIAGRAM_RENDERER`` (default ``auto``):
   1. ``mmdc`` (mermaid-cli) found on PATH.
   2. **Kroki** (network): POST https://kroki.io/mermaid/{svg,png}; the response is
      written only after its SVG/PNG magic is verified -- never fabricated.
-  3. **Bundled draw.io desktop CLI** resolved relative to the repo
-     (``.opencode/tools/drawio/draw.io.exe``), exported with
+   3. **Bundled draw.io desktop CLI** resolved via ``core.vendor`` from a neutral
+      location (``vendor/drawio/draw.io.exe``; env ``PIPELINE_DRAWIO_CLI`` or PATH),
+      exported with
      ``--export --format <fmt> --crop --output <out> <in>``. draw.io >= 31 reads
      Mermaid (.mmd/.mermaid) directly, so the always-written .mmd is the input when
      no sibling ``<base>.drawio`` source exists.
@@ -49,7 +50,8 @@ _KROKI_TIMEOUT = 30
 _KROKI_BASE = "https://kroki.io/mermaid"
 _PNG_MAGIC = b"\x89PNG\r\n\x1a\n"
 _REPO_ROOT = str(_PF_ROOT)
-_BUNDLED_DRAWIO = os.path.join(_REPO_ROOT, ".opencode", "tools", "drawio", "draw.io.exe")
+# Neutral vendor location (BI-0202): never defaults to .opencode. Resolved via core.vendor.
+_BUNDLED_DRAWIO = os.path.join(_REPO_ROOT, "vendor", "drawio", "draw.io.exe")
 _MODES = ("off", "kroki", "mmdc", "drawio", "auto")
 
 
@@ -72,6 +74,14 @@ def _mode() -> str:
 
 
 def _drawio_cli() -> str:
+    # Neutral resolution (BI-0202): env -> vendor/ -> PATH (legacy .opencode only if allowed).
+    try:
+        from core import vendor as _vendor
+        r = _vendor.resolve_tool("drawio")
+        if r.get("found"):
+            return str(r["path"])
+    except Exception:
+        pass
     env = (os.environ.get("PIPELINE_DRAWIO_CLI") or "").strip()
     if env and os.path.exists(env):
         return env

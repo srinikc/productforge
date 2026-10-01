@@ -81,6 +81,7 @@ TOP = {
     "AGNOSTIC-CARDS-DESIGN.md": ("Design", "Framework-agnostic agent card resolver, no .opencode default (BI-0201)", 100),
     "PROVIDER-HEALTH-DESIGN.md": ("Design", "Provider health tracking feeding routing (BI-PF-0279)", 100),
     "MODEL-POLICY-DESIGN.md": ("Design", "Versioned per-model eligibility policy schema (BI-PF-0278)", 100),
+    "VENDORED-TOOLS.md": ("Design", "Neutral vendored tools location (drawio), no .opencode coupling (BI-0202)", 100),
     "GENERATOR-ADAPTERS-DESIGN.md": ("Design", "Generator-model adapters (image/video/audio/music/3d) (BI-0188)", 100),
     "FEASIBILITY-TRIAGE-DESIGN.md": ("Design", "Two-phase feasibility & capability triage (BI-0214)", 100),
     "PIPELINE-COMPOSITION-DESIGN.md": ("Design", "Capability-gated pipeline composition (BI-0213)", 100),
