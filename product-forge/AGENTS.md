@@ -70,6 +70,14 @@ Before implementing **any** new design, flow, review recommendation, or external
 5. Implement only after explicit approval, then verify against the same authority and report.
 Never implement an un-audited external prescription. A **new path** always requires explicit user approval.
 
+Tooling that supports this rule:
+- `python scripts/dev/design_review_check.py <doc.md>` — extracts claims, searches the code/architecture, prints
+  the IMPACT REVIEW table and the claims needing a decision.
+- `python scripts/dev/design_review_check.py <doc.md> --record --accept 1,2,3` — records ACCEPTED claims as
+  review-origin backlog items with artifact/test descriptors.
+- `python scripts/dev/intent_trace_check.py` (in precheck, advisory) — verifies those recorded descriptors still
+  resolve (catches "intended but not actually implemented" / since-removed drift).
+
 ## Safety (state)
 - **Never recursively delete shared state.** Tests and scripts may only delete their own
   uniquely-named scratch path (`products/_test_<name>/`); deleting `product-forge/`,
