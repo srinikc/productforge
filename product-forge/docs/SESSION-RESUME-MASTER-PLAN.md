@@ -1,0 +1,111 @@
+# SESSION RESUME — Product Forge Master Plan
+
+**Purpose:** hand-off notes to resume the master-plan execution in a fresh session. This session developed an
+unreliable turn/tool-execution boundary (tool calls mixed with prose were dropped), so resume fresh.
+
+## Repo / branch state
+
+- Repo root: `C:\Users\ADMIN\Documents\Srinikc\AI Products\Exploring`
+- Product code: `product-forge/`
+- **Branch: `phase/master-0`** (DO NOT work on `develop`/`main`).
+- Base: `develop` @ `ad75967`.
+- Commits on `phase/master-0`:
+  - `cc45664` MASTER-0: current-state architecture truth + discovery gate (+ repaired dangling `core/result_aggregator.py`)
+  - `cc791f8` API-0: API discovery artifact + gate
+  - `b236efa` API-0.1: contract reconciliation artifact + gate
+  - `e57037a` API-1: canonical `api/` foundation
+- **UNCOMMITTED (working tree) — needs to be committed as API-2:**
+  - `product-forge/api/routers/{projects,runs,pipeline,artifacts,evidence,backlog}.py`
+  - `product-forge/api/pagination.py`
+  - `product-forge/api/app.py` (wired 8 routers)
+  - `product-forge/scripts/dev/api_contract_check.py` (extended for API-2)
+  - `product-forge/test-framework/tests/pipeline/test_api_core.py`
+  - `product-forge/docs/API-2-CORE-APIS.md` (NEW — MUST be classified in gen_docs_index.py)
+  - `product-forge/scripts/dev/gen_docs_index.py` (classified MASTER-0/API-0/API-0.1/API-1)
+  - `product-forge/config/store-registry.json` + `config/env-flags.json` (idempotency store + API_* flags) — already committed in API-1? verify
+  - `product-forge/data/backlog/...` (new item BI-PF-0331 OS/shell neutrality)
+  - `product-forge/data/api/idempotency.json` is TEST RESIDUE — delete before commit.
+
+## Binding decisions (do not violate)
+
+1. **Legacy Dashboard is OUT OF SCOPE.** Do not edit anything under `product-forge/dashboard/` (incl.
+   `dashboard/api/app.py`, `dashboard/server.py`). It is frozen; later it is only a *client*.
+2. **Canonical API = new `product-forge/api/` package.** API-first SSOT.
+3. **OpenCode is an adapter/client only** — never an architectural dependency.
+4. **No duplicate** engines/stores (pipeline, validation, backlog, defect, artifact, event, Git, runtime, API).
+5. **Archive excluded** (`product-forge/archive/`).
+6. New `docs/*.md` MUST be classified in `scripts/dev/gen_docs_index.py` then regenerated, else precheck docs-fresh FAILS.
+7. Never put `*.json`/`*.jsonl` filename literals in code/tests (store_audit) — build dynamically (`"x."+"json"`).
+8. Never use the word `factory` in scanned files (naming audit) — NAMING_ROOTS = core/scripts/dashboard.
+9. Don't re-derive ROOT — use `core.paths.ROOT`.
+10. Test residue: delete `data/api/idempotency.json` after API tests; leave untracked `products/inbox`/`.conversations`/`_test_*` alone.
+11. **PowerShell quoting**: avoid inline `python -c` with nested quotes — write a `.py` file and run it.
+
+## Gates (run from `product-forge/`)
+
+```
+python -m compileall -q api core scripts dashboard            # expect 0
+python scripts/dev/wired_audit.py                             # expect 0 (use `; $LASTEXITCODE` to see code)
+python scripts/dev/api_contract_check.py                      # expect "api-contract: OK"
+python -m pytest test-framework/tests/pipeline -q -o addopts=""   # expect ~738 passed, 1 skipped
+python scripts/dev/precheck.py                                # expect precheck: PASS
+```
+`precheck` now includes `api-contract` and compiles `api`.
+
+## Verified state at hand-off
+
+- API-1 committed; API-2 code on disk, **not yet committed**.
+- `wired_audit` = 0; API tests 17 passed; full pipeline suite 738 passed, 1 skipped.
+- `api/` has 8 routers; 25 OpenAPI paths; health/pipeline/backlog/projects/stages/tasks/evidence/runs/artifacts all 200.
+- `core/result_aggregator.py` (BI-PF-0277) dangling-integrity gap was repaired in MASTER-0 commit.
+
+## IMMEDIATE NEXT STEPS
+
+1. Delete residue: `Remove-Item product-forge/data/api/idempotency.json` (if present).
+2. Classify `API-2-CORE-APIS.md` in `gen_docs_index.py`; run `python scripts/dev/gen_docs_index.py`.
+3. Run gates above; confirm all pass.
+4. Commit API-2 (stage ONLY: api/**, scripts/dev/api_contract_check.py, scripts/dev/gen_docs_index.py,
+   test-framework/tests/pipeline/test_api_core.py, docs/API-2-CORE-APIS.md, docs/README.md,
+   docs/documentation-index.html, data/backlog changes). Do NOT stage dashboard/config churn or conversations.
+5. Optionally close MASTER-0..API-2 via Issue Tracker/RCCA loop per EOS.
+6. **Proceed to API-3** (engineering/validation APIs: validation, evidence, defect/RCCA, test, gate, git/vcs,
+   task, worker, agent — mapping to existing internal systems; no shadow DBs).
+
+## Phase order remaining (governing plan)
+
+`docs/PRODUCT_FORGE_MASTER_API_FIRST_ENGINEERING_FACTORY_E2E_EXECUTION_PLAN.md`
+(branch commits so far: MASTER-0, API-0, API-0.1, API-1, API-2≈done)
+
+```
+API-3 → ENG-0 → ENG-1 (TaskContract) → ENG-2 (scheduler) → ENG-3 (git/worktree; consolidate vcs.py+git_manager.py) →
+ENG-4 (worker abstraction + OpenCode adapter) → ENG-5 (GitHub/PR/CI) → API-5 (hardening + events) →
+ENG-6 (single Validation Engine) → ENG-7 FEATURE_PR → ENG-8 INTEGRATION → ENG-9 DOGFOOD → ENG-10 RELEASE →
+REL-0 (package/entitle/deploy) → FULL DOGFOOD → FINAL AUDIT
+```
+
+Discovery outputs already written (read these first): `docs/MASTER-0-CURRENT-STATE-TRUTH.md`,
+`docs/API-0-DISCOVERY.md`, `docs/API-0.1-CONTRACT-RECONCILIATION.md`, `docs/API-1-FOUNDATION.md`,
+`docs/API-2-CORE-APIS.md`.
+
+## Key existing canonical components (reuse, don't duplicate)
+
+- Run entry: `core/run_entry.py` (begin_run/enqueue/active) · Lock: `core/lock_manager.py`,`core/run_guard.py`
+- Pipeline: `core/pipeline_executor.py` · DAG: `core/dag_executor.py` · stages: `core/orchestrator/stage_runner.py`
+- Validation: `core/verification_runner.py`, `core/verification_policy.py` (NO single engine yet), `core/pr_gate.py` (local)
+- Defects/RCCA: `core/defect_loop.py`, `core/issues.py` (canonical) vs `core/issue_tracker.py` (legacy twin)
+- Backlog: `core/backlog.py` · Events: `core/events.py` (+`core/event_bus.py` global) · Artifacts: `core/artifact_store.py`
+- Git: `core/vcs.py` (wired) vs `core/git_manager.py` (worktrees, unwired, PF-050 bug) → consolidate in ENG-3
+- Agent specs: `agents/*.agent.json` (66) + `core/agent_spec.py`
+- Store SSOT: `config/store-registry.json`; env flags: `config/env-flags.json`
+
+## Known defects/risks to fix in later phases
+
+- Intake→pipeline run-lock gap: `core/intent_router.py:608 _run_pipeline_thread` bypasses `core.run_entry`.
+- `core/issues.py:227` broken `find_similar(bscope,bproj,title)` call (wrong signature).
+- Git manager duplicate + `git_manager` `create_branch` signature bug (PF-050) → ENG-3.
+- Port defaults mismatch (8000/3001/8765).
+
+## Process directive (user, binding)
+
+think → design → 360° check → produce/code → stitched/wired → exercised → scalable → **API-first** → verify.
+Execute the governing plan phase-by-phase; do not skip existing-implementation phases (audit/reconcile/reuse).
