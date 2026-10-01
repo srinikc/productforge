@@ -150,6 +150,26 @@ def order_candidates(candidates: List[Dict], prefer_kind: str = "",
         cc = dict(c)
         cc["kind"] = k
         out.append(cc)
-    if prefer_kind and prefer_kind in KINDS:
-        out.sort(key=lambda c: 0 if c.get("kind") == prefer_kind else 1)  # stable
+    # Ordering: prefer_kind (primary) then provider health (secondary). With no health data the
+    # result is byte-identical to the legacy prefer_kind-only sort (zero regression, BI-PF-0279).
+    try:
+        from core import provider_health as _ph
+        _have_health = bool(_ph.snapshot())
+
+        def _pref(c: Dict) -> int:
+            return 0 if (prefer_kind and prefer_kind in KINDS and c.get("kind") == prefer_kind) else 1
+
+        def _rank(c: Dict) -> int:
+            s = _ph.state(str(c.get("provider") or ""))
+            return 2 if s == "unavailable" else (1 if s == "degraded" else 0)
+
+        if _have_health:
+            out.sort(key=lambda c: (_pref(c), _rank(c)))
+            for c in out:
+                c["health_state"] = _ph.state(str(c.get("provider") or ""))
+        elif prefer_kind and prefer_kind in KINDS:
+            out.sort(key=_pref)
+    except Exception:
+        if prefer_kind and prefer_kind in KINDS:
+            out.sort(key=lambda c: 0 if c.get("kind") == prefer_kind else 1)  # stable
     return out

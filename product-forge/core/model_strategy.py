@@ -146,10 +146,24 @@ def assess(project_dir: str, phase: str = "a") -> Dict:
             cost_projection.get("text_cost", 0.0) + media_cost, 6)
     except Exception:
         cost_projection = {}
+    # provider health surfacing (BI-PF-0279): advisory warnings for degraded providers
+    provider_health: Dict = {}
+    try:
+        from core import provider_health as _ph
+        for a in assignments:
+            prov = str(a.get("provider") or "")
+            if prov and _ph.state(prov) not in ("unknown", ""):
+                a["health_state"] = _ph.state(prov)
+                if _ph.state(prov) in ("degraded", "unavailable"):
+                    warnings.append(f"provider '{prov}' is {_ph.state(prov)}")
+                provider_health[prov] = {"state": _ph.state(prov), "score": _ph.score(prov)}
+    except Exception:
+        provider_health = {}
     return {"phase": phase, "modalities": mods, "enabled_packs": enabled,
             "generators_needed": (feas.get("verdict") and [] or []),
             "feasibility_verdict": feas.get("verdict", ""),
             "assignments": assignments, "cost_projection": cost_projection,
+            "provider_health": provider_health,
             "warnings": warnings}
 
 

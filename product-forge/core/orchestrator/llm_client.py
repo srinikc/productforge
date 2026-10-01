@@ -398,9 +398,17 @@ class LLMClient:
                     print(f"  [LLM] {agent_id} -> {model_name} ({provider}) attempt={attempt} "
                           f"prompt_chars={len(prompt)} max_out={max_output_tokens}")
                 response = requests.post(api_endpoint, json=data, headers=headers, timeout=180)
+                _latency_ms = (time.time() - _t_call) * 1000.0
 
                 if response.status_code != 200:
                     print(f"[WARNING] {model_name} API error: {response.status_code}")
+                    # Provider health (BI-PF-0279): best-effort, never affects the call.
+                    try:
+                        from core import provider_health as _ph
+                        _ph.record(provider, ok=False, status=response.status_code,
+                                   latency_ms=_latency_ms, error=f"HTTP {response.status_code}")
+                    except Exception:
+                        pass
                     # 429: back off and retry the SAME model. When candidates exist
                     # (fast_fail) do a SINGLE short backoff then move to the next
                     # candidate — otherwise a healthy cross-provider fallback (Zen)
@@ -434,6 +442,12 @@ class LLMClient:
                 # apparent-encoding guess (often cp1252) -> mojibake (BI-0079).
                 result = json.loads(response.content.decode("utf-8", errors="replace"))
                 content = self._extract_response_content(result, provider) or ""
+                # Provider health (BI-PF-0279): record a success outcome (best-effort).
+                try:
+                    from core import provider_health as _ph
+                    _ph.record(provider, ok=True, status=200, latency_ms=_latency_ms)
+                except Exception:
+                    pass
                 choices = result.get('choices', [{}])
                 finish_reason = choices[0].get('finish_reason', '') if choices else ''
 
