@@ -42,6 +42,7 @@
 | [`AGNOSTIC-CARDS-DESIGN.md`](AGNOSTIC-CARDS-DESIGN.md) | Design | 100% | Framework-agnostic agent card resolver, no .opencode default (BI-0201) | — | — |
 | [`AGUI-DESIGN.md`](AGUI-DESIGN.md) | Design | 100% | AG-UI typed event stream (BI-0198) | — | — |
 | [`API-0-DISCOVERY.md`](API-0-DISCOVERY.md) | Design | 100% | API-0 API discovery: legacy surface, intake path, consumers, gaps | — | — |
+| [`API-0.1-CONTRACT-RECONCILIATION.md`](API-0.1-CONTRACT-RECONCILIATION.md) | Design | 100% | API-0.1 canonical contract: envelopes, errors, IDs, idempotency, versioning | — | — |
 | [`AUDIT-REGISTER-TRIAGE.md`](AUDIT-REGISTER-TRIAGE.md) | Analysis (current) | 100% | Audit PF/candidate disposition: fixed / tracked / new (BI-PF-0254) | — | — |
 | [`Agent-LLM-PromptHandling.md`](Agent-LLM-PromptHandling.md) | Design | 60% | Agent/LLM prompt handling | **Pending: capability vectors per agent, capability-aware request builder, structured-output-first render.** | BI-0221–BI-0224, BI-0228 |
 | [`Agent_llm_process.md`](Agent_llm_process.md) | Review (pending) | 0% | Agent<->LLM process analysis + recommendations | **Findings not yet implemented: per-call capability steering, reasoning on/off, and verbose loop/tool-call logging.** | BI-0221–BI-0229 |
