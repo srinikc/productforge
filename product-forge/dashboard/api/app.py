@@ -311,6 +311,40 @@ def agui_run(run_id: str, project: str = Query(...)):
             "types": agui.types()}
 
 
+# ── Per-model eligibility policy (BI-PF-0278) ────────────────────────────────
+@app.get("/api/v1/model-policy", dependencies=[Depends(auth)])
+def model_policy_all():
+    """All per-model eligibility policies + schema validation result."""
+    from core import model_policy
+    return {"schema_version": model_policy.SCHEMA_VERSION,
+            "errors": model_policy.validate(),
+            "count": len(model_policy.all_policies()),
+            "models": model_policy.all_policies()}
+
+
+@app.get("/api/v1/model-policy/{model:path}/eligible", dependencies=[Depends(auth)])
+def model_policy_eligible(model: str, task: str = "", critical: bool = False,
+                          est_cost: float = 0.0):
+    """Eligibility decision for a model+task (fail-closed)."""
+    from core import model_policy
+    return {"model": model, **model_policy.eligible(model, task, critical=critical, est_cost=est_cost)}
+
+
+@app.get("/api/v1/model-policy/{model:path}", dependencies=[Depends(auth)])
+def model_policy_one(model: str):
+    """Policy for one model."""
+    from core import model_policy
+    return {"model": model, "policy": model_policy.policy_for(model)}
+
+
+@app.post("/api/v1/model-policy/validate", dependencies=[Depends(auth)])
+def model_policy_validate():
+    """Validate the model policy schema (fail-closed: [] errors = valid)."""
+    from core import model_policy
+    errs = model_policy.validate()
+    return {"valid": not errs, "errors": errs}
+
+
 # ── Provider health (BI-PF-0279) ─────────────────────────────────────────────
 @app.get("/api/v1/provider-health", dependencies=[Depends(auth)])
 def provider_health_snapshot():
