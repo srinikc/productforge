@@ -95,7 +95,6 @@
 | [`Multi-Agent-Multi-Project-Unique-Features.md`](Multi-Agent-Multi-Project-Unique-Features.md) | Design | 80% | Unique multi-agent / multi-project features | Informational only: a few nice-to-have surfaces, not tracked as work. | — |
 | [`OTEL-GENAI-DESIGN.md`](OTEL-GENAI-DESIGN.md) | Design | 100% | OpenTelemetry GenAI observability incl. multimodal (BI-0199) | — | — |
 | [`PER-UNIT-COST-DESIGN.md`](PER-UNIT-COST-DESIGN.md) | Design | 100% | Per-unit media cost model + projection (BI-0194) | — | — |
-| [`PF-Backlog-SSOT-Scheduler-Pluggable-Workers.md`](PF-Backlog-SSOT-Scheduler-Pluggable-Workers.md) | Reference (verify) | 50% | unclassified - confirm before relying on it | — | — |
 | [`PIPELINE-COMPOSITION-DESIGN.md`](PIPELINE-COMPOSITION-DESIGN.md) | Design | 100% | Capability-gated pipeline composition (BI-0213) | — | — |
 | [`PIPELINE-OPERATIONS.md`](PIPELINE-OPERATIONS.md) | Implemented | 100% | Operations: run modes, control, state, status | — | — |
 | [`PIPELINE-RESUME-ProductForge-Dashboard.md`](PIPELINE-RESUME-ProductForge-Dashboard.md) | Adopted (reference) | 50% | Old resume notes for a project | Partial - resume notes reused. | — |

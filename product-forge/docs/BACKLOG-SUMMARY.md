@@ -1,82 +1,57 @@
 # Backlog Summary
 
-> GENERATED 2026-09-27T17:52:32 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-02T15:30:38 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 45  |  **Closed:** 187
-- `new`: 45
+- **Open:** 16  |  **Closed:** 325
+- `new`: 16
 
-### new, by category (45)
-**API / reports / HIL / misc** (2)
+### new, by category (16)
+**API / reports / HIL / misc** (1)
 | ID | MoSCoW | Type | Title |
 |---|---|---|---|
-| BI-0216 | Should | feature | Backend: product one-stop read-model API (identity, lifecycle, progress, features, artifacts, quality, cost, BOM, links) |
-| BI-0229 | Should | feature | Verbose-gated logging + loops/tool-calls in the summary report |
+| BI-PF-0332 | Should | chore | API-5 deferred hardening: rate limiting + request/upload limits + tenant-isolation expansion + event streaming |
 
-**Discovery / HIL / prompts** (5)
+**Bug fixes** (1)
 | ID | MoSCoW | Type | Title |
 |---|---|---|---|
-| BI-0189 | Should | feature | Backend: capability-pack registry + config + discovery->enablement (the pluggable switch) |
-| BI-0199 | Should | feature | Backend: OpenTelemetry GenAI observability (spans incl. multimodal prompts/responses) |
+| BI-PF-0358 | Should | bug | Fix: gen_backlog_summary.py cannot import core when run as a script; check_docs_fresh ignores its exit code (BACKLOG-SUMMARY freshness is a silent no-op) |
+
+**Discovery / HIL / prompts** (1)
+| ID | MoSCoW | Type | Title |
+|---|---|---|---|
 | BI-0218 | Should | feature | Backend: AI-era operations layer (evals + prompt/model/agent versioning + feedback loop + model-quality observability) |
-| BI-0228 | Should | feature | OSS role-prompt review + standardize agent role sections |
-| BI-PF-0232 | Must | feature | Intake: accept any file type (.md/.txt/.pdf/.docx/.doc/.rtf/images) + text extraction |
 
-**Knowledge / KB** (2)
+**Knowledge / KB** (1)
 | ID | MoSCoW | Type | Title |
 |---|---|---|---|
-| BI-0187 | Should | feature | Backend: media ingest + segmentation/tiling + asset store |
 | BI-0208 | Should | feature | Backend: sensor/IoT capability pack + ingest adapters (MQTT/serial/BLE/Modbus/CAN) + time-series/anomaly models |
 
 **Licensing / tenancy** (2)
 | ID | MoSCoW | Type | Title |
 |---|---|---|---|
 | BI-0211 | Should | tech-debt | Backend: tool/SDK/vendor catalog with license metadata + bundle_allowed (feeds packaging & PR gate) |
-| BI-0217 | Should | feature | Backend: product BOM / footprint artifact at packaging (deps, licenses, sizes, model weights, runtime requirements) |
+| BI-PF-0352 | Should | feature | REL-0: packaging / licensing / entitlement / deployment |
 
-**Specs / cache / context / artifacts** (6)
+**Specs / cache / context / artifacts** (2)
 | ID | MoSCoW | Type | Title |
 |---|---|---|---|
 | BI-0206 | Should | tech-debt | Backend: model downloader + local cache + license-acceptance gate + models.lock (open-weights) |
-| BI-0221 | Should | feature | Capability vector per agent (reasoning level, structured, vision, long_context, tools) |
-| BI-0223 | Should | feature | Reasoning on/off by role/stage/context |
-| BI-0224 | Should | feature | Structured-output-first + deterministic render for spec agents |
 | BI-0225 | Should | feature | Parallel section/feature generation |
-| BI-0226 | Should | feature | Context discipline: compact pack + current item (stop growth) |
 
-**Wiring / tech-debt / API** (28)
+**Wiring / tech-debt / API** (8)
 | ID | MoSCoW | Type | Title |
 |---|---|---|---|
 | BI-0185 | Should | feature | EPIC: Multi-modal / media orchestration (pluggable capability packs) |
-| BI-0186 | Should | feature | Backend: multimodal LLM plumbing (attach image/audio/video parts in llm_client) |
-| BI-0188 | Should | feature | Backend: generator-model adapters (open-weights image/video/audio) |
-| BI-0190 | Should | feature | Backend: media agents (media-analyst / media-generator / media-editor / asset-librarian) |
-| BI-0191 | Should | feature | Backend: media QA validators (probe / loudness / perceptual-hash / A-V sync) |
-| BI-0192 | Should | feature | Backend: two-phase model selection - post-architect MODEL & CAPABILITY strategy gate |
-| BI-0193 | Should | feature | Backend: provider-kind abstraction + adapters/aggregators + kind-aware model router (all kinds) |
-| BI-0194 | Should | feature | Backend: per-unit cost model (per image/second/char/track/mesh) + costing at project creation/tier assignment |
 | BI-0195 | Should | feature | EPIC: Pluggable/modular core + industry-standards adoption (MCP, A2A, AG-UI, OTel) |
-| BI-0196 | Should | feature | Backend: adopt MCP - expose our tools as MCP servers + consume external MCP tools |
-| BI-0197 | Should | feature | Backend: adopt A2A - expose/consume agents over Agent2Agent for cross-system interop |
-| BI-0198 | Should | feature | Backend: AG-UI event stream - typed run/tool/message events for the dashboard |
-| BI-0200 | Should | feature | Backend: plugin/registry framework (ports+adapters for providers/tools/agents/stages/validators) |
-| BI-0201 | Should | tech-debt | Backend: decouple agent cards/loaders from .opencode (framework-agnostic) |
-| BI-0202 | Should | tech-debt | Backend: move bundled tools (drawio) out of .opencode to a neutral vendor location |
-| BI-0205 | Should | tech-debt | Process: PR workflow -- branch -> pre-check gates (syntax/audit/lint/tests/secrets) -> code review -> merge to develop/main + branch protection |
 | BI-0209 | Should | feature | Backend: OCR/document capability pack + doc-parse kind + OCR generators/adapters |
-| BI-0210 | Should | tech-debt | Backend: post-ideation capability & model-strategy gate (select modalities/kinds/models right after ideation) |
-| BI-0212 | Should | tech-debt | Backend: multi-modal end-to-end acceptance test (one golden path per modality) |
-| BI-0213 | Should | tech-debt | Backend: capability-gated pipeline composition - inject media/IoT stages (0f, 4m, media-QA) + agents into the existing 0..13b order per enabled pack |
-| BI-0214 | Should | feature | Backend: two-phase feasibility & capability triage - BUILD-HOST at ideation (now) + DESTINATION runtime at packaging (later); go/conditional/no-go + delivery mode |
-| BI-0215 | Should | feature | Backend: product registry + lifecycle state + metadata/links store (products/<p>/product.json) |
-| BI-0219 | Should | feature | Backend: output guardrails/moderation + model/data cards + provenance (C2PA) + governance mapping |
 | BI-0220 | Should | feature | EPIC: pipeline E2E reliability - events, readiness checklist, model registry/capability gate, lock/status fixes |
-| BI-0222 | Should | feature | Capability-aware request builder (apply capabilities per call) |
-| BI-0227 | Should | feature | Capability fallback + escalate-on-failure routing |
-| BI-0230 | Should | feature | Incremental section/feature artifact writes |
-| BI-PF-0231 | Must | change | Backlog destination-tagged ids (BI-<TAG>-<nnn>) |
+| BI-PF-0331 | Should | chore | OS/shell neutrality: remove PowerShell-only scripting/doc workarounds |
+| BI-PF-0351 | Should | feature | ENG-10: RELEASE execution |
+| BI-PF-0353 | Should | feature | FULL DOGFOOD: full Product Forge end-to-end dogfood |
+| BI-PF-0354 | Should | feature | FINAL AUDIT: final audit / production readiness |
 
 ---
 
@@ -276,5 +251,5 @@
 ---
 
 ## Totals
-- backend: 45 open / 187 closed
+- backend: 16 open / 325 closed
 - dashboard: 146 open / 3 closed

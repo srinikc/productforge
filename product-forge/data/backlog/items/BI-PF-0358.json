@@ -1,0 +1,31 @@
+{
+  "id": "BI-PF-0358",
+  "tag": "PF",
+  "type": "bug",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "defect-backlog-summary-import",
+  "label": "PF Backlog 387",
+  "title": "Fix: gen_backlog_summary.py cannot import core when run as a script; check_docs_fresh ignores its exit code (BACKLOG-SUMMARY freshness is a silent no-op)",
+  "body": "scripts/dev/gen_backlog_summary.py does 'from core import backlog' with no sys.path bootstrap, so when check_docs_fresh.py invokes it as a file it raises ModuleNotFoundError and writes nothing. check_docs_fresh.py:43 ignores the return code, so docs/BACKLOG-SUMMARY.md freshness is a no-op (summary stale since 2026-09-27). Fix: add the standard ROOT bootstrap and fail the gate on a non-zero generator exit (RCCA guard).",
+  "source": "engineering-review",
+  "status": "new",
+  "priority": null,
+  "moscow": "Should",
+  "value": 3,
+  "effort": 1,
+  "risk": 2,
+  "deps": [],
+  "links": {
+    "backend_capability": [
+      "module:scripts/dev/gen_backlog_summary.py",
+      "module:scripts/dev/check_docs_fresh.py"
+    ]
+  },
+  "decisions": [],
+  "follow_up": {},
+  "created_at": "2026-10-02T15:23:38.800754",
+  "updated_at": "2026-10-02T15:23:38.800787",
+  "score": 2.25
+}

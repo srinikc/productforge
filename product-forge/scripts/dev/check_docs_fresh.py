@@ -27,7 +27,7 @@ def _root() -> str:
 
 def _strip(path: str) -> str:
     try:
-        with open(path, "r", encoding="utf-8", errors="ignore") as f:
+        with open(path, encoding="utf-8", errors="ignore") as f:
             return "\n".join(ln for ln in f.read().splitlines() if not _GEN.search(ln))
     except Exception:
         return ""
@@ -39,8 +39,11 @@ def main(argv=None) -> int:
     if r.returncode != 0:
         print("[FAIL] gen_docs_index --check (unclassified docs)")
         rc = 1
-    subprocess.run([sys.executable, "scripts/dev/gen_docs_index.py"])
-    subprocess.run([sys.executable, "scripts/dev/gen_backlog_summary.py"])
+    for gen in ("scripts/dev/gen_docs_index.py", "scripts/dev/gen_backlog_summary.py"):
+        gr = subprocess.run([sys.executable, gen])
+        if gr.returncode != 0:
+            print(f"[FAIL] generator failed: {gen} (exit {gr.returncode})")
+            rc = 1
     root = _root()
     pf = os.path.basename(os.getcwd())  # "product-forge"
     for rel in _REL:

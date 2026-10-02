@@ -2,7 +2,13 @@
 import os
 import re
 from datetime import datetime
-from core import backlog
+
+try:
+    from core import backlog
+except Exception:
+    import sys
+    sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
+    from core import backlog
 
 OUT = "docs/BACKLOG-SUMMARY.md"
 
@@ -50,52 +56,52 @@ def render(scope, project=None, title=""):
     for it in op:
         by_status.setdefault(it.get("status", "new"), []).append(it)
 
-    L = [f"## {title} (`{backlog.qualify(scope, project, 'BI-0000').rsplit(':',1)[0]}`)", ""]
-    L.append(f"- **Open:** {len(op)}  |  **Closed:** {len(cl)}")
+    out = [f"## {title} (`{backlog.qualify(scope, project, 'BI-0000').rsplit(':',1)[0]}`)", ""]
+    out.append(f"- **Open:** {len(op)}  |  **Closed:** {len(cl)}")
     for st, arr in sorted(by_status.items()):
-        L.append(f"- `{st}`: {len(arr)}")
-    L.append("")
+        out.append(f"- `{st}`: {len(arr)}")
+    out.append("")
 
     # verifying / parked first, then new by category
     for st in ("verifying", "parked"):
         arr = by_status.get(st, [])
         if not arr:
             continue
-        L.append(f"### {st} ({len(arr)})")
-        L.append("| ID | MoSCoW | Type | Title |")
-        L.append("|---|---|---|---|")
+        out.append(f"### {st} ({len(arr)})")
+        out.append("| ID | MoSCoW | Type | Title |")
+        out.append("|---|---|---|---|")
         for it in sorted(arr, key=_n):
-            L.append(f"| {it['id']} | {it.get('moscow')} | {it.get('type')} | {it.get('title')} |")
-        L.append("")
+            out.append(f"| {it['id']} | {it.get('moscow')} | {it.get('type')} | {it.get('title')} |")
+        out.append("")
 
     news = by_status.get("new", [])
     groups = {}
     for it in news:
         groups.setdefault(cat(it), []).append(it)
-    L.append(f"### new, by category ({len(news)})")
+    out.append(f"### new, by category ({len(news)})")
     for g in sorted(groups):
         arr = sorted(groups[g], key=_n)
-        L.append(f"**{g}** ({len(arr)})")
-        L.append("| ID | MoSCoW | Type | Title |")
-        L.append("|---|---|---|---|")
+        out.append(f"**{g}** ({len(arr)})")
+        out.append("| ID | MoSCoW | Type | Title |")
+        out.append("|---|---|---|---|")
         for it in arr:
-            L.append(f"| {it['id']} | {it.get('moscow')} | {it.get('type')} | {it.get('title')} |")
-        L.append("")
-    return L, len(op), len(cl)
+            out.append(f"| {it['id']} | {it.get('moscow')} | {it.get('type')} | {it.get('title')} |")
+        out.append("")
+    return out, len(op), len(cl)
 
 
 def main():
-    L = ["# Backlog Summary", "",
+    out = ["# Backlog Summary", "",
          f"> GENERATED {datetime.now().isoformat(timespec='seconds')} by `scripts/dev/gen_backlog_summary.py`.",
          "> Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).", ""]
     b, bo, bc = render("product_forge", None, "Pipeline backend (product_forge)")
-    L += b + ["---", ""]
+    out += b + ["---", ""]
     d, do, dc = render("project", "ProductForge-Dashboard", "Dashboard (ProductForge-Dashboard)")
-    L += d + ["---", "",
+    out += d + ["---", "",
               "## Totals", f"- backend: {bo} open / {bc} closed", f"- dashboard: {do} open / {dc} closed", ""]
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
     with open(OUT, "w", encoding="utf-8", newline="\n") as f:
-        f.write("\n".join(L))
+        f.write("\n".join(out))
     print("wrote", OUT, "| backend", bo, "| dash", do)
 
 
