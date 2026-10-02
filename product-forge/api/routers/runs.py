@@ -5,7 +5,7 @@ owned by ``core.run_entry`` (the ONE way a run starts) — this router never exe
 """
 
 import os
-from typing import Any, Dict
+from typing import Any
 
 from fastapi import APIRouter, Depends, Request
 
@@ -40,14 +40,24 @@ def _emit(project: str, event_type: str, **fields) -> None:
 
 
 @router.get("/runs", dependencies=[Depends(authenticate)])
-def list_runs(request: Request, project: str, ctx: Dict[str, Any] = Depends(authenticate)):
+def list_runs(request: Request, project: str, ctx: dict[str, Any] = Depends(authenticate)):
     from core import run_status
     d = _project_dir(project)
     return from_request(request, run_status.summary(d), resource="run")
 
 
+@router.get("/runs/time-cost", dependencies=[Depends(authenticate)])
+def run_time_cost(request: Request, project: str, run_id: str = "",
+                  ctx: dict[str, Any] = Depends(authenticate)):
+    """Per-run worker time (active vs human-wait) + token/cost totals (reuses worker-results)."""
+    from core import worker
+    _project_dir(project)
+    return from_request(request, worker.run_totals("project", project, run_id=run_id),
+                        resource="run", resource_id=project)
+
+
 @router.get("/runs/active", dependencies=[Depends(authenticate)])
-def active_run(request: Request, project: str, ctx: Dict[str, Any] = Depends(authenticate)):
+def active_run(request: Request, project: str, ctx: dict[str, Any] = Depends(authenticate)):
     from core import run_entry
     d = _project_dir(project)
     return from_request(request, run_entry.active(os.path.basename(d), os.path.basename(_products_dir())),
@@ -55,7 +65,7 @@ def active_run(request: Request, project: str, ctx: Dict[str, Any] = Depends(aut
 
 
 @router.post("/runs/start", dependencies=[Depends(authenticate)])
-def start_run(body: Dict[str, Any], request: Request, ctx: Dict[str, Any] = Depends(authenticate)):
+def start_run(body: dict[str, Any], request: Request, ctx: dict[str, Any] = Depends(authenticate)):
     from core import run_entry
     project = str(body.get("project") or "")
     _project_dir(project)
@@ -75,12 +85,12 @@ def start_run(body: Dict[str, Any], request: Request, ctx: Dict[str, Any] = Depe
 
 
 @router.post("/runs/stop", dependencies=[Depends(authenticate)])
-def stop_run(body: Dict[str, Any], request: Request, ctx: Dict[str, Any] = Depends(authenticate)):
+def stop_run(body: dict[str, Any], request: Request, ctx: dict[str, Any] = Depends(authenticate)):
     from core import job_manager
     project = str(body.get("project") or "")
     d = _project_dir(project)
     # 1) settle any queued/scheduled job for this project (queue SSOT = job_manager).
-    cancelled: Dict[str, Any] = {}
+    cancelled: dict[str, Any] = {}
     try:
         cancelled = job_manager.cancel(project) or {}
     except Exception:

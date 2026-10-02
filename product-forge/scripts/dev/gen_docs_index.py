@@ -79,6 +79,7 @@ TOP = {
     "ENG-10-RELEASE.md": ("Design", "ENG-10 release: artifact qualification (build/regression/security/NFR/packaging/SBOM/deploy) + fail-closed release gate", 100),
     "REL-0-PACKAGING.md": ("Design", "REL-0 packaging: edition package manifest (community/enterprise/saas/on-prem/oem) from bom/licensing/deploy/release owners", 100),
     "FULL-DOGFOOD-AND-FINAL-AUDIT.md": ("Design", "Full dogfood lifecycle harness + final §42 production-readiness acceptance audit", 100),
+    "WORKER-TIMING-TOKENS.md": ("Design", "Worker timing (active vs human-wait) + token/cost accounting on existing owners (no new store)", 100),
     "SESSION-RESUME-MASTER-PLAN.md": ("Analysis (current)", "Session hand-off notes to resume master-plan execution", 100),
     "design-plan-BI0218.md": ("Design", "AI-era operations layer (evals/versioning/feedback) design - parked (BI-0218)", 0),
     "BOM-DESIGN.md": ("Design", "Product BOM/footprint at packaging design (BI-0217)", 100),
