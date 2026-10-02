@@ -9,7 +9,7 @@
   "priority": "P1",
   "severity": "high",
   "module": "core/issues.py",
-  "status": "open",
+  "status": "closed",
   "rcca": {
     "root_cause": "issues._num/backlog._num extract the sequence via re.sub(r'\\D','',id), which concatenates ALL digits in the id - including digits embedded in the TAG/slug (e.g. tag 'TESTBIPF02' contributes '02'). The next id is then mx+1 over that inflated number, producing a runaway id and, eventually, a >260-char filename (Windows MAX_PATH) that crashes the store write.",
     "five_why": [
@@ -19,9 +19,13 @@
       "4. Why did the tag add digits? tag_for slugifies the project name; '_test_bi_pf_0271' -> 'TESTBIPF02' (has '02').",
       "5. Why did this compound? Each create re-inflated mx, so the number grew every write (runaway)."
     ],
-    "corrective": "Parse the numeric SEQUENCE only: take the substring after the last '-' (the <nnn> segment) and read its digits; never concatenate digits from the tag. Apply to both core/issues.py and core/backlog.py (same defect class).",
-    "preventive": "Add a guard test asserting id numbering is stable for tag-containing ids and that generated ids keep a bounded length; the existing wired_audit destructive/backlog integrity checks stay in place.",
-    "status": "open"
+    "corrective": "issues._num and backlog._num now read only the final '-' segment's digits, so a TAG containing digits (e.g. TESTBIPF02) can no longer inflate the sequence. Applied to both owners (same defect class).",
+    "preventive": "Guard tests: test_num_reads_sequence_not_tag_digits + test_raised_ids_are_bounded_and_sequential (ids stay short/sequential for digit-ending slugs). Also made scripts/dev/lint_check.py baseline-aware so NEW findings fail the author-time hook while pre-existing file debt is reported separately; cleared all 222 legacy findings in the touched files.",
+    "status": "open",
+    "fixed_where": "core/issues.py, core/backlog.py, test-framework/tests/pipeline/test_issues.py",
+    "generalized": true,
+    "guideline_ref": "docs/ADDING-TO-PRODUCT-FORGE.md (ids: BI-/IS-<TAG>-<nnn>)",
+    "product_ref": ""
   },
   "backlog_ref": "",
   "source": "engineering-review",
@@ -33,5 +37,6 @@
   ],
   "links": {},
   "created_at": "2026-10-02T18:45:44.844248",
-  "updated_at": "2026-10-02T18:45:44.844275"
+  "updated_at": "2026-10-02T18:58:17.283444",
+  "note": "RCCA complete; fix merged"
 }
