@@ -40,12 +40,13 @@ except ImportError:  # executed as a script: seed the repo root on sys.path, the
             break
     from core.paths import ROOT as _PF_ROOT
 
+import contextlib
 import json
 import os
 import re
 import time
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 _REPO = str(_PF_ROOT)
 _PRODUCTS = os.path.join(_REPO, "products")
@@ -75,7 +76,7 @@ def _norm_scope(scope: str) -> str:
     return "product_forge" if scope in ("portfolio", "product_forge", _LEGACY_FORGE_SCOPE) else "project"
 
 
-def _dir(scope: str, project: Optional[str] = None) -> str:
+def _dir(scope: str, project: str | None = None) -> str:
     scope = _norm_scope(scope)
     if scope == "product_forge":
         legacy = os.path.join(_PRODUCTS, "backlog")
@@ -86,7 +87,7 @@ def _dir(scope: str, project: Optional[str] = None) -> str:
     return os.path.join(_PRODUCTS, project or "_unknown", "backlog")
 
 
-def _paths(scope: str, project: Optional[str] = None):
+def _paths(scope: str, project: str | None = None):
     d = _dir(scope, project)
     return (d, os.path.join(d, "open.json"), os.path.join(d, "closed.json"),
             os.path.join(d, "history"), os.path.join(d, "counters.json"))
@@ -94,7 +95,7 @@ def _paths(scope: str, project: Optional[str] = None):
 
 def _rj(p, d):
     try:
-        with open(p, "r", encoding="utf-8") as f:
+        with open(p, encoding="utf-8") as f:
             return json.load(f)
     except Exception:
         return d
@@ -118,13 +119,13 @@ def _items_dir(d: str) -> str:
 _INDEX_FIELDS = ("id", "status", "section", "title", "created_at", "updated_at")
 
 
-def _index_row(it: Dict) -> Dict:
+def _index_row(it: dict) -> dict:
     row = {k: it.get(k) for k in _INDEX_FIELDS}
     row["section"] = section(it)
     return row
 
 
-def _load_all(scope: str, project: Optional[str]):
+def _load_all(scope: str, project: str | None):
     """Return (open_items, closed_items) as FULL items from items/<ID>.json (the truth).
 
     Fallback: if `items/` is empty, read the legacy full-array open.json/closed.json so a
@@ -132,8 +133,8 @@ def _load_all(scope: str, project: Optional[str]):
     """
     d, of, cf, _h, _c = _paths(scope, project)
     idir = _items_dir(d)
-    op: List[Dict] = []
-    cl: List[Dict] = []
+    op: list[dict] = []
+    cl: list[dict] = []
     try:
         names = [f for f in os.listdir(idir) if f.endswith(".json")] if os.path.isdir(idir) else []
     except Exception:
@@ -162,21 +163,21 @@ def _load_all(scope: str, project: Optional[str]):
     return list(lo or []), list(lc or [])
 
 
-def _save_item(d: str, item: Dict) -> None:
+def _save_item(d: str, item: dict) -> None:
     iid = str(item.get("id") or "")
     if not iid:
         return
     _wj(os.path.join(_items_dir(d), f"{iid}.json"), item)
 
 
-def _write_indexes(scope: str, project: Optional[str], op: List[Dict], cl: List[Dict]) -> None:
+def _write_indexes(scope: str, project: str | None, op: list[dict], cl: list[dict]) -> None:
     """Regenerate the DERIVED open/closed indexes (lean rows). Never hand-edited."""
     _d, of, cf, _h, _c = _paths(scope, project)
     _wj(of, [_index_row(i) for i in op])
     _wj(cf, [_index_row(i) for i in cl])
 
 
-def migrate_scope(scope: str, project: Optional[str] = None) -> Dict:
+def migrate_scope(scope: str, project: str | None = None) -> dict:
     """Convert a legacy full-array scope -> items/<ID>.json + derived indexes. Idempotent.
 
     No-op (creates nothing) when the scope has no backlog dir yet.
@@ -230,15 +231,21 @@ def _lock(d):
 
 
 def _unlock(lp):
-    try:
+    with contextlib.suppress(Exception):
         os.remove(lp)
-    except Exception:
-        pass
 
 
 def _num(eid: str) -> int:
+    """Sequence number from an id's final ``<nnn>`` segment.
+
+    Only the substring after the LAST ``-`` is read, so digits embedded in the TAG/slug
+    (e.g. ``BI-TESTBIPF02-0002``) never inflate the number (IS-PF-0033).
+    """
     try:
-        return int(re.sub(r"\D", "", str(eid)) or 0)
+        s = str(eid or "").strip()
+        tail = s.rsplit("-", 1)[-1] if "-" in s else s
+        m = re.search(r"\d+", tail)
+        return int(m.group(0)) if m else 0
     except Exception:
         return 0
 
@@ -248,7 +255,7 @@ def _slug(project: str) -> str:
     return re.sub(r"[^A-Za-z0-9]", "", str(project or "")).upper()[:10]
 
 
-def tag_for(scope: str, project: Optional[str] = None, origin: str = "",
+def tag_for(scope: str, project: str | None = None, origin: str = "",
             type_: str = "") -> str:
     """Short DESTINATION tag encoded in new ids (``BI-<TAG>-<nnn>``).
 
@@ -278,17 +285,17 @@ def _next_id(open_items, closed_items, tagname: str) -> str:
     return f"BI-{tagname or 'GEN'}-{mx + 1:04d}"
 
 
-def _label_prefix(scope: str, project: Optional[str]) -> str:
+def _label_prefix(scope: str, project: str | None) -> str:
     return "PF" if _norm_scope(scope) == "product_forge" else (project or "Project")
 
 
-def _next_label(counters: Dict, scope: str, project: Optional[str]) -> str:
+def _next_label(counters: dict, scope: str, project: str | None) -> str:
     n = int(counters.get("next_label", 1))
     counters["next_label"] = n + 1
     return f"{_label_prefix(scope, project)} Backlog {n}"
 
 
-def section(item: Dict) -> str:
+def section(item: dict) -> str:
     st = _normalize_status(item.get("status", "new"))
     if st in _CLOSED:
         return "done"
@@ -297,7 +304,7 @@ def section(item: Dict) -> str:
     return "intake"
 
 
-def score(e: Dict) -> float:
+def score(e: dict) -> float:
     v = float(e.get("value", 3) or 3)
     ef = max(float(e.get("effort", 3) or 3), 1.0)
     r = float(e.get("risk", 2) or 2)
@@ -325,7 +332,7 @@ _JOURNAL_KEYS = ("title", "body", "links", "status", "moscow", "value", "effort"
                  "deps", "decisions", "follow_up", "dashboard_impact", "external_id")
 
 
-def _diff_fields(old: Dict, new: Dict) -> Dict:
+def _diff_fields(old: dict, new: dict) -> dict:
     """Field-level before->after for the content journal (bodies summarized by length)."""
     out = {}
     for k in _JOURNAL_KEYS:
@@ -337,7 +344,7 @@ def _diff_fields(old: Dict, new: Dict) -> Dict:
     return out
 
 
-def _find(op: List[Dict], cl: List[Dict], eid: str):
+def _find(op: list[dict], cl: list[dict], eid: str):
     for e in op:
         if e.get("id") == eid:
             return e, op
@@ -381,12 +388,12 @@ def _similarity(a: set, b: set) -> float:
     return round(0.5 * (inter / len(a | b)) + 0.5 * (inter / min(len(a), len(b))), 4)
 
 
-def _item_text(e: Dict) -> str:
+def _item_text(e: dict) -> str:
     return " ".join([str(e.get("title") or ""), str(e.get("body") or ""),
                      str(e.get("external_id") or "")])
 
 
-def _scope_pairs(scope: Optional[str]):
+def _scope_pairs(scope: str | None):
     """Resolve an optional scope selector -> [(scope, project), ...]."""
     if not scope:
         return _all_scopes()
@@ -398,7 +405,7 @@ def _scope_pairs(scope: Optional[str]):
     return [("project", scope)]
 
 
-def find_similar(text: str, scope: Optional[str] = None, limit: int = 5) -> List[Dict]:
+def find_similar(text: str, scope: str | None = None, limit: int = 5) -> list[dict]:
     """Rank existing items by token-set Jaccard similarity to ``text`` (title+body+external_id).
 
     Pure python (no external deps). Searches OPEN and CLOSED items so a just-merged
@@ -408,7 +415,7 @@ def find_similar(text: str, scope: Optional[str] = None, limit: int = 5) -> List
     q = _tokens(text)
     if not q:
         return []
-    out: List[Dict] = []
+    out: list[dict] = []
     for sc, pr in _scope_pairs(scope):
         for e in list_open(sc, pr, order=False) + list_closed(sc, pr):
             scv = _similarity(q, _tokens(_item_text(e)))
@@ -424,10 +431,10 @@ def find_similar(text: str, scope: Optional[str] = None, limit: int = 5) -> List
     return out[:max(1, int(limit))]
 
 
-def duplicate_pairs(scope: Optional[str] = None, threshold: float = 0.5,
-                    limit: int = 50) -> List[Dict]:
+def duplicate_pairs(scope: str | None = None, threshold: float = 0.5,
+                    limit: int = 50) -> list[dict]:
     """Near-duplicate OPEN-item pairs (Jaccard >= threshold), ranked by score."""
-    out: List[Dict] = []
+    out: list[dict] = []
     for sc, pr in _scope_pairs(scope):
         items = list_open(sc, pr, order=False)
         toks = [_tokens(_item_text(e)) for e in items]
@@ -446,11 +453,11 @@ def duplicate_pairs(scope: Optional[str] = None, threshold: float = 0.5,
     return out[:limit]
 
 
-def add_epic(scope: str, project: Optional[str], title: str, body: str = "",
+def add_epic(scope: str, project: str | None, title: str, body: str = "",
              source: str = "generic", type_: str = "feature", origin: str = "intake",
              value: int = 3, effort: int = 3, risk: int = 2, moscow: str = "Should",
-             deps: Optional[List[str]] = None, links: Optional[Dict] = None,
-             external_id: str = "", tag: str = "") -> Dict:
+             deps: list[str] | None = None, links: dict | None = None,
+             external_id: str = "", tag: str = "") -> dict:
     """Create a work item. `external_id` (e.g. feature_id/defect_id/conversation_id) makes it idempotent.
 
     `tag` overrides the destination tag encoded in the id (see ``tag_for``).
@@ -496,8 +503,8 @@ def add_epic(scope: str, project: Optional[str], title: str, body: str = "",
         _unlock(lp)
 
 
-def ensure_item(scope: str, project: Optional[str], external_id: str, title: str,
-                type_: str = "feature", origin: str = "pipeline", tag: str = "", **fields) -> Dict:
+def ensure_item(scope: str, project: str | None, external_id: str, title: str,
+                type_: str = "feature", origin: str = "pipeline", tag: str = "", **fields) -> dict:
     """Idempotent get-or-create keyed by `external_id` (for the bridges)."""
     scope = _norm_scope(scope)
     d, of, cf, _h, _c = _paths(scope, project)
@@ -522,8 +529,8 @@ def ensure_item(scope: str, project: Optional[str], external_id: str, title: str
                     external_id=external_id, tag=tag, **fields)
 
 
-def set_status(scope: str, project: Optional[str], eid: str, status: str, note: str = "",
-               force: bool = False) -> Optional[Dict]:
+def set_status(scope: str, project: str | None, eid: str, status: str, note: str = "",
+               force: bool = False) -> dict | None:
     # RCCA gate (1:1 with the issue tracker): a backlog item linked to an issue may only
     # reach a COMPLETED state after that issue records a complete RCCA (root_cause +
     # corrective + fixed_where). Fail closed unless forced with an audited override.
@@ -546,7 +553,7 @@ def set_status(scope: str, project: Optional[str], eid: str, status: str, note: 
 _BARE_BI_RE = re.compile(r"^BI-(?:[A-Za-z0-9]+-)?\d+$")
 
 
-def link(scope: str, project: Optional[str], eid: str, **refs) -> Optional[Dict]:
+def link(scope: str, project: str | None, eid: str, **refs) -> dict | None:
     """Merge references into item.links (ids only).
 
     Cross-scope item references MUST be scope-qualified (BI-0082), e.g.
@@ -577,7 +584,7 @@ def link(scope: str, project: Optional[str], eid: str, **refs) -> Optional[Dict]
     return update(scope, project, eid, links=links)
 
 
-def qualify(scope: str, project: Optional[str], eid: str) -> str:
+def qualify(scope: str, project: str | None, eid: str) -> str:
     """Scope-qualified reference for an item id (BI-0082).
 
     ``BI-####`` ids are allocated per scope, so the same id exists in more than one
@@ -601,7 +608,7 @@ def parse_ref(ref: str):
     return "", None, str(ref or "")
 
 
-def get_by_ref(ref: str) -> Optional[Dict]:
+def get_by_ref(ref: str) -> dict | None:
     """Resolve a (possibly qualified) reference to its item, across scopes."""
     scope, project, eid = parse_ref(ref)
     if not scope:
@@ -621,7 +628,7 @@ def _as_list(v):
     return list(v) if isinstance(v, list) else [v]
 
 
-def canonical_links(links: Optional[Dict]) -> Dict[str, List[str]]:
+def canonical_links(links: dict | None) -> dict[str, list[str]]:
     """Canonical view of an item's ``links`` (back-compat: legacy keys still read).
 
     Canonical keys:
@@ -635,7 +642,7 @@ def canonical_links(links: Optional[Dict]) -> Dict[str, List[str]]:
                                  ``dashboard_ref`` keys.
     """
     links = links or {}
-    out: Dict[str, List[str]] = {"paired_with": [], "backend_capability": [], "capability_ref": []}
+    out: dict[str, list[str]] = {"paired_with": [], "backend_capability": [], "capability_ref": []}
     for k in _CANON_LINK_PAIR_KEYS:
         for ref in _as_list(links.get(k)):
             if ref not in out["paired_with"]:
@@ -651,7 +658,7 @@ def canonical_links(links: Optional[Dict]) -> Dict[str, List[str]]:
     return out
 
 
-def _merge_links(links: Optional[Dict], **refs) -> Dict:
+def _merge_links(links: dict | None, **refs) -> dict:
     """Merge ``refs`` (list-aware) into a copy of ``links`` (used by ``pair``)."""
     out = dict(links or {})
     for k, v in refs.items():
@@ -668,8 +675,8 @@ def _merge_links(links: Optional[Dict], **refs) -> Dict:
     return out
 
 
-def pair(scope: str, project: Optional[str], eid: str, other_ref: str,
-         capability: Optional[str] = None) -> Optional[Dict]:
+def pair(scope: str, project: str | None, eid: str, other_ref: str,
+         capability: str | None = None) -> dict | None:
     """Cross-link two items RECIPROCALLY via canonical ``links.paired_with``.
 
     ``other_ref`` must be scope-qualified (``product_forge:BI-####`` /
@@ -683,7 +690,7 @@ def pair(scope: str, project: Optional[str], eid: str, other_ref: str,
     if other is None:
         print(f"[Backlog] warning: pair(): cannot resolve {other_ref!r} (left one-sided)")
     back_ref = qualify(scope, project, eid)
-    mine: Dict[str, Any] = {"paired_with": other_ref}
+    mine: dict[str, Any] = {"paired_with": other_ref}
     if capability:
         mine["backend_capability"] = capability
     update(scope, project, eid, links=_merge_links(item.get("links"), **mine))
@@ -693,9 +700,9 @@ def pair(scope: str, project: Optional[str], eid: str, other_ref: str,
     return get_epic(scope, project, eid)
 
 
-def set_dashboard_impact(scope: str, project: Optional[str], eid: str, needs_dashboard: bool,
-                         reason: str, dashboard_item: Optional[str] = None,
-                         reviewed_by: str = "agent", reviewed_at: str = "") -> Optional[Dict]:
+def set_dashboard_impact(scope: str, project: str | None, eid: str, needs_dashboard: bool,
+                         reason: str, dashboard_item: str | None = None,
+                         reviewed_by: str = "agent", reviewed_at: str = "") -> dict | None:
     """Record the required ``dashboard_impact`` REVIEW decision on a backend-scope item.
 
     Non-forced: ``needs_dashboard=False`` with a reason is valid. Only when
@@ -707,9 +714,9 @@ def set_dashboard_impact(scope: str, project: Optional[str], eid: str, needs_das
     return update(scope, project, eid, dashboard_impact=dec, _note="dashboard_impact reviewed")
 
 
-def set_delivery(scope: str, project: Optional[str], eid: str, *, branch: str = "",
-                 merge_sha: str = "", commits: Optional[List[str]] = None, pr: str = "",
-                 pr_url: str = "", note: str = "") -> Optional[Dict]:
+def set_delivery(scope: str, project: str | None, eid: str, *, branch: str = "",
+                 merge_sha: str = "", commits: list[str] | None = None, pr: str = "",
+                 pr_url: str = "", note: str = "") -> dict | None:
     """Record delivery provenance on a work item: the branch, merge SHA and PR that delivered it.
 
     Completes the traceability loop (backlog item -> branch -> commit/merge -> PR) once work is reviewed,
@@ -725,8 +732,8 @@ def set_delivery(scope: str, project: Optional[str], eid: str, *, branch: str = 
                   _note="delivery recorded")
 
 
-def set_follow_up(scope: str, project: Optional[str], eid: str, at: str = "",
-                  every_days: int = _DEFAULT_REVIEW_DAYS, snooze_days: int = 0) -> Optional[Dict]:
+def set_follow_up(scope: str, project: str | None, eid: str, at: str = "",
+                  every_days: int = _DEFAULT_REVIEW_DAYS, snooze_days: int = 0) -> dict | None:
     base = datetime.now()
     if at:
         try:
@@ -740,8 +747,8 @@ def set_follow_up(scope: str, project: Optional[str], eid: str, at: str = "",
     return update(scope, project, eid, follow_up=fu, _note="follow-up set")
 
 
-def list_open(scope: str, project: Optional[str] = None, order: bool = True,
-              origin: str = "", sec: str = "") -> List[Dict]:
+def list_open(scope: str, project: str | None = None, order: bool = True,
+              origin: str = "", sec: str = "") -> list[dict]:
     op, _cl = _load_all(scope, project)
     items = op
     if origin:
@@ -757,7 +764,7 @@ def list_open(scope: str, project: Optional[str] = None, order: bool = True,
     return items
 
 
-def list_closed(scope: str, project: Optional[str] = None, origin: str = "") -> List[Dict]:
+def list_closed(scope: str, project: str | None = None, origin: str = "") -> list[dict]:
     _op, cl = _load_all(scope, project)
     items = cl
     if origin:
@@ -767,7 +774,7 @@ def list_closed(scope: str, project: Optional[str] = None, origin: str = "") -> 
     return items
 
 
-def get_epic(scope: str, project: Optional[str], eid: str) -> Optional[Dict]:
+def get_epic(scope: str, project: str | None, eid: str) -> dict | None:
     op, cl = _load_all(scope, project)
     for e in op + cl:
         if e.get("id") == eid:
@@ -775,8 +782,8 @@ def get_epic(scope: str, project: Optional[str], eid: str) -> Optional[Dict]:
     return None
 
 
-def list_items(scope: str, project: Optional[str] = None, status: str = "",
-               section_: str = "") -> List[Dict]:
+def list_items(scope: str, project: str | None = None, status: str = "",
+               section_: str = "") -> list[dict]:
     """All items (open + closed) for a scope, optionally filtered by status/section."""
     op, cl = _load_all(scope, project)
     items = list(op) + list(cl)
@@ -788,30 +795,28 @@ def list_items(scope: str, project: Optional[str] = None, status: str = "",
     return items
 
 
-def get(scope: str, project: Optional[str], eid: str) -> Optional[Dict]:
+def get(scope: str, project: str | None, eid: str) -> dict | None:
     """Full item by id - the API way. Do NOT read backlog files directly."""
     return get_epic(scope, project, eid)
 
 
-def history(scope: str, project: Optional[str], eid: str) -> List[Dict]:
+def history(scope: str, project: str | None, eid: str) -> list[dict]:
     """The item's append-only journal (status + content-change entries)."""
     d, _of, _cf, h, _c = _paths(scope, project)
-    out: List[Dict] = []
+    out: list[dict] = []
     try:
         with open(os.path.join(h, f"{eid}.jsonl"), encoding="utf-8") as f:
             for line in f:
                 line = line.strip()
                 if line:
-                    try:
+                    with contextlib.suppress(Exception):
                         out.append(json.loads(line))
-                    except Exception:
-                        pass
     except Exception:
         pass
     return out
 
 
-def backfill_journal(scope: str, project: Optional[str], eid: str) -> Optional[Dict]:
+def backfill_journal(scope: str, project: str | None, eid: str) -> dict | None:
     """Create ONE clearly-marked first journal line if an item has none (heals a pre-existing gap).
 
     Never fabricates a transition: event is 'backfill', timestamped at the item's created_at.
@@ -836,19 +841,19 @@ def backfill_journal(scope: str, project: Optional[str], eid: str) -> Optional[D
         return None
 
 
-def index_view(scope: str, project: Optional[str] = None) -> Dict:
+def index_view(scope: str, project: str | None = None) -> dict:
     """The DERIVED lean index (tracking view): open/closed rows (id/status/one-liner/dates)."""
     op, cl = _load_all(scope, project)
     return {"scope": _norm_scope(scope), "project": project or "",
             "open": [_index_row(i) for i in op], "closed": [_index_row(i) for i in cl]}
 
 
-def archive(scope: str, project: Optional[str], eid: str, note: str = "archived") -> Optional[Dict]:
+def archive(scope: str, project: str | None, eid: str, note: str = "archived") -> dict | None:
     """Non-destructive retire: move the item to the terminal 'archived' status."""
     return update(scope, project, eid, status="archived", _note=note)
 
 
-def delete(scope: str, project: Optional[str], eid: str) -> Optional[Dict]:
+def delete(scope: str, project: str | None, eid: str) -> dict | None:
     """Remove an item's own files (item + journal) and refresh the index. Returns the item."""
     scope = _norm_scope(scope)
     d, _of, _cf, _h, _c = _paths(scope, project)
@@ -861,17 +866,15 @@ def delete(scope: str, project: Optional[str], eid: str) -> Optional[Dict]:
         bucket.remove(target)
         for p in (os.path.join(_items_dir(d), f"{eid}.json"),
                   os.path.join(d, "history", f"{eid}.jsonl")):
-            try:
+            with contextlib.suppress(Exception):
                 os.remove(p)
-            except Exception:
-                pass
         _write_indexes(scope, project, op, cl)
         return target
     finally:
         _unlock(lp)
 
 
-def update(scope: str, project: Optional[str], eid: str, **fields) -> Optional[Dict]:
+def update(scope: str, project: str | None, eid: str, **fields) -> dict | None:
     d, of, cf, _h, _c = _paths(scope, project)
     lp = _lock(d)
     try:
@@ -900,11 +903,11 @@ def update(scope: str, project: Optional[str], eid: str, **fields) -> Optional[D
         _unlock(lp)
 
 
-def triage(scope: str, project: Optional[str], eid: str,
-           recommendation: str = "", value: Optional[int] = None,
-           effort: Optional[int] = None, risk: Optional[int] = None,
-           moscow: Optional[str] = None) -> Optional[Dict]:
-    fields: Dict[str, Any] = {"status": "triaged", "_note": recommendation}
+def triage(scope: str, project: str | None, eid: str,
+           recommendation: str = "", value: int | None = None,
+           effort: int | None = None, risk: int | None = None,
+           moscow: str | None = None) -> dict | None:
+    fields: dict[str, Any] = {"status": "triaged", "_note": recommendation}
     if value is not None:
         fields["value"] = value
     if effort is not None:
@@ -921,8 +924,8 @@ def triage(scope: str, project: Optional[str], eid: str,
     return get_epic(scope, project, eid)
 
 
-def accept(scope: str, project: Optional[str], eid: str, when: str = "later",
-           by: str = "hil") -> Optional[Dict]:
+def accept(scope: str, project: str | None, eid: str, when: str = "later",
+           by: str = "hil") -> dict | None:
     """when = 'now' (queue for scheduling) | 'later' (accepted, unscheduled)."""
     status = "queued" if when == "now" else "accepted"
     e = update(scope, project, eid, status=status, accepted_by=by, when=when,
@@ -936,7 +939,7 @@ def accept(scope: str, project: Optional[str], eid: str, when: str = "later",
     return e
 
 
-def parked_review(days: int = 0) -> List[Dict]:
+def parked_review(days: int = 0) -> list[dict]:
     """Parked items whose follow-up is due (weekly default) and not snoozed."""
     now = datetime.now()
     out = []
@@ -969,7 +972,7 @@ def _all_scopes():
     return scopes
 
 
-def stale(days: int = 7, scope: str = "", project: Optional[str] = None) -> List[Dict]:
+def stale(days: int = 7, scope: str = "", project: str | None = None) -> list[dict]:
     """Open items untouched for > `days` (follow-up / event-router signal)."""
     scopes = [(scope, project)] if scope else _all_scopes()
     out = []
@@ -987,10 +990,10 @@ def stale(days: int = 7, scope: str = "", project: Optional[str] = None) -> List
     return out
 
 
-def stats(scope: str, project: Optional[str] = None) -> Dict:
+def stats(scope: str, project: str | None = None) -> dict:
     op, cl = list_open(scope, project, order=False), list_closed(scope, project)
-    by_status: Dict[str, int] = {}
-    by_origin: Dict[str, int] = {}
+    by_status: dict[str, int] = {}
+    by_origin: dict[str, int] = {}
     for e in op:
         by_status[e.get("status", "?")] = by_status.get(e.get("status", "?"), 0) + 1
         by_origin[e.get("origin", "?")] = by_origin.get(e.get("origin", "?"), 0) + 1
@@ -998,7 +1001,7 @@ def stats(scope: str, project: Optional[str] = None) -> Dict:
             "closed": len(cl), "by_status": by_status, "by_origin": by_origin}
 
 
-def _dashboard_impact_ok(item: Dict) -> bool:
+def _dashboard_impact_ok(item: dict) -> bool:
     """A recorded REVIEW decision = ``needs_dashboard`` (bool) + a non-empty reason."""
     di = item.get("dashboard_impact")
     if not isinstance(di, dict) or "needs_dashboard" not in di:
@@ -1006,17 +1009,17 @@ def _dashboard_impact_ok(item: Dict) -> bool:
     return bool(str(di.get("reason") or "").strip())
 
 
-def _dashboard_capability_claims(item: Dict) -> List[str]:
+def _dashboard_capability_claims(item: dict) -> list[str]:
     cl = canonical_links(item.get("links"))
     return list(cl.get("backend_capability") or []) + list(cl.get("capability_ref") or [])
 
 
-def _is_dashboard_item(item: Dict) -> bool:
+def _is_dashboard_item(item: dict) -> bool:
     return _norm_scope(str(item.get("scope", ""))) == "project" \
         and bool(_dashboard_capability_claims(item))
 
 
-def _reciprocal(a: Dict, b: Dict) -> bool:
+def _reciprocal(a: dict, b: dict) -> bool:
     """True when BOTH items carry a paired_with ref to the other."""
     aref = qualify(a.get("scope"), a.get("project"), a.get("id"))
     bref = qualify(b.get("scope"), b.get("project"), b.get("id"))
@@ -1025,7 +1028,7 @@ def _reciprocal(a: Dict, b: Dict) -> bool:
     return (bref in a_pairs) and (aref in b_pairs)
 
 
-def reciprocity_warnings(scope: str = "", project: Optional[str] = None) -> List[Dict]:
+def reciprocity_warnings(scope: str = "", project: str | None = None) -> list[dict]:
     """NON-FATAL warnings for the backend<->dashboard reciprocity REVIEW rule.
 
     Returns ``[{kind, ref, item, title, detail}]`` (never raises, never fails a build).
@@ -1038,7 +1041,7 @@ def reciprocity_warnings(scope: str = "", project: Optional[str] = None) -> List
          ``needs_dashboard=true`` but the ``dashboard_item`` ref is missing, unresolvable,
          or non-reciprocal.
     """
-    warns: List[Dict] = []
+    warns: list[dict] = []
     scopes = [(scope, project)] if scope else _all_scopes()
     for sc, pr in scopes:
         is_forge = _norm_scope(sc) == "product_forge"
@@ -1083,7 +1086,7 @@ def reciprocity_warnings(scope: str = "", project: Optional[str] = None) -> List
     return warns
 
 
-def print_reciprocity_warnings(scope: str = "", project: Optional[str] = None) -> int:
+def print_reciprocity_warnings(scope: str = "", project: str | None = None) -> int:
     """Print ``reciprocity_warnings()`` (advisory). Returns the warning count."""
     warns = reciprocity_warnings(scope, project)
     if not warns:
@@ -1095,7 +1098,7 @@ def print_reciprocity_warnings(scope: str = "", project: Optional[str] = None) -
     return len(warns)
 
 
-def verify(scope: str, project: Optional[str] = None) -> Dict:
+def verify(scope: str, project: str | None = None) -> dict:
     """Cross-store integrity check (BU-C02/BZ-C02): items/ truth vs derived indexes.
 
     Reads the truth (``items/<ID>.json``) and the derived ``open.json``/``closed.json`` lean
@@ -1105,7 +1108,7 @@ def verify(scope: str, project: Optional[str] = None) -> Dict:
     """
     d, of, cf, _h, _c = _paths(scope, project)
     idir = _items_dir(d)
-    ids: Dict[str, str] = {}
+    ids: dict[str, str] = {}
     try:
         for fn in (os.listdir(idir) if os.path.isdir(idir) else []):
             if not fn.endswith(".json"):
@@ -1115,7 +1118,7 @@ def verify(scope: str, project: Optional[str] = None) -> Dict:
                 ids[str(it["id"])] = _normalize_status(it.get("status", "new"))
     except Exception:
         pass
-    drift: List[Dict] = []
+    drift: list[dict] = []
     indexed = set()
     for path in (of, cf):
         rows = _rj(path, [])
