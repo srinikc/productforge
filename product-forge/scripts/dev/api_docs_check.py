@@ -1,0 +1,50 @@
+"""BI-PF-0355 gate: the committed API reference must match the live OpenAPI.
+
+``docs/api-reference.html`` is generated (deterministically) from ``core.api_docs`` -> live OpenAPI. This gate
+regenerates it and fails if the committed file is stale. ``--write`` regenerates it. Wired into precheck.
+"""
+import argparse
+import os
+import sys
+
+os.environ.setdefault("API_ALLOW_ANON", "1")
+
+try:
+    from core.paths import ROOT as _ROOT
+except ImportError:
+    _ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+if _ROOT not in sys.path:
+    sys.path.insert(0, _ROOT)
+
+
+def main(argv=None) -> int:
+    ap = argparse.ArgumentParser(description="API reference freshness gate")
+    ap.add_argument("--write", action="store_true", help="regenerate docs/api-reference.html")
+    a = ap.parse_args(argv)
+
+    from core import api_docs
+
+    if a.write:
+        p = api_docs.write_html()
+        print("api-docs: wrote", os.path.relpath(p, _ROOT))
+        return 0
+
+    try:
+        with open(api_docs.HTML_PATH, encoding="utf-8") as f:
+            committed = f.read()
+    except Exception:
+        print("api-docs: FAIL - docs/api-reference.html missing (run: "
+              "python scripts/dev/api_docs_check.py --write)")
+        return 1
+
+    ref = api_docs.reference()
+    if api_docs.render_html(ref) == committed:
+        print(f"api-docs: OK ({ref['operation_count']} operations, in sync)")
+        return 0
+    print("api-docs: FAIL - docs/api-reference.html is stale vs the live OpenAPI "
+          "(run: python scripts/dev/api_docs_check.py --write)")
+    return 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

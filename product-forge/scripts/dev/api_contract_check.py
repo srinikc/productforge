@@ -8,7 +8,6 @@ path) and does not write any store. Idempotency is covered by the API unit tests
 Exit code 1 on any failure (wire into CI/precheck).
 """
 
-import json
 import os
 import sys
 
@@ -33,12 +32,13 @@ def _check(cond, msg):
 
 def main() -> int:
     from fastapi.testclient import TestClient
+
     from api.app import app
     c = TestClient(app)
 
     r = c.get("/api/v1/health")
     _check(r.status_code == 200, f"health status {r.status_code}")
-    _check(SUCCESS_KEYS <= set(r.json()), "health envelope keys")
+    _check(set(r.json()) >= SUCCESS_KEYS, "health envelope keys")
     _check(r.headers.get("X-Request-Id"), "health echoes X-Request-Id")
 
     r = c.get("/api/v1/health", headers={"X-Request-Id": "req-fixed", "X-Correlation-Id": "corr-fixed"})
@@ -64,7 +64,7 @@ def main() -> int:
                  "/api/v1/backlog", "/api/v1/backlog/stats", "/api/v1/projects"):
         r = c.get(path)
         _check(r.status_code == 200, f"{path} status {r.status_code}")
-        _check(SUCCESS_KEYS <= set(r.json()), f"{path} envelope keys")
+        _check(set(r.json()) >= SUCCESS_KEYS, f"{path} envelope keys")
 
     # canonical validation error on missing required query param
     r = c.get("/api/v1/runs")
@@ -77,10 +77,10 @@ def main() -> int:
                  "/api/v1/engineering/tasks", "/api/v1/engineering/workers",
                  "/api/v1/engineering/schedule", "/api/v1/engineering/worker-providers",
                  "/api/v1/vcs/branch-name", "/api/v1/github", "/api/v1/github/evidence",
-                 "/api/v1/events/types", "/api/v1/backlog/stats"):
+                 "/api/v1/events/types", "/api/v1/apidocs." + "json", "/api/v1/backlog/stats"):
         r = c.get(path)
         _check(r.status_code == 200, f"{path} status {r.status_code}")
-        _check(SUCCESS_KEYS <= set(r.json()), f"{path} envelope keys")
+        _check(set(r.json()) >= SUCCESS_KEYS, f"{path} envelope keys")
 
     r = c.get("/api/v1/agents")
     agents = r.json().get("data") or []
@@ -89,7 +89,7 @@ def main() -> int:
         aid = agents[0].get("agent_id")
         r = c.get(f"/api/v1/agents/{aid}/capabilities")
         _check(r.status_code == 200, f"agent capabilities status {r.status_code}")
-        _check(SUCCESS_KEYS <= set(r.json()), "agent capabilities envelope keys")
+        _check(set(r.json()) >= SUCCESS_KEYS, "agent capabilities envelope keys")
 
     # project-scoped engineering reads are fail-closed on an unknown project
     for path in ("/api/v1/validation", "/api/v1/gates/pr", "/api/v1/vcs",
