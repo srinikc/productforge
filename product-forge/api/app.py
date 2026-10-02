@@ -17,6 +17,7 @@ from .routers import (
     apidocs,
     artifacts,
     backlog,
+    changes,
     engineering,
     enterprise,
     events,
@@ -64,7 +65,7 @@ for _r in (intake.router, projects.router, runs.router, pipeline.router,
            artifacts.router, evidence.router, backlog.router,
            validation.router, tests.router, gates.router, issues.router,
            vcs.router, workers.router, agents.router, engineering.router, enterprise.router,
-           github.router, events.router, apidocs.router):
+           github.router, events.router, apidocs.router, changes.router):
     app.include_router(_r, prefix="/api/v1")
 
 
