@@ -55,8 +55,8 @@ OpenCode / CLI / Coding Agent / Human → Task/Work API → resolve/create task 
 | 6 | Implementation | runtime | `core/pipeline_executor.py` | `GET /api/v1/runs` | exists |
 | 7 | Tests | runtime | `core/test_framework_integration.py` | `GET /api/v1/tests/matrix` | exists |
 | 8 | Commit | runtime | `core/vcs.py` | `GET /api/v1/vcs/commits` | exists |
-| 9 | Pull Request | ENG-5 | `core/vcs.py` | — | planned |
-| 10 | CI | ENG-5 | — | — | planned |
+| 9 | Pull Request | ENG-5 | `core/github.py` | `GET /api/v1/github/pr` | partial |
+| 10 | CI | ENG-5 | `core/github.py` | `GET /api/v1/github/pr/{number}/ci` | partial |
 | 11 | FEATURE_PR | ENG-7 | — | — | planned |
 | 12 | Review / Gates | runtime | `core/pr_gate.py` | `GET /api/v1/gates/pr` | exists |
 | 13 | Merge | ENG-3 | `core/vcs.py` | — | partial |
@@ -65,7 +65,7 @@ OpenCode / CLI / Coding Agent / Human → Task/Work API → resolve/create task 
 | 16 | Release | ENG-10 | — | — | planned |
 | 17 | Package / Entitle / Deploy | REL-0 | — | — | planned |
 
-**Engineering status:** 9 exists · 1 partial · 7 planned (17 steps). The direct entry is `task_contract`.
+**Engineering status:** 9 exists · 3 partial · 5 planned (17 steps). The direct entry is `task_contract`.
 
 ## Invariants (must hold)
 

@@ -80,7 +80,8 @@ def main() -> int:
                  "/api/v1/issues/stats", "/api/v1/engineering", "/api/v1/engineering/coverage",
                  "/api/v1/engineering/tasks", "/api/v1/engineering/workers",
                  "/api/v1/engineering/schedule", "/api/v1/engineering/worker-providers",
-                 "/api/v1/vcs/branch-name", "/api/v1/backlog/stats"):
+                 "/api/v1/vcs/branch-name", "/api/v1/github", "/api/v1/github/evidence",
+                 "/api/v1/backlog/stats"):
         r = c.get(path)
         _check(r.status_code == 200, f"{path} status {r.status_code}")
         _check(SUCCESS_KEYS <= set(r.json()), f"{path} envelope keys")
@@ -100,6 +101,11 @@ def main() -> int:
         r = c.get(path, params={"project": "does-not-exist-xyz"})
         _check(r.status_code == 404, f"{path} unknown-project status {r.status_code}")
         _check((r.json().get("error") or {}).get("code") == "NOT_FOUND", f"{path} unknown-project code")
+
+    # GitHub: project-scope reads are fail-closed on an unknown project
+    for path in ("/api/v1/github", "/api/v1/github/evidence"):
+        r = c.get(path, params={"scope": "project", "project": "does-not-exist-xyz"})
+        _check(r.status_code == 404, f"{path} unknown-project status {r.status_code}")
 
     if FAILS:
         print("api-contract: FAIL")

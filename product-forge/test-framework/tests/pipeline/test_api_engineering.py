@@ -167,6 +167,21 @@ def test_engineering_stage_lookup(client):
     assert r3.status_code == 404
 
 
+def test_github_overview_evidence_and_unknown(client, scratch_project):
+    scope = {"scope": "project", "project": scratch_project}
+    ev = client.get("/api/v1/github/evidence", params=scope)
+    assert ev.status_code == 200
+    for k in ("run_id", "task_id", "commit_sha", "validation", "artifacts"):
+        assert k in ev.json()["data"], k
+    ov = client.get("/api/v1/github", params=scope)
+    assert ov.status_code == 200 and "prs" in ov.json()["data"]
+    missing = client.get("/api/v1/github/pr/999", params=scope)
+    assert missing.status_code == 404
+    unknown = client.get("/api/v1/github", params={"scope": "project", "project": "nope-xyz"})
+    assert unknown.status_code == 404
+    assert unknown.json()["error"]["code"] == "NOT_FOUND"
+
+
 def test_worker_providers_and_run_noop(client, git_project):
     r = client.get("/api/v1/engineering/worker-providers")
     assert r.status_code == 200

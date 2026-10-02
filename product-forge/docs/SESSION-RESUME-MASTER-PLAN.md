@@ -65,6 +65,13 @@ pipeline executor directly (it enqueues via `core.run_entry`). See `docs/ENG-0-E
     `GET /engineering/tasks/{id}/results`; `scripts/dev/worker_check.py` (precheck gate);
     `docs/ENG-4-WORKER-RUNTIME.md`; ENG-0 flow step `worker_runtime` flipped partial→exists.
     OpenCode is an optional adapter (BLOCKED if absent), never a dependency. 64 OpenAPI paths total.
+  - `ENG-5` (this session): GitHub/PR/CI orchestration — `core/github.py` (guarded `create_pr` push-ready→PR,
+    append-only `pr-records.json` with `evidence_hash`, `build_evidence` aggregated from canonical stores,
+    `ci_status` via the optional `gh` adapter, `POLICY` never-list); `core/vcs.head_commit()` read helper;
+    `api/routers/github.py` (`GET /github`, `/github/evidence`, `POST /github/pr`, `GET /github/pr/{n}`,
+    `/github/pr/{n}/ci`); `scripts/dev/github_check.py` (precheck gate); `docs/ENG-5-GITHUB-PR-CI.md`;
+    ENG-0 flow steps `pr`/`ci` flipped planned→partial. `gh` is optional; degrades to `pr_ready`.
+    69 OpenAPI paths total.
 
 ## Binding decisions (do not violate)
 
@@ -94,10 +101,18 @@ python scripts/dev/precheck.py                                # expect precheck:
 
 ## Verified state at hand-off
 
-- API-1..API-3, ENG-0..ENG-4 committed; **entry-path retrofit applied** (MASTER-0→ENG-4 re-audited).
-- `wired_audit` = 0; `api_contract_check` OK; `engineering_flow_check` OK; `task_contract_check` OK; `scheduler_check` OK; `vcs_worktree_check` OK; `worker_check` OK; `test_entry_paths` OK; full suite green; `precheck` PASS.
-- `api/` has 16 routers; **64 OpenAPI paths**; API-2 core reads + API-3/ENG reads all 200.
-- `core/result_aggregator.py` (BI-PF-0277) dangling-integrity gap was repaired in MASTER-0 commit.
+- API-1..API-3, ENG-0..ENG-5 committed; **entry-path retrofit applied**; **drift-guard tooling** in place.
+- `wired_audit` = 0; `api_contract_check` OK; `engineering_flow_check` OK; `task_contract_check` OK; `scheduler_check` OK; `vcs_worktree_check` OK; `worker_check` OK; `github_check` OK; `intent_trace_check` OK; full suite green; `precheck` PASS.
+- `api/` has 17 routers; **69 OpenAPI paths**; API-2 core reads + API-3/ENG reads all 200.
+
+## IMMEDIATE NEXT STEPS (after ENG-5)
+
+1. **API-5 — API Hardening & Event Layer** (updated plan §18): contract governance, canonical committed OpenAPI,
+   formalized event layer, compatibility/breaking-change policy (per the phase graph, API-5 follows ENG-5).
+2. **ENG-6 — Common Validation Engine** (single Validation Engine; profiles FEATURE_PR / INTEGRATION / DOGFOOD / RELEASE).
+3. **API-4** (enterprise/SaaS/OEM) may run in parallel once dependencies are available.
+4. Use the drift-guard before implementing any incoming doc: `python scripts/dev/design_review_check.py <doc>`.
+5. Optional follow-up: consolidate `control.json` ownership (`core/human_controls.py` named but absent).
 
 ### Entry-path retrofit (this session; updated plan §2A)
 - ENG-0 descriptor split into two INDEPENDENT paths: `external_ingestion` (Intake, no edge) + `flow` (starts at the

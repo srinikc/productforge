@@ -27,6 +27,7 @@ def _steps():
         ("scheduler", [sys.executable, "scripts/dev/scheduler_check.py"]),
         ("vcs-worktree", [sys.executable, "scripts/dev/vcs_worktree_check.py"]),
         ("worker", [sys.executable, "scripts/dev/worker_check.py"]),
+        ("github", [sys.executable, "scripts/dev/github_check.py"]),
         ("intent-trace", [sys.executable, "scripts/dev/intent_trace_check.py"]),
         ("backlog-e2e", [sys.executable, "scripts/dev/e2e_backlog_check.py"]),
         ("docs-fresh", [sys.executable, "scripts/dev/check_docs_fresh.py"]),

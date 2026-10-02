@@ -133,6 +133,10 @@ class VCSManager:
     def current_branch(self) -> str:
         return self._git(["rev-parse", "--abbrev-ref", "HEAD"]).get("out", "")
 
+    def head_commit(self, ref: str = "HEAD") -> str:
+        """Full SHA for a ref (read-only)."""
+        return self._git(["rev-parse", ref]).get("out", "")
+
     def has_remote(self) -> bool:
         return self._git(["remote"]).get("out", "").find(self.remote) >= 0
 
