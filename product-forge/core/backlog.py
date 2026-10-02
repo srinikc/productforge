@@ -707,6 +707,24 @@ def set_dashboard_impact(scope: str, project: Optional[str], eid: str, needs_das
     return update(scope, project, eid, dashboard_impact=dec, _note="dashboard_impact reviewed")
 
 
+def set_delivery(scope: str, project: Optional[str], eid: str, *, branch: str = "",
+                 merge_sha: str = "", commits: Optional[List[str]] = None, pr: str = "",
+                 pr_url: str = "", note: str = "") -> Optional[Dict]:
+    """Record delivery provenance on a work item: the branch, merge SHA and PR that delivered it.
+
+    Completes the traceability loop (backlog item -> branch -> commit/merge -> PR) once work is reviewed,
+    validated and merged. Stored under ``links.delivery`` (raw links preserved).
+    """
+    item = get_epic(scope, project, eid)
+    if not item:
+        return None
+    delivery = {"branch": str(branch or ""), "merge_sha": str(merge_sha or ""),
+                "commits": [str(c) for c in (commits or [])], "pr": str(pr or ""),
+                "pr_url": str(pr_url or ""), "at": datetime.now().isoformat(), "note": str(note or "")}
+    return update(scope, project, eid, links=_merge_links(item.get("links"), delivery=delivery),
+                  _note="delivery recorded")
+
+
 def set_follow_up(scope: str, project: Optional[str], eid: str, at: str = "",
                   every_days: int = _DEFAULT_REVIEW_DAYS, snooze_days: int = 0) -> Optional[Dict]:
     base = datetime.now()

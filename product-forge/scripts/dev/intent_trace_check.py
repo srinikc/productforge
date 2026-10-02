@@ -55,6 +55,14 @@ def _check(desc: str, routes: set, stores: set):
     return None if os.path.exists(os.path.join(_ROOT, val)) else f"path not found: {val}"
 
 
+def _sha_exists(sha: str) -> bool:
+    import subprocess
+    if not sha:
+        return True
+    r = subprocess.run(["git", "-C", _ROOT, "cat-file", "-e", sha], capture_output=True, text=True)
+    return r.returncode == 0
+
+
 def main(argv=None) -> int:
     try:
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -72,8 +80,10 @@ def main(argv=None) -> int:
         for it in backlog.list_open(scope, project, order=False) + backlog.list_closed(scope, project):
             if str(it.get("origin")) != "review":
                 continue
-            descs = (it.get("links") or {}).get("backend_capability") or []
-            if not descs:
+            links = it.get("links") or {}
+            descs = links.get("backend_capability") or []
+            delivery = links.get("delivery") or {}
+            if not descs and not delivery:
                 continue
             checked += 1
             ref = backlog.qualify(scope, project, it.get("id"))
@@ -81,6 +91,9 @@ def main(argv=None) -> int:
                 err = _check(d, routes, stores)
                 if err:
                     drift.append(f"{ref}: {d} -> {err}")
+            # delivery provenance: the merge commit must exist in the repo
+            if delivery and not _sha_exists(str(delivery.get("merge_sha") or "")):
+                drift.append(f"{ref}: delivery merge_sha not found: {delivery.get('merge_sha')!r}")
 
     if drift:
         print(f"intent-trace: {len(drift)} drift item(s) across {checked} review item(s)")
