@@ -1,0 +1,42 @@
+{
+  "id": "IS-PF-0033",
+  "tag": "PF",
+  "scope": "product_forge",
+  "project": "",
+  "title": "issues/backlog _num concatenates digits from the id TAG, causing runaway ids and MAX_PATH store-write failures (close-loop test crash)",
+  "body": "IS-TESTBIPF02-0002 was numbered 20002 because the tag 'TESTBIPF02' contains '02'. Repeated creates inflated the number until the item filename exceeded 260 chars and the write failed. Surfaced during a full develop precheck.",
+  "kind": "issue",
+  "priority": "P1",
+  "severity": "high",
+  "module": "core/issues.py",
+  "status": "closed",
+  "rcca": {
+    "root_cause": "issues._num/backlog._num extract the sequence via re.sub(r'\\D','',id), which concatenates ALL digits in the id - including digits embedded in the TAG/slug (e.g. tag 'TESTBIPF02' contributes '02'). The next id is then mx+1 over that inflated number, producing a runaway id and, eventually, a >260-char filename (Windows MAX_PATH) that crashes the store write.",
+    "five_why": [
+      "1. Why did the close-loop test fail? raise_issue could not write items/<id>.json: FileNotFoundError.",
+      "2. Why was the path too long? The generated issue id was ~250 chars (e.g. IS-TESTBIPF02-2222...0126).",
+      "3. Why was the id that long? _next_id used _num() over existing ids; _num concatenates ALL digits.",
+      "4. Why did the tag add digits? tag_for slugifies the project name; '_test_bi_pf_0271' -> 'TESTBIPF02' (has '02').",
+      "5. Why did this compound? Each create re-inflated mx, so the number grew every write (runaway)."
+    ],
+    "corrective": "issues._num and backlog._num now read only the final '-' segment's digits, so a TAG containing digits (e.g. TESTBIPF02) can no longer inflate the sequence. Applied to both owners (same defect class).",
+    "preventive": "Guard tests: test_num_reads_sequence_not_tag_digits + test_raised_ids_are_bounded_and_sequential (ids stay short/sequential for digit-ending slugs). Also made scripts/dev/lint_check.py baseline-aware so NEW findings fail the author-time hook while pre-existing file debt is reported separately; cleared all 222 legacy findings in the touched files.",
+    "status": "open",
+    "fixed_where": "core/issues.py, core/backlog.py, test-framework/tests/pipeline/test_issues.py",
+    "generalized": true,
+    "guideline_ref": "docs/ADDING-TO-PRODUCT-FORGE.md (ids: BI-/IS-<TAG>-<nnn>)",
+    "product_ref": ""
+  },
+  "backlog_ref": "",
+  "source": "engineering-review",
+  "source_ref": "id-num-runaway",
+  "evidence": [
+    "core/issues.py:114-115",
+    "core/backlog.py:239-241",
+    "core/issues.py:192-194"
+  ],
+  "links": {},
+  "created_at": "2026-10-02T18:45:44.844248",
+  "updated_at": "2026-10-02T18:58:17.283444",
+  "note": "RCCA complete; fix merged"
+}

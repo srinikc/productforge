@@ -34,12 +34,12 @@ except ImportError:  # executed as a script: seed the repo root on sys.path, the
             break
     from core.paths import ROOT as _PF_ROOT
 
+import contextlib
 import json
 import os
 import re
 import time
 from datetime import datetime
-from typing import Dict, List, Optional
 
 _REPO = str(_PF_ROOT)
 _PRODUCTS = os.path.join(_REPO, "products")
@@ -54,7 +54,7 @@ def _norm_scope(scope: str) -> str:
     return "product_forge" if scope in ("portfolio", "product_forge", _LEGACY_FORGE_SCOPE) else "project"
 
 
-def _dir(scope: str, project: Optional[str] = None) -> str:
+def _dir(scope: str, project: str | None = None) -> str:
     if _norm_scope(scope) == "product_forge":
         legacy = os.path.join(_PRODUCTS, "issues")
         new = os.path.join(_FORGE_DIR, "issues")
@@ -64,14 +64,14 @@ def _dir(scope: str, project: Optional[str] = None) -> str:
     return os.path.join(_PRODUCTS, project or "_unknown", "issues")
 
 
-def _paths(scope: str, project: Optional[str] = None):
+def _paths(scope: str, project: str | None = None):
     d = _dir(scope, project)
     return d, os.path.join(d, "open.json"), os.path.join(d, "closed.json"), os.path.join(d, "counters.json")
 
 
 def _rj(p, d):
     try:
-        with open(p, "r", encoding="utf-8") as f:
+        with open(p, encoding="utf-8") as f:
             return json.load(f)
     except Exception:
         return d
@@ -105,17 +105,23 @@ def _lock(d):
 
 
 def _unlock(lp):
-    try:
+    with contextlib.suppress(Exception):
         os.remove(lp)
-    except Exception:
-        pass
 
 
 def _num(eid: str) -> int:
-    return int(re.sub(r"\D", "", str(eid)) or 0)
+    """Sequence number from an id's final ``<nnn>`` segment.
+
+    Only the substring after the LAST ``-`` is read, so digits embedded in the TAG/slug
+    (e.g. ``IS-TESTBIPF02-0002``) never inflate the number (IS-PF-0033).
+    """
+    s = str(eid or "").strip()
+    tail = s.rsplit("-", 1)[-1] if "-" in s else s
+    m = re.search(r"\d+", tail)
+    return int(m.group(0)) if m else 0
 
 
-def _tag_for(scope: str, project: Optional[str], kind: str) -> str:
+def _tag_for(scope: str, project: str | None, kind: str) -> str:
     try:
         from core import backlog
         return backlog.tag_for(scope, project, "intake", kind)
@@ -131,11 +137,11 @@ def _item_path(d: str, iid: str) -> str:
     return os.path.join(_items_dir(d), f"{iid}.json")
 
 
-def _load_all(scope: str, project: Optional[str]):
+def _load_all(scope: str, project: str | None):
     d, _of, _cf, _c = _paths(scope, project)
     idir = _items_dir(d)
-    op: List[Dict] = []
-    cl: List[Dict] = []
+    op: list[dict] = []
+    cl: list[dict] = []
     if os.path.isdir(idir):
         for fn in sorted(os.listdir(idir)):
             if not fn.endswith(".json"):
@@ -147,19 +153,20 @@ def _load_all(scope: str, project: Optional[str]):
     return op, cl
 
 
-def _save_item(d: str, it: Dict) -> None:
+def _save_item(d: str, it: dict) -> None:
     _wj(_item_path(d, it["id"]), it)
 
 
-def _write_indexes(d: str, op: List[Dict], cl: List[Dict]) -> None:
-    row = lambda e: {"id": e.get("id"), "status": e.get("status"), "priority": e.get("priority"),
-                     "module": e.get("module"), "backlog_ref": e.get("backlog_ref"),
-                     "title": e.get("title"), "updated_at": e.get("updated_at")}
+def _write_indexes(d: str, op: list[dict], cl: list[dict]) -> None:
+    def row(e):
+        return {"id": e.get("id"), "status": e.get("status"), "priority": e.get("priority"),
+                "module": e.get("module"), "backlog_ref": e.get("backlog_ref"),
+                "title": e.get("title"), "updated_at": e.get("updated_at")}
     _wj(os.path.join(d, "open.json"), [row(e) for e in op])
     _wj(os.path.join(d, "closed.json"), [row(e) for e in cl])
 
 
-def _hist(d: str, it: Dict, event: str = "update") -> None:
+def _hist(d: str, it: dict, event: str = "update") -> None:
     try:
         h = os.path.join(d, "history")
         os.makedirs(h, exist_ok=True)
@@ -170,11 +177,11 @@ def _hist(d: str, it: Dict, event: str = "update") -> None:
         pass
 
 
-def raise_issue(scope: str, project: Optional[str], title: str, *, body: str = "",
+def raise_issue(scope: str, project: str | None, title: str, *, body: str = "",
                 kind: str = "issue", priority: str = "P2", severity: str = "",
-                module: str = "", source: str = "review", evidence: Optional[List] = None,
-                rcca: Optional[Dict] = None, backlog_ref: str = "",
-                source_ref: str = "", auto_backlog: bool = False) -> Dict:
+                module: str = "", source: str = "review", evidence: list | None = None,
+                rcca: dict | None = None, backlog_ref: str = "",
+                source_ref: str = "", auto_backlog: bool = False) -> dict:
     """Create one finding. Returns the issue (with an IS-<TAG>-<nnn> id).
 
     Idempotent by ``(source, source_ref)`` so re-ingesting the same underlying finding
@@ -243,13 +250,13 @@ def raise_issue(scope: str, project: Optional[str], title: str, *, body: str = "
     return item
 
 
-def ingest_defects(scope: str, project: str) -> List[Dict]:
+def ingest_defects(scope: str, project: str) -> list[dict]:
     """Reuse core/defect_loop: register each OPEN defect as an issue (idempotent).
 
     BI-PF-0272: each product defect becomes a canonical issue that auto-raises its paired
     backlog item, so the issue<RCCA>backlog close-loop applies to the product being built.
     """
-    out: List[Dict] = []
+    out: list[dict] = []
     try:
         from core import defect_loop
         _pri = {"critical": "P0", "high": "P1", "medium": "P2", "low": "P3"}
@@ -269,13 +276,13 @@ def ingest_defects(scope: str, project: str) -> List[Dict]:
     return out
 
 
-def ingest_stage_issues(scope: str, project: str) -> List[Dict]:
+def ingest_stage_issues(scope: str, project: str) -> list[dict]:
     """Bridge the legacy per-stage agent issue lists (core/issue_tracker) into canonical issues.
 
     Reads ``products/<project>/issues/<stage>-<agent>-issues.json`` and raises one canonical
     ``IS-*`` issue per finding (idempotent on (source='stage_audit', source_ref='stage:agent:id')).
     """
-    out: List[Dict] = []
+    out: list[dict] = []
     try:
         from core import issue_tracker as _it
         _suffix = _it.ISSUE_FILE_SUFFIX
@@ -292,7 +299,7 @@ def ingest_stage_issues(scope: str, project: str) -> List[Dict]:
         return out
     for name in names:
         try:
-            with open(os.path.join(base, name), "r", encoding="utf-8", errors="ignore") as f:
+            with open(os.path.join(base, name), encoding="utf-8", errors="ignore") as f:
                 data = json.load(f) or {}
         except Exception:
             continue
@@ -316,12 +323,12 @@ def ingest_stage_issues(scope: str, project: str) -> List[Dict]:
     return out
 
 
-def get(scope: str, project: Optional[str], iid: str) -> Optional[Dict]:
+def get(scope: str, project: str | None, iid: str) -> dict | None:
     return _rj(_item_path(_dir(scope, project), iid), None)
 
 
-def list_open(scope: str, project: Optional[str] = None, priority: str = "",
-              module: str = "") -> List[Dict]:
+def list_open(scope: str, project: str | None = None, priority: str = "",
+              module: str = "") -> list[dict]:
     op, _cl = _load_all(scope, project)
     if priority:
         op = [e for e in op if e.get("priority") == priority]
@@ -330,13 +337,13 @@ def list_open(scope: str, project: Optional[str] = None, priority: str = "",
     return op
 
 
-def list_closed(scope: str, project: Optional[str] = None) -> List[Dict]:
+def list_closed(scope: str, project: str | None = None) -> list[dict]:
     _op, cl = _load_all(scope, project)
     return cl
 
 
-def set_status(scope: str, project: Optional[str], iid: str, status: str,
-               note: str = "", force: bool = False) -> Optional[Dict]:
+def set_status(scope: str, project: str | None, iid: str, status: str,
+               note: str = "", force: bool = False) -> dict | None:
     d, _of, _cf, _c = _paths(scope, project)
     lp = _lock(d)
     try:
@@ -366,14 +373,12 @@ def set_status(scope: str, project: Optional[str], iid: str, status: str,
         _unlock(lp)
     # BI-PF-0271: close the loop back to the paired backlog item, recording where the fix was done.
     if _closed is not None:
-        try:
+        with contextlib.suppress(Exception):
             _propagate_close(_closed)
-        except Exception:
-            pass
     return found
 
 
-def _propagate_close(issue: Dict) -> None:
+def _propagate_close(issue: dict) -> None:
     """On issue close: complete the linked backlog item + stamp the fix location (both sides)."""
     ref = issue.get("backlog_ref") or (issue.get("links") or {}).get("backlog")
     if not ref:
@@ -392,9 +397,9 @@ def _propagate_close(issue: Dict) -> None:
                        note=f"closed via issue {issue.get('id')}: {fixed_where}")
 
 
-def set_rcca(scope: str, project: Optional[str], iid: str, *, root_cause: str = "",
+def set_rcca(scope: str, project: str | None, iid: str, *, root_cause: str = "",
              corrective: str = "", preventive: str = "", fixed_where: str = "",
-             generalized: bool = False, guideline_ref: str = "", product_ref: str = "") -> Optional[Dict]:
+             generalized: bool = False, guideline_ref: str = "", product_ref: str = "") -> dict | None:
     """Attach/refresh the RCCA (root cause, what was done, WHERE it was fixed, learning)."""
     it = get(scope, project, iid)
     if not it:
@@ -433,7 +438,7 @@ def set_rcca(scope: str, project: Optional[str], iid: str, *, root_cause: str = 
     return None
 
 
-def rcca_complete(it: Dict) -> bool:
+def rcca_complete(it: dict) -> bool:
     """An issue is 'fixed with RCCA' only when root cause + corrective + WHERE are recorded."""
     r = (it or {}).get("rcca") or {}
     return bool(str(r.get("root_cause") or "").strip()
@@ -459,7 +464,7 @@ def can_close_ref(ref: str):
         return False, f"issue check failed: {e}"
 
 
-def link_backlog(scope: str, project: Optional[str], iid: str, backlog_ref: str) -> Optional[Dict]:
+def link_backlog(scope: str, project: str | None, iid: str, backlog_ref: str) -> dict | None:
     """Establish the 1:1 mapping: issue.backlog_ref <-> backlog item links.issue (reciprocal)."""
     it = get(scope, project, iid)
     if not it:
@@ -495,10 +500,10 @@ def link_backlog(scope: str, project: Optional[str], iid: str, backlog_ref: str)
     return it
 
 
-def stats(scope: str, project: Optional[str] = None) -> Dict:
+def stats(scope: str, project: str | None = None) -> dict:
     op, cl = _load_all(scope, project)
-    by_pri: Dict[str, int] = {}
-    by_mod: Dict[str, int] = {}
+    by_pri: dict[str, int] = {}
+    by_mod: dict[str, int] = {}
     for e in op:
         by_pri[e.get("priority", "?")] = by_pri.get(e.get("priority", "?"), 0) + 1
         by_mod[e.get("module", "?")] = by_mod.get(e.get("module", "?"), 0) + 1

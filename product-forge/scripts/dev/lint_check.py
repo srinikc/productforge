@@ -1,15 +1,16 @@
-"""Lint gate (ruff) scoped to CHANGED files.
+"""Lint gate (ruff) scoped to CHANGED files, baseline-aware.
 
-Part of the Definition of Done: review -> lint -> e2e -> merge. Runs ruff on the Python files changed on this
-branch (vs the merge-base with the integration branch) plus any uncommitted changes, skipping the legacy/frozen
-trees. Skips cleanly if ruff is not installed.
+Part of the Definition of Done: review -> lint -> e2e -> merge. Runs ruff on the Python files changed
+on this branch (vs the merge-base with the integration branch) plus any uncommitted changes, skipping the
+legacy/frozen trees.
 
-Default is ADVISORY (prints findings, exits 0) because the legacy tree predates lint; pass ``--strict`` to fail
-on any finding in the changed files. Flip precheck to --strict once the changed-file debt is cleared.
+Baseline-aware: `--strict` fails only on findings **introduced** by this change (compare the working-tree
+findings against the same files at HEAD). This keeps the legacy whole-file debt from blocking a change
+that merely touches a legacy file, while still failing on NEW findings. Default is ADVISORY.
 
 Usage:
   python scripts/dev/lint_check.py            # advisory
-  python scripts/dev/lint_check.py --strict   # fail on findings
+  python scripts/dev/lint_check.py --strict   # fail on NEW findings (baseline-aware)
 """
 import argparse
 import os
@@ -25,7 +26,6 @@ if _ROOT not in sys.path:
 
 _EXCLUDE = ("dashboard/", "archive/", "vendor/", "node_modules/", "products/", ".opencode/")
 _INTEGRATION = "develop"
-# git toplevel (may be the repo root ABOVE the product dir); git paths are relative to it.
 _REPO_ROOT = subprocess.run(["git", "rev-parse", "--show-toplevel"],
                             cwd=_ROOT, capture_output=True, text=True).stdout.strip() or _ROOT
 
@@ -48,18 +48,63 @@ def _changed_py():
         f = f.replace("\\", "/")
         if not f.endswith(".py") or any(x in f for x in _EXCLUDE):
             continue
-        # git lists paths relative to the repo root; ruff runs in _ROOT (the product dir).
-        # Keep only files under _ROOT and make them relative to it.
         rel = os.path.relpath(os.path.join(_REPO_ROOT, f), _ROOT).replace("\\", "/")
-        if rel.startswith(".."):  # outside the product tree
+        if rel.startswith(".."):
             continue
         out.append(rel)
     return sorted(out)
 
 
+def _ruff(files):
+    """Return (count, output) for ruff on the given files (empty => 0)."""
+    if not files:
+        return 0, ""
+    r = subprocess.run([sys.executable, "-m", "ruff", "check", *files],
+                       cwd=_ROOT, capture_output=True, text=True)
+    out = (r.stdout or "") + (r.stderr or "")
+    count = sum(1 for ln in out.splitlines() if ln.strip() and ":" in ln and not ln.startswith(" "))
+    return count, out
+
+
+def _baseline_findings(files):
+    """Findings on the SAME files at HEAD (repository version), as a set of identifiers."""
+    import re
+    idents = set()
+    pat = re.compile(r"^(?P<f>.+?):(?P<line>\d+):(?P<col>\d+): (?P<code>[A-Z]+\d+)")
+    for rel in files:
+        head = subprocess.run(["git", "show", f"HEAD:product-forge/{rel}"], cwd=_REPO_ROOT,
+                              capture_output=True, text=True).stdout
+        if not head:
+            continue
+        r = subprocess.run([sys.executable, "-m", "ruff", "check", "--stdin-filename", rel, "-"],
+                           cwd=_ROOT, input=head, capture_output=True, text=True)
+        for ln in ((r.stdout or "") + (r.stderr or "")).splitlines():
+            m = pat.match(ln.strip())
+            if m:
+                idents.add((rel, m.group("code")))
+    return idents
+
+
+def _current_findings_ident(files):
+    import re
+    idents = set()
+    pat = re.compile(r"^(?P<f>.+?):(?P<line>\d+):(?P<col>\d+): (?P<code>[A-Z]+\d+)")
+    for rel in files:
+        p = os.path.join(_ROOT, rel)
+        if not os.path.isfile(p):
+            continue
+        r = subprocess.run([sys.executable, "-m", "ruff", "check", rel], cwd=_ROOT,
+                           capture_output=True, text=True)
+        for ln in ((r.stdout or "") + (r.stderr or "")).splitlines():
+            m = pat.match(ln.strip())
+            if m:
+                idents.add((rel, m.group("code")))
+    return idents
+
+
 def main(argv=None) -> int:
-    ap = argparse.ArgumentParser(description="Lint changed files (ruff)")
-    ap.add_argument("--strict", action="store_true", help="fail on any finding (default: advisory)")
+    ap = argparse.ArgumentParser(description="Lint changed files (ruff, baseline-aware)")
+    ap.add_argument("--strict", action="store_true", help="fail on NEW findings (default: advisory)")
     a = ap.parse_args(argv)
 
     try:
@@ -76,20 +121,27 @@ def main(argv=None) -> int:
     if not files:
         print("lint: OK (no changed Python files)")
         return 0
-    r = subprocess.run([sys.executable, "-m", "ruff", "check", *files],
-                       cwd=_ROOT, capture_output=True, text=True)
-    if r.returncode == 0:
+
+    count, out = _ruff(files)
+    if count == 0:
         print(f"lint: OK ({len(files)} changed file(s) clean)")
         return 0
-    out = (r.stdout or "") + (r.stderr or "")
-    count = sum(1 for ln in out.splitlines() if ln.strip() and ":" in ln and not ln.startswith(" "))
-    print(f"lint: {count or '?'} finding(s) in {len(files)} changed file(s)")
+
+    base = _baseline_findings(files)
+    cur = _current_findings_ident(files)
+    new = sorted(cur - base)
+    print(f"lint: {count} finding(s) in {len(files)} changed file(s); "
+          f"{len(new)} NEW vs HEAD, {len(cur & base)} pre-existing")
     for ln in out.splitlines()[-12:]:
         print("   ", ln)
-    if a.strict:
-        print("lint: FAIL (--strict)")
+    if new:
+        print("lint: NEW findings (fix these):")
+        for f, code in new[:20]:
+            print(f"    {code}  {f}")
+    if a.strict and new:
+        print("lint: FAIL (--strict: new findings)")
         return 1
-    print("lint: advisory (use --strict to fail) - debt on changed files")
+    print("lint: advisory (use --strict to fail new findings) - pre-existing debt on changed files")
     return 0
 
 
