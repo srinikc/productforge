@@ -22,6 +22,7 @@ def _steps():
         ("wired-audit", [sys.executable, "scripts/dev/wired_audit.py"]),
         ("workflow-matrix", [sys.executable, "scripts/dev/workflow_matrix_check.py"]),
         ("api-contract", [sys.executable, "scripts/dev/api_contract_check.py"]),
+        ("api-governance", [sys.executable, "scripts/dev/api_governance_check.py"]),
         ("engineering-flow", [sys.executable, "scripts/dev/engineering_flow_check.py"]),
         ("task-contract", [sys.executable, "scripts/dev/task_contract_check.py"]),
         ("scheduler", [sys.executable, "scripts/dev/scheduler_check.py"]),

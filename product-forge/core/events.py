@@ -11,6 +11,7 @@ Owner: this module (single writer). Wired: run_entry (run_*), stage_runner (stag
 """
 import json
 import os
+import uuid
 from datetime import datetime
 from typing import Dict, List, Optional
 
@@ -36,14 +37,31 @@ def path(project_dir: str) -> str:
     return os.path.join(project_dir, FILENAME)
 
 
+EVENT_VERSION = "1"
+
+
 def emit(project_dir: str, event_type: str, *, run_id: str = "", stage: str = "",
-         agent: str = "", **fields) -> Optional[Dict]:
-    """Append one canonical event. Best-effort (never raises)."""
+         agent: str = "", correlation_id: str = "", causation_id: str = "",
+         task_id: str = "", worker_id: str = "", actor: str = "", **fields) -> Optional[Dict]:
+    """Append one canonical event. Best-effort (never raises).
+
+    API-5: carries the formal event envelope (event_id, event_version, occurred_at, correlation_id,
+    causation_id, task_id, worker_id, actor, payload) **additively** - the legacy flat fields
+    (ts/type/level/run_id/stage/agent/trace_id/span_id) are kept for back-compat. Owner unchanged:
+    this module (via log_router) remains the single writer of ``events.jsonl``.
+    """
     try:
-        ev = {"ts": datetime.now().isoformat(timespec="seconds"),
-              "type": str(event_type), "level": "INFO", "run_id": run_id, "stage": stage,
+        now = datetime.now().isoformat(timespec="seconds")
+        extra = {k: v for k, v in fields.items() if v not in (None, "")}
+        ev = {"event_id": uuid.uuid4().hex, "event_type": str(event_type), "event_version": EVENT_VERSION,
+              "occurred_at": now, "tenant_id": "", "project_id": os.path.basename(os.path.normpath(project_dir)),
+              "run_id": run_id, "stage_id": stage, "task_id": task_id, "worker_id": worker_id,
+              "actor": actor, "correlation_id": correlation_id or str(run_id or ""),
+              "causation_id": causation_id, "payload": extra,
+              # legacy flat fields (back-compat)
+              "ts": now, "type": str(event_type), "level": "INFO", "stage": stage,
               "agent": agent, "trace_id": str(run_id or ""), "span_id": _span_id()}
-        ev.update({k: v for k, v in fields.items() if v not in (None, "")})
+        ev.update(extra)
         # BI-PF-0233: route the append through log_router (single owner of paths + writes).
         try:
             from core import log_router as _lr

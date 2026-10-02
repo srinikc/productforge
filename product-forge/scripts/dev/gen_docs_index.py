@@ -69,6 +69,7 @@ TOP = {
     "ENG-3-GIT-WORKTREE-ORCHESTRATION.md": ("Design", "ENG-3 git/worktree orchestration: one git owner, branch naming, isolated worktrees (PF-050 fixed)", 100),
     "ENG-4-WORKER-RUNTIME.md": ("Design", "ENG-4 worker runtime: provider adapters + normalized WorkerResult in isolated worktrees (OpenCode optional)", 100),
     "ENG-5-GITHUB-PR-CI.md": ("Design", "ENG-5 GitHub/PR/CI orchestration: guarded PR + run-bound evidence + optional gh adapter", 100),
+    "API-5-HARDENING-EVENT-LAYER.md": ("Design", "API-5 hardening + event layer: committed OpenAPI governance gate, formal event envelope, read-only Event API", 100),
     "SESSION-RESUME-MASTER-PLAN.md": ("Analysis (current)", "Session hand-off notes to resume master-plan execution", 100),
     "design-plan-BI0218.md": ("Design", "AI-era operations layer (evals/versioning/feedback) design - parked (BI-0218)", 0),
     "BOM-DESIGN.md": ("Design", "Product BOM/footprint at packaging design (BI-0217)", 100),
