@@ -77,6 +77,7 @@ TOP = {
     "ENG-8-INTEGRATION.md": ("Design", "ENG-8 integration: INTEGRATION validation, merge gate + queue, shared-path reservation, CI full precheck", 100),
     "ENG-9-DOGFOOD.md": ("Design", "ENG-9 dogfood: baseline->worktree->pipeline->generated-product validation, fail-closed states", 100),
     "ENG-10-RELEASE.md": ("Design", "ENG-10 release: artifact qualification (build/regression/security/NFR/packaging/SBOM/deploy) + fail-closed release gate", 100),
+    "REL-0-PACKAGING.md": ("Design", "REL-0 packaging: edition package manifest (community/enterprise/saas/on-prem/oem) from bom/licensing/deploy/release owners", 100),
     "SESSION-RESUME-MASTER-PLAN.md": ("Analysis (current)", "Session hand-off notes to resume master-plan execution", 100),
     "design-plan-BI0218.md": ("Design", "AI-era operations layer (evals/versioning/feedback) design - parked (BI-0218)", 0),
     "BOM-DESIGN.md": ("Design", "Product BOM/footprint at packaging design (BI-0217)", 100),

@@ -37,6 +37,7 @@ def _steps():
         ("merge-gate", [sys.executable, "scripts/dev/merge_gate_check.py"]),
         ("dogfood", [sys.executable, "scripts/dev/dogfood_check.py"]),
         ("release", [sys.executable, "scripts/dev/release_check.py"]),
+        ("packaging", [sys.executable, "scripts/dev/packaging_check.py"]),
         ("github", [sys.executable, "scripts/dev/github_check.py"]),
         ("store-contract", [sys.executable, "scripts/dev/store_check.py"]),
         ("lint", [sys.executable, "scripts/dev/lint_check.py"]),
