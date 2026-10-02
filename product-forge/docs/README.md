@@ -67,6 +67,7 @@
 | [`ENG-5-GITHUB-PR-CI.md`](ENG-5-GITHUB-PR-CI.md) | Design | 100% | ENG-5 GitHub/PR/CI orchestration: guarded PR + run-bound evidence + optional gh adapter | — | — |
 | [`ENG-6-COMMON-VALIDATION-ENGINE.md`](ENG-6-COMMON-VALIDATION-ENGINE.md) | Design | 100% | ENG-6 common validation engine: one engine, profiles FEATURE_PR/INTEGRATION/DOGFOOD/RELEASE over existing validators | — | — |
 | [`ENG-7-FEATURE-PR.md`](ENG-7-FEATURE-PR.md) | Design | 100% | ENG-7 FEATURE_PR execution: exact SHA/base/merge-base, fresh validation worktree, changed-file/impact, evidence, PR gate | — | — |
+| [`ENG-8-INTEGRATION.md`](ENG-8-INTEGRATION.md) | Design | 100% | ENG-8 integration: INTEGRATION validation, merge gate + queue, shared-path reservation, CI full precheck | — | — |
 | [`ENGINEERING_OPERATING_STANDARD.md`](ENGINEERING_OPERATING_STANDARD.md) | SSOT | 100% | Binding engineering standard: how we think/design/build/verify (+DoD) | — | — |
 | [`ENTRYPOINTS.md`](ENTRYPOINTS.md) | Implemented | 100% | Which entry script/API to use | — | — |
 | [`EXTERNAL-TARGETS-WORKFLOW.md`](EXTERNAL-TARGETS-WORKFLOW.md) | Design | 80% | External delivery targets workflow | **Pending: some external delivery targets + their dashboard selection/UI.** | BI-0044, BI-0071, BI-0121–BI-0123 |

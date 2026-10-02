@@ -1,7 +1,10 @@
 name: structure
 
-# Structure Contract gates for Product Forge.
+# Structure Contract + full precheck gate for Product Forge.
 # The product lives under product-forge/ (repo root holds the product + exploring projects).
+#
+# IMPORTANT (repo setting, not in this file): enable GitHub *branch protection* on `develop`/`main`
+# with this `structure` job as a REQUIRED status check and "no force-push", so a red check blocks merge.
 on:
   push:
     branches: [main, develop]
@@ -19,37 +22,13 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Compile all
-        run: python -m compileall -q core scripts dashboard
-
-      - name: Structure audit (naming + store registry + diff + destructive)
-        run: python scripts/dev/wired_audit.py
-
-      - name: Workflow matrix check (stage/agent matrix)
-        run: python scripts/dev/workflow_matrix_check.py
-
-      - name: Backlog chain E2E
-        run: python scripts/dev/e2e_backlog_check.py
-
-      - name: Generated docs are fresh (BI-PF-0258)
+      - name: Install dev tools
         run: |
-          export PYTHONPATH=.
-          python scripts/dev/gen_docs_index.py
-          python scripts/dev/gen_backlog_summary.py
-          ok=1
-          for f in docs/documentation-index.html docs/README.md docs/BACKLOG-SUMMARY.md; do
-            git show HEAD:"$f" 2>/dev/null | grep -vE 'Generated |GENERATED ' > /tmp/head.txt || true
-            grep -vE 'Generated |GENERATED ' "$f" > /tmp/work.txt || true
-            if ! diff -q /tmp/head.txt /tmp/work.txt >/dev/null; then
-              echo "STALE generated doc: $f (run gen_docs_index.py + gen_backlog_summary.py and commit)"
-              ok=0
-            fi
-          done
-          [ "$ok" = 1 ] || exit 1
-          echo "generated docs are fresh"
+          python -m pip install --upgrade pip
+          pip install pytest pytest-asyncio pytest-cov fastapi uvicorn pydantic ruff
 
-      - name: Pipeline + M0 acceptance tests (REQUIRED)
-        run: python -m pytest test-framework/tests/pipeline -q -o addopts=""
+      - name: Full precheck (REQUIRED) — compile, wired-audit, contract/governance, docs, lint, gates, tests
+        run: python scripts/dev/precheck.py
 
       - name: Full test suite (optional; some tests need system libs)
         run: python -m pytest test-framework/tests -q
