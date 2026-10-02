@@ -81,6 +81,7 @@ TOP = {
     "FULL-DOGFOOD-AND-FINAL-AUDIT.md": ("Design", "Full dogfood lifecycle harness + final §42 production-readiness acceptance audit", 100),
     "WORKER-TIMING-TOKENS.md": ("Design", "Worker timing (active vs human-wait) + token/cost accounting on existing owners (no new store)", 100),
     "PFSSOT-P0-REUSE-MAP.md": ("Design", "PFSSOT P0 reuse map: existing owners for backlog SSOT + scheduler + workers (Phase 0 gate)", 100),
+    "PFSSOT-P1-BACKLOG-FIELDS.md": ("Design", "PFSSOT P1 backlog fields: analysis/revision/priority_rank/structured deps/execution (extend backlog.py)", 100),
     "PF-Backlog-SSOT-Scheduler-Pluggable-Workers-updated.md": ("Design", "Backlog SSOT + pluggable worker scheduler architecture (source doc; epic BI-PF-0360)", 0),
     "SESSION-RESUME-MASTER-PLAN.md": ("Analysis (current)", "Session hand-off notes to resume master-plan execution", 100),
     "design-plan-BI0218.md": ("Design", "AI-era operations layer (evals/versioning/feedback) design - parked (BI-0218)", 0),
