@@ -65,6 +65,7 @@
 | [`ENG-3-GIT-WORKTREE-ORCHESTRATION.md`](ENG-3-GIT-WORKTREE-ORCHESTRATION.md) | Design | 100% | ENG-3 git/worktree orchestration: one git owner, branch naming, isolated worktrees (PF-050 fixed) | — | — |
 | [`ENG-4-WORKER-RUNTIME.md`](ENG-4-WORKER-RUNTIME.md) | Design | 100% | ENG-4 worker runtime: provider adapters + normalized WorkerResult in isolated worktrees (OpenCode optional) | — | — |
 | [`ENG-5-GITHUB-PR-CI.md`](ENG-5-GITHUB-PR-CI.md) | Design | 100% | ENG-5 GitHub/PR/CI orchestration: guarded PR + run-bound evidence + optional gh adapter | — | — |
+| [`ENG-6-COMMON-VALIDATION-ENGINE.md`](ENG-6-COMMON-VALIDATION-ENGINE.md) | Design | 100% | ENG-6 common validation engine: one engine, profiles FEATURE_PR/INTEGRATION/DOGFOOD/RELEASE over existing validators | — | — |
 | [`ENGINEERING_OPERATING_STANDARD.md`](ENGINEERING_OPERATING_STANDARD.md) | SSOT | 100% | Binding engineering standard: how we think/design/build/verify (+DoD) | — | — |
 | [`ENTRYPOINTS.md`](ENTRYPOINTS.md) | Implemented | 100% | Which entry script/API to use | — | — |
 | [`EXTERNAL-TARGETS-WORKFLOW.md`](EXTERNAL-TARGETS-WORKFLOW.md) | Design | 80% | External delivery targets workflow | **Pending: some external delivery targets + their dashboard selection/UI.** | BI-0044, BI-0071, BI-0121–BI-0123 |
@@ -115,6 +116,7 @@
 | [`SECTION-D-OBSERVABILITY-DESIGN.md`](SECTION-D-OBSERVABILITY-DESIGN.md) | Design | 30% | Section D observability design + plan (BI-PF-0244) | — | — |
 | [`SECTIONED-GENERATION-ANALYSIS.md`](SECTIONED-GENERATION-ANALYSIS.md) | Implemented | 100% | Long-output (sectioned) generation design | — | — |
 | [`SESSION-RESUME-MASTER-PLAN.md`](SESSION-RESUME-MASTER-PLAN.md) | Analysis (current) | 100% | Session hand-off notes to resume master-plan execution | — | — |
+| [`SHARED-PATH-RESERVATION-DESIGN.md`](SHARED-PATH-RESERVATION-DESIGN.md) | Design | 0% | Shared-path reservation + common-code detection (allowlist + git hotspots) for parallel workers (BI-PF-0357) | — | — |
 | [`STRUCTURE-CONTRACT.md`](STRUCTURE-CONTRACT.md) | Implemented | 100% | Binding repo structure contract (folders + owners) | — | — |
 | [`UNWIRED-MODULES-TRIAGE.md`](UNWIRED-MODULES-TRIAGE.md) | Adopted (reference) | 90% | Deprecated/legacy module triage | Triage applied; retired modules removed. | — |
 | [`VENDORED-TOOLS.md`](VENDORED-TOOLS.md) | Design | 100% | Neutral vendored tools location (drawio), no .opencode coupling (BI-0202) | — | — |
