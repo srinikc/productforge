@@ -60,6 +60,23 @@ def validation_runs(request: Request, scope: str = "project", project: str = "",
                         resource="validation", resource_id=project)
 
 
+@router.post("/feature-pr", dependencies=[Depends(require_operator)])
+def feature_pr(body: dict[str, Any], request: Request,
+               ctx: dict[str, Any] = Depends(require_operator)):
+    from core import validation_engine
+    s, p = _scope_project(str(body.get("scope") or "project"), str(body.get("project") or ""))
+    if s == "product_forge":
+        from core.paths import ROOT
+        d = ROOT
+    else:
+        d = _common.project_dir(p)
+    res = validation_engine.feature_pr(p or s, d, target=str(body.get("target") or ""),
+                                       base=str(body.get("base") or ""), run_id=str(body.get("run_id") or ""),
+                                       scope=s, use_worktree=bool(body.get("use_worktree", True)),
+                                       record_defects=bool(body.get("record_defects") or False))
+    return from_request(request, res, resource="validation", resource_id=str(res.get("run_id") or ""))
+
+
 @router.post("/run", dependencies=[Depends(require_operator)])
 def run_validation(body: dict[str, Any], request: Request,
                    ctx: dict[str, Any] = Depends(require_operator)):
