@@ -14,14 +14,13 @@ import shutil
 import subprocess
 import time
 import urllib.request
-from typing import Dict, List, Optional
 
 
 def _which(exe: str) -> bool:
     return shutil.which(exe) is not None
 
 
-def _run(cmd: List[str], cwd: str, timeout: int = 600) -> Dict:
+def _run(cmd: list[str], cwd: str, timeout: int = 600) -> dict:
     try:
         r = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, timeout=timeout)
         tail = ((r.stdout or "") + (("\n[stderr]\n" + r.stderr) if r.stderr else ""))[-3000:]
@@ -32,19 +31,21 @@ def _run(cmd: List[str], cwd: str, timeout: int = 600) -> Dict:
         return {"cmd": " ".join(cmd), "ok": False, "tail": str(e)}
 
 
-def load_deploy_cfg(project_dir: str) -> Dict:
+def load_deploy_cfg(project_dir: str) -> dict:
     """Merge project.json 'deploy' with tech-stack chosen deploy/runtime."""
-    cfg: Dict = {}
+    cfg: dict = {}
     try:
         p = os.path.join(project_dir, "project.json")
         if os.path.exists(p):
-            cfg.update((json.load(open(p, encoding="utf-8")) or {}).get("deploy") or {})
+            with open(p, encoding="utf-8") as f:
+                cfg.update((json.load(f) or {}).get("deploy") or {})
     except Exception:
         pass
     try:
         ts = os.path.join(project_dir, "docs", "tech-stack.json")
         if os.path.exists(ts):
-            chosen = (json.load(open(ts, encoding="utf-8")) or {}).get("chosen") or {}
+            with open(ts, encoding="utf-8") as f:
+                chosen = (json.load(f) or {}).get("chosen") or {}
             for k in ("deploy", "runtime", "kind"):
                 if chosen.get(k) and k not in cfg:
                     cfg[k] = chosen[k]
@@ -65,7 +66,7 @@ def _health(url: str, timeout: int = 90) -> bool:
     return False
 
 
-def _smoke(project_dir: str) -> List[Dict]:
+def _smoke(project_dir: str) -> list[dict]:
     try:
         from core.nfr_runner import run_smoke
         return run_smoke(project_dir)
@@ -76,33 +77,33 @@ def _smoke(project_dir: str) -> List[Dict]:
 class DeploymentProvider:
     name = "none"
 
-    def detect(self, project_dir: str, cfg: Dict) -> bool:
+    def detect(self, project_dir: str, cfg: dict) -> bool:
         return False
 
-    def apply(self, project_dir: str, cfg: Dict) -> Dict:
+    def apply(self, project_dir: str, cfg: dict) -> dict:
         return {"ok": None, "steps": []}
 
-    def verify(self, project_dir: str, cfg: Dict) -> Dict:
+    def verify(self, project_dir: str, cfg: dict) -> dict:
         return {"ok": None, "steps": []}
 
-    def destroy(self, project_dir: str, cfg: Dict) -> Dict:
+    def destroy(self, project_dir: str, cfg: dict) -> dict:
         return {"ok": None, "steps": []}
 
 
 class DockerProvider(DeploymentProvider):
     name = "docker"
 
-    def _compose(self, project_dir: str) -> Optional[str]:
+    def _compose(self, project_dir: str) -> str | None:
         for rel in ("docker-compose.yml", "docker-compose.yaml", "compose.yml",
                     os.path.join("docker", "docker-compose.yml")):
             if os.path.exists(os.path.join(project_dir, rel)):
                 return rel
         return None
 
-    def detect(self, project_dir: str, cfg: Dict) -> bool:
+    def detect(self, project_dir: str, cfg: dict) -> bool:
         return _which("docker") and self._compose(project_dir) is not None
 
-    def apply(self, project_dir: str, cfg: Dict) -> Dict:
+    def apply(self, project_dir: str, cfg: dict) -> dict:
         compose = self._compose(project_dir)
         steps = []
         # Port-collision detection: pick a free host port if the configured one is busy.
@@ -122,7 +123,7 @@ class DockerProvider(DeploymentProvider):
         steps.append(step)
         return {"ok": step["ok"], "steps": steps}
 
-    def verify(self, project_dir: str, cfg: Dict) -> Dict:
+    def verify(self, project_dir: str, cfg: dict) -> dict:
         steps = []
         port = cfg.get("port")
         if port:
@@ -132,7 +133,7 @@ class DockerProvider(DeploymentProvider):
         checkable = [s for s in steps if s.get("ok") is not None]
         return {"ok": all(s["ok"] for s in checkable) if checkable else None, "steps": steps}
 
-    def destroy(self, project_dir: str, cfg: Dict) -> Dict:
+    def destroy(self, project_dir: str, cfg: dict) -> dict:
         compose = self._compose(project_dir)
         step = _run(["docker", "compose", "-f", compose, "down", "-v"], project_dir, timeout=300)
         return {"ok": step["ok"], "steps": [step]}
@@ -142,24 +143,24 @@ class LocalProvider(DeploymentProvider):
     """No containers: run the smoke suite against the local checkout (8.4)."""
     name = "local"
 
-    def detect(self, project_dir: str, cfg: Dict) -> bool:
+    def detect(self, project_dir: str, cfg: dict) -> bool:
         return os.path.exists(os.path.join(project_dir, "package.json")) or \
             os.path.exists(os.path.join(project_dir, "pyproject.toml")) or \
             os.path.isdir(os.path.join(project_dir, "tests"))
 
-    def apply(self, project_dir: str, cfg: Dict) -> Dict:
+    def apply(self, project_dir: str, cfg: dict) -> dict:
         return {"ok": None, "steps": [{"cmd": "apply(local)", "ok": True, "tail": "no server lifecycle"}]}
 
-    def verify(self, project_dir: str, cfg: Dict) -> Dict:
+    def verify(self, project_dir: str, cfg: dict) -> dict:
         steps = _smoke(project_dir)
         checkable = [s for s in steps if s.get("ok") is not None]
         return {"ok": all(s["ok"] for s in checkable) if checkable else None, "steps": steps}
 
-    def destroy(self, project_dir: str, cfg: Dict) -> Dict:
+    def destroy(self, project_dir: str, cfg: dict) -> dict:
         return {"ok": None, "steps": []}
 
 
-def _allok(steps: List[Dict]) -> Optional[bool]:
+def _allok(steps: list[dict]) -> bool | None:
     chk = [s for s in steps if s.get("ok") is not None]
     return all(s["ok"] for s in chk) if chk else None
 
@@ -167,7 +168,7 @@ def _allok(steps: List[Dict]) -> Optional[bool]:
 class KubernetesProvider(DeploymentProvider):
     name = "kubernetes"
 
-    def _manifests(self, project_dir: str) -> Optional[str]:
+    def _manifests(self, project_dir: str) -> str | None:
         for rel in ("k8s", "kubernetes", "manifests", "deploy/k8s", "deploy/kubernetes"):
             p = os.path.join(project_dir, rel)
             if os.path.isdir(p):
@@ -200,7 +201,7 @@ class KubernetesProvider(DeploymentProvider):
 class HelmProvider(DeploymentProvider):
     name = "helm"
 
-    def _chart(self, project_dir: str) -> Optional[str]:
+    def _chart(self, project_dir: str) -> str | None:
         for rel in (".", "chart", "helm", "deploy/helm"):
             p = os.path.join(project_dir, rel)
             if os.path.exists(os.path.join(p, "Chart.yaml")):
@@ -234,11 +235,11 @@ class CommandProvider(DeploymentProvider):
     """Generic escape hatch for any tool (terraform, ansible, k8s, paas, installer)."""
     name = "command"
 
-    def detect(self, project_dir: str, cfg: Dict) -> bool:
+    def detect(self, project_dir: str, cfg: dict) -> bool:
         cmds = cfg.get("commands") or {}
         return bool(cmds.get("apply") or cmds.get("verify"))
 
-    def _phase(self, project_dir: str, cfg: Dict, key: str) -> Dict:
+    def _phase(self, project_dir: str, cfg: dict, key: str) -> dict:
         cmds = (cfg.get("commands") or {}).get(key) or []
         steps = []
         for c in cmds:
@@ -248,22 +249,22 @@ class CommandProvider(DeploymentProvider):
         checkable = [s for s in steps if s.get("ok") is not None]
         return {"ok": all(s["ok"] for s in checkable) if checkable else None, "steps": steps}
 
-    def apply(self, project_dir: str, cfg: Dict) -> Dict:
+    def apply(self, project_dir: str, cfg: dict) -> dict:
         return self._phase(project_dir, cfg, "apply")
 
-    def verify(self, project_dir: str, cfg: Dict) -> Dict:
+    def verify(self, project_dir: str, cfg: dict) -> dict:
         out = self._phase(project_dir, cfg, "verify")
         out["steps"] += _smoke(project_dir)
         return out
 
-    def destroy(self, project_dir: str, cfg: Dict) -> Dict:
+    def destroy(self, project_dir: str, cfg: dict) -> dict:
         return self._phase(project_dir, cfg, "destroy")
 
 
 class TerraformProvider(DeploymentProvider):
     name = "terraform"
 
-    def _dir(self, project_dir: str) -> Optional[str]:
+    def _dir(self, project_dir: str) -> str | None:
         for rel in ("infra", "terraform", "deploy/terraform", "."):
             p = os.path.join(project_dir, rel)
             if os.path.isdir(p) and any(f.endswith(".tf") for f in os.listdir(p)):
@@ -302,7 +303,7 @@ class TerraformProvider(DeploymentProvider):
 class AnsibleProvider(DeploymentProvider):
     name = "ansible"
 
-    def _playbook(self, project_dir: str) -> Optional[str]:
+    def _playbook(self, project_dir: str) -> str | None:
         for rel in ("playbook.yml", "playbook.yaml", "ansible/playbook.yml", "deploy/playbook.yml"):
             if os.path.exists(os.path.join(project_dir, rel)):
                 return rel
@@ -356,7 +357,7 @@ class VendorProvider(DeploymentProvider):
 
 
 # Registry: named targets -> provider. CommandProvider covers everything configurable.
-_REGISTRY: Dict[str, DeploymentProvider] = {
+_REGISTRY: dict[str, DeploymentProvider] = {
     "docker": DockerProvider(),
     "local": LocalProvider(),
     "command": CommandProvider(),
@@ -376,7 +377,7 @@ for _v in ("vmware", "dell", "hp", "cisco", "netapp", "s3", "aws", "azure", "gcp
     _REGISTRY[_v] = VendorProvider(_v)
 
 
-def select_provider(project_dir: str, cfg: Dict) -> Optional[DeploymentProvider]:
+def select_provider(project_dir: str, cfg: dict) -> DeploymentProvider | None:
     target = str(cfg.get("target") or "").strip().lower()
     if target and target in _REGISTRY:
         return _REGISTRY[target]
@@ -388,14 +389,48 @@ def select_provider(project_dir: str, cfg: Dict) -> Optional[DeploymentProvider]
     return None
 
 
-def run_deploy_up(project_dir: str, deploy_cfg: Optional[Dict] = None) -> Dict:
+DEPLOYMENT_EVIDENCE = "deployment-evidence.json"
+
+
+def record_deployment(project_dir: str, result: dict) -> str:
+    """Persist the latest deployment result (single writer: this module) as owner-bound evidence.
+
+    ``core.release`` reads this to prove deployment/upgrade/rollback during release qualification.
+    """
+    import json
+    from datetime import datetime
+    path = os.path.join(project_dir, DEPLOYMENT_EVIDENCE)
+    row = {"at": datetime.now().isoformat(), "ran": bool(result.get("ran")),
+           "provider": result.get("provider"), "passed": result.get("passed"),
+           "reason": result.get("reason", ""),
+           "steps": [{"step": s.get("step"), "ok": s.get("ok")} for s in (result.get("steps") or [])]}
+    prev = {}
+    try:
+        if os.path.exists(path):
+            with open(path, encoding="utf-8") as f:
+                prev = json.load(f) or {}
+    except Exception:
+        prev = {}
+    history = (prev.get("history") or [])[-9:]
+    history.append(row)
+    payload = {"schema": "product-forge/deployment-evidence@1", "latest": row, "history": history}
+    try:
+        os.makedirs(os.path.dirname(path), exist_ok=True) if os.path.dirname(path) else None
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(payload, f, indent=2)
+    except Exception:
+        pass
+    return path
+
+
+def run_deploy_up(project_dir: str, deploy_cfg: dict | None = None) -> dict:
     """Bring the app up (apply -> verify) WITHOUT tearing it down (for UI/e2e tests)."""
     cfg = deploy_cfg if deploy_cfg is not None else load_deploy_cfg(project_dir)
     provider = select_provider(project_dir, cfg)
     if provider is None:
         return {"ran": False, "reason": "no applicable deployment provider",
                 "provider": None, "passed": None, "steps": []}
-    steps: List[Dict] = []
+    steps: list[dict] = []
     ok = None
     try:
         applied = provider.apply(project_dir, cfg)
@@ -421,18 +456,20 @@ def run_deploy_up(project_dir: str, deploy_cfg: Optional[Dict] = None) -> Dict:
         steps.append({"step": "apply", "ok": False, "error": str(e)})
     checkable = [s for s in steps if s.get("ok") is not None]
     passed = all(s["ok"] for s in checkable) if checkable else ok
-    return {"ran": True, "provider": provider.name, "passed": passed,
-            "cfg": cfg, "steps": steps}
+    result = {"ran": True, "provider": provider.name, "passed": passed,
+              "cfg": cfg, "steps": steps}
+    record_deployment(project_dir, result)
+    return result
 
 
-def run_deploy_down(project_dir: str, deploy_cfg: Optional[Dict] = None,
-                    provider_name: Optional[str] = None) -> Dict:
+def run_deploy_down(project_dir: str, deploy_cfg: dict | None = None,
+                    provider_name: str | None = None) -> dict:
     """Tear the app down (destroy) for the previously selected provider."""
     cfg = deploy_cfg if deploy_cfg is not None else load_deploy_cfg(project_dir)
     provider = _REGISTRY.get(provider_name) if provider_name else select_provider(project_dir, cfg)
     if provider is None:
         return {"ran": False, "reason": "no applicable deployment provider", "steps": []}
-    steps: List[Dict] = []
+    steps: list[dict] = []
     try:
         destroyed = provider.destroy(project_dir, cfg)
         steps += destroyed.get("steps", [])
@@ -443,13 +480,13 @@ def run_deploy_down(project_dir: str, deploy_cfg: Optional[Dict] = None,
             "passed": all(s["ok"] for s in checkable) if checkable else None, "steps": steps}
 
 
-def run_deploy(project_dir: str, deploy_cfg: Optional[Dict] = None) -> Dict:
+def run_deploy(project_dir: str, deploy_cfg: dict | None = None) -> dict:
     """Apply -> verify -> destroy via the selected provider (guarded)."""
     up = run_deploy_up(project_dir, deploy_cfg)
     if not up.get("ran"):
         return {"ran": False, "reason": up.get("reason", "no applicable deployment provider"),
                 "steps": [], "passed": None}
-    steps: List[Dict] = list(up.get("steps", []))
+    steps: list[dict] = list(up.get("steps", []))
     try:
         down = run_deploy_down(project_dir, up.get("cfg"), up.get("provider"))
         steps += down.get("steps", [])
@@ -457,4 +494,6 @@ def run_deploy(project_dir: str, deploy_cfg: Optional[Dict] = None) -> Dict:
         pass
     checkable = [s for s in steps if s.get("ok") is not None]
     passed = all(s["ok"] for s in checkable) if checkable else None
-    return {"ran": True, "provider": up.get("provider"), "passed": passed, "steps": steps}
+    result = {"ran": True, "provider": up.get("provider"), "passed": passed, "steps": steps}
+    record_deployment(project_dir, result)
+    return result

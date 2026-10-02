@@ -35,7 +35,7 @@ release candidate → exact commit/tag → build → full regression → securit
 | `validation.security` / `.pr_gate` / `.tests` / `.verification` / `.quality_gate` | RELEASE profile checks |
 | `build` | `core.build_manager` (build-info.json) |
 | `packaging_bom` | `core.bom` (dependencies + licenses footprint) |
-| `deployment` | `core.deploy_providers` (deployment record) |
+| `deployment` | `core.deploy_providers` -> `deployment-evidence.json` (owner-written) |
 | `merge_gate` | `core.merge_gate` (integration already green) |
 
 Any item not `pass` ⇒ **release blocked** (no false green). The gate is **mechanical**: licensing/entitlement/

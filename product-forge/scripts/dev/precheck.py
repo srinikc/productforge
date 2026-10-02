@@ -38,6 +38,7 @@ def _steps():
         ("dogfood", [sys.executable, "scripts/dev/dogfood_check.py"]),
         ("release", [sys.executable, "scripts/dev/release_check.py"]),
         ("github", [sys.executable, "scripts/dev/github_check.py"]),
+        ("store-contract", [sys.executable, "scripts/dev/store_check.py"]),
         ("lint", [sys.executable, "scripts/dev/lint_check.py"]),
         ("intent-trace", [sys.executable, "scripts/dev/intent_trace_check.py"]),
         ("backlog-e2e", [sys.executable, "scripts/dev/e2e_backlog_check.py"]),

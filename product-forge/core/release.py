@@ -49,33 +49,32 @@ def _fingerprint(scope: str, project: str, target: str) -> dict[str, Any]:
 
 
 def _deployment(project_dir: str) -> dict[str, Any]:
-    """Deployment/upgrade/rollback is proven only if a deploy actually ran and passed."""
+    """Deployment/upgrade/rollback is proven only if a deploy actually ran and passed.
+
+    Reads the single owner-written record (``core.deploy_providers`` -> ``deployment-evidence.json``);
+    absent/unrun evidence is ``unknown`` (fail-closed), never an assumed pass.
+    """
     try:
         from core import deploy_providers
     except Exception:
         return {"status": "unknown", "detail": "deploy_providers unavailable"}
-    for fname in ("deployment.json", "deploy-state.json", "deploy.json"):
-        p = os.path.join(project_dir, fname)
-        if os.path.exists(p):
-            try:
-                import json
-                with open(p, encoding="utf-8-sig") as f:
-                    d = json.load(f)
-                ok = bool(d.get("ok") if "ok" in d else d.get("passed"))
-                return {"status": "pass" if ok else "fail", "detail": {"file": fname, "ok": ok}}
-            except Exception as e:
-                return {"status": "unknown", "detail": f"{fname}: {type(e).__name__}"}
-    return {"status": "unknown",
-            "detail": {"providers": [type(p).__name__ for p in _providers(deploy_providers)]}}
-
-
-def _providers(dp) -> list[Any]:
+    p = os.path.join(project_dir, deploy_providers.DEPLOYMENT_EVIDENCE)
+    if not os.path.exists(p):
+        return {"status": "unknown",
+                "detail": {"evidence": deploy_providers.DEPLOYMENT_EVIDENCE, "present": False}}
     try:
-        cfg = dp.load_deploy_cfg(str(ROOT))
-        p = dp.select_provider(str(ROOT), cfg)
-        return [p] if p else []
-    except Exception:
-        return []
+        import json
+        with open(p, encoding="utf-8-sig") as f:
+            d = json.load(f)
+        latest = d.get("latest") or {}
+        if not latest.get("ran"):
+            return {"status": "unknown", "detail": {"present": True, "ran": False,
+                                                    "reason": latest.get("reason", "")}}
+        ok = bool(latest.get("passed"))
+        return {"status": "pass" if ok else "fail",
+                "detail": {"present": True, "provider": latest.get("provider"), "passed": ok}}
+    except Exception as e:
+        return {"status": "unknown", "detail": f"{deploy_providers.DEPLOYMENT_EVIDENCE}: {type(e).__name__}"}
 
 
 def gate(scope: str = "product_forge", project: str = "", target: str = "",
