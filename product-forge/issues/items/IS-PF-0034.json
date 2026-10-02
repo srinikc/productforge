@@ -1,0 +1,39 @@
+{
+  "id": "IS-PF-0034",
+  "tag": "PF",
+  "scope": "product_forge",
+  "project": "",
+  "title": "Duplicate queue/claimer: core/portfolio.py enqueue/claim/finish duplicates core/job_manager.py on the same jobs DB; backlog.accept(when='now') bypasses run_entry",
+  "body": "Found in PFSSOT-P0 reuse map. Two claimers on data/portfolio/portfolio.db violate the 'one queue' rule (doc section 41) and create a submission bypass. Must converge on job_manager before adding worker leases.",
+  "kind": "issue",
+  "priority": "P1",
+  "severity": "high",
+  "module": "core/portfolio.py",
+  "status": "open",
+  "rcca": {
+    "root_cause": "core/portfolio.py retains a legacy enqueue/claim/finish operating on the SAME jobs table as core/job_manager.py (data/portfolio/portfolio.db). Two claimers exist for one queue: job_manager.claim (canonical) and portfolio.claim (legacy), and backlog.accept(when='now') calls portfolio.enqueue, bypassing the canonical run_entry -> job_manager path.",
+    "five_why": [
+      "1. Why two claimers? job_manager was added as the canonical queue, but portfolio's older queue code was never retired.",
+      "2. Why is that a defect? It is a second scheduler/queue over one store (doc section 41 forbids it) and a submission bypass.",
+      "3. Why does backlog.accept use it? accept() predates run_entry and still calls portfolio.enqueue directly.",
+      "4. Why not caught? No gate asserts a single claim/submission path across core/.",
+      "5. Why does it matter now? The scheduler/worker extension must converge on ONE claimer or behavior diverges."
+    ],
+    "corrective": "Make portfolio.enqueue/claim/finish delegate to core.job_manager (single writer); route backlog.accept(when='now') through core.run_entry.enqueue; keep portfolio as a thin compatibility layer, not a second claimer.",
+    "preventive": "Add a gate asserting one claimer (only job_manager does BEGIN IMMEDIATE claim) and one submission path (run_entry.enqueue) in core/.",
+    "status": "open"
+  },
+  "backlog_ref": "BI-PF-0370",
+  "source": "engineering-review",
+  "source_ref": "pfssot-p0-duplicate-claimer",
+  "evidence": [
+    "core/portfolio.py:64-107",
+    "core/job_manager.py:95-162",
+    "core/backlog.py:927-939"
+  ],
+  "links": {
+    "backlog": "BI-PF-0370"
+  },
+  "created_at": "2026-10-02T22:08:04.107765",
+  "updated_at": "2026-10-02T22:08:04.122048"
+}

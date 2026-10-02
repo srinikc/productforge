@@ -1,0 +1,38 @@
+{
+  "id": "IS-PF-0035",
+  "tag": "PF",
+  "scope": "product_forge",
+  "project": "",
+  "title": "Residual unguarded execution path: core/enhance.py calls execute_pipeline() without a JobManager job; direct CLI run bypasses submission",
+  "body": "Found in PFSSOT-P0 reuse map. Doc section 43(c) requires no normal execution path silently bypasses JobManager. enhance + direct CLI run remain. Fix as part of P8A.",
+  "kind": "issue",
+  "priority": "P2",
+  "severity": "medium",
+  "module": "core/enhance.py",
+  "status": "open",
+  "rcca": {
+    "root_cause": "core/enhance.py constructs a PipelineExecutor and calls execute_pipeline() without first going through job_manager/run_entry; it relies only on the executor's run-lock guard. Direct CLI scripts/run_pipeline.py likewise executes without a pre-existing JobManager job.",
+    "five_why": [
+      "1. Why does enhance run directly? It is a convenience wrapper written before the single-path rule.",
+      "2. Why is that a defect? It can execute work outside the scheduled/queued path (silent bypass).",
+      "3. Why is it not always caught? The executor's lock guard only blocks concurrent runs, not submission.",
+      "4. Why does it matter? The scheduler must own submission; unmetered paths break claim/lease semantics.",
+      "5. Why now? P8A gate requires no normal execution path bypasses JobManager."
+    ],
+    "corrective": "Route enhance through core.run_entry.enqueue (submit) and let the queued worker invoke the executor; if enhance must run inline, require an explicit operator flag and record a job.",
+    "preventive": "Gate: grep/audit core/ for direct execute_pipeline()/PipelineExecutor construction outside the job_manager worker and the guard.",
+    "status": "open"
+  },
+  "backlog_ref": "BI-PF-0370",
+  "source": "engineering-review",
+  "source_ref": "pfssot-p0-unguarded-executor",
+  "evidence": [
+    "core/enhance.py:54-63",
+    "core/pipeline_executor.py:2991-3005"
+  ],
+  "links": {
+    "backlog": "BI-PF-0370"
+  },
+  "created_at": "2026-10-02T22:08:04.207893",
+  "updated_at": "2026-10-02T22:08:04.222135"
+}

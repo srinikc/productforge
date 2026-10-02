@@ -126,6 +126,7 @@
 | [`STRUCTURE-CONTRACT.md`](STRUCTURE-CONTRACT.md) | Implemented | 100% | Binding repo structure contract (folders + owners) | — | — |
 | [`UNWIRED-MODULES-TRIAGE.md`](UNWIRED-MODULES-TRIAGE.md) | Adopted (reference) | 90% | Deprecated/legacy module triage | Triage applied; retired modules removed. | — |
 | [`VENDORED-TOOLS.md`](VENDORED-TOOLS.md) | Design | 100% | Neutral vendored tools location (drawio), no .opencode coupling (BI-0202) | — | — |
+| [`WORKER-TIMING-TOKENS.md`](WORKER-TIMING-TOKENS.md) | Design | 100% | Worker timing (active vs human-wait) + token/cost accounting on existing owners (no new store) | — | — |
 | [`_knowledge_workflow.md`](_knowledge_workflow.md) | Adopted (reference) | 75% | Knowledge workflow note | Adopted: knowledge compiler/router. | — |
 | [`agent-audit.md`](agent-audit.md) | Runtime | 100% | Agent audit (runtime output) | — | — |
 | [`agent-context.md`](agent-context.md) | Runtime | 100% | Agent context (runtime output) | — | — |
