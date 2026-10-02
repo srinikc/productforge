@@ -81,6 +81,22 @@ Tooling that supports this rule:
 - `python scripts/dev/intent_trace_check.py` (in precheck, advisory) — verifies those recorded descriptors still
   resolve (catches "intended but not actually implemented" / since-removed drift).
 
+## Definition of Done & merge policy (binding)
+For every backlog item, before it is merged to the integration branch (`develop`):
+1. Work on a **feature branch** off `develop` (never commit to `develop`/`main` directly).
+2. **Code review** the diff (self/agent review; findings fixed).
+3. **Lint/static** — `python scripts/dev/lint_check.py` clean (ruff, scoped to changed files). It is **advisory**
+   today because the legacy tree predates lint; it flips to `--strict` (fatal) once the changed-file debt is
+   cleared, and is part of `precheck` either way.
+4. **Gates + e2e** — `python scripts/dev/precheck.py` **PASS** (compile, wired-audit, api-contract/governance,
+   engineering-flow/task-contract/scheduler/vcs-worktree/worker/github/intent-trace, backlog-e2e, docs-fresh,
+   secret-scan, pipeline tests).
+5. **Link evidence** on the backlog item (artifact/test descriptors) so `intent_trace_check` verifies it.
+6. **Merge to `develop`** with a controlled `--no-ff` merge **immediately** after green — do not leave completed
+   work stranded on a side branch.
+
+ENG-6 (Common Validation Engine) + ENG-7 (FEATURE_PR) will automate steps 2–4 as the FEATURE_PR profile.
+
 ## Safety (state)
 - **Never recursively delete shared state.** Tests and scripts may only delete their own
   uniquely-named scratch path (`products/_test_<name>/`); deleting `product-forge/`,

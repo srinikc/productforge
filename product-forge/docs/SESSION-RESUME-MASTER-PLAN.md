@@ -18,8 +18,10 @@ pipeline executor directly (it enqueues via `core.run_entry`). See `docs/ENG-0-E
 
 - Repo root: `C:\Users\ADMIN\Documents\Srinikc\AI Products\Exploring`
 - Product code: `product-forge/`
-- **Branch: `phase/master-0`** (DO NOT work on `develop`/`main`).
-- Base: `develop` @ `ad75967`.
+- **Integration branch: `develop`.** All master-plan work through API-5 lives on `phase/master-0` (ahead of
+  `develop` by 20+ commits); it is merged into `develop`. **Going forward: one feature branch per backlog item
+  off `develop`**, then merge back to `develop` after the Definition of Done (review → lint → e2e → merge).
+  **Never commit to `develop`/`main` directly** (controlled `--no-ff` merges only). See AGENTS "Definition of Done".
 - Commits on `phase/master-0`:
   - `cc45664` MASTER-0: current-state architecture truth + discovery gate (+ repaired dangling `core/result_aggregator.py`)
   - `cc791f8` API-0: API discovery artifact + gate
@@ -115,6 +117,13 @@ python scripts/dev/precheck.py                                # expect precheck:
   `BI-PF-0333..0345` with artifact/test descriptors (verified by `intent_trace_check`); remaining phases
   API-4, ENG-6..10, REL-0, FULL DOGFOOD, FINAL AUDIT are open items `BI-PF-0346..0354`
   (origin=review, source=plan, external_id=`plan:<PHASE>`).
+
+## Parallel workstreams (dogfooded)
+- API-4 was implemented by a **worker in an isolated ENG-3 worktree** (`product-forge-worktrees/api4-enterprise`,
+  branch `feature/api-4/enterprise`, commit `dfeed9f`), then reviewed and merged into `phase/master-0` (`0ccc365`).
+- Lesson (record for ENG-4): a worker's worktree must base on the **intended** branch; `add_worktree` defaults to
+  the git-flow `integration_branch` (`develop`), which was stale here — the first attempt correctly STOPPED.
+- Worktrees live under `product-forge-worktrees/` (gitignored).
 
 ## IMMEDIATE NEXT STEPS (after API-5)
 
