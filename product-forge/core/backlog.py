@@ -66,6 +66,38 @@ _INTAKE_STATUSES = {"new", "received", "compiled", "triaged", "accepted", "parke
 _PIPELINE_STATUSES = {"queued", "scheduled", "executing", "implemented", "verifying", "blocked"}
 _MOSCOW_RANK = {"Must": 0, "Should": 1, "Could": 2, "Wont": 3}
 _DEFAULT_REVIEW_DAYS = 7
+
+# ── PFSSOT (BI-PF-0362): first-class execution fields (all ADDITIVE; old items unaffected) ──
+# analysis.status is versioned/stale-aware (doc §7/§8) - never a boolean.
+ANALYSIS_STATUSES = ("NOT_ANALYZED", "IN_PROGRESS", "COMPLETE", "STALE")
+ARCHITECTURE_FIT = ("REUSE", "EXTEND", "MODIFY", "NEW_COMPONENT", "NEW_CAPABILITY", "REFACTOR", "OTHER")
+DRIFT_LEVELS = ("NONE", "LOW", "MEDIUM", "HIGH")
+ANALYZE_MODES = ("on_entry", "defer")
+DEP_TYPES = ("BLOCKS", "REQUIRES", "RELATED")
+# fields whose change bumps `revision` (doc §38) - schedule/definition-affecting
+_MATERIAL_FIELDS = ("title", "body", "deps", "dependencies", "priority", "priority_rank",
+                    "moscow", "value", "effort", "risk", "links")
+# fields whose change invalidates a COMPLETE analysis -> STALE (doc §8): requirement/architecture-
+# affecting only. Priority/deps edits must NOT stale a completed analysis.
+_STALE_FIELDS = ("title", "body", "dependencies", "links")
+
+
+def _default_analysis() -> dict:
+    return {"status": "NOT_ANALYZED", "analyzed_at": "", "analyzed_by": "", "revision_analyzed": 0,
+            "architecture_fit": "", "implementation_strategy": "", "existing_components": [],
+            "existing_apis": [], "existing_modules": [], "dependency_findings": [],
+            "conflict_findings": [], "duplication_findings": [], "drift": "NONE",
+            "rewrite_required": False, "new_component_required": False, "rationale": "",
+            "assumptions": [], "risks": [], "evidence": [], "confidence": ""}
+
+
+def _default_execution() -> dict:
+    return {"worker_id": "", "assignment_id": "", "lease_id": "", "assigned_at": "",
+            "lease_expires_at": "", "attempt": 0, "started_at": "", "completed_at": ""}
+
+
+def _default_readiness(reasons: list[str] | None = None) -> dict:
+    return {"ready": False, "reasons": reasons or [], "computed_at": ""}
 _DASHBOARD_PROJECT = "ProductForge-Dashboard"   # dashboard scope for the reciprocity REVIEW rule
 
 
@@ -122,6 +154,12 @@ _INDEX_FIELDS = ("id", "status", "section", "title", "created_at", "updated_at")
 def _index_row(it: dict) -> dict:
     row = {k: it.get(k) for k in _INDEX_FIELDS}
     row["section"] = section(it)
+    # PFSSOT: expose the schedule-relevant signals without loading every full item
+    row["priority_rank"] = it.get("priority_rank")
+    row["revision"] = int(it.get("revision") or 0)
+    row["analysis_status"] = (it.get("analysis") or {}).get("status", "NOT_ANALYZED")
+    row["ready"] = bool((it.get("readiness") or {}).get("ready"))
+    row["worker_id"] = (it.get("execution") or {}).get("worker_id", "")
     return row
 
 
@@ -329,7 +367,8 @@ def _hist(d, item, changes=None, event=""):
 
 
 _JOURNAL_KEYS = ("title", "body", "links", "status", "moscow", "value", "effort", "risk",
-                 "deps", "decisions", "follow_up", "dashboard_impact", "external_id")
+                 "deps", "decisions", "follow_up", "dashboard_impact", "external_id",
+                 "revision", "priority_rank", "analysis", "dependencies", "readiness", "execution")
 
 
 def _diff_fields(old: dict, new: dict) -> dict:
@@ -490,6 +529,11 @@ def add_epic(scope: str, project: str | None, title: str, body: str = "",
             "title": title, "body": body, "source": source, "status": "new",
             "priority": None, "moscow": moscow, "value": value, "effort": effort, "risk": risk,
             "deps": deps or [], "links": links or {}, "decisions": [], "follow_up": {},
+            # PFSSOT first-class execution fields (additive; BI-PF-0362)
+            "revision": 1, "priority_rank": None, "priority_class": "",
+            "analyze_mode": "on_entry", "analysis": _default_analysis(),
+            "dependencies": [], "blocked_by": [], "unlocks": [],
+            "readiness": _default_readiness(), "execution": _default_execution(),
             "created_at": datetime.now().isoformat(), "updated_at": datetime.now().isoformat(),
         }
         item["score"] = score(item)
@@ -732,6 +776,112 @@ def set_delivery(scope: str, project: str | None, eid: str, *, branch: str = "",
                   _note="delivery recorded")
 
 
+# ── PFSSOT (BI-PF-0362): first-class execution helpers (all reuse `update`, no new store) ──
+def set_analysis(scope: str, project: str | None, eid: str, *, status: str = "",
+                 architecture_fit: str = "", implementation_strategy: str = "",
+                 analysis: dict | None = None, analyzed_by: str = "ai") -> dict | None:
+    """Attach/refresh the architecture analysis block (doc §6.5/§7). Additive; marks STALE-aware."""
+    item = get_epic(scope, project, eid)
+    if not item:
+        return None
+    a = dict(item.get("analysis") or _default_analysis())
+    if analysis:
+        a.update(analysis)
+    if status:
+        st = str(status).upper()
+        if st not in ANALYSIS_STATUSES:
+            raise ValueError(f"analysis.status must be one of {list(ANALYSIS_STATUSES)}")
+        a["status"] = st
+        if st == "COMPLETE":
+            a["analyzed_at"] = datetime.now().isoformat()
+            a["analyzed_by"] = analyzed_by
+            a["revision_analyzed"] = int(item.get("revision") or 0)
+    if architecture_fit:
+        fit = str(architecture_fit).upper()
+        if fit not in ARCHITECTURE_FIT:
+            raise ValueError(f"architecture_fit must be one of {list(ARCHITECTURE_FIT)}")
+        a["architecture_fit"] = fit
+    if implementation_strategy:
+        a["implementation_strategy"] = implementation_strategy
+    return update(scope, project, eid, analysis=a, _note="analysis updated")
+
+
+def set_priority(scope: str, project: str | None, eid: str, *, priority: str | None = None,
+                 priority_rank: int | None = None, priority_class: str = "",
+                 moscow: str = "") -> dict | None:
+    """Set/refine priority + deterministic priority_rank (doc §6.3)."""
+    fields: dict = {}
+    if priority is not None:
+        fields["priority"] = priority
+    if priority_rank is not None:
+        fields["priority_rank"] = int(priority_rank)
+    if priority_class:
+        fields["priority_class"] = str(priority_class)
+    if moscow:
+        fields["moscow"] = moscow
+    if not fields:
+        return get_epic(scope, project, eid)
+    fields["_note"] = "priority set"
+    return update(scope, project, eid, **fields)
+
+
+def set_dependencies(scope: str, project: str | None, eid: str, *,
+                     dependencies: list[dict] | None = None, blocked_by: list[str] | None = None,
+                     unlocks: list[str] | None = None) -> dict | None:
+    """Set structured dependencies (doc §6.4: BLOCKS/REQUIRES/RELATED + required_state).
+
+    Also keeps the flat ``deps`` list in sync (backward-compat with the scheduler).
+    """
+    fields: dict = {}
+    if dependencies is not None:
+        clean = []
+        for d in dependencies:
+            if not isinstance(d, dict) or not (d.get("task_id") or d.get("id")):
+                raise ValueError("each dependency needs a task_id")
+            t = str(d.get("type") or "BLOCKS").upper()
+            if t not in DEP_TYPES:
+                raise ValueError(f"dependency type must be one of {list(DEP_TYPES)}")
+            clean.append({"task_id": str(d.get("task_id") or d.get("id")), "type": t,
+                          "required_state": str(d.get("required_state") or "completed")})
+        fields["dependencies"] = clean
+        fields["deps"] = [c["task_id"] for c in clean]
+    if blocked_by is not None:
+        fields["blocked_by"] = [str(x) for x in blocked_by]
+    if unlocks is not None:
+        fields["unlocks"] = [str(x) for x in unlocks]
+    fields["_note"] = "dependencies set"
+    return update(scope, project, eid, **fields)
+
+
+def set_execution(scope: str, project: str | None, eid: str, **kw) -> dict | None:
+    """Record worker assignment/lease state on the item (doc §13)."""
+    item = get_epic(scope, project, eid)
+    if not item:
+        return None
+    ex = dict(item.get("execution") or _default_execution())
+    ex.update({k: v for k, v in kw.items() if k in ex})
+    return update(scope, project, eid, execution=ex, _note="execution updated")
+
+
+def set_readiness(scope: str, project: str | None, eid: str, ready: bool,
+                  reasons: list[str] | None = None) -> dict | None:
+    rd = {"ready": bool(ready), "reasons": [str(r) for r in (reasons or [])],
+          "computed_at": datetime.now().isoformat()}
+    return update(scope, project, eid, readiness=rd, _note="readiness computed")
+
+
+def mark_stale(scope: str, project: str | None, eid: str, reason: str = "") -> dict | None:
+    """Force an analysis to STALE (e.g. a related component changed)."""
+    item = get_epic(scope, project, eid)
+    if not item:
+        return None
+    a = dict(item.get("analysis") or _default_analysis())
+    a["status"] = "STALE"
+    if reason:
+        a["stale_reason"] = str(reason)
+    return update(scope, project, eid, analysis=a, _note="analysis marked stale")
+
+
 def set_follow_up(scope: str, project: str | None, eid: str, at: str = "",
                   every_days: int = _DEFAULT_REVIEW_DAYS, snooze_days: int = 0) -> dict | None:
     base = datetime.now()
@@ -762,6 +912,20 @@ def list_open(scope: str, project: str | None = None, order: bool = True,
         items.sort(key=lambda e: (_MOSCOW_RANK.get(e.get("moscow", "Should"), 1),
                                   -float(e.get("score", 0)), e.get("created_at", "")))
     return items
+
+
+def order_by_priority(items: list[dict]) -> list[dict]:
+    """Deterministic scheduler ordering (doc §6.3/§11): priority_rank -> moscow -> score -> created_at.
+
+    ``priority_rank`` (low = higher priority) wins; items without it sort after ranked ones.
+    Never depends on creation order alone.
+    """
+    def key(e: dict):
+        pr = e.get("priority_rank")
+        return (0 if pr is not None else 1, int(pr) if pr is not None else 10 ** 9,
+                _MOSCOW_RANK.get(e.get("moscow", "Should"), 1),
+                -float(e.get("score", 0)), e.get("created_at", ""))
+    return sorted(items, key=key)
 
 
 def list_closed(scope: str, project: str | None = None, origin: str = "") -> list[dict]:
@@ -888,6 +1052,15 @@ def update(scope: str, project: str | None, eid: str, **fields) -> dict | None:
         target["score"] = score(target)
         if "status" in fields:
             target["status"] = _normalize_status(target.get("status", ""))
+        # PFSSOT (BI-PF-0362): bump revision when a schedule/definition field materially changes,
+        # and mark a COMPLETE analysis STALE (revalidate before assignment, doc §8/§38) only when a
+        # REQUIREMENT/ARCHITECTURE-affecting field changed - never on a priority/dep bookkeeping edit.
+        if any(before.get(k) != target.get(k) for k in _MATERIAL_FIELDS):
+            target["revision"] = int(target.get("revision") or 0) + 1
+            an = dict(target.get("analysis") or {})
+            if an.get("status") == "COMPLETE" and any(before.get(k) != target.get(k) for k in _STALE_FIELDS):
+                an["status"] = "STALE"
+                target["analysis"] = an
         st = str(target.get("status", ""))
         if st in _CLOSED and bucket is op:
             op.remove(target)

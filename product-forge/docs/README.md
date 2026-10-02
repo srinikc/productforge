@@ -97,6 +97,8 @@
 | [`Multi-Agent-Multi-Project-Unique-Features.md`](Multi-Agent-Multi-Project-Unique-Features.md) | Design | 80% | Unique multi-agent / multi-project features | Informational only: a few nice-to-have surfaces, not tracked as work. | — |
 | [`OTEL-GENAI-DESIGN.md`](OTEL-GENAI-DESIGN.md) | Design | 100% | OpenTelemetry GenAI observability incl. multimodal (BI-0199) | — | — |
 | [`PER-UNIT-COST-DESIGN.md`](PER-UNIT-COST-DESIGN.md) | Design | 100% | Per-unit media cost model + projection (BI-0194) | — | — |
+| [`PF-Backlog-SSOT-Scheduler-Pluggable-Workers-updated.md`](PF-Backlog-SSOT-Scheduler-Pluggable-Workers-updated.md) | Design | 0% | Backlog SSOT + pluggable worker scheduler architecture (source doc; epic BI-PF-0360) | — | — |
+| [`PFSSOT-P0-REUSE-MAP.md`](PFSSOT-P0-REUSE-MAP.md) | Design | 100% | PFSSOT P0 reuse map: existing owners for backlog SSOT + scheduler + workers (Phase 0 gate) | — | — |
 | [`PIPELINE-COMPOSITION-DESIGN.md`](PIPELINE-COMPOSITION-DESIGN.md) | Design | 100% | Capability-gated pipeline composition (BI-0213) | — | — |
 | [`PIPELINE-OPERATIONS.md`](PIPELINE-OPERATIONS.md) | Implemented | 100% | Operations: run modes, control, state, status | — | — |
 | [`PIPELINE-RESUME-ProductForge-Dashboard.md`](PIPELINE-RESUME-ProductForge-Dashboard.md) | Adopted (reference) | 50% | Old resume notes for a project | Partial - resume notes reused. | — |
