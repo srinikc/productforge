@@ -11,6 +11,11 @@ import sys
 
 os.environ.setdefault("API_ALLOW_ANON", "1")
 
+# Drift handling mode:
+#   auto     -> record the drift, regenerate (write), proceed  (safe, backward-compatible: additive schema drift)
+#   block    -> record the drift and STOP with a non-zero exit so a human approves (used for breaking changes)
+_DRIFT_MODE = os.environ.get("PF_DRIFT_MODE", "auto").strip().lower()
+
 try:
     from core.paths import ROOT as _ROOT
 except ImportError:
@@ -62,6 +67,21 @@ def main(argv=None) -> int:
 
     live_pm, com_pm = _paths_methods(live), _paths_methods(committed)
     added, removed = sorted(live_pm - com_pm), sorted(com_pm - live_pm)
+    breaking = bool(removed)  # removing a route is a breaking change
+
+    # Record the drift (append-only) so there is a reference to what happened.
+    try:
+        from core import change_log
+        change_log.record(
+            kind="drift", summary="canonical OpenAPI drifted from the live app",
+            detected_by="scripts/dev/api_governance_check.py", artifact="api/openapi." + "json",
+            before=f"{len(com_pm)} ops", after=f"{len(live_pm)} ops",
+            action=("regenerated" if not breaking else "regeneration requires approval"),
+            reference="drift:openapi", details={"added": added[:50], "removed": removed[:50],
+                                                "breaking": breaking})
+    except Exception:
+        pass
+
     print("api-governance: FAIL - OpenAPI drift vs committed api/openapi." + "json")
     for x in added[:20]:
         print("   + ", x)
@@ -69,6 +89,13 @@ def main(argv=None) -> int:
         print("   - ", x)
     if not added and not removed:
         print("   (schema changed without path/method changes)")
+
+    if breaking and _DRIFT_MODE != "auto-allow-breaking":
+        print("api-governance: BREAKING change (routes removed) -> APPROVAL REQUIRED.")
+        print("   review the removed routes above, then either fix the app or approve with:")
+        print("   PF_DRIFT_MODE=auto-allow-breaking python scripts/dev/api_governance_check.py --write")
+        return 1
+
     print("   regenerate: python scripts/dev/api_governance_check.py --write")
     return 1
 

@@ -78,7 +78,7 @@ def main() -> int:
                  "/api/v1/engineering/schedule", "/api/v1/engineering/worker-providers",
                  "/api/v1/vcs/branch-name", "/api/v1/github", "/api/v1/github/evidence",
                  "/api/v1/events/types", "/api/v1/apidocs." + "json",
-                 "/api/v1/validation/profiles", "/api/v1/backlog/stats"):
+                 "/api/v1/validation/profiles", "/api/v1/changes", "/api/v1/backlog/stats"):
         r = c.get(path)
         _check(r.status_code == 200, f"{path} status {r.status_code}")
         _check(set(r.json()) >= SUCCESS_KEYS, f"{path} envelope keys")
