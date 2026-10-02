@@ -253,3 +253,110 @@ def run(project: str, project_dir: str, profile_name: str = "FEATURE_PR",
                    "finished_at": datetime.now().isoformat()})
     record(scope, project, result)
     return result
+
+
+# ── ENG-7: FEATURE_PR execution (validate an exact PR/branch/commit) ────────
+def _changed_files(project_dir: str, sha: str, merge_base: str) -> list[str]:
+    from core.vcs import VCSManager
+    v = VCSManager(project_dir)
+    ref = f"{merge_base}..{sha}" if merge_base else f"{sha}~1..{sha}"
+    out = v._git(["diff", "--name-only", ref]).get("out", "")
+    return [x.strip() for x in out.splitlines() if x.strip()]
+
+
+def _impact(changed: list[str]) -> dict[str, Any]:
+    components = sorted({(f.split("/", 1)[0] if "/" in f else f) for f in changed})
+    return {"changed_count": len(changed), "components": components}
+
+
+def feature_pr(project: str, project_dir: str, target: str = "", base: str = "", run_id: str = "",
+               scope: str = "project", use_worktree: bool = True,
+               record_defects: bool = False) -> dict[str, Any]:
+    """ENG-7: validate an exact PR/branch/commit before merge (plan section 21).
+
+    Resolves exact SHA/base/merge-base, analyzes changed files + impact, runs the FEATURE_PR checks in a
+    FRESH validation worktree (the developer branch is NEVER modified), assembles run-bound GitHub evidence and
+    the PR merge decision, and returns PASS/FAIL/BLOCKED. ``auto_repair`` is always false.
+    """
+    from core.vcs import VCSManager
+    rid = run_id or f"fpr-{uuid.uuid4().hex[:12]}"
+    result: dict[str, Any] = {"run_id": rid, "profile": "FEATURE_PR", "project": project, "target": "pr",
+                              "auto_repair": False, "started_at": datetime.now().isoformat()}
+    resolved = _resolve_target(project_dir, target, base)
+    result["target_resolved"] = resolved
+    if not resolved.get("ok"):
+        result.update({"result": "BLOCKED", "reason": resolved.get("reason") or "target unresolved", "checks": {}})
+        result["finished_at"] = datetime.now().isoformat()
+        record(scope, project, result)
+        return result
+
+    v = VCSManager(project_dir)
+    changed = _changed_files(project_dir, resolved["sha"], resolved.get("merge_base") or "")
+    result["changed_files"] = changed
+    result["impact"] = _impact(changed)
+
+    val_dir = project_dir
+    wt = None
+    if use_worktree and v.is_repo():
+        wt = v.add_worktree(f"validate-{rid}", branch=f"validation/{rid}", base=resolved["sha"])
+        if wt.get("ok"):
+            val_dir = wt["path"]
+
+    checks: dict[str, Any] = {}
+    for name in [c for c in profile("FEATURE_PR")["checks"] if c != "target"] + ["close_loop"]:
+        try:
+            if name == "close_loop":
+                checks[name] = _check_close_loop(val_dir, rid)
+            else:
+                fn = _CHECKERS.get(name)
+                checks[name] = fn(project, val_dir, rid) if fn else \
+                    {"status": "unknown", "detail": "no checker"}
+        except Exception as e:
+            checks[name] = {"status": "unknown", "detail": f"error: {type(e).__name__}"}
+
+    try:
+        from core import github
+        checks["github_evidence"] = {"status": "pass", "detail": github.build_evidence(
+            project, val_dir, run_id=rid, base_sha=resolved.get("base_sha", ""), head_sha=resolved["sha"])}
+    except Exception as e:
+        checks["github_evidence"] = {"status": "unknown", "detail": type(e).__name__}
+    try:
+        from core import pr_gate
+        cm = pr_gate.can_merge(project, val_dir)
+        checks["pr_merge"] = {"status": "pass" if cm.get("can_merge") else "fail",
+                              "detail": {"can_merge": cm.get("can_merge"), "unmet": cm.get("unmet", [])}}
+    except Exception as e:
+        checks["pr_merge"] = {"status": "unknown", "detail": type(e).__name__}
+
+    statuses = [c.get("status") for c in checks.values()]
+    if "fail" in statuses:
+        verdict = "FAIL"
+    elif all(s in ("pass", "skip") for s in statuses) and any(s == "pass" for s in statuses):
+        verdict = "PASS"
+    else:
+        verdict = "BLOCKED"
+    result.update({"checks": checks, "result": verdict, "validator_worktree": (wt or {}).get("path", ""),
+                   "finished_at": datetime.now().isoformat()})
+
+    # never modify the developer branch: remove the validation worktree + its branch
+    if wt and wt.get("ok"):
+        try:
+            v.remove_worktree(wt["name"])
+            v._git(["branch", "-D", f"validation/{rid}"])
+        except Exception:
+            pass
+
+    # optional defect -> Issue handoff (RCCA/backlog linkage is the issue owner's job)
+    if record_defects and verdict == "FAIL":
+        try:
+            from core import issues
+            iscope = "project" if _norm_scope(scope) == "project" else "product_forge"
+            issues.raise_issue(iscope, project or None, f"FEATURE_PR validation failed ({rid})",
+                               kind="bug", severity="high", source="validation",
+                               evidence=[{"run_id": rid, "changed_files": changed,
+                                          "failed": [k for k, c in checks.items() if c.get("status") == "fail"]}])
+        except Exception:
+            pass
+
+    record(scope, project, result)
+    return result
