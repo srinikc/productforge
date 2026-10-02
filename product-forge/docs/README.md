@@ -61,6 +61,7 @@
 | [`Diagram-Generation-Spec.md`](Diagram-Generation-Spec.md) | Implemented | 100% | Diagram generation spec (mermaid/drawio/svg) | — | — |
 | [`ENG-0-ENGINEERING-ARCHITECTURE.md`](ENG-0-ENGINEERING-ARCHITECTURE.md) | Design | 100% | ENG-0 engineering architecture: requirement->deploy flow mapped to canonical owners + APIs | — | — |
 | [`ENG-1-TASK-CONTRACT.md`](ENG-1-TASK-CONTRACT.md) | Design | 100% | ENG-1 engineering task contract: executable unit of work (model + store + API + schema gate) | — | — |
+| [`ENG-10-RELEASE.md`](ENG-10-RELEASE.md) | Design | 100% | ENG-10 release: artifact qualification (build/regression/security/NFR/packaging/SBOM/deploy) + fail-closed release gate | — | — |
 | [`ENG-2-WORK-PLANNER-SCHEDULER.md`](ENG-2-WORK-PLANNER-SCHEDULER.md) | Design | 100% | ENG-2 planner/scheduler: dependency graph, capability match, file-overlap, elastic K<=N | — | — |
 | [`ENG-3-GIT-WORKTREE-ORCHESTRATION.md`](ENG-3-GIT-WORKTREE-ORCHESTRATION.md) | Design | 100% | ENG-3 git/worktree orchestration: one git owner, branch naming, isolated worktrees (PF-050 fixed) | — | — |
 | [`ENG-4-WORKER-RUNTIME.md`](ENG-4-WORKER-RUNTIME.md) | Design | 100% | ENG-4 worker runtime: provider adapters + normalized WorkerResult in isolated worktrees (OpenCode optional) | — | — |
