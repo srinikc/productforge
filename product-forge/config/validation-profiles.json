@@ -1,0 +1,38 @@
+{
+  "_doc": "ENG-6 validation profiles (plan section 20). Each profile selects the depth/target/repair/promotion of a validation run. The engine (core/validation_engine.py) composes these with the existing validation owners (close_loop, test_framework_integration, verification_runner, verification_policy, qa_report, pr_gate, run_quality_gate). Data-only descriptor.",
+  "version": 1,
+  "profiles": {
+    "FEATURE_PR": {
+      "target": "pr",
+      "purpose": "validate a change before merge",
+      "checks": ["target", "quality_gate", "tests", "policy", "verification", "pr_gate"],
+      "repair": false,
+      "promotion": "merge-to-develop",
+      "default": true
+    },
+    "INTEGRATION": {
+      "target": "integration",
+      "purpose": "validate that independently developed changes work together",
+      "checks": ["target", "quality_gate", "tests", "policy", "verification", "pr_gate", "cross_contract"],
+      "repair": false,
+      "promotion": "promote-integration",
+      "default": false
+    },
+    "DOGFOOD": {
+      "target": "baseline",
+      "purpose": "prove complete end-to-end product-building capability",
+      "checks": ["target", "quality_gate", "tests", "policy", "verification", "pr_gate", "e2e"],
+      "repair": true,
+      "promotion": "none",
+      "default": false
+    },
+    "RELEASE": {
+      "target": "release",
+      "purpose": "qualify a release candidate",
+      "checks": ["target", "quality_gate", "tests", "policy", "verification", "pr_gate", "security"],
+      "repair": false,
+      "promotion": "approve-release",
+      "default": false
+    }
+  }
+}

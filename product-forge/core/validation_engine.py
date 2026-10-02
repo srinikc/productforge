@@ -1,0 +1,255 @@
+"""ENG-6: the Common Validation Engine — ONE engine with profiles (plan section 19/20).
+
+This is a thin **orchestration/coordination** layer. It does NOT reimplement validation; it runs a *profile*
+by delegating to the existing canonical owners:
+
+  * target resolution        -> ``core.vcs`` (exact SHA / base / merge-base)
+  * repo/build/tests          -> ``core.run_quality_gate`` + ``core.test_framework_integration`` + ``core.verification_runner``
+  * policy / coverage         -> ``core.verification_policy``
+  * quality verdict           -> ``core.qa_report`` + ``core.pr_gate``
+  * run-bound decision        -> ``core.close_loop.verify_run``
+
+Same engine; the profile changes target/scope/depth/trigger/repair/promotion. Evidence is run-bound; on any
+doubt the result is BLOCKED (no false green). Results are recorded to the registered store
+``validation-runs.json`` (single writer: this module).
+"""
+import contextlib
+import json
+import os
+import time
+import uuid
+from datetime import datetime
+from typing import Any
+
+from core.paths import PRODUCTS_DIR, ROOT
+
+FILENAME = "validation-runs.json"
+_PROFILE_PATH = os.path.join(ROOT, "config", "validation-profiles.json")
+_RESULTS = ("PASS", "FAIL", "BLOCKED")
+
+
+# ── store (single writer) ───────────────────────────────────────────────────
+def _norm_scope(scope: str) -> str:
+    return "product_forge" if str(scope) in ("portfolio", "product_forge") else "project"
+
+
+def _dir(scope: str, project: str | None = None) -> str:
+    if _norm_scope(scope) == "product_forge":
+        return os.path.join(ROOT, "validation")
+    return os.path.join(PRODUCTS_DIR, str(project or "_unknown"), "validation")
+
+
+def path(scope: str, project: str | None = None) -> str:
+    return os.path.join(_dir(scope, project), FILENAME)
+
+
+def _lock(d: str) -> str:
+    os.makedirs(d, exist_ok=True)
+    lp = os.path.join(d, ".lock")
+    for _ in range(50):
+        try:
+            fd = os.open(lp, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            os.close(fd)
+            return lp
+        except FileExistsError:
+            try:
+                if time.time() - os.path.getmtime(lp) > 300:
+                    os.remove(lp)
+                    continue
+            except Exception:
+                pass
+            time.sleep(0.1)
+    raise TimeoutError("could not acquire validation lock")
+
+
+def _unlock(lp: str) -> None:
+    with contextlib.suppress(Exception):
+        os.remove(lp)
+
+
+def _read(scope: str, project: str | None = None) -> dict[str, Any]:
+    try:
+        with open(path(scope, project), encoding="utf-8-sig") as f:
+            d = json.load(f)
+        if isinstance(d, dict) and isinstance(d.get("runs"), list):
+            return d
+    except Exception:
+        pass
+    return {"runs": []}
+
+
+def _write(scope: str, project: str | None, data: dict[str, Any]) -> None:
+    p = path(scope, project)
+    os.makedirs(os.path.dirname(p), exist_ok=True)
+    tmp = p + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
+    os.replace(tmp, p)
+
+
+def record(scope: str, project: str | None, run: dict[str, Any]) -> dict[str, Any]:
+    d = _lock(_dir(scope, project))
+    try:
+        store = _read(scope, project)
+        store["runs"].append(run)
+        _write(scope, project, store)
+        return run
+    finally:
+        _unlock(d)
+
+
+def list_runs(scope: str, project: str | None = None, profile: str = "") -> list[dict[str, Any]]:
+    rows = _read(scope, project).get("runs", [])
+    if profile:
+        rows = [r for r in rows if str(r.get("profile")) == profile]
+    return list(rows)
+
+
+# ── profiles ────────────────────────────────────────────────────────────────
+def profiles() -> dict[str, Any]:
+    try:
+        with open(_PROFILE_PATH, encoding="utf-8-sig") as f:
+            d = json.load(f)
+        return d if isinstance(d, dict) else {}
+    except Exception:
+        return {}
+
+
+def profile(name: str) -> dict[str, Any] | None:
+    n = str(name or "").upper()
+    prof = (profiles().get("profiles") or {}).get(n)
+    if prof is None:
+        return None
+    out = dict(prof)
+    out["name"] = n
+    return out
+
+
+# ── target resolution (reuses core.vcs) ─────────────────────────────────────
+def _resolve_target(project_dir: str, target: str, base: str = "") -> dict[str, Any]:
+    from core.vcs import VCSManager
+    v = VCSManager(project_dir)
+    if not v.is_repo():
+        return {"ok": False, "reason": "not a git repository"}
+    sha = v.head_commit(target or "HEAD")
+    base_ref = str(base or v.integration_branch or "")
+    base_sha = v.head_commit(base_ref) if base_ref else ""
+    merge_base = ""
+    if base_sha:
+        merge_base = v._git(["merge-base", sha, base_sha]).get("out", "")
+    return {"ok": bool(sha), "sha": sha, "base": base_ref, "base_sha": base_sha,
+            "merge_base": merge_base, "branch": v.current_branch()}
+
+
+# ── delegate to the existing owners (no reimplementation) ───────────────────
+def _check_quality_gate(project_dir: str) -> dict[str, Any]:
+    from core import run_quality_gate
+    latest = run_quality_gate.latest(project_dir)
+    if not latest:
+        return {"status": "unknown", "detail": "no quality-gate record"}
+    return {"status": "pass" if latest.get("passed") else "fail",
+            "detail": {"mode": latest.get("mode"), "reasons": latest.get("reasons", [])}}
+
+
+def _check_tests(project_dir: str, project: str) -> dict[str, Any]:
+    from core import qa_report
+    rep = qa_report.load(project)
+    if not rep:
+        return {"status": "unknown", "detail": "no test cycle yet"}
+    decision = str(rep.get("decision") or "")
+    return {"status": "pass" if decision in ("GO", "GO-WITH-RISK") else "fail",
+            "detail": {"decision": decision, "qir": rep.get("qir", {})}}
+
+
+def _check_policy(project_dir: str) -> dict[str, Any]:
+    from core import verification_policy
+    s = verification_policy.summary(project_dir)
+    return {"status": "pass" if s.get("internal", 0) else "unknown", "detail": s}
+
+
+def _check_verification(project_dir: str) -> dict[str, Any]:
+    from core import verification_runner
+    res = verification_runner.run_verification(project_dir)
+    if not res.get("ran"):
+        return {"status": "skip", "detail": "no runnable project detected"}
+    return {"status": "pass" if res.get("passed") else "fail", "detail": res}
+
+
+def _check_pr_gate(project: str, project_dir: str) -> dict[str, Any]:
+    from core import pr_gate
+    ev = pr_gate.evaluate(project, project_dir)
+    items = ev.get("items") or {}
+    failed = sorted(k for k, v in items.items() if v.get("status") in ("fail", "unknown"))
+    return {"status": "pass" if not failed else "fail",
+            "detail": {"unmet": failed, "items": items}}
+
+
+def _check_close_loop(project_dir: str, run_id: str) -> dict[str, Any]:
+    from core import close_loop
+    res = close_loop.verify_run(project_dir, run_id=run_id)
+    return {"status": "pass" if res.get("verified") else "fail",
+            "detail": {"verified": res.get("verified"), "reasons": res.get("reasons", [])}}
+
+
+_CHECKERS = {
+    "quality_gate": lambda p, d, r: _check_quality_gate(d),
+    "tests": lambda p, d, r: _check_tests(d, p),
+    "policy": lambda p, d, r: _check_policy(d),
+    "verification": lambda p, d, r: _check_verification(d),
+    "pr_gate": lambda p, d, r: _check_pr_gate(p, d),
+}
+
+
+def run(project: str, project_dir: str, profile_name: str = "FEATURE_PR",
+        target: str = "", base: str = "", run_id: str = "", scope: str = "project") -> dict[str, Any]:
+    """Run a validation profile (composes existing validators). Returns a run-bound result."""
+    prof = profile(profile_name)
+    if prof is None:
+        return {"ok": False, "error": f"unknown profile {profile_name!r}"}
+    rid = run_id or f"val-{uuid.uuid4().hex[:12]}"
+    started = datetime.now().isoformat()
+    result: dict[str, Any] = {"run_id": rid, "profile": prof["name"], "project": project,
+                              "target": prof["target"], "started_at": started}
+
+    resolved = _resolve_target(project_dir, target, base)
+    result["target_resolved"] = resolved
+    if not resolved.get("ok"):
+        result.update({"result": "BLOCKED", "reason": resolved.get("reason") or "target unresolved",
+                       "checks": {}})
+        result["finished_at"] = datetime.now().isoformat()
+        record(scope, project, result)
+        return result
+
+    checks: dict[str, Any] = {}
+    for name in prof["checks"]:
+        if name == "target":
+            continue
+        fn = _CHECKERS.get(name)
+        if fn is None:
+            checks[name] = {"status": "unknown", "detail": "no checker (deferred to later ENG phase)"}
+            continue
+        try:
+            checks[name] = fn(project, project_dir, rid)
+        except Exception as e:
+            checks[name] = {"status": "unknown", "detail": f"error: {type(e).__name__}"}
+
+    # run-bound decision (canonical) as one more signal
+    try:
+        checks["close_loop"] = _check_close_loop(project_dir, rid)
+    except Exception as e:
+        checks["close_loop"] = {"status": "unknown", "detail": str(type(e).__name__)}
+
+    statuses = [c.get("status") for c in checks.values()]
+    if "fail" in statuses:
+        verdict = "FAIL"
+    elif all(s in ("pass", "skip") for s in statuses) and any(s == "pass" for s in statuses):
+        verdict = "PASS"
+    else:
+        verdict = "BLOCKED"  # any unknown / no positive signal -> fail-closed
+
+    result.update({"checks": checks, "result": verdict,
+                   "promotion": prof.get("promotion") if verdict == "PASS" else "none",
+                   "repair": bool(prof.get("repair")) and verdict != "PASS",
+                   "finished_at": datetime.now().isoformat()})
+    record(scope, project, result)
+    return result
