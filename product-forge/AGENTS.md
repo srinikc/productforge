@@ -67,7 +67,10 @@ Before implementing **any** new design, flow, review recommendation, or external
    `claim | verdict (aligned | violates | new-path | derails | stale) | evidence (file:line) | recommendation`.
 4. If **any** verdict is not `aligned`: **STOP** — highlight the conflict to the user and ask **yes/no** before
    writing code.
-5. Implement only after explicit approval, then verify against the same authority and report.
+5. After approval, **record the accepted work as backlog item(s) BEFORE coding** (`origin=review`,
+   `source`, a `source_ref`, and artifact/test descriptors in `links.backend_capability`). Work lives in the
+   backlog, never only in a doc. Idempotent by `external_id` so re-ingesting a doc does not duplicate.
+6. Implement, then **link the real artifacts/tests on the item** and verify against the same authority; report.
 Never implement an un-audited external prescription. A **new path** always requires explicit user approval.
 
 Tooling that supports this rule:

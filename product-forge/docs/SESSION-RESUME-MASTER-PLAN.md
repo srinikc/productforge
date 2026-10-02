@@ -111,6 +111,10 @@ python scripts/dev/precheck.py                                # expect precheck:
 - `wired_audit` = 0; `api_contract_check` OK; `api_governance_check` OK; `engineering_flow_check` OK; `task_contract_check` OK; `scheduler_check` OK; `vcs_worktree_check` OK; `worker_check` OK; `github_check` OK; `intent_trace_check` OK; full suite green; `precheck` PASS.
 - `api/` has 18 routers; **71 OpenAPI paths**; API-2 core reads + API-3/ENG reads all 200.
 - Deferred API-5 hardening tracked as `BI-PF-0332`.
+- The **whole master plan is tracked in the backlog**: phases MASTER-0..API-5 are completed items
+  `BI-PF-0333..0345` with artifact/test descriptors (verified by `intent_trace_check`); remaining phases
+  API-4, ENG-6..10, REL-0, FULL DOGFOOD, FINAL AUDIT are open items `BI-PF-0346..0354`
+  (origin=review, source=plan, external_id=`plan:<PHASE>`).
 
 ## IMMEDIATE NEXT STEPS (after API-5)
 
