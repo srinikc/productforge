@@ -10,11 +10,30 @@ Launch: ``python -m api.app``  (uvicorn, port from API_PORT, default 8000).
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .auth import authenticate
 from .context import context_middleware
 from .errors import install_handlers
-from .routers import (agents, artifacts, backlog, engineering, enterprise, events, evidence, gates, github,
-                      health, intake, issues, pipeline, projects, runs, tests, validation, vcs, workers)
+from .routers import (
+    agents,
+    apidocs,
+    artifacts,
+    backlog,
+    engineering,
+    enterprise,
+    events,
+    evidence,
+    gates,
+    github,
+    health,
+    intake,
+    issues,
+    pipeline,
+    projects,
+    runs,
+    tests,
+    validation,
+    vcs,
+    workers,
+)
 
 API_VERSION = "v1"
 
@@ -45,12 +64,13 @@ for _r in (intake.router, projects.router, runs.router, pipeline.router,
            artifacts.router, evidence.router, backlog.router,
            validation.router, tests.router, gates.router, issues.router,
            vcs.router, workers.router, agents.router, engineering.router, enterprise.router,
-           github.router, events.router):
+           github.router, events.router, apidocs.router):
     app.include_router(_r, prefix="/api/v1")
 
 
 def main() -> None:
     import os
+
     import uvicorn
     host = os.environ.get("API_HOST", "0.0.0.0")
     port = int(os.environ.get("API_PORT") or 8000)

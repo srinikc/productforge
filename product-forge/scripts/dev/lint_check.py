@@ -25,6 +25,9 @@ if _ROOT not in sys.path:
 
 _EXCLUDE = ("dashboard/", "archive/", "vendor/", "node_modules/", "products/", ".opencode/")
 _INTEGRATION = "develop"
+# git toplevel (may be the repo root ABOVE the product dir); git paths are relative to it.
+_REPO_ROOT = subprocess.run(["git", "rev-parse", "--show-toplevel"],
+                            cwd=_ROOT, capture_output=True, text=True).stdout.strip() or _ROOT
 
 
 def _git(*args):
@@ -40,7 +43,17 @@ def _changed_py():
             files.add(ln.strip())
     for ln in _git("diff", "--name-only", "HEAD").splitlines():
         files.add(ln.strip())
-    out = [f for f in files if f.endswith(".py") and not any(x in f for x in _EXCLUDE)]
+    out = []
+    for f in files:
+        f = f.replace("\\", "/")
+        if not f.endswith(".py") or any(x in f for x in _EXCLUDE):
+            continue
+        # git lists paths relative to the repo root; ruff runs in _ROOT (the product dir).
+        # Keep only files under _ROOT and make them relative to it.
+        rel = os.path.relpath(os.path.join(_REPO_ROOT, f), _ROOT).replace("\\", "/")
+        if rel.startswith(".."):  # outside the product tree
+            continue
+        out.append(rel)
     return sorted(out)
 
 
