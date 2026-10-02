@@ -74,6 +74,7 @@
 | [`ENTRYPOINTS.md`](ENTRYPOINTS.md) | Implemented | 100% | Which entry script/API to use | — | — |
 | [`EXTERNAL-TARGETS-WORKFLOW.md`](EXTERNAL-TARGETS-WORKFLOW.md) | Design | 80% | External delivery targets workflow | **Pending: some external delivery targets + their dashboard selection/UI.** | BI-0044, BI-0071, BI-0121–BI-0123 |
 | [`FEASIBILITY-TRIAGE-DESIGN.md`](FEASIBILITY-TRIAGE-DESIGN.md) | Design | 100% | Two-phase feasibility & capability triage (BI-0214) | — | — |
+| [`FULL-DOGFOOD-AND-FINAL-AUDIT.md`](FULL-DOGFOOD-AND-FINAL-AUDIT.md) | Design | 100% | Full dogfood lifecycle harness + final §42 production-readiness acceptance audit | — | — |
 | [`Failure-Recovery-System.md`](Failure-Recovery-System.md) | Implemented | 100% | Failure / retry / checkpoint recovery | — | — |
 | [`GENERATOR-ADAPTERS-DESIGN.md`](GENERATOR-ADAPTERS-DESIGN.md) | Design | 100% | Generator-model adapters (image/video/audio/music/3d) (BI-0188) | — | — |
 | [`GUARDRAILS-DESIGN.md`](GUARDRAILS-DESIGN.md) | Design | 100% | Output guardrails + model/data cards + C2PA provenance + NIST/EU governance (BI-0219) | — | — |

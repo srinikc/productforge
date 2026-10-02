@@ -56,6 +56,12 @@ def main() -> int:
         _check(r.branch.startswith("feature/"), f"feature branch ({r.branch})")
         _check("ASSIGNED" in r.lifecycle and "WORKING" in r.lifecycle, "lifecycle traversed")
         _check(worker.contract_status_for(r.to_dict()) == "review", "result maps to contract status")
+        # timing: started/ended stamped, duration positive, human-wait tracked separately
+        _check(bool(r.timing.get("started_at")) and bool(r.timing.get("ended_at")), "timing window stamped")
+        _check(int(r.timing.get("duration_ms") or 0) >= 0, "duration_ms recorded")
+        _check("wait_ms" in r.timing, "human-wait tracked as a separate field")
+        m = r.metrics()
+        _check(m["total_ms"] == m["duration_ms"] + m["wait_ms"], "metrics total = duration + wait")
 
         r2 = worker.run_task(_task("TC-PF-0002"), tmp, provider="noop")
         _check(r2.status == "NEEDS_REVIEW", f"noop -> NEEDS_REVIEW (got {r2.status})")
@@ -63,6 +69,20 @@ def main() -> int:
         bad = [sys.executable, "-c", "import sys; sys.exit(3)"]
         r3 = worker.run_task(_task("TC-PF-0003"), tmp, provider="command", command=bad)
         _check(r3.status == "FAILED", f"failing command -> FAILED (got {r3.status})")
+
+        # usage extraction + per-run aggregation (no new store)
+        u = worker._extract_usage({"usage": {"input_tokens": 120, "output_tokens": 30, "model": "m"}})
+        _check(u["input_tokens"] == 120 and u["output_tokens"] == 30, "usage extracted")
+        _check(u["cost"] >= 0.0, "cost computed via core.cost_model")
+        d = r.to_dict()
+        d["usage"] = {"model": "m", "input_tokens": 10, "output_tokens": 5, "cost": 0.001}
+        d["timing"] = {"started_at": "t0", "ended_at": "t1", "duration_ms": 100, "wait_ms": 40}
+        d["run_id"] = "run-X"
+        tot = worker.run_totals("project", "_worker_check_scratch", run_id="run-X")
+        _check("duration_ms" in tot and "wait_ms" in tot and "cost" in tot, "run totals shape")
+        _check(isinstance(tot["by_worker"], list), "per-worker breakdown present")
+        _check(hasattr(worker, "run_totals") and hasattr(worker.WorkerResult("x"), "metrics"),
+               "metrics surface present")
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 

@@ -7,12 +7,13 @@ A task is not merely a backlog title: it is a structured contract any *compatibl
 Work-item ids in the backlog remain the work SSOT; a task contract references them (``epic_id``/``feature_id``)
 and carries the execution fields the scheduler/worker need. No engine, no duplicate of the backlog.
 """
+import contextlib
 import json
 import os
 import re
 import time
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from core.paths import PRODUCTS_DIR, ROOT
 
@@ -36,13 +37,13 @@ def _norm_scope(scope: str) -> str:
     return "product_forge" if str(scope) in ("portfolio", "product_forge") else "project"
 
 
-def _dir(scope: str, project: Optional[str] = None) -> str:
+def _dir(scope: str, project: str | None = None) -> str:
     if _norm_scope(scope) == "product_forge":
         return os.path.join(ROOT, "tasks")
     return os.path.join(PRODUCTS_DIR, str(project or "_unknown"), "tasks")
 
 
-def path(scope: str, project: Optional[str] = None) -> str:
+def path(scope: str, project: str | None = None) -> str:
     return os.path.join(_dir(scope, project), FILENAME)
 
 
@@ -66,13 +67,11 @@ def _lock(d: str) -> str:
 
 
 def _unlock(lp: str) -> None:
-    try:
+    with contextlib.suppress(Exception):
         os.remove(lp)
-    except Exception:
-        pass
 
 
-def _read(scope: str, project: Optional[str] = None) -> Dict[str, Any]:
+def _read(scope: str, project: str | None = None) -> dict[str, Any]:
     p = path(scope, project)
     try:
         with open(p, encoding="utf-8-sig") as f:
@@ -84,7 +83,7 @@ def _read(scope: str, project: Optional[str] = None) -> Dict[str, Any]:
     return {"next": 1, "tasks": {}}
 
 
-def _write(scope: str, project: Optional[str], data: Dict[str, Any]) -> None:
+def _write(scope: str, project: str | None, data: dict[str, Any]) -> None:
     p = path(scope, project)
     os.makedirs(os.path.dirname(p), exist_ok=True)
     tmp = p + ".tmp"
@@ -93,16 +92,16 @@ def _write(scope: str, project: Optional[str], data: Dict[str, Any]) -> None:
     os.replace(tmp, p)
 
 
-def _tag(scope: str, project: Optional[str]) -> str:
+def _tag(scope: str, project: str | None) -> str:
     if _norm_scope(scope) == "product_forge":
         return "PF"
     slug = re.sub(r"[^A-Za-z0-9]", "", str(project or ""))[:3].upper()
     return slug or "PRJ"
 
 
-def validate(data: Dict[str, Any]) -> Dict[str, Any]:
+def validate(data: dict[str, Any]) -> dict[str, Any]:
     """Shape check of a proposed contract. Returns ``{ok, errors}`` (fail-closed)."""
-    errors: List[str] = []
+    errors: list[str] = []
     if not isinstance(data, dict):
         return {"ok": False, "errors": ["contract must be an object"]}
     if not str(data.get("title") or "").strip():
@@ -128,9 +127,9 @@ def validate(data: Dict[str, Any]) -> Dict[str, Any]:
     return {"ok": not errors, "errors": errors}
 
 
-def normalize(data: Dict[str, Any]) -> Dict[str, Any]:
+def normalize(data: dict[str, Any]) -> dict[str, Any]:
     """Fill every contract field with a safe default (plan §13 shape)."""
-    out: Dict[str, Any] = {}
+    out: dict[str, Any] = {}
     for f in _STR_FIELDS:
         out[f] = str(data.get(f) or "")
     for f in _LIST_FIELDS:
@@ -145,7 +144,7 @@ def normalize(data: Dict[str, Any]) -> Dict[str, Any]:
     return out
 
 
-def create(scope: str, project: Optional[str], data: Dict[str, Any]) -> Dict[str, Any]:
+def create(scope: str, project: str | None, data: dict[str, Any]) -> dict[str, Any]:
     """Create a contract (validated + normalized + id-assigned). Raises ValueError if invalid."""
     res = validate(data)
     if not res["ok"]:
@@ -169,19 +168,47 @@ def create(scope: str, project: Optional[str], data: Dict[str, Any]) -> Dict[str
         _unlock(d)
 
 
-def get(scope: str, project: Optional[str], task_id: str) -> Optional[Dict[str, Any]]:
+def get(scope: str, project: str | None, task_id: str) -> dict[str, Any] | None:
     return _read(scope, project).get("tasks", {}).get(str(task_id))
 
 
-def list_tasks(scope: str, project: Optional[str] = None, status: str = "") -> List[Dict[str, Any]]:
+def list_tasks(scope: str, project: str | None = None, status: str = "") -> list[dict[str, Any]]:
     items = list(_read(scope, project).get("tasks", {}).values())
     if status:
         items = [it for it in items if it.get("status") == status]
     return sorted(items, key=lambda it: str(it.get("created_at") or ""))
 
 
-def set_status(scope: str, project: Optional[str], task_id: str, status: str,
-               note: str = "") -> Optional[Dict[str, Any]]:
+def set_metrics(scope: str, project: str | None, task_id: str, *,
+                timing: dict[str, Any] | None = None, usage: dict[str, Any] | None = None,
+                metrics: dict[str, Any] | None = None) -> dict[str, Any] | None:
+    """Record a worker's timing (active vs human-wait) and token/cost usage on the task.
+
+    Stored as a ``metrics`` block on the task (single writer: this module) - no new store.
+    """
+    d = _lock(_dir(scope, project))
+    try:
+        store = _read(scope, project)
+        it = store.get("tasks", {}).get(str(task_id))
+        if it is None:
+            return None
+        block = dict(it.get("metrics") or {})
+        if timing is not None:
+            block["timing"] = dict(timing)
+        if usage is not None:
+            block["usage"] = dict(usage)
+        if metrics is not None:
+            block.update(dict(metrics))
+        it["metrics"] = block
+        it["updated_at"] = datetime.now().isoformat()
+        _write(scope, project, store)
+        return it
+    finally:
+        _unlock(d)
+
+
+def set_status(scope: str, project: str | None, task_id: str, status: str,
+               note: str = "") -> dict[str, Any] | None:
     st = str(status or "").strip().lower()
     if st not in STATUSES:
         raise ValueError(f"status must be one of {list(STATUSES)}")
