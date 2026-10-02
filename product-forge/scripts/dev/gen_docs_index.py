@@ -23,6 +23,7 @@ import html
 import json
 import os
 import re
+import subprocess
 
 try:
     from core.paths import ROOT
@@ -74,6 +75,7 @@ TOP = {
     "SHARED-PATH-RESERVATION-DESIGN.md": ("Design", "Shared-path reservation + common-code detection (allowlist + git hotspots) for parallel workers (BI-PF-0357)", 0),
     "ENG-7-FEATURE-PR.md": ("Design", "ENG-7 FEATURE_PR execution: exact SHA/base/merge-base, fresh validation worktree, changed-file/impact, evidence, PR gate", 100),
     "ENG-8-INTEGRATION.md": ("Design", "ENG-8 integration: INTEGRATION validation, merge gate + queue, shared-path reservation, CI full precheck", 100),
+    "ENG-9-DOGFOOD.md": ("Design", "ENG-9 dogfood: baseline->worktree->pipeline->generated-product validation, fail-closed states", 100),
     "SESSION-RESUME-MASTER-PLAN.md": ("Analysis (current)", "Session hand-off notes to resume master-plan execution", 100),
     "design-plan-BI0218.md": ("Design", "AI-era operations layer (evals/versioning/feedback) design - parked (BI-0218)", 0),
     "BOM-DESIGN.md": ("Design", "Product BOM/footprint at packaging design (BI-0217)", 100),
@@ -386,9 +388,26 @@ def gap_for(name):
     return ("", False, "—")
 
 
+def _tracked(paths):
+    """Keep only git-tracked (staged or committed) paths.
+
+    Incoming/uncommitted docs must not enter the committed docs index: they would otherwise make the
+    generated index (and ``--check``) unstable on a clean checkout. Falls back to all paths if git is
+    unavailable.
+    """
+    try:
+        rels = [os.path.relpath(p, REPO).replace("\\", "/") for p in paths]
+        out = subprocess.run(["git", "ls-files", "--", *rels], cwd=REPO,
+                             capture_output=True, text=True).stdout
+        keep = set(out.split())
+        return [p for p, r in zip(paths, rels, strict=True) if r in keep]
+    except Exception:
+        return paths
+
+
 def scan():
     main = []
-    for p in sorted(glob.glob(os.path.join(DOCS, "*.md"))):
+    for p in _tracked(sorted(glob.glob(os.path.join(DOCS, "*.md")))):
         n = os.path.basename(p)
         if n == "README.md":
             continue

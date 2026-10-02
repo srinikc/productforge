@@ -35,6 +35,7 @@ def _steps():
         ("feature-pr", [sys.executable, "scripts/dev/feature_pr_check.py"]),
         ("reservations", [sys.executable, "scripts/dev/reservations_check.py"]),
         ("merge-gate", [sys.executable, "scripts/dev/merge_gate_check.py"]),
+        ("dogfood", [sys.executable, "scripts/dev/dogfood_check.py"]),
         ("github", [sys.executable, "scripts/dev/github_check.py"]),
         ("lint", [sys.executable, "scripts/dev/lint_check.py"]),
         ("intent-trace", [sys.executable, "scripts/dev/intent_trace_check.py"]),

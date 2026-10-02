@@ -60,6 +60,24 @@ def validation_runs(request: Request, scope: str = "project", project: str = "",
                         resource="validation", resource_id=project)
 
 
+@router.post("/dogfood", dependencies=[Depends(require_operator)])
+def dogfood(body: dict[str, Any], request: Request,
+            ctx: dict[str, Any] = Depends(require_operator)):
+    from core import dogfood as _dog
+    s, p = _scope_project(str(body.get("scope") or "product_forge"), str(body.get("project") or ""))
+    if s == "product_forge":
+        from core.paths import ROOT
+        d = ROOT
+    else:
+        d = _common.project_dir(p)
+    res = _dog.run(p or s, d, idea=body.get("idea") or {}, target=str(body.get("target") or ""),
+                   baseline=str(body.get("baseline") or ""), run_id=str(body.get("run_id") or ""), scope=s,
+                   trigger_pipeline=bool(body.get("trigger_pipeline", True)),
+                   dry=bool(body.get("dry") or False), use_worktree=bool(body.get("use_worktree", True)),
+                   repair=bool(body.get("repair") or False))
+    return from_request(request, res, resource="validation", resource_id=str(res.get("run_id") or ""))
+
+
 @router.get("/merge-gate", dependencies=[Depends(authenticate)])
 def merge_gate(project: str, request: Request, scope: str = "project",
                ctx: dict[str, Any] = Depends(authenticate)):
