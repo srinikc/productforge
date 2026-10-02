@@ -33,6 +33,8 @@ def _steps():
         ("worker", [sys.executable, "scripts/dev/worker_check.py"]),
         ("validation-engine", [sys.executable, "scripts/dev/validation_engine_check.py"]),
         ("feature-pr", [sys.executable, "scripts/dev/feature_pr_check.py"]),
+        ("reservations", [sys.executable, "scripts/dev/reservations_check.py"]),
+        ("merge-gate", [sys.executable, "scripts/dev/merge_gate_check.py"]),
         ("github", [sys.executable, "scripts/dev/github_check.py"]),
         ("lint", [sys.executable, "scripts/dev/lint_check.py"]),
         ("intent-trace", [sys.executable, "scripts/dev/intent_trace_check.py"]),

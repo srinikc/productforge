@@ -78,7 +78,8 @@ def main() -> int:
                  "/api/v1/engineering/schedule", "/api/v1/engineering/worker-providers",
                  "/api/v1/vcs/branch-name", "/api/v1/github", "/api/v1/github/evidence",
                  "/api/v1/events/types", "/api/v1/apidocs." + "json",
-                 "/api/v1/validation/profiles", "/api/v1/changes", "/api/v1/backlog/stats"):
+                 "/api/v1/validation/profiles", "/api/v1/changes", "/api/v1/reservations",
+                 "/api/v1/reservations/shared-paths", "/api/v1/backlog/stats"):
         r = c.get(path)
         _check(r.status_code == 200, f"{path} status {r.status_code}")
         _check(set(r.json()) >= SUCCESS_KEYS, f"{path} envelope keys")
@@ -94,7 +95,8 @@ def main() -> int:
 
     # project-scoped engineering reads are fail-closed on an unknown project
     for path in ("/api/v1/validation", "/api/v1/gates/pr", "/api/v1/vcs",
-                 "/api/v1/tests/matrix", "/api/v1/validation/policy"):
+                 "/api/v1/tests/matrix", "/api/v1/validation/policy",
+                 "/api/v1/validation/merge-gate"):
         r = c.get(path, params={"project": "does-not-exist-xyz"})
         _check(r.status_code == 404, f"{path} unknown-project status {r.status_code}")
         _check((r.json().get("error") or {}).get("code") == "NOT_FOUND", f"{path} unknown-project code")

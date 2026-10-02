@@ -73,6 +73,7 @@ TOP = {
     "ENG-6-COMMON-VALIDATION-ENGINE.md": ("Design", "ENG-6 common validation engine: one engine, profiles FEATURE_PR/INTEGRATION/DOGFOOD/RELEASE over existing validators", 100),
     "SHARED-PATH-RESERVATION-DESIGN.md": ("Design", "Shared-path reservation + common-code detection (allowlist + git hotspots) for parallel workers (BI-PF-0357)", 0),
     "ENG-7-FEATURE-PR.md": ("Design", "ENG-7 FEATURE_PR execution: exact SHA/base/merge-base, fresh validation worktree, changed-file/impact, evidence, PR gate", 100),
+    "ENG-8-INTEGRATION.md": ("Design", "ENG-8 integration: INTEGRATION validation, merge gate + queue, shared-path reservation, CI full precheck", 100),
     "SESSION-RESUME-MASTER-PLAN.md": ("Analysis (current)", "Session hand-off notes to resume master-plan execution", 100),
     "design-plan-BI0218.md": ("Design", "AI-era operations layer (evals/versioning/feedback) design - parked (BI-0218)", 0),
     "BOM-DESIGN.md": ("Design", "Product BOM/footprint at packaging design (BI-0217)", 100),

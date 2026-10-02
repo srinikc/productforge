@@ -60,6 +60,44 @@ def validation_runs(request: Request, scope: str = "project", project: str = "",
                         resource="validation", resource_id=project)
 
 
+@router.get("/merge-gate", dependencies=[Depends(authenticate)])
+def merge_gate(project: str, request: Request, scope: str = "project",
+               ctx: dict[str, Any] = Depends(authenticate)):
+    from core import merge_gate as _mg
+    s, p = _scope_project(scope, project)
+    if s == "product_forge":
+        from core.paths import ROOT
+        d = ROOT
+    else:
+        d = _common.project_dir(p)
+    return from_request(request, _mg.evaluate(p or s, d, scope=s),
+                        resource="validation", resource_id=project)
+
+
+@router.get("/merge-gate/queue", dependencies=[Depends(authenticate)])
+def merge_queue(request: Request, scope: str = "project", project: str = "",
+                ctx: dict[str, Any] = Depends(authenticate)):
+    from core import merge_gate as _mg
+    s, p = _scope_project(scope, project)
+    return from_request(request, _mg.queue(s, p or ""), resource="validation")
+
+
+@router.post("/integration", dependencies=[Depends(require_operator)])
+def integration(body: dict[str, Any], request: Request,
+                ctx: dict[str, Any] = Depends(require_operator)):
+    from core import validation_engine
+    s, p = _scope_project(str(body.get("scope") or "project"), str(body.get("project") or ""))
+    if s == "product_forge":
+        from core.paths import ROOT
+        d = ROOT
+    else:
+        d = _common.project_dir(p)
+    res = validation_engine.run(p or s, d, profile_name="INTEGRATION",
+                                target=str(body.get("target") or ""), base=str(body.get("base") or ""),
+                                run_id=str(body.get("run_id") or ""), scope=s)
+    return from_request(request, res, resource="validation", resource_id=str(res.get("run_id") or ""))
+
+
 @router.post("/feature-pr", dependencies=[Depends(require_operator)])
 def feature_pr(body: dict[str, Any], request: Request,
                ctx: dict[str, Any] = Depends(require_operator)):

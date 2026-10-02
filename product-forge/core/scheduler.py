@@ -11,7 +11,7 @@ the declared worker pool (``config/engineering-workers.json``). It creates no se
 import fnmatch
 import json
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from core.paths import ROOT
 
@@ -23,7 +23,7 @@ _PRIORITY_RANK = {"P0": 0, "P1": 1, "P2": 2, "P3": 3}
 _RISK_RANK = {"critical": 0, "high": 1, "medium": 2, "low": 3}
 
 
-def workers() -> Dict[str, Any]:
+def workers() -> dict[str, Any]:
     """The declared worker pool registry (config)."""
     try:
         with open(_PATH, encoding="utf-8-sig") as f:
@@ -33,11 +33,11 @@ def workers() -> Dict[str, Any]:
         return {}
 
 
-def worker_slots(reg: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+def worker_slots(reg: dict[str, Any] | None = None) -> list[dict[str, Any]]:
     """Expand the pool into concrete worker slots (enabled types x count)."""
     reg = reg if reg is not None else workers()
     default_conc = int((reg.get("defaults") or {}).get("max_concurrency") or 1)
-    slots: List[Dict[str, Any]] = []
+    slots: list[dict[str, Any]] = []
     for w in (reg.get("workers") or []):
         if not w.get("enabled", True):
             continue
@@ -50,12 +50,12 @@ def worker_slots(reg: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
     return slots
 
 
-def _paths(task: Dict[str, Any]) -> List[str]:
+def _paths(task: dict[str, Any]) -> list[str]:
     return ([str(p) for p in (task.get("allowed_paths") or [])]
             + [str(p) for p in (task.get("affected_files") or [])])
 
 
-def path_overlap(a: List[str], b: List[str]) -> bool:
+def path_overlap(a: list[str], b: list[str]) -> bool:
     """True if two path lists share a file, a directory prefix, or a glob match."""
     for x in a:
         for y in b:
@@ -69,7 +69,7 @@ def path_overlap(a: List[str], b: List[str]) -> bool:
     return False
 
 
-def capability_match(task: Dict[str, Any], slot: Dict[str, Any]) -> bool:
+def capability_match(task: dict[str, Any], slot: dict[str, Any]) -> bool:
     """A task can run on a slot only if its required capabilities/type are all satisfied."""
     caps = [str(c) for c in (slot.get("capabilities") or [])]
     wildcard = "*" in caps
@@ -79,50 +79,48 @@ def capability_match(task: Dict[str, Any], slot: Dict[str, Any]) -> bool:
             if not any(cap == c or fnmatch.fnmatch(c, cap) for cap in caps):
                 return False
     wt = str(task.get("required_worker_type") or "")
-    if wt and not wildcard and wt not in (slot.get("type"), slot.get("worker_id")):
-        return False
-    return True
+    return not (wt and not wildcard and wt not in (slot.get("type"), slot.get("worker_id")))
 
 
-def dependency_graph(tasks: List[Dict[str, Any]]) -> Dict[str, List[str]]:
-    g: Dict[str, List[str]] = {}
+def dependency_graph(tasks: list[dict[str, Any]]) -> dict[str, list[str]]:
+    g: dict[str, list[str]] = {}
     for t in tasks:
         deps = [str(d) for d in (t.get("dependencies") or [])] + [str(d) for d in (t.get("blocked_by") or [])]
         g[str(t.get("task_id") or "")] = sorted({d for d in deps if d})
     return g
 
 
-def find_cycles(graph: Dict[str, List[str]]) -> List[List[str]]:
+def find_cycles(graph: dict[str, list[str]]) -> list[list[str]]:
     """DFS cycle detection over the dependency graph (edges = depends-on)."""
-    WHITE, GRAY, BLACK = 0, 1, 2
-    color = {n: WHITE for n in graph}
-    cycles: List[List[str]] = []
-    stack: List[str] = []
+    white, gray, black = 0, 1, 2
+    color = dict.fromkeys(graph, white)
+    cycles: list[list[str]] = []
+    stack: list[str] = []
 
     def dfs(n: str) -> None:
-        color[n] = GRAY
+        color[n] = gray
         stack.append(n)
         for m in graph.get(n, []):
             if m not in color:
                 continue  # external/unknown ref: not a cycle
-            if color[m] == GRAY:
+            if color[m] == gray:
                 i = stack.index(m)
                 cycles.append(stack[i:] + [m])
-            elif color[m] == WHITE:
+            elif color[m] == white:
                 dfs(m)
         stack.pop()
-        color[n] = BLACK
+        color[n] = black
 
     for n in list(graph):
-        if color[n] == WHITE:
+        if color[n] == white:
             dfs(n)
     return cycles
 
 
-def _unmet_deps(task: Dict[str, Any], by_id: Dict[str, Dict[str, Any]]) -> List[str]:
+def _unmet_deps(task: dict[str, Any], by_id: dict[str, dict[str, Any]]) -> list[str]:
     """Dependencies not yet terminal. Unknown refs block (fail-closed)."""
     deps = [str(d) for d in (task.get("dependencies") or [])] + [str(d) for d in (task.get("blocked_by") or [])]
-    out: List[str] = []
+    out: list[str] = []
     for d in deps:
         if not d:
             continue
@@ -132,16 +130,16 @@ def _unmet_deps(task: Dict[str, Any], by_id: Dict[str, Dict[str, Any]]) -> List[
     return out
 
 
-def _rank(task: Dict[str, Any]):
+def _rank(task: dict[str, Any]):
     return (_PRIORITY_RANK.get(str(task.get("priority") or "P2"), 2),
             _RISK_RANK.get(str(task.get("risk") or "medium"), 2),
             str(task.get("created_at") or ""))
 
 
-def plan(scope: str = "product_forge", project: Optional[str] = None,
-         tasks: Optional[List[Dict[str, Any]]] = None,
-         slots: Optional[List[Dict[str, Any]]] = None,
-         schedulable: tuple = SCHEDULABLE) -> Dict[str, Any]:
+def plan(scope: str = "product_forge", project: str | None = None,
+         tasks: list[dict[str, Any]] | None = None,
+         slots: list[dict[str, Any]] | None = None,
+         schedulable: tuple = SCHEDULABLE) -> dict[str, Any]:
     """Elastic wave plan: assign ready, capability-matched, non-overlapping tasks to free slots."""
     if tasks is None:
         from core import task_contract
@@ -154,11 +152,12 @@ def plan(scope: str = "product_forge", project: Optional[str] = None,
     cycles = find_cycles(graph)
     cyc_nodes = {n for c in cycles for n in c}
 
-    slot_tasks: Dict[str, List[str]] = {s["slot_id"]: [] for s in slots}
-    assignments: List[Dict[str, Any]] = []
-    deferred: List[Dict[str, Any]] = []
-    blocked: List[Dict[str, Any]] = []
-    occupied: List[tuple] = []
+    slot_tasks: dict[str, list[str]] = {s["slot_id"]: [] for s in slots}
+    assignments: list[dict[str, Any]] = []
+    deferred: list[dict[str, Any]] = []
+    blocked: list[dict[str, Any]] = []
+    occupied: list[tuple] = []
+    shared_in_wave = ""  # ENG-8: task currently holding shared/common code this wave
 
     candidates = [t for t in tasks
                   if str(t.get("status")) in schedulable and str(t.get("task_id")) not in cyc_nodes]
@@ -171,6 +170,24 @@ def plan(scope: str = "product_forge", project: Optional[str] = None,
             blocked.append({"task_id": tid, "blocked_by": unmet})
             continue
         paths = _paths(t)
+        # ENG-8: shared/common-code serialization (allowlist + active reservations)
+        shared, holder = False, None
+        try:
+            from core import reservations as _resv
+            shared = bool(_resv.shared_paths(paths))
+            for p in paths:
+                h = _resv.holder_of(p)
+                if h and str(h.get("holder_task") or "") not in ("", tid):
+                    holder = h
+                    break
+        except Exception:
+            shared, holder = False, None
+        if holder is not None:
+            deferred.append({"task_id": tid, "reason": f"reserved by {holder.get('holder_task')}"})
+            continue
+        if shared and shared_in_wave:
+            deferred.append({"task_id": tid, "reason": f"shared path overlap with {shared_in_wave}"})
+            continue
         chosen = next((s for s in slots
                        if len(slot_tasks[s["slot_id"]]) < int(s.get("max_concurrency") or 1)
                        and capability_match(t, s)), None)
@@ -183,9 +200,11 @@ def plan(scope: str = "product_forge", project: Optional[str] = None,
             continue
         slot_tasks[chosen["slot_id"]].append(tid)
         occupied.append((tid, paths))
+        if shared:
+            shared_in_wave = tid
         assignments.append({"task_id": tid, "slot_id": chosen["slot_id"],
                             "worker_id": chosen["worker_id"], "priority": t.get("priority"),
-                            "risk": t.get("risk"), "paths": paths})
+                            "risk": t.get("risk"), "paths": paths, "shared": shared})
 
     utilized = sum(1 for s in slots if slot_tasks[s["slot_id"]])
     return {
@@ -202,11 +221,11 @@ def plan(scope: str = "product_forge", project: Optional[str] = None,
     }
 
 
-def report(scope: str = "product_forge", project: Optional[str] = None) -> Dict[str, Any]:
+def report(scope: str = "product_forge", project: str | None = None) -> dict[str, Any]:
     """Task-contract status roll-up (planning input / progress)."""
     from core import task_contract
     tasks = task_contract.list_tasks(scope, project)
-    by_status: Dict[str, int] = {}
+    by_status: dict[str, int] = {}
     for t in tasks:
         s = str(t.get("status") or "?")
         by_status[s] = by_status.get(s, 0) + 1
