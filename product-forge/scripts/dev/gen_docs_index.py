@@ -400,7 +400,7 @@ def _tracked(paths):
         out = subprocess.run(["git", "ls-files", "--", *rels], cwd=REPO,
                              capture_output=True, text=True).stdout
         keep = set(out.split())
-        return [p for p, r in zip(paths, rels) if r in keep]
+        return [p for p, r in zip(paths, rels, strict=True) if r in keep]
     except Exception:
         return paths
 
