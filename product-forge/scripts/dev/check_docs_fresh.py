@@ -39,8 +39,11 @@ def main(argv=None) -> int:
     if r.returncode != 0:
         print("[FAIL] gen_docs_index --check (unclassified docs)")
         rc = 1
-    subprocess.run([sys.executable, "scripts/dev/gen_docs_index.py"])
-    subprocess.run([sys.executable, "scripts/dev/gen_backlog_summary.py"])
+    for gen in ("scripts/dev/gen_docs_index.py", "scripts/dev/gen_backlog_summary.py"):
+        gr = subprocess.run([sys.executable, gen])
+        if gr.returncode != 0:
+            print(f"[FAIL] generator failed: {gen} (exit {gr.returncode})")
+            rc = 1
     root = _root()
     pf = os.path.basename(os.getcwd())  # "product-forge"
     for rel in _REL:

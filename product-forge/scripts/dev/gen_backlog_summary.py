@@ -2,7 +2,13 @@
 import os
 import re
 from datetime import datetime
-from core import backlog
+
+try:
+    from core import backlog
+except Exception:
+    import sys
+    sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
+    from core import backlog
 
 OUT = "docs/BACKLOG-SUMMARY.md"
 
