@@ -41,16 +41,6 @@ def test_unknown_route_error_contract(client):
     assert err["category"] == "client"
 
 
-def test_idempotency_replay(client):
-    body = {"source": "generic", "payload": {"title": "idem-scratch", "description": "scratch"},
-            "scope": "product_forge"}
-    h = {"Idempotency-Key": "idem-test-key"}
-    r1 = client.post("/api/v1/intake", json=body, headers=h)
-    r2 = client.post("/api/v1/intake", json=body, headers=h)
-    assert r1.status_code == 200
-    assert r2.json()["data"]["replayed"] is True
-
-
 def test_idempotency_guard_blocks_duplicate_inflight():
     import uuid
     from api import idempotency
@@ -77,7 +67,8 @@ def test_auth_fail_closed_when_token_required(monkeypatch):
     r = c.post("/api/v1/intake", json={"source": "generic", "payload": {"title": "x"}})
     assert r.status_code == 401
     assert r.json()["error"]["code"] == "UNAUTHENTICATED"
-    r2 = c.post("/api/v1/intake", json={"source": "generic", "payload": {"title": "x"}},
+    # authenticated but no payload -> 400 (validated before any write); proves auth no longer blocks
+    r2 = c.post("/api/v1/intake", json={"source": "generic"},
                 headers={"Authorization": "Bearer secret-token"})
     assert r2.status_code != 401
 

@@ -69,9 +69,9 @@ def main():
     check("explore idea parked + follow_up", bool(full and full.get("status") == "parked"
                                                   and full.get("follow_up")), str((full or {}).get("status")))
 
-    # cleanup: scratch project + the parked test idea only
+    # cleanup: DELETE the test idea this check created (its own artifact) + the scratch project, so no residue
     if idea.get("id"):
-        backlog.update("product_forge", None, idea["id"], status="done", _note="e2e cleanup")
+        backlog.delete("product_forge", None, idea["id"])
     shutil.rmtree(os.path.join("products", PROJ), ignore_errors=True)
 
     print("\nE2E:", "PASS" if ok else "FAIL")

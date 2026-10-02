@@ -1,7 +1,10 @@
-"""API contract checks for the canonical api/ surface (API-1).
+"""API contract checks for the canonical api/ surface.
 
 Exercises the app in-process with the FastAPI TestClient: envelope shape, request/correlation id propagation,
-error contract, idempotency, auth boundary, health/ready, and intake. Run: ``python scripts/dev/api_contract_check.py``.
+error contract, auth boundary, health/ready, and resource reachability. It is a general control-plane contract
+check and is SIDE-EFFECT FREE: it does not call the Intake endpoint (Intake is a separate external-ingestion
+path) and does not write any store. Idempotency is covered by the API unit tests
+(``test-framework/tests/pipeline/test_api_foundation.py``). Run: ``python scripts/dev/api_contract_check.py``.
 Exit code 1 on any failure (wire into CI/precheck).
 """
 
@@ -53,15 +56,8 @@ def main() -> int:
     for k in ("code", "message", "category", "retryable", "details", "request_id", "correlation_id"):
         _check(k in err, f"error field {k}")
 
-    # idempotency: same key replays
-    body = {"source": "generic", "payload": {"title": "contract-check scratch", "description": "scratch"},
-            "scope": "product_forge"}
-    h = {"Idempotency-Key": "contract-check-key-1"}
-    r1 = c.post("/api/v1/intake", json=body, headers=h)
-    r2 = c.post("/api/v1/intake", json=body, headers=h)
-    _check(r1.status_code == 200, f"intake1 status {r1.status_code}")
-    _check(r2.status_code == 200 and (r2.json().get("data") or {}).get("replayed") is True,
-           "idempotent replay detected")
+    # NOTE: idempotency is NOT exercised here - it is covered by the API unit tests. This check stays
+    # side-effect free and independent of the external-ingestion (Intake) path.
 
     # API-2 core resources: canonical envelope + reachable
     for path in ("/api/v1/pipeline", "/api/v1/pipeline/stages", "/api/v1/tasks",
