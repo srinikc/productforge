@@ -27,7 +27,7 @@ def _root() -> str:
 
 def _strip(path: str) -> str:
     try:
-        with open(path, "r", encoding="utf-8", errors="ignore") as f:
+        with open(path, encoding="utf-8", errors="ignore") as f:
             return "\n".join(ln for ln in f.read().splitlines() if not _GEN.search(ln))
     except Exception:
         return ""
