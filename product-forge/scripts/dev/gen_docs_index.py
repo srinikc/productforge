@@ -71,6 +71,7 @@ TOP = {
     "ENG-5-GITHUB-PR-CI.md": ("Design", "ENG-5 GitHub/PR/CI orchestration: guarded PR + run-bound evidence + optional gh adapter", 100),
     "API-5-HARDENING-EVENT-LAYER.md": ("Design", "API-5 hardening + event layer: committed OpenAPI governance gate, formal event envelope, read-only Event API", 100),
     "ENG-6-COMMON-VALIDATION-ENGINE.md": ("Design", "ENG-6 common validation engine: one engine, profiles FEATURE_PR/INTEGRATION/DOGFOOD/RELEASE over existing validators", 100),
+    "SHARED-PATH-RESERVATION-DESIGN.md": ("Design", "Shared-path reservation + common-code detection (allowlist + git hotspots) for parallel workers (BI-PF-0357)", 0),
     "SESSION-RESUME-MASTER-PLAN.md": ("Analysis (current)", "Session hand-off notes to resume master-plan execution", 100),
     "design-plan-BI0218.md": ("Design", "AI-era operations layer (evals/versioning/feedback) design - parked (BI-0218)", 0),
     "BOM-DESIGN.md": ("Design", "Product BOM/footprint at packaging design (BI-0217)", 100),
@@ -344,7 +345,8 @@ def _first_line(path):
                     if s and not _MD_NOISE.match(s) and len(s) > 2:
                         return s[:180]
         elif ext == ".json":
-            d = json.load(open(path, encoding="utf-8-sig"))
+            with open(path, encoding="utf-8-sig") as _f:
+                d = json.load(_f)
             if isinstance(d, dict):
                 for k in ("_doc", "description", "concern", "purpose", "title", "about"):
                     v = d.get(k)
@@ -468,9 +470,13 @@ def html_index(main, subs, root, assets):
             for u, s, a, pc, pend, req, _b in subs[d][1])
         return head, body
 
-    gh, gb = folder_rows('guidelines'); sh, sb = folder_rows('schemas')
-    kh, kb = folder_rows('knowledge'); ch, cb = folder_rows('compact')
-    ph, pb = folder_rows('plans'); rh, rb = folder_rows('research'); ah, ab = folder_rows('archive')
+    gh, gb = folder_rows('guidelines')
+    sh, sb = folder_rows('schemas')
+    kh, kb = folder_rows('knowledge')
+    ch, cb = folder_rows('compact')
+    ph, pb = folder_rows('plans')
+    rh, rb = folder_rows('research')
+    ah, ab = folder_rows('archive')
 
     act = _actionable(main, subs, root)
     arows = "\n".join(f'<tr><td><a href="{esc(u)}">{esc(_clean_name(u))}</a></td><td>{pct_badge(pc)}</td>'
@@ -638,7 +644,8 @@ def write_readme(main, subs, root, assets):
 {arows}
 
 > Regenerate: `python scripts/dev/gen_docs_index.py`."""
-    open(README, "w", encoding="utf-8").write(txt)
+    with open(README, "w", encoding="utf-8") as _f:
+        _f.write(txt)
 
 
 def main():
@@ -652,7 +659,8 @@ def main():
         print("unclassified docs:", unk or "none")
         print("not-referenced docs (no impl %):", nr or "none")
         return 1 if unk else 0   # PF-174: CI can gate on missing classification
-    open(HTMLOUT, "w", encoding="utf-8").write(html_index(main_docs, subs, root, assets))
+    with open(HTMLOUT, "w", encoding="utf-8") as _f:
+        _f.write(html_index(main_docs, subs, root, assets))
     write_readme(main_docs, subs, root, assets)
     print(f"[docs-index] wrote HTML + README | main={len(main_docs)} "
           f"archive={len(subs['archive'][1])} plans={len(subs['plans'][1])} research={len(subs['research'][1])}")
