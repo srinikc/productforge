@@ -114,6 +114,7 @@
 | [`RCCA-CLOSURE-INTEGRITY-DESIGN.md`](RCCA-CLOSURE-INTEGRITY-DESIGN.md) | Design | 100% | RCCA closure integrity: guideline truth + G8 + learning loop (BI-PF-0270) | — | — |
 | [`RCCA_productForge.md`](RCCA_productForge.md) | Analysis (current) | 100% | Root-cause + corrective/preventive guidelines for the audit/issues gaps | — | — |
 | [`RE-RUN-IMPACT-ANALYSIS.md`](RE-RUN-IMPACT-ANALYSIS.md) | Implemented | 100% | Rerun / impact invalidation model | — | — |
+| [`REL-0-PACKAGING.md`](REL-0-PACKAGING.md) | Design | 100% | REL-0 packaging: edition package manifest (community/enterprise/saas/on-prem/oem) from bom/licensing/deploy/release owners | — | — |
 | [`ROLE-PROMPT-STANDARD.md`](ROLE-PROMPT-STANDARD.md) | Implemented | 100% | Standard for agent role-prompts + advisory audit (BI-0228) | — | — |
 | [`SCHEMA-GUIDE.md`](SCHEMA-GUIDE.md) | Implemented | 100% | Data + schema reference (validators) | — | — |
 | [`SCOPED-LEARNINGS-DESIGN.md`](SCOPED-LEARNINGS-DESIGN.md) | Design | 100% | Scoped learnings + memory read-back (BI-PF-0294) | — | — |
