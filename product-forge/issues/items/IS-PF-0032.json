@@ -1,0 +1,39 @@
+{
+  "id": "IS-PF-0032",
+  "tag": "PF",
+  "scope": "product_forge",
+  "project": "",
+  "title": "ENG-10 release.py: unregistered store literals + invented deployment-evidence filenames (no owner persists a deployment record); caught late at merge-time precheck",
+  "body": "Two defects found during ENG-10: (A) release.py referenced store literals not in store-registry.json (fatal store-contract), patched inline; (B) release.py reads deployment.json/deploy-state.json/deploy.json but no owner writes any deployment record, so the release deployment check can never pass. Fix via workflow + RCCA + author-time guard.",
+  "kind": "issue",
+  "priority": "P1",
+  "severity": "high",
+  "module": "core/release.py",
+  "status": "open",
+  "rcca": {
+    "root_cause": "ENG-10 core/release.py introduced data-file literals (deploy.json/deploy-state.json/deployment.json/release-evidence.jsonl) that were never registered in config/store-registry.json, and invented deployment-evidence filenames that no owner writes. It was caught only by the merge-time precheck (wired_audit store_audit), not at author time, and was patched inline on the feature branch.",
+    "five_why": [
+      "1. Why did precheck fail? wired_audit.store_audit flagged 4 unregistered data-file literals in core/release.py.",
+      "2. Why were they unregistered? release.py was written without consulting/updating config/store-registry.json.",
+      "3. Why not caught earlier? No author-time (pre-commit) store-contract check; only full precheck/CI catches it.",
+      "4. Why did release.py invent filenames? No owner/contract defining where deployment evidence is persisted; deploy_providers returns a dict but never stores it.",
+      "5. Why is that allowed? ENG-10 deployment check was coded against assumed filenames instead of an owner API/contract."
+    ],
+    "corrective": "Register only genuinely-owned stores; replace the invented deployment filenames with a real, owner-written deployment record (core/deploy_providers persists run_deploy result) and read that in core/release.py.",
+    "preventive": "Add an author-time store/lint check so any NEW data-file literal in changed files is caught before commit (guard), in addition to the merge-time precheck.",
+    "status": "open"
+  },
+  "backlog_ref": "BI-PF-0351",
+  "source": "engineering-review",
+  "source_ref": "eng10-release-store-literals",
+  "evidence": [
+    "core/release.py:48-60",
+    "core/deploy_providers.py:391-425",
+    "config/store-registry.json"
+  ],
+  "links": {
+    "backlog": "BI-PF-0351"
+  },
+  "created_at": "2026-10-02T17:20:52.869510",
+  "updated_at": "2026-10-02T17:20:52.884303"
+}
