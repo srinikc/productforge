@@ -9,7 +9,7 @@
   "priority": "P1",
   "severity": "high",
   "module": "core/release.py",
-  "status": "open",
+  "status": "closed",
   "rcca": {
     "root_cause": "ENG-10 core/release.py introduced data-file literals (deploy.json/deploy-state.json/deployment.json/release-evidence.jsonl) that were never registered in config/store-registry.json, and invented deployment-evidence filenames that no owner writes. It was caught only by the merge-time precheck (wired_audit store_audit), not at author time, and was patched inline on the feature branch.",
     "five_why": [
@@ -19,9 +19,13 @@
       "4. Why did release.py invent filenames? No owner/contract defining where deployment evidence is persisted; deploy_providers returns a dict but never stores it.",
       "5. Why is that allowed? ENG-10 deployment check was coded against assumed filenames instead of an owner API/contract."
     ],
-    "corrective": "Register only genuinely-owned stores; replace the invented deployment filenames with a real, owner-written deployment record (core/deploy_providers persists run_deploy result) and read that in core/release.py.",
-    "preventive": "Add an author-time store/lint check so any NEW data-file literal in changed files is caught before commit (guard), in addition to the merge-time precheck.",
-    "status": "open"
+    "corrective": "Registered only owner-written stores; core/deploy_providers now persists deployment-evidence.json and core/release.py reads it; invented filenames deleted.",
+    "preventive": "Added scripts/dev/store_check.py (changed-file store-contract) wired into precheck, plus scripts/dev/install_hooks.py pre-commit installer, so a new data-file literal is caught at author time (guard).",
+    "status": "open",
+    "fixed_where": "core/deploy_providers.py, core/release.py, config/store-registry.json, scripts/dev/store_check.py",
+    "generalized": true,
+    "guideline_ref": "docs/ADDING-TO-PRODUCT-FORGE.md (store-registry single-writer rule)",
+    "product_ref": ""
   },
   "backlog_ref": "BI-PF-0351",
   "source": "engineering-review",
@@ -35,5 +39,6 @@
     "backlog": "BI-PF-0351"
   },
   "created_at": "2026-10-02T17:20:52.869510",
-  "updated_at": "2026-10-02T17:20:52.884303"
+  "updated_at": "2026-10-02T17:45:46.832979",
+  "note": "RCCA complete; fix merged 0dbeee2"
 }
