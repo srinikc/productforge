@@ -65,12 +65,29 @@ def main() -> int:
     p = scheduler.plan(tasks=[_task("D1", status="draft", caps=["python"])], slots=[py])
     _check(not p["assignments"], "non-ready (draft) task not scheduled")
 
+    # 5) PFSSOT-P4 eligibility over the canonical backlog item shape (pure, no store)
+    def _item(iid, status="new", an="COMPLETE", deps=None, w=""):
+        return {"id": iid, "status": status, "analysis": {"status": an}, "dependencies": deps or [],
+                "deps": [], "blocked_by": [], "readiness": {}, "execution": {"worker_id": w},
+                "affected_components": [], "affected_files": [], "allowed_paths": []}
+
+    _check(scheduler.eligible(_item("BI-X-1"))["ok"] is True, "P4: complete+open -> eligible")
+    _check(scheduler.eligible(_item("BI-X-2", an="NOT_ANALYZED"))["ok"] is False,
+           "P4: un-groomed -> blocked")
+    _check(scheduler.eligible(_item("BI-X-3", status="completed"))["ok"] is False,
+           "P4: terminal -> blocked")
+    _check(scheduler.eligible(_item("BI-X-4", w="w1"))["ok"] is False, "P4: already assigned -> blocked")
+    by = {"BI-DEP": _item("BI-DEP", status="new")}
+    e = scheduler.eligible(_item("BI-X-5", deps=[{"task_id": "BI-DEP", "type": "BLOCKS"}]), by_id=by)
+    _check(e["ok"] is False and any("dependency" in r for r in e["reasons"]),
+           "P4: unmet dependency -> blocked")
+
     if FAILS:
         print("scheduler: FAIL")
         for f in FAILS:
             print("   -", f)
         return 1
-    print("scheduler: OK (deps, cycles, capability, overlap, K<=N)")
+    print("scheduler: OK (deps, cycles, capability, overlap, K<=N, backlog eligibility)")
     return 0
 
 

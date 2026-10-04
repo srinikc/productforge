@@ -4,7 +4,8 @@ Read-model over ``core.engineering_flow`` (``config/engineering-flow.json``): ea
 owner file, the ``/api/v1`` route that exposes it, and its status (exists | partial | planned). No engine.
 """
 
-from typing import Any, Dict, List
+import contextlib
+from typing import Any
 
 from fastapi import APIRouter, Depends, Request
 
@@ -29,16 +30,16 @@ def _scope_project(scope: str, project: str):
 
 
 @router.get("", dependencies=[Depends(authenticate)])
-def engineering(request: Request, ctx: Dict[str, Any] = Depends(authenticate)):
+def engineering(request: Request, ctx: dict[str, Any] = Depends(authenticate)):
     from core import engineering_flow
     return from_request(request, engineering_flow.load(), resource="engineering")
 
 
 @router.get("/stages", dependencies=[Depends(authenticate)])
 def stages(request: Request, phase: str = "", status: str = "",
-           ctx: Dict[str, Any] = Depends(authenticate)):
+           ctx: dict[str, Any] = Depends(authenticate)):
     from core import engineering_flow
-    steps: List[Dict[str, Any]] = engineering_flow.flow()
+    steps: list[dict[str, Any]] = engineering_flow.flow()
     if phase:
         steps = [s for s in steps if str(s.get("phase")) == phase]
     if status:
@@ -47,7 +48,7 @@ def stages(request: Request, phase: str = "", status: str = "",
 
 
 @router.get("/stages/{stage_id}", dependencies=[Depends(authenticate)])
-def stage(stage_id: str, request: Request, ctx: Dict[str, Any] = Depends(authenticate)):
+def stage(stage_id: str, request: Request, ctx: dict[str, Any] = Depends(authenticate)):
     from core import engineering_flow
     s = engineering_flow.stage(stage_id)
     if not s:
@@ -56,7 +57,7 @@ def stage(stage_id: str, request: Request, ctx: Dict[str, Any] = Depends(authent
 
 
 @router.get("/coverage", dependencies=[Depends(authenticate)])
-def coverage(request: Request, ctx: Dict[str, Any] = Depends(authenticate)):
+def coverage(request: Request, ctx: dict[str, Any] = Depends(authenticate)):
     from core import engineering_flow
     return from_request(request, engineering_flow.coverage(), resource="engineering")
 
@@ -64,7 +65,7 @@ def coverage(request: Request, ctx: Dict[str, Any] = Depends(authenticate)):
 # ── ENG-2: worker pool + elastic schedule ───────────────────────────────────
 
 @router.get("/workers", dependencies=[Depends(authenticate)])
-def workers(request: Request, ctx: Dict[str, Any] = Depends(authenticate)):
+def workers(request: Request, ctx: dict[str, Any] = Depends(authenticate)):
     from core import scheduler
     reg = scheduler.workers()
     return from_request(request, {"registry": reg, "slots": scheduler.worker_slots(reg)},
@@ -73,10 +74,27 @@ def workers(request: Request, ctx: Dict[str, Any] = Depends(authenticate)):
 
 @router.get("/schedule", dependencies=[Depends(authenticate)])
 def schedule(request: Request, scope: str = "product_forge", project: str = "",
-             ctx: Dict[str, Any] = Depends(authenticate)):
+             ctx: dict[str, Any] = Depends(authenticate)):
     from core import scheduler
     s, p = _scope_project(scope, project)
     return from_request(request, scheduler.plan(s, p), resource="engineering")
+
+
+# ── PFSSOT-P4 (BI-PF-0365): eligibility over the canonical backlog (read-only) ──
+@router.get("/schedule/eligible", dependencies=[Depends(authenticate)])
+def schedule_eligible(request: Request, scope: str = "product_forge", project: str = "",
+                      ctx: dict[str, Any] = Depends(authenticate)):
+    from core import scheduler
+    s, p = _scope_project(scope, project)
+    return from_request(request, scheduler.eligible_backlog(s, p), resource="engineering")
+
+
+@router.get("/schedule/next", dependencies=[Depends(authenticate)])
+def schedule_next(request: Request, scope: str = "product_forge", project: str = "",
+                  ctx: dict[str, Any] = Depends(authenticate)):
+    from core import scheduler
+    s, p = _scope_project(scope, project)
+    return from_request(request, scheduler.next_eligible(s, p), resource="engineering")
 
 
 # ── ENG-1: engineering task contracts ───────────────────────────────────────
@@ -84,7 +102,7 @@ def schedule(request: Request, scope: str = "product_forge", project: str = "",
 @router.get("/tasks", dependencies=[Depends(authenticate)])
 def list_tasks(request: Request, scope: str = "product_forge", project: str = "",
                status: str = "", limit: int = 50, cursor: str = "",
-               ctx: Dict[str, Any] = Depends(authenticate)):
+               ctx: dict[str, Any] = Depends(authenticate)):
     from core import task_contract
     s, p = _scope_project(scope, project)
     items = task_contract.list_tasks(s, p, status=status)
@@ -94,7 +112,7 @@ def list_tasks(request: Request, scope: str = "product_forge", project: str = ""
 
 @router.get("/tasks/{task_id}", dependencies=[Depends(authenticate)])
 def get_task(task_id: str, request: Request, scope: str = "product_forge", project: str = "",
-             ctx: Dict[str, Any] = Depends(authenticate)):
+             ctx: dict[str, Any] = Depends(authenticate)):
     from core import task_contract
     s, p = _scope_project(scope, project)
     it = task_contract.get(s, p, task_id)
@@ -104,27 +122,27 @@ def get_task(task_id: str, request: Request, scope: str = "product_forge", proje
 
 
 @router.post("/tasks", dependencies=[Depends(require_operator)])
-def create_task(body: Dict[str, Any], request: Request,
-                ctx: Dict[str, Any] = Depends(require_operator)):
+def create_task(body: dict[str, Any], request: Request,
+                ctx: dict[str, Any] = Depends(require_operator)):
     from core import task_contract
     s, p = _scope_project(str(body.get("scope") or "product_forge"), str(body.get("project") or ""))
     try:
         it = task_contract.create(s, p, body)
     except ValueError as e:
-        raise ApiError("VALIDATION_FAILED", str(e))
+        raise ApiError("VALIDATION_FAILED", str(e)) from None
     return from_request(request, it, resource="task_contract", resource_id=str(it.get("task_id") or ""))
 
 
 @router.post("/tasks/{task_id}/status", dependencies=[Depends(require_operator)])
-def set_task_status(task_id: str, body: Dict[str, Any], request: Request,
-                    ctx: Dict[str, Any] = Depends(require_operator)):
+def set_task_status(task_id: str, body: dict[str, Any], request: Request,
+                    ctx: dict[str, Any] = Depends(require_operator)):
     from core import task_contract
     s, p = _scope_project(str(body.get("scope") or "product_forge"), str(body.get("project") or ""))
     try:
         res = task_contract.set_status(s, p, task_id, str(body.get("status") or ""),
                                        note=str(body.get("note") or ""))
     except ValueError as e:
-        raise ApiError("VALIDATION_FAILED", str(e))
+        raise ApiError("VALIDATION_FAILED", str(e)) from None
     if res is None:
         raise ApiError("NOT_FOUND", "task contract not found")
     return from_request(request, res, resource="task_contract", resource_id=task_id)
@@ -133,14 +151,14 @@ def set_task_status(task_id: str, body: Dict[str, Any], request: Request,
 # ── ENG-4: worker runtime (providers + run + results) ───────────────────────
 
 @router.get("/worker-providers", dependencies=[Depends(authenticate)])
-def worker_providers(request: Request, ctx: Dict[str, Any] = Depends(authenticate)):
+def worker_providers(request: Request, ctx: dict[str, Any] = Depends(authenticate)):
     from core import worker
     return from_request(request, worker.available_providers(), resource="worker")
 
 
 @router.get("/tasks/{task_id}/results", dependencies=[Depends(authenticate)])
 def task_results(task_id: str, request: Request, scope: str = "product_forge", project: str = "",
-                 ctx: Dict[str, Any] = Depends(authenticate)):
+                 ctx: dict[str, Any] = Depends(authenticate)):
     from core import worker
     s, p = _scope_project(scope, project)
     return from_request(request, worker.list_results(s, p, task_id),
@@ -148,8 +166,8 @@ def task_results(task_id: str, request: Request, scope: str = "product_forge", p
 
 
 @router.post("/tasks/{task_id}/run", dependencies=[Depends(require_operator)])
-def run_task(task_id: str, body: Dict[str, Any], request: Request,
-             ctx: Dict[str, Any] = Depends(require_operator)):
+def run_task(task_id: str, body: dict[str, Any], request: Request,
+             ctx: dict[str, Any] = Depends(require_operator)):
     from core import task_contract, worker
     s, p = _scope_project(str(body.get("scope") or "product_forge"), str(body.get("project") or ""))
     task = task_contract.get(s, p, task_id)
@@ -164,11 +182,9 @@ def run_task(task_id: str, body: Dict[str, Any], request: Request,
                               command=body.get("command"), commit=bool(body.get("commit") or False),
                               timeout=int(body.get("timeout") or 1800))
     except Exception as e:
-        raise ApiError("INTERNAL", f"worker run failed: {type(e).__name__}")
+        raise ApiError("INTERNAL", f"worker run failed: {type(e).__name__}") from e
     d = res.to_dict()
     worker.record_result(s, p, d)
-    try:
+    with contextlib.suppress(Exception):
         task_contract.set_status(s, p, task_id, worker.contract_status_for(d))
-    except Exception:
-        pass
     return from_request(request, d, resource="worker", resource_id=task_id)
