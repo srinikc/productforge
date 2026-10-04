@@ -542,9 +542,18 @@ def add_epic(scope: str, project: str | None, title: str, body: str = "",
         _write_indexes(scope, project, op, cl)
         _wj(ctr, counters)
         _hist(d, item, changes={"created": True}, event="created")
-        return item
+        created = item
     finally:
         _unlock(lp)
+    # PFSSOT-P3 (BI-PF-0364): deep analysis at grooming time, by default, so the item is scheduler-ready.
+    # Runs AFTER the lock is released (it re-writes analysis via this module). Best-effort: never blocks create.
+    if created.get("analyze_mode", "on_entry") == "on_entry":
+        try:
+            from core import grooming
+            grooming.groom(scope, project, created["id"], depth=grooming.guidelines().get("default_depth", "deep"))
+        except Exception:
+            pass
+    return created
 
 
 def ensure_item(scope: str, project: str | None, external_id: str, title: str,

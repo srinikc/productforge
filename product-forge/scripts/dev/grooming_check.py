@@ -48,6 +48,13 @@ def main() -> int:
         r = grooming.groom("project", _PROJ, iid)  # default mode (offline -> deterministic fallback)
         _check(r.get("applied") is True, "default groom applied")
         _check(r.get("mode") in ("ai", "deterministic"), "mode resolved")
+        _check(r.get("depth") == "deep", "deep analysis is the default")
+
+        # deep analysis on entry must be grounded in the real codebase (no AI needed)
+        iid2 = backlog.add_epic("project", _PROJ, "Add worker heartbeat to scheduler", tag="TST")["id"]
+        a2 = backlog.get("project", _PROJ, iid2)["analysis"]
+        _check(a2.get("depth") == "deep", "auto-analyzed deep at create")
+        _check(bool(a2.get("existing_components")), "codebase-grounded components found")
         b = backlog.get("project", _PROJ, iid)
         _check(b["analysis"]["status"] == "IN_PROGRESS", "analysis -> IN_PROGRESS after groom")
 

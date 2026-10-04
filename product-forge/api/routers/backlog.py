@@ -132,7 +132,8 @@ def groom_item(item_id: str, body: dict[str, Any], request: Request,
     mode = str(body.get("mode") or "")
     if body.get("ai") is False and not mode:
         mode = "deterministic"
-    res = grooming.groom(s, p, item_id, mode=mode, product=str(body.get("product") or ""))
+    res = grooming.groom(s, p, item_id, mode=mode, product=str(body.get("product") or ""),
+                         depth=str(body.get("depth") or "deep"))
     if res.get("error") == "not found":
         raise ApiError("NOT_FOUND", "backlog item not found")
     return from_request(request, res, resource="backlog", resource_id=item_id)
