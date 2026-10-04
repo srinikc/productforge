@@ -102,6 +102,7 @@
 | [`PFSSOT-P1-BACKLOG-FIELDS.md`](PFSSOT-P1-BACKLOG-FIELDS.md) | Design | 100% | PFSSOT P1 backlog fields: analysis/revision/priority_rank/structured deps/execution (extend backlog.py) | — | — |
 | [`PFSSOT-P2-GROOMING.md`](PFSSOT-P2-GROOMING.md) | Design | 100% | PFSSOT P2 AI+user grooming: AI-default (reuse agent runtime), deterministic fallback, guidelines/cadence config, /backlog groom API | — | — |
 | [`PFSSOT-P3-ARCHITECTURE-ANALYSIS.md`](PFSSOT-P3-ARCHITECTURE-ANALYSIS.md) | Design | 100% | PFSSOT P3 deep architecture analysis merged into grooming: codebase-grounded existing components/APIs, deep-by-default on entry | — | — |
+| [`PFSSOT-P4-ELIGIBILITY.md`](PFSSOT-P4-ELIGIBILITY.md) | Design | 100% | PFSSOT P4 scheduler eligibility over the canonical backlog (analysis gate + deps + contention + capability), read-only | — | — |
 | [`PIPELINE-COMPOSITION-DESIGN.md`](PIPELINE-COMPOSITION-DESIGN.md) | Design | 100% | Capability-gated pipeline composition (BI-0213) | — | — |
 | [`PIPELINE-OPERATIONS.md`](PIPELINE-OPERATIONS.md) | Implemented | 100% | Operations: run modes, control, state, status | — | — |
 | [`PIPELINE-RESUME-ProductForge-Dashboard.md`](PIPELINE-RESUME-ProductForge-Dashboard.md) | Adopted (reference) | 50% | Old resume notes for a project | Partial - resume notes reused. | — |

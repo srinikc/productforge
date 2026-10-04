@@ -97,6 +97,47 @@ def schedule_next(request: Request, scope: str = "product_forge", project: str =
     return from_request(request, scheduler.next_eligible(s, p), resource="engineering")
 
 
+# ── PFSSOT-P5 (BI-PF-0366): atomic claim + lease + recovery (single claimer: job_manager) ──
+@router.post("/schedule/claim", dependencies=[Depends(require_operator)])
+def schedule_claim(body: dict[str, Any], request: Request,
+                   ctx: dict[str, Any] = Depends(require_operator)):
+    from core import job_manager
+    s, p = _scope_project(str(body.get("scope") or "product_forge"), str(body.get("project") or ""))
+    res = job_manager.claim_next(s, p, worker=str(body.get("worker") or ctx.get("actor") or "api"),
+                                 lease_seconds=int(body.get("lease_seconds") or 0))
+    return from_request(request, res, resource="engineering", resource_id=str(res.get("item") or ""))
+
+
+@router.post("/schedule/lease/{item_id}/renew", dependencies=[Depends(require_operator)])
+def schedule_lease_renew(item_id: str, body: dict[str, Any], request: Request,
+                         ctx: dict[str, Any] = Depends(require_operator)):
+    from core import job_manager
+    s, p = _scope_project(str(body.get("scope") or "product_forge"), str(body.get("project") or ""))
+    return from_request(request, job_manager.renew_lease(s, p, item_id,
+                        lease_seconds=int(body.get("lease_seconds") or 0)),
+                        resource="engineering", resource_id=item_id)
+
+
+@router.post("/schedule/lease/{item_id}/release", dependencies=[Depends(require_operator)])
+def schedule_lease_release(item_id: str, body: dict[str, Any], request: Request,
+                           ctx: dict[str, Any] = Depends(require_operator)):
+    from core import job_manager
+    s, p = _scope_project(str(body.get("scope") or "product_forge"), str(body.get("project") or ""))
+    return from_request(request, job_manager.release(s, p, item_id,
+                        reason=str(body.get("reason") or "released"),
+                        terminal=bool(body.get("terminal") or False)),
+                        resource="engineering", resource_id=item_id)
+
+
+@router.post("/schedule/recover", dependencies=[Depends(require_operator)])
+def schedule_recover(body: dict[str, Any], request: Request,
+                     ctx: dict[str, Any] = Depends(require_operator)):
+    from core import job_manager
+    s, p = _scope_project(str(body.get("scope") or "product_forge"), str(body.get("project") or ""))
+    return from_request(request, job_manager.recover_expired(s, p, policy=str(body.get("policy") or "")),
+                        resource="engineering")
+
+
 # ── ENG-1: engineering task contracts ───────────────────────────────────────
 
 @router.get("/tasks", dependencies=[Depends(authenticate)])

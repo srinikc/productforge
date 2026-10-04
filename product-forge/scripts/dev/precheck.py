@@ -29,6 +29,7 @@ def _steps():
         ("engineering-flow", [sys.executable, "scripts/dev/engineering_flow_check.py"]),
         ("task-contract", [sys.executable, "scripts/dev/task_contract_check.py"]),
         ("scheduler", [sys.executable, "scripts/dev/scheduler_check.py"]),
+        ("lease", [sys.executable, "scripts/dev/lease_check.py"]),
         ("vcs-worktree", [sys.executable, "scripts/dev/vcs_worktree_check.py"]),
         ("worker", [sys.executable, "scripts/dev/worker_check.py"]),
         ("validation-engine", [sys.executable, "scripts/dev/validation_engine_check.py"]),
