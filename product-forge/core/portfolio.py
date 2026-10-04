@@ -23,6 +23,7 @@ except ImportError:  # executed as a script: seed the repo root on sys.path, the
             break
     from core.paths import ROOT as _PF_ROOT
 
+import contextlib
 import json
 import os
 import sqlite3
@@ -30,7 +31,7 @@ import subprocess
 import sys
 import time
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 REPO = str(_PF_ROOT)
 PRODUCTS = os.path.join(REPO, "products")
@@ -62,49 +63,30 @@ def _db():
 
 
 def enqueue(project: str, tier: str = "", priority: int = 100, item_id: str = "",
-            item_ids: Optional[List[str]] = None):
-    """Queue a project run (optionally tied to backlog item(s)). Back-compat: tier kept."""
-    ids = ",".join([i for i in ([item_id] if item_id else []) + list(item_ids or []) if i])
-    c = _db()
-    try:
-        c.execute("ALTER TABLE jobs ADD COLUMN item_ids TEXT", )
-        c.commit()
-    except Exception:
-        pass
-    c.execute("INSERT INTO jobs(project,tier,priority,status,enqueued_at,item_ids) "
-              "VALUES(?,?,?,?,?,?) "
-              "ON CONFLICT(project) DO UPDATE SET tier=excluded.tier, "
-              "priority=excluded.priority, item_ids=excluded.item_ids, "
-              "status=CASE WHEN jobs.status='running' THEN 'running' ELSE 'queued' END",
-              (project, tier, priority, "queued", datetime.now().isoformat(), ids))
-    c.commit()
-    c.close()
-    return {"project": project, "priority": priority, "item_ids": ids, "status": "queued"}
+            item_ids: list[str] | None = None):
+    """Queue a project run (optionally tied to backlog item(s)).
+
+    Single-claimer rule (IS-PF-0034): delegates to ``core.job_manager`` (the canonical queue) - this is a
+    thin compatibility shim, NOT a second queue. Returns the job row.
+    """
+    from core import job_manager as _jm
+    return _jm.enqueue(project, tier=tier, priority=priority, item_id=item_id, item_ids=item_ids,
+                       source="portfolio")
 
 
-def claim(worker: str) -> Optional[Dict]:
-    c = _db()
-    c.execute("BEGIN IMMEDIATE")
-    row = c.execute("SELECT project,tier FROM jobs WHERE status='queued' "
-                    "ORDER BY priority ASC, enqueued_at ASC LIMIT 1").fetchone()
+def claim(worker: str) -> dict | None:
+    """Compatibility shim -> ``job_manager.claim`` (single claimer; IS-PF-0034)."""
+    from core import job_manager as _jm
+    row = _jm.claim(worker)
     if not row:
-        c.commit()
-        c.close()
         return None
-    project, tier = row
-    c.execute("UPDATE jobs SET status='running', worker=?, started_at=? WHERE project=?",
-              (worker, datetime.now().isoformat(), project))
-    c.commit()
-    c.close()
-    return {"project": project, "tier": tier or ""}
+    return {"project": row.get("project"), "tier": row.get("tier") or ""}
 
 
 def finish(project: str, rc: int):
-    c = _db()
-    c.execute("UPDATE jobs SET status=?, rc=?, finished_at=? WHERE project=?",
-              ("completed" if rc == 0 else "failed", rc, datetime.now().isoformat(), project))
-    c.commit()
-    c.close()
+    """Compatibility shim -> ``job_manager.finish`` (single claimer; IS-PF-0034)."""
+    from core import job_manager as _jm
+    return _jm.finish(project, rc)
 
 
 def requeue_stale():
@@ -114,7 +96,7 @@ def requeue_stale():
     c.close()
 
 
-def queue_rows() -> List[tuple]:
+def queue_rows() -> list[tuple]:
     c = _db()
     rows = c.execute("SELECT project,status,priority,worker,rc FROM jobs "
                      "ORDER BY priority, enqueued_at").fetchall()
@@ -191,7 +173,7 @@ def _jm_finish(project: str, rc: int):
 
 def _rj(p, d):
     try:
-        with open(p, "r", encoding="utf-8") as f:
+        with open(p, encoding="utf-8") as f:
             return json.load(f)
     except Exception:
         return d
@@ -205,7 +187,7 @@ def _wj(p, data):
     os.replace(tmp, p)
 
 
-def register(project: str, idea: str = "", tier: str = "", priority: int = 100) -> Dict:
+def register(project: str, idea: str = "", tier: str = "", priority: int = 100) -> dict:
     """Add/refresh a project in the portfolio registry and seed its project.json."""
     reg = _rj(REG, {})
     pdir = os.path.join(PRODUCTS, project)
@@ -229,18 +211,16 @@ def register(project: str, idea: str = "", tier: str = "", priority: int = 100) 
                     "status": (reg.get(project) or {}).get("status", "queued"),
                     "added_at": datetime.now().isoformat()}
     _wj(REG, reg)
-    try:
+    with contextlib.suppress(Exception):
         enqueue(project, reg[project].get("tier", ""), priority)
-    except Exception:
-        pass
     return reg[project]
 
 
-def projects() -> Dict[str, Dict]:
+def projects() -> dict[str, dict]:
     return _rj(REG, {})
 
 
-def state() -> Dict[str, Dict]:
+def state() -> dict[str, dict]:
     return _rj(STATE, {})
 
 
@@ -289,10 +269,8 @@ def _acquire_supervisor_lock() -> bool:
 
 
 def _release_supervisor_lock():
-    try:
+    with contextlib.suppress(Exception):
         os.remove(_sup_lock_path())
-    except Exception:
-        pass
 
 
 def requeue(project: str):
@@ -302,7 +280,7 @@ def requeue(project: str):
     c.close()
 
 
-def control(project: str, action: str) -> Dict:
+def control(project: str, action: str) -> dict:
     pdir = os.path.join(PRODUCTS, project)
     os.makedirs(pdir, exist_ok=True)
     with open(os.path.join(pdir, "control.json"), "w", encoding="utf-8") as f:
@@ -311,7 +289,7 @@ def control(project: str, action: str) -> Dict:
     return {"project": project, "action": action}
 
 
-def status_rows() -> List[Dict[str, Any]]:
+def status_rows() -> list[dict[str, Any]]:
     reg, st = projects(), state()
     rows = []
     for p in sorted(set(list(reg) + list(st))):
@@ -323,7 +301,7 @@ def status_rows() -> List[Dict[str, Any]]:
             "pid": (st.get(p) or {}).get("pid", ""),
             "stage": ps.get("current_stage", ""),
             "rag": (gng.get("decision") or "").lower() or
-                   ({k: v for k, v in (("red", "no-go"), ("yellow", "go-with-risk"), ("green", "go"))}.get("", "")),
+                   ({"red": "no-go", "yellow": "go-with-risk", "green": "go"}.get("", "")),
             "tier": (reg.get(p) or {}).get("tier", ""),
             "priority": (reg.get(p) or {}).get("priority", ""),
         })
@@ -336,7 +314,7 @@ def run_supervisor(max_concurrent: int = 1, watch: bool = True, dry: bool = Fals
     if not _acquire_supervisor_lock():
         print("Another supervisor is already running (products/.locks/portfolio.lock).")
         return 2
-    procs: Dict[str, subprocess.Popen] = {}
+    procs: dict[str, subprocess.Popen] = {}
     terminal = {"completed", "failed", "skipped"}
     idle = 0
     print(f"Portfolio supervisor pid={os.getpid()} | max_concurrent={max_concurrent} "

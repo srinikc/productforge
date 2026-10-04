@@ -34,10 +34,10 @@ except ImportError:  # executed as a script: seed the repo root on sys.path, the
             break
     from core.paths import ROOT as _PF_ROOT
 
+import contextlib
 import os
 import sqlite3
-from datetime import datetime
-from typing import Any, Dict, List, Optional
+from datetime import datetime, timedelta
 
 REPO = str(_PF_ROOT)
 PRODUCTS = os.path.join(REPO, "products")
@@ -58,6 +58,9 @@ _NEW_COLS = {
     "paused_at": "TEXT", "resumed_at": "TEXT", "priority": "INTEGER",
     "item_ids": "TEXT", "enqueued_at": "TEXT", "started_at": "TEXT",
     "finished_at": "TEXT", "worker": "TEXT", "rc": "INTEGER", "tier": "TEXT",
+    # PFSSOT-P5 (BI-PF-0366): assignment lease
+    "assignment_id": "TEXT", "lease_id": "TEXT", "lease_expires_at": "TEXT",
+    "attempt": "INTEGER",
 }
 
 
@@ -72,10 +75,8 @@ def _db() -> sqlite3.Connection:
     have = {r[1] for r in c.execute("PRAGMA table_info(jobs)").fetchall()}
     for col, typ in _NEW_COLS.items():
         if col not in have:
-            try:
+            with contextlib.suppress(Exception):
                 c.execute(f"ALTER TABLE jobs ADD COLUMN {col} {typ}")
-            except Exception:
-                pass
     c.commit()
     return c
 
@@ -84,18 +85,18 @@ def _now() -> str:
     return datetime.now().isoformat()
 
 
-def _row(c, project: str) -> Optional[Dict]:
+def _row(c, project: str) -> dict | None:
     r = c.execute("SELECT * FROM jobs WHERE project=?", (project,)).fetchone()
     if not r:
         return None
     cols = [d[0] for d in c.execute("SELECT * FROM jobs LIMIT 1").description]
-    return dict(zip(cols, r))
+    return dict(zip(cols, r, strict=False))
 
 
 def enqueue(project: str, *, run_id: str = "", tier: str = "", priority: int = 100,
-            item_id: str = "", item_ids: Optional[List[str]] = None,
+            item_id: str = "", item_ids: list[str] | None = None,
             source: str = "cli", actor: str = "", not_before: str = "",
-            job_id: str = "") -> Dict:
+            job_id: str = "") -> dict:
     """Put a run on the queue. Not-before makes it `scheduled`; else `queued`."""
     ids = ",".join([i for i in ([item_id] if item_id else []) + list(item_ids or []) if i])
     state = "scheduled" if not_before else "queued"
@@ -127,7 +128,7 @@ def _resume_ready(c, resume_after: str) -> bool:
     return str(b[0]) in ("done", "failed", "cancelled")
 
 
-def claim(worker: str) -> Optional[Dict]:
+def claim(worker: str) -> dict | None:
     """Claim the next runnable job: paused-resume first, then queued by priority/FIFO."""
     c = _db()
     try:
@@ -138,7 +139,7 @@ def claim(worker: str) -> Optional[Dict]:
         now = _now()
         cands = []
         for r in rows:
-            d = dict(zip(cols, r))
+            d = dict(zip(cols, r, strict=False))
             st = d.get("state")
             if st == "scheduled" and (d.get("not_before") or "") > now:
                 continue
@@ -162,7 +163,7 @@ def claim(worker: str) -> Optional[Dict]:
         c.close()
 
 
-def finish(project: str, rc: int) -> Dict:
+def finish(project: str, rc: int) -> dict:
     c = _db()
     try:
         st = "done" if rc == 0 else "failed"
@@ -224,7 +225,156 @@ def finish(project: str, rc: int) -> Dict:
     return {"job": row or {}, "auto_queued": resumed, "verification": verified}
 
 
-def pause_request(project: str, by: str = "", reason: str = "") -> Dict:
+# ── PFSSOT-P5 (BI-PF-0366): worker-scoped claim + lease over the canonical backlog ──
+_LEASE_SECONDS_DEFAULT = 3600
+RECOVERY_POLICIES = ("RESUME", "RETRY", "REASSIGN", "MARK_FAILED", "REQUIRE_REVIEW")
+
+
+def _lease_seconds() -> int:
+    try:
+        from core import env_flags
+        return int(env_flags.get("PF_LEASE_SECONDS", _LEASE_SECONDS_DEFAULT) or _LEASE_SECONDS_DEFAULT)
+    except Exception:
+        return _LEASE_SECONDS_DEFAULT
+
+
+def _recovery_policy() -> str:
+    try:
+        from core import env_flags
+        p = str(env_flags.get("PF_LEASE_RECOVERY", "REQUIRE_REVIEW") or "REQUIRE_REVIEW").upper()
+        return p if p in RECOVERY_POLICIES else "REQUIRE_REVIEW"
+    except Exception:
+        return "REQUIRE_REVIEW"
+
+
+def claim_next(scope: str = "product_forge", project: str | None = None, worker: str = "",
+               lease_seconds: int = 0) -> dict:
+    """Atomically claim the highest ELIGIBLE backlog item for ``worker`` and attach a lease.
+
+    Single claimer path: eligibility comes from ``core.scheduler`` (P4, read-only); the atomic
+    transition uses this module's SQLite ``BEGIN IMMEDIATE``; the item's ``execution{}`` is written via
+    ``core.backlog.set_execution`` (single writer). One canonical job is created via ``enqueue``.
+    Returns ``{claimed, item, assignment_id, lease_id, lease_expires_at}`` or ``{claimed: False, reason}``.
+    """
+    from core import backlog, scheduler
+    nxt = scheduler.next_eligible(scope, project)
+    if not nxt.get("found"):
+        return {"claimed": False, "reason": "no eligible item"}
+    item_id = str(nxt["item"])
+    it = backlog.get_epic(scope, project, item_id)
+    proj = project or str(it.get("project") or scope)
+    secs = int(lease_seconds or _lease_seconds())
+    now = datetime.now()
+    expires = (now + timedelta(seconds=secs)).isoformat()
+    assignment_id = f"ASG-{item_id}"
+    lease_id = f"LSE-{item_id}-{int(now.timestamp())}"
+
+    # ensure a canonical job row exists (own transaction; enqueue is the single-writer entry)
+    enqueue(proj, item_id=item_id, source="claim", actor=worker or "worker", job_id=f"JOB-{proj}")
+
+    attempt = 0
+    c = _db()
+    try:
+        c.execute("BEGIN IMMEDIATE")
+        # atomic re-check: another claim may have bound this job between eligibility and now
+        row = c.execute("SELECT assignment_id, lease_id, state, attempt FROM jobs WHERE project=?",
+                        (proj,)).fetchone()
+        cur_asg, cur_lease, cur_state, cur_attempt = (row if row else (None, None, None, None))
+        if cur_asg and cur_state == "running":
+            c.commit()
+            return {"claimed": False, "reason": f"already claimed ({cur_asg})"}
+        attempt = int(cur_attempt or 0) + 1
+        c.execute("UPDATE jobs SET state='running', status='running', worker=?, started_at=?, "
+                  "assignment_id=?, lease_id=?, lease_expires_at=?, attempt=?, item_ids=? "
+                  "WHERE project=?",
+                  (worker, now.isoformat(), assignment_id, lease_id, expires, attempt, item_id, proj))
+        c.commit()
+    finally:
+        c.close()
+    # item execution state (single writer: backlog)
+    with contextlib.suppress(Exception):
+        backlog.set_execution(scope, project, item_id, worker_id=worker, assignment_id=assignment_id,
+                              lease_id=lease_id, assigned_at=now.isoformat(),
+                              lease_expires_at=expires, attempt=attempt, started_at=now.isoformat())
+    return {"claimed": True, "item": item_id, "project": proj, "worker_id": worker,
+            "assignment_id": assignment_id, "lease_id": lease_id,
+            "lease_expires_at": expires, "attempt": attempt}
+
+
+def renew_lease(scope: str, project: str | None, item_id: str, lease_seconds: int = 0) -> dict:
+    """Extend the lease on an active assignment (heartbeat)."""
+    from core import backlog
+    it = backlog.get_epic(scope, project, item_id)
+    if not it:
+        return {"renewed": False, "reason": "item not found"}
+    ex = it.get("execution") or {}
+    if not str(ex.get("lease_id") or ""):
+        return {"renewed": False, "reason": "no lease"}
+    secs = int(lease_seconds or _lease_seconds())
+    expires = (datetime.now() + timedelta(seconds=secs)).isoformat()
+    backlog.set_execution(scope, project, item_id, lease_expires_at=expires)
+    proj = project or str(it.get("project") or scope)
+    c = _db()
+    try:
+        c.execute("UPDATE jobs SET lease_expires_at=? WHERE project=?", (expires, proj))
+        c.commit()
+    finally:
+        c.close()
+    return {"renewed": True, "item": item_id, "lease_expires_at": expires}
+
+
+def release(scope: str, project: str | None, item_id: str, reason: str = "released",
+            terminal: bool = False) -> dict:
+    """Release an assignment: clear lease; return item to READY (or terminal if ``terminal``)."""
+    from core import backlog
+    it = backlog.get_epic(scope, project, item_id)
+    if not it:
+        return {"released": False, "reason": "item not found"}
+    proj = project or str(it.get("project") or scope)
+    backlog.set_execution(scope, project, item_id, worker_id="", assignment_id="", lease_id="",
+                          lease_expires_at="", completed_at=datetime.now().isoformat() if terminal else "")
+    c = _db()
+    try:
+        st = "done" if terminal else "queued"
+        c.execute("UPDATE jobs SET state=?, status=?, finished_at=? WHERE project=?",
+                  (st, st, datetime.now().isoformat(), proj))
+        c.commit()
+    finally:
+        c.close()
+    return {"released": True, "item": item_id, "reason": reason, "terminal": terminal}
+
+
+def recover_expired(scope: str = "product_forge", project: str | None = None,
+                    policy: str = "") -> dict:
+    """Find leases past expiry and apply the recovery policy (default REQUIRE_REVIEW). Never blind re-run."""
+    from core import backlog
+    pol = str(policy or _recovery_policy()).upper()
+    if pol not in RECOVERY_POLICIES:
+        pol = "REQUIRE_REVIEW"
+    now = datetime.now().isoformat()
+    recovered = []
+    for it in backlog.list_open(scope, project, order=False):
+        ex = it.get("execution") or {}
+        exp = str(ex.get("lease_expires_at") or "")
+        if not exp or str(ex.get("completed_at") or ""):
+            continue
+        if exp > now:
+            continue
+        item_id = str(it.get("id"))
+        # apply policy
+        if pol == "MARK_FAILED":
+            backlog.set_status(scope, project, item_id, "failed", note="lease expired")
+        elif pol in ("RETRY", "REASSIGN", "RESUME"):
+            backlog.set_readiness(scope, project, item_id, False, reasons=[])  # stays recoverable
+        else:  # REQUIRE_REVIEW (default)
+            backlog.set_status(scope, project, item_id, "blocked", note="lease expired; review required")
+        backlog.set_execution(scope, project, item_id, worker_id="", assignment_id="", lease_id="",
+                              lease_expires_at="")
+        recovered.append({"item": item_id, "policy": pol, "expired_at": exp})
+    return {"policy": pol, "recovered": recovered, "count": len(recovered)}
+
+
+def pause_request(project: str, by: str = "", reason: str = "") -> dict:
     """Ask a run to park at its next safe checkpoint (finishes current agent first)."""
     c = _db()
     try:
@@ -237,7 +387,7 @@ def pause_request(project: str, by: str = "", reason: str = "") -> Dict:
     return row or {}
 
 
-def mark_paused(project: str) -> Dict:
+def mark_paused(project: str) -> dict:
     """Called by the runner once it has checkpointed and parked."""
     c = _db()
     try:
@@ -250,7 +400,7 @@ def mark_paused(project: str) -> Dict:
     return row or {}
 
 
-def resume(project: str) -> Dict:
+def resume(project: str) -> dict:
     c = _db()
     try:
         c.execute("UPDATE jobs SET state='queued', status='queued', resume_after=NULL WHERE project=?",
@@ -262,7 +412,7 @@ def resume(project: str) -> Dict:
     return row or {}
 
 
-def cancel(project: str) -> Dict:
+def cancel(project: str) -> dict:
     c = _db()
     try:
         c.execute("UPDATE jobs SET state='cancelled', status='cancelled', finished_at=? "
@@ -274,12 +424,12 @@ def cancel(project: str) -> Dict:
     return row or {}
 
 
-def set_parallel(n: int, actor: str = "") -> Dict:
+def set_parallel(n: int, actor: str = "") -> dict:
     """Raise/lower max_parallel_projects with a capacity/cost warning (soft) and hard ceiling."""
     from core import capacity
     cfg = capacity.load() if hasattr(capacity, "load") else {}
     cur = int(cfg.get("max_parallel_projects") or 0)
-    hard = int(cfg.get("global_budget", {}).get("hard_tokens") or 0) if isinstance(
+    int(cfg.get("global_budget", {}).get("hard_tokens") or 0) if isinstance(
         cfg.get("global_budget"), dict) else 0
     warn = ""
     if n > cur and n >= 6:
@@ -290,7 +440,8 @@ def set_parallel(n: int, actor: str = "") -> Dict:
     path = os.path.join(REPO, "config", "capacity.json")
     data = {}
     try:
-        data = json.load(open(path, encoding="utf-8"))
+        with open(path, encoding="utf-8") as f:
+            data = json.load(f)
     except Exception:
         data = {}
     data["max_parallel_projects"] = int(n)
@@ -300,13 +451,13 @@ def set_parallel(n: int, actor: str = "") -> Dict:
 
 
 def run_now_on_priority(project: str, *, by: str = "", item_id: str = "",
-                        victim: str = "") -> Dict:
+                        victim: str = "") -> dict:
     """Free a slot for a priority job by pausing the least-urgent running job."""
     c = _db()
     try:
         rows = c.execute("SELECT * FROM jobs WHERE state='running'").fetchall()
         cols = [d[0] for d in c.execute("SELECT * FROM jobs LIMIT 1").description]
-        running = [dict(zip(cols, r)) for r in rows]
+        running = [dict(zip(cols, r, strict=False)) for r in rows]
     finally:
         c.close()
     if not running:
@@ -333,13 +484,13 @@ def run_now_on_priority(project: str, *, by: str = "", item_id: str = "",
                     f"then {v['project']} auto-resumes."}
 
 
-def status() -> Dict:
+def status() -> dict:
     """Full queue view for CLI/API/UI: queued/scheduled/running/paused + why each waits."""
     c = _db()
     try:
         rows = c.execute("SELECT * FROM jobs ORDER BY priority, enqueued_at").fetchall()
         cols = [d[0] for d in c.execute("SELECT * FROM jobs LIMIT 1").description]
-        jobs = [dict(zip(cols, r)) for r in rows]
+        jobs = [dict(zip(cols, r, strict=False)) for r in rows]
     finally:
         c.close()
     from core.capacity import status as _cap
