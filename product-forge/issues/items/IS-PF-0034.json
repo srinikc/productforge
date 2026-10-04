@@ -9,7 +9,7 @@
   "priority": "P1",
   "severity": "high",
   "module": "core/portfolio.py",
-  "status": "open",
+  "status": "closed",
   "rcca": {
     "root_cause": "core/portfolio.py retains a legacy enqueue/claim/finish operating on the SAME jobs table as core/job_manager.py (data/portfolio/portfolio.db). Two claimers exist for one queue: job_manager.claim (canonical) and portfolio.claim (legacy), and backlog.accept(when='now') calls portfolio.enqueue, bypassing the canonical run_entry -> job_manager path.",
     "five_why": [
@@ -19,9 +19,13 @@
       "4. Why not caught? No gate asserts a single claim/submission path across core/.",
       "5. Why does it matter now? The scheduler/worker extension must converge on ONE claimer or behavior diverges."
     ],
-    "corrective": "Make portfolio.enqueue/claim/finish delegate to core.job_manager (single writer); route backlog.accept(when='now') through core.run_entry.enqueue; keep portfolio as a thin compatibility layer, not a second claimer.",
-    "preventive": "Add a gate asserting one claimer (only job_manager does BEGIN IMMEDIATE claim) and one submission path (run_entry.enqueue) in core/.",
-    "status": "open"
+    "corrective": "core/portfolio.py enqueue/claim/finish now delegate to core/job_manager (single claimer); the legacy duplicate queue code is removed.",
+    "preventive": "scripts/dev/lease_check.py asserts portfolio delegates to job_manager (single claimer); P5's claim_next calls the same job_manager.claim substrate.",
+    "status": "open",
+    "fixed_where": "core/portfolio.py, core/job_manager.py",
+    "generalized": true,
+    "guideline_ref": "docs/PFSSOT-P5-CLAIM-LEASE.md (single claimer)",
+    "product_ref": ""
   },
   "backlog_ref": "BI-PF-0370",
   "source": "engineering-review",
@@ -35,5 +39,6 @@
     "backlog": "BI-PF-0370"
   },
   "created_at": "2026-10-02T22:08:04.107765",
-  "updated_at": "2026-10-02T22:08:04.122048"
+  "updated_at": "2026-10-04T21:21:20.965409",
+  "note": "fixed in P5 (37dff30)"
 }
