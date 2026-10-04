@@ -83,6 +83,7 @@ TOP = {
     "PFSSOT-P0-REUSE-MAP.md": ("Design", "PFSSOT P0 reuse map: existing owners for backlog SSOT + scheduler + workers (Phase 0 gate)", 100),
     "PFSSOT-P1-BACKLOG-FIELDS.md": ("Design", "PFSSOT P1 backlog fields: analysis/revision/priority_rank/structured deps/execution (extend backlog.py)", 100),
     "PFSSOT-P2-GROOMING.md": ("Design", "PFSSOT P2 AI+user grooming: AI-default (reuse agent runtime), deterministic fallback, guidelines/cadence config, /backlog groom API", 100),
+    "PFSSOT-P3-ARCHITECTURE-ANALYSIS.md": ("Design", "PFSSOT P3 deep architecture analysis merged into grooming: codebase-grounded existing components/APIs, deep-by-default on entry", 100),
     "PF-Backlog-SSOT-Scheduler-Pluggable-Workers-updated.md": ("Design", "Backlog SSOT + pluggable worker scheduler architecture (source doc; epic BI-PF-0360)", 0),
     "SESSION-RESUME-MASTER-PLAN.md": ("Analysis (current)", "Session hand-off notes to resume master-plan execution", 100),
     "design-plan-BI0218.md": ("Design", "AI-era operations layer (evals/versioning/feedback) design - parked (BI-0218)", 0),

@@ -58,23 +58,113 @@ def _gather_context(scope: str, project: str | None, item: dict) -> dict[str, An
                    if s.get("ref") != item.get("id")]
     except Exception:
         similar = []
+    deep = _search_codebase(scope, project, item)
     return {"similar": similar, "deps": list(item.get("deps") or []),
             "affected_components": list(item.get("affected_components") or []),
-            "score": item.get("score")}
+            "score": item.get("score"),
+            "existing_components": deep["existing_components"],
+            "existing_apis": deep["existing_apis"],
+            "existing_modules": deep["existing_modules"]}
 
 
-def deterministic(scope: str, project: str | None, item: dict) -> dict[str, Any]:
-    """Signals-only proposal: no AI. Always available."""
+_STOP = {"the", "a", "an", "to", "of", "and", "or", "for", "in", "on", "with", "add", "new",
+         "api", "is", "it", "be", "we", "should", "must", "fix", "bug", "feature"}
+
+
+def _keywords(item: dict) -> list[str]:
+    import re as _re
+    text = f"{item.get('title','')} {item.get('body','')}".lower()
+    words = _re.findall(r"[a-z][a-z0-9_\-]{2,}", text)
+    out = []
+    for w in words:
+        if w in _STOP or w in out:
+            continue
+        out.append(w)
+    return out[:12]
+
+
+def _search_codebase(scope: str, project: str | None, item: dict) -> dict[str, Any]:
+    """Deep scan: find existing components/APIs/modules the item touches (reuse-first evidence).
+
+    Deterministic; reads the real repo. Returns matches + evidence + an architecture-fit hint.
+    """
+    kws = _keywords(item)
+    repo = str(ROOT)
+    comps: list[str] = []       # core modules / components
+    apis: list[str] = []        # api routes
+    modules: list[str] = []     # other relevant files (scripts/docs/config)
+    hits = 0
+    # 1) core modules: match keyword in filename
+    core_dir = os.path.join(repo, "core")
+    if os.path.isdir(core_dir) and kws:
+        for f in os.listdir(core_dir):
+            if not f.endswith(".py"):
+                continue
+            stem = f[:-3].lower()
+            if any(k in stem for k in kws):
+                comps.append(f"core/{f}")
+                hits += 1
+            if len(comps) >= 8:
+                break
+    # 2) API routes: grep the OpenAPI path list for keyword matches
+    try:
+        import json as _json
+        with open(os.path.join(repo, "api", "openapi.json"), encoding="utf-8-sig") as fh:
+            paths = list((_json.load(fh) or {}).get("paths", {}).keys())
+        for p in paths:
+            if any(k in p.lower() for k in kws):
+                apis.append(p)
+            if len(apis) >= 8:
+                break
+    except Exception:
+        pass
+    # 3) config/other modules by name
+    cfg_dir = os.path.join(repo, "config")
+    if os.path.isdir(cfg_dir) and kws:
+        for f in os.listdir(cfg_dir):
+            if f.endswith(".json") and any(k in f[:-5].lower() for k in kws):
+                modules.append(f"config/{f}")
+            if len(modules) >= 6:
+                break
+    if hits or apis:
+        fit_hint = "EXTEND" if (comps or apis) else "NEW_CAPABILITY"
+    else:
+        fit_hint = "NEW_CAPABILITY"
+    return {"existing_components": comps, "existing_apis": apis, "existing_modules": modules,
+            "fit_hint": fit_hint, "keyword_hits": hits + len(apis)}
+
+
+def deterministic(scope: str, project: str | None, item: dict, *, depth: str = "deep") -> dict[str, Any]:
+    """Signals-only proposal: no AI. ``depth='deep'`` also grounds findings in the real codebase."""
     ctx = _gather_context(scope, project, item)
     dup = [s for s in ctx["similar"] if float(s.get("score") or 0) >= 0.6]
-    fit = "REUSE" if dup else ("EXTEND" if item.get("links") or item.get("deps") else "NEW_CAPABILITY")
-    strategy = ("Merge/extend an existing item" if dup else
-                "Extend an existing module/API" if item.get("deps") or item.get("links") else
-                "New capability; design before building (reuse-first)")
+    deep = _search_codebase(scope, project, item) if depth == "deep" else \
+        {"existing_components": [], "existing_apis": [], "existing_modules": [],
+         "fit_hint": "", "keyword_hits": 0}
+    if dup:
+        fit = "REUSE"
+    elif deep["fit_hint"]:
+        fit = deep["fit_hint"]
+    elif item.get("links") or item.get("deps"):
+        fit = "EXTEND"
+    else:
+        fit = "NEW_CAPABILITY"
+    if deep["existing_components"] or deep["existing_apis"]:
+        strategy = ("Extend existing components/APIs: " +
+                    ", ".join((deep["existing_components"] + deep["existing_apis"])[:4]))
+    elif item.get("deps") or item.get("links"):
+        strategy = "Extend an existing module/API"
+    else:
+        strategy = "New capability; design before building (reuse-first)"
+    evidence = [f"similar={len(ctx['similar'])}", f"score={ctx['score']}",
+                f"components={len(deep['existing_components'])}", f"apis={len(deep['existing_apis'])}"]
     return {
         "analyzed_by": "deterministic",
         "architecture_fit": fit,
         "implementation_strategy": strategy,
+        "existing_components": deep["existing_components"],
+        "existing_apis": deep["existing_apis"],
+        "existing_modules": deep["existing_modules"],
         "duplication_findings": [f"{s['ref']} (score {s['score']:.2f})" for s in dup],
         "dependency_findings": [f"depends on {d}" for d in ctx["deps"]],
         "conflict_findings": [],
@@ -83,10 +173,11 @@ def deterministic(scope: str, project: str | None, item: dict) -> dict[str, Any]
         "new_component_required": fit in ("NEW_COMPONENT", "NEW_CAPABILITY"),
         "risks": (["possible duplicate"] if dup else []),
         "assumptions": [],
-        "evidence": [f"similar={len(ctx['similar'])}", f"score={ctx['score']}"],
-        "confidence": "low" if not item.get("deps") else "medium",
+        "evidence": evidence,
+        "confidence": ("high" if deep["keyword_hits"] else ("medium" if item.get("deps") else "low")),
         "missing_info": ([] if item.get("title") and item.get("body") else ["body/acceptance criteria thin"]),
-        "rationale": "deterministic grooming from backlog signals",
+        "rationale": f"deterministic {depth} grooming (codebase-grounded)" if depth == "deep"
+        else "deterministic grooming from backlog signals",
     }
 
 
@@ -99,7 +190,9 @@ def _ai_prompt(item: dict, ctx: dict) -> str:
         f"ITEM: {item.get('id')} - {item.get('title')}\n"
         f"BODY: {item.get('body','')}\n"
         f"EXISTING deps: {ctx.get('deps')}\n"
-        f"RELATED/SIMILAR backlog items: {ctx.get('similar')}\n\n"
+        f"RELATED/SIMILAR backlog items: {ctx.get('similar')}\n"
+        f"CANDIDATE EXISTING CODE (reuse-first): components={ctx.get('existing_components')} "
+        f"apis={ctx.get('existing_apis')} modules={ctx.get('existing_modules')}\n\n"
         "Apply this checklist:\n" + checks + "\n\n"
         "Produce ONLY a JSON object (no prose) with keys:\n"
         "architecture_fit (REUSE|EXTEND|MODIFY|NEW_COMPONENT|NEW_CAPABILITY|REFACTOR|OTHER), "
@@ -156,11 +249,13 @@ def _run_ai(item: dict, ctx: dict, project: str | None, product: str) -> dict | 
 
 # ── public API ──────────────────────────────────────────────────────────────
 def groom(scope: str, project: str | None, item_id: str, mode: str = "", *,
-          product: str = "") -> dict[str, Any]:
-    """Groom one item. ``mode`` = ai (default) | deterministic. Stores the proposal on the item's analysis.
+          product: str = "", depth: str = "deep") -> dict[str, Any]:
+    """Groom one item (deep by default). ``mode`` = ai (default) | deterministic.
 
+    Deep analysis (existing components/APIs/modules, duplication/drift, strategy) is grounded in the real
+    codebase and stored on the item's ``analysis`` block - so pickup is execution, not re-analysis.
     AI is the default; if the AI path yields nothing, falls back to deterministic (never blocks).
-    Returns ``{item_id, mode, proposal, applied, error}``.
+    Returns ``{item_id, mode, depth, proposal, applied, error}``.
     """
     from core import backlog
     it = backlog.get_epic(scope, project, item_id)
@@ -169,21 +264,26 @@ def groom(scope: str, project: str | None, item_id: str, mode: str = "", *,
     m = str(mode or default_mode()).lower()
     if m not in MODES:
         m = "ai"
+    d = str(depth or "deep").lower()
+    if d not in ("deep", "standard"):
+        d = "deep"
     ctx = _gather_context(scope, project, it)
     proposal = None
     used = m
     if m == "ai":
         proposal = _run_ai(it, ctx, project, product or (project or "default"))
         if proposal is None:
-            used, proposal = "deterministic", deterministic(scope, project, it)
+            used, proposal = "deterministic", deterministic(scope, project, it, depth=d)
     else:
-        proposal = deterministic(scope, project, it)
+        proposal = deterministic(scope, project, it, depth=d)
 
     # persist the proposal onto analysis{} (single writer: backlog)
     analysis = {k: v for k, v in proposal.items() if k in (
-        "architecture_fit", "implementation_strategy", "duplication_findings", "dependency_findings",
+        "architecture_fit", "implementation_strategy", "existing_components", "existing_apis",
+        "existing_modules", "duplication_findings", "dependency_findings",
         "conflict_findings", "drift", "rewrite_required", "new_component_required", "risks",
         "assumptions", "evidence", "confidence", "missing_info", "rationale")}
+    analysis["depth"] = d
     analysis["status"] = "IN_PROGRESS"          # awaits user decision -> COMPLETE
     backlog.set_analysis(scope, project, item_id, status="IN_PROGRESS", analysis=analysis,
                          analyzed_by=used)
@@ -207,7 +307,8 @@ def groom(scope: str, project: str | None, item_id: str, mode: str = "", *,
     if proposal.get("dependencies"):
         with contextlib.suppress(Exception):
             backlog.set_dependencies(scope, project, item_id, dependencies=proposal["dependencies"])
-    return {"item_id": item_id, "mode": used, "proposal": proposal, "applied": True, "error": ""}
+    return {"item_id": item_id, "mode": used, "depth": d, "proposal": proposal,
+            "applied": True, "error": ""}
 
 
 def decide(scope: str, project: str | None, item_id: str, decision: str,
