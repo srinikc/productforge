@@ -86,6 +86,9 @@ def main(argv=None) -> int:
     files = _changed_py()
     unregistered = {}
     for rel in files:
+        # the audit tool itself operates on data-file NAMES (registry/allowlist strings), not stores
+        if rel.endswith("scripts/dev/wired_audit.py") or rel.endswith("scripts/dev/store_check.py"):
+            continue
         p = os.path.join(_ROOT, rel)
         if not os.path.isfile(p):
             continue

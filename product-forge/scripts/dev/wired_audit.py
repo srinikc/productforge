@@ -635,7 +635,7 @@ def role_prompt_audit():
 
 
 def main():
-    all_files = list(_iter_py(["core", "scripts", "tests",
+    all_files = list(_iter_py(["core", "api", "scripts", "tests",
                                "test-framework/core", "test-framework/dashboard",
                                "dashboard", "templates"]))
     runtime_files = set(_iter_py(RUNTIME_ENTRY))
