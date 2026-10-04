@@ -117,6 +117,43 @@ def set_priority(item_id: str, body: dict[str, Any], request: Request,
     return from_request(request, res, resource="backlog", resource_id=item_id)
 
 
+@router.get("/grooming/guidelines", dependencies=[Depends(authenticate)])
+def grooming_guidelines(request: Request, ctx: dict[str, Any] = Depends(authenticate)):
+    from core import grooming
+    return from_request(request, grooming.guidelines(), resource="backlog")
+
+
+@router.post("/items/{item_id}/groom", dependencies=[Depends(require_operator)])
+def groom_item(item_id: str, body: dict[str, Any], request: Request,
+               ctx: dict[str, Any] = Depends(require_operator)):
+    """AI grooming by default; pass mode='deterministic' (or ai=false) for the no-AI path."""
+    from core import grooming
+    s, p = _scope_project(request, str(body.get("scope") or "product_forge"), str(body.get("project") or ""))
+    mode = str(body.get("mode") or "")
+    if body.get("ai") is False and not mode:
+        mode = "deterministic"
+    res = grooming.groom(s, p, item_id, mode=mode, product=str(body.get("product") or ""))
+    if res.get("error") == "not found":
+        raise ApiError("NOT_FOUND", "backlog item not found")
+    return from_request(request, res, resource="backlog", resource_id=item_id)
+
+
+@router.post("/items/{item_id}/groom/decide", dependencies=[Depends(require_operator)])
+def groom_decide(item_id: str, body: dict[str, Any], request: Request,
+                 ctx: dict[str, Any] = Depends(require_operator)):
+    """User grooming decision: APPROVE | MODIFY | REJECT | DEFER."""
+    from core import grooming
+    s, p = _scope_project(request, str(body.get("scope") or "product_forge"), str(body.get("project") or ""))
+    try:
+        res = grooming.decide(s, p, item_id, str(body.get("decision") or ""),
+                              note=str(body.get("note") or ""), by=str(body.get("by") or "user"))
+    except ValueError as e:
+        raise ApiError("VALIDATION_FAILED", str(e)) from None
+    if res.get("error") == "not found":
+        raise ApiError("NOT_FOUND", "backlog item not found")
+    return from_request(request, res, resource="backlog", resource_id=item_id)
+
+
 @router.post("/items/{item_id}/dependencies", dependencies=[Depends(require_operator)])
 def set_dependencies(item_id: str, body: dict[str, Any], request: Request,
                      ctx: dict[str, Any] = Depends(require_operator)):

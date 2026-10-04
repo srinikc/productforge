@@ -38,6 +38,7 @@ def _steps():
         ("dogfood", [sys.executable, "scripts/dev/dogfood_check.py"]),
         ("release", [sys.executable, "scripts/dev/release_check.py"]),
         ("packaging", [sys.executable, "scripts/dev/packaging_check.py"]),
+        ("grooming", [sys.executable, "scripts/dev/grooming_check.py"]),
         ("final-audit", [sys.executable, "scripts/dev/final_audit_check.py"]),
         ("github", [sys.executable, "scripts/dev/github_check.py"]),
         ("store-contract", [sys.executable, "scripts/dev/store_check.py"]),

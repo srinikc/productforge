@@ -804,6 +804,57 @@
         ]
       }
     },
+    "/api/v1/backlog/grooming/guidelines": {
+      "get": {
+        "operationId": "grooming_guidelines_api_v1_backlog_grooming_guidelines_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Authorization",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-roles",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-Roles",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Grooming Guidelines",
+        "tags": [
+          "backlog"
+        ]
+      }
+    },
     "/api/v1/backlog/items": {
       "post": {
         "operationId": "add_item_api_v1_backlog_items_post",
@@ -1086,6 +1137,152 @@
           }
         },
         "summary": "Set Dependencies",
+        "tags": [
+          "backlog"
+        ]
+      }
+    },
+    "/api/v1/backlog/items/{item_id}/groom": {
+      "post": {
+        "description": "AI grooming by default; pass mode='deterministic' (or ai=false) for the no-AI path.",
+        "operationId": "groom_item_api_v1_backlog_items__item_id__groom_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "item_id",
+            "required": true,
+            "schema": {
+              "title": "Item Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Authorization",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-roles",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-Roles",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "title": "Body",
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Groom Item",
+        "tags": [
+          "backlog"
+        ]
+      }
+    },
+    "/api/v1/backlog/items/{item_id}/groom/decide": {
+      "post": {
+        "description": "User grooming decision: APPROVE | MODIFY | REJECT | DEFER.",
+        "operationId": "groom_decide_api_v1_backlog_items__item_id__groom_decide_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "item_id",
+            "required": true,
+            "schema": {
+              "title": "Item Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Authorization",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-roles",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-Roles",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "title": "Body",
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Groom Decide",
         "tags": [
           "backlog"
         ]
