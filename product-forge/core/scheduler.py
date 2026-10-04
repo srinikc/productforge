@@ -230,3 +230,115 @@ def report(scope: str = "product_forge", project: str | None = None) -> dict[str
         s = str(t.get("status") or "?")
         by_status[s] = by_status.get(s, 0) + 1
     return {"scope": scope, "project": project or "", "total": len(tasks), "by_status": by_status}
+
+
+# ── PFSSOT-P4 (BI-PF-0365): eligibility over the CANONICAL BACKLOG (read-only) ──
+# The scheduler must answer "what can run now?" from the backlog (doc §10-§13/§31-§33), not only from
+# task contracts. Eligibility is a PURE function (no writes); claim/lease is P5.
+_ELIGIBLE_STATUSES = ("new", "accepted", "queued", "scheduled")  # open, not yet executing
+_TERMINAL_STATUSES = ("completed", "done", "rejected", "wontfix", "duplicate", "merged", "archived")
+
+
+def _item_paths(item: dict[str, Any]) -> list[str]:
+    return ([str(p) for p in (item.get("allowed_paths") or [])]
+            + [str(p) for p in (item.get("affected_files") or [])]
+            + [str(p) for p in (item.get("affected_components") or [])])
+
+
+def eligible(item: dict[str, Any], *, by_id: dict[str, dict[str, Any]] | None = None,
+             worker: dict[str, Any] | None = None,
+             active: list[dict[str, Any]] | None = None) -> dict[str, Any]:
+    """Is this backlog item executable NOW? Returns ``{ok, reasons[]}`` (fail-closed, read-only).
+
+    Order (doc §11): status -> analysis(READY) -> dependencies -> readiness -> revision/stale ->
+    contention -> capability. Any unmet reason => not eligible.
+    """
+    from core import backlog
+    reasons: list[str] = []
+    eid = str(item.get("id") or "")
+    st = backlog._normalize_status(str(item.get("status") or ""))
+    if st in _TERMINAL_STATUSES:
+        reasons.append(f"terminal status '{st}'")
+    elif st not in _ELIGIBLE_STATUSES and st not in ("implemented", "verifying", "blocked"):
+        reasons.append(f"status '{st}' not eligible")
+    if st == "blocked":
+        reasons.append("blocked")
+
+    # analysis gate: READY requires COMPLETE and not STALE (doc §8); defer items are groomed at pickup
+    an = item.get("analysis") or {}
+    a_status = str(an.get("status") or "NOT_ANALYZED")
+    if a_status != "COMPLETE":
+        reasons.append(f"analysis {a_status} (needs grooming)")
+
+    # dependencies (structured first, then flat deps); unknown refs block (fail-closed)
+    deps = [str(d.get("task_id")) if isinstance(d, dict) else str(d)
+            for d in (item.get("dependencies") or [])] or [str(d) for d in (item.get("deps") or [])]
+    deps += [str(d) for d in (item.get("blocked_by") or [])]
+    if by_id is not None:
+        for d in {x for x in deps if x}:
+            dep = by_id.get(d)
+            if dep is None or backlog._normalize_status(str(dep.get("status") or "")) not in _TERMINAL_STATUSES:
+                reasons.append(f"unmet dependency {d}")
+
+    # readiness flag
+    if (item.get("readiness") or {}).get("ready") is False and (item.get("readiness") or {}).get("reasons"):
+        reasons.append("readiness=false")
+
+    # staleness is authoritative via analysis.status: core.backlog marks COMPLETE -> STALE only on a
+    # requirement/architecture change (P1). Do NOT re-derive from revision numbers - priority/dep
+    # bookkeeping bumps revision without invalidating the analysis.
+
+    # already claimed / leased
+    ex = item.get("execution") or {}
+    if str(ex.get("worker_id") or "") and str(ex.get("completed_at") or "") == "":
+        reasons.append(f"already assigned to {ex.get('worker_id')}")
+
+    # contention vs other active items (path overlap)
+    paths = _item_paths(item)
+    for a in (active or []):
+        if str(a.get("id")) == eid:
+            continue
+        if paths and path_overlap(paths, _item_paths(a)):
+            reasons.append(f"path overlap with {a.get('id')}")
+
+    # capability match against a worker slot (when provided)
+    if worker is not None and not capability_match(item, worker):
+        reasons.append("worker capability mismatch")
+
+    return {"id": eid, "ok": not reasons, "reasons": reasons}
+
+
+def eligible_backlog(scope: str = "product_forge", project: str | None = None,
+                     worker: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Eligibility view over the canonical backlog (read-only)."""
+    from core import backlog
+    items = backlog.list_open(scope, project, order=False)
+    by_id = {str(i.get("id")): i for i in items}
+    # active = items already assigned/executing (for contention)
+    active = [i for i in items if str((i.get("execution") or {}).get("worker_id") or "")]
+    rows = []
+    for it in items:
+        e = eligible(it, by_id=by_id, worker=worker, active=active)
+        e["title"] = it.get("title")
+        e["priority_rank"] = it.get("priority_rank")
+        rows.append(e)
+    ready = [r for r in rows if r["ok"]]
+    return {"scope": scope, "project": project or "", "total": len(rows),
+            "eligible": len(ready), "blocked": len(rows) - len(ready), "items": rows}
+
+
+def next_eligible(scope: str = "product_forge", project: str | None = None,
+                  worker: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Highest-priority eligible item (deterministic, read-only). Claim is P5."""
+    from core import backlog
+    items = backlog.list_open(scope, project, order=False)
+    by_id = {str(i.get("id")): i for i in items}
+    active = [i for i in items if str((i.get("execution") or {}).get("worker_id") or "")]
+    ok = [i for i in items
+          if eligible(i, by_id=by_id, worker=worker, active=active)["ok"]]
+    if not ok:
+        return {"scope": scope, "project": project or "", "found": False, "item": None}
+    ordered = backlog.order_by_priority(ok)
+    top = ordered[0]
+    return {"scope": scope, "project": project or "", "found": True, "item": top.get("id"),
+            "title": top.get("title"), "priority_rank": top.get("priority_rank")}
