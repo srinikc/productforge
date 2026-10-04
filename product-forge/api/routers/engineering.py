@@ -65,11 +65,63 @@ def coverage(request: Request, ctx: dict[str, Any] = Depends(authenticate)):
 # ── ENG-2: worker pool + elastic schedule ───────────────────────────────────
 
 @router.get("/workers", dependencies=[Depends(authenticate)])
-def workers(request: Request, ctx: dict[str, Any] = Depends(authenticate)):
-    from core import scheduler
+def workers(request: Request, scope: str = "product_forge", project: str = "",
+            ctx: dict[str, Any] = Depends(authenticate)):
+    from core import scheduler, worker_registry
     reg = scheduler.workers()
-    return from_request(request, {"registry": reg, "slots": scheduler.worker_slots(reg)},
+    s, p = _scope_project(scope, project)
+    dynamic = worker_registry.list_workers(s, p)
+    return from_request(request, {"registry": reg, "slots": scheduler.worker_slots(reg),
+                                  "dynamic": dynamic,
+                                  "dynamic_slots": worker_registry.available_slots(s, p)},
                         resource="engineering")
+
+
+# ── PFSSOT-P6 (BI-PF-0367): worker registry + heartbeat + lifecycle (runtime-neutral) ──
+@router.post("/workers/register", dependencies=[Depends(require_operator)])
+def worker_register(body: dict[str, Any], request: Request,
+                    ctx: dict[str, Any] = Depends(require_operator)):
+    from core import worker_registry
+    s, p = _scope_project(str(body.get("scope") or "product_forge"), str(body.get("project") or ""))
+    rec = worker_registry.register(s, p, runtime=str(body.get("runtime") or "opencode"),
+                                   capabilities=body.get("capabilities") or [],
+                                   role=str(body.get("role") or ""), endpoint=str(body.get("endpoint") or ""),
+                                   workspace=str(body.get("workspace") or ""),
+                                   worker_id=str(body.get("worker_id") or ""))
+    return from_request(request, rec, resource="worker_registry", resource_id=rec.get("worker_id"))
+
+
+@router.post("/workers/{worker_id}/heartbeat", dependencies=[Depends(authenticate)])
+def worker_heartbeat(worker_id: str, body: dict[str, Any], request: Request,
+                     ctx: dict[str, Any] = Depends(authenticate)):
+    from core import worker_registry
+    s, p = _scope_project(str(body.get("scope") or "product_forge"), str(body.get("project") or ""))
+    res = worker_registry.heartbeat(s, p, worker_id, status=str(body.get("status") or ""),
+                                    current_assignment_id=str(body.get("current_assignment_id") or ""))
+    if not res.get("ok"):
+        raise ApiError("NOT_FOUND", "unknown worker")
+    return from_request(request, res, resource="worker_registry", resource_id=worker_id)
+
+
+@router.get("/workers/{worker_id}", dependencies=[Depends(authenticate)])
+def worker_get(worker_id: str, request: Request, scope: str = "product_forge", project: str = "",
+               ctx: dict[str, Any] = Depends(authenticate)):
+    from core import worker_registry
+    s, p = _scope_project(scope, project)
+    w = worker_registry.get(s, p, worker_id)
+    if not w:
+        raise ApiError("NOT_FOUND", "unknown worker")
+    return from_request(request, w, resource="worker_registry", resource_id=worker_id)
+
+
+@router.post("/workers/{worker_id}/unregister", dependencies=[Depends(require_operator)])
+def worker_unregister(worker_id: str, body: dict[str, Any], request: Request,
+                      ctx: dict[str, Any] = Depends(require_operator)):
+    from core import worker_registry
+    s, p = _scope_project(str(body.get("scope") or "product_forge"), str(body.get("project") or ""))
+    return from_request(request, worker_registry.unregister(s, p, worker_id,
+                        revoke=bool(body.get("revoke") or False)),
+                        resource="worker_registry", resource_id=worker_id)
 
 
 @router.get("/schedule", dependencies=[Depends(authenticate)])
