@@ -23,7 +23,6 @@ except ImportError:  # executed as a script: seed the repo root on sys.path, the
     from core.paths import ROOT as _PF_ROOT
 
 import os
-from typing import Optional
 
 _REPO = str(_PF_ROOT)
 
@@ -50,10 +49,17 @@ def apply_and_run(executor, auto: bool = False) -> int:
         print("[Enhance] scope invalidated; re-running from Stage 0 …")
     except Exception as e:
         print(f"[Enhance] invalidate: {e}")
+    # IS-PF-0035: do NOT run the pipeline directly. Submit through the canonical run entry so the job
+    # goes to JobManager and the existing queue/worker invokes the executor (single submission path).
     try:
-        return 0 if executor.execute_pipeline() else 1
+        from core import run_entry
+        res = run_entry.enqueue(getattr(executor, "project", "default"),
+                                getattr(executor, "products_dir", "products"),
+                                source="enhance", actor="enhance")
+        print(f"[Enhance] enqueued via run entry: run_id={res.get('run_id')} (worker will run it)")
+        return 0
     except Exception as e:
-        print(f"[Enhance] run error: {e}")
+        print(f"[Enhance] enqueue error: {e}")
         return 1
 
 
@@ -62,7 +68,7 @@ def enhance(project: str, goal: str, accept: bool = True, products_dir: str = "p
     from core.pipeline_executor import PipelineExecutor
     executor = PipelineExecutor(products_dir=products_dir, project=project)
     print(f"[Enhance] goal: {goal}")
-    p = plan(executor, goal)
+    plan(executor, goal)
     try:
         plan_path = os.path.join(executor.project_dir, "docs", "ENHANCEMENT-PLAN.md")
         print(f"[Enhance] plan -> {plan_path} (exists={os.path.exists(plan_path)})")
@@ -80,6 +86,7 @@ def enhance(project: str, goal: str, accept: bool = True, products_dir: str = "p
         ans = ""
         try:
             import sys
+
             from core import interactive as _interactive
             if _interactive.enabled() or sys.stdin.isatty():
                 ans = (_interactive.ask(

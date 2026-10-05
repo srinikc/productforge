@@ -29,6 +29,14 @@ def _scope_project(scope: str, project: str):
     return s, p
 
 
+def _worker_on():
+    """PFSSOT-P8A: the optional external-worker endpoints are disabled when WORKER_INTEGRATION_ENABLED=0."""
+    from core import worker_registry
+    if not worker_registry.integration_enabled():
+        raise ApiError("DEPENDENCY_UNAVAILABLE", "worker integration disabled",
+                       details={"flag": "WORKER_INTEGRATION_ENABLED"})
+
+
 @router.get("", dependencies=[Depends(authenticate)])
 def engineering(request: Request, ctx: dict[str, Any] = Depends(authenticate)):
     from core import engineering_flow
@@ -64,7 +72,7 @@ def coverage(request: Request, ctx: dict[str, Any] = Depends(authenticate)):
 
 # ── ENG-2: worker pool + elastic schedule ───────────────────────────────────
 
-@router.get("/workers", dependencies=[Depends(authenticate)])
+@router.get("/workers", dependencies=[Depends(authenticate), Depends(_worker_on)])
 def workers(request: Request, scope: str = "product_forge", project: str = "",
             ctx: dict[str, Any] = Depends(authenticate)):
     from core import scheduler, worker_registry
@@ -78,7 +86,7 @@ def workers(request: Request, scope: str = "product_forge", project: str = "",
 
 
 # ── PFSSOT-P6 (BI-PF-0367): worker registry + heartbeat + lifecycle (runtime-neutral) ──
-@router.post("/workers/register", dependencies=[Depends(require_operator)])
+@router.post("/workers/register", dependencies=[Depends(require_operator), Depends(_worker_on)])
 def worker_register(body: dict[str, Any], request: Request,
                     ctx: dict[str, Any] = Depends(require_operator)):
     from core import worker_registry
@@ -91,7 +99,7 @@ def worker_register(body: dict[str, Any], request: Request,
     return from_request(request, rec, resource="worker_registry", resource_id=rec.get("worker_id"))
 
 
-@router.post("/workers/{worker_id}/heartbeat", dependencies=[Depends(authenticate)])
+@router.post("/workers/{worker_id}/heartbeat", dependencies=[Depends(authenticate), Depends(_worker_on)])
 def worker_heartbeat(worker_id: str, body: dict[str, Any], request: Request,
                      ctx: dict[str, Any] = Depends(authenticate)):
     from core import worker_registry
@@ -103,7 +111,7 @@ def worker_heartbeat(worker_id: str, body: dict[str, Any], request: Request,
     return from_request(request, res, resource="worker_registry", resource_id=worker_id)
 
 
-@router.get("/workers/{worker_id}", dependencies=[Depends(authenticate)])
+@router.get("/workers/{worker_id}", dependencies=[Depends(authenticate), Depends(_worker_on)])
 def worker_get(worker_id: str, request: Request, scope: str = "product_forge", project: str = "",
                ctx: dict[str, Any] = Depends(authenticate)):
     from core import worker_registry
@@ -114,7 +122,7 @@ def worker_get(worker_id: str, request: Request, scope: str = "product_forge", p
     return from_request(request, w, resource="worker_registry", resource_id=worker_id)
 
 
-@router.post("/workers/{worker_id}/unregister", dependencies=[Depends(require_operator)])
+@router.post("/workers/{worker_id}/unregister", dependencies=[Depends(require_operator), Depends(_worker_on)])
 def worker_unregister(worker_id: str, body: dict[str, Any], request: Request,
                       ctx: dict[str, Any] = Depends(require_operator)):
     from core import worker_registry
@@ -125,7 +133,7 @@ def worker_unregister(worker_id: str, body: dict[str, Any], request: Request,
 
 
 # ── PFSSOT-P8 (BI-PF-0369): manual work pull (first e2e milestone) ──
-@router.post("/work", dependencies=[Depends(require_operator)])
+@router.post("/work", dependencies=[Depends(require_operator), Depends(_worker_on)])
 def work_pull(body: dict[str, Any], request: Request,
               ctx: dict[str, Any] = Depends(require_operator)):
     """Manual pull: claim the next eligible item for a worker and return the assignment package."""
@@ -137,7 +145,7 @@ def work_pull(body: dict[str, Any], request: Request,
                         resource_id=str(((res.get("package") or {}).get("task") or {}).get("item_id") or ""))
 
 
-@router.post("/work/{item_id}/start", dependencies=[Depends(require_operator)])
+@router.post("/work/{item_id}/start", dependencies=[Depends(require_operator), Depends(_worker_on)])
 def work_start(item_id: str, body: dict[str, Any], request: Request,
                ctx: dict[str, Any] = Depends(require_operator)):
     """Invoke the assigned worker's adapter ``start`` for the claimed item."""
@@ -149,7 +157,7 @@ def work_start(item_id: str, body: dict[str, Any], request: Request,
 
 
 # ── PFSSOT-P7 (BI-PF-0368): runtime-neutral worker adapter contract ──
-@router.get("/adapters", dependencies=[Depends(authenticate)])
+@router.get("/adapters", dependencies=[Depends(authenticate), Depends(_worker_on)])
 def adapters(request: Request, ctx: dict[str, Any] = Depends(authenticate)):
     from core import worker_adapters
     return from_request(request, {"contract": worker_adapters.contract(),
@@ -157,7 +165,7 @@ def adapters(request: Request, ctx: dict[str, Any] = Depends(authenticate)):
                         resource="worker_adapter")
 
 
-@router.post("/workers/{worker_id}/assign", dependencies=[Depends(require_operator)])
+@router.post("/workers/{worker_id}/assign", dependencies=[Depends(require_operator), Depends(_worker_on)])
 def worker_assign(worker_id: str, body: dict[str, Any], request: Request,
                   ctx: dict[str, Any] = Depends(require_operator)):
     """Assign a claimed item to a worker through its adapter (accept_assignment)."""
@@ -174,7 +182,7 @@ def worker_assign(worker_id: str, body: dict[str, Any], request: Request,
                         resource="worker_adapter", resource_id=worker_id)
 
 
-@router.post("/workers/{worker_id}/report", dependencies=[Depends(require_operator)])
+@router.post("/workers/{worker_id}/report", dependencies=[Depends(require_operator), Depends(_worker_on)])
 def worker_report(worker_id: str, body: dict[str, Any], request: Request,
                   ctx: dict[str, Any] = Depends(require_operator)):
     from core import worker_adapters, worker_registry
@@ -216,7 +224,7 @@ def schedule_next(request: Request, scope: str = "product_forge", project: str =
 
 
 # ── PFSSOT-P5 (BI-PF-0366): atomic claim + lease + recovery (single claimer: job_manager) ──
-@router.post("/schedule/claim", dependencies=[Depends(require_operator)])
+@router.post("/schedule/claim", dependencies=[Depends(require_operator), Depends(_worker_on)])
 def schedule_claim(body: dict[str, Any], request: Request,
                    ctx: dict[str, Any] = Depends(require_operator)):
     from core import job_manager
@@ -226,7 +234,7 @@ def schedule_claim(body: dict[str, Any], request: Request,
     return from_request(request, res, resource="engineering", resource_id=str(res.get("item") or ""))
 
 
-@router.post("/schedule/lease/{item_id}/renew", dependencies=[Depends(require_operator)])
+@router.post("/schedule/lease/{item_id}/renew", dependencies=[Depends(require_operator), Depends(_worker_on)])
 def schedule_lease_renew(item_id: str, body: dict[str, Any], request: Request,
                          ctx: dict[str, Any] = Depends(require_operator)):
     from core import job_manager
@@ -236,7 +244,7 @@ def schedule_lease_renew(item_id: str, body: dict[str, Any], request: Request,
                         resource="engineering", resource_id=item_id)
 
 
-@router.post("/schedule/lease/{item_id}/release", dependencies=[Depends(require_operator)])
+@router.post("/schedule/lease/{item_id}/release", dependencies=[Depends(require_operator), Depends(_worker_on)])
 def schedule_lease_release(item_id: str, body: dict[str, Any], request: Request,
                            ctx: dict[str, Any] = Depends(require_operator)):
     from core import job_manager
@@ -247,7 +255,7 @@ def schedule_lease_release(item_id: str, body: dict[str, Any], request: Request,
                         resource="engineering", resource_id=item_id)
 
 
-@router.post("/schedule/recover", dependencies=[Depends(require_operator)])
+@router.post("/schedule/recover", dependencies=[Depends(require_operator), Depends(_worker_on)])
 def schedule_recover(body: dict[str, Any], request: Request,
                      ctx: dict[str, Any] = Depends(require_operator)):
     from core import job_manager
