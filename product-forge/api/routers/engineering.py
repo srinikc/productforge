@@ -124,6 +124,30 @@ def worker_unregister(worker_id: str, body: dict[str, Any], request: Request,
                         resource="worker_registry", resource_id=worker_id)
 
 
+# ── PFSSOT-P8 (BI-PF-0369): manual work pull (first e2e milestone) ──
+@router.post("/work", dependencies=[Depends(require_operator)])
+def work_pull(body: dict[str, Any], request: Request,
+              ctx: dict[str, Any] = Depends(require_operator)):
+    """Manual pull: claim the next eligible item for a worker and return the assignment package."""
+    from core import work_pull
+    s, p = _scope_project(str(body.get("scope") or "product_forge"), str(body.get("project") or ""))
+    res = work_pull.pull(s, p, worker_id=str(body.get("worker_id") or ctx.get("actor") or ""),
+                         runtime=str(body.get("runtime") or ""))
+    return from_request(request, res, resource="work",
+                        resource_id=str(((res.get("package") or {}).get("task") or {}).get("item_id") or ""))
+
+
+@router.post("/work/{item_id}/start", dependencies=[Depends(require_operator)])
+def work_start(item_id: str, body: dict[str, Any], request: Request,
+               ctx: dict[str, Any] = Depends(require_operator)):
+    """Invoke the assigned worker's adapter ``start`` for the claimed item."""
+    from core import work_pull
+    s, p = _scope_project(str(body.get("scope") or "product_forge"), str(body.get("project") or ""))
+    res = work_pull.start(s, p, item_id, worktree=str(body.get("worktree") or ""),
+                          command=body.get("command"))
+    return from_request(request, res, resource="work", resource_id=item_id)
+
+
 # ── PFSSOT-P7 (BI-PF-0368): runtime-neutral worker adapter contract ──
 @router.get("/adapters", dependencies=[Depends(authenticate)])
 def adapters(request: Request, ctx: dict[str, Any] = Depends(authenticate)):

@@ -105,6 +105,7 @@
 | [`PFSSOT-P4-ELIGIBILITY.md`](PFSSOT-P4-ELIGIBILITY.md) | Design | 100% | PFSSOT P4 scheduler eligibility over the canonical backlog (analysis gate + deps + contention + capability), read-only | — | — |
 | [`PFSSOT-P5-CLAIM-LEASE.md`](PFSSOT-P5-CLAIM-LEASE.md) | Design | 100% | PFSSOT P5 atomic claim + lease + expiry recovery (single claimer; fixes IS-PF-0034) | — | — |
 | [`PFSSOT-P6-WORKER-REGISTRY.md`](PFSSOT-P6-WORKER-REGISTRY.md) | Design | 100% | PFSSOT P6 minimal worker registry + heartbeat + lifecycle (runtime-neutral; feeds scheduler slots) | — | — |
+| [`PFSSOT-P7-ADAPTERS.md`](PFSSOT-P7-ADAPTERS.md) | Design | 100% | PFSSOT P7 runtime-neutral worker adapter contract (doc section 18 verbs; OpenCode first, native declared) | — | — |
 | [`PIPELINE-COMPOSITION-DESIGN.md`](PIPELINE-COMPOSITION-DESIGN.md) | Design | 100% | Capability-gated pipeline composition (BI-0213) | — | — |
 | [`PIPELINE-OPERATIONS.md`](PIPELINE-OPERATIONS.md) | Implemented | 100% | Operations: run modes, control, state, status | — | — |
 | [`PIPELINE-RESUME-ProductForge-Dashboard.md`](PIPELINE-RESUME-ProductForge-Dashboard.md) | Adopted (reference) | 50% | Old resume notes for a project | Partial - resume notes reused. | — |
