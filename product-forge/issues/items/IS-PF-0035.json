@@ -9,7 +9,7 @@
   "priority": "P2",
   "severity": "medium",
   "module": "core/enhance.py",
-  "status": "open",
+  "status": "closed",
   "rcca": {
     "root_cause": "core/enhance.py constructs a PipelineExecutor and calls execute_pipeline() without first going through job_manager/run_entry; it relies only on the executor's run-lock guard. Direct CLI scripts/run_pipeline.py likewise executes without a pre-existing JobManager job.",
     "five_why": [
@@ -19,9 +19,13 @@
       "4. Why does it matter? The scheduler must own submission; unmetered paths break claim/lease semantics.",
       "5. Why now? P8A gate requires no normal execution path bypasses JobManager."
     ],
-    "corrective": "Route enhance through core.run_entry.enqueue (submit) and let the queued worker invoke the executor; if enhance must run inline, require an explicit operator flag and record a job.",
-    "preventive": "Gate: grep/audit core/ for direct execute_pipeline()/PipelineExecutor construction outside the job_manager worker and the guard.",
-    "status": "open"
+    "corrective": "core/enhance.py apply_and_run now submits via core.run_entry.enqueue instead of calling PipelineExecutor.execute_pipeline() directly; the queue/worker invokes the executor.",
+    "preventive": "scripts/dev/single_path_check.py fails on any NEW direct execute_pipeline() outside the allowlist; also asserts core does not import the optional worker layer.",
+    "status": "open",
+    "fixed_where": "core/enhance.py, scripts/dev/single_path_check.py",
+    "generalized": true,
+    "guideline_ref": "docs/PFSSOT-P8A-SINGLE-PATH.md",
+    "product_ref": ""
   },
   "backlog_ref": "BI-PF-0370",
   "source": "engineering-review",
@@ -34,5 +38,6 @@
     "backlog": "BI-PF-0370"
   },
   "created_at": "2026-10-02T22:08:04.207893",
-  "updated_at": "2026-10-02T22:08:04.222135"
+  "updated_at": "2026-10-05T13:53:23.360054",
+  "note": "fixed in P8A (4b46edf)"
 }
