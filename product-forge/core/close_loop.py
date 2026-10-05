@@ -26,11 +26,11 @@ except ImportError:  # executed as a script: seed the repo root on sys.path, the
             break
     from core.paths import ROOT as _PF_ROOT
 
+import contextlib
 import glob
 import json
 import os
 from datetime import datetime
-from typing import Dict, List, Optional
 
 REPO = str(_PF_ROOT)
 _POLICY = os.path.join(REPO, "config", "verification-policy.json")
@@ -52,10 +52,10 @@ _DEFAULT_POLICY = {
 }
 
 
-def policy() -> Dict:
+def policy() -> dict:
     p = json.loads(json.dumps(_DEFAULT_POLICY))
     try:
-        with open(_POLICY, "r", encoding="utf-8-sig") as f:
+        with open(_POLICY, encoding="utf-8-sig") as f:
             data = json.load(f)
         for k in ("scopes", "reports"):
             if isinstance(data.get(k), dict):
@@ -67,7 +67,7 @@ def policy() -> Dict:
 
 def _rj(p: str, d):
     try:
-        with open(p, "r", encoding="utf-8-sig") as f:
+        with open(p, encoding="utf-8-sig") as f:
             return json.load(f)
     except Exception:
         return d
@@ -146,10 +146,10 @@ _EVIDENCE = {
 }
 
 
-def collect_reports(project_dir: str) -> Dict[str, str]:
+def collect_reports(project_dir: str) -> dict[str, str]:
     """Absolute paths of the final + QA + related reports (for the intake item)."""
     pol = policy()["reports"]
-    out: Dict[str, str] = {}
+    out: dict[str, str] = {}
     proj = os.path.basename(project_dir)
     for key in ("final", "execution", "qa", "quality"):
         p = os.path.join(project_dir, pol.get(key, ""))
@@ -168,13 +168,13 @@ def collect_reports(project_dir: str) -> Dict[str, str]:
     return out
 
 
-def verify_run(project_dir: str, scope: str = "", run_id: str = "") -> Dict:
+def verify_run(project_dir: str, scope: str = "", run_id: str = "") -> dict:
     """Decide verified/not for a completed run (scope-aware). No side effects."""
     pol = policy()
     sc = (scope or "entire").lower()
     require = (pol["scopes"].get(sc) or pol["scopes"].get("entire") or {}).get("require") or []
-    evidence: Dict[str, bool] = {}
-    reasons: List[str] = []
+    evidence: dict[str, bool] = {}
+    reasons: list[str] = []
     for req in require:
         fn = _EVIDENCE.get(req)
         if req == "compliance_passed":
@@ -190,7 +190,7 @@ def verify_run(project_dir: str, scope: str = "", run_id: str = "") -> Dict:
             "reports": collect_reports(project_dir)}
 
 
-def _scope_for(project_dir: str, item_ids: List[str]) -> str:
+def _scope_for(project_dir: str, item_ids: list[str]) -> str:
     """The item's pipeline scope (from intake/backlog), default 'entire'."""
     from core import intake_channels as ic
     products = os.path.dirname(os.path.abspath(project_dir))
@@ -201,8 +201,44 @@ def _scope_for(project_dir: str, item_ids: List[str]) -> str:
     return "entire"
 
 
+def _finalize(project_dir: str, scope: str, project, item_id: str, run_id: str, proj: str) -> dict:
+    """PFSSOT-P8A.1 (BI-PF-0381): write delivery provenance + run-bound evidence onto the item.
+
+    Reuses ``backlog.set_delivery`` (writes ``links.delivery``) + ``github.build_evidence`` + git for the
+    branch/commits/merge SHA. One writer per store; no new store.
+    """
+    import subprocess
+
+    from core import backlog, github
+    branch = commits = merge_sha = ""
+    try:
+        branch = subprocess.run(["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=project_dir,
+                                capture_output=True, text=True).stdout.strip()
+        merge_sha = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=project_dir,
+                                   capture_output=True, text=True).stdout.strip()
+        commits = [c for c in subprocess.run(["git", "log", "--format=%h", "-5"], cwd=project_dir,
+                                             capture_output=True, text=True).stdout.split() if c]
+    except Exception:
+        pass
+    ev = {}
+    try:
+        ev = github.build_evidence(proj, project_dir, run_id=run_id, head_sha=merge_sha,
+                                   backlog_ref=item_id)
+    except Exception:
+        ev = {}
+    # write under links.delivery (canonical) + links.evidence (run-bound)
+    backlog.set_delivery(scope, project, item_id, branch=branch, merge_sha=merge_sha,
+                         commits=commits, note=f"auto-finalized by run {run_id}")
+    with contextlib.suppress(Exception):
+        backlog.link(scope, project, item_id, evidence={
+            "run_id": run_id, "commit_sha": merge_sha,
+            "pr": (ev or {}).get("pr") or "", "checks": list((ev or {}).get("checks") or []),
+            "at": datetime.now().isoformat()})
+    return {"item": item_id, "branch": branch, "merge_sha": merge_sha, "commits": commits}
+
+
 def verify_and_close(project_dir: str, run_id: str = "",
-                     item_ids: Optional[List[str]] = None) -> Dict:
+                     item_ids: list[str] | None = None) -> dict:
     """Verify a finished run and, if verified, close its backlog + intake items."""
     ids = [i.strip() for i in (item_ids or []) if str(i).strip()]
     scope = _scope_for(project_dir, ids)
@@ -226,7 +262,7 @@ def verify_and_close(project_dir: str, run_id: str = "",
     from core import backlog
     products = os.path.dirname(os.path.abspath(project_dir))
     proj = os.path.basename(project_dir)
-    links = {"run_id": run_id, **{k: v for k, v in res["reports"].items()}}
+    links = {"run_id": run_id, **dict(res["reports"])}
 
     for bid in ids:
         try:
@@ -238,6 +274,11 @@ def verify_and_close(project_dir: str, run_id: str = "",
                                    note=f"auto: verified by run {run_id}")
                 backlog.set_status(bscope, bproj, bid, "closed",
                                    note=f"auto closed by run {run_id} (verified)")
+                # PFSSOT-P8A.1 (BI-PF-0381): auto write-back delivery + evidence provenance.
+                try:
+                    _finalize(project_dir, bscope, bproj, bid, run_id, proj)
+                except Exception as _e:
+                    res.setdefault("finalize_errors", []).append(f"{bid}: {type(_e).__name__}")
                 res["closed_backlog"].append(bid)
                 try:
                     from core import intake_channels as ic
@@ -249,11 +290,9 @@ def verify_and_close(project_dir: str, run_id: str = "",
                 except Exception:
                     pass
             else:
-                try:
+                with contextlib.suppress(Exception):
                     backlog.set_status(bscope, bproj, bid, "blocked",
                                        note=f"verify failed: {', '.join(res['reasons'])[:120]}")
-                except Exception:
-                    pass
         except Exception as e:
             res.setdefault("errors", []).append(f"{bid}: {e}")
 
@@ -267,10 +306,11 @@ def verify_and_close(project_dir: str, run_id: str = "",
     return res
 
 
-def force_close(project_dir: str, item_ids: List[str], by: str = "operator",
-                note: str = "") -> Dict:
+def force_close(project_dir: str, item_ids: list[str], by: str = "operator",
+                note: str = "") -> dict:
     """Audited manual close when automation cannot decide."""
-    from core import backlog, intake_channels as ic
+    from core import backlog
+    from core import intake_channels as ic
     proj = os.path.basename(project_dir)
     products = os.path.dirname(os.path.abspath(project_dir))
     out = {"force_closed": [], "intake": []}
