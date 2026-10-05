@@ -18,9 +18,12 @@ it does **not** add a separate `analyze()` engine or store.
 
 ## Analysis at grooming time (default)
 
-- **On entry:** `backlog.add_epic` runs `grooming.groom(..., depth=deep)` when `analyze_mode="on_entry"`
-  (default), **after** the item is saved (best-effort; never blocks create). The item arrives
-  **scheduler-ready** with its architecture/design plan in `analysis{}`.
+- **On entry:** `backlog.add_epic` runs `grooming.groom(..., mode="deterministic", depth=deep)` when
+  `analyze_mode="on_entry"` (default), **after** the item is saved (best-effort; never blocks create).
+  Automated entry uses the **deterministic** deep scan (fast/offline-safe): an automatic create must never
+  block on a live model. **AI grooming is the default only for the explicit/interactive call**
+  (`/pf groom`, `POST /backlog/items/{id}/groom`). The item still arrives **scheduler-ready** with its
+  architecture/design plan in `analysis{}`.
 - **`analyze_mode="defer"`:** skips; analysis runs before pickup.
 - **Stale-triggered:** a requirement/architecture change marks the analysis `STALE` (P1) → re-groomed before assignment.
 - **Cost model:** the deep analysis is paid **once, at entry** — **not** re-run at pickup (unless `STALE`).

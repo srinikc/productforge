@@ -547,12 +547,14 @@ def add_epic(scope: str, project: str | None, title: str, body: str = "",
         _unlock(lp)
     # PFSSOT-P3 (BI-PF-0364): deep analysis at grooming time, by default, so the item is scheduler-ready.
     # Runs AFTER the lock is released (it re-writes analysis via this module). Best-effort: never blocks create.
+    # AUTOMATIC entry uses DETERMINISTIC deep analysis (fast, offline-safe); AI grooming is the default only
+    # for the explicit/interactive groom call (`/pf groom`, POST /groom) - an automated create must never
+    # block on a live model. (Follow-up: raise a background AI groom where a worker pool exists.)
     if created.get("analyze_mode", "on_entry") == "on_entry":
-        try:
+        with contextlib.suppress(Exception):
             from core import grooming
-            grooming.groom(scope, project, created["id"], depth=grooming.guidelines().get("default_depth", "deep"))
-        except Exception:
-            pass
+            grooming.groom(scope, project, created["id"], mode="deterministic",
+                           depth=grooming.guidelines().get("default_depth", "deep"))
     return created
 
 
