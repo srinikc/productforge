@@ -90,6 +90,7 @@ TOP = {
     "PFSSOT-P7-ADAPTERS.md": ("Design", "PFSSOT P7 runtime-neutral worker adapter contract (doc section 18 verbs; OpenCode first, native declared)", 100),
     "PFSSOT-P8-WORK-PULL.md": ("Design", "PFSSOT P8 manual work pull: compose registry+eligibility+claim+adapter, return assignment package (first e2e)", 100),
     "PFSSOT-P8A-SINGLE-PATH.md": ("Design", "PFSSOT P8A single submission path (fixes IS-PF-0035) + optional/removable worker layer (WORKER_INTEGRATION_ENABLED)", 100),
+    "PFSSOT-P8A1-DELIVERY-WRITEBACK.md": ("Design", "PFSSOT P8A.1 auto delivery + evidence write-back on verified completion (close_loop finalize)", 100),
     "PF-Backlog-SSOT-Scheduler-Pluggable-Workers-updated.md": ("Design", "Backlog SSOT + pluggable worker scheduler architecture (source doc; epic BI-PF-0360)", 0),
     "SESSION-RESUME-MASTER-PLAN.md": ("Analysis (current)", "Session hand-off notes to resume master-plan execution", 100),
     "design-plan-BI0218.md": ("Design", "AI-era operations layer (evals/versioning/feedback) design - parked (BI-0218)", 0),
