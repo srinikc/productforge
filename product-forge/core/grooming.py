@@ -218,8 +218,9 @@ def _ai_enabled() -> bool:
         v = env_flags.get("PF_GROOMING_AI", None)
     except Exception:
         v = _os.environ.get("PF_GROOMING_AI")
-    if v is not None:
-        return str(v).lower() not in ("0", "false", "no", "off")
+    v = str(v).strip() if v is not None else ""
+    if v:  # an explicit non-empty value wins
+        return v.lower() not in ("0", "false", "no", "off")
     offline = str(_os.environ.get("PF_OFFLINE", "")).lower() in ("1", "true", "yes")
     return not (offline or _os.environ.get("CI"))
 
