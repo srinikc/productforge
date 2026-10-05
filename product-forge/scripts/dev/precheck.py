@@ -83,44 +83,66 @@ def _scoped_tests(scope_csv: str = "") -> list[str]:
     return sorted(f"{_TEST_DIR}/{t}" for t in picked)
 
 
+def _changed_paths():
+    return [c.replace("\\", "/") for c in _changed_files()]
+
+
+# Each gate: (name, cmd, tier, area)  tier in {"fast","deep"}; area = list of path substrings OR None
+# (None = always run in its tier). Fast tier = per-change/per-phase; deep tier = merge/CI (`--full`).
+_GATES = [
+    ("compile", ["-m", "compileall", "-q", "core", "scripts", "dashboard", "api"], "fast", None),
+    ("wired-audit", ["scripts/dev/wired_audit.py"], "fast", None),
+    ("store-contract", ["scripts/dev/store_check.py"], "fast", None),
+    ("lint", ["scripts/dev/lint_check.py"], "fast", None),
+    ("secret-scan", ["scripts/dev/secret_scan.py"], "fast", None),
+    ("workflow-matrix", ["scripts/dev/workflow_matrix_check.py"], "fast", None),
+    ("api-contract", ["scripts/dev/api_contract_check.py"], "fast", ["api/"]),
+    ("api-governance", ["scripts/dev/api_governance_check.py"], "fast", ["api/"]),
+    ("api-docs-regen", ["scripts/dev/api_docs_check.py", "--write"], "fast", ["api/"]),
+    ("api-docs", ["scripts/dev/api_docs_check.py"], "fast", ["api/"]),
+    ("engineering-flow", ["scripts/dev/engineering_flow_check.py"], "fast", ["config/engineering-flow.json"]),
+    ("task-contract", ["scripts/dev/task_contract_check.py"], "fast", ["task_contract", "core/task"]),
+    ("scheduler", ["scripts/dev/scheduler_check.py"], "fast", ["scheduler"]),
+    ("lease", ["scripts/dev/lease_check.py"], "fast", ["job_manager", "lease"]),
+    ("worker-registry", ["scripts/dev/worker_registry_check.py"], "fast", ["worker_registry"]),
+    ("adapters", ["scripts/dev/adapters_check.py"], "fast", ["worker_adapters"]),
+    ("work-pull", ["scripts/dev/work_pull_check.py"], "fast", ["work_pull"]),
+    ("single-path", ["scripts/dev/single_path_check.py"], "fast", ["enhance", "worker", "work_pull", "dispatcher"]),
+    ("dispatcher", ["scripts/dev/dispatcher_check.py"], "fast", ["dispatcher"]),
+    ("vcs-worktree", ["scripts/dev/vcs_worktree_check.py"], "fast", ["vcs"]),
+    ("worker", ["scripts/dev/worker_check.py"], "fast", ["core/worker"]),
+    ("reservations", ["scripts/dev/reservations_check.py"], "fast", ["reservations", "shared-paths"]),
+    ("packaging", ["scripts/dev/packaging_check.py"], "fast", ["packaging"]),
+    ("grooming", ["scripts/dev/grooming_check.py"], "fast", ["grooming"]),
+    ("github", ["scripts/dev/github_check.py"], "fast", ["github"]),
+    ("intent-trace", ["scripts/dev/intent_trace_check.py"], "fast", None),
+    ("docs-fresh", ["scripts/dev/check_docs_fresh.py"], "fast", None),
+    # deep tier - real validation/lifecycle work; merge/CI only
+    ("validation-engine", ["scripts/dev/validation_engine_check.py"], "deep", None),
+    ("feature-pr", ["scripts/dev/feature_pr_check.py"], "deep", None),
+    ("merge-gate", ["scripts/dev/merge_gate_check.py"], "deep", None),
+    ("dogfood", ["scripts/dev/dogfood_check.py"], "deep", None),
+    ("release", ["scripts/dev/release_check.py"], "deep", None),
+    ("final-audit", ["scripts/dev/final_audit_check.py"], "deep", None),
+    ("backlog-e2e", ["scripts/dev/e2e_backlog_check.py"], "deep", None),
+]
+
+
+def _area_touched(area, changed):
+    if not area:
+        return True
+    return any(any(a in c for a in area) for c in changed)
+
+
 def _steps(full: bool, scope_csv: str):
-    steps = [
-        ("compile", [sys.executable, "-m", "compileall", "-q", "core", "scripts", "dashboard", "api"]),
-        ("wired-audit", [sys.executable, "scripts/dev/wired_audit.py"]),
-        ("workflow-matrix", [sys.executable, "scripts/dev/workflow_matrix_check.py"]),
-        ("api-contract", [sys.executable, "scripts/dev/api_contract_check.py"]),
-        ("api-governance", [sys.executable, "scripts/dev/api_governance_check.py"]),
-        # keep generated API docs in lockstep with the API surface, then verify freshness
-        ("api-docs-regen", [sys.executable, "scripts/dev/api_docs_check.py", "--write"]),
-        ("api-docs", [sys.executable, "scripts/dev/api_docs_check.py"]),
-        ("engineering-flow", [sys.executable, "scripts/dev/engineering_flow_check.py"]),
-        ("task-contract", [sys.executable, "scripts/dev/task_contract_check.py"]),
-        ("scheduler", [sys.executable, "scripts/dev/scheduler_check.py"]),
-        ("lease", [sys.executable, "scripts/dev/lease_check.py"]),
-        ("worker-registry", [sys.executable, "scripts/dev/worker_registry_check.py"]),
-        ("adapters", [sys.executable, "scripts/dev/adapters_check.py"]),
-        ("work-pull", [sys.executable, "scripts/dev/work_pull_check.py"]),
-        ("single-path", [sys.executable, "scripts/dev/single_path_check.py"]),
-        ("dispatcher", [sys.executable, "scripts/dev/dispatcher_check.py"]),
-        ("vcs-worktree", [sys.executable, "scripts/dev/vcs_worktree_check.py"]),
-        ("worker", [sys.executable, "scripts/dev/worker_check.py"]),
-        ("validation-engine", [sys.executable, "scripts/dev/validation_engine_check.py"]),
-        ("feature-pr", [sys.executable, "scripts/dev/feature_pr_check.py"]),
-        ("reservations", [sys.executable, "scripts/dev/reservations_check.py"]),
-        ("merge-gate", [sys.executable, "scripts/dev/merge_gate_check.py"]),
-        ("dogfood", [sys.executable, "scripts/dev/dogfood_check.py"]),
-        ("release", [sys.executable, "scripts/dev/release_check.py"]),
-        ("packaging", [sys.executable, "scripts/dev/packaging_check.py"]),
-        ("grooming", [sys.executable, "scripts/dev/grooming_check.py"]),
-        ("final-audit", [sys.executable, "scripts/dev/final_audit_check.py"]),
-        ("github", [sys.executable, "scripts/dev/github_check.py"]),
-        ("store-contract", [sys.executable, "scripts/dev/store_check.py"]),
-        ("lint", [sys.executable, "scripts/dev/lint_check.py"]),
-        ("intent-trace", [sys.executable, "scripts/dev/intent_trace_check.py"]),
-        ("backlog-e2e", [sys.executable, "scripts/dev/e2e_backlog_check.py"]),
-        ("docs-fresh", [sys.executable, "scripts/dev/check_docs_fresh.py"]),
-        ("secret-scan", [sys.executable, "scripts/dev/secret_scan.py"]),
-    ]
+    changed = _changed_paths()
+    steps = []
+    for name, cmd, tier, area in _GATES:
+        if tier == "deep" and not full:
+            continue  # heavy validation/lifecycle gates -> merge/CI (--full)
+        if tier == "fast" and not _area_touched(area, changed) and not full:
+            continue  # skip unrelated area gates in the fast tier
+        steps.append((name, [sys.executable, *cmd]))
     if full:
         steps.append(("pipeline-tests-full",
                       [sys.executable, "-m", "pytest", _TEST_DIR, "-q", "-o", "addopts="]))
@@ -143,23 +165,34 @@ def main(argv=None) -> int:
             scope_csv = argv[i + 1]
         elif a.startswith("--scope="):
             scope_csv = a.split("=", 1)[1]
+    tier = "full" if full else "fast"
+    print(f"[precheck] tier={tier} (fast = core+area gates+scoped tests; --full = +validation/lifecycle + full suite)")
     if not full:
         tests = _scoped_tests(scope_csv)
         print(f"[precheck] changed-scoped tests: {len(tests)} file(s) "
               f"(use --full for the complete suite)" if tests else
               "[precheck] no scope match -> running full test suite")
+    import time as _time
     rc = 0
+    timings = []
+    t_all = _time.time()
     for name, cmd in _steps(full, scope_csv):
         print(f"\n=== precheck: {name} ===", flush=True)
+        t0 = _time.time()
         try:
             r = subprocess.run(cmd, cwd=_ROOT)
         except FileNotFoundError as e:
             print(f"[SKIP] {name}: {e}")
             continue
+        dt = _time.time() - t0
+        timings.append((name, dt, r.returncode))
         if r.returncode != 0:
-            print(f"[FAIL] {name} (exit {r.returncode})")
+            print(f"[FAIL] {name} (exit {r.returncode}, {dt:.1f}s)")
             rc = 1
-    print("\nprecheck:", "PASS" if rc == 0 else "FAIL")
+    total = _time.time() - t_all
+    print(f"\nprecheck: {'PASS' if rc == 0 else 'FAIL'} (tier={tier}, {total:.1f}s, {len(timings)} gates)")
+    slow = sorted(timings, key=lambda x: -x[1])[:5]
+    print("[precheck] slowest: " + ", ".join(f"{n}={d:.1f}s" for n, d, _ in slow))
     return rc
 
 

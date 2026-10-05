@@ -40,8 +40,8 @@ def test_core_does_not_import_worker_layer():
     root = Path(__file__).parent.parent.parent.parent
     offenders = []
     for f in (root / "core").glob("*.py"):
-        if f.name in ("worker_registry.py", "worker_adapters.py", "work_pull.py"):
-            continue
+        if f.name in ("worker_registry.py", "worker_adapters.py", "work_pull.py", "dispatcher.py"):
+            continue  # these ARE the optional worker layer
         text = f.read_text(encoding="utf-8", errors="ignore")
         for mod in ("worker_registry", "worker_adapters", "work_pull"):
             if f"import {mod}" in text or f"core.{mod}" in text:
