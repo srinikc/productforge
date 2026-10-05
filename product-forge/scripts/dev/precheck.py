@@ -101,6 +101,7 @@ def _steps(full: bool, scope_csv: str):
         ("adapters", [sys.executable, "scripts/dev/adapters_check.py"]),
         ("work-pull", [sys.executable, "scripts/dev/work_pull_check.py"]),
         ("single-path", [sys.executable, "scripts/dev/single_path_check.py"]),
+        ("dispatcher", [sys.executable, "scripts/dev/dispatcher_check.py"]),
         ("vcs-worktree", [sys.executable, "scripts/dev/vcs_worktree_check.py"]),
         ("worker", [sys.executable, "scripts/dev/worker_check.py"]),
         ("validation-engine", [sys.executable, "scripts/dev/validation_engine_check.py"]),

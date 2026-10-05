@@ -3,7 +3,7 @@
 1. SINGLE SUBMISSION PATH: only sanctioned entries construct PipelineExecutor and run it. Any NEW direct
    ``PipelineExecutor(...).execute_pipeline()`` outside the allowlist is a bypass (fail-closed for NEW).
 2. PLUGGABLE: core (pipeline/agents/executor) must not import the worker layer (worker_registry,
-   worker_adapters, work_pull, claim_next); with WORKER_INTEGRATION_ENABLED=0 the worker paths refuse and
+   worker_adapters, work_pull, dispatcher, claim_next); with WORKER_INTEGRATION_ENABLED=0 the worker paths refuse and
    PF still runs. (doc §22/§43; BI-PF-0382/P8A)
 
 Baseline-aware: pre-existing direct-executor call sites are allowlisted; NEW offenders fail.
@@ -69,8 +69,8 @@ def main() -> int:
     for rel in _iter_py("core"):
         rel_norm = rel.replace("\\", "/")
         if rel_norm.startswith("core/worker_registry") or rel_norm.startswith("core/worker_adapters") \
-                or rel_norm.startswith("core/work_pull"):
-            continue
+                or rel_norm.startswith("core/work_pull") or rel_norm.startswith("core/dispatcher"):
+            continue  # these ARE the optional worker layer
         try:
             with open(os.path.join(_ROOT, rel), encoding="utf-8", errors="ignore") as f:
                 text = f.read()

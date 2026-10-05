@@ -156,6 +156,24 @@ def work_start(item_id: str, body: dict[str, Any], request: Request,
     return from_request(request, res, resource="work", resource_id=item_id)
 
 
+# ── PFSSOT-P9 (BI-PF-0371): automatic dispatch (configurable; default off) ──
+@router.get("/dispatch/status", dependencies=[Depends(authenticate), Depends(_worker_on)])
+def dispatch_status(request: Request, ctx: dict[str, Any] = Depends(authenticate)):
+    from core import dispatcher
+    return from_request(request, dispatcher.status(), resource="dispatch")
+
+
+@router.post("/dispatch/tick", dependencies=[Depends(require_operator), Depends(_worker_on)])
+def dispatch_tick(body: dict[str, Any], request: Request,
+                  ctx: dict[str, Any] = Depends(require_operator)):
+    """Run ONE dispatch pass (operator tick; deterministic, testable)."""
+    from core import dispatcher
+    s, p = _scope_project(str(body.get("scope") or "product_forge"), str(body.get("project") or ""))
+    res = dispatcher.tick(s, p, force=bool(body.get("force") or False),
+                          max_assign=int(body.get("max_assign") or 0))
+    return from_request(request, res, resource="dispatch")
+
+
 # ── PFSSOT-P7 (BI-PF-0368): runtime-neutral worker adapter contract ──
 @router.get("/adapters", dependencies=[Depends(authenticate), Depends(_worker_on)])
 def adapters(request: Request, ctx: dict[str, Any] = Depends(authenticate)):
