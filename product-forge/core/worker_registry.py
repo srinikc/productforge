@@ -22,6 +22,20 @@ LIFECYCLE = ("REGISTERING", "ONLINE", "IDLE", "BUSY", "PAUSED", "DRAINING", "OFF
 _DEFAULT_STALE_SECONDS = 90
 
 
+def integration_enabled() -> bool:
+    """Runtime switch for the optional external-worker layer (P8A).
+
+    ``WORKER_INTEGRATION_ENABLED`` (default on). When off, the worker APIs/``work_pull`` refuse and PF
+    runs unchanged (core imports none of this layer). Build-time exclusion is a separate concern (BI-PF-0383).
+    """
+    try:
+        from core import env_flags
+        v = env_flags.get("WORKER_INTEGRATION_ENABLED", "1")
+    except Exception:
+        return True
+    return str(v).lower() not in ("0", "false", "no", "off")
+
+
 def _norm_scope(scope: str) -> str:
     return "product_forge" if str(scope) in ("portfolio", "product_forge") else "project"
 

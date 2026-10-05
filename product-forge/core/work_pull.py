@@ -77,6 +77,8 @@ def pull(scope: str = "product_forge", project: str | None = None, *, worker_id:
     ``{assigned, package|reason}``. Does NOT execute the work.
     """
     from core import job_manager, worker_adapters, worker_registry
+    if not worker_registry.integration_enabled():
+        return {"assigned": False, "reason": "worker integration disabled (WORKER_INTEGRATION_ENABLED=0)"}
     wid = str(worker_id or "")
     rt = str(runtime or "")
     reg = worker_registry.get(scope, project, wid) if wid else None
@@ -107,6 +109,8 @@ def start(scope: str, project: str | None, item_id: str, *, worktree: str = "",
           command: Any = None) -> dict[str, Any]:
     """Optionally invoke the assigned worker's adapter ``start`` (closes the loop e2e)."""
     from core import backlog, worker_adapters, worker_registry
+    if not worker_registry.integration_enabled():
+        return {"ok": False, "reason": "worker integration disabled"}
     it = backlog.get_epic(scope, project, item_id)
     if not it:
         return {"ok": False, "reason": "item not found"}
