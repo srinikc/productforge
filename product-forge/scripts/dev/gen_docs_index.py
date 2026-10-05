@@ -87,6 +87,7 @@ TOP = {
     "PFSSOT-P4-ELIGIBILITY.md": ("Design", "PFSSOT P4 scheduler eligibility over the canonical backlog (analysis gate + deps + contention + capability), read-only", 100),
     "PFSSOT-P5-CLAIM-LEASE.md": ("Design", "PFSSOT P5 atomic claim + lease + expiry recovery (single claimer; fixes IS-PF-0034)", 100),
     "PFSSOT-P6-WORKER-REGISTRY.md": ("Design", "PFSSOT P6 minimal worker registry + heartbeat + lifecycle (runtime-neutral; feeds scheduler slots)", 100),
+    "PFSSOT-P7-ADAPTERS.md": ("Design", "PFSSOT P7 runtime-neutral worker adapter contract (doc section 18 verbs; OpenCode first, native declared)", 100),
     "PF-Backlog-SSOT-Scheduler-Pluggable-Workers-updated.md": ("Design", "Backlog SSOT + pluggable worker scheduler architecture (source doc; epic BI-PF-0360)", 0),
     "SESSION-RESUME-MASTER-PLAN.md": ("Analysis (current)", "Session hand-off notes to resume master-plan execution", 100),
     "design-plan-BI0218.md": ("Design", "AI-era operations layer (evals/versioning/feedback) design - parked (BI-0218)", 0),

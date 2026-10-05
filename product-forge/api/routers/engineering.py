@@ -124,6 +124,48 @@ def worker_unregister(worker_id: str, body: dict[str, Any], request: Request,
                         resource="worker_registry", resource_id=worker_id)
 
 
+# ── PFSSOT-P7 (BI-PF-0368): runtime-neutral worker adapter contract ──
+@router.get("/adapters", dependencies=[Depends(authenticate)])
+def adapters(request: Request, ctx: dict[str, Any] = Depends(authenticate)):
+    from core import worker_adapters
+    return from_request(request, {"contract": worker_adapters.contract(),
+                                  "adapters": worker_adapters.list_adapters()},
+                        resource="worker_adapter")
+
+
+@router.post("/workers/{worker_id}/assign", dependencies=[Depends(require_operator)])
+def worker_assign(worker_id: str, body: dict[str, Any], request: Request,
+                  ctx: dict[str, Any] = Depends(require_operator)):
+    """Assign a claimed item to a worker through its adapter (accept_assignment)."""
+    from core import worker_adapters, worker_registry
+    s, p = _scope_project(str(body.get("scope") or "product_forge"), str(body.get("project") or ""))
+    w = worker_registry.get(s, p, worker_id)
+    if not w:
+        raise ApiError("NOT_FOUND", "unknown worker")
+    ad = worker_adapters.resolve(str(w.get("runtime") or ""))
+    if ad is None:
+        raise ApiError("VALIDATION_FAILED", "no adapter for runtime", details={"runtime": w.get("runtime")})
+    res = ad.accept_assignment(s, p, worker_id, str(body.get("assignment_id") or ""))
+    return from_request(request, {"adapter": ad.runtime, "result": res},
+                        resource="worker_adapter", resource_id=worker_id)
+
+
+@router.post("/workers/{worker_id}/report", dependencies=[Depends(require_operator)])
+def worker_report(worker_id: str, body: dict[str, Any], request: Request,
+                  ctx: dict[str, Any] = Depends(require_operator)):
+    from core import worker_adapters, worker_registry
+    s, p = _scope_project(str(body.get("scope") or "product_forge"), str(body.get("project") or ""))
+    w = worker_registry.get(s, p, worker_id)
+    if not w:
+        raise ApiError("NOT_FOUND", "unknown worker")
+    ad = worker_adapters.resolve(str(w.get("runtime") or ""))
+    if ad is None:
+        raise ApiError("VALIDATION_FAILED", "no adapter for runtime", details={"runtime": w.get("runtime")})
+    res = ad.report_result(s, p, worker_id, body.get("result") or {})
+    return from_request(request, {"adapter": ad.runtime, "result": res},
+                        resource="worker_adapter", resource_id=worker_id)
+
+
 @router.get("/schedule", dependencies=[Depends(authenticate)])
 def schedule(request: Request, scope: str = "product_forge", project: str = "",
              ctx: dict[str, Any] = Depends(authenticate)):
