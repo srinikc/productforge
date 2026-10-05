@@ -108,6 +108,7 @@
 | [`PFSSOT-P7-ADAPTERS.md`](PFSSOT-P7-ADAPTERS.md) | Design | 100% | PFSSOT P7 runtime-neutral worker adapter contract (doc section 18 verbs; OpenCode first, native declared) | — | — |
 | [`PFSSOT-P8-WORK-PULL.md`](PFSSOT-P8-WORK-PULL.md) | Design | 100% | PFSSOT P8 manual work pull: compose registry+eligibility+claim+adapter, return assignment package (first e2e) | — | — |
 | [`PFSSOT-P8A-SINGLE-PATH.md`](PFSSOT-P8A-SINGLE-PATH.md) | Design | 100% | PFSSOT P8A single submission path (fixes IS-PF-0035) + optional/removable worker layer (WORKER_INTEGRATION_ENABLED) | — | — |
+| [`PFSSOT-P8A1-DELIVERY-WRITEBACK.md`](PFSSOT-P8A1-DELIVERY-WRITEBACK.md) | Design | 100% | PFSSOT P8A.1 auto delivery + evidence write-back on verified completion (close_loop finalize) | — | — |
 | [`PIPELINE-COMPOSITION-DESIGN.md`](PIPELINE-COMPOSITION-DESIGN.md) | Design | 100% | Capability-gated pipeline composition (BI-0213) | — | — |
 | [`PIPELINE-OPERATIONS.md`](PIPELINE-OPERATIONS.md) | Implemented | 100% | Operations: run modes, control, state, status | — | — |
 | [`PIPELINE-RESUME-ProductForge-Dashboard.md`](PIPELINE-RESUME-ProductForge-Dashboard.md) | Adopted (reference) | 50% | Old resume notes for a project | Partial - resume notes reused. | — |
