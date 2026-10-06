@@ -158,7 +158,19 @@ design**:
 | `/pf work` assigned but nothing ran | pull ≠ execute; call `work_pull.start` / adapter `start` |
 | two sessions got same item | should not happen — lease + atomic claim prevent it |
 
-## 11. Non-goals
+## 11. Concurrency — one working tree per session (IS-PF-0036)
+
+**Never run two concurrent sessions in the same folder.** git `HEAD`/branch state is global to the working
+directory, so one session's checkout/commit races the other's — a commit can land on `develop` directly.
+Give each session its **own clone or `git worktree`**:
+
+```
+git worktree add ../pf-worker-1 develop     # separate working tree for a worker session
+```
+
+Each worker session then runs `/pf work` in its own tree; the architect session keeps its own.
+
+## 12. Non-goals
 
 - PF's own agents are **not** routed through the worker scheduler (native path).
 - The layer is **removable** — core imports none of it; disabling it leaves PF unaffected.
