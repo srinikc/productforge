@@ -58,6 +58,7 @@ TOP = {
     "ROLE-PROMPT-STANDARD.md": ("Implemented", "Standard for agent role-prompts + advisory audit (BI-0228)", 100),
     "PROVIDER-FALLBACK.md": ("Implemented", "Provider fallback policy: Zen free unusable; opencode-go/kctier (BI-PF-0247)", 100),
     "PR-WORKFLOW.md": ("Implemented", "Branch -> pre-check gates -> review -> merge (BI-0205)", 100),
+    "PF-TARGET-ARCHITECTURE-AND-IP-PLAN.md": ("Design", "Consolidated target-architecture + IP-protection plan for the PF platform (phases A0-A7/B1-B7; BI-PF-0386/0387/0388)", 10),
     "MASTER-0-CURRENT-STATE-TRUTH.md": ("Design", "MASTER-0 current-state architecture truth + discovery gate", 100),
     "API-0-DISCOVERY.md": ("Design", "API-0 API discovery: legacy surface, intake path, consumers, gaps", 100),
     "API-0.1-CONTRACT-RECONCILIATION.md": ("Design", "API-0.1 canonical contract: envelopes, errors, IDs, idempotency, versioning", 100),
