@@ -70,6 +70,20 @@ def coverage(request: Request, ctx: dict[str, Any] = Depends(authenticate)):
     return from_request(request, engineering_flow.coverage(), resource="engineering")
 
 
+# ── PIDL-1 (BI-PF-0376): personal-intelligence context resolver (read-only; orchestration, not worker) ──
+
+@router.get("/pidl/context", dependencies=[Depends(authenticate)])
+def pidl_context(request: Request, scope: str = "product_forge", project: str = "",
+                 area: str = "", components: str = "", action: str = "",
+                 ctx: dict[str, Any] = Depends(authenticate)):
+    """The relevant PIDL context subset for a decision point (rules/principles/preferences/lenses/policy)."""
+    from core import pidl
+    s, p = _scope_project(scope, project)
+    comps = [c.strip() for c in str(components or "").split(",") if c.strip()]
+    out = pidl.resolve_context(s, p, action=action, components=comps, area=area)
+    return from_request(request, out, resource="engineering")
+
+
 # ── ENG-2: worker pool + elastic schedule ───────────────────────────────────
 
 @router.get("/workers", dependencies=[Depends(authenticate), Depends(_worker_on)])
