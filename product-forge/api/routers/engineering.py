@@ -225,6 +225,18 @@ def schedule(request: Request, scope: str = "product_forge", project: str = "",
 
 
 # ── PFSSOT-P4 (BI-PF-0365): eligibility over the canonical backlog (read-only) ──
+@router.get("/schedule/status", dependencies=[Depends(authenticate)])
+def schedule_status(request: Request, scope: str = "product_forge", project: str = "",
+                    ctx: dict[str, Any] = Depends(authenticate)):
+    """Scheduler roll-up: eligibility counts + task-contract report (read-only)."""
+    from core import scheduler
+    s, p = _scope_project(scope, project)
+    eb = scheduler.eligible_backlog(s, p)
+    return from_request(request, {"eligible": eb["eligible"], "blocked": eb["blocked"],
+                                  "total": eb["total"], "report": scheduler.report(s, p)},
+                        resource="engineering")
+
+
 @router.get("/schedule/eligible", dependencies=[Depends(authenticate)])
 def schedule_eligible(request: Request, scope: str = "product_forge", project: str = "",
                       ctx: dict[str, Any] = Depends(authenticate)):
