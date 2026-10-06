@@ -160,6 +160,70 @@ async def pidl_consequential(request: Request, scope: str = "product_forge", pro
     return from_request(request, out, resource="engineering")
 
 
+@router.get("/pidl/decisions", dependencies=[Depends(authenticate)])
+def pidl_decisions(request: Request, scope: str = "", project: str = "", item_id: str = "",
+                   limit: int = 50, ctx: dict[str, Any] = Depends(authenticate)):
+    """Versioned PIDL decision trace (newest last)."""
+    from core import pidl
+    return from_request(request, {"decisions": pidl.history(scope=scope, project=project,
+                                                           item_id=item_id, limit=limit)},
+                        resource="engineering")
+
+
+@router.get("/pidl/decisions/{decision_id}", dependencies=[Depends(authenticate)])
+def pidl_decision(decision_id: str, request: Request, ctx: dict[str, Any] = Depends(authenticate)):
+    """A single PIDL decision record (evidence/confidence/risk/approval/outcome)."""
+    from core import pidl
+    d = pidl.get(decision_id)
+    if not d:
+        raise ApiError("NOT_FOUND", "pidl decision not found")
+    return from_request(request, d, resource="engineering", resource_id=decision_id)
+
+
+@router.get("/pidl/candidates", dependencies=[Depends(authenticate)])
+def pidl_candidates(request: Request, status: str = "proposed", ctx: dict[str, Any] = Depends(authenticate)):
+    """Evidence-gated learning candidates proposed from PIDL corrections (promote via learning_synth)."""
+    from core import pidl
+    return from_request(request, {"candidates": pidl.feedback_candidates(status=status)},
+                        resource="engineering")
+
+
+@router.get("/pidl/policy", dependencies=[Depends(authenticate)])
+def pidl_policy(request: Request, action: str = "", area: str = "", components: str = "",
+                ctx: dict[str, Any] = Depends(authenticate)):
+    """The centralized approval policy view for an action/area."""
+    from core import pidl
+    comps = [c.strip() for c in str(components or "").split(",") if c.strip()]
+    return from_request(request, pidl.approval_policy(action=action, area=area, components=comps),
+                        resource="engineering")
+
+
+@router.post("/pidl/decisions/{decision_id}/outcome", dependencies=[Depends(require_operator)])
+async def pidl_outcome(decision_id: str, request: Request, ctx: dict[str, Any] = Depends(require_operator)):
+    """Record an outcome/correction for a decision; corrections become candidates (never rules)."""
+    from core import pidl
+    with contextlib.suppress(Exception):
+        body = await request.json()
+    body = body if isinstance(body, dict) else {}
+    out = pidl.record_outcome(decision_id, outcome=str(body.get("outcome") or ""),
+                              corrections=body.get("corrections") or [],
+                              by=str((ctx or {}).get("subject") or "operator"))
+    return from_request(request, out, resource="engineering", resource_id=decision_id)
+
+
+@router.post("/pidl/approvals/{decision_id}", dependencies=[Depends(require_operator)])
+async def pidl_approve(decision_id: str, request: Request, ctx: dict[str, Any] = Depends(require_operator)):
+    """Authenticated approve/reject of a decision (recorded on the trace)."""
+    from core import pidl
+    with contextlib.suppress(Exception):
+        body = await request.json()
+    body = body if isinstance(body, dict) else {}
+    out = pidl.record_approval(decision_id, approved=bool(body.get("approved")),
+                               by=str((ctx or {}).get("subject") or "operator"),
+                               reason=str(body.get("reason") or ""))
+    return from_request(request, out, resource="engineering", resource_id=decision_id)
+
+
 # ── ENG-2: worker pool + elastic schedule ───────────────────────────────────
 
 @router.get("/workers", dependencies=[Depends(authenticate), Depends(_worker_on)])

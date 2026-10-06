@@ -11,14 +11,18 @@ profile index (``config/pidl-profile.json``). No new memory/identity store, no w
 
 The resolver is PURE and fail-open-to-empty: any unavailable source degrades to an empty list, never raises.
 """
+import contextlib
 import json
 import os
+from datetime import datetime
 from typing import Any
 
 from core.paths import ROOT
 
 PROFILE_FILE = "pidl-profile.json"
 _PROFILE_PATH = os.path.join(ROOT, "config", PROFILE_FILE)
+_APPROVAL_PATH = os.path.join(ROOT, "config", "approval-policy.json")
+_TRACE_DEFAULT = os.path.join(ROOT, "data", "pidl", "decisions.jsonl")
 
 
 def load_profile() -> dict[str, Any]:
@@ -215,7 +219,9 @@ def decide(scope: str = "product_forge", project: str | None = None, *,
 
     status = str((result or {}).get("status") or "").lower()
     ok = bool((result or {}).get("ok", True))
-    approval_required = bool(ctx["execution_policy"].get("approval_required"))
+    # PIDL-5: approval policy (config/approval-policy.json) augments the consequential signal
+    pol = approval_policy(action=action, area=area, components=components)
+    approval_required = bool(ctx["execution_policy"].get("approval_required")) or bool(pol.get("required"))
 
     if escalated or int(failures) >= escalate_failures:
         act, reason = "ESCALATE", f"repeated failures ({failures}) or explicit escalation"
@@ -237,7 +243,8 @@ def decide(scope: str = "product_forge", project: str | None = None, *,
         "recommendation": _NEXT_ACTION[act],
         "evidence": ctx.get("evidence", []),
         "conflicts": conf,
-        "approval": {"required": approval_required, "policy": ctx["execution_policy"]},
+        "approval": {"required": approval_required, "policy": ctx["execution_policy"],
+                     "approval_policy": pol.get("policy"), "approver": pol.get("approver")},
         "next_action": _NEXT_ACTION[act],
         "pidl_profile_version": ctx.get("profile_version"),
     }
@@ -345,6 +352,140 @@ def consequential_gate(scope: str = "product_forge", project: str | None = None,
     d["item_id"] = str(item_id or "")
     d["consequential"] = ctx["consequential"]
     return d
+
+
+# ── PIDL-5 (BI-PF-0380): approval policy + versioned trace + outcome/correction feedback ──
+def approval_policy(action: str = "", area: str = "", components: list[str] | None = None) -> dict[str, Any]:
+    """Centralized approval policy (config/approval-policy.json): does this action require approval?"""
+    try:
+        with open(_APPROVAL_PATH, encoding="utf-8-sig") as f:
+            cfg = json.load(f)
+    except Exception:
+        cfg = {}
+    default = cfg.get("default") or {"requires_approval": False, "approver": "operator",
+                                     "escalation_allowed": True}
+    hay = _text(action, area, *(components or []))
+    for r in (cfg.get("rules") or []):
+        m = r.get("match") or {}
+        kws = [str(k).lower() for k in (m.get("keywords") or [])]
+        ars = [str(a).lower() for a in (m.get("areas") or [])]
+        if (kws and any(k in hay for k in kws)) or (ars and any(a in hay for a in ars)):
+            return {"required": bool(r.get("requires_approval", True)),
+                    "policy": {"version": cfg.get("version"), "rule": r.get("id")},
+                    "approver": r.get("approver") or default.get("approver"),
+                    "escalation_allowed": bool(default.get("escalation_allowed", True))}
+    return {"required": bool(default.get("requires_approval", False)),
+            "policy": {"version": cfg.get("version"), "rule": ""},
+            "approver": default.get("approver"),
+            "escalation_allowed": bool(default.get("escalation_allowed", True))}
+
+
+def _trace_path(path: str | None = None) -> str:
+    return path or _TRACE_DEFAULT
+
+
+def _read_trace(path: str | None = None) -> list[dict[str, Any]]:
+    out: list[dict[str, Any]] = []
+    try:
+        with open(_trace_path(path), encoding="utf-8") as f:
+            for ln in f:
+                ln = ln.strip()
+                if ln:
+                    with contextlib.suppress(Exception):
+                        out.append(json.loads(ln))
+    except Exception:
+        pass
+    return out
+
+
+def _append_trace(rec: dict[str, Any], path: str | None = None) -> None:
+    p = _trace_path(path)
+    os.makedirs(os.path.dirname(p), exist_ok=True)
+    with open(p, "a", encoding="utf-8") as f:
+        f.write(json.dumps(rec, ensure_ascii=False) + "\n")
+
+
+def record_decision(decision: dict[str, Any], *, scope: str = "product_forge", project: str | None = None,
+                    item_id: str = "", task_revision: int = 0, outcome: str = "",
+                    path: str | None = None) -> dict[str, Any]:
+    """Append a versioned decision to the trace (single writer). Returns the recorded row."""
+    d = dict(decision or {})
+    iid = str(item_id or d.get("item_id") or "")
+    version = 1 + sum(1 for r in _read_trace(path) if str(r.get("item_id") or "") == iid) if iid else 1
+    rec = {
+        "decision_id": f"PIDL-{iid or 'G'}-{version:04d}",
+        "at": datetime.now().isoformat(),
+        "scope": scope, "project": project or "", "item_id": iid, "task_revision": int(task_revision or 0),
+        "worker_id": str(d.get("worker_id") or ""), "runtime": str(d.get("runtime") or ""),
+        "pidl_profile_version": d.get("pidl_profile_version"),
+        "decision": d.get("decision") or {}, "confidence": d.get("confidence") or {},
+        "risk": d.get("risk"), "evidence": d.get("evidence") or [],
+        "conflicts": d.get("conflicts") or [], "approval": d.get("approval") or {},
+        "next_action": d.get("next_action"), "run_id": str(d.get("run_id") or ""),
+        "decision_version": version, "outcome": outcome or "",
+    }
+    _append_trace(rec, path)
+    return rec
+
+
+def history(scope: str = "", project: str = "", item_id: str = "", limit: int = 50,
+            path: str | None = None) -> list[dict[str, Any]]:
+    """Read the decision trace (filtered). Newest last, capped at ``limit``."""
+    rows = [r for r in _read_trace(path)
+            if (not scope or r.get("scope") == scope)
+            and (not project or r.get("project") == project)
+            and (not item_id or r.get("item_id") == item_id)]
+    return rows[-int(limit or 50):]
+
+
+def get(decision_id: str, path: str | None = None) -> dict[str, Any] | None:
+    for r in _read_trace(path):
+        if r.get("decision_id") == decision_id:
+            return r
+    return None
+
+
+def latest(item_id: str, path: str | None = None) -> dict[str, Any] | None:
+    rows = [r for r in _read_trace(path) if r.get("item_id") == item_id and r.get("kind") != "outcome"]
+    return rows[-1] if rows else None
+
+
+def record_outcome(decision_id: str, outcome: str = "", corrections: list[str] | None = None,
+                   by: str = "", path: str | None = None) -> dict[str, Any]:
+    """Record an outcome/correction. Corrections become evidence-gated CANDIDATES (never rules)."""
+    corr = [str(c) for c in (corrections or []) if str(c).strip()]
+    proposed: list[str] = []
+    for c in corr:
+        try:
+            from core import learning_synth
+            r = learning_synth.add_candidate(c, source_ref=str(decision_id), rationale="PIDL correction feedback")
+            if r.get("ok"):
+                proposed.append(str((r.get("candidate") or {}).get("id") or ""))
+        except Exception:
+            pass
+    rec = {"decision_id": str(decision_id), "at": datetime.now().isoformat(), "kind": "outcome",
+           "outcome": str(outcome or ""), "corrections": corr, "by": str(by or ""),
+           "proposed_candidates": proposed}
+    _append_trace(rec, path)
+    return rec
+
+
+def record_approval(decision_id: str, approved: bool, by: str = "operator", reason: str = "",
+                    path: str | None = None) -> dict[str, Any]:
+    """Record an authenticated approve/reject against a decision (append-only)."""
+    rec = {"decision_id": str(decision_id), "at": datetime.now().isoformat(), "kind": "approval",
+           "approved": bool(approved), "by": str(by or ""), "reason": str(reason or "")}
+    _append_trace(rec, path)
+    return rec
+
+
+def feedback_candidates(status: str = "proposed") -> list[dict[str, Any]]:
+    """Learning candidates proposed from PIDL corrections (evidence-gated; promote via learning_synth)."""
+    try:
+        from core import learning_synth
+        return learning_synth.list_candidates(status=status)
+    except Exception:
+        return []
 
 
 def render_context(ctx: dict[str, Any], max_chars: int = 1200) -> str:

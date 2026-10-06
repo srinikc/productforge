@@ -39,7 +39,7 @@ if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
 VERBS = ("product", "backlog", "work", "scheduler", "worker", "adapters",
-         "dispatch", "dogfood", "validate", "release", "package", "audit", "status")
+         "dispatch", "dogfood", "validate", "release", "package", "audit", "status", "pidl")
 
 
 def _flags(argv):
@@ -177,6 +177,23 @@ def cmd_audit(pos, flags):
     return audit.summary()
 
 
+def cmd_pidl(pos, flags):
+    from core import pidl
+    s, p = _scope(flags)
+    sub = pos[0] if pos else "decisions"
+    if sub in ("show", "get") and len(pos) > 1:
+        return pidl.get(pos[1]) or {"error": "not found"}
+    if sub == "candidates":
+        return {"candidates": pidl.feedback_candidates(status=flags.get("status", "proposed"))}
+    if sub == "policy":
+        return pidl.approval_policy(action=flags.get("action", ""), area=flags.get("area", ""))
+    if sub == "latest" and len(pos) > 1:
+        return pidl.latest(pos[1]) or {"error": "no decision"}
+    return {"decisions": pidl.history(scope=s if s != "product_forge" else "",
+                                      project=p or "", item_id=flags.get("item", ""),
+                                      limit=int(flags.get("limit", 20)))}
+
+
 def cmd_status(pos, flags):
     from core import audit, dispatcher
     from core import worker_registry as wr
@@ -204,7 +221,7 @@ def main(argv=None) -> int:
     fn = {"backlog": cmd_backlog, "work": cmd_work, "scheduler": cmd_scheduler,
           "worker": cmd_worker, "adapters": cmd_adapters, "dispatch": cmd_dispatch,
           "dogfood": cmd_dogfood, "validate": cmd_validate, "release": cmd_release,
-          "package": cmd_package, "audit": cmd_audit, "status": cmd_status}[verb]
+          "package": cmd_package, "audit": cmd_audit, "status": cmd_status, "pidl": cmd_pidl}[verb]
     try:
         res = fn(pos, flags)
     except Exception as e:
