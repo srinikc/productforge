@@ -106,6 +106,12 @@ def pull(scope: str = "product_forge", project: str | None = None, *, worker_id:
         return {"assigned": False, "reason": "worker not registered (pass worker_id or runtime)"}
     rt = str(reg.get("runtime") or rt or "")
 
+    # BI-PF-0389: re-analyze stale items against the current architecture so pickup never executes a
+    # stale design (bounded, offline-safe; stale items are otherwise ineligible).
+    with contextlib.suppress(Exception):
+        from core import grooming
+        grooming.refresh_stale(scope, project, limit=5)
+
     # eligibility (P4) is consulted inside claim_next; atomic claim + lease (P5)
     claim = job_manager.claim_next(scope, project, worker=wid)
     if not claim.get("claimed"):

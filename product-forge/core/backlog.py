@@ -807,6 +807,7 @@ def set_analysis(scope: str, project: str | None, eid: str, *, status: str = "",
             a["analyzed_at"] = datetime.now().isoformat()
             a["analyzed_by"] = analyzed_by
             a["revision_analyzed"] = int(item.get("revision") or 0)
+            a["arch_fingerprint"] = arch_fingerprint()  # BI-PF-0389: version-aware analysis
     if architecture_fit:
         fit = str(architecture_fit).upper()
         if fit not in ARCHITECTURE_FIT:
@@ -879,6 +880,62 @@ def set_readiness(scope: str, project: str | None, eid: str, ready: bool,
     rd = {"ready": bool(ready), "reasons": [str(r) for r in (reasons or [])],
           "computed_at": datetime.now().isoformat()}
     return update(scope, project, eid, readiness=rd, _note="readiness computed")
+
+
+# ── BI-PF-0389: architecture-version-aware analysis (staleness revalidation) ──
+_DEFAULT_ARCH_SIGNIFICANT = (
+    "config/store-registry.json", "config/engineering-flow.json", "config/engineering-workers.json",
+    "config/env-flags.json", "config/grooming-guidelines.json", "config/pidl-profile.json",
+    "config/approval-policy.json", "config/model-tier.json",
+)
+
+
+def _arch_significant_paths() -> list[str]:
+    """Architecture-significant files (configurable via grooming-guidelines.arch_significant)."""
+    import glob
+    base = list(_DEFAULT_ARCH_SIGNIFICANT)
+    try:
+        from core import grooming
+        cfg = grooming.guidelines().get("arch_significant")
+        if isinstance(cfg, list) and cfg:
+            base = [str(p) for p in cfg]
+    except Exception:
+        pass
+    out: set[str] = set()
+    for p in base:
+        out.update(glob.glob(os.path.join(_REPO, p), recursive=True))
+    return sorted(out)
+
+
+def arch_fingerprint() -> str:
+    """Stable hash of architecture-significant files. A change => COMPLETE analyses become STALE."""
+    import hashlib
+    h = hashlib.sha256()
+    for p in _arch_significant_paths():
+        h.update(os.path.relpath(p, _REPO).replace("\\", "/").encode("utf-8"))
+        try:
+            with open(p, "rb") as f:
+                h.update(f.read())
+        except Exception:
+            h.update(b"?")
+    return h.hexdigest()[:16]
+
+
+def analysis_is_stale(item: dict[str, Any]) -> bool:
+    """True if a COMPLETE analysis was recorded against a different architecture fingerprint.
+
+    Legacy analyses without a fingerprint are NOT force-staled (backward compatible).
+    """
+    a = item.get("analysis") or {}
+    st = str(a.get("status"))
+    if st == "STALE":
+        return True
+    if st != "COMPLETE":
+        return False
+    rec = str(a.get("arch_fingerprint") or "")
+    if not rec:
+        return False
+    return rec != arch_fingerprint()
 
 
 def mark_stale(scope: str, project: str | None, eid: str, reason: str = "") -> dict | None:

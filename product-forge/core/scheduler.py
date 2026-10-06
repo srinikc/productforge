@@ -269,6 +269,13 @@ def eligible(item: dict[str, Any], *, by_id: dict[str, dict[str, Any]] | None = 
     a_status = str(an.get("status") or "NOT_ANALYZED")
     if a_status != "COMPLETE":
         reasons.append(f"analysis {a_status} (needs grooming)")
+    else:
+        # BI-PF-0389: revalidate a COMPLETE analysis against the current architecture fingerprint
+        try:
+            if backlog.analysis_is_stale(item):
+                reasons.append("analysis stale (architecture changed)")
+        except Exception:
+            pass
 
     # dependencies (structured first, then flat deps); unknown refs block (fail-closed)
     deps = [str(d.get("task_id")) if isinstance(d, dict) else str(d)
