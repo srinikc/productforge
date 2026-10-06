@@ -62,6 +62,7 @@ TOP = {
     "ARCHITECTURE-DECISIONS.md": ("Implemented", "Architecture Decision Register (ADR) - governance anchor for Epic A; ADR-0001 Go-first compiled delivery", 100),
     "PF-BASELINE.md": ("Implemented", "PF baseline freeze: develop SHA, test/gate baseline, doc reconciliation, frozen decisions (A0/BI-PF-0392)", 100),
     "WORKER-SCHEDULER-OPERATIONS.md": ("Implemented", "Worker/scheduler ops: register, manual pull (/pf work), auto-dispatch, eligibility, lease/recovery", 100),
+    "WORKERGRID-DESIGN.md": ("Design", "WorkerGrid: external producer-agnostic execution plane (ADR-0002); PF=producer/SSOT, executor split, shared service", 10),
     "MASTER-0-CURRENT-STATE-TRUTH.md": ("Design", "MASTER-0 current-state architecture truth + discovery gate", 100),
     "API-0-DISCOVERY.md": ("Design", "API-0 API discovery: legacy surface, intake path, consumers, gaps", 100),
     "API-0.1-CONTRACT-RECONCILIATION.md": ("Design", "API-0.1 canonical contract: envelopes, errors, IDs, idempotency, versioning", 100),
