@@ -54,6 +54,10 @@ Both must pass (0 unwired, 0 naming violations). The same audit runs in CI and i
   decision (`needs_dashboard` + reason); create a dashboard item only when needed, cross-link
   it reciprocally with `links.paired_with`, and rely on the advisory validator
   (`core/backlog.reciprocity_warnings()` via `wired_audit`, non-fatal).
+- **One working tree per session (IS-PF-0036):** never run two concurrent sessions in the **same**
+  folder — git `HEAD`/branch state is global to the working directory, so one session's checkout/commit
+  races the other's and a commit can land on `develop` directly. Give each session its **own clone or
+  `git worktree`**. This is how a worker session must be run (see `docs/WORKER-SCHEDULER-OPERATIONS.md`).
 
 ## Pre-implementation architecture review (mandatory)
 Before implementing **any** new design, flow, review recommendation, or external document:
