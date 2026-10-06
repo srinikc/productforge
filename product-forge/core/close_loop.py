@@ -300,6 +300,10 @@ def verify_and_close(project_dir: str, run_id: str = "",
                         "profile_version": _pd.get("pidl_profile_version"),
                         "gate_mode": _pd.get("gate_mode"), "run_id": run_id}})
                 res.setdefault("pidl", {})[bid] = pidl_action
+                # PIDL-5 (BI-PF-0380): record the versioned decision on the trace (explainability).
+                with contextlib.suppress(Exception):
+                    _pidl.record_decision(_pd, scope=bscope, project=bproj, item_id=bid,
+                                          outcome=pidl_action)
                 pidl_hold = _pidl.gate_mode() == "enforce" and pidl_action != "AUTO_PROCEED"
             except Exception:
                 pass

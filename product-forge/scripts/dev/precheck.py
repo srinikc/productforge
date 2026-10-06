@@ -124,6 +124,7 @@ _GATES = [
     ("pidl", ["scripts/dev/pidl_check.py"], "fast", ["pidl"]),
     ("pidl-gate", ["scripts/dev/pidl_gate_check.py"], "fast", ["pidl", "close_loop"]),
     ("pidl-synthesis", ["scripts/dev/pidl_synthesis_check.py"], "fast", ["pidl", "work_pull", "close_loop"]),
+    ("pidl-trace", ["scripts/dev/pidl_trace_check.py"], "fast", ["pidl", "close_loop", "learning"]),
     ("intent-trace", ["scripts/dev/intent_trace_check.py"], "fast", None),
     ("docs-fresh", ["scripts/dev/check_docs_fresh.py"], "fast", None),
     # deep tier - real validation/lifecycle work; merge/CI only

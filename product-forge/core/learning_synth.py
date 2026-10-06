@@ -13,9 +13,7 @@ promotion. See docs/LEARNING-PIPELINE-DESIGN.md.
 
 import json
 import os
-import re
 from datetime import datetime
-from typing import Dict, List, Optional
 
 try:
     from core.paths import ROOT as _ROOT
@@ -33,7 +31,7 @@ STORE = os.path.join(str(_ROOT), "data", "learning-candidates." + "json")
 KINDS = ("learning", "overlay", "skill", "knowledge")
 
 
-def _load() -> Dict:
+def _load() -> dict:
     try:
         with open(STORE, encoding="utf-8-sig") as f:
             return json.load(f) or {}
@@ -41,7 +39,7 @@ def _load() -> Dict:
         return {}
 
 
-def _save(data: Dict) -> None:
+def _save(data: dict) -> None:
     os.makedirs(os.path.dirname(STORE), exist_ok=True)
     tmp = STORE + ".tmp"
     with open(tmp, "w", encoding="utf-8") as f:
@@ -53,7 +51,7 @@ def _norm_scope(project: str) -> str:
     return f"project:{project}" if project else "area:"
 
 
-def list_candidates(status: str = "", scope: str = "") -> List[Dict]:
+def list_candidates(status: str = "", scope: str = "") -> list[dict]:
     out = []
     for c in (_load().get("candidates") or {}).values():
         if status and c.get("status") != status:
@@ -64,14 +62,14 @@ def list_candidates(status: str = "", scope: str = "") -> List[Dict]:
     return sorted(out, key=lambda c: c.get("proposed_at", ""))
 
 
-def get(cid: str) -> Optional[Dict]:
+def get(cid: str) -> dict | None:
     return (_load().get("candidates") or {}).get(cid)
 
 
 # ── evidence collection (all sources optional / guarded) ─────────────────────
-def collect_evidence(project_dir: str, project: str = "") -> List[Dict]:
+def collect_evidence(project_dir: str, project: str = "") -> list[dict]:
     """Gather evidence items from existing streams. Returns [{source, ref, text, severity}]."""
-    ev: List[Dict] = []
+    ev: list[dict] = []
     # closed RCCAs (issues)
     try:
         from core import issues as _iss
@@ -105,18 +103,18 @@ def collect_evidence(project_dir: str, project: str = "") -> List[Dict]:
     return ev
 
 
-def _rule_from_evidence(item: Dict) -> str:
+def _rule_from_evidence(item: dict) -> str:
     t = " ".join(str(item.get("text") or "").split())
     return t[:280]
 
 
-def propose(project_dir: str, project: str = "", scope: str = "") -> List[Dict]:
+def propose(project_dir: str, project: str = "", scope: str = "") -> list[dict]:
     """Collect evidence -> dedup -> write candidates. Fail-closed: no evidence => no candidate."""
     evidence = collect_evidence(project_dir, project)
     scope = scope or _norm_scope(project)
     data = _load()
     cands = data.get("candidates") or {}
-    created: List[Dict] = []
+    created: list[dict] = []
     # dedupe by similarity using learnings tokens (reuse)
     try:
         from core import learnings as _ln
@@ -156,8 +154,44 @@ def propose(project_dir: str, project: str = "", scope: str = "") -> List[Dict]:
     return created
 
 
+def add_candidate(rule: str, scope: str = "", source_ref: str = "", kind: str = "learning",
+                  rationale: str = "", confidence: float = 0.5) -> dict:
+    """Add ONE evidence-gated candidate directly (e.g. from a PIDL correction). Idempotent by text.
+
+    Reuses the same store/shape as ``propose``; promotion still goes through ``approve``/``reject``.
+    Nothing is applied to an owner store here.
+    """
+    text = " ".join(str(rule or "").split())[:280]
+    if not text:
+        return {"ok": False, "error": "empty rule"}
+    if kind not in KINDS:
+        kind = "learning"
+    data = _load()
+    cands = data.get("candidates") or {}
+    try:
+        from core import learnings as _ln
+        tok, sim = getattr(_ln, "_tokens", None), getattr(_ln, "_sim", None)
+        merge_at = getattr(_ln, "MERGE_AT", 0.6)
+        if tok and sim:
+            for c in cands.values():
+                if sim(tok(text), tok(c.get("text", ""))) >= merge_at:
+                    return {"ok": True, "candidate": c, "existing": True}
+    except Exception:
+        pass
+    cid = f"LC-{len(cands) + 1:04d}"
+    c = {"id": cid, "kind": kind, "text": text,
+         "rationale": rationale or "PIDL correction feedback",
+         "evidence": ([{"source": "pidl", "ref": source_ref}] if source_ref else []),
+         "confidence": float(confidence), "scope": scope or "area:", "status": "proposed",
+         "proposed_at": datetime.now().isoformat()}
+    cands[cid] = c
+    data["candidates"] = cands
+    _save(data)
+    return {"ok": True, "candidate": c, "existing": False}
+
+
 # ── approval + apply (into OWNER stores via their APIs) ──────────────────────
-def _apply(c: Dict) -> Dict:
+def _apply(c: dict) -> dict:
     kind = c.get("kind")
     text = c.get("text", "")
     scope = c.get("scope", "")
@@ -199,7 +233,7 @@ def _live_layer(layer: str) -> bool:
         return False
 
 
-def approve(cid: str, by: str = "operator") -> Dict:
+def approve(cid: str, by: str = "operator") -> dict:
     data = _load()
     c = (data.get("candidates") or {}).get(cid)
     if not c:
@@ -220,7 +254,7 @@ def approve(cid: str, by: str = "operator") -> Dict:
     return {"ok": True, "candidate": c}
 
 
-def reject(cid: str, by: str = "operator", reason: str = "") -> Dict:
+def reject(cid: str, by: str = "operator", reason: str = "") -> dict:
     data = _load()
     c = (data.get("candidates") or {}).get(cid)
     if not c:
@@ -234,7 +268,7 @@ def reject(cid: str, by: str = "operator", reason: str = "") -> Dict:
     return {"ok": True, "candidate": c}
 
 
-def edit(cid: str, text: str = "", scope: str = "", by: str = "operator") -> Dict:
+def edit(cid: str, text: str = "", scope: str = "", by: str = "operator") -> dict:
     data = _load()
     c = (data.get("candidates") or {}).get(cid)
     if not c:
@@ -249,7 +283,7 @@ def edit(cid: str, text: str = "", scope: str = "", by: str = "operator") -> Dic
     return {"ok": True, "candidate": c}
 
 
-def effectiveness() -> Dict:
+def effectiveness() -> dict:
     cands = (_load().get("candidates") or {}).values()
     appr = [c for c in cands if c.get("status") == "approved"]
     return {"approved": len(appr), "rejected": len([c for c in cands if c.get("status") == "rejected"]),
