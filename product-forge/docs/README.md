@@ -101,6 +101,7 @@
 | [`PFSSOT-P0-REUSE-MAP.md`](PFSSOT-P0-REUSE-MAP.md) | Design | 100% | PFSSOT P0 reuse map: existing owners for backlog SSOT + scheduler + workers (Phase 0 gate) | — | — |
 | [`PFSSOT-P1-BACKLOG-FIELDS.md`](PFSSOT-P1-BACKLOG-FIELDS.md) | Design | 100% | PFSSOT P1 backlog fields: analysis/revision/priority_rank/structured deps/execution (extend backlog.py) | — | — |
 | [`PFSSOT-P10-PF-SURFACE.md`](PFSSOT-P10-PF-SURFACE.md) | Design | 100% | PFSSOT P10 /pf command surface: thin CLI + slash command over the worker/scheduler API (/pipeline deprecated alias) | — | — |
+| [`PFSSOT-P11-ADAPTERS.md`](PFSSOT-P11-ADAPTERS.md) | Design | 100% | PFSSOT P11 additional runtime adapters: claude-code (optional CLI) + remote (pull-based) alongside opencode/command/native | — | — |
 | [`PFSSOT-P2-GROOMING.md`](PFSSOT-P2-GROOMING.md) | Design | 100% | PFSSOT P2 AI+user grooming: AI-default (reuse agent runtime), deterministic fallback, guidelines/cadence config, /backlog groom API | — | — |
 | [`PFSSOT-P3-ARCHITECTURE-ANALYSIS.md`](PFSSOT-P3-ARCHITECTURE-ANALYSIS.md) | Design | 100% | PFSSOT P3 deep architecture analysis merged into grooming: codebase-grounded existing components/APIs, deep-by-default on entry | — | — |
 | [`PFSSOT-P4-ELIGIBILITY.md`](PFSSOT-P4-ELIGIBILITY.md) | Design | 100% | PFSSOT P4 scheduler eligibility over the canonical backlog (analysis gate + deps + contention + capability), read-only | — | — |

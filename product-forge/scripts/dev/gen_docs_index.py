@@ -94,6 +94,7 @@ TOP = {
     "PFSSOT-P9-AUTO-DISPATCH.md": ("Design", "PFSSOT P9 automatic dispatch (configurable, default-off; composes eligibility+claim+registry+adapter)", 100),
     "PFSSOT-P10-PF-SURFACE.md": ("Design", "PFSSOT P10 /pf command surface: thin CLI + slash command over the worker/scheduler API (/pipeline deprecated alias)", 100),
     "PFSSOT-P11-ADAPTERS.md": ("Design", "PFSSOT P11 additional runtime adapters: claude-code (optional CLI) + remote (pull-based) alongside opencode/command/native", 100),
+    "PIDL-1-CONTEXT-RESOLVER.md": ("Design", "PIDL-1 personal-intelligence context resolver: relevant-subset rules/principles/preferences/lenses + execution policy over existing owners", 100),
     "PF-Backlog-SSOT-Scheduler-Pluggable-Workers-updated.md": ("Design", "Backlog SSOT + pluggable worker scheduler architecture (source doc; epic BI-PF-0360)", 0),
     "SESSION-RESUME-MASTER-PLAN.md": ("Analysis (current)", "Session hand-off notes to resume master-plan execution", 100),
     "design-plan-BI0218.md": ("Design", "AI-era operations layer (evals/versioning/feedback) design - parked (BI-0218)", 0),
