@@ -1,7 +1,6 @@
 ---
 description: "Multi-agent pipeline: /pipeline (usage), list, new <idea>, continue, fix <desc>, run <agent>, status, health, checkpoints"
-agent: orchestrator
-model: opencode-go/mimo-v2.5
+agent: build
 ---
 
 **DEPRECATED (alias):** prefer `/pf product ...` (the `/pf` umbrella). This command is kept as a working
@@ -47,7 +46,7 @@ telemetry/alerts itself.
 
 ## Interactivity note
 Two kinds of "interactive":
-1. **Agent-mediated (works here)** — YOU (the orchestrator agent) are the interface:
+1. **Agent-mediated (works here)** — YOU (the command's agent) are the interface:
    ask the user in chat for project / idea / tier, then invoke `run_pipeline.py` with
    explicit flags. Stream `products/<project>/pipeline-run.log` and narrate stages/agents
    as they complete. This is how `/pipeline` is interactive.

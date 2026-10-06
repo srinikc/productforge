@@ -1,7 +1,6 @@
 ---
 description: "Product Forge command surface: /pf <verb>. verbs: product, backlog, work, scheduler, worker, adapters, dispatch, dogfood, validate, release, package, audit, status. Thin adapter to scripts/pf.py (no logic here)."
-agent: orchestrator
-model: opencode-go/mimo-v2.5
+agent: build
 ---
 
 **NOTE:** This command is a **thin adapter** to `scripts/pf.py`, which calls the canonical core/API.
@@ -19,6 +18,7 @@ package, audit, status) return JSON. Product generation (`/pf product ...`) dele
 `scripts/pipeline.py` (the existing agent runner).
 
 ## Verb map
+- `/pf help [verb]` — usage overview, or per-verb details (subcommands + flags)
 - `/pf product new "idea" --tier <tier>` / `continue` / `fix "desc"` → `scripts/pipeline.py`
 - `/pf backlog list|show <id>|groom <id> [--no-ai]|approve <id>`
 - `/pf work [--worker W] [--runtime R]`

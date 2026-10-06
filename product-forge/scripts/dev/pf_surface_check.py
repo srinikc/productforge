@@ -1,8 +1,9 @@
 """PFSSOT-P10 gate: the `/pf` command surface is thin, complete, and API-first.
 
 Asserts: scripts/pf.py exists with the declared verbs + a dispatch table; .opencode/command/pf.md is a thin
-adapter (references scripts/pf.py, no orchestration); /pipeline is marked a deprecated alias; and the
-worker/scheduler API routes exist in the OpenAPI surface.
+adapter (references scripts/pf.py, no orchestration); /pipeline is marked a deprecated alias; the checked-in
+global /pf source (.opencode/command_global/pf.md) is self-locating + build mode, with no drift in the
+installed ~/.config/opencode/command/pf.md; and the worker/scheduler API routes exist in the OpenAPI surface.
 Run: ``python scripts/dev/pf_surface_check.py``.
 """
 import os
@@ -54,6 +55,33 @@ def main() -> int:
         with open(pipe, encoding="utf-8", errors="ignore") as f:
             pipe_txt = f.read()
     _check("DEPRECATED" in pipe_txt and "/pf product" in pipe_txt, "/pipeline marked deprecated alias")
+
+    # Checked-in global /pf source: self-locating, build mode, thin (no installer dependency).
+    gcmd = os.path.join(_ROOT, ".opencode", "command_global", "pf.md")
+    _check(os.path.exists(gcmd), "command_global/pf.md exists (checked-in global /pf source)")
+    gtxt = ""
+    if os.path.exists(gcmd):
+        with open(gcmd, encoding="utf-8", errors="ignore") as f:
+            gtxt = f.read()
+    _check("scripts/pf.py" in gtxt, "global pf.md is a thin adapter (calls scripts/pf.py)")
+    _check(not re.search(r"def \w+\(|import core", gtxt), "global pf.md contains no logic")
+    _check("agent: build" in gtxt, "global pf.md runs in build mode")
+    _check("agent: orchestrator" not in gtxt, "global pf.md not bound to orchestrator")
+    _check(not re.search(r"(?m)^model:", gtxt), "global pf.md has no model pin")
+    _check("PF_ROOT" in gtxt, "global pf.md is self-locating (PF_ROOT resolution)")
+    # Installed copy must be byte-identical to the checked-in source; absent = OK (fresh machine/CI).
+    home = os.path.expanduser(os.path.join("~", ".config", "opencode", "command", "pf.md"))
+    if os.path.exists(home) and os.path.exists(gcmd):
+        def _norm(p):
+            # newline-insensitive: core.autocrlf may check the source out as CRLF
+            with open(p, "rb") as f:
+                return f.read().replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+        if _norm(home) != _norm(gcmd):
+            FAILS.append("installed ~/.config/opencode/command/pf.md drifted from "
+                         ".opencode/command_global/pf.md (re-copy the checked-in source)")
+    elif not os.path.exists(home):
+        print("pf-surface: note - no installed global /pf (optional; copy "
+              ".opencode/command_global/pf.md to ~/.config/opencode/command/pf.md)")
 
     try:
         from api.app import app
