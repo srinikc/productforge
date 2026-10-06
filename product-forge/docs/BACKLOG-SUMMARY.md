@@ -1,23 +1,18 @@
 # Backlog Summary
 
-> GENERATED 2026-10-02T15:30:38 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-06T19:40:00 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 16  |  **Closed:** 325
-- `new`: 16
+- **Open:** 36  |  **Closed:** 355
+- `new`: 36
 
-### new, by category (16)
+### new, by category (36)
 **API / reports / HIL / misc** (1)
 | ID | MoSCoW | Type | Title |
 |---|---|---|---|
 | BI-PF-0332 | Should | chore | API-5 deferred hardening: rate limiting + request/upload limits + tenant-isolation expansion + event streaming |
-
-**Bug fixes** (1)
-| ID | MoSCoW | Type | Title |
-|---|---|---|---|
-| BI-PF-0358 | Should | bug | Fix: gen_backlog_summary.py cannot import core when run as a script; check_docs_fresh ignores its exit code (BACKLOG-SUMMARY freshness is a silent no-op) |
 
 **Discovery / HIL / prompts** (1)
 | ID | MoSCoW | Type | Title |
@@ -29,11 +24,12 @@
 |---|---|---|---|
 | BI-0208 | Should | feature | Backend: sensor/IoT capability pack + ingest adapters (MQTT/serial/BLE/Modbus/CAN) + time-series/anomaly models |
 
-**Licensing / tenancy** (2)
+**Licensing / tenancy** (3)
 | ID | MoSCoW | Type | Title |
 |---|---|---|---|
 | BI-0211 | Should | tech-debt | Backend: tool/SDK/vendor catalog with license metadata + bundle_allowed (feeds packaging & PR gate) |
-| BI-PF-0352 | Should | feature | REL-0: packaging / licensing / entitlement / deployment |
+| BI-PF-0390 | Should | epic | EPIC A: PF Commercial & IP Foundation (contracts, Go core, licensing, packaging, EAP, RDC, governance, vertical slice) |
+| BI-PF-0396 | Should | feature | A2: capability registry + entitlement-at-boundary + asymmetric licensing |
 
 **Specs / cache / context / artifacts** (2)
 | ID | MoSCoW | Type | Title |
@@ -41,7 +37,7 @@
 | BI-0206 | Should | tech-debt | Backend: model downloader + local cache + license-acceptance gate + models.lock (open-weights) |
 | BI-0225 | Should | feature | Parallel section/feature generation |
 
-**Wiring / tech-debt / API** (8)
+**Wiring / tech-debt / API** (28)
 | ID | MoSCoW | Type | Title |
 |---|---|---|---|
 | BI-0185 | Should | feature | EPIC: Multi-modal / media orchestration (pluggable capability packs) |
@@ -49,9 +45,29 @@
 | BI-0209 | Should | feature | Backend: OCR/document capability pack + doc-parse kind + OCR generators/adapters |
 | BI-0220 | Should | feature | EPIC: pipeline E2E reliability - events, readiness checklist, model registry/capability gate, lock/status fixes |
 | BI-PF-0331 | Should | chore | OS/shell neutrality: remove PowerShell-only scripting/doc workarounds |
-| BI-PF-0351 | Should | feature | ENG-10: RELEASE execution |
-| BI-PF-0353 | Should | feature | FULL DOGFOOD: full Product Forge end-to-end dogfood |
-| BI-PF-0354 | Should | feature | FINAL AUDIT: final audit / production readiness |
+| BI-PF-0360 | Should | epic | EPIC: Backlog SSOT + Work Scheduler + Pluggable Worker Orchestration (doc: PF-Backlog-SSOT-Scheduler-Pluggable-Workers) |
+| BI-PF-0374 | Should | feature | PFSSOT-P12: optimization (only after correctness) |
+| BI-PF-0383 | Should | feature | PFSSOT build-time plug/unplug: exclude the worker subsystem from a build/edition (ship-without-workers) |
+| BI-PF-0386 | Should | feature | PF platform: IP-value assessment of all modules (rewrite-by-value ranking: high-value -> Go/Rust, low-value -> compiled) |
+| BI-PF-0387 | Should | feature | PF platform delivery baseline: ONE source for all editions; new shipped/sensitive logic -> Go; existing -> compiled (Nuitka); no raw .py at customer; migrate by value later |
+| BI-PF-0388 | Should | task | ADR: PF platform shipped editions use compiled artifacts (Go core + compiled-Python), never raw .py; one source, many editions |
+| BI-PF-0391 | Should | epic | EPIC B: PF Scale & Editions (gateways, persistence, OEM, Rust, WASM, decomposition, migration) |
+| BI-PF-0392 | Should | feature | A0: baseline freeze + doc reconciliation (amendment=authority) + ADR register |
+| BI-PF-0393 | Should | feature | A1: canonical contracts (thin) + Go<->Python contract |
+| BI-PF-0394 | Should | feature | B1: PF Go core (Go<->Python seam) |
+| BI-PF-0395 | Should | feature | A6: change classifier + drift guard + language rule + no-undeclared-dep |
+| BI-PF-0397 | Should | feature | A4: EAP delivery manifest + validator/registry + compatibility |
+| BI-PF-0398 | Should | feature | A3: PF platform build->package->deploy + compiled packaging + signing + SBOM/LBOM + NO-RAW-.py gate (absorbs BI-PF-0383) |
+| BI-PF-0399 | Should | feature | A5: Runtime Dependency Compiler |
+| BI-PF-0400 | Should | feature | A7: vertical slice (Requirement->Tech->Factory->EAP->RDC->compiled+signed package) |
+| BI-PF-0401 | Should | feature | B2: gateways (Model/Tool/Memory/Infrastructure) |
+| BI-PF-0402 | Should | feature | B3: persistence adapters (SQLite/JSON/PostgreSQL) |
+| BI-PF-0403 | Should | feature | B4: OEM / white-label profiles (no forks) |
+| BI-PF-0404 | Should | feature | B5: Rust protected components |
+| BI-PF-0405 | Should | feature | B6: WASM plugins |
+| BI-PF-0406 | Should | feature | B7: service decomposition |
+| BI-PF-0407 | Should | feature | Bmig: migrate high-value legacy Python -> Go (by value) |
+| BI-PF-0408 | Should | change | /pf command: build mode only (not orchestrator) + global /pf for all opencode sessions |
 
 ---
 
@@ -251,5 +267,5 @@
 ---
 
 ## Totals
-- backend: 16 open / 325 closed
+- backend: 36 open / 355 closed
 - dashboard: 146 open / 3 closed

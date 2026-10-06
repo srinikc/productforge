@@ -18,6 +18,7 @@ package, audit, status) return JSON. Product generation (`/pf product ...`) dele
 `scripts/pipeline.py` (the existing agent runner).
 
 ## Verb map
+- `/pf help [verb]` — usage overview, or per-verb details (subcommands + flags)
 - `/pf product new "idea" --tier <tier>` / `continue` / `fix "desc"` → `scripts/pipeline.py`
 - `/pf backlog list|show <id>|groom <id> [--no-ai]|approve <id>`
 - `/pf work [--worker W] [--runtime R]`

@@ -8,6 +8,7 @@ same core/API the rest of PF uses (doc §26-28: TUI/CLI/UI are clients).
 
 Usage:
   python scripts/pf.py <verb> [args] [--scope S] [--project P] [--json]
+  python scripts/pf.py help [verb]                               # overview / per-verb usage details
   python scripts/pf.py product new "an idea" --tier cheap     # delegates to scripts/pipeline.py
   python scripts/pf.py backlog list
   python scripts/pf.py backlog groom <id> [--no-ai]
@@ -204,12 +205,125 @@ def cmd_status(pos, flags):
             "dispatch": dispatcher.status()}
 
 
+# Help surface: (description, subcommands [(usage, help)], verb flags [(usage, help)])
+# Global flags apply to every verb. Keep in sync with .opencode/command/pf.md verb map.
+_GLOBAL_FLAGS = (
+    ("--scope S", "store scope (default: product_forge)"),
+    ("--project P", "project scope (routes to products/<P>/)"),
+    ("--json", "JSON output (default for every verb)"),
+)
+
+_HELP = {
+    "product": ("Product generation - delegates to scripts/pipeline.py (the agent runner).",
+                [('new "<idea>" --tier <tier>', "start a new product from an idea; --tier picks the model tier"),
+                 ("continue", "resume the current/last run (journal/checkpoint state)"),
+                 ('fix "<desc>"', "run a fix pass with a fix brief")],
+                (("--tier <tier>", "model tier (e.g. cheap, free-trial-fast)"),)),
+    "backlog": ("Backlog SSOT (single writer: core/backlog.py).",
+                [("list", "open backlog items (JSON: id/status/title)"),
+                 ("show <id>", "full item record (e.g. BI-PF-0408)"),
+                 ("groom <id> [--no-ai]", "analyze/groom one item; --no-ai = deterministic only"),
+                 ("approve <id>", "approve a groomed item")],
+                (("--no-ai", "groom deterministically (skip AI analysis)"),)),
+    "work": ("Pull eligible work for a worker/runtime.",
+             [],
+             (("--worker W", "claim as worker W"), ("--runtime R", "filter by runtime R"))),
+    "scheduler": ("Scheduler eligibility and planning.",
+                  [("status", "current scheduler report (default)"),
+                   ("eligible", "eligible backlog items"),
+                   ("next", "next eligible item"),
+                   ("plan", "execution plan")], ()),
+    "worker": ("Worker registry (single writer: core/worker_registry.py).",
+               [("register --runtime R --caps a,b", "register a worker; --role is optional"),
+                ("list", "registered workers + integration flag (default)"),
+                ("status <id>", "one worker's record"),
+                ("unregister <id>", "remove a worker; --revoke revokes its lease")],
+               (("--runtime R", "worker runtime (e.g. opencode, command)"),
+                ("--caps a,b", "comma-separated capabilities"),
+                ("--role", "worker role"), ("--revoke", "unregister: revoke lease"))),
+    "adapters": ("List worker adapters and the adapter contract.", [], ()),
+    "dispatch": ("Work dispatch loop.",
+                 [("status", "dispatcher status (default)"),
+                  ("tick [--force]", "run one dispatch tick; --force ignores gating")],
+                 (("--force", "run the tick even if gating would skip it"),)),
+    "dogfood": ("Run Product Forge's own dogfood validation.", [],
+                (("--dry", "dry run (default on; pass without value to toggle)"),)),
+    "validate": ("Validation profiles (single writer: core/validation_engine.py).",
+                 [("<PROFILE>", "profile name, e.g. FEATURE_PR (default)")], ()),
+    "release": ("Release gate.",
+                [("readiness", "readiness report (default)"),
+                 ("gate", "go/no-go gate verdict")], ()),
+    "package": ("Build a distribution package for an edition.",
+                [("<edition>", "edition to package (default: community)")], ()),
+    "audit": ("Final audit summary (production readiness).", [], ()),
+    "status": ("Compact status: workers + dispatch + readiness.", [], ()),
+    "pidl": ("Product-Forge decision log (PIDL).",
+             [("decisions", "decision history (default)"),
+              ("show <id>", "one decision"), ("candidates", "feedback candidates"),
+              ("policy", "approval policy"), ("latest <id>", "latest decision per key")],
+             (("--item", "filter history by item id"), ("--limit N", "history limit (default 20)"),
+              ("--status", "candidates: status filter (default proposed)"),
+              ("--action", "policy: action to look up"), ("--area", "policy: area to look up"))),
+}
+
+
+def _help_overview():
+    lines = [(__doc__ or "").strip().splitlines()[0], "",
+             "GLOBAL FLAGS", ""]
+    w = max(len(f) for f, _ in _GLOBAL_FLAGS)
+    for f, d in _GLOBAL_FLAGS:
+        lines.append(f"  {f:<{w}}  {d}")
+    lines += ["", "VERBS   (details: /pf help <verb>)", ""]
+    for v in VERBS:
+        desc, subs, vflags = _HELP[v]
+        usage = " | ".join(c for c, _ in subs)
+        if not subs and vflags:
+            usage = " ".join(f"[{f}]" for f, _ in vflags)
+        line = f"  /pf {v}" + (f" {usage}" if usage else "")
+        lines.append(f"  {v:<10}" + line.strip())
+    lines += ["", "Examples:",
+              "  python scripts/pf.py help backlog",
+              "  python scripts/pf.py backlog list"]
+    return "\n".join(lines)
+
+
+def _help_verb(v):
+    desc, subs, vflags = _HELP[v]
+    usage = " | ".join(c for c, _ in subs)
+    if not subs and vflags:
+        usage = " ".join(f"[{f}]" for f, _ in vflags)
+    lines = [f"{v} - {desc}", "", "USAGE", f"  /pf {v}" + (f" {usage}" if usage else "")]
+    if subs:
+        lines += ["", "SUBCOMMANDS"]
+        w = max(len(c) for c, _ in subs)
+        for c, d in subs:
+            lines.append(f"  {c:<{w}}  {d}")
+    flags = tuple(vflags) + _GLOBAL_FLAGS
+    lines += ["", "FLAGS"]
+    w = max(len(f) for f, _ in flags)
+    for f, d in flags:
+        lines.append(f"  {f:<{w}}  {d}")
+    return "\n".join(lines)
+
+
+def _help_cmd(rest):
+    if not rest:
+        print(_help_overview())
+        return 0
+    topic = rest[0]
+    if topic not in _HELP:
+        print(f"unknown help topic {topic!r}. verbs: {', '.join(VERBS)}")
+        return 2
+    print(_help_verb(topic))
+    return 0
+
+
 def main(argv=None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
-    if not argv or argv[0] in ("-h", "--help", "help"):
-        print(__doc__)
-        print("verbs:", ", ".join(VERBS))
-        return 0
+    if not argv:
+        return _help_cmd([])
+    if argv[0] in ("-h", "--help", "help"):
+        return _help_cmd(argv[1:])
     verb, rest = argv[0], argv[1:]
     if verb not in VERBS:
         print(f"unknown verb {verb!r}. verbs: {', '.join(VERBS)}")
