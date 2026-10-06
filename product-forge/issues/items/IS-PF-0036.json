@@ -1,0 +1,29 @@
+{
+  "id": "IS-PF-0036",
+  "tag": "PF",
+  "scope": "product_forge",
+  "project": "",
+  "title": "Concurrent sessions sharing one working tree race on git branch state (commit lands on develop)",
+  "body": "Two opencode sessions operated the SAME product-forge working directory concurrently. While the architect session was on a feature branch, the other session committed to develop (BI-PF-0408) and switched branches, so the architect's commit (BI-PF-0392/A0, ab05323) landed directly on develop instead of the feature branch. Content was correct but the branch/merge process was violated.",
+  "kind": "issue",
+  "priority": "P1",
+  "severity": "",
+  "module": "process",
+  "status": "open",
+  "rcca": {
+    "root_cause": "Concurrent sessions share a single git working tree; branch state (HEAD) is global to the working directory, so one session's checkout/commit races the other's.",
+    "corrective": "Recreated the feature branch at ab05323, reset develop to f71e4fb, merged --no-ff (develop=1c24bf5, parents f71e4fb+ab05323).",
+    "preventive": "One working tree per session: each session uses its own clone or `git worktree`; never run two sessions in the same folder. Documented in AGENTS.md + WORKER-SCHEDULER-OPERATIONS.md.",
+    "generalized": true,
+    "guideline_ref": "AGENTS.md"
+  },
+  "backlog_ref": "BI-PF-0392",
+  "source": "review",
+  "source_ref": "",
+  "evidence": [],
+  "links": {
+    "backlog": "BI-PF-0392"
+  },
+  "created_at": "2026-10-06T19:59:28.274187",
+  "updated_at": "2026-10-06T19:59:28.295430"
+}
