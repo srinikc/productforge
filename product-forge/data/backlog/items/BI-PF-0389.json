@@ -1,0 +1,112 @@
+{
+  "id": "BI-PF-0389",
+  "tag": "PF",
+  "type": "bug",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "analysis-staleness-revalidation",
+  "label": "PF Backlog 420",
+  "title": "Backlog analysis staleness: pickup revalidation (arch-version) + deep re-analyze/update + assignment guard + change propagation",
+  "body": "PROBLEM: backlog analysis (grooming/deep analysis) is done at entry. By pickup time the architecture/design may have changed. External architecture changes do NOT mark dependent items STALE - only the item's OWN title/body/dependencies/links edits do (core/backlog.py:82 _STALE_FIELDS, :1067). work_pull returns the STORED analysis (pickup = execution, not re-analysis), so a worker can execute on outdated design.\n\nRCCA (5-why): stale design executed -> pickup trusts stored analysis -> external arch changes don't propagate STALE -> staleness trigger is per-item field change only -> analysis records no architecture/contract version. PREVENTIVE GUARD: version-aware analysis + change propagation + pickup revalidation.\n\nFIX (4 parts):\n1. VERSION-AWARE ANALYSIS: record the architecture/contract version on analysis at analyze time.\n2. PICKUP REVALIDATION: at pickup compare analysis version/revision vs current -> mismatch => STALE.\n3. RE-ANALYZE + UPDATE: on stale, deep re-analyze against the current codebase (core/grooming) and UPDATE the stored design/architecture on the item; then it becomes eligible again.\n4. GUARD: work_pull refuses assignment while analysis is STALE/version-mismatched.\n5. PROPAGATION: when a shared contract/architecture/component changes, mark_stale dependent items (affected_components/links).\n6. SAFETY NET: enable periodic_sweep_days>0; extend cadence on_pickup_when_defer -> on_pickup (always revalidate; deep re-analyze only if stale).\n\nOwners: core/backlog.py, core/scheduler.py, core/grooming.py, core/work_pull.py, config/grooming-guidelines.json.",
+  "source": "generic",
+  "status": "new",
+  "priority": "P1",
+  "moscow": "Should",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [],
+  "links": {
+    "backend_capability": [
+      "module:core/backlog.py",
+      "module:core/scheduler.py",
+      "module:core/grooming.py",
+      "module:core/work_pull.py",
+      "config:config/grooming-guidelines.json"
+    ]
+  },
+  "decisions": [],
+  "follow_up": {},
+  "revision": 2,
+  "priority_rank": 20,
+  "priority_class": "",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "IN_PROGRESS",
+    "analyzed_at": "",
+    "analyzed_by": "deterministic",
+    "revision_analyzed": 0,
+    "architecture_fit": "REUSE",
+    "implementation_strategy": "Extend existing components/APIs: core/backlog.py, core/backlog_link.py, core/change_log.py, core/change_registry.py",
+    "existing_components": [
+      "core/backlog.py",
+      "core/backlog_link.py",
+      "core/change_log.py",
+      "core/change_registry.py",
+      "core/change_spec.py",
+      "core/guardrails.py",
+      "core/run_guard.py"
+    ],
+    "existing_apis": [
+      "/api/v1/backlog",
+      "/api/v1/backlog/grooming/guidelines",
+      "/api/v1/backlog/items",
+      "/api/v1/backlog/items/{item_id}",
+      "/api/v1/backlog/items/{item_id}/analysis",
+      "/api/v1/backlog/items/{item_id}/dependencies",
+      "/api/v1/backlog/items/{item_id}/groom",
+      "/api/v1/backlog/items/{item_id}/groom/decide"
+    ],
+    "existing_modules": [
+      "config/guardrail-policy.json"
+    ],
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [
+      "product_forge:BI-PF-0389 (score 1.00)"
+    ],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [
+      "possible duplicate"
+    ],
+    "evidence": [
+      "similar=5",
+      "score=0.75",
+      "components=7",
+      "apis=8"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic"
+  },
+  "dependencies": [],
+  "blocked_by": [
+    "BI-PF-0387"
+  ],
+  "unlocks": [],
+  "readiness": {
+    "ready": false,
+    "reasons": [],
+    "computed_at": ""
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": ""
+  },
+  "created_at": "2026-10-06T18:04:25.258174",
+  "updated_at": "2026-10-06T18:04:25.970973",
+  "score": 0.75,
+  "_note": "dependencies set"
+}
