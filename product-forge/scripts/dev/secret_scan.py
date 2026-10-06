@@ -41,26 +41,68 @@ def _repo_root() -> str:
         return os.getcwd()
 
 
-def main(argv=None) -> int:
-    root = _repo_root()
+def _git(root: str, *args) -> str:
     try:
-        files = subprocess.run(["git", "ls-files"], cwd=root,
-                               capture_output=True, text=True).stdout.splitlines()
+        r = subprocess.run(["git", *args], cwd=root, capture_output=True, text=True)
+        return (r.stdout or "").strip()
     except Exception:
-        files = []
+        return ""
+
+
+def _changed_files(root: str) -> tuple[list[str], bool]:
+    """Files changed vs the integration branch (merge-base) plus the working tree.
+
+    Per-merge scope: the diff a PR actually introduces. Returns ``(files, resolved)`` where ``resolved``
+    is False when no integration ref could be found (e.g. a shallow CI clone) - the caller then falls
+    back to the full tree so secrets are never silently skipped. On `develop` after a merge this is empty
+    (already scanned on the branch).
+    """
+    base = ""
+    refs = ["origin/develop", "develop"]
+    env = os.environ.get("GITHUB_BASE_REF", "").strip()
+    if env:
+        refs.append(f"origin/{env}")
+    for ref in refs:
+        base = _git(root, "merge-base", ref, "HEAD")
+        if base:
+            break
+    files: set[str] = set()
+    if base:
+        files.update(x.strip() for x in _git(root, "diff", "--name-only", base, "HEAD").splitlines())
+    files.update(x.strip() for x in _git(root, "diff", "--name-only", "HEAD").splitlines())
+    return sorted(f for f in files if f), bool(base)
+
+
+def main(argv=None) -> int:
+    argv = list(sys.argv[1:] if argv is None else argv)
+    scan_all = "--all" in argv
+    root = _repo_root()
+    fallback = False
+    if scan_all:
+        files = _git(root, "ls-files").splitlines()
+        scope = f"full tree ({len(files)} tracked)"
+    else:
+        files, resolved = _changed_files(root)
+        if not resolved:
+            fallback = True  # no integration ref (shallow clone) -> never skip secrets
+            files = _git(root, "ls-files").splitlines()
+            scope = f"full tree, base unresolved ({len(files)} tracked)"
+        else:
+            scope = f"changed vs develop ({len(files)})"
     hits = 0
     for f in files:
         if os.path.splitext(f)[1].lower() in _SKIP_EXT:
             continue
         try:
-            with open(os.path.join(root, f), "r", encoding="utf-8", errors="ignore") as fh:
+            with open(os.path.join(root, f), encoding="utf-8", errors="ignore") as fh:
                 text = fh.read()
         except Exception:
             continue
         for name, preview in scan_text(text):
             print(f"  SECRET? {f}: {name} ({preview})")
             hits += 1
-    print(f"\nsecret-scan: {hits} potential secret(s) in {len(files)} tracked file(s)")
+    print(f"\nsecret-scan: {hits} potential secret(s) in {scope} file(s)"
+          + ("" if (scan_all or fallback) else " (use --all for the full-tree sweep)"))
     return 1 if hits else 0
 
 

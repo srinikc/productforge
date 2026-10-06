@@ -92,7 +92,9 @@ For every item, before merge:
 3. **Lint/static** — `python scripts/dev/lint_check.py` clean (ruff, scoped to changed files). It is **advisory**
    today because the legacy tree predates lint; it flips to `--strict` (fatal) once the changed-file debt is
    cleared, and is part of `precheck` either way.
-4. **Gates + e2e** — `python scripts/dev/precheck.py` **PASS** (compile, wired-audit, api-contract/governance,
+4. **Gates + e2e** — `python scripts/dev/precheck.py` **PASS** (fast default; `--full` at merge/CI; `--release`
+   for the periodic full-tree secret sweep — the per-merge secret scan is diff-scoped, BI-PF-0385) (compile,
+   wired-audit, api-contract/governance,
    engineering-flow/task-contract/scheduler/vcs-worktree/worker/github/intent-trace, backlog-e2e, docs-fresh,
    secret-scan, pipeline tests).
 5. **Link evidence** on the backlog item (artifact/test descriptors) so `intent_trace_check` verifies it.

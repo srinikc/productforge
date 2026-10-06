@@ -10,15 +10,19 @@ git checkout -b feature/<scope>       # one concern per branch
 ## 2. Pre-check gates (local, must pass)
 ```
 # from product-forge/
-python scripts/dev/precheck.py
+python scripts/dev/precheck.py              # fast (default): per-phase
+python scripts/dev/precheck.py --full       # merge/CI: + validation/lifecycle + full suite
+python scripts/dev/precheck.py --release    # pre-release: + periodic full-tree sweeps
 ```
-Runs the same gates as CI:
-1. `python -m compileall -q core scripts dashboard` (syntax)
-2. `python scripts/dev/wired_audit.py` (naming, store registry, wiring, destructive)
-3. `python scripts/dev/workflow_matrix_check.py` (stage/agent matrix)
-4. `python scripts/dev/e2e_backlog_check.py` (backlog chain)
-5. `python scripts/dev/secret_scan.py` (**no hard-coded secrets**)
-6. `python -m pytest test-framework/tests/pipeline -q -o addopts=""`
+Three tiers (BI-PF-0384/BI-PF-0385) keep everyday work fast:
+- **fast** (~20s) - compile, `wired_audit --fast` (core checks; advisory sub-audits skipped), store/lint,
+  **diff-scoped secret scan**, workflow matrix, `pf-surface`, intent-trace, docs-fresh, changed-scoped tests.
+- **`--full`** (merge/CI) - all area gates + validation/lifecycle + the **full test suite**. The secret scan
+  stays **diff-scoped** (changed vs `develop`): a merge never walks the whole tree.
+- **`--release`** (a few times before a release) - `--full` plus the **full-tree** secret sweep
+  (`secret_scan.py --all`) and any other periodic audit.
+
+`secret_scan.py` is **diff-scoped by default**; pass `--all` for the full-tree sweep (release/periodic).
 
 The authoritative CI mirror is `.github/workflows/structure.yml` (also checks fresh generated
 docs). Keep the two in sync.

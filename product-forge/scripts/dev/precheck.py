@@ -3,8 +3,13 @@
 Runs the same checks CI enforces (compile, structure audit, matrix, secrets, tests) so a PR is
 green before it is opened. Exit nonzero if any step fails. Run from `product-forge/`:
     python scripts/dev/precheck.py                 # changed-scoped tests (fast; default)
-    python scripts/dev/precheck.py --full          # full test suite (CI / merge / release)
+    python scripts/dev/precheck.py --full          # full test suite + validation/lifecycle (merge/CI)
+    python scripts/dev/precheck.py --release       # --full + periodic full-tree sweeps (pre-release only)
     python scripts/dev/precheck.py --scope a,b      # explicit test-name substrings
+
+Tiers (BI-PF-0385): the secret scan is **diff-scoped** by default (changed vs develop) so a merge/CI never
+walks the whole tree; the full-tree sweep runs only under `--release` (a few times before a release). The
+`wired-audit` advisory sub-audits are skipped in the fast tier (`--fast`).
 
 Test scoping (BI-PF-0382): by DEFAULT the test step runs only the tests affected by CHANGED files
 (`core/z.py` -> `test_z.py` + any test importing `core.z`), plus a small foundation smoke set. This
@@ -126,6 +131,8 @@ _GATES = [
     ("release", ["scripts/dev/release_check.py"], "deep", None),
     ("final-audit", ["scripts/dev/final_audit_check.py"], "deep", None),
     ("backlog-e2e", ["scripts/dev/e2e_backlog_check.py"], "deep", None),
+    # release tier - periodic/on-demand heavy sweeps; run before a release, NOT every merge/CI
+    ("secret-scan-all", ["scripts/dev/secret_scan.py", "--all"], "release", None),
 ]
 
 
@@ -135,15 +142,20 @@ def _area_touched(area, changed):
     return any(any(a in c for a in area) for c in changed)
 
 
-def _steps(full: bool, scope_csv: str):
+def _steps(full: bool, scope_csv: str, release: bool = False):
     changed = _changed_paths()
     steps = []
     for name, cmd, tier, area in _GATES:
         if tier == "deep" and not full:
             continue  # heavy validation/lifecycle gates -> merge/CI (--full)
+        if tier == "release" and not release:
+            continue  # periodic full-tree sweeps -> release only (--release)
         if tier == "fast" and not _area_touched(area, changed) and not full:
             continue  # skip unrelated area gates in the fast tier
-        steps.append((name, [sys.executable, *cmd]))
+        cmd_list = [sys.executable, *cmd]
+        if name == "wired-audit" and not full:
+            cmd_list.append("--fast")  # skip advisory sub-audits in the per-phase tier
+        steps.append((name, cmd_list))
     if full:
         steps.append(("pipeline-tests-full",
                       [sys.executable, "-m", "pytest", _TEST_DIR, "-q", "-o", "addopts="]))
@@ -159,15 +171,17 @@ def _steps(full: bool, scope_csv: str):
 
 def main(argv=None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
-    full = "--full" in argv
+    release = "--release" in argv
+    full = "--full" in argv or release
     scope_csv = ""
     for i, a in enumerate(argv):
         if a == "--scope" and i + 1 < len(argv):
             scope_csv = argv[i + 1]
         elif a.startswith("--scope="):
             scope_csv = a.split("=", 1)[1]
-    tier = "full" if full else "fast"
-    print(f"[precheck] tier={tier} (fast = core+area gates+scoped tests; --full = +validation/lifecycle + full suite)")
+    tier = "release" if release else ("full" if full else "fast")
+    print(f"[precheck] tier={tier} (fast = core+area gates+scoped tests; --full = +validation/lifecycle "
+          f"+ full suite; --release = +periodic full-tree sweeps)")
     if not full:
         tests = _scoped_tests(scope_csv)
         print(f"[precheck] changed-scoped tests: {len(tests)} file(s) "
@@ -177,7 +191,7 @@ def main(argv=None) -> int:
     rc = 0
     timings = []
     t_all = _time.time()
-    for name, cmd in _steps(full, scope_csv):
+    for name, cmd in _steps(full, scope_csv, release):
         print(f"\n=== precheck: {name} ===", flush=True)
         t0 = _time.time()
         try:
