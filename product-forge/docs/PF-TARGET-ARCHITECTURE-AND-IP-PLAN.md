@@ -132,6 +132,32 @@ on-prem host
 **Signed updates** (only PF issues new versions) + **licensing/entitlements** + keeping the *living* intelligence
 (models, learnings, new capabilities) under PF's control.
 
+### 4.8 One codebase, one implementation per feature (the language rule)
+There is **one repo / one baseline**. SaaS and customer editions differ by **build profile**, never by a second
+codebase.
+
+- **SaaS** runs the **source** (Python, plus any Go) server-side — nothing ships, so no compilation is needed.
+- **Customer** **compiles the same source** (`go build` for Go; **Nuitka** for Python) and ships the compiled
+  artifact + license. **No raw `.py`.**
+
+**Each feature is implemented in exactly one language** (decided at design time, A6):
+
+| If the feature… | Language | SaaS runs | Customer ships |
+|---|---|---|---|
+| ships to customers **and is sensitive/IP-bearing** | **Go** | Go | Go binary |
+| ships but is **low-sensitivity/plumbing** | **Python** | Python | **compiled** Python (Nuitka) |
+| is **PF-side only** (SaaS/build-time/tooling/tests/docs) | **Python** | Python | not shipped |
+| is **AI/ML-heavy** or **experimental** | **Python** | Python | compiled / declared worker |
+
+**Hard rules:**
+- **Build time compiles — it never translates.** `go build` and Nuitka are different mechanisms; there is **no**
+  "Python → Go at compile time."
+- **No duplication.** A feature is **either Go or Python**, never both. Migration is a **one-time deliberate
+  replacement** (BI-PF-0386, by value), not a parallel copy.
+- **Language is chosen by placement:** *"will this ship to a customer and does it matter?"* → Go; else Python.
+- The **Go footprint grows over time** as high-value Python modules are migrated; SaaS always runs the current
+  baseline; the customer artifact is always its compiled form.
+
 ---
 
 ## 5. Target architecture (PF platform)
@@ -192,12 +218,28 @@ Two compiler stages: **Product Compiler** (requirements → product + EAP) and *
 
 ---
 
-## 7. Execution order
+## 7. Execution order (in order, with gates)
+
 ```text
-A0 → A1 → (A2 ∥ A4) → A3 → A5 → A6 → A7 ──[approval gate]──► B1 → (B2 ∥ B3 ∥ B4) → Bmig → B5/B6/B7
+STEP 0  ADR + strategy lock          (BI-PF-0388)   → decision recorded in the A0 register
+STEP 1  A0 baseline freeze           → repo SHA, test baseline, doc reconciliation, ADR register
+STEP 2  A1 contracts (thin)          → ProductSpec…ComponentManifest…BOM…Evidence + Go↔Python contract
+STEP 3  A2 licensing/entitlements    ∥  A4 EAP (delivery manifest + compatibility)
+STEP 4  A3 compiled packaging        → Nuitka build + signing + SBOM/LBOM + NO-RAW-.py release gate
+STEP 5  A5 Runtime Dependency Compiler (authoritative composition engine)
+STEP 6  A6 governance                → change classifier + drift guard + language rule + no-undeclared-dep
+STEP 7  A7 vertical slice            → Requirement→Tech→Factory→EAP→RDC→compiled+signed package   [APPROVAL GATE]
+────────────────────────────────────────────────────────────────────────────────────────────
+STEP 8  B1 PF Go core (seam)         → minimal Go host + Go↔Python contract wired
+STEP 9  BI-PF-0386 IP-value assessment → ranked module list (drives migration)
+STEP 10 Bmig migrate high-value → Go  → replace, not duplicate
+STEP 11 (B2 gateways ∥ B3 persistence ∥ B4 OEM profiles)   [trigger-gated]
+STEP 12 Bmig migrate remaining → Go (aspiration)   ∥   B5 Rust / B6 WASM / B7 decomposition (defer)
 ```
-Critical path: **A1 contracts → A3 compiled packaging → A4 EAP(manifest) → A5 RDC → A7 vertical slice**.
-Go seam (B1) must exist before "new sensitive logic → Go" can start.
+
+**Critical path:** A1 contracts → A3 compiled packaging → A4 EAP(manifest) → A5 RDC → A7 vertical slice.
+**Two prerequisites** before "new sensitive logic → Go" can start: **B1 Go seam** and **A3 compiled packaging**.
+**Gate:** no normal feature work until the A7 vertical slice passes; the customer package must contain **no raw `.py`**.
 
 ---
 
