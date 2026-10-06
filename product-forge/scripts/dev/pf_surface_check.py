@@ -72,11 +72,11 @@ def main() -> int:
     # Installed copy must be byte-identical to the checked-in source; absent = OK (fresh machine/CI).
     home = os.path.expanduser(os.path.join("~", ".config", "opencode", "command", "pf.md"))
     if os.path.exists(home) and os.path.exists(gcmd):
-        with open(home, "rb") as f:
-            hb = f.read()
-        with open(gcmd, "rb") as f:
-            gb = f.read()
-        if hb != gb:
+        def _norm(p):
+            # newline-insensitive: core.autocrlf may check the source out as CRLF
+            with open(p, "rb") as f:
+                return f.read().replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+        if _norm(home) != _norm(gcmd):
             FAILS.append("installed ~/.config/opencode/command/pf.md drifted from "
                          ".opencode/command_global/pf.md (re-copy the checked-in source)")
     elif not os.path.exists(home):
