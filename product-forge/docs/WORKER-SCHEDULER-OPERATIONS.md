@@ -92,6 +92,24 @@ An item is **eligible** only if **all** hold (`core/scheduler.py:eligible`):
 > **Groom the backlog first** or `/pf work` finds nothing. Deterministic grooming runs on create;
 > deeper AI grooming is explicit (`/pf backlog groom <id>`).
 
+### 6a. Analysis staleness — revalidation at pickup (BI-PF-0389)
+
+Analysis is done at entry; by pickup the architecture may have changed. To prevent executing a **stale
+design**:
+
+- **Architecture fingerprint** — `core/backlog.arch_fingerprint()` hashes the architecture-significant files
+  (configs/contracts, list in `config/grooming-guidelines.json → arch_significant`). A `COMPLETE` analysis
+  records it (`analysis.arch_fingerprint`).
+- **Revalidation** — `scheduler.eligible()` marks `analysis stale (architecture changed)` when the recorded
+  fingerprint ≠ current → the item is **not eligible**.
+- **Refresh at pickup** — `work_pull.pull` calls `grooming.refresh_stale(...)` (bounded, **deterministic/
+  offline-safe**) which re-analyzes stale items against the current code and **updates the stored design +
+  fingerprint**, then they become eligible again.
+- **Propagation** — any architecture-significant file change flips the fingerprint → **all** COMPLETE analyses
+  with the old fingerprint become stale automatically.
+- **No per-assignment AI** — refresh is deterministic; deep AI re-groom is explicit (`grooming.groom`).
+- Manual: `python -c "from core import grooming; print(grooming.refresh_stale('product_forge'))"`.
+
 ## 7. Lease & recovery
 
 - A claim attaches a **lease** (`PF_LEASE_SECONDS`). Two sessions can't get the same item.

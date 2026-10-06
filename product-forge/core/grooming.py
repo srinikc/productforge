@@ -312,6 +312,50 @@ def groom(scope: str, project: str | None, item_id: str, mode: str = "", *,
             "applied": True, "error": ""}
 
 
+def refresh_stale(scope: str, project: str | None = None, *, limit: int = 10,
+                  mode: str = "deterministic") -> dict[str, Any]:
+    """Re-analyze items whose COMPLETE analysis is stale vs the current architecture (BI-PF-0389).
+
+    Re-grounds the design in the current codebase and updates the stored analysis with the new
+    architecture fingerprint, so pickup never executes a stale design. **Deterministic/offline-safe by
+    default** (no per-assignment AI grooming); pass ``mode="ai"`` for explicit deep refresh.
+    Returns ``{refreshed:[ids], count}``.
+    """
+    from core import backlog
+    refreshed: list[str] = []
+    for it in backlog.list_open(scope, project, order=False):
+        if len(refreshed) >= int(limit or 10):
+            break
+        a = it.get("analysis") or {}
+        if str(a.get("status")) not in ("COMPLETE", "STALE"):
+            continue
+        if not backlog.analysis_is_stale(it):
+            continue
+        m = str(mode or "deterministic").lower()
+        proposal = None
+        used = m
+        if m == "ai":
+            ctx = _gather_context(scope, project, it)
+            proposal = _run_ai(it, ctx, project, project or "default")
+            if proposal is None:
+                used, proposal = "deterministic", deterministic(scope, project, it)
+        else:
+            proposal = deterministic(scope, project, it)
+        analysis = {k: v for k, v in proposal.items() if k in (
+            "architecture_fit", "implementation_strategy", "existing_components", "existing_apis",
+            "existing_modules", "duplication_findings", "dependency_findings",
+            "conflict_findings", "drift", "rewrite_required", "new_component_required", "risks",
+            "assumptions", "evidence", "confidence", "missing_info", "rationale")}
+        analysis["depth"] = "deep"
+        analysis["mode"] = used
+        analysis["refreshed_at"] = datetime.now().isoformat()
+        with contextlib.suppress(Exception):
+            backlog.set_analysis(scope, project, it.get("id"), status="COMPLETE", analysis=analysis,
+                                 analyzed_by=used)
+            refreshed.append(str(it.get("id")))
+    return {"refreshed": refreshed, "count": len(refreshed)}
+
+
 def decide(scope: str, project: str | None, item_id: str, decision: str,
            note: str = "", by: str = "user") -> dict[str, Any]:
     """User grooming decision: APPROVE -> analysis COMPLETE + item ready; MODIFY/REJECT/DEFER accordingly."""
