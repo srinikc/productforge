@@ -123,9 +123,9 @@ def store_audit():
     Scans code across all source roots for data-file literals (more extensions, path-aware),
     and fails on anything not registered or allow-listed. New ad-hoc stores cannot slip in.
     """
+    import fnmatch
     import json as _json
     import re as _re
-    import fnmatch
     reg_path = "config/store-registry.json"
     try:
         data = _json.load(open(reg_path, encoding="utf-8"))
@@ -634,7 +634,7 @@ def role_prompt_audit():
         return 0
 
 
-def main():
+def main(fast: bool = False):
     all_files = list(_iter_py(["core", "api", "scripts", "tests",
                                "test-framework/core", "test-framework/dashboard",
                                "dashboard", "templates"]))
@@ -642,16 +642,21 @@ def main():
     core_mods = [f for f in all_files if f.startswith("core/") and f.endswith(".py")]
     rows = []
     unwired = []
+    # read each file ONCE (the per-module scan below previously re-read every file N times)
+    _text: dict[str, str] = {}
+    for f in all_files:
+        try:
+            with open(f, encoding="utf-8", errors="ignore") as fh:
+                _text[f] = fh.read()
+        except Exception:
+            _text[f] = ""
     for mod in core_mods:
         name = os.path.basename(mod)[:-3]
         importers = []
         for f in all_files:
             if f == mod:
                 continue
-            try:
-                t = open(f, encoding="utf-8", errors="ignore").read()
-            except Exception:
-                continue
+            t = _text.get(f, "")
             if (("core." + name) in t) or ("core.orchestrator." + name in t) or (name + ".py" in t) \
                     or ("from core import " + name in t):
                 importers.append(f)
@@ -682,6 +687,13 @@ def main():
     rc |= diff_audit()
     rc |= destructive_audit()
     rc |= invocation_audit()
+    rc |= paths_audit()
+    rc |= legacy_guard_audit()
+    if fast:
+        print("\n[fast] advisory sub-audits skipped (reciprocity, backlog-duplicates/integrity, "
+              "tier-models, cost-registry, agent-knowledge/role-prompts/cards, provider-fallback, "
+              "model-registry) - run without --fast or at release for the full sweep")
+        return rc
     rc |= reciprocity_audit()
     rc |= backlog_duplicate_audit()
     rc |= backlog_integrity_audit()
@@ -692,8 +704,6 @@ def main():
     rc |= agent_card_audit()
     rc |= provider_fallback_audit()
     rc |= model_registry_audit()
-    rc |= paths_audit()
-    rc |= legacy_guard_audit()
     return rc
 
 
@@ -718,4 +728,4 @@ if __name__ == "__main__":
     snapshot = "--snapshot" in sys.argv
     if snapshot:
         raise SystemExit(diff_audit(snapshot=True))
-    raise SystemExit(main())
+    raise SystemExit(main(fast="--fast" in sys.argv))
