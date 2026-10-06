@@ -165,6 +165,84 @@ def resolve_context(scope: str = "product_forge", project: str | None = None, *,
     }
 
 
+# ── PIDL-2 (BI-PF-0377): decision engine + structured contract ─────────────────────────────
+ACTIONS = ("AUTO_PROCEED", "REVIEW", "CORRECT", "APPROVAL_REQUIRED", "ESCALATE")
+_NEXT_ACTION = {
+    "AUTO_PROCEED": "continue; no intervention required",
+    "REVIEW": "route the result to AI/human review before proceeding",
+    "CORRECT": "re-dispatch a correction with the conflicts resolved",
+    "APPROVAL_REQUIRED": "request authenticated human approval before proceeding",
+    "ESCALATE": "escalate to a human operator",
+}
+
+
+def _confidence(result: dict[str, Any] | None, ctx: dict[str, Any], conflicts: list[Any]) -> dict[str, float]:
+    """Deterministic, explainable confidence signals (bounded 0..1). No LLM required."""
+    has_result = result is not None
+    ok = bool(result.get("ok", True)) if has_result else True
+    factual = 0.95 if (has_result and ok) else (0.6 if has_result else 0.8)
+    architectural = max(0.3, 0.9 - 0.3 * len(conflicts))
+    requirement = 0.9 if ctx.get("applicable_principles") else 0.75
+    preference = 0.9 if ctx.get("applicable_preferences") else 0.7
+    implementation = 0.95 if ok else 0.5
+    return {"factual": round(factual, 2), "architectural": round(architectural, 2),
+            "requirement_interpretation": round(requirement, 2),
+            "user_preference": round(preference, 2), "implementation": round(implementation, 2)}
+
+
+def decide(scope: str = "product_forge", project: str | None = None, *,
+           task: dict[str, Any] | None = None, result: dict[str, Any] | None = None,
+           action: str = "", components: list[str] | None = None, area: str = "",
+           conflicts: list[Any] | None = None, failures: int = 0, escalated: bool = False) -> dict[str, Any]:
+    """Evaluate a decision point and return the structured PIDL decision contract (read-only, pure).
+
+    Precedence: ESCALATE -> APPROVAL_REQUIRED (consequential) -> CORRECT (conflicts) -> REVIEW
+    (failed/low-confidence) -> AUTO_PROCEED.
+    """
+    profile = load_profile()
+    conf = list(conflicts or [])
+    ctx = resolve_context(scope, project, task=task, result=result, action=action,
+                          components=components, area=area)
+    decision_cfg = profile.get("decision") or {}
+    weights = decision_cfg.get("weights") or {}
+    review_below = float(decision_cfg.get("review_below", 0.6))
+    escalate_failures = int(decision_cfg.get("escalate_failures", 3))
+
+    sig = _confidence(result, ctx, conf)
+    wsum = sum(float(weights.get(k, 0.0)) for k in sig) or 1.0
+    overall = round(sum(float(weights.get(k, 0.0)) * v for k, v in sig.items()) / wsum, 2)
+    sig["overall"] = overall
+
+    status = str((result or {}).get("status") or "").lower()
+    ok = bool((result or {}).get("ok", True))
+    approval_required = bool(ctx["execution_policy"].get("approval_required"))
+
+    if escalated or int(failures) >= escalate_failures:
+        act, reason = "ESCALATE", f"repeated failures ({failures}) or explicit escalation"
+    elif approval_required:
+        act, reason = "APPROVAL_REQUIRED", "consequential action under the approval policy"
+    elif conf:
+        act, reason = "CORRECT", f"{len(conf)} conflict(s) to resolve"
+    elif not ok or status in ("failed", "blocked", "needs_review", "review") or overall < review_below:
+        act, reason = "REVIEW", f"result not clean (status={status or 'n/a'}, confidence={overall})"
+    else:
+        act, reason = "AUTO_PROCEED", "consistent with policy; no conflicts; confidence sufficient"
+
+    risk = "HIGH" if (ctx.get("consequential") or conf) else ("MEDIUM" if act in ("REVIEW", "APPROVAL_REQUIRED") else "LOW")
+    return {
+        "scope": scope, "project": project or "",
+        "decision": {"action": act, "reason": reason},
+        "confidence": sig,
+        "risk": risk,
+        "recommendation": _NEXT_ACTION[act],
+        "evidence": ctx.get("evidence", []),
+        "conflicts": conf,
+        "approval": {"required": approval_required, "policy": ctx["execution_policy"]},
+        "next_action": _NEXT_ACTION[act],
+        "pidl_profile_version": ctx.get("profile_version"),
+    }
+
+
 def render_context(ctx: dict[str, Any], max_chars: int = 1200) -> str:
     """A compact, bounded text block for prompt/contract injection (only the relevant subset)."""
     lines = [f"pidl profile_version={ctx.get('profile_version')}"]

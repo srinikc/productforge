@@ -112,6 +112,7 @@
 | [`PFSSOT-P8A-SINGLE-PATH.md`](PFSSOT-P8A-SINGLE-PATH.md) | Design | 100% | PFSSOT P8A single submission path (fixes IS-PF-0035) + optional/removable worker layer (WORKER_INTEGRATION_ENABLED) | — | — |
 | [`PFSSOT-P8A1-DELIVERY-WRITEBACK.md`](PFSSOT-P8A1-DELIVERY-WRITEBACK.md) | Design | 100% | PFSSOT P8A.1 auto delivery + evidence write-back on verified completion (close_loop finalize) | — | — |
 | [`PFSSOT-P9-AUTO-DISPATCH.md`](PFSSOT-P9-AUTO-DISPATCH.md) | Design | 100% | PFSSOT P9 automatic dispatch (configurable, default-off; composes eligibility+claim+registry+adapter) | — | — |
+| [`PIDL-1-CONTEXT-RESOLVER.md`](PIDL-1-CONTEXT-RESOLVER.md) | Design | 100% | PIDL-1 personal-intelligence context resolver: relevant-subset rules/principles/preferences/lenses + execution policy over existing owners | — | — |
 | [`PIPELINE-COMPOSITION-DESIGN.md`](PIPELINE-COMPOSITION-DESIGN.md) | Design | 100% | Capability-gated pipeline composition (BI-0213) | — | — |
 | [`PIPELINE-OPERATIONS.md`](PIPELINE-OPERATIONS.md) | Implemented | 100% | Operations: run modes, control, state, status | — | — |
 | [`PIPELINE-RESUME-ProductForge-Dashboard.md`](PIPELINE-RESUME-ProductForge-Dashboard.md) | Adopted (reference) | 50% | Old resume notes for a project | Partial - resume notes reused. | — |
