@@ -39,6 +39,9 @@ def main() -> int:
                "contract verb set (doc section 18)")
         runtimes = {a["runtime"] for a in wa.list_adapters()}
         _check({"opencode", "command", "native"} <= runtimes, "opencode is one adapter, not the only one")
+        _check({"claude-code", "remote"} <= runtimes, "P11 additional adapters present (claude-code, remote)")
+        _check(wa.contract()["runtimes"] == [a["runtime"] for a in wa.list_adapters()],
+               "contract runtimes match the adapter set")
 
         ad = wa.resolve("command")
         wid = ad.register("project", _PROJ, capabilities=["python"])["worker_id"]
@@ -52,6 +55,22 @@ def main() -> int:
 
         nat = wa.resolve("native").start("project", _PROJ, "w", "", "")
         _check(nat["status"] == "native", "native declared (agents not routed through workers)")
+
+        # P11: remote worker is pull-based - start dispatches, never spawns a local process
+        rw = wa.resolve("remote")
+        rwid = rw.register("project", _PROJ, capabilities=["python"])["worker_id"]
+        _check(rw.available() is True, "remote adapter is endpoint-based (available)")
+        d = rw.start("project", _PROJ, rwid, objective="do work", assignment_id="ASG-2")
+        _check(d["ok"] and d["status"] == "dispatched", "remote start -> dispatched")
+        _check(rw.get_status("project", _PROJ, rwid).get("status") == "BUSY",
+               "remote dispatch marks the worker BUSY")
+
+        # P11: claude-code is an optional client - it degrades to BLOCKED when the CLI is absent
+        cc = wa.resolve("claude-code")
+        _check(isinstance(cc.available(), bool), "claude-code availability is a bool")
+        if not cc.available():
+            cc_out = cc.start("project", _PROJ, "w", objective="x", worktree=wt)
+            _check(cc_out["status"] == "blocked", "claude-code degrades to BLOCKED when absent")
     finally:
         _clean()
 
