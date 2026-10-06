@@ -196,7 +196,7 @@ Two compiler stages: **Product Compiler** (requirements → product + EAP) and *
 | A0 | Baseline freeze; reconcile doc (amendment = authority; fix 16- vs 39-stage); **ADR register** | — | repo SHA + test baseline |
 | A1 | **Contracts** (thin, grow by need) incl. the **Go↔Python contract** | A0 | `sample-*/…` fixture |
 | A2 | Capability Registry + entitlement-at-boundary + **asymmetric licensing** | A1 | license issued+verified |
-| A3 | **Compiled packaging** (Nuitka) + signing + SBOM/LBOM + **no-raw-`.py` release gate** | A1,A2 | compiled package |
+| A3 | **PF platform build → package → deploy pipeline** (one-time, rebuildable) + **compiled packaging** (Nuitka for Python, `go build` for Go) + signing + SBOM/LBOM + **no-raw-`.py` release gate**. Absorbs **BI-PF-0383** (build-time plug/unplug: exclude the worker subsystem per edition) | A1,A2,B1 | compiled, signed platform package |
 | A4 | **EAP (manifest)** + validator/registry + compatibility | A1 | `sample.eap` |
 | A5 | **Runtime Dependency Compiler** (authoritative composition engine) | A1,A4 | `sample-runtime-package/` |
 | A6 | Governance: change classifier + drift guard + no-undeclared-dep + language rule | A1 | gate on the fixture |
