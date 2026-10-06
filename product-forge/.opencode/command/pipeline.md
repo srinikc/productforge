@@ -4,6 +4,9 @@ agent: orchestrator
 model: opencode-go/mimo-v2.5
 ---
 
+**DEPRECATED (alias):** prefer `/pf product ...` (the `/pf` umbrella). This command is kept as a working
+alias for `/pf product` and forwards to the same Python pipeline. See `.opencode/command/pf.md`.
+
 **NOTE:** This command is a **thin adapter** to the generic Python pipeline
 (`PipelineExecutor`). It does NOT orchestrate agents itself — it calls the
 framework-agnostic runner. Deterministic commands call `scripts/pipeline.py`;

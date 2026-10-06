@@ -115,6 +115,7 @@ _GATES = [
     ("packaging", ["scripts/dev/packaging_check.py"], "fast", ["packaging"]),
     ("grooming", ["scripts/dev/grooming_check.py"], "fast", ["grooming"]),
     ("github", ["scripts/dev/github_check.py"], "fast", ["github"]),
+    ("pf-surface", ["scripts/dev/pf_surface_check.py"], "fast", None),
     ("intent-trace", ["scripts/dev/intent_trace_check.py"], "fast", None),
     ("docs-fresh", ["scripts/dev/check_docs_fresh.py"], "fast", None),
     # deep tier - real validation/lifecycle work; merge/CI only
