@@ -1,7 +1,6 @@
 ---
 description: "Product Forge command surface: /pf <verb>. verbs: product, backlog, work, scheduler, worker, adapters, dispatch, dogfood, validate, release, package, audit, status. Thin adapter to scripts/pf.py (no logic here)."
-agent: orchestrator
-model: opencode-go/mimo-v2.5
+agent: build
 ---
 
 **NOTE:** This command is a **thin adapter** to `scripts/pf.py`, which calls the canonical core/API.

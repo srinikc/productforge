@@ -1,0 +1,121 @@
+{
+  "id": "BI-PF-0408",
+  "tag": "PF",
+  "type": "change",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "intake",
+  "external_id": "",
+  "label": "PF Backlog 439",
+  "title": "/pf command: build mode only (not orchestrator) + global /pf for all opencode sessions",
+  "body": "## Problem / why\nThe `.opencode/command/pf.md` frontmatter binds every `/pf <verb>` invocation to the `orchestrator` agent (`agent: orchestrator` + `model: opencode-go/mimo-v2.5`), so deterministic thin-client verbs (backlog list, status, ...) run in the orchestrator agent instead of build mode. `.opencode/command/pipeline.md` has the same binding. Also, `/pf` exists only inside the product-forge repo - opencode sessions in other directories have no `/pf` command at all.\n\n## Goal & value\n- `/pf ...` always executes in build mode (`agent: build`), with no model pin so the session's model is inherited.\n- `/pf ...` available in EVERY opencode session via the global command dir, calling `scripts/pf.py` by absolute path (pf.py self-locates ROOT, so any cwd works).\n\n## In scope / Out of scope\nIn: frontmatter of `.opencode/command/pf.md` and `.opencode/command/pipeline.md`; new global command `$USERPROFILE/.config/opencode/command/pf.md`.\nOut: `scripts/pf.py` logic, verb behavior, `scripts/pipeline.py`, agent definitions.\n\n## User flow\nUser runs `/pf backlog list` in any opencode session (any cwd) -> command executes under the build agent -> JSON output reported.\n\n## Backend flow (consumed, by id)\n`/pf <verb>` -> `scripts/pf.py <verb>` (thin client) -> canonical core/API. No orchestration in the command file (guard: scripts/dev/pf_surface_check.py).\n\n## Acceptance criteria (testable G/W/T)\n- GIVEN the project `pf.md` WHEN its frontmatter is read THEN `agent: build` is present and `agent: orchestrator` / `model:` are absent.\n- GIVEN a session outside the repo WHEN `/pf help` is invoked THEN it resolves to the global command and runs pf.py by absolute path.\n- GIVEN the repo WHEN `python scripts/dev/pf_surface_check.py` runs THEN it exits 0.\n\n## Data model (what is stored, where, owner)\nCommand frontmatter: `.opencode/command/*.md` (project) and `~/.config/opencode/command/*.md` (global). Single writer: this item's implementation.\n\n## API contract (endpoints and payloads)\nNone - surface-level change (clients only; API untouched).\n\n## UX (screens / elements / states)\n`/pf` slash command available in the command palette of every session.\n\n## Edge cases and errors\n- Global vs project command with the same name: project overrides global inside the repo - both are kept in sync at `agent: build`.\n- Paths with spaces: absolute pf.py path must be quoted in the global command body.\n\n## Dependencies and links (by id)\nBI-PF-0372 (P10 /pf umbrella surface, completed).\n\n## Open questions\nNone.\n\n## Verification / test plan\npython scripts/dev/pf_surface_check.py; python -m compileall -q core scripts dashboard; python scripts/dev/wired_audit.py; manual /pf help in a fresh session after opencode restart.",
+  "source": "user",
+  "status": "new",
+  "priority": null,
+  "moscow": "Should",
+  "value": 3,
+  "effort": 1,
+  "risk": 1,
+  "deps": [],
+  "links": {
+    "backend_capability": [
+      "file: .opencode/command/pf.md",
+      "file: .opencode/command/pipeline.md",
+      "test: scripts/dev/pf_surface_check.py"
+    ],
+    "delivery": {
+      "branch": "feature/pf-cmd-build-mode",
+      "merge_sha": "",
+      "commits": [],
+      "pr": "",
+      "pr_url": "",
+      "at": "2026-10-06T19:13:56.554480",
+      "note": "committed on feature branch; merge pending"
+    }
+  },
+  "decisions": [],
+  "follow_up": {},
+  "revision": 3,
+  "priority_rank": null,
+  "priority_class": "",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "IN_PROGRESS",
+    "analyzed_at": "",
+    "analyzed_by": "deterministic",
+    "revision_analyzed": 0,
+    "architecture_fit": "REUSE",
+    "implementation_strategy": "Extend existing components/APIs: core/agent_model_override.py, core/budget_allocator.py, core/build_manager.py, core/build_utility.py",
+    "existing_components": [
+      "core/agent_model_override.py",
+      "core/budget_allocator.py",
+      "core/build_manager.py",
+      "core/build_utility.py",
+      "core/business_models_kb.py",
+      "core/call_ledger.py",
+      "core/conversation_models.py",
+      "core/cost_model.py"
+    ],
+    "existing_apis": [
+      "/api/v1/packaging/build"
+    ],
+    "existing_modules": [
+      "config/business-models-kb.json",
+      "config/model-catalog.json",
+      "config/model-policy.json",
+      "config/model-tier.json"
+    ],
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [
+      "product_forge:BI-PF-0408 (score 1.00)"
+    ],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [
+      "possible duplicate"
+    ],
+    "evidence": [
+      "similar=5",
+      "score=3.0",
+      "components=8",
+      "apis=1"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": false,
+    "reasons": [],
+    "computed_at": ""
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": ""
+  },
+  "created_at": "2026-10-06T19:06:58.917730",
+  "updated_at": "2026-10-06T19:13:56.597252",
+  "score": 3.0,
+  "_note": "delivery recorded",
+  "dashboard_impact": {
+    "needs_dashboard": false,
+    "reason": "Command frontmatter + opencode command file only; no UI surface change.",
+    "dashboard_item": null,
+    "reviewed_by": "agent",
+    "reviewed_at": "2026-10-06T19:13:56.415044"
+  }
+}
