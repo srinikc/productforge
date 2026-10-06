@@ -269,7 +269,25 @@ def verify_and_close(project_dir: str, run_id: str = "",
             # which scope owns this backlog item?
             in_proj = backlog.get_epic("project", proj, bid) is not None
             bscope, bproj = ("project", proj) if in_proj else ("product_forge", None)
-            if res["verified"]:
+            # PIDL-3 (BI-PF-0378): worker-result decision gate (advisory by default; enforce via
+            # PIDL_GATE_MODE). Invoked by orchestration here at the result boundary - never by the worker.
+            pidl_action, pidl_hold = "AUTO_PROCEED", False
+            try:
+                from core import pidl as _pidl
+                _pd = _pidl.gate(bscope, bproj, item_id=bid, run_id=run_id,
+                                 result={"ok": bool(res["verified"]),
+                                         "status": "pr_ready" if res["verified"] else "failed"})
+                pidl_action = str((_pd.get("decision") or {}).get("action") or "AUTO_PROCEED")
+                with contextlib.suppress(Exception):
+                    backlog.update(bscope, bproj, bid, links={"pidl": {
+                        "action": pidl_action, "risk": _pd.get("risk"),
+                        "profile_version": _pd.get("pidl_profile_version"),
+                        "gate_mode": _pd.get("gate_mode"), "run_id": run_id}})
+                res.setdefault("pidl", {})[bid] = pidl_action
+                pidl_hold = _pidl.gate_mode() == "enforce" and pidl_action != "AUTO_PROCEED"
+            except Exception:
+                pass
+            if res["verified"] and not pidl_hold:
                 backlog.set_status(bscope, bproj, bid, "implemented",
                                    note=f"auto: verified by run {run_id}")
                 backlog.set_status(bscope, bproj, bid, "closed",
@@ -289,6 +307,11 @@ def verify_and_close(project_dir: str, run_id: str = "",
                         res["closed_intake"].append(it["id"])
                 except Exception:
                     pass
+            elif res["verified"] and pidl_hold:
+                with contextlib.suppress(Exception):
+                    backlog.set_status(bscope, bproj, bid, "blocked",
+                                       note=f"pidl gate ({pidl_action}); review/approval required")
+                res.setdefault("pidl_held", []).append(bid)
             else:
                 with contextlib.suppress(Exception):
                     backlog.set_status(bscope, bproj, bid, "blocked",
