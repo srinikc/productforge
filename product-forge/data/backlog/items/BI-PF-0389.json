@@ -10,7 +10,7 @@
   "title": "Backlog analysis staleness: pickup revalidation (arch-version) + deep re-analyze/update + assignment guard + change propagation",
   "body": "PROBLEM: backlog analysis (grooming/deep analysis) is done at entry. By pickup time the architecture/design may have changed. External architecture changes do NOT mark dependent items STALE - only the item's OWN title/body/dependencies/links edits do (core/backlog.py:82 _STALE_FIELDS, :1067). work_pull returns the STORED analysis (pickup = execution, not re-analysis), so a worker can execute on outdated design.\n\nRCCA (5-why): stale design executed -> pickup trusts stored analysis -> external arch changes don't propagate STALE -> staleness trigger is per-item field change only -> analysis records no architecture/contract version. PREVENTIVE GUARD: version-aware analysis + change propagation + pickup revalidation.\n\nFIX (4 parts):\n1. VERSION-AWARE ANALYSIS: record the architecture/contract version on analysis at analyze time.\n2. PICKUP REVALIDATION: at pickup compare analysis version/revision vs current -> mismatch => STALE.\n3. RE-ANALYZE + UPDATE: on stale, deep re-analyze against the current codebase (core/grooming) and UPDATE the stored design/architecture on the item; then it becomes eligible again.\n4. GUARD: work_pull refuses assignment while analysis is STALE/version-mismatched.\n5. PROPAGATION: when a shared contract/architecture/component changes, mark_stale dependent items (affected_components/links).\n6. SAFETY NET: enable periodic_sweep_days>0; extend cadence on_pickup_when_defer -> on_pickup (always revalidate; deep re-analyze only if stale).\n\nOwners: core/backlog.py, core/scheduler.py, core/grooming.py, core/work_pull.py, config/grooming-guidelines.json.",
   "source": "generic",
-  "status": "new",
+  "status": "completed",
   "priority": "P1",
   "moscow": "Should",
   "value": 3,
@@ -23,12 +23,25 @@
       "module:core/scheduler.py",
       "module:core/grooming.py",
       "module:core/work_pull.py",
-      "config:config/grooming-guidelines.json"
-    ]
+      "config:config/grooming-guidelines.json",
+      "gate:scripts/dev/staleness_check.py",
+      "doc:docs/WORKER-SCHEDULER-OPERATIONS.md"
+    ],
+    "delivery": {
+      "branch": "fix/bi-pf-0389-analysis-staleness",
+      "merge_sha": "4f0a06d",
+      "commits": [
+        "d4c9d13"
+      ],
+      "pr": "",
+      "pr_url": "",
+      "at": "2026-10-06T18:22:23.816157",
+      "note": "analysis staleness revalidation delivered"
+    }
   },
   "decisions": [],
   "follow_up": {},
-  "revision": 2,
+  "revision": 4,
   "priority_rank": 20,
   "priority_class": "",
   "analyze_mode": "on_entry",
@@ -106,7 +119,7 @@
     "completed_at": ""
   },
   "created_at": "2026-10-06T18:04:25.258174",
-  "updated_at": "2026-10-06T18:04:25.970973",
+  "updated_at": "2026-10-06T18:22:23.989048",
   "score": 0.75,
-  "_note": "dependencies set"
+  "_note": "Analysis staleness: fingerprint + revalidation at pickup + refresh + guard"
 }
