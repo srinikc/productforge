@@ -61,11 +61,25 @@ def _package(scope: str, project: str | None, item_id: str, worker_id: str, runt
         permissions={"workspace": "isolated-worktree"},
         limits={}, verification={"acceptance": tp["analysis"].get("acceptance_criteria") or []},
         recovery={"idempotency_key": str(claim.get("assignment_id") or "")})
+    # PIDL-4 (BI-PF-0379): pre-dispatch evaluation - attach the relevant context + execution policy
+    # (advisory; read-only). This is the doc's "what the worker actually receives" (pidl_context +
+    # execution_policy) - never the whole personality.
+    pidl_pkg: dict[str, Any] = {}
+    try:
+        from core import pidl
+        pd = pidl.pre_dispatch(scope, project,
+                               item={"id": item_id, "title": tp.get("title"), "body": tp.get("requirement")},
+                               action=str(tp.get("requirement") or tp.get("title") or ""),
+                               components=tp["analysis"].get("existing_components") or [])
+        pidl_pkg = {"pidl_context": pd["pidl_context"], "execution_policy": pd["execution_policy"]}
+    except Exception:
+        pidl_pkg = {}
     return {
         "assignment_id": claim.get("assignment_id"), "lease_id": claim.get("lease_id"),
         "lease_expires_at": claim.get("lease_expires_at"), "attempt": claim.get("attempt"),
         "worker_id": worker_id, "runtime": runtime,
         "task": tp, "contract": contract, "contract_status": execution_contract.validate(contract)["status"],
+        **pidl_pkg,
     }
 
 

@@ -114,6 +114,7 @@
 | [`PFSSOT-P9-AUTO-DISPATCH.md`](PFSSOT-P9-AUTO-DISPATCH.md) | Design | 100% | PFSSOT P9 automatic dispatch (configurable, default-off; composes eligibility+claim+registry+adapter) | — | — |
 | [`PIDL-1-CONTEXT-RESOLVER.md`](PIDL-1-CONTEXT-RESOLVER.md) | Design | 100% | PIDL-1 personal-intelligence context resolver: relevant-subset rules/principles/preferences/lenses + execution policy over existing owners | — | — |
 | [`PIDL-2-DECISION-ENGINE.md`](PIDL-2-DECISION-ENGINE.md) | Design | 100% | PIDL-2 decision engine: structured decision contract (AUTO_PROCEED/REVIEW/CORRECT/APPROVAL_REQUIRED/ESCALATE) + deterministic confidence/risk | — | — |
+| [`PIDL-3-RESULT-GATE.md`](PIDL-3-RESULT-GATE.md) | Design | 100% | PIDL-3 worker-result decision gate (primary trigger) wired at the close boundary; advisory default, enforce via PIDL_GATE_MODE | — | — |
 | [`PIPELINE-COMPOSITION-DESIGN.md`](PIPELINE-COMPOSITION-DESIGN.md) | Design | 100% | Capability-gated pipeline composition (BI-0213) | — | — |
 | [`PIPELINE-OPERATIONS.md`](PIPELINE-OPERATIONS.md) | Implemented | 100% | Operations: run modes, control, state, status | — | — |
 | [`PIPELINE-RESUME-ProductForge-Dashboard.md`](PIPELINE-RESUME-ProductForge-Dashboard.md) | Adopted (reference) | 50% | Old resume notes for a project | Partial - resume notes reused. | — |

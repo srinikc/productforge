@@ -117,6 +117,49 @@ async def pidl_gate(request: Request, scope: str = "product_forge", project: str
     return from_request(request, out, resource="engineering")
 
 
+@router.post("/pidl/pre-dispatch", dependencies=[Depends(authenticate)])
+async def pidl_pre_dispatch(request: Request, scope: str = "product_forge", project: str = "",
+                            ctx: dict[str, Any] = Depends(authenticate)):
+    """Pre-dispatch evaluation: relevant context + execution policy for a task (read-only)."""
+    from core import pidl
+    s, p = _scope_project(scope, project)
+    with contextlib.suppress(Exception):
+        body = await request.json()
+    body = body if isinstance(body, dict) else {}
+    out = pidl.pre_dispatch(s, p, item=body.get("item"), action=str(body.get("action") or ""),
+                            components=body.get("components") or [], area=str(body.get("area") or ""))
+    return from_request(request, out, resource="engineering")
+
+
+@router.post("/pidl/synthesize", dependencies=[Depends(authenticate)])
+async def pidl_synthesize(request: Request, scope: str = "product_forge", project: str = "",
+                          ctx: dict[str, Any] = Depends(authenticate)):
+    """Cross-worker synthesis: evaluate combined parallel results for consistency (read-only)."""
+    from core import pidl
+    s, p = _scope_project(scope, project)
+    with contextlib.suppress(Exception):
+        body = await request.json()
+    body = body if isinstance(body, dict) else {}
+    out = pidl.synthesize(s, p, results=body.get("results") or [], item_id=str(body.get("item_id") or ""),
+                          action=str(body.get("action") or ""), area=str(body.get("area") or ""))
+    return from_request(request, out, resource="engineering")
+
+
+@router.post("/pidl/consequential", dependencies=[Depends(authenticate)])
+async def pidl_consequential(request: Request, scope: str = "product_forge", project: str = "",
+                             ctx: dict[str, Any] = Depends(authenticate)):
+    """Before-consequential-action gate: APPROVAL_REQUIRED when consequential (read-only)."""
+    from core import pidl
+    s, p = _scope_project(scope, project)
+    with contextlib.suppress(Exception):
+        body = await request.json()
+    body = body if isinstance(body, dict) else {}
+    out = pidl.consequential_gate(s, p, action=str(body.get("action") or ""),
+                                  components=body.get("components") or [],
+                                  area=str(body.get("area") or ""), item_id=str(body.get("item_id") or ""))
+    return from_request(request, out, resource="engineering")
+
+
 # ── ENG-2: worker pool + elastic schedule ───────────────────────────────────
 
 @router.get("/workers", dependencies=[Depends(authenticate), Depends(_worker_on)])

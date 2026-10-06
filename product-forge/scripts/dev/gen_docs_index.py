@@ -97,6 +97,7 @@ TOP = {
     "PIDL-1-CONTEXT-RESOLVER.md": ("Design", "PIDL-1 personal-intelligence context resolver: relevant-subset rules/principles/preferences/lenses + execution policy over existing owners", 100),
     "PIDL-2-DECISION-ENGINE.md": ("Design", "PIDL-2 decision engine: structured decision contract (AUTO_PROCEED/REVIEW/CORRECT/APPROVAL_REQUIRED/ESCALATE) + deterministic confidence/risk", 100),
     "PIDL-3-RESULT-GATE.md": ("Design", "PIDL-3 worker-result decision gate (primary trigger) wired at the close boundary; advisory default, enforce via PIDL_GATE_MODE", 100),
+    "PIDL-4-DISPATCH-SYNTHESIS.md": ("Design", "PIDL-4 pre-dispatch context + cross-worker synthesis + consequential-action gate; wired into work_pull and close_loop", 100),
     "PF-Backlog-SSOT-Scheduler-Pluggable-Workers-updated.md": ("Design", "Backlog SSOT + pluggable worker scheduler architecture (source doc; epic BI-PF-0360)", 0),
     "SESSION-RESUME-MASTER-PLAN.md": ("Analysis (current)", "Session hand-off notes to resume master-plan execution", 100),
     "design-plan-BI0218.md": ("Design", "AI-era operations layer (evals/versioning/feedback) design - parked (BI-0218)", 0),
