@@ -1,14 +1,14 @@
 {
-  "id": "BI-PF-0388",
+  "id": "BI-PF-0398",
   "tag": "PF",
-  "type": "task",
+  "type": "feature",
   "scope": "product_forge",
   "project": "",
   "origin": "review",
-  "external_id": "pf-adr-compiled-delivery",
-  "label": "PF Backlog 419",
-  "title": "ADR: PF platform shipped editions use compiled artifacts (Go core + compiled-Python), never raw .py; one source, many editions",
-  "body": "Context: PF platform is 100% Python; deploying it on-prem/OEM exposes readable source (IP/reverse-engineering risk). Decision: ship compiled artifacts only; Go for new shipped/sensitive logic and for migrated high-value modules; compiled-Python (Nuitka) for the remainder; one source with build profiles (no per-edition forks); licensing + signed updates for value retention. Consequences: partial protection for compiled-Python remainder; Go migration cost; dev stays Python. Register in the A0 architecture decision register.",
+  "external_id": "pf-a3-packaging",
+  "label": "PF Backlog 429",
+  "title": "A3: PF platform build->package->deploy + compiled packaging + signing + SBOM/LBOM + NO-RAW-.py gate (absorbs BI-PF-0383)",
+  "body": "[A3] One-time rebuildable pipeline: Nuitka (Python) + go build (Go) -> signed package + SBOM/LBOM; release gate = no readable source. Includes build-time plug/unplug.",
   "source": "generic",
   "status": "new",
   "priority": "P1",
@@ -17,11 +17,15 @@
   "effort": 3,
   "risk": 2,
   "deps": [],
-  "links": {},
+  "links": {
+    "backend_capability": [
+      "item:BI-PF-0383"
+    ]
+  },
   "decisions": [],
   "follow_up": {},
-  "revision": 2,
-  "priority_rank": 9,
+  "revision": 3,
+  "priority_rank": 2,
   "priority_class": "",
   "analyze_mode": "on_entry",
   "analysis": {
@@ -30,20 +34,32 @@
     "analyzed_by": "deterministic",
     "revision_analyzed": 0,
     "architecture_fit": "REUSE",
-    "implementation_strategy": "Extend existing components/APIs: /api/v1/artifacts, /api/v1/artifacts/{stage_id}/{agent}, /api/v1/enterprise/users, /api/v1/packaging/editions",
-    "existing_components": [],
+    "implementation_strategy": "Extend existing components/APIs: core/code_quality_gate.py, core/deploy_providers.py, core/merge_gate.py, core/model_gate.py",
+    "existing_components": [
+      "core/code_quality_gate.py",
+      "core/deploy_providers.py",
+      "core/merge_gate.py",
+      "core/model_gate.py",
+      "core/packaging.py",
+      "core/pr_gate.py",
+      "core/run_quality_gate.py",
+      "core/signing.py"
+    ],
     "existing_apis": [
-      "/api/v1/artifacts",
-      "/api/v1/artifacts/{stage_id}/{agent}",
-      "/api/v1/enterprise/users",
+      "/api/v1/engineering/pidl/gate",
+      "/api/v1/gates/go-no-go",
+      "/api/v1/gates/pr",
+      "/api/v1/gates/pr/merge",
+      "/api/v1/gates/quality",
+      "/api/v1/packaging/build",
       "/api/v1/packaging/editions",
-      "/api/v1/workers/queue/{project}/pause"
+      "/api/v1/packaging/manifest"
     ],
     "existing_modules": [],
     "dependency_findings": [],
     "conflict_findings": [],
     "duplication_findings": [
-      "product_forge:BI-PF-0388 (score 0.99)"
+      "product_forge:BI-PF-0398 (score 1.00)"
     ],
     "drift": "NONE",
     "rewrite_required": false,
@@ -56,8 +72,8 @@
     "evidence": [
       "similar=5",
       "score=0.75",
-      "components=0",
-      "apis=5"
+      "components=8",
+      "apis=8"
     ],
     "confidence": "high",
     "missing_info": [],
@@ -65,7 +81,11 @@
     "mode": "deterministic"
   },
   "dependencies": [],
-  "blocked_by": [],
+  "blocked_by": [
+    "BI-PF-0393",
+    "BI-PF-0396",
+    "BI-PF-0394"
+  ],
   "unlocks": [],
   "readiness": {
     "ready": false,
@@ -82,8 +102,8 @@
     "started_at": "",
     "completed_at": ""
   },
-  "created_at": "2026-10-06T14:56:33.607127",
-  "updated_at": "2026-10-06T18:32:32.102929",
+  "created_at": "2026-10-06T18:32:23.344615",
+  "updated_at": "2026-10-06T18:32:32.922201",
   "score": 0.75,
   "_note": "priority set",
   "parent": "BI-PF-0390",

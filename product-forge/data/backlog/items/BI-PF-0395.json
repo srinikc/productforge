@@ -1,14 +1,14 @@
 {
-  "id": "BI-PF-0387",
+  "id": "BI-PF-0395",
   "tag": "PF",
   "type": "feature",
   "scope": "product_forge",
   "project": "",
   "origin": "review",
-  "external_id": "pf-delivery-baseline",
-  "label": "PF Backlog 418",
-  "title": "PF platform delivery baseline: ONE source for all editions; new shipped/sensitive logic -> Go; existing -> compiled (Nuitka); no raw .py at customer; migrate by value later",
-  "body": "LOCKED delivery baseline (Go-first for new work): ONE source for all editions. NEW features -> Go (from day one; Go core B1 is mandatory). EXISTING Python -> shipped compiled (Nuitka). High-value legacy modules -> migrated to Go later by value (BI-PF-0386). No raw .py at the customer; build COMPILES (go build / Nuitka), never translates; one implementation per feature. Full Python->Go rewrite = non-goal/aspiration (compiled Python fallback for low-value remainder). SaaS runs the source; customer ships the compiled artifact + license.",
+  "external_id": "pf-a6-governance",
+  "label": "PF Backlog 426",
+  "title": "A6: change classifier + drift guard + language rule + no-undeclared-dep",
+  "body": "[A6] Governs A1-A7: classify every change; enforce language rule (shipped+sensitive->Go); fail on undeclared runtime dep.",
   "source": "generic",
   "status": "new",
   "priority": "P0",
@@ -20,8 +20,8 @@
   "links": {},
   "decisions": [],
   "follow_up": {},
-  "revision": 4,
-  "priority_rank": 5,
+  "revision": 2,
+  "priority_rank": 1,
   "priority_class": "",
   "analyze_mode": "on_entry",
   "analysis": {
@@ -30,19 +30,26 @@
     "analyzed_by": "deterministic",
     "revision_analyzed": 0,
     "architecture_fit": "REUSE",
-    "implementation_strategy": "Extend existing components/APIs: core/budget_allocator.py, core/call_ledger.py, /api/v1/packaging/editions",
+    "implementation_strategy": "Extend existing components/APIs: core/agent_rules.py, core/change_log.py, core/change_registry.py, core/change_spec.py",
     "existing_components": [
-      "core/budget_allocator.py",
-      "core/call_ledger.py"
+      "core/agent_rules.py",
+      "core/change_log.py",
+      "core/change_registry.py",
+      "core/change_spec.py",
+      "core/guardrails.py",
+      "core/run_guard.py"
     ],
     "existing_apis": [
-      "/api/v1/packaging/editions"
+      "/api/v1/changes",
+      "/api/v1/changes/kinds"
     ],
-    "existing_modules": [],
+    "existing_modules": [
+      "config/guardrail-policy.json"
+    ],
     "dependency_findings": [],
     "conflict_findings": [],
     "duplication_findings": [
-      "product_forge:BI-PF-0387 (score 1.00)"
+      "product_forge:BI-PF-0395 (score 0.97)"
     ],
     "drift": "NONE",
     "rewrite_required": false,
@@ -55,8 +62,8 @@
     "evidence": [
       "similar=5",
       "score=0.75",
-      "components=2",
-      "apis=1"
+      "components=6",
+      "apis=2"
     ],
     "confidence": "high",
     "missing_info": [],
@@ -65,7 +72,7 @@
   },
   "dependencies": [],
   "blocked_by": [
-    "BI-PF-0388"
+    "BI-PF-0393"
   ],
   "unlocks": [],
   "readiness": {
@@ -83,8 +90,8 @@
     "started_at": "",
     "completed_at": ""
   },
-  "created_at": "2026-10-06T14:56:32.989101",
-  "updated_at": "2026-10-06T18:32:32.026775",
+  "created_at": "2026-10-06T18:32:20.446713",
+  "updated_at": "2026-10-06T18:32:32.686102",
   "score": 0.75,
   "_note": "priority set",
   "parent": "BI-PF-0390",

@@ -1,17 +1,17 @@
 {
-  "id": "BI-PF-0388",
+  "id": "BI-PF-0392",
   "tag": "PF",
-  "type": "task",
+  "type": "feature",
   "scope": "product_forge",
   "project": "",
   "origin": "review",
-  "external_id": "pf-adr-compiled-delivery",
-  "label": "PF Backlog 419",
-  "title": "ADR: PF platform shipped editions use compiled artifacts (Go core + compiled-Python), never raw .py; one source, many editions",
-  "body": "Context: PF platform is 100% Python; deploying it on-prem/OEM exposes readable source (IP/reverse-engineering risk). Decision: ship compiled artifacts only; Go for new shipped/sensitive logic and for migrated high-value modules; compiled-Python (Nuitka) for the remainder; one source with build profiles (no per-edition forks); licensing + signed updates for value retention. Consequences: partial protection for compiled-Python remainder; Go migration cost; dev stays Python. Register in the A0 architecture decision register.",
+  "external_id": "pf-a0-baseline",
+  "label": "PF Backlog 423",
+  "title": "A0: baseline freeze + doc reconciliation (amendment=authority) + ADR register",
+  "body": "[A0] Freeze develop SHA, record test baseline, reconcile the target-arch doc (16- vs 39-stage), establish the ADR register.",
   "source": "generic",
   "status": "new",
-  "priority": "P1",
+  "priority": "P0",
   "moscow": "Should",
   "value": 3,
   "effort": 3,
@@ -21,7 +21,7 @@
   "decisions": [],
   "follow_up": {},
   "revision": 2,
-  "priority_rank": 9,
+  "priority_rank": 1,
   "priority_class": "",
   "analyze_mode": "on_entry",
   "analysis": {
@@ -30,20 +30,35 @@
     "analyzed_by": "deterministic",
     "revision_analyzed": 0,
     "architecture_fit": "REUSE",
-    "implementation_strategy": "Extend existing components/APIs: /api/v1/artifacts, /api/v1/artifacts/{stage_id}/{agent}, /api/v1/enterprise/users, /api/v1/packaging/editions",
-    "existing_components": [],
-    "existing_apis": [
-      "/api/v1/artifacts",
-      "/api/v1/artifacts/{stage_id}/{agent}",
-      "/api/v1/enterprise/users",
-      "/api/v1/packaging/editions",
-      "/api/v1/workers/queue/{project}/pause"
+    "implementation_strategy": "Extend existing components/APIs: core/api_docs.py, core/docker_compose_generator.py, core/mobile_tester.py, core/test_adapters.py",
+    "existing_components": [
+      "core/api_docs.py",
+      "core/docker_compose_generator.py",
+      "core/mobile_tester.py",
+      "core/test_adapters.py",
+      "core/test_framework_bridge.py",
+      "core/test_framework_integration.py",
+      "core/test_matrix.py",
+      "core/workflow_docs.py"
     ],
-    "existing_modules": [],
+    "existing_apis": [
+      "/api/v1/apidocs",
+      "/api/v1/apidocs.json",
+      "/api/v1/apidocs/render",
+      "/api/v1/engineering/workers/register",
+      "/api/v1/engineering/workers/{worker_id}/unregister",
+      "/api/v1/reservations/shared-paths",
+      "/api/v1/tests/cycles",
+      "/api/v1/tests/matrix"
+    ],
+    "existing_modules": [
+      "config/shared-paths.json",
+      "config/test-matrix.json"
+    ],
     "dependency_findings": [],
     "conflict_findings": [],
     "duplication_findings": [
-      "product_forge:BI-PF-0388 (score 0.99)"
+      "product_forge:BI-PF-0392 (score 1.00)"
     ],
     "drift": "NONE",
     "rewrite_required": false,
@@ -56,8 +71,8 @@
     "evidence": [
       "similar=5",
       "score=0.75",
-      "components=0",
-      "apis=5"
+      "components=8",
+      "apis=8"
     ],
     "confidence": "high",
     "missing_info": [],
@@ -82,8 +97,8 @@
     "started_at": "",
     "completed_at": ""
   },
-  "created_at": "2026-10-06T14:56:33.607127",
-  "updated_at": "2026-10-06T18:32:32.102929",
+  "created_at": "2026-10-06T18:32:17.673286",
+  "updated_at": "2026-10-06T18:32:32.439097",
   "score": 0.75,
   "_note": "priority set",
   "parent": "BI-PF-0390",

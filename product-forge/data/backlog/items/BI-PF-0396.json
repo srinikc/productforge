@@ -1,14 +1,14 @@
 {
-  "id": "BI-PF-0388",
+  "id": "BI-PF-0396",
   "tag": "PF",
-  "type": "task",
+  "type": "feature",
   "scope": "product_forge",
   "project": "",
   "origin": "review",
-  "external_id": "pf-adr-compiled-delivery",
-  "label": "PF Backlog 419",
-  "title": "ADR: PF platform shipped editions use compiled artifacts (Go core + compiled-Python), never raw .py; one source, many editions",
-  "body": "Context: PF platform is 100% Python; deploying it on-prem/OEM exposes readable source (IP/reverse-engineering risk). Decision: ship compiled artifacts only; Go for new shipped/sensitive logic and for migrated high-value modules; compiled-Python (Nuitka) for the remainder; one source with build profiles (no per-edition forks); licensing + signed updates for value retention. Consequences: partial protection for compiled-Python remainder; Go migration cost; dev stays Python. Register in the A0 architecture decision register.",
+  "external_id": "pf-a2-licensing",
+  "label": "PF Backlog 427",
+  "title": "A2: capability registry + entitlement-at-boundary + asymmetric licensing",
+  "body": "[A2] Capability registry; entitlement checks at execution boundaries; asymmetric license (public-key verify; private key never ships).",
   "source": "generic",
   "status": "new",
   "priority": "P1",
@@ -21,7 +21,7 @@
   "decisions": [],
   "follow_up": {},
   "revision": 2,
-  "priority_rank": 9,
+  "priority_rank": 2,
   "priority_class": "",
   "analyze_mode": "on_entry",
   "analysis": {
@@ -30,20 +30,33 @@
     "analyzed_by": "deterministic",
     "revision_analyzed": 0,
     "architecture_fit": "REUSE",
-    "implementation_strategy": "Extend existing components/APIs: /api/v1/artifacts, /api/v1/artifacts/{stage_id}/{agent}, /api/v1/enterprise/users, /api/v1/packaging/editions",
-    "existing_components": [],
-    "existing_apis": [
-      "/api/v1/artifacts",
-      "/api/v1/artifacts/{stage_id}/{agent}",
-      "/api/v1/enterprise/users",
-      "/api/v1/packaging/editions",
-      "/api/v1/workers/queue/{project}/pause"
+    "implementation_strategy": "Extend existing components/APIs: core/artifact_registry.py, core/capability_bridge.py, core/capability_packs.py, core/change_registry.py",
+    "existing_components": [
+      "core/artifact_registry.py",
+      "core/capability_bridge.py",
+      "core/capability_packs.py",
+      "core/change_registry.py",
+      "core/execution_contract.py",
+      "core/knowledge_registry.py",
+      "core/licensing.py",
+      "core/model_registry.py"
     ],
-    "existing_modules": [],
+    "existing_apis": [
+      "/api/v1/enterprise/tenants/{tenant}/entitlements",
+      "/api/v1/enterprise/tenants/{tenant}/license"
+    ],
+    "existing_modules": [
+      "config/agent-capability-vector.json",
+      "config/capability-packs.json",
+      "config/knowledge-registry.json",
+      "config/licensing-tiers.json",
+      "config/plugins-registry.json",
+      "config/store-registry.json"
+    ],
     "dependency_findings": [],
     "conflict_findings": [],
     "duplication_findings": [
-      "product_forge:BI-PF-0388 (score 0.99)"
+      "product_forge:BI-PF-0396 (score 1.00)"
     ],
     "drift": "NONE",
     "rewrite_required": false,
@@ -56,8 +69,8 @@
     "evidence": [
       "similar=5",
       "score=0.75",
-      "components=0",
-      "apis=5"
+      "components=8",
+      "apis=2"
     ],
     "confidence": "high",
     "missing_info": [],
@@ -65,7 +78,9 @@
     "mode": "deterministic"
   },
   "dependencies": [],
-  "blocked_by": [],
+  "blocked_by": [
+    "BI-PF-0393"
+  ],
   "unlocks": [],
   "readiness": {
     "ready": false,
@@ -82,8 +97,8 @@
     "started_at": "",
     "completed_at": ""
   },
-  "created_at": "2026-10-06T14:56:33.607127",
-  "updated_at": "2026-10-06T18:32:32.102929",
+  "created_at": "2026-10-06T18:32:21.466893",
+  "updated_at": "2026-10-06T18:32:32.766458",
   "score": 0.75,
   "_note": "priority set",
   "parent": "BI-PF-0390",

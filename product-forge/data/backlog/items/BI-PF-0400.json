@@ -1,14 +1,14 @@
 {
-  "id": "BI-PF-0388",
+  "id": "BI-PF-0400",
   "tag": "PF",
-  "type": "task",
+  "type": "feature",
   "scope": "product_forge",
   "project": "",
   "origin": "review",
-  "external_id": "pf-adr-compiled-delivery",
-  "label": "PF Backlog 419",
-  "title": "ADR: PF platform shipped editions use compiled artifacts (Go core + compiled-Python), never raw .py; one source, many editions",
-  "body": "Context: PF platform is 100% Python; deploying it on-prem/OEM exposes readable source (IP/reverse-engineering risk). Decision: ship compiled artifacts only; Go for new shipped/sensitive logic and for migrated high-value modules; compiled-Python (Nuitka) for the remainder; one source with build profiles (no per-edition forks); licensing + signed updates for value retention. Consequences: partial protection for compiled-Python remainder; Go migration cost; dev stays Python. Register in the A0 architecture decision register.",
+  "external_id": "pf-a7-vertical-slice",
+  "label": "PF Backlog 431",
+  "title": "A7: vertical slice (Requirement->Tech->Factory->EAP->RDC->compiled+signed package)",
+  "body": "[A7] Prove the whole path end-to-end; customer package contains no raw .py. APPROVAL GATE before normal feature work.",
   "source": "generic",
   "status": "new",
   "priority": "P1",
@@ -21,7 +21,7 @@
   "decisions": [],
   "follow_up": {},
   "revision": 2,
-  "priority_rank": 9,
+  "priority_rank": 2,
   "priority_class": "",
   "analyze_mode": "on_entry",
   "analysis": {
@@ -30,20 +30,14 @@
     "analyzed_by": "deterministic",
     "revision_analyzed": 0,
     "architecture_fit": "REUSE",
-    "implementation_strategy": "Extend existing components/APIs: /api/v1/artifacts, /api/v1/artifacts/{stage_id}/{agent}, /api/v1/enterprise/users, /api/v1/packaging/editions",
+    "implementation_strategy": "New capability; design before building (reuse-first)",
     "existing_components": [],
-    "existing_apis": [
-      "/api/v1/artifacts",
-      "/api/v1/artifacts/{stage_id}/{agent}",
-      "/api/v1/enterprise/users",
-      "/api/v1/packaging/editions",
-      "/api/v1/workers/queue/{project}/pause"
-    ],
+    "existing_apis": [],
     "existing_modules": [],
     "dependency_findings": [],
     "conflict_findings": [],
     "duplication_findings": [
-      "product_forge:BI-PF-0388 (score 0.99)"
+      "product_forge:BI-PF-0400 (score 1.00)"
     ],
     "drift": "NONE",
     "rewrite_required": false,
@@ -57,15 +51,21 @@
       "similar=5",
       "score=0.75",
       "components=0",
-      "apis=5"
+      "apis=0"
     ],
-    "confidence": "high",
+    "confidence": "low",
     "missing_info": [],
     "depth": "deep",
     "mode": "deterministic"
   },
   "dependencies": [],
-  "blocked_by": [],
+  "blocked_by": [
+    "BI-PF-0396",
+    "BI-PF-0398",
+    "BI-PF-0397",
+    "BI-PF-0399",
+    "BI-PF-0395"
+  ],
   "unlocks": [],
   "readiness": {
     "ready": false,
@@ -82,8 +82,8 @@
     "started_at": "",
     "completed_at": ""
   },
-  "created_at": "2026-10-06T14:56:33.607127",
-  "updated_at": "2026-10-06T18:32:32.102929",
+  "created_at": "2026-10-06T18:32:24.942999",
+  "updated_at": "2026-10-06T18:32:33.073584",
   "score": 0.75,
   "_note": "priority set",
   "parent": "BI-PF-0390",
