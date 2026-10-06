@@ -272,6 +272,81 @@ def gate(scope: str = "product_forge", project: str | None = None, *, item_id: s
     return d
 
 
+# ── PIDL-4 (BI-PF-0379): pre-dispatch evaluation + cross-worker synthesis + consequential gate ──
+def pre_dispatch(scope: str = "product_forge", project: str | None = None, *, item: dict[str, Any] | None = None,
+                 action: str = "", components: list[str] | None = None, area: str = "") -> dict[str, Any]:
+    """Pre-dispatch evaluation (doc trigger #1, optional): the relevant context + execution constraints.
+
+    Returns the exact ``pidl_context`` + ``execution_policy`` a worker's execution contract carries. Read-only;
+    the scheduler still decides whether/when the work runs.
+    """
+    comps = [str(c) for c in (components or [])]
+    if item and not comps:
+        comps = [str(c) for c in (item.get("affected_components") or [])]
+    act = action or str((item or {}).get("title") or (item or {}).get("body") or "")
+    ctx = resolve_context(scope, project, task=item, action=act, components=comps, area=area)
+    d = decide(scope, project, task=item, action=act, components=comps, area=area)
+    return {
+        "scope": scope, "project": project or "", "item_id": str((item or {}).get("id") or ""),
+        "pidl_context": {"profile_version": ctx["profile_version"],
+                         "applicable_rules": ctx["applicable_rules"],
+                         "applicable_principles": ctx["applicable_principles"],
+                         "applicable_preferences": ctx["applicable_preferences"],
+                         "review_lenses": ctx["review_lenses"]},
+        "execution_policy": ctx["execution_policy"],
+        "decision": d["decision"], "consequential": ctx["consequential"],
+        "recommendation": d["recommendation"],
+    }
+
+
+def synthesize(scope: str = "product_forge", project: str | None = None, *, results: list[dict[str, Any]] | None = None,
+               item_id: str = "", action: str = "", area: str = "") -> dict[str, Any]:
+    """Cross-worker synthesis gate (doc trigger #3): evaluate combined parallel results for consistency.
+
+    Detects status disagreement and path overlap (reusing ``scheduler.path_overlap``); returns the decision
+    contract plus a synthesis summary. ``CORRECT`` when conflicting, ``REVIEW`` when incomplete, else
+    ``AUTO_PROCEED``. Read-only.
+    """
+    res = list(results or [])
+    conflicts: list[dict[str, Any]] = []
+    paths_by: list[tuple[str, list[str]]] = []
+    for r in res:
+        ps = [str(p) for p in (r.get("paths") or r.get("affected_components") or [])]
+        paths_by.append((str(r.get("item_id") or r.get("id") or ""), ps))
+    try:
+        from core import scheduler
+        for i in range(len(paths_by)):
+            for j in range(i + 1, len(paths_by)):
+                if paths_by[i][1] and scheduler.path_overlap(paths_by[i][1], paths_by[j][1]):
+                    conflicts.append({"kind": "path_overlap", "a": paths_by[i][0], "b": paths_by[j][0]})
+    except Exception:
+        pass
+    oks = [bool(r.get("ok", True)) for r in res]
+    if res and len(set(oks)) > 1:
+        conflicts.append({"kind": "status_disagreement"})
+    agg_ok = all(oks) if oks else True
+    agg = {"ok": agg_ok, "status": "pr_ready" if agg_ok else "mixed", "synthesis": True}
+    d = decide(scope, project, result=agg, conflicts=conflicts, action=action or "synthesis", area=area)
+    d["item_id"] = str(item_id or "")
+    d["synthesis"] = {
+        "results": [{"item_id": str(r.get("item_id") or r.get("id") or ""),
+                     "ok": bool(r.get("ok", True)), "status": str(r.get("status") or "")} for r in res],
+        "consistent": not conflicts, "conflicts": conflicts,
+    }
+    return d
+
+
+def consequential_gate(scope: str = "product_forge", project: str | None = None, *, action: str = "",
+                       components: list[str] | None = None, area: str = "",
+                       item_id: str = "") -> dict[str, Any]:
+    """Before-consequential-action gate (doc trigger #4): APPROVAL_REQUIRED when consequential, else AUTO."""
+    ctx = resolve_context(scope, project, action=action, components=components, area=area)
+    d = decide(scope, project, action=action, components=components, area=area)
+    d["item_id"] = str(item_id or "")
+    d["consequential"] = ctx["consequential"]
+    return d
+
+
 def render_context(ctx: dict[str, Any], max_chars: int = 1200) -> str:
     """A compact, bounded text block for prompt/contract injection (only the relevant subset)."""
     lines = [f"pidl profile_version={ctx.get('profile_version')}"]

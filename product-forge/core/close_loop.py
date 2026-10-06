@@ -264,6 +264,22 @@ def verify_and_close(project_dir: str, run_id: str = "",
     proj = os.path.basename(project_dir)
     links = {"run_id": run_id, **dict(res["reports"])}
 
+    # PIDL-4 (BI-PF-0379): cross-worker synthesis gate when a run closes multiple items. Advisory by
+    # default; in enforce mode a conflicting synthesis holds the close (PIDL_GATE_MODE).
+    synth_hold = False
+    if len(ids) > 1:
+        try:
+            from core import pidl as _pidl_syn
+            _syn = _pidl_syn.synthesize(scope, None, results=[
+                {"item_id": b, "ok": bool(res["verified"]),
+                 "status": "pr_ready" if res["verified"] else "held"} for b in ids])
+            res["pidl_synthesis"] = _syn.get("synthesis")
+            res["pidl_synthesis_action"] = (_syn.get("decision") or {}).get("action")
+            synth_hold = (_pidl_syn.gate_mode() == "enforce"
+                          and (_syn.get("decision") or {}).get("action") == "CORRECT")
+        except Exception:
+            pass
+
     for bid in ids:
         try:
             # which scope owns this backlog item?
@@ -287,7 +303,7 @@ def verify_and_close(project_dir: str, run_id: str = "",
                 pidl_hold = _pidl.gate_mode() == "enforce" and pidl_action != "AUTO_PROCEED"
             except Exception:
                 pass
-            if res["verified"] and not pidl_hold:
+            if res["verified"] and not pidl_hold and not synth_hold:
                 backlog.set_status(bscope, bproj, bid, "implemented",
                                    note=f"auto: verified by run {run_id}")
                 backlog.set_status(bscope, bproj, bid, "closed",
@@ -307,10 +323,11 @@ def verify_and_close(project_dir: str, run_id: str = "",
                         res["closed_intake"].append(it["id"])
                 except Exception:
                     pass
-            elif res["verified"] and pidl_hold:
+            elif res["verified"] and (pidl_hold or synth_hold):
+                _why = pidl_action if pidl_hold else f"synthesis:{res.get('pidl_synthesis_action')}"
                 with contextlib.suppress(Exception):
                     backlog.set_status(bscope, bproj, bid, "blocked",
-                                       note=f"pidl gate ({pidl_action}); review/approval required")
+                                       note=f"pidl gate ({_why}); review/approval required")
                 res.setdefault("pidl_held", []).append(bid)
             else:
                 with contextlib.suppress(Exception):
