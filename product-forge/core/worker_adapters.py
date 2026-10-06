@@ -10,6 +10,9 @@ Adapters hold NO orchestration logic and NO state beyond a reference to the runt
 dependency (``core.worker.py:OpenCodeProvider`` already degrades to BLOCKED if absent).
 
 Reuse, not rewrite: adapters wrap the existing providers (``core.worker``) + registry + lease.
+
+P11 (BI-PF-0373) adds ``claude-code`` (optional CLI client) and ``remote`` (pull-based session) alongside
+``opencode``/``command``/``native`` - no scheduler redesign; a runtime is data on the registry.
 """
 import contextlib
 from typing import Any
@@ -75,6 +78,17 @@ class WorkerAdapter:
         return self.heartbeat(scope, project, worker_id, status="IDLE", current_assignment_id="")
 
 
+def _run_provider(provider_name: str, ctx: dict[str, Any], missing_msg: str) -> dict[str, Any]:
+    """Run a task through a registered provider (single place; adapters are thin translators)."""
+    from core import worker
+    prov = worker._PROVIDERS.get(provider_name)
+    if prov is None or not prov.available():
+        return {"ok": False, "status": "blocked", "error": missing_msg}
+    out = prov.run(ctx)
+    return {"ok": bool(out.get("ok")), "status": out.get("status"), "output": out.get("output"),
+            "error": out.get("error", "")}
+
+
 class OpenCodeAdapter(WorkerAdapter):
     """First adapter: an OpenCode session. Optional client - never a PF dependency."""
     runtime = "opencode"
@@ -87,14 +101,45 @@ class OpenCodeAdapter(WorkerAdapter):
 
     def start(self, scope: str, project: str | None, worker_id: str, objective: str = "",
               worktree: str = "") -> dict[str, Any]:
+        return _run_provider("opencode", {"worktree": worktree, "objective": objective, "run_id": ""},
+                             "opencode not installed (optional adapter; not a dependency)")
+
+
+class ClaudeCodeAdapter(WorkerAdapter):
+    """Claude Code CLI adapter. Optional client - never a PF dependency (degrades to BLOCKED)."""
+    runtime = "claude-code"
+    description = "Claude Code CLI adapter (optional client; degrades to BLOCKED if absent)"
+
+    def available(self) -> bool:
         from core import worker
-        prov = worker._PROVIDERS.get("opencode")
-        if prov is None or not prov.available():
-            return {"ok": False, "status": "blocked",
-                    "error": "opencode not installed (optional adapter; not a dependency)"}
-        out = prov.run({"worktree": worktree, "objective": objective, "run_id": ""})
-        return {"ok": bool(out.get("ok")), "status": out.get("status"), "output": out.get("output"),
-                "error": out.get("error", "")}
+        p = worker._PROVIDERS.get("claude-code")
+        return bool(p and p.available())
+
+    def start(self, scope: str, project: str | None, worker_id: str, objective: str = "",
+              worktree: str = "", command: Any = None) -> dict[str, Any]:
+        return _run_provider("claude-code",
+                             {"worktree": worktree, "objective": objective, "command": command, "run_id": ""},
+                             "claude not installed (optional adapter; not a dependency)")
+
+
+class RemoteWorkerAdapter(WorkerAdapter):
+    """Remote worker session: pull-based. ``start`` records the assignment; the remote worker pulls it.
+
+    There is no local process - the runtime connects over the worker protocol (register/heartbeat/status)
+    and pulls work via ``/api/v1/engineering/work`` (``core.work_pull``). No scheduler redesign required.
+    """
+    runtime = "remote"
+    description = "remote worker session (pull-based; dispatched via the worker protocol, no local process)"
+
+    def available(self) -> bool:
+        return True
+
+    def start(self, scope: str, project: str | None, worker_id: str, objective: str = "",
+              worktree: str = "", assignment_id: str = "") -> dict[str, Any]:
+        self.accept_assignment(scope, project, worker_id, assignment_id)
+        return {"ok": True, "status": "dispatched",
+                "output": "assignment dispatched; the remote worker pulls it via the worker protocol "
+                          "(/api/v1/engineering/work)"}
 
 
 class CommandAdapter(WorkerAdapter):
@@ -104,13 +149,9 @@ class CommandAdapter(WorkerAdapter):
 
     def start(self, scope: str, project: str | None, worker_id: str, objective: str = "",
               worktree: str = "", command: Any = None) -> dict[str, Any]:
-        from core import worker
-        prov = worker._PROVIDERS.get("command")
-        if prov is None:
-            return {"ok": False, "status": "blocked", "error": "command provider unavailable"}
-        out = prov.run({"worktree": worktree, "command": command or objective, "timeout": 1800})
-        return {"ok": bool(out.get("ok")), "status": out.get("status"), "output": out.get("output"),
-                "error": out.get("error", "")}
+        return _run_provider("command",
+                             {"worktree": worktree, "command": command or objective, "timeout": 1800},
+                             "command provider unavailable")
 
 
 class NativeAdapter(WorkerAdapter):
@@ -129,7 +170,8 @@ class NativeAdapter(WorkerAdapter):
 
 
 _ADAPTERS: dict[str, WorkerAdapter] = {a.runtime: a for a in
-                                      (OpenCodeAdapter(), CommandAdapter(), NativeAdapter())}
+                                      (OpenCodeAdapter(), ClaudeCodeAdapter(), RemoteWorkerAdapter(),
+                                       CommandAdapter(), NativeAdapter())}
 
 
 def resolve(runtime: str) -> WorkerAdapter | None:

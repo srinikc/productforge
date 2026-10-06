@@ -298,8 +298,35 @@ class OpenCodeProvider(WorkerProvider):
                 "output": (r.stdout or "")[-4000:], "error": (r.stderr or "")[-2000:]}
 
 
+class ClaudeCodeProvider(WorkerProvider):
+    """Optional Claude Code CLI adapter. A client only - PF never depends on it being present."""
+    name = "claude-code"
+    description = "Claude Code CLI adapter (optional client; degrades to BLOCKED if absent)"
+
+    def available(self) -> bool:
+        return shutil.which("claude") is not None
+
+    def run(self, ctx: dict[str, Any]) -> dict[str, Any]:
+        exe = shutil.which("claude")
+        if not exe:
+            return {"ok": False, "status": "blocked",
+                    "error": "claude not installed (optional adapter; not a dependency)"}
+        objective = str(ctx.get("objective") or (ctx.get("task") or {}).get("objective") or "")
+        argv = ctx.get("command") or [exe, "-p", objective]
+        if isinstance(argv, str):
+            argv = shlex.split(argv)
+        try:
+            r = subprocess.run(argv, cwd=ctx["worktree"], capture_output=True, text=True,
+                               timeout=int(ctx.get("timeout") or 3600))
+        except Exception as e:
+            return {"ok": False, "status": "failed", "error": str(e)}
+        return {"ok": r.returncode == 0, "status": "pr_ready" if r.returncode == 0 else "failed",
+                "output": (r.stdout or "")[-4000:], "error": (r.stderr or "")[-2000:]}
+
+
 _PROVIDERS: dict[str, WorkerProvider] = {p.name: p for p in
-                                         (NoopProvider(), HumanProvider(), CommandProvider(), OpenCodeProvider())}
+                                         (NoopProvider(), HumanProvider(), CommandProvider(),
+                                          OpenCodeProvider(), ClaudeCodeProvider())}
 
 
 def available_providers() -> list[dict[str, Any]]:
