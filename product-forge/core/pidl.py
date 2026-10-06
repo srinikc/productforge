@@ -243,6 +243,35 @@ def decide(scope: str = "product_forge", project: str | None = None, *,
     }
 
 
+# ── PIDL-3 (BI-PF-0378): worker-result decision gate (primary trigger) ─────────────────────
+def gate_mode() -> str:
+    """The gate mode: ``advisory`` (record only) or ``enforce`` (hold non-AUTO closes)."""
+    try:
+        from core import env_flags
+        m = str(env_flags.get("PIDL_GATE_MODE", "advisory") or "advisory").strip().lower()
+        return m if m in ("advisory", "enforce") else "advisory"
+    except Exception:
+        return "advisory"
+
+
+def gate(scope: str = "product_forge", project: str | None = None, *, item_id: str = "",
+         result: dict[str, Any] | None = None, action: str = "", components: list[str] | None = None,
+         area: str = "", conflicts: list[Any] | None = None, failures: int = 0,
+         escalated: bool = False, run_id: str = "") -> dict[str, Any]:
+    """The worker-result decision gate: evaluate a finished result and return the decision + provenance.
+
+    Invoked by the ORCHESTRATION path (never the worker). Pure/read-only; the caller acts on the result.
+    """
+    d = decide(scope, project, result=result, action=action, components=components, area=area,
+               conflicts=conflicts, failures=failures, escalated=escalated)
+    d["item_id"] = str(item_id or "")
+    d["run_id"] = str(run_id or "")
+    d["worker_id"] = str((result or {}).get("worker_id") or "")
+    d["runtime"] = str((result or {}).get("provider") or (result or {}).get("runtime") or "")
+    d["gate_mode"] = gate_mode()
+    return d
+
+
 def render_context(ctx: dict[str, Any], max_chars: int = 1200) -> str:
     """A compact, bounded text block for prompt/contract injection (only the relevant subset)."""
     lines = [f"pidl profile_version={ctx.get('profile_version')}"]

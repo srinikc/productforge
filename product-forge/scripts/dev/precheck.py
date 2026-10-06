@@ -122,6 +122,7 @@ _GATES = [
     ("github", ["scripts/dev/github_check.py"], "fast", ["github"]),
     ("pf-surface", ["scripts/dev/pf_surface_check.py"], "fast", None),
     ("pidl", ["scripts/dev/pidl_check.py"], "fast", ["pidl"]),
+    ("pidl-gate", ["scripts/dev/pidl_gate_check.py"], "fast", ["pidl", "close_loop"]),
     ("intent-trace", ["scripts/dev/intent_trace_check.py"], "fast", None),
     ("docs-fresh", ["scripts/dev/check_docs_fresh.py"], "fast", None),
     # deep tier - real validation/lifecycle work; merge/CI only

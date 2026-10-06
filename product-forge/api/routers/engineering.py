@@ -100,6 +100,23 @@ async def pidl_decide(request: Request, scope: str = "product_forge", project: s
     return from_request(request, out, resource="engineering")
 
 
+@router.post("/pidl/gate", dependencies=[Depends(authenticate)])
+async def pidl_gate(request: Request, scope: str = "product_forge", project: str = "",
+                    ctx: dict[str, Any] = Depends(authenticate)):
+    """Worker-result decision gate: evaluate a finished result -> decision + provenance (read-only)."""
+    from core import pidl
+    s, p = _scope_project(scope, project)
+    with contextlib.suppress(Exception):
+        body = await request.json()
+    body = body if isinstance(body, dict) else {}
+    out = pidl.gate(s, p, item_id=str(body.get("item_id") or ""), run_id=str(body.get("run_id") or ""),
+                    action=str(body.get("action") or ""), area=str(body.get("area") or ""),
+                    components=body.get("components") or [], result=body.get("result"),
+                    conflicts=body.get("conflicts") or [], failures=int(body.get("failures") or 0),
+                    escalated=bool(body.get("escalated")))
+    return from_request(request, out, resource="engineering")
+
+
 # ── ENG-2: worker pool + elastic schedule ───────────────────────────────────
 
 @router.get("/workers", dependencies=[Depends(authenticate), Depends(_worker_on)])
