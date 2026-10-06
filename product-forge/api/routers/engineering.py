@@ -84,6 +84,22 @@ def pidl_context(request: Request, scope: str = "product_forge", project: str = 
     return from_request(request, out, resource="engineering")
 
 
+@router.post("/pidl/decide", dependencies=[Depends(authenticate)])
+async def pidl_decide(request: Request, scope: str = "product_forge", project: str = "",
+                      ctx: dict[str, Any] = Depends(authenticate)):
+    """Evaluate a decision point and return the structured PIDL decision contract (read-only)."""
+    from core import pidl
+    s, p = _scope_project(scope, project)
+    with contextlib.suppress(Exception):
+        body = await request.json()
+    body = body if isinstance(body, dict) else {}
+    out = pidl.decide(s, p, action=str(body.get("action") or ""), area=str(body.get("area") or ""),
+                      components=body.get("components") or [], result=body.get("result"),
+                      conflicts=body.get("conflicts") or [], failures=int(body.get("failures") or 0),
+                      escalated=bool(body.get("escalated")))
+    return from_request(request, out, resource="engineering")
+
+
 # ── ENG-2: worker pool + elastic schedule ───────────────────────────────────
 
 @router.get("/workers", dependencies=[Depends(authenticate), Depends(_worker_on)])

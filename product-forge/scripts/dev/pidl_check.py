@@ -59,6 +59,24 @@ def main() -> int:
     _check(set(empty) >= _KEYS, "degrades to empty context without raising")
     _check(isinstance(pidl.render_context(empty), str), "render_context returns text")
 
+    # PIDL-2: decision engine - structured contract + deterministic precedence
+    d_auto = pidl.decide("product_forge", None, action="add a doc paragraph", area="doc")
+    _check(set(d_auto) >= {"decision", "confidence", "risk", "recommendation", "evidence",
+                           "conflicts", "approval", "next_action"}, "decision contract keys present")
+    _check(d_auto["decision"]["action"] == "AUTO_PROCEED", "benign -> AUTO_PROCEED")
+    _check(d_auto["decision"]["action"] in pidl.ACTIONS, "action in the closed set")
+    _check(pidl.decide("product_forge", None, action="add a doc paragraph", area="doc") == d_auto,
+           "decision is deterministic")
+    _check(pidl.decide("product_forge", None, action="drop production schema")["decision"]["action"]
+           == "APPROVAL_REQUIRED", "consequential -> APPROVAL_REQUIRED")
+    _check(pidl.decide("product_forge", None, action="x", conflicts=[{"a": 1}])["decision"]["action"]
+           == "CORRECT", "conflicts -> CORRECT")
+    _check(pidl.decide("product_forge", None, action="x", result={"ok": False, "status": "failed"}
+                       )["decision"]["action"] == "REVIEW", "failed result -> REVIEW")
+    _check(pidl.decide("product_forge", None, action="x", failures=5)["decision"]["action"]
+           == "ESCALATE", "repeated failures -> ESCALATE")
+    _check(0.0 <= d_auto["confidence"]["overall"] <= 1.0, "overall confidence bounded")
+
     # decoupling: PIDL must not import the worker layer
     with open(os.path.join(str(_ROOT), "core", "pidl.py"), encoding="utf-8") as f:
         src = f.read()
