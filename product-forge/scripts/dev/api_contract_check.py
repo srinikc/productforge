@@ -74,7 +74,7 @@ def main() -> int:
     # API-3 engineering surface: canonical envelope + reachable
     for path in ("/api/v1/agents", "/api/v1/workers/queue", "/api/v1/workers/capacity",
                  "/api/v1/issues/stats", "/api/v1/engineering", "/api/v1/engineering/coverage",
-                 "/api/v1/engineering/tasks", "/api/v1/engineering/workers",
+                 "/api/v1/engineering/tasks",
                  "/api/v1/engineering/schedule", "/api/v1/engineering/worker-providers",
                  "/api/v1/vcs/branch-name", "/api/v1/github", "/api/v1/github/evidence",
                  "/api/v1/events/types", "/api/v1/apidocs." + "json",

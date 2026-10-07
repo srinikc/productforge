@@ -6,7 +6,8 @@ default), assigns it to registered workers, and writes execution status back. It
 groom, or generate products — the producer owns those.
 
 Verbs:
-  wg register --runtime opencode [--caps a,b] [--worker-id X]   register a worker (local registry)
+  wg serve [--host H] [--port P]                                run the coordinator service (shared state)
+  wg register --runtime opencode [--caps a,b] [--worker-id X]   register a worker (service or local)
   wg list | wg status [<worker_id>] | wg unregister <worker_id>
   wg work [--worker X] [--runtime R] [--scope S] [--project P]  pull the next eligible item + lease it
   wg schedule eligible|next|status [--scope S] [--project P]    query the producer's eligibility
@@ -15,7 +16,10 @@ Verbs:
   wg instruct [text] [--show]                                   view/edit the shared worker instructions
   wg config                                                     show resolved config + paths
 
-Storage: workergrid/state/{workers,leases}.json. Instructions: workergrid/instructions.md (edit any time).
+Mode: if the coordinator service is reachable (``service_url``/host:port), coordination verbs use it (shared
+state, multi-machine). Otherwise they fall back to a local store. Force local with ``--local``.
+Storage: service -> SQLite (workergrid/state/workergrid.db); local -> workergrid/state/{workers,leases}.json.
+Instructions: workergrid/instructions.md (edit any time).
 """
 import json
 import os
@@ -65,44 +69,67 @@ def _emit(obj):
     print(json.dumps(obj, indent=2, default=str) if isinstance(obj, (dict, list)) else obj)
 
 
+def _via_service(flags) -> bool:
+    return "local" not in flags and client.service_up()
+
+
+def _default_runtime():
+    return _cfg.load().get("default_runtime", "opencode")
+
+
+def cmd_serve(pos, flags):
+    import service
+    return service.run(str(flags.get("host") or ""), int(flags.get("port") or 0))
+
+
 def cmd_register(pos, flags):
-    d = _workers()
-    wid = flags.get("worker-id") or f"WRK-{flags.get('runtime', _cfg.load().get('default_runtime', 'opencode'))}-{int(time.time()) % 100000000}"
+    runtime = flags.get("runtime", _default_runtime())
     caps = [c for c in str(flags.get("caps", "")).split(",") if c]
-    d["workers"][wid] = {"worker_id": wid, "runtime": flags.get("runtime", _cfg.load().get("default_runtime", "opencode")),
-                         "capabilities": caps, "status": "ONLINE", "registered_at": time.strftime("%Y-%m-%dT%H:%M:%S")}
+    if _via_service(flags):
+        r = client.svc("POST", "/workers/register", {"worker_id": flags.get("worker-id", ""),
+                       "runtime": runtime, "capabilities": caps, "role": flags.get("role", "")})
+        return {"registered": True, "mode": "service", "worker": r.get("data")}
+    d = _workers()
+    wid = flags.get("worker-id") or f"WRK-{runtime}-{int(time.time()) % 100000000}"
+    d["workers"][wid] = {"worker_id": wid, "runtime": runtime, "capabilities": caps, "status": "ONLINE",
+                         "registered_at": time.strftime("%Y-%m-%dT%H:%M:%S")}
     _save_workers(d)
-    return {"registered": True, "worker_id": wid, "runtime": d["workers"][wid]["runtime"], "capabilities": caps}
+    return {"registered": True, "mode": "local", "worker_id": wid, "runtime": runtime, "capabilities": caps}
 
 
 def cmd_list(pos, flags):
+    if _via_service(flags):
+        return {"mode": "service", **(client.svc("GET", "/workers").get("data") or {})}
     d = _workers()
-    return {"workers": list(d["workers"].values()), "count": len(d["workers"])}
+    return {"mode": "local", "workers": list(d["workers"].values()), "count": len(d["workers"])}
 
 
 def cmd_status(pos, flags):
+    if _via_service(flags):
+        return {"mode": "service", **(client.svc("GET", "/status").get("data") or {})}
     d = _workers()
     if pos:
-        w = d["workers"].get(pos[0])
-        return w or {"error": "unknown worker"}
-    leases = _leases()["leases"]
-    return {"workers": len(d["workers"]), "leases": len(leases), "producer": client._base()}
+        return d["workers"].get(pos[0]) or {"error": "unknown worker"}
+    return {"mode": "local", "workers": len(d["workers"]), "leases": len(_leases()["leases"]),
+            "producer": client._base()}
 
 
 def cmd_unregister(pos, flags):
     if not pos:
         return {"error": "usage: wg unregister <worker_id>"}
+    if _via_service(flags):
+        return {"mode": "service", **(client.svc("POST", f"/workers/{pos[0]}/unregister").get("data") or {})}
     d = _workers()
     removed = d["workers"].pop(pos[0], None)
     _save_workers(d)
-    return {"removed": bool(removed), "worker_id": pos[0]}
+    return {"mode": "local", "removed": bool(removed), "worker_id": pos[0]}
 
 
 def _ensure_worker(flags):
     wid = flags.get("worker", "")
     if wid:
         return wid, _workers()["workers"].get(wid, {})
-    rt = flags.get("runtime", _cfg.load().get("default_runtime", "opencode"))
+    rt = flags.get("runtime", _default_runtime())
     return cmd_register([], {"runtime": rt})["worker_id"], {"runtime": rt}
 
 
@@ -110,6 +137,10 @@ def cmd_work(pos, flags):
     scope = flags.get("scope", "product_forge")
     project = flags.get("project", "")
     wid, w = _ensure_worker(flags)
+    if _via_service(flags):
+        r = client.svc("POST", "/work", {"worker_id": wid, "runtime": w.get("runtime", ""),
+                       "scope": scope, "project": project})
+        return {"mode": "service", **(r.get("data") or {"assigned": False, "reason": r.get("error")})}
     r = client.next_item(scope, project)
     if not r.get("ok"):
         return {"assigned": False, "reason": f"producer API: {r.get('status')} {r.get('error')}"}
@@ -122,8 +153,8 @@ def cmd_work(pos, flags):
     lease["leases"][item] = {"item_id": item, "worker_id": wid, "runtime": w.get("runtime", ""),
                              "expires_at": time.time() + secs}
     _save_leases(lease)
-    return {"assigned": True, "item_id": item, "title": data.get("title"), "worker_id": wid,
-            "runtime": w.get("runtime", ""), "lease_seconds": secs}
+    return {"mode": "local", "assigned": True, "item_id": item, "title": data.get("title"),
+            "worker_id": wid, "runtime": w.get("runtime", ""), "lease_seconds": secs}
 
 
 def cmd_schedule(pos, flags):
@@ -145,16 +176,25 @@ def cmd_adapters(pos, flags):
 
 
 def cmd_dispatch(pos, flags):
+    scope = flags.get("scope", "product_forge")
+    project = flags.get("project", "")
+    if _via_service(flags):
+        workers = (client.svc("GET", "/workers").get("data") or {}).get("workers") or []
+        assigned = []
+        for w in [x for x in workers if str(x.get("status")) in ("ONLINE", "IDLE")]:
+            d = client.svc("POST", "/work", {"worker_id": w.get("worker_id"), "scope": scope,
+                                             "project": project}).get("data") or {}
+            if d.get("assigned"):
+                assigned.append({"worker_id": w.get("worker_id"), "item": d.get("item_id")})
+        return {"mode": "service", "dispatched": len(assigned), "assigned": assigned}
     d = _workers()
     online = [w for w in d["workers"].values() if str(w.get("status")) in ("ONLINE", "IDLE")]
     assigned = []
     for w in online:
-        r = cmd_work([], {"worker": w["worker_id"], "scope": flags.get("scope", "product_forge"),
-                          "project": flags.get("project", "")})
+        r = cmd_work([], {"worker": w["worker_id"], "scope": scope, "project": project, "local": "1"})
         if r.get("assigned"):
             assigned.append({"worker_id": w["worker_id"], "item": r.get("item_id")})
-    return {"dispatched": len(assigned), "assigned": assigned,
-            "reason": "" if assigned else "no eligible work for ONLINE workers"}
+    return {"mode": "local", "dispatched": len(assigned), "assigned": assigned}
 
 
 def cmd_instruct(pos, flags):
@@ -175,13 +215,14 @@ def cmd_instruct(pos, flags):
 
 def cmd_config(pos, flags):
     c = _cfg.load()
-    return {"config": c, "instructions_file": _cfg.instructions_path(),
-            "state_dir": _cfg.state_dir(), "producer_api": client._base()}
+    return {"config": c, "instructions_file": _cfg.instructions_path(), "state_dir": _cfg.state_dir(),
+            "producer_api": client._base(), "service_url": client.service_url(),
+            "service_up": client.service_up()}
 
 
-VERBS = {"register": cmd_register, "list": cmd_list, "status": cmd_status, "unregister": cmd_unregister,
-         "work": cmd_work, "schedule": cmd_schedule, "adapters": cmd_adapters, "dispatch": cmd_dispatch,
-         "instruct": cmd_instruct, "config": cmd_config}
+VERBS = {"serve": cmd_serve, "register": cmd_register, "list": cmd_list, "status": cmd_status,
+         "unregister": cmd_unregister, "work": cmd_work, "schedule": cmd_schedule,
+         "adapters": cmd_adapters, "dispatch": cmd_dispatch, "instruct": cmd_instruct, "config": cmd_config}
 
 
 def main(argv=None) -> int:
@@ -194,6 +235,8 @@ def main(argv=None) -> int:
         print(f"unknown verb {verb!r}. verbs: {', '.join(VERBS)}")
         return 2
     pos, flags = _flags(rest)
+    if verb == "serve":
+        return int(VERBS[verb](pos, flags) or 0)
     try:
         _emit(VERBS[verb](pos, flags))
     except Exception as e:

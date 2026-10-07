@@ -2,8 +2,9 @@
 
 Asserts: pre-dispatch returns the execution contract (pidl_context + execution_policy); synthesis detects
 conflicts (path overlap / status disagreement) vs consistency; the consequential gate returns
-APPROVAL_REQUIRED for consequential actions; and the seams are wired (work_pull attaches pidl_context;
-close_loop invokes synthesize for multi-item runs).
+APPROVAL_REQUIRED for consequential actions; and the seams are wired (scheduler.next_eligible attaches
+pidl_context at pickup - the WorkerGrid claim handoff after ADR-0002 - and the workergrid service passes
+it through; close_loop invokes synthesize for multi-item runs).
 Run: ``python scripts/dev/pidl_synthesis_check.py``.
 """
 import os
@@ -63,10 +64,18 @@ def main() -> int:
                                    )["decision"]["action"] == "AUTO_PROCEED",
            "benign -> AUTO_PROCEED")
 
-    # wiring: the seams actually invoke PIDL
-    with open(os.path.join(str(_ROOT), "core", "work_pull.py"), encoding="utf-8") as f:
-        wp = f.read()
-    _check("pre_dispatch" in wp and "pidl_context" in wp, "work_pull attaches pidl_context (wired)")
+    # wiring: the seams actually invoke PIDL (pickup handoff after the WorkerGrid decoupling)
+    with open(os.path.join(str(_ROOT), "core", "scheduler.py"), encoding="utf-8") as f:
+        sch = f.read()
+    _check("pre_dispatch" in sch and "pidl_context" in sch,
+           "scheduler.next_eligible attaches pidl_context (wired)")
+    svc = os.path.join(os.path.dirname(str(_ROOT)), "workergrid", "service.py")
+    if os.path.exists(svc):
+        with open(svc, encoding="utf-8") as f:
+            sctxt = f.read()
+        _check("pidl_context" in sctxt, "workergrid service passes pidl_context through (wired)")
+    else:
+        FAILS.append("workergrid/service.py not found (pickup passthrough unverifiable)")
     with open(os.path.join(str(_ROOT), "core", "close_loop.py"), encoding="utf-8") as f:
         cl = f.read()
     _check(".synthesize(" in cl and "synth_hold" in cl, "close_loop invokes synthesize for multi-item (wired)")

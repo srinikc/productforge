@@ -1,5 +1,5 @@
 ---
-description: "WorkerGrid command surface (GLOBAL): /wg <verb>. verbs: register, list, status, unregister, work, schedule, adapters, dispatch, instruct, config. Thin adapter to workergrid/wg.py (no logic here). Separate from Product Forge. Available in every opencode session."
+description: "WorkerGrid command surface (GLOBAL): /wg <verb>. verbs: serve, register, list, status, unregister, work, schedule, adapters, dispatch, instruct, config. Thin adapter to workergrid/wg.py (no logic here). Separate from Product Forge. Available in every opencode session."
 agent: build
 ---
 
@@ -29,6 +29,7 @@ If `$ARGUMENTS` is empty/whitespace, run `python "$WGSCRIPT" help` and STOP.
 Run `python "$WGSCRIPT" $ARGUMENTS` and report the output.
 
 ## Verb map
+- `/wg serve [--host H] [--port P]` (run the coordinator service; shared state for all workers)
 - `/wg register --runtime <r> [--caps a,b]` · `/wg list` · `/wg status [<id>]` · `/wg unregister <id>`
 - `/wg work [--worker W] [--runtime R] [--scope S] [--project P]`
 - `/wg schedule eligible|next|status`
