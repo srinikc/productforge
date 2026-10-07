@@ -241,18 +241,18 @@ def schedule_status(request: Request, scope: str = "product_forge", project: str
 
 @router.get("/schedule/eligible", dependencies=[Depends(authenticate)])
 def schedule_eligible(request: Request, scope: str = "product_forge", project: str = "",
-                      ctx: dict[str, Any] = Depends(authenticate)):
+                      stage: str = "", ctx: dict[str, Any] = Depends(authenticate)):
     from core import scheduler
     s, p = _scope_project(scope, project)
-    return from_request(request, scheduler.eligible_backlog(s, p), resource="engineering")
+    return from_request(request, scheduler.eligible_backlog(s, p, stage=stage or None), resource="engineering")
 
 
 @router.get("/schedule/next", dependencies=[Depends(authenticate)])
 def schedule_next(request: Request, scope: str = "product_forge", project: str = "",
-                  ctx: dict[str, Any] = Depends(authenticate)):
+                  stage: str = "", ctx: dict[str, Any] = Depends(authenticate)):
     from core import scheduler
     s, p = _scope_project(scope, project)
-    return from_request(request, scheduler.next_eligible(s, p), resource="engineering")
+    return from_request(request, scheduler.next_eligible(s, p, stage=stage or None), resource="engineering")
 
 
 # ── ENG-1: engineering task contracts ───────────────────────────────────────

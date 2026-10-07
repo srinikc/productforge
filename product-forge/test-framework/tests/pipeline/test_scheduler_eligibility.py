@@ -35,6 +35,25 @@ def test_analysis_gate_blocks_until_complete():
         _clean()
 
 
+def test_execute_stage_excludes_already_executed():
+    """BI-PF-0416: the worker claim path (stage=execute) must not return executed items."""
+    _clean()
+    try:
+        iid = backlog.add_epic("project", _PROJ, "Feature X", tag="TST")["id"]
+        _approve(iid)
+        assert scheduler.eligible(backlog.get("project", _PROJ, iid), stage="execute")["ok"] is True
+        backlog.set_status("project", _PROJ, iid, "verifying", note="executed by a worker")
+        it = backlog.get("project", _PROJ, iid)
+        # default gate unchanged (a verification stage may still pick it up) ...
+        assert scheduler.eligible(it)["ok"] is True
+        # ... but the execution claim excludes it
+        e = scheduler.eligible(it, stage="execute")
+        assert e["ok"] is False and any("execution-eligible" in r for r in e["reasons"]), e
+        assert scheduler.next_eligible("project", _PROJ, stage="execute")["found"] is False
+    finally:
+        _clean()
+
+
 def test_dependency_blocks_then_unblocks():
     _clean()
     try:

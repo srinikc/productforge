@@ -150,7 +150,9 @@ func assign(st *store.Store, cfg config.Config, body map[string]any) (map[string
 	if scope == "" {
 		scope = "product_forge"
 	}
-	data, ok := producer.Next(cfg.ProducerBase(), cfg.Token(), scope, asString(body["project"]))
+	// BI-PF-0416: ask only for execution-stage work (new/accepted/queued/scheduled) so an item
+	// that was already executed (implemented/verifying) is never re-claimed and re-run.
+	data, ok := producer.Next(cfg.ProducerBase(), cfg.Token(), scope, asString(body["project"]), "execute")
 	if data == nil {
 		data = map[string]any{}
 	}

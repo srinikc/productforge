@@ -12,17 +12,22 @@ import (
 )
 
 // Next fetches the next eligible item from
-// GET {base}/api/v1/engineering/schedule/next?scope=&project=.
+// GET {base}/api/v1/engineering/schedule/next?scope=&project=&stage=.
+// `stage="execute"` (BI-PF-0416) asks the producer for NOT-yet-executed work only, so the
+// coordinator cannot re-claim an item already executed (`implemented`/`verifying`).
 // Returns (data, ok): ok=false on transport/non-2xx errors (service then
 // reports "no eligible work", matching the Python spike); data is the parsed
 // JSON body (map) or nil when the producer answers non-JSON.
-func Next(base, token, scope, project string) (map[string]any, bool) {
+func Next(base, token, scope, project, stage string) (map[string]any, bool) {
 	q := url.Values{}
 	if scope != "" {
 		q.Set("scope", scope)
 	}
 	if project != "" {
 		q.Set("project", project)
+	}
+	if stage != "" {
+		q.Set("stage", stage)
 	}
 	u := base + "/api/v1/engineering/schedule/next"
 	if len(q) > 0 {
