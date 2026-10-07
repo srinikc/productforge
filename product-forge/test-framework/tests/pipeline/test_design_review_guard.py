@@ -46,3 +46,25 @@ def test_intent_trace_check_runs_clean(tmp_path):
                        capture_output=True, text=True, cwd=str(ROOT))
     assert r.returncode == 0, r.stderr
     assert "intent-trace:" in r.stdout
+
+
+def test_intent_trace_resolves_sibling_and_special_kinds():
+    """BI-PF-0415: sibling-component paths, `command:` (path+args) and `flag:` resolve; junk still fails."""
+    sys.path.insert(0, str(ROOT / "scripts" / "dev"))
+    import intent_trace_check as itc
+
+    routes, stores, flags = set(), set(), itc._flags()
+    ok = [
+        "module:workergrid/internal/store/store.go",          # sibling component (repo root)
+        "command:workergrid/wg.py",                           # sibling command
+        "command:scripts/pf.py sync",                         # path + args
+        "flag:PF_AUTO_PUSH",                                  # env flag, not a path
+        "test:test-framework/tests/pipeline/test_workergrid_pg_store.py",
+        "doc:docs/WORKERGRID-DESIGN.md",
+    ]
+    for d in ok:
+        assert itc._check(d, routes, stores, flags) is None, d
+    # the check must still be able to fail
+    for d in ["module:workergrid/does_not_exist.py", "flag:NOT_A_REAL_FLAG",
+              "command:workergrid/nope.py run", "module:workergrid/service.py"]:
+        assert itc._check(d, routes, stores, flags) is not None, d
