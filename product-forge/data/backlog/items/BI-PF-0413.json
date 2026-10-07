@@ -10,7 +10,7 @@
   "title": "WorkerGrid Stage 3c: worker agent execution (claim -> worktree -> exec -> heartbeat -> write-back)",
   "body": "Source: pre-implementation IMPACT review 2026-10-07 (user-approved: \"Approve everything\").\nAuthorities: docs/WORKERGRID-DESIGN.md sections 2-6 (roles/executor split/language), ADR-0002,\ndocs/WORKER-SCHEDULER-OPERATIONS.md (claim/lease/one-worktree-per-session IS-PF-0036),\nmaster plan gate (paths traced, duplicates mapped).\n\nGoal: worker agent execution loop - a new Go binary workergrid/cmd/wg-agent (invoked as `/wg agent`)\nthat autonomously: calls /leases/recover (reopens recovered items to queued) -> claims via coordinator\nPOST /work -> writes PF write-back `scheduled` -> creates an isolated git worktree on a feature branch ->\nexecutes the configured runtime command -> heartbeats/renews lease -> writes `executing` -> `done`|`blocked`\n-> releases the lease. Journal = JSONL under workergrid/state/.\n\nIMPACT review verdicts (approved): (4) new path - agent owns its own git worktree mechanics inside\nworkergrid/ (git CLI, no core/vcs.py import); (6) stale - design section 4 status vocabulary\nassigned/in-progress/done/blocked mapped to real PF vocabulary scheduled/executing/done(alias completed)/blocked\n(doc fix in this slice); (7) new-path decision - agent owns ALL PF write-back incl. recover/reopen so a dead\nworker cannot wedge an item (coordinator stays untouched; single writer for PF item status = the agent).\nAll other claims aligned (dependency direction, roles, no duplicate claim path, Go-first, existing route+auth).\n\nIn scope: (1) cmd/wg-agent + internal/agent loop + internal/producer status write-back; (2) config.json\n`agent` block (poll_seconds, runtimes.<name>.command template with {item_id},{title},{worktree},{base_ref},\nworktrees_dir, base_ref, timeout; approval_required -> blocked fail-closed); (3) /wg agent verb (exec-shim\nlike serve) + command md files (project + global + installed, byte-identical) + wg_surface_check verb;\n(4) tests: Go unit + pytest e2e (real coordinator + agent + stub PF, command runtime = echo) wired into\nwg_go_check; (5) docs: design section 14 + section 4 vocabulary fix, README, ops doc section 4-5 rewrite\n(currently documents the Stage-2b-deleted /pf work flow).\n\nOut of scope: PostgreSQL store (3b), auto-push (agent push flag default off), remote fleet orchestration,\ndashboard, coordinator changes (3a stays frozen).\n\ndashboard_impact: needs_dashboard=false - agent is an external execution-plane process; operator surface is\nthe /wg command + coordinator API (same rationale as BI-PF-0412).",
   "source": "pre-implementation review",
-  "status": "new",
+  "status": "completed",
   "priority": null,
   "moscow": "Should",
   "value": 4,
@@ -28,7 +28,19 @@
       "gate:scripts/dev/wg_go_check.py",
       "test:test-framework/tests/pipeline/test_workergrid_agent_e2e.py",
       "doc:docs/WORKERGRID-DESIGN.md"
-    ]
+    ],
+    "delivery": {
+      "branch": "feature/workergrid-stage3c",
+      "merge_sha": "74153dface1b8fbf9ad569ba7514302e0f025c1c",
+      "commits": [
+        "b3c94a2",
+        "536a38a"
+      ],
+      "pr": "",
+      "pr_url": "",
+      "at": "2026-10-07T17:34:33.787144",
+      "note": "merged --no-ff; precheck --full green (39 gates, 842 passed, 1 skipped); wg-go gate green (gofmt+build+vet+go test+contract parity+agent e2e 5/5); agent e2e covers happy path / failure->blocked / approval fail-closed / no-work / heartbeat-renew"
+    }
   },
   "decisions": [
     {
@@ -38,7 +50,7 @@
     }
   ],
   "follow_up": {},
-  "revision": 1,
+  "revision": 2,
   "priority_rank": null,
   "priority_class": "",
   "analyze_mode": "on_entry",
@@ -121,9 +133,9 @@
     "completed_at": ""
   },
   "created_at": "2026-10-07T17:03:54.413533",
-  "updated_at": "2026-10-07T17:03:54.847493",
+  "updated_at": "2026-10-07T17:34:33.914042",
   "score": 0.75,
-  "_note": "analysis updated",
+  "_note": "Stage 3c delivered: wg-agent (claim -> worktree -> exec -> heartbeat -> write-back)",
   "dashboard_impact": {
     "needs_dashboard": false,
     "reason": "WorkerGrid agent is an external execution-plane process; operator surface is the /wg command + coordinator API (same as BI-PF-0412)",
