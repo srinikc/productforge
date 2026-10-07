@@ -63,7 +63,7 @@ Multi-machine requires state **outside** local files. WorkerGrid runs a **servic
   it aligns with the Go-first rule (shipped/platform/sensitive → Go).
 - **Deployment:** the coordinator **service** + worker agents. Single-node (local, SQLite) for dev; multi-node
   (service + PostgreSQL) for teams/multi-machine.
-- A Python spike is possible, but the target is Go.
+- A Python spike was used for Stage 2b; it was **replaced by the Go binary in Stage 3a** (§13).
 
 ## 7. Multi-machine git sync (companion) — Stage 2a implemented
 Coordination state ≠ code sync. **Stage 2a (done):**
@@ -86,8 +86,8 @@ the operator or via an intake channel. **WorkerGrid does not ingest or create ba
 1. ~~PF: add `GET /backlog/eligible`~~ — served by `GET /api/v1/engineering/schedule/eligible` (status
    write-back via `POST /api/v1/backlog/items/{id}/status`).
 2. PF: offline `.md` → intake channel ingestion. *(PF-side)*
-3. WorkerGrid: ~~extract/implement the external execution plane~~ Python spike done (§12); **Go service +
-   worker agents + PostgreSQL** still to build (§6).
+3. WorkerGrid: ~~extract/implement the external execution plane~~ Python spike done (§12); ~~Go service~~
+   **Go coordinator done (Stage 3a, §13)**; **worker agents + PostgreSQL** still to build (§6).
 4. ~~Git sync: fetch/push + auto-push-after-merge (gated).~~ Done (Stage 2a, §7).
 5. ~~Cut over: remove the in-PF worker layer.~~ Done (Stage 2b, §12).
 
@@ -112,6 +112,7 @@ the operator or via an intake channel. **WorkerGrid does not ingest or create ba
   producer API (`/api/v1/engineering/schedule/*` read, `/api/v1/backlog/items/{id}/status` write-back).
 
 ## 12. Stage 2b implemented (coordinator service + shared store + cut-over)
+*(Coordinator implementation superseded by the Go binary in Stage 3a — §13.)*
 - **Service:** `workergrid/service.py` — stdlib HTTP coordinator (`python workergrid/wg.py serve`;
   `config.json` `service_host`/`service_port`, bearer token via `token_env`). Endpoints: worker
   register/heartbeat/unregister, `POST /work` (claim next + lease), lease renew/release/recover,
@@ -129,3 +130,22 @@ the operator or via an intake channel. **WorkerGrid does not ingest or create ba
 - **Gates:** `wg_surface_check` (required verbs incl. `serve`), `single_path`, `pidl-synthesis` +
   `staleness` (wiring assertions moved from `work_pull` to `scheduler.next_eligible`), all under
   `precheck`.
+
+## 13. Stage 3a implemented (Go coordinator + parity + cut-over) — BI-PF-0412
+The Python coordinator (`service.py` + `store.py`) is **deleted**; the coordinator is now one static Go
+binary (`CGO_ENABLED=0`, pure-Go SQLite via `modernc.org/sqlite`):
+- **Binary:** `workergrid/cmd/wg-coordinator` → `workergrid/bin/wg-coordinator` (gitignored).
+  `python workergrid/wg.py serve` / `/wg serve` exec-shims to it (fail-closed with the build hint).
+  Flags `-host`/`-port`; same startup line as the spike; `config.json` read from `WORKERGRID_HOME` or
+  walked up from the executable/cwd; env overrides `WORKERGRID_STATE_DIR`, `WORKERGRID_PF_API_URL`,
+  `WORKERGRID_TOKEN`, `WORKERGRID_LEASE_SECONDS`.
+- **Layout:** `workergrid/internal/{config,store,httpapi,producer}` (Go `cmd/`/`internal/` convention,
+  `workergrid/go.mod` — the repo's first Go module). Store claim atomicity: store-wide mutex +
+  single-connection DB (the spike's `BEGIN IMMEDIATE` equivalent).
+- **Parity proof:** `test-framework/tests/pipeline/test_workergrid_service_contract.py` runs every
+  behavior against **both** implementations (python leg auto-skipped post-cutover; `WG_CONTRACT_REQUIRE_GO=1`
+  fails if the binary is missing). Envelope RCCA: `POST /work` unwraps the producer's canonical
+  `{request_id, status, data:{…}}` envelope one level (spike bug, noted on BI-PF-0412).
+- **Gates:** `wg_go_check` (gofmt + build + vet + test + contract suite, added to `precheck` fast tier,
+  area `workergrid`/`wg`); `pidl-synthesis` now verifies passthrough in `internal/httpapi/httpapi.go`.
+- **Not in this slice:** worker agents (3c), PostgreSQL (3b).

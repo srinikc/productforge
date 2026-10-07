@@ -14,13 +14,23 @@ def load() -> dict:
 
 
 def state_dir() -> str:
-    d = os.path.join(ROOT, str(load().get("state_dir") or "state"))
+    d = os.environ.get("WORKERGRID_STATE_DIR", "").strip() \
+        or os.path.join(ROOT, str(load().get("state_dir") or "state"))
     os.makedirs(d, exist_ok=True)
     return d
 
 
 def instructions_path() -> str:
     return os.path.join(ROOT, str(load().get("instructions_file") or "instructions.md"))
+
+
+def lease_seconds(default: int = 3600) -> int:
+    """Lease TTL in seconds: WORKERGRID_LEASE_SECONDS env > config > default."""
+    try:
+        return int(os.environ.get("WORKERGRID_LEASE_SECONDS", "").strip()
+                   or load().get("lease_seconds") or default)
+    except (TypeError, ValueError):
+        return default
 
 
 def read_json(name: str, default):

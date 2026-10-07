@@ -78,8 +78,30 @@ def _default_runtime():
 
 
 def cmd_serve(pos, flags):
-    import service
-    return service.run(str(flags.get("host") or ""), int(flags.get("port") or 0))
+    """Stage 3a (BI-PF-0412): serve via the Go coordinator binary (cutover).
+
+    The Python coordinator (service.py + store.py) was replaced by the static
+    ``bin/wg-coordinator`` binary - same API, proven by the cross-impl contract
+    suite (product-forge/test-framework/tests/pipeline/test_workergrid_service_contract.py).
+    Fail-closed: a missing binary prints the build hint instead of running Python.
+    """
+    import subprocess
+    here = os.path.dirname(os.path.abspath(__file__))
+    exe = os.path.join(here, "bin", "wg-coordinator.exe" if os.name == "nt" else "wg-coordinator")
+    if not os.path.exists(exe):
+        print(f"[wg] coordinator binary missing: {exe}", file=sys.stderr)
+        print("      build: cd workergrid && go build -o bin/ ./cmd/wg-coordinator", file=sys.stderr)
+        return 1
+    args = [exe]
+    if flags.get("host"):
+        args += ["--host", str(flags["host"])]
+    if flags.get("port"):
+        args += ["--port", str(flags["port"])]
+    try:
+        return subprocess.call(args)
+    except OSError as e:
+        print(f"[wg] coordinator failed to start: {e}", file=sys.stderr)
+        return 1
 
 
 def cmd_register(pos, flags):

@@ -18,7 +18,8 @@ except Exception:  # executed as a script
 
 
 def _base() -> str:
-    return str(_cfg.load().get("pf_api_url") or "http://127.0.0.1:8000").rstrip("/")
+    return (os.environ.get("WORKERGRID_PF_API_URL", "").strip()
+            or str(_cfg.load().get("pf_api_url") or "http://127.0.0.1:8000")).rstrip("/")
 
 
 def _token() -> str:

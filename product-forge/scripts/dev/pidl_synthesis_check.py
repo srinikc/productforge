@@ -69,13 +69,24 @@ def main() -> int:
         sch = f.read()
     _check("pre_dispatch" in sch and "pidl_context" in sch,
            "scheduler.next_eligible attaches pidl_context (wired)")
-    svc = os.path.join(os.path.dirname(str(_ROOT)), "workergrid", "service.py")
-    if os.path.exists(svc):
-        with open(svc, encoding="utf-8") as f:
-            sctxt = f.read()
-        _check("pidl_context" in sctxt, "workergrid service passes pidl_context through (wired)")
+    # pickup passthrough: the coordinator hands pidl_context to the worker.
+    # Stage 3a (BI-PF-0412): Python service.py was replaced by the Go
+    # coordinator - check whichever source exists (fail-closed if neither).
+    wg_dir = os.path.join(os.path.dirname(str(_ROOT)), "workergrid")
+    candidates = [
+        (os.path.join(wg_dir, "internal", "httpapi", "httpapi.go"), "workergrid/internal/httpapi/httpapi.go"),
+        (os.path.join(wg_dir, "service.py"), "workergrid/service.py"),
+    ]
+    found = None
+    for path, label in candidates:
+        if os.path.exists(path):
+            with open(path, encoding="utf-8") as f:
+                found = (label, "pidl_context" in f.read())
+            break
+    if found is None:
+        FAILS.append("workergrid coordinator source not found (pickup passthrough unverifiable)")
     else:
-        FAILS.append("workergrid/service.py not found (pickup passthrough unverifiable)")
+        _check(found[1], f"{found[0]} passes pidl_context through (wired)")
     with open(os.path.join(str(_ROOT), "core", "close_loop.py"), encoding="utf-8") as f:
         cl = f.read()
     _check(".synthesize(" in cl and "synth_hold" in cl, "close_loop invokes synthesize for multi-item (wired)")
