@@ -1,0 +1,120 @@
+{
+  "id": "BI-PF-0412",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "workergrid-stage3a-go-coordinator",
+  "label": "PF Backlog 444",
+  "title": "WorkerGrid Stage 3a: Go coordinator service (parity + cutover)",
+  "body": "Source: WorkerGrid design docs/WORKERGRID-DESIGN.md section 6/9.3 (Go target) + ADR-0001 (Go-first) / ADR-0002 (cut-over). User-approved plan 2026-10-07.\n\nGoal: port the WorkerGrid coordinator service (Python spike: workergrid/service.py + workergrid/store.py) to a Go single static binary with behavior parity, then cut over (delete the Python service, wg.py serve becomes an exec-shim; single writer at any time).\n\nIn scope: (1) service-behavior contract tests first (currently ZERO tests cover the service), parameterized over the Python spike and the Go binary; (2) Go implementation in workergrid/ (go.mod, cmd/wg-coordinator, internal/{config,store,httpapi}) using pure-Go SQLite (modernc.org/sqlite, CGO_ENABLED=0), same schema + BEGIN IMMEDIATE claim semantics, same routes/JSON shapes/bearer auth; (3) cutover - delete service.py/store.py, exec-shim in wg.py, docs; (4) new gate scripts/dev/wg_go_check.py (go build/vet/test + contract suite) wired into precheck.\n\nOut of scope: PostgreSQL store (3b), design-section-5 extras /report + /assignments (3b), worker agents (3c), binary distribution/release.\n\nAccepted risk: first Go code in this repo (new-path approved by user); Go toolchain installed via winget (GoLang.Go).",
+  "source": "user-request",
+  "status": "new",
+  "priority": null,
+  "moscow": "Should",
+  "value": 4,
+  "effort": 4,
+  "risk": 2,
+  "deps": [
+    "BI-PF-0410"
+  ],
+  "links": {
+    "backend_capability": [
+      "module:workergrid/service.py",
+      "module:workergrid/store.py",
+      "command:workergrid/wg.py serve",
+      "gate:scripts/dev/wg_go_check.py",
+      "test:test-framework/tests/pipeline/test_workergrid_service_contract.py"
+    ]
+  },
+  "decisions": [],
+  "follow_up": {},
+  "revision": 1,
+  "priority_rank": null,
+  "priority_class": "",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "IN_PROGRESS",
+    "analyzed_at": "",
+    "analyzed_by": "deterministic",
+    "revision_analyzed": 0,
+    "architecture_fit": "REUSE",
+    "implementation_strategy": "Extend existing components/APIs: core/api_docs.py, core/design_critic.py, core/design_tokens.py, core/product_design_spec.py",
+    "existing_components": [
+      "core/api_docs.py",
+      "core/design_critic.py",
+      "core/design_tokens.py",
+      "core/product_design_spec.py",
+      "core/service_catalog.py",
+      "core/stage_paths.py",
+      "core/target_advisor.py",
+      "core/target_selector.py"
+    ],
+    "existing_apis": [
+      "/api/v1/apidocs",
+      "/api/v1/apidocs.json",
+      "/api/v1/apidocs/render",
+      "/api/v1/artifacts/{stage_id}/{agent}",
+      "/api/v1/engineering/stages",
+      "/api/v1/engineering/stages/{stage_id}",
+      "/api/v1/pipeline/stages",
+      "/api/v1/pipeline/stages/{stage_id}"
+    ],
+    "existing_modules": [],
+    "dependency_findings": [
+      "depends on BI-PF-0410"
+    ],
+    "conflict_findings": [],
+    "duplication_findings": [
+      "product_forge:BI-PF-0412 (score 0.99)"
+    ],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [
+      "possible duplicate"
+    ],
+    "evidence": [
+      "similar=5",
+      "score=0.75",
+      "components=8",
+      "apis=8"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": false,
+    "reasons": [],
+    "computed_at": ""
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": ""
+  },
+  "created_at": "2026-10-07T15:10:10.209165",
+  "updated_at": "2026-10-07T15:10:10.697506",
+  "score": 0.75,
+  "_note": "dashboard_impact reviewed",
+  "dashboard_impact": {
+    "needs_dashboard": false,
+    "reason": "WorkerGrid coordination service is an external execution-plane component; no dashboard surface (operator surface is the /wg command + service API)",
+    "dashboard_item": null,
+    "reviewed_by": "agent",
+    "reviewed_at": "2026-10-07T15:10:10.637174"
+  }
+}
