@@ -22,7 +22,16 @@ type Config struct {
 	ServiceURL   string `json:"service_url"`
 	StateDirName string `json:"state_dir"`
 	PollSeconds  int    `json:"poll_seconds"`
+	Store        Store  `json:"store"`
 	Agent        Agent  `json:"agent"`
+}
+
+// Store selects the coordination-store backend (BI-PF-0414): SQLite (default,
+// single-node) or PostgreSQL (multi-node). Driver "" = sqlite; DSN "" =
+// <state_dir>/workergrid.db for sqlite, and is REQUIRED for postgres.
+type Store struct {
+	Driver string `json:"driver"`
+	DSN    string `json:"dsn"`
 }
 
 // Agent is the `agent` block of config.json (Stage 3c, BI-PF-0413): the worker
@@ -147,6 +156,31 @@ func (c Config) LeaseTTL() int {
 		return c.LeaseSeconds
 	}
 	return 3600
+}
+
+// StoreDriver: $WORKERGRID_STORE_DRIVER > config store.driver > "sqlite".
+func (c Config) StoreDriver() string {
+	if v := strings.TrimSpace(os.Getenv("WORKERGRID_STORE_DRIVER")); v != "" {
+		return v
+	}
+	return strings.TrimSpace(c.Store.Driver)
+}
+
+// StoreDSN: $WORKERGRID_STORE_DSN > config store.dsn > <state_dir>/workergrid.db
+// (the SQLite default). Empty for postgres without an explicit DSN - the
+// coordinator reports that fail-closed.
+func (c Config) StoreDSN() string {
+	if v := strings.TrimSpace(os.Getenv("WORKERGRID_STORE_DSN")); v != "" {
+		return v
+	}
+	if v := strings.TrimSpace(c.Store.DSN); v != "" {
+		return v
+	}
+	d := strings.ToLower(c.StoreDriver())
+	if d == "" || d == "sqlite" || d == "sqlite3" {
+		return filepath.Join(c.StateDir(), "workergrid.db")
+	}
+	return ""
 }
 
 // ServiceBase: config service_url > http://service_host:service_port (same
