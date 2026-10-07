@@ -9,7 +9,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, Request
 
-from ..auth import authenticate, require_operator
+from ..auth import authenticate, require_operator, require_worker
 from ..envelope import from_request
 from ..errors import ApiError
 from ..pagination import paginate
@@ -253,6 +253,73 @@ def schedule_next(request: Request, scope: str = "product_forge", project: str =
     from core import scheduler
     s, p = _scope_project(scope, project)
     return from_request(request, scheduler.next_eligible(s, p, stage=stage or None), resource="engineering")
+
+
+# ── BI-PF-0419: external-worker assignment lifecycle (per-item claim + lease) ──
+
+@router.post("/assignments/claim", dependencies=[Depends(require_worker)])
+def assignment_claim(body: dict[str, Any], request: Request,
+                     ctx: dict[str, Any] = Depends(require_worker)):
+    from core import backlog, job_manager, vcs
+    from core.paths import ROOT
+    s, p = _scope_project(str(body.get("scope") or "product_forge"), str(body.get("project") or ""))
+    worker = str(body.get("worker_id") or ctx.get("actor") or "worker")
+    res = job_manager.claim_next(s, p, worker=worker, lease_seconds=int(body.get("lease_seconds") or 0))
+    if not res.get("claimed"):
+        return from_request(request, {"assigned": False, **res}, resource="engineering")
+    item = str(res["item"])
+    it = backlog.get_epic(s, p, item) or {}
+    proj_dir = _common.project_dir(p) if s == "project" else str(ROOT)
+    vm = vcs.VCSManager(proj_dir)
+    wt = vm.add_worktree(f"assign-{item}", branch=vm.feature_branch_name("wg", item))
+    if not wt.get("ok"):
+        job_manager.release(s, p, item, reason="worktree setup failed")
+        raise ApiError("WORKTREE_FAILED", "could not create the assignment worktree",
+                       details={"error": wt.get("error") or ""})
+    pkg = {"assigned": True, "item_id": item, "title": it.get("title"),
+           "description": it.get("body") or "", "acceptance_criteria": it.get("acceptance_criteria") or [],
+           "assignment_id": res.get("assignment_id"), "lease_id": res.get("lease_id"),
+           "lease_expires_at": res.get("lease_expires_at"), "worker_id": worker,
+           "pidl_context": res.get("pidl_context"), "execution_policy": res.get("execution_policy"),
+           "worktree": wt.get("path"), "branch": wt.get("branch"), "base_ref": wt.get("base")}
+    return from_request(request, pkg, resource="engineering")
+
+
+@router.post("/assignments/{item_id}/heartbeat", dependencies=[Depends(require_worker)])
+def assignment_heartbeat(item_id: str, body: dict[str, Any], request: Request,
+                         ctx: dict[str, Any] = Depends(require_worker)):
+    from core import job_manager
+    s, p = _scope_project(str(body.get("scope") or "product_forge"), str(body.get("project") or ""))
+    return from_request(request, job_manager.renew_lease(s, p, item_id,
+                        lease_seconds=int(body.get("lease_seconds") or 0)), resource="engineering")
+
+
+@router.post("/assignments/{item_id}/complete", dependencies=[Depends(require_worker)])
+def assignment_complete(item_id: str, body: dict[str, Any], request: Request,
+                        ctx: dict[str, Any] = Depends(require_worker)):
+    from core import job_manager
+    s, p = _scope_project(str(body.get("scope") or "product_forge"), str(body.get("project") or ""))
+    return from_request(request, job_manager.complete(s, p, item_id,
+                        status=str(body.get("status") or "verifying"),
+                        note=str(body.get("note") or "")), resource="engineering")
+
+
+@router.post("/assignments/{item_id}/fail", dependencies=[Depends(require_worker)])
+def assignment_fail(item_id: str, body: dict[str, Any], request: Request,
+                    ctx: dict[str, Any] = Depends(require_worker)):
+    from core import job_manager
+    s, p = _scope_project(str(body.get("scope") or "product_forge"), str(body.get("project") or ""))
+    return from_request(request, job_manager.fail(s, p, item_id, reason=str(body.get("reason") or "")),
+                        resource="engineering")
+
+
+@router.post("/assignments/{item_id}/release", dependencies=[Depends(require_worker)])
+def assignment_release(item_id: str, body: dict[str, Any], request: Request,
+                       ctx: dict[str, Any] = Depends(require_worker)):
+    from core import job_manager
+    s, p = _scope_project(str(body.get("scope") or "product_forge"), str(body.get("project") or ""))
+    return from_request(request, job_manager.release(s, p, item_id,
+                        reason=str(body.get("reason") or "released")), resource="engineering")
 
 
 # ── ENG-1: engineering task contracts ───────────────────────────────────────

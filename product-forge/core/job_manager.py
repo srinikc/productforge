@@ -247,62 +247,66 @@ def _recovery_policy() -> str:
         return "REQUIRE_REVIEW"
 
 
+def _active_assignments(scope: str, project: str | None) -> int:
+    """Count open items currently leased to a worker (for the assignment concurrency cap)."""
+    from core import backlog
+    return sum(1 for it in backlog.list_open(scope, project, order=False)
+               if str((it.get("execution") or {}).get("worker_id") or ""))
+
+
 def claim_next(scope: str = "product_forge", project: str | None = None, worker: str = "",
                lease_seconds: int = 0) -> dict:
-    """Atomically claim the highest ELIGIBLE backlog item for ``worker`` and attach a lease.
+    """Atomically claim the highest ELIGIBLE backlog item for ``worker`` and attach a per-ITEM lease.
 
-    Single claimer path: eligibility comes from ``core.scheduler`` (P4, read-only); the atomic
-    transition uses this module's SQLite ``BEGIN IMMEDIATE``; the item's ``execution{}`` is written via
-    ``core.backlog.set_execution`` (single writer). One canonical job is created via ``enqueue``.
-    Returns ``{claimed, item, assignment_id, lease_id, lease_expires_at}`` or ``{claimed: False, reason}``.
+    Single claimer path (IS-PF-0034): eligibility comes from ``core.scheduler`` (P4, read-only, stage=execute);
+    the atomic transition uses this module's SQLite ``BEGIN IMMEDIATE`` as a cross-process mutex; the item's
+    ``execution{}`` lease is written via ``core.backlog.set_execution`` (single writer).
+
+    BI-PF-0419: keyed by ITEM and independent of the project pipeline-run queue (``jobs``) - so N items in one
+    project can run in parallel. Returns the assignment package or ``{claimed: False, reason}``.
     """
-    from core import backlog, scheduler
-    nxt = scheduler.next_eligible(scope, project)
+    from core import backlog, capacity, scheduler
+    nxt = scheduler.next_eligible(scope, project, stage="execute")
     if not nxt.get("found"):
         return {"claimed": False, "reason": "no eligible item"}
     item_id = str(nxt["item"])
-    it = backlog.get_epic(scope, project, item_id)
-    proj = project or str(it.get("project") or scope)
     secs = int(lease_seconds or _lease_seconds())
     now = datetime.now()
     expires = (now + timedelta(seconds=secs)).isoformat()
     assignment_id = f"ASG-{item_id}"
     lease_id = f"LSE-{item_id}-{int(now.timestamp())}"
 
-    # ensure a canonical job row exists (own transaction; enqueue is the single-writer entry)
-    enqueue(proj, item_id=item_id, source="claim", actor=worker or "worker", job_id=f"JOB-{proj}")
-
-    attempt = 0
     c = _db()
     try:
-        c.execute("BEGIN IMMEDIATE")
-        # atomic re-check: another claim may have bound this job between eligibility and now
-        row = c.execute("SELECT assignment_id, lease_id, state, attempt FROM jobs WHERE project=?",
-                        (proj,)).fetchone()
-        cur_asg, cur_lease, cur_state, cur_attempt = (row if row else (None, None, None, None))
-        if cur_asg and cur_state == "running":
+        c.execute("BEGIN IMMEDIATE")  # cross-process mutex (also serializes with pipeline-run claims)
+        it = backlog.get_epic(scope, project, item_id) or {}
+        ex = it.get("execution") or {}
+        if str(ex.get("worker_id") or ""):  # atomic re-check: another worker won the race
             c.commit()
-            return {"claimed": False, "reason": f"already claimed ({cur_asg})"}
-        attempt = int(cur_attempt or 0) + 1
-        c.execute("UPDATE jobs SET state='running', status='running', worker=?, started_at=?, "
-                  "assignment_id=?, lease_id=?, lease_expires_at=?, attempt=?, item_ids=? "
-                  "WHERE project=?",
-                  (worker, now.isoformat(), assignment_id, lease_id, expires, attempt, item_id, proj))
+            return {"claimed": False, "reason": f"already claimed ({ex.get('worker_id')})"}
+        cap = capacity.can_assign(_active_assignments(scope, project))
+        if not cap.get("ok"):
+            c.commit()
+            return {"claimed": False, "reason": cap.get("reason") or "no assignment slot"}
+        # write the lease while holding the mutex (backlog is the single writer of execution{})
+        backlog.set_execution(scope, project, item_id, worker_id=worker, assignment_id=assignment_id,
+                              lease_id=lease_id, assigned_at=now.isoformat(),
+                              lease_expires_at=expires, started_at=now.isoformat())
         c.commit()
     finally:
         c.close()
-    # item execution state (single writer: backlog)
-    with contextlib.suppress(Exception):
-        backlog.set_execution(scope, project, item_id, worker_id=worker, assignment_id=assignment_id,
-                              lease_id=lease_id, assigned_at=now.isoformat(),
-                              lease_expires_at=expires, attempt=attempt, started_at=now.isoformat())
-    return {"claimed": True, "item": item_id, "project": proj, "worker_id": worker,
-            "assignment_id": assignment_id, "lease_id": lease_id,
-            "lease_expires_at": expires, "attempt": attempt}
+    out: dict = {"claimed": True, "item": item_id, "project": project or str(it.get("project") or scope),
+                 "worker_id": worker, "assignment_id": assignment_id, "lease_id": lease_id,
+                 "lease_expires_at": expires, "title": nxt.get("title")}
+    for k in ("pidl_context", "execution_policy"):
+        if nxt.get(k) is not None:
+            out[k] = nxt[k]
+    return out
 
 
 def renew_lease(scope: str, project: str | None, item_id: str, lease_seconds: int = 0) -> dict:
-    """Extend the lease on an active assignment (heartbeat)."""
+    """Extend the lease on an active assignment (heartbeat). Per-item (BI-PF-0419): the lease lives in
+    the item's ``execution{}`` only - the project pipeline-run queue (``jobs``) is untouched."""
     from core import backlog
     it = backlog.get_epic(scope, project, item_id)
     if not it:
@@ -313,35 +317,45 @@ def renew_lease(scope: str, project: str | None, item_id: str, lease_seconds: in
     secs = int(lease_seconds or _lease_seconds())
     expires = (datetime.now() + timedelta(seconds=secs)).isoformat()
     backlog.set_execution(scope, project, item_id, lease_expires_at=expires)
-    proj = project or str(it.get("project") or scope)
-    c = _db()
-    try:
-        c.execute("UPDATE jobs SET lease_expires_at=? WHERE project=?", (expires, proj))
-        c.commit()
-    finally:
-        c.close()
     return {"renewed": True, "item": item_id, "lease_expires_at": expires}
 
 
 def release(scope: str, project: str | None, item_id: str, reason: str = "released",
             terminal: bool = False) -> dict:
-    """Release an assignment: clear lease; return item to READY (or terminal if ``terminal``)."""
+    """Release an assignment: clear the per-item lease; return the item to READY (or terminal)."""
     from core import backlog
     it = backlog.get_epic(scope, project, item_id)
     if not it:
         return {"released": False, "reason": "item not found"}
-    proj = project or str(it.get("project") or scope)
     backlog.set_execution(scope, project, item_id, worker_id="", assignment_id="", lease_id="",
                           lease_expires_at="", completed_at=datetime.now().isoformat() if terminal else "")
-    c = _db()
-    try:
-        st = "done" if terminal else "queued"
-        c.execute("UPDATE jobs SET state=?, status=?, finished_at=? WHERE project=?",
-                  (st, st, datetime.now().isoformat(), proj))
-        c.commit()
-    finally:
-        c.close()
     return {"released": True, "item": item_id, "reason": reason, "terminal": terminal}
+
+
+def complete(scope: str, project: str | None, item_id: str, *, status: str = "verifying",
+             note: str = "") -> dict:
+    """Worker reports an assignment DONE: set the execution status and clear the lease (BI-PF-0419).
+
+    Delivery (gates/PR/merge) is orchestrated separately (BI-PF-0421); this only closes the execution lease.
+    """
+    from core import backlog
+    if not backlog.get_epic(scope, project, item_id):
+        return {"ok": False, "reason": "item not found"}
+    backlog.set_status(scope, project, item_id, status, note=note or "assignment complete")
+    backlog.set_execution(scope, project, item_id, worker_id="", assignment_id="", lease_id="",
+                          lease_expires_at="", completed_at=datetime.now().isoformat())
+    return {"ok": True, "item": item_id, "status": status}
+
+
+def fail(scope: str, project: str | None, item_id: str, reason: str = "") -> dict:
+    """Worker reports an assignment FAILED: mark blocked and clear the lease (BI-PF-0419)."""
+    from core import backlog
+    if not backlog.get_epic(scope, project, item_id):
+        return {"ok": False, "reason": "item not found"}
+    backlog.set_status(scope, project, item_id, "blocked", note=reason or "assignment failed")
+    backlog.set_execution(scope, project, item_id, worker_id="", assignment_id="", lease_id="",
+                          lease_expires_at="", completed_at=datetime.now().isoformat())
+    return {"ok": True, "item": item_id, "status": "blocked"}
 
 
 def recover_expired(scope: str = "product_forge", project: str | None = None,

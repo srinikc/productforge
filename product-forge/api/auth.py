@@ -71,6 +71,16 @@ def require_operator(request: Request, authorization: str = Header(default=""),
     return ctx
 
 
+def require_worker(request: Request, authorization: str = Header(default=""),
+                   x_roles: str = Header(default="")) -> dict:
+    """BI-PF-0419: the assignment-lifecycle boundary. A worker (``worker`` role) or an operator may call it."""
+    ctx = authenticate(request, authorization, x_roles)
+    roles = ctx.get("roles") or []
+    if not _anon_ok() and not ({"worker", "operator"} & set(roles)):
+        raise ApiError("FORBIDDEN", "worker role required")
+    return ctx
+
+
 def require_tenant(request: Request, x_tenant_id: str = Header(default=""),
                    authorization: str = Header(default=""), x_roles: str = Header(default="")) -> dict:
     ctx = authenticate(request, authorization, x_roles)

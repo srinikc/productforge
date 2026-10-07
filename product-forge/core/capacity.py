@@ -124,6 +124,19 @@ def can_start(project: str = "") -> Dict[str, Any]:
             "reason": "" if ok else f"no free slot ({len(running)}/{mx} running)"}
 
 
+def max_parallel_assignments() -> int:
+    """Concurrent backlog-item assignments allowed across a scope (0 = unlimited). BI-PF-0419."""
+    return int(load().get("max_parallel_assignments") or 0)
+
+
+def can_assign(active: int) -> Dict[str, Any]:
+    """Capacity check for per-item assignment (BI-PF-0419): ``active`` leased items < the cap."""
+    mx = max_parallel_assignments()
+    ok = (not mx) or int(active) < mx
+    return {"ok": ok, "active": int(active), "max_parallel_assignments": mx,
+            "reason": "" if ok else f"no free assignment slot ({active}/{mx})"}
+
+
 def effective_limits(tier: str = "", extra: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """Global limits, further capped by a license TIER (and optional extras).
 
