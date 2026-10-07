@@ -8,9 +8,9 @@
   "external_id": "worker-build-plug-unplug",
   "label": "PF Backlog 414",
   "title": "PFSSOT build-time plug/unplug: exclude the worker subsystem from a build/edition (ship-without-workers)",
-  "body": "Folds into Epic A / A3 (PF platform build-package-deploy pipeline). Build-time plug/unplug: exclude the worker subsystem per edition (worker_integration=included|excluded) via build profiles. See docs/PF-TARGET-ARCHITECTURE-AND-IP-PLAN.md.",
+  "body": "Folds into Epic A / A3 (PF platform build-package-deploy pipeline). Build-time plug/unplug: exclude the worker subsystem per edition (worker_integration=included|excluded) via build profiles. See docs/PF-TARGET-ARCHITECTURE-AND-IP-PLAN.md.\n\n[update 2026-10-07] WONTFIX — premise invalidated by the ADR-0002 cut-over (WorkerGrid Stage 2b, BI-PF-0410): the in-PF worker subsystem (core/worker*.py, /api/v1/engineering/{workers,work,adapters,dispatch*}) was removed entirely, and scripts/dev/single_path_check.py fails if it reappears - so 'ship-without-workers' is now the default and only mode. config/worker-integration.json never existed in git (verified: no commit ever touched it). WorkerGrid is a separate component outside PF editions; see docs/WORKERGRID-DESIGN.md section 12.",
   "source": "user-request",
-  "status": "new",
+  "status": "wontfix",
   "priority": null,
   "moscow": "Should",
   "value": 3,
@@ -22,12 +22,12 @@
   "links": {
     "backend_capability": [
       "module:core/packaging.py",
-      "config:config/worker-integration.json"
+      "gate:scripts/dev/single_path_check.py"
     ]
   },
   "decisions": [],
   "follow_up": {},
-  "revision": 2,
+  "revision": 3,
   "priority_rank": null,
   "priority_class": "",
   "analyze_mode": "on_entry",
@@ -106,9 +106,16 @@
     "completed_at": ""
   },
   "created_at": "2026-10-05T13:21:40.003463",
-  "updated_at": "2026-10-06T18:32:32.260868",
+  "updated_at": "2026-10-07T14:07:18.900606",
   "score": 0.75,
-  "_note": "analysis updated",
+  "_note": "dashboard_impact reviewed",
   "parent": "BI-PF-0390",
-  "epic": "BI-PF-0390"
+  "epic": "BI-PF-0390",
+  "dashboard_impact": {
+    "needs_dashboard": false,
+    "reason": "no dashboard surface: build-time worker plug/unplug is moot after the ADR-0002 cut-over - PF ships with no worker subsystem (single_path gate); WorkerGrid is a separate component outside PF editions",
+    "dashboard_item": null,
+    "reviewed_by": "agent",
+    "reviewed_at": "2026-10-07T14:07:18.643043"
+  }
 }

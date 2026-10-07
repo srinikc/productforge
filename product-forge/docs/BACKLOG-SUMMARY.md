@@ -1,15 +1,14 @@
 # Backlog Summary
 
-> GENERATED 2026-10-07T13:18:22 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-07T14:09:18 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 36  |  **Closed:** 358
-- `executing`: 1
-- `new`: 35
+- **Open:** 34  |  **Closed:** 360
+- `new`: 34
 
-### new, by category (35)
+### new, by category (34)
 **API / reports / HIL / misc** (1)
 | ID | MoSCoW | Type | Title |
 |---|---|---|---|
@@ -38,7 +37,7 @@
 | BI-0206 | Should | tech-debt | Backend: model downloader + local cache + license-acceptance gate + models.lock (open-weights) |
 | BI-0225 | Should | feature | Parallel section/feature generation |
 
-**Wiring / tech-debt / API** (27)
+**Wiring / tech-debt / API** (26)
 | ID | MoSCoW | Type | Title |
 |---|---|---|---|
 | BI-0185 | Should | feature | EPIC: Multi-modal / media orchestration (pluggable capability packs) |
@@ -48,7 +47,6 @@
 | BI-PF-0331 | Should | chore | OS/shell neutrality: remove PowerShell-only scripting/doc workarounds |
 | BI-PF-0360 | Should | epic | EPIC: Backlog SSOT + Work Scheduler + Pluggable Worker Orchestration (doc: PF-Backlog-SSOT-Scheduler-Pluggable-Workers) |
 | BI-PF-0374 | Should | feature | PFSSOT-P12: optimization (only after correctness) |
-| BI-PF-0383 | Should | feature | PFSSOT build-time plug/unplug: exclude the worker subsystem from a build/edition (ship-without-workers) |
 | BI-PF-0386 | Should | feature | PF platform: IP-value assessment of all modules (rewrite-by-value ranking: high-value -> Go/Rust, low-value -> compiled) |
 | BI-PF-0387 | Should | feature | PF platform delivery baseline: ONE source for all editions; new shipped/sensitive logic -> Go; existing -> compiled (Nuitka); no raw .py at customer; migrate by value later |
 | BI-PF-0388 | Should | task | ADR: PF platform shipped editions use compiled artifacts (Go core + compiled-Python), never raw .py; one source, many editions |
@@ -267,5 +265,5 @@
 ---
 
 ## Totals
-- backend: 36 open / 358 closed
+- backend: 34 open / 360 closed
 - dashboard: 146 open / 3 closed
