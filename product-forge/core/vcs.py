@@ -11,16 +11,16 @@ Config (project.json -> "vcs"):
 Everything is guarded: if git/repo/remote is unavailable the manager degrades to
 no-ops (returns {"ok": False, ...}) instead of failing the pipeline.
 """
-import os
 import json
+import os
 import re
 import subprocess
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
 class VCSManager:
-    def __init__(self, project_dir: str, config: Optional[Dict] = None):
+    def __init__(self, project_dir: str, config: dict | None = None):
         self.project_dir = project_dir
         # BI-0086: load the per-project git config (connect/create, provider/remote/branch model)
         # unless an explicit config was passed. Single source of truth: products/<p>/git-config.json.
@@ -60,7 +60,7 @@ class VCSManager:
         return os.path.join(project_dir, cls.CONFIG_FILE)
 
     @classmethod
-    def load_config(cls, project_dir: str) -> Dict[str, Any]:
+    def load_config(cls, project_dir: str) -> dict[str, Any]:
         p = cls.config_path(project_dir)
         try:
             with open(p, encoding="utf-8") as f:
@@ -69,7 +69,7 @@ class VCSManager:
             return dict(cls.DEFAULT_CONFIG)
 
     @classmethod
-    def save_config(cls, project_dir: str, config: Dict[str, Any]) -> str:
+    def save_config(cls, project_dir: str, config: dict[str, Any]) -> str:
         cfg = dict(cls.DEFAULT_CONFIG)
         cfg.update({k: v for k, v in (config or {}).items() if v not in (None, "")})
         p = cls.config_path(project_dir)
@@ -78,9 +78,9 @@ class VCSManager:
             json.dump(cfg, f, indent=2, ensure_ascii=False)
         return p
 
-    def history(self, limit: int = 100) -> Dict[str, Any]:
+    def history(self, limit: int = 100) -> dict[str, Any]:
         """BI-0089: check-ins + tags + branches for the project (read-only)."""
-        out: Dict[str, Any] = {"is_repo": self.is_repo(), "config": self.cfg}
+        out: dict[str, Any] = {"is_repo": self.is_repo(), "config": self.cfg}
         if not out["is_repo"]:
             return out
         try:
@@ -95,7 +95,7 @@ class VCSManager:
 
 
     # ── primitives ──────────────────────────────────────────────
-    def _git(self, args: List[str], check: bool = False) -> Dict[str, Any]:
+    def _git(self, args: list[str], check: bool = False) -> dict[str, Any]:
         try:
             r = subprocess.run(["git", *args], cwd=self.project_dir, capture_output=True,
                                text=True, timeout=120)
@@ -112,7 +112,7 @@ class VCSManager:
     def is_repo(self) -> bool:
         return self._git(["rev-parse", "--is-inside-work-tree"]).get("ok", False)
 
-    def init(self) -> Dict[str, Any]:
+    def init(self) -> dict[str, Any]:
         if self.is_repo():
             self.ensure_develop()
             return {"ok": True, "already": True}
@@ -140,11 +140,62 @@ class VCSManager:
     def has_remote(self) -> bool:
         return self._git(["remote"]).get("out", "").find(self.remote) >= 0
 
-    def has_conflicts(self) -> List[str]:
+    def remote_ref(self) -> str:
+        """The remote-tracking ref of the integration branch (e.g. ``origin/develop``)."""
+        return f"{self.remote}/{self.integration_branch}"
+
+    def fetch(self) -> dict[str, Any]:
+        """Fetch the remote (no-op with a reason if no remote). Stage 2a (git sync)."""
+        if not self.has_remote():
+            return {"ok": False, "error": "no remote configured"}
+        return self._git(["fetch", self.remote, "--prune"])
+
+    def base_ref(self, base: str = "") -> str:
+        """Base ref for a new worktree: explicit ``base`` > ``origin/<integration>`` (after fetch) > local.
+
+        Using ``origin/<integration>`` keeps cross-system workers from branching off a stale local develop.
+        """
+        b = str(base or "").strip()
+        if b and self._git(["rev-parse", "--verify", b]).get("ok"):
+            return b
+        if self.has_remote():
+            self.fetch()
+            rr = self.remote_ref()
+            if self._git(["rev-parse", "--verify", rr]).get("ok"):
+                return rr
+        return self.integration_branch
+
+    @staticmethod
+    def auto_push_enabled() -> bool:
+        """Whether auto-push-after-merge is enabled (``PF_AUTO_PUSH``; default off)."""
+        try:
+            from core import env_flags
+            return str(env_flags.get("PF_AUTO_PUSH", "0") or "0").lower() in ("1", "true", "yes", "on")
+        except Exception:
+            return False
+
+    def sync(self, push: bool = True, integration: bool = True) -> dict[str, Any]:
+        """Fetch the remote and optionally push the integration branch (Stage 2a git sync).
+
+        Explicit ``sync`` (operator/CLI) always pushes when ``push`` is true; auto-push after a controlled
+        merge is gated by ``PF_AUTO_PUSH`` (see ``auto_push_enabled``).
+        """
+        if not self.has_remote():
+            return {"ok": False, "error": "no remote configured"}
+        fetched = bool(self.fetch().get("ok"))
+        out: dict[str, Any] = {"ok": fetched, "fetched": fetched, "pushed": False}
+        if push:
+            br = self.integration_branch if integration else self.current_branch()
+            r = self.push(br)
+            out["pushed"] = bool(r.get("ok"))
+            out["push"] = r
+        return out
+
+    def has_conflicts(self) -> list[str]:
         out = self._git(["diff", "--name-only", "--diff-filter=U"]).get("out", "")
         return [x for x in out.splitlines() if x.strip()]
 
-    def status(self) -> Dict[str, Any]:
+    def status(self) -> dict[str, Any]:
         """Working-tree status: branch + modified/untracked files (read-only)."""
         if not self.is_repo():
             return {"is_repo": False, "clean": True, "branch": "",
@@ -156,7 +207,7 @@ class VCSManager:
                 "untracked": [x[3:].strip() for x in rows if x.startswith("??")],
                 "remote": self.has_remote(), "conflicts": self.has_conflicts()}
 
-    def branches(self) -> List[str]:
+    def branches(self) -> list[str]:
         """Local branch names (read-only)."""
         out = self._git(["branch", "--format=%(refname:short)"]).get("out", "")
         return [x.strip() for x in out.splitlines() if x.strip()]
@@ -170,12 +221,12 @@ class VCSManager:
         p = os.path.normpath(self.project_dir)
         return os.path.join(os.path.dirname(p), os.path.basename(p) + "-worktrees")
 
-    def list_worktrees(self) -> List[Dict[str, Any]]:
+    def list_worktrees(self) -> list[dict[str, Any]]:
         if not self.is_repo():
             return []
         out = self._git(["worktree", "list", "--porcelain"]).get("out", "")
-        rows: List[Dict[str, Any]] = []
-        cur: Dict[str, Any] = {}
+        rows: list[dict[str, Any]] = []
+        cur: dict[str, Any] = {}
         for line in (out or "").splitlines():
             line = line.strip()
             if not line:
@@ -195,7 +246,7 @@ class VCSManager:
             rows.append(cur)
         return rows
 
-    def add_worktree(self, name: str, branch: str = "", base: str = "") -> Dict[str, Any]:
+    def add_worktree(self, name: str, branch: str = "", base: str = "") -> dict[str, Any]:
         """Create an isolated worktree on a feature branch (fixes PF-050: no bad create kwarg)."""
         if not self.is_repo():
             return {"ok": False, "error": "not a git repository"}
@@ -212,39 +263,38 @@ class VCSManager:
         if self._git(["rev-parse", "--verify", branch]).get("ok"):
             r = self._git(["worktree", "add", path, branch])
         else:
-            base_ref = str(base or "").strip()
-            if not base_ref or not self._git(["rev-parse", "--verify", base_ref]).get("ok"):
-                base_ref = self.integration_branch
+            # Stage 2a: prefer origin/<integration> (fetched) so cross-system workers aren't stale.
+            base_ref = self.base_ref(base)
             if not self._git(["rev-parse", "--verify", base_ref]).get("ok"):
                 base_ref = self.current_branch() or "HEAD"
             r = self._git(["worktree", "add", "-b", branch, path, base_ref])
         return {"ok": r.get("ok", False), "name": safe, "path": path, "branch": branch,
                 "base": base_ref, "error": r.get("error", "")}
 
-    def remove_worktree(self, name: str) -> Dict[str, Any]:
+    def remove_worktree(self, name: str) -> dict[str, Any]:
         path = os.path.join(self.worktree_root(), self._slug(name))
         r = self._git(["worktree", "remove", path, "--force"])
         self._git(["worktree", "prune"])
         return {"ok": r.get("ok", False), "path": path, "error": r.get("error", "")}
 
     # ── branches ────────────────────────────────────────────────
-    def ensure_develop(self) -> Dict[str, Any]:
+    def ensure_develop(self) -> dict[str, Any]:
         r = self._git(["rev-parse", "--verify", self.integration_branch])
         if r.get("ok"):
             return {"ok": True, "branch": self.integration_branch}
         return self._git(["checkout", "-b", self.integration_branch])
 
-    def feature_branch(self, name: str, base: Optional[str] = None) -> Dict[str, Any]:
+    def feature_branch(self, name: str, base: str | None = None) -> dict[str, Any]:
         base = base or self.integration_branch
         self.ensure_develop()
         self._git(["checkout", base])
         return self._git(["checkout", "-b", name])
 
-    def checkout(self, branch: str) -> Dict[str, Any]:
+    def checkout(self, branch: str) -> dict[str, Any]:
         return self._git(["checkout", branch])
 
     # ── commits / push ──────────────────────────────────────────
-    def commit(self, message: str, paths: Optional[List[str]] = None) -> Dict[str, Any]:
+    def commit(self, message: str, paths: list[str] | None = None) -> dict[str, Any]:
         if paths:
             self._git(["add", *paths])
         else:
@@ -253,7 +303,7 @@ class VCSManager:
         sha = self._git(["rev-parse", "HEAD"]).get("out", "")
         return {"ok": r.get("ok", False), "sha": sha, "error": r.get("error", "")}
 
-    def push(self, branch: Optional[str] = None, set_upstream: bool = True) -> Dict[str, Any]:
+    def push(self, branch: str | None = None, set_upstream: bool = True) -> dict[str, Any]:
         if not self.has_remote():
             return {"ok": False, "error": "no remote configured"}
         br = branch or self.current_branch()
@@ -262,21 +312,21 @@ class VCSManager:
             args += ["-u", self.remote, br]
         return self._git(args)
 
-    def rebase(self, onto: Optional[str] = None) -> Dict[str, Any]:
+    def rebase(self, onto: str | None = None) -> dict[str, Any]:
         onto = onto or self.integration_branch
         r = self._git(["rebase", onto])
         return {"ok": r.get("ok", False), "conflicts": self.has_conflicts(), "error": r.get("error", "")}
 
     # ── stash (ephemeral only) ──────────────────────────────────
-    def stash(self, label: str = "") -> Dict[str, Any]:
+    def stash(self, label: str = "") -> dict[str, Any]:
         return self._git(["stash", "push", "-m", label or f"run-{datetime.now():%Y%m%d%H%M%S}"])
 
-    def unstash(self) -> Dict[str, Any]:
+    def unstash(self) -> dict[str, Any]:
         return self._git(["stash", "pop"])
 
     # ── merge / tag ─────────────────────────────────────────────
     def merge(self, source: str, target: str, message: str = "",
-              require_gate: bool = True) -> Dict[str, Any]:
+              require_gate: bool = True) -> dict[str, Any]:
         project = os.path.basename(os.path.normpath(self.project_dir))
         if require_gate:
             try:
@@ -291,7 +341,7 @@ class VCSManager:
         r = self._git(["merge", "--no-ff", source, "-m", message or f"merge {source} into {target}"])
         return {"ok": r.get("ok", False), "conflicts": self.has_conflicts(), "error": r.get("error", "")}
 
-    def checkins(self, limit: int = 100) -> List[Dict[str, Any]]:
+    def checkins(self, limit: int = 100) -> list[dict[str, Any]]:
         """Commit/PR history: hash, author, date, brief, PR# (when present)."""
         out = self._git(["log", f"-{limit}", "--pretty=format:%H|%an|%aI|%s|%b<<<EOR>>>"])
         rows = []
@@ -310,7 +360,7 @@ class VCSManager:
                          "merge": subject.lower().startswith("merge")})
         return rows
 
-    def tag(self, name: str, message: str = "", sign: Optional[bool] = None) -> Dict[str, Any]:
+    def tag(self, name: str, message: str = "", sign: bool | None = None) -> dict[str, Any]:
         sign = self.sign_tags if sign is None else sign
         args = ["tag", "-a", name, "-m", message or name]
         if sign:
@@ -326,7 +376,7 @@ class VCSManager:
         return r
 
     # ── WIP safety net ──────────────────────────────────────────
-    def wip_snapshot(self, run_id: str = "") -> Dict[str, Any]:
+    def wip_snapshot(self, run_id: str = "") -> dict[str, Any]:
         dirty = self._git(["status", "--porcelain"]).get("out", "")
         if not dirty.strip():
             return {"ok": True, "committed": False}

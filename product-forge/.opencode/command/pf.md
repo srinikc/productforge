@@ -24,6 +24,7 @@ generation (`/pf product ...`) delegates to `scripts/pipeline.py` (the existing 
 - `/pf dogfood [--dry]`
 - `/pf validate <PROFILE>` · `/pf release readiness|gate` · `/pf package <edition>`
 - `/pf audit` · `/pf status` · `/pf pidl decisions|show|candidates|policy|latest`
+- `/pf sync` — git sync (fetch remote + push develop)
 
 ## Moved to WorkerGrid (`/wg`)
 - worker registry, work pull, scheduler eligibility, adapters, dispatch → **`/wg …`**

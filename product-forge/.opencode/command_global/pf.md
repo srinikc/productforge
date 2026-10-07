@@ -42,5 +42,6 @@ Product Forge's `scripts/pipeline.py` (the existing agent runner).
 - `/pf product new "idea" --tier <tier>` / `continue` / `fix "desc"` → PF `scripts/pipeline.py`
 - `/pf backlog list|show <id>|groom <id> [--no-ai]|approve <id>`
 - `/pf dogfood [--dry]`
+- `/pf sync` — git sync (fetch remote + push develop)
 - `/pf validate <PROFILE>` · `/pf release readiness|gate` · `/pf package <edition>`
 - `/pf audit` · `/pf status`

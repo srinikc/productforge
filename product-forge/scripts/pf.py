@@ -36,7 +36,7 @@ ROOT = str(_PF_ROOT)
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
-VERBS = ("product", "backlog", "dogfood", "validate", "release", "package", "audit", "status", "pidl")
+VERBS = ("product", "backlog", "dogfood", "validate", "release", "package", "audit", "status", "pidl", "sync")
 
 
 def _flags(argv):
@@ -152,6 +152,12 @@ def cmd_status(pos, flags):
     return {"production_ready": audit.summary().get("production_ready")}
 
 
+def cmd_sync(pos, flags):
+    """Git sync (Stage 2a): fetch the remote and push the integration branch."""
+    from core.vcs import VCSManager
+    return VCSManager(ROOT).sync(push=True)
+
+
 # Help surface: (description, subcommands [(usage, help)], verb flags [(usage, help)])
 # Global flags apply to every verb. Keep in sync with .opencode/command/pf.md verb map.
 _GLOBAL_FLAGS = (
@@ -183,6 +189,7 @@ _HELP = {
                 [("<edition>", "edition to package (default: community)")], ()),
     "audit": ("Final audit summary (production readiness).", [], ()),
     "status": ("Compact status: production readiness.", [], ()),
+    "sync": ("Git sync (Stage 2a): fetch the remote + push the integration branch (develop).", [], ()),
     "pidl": ("Product-Forge decision log (PIDL).",
              [("decisions", "decision history (default)"),
               ("show <id>", "one decision"), ("candidates", "feedback candidates"),
@@ -260,7 +267,7 @@ def main(argv=None) -> int:
     as_json = "json" in flags or True  # structured by default
     fn = {"backlog": cmd_backlog, "dogfood": cmd_dogfood, "validate": cmd_validate,
           "release": cmd_release, "package": cmd_package, "audit": cmd_audit,
-          "status": cmd_status, "pidl": cmd_pidl}[verb]
+          "status": cmd_status, "pidl": cmd_pidl, "sync": cmd_sync}[verb]
     try:
         res = fn(pos, flags)
     except Exception as e:
