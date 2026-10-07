@@ -1,0 +1,133 @@
+{
+  "id": "BI-PF-0413",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "workergrid-stage3c-agent-execution",
+  "label": "PF Backlog 447",
+  "title": "WorkerGrid Stage 3c: worker agent execution (claim -> worktree -> exec -> heartbeat -> write-back)",
+  "body": "Source: pre-implementation IMPACT review 2026-10-07 (user-approved: \"Approve everything\").\nAuthorities: docs/WORKERGRID-DESIGN.md sections 2-6 (roles/executor split/language), ADR-0002,\ndocs/WORKER-SCHEDULER-OPERATIONS.md (claim/lease/one-worktree-per-session IS-PF-0036),\nmaster plan gate (paths traced, duplicates mapped).\n\nGoal: worker agent execution loop - a new Go binary workergrid/cmd/wg-agent (invoked as `/wg agent`)\nthat autonomously: calls /leases/recover (reopens recovered items to queued) -> claims via coordinator\nPOST /work -> writes PF write-back `scheduled` -> creates an isolated git worktree on a feature branch ->\nexecutes the configured runtime command -> heartbeats/renews lease -> writes `executing` -> `done`|`blocked`\n-> releases the lease. Journal = JSONL under workergrid/state/.\n\nIMPACT review verdicts (approved): (4) new path - agent owns its own git worktree mechanics inside\nworkergrid/ (git CLI, no core/vcs.py import); (6) stale - design section 4 status vocabulary\nassigned/in-progress/done/blocked mapped to real PF vocabulary scheduled/executing/done(alias completed)/blocked\n(doc fix in this slice); (7) new-path decision - agent owns ALL PF write-back incl. recover/reopen so a dead\nworker cannot wedge an item (coordinator stays untouched; single writer for PF item status = the agent).\nAll other claims aligned (dependency direction, roles, no duplicate claim path, Go-first, existing route+auth).\n\nIn scope: (1) cmd/wg-agent + internal/agent loop + internal/producer status write-back; (2) config.json\n`agent` block (poll_seconds, runtimes.<name>.command template with {item_id},{title},{worktree},{base_ref},\nworktrees_dir, base_ref, timeout; approval_required -> blocked fail-closed); (3) /wg agent verb (exec-shim\nlike serve) + command md files (project + global + installed, byte-identical) + wg_surface_check verb;\n(4) tests: Go unit + pytest e2e (real coordinator + agent + stub PF, command runtime = echo) wired into\nwg_go_check; (5) docs: design section 14 + section 4 vocabulary fix, README, ops doc section 4-5 rewrite\n(currently documents the Stage-2b-deleted /pf work flow).\n\nOut of scope: PostgreSQL store (3b), auto-push (agent push flag default off), remote fleet orchestration,\ndashboard, coordinator changes (3a stays frozen).\n\ndashboard_impact: needs_dashboard=false - agent is an external execution-plane process; operator surface is\nthe /wg command + coordinator API (same rationale as BI-PF-0412).",
+  "source": "pre-implementation review",
+  "status": "new",
+  "priority": null,
+  "moscow": "Should",
+  "value": 4,
+  "effort": 4,
+  "risk": 2,
+  "deps": [
+    "BI-PF-0412"
+  ],
+  "links": {
+    "backend_capability": [
+      "module:workergrid/cmd/wg-agent/main.go",
+      "module:workergrid/internal/agent/agent.go",
+      "module:workergrid/internal/producer/status.go",
+      "command:workergrid/wg.py",
+      "gate:scripts/dev/wg_go_check.py",
+      "test:test-framework/tests/pipeline/test_workergrid_agent_e2e.py",
+      "doc:docs/WORKERGRID-DESIGN.md"
+    ]
+  },
+  "decisions": [
+    {
+      "at": "2026-10-07",
+      "by": "user",
+      "decision": "Stage 3c approved via IMPACT review: new worktree path inside workergrid (claim 4), agent-owned recover + PF write-back (claim 7), status-vocabulary doc fix (claim 6), full slice incl. docs/tests/gates/delivery"
+    }
+  ],
+  "follow_up": {},
+  "revision": 1,
+  "priority_rank": null,
+  "priority_class": "",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "IN_PROGRESS",
+    "analyzed_at": "",
+    "analyzed_by": "deterministic",
+    "revision_analyzed": 0,
+    "architecture_fit": "REUSE",
+    "implementation_strategy": "Extend existing components/APIs: core/agent_capabilities.py, core/agent_card_loader.py, core/agent_hierarchy.py, core/agent_ledger.py",
+    "existing_components": [
+      "core/agent_capabilities.py",
+      "core/agent_card_loader.py",
+      "core/agent_hierarchy.py",
+      "core/agent_ledger.py",
+      "core/agent_memory.py",
+      "core/agent_messenger.py",
+      "core/agent_migrator.py",
+      "core/agent_model_override.py"
+    ],
+    "existing_apis": [
+      "/api/v1/agents",
+      "/api/v1/agents/{agent_id}",
+      "/api/v1/agents/{agent_id}/capabilities",
+      "/api/v1/artifacts/{stage_id}/{agent}",
+      "/api/v1/engineering/stages",
+      "/api/v1/engineering/stages/{stage_id}",
+      "/api/v1/engineering/worker-providers",
+      "/api/v1/pipeline/stages"
+    ],
+    "existing_modules": [
+      "config/agent-capabilities.json",
+      "config/agent-capability-vector.json",
+      "config/agent-hierarchy.json",
+      "config/agent-requirements.json",
+      "config/engineering-workers.json"
+    ],
+    "dependency_findings": [
+      "depends on BI-PF-0412"
+    ],
+    "conflict_findings": [],
+    "duplication_findings": [
+      "product_forge:BI-PF-0413 (score 1.00)"
+    ],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [
+      "possible duplicate"
+    ],
+    "evidence": [
+      "similar=5",
+      "score=0.75",
+      "components=8",
+      "apis=8"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": false,
+    "reasons": [],
+    "computed_at": ""
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": ""
+  },
+  "created_at": "2026-10-07T17:03:54.413533",
+  "updated_at": "2026-10-07T17:03:54.847493",
+  "score": 0.75,
+  "_note": "analysis updated",
+  "dashboard_impact": {
+    "needs_dashboard": false,
+    "reason": "WorkerGrid agent is an external execution-plane process; operator surface is the /wg command + coordinator API (same as BI-PF-0412)",
+    "dashboard_item": null,
+    "reviewed_by": "agent"
+  }
+}
