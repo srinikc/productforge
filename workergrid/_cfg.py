@@ -1,13 +1,25 @@
-"""WorkerGrid config + paths (shared by the CLI and client)."""
+"""WorkerGrid config + paths (shared by the CLI and client).
+
+Config home resolution (BI-PF-0417) mirrors the Go components
+(``internal/config.Home()``): ``$WORKERGRID_HOME`` when set, else the checkout's
+``workergrid/`` directory (where ``config.json`` lives). This keeps ``/wg …``
+and ``/wg serve`` pointing at the SAME config.
+"""
 import json
 import os
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 
 
+def home() -> str:
+    """$WORKERGRID_HOME (absolute) > the checkout's workergrid dir."""
+    h = os.environ.get("WORKERGRID_HOME", "").strip()
+    return os.path.abspath(h) if h else ROOT
+
+
 def load() -> dict:
     try:
-        with open(os.path.join(ROOT, "config.json"), encoding="utf-8") as f:
+        with open(os.path.join(home(), "config.json"), encoding="utf-8") as f:
             return json.load(f) or {}
     except Exception:
         return {}
@@ -15,13 +27,13 @@ def load() -> dict:
 
 def state_dir() -> str:
     d = os.environ.get("WORKERGRID_STATE_DIR", "").strip() \
-        or os.path.join(ROOT, str(load().get("state_dir") or "state"))
+        or os.path.join(home(), str(load().get("state_dir") or "state"))
     os.makedirs(d, exist_ok=True)
     return d
 
 
 def instructions_path() -> str:
-    return os.path.join(ROOT, str(load().get("instructions_file") or "instructions.md"))
+    return os.path.join(home(), str(load().get("instructions_file") or "instructions.md"))
 
 
 def lease_seconds(default: int = 3600) -> int:

@@ -196,6 +196,10 @@ def cmd_work(pos, flags):
     if not r.get("ok"):
         return {"assigned": False, "reason": f"producer API: {r.get('status')} {r.get('error')}"}
     data = r.get("data") or {}
+    # BI-PF-0417: the producer wraps the payload in {request_id,status,data:{found,item,...}};
+    # unwrap one level before reading (the coordinator's assign() does the same).
+    if isinstance(data, dict) and "found" not in data and isinstance(data.get("data"), dict):
+        data = data["data"]
     item = data.get("item")
     if not data.get("found") or not item:
         return {"assigned": False, "reason": "no eligible item"}
