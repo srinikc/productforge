@@ -10,7 +10,7 @@
   "title": "DEFECT: /wg CLI ignores WORKERGRID_HOME + local claim never unwraps the PF envelope",
   "body": "Source: found while answering \"can we run /wg from any session / register / take work\" (2026-10-07),\nby exercising the /wg CLI live against a coordinator on a non-default port.\n\nDEFECT 1 - the Python CLI ignores WORKERGRID_HOME (config-resolution divergence).\n`workergrid/_cfg.py:5-13` computes `ROOT = dirname(_cfg.py)` and `load()` always reads\n`<workergrid>/config.json`; only `state_dir()` honours `WORKERGRID_STATE_DIR`. The Go coordinator/agent\n(`internal/config.Home()`) DO honour `WORKERGRID_HOME` (documented in workergrid/README.md). So `/wg serve`\nand `/wg status|register|work|dispatch` can resolve DIFFERENT service_url/pf_api_url -> the CLI silently falls\nback to \"local\" mode (observed: `service_url()` returned the default 8790 while the coordinator ran on 8892).\n\nDEFECT 2 - local-mode claim never unwraps the producer envelope.\n`workergrid/wg.py` `cmd_work` local branch reads `data.get(\"found\")` / `data.get(\"item\")` on the PF envelope\n`{request_id,status,data:{found,item,...}}`, so the top level has no `found`/`item` and the claim ALWAYS returns\n\"no eligible item\" even when work is eligible. This is the same envelope defect the coordinator had (RCCA on\nBI-PF-0412); the Python local path was never fixed.\n\nImpact: `/wg register|work|dispatch` are unreliable outside the default single-checkout setup, and the\nsingle-machine (no-coordinator) claim path is broken. The Go paths (serve/agent, and coordinator POST /work)\nare correct and were proven live.\n\nFix (small): (1) `_cfg.load()` honours `WORKERGRID_HOME` (mirror Go: WORKERGRID_HOME > walk up from the script\ndir); (2) `cmd_work` local branch unwraps one envelope level before reading found/item. Tests: `_cfg` honours\nWORKERGRID_HOME; local-mode work with a stub producer serving the canonical envelope returns the item.\n\ndashboard_impact: needs_dashboard=false - WorkerGrid CLI correctness; no UI surface.\n\n## Accepted fix (user-approved 2026-10-07)\n1. `workergrid/_cfg.py`: add `home()` = `$WORKERGRID_HOME` (abs) else the checkout's workergrid dir (mirrors\n   Go `internal/config.Home()`); `load()`, `state_dir()`, `instructions_path()` all resolve via `home()`.\n2. `workergrid/wg.py` `cmd_work` local branch: unwrap the producer envelope one level\n   (`data = data[\"data\"]` when `found` is absent) before reading `found`/`item`.\n3. Tests: `test-framework/tests/pipeline/test_workergrid_cli_config.py` - `_cfg.load()`/`state_dir()` honour\n   WORKERGRID_HOME; local-mode `cmd_work` returns the item from a canonical-envelope stub producer.\n4. Verify: re-run the live /wg demo - `work`/`dispatch`/`status` must use the SERVICE (shared state).\n",
   "source": "verification (live /wg CLI run)",
-  "status": "new",
+  "status": "completed",
   "priority": null,
   "moscow": "Should",
   "value": 3,
@@ -26,7 +26,20 @@
     "related": [
       "product_forge:BI-PF-0409",
       "product_forge:BI-PF-0412"
-    ]
+    ],
+    "delivery": {
+      "branch": "fix/wg-cli-config-envelope",
+      "merge_sha": "2f4f9df947de0406a1c280f42d09f5fc12c35f57",
+      "commits": [
+        "27ae9f5",
+        "04302eb",
+        "3422269"
+      ],
+      "pr": "",
+      "pr_url": "",
+      "at": "2026-10-07T19:16:42.451800",
+      "note": "merged --no-ff; precheck --full green (39 gates); wg-go gate green; new test_workergrid_cli_config.py (2 tests); LIVE /wg demo re-run: register/work/dispatch/status now all report mode=service (shared state)"
+    }
   },
   "decisions": [
     {
@@ -36,7 +49,7 @@
     }
   ],
   "follow_up": {},
-  "revision": 2,
+  "revision": 3,
   "priority_rank": null,
   "priority_class": "",
   "analyze_mode": "on_entry",
@@ -95,9 +108,9 @@
     "completed_at": ""
   },
   "created_at": "2026-10-07T19:06:03.816416",
-  "updated_at": "2026-10-07T19:09:12.873968",
+  "updated_at": "2026-10-07T19:16:42.575862",
   "score": 2.25,
-  "_note": "analysis updated",
+  "_note": "WORKERGRID_HOME resolution + local envelope unwrap delivered",
   "dashboard_impact": {
     "needs_dashboard": false,
     "reason": "WorkerGrid CLI correctness (config resolution + local claim); no UI surface",
