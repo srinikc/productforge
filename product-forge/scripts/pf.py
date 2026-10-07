@@ -2,9 +2,10 @@
 """`/pf` - the Product Forge command surface (thin client).
 
 One umbrella over the canonical owners: product generation (delegates to ``scripts/pipeline.py``),
-backlog grooming/analysis, scheduler eligibility/claim, worker registry, adapters, dispatch, dogfood,
-validation, release, packaging and the final audit. It contains **no orchestration logic** - it calls the
-same core/API the rest of PF uses (doc §26-28: TUI/CLI/UI are clients).
+backlog grooming/analysis, dogfood, validation, release, packaging and the final audit. It contains **no
+orchestration logic** - it calls the same core/API the rest of PF uses (doc §26-28: TUI/CLI/UI are clients).
+
+Worker/scheduler orchestration was **decoupled** into WorkerGrid (``/wg``, ``workergrid/wg.py``) - see ADR-0002.
 
 Usage:
   python scripts/pf.py <verb> [args] [--scope S] [--project P] [--json]
@@ -12,10 +13,6 @@ Usage:
   python scripts/pf.py product new "an idea" --tier cheap     # delegates to scripts/pipeline.py
   python scripts/pf.py backlog list
   python scripts/pf.py backlog groom <id> [--no-ai]
-  python scripts/pf.py work --runtime command
-  python scripts/pf.py scheduler eligible
-  python scripts/pf.py worker register --runtime opencode --caps python,code
-  python scripts/pf.py dispatch tick --force
   python scripts/pf.py status
 """
 import json
@@ -39,8 +36,7 @@ ROOT = str(_PF_ROOT)
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
-VERBS = ("product", "backlog", "work", "scheduler", "worker", "adapters",
-         "dispatch", "dogfood", "validate", "release", "package", "audit", "status", "pidl")
+VERBS = ("product", "backlog", "dogfood", "validate", "release", "package", "audit", "status", "pidl")
 
 
 def _flags(argv):
@@ -96,52 +92,7 @@ def cmd_backlog(pos, flags):
     return {"error": "usage: pf backlog list|show <id>|groom <id> [--no-ai]|approve <id>"}
 
 
-def cmd_work(pos, flags):
-    from core import work_pull
-    s, p = _scope(flags)
-    return work_pull.pull(s, p, worker_id=flags.get("worker", ""), runtime=flags.get("runtime", ""))
-
-
-def cmd_scheduler(pos, flags):
-    from core import scheduler
-    s, p = _scope(flags)
-    sub = pos[0] if pos else "status"
-    if sub == "eligible":
-        return scheduler.eligible_backlog(s, p)
-    if sub == "next":
-        return scheduler.next_eligible(s, p)
-    if sub == "plan":
-        return scheduler.plan(s, p)
-    return {"eligible": scheduler.eligible_backlog(s, p)["eligible"],
-            "report": scheduler.report(s, p)}
-
-
-def cmd_worker(pos, flags):
-    from core import worker_registry as wr
-    s, p = _scope(flags)
-    sub = pos[0] if pos else "list"
-    if sub == "register":
-        caps = [c for c in str(flags.get("caps", flags.get("capabilities", ""))).split(",") if c]
-        return wr.register(s, p, runtime=flags.get("runtime", "opencode"), capabilities=caps,
-                           role=flags.get("role", ""))
-    if sub == "status" and len(pos) > 1:
-        return wr.get(s, p, pos[1]) or {"error": "unknown worker"}
-    if sub == "unregister" and len(pos) > 1:
-        return wr.unregister(s, p, pos[1], revoke=bool(flags.get("revoke")))
-    return {"workers": wr.list_workers(s, p), "enabled": wr.integration_enabled()}
-
-
-def cmd_adapters(pos, flags):
-    from core import worker_adapters as wa
-    return {"contract": wa.contract(), "adapters": wa.list_adapters()}
-
-
-def cmd_dispatch(pos, flags):
-    from core import dispatcher
-    s, p = _scope(flags)
-    if (pos and pos[0] == "tick") or flags.get("tick"):
-        return dispatcher.tick(s, p, force=bool(flags.get("force")))
-    return dispatcher.status()
+# worker/scheduler/work/adapters/dispatch verbs MOVED to WorkerGrid (`/wg`, workergrid/wg.py) - decoupled.
 
 
 def cmd_dogfood(pos, flags):
@@ -196,13 +147,9 @@ def cmd_pidl(pos, flags):
 
 
 def cmd_status(pos, flags):
-    from core import audit, dispatcher
-    from core import worker_registry as wr
+    from core import audit
     s, p = _scope(flags)
-    return {"production_ready": audit.summary().get("production_ready"),
-            "worker_integration": wr.integration_enabled(),
-            "workers": len(wr.list_workers(s, p)),
-            "dispatch": dispatcher.status()}
+    return {"production_ready": audit.summary().get("production_ready")}
 
 
 # Help surface: (description, subcommands [(usage, help)], verb flags [(usage, help)])
@@ -225,27 +172,6 @@ _HELP = {
                  ("groom <id> [--no-ai]", "analyze/groom one item; --no-ai = deterministic only"),
                  ("approve <id>", "approve a groomed item")],
                 (("--no-ai", "groom deterministically (skip AI analysis)"),)),
-    "work": ("Pull eligible work for a worker/runtime.",
-             [],
-             (("--worker W", "claim as worker W"), ("--runtime R", "filter by runtime R"))),
-    "scheduler": ("Scheduler eligibility and planning.",
-                  [("status", "current scheduler report (default)"),
-                   ("eligible", "eligible backlog items"),
-                   ("next", "next eligible item"),
-                   ("plan", "execution plan")], ()),
-    "worker": ("Worker registry (single writer: core/worker_registry.py).",
-               [("register --runtime R --caps a,b", "register a worker; --role is optional"),
-                ("list", "registered workers + integration flag (default)"),
-                ("status <id>", "one worker's record"),
-                ("unregister <id>", "remove a worker; --revoke revokes its lease")],
-               (("--runtime R", "worker runtime (e.g. opencode, command)"),
-                ("--caps a,b", "comma-separated capabilities"),
-                ("--role", "worker role"), ("--revoke", "unregister: revoke lease"))),
-    "adapters": ("List worker adapters and the adapter contract.", [], ()),
-    "dispatch": ("Work dispatch loop.",
-                 [("status", "dispatcher status (default)"),
-                  ("tick [--force]", "run one dispatch tick; --force ignores gating")],
-                 (("--force", "run the tick even if gating would skip it"),)),
     "dogfood": ("Run Product Forge's own dogfood validation.", [],
                 (("--dry", "dry run (default on; pass without value to toggle)"),)),
     "validate": ("Validation profiles (single writer: core/validation_engine.py).",
@@ -256,7 +182,7 @@ _HELP = {
     "package": ("Build a distribution package for an edition.",
                 [("<edition>", "edition to package (default: community)")], ()),
     "audit": ("Final audit summary (production readiness).", [], ()),
-    "status": ("Compact status: workers + dispatch + readiness.", [], ()),
+    "status": ("Compact status: production readiness.", [], ()),
     "pidl": ("Product-Forge decision log (PIDL).",
              [("decisions", "decision history (default)"),
               ("show <id>", "one decision"), ("candidates", "feedback candidates"),
@@ -332,10 +258,9 @@ def main(argv=None) -> int:
         return cmd_product(rest)
     pos, flags = _flags(rest)
     as_json = "json" in flags or True  # structured by default
-    fn = {"backlog": cmd_backlog, "work": cmd_work, "scheduler": cmd_scheduler,
-          "worker": cmd_worker, "adapters": cmd_adapters, "dispatch": cmd_dispatch,
-          "dogfood": cmd_dogfood, "validate": cmd_validate, "release": cmd_release,
-          "package": cmd_package, "audit": cmd_audit, "status": cmd_status, "pidl": cmd_pidl}[verb]
+    fn = {"backlog": cmd_backlog, "dogfood": cmd_dogfood, "validate": cmd_validate,
+          "release": cmd_release, "package": cmd_package, "audit": cmd_audit,
+          "status": cmd_status, "pidl": cmd_pidl}[verb]
     try:
         res = fn(pos, flags)
     except Exception as e:

@@ -85,3 +85,18 @@ the operator or via an intake channel. **WorkerGrid does not ingest or create ba
 - WorkerGrid does not own backlog, grooming, or product generation.
 - PF's agents stay native; WorkerGrid is for external/dev-task workers.
 - No change to PF's backlog SSOT or the product pipeline.
+
+## 11. Stage 1 implemented (decoupled command surface + component)
+- **Component:** `workergrid/` (sibling of `product-forge/`) — `wg.py` (CLI), `client.py` (producer API client),
+  `_cfg.py`, `config.json`, `instructions.md`, `README.md`, `state/` (local, gitignored).
+- **Command:** `/wg <verb>` → `.opencode/command/wg.md` (project) + `.opencode/command_global/wg.md` (global,
+  installed to `~/.config/opencode/command/wg.md`). Verbs: register, list, status, unregister, work, schedule,
+  adapters, dispatch, instruct, config.
+- **`/wg instruct`** edits **`workergrid/instructions.md`** (the shared worker charter; edit any time).
+- **Moved out of `/pf`:** worker/scheduler/work/adapters/dispatch verbs (removed from `scripts/pf.py` VERBS +
+  `.opencode/command/pf.md` + global copy). `/pf` keeps product, backlog, dogfood, validate, release, package,
+  audit, status, pidl.
+- **Gates:** `scripts/dev/wg_surface_check.py` (added to precheck) + updated `pf_surface_check.py`.
+- **Stage 2 (later):** extract coordination (registry/leases/dispatch) into a standalone **Go** service with a
+  shared store + git sync (fetch/push). Until then, Stage 1 keeps a local coordination store and consumes PF's
+  producer API (`/api/v1/engineering/schedule/*` read, `/api/v1/backlog/items/{id}/status` write-back).

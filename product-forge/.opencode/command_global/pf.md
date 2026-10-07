@@ -1,5 +1,5 @@
 ---
-description: "Product Forge command surface (GLOBAL): /pf <verb>. verbs: product, backlog, work, scheduler, worker, adapters, dispatch, dogfood, validate, release, package, audit, status. Thin adapter to product-forge scripts/pf.py (no logic here). Available in every opencode session."
+description: "Product Forge command surface (GLOBAL): /pf <verb>. verbs: product, backlog, dogfood, validate, release, package, audit, status, pidl. Thin adapter to product-forge scripts/pf.py (no logic here). Worker/scheduler moved to /wg (WorkerGrid). Available in every opencode session."
 agent: build
 ---
 
@@ -33,19 +33,14 @@ If `$ARGUMENTS` is empty/whitespace, run `python "$PFSCRIPT" --help` and STOP.
 ## STEP 2: delegate
 Run `python "$PFSCRIPT" $ARGUMENTS` and report the output.
 (pf.py self-locates its repo ROOT from its own file location, so the resolved path works from any cwd.)
-Deterministic verbs (backlog, work, scheduler, worker, adapters, dispatch, dogfood, validate, release,
-package, audit, status) return JSON. Product generation (`/pf product ...`) delegates to
+Deterministic verbs (backlog, dogfood, validate, release, package, audit, status) return JSON. Product
+generation (`/pf product ...`) delegates to
 Product Forge's `scripts/pipeline.py` (the existing agent runner).
 
 ## Verb map
 - `/pf help [verb]` — usage overview, or per-verb details (subcommands + flags)
 - `/pf product new "idea" --tier <tier>` / `continue` / `fix "desc"` → PF `scripts/pipeline.py`
 - `/pf backlog list|show <id>|groom <id> [--no-ai]|approve <id>`
-- `/pf work [--worker W] [--runtime R]`
-- `/pf scheduler status|eligible|next|plan`
-- `/pf worker register --runtime R --caps a,b | list | status <id> | unregister <id>`
-- `/pf adapters`
-- `/pf dispatch status | dispatch tick [--force]`
 - `/pf dogfood [--dry]`
 - `/pf validate <PROFILE>` · `/pf release readiness|gate` · `/pf package <edition>`
 - `/pf audit` · `/pf status`
