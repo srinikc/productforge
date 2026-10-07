@@ -74,19 +74,22 @@ Coordination state ≠ code sync. **Stage 2a (done):**
 - `PF_AUTO_PUSH` (env-flags, owner `core/vcs.py`): auto-push after a controlled merge / worker commit (off by default).
 - Gate: `scripts/dev/vcs_worktree_check.py` covers fetch + origin-base + auto-push gating.
 
-Still later (Stage 2b): the standalone coordinator **service** + shared store + removing the in-PF worker layer.
+**Stage 2b (implemented):** the standalone coordinator **service** + shared store landed (§12), and the
+in-PF worker layer was removed (ADR-0002 cut-over). Remaining for Go (§6): Python spike → Go binary,
+SQLite → PostgreSQL for multi-node.
 
 ## 8. Offline ingestion stays in PF
 External `.md` (ChatGPT/Gemini, etc.) is ingested **by PF** (intake channel → analyze → backlog) — manually by
 the operator or via an intake channel. **WorkerGrid does not ingest or create backlog.**
 
 ## 9. Gaps / plan
-1. PF: add `GET /backlog/eligible` (+ ensure status write-back). *(small)*
+1. ~~PF: add `GET /backlog/eligible`~~ — served by `GET /api/v1/engineering/schedule/eligible` (status
+   write-back via `POST /api/v1/backlog/items/{id}/status`).
 2. PF: offline `.md` → intake channel ingestion. *(PF-side)*
-3. WorkerGrid: extract/implement the external execution plane (Go service + store + worker agents).
-4. Git sync: fetch/push + auto-push-after-merge (gated).
-5. Cut over: disable the in-PF worker layer (`WORKER_INTEGRATION_ENABLED=0`); remove it once WorkerGrid owns
-   dispatch/leases/registry.
+3. WorkerGrid: ~~extract/implement the external execution plane~~ Python spike done (§12); **Go service +
+   worker agents + PostgreSQL** still to build (§6).
+4. ~~Git sync: fetch/push + auto-push-after-merge (gated).~~ Done (Stage 2a, §7).
+5. ~~Cut over: remove the in-PF worker layer.~~ Done (Stage 2b, §12).
 
 ## 10. Non-goals
 - WorkerGrid does not own backlog, grooming, or product generation.
@@ -107,3 +110,22 @@ the operator or via an intake channel. **WorkerGrid does not ingest or create ba
 - **Stage 2 (later):** extract coordination (registry/leases/dispatch) into a standalone **Go** service with a
   shared store + git sync (fetch/push). Until then, Stage 1 keeps a local coordination store and consumes PF's
   producer API (`/api/v1/engineering/schedule/*` read, `/api/v1/backlog/items/{id}/status` write-back).
+
+## 12. Stage 2b implemented (coordinator service + shared store + cut-over)
+- **Service:** `workergrid/service.py` — stdlib HTTP coordinator (`python workergrid/wg.py serve`;
+  `config.json` `service_host`/`service_port`, bearer token via `token_env`). Endpoints: worker
+  register/heartbeat/unregister, `POST /work` (claim next + lease), lease renew/release/recover,
+  `GET /status`, `GET /workers`. *(Design §5 extras `POST /workers/{id}/report` + `GET /assignments`
+  are not built yet — leases carry the assignment state.)*
+- **Shared store:** `workergrid/store.py` — SQLite (`state/workergrid.db`, gitignored) with `BEGIN
+  IMMEDIATE` single-writer claim + lease expiry/recover; multi-node target stays PostgreSQL (§6).
+- **Claim flow (producer contract):** WorkerGrid `POST /work` → `GET /api/v1/engineering/schedule/next`
+  (PF refreshes stale analyses first (BI-PF-0389) and attaches `pidl_context` + `execution_policy`
+  (BI-PF-0379)) → WorkerGrid takes the lease and hands the contract to the worker.
+- **Cut-over (in-PF worker layer removed):** `core/{worker_registry,worker_adapters,work_pull,dispatcher}.py`,
+  their gates, and the 6 worker pipeline tests deleted; `/api/v1/engineering/{workers,work,adapters,dispatch*}`
+  routes removed; `scripts/dev/single_path_check.py` now **fails if they reappear**; `/pf` lost the
+  work/worker verbs (they live in `/wg`).
+- **Gates:** `wg_surface_check` (required verbs incl. `serve`), `single_path`, `pidl-synthesis` +
+  `staleness` (wiring assertions moved from `work_pull` to `scheduler.next_eligible`), all under
+  `precheck`.

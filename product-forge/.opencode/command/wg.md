@@ -1,5 +1,5 @@
 ---
-description: "WorkerGrid command surface: /wg <verb>. verbs: register, list, status, unregister, work, schedule, adapters, dispatch, instruct, config. Thin adapter to workergrid/wg.py (external execution plane; separate from PF)."
+description: "WorkerGrid command surface: /wg <verb>. verbs: serve, register, list, status, unregister, work, schedule, adapters, dispatch, instruct, config. Thin adapter to workergrid/wg.py (external execution plane; separate from PF)."
 agent: orchestrator
 model: opencode-go/mimo-v2.5
 ---
@@ -19,6 +19,7 @@ Run the WorkerGrid CLI with the given arguments, e.g. from the repo root:
 (or from `product-forge/`: `python ../workergrid/wg.py $ARGUMENTS`).
 
 ## Verb map
+- `/wg serve [--host H] [--port P]` (run the coordinator service; shared state for all workers)
 - `/wg register --runtime <r> [--caps a,b]` · `/wg list` · `/wg status [<id>]` · `/wg unregister <id>`
 - `/wg work [--worker W] [--runtime R] [--scope S] [--project P]`
 - `/wg schedule eligible|next|status [--scope S] [--project P]`

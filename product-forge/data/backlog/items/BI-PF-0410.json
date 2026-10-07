@@ -7,10 +7,10 @@
   "origin": "review",
   "external_id": "workergrid-stage2-service",
   "label": "PF Backlog 441",
-  "title": "WorkerGrid Stage 2: standalone Go service + shared coordination store + git sync (fetch/push) for multi-machine",
-  "body": "Extract coordination (registry/leases/dispatch) into a standalone Go service with a shared store (SQLite->Postgres); workers connect via host:port+token; add git sync (fetch before worktree, push after merge, auto-push-after-merge gated). Remove the in-PF worker layer after cut-over. See WORKERGRID-DESIGN.md.",
+  "title": "WorkerGrid Stage 2: coordinator service + shared coordination store + git sync (fetch/push) for multi-machine (Python spike; Go target)",
+  "body": "Extract coordination (registry/leases/dispatch) into a standalone service with a shared store; workers connect via host:port+token; add git sync (fetch before worktree, push after merge, auto-push-after-merge gated). Remove the in-PF worker layer after cut-over. See WORKERGRID-DESIGN.md.\n\nPROGRESS (dedup: 2b-a/2b-b both live inside this umbrella item):\n- Stage 2a (done, BI-PF-0411): git sync - core/vcs.py fetch/base_ref/sync + PF_AUTO_PUSH + /pf sync.\n- Stage 2b-a (coordinator service + shared store): workergrid/store.py (SQLite shared workers/leases, single-writer) + workergrid/service.py (stdlib HTTP: register/heartbeat, work claim+lease renew/release/recover, /status, bearer token) + `wg serve` verb + service-vs-local mode in wg.py/client.py (config service_host/port, 127.0.0.1:8790, --local fallback). Python spike per design; Go binary + Postgres remain future.\n- Stage 2b-b (remove in-PF worker layer): core/dispatcher.py, core/work_pull.py, core/worker_adapters.py, core/worker_registry.py DELETED; engineering router worker/work/dispatch endpoints removed; openapi regenerated; precheck worker gates dropped; single_path_check now FAILS if worker-layer modules exist in core/; 6 obsolete tests removed; test_api_engineering keeps schedule read-only test. Coordination now served by WorkerGrid; PF keeps producer API (schedule/eligibility read + status write-back).\n- Cut-over wiring (RCCA on the work_pull deletion): the pickup seams work_pull owned moved to scheduler.next_eligible - grooming.refresh_stale before serving the next item (BI-PF-0389) and pidl.pre_dispatch attach of pidl_context/execution_policy (BI-PF-0379, read-only); workergrid/service.py passes both through to the worker in the /work response. Gates pidl-synthesis + staleness re-pointed at the new seams; wg_surface_check requires the serve verb; /wg command surfaces (project + command_global + installed) list serve.",
   "source": "generic",
-  "status": "new",
+  "status": "executing",
   "priority": "P3",
   "moscow": "Should",
   "value": 3,
@@ -19,12 +19,26 @@
   "deps": [],
   "links": {
     "backend_capability": [
-      "doc:docs/WORKERGRID-DESIGN.md"
-    ]
+      "doc:docs/WORKERGRID-DESIGN.md",
+      "module:workergrid/store.py",
+      "module:workergrid/service.py",
+      "gate:scripts/dev/single_path_check.py",
+      "gate:scripts/dev/precheck.py",
+      "test:test-framework/tests/pipeline/test_api_engineering.py",
+      "command:workergrid/wg.py",
+      "gate:scripts/dev/pidl_synthesis_check.py",
+      "gate:scripts/dev/staleness_check.py",
+      "gate:scripts/dev/wg_surface_check.py",
+      "test:test-framework/tests/pipeline/test_scheduler_eligibility.py"
+    ],
+    "dashboard_impact": {
+      "needs_dashboard": false,
+      "reason": "worker coordination moved to external WorkerGrid; PF API/dashboard surfaces shrink only"
+    }
   },
   "decisions": [],
   "follow_up": {},
-  "revision": 2,
+  "revision": 4,
   "priority_rank": 9,
   "priority_class": "",
   "analyze_mode": "on_entry",
@@ -104,7 +118,7 @@
     "completed_at": ""
   },
   "created_at": "2026-10-07T11:14:18.029814",
-  "updated_at": "2026-10-07T11:14:18.619676",
+  "updated_at": "2026-10-07T13:17:02.986664",
   "score": 0.75,
-  "_note": "dependencies set"
+  "_note": "Stage 2b in progress: 2b-a service/store + 2b-b in-PF worker layer removal"
 }

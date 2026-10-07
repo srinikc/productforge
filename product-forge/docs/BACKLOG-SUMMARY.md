@@ -1,14 +1,15 @@
 # Backlog Summary
 
-> GENERATED 2026-10-06T19:40:00 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-07T13:18:22 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 36  |  **Closed:** 355
-- `new`: 36
+- **Open:** 36  |  **Closed:** 358
+- `executing`: 1
+- `new`: 35
 
-### new, by category (36)
+### new, by category (35)
 **API / reports / HIL / misc** (1)
 | ID | MoSCoW | Type | Title |
 |---|---|---|---|
@@ -37,7 +38,7 @@
 | BI-0206 | Should | tech-debt | Backend: model downloader + local cache + license-acceptance gate + models.lock (open-weights) |
 | BI-0225 | Should | feature | Parallel section/feature generation |
 
-**Wiring / tech-debt / API** (28)
+**Wiring / tech-debt / API** (27)
 | ID | MoSCoW | Type | Title |
 |---|---|---|---|
 | BI-0185 | Should | feature | EPIC: Multi-modal / media orchestration (pluggable capability packs) |
@@ -52,7 +53,6 @@
 | BI-PF-0387 | Should | feature | PF platform delivery baseline: ONE source for all editions; new shipped/sensitive logic -> Go; existing -> compiled (Nuitka); no raw .py at customer; migrate by value later |
 | BI-PF-0388 | Should | task | ADR: PF platform shipped editions use compiled artifacts (Go core + compiled-Python), never raw .py; one source, many editions |
 | BI-PF-0391 | Should | epic | EPIC B: PF Scale & Editions (gateways, persistence, OEM, Rust, WASM, decomposition, migration) |
-| BI-PF-0392 | Should | feature | A0: baseline freeze + doc reconciliation (amendment=authority) + ADR register |
 | BI-PF-0393 | Should | feature | A1: canonical contracts (thin) + Go<->Python contract |
 | BI-PF-0394 | Should | feature | B1: PF Go core (Go<->Python seam) |
 | BI-PF-0395 | Should | feature | A6: change classifier + drift guard + language rule + no-undeclared-dep |
@@ -267,5 +267,5 @@
 ---
 
 ## Totals
-- backend: 36 open / 355 closed
+- backend: 36 open / 358 closed
 - dashboard: 146 open / 3 closed

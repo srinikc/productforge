@@ -1,5 +1,11 @@
 # Worker & Scheduler — Operations Guide
 
+> **SUPERSEDED (ADR-0002 / Stage 2b):** the in-PF worker layer (`core/worker_registry.py`,
+> `core/worker_adapters.py`, `core/work_pull.py`, `core/dispatcher.py` and the `/pf` work verbs) was
+> **removed**. Workers now coordinate through **WorkerGrid** (`/wg serve` + `/wg register/work/...`,
+> see `docs/WORKERGRID-DESIGN.md` §12). What still applies below: backlog SSOT, `core/scheduler.py`
+> eligibility/`next_eligible`, `core/job_manager.py` claim+lease, and `core/pidl.py`.
+
 How to register a worker, pull work **manually**, and enable **automatic** assignment. The external-worker
 layer is **optional and removable** (`WORKER_INTEGRATION_ENABLED`); PF's own agents stay native and are
 **never** routed through it.
