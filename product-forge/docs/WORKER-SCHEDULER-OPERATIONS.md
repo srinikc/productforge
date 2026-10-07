@@ -115,6 +115,12 @@ An item is **eligible** only if **all** hold (`core/scheduler.py:eligible`, PF-s
 > **Groom the backlog first** or `/wg work` finds nothing. Deterministic grooming runs on create; deeper AI
 > grooming is explicit (`/pf backlog groom <id>`).
 
+**Execution claims (BI-PF-0416):** the worker claim path passes `stage=execute` to
+`GET /api/v1/engineering/schedule/next`, which restricts eligibility to NOT-yet-executed items
+(`new`/`accepted`/`queued`/`scheduled`). Already-executed items (`implemented`/`verifying`) are excluded, so a
+worker cannot re-claim and re-run work that has already been executed. Omitting `stage` keeps the historical
+gate (a verification stage may still pick those up).
+
 ### 6a. Analysis staleness — revalidation at pickup (BI-PF-0389)
 
 Analysis is done at entry; by pickup the architecture may have changed, so PF prevents executing a **stale

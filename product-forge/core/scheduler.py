@@ -248,11 +248,17 @@ def _item_paths(item: dict[str, Any]) -> list[str]:
 
 def eligible(item: dict[str, Any], *, by_id: dict[str, dict[str, Any]] | None = None,
              worker: dict[str, Any] | None = None,
-             active: list[dict[str, Any]] | None = None) -> dict[str, Any]:
+             active: list[dict[str, Any]] | None = None,
+             stage: str | None = None) -> dict[str, Any]:
     """Is this backlog item executable NOW? Returns ``{ok, reasons[]}`` (fail-closed, read-only).
 
     Order (doc §11): status -> analysis(READY) -> dependencies -> readiness -> revision/stale ->
     contention -> capability. Any unmet reason => not eligible.
+
+    ``stage="execute"`` (BI-PF-0416) restricts the status gate to NOT-yet-executed items
+    (``new``/``accepted``/``queued``/``scheduled``); ``implemented``/``verifying`` are rejected so an
+    already-executed item cannot be re-claimed and re-executed. Default (``stage=None``) keeps the
+    historical gate, which also admits ``implemented``/``verifying`` for a verification stage.
     """
     from core import backlog
     reasons: list[str] = []
@@ -260,6 +266,9 @@ def eligible(item: dict[str, Any], *, by_id: dict[str, dict[str, Any]] | None = 
     st = backlog._normalize_status(str(item.get("status") or ""))
     if st in _TERMINAL_STATUSES:
         reasons.append(f"terminal status '{st}'")
+    elif stage == "execute":
+        if st not in _ELIGIBLE_STATUSES:
+            reasons.append(f"status '{st}' not execution-eligible (already executed)")
     elif st not in _ELIGIBLE_STATUSES and st not in ("implemented", "verifying", "blocked"):
         reasons.append(f"status '{st}' not eligible")
     if st == "blocked":
@@ -317,7 +326,8 @@ def eligible(item: dict[str, Any], *, by_id: dict[str, dict[str, Any]] | None = 
 
 
 def eligible_backlog(scope: str = "product_forge", project: str | None = None,
-                     worker: dict[str, Any] | None = None) -> dict[str, Any]:
+                     worker: dict[str, Any] | None = None,
+                     stage: str | None = None) -> dict[str, Any]:
     """Eligibility view over the canonical backlog (read-only)."""
     from core import backlog
     items = backlog.list_open(scope, project, order=False)
@@ -326,7 +336,7 @@ def eligible_backlog(scope: str = "product_forge", project: str | None = None,
     active = [i for i in items if str((i.get("execution") or {}).get("worker_id") or "")]
     rows = []
     for it in items:
-        e = eligible(it, by_id=by_id, worker=worker, active=active)
+        e = eligible(it, by_id=by_id, worker=worker, active=active, stage=stage)
         e["title"] = it.get("title")
         e["priority_rank"] = it.get("priority_rank")
         rows.append(e)
@@ -336,7 +346,8 @@ def eligible_backlog(scope: str = "product_forge", project: str | None = None,
 
 
 def next_eligible(scope: str = "product_forge", project: str | None = None,
-                  worker: dict[str, Any] | None = None) -> dict[str, Any]:
+                  worker: dict[str, Any] | None = None,
+                  stage: str | None = None) -> dict[str, Any]:
     """Highest-priority eligible item + the pickup contract (the PF-side claim handoff).
 
     WorkerGrid (ADR-0002) owns registry/lease, so a claim now passes through HERE: stale analyses
@@ -344,6 +355,9 @@ def next_eligible(scope: str = "product_forge", project: str | None = None,
     pre-dispatch context (BI-PF-0379, read-only) the worker carries is attached. The caller
     (WorkerGrid ``POST /work``) takes the lease on its side and hands ``pidl_context`` +
     ``execution_policy`` to the worker.
+
+    ``stage="execute"`` (BI-PF-0416) excludes already-executed items (``implemented``/``verifying``)
+    so the worker claim path cannot re-run executed work.
     """
     from core import backlog
     # BI-PF-0389: re-analyze stale items against the current architecture before pickup
@@ -355,7 +369,7 @@ def next_eligible(scope: str = "product_forge", project: str | None = None,
     by_id = {str(i.get("id")): i for i in items}
     active = [i for i in items if str((i.get("execution") or {}).get("worker_id") or "")]
     ok = [i for i in items
-          if eligible(i, by_id=by_id, worker=worker, active=active)["ok"]]
+          if eligible(i, by_id=by_id, worker=worker, active=active, stage=stage)["ok"]]
     if not ok:
         return {"scope": scope, "project": project or "", "found": False, "item": None}
     ordered = backlog.order_by_priority(ok)

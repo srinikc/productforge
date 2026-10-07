@@ -37,7 +37,7 @@ GO_BIN = Path(os.environ.get("WG_GO_BINARY", "")
                                     else "wg-coordinator")))
 REQUIRE_GO = os.environ.get("WG_CONTRACT_REQUIRE_GO", "").strip() in {"1", "true", "yes"}
 TOKEN = "contract-token"
-STUB_STATE = {"next": None}                        # payload served by the producer stub
+STUB_STATE = {"next": None, "last_next_path": ""}   # payload served by the producer stub
 
 
 def _impls():
@@ -55,6 +55,7 @@ class _StubHandler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         if self.path.split("?", 1)[0] == "/api/v1/engineering/schedule/next":
+            STUB_STATE["last_next_path"] = self.path
             payload = STUB_STATE["next"]
             if payload is None:
                 payload = {"request_id": "stub", "status": "ok", "data": {
@@ -341,6 +342,21 @@ def test_work_no_eligible_work(impl, stub):
         _http(svc.base, "POST", "/workers/register", {"worker_id": "WRK-NOW", "runtime": "r"})
         st, a = _http(svc.base, "POST", "/work", {"worker_id": "WRK-NOW"})
         assert (st, a) == (200, {"assigned": False, "reason": "no eligible work"})
+    finally:
+        svc.close()
+
+
+@_ids(IMPLS)
+def test_work_requests_execute_stage(impl, stub):
+    """BI-PF-0416: the claim path asks the producer for execution-stage work only."""
+    svc = _spawn(impl, stub)
+    try:
+        STUB_STATE["last_next_path"] = ""
+        STUB_STATE["next"] = _envelope("BI-CT-STG", "Stage task")
+        _http(svc.base, "POST", "/workers/register", {"worker_id": "WRK-STG", "runtime": "r"})
+        st, a = _http(svc.base, "POST", "/work", {"worker_id": "WRK-STG"})
+        assert st == 200 and a["assigned"] is True
+        assert "stage=execute" in STUB_STATE["last_next_path"], STUB_STATE["last_next_path"]
     finally:
         svc.close()
 
