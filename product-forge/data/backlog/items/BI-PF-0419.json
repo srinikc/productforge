@@ -10,7 +10,7 @@
   "title": "PF: per-item claim (single claimer) + assignment API + assignment package + worker role",
   "body": "Child of the parallel-run-engine epic. Extend the EXISTING single claimer (job_manager.claim_next) from\nper-PROJECT to per-ITEM so N items in one project can be claimed concurrently; expose the external-worker\nassignment lifecycle and create the worktree at claim.\n\nScope: (1) job_manager claim keyed by item (atomic re-check, keep IS-PF-0034 single claimer); (2) assignment API\n- POST /api/v1/engineering/assignments/claim (records backlog.set_execution worker_id/assignment_id/lease,\nreturns the assignment package: item, title, description, acceptance_criteria, pidl_context, execution_policy,\nworktree, branch, base_ref) + POST .../{id}/heartbeat (renew_lease) + .../complete + .../fail + .../release;\n(3) worktree+branch created at claim via core/vcs (fetch latest develop, base/rebase policy); (4) auth: new\n`worker` role in api/auth.py; assignment endpoints require worker (merge/pause/capacity stay operator);\n(5) capacity: max_parallel_assignments cap enforced at claim.\n\nOut of scope: delivery/merge (C3), validation isolation (C2), WorkerGrid client (C5).\n\nDescriptors: module:core/job_manager.py; module:core/vcs.py; module:api/auth.py; module:api/routers/engineering.py;\ntest:test-framework/tests/pipeline/test_assignments_api.py; route:POST /api/v1/engineering/assignments/claim.",
   "source": "pre-implementation review",
-  "status": "new",
+  "status": "completed",
   "priority": null,
   "moscow": "Should",
   "value": 5,
@@ -20,11 +20,22 @@
   "links": {
     "related": [
       "BI-PF-0418"
-    ]
+    ],
+    "delivery": {
+      "branch": "feature/pf-assignment-api",
+      "merge_sha": "7da9de567a4cebb236460c96a7ba61be5515db18",
+      "commits": [
+        "4e3e77f"
+      ],
+      "pr": "",
+      "pr_url": "",
+      "at": "2026-10-07T23:06:32.119169",
+      "note": "merged --no-ff; precheck --full green (39 gates); lease gate green; new test_assignments_api.py (6 tests). claim_next is now per-ITEM: two items in ONE project claimed in parallel by two workers (verified) - the per-project serialization is removed. Assignment API (claim/heartbeat/complete/fail/release) + worker role + max_parallel_assignments cap."
+    }
   },
   "decisions": [],
   "follow_up": {},
-  "revision": 1,
+  "revision": 2,
   "priority_rank": null,
   "priority_class": "",
   "analyze_mode": "on_entry",
@@ -93,9 +104,9 @@
     "completed_at": ""
   },
   "created_at": "2026-10-07T21:22:20.219520",
-  "updated_at": "2026-10-07T21:22:20.650369",
+  "updated_at": "2026-10-07T23:06:32.272165",
   "score": 0.62,
-  "_note": "analysis updated",
+  "_note": "per-item assignment delivered (parallel backlog execution unblocked)",
   "dashboard_impact": {
     "needs_dashboard": false,
     "reason": "Operator surface is /wg status + the PF API (assignments view); the dashboard is a separate surface and stays out of this slice",
