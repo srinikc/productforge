@@ -1,10 +1,11 @@
-"""WorkerGrid Go gate (BI-PF-0412 / BI-PF-0413): the coordinator + agent build, vet, test, and pass their suites.
+"""WorkerGrid Go gate (BI-PF-0412/0413/0414): the coordinator + agent build, vet, test, and pass their suites.
 
 Asserts (fail-closed): the Go toolchain is present (install hint otherwise), ``gofmt`` is clean,
 ``go build`` / ``go vet`` / ``go test`` are green for ``workergrid/``, the binaries land at
 ``workergrid/bin/wg-coordinator`` and ``workergrid/bin/wg-agent``, the cross-impl contract suite passes
 with ``WG_CONTRACT_REQUIRE_GO=1`` (pins the Go coordinator's behavior; the python leg self-skips after
-the Stage 3a cutover), and the worker-agent e2e suite passes (BI-PF-0413). Run:
+the Stage 3a cutover), the worker-agent e2e suite passes (BI-PF-0413), and the PostgreSQL store suite
+runs when ``WORKERGRID_PG_DSN`` is set (BI-PF-0414; self-skips otherwise). Run:
 ``python scripts/dev/wg_go_check.py``.
 """
 import os
@@ -24,6 +25,7 @@ _WG = os.path.join(os.path.dirname(str(_ROOT)), "workergrid")
 _PIPELINE = os.path.join(_ROOT, "test-framework", "tests", "pipeline")
 _CONTRACT = os.path.join(_PIPELINE, "test_workergrid_service_contract.py")
 _AGENT_E2E = os.path.join(_PIPELINE, "test_workergrid_agent_e2e.py")
+_PG_E2E = os.path.join(_PIPELINE, "test_workergrid_pg_store.py")
 FAILS = []
 
 
@@ -70,6 +72,8 @@ def main() -> int:
            "contract suite exists (test-framework/tests/pipeline/test_workergrid_service_contract.py)")
     _check(os.path.exists(_AGENT_E2E),
            "agent e2e suite exists (test-framework/tests/pipeline/test_workergrid_agent_e2e.py)")
+    _check(os.path.exists(_PG_E2E),
+           "postgres e2e suite exists (test-framework/tests/pipeline/test_workergrid_pg_store.py)")
     if FAILS:  # structure broken - skip toolchain runs
         print("wg-go: FAIL")
         for f in FAILS:
@@ -101,20 +105,22 @@ def main() -> int:
     env2 = dict(env)
     env2["WG_CONTRACT_REQUIRE_GO"] = "1"
     env2["PYTHONIOENCODING"] = "utf-8"
+    # the postgres suite self-skips unless WORKERGRID_PG_DSN is set (CI can wire a PG service)
     try:
-        p = subprocess.run([sys.executable, "-m", "pytest", _CONTRACT, _AGENT_E2E, "-q", "-o", "addopts="],
+        p = subprocess.run([sys.executable, "-m", "pytest", _CONTRACT, _AGENT_E2E, _PG_E2E,
+                            "-q", "-o", "addopts="],
                            cwd=str(_ROOT), env=env2, capture_output=True, text=True, timeout=900)
         rc, out = p.returncode, (p.stdout + p.stderr).strip()
     except (OSError, subprocess.TimeoutExpired) as e:
         rc, out = 1, f"{type(e).__name__}: {e}"
-    _check(rc == 0, f"coordinator contract + agent e2e suites green (rc={rc}): {out[-800:]}")
+    _check(rc == 0, f"coordinator contract + agent e2e + pg suites green (rc={rc}): {out[-800:]}")
 
     if FAILS:
         print("wg-go: FAIL")
         for f in FAILS:
             print("   -", f)
         return 1
-    print("wg-go: OK (gofmt + build + vet + test + contract parity + agent e2e)")
+    print("wg-go: OK (gofmt + build + vet + test + contract parity + agent e2e + pg[e2e gated])")
     return 0
 
 

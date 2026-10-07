@@ -5,6 +5,64 @@ import (
 	"testing"
 )
 
+func TestRebind(t *testing.T) {
+	q := "INSERT INTO x(a,b,c) VALUES(?,?,?) WHERE e < ?"
+	if got := rebind(q, dialectSQLite); got != q {
+		t.Fatalf("sqlite rebind changed the query: %q", got)
+	}
+	want := "INSERT INTO x(a,b,c) VALUES($1,$2,$3) WHERE e < $4"
+	if got := rebind(q, dialectPostgres); got != want {
+		t.Fatalf("postgres rebind = %q, want %q", got, want)
+	}
+	if got := rebind("SELECT 1", dialectPostgres); got != "SELECT 1" {
+		t.Fatalf("no-placeholder rebind = %q", got)
+	}
+}
+
+func TestNormalizeDialect(t *testing.T) {
+	ok := map[string]dialect{"": dialectSQLite, "sqlite": dialectSQLite, "SQLite3": dialectSQLite,
+		"postgres": dialectPostgres, "PostgreSQL": dialectPostgres, "pgx": dialectPostgres, "PG": dialectPostgres}
+	for in, want := range ok {
+		if got, err := normalizeDialect(in); err != nil || got != want {
+			t.Fatalf("normalizeDialect(%q) = %v, %v; want %v", in, got, err, want)
+		}
+	}
+	if _, err := normalizeDialect("mysql"); err == nil {
+		t.Fatal("unknown driver must error")
+	}
+}
+
+func TestSchemaPerDialect(t *testing.T) {
+	if !strings.Contains(schemaFor(dialectSQLite), "REAL") {
+		t.Fatal("sqlite schema should use REAL")
+	}
+	if !strings.Contains(schemaFor(dialectPostgres), "DOUBLE PRECISION") {
+		t.Fatal("postgres schema should use DOUBLE PRECISION")
+	}
+}
+
+func TestOpenDSNFailClosed(t *testing.T) {
+	if _, err := OpenDSN("postgres", "", nil); err == nil {
+		t.Fatal("postgres without a DSN must fail closed")
+	}
+	if _, err := OpenDSN("mysql", "x", nil); err == nil {
+		t.Fatal("unknown driver must fail closed")
+	}
+	if _, err := OpenDSN("postgres", "postgres://127.0.0.1:1/nope", nil); err == nil {
+		t.Fatal("unreachable postgres must fail closed")
+	}
+}
+
+func TestDialectReported(t *testing.T) {
+	s := openTest(t, func() int { return 3600 })
+	if s.Dialect() != "sqlite" {
+		t.Fatalf("dialect = %q", s.Dialect())
+	}
+	if err := s.Ping(); err != nil {
+		t.Fatalf("ping: %v", err)
+	}
+}
+
 func openTest(t *testing.T, ttl func() int) *Store {
 	t.Helper()
 	s, err := Open(t.TempDir(), ttl)

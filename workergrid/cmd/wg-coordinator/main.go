@@ -45,7 +45,7 @@ func main() {
 		}
 	}
 
-	st, err := store.Open(cfg.StateDir(), cfg.LeaseTTL)
+	st, err := store.OpenDSN(cfg.StoreDriver(), cfg.StoreDSN(), cfg.LeaseTTL)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "workergrid: open store: %v\n", err)
 		os.Exit(1)
@@ -57,8 +57,8 @@ func main() {
 		fmt.Fprintf(os.Stderr, "workergrid: listen: %v\n", err)
 		os.Exit(1)
 	}
-	fmt.Printf("WorkerGrid service on http://%s:%d (producer=%s)\n",
-		bindHost, bindPort, cfg.ProducerBase())
+	fmt.Printf("WorkerGrid service on http://%s:%d (producer=%s, store=%s)\n",
+		bindHost, bindPort, cfg.ProducerBase(), st.Dialect())
 
 	srv := &http.Server{
 		Handler:  httpapi.Handler(st),

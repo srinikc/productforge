@@ -34,6 +34,8 @@ WorkerGrid reads `workergrid/config.json` (live; env overrides win):
 | `token_env` (e.g. `API_TOKEN`) / `WORKERGRID_TOKEN` | — | bearer token for producer + coordinator |
 | `default_runtime` | `opencode` | runtime used when a verb omits `--runtime` |
 | `lease_seconds` / `WORKERGRID_LEASE_SECONDS` | `3600` | assignment lease TTL |
+| `store.driver` / `WORKERGRID_STORE_DRIVER` | `sqlite` | coordination store backend: `sqlite` (single-node) or `postgres` (multi-node) |
+| `store.dsn` / `WORKERGRID_STORE_DSN` | — | store DSN; sqlite defaults to `<state_dir>/workergrid.db`, **required** for postgres |
 | `service_host` / `service_port` / `service_url` | `127.0.0.1` / `8790` | coordinator bind + client URL |
 | `agent.repo_root` | — | git repo the agent executes in (**required**) |
 | `agent.base_ref` | `develop` | worktree branch base |
@@ -130,6 +132,10 @@ item becomes eligible again. Manual:
 - Expired leases: `POST /leases/recover` frees them. The **agent** calls recover each poll and reopens the
   item to `queued` — so a worker that dies mid-run cannot wedge an item in a non-eligible status.
 - Release: `POST /leases/{item}/release` frees the lease and the worker (IDLE).
+
+**Multi-node:** set `store.driver=postgres` (+ `store.dsn` / `WORKERGRID_STORE_DSN`) so several coordinator
+processes share one store. Claim is a single atomic statement, so two processes cannot double-claim; expired
+leases are recovered as above. Leases compare node wall-clock — keep clocks synced.
 
 ## 9. End-to-end
 

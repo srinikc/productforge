@@ -50,7 +50,8 @@ WorkerGrid:
 
 ## 5. Shared coordination state — the missing piece
 Multi-machine requires state **outside** local files. WorkerGrid runs a **service** with a **shared store**:
-- **Store:** workers, leases, assignments, heartbeats (SQLite single-node → PostgreSQL for multi-node).
+- **Store:** workers, leases, assignments, heartbeats (SQLite single-node → PostgreSQL for multi-node;
+  the pluggable store landed in Stage 3b, §15).
 - **Service API** that workers and operators query:
   - `POST /workers/register`, `POST /workers/{id}/heartbeat`, `POST /workers/{id}/report`
   - `POST /work` (claim next assignment), `POST /leases/{id}/renew`, `POST /leases/{id}/release`
@@ -64,7 +65,7 @@ Multi-machine requires state **outside** local files. WorkerGrid runs a **servic
   runtime deps, cross-platform (linux/amd64+arm64, windows, darwin), easy to ship on-prem/air-gap/OEM, and
   it aligns with the Go-first rule (shipped/platform/sensitive → Go).
 - **Deployment:** the coordinator **service** + worker agents. Single-node (local, SQLite) for dev; multi-node
-  (service + PostgreSQL) for teams/multi-machine.
+  (service + PostgreSQL) for teams/multi-machine — both store backends implemented (§15).
 - A Python spike was used for Stage 2b; it was **replaced by the Go binary in Stage 3a** (§13).
 
 ## 7. Multi-machine git sync (companion) — Stage 2a implemented
@@ -180,3 +181,29 @@ with the build hint), and it is gated by the same `wg_go_check`. One agent proce
   stub producer + throwaway git repo: happy path (status order, operator auth, worktree/branch, journal),
   command failure → blocked, approval gate → fail-closed, no-work clean exit, heartbeat/renewal.
 - **Not in this slice:** auto-push (agent push flag default off), PostgreSQL (3b), remote fleet.
+
+## 15. Stage 3b implemented (pluggable store: SQLite + PostgreSQL) — BI-PF-0414
+The coordination store is now backend-pluggable — **SQLite** (default, single-node) or **PostgreSQL**
+(multi-node: several coordinator processes sharing one store). Same coordinator binary, same HTTP API, one
+`store` package — no second store or engine.
+
+- **Driver:** pure-Go `github.com/jackc/pgx/v5/stdlib` registered as `pgx`; SQLite stays `modernc.org/sqlite`
+  (`sqlite`). Both `CGO_ENABLED=0`.
+- **Config:** `store: {driver: sqlite|postgres, dsn}`; env `WORKERGRID_STORE_DRIVER` / `WORKERGRID_STORE_DSN`.
+  Default = SQLite at `<state_dir>/workergrid.db` (back-compat). PostgreSQL requires an explicit DSN;
+  startup `Ping` + schema ensure **fail closed** with a clear error.
+- **Dialect mechanics:** `rebind` converts `?` → `$n` for PostgreSQL; the schema differs only in the float
+  column (`REAL` vs `DOUBLE PRECISION`). UPSERT + `RETURNING` are shared.
+- **Atomic claim (multi-node):** claim is a single statement —
+  `INSERT … ON CONFLICT(item_id) DO UPDATE SET … WHERE leases.expires_at < now RETURNING worker_id` — so two
+  coordinator processes cannot both claim one item. A live lease returns no row → `claimed:false` +
+  "already leased by X" (Python parity). SQLite additionally keeps the store-wide mutex + single connection.
+- **Limitation (documented):** lease expiry compares node wall-clock, so multi-node deployments need roughly
+  synchronized clocks; a DB-time lease variant is deferred.
+- **Proof:** Go unit tests for `rebind`/dialect/schema and fail-closed opens
+  (`workergrid/internal/store/store_test.go`); an env-gated PostgreSQL e2e
+  (`test-framework/tests/pipeline/test_workergrid_pg_store.py`, needs `WORKERGRID_PG_DSN`) proving two
+  independent coordinators share state (2nd sees the 1st's lease, claim conflict, renew/release cross-process)
+  and expired-lease recovery. The contract suite still runs on SQLite unchanged.
+- **Not in this slice:** schema-migration engine (`CREATE TABLE IF NOT EXISTS` only), DB-time leases,
+  HA/leader election, pooling tuning.
