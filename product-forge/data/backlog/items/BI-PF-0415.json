@@ -1,0 +1,109 @@
+{
+  "id": "BI-PF-0415",
+  "tag": "PF",
+  "type": "bug",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "intent-trace-sibling-descriptors",
+  "label": "PF Backlog 449",
+  "title": "intent-trace: resolve sibling-component descriptors (workergrid/) + command/flag kinds",
+  "body": "Source: found during the Stage 3c/3b descriptor audits (pre-implementation review), 2026-10-07.\n\nDefect: intent_trace_check.py resolves every descriptor path under product-forge/ (_ROOT) only. Descriptors\nthat point at the sibling component workergrid/ (which lives at the repo root, one level above product-forge/)\ntherefore ALWAYS report \"path not found\" - so items BI-PF-0410..0414 show false drift and the check cannot be\ntrusted to catch real drift (the advisory noise hides it).\n\nAlso unhandled descriptor kinds: `command:scripts/pf.py sync` (a path + args) and `flag:PF_AUTO_PUSH` (an\nenv flag, not a path) are treated as bare paths and always fail.\n\nFix: resolve descriptor paths against product-forge/ OR the repo root (sibling components); treat `command:`\nas its first token (path + optional args); treat `flag:` as membership in config/env-flags.json flags.\n\nOut of scope: flipping the gate to --strict (tracked separately); the two genuinely-deleted Stage-3a paths on\nBI-PF-0410 (workergrid/service.py, workergrid/store.py) remain correctly \"not found\" (historical).\n\ndashboard_impact: needs_dashboard=false - developer tooling for the backlog traceability gate; no product UI.",
+  "source": "pre-implementation review",
+  "status": "new",
+  "priority": null,
+  "moscow": "Should",
+  "value": 3,
+  "effort": 1,
+  "risk": 1,
+  "deps": [],
+  "links": {
+    "backend_capability": [
+      "module:scripts/dev/intent_trace_check.py",
+      "test:test-framework/tests/pipeline/test_design_review_guard.py",
+      "config:config/env-flags.json"
+    ]
+  },
+  "decisions": [],
+  "follow_up": {},
+  "revision": 1,
+  "priority_rank": null,
+  "priority_class": "",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "IN_PROGRESS",
+    "analyzed_at": "",
+    "analyzed_by": "deterministic",
+    "revision_analyzed": 0,
+    "architecture_fit": "REUSE",
+    "implementation_strategy": "Extend existing components/APIs: core/env_flags.py, core/feature_flags.py, core/provider_kinds.py, core/stage_paths.py",
+    "existing_components": [
+      "core/env_flags.py",
+      "core/feature_flags.py",
+      "core/provider_kinds.py",
+      "core/stage_paths.py"
+    ],
+    "existing_apis": [
+      "/api/v1/artifacts/{stage_id}/{agent}",
+      "/api/v1/changes/kinds",
+      "/api/v1/engineering/stages",
+      "/api/v1/engineering/stages/{stage_id}",
+      "/api/v1/pipeline/stages",
+      "/api/v1/pipeline/stages/{stage_id}"
+    ],
+    "existing_modules": [
+      "config/env-flags.json"
+    ],
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [
+      "product_forge:BI-PF-0415 (score 1.00)"
+    ],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [
+      "possible duplicate"
+    ],
+    "evidence": [
+      "similar=5",
+      "score=3.0",
+      "components=4",
+      "apis=6"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": false,
+    "reasons": [],
+    "computed_at": ""
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": ""
+  },
+  "created_at": "2026-10-07T18:08:08.983884",
+  "updated_at": "2026-10-07T18:08:09.428981",
+  "score": 3.0,
+  "_note": "analysis updated",
+  "dashboard_impact": {
+    "needs_dashboard": false,
+    "reason": "Developer tooling for the backlog traceability gate; no product UI surface",
+    "dashboard_item": null,
+    "reviewed_by": "agent"
+  }
+}

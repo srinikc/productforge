@@ -20,10 +20,27 @@ except ImportError:
 if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
+# The repo root is one level above product-forge/; sibling components
+# (workergrid/) live there, so descriptor paths resolve against either.
+_REPO = os.path.dirname(str(_ROOT))
+
+
+def _exists(p: str) -> bool:
+    """A descriptor path may be relative to product-forge/ or the repo root."""
+    return os.path.exists(os.path.join(str(_ROOT), p)) or os.path.exists(os.path.join(_REPO, p))
+
+
+def _flags() -> set:
+    try:
+        with open(os.path.join(str(_ROOT), "config", "env-flags.json"), encoding="utf-8") as f:
+            return set((json.load(f).get("flags") or {}).keys())
+    except Exception:
+        return set()
+
 
 def _registered_stores() -> set:
     try:
-        with open(os.path.join(_ROOT, "config", "store-registry.json"), encoding="utf-8") as f:
+        with open(os.path.join(str(_ROOT), "config", "store-registry.json"), encoding="utf-8") as f:
             return set((json.load(f).get("stores") or {}).keys())
     except Exception:
         return set()
@@ -37,7 +54,7 @@ def _routes() -> set:
         return set()
 
 
-def _check(desc: str, routes: set, stores: set):
+def _check(desc: str, routes: set, stores: set, flags: set = None):
     kind, _, val = str(desc).partition(":")
     val = val.strip()
     if not val:
@@ -47,12 +64,19 @@ def _check(desc: str, routes: set, stores: set):
         return None if path in routes else f"route not registered: {val}"
     if kind == "store":
         return None if val in stores else f"store not registered: {val}"
+    if kind == "flag":
+        known = _flags() if flags is None else flags
+        return None if val in known else f"flag not registered: {val}"
+    if kind == "command":
+        # a command descriptor is a path plus optional args
+        p = val.split(" ", 1)[0]
+        return None if _exists(p) else f"path not found: {p}"
     if kind in ("module", "test", "file", "artifact"):
         p = val
         if kind == "module" and "/" not in p and not p.endswith(".py"):
             p = p.replace(".", "/") + ".py"
-        return None if os.path.exists(os.path.join(_ROOT, p)) else f"path not found: {p}"
-    return None if os.path.exists(os.path.join(_ROOT, val)) else f"path not found: {val}"
+        return None if _exists(p) else f"path not found: {p}"
+    return None if _exists(val) else f"path not found: {val}"
 
 
 def _sha_exists(sha: str) -> bool:
@@ -74,7 +98,7 @@ def main(argv=None) -> int:
     a = ap.parse_args(argv)
 
     from core import backlog
-    routes, stores = _routes(), _registered_stores()
+    routes, stores, flags = _routes(), _registered_stores(), _flags()
     drift, checked = [], 0
     for scope, project in backlog._all_scopes():
         for it in backlog.list_open(scope, project, order=False) + backlog.list_closed(scope, project):
@@ -88,7 +112,7 @@ def main(argv=None) -> int:
             checked += 1
             ref = backlog.qualify(scope, project, it.get("id"))
             for d in descs:
-                err = _check(d, routes, stores)
+                err = _check(d, routes, stores, flags)
                 if err:
                     drift.append(f"{ref}: {d} -> {err}")
             # delivery provenance: the merge commit must exist in the repo
