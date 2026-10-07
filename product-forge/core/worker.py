@@ -424,6 +424,10 @@ def run_task(task: dict[str, Any], project_dir: str, provider: str = "noop", bas
             res.warnings.append("no commit created (nothing to commit)")
     if commit:
         res.final_commit = _git(worktree, "rev-parse", "HEAD")
+        # Stage 2a (git sync): optionally push the feature branch (gated by PF_AUTO_PUSH; default off).
+        if res.branch and VCSManager.auto_push_enabled():
+            with contextlib.suppress(Exception):
+                vcs.push(res.branch)
     changed = set()
     if res.base_commit:
         changed.update(x for x in _git(worktree, "diff", "--name-only",

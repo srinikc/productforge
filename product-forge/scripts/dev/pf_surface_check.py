@@ -20,7 +20,7 @@ if _ROOT not in sys.path:
 FAILS = []
 # worker/scheduler/work/adapters/dispatch verbs were MOVED to WorkerGrid (/wg) - see ADR-0002.
 _REQUIRED_VERBS = {"product", "backlog", "dogfood", "validate", "release", "package",
-                   "audit", "status", "pidl"}
+                   "audit", "status", "pidl", "sync"}
 _MOVED_VERBS = {"work", "scheduler", "worker", "adapters", "dispatch"}
 
 

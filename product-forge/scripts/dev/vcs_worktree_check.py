@@ -66,6 +66,27 @@ def main() -> int:
             _check(rr.get("ok"), f"remove_worktree ok: {rr.get('error')}")
         _check(m.is_protected("main"), "main is protected")
         _check(m.is_protected("develop"), "develop is protected")
+
+        # Stage 2a (git sync): auto-push gating, fetch/base_ref without + with a remote
+        _check(VCSManager.auto_push_enabled() is False, "auto-push default off")
+        os.environ["PF_AUTO_PUSH"] = "1"
+        _check(VCSManager.auto_push_enabled() is True, "auto-push honors PF_AUTO_PUSH=1")
+        os.environ.pop("PF_AUTO_PUSH", None)
+        _check(m.fetch().get("ok") is False, "fetch is a no-op without a remote")
+        _check(m.base_ref() == m.integration_branch, "base_ref -> local integration without a remote")
+        _check(m.sync(push=False).get("ok") is False, "sync no-op without a remote")
+
+        remote = tempfile.mkdtemp(prefix="pf-vcs-remote-")
+        try:
+            _git(remote, "init", "--bare", "-q")
+            _git(tmp, "branch", m.integration_branch)          # develop at HEAD
+            _git(tmp, "remote", "add", "origin", remote)
+            _git(tmp, "push", "-q", "-u", "origin", m.integration_branch)
+            _check(m.fetch().get("ok"), "fetch ok with a remote")
+            _check(m.base_ref() == f"origin/{m.integration_branch}",
+                   f"base_ref prefers origin/<integration> (got {m.base_ref()})")
+        finally:
+            shutil.rmtree(remote, ignore_errors=True)
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 

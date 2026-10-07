@@ -65,9 +65,16 @@ Multi-machine requires state **outside** local files. WorkerGrid runs a **servic
   (service + PostgreSQL) for teams/multi-machine.
 - A Python spike is possible, but the target is Go.
 
-## 7. Multi-machine git sync (companion)
-Coordination state ≠ code sync. For cross-system workers, add: `fetch` before worktree/rebase; push the
-feature branch after commit; controlled merge to `develop`; push `develop` (auto-push-after-merge, gated).
+## 7. Multi-machine git sync (companion) — Stage 2a implemented
+Coordination state ≠ code sync. **Stage 2a (done):**
+- `VCSManager.fetch()` + `base_ref()` — new worktrees branch off **`origin/<integration>`** (fetched) when a
+  remote exists, so cross-system workers aren't stale (falls back to local without a remote).
+- `VCSManager.sync()` + **`/pf sync`** — fetch + push the integration branch.
+- Worker: after committing, optionally pushes its **feature branch** (gated by `PF_AUTO_PUSH`, default off).
+- `PF_AUTO_PUSH` (env-flags, owner `core/vcs.py`): auto-push after a controlled merge / worker commit (off by default).
+- Gate: `scripts/dev/vcs_worktree_check.py` covers fetch + origin-base + auto-push gating.
+
+Still later (Stage 2b): the standalone coordinator **service** + shared store + removing the in-PF worker layer.
 
 ## 8. Offline ingestion stays in PF
 External `.md` (ChatGPT/Gemini, etc.) is ingested **by PF** (intake channel → analyze → backlog) — manually by
