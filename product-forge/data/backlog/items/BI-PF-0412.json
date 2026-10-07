@@ -8,9 +8,9 @@
   "external_id": "workergrid-stage3a-go-coordinator",
   "label": "PF Backlog 444",
   "title": "WorkerGrid Stage 3a: Go coordinator service (parity + cutover)",
-  "body": "Source: WorkerGrid design docs/WORKERGRID-DESIGN.md section 6/9.3 (Go target) + ADR-0001 (Go-first) / ADR-0002 (cut-over). User-approved plan 2026-10-07.\n\nGoal: port the WorkerGrid coordinator service (Python spike: workergrid/service.py + workergrid/store.py) to a Go single static binary with behavior parity, then cut over (delete the Python service, wg.py serve becomes an exec-shim; single writer at any time).\n\nIn scope: (1) service-behavior contract tests first (currently ZERO tests cover the service), parameterized over the Python spike and the Go binary; (2) Go implementation in workergrid/ (go.mod, cmd/wg-coordinator, internal/{config,store,httpapi}) using pure-Go SQLite (modernc.org/sqlite, CGO_ENABLED=0), same schema + BEGIN IMMEDIATE claim semantics, same routes/JSON shapes/bearer auth; (3) cutover - delete service.py/store.py, exec-shim in wg.py, docs; (4) new gate scripts/dev/wg_go_check.py (go build/vet/test + contract suite) wired into precheck.\n\nOut of scope: PostgreSQL store (3b), design-section-5 extras /report + /assignments (3b), worker agents (3c), binary distribution/release.\n\nAccepted risk: first Go code in this repo (new-path approved by user); Go toolchain installed via winget (GoLang.Go).",
+  "body": "Source: WorkerGrid design docs/WORKERGRID-DESIGN.md section 6/9.3 (Go target) + ADR-0001 (Go-first) / ADR-0002 (cut-over). User-approved plan 2026-10-07.\n\nGoal: port the WorkerGrid coordinator service (Python spike: workergrid/service.py + workergrid/store.py) to a Go single static binary with behavior parity, then cut over (delete the Python service, wg.py serve becomes an exec-shim; single writer at any time).\n\nIn scope: (1) service-behavior contract tests first (currently ZERO tests cover the service), parameterized over the Python spike and the Go binary; (2) Go implementation in workergrid/ (go.mod, cmd/wg-coordinator, internal/{config,store,httpapi}) using pure-Go SQLite (modernc.org/sqlite, CGO_ENABLED=0), same schema + BEGIN IMMEDIATE claim semantics, same routes/JSON shapes/bearer auth; (3) cutover - delete service.py/store.py, exec-shim in wg.py, docs; (4) new gate scripts/dev/wg_go_check.py (go build/vet/test + contract suite) wired into precheck.\n\nOut of scope: PostgreSQL store (3b), design-section-5 extras /report + /assignments (3b), worker agents (3c), binary distribution/release.\n\nAccepted risk: first Go code in this repo (new-path approved by user); Go toolchain installed via winget (GoLang.Go).\n\n**RCCA (envelope defect, found during Stage 3a parity work):** the Stage 2b `_assign` read `r['data']` one level too shallow - PF's `/api/v1/engineering/schedule/next` returns the canonical envelope `{request_id, status, data:{found, item, title, pidl_context, execution_policy}}`, so `/work` would always have returned \"no eligible work\". Fixed in the Python spike before the port (unwrap one level when `found` is absent and `data.data` is a dict); the Go `internal/httpapi` mirrors the same unwrap. Guard: the cross-impl contract suite (test_workergrid_service_contract.py, gate wg_go_check) pins the assignment + pidl passthrough behavior on every run.\n\n**Cutover (Stage 3a):** `workergrid/service.py` + `workergrid/store.py` deleted; `wg.py serve` exec-shims to `bin/wg-coordinator` (fail-closed build hint); `pidl_synthesis_check.py` now verifies passthrough in `internal/httpapi/httpapi.go`.\n",
   "source": "user-request",
-  "status": "new",
+  "status": "executing",
   "priority": null,
   "moscow": "Should",
   "value": 4,
@@ -21,16 +21,18 @@
   ],
   "links": {
     "backend_capability": [
-      "module:workergrid/service.py",
-      "module:workergrid/store.py",
-      "command:workergrid/wg.py serve",
+      "module:workergrid/cmd/wg-coordinator/main.go",
+      "module:workergrid/internal/store/store.go",
+      "module:workergrid/internal/httpapi/httpapi.go",
+      "module:workergrid/internal/config/config.go",
+      "command:workergrid/wg.py",
       "gate:scripts/dev/wg_go_check.py",
       "test:test-framework/tests/pipeline/test_workergrid_service_contract.py"
     ]
   },
   "decisions": [],
   "follow_up": {},
-  "revision": 1,
+  "revision": 2,
   "priority_rank": null,
   "priority_class": "",
   "analyze_mode": "on_entry",
@@ -107,9 +109,9 @@
     "completed_at": ""
   },
   "created_at": "2026-10-07T15:10:10.209165",
-  "updated_at": "2026-10-07T15:10:10.697506",
+  "updated_at": "2026-10-07T15:38:58.123605",
   "score": 0.75,
-  "_note": "dashboard_impact reviewed",
+  "_note": "Stage 3a: Go port + contract parity + cutover landed; gates next",
   "dashboard_impact": {
     "needs_dashboard": false,
     "reason": "WorkerGrid coordination service is an external execution-plane component; no dashboard surface (operator surface is the /wg command + service API)",
