@@ -5,19 +5,45 @@ package config
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 )
 
-// Config mirrors workergrid/config.json (only the keys the coordinator uses).
+// Config mirrors workergrid/config.json (only the keys the coordinator/agent use).
 type Config struct {
 	PfApiURL     string `json:"pf_api_url"`
 	TokenEnv     string `json:"token_env"`
 	LeaseSeconds int    `json:"lease_seconds"`
 	ServiceHost  string `json:"service_host"`
 	ServicePort  int    `json:"service_port"`
+	ServiceURL   string `json:"service_url"`
 	StateDirName string `json:"state_dir"`
+	PollSeconds  int    `json:"poll_seconds"`
+	Agent        Agent  `json:"agent"`
+}
+
+// Agent is the `agent` block of config.json (Stage 3c, BI-PF-0413): the worker
+// agent's execution settings. Commands are per-runtime templates; placeholders
+// {item_id} {title} {worktree} {branch} {base_ref} are substituted with
+// shell-quoted values (the command runs through cmd /c on Windows, sh -c else)
+// and exported as env vars (WG_ITEM_ID, WG_TITLE, WG_WORKTREE, WG_BRANCH,
+// WG_BASE_REF, WG_WORKER_ID, WG_RUNTIME).
+type Agent struct {
+	RepoRoot       string                `json:"repo_root"`
+	BaseRef        string                `json:"base_ref"`
+	WorktreesDir   string                `json:"worktrees_dir"`
+	TimeoutSeconds int                   `json:"timeout_seconds"`
+	SuccessStatus  string                `json:"success_status"`
+	PollSeconds    int                   `json:"poll_seconds"`
+	Runtimes       map[string]RuntimeCmd `json:"runtimes"`
+}
+
+// RuntimeCmd is one runtime's command template under agent.runtimes.
+type RuntimeCmd struct {
+	Command string `json:"command"`
 }
 
 // Home resolves the WorkerGrid directory (where config.json lives):
@@ -121,4 +147,80 @@ func (c Config) LeaseTTL() int {
 		return c.LeaseSeconds
 	}
 	return 3600
+}
+
+// ServiceBase: config service_url > http://service_host:service_port (same
+// precedence as client.service_url(); trailing "/" trimmed).
+func (c Config) ServiceBase() string {
+	if u := strings.TrimSpace(c.ServiceURL); u != "" {
+		return strings.TrimRight(u, "/")
+	}
+	host := c.ServiceHost
+	if host == "" {
+		host = "127.0.0.1"
+	}
+	port := c.ServicePort
+	if port == 0 {
+		port = 8790
+	}
+	return fmt.Sprintf("http://%s:%d", host, port)
+}
+
+// AgentRuntimeCommand: agent.runtimes[name].command ("" when unset).
+func (c Config) AgentRuntimeCommand(name string) string {
+	return strings.TrimSpace(c.Agent.Runtimes[name].Command)
+}
+
+// AgentPoll: agent.poll_seconds > config poll_seconds > 5 (seconds).
+func (c Config) AgentPoll() int {
+	if c.Agent.PollSeconds > 0 {
+		return c.Agent.PollSeconds
+	}
+	if c.PollSeconds > 0 {
+		return c.PollSeconds
+	}
+	return 5
+}
+
+// AgentWorktreesDir: agent.worktrees_dir (default "worktrees") relative to
+// Home unless absolute; created on demand.
+func (c Config) AgentWorktreesDir() string {
+	d := strings.TrimSpace(c.Agent.WorktreesDir)
+	if d == "" {
+		d = "worktrees"
+	}
+	if !filepath.IsAbs(d) {
+		d = filepath.Join(Home(), d)
+	}
+	_ = os.MkdirAll(d, 0o755)
+	return d
+}
+
+// AgentBaseRef: agent.base_ref > "develop" (worktree branch base).
+func (c Config) AgentBaseRef() string {
+	if r := strings.TrimSpace(c.Agent.BaseRef); r != "" {
+		return r
+	}
+	return "develop"
+}
+
+// AgentSuccessStatus: agent.success_status > "verifying" (the PF status an
+// exit-0 run writes back - default keeps DoD/gates in the human path).
+func (c Config) AgentSuccessStatus() string {
+	if s := strings.TrimSpace(c.Agent.SuccessStatus); s != "" {
+		return s
+	}
+	return "verifying"
+}
+
+// AgentRepoRoot: agent.repo_root (absolute or relative to Home); "" when unset.
+func (c Config) AgentRepoRoot() string {
+	r := strings.TrimSpace(c.Agent.RepoRoot)
+	if r == "" {
+		return ""
+	}
+	if !filepath.IsAbs(r) {
+		r = filepath.Join(Home(), r)
+	}
+	return r
 }

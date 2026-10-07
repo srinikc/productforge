@@ -40,7 +40,9 @@ backlog item
 PF exposes (already exists unless noted):
 - `GET /backlog` (list), `GET /backlog/items/{id}`
 - **`GET /backlog/eligible`** — fresh-only, priority-ordered, ready-to-assign *(add)*
-- `POST /backlog/items/{id}/status` — execution write-back (assigned/in-progress/done/blocked)
+- `POST /backlog/items/{id}/status` — execution write-back. The concrete statuses are PF's own vocabulary
+  (`scheduled` = claimed/assigned, `executing` = running, `done`→`completed` on success, `blocked` = failed
+  or gated); see §14 for the exact mapping the agent writes.
 
 WorkerGrid:
 - reads eligible items from PF, assigns to workers, and **writes status back** to PF.
@@ -149,3 +151,32 @@ binary (`CGO_ENABLED=0`, pure-Go SQLite via `modernc.org/sqlite`):
 - **Gates:** `wg_go_check` (gofmt + build + vet + test + contract suite, added to `precheck` fast tier,
   area `workergrid`/`wg`); `pidl-synthesis` now verifies passthrough in `internal/httpapi/httpapi.go`.
 - **Not in this slice:** worker agents (3c), PostgreSQL (3b).
+
+## 14. Stage 3c implemented (worker agent execution) — BI-PF-0413
+The coordinator (Stage 3a) assigns; the **agent** now executes. `workergrid/cmd/wg-agent` → `bin/wg-agent`
+is a second static Go binary; `python workergrid/wg.py agent` / `/wg agent` exec-shims to it (fail-closed
+with the build hint), and it is gated by the same `wg_go_check`. One agent process = one execution slot.
+
+- **Loop:** `recover → claim → write-back "scheduled" → isolated git worktree → execute runtime command →
+  heartbeat/renew lease → write-back "executing" → success|blocked → release`. `-once` claims+runs at most
+  one item then exits (tests/one-shots).
+- **Two HTTP surfaces only:** the coordinator (claim/lease lifecycle) and the producer API (status
+  write-back). No PF/producer code is imported — WorkerGrid stays producer-agnostic (ADR-0002).
+- **Status mapping (PF vocabulary):** claim → `scheduled`; command start → `executing`; exit 0 →
+  `agent.success_status` (default `verifying`, keeping gates/DoD in the human path); non-zero → `blocked`
+  (note carries the exit code + output tail); PIDL `execution_policy.approval_required` → `blocked` without
+  executing (fail-closed).
+- **Isolation (IS-PF-0036):** each assignment runs in its own `git worktree` + `wg/<item>-<ts>` branch off
+  `agent.base_ref` (default `develop`); the main checkout is never touched.
+- **Crash safety:** the agent owns **all** producer write-back, including `POST /leases/recover` each poll —
+  recovered leases are reopened to `queued`, so a worker that dies mid-run cannot wedge an item in a
+  non-eligible status. The coordinator keeps lease truth only and is unchanged from Stage 3a.
+- **Runtime commands:** `agent.runtimes.<name>.command` is a shell template; placeholders `{item_id}`
+  `{title}` `{worktree}` `{branch}` `{base_ref}` are substituted (shell-quoted) and exported as `WG_*` env
+  vars. On Windows the line runs from a generated `.cmd` file (cmd `/c` quote-stripping workaround).
+- **Journal:** JSONL at `state/agent-journal.jsonl` (start, register, claim, worktree, exec_start/end,
+  writeback, release, reopen, …) — the run-bound evidence trail.
+- **Proof:** `test-framework/tests/pipeline/test_workergrid_agent_e2e.py` drives both binaries against a
+  stub producer + throwaway git repo: happy path (status order, operator auth, worktree/branch, journal),
+  command failure → blocked, approval gate → fail-closed, no-work clean exit, heartbeat/renewal.
+- **Not in this slice:** auto-push (agent push flag default off), PostgreSQL (3b), remote fleet.

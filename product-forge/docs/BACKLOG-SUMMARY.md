@@ -1,14 +1,14 @@
 # Backlog Summary
 
-> GENERATED 2026-10-07T16:23:14 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-07T17:26:10 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 34  |  **Closed:** 361
-- `new`: 34
+- **Open:** 35  |  **Closed:** 361
+- `new`: 35
 
-### new, by category (34)
+### new, by category (35)
 **API / reports / HIL / misc** (1)
 | ID | MoSCoW | Type | Title |
 |---|---|---|---|
@@ -37,7 +37,7 @@
 | BI-0206 | Should | tech-debt | Backend: model downloader + local cache + license-acceptance gate + models.lock (open-weights) |
 | BI-0225 | Should | feature | Parallel section/feature generation |
 
-**Wiring / tech-debt / API** (26)
+**Wiring / tech-debt / API** (27)
 | ID | MoSCoW | Type | Title |
 |---|---|---|---|
 | BI-0185 | Should | feature | EPIC: Multi-modal / media orchestration (pluggable capability packs) |
@@ -66,6 +66,7 @@
 | BI-PF-0406 | Should | feature | B7: service decomposition |
 | BI-PF-0407 | Should | feature | Bmig: migrate high-value legacy Python -> Go (by value) |
 | BI-PF-0408 | Should | change | /pf command: build mode only (not orchestrator) + global /pf for all opencode sessions |
+| BI-PF-0413 | Should | feature | WorkerGrid Stage 3c: worker agent execution (claim -> worktree -> exec -> heartbeat -> write-back) |
 
 ---
 
@@ -265,5 +266,5 @@
 ---
 
 ## Totals
-- backend: 34 open / 361 closed
+- backend: 35 open / 361 closed
 - dashboard: 146 open / 3 closed

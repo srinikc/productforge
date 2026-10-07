@@ -7,6 +7,7 @@ groom, or generate products — the producer owns those.
 
 Verbs:
   wg serve [--host H] [--port P]                                run the coordinator service (shared state)
+  wg agent [--runtime R] [--worker-id W] [--once]               run the worker agent loop (claim -> execute -> write back)
   wg register --runtime opencode [--caps a,b] [--worker-id X]   register a worker (service or local)
   wg list | wg status [<worker_id>] | wg unregister <worker_id>
   wg work [--worker X] [--runtime R] [--scope S] [--project P]  pull the next eligible item + lease it
@@ -101,6 +102,34 @@ def cmd_serve(pos, flags):
         return subprocess.call(args)
     except OSError as e:
         print(f"[wg] coordinator failed to start: {e}", file=sys.stderr)
+        return 1
+
+
+def cmd_agent(pos, flags):
+    """Stage 3c (BI-PF-0413): run the worker agent loop via the Go binary.
+
+    The agent claims eligible work from the coordinator, executes it in an
+    isolated git worktree via a configured runtime command, renews its lease,
+    and writes execution status back to the producer. Fail-closed: a missing
+    binary prints the build hint instead of running Python.
+    """
+    import subprocess
+    here = os.path.dirname(os.path.abspath(__file__))
+    exe = os.path.join(here, "bin", "wg-agent.exe" if os.name == "nt" else "wg-agent")
+    if not os.path.exists(exe):
+        print(f"[wg] agent binary missing: {exe}", file=sys.stderr)
+        print("      build: cd workergrid && go build -o bin/ ./cmd/wg-agent", file=sys.stderr)
+        return 1
+    args = [exe]
+    for f in ("runtime", "worker-id", "scope", "project", "service"):
+        if flags.get(f):
+            args += ["--" + f, str(flags[f])]
+    if flags.get("once"):
+        args.append("--once")
+    try:
+        return subprocess.call(args)
+    except OSError as e:
+        print(f"[wg] agent failed to start: {e}", file=sys.stderr)
         return 1
 
 
@@ -242,7 +271,7 @@ def cmd_config(pos, flags):
             "service_up": client.service_up()}
 
 
-VERBS = {"serve": cmd_serve, "register": cmd_register, "list": cmd_list, "status": cmd_status,
+VERBS = {"serve": cmd_serve, "agent": cmd_agent, "register": cmd_register, "list": cmd_list, "status": cmd_status,
          "unregister": cmd_unregister, "work": cmd_work, "schedule": cmd_schedule,
          "adapters": cmd_adapters, "dispatch": cmd_dispatch, "instruct": cmd_instruct, "config": cmd_config}
 
@@ -257,7 +286,7 @@ def main(argv=None) -> int:
         print(f"unknown verb {verb!r}. verbs: {', '.join(VERBS)}")
         return 2
     pos, flags = _flags(rest)
-    if verb == "serve":
+    if verb in ("serve", "agent"):
         return int(VERBS[verb](pos, flags) or 0)
     try:
         _emit(VERBS[verb](pos, flags))

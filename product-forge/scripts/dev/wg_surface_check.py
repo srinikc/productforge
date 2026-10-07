@@ -18,7 +18,7 @@ if _ROOT not in sys.path:
 # workergrid/ is a sibling of product-forge/ (the git repo root)
 _WG = os.path.join(os.path.dirname(str(_ROOT)), "workergrid")
 FAILS = []
-_REQUIRED_VERBS = {"serve", "register", "list", "status", "unregister", "work", "schedule",
+_REQUIRED_VERBS = {"serve", "agent", "register", "list", "status", "unregister", "work", "schedule",
                    "adapters", "dispatch", "instruct", "config"}
 _REQUIRED_ROUTES = ("/api/v1/backlog", "/api/v1/engineering/schedule/eligible",
                     "/api/v1/backlog/items/{item_id}/status")
