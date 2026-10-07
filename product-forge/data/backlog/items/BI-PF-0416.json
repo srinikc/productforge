@@ -10,7 +10,7 @@
   "title": "DEFECT: schedule/next returns executed items (implemented|verifying) -> worker re-executes",
   "body": "Source: live dogfood run of the Stage 3c agent (2026-10-07), real PF API + real coordinator + real\nwg-agent + real git worktree. NOT found by the stub e2e (the stub serves one item, so re-claim never showed).\n\nDEFECT: `core/scheduler.py:263` lets `implemented` and `verifying` pass the status gate, so an item that has\nalready been executed is STILL returned by `schedule/next` and can be claimed and re-executed.\n\nEvidence (live): the first dogfood run executed BI-DF-0001 and wrote back `verifying` (journal writeback\nok=true). The second run's `next_eligible` returned BI-DF-0001 again (not the fresh item), and the agent\nre-claimed + re-executed it (marker showed BI-DF-0001). `scheduler.eligible(BI-DF-0001)` with status\n`verifying` -> {ok: True, reasons: []}.\n\nRoot cause: `_ELIGIBLE_STATUSES = (\"new\",\"accepted\",\"queued\",\"scheduled\")` (open, not yet executing) but the\ngate also whitelists `implemented`/`verifying` (intended for a verification stage). The worker claim path\n(`schedule/next` -> coordinator `/work`) is stage-agnostic, so ANY worker re-claims executed work. The only\nthing preventing a double-claim is the coordinator lease - and once the run ends and the lease is released,\nthe item is claimable again in a non-terminal, already-executed status (infinite re-execution).\n\nImpact: worker re-execution / duplicated work; the `executing -> implemented|verifying` post-run state is not\nactually protected. Affects the WorkerGrid execution path (Stage 3c) and any consumer of schedule/next.\n\nNOT affected: the coordinator lease (correct); the agent write-back (correct, ok=true).\n\nOptions (need a decision - touches PF-wide scheduling semantics):\n  A. Stage filter on the worker claim path (recommended): keep `eligible()` as-is; make the EXECUTION claim\n     ask only for not-yet-executed items (e.g. `stage=execute` / status allow-list on\n     `GET /api/v1/engineering/schedule/next`), the coordinator passes it. Scoped; no change to existing\n     consumers' default behaviour.\n  B. Change the default: drop `implemented`/`verifying` from the eligible whitelist entirely (never\n     claimable). Simple, but removes any verification-stage pickup and may surprise consumers.\n  C. Record-only: track the defect, defer the fix.\n\ndashboard_impact: needs_dashboard=false - backend scheduling correctness; no UI surface.\n\n## Accepted fix — option A (user-approved 2026-10-07)\nStage filter on the worker claim path; `eligible()` default semantics unchanged for other consumers.\n\n1. `core/scheduler.py`: `eligible(..., stage=None)`; when `stage == \"execute\"` the status must be in\n   `_ELIGIBLE_STATUSES` (new/accepted/queued/scheduled) - `implemented`/`verifying` are rejected with a\n   reason. `eligible_backlog(..., stage=)` and `next_eligible(..., stage=)` pass it through.\n2. `api/routers/engineering.py`: `GET /schedule/next` and `/schedule/eligible` accept an optional\n   `stage` query param (default \"\" = unchanged behaviour).\n3. Coordinator (Go): `internal/producer.Next` sends `stage=execute`; `internal/httpapi.assign` passes it.\n4. Tests: scheduler eligibility test for the execute stage; contract-suite assertion that the coordinator\n   requests `stage=execute`.\n5. Docs: ops guide eligibility note.\n6. Verify: re-run the live dogfood - the second run must NOT re-claim an already-executed item.\n",
   "source": "dogfood (live Stage 3c run)",
-  "status": "new",
+  "status": "completed",
   "priority": null,
   "moscow": "Must",
   "value": 4,
@@ -25,7 +25,21 @@
     "related": [
       "product_forge:BI-PF-0365",
       "product_forge:BI-PF-0413"
-    ]
+    ],
+    "delivery": {
+      "branch": "fix/eligibility-execute-stage",
+      "merge_sha": "a38e97ee1023673bd699437b46165c8379ec04d6",
+      "commits": [
+        "eadb747",
+        "74a28b0",
+        "21e71b5",
+        "07cf0eb"
+      ],
+      "pr": "",
+      "pr_url": "",
+      "at": "2026-10-07T18:52:22.939543",
+      "note": "merged --no-ff; precheck --full green (39 gates, 845 passed, 3 skipped); scheduler test + contract-suite stage assertion; LIVE dogfood re-run: run1 claimed A (-> verifying), run2 claimed the NEW item B (no re-claim) - PASS"
+    }
   },
   "decisions": [
     {
@@ -35,7 +49,7 @@
     }
   ],
   "follow_up": {},
-  "revision": 2,
+  "revision": 3,
   "priority_rank": null,
   "priority_class": "",
   "analyze_mode": "on_entry",
@@ -107,9 +121,9 @@
     "completed_at": ""
   },
   "created_at": "2026-10-07T18:23:29.986636",
-  "updated_at": "2026-10-07T18:28:43.900363",
+  "updated_at": "2026-10-07T18:52:23.060032",
   "score": 1.0,
-  "_note": "analysis updated",
+  "_note": "stage=execute filter delivered; executed items are no longer re-claimable",
   "dashboard_impact": {
     "needs_dashboard": false,
     "reason": "Backend scheduling correctness (which items are claimable); no UI surface",
