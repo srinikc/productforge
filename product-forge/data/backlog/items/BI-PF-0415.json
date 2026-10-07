@@ -8,9 +8,9 @@
   "external_id": "intent-trace-sibling-descriptors",
   "label": "PF Backlog 449",
   "title": "intent-trace: resolve sibling-component descriptors (workergrid/) + command/flag kinds",
-  "body": "Source: found during the Stage 3c/3b descriptor audits (pre-implementation review), 2026-10-07.\n\nDefect: intent_trace_check.py resolves every descriptor path under product-forge/ (_ROOT) only. Descriptors\nthat point at the sibling component workergrid/ (which lives at the repo root, one level above product-forge/)\ntherefore ALWAYS report \"path not found\" - so items BI-PF-0410..0414 show false drift and the check cannot be\ntrusted to catch real drift (the advisory noise hides it).\n\nAlso unhandled descriptor kinds: `command:scripts/pf.py sync` (a path + args) and `flag:PF_AUTO_PUSH` (an\nenv flag, not a path) are treated as bare paths and always fail.\n\nFix: resolve descriptor paths against product-forge/ OR the repo root (sibling components); treat `command:`\nas its first token (path + optional args); treat `flag:` as membership in config/env-flags.json flags.\n\nOut of scope: flipping the gate to --strict (tracked separately); the two genuinely-deleted Stage-3a paths on\nBI-PF-0410 (workergrid/service.py, workergrid/store.py) remain correctly \"not found\" (historical).\n\ndashboard_impact: needs_dashboard=false - developer tooling for the backlog traceability gate; no product UI.",
+  "body": "Source: found during the Stage 3c/3b descriptor audits (pre-implementation review), 2026-10-07.\n\nDefect: intent_trace_check.py resolves every descriptor path under product-forge/ (_ROOT) only. Descriptors\nthat point at the sibling component workergrid/ (which lives at the repo root, one level above product-forge/)\ntherefore ALWAYS report \"path not found\" - so items BI-PF-0410..0414 show false drift and the check cannot be\ntrusted to catch real drift (the advisory noise hides it).\n\nAlso unhandled descriptor kinds: `command:scripts/pf.py sync` (a path + args) and `flag:PF_AUTO_PUSH` (an\nenv flag, not a path) are treated as bare paths and always fail.\n\nFix: resolve descriptor paths against product-forge/ OR the repo root (sibling components); treat `command:`\nas its first token (path + optional args); treat `flag:` as membership in config/env-flags.json flags.\n\nOut of scope: flipping the gate to --strict (tracked separately); the two genuinely-deleted Stage-3a paths on\nBI-PF-0410 (workergrid/service.py, workergrid/store.py) remain correctly \"not found\" (historical).\n\ndashboard_impact: needs_dashboard=false - developer tooling for the backlog traceability gate; no product UI.\n\n**Follow-ups found during implementation (NOT in this slice):** the same \"descriptor-kind treated as a path\" class still affects two older items: (a) `item:BI-PF-0383` on BI-PF-0398 - the `item:` kind (a backlog id reference) is still resolved as a path; (b) `store:data/pidl/decisions.jsonl` on BI-PF-0380 - a `store:` descriptor holding a path instead of a registry key. Remaining intent-trace drift after this fix is otherwise genuine historical removal (the Stage-2b in-PF worker layer, and the two Stage-3a-deleted files on BI-PF-0410).",
   "source": "pre-implementation review",
-  "status": "new",
+  "status": "completed",
   "priority": null,
   "moscow": "Should",
   "value": 3,
@@ -22,11 +22,23 @@
       "module:scripts/dev/intent_trace_check.py",
       "test:test-framework/tests/pipeline/test_design_review_guard.py",
       "config:config/env-flags.json"
-    ]
+    ],
+    "delivery": {
+      "branch": "fix/intent-trace-sibling-descriptors",
+      "merge_sha": "54ade09091c68adbf1e19c28c31b43a062140d38",
+      "commits": [
+        "bf27f0a",
+        "788d971"
+      ],
+      "pr": "",
+      "pr_url": "",
+      "at": "2026-10-07T18:15:31.348819",
+      "note": "merged --no-ff; precheck --full green (39 gates, 843 passed, 3 skipped); intent-trace now resolves workergrid/ descriptors (BI-PF-0411..0414 clean; 0410 keeps its 2 genuinely-deleted Stage-3a files); new resolver test in test_design_review_guard.py"
+    }
   },
   "decisions": [],
   "follow_up": {},
-  "revision": 1,
+  "revision": 3,
   "priority_rank": null,
   "priority_class": "",
   "analyze_mode": "on_entry",
@@ -97,9 +109,9 @@
     "completed_at": ""
   },
   "created_at": "2026-10-07T18:08:08.983884",
-  "updated_at": "2026-10-07T18:08:09.428981",
+  "updated_at": "2026-10-07T18:15:31.470924",
   "score": 3.0,
-  "_note": "analysis updated",
+  "_note": "intent-trace sibling/command/flag descriptor resolution delivered",
   "dashboard_impact": {
     "needs_dashboard": false,
     "reason": "Developer tooling for the backlog traceability gate; no product UI surface",
