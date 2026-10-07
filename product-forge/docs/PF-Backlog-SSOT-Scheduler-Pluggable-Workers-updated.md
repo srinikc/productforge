@@ -1,5 +1,18 @@
 # PF Backlog SSOT, Work Scheduler & Pluggable Worker Orchestration
 
+> **SUPERSEDED (worker subsystem) — ADR-0002 / WorkerGrid Stage 2b (2026-10-07).**
+> The in-PF worker layer this design's §43 "Current PF Code Alignment" describes
+> (`core/worker*.py`, `/api/v1/engineering/{workers,work,adapters,dispatch*}`,
+> `/pf work` verbs) was removed from Product Forge and rehomed in the external
+> **WorkerGrid** component (`workergrid/`). Claim pickup now lives in
+> `core/scheduler.py::next_eligible` (staleness refresh + PIDL contract attach);
+> external coordination (register/heartbeat/claim/lease) is the WorkerGrid
+> coordinator (`workergrid/service.py` + `workergrid/store.py`). See
+> `docs/WORKERGRID-DESIGN.md` §12 and backlog epic **BI-PF-0360**.
+> The backlog SSOT, grooming, analysis, `job_manager` queueing, PIDL and
+> non-worker sections remain authoritative for PF.
+> Tracked by: BI-PF-0360 (epic), BI-PF-0409/0410/0411 (WorkerGrid stages).
+
 **Status:** Additive implementation design\
 **Purpose:** Make the PF backlog a first-class execution SSOT and allow
 PF to schedule work to externally registered execution workers without
