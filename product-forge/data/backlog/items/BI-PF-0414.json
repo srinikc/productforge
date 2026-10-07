@@ -1,0 +1,128 @@
+{
+  "id": "BI-PF-0414",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "workergrid-stage3b-postgres-store",
+  "label": "PF Backlog 448",
+  "title": "WorkerGrid Stage 3b: pluggable store (SQLite default + PostgreSQL multi-node) + atomic claim",
+  "body": "Source: pre-implementation IMPACT review 2026-10-07 (user-approved: \"Approve the 3b slice\").\nAuthorities: docs/WORKERGRID-DESIGN.md section 5 (SQLite single-node -> PostgreSQL for multi-node) + section 6\n(deployment single-node vs multi-node); ADR-0002 (WorkerGrid owns coordination state); Go-first rule.\n\nGoal: make the coordinator store pluggable - SQLite (default, single-node, back-compat) OR PostgreSQL\n(multi-node, multiple coordinator processes sharing one store) - without a second coordinator, HTTP API, or\nstore. Multi-process claim safety replaces the current read-then-write-under-in-process-mutex path.\n\nIMPACT review verdicts (approved): (6) the current claim is read-then-write under an in-process mutex\n(correct only for one process) -> gap for multi-node; make claim a SINGLE atomic statement\n(INSERT ... ON CONFLICT(item_id) DO UPDATE SET ... WHERE leases.expires_at < now RETURNING worker_id) shared\nby both dialects, keeping the contract suite green. (7) lease expiry uses node wall-clock -> documented\nclock-sync requirement; DB-time variant deferred. All other claims aligned (design sections 5/6, ADR-0002\nsingle writer, one store, Go-first, no store-registry impact since WG state is external).\n\nIn scope: (1) internal/store: dialect field + rebind (?)->($n); schema per dialect; OpenDSN(driver, dsn, ttl)\nwith Open(stateDir, ttl) kept as the SQLite default; atomic claim statement; Postgres uses a connection pool\n+ startup Ping (fail-closed). (2) config: `store` block {driver: sqlite|postgres, dsn} + env\nWORKERGRID_STORE_DRIVER / WORKERGRID_STORE_DSN; default sqlite state/workergrid.db (back-compat).\n(3) driver: pure-Go github.com/jackc/pgx/v5/stdlib (no CGO). (4) tests: Go unit tests for rebind/dialect;\nenv-gated PostgreSQL e2e (WORKERGRID_PG_DSN) proving the full lease lifecycle + persistence across a\ncoordinator restart (shared state), skipped without a DSN; contract suite unchanged (SQLite). (5) docs:\ndesign section 15 + sections 5/6, README, config _doc, ops doc config table + multi-node note.\n\nOut of scope: schema migrations engine (CREATE TABLE IF NOT EXISTS only, as today), DB-time leases,\nconnection failover/pooling tuning, HA/leader election.\n\nRelated (different concern): BI-PF-0402 [Epic B] persistence adapters (SQLite/JSON/PostgreSQL) - PF-side\ndata stores, not the WorkerGrid coordination store.\n\ndashboard_impact: needs_dashboard=false - WorkerGrid coordinator is an external execution-plane component;\noperator surface is the /wg command + coordinator API (same rationale as BI-PF-0412/0413).",
+  "source": "pre-implementation review",
+  "status": "new",
+  "priority": null,
+  "moscow": "Should",
+  "value": 4,
+  "effort": 3,
+  "risk": 2,
+  "deps": [
+    "BI-PF-0412"
+  ],
+  "links": {
+    "backend_capability": [
+      "module:workergrid/internal/store/store.go",
+      "module:workergrid/internal/store/dialect.go",
+      "module:workergrid/internal/config/config.go",
+      "command:workergrid/wg.py",
+      "gate:scripts/dev/wg_go_check.py",
+      "test:workergrid/internal/store/store_test.go",
+      "test:test-framework/tests/pipeline/test_workergrid_pg_store.py",
+      "doc:docs/WORKERGRID-DESIGN.md"
+    ],
+    "related": [
+      "product_forge:BI-PF-0402"
+    ]
+  },
+  "decisions": [
+    {
+      "at": "2026-10-07",
+      "by": "user",
+      "decision": "Stage 3b approved: pluggable store (SQLite default + PostgreSQL), single atomic claim statement for multi-process safety (claim 6), documented clock-skew limitation (claim 7), pgx pure-Go driver, env-gated PG e2e, docs + gates in the slice"
+    }
+  ],
+  "follow_up": {},
+  "revision": 1,
+  "priority_rank": null,
+  "priority_class": "",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "IN_PROGRESS",
+    "analyzed_at": "",
+    "analyzed_by": "deterministic",
+    "revision_analyzed": 0,
+    "architecture_fit": "REUSE",
+    "implementation_strategy": "Extend existing components/APIs: core/artifact_store.py, core/asset_store.py, core/forge_store.py, core/pipeline_store.py",
+    "existing_components": [
+      "core/artifact_store.py",
+      "core/asset_store.py",
+      "core/forge_store.py",
+      "core/pipeline_store.py",
+      "core/project_store.py",
+      "core/stage_paths.py"
+    ],
+    "existing_apis": [
+      "/api/v1/artifacts/{stage_id}/{agent}",
+      "/api/v1/engineering/stages",
+      "/api/v1/engineering/stages/{stage_id}",
+      "/api/v1/pipeline/stages",
+      "/api/v1/pipeline/stages/{stage_id}"
+    ],
+    "existing_modules": [
+      "config/store-registry.json"
+    ],
+    "dependency_findings": [
+      "depends on BI-PF-0412"
+    ],
+    "conflict_findings": [],
+    "duplication_findings": [
+      "product_forge:BI-PF-0414 (score 1.00)"
+    ],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [
+      "possible duplicate"
+    ],
+    "evidence": [
+      "similar=5",
+      "score=1.0",
+      "components=6",
+      "apis=5"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": false,
+    "reasons": [],
+    "computed_at": ""
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": ""
+  },
+  "created_at": "2026-10-07T17:48:14.454284",
+  "updated_at": "2026-10-07T17:48:14.878038",
+  "score": 1.0,
+  "_note": "analysis updated",
+  "dashboard_impact": {
+    "needs_dashboard": false,
+    "reason": "WorkerGrid coordinator store is an external execution-plane component; operator surface is the /wg command + coordinator API (same as BI-PF-0412/0413)",
+    "dashboard_item": null,
+    "reviewed_by": "agent"
+  }
+}
