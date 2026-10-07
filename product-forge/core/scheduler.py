@@ -8,6 +8,7 @@ matching, file-overlap detection, and elastic assignment of ready tasks to decla
 Scheduling is a read-only derivation from the task-contract store (owner: ``core/task_contract.py``) plus
 the declared worker pool (``config/engineering-workers.json``). It creates no second queue and owns no state.
 """
+import contextlib
 import fnmatch
 import json
 import os
@@ -336,8 +337,20 @@ def eligible_backlog(scope: str = "product_forge", project: str | None = None,
 
 def next_eligible(scope: str = "product_forge", project: str | None = None,
                   worker: dict[str, Any] | None = None) -> dict[str, Any]:
-    """Highest-priority eligible item (deterministic, read-only). Claim is P5."""
+    """Highest-priority eligible item + the pickup contract (the PF-side claim handoff).
+
+    WorkerGrid (ADR-0002) owns registry/lease, so a claim now passes through HERE: stale analyses
+    are refreshed first (BI-PF-0389) so pickup never serves a stale design, then the PIDL
+    pre-dispatch context (BI-PF-0379, read-only) the worker carries is attached. The caller
+    (WorkerGrid ``POST /work``) takes the lease on its side and hands ``pidl_context`` +
+    ``execution_policy`` to the worker.
+    """
     from core import backlog
+    # BI-PF-0389: re-analyze stale items against the current architecture before pickup
+    # (bounded, offline-safe; stale items are otherwise ineligible).
+    with contextlib.suppress(Exception):
+        from core import grooming
+        grooming.refresh_stale(scope, project or None, limit=5)
     items = backlog.list_open(scope, project, order=False)
     by_id = {str(i.get("id")): i for i in items}
     active = [i for i in items if str((i.get("execution") or {}).get("worker_id") or "")]
@@ -347,5 +360,18 @@ def next_eligible(scope: str = "product_forge", project: str | None = None,
         return {"scope": scope, "project": project or "", "found": False, "item": None}
     ordered = backlog.order_by_priority(ok)
     top = ordered[0]
-    return {"scope": scope, "project": project or "", "found": True, "item": top.get("id"),
-            "title": top.get("title"), "priority_rank": top.get("priority_rank")}
+    out: dict[str, Any] = {"scope": scope, "project": project or "", "found": True,
+                           "item": top.get("id"), "title": top.get("title"),
+                           "priority_rank": top.get("priority_rank")}
+    # PIDL-4 (BI-PF-0379): attach the relevant context + execution policy (advisory; read-only).
+    with contextlib.suppress(Exception):
+        from core import pidl
+        an = top.get("analysis") or {}
+        pd = pidl.pre_dispatch(scope, project,
+                               item={"id": str(top.get("id") or ""), "title": top.get("title"),
+                                     "body": top.get("body") or ""},
+                               action=str(top.get("title") or ""),
+                               components=[str(c) for c in (an.get("existing_components") or [])])
+        out["pidl_context"] = pd["pidl_context"]
+        out["execution_policy"] = pd["execution_policy"]
+    return out

@@ -229,11 +229,8 @@ def test_vcs_worktree_naming_and_protection_unit():
     assert m.is_protected("main") and m.is_protected("develop")
 
 
-def test_engineering_workers_and_schedule(client):
-    r = client.get("/api/v1/engineering/workers")
-    assert r.status_code == 200
-    data = r.json()["data"]
-    assert "slots" in data and "registry" in data
+def test_engineering_schedule(client):
+    # worker/scheduler registry was decoupled into WorkerGrid (ADR-0002); the schedule/eligibility read stays.
     r2 = client.get("/api/v1/engineering/schedule")
     assert r2.status_code == 200
     counts = r2.json()["data"]["counts"]

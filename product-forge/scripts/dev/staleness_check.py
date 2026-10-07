@@ -3,7 +3,8 @@
 Asserts: the architecture fingerprint is stable/non-empty; a COMPLETE analysis records it; a changed
 fingerprint makes the analysis STALE -> the item is ineligible; grooming.refresh_stale re-analyzes and
 re-fingerprints so it becomes eligible again; and the seams are wired (scheduler checks staleness,
-work_pull refreshes stale before claiming). Uses a scratch project scope (cleaned).
+next_eligible refreshes stale before serving the pickup - the WorkerGrid claim handoff after
+ADR-0002 moved registry/lease out of PF). Uses a scratch project scope (cleaned).
 Run: ``python scripts/dev/staleness_check.py``.
 """
 import os
@@ -70,9 +71,10 @@ def main() -> int:
 
         # wiring
         with open(os.path.join(str(_ROOT), "core", "scheduler.py"), encoding="utf-8") as f:
-            _check("analysis_is_stale" in f.read(), "scheduler checks analysis staleness (wired)")
-        with open(os.path.join(str(_ROOT), "core", "work_pull.py"), encoding="utf-8") as f:
-            _check("refresh_stale" in f.read(), "work_pull refreshes stale before claiming (wired)")
+            sched = f.read()
+        _check("analysis_is_stale" in sched, "scheduler checks analysis staleness (wired)")
+        _check("refresh_stale" in sched,
+               "next_eligible refreshes stale before pickup (wired)")
     finally:
         _clean()
 

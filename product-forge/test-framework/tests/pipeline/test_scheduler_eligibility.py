@@ -61,7 +61,10 @@ def test_next_eligible_picks_highest_priority():
         _approve(hi)
         backlog.set_priority("project", _PROJ, lo, priority_rank=9)
         backlog.set_priority("project", _PROJ, hi, priority_rank=1)
-        assert scheduler.next_eligible("project", _PROJ)["item"] == hi
+        nxt = scheduler.next_eligible("project", _PROJ)
+        assert nxt["item"] == hi
+        # PIDL pickup contract rides along (BI-PF-0379): the worker carries context + policy
+        assert "pidl_context" in nxt and "execution_policy" in nxt
     finally:
         _clean()
 
