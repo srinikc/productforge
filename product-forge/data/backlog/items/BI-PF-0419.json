@@ -1,0 +1,105 @@
+{
+  "id": "BI-PF-0419",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "pf-per-item-assignment-api",
+  "label": "PF Backlog 453",
+  "title": "PF: per-item claim (single claimer) + assignment API + assignment package + worker role",
+  "body": "Child of the parallel-run-engine epic. Extend the EXISTING single claimer (job_manager.claim_next) from\nper-PROJECT to per-ITEM so N items in one project can be claimed concurrently; expose the external-worker\nassignment lifecycle and create the worktree at claim.\n\nScope: (1) job_manager claim keyed by item (atomic re-check, keep IS-PF-0034 single claimer); (2) assignment API\n- POST /api/v1/engineering/assignments/claim (records backlog.set_execution worker_id/assignment_id/lease,\nreturns the assignment package: item, title, description, acceptance_criteria, pidl_context, execution_policy,\nworktree, branch, base_ref) + POST .../{id}/heartbeat (renew_lease) + .../complete + .../fail + .../release;\n(3) worktree+branch created at claim via core/vcs (fetch latest develop, base/rebase policy); (4) auth: new\n`worker` role in api/auth.py; assignment endpoints require worker (merge/pause/capacity stay operator);\n(5) capacity: max_parallel_assignments cap enforced at claim.\n\nOut of scope: delivery/merge (C3), validation isolation (C2), WorkerGrid client (C5).\n\nDescriptors: module:core/job_manager.py; module:core/vcs.py; module:api/auth.py; module:api/routers/engineering.py;\ntest:test-framework/tests/pipeline/test_assignments_api.py; route:POST /api/v1/engineering/assignments/claim.",
+  "source": "pre-implementation review",
+  "status": "new",
+  "priority": null,
+  "moscow": "Should",
+  "value": 5,
+  "effort": 4,
+  "risk": 3,
+  "deps": [],
+  "links": {
+    "related": [
+      "BI-PF-0418"
+    ]
+  },
+  "decisions": [],
+  "follow_up": {},
+  "revision": 1,
+  "priority_rank": null,
+  "priority_class": "",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "IN_PROGRESS",
+    "analyzed_at": "",
+    "analyzed_by": "deterministic",
+    "revision_analyzed": 0,
+    "architecture_fit": "REUSE",
+    "implementation_strategy": "Extend existing components/APIs: core/worker.py, /api/v1/engineering/worker-providers, /api/v1/workers/capacity, /api/v1/workers/metrics",
+    "existing_components": [
+      "core/worker.py"
+    ],
+    "existing_apis": [
+      "/api/v1/engineering/worker-providers",
+      "/api/v1/workers/capacity",
+      "/api/v1/workers/metrics",
+      "/api/v1/workers/queue",
+      "/api/v1/workers/queue/{project}/pause",
+      "/api/v1/workers/queue/{project}/resume",
+      "/api/v1/workers/results"
+    ],
+    "existing_modules": [
+      "config/engineering-workers.json"
+    ],
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [
+      "product_forge:BI-PF-0419 (score 1.00)"
+    ],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [
+      "possible duplicate"
+    ],
+    "evidence": [
+      "similar=5",
+      "score=0.62",
+      "components=1",
+      "apis=7"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": false,
+    "reasons": [],
+    "computed_at": ""
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": ""
+  },
+  "created_at": "2026-10-07T21:22:20.219520",
+  "updated_at": "2026-10-07T21:22:20.650369",
+  "score": 0.62,
+  "_note": "analysis updated",
+  "dashboard_impact": {
+    "needs_dashboard": false,
+    "reason": "Operator surface is /wg status + the PF API (assignments view); the dashboard is a separate surface and stays out of this slice",
+    "dashboard_item": null,
+    "reviewed_by": "agent"
+  }
+}

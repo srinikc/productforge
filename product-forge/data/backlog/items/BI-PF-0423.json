@@ -1,0 +1,118 @@
+{
+  "id": "BI-PF-0423",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "workergrid-thin-client",
+  "label": "PF Backlog 457",
+  "title": "WorkerGrid: thin client (/wg work) - drop lease/worktree/status; coordinator as fallback",
+  "body": "Child of the parallel-run-engine epic. WorkerGrid becomes a THIN runtime host: one verb, no server, no\nlease, no store.\n\nScope: (1) /wg work (loop) + --once; drop the separate agent verb (keep as alias); (2) the Go agent calls PF's\nassignment API: claim -> write .wg/assignment.json (assignment package) into the worktree -> run the runtime\ncommand (cwd = worktree) -> heartbeat -> complete/fail; (3) DROP its own lease/worktree/status-write (PF owns\nthem); (4) runtime wrapper script (opencode run --agent build --auto --format json -f .wg/assignment.json \"...\")\ndocumented; (5) keep the coordinator (Stage 3a/3b/3c) as the FALLBACK for producers without the assignment API;\n(6) implicit registration (worker id + token), no /wg serve needed for PF.\n\nDescriptors: module:workergrid/wg.py; module:workergrid/internal/agent/agent.go; module:workergrid/_cfg.py;\ntest:test-framework/tests/pipeline/test_workergrid_pf_client.py; command:workergrid/wg.py.",
+  "source": "pre-implementation review",
+  "status": "new",
+  "priority": null,
+  "moscow": "Should",
+  "value": 4,
+  "effort": 4,
+  "risk": 3,
+  "deps": [
+    "BI-PF-0419"
+  ],
+  "links": {
+    "related": [
+      "BI-PF-0418",
+      "BI-PF-0419"
+    ]
+  },
+  "decisions": [],
+  "follow_up": {},
+  "revision": 1,
+  "priority_rank": null,
+  "priority_class": "",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "IN_PROGRESS",
+    "analyzed_at": "",
+    "analyzed_by": "deterministic",
+    "revision_analyzed": 0,
+    "architecture_fit": "REUSE",
+    "implementation_strategy": "Extend existing components/APIs: core/release.py, core/release_manager.py, core/run_status.py, core/status.py",
+    "existing_components": [
+      "core/release.py",
+      "core/release_manager.py",
+      "core/run_status.py",
+      "core/status.py",
+      "core/test_framework_bridge.py",
+      "core/test_framework_integration.py",
+      "core/worker.py",
+      "core/workflow_docs.py"
+    ],
+    "existing_apis": [
+      "/api/v1/backlog/items/{item_id}/status",
+      "/api/v1/engineering/schedule/status",
+      "/api/v1/engineering/tasks/{task_id}/status",
+      "/api/v1/engineering/worker-providers",
+      "/api/v1/issues/{iid}/status",
+      "/api/v1/release/evidence",
+      "/api/v1/release/gate",
+      "/api/v1/release/readiness"
+    ],
+    "existing_modules": [
+      "config/engineering-workers.json"
+    ],
+    "dependency_findings": [
+      "depends on BI-PF-0419"
+    ],
+    "conflict_findings": [],
+    "duplication_findings": [
+      "product_forge:BI-PF-0423 (score 1.00)"
+    ],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [
+      "possible duplicate"
+    ],
+    "evidence": [
+      "similar=5",
+      "score=0.5",
+      "components=8",
+      "apis=8"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": false,
+    "reasons": [],
+    "computed_at": ""
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": ""
+  },
+  "created_at": "2026-10-07T21:22:22.540758",
+  "updated_at": "2026-10-07T21:22:22.971275",
+  "score": 0.5,
+  "_note": "analysis updated",
+  "dashboard_impact": {
+    "needs_dashboard": false,
+    "reason": "Operator surface is /wg status + the PF API (assignments view); the dashboard is a separate surface and stays out of this slice",
+    "dashboard_item": null,
+    "reviewed_by": "agent"
+  }
+}

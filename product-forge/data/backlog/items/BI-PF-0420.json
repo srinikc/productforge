@@ -1,0 +1,122 @@
+{
+  "id": "BI-PF-0420",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "pf-parallel-validation",
+  "label": "PF Backlog 454",
+  "title": "PF: run-scoped parallel validation + per-item concurrency cap",
+  "body": "Child of the parallel-run-engine epic. Make validation runnable in parallel per item.\n\nScope: (1) every run gets its own worktree (validation_engine already creates validation/<run_id>) AND run-scoped\nresults - test output under test-framework/results/<run_id>/ (today shared); (2) PF's own checks must run in the\nrun's worktree, never the ROOT checkout (test_framework_integration/run_quality_gate take project_dir);\n(3) per-item concurrency cap (max_parallel_assignments) so N validations run at once; (4) keep the brief store\nlock only for the result write.\n\nOut of scope: merge/push (C3).\n\nDescriptors: module:core/validation_engine.py; module:core/test_framework_integration.py;\nmodule:core/run_quality_gate.py; config:config/capacity.json;\ntest:test-framework/tests/pipeline/test_parallel_validation.py.",
+  "source": "pre-implementation review",
+  "status": "new",
+  "priority": null,
+  "moscow": "Should",
+  "value": 4,
+  "effort": 4,
+  "risk": 3,
+  "deps": [
+    "BI-PF-0419"
+  ],
+  "links": {
+    "related": [
+      "BI-PF-0418",
+      "BI-PF-0419"
+    ]
+  },
+  "decisions": [],
+  "follow_up": {},
+  "revision": 1,
+  "priority_rank": null,
+  "priority_class": "",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "IN_PROGRESS",
+    "analyzed_at": "",
+    "analyzed_by": "deterministic",
+    "revision_analyzed": 0,
+    "architecture_fit": "REUSE",
+    "implementation_strategy": "Extend existing components/APIs: core/agent_capabilities.py, core/capability_bridge.py, core/capability_packs.py, core/capacity.py",
+    "existing_components": [
+      "core/agent_capabilities.py",
+      "core/capability_bridge.py",
+      "core/capability_packs.py",
+      "core/capacity.py",
+      "core/persona.py",
+      "core/pipeline_capabilities.py",
+      "core/validation_engine.py"
+    ],
+    "existing_apis": [
+      "/api/v1/agents/{agent_id}/capabilities",
+      "/api/v1/validation",
+      "/api/v1/validation/dogfood",
+      "/api/v1/validation/feature-pr",
+      "/api/v1/validation/integration",
+      "/api/v1/validation/merge-gate",
+      "/api/v1/validation/merge-gate/queue",
+      "/api/v1/validation/policy"
+    ],
+    "existing_modules": [
+      "config/agent-capabilities.json",
+      "config/agent-capability-vector.json",
+      "config/capability-packs.json",
+      "config/capacity.json",
+      "config/persona.json",
+      "config/validation-profiles.json"
+    ],
+    "dependency_findings": [
+      "depends on BI-PF-0419"
+    ],
+    "conflict_findings": [],
+    "duplication_findings": [
+      "product_forge:BI-PF-0420 (score 1.00)"
+    ],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [
+      "possible duplicate"
+    ],
+    "evidence": [
+      "similar=5",
+      "score=0.5",
+      "components=7",
+      "apis=8"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": false,
+    "reasons": [],
+    "computed_at": ""
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": ""
+  },
+  "created_at": "2026-10-07T21:22:20.792298",
+  "updated_at": "2026-10-07T21:22:21.227564",
+  "score": 0.5,
+  "_note": "analysis updated",
+  "dashboard_impact": {
+    "needs_dashboard": false,
+    "reason": "Operator surface is /wg status + the PF API (assignments view); the dashboard is a separate surface and stays out of this slice",
+    "dashboard_item": null,
+    "reviewed_by": "agent"
+  }
+}

@@ -1,0 +1,109 @@
+{
+  "id": "BI-PF-0422",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "pf-assignments-view-dedup",
+  "label": "PF Backlog 456",
+  "title": "PF: assignments view + assignment-time dedup guard",
+  "body": "Child of the parallel-run-engine epic. Visibility + the duplicate-work guard for parallel assignment.\n\nScope: (1) GET /api/v1/engineering/assignments - active assignments (item, worker, phase, lease_expires_at),\na thin read-model over backlog.execution{} + job_manager; (2) /wg status proxies it (N workers, each on which\nitem); (3) assignment-time DEDUP guard: at claim/eligibility, skip/flag an item that near-duplicates an\nalready-active (or higher-priority open) item - reuse backlog.duplicate_pairs/find_similar (no new logic).\n\nWhy: same-item double-assignment and path-overlap are already prevented (scheduler.eligible + ENG-8\nreservations); near-duplicate ITEMS are not, and parallel assignment raises that risk.\n\nDescriptors: module:core/scheduler.py; module:core/backlog.py; module:api/routers/engineering.py;\ntest:test-framework/tests/pipeline/test_assignment_dedup.py; route:GET /api/v1/engineering/assignments.",
+  "source": "pre-implementation review",
+  "status": "new",
+  "priority": null,
+  "moscow": "Should",
+  "value": 3,
+  "effort": 2,
+  "risk": 2,
+  "deps": [
+    "BI-PF-0419"
+  ],
+  "links": {
+    "related": [
+      "BI-PF-0418",
+      "BI-PF-0419"
+    ]
+  },
+  "decisions": [],
+  "follow_up": {},
+  "revision": 1,
+  "priority_rank": null,
+  "priority_class": "",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "IN_PROGRESS",
+    "analyzed_at": "",
+    "analyzed_by": "deterministic",
+    "revision_analyzed": 0,
+    "architecture_fit": "REUSE",
+    "implementation_strategy": "Extend existing components/APIs: core/cross_review.py, core/guardrails.py, core/multi_model_review.py, core/rerun_review.py",
+    "existing_components": [
+      "core/cross_review.py",
+      "core/guardrails.py",
+      "core/multi_model_review.py",
+      "core/rerun_review.py",
+      "core/review_ledger.py",
+      "core/run_guard.py",
+      "core/spec_review.py",
+      "core/views.py"
+    ],
+    "existing_apis": [],
+    "existing_modules": [
+      "config/guardrail-policy.json"
+    ],
+    "dependency_findings": [
+      "depends on BI-PF-0419"
+    ],
+    "conflict_findings": [],
+    "duplication_findings": [
+      "product_forge:BI-PF-0422 (score 1.00)"
+    ],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [
+      "possible duplicate"
+    ],
+    "evidence": [
+      "similar=5",
+      "score=1.12",
+      "components=8",
+      "apis=0"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": false,
+    "reasons": [],
+    "computed_at": ""
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": ""
+  },
+  "created_at": "2026-10-07T21:22:21.943528",
+  "updated_at": "2026-10-07T21:22:22.394846",
+  "score": 1.12,
+  "_note": "analysis updated",
+  "dashboard_impact": {
+    "needs_dashboard": false,
+    "reason": "Operator surface is /wg status + the PF API (assignments view); the dashboard is a separate surface and stays out of this slice",
+    "dashboard_item": null,
+    "reviewed_by": "agent"
+  }
+}
