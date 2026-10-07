@@ -59,6 +59,7 @@ TOP = {
     "PROVIDER-FALLBACK.md": ("Implemented", "Provider fallback policy: Zen free unusable; opencode-go/kctier (BI-PF-0247)", 100),
     "PR-WORKFLOW.md": ("Implemented", "Branch -> pre-check gates -> review -> merge (BI-0205)", 100),
     "PF-TARGET-ARCHITECTURE-AND-IP-PLAN.md": ("Design", "Consolidated target-architecture + IP-protection plan for the PF platform (phases A0-A7/B1-B7; BI-PF-0386/0387/0388)", 10),
+    "Product_Forge_Code_Aligned_Target_Architecture_PreImplementation_Baseline.md": ("Design", "Source target-architecture baseline (CODE-ALIGNED AMENDMENT is authority); reconciled by A0/BI-PF-0392", 10),
     "ARCHITECTURE-DECISIONS.md": ("Implemented", "Architecture Decision Register (ADR) - governance anchor for Epic A; ADR-0001 Go-first compiled delivery", 100),
     "PF-BASELINE.md": ("Implemented", "PF baseline freeze: develop SHA, test/gate baseline, doc reconciliation, frozen decisions (A0/BI-PF-0392)", 100),
     "WORKER-SCHEDULER-OPERATIONS.md": ("Implemented", "Worker/scheduler ops: register, manual pull (/pf work), auto-dispatch, eligibility, lease/recovery", 100),

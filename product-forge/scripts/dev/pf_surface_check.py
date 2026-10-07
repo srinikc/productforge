@@ -18,11 +18,10 @@ if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
 FAILS = []
-_REQUIRED_VERBS = {"product", "backlog", "work", "scheduler", "worker", "adapters",
-                   "dispatch", "dogfood", "validate", "release", "package", "audit", "status"}
-_REQUIRED_ROUTES = ("/api/v1/engineering/schedule/status", "/api/v1/engineering/schedule/eligible",
-                    "/api/v1/engineering/work", "/api/v1/engineering/workers/register",
-                    "/api/v1/engineering/adapters", "/api/v1/engineering/dispatch/tick")
+# worker/scheduler/work/adapters/dispatch verbs were MOVED to WorkerGrid (/wg) - see ADR-0002.
+_REQUIRED_VERBS = {"product", "backlog", "dogfood", "validate", "release", "package",
+                   "audit", "status", "pidl"}
+_MOVED_VERBS = {"work", "scheduler", "worker", "adapters", "dispatch"}
 
 
 def _check(cond, msg):
@@ -39,6 +38,18 @@ def main() -> int:
             pf_txt = f.read()
     for v in _REQUIRED_VERBS:
         _check(f'"{v}"' in pf_txt, f"pf.py declares verb {v}")
+    # decoupled: the moved verbs must NOT be in the /pf VERBS tuple
+    import ast
+    try:
+        _verbs = None
+        for node in ast.walk(ast.parse(pf_txt)):
+            if isinstance(node, ast.Assign) and any(
+                    getattr(t, "id", "") == "VERBS" for t in node.targets):
+                _verbs = set(ast.literal_eval(node.value))
+        for v in _MOVED_VERBS:
+            _check(_verbs is not None and v not in _verbs, f"moved verb '{v}' absent from /pf VERBS")
+    except Exception as e:
+        FAILS.append(f"pf.py VERBS parse error: {type(e).__name__}")
 
     cmd = os.path.join(_ROOT, ".opencode", "command", "pf.md")
     _check(os.path.exists(cmd), ".opencode/command/pf.md exists")
@@ -83,20 +94,12 @@ def main() -> int:
         print("pf-surface: note - no installed global /pf (optional; copy "
               ".opencode/command_global/pf.md to ~/.config/opencode/command/pf.md)")
 
-    try:
-        from api.app import app
-        paths = set(app.openapi().get("paths", {}).keys())
-        for r in _REQUIRED_ROUTES:
-            _check(r in paths, f"API route present: {r}")
-    except Exception as e:
-        FAILS.append(f"openapi error: {type(e).__name__}")
-
     if FAILS:
         print("pf-surface: FAIL")
         for f in FAILS:
             print("   -", f)
         return 1
-    print("pf-surface: OK (/pf verbs + thin adapter + /pipeline alias + worker/scheduler API)")
+    print("pf-surface: OK (/pf verbs + thin adapter + /pipeline alias; worker/scheduler moved to /wg)")
     return 0
 
 

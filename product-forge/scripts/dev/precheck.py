@@ -121,6 +121,7 @@ _GATES = [
     ("grooming", ["scripts/dev/grooming_check.py"], "fast", ["grooming"]),
     ("github", ["scripts/dev/github_check.py"], "fast", ["github"]),
     ("pf-surface", ["scripts/dev/pf_surface_check.py"], "fast", None),
+    ("wg-surface", ["scripts/dev/wg_surface_check.py"], "fast", None),
     ("pidl", ["scripts/dev/pidl_check.py"], "fast", ["pidl"]),
     ("pidl-gate", ["scripts/dev/pidl_gate_check.py"], "fast", ["pidl", "close_loop"]),
     ("pidl-synthesis", ["scripts/dev/pidl_synthesis_check.py"], "fast", ["pidl", "work_pull", "close_loop"]),

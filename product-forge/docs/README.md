@@ -135,7 +135,7 @@
 | [`product_forge_AI_Model_Strategy_Orchestration.md`](Product_Factory_AI_Model_Strategy_Orchestration.md) | Analysis (reference) | 100% | Multi-model strategy: routing, cost-per-accepted, intelligence loop | — | — |
 | [`product_forge_Multi_Model_Adapters_Aggregators.md`](Product_Factory_Multi_Model_Adapters_Aggregators.md) | Analysis (reference) | 100% | Multi-model architecture: adapters/registry/router/generator/aggregator separation | — | — |
 | [`Product_Forge_Audit_Organized_Executive_Master_With_Execution_Guardrails_20260929.md`](Product_Forge_Audit_Organized_Executive_Master_With_Execution_Guardrails_20260929.md) | Analysis (reference) | 100% | Organized audit master (source register) | — | — |
-| [`Product_Forge_Code_Aligned_Target_Architecture_PreImplementation_Baseline.md`](Product_Forge_Code_Aligned_Target_Architecture_PreImplementation_Baseline.md) | Reference (verify) | 50% | unclassified - confirm before relying on it | — | — |
+| [`Product_Forge_Code_Aligned_Target_Architecture_PreImplementation_Baseline.md`](Product_Forge_Code_Aligned_Target_Architecture_PreImplementation_Baseline.md) | Design | 10% | Source target-architecture baseline (CODE-ALIGNED AMENDMENT is authority); reconciled by A0/BI-PF-0392 | — | — |
 | [`RCCA-CLOSURE-INTEGRITY-DESIGN.md`](RCCA-CLOSURE-INTEGRITY-DESIGN.md) | Design | 100% | RCCA closure integrity: guideline truth + G8 + learning loop (BI-PF-0270) | — | — |
 | [`RCCA_productForge.md`](RCCA_productForge.md) | Analysis (current) | 100% | Root-cause + corrective/preventive guidelines for the audit/issues gaps | — | — |
 | [`RE-RUN-IMPACT-ANALYSIS.md`](RE-RUN-IMPACT-ANALYSIS.md) | Implemented | 100% | Rerun / impact invalidation model | — | — |
@@ -152,6 +152,7 @@
 | [`VENDORED-TOOLS.md`](VENDORED-TOOLS.md) | Design | 100% | Neutral vendored tools location (drawio), no .opencode coupling (BI-0202) | — | — |
 | [`WORKER-SCHEDULER-OPERATIONS.md`](WORKER-SCHEDULER-OPERATIONS.md) | Implemented | 100% | Worker/scheduler ops: register, manual pull (/pf work), auto-dispatch, eligibility, lease/recovery | — | — |
 | [`WORKER-TIMING-TOKENS.md`](WORKER-TIMING-TOKENS.md) | Design | 100% | Worker timing (active vs human-wait) + token/cost accounting on existing owners (no new store) | — | — |
+| [`WORKERGRID-DESIGN.md`](WORKERGRID-DESIGN.md) | Design | 10% | WorkerGrid: external producer-agnostic execution plane (ADR-0002); PF=producer/SSOT, executor split, shared service | — | — |
 | [`_knowledge_workflow.md`](_knowledge_workflow.md) | Adopted (reference) | 75% | Knowledge workflow note | Adopted: knowledge compiler/router. | — |
 | [`agent-audit.md`](agent-audit.md) | Runtime | 100% | Agent audit (runtime output) | — | — |
 | [`agent-context.md`](agent-context.md) | Runtime | 100% | Agent context (runtime output) | — | — |
