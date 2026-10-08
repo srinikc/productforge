@@ -1,0 +1,120 @@
+{
+  "id": "BI-PF-0435",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "grooming-ai-consolidation",
+  "label": "PF Backlog 469",
+  "title": "AI consolidation of near-duplicate items at grooming (human-approved): fold unique parts + close the other as duplicate",
+  "body": "Source: user request (2026-10-07), after BI-PF-0432 (advisory marking).\n\nGoal: when grooming finds a near-duplicate pair WITH unique parts, an AI-drafted CONSOLIDATION merges both into\none item, HUMAN-APPROVED, and closes the other as a duplicate (preserved). Today 0432 only marks\n(`possible_duplicate_of`); this adds the merge.\n\nFlow (reuses the existing grooming AI path):\n1. PROPOSE (grooming, AI mode): for the groomed item X and a same-project near-duplicate candidate C, the AI\n   drafts a CONSOLIDATED spec (title/body/acceptance_criteria/moscow) folding in C's unique points (citing both\n   ids). Stored as a proposal - e.g. X.analysis.consolidation_proposal + X.links.possible_duplicate_of=[C].\n   NOTHING is mutated yet.\n2. APPROVE (human; grooming.decide or a review action): apply the consolidated spec to the canonical item\n   (append the unique content - never drop), then\n     - close the OTHER item: status = `duplicate` (terminal) with links.duplicate_of = [canonical ref] + a note;\n       the closed item is KEPT (closed.json + history) as the audit trail - never deleted;\n     - record the merge in decisions[] (source ids + reason).\n   REJECT -> leave both as-is.\n3. AI off / offline (PF_GROOMING_AI / PF_OFFLINE / CI) -> fall back to 0432 advisory marking only (no merge).\n\nGuards: same (scope, project) only; human approval before ANY consolidation; source preserved; append unique bits;\ndeterministic fallback. No auto-merge without approval.\n\nOut of scope: cross-project consolidation; auto-apply without approval; deleting the source item.\n\nRelated: BI-PF-0432 (marking), BI-0091 (ideas consolidation precedent).\ndashboard_impact: operator surface = /pf backlog groom/decide + the API; no dashboard item.\n\n## Requirement added: full traceability (user, 2026-10-07)\nThe consolidation must leave enough context that the duplicate/unique items are traceable:\n- Canonical item records `links.consolidated_from = [<merged refs>]`; its `body` gains the APPENDED unique\n  content (nothing dropped); an append-only `decisions[]` entry {at, by, decision: CONSOLIDATE, sources:[ids],\n  folded:[unique points], reason}.\n- Each closed item: status `duplicate`, `links.duplicate_of = [canonical]`, note \"consolidated into <canonical>\n  by <actor>\"; kept in closed.json + history (never deleted).\n=> traceable BOTH directions (canonical -> its sources + folded bits; each duplicate -> its canonical), with\n   actor/time/reason in the ledger.\n",
+  "source": "user request",
+  "status": "new",
+  "priority": null,
+  "moscow": "Should",
+  "value": 4,
+  "effort": 3,
+  "risk": 3,
+  "deps": [
+    "BI-PF-0432"
+  ],
+  "links": {
+    "backend_capability": [
+      "module:core/grooming.py",
+      "module:core/backlog.py",
+      "route:POST /api/v1/backlog/items/{item_id}/groom/decide",
+      "test:test-framework/tests/pipeline/test_grooming_consolidation.py"
+    ],
+    "related": [
+      "product_forge:BI-PF-0432",
+      "product_forge:BI-0091"
+    ]
+  },
+  "decisions": [
+    {
+      "at": "2026-10-07",
+      "by": "user",
+      "decision": "Consolidation must record provenance: canonical links.consolidated_from + appended unique content + decisions[] entry; closed item links.duplicate_of + note; both directions traceable"
+    }
+  ],
+  "follow_up": {},
+  "revision": 2,
+  "priority_rank": null,
+  "priority_class": "",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "IN_PROGRESS",
+    "analyzed_at": "",
+    "analyzed_by": "deterministic",
+    "revision_analyzed": 0,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/close_loop.py, core/grooming.py, /api/v1/backlog/grooming/guidelines, /api/v1/backlog/items",
+    "existing_components": [
+      "core/close_loop.py",
+      "core/grooming.py"
+    ],
+    "existing_apis": [
+      "/api/v1/backlog/grooming/guidelines",
+      "/api/v1/backlog/items",
+      "/api/v1/backlog/items/{item_id}",
+      "/api/v1/backlog/items/{item_id}/analysis",
+      "/api/v1/backlog/items/{item_id}/dependencies",
+      "/api/v1/backlog/items/{item_id}/groom",
+      "/api/v1/backlog/items/{item_id}/groom/decide",
+      "/api/v1/backlog/items/{item_id}/priority"
+    ],
+    "existing_modules": [
+      "config/grooming-guidelines.json"
+    ],
+    "dependency_findings": [
+      "depends on BI-PF-0432"
+    ],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=0.67",
+      "components=2",
+      "apis=8"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": false,
+    "reasons": [],
+    "computed_at": ""
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": ""
+  },
+  "created_at": "2026-10-08T13:48:24.123527",
+  "updated_at": "2026-10-08T13:49:05.376689",
+  "score": 0.67,
+  "_note": "analysis updated",
+  "dashboard_impact": {
+    "needs_dashboard": false,
+    "reason": "Operator surface = /pf backlog groom/decide + API; no UI surface",
+    "dashboard_item": null,
+    "reviewed_by": "agent"
+  }
+}
