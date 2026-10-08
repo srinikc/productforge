@@ -141,17 +141,46 @@ self-hosted engine**, not the index. (Verify each project's current license.)
 Net: **PF code stays MIT**; third-party engines/binaries are **installed or self-hosted by the user, reached over
 CLI or HTTP — never bundled.**
 
-## 7. `web_search` — recommendation (now vs next)
+## 7. `web_search` — SHIPPED (BI-PF-0438) + configurable via API (BI-PF-0439)
 
-- **Now:** use the existing **`http_get`** for **known URLs/docs** — no new dependency, no license question.
-  Research roles already get `http_get` via `tool_policy`. This covers "pull latest from a known source".
-- **Next (backlog, design + approval first):** add **one neutral `web_search` `ToolSpec`** with a **pluggable
-  backend**:
-  - **default: disabled / offline-safe** (`none`);
-  - **self-host first (no key, redistributable):** adapter to a **Whoogle (MIT)** or **SearXNG (AGPL, operator-run)**
-    instance via a configured `base_url` — PF ships only the HTTP adapter (MIT);
-  - **optional cloud (BYO-key):** Brave / Tavily / SerpAPI adapters (PF ships the adapter; the user supplies the key);
-  - add to `tool_policy.WEB_TOOLS`; cache via `tool_cache`; **auto-exposed** through both PF's loop and **MCP**.
-- **Generated products:** if a produced product needs runtime search, PF scaffolds a **product-owned** adapter
-  (its own key/instance) — not PF's tool registry.
+Status: **implemented** as one neutral `web_search` `ToolSpec` with a pluggable backend registry
+(`core/tool_registry.py`); granted to research/domain roles via `tool_policy.WEB_TOOLS`; cached via `tool_cache`;
+auto-exposed through PF's loop **and MCP**. Backends: `none` (default, offline-safe), `whoogle` / `searxng`
+(self-host), `duckduckgo_html`, and BYO-key `brave` / `tavily`.
+
+Configuration precedence is **ENV > store**, settable by API (**BI-PF-0439**):
+- `GET  /api/v1/tools/web-search` -> `{backend, url, has_key, source}` (the key is **never** returned)
+- `PUT  /api/v1/tools/web-search` (operator role) -> `{backend, url?, api_key?}`
+- env override: `PF_WEB_SEARCH_BACKEND` / `PF_WEB_SEARCH_URL` / `PF_WEB_SEARCH_KEY`.
+
+Generated products: if a produced product needs runtime search, PF scaffolds a **product-owned** adapter
+(its own key/instance) — not PF's tool registry.
+
+## 8. Self-hosting the web-search engine (deployment prerequisite)
+
+For a **zero-key, redistributable** default the operator runs a **Whoogle** (MIT) instance and points PF at it.
+PF ships **no engine** — only the MIT HTTP adapter — so PF stays MIT and the AGPL/GPL engine is never bundled
+(see §6). **If a self-host backend is selected and the engine is unreachable, `web_search` fails closed** with an
+actionable error (no silent empty results).
+
+Run Whoogle (example; any SearXNG/Whoogle instance works):
+
+```yaml
+services:
+  whoogle:
+    image: benbusby/whoogle-search:latest
+    ports: ["8888:5000"]
+    restart: unless-stopped
+```
+
+```bash
+docker compose up -d
+# point PF at it (API-first; env PF_WEB_SEARCH_BACKEND/URL also works):
+curl -X PUT "$PF/api/v1/tools/web-search" -H "Authorization: Bearer $TOKEN" \
+     -d '{"backend":"whoogle","url":"http://whoogle:5000"}'
+```
+
+Deploy/edition integration (ship the compose/manifest + this prerequisite in the install path) lands with the
+build->package->deploy work (**BI-PF-0398**); catalog/license registration of the engine (`bundle_allowed=false`)
+lands with the vendor catalog (**BI-0211**). Licenses: Whoogle **MIT**; SearXNG **AGPL-3.0** (operator-run).
 

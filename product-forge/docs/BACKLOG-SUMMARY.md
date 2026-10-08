@@ -1,14 +1,14 @@
 # Backlog Summary
 
-> GENERATED 2026-10-08T15:00:49 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-08T15:13:48 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 40  |  **Closed:** 383
-- `new`: 40
+- **Open:** 39  |  **Closed:** 384
+- `new`: 39
 
-### new, by category (40)
+### new, by category (39)
 **API / reports / HIL / misc** (1)
 | ID | MoSCoW | Type | Title |
 |---|---|---|---|
@@ -25,11 +25,6 @@
 | ID | MoSCoW | Type | Title |
 |---|---|---|---|
 | BI-0218 | Should | feature | Backend: AI-era operations layer (evals + prompt/model/agent versioning + feedback loop + model-quality observability) |
-
-**Dynamic pipeline / agents** (1)
-| ID | MoSCoW | Type | Title |
-|---|---|---|---|
-| BI-PF-0439 | Should | feature | API-first: web_search settings API (GET/PUT /api/v1/tools/web-search) + settings/secret store |
 
 **Knowledge / KB** (1)
 | ID | MoSCoW | Type | Title |
@@ -279,5 +274,5 @@
 ---
 
 ## Totals
-- backend: 40 open / 383 closed
+- backend: 39 open / 384 closed
 - dashboard: 146 open / 3 closed
