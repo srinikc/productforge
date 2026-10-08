@@ -10,7 +10,7 @@
   "title": "AI consolidation of near-duplicate items at grooming (human-approved): fold unique parts + close the other as duplicate",
   "body": "Source: user request (2026-10-07), after BI-PF-0432 (advisory marking).\n\nGoal: when grooming finds a near-duplicate pair WITH unique parts, an AI-drafted CONSOLIDATION merges both into\none item, HUMAN-APPROVED, and closes the other as a duplicate (preserved). Today 0432 only marks\n(`possible_duplicate_of`); this adds the merge.\n\nFlow (reuses the existing grooming AI path):\n1. PROPOSE (grooming, AI mode): for the groomed item X and a same-project near-duplicate candidate C, the AI\n   drafts a CONSOLIDATED spec (title/body/acceptance_criteria/moscow) folding in C's unique points (citing both\n   ids). Stored as a proposal - e.g. X.analysis.consolidation_proposal + X.links.possible_duplicate_of=[C].\n   NOTHING is mutated yet.\n2. APPROVE (human; grooming.decide or a review action): apply the consolidated spec to the canonical item\n   (append the unique content - never drop), then\n     - close the OTHER item: status = `duplicate` (terminal) with links.duplicate_of = [canonical ref] + a note;\n       the closed item is KEPT (closed.json + history) as the audit trail - never deleted;\n     - record the merge in decisions[] (source ids + reason).\n   REJECT -> leave both as-is.\n3. AI off / offline (PF_GROOMING_AI / PF_OFFLINE / CI) -> fall back to 0432 advisory marking only (no merge).\n\nGuards: same (scope, project) only; human approval before ANY consolidation; source preserved; append unique bits;\ndeterministic fallback. No auto-merge without approval.\n\nOut of scope: cross-project consolidation; auto-apply without approval; deleting the source item.\n\nRelated: BI-PF-0432 (marking), BI-0091 (ideas consolidation precedent).\ndashboard_impact: operator surface = /pf backlog groom/decide + the API; no dashboard item.\n\n## Requirement added: full traceability (user, 2026-10-07)\nThe consolidation must leave enough context that the duplicate/unique items are traceable:\n- Canonical item records `links.consolidated_from = [<merged refs>]`; its `body` gains the APPENDED unique\n  content (nothing dropped); an append-only `decisions[]` entry {at, by, decision: CONSOLIDATE, sources:[ids],\n  folded:[unique points], reason}.\n- Each closed item: status `duplicate`, `links.duplicate_of = [canonical]`, note \"consolidated into <canonical>\n  by <actor>\"; kept in closed.json + history (never deleted).\n=> traceable BOTH directions (canonical -> its sources + folded bits; each duplicate -> its canonical), with\n   actor/time/reason in the ledger.\n",
   "source": "user request",
-  "status": "new",
+  "status": "completed",
   "priority": null,
   "moscow": "Should",
   "value": 4,
@@ -29,7 +29,18 @@
     "related": [
       "product_forge:BI-PF-0432",
       "product_forge:BI-0091"
-    ]
+    ],
+    "delivery": {
+      "branch": "feature/grooming-consolidation",
+      "merge_sha": "191eefa57d29d316ee48965f18fc5f224a692581",
+      "commits": [
+        "1d7abd1"
+      ],
+      "pr": "",
+      "pr_url": "",
+      "at": "2026-10-08T13:57:19.899253",
+      "note": "merged --no-ff; fast precheck PASS; 2 tests. Human-approved consolidation: groom stores analysis.consolidation_proposal (AI-refinable; deterministic draft) when same-project near-dups exist; decide(CONSOLIDATE) folds unique content into the canonical (body/acceptance/moscow), records links.consolidated_from + a decisions[] entry, closes each duplicate (status duplicate + links.duplicate_of + note; preserved). Same-project only; AI off -> 0432 marking only."
+    }
   },
   "decisions": [
     {
@@ -39,7 +50,7 @@
     }
   ],
   "follow_up": {},
-  "revision": 2,
+  "revision": 3,
   "priority_rank": null,
   "priority_class": "",
   "analyze_mode": "on_entry",
@@ -108,9 +119,9 @@
     "completed_at": ""
   },
   "created_at": "2026-10-08T13:48:24.123527",
-  "updated_at": "2026-10-08T13:49:05.376689",
+  "updated_at": "2026-10-08T13:57:20.127068",
   "score": 0.67,
-  "_note": "analysis updated",
+  "_note": "human-approved consolidation delivered",
   "dashboard_impact": {
     "needs_dashboard": false,
     "reason": "Operator surface = /pf backlog groom/decide + API; no UI surface",
