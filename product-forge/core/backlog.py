@@ -502,6 +502,7 @@ def add_epic(scope: str, project: str | None, title: str, body: str = "",
     `tag` overrides the destination tag encoded in the id (see ``tag_for``).
     """
     scope = _norm_scope(scope)
+    _validate_fields({"links": links, "deps": deps})
     d, of, cf, _h, ctr = _paths(scope, project)
     lp = _lock(d)
     try:
@@ -1106,7 +1107,27 @@ def delete(scope: str, project: str | None, eid: str) -> dict | None:
         _unlock(lp)
 
 
+_STRUCT_FIELD_TYPES = {
+    "analysis": (dict,),
+    "dashboard_impact": (dict,),
+    "links": (dict,),
+    "delivery": (dict,),
+    "decisions": (list,),
+    "deps": (list,),
+}
+
+
+def _validate_fields(fields: dict) -> None:
+    """Fail-closed (BI-PF-0441): reject a wrong-typed structured field BEFORE any write, so a bad call can
+    never corrupt the item or crash a later index write. ``None`` is allowed for each (means 'clear')."""
+    for k, types in _STRUCT_FIELD_TYPES.items():
+        if k in fields and fields[k] is not None and not isinstance(fields[k], types):
+            want = "|".join(t.__name__ for t in types)
+            raise ValueError(f"backlog field {k!r} must be {want} or None, got {type(fields[k]).__name__}")
+
+
 def update(scope: str, project: str | None, eid: str, **fields) -> dict | None:
+    _validate_fields(fields)
     d, of, cf, _h, _c = _paths(scope, project)
     lp = _lock(d)
     try:
