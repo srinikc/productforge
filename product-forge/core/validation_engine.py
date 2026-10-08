@@ -193,12 +193,81 @@ def _check_close_loop(project_dir: str, run_id: str) -> dict[str, Any]:
             "detail": {"verified": res.get("verified"), "reasons": res.get("reasons", [])}}
 
 
+def _check_cross_contract(project: str, project_dir: str) -> dict[str, Any]:
+    """BI-PF-0425: cross-component interface/contract consistency (reuses core.task_contract). Skip if none."""
+    from core import task_contract
+    try:
+        tasks = task_contract.list_tasks("project", project)
+    except Exception:
+        tasks = []
+    if not tasks:
+        return {"status": "skip", "detail": "no task contracts to cross-check"}
+    bad = []
+    for t in tasks:
+        v = task_contract.validate(t) if isinstance(t, dict) else {"ok": False, "errors": ["not an object"]}
+        if not v.get("ok"):
+            bad.append({"id": t.get("id"), "errors": v.get("errors", [])})
+    return {"status": "fail" if bad else "pass",
+            "detail": {"tasks": len(tasks), "invalid": bad[:5]}}
+
+
+def _check_e2e(project: str, project_dir: str) -> dict[str, Any]:
+    """BI-PF-0425: end-to-end evidence - the latest recorded DOGFOOD run (reuses this engine's list_runs)."""
+    runs = [r for r in list_runs("project", project, profile="DOGFOOD") if r.get("result")]
+    if not runs:
+        return {"status": "unknown", "detail": "no e2e/DOGFOOD run recorded"}
+    latest = runs[-1]
+    st = str(latest.get("result"))
+    return {"status": "pass" if st == "PASS" else "fail",
+            "detail": {"run_id": latest.get("run_id"), "result": st}}
+
+
+def _check_security(project: str, project_dir: str) -> dict[str, Any]:
+    """BI-PF-0425: secret scan over the project tree (reuses the repo's secret patterns; no reimplementation)."""
+    import importlib.util
+    import os
+
+    from core.paths import ROOT
+    mod_path = os.path.join(str(ROOT), "scripts", "dev", "secret_scan.py")
+    try:
+        spec = importlib.util.spec_from_file_location("pf_secret_scan", mod_path)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        scan_text = mod.scan_text
+    except Exception as e:  # noqa: BLE001
+        return {"status": "unknown", "detail": f"secret-scan unavailable: {type(e).__name__}"}
+    exts = (".py", ".js", ".ts", ".tsx", ".jsx", ".json", ".yaml", ".yml", ".env", ".ini", ".cfg", ".toml", ".txt")
+    skip_dirs = {"node_modules", ".git", "__pycache__", "vendor", "dist", "build", ".venv"}
+    hits, scanned = [], 0
+    for dp, dn, fn in os.walk(project_dir):
+        dn[:] = [x for x in dn if x not in skip_dirs]
+        for f in fn:
+            if scanned >= 800 or not f.lower().endswith(exts):
+                continue
+            p = os.path.join(dp, f)
+            try:
+                with open(p, encoding="utf-8", errors="ignore") as fh:
+                    txt = fh.read()
+            except Exception:
+                continue
+            scanned += 1
+            found = scan_text(txt) or []
+            for h in found:
+                hits.append({"file": os.path.relpath(p, project_dir), "hit": str(h)[:80]})
+    if hits:
+        return {"status": "fail", "detail": {"count": len(hits), "secrets": hits[:10]}}
+    return {"status": "pass", "detail": {"scanned_files": scanned}}
+
+
 _CHECKERS = {
     "quality_gate": lambda p, d, r: _check_quality_gate(d, r),
     "tests": lambda p, d, r: _check_tests(d, p),
     "policy": lambda p, d, r: _check_policy(d),
     "verification": lambda p, d, r: _check_verification(d),
     "pr_gate": lambda p, d, r: _check_pr_gate(p, d),
+    "cross_contract": lambda p, d, r: _check_cross_contract(p, d),
+    "e2e": lambda p, d, r: _check_e2e(p, d),
+    "security": lambda p, d, r: _check_security(p, d),
 }
 
 
