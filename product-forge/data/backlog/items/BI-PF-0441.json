@@ -10,7 +10,7 @@
   "title": "Defect/RCCA: core.backlog.update() must validate structured field types fail-closed (analysis str corrupts item + crashes index write)",
   "body": "Source: defect observed while delivering BI-0211 (2026-10-08).\n\nWhat happened: ``core.backlog.update(scope, project, eid, analysis=\"<a string>\")`` accepted the string, wrote\nit into the item file, then crashed in ``_write_indexes`` -> ``_index_row`` (``(it.get(\"analysis\") or {}).get``\n-> AttributeError: 'str' object has no attribute 'get'). Net: a CORRUPTED item (analysis=str) was left on disk\nand committed, and the open/closed indexes were not regenerated.\n\nWhy it matters: any caller (agent/tooling) can pass a wrong-typed field and silently corrupt backlog state\n(fail-open), then a later index write crashes (or, worse, if the field were not read, it would pass silently).\n\nFix (proper, not a shortcut): in ``core/backlog.update`` (and ``add_epic``) validate known structured fields\nbefore writing - ``analysis`` and ``dashboard_impact`` must be dict|null, ``links``/``decisions``/``deps`` must\nbe list/dict of the expected shape - and raise a clear ``ValueError`` (fail-closed) WITHOUT writing, so a bad\ncall can never mutate the store. 5-Why + a new guard (RCCA).\n\nAcceptance: passing ``analysis=\"x\"`` raises ValueError and leaves the item byte-identical; a guard test.\n\nlinks.backend_capability: module:core/backlog.py, test:test-framework/tests/pipeline/test_backlog_field_types.py",
   "source": "defect found during BI-0211 delivery",
-  "status": "new",
+  "status": "completed",
   "priority": null,
   "moscow": "Should",
   "value": 3,
@@ -24,11 +24,22 @@
     ],
     "related": [
       "product_forge:BI-PF-0362"
-    ]
+    ],
+    "delivery": {
+      "branch": "feature/backlog-field-guard",
+      "merge_sha": "d7ae82e77abeb10805f8d2f5b5a4723d17be4f7f",
+      "commits": [
+        "cce3b36175523f65f40ce01218db2a93d801a051"
+      ],
+      "pr": "",
+      "pr_url": "",
+      "at": "2026-10-08T17:32:29.981574",
+      "note": ""
+    }
   },
   "decisions": [],
   "follow_up": {},
-  "revision": 1,
+  "revision": 2,
   "priority_rank": null,
   "priority_class": "",
   "analyze_mode": "on_entry",
@@ -103,9 +114,9 @@
     "completed_at": ""
   },
   "created_at": "2026-10-08T16:06:28.965550",
-  "updated_at": "2026-10-08T16:06:29.871347",
+  "updated_at": "2026-10-08T17:32:30.129564",
   "score": 2.25,
-  "_note": "analysis updated",
+  "_note": "",
   "dashboard_impact": {
     "needs_dashboard": false,
     "reason": "internal backlog-store robustness; no dashboard surface",
