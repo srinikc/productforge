@@ -367,6 +367,17 @@ class ProductPlan:
                 }
             self.plan["requirements_index"][req_id]["features"].append(feature_id)
 
+        # ADR-0004 / BI-PF-0453: materialize the feature as an Epic + child work items (non-fatal)
+        try:
+            from core import backlog_link
+            epic = backlog_link.ensure_feature_item(self.project, feature)
+            for r in (requirements or []):
+                backlog_link.ensure_feature_child(self.project, feature_id, str(r), type_="feature")
+            if epic and not feature.backlog_id:
+                feature.backlog_id = epic.get("id", "")
+        except Exception:
+            pass
+
         return feature
 
     def get_feature(self, feature_id: str) -> Optional[Feature]:

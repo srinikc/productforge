@@ -1,20 +1,19 @@
 # Backlog Summary
 
-> GENERATED 2026-10-08T19:56:33 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-08T20:03:37 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 39  |  **Closed:** 398
-- `new`: 39
+- **Open:** 37  |  **Closed:** 400
+- `new`: 37
 
-### new, by category (39)
-**API / reports / HIL / misc** (4)
+### new, by category (37)
+**API / reports / HIL / misc** (3)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-PF-0332 | Should | chore | API-5 deferred hardening: rate limiting + request/upload limits + tenant-isolation expansion + event streaming | API-5 deferred hardening: rate limiting + request/upload limits + tenant-isolation expansion + event streaming |
 | BI-PF-0451 | Must | epic | EPIC: Feature<->Epic<->children model + generated-product backlog + full field data | EPIC: Feature<->Epic<->children model + generated-product backlog + full field data |
-| BI-PF-0452 | Must | feature | E2: Feature<->Epic<->children bridge (feature->epic; children carry epic#+feature_id; status mirror) + ADR-0004 | E2: Feature<->Epic<->children bridge (feature->epic; children carry epic#+feature_id; status mirror) + ADR-000... |
 | BI-PF-0453 | Must | feature | P1: Generation pipeline builds Feature->Epic->children + full fields for generated products | P1: Generation pipeline builds Feature->Epic->children + full fields for generated products |
 
 **Bug fixes** (1)
@@ -44,7 +43,7 @@
 | BI-0206 | Should | tech-debt | Backend: model downloader + local cache + license-acceptance gate + models.lock (open-weights) | One owner module that downloads only the weights a project's capability pack needs, into a gitignored local ca... |
 | BI-0225 | Should | feature | Parallel section/feature generation | Parallel section/feature generation |
 
-**Wiring / tech-debt / API** (28)
+**Wiring / tech-debt / API** (27)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0185 | Should | feature | EPIC: Multi-modal / media orchestration (pluggable capability packs) | Make the pipeline modality-agnostic via PLUGGABLE capability packs, enabled per project when the idea needs th... |
@@ -74,7 +73,6 @@
 | BI-PF-0407 | Should | feature | Bmig: migrate high-value legacy Python -> Go (by value) | the highest-value ranked legacy modules run as compiled Go |
 | BI-PF-0408 | Should | change | /pf command: build mode only (not orchestrator) + global /pf for all opencode sessions | - `/pf ...` always executes in build mode (`agent: build`), with no model pin so the session's model is inheri... |
 | BI-PF-0443 | Should | feature | Hook: a NEW dependency (manifest diff) must have a tool-catalog entry, else pre-check fails (BI-0211 completeness split) | Hook: a NEW dependency (manifest diff) must have a tool-catalog entry, else pre-check fails (BI-0211 completen... |
-| BI-PF-0454 | Must | feature | F3: Fill ALL fields (derived) for all 583; open + new items require every field; gate checks all scopes | F3: Fill ALL fields (derived) for all 583; open + new items require every field; gate checks all scopes |
 
 ---
 
@@ -274,5 +272,5 @@
 ---
 
 ## Totals
-- backend: 39 open / 398 closed
+- backend: 37 open / 400 closed
 - dashboard: 146 open / 3 closed
