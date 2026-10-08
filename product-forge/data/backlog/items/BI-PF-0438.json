@@ -8,7 +8,7 @@
   "external_id": "web-search-tool",
   "label": "PF Backlog 472",
   "title": "web_search tool (neutral; reuses PF http_get/requests; pluggable backend searxng/whoogle; default off)",
-  "body": "Source: user request (2026-10-08), from docs/TOOLS-AND-DEPENDENCIES.md section 7.\n\nGoal: add a neutral `web_search` tool to PF's framework-agnostic tool layer, so research/domain/tech-stack agents\ncan query the web (today only `http_get` for KNOWN urls exists). BUILD ON WHAT PF ALREADY HAS: the tool performs an\nHTTP GET via PF's existing `requests`/`http_get` capability to a configured search endpoint and parses results -\nNO new library/dependency.\n\nDesign:\n- ToolSpec `web_search` registered in core/tool_registry.py; handler does GET {endpoint}?q=... (reuse requests).\n- Backends (configurable; default disabled/offline-safe): `none` (default) | `whoogle` (self-host, MIT) | `searxng`\n  (self-host, supports format=json) | `duckduckgo_html` (HTML scrape; ToS caveat). Config via\n  config/tools.json or env PF_WEB_SEARCH_BACKEND / PF_WEB_SEARCH_URL.\n- tool_policy.WEB_TOOLS += (\"web_search\",) so research/domain/market roles get it.\n- tool_cache caches results; bounded (limit N, timeout). Exposed automatically via PF's loop AND MCP.\n- Licensing/redistribution (per BI-PF-0436/0437): reuse PF's own HTTP (MIT); prefer SELF-HOST whoogle(MIT)/searxng\n  (operator-run) via base_url; never bundle a vendor SDK/key; ddg-html is opt-in (ToS).\n\nOut of scope (follow-ups): BYO-key cloud adapters (brave/tavily/serpapi); semantic rerank; embeddings.\n\ndashboard_impact: no UI surface.",
+  "body": "Source: user request (2026-10-08), from docs/TOOLS-AND-DEPENDENCIES.md section 7.\n\nGoal: add a neutral `web_search` tool to PF's framework-agnostic tool layer, so research/domain/tech-stack agents\ncan query the web (today only `http_get` for KNOWN urls exists). BUILD ON WHAT PF ALREADY HAS: the tool performs an\nHTTP GET via PF's existing `requests`/`http_get` capability to a configured search endpoint and parses results -\nNO new library/dependency.\n\nDesign:\n- ToolSpec `web_search` registered in core/tool_registry.py; handler does GET {endpoint}?q=... (reuse requests).\n- Backends (configurable; default disabled/offline-safe): `none` (default) | `whoogle` (self-host, MIT) | `searxng`\n  (self-host, supports format=json) | `duckduckgo_html` (HTML scrape; ToS caveat). Config via\n  config/tools.json or env PF_WEB_SEARCH_BACKEND / PF_WEB_SEARCH_URL.\n- tool_policy.WEB_TOOLS += (\"web_search\",) so research/domain/market roles get it.\n- tool_cache caches results; bounded (limit N, timeout). Exposed automatically via PF's loop AND MCP.\n- Licensing/redistribution (per BI-PF-0436/0437): reuse PF's own HTTP (MIT); prefer SELF-HOST whoogle(MIT)/searxng\n  (operator-run) via base_url; never bundle a vendor SDK/key; ddg-html is opt-in (ToS).\n\nOut of scope (follow-ups): BYO-key cloud adapters (brave/tavily/serpapi); semantic rerank; embeddings.\n\ndashboard_impact: no UI surface.\n\n## Amendment (user, 2026-10-08)\n- **Default backend = SELF-HOST Whoogle (MIT)** (SearXNG as the alternative, operator-run). PF ships only the\n  thin client (no engine, no key). \"PF having web search\" = the neutral `web_search` tool + the same tools\n  exposed over MCP; the engine runs on the operator's infra.\n- **MCP + keys:** MCP is just a protocol (no key). An MCP *search server* only needs a key if it wraps a CLOUD\n  provider (Brave/Tavily/…, free-tier or paid); MCP servers backed by Self-host (Whoogle/SearXNG) or\n  DuckDuckGo need NO key. So PF can offer key-free web search by self-hosting; cloud (via MCP or a tool adapter)\n  is optional bring-your-own-key.\n",
   "source": "user request",
   "status": "new",
   "priority": null,
@@ -34,9 +34,15 @@
       "product_forge:BI-0176"
     ]
   },
-  "decisions": [],
+  "decisions": [
+    {
+      "at": "2026-10-08",
+      "by": "user",
+      "decision": "web_search default = self-host Whoogle (MIT); PF exposes web search via the neutral tool + MCP; keys only if a cloud search provider is used (self-host/DDG = no key)"
+    }
+  ],
   "follow_up": {},
-  "revision": 1,
+  "revision": 2,
   "priority_rank": null,
   "priority_class": "",
   "analyze_mode": "on_entry",
@@ -97,7 +103,7 @@
     "completed_at": ""
   },
   "created_at": "2026-10-08T14:27:04.161206",
-  "updated_at": "2026-10-08T14:27:05.458027",
+  "updated_at": "2026-10-08T14:42:32.792185",
   "score": 1.12,
   "_note": "analysis updated",
   "dashboard_impact": {
