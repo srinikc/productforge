@@ -28,7 +28,7 @@ def _scopes(include_all: bool):
             from core.paths import PRODUCTS_DIR
             root = os.path.join(str(PRODUCTS_DIR))
             for name in sorted(os.listdir(root)) if os.path.isdir(root) else []:
-                if name.startswith("_") or name.startswith("."):
+                if name.startswith("_") or name.startswith(".") or name == "test-project":
                     continue
                 if os.path.isdir(os.path.join(root, name, "backlog", "items")):
                     out.append(("project", name))
@@ -56,6 +56,8 @@ def _problems_for(scope, project, items, all_items):
         else:
             if not (brief.get("problem") or brief.get("what_adds")):
                 probs.append(f"{eid}: missing brief (problem/what_adds)")
+            if brief.get("source") not in ("authored", "extracted"):
+                probs.append(f"{eid}: brief not authored/extracted (source={brief.get('source')!r})")
             if not obj:
                 probs.append(f"{eid}: missing objective")
             if not (it.get("acceptance_criteria") or []):

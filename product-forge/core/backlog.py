@@ -524,6 +524,25 @@ def epic_done(scope: str, project: str | None, epic_id: str) -> bool:
     return all(_normalize_status(str(k.get("status") or "")) in _CLOSED for k in kids)
 
 
+def _draft_context(title: str, body: str) -> dict:
+    """BI-PF-0450: auto-draft WHY/WHAT context so a new item is never context-less (source=extracted|derived)."""
+    body = body or ""
+    problem = ""
+    m = re.search(r"^\s*#{1,4}\s*problem[^\n]*\n(.*?)(?=\n\s*#{1,4}\s|\Z)", body, re.I | re.S | re.M)
+    if m:
+        problem = m.group(1).strip()
+    if not problem:
+        for blk in re.split(r"\n\s*\n", body):
+            t = re.sub(r"^\s*#{1,4}\s*.*$", "", blk, flags=re.M).strip()
+            if len(t) >= 40:
+                problem = t
+                break
+    src = "extracted" if problem else "derived"
+    return {"brief": {"problem": (problem or title)[:1200], "what_adds": title, "why": "", "who_feels": "",
+                      "source": src},
+            "objective": title, "acceptance_criteria": [f"(derived) objective met: {title}"]}
+
+
 def add_epic(scope: str, project: str | None, title: str, body: str = "",
              source: str = "generic", type_: str = "feature", origin: str = "intake",
              value: int = 3, effort: int = 3, risk: int = 2, moscow: str = "Should",
@@ -558,6 +577,7 @@ def add_epic(scope: str, project: str | None, title: str, body: str = "",
             for s in _sims:
                 print(f"   - {s['ref']} (score {s['score']}) [{s['status']}]: {s['title']}")
         _tag = str(tag or "").strip().upper() or tag_for(scope, project, origin, type_)
+        _draft_ctx = _draft_context(title, body)
         item = {
             "id": _next_id(op, cl, _tag),
             "tag": _tag, "type": type_, "scope": scope, "project": project or "",
@@ -566,8 +586,8 @@ def add_epic(scope: str, project: str | None, title: str, body: str = "",
             "priority": None, "moscow": moscow, "value": value, "effort": effort, "risk": risk,
             "deps": deps or [], "links": links or {}, "decisions": [], "follow_up": {},
             # BI-PF-0445: authored context (WHY/WHAT/WHERE/HOW/REVIEW/WHO/WHEN/APPROVAL/EVIDENCE)
-            "brief": dict(brief or {}), "objective": objective or "",
-            "acceptance_criteria": list(acceptance_criteria or []),
+            "brief": dict(brief or {}) or _draft_ctx["brief"], "objective": objective or _draft_ctx["objective"],
+            "acceptance_criteria": list(acceptance_criteria or []) or _draft_ctx["acceptance_criteria"],
             "in_scope": [], "out_of_scope": [], "affected_components": [], "affected_files": [],
             "approach": "", "review": {}, "verification": [], "risks": [], "rollback": "",
             "evidence": [], "owner": "", "requester": "", "due": "", "target_release": "",

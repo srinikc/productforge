@@ -18,6 +18,11 @@ def _n(it):
     return int(re.sub(r"\D", "", str(it.get("id") or "")) or 0)
 
 
+def _one(s, n=110):
+    s = " ".join(str(s or "").split()).replace("|", "/")
+    return s[:n] + ("..." if len(s) > n else "")
+
+
 # category rules: (label, predicate on external_id/title)
 def cat(it):
     e = (it.get("external_id") or "") + " " + (it.get("title") or "")
@@ -68,10 +73,10 @@ def render(scope, project=None, title=""):
         if not arr:
             continue
         out.append(f"### {st} ({len(arr)})")
-        out.append("| ID | MoSCoW | Type | Title |")
-        out.append("|---|---|---|---|")
+        out.append("| ID | MoSCoW | Type | Title | Objective |")
+        out.append("|---|---|---|---|---|")
         for it in sorted(arr, key=_n):
-            out.append(f"| {it['id']} | {it.get('moscow')} | {it.get('type')} | {it.get('title')} |")
+            out.append(f"| {it['id']} | {it.get('moscow')} | {it.get('type')} | {it.get('title')} | {_one(it.get('objective'))} |")
         out.append("")
 
     news = by_status.get("new", [])
@@ -82,10 +87,10 @@ def render(scope, project=None, title=""):
     for g in sorted(groups):
         arr = sorted(groups[g], key=_n)
         out.append(f"**{g}** ({len(arr)})")
-        out.append("| ID | MoSCoW | Type | Title |")
-        out.append("|---|---|---|---|")
+        out.append("| ID | MoSCoW | Type | Title | Objective |")
+        out.append("|---|---|---|---|---|")
         for it in arr:
-            out.append(f"| {it['id']} | {it.get('moscow')} | {it.get('type')} | {it.get('title')} |")
+            out.append(f"| {it['id']} | {it.get('moscow')} | {it.get('type')} | {it.get('title')} | {_one(it.get('objective'))} |")
         out.append("")
     return out, len(op), len(cl)
 
