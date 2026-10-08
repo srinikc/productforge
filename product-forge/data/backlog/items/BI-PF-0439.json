@@ -10,7 +10,7 @@
   "title": "API-first: web_search settings API (GET/PUT /api/v1/tools/web-search) + settings/secret store",
   "body": "Source: user request (2026-10-08): anything we build must be API-first; web_search settings need an API\n(and later a dashboard) so a customer can set backend + their own cloud key/account at ship time.\n\nGoal (BI-PF-0438 follow-up): expose the web_search configuration through an API-first settings surface.\n\nScope:\n- core/tool_settings.py (single writer): reads/writes non-secret settings (backend, url) and the secret key,\n  with precedence ENV > store (env still wins, e.g. PF_WEB_SEARCH_BACKEND). Secret key is stored in a GITIGNORED\n  file and is NEVER returned by the API (only has_key: true/false).\n- New stores (registered in config/store-registry.json, single writer = core/tool_settings.py):\n  data/tools/settings.json (non-secret) + data/tools/secrets.json (gitignored).\n- API (new router api/routers/tools.py, prefix /tools):\n    GET  /api/v1/tools/web-search   (authenticate) -> {backend, url, has_key, source}\n    PUT  /api/v1/tools/web-search   (require_operator) {backend, url?, api_key?} -> validate + persist\n  Registered in api/app.py; OpenAPI + api docs regenerated.\n- core/tool_registry._ws_cfg reads tool_settings (env overrides), so agents get the configured backend.\n\nOut of scope (follow-ups): dashboard UI surface; more cloud adapters; secret rotation/audit.\n\nSecurity: the key is never stored in a committed config, never returned by the API; operator role required to set.\n\ndashboard_impact: needs_dashboard=false for THIS item (API-first); a dashboard settings view is a separate\nfollow-up so the dashboard stays out of this slice.",
   "source": "user request",
-  "status": "new",
+  "status": "completed",
   "priority": null,
   "moscow": "Should",
   "value": 4,
@@ -30,11 +30,22 @@
     ],
     "related": [
       "product_forge:BI-PF-0438"
-    ]
+    ],
+    "delivery": {
+      "branch": "feature/tools-settings-api",
+      "merge_sha": "5b3c5f4dba888b1b5006252e0386ec136538bba0",
+      "commits": [
+        "d96ae35a860a3a50be010ed1cafa4048adac832b"
+      ],
+      "pr": "",
+      "pr_url": "",
+      "at": "2026-10-08T15:06:57.327553",
+      "note": ""
+    }
   },
   "decisions": [],
   "follow_up": {},
-  "revision": 1,
+  "revision": 2,
   "priority_rank": null,
   "priority_class": "",
   "analyze_mode": "on_entry",
@@ -103,9 +114,9 @@
     "completed_at": ""
   },
   "created_at": "2026-10-08T14:52:01.259240",
-  "updated_at": "2026-10-08T14:52:02.411461",
+  "updated_at": "2026-10-08T15:06:57.617729",
   "score": 1.0,
-  "_note": "analysis updated",
+  "_note": "",
   "dashboard_impact": {
     "needs_dashboard": false,
     "reason": "API-first settings surface; dashboard view is a separate follow-up",
