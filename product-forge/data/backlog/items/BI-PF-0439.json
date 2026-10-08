@@ -1,0 +1,115 @@
+{
+  "id": "BI-PF-0439",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "web-search-settings-api",
+  "label": "PF Backlog 473",
+  "title": "API-first: web_search settings API (GET/PUT /api/v1/tools/web-search) + settings/secret store",
+  "body": "Source: user request (2026-10-08): anything we build must be API-first; web_search settings need an API\n(and later a dashboard) so a customer can set backend + their own cloud key/account at ship time.\n\nGoal (BI-PF-0438 follow-up): expose the web_search configuration through an API-first settings surface.\n\nScope:\n- core/tool_settings.py (single writer): reads/writes non-secret settings (backend, url) and the secret key,\n  with precedence ENV > store (env still wins, e.g. PF_WEB_SEARCH_BACKEND). Secret key is stored in a GITIGNORED\n  file and is NEVER returned by the API (only has_key: true/false).\n- New stores (registered in config/store-registry.json, single writer = core/tool_settings.py):\n  data/tools/settings.json (non-secret) + data/tools/secrets.json (gitignored).\n- API (new router api/routers/tools.py, prefix /tools):\n    GET  /api/v1/tools/web-search   (authenticate) -> {backend, url, has_key, source}\n    PUT  /api/v1/tools/web-search   (require_operator) {backend, url?, api_key?} -> validate + persist\n  Registered in api/app.py; OpenAPI + api docs regenerated.\n- core/tool_registry._ws_cfg reads tool_settings (env overrides), so agents get the configured backend.\n\nOut of scope (follow-ups): dashboard UI surface; more cloud adapters; secret rotation/audit.\n\nSecurity: the key is never stored in a committed config, never returned by the API; operator role required to set.\n\ndashboard_impact: needs_dashboard=false for THIS item (API-first); a dashboard settings view is a separate\nfollow-up so the dashboard stays out of this slice.",
+  "source": "user request",
+  "status": "new",
+  "priority": null,
+  "moscow": "Should",
+  "value": 4,
+  "effort": 3,
+  "risk": 2,
+  "deps": [
+    "BI-PF-0438"
+  ],
+  "links": {
+    "backend_capability": [
+      "module:core/tool_settings.py",
+      "module:api/routers/tools.py",
+      "module:api/app.py",
+      "module:core/tool_registry.py",
+      "config:config/store-registry.json",
+      "test:test-framework/tests/pipeline/test_tool_settings_api.py"
+    ],
+    "related": [
+      "product_forge:BI-PF-0438"
+    ]
+  },
+  "decisions": [],
+  "follow_up": {},
+  "revision": 1,
+  "priority_rank": null,
+  "priority_class": "",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "IN_PROGRESS",
+    "analyzed_at": "",
+    "analyzed_by": "deterministic",
+    "revision_analyzed": 0,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/artifact_store.py, core/asset_store.py, core/budget.py, core/budget_allocator.py",
+    "existing_components": [
+      "core/artifact_store.py",
+      "core/asset_store.py",
+      "core/budget.py",
+      "core/budget_allocator.py",
+      "core/budget_conservation.py",
+      "core/budget_planner.py",
+      "core/budget_protection.py",
+      "core/budget_tracker.py"
+    ],
+    "existing_apis": [
+      "/api/v1/enterprise/users"
+    ],
+    "existing_modules": [
+      "config/discovery-panel-settings.json",
+      "config/store-registry.json"
+    ],
+    "dependency_findings": [
+      "depends on BI-PF-0438"
+    ],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=1.0",
+      "components=8",
+      "apis=1"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": false,
+    "reasons": [],
+    "computed_at": ""
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": ""
+  },
+  "created_at": "2026-10-08T14:52:01.259240",
+  "updated_at": "2026-10-08T14:52:02.411461",
+  "score": 1.0,
+  "_note": "analysis updated",
+  "dashboard_impact": {
+    "needs_dashboard": false,
+    "reason": "API-first settings surface; dashboard view is a separate follow-up",
+    "dashboard_item": null,
+    "reviewed_by": "agent"
+  }
+}
