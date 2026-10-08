@@ -10,7 +10,7 @@
   "title": "WorkerGrid: thin client (/wg work) - drop lease/worktree/status; coordinator as fallback",
   "body": "Child of the parallel-run-engine epic. WorkerGrid becomes a THIN runtime host: one verb, no server, no\nlease, no store.\n\nScope: (1) /wg work (loop) + --once; drop the separate agent verb (keep as alias); (2) the Go agent calls PF's\nassignment API: claim -> write .wg/assignment.json (assignment package) into the worktree -> run the runtime\ncommand (cwd = worktree) -> heartbeat -> complete/fail; (3) DROP its own lease/worktree/status-write (PF owns\nthem); (4) runtime wrapper script (opencode run --agent build --auto --format json -f .wg/assignment.json \"...\")\ndocumented; (5) keep the coordinator (Stage 3a/3b/3c) as the FALLBACK for producers without the assignment API;\n(6) implicit registration (worker id + token), no /wg serve needed for PF.\n\nDescriptors: module:workergrid/wg.py; module:workergrid/internal/agent/agent.go; module:workergrid/_cfg.py;\ntest:test-framework/tests/pipeline/test_workergrid_pf_client.py; command:workergrid/wg.py.",
   "source": "pre-implementation review",
-  "status": "new",
+  "status": "completed",
   "priority": null,
   "moscow": "Should",
   "value": 4,
@@ -23,11 +23,22 @@
     "related": [
       "BI-PF-0418",
       "BI-PF-0419"
-    ]
+    ],
+    "delivery": {
+      "branch": "feature/workergrid-pf-client",
+      "merge_sha": "e95975700277fd8926f6a7f8a28d7cd4de4462d9",
+      "commits": [
+        "b9c16a0"
+      ],
+      "pr": "",
+      "pr_url": "",
+      "at": "2026-10-08T13:06:04.949879",
+      "note": "merged --no-ff; fast precheck PASS (18 gates, incl. wg-go which now runs the new pf-client e2e). Agent gains contract=auto|pf-assignments|coordinator; in PF mode it claims via PF's assignment API, writes .wg/assignment.json, runs the runtime in PF's worktree, heartbeats + completes/fails via PF (no coordinator/lease/status). /wg work = the worker (exec-shim); --claim-only keeps the old claim. /wg status proxies PF GET /engineering/assignments. Added POST /engineering/assignments/recover. Coordinator kept as fallback. e2e: test_workergrid_pf_client.py."
+    }
   },
   "decisions": [],
   "follow_up": {},
-  "revision": 1,
+  "revision": 2,
   "priority_rank": null,
   "priority_class": "",
   "analyze_mode": "on_entry",
@@ -106,9 +117,9 @@
     "completed_at": ""
   },
   "created_at": "2026-10-07T21:22:22.540758",
-  "updated_at": "2026-10-07T21:22:22.971275",
+  "updated_at": "2026-10-08T13:06:05.137505",
   "score": 0.5,
-  "_note": "analysis updated",
+  "_note": "WorkerGrid thin PF client delivered",
   "dashboard_impact": {
     "needs_dashboard": false,
     "reason": "Operator surface is /wg status + the PF API (assignments view); the dashboard is a separate surface and stays out of this slice",
