@@ -1,23 +1,22 @@
 # Backlog Summary
 
-> GENERATED 2026-10-08T17:43:09 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-08T17:47:38 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 36  |  **Closed:** 389
-- `new`: 36
+- **Open:** 35  |  **Closed:** 390
+- `new`: 35
 
-### new, by category (36)
+### new, by category (35)
 **API / reports / HIL / misc** (1)
 | ID | MoSCoW | Type | Title |
 |---|---|---|---|
 | BI-PF-0332 | Should | chore | API-5 deferred hardening: rate limiting + request/upload limits + tenant-isolation expansion + event streaming |
 
-**Bug fixes** (3)
+**Bug fixes** (2)
 | ID | MoSCoW | Type | Title |
 |---|---|---|---|
-| BI-PF-0425 | Should | bug | DEFECT: validation profiles INTEGRATION/DOGFOOD/RELEASE have unimplemented checkers -> always BLOCKED |
 | BI-PF-0426 | Could | bug | FLAKY: worker-agent e2e fails under heavy load (readiness/register deadline) - RCCA |
 | BI-PF-0434 | Must | bug | RCCA: grooming dedup marking wrote across projects/items (bounded same-project + self-only + threshold) |
 
@@ -271,5 +270,5 @@
 ---
 
 ## Totals
-- backend: 36 open / 389 closed
+- backend: 35 open / 390 closed
 - dashboard: 146 open / 3 closed
