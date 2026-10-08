@@ -10,7 +10,7 @@
   "title": "PF: optimistic delivery lane (parallel push+PR; serialized landing; rebase->fast re-verify->merge)",
   "body": "Child of the parallel-run-engine epic. Optimistic, developer-style delivery: parallel push+PR, serial only\nat landing.\n\nScope: (1) on complete: release the item lease, enqueue a delivery run (ASYNC lane); (2) delivery lane: push the\nfeature branch + open PR in parallel; when green, if behind develop -> rebase -> FAST re-verify -> merge\n(--no-ff) -> push develop -> backlog.set_delivery(branch, merge_sha, pr, pr_url) + set_status(completed);\n(3) on gate failure/conflict -> status blocked/verifying + defect; (4) reuse core/vcs (merge/push/sync),\ncore/github (create_pr/ci_status), validation_engine FEATURE_PR (promotion merge-to-develop), pr_gate/merge_gate;\n(5) only the landing (ref update) is serialized - per integration branch.\n\nOut of scope: per-item assignment (C1), validation isolation (C2).\n\nDescriptors: module:core/vcs.py; module:core/github.py; module:core/validation_engine.py;\nmodule:api/routers/engineering.py; test:test-framework/tests/pipeline/test_optimistic_delivery.py.",
   "source": "pre-implementation review",
-  "status": "new",
+  "status": "completed",
   "priority": null,
   "moscow": "Should",
   "value": 4,
@@ -23,11 +23,22 @@
     "related": [
       "BI-PF-0418",
       "BI-PF-0419"
-    ]
+    ],
+    "delivery": {
+      "branch": "feature/pf-optimistic-delivery",
+      "merge_sha": "ef24912b42e4356a5ae29e5f6ede002b9dcb990d",
+      "commits": [
+        "0321bab"
+      ],
+      "pr": "",
+      "pr_url": "",
+      "at": "2026-10-08T10:25:52.544437",
+      "note": "merged --no-ff; precheck --full green (39 gates); wired-audit + invocation-audit green; new test_delivery.py (3 tests). New core/delivery.py orchestrator: push+PR (github.create_pr, degrades without gh) -> validate (feature_pr) -> serialized landing (rebase -> fast re-verify -> merge --no-ff -> push) -> set_delivery + completed; failure -> blocked. Async trigger on assignment complete (BackgroundTask) + scripts/dev/deliver.py recovery runner."
+    }
   },
   "decisions": [],
   "follow_up": {},
-  "revision": 1,
+  "revision": 2,
   "priority_rank": null,
   "priority_class": "",
   "analyze_mode": "on_entry",
@@ -93,9 +104,9 @@
     "completed_at": ""
   },
   "created_at": "2026-10-07T21:22:21.371904",
-  "updated_at": "2026-10-07T21:22:21.806377",
+  "updated_at": "2026-10-08T10:25:52.755802",
   "score": 0.5,
-  "_note": "analysis updated",
+  "_note": "optimistic delivery lane delivered",
   "dashboard_impact": {
     "needs_dashboard": false,
     "reason": "Operator surface is /wg status + the PF API (assignments view); the dashboard is a separate surface and stays out of this slice",
