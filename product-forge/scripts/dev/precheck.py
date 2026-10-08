@@ -115,6 +115,7 @@ _GATES = [
     ("reservations", ["scripts/dev/reservations_check.py"], "fast", ["reservations", "shared-paths"]),
     ("packaging", ["scripts/dev/packaging_check.py"], "fast", ["packaging"]),
     ("tool-catalog", ["scripts/dev/tool_catalog_check.py"], "fast", None),
+    ("dependency-catalog", ["scripts/dev/dependency_catalog_check.py"], "fast", None),
     ("backlog-context", ["scripts/dev/backlog_context_check.py"], "fast", ["backlog"]),
     ("grooming", ["scripts/dev/grooming_check.py"], "fast", ["grooming"]),
     ("github", ["scripts/dev/github_check.py"], "fast", ["github"]),
