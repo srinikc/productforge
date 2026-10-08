@@ -1,11 +1,11 @@
 # Backlog Summary
 
-> GENERATED 2026-10-08T21:02:26 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-09T00:08:21 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 35  |  **Closed:** 402
+- **Open:** 35  |  **Closed:** 405
 - `new`: 35
 
 ### new, by category (35)
@@ -14,10 +14,11 @@
 |---|---|---|---|---|
 | BI-PF-0332 | Should | chore | API-5 deferred hardening: rate limiting + request/upload limits + tenant-isolation expansion + event streaming | API-5 deferred hardening: rate limiting + request/upload limits + tenant-isolation expansion + event streaming |
 
-**Bug fixes** (1)
+**Bug fixes** (2)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
-| BI-PF-0434 | Must | bug | RCCA: grooming dedup marking wrote across projects/items (bounded same-project + self-only + threshold) | RCCA: grooming dedup marking wrote across projects/items (bounded same-project + self-only + threshold) |
+| BI-PF-0455 | Should | bug | DEFECT: DOGFOOD profile e2e checker is self-referential + scope-hardcoded -> first dogfood can never PASS | Fix the DOGFOOD e2e checker so dogfood can be validated end-to-end without a circular prior-PASS requirement. |
+| BI-PF-0457 | Should | bug | Defect/RCCA: concurrent sessions allocate the SAME backlog id (local counters, no coordination) -> push rejected + merge conflict | Defect/RCCA: concurrent sessions allocate the SAME backlog id (local counters, no coordination) -> push reject... |
 
 **Discovery / HIL / prompts** (1)
 | ID | MoSCoW | Type | Title | Objective |
@@ -41,7 +42,7 @@
 | BI-0206 | Should | tech-debt | Backend: model downloader + local cache + license-acceptance gate + models.lock (open-weights) | One owner module that downloads only the weights a project's capability pack needs, into a gitignored local ca... |
 | BI-0225 | Should | feature | Parallel section/feature generation | Parallel section/feature generation |
 
-**Wiring / tech-debt / API** (27)
+**Wiring / tech-debt / API** (26)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0185 | Should | feature | EPIC: Multi-modal / media orchestration (pluggable capability packs) | Make the pipeline modality-agnostic via PLUGGABLE capability packs, enabled per project when the idea needs th... |
@@ -70,7 +71,6 @@
 | BI-PF-0406 | Should | feature | B7: service decomposition | high-value components can be deployed/scaled independently |
 | BI-PF-0407 | Should | feature | Bmig: migrate high-value legacy Python -> Go (by value) | the highest-value ranked legacy modules run as compiled Go |
 | BI-PF-0408 | Should | change | /pf command: build mode only (not orchestrator) + global /pf for all opencode sessions | - `/pf ...` always executes in build mode (`agent: build`), with no model pin so the session's model is inheri... |
-| BI-PF-0443 | Should | feature | Hook: a NEW dependency (manifest diff) must have a tool-catalog entry, else pre-check fails (BI-0211 completeness split) | Hook: a NEW dependency (manifest diff) must have a tool-catalog entry, else pre-check fails (BI-0211 completen... |
 
 ---
 
@@ -270,5 +270,5 @@
 ---
 
 ## Totals
-- backend: 35 open / 402 closed
+- backend: 35 open / 405 closed
 - dashboard: 146 open / 3 closed
