@@ -259,33 +259,69 @@ def _dup_threshold() -> float:
         return 0.6
 
 
+_MOSCOW_RANK = {"must": 0, "should": 1, "could": 2, "wont": 3}
+
+
+def _mosrank(moscow: Any) -> int:
+    return _MOSCOW_RANK.get(str(moscow or "").strip().lower(), 9)
+
+
+def _same_project_dups(scope: str, project: str | None, item: dict, ctx: dict) -> list[dict]:
+    """Same-(scope,project) near-duplicate candidates from grooming's ``ctx["similar"]`` (BI-PF-0432/0435)."""
+    from core import backlog
+    iid = str(item.get("id"))
+    th = _dup_threshold()
+    out: list[dict] = []
+    for s in (ctx.get("similar") or []):
+        if str(s.get("id") or "") in ("", iid):
+            continue
+        if str(s.get("project") or "") != str(project or ""):
+            continue  # same-project only - never touch another project's backlog
+        if float(s.get("score") or 0) < th:
+            continue
+        c = backlog.get_epic(scope, project, str(s.get("id")))
+        if c:
+            out.append(c)
+    return out
+
+
+def _build_proposal(item: dict, dups: list[dict]) -> dict:
+    """A deterministic consolidation draft (BI-PF-0435): fold the duplicates' UNIQUE content into this item."""
+    body = str(item.get("body") or "")
+    acc = [str(a) for a in (item.get("acceptance_criteria") or [])]
+    moscow = str(item.get("moscow") or "")
+    sources: list[str] = []
+    for d in dups:
+        did = str(d.get("id"))
+        sources.append(did)
+        b = str(d.get("body") or "").strip()
+        if b and b not in body:
+            body = (body + f"\n\n[consolidated from {did}]: {b}").strip()
+        for a in (d.get("acceptance_criteria") or []):
+            if str(a) not in acc:
+                acc.append(str(a))
+        if _mosrank(d.get("moscow")) < _mosrank(moscow):
+            moscow = str(d.get("moscow") or moscow)
+    return {"sources": sources, "title": item.get("title"), "body": body,
+            "acceptance_criteria": acc, "moscow": moscow}
+
+
 def _mark_duplicates(scope: str, project: str | None, item: dict, ctx: dict) -> list[str]:
     """BI-PF-0432 (Option B): mark THIS item as a possible duplicate, advisory only.
 
-    Uses the candidates grooming already gathered (``find_similar`` -> ``ctx["similar"]``), restricted to the
-    SAME project so we never write across scopes/projects. Only the groomed item is marked (and only when it is
-    NOT the highest ``order_by_priority``/canonical of the group): ``links.possible_duplicate_of = [<canonical
-    ref>]``, no status change. Never raises (callers suppress).
+    Restricts candidates to the SAME project (never writes across scopes/projects) and marks ONLY the groomed
+    item (and only when it is NOT the highest ``order_by_priority``/canonical of the group):
+    ``links.possible_duplicate_of = [<canonical ref>]``, no status change. Never raises (callers suppress).
     """
     from core import backlog
     iid = str(item.get("id"))
     me = backlog.get_epic(scope, project, iid)
     if not me:
         return []
-    th = _dup_threshold()
-    group = [me]
-    for s in (ctx.get("similar") or []):
-        if str(s.get("id") or "") in ("", iid):
-            continue
-        if str(s.get("project") or "") != str(project or ""):
-            continue  # same-project only - never mark another project's backlog
-        if float(s.get("score") or 0) < th:
-            continue
-        c = backlog.get_epic(scope, project, str(s.get("id")))
-        if c:
-            group.append(c)
-    if len(group) < 2:
+    dups = _same_project_dups(scope, project, item, ctx)
+    if not dups:
         return []
+    group = [me] + dups
     canon = backlog.order_by_priority(group)[0]
     if canon is me:
         return []  # I am the canonical -> nothing to mark
@@ -357,6 +393,13 @@ def groom(scope: str, project: str | None, item_id: str, mode: str = "", *,
     marked: list[str] = []
     with contextlib.suppress(Exception):
         marked = _mark_duplicates(scope, project, it, ctx)
+    # BI-PF-0435: if same-project near-duplicates exist, store a consolidation proposal (human-approved apply)
+    with contextlib.suppress(Exception):
+        dups = _same_project_dups(scope, project, it, ctx)
+        if dups:
+            _a = dict((backlog.get_epic(scope, project, item_id) or {}).get("analysis") or {})
+            _a["consolidation_proposal"] = _build_proposal(it, dups)
+            backlog.update(scope, project, item_id, analysis=_a)
     return {"item_id": item_id, "mode": used, "depth": d, "proposal": proposal,
             "applied": True, "error": "", "marked_duplicates": marked}
 
@@ -405,6 +448,52 @@ def refresh_stale(scope: str, project: str | None = None, *, limit: int = 10,
     return {"refreshed": refreshed, "count": len(refreshed)}
 
 
+def _apply_consolidation(scope: str, project: str | None, item_id: str, by: str = "user",
+                         note: str = "") -> dict[str, Any]:
+    """BI-PF-0435: apply a stored consolidation proposal (human-approved).
+
+    Folds the duplicates' unique content into THIS item (append), records provenance
+    (``links.consolidated_from`` + a ``decisions[]`` ledger entry), and closes each duplicate as ``duplicate``
+    (``links.duplicate_of`` + note; preserved in closed.json/history - never deleted). Never raises.
+    """
+    from core import backlog
+    it = backlog.get_epic(scope, project, item_id)
+    if not it:
+        return {"item_id": item_id, "error": "not found", "applied": False}
+    prop = (it.get("analysis") or {}).get("consolidation_proposal") or {}
+    sources = [str(x) for x in (prop.get("sources") or [])]
+    if not sources:
+        return {"item_id": item_id, "error": "no consolidation proposal (groom first)", "applied": False}
+    canon_ref = backlog.qualify(scope, project, item_id)
+    merged: dict[str, Any] = {"_note": "consolidated (BI-PF-0435)"}
+    if prop.get("body"):
+        merged["body"] = prop["body"]
+    if prop.get("acceptance_criteria"):
+        merged["acceptance_criteria"] = prop["acceptance_criteria"]
+    if prop.get("moscow"):
+        merged["moscow"] = prop["moscow"]
+    with contextlib.suppress(Exception):
+        backlog.update(scope, project, item_id, **merged)
+    with contextlib.suppress(Exception):
+        backlog.link(scope, project, item_id,
+                     consolidated_from=[backlog.qualify(scope, project, s) for s in sources])
+    closed = []
+    for s in sources:
+        with contextlib.suppress(Exception):
+            backlog.set_status(scope, project, s, "duplicate",
+                               note=f"consolidated into {canon_ref} by {by}")
+            backlog.link(scope, project, s, duplicate_of=[canon_ref])
+            closed.append(s)
+    with contextlib.suppress(Exception):
+        it2 = backlog.get_epic(scope, project, item_id) or {}
+        backlog.update(scope, project, item_id, decisions=[
+            *(it2.get("decisions") or []),
+            {"at": datetime.now().isoformat(), "by": by, "decision": "CONSOLIDATE",
+             "sources": sources, "note": str(note or "")}])
+    return {"item_id": item_id, "decision": "CONSOLIDATE", "applied": True,
+            "consolidated": closed, "duplicate_of": canon_ref}
+
+
 def decide(scope: str, project: str | None, item_id: str, decision: str,
            note: str = "", by: str = "user") -> dict[str, Any]:
     """User grooming decision: APPROVE -> analysis COMPLETE + item ready; MODIFY/REJECT/DEFER accordingly."""
@@ -416,6 +505,8 @@ def decide(scope: str, project: str | None, item_id: str, decision: str,
     it = backlog.get_epic(scope, project, item_id)
     if not it:
         return {"item_id": item_id, "error": "not found", "applied": False}
+    if d == "CONSOLIDATE":
+        return _apply_consolidation(scope, project, item_id, by=by, note=note)
     if d == "APPROVE":
         backlog.set_analysis(scope, project, item_id, status="COMPLETE", analyzed_by=by)
         backlog.set_readiness(scope, project, item_id, True, reasons=[])
