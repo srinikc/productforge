@@ -10,7 +10,7 @@
   "title": "RCCA + guard: commit-branch assertion (never commit feature work directly on develop/main)",
   "body": "Source: process deviation during BI-PF-0428 (2026-10-07), self-detected.\n\nWHAT HAPPENED: BI-PF-0428 was committed DIRECTLY on `develop` (commit a48f851) instead of a feature branch -\nviolating AGENTS \"never commit to develop/main directly\". Caught immediately; remediated without touching the\n~398 unrelated dirty WIP files: created `feature/delivery-runner` at the commit, `git reset --mixed` develop\nback, reverted only the 2 touched files, then `git merge --no-ff` -> develop now carries a merge commit\n(8dfd400). Correct delivery recorded on BI-PF-0428.\n\nRCCA (5-Why):\n1. develop had a direct commit. 2. I committed without switching to a feature branch.\n3. The 0428 work reused the leftover 0427 branch context in my head; I never ran `git checkout -b`.\n4. The pre-commit path has no BRANCH assertion (only store-check + lint), so committing on develop was not\n   blocked. 5. Guard: a pre-commit/commit-time check that refuses to commit when HEAD is the integration branch\n   (develop/main) for a non-bookkeeping change - or at minimum a documented assertion to run before committing.\n\nFIX (proposed, not a shortcut): add a branch guard (git hook OR a check in the dev flow / AGENTS working\nagreement): before committing feature work, assert `git symbolic-ref --short HEAD` is not develop/main.\n\ndashboard_impact: needs_dashboard=false - process guard; no UI surface.",
   "source": "self-review",
-  "status": "new",
+  "status": "completed",
   "priority": null,
   "moscow": "Should",
   "value": 3,
@@ -20,11 +20,22 @@
   "links": {
     "related": [
       "product_forge:BI-PF-0428"
-    ]
+    ],
+    "delivery": {
+      "branch": "feature/branch-guard",
+      "merge_sha": "20a3f101f20a5f36415ee7b3f4ace0e76c911437",
+      "commits": [
+        "0bd356440404396d67f03a5ca2eba482d691db63"
+      ],
+      "pr": "",
+      "pr_url": "",
+      "at": "2026-10-08T17:38:06.840741",
+      "note": ""
+    }
   },
   "decisions": [],
   "follow_up": {},
-  "revision": 1,
+  "revision": 2,
   "priority_rank": null,
   "priority_class": "",
   "analyze_mode": "on_entry",
@@ -102,9 +113,9 @@
     "completed_at": ""
   },
   "created_at": "2026-10-08T11:55:05.557982",
-  "updated_at": "2026-10-08T11:55:06.946227",
+  "updated_at": "2026-10-08T17:38:07.021463",
   "score": 3.0,
-  "_note": "analysis updated",
+  "_note": "",
   "dashboard_impact": {
     "needs_dashboard": false,
     "reason": "Process guard; no UI surface",
