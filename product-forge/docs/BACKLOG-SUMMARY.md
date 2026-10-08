@@ -1,14 +1,14 @@
 # Backlog Summary
 
-> GENERATED 2026-10-08T15:13:48 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-08T16:01:50 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 39  |  **Closed:** 384
-- `new`: 39
+- **Open:** 38  |  **Closed:** 385
+- `new`: 38
 
-### new, by category (39)
+### new, by category (38)
 **API / reports / HIL / misc** (1)
 | ID | MoSCoW | Type | Title |
 |---|---|---|---|
@@ -44,7 +44,7 @@
 | BI-0206 | Should | tech-debt | Backend: model downloader + local cache + license-acceptance gate + models.lock (open-weights) |
 | BI-0225 | Should | feature | Parallel section/feature generation |
 
-**Wiring / tech-debt / API** (28)
+**Wiring / tech-debt / API** (27)
 | ID | MoSCoW | Type | Title |
 |---|---|---|---|
 | BI-0185 | Should | feature | EPIC: Multi-modal / media orchestration (pluggable capability packs) |
@@ -74,7 +74,6 @@
 | BI-PF-0407 | Should | feature | Bmig: migrate high-value legacy Python -> Go (by value) |
 | BI-PF-0408 | Should | change | /pf command: build mode only (not orchestrator) + global /pf for all opencode sessions |
 | BI-PF-0430 | Should | chore | RCCA + guard: commit-branch assertion (never commit feature work directly on develop/main) |
-| BI-PF-0440 | Should | feature | Deploy/install: self-host web-search engine (Whoogle/SearXNG) as documented PF prerequisite (+ optional provision) |
 
 ---
 
@@ -274,5 +273,5 @@
 ---
 
 ## Totals
-- backend: 39 open / 384 closed
+- backend: 38 open / 385 closed
 - dashboard: 146 open / 3 closed

@@ -39,3 +39,25 @@ def put_web_search(body: dict[str, Any], request: Request,
     api_key = body.get("api_key")  # None -> leave unchanged; "" -> clear
     tool_settings.save(backend=backend, url=url, api_key=(None if api_key is None else str(api_key)))
     return from_request(request, _view(), resource="tools")
+
+
+@router.get("/catalog", dependencies=[Depends(authenticate)])
+def get_catalog(request: Request, ctx: dict[str, Any] = Depends(authenticate),
+                kind: str | None = None, bundled: bool | None = None):
+    """BI-0211: the tool/SDK/vendor catalog (license class + bundle_allowed). Read-only."""
+    from core import tool_catalog
+    items = tool_catalog.entries()
+    if kind:
+        items = [e for e in items if str(e.get("kind")) == kind]
+    if bundled is not None:
+        items = [e for e in items if bool(e.get("bundled")) == bundled]
+    return from_request(request, {"count": len(items), "entries": items}, resource="tools")
+
+
+@router.get("/catalog/{name}", dependencies=[Depends(authenticate)])
+def get_catalog_entry(name: str, request: Request, ctx: dict[str, Any] = Depends(authenticate)):
+    from core import tool_catalog
+    e = tool_catalog.lookup(name)
+    if not e:
+        raise ApiError("NOT_FOUND", f"no tool-catalog entry named {name!r}")
+    return from_request(request, e, resource="tools")
