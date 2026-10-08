@@ -114,6 +114,7 @@ _GATES = [
     ("worker", ["scripts/dev/worker_check.py"], "fast", ["core/worker"]),
     ("reservations", ["scripts/dev/reservations_check.py"], "fast", ["reservations", "shared-paths"]),
     ("packaging", ["scripts/dev/packaging_check.py"], "fast", ["packaging"]),
+    ("tool-catalog", ["scripts/dev/tool_catalog_check.py"], "fast", None),
     ("grooming", ["scripts/dev/grooming_check.py"], "fast", ["grooming"]),
     ("github", ["scripts/dev/github_check.py"], "fast", ["github"]),
     ("pf-surface", ["scripts/dev/pf_surface_check.py"], "fast", None),
