@@ -1,0 +1,106 @@
+{
+  "id": "BI-PF-0442",
+  "tag": "PF",
+  "type": "bug",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "claim-dedup-vs-parallel",
+  "label": "PF Backlog 476",
+  "title": "Defect/RCCA: claim-time dedup (BI-PF-0422) vs per-item parallel claim (BI-PF-0419) - develop tests-scoped RED; decide semantics",
+  "body": "Source: found while gating BI-PF-0441 (2026-10-08) - PRE-EXISTING on develop (reproduces with the 0441 edit\nstashed), so develop's tests-scoped is currently RED.\n\nSymptom: test-framework/tests/pipeline/test_assignments_api.py::test_claim_next_is_per_item_parallel and\n::test_capacity_cap_denies_extra_assignment FAIL - the 2nd/3rd claim_next in one project returns\n{\"claimed\": false, \"reason\": \"no eligible item\"}.\n\nRoot cause (5-Why):\n1. Why no 2nd eligible item? scheduler.next_eligible(stage=\"execute\") skipped items 1 and 2.\n2. Why skipped? BI-PF-0422 claim-time dedup (core/scheduler.py:403-415) skips a candidate that\n   _near_duplicate()s a blocker = active items + already-skipped candidates.\n3. Why is item0 a blocker? it was CLAIMED by the 1st claim -> its execution.worker_id sets it \"active\".\n4. Why do items 1/2 count as duplicates? the test seeds near-identical titles (\"assignment item 0/1/2\"),\n   Jaccard >= PF_DEDUP_THRESHOLD (0.6).\n5. Why was this not caught? BI-PF-0422 (claim-time dedup) was delivered AFTER BI-PF-0419 (per-item claim) and\n   did NOT update/repair the 0419 test, and tests-scoped didn't run that file together at the time.\n\nDECISION NEEDED (behavioral): does claim-time dedup intend to collapse a near-duplicate SET to ONE runnable\nitem (BI-PF-0422 intent - then the 0419 TEST DATA is degenerate and must use distinct titles), or should\nDISTINCT approved items with similar titles all run in parallel (BI-PF-0419 intent - then the dedup must NOT\nblock candidates that only match an already-CLAIMED active item)?\n\nProposed fix (pending approval):\n- Option A (recommended if 0422 intent stands): fix the 0419 test to seed DISTINCT titles (it tests parallelism,\n  not dedup); keep dedup; ensure test_assignment_dedup.py asserts the collapse-to-one behavior.\n- Option B (if 0419 intent wins): in next_eligible, do not treat ACTIVE items as dedup blockers for OTHER\n  candidates (only unclaimed higher-ranked open items), so genuinely separate items run in parallel; update\n  test_assignment_dedup.py accordingly.\nEither way: RCCA guard = an integration test that seeds N near-identical items, claims repeatedly, and asserts\nthe AGREED count runs (1 for A, N for B) - so the two items' intent can never silently diverge again.\n\nBlocks: BI-PF-0441 gate (same tests-scoped run).",
+  "source": "found gating BI-PF-0441",
+  "status": "new",
+  "priority": null,
+  "moscow": "Must",
+  "value": 4,
+  "effort": 2,
+  "risk": 3,
+  "deps": [],
+  "links": {
+    "backend_capability": [
+      "module:core/scheduler.py",
+      "test:test-framework/tests/pipeline/test_assignments_api.py",
+      "test:test-framework/tests/pipeline/test_assignment_dedup.py"
+    ],
+    "related": [
+      "product_forge:BI-PF-0422",
+      "product_forge:BI-PF-0419",
+      "product_forge:BI-PF-0426",
+      "product_forge:BI-PF-0441"
+    ]
+  },
+  "decisions": [],
+  "follow_up": {},
+  "revision": 1,
+  "priority_rank": null,
+  "priority_class": "",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "IN_PROGRESS",
+    "analyzed_at": "",
+    "analyzed_by": "deterministic",
+    "revision_analyzed": 0,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/credentials.py, core/defect_loop.py, /api/v1/engineering/assignments/claim, /api/v1/issues/{iid}/rcca",
+    "existing_components": [
+      "core/credentials.py",
+      "core/defect_loop.py"
+    ],
+    "existing_apis": [
+      "/api/v1/engineering/assignments/claim",
+      "/api/v1/issues/{iid}/rcca",
+      "/api/v1/reservations/shared-paths"
+    ],
+    "existing_modules": [
+      "config/shared-paths.json"
+    ],
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=1.0",
+      "components=2",
+      "apis=3"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": false,
+    "reasons": [],
+    "computed_at": ""
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": ""
+  },
+  "created_at": "2026-10-08T17:29:53.479342",
+  "updated_at": "2026-10-08T17:29:54.435538",
+  "score": 1.0,
+  "_note": "analysis updated",
+  "dashboard_impact": {
+    "needs_dashboard": false,
+    "reason": "scheduler/claim semantics defect; no dashboard surface",
+    "dashboard_item": null,
+    "reviewed_by": "agent"
+  }
+}

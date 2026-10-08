@@ -34,9 +34,13 @@ def _clean():
 
 
 def _seed(n):
+    # BI-PF-0442: use DISTINCT titles so this tests per-item PARALLELISM (BI-PF-0419), not claim-time dedup
+    # (BI-PF-0422, covered by test_assignment_dedup.py). Near-identical titles are intentionally collapsed.
+    titles = ["wire the payment webhook handler", "render the usage analytics graph",
+              "harden the CSV import validator", "add the audit-log retention job"]
     ids = []
     for k in range(n):
-        iid = backlog.add_epic("project", _PROJ, f"assignment item {k}", tag="TST")["id"]
+        iid = backlog.add_epic("project", _PROJ, titles[k % len(titles)], tag="TST")["id"]
         grooming.decide("project", _PROJ, iid, "APPROVE")
         ids.append(iid)
     return ids
