@@ -53,9 +53,10 @@ def _gather_context(scope: str, project: str | None, item: dict) -> dict[str, An
     text = f"{item.get('title','')} {item.get('body','')}".strip()
     similar = []
     try:
-        similar = [{"ref": s.get("ref"), "score": s.get("score"), "title": s.get("title")}
+        similar = [{"ref": s.get("ref"), "id": s.get("id"), "scope": s.get("scope"),
+                    "project": s.get("project"), "score": s.get("score"), "title": s.get("title")}
                    for s in backlog.find_similar(text, scope=scope, limit=5)
-                   if s.get("ref") != item.get("id")]
+                   if str(s.get("id")) != str(item.get("id"))]
     except Exception:
         similar = []
     deep = _search_codebase(scope, project, item)
@@ -249,6 +250,57 @@ def _run_ai(item: dict, ctx: dict, project: str | None, product: str) -> dict | 
 
 
 # ── public API ──────────────────────────────────────────────────────────────
+def _dup_threshold() -> float:
+    """Jaccard threshold for near-duplicate marking (BI-PF-0432); env PF_DEDUP_THRESHOLD (default 0.6)."""
+    import os as _os
+    try:
+        return float(_os.environ.get("PF_DEDUP_THRESHOLD", "0.6") or 0.6)
+    except Exception:
+        return 0.6
+
+
+def _mark_duplicates(scope: str, project: str | None, item: dict, ctx: dict) -> list[str]:
+    """BI-PF-0432 (Option B): mark near-duplicate items, advisory only.
+
+    Reuses the candidates grooming already gathered (``backlog.find_similar`` -> ``ctx["similar"]``, each
+    carrying scope/project/id). The canonical is the highest ``order_by_priority`` of the group; every OTHER
+    member gets ``links.possible_duplicate_of = [<canonical ref>]`` (no status change - a human resolves).
+    Never raises (callers suppress).
+    """
+    from core import backlog
+    me_ref = backlog.qualify(scope, project, str(item.get("id")))
+    members: list[tuple[str, str | None, dict]] = []
+    me = backlog.get_epic(scope, project, str(item.get("id")))
+    if me:
+        members.append((scope, project, me))
+    for s in (ctx.get("similar") or []):
+        cid = str(s.get("id") or "")
+        if not cid or backlog.qualify(str(s.get("scope") or scope), s.get("project"), cid) == me_ref:
+            continue
+        if float(s.get("score") or 0) < _dup_threshold():
+            continue  # not similar enough (find_similar returns every score>0)
+        c = backlog.get_epic(str(s.get("scope") or scope), s.get("project"), cid)
+        if c:
+            members.append((str(s.get("scope") or scope), s.get("project"), c))
+    if len(members) < 2:
+        return []
+    canon_scope, canon_project, canon = None, None, None
+    for cs, cp, c in members:
+        if canon is None:
+            canon_scope, canon_project, canon = cs, cp, c
+            continue
+        if backlog.order_by_priority([c, canon])[0] is c:
+            canon_scope, canon_project, canon = cs, cp, c
+    canon_ref = backlog.qualify(canon_scope, canon_project, str(canon.get("id")))
+    marked = []
+    for cs, cp, c in members:
+        if backlog.qualify(cs, cp, str(c.get("id"))) == canon_ref:
+            continue
+        backlog.link(cs, cp, str(c.get("id")), possible_duplicate_of=[canon_ref])
+        marked.append(str(c.get("id")))
+    return marked
+
+
 def groom(scope: str, project: str | None, item_id: str, mode: str = "", *,
           product: str = "", depth: str = "deep") -> dict[str, Any]:
     """Groom one item (deep by default). ``mode`` = ai (default) | deterministic.
@@ -308,8 +360,12 @@ def groom(scope: str, project: str | None, item_id: str, mode: str = "", *,
     if proposal.get("dependencies"):
         with contextlib.suppress(Exception):
             backlog.set_dependencies(scope, project, item_id, dependencies=proposal["dependencies"])
+    # BI-PF-0432: mark near-duplicates (advisory link; never blocks grooming)
+    marked: list[str] = []
+    with contextlib.suppress(Exception):
+        marked = _mark_duplicates(scope, project, it, ctx)
     return {"item_id": item_id, "mode": used, "depth": d, "proposal": proposal,
-            "applied": True, "error": ""}
+            "applied": True, "error": "", "marked_duplicates": marked}
 
 
 def refresh_stale(scope: str, project: str | None = None, *, limit: int = 10,
