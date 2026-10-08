@@ -156,6 +156,14 @@ def cmd_list(pos, flags):
 
 
 def cmd_status(pos, flags):
+    # BI-PF-0423: PF mode - show active assignments straight from PF (workers <-> items).
+    a = client.call("GET", "/api/v1/engineering/assignments?scope="
+                    + str(flags.get("scope", "product_forge")) + "&project=" + str(flags.get("project", "")))
+    if a.get("ok"):
+        env = a.get("data") or {}
+        d = env.get("data", env) if isinstance(env, dict) else {}
+        return {"mode": "pf", "producer": client._base(), "count": d.get("count"),
+                "assignments": d.get("assignments")}
     if _via_service(flags):
         return {"mode": "service", **(client.svc("GET", "/status").get("data") or {})}
     d = _workers()
@@ -292,6 +300,8 @@ def main(argv=None) -> int:
     pos, flags = _flags(rest)
     if verb in ("serve", "agent"):
         return int(VERBS[verb](pos, flags) or 0)
+    if verb == "work" and not flags.get("claim-only"):
+        return int(cmd_agent(pos, flags) or 0)   # BI-PF-0423: /wg work = the worker (PF-mode agent)
     try:
         _emit(VERBS[verb](pos, flags))
     except Exception as e:

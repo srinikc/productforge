@@ -53,6 +53,8 @@ type Agent struct {
 	base     string // coordinator base URL
 	producer string // producer API base URL
 	token    string
+	contract string // auto | pf-assignments | coordinator (BI-PF-0423)
+	pfBase   string // producer (PF) API base for the assignment contract
 	client   *http.Client
 	journal  *os.File
 }
@@ -82,6 +84,15 @@ func Run(opt Options) error {
 	if a.opt.Scope == "" {
 		a.opt.Scope = "product_forge"
 	}
+	a.pfBase = strings.TrimRight(cfg.ProducerBase(), "/")
+	a.contract = cfg.AgentContract()
+	if a.contract == "auto" {
+		if a.pfAssignmentsAvailable() {
+			a.contract = "pf-assignments"
+		} else {
+			a.contract = "coordinator"
+		}
+	}
 	if err := a.validate(); err != nil {
 		return err
 	}
@@ -95,31 +106,37 @@ func Run(opt Options) error {
 	defer f.Close()
 	a.journalEvent("agent_start", map[string]any{
 		"worker_id": opt.WorkerID, "runtime": a.opt.Runtime, "coordinator": a.base,
-		"producer": a.producer, "once": opt.Once, "journal": jp,
+		"producer": a.producer, "contract": a.contract, "once": opt.Once, "journal": jp,
 	})
-	fmt.Printf("[wg-agent] worker=%q runtime=%s coordinator=%s producer=%s\n",
-		a.opt.WorkerID, a.opt.Runtime, a.base, a.producer)
-
-	if err := a.register(); err != nil {
-		return err
-	}
+	fmt.Printf("[wg-agent] worker=%q runtime=%s contract=%s coordinator=%s producer=%s\n",
+		a.opt.WorkerID, a.opt.Runtime, a.contract, a.base, a.producer)
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
+
+	if a.contract == "pf-assignments" {
+		return a.runPF(ctx)
+	}
+	if err := a.register(); err != nil {
+		return err
+	}
 	return a.loop(ctx)
 }
 
 func (a *Agent) validate() error {
+	if a.cfg.AgentRuntimeCommand(a.opt.Runtime) == "" {
+		return fmt.Errorf("no command for runtime %q (set agent.runtimes.%s.command in config.json)",
+			a.opt.Runtime, a.opt.Runtime)
+	}
+	if a.contract == "pf-assignments" {
+		return nil // PF provides the worktree/branch; no local repo or git needed (BI-PF-0423)
+	}
 	root := a.cfg.AgentRepoRoot()
 	if root == "" {
 		return errors.New("agent.repo_root not set in config.json (the git repo to execute work in)")
 	}
 	if st, err := os.Stat(root); err != nil || !st.IsDir() {
 		return fmt.Errorf("agent.repo_root not a directory: %s", root)
-	}
-	if a.cfg.AgentRuntimeCommand(a.opt.Runtime) == "" {
-		return fmt.Errorf("no command for runtime %q (set agent.runtimes.%s.command in config.json)",
-			a.opt.Runtime, a.opt.Runtime)
 	}
 	if _, err := exec.LookPath("git"); err != nil {
 		return errors.New("git not found on PATH")

@@ -26,6 +26,7 @@ _PIPELINE = os.path.join(_ROOT, "test-framework", "tests", "pipeline")
 _CONTRACT = os.path.join(_PIPELINE, "test_workergrid_service_contract.py")
 _AGENT_E2E = os.path.join(_PIPELINE, "test_workergrid_agent_e2e.py")
 _PG_E2E = os.path.join(_PIPELINE, "test_workergrid_pg_store.py")
+_PF_E2E = os.path.join(_PIPELINE, "test_workergrid_pf_client.py")
 FAILS = []
 
 
@@ -107,7 +108,7 @@ def main() -> int:
     env2["PYTHONIOENCODING"] = "utf-8"
     # the postgres suite self-skips unless WORKERGRID_PG_DSN is set (CI can wire a PG service)
     try:
-        p = subprocess.run([sys.executable, "-m", "pytest", _CONTRACT, _AGENT_E2E, _PG_E2E,
+        p = subprocess.run([sys.executable, "-m", "pytest", _CONTRACT, _AGENT_E2E, _PG_E2E, _PF_E2E,
                             "-q", "-o", "addopts="],
                            cwd=str(_ROOT), env=env2, capture_output=True, text=True, timeout=900)
         rc, out = p.returncode, (p.stdout + p.stderr).strip()

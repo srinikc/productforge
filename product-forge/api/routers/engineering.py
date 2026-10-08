@@ -372,6 +372,16 @@ def assignment_release(item_id: str, body: dict[str, Any], request: Request,
                         reason=str(body.get("reason") or "released")), resource="engineering")
 
 
+@router.post("/assignments/recover", dependencies=[Depends(require_worker)])
+def assignments_recover(body: dict[str, Any], request: Request,
+                        ctx: dict[str, Any] = Depends(require_worker)):
+    """Free expired assignment leases (BI-PF-0423; the worker calls this before claiming). Applies the
+    ``PF_LEASE_RECOVERY`` policy (default REQUIRE_REVIEW -> blocked; never blind re-run)."""
+    from core import job_manager
+    s, p = _worker_scope(str(body.get("scope") or "product_forge"), str(body.get("project") or ""))
+    return from_request(request, job_manager.recover_expired(s, p), resource="engineering")
+
+
 # ── ENG-1: engineering task contracts ───────────────────────────────────────
 
 @router.get("/tasks", dependencies=[Depends(authenticate)])
