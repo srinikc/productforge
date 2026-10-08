@@ -10,7 +10,7 @@
   "title": "Deploy/install: self-host web-search engine (Whoogle/SearXNG) as documented PF prerequisite (+ optional provision)",
   "body": "Source: user request (2026-10-08): \"is self-host of web search a backlog item ... when we have our\ninstall/deploy this is one of the things we mention to be self-hosted for PF to work for web search\".\n\nReality: the self-host RECOMMENDATION is documented (BI-PF-0436/0437 TOOLS-AND-DEPENDENCIES.md) and is the\nweb_search tool's default backend class (BI-PF-0438: whoogle MIT / searxng operator-run), but there is NO\ndeploy/install artifact that lists \"stand up a self-hosted search engine\" as a PF prerequisite, and nothing\nprovisions it.\n\nScope:\n- Make the self-hosted web-search engine (default: Whoogle, MIT) an explicit PF INSTALL/DEPLOY prerequisite:\n  documented in the deployment/install path (build->package->deploy, BI-PF-0398) and, where an edition ships\n  search enabled, an optional provision step (compose/helm/manifest) that starts Whoogle alongside PF.\n- Register the engine in the vendor/tool catalog (BI-0211) with bundle_allowed=false (invoke/self-host, never\n  bundle) + license metadata, so the packaging/PR gate keeps it out of the shipped tree.\n- Fail-closed: if backend is set but the engine URL is unreachable, web_search reports a clear, actionable\n  error (already surfaced by the tool) and install docs say how to fix.\n\nDepends on: BI-PF-0438 (web_search tool) + BI-PF-0439 (settings API sets backend/url).\nRelated: BI-PF-0398 (build->package->deploy), BI-0211 (vendor catalog), BI-PF-0436/0437 (docs).\n\ndashboard_impact: needs_dashboard=false (deploy/ops concern, not a dashboard surface).",
   "source": "user request",
-  "status": "new",
+  "status": "completed",
   "priority": null,
   "moscow": "Should",
   "value": 4,
@@ -30,11 +30,22 @@
       "product_forge:BI-0211",
       "product_forge:BI-PF-0438",
       "product_forge:BI-PF-0439"
-    ]
+    ],
+    "delivery": {
+      "branch": "feature/deploy-selfhost-websearch",
+      "merge_sha": "c0bfa77f636fe9b983893f35cca2f81175df887f",
+      "commits": [
+        "337a87114392c65461b936bde4714ce1fca67369"
+      ],
+      "pr": "",
+      "pr_url": "",
+      "at": "2026-10-08T15:16:46.725159",
+      "note": ""
+    }
   },
   "decisions": [],
   "follow_up": {},
-  "revision": 1,
+  "revision": 2,
   "priority_rank": null,
   "priority_class": "",
   "analyze_mode": "on_entry",
@@ -108,9 +119,9 @@
     "completed_at": ""
   },
   "created_at": "2026-10-08T14:58:37.034974",
-  "updated_at": "2026-10-08T14:58:38.141367",
+  "updated_at": "2026-10-08T15:16:46.933986",
   "score": 1.0,
-  "_note": "analysis updated",
+  "_note": "",
   "dashboard_impact": {
     "needs_dashboard": false,
     "reason": "install/deploy + ops concern; no dashboard surface",
