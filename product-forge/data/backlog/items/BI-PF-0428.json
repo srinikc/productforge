@@ -10,7 +10,7 @@
   "title": "Dedicated runner clone/worktree for product_forge delivery (fix the IS-PF-0036 landing limitation)",
   "body": "Source: user scope decision (2026-10-07) on BI-PF-0418; the delivery lane's documented limitation.\n\nThe delivery lane lands in the item's repo working tree (checkout target + merge --no-ff). Since the worker\nscope is now product_forge ONLY, that tree is the PF repo (ROOT) - the live session tree - so landing there\nviolates IS-PF-0036. Provide a DEDICATED integration tree the lane owns:\n- a runner clone (checked out on develop) or a worktree on a branch not checked out elsewhere, e.g. `<repo>-runner/`;\n- `core/delivery.deliver` performs the landing (rebase/merge/push) in the runner tree, never in ROOT;\n- the item's feature worktree/branch live in the runner's worktree space.\nThis removes the limitation and makes product_forge delivery turnkey.\n\nDescriptors: module:core/delivery.py; module:core/vcs.py;\ntest:test-framework/tests/pipeline/test_delivery_runner.py.",
   "source": "design decision",
-  "status": "new",
+  "status": "completed",
   "priority": null,
   "moscow": "Should",
   "value": 4,
@@ -23,11 +23,22 @@
     "related": [
       "product_forge:BI-PF-0418",
       "product_forge:BI-PF-0421"
-    ]
+    ],
+    "delivery": {
+      "branch": "feature/delivery-runner",
+      "merge_sha": "8dfd400f205b739c45e819f5ceac38b385595bab",
+      "commits": [
+        "a48f851"
+      ],
+      "pr": "",
+      "pr_url": "",
+      "at": "2026-10-08T11:55:04.654854",
+      "note": "merged --no-ff; fast precheck PASS (12 gates); wired + invocation audit green; new test_delivery.py proves develop advances on the REMOTE while the live tree's branch is never switched. Landing: gh pr merge primary; integrate-worktree push-ref fallback (ROOT never checked out)."
+    }
   },
   "decisions": [],
   "follow_up": {},
-  "revision": 1,
+  "revision": 2,
   "priority_rank": null,
   "priority_class": "",
   "analyze_mode": "on_entry",
@@ -94,9 +105,9 @@
     "completed_at": ""
   },
   "created_at": "2026-10-08T11:00:16.897725",
-  "updated_at": "2026-10-08T11:00:17.630021",
+  "updated_at": "2026-10-08T11:55:05.079389",
   "score": 0.67,
-  "_note": "analysis updated",
+  "_note": "delivery landing isolated from the live tree (IS-PF-0036)",
   "dashboard_impact": {
     "needs_dashboard": false,
     "reason": "WorkerGrid/backlog execution-plane scoping; no UI surface",

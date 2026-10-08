@@ -1,0 +1,114 @@
+{
+  "id": "BI-PF-0430",
+  "tag": "PF",
+  "type": "chore",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "commit-branch-guard",
+  "label": "PF Backlog 464",
+  "title": "RCCA + guard: commit-branch assertion (never commit feature work directly on develop/main)",
+  "body": "Source: process deviation during BI-PF-0428 (2026-10-07), self-detected.\n\nWHAT HAPPENED: BI-PF-0428 was committed DIRECTLY on `develop` (commit a48f851) instead of a feature branch -\nviolating AGENTS \"never commit to develop/main directly\". Caught immediately; remediated without touching the\n~398 unrelated dirty WIP files: created `feature/delivery-runner` at the commit, `git reset --mixed` develop\nback, reverted only the 2 touched files, then `git merge --no-ff` -> develop now carries a merge commit\n(8dfd400). Correct delivery recorded on BI-PF-0428.\n\nRCCA (5-Why):\n1. develop had a direct commit. 2. I committed without switching to a feature branch.\n3. The 0428 work reused the leftover 0427 branch context in my head; I never ran `git checkout -b`.\n4. The pre-commit path has no BRANCH assertion (only store-check + lint), so committing on develop was not\n   blocked. 5. Guard: a pre-commit/commit-time check that refuses to commit when HEAD is the integration branch\n   (develop/main) for a non-bookkeeping change - or at minimum a documented assertion to run before committing.\n\nFIX (proposed, not a shortcut): add a branch guard (git hook OR a check in the dev flow / AGENTS working\nagreement): before committing feature work, assert `git symbolic-ref --short HEAD` is not develop/main.\n\ndashboard_impact: needs_dashboard=false - process guard; no UI surface.",
+  "source": "self-review",
+  "status": "new",
+  "priority": null,
+  "moscow": "Should",
+  "value": 3,
+  "effort": 1,
+  "risk": 1,
+  "deps": [],
+  "links": {
+    "related": [
+      "product_forge:BI-PF-0428"
+    ]
+  },
+  "decisions": [],
+  "follow_up": {},
+  "revision": 1,
+  "priority_rank": null,
+  "priority_class": "",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "IN_PROGRESS",
+    "analyzed_at": "",
+    "analyzed_by": "deterministic",
+    "revision_analyzed": 0,
+    "architecture_fit": "REUSE",
+    "implementation_strategy": "Extend existing components/APIs: core/domain_research.py, core/guardrails.py, core/main.py, core/maintenance.py",
+    "existing_components": [
+      "core/domain_research.py",
+      "core/guardrails.py",
+      "core/main.py",
+      "core/maintenance.py",
+      "core/run_guard.py",
+      "core/test_framework_bridge.py",
+      "core/test_framework_integration.py",
+      "core/worker.py"
+    ],
+    "existing_apis": [
+      "/api/v1/engineering/worker-providers",
+      "/api/v1/issues/{iid}/rcca",
+      "/api/v1/vcs/commits",
+      "/api/v1/vcs/worktrees",
+      "/api/v1/vcs/worktrees/{name}/remove",
+      "/api/v1/workers/capacity",
+      "/api/v1/workers/metrics",
+      "/api/v1/workers/queue"
+    ],
+    "existing_modules": [
+      "config/engineering-workers.json",
+      "config/guardrail-policy.json"
+    ],
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [
+      "product_forge:BI-PF-0430 (score 1.00)"
+    ],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [
+      "possible duplicate"
+    ],
+    "evidence": [
+      "similar=5",
+      "score=3.0",
+      "components=8",
+      "apis=8"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": false,
+    "reasons": [],
+    "computed_at": ""
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": ""
+  },
+  "created_at": "2026-10-08T11:55:05.557982",
+  "updated_at": "2026-10-08T11:55:06.946227",
+  "score": 3.0,
+  "_note": "analysis updated",
+  "dashboard_impact": {
+    "needs_dashboard": false,
+    "reason": "Process guard; no UI surface",
+    "dashboard_item": null,
+    "reviewed_by": "agent"
+  }
+}
