@@ -1,0 +1,163 @@
+{
+  "id": "BI-PF-0457",
+  "tag": "PF",
+  "type": "bug",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "backlog-id-collision",
+  "label": "PF Backlog 491",
+  "title": "Defect/RCCA: concurrent sessions allocate the SAME backlog id (local counters, no coordination) -> push rejected + merge conflict",
+  "body": "Source: hit during BI-PF-0456 delivery (2026-10-08).\n\nDEFECT: two sessions allocated the SAME backlog id. A concurrent session (another worktree) pushed BI-PF-0455 (a\nDOGFOOD e2e checker defect) to origin/develop; THIS session had allocated BI-PF-0455 for a different item (the\nensure_feature_item dataclass bug). The push was rejected (non-fast-forward) and the merge produced an add/add\nconflict on data/backlog/items/BI-PF-0455.json. Resolved by renumbering this session's item to BI-PF-0456.\n\nRCCA (5-Why):\n1. Two different items shared id BI-PF-0455. 2. Each session computed next-id = max(local counters)+1 = 0455.\n3. The id counter is a LOCAL per-worktree file (data/backlog/counters.json) with no cross-session coordination.\n4. IS-PF-0036 requires a separate worktree per session, but separate worktrees still share ONE id space via the\ncounters they each read from develop. 5. Guard: id allocation must be collision-safe across concurrent sessions.\n\nGuard (proposed, decide): pick one+ - (a) re-read/refresh counters from origin/develop immediately before\nallocation and re-key on divergence; (b) reserve id ranges per worker/session (worker-prefixed suffix); or\n(c) a merge/precheck audit that FAILS on duplicate ids across the integration branch. Long-term: allocate ids\nfrom the shared remote (one authority), not a local counter.\n\nImpact: cosmetic-ish (renumber works) but breaks automated delivery (push rejected, merge conflict), so it must\nnot recur as concurrency grows (worker plane).",
+  "source": "BI-PF-0456 delivery",
+  "status": "new",
+  "priority": null,
+  "moscow": "Should",
+  "value": 4,
+  "effort": 2,
+  "risk": 3,
+  "deps": [],
+  "links": {
+    "related": [
+      "product_forge:BI-PF-0456",
+      "product_forge:BI-PF-0430",
+      "product_forge:BI-PF-0427"
+    ],
+    "backend_capability": [
+      "module:core/backlog.py",
+      "doc:docs/WORKER-SCHEDULER-OPERATIONS.md"
+    ]
+  },
+  "decisions": [],
+  "follow_up": {},
+  "brief": {
+    "problem": "Source: hit during BI-PF-0456 delivery (2026-10-08).",
+    "what_adds": "Defect/RCCA: concurrent sessions allocate the SAME backlog id (local counters, no coordination) -> push rejected + merge conflict",
+    "why": "(derived) see objective",
+    "who_feels": "(derived) unspecified",
+    "source": "extracted"
+  },
+  "objective": "Defect/RCCA: concurrent sessions allocate the SAME backlog id (local counters, no coordination) -> push rejected + merge conflict",
+  "acceptance_criteria": [
+    "(derived) objective met: Defect/RCCA: concurrent sessions allocate the SAME backlog id (local counters, no coordination) -> push rejected + merge conflict"
+  ],
+  "in_scope": [
+    "Defect/RCCA: concurrent sessions allocate the SAME backlog id (local counters, no coordination) -> push rejected + merge conflict"
+  ],
+  "out_of_scope": [
+    "(derived) not specified"
+  ],
+  "affected_components": [
+    "(derived) TBD"
+  ],
+  "affected_files": [
+    "(derived) TBD"
+  ],
+  "approach": "Defect/RCCA: concurrent sessions allocate the SAME backlog id (local counters, no coordination) -> push rejected + merge conflict",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "(derived) objective met: Defect/RCCA: concurrent sessions allocate the SAME backlog id (local counters, no coordination) -> push rejected + merge conflict"
+  ],
+  "risks": [
+    "(derived) none identified"
+  ],
+  "rollback": "(derived) revert the change",
+  "evidence": [
+    "(derived) pending"
+  ],
+  "owner": "agent",
+  "requester": "BI-PF-0456 delivery",
+  "due": "(derived) TBD",
+  "target_release": "(derived) TBD",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "",
+  "parent": "",
+  "revision": 1,
+  "priority_rank": null,
+  "priority_class": "",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "IN_PROGRESS",
+    "analyzed_at": "",
+    "analyzed_by": "deterministic",
+    "revision_analyzed": 0,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/backlog.py, core/backlog_link.py, core/defect_loop.py, /api/v1/backlog",
+    "existing_components": [
+      "core/backlog.py",
+      "core/backlog_link.py",
+      "core/defect_loop.py"
+    ],
+    "existing_apis": [
+      "/api/v1/backlog",
+      "/api/v1/backlog/grooming/guidelines",
+      "/api/v1/backlog/items",
+      "/api/v1/backlog/items/{item_id}",
+      "/api/v1/backlog/items/{item_id}/analysis",
+      "/api/v1/backlog/items/{item_id}/dependencies",
+      "/api/v1/backlog/items/{item_id}/groom",
+      "/api/v1/backlog/items/{item_id}/groom/decide"
+    ],
+    "existing_modules": [],
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=1.0",
+      "components=3",
+      "apis=8"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": false,
+    "reasons": [],
+    "computed_at": ""
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": ""
+  },
+  "created_at": "2026-10-08T22:14:19.876082",
+  "updated_at": "2026-10-08T22:14:20.795583",
+  "score": 1.0,
+  "_note": "analysis updated",
+  "dashboard_impact": {
+    "needs_dashboard": false,
+    "reason": "backlog id-allocation process defect; no dashboard surface",
+    "dashboard_item": null,
+    "reviewed_by": "agent"
+  }
+}
