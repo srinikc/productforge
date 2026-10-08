@@ -64,7 +64,9 @@ def entries() -> List[Dict[str, Any]]:
 def lookup(name: str) -> Optional[Dict[str, Any]]:
     n = str(name or "").strip().lower()
     for e in entries():
-        if str(e.get("name", "")).strip().lower() == n:
+        names = [str(e.get("name", "")).strip().lower()]
+        names += [str(x).strip().lower() for x in (e.get("manifest_names") or [])]
+        if n in names:
             return e
     return None
 

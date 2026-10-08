@@ -1,20 +1,18 @@
 # Backlog Summary
 
-> GENERATED 2026-10-08T20:03:37 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-08T21:02:26 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 37  |  **Closed:** 400
-- `new`: 37
+- **Open:** 35  |  **Closed:** 402
+- `new`: 35
 
-### new, by category (37)
-**API / reports / HIL / misc** (3)
+### new, by category (35)
+**API / reports / HIL / misc** (1)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-PF-0332 | Should | chore | API-5 deferred hardening: rate limiting + request/upload limits + tenant-isolation expansion + event streaming | API-5 deferred hardening: rate limiting + request/upload limits + tenant-isolation expansion + event streaming |
-| BI-PF-0451 | Must | epic | EPIC: Feature<->Epic<->children model + generated-product backlog + full field data | EPIC: Feature<->Epic<->children model + generated-product backlog + full field data |
-| BI-PF-0453 | Must | feature | P1: Generation pipeline builds Feature->Epic->children + full fields for generated products | P1: Generation pipeline builds Feature->Epic->children + full fields for generated products |
 
 **Bug fixes** (1)
 | ID | MoSCoW | Type | Title | Objective |
@@ -272,5 +270,5 @@
 ---
 
 ## Totals
-- backend: 37 open / 400 closed
+- backend: 35 open / 402 closed
 - dashboard: 146 open / 3 closed
