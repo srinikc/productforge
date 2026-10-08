@@ -54,19 +54,54 @@ def _run(cmd: List[str], cwd: str, timeout: int = 900):
         return 1, str(e)
 
 
-def evaluate(project_dir: str = "", mode: str = "item") -> Dict:
-    """Run compileall + wired_audit; return {passed, mode, reasons, checks}. Records if project_dir."""
+def evaluate(project_dir: str = "", mode: str = "item", *, run_dir: str = "", run_id: str = "") -> Dict:
+    """Run compileall + wired_audit; return {passed, mode, reasons, checks}. Records if project_dir.
+
+    BI-PF-0420 (parallel validation): ``run_dir`` (the run's worktree) is the cwd for the audits so parallel
+    runs don't share the checkout; ``run_id`` additionally records to
+    ``<project_dir>/validation/<run_id>/quality-gate.json`` (run-scoped). The latest record is always written
+    for back-compat.
+    """
+    cwd = run_dir or REPO
     checks = []
-    rc1, out1 = _run([sys.executable, "-m", "compileall", "-q", "core", "scripts", "dashboard"], REPO)
+    rc1, out1 = _run([sys.executable, "-m", "compileall", "-q", "core", "scripts", "dashboard"], cwd)
     checks.append({"name": "compileall", "passed": rc1 == 0, "rc": rc1, "tail": out1[-400:]})
-    rc2, out2 = _run([sys.executable, os.path.join("scripts", "dev", "wired_audit.py")], REPO)
+    rc2, out2 = _run([sys.executable, os.path.join("scripts", "dev", "wired_audit.py")], cwd)
     checks.append({"name": "wired_audit", "passed": rc2 == 0, "rc": rc2, "tail": out2[-1000:]})
     result = {"passed": all(c["passed"] for c in checks), "mode": mode,
               "at": datetime.now().isoformat(timespec="seconds"), "checks": checks,
-              "reasons": [c["name"] for c in checks if not c["passed"]]}
+              "reasons": [c["name"] for c in checks if not c["passed"]],
+              "run_id": run_id, "run_dir": run_dir}
     if project_dir:
+        if run_id:
+            record_run(project_dir, run_id, result)
         record(project_dir, result)
     return result
+
+
+def _run_path(project_dir: str, run_id: str) -> str:
+    return os.path.join(project_dir, "validation", str(run_id), FILENAME)
+
+
+def record_run(project_dir: str, run_id: str, result: Dict) -> None:
+    """Run-scoped record (BI-PF-0420): ``<project_dir>/validation/<run_id>/quality-gate.json``."""
+    try:
+        p = _run_path(project_dir, run_id)
+        os.makedirs(os.path.dirname(p), exist_ok=True)
+        tmp = p + ".tmp"
+        with open(tmp, "w", encoding="utf-8", newline="\n") as f:
+            json.dump(result, f, indent=2, ensure_ascii=False)
+        os.replace(tmp, p)
+    except Exception:
+        pass
+
+
+def latest_run(project_dir: str, run_id: str) -> Optional[Dict]:
+    """The run-scoped quality-gate record, or None (BI-PF-0420)."""
+    try:
+        return json.load(open(_run_path(project_dir, run_id), encoding="utf-8"))
+    except Exception:
+        return None
 
 
 def record(project_dir: str, result: Dict) -> None:

@@ -137,6 +137,19 @@ def can_assign(active: int) -> Dict[str, Any]:
             "reason": "" if ok else f"no free assignment slot ({active}/{mx})"}
 
 
+def max_parallel_validations() -> int:
+    """Concurrent validation runs allowed per repo (0 = unlimited). BI-PF-0420."""
+    return int(load().get("max_parallel_validations") or 0)
+
+
+def can_validate(active: int) -> Dict[str, Any]:
+    """Capacity check for parallel validation (BI-PF-0420): ``active`` runs < the cap."""
+    mx = max_parallel_validations()
+    ok = (not mx) or int(active) < mx
+    return {"ok": ok, "active": int(active), "max_parallel_validations": mx,
+            "reason": "" if ok else f"no free validation slot ({active}/{mx})"}
+
+
 def effective_limits(tier: str = "", extra: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """Global limits, further capped by a license TIER (and optional extras).
 
