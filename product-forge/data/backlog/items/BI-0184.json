@@ -22,7 +22,7 @@
   "decisions": [],
   "follow_up": {},
   "created_at": "2026-09-24T22:56:28.200630",
-  "updated_at": "2026-09-24T23:15:36.885460",
+  "updated_at": "2026-10-08T18:29:57.925018",
   "score": 1.12,
   "dashboard_impact": {
     "needs_dashboard": true,
@@ -31,5 +31,25 @@
     "reviewed_by": "agent",
     "reviewed_at": "2026-09-24T22:56:28.420689"
   },
-  "_note": "core/run_quality_gate.py (single writer of quality-gate.json): should_gate(mode), mode_from_scope, evaluate() [compileall + wired_audit subprocess], record(), latest(), gate_if_item_run(). Wired into core/pipeline_executor.py at run end: mode = 'item' when a selective run-scope (only_stages/only_agents) is set, else 'e2e'; item/amend runs run the gate + record quality-gate.json, e2e skips. Store registered. VERIFIED: e2e -> None (skipped); item -> gate ran (passed) + quality-gate.json recorded; latest() reads it. Dashboard half = BI-0137 (paired, not implemented). compileall=0, wired_audit=0, run_quality_gate=RUNTIME."
+  "_note": "core/run_quality_gate.py (single writer of quality-gate.json): should_gate(mode), mode_from_scope, evaluate() [compileall + wired_audit subprocess], record(), latest(), gate_if_item_run(). Wired into core/pipeline_executor.py at run end: mode = 'item' when a selective run-scope (only_stages/only_agents) is set, else 'e2e'; item/amend runs run the gate + record quality-gate.json, e2e skips. Store registered. VERIFIED: e2e -> None (skipped); item -> gate ran (passed) + quality-gate.json recorded; latest() reads it. Dashboard half = BI-0137 (paired, not implemented). compileall=0, wired_audit=0, run_quality_gate=RUNTIME.",
+  "brief": {
+    "problem": "The repo quality gate (`compileall` + `wired_audit`: store-registry, unwired, diff-contract,\ndestructive, reciprocity, tier-models, agent-knowledge, legacy-frozen) runs only in CI / the PR\nmerge gate (`core/pr_gate.py`). When a human executes a BACKLOG ITEM as a run (scoped amend), that\ngate is what is really needed - but it never runs on the run path. A full e2e pipeline run does NOT\nneed it (per-agent compliance already runs for every agent).",
+    "what_adds": "A run carries a MODE. `item`/amend runs execute the repo quality gate and record pass/fail on the\nrun; `e2e` runs skip it. Reuse existing primitives: `run_scope` (only_stages/only_agents) and\n`core/pr_gate.py` (which already invokes wired_audit).",
+    "why": "",
+    "who_feels": "",
+    "derived": false
+  },
+  "objective": "A run carries a MODE. `item`/amend runs execute the repo quality gate and record pass/fail on the\nrun; `e2e` runs skip it. Reuse existing primitives: `run_scope` (only_stages/only_agents) and\n`core/pr_gate.py` (which already invokes wired_audit).",
+  "acceptance_criteria": [
+    "item-mode run records `quality_gate: {passed, reasons}`; e2e run records it as skipped/absent.",
+    "A failing gate on an item run is surfaced (and can block the run per policy)."
+  ],
+  "in_scope": [
+    "A `mode` (e2e | item) on the run (run-scope / run record).",
+    "For `item` mode: run compileall + the wired_audit subset (or pr_gate) and store the result",
+    "Expose the gate result for the dashboard to read."
+  ],
+  "out_of_scope": [
+    "Per-agent compliance (already runs in BOTH modes). Dashboard UI (separate dashboard item)."
+  ]
 }

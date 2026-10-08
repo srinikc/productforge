@@ -492,11 +492,46 @@ def duplicate_pairs(scope: str | None = None, threshold: float = 0.5,
     return out[:limit]
 
 
+def is_epic(item: dict | None) -> bool:
+    """BI-PF-0446: an Epic is a container item (type == 'epic'), never directly executable."""
+    return str((item or {}).get("type") or "") == "epic"
+
+
+def _children_of(op: list, cl: list, epic_id: str) -> list:
+    e = str(epic_id)
+    return [i for i in (op + cl) if str(i.get("epic") or i.get("parent") or "") == e]
+
+
+def _sync_epic_children(scope: str, project: str | None, epic_id: str) -> None:
+    """Keep ``epic.children[]`` == the ids of items whose ``epic``/``parent`` == epic_id (bidirectional)."""
+    if not epic_id:
+        return
+    op, cl = _load_all(scope, project)
+    kids = [str(i.get("id")) for i in _children_of(op, cl, epic_id)]
+    e = get_epic(scope, project, epic_id)
+    if e is None:
+        return
+    if list(e.get("children") or []) != kids:
+        update(scope, project, epic_id, children=kids, _note="epic children synced")
+
+
+def epic_done(scope: str, project: str | None, epic_id: str) -> bool:
+    """BI-PF-0446: an Epic is done iff it has children and ALL are terminal (computed rollup)."""
+    op, cl = _load_all(scope, project)
+    kids = _children_of(op, cl, epic_id)
+    if not kids:
+        return False
+    return all(_normalize_status(str(k.get("status") or "")) in _CLOSED for k in kids)
+
+
 def add_epic(scope: str, project: str | None, title: str, body: str = "",
              source: str = "generic", type_: str = "feature", origin: str = "intake",
              value: int = 3, effort: int = 3, risk: int = 2, moscow: str = "Should",
              deps: list[str] | None = None, links: dict | None = None,
-             external_id: str = "", tag: str = "") -> dict:
+             external_id: str = "", tag: str = "",
+             brief: dict | None = None, objective: str = "",
+             acceptance_criteria: list[str] | None = None, epic: str = "",
+             summary: str = "") -> dict:
     """Create a work item. `external_id` (e.g. feature_id/defect_id/conversation_id) makes it idempotent.
 
     `tag` overrides the destination tag encoded in the id (see ``tag_for``).
@@ -530,6 +565,14 @@ def add_epic(scope: str, project: str | None, title: str, body: str = "",
             "title": title, "body": body, "source": source, "status": "new",
             "priority": None, "moscow": moscow, "value": value, "effort": effort, "risk": risk,
             "deps": deps or [], "links": links or {}, "decisions": [], "follow_up": {},
+            # BI-PF-0445: authored context (WHY/WHAT/WHERE/HOW/REVIEW/WHO/WHEN/APPROVAL/EVIDENCE)
+            "brief": dict(brief or {}), "objective": objective or "",
+            "acceptance_criteria": list(acceptance_criteria or []),
+            "in_scope": [], "out_of_scope": [], "affected_components": [], "affected_files": [],
+            "approach": "", "review": {}, "verification": [], "risks": [], "rollback": "",
+            "evidence": [], "owner": "", "requester": "", "due": "", "target_release": "",
+            "approvals": [], "summary": summary or "", "children": [],
+            "epic": str(epic or ""), "parent": str(epic or ""),
             # PFSSOT first-class execution fields (additive; BI-PF-0362)
             "revision": 1, "priority_rank": None, "priority_class": "",
             "analyze_mode": "on_entry", "analysis": _default_analysis(),
@@ -546,6 +589,9 @@ def add_epic(scope: str, project: str | None, title: str, body: str = "",
         created = item
     finally:
         _unlock(lp)
+    if epic:
+        with contextlib.suppress(Exception):
+            _sync_epic_children(scope, project, str(epic))
     # PFSSOT-P3 (BI-PF-0364): deep analysis at grooming time, by default, so the item is scheduler-ready.
     # Runs AFTER the lock is released (it re-writes analysis via this module). Best-effort: never blocks create.
     # AUTOMATIC entry uses DETERMINISTIC deep analysis (fast, offline-safe); AI grooming is the default only
@@ -1114,6 +1160,19 @@ _STRUCT_FIELD_TYPES = {
     "delivery": (dict,),
     "decisions": (list,),
     "deps": (list,),
+    # BI-PF-0445: authored context fields (type-checked like the rest)
+    "brief": (dict,),
+    "review": (dict,),
+    "acceptance_criteria": (list,),
+    "in_scope": (list,),
+    "out_of_scope": (list,),
+    "affected_components": (list,),
+    "affected_files": (list,),
+    "verification": (list,),
+    "risks": (list,),
+    "evidence": (list,),
+    "approvals": (list,),
+    "children": (list,),
 }
 
 
@@ -1151,6 +1210,13 @@ def update(scope: str, project: str | None, eid: str, **fields) -> dict | None:
                 an["status"] = "STALE"
                 target["analysis"] = an
         st = str(target.get("status", ""))
+        # BI-PF-0446: an Epic cannot be closed while any child is still open (done = rollup)
+        if (str(target.get("type", "")) == "epic" and "status" in fields
+                and _normalize_status(st) in _CLOSED):
+            kids = _children_of(op, cl, str(target.get("id")))
+            open_kids = [k for k in kids if _normalize_status(str(k.get("status") or "")) not in _CLOSED]
+            if kids and open_kids:
+                raise ValueError(f"epic {target.get('id')} cannot be closed: {len(open_kids)} child(ren) still open")
         if st in _CLOSED and bucket is op:
             op.remove(target)
             cl.append(target)

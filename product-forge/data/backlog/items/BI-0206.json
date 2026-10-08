@@ -29,7 +29,7 @@
   "decisions": [],
   "follow_up": {},
   "created_at": "2026-09-25T21:20:44.879245",
-  "updated_at": "2026-09-25T21:25:46.191484",
+  "updated_at": "2026-10-08T18:29:29.107020",
   "score": 1.0,
   "dashboard_impact": {
     "needs_dashboard": true,
@@ -38,5 +38,25 @@
     "reviewed_by": "agent",
     "reviewed_at": "2026-09-25T21:25:46.157349"
   },
-  "_note": "dashboard_impact reviewed"
+  "_note": "dashboard_impact reviewed",
+  "brief": {
+    "problem": "Open-weights models (image/video/tts/stt/music/3d/ocr/vlm/embedding) must be fetched, verified, cached,\nand license-gated before a self-host adapter can run them. Today there is no downloader, no cache, no\nlicense enforcement, so `provider_kind=self-host` cannot work and packaging could accidentally ship\nrestricted weights.",
+    "what_adds": "One owner module that downloads only the weights a project's capability pack needs, into a gitignored\nlocal cache, refusing non-bundle-usable weights unless explicitly overridden.",
+    "why": "",
+    "who_feels": "",
+    "derived": false
+  },
+  "objective": "One owner module that downloads only the weights a project's capability pack needs, into a gitignored\nlocal cache, refusing non-bundle-usable weights unless explicitly overridden.",
+  "acceptance_criteria": [
+    "`ensure(\"FLUX.1-schnell\")` downloads once, records sha256+license in models.lock, second call is a no-op.",
+    "A restricted model (`FLUX.1-dev`) is refused with a clear message unless the override env is set.",
+    "Downloading is pack-scoped: a text-only project downloads nothing."
+  ],
+  "in_scope": [
+    "`core/model_manager.py` (single writer): resolve model -> source (HF Hub / ModelScope / URL),",
+    "Cache layout `product-forge/models/<provider>/<model>@<rev>/` (gitignored) + `models.lock` manifest",
+    "**License-acceptance gate:** read catalog `license`/`open_weights`/`bundle_allowed`; block",
+    "Disk/VRAM preflight (size vs free space) + \"download only required modalities\" (pack-driven).",
+    "CLI: `python -m core.model_manager --list/--ensure <model>/--verify/--prune`."
+  ]
 }

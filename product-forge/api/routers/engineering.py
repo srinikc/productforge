@@ -313,8 +313,19 @@ def assignment_claim(body: dict[str, Any], request: Request,
         job_manager.release(s, p, item, reason="worktree setup failed")
         raise ApiError("WORKTREE_FAILED", "could not create the assignment worktree",
                        details={"error": wt.get("error") or ""})
+    epic_ctx = None
+    if it.get("epic"):
+        _e = backlog.get_epic(s, p, str(it.get("epic"))) or {}
+        epic_ctx = {"id": _e.get("id"), "title": _e.get("title"), "summary": _e.get("summary") or "",
+                    "objective": _e.get("objective") or "", "brief": _e.get("brief") or {}}
     pkg = {"assigned": True, "item_id": item, "title": it.get("title"),
-           "description": it.get("body") or "", "acceptance_criteria": it.get("acceptance_criteria") or [],
+           "description": it.get("body") or "",
+           # BI-PF-0445/0446: authored context + epic context so the worker does not guess
+           "brief": it.get("brief") or {}, "objective": it.get("objective") or "",
+           "acceptance_criteria": it.get("acceptance_criteria") or [],
+           "in_scope": it.get("in_scope") or [], "out_of_scope": it.get("out_of_scope") or [],
+           "approach": it.get("approach") or "", "verification": it.get("verification") or [],
+           "affected_files": it.get("affected_files") or [], "epic": epic_ctx,
            "assignment_id": res.get("assignment_id"), "lease_id": res.get("lease_id"),
            "lease_expires_at": res.get("lease_expires_at"), "worker_id": worker,
            "pidl_context": res.get("pidl_context"), "execution_policy": res.get("execution_policy"),

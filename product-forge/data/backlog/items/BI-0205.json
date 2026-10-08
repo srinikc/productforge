@@ -26,7 +26,7 @@
   "decisions": [],
   "follow_up": {},
   "created_at": "2026-09-25T20:53:14.433526",
-  "updated_at": "2026-09-29T22:02:38.132564",
+  "updated_at": "2026-10-08T18:30:00.387541",
   "score": 0.67,
   "dashboard_impact": {
     "needs_dashboard": false,
@@ -35,5 +35,20 @@
     "reviewed_by": "agent",
     "reviewed_at": "2026-09-25T20:53:14.440664"
   },
-  "_note": "precheck.py + secret_scan.py + docs/PR-WORKFLOW.md; aligns local gates with CI. Also fixed e2e_backlog_check (done -> canonical completed)."
+  "_note": "precheck.py + secret_scan.py + docs/PR-WORKFLOW.md; aligns local gates with CI. Also fixed e2e_backlog_check (done -> canonical completed).",
+  "brief": {
+    "problem": "Work is (so far) committed straight to `develop` with no PR, no required review, and no CI gate on the\nchange itself -- only `.github/workflows/structure.yml` on push. There is no enforced pre-check (syntax,\naudits, tests, lint, secret scan) before code lands, so errors can reach `develop`/`main`.",
+    "what_adds": "Every change lands via a Pull Request that (a) passes automated pre-checks, (b) gets a human review BEFORE\ncheck-in/merge, and (c) is protected by branch rules -- so `develop` always builds and `main` stays releasable.",
+    "why": "",
+    "who_feels": "",
+    "derived": false
+  },
+  "objective": "Every change lands via a Pull Request that (a) passes automated pre-checks, (b) gets a human review BEFORE\ncheck-in/merge, and (c) is protected by branch rules -- so `develop` always builds and `main` stays releasable.",
+  "acceptance_criteria": [
+    "`docs/PR-PROCESS.md` + `.github/pull_request_template.md` + `.github/CODEOWNERS` exist.",
+    "CI workflow runs on `pull_request` to `develop`/`main` and runs all gates above.",
+    "Branch protection on `develop` + `main`: require PR + review + status checks + no force-push.",
+    "A demo PR with an intentional syntax error is blocked; fixed -> green -> approved -> merged.",
+    "A direct push to `develop` is rejected."
+  ]
 }

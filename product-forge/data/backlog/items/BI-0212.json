@@ -32,7 +32,7 @@
   "decisions": [],
   "follow_up": {},
   "created_at": "2026-09-25T21:20:45.564597",
-  "updated_at": "2026-09-30T20:07:32.671821",
+  "updated_at": "2026-10-08T18:30:00.910583",
   "score": 0.67,
   "dashboard_impact": {
     "needs_dashboard": true,
@@ -41,5 +41,24 @@
     "reviewed_by": "agent",
     "reviewed_at": "2026-09-25T21:25:46.332369"
   },
-  "_note": "closed via issue IS-PF-0019: test-framework/tests/pipeline/test_multimodal_e2e.py; docs/MULTIMODAL-E2E-DESIGN.md"
+  "_note": "closed via issue IS-PF-0019: test-framework/tests/pipeline/test_multimodal_e2e.py; docs/MULTIMODAL-E2E-DESIGN.md",
+  "brief": {
+    "problem": "We are adding kinds, adapters, packs, and models with no single e2e proof that a media/sensor project\nruns start-to-finish. Unit tests will not catch integration gaps across router+adapter+store+QA.",
+    "what_adds": "A hermetic (fake-adapter) e2e test that proves each modality's happy path through the real pipeline\ncontrol flow, plus one optional live smoke behind a flag.",
+    "why": "",
+    "who_feels": "",
+    "derived": false
+  },
+  "objective": "A hermetic (fake-adapter) e2e test that proves each modality's happy path through the real pipeline\ncontrol flow, plus one optional live smoke behind a flag.",
+  "acceptance_criteria": [
+    "One test per modality, all green with fakes, no network; suite stays fast (<30s).",
+    "A text-only project produces no media artifacts and no media cost.",
+    "Async path (submit->poll->fetch) exercised for video/music/3d."
+  ],
+  "in_scope": [
+    "Fake adapters for each kind: image-gen, video-gen(async), tts, stt, music-gen(async), 3d-gen(async),",
+    "For each modality: idea -> capability gate -> pack enable -> model strategy -> router -> adapter ->",
+    "Assertions: artifact exists + type, QA passes, cost booked with correct billing_unit, text-only",
+    "Optional live smoke (`PF_E2E_LIVE=1`) hitting free-tier/self-host for one image + one audio."
+  ]
 }

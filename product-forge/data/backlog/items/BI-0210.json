@@ -32,7 +32,7 @@
   "decisions": [],
   "follow_up": {},
   "created_at": "2026-09-25T21:20:45.340155",
-  "updated_at": "2026-09-30T18:02:37.988669",
+  "updated_at": "2026-10-08T18:30:00.663624",
   "score": 1.5,
   "dashboard_impact": {
     "needs_dashboard": true,
@@ -41,5 +41,24 @@
     "reviewed_by": "agent",
     "reviewed_at": "2026-09-25T21:25:45.689159"
   },
-  "_note": "closed via issue IS-PF-0011: core/model_strategy.py; core/orchestrator/stage_runner.py (gates A/B); config/store-registry.json; config/env-flags.json; scripts/pipeline.py; test-framework/tests/pipeline/test_model_strategy.py"
+  "_note": "closed via issue IS-PF-0011: core/model_strategy.py; core/orchestrator/stage_runner.py (gates A/B); config/store-registry.json; config/env-flags.json; scripts/pipeline.py; test-framework/tests/pipeline/test_model_strategy.py",
+  "brief": {
+    "problem": "BI-0192 selects the model/capability strategy only AFTER the architect (1b). But modality is knowable\nright after ideation (0/0a), and later stages (design/architecture) already need to know the kinds and\ncapability pack. Choosing too late under-serves early decisions and blocks media-aware design.",
+    "what_adds": "Add a FIRST selection point immediately after ideation/discovery, keeping the post-architect pass as a\nrefinement (progressive elaboration).",
+    "why": "",
+    "who_feels": "",
+    "derived": false
+  },
+  "objective": "Add a FIRST selection point immediately after ideation/discovery, keeping the post-architect pass as a\nrefinement (progressive elaboration).",
+  "acceptance_criteria": [
+    "A media idea enables its pack BEFORE the design stage runs.",
+    "A non-media idea enables nothing and behaves exactly as today.",
+    "Changing the idea re-runs the gate and updates capabilities.json idempotently."
+  ],
+  "in_scope": [
+    "Gate A (post-ideation 0/0a): detect modalities (core/modality.py) -> write",
+    "Gate B (post-architect 1b, existing BI-0192): refine to concrete models/providers + per-stage tier.",
+    "Wire into the executor right after discovery/design so downstream stages see the pack.",
+    "Surface the decision (which modalities/kinds/packs) in the run log + telemetry."
+  ]
 }
