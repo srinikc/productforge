@@ -39,29 +39,53 @@ def _bullets(text: str) -> list:
     return out
 
 
+_DEFAULTS = {
+    "review": {}, "approach": "", "affected_components": [], "affected_files": [],
+    "owner": "", "requester": "", "due": "", "target_release": "", "approvals": [],
+    "evidence": [], "verification": [], "risks": [], "rollback": "", "summary": "",
+    "in_scope": [], "out_of_scope": [],
+}
+
+
+def _first_para(body: str) -> str:
+    for blk in re.split(r"\n\s*\n", body or ""):
+        t = re.sub(r"^\s*#{1,4}\s*.*$", "", blk, flags=re.M).strip()
+        if len(t) >= 40:
+            return t
+    return ""
+
+
 def _derive(item: dict) -> dict:
-    """Return the field updates for one item (only what's missing/unset)."""
+    """Field updates for one item: extracted context + fill missing fields with defaults."""
     body = item.get("body") or ""
     upd = {}
-    problem = _section(body, ("problem", "problem / why", "why"))
-    goal = _section(body, ("goal & value", "goal", "what it adds"))
-    if not (item.get("brief") or {}).get("problem"):
+    if not (item.get("brief") or {}).get("problem") and not (item.get("brief") or {}).get("what_adds"):
+        problem = _section(body, ("problem", "problem / why"))
+        goal = _section(body, ("goal & value", "goal", "what it adds"))
+        para = _first_para(body)
         if problem:
             upd["brief"] = {"problem": problem[:1200], "what_adds": (goal or item.get("title") or "")[:600],
-                            "why": "", "who_feels": "", "derived": False}
+                            "why": "", "who_feels": "", "source": "extracted"}
+        elif len(body.strip()) >= 60:
+            upd["brief"] = {"problem": (para or body.strip())[:1200],
+                            "what_adds": (goal or item.get("title") or "")[:600],
+                            "why": "", "who_feels": "", "source": "extracted"}
         else:
-            first = next((ln.strip() for ln in body.splitlines() if ln.strip()), "")
-            upd["brief"] = {"problem": first[:400] or f"(no description) {item.get('title','')}",
-                            "what_adds": item.get("title") or "", "why": "", "who_feels": "", "derived": True}
+            upd["brief"] = {"problem": item.get("title") or "", "what_adds": item.get("title") or "",
+                            "why": "", "who_feels": "", "source": "derived"}
+    br = item.get("brief") or {}
+    if br and not br.get("source"):          # upgrade provenance on pre-existing briefs
+        body_ok = (bool(_section(body, ("problem", "problem / why", "goal & value", "goal")))
+                   or len(body.strip()) >= 60)
+        nb = dict(br)
+        nb["source"] = "extracted" if body_ok else "derived"
+        upd["brief"] = nb
     if not str(item.get("objective") or "").strip():
+        goal = _section(body, ("goal & value", "goal"))
         upd["objective"] = (goal[:300] if goal else (item.get("title") or ""))
-        if not goal:
-            upd.setdefault("intent_derived", True)
     if not item.get("acceptance_criteria"):
         ac = _bullets(_section(body, ("acceptance criteria (testable)", "acceptance criteria", "acceptance")))
-        upd["acceptance_criteria"] = ac or [f"(derived) objective met: {item.get('title','')}"]
-        if not ac:
-            upd["intent_derived"] = True
+        upd["acceptance_criteria"] = ac or [f"(derived) objective met: {item.get('title', '')}"]
     if not item.get("in_scope"):
         sc = _bullets(_section(body, ("in scope", "in scope (sub-items)")))
         if sc:
@@ -72,6 +96,9 @@ def _derive(item: dict) -> dict:
             upd["out_of_scope"] = oos
     if not item.get("epic") and item.get("parent"):
         upd["epic"] = str(item.get("parent"))
+    for k, dv in _DEFAULTS.items():          # normalize: every item carries the full field set
+        if k not in upd and not item.get(k):
+            upd[k] = dv
     return upd
 
 
