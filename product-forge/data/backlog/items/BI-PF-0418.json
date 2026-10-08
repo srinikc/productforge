@@ -10,7 +10,7 @@
   "title": "EPIC: PF parallel run engine (per-item assignment + parallel validation + optimistic delivery; WorkerGrid = thin runtime host)",
   "body": "Design locked 2026-10-07 (user-approved). Goal: burn the PF backlog in PARALLEL - many items per project\nAND many projects - and generalize to intake -> analyze -> execute/schedule -> validate -> deliver for the PF\nbacklog and every project backlog. Today this is throttled to ONE item per project by job_manager's per-project job.\n\nTarget architecture: PF = single authority + parallel run engine (per-item assignment, run-scoped parallel\nvalidation, optimistic delivery, assignments view). WorkerGrid = thin runtime host (/wg work; no server, no\nlease, no store). A run = (scope, project, item, run_id) with its own worktree + evidence + concurrency slot.\n\nDecisions: (1) extend the EXISTING single claimer (job_manager) to per-item - no second claim engine;\n(2) delivery is an ASYNC lane; (3) auth = dedicated `worker` role (least privilege, no new store);\n(4) keep the WorkerGrid coordinator as the fallback for non-PF producers.\n\nIMPACT: the only non-aligned verdict is ADR-0002 (WorkerGrid owns registry/lease) - intentionally superseded by\na new ADR (coordination authority lives in the producer; WorkerGrid is a runtime host). No new stores (lease\nstays in backlog.execution{}, single writer core/backlog.py); no duplicate engines (reuse vcs/validation_engine/\ngithub/gates/capacity). Children: per-item claim+API, parallel validation, optimistic delivery, assignments\nview+dedup, WorkerGrid thin client, ADR+docs.\n\nRelated: BI-PF-0360 (backlog SSOT + scheduler + pluggable workers epic), BI-PF-0347 (ENG-6 validation engine),\nBI-PF-0381 (delivery provenance write-back).\n\n## Scope decision (user, 2026-10-07)\nThe WorkerGrid worker path (assignment API + delivery lane) is for **Product Forge's OWN backlog\n(`product_forge` scope / `BI-PF-*`) ONLY**. A generated product's change/backlog goes through **PF's regular\nagents/pipeline** (native, per-project), never through a worker. Consequence: the assignment API must be\nrestricted to `product_forge` (fail-closed for `project`), and the PF-repo **runner clone** for delivery is\nREQUIRED (not optional) because the sole worker scope lands in the PF repo.",
   "source": "pre-implementation review",
-  "status": "new",
+  "status": "completed",
   "priority": null,
   "moscow": "Should",
   "value": 5,
@@ -111,9 +111,9 @@
     "completed_at": ""
   },
   "created_at": "2026-10-07T21:22:19.649785",
-  "updated_at": "2026-10-08T11:00:15.762219",
+  "updated_at": "2026-10-08T13:14:04.822904",
   "score": 0.5,
-  "_note": "analysis updated",
+  "_note": "parallel run engine delivered: 0419 per-item claim, 0420 parallel validation, 0421/0428 optimistic delivery, 0422 assignments view + dedup, 0423 thin PF client, 0427 worker=product_forge only, 0424 ADR-0003",
   "dashboard_impact": {
     "needs_dashboard": false,
     "reason": "Operator surface is /wg status + the PF API (assignments view); the dashboard is a separate surface and stays out of this slice",
