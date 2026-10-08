@@ -10,7 +10,7 @@
   "title": "DEFECT: validation profiles INTEGRATION/DOGFOOD/RELEASE have unimplemented checkers -> always BLOCKED",
   "body": "Source: found during the BI-PF-0420 360-degree check (2026-10-07).\n\nDEFECT: three validation profiles reference checkers that do not exist, so they always return BLOCKED\n(fail-closed), regardless of BI-PF-0420:\n- config/validation-profiles.json INTEGRATION lists `cross_contract`\n- DOGFOOD lists `e2e`\n- RELEASE lists `security`\ncore/validation_engine.py `_CHECKERS` only implements {quality_gate, tests, policy, verification, pr_gate};\nunknown checkers are recorded {\"status\":\"unknown\",\"detail\":\"no checker (deferred to later ENG phase)\"} -> the\nverdict gate (all pass/skip + >=1 pass) is not met -> BLOCKED.\n\nNote: the DOGFOOD *validation profile* is distinct from the real dogfood path (core/dogfood.run +\nPOST /api/v1/validation/dogfood), which does run end to end.\n\nImpact: `POST /validation/run` with profile INTEGRATION|DOGFOOD|RELEASE can never PASS. Not a parallel-\nvalidation problem (BI-PF-0420) - a missing-checker problem.\n\nFix (proper, not a shortcut): implement the three checkers by delegating to existing owners\n(cross_contract -> core.cross_contract / test_framework_integration cross-contract; e2e -> core.dogfood or\ntest_framework_integration e2e; security -> the existing security scanner(s)), or remove the check from the\nprofile if it is genuinely out of scope - a decision to take. Then the profiles can PASS.\n\ndashboard_impact: needs_dashboard=false - validation engine correctness; no UI surface.",
   "source": "pre-implementation review",
-  "status": "new",
+  "status": "completed",
   "priority": null,
   "moscow": "Should",
   "value": 3,
@@ -24,11 +24,22 @@
     ],
     "related": [
       "product_forge:BI-PF-0420"
-    ]
+    ],
+    "delivery": {
+      "branch": "feature/validation-checkers",
+      "merge_sha": "9984652d61928890e44570ce7cde256b7bc54a9b",
+      "commits": [
+        "3adaa44ff94023b3c94fef9dc52b2dc72bfbe627"
+      ],
+      "pr": "",
+      "pr_url": "",
+      "at": "2026-10-08T17:44:38.536382",
+      "note": ""
+    }
   },
   "decisions": [],
   "follow_up": {},
-  "revision": 1,
+  "revision": 2,
   "priority_rank": null,
   "priority_class": "",
   "analyze_mode": "on_entry",
@@ -105,9 +116,9 @@
     "completed_at": ""
   },
   "created_at": "2026-10-08T08:03:24.825377",
-  "updated_at": "2026-10-08T08:03:25.822983",
+  "updated_at": "2026-10-08T17:44:38.727847",
   "score": 0.75,
-  "_note": "analysis updated",
+  "_note": "",
   "dashboard_impact": {
     "needs_dashboard": false,
     "reason": "Validation engine correctness; no UI surface",
