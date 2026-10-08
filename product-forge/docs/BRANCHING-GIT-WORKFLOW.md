@@ -229,3 +229,6 @@ validation run and the integration landing each use their own worktree; the live
 6. **`.gitattributes`** pins Go files to LF.
 7. **Delivery provenance** is written back to the item (`core.backlog.set_delivery`).
 8. **Scope**: the worker path is `product_forge`-only (BI-PF-0427); generated products build via the pipeline.
+9. **Pre-commit branch guard** (BI-PF-0430): `scripts/dev/branch_guard.py` (installed by `install_hooks.py` as the
+   first pre-commit check) **blocks a direct commit on `develop`/`main`/`master`**; merge commits are allowed
+   (`MERGE_HEAD`); emergency override `PF_ALLOW_DIRECT_COMMIT=1`.
