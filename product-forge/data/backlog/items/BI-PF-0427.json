@@ -8,9 +8,9 @@
   "external_id": "worker-scope-product-forge-only",
   "label": "PF Backlog 461",
   "title": "Restrict the worker/assignment path to product_forge scope (project changes use PF pipeline)",
-  "body": "Source: user scope decision (2026-10-07) captured on BI-PF-0418.\n\nThe worker/assignment path executes Product Forge's OWN backlog only. Restrict it to `product_forge` scope and\nfail-closed for `project`:\n- `GET /engineering/schedule/next?stage=execute` + the assignment API (`/assignments/*`) reject `scope=project`\n  with a clear error (project changes go through PF's pipeline/agents).\n- `job_manager.claim_next` used for external workers claims `product_forge` only (keep the per-item mechanism).\n- Docs: state the two planes (product-building pipeline vs PF-backlog workers).\n\ndashboard_impact: no UI surface.",
+  "body": "Source: user scope decision (2026-10-07) captured on BI-PF-0418.\n\nThe worker/assignment path executes Product Forge's OWN backlog only. Restrict it to `product_forge` scope and\nfail-closed for `project`:\n- `GET /engineering/schedule/next?stage=execute` + the assignment API (`/assignments/*`) reject `scope=project`\n  with a clear error (project changes go through PF's pipeline/agents).\n- `job_manager.claim_next` used for external workers claims `product_forge` only (keep the per-item mechanism).\n- Docs: state the two planes (product-building pipeline vs PF-backlog workers).\n\ndashboard_impact: no UI surface.\n\n## Divergence recorded at implementation (Reconciliation rule)\nThe approved assumption was \"keep claim_next usable only for product_forge\". Implemented at the **API boundary**\ninstead of the core, because guarding the core `job_manager.claim_next` broke the `lease` gate (which uses a\nscratch *project* scope to exercise the mechanism). The worker boundary (coordinator/worker API) is fail-closed\nvia `_worker_scope` on `/assignments/*` + `stage=execute` on `/schedule/next`; the core stays the\nscope-parameterized mechanism. No silent divergence - recorded here.\n",
   "source": "design decision",
-  "status": "new",
+  "status": "completed",
   "priority": null,
   "moscow": "Should",
   "value": 3,
@@ -23,11 +23,22 @@
     "related": [
       "product_forge:BI-PF-0418",
       "product_forge:BI-PF-0419"
-    ]
+    ],
+    "delivery": {
+      "branch": "feature/worker-scope-product-forge",
+      "merge_sha": "d845ddbc1bc2314304a7adbe7399eba00cc09304",
+      "commits": [
+        "2d4a20a"
+      ],
+      "pr": "",
+      "pr_url": "",
+      "at": "2026-10-08T11:16:46.968039",
+      "note": "merged --no-ff; fast precheck PASS (17 gates) - small boundary change. /assignments/* use _worker_scope (product_forge-only, project rejected); /schedule/next?stage=execute rejects project; core claim_next left scope-parameterized (boundary is the right place; see divergence note)."
+    }
   },
   "decisions": [],
   "follow_up": {},
-  "revision": 1,
+  "revision": 3,
   "priority_rank": null,
   "priority_class": "",
   "analyze_mode": "on_entry",
@@ -108,9 +119,9 @@
     "completed_at": ""
   },
   "created_at": "2026-10-08T11:00:16.015410",
-  "updated_at": "2026-10-08T11:00:16.665377",
+  "updated_at": "2026-10-08T11:16:47.218810",
   "score": 1.12,
-  "_note": "analysis updated",
+  "_note": "worker/assignment path restricted to product_forge scope",
   "dashboard_impact": {
     "needs_dashboard": false,
     "reason": "WorkerGrid/backlog execution-plane scoping; no UI surface",
