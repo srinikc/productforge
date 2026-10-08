@@ -106,3 +106,52 @@ Implement **`web_search`** as one neutral `ToolSpec` with a **pluggable backend 
 (`searxng` self-host default → `none`/disabled offline-safe; `brave`/`tavily`/`serpapi` as BYO-key), add it to
 `tool_policy.WEB_TOOLS` for research roles, cache via `tool_cache` — it is then exposed through **both** PF's loop
 and **MCP** automatically. (Track as a backlog item; design + approval first.)
+
+---
+
+## 6. Why we can't BUNDLE AGPL/GPL/LGPL — and what "invoke"/"self-host" mean
+
+**Bundling** = shipping the third-party program **inside PF's distribution**, which triggers the license's
+**distribution** terms on PF:
+
+| License | Obligation when you *distribute* it (or a combined work) |
+|---|---|
+| **GPL** | the whole distributed work must be GPL (ship source, same freedoms) → PF (MIT) would have to become GPL |
+| **AGPL** | GPL **+ network clause** — even *running it as a service* obliges offering its source to users |
+| **LGPL** | weaker: you may link it in an MIT app **if** it stays a separate, replaceable (usually dynamically-linked, unmodified) library; static bundling is murky |
+
+Two separate things to keep straight:
+- **Copyright license** (GPL/AGPL/LGPL/MIT) governs *distributing the software*.
+- **Terms of Service** govern *using a service* — e.g. automating DuckDuckGo can breach their Terms even with a
+  permissive (MIT) client. It's not a copyright issue.
+
+**Workarounds (not bundling):**
+- **Invoke** — PF does **not ship** the program; it runs a command the **user already installed**
+  (`subprocess` → `git`, `ffmpeg`, `docker`, `rg`). Because PF isn't *distributing* it (only executing it),
+  GPL/AGPL distribution obligations don't attach to PF. (Don't statically link its library; don't bundle its binary.)
+- **Self-host** — the **operator/customer** runs the engine (e.g. a **Whoogle**/**SearXNG** instance) on their own
+  infra and gives PF a **URL**. PF ships only a thin **HTTP adapter** (MIT) and calls the API; the operator bears
+  the engine's license/ToS.
+
+**Permissive engine option:** **Whoogle** — **MIT** (self-hosted Google-results proxy) — the **AGPL-free
+alternative to SearXNG**; plus open APIs (Wikipedia/Wikidata CC-BY-SA content, OpenAlex, arXiv, Crossref). There
+is **no MIT-licensed *web index service*** (the indexes are proprietary) — permissive means the **client / the
+self-hosted engine**, not the index. (Verify each project's current license.)
+
+Net: **PF code stays MIT**; third-party engines/binaries are **installed or self-hosted by the user, reached over
+CLI or HTTP — never bundled.**
+
+## 7. `web_search` — recommendation (now vs next)
+
+- **Now:** use the existing **`http_get`** for **known URLs/docs** — no new dependency, no license question.
+  Research roles already get `http_get` via `tool_policy`. This covers "pull latest from a known source".
+- **Next (backlog, design + approval first):** add **one neutral `web_search` `ToolSpec`** with a **pluggable
+  backend**:
+  - **default: disabled / offline-safe** (`none`);
+  - **self-host first (no key, redistributable):** adapter to a **Whoogle (MIT)** or **SearXNG (AGPL, operator-run)**
+    instance via a configured `base_url` — PF ships only the HTTP adapter (MIT);
+  - **optional cloud (BYO-key):** Brave / Tavily / SerpAPI adapters (PF ships the adapter; the user supplies the key);
+  - add to `tool_policy.WEB_TOOLS`; cache via `tool_cache`; **auto-exposed** through both PF's loop and **MCP**.
+- **Generated products:** if a produced product needs runtime search, PF scaffolds a **product-owned** adapter
+  (its own key/instance) — not PF's tool registry.
+
