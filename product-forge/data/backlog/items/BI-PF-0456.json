@@ -1,0 +1,178 @@
+{
+  "id": "BI-PF-0456",
+  "tag": "PF",
+  "type": "bug",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "feature-item-fget-defect",
+  "label": "PF Backlog 490",
+  "title": "Defect/RCCA: ensure_feature_item broke on Feature dataclass (.get on object swallowed) - backlog-e2e red",
+  "body": "Source: precheck --full (2026-10-08). NOTE: originally allocated BI-PF-0455, but a concurrent session\nalready pushed a DIFFERENT BI-PF-0455 (DOGFOOD e2e checker defect) to origin/develop, so this item was renumbered\nto avoid the id collision.\n\nDEFECT: `backlog_link.ensure_feature_item` read plan-feature fields with `(... ).get(...)`, but a plan feature is a\n`Feature` DATACLASS (not a dict) -> `AttributeError` swallowed by `except Exception: return None`. So for a real\nFeature OBJECT it returned None and created no epic (only dict callers worked), which red-lit `backlog-e2e`.\n\nRCCA (5-Why): 1. backlog-e2e failed. 2. ensure_feature_item returned None. 3. It raised AttributeError on `.get`.\n4. The code assumed a dict; the broad except hid it. 5. Guard: type-safe `_fget(feature, key)` + an object-path test.\n\nFix: `core/backlog_link._fget` + `ensure_feature_item`; test `test_feature_epic_object.py`. Verified:\n`scripts/dev/e2e_backlog_check.py` -> E2E: PASS; `precheck --full` -> PASS (42 gates).",
+  "source": "precheck --full",
+  "status": "completed",
+  "priority": null,
+  "moscow": "Must",
+  "value": 4,
+  "effort": 1,
+  "risk": 2,
+  "deps": [
+    "BI-PF-0452"
+  ],
+  "links": {
+    "related": [
+      "product_forge:BI-PF-0452",
+      "product_forge:BI-PF-0453"
+    ],
+    "backend_capability": [
+      "module:core/backlog_link.py",
+      "test:test-framework/tests/pipeline/test_feature_epic_object.py"
+    ],
+    "delivery": {
+      "branch": "feature/fix-feature-item-fget",
+      "merge_sha": "ea903ad15f1da0e10d1bf0b54cf1731eae564b0d",
+      "commits": [
+        "4a7ca9bafd057e27b32ff20101a76b3e7d2cf64f"
+      ],
+      "pr": "",
+      "pr_url": "",
+      "at": "2026-10-08T22:13:35.050165",
+      "note": "id renumbered from BI-PF-0455 (collision with a concurrent session's item)"
+    }
+  },
+  "decisions": [],
+  "follow_up": {},
+  "brief": {
+    "problem": "Source: precheck --full (2026-10-08). NOTE: originally allocated BI-PF-0455, but a concurrent session\nalready pushed a DIFFERENT BI-PF-0455 (DOGFOOD e2e checker defect) to origin/develop, so this item was renumbered\nto avoid the id collision.",
+    "what_adds": "Defect/RCCA: ensure_feature_item broke on Feature dataclass (.get on object swallowed) - backlog-e2e red",
+    "why": "(derived) see objective",
+    "who_feels": "(derived) unspecified",
+    "source": "extracted"
+  },
+  "objective": "Defect/RCCA: ensure_feature_item broke on Feature dataclass (.get on object swallowed) - backlog-e2e red",
+  "acceptance_criteria": [
+    "(derived) objective met: Defect/RCCA: ensure_feature_item broke on Feature dataclass (.get on object swallowed) - backlog-e2e red"
+  ],
+  "in_scope": [
+    "Defect/RCCA: ensure_feature_item broke on Feature dataclass (.get on object swallowed) - backlog-e2e red"
+  ],
+  "out_of_scope": [
+    "(derived) not specified"
+  ],
+  "affected_components": [
+    "(derived) TBD"
+  ],
+  "affected_files": [
+    "(derived) TBD"
+  ],
+  "approach": "Defect/RCCA: ensure_feature_item broke on Feature dataclass (.get on object swallowed) - backlog-e2e red",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "(derived) objective met: Defect/RCCA: ensure_feature_item broke on Feature dataclass (.get on object swallowed) - backlog-e2e red"
+  ],
+  "risks": [
+    "(derived) none identified"
+  ],
+  "rollback": "(derived) revert the change",
+  "evidence": [
+    "(derived) pending"
+  ],
+  "owner": "agent",
+  "requester": "precheck --full",
+  "due": "(derived) TBD",
+  "target_release": "(derived) TBD",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "",
+  "parent": "",
+  "revision": 2,
+  "priority_rank": null,
+  "priority_class": "",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "IN_PROGRESS",
+    "analyzed_at": "",
+    "analyzed_by": "deterministic",
+    "revision_analyzed": 0,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/budget.py, core/budget_allocator.py, core/budget_conservation.py, core/budget_planner.py",
+    "existing_components": [
+      "core/budget.py",
+      "core/budget_allocator.py",
+      "core/budget_conservation.py",
+      "core/budget_planner.py",
+      "core/budget_protection.py",
+      "core/budget_tracker.py",
+      "core/credentials.py",
+      "core/defect_loop.py"
+    ],
+    "existing_apis": [
+      "/api/v1/issues/{iid}/rcca",
+      "/api/v1/reservations/shared-paths"
+    ],
+    "existing_modules": [
+      "config/shared-paths.json"
+    ],
+    "dependency_findings": [
+      "depends on BI-PF-0452"
+    ],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=3.0",
+      "components=8",
+      "apis=2"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": false,
+    "reasons": [],
+    "computed_at": ""
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": ""
+  },
+  "created_at": "2026-10-08T22:13:33.701233",
+  "updated_at": "2026-10-08T22:13:35.359418",
+  "score": 3.0,
+  "_note": "",
+  "dashboard_impact": {
+    "needs_dashboard": false,
+    "reason": "bug fix; no dashboard surface",
+    "dashboard_item": null,
+    "reviewed_by": "agent"
+  }
+}
