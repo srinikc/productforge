@@ -169,15 +169,14 @@ class ToolRegistry:
     # cloud (brave/tavily) = bring-your-own-key (a customer supplies their own account at ship time).
     @staticmethod
     def _ws_cfg():
-        def g(k, d=""):
-            try:
-                from core import env_flags
-                return str(env_flags.get(k, os.environ.get(k, d)) or d)
-            except Exception:
-                return os.environ.get(k, d)
-        return (g("PF_WEB_SEARCH_BACKEND", "none").strip().lower(),
-                g("PF_WEB_SEARCH_URL", "").strip(),
-                g("PF_WEB_SEARCH_KEY", "").strip())
+        try:
+            from core import tool_settings
+            e = tool_settings.effective()
+            return (str(e.get("backend") or "none").strip().lower(),
+                    str(e.get("url") or "").strip(),
+                    str(e.get("key") or "").strip())
+        except Exception:
+            return ("none", "", "")
 
     @staticmethod
     def _ws_anchors(html: str, limit: int):

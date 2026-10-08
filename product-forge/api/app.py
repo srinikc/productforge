@@ -35,6 +35,7 @@ from .routers import (
     reservations,
     runs,
     tests,
+    tools,
     validation,
     vcs,
     workers,
@@ -67,7 +68,7 @@ app.include_router(health.router, prefix="/api/v1")
 
 for _r in (intake.router, projects.router, runs.router, pipeline.router,
            artifacts.router, evidence.router, backlog.router,
-           validation.router, tests.router, gates.router, issues.router,
+           validation.router, tests.router, tools.router, gates.router, issues.router,
            vcs.router, workers.router, agents.router, engineering.router, enterprise.router,
            github.router, events.router, apidocs.router, changes.router, reservations.router,
            release.router, packaging.router, audit.router):

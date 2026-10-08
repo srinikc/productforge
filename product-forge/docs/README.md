@@ -54,6 +54,7 @@
 | [`BACKLOG-AND-INTAKE.md`](BACKLOG-AND-INTAKE.md) | Implemented | 100% | Backlog + intake design | — | — |
 | [`BACKLOG-SUMMARY.md`](BACKLOG-SUMMARY.md) | Generated | 100% | Regenerable backlog summary | — | — |
 | [`BOM-DESIGN.md`](BOM-DESIGN.md) | Design | 100% | Product BOM/footprint at packaging design (BI-0217) | — | — |
+| [`BRANCHING-GIT-WORKFLOW.md`](BRANCHING-GIT-WORKFLOW.md) | Implemented | 100% | Branch/worktree/merge/push workflow reference: PF, generated products, intake + worker paths (BI-PF-0431) | — | — |
 | [`CAPABILITY-PACKS-DESIGN.md`](CAPABILITY-PACKS-DESIGN.md) | Design | 100% | Capability-pack registry + discovery->enablement (BI-0189) | — | — |
 | [`CAPABILITY-STEERING-DESIGN.md`](CAPABILITY-STEERING-DESIGN.md) | Design | 20% | Capability steering design + plan (BI-0221..BI-0230) | — | — |
 | [`CONSTITUTION.md`](CONSTITUTION.md) | Implemented | 100% | Constitution: governance + non-negotiables | — | — |
@@ -148,6 +149,7 @@
 | [`SESSION-RESUME-MASTER-PLAN.md`](SESSION-RESUME-MASTER-PLAN.md) | Analysis (current) | 100% | Session hand-off notes to resume master-plan execution | — | — |
 | [`SHARED-PATH-RESERVATION-DESIGN.md`](SHARED-PATH-RESERVATION-DESIGN.md) | Design | 0% | Shared-path reservation + common-code detection (allowlist + git hotspots) for parallel workers (BI-PF-0357) | — | — |
 | [`STRUCTURE-CONTRACT.md`](STRUCTURE-CONTRACT.md) | Implemented | 100% | Binding repo structure contract (folders + owners) | — | — |
+| [`TOOLS-AND-DEPENDENCIES.md`](TOOLS-AND-DEPENDENCIES.md) | Implemented | 100% | PF tool layer + tools we have/need, sourcing, API keys, licensing & redistribution (BI-PF-0436) | — | — |
 | [`UNWIRED-MODULES-TRIAGE.md`](UNWIRED-MODULES-TRIAGE.md) | Adopted (reference) | 90% | Deprecated/legacy module triage | Triage applied; retired modules removed. | — |
 | [`VENDORED-TOOLS.md`](VENDORED-TOOLS.md) | Design | 100% | Neutral vendored tools location (drawio), no .opencode coupling (BI-0202) | — | — |
 | [`WORKER-SCHEDULER-OPERATIONS.md`](WORKER-SCHEDULER-OPERATIONS.md) | Implemented | 100% | Worker/scheduler ops: register, manual pull (/pf work), auto-dispatch, eligibility, lease/recovery | — | — |
