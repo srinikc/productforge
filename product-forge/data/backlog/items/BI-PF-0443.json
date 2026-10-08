@@ -10,7 +10,7 @@
   "title": "Hook: a NEW dependency (manifest diff) must have a tool-catalog entry, else pre-check fails (BI-0211 completeness split)",
   "body": "Source: BI-0211 delivery split (2026-10-08) + user request. BI-0211 built the catalog + a gate that\nvalidates the catalog's INTERNAL consistency; this item builds the COMPLETENESS hook: a change that ADDS a\ndependency must also add a catalog entry, else pre-check fails.\n\nGoal: close the loophole where code adds a third-party dependency (requirements/pyproject/go.mod/package.json)\nwithout a license/bundle record - so packaging+bundle decisions stay provable.\n\nDESIGN (proposed; approval before code):\n- scripts/dev/dependency_catalog_check.py - CHANGED-FILE scoped (mirrors scripts/dev/store_check.py: diff vs\n  merge-base + working tree). Parses PF's OWN manifests only (product-forge/requirements*.txt, pyproject.toml\n  [PEP 621 project.dependencies], workergrid/go.mod [require], .opencode/package.json) - NOT products/archive.\n- Added dependency names (old vs new) must resolve via core.tool_catalog.lookup(name) (normalized). Missing ->\n  FAIL with the exact names to register.\n- Wire into precheck (fast tier) + the pre-commit hook (early feedback).\n- Fail-closed; escape only via a documented `PF_ALLOW_UNCATALOGUED=1` (emergencies), never silent.\n\nAPI-FIRST REVIEW: no NEW API required - the catalog is already read-exposed via\nGET /api/v1/tools/catalog[/{name}] (BI-0211); this is an author-time/CI gate, not a client surface. (Call this\nout explicitly to satisfy the API-first check.)\n\ndepends_on: BI-0211 (catalog). related: BI-0205 (precheck/PR infra).\n\nlinks.backend_capability: module:scripts/dev/dependency_catalog_check.py, module:core/tool_catalog.py,\nconfig:config/requirements*, test:test-framework/tests/pipeline/test_dependency_catalog_check.py",
   "source": "user request",
-  "status": "new",
+  "status": "completed",
   "priority": null,
   "moscow": "Should",
   "value": 4,
@@ -28,11 +28,22 @@
     "related": [
       "product_forge:BI-0211",
       "product_forge:BI-0205"
-    ]
+    ],
+    "delivery": {
+      "branch": "feature/dep-catalog-hook",
+      "merge_sha": "13ae1d12fffba823fbb676907f45fa9f8d3505c3",
+      "commits": [
+        "06af649452e5b4fb23ff41bf22c1c209b8d772a6"
+      ],
+      "pr": "",
+      "pr_url": "",
+      "at": "2026-10-08T21:03:05.029855",
+      "note": ""
+    }
   },
   "decisions": [],
   "follow_up": {},
-  "revision": 1,
+  "revision": 2,
   "priority_rank": null,
   "priority_class": "",
   "analyze_mode": "on_entry",
@@ -97,9 +108,9 @@
     "completed_at": ""
   },
   "created_at": "2026-10-08T17:50:32.345281",
-  "updated_at": "2026-10-08T19:46:30.137056",
+  "updated_at": "2026-10-08T21:03:05.344996",
   "score": 1.5,
-  "_note": "analysis updated",
+  "_note": "",
   "dashboard_impact": {
     "needs_dashboard": false,
     "reason": "author-time/CI gate; catalog read API already exists",

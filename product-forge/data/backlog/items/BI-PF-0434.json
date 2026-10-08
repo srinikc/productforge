@@ -10,7 +10,7 @@
   "title": "RCCA: grooming dedup marking wrote across projects/items (bounded same-project + self-only + threshold)",
   "body": "Source: found during BI-PF-0432 implementation (2026-10-07), self-detected before push.\n\nDEFECT: the first `grooming._mark_duplicates` wrote `links.possible_duplicate_of` to EVERY non-canonical member\nof the candidate GROUP, including candidates in OTHER projects (find_similar scans scope-wide). A grooming run\ntherefore modified a REAL product's backlog (`products/ProductForge-Dashboard/backlog/items/BI-0006.json`) - out\nof the groomed item's boundary. Also, the candidate's id/scope/project were dropped by `_gather_context`, so the\nmarking could not resolve cross-scope candidates correctly. And a missing threshold marked any score>0 candidate.\n\nRCCA (5-Why):\n1. A real product backlog item was modified by grooming. 2. `_mark_duplicates` wrote links to candidate items\n(not just the groomed item) and did not filter by project. 3. find_similar scans scope-wide and returns every\nscore>0. 4. The marking code assumed same-project candidates and no threshold. 5. Guard: the marking must be\nBOUNDED to the groomed item's own (scope, project) and must write ONLY to the groomed item; apply a similarity\nthreshold. (Implemented: same-project-only candidates + mark self only + threshold; test\n`test_cross_project_candidates_are_never_marked` + `test_low_score_is_not_marked`.) Stray writes reverted.\n\ndashboard_impact: no UI surface.",
   "source": "self-review",
-  "status": "new",
+  "status": "completed",
   "priority": null,
   "moscow": "Must",
   "value": 3,
@@ -24,11 +24,20 @@
     ],
     "related": [
       "product_forge:BI-PF-0432"
-    ]
+    ],
+    "delivery": {
+      "branch": "feature/grooming-dedup-marking",
+      "merge_sha": "a46aebcddae165f88eb8676a3f266a947dcd0f4f",
+      "commits": [],
+      "pr": "",
+      "pr_url": "",
+      "at": "2026-10-08T21:03:17.760170",
+      "note": "Fix implemented within BI-PF-0432 (bounded same-project + self-only + threshold); verified by test_grooming_dedup_marking.py (4 tests)."
+    }
   },
   "decisions": [],
   "follow_up": {},
-  "revision": 1,
+  "revision": 2,
   "priority_rank": null,
   "priority_class": "",
   "analyze_mode": "on_entry",
@@ -94,9 +103,9 @@
     "completed_at": ""
   },
   "created_at": "2026-10-08T13:35:11.829268",
-  "updated_at": "2026-10-08T19:46:29.693931",
+  "updated_at": "2026-10-08T21:03:18.114451",
   "score": 2.25,
-  "_note": "analysis updated",
+  "_note": "",
   "dashboard_impact": {
     "needs_dashboard": false,
     "reason": "Correctness guard; no UI surface",
