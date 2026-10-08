@@ -10,7 +10,7 @@
   "title": "Defect/RCCA: ensure_feature_item broke on Feature dataclass (.get on object swallowed) - backlog-e2e red",
   "body": "Source: precheck --full (2026-10-08) - `backlog-e2e` FAILED after BI-PF-0452/0453 (E2/P1).\n\nDEFECT: `backlog_link.ensure_feature_item` read plan-feature fields with `(feature or {}).get(...)`, but a plan\nfeature is a `Feature` DATACLASS (not a dict) -> `AttributeError: 'Feature' object has no attribute 'get'`,\nswallowed by the function's `except Exception: return None`. Net: for a real Feature OBJECT the function returned\nNone and created no epic; it only worked when callers passed a dict (which is why the unit test passed but the\nend-to-end `e2e_backlog_check` - which passes a Feature object - failed).\n\nRCCA (5-Why):\n1. backlog-e2e failed (\"feature -> BacklogItem None\"). 2. ensure_feature_item returned None. 3. It raised\nAttributeError on `.get`. 4. The code assumed a dict; a Feature dataclass has no `.get`; the broad except hid it.\n5. Guard: use a type-safe `_fget(feature, key)` (dict OR object) and add a test that passes a Feature OBJECT (the\ne2e already covers it; a unit test now locks it).\n\nFix: `core/backlog_link._fget` + `ensure_feature_item` uses it; test `test_feature_epic_bridge.py`\n(Feature object). Verified: `scripts/dev/e2e_backlog_check.py` -> E2E: PASS.",
   "source": "precheck --full",
-  "status": "new",
+  "status": "completed",
   "priority": null,
   "moscow": "Must",
   "value": 4,
@@ -27,7 +27,18 @@
     "backend_capability": [
       "module:core/backlog_link.py",
       "test:test-framework/tests/pipeline/test_feature_epic_bridge.py"
-    ]
+    ],
+    "delivery": {
+      "branch": "feature/fix-feature-item-fget",
+      "merge_sha": "4a7ca9bafd057e27b32ff20101a76b3e7d2cf64f",
+      "commits": [
+        "4a7ca9bafd057e27b32ff20101a76b3e7d2cf64f"
+      ],
+      "pr": "",
+      "pr_url": "",
+      "at": "2026-10-08T22:11:42.308904",
+      "note": ""
+    }
   },
   "decisions": [],
   "follow_up": {},
@@ -86,7 +97,7 @@
   "children": [],
   "epic": "",
   "parent": "",
-  "revision": 1,
+  "revision": 2,
   "priority_rank": null,
   "priority_class": "",
   "analyze_mode": "on_entry",
@@ -155,9 +166,9 @@
     "completed_at": ""
   },
   "created_at": "2026-10-08T21:56:53.898126",
-  "updated_at": "2026-10-08T21:56:57.119895",
+  "updated_at": "2026-10-08T22:11:42.587135",
   "score": 3.0,
-  "_note": "analysis updated",
+  "_note": "",
   "dashboard_impact": {
     "needs_dashboard": false,
     "reason": "bug fix; no dashboard surface",
