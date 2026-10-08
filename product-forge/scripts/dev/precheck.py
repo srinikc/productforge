@@ -117,6 +117,7 @@ _GATES = [
     ("tool-catalog", ["scripts/dev/tool_catalog_check.py"], "fast", None),
     ("dependency-catalog", ["scripts/dev/dependency_catalog_check.py"], "fast", None),
     ("backlog-context", ["scripts/dev/backlog_context_check.py"], "fast", ["backlog"]),
+    ("backlog-ids", ["scripts/dev/backlog_id_audit.py"], "fast", ["backlog"]),
     ("grooming", ["scripts/dev/grooming_check.py"], "fast", ["grooming"]),
     ("github", ["scripts/dev/github_check.py"], "fast", ["github"]),
     ("pf-surface", ["scripts/dev/pf_surface_check.py"], "fast", None),
