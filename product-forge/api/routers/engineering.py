@@ -7,7 +7,7 @@ owner file, the ``/api/v1`` route that exposes it, and its status (exists | part
 import contextlib
 from typing import Any
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, Request
 
 from ..auth import authenticate, require_operator, require_worker
 from ..envelope import from_request
@@ -295,13 +295,26 @@ def assignment_heartbeat(item_id: str, body: dict[str, Any], request: Request,
 
 
 @router.post("/assignments/{item_id}/complete", dependencies=[Depends(require_worker)])
-def assignment_complete(item_id: str, body: dict[str, Any], request: Request,
+def assignment_complete(item_id: str, body: dict[str, Any], request: Request, background: BackgroundTasks,
                         ctx: dict[str, Any] = Depends(require_worker)):
-    from core import job_manager
+    from core import delivery, job_manager
     s, p = _scope_project(str(body.get("scope") or "product_forge"), str(body.get("project") or ""))
-    return from_request(request, job_manager.complete(s, p, item_id,
-                        status=str(body.get("status") or "verifying"),
-                        note=str(body.get("note") or "")), resource="engineering")
+    res = job_manager.complete(s, p, item_id, status=str(body.get("status") or "verifying"),
+                               note=str(body.get("note") or ""))
+    # BI-PF-0421: async optimistic delivery lane (push+PR -> validate -> rebase -> merge -> push)
+    if res.get("ok") and str(res.get("status")) == "verifying":
+        background.add_task(delivery.deliver, s, p, item_id)
+    return from_request(request, res, resource="engineering")
+
+
+@router.post("/assignments/{item_id}/deliver", dependencies=[Depends(require_operator)])
+def assignment_deliver(item_id: str, body: dict[str, Any], request: Request,
+                       ctx: dict[str, Any] = Depends(require_operator)):
+    """Run the delivery lane for one item synchronously (operator; recovery/manual). BI-PF-0421."""
+    from core import delivery
+    s, p = _scope_project(str(body.get("scope") or "product_forge"), str(body.get("project") or ""))
+    return from_request(request, delivery.deliver(s, p, item_id,
+                        integration=str(body.get("integration") or "")), resource="engineering")
 
 
 @router.post("/assignments/{item_id}/fail", dependencies=[Depends(require_worker)])
