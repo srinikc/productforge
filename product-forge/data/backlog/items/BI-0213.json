@@ -30,7 +30,7 @@
   "decisions": [],
   "follow_up": {},
   "created_at": "2026-09-25T21:25:11.165168",
-  "updated_at": "2026-09-30T16:58:12.503857",
+  "updated_at": "2026-10-08T18:30:01.045771",
   "score": 0.67,
   "dashboard_impact": {
     "needs_dashboard": false,
@@ -39,5 +39,25 @@
     "reviewed_by": "agent",
     "reviewed_at": "2026-09-25T21:25:11.171910"
   },
-  "_note": "closed via issue IS-PF-0010: core/pipeline_composition.py; config/capability-packs.json; core/pipeline_executor.py (load_pipeline, load_pipeline_from_dict); test-framework/tests/pipeline/test_pipeline_composition.py"
+  "_note": "closed via issue IS-PF-0010: core/pipeline_composition.py; config/capability-packs.json; core/pipeline_executor.py (load_pipeline, load_pipeline_from_dict); test-framework/tests/pipeline/test_pipeline_composition.py",
+  "brief": {
+    "problem": "BI-0190 defines media agents and BI-0189 defines packs, but nothing says HOW the orchestrator weaves\noptional stages (`0f` capability strategy, `4m` media production, media-QA in `5/6`) and their agents into\nthe FIXED existing 0..13b stage order. Without this, media support would fork the pipeline instead of\nplugging into it, and a non-media project could regress.",
+    "what_adds": "One composition layer that, given the enabled capability packs, produces the run's effective stage order\nand agent roster by ADDING optional stages/agents - leaving a non-media run byte-identical to today.",
+    "why": "",
+    "who_feels": "",
+    "derived": false
+  },
+  "objective": "One composition layer that, given the enabled capability packs, produces the run's effective stage order\nand agent roster by ADDING optional stages/agents - leaving a non-media run byte-identical to today.",
+  "acceptance_criteria": [
+    "No pack -> effective stage order + roster identical to `pipeline-definition.json` (regression guard).",
+    "Image/video pack -> `0f` and `4m` present in order, media agents on the right stages, existing stages intact.",
+    "Disabling a pack removes its stages/agents with no residue."
+  ],
+  "in_scope": [
+    "`core/capability_packs.py` (single writer) reads `config/capability-packs.json` and exposes",
+    "Optional stages are declared in the pack with an ANCHOR (insert-after stage id) + `requires` modalities,",
+    "Roster injection: pack agents appended to the affected stages' `ideal_flow` only when enabled.",
+    "Executor/stage_runner/agent_runner consume the EFFECTIVE definition (not the raw file) per run.",
+    "Guard: with no packs enabled, `effective_*` == base (asserted in tests)."
+  ]
 }

@@ -1,23 +1,23 @@
 # Backlog Summary
 
-> GENERATED 2026-10-08T17:47:38 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-08T18:32:37 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 35  |  **Closed:** 390
-- `new`: 35
+- **Open:** 41  |  **Closed:** 391
+- `new`: 41
 
-### new, by category (35)
-**API / reports / HIL / misc** (1)
+### new, by category (41)
+**API / reports / HIL / misc** (2)
 | ID | MoSCoW | Type | Title |
 |---|---|---|---|
 | BI-PF-0332 | Should | chore | API-5 deferred hardening: rate limiting + request/upload limits + tenant-isolation expansion + event streaming |
+| BI-PF-0446 | Should | feature | F2: Epic entity - children rollup, no-dispatch, done=rollup, child carries epic# + dispatch passes children |
 
-**Bug fixes** (2)
+**Bug fixes** (1)
 | ID | MoSCoW | Type | Title |
 |---|---|---|---|
-| BI-PF-0426 | Could | bug | FLAKY: worker-agent e2e fails under heavy load (readiness/register deadline) - RCCA |
 | BI-PF-0434 | Must | bug | RCCA: grooming dedup marking wrote across projects/items (bounded same-project + self-only + threshold) |
 
 **Discovery / HIL / prompts** (1)
@@ -36,13 +36,17 @@
 | BI-PF-0390 | Should | epic | EPIC A: PF Commercial & IP Foundation (contracts, Go core, licensing, packaging, EAP, RDC, governance, vertical slice) |
 | BI-PF-0396 | Should | feature | A2: capability registry + entitlement-at-boundary + asymmetric licensing |
 
-**Specs / cache / context / artifacts** (2)
+**Specs / cache / context / artifacts** (6)
 | ID | MoSCoW | Type | Title |
 |---|---|---|---|
 | BI-0206 | Should | tech-debt | Backend: model downloader + local cache + license-acceptance gate + models.lock (open-weights) |
 | BI-0225 | Should | feature | Parallel section/feature generation |
+| BI-PF-0444 | Must | epic | EPIC: Backlog Context model + Epic entity (fields, guards, rollup, retrofit) |
+| BI-PF-0445 | Should | feature | F1: Backlog item context fields (brief/objective/AC/where/how/review/who/when/approval/evidence) |
+| BI-PF-0447 | Should | bug | D1: Defect/RCCA - acceptance_criteria consumed but never authored (empty spec to workers) |
+| BI-PF-0448 | Should | feature | D2: Fail-closed guards - create/claim/merge/delivery context gates |
 
-**Wiring / tech-debt / API** (26)
+**Wiring / tech-debt / API** (28)
 | ID | MoSCoW | Type | Title |
 |---|---|---|---|
 | BI-0185 | Should | feature | EPIC: Multi-modal / media orchestration (pluggable capability packs) |
@@ -71,6 +75,8 @@
 | BI-PF-0406 | Should | feature | B7: service decomposition |
 | BI-PF-0407 | Should | feature | Bmig: migrate high-value legacy Python -> Go (by value) |
 | BI-PF-0408 | Should | change | /pf command: build mode only (not orchestrator) + global /pf for all opencode sessions |
+| BI-PF-0443 | Should | feature | Hook: a NEW dependency (manifest diff) must have a tool-catalog entry, else pre-check fails (BI-0211 completeness split) |
+| BI-PF-0449 | Should | feature | M1: Retrofit all items - open authored, closed derived+flagged, epic rollups rebuilt |
 
 ---
 
@@ -270,5 +276,5 @@
 ---
 
 ## Totals
-- backend: 35 open / 390 closed
+- backend: 41 open / 391 closed
 - dashboard: 146 open / 3 closed

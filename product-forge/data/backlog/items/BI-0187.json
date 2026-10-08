@@ -28,7 +28,7 @@
   "decisions": [],
   "follow_up": {},
   "created_at": "2026-09-24T23:39:15.507690",
-  "updated_at": "2026-09-30T15:17:02.665590",
+  "updated_at": "2026-10-08T18:29:58.166436",
   "score": 0.75,
   "dashboard_impact": {
     "needs_dashboard": true,
@@ -37,5 +37,17 @@
     "reviewed_by": "agent",
     "reviewed_at": "2026-09-25T21:25:45.845490"
   },
-  "_note": "closed via issue IS-PF-0007: core/asset_store.py; core/intake_files.py; core/pipeline_executor.py (preflight); scripts/pipeline.py (media); config/store-registry.json; test-framework/tests/pipeline/test_asset_store.py"
+  "_note": "closed via issue IS-PF-0007: core/asset_store.py; core/intake_files.py; core/pipeline_executor.py (preflight); scripts/pipeline.py (media); config/store-registry.json; test-framework/tests/pipeline/test_asset_store.py",
+  "brief": {
+    "problem": "Large media (e.g. a 5MB image, long audio, video) cannot be fed as-is; media is not tokenized by bytes.\nThere is no ingest/normalize/split layer nor an asset store.",
+    "what_adds": "Ingest media -> normalize -> TILE images / segment audio / frame-sample video -> per-asset summaries;\nstore assets with ids and reuse the text map-reduce for large sets.",
+    "why": "",
+    "who_feels": "",
+    "derived": false
+  },
+  "objective": "Ingest media -> normalize -> TILE images / segment audio / frame-sample video -> per-asset summaries;\nstore assets with ids and reuse the text map-reduce for large sets.",
+  "acceptance_criteria": [
+    "Given a large image/video/audio, the pipeline splits intelligently (tiles/segments/frames) and merges results.",
+    "Every asset has a stable id + metadata (codec/res/duration) in the asset store."
+  ]
 }

@@ -20,7 +20,7 @@
   "decisions": [],
   "follow_up": {},
   "created_at": "2026-09-24T21:39:23.648605",
-  "updated_at": "2026-09-24T21:51:48.215316",
+  "updated_at": "2026-10-08T18:29:57.147431",
   "score": 0.33,
   "dashboard_impact": {
     "needs_dashboard": false,
@@ -29,5 +29,28 @@
     "reviewed_by": "agent",
     "reviewed_at": "2026-09-24T21:39:23.651199"
   },
-  "_note": "core/backlog.py now: items/<ID>.json = TRUTH; open.json/closed.json = DERIVED lean index (id/status/one-liner/dates, no body/links); history/<ID>.jsonl = content journal (status + field diffs). New API: list_items/get/history/index_view/archive/delete + migrate_scope. Bypasses fixed: core/views.py:_all_backlog_items + dashboard/api/app.py:backlog_history now use the API. Migrated 316 items (product_forge=179, ProductForge-Dashboard=136, test-project=1) - counts MATCH; idempotent. scripts/dev/migrate_backlog_storage.py. Registered items/ + history/ in store-registry + allow glob. Round-trip verified (add/update/complete/archive/delete + journal diff). Gate: compileall=0, wired_audit=0."
+  "_note": "core/backlog.py now: items/<ID>.json = TRUTH; open.json/closed.json = DERIVED lean index (id/status/one-liner/dates, no body/links); history/<ID>.jsonl = content journal (status + field diffs). New API: list_items/get/history/index_view/archive/delete + migrate_scope. Bypasses fixed: core/views.py:_all_backlog_items + dashboard/api/app.py:backlog_history now use the API. Migrated 316 items (product_forge=179, ProductForge-Dashboard=136, test-project=1) - counts MATCH; idempotent. scripts/dev/migrate_backlog_storage.py. Registered items/ + history/ in store-registry + allow glob. Round-trip verified (add/update/complete/archive/delete + journal diff). Gate: compileall=0, wired_audit=0.",
+  "brief": {
+    "problem": "The backlog keeps ALL items in one array file (`open.json` / `closed.json`) and rewrites the whole\nfile on every change (`core/backlog.py:_wj`). Per-item `history/<ID>.jsonl` records STATUS only,\nnot content. There is no lean tracker view; the array is truth AND the detail store at once.",
+    "what_adds": "Split \"tracking\" from \"detail\", ONCE, in a single change:\n- index (`open.json`/`index.json`) = id, status, one-liner, created/updated (tracking/journal view);\n- per-item file = the FULL item (today's rich format);\n- per-item `history/<ID>.jsonl` = a CONTENT journal (title/body/link before -> after), not status only.\nValue: smaller diffs, O(1) writes, real per-item history, a clean tracker view. Internal only.",
+    "why": "",
+    "who_feels": "",
+    "derived": false
+  },
+  "objective": "Split \"tracking\" from \"detail\", ONCE, in a single change:\n- index (`open.json`/`index.json`) = id, status, one-liner, created/updated (tracking/journal view);\n- per-item file = the FULL item (today's rich format);\n- per-item `history/<ID>.jsonl` = a CONTENT journal (title/body/link before -> after),",
+  "acceptance_criteria": [
+    "Given the refactor, all existing items/journals migrate with ZERO data loss (count + content hashes match).",
+    "Given a change to an item, only that item's file + the derived index change (O(1) diff).",
+    "Given any consumer, behaviour is identical (same API, same results) - no code changes outside",
+    "Given the old layout still present, a read-fallback works (no hard cutover)."
+  ],
+  "in_scope": [
+    "Stage 1 (low risk): enrich `history/<ID>.jsonl` to a content journal AND generate a compact DERIVED",
+    "Stage 2 (structural): per-item files `items/<ID>.json` become the TRUTH; `open.json`/`index.json`",
+    "Single-source migration of all existing items + journals; keep a read-fallback for the old layout."
+  ],
+  "out_of_scope": [
+    "Any change to item SEMANTICS (fields, statuses, ids, links) or to the backlog API signatures.",
+    "The dashboard UI; other stores (intake `items.jsonl`, events) - only referenced for consistency."
+  ]
 }

@@ -263,6 +263,9 @@ def eligible(item: dict[str, Any], *, by_id: dict[str, dict[str, Any]] | None = 
     from core import backlog
     reasons: list[str] = []
     eid = str(item.get("id") or "")
+    # BI-PF-0446: an Epic is a container (children carry the work) - never directly executable
+    if backlog.is_epic(item):
+        reasons.append("epic container (children carry the work; not directly executable)")
     st = backlog._normalize_status(str(item.get("status") or ""))
     if st in _TERMINAL_STATUSES:
         reasons.append(f"terminal status '{st}'")
