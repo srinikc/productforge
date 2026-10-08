@@ -8,7 +8,7 @@
   "external_id": "pf-assignments-view-dedup",
   "label": "PF Backlog 456",
   "title": "PF: assignments view + assignment-time dedup guard",
-  "body": "Child of the parallel-run-engine epic. Visibility + the duplicate-work guard for parallel assignment.\n\nScope: (1) GET /api/v1/engineering/assignments - active assignments (item, worker, phase, lease_expires_at),\na thin read-model over backlog.execution{} + job_manager; (2) /wg status proxies it (N workers, each on which\nitem); (3) assignment-time DEDUP guard: at claim/eligibility, skip/flag an item that near-duplicates an\nalready-active (or higher-priority open) item - reuse backlog.duplicate_pairs/find_similar (no new logic).\n\nWhy: same-item double-assignment and path-overlap are already prevented (scheduler.eligible + ENG-8\nreservations); near-duplicate ITEMS are not, and parallel assignment raises that risk.\n\nDescriptors: module:core/scheduler.py; module:core/backlog.py; module:api/routers/engineering.py;\ntest:test-framework/tests/pipeline/test_assignment_dedup.py; route:GET /api/v1/engineering/assignments.",
+  "body": "Child of the parallel-run-engine epic. Visibility + the duplicate-work guard for parallel assignment.\n\nScope: (1) GET /api/v1/engineering/assignments - active assignments (item, worker, phase, lease_expires_at),\na thin read-model over backlog.execution{} + job_manager; (2) /wg status proxies it (N workers, each on which\nitem); (3) assignment-time DEDUP guard: at claim/eligibility, skip/flag an item that near-duplicates an\nalready-active (or higher-priority open) item - reuse backlog.duplicate_pairs/find_similar (no new logic).\n\nWhy: same-item double-assignment and path-overlap are already prevented (scheduler.eligible + ENG-8\nreservations); near-duplicate ITEMS are not, and parallel assignment raises that risk.\n\nDescriptors: module:core/scheduler.py; module:core/backlog.py; module:api/routers/engineering.py;\ntest:test-framework/tests/pipeline/test_assignment_dedup.py; route:GET /api/v1/engineering/assignments.\n\n## Scope amendment (2026-10-07, Reconciliation rule)\nD1: the `/wg status` proxy moves to BI-PF-0423 (WorkerGrid thin client). BI-PF-0422 delivers the PF\n`GET /engineering/assignments` view + the claim-time dedup guard (Option A) only.\nSplit: near-duplicate ENFORCEMENT at pickup = this item (A). Whole-backlog near-duplicate MARKING at grooming\n= BI-PF-0432 (B). A is the runtime guard; B is the grooming-time marking pass.\n",
   "source": "pre-implementation review",
   "status": "new",
   "priority": null,
@@ -25,9 +25,15 @@
       "BI-PF-0419"
     ]
   },
-  "decisions": [],
+  "decisions": [
+    {
+      "at": "2026-10-07",
+      "by": "user",
+      "decision": "A only in 0422 (claim-time skip); /wg proxy -> 0423; whole-backlog marking -> B (BI-PF-0432)"
+    }
+  ],
   "follow_up": {},
-  "revision": 1,
+  "revision": 2,
   "priority_rank": null,
   "priority_class": "",
   "analyze_mode": "on_entry",
@@ -97,7 +103,7 @@
     "completed_at": ""
   },
   "created_at": "2026-10-07T21:22:21.943528",
-  "updated_at": "2026-10-07T21:22:22.394846",
+  "updated_at": "2026-10-08T12:13:25.265830",
   "score": 1.12,
   "_note": "analysis updated",
   "dashboard_impact": {

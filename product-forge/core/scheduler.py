@@ -345,6 +345,32 @@ def eligible_backlog(scope: str = "product_forge", project: str | None = None,
             "eligible": len(ready), "blocked": len(rows) - len(ready), "items": rows}
 
 
+def _dedup_threshold() -> float:
+    """Near-duplicate Jaccard threshold for the claim-time dedup guard (BI-PF-0422)."""
+    try:
+        from core import env_flags
+        return float(env_flags.get("PF_DEDUP_THRESHOLD", "0.6") or 0.6)
+    except Exception:
+        return 0.6
+
+
+def _near_duplicate(item: dict[str, Any], others: list[dict[str, Any]]) -> bool:
+    """True if ``item`` near-duplicates any item in ``others`` (Jaccard >= threshold). BI-PF-0422."""
+    from core import backlog
+    try:
+        toks = backlog._tokens(backlog._item_text(item))
+    except Exception:
+        return False
+    th = _dedup_threshold()
+    for o in others:
+        if str(o.get("id")) == str(item.get("id")):
+            continue
+        with contextlib.suppress(Exception):
+            if backlog._similarity(toks, backlog._tokens(backlog._item_text(o))) >= th:
+                return True
+    return False
+
+
 def next_eligible(scope: str = "product_forge", project: str | None = None,
                   worker: dict[str, Any] | None = None,
                   stage: str | None = None) -> dict[str, Any]:
@@ -374,6 +400,19 @@ def next_eligible(scope: str = "product_forge", project: str | None = None,
         return {"scope": scope, "project": project or "", "found": False, "item": None}
     ordered = backlog.order_by_priority(ok)
     top = ordered[0]
+    if stage == "execute":
+        # BI-PF-0422: skip a near-duplicate candidate so at most one of a duplicate set RUNS.
+        # An item is skipped when it near-duplicates an ACTIVE item or a HIGHER-RANKED open item.
+        blockers = list(active)
+        top = None
+        for cand in ordered:
+            if _near_duplicate(cand, blockers):
+                blockers.append(cand)
+                continue
+            top = cand
+            break
+        if top is None:
+            return {"scope": scope, "project": project or "", "found": False, "item": None}
     out: dict[str, Any] = {"scope": scope, "project": project or "", "found": True,
                            "item": top.get("id"), "title": top.get("title"),
                            "priority_rank": top.get("priority_rank")}

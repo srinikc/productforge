@@ -1,0 +1,117 @@
+{
+  "id": "BI-PF-0432",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "backlog-dedup-marking-at-grooming",
+  "label": "PF Backlog 466",
+  "title": "Backlog dedup marking at grooming (possible_duplicate_of) + bulk sweep",
+  "body": "Source: user decision (2026-10-07) - Option B for duplicate/overlap handling.\n\nProblem: today near-duplicate ITEMS are only reported ADVISORY (backlog.duplicate_pairs / wired_audit); nothing\nlinks or marks them, so an operator can't see which items are duplicates of which. BI-PF-0422 (A) adds a\nclaim-time SKIP so at most one of a duplicate set RUNS, but the backlog itself is not annotated.\n\nScope (B) - whole-backlog near-duplicate MARKING, orchestrated at GROOMING:\n- at grooming (`core/grooming.groom` / `decide`): when an item is groomed, compare it to the open backlog\n  (reuse `backlog.duplicate_pairs`/`_similarity`) and record `links.possible_duplicate_of = [<canonical id>]`\n  (advisory link; do NOT auto-close/block) + surface it in the grooming decision/notes.\n- a BULK sweep: `/pf backlog` review (or a scheduled pass) that computes all near-duplicate OPEN pairs\n  (reuse `duplicate_pairs`) and marks `possible_duplicate_of` for every non-canonical item.\n- surface in `GET /engineering/assignments` and the grooming report so a human resolves (close as `duplicate`,\n  merge, or confirm distinct).\n- keep the claim-time SKIP (A) as the runtime guard; B is the human-facing marking.\n\nDecisions to confirm: threshold (default 0.6, configurable); canonical = highest-ranked (priority/id); marking\nis `links.possible_duplicate_of` (advisory, no status change).\n\ndashboard_impact: no UI surface (operator surface = /pf backlog groom/review + the API).",
+  "source": "user decision",
+  "status": "new",
+  "priority": null,
+  "moscow": "Should",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [
+    "BI-PF-0422"
+  ],
+  "links": {
+    "backend_capability": [
+      "module:core/grooming.py",
+      "module:core/backlog.py",
+      "route:POST /api/v1/backlog/items/{item_id}/groom/decide"
+    ],
+    "related": [
+      "product_forge:BI-PF-0422"
+    ]
+  },
+  "decisions": [],
+  "follow_up": {},
+  "revision": 1,
+  "priority_rank": null,
+  "priority_class": "",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "IN_PROGRESS",
+    "analyzed_at": "",
+    "analyzed_by": "deterministic",
+    "revision_analyzed": 0,
+    "architecture_fit": "REUSE",
+    "implementation_strategy": "Extend existing components/APIs: core/backlog.py, core/backlog_link.py, core/grooming.py, /api/v1/backlog",
+    "existing_components": [
+      "core/backlog.py",
+      "core/backlog_link.py",
+      "core/grooming.py"
+    ],
+    "existing_apis": [
+      "/api/v1/backlog",
+      "/api/v1/backlog/grooming/guidelines",
+      "/api/v1/backlog/items",
+      "/api/v1/backlog/items/{item_id}",
+      "/api/v1/backlog/items/{item_id}/analysis",
+      "/api/v1/backlog/items/{item_id}/dependencies",
+      "/api/v1/backlog/items/{item_id}/groom",
+      "/api/v1/backlog/items/{item_id}/groom/decide"
+    ],
+    "existing_modules": [
+      "config/grooming-guidelines.json"
+    ],
+    "dependency_findings": [
+      "depends on BI-PF-0422"
+    ],
+    "conflict_findings": [],
+    "duplication_findings": [
+      "product_forge:BI-PF-0432 (score 1.00)"
+    ],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [
+      "possible duplicate"
+    ],
+    "evidence": [
+      "similar=5",
+      "score=0.75",
+      "components=3",
+      "apis=8"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": false,
+    "reasons": [],
+    "computed_at": ""
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": ""
+  },
+  "created_at": "2026-10-08T12:13:25.459152",
+  "updated_at": "2026-10-08T12:13:26.097660",
+  "score": 0.75,
+  "_note": "analysis updated",
+  "dashboard_impact": {
+    "needs_dashboard": false,
+    "reason": "Backlog grooming correctness; no UI surface",
+    "dashboard_item": null,
+    "reviewed_by": "agent"
+  }
+}

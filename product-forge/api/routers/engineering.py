@@ -271,6 +271,27 @@ def schedule_next(request: Request, scope: str = "product_forge", project: str =
     return from_request(request, scheduler.next_eligible(s, p, stage=stage or None), resource="engineering")
 
 
+# ── BI-PF-0422: active assignments (read-model) ──
+
+@router.get("/assignments", dependencies=[Depends(authenticate)])
+def assignments(request: Request, scope: str = "product_forge", project: str = "",
+                ctx: dict[str, Any] = Depends(authenticate)):
+    """Active assignments (item -> worker -> lease): a thin read-model over ``item.execution{}``."""
+    from core import backlog
+    s, p = _scope_project(scope, project)
+    rows = []
+    for it in backlog.list_open(s, p, order=False):
+        ex = it.get("execution") or {}
+        wid = str(ex.get("worker_id") or "")
+        if not wid:
+            continue
+        rows.append({"item_id": it.get("id"), "title": it.get("title"), "status": it.get("status"),
+                     "worker_id": wid, "assignment_id": ex.get("assignment_id", ""),
+                     "assigned_at": ex.get("assigned_at", ""), "lease_expires_at": ex.get("lease_expires_at", "")})
+    return from_request(request, {"scope": s, "project": p or "", "count": len(rows), "assignments": rows},
+                        resource="engineering")
+
+
 # ── BI-PF-0419: external-worker assignment lifecycle (per-item claim + lease) ──
 
 @router.post("/assignments/claim", dependencies=[Depends(require_worker)])
