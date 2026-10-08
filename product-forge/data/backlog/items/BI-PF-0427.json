@@ -1,0 +1,120 @@
+{
+  "id": "BI-PF-0427",
+  "tag": "PF",
+  "type": "change",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "worker-scope-product-forge-only",
+  "label": "PF Backlog 461",
+  "title": "Restrict the worker/assignment path to product_forge scope (project changes use PF pipeline)",
+  "body": "Source: user scope decision (2026-10-07) captured on BI-PF-0418.\n\nThe worker/assignment path executes Product Forge's OWN backlog only. Restrict it to `product_forge` scope and\nfail-closed for `project`:\n- `GET /engineering/schedule/next?stage=execute` + the assignment API (`/assignments/*`) reject `scope=project`\n  with a clear error (project changes go through PF's pipeline/agents).\n- `job_manager.claim_next` used for external workers claims `product_forge` only (keep the per-item mechanism).\n- Docs: state the two planes (product-building pipeline vs PF-backlog workers).\n\ndashboard_impact: no UI surface.",
+  "source": "design decision",
+  "status": "new",
+  "priority": null,
+  "moscow": "Should",
+  "value": 3,
+  "effort": 2,
+  "risk": 2,
+  "deps": [
+    "BI-PF-0419"
+  ],
+  "links": {
+    "related": [
+      "product_forge:BI-PF-0418",
+      "product_forge:BI-PF-0419"
+    ]
+  },
+  "decisions": [],
+  "follow_up": {},
+  "revision": 1,
+  "priority_rank": null,
+  "priority_class": "",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "IN_PROGRESS",
+    "analyzed_at": "",
+    "analyzed_by": "deterministic",
+    "revision_analyzed": 0,
+    "architecture_fit": "REUSE",
+    "implementation_strategy": "Extend existing components/APIs: core/adopt_project.py, core/cross_project_learning.py, core/paths.py, core/pipeline_capabilities.py",
+    "existing_components": [
+      "core/adopt_project.py",
+      "core/cross_project_learning.py",
+      "core/paths.py",
+      "core/pipeline_capabilities.py",
+      "core/pipeline_composition.py",
+      "core/pipeline_executor.py",
+      "core/pipeline_store.py",
+      "core/pipeline_tailoring.py"
+    ],
+    "existing_apis": [
+      "/api/v1/changes",
+      "/api/v1/changes/kinds",
+      "/api/v1/engineering/assignments/claim",
+      "/api/v1/engineering/assignments/{item_id}/complete",
+      "/api/v1/engineering/assignments/{item_id}/deliver",
+      "/api/v1/engineering/assignments/{item_id}/fail",
+      "/api/v1/engineering/assignments/{item_id}/heartbeat",
+      "/api/v1/engineering/assignments/{item_id}/release"
+    ],
+    "existing_modules": [
+      "config/artifact-paths.json",
+      "config/engineering-workers.json",
+      "config/shared-paths.json"
+    ],
+    "dependency_findings": [
+      "depends on BI-PF-0419"
+    ],
+    "conflict_findings": [],
+    "duplication_findings": [
+      "product_forge:BI-PF-0427 (score 1.00)"
+    ],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [
+      "possible duplicate"
+    ],
+    "evidence": [
+      "similar=5",
+      "score=1.12",
+      "components=8",
+      "apis=8"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": false,
+    "reasons": [],
+    "computed_at": ""
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": ""
+  },
+  "created_at": "2026-10-08T11:00:16.015410",
+  "updated_at": "2026-10-08T11:00:16.665377",
+  "score": 1.12,
+  "_note": "analysis updated",
+  "dashboard_impact": {
+    "needs_dashboard": false,
+    "reason": "WorkerGrid/backlog execution-plane scoping; no UI surface",
+    "dashboard_item": null,
+    "reviewed_by": "agent"
+  }
+}
