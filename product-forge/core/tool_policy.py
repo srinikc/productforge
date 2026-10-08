@@ -26,7 +26,7 @@ from typing import Dict, List, Optional
 
 REPO = str(_PF_ROOT)
 
-WEB_TOOLS = ("http_get",)
+WEB_TOOLS = ("http_get", "web_search")
 RESEARCH_MARKERS = ("research", "market", "competit", "domain", "analyst", "analysis",
                     "pricing", "gtm", "growth", "trend")
 

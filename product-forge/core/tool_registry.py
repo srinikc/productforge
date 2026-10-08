@@ -79,6 +79,9 @@ class ToolRegistry:
         self.register(ToolSpec(
             "http_get", "HTTP GET a URL (read-only).",
             obj({"url": {"type": "string"}}, ["url"])))
+        self.register(ToolSpec(
+            "web_search", "Search the web (backend-configurable: self-host whoogle/searxng, or cloud brave/tavily with a key).",
+            obj({"query": {"type": "string"}, "limit": {"type": "integer"}}, ["query"])))
 
     # ── introspection ────────────────────────────────────────────
     def names(self) -> List[str]:
@@ -96,6 +99,7 @@ class ToolRegistry:
             "list_dir": self._list_dir,
             "run_command": self._run_command,
             "http_get": self._http_get,
+            "web_search": self._web_search,
         }.get(name)
         if handler is None:
             return ToolResult(False, error=f"unknown tool: {name}")
@@ -158,3 +162,91 @@ class ToolRegistry:
             return ToolResult(r.status_code == 200, output=r.text[:20000])
         except Exception as e:
             return ToolResult(False, error=str(e))
+
+    # ── web_search (BI-PF-0438): a client over a configurable search backend ──
+    # Builds ON the existing HTTP capability (requests); no new dependency.
+    # Default backend `none` = disabled/offline-safe. Self-host (whoogle/searxng) = no key;
+    # cloud (brave/tavily) = bring-your-own-key (a customer supplies their own account at ship time).
+    @staticmethod
+    def _ws_cfg():
+        def g(k, d=""):
+            try:
+                from core import env_flags
+                return str(env_flags.get(k, os.environ.get(k, d)) or d)
+            except Exception:
+                return os.environ.get(k, d)
+        return (g("PF_WEB_SEARCH_BACKEND", "none").strip().lower(),
+                g("PF_WEB_SEARCH_URL", "").strip(),
+                g("PF_WEB_SEARCH_KEY", "").strip())
+
+    @staticmethod
+    def _ws_anchors(html: str, limit: int):
+        import re as _re
+        out, seen = [], set()
+        for m in _re.finditer(r'<a[^>]+href="(https?://[^"]+)"[^>]*>(.*?)</a>', html, _re.I | _re.S):
+            url = m.group(1)
+            title = _re.sub(r"<[^>]+>", "", m.group(2)).strip()
+            if not title or url in seen:
+                continue
+            seen.add(url)
+            out.append({"title": title, "url": url, "snippet": ""})
+            if len(out) >= limit:
+                break
+        return out
+
+    def _web_search(self, args, workspace) -> ToolResult:
+        try:
+            import requests
+        except Exception as e:
+            return ToolResult(False, error=f"requests unavailable: {e}")
+        q = str(args.get("query") or "").strip()
+        if not q:
+            return ToolResult(False, error="web_search: query required")
+        limit = int(args.get("limit") or 5)
+        backend, url, key = self._ws_cfg()
+        if backend in ("", "none", "off", "disabled"):
+            return ToolResult(False, error=("web_search disabled (set PF_WEB_SEARCH_BACKEND: "
+                                            "whoogle|searxng|duckduckgo_html|brave|tavily)"))
+        try:
+            if backend == "searxng":
+                r = requests.get((url or "http://127.0.0.1:8888").rstrip("/") + "/search",
+                                 params={"q": q, "format": "json"}, timeout=20)
+                r.raise_for_status()
+                rows = [{"title": x.get("title"), "url": x.get("url"), "snippet": x.get("content", "")}
+                        for x in (r.json().get("results") or [])]
+            elif backend == "whoogle":
+                r = requests.get((url or "http://127.0.0.1:5000").rstrip("/") + "/search",
+                                 params={"q": q}, timeout=20, headers={"User-Agent": "Mozilla/5.0"})
+                r.raise_for_status()
+                rows = self._ws_anchors(r.text, limit)
+            elif backend == "duckduckgo_html":
+                r = requests.get("https://duckduckgo.com/html/", params={"q": q}, timeout=20,
+                                 headers={"User-Agent": "Mozilla/5.0"})
+                r.raise_for_status()
+                rows = self._ws_anchors(r.text, limit + 5)
+            elif backend == "brave":
+                k = key or os.environ.get("BRAVE_SEARCH_API_KEY", "")
+                if not k:
+                    return ToolResult(False, error="brave: key required (PF_WEB_SEARCH_KEY or BRAVE_SEARCH_API_KEY)")
+                r = requests.get("https://api.search.brave.com/res/v1/web/search",
+                                 params={"q": q, "count": limit},
+                                 headers={"Accept": "application/json", "X-Subscription-Token": k}, timeout=20)
+                r.raise_for_status()
+                rows = [{"title": x.get("title"), "url": x.get("url"), "snippet": x.get("description", "")}
+                        for x in ((r.json().get("web") or {}).get("results") or [])]
+            elif backend == "tavily":
+                k = key or os.environ.get("TAVILY_API_KEY", "")
+                if not k:
+                    return ToolResult(False, error="tavily: key required (PF_WEB_SEARCH_KEY or TAVILY_API_KEY)")
+                r = requests.post("https://api.tavily.com/search",
+                                  json={"api_key": k, "query": q, "max_results": limit}, timeout=20)
+                r.raise_for_status()
+                rows = [{"title": x.get("title"), "url": x.get("url"), "snippet": x.get("content", "")}
+                        for x in (r.json().get("results") or [])]
+            else:
+                return ToolResult(False, error=f"unknown PF_WEB_SEARCH_BACKEND: {backend}")
+        except Exception as e:
+            return ToolResult(False, error=f"web_search({backend}): {type(e).__name__}: {e}")
+        out = [{"title": str(x.get("title") or ""), "url": str(x.get("url") or ""),
+                "snippet": str(x.get("snippet") or "")} for x in rows[:limit]]
+        return ToolResult(True, output=json.dumps(out, ensure_ascii=False))
