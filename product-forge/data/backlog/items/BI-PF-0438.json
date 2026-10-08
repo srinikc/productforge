@@ -1,0 +1,109 @@
+{
+  "id": "BI-PF-0438",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "web-search-tool",
+  "label": "PF Backlog 472",
+  "title": "web_search tool (neutral; reuses PF http_get/requests; pluggable backend searxng/whoogle; default off)",
+  "body": "Source: user request (2026-10-08), from docs/TOOLS-AND-DEPENDENCIES.md section 7.\n\nGoal: add a neutral `web_search` tool to PF's framework-agnostic tool layer, so research/domain/tech-stack agents\ncan query the web (today only `http_get` for KNOWN urls exists). BUILD ON WHAT PF ALREADY HAS: the tool performs an\nHTTP GET via PF's existing `requests`/`http_get` capability to a configured search endpoint and parses results -\nNO new library/dependency.\n\nDesign:\n- ToolSpec `web_search` registered in core/tool_registry.py; handler does GET {endpoint}?q=... (reuse requests).\n- Backends (configurable; default disabled/offline-safe): `none` (default) | `whoogle` (self-host, MIT) | `searxng`\n  (self-host, supports format=json) | `duckduckgo_html` (HTML scrape; ToS caveat). Config via\n  config/tools.json or env PF_WEB_SEARCH_BACKEND / PF_WEB_SEARCH_URL.\n- tool_policy.WEB_TOOLS += (\"web_search\",) so research/domain/market roles get it.\n- tool_cache caches results; bounded (limit N, timeout). Exposed automatically via PF's loop AND MCP.\n- Licensing/redistribution (per BI-PF-0436/0437): reuse PF's own HTTP (MIT); prefer SELF-HOST whoogle(MIT)/searxng\n  (operator-run) via base_url; never bundle a vendor SDK/key; ddg-html is opt-in (ToS).\n\nOut of scope (follow-ups): BYO-key cloud adapters (brave/tavily/serpapi); semantic rerank; embeddings.\n\ndashboard_impact: no UI surface.",
+  "source": "user request",
+  "status": "new",
+  "priority": null,
+  "moscow": "Should",
+  "value": 3,
+  "effort": 2,
+  "risk": 2,
+  "deps": [
+    "BI-PF-0436",
+    "BI-PF-0437"
+  ],
+  "links": {
+    "backend_capability": [
+      "module:core/tool_registry.py",
+      "module:core/tool_policy.py",
+      "module:core/tool_cache.py",
+      "module:core/mcp.py",
+      "test:test-framework/tests/pipeline/test_web_search_tool.py"
+    ],
+    "related": [
+      "product_forge:BI-PF-0437",
+      "product_forge:BI-0211",
+      "product_forge:BI-0176"
+    ]
+  },
+  "decisions": [],
+  "follow_up": {},
+  "revision": 1,
+  "priority_rank": null,
+  "priority_class": "",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "IN_PROGRESS",
+    "analyzed_at": "",
+    "analyzed_by": "deterministic",
+    "revision_analyzed": 0,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/agent_tool_loop.py, core/tool_cache.py, core/tool_policy.py, core/tool_registry.py",
+    "existing_components": [
+      "core/agent_tool_loop.py",
+      "core/tool_cache.py",
+      "core/tool_policy.py",
+      "core/tool_registry.py"
+    ],
+    "existing_apis": [],
+    "existing_modules": [],
+    "dependency_findings": [
+      "depends on BI-PF-0436",
+      "depends on BI-PF-0437"
+    ],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=1.12",
+      "components=4",
+      "apis=0"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": false,
+    "reasons": [],
+    "computed_at": ""
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": ""
+  },
+  "created_at": "2026-10-08T14:27:04.161206",
+  "updated_at": "2026-10-08T14:27:05.458027",
+  "score": 1.12,
+  "_note": "analysis updated",
+  "dashboard_impact": {
+    "needs_dashboard": false,
+    "reason": "Tool layer (framework-agnostic); no UI surface",
+    "dashboard_item": null,
+    "reviewed_by": "agent"
+  }
+}
