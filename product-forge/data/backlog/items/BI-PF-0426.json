@@ -10,7 +10,7 @@
   "title": "FLAKY: worker-agent e2e fails under heavy load (readiness/register deadline) - RCCA",
   "body": "Source: precheck --full (2026-10-07) during BI-PF-0420.\n\nFINDING: `test-framework/tests/pipeline/test_workergrid_agent_e2e.py::test_agent_no_work_exits_clean` FAILED in\nthe full suite (which took 3642s vs the usual ~150s, with many \"[GeminiClient] Error: 429 ... quota\" lines),\nbut PASSES in isolation (1.37s) and in the immediate --full re-run (379.6s, PASS). So it is flaky, not a real\nregression.\n\nRCCA (5-Why):\n1. The full gate failed -> the agent e2e test failed.\n2. The agent e2e test failed only in the degraded full run.\n3. The suite was ~24x slower because LLM-dependent tests retried on provider 429 (quota) - machine saturated.\n4. Under that load the e2e harness's readiness/register deadlines (coordinator ready 15s; agent register 60s)\n   are tight enough to trip.\n5. Guard: make the e2e harness robust under load (raise the coordinator-readiness + register deadlines, and/or\n   make the LLM-dependent tests skip when the provider quota is exhausted) so a degraded environment cannot\n   flake the gate.\n\nFix (proposed, not a shortcut): increase the harness deadlines + add a quota-aware skip; keep the test's real\nassertions. Small change to the e2e harness.\n\ndashboard_impact: needs_dashboard=false - test-harness robustness; no UI surface.",
   "source": "precheck run",
-  "status": "new",
+  "status": "completed",
   "priority": null,
   "moscow": "Could",
   "value": 2,
@@ -23,11 +23,22 @@
     ],
     "related": [
       "product_forge:BI-PF-0413"
-    ]
+    ],
+    "delivery": {
+      "branch": "feature/e2e-load-robust",
+      "merge_sha": "a2e5df9035c432df289ca954dc62a60c7b003cbe",
+      "commits": [
+        "a852d7999fd0d203a24cdc08fe1aabe56271236e"
+      ],
+      "pr": "",
+      "pr_url": "",
+      "at": "2026-10-08T17:48:04.486126",
+      "note": ""
+    }
   },
   "decisions": [],
   "follow_up": {},
-  "revision": 1,
+  "revision": 2,
   "priority_rank": null,
   "priority_class": "",
   "analyze_mode": "on_entry",
@@ -93,9 +104,9 @@
     "completed_at": ""
   },
   "created_at": "2026-10-08T09:41:41.686587",
-  "updated_at": "2026-10-08T09:41:42.313933",
+  "updated_at": "2026-10-08T17:48:04.714806",
   "score": 1.5,
-  "_note": "analysis updated",
+  "_note": "",
   "dashboard_impact": {
     "needs_dashboard": false,
     "reason": "Test-harness robustness; no UI surface",
