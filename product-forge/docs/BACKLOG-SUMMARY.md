@@ -1,14 +1,14 @@
 # Backlog Summary
 
-> GENERATED 2026-10-08T17:37:32 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-08T17:43:09 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 37  |  **Closed:** 388
-- `new`: 37
+- **Open:** 36  |  **Closed:** 389
+- `new`: 36
 
-### new, by category (37)
+### new, by category (36)
 **API / reports / HIL / misc** (1)
 | ID | MoSCoW | Type | Title |
 |---|---|---|---|
@@ -43,7 +43,7 @@
 | BI-0206 | Should | tech-debt | Backend: model downloader + local cache + license-acceptance gate + models.lock (open-weights) |
 | BI-0225 | Should | feature | Parallel section/feature generation |
 
-**Wiring / tech-debt / API** (27)
+**Wiring / tech-debt / API** (26)
 | ID | MoSCoW | Type | Title |
 |---|---|---|---|
 | BI-0185 | Should | feature | EPIC: Multi-modal / media orchestration (pluggable capability packs) |
@@ -72,7 +72,6 @@
 | BI-PF-0406 | Should | feature | B7: service decomposition |
 | BI-PF-0407 | Should | feature | Bmig: migrate high-value legacy Python -> Go (by value) |
 | BI-PF-0408 | Should | change | /pf command: build mode only (not orchestrator) + global /pf for all opencode sessions |
-| BI-PF-0430 | Should | chore | RCCA + guard: commit-branch assertion (never commit feature work directly on develop/main) |
 
 ---
 
@@ -272,5 +271,5 @@
 ---
 
 ## Totals
-- backend: 37 open / 388 closed
+- backend: 36 open / 389 closed
 - dashboard: 146 open / 3 closed
