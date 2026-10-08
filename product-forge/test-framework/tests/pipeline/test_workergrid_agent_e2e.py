@@ -42,6 +42,11 @@ TITLE = "do the thing"
 # composed (not literal) so the store-contract audit does not treat test scratch as a store
 _CONFIG_NAME = "config" + ".json"
 _JOURNAL_NAME = "agent-journal" + ".jsonl"
+# BI-PF-0426: load-robust deadlines. The full suite can run ~24x slower under provider-429 retries; these
+# allow CI/loaded machines to extend without touching the test (defaults are generous).
+_READY_TIMEOUT = float(os.environ.get("WG_E2E_READY_TIMEOUT", "60"))
+_AGENT_TIMEOUT = int(os.environ.get("WG_E2E_AGENT_TIMEOUT", "180"))
+_BEAT_TIMEOUT = float(os.environ.get("WG_E2E_BEAT_TIMEOUT", "60"))
 
 if REQUIRE_GO and (not COORD_BIN.exists() or not AGENT_BIN.exists()):
     pytest.fail(f"WG_CONTRACT_REQUIRE_GO=1 but binaries missing: {COORD_BIN} / {AGENT_BIN}")
@@ -191,7 +196,7 @@ class _Harness:
             [str(COORD_BIN), "-host", "127.0.0.1", "-port", str(self.port)],
             cwd=str(WG_DIR), env=self.env(self.coord_state),
             stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
-        deadline = time.time() + 15
+        deadline = time.time() + _READY_TIMEOUT
         while time.time() < deadline:
             if self.coord.poll() is not None:
                 pytest.fail("coordinator exited: " + (self.coord.stdout.read() or ""))
@@ -201,7 +206,7 @@ class _Harness:
             time.sleep(0.1)
         pytest.fail("coordinator not ready")
 
-    def run_agent(self, timeout: int = 60, **extra) -> subprocess.CompletedProcess:
+    def run_agent(self, timeout: int = _AGENT_TIMEOUT, **extra) -> subprocess.CompletedProcess:
         cmd = [str(AGENT_BIN), "-runtime", "command", "-worker-id", "WRK-TEST",
                "-service", self.base, "-once"]
         for k, v in extra.items():
@@ -232,7 +237,7 @@ class _Harness:
         if self.coord and self.coord.poll() is None:
             self.coord.terminate()
             try:
-                self.coord.wait(timeout=5)
+                self.coord.wait(timeout=15)
             except Exception:
                 self.coord.kill()
         self.producer.close()
@@ -341,7 +346,7 @@ def test_agent_heartbeat_renews_lease(tmp_path):
             cwd=str(WG_DIR), env=h.env(h.agent_state),
             stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
         # wait until the worker is BUSY on the item, then observe a heartbeat tick
-        deadline = time.time() + 20
+        deadline = time.time() + _BEAT_TIMEOUT
         first = None
         while time.time() < deadline:
             st, w = _http(h.base, "GET", "/workers/WRK-TEST")
@@ -353,7 +358,7 @@ def test_agent_heartbeat_renews_lease(tmp_path):
         time.sleep(2.5)  # > one beat (lease 3s -> beat 2s)
         st, w2 = _http(h.base, "GET", "/workers/WRK-TEST")
         assert w2.get("last_heartbeat", 0) > first, "heartbeat/renew tick did not fire"
-        proc.wait(timeout=60)
+        proc.wait(timeout=_AGENT_TIMEOUT)
         assert proc.returncode == 0, proc.stdout.read()
         assert h.producer.statuses() == ["scheduled", "executing", "verifying"]
         assert not any(j["event"] == "lease_lost" for j in h.journal())
