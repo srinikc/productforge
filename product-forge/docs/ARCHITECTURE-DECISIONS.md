@@ -15,6 +15,7 @@ ADR. Individual ADRs may later be split into `docs/adr/NNNN-*.md` (the index her
 | [ADR-0001](#adr-0001-go-first-compiled-delivery) | Go-first compiled delivery (one source, many editions) | Accepted | 2026-10-06 |
 | [ADR-0002](#adr-0002-workergrid-external-execution-plane) | WorkerGrid: external, producer-agnostic execution plane | Superseded by ADR-0003 | 2026-10-06 |
 | [ADR-0003](#adr-0003-assignment-authority-in-the-producer-workergrid-is-a-runtime-host) | Assignment authority in the producer; WorkerGrid is a runtime host | Accepted | 2026-10-07 |
+| [ADR-0004](#adr-0004-feature--epic--children-backlog-model) | Feature ↔ Epic ↔ children (backlog model) | Accepted | 2026-10-08 |
 
 ## Template
 ```markdown
@@ -179,4 +180,37 @@ landing needs a remote or `gh`.
 - A worker runs with **only PF up** (`/wg work`); the coordinator is not required.
 - Assignment truth = PF `item.execution{}`; `GET /engineering/assignments` shows workers ↔ items.
 - The coordinator mode still works behind `agent.contract=coordinator`.
+
+---
+
+# ADR-0004: Feature ↔ Epic ↔ children (backlog model)
+**Status:** Accepted   **Date:** 2026-10-08   **Deciders:** product/eng   **Related:** BI-PF-0451 (EPIC), BI-PF-0452 (E2), BI-PF-0444
+
+## Context and Problem Statement
+The requirements/architect phase produces a feature list (F-x). The bridge (`core/backlog_link.py`) mapped a
+Feature **1:1 to a single backlog item**, flat - no container, no children - and it was **unused** (0 items
+carried `feature_id`). Backlog items also lacked shared context, so work was reconstructed by guessing.
+
+## Decision Drivers
+One feature should be a **container** of the work items that implement it; features come from the plan; work
+must carry understandable context (brief/objective/acceptance criteria/where/how/review).
+
+## Considered Options
+- **(A)** keep Feature ↔ single item (flat).
+- **(B)** Feature ↔ **Epic** ↔ children (the epic is the feature's backlog representation; children are the work).
+
+## Decision Outcome
+**Chosen option: B.** A plan **Feature (F-x)** maps 1:1 to an **Epic** (`type=epic`, `epic.feature_id=F-x`); the
+epic's **children** are the work items (`child.epic=epic#`, `child.feature_id=F-x`); status mirrors
+feature -> epic -> rollup (an epic is done iff all children are done). The flat bridge is superseded.
+
+### Consequences
+**Positive:** features, containers and work form one linked graph; a worker gets a child plus its epic context;
+generated products are modeled the same way. **Negative:** the bridge is re-pointed (migration); epic rollup adds
+a computed dependency. **Risks:** mixed old/new links during migration -> `children[]`/`epic` refs are audited by
+the `backlog-context` gate.
+
+### Confirmation
+- A feature creates an epic; its children carry `epic#` + `feature_id`; epic done = all children done.
+- The `backlog-context` gate fails an open item whose `epic` ref does not resolve.
 

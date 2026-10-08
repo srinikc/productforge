@@ -99,6 +99,13 @@ def _derive(item: dict) -> dict:
     for k, dv in _DEFAULTS.items():          # normalize: every item carries the full field set
         if k not in upd and not item.get(k):
             upd[k] = dv
+    draft = backlog._draft_context(item.get("title") or "", body, item.get("origin") or "",
+                                   item.get("source") or "", item.get("type") or "feature")
+    for k, v in draft.items():               # BI-PF-0454: fill ALL remaining empty fields (derived)
+        if k in ("brief", "objective", "acceptance_criteria"):
+            continue
+        if not upd.get(k) and not item.get(k):
+            upd[k] = v
     return upd
 
 

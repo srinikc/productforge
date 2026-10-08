@@ -524,8 +524,11 @@ def epic_done(scope: str, project: str | None, epic_id: str) -> bool:
     return all(_normalize_status(str(k.get("status") or "")) in _CLOSED for k in kids)
 
 
-def _draft_context(title: str, body: str) -> dict:
-    """BI-PF-0450: auto-draft WHY/WHAT context so a new item is never context-less (source=extracted|derived)."""
+def _draft_context(title: str, body: str, origin: str = "", source: str = "", type_: str = "feature") -> dict:
+    """BI-PF-0454: draft the FULL context field set so no item is ever missing a field.
+
+    Values are clearly derived/placeholder (never presented as authored). New items use this at create; the
+    migration (BI-PF-0449) reuses it to normalize existing items."""
     body = body or ""
     problem = ""
     m = re.search(r"^\s*#{1,4}\s*problem[^\n]*\n(.*?)(?=\n\s*#{1,4}\s|\Z)", body, re.I | re.S | re.M)
@@ -538,9 +541,34 @@ def _draft_context(title: str, body: str) -> dict:
                 problem = t
                 break
     src = "extracted" if problem else "derived"
-    return {"brief": {"problem": (problem or title)[:1200], "what_adds": title, "why": "", "who_feels": "",
-                      "source": src},
-            "objective": title, "acceptance_criteria": [f"(derived) objective met: {title}"]}
+    what = title or "(unspecified)"
+    owner = {"review": "agent", "intake": "intake", "pipeline": "pipeline"}.get(str(origin), "unassigned")
+    requester = "user" if "user" in str(source).lower() else (str(source) or str(origin) or "system")
+    review = {"reconciliation": {"prior_decisions": [], "existing_path": [], "assumptions": [],
+                                 "divergences": [], "open_questions": []},
+              "impact_review": [], "reviewed_by": "derived", "at": ""}
+    return {
+        "brief": {"problem": (problem or what)[:1200], "what_adds": what[:600],
+                  "why": "(derived) see objective", "who_feels": "(derived) unspecified", "source": src},
+        "objective": what,
+        "acceptance_criteria": [f"(derived) objective met: {what}"],
+        "in_scope": [what],
+        "out_of_scope": ["(derived) not specified"],
+        "affected_components": ["(derived) TBD"],
+        "affected_files": ["(derived) TBD"],
+        "approach": what,
+        "review": review,
+        "verification": [f"(derived) objective met: {what}"],
+        "risks": ["(derived) none identified"],
+        "rollback": "(derived) revert the change",
+        "evidence": ["(derived) pending"],
+        "owner": owner,
+        "requester": requester,
+        "due": "(derived) TBD",
+        "target_release": "(derived) TBD",
+        "approvals": [],
+        "summary": what if str(type_) == "epic" else "",
+    }
 
 
 def add_epic(scope: str, project: str | None, title: str, body: str = "",
@@ -577,7 +605,7 @@ def add_epic(scope: str, project: str | None, title: str, body: str = "",
             for s in _sims:
                 print(f"   - {s['ref']} (score {s['score']}) [{s['status']}]: {s['title']}")
         _tag = str(tag or "").strip().upper() or tag_for(scope, project, origin, type_)
-        _draft_ctx = _draft_context(title, body)
+        _draft_ctx = _draft_context(title, body, origin, source, type_)
         item = {
             "id": _next_id(op, cl, _tag),
             "tag": _tag, "type": type_, "scope": scope, "project": project or "",
@@ -600,6 +628,9 @@ def add_epic(scope: str, project: str | None, title: str, body: str = "",
             "readiness": _default_readiness(), "execution": _default_execution(),
             "created_at": datetime.now().isoformat(), "updated_at": datetime.now().isoformat(),
         }
+        for _k, _v in _draft_ctx.items():
+            if _k not in ("brief", "objective", "acceptance_criteria") and not item.get(_k):
+                item[_k] = _v
         item["score"] = score(item)
         op.append(item)
         _save_item(d, item)

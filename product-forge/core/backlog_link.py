@@ -36,17 +36,20 @@ def external_id(project: str, feature_id: str) -> str:
 
 
 def ensure_feature_item(project: str, feature) -> Optional[Dict]:
-    """Get-or-create the backlog item backing a plan feature. Idempotent."""
+    """Get-or-create the EPIC backing a plan feature (ADR-0004: Feature <-> Epic <-> children). Idempotent."""
     try:
         fid = getattr(feature, "id", None) or (feature or {}).get("id")
         if not fid:
             return None
         name = getattr(feature, "name", None) or (feature or {}).get("name", "") or fid
+        desc = getattr(feature, "description", None) or (feature or {}).get("description", "") or ""
         prio = getattr(feature, "priority", None) or (feature or {}).get("priority", "")
+        ac = getattr(feature, "acceptance_criteria", None) or (feature or {}).get("acceptance_criteria", []) or []
         item = _backlog().ensure_item(
-            "project", project, external_id(project, fid), title=name,
-            type_="feature", origin="pipeline", source="product-plan",
+            "project", project, external_id(project, fid), title=name, body=desc,
+            type_="epic", origin="pipeline", source="product-plan",
             moscow=_MOSCOW.get(str(prio), "Should"),
+            objective=name, acceptance_criteria=list(ac), summary=desc or name,
             links={"feature_id": fid},
         )
         return item
@@ -54,20 +57,36 @@ def ensure_feature_item(project: str, feature) -> Optional[Dict]:
         return None
 
 
+def ensure_feature_child(project: str, feature_id: str, title: str, body: str = "",
+                         type_: str = "feature", **fields) -> Optional[Dict]:
+    """Create a CHILD work item under a feature's Epic (ADR-0004). Idempotent by title+feature."""
+    try:
+        epic = ensure_feature_item(project, {"id": feature_id, "name": title})
+        eid = (epic or {}).get("id")
+        child = _backlog().ensure_item(
+            "project", project, f"feature-child:{project}:{feature_id}:{title}",
+            title=title, body=body, type_=type_, origin="pipeline", source="product-plan",
+            epic=eid, links={"feature_id": feature_id}, **fields)
+        return child
+    except Exception:
+        return None
+
+
 def mirror_feature_status(project: str, feature_id: str, feature_status: str,
                           title: str = "", priority: str = "") -> Optional[Dict]:
-    """Create-if-needed and set the item status from a feature status change."""
+    """Create-if-needed the feature's EPIC and mirror the feature status onto it (ADR-0004)."""
     try:
-        item = _backlog().ensure_item(
-            "project", project, external_id(project, feature_id),
-            title=title or feature_id, type_="feature", origin="pipeline",
-            source="product-plan", moscow=_MOSCOW.get(str(priority), "Should"),
-            links={"feature_id": feature_id},
-        )
+        item = ensure_feature_item(project, {"id": feature_id, "name": title or feature_id,
+                                             "priority": priority})
+        if not item:
+            return None
         mapped = _FEATURE_TO_ITEM.get(str(feature_status), None)
         if mapped and item.get("status") != mapped:
-            _backlog().set_status("project", project, item["id"], mapped,
-                                  note=f"mirrored from feature {feature_id}: {feature_status}")
+            try:
+                _backlog().set_status("project", project, item["id"], mapped,
+                                      note=f"mirrored from feature {feature_id}: {feature_status}")
+            except ValueError:
+                pass  # epic cannot close while children are open -> rollup governs (ADR-0004)
         return _backlog().get_epic("project", project, item["id"])
     except Exception:
         return None
