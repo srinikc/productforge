@@ -62,6 +62,17 @@ def _problems_for(scope, project, items, all_items):
                 probs.append(f"{eid}: missing objective")
             if not (it.get("acceptance_criteria") or []):
                 probs.append(f"{eid}: missing acceptance_criteria")
+            for fld in ("in_scope", "out_of_scope", "affected_components", "affected_files", "approach",
+                        "verification", "risks", "rollback", "evidence", "owner", "requester", "due",
+                        "target_release"):
+                v = it.get(fld)
+                if isinstance(v, list):
+                    if not v:
+                        probs.append(f"{eid}: empty {fld}")
+                elif not str(v or "").strip():
+                    probs.append(f"{eid}: empty {fld}")
+            if not (it.get("review") or {}):
+                probs.append(f"{eid}: empty review")
         ep = str(it.get("epic") or "").strip()
         if ep and ep not in ids:
             probs.append(f"{eid}: epic ref {ep!r} does not resolve")
