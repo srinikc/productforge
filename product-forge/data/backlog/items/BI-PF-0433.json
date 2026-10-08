@@ -1,0 +1,123 @@
+{
+  "id": "BI-PF-0433",
+  "tag": "PF",
+  "type": "chore",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "wg-command-docs-adr0003",
+  "label": "PF Backlog 467",
+  "title": "Update /wg command docs for ADR-0003/BI-PF-0423 (work=worker, claim-only, status=PF assignments)",
+  "body": "Source: user verification of the command surfaces (2026-10-07).\n\nDRIFT: the `/wg` CLI (workergrid/wg.py) has the 0423 behavior (/wg work = the worker; --claim-only; /wg status =\nPF assignments; agent PF mode per ADR-0003), and /pf correctly has no worker verbs, BUT the `/wg` command docs\n(.opencode/command/wg.md, .opencode/command_global/wg.md, installed ~/.config/opencode/command/wg.md) still\ndescribe `/wg work` as claim-only and omit the thin-client/PF model.\n\nFix: update the `/wg` verb map + NOTE in all three copies (project + global + installed, byte-identical) to\nreflect ADR-0003: WorkerGrid = thin runtime host; PF owns assignment + delivery; `/wg work` = the worker\n(loop/--once; --claim-only = claim only); `/wg status` = PF GET /engineering/assignments; coordinator =\nfallback; two planes (worker = product_forge only).\n\ndashboard_impact: no UI surface.",
+  "source": "user verification",
+  "status": "new",
+  "priority": null,
+  "moscow": "Should",
+  "value": 2,
+  "effort": 1,
+  "risk": 1,
+  "deps": [
+    "BI-PF-0423"
+  ],
+  "links": {
+    "backend_capability": [
+      "doc:.opencode/command/wg.md",
+      "doc:.opencode/command_global/wg.md",
+      "command:workergrid/wg.py"
+    ],
+    "related": [
+      "product_forge:BI-PF-0423",
+      "product_forge:BI-PF-0424"
+    ]
+  },
+  "decisions": [],
+  "follow_up": {},
+  "revision": 1,
+  "priority_rank": null,
+  "priority_class": "",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "IN_PROGRESS",
+    "analyzed_at": "",
+    "analyzed_by": "deterministic",
+    "revision_analyzed": 0,
+    "architecture_fit": "REUSE",
+    "implementation_strategy": "Extend existing components/APIs: core/api_docs.py, core/run_status.py, core/status.py, core/test_framework_bridge.py",
+    "existing_components": [
+      "core/api_docs.py",
+      "core/run_status.py",
+      "core/status.py",
+      "core/test_framework_bridge.py",
+      "core/test_framework_integration.py",
+      "core/worker.py",
+      "core/workflow_docs.py",
+      "core/work_estimate.py"
+    ],
+    "existing_apis": [
+      "/api/v1/apidocs",
+      "/api/v1/apidocs.json",
+      "/api/v1/apidocs/render",
+      "/api/v1/backlog/items/{item_id}/status",
+      "/api/v1/engineering/assignments",
+      "/api/v1/engineering/assignments/claim",
+      "/api/v1/engineering/assignments/recover",
+      "/api/v1/engineering/assignments/{item_id}/complete"
+    ],
+    "existing_modules": [
+      "config/engineering-workers.json"
+    ],
+    "dependency_findings": [
+      "depends on BI-PF-0423"
+    ],
+    "conflict_findings": [],
+    "duplication_findings": [
+      "product_forge:BI-PF-0433 (score 0.99)"
+    ],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [
+      "possible duplicate"
+    ],
+    "evidence": [
+      "similar=5",
+      "score=2.0",
+      "components=8",
+      "apis=8"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": false,
+    "reasons": [],
+    "computed_at": ""
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": ""
+  },
+  "created_at": "2026-10-08T13:15:10.208643",
+  "updated_at": "2026-10-08T13:15:11.161300",
+  "score": 2.0,
+  "_note": "analysis updated",
+  "dashboard_impact": {
+    "needs_dashboard": false,
+    "reason": "Command-doc correctness; no UI surface",
+    "dashboard_item": null,
+    "reviewed_by": "agent"
+  }
+}
