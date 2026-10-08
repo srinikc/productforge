@@ -35,16 +35,23 @@ def external_id(project: str, feature_id: str) -> str:
     return f"feature:{project}:{feature_id}"
 
 
+def _fget(feature, key: str, default=None):
+    """Read a field from a plan Feature whether it is a dict or a dataclass object."""
+    if isinstance(feature, dict):
+        return feature.get(key, default)
+    return getattr(feature, key, default)
+
+
 def ensure_feature_item(project: str, feature) -> Optional[Dict]:
     """Get-or-create the EPIC backing a plan feature (ADR-0004: Feature <-> Epic <-> children). Idempotent."""
     try:
-        fid = getattr(feature, "id", None) or (feature or {}).get("id")
+        fid = _fget(feature, "id")
         if not fid:
             return None
-        name = getattr(feature, "name", None) or (feature or {}).get("name", "") or fid
-        desc = getattr(feature, "description", None) or (feature or {}).get("description", "") or ""
-        prio = getattr(feature, "priority", None) or (feature or {}).get("priority", "")
-        ac = getattr(feature, "acceptance_criteria", None) or (feature or {}).get("acceptance_criteria", []) or []
+        name = _fget(feature, "name", "") or fid
+        desc = _fget(feature, "description", "") or ""
+        prio = _fget(feature, "priority", "") or ""
+        ac = _fget(feature, "acceptance_criteria", None) or []
         item = _backlog().ensure_item(
             "project", project, external_id(project, fid), title=name, body=desc,
             type_="epic", origin="pipeline", source="product-plan",
