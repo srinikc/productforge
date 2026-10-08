@@ -6,7 +6,6 @@ return the assignment package (worktree created at claim).
 """
 import os
 import shutil
-import subprocess
 import sys
 from pathlib import Path
 
@@ -97,43 +96,9 @@ def test_complete_fail_release_clear_the_lease():
         _clean()
 
 
-def _init_repo(path: Path):
-    path.mkdir(parents=True, exist_ok=True)
-    subprocess.run(["git", "init", "-q"], cwd=path, check=True, capture_output=True)
-    (path / "README.md").write_text("seed\n", encoding="utf-8")
-    subprocess.run(["git", "add", "README.md"], cwd=path, check=True, capture_output=True)
-    subprocess.run(["git", "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-q", "-m", "init"],
-                   cwd=path, check=True, capture_output=True)
-
-
-def test_assignment_api_roundtrip_and_worker_role(monkeypatch):
-    _clean()
-    monkeypatch.setenv("API_ALLOW_ANON", "1")
-    monkeypatch.setenv("WORKERGRID_PF_API_URL", "")
-    from fastapi.testclient import TestClient
-    from api.app import app
-    client = TestClient(app)
-    try:
-        proj_dir = Path(str(PRODUCTS_DIR)) / _PROJ
-        _init_repo(proj_dir)
-        _seed(1)
-
-        # claim -> assignment package with a worktree
-        r = client.post("/api/v1/engineering/assignments/claim",
-                        json={"scope": "project", "project": _PROJ, "worker_id": "WRK-A"})
-        assert r.status_code == 200, r.text
-        pkg = r.json()["data"]
-        assert pkg["assigned"] is True and pkg["item_id"] and pkg["worktree"], pkg
-        assert Path(pkg["worktree"]).exists(), pkg["worktree"]
-
-        item = pkg["item_id"]
-        assert client.post(f"/api/v1/engineering/assignments/{item}/heartbeat",
-                           json={"scope": "project", "project": _PROJ}).json()["data"]["renewed"] is True
-        done = client.post(f"/api/v1/engineering/assignments/{item}/complete",
-                           json={"scope": "project", "project": _PROJ}).json()["data"]
-        assert done["ok"] is True and done["status"] == "verifying"
-    finally:
-        _clean()
+# NOTE (BI-PF-0427): the API claim roundtrip can no longer be exercised with scope=project (the worker
+# boundary is product_forge-only) and must NOT claim a real product_forge backlog item - so the API surface is
+# covered by the scope-guard + role tests below, and the claim/lease/complete mechanism at the core level above.
 
 
 def test_assignment_api_requires_worker_role(monkeypatch):
@@ -146,8 +111,21 @@ def test_assignment_api_requires_worker_role(monkeypatch):
     r = client.post("/api/v1/engineering/assignments/claim", json={},
                     headers={"Authorization": "Bearer t"})
     assert r.status_code == 403, r.text
-    # worker role -> passes auth (then fails for a non-repo project, which is fine)
+    # worker role -> passes auth, then the scope guard rejects project (BI-PF-0427)
     r2 = client.post("/api/v1/engineering/assignments/claim",
                      json={"scope": "project", "project": "_test_assign_api"},
                      headers={"Authorization": "Bearer t", "X-Roles": "worker"})
-    assert r2.status_code in (200, 404, 409), r2.text
+    assert r2.status_code in (400, 422), r2.text
+
+
+def test_worker_path_is_product_forge_only(monkeypatch):
+    """BI-PF-0427: the worker/assignment path (API boundary) executes PF's own backlog only."""
+    monkeypatch.setenv("API_ALLOW_ANON", "1")
+    from fastapi.testclient import TestClient
+    from api.app import app
+    client = TestClient(app)
+    r1 = client.post("/api/v1/engineering/assignments/claim",
+                     json={"scope": "project", "project": _PROJ})
+    assert r1.status_code in (400, 422), r1.text
+    r2 = client.get(f"/api/v1/engineering/schedule/next?stage=execute&scope=project&project={_PROJ}")
+    assert r2.status_code in (400, 422), r2.text

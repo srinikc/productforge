@@ -29,6 +29,18 @@ def _scope_project(scope: str, project: str):
     return s, p
 
 
+def _worker_scope(scope: str, project: str):
+    """BI-PF-0427: the worker/assignment path executes Product Forge's OWN backlog only (product_forge).
+    Project-scope changes run through the PF pipeline (intake -> run_entry -> pipeline_executor), not a worker."""
+    s, p = _scope_project(scope, project)
+    if s != "product_forge":
+        raise ApiError("VALIDATION_FAILED",
+                       "the worker/assignment path is product_forge-only; "
+                       "project changes run through the PF pipeline",
+                       details={"scope": s})
+    return s, p
+
+
 
 
 @router.get("", dependencies=[Depends(authenticate)])
@@ -252,6 +264,10 @@ def schedule_next(request: Request, scope: str = "product_forge", project: str =
                   stage: str = "", ctx: dict[str, Any] = Depends(authenticate)):
     from core import scheduler
     s, p = _scope_project(scope, project)
+    if stage == "execute" and s != "product_forge":
+        raise ApiError("VALIDATION_FAILED",
+                       "the worker claim path is product_forge-only; project changes run through the PF pipeline",
+                       details={"scope": s})
     return from_request(request, scheduler.next_eligible(s, p, stage=stage or None), resource="engineering")
 
 
@@ -262,7 +278,7 @@ def assignment_claim(body: dict[str, Any], request: Request,
                      ctx: dict[str, Any] = Depends(require_worker)):
     from core import backlog, job_manager, vcs
     from core.paths import ROOT
-    s, p = _scope_project(str(body.get("scope") or "product_forge"), str(body.get("project") or ""))
+    s, p = _worker_scope(str(body.get("scope") or "product_forge"), str(body.get("project") or ""))
     worker = str(body.get("worker_id") or ctx.get("actor") or "worker")
     res = job_manager.claim_next(s, p, worker=worker, lease_seconds=int(body.get("lease_seconds") or 0))
     if not res.get("claimed"):
@@ -289,7 +305,7 @@ def assignment_claim(body: dict[str, Any], request: Request,
 def assignment_heartbeat(item_id: str, body: dict[str, Any], request: Request,
                          ctx: dict[str, Any] = Depends(require_worker)):
     from core import job_manager
-    s, p = _scope_project(str(body.get("scope") or "product_forge"), str(body.get("project") or ""))
+    s, p = _worker_scope(str(body.get("scope") or "product_forge"), str(body.get("project") or ""))
     return from_request(request, job_manager.renew_lease(s, p, item_id,
                         lease_seconds=int(body.get("lease_seconds") or 0)), resource="engineering")
 
@@ -298,7 +314,7 @@ def assignment_heartbeat(item_id: str, body: dict[str, Any], request: Request,
 def assignment_complete(item_id: str, body: dict[str, Any], request: Request, background: BackgroundTasks,
                         ctx: dict[str, Any] = Depends(require_worker)):
     from core import delivery, job_manager
-    s, p = _scope_project(str(body.get("scope") or "product_forge"), str(body.get("project") or ""))
+    s, p = _worker_scope(str(body.get("scope") or "product_forge"), str(body.get("project") or ""))
     res = job_manager.complete(s, p, item_id, status=str(body.get("status") or "verifying"),
                                note=str(body.get("note") or ""))
     # BI-PF-0421: async optimistic delivery lane (push+PR -> validate -> rebase -> merge -> push)
@@ -312,7 +328,7 @@ def assignment_deliver(item_id: str, body: dict[str, Any], request: Request,
                        ctx: dict[str, Any] = Depends(require_operator)):
     """Run the delivery lane for one item synchronously (operator; recovery/manual). BI-PF-0421."""
     from core import delivery
-    s, p = _scope_project(str(body.get("scope") or "product_forge"), str(body.get("project") or ""))
+    s, p = _worker_scope(str(body.get("scope") or "product_forge"), str(body.get("project") or ""))
     return from_request(request, delivery.deliver(s, p, item_id,
                         integration=str(body.get("integration") or "")), resource="engineering")
 
@@ -321,7 +337,7 @@ def assignment_deliver(item_id: str, body: dict[str, Any], request: Request,
 def assignment_fail(item_id: str, body: dict[str, Any], request: Request,
                     ctx: dict[str, Any] = Depends(require_worker)):
     from core import job_manager
-    s, p = _scope_project(str(body.get("scope") or "product_forge"), str(body.get("project") or ""))
+    s, p = _worker_scope(str(body.get("scope") or "product_forge"), str(body.get("project") or ""))
     return from_request(request, job_manager.fail(s, p, item_id, reason=str(body.get("reason") or "")),
                         resource="engineering")
 
@@ -330,7 +346,7 @@ def assignment_fail(item_id: str, body: dict[str, Any], request: Request,
 def assignment_release(item_id: str, body: dict[str, Any], request: Request,
                        ctx: dict[str, Any] = Depends(require_worker)):
     from core import job_manager
-    s, p = _scope_project(str(body.get("scope") or "product_forge"), str(body.get("project") or ""))
+    s, p = _worker_scope(str(body.get("scope") or "product_forge"), str(body.get("project") or ""))
     return from_request(request, job_manager.release(s, p, item_id,
                         reason=str(body.get("reason") or "released")), resource="engineering")
 

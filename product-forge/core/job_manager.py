@@ -264,6 +264,9 @@ def claim_next(scope: str = "product_forge", project: str | None = None, worker:
 
     BI-PF-0419: keyed by ITEM and independent of the project pipeline-run queue (``jobs``) - so N items in one
     project can run in parallel. Returns the assignment package or ``{claimed: False, reason}``.
+
+    BI-PF-0427: the *worker path* (worker API + coordinator) is product_forge-only; that boundary guard lives in
+    the API layer (``api/routers/engineering.py``), not here - this remains the scope-parameterized mechanism.
     """
     from core import backlog, capacity, scheduler
     nxt = scheduler.next_eligible(scope, project, stage="execute")
