@@ -59,6 +59,30 @@ Both must pass (0 unwired, 0 naming violations). The same audit runs in CI and i
   races the other's and a commit can land on `develop` directly. Give each session its **own clone or
   `git worktree`**. This is how a worker session must be run (see `docs/WORKER-SCHEDULER-OPERATIONS.md`).
 
+## Reconciliation before implementation (binding — any change)
+Before designing or implementing **anything**, produce a **RECONCILIATION** block and keep it with the work
+item / review. It reconciles the change against what has **already been decided** and what **already exists**:
+
+```
+PRIOR DECISIONS — every recorded decision this change touches (quote + id/source).
+EXISTING PATH   — per capability: does it already exist? owner + file:line.
+ASSUMPTIONS     — every assumption NOT backed by a recorded decision or by the code.
+DIVERGENCES     — anywhere this would differ from a prior decision or an existing owner.
+OPEN QUESTIONS  — what the user must confirm.
+```
+
+Rules:
+1. **No assumption is implemented unconfirmed** — every `ASSUMPTIONS` row needs an explicit user yes/no first.
+2. **No silent divergence** — re-scoping / re-deciding **amends the decision record first**; never reconverge
+   silently later.
+3. **Decisions are an append-only ledger cited by implementations** — an item carries `decisions[]`; a change
+   that contradicts a ledger entry **stops**.
+4. **Unknowns are investigated, never extrapolated** — if `PRIOR DECISIONS` / `EXISTING PATH` are not known,
+   grep/read the code (file:line) before proposing.
+5. **Do not build scope-/context-agnostically** unless the user has explicitly signed off for each scope.
+
+This sits **before** the pre-implementation review below; `DIVERGENCES` are adjudicated in its IMPACT REVIEW.
+
 ## Pre-implementation architecture review (mandatory)
 Before implementing **any** new design, flow, review recommendation, or external document:
 1. Restate the proposed change in one line.

@@ -27,6 +27,9 @@ Companion docs: `docs/STRUCTURE-CONTRACT.md` (rules) · `config/store-registry.j
 | A data migration | `scripts/dev/migrate_*.py` | K |
 
 ## 2. Common steps (every change)
+0. **Reconcile first** (binding) — produce the **RECONCILIATION** block (`PRIOR DECISIONS` / `EXISTING PATH` /
+   `ASSUMPTIONS` / `DIVERGENCES` / `OPEN QUESTIONS`; see `AGENTS.md` → "Reconciliation before implementation").
+   No assumption is implemented unconfirmed; no silent divergence; unknowns are investigated, never extrapolated.
 1. Branch from the working branch (`core/vcs.py`: `feature_branch`).
 2. Implement **one concern**; single writer.
 3. **Wire it** — must be invoked on the runtime path (import + call), not just defined.
