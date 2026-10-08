@@ -5,56 +5,41 @@
   "scope": "product_forge",
   "project": "",
   "origin": "review",
-  "external_id": "feature-item-fget-defect",
-  "label": "PF Backlog 491",
-  "title": "Defect/RCCA: ensure_feature_item broke on Feature dataclass (.get on object swallowed) - backlog-e2e red",
-  "body": "Source: precheck --full (2026-10-08) - `backlog-e2e` FAILED after BI-PF-0452/0453 (E2/P1).\n\nDEFECT: `backlog_link.ensure_feature_item` read plan-feature fields with `(feature or {}).get(...)`, but a plan\nfeature is a `Feature` DATACLASS (not a dict) -> `AttributeError: 'Feature' object has no attribute 'get'`,\nswallowed by the function's `except Exception: return None`. Net: for a real Feature OBJECT the function returned\nNone and created no epic; it only worked when callers passed a dict (which is why the unit test passed but the\nend-to-end `e2e_backlog_check` - which passes a Feature object - failed).\n\nRCCA (5-Why):\n1. backlog-e2e failed (\"feature -> BacklogItem None\"). 2. ensure_feature_item returned None. 3. It raised\nAttributeError on `.get`. 4. The code assumed a dict; a Feature dataclass has no `.get`; the broad except hid it.\n5. Guard: use a type-safe `_fget(feature, key)` (dict OR object) and add a test that passes a Feature OBJECT (the\ne2e already covers it; a unit test now locks it).\n\nFix: `core/backlog_link._fget` + `ensure_feature_item` uses it; test `test_feature_epic_bridge.py`\n(Feature object). Verified: `scripts/dev/e2e_backlog_check.py` -> E2E: PASS.",
-  "source": "precheck --full",
-  "status": "completed",
+  "external_id": "review:dogfood-e2e-checker",
+  "label": "PF Backlog 489",
+  "title": "DEFECT: DOGFOOD profile e2e checker is self-referential + scope-hardcoded -> first dogfood can never PASS",
+  "body": "The DOGFOOD profile e2e checker (_check_e2e, core/validation_engine.py:214-222) is (a) self-referential: it requires a PRIOR recorded DOGFOOD run with result PASS, so the first-ever dogfood can never satisfy it (unknown -> BLOCKED; chicken-and-egg); and (b) scope-hardcoded: it calls list_runs('project', ...), so product_forge-scope dogfood runs are never found (e2e stays unknown even after a PASS). Follow-up to BI-PF-0425 (which implemented the checkers). Fix: use the run's scope, and validate the generated product's actual e2e evidence (or allow an explicit first-run bootstrap => skip). Observed: running the four profiles on an idle checkout yields FAIL with e2e=unknown; DOGFOOD can never reach PASS on a first run.",
+  "source": "design-review",
+  "status": "new",
   "priority": null,
-  "moscow": "Must",
-  "value": 4,
-  "effort": 1,
+  "moscow": "Should",
+  "value": 3,
+  "effort": 3,
   "risk": 2,
-  "deps": [
-    "BI-PF-0452"
-  ],
+  "deps": [],
   "links": {
-    "related": [
-      "product_forge:BI-PF-0452",
-      "product_forge:BI-PF-0453"
-    ],
     "backend_capability": [
-      "module:core/backlog_link.py",
-      "test:test-framework/tests/pipeline/test_feature_epic_bridge.py"
-    ],
-    "delivery": {
-      "branch": "feature/fix-feature-item-fget",
-      "merge_sha": "4a7ca9bafd057e27b32ff20101a76b3e7d2cf64f",
-      "commits": [
-        "4a7ca9bafd057e27b32ff20101a76b3e7d2cf64f"
-      ],
-      "pr": "",
-      "pr_url": "",
-      "at": "2026-10-08T22:11:42.308904",
-      "note": ""
-    }
+      "module:core.validation_engine"
+    ]
   },
   "decisions": [],
   "follow_up": {},
   "brief": {
-    "problem": "Source: precheck --full (2026-10-08) - `backlog-e2e` FAILED after BI-PF-0452/0453 (E2/P1).",
-    "what_adds": "Defect/RCCA: ensure_feature_item broke on Feature dataclass (.get on object swallowed) - backlog-e2e red",
+    "problem": "The DOGFOOD profile e2e checker (_check_e2e, core/validation_engine.py:214-222) is (a) self-referential: it requires a PRIOR recorded DOGFOOD run with result PASS, so the first-ever dogfood can never satisfy it (unknown -> BLOCKED; chicken-and-egg); and (b) scope-hardcoded: it calls list_runs('project', ...), so product_forge-scope dogfood runs are never found (e2e stays unknown even after a PASS). Follow-up to BI-PF-0425 (which implemented the checkers). Fix: use the run's scope, and validate the generated product's actual e2e evidence (or allow an explicit first-run bootstrap => skip). Observed: running the four profiles on an idle checkout yields FAIL with e2e=unknown; DOGFOOD can never reach PASS on a first run.",
+    "what_adds": "DEFECT: DOGFOOD profile e2e checker is self-referential + scope-hardcoded -> first dogfood can never PASS",
     "why": "(derived) see objective",
     "who_feels": "(derived) unspecified",
     "source": "extracted"
   },
-  "objective": "Defect/RCCA: ensure_feature_item broke on Feature dataclass (.get on object swallowed) - backlog-e2e red",
+  "objective": "Fix the DOGFOOD e2e checker so dogfood can be validated end-to-end without a circular prior-PASS requirement.",
   "acceptance_criteria": [
-    "(derived) objective met: Defect/RCCA: ensure_feature_item broke on Feature dataclass (.get on object swallowed) - backlog-e2e red"
+    "_check_e2e is scope-correct (no hardcoded 'project' scope)",
+    "a first-ever DOGFOOD run is not permanently BLOCKED by its own e2e check (bootstrap/skip or real product e2e)",
+    "DOGFOOD profile can reach PASS on a proven baseline",
+    "test covers first-run + prior-PASS + product_forge scope"
   ],
   "in_scope": [
-    "Defect/RCCA: ensure_feature_item broke on Feature dataclass (.get on object swallowed) - backlog-e2e red"
+    "DEFECT: DOGFOOD profile e2e checker is self-referential + scope-hardcoded -> first dogfood can never PASS"
   ],
   "out_of_scope": [
     "(derived) not specified"
@@ -65,7 +50,7 @@
   "affected_files": [
     "(derived) TBD"
   ],
-  "approach": "Defect/RCCA: ensure_feature_item broke on Feature dataclass (.get on object swallowed) - backlog-e2e red",
+  "approach": "DEFECT: DOGFOOD profile e2e checker is self-referential + scope-hardcoded -> first dogfood can never PASS",
   "review": {
     "reconciliation": {
       "prior_decisions": [],
@@ -79,7 +64,7 @@
     "at": ""
   },
   "verification": [
-    "(derived) objective met: Defect/RCCA: ensure_feature_item broke on Feature dataclass (.get on object swallowed) - backlog-e2e red"
+    "(derived) objective met: DEFECT: DOGFOOD profile e2e checker is self-referential + scope-hardcoded -> first dogfood can never PASS"
   ],
   "risks": [
     "(derived) none identified"
@@ -89,15 +74,15 @@
     "(derived) pending"
   ],
   "owner": "agent",
-  "requester": "precheck --full",
+  "requester": "design-review",
   "due": "(derived) TBD",
   "target_release": "(derived) TBD",
   "approvals": [],
-  "summary": "",
+  "summary": "Fix _check_e2e: scope-correct + non-circular (first run can pass).",
   "children": [],
   "epic": "",
   "parent": "",
-  "revision": 2,
+  "revision": 1,
   "priority_rank": null,
   "priority_class": "",
   "analyze_mode": "on_entry",
@@ -107,27 +92,24 @@
     "analyzed_by": "deterministic",
     "revision_analyzed": 0,
     "architecture_fit": "EXTEND",
-    "implementation_strategy": "Extend existing components/APIs: core/budget.py, core/budget_allocator.py, core/budget_conservation.py, core/budget_planner.py",
+    "implementation_strategy": "Extend existing components/APIs: core/defect_loop.py, core/dogfood.py, core/e2e_lifecycle.py, core/knowledge_compliance_checker.py",
     "existing_components": [
-      "core/budget.py",
-      "core/budget_allocator.py",
-      "core/budget_conservation.py",
-      "core/budget_planner.py",
-      "core/budget_protection.py",
-      "core/budget_tracker.py",
-      "core/credentials.py",
-      "core/defect_loop.py"
+      "core/defect_loop.py",
+      "core/dogfood.py",
+      "core/e2e_lifecycle.py",
+      "core/knowledge_compliance_checker.py"
     ],
     "existing_apis": [
-      "/api/v1/issues/{iid}/rcca",
-      "/api/v1/reservations/shared-paths"
+      "/api/v1/audit/e2e",
+      "/api/v1/engineering/pidl/candidates",
+      "/api/v1/validation/dogfood",
+      "/api/v1/validation/profiles"
     ],
     "existing_modules": [
-      "config/shared-paths.json"
+      "config/pidl-profile.json",
+      "config/validation-profiles.json"
     ],
-    "dependency_findings": [
-      "depends on BI-PF-0452"
-    ],
+    "dependency_findings": [],
     "conflict_findings": [],
     "duplication_findings": [],
     "drift": "NONE",
@@ -138,9 +120,9 @@
     "risks": [],
     "evidence": [
       "similar=4",
-      "score=3.0",
-      "components=8",
-      "apis=2"
+      "score=0.75",
+      "components=4",
+      "apis=4"
     ],
     "confidence": "high",
     "missing_info": [],
@@ -165,14 +147,8 @@
     "started_at": "",
     "completed_at": ""
   },
-  "created_at": "2026-10-08T21:56:53.898126",
-  "updated_at": "2026-10-08T22:11:42.587135",
-  "score": 3.0,
-  "_note": "",
-  "dashboard_impact": {
-    "needs_dashboard": false,
-    "reason": "bug fix; no dashboard surface",
-    "dashboard_item": null,
-    "reviewed_by": "agent"
-  }
+  "created_at": "2026-10-08T21:48:26.574099",
+  "updated_at": "2026-10-08T21:48:29.486412",
+  "score": 0.75,
+  "_note": "analysis updated"
 }
