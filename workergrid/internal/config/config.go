@@ -47,6 +47,7 @@ type Agent struct {
 	TimeoutSeconds int                   `json:"timeout_seconds"`
 	SuccessStatus  string                `json:"success_status"`
 	PollSeconds    int                   `json:"poll_seconds"`
+	Contract       string                `json:"contract"`
 	Runtimes       map[string]RuntimeCmd `json:"runtimes"`
 }
 
@@ -236,6 +237,18 @@ func (c Config) AgentBaseRef() string {
 		return r
 	}
 	return "develop"
+}
+
+// AgentContract: agent.contract - the worker's producer contract (BI-PF-0423):
+// "auto" (default) | "pf-assignments" | "coordinator". Env: WORKERGRID_AGENT_CONTRACT.
+func (c Config) AgentContract() string {
+	if v := strings.TrimSpace(os.Getenv("WORKERGRID_AGENT_CONTRACT")); v != "" {
+		return v
+	}
+	if v := strings.TrimSpace(c.Agent.Contract); v != "" {
+		return v
+	}
+	return "auto"
 }
 
 // AgentSuccessStatus: agent.success_status > "verifying" (the PF status an
