@@ -10,7 +10,7 @@
   "title": "Backlog dedup marking at grooming (possible_duplicate_of) + bulk sweep",
   "body": "Source: user decision (2026-10-07) - Option B for duplicate/overlap handling.\n\nProblem: today near-duplicate ITEMS are only reported ADVISORY (backlog.duplicate_pairs / wired_audit); nothing\nlinks or marks them, so an operator can't see which items are duplicates of which. BI-PF-0422 (A) adds a\nclaim-time SKIP so at most one of a duplicate set RUNS, but the backlog itself is not annotated.\n\nScope (B) - whole-backlog near-duplicate MARKING, orchestrated at GROOMING:\n- at grooming (`core/grooming.groom` / `decide`): when an item is groomed, compare it to the open backlog\n  (reuse `backlog.duplicate_pairs`/`_similarity`) and record `links.possible_duplicate_of = [<canonical id>]`\n  (advisory link; do NOT auto-close/block) + surface it in the grooming decision/notes.\n- a BULK sweep: `/pf backlog` review (or a scheduled pass) that computes all near-duplicate OPEN pairs\n  (reuse `duplicate_pairs`) and marks `possible_duplicate_of` for every non-canonical item.\n- surface in `GET /engineering/assignments` and the grooming report so a human resolves (close as `duplicate`,\n  merge, or confirm distinct).\n- keep the claim-time SKIP (A) as the runtime guard; B is the human-facing marking.\n\nDecisions to confirm: threshold (default 0.6, configurable); canonical = highest-ranked (priority/id); marking\nis `links.possible_duplicate_of` (advisory, no status change).\n\ndashboard_impact: no UI surface (operator surface = /pf backlog groom/review + the API).",
   "source": "user decision",
-  "status": "new",
+  "status": "completed",
   "priority": null,
   "moscow": "Should",
   "value": 3,
@@ -27,11 +27,23 @@
     ],
     "related": [
       "product_forge:BI-PF-0422"
-    ]
+    ],
+    "delivery": {
+      "branch": "fix/grooming-dedup-same-project",
+      "merge_sha": "a46aebcddae165f88eb8676a3f266a947dcd0f4f",
+      "commits": [
+        "56262da",
+        "55439a2"
+      ],
+      "pr": "",
+      "pr_url": "",
+      "at": "2026-10-08T13:35:11.464029",
+      "note": "merged --no-ff; fast precheck PASS (14 gates); 4 tests. Grooming now marks the groomed item only (links.possible_duplicate_of=[canonical]) when a HIGHER-ranked SAME-PROJECT near-duplicate exists (threshold PF_DEDUP_THRESHOLD, default 0.6). Reuses grooming's existing find_similar candidates; advisory only (no status change). Two defects were found and fixed during implementation (see BI-PF-0434 RCCA): candidate id/scope dropped; and cross-project/other-item writes."
+    }
   },
   "decisions": [],
   "follow_up": {},
-  "revision": 1,
+  "revision": 2,
   "priority_rank": null,
   "priority_class": "",
   "analyze_mode": "on_entry",
@@ -105,9 +117,9 @@
     "completed_at": ""
   },
   "created_at": "2026-10-08T12:13:25.459152",
-  "updated_at": "2026-10-08T12:13:26.097660",
+  "updated_at": "2026-10-08T13:35:11.638993",
   "score": 0.75,
-  "_note": "analysis updated",
+  "_note": "grooming dedup marking (same-project, self-only) delivered",
   "dashboard_impact": {
     "needs_dashboard": false,
     "reason": "Backlog grooming correctness; no UI surface",
