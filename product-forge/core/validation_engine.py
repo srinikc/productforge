@@ -142,9 +142,11 @@ def _resolve_target(project_dir: str, target: str, base: str = "") -> dict[str, 
 
 
 # ── delegate to the existing owners (no reimplementation) ───────────────────
-def _check_quality_gate(project_dir: str) -> dict[str, Any]:
+def _check_quality_gate(project_dir: str, run_id: str = "") -> dict[str, Any]:
     from core import run_quality_gate
-    latest = run_quality_gate.latest(project_dir)
+    latest = run_quality_gate.latest_run(project_dir, run_id) if run_id else None
+    if not latest:
+        latest = run_quality_gate.latest(project_dir)
     if not latest:
         return {"status": "unknown", "detail": "no quality-gate record"}
     return {"status": "pass" if latest.get("passed") else "fail",
@@ -192,12 +194,21 @@ def _check_close_loop(project_dir: str, run_id: str) -> dict[str, Any]:
 
 
 _CHECKERS = {
-    "quality_gate": lambda p, d, r: _check_quality_gate(d),
+    "quality_gate": lambda p, d, r: _check_quality_gate(d, r),
     "tests": lambda p, d, r: _check_tests(d, p),
     "policy": lambda p, d, r: _check_policy(d),
     "verification": lambda p, d, r: _check_verification(d),
     "pr_gate": lambda p, d, r: _check_pr_gate(p, d),
 }
+
+
+def _active_validations(v) -> int:
+    """Count in-flight validation runs for the repo (worktrees on a ``validation/*`` branch). BI-PF-0420."""
+    try:
+        return sum(1 for w in v.list_worktrees()
+                   if str(w.get("branch") or "").startswith("validation/"))
+    except Exception:
+        return 0
 
 
 def run(project: str, project_dir: str, profile_name: str = "FEATURE_PR",
@@ -291,6 +302,15 @@ def feature_pr(project: str, project_dir: str, target: str = "", base: str = "",
         return result
 
     v = VCSManager(project_dir)
+    # BI-PF-0420: bound concurrent validation runs per repo (no shared-checkout races)
+    from core import capacity
+    cap = capacity.can_validate(_active_validations(v))
+    if not cap.get("ok"):
+        result.update({"result": "BLOCKED", "reason": cap.get("reason") or "no validation slot",
+                       "checks": {}})
+        result["finished_at"] = datetime.now().isoformat()
+        record(scope, project, result)
+        return result
     changed = _changed_files(project_dir, resolved["sha"], resolved.get("merge_base") or "")
     result["changed_files"] = changed
     result["impact"] = _impact(changed)
