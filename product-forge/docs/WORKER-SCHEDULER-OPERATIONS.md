@@ -1,13 +1,14 @@
 # Worker & Scheduler — Operations Guide
 
-> **SUPERSEDED (ADR-0002 / Stages 2b–3c):** the in-PF worker layer (`core/worker_registry.py`,
-> `core/worker_adapters.py`, `core/work_pull.py`, `core/dispatcher.py` and the `/pf` work verbs) was
-> **removed**. Workers now coordinate through **WorkerGrid** (`/wg …`, see `docs/WORKERGRID-DESIGN.md`
-> §12–§14). What still applies from PF: backlog SSOT (`core/backlog.py`), eligibility/`next_eligible`
-> (`core/scheduler.py`), `core/job_manager.py`, and `core/pidl.py`.
+> **MODEL (ADR-0003, supersedes ADR-0002; Stages 2b–3x):** the in-PF worker layer (`core/worker_registry.py`,
+> `core/worker_adapters.py`, `core/work_pull.py`, `core/dispatcher.py` and the `/pf` work verbs) was **removed**,
+> and the boundary moved into **PF** (ADR-0003): PF owns the **per-item assignment** (claim / lease / heartbeat /
+> recover over `item.execution{}`) and the **delivery** (gates → PR → merge → push); **WorkerGrid is a thin
+> runtime host** (`/wg work`). See `docs/WORKERGRID-DESIGN.md` §12–§16.
 
-How to run workers with **WorkerGrid**: register, claim work, execute it (the agent), and dispatch. The
-worker layer is **external and optional** — PF's own agents stay native and are **never** routed through it.
+Run a worker with **`/wg work`** (PF API up; **no coordinator needed**). The coordinator is a **fallback** for a
+producer without the assignment API. Two planes never mix: the worker runs PF's OWN backlog (`product_forge`);
+generated products go through the PF pipeline/agents.
 
 ## 1. Components (owners)
 
@@ -194,3 +195,20 @@ git worktree add ../pf-worker-1 develop     # separate working tree for a worker
 - PF's own agents are **not** routed through WorkerGrid (native path).
 - WorkerGrid never creates/grooms backlog items; it reads work and writes execution status back.
 - Auto-push is off by default (the runtime command decides what to commit).
+
+## 14. The worker path (ADR-0003) - thin PF client
+
+```
+/wg work                       # claim from PF -> run the runtime in PF's worktree -> complete/fail  (loop)
+/wg work --once                # one item
+/wg status                     # PF GET /engineering/assignments (workers <-> items)
+```
+- **Scope:** `product_forge` only (generated products use the PF pipeline - the two planes never mix).
+- **Flow:** PF `POST /engineering/assignments/claim` (creates the worktree, records the per-item lease) -> the
+  agent writes `<worktree>/.wg/assignment.json` -> runs `agent.runtimes.<name>.command` there -> heartbeats ->
+  `.../complete` (PF then validates -> PR -> merge -> push -> `set_delivery`) or `.../fail`.
+- **Contract:** `agent.contract` = `auto` (default; PF mode when the assignment API is reachable) |
+  `pf-assignments` | `coordinator` (fallback for producers without the assignment API).
+- **Caps:** `max_parallel_assignments` (workers), `max_parallel_validations` (validation),
+  `max_parallel_projects` (pipeline). Expired leases recover per `PF_LEASE_RECOVERY` (default
+  `REQUIRE_REVIEW` -> blocked).
