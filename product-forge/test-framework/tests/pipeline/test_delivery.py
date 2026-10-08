@@ -1,11 +1,9 @@
-"""BI-PF-0421: optimistic delivery lane (push+PR -> validate -> rebase -> merge -> push -> set_delivery)."""
+"""BI-PF-0421 / BI-PF-0428: optimistic delivery lane (landing never switches the live tree's branch)."""
 import os
 import shutil
 import subprocess
 import sys
 from pathlib import Path
-
-import pytest
 
 ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT))
@@ -21,20 +19,42 @@ _PROJ = "_test_delivery"
 
 def _clean():
     shutil.rmtree(os.path.join(str(PRODUCTS_DIR), _PROJ), ignore_errors=True)
+    shutil.rmtree(os.path.join(str(PRODUCTS_DIR), _PROJ + "-worktrees"), ignore_errors=True)
 
 
 def _git(repo, *args):
-    subprocess.run(["git", "-C", str(repo), *args], check=True, capture_output=True, text=True)
+    return subprocess.run(["git", "-C", str(repo), *args], check=True, capture_output=True, text=True)
 
 
-def _repo(proj_dir: Path) -> Path:
+def _bare(tmp: Path) -> Path:
+    o = tmp / "origin.git"
+    subprocess.run(["git", "init", "--bare", "-q", str(o)], check=True, capture_output=True)
+    return o
+
+
+def _repo(proj_dir: Path, origin: Path = None) -> Path:
     proj_dir.mkdir(parents=True, exist_ok=True)
     _git(proj_dir, "init", "-q")
     _git(proj_dir, "checkout", "-q", "-b", "develop")
     (proj_dir / "a.txt").write_text("base\n", encoding="utf-8")
     _git(proj_dir, "add", "a.txt")
     _git(proj_dir, "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-q", "-m", "base")
+    if origin is not None:
+        _git(proj_dir, "remote", "add", "origin", str(origin))
+        _git(proj_dir, "push", "-u", "origin", "develop")
     return proj_dir
+
+
+def _wg_branch(proj_dir: Path, iid: str, origin: Path = None) -> str:
+    v = VCSManager(str(proj_dir))
+    br = v.feature_branch_name("wg", iid)
+    _git(proj_dir, "checkout", "-q", "-b", br)
+    (proj_dir / "a.txt").write_text("base\nfeature\n", encoding="utf-8")
+    _git(proj_dir, "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-q", "-am", "feat")
+    if origin is not None:
+        _git(proj_dir, "push", "-u", "origin", br)
+    _git(proj_dir, "checkout", "-q", "develop")
+    return br
 
 
 def _seed_verifying() -> str:
@@ -44,28 +64,31 @@ def _seed_verifying() -> str:
     return iid
 
 
-def _pass_validation(monkeypatch):
+def _pass(monkeypatch):
     monkeypatch.setattr(ve, "feature_pr", lambda *a, **k: {"result": "PASS"})
     monkeypatch.setattr(rqg, "evaluate", lambda *a, **k: {"passed": True, "reasons": []})
-    monkeypatch.setattr(github, "create_pr", lambda *a, **k: {"ok": True, "number": "1", "url": "http://x/1"})
+    # no PR number -> exercise the push-ref fallback (the gh path needs a real PR)
+    monkeypatch.setattr(github, "create_pr", lambda *a, **k: {"ok": True, "number": "", "url": ""})
 
 
-def test_deliver_merges_and_records(monkeypatch):
+def test_deliver_push_ref_advances_develop_without_touching_live_tree(tmp_path, monkeypatch):
     _clean()
     try:
         iid = _seed_verifying()
-        proj_dir = _repo(Path(str(PRODUCTS_DIR)) / _PROJ)
-        v = VCSManager(str(proj_dir))
-        br = v.feature_branch_name("wg", iid)
-        _git(proj_dir, "checkout", "-q", "-b", br)
-        (proj_dir / "a.txt").write_text("base\nfeature\n", encoding="utf-8")
-        _git(proj_dir, "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-q", "-am", "feat")
-        _git(proj_dir, "checkout", "-q", "develop")
-        _pass_validation(monkeypatch)
+        proj = Path(str(PRODUCTS_DIR)) / _PROJ
+        origin = _bare(tmp_path)
+        _repo(proj, origin=origin)
+        _wg_branch(proj, iid, origin=origin)
+        _pass(monkeypatch)
 
         r = delivery.deliver("project", _PROJ, iid)
-        assert r["ok"] is True and r["merge_sha"], r
-        assert "feature" in (proj_dir / "a.txt").read_text(encoding="utf-8"), "merged into develop"
+        assert r["ok"] is True and r["method"] == "push-ref", r
+        # develop advanced on the remote ...
+        out = subprocess.run(["git", "--git-dir", str(origin), "show", "develop:a.txt"],
+                             capture_output=True, text=True)
+        assert "feature" in out.stdout, "remote develop has the merged change"
+        # ... and the live tree's branch was never switched
+        assert VCSManager(str(proj)).current_branch() == "develop"
         it = backlog.get("project", _PROJ, iid)
         assert it["status"] == "completed"
         assert (it.get("links") or {}).get("delivery", {}).get("merge_sha") == r["merge_sha"]
@@ -78,7 +101,7 @@ def test_deliver_blocks_when_branch_missing(monkeypatch):
     try:
         iid = _seed_verifying()
         _repo(Path(str(PRODUCTS_DIR)) / _PROJ)
-        _pass_validation(monkeypatch)
+        _pass(monkeypatch)
         r = delivery.deliver("project", _PROJ, iid)
         assert r["ok"] is False and "not found" in r["reason"], r
         assert backlog.get("project", _PROJ, iid)["status"] == "blocked"
@@ -90,18 +113,13 @@ def test_deliver_blocks_on_validation_fail(monkeypatch):
     _clean()
     try:
         iid = _seed_verifying()
-        proj_dir = _repo(Path(str(PRODUCTS_DIR)) / _PROJ)
-        v = VCSManager(str(proj_dir))
-        br = v.feature_branch_name("wg", iid)
-        _git(proj_dir, "checkout", "-q", "-b", br)
-        (proj_dir / "a.txt").write_text("base\nx\n", encoding="utf-8")
-        _git(proj_dir, "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-q", "-am", "feat")
-        _git(proj_dir, "checkout", "-q", "develop")
+        proj = Path(str(PRODUCTS_DIR)) / _PROJ
+        _repo(proj)
+        _wg_branch(proj, iid)
         monkeypatch.setattr(ve, "feature_pr", lambda *a, **k: {"result": "FAIL"})
-        monkeypatch.setattr(github, "create_pr", lambda *a, **k: {"ok": True})
+        monkeypatch.setattr(github, "create_pr", lambda *a, **k: {"ok": True, "number": ""})
         r = delivery.deliver("project", _PROJ, iid)
         assert r["ok"] is False and "validation" in r["reason"], r
         assert backlog.get("project", _PROJ, iid)["status"] == "blocked"
-        assert "feature" not in (proj_dir / "a.txt").read_text(encoding="utf-8"), "not merged on fail"
     finally:
         _clean()
