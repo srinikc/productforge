@@ -1,0 +1,154 @@
+{
+  "id": "BI-PF-0455",
+  "tag": "PF",
+  "type": "bug",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "review:dogfood-e2e-checker",
+  "label": "PF Backlog 489",
+  "title": "DEFECT: DOGFOOD profile e2e checker is self-referential + scope-hardcoded -> first dogfood can never PASS",
+  "body": "The DOGFOOD profile e2e checker (_check_e2e, core/validation_engine.py:214-222) is (a) self-referential: it requires a PRIOR recorded DOGFOOD run with result PASS, so the first-ever dogfood can never satisfy it (unknown -> BLOCKED; chicken-and-egg); and (b) scope-hardcoded: it calls list_runs('project', ...), so product_forge-scope dogfood runs are never found (e2e stays unknown even after a PASS). Follow-up to BI-PF-0425 (which implemented the checkers). Fix: use the run's scope, and validate the generated product's actual e2e evidence (or allow an explicit first-run bootstrap => skip). Observed: running the four profiles on an idle checkout yields FAIL with e2e=unknown; DOGFOOD can never reach PASS on a first run.",
+  "source": "design-review",
+  "status": "new",
+  "priority": null,
+  "moscow": "Should",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [],
+  "links": {
+    "backend_capability": [
+      "module:core.validation_engine"
+    ]
+  },
+  "decisions": [],
+  "follow_up": {},
+  "brief": {
+    "problem": "The DOGFOOD profile e2e checker (_check_e2e, core/validation_engine.py:214-222) is (a) self-referential: it requires a PRIOR recorded DOGFOOD run with result PASS, so the first-ever dogfood can never satisfy it (unknown -> BLOCKED; chicken-and-egg); and (b) scope-hardcoded: it calls list_runs('project', ...), so product_forge-scope dogfood runs are never found (e2e stays unknown even after a PASS). Follow-up to BI-PF-0425 (which implemented the checkers). Fix: use the run's scope, and validate the generated product's actual e2e evidence (or allow an explicit first-run bootstrap => skip). Observed: running the four profiles on an idle checkout yields FAIL with e2e=unknown; DOGFOOD can never reach PASS on a first run.",
+    "what_adds": "DEFECT: DOGFOOD profile e2e checker is self-referential + scope-hardcoded -> first dogfood can never PASS",
+    "why": "(derived) see objective",
+    "who_feels": "(derived) unspecified",
+    "source": "extracted"
+  },
+  "objective": "Fix the DOGFOOD e2e checker so dogfood can be validated end-to-end without a circular prior-PASS requirement.",
+  "acceptance_criteria": [
+    "_check_e2e is scope-correct (no hardcoded 'project' scope)",
+    "a first-ever DOGFOOD run is not permanently BLOCKED by its own e2e check (bootstrap/skip or real product e2e)",
+    "DOGFOOD profile can reach PASS on a proven baseline",
+    "test covers first-run + prior-PASS + product_forge scope"
+  ],
+  "in_scope": [
+    "DEFECT: DOGFOOD profile e2e checker is self-referential + scope-hardcoded -> first dogfood can never PASS"
+  ],
+  "out_of_scope": [
+    "(derived) not specified"
+  ],
+  "affected_components": [
+    "(derived) TBD"
+  ],
+  "affected_files": [
+    "(derived) TBD"
+  ],
+  "approach": "DEFECT: DOGFOOD profile e2e checker is self-referential + scope-hardcoded -> first dogfood can never PASS",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "(derived) objective met: DEFECT: DOGFOOD profile e2e checker is self-referential + scope-hardcoded -> first dogfood can never PASS"
+  ],
+  "risks": [
+    "(derived) none identified"
+  ],
+  "rollback": "(derived) revert the change",
+  "evidence": [
+    "(derived) pending"
+  ],
+  "owner": "agent",
+  "requester": "design-review",
+  "due": "(derived) TBD",
+  "target_release": "(derived) TBD",
+  "approvals": [],
+  "summary": "Fix _check_e2e: scope-correct + non-circular (first run can pass).",
+  "children": [],
+  "epic": "",
+  "parent": "",
+  "revision": 1,
+  "priority_rank": null,
+  "priority_class": "",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "IN_PROGRESS",
+    "analyzed_at": "",
+    "analyzed_by": "deterministic",
+    "revision_analyzed": 0,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/defect_loop.py, core/dogfood.py, core/e2e_lifecycle.py, core/knowledge_compliance_checker.py",
+    "existing_components": [
+      "core/defect_loop.py",
+      "core/dogfood.py",
+      "core/e2e_lifecycle.py",
+      "core/knowledge_compliance_checker.py"
+    ],
+    "existing_apis": [
+      "/api/v1/audit/e2e",
+      "/api/v1/engineering/pidl/candidates",
+      "/api/v1/validation/dogfood",
+      "/api/v1/validation/profiles"
+    ],
+    "existing_modules": [
+      "config/pidl-profile.json",
+      "config/validation-profiles.json"
+    ],
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=0.75",
+      "components=4",
+      "apis=4"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": false,
+    "reasons": [],
+    "computed_at": ""
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": ""
+  },
+  "created_at": "2026-10-08T21:48:26.574099",
+  "updated_at": "2026-10-08T21:48:29.486412",
+  "score": 0.75,
+  "_note": "analysis updated"
+}
