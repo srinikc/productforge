@@ -207,3 +207,27 @@ The coordination store is now backend-pluggable — **SQLite** (default, single-
   and expired-lease recovery. The contract suite still runs on SQLite unchanged.
 - **Not in this slice:** schema-migration engine (`CREATE TABLE IF NOT EXISTS` only), DB-time leases,
   HA/leader election, pooling tuning.
+
+## 16. Stage 3x / parallel run engine implemented (PF authority + thin client) - EPIC BI-PF-0418 / ADR-0003
+The execution model changed so PF drives the whole loop and WorkerGrid became a **thin runtime host** (ADR-0003
+supersedes ADR-0002's lease/registry ownership). Shipped via BI-PF-0419..0428:
+
+- **Per-item assignment (0419):** `job_manager.claim_next` is keyed by ITEM (not project) over
+  `item.execution{}` - so N items of one backlog run in parallel. Assignment API:
+  `POST /engineering/assignments/{claim | {id}/heartbeat | {id}/complete | {id}/fail | {id}/release | recover}`
+  (+ `GET /engineering/assignments`, 0422); guarded by a new **`worker`** role. Claim creates the worktree and
+  returns the package.
+- **Parallel validation (0420):** runs are isolated (each `validation/<run_id>` worktree) with **run-scoped**
+  results; per-repo concurrency cap (`max_parallel_validations`).
+- **Optimistic delivery (0421 + 0428):** `core/delivery.py` = push branch + PR → validate → **serialized
+  landing** that never checks out the live tree: `gh pr merge` (primary) or an `integrate/<item>` worktree +
+  `push HEAD:develop` (fallback) → `set_delivery` + completed. Failure/conflict → **blocked**.
+- **Worker path is `product_forge`-only (0427):** the assignment endpoints + `schedule/next?stage=execute`
+  reject `project` (generated products use the PF pipeline/agents - the two planes never mix).
+- **Thin client (0423):** `agent.contract` = auto | pf-assignments | coordinator. In PF mode the agent claims
+  from PF, writes `<worktree>/.wg/assignment.json`, runs the runtime there, heartbeats, and completes/fails via
+  PF - **no coordinator, no lease, no store**. `/wg work` = the worker; `/wg status` proxies PF assignments.
+  The **coordinator is the fallback** (`contract=coordinator`).
+- **Dedup guard (0422):** claim-time skip of a near-duplicate of an active/higher-ranked open item. Whole-backlog
+  dedup **marking** at grooming is BI-PF-0432 (Option B).
+- **Concurrency caps:** `max_parallel_assignments`, `max_parallel_validations` (`config/capacity.json`).

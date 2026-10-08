@@ -13,7 +13,8 @@ ADR. Individual ADRs may later be split into `docs/adr/NNNN-*.md` (the index her
 | ADR | Title | Status | Date |
 |---|---|---|---|
 | [ADR-0001](#adr-0001-go-first-compiled-delivery) | Go-first compiled delivery (one source, many editions) | Accepted | 2026-10-06 |
-| [ADR-0002](#adr-0002-workergrid-external-execution-plane) | WorkerGrid: external, producer-agnostic execution plane | Accepted | 2026-10-06 |
+| [ADR-0002](#adr-0002-workergrid-external-execution-plane) | WorkerGrid: external, producer-agnostic execution plane | Superseded by ADR-0003 | 2026-10-06 |
+| [ADR-0003](#adr-0003-assignment-authority-in-the-producer-workergrid-is-a-runtime-host) | Assignment authority in the producer; WorkerGrid is a runtime host | Accepted | 2026-10-07 |
 
 ## Template
 ```markdown
@@ -80,7 +81,7 @@ Go ramp cost. *We accept these; mitigated by contract-first + value-driven migra
 
 # ADR-0002: WorkerGrid — external, producer-agnostic execution plane
 
-**Status:** Accepted
+**Status:** Superseded by ADR-0003
 **Date:** 2026-10-06
 **Related:** `docs/WORKERGRID-DESIGN.md`, `docs/WORKER-SCHEDULER-OPERATIONS.md`, Epic A/B
 
@@ -122,3 +123,60 @@ orchestration is a **generic** capability, not PF-specific.
 - PF works with WorkerGrid disabled (`WORKER_INTEGRATION_ENABLED=0`) — no PF dependency.
 - Workers on different systems get the same eligible work + shared leases.
 - PF's in-repo worker layer is removable after cut-over.
+
+---
+
+# ADR-0003: Assignment authority in the producer; WorkerGrid is a runtime host
+
+**Status:** Accepted
+**Date:** 2026-10-07
+**Supersedes:** ADR-0002 (WorkerGrid owns registry/lease + a coordinator service)
+**Related:** `docs/WORKERGRID-DESIGN.md` §16, `docs/WORKER-SCHEDULER-OPERATIONS.md`,
+`docs/BRANCHING-GIT-WORKFLOW.md`, EPIC `BI-PF-0418`
+
+## Context and Problem Statement
+ADR-0002 made WorkerGrid own the worker registry + leases behind a coordinator service. In practice PF is the
+only producer, and PF must orchestrate the whole loop (claim → worktree → execute → validate → merge → push →
+backlog). The coordinator **duplicated** the assignment record, required a **second always-on service**, and
+its per-*project* job model could not run many items of one backlog in parallel (PF's whole backlog is one
+project — e.g. `product_forge`).
+
+## Decision Drivers
+- One always-on service (PF), not two.
+- PF owns the assignment truth (parallel, per-item) and the delivery (gates/PR/merge/push).
+- WorkerGrid stays producer-agnostic and thin (run a runtime; no store); coordinator only as fallback.
+
+## Considered Options
+1. Keep ADR-0002 (WorkerGrid owns registry/lease + coordinator) — second service; duplicated assignment;
+   per-project serialization.
+2. **Move assignment + delivery into PF; WorkerGrid becomes a thin runtime host** (chosen).
+3. PF-only, no WorkerGrid — loses the pluggable runtime host.
+
+## Decision Outcome
+**Chosen option:** Option 2.
+- **PF = single authority:** backlog, eligibility, **per-item assignment** (claim/lease/heartbeat/recover over
+  `item.execution{}`), worktree/branch creation, and **delivery** (validate → PR → rebase → merge → push →
+  `set_delivery`). Exposed via `POST /engineering/assignments/{claim | {id}/heartbeat | {id}/complete |
+  {id}/fail | {id}/release | recover}` + `GET /engineering/assignments` (guarded by the `worker` role).
+- **WorkerGrid = thin runtime host:** `/wg work` claims from PF, writes `.wg/assignment.json`, runs the runtime
+  command in PF's worktree, heartbeats, and reports complete/fail. It keeps **no lease and no store**.
+- **Coordinator = fallback** for a producer that does not implement the assignment contract
+  (`agent.contract=coordinator`).
+- **Two planes (never mixed):** worker plane = PF's OWN backlog (`product_forge`, `BI-PF-*`); pipeline plane =
+  generated products (PF pipeline/agents). The worker path is `product_forge`-only (BI-PF-0427).
+- **Delivery is optimistic:** validation runs in parallel (own worktree); only the *landing* is serialized; the
+  live working tree is never checked out (IS-PF-0036) — `gh pr merge` or an `integrate/*` worktree push-ref.
+
+### Consequences
+**Positive:** one always-on service; PF orchestrates the whole loop; parallel per-item execution; WorkerGrid is
+thin and producer-agnostic; the coordinator (Stage 3a/3b) becomes fallback-only.
+**Negative:** PF grows the assignment + delivery responsibilities; the coordinator code is now fallback-only
+(sunk cost); the producer contract gains claim/heartbeat/complete/recover.
+**Risks:** expired-lease recovery policy (`PF_LEASE_RECOVERY`, default `REQUIRE_REVIEW` → blocked); the merge
+landing needs a remote or `gh`.
+
+### Confirmation
+- A worker runs with **only PF up** (`/wg work`); the coordinator is not required.
+- Assignment truth = PF `item.execution{}`; `GET /engineering/assignments` shows workers ↔ items.
+- The coordinator mode still works behind `agent.contract=coordinator`.
+
