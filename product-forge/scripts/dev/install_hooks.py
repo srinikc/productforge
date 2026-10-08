@@ -1,8 +1,9 @@
 """Install repo git hooks (author-time guards) — idempotent.
 
 Currently installs a ``pre-commit`` hook that runs the CHEAP, changed-file guards so a
-store-contract/lint violation is caught before it ever reaches the merge-time precheck:
+store-contract/lint/branch violation is caught before it ever reaches the merge-time precheck:
 
+  - scripts/dev/branch_guard.py   (never commit directly on develop/main - BI-PF-0430)
   - scripts/dev/store_check.py   (new data-file literals must be registered)
   - scripts/dev/lint_check.py --strict  (ruff on changed files)
 
@@ -27,6 +28,7 @@ _HOOK = """#!/bin/sh
 set -e
 PF="product-forge"
 [ -d "$PF/scripts/dev" ] || exit 0
+python "$PF/scripts/dev/branch_guard.py" || { echo "pre-commit: direct commit on develop/main is forbidden - create a feature branch (git checkout -b feature/<name>)"; exit 1; }
 python "$PF/scripts/dev/store_check.py" || { echo "pre-commit: store-contract failed (register the data file in config/store-registry.json)"; exit 1; }
 python "$PF/scripts/dev/lint_check.py" --strict || { echo "pre-commit: lint failed on changed files (fix or run: python -m ruff check --fix <files>)"; exit 1; }
 exit 0

@@ -1,26 +1,25 @@
 # Backlog Summary
 
-> GENERATED 2026-10-08T17:31:23 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-08T17:37:32 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 39  |  **Closed:** 386
-- `new`: 39
+- **Open:** 37  |  **Closed:** 388
+- `new`: 37
 
-### new, by category (39)
+### new, by category (37)
 **API / reports / HIL / misc** (1)
 | ID | MoSCoW | Type | Title |
 |---|---|---|---|
 | BI-PF-0332 | Should | chore | API-5 deferred hardening: rate limiting + request/upload limits + tenant-isolation expansion + event streaming |
 
-**Bug fixes** (4)
+**Bug fixes** (3)
 | ID | MoSCoW | Type | Title |
 |---|---|---|---|
 | BI-PF-0425 | Should | bug | DEFECT: validation profiles INTEGRATION/DOGFOOD/RELEASE have unimplemented checkers -> always BLOCKED |
 | BI-PF-0426 | Could | bug | FLAKY: worker-agent e2e fails under heavy load (readiness/register deadline) - RCCA |
 | BI-PF-0434 | Must | bug | RCCA: grooming dedup marking wrote across projects/items (bounded same-project + self-only + threshold) |
-| BI-PF-0441 | Should | bug | Defect/RCCA: core.backlog.update() must validate structured field types fail-closed (analysis str corrupts item + crashes index write) |
 
 **Discovery / HIL / prompts** (1)
 | ID | MoSCoW | Type | Title |
@@ -38,12 +37,11 @@
 | BI-PF-0390 | Should | epic | EPIC A: PF Commercial & IP Foundation (contracts, Go core, licensing, packaging, EAP, RDC, governance, vertical slice) |
 | BI-PF-0396 | Should | feature | A2: capability registry + entitlement-at-boundary + asymmetric licensing |
 
-**Specs / cache / context / artifacts** (3)
+**Specs / cache / context / artifacts** (2)
 | ID | MoSCoW | Type | Title |
 |---|---|---|---|
 | BI-0206 | Should | tech-debt | Backend: model downloader + local cache + license-acceptance gate + models.lock (open-weights) |
 | BI-0225 | Should | feature | Parallel section/feature generation |
-| BI-PF-0442 | Must | bug | Defect/RCCA: claim-time dedup (BI-PF-0422) vs per-item parallel claim (BI-PF-0419) - develop tests-scoped RED; decide semantics |
 
 **Wiring / tech-debt / API** (27)
 | ID | MoSCoW | Type | Title |
@@ -274,5 +272,5 @@
 ---
 
 ## Totals
-- backend: 39 open / 386 closed
+- backend: 37 open / 388 closed
 - dashboard: 146 open / 3 closed
