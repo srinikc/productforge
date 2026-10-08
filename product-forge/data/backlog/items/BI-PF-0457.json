@@ -10,7 +10,7 @@
   "title": "Defect/RCCA: concurrent sessions allocate the SAME backlog id (local counters, no coordination) -> push rejected + merge conflict",
   "body": "Source: hit during BI-PF-0456 delivery (2026-10-08).\n\nDEFECT: two sessions allocated the SAME backlog id. A concurrent session (another worktree) pushed BI-PF-0455 (a\nDOGFOOD e2e checker defect) to origin/develop; THIS session had allocated BI-PF-0455 for a different item (the\nensure_feature_item dataclass bug). The push was rejected (non-fast-forward) and the merge produced an add/add\nconflict on data/backlog/items/BI-PF-0455.json. Resolved by renumbering this session's item to BI-PF-0456.\n\nRCCA (5-Why):\n1. Two different items shared id BI-PF-0455. 2. Each session computed next-id = max(local counters)+1 = 0455.\n3. The id counter is a LOCAL per-worktree file (data/backlog/counters.json) with no cross-session coordination.\n4. IS-PF-0036 requires a separate worktree per session, but separate worktrees still share ONE id space via the\ncounters they each read from develop. 5. Guard: id allocation must be collision-safe across concurrent sessions.\n\nGuard (proposed, decide): pick one+ - (a) re-read/refresh counters from origin/develop immediately before\nallocation and re-key on divergence; (b) reserve id ranges per worker/session (worker-prefixed suffix); or\n(c) a merge/precheck audit that FAILS on duplicate ids across the integration branch. Long-term: allocate ids\nfrom the shared remote (one authority), not a local counter.\n\nImpact: cosmetic-ish (renumber works) but breaks automated delivery (push rejected, merge conflict), so it must\nnot recur as concurrency grows (worker plane).",
   "source": "BI-PF-0456 delivery",
-  "status": "new",
+  "status": "completed",
   "priority": null,
   "moscow": "Should",
   "value": 4,
@@ -26,7 +26,18 @@
     "backend_capability": [
       "module:core/backlog.py",
       "doc:docs/WORKER-SCHEDULER-OPERATIONS.md"
-    ]
+    ],
+    "delivery": {
+      "branch": "feature/backlog-id-guard",
+      "merge_sha": "352a96db7e2a639e6188a2cbebfa403fbb9784db",
+      "commits": [
+        "304f070cf63781f3f5d3a65c0746b06d85696b2a"
+      ],
+      "pr": "",
+      "pr_url": "",
+      "at": "2026-10-09T00:08:53.831404",
+      "note": ""
+    }
   },
   "decisions": [],
   "follow_up": {},
@@ -85,7 +96,7 @@
   "children": [],
   "epic": "",
   "parent": "",
-  "revision": 1,
+  "revision": 2,
   "priority_rank": null,
   "priority_class": "",
   "analyze_mode": "on_entry",
@@ -151,9 +162,9 @@
     "completed_at": ""
   },
   "created_at": "2026-10-08T22:14:19.876082",
-  "updated_at": "2026-10-08T22:14:20.795583",
+  "updated_at": "2026-10-09T00:08:54.151573",
   "score": 1.0,
-  "_note": "analysis updated",
+  "_note": "",
   "dashboard_impact": {
     "needs_dashboard": false,
     "reason": "backlog id-allocation process defect; no dashboard surface",
