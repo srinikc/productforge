@@ -1,7 +1,8 @@
-"""BI-PF-0432: grooming marks near-duplicate items (advisory links.possible_duplicate_of).
+"""BI-PF-0432: grooming marks THIS item as a possible duplicate (advisory; same-project only).
 
-Exercised at the marking unit (a scratch `_test_` project is intentionally excluded from `find_similar`'s
-scope-wide scan - `_all_scopes` skips `_`-prefixed dirs), so the candidate set is supplied explicitly.
+Exercised at the marking unit: a scratch `_test_` project is excluded from `find_similar`'s scope-wide scan
+(`_all_scopes` skips `_`-prefixed dirs), so the candidate set is supplied explicitly; and marking must NEVER
+write across projects.
 """
 import os
 import shutil
@@ -26,34 +27,57 @@ def _seed(title: str) -> str:
     return backlog.add_epic("project", _PROJ, title, body=title, tag="TST")["id"]
 
 
-def test_mark_duplicates_marks_only_the_non_canonical():
+def _pair():
+    a = _seed("zzq dedup marker alpha widget")
+    b = _seed("zzq dedup marker beta widget")
+    ia, ib = backlog.get("project", _PROJ, a), backlog.get("project", _PROJ, b)
+    ordered = backlog.order_by_priority([ia, ib])
+    return str(ordered[0]["id"]), str(ordered[1]["id"])   # (canonical, other)
+
+
+def _link(iid):
+    return (backlog.get("project", _PROJ, iid).get("links") or {}).get("possible_duplicate_of") or []
+
+
+def test_marks_the_non_canonical_item():
     _clean()
     try:
-        a = _seed("zzq dedup marker alpha widget")
-        b = _seed("zzq dedup marker beta widget")
-        ia = backlog.get("project", _PROJ, a)
-        ctx = {"similar": [{"id": b, "scope": "project", "project": _PROJ, "ref": f"project:{_PROJ}:{b}",
-                            "score": 0.7, "title": "zzq dedup marker beta widget"}]}
-        marked = grooming._mark_duplicates("project", _PROJ, ia, ctx)
-        assert len(marked) == 1, marked
-
-        la = (backlog.get("project", _PROJ, a).get("links") or {}).get("possible_duplicate_of") or []
-        lb = (backlog.get("project", _PROJ, b).get("links") or {}).get("possible_duplicate_of") or []
-        assert bool(la) ^ bool(lb), f"exactly one marked: {la} / {lb}"
-        marked_id, link = (a, la) if la else (b, lb)
-        other = b if la else a
-        canon_ref = backlog.qualify("project", _PROJ, other)
-        assert link == [canon_ref], f"{marked_id} -> {link}, expected [{canon_ref}]"
+        canon, other = _pair()
+        ctx = {"similar": [{"id": canon, "scope": "project", "project": _PROJ, "score": 0.9, "title": "x"}]}
+        marked = grooming._mark_duplicates("project", _PROJ, backlog.get("project", _PROJ, other), ctx)
+        assert marked == [other], marked
+        assert _link(other) == [backlog.qualify("project", _PROJ, canon)], _link(other)
+        assert _link(canon) == [], "canonical untouched"
     finally:
         _clean()
 
 
-def test_no_candidates_no_marking():
+def test_canonical_item_is_not_marked():
     _clean()
     try:
-        a = _seed("zzq dedup marker alpha widget")
-        ia = backlog.get("project", _PROJ, a)
-        assert grooming._mark_duplicates("project", _PROJ, ia, {"similar": []}) == []
-        assert not (backlog.get("project", _PROJ, a).get("links") or {}).get("possible_duplicate_of")
+        canon, other = _pair()
+        ctx = {"similar": [{"id": other, "scope": "project", "project": _PROJ, "score": 0.9}]}
+        assert grooming._mark_duplicates("project", _PROJ, backlog.get("project", _PROJ, canon), ctx) == []
+    finally:
+        _clean()
+
+
+def test_cross_project_candidates_are_never_marked():
+    _clean()
+    try:
+        (a,) = [_seed("zzq dedup marker alpha widget")]
+        ctx = {"similar": [{"id": "BI-0078", "scope": "project", "project": "ProductForge-Dashboard",
+                            "score": 0.99}]}
+        assert grooming._mark_duplicates("project", _PROJ, backlog.get("project", _PROJ, a), ctx) == []
+    finally:
+        _clean()
+
+
+def test_low_score_is_not_marked():
+    _clean()
+    try:
+        canon, other = _pair()
+        ctx = {"similar": [{"id": canon, "scope": "project", "project": _PROJ, "score": 0.1}]}
+        assert grooming._mark_duplicates("project", _PROJ, backlog.get("project", _PROJ, other), ctx) == []
     finally:
         _clean()

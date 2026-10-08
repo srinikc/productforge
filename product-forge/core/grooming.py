@@ -260,45 +260,38 @@ def _dup_threshold() -> float:
 
 
 def _mark_duplicates(scope: str, project: str | None, item: dict, ctx: dict) -> list[str]:
-    """BI-PF-0432 (Option B): mark near-duplicate items, advisory only.
+    """BI-PF-0432 (Option B): mark THIS item as a possible duplicate, advisory only.
 
-    Reuses the candidates grooming already gathered (``backlog.find_similar`` -> ``ctx["similar"]``, each
-    carrying scope/project/id). The canonical is the highest ``order_by_priority`` of the group; every OTHER
-    member gets ``links.possible_duplicate_of = [<canonical ref>]`` (no status change - a human resolves).
-    Never raises (callers suppress).
+    Uses the candidates grooming already gathered (``find_similar`` -> ``ctx["similar"]``), restricted to the
+    SAME project so we never write across scopes/projects. Only the groomed item is marked (and only when it is
+    NOT the highest ``order_by_priority``/canonical of the group): ``links.possible_duplicate_of = [<canonical
+    ref>]``, no status change. Never raises (callers suppress).
     """
     from core import backlog
-    me_ref = backlog.qualify(scope, project, str(item.get("id")))
-    members: list[tuple[str, str | None, dict]] = []
-    me = backlog.get_epic(scope, project, str(item.get("id")))
-    if me:
-        members.append((scope, project, me))
-    for s in (ctx.get("similar") or []):
-        cid = str(s.get("id") or "")
-        if not cid or backlog.qualify(str(s.get("scope") or scope), s.get("project"), cid) == me_ref:
-            continue
-        if float(s.get("score") or 0) < _dup_threshold():
-            continue  # not similar enough (find_similar returns every score>0)
-        c = backlog.get_epic(str(s.get("scope") or scope), s.get("project"), cid)
-        if c:
-            members.append((str(s.get("scope") or scope), s.get("project"), c))
-    if len(members) < 2:
+    iid = str(item.get("id"))
+    me = backlog.get_epic(scope, project, iid)
+    if not me:
         return []
-    canon_scope, canon_project, canon = None, None, None
-    for cs, cp, c in members:
-        if canon is None:
-            canon_scope, canon_project, canon = cs, cp, c
+    th = _dup_threshold()
+    group = [me]
+    for s in (ctx.get("similar") or []):
+        if str(s.get("id") or "") in ("", iid):
             continue
-        if backlog.order_by_priority([c, canon])[0] is c:
-            canon_scope, canon_project, canon = cs, cp, c
-    canon_ref = backlog.qualify(canon_scope, canon_project, str(canon.get("id")))
-    marked = []
-    for cs, cp, c in members:
-        if backlog.qualify(cs, cp, str(c.get("id"))) == canon_ref:
+        if str(s.get("project") or "") != str(project or ""):
+            continue  # same-project only - never mark another project's backlog
+        if float(s.get("score") or 0) < th:
             continue
-        backlog.link(cs, cp, str(c.get("id")), possible_duplicate_of=[canon_ref])
-        marked.append(str(c.get("id")))
-    return marked
+        c = backlog.get_epic(scope, project, str(s.get("id")))
+        if c:
+            group.append(c)
+    if len(group) < 2:
+        return []
+    canon = backlog.order_by_priority(group)[0]
+    if canon is me:
+        return []  # I am the canonical -> nothing to mark
+    canon_ref = backlog.qualify(str(canon.get("scope") or scope), canon.get("project"), str(canon.get("id")))
+    backlog.link(scope, project, iid, possible_duplicate_of=[canon_ref])
+    return [iid]
 
 
 def groom(scope: str, project: str | None, item_id: str, mode: str = "", *,
