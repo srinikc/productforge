@@ -10,7 +10,7 @@
   "title": "Defect/RCCA: traceability.json has TWO writers (core/traceability.py vs requirement_link.py) + registry concern mismatch",
   "body": "## Problem / why\n`products/<name>/traceability.json` has TWO writers: `core/traceability.py` (declared owner in\nconfig/store-registry.json; TraceabilityMatrix: requirement->design->architecture->implementation->test->security\n+ id_index hub, \"preserving the legacy matrix\") AND `core/requirement_link.py` (writes the REQ<->F matrix into the\nsame file). Also the store-registry \"concern\" text for traceability.json describes an \"append-only engineering\nchange log\" - which matches neither module (likely a copy/paste drift from change_log.json).\n\n## Goal & value\nONE writer for traceability.json (the registered owner, core/traceability.py), with requirement_link contributing\ndata instead of writing the file; the registry concern text matches reality.\n\n## Acceptance criteria\n- Only core/traceability.py writes products/<name>/traceability.json.\n- requirement_link no longer writes it directly (delegates its REQ<->F rows to the owner).\n- store-registry concern for traceability.json describes the requirement/id traceability matrix (not a change log).\n\n## In scope\nReconcile the writer + fix the registry concern.\n\n## Out of scope\nPopulating the matrix flags (that is E8).\n\n## Verification\nA test asserts requirement_link does not write traceability.json (owner-only writer).\n\n## 5-Why\n1. Two modules wrote one store. 2. requirement_link created a matrix before core/traceability.py existed. 3.\ncore/traceability.py later took ownership (\"preserving the legacy matrix\") but requirement_link kept writing. 4. No\ngate enforced the single writer for this store. 5. Guard: requirement_link delegates; store-registry owner is\nauthoritative.\n",
   "source": "found building E8 (BI-PF-1169)",
-  "status": "new",
+  "status": "completed",
   "priority": null,
   "moscow": "Must",
   "value": 4,
@@ -27,7 +27,18 @@
     ],
     "related": [
       "product_forge:BI-PF-1169"
-    ]
+    ],
+    "delivery": {
+      "branch": "feature/review-traceability",
+      "merge_sha": "224ac6af209da36620086410972ff5fc3dabb9a5",
+      "commits": [
+        "cf17d27f479e2aa29c054e46dade0889424868a8"
+      ],
+      "pr": "",
+      "pr_url": "",
+      "at": "2026-10-09T16:57:27.436432",
+      "note": ""
+    }
   },
   "decisions": [],
   "follow_up": {},
@@ -97,7 +108,7 @@
   "children": [],
   "epic": "BI-PF-1066",
   "parent": "BI-PF-1066",
-  "revision": 1,
+  "revision": 2,
   "priority_rank": null,
   "priority_class": "",
   "analyze_mode": "on_entry",
@@ -168,9 +179,9 @@
     "completed_at": ""
   },
   "created_at": "2026-10-09T16:51:00.704221",
-  "updated_at": "2026-10-09T16:51:01.803986",
+  "updated_at": "2026-10-09T16:57:27.815183",
   "score": 1.0,
-  "_note": "analysis updated",
+  "_note": "",
   "api_impact": {
     "needs_api": false,
     "routes": [],
