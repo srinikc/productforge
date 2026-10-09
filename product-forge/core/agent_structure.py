@@ -223,3 +223,18 @@ KNOWN_AGENTS = [
     "architecture", "test-strategy", "a11y-audit", "review",
     "customer-onboarding", "marketing", "finops", "maintenance",
 ]
+
+# BI-PF-0865: KNOWN_AGENTS is the ordered CORE pipeline list; keep it COMPLETE by appending every agent that
+# has a card. Single source of truth = agents/*.agent.json (the cards), never a hand-maintained list.
+try:
+    import glob as _glob
+    import os as _os
+    try:
+        from core.paths import ROOT as _ROOT
+    except Exception:  # pragma: no cover
+        _ROOT = _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))
+    _cards = sorted(_os.path.basename(p)[: -len(".agent.json")]
+                    for p in _glob.glob(_os.path.join(str(_ROOT), "agents", "*.agent.json")))
+    KNOWN_AGENTS = KNOWN_AGENTS + [a for a in _cards if a not in KNOWN_AGENTS]
+except Exception:  # pragma: no cover
+    pass
