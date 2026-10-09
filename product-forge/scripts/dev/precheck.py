@@ -133,6 +133,7 @@ _GATES = [
     ("intent-trace", ["scripts/dev/intent_trace_check.py"], "fast", None),
     ("docs-fresh", ["scripts/dev/check_docs_fresh.py"], "fast", None),
     ("artifact-map", ["scripts/dev/gen_artifact_map.py", "--check"], "fast", None),
+    ("review-focus", ["scripts/dev/gen_review_focus.py", "--check"], "fast", None),
     # deep tier - real validation/lifecycle work; merge/CI only
     ("validation-engine", ["scripts/dev/validation_engine_check.py"], "deep", None),
     ("feature-pr", ["scripts/dev/feature_pr_check.py"], "deep", None),

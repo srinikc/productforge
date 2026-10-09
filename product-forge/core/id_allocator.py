@@ -28,9 +28,9 @@ _LOCK = threading.Lock()
 
 def block_size() -> int:
     try:
-        return int(os.environ.get("PF_ID_BLOCK_SIZE", "100") or 100)
+        return int(os.environ.get("PF_ID_BLOCK_SIZE", "1") or 1)
     except Exception:
-        return 100
+        return 1
 
 
 def base() -> int:
