@@ -155,6 +155,118 @@ def get_hub(project_dir: str) -> Optional[Dict]:
     return (d or {}).get("id_index") if isinstance(d, dict) else None
 
 
+# ── E8 (BI-PF-1169): requirement matrix population + single-writer delegation ──
+_IMPL_STATUSES = {"implemented", "completed", "verified", "done"}
+
+
+def merge_matrix(project_dir: str, rows: List[Dict]) -> Dict:
+    """BI-PF-1173: the SINGLE WRITER path for traceability.json's ``matrix`` rows.
+
+    ``requirement_link`` delegates here instead of writing the file itself. Merges the given REQ<->F rows
+    (dedup by requirement_id+feature_id) into the canonical store, preserving ``id_index`` and everything else."""
+    if not rows:
+        return {"ok": True, "merged": 0}
+    path = os.path.join(project_dir, "traceability.json")
+    data = _rj(path, None)
+    if not isinstance(data, dict):
+        data = {"$schema": "traceability-v1", "project": os.path.basename(project_dir.rstrip("/\\")), "matrix": []}
+    matrix = data.setdefault("matrix", [])
+    have = {(r.get("requirement_id"), r.get("feature_id")) for r in matrix}
+    merged = 0
+    for r in rows:
+        key = (r.get("requirement_id"), r.get("feature_id"))
+        if key not in have:
+            matrix.append({"requirement_id": r.get("requirement_id"), "feature_id": r.get("feature_id"),
+                           "implemented": False, "tested": False, "reviewed": False, "secured": False})
+            have.add(key)
+            merged += 1
+    data["coverage_metrics"] = _coverage(matrix)
+    data["last_updated"] = datetime.now().isoformat()
+    _wj(path, data)
+    return {"ok": True, "merged": merged}
+
+
+def _coverage(matrix: List[Dict]) -> Dict:
+    return {"total_requirements": len({r.get("requirement_id") for r in matrix}),
+            "rows": len(matrix),
+            "implemented": sum(1 for r in matrix if r.get("implemented")),
+            "tested": sum(1 for r in matrix if r.get("tested")),
+            "reviewed": sum(1 for r in matrix if r.get("reviewed")),
+            "secured": sum(1 for r in matrix if r.get("secured"))}
+
+
+def _implemented_features(project_dir: str) -> set:
+    plan = _rj(os.path.join(project_dir, "product-plan.json"), None)
+    out = set()
+    for m in (plan or {}).get("modules") or []:
+        for f in m.get("features") or []:
+            if str(f.get("status") or "") in _IMPL_STATUSES:
+                out.add(f.get("id"))
+    return out
+
+
+def populate_flags(project_dir: str) -> Dict:
+    """E8: populate each matrix row's flags from the systems that already know (the owner writes the file).
+
+    implemented <- product-plan feature status; tested <- qa_report decision; reviewed <- pr_gate code_review;
+    secured <- a security report present. Best-effort; fail-closed (unknown stays False)."""
+    path = os.path.join(project_dir, "traceability.json")
+    data = _rj(path, None)
+    if not isinstance(data, dict):
+        return {"ok": False, "reason": "no traceability.json"}
+    matrix = data.get("matrix") or []
+    impl = _implemented_features(project_dir)
+    name = data.get("project") or os.path.basename(project_dir.rstrip("/\\"))
+    tested = _tested(name)
+    reviewed = _reviewed(name, project_dir)
+    secured = _secured(project_dir)
+    for r in matrix:
+        r.setdefault("implemented", False)
+        r.setdefault("tested", False)
+        r.setdefault("reviewed", False)
+        r.setdefault("secured", False)
+        if r.get("feature_id") in impl:
+            r["implemented"] = True
+        if tested:
+            r["tested"] = True
+        if reviewed:
+            r["reviewed"] = True
+        if secured:
+            r["secured"] = True
+    data["coverage_metrics"] = _coverage(matrix)
+    data["last_updated"] = datetime.now().isoformat()
+    _wj(path, data)
+    return {"ok": True, "rows": len(matrix), **data["coverage_metrics"]}
+
+
+def _tested(project: str) -> bool:
+    try:
+        from core import qa_report
+        rep = qa_report.load(project)
+        return bool(rep and str(rep.get("decision")) in ("GO", "GO-WITH-RISK"))
+    except Exception:
+        return False
+
+
+def _reviewed(project: str, project_dir: str) -> bool:
+    try:
+        from core import pr_gate
+        ev = pr_gate.evaluate(project, project_dir)
+        items = (ev or {}).get("items") or {}
+        cr = items.get("code_review") or {}
+        return str(cr.get("status")) == "pass"
+    except Exception:
+        return False
+
+
+def _secured(project_dir: str) -> bool:
+    try:
+        r = os.path.join(project_dir, "reports", "security-audit.md")
+        return os.path.isfile(r)
+    except Exception:
+        return False
+
+
 def _rj(path: str, default):
     try:
         with open(path, "r", encoding="utf-8-sig") as f:
