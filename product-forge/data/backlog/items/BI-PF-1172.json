@@ -10,14 +10,26 @@
   "title": "DEFECT: /pf product delegates to scripts/pipeline.py (no 'new') -> product generation never starts",
   "body": "## Problem / why\n`/pf product ...` -> scripts/pf.py::cmd_product -> runs `scripts/pipeline.py`, which is the deterministic command helper and has NO 'new' command. Running it prints 'Unknown command: new' (exit 1). So the documented product-generation entry never starts a run.\n\n## RCCA (5-Why)\n1. `/pf product new` fails. 2. pf.py delegates to `scripts/pipeline.py`. 3. That script is the legacy deterministic helper, not the pipeline runner. 4. The delegate was not updated when the real runner became `scripts/run_pipeline.py`. 5. Guard: delegate to the canonical runner + a test asserting the mapped args.\n",
   "source": "design-review",
-  "status": "new",
+  "status": "completed",
   "priority": null,
   "moscow": "Should",
   "value": 3,
   "effort": 3,
   "risk": 2,
   "deps": [],
-  "links": {},
+  "links": {
+    "delivery": {
+      "branch": "feature/bi-pf-product-delegate-fix-v2",
+      "merge_sha": "232c6fd2",
+      "commits": [
+        "b57977c6"
+      ],
+      "pr": "",
+      "pr_url": "",
+      "at": "2026-10-09T16:51:19.034485",
+      "note": "Fix: /pf product delegates to scripts/run_pipeline.py (arg mapping new/continue/fix) + test. merge --no-ff (no PR)"
+    }
+  },
   "decisions": [],
   "follow_up": {},
   "brief": {
@@ -97,7 +109,7 @@
   "children": [],
   "epic": "",
   "parent": "",
-  "revision": 1,
+  "revision": 2,
   "priority_rank": null,
   "priority_class": "",
   "analyze_mode": "on_entry",
@@ -168,7 +180,7 @@
     "completed_at": ""
   },
   "created_at": "2026-10-09T16:50:40.474838",
-  "updated_at": "2026-10-09T16:50:41.355952",
+  "updated_at": "2026-10-09T16:51:19.294321",
   "score": 0.75,
-  "_note": "analysis updated"
+  "_note": "Delivered + validated (4 tests pass, pf_surface_check OK, compileall, wired-audit unwired 0, lint clean)"
 }
