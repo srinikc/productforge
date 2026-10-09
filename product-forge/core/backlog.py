@@ -1001,30 +1001,81 @@ def set_priority(scope: str, project: str | None, eid: str, *, priority: str | N
     return update(scope, project, eid, **fields)
 
 
+def _dep_reaches(graph: dict, start: str, goal: str, seen=None) -> bool:
+    """True if ``goal`` is reachable from ``start`` following REQUIRES edges (cycle test)."""
+    if start == goal:
+        return True
+    seen = seen if seen is not None else set()
+    if start in seen:
+        return False
+    seen.add(start)
+    return any(_dep_reaches(graph, str(m), goal, seen) for m in graph.get(start, []))
+
+
+def _requires_graph(items: list, exclude: str = "") -> dict:
+    """Map item id -> REQUIRES targets (dependencies whose type is REQUIRES)."""
+    g = {}
+    for i in items:
+        x = str(i.get("id"))
+        if x == exclude:
+            continue
+        g[x] = [str(d.get("task_id")) for d in (i.get("dependencies") or [])
+                if isinstance(d, dict) and str(d.get("type") or "").upper() == "REQUIRES"]
+    return g
+
+
 def set_dependencies(scope: str, project: str | None, eid: str, *,
                      dependencies: list[dict] | None = None, blocked_by: list[str] | None = None,
                      unlocks: list[str] | None = None) -> dict | None:
-    """Set structured dependencies (doc §6.4: BLOCKS/REQUIRES/RELATED + required_state).
+    """Set structured dependencies (doc A6.4: BLOCKS/REQUIRES/RELATED + required_state).
+
+    Fail-safe guard (single writer): a dependency is DROPPED (never stored) when it would be invalid,
+    regardless of caller - self-reference, unknown id, a child depending on its own parent epic, or a
+    REQUIRES edge that would form a cycle. Valid edges are kept; dropped ones are printed.
 
     Also keeps the flat ``deps`` list in sync (backward-compat with the scheduler).
     """
     fields: dict = {}
-    if dependencies is not None:
-        clean = []
-        for d in dependencies:
-            if not isinstance(d, dict) or not (d.get("task_id") or d.get("id")):
-                raise ValueError("each dependency needs a task_id")
-            t = str(d.get("type") or "BLOCKS").upper()
-            if t not in DEP_TYPES:
-                raise ValueError(f"dependency type must be one of {list(DEP_TYPES)}")
-            clean.append({"task_id": str(d.get("task_id") or d.get("id")), "type": t,
-                          "required_state": str(d.get("required_state") or "completed")})
-        fields["dependencies"] = clean
-        fields["deps"] = [c["task_id"] for c in clean]
-    if blocked_by is not None:
-        fields["blocked_by"] = [str(x) for x in blocked_by]
+    rejected: list[str] = []
+    if dependencies is not None or blocked_by is not None:
+        op, cl = _load_all(scope, project)
+        by_id = {str(i.get("id")): i for i in op + cl}
+        me = by_id.get(str(eid)) or {}
+        my_epic = str(me.get("epic") or me.get("parent") or "")
+        graph = _requires_graph(op + cl, exclude=str(eid))
+
+        def _ok(tid: str, hard: bool) -> bool:
+            if tid == str(eid):
+                rejected.append(f"{tid} (self)"); return False
+            if tid not in by_id:
+                rejected.append(f"{tid} (unknown)"); return False
+            if my_epic and tid == my_epic:
+                rejected.append(f"{tid} (parent epic)"); return False
+            if hard and _dep_reaches(graph, tid, str(eid)):
+                rejected.append(f"{tid} (cycle)"); return False
+            return True
+
+        if dependencies is not None:
+            clean = []
+            for d in dependencies:
+                if not isinstance(d, dict) or not (d.get("task_id") or d.get("id")):
+                    raise ValueError("each dependency needs a task_id")
+                t = str(d.get("type") or "BLOCKS").upper()
+                if t not in DEP_TYPES:
+                    raise ValueError(f"dependency type must be one of {list(DEP_TYPES)}")
+                tid = str(d.get("task_id") or d.get("id"))
+                if not _ok(tid, t == "REQUIRES"):
+                    continue
+                clean.append({"task_id": tid, "type": t,
+                              "required_state": str(d.get("required_state") or "completed")})
+            fields["dependencies"] = clean
+            fields["deps"] = [c["task_id"] for c in clean]
+        if blocked_by is not None:
+            fields["blocked_by"] = [str(x) for x in blocked_by if _ok(str(x), True)]
     if unlocks is not None:
         fields["unlocks"] = [str(x) for x in unlocks]
+    if rejected:
+        print(f"[Backlog] {eid}: dropped invalid dependencies: {rejected}")
     fields["_note"] = "dependencies set"
     return update(scope, project, eid, **fields)
 

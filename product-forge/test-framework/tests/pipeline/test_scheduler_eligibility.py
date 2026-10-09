@@ -60,7 +60,8 @@ def test_dependency_blocks_then_unblocks():
         a = backlog.add_epic("project", _PROJ, "Feature A", tag="TST")["id"]
         _approve(a)
         b = backlog.add_epic("project", _PROJ, "Feature B", tag="TST")["id"]
-        backlog.set_dependencies("project", _PROJ, b, dependencies=[{"task_id": a, "type": "BLOCKS"}])
+        # B REQUIRES A -> B waits on A (A6.4 direction). BLOCKS would be the inverse edge.
+        backlog.set_dependencies("project", _PROJ, b, dependencies=[{"task_id": a, "type": "REQUIRES"}])
         _approve(b)
         by = {a: backlog.get("project", _PROJ, a), b: backlog.get("project", _PROJ, b)}
         assert scheduler.eligible(by[b], by_id=by)["ok"] is False   # a not terminal

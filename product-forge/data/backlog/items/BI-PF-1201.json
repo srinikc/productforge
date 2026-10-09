@@ -1,0 +1,189 @@
+{
+  "id": "BI-PF-1201",
+  "tag": "PF",
+  "type": "bug",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "rcca:dep-guard-direction",
+  "label": "PF Backlog 536",
+  "title": "Backlog dependency guard + BLOCKS direction: drop self/unknown/parent-epic/cyclic deps at the writer",
+  "body": "## Problem\nAI grooming produced dependencies that deadlocked the backlog. Two defects:\n1. Scheduler read BLOCKS backwards: 'A BLOCKS B' means B waits on A, but eligible() treated it as A waits on B -> false cycles (0387<->0388, 0386<->0407, 0397<->0398/0399).\n2. No guard at the dependency writer: items could be stored with a self-dep, an unknown id (pfssot-p11-adapters), a child depending on its own parent EPIC (0403/0404/0405 -> 0391; 0374 -> 0360), or a REQUIRES cycle -> permanent deadlock.\n\n## Root cause (5-Why)\n1. Backlog deadlocked. 2. Items waited on their own parent epic / on unknown ids, and BLOCKS was read as the inverse edge. 3. set_dependencies stored any edge; eligible() did not interpret direction. 4. No validation at the single writer and no cycle test. 5. No guard test asserted these are rejected.\n\n## Fix\n- eligible(): REQUIRES X = this item waits on X; BLOCKS X = X waits on this (does NOT block this); RELATED advisory. (blocking = REQUIRES only, + flat deps/blocked_by back-compat.)\n- set_dependencies(): fail-safe guard drops (never stores) self / unknown / parent-epic / REQUIRES-cycle edges; keeps valid ones; prints dropped ids. Single writer -> holds for AI and human alike.\n\n## In scope\n- core/scheduler.py direction handling; core/backlog.py set_dependencies guard\n- tests\n\n## Out of scope\n- AI dep inference quality; required_state semantics\n\n## Acceptance\n- BLOCKS edge does not block the item itself; REQUIRES on an open item blocks; completed deps are met.\n- self/unknown/parent-epic/cycle deps are dropped; valid edges kept.\n- No cycles in the live backlog after the guard; roots eligible.\n",
+  "source": "review",
+  "status": "new",
+  "priority": "P2",
+  "moscow": "Should",
+  "value": 4,
+  "effort": 2,
+  "risk": 3,
+  "deps": [],
+  "links": {
+    "backend_capability": [
+      {
+        "kind": "artifact",
+        "ref": "core/scheduler.py",
+        "detail": "eligible REQUIRES-only blocking"
+      },
+      {
+        "kind": "artifact",
+        "ref": "core/backlog.py",
+        "detail": "set_dependencies guard"
+      },
+      {
+        "kind": "test",
+        "ref": "test-framework/tests/pipeline/test_backlog_dep_guard.py",
+        "detail": "invalid deps dropped"
+      },
+      {
+        "kind": "test",
+        "ref": "test-framework/tests/pipeline/test_scheduler_dep_types.py",
+        "detail": "direction semantics"
+      }
+    ]
+  },
+  "decisions": [],
+  "follow_up": {},
+  "brief": {
+    "problem": "BLOCKS was read backwards (false cycles) and set_dependencies stored self/unknown/parent-epic/cyclic deps -> backlog deadlock.",
+    "what_adds": "Correct eligible() direction; set_dependencies fail-safe guard; tests.",
+    "source": "authored"
+  },
+  "objective": "Prevent deadlocking dependencies: read BLOCKS direction correctly and reject invalid/cyclic dependencies at the single writer regardless of source.",
+  "acceptance_criteria": [
+    "eligible(): REQUIRES blocks this item; BLOCKS/RELATED do not.",
+    "set_dependencies drops self/unknown/parent-epic/REQUIRES-cycle deps, keeps valid ones.",
+    "Tests cover direction + guard; live backlog has no cycles."
+  ],
+  "in_scope": [
+    "scheduler BLOCKS direction",
+    "set_dependencies guard (self/unknown/parent-epic/cycle)",
+    "tests"
+  ],
+  "out_of_scope": [
+    "AI dep inference",
+    "required_state semantics"
+  ],
+  "affected_components": [
+    "core"
+  ],
+  "affected_files": [
+    "core/backlog.py",
+    "core/scheduler.py"
+  ],
+  "approach": "core/scheduler.py direction handling; core/backlog.py set_dependencies guard; tests",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "BLOCKS edge does not block the item itself; REQUIRES on an open item blocks; completed deps are met.",
+    "self/unknown/parent-epic/cycle deps are dropped; valid edges kept.",
+    "No cycles in the live backlog after the guard; roots eligible."
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "agent",
+  "requester": "review",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "",
+  "parent": "",
+  "revision": 2,
+  "priority_rank": 2,
+  "priority_class": "P2",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "IN_PROGRESS",
+    "analyzed_at": "",
+    "analyzed_by": "deterministic",
+    "revision_analyzed": 0,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/backlog.py, core/backlog_link.py, core/guardrails.py, core/run_guard.py",
+    "existing_components": [
+      "core/backlog.py",
+      "core/backlog_link.py",
+      "core/guardrails.py",
+      "core/run_guard.py"
+    ],
+    "existing_apis": [
+      "/api/v1/backlog",
+      "/api/v1/backlog/groom",
+      "/api/v1/backlog/groom/approve",
+      "/api/v1/backlog/grooming/guidelines",
+      "/api/v1/backlog/ids:reserve",
+      "/api/v1/backlog/items",
+      "/api/v1/backlog/items/{item_id}",
+      "/api/v1/backlog/items/{item_id}/analysis"
+    ],
+    "existing_modules": [
+      "config/guardrail-policy.json",
+      "config/id-blocks.json"
+    ],
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=1.0",
+      "components=4",
+      "apis=8"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": false,
+    "reasons": [],
+    "computed_at": ""
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": ""
+  },
+  "created_at": "2026-10-10T00:27:02.070780",
+  "updated_at": "2026-10-10T00:27:02.901998",
+  "score": 1.0,
+  "_note": "priority set",
+  "dashboard_impact": {
+    "needs_dashboard": false,
+    "reason": "backlog/scheduler correctness"
+  },
+  "api_impact": {
+    "needs_api": false,
+    "reason": "Behavior fix; no new routes."
+  },
+  "source_ref": "session:dep-guard-direction"
+}
