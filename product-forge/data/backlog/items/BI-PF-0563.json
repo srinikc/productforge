@@ -1,0 +1,184 @@
+{
+  "id": "BI-PF-0563",
+  "tag": "PF",
+  "type": "chore",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "prepush-id-audit",
+  "label": "PF Backlog 498",
+  "title": "Hardening: pre-push hook runs the backlog id-audit (catch duplicates at the push boundary too)",
+  "body": "Source: user request (2026-10-08). Hardening on top of BI-PF-0457 (duplicate-id merge audit) + BI-PF-0462\n(id allocator).\n\nWHAT: install a `pre-push` git hook (via scripts/dev/install_hooks.py) that runs\n`scripts/dev/backlog_id_audit.py` before every push, so a duplicate backlog id is caught at the PUSH boundary\ntoo - not only at precheck/CI. Belt-and-braces (defense-in-depth): the allocator PREVENTS collisions; precheck/CI\nand the pre-push hook CATCH any residue at two independent boundaries.\n\nAcceptance: install_hooks.py writes .git/hooks/pre-push; the hook fails the push (exit 1) when the id audit\nfails, passes otherwise; no opencode/dashboard references.",
+  "source": "user request",
+  "status": "completed",
+  "priority": null,
+  "moscow": "Should",
+  "value": 3,
+  "effort": 1,
+  "risk": 1,
+  "deps": [
+    "BI-PF-0457",
+    "BI-PF-0462"
+  ],
+  "links": {
+    "backend_capability": [
+      "module:scripts/dev/install_hooks.py",
+      "module:scripts/dev/backlog_id_audit.py"
+    ],
+    "related": [
+      "product_forge:BI-PF-0457",
+      "product_forge:BI-PF-0462"
+    ],
+    "delivery": {
+      "branch": "feature/prepush-id-audit",
+      "merge_sha": "59acc88e8096b21960302cdeea76e6982c475a3f",
+      "commits": [],
+      "pr": "",
+      "pr_url": "",
+      "at": "2026-10-09T14:17:26.878968",
+      "note": "renumbered from BI-PF-0463 (collision with a concurrent session)"
+    }
+  },
+  "decisions": [],
+  "follow_up": {},
+  "brief": {
+    "problem": "Source: user request (2026-10-08). Hardening on top of BI-PF-0457 (duplicate-id merge audit) + BI-PF-0462\n(id allocator).",
+    "what_adds": "Hardening: pre-push hook runs the backlog id-audit (catch duplicates at the push boundary too)",
+    "why": "(derived) see objective",
+    "who_feels": "(derived) unspecified",
+    "source": "extracted"
+  },
+  "objective": "Hardening: pre-push hook runs the backlog id-audit (catch duplicates at the push boundary too)",
+  "acceptance_criteria": [
+    "(derived) objective met: Hardening: pre-push hook runs the backlog id-audit (catch duplicates at the push boundary too)"
+  ],
+  "in_scope": [
+    "Hardening: pre-push hook runs the backlog id-audit (catch duplicates at the push boundary too)"
+  ],
+  "out_of_scope": [
+    "(derived) not specified"
+  ],
+  "affected_components": [
+    "(derived) TBD"
+  ],
+  "affected_files": [
+    "(derived) TBD"
+  ],
+  "approach": "Hardening: pre-push hook runs the backlog id-audit (catch duplicates at the push boundary too)",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "(derived) objective met: Hardening: pre-push hook runs the backlog id-audit (catch duplicates at the push boundary too)"
+  ],
+  "risks": [
+    "(derived) none identified"
+  ],
+  "rollback": "(derived) revert the change",
+  "evidence": [
+    "(derived) pending"
+  ],
+  "owner": "agent",
+  "requester": "user",
+  "due": "(derived) TBD",
+  "target_release": "(derived) TBD",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-0360",
+  "parent": "BI-PF-0360",
+  "revision": 2,
+  "priority_rank": null,
+  "priority_class": "",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "IN_PROGRESS",
+    "analyzed_at": "",
+    "analyzed_by": "deterministic",
+    "revision_analyzed": 0,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/agent_tool_loop.py, core/backlog.py, core/backlog_link.py, core/tool_cache.py",
+    "existing_components": [
+      "core/agent_tool_loop.py",
+      "core/backlog.py",
+      "core/backlog_link.py",
+      "core/tool_cache.py",
+      "core/tool_catalog.py",
+      "core/tool_policy.py",
+      "core/tool_registry.py",
+      "core/tool_settings.py"
+    ],
+    "existing_apis": [
+      "/api/v1/backlog",
+      "/api/v1/backlog/grooming/guidelines",
+      "/api/v1/backlog/ids:reserve",
+      "/api/v1/backlog/items",
+      "/api/v1/backlog/items/{item_id}",
+      "/api/v1/backlog/items/{item_id}/analysis",
+      "/api/v1/backlog/items/{item_id}/dependencies",
+      "/api/v1/backlog/items/{item_id}/groom"
+    ],
+    "existing_modules": [
+      "config/tool-catalog.json"
+    ],
+    "dependency_findings": [
+      "depends on BI-PF-0457",
+      "depends on BI-PF-0462"
+    ],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=3.0",
+      "components=8",
+      "apis=8"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": false,
+    "reasons": [],
+    "computed_at": ""
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": ""
+  },
+  "created_at": "2026-10-09T14:17:25.556605",
+  "updated_at": "2026-10-09T14:17:27.057500",
+  "score": 3.0,
+  "_note": "",
+  "dashboard_impact": {
+    "needs_dashboard": false,
+    "reason": "git hook hardening; no dashboard surface",
+    "dashboard_item": null,
+    "reviewed_by": "agent"
+  }
+}
