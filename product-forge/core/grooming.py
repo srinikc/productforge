@@ -41,6 +41,14 @@ def default_mode() -> str:
     return str(guidelines().get("default_mode") or "ai")
 
 
+def default_batch() -> int:
+    """Items per agent run for bulk grooming (BI-PF-1194). Config ``batch_size``, default 3, min 1."""
+    try:
+        return max(1, int(guidelines().get("batch_size") or 3))
+    except Exception:
+        return 3
+
+
 def _context_review_cfg() -> dict[str, Any]:
     """BI-PF-0665: config for the advisory LLM context review run during grooming."""
     return dict(guidelines().get("context_review") or {})
@@ -164,9 +172,37 @@ def deterministic(scope: str, project: str | None, item: dict, *, depth: str = "
         strategy = "New capability; design before building (reuse-first)"
     evidence = [f"similar={len(ctx['similar'])}", f"score={ctx['score']}",
                 f"components={len(deep['existing_components'])}", f"apis={len(deep['existing_apis'])}"]
+    # BI-PF-1195: derive the full authored context from the item's own body (real content, no placeholders)
+    # and map explicit deps to structured dependencies. _apply_proposal gap-fills these onto the item.
+    from core import backlog
+    draft = backlog._draft_context(
+        str(item.get("title") or ""), str(item.get("body") or ""), str(item.get("origin") or ""),
+        str(item.get("source") or ""), str(item.get("type") or item.get("type_") or "feature"),
+        links=item.get("links"))
+    ext_deps = [str(d) for d in (item.get("deps") or [])] + [str(d) for d in (item.get("blocked_by") or [])]
+    dependencies = [{"task_id": d, "type": "REQUIRES", "required_state": "COMPLETE"}
+                    for d in sorted({x for x in ext_deps if x})]
     return {
         "analyzed_by": "deterministic",
         "architecture_fit": fit,
+        "priority_class": "P2", "priority_rank": 2, "moscow": "Should",
+        "dependencies": dependencies,
+        "context": {
+            "objective": draft["objective"],
+            "acceptance_criteria": draft["acceptance_criteria"],
+            "in_scope": draft["in_scope"],
+            "out_of_scope": draft["out_of_scope"],
+            "affected_components": draft["affected_components"],
+            "affected_files": draft["affected_files"],
+            "approach": draft["approach"],
+            "verification": draft["verification"],
+            "risks": draft["risks"],
+            "rollback": draft["rollback"],
+            "evidence": draft["evidence"],
+            "owner": draft["owner"],
+            "requester": draft["requester"],
+            "brief": draft["brief"],
+        },
         "implementation_strategy": strategy,
         "existing_components": deep["existing_components"],
         "existing_apis": deep["existing_apis"],
@@ -207,7 +243,11 @@ def _ai_prompt(item: dict, ctx: dict) -> str:
         "new_component_required (bool), risks (list), assumptions (list), evidence (list), "
         "confidence (low|medium|high), missing_info (list), rationale (string), "
         "priority_class (P0|P1|P2|P3), priority_rank (int, lower=higher), moscow (Must|Should|Could|Wont), "
-        "dependencies (list of {task_id,type(BLOCKS|REQUIRES|RELATED),required_state})."
+        "dependencies (list of {task_id,type(BLOCKS|REQUIRES|RELATED),required_state}), "
+        "objective (string), acceptance_criteria (list), in_scope (list), out_of_scope (list), "
+        "affected_components (list), affected_files (list), approach (string), verification (list), "
+        "rollback (string), evidence (list), owner (string), requester (string), "
+        "brief ({problem, what_adds, why, who_feels, source='authored'})."
     )
 
 
@@ -252,6 +292,70 @@ def _run_ai(item: dict, ctx: dict, project: str | None, product: str) -> dict | 
     except Exception:
         return None
     return None
+
+
+def _ai_prompt_batch(items_ctx: list[tuple[dict, dict]]) -> str:
+    """Prompt for a batched AI groom: N items in one agent run, one JSON file per item (BI-PF-1194)."""
+    gl = guidelines()
+    checks = "\n".join(f"- {c.get('id')}: {c.get('ask')}" for c in gl.get("checklist", []))
+    parts = []
+    for item, ctx in items_ctx:
+        parts.append(
+            f"=== ITEM {item.get('id')} ===\n"
+            f"TITLE: {item.get('title')}\nBODY: {item.get('body','')}\n"
+            f"EXISTING deps: {ctx.get('deps')}\nRELATED/SIMILAR backlog items: {ctx.get('similar')}\n"
+            f"CANDIDATE EXISTING CODE (reuse-first): components={ctx.get('existing_components')} "
+            f"apis={ctx.get('existing_apis')} modules={ctx.get('existing_modules')}")
+    ids = ", ".join(str(i.get("id")) for i, _ in items_ctx)
+    return (
+        f"You are grooming {len(items_ctx)} Product Forge backlog items into execution-ready specs "
+        "(reuse-first). Groom EACH item INDEPENDENTLY; never mix findings between items.\n\n"
+        + "\n\n".join(parts)
+        + "\n\nApply this checklist to EACH item:\n" + checks
+        + "\n\nFor EACH item, write a JSON file `engineering/groom-<ITEM_ID>.json` (no prose) with keys:\n"
+        "architecture_fit (REUSE|EXTEND|MODIFY|NEW_COMPONENT|NEW_CAPABILITY|REFACTOR|OTHER), "
+        "implementation_strategy (string), duplication_findings (list), dependency_findings (list), "
+        "conflict_findings (list), drift (NONE|LOW|MEDIUM|HIGH), rewrite_required (bool), "
+        "new_component_required (bool), risks (list), assumptions (list), evidence (list), "
+        "confidence (low|medium|high), missing_info (list), rationale (string), "
+        "priority_class (P0|P1|P2|P3), priority_rank (int, lower=higher), moscow (Must|Should|Could|Wont), "
+        "dependencies (list of {task_id,type(BLOCKS|REQUIRES|RELATED),required_state}), "
+        "objective (string), acceptance_criteria (list), in_scope (list), out_of_scope (list), "
+        "affected_components (list), affected_files (list), approach (string), verification (list), "
+        "rollback (string), evidence (list), owner (string), requester (string), "
+        "brief ({problem, what_adds, why, who_feels, source='authored'}), and "
+        "context_review ({implementable (bool), missing (list), reason (string)}). "
+        f"Write exactly {len(items_ctx)} file(s), one per item: {ids}."
+    )
+
+
+def _run_ai_batch(items_ctx: list[tuple[dict, dict]], project: str | None,
+                  product: str) -> dict[str, dict]:
+    """One agent run grooms N items; returns {item_id: proposal} for the files actually written.
+
+    Missing/garbled items are simply absent from the result -> the caller falls back per item.
+    Skipped when AI is disabled (automation).
+    """
+    if not _ai_enabled() or not items_ctx:
+        return {}
+    out: dict[str, dict] = {}
+    try:
+        from core.pipeline_executor import PipelineExecutor
+        ex = PipelineExecutor(products_dir=os.path.join(str(ROOT), "products"),
+                              project=str(product or "default"))
+        prompt = _ai_prompt_batch(items_ctx) + "\n\nWrite the JSON file(s) and nothing else."
+        ex.execute_agent(_AI_AGENT, _AI_STAGE, prompt)
+        for item, _ctx in items_ctx:
+            p = os.path.join(ex.project_dir, "engineering", f"groom-{item.get('id')}.json")
+            if os.path.exists(p):
+                try:
+                    with open(p, encoding="utf-8-sig") as f:
+                        out[str(item.get("id"))] = json.load(f)
+                except Exception:
+                    pass
+    except Exception:
+        return out
+    return out
 
 
 # ── public API ──────────────────────────────────────────────────────────────
@@ -335,8 +439,109 @@ def _mark_duplicates(scope: str, project: str | None, item: dict, ctx: dict) -> 
     return [iid]
 
 
+_ANALYSIS_KEYS = (
+    "architecture_fit", "implementation_strategy", "existing_components", "existing_apis",
+    "existing_modules", "duplication_findings", "dependency_findings",
+    "conflict_findings", "drift", "rewrite_required", "new_component_required", "risks",
+    "assumptions", "evidence", "confidence", "missing_info", "rationale")
+
+# BI-PF-1195: full item context populated by grooming (gap-fill unless force); these are TOP-LEVEL item
+# fields (not the analysis block). `brief` is only written when its source is authored/extracted.
+_CONTEXT_FIELDS = ("objective", "acceptance_criteria", "in_scope", "out_of_scope",
+                   "affected_components", "affected_files", "approach", "verification",
+                   "risks", "rollback", "evidence", "owner", "requester", "brief")
+
+
+def _empty(v: Any) -> bool:
+    if v is None:
+        return True
+    if isinstance(v, (list, dict, str)):
+        return len(v) == 0
+    return False
+
+
+def _apply_proposal(scope: str, project: str | None, item_id: str, it: dict, ctx: dict,
+                    proposal: dict, used: str, depth: str, *,
+                    context_review: dict | None = None,
+                    run_context_review: bool = True, force: bool = False) -> dict[str, Any]:
+    """Persist a computed grooming proposal onto the item's ``analysis`` (single writer: backlog).
+
+    Shared by single ``groom`` and batch ``groom_all`` so both behave identically. When ``context_review``
+    is passed (batched AI pass), it is stored as-is; otherwise the advisory review is computed per item
+    (BI-PF-0665) only when ``run_context_review`` and the config allows it.
+    """
+    from core import backlog
+    analysis = {k: v for k, v in proposal.items() if k in _ANALYSIS_KEYS}
+    analysis["depth"] = depth
+    analysis["status"] = "IN_PROGRESS"          # awaits user decision -> COMPLETE
+    backlog.set_analysis(scope, project, item_id, status="IN_PROGRESS", analysis=analysis,
+                         analyzed_by=used)
+    # record groomer provenance on the analysis block (survives later status-only updates)
+    try:
+        _it = backlog.get_epic(scope, project, item_id) or {}
+        _a = dict(_it.get("analysis") or {})
+        _a["analyzed_by"] = used
+        _a["mode"] = used
+        backlog.update(scope, project, item_id, analysis=_a)
+    except Exception:
+        pass
+    # BI-PF-0665: advisory AI context review (is the item implementable: what/why/how/where?).
+    try:
+        rv = context_review
+        if rv is None and run_context_review:
+            _cr = _context_review_cfg()
+            if _cr.get("enabled") and (used == "ai" or _cr.get("on_deterministic")):
+                from core import context_review as _crv
+                rv = _crv.review(backlog.get_epic(scope, project, item_id) or it)
+        if rv is not None:
+            _a2 = dict((backlog.get_epic(scope, project, item_id) or {}).get("analysis") or {})
+            _a2["context_review"] = rv
+            backlog.update(scope, project, item_id, analysis=_a2)
+    except Exception:
+        pass
+    # BI-PF-1195: populate priority + structured deps + full context; gap-fill by default, --force overwrites.
+    has_prio = bool(str(it.get("priority") or "").strip())
+    pclass = str(proposal.get("priority_class") or "")
+    if (force or not has_prio) and (proposal.get("priority_rank") is not None or pclass or proposal.get("moscow")):
+        with contextlib.suppress(Exception):
+            backlog.set_priority(scope, project, item_id,
+                                 priority=(str(proposal.get("priority") or pclass) or None),
+                                 priority_rank=proposal.get("priority_rank"),
+                                 priority_class=pclass, moscow=str(proposal.get("moscow") or ""))
+    if (force or _empty(it.get("dependencies"))) and proposal.get("dependencies"):
+        with contextlib.suppress(Exception):
+            backlog.set_dependencies(scope, project, item_id, dependencies=proposal["dependencies"])
+    # context fields: deterministic supplies proposal["context"]; AI supplies them top-level.
+    ctx_src = proposal.get("context") if isinstance(proposal.get("context"), dict) else proposal
+    ctx_updates: dict[str, Any] = {}
+    for f in _CONTEXT_FIELDS:
+        val = ctx_src.get(f, proposal.get(f))
+        if _empty(val):
+            continue
+        if f == "brief" and isinstance(val, dict) and str(val.get("source")) not in ("authored", "extracted"):
+            continue
+        if force or _empty(it.get(f)):
+            ctx_updates[f] = val
+    if ctx_updates:
+        with contextlib.suppress(Exception):
+            backlog.update(scope, project, item_id, **ctx_updates)
+    # BI-PF-0432: mark near-duplicates (advisory link; never blocks grooming)
+    marked: list[str] = []
+    with contextlib.suppress(Exception):
+        marked = _mark_duplicates(scope, project, it, ctx)
+    # BI-PF-0435: if same-project near-duplicates exist, store a consolidation proposal (human-approved apply)
+    with contextlib.suppress(Exception):
+        dups = _same_project_dups(scope, project, it, ctx)
+        if dups:
+            _a = dict((backlog.get_epic(scope, project, item_id) or {}).get("analysis") or {})
+            _a["consolidation_proposal"] = _build_proposal(it, dups)
+            backlog.update(scope, project, item_id, analysis=_a)
+    return {"item_id": item_id, "mode": used, "depth": depth, "proposal": proposal,
+            "applied": True, "error": "", "marked_duplicates": marked}
+
+
 def groom(scope: str, project: str | None, item_id: str, mode: str = "", *,
-          product: str = "", depth: str = "deep") -> dict[str, Any]:
+          product: str = "", depth: str = "deep", force: bool = False) -> dict[str, Any]:
     """Groom one item (deep by default). ``mode`` = ai (default) | deterministic.
 
     Deep analysis (existing components/APIs/modules, duplication/drift, strategy) is grounded in the real
@@ -364,60 +569,7 @@ def groom(scope: str, project: str | None, item_id: str, mode: str = "", *,
     else:
         proposal = deterministic(scope, project, it, depth=d)
 
-    # persist the proposal onto analysis{} (single writer: backlog)
-    analysis = {k: v for k, v in proposal.items() if k in (
-        "architecture_fit", "implementation_strategy", "existing_components", "existing_apis",
-        "existing_modules", "duplication_findings", "dependency_findings",
-        "conflict_findings", "drift", "rewrite_required", "new_component_required", "risks",
-        "assumptions", "evidence", "confidence", "missing_info", "rationale")}
-    analysis["depth"] = d
-    analysis["status"] = "IN_PROGRESS"          # awaits user decision -> COMPLETE
-    backlog.set_analysis(scope, project, item_id, status="IN_PROGRESS", analysis=analysis,
-                         analyzed_by=used)
-    # record groomer provenance on the analysis block too (survives later status-only updates)
-    try:
-        from core import backlog as _b
-        _it = _b.get_epic(scope, project, item_id) or {}
-        _a = dict(_it.get("analysis") or {})
-        _a["analyzed_by"] = used
-        _a["mode"] = used
-        _b.update(scope, project, item_id, analysis=_a)
-    except Exception:
-        pass
-    # BI-PF-0665: advisory AI context review (is the item implementable: what/why/how/where?).
-    try:
-        _cr = _context_review_cfg()
-        if _cr.get("enabled") and (used == "ai" or _cr.get("on_deterministic")):
-            from core import context_review as _crv
-            _rv = _crv.review(backlog.get_epic(scope, project, item_id) or it)
-            _a2 = dict((backlog.get_epic(scope, project, item_id) or {}).get("analysis") or {})
-            _a2["context_review"] = _rv
-            backlog.update(scope, project, item_id, analysis=_a2)
-    except Exception:
-        pass
-    # optional priority proposal
-    if proposal.get("priority_rank") is not None or proposal.get("priority_class") or proposal.get("moscow"):
-        with contextlib.suppress(Exception):
-            backlog.set_priority(scope, project, item_id,
-                                 priority_rank=proposal.get("priority_rank"),
-                                 priority_class=str(proposal.get("priority_class") or ""),
-                                 moscow=str(proposal.get("moscow") or ""))
-    if proposal.get("dependencies"):
-        with contextlib.suppress(Exception):
-            backlog.set_dependencies(scope, project, item_id, dependencies=proposal["dependencies"])
-    # BI-PF-0432: mark near-duplicates (advisory link; never blocks grooming)
-    marked: list[str] = []
-    with contextlib.suppress(Exception):
-        marked = _mark_duplicates(scope, project, it, ctx)
-    # BI-PF-0435: if same-project near-duplicates exist, store a consolidation proposal (human-approved apply)
-    with contextlib.suppress(Exception):
-        dups = _same_project_dups(scope, project, it, ctx)
-        if dups:
-            _a = dict((backlog.get_epic(scope, project, item_id) or {}).get("analysis") or {})
-            _a["consolidation_proposal"] = _build_proposal(it, dups)
-            backlog.update(scope, project, item_id, analysis=_a)
-    return {"item_id": item_id, "mode": used, "depth": d, "proposal": proposal,
-            "applied": True, "error": "", "marked_duplicates": marked}
+    return _apply_proposal(scope, project, item_id, it, ctx, proposal, used, d, force=force)
 
 
 def refresh_stale(scope: str, project: str | None = None, *, limit: int = 10,
@@ -462,6 +614,135 @@ def refresh_stale(scope: str, project: str | None = None, *, limit: int = 10,
                                  analyzed_by=used)
             refreshed.append(str(it.get("id")))
     return {"refreshed": refreshed, "count": len(refreshed)}
+
+
+def groom_all(scope: str, project: str | None, mode: str = "", *, batch: int = 0, limit: int = 0,
+              force: bool = False, dry: bool = False, depth: str = "deep") -> dict[str, Any]:
+    """Groom every open backlog item (incl. EPICs) in batched AI passes (BI-PF-1194).
+
+    AI is the default; up to ``batch`` items share one agent run, which emits the analysis + the advisory
+    context_review per item. Items the batch misses fall back to per-item deterministic analysis (never
+    blocks). Items already IN_PROGRESS/COMPLETE are skipped unless ``force`` (so the run is resumable).
+    ``dry`` returns the planned ids without writing. Single writer: backlog (via ``_apply_proposal``).
+    """
+    from core import backlog
+    m = str(mode or default_mode()).lower()
+    if m not in MODES:
+        m = "ai"
+    d = str(depth or "deep").lower()
+    if d not in ("deep", "standard"):
+        d = "deep"
+    n = max(1, int(batch or 0) or default_batch())
+    queue: list[dict] = []
+    for it in backlog.list_open(scope, project):
+        st = str((it.get("analysis") or {}).get("status") or "NOT_ANALYZED")
+        # BI-PF-1195: (re)groom NOT_ANALYZED + IN_PROGRESS; COMPLETE (approved) only with --force.
+        if not force and st == "COMPLETE":
+            continue
+        queue.append(it)
+    if int(limit or 0) > 0:
+        queue = queue[:int(limit)]
+    if dry:
+        return {"mode": m, "batch": n, "count": len(queue), "dry": True,
+                "items": [{"id": i.get("id"), "title": i.get("title")} for i in queue]}
+    groomed: list[str] = []
+    results: list[dict] = []
+    for start in range(0, len(queue), n):
+        chunk = queue[start:start + n]
+        ctxs = [(it, _gather_context(scope, project, it)) for it in chunk]
+        proposals: dict[str, dict] = (
+            _run_ai_batch(ctxs, project, project or "default") if m == "ai" else {})
+        for it, ctx in ctxs:
+            iid = str(it.get("id"))
+            prop = proposals.get(iid)
+            used = m
+            if not isinstance(prop, dict):
+                used, prop = "deterministic", deterministic(scope, project, it, depth=d)
+            cr = prop.pop("context_review", None) if isinstance(prop, dict) else None
+            try:
+                _apply_proposal(scope, project, iid, it, ctx, prop, used, d, context_review=cr,
+                                force=force)
+                groomed.append(iid)
+                results.append({"item_id": iid, "mode": used, "applied": True})
+            except Exception as e:  # noqa: BLE001
+                results.append({"item_id": iid, "mode": used, "applied": False,
+                                "error": f"{type(e).__name__}: {e}"})
+    return {"mode": m, "batch": n, "count": len(groomed), "groomed": groomed, "results": results}
+
+
+def review(scope: str, project: str | None) -> dict[str, Any]:
+    """One view of groomed-but-undecided items (BI-PF-1194): status, confidence, dup/consolidation flags,
+    context_review verdict - so a human can eyeball before ``decide_all``."""
+    from core import backlog
+    out = []
+    for it in backlog.list_open(scope, project):
+        a = it.get("analysis") or {}
+        if str(a.get("status") or "NOT_ANALYZED") != "IN_PROGRESS":
+            continue
+        cr = a.get("context_review") or {}
+        flags = []
+        if a.get("duplication_findings"):
+            flags.append("duplication")
+        if a.get("consolidation_proposal"):
+            flags.append("consolidation")
+        if str(a.get("confidence") or "") == "low":
+            flags.append("low-confidence")
+        if cr and cr.get("ok") is False:
+            flags.append("context-review-failed")
+        if a.get("missing_info"):
+            flags.append("missing-info")
+        out.append({
+            "id": it.get("id"), "title": it.get("title"), "status": a.get("status"),
+            "confidence": a.get("confidence") or "", "architecture_fit": a.get("architecture_fit") or "",
+            "analyzed_by": a.get("analyzed_by") or "", "flags": flags,
+            "context_review": cr or None,
+        })
+    return {"count": len(out), "items": out}
+
+
+def decide_all(scope: str, project: str | None, decision: str = "APPROVE", *,
+               ids: list[str] | None = None, force: bool = False, dry: bool = False,
+               by: str = "user") -> dict[str, Any]:
+    """Apply a grooming decision to many groomed items at once (BI-PF-1194), default APPROVE.
+
+    Without ``force``, APPROVE only approves CLEAN items (no consolidation proposal, no duplication
+    findings, confidence not low, context_review not failed); flagged items are returned for manual
+    handling. ``ids`` restricts to a subset; ``dry`` previews. Per-item via ``decide`` (single writer).
+    """
+    from core import backlog
+    d = str(decision or "APPROVE").upper()
+    want = {str(x) for x in ids} if ids else None
+    approved: list[str] = []
+    flagged: list[dict] = []
+    skipped: list[str] = []
+    for it in backlog.list_open(scope, project):
+        iid = str(it.get("id"))
+        if want is not None and iid not in want:
+            continue
+        a = it.get("analysis") or {}
+        if str(a.get("status")) != "IN_PROGRESS":
+            skipped.append(iid)
+            continue
+        reasons = []
+        if a.get("duplication_findings"):
+            reasons.append("duplication")
+        if a.get("consolidation_proposal"):
+            reasons.append("consolidation")
+        if str(a.get("confidence") or "") == "low":
+            reasons.append("low-confidence")
+        cr = a.get("context_review") or {}
+        if cr and cr.get("ok") is False:
+            reasons.append("context-review-failed")
+        if reasons and d == "APPROVE" and not force:
+            flagged.append({"id": iid, "reasons": reasons})
+            continue
+        if dry:
+            approved.append(iid)
+            continue
+        decide(scope, project, iid, d, by=by)
+        approved.append(iid)
+    return {"decision": d, "approved": approved, "count": len(approved),
+            "flagged": flagged, "skipped": skipped, "dry": bool(dry)}
 
 
 def _apply_consolidation(scope: str, project: str | None, item_id: str, by: str = "user",
