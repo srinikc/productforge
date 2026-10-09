@@ -10,7 +10,7 @@
   "title": "Backlog batch grooming: groom-all + review + approve-all (CLI + API) with batched LLM (--batch N)",
   "body": "Bulk grooming is currently one item per invocation, and each AI groom makes TWO agent runs (analysis via grooming._run_ai + advisory context_review), so grooming 33 open items means ~66 agent runs, run sequentially at the CLI. Related/completed prior work: BI-PF-0363 (PFSSOT-P2 AI+user grooming), BI-PF-0432 (dedup marking + bulk sweep), BI-PF-0435 (AI consolidation), BI-PF-0665 (AI context review). None provide a batch groom/approve workflow.\n\nAdd a batch grooming workflow: groom-all (groom every open item), review (one view of results), approve-all (approve clean items in bulk). Reduce LLM work by batching 2-3 items per agent run and emitting BOTH the analysis proposal and the context_review per item in one pass, with per-item deterministic fallback.",
   "source": "review",
-  "status": "new",
+  "status": "completed",
   "priority": null,
   "moscow": "Should",
   "value": 4,
@@ -34,7 +34,18 @@
         "ref": "api/routers/backlog.py",
         "detail": "POST /backlog/groom (batch) + /backlog/groom/approve (batch)"
       }
-    ]
+    ],
+    "delivery": {
+      "branch": "feature/bi-pf-batch-grooming",
+      "merge_sha": "ecb5b3cbcd10837df9a7ac201373451072bd4b96",
+      "commits": [
+        "ced7f785"
+      ],
+      "pr": "",
+      "pr_url": "",
+      "at": "2026-10-09T21:05:03.039909",
+      "note": "merged to develop"
+    }
   },
   "decisions": [],
   "follow_up": {},
@@ -103,7 +114,7 @@
   "children": [],
   "epic": "",
   "parent": "",
-  "revision": 1,
+  "revision": 2,
   "priority_rank": null,
   "priority_class": "",
   "analyze_mode": "on_entry",
@@ -177,9 +188,9 @@
     "completed_at": ""
   },
   "created_at": "2026-10-09T20:38:59.326572",
-  "updated_at": "2026-10-09T20:56:54.492375",
+  "updated_at": "2026-10-09T21:05:03.226135",
   "score": 0.75,
-  "_note": "analysis updated",
+  "_note": "delivered: batch grooming + grooming completeness",
   "dashboard_impact": {
     "needs_dashboard": false,
     "reason": "CLI + API verb; no dashboard surface required"
