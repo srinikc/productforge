@@ -70,9 +70,71 @@ def _scope(flags):
     return flags.get("scope", "product_forge"), (flags.get("project") or None)
 
 
+def _slugify(text: str, maxlen: int = 48) -> str:
+    import re
+    s = re.sub(r"[^a-z0-9]+", "-", str(text or "").lower()).strip("-")
+    return s[:maxlen].strip("-") or "product"
+
+
 def cmd_product(argv):
-    # thin delegate: product generation is the existing pipeline CLI
-    return subprocess.run([sys.executable, os.path.join(ROOT, "scripts", "pipeline.py"), *argv], cwd=ROOT).returncode
+    """Thin delegate: product generation runs through the canonical runner ``scripts/run_pipeline.py``.
+
+    Contracts:
+      /pf product new "<idea>" [--tier T]       -> run_pipeline.py new <slug> --idea "<idea>" [--tier T]
+      /pf product new <project> --idea "<i>"    -> passthrough
+      /pf product continue <project> [...]      -> passthrough
+      /pf product enhance <project> --goal "g"  -> passthrough
+      /pf product fix <project> "<desc>"        -> run_pipeline.py enhance <project> --goal "<desc>"
+    """
+    runner = os.path.join(ROOT, "scripts", "run_pipeline.py")
+    argv = list(argv or [])
+    if not argv:
+        return subprocess.run([sys.executable, runner, "--help"], cwd=ROOT).returncode
+    mode = argv[0].lower()
+    rest = argv[1:]
+
+    if mode == "new":
+        flags: dict = {}
+        pos: list = []
+        i = 0
+        while i < len(rest):
+            a = rest[i]
+            if a.startswith("-"):
+                if i + 1 < len(rest) and not rest[i + 1].startswith("-"):
+                    flags[a] = rest[i + 1]
+                    i += 2
+                else:
+                    flags[a] = ""
+                    i += 1
+            else:
+                pos.append(a)
+                i += 1
+        idea = flags.get("--idea", "")
+        project = flags.get("--project", "")
+        if idea:
+            project = project or (pos[0] if pos else _slugify(idea))
+        elif len(pos) == 1:
+            idea = pos[0]
+            project = project or _slugify(idea)
+        elif len(pos) >= 2:
+            project = project or pos[0]
+        else:
+            project = project or _slugify("product")
+        extra: list = []
+        for k, v in flags.items():
+            if k in ("--idea", "--project"):
+                continue
+            extra.append(k)
+            if v:
+                extra.append(v)
+        run_args = ["new", project] + (["--idea", idea] if idea else []) + extra
+    elif mode == "fix" and rest:
+        project = "" if rest[0].startswith("-") else rest[0]
+        desc = rest[1] if project and len(rest) > 1 else ""
+        run_args = ["enhance"] + ([project] if project else []) + ["--goal", desc]
+    else:
+        run_args = list(argv)
+    return subprocess.run([sys.executable, runner, *run_args], cwd=ROOT).returncode
 
 
 def cmd_backlog(pos, flags):
