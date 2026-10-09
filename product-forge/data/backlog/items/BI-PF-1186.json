@@ -10,7 +10,7 @@
   "title": "RCCA: commit hygiene - guard must block MIXED backlog-bookkeeping + unrelated files (any branch)",
   "body": "## Problem / why\nA delivery/bookkeeping commit mixed the intended data/backlog/** change with 15 pre-staged unrelated files\n(knowledge-registry.json, learnings.json, portfolio.db, products/.conversations/*, intake/ideas/*). The\nbranch-guard BLOCKED the commit on develop (non-bookkeeping staged on a protected branch), but a feature-branch\ncommit did NOT block the MIX -> the unrelated files were swept in + merged.\n\n## Acceptance criteria\n- The commit guard BLOCKS a staged set that MIXES backlog bookkeeping (data/backlog/**) with non-bookkeeping\n  files, on ANY branch (split into two commits).\n- bookkeeping-only commits remain allowed (delivery); feature-only commits remain allowed.\n\n## Root cause (5-Why)\n1. Unrelated files landed in a delivery commit. 2. The commit swept pre-staged files. 3. The guard only blocked\non protected branches, not mixed sets on feature branches. 4. No commit-SCOPE check existed. 5. Guard: block\nmixed backlog-bookkeeping + other staged sets everywhere.\n\n## In scope\nbranch_guard mixed-commit check + test.\n\n## Out of scope\nRewriting history (superseded/pushed already; benign tracked data).",
   "source": "self-detected",
-  "status": "new",
+  "status": "completed",
   "priority": null,
   "moscow": "Should",
   "value": 4,
@@ -27,7 +27,18 @@
     "related": [
       "product_forge:BI-PF-0430",
       "product_forge:BI-PF-1176"
-    ]
+    ],
+    "delivery": {
+      "branch": "feature/commit-hygiene",
+      "merge_sha": "af0b55558a5d15941a986386b26865716433263f",
+      "commits": [
+        "42a55ac3d694300d9fa02d1ebecb008ec879dbff"
+      ],
+      "pr": "",
+      "pr_url": "",
+      "at": "2026-10-09T19:21:13.585673",
+      "note": ""
+    }
   },
   "decisions": [],
   "follow_up": {},
@@ -90,7 +101,7 @@
   "children": [],
   "epic": "",
   "parent": "",
-  "revision": 1,
+  "revision": 2,
   "priority_rank": null,
   "priority_class": "",
   "analyze_mode": "on_entry",
@@ -159,9 +170,9 @@
     "completed_at": ""
   },
   "created_at": "2026-10-09T19:18:37.495889",
-  "updated_at": "2026-10-09T19:18:38.227228",
+  "updated_at": "2026-10-09T19:21:13.797695",
   "score": 4.0,
-  "_note": "analysis updated",
+  "_note": "",
   "api_impact": {
     "needs_api": false,
     "routes": [],
