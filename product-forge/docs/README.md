@@ -48,6 +48,7 @@
 | [`API-3-ENGINEERING-APIS.md`](API-3-ENGINEERING-APIS.md) | Design | 100% | API-3 engineering/validation APIs: validation/tests/gates/issues/vcs/workers/agents | — | — |
 | [`API-5-HARDENING-EVENT-LAYER.md`](API-5-HARDENING-EVENT-LAYER.md) | Design | 100% | API-5 hardening + event layer: committed OpenAPI governance gate, formal event envelope, read-only Event API | — | — |
 | [`ARCHITECTURE-DECISIONS.md`](ARCHITECTURE-DECISIONS.md) | Implemented | 100% | Architecture Decision Register (ADR) - governance anchor for Epic A; ADR-0001 Go-first compiled delivery | — | — |
+| [`ARTIFACT-OWNERS.md`](ARTIFACT-OWNERS.md) | SSOT | 100% | Generated artifact->owner->consumer map for product docs (BI-PF-0765) | — | — |
 | [`AUDIT-REGISTER-TRIAGE.md`](AUDIT-REGISTER-TRIAGE.md) | Analysis (current) | 100% | Audit PF/candidate disposition: fixed / tracked / new (BI-PF-0254) | — | — |
 | [`Agent-LLM-PromptHandling.md`](Agent-LLM-PromptHandling.md) | Design | 60% | Agent/LLM prompt handling | **Pending: capability vectors per agent, capability-aware request builder, structured-output-first render.** | BI-0221–BI-0224, BI-0228 |
 | [`Agent_llm_process.md`](Agent_llm_process.md) | Review (pending) | 0% | Agent<->LLM process analysis + recommendations | **Findings not yet implemented: per-call capability steering, reasoning on/off, and verbose loop/tool-call logging.** | BI-0221–BI-0229 |
@@ -142,6 +143,7 @@
 | [`RCCA_productForge.md`](RCCA_productForge.md) | Analysis (current) | 100% | Root-cause + corrective/preventive guidelines for the audit/issues gaps | — | — |
 | [`RE-RUN-IMPACT-ANALYSIS.md`](RE-RUN-IMPACT-ANALYSIS.md) | Implemented | 100% | Rerun / impact invalidation model | — | — |
 | [`REL-0-PACKAGING.md`](REL-0-PACKAGING.md) | Design | 100% | REL-0 packaging: edition package manifest (community/enterprise/saas/on-prem/oem) from bom/licensing/deploy/release owners | — | — |
+| [`REVIEW-FOCUS.md`](REVIEW-FOCUS.md) | SSOT | 100% | Generated production-risk review checklist for the code-review agent (BI-PF-1066) | — | — |
 | [`ROLE-PROMPT-STANDARD.md`](ROLE-PROMPT-STANDARD.md) | Implemented | 100% | Standard for agent role-prompts + advisory audit (BI-0228) | — | — |
 | [`SCHEMA-GUIDE.md`](SCHEMA-GUIDE.md) | Implemented | 100% | Data + schema reference (validators) | — | — |
 | [`SCOPED-LEARNINGS-DESIGN.md`](SCOPED-LEARNINGS-DESIGN.md) | Design | 100% | Scoped learnings + memory read-back (BI-PF-0294) | — | — |

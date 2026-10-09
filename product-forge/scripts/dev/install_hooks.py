@@ -61,6 +61,13 @@ def _install(name: str, body: str) -> str:
 def main() -> int:
     print(f"installed pre-commit hook -> {_install('pre-commit', _HOOK)}")
     print(f"installed pre-push hook -> {_install('pre-push', _PREPUSH)}")
+    # BI-PF-1176: register the pf-derived merge driver (regenerates backlog indexes from items/)
+    drv = os.path.join(_REPO, "product-forge", "scripts", "dev", "pf_merge_driver.py").replace("\\", "/")
+    if os.path.isfile(drv):
+        for k, v in (("merge.pf-derived.name", "PF derived backlog index (regenerate)"),
+                     ("merge.pf-derived.driver", f'python "{drv}" %O %A %B')):
+            subprocess.run(["git", "config", k, v], cwd=_REPO, capture_output=True, text=True)
+        print("registered merge driver: merge.pf-derived.driver")
     return 0
 
 
