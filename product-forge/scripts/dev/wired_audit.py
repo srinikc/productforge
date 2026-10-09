@@ -348,6 +348,30 @@ def reciprocity_audit():
     return 0
 
 
+def api_impact_audit():
+    """Advisory (NON-FATAL): every OPEN backlog item should record an ``api_impact`` DECISION (BI-PF-1066 E9).
+
+    The decision is mandatory (needs_api + reason; routes when true); the API is only built when needed.
+    Always returns 0 (advisory)."""
+    try:
+        if os.getcwd() not in sys.path:
+            sys.path.insert(0, os.getcwd())
+        from core import backlog as _bl
+        warns = _bl.api_impact_warnings()
+    except Exception as e:
+        print(f"\napi-impact: SKIPPED (advisory) - {e}")
+        return 0
+    if not warns:
+        print("\napi-impact: 0 warnings (every open item records an api_impact decision)")
+        return 0
+    print(f"\napi-impact: {len(warns)} advisory WARNING(s) [non-fatal] (no api_impact decision / needs_api w/o routes)")
+    for w in warns[:10]:
+        print(f"   {w}")
+    if len(warns) > 10:
+        print(f"   ... and {len(warns) - 10} more")
+    return 0
+
+
 def backlog_duplicate_audit():
     """Advisory (NON-FATAL): near-duplicate OPEN backlog item pairs.
 
@@ -695,6 +719,7 @@ def main(fast: bool = False):
               "model-registry) - run without --fast or at release for the full sweep")
         return rc
     rc |= reciprocity_audit()
+    rc |= api_impact_audit()
     rc |= backlog_duplicate_audit()
     rc |= backlog_integrity_audit()
     rc |= tier_model_audit()

@@ -1,0 +1,178 @@
+{
+  "id": "BI-PF-1171",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "api-impact-decision",
+  "label": "PF Backlog 516",
+  "title": "E9: API/consumer-impact DECISION per item (needs_api + routes + consumers + reason) - mandatory decision, API only when needed",
+  "body": "## Problem / why\nThe dashboard-need is checked per item (dashboard_impact), but the API-need is NOT a per-item decision - a new\nbackend capability with no API passes silently. The forward-looking consumer is the pipeline-orchestrator UI\n(CRUD + operations), which NEEDS APIs. (The current dashboard is legacy and must not be referenced.)\n\n## Goal & value\nEvery item records an api_impact DECISION - does this need an API surface (for internal orchestration, the\nUI/orchestrator, or other consumers)? The decision is mandatory; the API is only built when needed.\n\n## In scope\n- api_impact field: {needs_api, routes[], consumers[], reason}.\n- api_impact_warnings(): open items without a decision, or needs_api with no routes -> advisory (wired_audit).\n\n## Out of scope\nBuilding the APIs themselves (only when an item declares needs_api=true). Generalising dashboard_impact ->\nconsumer_impact is a follow-up amendment.\n\n## Acceptance criteria\n- api_impact is a dict field; add_epic/update accept it.\n- api_impact_warnings flags missing decisions + needs_api-without-routes; wired advisory into wired_audit.\n- No new API; no opencode/dashboard references.",
+  "source": "user request",
+  "status": "new",
+  "priority": null,
+  "moscow": "Should",
+  "value": 4,
+  "effort": 2,
+  "risk": 1,
+  "deps": [],
+  "links": {
+    "backend_capability": [
+      "module:core/backlog.py",
+      "module:scripts/dev/wired_audit.py",
+      "test:test-framework/tests/pipeline/test_api_impact.py"
+    ],
+    "related": [
+      "product_forge:BI-PF-1066"
+    ]
+  },
+  "decisions": [],
+  "follow_up": {},
+  "brief": {
+    "problem": "The dashboard-need is checked per item (dashboard_impact), but the API-need is NOT a per-item decision - a new\nbackend capability with no API passes silently. The forward-looking consumer is the pipeline-orchestrator UI\n(CRUD + operations), which NEEDS APIs. (The current dashboard is legacy and must not be referenced.)",
+    "what_adds": "Every item records an api_impact DECISION - does this need an API surface (for internal orchestration, the\nUI/orchestrator, or other consumers)? The decision is mandatory; the API is only built when needed.",
+    "why": "The dashboard-need is checked per item (dashboard_impact), but the API-need is NOT a per-item decision - a new\nbackend capability with no API passes silently. The forward-looking consumer is the pipeline-orchestrator UI\n(CRUD + operations), which NEEDS APIs. (The current dashboard is legacy and must not be referenced.)",
+    "who_feels": "Product Forge maintainers and consumers.",
+    "source": "authored"
+  },
+  "objective": "Every item records an api_impact DECISION - does this need an API surface (for internal orchestration, the\nUI/orchestrator, or other consumers)? The decision is mandatory; the API is only built when needed.",
+  "acceptance_criteria": [
+    "api_impact is a dict field; add_epic/update accept it.",
+    "api_impact_warnings flags missing decisions + needs_api-without-routes; wired advisory into wired_audit.",
+    "No new API; no opencode/dashboard references."
+  ],
+  "in_scope": [
+    "api_impact field: {needs_api, routes[], consumers[], reason}.",
+    "api_impact_warnings(): open items without a decision, or needs_api with no routes -> advisory (wired_audit)."
+  ],
+  "out_of_scope": [
+    "Not specified."
+  ],
+  "affected_components": [
+    "core",
+    "scripts"
+  ],
+  "affected_files": [
+    "core/backlog.py",
+    "scripts/dev/wired_audit.py"
+  ],
+  "approach": "api_impact field: {needs_api, routes[], consumers[], reason}.; api_impact_warnings(): open items without a decision, or needs_api with no routes -> advisory (wired_audit).",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [
+        "dashboard_impact per item"
+      ],
+      "existing_path": [
+        "no api decision",
+        "api-governance keeps schema in sync"
+      ],
+      "assumptions": [
+        "orchestrator UI is an API consumer"
+      ],
+      "divergences": [],
+      "open_questions": [
+        "advisory vs fatal"
+      ]
+    },
+    "reviewed_by": "agent",
+    "at": ""
+  },
+  "verification": [
+    "api_impact is a dict field; add_epic/update accept it.",
+    "api_impact_warnings flags missing decisions + needs_api-without-routes; wired advisory into wired_audit.",
+    "No new API; no opencode/dashboard references."
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "agent",
+  "requester": "user",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1066",
+  "parent": "BI-PF-1066",
+  "revision": 1,
+  "priority_rank": null,
+  "priority_class": "",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "IN_PROGRESS",
+    "analyzed_at": "",
+    "analyzed_by": "deterministic",
+    "revision_analyzed": 0,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/persona.py, core/reasoning_skills.py, /api/v1/backlog/items, /api/v1/backlog/items/{item_id}",
+    "existing_components": [
+      "core/persona.py",
+      "core/reasoning_skills.py"
+    ],
+    "existing_apis": [
+      "/api/v1/backlog/items",
+      "/api/v1/backlog/items/{item_id}",
+      "/api/v1/backlog/items/{item_id}/analysis",
+      "/api/v1/backlog/items/{item_id}/context-review",
+      "/api/v1/backlog/items/{item_id}/dependencies",
+      "/api/v1/backlog/items/{item_id}/groom",
+      "/api/v1/backlog/items/{item_id}/groom/decide",
+      "/api/v1/backlog/items/{item_id}/priority"
+    ],
+    "existing_modules": [
+      "config/persona.json"
+    ],
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=2.0",
+      "components=2",
+      "apis=8"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": false,
+    "reasons": [],
+    "computed_at": ""
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": ""
+  },
+  "created_at": "2026-10-09T16:40:45.704099",
+  "updated_at": "2026-10-09T16:41:44.392712",
+  "score": 2.0,
+  "_note": "analysis updated",
+  "api_impact": {
+    "needs_api": false,
+    "routes": [],
+    "consumers": [],
+    "reason": "api_impact is an item field, surfaced via the existing GET /api/v1/backlog"
+  }
+}
