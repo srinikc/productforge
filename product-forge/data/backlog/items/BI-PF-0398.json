@@ -103,22 +103,23 @@
     "completed_at": ""
   },
   "created_at": "2026-10-06T18:32:23.344615",
-  "updated_at": "2026-10-09T14:13:24.800797",
+  "updated_at": "2026-10-09T14:30:05.346595",
   "score": 0.75,
   "_note": "priority set",
   "parent": "BI-PF-0390",
   "epic": "BI-PF-0390",
   "brief": {
-    "problem": "[A3] One-time rebuildable pipeline: Nuitka (Python) + go build (Go) -> signed package + SBOM/LBOM; release gate = no readable source. Includes build-time plug/unplug.",
-    "what_adds": "A3: PF platform build->package->deploy + compiled packaging + signing + SBOM/LBOM + NO-RAW-.py gate (absorbs BI-PF-0383)",
-    "why": "[A3] One-time rebuildable pipeline: Nuitka (Python) + go build (Go) -> signed package + SBOM/LBOM; release gate = no readable source. Includes build-time plug/unplug.",
-    "who_feels": "PF maintainers and backlog consumers.",
-    "source": "extracted"
+    "problem": "PF must be packaged as a compiled, signed artifact with no readable source, from a one-time rebuildable pipeline.",
+    "what_adds": "A3 — build->package->deploy pipeline: compiled packaging (Nuitka for Python + go build for Go) + signing + SBOM/LBOM + a no-raw-.py release gate. Absorbs BI-PF-0383 (build-time plug/unplug of the worker subsystem per edition).",
+    "why": "IP protection (no readable source) + supply-chain integrity (signing, SBOM/LBOM) + one source -> many editions.",
+    "who_feels": "PF platform maintainers, workers, and customers.",
+    "source": "authored"
   },
-  "objective": "A3: PF platform build->package->deploy + compiled packaging + signing + SBOM/LBOM + NO-RAW-.py gate (absorbs BI-PF-0383)",
+  "objective": "A3 — build->package->deploy pipeline: compiled packaging (Nuitka for Python + go build for Go) + signing + SBOM/LBOM + a no-raw-.py release gate. Absorbs BI-PF-0383 (build-time plug/unplug of the worker subsystem per edition).",
   "intent_derived": true,
   "acceptance_criteria": [
-    "Objective achieved: A3: PF platform build->package->deploy + compiled packaging + signing + SBOM/LBOM + NO-RAW-.py gate (absorbs BI-PF-0383)"
+    "compiled, signed package produced",
+    "release gate fails if a raw .py is shipped"
   ],
   "review": {
     "reconciliation": {
@@ -132,12 +133,13 @@
     "reviewed_by": "derived",
     "at": ""
   },
-  "approach": "Implement: A3: PF platform build->package->deploy + compiled packaging + signing + SBOM/LBOM + NO-RAW-.py gate (absorbs BI-PF-0383)",
+  "approach": "Wire a rebuildable pipeline that compiles Python (Nuitka) and Go (go build), signs, emits SBOM/LBOM, and fails the release gate if any raw .py is present; exclude the worker subsystem per edition at build time.",
   "affected_components": [
-    "(none identified in the item)"
+    "packaging",
+    "plugin-build"
   ],
   "affected_files": [
-    "(none identified in the item)"
+    "docs/PF-TARGET-ARCHITECTURE-AND-IP-PLAN.md"
   ],
   "owner": "agent",
   "requester": "generic",
@@ -148,17 +150,23 @@
     "pending"
   ],
   "verification": [
-    "Objective achieved: A3: PF platform build->package->deploy + compiled packaging + signing + SBOM/LBOM + NO-RAW-.py gate (absorbs BI-PF-0383)"
+    "compiled, signed package produced",
+    "release gate fails if a raw .py is shipped"
   ],
   "risks": [
-    "Not specified in the item."
+    "Not specified."
   ],
   "rollback": "Revert the change.",
   "summary": "",
   "in_scope": [
-    "A3: PF platform build->package->deploy + compiled packaging + signing + SBOM/LBOM + NO-RAW-.py gate (absorbs BI-PF-0383)"
+    "build/package/deploy pipeline",
+    "Nuitka + go build",
+    "signing",
+    "SBOM/LBOM",
+    "no-raw-.py gate",
+    "build-time plug/unplug"
   ],
   "out_of_scope": [
-    "Not specified in the item (see the epic/design)."
+    "runtime behavior changes"
   ]
 }

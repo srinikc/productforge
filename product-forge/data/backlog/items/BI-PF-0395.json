@@ -91,22 +91,23 @@
     "completed_at": ""
   },
   "created_at": "2026-10-06T18:32:20.446713",
-  "updated_at": "2026-10-09T14:13:24.551681",
+  "updated_at": "2026-10-09T14:30:05.092841",
   "score": 0.75,
   "_note": "priority set",
   "parent": "BI-PF-0390",
   "epic": "BI-PF-0390",
   "brief": {
-    "problem": "[A6] Governs A1-A7: classify every change; enforce language rule (shipped+sensitive->Go); fail on undeclared runtime dep.",
-    "what_adds": "A6: change classifier + drift guard + language rule + no-undeclared-dep",
-    "why": "[A6] Governs A1-A7: classify every change; enforce language rule (shipped+sensitive->Go); fail on undeclared runtime dep.",
-    "who_feels": "PF maintainers and backlog consumers.",
-    "source": "extracted"
+    "problem": "Without governance, shipped/sensitive logic could land in Python or pull undeclared runtime deps, breaking IP protection and packaging.",
+    "what_adds": "A6 — governance: classify every change; enforce the language rule (shipped+sensitive -> Go); fail on undeclared runtime dependency.",
+    "why": "Keeps the architecture honest over time; prevents drift back to raw Python.",
+    "who_feels": "PF platform maintainers, workers, and customers.",
+    "source": "authored"
   },
-  "objective": "A6: change classifier + drift guard + language rule + no-undeclared-dep",
+  "objective": "A6 — governance: classify every change; enforce the language rule (shipped+sensitive -> Go); fail on undeclared runtime dependency.",
   "intent_derived": true,
   "acceptance_criteria": [
-    "Objective achieved: A6: change classifier + drift guard + language rule + no-undeclared-dep"
+    "gate fails on a Python shipped/sensitive change and on an undeclared runtime dep",
+    "gate passes on compliant changes"
   ],
   "review": {
     "reconciliation": {
@@ -120,12 +121,13 @@
     "reviewed_by": "derived",
     "at": ""
   },
-  "approach": "Implement: A6: change classifier + drift guard + language rule + no-undeclared-dep",
+  "approach": "Add a classifier that tags each change (shipped/sensitive vs internal) and a gate that fails when the rule is violated or an undeclared runtime dep appears; run in precheck.",
   "affected_components": [
-    "(none identified in the item)"
+    "governance",
+    "backlog"
   ],
   "affected_files": [
-    "(none identified in the item)"
+    "docs/PF-TARGET-ARCHITECTURE-AND-IP-PLAN.md"
   ],
   "owner": "agent",
   "requester": "generic",
@@ -136,17 +138,21 @@
     "pending"
   ],
   "verification": [
-    "Objective achieved: A6: change classifier + drift guard + language rule + no-undeclared-dep"
+    "gate fails on a Python shipped/sensitive change and on an undeclared runtime dep",
+    "gate passes on compliant changes"
   ],
   "risks": [
-    "Not specified in the item."
+    "Not specified."
   ],
   "rollback": "Revert the change.",
   "summary": "",
   "in_scope": [
-    "A6: change classifier + drift guard + language rule + no-undeclared-dep"
+    "change classifier",
+    "drift guard",
+    "language rule",
+    "no-undeclared-dep gate"
   ],
   "out_of_scope": [
-    "Not specified in the item (see the epic/design)."
+    "non-shipped build-time tooling (may stay Python)"
   ]
 }
