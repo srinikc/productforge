@@ -135,6 +135,7 @@ _GATES = [
     ("artifact-map", ["scripts/dev/gen_artifact_map.py", "--check"], "fast", None),
     ("review-focus", ["scripts/dev/gen_review_focus.py", "--check"], "fast", None),
     ("review-static", ["scripts/dev/review_static_check.py"], "fast", None),
+    ("compliance-register", ["scripts/dev/compliance_register_check.py", "--check"], "fast", None),
     # deep tier - real validation/lifecycle work; merge/CI only
     ("validation-engine", ["scripts/dev/validation_engine_check.py"], "deep", None),
     ("feature-pr", ["scripts/dev/feature_pr_check.py"], "deep", None),

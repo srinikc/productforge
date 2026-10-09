@@ -649,13 +649,17 @@ Yes! We offer a 30-day money-back guarantee.
 ## Security & Privacy
 
 ### Is my data secure?
-Yes! We use industry-standard encryption and security practices. {name} is SOC 2 Type II certified.
+We use industry-standard encryption and security practices. For our current, verified certifications, see the
+Trust & Security page.
 
 ### Where is my data stored?
-Your data is stored in secure, geographically distributed data centers.
+Your data is stored in a secure environment; see the Trust & Security page for hosting/region details.
 
 ### Do you share my data?
-No! We never share your data with third parties. See our [Privacy Policy](#) for details.
+Our data handling is described in our Privacy Policy - see the Privacy Policy for details.
+
+> NOTE: compliance/security claims in this document are POLICY-DRIVEN (config/compliance-register.json) - never
+> assert a certification that is not actually held.
 
 ## Support
 
