@@ -10,7 +10,7 @@
   "title": "Fix: generalize the code-review agent card (drop hardcoded mymoney/13-features/apps/Phase lists; drive from requirements/plan)",
   "body": "Source: user review of `.opencode/agent/code-review.md` (2026-10-08).\n\nPROBLEM: the Code Review agent card mixes GENERIC criteria with EXAMPLE-SPECIFIC hardcoding from one product:\n\"mymoney\", a fixed \"13 features\", `apps/` paths, and hardcoded Phase 1-4 feature lists. So on any other product\nthe reviewer checks the WRONG feature set / wrong paths, and \"All 13 features implemented\" is meaningless.\n\nFIX: generalize the card to be data-driven:\n- requirements: enumerate ALL FRs from docs/requirements.md (dynamic count), not \"FR-1..FR-13\".\n- features: read docs/feature-status.md / product-plan.json (or the backlog) for the actual feature set; no \"13\".\n- paths: discover source dirs from the project layout (Glob), not hardcoded apps/.\n- phase-aware review: derive phases from the plan (only phases that exist), not a fixed 4.\n- guidelines: load the guidelines that EXIST via a registry/glob, not a fixed list.\nKeep the sound generic criteria (reject scaffolding/mocks; real APIs; tests pass; plan-alignment; read-only;\nevidence required; reports/code-review.md contract). Keep the agent-card standard structure (wired_audit\nrole-prompts must still pass).\n\nAcceptance: card has no product-specific literals (mymoney/13/apps/Phase lists); criteria driven by the project's\nown requirements/features/paths; wired_audit role-prompts green; a run still produces reports/code-review.md.",
   "source": "user request",
-  "status": "new",
+  "status": "completed",
   "priority": null,
   "moscow": "Should",
   "value": 4,
@@ -21,7 +21,18 @@
     "backend_capability": [
       "doc:.opencode/agent/code-review.md",
       "module:scripts/dev/wired_audit.py"
-    ]
+    ],
+    "delivery": {
+      "branch": "feature/generalize-code-review-card",
+      "merge_sha": "8a9bd49da3a8cb2472e2180c7bcf7ed4f5c0ed0e",
+      "commits": [
+        "7e818b9be0f2faef884751b46483cf2d51e1823e"
+      ],
+      "pr": "",
+      "pr_url": "",
+      "at": "2026-10-09T13:39:37.876752",
+      "note": ""
+    }
   },
   "decisions": [],
   "follow_up": {},
@@ -80,7 +91,7 @@
   "children": [],
   "epic": "",
   "parent": "",
-  "revision": 1,
+  "revision": 2,
   "priority_rank": null,
   "priority_class": "",
   "analyze_mode": "on_entry",
@@ -152,9 +163,9 @@
     "completed_at": ""
   },
   "created_at": "2026-10-09T13:33:04.563977",
-  "updated_at": "2026-10-09T13:33:05.854432",
+  "updated_at": "2026-10-09T13:39:38.034978",
   "score": 1.5,
-  "_note": "analysis updated",
+  "_note": "",
   "dashboard_impact": {
     "needs_dashboard": false,
     "reason": "agent-card spec fix; no dashboard surface",
