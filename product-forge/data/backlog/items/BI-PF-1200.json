@@ -10,7 +10,7 @@
   "title": "RCCA: scheduler eligibility deadlock - dependency map excluded closed items + blocked on advisory RELATED",
   "body": "## Problem\nAfter grooming+approving the backlog, /wg work claimed nothing (0 eligible). Two scheduler defects:\n1. The dependency map (by_id) was built from OPEN items only (next_eligible + eligible_backlog), so a dependency on a COMPLETED item read as 'unmet' (fail-closed) and blocked the item.\n2. eligible() treated EVERY dependency type as blocking, including advisory RELATED edges.\nNet effect: the whole backlog deadlocked (102 unmet-dependency blocks) even though 13 real roots existed.\n\n## Root cause (5-Why)\n1. Nothing eligible. 2. Roots blocked by 'unmet dependency'. 3. by_id lacked closed items AND all dep types blocked. 4. next_eligible/eligible_backlog built by_id from list_open only; eligible did not filter by dep type. 5. No test asserted a completed dependency is satisfied or that RELATED is non-blocking.\n\n## Fix\n- by_id includes open + CLOSED items (so terminal deps are satisfied) in next_eligible + eligible_backlog.\n- eligible() blocks only on REQUIRES/BLOCKS; RELATED is advisory (never blocks); flat deps/blocked_by still block (backward-compat); unknown refs still block (fail-closed).\n\n## In scope\n- core/scheduler.py: by_id (open+closed) + dep-type filtering\n- tests\n\n## Out of scope\n- changing AI grooming dependency inference\n- required_state semantics (informational)\n\n## Acceptance\n- A dependency on a completed item is satisfied; RELATED never blocks; REQUIRES on an open item blocks; unknown dep blocks.\n- Real backlog reports >0 eligible (roots).\n",
   "source": "review",
-  "status": "new",
+  "status": "completed",
   "priority": "P2",
   "moscow": "Should",
   "value": 4,
@@ -29,7 +29,16 @@
         "ref": "test-framework/tests/pipeline/test_scheduler_dep_types.py",
         "detail": "dep met/RELATED/blocks"
       }
-    ]
+    ],
+    "delivery": {
+      "branch": "fix/bi-pf-1200-scheduler-deps",
+      "merge_sha": "d233ece146e831a0c34634eea35645d209a4f74f",
+      "commits": [],
+      "pr": "",
+      "pr_url": "",
+      "at": "2026-10-09T23:19:29.218722",
+      "note": "merged to develop"
+    }
   },
   "decisions": [],
   "follow_up": {},
@@ -93,7 +102,7 @@
   "children": [],
   "epic": "",
   "parent": "",
-  "revision": 2,
+  "revision": 3,
   "priority_rank": 2,
   "priority_class": "P2",
   "analyze_mode": "on_entry",
@@ -157,9 +166,9 @@
     "completed_at": ""
   },
   "created_at": "2026-10-09T23:17:49.207017",
-  "updated_at": "2026-10-09T23:17:49.987976",
+  "updated_at": "2026-10-09T23:19:29.404120",
   "score": 1.0,
-  "_note": "priority set",
+  "_note": "delivered",
   "dashboard_impact": {
     "needs_dashboard": false,
     "reason": "scheduler correctness"
