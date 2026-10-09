@@ -1,11 +1,11 @@
 # Backlog Summary
 
-> GENERATED 2026-10-09T14:05:05 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-09T15:46:00 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 34  |  **Closed:** 411
+- **Open:** 34  |  **Closed:** 418
 - `new`: 34
 
 ### new, by category (34)
@@ -27,14 +27,14 @@
 **Licensing / tenancy** (2)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
-| BI-PF-0390 | Should | epic | EPIC A: PF Commercial & IP Foundation (contracts, Go core, licensing, packaging, EAP, RDC, governance, vertical slice) | EPIC A: PF Commercial & IP Foundation (contracts, Go core, licensing, packaging, EAP, RDC, governance, vertica... |
-| BI-PF-0396 | Should | feature | A2: capability registry + entitlement-at-boundary + asymmetric licensing | A2: capability registry + entitlement-at-boundary + asymmetric licensing |
+| BI-PF-0390 | Should | epic | EPIC A: PF Commercial & IP Foundation (contracts, Go core, licensing, packaging, EAP, RDC, governance, vertical slice) | EPIC A — the needed-now foundation: A0 baseline freeze + ADR register; A1 thin contracts incl. Go<->Python con... |
+| BI-PF-0396 | Should | feature | A2: capability registry + entitlement-at-boundary + asymmetric licensing | A2 — capability registry + entitlement checks at execution boundaries + asymmetric licensing (public-key verif... |
 
 **Specs / cache / context / artifacts** (2)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0206 | Should | tech-debt | Backend: model downloader + local cache + license-acceptance gate + models.lock (open-weights) | One owner module that downloads only the weights a project's capability pack needs, into a gitignored local ca... |
-| BI-0225 | Should | feature | Parallel section/feature generation | Parallel section/feature generation |
+| BI-0225 | Should | feature | Parallel section/feature generation | Run section/per-feature agent calls in parallel with a bounded worker pool and merge results deterministically... |
 
 **Wiring / tech-debt / API** (27)
 | ID | MoSCoW | Type | Title | Objective |
@@ -49,23 +49,23 @@
 | BI-PF-0386 | Should | feature | PF platform: IP-value assessment of all modules (rewrite-by-value ranking: high-value -> Go/Rust, low-value -> compiled) | PF platform: IP-value assessment of all modules (rewrite-by-value ranking: high-value -> Go/Rust, low-value ->... |
 | BI-PF-0387 | Should | feature | PF platform delivery baseline: ONE source for all editions; new shipped/sensitive logic -> Go; existing -> compiled (Nuitka); no raw .py at customer; migrate by value later | PF platform delivery baseline: ONE source for all editions; new shipped/sensitive logic -> Go; existing -> com... |
 | BI-PF-0388 | Should | task | ADR: PF platform shipped editions use compiled artifacts (Go core + compiled-Python), never raw .py; one source, many editions | ADR: PF platform shipped editions use compiled artifacts (Go core + compiled-Python), never raw .py; one sourc... |
-| BI-PF-0391 | Should | epic | EPIC B: PF Scale & Editions (gateways, persistence, OEM, Rust, WASM, decomposition, migration) | EPIC B: PF Scale & Editions (gateways, persistence, OEM, Rust, WASM, decomposition, migration) |
-| BI-PF-0393 | Should | feature | A1: canonical contracts (thin) + Go<->Python contract | A1: canonical contracts (thin) + Go<->Python contract |
-| BI-PF-0394 | Should | feature | B1: PF Go core (Go<->Python seam) | B1: PF Go core (Go<->Python seam) |
-| BI-PF-0395 | Should | feature | A6: change classifier + drift guard + language rule + no-undeclared-dep | A6: change classifier + drift guard + language rule + no-undeclared-dep |
-| BI-PF-0397 | Should | feature | A4: EAP delivery manifest + validator/registry + compatibility | A4: EAP delivery manifest + validator/registry + compatibility |
-| BI-PF-0398 | Should | feature | A3: PF platform build->package->deploy + compiled packaging + signing + SBOM/LBOM + NO-RAW-.py gate (absorbs BI-PF-0383) | A3: PF platform build->package->deploy + compiled packaging + signing + SBOM/LBOM + NO-RAW-.py gate (absorbs B... |
-| BI-PF-0399 | Should | feature | A5: Runtime Dependency Compiler | A5: Runtime Dependency Compiler |
-| BI-PF-0400 | Should | feature | A7: vertical slice (Requirement->Tech->Factory->EAP->RDC->compiled+signed package) | A7: vertical slice (Requirement->Tech->Factory->EAP->RDC->compiled+signed package) |
-| BI-PF-0401 | Should | feature | B2: gateways (Model/Tool/Memory/Infrastructure) | the core depends only on gateway ports; providers are swappable plugins |
-| BI-PF-0402 | Should | feature | B3: persistence adapters (SQLite/JSON/PostgreSQL) | persistence is pluggable; PostgreSQL is selectable without code changes |
-| BI-PF-0403 | Should | feature | B4: OEM / white-label profiles (no forks) | ship OEM-branded editions from one codebase, no forks |
-| BI-PF-0404 | Should | feature | B5: Rust protected components | high-value components run as Rust artifacts behind the same interfaces |
-| BI-PF-0405 | Should | feature | B6: WASM plugins | plugins run as sandboxed WASM against a stable host contract |
-| BI-PF-0406 | Should | feature | B7: service decomposition | high-value components can be deployed/scaled independently |
-| BI-PF-0407 | Should | feature | Bmig: migrate high-value legacy Python -> Go (by value) | the highest-value ranked legacy modules run as compiled Go |
+| BI-PF-0391 | Should | epic | EPIC B: PF Scale & Editions (gateways, persistence, OEM, Rust, WASM, decomposition, migration) | EPIC B — B1 PF Go core (compiled host, architectural/mandatory); B2 gateways (Model/Tool/Memory/Infra); B3 per... |
+| BI-PF-0393 | Should | feature | A1: canonical contracts (thin) + Go<->Python contract | A1 — thin canonical contracts: ProductSpec, TechnologyProfile, RuntimeProfile, DeploymentProfile, LicenseProfi... |
+| BI-PF-0394 | Should | feature | B1: PF Go core (Go<->Python seam) | B1 — a minimal native Go host: new shipped/sensitive logic lands here. The host COMPILES (go build); it never ... |
+| BI-PF-0395 | Should | feature | A6: change classifier + drift guard + language rule + no-undeclared-dep | A6 — governance: classify every change; enforce the language rule (shipped+sensitive -> Go); fail on undeclare... |
+| BI-PF-0397 | Should | feature | A4: EAP delivery manifest + validator/registry + compatibility | A4 — EAP (manifest) composes contracts; validator/registry; versioning + compatibility. Executor role is parke... |
+| BI-PF-0398 | Should | feature | A3: PF platform build->package->deploy + compiled packaging + signing + SBOM/LBOM + NO-RAW-.py gate (absorbs BI-PF-0383) | A3 — build->package->deploy pipeline: compiled packaging (Nuitka for Python + go build for Go) + signing + SBO... |
+| BI-PF-0399 | Should | feature | A5: Runtime Dependency Compiler | A5 — Runtime Dependency Compiler: composes EAP + profiles + OS/arch + license/entitlement into the runtime pac... |
+| BI-PF-0400 | Should | feature | A7: vertical slice (Requirement->Tech->Factory->EAP->RDC->compiled+signed package) | A7 — vertical slice: Requirement -> Tech -> Factory -> EAP -> RDC -> compiled + signed package, containing no ... |
+| BI-PF-0401 | Should | feature | B2: gateways (Model/Tool/Memory/Infrastructure) | B2 — gateways for Model / Tool / Memory / Infrastructure so core depends on ports, not concrete providers. |
+| BI-PF-0402 | Should | feature | B3: persistence adapters (SQLite/JSON/PostgreSQL) | B3 — persistence adapters (SQLite / JSON / PostgreSQL) behind one persistence port. |
+| BI-PF-0403 | Should | feature | B4: OEM / white-label profiles (no forks) | B4 — OEM / white-label profiles (no forks): one source -> per-OEM edition profile. |
+| BI-PF-0404 | Should | feature | B5: Rust protected components | B5 — Rust protected components behind the contract seam. |
+| BI-PF-0405 | Should | feature | B6: WASM plugins | B6 — WASM plugins (sandboxed) behind the plugin contract. |
+| BI-PF-0406 | Should | feature | B7: service decomposition | B7 — service decomposition behind contracts. |
+| BI-PF-0407 | Should | feature | Bmig: migrate high-value legacy Python -> Go (by value) | Bmig — migrate high-value legacy Python -> Go (replace, not duplicate), then the remainder as an aspiration. |
 | BI-PF-0408 | Should | change | /pf command: build mode only (not orchestrator) + global /pf for all opencode sessions | - `/pf ...` always executes in build mode (`agent: build`), with no model pin so the session's model is inheri... |
-| BI-PF-0460 | Should | feature | DOGFOOD P3: scheduled live dogfood + trend/regression dashboard | Run the Phase 1 dogfood on a schedule (nightly/pre-release), store results, and surface trends/regression aler... |
+| BI-PF-0765 | Should | feature | Canonical artifact->owner->consumer map (PRD/tech/app-flow/design/schema/impl-plan) - registry + generated doc + gate | a canonical, validated artifact->owner->consumer map is generated and gate-checked |
 
 ---
 
@@ -265,5 +265,5 @@
 ---
 
 ## Totals
-- backend: 34 open / 411 closed
+- backend: 34 open / 418 closed
 - dashboard: 146 open / 3 closed
