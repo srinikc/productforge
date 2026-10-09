@@ -173,6 +173,18 @@ def _review_one(artifact: str, owner: str, text: str, idx: int,
             add(cls="OPTIONAL", severity="low", category="completeness",
                 location="architecture",
                 recommendation="List components/services and their interfaces.")
+        # BI-PF-1168 (E7): settle contracts / migration / trust boundaries / data model / license BEFORE code
+        areas = [("interfaces/contracts", ("contract", "interface", "openapi", "api spec", "schema")),
+                 ("migration/back-compat strategy", ("migration", "backward", "back-compat", "versioning", "rollout")),
+                 ("trust boundaries / threat model", ("trust boundary", "auth boundary", "perimeter",
+                                                      "threat model", "authz", "authentication")),
+                 ("data model / entities", ("data model", "entit", "schema")),
+                 ("dependency license / bundle decision", ("license", "bundle", "dependenc"))]
+        missing = [lbl for lbl, keys in areas if not any(k in low for k in keys)]
+        if missing:
+            add(cls="OPTIONAL", severity="medium", category="architecture",
+                location="architecture",
+                recommendation="Architecture should define: " + ", ".join(missing) + ".")
 
     if artifact == "docs/infra.json":
         try:
