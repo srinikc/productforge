@@ -8,7 +8,9 @@ For scope ``product_forge`` (and, with --all, every product backlog):
 Fatal on violation (wired into precheck). Author-time companion: the same checks run for changed items.
 """
 import argparse
+import json
 import os
+import re
 import sys
 
 try:
@@ -19,6 +21,13 @@ if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
 from core import backlog  # noqa: E402
+
+# BI-PF-0463: the BI-PF-0454 auto-draft placeholders that must never survive on an OPEN item.
+_AUTHORED_FIELDS = ("brief", "objective", "acceptance_criteria", "in_scope", "out_of_scope",
+                    "affected_components", "affected_files", "approach", "verification",
+                    "risks", "rollback", "evidence")
+_DERIVED = re.compile(r"\(derived\)\s+(TBD|not specified|objective met|see objective|"
+                      r"unspecified|none identified|revert the change|pending)")
 
 
 def _scopes(include_all: bool):
@@ -49,6 +58,9 @@ def _problems_for(scope, project, items, all_items):
                 probs.append(f"{eid}: epic missing brief")
             if not obj and not str(it.get("summary") or "").strip():
                 probs.append(f"{eid}: epic missing objective/summary")
+            for fld in ("brief", "objective", "summary"):
+                if _DERIVED.search(json.dumps(it.get(fld), default=str, ensure_ascii=False)):
+                    probs.append(f"{eid}: epic '{fld}' carries an auto-draft placeholder '(derived)...'")
             kids = [i for i in all_items if str(i.get("epic") or i.get("parent") or "") == eid]
             if sorted(str(x) for x in (it.get("children") or [])) != sorted(str(k.get("id")) for k in kids):
                 probs.append(f"{eid}: epic children[] out of sync (has {len(it.get('children') or [])}, "
@@ -71,6 +83,9 @@ def _problems_for(scope, project, items, all_items):
                         probs.append(f"{eid}: empty {fld}")
                 elif not str(v or "").strip():
                     probs.append(f"{eid}: empty {fld}")
+            for fld in _AUTHORED_FIELDS:
+                if _DERIVED.search(json.dumps(it.get(fld), default=str, ensure_ascii=False)):
+                    probs.append(f"{eid}: '{fld}' still carries an auto-draft placeholder '(derived)...'")
             if not (it.get("review") or {}):
                 probs.append(f"{eid}: empty review")
         ep = str(it.get("epic") or "").strip()

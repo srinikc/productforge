@@ -113,7 +113,7 @@
     "completed_at": ""
   },
   "created_at": "2026-10-06T19:06:58.917730",
-  "updated_at": "2026-10-08T19:46:30.057485",
+  "updated_at": "2026-10-09T14:13:23.201410",
   "score": 3.0,
   "_note": "delivery recorded",
   "dashboard_impact": {
@@ -127,10 +127,9 @@
   "brief": {
     "problem": "The `.opencode/command/pf.md` frontmatter binds every `/pf <verb>` invocation to the `orchestrator` agent (`agent: orchestrator` + `model: opencode-go/mimo-v2.5`), so deterministic thin-client verbs (backlog list, status, ...) run in the orchestrator agent instead of build mode. `.opencode/command/pipeline.md` has the same binding. Also, `/pf` exists only inside the product-forge repo - opencode sessions in other directories have no `/pf` command at all.",
     "what_adds": "- `/pf ...` always executes in build mode (`agent: build`), with no model pin so the session's model is inherited.\n- `/pf ...` available in EVERY opencode session via the global command dir, calling `scripts/pf.py` by absolute path (pf.py self-locates ROOT, so any cwd works).",
-    "why": "",
-    "who_feels": "",
-    "derived": false,
-    "source": "extracted"
+    "why": "The `.opencode/command/pf.md` frontmatter binds every `/pf <verb>` invocation to the `orchestrator` agent (`agent: orchestrator` + `model: opencode-go/mimo-v2.5`), so deterministic thin-client verbs (backlog list, status, ...) run in the orchestrator agent instead of build mode. `.opencode/command/pipeline.md` has the same binding. Also, `/pf` exists only inside the product-forge repo - opencode sessions in other directories have no `/pf` command at all.",
+    "who_feels": "PF maintainers and backlog consumers.",
+    "source": "authored"
   },
   "objective": "- `/pf ...` always executes in build mode (`agent: build`), with no model pin so the session's model is inherited.\n- `/pf ...` available in EVERY opencode session via the global command dir, calling `scripts/pf.py` by absolute path (pf.py self-locates ROOT, so any cwd works).",
   "acceptance_criteria": [
@@ -152,12 +151,23 @@
     "reviewed_by": "derived",
     "at": ""
   },
-  "approach": "/pf command: build mode only (not orchestrator) + global /pf for all opencode sessions",
+  "approach": "python scripts/dev/pf_surface_check.py; python -m compileall -q core scripts dashboard; python scripts/dev/wired_audit.py; manual /pf help in a fresh session after opencode restart. python scripts/pf.py help | help backlog | help nope (exit 0/0/2).",
   "affected_components": [
-    "(derived) TBD"
+    ".opencode",
+    "USERPROFILE",
+    "scripts"
   ],
   "affected_files": [
-    "(derived) TBD"
+    ".opencode/command/pf.md",
+    ".opencode/command/pipeline.md",
+    "USERPROFILE/.config/opencode/command/pf.md",
+    "install.py",
+    "pf.md",
+    "pf.py",
+    "scripts/dev/pf_surface_check.py",
+    "scripts/dev/wired_audit.py",
+    "scripts/pf.py",
+    "scripts/pipeline.py"
   ],
   "owner": "intake",
   "requester": "user",
@@ -165,20 +175,24 @@
   "target_release": "(derived) TBD",
   "approvals": [],
   "evidence": [
-    "(derived) pending"
+    "pending"
   ],
   "verification": [
-    "(derived) objective met: /pf command: build mode only (not orchestrator) + global /pf for all opencode sessions"
+    "GIVEN the project `pf.md` WHEN its frontmatter is read THEN `agent: build` is present and `agent: orchestrator` / `model:` are absent.",
+    "GIVEN a session outside the repo WHEN `/pf help` is invoked THEN it resolves to the global command and runs pf.py by absolute path.",
+    "GIVEN `/pf help` WHEN run THEN the overview lists every verb with its usage line (exit 0).",
+    "GIVEN `/pf help <verb>` WHEN run THEN subcommands + flags for that verb are printed (exit 0);",
+    "GIVEN the repo WHEN `python scripts/dev/pf_surface_check.py` runs THEN it exits 0."
   ],
   "risks": [
-    "(derived) none identified"
+    "Not specified in the item."
   ],
-  "rollback": "(derived) revert the change",
+  "rollback": "Revert the change.",
   "summary": "",
   "in_scope": [
     "/pf command: build mode only (not orchestrator) + global /pf for all opencode sessions"
   ],
   "out_of_scope": [
-    "(derived) not specified"
+    "Not specified in the item (see the epic/design)."
   ]
 }

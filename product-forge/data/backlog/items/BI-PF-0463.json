@@ -1,93 +1,106 @@
 {
   "id": "BI-PF-0463",
   "tag": "PF",
-  "type": "chore",
+  "type": "bug",
   "scope": "product_forge",
   "project": "",
   "origin": "review",
-  "external_id": "prepush-id-audit",
+  "external_id": "review:backlog-context-enforcement",
   "label": "PF Backlog 497",
-  "title": "Hardening: pre-push hook runs the backlog id-audit (catch duplicates at the push boundary too)",
-  "body": "Source: user request (2026-10-08). Hardening on top of BI-PF-0457 (duplicate-id merge audit) + BI-PF-0462\n(id allocator).\n\nWHAT: install a `pre-push` git hook (via scripts/dev/install_hooks.py) that runs\n`scripts/dev/backlog_id_audit.py` before every push, so a duplicate backlog id is caught at the PUSH boundary\ntoo - not only at precheck/CI. Belt-and-braces (defense-in-depth): the allocator PREVENTS collisions; precheck/CI\nand the pre-push hook CATCH any residue at two independent boundaries.\n\nAcceptance: install_hooks.py writes .git/hooks/pre-push; the hook fails the push (exit 1) when the id audit\nfails, passes otherwise; no opencode/dashboard references.",
-  "source": "user request",
+  "title": "Backlog context gate enforces presence, not authorship: reject '(derived)' placeholders + author the remaining open items",
+  "body": "## Problem / why\nThe BI-PF-0448 context gate only enforces NON-EMPTY fields and a weak source tag; the BI-PF-0454 auto-draft fills '(derived)' placeholders and a >=40-char body yields source='extracted', so stubs PASS. Observed: 33/34 open items carried '(derived)' placeholders while the gate reported OK.\n\n## Goal & value\nMake the gate enforce authored plain-language context; no open item is a stub.\n",
+  "source": "design-review",
   "status": "completed",
   "priority": null,
   "moscow": "Should",
   "value": 3,
-  "effort": 1,
-  "risk": 1,
-  "deps": [
-    "BI-PF-0457",
-    "BI-PF-0462"
-  ],
+  "effort": 3,
+  "risk": 2,
+  "deps": [],
   "links": {
-    "backend_capability": [
-      "module:scripts/dev/install_hooks.py",
-      "module:scripts/dev/backlog_id_audit.py"
-    ],
-    "related": [
-      "product_forge:BI-PF-0457",
-      "product_forge:BI-PF-0462"
-    ],
     "delivery": {
-      "branch": "feature/prepush-id-audit",
-      "merge_sha": "17a8e70b1e5722133a095c403aad05693ff6c12f",
+      "branch": "feature/bi-pf-0463-context-enforcement",
+      "merge_sha": "e6021dd1",
       "commits": [
-        "c5604929443e954c738fac4773918016d5c4cb12"
+        "10554f7a",
+        "ccf9508b"
       ],
       "pr": "",
       "pr_url": "",
-      "at": "2026-10-09T14:15:59.336272",
-      "note": ""
+      "at": "2026-10-09T14:15:21.816396",
+      "note": "Hardened backlog_context_check to reject '(derived)' auto-draft placeholders + authored the open items from their bodies/links; merge --no-ff (no PR)"
     }
   },
   "decisions": [],
   "follow_up": {},
   "brief": {
-    "problem": "Source: user request (2026-10-08). Hardening on top of BI-PF-0457 (duplicate-id merge audit) + BI-PF-0462\n(id allocator).",
-    "what_adds": "Hardening: pre-push hook runs the backlog id-audit (catch duplicates at the push boundary too)",
-    "why": "(derived) see objective",
-    "who_feels": "(derived) unspecified",
-    "source": "extracted"
+    "problem": "The BI-PF-0448 context gate only enforces NON-EMPTY fields and a weak source tag; the BI-PF-0454 auto-draft fills '(derived)' placeholders and a >=40-char body yields source='extracted', so stubs PASS. Observed: 33/34 open items carried '(derived)' placeholders while the gate reported OK.",
+    "what_adds": "Make the gate enforce authored plain-language context; no open item is a stub.",
+    "why": "The BI-PF-0448 context gate only enforces NON-EMPTY fields and a weak source tag; the BI-PF-0454 auto-draft fills '(derived)' placeholders and a >=40-char body yields source='extracted', so stubs PASS. Observed: 33/34 open items carried '(derived)' placeholders while the gate reported OK.",
+    "who_feels": "PF maintainers and backlog consumers.",
+    "source": "authored"
   },
-  "objective": "Hardening: pre-push hook runs the backlog id-audit (catch duplicates at the push boundary too)",
+  "objective": "Make the backlog context gate enforce authored plain-language context (not just presence) and eliminate placeholder context on all open items.",
   "acceptance_criteria": [
-    "(derived) objective met: Hardening: pre-push hook runs the backlog id-audit (catch duplicates at the push boundary too)"
+    "Objective achieved: Make the gate enforce authored plain-language context; no open item is a stub."
   ],
   "in_scope": [
-    "Hardening: pre-push hook runs the backlog id-audit (catch duplicates at the push boundary too)"
+    "scripts/dev/backlog_context_check.py reject '(derived)' residue",
+    "one-shot authoring of remaining open items from bodies/links",
+    "a placeholder-rejection test"
   ],
   "out_of_scope": [
-    "(derived) not specified"
+    "rewriting item bodies",
+    "changing the id allocator",
+    "non-product_forge scopes (advisory only)"
   ],
   "affected_components": [
-    "(derived) TBD"
+    "backlog",
+    "backlog_context_check",
+    "precheck"
   ],
   "affected_files": [
-    "(derived) TBD"
+    "scripts/dev/backlog_context_check.py",
+    "data/backlog/items/*.json (context only)",
+    "test-framework/tests/pipeline/test_backlog_context_enforcement.py"
   ],
-  "approach": "Hardening: pre-push hook runs the backlog id-audit (catch duplicates at the push boundary too)",
+  "approach": "Parse each item's own structured body (Problem/Goal/In scope/Out of scope/Acceptance/Approach) + links to author real fields; set source accordingly; then fail the gate on any remaining '(derived)' placeholder.",
   "review": {
     "reconciliation": {
-      "prior_decisions": [],
-      "existing_path": [],
-      "assumptions": [],
-      "divergences": [],
-      "open_questions": []
+      "prior_decisions": [
+        "BI-PF-0448 context gate",
+        "BI-PF-0450/0451/0454 full-field drafting",
+        "AGENTS.md no shortcuts"
+      ],
+      "existing_path": [
+        "backlog_context_check.py:40-79",
+        "core/_draft_context placeholders"
+      ],
+      "assumptions": [
+        "open product_forge scope only",
+        "item bodies are the source of truth",
+        "flag, don't fabricate"
+      ],
+      "divergences": [
+        "tightening a fail-closed gate"
+      ],
+      "open_questions": [
+        "author existing items in the same change (yes)"
+      ]
     },
-    "impact_review": [],
-    "reviewed_by": "derived",
-    "at": ""
+    "reviewed_by": "agent"
   },
   "verification": [
-    "(derived) objective met: Hardening: pre-push hook runs the backlog id-audit (catch duplicates at the push boundary too)"
+    "pytest test_backlog_context_enforcement.py",
+    "backlog_context_check.py OK with 0 '(derived)' residue",
+    "wired_audit unwired 0"
   ],
   "risks": [
-    "(derived) none identified"
+    "items lacking structured bodies are flagged for a human pass, not auto-filled"
   ],
-  "rollback": "(derived) revert the change",
+  "rollback": "revert the merge",
   "evidence": [
-    "(derived) pending"
+    "pending merge"
   ],
   "owner": "agent",
   "requester": "user",
@@ -108,16 +121,16 @@
     "analyzed_by": "deterministic",
     "revision_analyzed": 0,
     "architecture_fit": "EXTEND",
-    "implementation_strategy": "Extend existing components/APIs: core/agent_tool_loop.py, core/backlog.py, core/backlog_link.py, core/tool_cache.py",
+    "implementation_strategy": "Extend existing components/APIs: core/backlog.py, core/backlog_link.py, core/code_quality_gate.py, core/context_discipline.py",
     "existing_components": [
-      "core/agent_tool_loop.py",
       "core/backlog.py",
       "core/backlog_link.py",
-      "core/tool_cache.py",
-      "core/tool_catalog.py",
-      "core/tool_policy.py",
-      "core/tool_registry.py",
-      "core/tool_settings.py"
+      "core/code_quality_gate.py",
+      "core/context_discipline.py",
+      "core/context_engine.py",
+      "core/context_manager.py",
+      "core/context_policy.py",
+      "core/context_preflight.py"
     ],
     "existing_apis": [
       "/api/v1/backlog",
@@ -130,12 +143,9 @@
       "/api/v1/backlog/items/{item_id}/groom"
     ],
     "existing_modules": [
-      "config/tool-catalog.json"
+      "config/context-policy.json"
     ],
-    "dependency_findings": [
-      "depends on BI-PF-0457",
-      "depends on BI-PF-0462"
-    ],
+    "dependency_findings": [],
     "conflict_findings": [],
     "duplication_findings": [],
     "drift": "NONE",
@@ -146,7 +156,7 @@
     "risks": [],
     "evidence": [
       "similar=4",
-      "score=3.0",
+      "score=0.75",
       "components=8",
       "apis=8"
     ],
@@ -173,14 +183,8 @@
     "started_at": "",
     "completed_at": ""
   },
-  "created_at": "2026-10-09T14:14:24.907843",
-  "updated_at": "2026-10-09T14:15:59.550168",
-  "score": 3.0,
-  "_note": "",
-  "dashboard_impact": {
-    "needs_dashboard": false,
-    "reason": "git hook hardening; no dashboard surface",
-    "dashboard_item": null,
-    "reviewed_by": "agent"
-  }
+  "created_at": "2026-10-09T14:11:42.251254",
+  "updated_at": "2026-10-09T14:15:22.015337",
+  "score": 0.75,
+  "_note": "Delivered + validated (gate OK 0 residue, 4 tests passed, compileall, wired-audit unwired 0, lint clean)"
 }

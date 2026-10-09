@@ -37,3 +37,28 @@ def dogfood_status(run_id: str, request: Request, project: str = "",
     if not project:
         raise ApiError("VALIDATION_FAILED", "project is required")
     return from_request(request, dr.status(project, run_id=run_id), resource="dogfood", resource_id=run_id)
+
+
+@router.post("/schedule/tick", dependencies=[Depends(require_operator)])
+def dogfood_schedule_tick(request: Request, ctx: Dict[str, Any] = Depends(require_operator)):
+    """Enqueue every DUE scheduled dogfood run (idempotent per period). Trigger: external cron."""
+    from core import dogfood_schedule as ds
+    return from_request(request, ds.run_due(), resource="dogfood", resource_id="schedule")
+
+
+@router.get("/schedule", dependencies=[Depends(authenticate)])
+def dogfood_schedule(request: Request, ctx: Dict[str, Any] = Depends(authenticate)):
+    from core import dogfood_schedule as ds
+    data = ds.load()
+    return from_request(request, {"entries": data.get("entries") or [], "due": ds.due()},
+                        resource="dogfood", resource_id="schedule")
+
+
+@router.get("/trends", dependencies=[Depends(authenticate)])
+def dogfood_trends(request: Request, project: str = "", limit: int = 20,
+                   ctx: Dict[str, Any] = Depends(authenticate)):
+    from core import dogfood_run as dr
+    if not project:
+        raise ApiError("VALIDATION_FAILED", "project is required")
+    return from_request(request, dr.trends(project, limit=max(1, limit)),
+                        resource="dogfood", resource_id=project)

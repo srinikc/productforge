@@ -40,11 +40,11 @@
   "decisions": [],
   "follow_up": {},
   "brief": {
-    "problem": "Design: docs/DOGFOOD-E2E-DESIGN.md (RECONCILIATION + IMPACT REVIEW approved).",
-    "what_adds": "DOGFOOD P2: deterministic LLM replay harness (record/replay) + CI gate",
-    "why": "(derived) see objective",
-    "who_feels": "(derived) unspecified",
-    "source": "extracted"
+    "problem": "The integration dogfood could not run in CI because it makes live, non-deterministic LLM calls.",
+    "what_adds": "A record/replay seam at the single LLM HTTP call (core/orchestrator/llm_client.py via _http_post) backed by a cassette store (LLMReplay in core/orchestrator/storage.py); env PIPELINE_LLM_REPLAY=off|record|replay; a replay miss fails closed (never a silent network call).",
+    "why": "Deterministic, cost-free dogfood in CI and reproducible regression debugging.",
+    "who_feels": "CI and developers; PF maintainers.",
+    "source": "authored"
   },
   "objective": "Make the integration dogfood deterministic and CI-runnable by recording/replaying LLM responses at the single LLM owner.",
   "acceptance_criteria": [
@@ -56,46 +56,76 @@
     "NOTE: a full executor-level replay needs an operator-recorded cassette (record requires live keys); the seam is exercised deterministically by the gate/tests."
   ],
   "in_scope": [
-    "DOGFOOD P2: deterministic LLM replay harness (record/replay) + CI gate"
+    "core/orchestrator/storage.py LLMReplay",
+    "core/orchestrator/llm_client.py _http_post + _CassetteResponse",
+    "config/env-flags.json PIPELINE_LLM_REPLAY",
+    "gate scripts/dev/dogfood_replay_check.py"
   ],
   "out_of_scope": [
-    "(derived) not specified"
+    "fabricating a full executor cassette (requires an operator record run)"
   ],
   "affected_components": [
-    "(derived) TBD"
+    "orchestrator.llm_client",
+    "orchestrator.storage",
+    "env_flags",
+    "precheck"
   ],
   "affected_files": [
-    "(derived) TBD"
+    "core/orchestrator/storage.py",
+    "core/orchestrator/llm_client.py",
+    "config/env-flags.json",
+    "scripts/dev/dogfood_replay_check.py",
+    "test-framework/tests/pipeline/test_llm_replay.py"
   ],
-  "approach": "DOGFOOD P2: deterministic LLM replay harness (record/replay) + CI gate",
+  "approach": "Extend the existing cache owner with a cassette store; intercept the one HTTP call via a helper; default off (production unaffected); replay miss raises (fail-closed).",
   "review": {
     "reconciliation": {
-      "prior_decisions": [],
-      "existing_path": [],
-      "assumptions": [],
-      "divergences": [],
-      "open_questions": []
+      "prior_decisions": [
+        "Output is never cached; caching is input-side only (storage.py:13-17)",
+        "Extend the owner; do not add a store (AGENTS.md)",
+        "Single LLM owner: core/orchestrator/llm_client.py",
+        "New env switches register in config/env-flags.json"
+      ],
+      "existing_path": [
+        "HTTP seam llm_client.py:400",
+        "storage.py caches (LLMCache:128, InputCache:165)",
+        "config/env-flags.json flags dict"
+      ],
+      "assumptions": [
+        "replay is TEST-only, default off",
+        "cassettes are project-scoped (products/<p>/.llm-cassettes)",
+        "replay miss fails closed"
+      ],
+      "divergences": [
+        "New env flag PIPELINE_LLM_REPLAY",
+        "Interception via _http_post helper"
+      ],
+      "open_questions": [
+        "a full executor-level replay needs an operator-recorded cassette"
+      ]
     },
-    "impact_review": [],
-    "reviewed_by": "derived",
-    "at": ""
+    "reviewed_by": "agent"
   },
   "verification": [
-    "(derived) objective met: DOGFOOD P2: deterministic LLM replay harness (record/replay) + CI gate"
+    "pytest test_llm_replay.py + test_dogfood_phase1.py: 11 passed",
+    "gate dogfood_replay_check.py OK",
+    "env-flags parse OK",
+    "lint --strict 0 NEW vs HEAD"
   ],
   "risks": [
-    "(derived) none identified"
+    "recording requires live provider keys (operator step, not CI)"
   ],
-  "rollback": "(derived) revert the change",
+  "rollback": "revert the merge",
   "evidence": [
-    "(derived) pending"
+    "merge_sha 1e45198e",
+    "commit cc7f9ee7"
   ],
   "owner": "agent",
-  "requester": "design-review",
+  "requester": "user",
   "due": "(derived) TBD",
   "target_release": "(derived) TBD",
   "approvals": [],
-  "summary": "",
+  "summary": "Adds a deterministic, network-free LLM record/replay mode so the integration dogfood can run in CI.",
   "children": [],
   "epic": "BI-0220",
   "parent": "BI-0220",
@@ -170,7 +200,7 @@
     "completed_at": ""
   },
   "created_at": "2026-10-09T12:55:34.726577",
-  "updated_at": "2026-10-09T13:36:09.678071",
+  "updated_at": "2026-10-09T14:05:00.813824",
   "score": 0.75,
   "_note": "Phase 2 delivered + validated (pytest 11 passed, gate OK, compileall, wired-audit unwired 0, lint 0 NEW)"
 }

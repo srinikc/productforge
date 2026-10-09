@@ -40,11 +40,11 @@
   "decisions": [],
   "follow_up": {},
   "brief": {
-    "problem": "Design: docs/DOGFOOD-E2E-DESIGN.md (RECONCILIATION + IMPACT REVIEW approved).",
-    "what_adds": "DOGFOOD P1: API auto-dogfood (POST /dogfood/run + GET /dogfood/runs/{id}) + delivery assertions",
-    "why": "(derived) see objective",
-    "who_feels": "(derived) unspecified",
-    "source": "extracted"
+    "problem": "There was no API-first, auto-mode way to run a full product-generation dogfood (idea -> all stages/agents -> delivery) and observe each step; the previous dogfood only enqueued the pipeline and validated a profile.",
+    "what_adds": "POST /dogfood/run seeds the project (idea + auto_mode/auto_approve + tier + caps) and enqueues via the canonical run entry; GET /dogfood/runs/{id} aggregates run, stages/agents (events), log tail, defects, validation, and fail-closed delivery assertions.",
+    "why": "Prove the platform builds a product end-to-end through its own API, with observability at every step.",
+    "who_feels": "PF operators/maintainers running dogfood; future clients (CLI/UI) consuming the API.",
+    "source": "authored"
   },
   "objective": "Drive a real product generation end-to-end via an on-demand API (idea -> all stages/agents -> stakeholder/HIL -> delivery), auto-mode, kctier, with per-stage observability and delivery assertions.",
   "acceptance_criteria": [
@@ -55,46 +55,83 @@
     "tests cover start + status + delivery assertions"
   ],
   "in_scope": [
-    "DOGFOOD P1: API auto-dogfood (POST /dogfood/run + GET /dogfood/runs/{id}) + delivery assertions"
+    "core/dogfood_run.py (owner)",
+    "api/routers/dogfood.py (POST /dogfood/run, GET /dogfood/runs/{id})",
+    "fail-closed delivery assertions",
+    "tooling gate scripts/dev/dogfood_run_check.py"
   ],
   "out_of_scope": [
-    "(derived) not specified"
+    "recurring schedule/cadence (Phase 3)",
+    "LLM replay (Phase 2)",
+    "any dashboard UI",
+    "the worker plane"
   ],
   "affected_components": [
-    "(derived) TBD"
+    "dogfood",
+    "api",
+    "run_entry",
+    "project_store",
+    "validation_engine",
+    "vcs",
+    "close_loop",
+    "issues"
   ],
   "affected_files": [
-    "(derived) TBD"
+    "core/dogfood_run.py",
+    "api/routers/dogfood.py",
+    "api/app.py",
+    "scripts/dev/dogfood_run_check.py",
+    "test-framework/tests/pipeline/test_dogfood_phase1.py"
   ],
-  "approach": "DOGFOOD P1: API auto-dogfood (POST /dogfood/run + GET /dogfood/runs/{id}) + delivery assertions",
+  "approach": "Compose existing owners only (run_entry is the ONE submission path; project_store seeds; run_guard/log_router/validation_engine/issues/vcs/close_loop are read models). API-first; no new engine/store. Wired through a tooling gate because the invocation audit does not scan api/.",
   "review": {
     "reconciliation": {
-      "prior_decisions": [],
-      "existing_path": [],
-      "assumptions": [],
-      "divergences": [],
-      "open_questions": []
+      "prior_decisions": [
+        "Single submission path (single_path_check.py:26-28; run_entry.py:12)",
+        "One writer/concern; no duplicate engine/store (AGENTS.md)",
+        "Product generation via run_entry + executor, not workers (BI-PF-0427)"
+      ],
+      "existing_path": [
+        "api/routers/runs.py POST /runs/start; core/run_entry.enqueue:116",
+        "scripts/run_pipeline.py adapter; core/portfolio.py:311 supervisor",
+        "agents/human.agent.json (stakeholder/HIL, auto mode)",
+        "config/model-tier.json:1543 kctier",
+        "validation-runs.json owner validation_engine (store-registry:417)"
+      ],
+      "assumptions": [
+        "dogfood targets a generated product (scope=project)",
+        "auto-approve acceptable for dogfood",
+        "local-only delivery OK when no remote"
+      ],
+      "divergences": [
+        "New API surface POST /dogfood/run + GET /dogfood/runs/{id} (new path, approved)"
+      ],
+      "open_questions": [
+        "new /dogfood endpoints vs extend /intake (chose new, approved)"
+      ]
     },
-    "impact_review": [],
-    "reviewed_by": "derived",
-    "at": ""
+    "reviewed_by": "agent"
   },
   "verification": [
-    "(derived) objective met: DOGFOOD P1: API auto-dogfood (POST /dogfood/run + GET /dogfood/runs/{id}) + delivery assertions"
+    "pytest test_dogfood_phase1.py: 7 passed",
+    "gate dogfood_run_check.py OK",
+    "api-governance schema in sync",
+    "wired_audit invocation unwired 0"
   ],
   "risks": [
-    "(derived) none identified"
+    "API-only module needs a tooling reference (invocation audit does not scan api/)"
   ],
-  "rollback": "(derived) revert the change",
+  "rollback": "revert the merge (remove the endpoints + module)",
   "evidence": [
-    "(derived) pending"
+    "merge_sha 62c49938",
+    "commit 674dcaa7"
   ],
   "owner": "agent",
-  "requester": "design-review",
+  "requester": "user",
   "due": "(derived) TBD",
   "target_release": "(derived) TBD",
   "approvals": [],
-  "summary": "",
+  "summary": "Adds an on-demand, API-driven, auto-mode dogfood that runs a real product generation end-to-end and reports per-step observability with fail-closed delivery assertions.",
   "children": [],
   "epic": "BI-0220",
   "parent": "BI-0220",
@@ -169,7 +206,7 @@
     "completed_at": ""
   },
   "created_at": "2026-10-09T12:55:33.030598",
-  "updated_at": "2026-10-09T13:21:33.659594",
+  "updated_at": "2026-10-09T14:05:00.736099",
   "score": 0.75,
   "_note": "Phase 1 delivered + validated (pytest 16 passed, compileall, api-governance in sync, wired-audit unwired 0)"
 }
