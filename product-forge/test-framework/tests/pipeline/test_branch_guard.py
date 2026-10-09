@@ -28,6 +28,15 @@ def test_bookkeeping_only_allowed_on_protected():
     assert bg.evaluate("develop", False, False, staged=[])[0] is False    # nothing staged -> block
 
 
+def test_mixed_backlog_store_commit_blocked_anywhere():
+    mixed = ["product-forge/data/backlog/items/BI-X.json", "product-forge/config/knowledge-registry.json"]
+    ok, reason = bg.evaluate("feature/x", False, False, staged=mixed)     # even on a feature branch
+    assert ok is False and "mixed commit" in reason
+    assert bg.evaluate("feature/x", False, False, staged=["product-forge/core/x.py"])[0] is True
+    assert bg.evaluate("feature/x", False, False,
+                       staged=["product-forge/data/backlog/open.json"])[0] is True   # store-only ok
+
+
 def test_main_exit_codes(monkeypatch):
     monkeypatch.setattr(bg, "current_branch", lambda: "develop")
     monkeypatch.setattr(bg, "is_merge_in_progress", lambda: False)
