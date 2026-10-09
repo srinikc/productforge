@@ -36,6 +36,13 @@ def test_related_never_blocks():
     assert scheduler.eligible(a, by_id={"A": a, "B": b})["ok"] is True
 
 
+def test_blocks_edge_does_not_block_this_item():
+    # "A BLOCKS B" means B depends on A -> A itself is NOT blocked.
+    a = _item("A", deps=[{"task_id": "B", "type": "BLOCKS"}])
+    b = _item("B", status="new")
+    assert scheduler.eligible(a, by_id={"A": a, "B": b})["ok"] is True
+
+
 def test_unknown_dep_blocks_fail_closed():
     a = _item("A", deps=[{"task_id": "NOPE", "type": "REQUIRES"}])
     assert scheduler.eligible(a, by_id={"A": a})["ok"] is False

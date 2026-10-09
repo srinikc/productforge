@@ -326,11 +326,13 @@ def eligible(item: dict[str, Any], *, by_id: dict[str, dict[str, Any]] | None = 
             pass
 
     # dependencies (structured first, then flat deps); unknown refs block (fail-closed).
-    # Only REQUIRES/BLOCKS are hard prerequisites - RELATED is an advisory association and never blocks.
+    # Direction (A6.4): REQUIRES X = THIS item waits on X (blocks it if X isn't terminal).
+    # BLOCKS X = this item is a prerequisite for X (X waits on THIS) -> it does NOT block this item.
+    # RELATED = advisory association -> never blocks.
     structured = item.get("dependencies") or []
     if structured:
         deps = [str(d.get("task_id")) for d in structured
-                if isinstance(d, dict) and str(d.get("type") or "BLOCKS").upper() in ("REQUIRES", "BLOCKS")]
+                if isinstance(d, dict) and str(d.get("type") or "REQUIRES").upper() == "REQUIRES"]
     else:
         deps = [str(d) for d in (item.get("deps") or [])]
     deps += [str(d) for d in (item.get("blocked_by") or [])]
