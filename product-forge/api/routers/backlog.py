@@ -67,6 +67,16 @@ def add_item(body: dict[str, Any], request: Request, ctx: dict[str, Any] = Depen
     return from_request(request, it, resource="backlog", resource_id=str(it.get("id") or ""))
 
 
+@router.post("/ids:reserve", dependencies=[Depends(require_operator)])
+def reserve_ids(body: dict[str, Any], request: Request, ctx: dict[str, Any] = Depends(require_operator)):
+    """BI-PF-0462: the id-allocation authority - mint a contiguous id block for the calling session."""
+    from core import id_allocator
+    s, p = _scope_project(request, str(body.get("scope") or "product_forge"), str(body.get("project") or ""))
+    blk = id_allocator.reserve(s, p, size=int(body.get("size") or 0),
+                               session=str(body.get("session") or ""))
+    return from_request(request, blk, resource="backlog")
+
+
 @router.post("/items/{item_id}/status", dependencies=[Depends(require_operator)])
 def set_status(item_id: str, body: dict[str, Any], request: Request,
                ctx: dict[str, Any] = Depends(require_operator)):

@@ -50,7 +50,7 @@ def _problems_for(scope, project, items, all_items):
             if not obj and not str(it.get("summary") or "").strip():
                 probs.append(f"{eid}: epic missing objective/summary")
             kids = [i for i in all_items if str(i.get("epic") or i.get("parent") or "") == eid]
-            if list(it.get("children") or []) != [str(k.get("id")) for k in kids]:
+            if sorted(str(x) for x in (it.get("children") or [])) != sorted(str(k.get("id")) for k in kids):
                 probs.append(f"{eid}: epic children[] out of sync (has {len(it.get('children') or [])}, "
                              f"actual {len(kids)})")
         else:
