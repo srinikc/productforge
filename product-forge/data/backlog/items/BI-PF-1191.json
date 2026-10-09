@@ -1,0 +1,159 @@
+{
+  "id": "BI-PF-1191",
+  "tag": "PF",
+  "type": "bug",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "review:wg-installed-drift-guard",
+  "label": "PF Backlog 527",
+  "title": "Guard the installed /wg command copy against drift (wg_surface_check parity with pf_surface_check)",
+  "body": "## Problem / why\nThe installed global `/wg` copy (~/.config/opencode/command/wg.md) had DRIFTED from the checked-in source (.opencode/command_global/wg.md): same content but LF vs CRLF line endings (3116 vs 3164 bytes). `pf_surface_check.py` already guards the installed ~/.config/.../pf.md, but `wg_surface_check.py` did NOT guard wg.md, so the drift went unnoticed.\n\n## RCCA (5-Why)\n1. wg.md drifted. 2. Installed copy differed (line endings) from source. 3. No automated sync exists; the rule is 'keep byte-identical' (doc note only). 4. wg_surface_check checked only the repo-local .opencode/command/wg.md, not the checked-in command_global source nor the installed copy. 5. Guard: check content-equality (line-ending-normalized) of the installed copy vs the source.\n",
+  "source": "design-review",
+  "status": "new",
+  "priority": null,
+  "moscow": "Should",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [],
+  "links": {},
+  "decisions": [],
+  "follow_up": {},
+  "brief": {
+    "problem": "The installed /wg global command drifted from the source (LF vs CRLF) with no guard; pf.md had one.",
+    "what_adds": "wg_surface_check now verifies the installed ~/.config/.../wg.md matches the checked-in source (content-equal), parity with pf_surface_check.",
+    "why": "The installed command is the live one; drift means the wrong version runs.",
+    "who_feels": "Anyone using /wg; maintainers.",
+    "source": "authored"
+  },
+  "objective": "Add an installed-copy drift guard to wg_surface_check (parity with pf_surface_check): the installed ~/.config/opencode/command/wg.md must match .opencode/command_global/wg.md content-equal (line endings normalized).",
+  "acceptance_criteria": [
+    "wg_surface_check asserts .opencode/command_global/wg.md exists (checked-in global source)",
+    "if the installed ~/.config/opencode/command/wg.md exists, it must be content-equal (line-ending-normalized)",
+    "a mismatch FAILS the gate with a 're-copy the source' message; absence is a skip (CI-safe)",
+    "the currently-synced copy passes"
+  ],
+  "in_scope": [
+    "scripts/dev/wg_surface_check.py installed-copy drift guard"
+  ],
+  "out_of_scope": [
+    "auto-install/refresh of global commands (separate install concern)",
+    "changing wg.md content"
+  ],
+  "affected_components": [
+    "wg_surface_check",
+    "command_global"
+  ],
+  "affected_files": [
+    "scripts/dev/wg_surface_check.py",
+    ".opencode/command_global/wg.md"
+  ],
+  "approach": "Locate ~/.config/opencode/command/wg.md; compare bytes line-ending-normalized to .opencode/command_global/wg.md; FAIL on mismatch, skip when not installed.",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [
+        "command_global is the installed SSOT (byte-identical rule)",
+        "pf_surface_check already guards pf.md"
+      ],
+      "existing_path": [
+        "scripts/dev/pf_surface_check.py (installed pf.md, normalized)",
+        "scripts/dev/wg_surface_check.py (commands only)"
+      ],
+      "assumptions": [
+        "skip when not installed (CI-safe)",
+        "line-ending-insensitive equality"
+      ],
+      "divergences": [
+        "none; parity with the existing pf guard"
+      ],
+      "open_questions": [
+        "none"
+      ]
+    },
+    "reviewed_by": "agent"
+  },
+  "verification": [
+    "wg_surface_check OK (guard added)",
+    "installed wg.md re-synced byte-identical",
+    "lint clean"
+  ],
+  "risks": [
+    "none; skip when ~/.config absent"
+  ],
+  "rollback": "revert the merge",
+  "evidence": [
+    "pending merge"
+  ],
+  "owner": "agent",
+  "requester": "user",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "",
+  "parent": "",
+  "revision": 1,
+  "priority_rank": null,
+  "priority_class": "",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "IN_PROGRESS",
+    "analyzed_at": "",
+    "analyzed_by": "deterministic",
+    "revision_analyzed": 0,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/global_orchestrator.py, core/guardrails.py, core/run_guard.py",
+    "existing_components": [
+      "core/global_orchestrator.py",
+      "core/guardrails.py",
+      "core/run_guard.py"
+    ],
+    "existing_apis": [],
+    "existing_modules": [
+      "config/guardrail-policy.json"
+    ],
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=0.75",
+      "components=3",
+      "apis=0"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": false,
+    "reasons": [],
+    "computed_at": ""
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": ""
+  },
+  "created_at": "2026-10-09T20:00:56.875171",
+  "updated_at": "2026-10-09T20:00:57.609837",
+  "score": 0.75,
+  "_note": "analysis updated"
+}
