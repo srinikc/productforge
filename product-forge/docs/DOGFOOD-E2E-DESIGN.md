@@ -77,3 +77,56 @@ Q4. Should nightly (Phase 3) also run a RELEASE-profile qualification, or DOGFOO
 - Phase 1: `POST /dogfood/run` + `GET /dogfood/runs/{id}` + delivery assertions (parent epic: BI-0220).
 - Phase 2: replay seam in core/orchestrator/llm_client.py + cassette store + CI gate.
 - Phase 3: scheduled live dogfood + trends/gating.
+
+---
+
+# Phase 2 design (BI-PF-0459) — deterministic LLM replay
+
+## RECONCILIATION (binding)
+```
+PRIOR DECISIONS
+- GENERATION OUTPUT is never served from a cache; caching is INPUT-side only
+  (core/orchestrator/storage.py:13-17). Replay is a TEST mode, default OFF; it must not weaken this.
+- One writer per concern; extend the cache owner, do not add a store (AGENTS.md).
+- Single LLM owner: core/orchestrator/llm_client.py (extract_llm_client.py 1A.11).
+- New env switches register in config/env-flags.json (core/env_flags.py).
+
+EXISTING PATH
+- HTTP seam: core/orchestrator/llm_client.py:400 requests.post(api_endpoint, json=data, headers=headers, timeout=180).
+- Cache owner: core/orchestrator/storage.py (LLMCache .llm-cache :128; InputCache .input-cache :165;
+  flags no_cache/output_cache_allowed/input_cache_enabled :24-39).
+- Env flag registry: config/env-flags.json ("flags" dict; owner field).
+- CI: scripts/dev/precheck.py gates; --full runs the deep tier.
+
+ASSUMPTIONS (need explicit yes/no)
+A1. Replay is TEST-ONLY, default OFF; never used in production runs.
+A2. Cassettes are project-scoped (products/<p>/.llm-cassettes), like .llm-cache (no store-registry entry).
+A3. A replay MISS is FAIL-CLOSED (error), never a silent network call.
+A4. Phase 2 includes an executor-level replay test for a MINIMAL scope (stage 0) with a committed cassette.
+
+DIVERGENCES
+- New env flag PIPELINE_LLM_REPLAY (off|record|replay) - add to the registry.
+- Interception at llm_client.py:400 via a helper - extend the owner (not a new engine).
+
+OPEN QUESTIONS
+Q1. Flag name/values: PIPELINE_LLM_REPLAY = off|record|replay?
+Q2. Cassette dir: products/<p>/.llm-cassettes?
+Q3. CI gate scope: minimal stage-0 executor-replay, or full pipeline?
+```
+
+## IMPACT REVIEW
+| claim | verdict | evidence (file:line) | recommendation |
+|---|---|---|---|
+| Record/replay seam at the single HTTP call | aligned | core/orchestrator/llm_client.py:400 | intercept via `_http_post` helper; default off |
+| Extend the cache owner (no new store) | aligned | core/orchestrator/storage.py:128-238 | add `LLMReplay` to storage.py |
+| Project-scoped cassettes | aligned | `.llm-cache` pattern storage.py:132 | products/<p>/.llm-cassettes |
+| New env flag registered | aligned | config/env-flags.json; core/env_flags.py | register `PIPELINE_LLM_REPLAY` |
+| Replay miss fails closed | aligned | EOS fail-closed | error, never network |
+| CI dogfood-replay gate | aligned | scripts/dev/precheck.py gates | `scripts/dev/dogfood_replay_check.py` (deep) |
+| Executor-level replay (minimal scope) | aligned | core/pipeline_executor.py execute_pipeline | stage-0 scope for determinism |
+
+## Functionality summary
+Adds a deterministic, network-free LLM **replay** mode (record once, replay in CI) so the integration dogfood
+can run in CI. Extends the cache owner (`storage.py`) + the LLM client; adds one env flag + one gate.
+No new engine/store; default **off** (production unaffected).
+

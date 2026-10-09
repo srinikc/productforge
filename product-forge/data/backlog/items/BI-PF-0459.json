@@ -19,7 +19,11 @@
   "deps": [],
   "links": {
     "backend_capability": [
-      "module:core.orchestrator.llm_client"
+      "module:core.orchestrator.llm_client",
+      "module:core.orchestrator.storage",
+      "env:PIPELINE_LLM_REPLAY",
+      "gate:scripts/dev/dogfood_replay_check.py",
+      "test:test-framework/tests/pipeline/test_llm_replay.py"
     ]
   },
   "decisions": [],
@@ -33,10 +37,12 @@
   },
   "objective": "Make the integration dogfood deterministic and CI-runnable by recording/replaying LLM responses at the single LLM owner.",
   "acceptance_criteria": [
-    "record/replay mode added to core/orchestrator/llm_client.py (extend owner; no new engine)",
-    "cassette store keyed by prompt hash; replay in CI without network",
-    "integration dogfood runs deterministically and asserts artifacts/invariants",
-    "wired into precheck --full as a dogfood-replay gate"
+    "record/replay seam at core/orchestrator/llm_client.py (_http_post) — extend the owner, no new engine",
+    "cassette store LLMReplay in core/orchestrator/storage.py (project-scoped products/<p>/.llm-cassettes)",
+    "env PIPELINE_LLM_REPLAY (off|record|replay) registered in config/env-flags.json; default off",
+    "replay-miss FAILS CLOSED (never a silent network call); off = passthrough",
+    "gate scripts/dev/dogfood_replay_check.py wired into precheck (deep); tests cover record/replay/miss",
+    "NOTE: a full executor-level replay needs an operator-recorded cassette (record requires live keys); the seam is exercised deterministically by the gate/tests."
   ],
   "in_scope": [
     "DOGFOOD P2: deterministic LLM replay harness (record/replay) + CI gate"
@@ -82,7 +88,7 @@
   "children": [],
   "epic": "BI-0220",
   "parent": "BI-0220",
-  "revision": 1,
+  "revision": 2,
   "priority_rank": null,
   "priority_class": "",
   "analyze_mode": "on_entry",
@@ -153,7 +159,7 @@
     "completed_at": ""
   },
   "created_at": "2026-10-09T12:55:34.726577",
-  "updated_at": "2026-10-09T12:55:35.966171",
+  "updated_at": "2026-10-09T13:35:24.815659",
   "score": 0.75,
   "_note": "analysis updated"
 }
