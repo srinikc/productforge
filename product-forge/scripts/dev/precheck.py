@@ -120,6 +120,7 @@ _GATES = [
     ("backlog-ids", ["scripts/dev/backlog_id_audit.py"], "fast", ["backlog"]),
     ("grooming", ["scripts/dev/grooming_check.py"], "fast", ["grooming"]),
     ("github", ["scripts/dev/github_check.py"], "fast", ["github"]),
+    ("dogfood-run", ["scripts/dev/dogfood_run_check.py"], "fast", ["dogfood", "dogfood_run", "api"]),
     ("pf-surface", ["scripts/dev/pf_surface_check.py"], "fast", None),
     ("wg-surface", ["scripts/dev/wg_surface_check.py"], "fast", None),
     ("wg-go", ["scripts/dev/wg_go_check.py"], "fast", ["workergrid", "wg"]),
