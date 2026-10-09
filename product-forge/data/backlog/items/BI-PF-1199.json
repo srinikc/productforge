@@ -10,7 +10,7 @@
   "title": "Simplify grooming + dedup: fill fields/priority/deps; dedup stays deterministic (score); review/approve must not use AI duplication_findings as a duplicate signal",
   "body": "## Problem\nGrooming was expected to be simple: fill the available fields (objective/acceptance_criteria/in_scope/out_of_scope/affected_*/approach/verification/risks/rollback/evidence) + priority + structured dependencies, with AI or deterministic. Instead, the review/approve surface conflates two different concepts:\n- Deterministic dedup = find_similar similarity SCORE vs a threshold (PF_DEDUP_THRESHOLD, default 0.6) -> possible_duplicate_of (BI-PF-0432/0434). Probability-based; this worked.\n- AI duplication_findings = the model's ADVISORY list of related/reusable items, which is non-empty on nearly every item. review/approve read this and labeled it 'duplication', so it looks like everything is a duplicate and approve-all blocks everything. Confusing.\n\n## Goal\nSimplify grooming to: fill fields + priority + deps (AI or deterministic) and keep dedup deterministic (score threshold). review/approve must not treat AI duplication_findings (advisory) as a duplicate/blocking signal.\n\n## In scope\n- review/approve: remove the AI duplication_findings-based 'duplication' flag/block; keep missing-info as advisory (non-blocking)\n- blocking signals limited to hard ones: consolidation_proposal, low confidence, context_review implementable == False\n- rely on the deterministic possible_duplicate_of (score threshold) for real duplicate detection\n- keep grooming = fill fields/priority/deps simple (AI default, deterministic fallback)\n\n## Out of scope\n- changing the deterministic dedup threshold/algorithm\n- removing AI analysis fields\n\n## Acceptance\n- plain `groom-all` then `approve-all` works without --force for AI-groomed, implementable items.\n- AI duplication_findings do not block approval; deterministic possible_duplicate_of still surfaced.\n- tests updated.\n\n## Approach\ndecide_all/review: base flags on hard signals only; treat duplication_findings/missing_info as informational; keep the deterministic dedup threshold as the duplicate authority.",
   "source": "review",
-  "status": "new",
+  "status": "completed",
   "priority": "P2",
   "moscow": "Should",
   "value": 3,
@@ -29,7 +29,16 @@
         "ref": "test-framework/tests/pipeline/test_grooming_batch.py",
         "detail": "clean vs flagged"
       }
-    ]
+    ],
+    "delivery": {
+      "branch": "fix/bi-pf-1199-groom-simplify",
+      "merge_sha": "7711482c96c96f2e6835f126d00997c3187d149c",
+      "commits": [],
+      "pr": "",
+      "pr_url": "",
+      "at": "2026-10-09T22:42:00.296704",
+      "note": "merged to develop"
+    }
   },
   "decisions": [],
   "follow_up": {},
@@ -95,7 +104,7 @@
   "children": [],
   "epic": "",
   "parent": "",
-  "revision": 2,
+  "revision": 3,
   "priority_rank": 2,
   "priority_class": "P2",
   "analyze_mode": "on_entry",
@@ -164,9 +173,9 @@
     "completed_at": ""
   },
   "created_at": "2026-10-09T22:41:16.167354",
-  "updated_at": "2026-10-09T22:41:16.994504",
+  "updated_at": "2026-10-09T22:42:00.491278",
   "score": 1.12,
-  "_note": "priority set",
+  "_note": "delivered",
   "dashboard_impact": {
     "needs_dashboard": false,
     "reason": "CLI/API grooming review behavior"
