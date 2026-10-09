@@ -325,9 +325,14 @@ def eligible(item: dict[str, Any], *, by_id: dict[str, dict[str, Any]] | None = 
         except Exception:
             pass
 
-    # dependencies (structured first, then flat deps); unknown refs block (fail-closed)
-    deps = [str(d.get("task_id")) if isinstance(d, dict) else str(d)
-            for d in (item.get("dependencies") or [])] or [str(d) for d in (item.get("deps") or [])]
+    # dependencies (structured first, then flat deps); unknown refs block (fail-closed).
+    # Only REQUIRES/BLOCKS are hard prerequisites - RELATED is an advisory association and never blocks.
+    structured = item.get("dependencies") or []
+    if structured:
+        deps = [str(d.get("task_id")) for d in structured
+                if isinstance(d, dict) and str(d.get("type") or "BLOCKS").upper() in ("REQUIRES", "BLOCKS")]
+    else:
+        deps = [str(d) for d in (item.get("deps") or [])]
     deps += [str(d) for d in (item.get("blocked_by") or [])]
     if by_id is not None:
         for d in {x for x in deps if x}:
@@ -369,7 +374,10 @@ def eligible_backlog(scope: str = "product_forge", project: str | None = None,
     """Eligibility view over the canonical backlog (read-only)."""
     from core import backlog
     items = backlog.list_open(scope, project, order=False)
+    # Include CLOSED items so dependencies on completed items are recognized as satisfied (see next_eligible).
     by_id = {str(i.get("id")): i for i in items}
+    with contextlib.suppress(Exception):
+        by_id.update({str(i.get("id")): i for i in backlog.list_closed(scope, project)})
     # active = items already assigned/executing (for contention)
     active = [i for i in items if str((i.get("execution") or {}).get("worker_id") or "")]
     rows = []
@@ -430,7 +438,11 @@ def next_eligible(scope: str = "product_forge", project: str | None = None,
         from core import grooming
         grooming.refresh_stale(scope, project or None, limit=5)
     items = backlog.list_open(scope, project, order=False)
+    # Include CLOSED items in the dependency map so a dependency on a completed item is recognized as
+    # satisfied; building it from open items only made every completed dependency read as unmet (fail-closed).
     by_id = {str(i.get("id")): i for i in items}
+    with contextlib.suppress(Exception):
+        by_id.update({str(i.get("id")): i for i in backlog.list_closed(scope, project)})
     active = [i for i in items if str((i.get("execution") or {}).get("worker_id") or "")]
     ok = [i for i in items
           if eligible(i, by_id=by_id, worker=worker, active=active, stage=stage)["ok"]]
