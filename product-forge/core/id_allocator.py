@@ -46,8 +46,23 @@ def session_id() -> str:
     return s or f"{socket.gethostname()}-{os.getpid()}"
 
 
+def _mode() -> str:
+    v = ""
+    try:
+        from core import env_flags
+        v = env_flags.get("PF_ID_ALLOC", os.environ.get("PF_ID_ALLOC", "strict"))
+    except Exception:
+        v = os.environ.get("PF_ID_ALLOC", "strict")
+    return str(v or "strict").strip().lower()
+
+
 def enabled() -> bool:
-    return str(os.environ.get("PF_ID_ALLOC", "on")).strip().lower() not in ("off", "0", "false", "no")
+    return _mode() not in ("off", "0", "false", "no")
+
+
+def strict() -> bool:
+    """BI-PF-0966: opt-in hard mode - require the shared git authority, never self-reserve (DEFAULT OFF)."""
+    return _mode() in ("strict", "hard", "required")
 
 
 def _read() -> dict:
@@ -275,9 +290,17 @@ def reserve(scope: str, project: str | None = None, size: int = 0, session: str 
 
 
 def _mint(scope: str, project: str | None, existing_max: int, reserved_up_to: int) -> dict:
-    """Get a fresh block for this session: the shared git remote (CAS) first, then the API, then a local block."""
+    """Get a fresh block for this session: the shared git remote (CAS) first, then the API, then a local block.
+
+    In ``strict`` mode (opt-in) only the git-CAS is allowed; if it fails we RAISE (never self-reserve).
+    """
     size = block_size()
     cand = _reserve_git(scope, project, size, existing_max)
+    if strict():
+        if not (cand and int(cand["start"]) > int(existing_max)):
+            raise RuntimeError("PF_ID_ALLOC=strict: the shared git authority is unavailable - refusing to "
+                               "self-reserve a local id block")
+        return {"start": cand["start"], "end": cand["end"], "next": cand["start"]}
     if not (cand and int(cand["start"]) > int(existing_max)):
         cand = _reserve_remote(scope, project, size)
     if cand and int(cand["start"]) > int(existing_max):

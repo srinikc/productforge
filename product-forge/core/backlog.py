@@ -327,6 +327,8 @@ def _next_id(open_items, closed_items, tagname: str, scope=None, project=None) -
                 n = id_allocator.alloc(scope, project, existing_max=mx)
                 return f"BI-{tagname or 'GEN'}-{n:04d}"
         except Exception:
+            if id_allocator.strict():
+                raise          # BI-PF-0966: strict must fail closed, never fall back to max+1
             pass
     return f"BI-{tagname or 'GEN'}-{mx + 1:04d}"
 

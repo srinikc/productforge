@@ -1,0 +1,171 @@
+{
+  "id": "BI-PF-0966",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "id-alloc-strict",
+  "label": "PF Backlog 505",
+  "title": "Strict id allocation: PF_ID_ALLOC=strict (default) - require the git-CAS authority, fail closed, never self-reserve",
+  "body": "## Problem / why\nThe allocator's soft mode falls back to a LOCAL block when the shared git-CAS authority is unavailable, which can\nre-collide across stale/offline sessions.\n\n## Goal & value\nA STRICT mode: allocation must succeed via the shared git authority; otherwise FAIL CLOSED (raise) - never\nself-reserve. Default to strict (GitHub is assumed always available). Ops can set PF_ID_ALLOC=on (soft) for\nenvironments without push access.\n\n## Acceptance criteria\n- PF_ID_ALLOC=strict (default): _mint requires the git-CAS; on failure it raises (no API/local fallback).\n- _next_id does NOT swallow the strict error (propagates -> item creation fails closed).\n- PF_ID_ALLOC=on keeps the soft fallback; =off disables the allocator.\n- Tests run with PF_ID_ALLOC=on (isolated) so they do not require the remote.\n\n## In scope\nstrict mode + env-flags declaration + non-swallowing _next_id.\n\n## Out of scope\nchanging the CAS/counter mechanism.\n\n## Verification\ntest: strict raises when the remote CAS is unavailable; a cache-bypassing strict test uses a temp remote.",
+  "source": "user request",
+  "status": "new",
+  "priority": null,
+  "moscow": "Should",
+  "value": 4,
+  "effort": 1,
+  "risk": 2,
+  "deps": [
+    "BI-PF-0764",
+    "BI-PF-0866"
+  ],
+  "links": {
+    "backend_capability": [
+      "module:core/id_allocator.py",
+      "module:core/backlog.py",
+      "test:test-framework/tests/pipeline/test_id_allocator_git.py"
+    ],
+    "related": [
+      "product_forge:BI-PF-0764",
+      "product_forge:BI-PF-0866"
+    ]
+  },
+  "decisions": [],
+  "follow_up": {},
+  "brief": {
+    "problem": "the allocator soft-falls back to a local block when the shared authority is unreachable, which can re-collide",
+    "what_adds": "DEFAULT strict: allocation requires the shared git-CAS authority and fails closed; soft is an opt-in toggle (PF_ID_ALLOC=on)",
+    "why": "GitHub is always available, so strict gives a no-collision guarantee by default",
+    "who_feels": "every session/worker creating backlog items",
+    "source": "authored"
+  },
+  "objective": "backlog id allocation is STRICT by default (require the git-CAS authority; fail closed) with soft as opt-in",
+  "acceptance_criteria": [
+    "PF_ID_ALLOC=strict (default) requires the git-CAS and raises otherwise",
+    "_next_id propagates the strict error (no max+1 fallback)",
+    "PF_ID_ALLOC=on is the soft opt-in; =off disables"
+  ],
+  "in_scope": [
+    "strict mode",
+    "env-flags declaration",
+    "non-swallowing _next_id"
+  ],
+  "out_of_scope": [
+    "changing the CAS mechanism"
+  ],
+  "affected_components": [
+    "core/id_allocator.py",
+    "core/backlog.py"
+  ],
+  "affected_files": [
+    "core/id_allocator.py",
+    "core/backlog.py",
+    "config/env-flags.json"
+  ],
+  "approach": "mode() from env_flags (default strict); _mint raises in strict when CAS fails; _next_id re-raises in strict",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "strict raises without the remote",
+    "temp-remote strict reserve succeeds"
+  ],
+  "risks": [
+    "CI without push access must set PF_ID_ALLOC=on"
+  ],
+  "rollback": "set PF_ID_ALLOC=on",
+  "evidence": [
+    "precheck PASS"
+  ],
+  "owner": "agent",
+  "requester": "user",
+  "due": "n/a",
+  "target_release": "next",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "",
+  "parent": "",
+  "revision": 1,
+  "priority_rank": null,
+  "priority_class": "",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "IN_PROGRESS",
+    "analyzed_at": "",
+    "analyzed_by": "deterministic",
+    "revision_analyzed": 0,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/agent_requirements.py, core/requirement_link.py, /api/v1/engineering/assignments/{item_id}/fail",
+    "existing_components": [
+      "core/agent_requirements.py",
+      "core/requirement_link.py"
+    ],
+    "existing_apis": [
+      "/api/v1/engineering/assignments/{item_id}/fail"
+    ],
+    "existing_modules": [
+      "config/agent-requirements.json"
+    ],
+    "dependency_findings": [
+      "depends on BI-PF-0764",
+      "depends on BI-PF-0866"
+    ],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=3.0",
+      "components=2",
+      "apis=1"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": false,
+    "reasons": [],
+    "computed_at": ""
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": ""
+  },
+  "created_at": "2026-10-09T15:59:07.214626",
+  "updated_at": "2026-10-09T16:00:09.324944",
+  "score": 3.0,
+  "_note": "default=strict; soft opt-in",
+  "dashboard_impact": {
+    "needs_dashboard": false,
+    "reason": "id allocator mode; no dashboard",
+    "dashboard_item": null,
+    "reviewed_by": "agent"
+  }
+}

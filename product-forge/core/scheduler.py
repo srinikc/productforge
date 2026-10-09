@@ -51,11 +51,24 @@ def worker_slots(reg: dict[str, Any] | None = None) -> list[dict[str, Any]]:
     return slots
 
 
+_PLACEHOLDER_PATHS = {"", "not specified", "not specified.", "tbd", "n/a", "na", "none", "-", "unknown"}
+
+
+def _real_paths(raw) -> list:
+    """Drop placeholder/non-path values (e.g. '(derived) TBD', 'Not specified.') so they never cause false
+    path-overlap contention (BI-PF-0454/0966)."""
+    out = []
+    for p in raw:
+        s = str(p).strip()
+        if not s or s.startswith("(derived)") or s.lower() in _PLACEHOLDER_PATHS:
+            continue
+        out.append(s)
+    return out
+
+
 def _paths(task: dict[str, Any]) -> list[str]:
-    raw = ([str(p) for p in (task.get("allowed_paths") or [])]
-           + [str(p) for p in (task.get("affected_files") or [])])
-    # BI-PF-0454: derived placeholders are not real paths - never let them cause false contention
-    return [p for p in raw if p and not p.startswith("(derived)")]
+    return _real_paths([str(p) for p in (task.get("allowed_paths") or [])]
+                       + [str(p) for p in (task.get("affected_files") or [])])
 
 
 def path_overlap(a: list[str], b: list[str]) -> bool:
@@ -243,11 +256,9 @@ _TERMINAL_STATUSES = ("completed", "done", "rejected", "wontfix", "duplicate", "
 
 
 def _item_paths(item: dict[str, Any]) -> list[str]:
-    raw = ([str(p) for p in (item.get("allowed_paths") or [])]
-           + [str(p) for p in (item.get("affected_files") or [])]
-           + [str(p) for p in (item.get("affected_components") or [])])
-    # BI-PF-0454: derived placeholders are not real paths - never cause false contention
-    return [p for p in raw if p and not p.startswith("(derived)")]
+    return _real_paths([str(p) for p in (item.get("allowed_paths") or [])]
+                       + [str(p) for p in (item.get("affected_files") or [])]
+                       + [str(p) for p in (item.get("affected_components") or [])])
 
 
 def eligible(item: dict[str, Any], *, by_id: dict[str, dict[str, Any]] | None = None,
