@@ -1,19 +1,23 @@
 # Backlog Summary
 
-> GENERATED 2026-10-09T20:59:52 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-09T21:42:04 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 35  |  **Closed:** 447
+- **Open:** 35  |  **Closed:** 449
 - `new`: 35
 
 ### new, by category (35)
-**API / reports / HIL / misc** (2)
+**API / reports / HIL / misc** (1)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-PF-0332 | Should | chore | API-5 deferred hardening: rate limiting + request/upload limits + tenant-isolation expansion + event streaming | API-5 deferred hardening: rate limiting + request/upload limits + tenant-isolation expansion + event streaming |
-| BI-PF-1194 | Should | feature | Backlog batch grooming: groom-all + review + approve-all (CLI + API) with batched LLM (--batch N) | Make bulk backlog grooming practical: groom all open items in batched LLM passes, review the results in one vi... |
+
+**Bug fixes** (1)
+| ID | MoSCoW | Type | Title | Objective |
+|---|---|---|---|---|
+| BI-PF-1196 | Should | bug | RCCA: AI grooming never captures the agent proposal (wrong path) + output truncation -> silent deterministic fallback | Make AI grooming capture and store the agent's JSON proposal from the execution artifact, with a non-silent de... |
 
 **Discovery / HIL / prompts** (1)
 | ID | MoSCoW | Type | Title | Objective |
@@ -36,7 +40,7 @@
 |---|---|---|---|---|
 | BI-0206 | Should | tech-debt | Backend: model downloader + local cache + license-acceptance gate + models.lock (open-weights) | One owner module that downloads only the weights a project's capability pack needs, into a gitignored local ca... |
 | BI-0225 | Should | feature | Parallel section/feature generation | Run section/per-feature agent calls in parallel with a bounded worker pool and merge results deterministically... |
-| BI-PF-1195 | Should | feature | Grooming completeness: populate priority + structured deps + full context (AI and deterministic), re-groom in-progress | Make one groom call (AI or deterministic) populate the full context, priority, and structured dependencies, so... |
+| BI-PF-1197 | Should | feature | Parallel batch grooming: bounded concurrent LLM calls (groom-all --jobs) | Run independent grooming LLM batches concurrently (bounded), cutting bulk-groom wall time. |
 
 **Wiring / tech-debt / API** (26)
 | ID | MoSCoW | Type | Title | Objective |
@@ -266,5 +270,5 @@
 ---
 
 ## Totals
-- backend: 35 open / 447 closed
+- backend: 35 open / 449 closed
 - dashboard: 146 open / 3 closed

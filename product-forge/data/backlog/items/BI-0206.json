@@ -10,7 +10,7 @@
   "body": "## Problem / why\nOpen-weights models (image/video/tts/stt/music/3d/ocr/vlm/embedding) must be fetched, verified, cached,\nand license-gated before a self-host adapter can run them. Today there is no downloader, no cache, no\nlicense enforcement, so `provider_kind=self-host` cannot work and packaging could accidentally ship\nrestricted weights.\n\n## Goal & value\nOne owner module that downloads only the weights a project's capability pack needs, into a gitignored\nlocal cache, refusing non-bundle-usable weights unless explicitly overridden.\n\n## In scope\n- `core/model_manager.py` (single writer): resolve model -> source (HF Hub / ModelScope / URL),\n  download with `huggingface_hub` + `hf_transfer`, resume, checksum (sha256).\n- Cache layout `product-forge/models/<provider>/<model>@<rev>/` (gitignored) + `models.lock` manifest\n  (id, revision, size, sha256, license, fetched_at).\n- **License-acceptance gate:** read catalog `license`/`open_weights`/`bundle_allowed`; block\n  non-bundle-safe weights unless `PF_ALLOW_RESTRICTED_WEIGHTS=1`.\n- Disk/VRAM preflight (size vs free space) + \"download only required modalities\" (pack-driven).\n- CLI: `python -m core.model_manager --list/--ensure <model>/--verify/--prune`.\n\n## Acceptance criteria (testable)\n- `ensure(\"FLUX.1-schnell\")` downloads once, records sha256+license in models.lock, second call is a no-op.\n- A restricted model (`FLUX.1-dev`) is refused with a clear message unless the override env is set.\n- Downloading is pack-scoped: a text-only project downloads nothing.\n\n## Verification / test plan\n- Unit: source resolution, license gate decision table, lock idempotency (fake source, no network).\n- Integration: download one small model (e.g. a Piper voice / tesseract tessdata) and verify checksum.\n",
   "source": "generic",
   "status": "new",
-  "priority": null,
+  "priority": "P2",
   "moscow": "Should",
   "value": 4,
   "effort": 3,
@@ -29,7 +29,7 @@
   "decisions": [],
   "follow_up": {},
   "created_at": "2026-09-25T21:20:44.879245",
-  "updated_at": "2026-10-09T18:33:48.028648",
+  "updated_at": "2026-10-09T21:20:06.963595",
   "score": 1.0,
   "dashboard_impact": {
     "needs_dashboard": true,
@@ -38,7 +38,7 @@
     "reviewed_by": "agent",
     "reviewed_at": "2026-09-25T21:25:46.157349"
   },
-  "_note": "dashboard_impact reviewed",
+  "_note": "priority set",
   "brief": {
     "problem": "Open-weights models (image/video/tts/stt/music/3d/ocr/vlm/embedding) must be fetched, verified, cached,\nand license-gated before a self-host adapter can run them. Today there is no downloader, no cache, no\nlicense enforcement, so `provider_kind=self-host` cannot work and packaging could accidentally ship\nrestricted weights.",
     "what_adds": "One owner module that downloads only the weights a project's capability pack needs, into a gitignored\nlocal cache, refusing non-bundle-usable weights unless explicitly overridden.",
@@ -106,5 +106,62 @@
     "routes": [],
     "consumers": [],
     "reason": "no API surface declared in backend_capability"
-  }
+  },
+  "analysis": {
+    "status": "IN_PROGRESS",
+    "analyzed_at": "",
+    "analyzed_by": "deterministic",
+    "revision_analyzed": 0,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/agent_model_override.py, core/business_models_kb.py, core/code_quality_gate.py, core/conversation_models.py",
+    "existing_components": [
+      "core/agent_model_override.py",
+      "core/business_models_kb.py",
+      "core/code_quality_gate.py",
+      "core/conversation_models.py",
+      "core/cost_model.py",
+      "core/cost_modeling.py",
+      "core/lock_manager.py",
+      "core/merge_gate.py"
+    ],
+    "existing_apis": [
+      "/api/v1/engineering/pidl/gate",
+      "/api/v1/gates/go-no-go",
+      "/api/v1/gates/pr",
+      "/api/v1/gates/pr/merge",
+      "/api/v1/gates/quality",
+      "/api/v1/release/gate",
+      "/api/v1/validation/merge-gate",
+      "/api/v1/validation/merge-gate/queue"
+    ],
+    "existing_modules": [
+      "config/business-models-kb.json",
+      "config/id-blocks.json",
+      "config/model-catalog.json",
+      "config/model-policy.json",
+      "config/model-tier.json"
+    ],
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=1.0",
+      "components=8",
+      "apis=8"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic"
+  },
+  "priority_rank": 2,
+  "priority_class": "P2",
+  "revision": 1
 }

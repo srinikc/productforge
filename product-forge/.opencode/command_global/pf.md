@@ -43,8 +43,8 @@ Product Forge's `scripts/run_pipeline.py` (the canonical agent runner).
 - `/pf backlog list|show <id>|groom <id> [--no-ai] [--force]|approve <id>`
   — groom fills the full context (objective/AC/in_scope/…), priority, and structured deps; gap-fill by default,
   `--force` overwrites existing authored fields
-- `/pf backlog groom-all [--no-ai] [--batch N] [--limit N] [--force] [--dry]|review|approve-all [--ids a,b] [--force] [--dry]`
-  — bulk: groom all open items (incl. in-progress) in batched AI passes (default 3/pass), review the results,
+- `/pf backlog groom-all [--no-ai] [--batch N] [--jobs N] [--limit N] [--force] [--dry]|review|approve-all [--ids a,b] [--force] [--dry]`
+  — bulk: groom all open items (incl. in-progress) in batched AI passes (3/pass, 4 concurrent), review the results,
   then approve clean items (approve-all skips flagged unless `--force`; COMPLETE items re-groomed only with `--force`)
 - `/pf dogfood [--dry]`
 - `/pf sync` — git sync (fetch remote + push develop)

@@ -11,7 +11,7 @@
   "body": "## Problem / why\nProduct Forge must be OS/shell-neutral. Some dev workflows, scripts and documented commands are currently expressed with PowerShell-specific constructs (heredocs, Out-String, `;` chaining, path quoting), which do not run on Linux/macOS CI or by contributors using bash/zsh.\n\n## Goal & value\nMake every scripted workflow and documented command cross-platform: pure Python entrypoints, a single shell-neutral invocation contract, no PowerShell-only syntax.\n\n## In scope\n- Audit scripts/dev/*, docs, PR/CI docs and agent prompts for PowerShell-specific commands.\n- Replace PowerShell-only recipes with neutral `python ...` invocations (scripts as .py files, not heredocs).\n- Add a guard (advisory) that flags PowerShell-only syntax in scripts/docs.\n- Root-cause via RCCA where a PowerShell assumption caused a defect.\n\n## Acceptance criteria (testable)\n- All documented dev commands run under both bash and PowerShell (or are pure `python -m` invocations).\n- No heredoc/Out-String/`;`-chaining requirements in docs/scripts.\n- Guard reports 0 PowerShell-only occurrences (advisory allowlist for genuine examples).\n\n## Notes\nSurfaced while executing the master plan on Windows; scheduled AFTER master-plan phases complete. Product runtime is already pure Python; this is tooling/doc neutrality.\n",
   "source": "review",
   "status": "new",
-  "priority": null,
+  "priority": "P2",
   "moscow": "Should",
   "value": 2,
   "effort": 2,
@@ -31,7 +31,7 @@
   "decisions": [],
   "follow_up": {},
   "created_at": "2026-10-01T18:22:21.380804",
-  "updated_at": "2026-10-09T18:33:48.113675",
+  "updated_at": "2026-10-09T21:20:07.599260",
   "score": 1.0,
   "dashboard_impact": {
     "needs_dashboard": false,
@@ -40,7 +40,7 @@
     "reviewed_by": "agent",
     "reviewed_at": "2026-10-02T09:54:31.836848"
   },
-  "_note": "delivery recorded",
+  "_note": "priority set",
   "brief": {
     "problem": "Product Forge must be OS/shell-neutral. Some dev workflows, scripts and documented commands are currently expressed with PowerShell-specific constructs (heredocs, Out-String, `;` chaining, path quoting), which do not run on Linux/macOS CI or by contributors using bash/zsh.",
     "what_adds": "Make every scripted workflow and documented command cross-platform: pure Python entrypoints, a single shell-neutral invocation contract, no PowerShell-only syntax.",
@@ -111,5 +111,52 @@
     "routes": [],
     "consumers": [],
     "reason": "no API surface declared in backend_capability"
-  }
+  },
+  "analysis": {
+    "status": "IN_PROGRESS",
+    "analyzed_at": "",
+    "analyzed_by": "deterministic",
+    "revision_analyzed": 0,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/api_docs.py, core/docker_compose_generator.py, core/forge_constitution.py, core/forge_store.py",
+    "existing_components": [
+      "core/api_docs.py",
+      "core/docker_compose_generator.py",
+      "core/forge_constitution.py",
+      "core/forge_store.py",
+      "core/product_analyzer.py",
+      "core/product_design_spec.py",
+      "core/product_ingestion.py",
+      "core/product_page.py"
+    ],
+    "existing_apis": [
+      "/api/v1/apidocs",
+      "/api/v1/apidocs.json",
+      "/api/v1/apidocs/render",
+      "/api/v1/vcs/worktrees/{name}/remove"
+    ],
+    "existing_modules": [],
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=1.0",
+      "components=8",
+      "apis=4"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic"
+  },
+  "priority_rank": 2,
+  "priority_class": "P2",
+  "revision": 1
 }

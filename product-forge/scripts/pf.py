@@ -153,7 +153,7 @@ def cmd_backlog(pos, flags):
         mode = "deterministic" if flags.get("no-ai") else ""
         return grooming.groom_all(s, p, mode=mode, batch=int(flags.get("batch") or 0),
                                   limit=int(flags.get("limit") or 0), force=bool(flags.get("force")),
-                                  dry=bool(flags.get("dry")))
+                                  dry=bool(flags.get("dry")), jobs=int(flags.get("jobs") or 0))
     if sub == "review":
         return grooming.review(s, p)
     if sub == "approve" and len(pos) > 1:
@@ -252,14 +252,15 @@ _HELP = {
                  ("show <id>", "full item record (e.g. BI-PF-0408)"),
                  ("groom <id> [--no-ai] [--force]",
                   "groom one item: analysis + full context + priority + deps (gap-fill; --force overwrites)"),
-                 ("groom-all [--no-ai] [--batch N] [--limit N] [--force] [--dry]",
-                  "groom all open items incl. in-progress; batched AI (default 3/pass)"),
+                 ("groom-all [--no-ai] [--batch N] [--jobs N] [--limit N] [--force] [--dry]",
+                  "groom all open items incl. in-progress; batched AI (3/pass, N concurrent)"),
                  ("review", "groomed-but-undecided items: status/confidence/flags/context_review"),
                  ("approve <id>", "approve a groomed item"),
                  ("approve-all [--ids a,b] [--force] [--dry]",
                   "approve CLEAN groomed items; --force also approves flagged ones")],
                 (("--no-ai", "groom deterministically (skip AI analysis)"),
-                 ("--batch N", "items per AI agent run (default 3)"),
+                 ("--batch N", "items per AI call (default 3)"),
+                 ("--jobs N", "concurrent AI batches (default 4)"),
                  ("--limit N", "process at most N items this run"),
                  ("--force", "groom/approve even if already groomed or flagged"),
                  ("--dry", "preview what would change (no writes)"),
