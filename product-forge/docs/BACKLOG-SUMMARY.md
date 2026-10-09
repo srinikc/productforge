@@ -1,19 +1,18 @@
 # Backlog Summary
 
-> GENERATED 2026-10-09T13:58:17 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-09T14:05:05 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 35  |  **Closed:** 410
-- `new`: 35
+- **Open:** 34  |  **Closed:** 411
+- `new`: 34
 
-### new, by category (35)
-**API / reports / HIL / misc** (2)
+### new, by category (34)
+**API / reports / HIL / misc** (1)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-PF-0332 | Should | chore | API-5 deferred hardening: rate limiting + request/upload limits + tenant-isolation expansion + event streaming | API-5 deferred hardening: rate limiting + request/upload limits + tenant-isolation expansion + event streaming |
-| BI-PF-0462 | Must | feature | PFSSOT-P13: collision-safe backlog id allocation (API-authoritative reserve blocks; offline-safe) | PFSSOT-P13: collision-safe backlog id allocation (API-authoritative reserve blocks; offline-safe) |
 
 **Discovery / HIL / prompts** (1)
 | ID | MoSCoW | Type | Title | Objective |
@@ -266,5 +265,5 @@
 ---
 
 ## Totals
-- backend: 35 open / 410 closed
+- backend: 34 open / 411 closed
 - dashboard: 146 open / 3 closed

@@ -130,3 +130,55 @@ Adds a deterministic, network-free LLM **replay** mode (record once, replay in C
 can run in CI. Extends the cache owner (`storage.py`) + the LLM client; adds one env flag + one gate.
 No new engine/store; default **off** (production unaffected).
 
+---
+
+# Phase 3 design (BI-PF-0460) — scheduled live dogfood + trends/regression (API-first)
+
+## RECONCILIATION (binding)
+```
+PRIOR DECISIONS
+- One writer per concern; a NEW concern registers in config/store-registry.json (AGENTS.md).
+- API-first; the legacy dashboard is FROZEN (do not reference dashboard/ anywhere).
+- Product generation via run_entry/job_manager + executor (not the worker plane); single submission path.
+- Reconciliation + IMPACT REVIEW + RCCA-per-defect are binding.
+
+EXISTING PATH
+- No cron/daemon in-repo. job_manager supports a one-shot due time: not_before -> state "scheduled"
+  (core/job_manager.py:96-112,144). core/scheduler.py is backlog eligibility, not a clock.
+- Long-running loop: core/portfolio.py:311 run_supervisor (poll) - a possible cadence host.
+- Phase 1 API: api/routers/dogfood.py (POST /dogfood/run, GET /dogfood/runs/{id}); core/dogfood_run.py.
+- Results store: validation-runs.json owner core/validation_engine (store-registry.json:417).
+- store-registry config shape: {owner, kind:"config", scope:"global", concern, visibility}.
+
+ASSUMPTIONS (need explicit yes/no)
+A1. Cadence is provided by an operator/cron calling POST /dogfood/schedule/tick (NO in-repo daemon).
+A2. Schedule lives in a NEW global config store config/dogfood-schedule.json (owner core/dogfood_schedule.py), registered.
+A3. Trends/regression are a READ API over the existing validation-runs.json (no new store).
+A4. No dashboard reference; API-first only (a future client consumes the API).
+
+DIVERGENCES
+- NEW config store + owner module + 2 API endpoints (/dogfood/schedule/tick, /dogfood/trends) = NEW PATH.
+- Optionally hooking portfolio.run_supervisor to call the tick would COUPLE the scheduler loop - avoid.
+
+OPEN QUESTIONS
+Q1. Cadence trigger: external cron -> tick API (recommended) vs supervisor hook vs both?
+Q2. Schedule store: global config/dogfood-schedule.json vs per-project project.json?
+Q3. Regression definition: latest non-PASS following a PASS = regression?
+```
+
+## IMPACT REVIEW
+| claim | verdict | evidence (file:line) | recommendation |
+|---|---|---|---|
+| Cadence via tick API (no daemon) | new-path | job_manager.py:96-112; no cron | needs approval |
+| New config store dogfood-schedule.json | new-path | store-registry config shape :389-395 | register + single writer (core/dogfood_schedule.py) |
+| Trends read over validation-runs.json | aligned | store-registry.json:417 | read-only; no new store |
+| New endpoints /dogfood/schedule/tick + /dogfood/trends | new-path | api/routers/dogfood.py | needs approval |
+| Supervisor hook for cadence | derails | core/portfolio.py:311 | avoid coupling; prefer external tick |
+| No legacy-dashboard reference | aligned | legacy frozen (AGENTS.md) | API-first only |
+
+## Functionality summary
+Adds an API-first cadence + observability for dogfood: a schedule config + `core/dogfood_schedule.py` (single
+writer) exposing a `tick` (enqueue due dogfood runs, idempotent per period) and a read-only `trends`/
+regression API over the existing `validation-runs.json`. No daemon, no dashboard reference, no new results store.
+
+

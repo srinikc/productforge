@@ -137,6 +137,7 @@ _GATES = [
     ("merge-gate", ["scripts/dev/merge_gate_check.py"], "deep", None),
     ("dogfood", ["scripts/dev/dogfood_check.py"], "deep", None),
     ("dogfood-replay", ["scripts/dev/dogfood_replay_check.py"], "deep", None),
+    ("dogfood-schedule", ["scripts/dev/dogfood_schedule_check.py"], "deep", None),
     ("release", ["scripts/dev/release_check.py"], "deep", None),
     ("final-audit", ["scripts/dev/final_audit_check.py"], "deep", None),
     ("backlog-e2e", ["scripts/dev/e2e_backlog_check.py"], "deep", None),

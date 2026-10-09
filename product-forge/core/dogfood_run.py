@@ -113,3 +113,19 @@ def assert_delivery(project_dir: str) -> dict:
     if not delivered:
         reasons.append("no passing validation and no verified close-loop")
     return {"delivered": delivered, "checks": checks, "reasons": reasons}
+
+
+def trends(project: str, *, limit: int = 20, products_dir: Optional[str] = None) -> dict:
+    """Read-only trend + regression view over recorded DOGFOOD validation runs (no new store)."""
+    from core import validation_engine
+    p = _valid_project(project)
+    runs = [r for r in validation_engine.list_runs("project", p, profile="DOGFOOD") if r.get("result")]
+    series = [{"run_id": r.get("run_id"), "result": r.get("result"),
+               "at": r.get("finished_at") or r.get("started_at")} for r in runs[-limit:]]
+    counts: dict[str, int] = {}
+    for r in runs:
+        k = str(r.get("result"))
+        counts[k] = counts.get(k, 0) + 1
+    regression = bool(series) and str(series[-1].get("result")) != "PASS" \
+        and any(str(s.get("result")) == "PASS" for s in series[:-1])
+    return {"project": p, "series": series, "counts": counts, "regression": regression, "total": len(runs)}
