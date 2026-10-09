@@ -256,7 +256,8 @@ def _ai_prompt(item: dict, ctx: dict) -> str:
         "objective (string), acceptance_criteria (list), in_scope (list), out_of_scope (list), "
         "affected_components (list), affected_files (list), approach (string), verification (list), "
         "rollback (string), evidence (list), owner (string), requester (string), "
-        "brief ({problem, what_adds, why, who_feels, source='authored'})."
+        "brief ({problem, what_adds, why, who_feels, source='authored'}). "
+        "Keep it concise: each list <= 5 short items, each string <= 240 chars."
     )
 
 
@@ -356,7 +357,8 @@ def _ai_prompt_batch(items_ctx: list[tuple[dict, dict]]) -> str:
         "rollback (string), evidence (list), owner (string), requester (string), "
         "brief ({problem, what_adds, why, who_feels, source='authored'}), and "
         "context_review ({implementable (bool), missing (list), reason (string)}). "
-        f"Cover exactly these ids: {ids}."
+        f"Cover exactly these ids: {ids}. "
+        "Keep each proposal concise: each list <= 5 short items, each string <= 240 chars."
     )
 
 
