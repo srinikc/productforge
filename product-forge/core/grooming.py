@@ -18,6 +18,7 @@ One small concern, one writer per store; the item's ``analysis``/``decisions`` a
 import contextlib
 import json
 import os
+import re
 from datetime import datetime
 from typing import Any
 
@@ -42,11 +43,19 @@ def default_mode() -> str:
 
 
 def default_batch() -> int:
-    """Items per agent run for bulk grooming (BI-PF-1194). Config ``batch_size``, default 3, min 1."""
+    """Items per LLM call for bulk grooming (BI-PF-1194). Config ``batch_size``, default 3, min 1."""
     try:
         return max(1, int(guidelines().get("batch_size") or 3))
     except Exception:
         return 3
+
+
+def default_parallel() -> int:
+    """Concurrent batch calls for bulk grooming (BI-PF-1197). Config ``parallel``, default 4, min 1."""
+    try:
+        return max(1, int(guidelines().get("parallel") or 4))
+    except Exception:
+        return 4
 
 
 def _context_review_cfg() -> dict[str, Any]:
@@ -271,27 +280,48 @@ def _ai_enabled() -> bool:
     return not (offline or _os.environ.get("CI"))
 
 
-def _run_ai(item: dict, ctx: dict, project: str | None, product: str) -> dict | None:
-    """Invoke the existing agent runtime; return the parsed proposal or None on failure.
+def _llm_text(prompt: str, product: str) -> str:
+    """One-shot LLM call via the single LLM owner (BI-PF-1196) - no agent runtime overhead.
 
-    Reuses ``PipelineExecutor.execute_agent`` (no new LLM client). Writes the proposal to the project's
-    engineering dir as ``groom-<id>.json`` and reads it back. Skipped when AI is disabled (automation).
+    Uses ``core.context_review.default_llm`` (the sanctioned one-shot path over ``LLMClient`` - no new
+    client), so grooming is one bounded model call with the cache/ledger/replay machinery, instead of the
+    full pipeline agent flow (context package, compliance, design-critic, artifacts, memory).
+    """
+    from core.context_review import default_llm
+    llm = default_llm(str(product or "default"))
+    return llm(prompt) or ""
+
+
+def _extract_json(text: str):
+    """Best-effort parse of the first JSON object embedded in model text (fenced ```json or bare)."""
+    if not text:
+        return None
+    m = re.search(r"```(?:json)?\s*(.*?)```", text, re.S)
+    if m:
+        with contextlib.suppress(Exception):
+            return json.loads(m.group(1).strip())
+    start, end = text.find("{"), text.rfind("}")
+    if start != -1 and end > start:
+        with contextlib.suppress(Exception):
+            return json.loads(text[start:end + 1])
+    return None
+
+
+def _run_ai(item: dict, ctx: dict, project: str | None, product: str) -> dict | None:
+    """One-shot LLM groom; return the parsed proposal or None on failure (BI-PF-1196).
+
+    Uses the single LLM owner directly (``_llm_text``) - one bounded call, no agent runtime. A missing or
+    garbled response returns None so the caller falls back per item. Skipped when AI is disabled.
     """
     if not _ai_enabled():
         return None
     try:
-        from core.pipeline_executor import PipelineExecutor
-        ex = PipelineExecutor(products_dir=os.path.join(str(ROOT), "products"), project=str(product or "default"))
-        prompt = _ai_prompt(item, ctx) + (
-            f"\n\nWrite the JSON to `engineering/groom-{item.get('id')}.json` and nothing else.")
-        ex.execute_agent(_AI_AGENT, _AI_STAGE, prompt)
-        out_path = os.path.join(ex.project_dir, "engineering", f"groom-{item.get('id')}.json")
-        if os.path.exists(out_path):
-            with open(out_path, encoding="utf-8-sig") as f:
-                return json.load(f)
+        text = _llm_text(_ai_prompt(item, ctx) + "\n\nReturn ONLY a single JSON object (no prose, no files).",
+                         str(product or (project or "default")))
+        proposal = _extract_json(text)
+        return proposal if isinstance(proposal, dict) else None
     except Exception:
         return None
-    return None
 
 
 def _ai_prompt_batch(items_ctx: list[tuple[dict, dict]]) -> str:
@@ -312,7 +342,8 @@ def _ai_prompt_batch(items_ctx: list[tuple[dict, dict]]) -> str:
         "(reuse-first). Groom EACH item INDEPENDENTLY; never mix findings between items.\n\n"
         + "\n\n".join(parts)
         + "\n\nApply this checklist to EACH item:\n" + checks
-        + "\n\nFor EACH item, write a JSON file `engineering/groom-<ITEM_ID>.json` (no prose) with keys:\n"
+        + "\n\nReturn ONLY one JSON object (no prose, no files, no markdown fences) mapping each item id to "
+        "its proposal: {\"<ITEM_ID>\": {...}, ...}. Each proposal object uses these keys:\n"
         "architecture_fit (REUSE|EXTEND|MODIFY|NEW_COMPONENT|NEW_CAPABILITY|REFACTOR|OTHER), "
         "implementation_strategy (string), duplication_findings (list), dependency_findings (list), "
         "conflict_findings (list), drift (NONE|LOW|MEDIUM|HIGH), rewrite_required (bool), "
@@ -325,36 +356,31 @@ def _ai_prompt_batch(items_ctx: list[tuple[dict, dict]]) -> str:
         "rollback (string), evidence (list), owner (string), requester (string), "
         "brief ({problem, what_adds, why, who_feels, source='authored'}), and "
         "context_review ({implementable (bool), missing (list), reason (string)}). "
-        f"Write exactly {len(items_ctx)} file(s), one per item: {ids}."
+        f"Cover exactly these ids: {ids}."
     )
 
 
 def _run_ai_batch(items_ctx: list[tuple[dict, dict]], project: str | None,
                   product: str) -> dict[str, dict]:
-    """One agent run grooms N items; returns {item_id: proposal} for the files actually written.
+    """One LLM call grooms N items; returns {item_id: proposal} parsed from the JSON response (BI-PF-1196).
 
-    Missing/garbled items are simply absent from the result -> the caller falls back per item.
-    Skipped when AI is disabled (automation).
+    The prompt requests one JSON object keyed by item id; missing/garbled items are simply absent from the
+    result -> the caller falls back per item. Skipped when AI is disabled (automation).
     """
     if not _ai_enabled() or not items_ctx:
         return {}
-    out: dict[str, dict] = {}
     try:
-        from core.pipeline_executor import PipelineExecutor
-        ex = PipelineExecutor(products_dir=os.path.join(str(ROOT), "products"),
-                              project=str(product or "default"))
-        prompt = _ai_prompt_batch(items_ctx) + "\n\nWrite the JSON file(s) and nothing else."
-        ex.execute_agent(_AI_AGENT, _AI_STAGE, prompt)
-        for item, _ctx in items_ctx:
-            p = os.path.join(ex.project_dir, "engineering", f"groom-{item.get('id')}.json")
-            if os.path.exists(p):
-                try:
-                    with open(p, encoding="utf-8-sig") as f:
-                        out[str(item.get("id"))] = json.load(f)
-                except Exception:
-                    pass
+        text = _llm_text(_ai_prompt_batch(items_ctx) + "\n\nReturn ONLY the JSON object and nothing else.",
+                         str(product or (project or "default")))
+        data = _extract_json(text)
     except Exception:
-        return out
+        return {}
+    out: dict[str, dict] = {}
+    if isinstance(data, dict):
+        for item, _ctx in items_ctx:
+            v = data.get(str(item.get("id")))
+            if isinstance(v, dict):
+                out[str(item.get("id"))] = v
     return out
 
 
@@ -569,7 +595,10 @@ def groom(scope: str, project: str | None, item_id: str, mode: str = "", *,
     else:
         proposal = deterministic(scope, project, it, depth=d)
 
-    return _apply_proposal(scope, project, item_id, it, ctx, proposal, used, d, force=force)
+    res = _apply_proposal(scope, project, item_id, it, ctx, proposal, used, d, force=force)
+    if m == "ai" and used != "ai":
+        res["ai_failed"] = True   # asked for AI, fell back -> surface it (BI-PF-1196), never silent
+    return res
 
 
 def refresh_stale(scope: str, project: str | None = None, *, limit: int = 10,
@@ -617,13 +646,15 @@ def refresh_stale(scope: str, project: str | None = None, *, limit: int = 10,
 
 
 def groom_all(scope: str, project: str | None, mode: str = "", *, batch: int = 0, limit: int = 0,
-              force: bool = False, dry: bool = False, depth: str = "deep") -> dict[str, Any]:
-    """Groom every open backlog item (incl. EPICs) in batched AI passes (BI-PF-1194).
+              force: bool = False, dry: bool = False, depth: str = "deep",
+              jobs: int = 0) -> dict[str, Any]:
+    """Groom every open backlog item (incl. EPICs) in batched, concurrent AI passes (BI-PF-1194/1197).
 
-    AI is the default; up to ``batch`` items share one agent run, which emits the analysis + the advisory
-    context_review per item. Items the batch misses fall back to per-item deterministic analysis (never
-    blocks). Items already IN_PROGRESS/COMPLETE are skipped unless ``force`` (so the run is resumable).
-    ``dry`` returns the planned ids without writing. Single writer: backlog (via ``_apply_proposal``).
+    AI is the default; up to ``batch`` items share one LLM call (returning the analysis + advisory
+    context_review per item) and up to ``jobs`` batches run concurrently (bounded threads; the LLM client
+    rate budget still paces globally). Items a batch misses fall back to per-item deterministic analysis
+    (never blocks). Items already IN_PROGRESS/COMPLETE are skipped unless ``force``. ``dry`` returns the
+    planned ids without writing. Single writer: backlog (writes are applied sequentially in this thread).
     """
     from core import backlog
     m = str(mode or default_mode()).lower()
@@ -633,6 +664,7 @@ def groom_all(scope: str, project: str | None, mode: str = "", *, batch: int = 0
     if d not in ("deep", "standard"):
         d = "deep"
     n = max(1, int(batch or 0) or default_batch())
+    workers = max(1, int(jobs or 0) or default_parallel())
     queue: list[dict] = []
     for it in backlog.list_open(scope, project):
         st = str((it.get("analysis") or {}).get("status") or "NOT_ANALYZED")
@@ -643,31 +675,47 @@ def groom_all(scope: str, project: str | None, mode: str = "", *, batch: int = 0
     if int(limit or 0) > 0:
         queue = queue[:int(limit)]
     if dry:
-        return {"mode": m, "batch": n, "count": len(queue), "dry": True,
+        return {"mode": m, "batch": n, "jobs": workers, "count": len(queue), "dry": True,
                 "items": [{"id": i.get("id"), "title": i.get("title")} for i in queue]}
+    chunks = [queue[i:i + n] for i in range(0, len(queue), n)]
     groomed: list[str] = []
     results: list[dict] = []
-    for start in range(0, len(queue), n):
-        chunk = queue[start:start + n]
+
+    def _run_chunk(chunk: list[dict]):
         ctxs = [(it, _gather_context(scope, project, it)) for it in chunk]
-        proposals: dict[str, dict] = (
-            _run_ai_batch(ctxs, project, project or "default") if m == "ai" else {})
+        props = _run_ai_batch(ctxs, project, project or "default") if m == "ai" else {}
+        return ctxs, props
+
+    def _apply_chunk(ctxs, proposals):
         for it, ctx in ctxs:
             iid = str(it.get("id"))
             prop = proposals.get(iid)
             used = m
+            ai_failed = False
             if not isinstance(prop, dict):
                 used, prop = "deterministic", deterministic(scope, project, it, depth=d)
+                ai_failed = (m == "ai")   # BI-PF-1196: surface the fallback, never silent
             cr = prop.pop("context_review", None) if isinstance(prop, dict) else None
             try:
                 _apply_proposal(scope, project, iid, it, ctx, prop, used, d, context_review=cr,
                                 force=force)
                 groomed.append(iid)
-                results.append({"item_id": iid, "mode": used, "applied": True})
+                results.append({"item_id": iid, "mode": used, "applied": True, "ai_failed": ai_failed})
             except Exception as e:  # noqa: BLE001
                 results.append({"item_id": iid, "mode": used, "applied": False,
                                 "error": f"{type(e).__name__}: {e}"})
-    return {"mode": m, "batch": n, "count": len(groomed), "groomed": groomed, "results": results}
+
+    if m == "ai" and workers > 1 and len(chunks) > 1:
+        import concurrent.futures as _cf
+        with _cf.ThreadPoolExecutor(max_workers=workers) as pool:
+            for ctxs, props in pool.map(_run_chunk, chunks):
+                _apply_chunk(ctxs, props)
+    else:
+        for chunk in chunks:
+            ctxs, props = _run_chunk(chunk)
+            _apply_chunk(ctxs, props)
+    return {"mode": m, "batch": n, "jobs": workers, "count": len(groomed),
+            "groomed": groomed, "results": results}
 
 
 def review(scope: str, project: str | None) -> dict[str, Any]:

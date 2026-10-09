@@ -11,12 +11,14 @@
   "body": "## Problem / why\nThe `.opencode/command/pf.md` frontmatter binds every `/pf <verb>` invocation to the `orchestrator` agent (`agent: orchestrator` + `model: opencode-go/mimo-v2.5`), so deterministic thin-client verbs (backlog list, status, ...) run in the orchestrator agent instead of build mode. `.opencode/command/pipeline.md` has the same binding. Also, `/pf` exists only inside the product-forge repo - opencode sessions in other directories have no `/pf` command at all.\n\n## Goal & value\n- `/pf ...` always executes in build mode (`agent: build`), with no model pin so the session's model is inherited.\n- `/pf ...` available in EVERY opencode session via the global command dir, calling `scripts/pf.py` by absolute path (pf.py self-locates ROOT, so any cwd works).\n\n## In scope / Out of scope\nIn: frontmatter of `.opencode/command/pf.md` and `.opencode/command/pipeline.md`; new global command `$USERPROFILE/.config/opencode/command/pf.md`. Plus `/pf help [verb]` usage details (help registry + renderer in `scripts/pf.py`).\nOut: `scripts/pipeline.py`, agent definitions, and installer (install.py/install.sh/install.bat) wiring.\n\n## User flow\nUser runs `/pf backlog list` in any opencode session (any cwd) -> command executes under the build agent -> JSON output reported.\n\n## Backend flow (consumed, by id)\n`/pf <verb>` -> `scripts/pf.py <verb>` (thin client) -> canonical core/API. No orchestration in the command file (guard: scripts/dev/pf_surface_check.py).\n\n## Acceptance criteria (testable G/W/T)\n- GIVEN the project `pf.md` WHEN its frontmatter is read THEN `agent: build` is present and `agent: orchestrator` / `model:` are absent.\n- GIVEN a session outside the repo WHEN `/pf help` is invoked THEN it resolves to the global command and runs pf.py by absolute path.\n- GIVEN `/pf help` WHEN run THEN the overview lists every verb with its usage line (exit 0).\n- GIVEN `/pf help <verb>` WHEN run THEN subcommands + flags for that verb are printed (exit 0);\n  an unknown topic exits 2 with the verb list.\n- GIVEN the repo WHEN `python scripts/dev/pf_surface_check.py` runs THEN it exits 0.\n\n## Data model (what is stored, where, owner)\nCommand frontmatter: `.opencode/command/*.md` (project) and `~/.config/opencode/command/*.md` (global). Single writer: this item's implementation.\n\n## API contract (endpoints and payloads)\nNone - surface-level change (clients only; API untouched).\n\n## UX (screens / elements / states)\n`/pf` slash command available in the command palette of every session.\n\n## Edge cases and errors\n- Global vs project command with the same name: project overrides global inside the repo - both are kept in sync at `agent: build`.\n- Paths with spaces: absolute pf.py path must be quoted in the global command body.\n\n## Dependencies and links (by id)\nBI-PF-0372 (P10 /pf umbrella surface, completed).\n\n## Open questions\nNone.\n\n## Verification / test plan\npython scripts/dev/pf_surface_check.py; python -m compileall -q core scripts dashboard; python scripts/dev/wired_audit.py; manual /pf help in a fresh session after opencode restart. python scripts/pf.py help | help backlog | help nope (exit 0/0/2).",
   "source": "user",
   "status": "new",
-  "priority": null,
+  "priority": "P2",
   "moscow": "Should",
   "value": 3,
   "effort": 1,
   "risk": 1,
-  "deps": [],
+  "deps": [
+    "BI-PF-0372"
+  ],
   "links": {
     "backend_capability": [
       "file: .opencode/command/pf.md",
@@ -40,17 +42,17 @@
   },
   "decisions": [],
   "follow_up": {},
-  "revision": 5,
-  "priority_rank": null,
-  "priority_class": "",
+  "revision": 7,
+  "priority_rank": 2,
+  "priority_class": "P2",
   "analyze_mode": "on_entry",
   "analysis": {
     "status": "IN_PROGRESS",
     "analyzed_at": "",
-    "analyzed_by": "deterministic",
+    "analyzed_by": "ai",
     "revision_analyzed": 0,
-    "architecture_fit": "REUSE",
-    "implementation_strategy": "Extend existing components/APIs: core/agent_model_override.py, core/budget_allocator.py, core/build_manager.py, core/build_utility.py",
+    "architecture_fit": "MODIFY",
+    "implementation_strategy": "Reuse-first surface change. (1) MODIFY frontmatter of .opencode/command/pf.md and .opencode/command/pipeline.md: set agent: build, remove model: pin and agent: orchestrator. (2) MODIFY scripts/pf.py: add a help registry (verb -> usage line, subcommands, flags) and a renderer for `pf.py help` (overview, exit 0) and `pf.py help <verb>` (details, exit 0; unknown topic -> exit 2 with verb list). Reuse the existing pf.py verb dispatch/ROOT self-location so no path logic is duplicated. (3) NEW file global command $USERPROFILE/.config/opencode/command/pf.md that mirrors the project command but calls pf.py by absolute path (quoted, spaces-safe). Keep bodies in sync with the project command; guard via scripts/dev/pf_surface_check.py (extend it to also check the global file and the build-only frontmatter if not already covered). No core/API/agent changes.",
     "existing_components": [
       "core/agent_model_override.py",
       "core/budget_allocator.py",
@@ -70,31 +72,63 @@
       "config/model-policy.json",
       "config/model-tier.json"
     ],
-    "dependency_findings": [],
-    "conflict_findings": [],
+    "dependency_findings": [
+      "REQUIRES BI-PF-0372 (completed) - /pf umbrella surface and scripts/pf.py thin client must exist.",
+      "REQUIRES existing scripts/dev/pf_surface_check.py guard (from BI-PF-0372 surface work) as the verification gate.",
+      "RELATED BI-0178 (per-agent model override) - orthogonal; removing the model: pin means session model inheritance, not the override store."
+    ],
+    "conflict_findings": [
+      "Data model declares single writer for .opencode/command/*.md and the global command file for this item - low conflict risk, but any concurrent item touching pf.md frontmatter or pf.py CLI dispatch would conflict; none identified in the current backlog set.",
+      "scripts/pf.py is shared surface; if another item extends pf.py verbs concurrently, coordinate the help registry table."
+    ],
     "duplication_findings": [
-      "product_forge:BI-PF-0408 (score 1.00)"
+      "No existing backlog item covers /pf frontmatter agent binding or global command exposure; BI-PF-0372 (completed) created the /pf umbrella surface, this item is a follow-up adjustment, not duplication.",
+      "Candidate existing code (agent_model_override, budget_allocator, cost_model, /api/v1/packaging/build, model-config JSONs) is unrelated to this surface-level change - not reused, not duplicated.",
+      "Similar-similar items BI-PF-0336/0337 (api foundation/core APIs) are consumed backends, untouched here."
     ],
     "drift": "NONE",
     "rewrite_required": false,
     "new_component_required": false,
-    "rationale": "deterministic deep grooming (codebase-grounded)",
-    "assumptions": [],
+    "rationale": "Thin-client verbs must not run under the orchestrator agent; binding to build mode is a small, verifiable frontmatter + CLI-help change with an existing guard script. Adding a global /pf extends reach to all sessions with zero API impact. Classification MODIFY (existing command files + pf.py extended); only the global command md file is new, not a new component. P1: improves correctness and reach of an already-built surface, not a blocker for core flows.",
+    "assumptions": [
+      "opencode resolves project commands over global commands when names collide (stated in edge cases).",
+      "pf.py already self-locates ROOT from any cwd (stated in body), so absolute-path invocation from a global command works.",
+      "No model: pin in frontmatter means the session's current model/agent model is inherited.",
+      "opencode restart is required and acceptable for a new global command to appear (stated in verification)."
+    ],
     "risks": [
-      "possible duplicate"
+      "Global vs project command name collision behavior depends on opencode's resolution order (assumed: project overrides global); verify after opencode restart.",
+      "Absolute pf.py path in the global command can break if the repo moves or the user profile path differs per OS ($USERPROFILE is Windows-centric; Linux/macOS is ~/.config/opencode) - spec already targets ~/.config/opencode, acceptable but path derivation should be platform-checked.",
+      "Help registry can drift from actual pf.py dispatch table unless generated from or checked against the same source; mitigate by deriving usage strings from a single registry used by dispatch and by extending pf_surface_check."
     ],
     "evidence": [
-      "similar=5",
-      "score=3.0",
-      "components=8",
-      "apis=1"
+      "Body explicitly states pf.py self-locates ROOT, so any cwd works.",
+      "Acceptance criteria include runnable gates: pf_surface_check.py exit 0, pf.py help/help <verb>/help nope exit 0/0/2.",
+      "BI-PF-0372 completed provides the existing /pf surface and guard script to extend."
     ],
     "confidence": "high",
-    "missing_info": [],
+    "missing_info": [
+      "Confirm exact opencode global config dir per OS ($USERPROFILE/.config/opencode vs ~/.config/opencode on Linux/macOS) and whether install.py/install.sh/install.bat (out of scope here) will later own copying the global command - who maintains sync between project and global pf.md long-term.",
+      "Whether pf_surface_check.py should hard-fail if the global command file is absent on machines where opencode is not installed."
+    ],
     "depth": "deep",
-    "mode": "deterministic"
+    "mode": "ai",
+    "context_review": {
+      "implementable": true,
+      "missing": [
+        "Platform-accurate global opencode command dir (per OS) and long-term sync owner between project and global pf.md.",
+        "Decision on whether pf_surface_check.py hard-fails when the global command file is absent."
+      ],
+      "reason": "All reuse targets (pf.md, pipeline.md, pf.py, pf_surface_check.py) and exit-code contracts are specified; only operational details about the global config path per OS and sync governance require a human decision."
+    }
   },
-  "dependencies": [],
+  "dependencies": [
+    {
+      "task_id": "BI-PF-0372",
+      "type": "REQUIRES",
+      "required_state": "completed"
+    }
+  ],
   "blocked_by": [],
   "unlocks": [],
   "readiness": {
@@ -113,9 +147,9 @@
     "completed_at": ""
   },
   "created_at": "2026-10-06T19:06:58.917730",
-  "updated_at": "2026-10-09T18:33:47.943998",
+  "updated_at": "2026-10-09T21:36:56.350456",
   "score": 3.0,
-  "_note": "delivery recorded",
+  "_note": "dependencies set",
   "dashboard_impact": {
     "needs_dashboard": false,
     "reason": "Command frontmatter + opencode command file only; no UI surface change.",
