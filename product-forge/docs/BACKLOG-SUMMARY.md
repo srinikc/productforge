@@ -1,18 +1,19 @@
 # Backlog Summary
 
-> GENERATED 2026-10-09T18:25:03 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-09T20:59:52 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 34  |  **Closed:** 439
-- `new`: 34
+- **Open:** 35  |  **Closed:** 447
+- `new`: 35
 
-### new, by category (34)
-**API / reports / HIL / misc** (1)
+### new, by category (35)
+**API / reports / HIL / misc** (2)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-PF-0332 | Should | chore | API-5 deferred hardening: rate limiting + request/upload limits + tenant-isolation expansion + event streaming | API-5 deferred hardening: rate limiting + request/upload limits + tenant-isolation expansion + event streaming |
+| BI-PF-1194 | Should | feature | Backlog batch grooming: groom-all + review + approve-all (CLI + API) with batched LLM (--batch N) | Make bulk backlog grooming practical: groom all open items in batched LLM passes, review the results in one vi... |
 
 **Discovery / HIL / prompts** (1)
 | ID | MoSCoW | Type | Title | Objective |
@@ -30,13 +31,14 @@
 | BI-PF-0390 | Should | epic | EPIC A: PF Commercial & IP Foundation (contracts, Go core, licensing, packaging, EAP, RDC, governance, vertical slice) | EPIC A — the needed-now foundation: A0 baseline freeze + ADR register; A1 thin contracts incl. Go<->Python con... |
 | BI-PF-0396 | Should | feature | A2: capability registry + entitlement-at-boundary + asymmetric licensing | A2 — capability registry + entitlement checks at execution boundaries + asymmetric licensing (public-key verif... |
 
-**Specs / cache / context / artifacts** (2)
+**Specs / cache / context / artifacts** (3)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0206 | Should | tech-debt | Backend: model downloader + local cache + license-acceptance gate + models.lock (open-weights) | One owner module that downloads only the weights a project's capability pack needs, into a gitignored local ca... |
 | BI-0225 | Should | feature | Parallel section/feature generation | Run section/per-feature agent calls in parallel with a bounded worker pool and merge results deterministically... |
+| BI-PF-1195 | Should | feature | Grooming completeness: populate priority + structured deps + full context (AI and deterministic), re-groom in-progress | Make one groom call (AI or deterministic) populate the full context, priority, and structured dependencies, so... |
 
-**Wiring / tech-debt / API** (27)
+**Wiring / tech-debt / API** (26)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0185 | Should | feature | EPIC: Multi-modal / media orchestration (pluggable capability packs) | Make the pipeline modality-agnostic via PLUGGABLE capability packs, enabled per project when the idea needs th... |
@@ -65,7 +67,6 @@
 | BI-PF-0406 | Should | feature | B7: service decomposition | B7 — service decomposition behind contracts. |
 | BI-PF-0407 | Should | feature | Bmig: migrate high-value legacy Python -> Go (by value) | Bmig — migrate high-value legacy Python -> Go (replace, not duplicate), then the remainder as an aspiration. |
 | BI-PF-0408 | Should | change | /pf command: build mode only (not orchestrator) + global /pf for all opencode sessions | - `/pf ...` always executes in build mode (`agent: build`), with no model pin so the session's model is inheri... |
-| BI-PF-1184 | Should | feature | Backlog index.html: epic-wise classification (per-epic counts + Epic column) | Add epic classification to the generated backlog HTML: per-row epic + epic_title fields, an 'By epic' summary ... |
 
 ---
 
@@ -265,5 +266,5 @@
 ---
 
 ## Totals
-- backend: 34 open / 439 closed
+- backend: 35 open / 447 closed
 - dashboard: 146 open / 3 closed

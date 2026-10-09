@@ -40,7 +40,12 @@ Product Forge's `scripts/run_pipeline.py` (the canonical agent runner).
 ## Verb map
 - `/pf help [verb]` — usage overview, or per-verb details (subcommands + flags)
 - `/pf product new "idea" --tier <tier>` / `continue` / `fix "desc"` → PF `scripts/run_pipeline.py`
-- `/pf backlog list|show <id>|groom <id> [--no-ai]|approve <id>`
+- `/pf backlog list|show <id>|groom <id> [--no-ai] [--force]|approve <id>`
+  — groom fills the full context (objective/AC/in_scope/…), priority, and structured deps; gap-fill by default,
+  `--force` overwrites existing authored fields
+- `/pf backlog groom-all [--no-ai] [--batch N] [--limit N] [--force] [--dry]|review|approve-all [--ids a,b] [--force] [--dry]`
+  — bulk: groom all open items (incl. in-progress) in batched AI passes (default 3/pass), review the results,
+  then approve clean items (approve-all skips flagged unless `--force`; COMPLETE items re-groomed only with `--force`)
 - `/pf dogfood [--dry]`
 - `/pf sync` — git sync (fetch remote + push develop)
 - `/pf validate <PROFILE>` · `/pf release readiness|gate` · `/pf package <edition>`

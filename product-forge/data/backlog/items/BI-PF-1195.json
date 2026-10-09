@@ -1,0 +1,189 @@
+{
+  "id": "BI-PF-1195",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "review:grooming-completeness",
+  "label": "PF Backlog 531",
+  "title": "Grooming completeness: populate priority + structured deps + full context (AI and deterministic), re-groom in-progress",
+  "body": "Problem: grooming only fills the analysis block. Priority and structured dependencies are left empty, and the authored context (objective/acceptance_criteria/in_scope/out_of_scope/affected_*/approach/verification/risks/rollback/evidence/review) is never refreshed - so re-grooming an existing item cannot complete it, and the scheduler has no priority/deps to order by (scheduler._rank/_unmet_deps).\n\nGoal: one groom call (AI and deterministic) populates the FULL item context + priority + structured dependencies, gap-filling by default and overwriting with --force; groom-all also re-grooms already groomed IN_PROGRESS items so the backlog can be completed in bulk.\n\nIn scope:\n- extend deterministic + AI groom to fill the context fields from the item body (real derivation; no '(derived)' placeholders; reuse core.backlog._draft_context)\n- set a default priority and map explicit deps/blocked_by to structured dependencies\n- gap-fill by default; --force overwrites non-empty authored fields\n- groom-all re-grooms NOT_ANALYZED + IN_PROGRESS (COMPLETE only with --force)\n- CLI/API flags + tests\n\nOut of scope:\n- semantic dependency inference without AI (only explicit deps are mapped deterministically)\n- auto-approval of items\n\nAcceptance:\n- deterministic groom fills empty objective/acceptance_criteria/in_scope/priority/deps and still passes backlog_context_check with no '(derived)' placeholders\n- --force overwrites non-empty authored fields; default never clobbers them\n- groom-all includes IN_PROGRESS items; COMPLETE only with --force\n- new tests + precheck green\n\nApproach: reuse backlog._draft_context for context derivation; extend _apply_proposal to persist context/priority/deps (gap-fill unless force); extend the AI prompt to request those fields.",
+  "source": "review",
+  "status": "new",
+  "priority": null,
+  "moscow": "Should",
+  "value": 4,
+  "effort": 4,
+  "risk": 2,
+  "deps": [],
+  "links": {
+    "backend_capability": [
+      {
+        "kind": "artifact",
+        "ref": "core/grooming.py",
+        "detail": "deterministic/_apply_proposal/_ai_prompt fill context+priority+deps"
+      },
+      {
+        "kind": "artifact",
+        "ref": "core/backlog.py",
+        "detail": "_draft_context reused for derivation"
+      },
+      {
+        "kind": "test",
+        "ref": "test-framework/tests/pipeline/test_grooming_completeness.py",
+        "detail": "field population + gap-fill/force"
+      }
+    ]
+  },
+  "decisions": [],
+  "follow_up": {},
+  "brief": {
+    "problem": "Grooming fills only analysis; priority/deps and authored context stay empty, so already-groomed items cannot be completed in bulk and the scheduler has no order.",
+    "what_adds": "Full-field grooming (context + priority + deps) for AI and deterministic, gap-fill by default, --force to overwrite; groom-all re-grooms IN_PROGRESS items.",
+    "source": "authored"
+  },
+  "objective": "Make one groom call (AI or deterministic) populate the full context, priority, and structured dependencies, so re-grooming completes items and the scheduler can order by priority/deps.",
+  "acceptance_criteria": [
+    "groom (deterministic and AI) populates objective/acceptance_criteria/in_scope/out_of_scope/affected_components/affected_files/approach/verification/risks/rollback/evidence + brief.",
+    "groom sets priority (default) and structured dependencies (from explicit deps/blocked_by; AI may infer).",
+    "Gap-fill by default; --force overwrites existing authored fields.",
+    "groom-all re-grooms NOT_ANALYZED + IN_PROGRESS; COMPLETE only with --force.",
+    "No '(derived)' placeholders; items pass scripts/dev/backlog_context_check.py."
+  ],
+  "in_scope": [
+    "deterministic + AI groom fill all context fields (real derivation, no placeholders)",
+    "priority default + explicit deps -> structured dependencies",
+    "gap-fill by default; --force overwrites",
+    "groom-all re-grooms NOT_ANALYZED + IN_PROGRESS (COMPLETE only with --force)",
+    "CLI/API flags; tests"
+  ],
+  "out_of_scope": [
+    "semantic dependency inference without AI",
+    "auto-approval"
+  ],
+  "affected_components": [
+    "Not specified."
+  ],
+  "affected_files": [
+    "Not specified."
+  ],
+  "approach": "Grooming completeness: populate priority + structured deps + full context (AI and deterministic), re-groom in-progress",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Objective achieved: Grooming completeness: populate priority + structured deps + full context (AI and deterministic), re-groom in-progress"
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "agent",
+  "requester": "review",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "",
+  "parent": "",
+  "revision": 1,
+  "priority_rank": null,
+  "priority_class": "",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "IN_PROGRESS",
+    "analyzed_at": "",
+    "analyzed_by": "deterministic",
+    "revision_analyzed": 0,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/context_discipline.py, core/context_engine.py, core/context_manager.py, core/context_policy.py",
+    "existing_components": [
+      "core/context_discipline.py",
+      "core/context_engine.py",
+      "core/context_manager.py",
+      "core/context_policy.py",
+      "core/context_preflight.py",
+      "core/context_review.py",
+      "core/grooming.py",
+      "core/media_context.py"
+    ],
+    "existing_apis": [
+      "/api/v1/backlog/grooming/guidelines",
+      "/api/v1/backlog/items/{item_id}/context-review",
+      "/api/v1/backlog/items/{item_id}/priority",
+      "/api/v1/engineering/pidl/context"
+    ],
+    "existing_modules": [
+      "config/context-policy.json",
+      "config/grooming-guidelines.json"
+    ],
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=0.75",
+      "components=8",
+      "apis=4"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": false,
+    "reasons": [],
+    "computed_at": ""
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": ""
+  },
+  "created_at": "2026-10-09T20:53:07.416241",
+  "updated_at": "2026-10-09T20:56:54.580885",
+  "score": 0.75,
+  "_note": "analysis updated",
+  "dashboard_impact": {
+    "needs_dashboard": false,
+    "reason": "CLI + API grooming behavior; no dashboard surface"
+  },
+  "api_impact": {
+    "needs_api": true,
+    "routes": [
+      "POST /backlog/groom",
+      "POST /backlog/items/{item_id}/groom"
+    ],
+    "reason": "Grooming populates full context/priority/deps via existing groom + batch endpoints."
+  },
+  "source_ref": "session:grooming-completeness"
+}

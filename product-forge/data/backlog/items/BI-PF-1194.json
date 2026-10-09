@@ -1,0 +1,196 @@
+{
+  "id": "BI-PF-1194",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "review:batch-grooming-all",
+  "label": "PF Backlog 530",
+  "title": "Backlog batch grooming: groom-all + review + approve-all (CLI + API) with batched LLM (--batch N)",
+  "body": "Bulk grooming is currently one item per invocation, and each AI groom makes TWO agent runs (analysis via grooming._run_ai + advisory context_review), so grooming 33 open items means ~66 agent runs, run sequentially at the CLI. Related/completed prior work: BI-PF-0363 (PFSSOT-P2 AI+user grooming), BI-PF-0432 (dedup marking + bulk sweep), BI-PF-0435 (AI consolidation), BI-PF-0665 (AI context review). None provide a batch groom/approve workflow.\n\nAdd a batch grooming workflow: groom-all (groom every open item), review (one view of results), approve-all (approve clean items in bulk). Reduce LLM work by batching 2-3 items per agent run and emitting BOTH the analysis proposal and the context_review per item in one pass, with per-item deterministic fallback.",
+  "source": "review",
+  "status": "new",
+  "priority": null,
+  "moscow": "Should",
+  "value": 4,
+  "effort": 4,
+  "risk": 2,
+  "deps": [],
+  "links": {
+    "backend_capability": [
+      {
+        "kind": "artifact",
+        "ref": "core/grooming.py",
+        "detail": "groom_all / decide_all / review"
+      },
+      {
+        "kind": "artifact",
+        "ref": "scripts/pf.py",
+        "detail": "backlog groom-all | review | approve-all"
+      },
+      {
+        "kind": "artifact",
+        "ref": "api/routers/backlog.py",
+        "detail": "POST /backlog/groom (batch) + /backlog/groom/approve (batch)"
+      }
+    ]
+  },
+  "decisions": [],
+  "follow_up": {},
+  "brief": {
+    "problem": "Grooming/approving the open backlog is one item at a time and doubles agent runs per item (analysis + context_review); ~66 runs for 33 items.",
+    "what_adds": "Bulk groom-all / review / approve-all verbs with batched LLM passes.",
+    "source": "authored"
+  },
+  "objective": "Make bulk backlog grooming practical: groom all open items in batched LLM passes, review the results in one view, then approve clean items in bulk.",
+  "acceptance_criteria": [
+    "pf backlog groom-all [--no-ai] [--batch N] [--limit N] [--depth deep|standard] [--dry] grooms all open items (incl. EPICs), skips IN_PROGRESS/COMPLETE, paced via core/capacity; default AI, batch N=3.",
+    "pf backlog review prints id/title/analysis.status/confidence/dup+consolidation flags/context_review verdict.",
+    "pf backlog approve-all [--ids ...] [--force] [--dry] approves only CLEAN IN_PROGRESS items; lists flagged items; --force overrides; --ids subsets.",
+    "Batched LLM: one agent run per N items returns per-item {analysis, context_review}; any missing/garbled item falls back to per-item deterministic analysis (never blocks); item stays IN_PROGRESS until decided.",
+    "API parity: POST /backlog/groom (batch) and POST /backlog/groom/approve (batch) mirror CLI; operator-gated.",
+    "Single-item groom <id> / approve <id> behavior unchanged.",
+    "Docs: pf.md SSOT (.opencode/command_global/pf.md) + installed copy stay byte-identical (pf_surface_check)."
+  ],
+  "in_scope": [
+    "backlog groom-all / review / approve-all (CLI + API)",
+    "batched LLM (2-3 items/pass) emitting analysis + context_review per item",
+    "per-item deterministic fallback + resumability (skip IN_PROGRESS/COMPLETE)",
+    "rate-budget pacing via core/capacity; --limit/--dry",
+    "pf.md SSOT + installed copy update"
+  ],
+  "out_of_scope": [
+    "single-item groom/approve behavior changes",
+    "new store or second writer (backlog stays the single writer)",
+    "dashboard UI"
+  ],
+  "affected_components": [
+    "Not specified."
+  ],
+  "affected_files": [
+    "Not specified."
+  ],
+  "approach": "Backlog batch grooming: groom-all + review + approve-all (CLI + API) with batched LLM (--batch N)",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Objective achieved: Backlog batch grooming: groom-all + review + approve-all (CLI + API) with batched LLM (--batch N)"
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "agent",
+  "requester": "review",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "",
+  "parent": "",
+  "revision": 1,
+  "priority_rank": null,
+  "priority_class": "",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "IN_PROGRESS",
+    "analyzed_at": "",
+    "analyzed_by": "deterministic",
+    "revision_analyzed": 0,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/backlog.py, core/backlog_link.py, core/context_review.py, core/cross_review.py",
+    "existing_components": [
+      "core/backlog.py",
+      "core/backlog_link.py",
+      "core/context_review.py",
+      "core/cross_review.py",
+      "core/grooming.py",
+      "core/llm_error_handler.py",
+      "core/multi_model_review.py",
+      "core/rerun_review.py"
+    ],
+    "existing_apis": [
+      "/api/v1/backlog",
+      "/api/v1/backlog/grooming/guidelines",
+      "/api/v1/backlog/ids:reserve",
+      "/api/v1/backlog/items",
+      "/api/v1/backlog/items/{item_id}",
+      "/api/v1/backlog/items/{item_id}/analysis",
+      "/api/v1/backlog/items/{item_id}/context-review",
+      "/api/v1/backlog/items/{item_id}/dependencies"
+    ],
+    "existing_modules": [
+      "config/grooming-guidelines.json",
+      "config/review-focus.json"
+    ],
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=0.75",
+      "components=8",
+      "apis=8"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": false,
+    "reasons": [],
+    "computed_at": ""
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": ""
+  },
+  "created_at": "2026-10-09T20:38:59.326572",
+  "updated_at": "2026-10-09T20:56:54.492375",
+  "score": 0.75,
+  "_note": "analysis updated",
+  "dashboard_impact": {
+    "needs_dashboard": false,
+    "reason": "CLI + API verb; no dashboard surface required"
+  },
+  "source_ref": "session:batch-grooming-design",
+  "api_impact": {
+    "needs_api": true,
+    "routes": [
+      "POST /backlog/groom",
+      "POST /backlog/groom/approve"
+    ],
+    "reason": "Batch grooming API (operator-gated)."
+  }
+}

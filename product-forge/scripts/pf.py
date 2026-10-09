@@ -148,10 +148,23 @@ def cmd_backlog(pos, flags):
         return backlog.get_epic(s, p, pos[1]) or {"error": "not found"}
     if sub in ("groom", "analyze") and len(pos) > 1:
         mode = "deterministic" if flags.get("no-ai") else ""
-        return grooming.groom(s, p, pos[1], mode=mode)
+        return grooming.groom(s, p, pos[1], mode=mode, force=bool(flags.get("force")))
+    if sub == "groom-all":
+        mode = "deterministic" if flags.get("no-ai") else ""
+        return grooming.groom_all(s, p, mode=mode, batch=int(flags.get("batch") or 0),
+                                  limit=int(flags.get("limit") or 0), force=bool(flags.get("force")),
+                                  dry=bool(flags.get("dry")))
+    if sub == "review":
+        return grooming.review(s, p)
     if sub == "approve" and len(pos) > 1:
         return grooming.decide(s, p, pos[1], "APPROVE")
-    return {"error": "usage: pf backlog list|show <id>|groom <id> [--no-ai]|approve <id>"}
+    if sub == "approve-all":
+        ids = [x.strip() for x in str(flags.get("ids") or "").split(",") if x.strip()]
+        return grooming.decide_all(s, p, "APPROVE", ids=(ids or None), force=bool(flags.get("force")),
+                                   dry=bool(flags.get("dry")))
+    return {"error": "usage: pf backlog list|show <id>|groom <id> [--no-ai]|groom-all "
+                     "[--no-ai] [--batch N] [--limit N] [--force] [--dry]|review|approve <id>|"
+                     "approve-all [--ids a,b] [--force] [--dry]"}
 
 
 # worker/scheduler/work/adapters/dispatch verbs MOVED to WorkerGrid (`/wg`, workergrid/wg.py) - decoupled.
@@ -237,9 +250,20 @@ _HELP = {
     "backlog": ("Backlog SSOT (single writer: core/backlog.py).",
                 [("list", "open backlog items (JSON: id/status/title)"),
                  ("show <id>", "full item record (e.g. BI-PF-0408)"),
-                 ("groom <id> [--no-ai]", "analyze/groom one item; --no-ai = deterministic only"),
-                 ("approve <id>", "approve a groomed item")],
-                (("--no-ai", "groom deterministically (skip AI analysis)"),)),
+                 ("groom <id> [--no-ai] [--force]",
+                  "groom one item: analysis + full context + priority + deps (gap-fill; --force overwrites)"),
+                 ("groom-all [--no-ai] [--batch N] [--limit N] [--force] [--dry]",
+                  "groom all open items incl. in-progress; batched AI (default 3/pass)"),
+                 ("review", "groomed-but-undecided items: status/confidence/flags/context_review"),
+                 ("approve <id>", "approve a groomed item"),
+                 ("approve-all [--ids a,b] [--force] [--dry]",
+                  "approve CLEAN groomed items; --force also approves flagged ones")],
+                (("--no-ai", "groom deterministically (skip AI analysis)"),
+                 ("--batch N", "items per AI agent run (default 3)"),
+                 ("--limit N", "process at most N items this run"),
+                 ("--force", "groom/approve even if already groomed or flagged"),
+                 ("--dry", "preview what would change (no writes)"),
+                 ("--ids a,b", "approve-all: restrict to these item ids"))),
     "dogfood": ("Run Product Forge's own dogfood validation.", [],
                 (("--dry", "dry run (default on; pass without value to toggle)"),)),
     "validate": ("Validation profiles (single writer: core/validation_engine.py).",
