@@ -35,11 +35,11 @@ Run `python "$PFSCRIPT" $ARGUMENTS` and report the output.
 (pf.py self-locates its repo ROOT from its own file location, so the resolved path works from any cwd.)
 Deterministic verbs (backlog, dogfood, validate, release, package, audit, status) return JSON. Product
 generation (`/pf product ...`) delegates to
-Product Forge's `scripts/pipeline.py` (the existing agent runner).
+Product Forge's `scripts/run_pipeline.py` (the canonical agent runner).
 
 ## Verb map
 - `/pf help [verb]` — usage overview, or per-verb details (subcommands + flags)
-- `/pf product new "idea" --tier <tier>` / `continue` / `fix "desc"` → PF `scripts/pipeline.py`
+- `/pf product new "idea" --tier <tier>` / `continue` / `fix "desc"` → PF `scripts/run_pipeline.py`
 - `/pf backlog list|show <id>|groom <id> [--no-ai]|approve <id>`
 - `/pf dogfood [--dry]`
 - `/pf sync` — git sync (fetch remote + push develop)
