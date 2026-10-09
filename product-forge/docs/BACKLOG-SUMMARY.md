@@ -1,11 +1,11 @@
 # Backlog Summary
 
-> GENERATED 2026-10-09T00:08:21 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-09T13:38:33 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 35  |  **Closed:** 405
+- **Open:** 35  |  **Closed:** 406
 - `new`: 35
 
 ### new, by category (35)
@@ -18,7 +18,7 @@
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-PF-0455 | Should | bug | DEFECT: DOGFOOD profile e2e checker is self-referential + scope-hardcoded -> first dogfood can never PASS | Fix the DOGFOOD e2e checker so dogfood can be validated end-to-end without a circular prior-PASS requirement. |
-| BI-PF-0457 | Should | bug | Defect/RCCA: concurrent sessions allocate the SAME backlog id (local counters, no coordination) -> push rejected + merge conflict | Defect/RCCA: concurrent sessions allocate the SAME backlog id (local counters, no coordination) -> push reject... |
+| BI-PF-0458 | Should | bug | Fix: generalize the code-review agent card (drop hardcoded mymoney/13-features/apps/Phase lists; drive from requirements/plan) | Fix: generalize the code-review agent card (drop hardcoded mymoney/13-features/apps/Phase lists; drive from re... |
 
 **Discovery / HIL / prompts** (1)
 | ID | MoSCoW | Type | Title | Objective |
@@ -270,5 +270,5 @@
 ---
 
 ## Totals
-- backend: 35 open / 405 closed
+- backend: 35 open / 406 closed
 - dashboard: 146 open / 3 closed
