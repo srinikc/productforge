@@ -1,6 +1,36 @@
 {
   "_doc": "Central env-flag registry. Owner: core/env_flags.py. Declare every PIPELINE_*/MODEL_* switch (default, purpose, owner) so behaviour is discoverable.",
   "flags": {
+   "PF_ID_ALLOC": {
+    "default": "strict",
+    "purpose": "backlog id allocation mode: strict(default - require the shared git-CAS authority, fail closed, never self-reserve) | on(soft: CAS->API->local block) | off(legacy max+1)",
+    "owner": "core/id_allocator.py"
+   },
+   "PF_ID_ALLOC_REMOTE": {
+    "default": "on",
+    "purpose": "use the shared git-remote CAS authority (refs/heads/pf-id-counter) to reserve id blocks",
+    "owner": "core/id_allocator.py"
+   },
+   "PF_ID_ALLOC_API": {
+    "default": "on",
+    "purpose": "allow the PF API id-reserve authority path (fallback when the git remote is unavailable)",
+    "owner": "core/id_allocator.py"
+   },
+   "PF_ID_REMOTE_REF": {
+    "default": "refs/heads/pf-id-counter",
+    "purpose": "git ref holding the shared backlog id counter (CAS)",
+    "owner": "core/id_allocator.py"
+   },
+   "PF_ID_BLOCK_SIZE": {
+    "default": "100",
+    "purpose": "number of ids reserved per block",
+    "owner": "core/id_allocator.py"
+   },
+   "PF_ID_BLOCK_BASE": {
+    "default": "0",
+    "purpose": "offline base offset for a session's local id blocks",
+    "owner": "core/id_allocator.py"
+   },
    "API_TOKEN": {
     "default": "",
     "purpose": "Bearer token required by the canonical api/ surface (fail-closed when unset unless API_ALLOW_ANON=1)",
