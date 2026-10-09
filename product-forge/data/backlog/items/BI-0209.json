@@ -10,12 +10,16 @@
   "body": "## Problem / why\nOCR/document understanding is a listed need but has no dedicated kind, pack, or adapters, so scanned/\nPDF/table content cannot be ingested reliably across products.\n\n## Goal & value\nAn `ocr` capability pack with a `ocr/doc-parse` kind, permissive self-host defaults, and paid API\noptions -- enabled only for projects that need documents.\n\n## In scope\n- **Kind** `ocr/doc-parse` + adapter contract (batch: images/PDF in -> text/tables/layout out).\n- **Self-host (permissive):** Tesseract (+tessdata), PaddleOCR, RapidOCR, docTR; PDF text via\n  pdfplumber/pypdf/pypdfium2.\n- **Paid API:** Google Document AI, AWS Textract, Azure Document Intelligence, Mistral OCR.\n- **Pipeline:** document ingest -> layout/segmentation -> OCR -> structured output -> asset store;\n  `doc-analyst` agent gated by the pack.\n- **Explicitly excluded** (never bundled): PyMuPDF, poppler, Surya/Marker weights.\n\n## Acceptance criteria (testable)\n- A document-heavy idea enables the ocr pack; a plain app enables none.\n- E2E: a scanned PDF -> extracted structured text/tables as an artifact, with per-page confidence.\n- Bundled OCR tools are all permissive; restricted libs absent from the package.\n\n## Verification / test plan\n- Unit: adapter contract with a fixture image; language/resolution selection.\n- Integration: sample PDF -> text+table artifact; store-registry + wired_audit green.\n",
   "source": "generic",
   "status": "new",
-  "priority": null,
+  "priority": "P2",
   "moscow": "Should",
   "value": 3,
   "effort": 3,
   "risk": 2,
-  "deps": [],
+  "deps": [
+    "BI-0185",
+    "BI-0208",
+    "BI-0224"
+  ],
   "links": {
     "relates_to": [
       "product_forge:BI-0188",
@@ -23,10 +27,17 @@
       "product_forge:BI-0187"
     ]
   },
-  "decisions": [],
+  "decisions": [
+    {
+      "at": "2026-10-09T22:32:10.375081",
+      "decision": "APPROVE",
+      "by": "user",
+      "note": ""
+    }
+  ],
   "follow_up": {},
   "created_at": "2026-09-25T21:20:45.220692",
-  "updated_at": "2026-10-09T18:33:48.209764",
+  "updated_at": "2026-10-09T22:32:10.448356",
   "score": 0.75,
   "dashboard_impact": {
     "needs_dashboard": false,
@@ -35,7 +46,7 @@
     "reviewed_by": "agent",
     "reviewed_at": "2026-09-25T21:20:45.231229"
   },
-  "_note": "dashboard_impact reviewed",
+  "_note": "readiness computed",
   "brief": {
     "problem": "OCR/document understanding is a listed need but has no dedicated kind, pack, or adapters, so scanned/\nPDF/table content cannot be ingested reliably across products.",
     "what_adds": "An `ocr` capability pack with a `ocr/doc-parse` kind, permissive self-host defaults, and paid API\noptions -- enabled only for projects that need documents.",
@@ -107,5 +118,110 @@
     "routes": [],
     "consumers": [],
     "reason": "no API surface declared in backend_capability"
+  },
+  "analysis": {
+    "status": "COMPLETE",
+    "analyzed_at": "2026-10-09T22:32:10.225237",
+    "analyzed_by": "user",
+    "revision_analyzed": 2,
+    "architecture_fit": "NEW_CAPABILITY",
+    "implementation_strategy": "EXTEND provider_kinds with ocr/doc-parse; EXTEND generator_adapters with OCR adapter class (self-host + API variants); register pack in config/capability-packs.json mirroring BI-0208 sensor pack pattern; add pdf ingest via intake_adapters. New components only for pipeline steps not covered by existing adapters.",
+    "existing_components": [
+      "core/capability_bridge.py",
+      "core/capability_packs.py",
+      "core/generator_adapters.py",
+      "core/intake_adapters.py",
+      "core/packaging.py",
+      "core/provider_kinds.py",
+      "core/test_adapters.py",
+      "core/vendor_adapters.py"
+    ],
+    "existing_apis": [
+      "/api/v1/changes/kinds",
+      "/api/v1/packaging/build",
+      "/api/v1/packaging/editions",
+      "/api/v1/packaging/manifest",
+      "/api/v1/packaging/validate"
+    ],
+    "existing_modules": [
+      "config/agent-capability-vector.json",
+      "config/capability-packs.json",
+      "config/generators.json"
+    ],
+    "dependency_findings": [
+      "REQUIRES BI-0185 (pluggable packs epic) for pack loading mechanism to be stable",
+      "RELATED BI-0208 (pack pattern reference, not blocking)",
+      "BI-PF-0334/0335 API gates unrelated to core work"
+    ],
+    "conflict_findings": [
+      "Low risk of overlap with BI-0208: both touch capability_packs.json/generators.json",
+      "Coordinate JSON edits with BI-0208 to avoid merge conflicts"
+    ],
+    "duplication_findings": [
+      "BI-0208 sensor pack is the pack-pattern template (non-overlapping domain)",
+      "BI-0185 EPIC multi-modal packs is parent epic; BI-0209 is a child slice",
+      "No existing ocr/doc kind in provider_kinds"
+    ],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": true,
+    "rationale": "New domain capability; follows established pack pattern; reuse of kind/adapter/pack modules is high, so classified NEW_CAPABILITY not NEW_COMPONENT.",
+    "assumptions": [
+      "Pack loading/gating infra from BI-0185 or BI-0208 exists or lands first",
+      "Asset store registry supports text/table artifacts (per BI-0208 scope)",
+      "Tests can run without GPUs"
+    ],
+    "risks": [
+      "Heavy native deps (tessdata, paddle) bloat package; must stay optional per-pack",
+      "Per-page confidence not available for all engines (pdfplumber path)",
+      "License drift if a dependency sneaks restricted code"
+    ],
+    "evidence": [
+      "Existing pack infra: capability_packs.py, capability-bridge.py, config/capability-packs.json",
+      "Candidate components listed cover kind/adapter registration"
+    ],
+    "confidence": "medium",
+    "missing_info": [
+      "Default language set for OCR and whether tesseract-lang-* wheels are bundled or optional",
+      "Which paid API is the default for projects with API keys",
+      "GPU availability assumptions for PaddleOCR accuracy"
+    ],
+    "depth": "deep",
+    "mode": "ai",
+    "context_review": {
+      "implementable": true,
+      "missing": [
+        "Default OCR languages",
+        "Paid API default/precedence order",
+        "Pack-loading epic state (BI-0185)"
+      ],
+      "reason": "Candidate code covers kind/adapter/pack extension points; remaining gaps are config decisions, not blockers."
+    },
+    "arch_fingerprint": "dccfa9aaa68e546a"
+  },
+  "priority_rank": 2,
+  "priority_class": "P2",
+  "revision": 2,
+  "dependencies": [
+    {
+      "task_id": "BI-0185",
+      "type": "REQUIRES",
+      "required_state": "pack registry + gating infra landed"
+    },
+    {
+      "task_id": "BI-0208",
+      "type": "RELATED",
+      "required_state": "pack pattern established"
+    },
+    {
+      "task_id": "BI-0224",
+      "type": "RELATED",
+      "required_state": "structured output contract available"
+    }
+  ],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-09T22:32:10.291946"
   }
 }

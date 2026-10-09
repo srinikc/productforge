@@ -90,14 +90,19 @@ def test_approve_all_clean_then_force_for_flagged():
         clean = _mk("Clean item")
         backlog.set_analysis("project", _PROJ, clean, status="IN_PROGRESS",
                              analysis={"confidence": "high"}, analyzed_by="deterministic")
-        flagged = _mk("Flagged item")
-        backlog.set_analysis("project", _PROJ, flagged, status="IN_PROGRESS",
+        # AI duplication_findings are ADVISORY -> must NOT block approval (BI-PF-1198)
+        advisory = _mk("Advisory-dup item")
+        backlog.set_analysis("project", _PROJ, advisory, status="IN_PROGRESS",
                              analysis={"confidence": "high", "duplication_findings": ["BI-X"]},
                              analyzed_by="deterministic")
+        flagged = _mk("Low-confidence item")
+        backlog.set_analysis("project", _PROJ, flagged, status="IN_PROGRESS",
+                             analysis={"confidence": "low"}, analyzed_by="deterministic")
 
         r = grooming.decide_all("project", _PROJ, "APPROVE")
         assert clean in r["approved"]
-        assert flagged not in r["approved"]
+        assert advisory in r["approved"]          # duplication_findings does NOT block
+        assert flagged not in r["approved"]       # low-confidence does
         assert any(f["id"] == flagged for f in r["flagged"])
         assert _status(clean) == "COMPLETE"
         assert _status(flagged) == "IN_PROGRESS"

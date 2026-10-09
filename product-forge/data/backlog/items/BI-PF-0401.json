@@ -16,21 +16,33 @@
   "value": 3,
   "effort": 3,
   "risk": 2,
-  "deps": [],
+  "deps": [
+    "BI-PF-0390",
+    "BI-PF-0406",
+    "BI-PF-0405",
+    "BI-PF-0402"
+  ],
   "links": {},
-  "decisions": [],
+  "decisions": [
+    {
+      "at": "2026-10-09T22:32:16.648902",
+      "decision": "APPROVE",
+      "by": "user",
+      "note": ""
+    }
+  ],
   "follow_up": {},
-  "revision": 2,
+  "revision": 3,
   "priority_rank": 9,
   "priority_class": "",
   "analyze_mode": "on_entry",
   "analysis": {
-    "status": "IN_PROGRESS",
-    "analyzed_at": "",
-    "analyzed_by": "deterministic",
-    "revision_analyzed": 0,
-    "architecture_fit": "REUSE",
-    "implementation_strategy": "Extend existing components/APIs: core/agent_memory.py, core/agent_model_override.py, core/agent_tool_loop.py, core/business_models_kb.py",
+    "status": "COMPLETE",
+    "analyzed_at": "2026-10-09T22:32:16.506445",
+    "analyzed_by": "user",
+    "revision_analyzed": 3,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Introduce four thin gateway interfaces (ModelGateway, ToolGateway, MemoryGateway, InfrastructureGateway) in core, then route existing call sites through them. Reuse current assets as the first adapters: model routing/policy from core/agent_model_override.py + conversation_models.py + config/model-catalog.json + model-policy.json + model-tier.json; tools from core/agent_tool_loop.py + /api/v1/tools/catalog + config/tool-catalog.json; memory from core/agent_memory.py; infrastructure from core/deploy_providers.py + /api/v1/engineering/worker-providers. Keep config JSON as the gateway config format; do not rewrite adapters in Go yet (per BI-PF-0387 migrate-by-value policy).",
     "existing_components": [
       "core/agent_memory.py",
       "core/agent_model_override.py",
@@ -51,37 +63,109 @@
       "config/model-tier.json",
       "config/provider-keys.json"
     ],
-    "dependency_findings": [],
-    "conflict_findings": [],
-    "duplication_findings": [
-      "product_forge:BI-PF-0401 (score 1.00)"
+    "dependency_findings": [
+      {
+        "task_id": "BI-PF-0390",
+        "type": "RELATED",
+        "required_state": "in_progress"
+      },
+      {
+        "task_id": "BI-PF-0406",
+        "type": "RELATED",
+        "required_state": "any"
+      },
+      {
+        "task_id": "BI-PF-0405",
+        "type": "RELATED",
+        "required_state": "any"
+      },
+      {
+        "task_id": "BI-PF-0402",
+        "type": "RELATED",
+        "required_state": "any"
+      }
     ],
-    "drift": "NONE",
+    "conflict_findings": [
+      "Touches core/agent_tool_loop.py and core/agent_memory.py which BI-PF-0405/BI-PF-0406 may also modify - serialize or assign clear ownership per module.",
+      "Config catalog JSON files are shared - changes to schema must land before parallel config consumers."
+    ],
+    "duplication_findings": [
+      "core/agent_model_override.py + config/model-catalog/policy/tier.json already implement de-facto model routing - ModelGateway should wrap these, not replace them.",
+      "core/agent_tool_loop.py + /api/v1/tools/catalog already implement tool discovery/execution - ToolGateway wraps these.",
+      "BI-PF-0406 (service decomposition) will re-expose these gateways across process boundaries - coordinate so gateway interfaces are transport-agnostic.",
+      "BI-PF-0405 (WASM plugins) will likely hook into ToolGateway - the interface must allow plugin registration without core edits.",
+      "BI-PF-0414 pluggable store covers persistence and must NOT be re-implemented inside MemoryGateway."
+    ],
+    "drift": "LOW",
     "rewrite_required": false,
-    "new_component_required": false,
-    "rationale": "deterministic deep grooming (codebase-grounded)",
-    "assumptions": [],
+    "new_component_required": true,
+    "rationale": "Provider coupling already hurts and the codebase has clear seams: model override, tool loop, memory and deploy providers modules plus their config catalogs. Reuse-first: define gateway interfaces and wrap the existing modules as adapters; no new provider logic is written.",
+    "assumptions": [
+      "Existing modules already concentrate provider interactions behind few call sites.",
+      "Gateway config can remain JSON catalogs initially.",
+      "Per BI-PF-0387 new sensitive logic goes to Go - gateways may start in Python and be migrated by value.",
+      "WorkerGrid/B2 infra gateway must satisfy both single-node and multi-node deployments."
+    ],
     "risks": [
-      "possible duplicate"
+      "Over-abstraction: building generic gateway framework before real multi-provider demand materializes.",
+      "Provider coupling may be deeper than the visible call sites (hidden direct SDK calls).",
+      "Streaming/async semantics of model calls may not fit a simple sync interface.",
+      "Edition gating (which gateways exist per edition) is undefined."
     ],
     "evidence": [
-      "similar=5",
-      "score=0.75",
-      "components=8",
-      "apis=1"
+      "Candidate modules and config catalogs listed for this item",
+      "BI-PF-0387 compiled-only baseline constrains where new gateway code may live",
+      "BI-PF-0406/BI-PF-0405 titles indicate later reuse of these interfaces"
     ],
-    "confidence": "high",
-    "missing_info": [],
+    "confidence": "medium",
+    "missing_info": [
+      "Gateway interface contract: sync vs async, streaming support, error taxonomy.",
+      "Which provider integrations are must-have for the first slice (OpenAI, Anthropic, local?).",
+      "Edition matrix: which gateways ship in which edition.",
+      "Whether gateways stay Python (compiled) or move to Go core now.",
+      "Config schema versioning approach for the catalogs."
+    ],
     "depth": "deep",
-    "mode": "deterministic"
+    "mode": "ai",
+    "context_review": {
+      "implementable": true,
+      "missing": [
+        "gateway interface contract details",
+        "edition-per-gateway matrix",
+        "async/streaming requirements"
+      ],
+      "reason": "All four domains already have concrete modules and config catalogs to wrap; implementation is interface-first refactoring. Human must fix the interface contract and edition matrix before coding."
+    },
+    "arch_fingerprint": "dccfa9aaa68e546a"
   },
-  "dependencies": [],
+  "dependencies": [
+    {
+      "task_id": "BI-PF-0390",
+      "type": "RELATED",
+      "required_state": "in_progress"
+    },
+    {
+      "task_id": "BI-PF-0406",
+      "type": "RELATED",
+      "required_state": "any"
+    },
+    {
+      "task_id": "BI-PF-0405",
+      "type": "RELATED",
+      "required_state": "any"
+    },
+    {
+      "task_id": "BI-PF-0402",
+      "type": "RELATED",
+      "required_state": "any"
+    }
+  ],
   "blocked_by": [],
   "unlocks": [],
   "readiness": {
-    "ready": false,
+    "ready": true,
     "reasons": [],
-    "computed_at": ""
+    "computed_at": "2026-10-09T22:32:16.569285"
   },
   "execution": {
     "worker_id": "",
@@ -94,9 +178,9 @@
     "completed_at": ""
   },
   "created_at": "2026-10-06T18:32:25.702548",
-  "updated_at": "2026-10-09T18:33:49.791039",
+  "updated_at": "2026-10-09T22:32:16.717113",
   "score": 0.75,
-  "_note": "authored context (BI-PF-0449)",
+  "_note": "readiness computed",
   "parent": "BI-PF-0391",
   "epic": "BI-PF-0391",
   "brief": {

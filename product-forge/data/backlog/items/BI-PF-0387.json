@@ -16,62 +16,98 @@
   "value": 3,
   "effort": 3,
   "risk": 2,
-  "deps": [],
+  "deps": [
+    "BI-PF-0388"
+  ],
   "links": {},
-  "decisions": [],
+  "decisions": [
+    {
+      "at": "2026-10-09T22:32:12.217732",
+      "decision": "APPROVE",
+      "by": "user",
+      "note": ""
+    }
+  ],
   "follow_up": {},
-  "revision": 4,
+  "revision": 5,
   "priority_rank": 5,
   "priority_class": "",
   "analyze_mode": "on_entry",
   "analysis": {
-    "status": "IN_PROGRESS",
-    "analyzed_at": "",
-    "analyzed_by": "deterministic",
-    "revision_analyzed": 0,
-    "architecture_fit": "REUSE",
-    "implementation_strategy": "Extend existing components/APIs: core/budget_allocator.py, core/call_ledger.py, /api/v1/packaging/editions",
+    "status": "COMPLETE",
+    "analyzed_at": "2026-10-09T22:32:12.061602",
+    "analyzed_by": "user",
+    "revision_analyzed": 5,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing delivery pipeline: enforce Go for new shipped/sensitive code (BI-PF-0394 B1 core), Nuitka-compile existing Python (core/delivery.py, budget_allocator, call_ledger, id_allocator), wire /api/v1/packaging/editions to build profiles; document baseline as enforceable policy.",
     "existing_components": [
       "core/budget_allocator.py",
-      "core/call_ledger.py"
+      "core/call_ledger.py",
+      "core/delivery.py",
+      "core/id_allocator.py"
     ],
     "existing_apis": [
       "/api/v1/packaging/editions"
     ],
     "existing_modules": [],
-    "dependency_findings": [],
-    "conflict_findings": [],
-    "duplication_findings": [
-      "product_forge:BI-PF-0387 (score 1.00)"
+    "dependency_findings": [
+      "REQUIRES BI-PF-0388 ADR accepted (explicit EXISTING deps)",
+      "RELATED BI-PF-0386 (later migration-by-value input)"
     ],
-    "drift": "NONE",
+    "conflict_findings": [
+      "BI-PF-0398 A3 also touches packaging/signing — coordinate to avoid two gates"
+    ],
+    "duplication_findings": [
+      "Absorbs/overlaps BI-PF-0383 (NO-RAW-.py gate) — ensure single implementation",
+      "BI-PF-0398 A3 builds the packaging enforcement; 0387 states the policy"
+    ],
+    "drift": "LOW",
     "rewrite_required": false,
     "new_component_required": false,
-    "rationale": "deterministic deep grooming (codebase-grounded)",
-    "assumptions": [],
+    "rationale": "Reuses existing delivery/packaging APIs and modules; enforces locked baseline rather than building new components.",
+    "assumptions": [
+      "BI-PF-0394 Go core B1 lands as foundation",
+      "Nuitka supports all shipped modules"
+    ],
     "risks": [
-      "possible duplicate"
+      "Nuitka compile times/edge-case incompatibilities",
+      "Policy vs enforcement split may leave gaps if A3 not aligned"
     ],
     "evidence": [
-      "similar=5",
-      "score=0.75",
-      "components=2",
-      "apis=1"
+      "Candidate components and editions API confirm existing extension points"
     ],
-    "confidence": "high",
-    "missing_info": [],
+    "confidence": "medium",
+    "missing_info": [
+      "Which modules count as 'sensitive' (depends on BI-PF-0386)",
+      "Nuitka support matrix for the codebase"
+    ],
     "depth": "deep",
-    "mode": "deterministic"
+    "mode": "ai",
+    "context_review": {
+      "implementable": true,
+      "missing": [
+        "Sensitive-module list (from BI-PF-0386)",
+        "Nuitka compatibility validation"
+      ],
+      "reason": "Existing delivery module and editions API provide concrete extension points; policy just needs enforcement wiring."
+    },
+    "arch_fingerprint": "dccfa9aaa68e546a"
   },
-  "dependencies": [],
+  "dependencies": [
+    {
+      "task_id": "BI-PF-0388",
+      "type": "REQUIRES",
+      "required_state": "COMPLETE"
+    }
+  ],
   "blocked_by": [
     "BI-PF-0388"
   ],
   "unlocks": [],
   "readiness": {
-    "ready": false,
+    "ready": true,
     "reasons": [],
-    "computed_at": ""
+    "computed_at": "2026-10-09T22:32:12.131944"
   },
   "execution": {
     "worker_id": "",
@@ -84,9 +120,9 @@
     "completed_at": ""
   },
   "created_at": "2026-10-06T14:56:32.989101",
-  "updated_at": "2026-10-09T18:33:48.792243",
+  "updated_at": "2026-10-09T22:32:12.292123",
   "score": 0.75,
-  "_note": "priority set",
+  "_note": "readiness computed",
   "parent": "BI-PF-0390",
   "epic": "BI-PF-0390",
   "brief": {

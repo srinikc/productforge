@@ -16,21 +16,30 @@
   "value": 3,
   "effort": 3,
   "risk": 2,
-  "deps": [],
+  "deps": [
+    "BI-PF-0392"
+  ],
   "links": {},
-  "decisions": [],
+  "decisions": [
+    {
+      "at": "2026-10-09T22:32:13.723146",
+      "decision": "APPROVE",
+      "by": "user",
+      "note": ""
+    }
+  ],
   "follow_up": {},
-  "revision": 2,
+  "revision": 3,
   "priority_rank": 1,
   "priority_class": "",
   "analyze_mode": "on_entry",
   "analysis": {
-    "status": "IN_PROGRESS",
-    "analyzed_at": "",
-    "analyzed_by": "deterministic",
-    "revision_analyzed": 0,
-    "architecture_fit": "REUSE",
-    "implementation_strategy": "Extend existing components/APIs: core/execution_contract.py, core/skill_contracts.py, core/task_contract.py",
+    "status": "COMPLETE",
+    "analyzed_at": "2026-10-09T22:32:13.580943",
+    "analyzed_by": "user",
+    "revision_analyzed": 3,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend core/execution_contract.py, core/skill_contracts.py, core/task_contract.py into thin canonical contracts (ProductSpec, TechnologyProfile, RuntimeProfile, DeploymentProfile, LicenseProfile, EntitlementProfile, ComponentManifest, BOM, Evidence) plus Go<->Python boundary schema. Emit from existing code paths; grow by need.",
     "existing_components": [
       "core/execution_contract.py",
       "core/skill_contracts.py",
@@ -38,39 +47,69 @@
     ],
     "existing_apis": [],
     "existing_modules": [],
-    "dependency_findings": [],
-    "conflict_findings": [],
+    "dependency_findings": [
+      "REQUIRES BI-PF-0392 (blocking)",
+      "RELATED BI-PF-0336, BI-PF-0340, BI-PF-0405"
+    ],
+    "conflict_findings": [
+      "Contract changes to skill_contracts.py may collide with concurrent API foundation work (BI-PF-0336)"
+    ],
     "duplication_findings": [
-      "product_forge:BI-PF-0393 (score 1.00)"
+      "core/skill_contracts.py and core/task_contract.py already encode similar contract patterns — reuse shapes",
+      "Overlaps BI-PF-0336 (canonical api/ foundation) on where contracts live",
+      "BI-PF-0340 ENG-1 engineering task contract overlaps task-related contract fields"
     ],
     "drift": "NONE",
     "rewrite_required": false,
     "new_component_required": false,
-    "rationale": "deterministic deep grooming (codebase-grounded)",
-    "assumptions": [],
+    "rationale": "Thin, code-emitted contracts with strong existing reuse; low rewrite risk once BI-PF-0392 settles the foundation.",
+    "assumptions": [
+      "BI-PF-0392 completed and defines api/ home",
+      "Contracts emitted from existing Python code, not authored in isolation",
+      "Go side consumes JSON-serializable forms"
+    ],
     "risks": [
-      "possible duplicate"
+      "Over-specifying thin contracts early leads to churn",
+      "Go<->Python boundary contract premature if Go core not started",
+      "Conflicting contract homes (api/ vs core/)"
     ],
     "evidence": [
-      "similar=5",
-      "score=0.75",
-      "components=3",
-      "apis=0"
+      "Existing: core/execution_contract.py, core/skill_contracts.py, core/task_contract.py",
+      "Dep BI-PF-0392 listed"
     ],
-    "confidence": "high",
-    "missing_info": [],
+    "confidence": "medium",
+    "missing_info": [
+      "Location convention (api/ vs core/) after BI-PF-0392",
+      "Go<->Python transport mechanism (JSON file, gRPC, stdio)",
+      "BOM/Evidence schema sources"
+    ],
     "depth": "deep",
-    "mode": "deterministic"
+    "mode": "ai",
+    "context_review": {
+      "implementable": true,
+      "missing": [
+        "Transport mechanism for Go<->Python",
+        "Contract home after BI-PF-0392"
+      ],
+      "reason": "Thin contracts can be emitted from existing code once BI-PF-0392 settles."
+    },
+    "arch_fingerprint": "dccfa9aaa68e546a"
   },
-  "dependencies": [],
+  "dependencies": [
+    {
+      "task_id": "BI-PF-0392",
+      "type": "REQUIRES",
+      "required_state": "COMPLETE"
+    }
+  ],
   "blocked_by": [
     "BI-PF-0392"
   ],
   "unlocks": [],
   "readiness": {
-    "ready": false,
+    "ready": true,
     "reasons": [],
-    "computed_at": ""
+    "computed_at": "2026-10-09T22:32:13.642021"
   },
   "execution": {
     "worker_id": "",
@@ -83,9 +122,9 @@
     "completed_at": ""
   },
   "created_at": "2026-10-06T18:32:18.529306",
-  "updated_at": "2026-10-09T18:33:49.118235",
+  "updated_at": "2026-10-09T22:32:13.798307",
   "score": 0.75,
-  "_note": "priority set",
+  "_note": "readiness computed",
   "parent": "BI-PF-0390",
   "epic": "BI-PF-0390",
   "brief": {

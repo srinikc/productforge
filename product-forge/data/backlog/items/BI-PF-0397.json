@@ -16,21 +16,33 @@
   "value": 3,
   "effort": 3,
   "risk": 2,
-  "deps": [],
+  "deps": [
+    "BI-PF-0398",
+    "BI-PF-0399",
+    "BI-0171",
+    "BI-PF-0424"
+  ],
   "links": {},
-  "decisions": [],
+  "decisions": [
+    {
+      "at": "2026-10-09T22:32:15.216180",
+      "decision": "APPROVE",
+      "by": "user",
+      "note": ""
+    }
+  ],
   "follow_up": {},
-  "revision": 2,
+  "revision": 3,
   "priority_rank": 2,
   "priority_class": "",
   "analyze_mode": "on_entry",
   "analysis": {
-    "status": "IN_PROGRESS",
-    "analyzed_at": "",
-    "analyzed_by": "deterministic",
-    "revision_analyzed": 0,
-    "architecture_fit": "REUSE",
-    "implementation_strategy": "Extend existing components/APIs: core/artifact_registry.py, core/build_manager.py, core/build_utility.py, core/change_registry.py",
+    "status": "COMPLETE",
+    "analyzed_at": "2026-10-09T22:32:15.044832",
+    "analyzed_by": "user",
+    "revision_analyzed": 3,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing core/artifact_registry.py and core/delivery.py to accept and serve an EAP (Execution Artifact Package) as the authoritative manifest. Add EAP schema versioning in config/file-manifest.json. Register EAP format in config/plugins-registry.json. Expose validator logic under /api/v1/packaging/manifest and /api/v1/evidence/manifest/{run_id}. Reuse core/build_manager.py and core/change_registry.py for compatibility checks across EAP versions.",
     "existing_components": [
       "core/artifact_registry.py",
       "core/build_manager.py",
@@ -52,39 +64,92 @@
       "config/plugins-registry.json",
       "config/store-registry.json"
     ],
-    "dependency_findings": [],
-    "conflict_findings": [],
-    "duplication_findings": [
-      "product_forge:BI-PF-0397 (score 1.00)"
+    "dependency_findings": [
+      "REQUIRES core/artifact_registry.py to support structured manifest objects before EAP layer can be authoritative",
+      "BLOCKS BI-PF-0399 (Runtime Dependency Compiler) which consumes the EAP manifest as its primary input",
+      "BLOCKS BI-PF-0398 (build pipeline) which must emit an EAP as its packaging output",
+      "RELATED BI-0171 for knowledge-registry SSOT alignment",
+      "RELATED BI-PF-0424 for coordination authority ADR context"
     ],
-    "drift": "NONE",
+    "conflict_findings": [
+      "BI-PF-0398 also touches /api/v1/packaging/manifest and core/packaging.py; coordinate manifest schema ownership to avoid concurrent edits on manifest endpoints",
+      "BI-PF-0399 also references config/validation-profiles.json; ensure EAP compatibility checker does not conflict with validation-profile changes"
+    ],
+    "duplication_findings": [
+      "core/artifact_registry.py already provides artifact registration; EAP should compose, not duplicate, this registry",
+      "core/delivery.py already handles delivery concerns; EAP manifest layering should sit atop delivery rather than replace it",
+      "BI-0171 (knowledge standardization SSOT) may overlap on registry unification; coordinate to avoid duplicate registry work"
+    ],
+    "drift": "LOW",
     "rewrite_required": false,
     "new_component_required": false,
-    "rationale": "deterministic deep grooming (codebase-grounded)",
-    "assumptions": [],
+    "rationale": "EAP is the authoritative delivery manifest and is a blocking prerequisite for both the build pipeline (A3) and the runtime compiler (A5). It naturally extends the existing artifact_registry and delivery modules. Not a new component because those modules already cover the responsibility boundaries.",
+    "assumptions": [
+      "core/artifact_registry.py already stores sufficient metadata to derive an EAP manifest",
+      "The EAP format is a superset of existing file-manifest.json entries, not a separate store",
+      "Versioning uses semver with backward-compatible read for at least one prior major version",
+      "Validator runs synchronously at packaging time, not as a background process"
+    ],
     "risks": [
-      "possible duplicate"
+      "EAP schema must be stable before dependent items (0398, 0399) build on it; schema churn could cascade",
+      "Compatibility rules across EAP versions may be under-specified leading to brittle validators",
+      "Existing artifact_registry may not carry sufficient metadata for full EAP composition without modification"
     ],
     "evidence": [
-      "similar=5",
-      "score=0.75",
-      "components=8",
-      "apis=3"
+      "core/artifact_registry.py listed as candidate existing code with high relevance",
+      "/api/v1/packaging/manifest already exists and is the natural extension point",
+      "config/file-manifest.json already models file-level manifest structure"
     ],
-    "confidence": "high",
-    "missing_info": [],
+    "confidence": "medium",
+    "missing_info": [
+      "What fields must EAP manifest contain beyond what file-manifest.json provides?",
+      "Compatibility policy: how many prior EAP major versions must be readable?",
+      "Should EAP be generated eagerly at build time or lazily on first delivery request?",
+      "Who owns the EAP schema sign-off (A3/A4 coordination)?"
+    ],
     "depth": "deep",
-    "mode": "deterministic"
+    "mode": "ai",
+    "context_review": {
+      "implementable": true,
+      "missing": [
+        "Exact EAP field list beyond file-manifest entries",
+        "Version-compatibility policy (how many majors supported)",
+        "Owner sign-off on EAP schema"
+      ],
+      "reason": "Existing artifact_registry, delivery, build_manager, and packaging manifest APIs provide a clear extension path; the missing items are policy decisions, not architectural blockers."
+    },
+    "arch_fingerprint": "dccfa9aaa68e546a"
   },
-  "dependencies": [],
+  "dependencies": [
+    {
+      "task_id": "BI-PF-0398",
+      "type": "BLOCKS",
+      "required_state": "EAP manifest schema approved and validator implemented"
+    },
+    {
+      "task_id": "BI-PF-0399",
+      "type": "BLOCKS",
+      "required_state": "EAP manifest endpoint serving structured EAP objects"
+    },
+    {
+      "task_id": "BI-0171",
+      "type": "RELATED",
+      "required_state": "Knowledge-registry SSOT decision made"
+    },
+    {
+      "task_id": "BI-PF-0424",
+      "type": "RELATED",
+      "required_state": "ADR superseding ADR-0002 in draft"
+    }
+  ],
   "blocked_by": [
     "BI-PF-0393"
   ],
   "unlocks": [],
   "readiness": {
-    "ready": false,
+    "ready": true,
     "reasons": [],
-    "computed_at": ""
+    "computed_at": "2026-10-09T22:32:15.109126"
   },
   "execution": {
     "worker_id": "",
@@ -97,9 +162,9 @@
     "completed_at": ""
   },
   "created_at": "2026-10-06T18:32:22.437074",
-  "updated_at": "2026-10-09T18:33:49.459520",
+  "updated_at": "2026-10-09T22:32:15.286312",
   "score": 0.75,
-  "_note": "priority set",
+  "_note": "readiness computed",
   "parent": "BI-PF-0390",
   "epic": "BI-PF-0390",
   "brief": {

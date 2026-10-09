@@ -11,26 +11,37 @@
   "body": "Needed-now foundation for a commercially deployable, IP-protected PF platform. One source -> many editions; new features -> Go; existing Python -> compiled; no raw .py shipped. See docs/PF-TARGET-ARCHITECTURE-AND-IP-PLAN.md.",
   "source": "generic",
   "status": "new",
-  "priority": null,
+  "priority": "P2",
   "moscow": "Should",
   "value": 3,
   "effort": 3,
   "risk": 2,
-  "deps": [],
+  "deps": [
+    "BI-PF-0388",
+    "BI-PF-0352",
+    "BI-PF-0336"
+  ],
   "links": {},
-  "decisions": [],
+  "decisions": [
+    {
+      "at": "2026-10-09T22:32:13.006451",
+      "decision": "APPROVE",
+      "by": "user",
+      "note": ""
+    }
+  ],
   "follow_up": {},
-  "revision": 1,
-  "priority_rank": null,
-  "priority_class": "",
+  "revision": 3,
+  "priority_rank": 2,
+  "priority_class": "P2",
   "analyze_mode": "on_entry",
   "analysis": {
-    "status": "IN_PROGRESS",
-    "analyzed_at": "",
-    "analyzed_by": "deterministic",
-    "revision_analyzed": 0,
-    "architecture_fit": "REUSE",
-    "implementation_strategy": "Extend existing components/APIs: core/licensing.py, core/packaging.py, core/skill_contracts.py, /api/v1/packaging/build",
+    "status": "COMPLETE",
+    "analyzed_at": "2026-10-09T22:32:12.834264",
+    "analyzed_by": "user",
+    "revision_analyzed": 3,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend core/licensing.py, core/packaging.py, core/skill_contracts.py and existing /api/v1/packaging/* endpoints; emit edition manifests from config/licensing-tiers.json. Add Go build/packaging scaffolding referencing BI-PF-0388 ADR without rewriting existing Python flows.",
     "existing_components": [
       "core/licensing.py",
       "core/packaging.py",
@@ -45,37 +56,84 @@
     "existing_modules": [
       "config/licensing-tiers.json"
     ],
-    "dependency_findings": [],
-    "conflict_findings": [],
-    "duplication_findings": [
-      "product_forge:BI-PF-0390 (score 1.00)"
+    "dependency_findings": [
+      "REQUIRES BI-PF-0388 ADR settled (compiled artifacts decision)",
+      "REQUIRES BI-PF-0352 packaging/entitlement scope alignment",
+      "RELATED BI-PF-0336/0337 for API conventions"
     ],
-    "drift": "NONE",
+    "conflict_findings": [
+      "Potential concurrent edits to core/packaging.py with BI-PF-0352",
+      "Contract API changes could collide with BI-PF-0393 if run simultaneously"
+    ],
+    "duplication_findings": [
+      "Overlaps BI-PF-0352 (packaging/licensing/entitlement) — must coordinate to avoid duplicate work",
+      "Overlaps BI-PF-0388 ADR on compiled artifacts; use it as constraint, not duplicate effort",
+      "Overlaps BI-PF-0336/0337 API foundation; reuse /api/v1/packaging/* rather than new APIs"
+    ],
+    "drift": "LOW",
     "rewrite_required": false,
-    "new_component_required": false,
-    "rationale": "deterministic deep grooming (codebase-grounded)",
-    "assumptions": [],
+    "new_component_required": true,
+    "rationale": "Core commercial/IP foundation; heavy existing reuse in packaging/licensing but epic breadth needs decomposition into sub-tasks.",
+    "assumptions": [
+      "Target architecture doc exists and is authoritative",
+      "Existing licensing tiers JSON is the source of truth for editions",
+      "EAP and RDC definitions are documented in the plan"
+    ],
     "risks": [
-      "possible duplicate"
+      "Scope is very broad (contracts, licensing, packaging, EAP, governance, slice) — risk of oversized epic",
+      "docs/PF-TARGET-ARCHITECTURE-AND-IP-PLAN.md may not exist or be stale",
+      "Go toolchain integration unproven"
     ],
     "evidence": [
-      "similar=5",
-      "score=0.75",
-      "components=3",
-      "apis=4"
+      "Existing components: core/licensing.py, core/packaging.py",
+      "Existing APIs: /api/v1/packaging/*",
+      "Module: config/licensing-tiers.json",
+      "Ref to docs/PF-TARGET-ARCHITECTURE-AND-IP-PLAN.md"
     ],
-    "confidence": "high",
-    "missing_info": [],
+    "confidence": "medium",
+    "missing_info": [
+      "Exact definition/scope of EAP and RDC deliverables",
+      "Governance artifact list and approval process",
+      "Go core first-slice contents",
+      "Relationship/scheduling to BI-PF-0352"
+    ],
     "depth": "deep",
-    "mode": "deterministic"
+    "mode": "ai",
+    "context_review": {
+      "implementable": false,
+      "missing": [
+        "EAP/RDC definitions",
+        "Governance artifact list",
+        "Go core slice scope",
+        "Relation to BI-PF-0352"
+      ],
+      "reason": "Epic-level body lacks specific acceptance criteria for sub-deliverables; needs decomposition and doc confirmation."
+    },
+    "arch_fingerprint": "dccfa9aaa68e546a"
   },
-  "dependencies": [],
+  "dependencies": [
+    {
+      "task_id": "BI-PF-0388",
+      "type": "REQUIRES",
+      "required_state": "accepted"
+    },
+    {
+      "task_id": "BI-PF-0352",
+      "type": "RELATED",
+      "required_state": "scoped"
+    },
+    {
+      "task_id": "BI-PF-0336",
+      "type": "RELATED",
+      "required_state": "scoped"
+    }
+  ],
   "blocked_by": [],
   "unlocks": [],
   "readiness": {
-    "ready": false,
+    "ready": true,
     "reasons": [],
-    "computed_at": ""
+    "computed_at": "2026-10-09T22:32:12.910685"
   },
   "execution": {
     "worker_id": "",
@@ -88,9 +146,9 @@
     "completed_at": ""
   },
   "created_at": "2026-10-06T18:30:29.635421",
-  "updated_at": "2026-10-09T18:33:48.958122",
+  "updated_at": "2026-10-09T22:32:13.081011",
   "score": 0.75,
-  "_note": "analysis updated",
+  "_note": "readiness computed",
   "brief": {
     "problem": "PF must become a commercially deployable, IP-protected platform shipped as editions from one source: new shipped/sensitive logic in Go, existing Python compiled, no raw .py shipped. See docs/PF-TARGET-ARCHITECTURE-AND-IP-PLAN.md.",
     "what_adds": "EPIC A — the needed-now foundation: A0 baseline freeze + ADR register; A1 thin contracts incl. Go<->Python contract; A2 capability registry + entitlement-at-boundary + asymmetric licensing; A3 build->package->deploy + compiled packaging (Nuitka + go build) + signing + SBOM/LBOM + no-raw-.py gate; A4 EAP delivery manifest + compatibility; A5 Runtime Dependency Compiler; A6 governance (change classifier, language rule, no-undeclared-dep); A7 vertical slice.",

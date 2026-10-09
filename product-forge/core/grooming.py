@@ -757,16 +757,17 @@ def review(scope: str, project: str | None) -> dict[str, Any]:
             continue
         cr = a.get("context_review") or {}
         flags = []
-        if a.get("duplication_findings"):
-            flags.append("duplication")
+        # Hard signals only. AI duplication_findings / missing_info are ADVISORY (informational) and are
+        # NOT flags - the deterministic dedup (possible_duplicate_of, score threshold) is the duplicate
+        # authority (BI-PF-1199). This keeps plain groom-all -> approve-all free of --force.
         if a.get("consolidation_proposal"):
             flags.append("consolidation")
         if str(a.get("confidence") or "") == "low":
             flags.append("low-confidence")
         if cr and cr.get("ok") is False:
-            flags.append("context-review-failed")
-        if a.get("missing_info"):
-            flags.append("missing-info")
+            flags.append("unimplementable")
+        if it.get("possible_duplicate_of"):
+            flags.append("possible-duplicate")
         out.append({
             "id": it.get("id"), "title": it.get("title"), "status": a.get("status"),
             "confidence": a.get("confidence") or "", "architecture_fit": a.get("architecture_fit") or "",
@@ -800,15 +801,14 @@ def decide_all(scope: str, project: str | None, decision: str = "APPROVE", *,
             skipped.append(iid)
             continue
         reasons = []
-        if a.get("duplication_findings"):
-            reasons.append("duplication")
+        # Hard signals only (BI-PF-1199): AI duplication_findings / missing_info are advisory, not blockers.
         if a.get("consolidation_proposal"):
             reasons.append("consolidation")
         if str(a.get("confidence") or "") == "low":
             reasons.append("low-confidence")
         cr = a.get("context_review") or {}
         if cr and cr.get("ok") is False:
-            reasons.append("context-review-failed")
+            reasons.append("unimplementable")
         if reasons and d == "APPROVE" and not force:
             flagged.append({"id": iid, "reasons": reasons})
             continue
