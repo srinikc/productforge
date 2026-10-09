@@ -10,7 +10,7 @@
   "title": "Backlog dependency guard + BLOCKS direction: drop self/unknown/parent-epic/cyclic deps at the writer",
   "body": "## Problem\nAI grooming produced dependencies that deadlocked the backlog. Two defects:\n1. Scheduler read BLOCKS backwards: 'A BLOCKS B' means B waits on A, but eligible() treated it as A waits on B -> false cycles (0387<->0388, 0386<->0407, 0397<->0398/0399).\n2. No guard at the dependency writer: items could be stored with a self-dep, an unknown id (pfssot-p11-adapters), a child depending on its own parent EPIC (0403/0404/0405 -> 0391; 0374 -> 0360), or a REQUIRES cycle -> permanent deadlock.\n\n## Root cause (5-Why)\n1. Backlog deadlocked. 2. Items waited on their own parent epic / on unknown ids, and BLOCKS was read as the inverse edge. 3. set_dependencies stored any edge; eligible() did not interpret direction. 4. No validation at the single writer and no cycle test. 5. No guard test asserted these are rejected.\n\n## Fix\n- eligible(): REQUIRES X = this item waits on X; BLOCKS X = X waits on this (does NOT block this); RELATED advisory. (blocking = REQUIRES only, + flat deps/blocked_by back-compat.)\n- set_dependencies(): fail-safe guard drops (never stores) self / unknown / parent-epic / REQUIRES-cycle edges; keeps valid ones; prints dropped ids. Single writer -> holds for AI and human alike.\n\n## In scope\n- core/scheduler.py direction handling; core/backlog.py set_dependencies guard\n- tests\n\n## Out of scope\n- AI dep inference quality; required_state semantics\n\n## Acceptance\n- BLOCKS edge does not block the item itself; REQUIRES on an open item blocks; completed deps are met.\n- self/unknown/parent-epic/cycle deps are dropped; valid edges kept.\n- No cycles in the live backlog after the guard; roots eligible.\n",
   "source": "review",
-  "status": "new",
+  "status": "completed",
   "priority": "P2",
   "moscow": "Should",
   "value": 4,
@@ -39,7 +39,16 @@
         "ref": "test-framework/tests/pipeline/test_scheduler_dep_types.py",
         "detail": "direction semantics"
       }
-    ]
+    ],
+    "delivery": {
+      "branch": "fix/bi-pf-1201-dep-guard",
+      "merge_sha": "a7a7bdba339cbb2c440d218af5fcbd494b0fe9c3",
+      "commits": [],
+      "pr": "",
+      "pr_url": "",
+      "at": "2026-10-10T00:27:35.294296",
+      "note": "merged"
+    }
   },
   "decisions": [],
   "follow_up": {},
@@ -104,7 +113,7 @@
   "children": [],
   "epic": "",
   "parent": "",
-  "revision": 2,
+  "revision": 3,
   "priority_rank": 2,
   "priority_class": "P2",
   "analyze_mode": "on_entry",
@@ -174,9 +183,9 @@
     "completed_at": ""
   },
   "created_at": "2026-10-10T00:27:02.070780",
-  "updated_at": "2026-10-10T00:27:02.901998",
+  "updated_at": "2026-10-10T00:27:35.489598",
   "score": 1.0,
-  "_note": "priority set",
+  "_note": "delivered",
   "dashboard_impact": {
     "needs_dashboard": false,
     "reason": "backlog/scheduler correctness"
