@@ -1,0 +1,174 @@
+{
+  "id": "BI-PF-0865",
+  "tag": "PF",
+  "type": "bug",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "known-agents-stale",
+  "label": "PF Backlog 503",
+  "title": "Defect: core.agent_structure.KNOWN_AGENTS is stale (missing ux-ia/implement-*/design_critic) - derive from agent cards",
+  "body": "## Problem / why\n`core/agent_structure.py` `KNOWN_AGENTS` is STALE: it omits real agents that have cards (ux-ia, implement-ui,\nimplement-api, implement-db, implement-logic, design_critic, ...). Anything validating against it (e.g. the new\nartifact map BI-PF-0765) rejects legitimate agents.\n\n## Goal & value\nOne authoritative agent list, derived from the agent cards (agents/*.agent.json), used by validators.\n\n## Acceptance criteria\n- KNOWN_AGENTS (or a replacement source) equals the set of agents/*.agent.json ids.\n- Validators use the authoritative set; a test asserts agents-with-cards are all \"known\".\n\n## In scope\nReconcile KNOWN_AGENTS with the agent cards.\n\n## Out of scope\nChanging the pipeline stage order.\n\n## Verification\nTest: every agents/*.agent.json id is in the authoritative set; artifact-map validates against it (already does).",
+  "source": "found building BI-PF-0765",
+  "status": "new",
+  "priority": null,
+  "moscow": "Should",
+  "value": 3,
+  "effort": 1,
+  "risk": 2,
+  "deps": [
+    "BI-PF-0765"
+  ],
+  "links": {
+    "backend_capability": [
+      "module:core/agent_structure.py",
+      "module:scripts/dev/gen_artifact_map.py"
+    ],
+    "related": [
+      "product_forge:BI-PF-0765"
+    ]
+  },
+  "decisions": [],
+  "follow_up": {},
+  "brief": {
+    "problem": "core.agent_structure.KNOWN_AGENTS omits real agents that have cards (ux-ia, implement-*, design_critic), so validators reject legitimate agents",
+    "what_adds": "an authoritative agent set derived from agents/*.agent.json used by validators",
+    "why": "so validation never rejects a real agent due to a stale hand-maintained list",
+    "who_feels": "any gate/validator that references the agent set",
+    "source": "authored"
+  },
+  "objective": "the known-agents source equals the agents/*.agent.json ids and validators use it",
+  "acceptance_criteria": [
+    "KNOWN_AGENTS (or replacement) equals the agent-card id set",
+    "validators use the authoritative set",
+    "a test asserts every agent card id is known"
+  ],
+  "in_scope": [
+    "reconcile KNOWN_AGENTS with agent cards"
+  ],
+  "out_of_scope": [
+    "pipeline stage order"
+  ],
+  "affected_components": [
+    "core/agent_structure.py"
+  ],
+  "affected_files": [
+    "core/agent_structure.py",
+    "scripts/dev/gen_artifact_map.py"
+  ],
+  "approach": "derive the authoritative set from agents/*.agent.json (single source) instead of a hand list",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "test: every agents/*.agent.json id is in the authoritative set"
+  ],
+  "risks": [
+    "other code relies on KNOWN_AGENTS ordering"
+  ],
+  "rollback": "revert the change",
+  "evidence": [
+    "precheck PASS"
+  ],
+  "owner": "agent",
+  "requester": "user",
+  "due": "n/a",
+  "target_release": "next",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "",
+  "parent": "",
+  "revision": 1,
+  "priority_rank": null,
+  "priority_class": "",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "IN_PROGRESS",
+    "analyzed_at": "",
+    "analyzed_by": "deterministic",
+    "revision_analyzed": 0,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/agent_capabilities.py, core/agent_card_loader.py, core/agent_hierarchy.py, core/agent_ledger.py",
+    "existing_components": [
+      "core/agent_capabilities.py",
+      "core/agent_card_loader.py",
+      "core/agent_hierarchy.py",
+      "core/agent_ledger.py",
+      "core/agent_memory.py",
+      "core/agent_messenger.py",
+      "core/agent_migrator.py",
+      "core/agent_model_override.py"
+    ],
+    "existing_apis": [
+      "/api/v1/agents",
+      "/api/v1/agents/{agent_id}",
+      "/api/v1/agents/{agent_id}/capabilities",
+      "/api/v1/artifacts/{stage_id}/{agent}"
+    ],
+    "existing_modules": [
+      "config/agent-capabilities.json",
+      "config/agent-capability-vector.json",
+      "config/agent-hierarchy.json",
+      "config/agent-requirements.json"
+    ],
+    "dependency_findings": [
+      "depends on BI-PF-0765"
+    ],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=2.25",
+      "components=8",
+      "apis=4"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": false,
+    "reasons": [],
+    "computed_at": ""
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": ""
+  },
+  "created_at": "2026-10-09T15:46:49.099720",
+  "updated_at": "2026-10-09T15:46:49.993956",
+  "score": 2.25,
+  "_note": "analysis updated",
+  "dashboard_impact": {
+    "needs_dashboard": false,
+    "reason": "agent-list drift; no dashboard",
+    "dashboard_item": null,
+    "reviewed_by": "agent"
+  }
+}
