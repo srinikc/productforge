@@ -1,0 +1,166 @@
+{
+  "id": "BI-PF-1193",
+  "tag": "PF",
+  "type": "bug",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "review:pf-product-doc-fix",
+  "label": "PF Backlog 529",
+  "title": "Fix /pf docs: product generation delegates to scripts/run_pipeline.py, not scripts/pipeline.py",
+  "body": "## Problem / why\nBoth `.opencode/command/pf.md` (project) and `.opencode/command_global/pf.md` (global source) stated that `/pf product ...` delegates to `scripts/pipeline.py`. That script is the legacy deterministic helper (no `new`), not the runner. The code was already fixed (BI-PF-1172) to call `scripts/run_pipeline.py`, so the docs drifted from the implementation.\n\n## Goal & value\nDocs match the code: `/pf product ...` delegates to `scripts/run_pipeline.py`.\n",
+  "source": "design-review",
+  "status": "new",
+  "priority": null,
+  "moscow": "Should",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [],
+  "links": {},
+  "decisions": [],
+  "follow_up": {},
+  "brief": {
+    "problem": "/pf docs named the wrong runner (scripts/pipeline.py); code uses scripts/run_pipeline.py.",
+    "what_adds": "Correct the product-generation delegate reference in both pf.md copies + re-sync.",
+    "why": "Docs must match the shipped behavior; a wrong runner would mislead.",
+    "who_feels": "Operators/agents using /pf product.",
+    "source": "authored"
+  },
+  "objective": "Correct the /pf command docs (project + global) to reference scripts/run_pipeline.py as the product-generation runner, matching the fixed pf.py delegate; re-sync the installed copy.",
+  "acceptance_criteria": [
+    ".opencode/command/pf.md and .opencode/command_global/pf.md reference scripts/run_pipeline.py (no scripts/pipeline.py)",
+    "installed ~/.config/opencode/command/pf.md re-synced byte-identical",
+    "pf_surface_check + sync --check pass"
+  ],
+  "in_scope": [
+    ".opencode/command/pf.md + .opencode/command_global/pf.md delegate reference"
+  ],
+  "out_of_scope": [
+    "pf.py behavior (already fixed in BI-PF-1172)"
+  ],
+  "affected_components": [
+    "command_global",
+    "command-docs"
+  ],
+  "affected_files": [
+    ".opencode/command/pf.md",
+    ".opencode/command_global/pf.md"
+  ],
+  "approach": "Replace 'scripts/pipeline.py' with 'scripts/run_pipeline.py' in the product-delegate lines of both pf.md files; re-sync the installed copy.",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [
+        "run_pipeline.py is the canonical runner (BI-PF-1172)",
+        "command_global is the installed SSOT"
+      ],
+      "existing_path": [
+        "pf.py cmd_product -> run_pipeline.py (fixed)",
+        "pf.md docs (stale)"
+      ],
+      "assumptions": [
+        "docs-only change"
+      ],
+      "divergences": [
+        "none"
+      ],
+      "open_questions": [
+        "none"
+      ]
+    },
+    "reviewed_by": "agent"
+  },
+  "verification": [
+    "pf_surface_check OK",
+    "sync_global_commands.py --check OK",
+    "no scripts/pipeline.py refs remain in pf.md"
+  ],
+  "risks": [
+    "none"
+  ],
+  "rollback": "revert the merge",
+  "evidence": [
+    "pending merge"
+  ],
+  "owner": "agent",
+  "requester": "user",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "",
+  "parent": "",
+  "revision": 1,
+  "priority_rank": null,
+  "priority_class": "",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "IN_PROGRESS",
+    "analyzed_at": "",
+    "analyzed_by": "deterministic",
+    "revision_analyzed": 0,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/api_docs.py, core/notification_system.py, core/pipeline_capabilities.py, core/pipeline_composition.py",
+    "existing_components": [
+      "core/api_docs.py",
+      "core/notification_system.py",
+      "core/pipeline_capabilities.py",
+      "core/pipeline_composition.py",
+      "core/pipeline_executor.py",
+      "core/pipeline_store.py",
+      "core/pipeline_tailoring.py",
+      "core/pipeline_telemetry.py"
+    ],
+    "existing_apis": [
+      "/api/v1/apidocs",
+      "/api/v1/apidocs.json",
+      "/api/v1/apidocs/render",
+      "/api/v1/pipeline",
+      "/api/v1/pipeline/stages",
+      "/api/v1/pipeline/stages/{stage_id}"
+    ],
+    "existing_modules": [],
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=0.75",
+      "components=8",
+      "apis=6"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": false,
+    "reasons": [],
+    "computed_at": ""
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": ""
+  },
+  "created_at": "2026-10-09T20:20:51.017319",
+  "updated_at": "2026-10-09T20:20:51.707492",
+  "score": 0.75,
+  "_note": "analysis updated"
+}
