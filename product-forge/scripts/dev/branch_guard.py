@@ -44,12 +44,31 @@ def _is_bookkeeping(path: str) -> bool:
     return any(path.replace("\\", "/").startswith(p) for p in BOOKKEEPING)
 
 
+# BI-PF-1186: the backlog STORE (its own commit) - never mix it with other files.
+_BACKLOG_STORE = ("product-forge/data/backlog/",)
+
+
+def _is_backlog_store(path: str) -> bool:
+    return any(path.replace("\\", "/").startswith(p) for p in _BACKLOG_STORE)
+
+
+def _mixed(staged) -> bool:
+    if not staged:
+        return False
+    bk = [p for p in staged if _is_bookkeeping(p)]
+    other = [p for p in staged if not _is_bookkeeping(p)]
+    return bool(bk) and bool(other)
+
+
 def evaluate(branch: str, merge: bool, allow: bool, staged=None) -> tuple:
     """Pure decision table: (ok, reason). ``staged`` = list of staged paths (or None if unknown)."""
     if allow:
         return True, "PF_ALLOW_DIRECT_COMMIT override (direct commit allowed)"
     if not branch:
         return True, "detached HEAD (rebase/cherry-pick/merge ok)"
+    if _mixed(staged):
+        return False, ("mixed commit: backlog bookkeeping (product-forge/data/backlog/**) must be committed "
+                       "SEPARATELY from other files - split into two commits")
     if branch in PROTECTED:
         if merge:
             return True, f"merge commit on {branch!r} (allowed)"

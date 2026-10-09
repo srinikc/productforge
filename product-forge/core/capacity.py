@@ -26,6 +26,9 @@ except ImportError:  # executed as a script: seed the repo root on sys.path, the
 import json
 import os
 import subprocess
+import threading
+import time
+from collections import deque
 from typing import Any, Dict, List, Optional
 
 _REPO = str(_PF_ROOT)
@@ -74,6 +77,58 @@ def live_supervisors() -> List[int]:
             if _pid_alive(pid):
                 out.append(pid)
     return out
+
+
+def provider_limits(provider: str) -> Dict[str, int]:
+    """Declared per-provider caps from config/capacity.json::provider_limits (0 = unlimited)."""
+    lim = ((load().get("provider_limits") or {}).get(str(provider) or "") or {})
+    return {"rpm": int(lim.get("requests_per_min") or 0), "tpm": int(lim.get("tokens_per_min") or 0)}
+
+
+_RATE_LOCK = threading.Lock()
+_RATE: Dict[str, Dict[str, deque]] = {}  # provider -> {"reqs": deque[ts], "tokens": deque[(ts, n)]}
+_RATE_WINDOW = 60.0
+
+
+def _prune(dq: deque, now: float) -> None:
+    while dq and now - dq[0][0] > _RATE_WINDOW:
+        dq.popleft()
+
+
+def rate_wait(provider: str, *, max_wait: float = 30.0) -> float:
+    """Seconds to wait before the next request so `provider` stays within its provider_limits.
+
+    **Fail-open**: unknown provider / no limits -> 0; never returns more than `max_wait` (the caller caps
+    the actual sleep). This PACES only — it never blocks/aborts an agent.
+    """
+    lim = provider_limits(provider)
+    if not lim["rpm"] and not lim["tpm"]:
+        return 0.0
+    now = time.time()
+    st = _RATE.setdefault(str(provider or ""), {"reqs": deque(), "tokens": deque()})
+    with _RATE_LOCK:
+        _prune(st["reqs"], now)
+        _prune(st["tokens"], now)
+        waits = []
+        if lim["rpm"] and len(st["reqs"]) >= lim["rpm"]:
+            waits.append(_RATE_WINDOW - (now - st["reqs"][0][0]))
+        if lim["tpm"]:
+            used = sum(n for _, n in st["tokens"])
+            if used >= lim["tpm"] and st["tokens"]:
+                waits.append(_RATE_WINDOW - (now - st["tokens"][0][0]))
+        return max(0.0, min(max(waits) if waits else 0.0, float(max_wait)))
+
+
+def record_request(provider: str, tokens: int = 0) -> None:
+    """Record one request (and optional token usage) for the provider's rolling window."""
+    now = time.time()
+    st = _RATE.setdefault(str(provider or ""), {"reqs": deque(), "tokens": deque()})
+    with _RATE_LOCK:
+        _prune(st["reqs"], now)
+        _prune(st["tokens"], now)
+        st["reqs"].append((now,))
+        if tokens:
+            st["tokens"].append((now, int(tokens)))
 
 
 def _running_projects() -> List[str]:
