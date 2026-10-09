@@ -66,12 +66,12 @@ def evaluate(branch: str, merge: bool, allow: bool, staged=None) -> tuple:
         return True, "PF_ALLOW_DIRECT_COMMIT override (direct commit allowed)"
     if not branch:
         return True, "detached HEAD (rebase/cherry-pick/merge ok)"
+    if merge:
+        return True, f"merge commit on {branch!r} (allowed)"   # a merge legitimately combines everything
     if _mixed(staged):
         return False, ("mixed commit: backlog bookkeeping (product-forge/data/backlog/**) must be committed "
                        "SEPARATELY from other files - split into two commits")
     if branch in PROTECTED:
-        if merge:
-            return True, f"merge commit on {branch!r} (allowed)"
         if staged and all(_is_bookkeeping(p) for p in staged):
             return True, f"bookkeeping-only commit on {branch!r} (allowed)"
         return False, (f"direct commit on protected branch {branch!r} is forbidden - "

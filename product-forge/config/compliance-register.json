@@ -1,0 +1,52 @@
+{
+  "_doc": "Compliance register (BI-PF-1206): framework -> control -> owner -> evidence + honest status. SSOT rendered to docs/COMPLIANCE-REGISTER.md by scripts/dev/compliance_register_check.py and validated in precheck. status: implemented | partial | gap. evidence: a repo path or 'gate:<name>' (a precheck gate). implemented controls MUST resolve their evidence.",
+  "frameworks": {
+    "OWASP": [
+      {"id": "OWASP-A01", "control": "access control / authz at the boundary", "owner": "api/auth.py",
+       "status": "implemented", "evidence": "api/auth.py"},
+      {"id": "OWASP-A03", "control": "no injection (SQL/command/template)", "owner": "review_static_check",
+       "status": "implemented", "evidence": "gate:review-static"},
+      {"id": "OWASP-A02", "control": "cryptographic failures / secrets", "owner": "secret_scan",
+       "status": "implemented", "evidence": "gate:secret-scan"},
+      {"id": "OWASP-A06", "control": "vulnerable/outdated + unlicensable dependencies", "owner": "tool-catalog",
+       "status": "implemented", "evidence": "gate:dependency-catalog"},
+      {"id": "OWASP-A09", "control": "security logging/audit", "owner": "guardrails",
+       "status": "partial", "evidence": "core/guardrails.py"}
+    ],
+    "NIST-AI-RMF": [
+      {"id": "RMF-GOVERN", "control": "governance checkpoints on AI output", "owner": "guardrails",
+       "status": "implemented", "evidence": "core/guardrails.py"},
+      {"id": "RMF-MEASURE", "control": "measure (guardrail categories, review gates)", "owner": "code-review",
+       "status": "partial", "evidence": "gate:review-focus"}
+    ],
+    "EU-AI-ACT": [
+      {"id": "EUAI-TRANSPARENCY", "control": "transparency / content provenance (C2PA)", "owner": "guardrails",
+       "status": "partial", "evidence": "core/guardrails.py"},
+      {"id": "EUAI-DATAGOV", "control": "data governance for training/inputs", "owner": "legal-privacy",
+       "status": "gap", "evidence": ""}
+    ],
+    "DPDP-India": [
+      {"id": "DPDP-CONSENT", "control": "consent + notice for personal data", "owner": "legal-privacy",
+       "status": "gap", "evidence": ""},
+      {"id": "DPDP-DSR", "control": "data-subject rights (access/erasure/correction)", "owner": "legal-privacy",
+       "status": "gap", "evidence": ""},
+      {"id": "DPDP-RETENTION", "control": "retention + purpose limitation", "owner": "legal-privacy",
+       "status": "gap", "evidence": ""}
+    ],
+    "GDPR": [
+      {"id": "GDPR-LAWFUL", "control": "lawful basis + records", "owner": "legal-privacy", "status": "gap", "evidence": ""},
+      {"id": "GDPR-DPIA", "control": "DPIA for high-risk processing", "owner": "legal-privacy", "status": "gap", "evidence": ""}
+    ],
+    "SOC2-ISO": [
+      {"id": "SOC2", "control": "SOC 2 Type II program", "owner": "security", "status": "gap", "evidence": ""},
+      {"id": "ISO27001", "control": "ISO/IEC 27001 ISMS", "owner": "security", "status": "gap", "evidence": ""}
+    ],
+    "PII": [
+      {"id": "PII-DETECT", "control": "PII detection/redaction in outputs", "owner": "guardrails",
+       "status": "implemented", "evidence": "core/guardrails.py"},
+      {"id": "TENANCY", "control": "tenant isolation (who can see data)", "owner": "tenancy",
+       "status": "implemented", "evidence": "core/tenancy.py"}
+    ]
+  },
+  "claims_policy": "Customer-facing compliance/security claims must be driven by this register (status=implemented) - never assert a cert that is not held (BI-PF-1205)."
+}
