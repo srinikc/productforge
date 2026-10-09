@@ -1,0 +1,204 @@
+{
+  "id": "BI-PF-0764",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "id-alloc-git-cas",
+  "label": "PF Backlog 501",
+  "title": "Git-remote CAS id authority (GitHub as the shared allocator) + auto-reconcile duplicate ids at merge/PR",
+  "body": "## Problem / why\nA per-host id authority is not foolproof: a remote worker that launches with localhost points at its OWN\nauthority and re-collides. The ONE thing every session/worker already shares is the git remote (GitHub).\n\n## Goal / value\nReserve id blocks through an ATOMIC CAS on the shared git remote, so local and remote sessions use the same\nauthority with nothing to point at; fall back to the local block; and RECONCILE duplicate ids automatically at\nmerge/PR.\n\n## In scope\n- core/id_allocator: git-remote CAS reservation (dedicated ref refs/heads/pf-id-counter; reserve a block via a\n  non-FF git push = compare-and-swap; retry on rejection) as the PRIMARY path; then the API; then the local block.\n  PF_ID_ALLOC_REMOTE=off disables.\n- scripts/dev/backlog_id_reconcile.py: detect duplicate ids per scope; keep the item that is on\n  origin/develop (else earliest created_at) and RENUMBER the incoming one (item id + file + history + all\n  references: deps/blocked_by/links.epic/epic children/possible_duplicate_of) + regenerate indexes.\n- Wire reconcile into precheck (auto-fix) before the id audit (verify).\n\n## Out of scope\n- GitHub Issues as ids; changing the id string format.\n\nlinks.backend_capability: module:core/id_allocator.py, module:scripts/dev/backlog_id_reconcile.py,\ntest:test-framework/tests/pipeline/test_id_allocator_git.py",
+  "source": "user request",
+  "status": "new",
+  "priority": null,
+  "moscow": "Must",
+  "value": 5,
+  "effort": 3,
+  "risk": 3,
+  "deps": [
+    "BI-PF-0462",
+    "BI-PF-0563",
+    "BI-PF-0664"
+  ],
+  "links": {
+    "backend_capability": [
+      "module:core/id_allocator.py",
+      "module:scripts/dev/backlog_id_reconcile.py",
+      "test:test-framework/tests/pipeline/test_id_allocator_git.py"
+    ],
+    "related": [
+      "product_forge:BI-PF-0360",
+      "product_forge:BI-PF-0457",
+      "product_forge:BI-PF-0462"
+    ]
+  },
+  "decisions": [],
+  "follow_up": {},
+  "brief": {
+    "problem": "a per-host id authority is not foolproof - a remote worker launching with localhost points at its own authority and re-collides; the only thing every session shares is the git remote",
+    "what_adds": "reserve id blocks via an atomic CAS on the shared git remote (refs/heads/pf-id-counter), fall back to the local block, and auto-reconcile duplicate ids at merge/PR",
+    "why": "so local and remote sessions share one authority with nothing to point at, and merges land clean",
+    "who_feels": "every session/worker that creates backlog items; maintainers (no manual renumbering)",
+    "source": "authored"
+  },
+  "objective": "id blocks are reserved via an atomic CAS on the shared git remote and duplicate ids are auto-reconciled at merge",
+  "acceptance_criteria": [
+    "_reserve_git reserves a disjoint block via a non-FF git push (CAS) and retries on rejection",
+    "unreachable remote falls back to a local block",
+    "backlog_id_reconcile renumbers the incoming duplicate and updates all references + indexes",
+    "precheck reconciles then the id audit passes"
+  ],
+  "in_scope": [
+    "git-remote CAS reservation",
+    "auto-reconcile duplicate ids",
+    "precheck wiring"
+  ],
+  "out_of_scope": [
+    "GitHub Issues as ids",
+    "changing the id string format"
+  ],
+  "affected_components": [
+    "core/id_allocator.py",
+    "scripts/dev/backlog_id_reconcile.py"
+  ],
+  "affected_files": [
+    "core/id_allocator.py",
+    "scripts/dev/backlog_id_reconcile.py",
+    "scripts/dev/precheck.py"
+  ],
+  "approach": "git fetch the counter ref; reserve [N+1,N+size]; commit + push to the ref (non-FF = CAS) with retry; fall back to API then local block; reconcile renumbers duplicates keeping the base version",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [
+        "API-first authority (BI-PF-0462)"
+      ],
+      "existing_path": [
+        "_mint: API then local block"
+      ],
+      "assumptions": [
+        "git remote reachable",
+        "non-FF push is the CAS"
+      ],
+      "divergences": [
+        "authority becomes the git remote; auto-renumber at merge"
+      ],
+      "open_questions": [
+        "reconcile tie-break when base unavailable"
+      ]
+    },
+    "impact_review": [
+      {
+        "claim": "per-host authority fails for remote",
+        "verdict": "aligned",
+        "recommendation": "use the shared remote"
+      }
+    ],
+    "reviewed_by": "agent",
+    "at": ""
+  },
+  "verification": [
+    "test_id_allocator_git.py (temp bare remote: two reserves are disjoint)",
+    "test_id_allocator.py",
+    "backlog_id_reconcile dry-run + --write"
+  ],
+  "risks": [
+    "git push CAS needs remote write access",
+    "auto-renumber at merge mutates the store"
+  ],
+  "rollback": "revert the change",
+  "evidence": [
+    "precheck PASS"
+  ],
+  "owner": "agent",
+  "requester": "user",
+  "due": "n/a",
+  "target_release": "next",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-0360",
+  "parent": "BI-PF-0360",
+  "revision": 1,
+  "priority_rank": null,
+  "priority_class": "",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "IN_PROGRESS",
+    "analyzed_at": "",
+    "analyzed_by": "deterministic",
+    "revision_analyzed": 0,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/budget_allocator.py, core/github.py, core/id_allocator.py, core/merge_gate.py",
+    "existing_components": [
+      "core/budget_allocator.py",
+      "core/github.py",
+      "core/id_allocator.py",
+      "core/merge_gate.py"
+    ],
+    "existing_apis": [
+      "/api/v1/backlog/ids:reserve",
+      "/api/v1/gates/pr/merge",
+      "/api/v1/github",
+      "/api/v1/github/evidence",
+      "/api/v1/github/pr",
+      "/api/v1/github/pr/{number}",
+      "/api/v1/github/pr/{number}/ci",
+      "/api/v1/reservations/shared-paths"
+    ],
+    "existing_modules": [
+      "config/shared-paths.json"
+    ],
+    "dependency_findings": [
+      "depends on BI-PF-0462",
+      "depends on BI-PF-0563",
+      "depends on BI-PF-0664"
+    ],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=0.83",
+      "components=4",
+      "apis=8"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": false,
+    "reasons": [],
+    "computed_at": ""
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": ""
+  },
+  "created_at": "2026-10-09T15:26:51.331991",
+  "updated_at": "2026-10-09T15:26:52.277864",
+  "score": 0.83,
+  "_note": "analysis updated",
+  "dashboard_impact": {
+    "needs_dashboard": false,
+    "reason": "backlog id authority; no dashboard",
+    "dashboard_item": null,
+    "reviewed_by": "agent"
+  }
+}

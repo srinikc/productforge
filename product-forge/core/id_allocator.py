@@ -14,7 +14,10 @@ Framework-agnostic: core + config only. Ids stay ``BI-<TAG>-<nnn>`` (blocks leav
 """
 import json
 import os
+import shutil
 import socket
+import subprocess
+import tempfile
 import threading
 
 from core.paths import ROOT
@@ -83,6 +86,84 @@ def _up(base: str) -> bool:
         return False
 
 
+def _repo_root() -> str:
+    try:
+        r = subprocess.run(["git", "rev-parse", "--show-toplevel"], cwd=str(ROOT),
+                           capture_output=True, text=True)
+        return (r.stdout or "").strip()
+    except Exception:
+        return ""
+
+
+def _git(root: str, *args, env=None, stdin=None):
+    e = dict(os.environ)
+    if env:
+        e.update(env)
+    try:
+        r = subprocess.run(["git", *args], cwd=root, capture_output=True, text=True, env=e, input=stdin)
+    except Exception:
+        return 1, "", "exec-failed"
+    return r.returncode, (r.stdout or "").strip(), (r.stderr or "").strip()
+
+
+def _remote_enabled() -> bool:
+    return str(os.environ.get("PF_ID_ALLOC_REMOTE", "on")).strip().lower() not in ("off", "0", "false", "no")
+
+
+def _reserve_git(scope: str, project: str | None, size: int) -> dict | None:
+    """Reserve a block via an ATOMIC CAS on the shared git remote (BI-PF-0764).
+
+    The counter lives in ``id-counter.json`` on ``refs/heads/pf-id-counter``. We commit the new counter and
+    ``git push`` it: a NON-fast-forward push is rejected (someone else advanced it) -> retry. This is a
+    compare-and-swap, so any session/worker sharing the remote gets disjoint blocks with nothing to point at.
+    """
+    if not _remote_enabled():
+        return None
+    root = _repo_root()
+    if not root:
+        return None
+    ref = str(os.environ.get("PF_ID_REMOTE_REF", "refs/heads/pf-id-counter"))
+    path = "id-counter" + ".json"
+    key = _key(scope, project)
+    for _ in range(5):
+        rc, _, _ = _git(root, "fetch", "origin", f"{ref}:{ref}")
+        rc2, out, _ = _git(root, "show", f"{ref}:{path}")
+        try:
+            data = json.loads(out) if (rc2 == 0 and out) else {"blocks": {}}
+        except Exception:
+            data = {"blocks": {}}
+        st = data.setdefault("blocks", {}).setdefault(key, {"reserved_up_to": 0})
+        start = int(st.get("reserved_up_to") or 0) + 1
+        end = start + size - 1
+        st["reserved_up_to"] = end
+        rc3, blob, _ = _git(root, "hash-object", "-w", "--stdin",
+                            stdin=json.dumps(data, indent=2, ensure_ascii=False))
+        if rc3 != 0:
+            return None
+        td = tempfile.mkdtemp()
+        envf = {"GIT_INDEX_FILE": os.path.join(td, "index")}
+        if rc == 0:
+            _git(root, "read-tree", ref, env=envf)
+        else:
+            _git(root, "read-tree", "--empty", env=envf)
+        _git(root, "update-index", "--add", "--cacheinfo", f"100644,{blob},{path}", env=envf)
+        rc4, tree, _ = _git(root, "write-tree", env=envf)
+        shutil.rmtree(td, ignore_errors=True)
+        if rc4 != 0:
+            return None
+        if rc == 0:
+            rc5, commit, _ = _git(root, "commit-tree", tree, "-p", ref, "-m", "reserve backlog ids [skip ci]")
+        else:
+            rc5, commit, _ = _git(root, "commit-tree", tree, "-m", "reserve backlog ids [skip ci]")
+        if rc5 != 0:
+            return None
+        rc6, _, _ = _git(root, "push", "origin", f"{commit}:{ref}")
+        if rc6 == 0:
+            return {"start": start, "end": end}
+        # CAS lost the race -> refetch and retry
+    return None
+
+
 def _api_base() -> str:
     """The shared authority base. Explicit ``PF_API_URL`` wins; else default to the LOCAL PF API when it is
     actually reachable (short-TTL cached). ``PF_ID_ALLOC_API=off`` disables the API path (local blocks only)."""
@@ -140,11 +221,13 @@ def reserve(scope: str, project: str | None = None, size: int = 0, session: str 
 
 
 def _mint(scope: str, project: str | None, existing_max: int, reserved_up_to: int) -> dict:
-    """Get a fresh block for this session: the shared API if reachable, else a local block."""
+    """Get a fresh block for this session: the shared git remote (CAS) first, then the API, then a local block."""
     size = block_size()
-    rem = _reserve_remote(scope, project, size)
-    if rem and int(rem["start"]) > int(existing_max):
-        return {"start": rem["start"], "end": rem["end"], "next": rem["start"]}
+    cand = _reserve_git(scope, project, size)
+    if not (cand and int(cand["start"]) > int(existing_max)):
+        cand = _reserve_remote(scope, project, size)
+    if cand and int(cand["start"]) > int(existing_max):
+        return {"start": cand["start"], "end": cand["end"], "next": cand["start"]}
     start = max(int(existing_max), int(reserved_up_to), base()) + 1
     return {"start": start, "end": start + size - 1, "next": start}
 

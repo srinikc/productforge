@@ -116,6 +116,7 @@ _GATES = [
     ("packaging", ["scripts/dev/packaging_check.py"], "fast", ["packaging"]),
     ("tool-catalog", ["scripts/dev/tool_catalog_check.py"], "fast", None),
     ("dependency-catalog", ["scripts/dev/dependency_catalog_check.py"], "fast", None),
+    ("backlog-reconcile", ["scripts/dev/backlog_id_reconcile.py", "--write"], "fast", ["backlog"]),
     ("backlog-context", ["scripts/dev/backlog_context_check.py"], "fast", ["backlog"]),
     ("backlog-ids", ["scripts/dev/backlog_id_audit.py"], "fast", ["backlog"]),
     ("grooming", ["scripts/dev/grooming_check.py"], "fast", ["grooming"]),
