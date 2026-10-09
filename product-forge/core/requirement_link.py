@@ -57,31 +57,17 @@ def synchronize(project: str, products_dir: str = _DEFAULT_PRODUCTS) -> Dict:
     if changed:
         _wj(plan_path, plan)
 
-    # 2) traceability matrix rows REQ-* <-> F-*
-    trace = _rj(trace_path, None)
-    if not isinstance(trace, dict):
-        trace = {"$schema": "traceability-v1", "version": "1.0.0", "project": project,
-                 "matrix": [], "coverage_metrics": {}}
-    matrix: List[Dict] = trace.setdefault("matrix", [])
-    have = {(r.get("requirement_id"), r.get("feature_id")) for r in matrix}
-    added = 0
+    # 2) traceability matrix rows REQ-* <-> F-* (BI-PF-1173: delegate the write to the single owner)
+    rows = []
     for req_id, row in index.items():
         for fid in (row.get("features") or []):
-            if (req_id, fid) not in have:
-                matrix.append({"requirement_id": req_id, "feature_id": fid,
-                               "implemented": False, "tested": False,
-                               "reviewed": False, "secured": False})
-                have.add((req_id, fid))
-                added += 1
-    if added:
-        trace["coverage_metrics"] = {
-            "total_requirements": len(index),
-            "implemented": sum(1 for r in matrix if r.get("implemented")),
-            "tested": sum(1 for r in matrix if r.get("tested")),
-            "reviewed": sum(1 for r in matrix if r.get("reviewed")),
-            "secured": sum(1 for r in matrix if r.get("secured")),
-        }
-        _wj(trace_path, trace)
+            rows.append({"requirement_id": req_id, "feature_id": fid})
+    try:
+        from core import traceability as _trace
+        res = _trace.merge_matrix(pdir, rows)
+        added = res.get("merged", 0)
+    except Exception:
+        added = 0
 
     return {"ok": True, "index_links_added": changed, "matrix_rows_added": added,
             "requirements": len(index)}

@@ -1,0 +1,180 @@
+{
+  "id": "BI-PF-1173",
+  "tag": "PF",
+  "type": "bug",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "traceability-two-writers",
+  "label": "PF Backlog 517",
+  "title": "Defect/RCCA: traceability.json has TWO writers (core/traceability.py vs requirement_link.py) + registry concern mismatch",
+  "body": "## Problem / why\n`products/<name>/traceability.json` has TWO writers: `core/traceability.py` (declared owner in\nconfig/store-registry.json; TraceabilityMatrix: requirement->design->architecture->implementation->test->security\n+ id_index hub, \"preserving the legacy matrix\") AND `core/requirement_link.py` (writes the REQ<->F matrix into the\nsame file). Also the store-registry \"concern\" text for traceability.json describes an \"append-only engineering\nchange log\" - which matches neither module (likely a copy/paste drift from change_log.json).\n\n## Goal & value\nONE writer for traceability.json (the registered owner, core/traceability.py), with requirement_link contributing\ndata instead of writing the file; the registry concern text matches reality.\n\n## Acceptance criteria\n- Only core/traceability.py writes products/<name>/traceability.json.\n- requirement_link no longer writes it directly (delegates its REQ<->F rows to the owner).\n- store-registry concern for traceability.json describes the requirement/id traceability matrix (not a change log).\n\n## In scope\nReconcile the writer + fix the registry concern.\n\n## Out of scope\nPopulating the matrix flags (that is E8).\n\n## Verification\nA test asserts requirement_link does not write traceability.json (owner-only writer).\n\n## 5-Why\n1. Two modules wrote one store. 2. requirement_link created a matrix before core/traceability.py existed. 3.\ncore/traceability.py later took ownership (\"preserving the legacy matrix\") but requirement_link kept writing. 4. No\ngate enforced the single writer for this store. 5. Guard: requirement_link delegates; store-registry owner is\nauthoritative.\n",
+  "source": "found building E8 (BI-PF-1169)",
+  "status": "new",
+  "priority": null,
+  "moscow": "Must",
+  "value": 4,
+  "effort": 2,
+  "risk": 3,
+  "deps": [
+    "BI-PF-1169"
+  ],
+  "links": {
+    "backend_capability": [
+      "module:core/traceability.py",
+      "module:core/requirement_link.py",
+      "config:config/store-registry.json"
+    ],
+    "related": [
+      "product_forge:BI-PF-1169"
+    ]
+  },
+  "decisions": [],
+  "follow_up": {},
+  "brief": {
+    "problem": "`products/<name>/traceability.json` has TWO writers: `core/traceability.py` (declared owner in\nconfig/store-registry.json; TraceabilityMatrix: requirement->design->architecture->implementation->test->security\n+ id_index hub, \"preserving the legacy matrix\") AND `core/requirement_link.py` (writes the REQ<->F matrix into the\nsame file). Also the store-registry \"concern\" text for traceability.json describes an \"append-only engineering\nchange log\" - which matches neither module (likely a copy/paste drift from change_log.json).",
+    "what_adds": "ONE writer for traceability.json (the registered owner, core/traceability.py), with requirement_link contributing\ndata instead of writing the file; the registry concern text matches reality.",
+    "why": "`products/<name>/traceability.json` has TWO writers: `core/traceability.py` (declared owner in\nconfig/store-registry.json; TraceabilityMatrix: requirement->design->architecture->implementation->test->security\n+ id_index hub, \"preserving the legacy matrix\") AND `core/requirement_link.py` (writes the REQ<->F matrix into the\nsame file). Also the store-registry \"concern\" text for traceability.json describes an \"append-only engineering\nchange log\" - which matches neither module (likely a copy/paste drift from change_log.json).",
+    "who_feels": "Product Forge maintainers and consumers.",
+    "source": "authored"
+  },
+  "objective": "ONE writer for traceability.json (the registered owner, core/traceability.py), with requirement_link contributing\ndata instead of writing the file; the registry concern text matches reality.",
+  "acceptance_criteria": [
+    "Only core/traceability.py writes products/<name>/traceability.json.",
+    "requirement_link no longer writes it directly (delegates its REQ<->F rows to the owner).",
+    "store-registry concern for traceability.json describes the requirement/id traceability matrix (not a change log)."
+  ],
+  "in_scope": [
+    "Defect/RCCA: traceability.json has TWO writers (core/traceability.py vs requirement_link.py) + registry concern mismatch"
+  ],
+  "out_of_scope": [
+    "Not specified."
+  ],
+  "affected_components": [
+    "",
+    "config",
+    "core"
+  ],
+  "affected_files": [
+    "/traceability.json",
+    "change_log.json",
+    "config/store-registry.json",
+    "core/requirement_link.py",
+    "core/traceability.py",
+    "traceability.json"
+  ],
+  "approach": "Defect/RCCA: traceability.json has TWO writers (core/traceability.py vs requirement_link.py) + registry concern mismatch",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Only core/traceability.py writes products/<name>/traceability.json.",
+    "requirement_link no longer writes it directly (delegates its REQ<->F rows to the owner).",
+    "store-registry concern for traceability.json describes the requirement/id traceability matrix (not a change log)."
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "agent",
+  "requester": "found building E8 (BI-PF-1169)",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1066",
+  "parent": "BI-PF-1066",
+  "revision": 1,
+  "priority_rank": null,
+  "priority_class": "",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "IN_PROGRESS",
+    "analyzed_at": "",
+    "analyzed_by": "deterministic",
+    "revision_analyzed": 0,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/artifact_registry.py, core/change_registry.py, core/defect_loop.py, core/knowledge_registry.py",
+    "existing_components": [
+      "core/artifact_registry.py",
+      "core/change_registry.py",
+      "core/defect_loop.py",
+      "core/knowledge_registry.py",
+      "core/model_registry.py",
+      "core/ops_phase.py",
+      "core/phase3_advanced.py",
+      "core/requirement_link.py"
+    ],
+    "existing_apis": [
+      "/api/v1/apidocs.json",
+      "/api/v1/issues/{iid}/rcca"
+    ],
+    "existing_modules": [
+      "config/knowledge-registry.json",
+      "config/plugins-registry.json",
+      "config/store-registry.json"
+    ],
+    "dependency_findings": [
+      "depends on BI-PF-1169"
+    ],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=1.0",
+      "components=8",
+      "apis=2"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": false,
+    "reasons": [],
+    "computed_at": ""
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": ""
+  },
+  "created_at": "2026-10-09T16:51:00.704221",
+  "updated_at": "2026-10-09T16:51:01.803986",
+  "score": 1.0,
+  "_note": "analysis updated",
+  "api_impact": {
+    "needs_api": false,
+    "routes": [],
+    "consumers": [],
+    "reason": "internal store-ownership fix; surfaced via existing project artifacts API"
+  }
+}
