@@ -10,7 +10,7 @@
   "title": "Grooming completeness: populate priority + structured deps + full context (AI and deterministic), re-groom in-progress",
   "body": "Problem: grooming only fills the analysis block. Priority and structured dependencies are left empty, and the authored context (objective/acceptance_criteria/in_scope/out_of_scope/affected_*/approach/verification/risks/rollback/evidence/review) is never refreshed - so re-grooming an existing item cannot complete it, and the scheduler has no priority/deps to order by (scheduler._rank/_unmet_deps).\n\nGoal: one groom call (AI and deterministic) populates the FULL item context + priority + structured dependencies, gap-filling by default and overwriting with --force; groom-all also re-grooms already groomed IN_PROGRESS items so the backlog can be completed in bulk.\n\nIn scope:\n- extend deterministic + AI groom to fill the context fields from the item body (real derivation; no '(derived)' placeholders; reuse core.backlog._draft_context)\n- set a default priority and map explicit deps/blocked_by to structured dependencies\n- gap-fill by default; --force overwrites non-empty authored fields\n- groom-all re-grooms NOT_ANALYZED + IN_PROGRESS (COMPLETE only with --force)\n- CLI/API flags + tests\n\nOut of scope:\n- semantic dependency inference without AI (only explicit deps are mapped deterministically)\n- auto-approval of items\n\nAcceptance:\n- deterministic groom fills empty objective/acceptance_criteria/in_scope/priority/deps and still passes backlog_context_check with no '(derived)' placeholders\n- --force overwrites non-empty authored fields; default never clobbers them\n- groom-all includes IN_PROGRESS items; COMPLETE only with --force\n- new tests + precheck green\n\nApproach: reuse backlog._draft_context for context derivation; extend _apply_proposal to persist context/priority/deps (gap-fill unless force); extend the AI prompt to request those fields.",
   "source": "review",
-  "status": "new",
+  "status": "completed",
   "priority": null,
   "moscow": "Should",
   "value": 4,
@@ -34,7 +34,18 @@
         "ref": "test-framework/tests/pipeline/test_grooming_completeness.py",
         "detail": "field population + gap-fill/force"
       }
-    ]
+    ],
+    "delivery": {
+      "branch": "feature/bi-pf-batch-grooming",
+      "merge_sha": "ecb5b3cbcd10837df9a7ac201373451072bd4b96",
+      "commits": [
+        "ced7f785"
+      ],
+      "pr": "",
+      "pr_url": "",
+      "at": "2026-10-09T21:05:03.367110",
+      "note": "merged to develop"
+    }
   },
   "decisions": [],
   "follow_up": {},
@@ -100,7 +111,7 @@
   "children": [],
   "epic": "",
   "parent": "",
-  "revision": 1,
+  "revision": 2,
   "priority_rank": null,
   "priority_class": "",
   "analyze_mode": "on_entry",
@@ -170,9 +181,9 @@
     "completed_at": ""
   },
   "created_at": "2026-10-09T20:53:07.416241",
-  "updated_at": "2026-10-09T20:56:54.580885",
+  "updated_at": "2026-10-09T21:05:03.551995",
   "score": 0.75,
-  "_note": "analysis updated",
+  "_note": "delivered: batch grooming + grooming completeness",
   "dashboard_impact": {
     "needs_dashboard": false,
     "reason": "CLI + API grooming behavior; no dashboard surface"
