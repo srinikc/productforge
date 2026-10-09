@@ -149,6 +149,19 @@ def groom_item(item_id: str, body: dict[str, Any], request: Request,
     return from_request(request, res, resource="backlog", resource_id=item_id)
 
 
+@router.post("/items/{item_id}/context-review", dependencies=[Depends(require_operator)])
+def context_review_item(item_id: str, body: dict[str, Any], request: Request,
+                        ctx: dict[str, Any] = Depends(require_operator)):
+    """AI (LLM) review of an item's context: is it implementable (what/why/how/where)? Advisory."""
+    from core import backlog, context_review
+    s, p = _scope_project(request, str(body.get("scope") or "product_forge"), str(body.get("project") or ""))
+    it = backlog.get_epic(s, p, item_id)
+    if not it:
+        raise ApiError("NOT_FOUND", "backlog item not found")
+    res = context_review.review(it)
+    return from_request(request, {"item_id": item_id, **res}, resource="backlog", resource_id=item_id)
+
+
 @router.post("/items/{item_id}/groom/decide", dependencies=[Depends(require_operator)])
 def groom_decide(item_id: str, body: dict[str, Any], request: Request,
                  ctx: dict[str, Any] = Depends(require_operator)):
