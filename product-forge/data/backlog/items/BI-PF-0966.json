@@ -10,7 +10,7 @@
   "title": "Strict id allocation: PF_ID_ALLOC=strict (default) - require the git-CAS authority, fail closed, never self-reserve",
   "body": "## Problem / why\nThe allocator's soft mode falls back to a LOCAL block when the shared git-CAS authority is unavailable, which can\nre-collide across stale/offline sessions.\n\n## Goal & value\nA STRICT mode: allocation must succeed via the shared git authority; otherwise FAIL CLOSED (raise) - never\nself-reserve. Default to strict (GitHub is assumed always available). Ops can set PF_ID_ALLOC=on (soft) for\nenvironments without push access.\n\n## Acceptance criteria\n- PF_ID_ALLOC=strict (default): _mint requires the git-CAS; on failure it raises (no API/local fallback).\n- _next_id does NOT swallow the strict error (propagates -> item creation fails closed).\n- PF_ID_ALLOC=on keeps the soft fallback; =off disables the allocator.\n- Tests run with PF_ID_ALLOC=on (isolated) so they do not require the remote.\n\n## In scope\nstrict mode + env-flags declaration + non-swallowing _next_id.\n\n## Out of scope\nchanging the CAS/counter mechanism.\n\n## Verification\ntest: strict raises when the remote CAS is unavailable; a cache-bypassing strict test uses a temp remote.",
   "source": "user request",
-  "status": "new",
+  "status": "completed",
   "priority": null,
   "moscow": "Should",
   "value": 4,
@@ -29,7 +29,18 @@
     "related": [
       "product_forge:BI-PF-0764",
       "product_forge:BI-PF-0866"
-    ]
+    ],
+    "delivery": {
+      "branch": "feature/id-strict",
+      "merge_sha": "adf81a0c5fbd749d23169a75fde0623ee30f24f7",
+      "commits": [
+        "f0bd4a01b7719ab69fbebe323fc351e67677f0dc"
+      ],
+      "pr": "",
+      "pr_url": "",
+      "at": "2026-10-09T16:03:22.809412",
+      "note": ""
+    }
   },
   "decisions": [],
   "follow_up": {},
@@ -96,7 +107,7 @@
   "children": [],
   "epic": "",
   "parent": "",
-  "revision": 1,
+  "revision": 2,
   "priority_rank": null,
   "priority_class": "",
   "analyze_mode": "on_entry",
@@ -159,9 +170,9 @@
     "completed_at": ""
   },
   "created_at": "2026-10-09T15:59:07.214626",
-  "updated_at": "2026-10-09T16:00:09.324944",
+  "updated_at": "2026-10-09T16:03:22.990408",
   "score": 3.0,
-  "_note": "default=strict; soft opt-in",
+  "_note": "",
   "dashboard_impact": {
     "needs_dashboard": false,
     "reason": "id allocator mode; no dashboard",
