@@ -190,7 +190,7 @@ def groom_batch(body: dict[str, Any], request: Request,
     res = grooming.groom_all(s, p, mode=mode, batch=int(body.get("batch") or 0),
                              limit=int(body.get("limit") or 0), force=bool(body.get("force")),
                              dry=bool(body.get("dry")), depth=str(body.get("depth") or "deep"),
-                             jobs=int(body.get("jobs") or 0))
+                             jobs=int(body.get("jobs") or 0), ids=body.get("ids"))
     return from_request(request, res, resource="backlog")
 
 

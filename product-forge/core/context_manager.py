@@ -109,6 +109,13 @@ AGENT_CONTRACTS = {
         "allowed_inputs": ["component_plan", "build_config"],
         "forbidden_inputs": ["all_artifacts"],
     },
+    # BI-PF-1196: backlog grooming outputs multi-item JSON; give it a larger output budget (10000) so a
+    # batch is not truncated (the default contract's 6000 truncated batch JSON). See core/grooming._llm_text.
+    "groom": {
+        "max_input_tokens": 12000, "max_output_tokens": 10000,
+        "allowed_inputs": ["backlog_item", "candidate_code", "guidelines"],
+        "forbidden_inputs": ["full_source_tree"],
+    },
 }
 
 DEFAULT_CONTRACT = {

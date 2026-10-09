@@ -151,9 +151,11 @@ def cmd_backlog(pos, flags):
         return grooming.groom(s, p, pos[1], mode=mode, force=bool(flags.get("force")))
     if sub == "groom-all":
         mode = "deterministic" if flags.get("no-ai") else ""
+        gids = [x.strip() for x in str(flags.get("ids") or "").split(",") if x.strip()]
         return grooming.groom_all(s, p, mode=mode, batch=int(flags.get("batch") or 0),
                                   limit=int(flags.get("limit") or 0), force=bool(flags.get("force")),
-                                  dry=bool(flags.get("dry")), jobs=int(flags.get("jobs") or 0))
+                                  dry=bool(flags.get("dry")), jobs=int(flags.get("jobs") or 0),
+                                  ids=(gids or None))
     if sub == "review":
         return grooming.review(s, p)
     if sub == "approve" and len(pos) > 1:
@@ -252,7 +254,7 @@ _HELP = {
                  ("show <id>", "full item record (e.g. BI-PF-0408)"),
                  ("groom <id> [--no-ai] [--force]",
                   "groom one item: analysis + full context + priority + deps (gap-fill; --force overwrites)"),
-                 ("groom-all [--no-ai] [--batch N] [--jobs N] [--limit N] [--force] [--dry]",
+                 ("groom-all [--no-ai] [--batch N] [--jobs N] [--limit N] [--ids a,b] [--force] [--dry]",
                   "groom all open items incl. in-progress; batched AI (3/pass, N concurrent)"),
                  ("review", "groomed-but-undecided items: status/confidence/flags/context_review"),
                  ("approve <id>", "approve a groomed item"),

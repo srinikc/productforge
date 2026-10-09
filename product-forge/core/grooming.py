@@ -282,15 +282,30 @@ def _ai_enabled() -> bool:
 
 
 def _llm_text(prompt: str, product: str) -> str:
-    """One-shot LLM call via the single LLM owner (BI-PF-1196) - no agent runtime overhead.
+    """One-shot LLM call via the single LLM owner, using the grooming contract (BI-PF-1196).
 
-    Uses ``core.context_review.default_llm`` (the sanctioned one-shot path over ``LLMClient`` - no new
-    client), so grooming is one bounded model call with the cache/ledger/replay machinery, instead of the
-    full pipeline agent flow (context package, compliance, design-critic, artifacts, memory).
+    Uses the same one-shot client as ``context_review.default_llm`` but routes to the ``groom`` agent
+    contract (max_output_tokens 10000) so multi-item JSON is not truncated. One bounded model call with the
+    cache/ledger/replay machinery - no agent runtime; the shared context-review path is unchanged.
     """
-    from core.context_review import default_llm
-    llm = default_llm(str(product or "default"))
-    return llm(prompt) or ""
+    from core.paths import PRODUCTS_DIR
+    from core.model_registry import ModelCapabilityRegistry
+    from core.orchestrator.model_router import ModelRouter
+    from core.orchestrator.storage import LLMCache
+    from core.orchestrator.llm_client import LLMClient
+    pd = str(PRODUCTS_DIR)
+    project_dir = os.path.join(pd, str(product or "default"))
+    os.makedirs(project_dir, exist_ok=True)
+    reg = ModelCapabilityRegistry()
+    router = ModelRouter(reg, pd, project_dir, None)
+    client = LLMClient(reg, router.get_agent_model_config, LLMCache(project_dir),
+                       project=str(product or "default"))
+    try:
+        client.project_dir = project_dir
+    except Exception:
+        pass
+    text, _meta = client._call_llm(prompt, "groom", "groom")
+    return text or ""
 
 
 def _extract_json(text: str):
@@ -649,7 +664,7 @@ def refresh_stale(scope: str, project: str | None = None, *, limit: int = 10,
 
 def groom_all(scope: str, project: str | None, mode: str = "", *, batch: int = 0, limit: int = 0,
               force: bool = False, dry: bool = False, depth: str = "deep",
-              jobs: int = 0) -> dict[str, Any]:
+              jobs: int = 0, ids: list[str] | None = None) -> dict[str, Any]:
     """Groom every open backlog item (incl. EPICs) in batched, concurrent AI passes (BI-PF-1194/1197).
 
     AI is the default; up to ``batch`` items share one LLM call (returning the analysis + advisory
@@ -667,8 +682,11 @@ def groom_all(scope: str, project: str | None, mode: str = "", *, batch: int = 0
         d = "deep"
     n = max(1, int(batch or 0) or default_batch())
     workers = max(1, int(jobs or 0) or default_parallel())
+    want = {str(x) for x in ids} if ids else None
     queue: list[dict] = []
     for it in backlog.list_open(scope, project):
+        if want is not None and str(it.get("id")) not in want:
+            continue
         st = str((it.get("analysis") or {}).get("status") or "NOT_ANALYZED")
         # BI-PF-1195: (re)groom NOT_ANALYZED + IN_PROGRESS; COMPLETE (approved) only with --force.
         if not force and st == "COMPLETE":
@@ -701,6 +719,14 @@ def groom_all(scope: str, project: str | None, mode: str = "", *, batch: int = 0
             try:
                 _apply_proposal(scope, project, iid, it, ctx, prop, used, d, context_review=cr,
                                 force=force)
+                # record whether the AI path failed, so failed items are selectable later (--ids)
+                with contextlib.suppress(Exception):
+                    _a = dict((backlog.get_epic(scope, project, iid) or {}).get("analysis") or {})
+                    if ai_failed:
+                        _a["ai_failed"] = True
+                    else:
+                        _a.pop("ai_failed", None)
+                    backlog.update(scope, project, iid, analysis=_a)
                 groomed.append(iid)
                 results.append({"item_id": iid, "mode": used, "applied": True, "ai_failed": ai_failed})
             except Exception as e:  # noqa: BLE001

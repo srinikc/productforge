@@ -79,6 +79,25 @@ def test_groom_all_parallel(monkeypatch):
         _clean()
 
 
+def test_groom_all_ids_filter(monkeypatch):
+    _clean()
+    try:
+        a = backlog.add_epic("project", _PROJ, "A", body="## Problem\nx\n## Goal\ny\n## In scope\n- z\n## Acceptance\n- w", tag="TST")["id"]
+        b = backlog.add_epic("project", _PROJ, "B", body="## Problem\nx\n## Goal\ny\n## In scope\n- z\n## Acceptance\n- w", tag="TST")["id"]
+        for i in (a, b):
+            backlog.set_analysis("project", _PROJ, i, status="NOT_ANALYZED", analysis={}, analyzed_by="")
+        monkeypatch.setattr(grooming, "_ai_enabled", lambda: True)
+        monkeypatch.setattr(grooming, "_run_ai_batch",
+                            lambda ctxs, project, product: {str(it.get("id")): {"architecture_fit": "REUSE"}
+                                                            for it, _ in ctxs})
+        r = grooming.groom_all("project", _PROJ, mode="ai", batch=3, ids=[a])
+        assert r["count"] == 1 and r["groomed"] == [a]
+        assert _status(a) == "IN_PROGRESS"
+        assert _status(b) != "IN_PROGRESS"   # not selected -> untouched
+    finally:
+        _clean()
+
+
 def test_groom_all_surfaces_ai_failure(monkeypatch):
     _clean()
     try:
