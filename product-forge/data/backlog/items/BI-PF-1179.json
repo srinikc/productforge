@@ -1,0 +1,194 @@
+{
+  "id": "BI-PF-1179",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "review:stage0-repo-setup",
+  "label": "PF Backlog 519",
+  "title": "Stage-0 product repo setup: recommend a GitHub repo name, confirm, create + connect the product remote",
+  "body": "## Problem / why\nProduct repos have NO remote (PF never creates a GitHub repo or adds a remote), so delivery is local-only. There is also no stage-0 step to name the product's repo.\n\n## Goal & value\nAt stage 0, recommend a GitHub repo name from the idea, ASK (confirm), and on 'yes' create the repo + connect the product remote so delivery is real. Fail-closed local-only when gh/token is unavailable.\n",
+  "source": "design-review",
+  "status": "new",
+  "priority": null,
+  "moscow": "Should",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [],
+  "links": {},
+  "decisions": [],
+  "follow_up": {},
+  "brief": {
+    "problem": "Product repos have no remote; delivery is local-only, and there is no stage-0 naming step.",
+    "what_adds": "Recommended repo name + confirm gate + GitHub repo creation + remote connection, exposed API-first and wired at stage 0.",
+    "why": "Make product delivery real (push to the product's own GitHub repo), safely (only on confirmation).",
+    "who_feels": "Operators shipping generated products; integrators.",
+    "source": "authored"
+  },
+  "objective": "Recommend a product repo name at stage 0, require confirmation, then create the GitHub repo (gh/REST) and connect the product remote; API-first; fail-closed local-only otherwise.",
+  "acceptance_criteria": [
+    "repo_setup.recommend_name(project, idea) returns a slug recommendation",
+    "no repo is created without confirm=True (fail-closed); gh->REST; no gh/token -> local-only with reason",
+    "on confirm: create the repo and connect the product remote (core.vcs.connect_remote)",
+    "API: GET /projects/{project}/repo (recommendation + current) and POST /projects/{project}/repo (confirm)",
+    "stage-0 (run_pipeline new) prints the recommendation; creates only when enabled (PF_CREATE_PRODUCT_REPO)"
+  ],
+  "in_scope": [
+    "core/github.create_repo",
+    "core/vcs.connect_remote",
+    "core/repo_setup.py",
+    "POST/GET /projects/{project}/repo",
+    "run_pipeline stage-0 hook",
+    "tooling gate"
+  ],
+  "out_of_scope": [
+    "per-user/per-org policy beyond owner param",
+    "worker plane",
+    "dashboard"
+  ],
+  "affected_components": [
+    "github",
+    "vcs",
+    "repo_setup",
+    "projects-api",
+    "run_pipeline"
+  ],
+  "affected_files": [
+    "core/github.py",
+    "core/vcs.py",
+    "core/repo_setup.py",
+    "api/routers/projects.py",
+    "scripts/run_pipeline.py",
+    "scripts/dev/repo_setup_check.py",
+    "test-framework/tests/pipeline/test_repo_setup.py"
+  ],
+  "approach": "Add create_repo (gh else REST token, fail-closed) + vcs.connect_remote; a repo_setup owner that recommends+confirms+creates+connects and records on project.json; a /projects/{p}/repo API; and a stage-0 hook in run_pipeline (recommend always; create only when enabled).",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [
+        "single owners: vcs=git, github=optional gh; API-first; no new store/engine; legacy dashboard frozen"
+      ],
+      "existing_path": [
+        "core/github.py (no create_repo)",
+        "core/vcs.py (remote NAME only)",
+        "core/discovery_panel.py",
+        "scripts/run_pipeline.py seed"
+      ],
+      "assumptions": [
+        "recommend + confirm before create",
+        "gh->REST",
+        "private default",
+        "stage-0 print + opt-in create",
+        "local-only fallback"
+      ],
+      "divergences": [
+        "new-path: create_repo + connect_remote + repo_setup + 2 endpoints (approved)"
+      ],
+      "open_questions": [
+        "none"
+      ]
+    },
+    "reviewed_by": "agent"
+  },
+  "verification": [
+    "pytest test_repo_setup.py (5) passes",
+    "gate repo_setup_check.py OK",
+    "api-governance 152 paths in sync",
+    "wired-audit unwired 0",
+    "lint 0 NEW"
+  ],
+  "risks": [
+    "creating a real repo requires gh/token; default is opt-in/local-only"
+  ],
+  "rollback": "revert the merge",
+  "evidence": [
+    "pending merge"
+  ],
+  "owner": "agent",
+  "requester": "user",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "",
+  "parent": "",
+  "revision": 1,
+  "priority_rank": null,
+  "priority_class": "",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "IN_PROGRESS",
+    "analyzed_at": "",
+    "analyzed_by": "deterministic",
+    "revision_analyzed": 0,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/github.py, core/model_recommendation.py, core/product_analyzer.py, core/product_design_spec.py",
+    "existing_components": [
+      "core/github.py",
+      "core/model_recommendation.py",
+      "core/product_analyzer.py",
+      "core/product_design_spec.py",
+      "core/product_ingestion.py",
+      "core/product_page.py",
+      "core/product_plan.py",
+      "core/qa_report.py"
+    ],
+    "existing_apis": [
+      "/api/v1/github",
+      "/api/v1/github/evidence",
+      "/api/v1/github/pr",
+      "/api/v1/github/pr/{number}",
+      "/api/v1/github/pr/{number}/ci",
+      "/api/v1/tools/catalog/{name}",
+      "/api/v1/vcs/branch-name",
+      "/api/v1/vcs/worktrees/{name}/remove"
+    ],
+    "existing_modules": [
+      "config/a2a-remotes.json"
+    ],
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=0.75",
+      "components=8",
+      "apis=8"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": false,
+    "reasons": [],
+    "computed_at": ""
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": ""
+  },
+  "created_at": "2026-10-09T17:33:56.346212",
+  "updated_at": "2026-10-09T17:33:57.045081",
+  "score": 0.75,
+  "_note": "analysis updated"
+}

@@ -9,7 +9,7 @@ from typing import Any, Dict
 
 from fastapi import APIRouter, Depends, Request
 
-from ..auth import authenticate
+from ..auth import authenticate, require_operator
 from ..envelope import from_request
 from ..errors import ApiError
 from ..pagination import paginate
@@ -76,3 +76,31 @@ def create_project(body: Dict[str, Any], request: Request,
            "description": str(body.get("description") or "")}
     project_store.save(name, cfg, os.path.basename(_products_dir()))
     return from_request(request, cfg, resource="project", resource_id=name, status="ok")
+
+
+@router.get("/{project}/repo", dependencies=[Depends(authenticate)])
+def get_project_repo(project: str, request: Request, ctx: Dict[str, Any] = Depends(authenticate)):
+    """Recommended GitHub repo name + current product remote (stage-0 repo setup)."""
+    from core import project_store, repo_setup
+    name = _valid_name(project)
+    d = _project_dir(name)
+    if not os.path.isdir(d):
+        raise ApiError("NOT_FOUND", "project not found")
+    idea = str((project_store.load(name, os.path.basename(_products_dir())) or {}).get("idea") or "")
+    return from_request(request, repo_setup.status(name, d, idea), resource="project", resource_id=name)
+
+
+@router.post("/{project}/repo", dependencies=[Depends(require_operator)])
+def set_project_repo(project: str, body: Dict[str, Any], request: Request,
+                     ctx: Dict[str, Any] = Depends(require_operator)):
+    """Confirm/name -> create the GitHub repo -> connect the product remote (fail-closed local-only)."""
+    from core import project_store, repo_setup
+    name = _valid_name(project)
+    d = _project_dir(name)
+    if not os.path.isdir(d):
+        raise ApiError("NOT_FOUND", "project not found")
+    idea = str((project_store.load(name, os.path.basename(_products_dir())) or {}).get("idea") or "")
+    res = repo_setup.setup(name, d, name=str(body.get("name") or ""), idea=idea,
+                           private=bool(body.get("private", True)), confirm=bool(body.get("confirm")),
+                           owner=str(body.get("owner") or ""), create=bool(body.get("create", True)))
+    return from_request(request, res, resource="project", resource_id=name)
