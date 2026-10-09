@@ -17,6 +17,7 @@
 | Code review report | `reports/code-review.md` | **code-review** | fix, orchestrator | review | findings + verdict (READY FOR VALIDATION / NEEDS FIXES) |
 | Validation report | `reports/ (validate output)` | **validate** | orchestrator, document | validation | test/quality results and pass/fail for the run |
 | Product documentation | `docs/ (document output)` | **document** | package | documentation | user/developer docs assembled from the artifacts above |
+| Review focus checklist (production-risk) | `docs/REVIEW-FOCUS.md` | **code-review** | implement, fix, orchestrator | review | the production-risk checklist the code-review agent runs per build iteration (BI-PF-1066) |
 
 ## Pipeline order (who hands off to whom)
 
