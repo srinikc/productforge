@@ -304,15 +304,19 @@ def _all_backlog_items():
             if os.path.isdir(os.path.join(proj_root, name, "backlog")):
                 scopes.append(("project", name))
     for scope, proj in scopes:
-        for store, items in (("open", backlog.list_open(scope, proj, order=False)),
-                             ("closed", backlog.list_closed(scope, proj))):
+        items_open = backlog.list_open(scope, proj, order=False)
+        items_closed = backlog.list_closed(scope, proj)
+        titles = {str(i.get("id")): (i.get("title") or "") for i in (list(items_open) + list(items_closed))}
+        for store, items in (("open", items_open), ("closed", items_closed)):
             for it in items:
                 st = str(it.get("status") or "new")
+                epid = str(it.get("epic") or it.get("parent") or "")
                 rows.append({
                     "id": it.get("id", ""), "scope": proj or "product_forge",
                     "status": st, "type": it.get("type", ""), "origin": it.get("origin", ""),
                     "moscow": it.get("moscow", ""), "source": it.get("source", ""),
                     "title": (it.get("title") or ""), "store": store,
+                    "epic": epid, "epic_title": titles.get(epid, ""),
                 })
     return rows
 
@@ -322,13 +326,28 @@ def render_backlog_html() -> str:
     (fetch /api/backlog/all). Sortable + filterable columns; counts (total/open/closed/
     completed/parked). Works with no server (shows the baked snapshot)."""
     rows = _all_backlog_items()
-    cols = ["Id", "Scope", "Status", "Type", "Origin", "MoSCoW", "Source", "Title", "Store"]
+    cols = ["Id", "Scope", "Status", "Type", "Epic", "Origin", "MoSCoW", "Source", "Title", "Store"]
     head = "".join(
         "<th onclick=\"sortBy(%d)\">%s &#8693;</th>" % (i, c) for i, c in enumerate(cols))
     filt = "".join(
         "<th><input class='f' data-col='%d' oninput='filterCols()' placeholder='filter'></th>" % i
         for i in range(len(cols)))
     snap = json.dumps(rows)
+    _ep: dict = {}
+    for r in rows:
+        e = r["epic"] or "\u2014"
+        d = _ep.setdefault(e, {"open": 0, "closed": 0, "title": ""})
+        d["open" if r["store"] == "open" else "closed"] += 1
+        if r["epic_title"]:
+            d["title"] = r["epic_title"]
+    _ep_rows = "".join(
+        "<tr><td><code>%s</code></td><td>%s</td><td>%d</td><td>%d</td><td>%d</td></tr>" % (
+            html.escape(e), html.escape(str(v["title"])[:90]), v["open"], v["closed"],
+            v["open"] + v["closed"])
+        for e, v in sorted(_ep.items(), key=lambda kv: -(kv[1]["open"] + kv[1]["closed"])))
+    _ep_summary = ("<h3>By epic</h3>"
+                   "<table><thead><tr><th>Epic</th><th>Title</th><th>Open</th><th>Closed</th>"
+                   "<th>Total</th></tr></thead><tbody>" + _ep_rows + "</tbody></table>")
     controls = ("<div style='margin:8px 0'>"
                 "<label class='muted'><input type='checkbox' id='auto' onchange='toggleAuto()'> "
                 "auto-refresh (15s)</label> "
@@ -344,6 +363,7 @@ function renderRows(rows){document.getElementById("body").innerHTML = rows.map(f
   var cls = TERM.has(r.status) ? "done" : "";
   return "<tr class='"+cls+"'><td>"+esc(r.id)+"</td><td>"+esc(r.scope)+"</td>"
     +"<td><span class='tag'>"+esc(r.status)+"</span></td><td>"+esc(r.type)+"</td>"
+    +"<td>"+esc(r.epic||"\u2014")+"</td>"
     +"<td>"+esc(r.origin)+"</td><td>"+esc(r.moscow)+"</td><td>"+esc(r.source)+"</td>"
     +"<td>"+esc((r.title||"").slice(0,120))+"</td><td>"+esc(r.store)+"</td></tr>";}).join("");
   document.getElementById("shown").textContent = rows.length;
@@ -369,7 +389,7 @@ renderRows(CUR);
     js = js.replace("__SNAP__", snap)
     body = (f"<p class='kpi'><b>0</b> total</p><p class='kpi'><b>0</b> open</p>"
             f"<p class='kpi'><b>0</b> closed</p><p class='kpi'><b>0</b> completed</p>"
-            f"<p class='kpi'><b>0</b> parked</p>{controls}"
+            f"<p class='kpi'><b>0</b> parked</p>{_ep_summary}{controls}"
             f"<p class='muted'>showing <b id='shown'>{len(rows)}</b> items. Click a header to sort; "
             f"type in the filter row to filter. "
             f"(completed=work verified &amp; finished; closed=terminal/archived; parked=deferred.)</p>"

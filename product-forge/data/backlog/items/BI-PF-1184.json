@@ -1,0 +1,166 @@
+{
+  "id": "BI-PF-1184",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "review:backlog-view-epics",
+  "label": "PF Backlog 523",
+  "title": "Backlog index.html: epic-wise classification (per-epic counts + Epic column)",
+  "body": "## Problem / why\n`data/backlog/index.html` (core/views.py) listed items without showing which EPIC each item belongs to, nor how many items each epic has.\n\n## Goal & value\nAdd an 'By epic' summary (title + open/closed/total per epic) and an Epic column to the item table so the backlog can be reviewed epic-wise.\n",
+  "source": "design-review",
+  "status": "new",
+  "priority": null,
+  "moscow": "Should",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [],
+  "links": {},
+  "decisions": [],
+  "follow_up": {},
+  "brief": {
+    "problem": "The backlog HTML had no epic-wise view or per-epic counts.",
+    "what_adds": "epic + epic_title per row; an 'By epic' summary table; an Epic column.",
+    "why": "Review the backlog by epic (what belongs to which epic, and how many).",
+    "who_feels": "Maintainers/operators reviewing the backlog.",
+    "source": "authored"
+  },
+  "objective": "Add epic classification to the generated backlog HTML: per-row epic + epic_title fields, an 'By epic' summary table (open/closed/total), and an Epic column.",
+  "acceptance_criteria": [
+    "_all_backlog_items() rows carry epic + epic_title",
+    "render_backlog_html() includes a 'By epic' summary with per-epic open/closed/total",
+    "the item table gains an Epic column",
+    "test covers the epic fields + the summary/column markup"
+  ],
+  "in_scope": [
+    "core/views.py render_backlog_html + _all_backlog_items"
+  ],
+  "out_of_scope": [
+    "legacy dashboard",
+    "epic editing"
+  ],
+  "affected_components": [
+    "views",
+    "backlog"
+  ],
+  "affected_files": [
+    "core/views.py",
+    "data/backlog/index.html",
+    "test-framework/tests/pipeline/test_backlog_view_epics.py"
+  ],
+  "approach": "Add epic/epic_title to the row projection (title map from all items); compute a per-epic summary in Python; add the summary block + an Epic column to the rendered HTML/JS.",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [
+        "backlog is SSOT; derived files are generated (docs/AGENTS)",
+        "views are static, API-refreshable"
+      ],
+      "existing_path": [
+        "core/views.py render_backlog_html/_all_backlog_items",
+        "data/backlog/index.html"
+      ],
+      "assumptions": [
+        "epic = item.epic or item.parent",
+        "title map from the same scope"
+      ],
+      "divergences": [
+        "none (additive view change)"
+      ],
+      "open_questions": [
+        "none"
+      ]
+    },
+    "reviewed_by": "agent"
+  },
+  "verification": [
+    "pytest test_backlog_view_epics.py",
+    "regenerated data/backlog/index.html contains 'By epic' + Epic column"
+  ],
+  "risks": [
+    "none material"
+  ],
+  "rollback": "revert the merge",
+  "evidence": [
+    "pending merge"
+  ],
+  "owner": "agent",
+  "requester": "user",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "",
+  "parent": "",
+  "revision": 1,
+  "priority_rank": null,
+  "priority_class": "",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "IN_PROGRESS",
+    "analyzed_at": "",
+    "analyzed_by": "deterministic",
+    "revision_analyzed": 0,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/backlog.py, core/backlog_link.py, core/id_index.py, /api/v1/backlog",
+    "existing_components": [
+      "core/backlog.py",
+      "core/backlog_link.py",
+      "core/id_index.py"
+    ],
+    "existing_apis": [
+      "/api/v1/backlog",
+      "/api/v1/backlog/grooming/guidelines",
+      "/api/v1/backlog/ids:reserve",
+      "/api/v1/backlog/items",
+      "/api/v1/backlog/items/{item_id}",
+      "/api/v1/backlog/items/{item_id}/analysis",
+      "/api/v1/backlog/items/{item_id}/context-review",
+      "/api/v1/backlog/items/{item_id}/dependencies"
+    ],
+    "existing_modules": [],
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=0.75",
+      "components=3",
+      "apis=8"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": false,
+    "reasons": [],
+    "computed_at": ""
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": ""
+  },
+  "created_at": "2026-10-09T18:25:02.288789",
+  "updated_at": "2026-10-09T18:25:02.977191",
+  "score": 0.75,
+  "_note": "analysis updated"
+}
