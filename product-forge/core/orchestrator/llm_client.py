@@ -45,6 +45,19 @@ FALLBACK_ENDPOINT = os.getenv(
 )
 
 
+class _CassetteResponse:
+    """Minimal ``requests.Response`` shim for replayed LLM responses (status_code / headers / content)."""
+
+    def __init__(self, record: Dict):
+        self.status_code = int((record or {}).get("status_code") or 200)
+        self._content = str((record or {}).get("content") or "")
+        self.headers = dict((record or {}).get("headers") or {})
+
+    @property
+    def content(self) -> bytes:
+        return self._content.encode("utf-8")
+
+
 class LLMClient:
     """Provider-agnostic LLM calls for the orchestrator."""
 
@@ -397,7 +410,7 @@ class LLMClient:
                 if _verbose:
                     print(f"  [LLM] {agent_id} -> {model_name} ({provider}) attempt={attempt} "
                           f"prompt_chars={len(prompt)} max_out={max_output_tokens}")
-                response = requests.post(api_endpoint, json=data, headers=headers, timeout=180)
+                response = self._http_post(api_endpoint, data, headers, timeout=180)
                 _latency_ms = (time.time() - _t_call) * 1000.0
 
                 if response.status_code != 200:
@@ -550,6 +563,35 @@ class LLMClient:
                                   "selected_model": "", "selected_provider": "",
                                   "cost_per_1k_input": 0.0, "cost_per_1k_output": 0.0,
                                   "fallback": True}
+    def _http_post(self, api_endpoint: str, data: Dict, headers: Dict, timeout: int = 180):
+        """Single HTTP POST for one LLM call, honoring ``PIPELINE_LLM_REPLAY`` (off|record|replay).
+
+        TEST-only deterministic mode: ``record`` persists the raw response; ``replay`` serves it and FAILS
+        CLOSED on a miss (never a silent network call). Default ``off`` = passthrough (unchanged behavior).
+        """
+        import requests
+        from core.orchestrator.storage import LLMReplay
+        mode = LLMReplay.mode_of()
+        rp = key = None
+        if mode != "off":
+            base = os.path.dirname(getattr(self.llm_cache, "cache_dir", "") or "")
+            rp = LLMReplay(base)
+            key = LLMReplay.key(api_endpoint, data)
+            if mode == "replay":
+                rec = rp.get(key)
+                if rec is None:
+                    raise RuntimeError(f"[REPLAY-MISS] no cassette {key} for {api_endpoint}; refusing network")
+                return _CassetteResponse(rec)
+        resp = requests.post(api_endpoint, json=data, headers=headers, timeout=timeout)
+        if mode == "record" and rp is not None:
+            try:
+                rp.set(key, {"status_code": resp.status_code,
+                             "content": resp.content.decode("utf-8", errors="replace"),
+                             "headers": {"Retry-After": resp.headers.get("Retry-After", "")}})
+            except Exception:
+                pass
+        return resp
+
     def _build_token_info(self, model_name: str, provider: str, total_input: int,
                           total_output: int, total_cached: int, total_reasoning: int,
                           finish_reason: str, continuations: int, retries: int) -> Dict:

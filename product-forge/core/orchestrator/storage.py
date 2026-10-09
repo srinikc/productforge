@@ -237,6 +237,55 @@ class InputCache:
         return removed
 
 
+def llm_replay_mode() -> str:
+    """LLM replay mode for deterministic tests: 'off' (default) | 'record' | 'replay'."""
+    v = str(os.getenv("PIPELINE_LLM_REPLAY", "off")).strip().lower()
+    return v if v in ("off", "record", "replay") else "off"
+
+
+class LLMReplay:
+    """Record/replay of raw LLM HTTP responses (TEST-only; default off). Extends the cache owner.
+
+    Cassettes are project-scoped under ``products/<project>/.llm-cassettes``. ``record`` persists the real
+    response; ``replay`` serves it and FAILS CLOSED on a miss (never a silent network call); ``off`` = passthrough.
+    """
+
+    def __init__(self, project_dir: str):
+        self.dir = os.path.join(project_dir, ".llm-cassettes")
+        self.mode = llm_replay_mode()
+
+    @staticmethod
+    def mode_of() -> str:
+        return llm_replay_mode()
+
+    @staticmethod
+    def key(api_endpoint: str, data: Dict) -> str:
+        blob = json.dumps({"endpoint": api_endpoint, "data": data}, sort_keys=True,
+                          ensure_ascii=False, default=str)
+        return hashlib.sha256(blob.encode("utf-8")).hexdigest()[:40]
+
+    def _path(self, key: str) -> str:
+        return os.path.join(self.dir, f"{key}.json")
+
+    def get(self, key: str) -> Optional[Dict]:
+        try:
+            with open(self._path(key), encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            return None
+
+    def set(self, key: str, record: Dict) -> None:
+        try:
+            os.makedirs(self.dir, exist_ok=True)
+            p = self._path(key)
+            tmp = p + ".tmp"
+            with open(tmp, "w", encoding="utf-8") as f:
+                json.dump(record, f, indent=2, ensure_ascii=False)
+            os.replace(tmp, p)
+        except Exception:
+            pass
+
+
 class ArtifactSummarizer:
     """Summarize older artifacts by extracting headers + first bullet."""
 

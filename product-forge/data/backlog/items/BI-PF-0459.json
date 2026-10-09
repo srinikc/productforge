@@ -1,13 +1,13 @@
 {
-  "id": "BI-PF-0458",
+  "id": "BI-PF-0459",
   "tag": "PF",
   "type": "feature",
   "scope": "product_forge",
   "project": "",
   "origin": "review",
-  "external_id": "review:dogfood-p1-api",
-  "label": "PF Backlog 492",
-  "title": "DOGFOOD P1: API auto-dogfood (POST /dogfood/run + GET /dogfood/runs/{id}) + delivery assertions",
+  "external_id": "review:dogfood-p2-replay",
+  "label": "PF Backlog 493",
+  "title": "DOGFOOD P2: deterministic LLM replay harness (record/replay) + CI gate",
   "body": "Design: docs/DOGFOOD-E2E-DESIGN.md (RECONCILIATION + IMPACT REVIEW approved).",
   "source": "design-review",
   "status": "completed",
@@ -19,43 +19,44 @@
   "deps": [],
   "links": {
     "backend_capability": [
-      "module:core.dogfood_run",
-      "route:POST /api/v1/dogfood/run",
-      "route:GET /api/v1/dogfood/runs/{id}",
-      "test:test-framework/tests/pipeline/test_dogfood_phase1.py",
-      "gate:scripts/dev/dogfood_run_check.py"
+      "module:core.orchestrator.llm_client",
+      "module:core.orchestrator.storage",
+      "env:PIPELINE_LLM_REPLAY",
+      "gate:scripts/dev/dogfood_replay_check.py",
+      "test:test-framework/tests/pipeline/test_llm_replay.py"
     ],
     "delivery": {
-      "branch": "feature/bi-pf-0458-dogfood-api",
-      "merge_sha": "62c49938",
+      "branch": "feature/bi-pf-0459-llm-replay",
+      "merge_sha": "1e45198e",
       "commits": [
-        "674dcaa7"
+        "cc7f9ee7"
       ],
       "pr": "",
       "pr_url": "",
-      "at": "2026-10-09T13:21:33.069113",
-      "note": "Phase 1: API auto-dogfood (composes run_entry) + tooling gate; merge --no-ff (no PR)"
+      "at": "2026-10-09T13:36:09.300321",
+      "note": "Phase 2: LLM replay seam (storage.LLMReplay + llm_client._http_post) + PIPELINE_LLM_REPLAY + gate; merge --no-ff (no PR)"
     }
   },
   "decisions": [],
   "follow_up": {},
   "brief": {
     "problem": "Design: docs/DOGFOOD-E2E-DESIGN.md (RECONCILIATION + IMPACT REVIEW approved).",
-    "what_adds": "DOGFOOD P1: API auto-dogfood (POST /dogfood/run + GET /dogfood/runs/{id}) + delivery assertions",
+    "what_adds": "DOGFOOD P2: deterministic LLM replay harness (record/replay) + CI gate",
     "why": "(derived) see objective",
     "who_feels": "(derived) unspecified",
     "source": "extracted"
   },
-  "objective": "Drive a real product generation end-to-end via an on-demand API (idea -> all stages/agents -> stakeholder/HIL -> delivery), auto-mode, kctier, with per-stage observability and delivery assertions.",
+  "objective": "Make the integration dogfood deterministic and CI-runnable by recording/replaying LLM responses at the single LLM owner.",
   "acceptance_criteria": [
-    "POST /dogfood/run seeds project (idea + auto_mode/auto_approve + tier=kctier + caps) and enqueues via run_entry; returns run_id",
-    "GET /dogfood/runs/{id} aggregates run + stages + agents + events/log tail + defects + validation",
-    "delivery assertions (repo commits/branch, tests, close_loop) fail-closed",
-    "composes existing owners only (no new engine/store); does not bypass single submission path",
-    "tests cover start + status + delivery assertions"
+    "record/replay seam at core/orchestrator/llm_client.py (_http_post) — extend the owner, no new engine",
+    "cassette store LLMReplay in core/orchestrator/storage.py (project-scoped products/<p>/.llm-cassettes)",
+    "env PIPELINE_LLM_REPLAY (off|record|replay) registered in config/env-flags.json; default off",
+    "replay-miss FAILS CLOSED (never a silent network call); off = passthrough",
+    "gate scripts/dev/dogfood_replay_check.py wired into precheck (deep); tests cover record/replay/miss",
+    "NOTE: a full executor-level replay needs an operator-recorded cassette (record requires live keys); the seam is exercised deterministically by the gate/tests."
   ],
   "in_scope": [
-    "DOGFOOD P1: API auto-dogfood (POST /dogfood/run + GET /dogfood/runs/{id}) + delivery assertions"
+    "DOGFOOD P2: deterministic LLM replay harness (record/replay) + CI gate"
   ],
   "out_of_scope": [
     "(derived) not specified"
@@ -66,7 +67,7 @@
   "affected_files": [
     "(derived) TBD"
   ],
-  "approach": "DOGFOOD P1: API auto-dogfood (POST /dogfood/run + GET /dogfood/runs/{id}) + delivery assertions",
+  "approach": "DOGFOOD P2: deterministic LLM replay harness (record/replay) + CI gate",
   "review": {
     "reconciliation": {
       "prior_decisions": [],
@@ -80,7 +81,7 @@
     "at": ""
   },
   "verification": [
-    "(derived) objective met: DOGFOOD P1: API auto-dogfood (POST /dogfood/run + GET /dogfood/runs/{id}) + delivery assertions"
+    "(derived) objective met: DOGFOOD P2: deterministic LLM replay harness (record/replay) + CI gate"
   ],
   "risks": [
     "(derived) none identified"
@@ -108,26 +109,26 @@
     "analyzed_by": "deterministic",
     "revision_analyzed": 0,
     "architecture_fit": "EXTEND",
-    "implementation_strategy": "Extend existing components/APIs: core/agent_runtime.py, core/api_docs.py, core/budget.py, core/budget_allocator.py",
+    "implementation_strategy": "Extend existing components/APIs: core/api_docs.py, core/code_quality_gate.py, core/design_critic.py, core/design_tokens.py",
     "existing_components": [
-      "core/agent_runtime.py",
       "core/api_docs.py",
-      "core/budget.py",
-      "core/budget_allocator.py",
-      "core/budget_conservation.py",
-      "core/budget_planner.py",
-      "core/budget_protection.py",
-      "core/budget_tracker.py"
+      "core/code_quality_gate.py",
+      "core/design_critic.py",
+      "core/design_tokens.py",
+      "core/dogfood.py",
+      "core/llm_error_handler.py",
+      "core/merge_gate.py",
+      "core/model_gate.py"
     ],
     "existing_apis": [
       "/api/v1/apidocs",
       "/api/v1/apidocs.json",
       "/api/v1/apidocs/render",
-      "/api/v1/engineering/tasks/{task_id}/run",
-      "/api/v1/evidence/manifest/{run_id}",
-      "/api/v1/runs",
-      "/api/v1/runs/active",
-      "/api/v1/runs/start"
+      "/api/v1/engineering/pidl/gate",
+      "/api/v1/gates/go-no-go",
+      "/api/v1/gates/pr",
+      "/api/v1/gates/pr/merge",
+      "/api/v1/gates/quality"
     ],
     "existing_modules": [],
     "dependency_findings": [],
@@ -168,8 +169,8 @@
     "started_at": "",
     "completed_at": ""
   },
-  "created_at": "2026-10-09T12:55:33.030598",
-  "updated_at": "2026-10-09T13:21:33.659594",
+  "created_at": "2026-10-09T12:55:34.726577",
+  "updated_at": "2026-10-09T13:36:09.678071",
   "score": 0.75,
-  "_note": "Phase 1 delivered + validated (pytest 16 passed, compileall, api-governance in sync, wired-audit unwired 0)"
+  "_note": "Phase 2 delivered + validated (pytest 11 passed, gate OK, compileall, wired-audit unwired 0, lint 0 NEW)"
 }
