@@ -1,0 +1,164 @@
+{
+  "id": "BI-PF-0458",
+  "tag": "PF",
+  "type": "bug",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "code-review-card-generalize",
+  "label": "PF Backlog 492",
+  "title": "Fix: generalize the code-review agent card (drop hardcoded mymoney/13-features/apps/Phase lists; drive from requirements/plan)",
+  "body": "Source: user review of `.opencode/agent/code-review.md` (2026-10-08).\n\nPROBLEM: the Code Review agent card mixes GENERIC criteria with EXAMPLE-SPECIFIC hardcoding from one product:\n\"mymoney\", a fixed \"13 features\", `apps/` paths, and hardcoded Phase 1-4 feature lists. So on any other product\nthe reviewer checks the WRONG feature set / wrong paths, and \"All 13 features implemented\" is meaningless.\n\nFIX: generalize the card to be data-driven:\n- requirements: enumerate ALL FRs from docs/requirements.md (dynamic count), not \"FR-1..FR-13\".\n- features: read docs/feature-status.md / product-plan.json (or the backlog) for the actual feature set; no \"13\".\n- paths: discover source dirs from the project layout (Glob), not hardcoded apps/.\n- phase-aware review: derive phases from the plan (only phases that exist), not a fixed 4.\n- guidelines: load the guidelines that EXIST via a registry/glob, not a fixed list.\nKeep the sound generic criteria (reject scaffolding/mocks; real APIs; tests pass; plan-alignment; read-only;\nevidence required; reports/code-review.md contract). Keep the agent-card standard structure (wired_audit\nrole-prompts must still pass).\n\nAcceptance: card has no product-specific literals (mymoney/13/apps/Phase lists); criteria driven by the project's\nown requirements/features/paths; wired_audit role-prompts green; a run still produces reports/code-review.md.",
+  "source": "user request",
+  "status": "new",
+  "priority": null,
+  "moscow": "Should",
+  "value": 4,
+  "effort": 2,
+  "risk": 2,
+  "deps": [],
+  "links": {
+    "backend_capability": [
+      "doc:.opencode/agent/code-review.md",
+      "module:scripts/dev/wired_audit.py"
+    ]
+  },
+  "decisions": [],
+  "follow_up": {},
+  "brief": {
+    "problem": "Source: user review of `.opencode/agent/code-review.md` (2026-10-08).",
+    "what_adds": "Fix: generalize the code-review agent card (drop hardcoded mymoney/13-features/apps/Phase lists; drive from requirements/plan)",
+    "why": "(derived) see objective",
+    "who_feels": "(derived) unspecified",
+    "source": "extracted"
+  },
+  "objective": "Fix: generalize the code-review agent card (drop hardcoded mymoney/13-features/apps/Phase lists; drive from requirements/plan)",
+  "acceptance_criteria": [
+    "(derived) objective met: Fix: generalize the code-review agent card (drop hardcoded mymoney/13-features/apps/Phase lists; drive from requirements/plan)"
+  ],
+  "in_scope": [
+    "Fix: generalize the code-review agent card (drop hardcoded mymoney/13-features/apps/Phase lists; drive from requirements/plan)"
+  ],
+  "out_of_scope": [
+    "(derived) not specified"
+  ],
+  "affected_components": [
+    "(derived) TBD"
+  ],
+  "affected_files": [
+    "(derived) TBD"
+  ],
+  "approach": "Fix: generalize the code-review agent card (drop hardcoded mymoney/13-features/apps/Phase lists; drive from requirements/plan)",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "(derived) objective met: Fix: generalize the code-review agent card (drop hardcoded mymoney/13-features/apps/Phase lists; drive from requirements/plan)"
+  ],
+  "risks": [
+    "(derived) none identified"
+  ],
+  "rollback": "(derived) revert the change",
+  "evidence": [
+    "(derived) pending"
+  ],
+  "owner": "agent",
+  "requester": "user",
+  "due": "(derived) TBD",
+  "target_release": "(derived) TBD",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "",
+  "parent": "",
+  "revision": 1,
+  "priority_rank": null,
+  "priority_class": "",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "IN_PROGRESS",
+    "analyzed_at": "",
+    "analyzed_by": "deterministic",
+    "revision_analyzed": 0,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/agent_capabilities.py, core/agent_card_loader.py, core/agent_hierarchy.py, core/agent_ledger.py",
+    "existing_components": [
+      "core/agent_capabilities.py",
+      "core/agent_card_loader.py",
+      "core/agent_hierarchy.py",
+      "core/agent_ledger.py",
+      "core/agent_memory.py",
+      "core/agent_messenger.py",
+      "core/agent_migrator.py",
+      "core/agent_model_override.py"
+    ],
+    "existing_apis": [
+      "/api/v1/agents",
+      "/api/v1/agents/{agent_id}",
+      "/api/v1/agents/{agent_id}/capabilities",
+      "/api/v1/artifacts/{stage_id}/{agent}"
+    ],
+    "existing_modules": [
+      "config/agent-capabilities.json",
+      "config/agent-capability-vector.json",
+      "config/agent-hierarchy.json",
+      "config/agent-requirements.json"
+    ],
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=1.5",
+      "components=8",
+      "apis=4"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": false,
+    "reasons": [],
+    "computed_at": ""
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": ""
+  },
+  "created_at": "2026-10-09T13:33:04.563977",
+  "updated_at": "2026-10-09T13:33:05.854432",
+  "score": 1.5,
+  "_note": "analysis updated",
+  "dashboard_impact": {
+    "needs_dashboard": false,
+    "reason": "agent-card spec fix; no dashboard surface",
+    "dashboard_item": null,
+    "reviewed_by": "agent"
+  }
+}
