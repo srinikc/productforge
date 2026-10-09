@@ -50,6 +50,24 @@ def main() -> int:
     _check("workergrid/wg.py" in cmd_txt, "wg.md is a thin adapter (calls workergrid/wg.py)")
     _check(not re.search(r"def \w+\(|import core", cmd_txt), "wg.md contains no logic (thin adapter)")
 
+    # installed global /wg copy must match the checked-in source (content-equal; line endings normalized).
+    gsrc = os.path.join(str(_ROOT), ".opencode", "command_global", "wg.md")
+    _check(os.path.exists(gsrc), "command_global/wg.md exists (checked-in global /wg source)")
+    if os.path.exists(gsrc):
+        home = os.path.expanduser(os.path.join("~", ".config", "opencode", "command", "wg.md"))
+        if os.path.exists(home):
+            def _norm(p: str) -> bytes:
+                with open(p, "rb") as f:
+                    return f.read().replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+            try:
+                if _norm(home) != _norm(gsrc):
+                    FAILS.append("installed ~/.config/opencode/command/wg.md drifted from "
+                                 ".opencode/command_global/wg.md (re-copy the source)")
+            except Exception as e:
+                FAILS.append(f"wg.md drift check error: {type(e).__name__}")
+        else:
+            print("wg-surface: note: no installed ~/.config/opencode/command/wg.md (drift check skipped)")
+
     # decoupled: worker/scheduler verbs must NOT be in /pf
     pf = os.path.join(str(_ROOT), "scripts", "pf.py")
     pf_txt = ""
