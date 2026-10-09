@@ -1,0 +1,177 @@
+{
+  "id": "BI-PF-0463",
+  "tag": "PF",
+  "type": "bug",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "review:backlog-context-enforcement",
+  "label": "PF Backlog 497",
+  "title": "Backlog context gate enforces presence, not authorship: reject '(derived)' placeholders + author the remaining open items",
+  "body": "## Problem / why\nThe BI-PF-0448 context gate only enforces NON-EMPTY fields and a weak source tag; the BI-PF-0454 auto-draft fills '(derived)' placeholders and a >=40-char body yields source='extracted', so stubs PASS. Observed: 33/34 open items carried '(derived)' placeholders while the gate reported OK.\n\n## Goal & value\nMake the gate enforce authored plain-language context; no open item is a stub.\n",
+  "source": "design-review",
+  "status": "new",
+  "priority": null,
+  "moscow": "Should",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [],
+  "links": {},
+  "decisions": [],
+  "follow_up": {},
+  "brief": {
+    "problem": "The BI-PF-0448 context gate only enforces NON-EMPTY fields and a weak source tag; the BI-PF-0454 auto-draft fills '(derived)' placeholders and a >=40-char body yields source='extracted', so stubs PASS. Observed: 33/34 open items carried '(derived)' placeholders while the gate reported OK.",
+    "what_adds": "Make the gate enforce authored plain-language context; no open item is a stub.",
+    "why": "The BI-PF-0448 context gate only enforces NON-EMPTY fields and a weak source tag; the BI-PF-0454 auto-draft fills '(derived)' placeholders and a >=40-char body yields source='extracted', so stubs PASS. Observed: 33/34 open items carried '(derived)' placeholders while the gate reported OK.",
+    "who_feels": "PF maintainers and backlog consumers.",
+    "source": "authored"
+  },
+  "objective": "Make the backlog context gate enforce authored plain-language context (not just presence) and eliminate placeholder context on all open items.",
+  "acceptance_criteria": [
+    "Objective achieved: Make the gate enforce authored plain-language context; no open item is a stub."
+  ],
+  "in_scope": [
+    "scripts/dev/backlog_context_check.py reject '(derived)' residue",
+    "one-shot authoring of remaining open items from bodies/links",
+    "a placeholder-rejection test"
+  ],
+  "out_of_scope": [
+    "rewriting item bodies",
+    "changing the id allocator",
+    "non-product_forge scopes (advisory only)"
+  ],
+  "affected_components": [
+    "backlog",
+    "backlog_context_check",
+    "precheck"
+  ],
+  "affected_files": [
+    "scripts/dev/backlog_context_check.py",
+    "data/backlog/items/*.json (context only)",
+    "test-framework/tests/pipeline/test_backlog_context_enforcement.py"
+  ],
+  "approach": "Parse each item's own structured body (Problem/Goal/In scope/Out of scope/Acceptance/Approach) + links to author real fields; set source accordingly; then fail the gate on any remaining '(derived)' placeholder.",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [
+        "BI-PF-0448 context gate",
+        "BI-PF-0450/0451/0454 full-field drafting",
+        "AGENTS.md no shortcuts"
+      ],
+      "existing_path": [
+        "backlog_context_check.py:40-79",
+        "core/_draft_context placeholders"
+      ],
+      "assumptions": [
+        "open product_forge scope only",
+        "item bodies are the source of truth",
+        "flag, don't fabricate"
+      ],
+      "divergences": [
+        "tightening a fail-closed gate"
+      ],
+      "open_questions": [
+        "author existing items in the same change (yes)"
+      ]
+    },
+    "reviewed_by": "agent"
+  },
+  "verification": [
+    "pytest test_backlog_context_enforcement.py",
+    "backlog_context_check.py OK with 0 '(derived)' residue",
+    "wired_audit unwired 0"
+  ],
+  "risks": [
+    "items lacking structured bodies are flagged for a human pass, not auto-filled"
+  ],
+  "rollback": "revert the merge",
+  "evidence": [
+    "pending merge"
+  ],
+  "owner": "agent",
+  "requester": "user",
+  "due": "(derived) TBD",
+  "target_release": "(derived) TBD",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-0360",
+  "parent": "BI-PF-0360",
+  "revision": 1,
+  "priority_rank": null,
+  "priority_class": "",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "IN_PROGRESS",
+    "analyzed_at": "",
+    "analyzed_by": "deterministic",
+    "revision_analyzed": 0,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/backlog.py, core/backlog_link.py, core/code_quality_gate.py, core/context_discipline.py",
+    "existing_components": [
+      "core/backlog.py",
+      "core/backlog_link.py",
+      "core/code_quality_gate.py",
+      "core/context_discipline.py",
+      "core/context_engine.py",
+      "core/context_manager.py",
+      "core/context_policy.py",
+      "core/context_preflight.py"
+    ],
+    "existing_apis": [
+      "/api/v1/backlog",
+      "/api/v1/backlog/grooming/guidelines",
+      "/api/v1/backlog/ids:reserve",
+      "/api/v1/backlog/items",
+      "/api/v1/backlog/items/{item_id}",
+      "/api/v1/backlog/items/{item_id}/analysis",
+      "/api/v1/backlog/items/{item_id}/dependencies",
+      "/api/v1/backlog/items/{item_id}/groom"
+    ],
+    "existing_modules": [
+      "config/context-policy.json"
+    ],
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=0.75",
+      "components=8",
+      "apis=8"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": false,
+    "reasons": [],
+    "computed_at": ""
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": ""
+  },
+  "created_at": "2026-10-09T14:11:42.251254",
+  "updated_at": "2026-10-09T14:12:36.832264",
+  "score": 0.75,
+  "_note": "analysis updated"
+}
