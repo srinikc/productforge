@@ -1,0 +1,185 @@
+{
+  "id": "BI-PF-0665",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "review:context-ai-review",
+  "label": "PF Backlog 501",
+  "title": "AI (LLM) review of backlog context: is an item implementable (what/why/how/where)?",
+  "body": "## Problem / why\nA heuristic gate can check that fields are present but cannot judge whether the context MEANS enough to implement the item. Placeholder-but-non-empty context still passes heuristics.\n\n## Goal & value\nAn LLM judge reviews an item's context and reports whether it is implementable (what/why/how/where) with the missing dimensions — advisory by default, fail-closed on --strict.\n",
+  "source": "design-review",
+  "status": "new",
+  "priority": null,
+  "moscow": "Should",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [],
+  "links": {},
+  "decisions": [],
+  "follow_up": {},
+  "brief": {
+    "problem": "Heuristic checks can't judge whether context is meaningful/implementable.",
+    "what_adds": "An LLM context review (what/why/how/where) via the single LLM owner, API-first + tooling; advisory default, --strict fail-closed.",
+    "why": "Ensure every backlog item is genuinely implementable, not just non-empty.",
+    "who_feels": "Backlog readers; agents/workers claiming work; maintainers.",
+    "source": "authored"
+  },
+  "objective": "Add an LLM-judged backlog context review (implementable? what/why/how/where?) reusing the single LLM owner, exposed via API + a tooling check (advisory default; --strict fail-closed).",
+  "acceptance_criteria": [
+    "core/context_review.review(item) returns {ok, source, implementable, missing, reason} via the single LLM owner",
+    "no validator available => ok=None (advisory, never a false verdict)",
+    "POST /backlog/items/{id}/context-review exposes it API-first",
+    "scripts/dev/backlog_context_ai_check.py batch-reviews open items (advisory; --strict fails on thin items)",
+    "tests cover implementable/thin/no-validator/unparseable + the endpoint"
+  ],
+  "in_scope": [
+    "core/context_review.py",
+    "POST /backlog/items/{id}/context-review",
+    "scripts/dev/backlog_context_ai_check.py"
+  ],
+  "out_of_scope": [
+    "auto-editing item context",
+    "a new LLM client",
+    "blocking by default"
+  ],
+  "affected_components": [
+    "backlog",
+    "context_review",
+    "api",
+    "llm_client"
+  ],
+  "affected_files": [
+    "core/context_review.py",
+    "api/routers/backlog.py",
+    "scripts/dev/backlog_context_ai_check.py",
+    "test-framework/tests/pipeline/test_backlog_context_review.py"
+  ],
+  "approach": "Reuse the single LLM owner (ModelRouter + LLMClient) via a one-shot callable; follow the brief_check injection pattern; render the item and ask for a compact JSON verdict; advisory when no validator.",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [
+        "single LLM owner (llm_client)",
+        "brief_check inject-llm pattern",
+        "no new engine/store",
+        "reconciliation binding"
+      ],
+      "existing_path": [
+        "core/brief_check.py",
+        "core/pipeline_executor.py:198 (LLMClient)",
+        "core/orchestrator/model_router.py"
+      ],
+      "assumptions": [
+        "advisory default",
+        "reuse owner via ModelRouter+LLMClient",
+        "API-first"
+      ],
+      "divergences": [
+        "new module + endpoint + tooling (new path, approved)"
+      ],
+      "open_questions": [
+        "none"
+      ]
+    },
+    "reviewed_by": "agent"
+  },
+  "verification": [
+    "pytest test_backlog_context_review.py",
+    "ai-check tooling prints verdicts (advisory)",
+    "gate/api-governance in sync"
+  ],
+  "risks": [
+    "LLM cost/latency on batch; mitigated by advisory + on-demand tooling"
+  ],
+  "rollback": "revert the merge",
+  "evidence": [
+    "pending merge"
+  ],
+  "owner": "agent",
+  "requester": "user",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-0360",
+  "parent": "BI-PF-0360",
+  "revision": 1,
+  "priority_rank": null,
+  "priority_class": "",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "IN_PROGRESS",
+    "analyzed_at": "",
+    "analyzed_by": "deterministic",
+    "revision_analyzed": 0,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/backlog.py, core/backlog_link.py, core/context_discipline.py, core/context_engine.py",
+    "existing_components": [
+      "core/backlog.py",
+      "core/backlog_link.py",
+      "core/context_discipline.py",
+      "core/context_engine.py",
+      "core/context_manager.py",
+      "core/context_policy.py",
+      "core/context_preflight.py",
+      "core/cross_review.py"
+    ],
+    "existing_apis": [
+      "/api/v1/backlog",
+      "/api/v1/backlog/grooming/guidelines",
+      "/api/v1/backlog/ids:reserve",
+      "/api/v1/backlog/items",
+      "/api/v1/backlog/items/{item_id}",
+      "/api/v1/backlog/items/{item_id}/analysis",
+      "/api/v1/backlog/items/{item_id}/dependencies",
+      "/api/v1/backlog/items/{item_id}/groom"
+    ],
+    "existing_modules": [
+      "config/context-policy.json"
+    ],
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=0.75",
+      "components=8",
+      "apis=8"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": false,
+    "reasons": [],
+    "computed_at": ""
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": ""
+  },
+  "created_at": "2026-10-09T15:18:49.718783",
+  "updated_at": "2026-10-09T15:18:50.671109",
+  "score": 0.75,
+  "_note": "analysis updated"
+}
