@@ -1,0 +1,184 @@
+{
+  "id": "BI-PF-1175",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "review:supervisor-service-api",
+  "label": "PF Backlog 518",
+  "title": "Pipeline Supervisor service + API (status/start/stop): always-on coordinator so enqueued ideas execute",
+  "body": "## Problem / why\nEnqueued runs (intake/API/CLI) do NOT execute on their own: nothing auto-starts the supervisor (`core/portfolio.run_supervisor`), so jobs sit queued until a human runs `run_portfolio.py start`. There is also no API to observe/start/stop the supervisor.\n\n## Goal & value\nAn always-on, API-controllable Pipeline Supervisor (a SEPARATE service process) so a submitted idea auto-executes; observable + startable/stoppable via the canonical API.\n",
+  "source": "design-review",
+  "status": "new",
+  "priority": null,
+  "moscow": "Should",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [],
+  "links": {},
+  "decisions": [],
+  "follow_up": {},
+  "brief": {
+    "problem": "Enqueued runs never execute without a manually-started supervisor, and there's no API to control it.",
+    "what_adds": "core.portfolio supervisor status/start/stop + 3 API endpoints; one supervisor service, separate process, guarded by the capacity lock.",
+    "why": "Make 'submit idea -> it runs' true, and make the executor observable/controllable API-first.",
+    "who_feels": "Operators; integrators; PF maintainers.",
+    "source": "authored"
+  },
+  "objective": "Add core.portfolio supervisor status/start/stop + API endpoints (GET/POST /portfolio/supervisor[/start|/stop]) so the supervisor runs as an always-on separate service, guarded by the existing capacity lock.",
+  "acceptance_criteria": [
+    "core.portfolio.supervisor_status() reports running/pids/running_projects/limits",
+    "start_supervisor() spawns the supervisor as a separate process, idempotent, guarded by can_start_supervisor + lock",
+    "stop_supervisor() terminates live supervisor pid(s) gracefully",
+    "GET /api/v1/portfolio/supervisor + POST .../start + POST .../stop are wired (auth/operator)",
+    "no dashboard/opencode references; tests cover status/start-idempotent/stop + endpoints"
+  ],
+  "in_scope": [
+    "core/portfolio.py supervisor_status/start_supervisor/stop_supervisor",
+    "api/routers/portfolio.py (GET/POST supervisor)",
+    "register router"
+  ],
+  "out_of_scope": [
+    "per-project/per-user supervisors (not needed; one coordinator)",
+    "worker plane",
+    "dashboard"
+  ],
+  "affected_components": [
+    "portfolio",
+    "capacity",
+    "api",
+    "run_pipeline"
+  ],
+  "affected_files": [
+    "core/portfolio.py",
+    "api/routers/portfolio.py",
+    "api/app.py",
+    "api/openapi.json",
+    "test-framework/tests/pipeline/test_portfolio_supervisor_api.py"
+  ],
+  "approach": "Extend core/portfolio (the owner) with status/start/stop; start spawns scripts/run_portfolio.py start detached (guarded by can_start_supervisor + lock); stop terminates live pids; expose via a new /portfolio router; API-first, no new store/engine.",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [
+        "supervisor = separate process (portfolio.run_supervisor)",
+        "capacity caps: max_supervisors/max_parallel_projects",
+        "API-first; no new store/engine; legacy dashboard frozen"
+      ],
+      "existing_path": [
+        "core/portfolio.py run_supervisor:311, supervisor_running, _acquire_supervisor_lock",
+        "capacity.live_supervisors",
+        "scripts/run_portfolio.py start"
+      ],
+      "assumptions": [
+        "one supervisor service; scale via max_supervisors only for HA",
+        "API start spawns a guarded subprocess",
+        "stop = terminate pid"
+      ],
+      "divergences": [
+        "new api/ endpoints + spawn (new path, approved)"
+      ],
+      "open_questions": [
+        "none"
+      ]
+    },
+    "reviewed_by": "agent"
+  },
+  "verification": [
+    "pytest test_portfolio_supervisor_api.py (5) passes",
+    "api-governance 151 paths in sync",
+    "wired-audit unwired 0",
+    "lint 0 NEW"
+  ],
+  "risks": [
+    "detached spawn portability (Windows flags); start is idempotent + lock-guarded"
+  ],
+  "rollback": "revert the merge",
+  "evidence": [
+    "pending merge"
+  ],
+  "owner": "agent",
+  "requester": "user",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "",
+  "parent": "",
+  "revision": 1,
+  "priority_rank": null,
+  "priority_class": "",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "IN_PROGRESS",
+    "analyzed_at": "",
+    "analyzed_by": "deterministic",
+    "revision_analyzed": 0,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/pipeline_capabilities.py, core/pipeline_composition.py, core/pipeline_executor.py, core/pipeline_store.py",
+    "existing_components": [
+      "core/pipeline_capabilities.py",
+      "core/pipeline_composition.py",
+      "core/pipeline_executor.py",
+      "core/pipeline_store.py",
+      "core/pipeline_tailoring.py",
+      "core/pipeline_telemetry.py",
+      "core/pipeline_templates.py",
+      "core/run_status.py"
+    ],
+    "existing_apis": [
+      "/api/v1/backlog/items/{item_id}/status",
+      "/api/v1/engineering/schedule/status",
+      "/api/v1/engineering/tasks/{task_id}/status",
+      "/api/v1/issues/{iid}/status",
+      "/api/v1/pipeline",
+      "/api/v1/pipeline/stages",
+      "/api/v1/pipeline/stages/{stage_id}",
+      "/api/v1/runs/start"
+    ],
+    "existing_modules": [],
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=0.75",
+      "components=8",
+      "apis=8"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": false,
+    "reasons": [],
+    "computed_at": ""
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": ""
+  },
+  "created_at": "2026-10-09T17:02:38.493947",
+  "updated_at": "2026-10-09T17:02:39.206079",
+  "score": 0.75,
+  "_note": "analysis updated"
+}

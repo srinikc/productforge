@@ -273,6 +273,64 @@ def _release_supervisor_lock():
         os.remove(_sup_lock_path())
 
 
+def supervisor_status() -> dict:
+    """Supervisor status (API-first read): running, pids, running projects, caps."""
+    pids, running, caps = [], [], {}
+    with contextlib.suppress(Exception):
+        from core.capacity import live_supervisors
+        pids = live_supervisors()
+    with contextlib.suppress(Exception):
+        from core.capacity import status as _cap
+        st = _cap()
+        running = st.get("running_projects") or []
+        caps = st.get("limits") or {}
+    return {"running": bool(pids), "supervisor_pids": pids, "running_projects": running,
+            "limits": caps, "start_command": "python scripts/run_portfolio.py start"}
+
+
+def start_supervisor(max_concurrent: int = 1) -> dict:
+    """Spawn the Pipeline Supervisor as a SEPARATE process (idempotent; guarded by capacity/lock)."""
+    if supervisor_running():
+        return {"ok": True, "already_running": True, **supervisor_status()}
+    with contextlib.suppress(Exception):
+        from core.capacity import can_start_supervisor
+        c = can_start_supervisor()
+        if not c.get("ok"):
+            return {"ok": False, "reason": c.get("reason") or "cannot start supervisor"}
+    cmd = [sys.executable, "-u", os.path.join(REPO, "scripts", "run_portfolio.py"), "start",
+           "--max-concurrent", str(int(max_concurrent or 1))]
+    os.makedirs(PRODUCTS, exist_ok=True)
+    logf = open(os.path.join(PRODUCTS, "supervisor.log"), "a", encoding="utf-8")
+    kwargs: dict[str, Any] = {"cwd": REPO, "stdout": logf, "stderr": subprocess.STDOUT,
+                              "stdin": subprocess.DEVNULL}
+    if os.name == "nt":
+        kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP | 0x00000008  # DETACHED_PROCESS
+    try:
+        pr = subprocess.Popen(cmd, **kwargs)
+    except Exception as e:  # noqa: BLE001
+        return {"ok": False, "error": type(e).__name__}
+    return {"ok": True, "pid": pr.pid, **supervisor_status()}
+
+
+def stop_supervisor() -> dict:
+    """Terminate live supervisor process(es) gracefully (SIGTERM / taskkill)."""
+    pids = []
+    with contextlib.suppress(Exception):
+        from core.capacity import live_supervisors
+        pids = live_supervisors()
+    stopped = []
+    for pid in pids:
+        try:
+            if os.name == "nt":
+                subprocess.run(["taskkill", "/PID", str(pid), "/T", "/F"], capture_output=True)
+            else:
+                os.kill(pid, 15)
+            stopped.append(pid)
+        except Exception:  # noqa: BLE001
+            pass
+    return {"ok": True, "stopped": stopped, **supervisor_status()}
+
+
 def requeue(project: str):
     c = _db()
     c.execute("UPDATE jobs SET status='queued', worker='' WHERE project=?", (project,))
