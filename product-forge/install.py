@@ -138,6 +138,13 @@ def main():
     if not verify_installation():
         print("\nWARNING: Some components may not be properly installed")
 
+    # Install/refresh the global OpenCode commands byte-for-byte from .opencode/command_global/.
+    try:
+        _sync = Path(__file__).resolve().parent / "scripts" / "dev" / "sync_global_commands.py"
+        subprocess.run([sys.executable, str(_sync)], check=False)
+    except Exception as _e:
+        print(f"  WARNING: global command sync skipped: {_e}")
+
     print("\n" + "=" * 60)
     print("Installation Complete!")
     print("=" * 60)

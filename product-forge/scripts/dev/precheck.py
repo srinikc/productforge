@@ -124,6 +124,7 @@ _GATES = [
     ("dogfood-run", ["scripts/dev/dogfood_run_check.py"], "fast", ["dogfood", "dogfood_run", "api"]),
     ("pf-surface", ["scripts/dev/pf_surface_check.py"], "fast", None),
     ("wg-surface", ["scripts/dev/wg_surface_check.py"], "fast", None),
+    ("global-commands", ["scripts/dev/sync_global_commands.py", "--check"], "fast", None),
     ("wg-go", ["scripts/dev/wg_go_check.py"], "fast", ["workergrid", "wg"]),
     ("pidl", ["scripts/dev/pidl_check.py"], "fast", ["pidl"]),
     ("pidl-gate", ["scripts/dev/pidl_gate_check.py"], "fast", ["pidl", "close_loop"]),
