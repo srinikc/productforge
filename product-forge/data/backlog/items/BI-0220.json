@@ -20,7 +20,7 @@
   "decisions": [],
   "follow_up": {},
   "created_at": "2026-09-26T15:37:29.641867",
-  "updated_at": "2026-10-09T14:30:02.004861",
+  "updated_at": "2026-10-09T14:35:07.076250",
   "score": 0.75,
   "brief": {
     "problem": "E2E pipeline reliability, model registry and agent readiness. Phases:",
@@ -46,12 +46,21 @@
     "reviewed_by": "derived",
     "at": ""
   },
-  "approach": "EPIC: pipeline E2E reliability - events, readiness checklist, model registry/capability gate, lock/status fixes",
+  "approach": "Land P0 then P1 then P2 (body): accurate stop reasons (no false completion), no template-masking, dead-PID lock reclaim, lifecycle events, per-agent pre-exec readiness checklist + report/API, cross-provider fallback; then model-registry refresh + per-agent capability contract + capability gate; then dynamic run plan + per-agent budget/wall-time + single-writer status + provider rate pacing.",
   "affected_components": [
-    "Not specified."
+    "pipeline",
+    "events",
+    "model-registry",
+    "agent-readiness",
+    "locks"
   ],
   "affected_files": [
-    "Not specified."
+    "core/events.py",
+    "core/run_guard.py",
+    "core/model_registry.py",
+    "core/model_gate.py",
+    "core/agent_readiness.py",
+    "core/provider_health.py"
   ],
   "owner": "intake",
   "requester": "generic",
@@ -62,7 +71,10 @@
     "pending"
   ],
   "verification": [
-    "Objective achieved: EPIC: pipeline E2E reliability - events, readiness checklist, model registry/capability gate, lock/status fixes"
+    "a run finishes or stops with an accurate reason (no false-green)",
+    "agents are blocked loudly when inputs/model are missing",
+    "readiness + compliance surfaced via API/events",
+    "a crash never leaves a blocking lock"
   ],
   "risks": [
     "Not specified."
@@ -73,7 +85,8 @@
     "EPIC: pipeline E2E reliability - events, readiness checklist, model registry/capability gate, lock/status fixes"
   ],
   "out_of_scope": [
-    "Not specified."
+    "new execution engines",
+    "worker-plane changes (rehomed to WorkerGrid)"
   ],
   "children": [
     "BI-PF-0458",
