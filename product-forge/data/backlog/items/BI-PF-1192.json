@@ -1,0 +1,167 @@
+{
+  "id": "BI-PF-1192",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "review:global-command-sync",
+  "label": "PF Backlog 528",
+  "title": "Auto-sync global OpenCode commands byte-for-byte on setup + a precheck drift guard",
+  "body": "## Problem / why\nThe global commands (.opencode/command_global/*.md) must be installed to ~/.config/opencode/command/ and kept byte-identical, but there was NO sync step (manual copy only) — which is why wg.md drifted (LF vs CRLF). Guards existed only per-file (pf/wg surface checks).\n\n## Goal & value\nOne sync tool that installs/refreshes every command_global/*.md byte-for-byte, is called automatically by install.py, and a generic --check guard in precheck that FAILS on drift (skips when not installed -> CI-safe).\n",
+  "source": "design-review",
+  "status": "new",
+  "priority": null,
+  "moscow": "Should",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [],
+  "links": {},
+  "decisions": [],
+  "follow_up": {},
+  "brief": {
+    "problem": "No automated install/sync for global commands -> they drift (wg.md did).",
+    "what_adds": "sync_global_commands.py (sync + --check), auto-run from install.py, + a precheck gate.",
+    "why": "The installed command is the live one; drift means the wrong version runs.",
+    "who_feels": "Anyone using /pf or /wg; maintainers.",
+    "source": "authored"
+  },
+  "objective": "Add scripts/dev/sync_global_commands.py (byte-for-byte sync from .opencode/command_global/ to ~/.config/opencode/command/, + --check drift guard), auto-call it from install.py, and wire a global-commands precheck gate.",
+  "acceptance_criteria": [
+    "sync copies every command_global/*.md to the install dir byte-for-byte (idempotent, cross-platform)",
+    "--check exits 1 on installed-copy drift; skips (exit 0) when not installed (CI-safe)",
+    "install.py runs the sync automatically on setup",
+    "precheck has a 'global-commands --check' gate",
+    "tests cover sync + drift detection"
+  ],
+  "in_scope": [
+    "scripts/dev/sync_global_commands.py",
+    "install.py auto-call",
+    "precheck 'global-commands' gate"
+  ],
+  "out_of_scope": [
+    "editing command_global content",
+    "per-file guards (already exist for pf/wg)"
+  ],
+  "affected_components": [
+    "dev-tooling",
+    "installer",
+    "command_global"
+  ],
+  "affected_files": [
+    "scripts/dev/sync_global_commands.py",
+    "install.py",
+    "scripts/dev/precheck.py",
+    "test-framework/tests/pipeline/test_global_command_sync.py"
+  ],
+  "approach": "Byte-copy each command_global/*.md into ~/.config/opencode/command/ (os.makedirs + shutil.copyfile); --check compares bytes and exits 1 on drift (skip if absent); call from install.py; precheck gate runs --check.",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [
+        "command_global is the installed SSOT (byte-identical rule)",
+        "guards skip when ~/.config absent (CI-safe)"
+      ],
+      "existing_path": [
+        "pf_surface_check/wg_surface_check (per-file installed guards)",
+        "install.py (no global-command step)"
+      ],
+      "assumptions": [
+        "byte-for-byte copy",
+        "skip when not installed"
+      ],
+      "divergences": [
+        "new tooling + install hook (approved)"
+      ],
+      "open_questions": [
+        "none"
+      ]
+    },
+    "reviewed_by": "agent"
+  },
+  "verification": [
+    "sync --check OK",
+    "pytest test_global_command_sync.py (2)",
+    "wired-audit unwired 0",
+    "lint 0 NEW"
+  ],
+  "risks": [
+    "none; skip when not installed"
+  ],
+  "rollback": "revert the merge",
+  "evidence": [
+    "pending merge"
+  ],
+  "owner": "agent",
+  "requester": "user",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "",
+  "parent": "",
+  "revision": 1,
+  "priority_rank": null,
+  "priority_class": "",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "IN_PROGRESS",
+    "analyzed_at": "",
+    "analyzed_by": "deterministic",
+    "revision_analyzed": 0,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/global_orchestrator.py, core/guardrails.py, core/repo_setup.py, core/run_guard.py",
+    "existing_components": [
+      "core/global_orchestrator.py",
+      "core/guardrails.py",
+      "core/repo_setup.py",
+      "core/run_guard.py"
+    ],
+    "existing_apis": [],
+    "existing_modules": [
+      "config/guardrail-policy.json"
+    ],
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=0.75",
+      "components=4",
+      "apis=0"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": false,
+    "reasons": [],
+    "computed_at": ""
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": ""
+  },
+  "created_at": "2026-10-09T20:08:57.148034",
+  "updated_at": "2026-10-09T20:08:57.870145",
+  "score": 0.75,
+  "_note": "analysis updated"
+}
