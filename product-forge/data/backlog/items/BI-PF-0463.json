@@ -10,7 +10,7 @@
   "title": "Hardening: pre-push hook runs the backlog id-audit (catch duplicates at the push boundary too)",
   "body": "Source: user request (2026-10-08). Hardening on top of BI-PF-0457 (duplicate-id merge audit) + BI-PF-0462\n(id allocator).\n\nWHAT: install a `pre-push` git hook (via scripts/dev/install_hooks.py) that runs\n`scripts/dev/backlog_id_audit.py` before every push, so a duplicate backlog id is caught at the PUSH boundary\ntoo - not only at precheck/CI. Belt-and-braces (defense-in-depth): the allocator PREVENTS collisions; precheck/CI\nand the pre-push hook CATCH any residue at two independent boundaries.\n\nAcceptance: install_hooks.py writes .git/hooks/pre-push; the hook fails the push (exit 1) when the id audit\nfails, passes otherwise; no opencode/dashboard references.",
   "source": "user request",
-  "status": "new",
+  "status": "completed",
   "priority": null,
   "moscow": "Should",
   "value": 3,
@@ -28,7 +28,18 @@
     "related": [
       "product_forge:BI-PF-0457",
       "product_forge:BI-PF-0462"
-    ]
+    ],
+    "delivery": {
+      "branch": "feature/prepush-id-audit",
+      "merge_sha": "17a8e70b1e5722133a095c403aad05693ff6c12f",
+      "commits": [
+        "c5604929443e954c738fac4773918016d5c4cb12"
+      ],
+      "pr": "",
+      "pr_url": "",
+      "at": "2026-10-09T14:15:59.336272",
+      "note": ""
+    }
   },
   "decisions": [],
   "follow_up": {},
@@ -87,7 +98,7 @@
   "children": [],
   "epic": "BI-PF-0360",
   "parent": "BI-PF-0360",
-  "revision": 1,
+  "revision": 2,
   "priority_rank": null,
   "priority_class": "",
   "analyze_mode": "on_entry",
@@ -163,9 +174,9 @@
     "completed_at": ""
   },
   "created_at": "2026-10-09T14:14:24.907843",
-  "updated_at": "2026-10-09T14:14:25.797624",
+  "updated_at": "2026-10-09T14:15:59.550168",
   "score": 3.0,
-  "_note": "analysis updated",
+  "_note": "",
   "dashboard_impact": {
     "needs_dashboard": false,
     "reason": "git hook hardening; no dashboard surface",
