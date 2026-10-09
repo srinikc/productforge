@@ -1,0 +1,171 @@
+{
+  "id": "BI-PF-1176",
+  "tag": "PF",
+  "type": "chore",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "merge-conflict-elim",
+  "label": "PF Backlog 518",
+  "title": "Eliminate cross-session merge conflicts (step 1-2): union for history JSONL + regenerate-on-merge driver for derived indexes",
+  "body": "## Problem / why\nEvery cross-session merge conflicts on the SHARED backlog stores: the append-only history JSONL and the DERIVED\nlean indexes (open.json/closed.json). git has no per-record granularity for whole-file JSON, so sessions resolve\nthese by hand every time.\n\n## Goal & value\nRemove the repetitive manual resolution for the DERIVED/append data files (source/config conflicts stay\nfail-closed + human-resolved):\n- step 1: `merge=union` for append-only `**/backlog/history/*.jsonl` (each line is a record; no conflict).\n- step 2: a git MERGE DRIVER that REGENERATES the derived lean indexes from `items/` (the truth) instead of\n  text-merging them.\n\n## Acceptance criteria\n- .gitattributes: `**/backlog/history/*.jsonl merge=union` + `**/backlog/open.json|closed.json merge=pf-derived`.\n- scripts/dev/pf_merge_driver.py regenerates the index from items/ and exits 0 (leaves the merged result in %A).\n- install_hooks.py registers the driver (`git config merge.pf-derived.driver ...`).\n- A test: given a drifted open.json + items/, the driver rewrites open.json from items/.\n- counters.json is NOT auto-driven (labels preserved) - step 3.\n- No opencode/dashboard references.\n\n## Out of scope\nStep 3 (untracking the derived files) - deferred (reader-audit risk).",
+  "source": "user request",
+  "status": "new",
+  "priority": null,
+  "moscow": "Should",
+  "value": 4,
+  "effort": 2,
+  "risk": 2,
+  "deps": [],
+  "links": {
+    "backend_capability": [
+      "module:scripts/dev/pf_merge_driver.py",
+      "module:scripts/dev/install_hooks.py",
+      ".gitattributes"
+    ]
+  },
+  "decisions": [],
+  "follow_up": {},
+  "brief": {
+    "problem": "Every cross-session merge conflicts on the SHARED backlog stores: the append-only history JSONL and the DERIVED\nlean indexes (open.json/closed.json). git has no per-record granularity for whole-file JSON, so sessions resolve\nthese by hand every time.",
+    "what_adds": "Remove the repetitive manual resolution for the DERIVED/append data files (source/config conflicts stay\nfail-closed + human-resolved):\n- step 1: `merge=union` for append-only `**/backlog/history/*.jsonl` (each line is a record; no conflict).\n- step 2: a git MERGE DRIVER that REGENERATES the derived lean indexes from `items/` (the truth) instead of\n  text-merging them.",
+    "why": "Every cross-session merge conflicts on the SHARED backlog stores: the append-only history JSONL and the DERIVED\nlean indexes (open.json/closed.json). git has no per-record granularity for whole-file JSON, so sessions resolve\nthese by hand every time.",
+    "who_feels": "Product Forge maintainers and consumers.",
+    "source": "authored"
+  },
+  "objective": "Remove the repetitive manual resolution for the DERIVED/append data files (source/config conflicts stay\nfail-closed + human-resolved):\n- step 1: `merge=union` for append-only `**/backlog/history/*.jsonl` (each line is a record; no conflict).\n- step 2: a git MERGE DRIVER that REGENERATES the derived lean indexes from `items/` (the truth) instead of\n  text-merging them.",
+  "acceptance_criteria": [
+    ".gitattributes: `**/backlog/history/*.jsonl merge=union` + `**/backlog/open.json|closed.json merge=pf-derived`.",
+    "scripts/dev/pf_merge_driver.py regenerates the index from items/ and exits 0 (leaves the merged result in %A).",
+    "install_hooks.py registers the driver (`git config merge.pf-derived.driver ...`).",
+    "A test: given a drifted open.json + items/, the driver rewrites open.json from items/.",
+    "counters.json is NOT auto-driven (labels preserved) - step 3.",
+    "No opencode/dashboard references."
+  ],
+  "in_scope": [
+    "Eliminate cross-session merge conflicts (step 1-2): union for history JSONL + regenerate-on-merge driver for derived indexes"
+  ],
+  "out_of_scope": [
+    "Not specified."
+  ],
+  "affected_components": [
+    "",
+    "open.json",
+    "scripts"
+  ],
+  "affected_files": [
+    "/backlog/open.json",
+    "closed.json",
+    "counters.json",
+    "install_hooks.py",
+    "open.json",
+    "open.json/closed.json",
+    "scripts/dev/install_hooks.py",
+    "scripts/dev/pf_merge_driver.py"
+  ],
+  "approach": "Eliminate cross-session merge conflicts (step 1-2): union for history JSONL + regenerate-on-merge driver for derived indexes",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    ".gitattributes: `**/backlog/history/*.jsonl merge=union` + `**/backlog/open.json|closed.json merge=pf-derived`.",
+    "scripts/dev/pf_merge_driver.py regenerates the index from items/ and exits 0 (leaves the merged result in %A).",
+    "install_hooks.py registers the driver (`git config merge.pf-derived.driver ...`).",
+    "A test: given a drifted open.json + items/, the driver rewrites open.json from items/.",
+    "counters.json is NOT auto-driven (labels preserved) - step 3.",
+    "No opencode/dashboard references."
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "agent",
+  "requester": "user",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-0360",
+  "parent": "BI-PF-0360",
+  "revision": 1,
+  "priority_rank": null,
+  "priority_class": "",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "IN_PROGRESS",
+    "analyzed_at": "",
+    "analyzed_by": "deterministic",
+    "revision_analyzed": 0,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/merge_gate.py, /api/v1/gates/pr/merge, /api/v1/validation/merge-gate, /api/v1/validation/merge-gate/queue",
+    "existing_components": [
+      "core/merge_gate.py"
+    ],
+    "existing_apis": [
+      "/api/v1/gates/pr/merge",
+      "/api/v1/validation/merge-gate",
+      "/api/v1/validation/merge-gate/queue"
+    ],
+    "existing_modules": [],
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=1.5",
+      "components=1",
+      "apis=3"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": false,
+    "reasons": [],
+    "computed_at": ""
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": ""
+  },
+  "created_at": "2026-10-09T17:18:04.232709",
+  "updated_at": "2026-10-09T17:18:05.181431",
+  "score": 1.5,
+  "_note": "analysis updated",
+  "api_impact": {
+    "needs_api": false,
+    "routes": [],
+    "consumers": [],
+    "reason": "repo plumbing (.gitattributes + merge driver); no API surface"
+  }
+}
