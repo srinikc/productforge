@@ -106,6 +106,47 @@ def available() -> Dict[str, Any]:
     return {"gh": bool(_gh()), "remote": "origin", "policy": list(POLICY)}
 
 
+def create_repo(name: str, *, private: bool = True, owner: str = "", description: str = "") -> Dict[str, Any]:
+    """Create a GitHub repository (OPTIONAL adapter). ``gh`` preferred; else REST via GITHUB_TOKEN.
+
+    Fail-closed: returns ``{ok: False, reason}`` when neither is available; never raises.
+    """
+    name = str(name or "").strip()
+    if not name:
+        return {"ok": False, "reason": "empty repo name"}
+    full = f"{owner}/{name}" if owner else name
+    gh = _gh()
+    if gh:
+        args = [gh, "repo", "create", full, "--private" if private else "--public"]
+        if description:
+            args += ["--description", description]
+        try:
+            r = subprocess.run(args, capture_output=True, text=True, timeout=120)
+            if r.returncode == 0:
+                url = (r.stdout or "").strip().splitlines()[-1] if r.stdout else ""
+                return {"ok": True, "adapter": "gh", "full_name": full,
+                        "url": url or f"https://github.com/{full}"}
+            return {"ok": False, "adapter": "gh", "reason": ((r.stderr or r.stdout) or "").strip()[:200]}
+        except Exception as e:  # noqa: BLE001
+            return {"ok": False, "adapter": "gh", "reason": type(e).__name__}
+    token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN") or ""
+    if token:
+        import requests
+        api = f"https://api.github.com/orgs/{owner}/repos" if owner else "https://api.github.com/user/repos"
+        try:
+            r = requests.post(api, json={"name": name, "private": bool(private), "description": description},
+                              headers={"Authorization": f"Bearer {token}",
+                                       "Accept": "application/vnd.github+json"}, timeout=60)
+            if r.status_code in (200, 201):
+                d = r.json() or {}
+                return {"ok": True, "adapter": "rest", "full_name": d.get("full_name", full),
+                        "url": d.get("html_url", "")}
+            return {"ok": False, "adapter": "rest", "reason": f"HTTP {r.status_code}"}
+        except Exception as e:  # noqa: BLE001
+            return {"ok": False, "adapter": "rest", "reason": type(e).__name__}
+    return {"ok": False, "reason": "no gh CLI and no GITHUB_TOKEN/GH_TOKEN"}
+
+
 def build_evidence(project: str, project_dir: str, *, run_id: str = "", task_id: str = "",
                    base_sha: str = "", head_sha: str = "", backlog_ref: str = "") -> Dict[str, Any]:
     """Assemble run-bound PR evidence from the canonical stores (read-only aggregation)."""

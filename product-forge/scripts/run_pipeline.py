@@ -314,6 +314,19 @@ def main():
         with open(cfg_path, "w", encoding="utf-8") as f:
             json.dump(cfg, f, indent=2, ensure_ascii=False)
 
+    # Stage-0: recommend a GitHub repo name; create+connect ONLY when enabled (fail-closed local-only).
+    try:
+        from core import repo_setup
+        _rec = repo_setup.recommend_name(args.project, cfg.get("idea") or "")
+        print(f"[repo] recommended GitHub repo name: {_rec} "
+              f"(create on confirm via POST /api/v1/projects/{args.project}/repo)")
+        if str(os.environ.get("PF_CREATE_PRODUCT_REPO", "")).lower() in ("1", "true", "yes", "on"):
+            _rs = repo_setup.setup(args.project, pdir, name=os.environ.get("PF_PRODUCT_REPO_NAME", ""),
+                                   idea=cfg.get("idea") or "", confirm=True)
+            print(f"[repo] {_rs}")
+    except Exception as _re:
+        print(f"[repo] skipped: {_re}")
+
     executor = PipelineExecutor(products_dir=args.products_dir, project=args.project)
     # Incremental/amend mode: agents update existing artifacts instead of rebuilding.
     if getattr(args, "amend", False):

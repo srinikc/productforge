@@ -144,6 +144,15 @@ class VCSManager:
         """The remote-tracking ref of the integration branch (e.g. ``origin/develop``)."""
         return f"{self.remote}/{self.integration_branch}"
 
+    def connect_remote(self, url: str, remote: str = "") -> dict[str, Any]:
+        """Add or replace a remote URL so delivery can push (uses the configured remote name)."""
+        rem = str(remote or self.remote or "origin")
+        if not str(url or "").strip():
+            return {"ok": False, "error": "empty url"}
+        if self.has_remote():
+            return self._git(["remote", "set-url", rem, str(url)])
+        return self._git(["remote", "add", rem, str(url)])
+
     def fetch(self) -> dict[str, Any]:
         """Fetch the remote (no-op with a reason if no remote). Stage 2a (git sync)."""
         if not self.has_remote():
