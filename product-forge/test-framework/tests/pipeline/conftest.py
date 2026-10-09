@@ -212,4 +212,5 @@ def _isolate_id_allocator(tmp_path, monkeypatch):
     from core import id_allocator
     monkeypatch.setattr(id_allocator, "OUT", str(tmp_path / ("id-blocks" + ".json")))
     monkeypatch.setenv("PF_ID_ALLOC_API", "off")
+    monkeypatch.setenv("PF_ID_ALLOC_REMOTE", "off")
     monkeypatch.delenv("PF_API_URL", raising=False)
