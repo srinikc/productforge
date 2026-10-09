@@ -318,8 +318,16 @@ def tag_for(scope: str, project: str | None = None, origin: str = "",
     return "PRJ"
 
 
-def _next_id(open_items, closed_items, tagname: str) -> str:
+def _next_id(open_items, closed_items, tagname: str, scope=None, project=None) -> str:
     mx = max([_num(e.get("id")) for e in list(open_items) + list(closed_items)] or [0])
+    if scope is not None:
+        try:
+            from core import id_allocator
+            if id_allocator.enabled():
+                n = id_allocator.alloc(scope, project, existing_max=mx)
+                return f"BI-{tagname or 'GEN'}-{n:04d}"
+        except Exception:
+            pass
     return f"BI-{tagname or 'GEN'}-{mx + 1:04d}"
 
 
@@ -607,7 +615,7 @@ def add_epic(scope: str, project: str | None, title: str, body: str = "",
         _tag = str(tag or "").strip().upper() or tag_for(scope, project, origin, type_)
         _draft_ctx = _draft_context(title, body, origin, source, type_)
         item = {
-            "id": _next_id(op, cl, _tag),
+            "id": _next_id(op, cl, _tag, scope, project),
             "tag": _tag, "type": type_, "scope": scope, "project": project or "",
             "origin": origin, "external_id": external_id, "label": _next_label(counters, scope, project),
             "title": title, "body": body, "source": source, "status": "new",

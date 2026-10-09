@@ -53,6 +53,8 @@ TOP = {
     "RCCA_productForge.md": ("Analysis (current)", "Root-cause + corrective/preventive guidelines for the audit/issues gaps", 100),
     "m0_status_and_coverage.md": ("Analysis (current)", "M0 status: PF-xx coverage, Section D status, open backlog", 100),
     "SECTION-D-OBSERVABILITY-DESIGN.md": ("Design", "Section D observability design + plan (BI-PF-0244)", 30),
+    "DOGFOOD-E2E-DESIGN.md": ("Design", "DOGFOOD end-to-end design (deterministic LLM replay seam, BI-PF-0459)", 60),
+    "TESTING-REFERENCE.md": ("Implemented", "Testing reference: how to run/write the PF test suites", 100),
     "AUDIT-REGISTER-TRIAGE.md": ("Analysis (current)", "Audit PF/candidate disposition: fixed / tracked / new (BI-PF-0254)", 100),
     "CAPABILITY-STEERING-DESIGN.md": ("Design", "Capability steering design + plan (BI-0221..BI-0230)", 20),
     "ROLE-PROMPT-STANDARD.md": ("Implemented", "Standard for agent role-prompts + advisory audit (BI-0228)", 100),

@@ -1,0 +1,167 @@
+{
+  "id": "BI-PF-0462",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "pfssot-id-allocation",
+  "label": "PF Backlog 496",
+  "title": "PFSSOT-P13: collision-safe backlog id allocation (API-authoritative reserve blocks; offline-safe)",
+  "body": "Source: recurring id collisions (BI-PF-0455->0456, BI-PF-0458->0461) + user request. Child of EPIC\nBI-PF-0360 (Backlog SSOT).\n\nPROBLEM: `core/backlog._next_id` = max(local ids)+1 over the worktree's own items, so two concurrent sessions\ncompute the SAME next id and collide at merge/push.\n\nFIX (framework-agnostic; core + api only):\n- core/id_allocator.py (single writer of config/id-blocks.json): reserve contiguous id BLOCKS per\n  (scope, project, session); alloc() returns the next id from the session's block. session_id() = PF_SESSION_ID\n  else host+pid; the worker plane passes WORKERGRID_WORKER_ID. Default block size 100 (PF_ID_BLOCK_SIZE);\n  offline multi-session base offset via PF_ID_BLOCK_BASE.\n- core/backlog._next_id uses the allocator (falls back to max+1 when disabled via PF_ID_ALLOC=off).\n- api/routers/backlog.py: POST /api/v1/backlog/ids:reserve (operator) - the API-first authority a session calls\n  to get its block (one shared PF API coordinates all sessions).\n- Register config/id-blocks.json in config/store-registry.json.\n- Backstop unchanged: scripts/dev/backlog_id_audit.py (BI-PF-0457) fails the merge gate on any duplicate id.\n\nAcceptance: two sessions reserving from the same authority get disjoint blocks; ids remain BI-<TAG>-<nnn>;\noffline a session allocates within its reserved block; duplicate-id audit stays green; no opencode/dashboard ref.\n\nlinks.backend_capability: module:core/id_allocator.py, module:core/backlog.py,\nroute:/api/v1/backlog/ids:reserve, test:test-framework/tests/pipeline/test_id_allocator.py",
+  "source": "user request",
+  "status": "new",
+  "priority": null,
+  "moscow": "Must",
+  "value": 4,
+  "effort": 3,
+  "risk": 2,
+  "deps": [
+    "BI-PF-0457"
+  ],
+  "links": {
+    "backend_capability": [
+      "module:core/id_allocator.py",
+      "module:core/backlog.py",
+      "route:/api/v1/backlog/ids:reserve",
+      "test:test-framework/tests/pipeline/test_id_allocator.py"
+    ],
+    "related": [
+      "product_forge:BI-PF-0360",
+      "product_forge:BI-PF-0457"
+    ]
+  },
+  "decisions": [],
+  "follow_up": {},
+  "brief": {
+    "problem": "Source: recurring id collisions (BI-PF-0455->0456, BI-PF-0458->0461) + user request. Child of EPIC\nBI-PF-0360 (Backlog SSOT).",
+    "what_adds": "PFSSOT-P13: collision-safe backlog id allocation (API-authoritative reserve blocks; offline-safe)",
+    "why": "(derived) see objective",
+    "who_feels": "(derived) unspecified",
+    "source": "extracted"
+  },
+  "objective": "PFSSOT-P13: collision-safe backlog id allocation (API-authoritative reserve blocks; offline-safe)",
+  "acceptance_criteria": [
+    "(derived) objective met: PFSSOT-P13: collision-safe backlog id allocation (API-authoritative reserve blocks; offline-safe)"
+  ],
+  "in_scope": [
+    "PFSSOT-P13: collision-safe backlog id allocation (API-authoritative reserve blocks; offline-safe)"
+  ],
+  "out_of_scope": [
+    "(derived) not specified"
+  ],
+  "affected_components": [
+    "(derived) TBD"
+  ],
+  "affected_files": [
+    "(derived) TBD"
+  ],
+  "approach": "PFSSOT-P13: collision-safe backlog id allocation (API-authoritative reserve blocks; offline-safe)",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "(derived) objective met: PFSSOT-P13: collision-safe backlog id allocation (API-authoritative reserve blocks; offline-safe)"
+  ],
+  "risks": [
+    "(derived) none identified"
+  ],
+  "rollback": "(derived) revert the change",
+  "evidence": [
+    "(derived) pending"
+  ],
+  "owner": "agent",
+  "requester": "user",
+  "due": "(derived) TBD",
+  "target_release": "(derived) TBD",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-0360",
+  "parent": "BI-PF-0360",
+  "revision": 1,
+  "priority_rank": null,
+  "priority_class": "",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "IN_PROGRESS",
+    "analyzed_at": "",
+    "analyzed_by": "deterministic",
+    "revision_analyzed": 0,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/backlog.py, core/backlog_link.py, /api/v1/backlog, /api/v1/backlog/grooming/guidelines",
+    "existing_components": [
+      "core/backlog.py",
+      "core/backlog_link.py"
+    ],
+    "existing_apis": [
+      "/api/v1/backlog",
+      "/api/v1/backlog/grooming/guidelines",
+      "/api/v1/backlog/items",
+      "/api/v1/backlog/items/{item_id}",
+      "/api/v1/backlog/items/{item_id}/analysis",
+      "/api/v1/backlog/items/{item_id}/dependencies",
+      "/api/v1/backlog/items/{item_id}/groom",
+      "/api/v1/backlog/items/{item_id}/groom/decide"
+    ],
+    "existing_modules": [],
+    "dependency_findings": [
+      "depends on BI-PF-0457"
+    ],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=1.0",
+      "components=2",
+      "apis=8"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": false,
+    "reasons": [],
+    "computed_at": ""
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": ""
+  },
+  "created_at": "2026-10-09T13:45:57.920491",
+  "updated_at": "2026-10-09T13:45:58.762612",
+  "score": 1.0,
+  "_note": "analysis updated",
+  "dashboard_impact": {
+    "needs_dashboard": false,
+    "reason": "backlog id-allocation; backend/API only",
+    "dashboard_item": null,
+    "reviewed_by": "agent"
+  }
+}
