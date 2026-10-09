@@ -1,0 +1,167 @@
+{
+  "id": "BI-PF-1189",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "review:p12a-rate-budget",
+  "label": "PF Backlog 525",
+  "title": "P12a: provider rate budgeting - pace within provider_limits WITHOUT blocking agents",
+  "body": "## Problem / why\n`config/capacity.json:provider_limits` was data-only; pacing was a single global min-interval, so parallel agents could burst past a provider's limit -> 429s/bans.\n\n## Goal & value\nPace each provider within its declared limits but FAIL-OPEN: never block/abort an agent or stop artifact production (bounded wait; proceed on error).\n",
+  "source": "design-review",
+  "status": "new",
+  "priority": null,
+  "moscow": "Should",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [],
+  "links": {},
+  "decisions": [],
+  "follow_up": {},
+  "brief": {
+    "problem": "provider_limits unenforced; bursts risk 429s; pacing must not stall agents.",
+    "what_adds": "rate_wait/record_request in capacity; _pace consults it; fail-open + capped.",
+    "why": "Stay within provider limits under parallelism without blocking artifact production.",
+    "who_feels": "Operators; pipeline reliability.",
+    "source": "authored"
+  },
+  "objective": "Enforce provider_limits as a best-effort pace in the LLM path (capacity.rate_wait + _pace); fail-open, capped wait; never blocks artifacts.",
+  "acceptance_criteria": [
+    "core.capacity.provider_limits(provider) reads rpm/tpm from config",
+    "rate_wait(provider) is bounded; unknown/broken -> 0 (fail-open)",
+    "llm_client._pace consults rate_wait + records the request; capped; never raises",
+    "an agent run is never blocked/aborted by the rate budget",
+    "gate + tests cover pacing + fail-open"
+  ],
+  "in_scope": [
+    "core/capacity.py rate budget",
+    "llm_client._pace",
+    "gate + tests"
+  ],
+  "out_of_scope": [
+    "hard blocking/abort on budget (explicitly NOT done)"
+  ],
+  "affected_components": [
+    "capacity",
+    "llm_client"
+  ],
+  "affected_files": [
+    "core/capacity.py",
+    "core/orchestrator/llm_client.py",
+    "scripts/dev/rate_budget_check.py",
+    "test-framework/tests/pipeline/test_p12_optimization.py"
+  ],
+  "approach": "Sliding-window per provider in capacity; _pace = max(global min-interval, rate_wait) capped at 30s; record after; all fail-open.",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [
+        "capacity owner",
+        "fail-open EOS"
+      ],
+      "existing_path": [
+        "llm_client._pace",
+        "capacity.provider_limits (data-only)"
+      ],
+      "assumptions": [
+        "pacing best-effort/fail-open"
+      ],
+      "divergences": [
+        "extends the existing pacer"
+      ],
+      "open_questions": [
+        "none"
+      ]
+    },
+    "reviewed_by": "agent"
+  },
+  "verification": [
+    "gate rate_budget_check.py OK",
+    "pytest test_p12_optimization.py"
+  ],
+  "risks": [
+    "over-pacing slows throughput (bounded; fail-open)"
+  ],
+  "rollback": "revert the merge",
+  "evidence": [
+    "pending merge"
+  ],
+  "owner": "agent",
+  "requester": "user",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-0360",
+  "parent": "BI-PF-0360",
+  "revision": 1,
+  "priority_rank": null,
+  "priority_class": "",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "IN_PROGRESS",
+    "analyzed_at": "",
+    "analyzed_by": "deterministic",
+    "revision_analyzed": 0,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/deploy_providers.py, core/model_strategy.py, core/provider_health.py, core/provider_kinds.py",
+    "existing_components": [
+      "core/deploy_providers.py",
+      "core/model_strategy.py",
+      "core/provider_health.py",
+      "core/provider_kinds.py"
+    ],
+    "existing_apis": [
+      "/api/v1/agents",
+      "/api/v1/agents/{agent_id}",
+      "/api/v1/agents/{agent_id}/capabilities",
+      "/api/v1/engineering/worker-providers"
+    ],
+    "existing_modules": [
+      "config/provider-keys.json"
+    ],
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=0.75",
+      "components=4",
+      "apis=4"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": false,
+    "reasons": [],
+    "computed_at": ""
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": ""
+  },
+  "created_at": "2026-10-09T19:49:27.083323",
+  "updated_at": "2026-10-09T19:49:28.256369",
+  "score": 0.75,
+  "_note": "analysis updated"
+}

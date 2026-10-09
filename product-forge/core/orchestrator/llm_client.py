@@ -24,18 +24,38 @@ _LAST_CALL: Dict[str, float] = {}
 
 
 def _pace(key: str) -> None:
+    """Best-effort pacing (NEVER blocks/aborts an agent): a global min-interval plus the provider's
+    declared rate budget (config/capacity.json::provider_limits). Opt-out via ``PIPELINE_RATE_BUDGET=0``.
+    Fail-open: any error -> no wait; the sleep is capped (``PIPELINE_RATE_MAX_WAIT_SECONDS``, default 30s),
+    so pacing can never stall artifact production."""
+    k = str(key or "default")
+    enabled = str(os.getenv("PIPELINE_RATE_BUDGET", "1")).strip().lower() not in ("0", "false", "no", "off")
     try:
         mi = float(os.getenv("PIPELINE_MIN_REQUEST_INTERVAL_SECONDS", "0") or "0")
     except (TypeError, ValueError):
         mi = 0.0
-    if mi <= 0:
-        return
-    k = str(key or "default")
+    rw = 0.0
+    if enabled:
+        try:
+            from core import capacity as _cap
+            rw = _cap.rate_wait(k)
+        except Exception:
+            rw = 0.0
     with _PACE_LOCK:
-        wait = mi - (time.time() - _LAST_CALL.get(k, 0.0))
+        wait = max((mi - (time.time() - _LAST_CALL.get(k, 0.0))) if mi > 0 else 0.0, rw)
         if wait > 0:
-            time.sleep(min(wait, 30.0))
+            try:
+                cap_s = float(os.getenv("PIPELINE_RATE_MAX_WAIT_SECONDS", "30") or "30")
+            except (TypeError, ValueError):
+                cap_s = 30.0
+            time.sleep(min(wait, max(0.0, cap_s)))  # capped; proceeds even if still over budget
         _LAST_CALL[k] = time.time()
+    if enabled:
+        try:
+            from core import capacity as _cap2
+            _cap2.record_request(k)
+        except Exception:
+            pass
 
 FALLBACK_MODEL = os.getenv("PIPELINE_FALLBACK_MODEL", "mimo-v2.5")
 FALLBACK_PROVIDER = os.getenv("PIPELINE_FALLBACK_PROVIDER", "opencode-go")

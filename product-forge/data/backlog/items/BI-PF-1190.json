@@ -1,0 +1,166 @@
+{
+  "id": "BI-PF-1190",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "review:p12b-scheduler-fairness",
+  "label": "PF Backlog 526",
+  "title": "P12b: scheduler queue fairness - anti-starvation priority aging",
+  "body": "## Problem / why\nStrict priority ordering can starve a low-priority item indefinitely.\n\n## Goal & value\nBounded aging: a long-waiting item gains up to 3 levels so it eventually runs; deterministic; configurable (PIPELINE_PRIORITY_AGING_HOURS, 0 disables).\n",
+  "source": "design-review",
+  "status": "new",
+  "priority": null,
+  "moscow": "Should",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [],
+  "links": {},
+  "decisions": [],
+  "follow_up": {},
+  "brief": {
+    "problem": "Strict priority ordering can starve low-priority items.",
+    "what_adds": "Bounded aging in scheduler._rank (1 level per AGING_HOURS, cap 3).",
+    "why": "Fair progress without losing priority intent.",
+    "who_feels": "Backlog owners.",
+    "source": "authored"
+  },
+  "objective": "Add bounded priority aging in core.scheduler so long-waiting items are not starved; fresh high-priority still wins; deterministic + configurable.",
+  "acceptance_criteria": [
+    "_age_boost: 0 fresh, up to 3 old",
+    "_rank uses aged rank; aged P3 >= fresh P3; fresh P0 beats fresh P3",
+    "PIPELINE_PRIORITY_AGING_HOURS registered; 0 disables",
+    "gate + tests cover bounds + fairness"
+  ],
+  "in_scope": [
+    "core/scheduler.py _rank/_age_boost",
+    "env-flags.json PIPELINE_PRIORITY_AGING_HOURS",
+    "gate + tests"
+  ],
+  "out_of_scope": [
+    "worker affinity (WorkerGrid)"
+  ],
+  "affected_components": [
+    "scheduler"
+  ],
+  "affected_files": [
+    "core/scheduler.py",
+    "config/env-flags.json",
+    "scripts/dev/rate_budget_check.py",
+    "test-framework/tests/pipeline/test_p12_optimization.py"
+  ],
+  "approach": "eff priority = rank - age_boost (>=0) in _rank; keep risk + created_at tiebreaks.",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [
+        "read-only scheduler",
+        "deterministic"
+      ],
+      "existing_path": [
+        "scheduler._rank"
+      ],
+      "assumptions": [
+        "aging bounded 3, configurable, 0=off"
+      ],
+      "divergences": [
+        "ordering tiebreak only"
+      ],
+      "open_questions": [
+        "none"
+      ]
+    },
+    "reviewed_by": "agent"
+  },
+  "verification": [
+    "pytest test_p12_optimization.py",
+    "gate OK"
+  ],
+  "risks": [
+    "very old low-priority may jump ahead (bounded)"
+  ],
+  "rollback": "revert the merge",
+  "evidence": [
+    "pending merge"
+  ],
+  "owner": "agent",
+  "requester": "user",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-0360",
+  "parent": "BI-PF-0360",
+  "revision": 1,
+  "priority_rank": null,
+  "priority_class": "",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "IN_PROGRESS",
+    "analyzed_at": "",
+    "analyzed_by": "deterministic",
+    "revision_analyzed": 0,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/dead_letter_queue.py, core/packaging.py, core/queue_manager.py, core/scheduler.py",
+    "existing_components": [
+      "core/dead_letter_queue.py",
+      "core/packaging.py",
+      "core/queue_manager.py",
+      "core/scheduler.py"
+    ],
+    "existing_apis": [
+      "/api/v1/backlog/items/{item_id}/priority",
+      "/api/v1/engineering/pidl/candidates",
+      "/api/v1/packaging/build",
+      "/api/v1/packaging/editions",
+      "/api/v1/packaging/manifest",
+      "/api/v1/packaging/validate",
+      "/api/v1/validation/merge-gate/queue",
+      "/api/v1/workers/queue"
+    ],
+    "existing_modules": [],
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=0.75",
+      "components=4",
+      "apis=8"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": false,
+    "reasons": [],
+    "computed_at": ""
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": ""
+  },
+  "created_at": "2026-10-09T19:49:31.474448",
+  "updated_at": "2026-10-09T19:49:32.326987",
+  "score": 0.75,
+  "_note": "analysis updated"
+}

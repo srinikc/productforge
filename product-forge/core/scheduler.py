@@ -12,6 +12,7 @@ import contextlib
 import fnmatch
 import json
 import os
+from datetime import datetime
 from typing import Any
 
 from core.paths import ROOT
@@ -146,8 +147,27 @@ def _unmet_deps(task: dict[str, Any], by_id: dict[str, dict[str, Any]]) -> list[
     return out
 
 
+_AGING_HOURS = float(os.getenv("PIPELINE_PRIORITY_AGING_HOURS", "24") or "24")
+
+
+def _age_boost(task: dict[str, Any]) -> int:
+    """Anti-starvation: a long-waiting item gains priority (bounded to 3 levels), so a low-priority item
+    eventually runs even under sustained higher-priority load. ``PIPELINE_PRIORITY_AGING_HOURS=0`` disables."""
+    if _AGING_HOURS <= 0:
+        return 0
+    try:
+        c = task.get("created_at")
+        if not c:
+            return 0
+        age_h = (datetime.now() - datetime.fromisoformat(str(c))).total_seconds() / 3600.0
+        return min(3, max(0, int(age_h // _AGING_HOURS)))
+    except Exception:
+        return 0
+
+
 def _rank(task: dict[str, Any]):
-    return (_PRIORITY_RANK.get(str(task.get("priority") or "P2"), 2),
+    pr = _PRIORITY_RANK.get(str(task.get("priority") or "P2"), 2)
+    return (max(0, pr - _age_boost(task)),
             _RISK_RANK.get(str(task.get("risk") or "medium"), 2),
             str(task.get("created_at") or ""))
 
