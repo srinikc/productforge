@@ -38,7 +38,7 @@
   "decisions": [],
   "follow_up": {},
   "created_at": "2026-10-02T20:37:45.457567",
-  "updated_at": "2026-10-09T14:36:06.241980",
+  "updated_at": "2026-10-09T14:35:07.244267",
   "score": 0.75,
   "body_note": "Decisions: (1) grooming/analysis is an explicit /pf+API action; analyze_mode on entry = on_entry(default) | defer. (2) analysis + revision stored ON the item so pickup = execute. (3) priority initial at entry, refined at grooming; scheduler uses priority_rank->deps->contention->capability->order-as-tiebreak. (4) assignment manual pull first, auto later, one claim+lease path. (5) deliverables write back to backlog on completion (P8A.1). (6) /pf umbrella, /pipeline deprecated alias (delegation to OpenCode).",
   "_note": "epic children synced",
@@ -64,7 +64,7 @@
   ],
   "children": [
     "BI-PF-0374",
-    "BI-PF-0664",
+    "BI-PF-0564",
     "BI-PF-0361",
     "BI-PF-0362",
     "BI-PF-0363",
@@ -81,8 +81,7 @@
     "BI-PF-0381",
     "BI-PF-0462",
     "BI-PF-0463",
-    "BI-PF-0563",
-    "BI-PF-0564"
+    "BI-PF-0563"
   ],
   "review": {
     "reconciliation": {
@@ -96,18 +95,19 @@
     "reviewed_by": "derived",
     "at": ""
   },
-  "approach": "EPIC: Backlog SSOT + Work Scheduler + Pluggable Worker Orchestration (doc: PF-Backlog-SSOT-Scheduler-Pluggable-Workers)",
+  "approach": "Make the canonical backlog the execution SSOT; scheduler eligibility (core/scheduler.py) over the backlog; job_manager queueing; assignment claim+lease; deliverables write back on completion. Worker coordination rehomed to external WorkerGrid (ADR-0002).",
   "affected_components": [
-    "core",
-    "docs"
+    "backlog",
+    "scheduler",
+    "job_manager",
+    "engineering-api"
   ],
   "affected_files": [
     "core/backlog.py",
+    "core/scheduler.py",
     "core/job_manager.py",
     "core/run_entry.py",
-    "core/scheduler.py",
-    "docs/PF-Backlog-SSOT-Scheduler-Pluggable-Workers-updated.md",
-    "docs/WORKERGRID-DESIGN.md"
+    "api/routers/engineering.py"
   ],
   "owner": "agent",
   "requester": "review",
@@ -118,7 +118,9 @@
     "pending"
   ],
   "verification": [
-    "Objective achieved: EPIC: Backlog SSOT + Work Scheduler + Pluggable Worker Orchestration (doc: PF-Backlog-SSOT-Scheduler-Pluggable-Workers)"
+    "backlog is the single SSOT (no second store)",
+    "scheduler eligibility + claim/lease path works",
+    "deliverables write back to the item on completion"
   ],
   "risks": [
     "Not specified."
@@ -129,6 +131,7 @@
     "EPIC: Backlog SSOT + Work Scheduler + Pluggable Worker Orchestration (doc: PF-Backlog-SSOT-Scheduler-Pluggable-Workers)"
   ],
   "out_of_scope": [
-    "Not specified."
+    "in-PF worker subsystem (rehomed to WorkerGrid)",
+    "a second backlog/queue/workflow/identity store"
   ]
 }

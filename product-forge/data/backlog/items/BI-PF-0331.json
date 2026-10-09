@@ -31,7 +31,7 @@
   "decisions": [],
   "follow_up": {},
   "created_at": "2026-10-01T18:22:21.380804",
-  "updated_at": "2026-10-09T14:30:01.820586",
+  "updated_at": "2026-10-09T14:35:06.887073",
   "score": 1.0,
   "dashboard_impact": {
     "needs_dashboard": false,
@@ -72,12 +72,17 @@
     "reviewed_by": "derived",
     "at": ""
   },
-  "approach": "Audit scripts/dev/*, docs, PR/CI docs and agent prompts for PowerShell-specific commands.; Replace PowerShell-only recipes with neutral `python ...` invocations (scripts as .py files, not heredocs).; Add a guard (advisory) that flags PowerShell-only syntax in scripts/docs.",
+  "approach": "Audit scripts/dev/*, docs, PR/CI docs and agent prompts for PowerShell-only syntax; replace with neutral `python ...` invocations (scripts as .py files, no heredocs); add an advisory guard that flags PowerShell-only syntax; RCCA any defect caused by a PowerShell assumption.",
   "affected_components": [
-    "Not specified."
+    "scripts/dev",
+    "docs",
+    "ci"
   ],
   "affected_files": [
-    "Not specified."
+    "scripts/dev/*",
+    "docs/**",
+    ".github/**",
+    "AGENTS.md"
   ],
   "owner": "agent",
   "requester": "review",
@@ -88,9 +93,9 @@
     "pending"
   ],
   "verification": [
-    "All documented dev commands run under both bash and PowerShell (or are pure `python -m` invocations).",
-    "No heredoc/Out-String/`;`-chaining requirements in docs/scripts.",
-    "Guard reports 0 PowerShell-only occurrences (advisory allowlist for genuine examples)."
+    "all documented dev commands run under bash and PowerShell (or are pure `python -m`)",
+    "no heredoc/Out-String/`;`-chaining requirements in docs/scripts",
+    "the neutrality guard reports 0 occurrences"
   ],
   "risks": [
     "Not specified."
@@ -98,6 +103,7 @@
   "rollback": "Revert the change.",
   "summary": "",
   "out_of_scope": [
-    "Not specified."
+    "product runtime code (already pure Python)",
+    "OS-specific packaging beyond neutrality"
   ]
 }
