@@ -10,7 +10,7 @@
   "title": "RCCA: AI grooming never captures the agent proposal (wrong path) + output truncation -> silent deterministic fallback",
   "body": "## Problem\nAI grooming runs the model but its proposal is discarded, so every AI groom silently falls back to deterministic. Observed: the analyst/groom agent ran on mimo-v2.5 (32k-char prompt), wrote products/<P>/artifacts/groom/analyst-output.md, and the first call hit the output cap (output_tokens=6000, finish_reason=length). core/grooming._run_ai / _run_ai_batch instead wait for products/<P>/engineering/groom-<id>.json, which is never created, so they return None.\n\n## Root cause (5-Why)\n1. AI groom falls back to deterministic. 2. _run_ai finds no engineering/groom-<id>.json. 3. PipelineExecutor.execute_agent never writes there; it captures the agent answer as artifacts/<stage>/<agent>-output.md. 4. The grooming prompt assumes file-write capability the agent runtime does not invoke. 5. No test asserts the AI path yields a proposal, and the fallback is silent, so the defect was invisible.\n\n## Fix\n- Read the proposal from the agent execution artifact (execution.artifacts / analyst-output.md), not a magic file; strip the framework header, then parse JSON robustly (fenced or bare).\n- Batch: request ONE compact JSON object keyed by item id (no prose, no files) to fit the output budget.\n- Surface ai_failed (no silent fallback): record when the AI path returned nothing usable.\n- Stubbed test for the capture/parse path (no live model) so this cannot regress.\n\n## In scope\n- capture agent output + JSON parse in core/grooming.py (_run_ai, _run_ai_batch, helpers)\n- batch prompt switched to a single id-keyed JSON object\n- stubbed tests\n\n## Out of scope\n- replacing the agent runtime with a direct LLM client\n- changing model/provider selection\n\n## Acceptance\n- AI groom uses the produced artifact and stores a proposal (mode=ai) when the agent returns JSON.\n- A missing/garbled proposal falls back to deterministic AND is surfaced (not silent).\n- Stubbed tests pass without a live model.\n",
   "source": "review",
-  "status": "new",
+  "status": "completed",
   "priority": "P2",
   "moscow": "Should",
   "value": 4,
@@ -29,7 +29,16 @@
         "ref": "test-framework/tests/pipeline/test_grooming_ai_capture.py",
         "detail": "stubbed capture/parse"
       }
-    ]
+    ],
+    "delivery": {
+      "branch": "feature/bi-pf-ai-groom-capture",
+      "merge_sha": "b3764342679586fb21db589b8e07d8156513bcb3",
+      "commits": [],
+      "pr": "",
+      "pr_url": "",
+      "at": "2026-10-09T21:43:45.518837",
+      "note": "merged to develop"
+    }
   },
   "decisions": [],
   "follow_up": {},
@@ -99,7 +108,7 @@
   "children": [],
   "epic": "",
   "parent": "",
-  "revision": 2,
+  "revision": 3,
   "priority_rank": 2,
   "priority_class": "P2",
   "analyze_mode": "on_entry",
@@ -176,9 +185,9 @@
     "completed_at": ""
   },
   "created_at": "2026-10-09T21:26:50.817358",
-  "updated_at": "2026-10-09T21:41:20.464566",
+  "updated_at": "2026-10-09T21:43:45.708245",
   "score": 0.67,
-  "_note": "priority set",
+  "_note": "delivered",
   "dashboard_impact": {
     "needs_dashboard": false,
     "reason": "internal grooming fix"
