@@ -10,7 +10,7 @@
   "title": "Git-remote CAS id authority (GitHub as the shared allocator) + auto-reconcile duplicate ids at merge/PR",
   "body": "## Problem / why\nA per-host id authority is not foolproof: a remote worker that launches with localhost points at its OWN\nauthority and re-collides. The ONE thing every session/worker already shares is the git remote (GitHub).\n\n## Goal / value\nReserve id blocks through an ATOMIC CAS on the shared git remote, so local and remote sessions use the same\nauthority with nothing to point at; fall back to the local block; and RECONCILE duplicate ids automatically at\nmerge/PR.\n\n## In scope\n- core/id_allocator: git-remote CAS reservation (dedicated ref refs/heads/pf-id-counter; reserve a block via a\n  non-FF git push = compare-and-swap; retry on rejection) as the PRIMARY path; then the API; then the local block.\n  PF_ID_ALLOC_REMOTE=off disables.\n- scripts/dev/backlog_id_reconcile.py: detect duplicate ids per scope; keep the item that is on\n  origin/develop (else earliest created_at) and RENUMBER the incoming one (item id + file + history + all\n  references: deps/blocked_by/links.epic/epic children/possible_duplicate_of) + regenerate indexes.\n- Wire reconcile into precheck (auto-fix) before the id audit (verify).\n\n## Out of scope\n- GitHub Issues as ids; changing the id string format.\n\nlinks.backend_capability: module:core/id_allocator.py, module:scripts/dev/backlog_id_reconcile.py,\ntest:test-framework/tests/pipeline/test_id_allocator_git.py",
   "source": "user request",
-  "status": "new",
+  "status": "completed",
   "priority": null,
   "moscow": "Must",
   "value": 5,
@@ -31,7 +31,18 @@
       "product_forge:BI-PF-0360",
       "product_forge:BI-PF-0457",
       "product_forge:BI-PF-0462"
-    ]
+    ],
+    "delivery": {
+      "branch": "feature/id-git-cas",
+      "merge_sha": "258f14fe0c8847b3a48ecceb0171a3585d71802b",
+      "commits": [
+        "3026ee0bc435fad58485ae9a22f75610740ef570"
+      ],
+      "pr": "",
+      "pr_url": "",
+      "at": "2026-10-09T15:31:25.456420",
+      "note": ""
+    }
   },
   "decisions": [],
   "follow_up": {},
@@ -119,7 +130,7 @@
   "children": [],
   "epic": "BI-PF-0360",
   "parent": "BI-PF-0360",
-  "revision": 1,
+  "revision": 2,
   "priority_rank": null,
   "priority_class": "",
   "analyze_mode": "on_entry",
@@ -192,9 +203,9 @@
     "completed_at": ""
   },
   "created_at": "2026-10-09T15:26:51.331991",
-  "updated_at": "2026-10-09T15:26:52.277864",
+  "updated_at": "2026-10-09T15:31:25.634971",
   "score": 0.83,
-  "_note": "analysis updated",
+  "_note": "",
   "dashboard_impact": {
     "needs_dashboard": false,
     "reason": "backlog id authority; no dashboard",
