@@ -9,6 +9,9 @@ store-contract/lint/branch violation is caught before it ever reaches the merge-
 
 The hook never blocks on the full precheck (that stays the merge gate); it only fails on the
 changed-file guards. Safe to re-run. Run from product-forge/: ``python scripts/dev/install_hooks.py``.
+
+Also installs a ``pre-push`` hook that runs the cheap backlog **id-audit** (BI-PF-0463) so a duplicate backlog id
+is caught at the push boundary too (belt-and-braces on top of precheck/CI).
 """
 import os
 import stat
@@ -35,15 +38,29 @@ python "$PF/scripts/dev/lint_check.py" --strict || { echo "pre-commit: lint fail
 exit 0
 """
 
+_PREPUSH = """#!/bin/sh
+# Product Forge pre-push guard (installed by scripts/dev/install_hooks.py).
+# Belt-and-braces: fail the push on a duplicate backlog id (BI-PF-0463; the merge-time gate is precheck).
+PF="product-forge"
+[ -d "$PF/scripts/dev" ] || exit 0
+python "$PF/scripts/dev/backlog_id_audit.py" || { echo "pre-push: duplicate backlog id(s) - renumber before pushing"; exit 1; }
+exit 0
+"""
 
-def main() -> int:
+
+def _install(name: str, body: str) -> str:
     hooks = os.path.join(_REPO, ".git", "hooks")
     os.makedirs(hooks, exist_ok=True)
-    path = os.path.join(hooks, "pre-commit")
+    path = os.path.join(hooks, name)
     with open(path, "w", encoding="utf-8", newline="\n") as f:
-        f.write(_HOOK)
+        f.write(body)
     os.chmod(path, os.stat(path).st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
-    print(f"installed pre-commit hook -> {path}")
+    return path
+
+
+def main() -> int:
+    print(f"installed pre-commit hook -> {_install('pre-commit', _HOOK)}")
+    print(f"installed pre-push hook -> {_install('pre-push', _PREPUSH)}")
     return 0
 
 
