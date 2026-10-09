@@ -110,12 +110,13 @@ def _remote_enabled() -> bool:
     return str(os.environ.get("PF_ID_ALLOC_REMOTE", "on")).strip().lower() not in ("off", "0", "false", "no")
 
 
-def _reserve_git(scope: str, project: str | None, size: int) -> dict | None:
+def _reserve_git(scope: str, project: str | None, size: int, existing_max: int = 0) -> dict | None:
     """Reserve a block via an ATOMIC CAS on the shared git remote (BI-PF-0764).
 
     The counter lives in ``id-counter.json`` on ``refs/heads/pf-id-counter``. We commit the new counter and
     ``git push`` it: a NON-fast-forward push is rejected (someone else advanced it) -> retry. This is a
     compare-and-swap, so any session/worker sharing the remote gets disjoint blocks with nothing to point at.
+    The block always starts ABOVE ``existing_max`` (so remote blocks are never behind local items).
     """
     if not _remote_enabled():
         return None
@@ -133,7 +134,7 @@ def _reserve_git(scope: str, project: str | None, size: int) -> dict | None:
         except Exception:
             data = {"blocks": {}}
         st = data.setdefault("blocks", {}).setdefault(key, {"reserved_up_to": 0})
-        start = int(st.get("reserved_up_to") or 0) + 1
+        start = max(int(st.get("reserved_up_to") or 0), int(existing_max or 0), base()) + 1
         end = start + size - 1
         st["reserved_up_to"] = end
         rc3, blob, _ = _git(root, "hash-object", "-w", "--stdin",
@@ -205,6 +206,59 @@ def _reserve_remote(scope: str, project: str | None, size: int) -> dict | None:
     return None
 
 
+def lift_remote(scope: str, project: str | None, at_least: int) -> dict | None:
+    """CAS-advance the remote counter to at least ``at_least`` (never lowers it). No session block consumed.
+
+    Called at merge/PR with the GLOBAL max id, so the shared counter is always >= every issued id -> a stale
+    session can never re-reserve an already-issued range (BI-PF-0866).
+    """
+    if not _remote_enabled():
+        return None
+    root = _repo_root()
+    if not root:
+        return None
+    ref = str(os.environ.get("PF_ID_REMOTE_REF", "refs/heads/pf-id-counter"))
+    path = "id-counter" + ".json"
+    key = _key(scope, project)
+    for _ in range(5):
+        rc, _, _ = _git(root, "fetch", "origin", f"{ref}:{ref}")
+        rc2, out, _ = _git(root, "show", f"{ref}:{path}")
+        try:
+            data = json.loads(out) if (rc2 == 0 and out) else {"blocks": {}}
+        except Exception:
+            data = {"blocks": {}}
+        st = data.setdefault("blocks", {}).setdefault(key, {"reserved_up_to": 0})
+        cur = int(st.get("reserved_up_to") or 0)
+        if cur >= int(at_least):
+            return {"reserved_up_to": cur}
+        st["reserved_up_to"] = int(at_least)
+        rc3, blob, _ = _git(root, "hash-object", "-w", "--stdin",
+                            stdin=json.dumps(data, indent=2, ensure_ascii=False))
+        if rc3 != 0:
+            return None
+        td = tempfile.mkdtemp()
+        envf = {"GIT_INDEX_FILE": os.path.join(td, "index")}
+        if rc == 0:
+            _git(root, "read-tree", ref, env=envf)
+        else:
+            _git(root, "read-tree", "--empty", env=envf)
+        _git(root, "update-index", "--add", "--cacheinfo", f"100644,{blob},{path}", env=envf)
+        rc4, tree, _ = _git(root, "write-tree", env=envf)
+        shutil.rmtree(td, ignore_errors=True)
+        if rc4 != 0:
+            return None
+        if rc == 0:
+            rc5, commit, _ = _git(root, "commit-tree", tree, "-p", ref, "-m", "lift id-counter [skip ci]")
+        else:
+            rc5, commit, _ = _git(root, "commit-tree", tree, "-m", "lift id-counter [skip ci]")
+        if rc5 != 0:
+            return None
+        rc6, _, _ = _git(root, "push", "origin", f"{commit}:{ref}")
+        if rc6 == 0:
+            return {"reserved_up_to": int(at_least)}
+    return None
+
+
 def reserve(scope: str, project: str | None = None, size: int = 0, session: str = "") -> dict:
     """Authority-side: mint a fresh contiguous LOCAL block for ``session``. Returns {start,end,session,size}."""
     size = size or block_size()
@@ -223,7 +277,7 @@ def reserve(scope: str, project: str | None = None, size: int = 0, session: str 
 def _mint(scope: str, project: str | None, existing_max: int, reserved_up_to: int) -> dict:
     """Get a fresh block for this session: the shared git remote (CAS) first, then the API, then a local block."""
     size = block_size()
-    cand = _reserve_git(scope, project, size)
+    cand = _reserve_git(scope, project, size, existing_max)
     if not (cand and int(cand["start"]) > int(existing_max)):
         cand = _reserve_remote(scope, project, size)
     if cand and int(cand["start"]) > int(existing_max):

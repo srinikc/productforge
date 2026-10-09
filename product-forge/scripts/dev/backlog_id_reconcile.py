@@ -141,6 +141,12 @@ def reconcile(write=False):
             _rewrite_references(scope, project, mapping)
             op, cl = backlog._load_all(scope, project)
             backlog._write_indexes(scope, project, op, cl)
+    # BI-PF-0866: lift the shared remote counter to the global max so no stale session can re-issue an id
+    if write:
+        for scope, project in _scopes():
+            mx = _max_num(scope, project)
+            if mx:
+                id_allocator.lift_remote(scope, project, mx)
     return moves
 
 

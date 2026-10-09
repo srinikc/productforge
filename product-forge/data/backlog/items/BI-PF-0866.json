@@ -1,0 +1,172 @@
+{
+  "id": "BI-PF-0866",
+  "tag": "PF",
+  "type": "bug",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "git-cas-existing-max",
+  "label": "PF Backlog 504",
+  "title": "Defect: git-CAS reservation ignored existing_max -> remote blocks below local items -> fell back to local (CAS unused)",
+  "body": "## Problem / why\nThe git-remote CAS reservation (BI-PF-0764) reserved blocks from the REMOTE counter only\n(``reserved_up_to``), ignoring the item's own ``existing_max``. When local items were already at 7xx/8xx but the\nremote counter was at 400, the CAS block ``[401..]`` was BELOW existing_max, so ``_mint``'s guard rejected it and\nsilently fell back to the LOCAL block. Net: the CAS pushed the counter ref to origin but never drove the ids -\nso the shared authority was effectively unused.\n\n## Goal & value\nThe CAS block must always start above ``existing_max`` so the shared remote is the authority that actually\nissues ids (and never behind local items).\n\n## Acceptance criteria\n- `_reserve_git(scope, project, size, existing_max)` reserves `max(remote_reserved_up_to, existing_max)+1 .. +N`.\n- A reserve with existing_max=500 starts at 501.\n- With the remote reachable, add_epic gets its id from the remote CAS (not the local fallback).\n\n## In scope\nPass existing_max into the git-CAS reservation.\n\n## Out of scope\nOngoing re-sync of the remote counter with already-issued local ids (block reservation handles it going forward).\n\n## Verification\ntest_id_allocator_git still disjoint + inline: existing_max=500 -> block starts 501.",
+  "source": "found verifying BI-PF-0764",
+  "status": "new",
+  "priority": null,
+  "moscow": "Must",
+  "value": 4,
+  "effort": 1,
+  "risk": 2,
+  "deps": [
+    "BI-PF-0764"
+  ],
+  "links": {
+    "backend_capability": [
+      "module:core/id_allocator.py",
+      "test:test-framework/tests/pipeline/test_id_allocator_git.py"
+    ],
+    "related": [
+      "product_forge:BI-PF-0764"
+    ]
+  },
+  "decisions": [],
+  "follow_up": {},
+  "brief": {
+    "problem": "the git-remote CAS reserved blocks from the remote counter only, ignoring the item's existing_max, so blocks below local items were rejected and it silently fell back to local",
+    "what_adds": "the CAS block starts above existing_max so the shared remote actually issues the ids",
+    "why": "so the shared git-remote authority is truly used, not bypassed",
+    "who_feels": "every session/worker relying on collision-free ids via the remote",
+    "source": "authored"
+  },
+  "objective": "the git-CAS block always starts above existing_max and drives the id when the remote is reachable",
+  "acceptance_criteria": [
+    "_reserve_git considers existing_max",
+    "existing_max=500 -> block starts 501",
+    "remote reachable -> id comes from the CAS not the local fallback"
+  ],
+  "in_scope": [
+    "pass existing_max into the git-CAS reservation"
+  ],
+  "out_of_scope": [
+    "re-syncing the remote counter with old local ids"
+  ],
+  "affected_components": [
+    "core/id_allocator.py"
+  ],
+  "affected_files": [
+    "core/id_allocator.py"
+  ],
+  "approach": "start = max(remote_reserved_up_to, existing_max, base) + 1",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "test_id_allocator_git (disjoint)",
+    "inline existing_max=500 -> 501"
+  ],
+  "risks": [
+    "remote counter lower than local max -> handled by existing_max"
+  ],
+  "rollback": "revert the change",
+  "evidence": [
+    "precheck PASS"
+  ],
+  "owner": "agent",
+  "requester": "user",
+  "due": "n/a",
+  "target_release": "next",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "",
+  "parent": "",
+  "revision": 1,
+  "priority_rank": null,
+  "priority_class": "",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "IN_PROGRESS",
+    "analyzed_at": "",
+    "analyzed_by": "deterministic",
+    "revision_analyzed": 0,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/backlog.py, core/backlog_link.py, core/defect_loop.py, core/reservations.py",
+    "existing_components": [
+      "core/backlog.py",
+      "core/backlog_link.py",
+      "core/defect_loop.py",
+      "core/reservations.py"
+    ],
+    "existing_apis": [
+      "/api/v1/backlog",
+      "/api/v1/backlog/grooming/guidelines",
+      "/api/v1/backlog/ids:reserve",
+      "/api/v1/backlog/items",
+      "/api/v1/backlog/items/{item_id}",
+      "/api/v1/backlog/items/{item_id}/analysis",
+      "/api/v1/backlog/items/{item_id}/context-review",
+      "/api/v1/backlog/items/{item_id}/dependencies"
+    ],
+    "existing_modules": [
+      "config/a2a-remotes.json",
+      "config/id-blocks.json"
+    ],
+    "dependency_findings": [
+      "depends on BI-PF-0764"
+    ],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=3.0",
+      "components=4",
+      "apis=8"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": false,
+    "reasons": [],
+    "computed_at": ""
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": ""
+  },
+  "created_at": "2026-10-09T15:51:11.894730",
+  "updated_at": "2026-10-09T15:51:12.586586",
+  "score": 3.0,
+  "_note": "analysis updated",
+  "dashboard_impact": {
+    "needs_dashboard": false,
+    "reason": "id allocator fix; no dashboard",
+    "dashboard_item": null,
+    "reviewed_by": "agent"
+  }
+}
