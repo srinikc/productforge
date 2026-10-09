@@ -1,23 +1,18 @@
 # Backlog Summary
 
-> GENERATED 2026-10-09T17:19:25 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-09T18:25:03 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 39  |  **Closed:** 430
-- `new`: 39
+- **Open:** 34  |  **Closed:** 439
+- `new`: 34
 
-### new, by category (39)
+### new, by category (34)
 **API / reports / HIL / misc** (1)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-PF-0332 | Should | chore | API-5 deferred hardening: rate limiting + request/upload limits + tenant-isolation expansion + event streaming | API-5 deferred hardening: rate limiting + request/upload limits + tenant-isolation expansion + event streaming |
-
-**Bug fixes** (1)
-| ID | MoSCoW | Type | Title | Objective |
-|---|---|---|---|---|
-| BI-PF-0865 | Should | bug | Defect: core.agent_structure.KNOWN_AGENTS is stale (missing ux-ia/implement-*/design_critic) - derive from agent cards | the known-agents source equals the agents/*.agent.json ids and validators use it |
 
 **Discovery / HIL / prompts** (1)
 | ID | MoSCoW | Type | Title | Objective |
@@ -29,21 +24,19 @@
 |---|---|---|---|---|
 | BI-0208 | Should | feature | Backend: sensor/IoT capability pack + ingest adapters (MQTT/serial/BLE/Modbus/CAN) + time-series/anomaly models | A `sensor` capability pack that, only when the idea needs it, enables device ingest, a time-series store, fore... |
 
-**Licensing / tenancy** (3)
+**Licensing / tenancy** (2)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-PF-0390 | Should | epic | EPIC A: PF Commercial & IP Foundation (contracts, Go core, licensing, packaging, EAP, RDC, governance, vertical slice) | EPIC A — the needed-now foundation: A0 baseline freeze + ADR register; A1 thin contracts incl. Go<->Python con... |
 | BI-PF-0396 | Should | feature | A2: capability registry + entitlement-at-boundary + asymmetric licensing | A2 — capability registry + entitlement checks at execution boundaries + asymmetric licensing (public-key verif... |
-| BI-PF-1168 | Should | feature | E7: shift-left architecture/contract gate (contracts defined, migration strategy, trust boundaries, dependency license/bundle_allowed) | E7: shift-left architecture/contract gate (contracts defined, migration strategy, trust boundaries, dependency... |
 
-**Specs / cache / context / artifacts** (3)
+**Specs / cache / context / artifacts** (2)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0206 | Should | tech-debt | Backend: model downloader + local cache + license-acceptance gate + models.lock (open-weights) | One owner module that downloads only the weights a project's capability pack needs, into a gitignored local ca... |
 | BI-0225 | Should | feature | Parallel section/feature generation | Run section/per-feature agent calls in parallel with a bounded worker pool and merge results deterministically... |
-| BI-PF-1167 | Should | feature | E6: shift-left spec/design gate (testable acceptance criteria + NFR targets + enumerated edge/error cases) before implementation | E6: shift-left spec/design gate (testable acceptance criteria + NFR targets + enumerated edge/error cases) bef... |
 
-**Wiring / tech-debt / API** (29)
+**Wiring / tech-debt / API** (27)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0185 | Should | feature | EPIC: Multi-modal / media orchestration (pluggable capability packs) | Make the pipeline modality-agnostic via PLUGGABLE capability packs, enabled per project when the idea needs th... |
@@ -72,9 +65,7 @@
 | BI-PF-0406 | Should | feature | B7: service decomposition | B7 — service decomposition behind contracts. |
 | BI-PF-0407 | Should | feature | Bmig: migrate high-value legacy Python -> Go (by value) | Bmig — migrate high-value legacy Python -> Go (replace, not duplicate), then the remainder as an aspiration. |
 | BI-PF-0408 | Should | change | /pf command: build mode only (not orchestrator) + global /pf for all opencode sessions | - `/pf ...` always executes in build mode (`agent: build`), with no model pin so the session's model is inheri... |
-| BI-PF-1066 | Should | epic | EPIC: Pipeline review quality - production-risk checklist for the code-review agent (LLM + corroboration + PR gate) | Each build iteration's code is reviewed against a concrete PRODUCTION-RISK checklist (business logic, security... |
-| BI-PF-1070 | Should | feature | E4: review-model docs (LLM vs non-LLM, per-iteration granularity, PR gate) + wire into the artifact map | E4: review-model docs (LLM vs non-LLM, per-iteration granularity, PR gate) + wire into the artifact map |
-| BI-PF-1176 | Should | chore | Eliminate cross-session merge conflicts (step 1-2): union for history JSONL + regenerate-on-merge driver for derived indexes | Remove the repetitive manual resolution for the DERIVED/append data files (source/config conflicts stay fail-c... |
+| BI-PF-1184 | Should | feature | Backlog index.html: epic-wise classification (per-epic counts + Epic column) | Add epic classification to the generated backlog HTML: per-row epic + epic_title fields, an 'By epic' summary ... |
 
 ---
 
@@ -274,5 +265,5 @@
 ---
 
 ## Totals
-- backend: 39 open / 430 closed
+- backend: 34 open / 439 closed
 - dashboard: 146 open / 3 closed
