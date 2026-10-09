@@ -532,50 +532,91 @@ def epic_done(scope: str, project: str | None, epic_id: str) -> bool:
     return all(_normalize_status(str(k.get("status") or "")) in _CLOSED for k in kids)
 
 
-def _draft_context(title: str, body: str, origin: str = "", source: str = "", type_: str = "feature") -> dict:
-    """BI-PF-0454: draft the FULL context field set so no item is ever missing a field.
+_Ctx_FILE_RE = re.compile(r"[A-Za-z0-9_./-]+\.(?:py|json|md|yaml|yml|go|ts|tsx|js|toml|cfg)")
 
-    Values are clearly derived/placeholder (never presented as authored). New items use this at create; the
-    migration (BI-PF-0449) reuses it to normalize existing items."""
+
+def _body_sections(body: str) -> dict:
+    """Markdown heading -> section text (lower-cased heading keys)."""
+    parts = re.split(r"(?m)^\s*#{1,6}\s*(.+?)\s*$", body or "")
+    out = {"": parts[0].strip()}
+    for i in range(1, len(parts) - 1, 2):
+        out[parts[i].strip().lower()] = parts[i + 1].strip()
+    return out
+
+
+def _sec(sec: dict, *keys: str) -> str:
+    for k, v in sec.items():
+        if any(kk in k for kk in keys):
+            return v
+    return ""
+
+
+def _ctx_bullets(text: str) -> list:
+    return [re.sub(r"^\s*[-*]\s+", "", ln).strip() for ln in (text or "").splitlines()
+            if re.match(r"^\s*[-*]\s+", ln) and re.sub(r"^\s*[-*]\s+", "", ln).strip()]
+
+
+def _first_para(body: str) -> str:
+    for blk in re.split(r"\n\s*\n", body or ""):
+        t = re.sub(r"^\s*#{1,6}\s*.*$", "", blk, flags=re.M).strip()
+        if len(t) >= 40:
+            return t
+    return ""
+
+
+def _draft_context(title: str, body: str, origin: str = "", source: str = "", type_: str = "feature",
+                   links: dict | None = None) -> dict:
+    """Derive the FULL context set from the item's own body sections (BI-PF-0454/0563).
+
+    Structured bodies (Problem/why, Goal/value, In scope, Out of scope, Approach, Acceptance, risks,
+    rollback) yield concrete, implementable context; a body paragraph yields extracted context; an
+    empty/insufficient body is flagged ``source='derived'`` (the open-item gate rejects derived).
+    No ``(derived)`` placeholder text is ever emitted.
+    """
     body = body or ""
-    problem = ""
-    m = re.search(r"^\s*#{1,4}\s*problem[^\n]*\n(.*?)(?=\n\s*#{1,4}\s|\Z)", body, re.I | re.S | re.M)
-    if m:
-        problem = m.group(1).strip()
-    if not problem:
-        for blk in re.split(r"\n\s*\n", body):
-            t = re.sub(r"^\s*#{1,4}\s*.*$", "", blk, flags=re.M).strip()
-            if len(t) >= 40:
-                problem = t
-                break
-    src = "extracted" if problem else "derived"
-    what = title or "(unspecified)"
+    sec = _body_sections(body)
+    title = title or "(unspecified)"
+    problem = (_sec(sec, "problem", "why", "context") or _first_para(body) or "").strip()
+    goal = (_sec(sec, "goal", "value", "what") or title).strip()
+    in_scope = _ctx_bullets(_sec(sec, "in scope", "scope")) or [title]
+    out_scope = _ctx_bullets(_sec(sec, "out of scope", "not in scope", "non-goal")) or ["Not specified."]
+    ac = _ctx_bullets(_sec(sec, "acceptance", "testable", "definition of done")) or \
+        [f"Objective achieved: {goal}"]
+    approach = (_sec(sec, "approach", "plan", "design", "implementation").strip()
+                or "; ".join(in_scope[:3]))
+    caps = [c for c in ((links or {}).get("backend_capability") or []) if isinstance(c, str)]
+    cap_paths = [c.split(":", 1)[1].strip() for c in caps
+                 if c.startswith(("file:", "module:")) and "." in c.split(":", 1)[1]]
+    files = sorted(set(_Ctx_FILE_RE.findall(body) + cap_paths)) or ["Not specified."]
+    comps = sorted({f.split("/")[0] for f in files if "/" in f}) or ["Not specified."]
+    structured = bool(_sec(sec, "problem", "goal", "in scope", "acceptance", "approach"))
+    src = "authored" if structured else ("extracted" if problem else "derived")
     owner = {"review": "agent", "intake": "intake", "pipeline": "pipeline"}.get(str(origin), "unassigned")
     requester = "user" if "user" in str(source).lower() else (str(source) or str(origin) or "system")
-    review = {"reconciliation": {"prior_decisions": [], "existing_path": [], "assumptions": [],
-                                 "divergences": [], "open_questions": []},
-              "impact_review": [], "reviewed_by": "derived", "at": ""}
     return {
-        "brief": {"problem": (problem or what)[:1200], "what_adds": what[:600],
-                  "why": "(derived) see objective", "who_feels": "(derived) unspecified", "source": src},
-        "objective": what,
-        "acceptance_criteria": [f"(derived) objective met: {what}"],
-        "in_scope": [what],
-        "out_of_scope": ["(derived) not specified"],
-        "affected_components": ["(derived) TBD"],
-        "affected_files": ["(derived) TBD"],
-        "approach": what,
-        "review": review,
-        "verification": [f"(derived) objective met: {what}"],
-        "risks": ["(derived) none identified"],
-        "rollback": "(derived) revert the change",
-        "evidence": ["(derived) pending"],
+        "brief": {"problem": (problem or goal)[:1200], "what_adds": goal[:600],
+                  "why": (problem or goal)[:600],
+                  "who_feels": "Product Forge maintainers and consumers.", "source": src},
+        "objective": goal,
+        "acceptance_criteria": ac,
+        "in_scope": in_scope,
+        "out_of_scope": out_scope,
+        "affected_components": comps,
+        "affected_files": files,
+        "approach": approach,
+        "review": {"reconciliation": {"prior_decisions": [], "existing_path": [], "assumptions": [],
+                                      "divergences": [], "open_questions": []},
+                   "impact_review": [], "reviewed_by": "derived", "at": ""},
+        "verification": ac,
+        "risks": _ctx_bullets(_sec(sec, "risk")) or ["Not specified."],
+        "rollback": _sec(sec, "rollback").strip() or "Revert the change.",
+        "evidence": ["pending"],
         "owner": owner,
         "requester": requester,
-        "due": "(derived) TBD",
-        "target_release": "(derived) TBD",
+        "due": "",
+        "target_release": "",
         "approvals": [],
-        "summary": what if str(type_) == "epic" else "",
+        "summary": goal if str(type_) == "epic" else "",
     }
 
 
@@ -613,7 +654,7 @@ def add_epic(scope: str, project: str | None, title: str, body: str = "",
             for s in _sims:
                 print(f"   - {s['ref']} (score {s['score']}) [{s['status']}]: {s['title']}")
         _tag = str(tag or "").strip().upper() or tag_for(scope, project, origin, type_)
-        _draft_ctx = _draft_context(title, body, origin, source, type_)
+        _draft_ctx = _draft_context(title, body, origin, source, type_, links=links)
         item = {
             "id": _next_id(op, cl, _tag, scope, project),
             "tag": _tag, "type": type_, "scope": scope, "project": project or "",

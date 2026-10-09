@@ -1,0 +1,182 @@
+{
+  "id": "BI-PF-0564",
+  "tag": "PF",
+  "type": "chore",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "review:backlog-authoring-pass",
+  "label": "PF Backlog 499",
+  "title": "Author full implementable context (what / why / how / where) on all open backlog items",
+  "body": "## Problem / why\nSeveral open backlog items were auto-drafted with placeholder or one-line context (approach='Implement: <title>', verification='Objective achieved: <title>'). A reader or an autonomous worker cannot implement them without extra digging.\n\n## Goal & value\nEvery open item states what is required, why, how it will be done and where (files/components), with enough context that a standalone process/service can implement it.\n",
+  "source": "design-review",
+  "status": "new",
+  "priority": null,
+  "moscow": "Should",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [],
+  "links": {},
+  "decisions": [],
+  "follow_up": {},
+  "brief": {
+    "problem": "Open items carried thin/one-line context; the creator auto-drafts placeholders, so items are not implementable standalone.",
+    "what_adds": "An evidence-based authoring pass over all open items AND an enhanced creator (_draft_context) that extracts real context from the item body's sections; insufficient bodies are flagged and rejected by the gate.",
+    "why": "The backlog is the SSOT; each item must be self-contained for humans and autonomous workers, and future items must not regress.",
+    "who_feels": "Backlog readers; agents/workers claiming work.",
+    "source": "authored"
+  },
+  "objective": "Author implementable context (what/why/how/where) on all open backlog items AND make the backlog creator (core/backlog._draft_context) derive implementable context from the item body going forward.",
+  "acceptance_criteria": [
+    "every open item states problem, what_adds, why, in/out scope, affected_components, affected_files, approach, verification",
+    "no generic 'Implement: <title>' approach or 'Objective achieved: <title>' verification remains",
+    "terse items are enriched from their epic / design doc / children (not fabricated)",
+    "core/backlog._draft_context derives problem/what_adds/in_scope/approach/verification/affected_* from the body's sections",
+    "a new item created with an insufficient body is flagged (brief.source=derived) and rejected by the open-item gate",
+    "backlog_context_check.py passes with no '(derived)' residue"
+  ],
+  "in_scope": [
+    "authoring context on all open product_forge items",
+    "enriching terse items from epic/design/children",
+    "core/backlog.py _draft_context derives implementable context from the body going forward"
+  ],
+  "out_of_scope": [
+    "changing item bodies",
+    "non-product_forge scopes"
+  ],
+  "affected_components": [
+    "backlog",
+    "backlog_context_check",
+    "data/backlog/items"
+  ],
+  "affected_files": [
+    "core/backlog.py",
+    "scripts/dev/backlog_context_check.py",
+    "data/backlog/items/*.json",
+    "test-framework/tests/pipeline/test_backlog_context_authoring.py"
+  ],
+  "approach": "Add a body-section extractor to core/backlog._draft_context (Problem/Goal/In scope/Out of scope/Approach/Acceptance) so newly created items get real context or are flagged derived; then run the same authoring over the existing open items, enriching terse ones from their epic/design/children.",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [
+        "BI-PF-0463 context gate",
+        "BI-PF-0450/0454 full-field drafting",
+        "AGENTS.md no shortcuts; flag don't fabricate"
+      ],
+      "existing_path": [
+        "data/backlog/items/*.json",
+        "scripts/dev/backlog_context_check.py",
+        "epics BI-PF-0390/0391 and children A*/B*"
+      ],
+      "assumptions": [
+        "item sources are the authority",
+        "terse items are enriched, not invented"
+      ],
+      "divergences": [
+        "content-only change; no schema change"
+      ],
+      "open_questions": [
+        "none"
+      ]
+    },
+    "reviewed_by": "agent"
+  },
+  "verification": [
+    "backlog_context_check.py passes",
+    "no generic templates remain",
+    "spot-checked implementability"
+  ],
+  "risks": [
+    "over-editing items whose body is already authoritative"
+  ],
+  "rollback": "revert the merge",
+  "evidence": [
+    "pending merge"
+  ],
+  "owner": "agent",
+  "requester": "user",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-0360",
+  "parent": "BI-PF-0360",
+  "revision": 1,
+  "priority_rank": null,
+  "priority_class": "",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "IN_PROGRESS",
+    "analyzed_at": "",
+    "analyzed_by": "deterministic",
+    "revision_analyzed": 0,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/backlog.py, core/backlog_link.py, core/budget_allocator.py, core/call_ledger.py",
+    "existing_components": [
+      "core/backlog.py",
+      "core/backlog_link.py",
+      "core/budget_allocator.py",
+      "core/call_ledger.py",
+      "core/context_discipline.py",
+      "core/context_engine.py",
+      "core/context_manager.py",
+      "core/context_policy.py"
+    ],
+    "existing_apis": [
+      "/api/v1/backlog",
+      "/api/v1/backlog/grooming/guidelines",
+      "/api/v1/backlog/ids:reserve",
+      "/api/v1/backlog/items",
+      "/api/v1/backlog/items/{item_id}",
+      "/api/v1/backlog/items/{item_id}/analysis",
+      "/api/v1/backlog/items/{item_id}/dependencies",
+      "/api/v1/backlog/items/{item_id}/groom"
+    ],
+    "existing_modules": [
+      "config/context-policy.json"
+    ],
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=0.75",
+      "components=8",
+      "apis=8"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": false,
+    "reasons": [],
+    "computed_at": ""
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": ""
+  },
+  "created_at": "2026-10-09T14:30:22.599006",
+  "updated_at": "2026-10-09T14:30:23.630250",
+  "score": 0.75,
+  "_note": "analysis updated"
+}

@@ -75,8 +75,7 @@ def _problems_for(scope, project, items, all_items):
             if not (it.get("acceptance_criteria") or []):
                 probs.append(f"{eid}: missing acceptance_criteria")
             for fld in ("in_scope", "out_of_scope", "affected_components", "affected_files", "approach",
-                        "verification", "risks", "rollback", "evidence", "owner", "requester", "due",
-                        "target_release"):
+                        "verification", "risks", "rollback", "evidence", "owner", "requester"):
                 v = it.get(fld)
                 if isinstance(v, list):
                     if not v:

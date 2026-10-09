@@ -94,22 +94,22 @@
     "completed_at": ""
   },
   "created_at": "2026-10-06T18:32:25.702548",
-  "updated_at": "2026-10-09T14:13:25.042960",
+  "updated_at": "2026-10-09T14:30:05.597765",
   "score": 0.75,
   "_note": "authored context (BI-PF-0449)",
   "parent": "BI-PF-0391",
   "epic": "BI-PF-0391",
   "brief": {
-    "problem": "[Epic B] trigger: provider coupling hurts",
-    "what_adds": "B2: gateways (Model/Tool/Memory/Infrastructure)",
-    "why": "[Epic B] trigger: provider coupling hurts",
-    "who_feels": "PF maintainers and backlog consumers.",
-    "source": "extracted"
+    "problem": "Core modules import concrete providers, coupling PF to them; swapping a provider requires code changes.",
+    "what_adds": "B2 — gateways for Model / Tool / Memory / Infrastructure so core depends on ports, not concrete providers.",
+    "why": "Decouple core from providers; swap via config only. Trigger: provider coupling hurts.",
+    "who_feels": "PF platform maintainers, workers, and customers.",
+    "source": "authored"
   },
-  "objective": "the core depends only on gateway ports; providers are swappable plugins",
+  "objective": "B2 — gateways for Model / Tool / Memory / Infrastructure so core depends on ports, not concrete providers.",
   "intent_derived": true,
   "acceptance_criteria": [
-    "core has Model/Tool/Memory/Infrastructure gateway ports",
+    "core exposes Model/Tool/Memory/Infra gateway ports",
     "no core module imports a concrete provider",
     "a provider is swapped via config only"
   ],
@@ -125,12 +125,13 @@
     "reviewed_by": "derived",
     "at": ""
   },
-  "approach": "Implement: B2: gateways (Model/Tool/Memory/Infrastructure)",
+  "approach": "Define core gateway ports; route all provider access through them; select the provider via config; forbid core importing a concrete provider (fail closed).",
   "affected_components": [
-    "(none identified in the item)"
+    "go-core",
+    "gateways"
   ],
   "affected_files": [
-    "(none identified in the item)"
+    "docs/PF-TARGET-ARCHITECTURE-AND-IP-PLAN.md"
   ],
   "owner": "agent",
   "requester": "generic",
@@ -141,19 +142,20 @@
     "pending"
   ],
   "verification": [
-    "core has Model/Tool/Memory/Infrastructure gateway ports",
+    "core exposes Model/Tool/Memory/Infra gateway ports",
     "no core module imports a concrete provider",
     "a provider is swapped via config only"
   ],
   "risks": [
-    "Not specified in the item."
+    "Not specified."
   ],
   "rollback": "Revert the change.",
   "summary": "",
   "in_scope": [
-    "B2: gateways (Model/Tool/Memory/Infrastructure)"
+    "gateway ports (Model/Tool/Memory/Infra)",
+    "config-driven provider selection"
   ],
   "out_of_scope": [
-    "Not specified in the item (see the epic/design)."
+    "provider implementations themselves"
   ]
 }

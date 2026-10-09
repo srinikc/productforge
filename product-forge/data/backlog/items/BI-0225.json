@@ -20,19 +20,21 @@
   "decisions": [],
   "follow_up": {},
   "created_at": "2026-09-27T11:17:51.788834",
-  "updated_at": "2026-10-09T14:13:23.680715",
+  "updated_at": "2026-10-09T14:30:06.174343",
   "score": 0.75,
   "brief": {
-    "problem": "Run sectioned/per-feature section calls in parallel (bounded worker pool) instead of serially; merge deterministically. Biggest wall-clock win; quality-neutral (order-independent).",
-    "what_adds": "Parallel section/feature generation",
-    "why": "Run sectioned/per-feature section calls in parallel (bounded worker pool) instead of serially; merge deterministically. Biggest wall-clock win; quality-neutral (order-independent).",
-    "who_feels": "PF maintainers and backlog consumers.",
-    "source": "extracted"
+    "problem": "Sectioned/per-feature generation runs agent calls serially, making generation wall-clock-bound.",
+    "what_adds": "Run section/per-feature agent calls in parallel with a bounded worker pool and merge results deterministically.",
+    "why": "Biggest wall-clock win; order-independent merge keeps quality neutral.",
+    "who_feels": "PF platform maintainers, workers, and customers.",
+    "source": "authored"
   },
-  "objective": "Parallel section/feature generation",
+  "objective": "Run section/per-feature agent calls in parallel with a bounded worker pool and merge results deterministically.",
   "intent_derived": true,
   "acceptance_criteria": [
-    "Objective achieved: Parallel section/feature generation"
+    "parallel section generation runs with bounded concurrency",
+    "merged output is deterministic (order-independent)",
+    "wall-clock improves vs serial"
   ],
   "review": {
     "reconciliation": {
@@ -46,12 +48,14 @@
     "reviewed_by": "derived",
     "at": ""
   },
-  "approach": "Implement: Parallel section/feature generation",
+  "approach": "Run independent section calls in a bounded pool (respecting capacity), collect results, and merge deterministically (stable ordering); remain fail-closed on any error.",
   "affected_components": [
-    "(none identified in the item)"
+    "orchestrator",
+    "pipeline_executor"
   ],
   "affected_files": [
-    "(none identified in the item)"
+    "core/pipeline_executor.py",
+    "core/orchestrator/stage_runner.py"
   ],
   "owner": "intake",
   "requester": "generic",
@@ -62,17 +66,21 @@
     "pending"
   ],
   "verification": [
-    "Objective achieved: Parallel section/feature generation"
+    "parallel section generation runs with bounded concurrency",
+    "merged output is deterministic (order-independent)",
+    "wall-clock improves vs serial"
   ],
   "risks": [
-    "Not specified in the item."
+    "one slow section stalls the merge"
   ],
   "rollback": "Revert the change.",
   "summary": "",
   "in_scope": [
-    "Parallel section/feature generation"
+    "bounded parallel section/feature generation",
+    "deterministic merge/order"
   ],
   "out_of_scope": [
-    "Not specified in the item (see the epic/design)."
+    "changing generated content",
+    "unbounded concurrency"
   ]
 }

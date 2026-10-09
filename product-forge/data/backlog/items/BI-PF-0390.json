@@ -88,20 +88,21 @@
     "completed_at": ""
   },
   "created_at": "2026-10-06T18:30:29.635421",
-  "updated_at": "2026-10-09T14:13:24.239854",
+  "updated_at": "2026-10-09T14:30:06.530638",
   "score": 0.75,
   "_note": "analysis updated",
   "brief": {
-    "problem": "Needed-now foundation for a commercially deployable, IP-protected PF platform. One source -> many editions; new features -> Go; existing Python -> compiled; no raw .py shipped. See docs/PF-TARGET-ARCHITECTURE-AND-IP-PLAN.md.",
-    "what_adds": "EPIC A: PF Commercial & IP Foundation (contracts, Go core, licensing, packaging, EAP, RDC, governance, vertical slice)",
-    "why": "Needed-now foundation for a commercially deployable, IP-protected PF platform. One source -> many editions; new features -> Go; existing Python -> compiled; no raw .py shipped. See docs/PF-TARGET-ARCHITECTURE-AND-IP-PLAN.md.",
-    "who_feels": "PF maintainers and backlog consumers.",
-    "source": "extracted"
+    "problem": "PF must become a commercially deployable, IP-protected platform shipped as editions from one source: new shipped/sensitive logic in Go, existing Python compiled, no raw .py shipped. See docs/PF-TARGET-ARCHITECTURE-AND-IP-PLAN.md.",
+    "what_adds": "EPIC A — the needed-now foundation: A0 baseline freeze + ADR register; A1 thin contracts incl. Go<->Python contract; A2 capability registry + entitlement-at-boundary + asymmetric licensing; A3 build->package->deploy + compiled packaging (Nuitka + go build) + signing + SBOM/LBOM + no-raw-.py gate; A4 EAP delivery manifest + compatibility; A5 Runtime Dependency Compiler; A6 governance (change classifier, language rule, no-undeclared-dep); A7 vertical slice.",
+    "why": "Protect IP and ship multiple editions from one source, gating normal feature work until the A7 vertical slice proves the path.",
+    "who_feels": "PF platform maintainers, workers, and customers.",
+    "source": "authored"
   },
-  "objective": "EPIC A: PF Commercial & IP Foundation (contracts, Go core, licensing, packaging, EAP, RDC, governance, vertical slice)",
+  "objective": "EPIC A — the needed-now foundation: A0 baseline freeze + ADR register; A1 thin contracts incl. Go<->Python contract; A2 capability registry + entitlement-at-boundary + asymmetric licensing; A3 build->package->deploy + compiled packaging (Nuitka + go build) + signing + SBOM/LBOM + no-raw-.py gate; A4 EAP delivery manifest + compatibility; A5 Runtime Dependency Compiler; A6 governance (change classifier, language rule, no-undeclared-dep); A7 vertical slice.",
   "intent_derived": true,
   "acceptance_criteria": [
-    "Objective achieved: EPIC A: PF Commercial & IP Foundation (contracts, Go core, licensing, packaging, EAP, RDC, governance, vertical slice)"
+    "A7 vertical slice produces a compiled, signed customer package containing no raw .py",
+    "each A-item fixture (sample.eap, sample-runtime-package/, license issued+verified) resolves"
   ],
   "children": [
     "BI-PF-0386",
@@ -130,9 +131,15 @@
     "reviewed_by": "derived",
     "at": ""
   },
-  "approach": "Implement: EPIC A: PF Commercial & IP Foundation (contracts, Go core, licensing, packaging, EAP, RDC, governance, vertical slice)",
+  "approach": "Follow the execution order STEP 0-8: ADR (BI-PF-0388) -> A0 -> A1 -> B1 -> A2||A4 -> A3 -> A5 -> A6 -> A7. Contract-first; small Go<->Python seam.",
   "affected_components": [
-    "docs"
+    "contracts",
+    "licensing",
+    "packaging",
+    "eap",
+    "rdc",
+    "governance",
+    "go-core"
   ],
   "affected_files": [
     "docs/PF-TARGET-ARCHITECTURE-AND-IP-PLAN.md"
@@ -146,17 +153,26 @@
     "pending"
   ],
   "verification": [
-    "Objective achieved: EPIC A: PF Commercial & IP Foundation (contracts, Go core, licensing, packaging, EAP, RDC, governance, vertical slice)"
+    "A7 vertical slice produces a compiled, signed customer package containing no raw .py",
+    "each A-item fixture (sample.eap, sample-runtime-package/, license issued+verified) resolves"
   ],
   "risks": [
-    "Not specified in the item."
+    "compiled-Python fragility (dynamic imports/eval)"
   ],
   "rollback": "Revert the change.",
   "summary": "EPIC A: PF Commercial & IP Foundation (contracts, Go core, licensing, packaging, EAP, RDC, governance, vertical slice)",
   "in_scope": [
-    "EPIC A: PF Commercial & IP Foundation (contracts, Go core, licensing, packaging, EAP, RDC, governance, vertical slice)"
+    "A0 baseline freeze + ADR register",
+    "A1 contracts + Go<->Python contract",
+    "A2 capability registry + entitlement + asymmetric licensing",
+    "A3 compiled packaging + signing + SBOM/LBOM + no-raw-.py gate",
+    "A4 EAP manifest + compatibility",
+    "A5 Runtime Dependency Compiler",
+    "A6 governance/language rule",
+    "A7 vertical slice [approval gate]"
   ],
   "out_of_scope": [
-    "Not specified in the item (see the epic/design)."
+    "EPIC B scale/extensions",
+    "rewriting existing non-sensitive Python to Go"
   ]
 }
