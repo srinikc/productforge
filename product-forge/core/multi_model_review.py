@@ -7,6 +7,7 @@ Provider/endpoint/key are resolved by the caller (ModelRouter) - nothing is
 hardcoded here.
 """
 import json
+import os
 import re
 from typing import Dict, List, Optional
 
@@ -91,8 +92,10 @@ def review(kind: str, files_text: str, reviewers: List[Dict]) -> Optional[Dict]:
             results.append(out)
     if not results:
         return None
+    quorum = max(int(os.environ.get("PF_MULTI_REVIEW_QUORUM", "2") or 2), 1)
     passes = [r for r in results if r["verdict"] == "pass"]
-    passed = len(passes) > (len(results) / 2)
+    # quorum (>=2 by default) AND a strict majority - a single pass can never pass (BI-PF-1177)
+    passed = len(passes) >= quorum and len(passes) > (len(results) / 2)
     issues = [i for r in results for i in (r.get("issues") or [])]
     return {
         "kind": kind,
