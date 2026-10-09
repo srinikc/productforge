@@ -1,0 +1,192 @@
+{
+  "id": "BI-PF-0564",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "id-alloc-local-authority",
+  "label": "PF Backlog 499",
+  "title": "Allocator defaults to the reachable local PF API authority + isolate the allocator store in tests",
+  "body": "Source: user request (2026-10-08) - \"why did it get a block one / is the shared API not available?\"\n\nPROBLEM: the id allocator only uses the shared API authority when PF_API_URL is set; else it silently falls back\nto LOCAL blocks (id-blocks.json). So the authority was never used even though a PF API was running - and two\nworktrees each with their own id-blocks.json then collided. Also, tests that create items write into the REAL\nconfig/id-blocks.json (it accumulated project::_test_* blocks) - test pollution + churn.\n\nFIX:\n- core/id_allocator._api_base(): default to the LOCAL PF API (http://$API_HOST:$API_PORT, default\n  127.0.0.1:8000) when reachable (/health==200), short-TTL cached; explicit PF_API_URL always wins;\n  PF_ID_ALLOC=off still disables. So the shared authority is used by default.\n- test isolation: a conftest under test-framework/tests/pipeline sets id_allocator.OUT to a temp file so tests\n  never touch the real store.\n- reset config/id-blocks.json to empty blocks (drop the accumulated test-scope garbage).\n\nAcceptance: with a local PF API up and PF_API_URL unset, add_epic reserves from the API; with the API down it\nfalls back to a local block; tests leave config/id-blocks.json byte-identical; no opencode/dashboard refs.\n\nlinks.backend_capability: module:core/id_allocator.py, route:/api/v1/backlog/ids:reserve,\ntest:test-framework/tests/pipeline/test_id_allocator.py",
+  "source": "user request",
+  "status": "new",
+  "priority": null,
+  "moscow": "Should",
+  "value": 4,
+  "effort": 2,
+  "risk": 2,
+  "deps": [
+    "BI-PF-0462",
+    "BI-PF-0563"
+  ],
+  "links": {
+    "backend_capability": [
+      "module:core/id_allocator.py",
+      "route:/api/v1/backlog/ids:reserve",
+      "test:test-framework/tests/pipeline/test_id_allocator.py"
+    ],
+    "related": [
+      "product_forge:BI-PF-0462",
+      "product_forge:BI-PF-0563"
+    ]
+  },
+  "decisions": [],
+  "follow_up": {},
+  "brief": {
+    "problem": "the id allocator silently fell back to local blocks because PF_API_URL was unset, so the shared API authority was never used; and tests wrote into the real config/id-blocks.json",
+    "what_adds": "the allocator defaults to the reachable local PF API (health-checked, TTL-cached) so the shared authority is used by default; tests isolate the allocator store",
+    "why": "so concurrent sessions are coordinated by the shared authority instead of colliding, and the allocation store stays clean",
+    "who_feels": "sessions/agents that create backlog items; maintainers (clean store)",
+    "source": "authored"
+  },
+  "objective": "the allocator uses the shared PF API authority when reachable and never pollutes the committed store from tests",
+  "acceptance_criteria": [
+    "with a local PF API up and PF_API_URL unset, add_epic reserves from the API",
+    "with the API down, it falls back to a local block",
+    "explicit PF_API_URL wins; PF_ID_ALLOC_API=off disables the API path",
+    "tests leave config/id-blocks.json byte-identical"
+  ],
+  "in_scope": [
+    "core/id_allocator.py authority default",
+    "test isolation for the allocator store"
+  ],
+  "out_of_scope": [
+    "changing the id scheme",
+    "the worker claim path (it allocates nothing)"
+  ],
+  "affected_components": [
+    "core/id_allocator.py"
+  ],
+  "affected_files": [
+    "core/id_allocator.py",
+    "test-framework/tests/pipeline/conftest.py"
+  ],
+  "approach": "PF_API_URL wins; else default to the local PF API when /health==200 (10s cache); PF_ID_ALLOC_API=off disables; tests set the allocator OUT to a temp file",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [
+        "API-first authority (BI-PF-0462)"
+      ],
+      "existing_path": [
+        "id_allocator._api_base returned empty unless PF_API_URL set"
+      ],
+      "assumptions": [
+        "local PF API on 127.0.0.1:8000"
+      ],
+      "divergences": [
+        "allocation now attempts the local authority by default"
+      ],
+      "open_questions": []
+    },
+    "impact_review": [
+      {
+        "claim": "authority unused",
+        "verdict": "aligned",
+        "recommendation": "default to the reachable local API"
+      }
+    ],
+    "reviewed_by": "agent",
+    "at": ""
+  },
+  "verification": [
+    "test_id_alloc_api.py",
+    "test_id_allocator.py",
+    "config/id-blocks.json unchanged after tests"
+  ],
+  "risks": [
+    "defaulting to a local API that is a different repo authority"
+  ],
+  "rollback": "revert the change",
+  "evidence": [
+    "precheck PASS"
+  ],
+  "owner": "agent",
+  "requester": "user",
+  "due": "n/a",
+  "target_release": "next",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-0360",
+  "parent": "BI-PF-0360",
+  "revision": 1,
+  "priority_rank": null,
+  "priority_class": "",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "IN_PROGRESS",
+    "analyzed_at": "",
+    "analyzed_by": "deterministic",
+    "revision_analyzed": 0,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/artifact_store.py, core/asset_store.py, core/budget_allocator.py, core/forge_store.py",
+    "existing_components": [
+      "core/artifact_store.py",
+      "core/asset_store.py",
+      "core/budget_allocator.py",
+      "core/forge_store.py",
+      "core/id_allocator.py",
+      "core/pipeline_store.py",
+      "core/project_store.py"
+    ],
+    "existing_apis": [
+      "/api/v1/enterprise/users",
+      "/api/v1/tests/cycles",
+      "/api/v1/tests/matrix"
+    ],
+    "existing_modules": [
+      "config/store-registry.json"
+    ],
+    "dependency_findings": [
+      "depends on BI-PF-0462",
+      "depends on BI-PF-0563"
+    ],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=1.5",
+      "components=7",
+      "apis=3"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": false,
+    "reasons": [],
+    "computed_at": ""
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": ""
+  },
+  "created_at": "2026-10-09T14:29:55.760357",
+  "updated_at": "2026-10-09T14:33:27.611100",
+  "score": 1.5,
+  "_note": "authored context (BI-PF-0564)",
+  "dashboard_impact": {
+    "needs_dashboard": false,
+    "reason": "allocator authority + test isolation; no dashboard surface",
+    "dashboard_item": null,
+    "reviewed_by": "agent"
+  }
+}

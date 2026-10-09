@@ -204,3 +204,12 @@ def security_config_dir():
     yield security_dir
     
     shutil.rmtree(temp_dir)
+
+
+@pytest.fixture(autouse=True)
+def _isolate_id_allocator(tmp_path, monkeypatch):
+    """BI-PF-0564: tests must NOT write the real config/id-blocks.json; disable the shared-API path."""
+    from core import id_allocator
+    monkeypatch.setattr(id_allocator, "OUT", str(tmp_path / ("id-blocks" + ".json")))
+    monkeypatch.setenv("PF_ID_ALLOC_API", "off")
+    monkeypatch.delenv("PF_API_URL", raising=False)

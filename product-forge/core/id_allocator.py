@@ -72,8 +72,36 @@ def _state(d: dict, scope: str, project: str | None) -> dict:
         _key(scope, project), {"reserved_up_to": 0, "sessions": {}})
 
 
+_API_CACHE = {"base": None, "at": 0.0}
+
+
+def _up(base: str) -> bool:
+    try:
+        import requests
+        return requests.get(base + "/health", timeout=2).status_code == 200
+    except Exception:
+        return False
+
+
 def _api_base() -> str:
-    return str(os.environ.get("PF_API_URL") or "").rstrip("/")
+    """The shared authority base. Explicit ``PF_API_URL`` wins; else default to the LOCAL PF API when it is
+    actually reachable (short-TTL cached). ``PF_ID_ALLOC_API=off`` disables the API path (local blocks only)."""
+    if str(os.environ.get("PF_ID_ALLOC_API", "on")).strip().lower() in ("off", "0", "false", "no"):
+        return ""
+    b = str(os.environ.get("PF_API_URL") or "").rstrip("/")
+    if b:
+        return b
+    import time
+    now = time.time()
+    if _API_CACHE["base"] is not None and now - _API_CACHE["at"] < 10:
+        return _API_CACHE["base"]
+    host = str(os.environ.get("API_HOST") or "127.0.0.1")
+    port = str(os.environ.get("API_PORT") or "8000")
+    cand = f"http://{host}:{port}"
+    base = cand if _up(cand) else ""
+    _API_CACHE["base"] = base
+    _API_CACHE["at"] = now
+    return base
 
 
 def _reserve_remote(scope: str, project: str | None, size: int) -> dict | None:
