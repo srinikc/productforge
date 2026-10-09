@@ -31,7 +31,7 @@
   "decisions": [],
   "follow_up": {},
   "created_at": "2026-10-02T09:49:00.403167",
-  "updated_at": "2026-10-09T14:30:02.191298",
+  "updated_at": "2026-10-09T14:35:07.161224",
   "score": 0.75,
   "dashboard_impact": {
     "needs_dashboard": false,
@@ -65,12 +65,16 @@
     "reviewed_by": "derived",
     "at": ""
   },
-  "approach": "API-5 deferred hardening: rate limiting + request/upload limits + tenant-isolation expansion + event streaming",
+  "approach": "Extend the api/ Event surface: rate limiting + request/upload size limits (middleware), expanded tenant-isolation checks, and event streaming (SSE/WebSocket/AG-UI) over the read-only Event API; keep the already-verified controls.",
   "affected_components": [
-    "Not specified."
+    "api",
+    "events",
+    "auth"
   ],
   "affected_files": [
-    "Not specified."
+    "api/routers/events.py",
+    "api/app.py",
+    "api/middleware/*"
   ],
   "owner": "agent",
   "requester": "generic",
@@ -81,7 +85,10 @@
     "pending"
   ],
   "verification": [
-    "Objective achieved: API-5 deferred hardening: rate limiting + request/upload limits + tenant-isolation expansion + event streaming"
+    "rate limit returns 429 under burst",
+    "oversized upload rejected with a clear error",
+    "cross-tenant read is refused",
+    "event stream delivers typed events"
   ],
   "risks": [
     "Not specified."
@@ -92,6 +99,6 @@
     "API-5 deferred hardening: rate limiting + request/upload limits + tenant-isolation expansion + event streaming"
   ],
   "out_of_scope": [
-    "Not specified."
+    "changing existing verified controls (authn/authz, redaction, idempotency, CORS, path validation)"
   ]
 }
