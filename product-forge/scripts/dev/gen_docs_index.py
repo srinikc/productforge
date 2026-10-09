@@ -57,6 +57,7 @@ TOP = {
     "TESTING-REFERENCE.md": ("Implemented", "Testing reference: how to run/write the PF test suites", 100),
     "ARTIFACT-OWNERS.md": ("SSOT", "Generated artifact->owner->consumer map for product docs (BI-PF-0765)", 100),
     "REVIEW-FOCUS.md": ("SSOT", "Generated production-risk review checklist for the code-review agent (BI-PF-1066)", 100),
+    "REVIEW-MODEL.md": ("Implemented", "Review model: LLM vs non-LLM, per-iteration, PR gate (BI-PF-1070)", 100),
     "AUDIT-REGISTER-TRIAGE.md": ("Analysis (current)", "Audit PF/candidate disposition: fixed / tracked / new (BI-PF-0254)", 100),
     "CAPABILITY-STEERING-DESIGN.md": ("Design", "Capability steering design + plan (BI-0221..BI-0230)", 20),
     "ROLE-PROMPT-STANDARD.md": ("Implemented", "Standard for agent role-prompts + advisory audit (BI-0228)", 100),
