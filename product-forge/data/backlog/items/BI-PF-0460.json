@@ -26,11 +26,11 @@
   "decisions": [],
   "follow_up": {},
   "brief": {
-    "problem": "Design: docs/DOGFOOD-E2E-DESIGN.md (RECONCILIATION + IMPACT REVIEW approved).",
-    "what_adds": "DOGFOOD P3: scheduled live dogfood + trend/regression dashboard",
-    "why": "(derived) see objective",
-    "who_feels": "(derived) unspecified",
-    "source": "extracted"
+    "problem": "Dogfood runs were on-demand only; there was no cadence and no trend/regression view.",
+    "what_adds": "core/dogfood_schedule.py (single writer of config/dogfood-schedule.json) with a tick that enqueues DUE dogfood runs (idempotent per period) through the Phase 1 runner; POST /dogfood/schedule/tick and GET /dogfood/schedule; GET /dogfood/trends reads validation-runs.json for a series + regression flag.",
+    "why": "Catch regressions over time automatically, at no CI cost (an external cron triggers the API).",
+    "who_feels": "PF operators and maintainers.",
+    "source": "authored"
   },
   "objective": "Run the Phase 1 dogfood on a schedule (nightly/pre-release), store results, and surface trends/regression alerts.",
   "acceptance_criteria": [
@@ -39,46 +39,81 @@
     "regression alerting; non-blocking for PRs"
   ],
   "in_scope": [
-    "DOGFOOD P3: scheduled live dogfood + trend/regression dashboard"
+    "core/dogfood_schedule.py",
+    "config/dogfood-schedule.json (registered store)",
+    "core/dogfood_run.trends",
+    "api/routers/dogfood.py (tick/schedule/trends)",
+    "gate scripts/dev/dogfood_schedule_check.py"
   ],
   "out_of_scope": [
-    "(derived) not specified"
+    "an in-repo daemon (external cron only)",
+    "coupling portfolio.run_supervisor",
+    "any dashboard/legacy reference",
+    "a new results store"
   ],
   "affected_components": [
-    "(derived) TBD"
+    "dogfood_schedule",
+    "dogfood_run.trends",
+    "api",
+    "store-registry"
   ],
   "affected_files": [
-    "(derived) TBD"
+    "core/dogfood_schedule.py",
+    "core/dogfood_run.py",
+    "api/routers/dogfood.py",
+    "config/dogfood-schedule.json",
+    "config/store-registry.json",
+    "scripts/dev/dogfood_schedule_check.py",
+    "test-framework/tests/pipeline/test_dogfood_schedule.py"
   ],
-  "approach": "DOGFOOD P3: scheduled live dogfood + trend/regression dashboard",
+  "approach": "A schedule config + single-writer module; the tick enqueues via the Phase 1 run_entry (idempotent through last_run); trends is a read model over the existing validation-runs.json. API-first; no daemon; no dashboard coupling.",
   "review": {
     "reconciliation": {
-      "prior_decisions": [],
-      "existing_path": [],
-      "assumptions": [],
-      "divergences": [],
-      "open_questions": []
+      "prior_decisions": [
+        "One writer/concern; a new concern registers in store-registry",
+        "API-first; the legacy dashboard is frozen",
+        "Reconciliation + impact review are binding"
+      ],
+      "existing_path": [
+        "job_manager one-shot due time not_before (job_manager.py:96-112,144); no cron",
+        "portfolio.py:311 supervisor loop",
+        "validation-runs.json owner validation_engine (store-registry:417)",
+        "Phase 1 dogfood_run + api/routers/dogfood.py"
+      ],
+      "assumptions": [
+        "cadence via external cron -> tick API (no daemon)",
+        "schedule is a global config store",
+        "trends is read-only",
+        "no dashboard reference"
+      ],
+      "divergences": [
+        "New config store + owner module + endpoints (new path, approved)"
+      ],
+      "open_questions": [
+        "regression = latest non-PASS following a PASS (chosen)"
+      ]
     },
-    "impact_review": [],
-    "reviewed_by": "derived",
-    "at": ""
+    "reviewed_by": "agent"
   },
   "verification": [
-    "(derived) objective met: DOGFOOD P3: scheduled live dogfood + trend/regression dashboard"
+    "gate dogfood_schedule_check.py OK",
+    "pytest test_dogfood_schedule.py",
+    "api-governance in sync",
+    "wired_audit invocation unwired 0"
   ],
   "risks": [
-    "(derived) none identified"
+    "the schedule config must default disabled to avoid surprise runs"
   ],
-  "rollback": "(derived) revert the change",
+  "rollback": "revert the merge",
   "evidence": [
-    "(derived) pending"
+    "pending merge"
   ],
   "owner": "agent",
-  "requester": "design-review",
+  "requester": "user",
   "due": "(derived) TBD",
   "target_release": "(derived) TBD",
   "approvals": [],
-  "summary": "",
+  "summary": "Adds API-first cadence for dogfood and a read-only trends/regression endpoint so dogfood can run on a schedule and be observed over time.",
   "children": [],
   "epic": "BI-0220",
   "parent": "BI-0220",
@@ -152,7 +187,7 @@
     "completed_at": ""
   },
   "created_at": "2026-10-09T12:55:36.413106",
-  "updated_at": "2026-10-09T12:55:37.677080",
+  "updated_at": "2026-10-09T14:05:00.889589",
   "score": 0.75,
   "_note": "analysis updated"
 }

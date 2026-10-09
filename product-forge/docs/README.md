@@ -60,6 +60,7 @@
 | [`CONSTITUTION.md`](CONSTITUTION.md) | Implemented | 100% | Constitution: governance + non-negotiables | — | — |
 | [`DASHBOARD-E2E-DESIGN.md`](DASHBOARD-E2E-DESIGN.md) | Design | 70% | Dashboard E2E design (front-end not built yet) | **Front-end MVP not built: every dashboard screen/view described here (backend-first).** | ProductForge-Dashboard BI-0001–0149 (epic BI-0043) |
 | [`DEVOPS-WORKFLOW-ANALYSIS.md`](DEVOPS-WORKFLOW-ANALYSIS.md) | Design | 70% | DevOps / PR-CI workflow analysis | **Not wired: PR branch -> pre-check gates (syntax/audit/lint/tests/secrets) -> review workflow.** | BI-0205 |
+| [`DOGFOOD-E2E-DESIGN.md`](DOGFOOD-E2E-DESIGN.md) | Design | 60% | DOGFOOD end-to-end design (deterministic LLM replay seam, BI-PF-0459) | — | — |
 | [`Diagram-Generation-Spec.md`](Diagram-Generation-Spec.md) | Implemented | 100% | Diagram generation spec (mermaid/drawio/svg) | — | — |
 | [`ENG-0-ENGINEERING-ARCHITECTURE.md`](ENG-0-ENGINEERING-ARCHITECTURE.md) | Design | 100% | ENG-0 engineering architecture: requirement->deploy flow mapped to canonical owners + APIs | — | — |
 | [`ENG-1-TASK-CONTRACT.md`](ENG-1-TASK-CONTRACT.md) | Design | 100% | ENG-1 engineering task contract: executable unit of work (model + store + API + schema gate) | — | — |
@@ -149,6 +150,7 @@
 | [`SESSION-RESUME-MASTER-PLAN.md`](SESSION-RESUME-MASTER-PLAN.md) | Analysis (current) | 100% | Session hand-off notes to resume master-plan execution | — | — |
 | [`SHARED-PATH-RESERVATION-DESIGN.md`](SHARED-PATH-RESERVATION-DESIGN.md) | Design | 0% | Shared-path reservation + common-code detection (allowlist + git hotspots) for parallel workers (BI-PF-0357) | — | — |
 | [`STRUCTURE-CONTRACT.md`](STRUCTURE-CONTRACT.md) | Implemented | 100% | Binding repo structure contract (folders + owners) | — | — |
+| [`TESTING-REFERENCE.md`](TESTING-REFERENCE.md) | Implemented | 100% | Testing reference: how to run/write the PF test suites | — | — |
 | [`TOOLS-AND-DEPENDENCIES.md`](TOOLS-AND-DEPENDENCIES.md) | Implemented | 100% | PF tool layer + tools we have/need, sourcing, API keys, licensing & redistribution (BI-PF-0436) | — | — |
 | [`UNWIRED-MODULES-TRIAGE.md`](UNWIRED-MODULES-TRIAGE.md) | Adopted (reference) | 90% | Deprecated/legacy module triage | Triage applied; retired modules removed. | — |
 | [`VENDORED-TOOLS.md`](VENDORED-TOOLS.md) | Design | 100% | Neutral vendored tools location (drawio), no .opencode coupling (BI-0202) | — | — |
