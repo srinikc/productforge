@@ -41,6 +41,11 @@ def default_mode() -> str:
     return str(guidelines().get("default_mode") or "ai")
 
 
+def _context_review_cfg() -> dict[str, Any]:
+    """BI-PF-0665: config for the advisory LLM context review run during grooming."""
+    return dict(guidelines().get("context_review") or {})
+
+
 # ── deterministic groomer (no model) ────────────────────────────────────────
 def _item_dir(scope: str, project: str | None) -> str:
     from core import backlog
@@ -377,6 +382,17 @@ def groom(scope: str, project: str | None, item_id: str, mode: str = "", *,
         _a["analyzed_by"] = used
         _a["mode"] = used
         _b.update(scope, project, item_id, analysis=_a)
+    except Exception:
+        pass
+    # BI-PF-0665: advisory AI context review (is the item implementable: what/why/how/where?).
+    try:
+        _cr = _context_review_cfg()
+        if _cr.get("enabled") and (used == "ai" or _cr.get("on_deterministic")):
+            from core import context_review as _crv
+            _rv = _crv.review(backlog.get_epic(scope, project, item_id) or it)
+            _a2 = dict((backlog.get_epic(scope, project, item_id) or {}).get("analysis") or {})
+            _a2["context_review"] = _rv
+            backlog.update(scope, project, item_id, analysis=_a2)
     except Exception:
         pass
     # optional priority proposal
