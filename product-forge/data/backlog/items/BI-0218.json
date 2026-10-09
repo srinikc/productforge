@@ -10,24 +10,35 @@
   "body": "## Problem / why\nTraditional SDLC (test -> deploy -> maintain) is not enough for AI products: non-deterministic outputs,\nprompt/model versions, drift, and feedback need first-class support in verify (5-7) and operate (13).\n\n## Goal & value\nAdd the AI-era lifecycle layer so the Product tab can show AI quality + the loop that keeps it good.\n\n## In scope\n- **Evals:** offline + online eval sets with thresholds; wire into verify stages and quality gate\n  (reuse iterative_evaluator / quality_gate).\n- **Versioning:** prompt/model/agent version registry; record which version produced an artifact; A/B.\n- **Feedback loop:** user feedback + telemetry -> eval sets -> change requests (change_spec) -> releases.\n- **Model-quality observability:** drift/hallucination/toxicity + cost/latency; OTel GenAI (BI-0199);\n  reuse observer / post-production / product-analytics / finops.\n\n## Acceptance criteria (testable)\n- Verify stages run evals with thresholds (pass/fail recorded); a regression blocks release.\n- Every AI artifact records prompt+model versions; a feedback item can open a change request.\n- Operate view exposes model-quality + cost/latency metrics.\n\n## Verification / test plan\n- Unit: eval threshold gate; version stamping; feedback->change link.\n- Integration: a model/prompt regression is caught before release.\n\n## Links\nBI-0199; post-production/observer/product-analytics; dashboard BI-0149.\n\n## Concrete wiring (from the AI-era SDLC gap review)\n- **Evals as a release gate inside the EXISTING verify stages (5-7)** - no new stage: eval sets + thresholds\n  run alongside NFR/tests; a regression blocks the quality gate. Reuse/rewire `iterative_evaluator` agent.\n- **Prompt/model/agent version stamping** - every AI artifact records the prompt + model + agent version that\n  produced it; enable A/B and rollback of prompts/models (extends `model_registry` / `version_manager`).\n- **Guardrails on outputs** - moderation/safety checks applied to LLM + media outputs, not just policy docs.\n- **Provenance / model-data cards** - emit model/data cards + C2PA content credentials for shipped artifacts.\n- **Closed feedback loop** - live telemetry + user feedback -> eval sets -> change requests (`change_spec`)\n  -> next release; reuse `growth` / `customer-success` / `product-analytics` / `observer`.\n- **Model-quality observability panel** - drift / hallucination / toxicity + cost/latency, surfaced in the\n  Product tab (reuse `observer` + OTel GenAI BI-0199).\n\n## Scope guard\nThis is the *AI-quality discipline around* the existing SDLC - NOT new pipeline stages. Traditional\nrequirements/design/build/release/support are unchanged.\n\nToday we ALREADY have: tests/NFR/quality gates, `iterative_evaluator`, `version_manager`, `model_registry`,\n`observer`, telemetry, `guardian`/`legal-privacy`. This item WIRES them into one loop; it does not rebuild them.",
   "source": "generic",
   "status": "new",
-  "priority": null,
+  "priority": "P2",
   "moscow": "Should",
   "value": 4,
   "effort": 4,
   "risk": 3,
-  "deps": [],
+  "deps": [
+    "BI-0199",
+    "BI-0219",
+    "BI-0184"
+  ],
   "links": {
     "paired_with": [
       "project:ProductForge-Dashboard:BI-0147",
       "project:ProductForge-Dashboard:BI-0149"
     ]
   },
-  "decisions": [],
+  "decisions": [
+    {
+      "at": "2026-10-09T22:32:19.186953",
+      "decision": "APPROVE",
+      "by": "user",
+      "note": ""
+    }
+  ],
   "follow_up": {},
   "created_at": "2026-09-26T09:42:23.584969",
-  "updated_at": "2026-10-09T18:33:50.476888",
+  "updated_at": "2026-10-09T22:32:19.257417",
   "score": 0.5,
-  "_note": "expanded with AI-era SDLC wiring (evals gate in 5-7, version stamping, guardrails, provenance, feedback loop)",
+  "_note": "readiness computed",
   "dashboard_impact": {
     "needs_dashboard": true,
     "reason": "One-stop product page surface.",
@@ -107,5 +118,112 @@
     "routes": [],
     "consumers": [],
     "reason": "no API surface declared in backend_capability"
+  },
+  "analysis": {
+    "status": "COMPLETE",
+    "analyzed_at": "2026-10-09T22:32:19.032337",
+    "analyzed_by": "user",
+    "revision_analyzed": 2,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Wire existing pieces into one loop: extend `iterative_evaluator` + `quality_gate` with eval sets/thresholds inside verify stages 5-7; extend `model_registry`/`version_manager` (see also `core/agent_model_override.py`, `config/model-catalog.json`) to stamp prompt/model/agent versions on every AI artifact via `/api/v1/artifacts/{stage_id}/{agent}`; add feedback->`change_spec` link using existing telemetry + agent ledger; surface drift/hallucination/cost panels in Product tab by extending `observer` + OTel GenAI (BI-0199).",
+    "existing_components": [
+      "core/agent_capabilities.py",
+      "core/agent_card_loader.py",
+      "core/agent_hierarchy.py",
+      "core/agent_ledger.py",
+      "core/agent_memory.py",
+      "core/agent_messenger.py",
+      "core/agent_migrator.py",
+      "core/agent_model_override.py"
+    ],
+    "existing_apis": [
+      "/api/v1/agents",
+      "/api/v1/agents/{agent_id}",
+      "/api/v1/agents/{agent_id}/capabilities",
+      "/api/v1/artifacts/{stage_id}/{agent}"
+    ],
+    "existing_modules": [
+      "config/agent-capabilities.json",
+      "config/agent-capability-vector.json",
+      "config/agent-hierarchy.json",
+      "config/agent-requirements.json",
+      "config/business-models-kb.json",
+      "config/model-catalog.json"
+    ],
+    "dependency_findings": [
+      "REQUIRES BI-0199 (OTel GenAI) for model-quality observability spans",
+      "RELATED BI-0219 (guardrails/cards/provenance) - separate item owns that surface",
+      "RELATED BI-0184 (run-mode-aware quality gate) for gate integration"
+    ],
+    "conflict_findings": [
+      "Touches quality_gate/verify stages also modified by BI-0184 - sequence or partition files",
+      "Model version registry overlaps BI-0195 plugin-provider registry - keep versioning metadata layer separate"
+    ],
+    "duplication_findings": [
+      "Guardrails/C2PA/model-cards belong to BI-0219 - defer, do not duplicate",
+      "`iterative_evaluator`, `version_manager`, `observer`, telemetry already exist - wire, do not rebuild",
+      "BI-0184 quality-gate work overlaps verify-stage gating - coordinate threshold wiring"
+    ],
+    "drift": "LOW",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "The item is explicitly a wiring task over proven components; acceptance criteria are testable and scope guard prevents stage proliferation. Highest reuse leverage of the three items.",
+    "assumptions": [
+      "`iterative_evaluator` and `quality_gate` exist and are extensible per problem statement",
+      "OTel GenAI (BI-0199) will be in place or stubbed behind an interface",
+      "Existing telemetry already emits model cost/latency signals"
+    ],
+    "risks": [
+      "Eval threshold calibration is domain-specific; false regressions could block releases",
+      "Feedback->eval-set pipeline may have sparse/noisy signals early",
+      "Cross-agent coordination needed to avoid double-editing quality_gate"
+    ],
+    "evidence": [
+      "Body lists existing deps: iterative_evaluator, quality_gate, version_manager, model_registry, observer",
+      "Candidate code: core/agent_model_override.py, config/model-catalog.json, artifacts API",
+      "BI-0199 dependency named in Links and wiring section"
+    ],
+    "confidence": "high",
+    "missing_info": [
+      "Default eval threshold policy per project type and who owns overrides",
+      "Retention window for feedback/eval data",
+      "Whether OTel GenAI dependency should hard-block or feature-flag this item"
+    ],
+    "depth": "deep",
+    "mode": "ai",
+    "context_review": {
+      "implementable": true,
+      "missing": [
+        "Default threshold policy per project type",
+        "Hard vs soft dependency on BI-0199 delivery"
+      ],
+      "reason": "All named components (evaluator, gate, registries, observer) exist; work is wiring plus config, with only policy defaults undefined."
+    },
+    "arch_fingerprint": "dccfa9aaa68e546a"
+  },
+  "priority_rank": 2,
+  "priority_class": "P2",
+  "revision": 2,
+  "dependencies": [
+    {
+      "task_id": "BI-0199",
+      "type": "REQUIRES",
+      "required_state": "OTel GenAI spans emitted for runs"
+    },
+    {
+      "task_id": "BI-0219",
+      "type": "RELATED",
+      "required_state": "guardrails/cards owned separately"
+    },
+    {
+      "task_id": "BI-0184",
+      "type": "RELATED",
+      "required_state": "quality gate mode-awareness landed"
+    }
+  ],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-09T22:32:19.103987"
   }
 }

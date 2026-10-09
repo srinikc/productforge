@@ -10,17 +10,28 @@
   "body": "Run sectioned/per-feature section calls in parallel (bounded worker pool) instead of serially; merge deterministically. Biggest wall-clock win; quality-neutral (order-independent).",
   "source": "generic",
   "status": "new",
-  "priority": null,
+  "priority": "P2",
   "moscow": "Should",
   "value": 3,
   "effort": 3,
   "risk": 2,
-  "deps": [],
+  "deps": [
+    "BI-0220",
+    "BI-0106",
+    "BI-0224"
+  ],
   "links": {},
-  "decisions": [],
+  "decisions": [
+    {
+      "at": "2026-10-09T22:32:11.111451",
+      "decision": "APPROVE",
+      "by": "user",
+      "note": ""
+    }
+  ],
   "follow_up": {},
   "created_at": "2026-09-27T11:17:51.788834",
-  "updated_at": "2026-10-09T18:33:48.374348",
+  "updated_at": "2026-10-09T22:32:11.181298",
   "score": 0.75,
   "brief": {
     "problem": "Sectioned/per-feature generation runs agent calls serially, making generation wall-clock-bound.",
@@ -88,5 +99,112 @@
     "routes": [],
     "consumers": [],
     "reason": "no API surface declared in backend_capability"
+  },
+  "analysis": {
+    "status": "COMPLETE",
+    "analyzed_at": "2026-10-09T22:32:10.959539",
+    "analyzed_by": "user",
+    "revision_analyzed": 2,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "EXTEND agent_runtime section-generation loop with a bounded ThreadPool/asyncio pool; collect results, sort by section key before merge; thread budget through run_breaker so per-run budgets still apply. Reuse run_manifest/evidence as-is with concurrency-safe writes.",
+    "existing_components": [
+      "core/agent_runtime.py",
+      "core/dogfood_run.py",
+      "core/nfr_runner.py",
+      "core/rerun_review.py",
+      "core/run_breaker.py",
+      "core/run_entry.py",
+      "core/run_guard.py",
+      "core/run_manifest.py"
+    ],
+    "existing_apis": [
+      "/api/v1/dogfood/run",
+      "/api/v1/dogfood/runs/{run_id}",
+      "/api/v1/engineering/tasks/{task_id}/run",
+      "/api/v1/engineering/worker-providers",
+      "/api/v1/evidence/manifest/{run_id}",
+      "/api/v1/runs",
+      "/api/v1/runs/active",
+      "/api/v1/runs/start"
+    ],
+    "existing_modules": [
+      "config/engineering-workers.json"
+    ],
+    "dependency_findings": [
+      "RELATED BI-0106 (same bounded-concurrency pattern, could share helper)",
+      "BI-0220 REQUIRES coordination: events/budgets must be emitted correctly under parallelism",
+      "BI-0224 (structured output) would make merge simpler — optional"
+    ],
+    "conflict_findings": [
+      "Direct file overlap with BI-0220 on agent_runtime.py — sequence or feature-flag",
+      "Overlap with BI-0106 if both add concurrency helpers — dedupe into one utility"
+    ],
+    "duplication_findings": [
+      "BI-0106 parallelizes stage-4 layer agents (adjacent, different call site)",
+      "BI-PF-1197 is groom CLI parallelism (different surface)",
+      "BI-0220 may add lifecycle events — must coexist"
+    ],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "Biggest wall-clock win per body; small, low-risk EXTEND of existing runtime; Should priority behind reliability P0.",
+    "assumptions": [
+      "Section calls are independent (no shared mutable state)",
+      "Order-independence already holds per BI-0224 note in body",
+      "Concurrency limit small (2-8) fits provider quotas"
+    ],
+    "risks": [
+      "Non-determinism if merge is not strictly keyed/sorted",
+      "Provider rate-limit pressure under parallel calls (needs pacing awareness)",
+      "Evidence/manifest write races under concurrency"
+    ],
+    "evidence": [
+      "Existing agent_runtime.py + run_manifest.py + run_breaker.py cover execution points",
+      "BI-0106 precedent for bounded concurrency pattern"
+    ],
+    "confidence": "high",
+    "missing_info": [
+      "Default worker count and where it's configured (engineering-workers.json vs run config)",
+      "Whether provider rate pacing (BI-0220 P2) must land first",
+      "Sections count typical for sizing"
+    ],
+    "depth": "deep",
+    "mode": "ai",
+    "context_review": {
+      "implementable": true,
+      "missing": [
+        "Default concurrency limit",
+        "Provider pacing prerequisite",
+        "Section independence verification"
+      ],
+      "reason": "Extension points clearly identified; remaining items are config choices."
+    },
+    "arch_fingerprint": "dccfa9aaa68e546a"
+  },
+  "_note": "readiness computed",
+  "priority_rank": 2,
+  "priority_class": "P2",
+  "revision": 2,
+  "dependencies": [
+    {
+      "task_id": "BI-0220",
+      "type": "RELATED",
+      "required_state": "lifecycle events + budgets respected under parallel execution"
+    },
+    {
+      "task_id": "BI-0106",
+      "type": "RELATED",
+      "required_state": "shared bounded-concurrency helper if available"
+    },
+    {
+      "task_id": "BI-0224",
+      "type": "RELATED",
+      "required_state": "structured output contracts stable for merge"
+    }
+  ],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-09T22:32:11.025555"
   }
 }

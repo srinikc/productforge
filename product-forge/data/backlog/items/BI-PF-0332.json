@@ -11,12 +11,15 @@
   "body": "Deferred from API-5 (plan section 18 Security/Event API). Add rate limiting, request/upload size limits, tenant-isolation expansion, and event streaming (SSE/WebSocket/AG-UI) on the read-only Event API. Existing controls (authn/authz, redaction, idempotency, CORS, path validation) are already verified.",
   "source": "generic",
   "status": "new",
-  "priority": null,
+  "priority": "P2",
   "moscow": "Should",
   "value": 3,
   "effort": 3,
   "risk": 2,
-  "deps": [],
+  "deps": [
+    "BI-PF-0345",
+    "BI-PF-0336"
+  ],
   "links": {
     "delivery": {
       "branch": "phase/master-0",
@@ -28,10 +31,17 @@
       "note": "delivered on phase branch"
     }
   },
-  "decisions": [],
+  "decisions": [
+    {
+      "at": "2026-10-09T22:32:11.473957",
+      "decision": "APPROVE",
+      "by": "user",
+      "note": ""
+    }
+  ],
   "follow_up": {},
   "created_at": "2026-10-02T09:49:00.403167",
-  "updated_at": "2026-10-09T18:33:48.454303",
+  "updated_at": "2026-10-09T22:32:11.545807",
   "score": 0.75,
   "dashboard_impact": {
     "needs_dashboard": false,
@@ -40,7 +50,7 @@
     "reviewed_by": "agent",
     "reviewed_at": "2026-10-02T09:49:00.454011"
   },
-  "_note": "delivery recorded",
+  "_note": "readiness computed",
   "brief": {
     "problem": "Deferred from API-5 (plan section 18 Security/Event API). Add rate limiting, request/upload size limits, tenant-isolation expansion, and event streaming (SSE/WebSocket/AG-UI) on the read-only Event API. Existing controls (authn/authz, redaction, idempotency, CORS, path validation) are already verified.",
     "what_adds": "API-5 deferred hardening: rate limiting + request/upload limits + tenant-isolation expansion + event streaming",
@@ -106,5 +116,87 @@
     "routes": [],
     "consumers": [],
     "reason": "no API surface declared in backend_capability"
+  },
+  "analysis": {
+    "status": "COMPLETE",
+    "analyzed_at": "2026-10-09T22:32:11.324348",
+    "analyzed_by": "user",
+    "revision_analyzed": 2,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend core/api_docs.py-style middleware layer and the existing read-only Event API (/api/v1/events, /api/v1/events/types, /api/v1/evidence/events) backed by core/events.py and core/event_bus.py. Add (1) a FastAPI middleware dependency for token-bucket rate limiting keyed by tenant + route class, (2) Content-Length / upload size guards via existing request-validation middleware, (3) tenant-isolation expansion by tightening model_strategy.py query scoping and adding tenant-scoped filters to the event bus, (4) event streaming via SSE first (Starlette EventSourceResponse) reusing core/event_bus.py subscriptions; WebSocket/AG-UI as optional stretch behind a feature flag. Reuse existing authn/authz/redaction/CORS/path-validation controls verbatim.",
+    "existing_components": [],
+    "existing_apis": [],
+    "existing_modules": [],
+    "dependency_findings": [
+      "REQUIRES core/events.py + core/event_bus.py + core/model_strategy.py (already present - reuse).",
+      "RELATED BI-PF-0345 (possible parent / dedup target).",
+      "BI-PF-0336/0337/0338 are upstream API foundations - should be in done state."
+    ],
+    "conflict_findings": [
+      "If BI-PF-0345 is concurrently active it may touch the same event API routes; assign or merge before starting.",
+      "No other listed item touches rate limiting middleware."
+    ],
+    "duplication_findings": [
+      "BI-PF-0345 covers 'API-5: API hardening + event layer' at 0.46 similarity - verify whether 0345 is the parent or superseded; if 0345 already tracks the same hardening, link/merge rather than duplicate.",
+      "Existing authn/authz, redaction, idempotency, CORS and path-validation already verified per body - do NOT re-implement."
+    ],
+    "drift": "LOW",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "Reuse-first: existing event API + event_bus cover the data path; hardening is additive middleware/tenant-scoping. Classify EXTEND because no new component is needed - only route-level and middleware-level additions.",
+    "assumptions": [
+      "FastAPI/Starlette middleware pipeline is the insertion point for rate/size limits.",
+      "Single-process or shared-cache deployment is acceptable for rate-limit counters initially.",
+      "Event Bus already supports pub/sub suitable for SSE fan-out."
+    ],
+    "risks": [
+      "Rate-limiter state across multiple workers/processes may need shared store (Redis) - assumption to confirm.",
+      "SSE/WebSocket changes may conflict with existing idempotency/CORS middleware ordering.",
+      "AG-UI protocol spec may still be fluid - scope creep risk."
+    ],
+    "evidence": [
+      "Existing event APIs /api/v1/events, /api/v1/events/types, /api/v1/evidence/events already serve read-only event data.",
+      "core/event_bus.py already exists as pub/sub backbone.",
+      "Body states existing controls are verified, implying test harness is in place."
+    ],
+    "confidence": "medium",
+    "missing_info": [
+      "Is BI-PF-0345 a duplicate/parent? Merge decision needed.",
+      "Rate-limit SLOs: requests/min per tenant tier?",
+      "Target transport priority: SSE only, or SSE + WebSocket + AG-UI?",
+      "Shared rate-limit store available (Redis) in deployment topology?"
+    ],
+    "depth": "deep",
+    "mode": "ai",
+    "context_review": {
+      "implementable": true,
+      "missing": [
+        "Merge/dedup decision vs BI-PF-0345",
+        "Rate-limit SLOs",
+        "Transport priority"
+      ],
+      "reason": "Existing event APIs and event_bus provide a solid reuse base; hardening is well-scoped middleware + scoping work. Only scope/dedup decisions are outstanding."
+    },
+    "arch_fingerprint": "dccfa9aaa68e546a"
+  },
+  "priority_rank": 20,
+  "priority_class": "P2",
+  "revision": 2,
+  "dependencies": [
+    {
+      "task_id": "BI-PF-0345",
+      "type": "RELATED",
+      "required_state": "clarified-or-merged"
+    },
+    {
+      "task_id": "BI-PF-0336",
+      "type": "REQUIRES",
+      "required_state": "done"
+    }
+  ],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-09T22:32:11.388596"
   }
 }

@@ -11,24 +11,32 @@
   "body": "P12 optimization. RECONCILED: worker matching / capacity-aware scheduling / path-overlap contention / elastic-wave parallelism already implemented in core/scheduler.py + core/capacity.py; worker affinity/resource constraints rehomed to WorkerGrid (ADR-0002/0003). Remaining PF-side optimization split into P12a (rate budgeting) + P12b (queue fairness).",
   "source": "review",
   "status": "new",
-  "priority": null,
-  "moscow": "Should",
+  "priority": "P3",
+  "moscow": "Could",
   "value": 3,
   "effort": 3,
   "risk": 2,
   "deps": [
     "BI-PF-0360",
-    "pfssot-p11-adapters"
+    "pfssot-p11-adapters",
+    "BI-PF-0416"
   ],
   "links": {},
-  "decisions": [],
+  "decisions": [
+    {
+      "at": "2026-10-09T22:32:20.245251",
+      "decision": "APPROVE",
+      "by": "user",
+      "note": ""
+    }
+  ],
   "follow_up": {},
   "created_at": "2026-10-02T20:37:47.588759",
-  "updated_at": "2026-10-09T19:49:32.410396",
+  "updated_at": "2026-10-09T22:32:20.315448",
   "score": 0.75,
   "epic": "BI-PF-0360",
   "parent": "BI-PF-0360",
-  "_note": "wired to EPIC BI-PF-0360",
+  "_note": "readiness computed",
   "brief": {
     "problem": "Doc docs/PF-Backlog-SSOT-Scheduler-Pluggable-Workers-updated.md §39 Phase 12. Worker matching, capacity-aware scheduling, resource constraints, smarter parallelism, queue optimization, affinity, advanced contention detection. Do not optimize before SSOT/claim/lease semantics are correct.",
     "what_adds": "PFSSOT-P12: optimization (only after correctness)",
@@ -91,5 +99,95 @@
     "consumers": [],
     "reason": "no API surface declared in backend_capability"
   },
-  "revision": 1
+  "revision": 3,
+  "analysis": {
+    "status": "COMPLETE",
+    "analyzed_at": "2026-10-09T22:32:20.100842",
+    "analyzed_by": "user",
+    "revision_analyzed": 3,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend core/scheduler.py and the existing worker-queue APIs (/api/v1/workers/queue, /capacity, /metrics). Split into two independent sub-tracks: P12a rate budgeting - add a token-bucket / concurrency-budget abstraction consumed by the scheduler before dispatch, persisted via core/worker.py capacity state; P12b queue fairness - add weighted/fair queue ordering (e.g., round-robin per project or aging boost) inside the existing queue selector, configurable via config/engineering-workers.json. Reuse capacity.py and worker.py; no new component. Gate all work behind the existing WorkerGrid Stage 3 readiness trigger.",
+    "existing_components": [],
+    "existing_apis": [],
+    "existing_modules": [],
+    "dependency_findings": [
+      "REQUIRES BI-PF-0360 (epic) - parent epic.",
+      "REQUIRES pfssot-p11-adapters - adapters must be in done state.",
+      "RELATED BI-PF-0416 (defect on schedule/next) should be fixed first - fairness on a selector that returns executed items is wasted work.",
+      "RELATED BI-PF-0422 (dedup guard) shares queue-touching code."
+    ],
+    "conflict_findings": [
+      "BI-PF-0416 modifies core/scheduler.py next_eligible - direct conflict; land 0416 before starting 0374.",
+      "BI-PF-0422 touches assignments/dedup on the same queue path - coordinate merge order.",
+      "WorkerGrid Stage 3 (external) may change capacity model - align before persisting budget state."
+    ],
+    "duplication_findings": [
+      "Worker matching / capacity-aware scheduling / path-overlap contention / elastic-wave parallelism already implemented in core/scheduler.py + core/capacity.py - do NOT rebuild (body confirms RECONCILED).",
+      "Worker affinity/resource constraints rehomed to WorkerGrid - out of PF scope.",
+      "BI-PF-0422 (assignments view + dedup guard) and BI-PF-0416 (defect) touch the same schedule/queue path - sequence carefully."
+    ],
+    "drift": "LOW",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "Reuse-first: scheduler + capacity infrastructure already exists; P12a/P12b are additive policy layers (EXTEND). Blocked on correctness (BI-PF-0416) and WorkerGrid Stage 3.",
+    "assumptions": [
+      "WorkerGrid Stage 3 will be declared ready before implementation starts.",
+      "config/engineering-workers.json is the canonical place for scheduler tuning knobs.",
+      "core/capacity.py exposes enough capacity signal for budget computation."
+    ],
+    "risks": [
+      "Premature optimization before correctness (BI-PF-0416) would compound rework.",
+      "Fair-queue policy choice (round-robin vs weighted vs aging) may not fit all tenants - needs policy decision.",
+      "Rate budgets need persistent counters; in-memory is lossy across restarts.",
+      "WorkerGrid Stage 3 timing unknown - item may sit long and code may drift."
+    ],
+    "evidence": [
+      "Body explicitly states worker matching/capacity/contention/elastic-wave already implemented - RECONCILED.",
+      "Candidate APIs /workers/queue, /workers/capacity, /workers/metrics already exist.",
+      "core/worker.py + core/capacity.py listed as existing code."
+    ],
+    "confidence": "medium",
+    "missing_info": [
+      "WorkerGrid Stage 3 start date.",
+      "Fairness policy preference (round-robin / weighted / aging)?",
+      "Rate budget scope: per-worker, per-project, or per-tenant?",
+      "Persistence requirement for budget counters (in-memory vs store)?"
+    ],
+    "depth": "deep",
+    "mode": "ai",
+    "context_review": {
+      "implementable": true,
+      "missing": [
+        "WorkerGrid Stage 3 trigger date",
+        "Fairness policy preference",
+        "Budget scope + persistence requirement"
+      ],
+      "reason": "Infrastructure to extend (scheduler, capacity, worker, queue APIs) fully exists; work is gated on external timing and a small set of policy decisions."
+    },
+    "arch_fingerprint": "dccfa9aaa68e546a"
+  },
+  "priority_rank": 40,
+  "priority_class": "P3",
+  "dependencies": [
+    {
+      "task_id": "BI-PF-0360",
+      "type": "REQUIRES",
+      "required_state": "done"
+    },
+    {
+      "task_id": "pfssot-p11-adapters",
+      "type": "REQUIRES",
+      "required_state": "done"
+    },
+    {
+      "task_id": "BI-PF-0416",
+      "type": "REQUIRES",
+      "required_state": "done"
+    }
+  ],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-09T22:32:20.161497"
+  }
 }

@@ -16,49 +16,130 @@
   "value": 3,
   "effort": 3,
   "risk": 2,
-  "deps": [],
+  "deps": [
+    "BI-PF-0398",
+    "BI-PF-0387",
+    "BI-PF-0390",
+    "BI-PF-0413"
+  ],
   "links": {},
-  "decisions": [],
+  "decisions": [
+    {
+      "at": "2026-10-09T22:32:16.288570",
+      "decision": "APPROVE",
+      "by": "user",
+      "note": ""
+    }
+  ],
   "follow_up": {},
-  "revision": 2,
+  "revision": 3,
   "priority_rank": 2,
   "priority_class": "",
   "analyze_mode": "on_entry",
   "analysis": {
-    "status": "IN_PROGRESS",
-    "analyzed_at": "",
-    "analyzed_by": "deterministic",
-    "revision_analyzed": 0,
-    "architecture_fit": "REUSE",
-    "implementation_strategy": "New capability; design before building (reuse-first)",
+    "status": "COMPLETE",
+    "analyzed_at": "2026-10-09T22:32:16.143420",
+    "analyzed_by": "user",
+    "revision_analyzed": 3,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Build one demo slice using existing PF pipeline stages: feed a sample requirement through tech-spec generation, factory build, EAP, RDC, then the A3 packaging/signing path. Reuse /api/v1/backlog/groom/approve as the gate endpoint. Deliverables: scripted end-to-end demo artifact, automated check asserting the customer package contains zero raw .py, signed package checksum, and a gate rule that blocks normal feature work until the slice passes in CI.",
     "existing_components": [],
     "existing_apis": [],
     "existing_modules": [],
-    "dependency_findings": [],
-    "conflict_findings": [],
-    "duplication_findings": [
-      "product_forge:BI-PF-0400 (score 1.00)"
+    "dependency_findings": [
+      {
+        "task_id": "BI-PF-0398",
+        "type": "REQUIRES",
+        "required_state": "done"
+      },
+      {
+        "task_id": "BI-PF-0387",
+        "type": "RELATED",
+        "required_state": "done"
+      },
+      {
+        "task_id": "BI-PF-0390",
+        "type": "RELATED",
+        "required_state": "in_progress"
+      },
+      {
+        "task_id": "BI-PF-0413",
+        "type": "RELATED",
+        "required_state": "any"
+      }
     ],
-    "drift": "NONE",
+    "conflict_findings": [
+      "A7 is a gate over ALL feature work; running any parallel feature tasks concurrently risks rework if the slice exposes pipeline gaps.",
+      "Touches the same packaging pipeline as BI-PF-0398 - sequence strictly after it or coordinate."
+    ],
+    "duplication_findings": [
+      "Packaging, signing, SBOM/LBOM and the NO-RAW-.py check are already specified in BI-PF-0398 (A3) - A7 must call that pipeline, not rebuild it.",
+      "Baseline 'one source for all editions / compiled-only shipping' policy from BI-PF-0387 must be reused as the rule the slice validates, not redefined.",
+      "Groom-approve endpoint already exists at /api/v1/backlog/groom/approve - reuse as the approval gate."
+    ],
+    "drift": "LOW",
     "rewrite_required": false,
     "new_component_required": false,
-    "rationale": "deterministic deep grooming (codebase-grounded)",
-    "assumptions": [],
+    "rationale": "A7 is the integration proof and approval gate for Epic A. Reuse-first: every stage it exercises is already specified in sibling items (A3 packaging, 0387 baseline), so this item is orchestration, verification and a gate rule, not new pipeline code.",
+    "assumptions": [
+      "A1/A2 slices and A3 packaging/signing exist or will exist before A7 is executed.",
+      "A representative requirement fixture exists to drive the demo slice.",
+      "CI can run the compiled package verification step.",
+      "'Customer package contains no raw .py' can be mechanically verified by scanning the package artifact."
+    ],
     "risks": [
-      "possible duplicate"
+      "Gate blocks all downstream feature work - if the slice uncovers multi-week pipeline gaps, the entire roadmap stalls.",
+      "Demo slice may be tuned to pass while hiding real-world gaps (narrow happy path).",
+      "Signing keys and artifact storage may not be provisioned yet.",
+      "CI wiring for the end-to-end check may be missing."
     ],
     "evidence": [
-      "similar=5",
-      "score=0.75",
-      "components=0",
-      "apis=0"
+      "Candidate API /api/v1/backlog/groom/approve",
+      "BI-PF-0398, BI-PF-0387, BI-PF-0390"
     ],
-    "confidence": "low",
-    "missing_info": [],
+    "confidence": "medium",
+    "missing_info": [
+      "Which requirement/fixture to use as the vertical-slice demo.",
+      "Where signed demo packages are stored and retention policy.",
+      "Who signs off (single approver vs board) and what 'approval' formally unblocks.",
+      "Target environment for the EAP/RDC demo (air-gapped, cloud, local).",
+      "Exact timeout SLA for the end-to-end CI run."
+    ],
     "depth": "deep",
-    "mode": "deterministic"
+    "mode": "ai",
+    "context_review": {
+      "implementable": true,
+      "missing": [
+        "demo requirement fixture",
+        "signing key provisioning",
+        "gate sign-off policy"
+      ],
+      "reason": "All pipeline stages are owned by sibling items; this is orchestration + verification + governance. Implementable once A3 is done, with the fixture and sign-off policy decided by a human."
+    },
+    "arch_fingerprint": "dccfa9aaa68e546a"
   },
-  "dependencies": [],
+  "dependencies": [
+    {
+      "task_id": "BI-PF-0398",
+      "type": "REQUIRES",
+      "required_state": "done"
+    },
+    {
+      "task_id": "BI-PF-0387",
+      "type": "RELATED",
+      "required_state": "done"
+    },
+    {
+      "task_id": "BI-PF-0390",
+      "type": "RELATED",
+      "required_state": "in_progress"
+    },
+    {
+      "task_id": "BI-PF-0413",
+      "type": "RELATED",
+      "required_state": "any"
+    }
+  ],
   "blocked_by": [
     "BI-PF-0396",
     "BI-PF-0398",
@@ -68,9 +149,9 @@
   ],
   "unlocks": [],
   "readiness": {
-    "ready": false,
+    "ready": true,
     "reasons": [],
-    "computed_at": ""
+    "computed_at": "2026-10-09T22:32:16.208836"
   },
   "execution": {
     "worker_id": "",
@@ -83,9 +164,9 @@
     "completed_at": ""
   },
   "created_at": "2026-10-06T18:32:24.942999",
-  "updated_at": "2026-10-09T18:33:49.709023",
+  "updated_at": "2026-10-09T22:32:16.369759",
   "score": 0.75,
-  "_note": "priority set",
+  "_note": "readiness computed",
   "parent": "BI-PF-0390",
   "epic": "BI-PF-0390",
   "brief": {

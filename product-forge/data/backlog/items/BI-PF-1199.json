@@ -1,0 +1,179 @@
+{
+  "id": "BI-PF-1199",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "review:grooming-simplify-dedup",
+  "label": "PF Backlog 534",
+  "title": "Simplify grooming + dedup: fill fields/priority/deps; dedup stays deterministic (score); review/approve must not use AI duplication_findings as a duplicate signal",
+  "body": "## Problem\nGrooming was expected to be simple: fill the available fields (objective/acceptance_criteria/in_scope/out_of_scope/affected_*/approach/verification/risks/rollback/evidence) + priority + structured dependencies, with AI or deterministic. Instead, the review/approve surface conflates two different concepts:\n- Deterministic dedup = find_similar similarity SCORE vs a threshold (PF_DEDUP_THRESHOLD, default 0.6) -> possible_duplicate_of (BI-PF-0432/0434). Probability-based; this worked.\n- AI duplication_findings = the model's ADVISORY list of related/reusable items, which is non-empty on nearly every item. review/approve read this and labeled it 'duplication', so it looks like everything is a duplicate and approve-all blocks everything. Confusing.\n\n## Goal\nSimplify grooming to: fill fields + priority + deps (AI or deterministic) and keep dedup deterministic (score threshold). review/approve must not treat AI duplication_findings (advisory) as a duplicate/blocking signal.\n\n## In scope\n- review/approve: remove the AI duplication_findings-based 'duplication' flag/block; keep missing-info as advisory (non-blocking)\n- blocking signals limited to hard ones: consolidation_proposal, low confidence, context_review implementable == False\n- rely on the deterministic possible_duplicate_of (score threshold) for real duplicate detection\n- keep grooming = fill fields/priority/deps simple (AI default, deterministic fallback)\n\n## Out of scope\n- changing the deterministic dedup threshold/algorithm\n- removing AI analysis fields\n\n## Acceptance\n- plain `groom-all` then `approve-all` works without --force for AI-groomed, implementable items.\n- AI duplication_findings do not block approval; deterministic possible_duplicate_of still surfaced.\n- tests updated.\n\n## Approach\ndecide_all/review: base flags on hard signals only; treat duplication_findings/missing_info as informational; keep the deterministic dedup threshold as the duplicate authority.",
+  "source": "review",
+  "status": "new",
+  "priority": "P2",
+  "moscow": "Should",
+  "value": 3,
+  "effort": 2,
+  "risk": 2,
+  "deps": [],
+  "links": {
+    "backend_capability": [
+      {
+        "kind": "artifact",
+        "ref": "core/grooming.py",
+        "detail": "review/decide_all flags + _mark_duplicates"
+      },
+      {
+        "kind": "test",
+        "ref": "test-framework/tests/pipeline/test_grooming_batch.py",
+        "detail": "clean vs flagged"
+      }
+    ]
+  },
+  "decisions": [],
+  "follow_up": {},
+  "brief": {
+    "problem": "review/approve treat AI advisory duplication_findings as 'duplication', so everything looks duplicated and approve-all blocks all; dedup should be the deterministic score threshold that already worked.",
+    "what_adds": "Restrict approve/review blocking to hard signals (consolidation, low-confidence, unimplementable); treat AI duplication_findings/missing_info as informational.",
+    "source": "authored"
+  },
+  "objective": "Keep grooming simple (fill fields/priority/deps, AI or deterministic); keep dedup deterministic (score threshold); stop review/approve conflating advisory AI duplication findings with real duplicates.",
+  "acceptance_criteria": [
+    "review/approve do not use AI duplication_findings as a duplicate/blocking signal.",
+    "approve-all approves AI-groomed implementable items without --force; blocks only on consolidation/low-confidence/unimplementable.",
+    "Deterministic dedup (score threshold, possible_duplicate_of) remains the duplicate authority.",
+    "Tests updated."
+  ],
+  "in_scope": [
+    "review/approve: drop AI duplication_findings as blocking",
+    "hard-signal blocking only",
+    "deterministic possible_duplicate_of stays authoritative",
+    "tests"
+  ],
+  "out_of_scope": [
+    "dedup algorithm/threshold change",
+    "removing AI analysis fields"
+  ],
+  "affected_components": [
+    "Not specified."
+  ],
+  "affected_files": [
+    "Not specified."
+  ],
+  "approach": "decide_all/review: base flags on hard signals only; treat duplication_findings/missing_info as informational; keep the deterministic dedup threshold as the duplicate authority.",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "plain `groom-all` then `approve-all` works without --force for AI-groomed, implementable items.",
+    "AI duplication_findings do not block approval; deterministic possible_duplicate_of still surfaced.",
+    "tests updated."
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "agent",
+  "requester": "review",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "",
+  "parent": "",
+  "revision": 2,
+  "priority_rank": 2,
+  "priority_class": "P2",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "IN_PROGRESS",
+    "analyzed_at": "",
+    "analyzed_by": "deterministic",
+    "revision_analyzed": 0,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/context_review.py, core/cross_review.py, core/grooming.py, core/multi_model_review.py",
+    "existing_components": [
+      "core/context_review.py",
+      "core/cross_review.py",
+      "core/grooming.py",
+      "core/multi_model_review.py",
+      "core/rerun_review.py",
+      "core/review_ledger.py",
+      "core/spec_review.py"
+    ],
+    "existing_apis": [
+      "/api/v1/backlog/groom/approve",
+      "/api/v1/backlog/grooming/guidelines",
+      "/api/v1/backlog/items/{item_id}/context-review",
+      "/api/v1/backlog/items/{item_id}/priority"
+    ],
+    "existing_modules": [
+      "config/grooming-guidelines.json",
+      "config/review-focus.json"
+    ],
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=1.12",
+      "components=7",
+      "apis=4"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": false,
+    "reasons": [],
+    "computed_at": ""
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": ""
+  },
+  "created_at": "2026-10-09T22:41:16.167354",
+  "updated_at": "2026-10-09T22:41:16.994504",
+  "score": 1.12,
+  "_note": "priority set",
+  "dashboard_impact": {
+    "needs_dashboard": false,
+    "reason": "CLI/API grooming review behavior"
+  },
+  "api_impact": {
+    "needs_api": false,
+    "reason": "Behavior change to existing review/approve; no new routes."
+  },
+  "source_ref": "session:grooming-simplify-dedup"
+}

@@ -10,12 +10,18 @@
   "body": "## Problem / why\nThe pipeline is text-centric: the catalog reads media (image/audio/video/file) but the LLM client is\ntext-only, there are no media generators, and no media pipeline. So projects that involve creating\nor editing media (images, video, voice, reels/movies) cannot be built. See docs/multimodal_orchestration.md.\n\n## Goal & value\nMake the pipeline modality-agnostic via PLUGGABLE capability packs, enabled per project when the idea\nneeds them (nothing extra for a plain app; image/video/audio/3D packs for media products).\n\n## In scope (sub-items)\n- BI-0186 multimodal LLM plumbing (attach image/audio/video parts)\n- BI-0187 media ingest + segmentation/tiling + asset store\n- BI-0188 generator-model adapters (open-weights image/video/audio)\n- BI-0189 capability-pack registry + config + discovery->enablement (the pluggable switch)\n- BI-0190 media agents (media-analyst/generator/editor/asset-librarian)\n- BI-0191 media QA validators\n\n## Out of scope\n- Dashboard multi-modal I/O UI (BI-0134).\n\n## Acceptance criteria\n- A media project enables its pack; a non-media project is unchanged.\n- Image/audio/video inputs reach the right models; media outputs can be generated + validated.\n\n## Verification / test plan\n- Per sub-item; end-to-end: idea -> pack enabled -> media generated + QA'd.\n\n## Docs\n- docs/multimodal_orchestration.md (capability landscape + pluggable architecture)\n- docs/multimodal_selection_dynamic.md (WHERE/WHEN to decide models+capabilities)\n",
   "source": "generic",
   "status": "new",
-  "priority": null,
+  "priority": "P2",
   "moscow": "Should",
   "value": 4,
   "effort": 5,
   "risk": 3,
-  "deps": [],
+  "deps": [
+    "BI-0186",
+    "BI-0187",
+    "BI-0188",
+    "BI-0189",
+    "BI-0192"
+  ],
   "links": {
     "paired_with": [
       "project:ProductForge-Dashboard:BI-0138"
@@ -23,10 +29,17 @@
     "backend_capability": "media/multimodal orchestration",
     "dashboard_item": "project:ProductForge-Dashboard:BI-0138"
   },
-  "decisions": [],
+  "decisions": [
+    {
+      "at": "2026-10-09T22:32:19.537667",
+      "decision": "APPROVE",
+      "by": "user",
+      "note": ""
+    }
+  ],
   "follow_up": {},
   "created_at": "2026-09-24T23:39:15.324581",
-  "updated_at": "2026-10-09T18:33:50.561311",
+  "updated_at": "2026-10-09T22:32:19.611659",
   "score": 0.4,
   "dashboard_impact": {
     "needs_dashboard": true,
@@ -35,7 +48,7 @@
     "reviewed_by": "agent",
     "reviewed_at": "2026-09-25T21:26:16.919323"
   },
-  "_note": "dashboard_impact reviewed",
+  "_note": "readiness computed",
   "brief": {
     "problem": "The pipeline is text-centric: the catalog reads media (image/audio/video/file) but the LLM client is\ntext-only, there are no media generators, and no media pipeline. So projects that involve creating\nor editing media (images, video, voice, reels/movies) cannot be built. See docs/multimodal_orchestration.md.",
     "what_adds": "Make the pipeline modality-agnostic via PLUGGABLE capability packs, enabled per project when the idea\nneeds them (nothing extra for a plain app; image/video/audio/3D packs for media products).",
@@ -101,5 +114,123 @@
     "routes": [],
     "consumers": [],
     "reason": "no API surface declared in backend_capability"
+  },
+  "analysis": {
+    "status": "COMPLETE",
+    "analyzed_at": "2026-10-09T22:32:19.392023",
+    "analyzed_by": "user",
+    "revision_analyzed": 2,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "EPIC - orchestrate sub-items BI-0186..BI-0191. Extend `core/llm_client` plumbing via multimodal parts (BI-0186), build ingest/segmentation on `core/media_context.py`, generators via `core/model_catalog.py` adapters (BI-0188), the pluggable switch on existing `core/capability_packs.py` + `config/capability-packs.json` (BI-0189), agents via `core/capability_bridge.py`/`core/pipeline_capabilities.py` (BI-0190), QA via `core/media_qa.py` (BI-0191). Core remains modality-agnostic; packs enable per project at discovery.",
+    "existing_components": [
+      "core/capability_bridge.py",
+      "core/capability_packs.py",
+      "core/media_context.py",
+      "core/media_qa.py",
+      "core/model_catalog.py",
+      "core/orchestration_context.py",
+      "core/pipeline_capabilities.py",
+      "core/pipeline_composition.py"
+    ],
+    "existing_apis": [
+      "/api/v1/pipeline",
+      "/api/v1/pipeline/stages",
+      "/api/v1/pipeline/stages/{stage_id}",
+      "/api/v1/tools/catalog",
+      "/api/v1/tools/catalog/{name}"
+    ],
+    "existing_modules": [
+      "config/agent-capability-vector.json",
+      "config/capability-packs.json",
+      "config/model-catalog.json",
+      "config/techstack-catalog.json",
+      "config/tool-catalog.json"
+    ],
+    "dependency_findings": [
+      "BLOCKED_BY sub-items BI-0186, BI-0187, BI-0188, BI-0189, BI-0190, BI-0191 completing",
+      "RELATED BI-0192 (model/capability strategy gate) as the enablement trigger",
+      "OUT_OF_SCOPE UI BI-0134 (dashboard multi-modal I/O)"
+    ],
+    "conflict_findings": [
+      "`core/model_catalog.py` touched by BI-0188 generators and BI-0195 plugin registry - partition provider adapter files",
+      "`config/model-catalog.json` shared with BI-0218 versioning - coordinate schema"
+    ],
+    "duplication_findings": [
+      "`capability_packs.py`, `capability-packs.json`, `media_qa.py`, `media_context.py` already exist - sub-items must EXTEND, not create new registries",
+      "BI-0189 owns the pack registry switch - avoid parallel registry work here",
+      "BI-0192 two-phase model selection overlaps pack enablement timing - align decision point"
+    ],
+    "drift": "LOW",
+    "rewrite_required": false,
+    "new_component_required": true,
+    "rationale": "Epic with strong existing scaffolding: packs, media context, media QA, and catalog already exist, so this is extension around proven modules, not greenfield.",
+    "assumptions": [
+      "docs/multimodal_orchestration.md defines the pluggable architecture already",
+      "`capability_packs.py` is the canonical registry (config-driven enablement)",
+      "Non-media projects take zero code-path changes when packs disabled"
+    ],
+    "risks": [
+      "Open-weights generator adapters have varying licenses and hardware requirements",
+      "Per-project pack gating may leak media paths into non-media projects if not isolated",
+      "Sub-item sprawl risks inconsistent modality abstractions"
+    ],
+    "evidence": [
+      "Candidate code already includes capability_packs.py, media_context.py, media_qa.py, model_catalog.py",
+      "config/capability-packs.json and config/model-catalog.json exist",
+      "Sub-item titles BI-0186..BI-0191 enumerate the work"
+    ],
+    "confidence": "medium",
+    "missing_info": [
+      "Which generator models/vendors are approved (license, cost, hosting)",
+      "Storage backend and size limits for the media asset store",
+      "Ordering/parallelism plan among the six sub-items"
+    ],
+    "depth": "deep",
+    "mode": "ai",
+    "context_review": {
+      "implementable": true,
+      "missing": [
+        "Approved generator models and licenses",
+        "Asset store backend and limits",
+        "Sub-item execution order"
+      ],
+      "reason": "Architecture docs and existing modules (capability packs, media context, media QA) define the shape; only vendor/hosting and sequencing decisions remain."
+    },
+    "arch_fingerprint": "dccfa9aaa68e546a"
+  },
+  "priority_rank": 2,
+  "priority_class": "P2",
+  "revision": 2,
+  "dependencies": [
+    {
+      "task_id": "BI-0186",
+      "type": "REQUIRES",
+      "required_state": "Multimodal parts reach llm_client"
+    },
+    {
+      "task_id": "BI-0187",
+      "type": "REQUIRES",
+      "required_state": "Ingest + segmentation + asset store landed"
+    },
+    {
+      "task_id": "BI-0188",
+      "type": "REQUIRES",
+      "required_state": "Generator adapters available"
+    },
+    {
+      "task_id": "BI-0189",
+      "type": "REQUIRES",
+      "required_state": "Pack registry + enablement switch merged"
+    },
+    {
+      "task_id": "BI-0192",
+      "type": "RELATED",
+      "required_state": "Model/capability strategy gate defines enable point"
+    }
+  ],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-09T22:32:19.453863"
   }
 }
