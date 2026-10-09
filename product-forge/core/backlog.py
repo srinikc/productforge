@@ -502,6 +502,21 @@ def duplicate_pairs(scope: str | None = None, threshold: float = 0.5,
     return out[:limit]
 
 
+def api_impact_warnings(scope: str = "product_forge", project: str | None = None) -> list:
+    """BI-PF-1066 (E9): every OPEN item should record an ``api_impact`` DECISION.
+
+    The decision is mandatory; the API is only built when needed (``needs_api=false`` + a reason is valid).
+    Flags: (a) an open item with no ``api_impact`` decision, and (b) ``needs_api=true`` with no routes."""
+    warns = []
+    for it in list_open(scope, project):
+        ai = it.get("api_impact")
+        if not ai:
+            warns.append(f"{it.get('id')}: no api_impact decision (needs_api + reason)")
+        elif ai.get("needs_api") and not (ai.get("routes") or []):
+            warns.append(f"{it.get('id')}: needs_api=true but no routes listed")
+    return warns
+
+
 def is_epic(item: dict | None) -> bool:
     """BI-PF-0446: an Epic is a container item (type == 'epic'), never directly executable."""
     return str((item or {}).get("type") or "") == "epic"
@@ -1275,6 +1290,7 @@ _STRUCT_FIELD_TYPES = {
     "evidence": (list,),
     "approvals": (list,),
     "children": (list,),
+    "api_impact": (dict,),
 }
 
 
