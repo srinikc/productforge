@@ -1,0 +1,172 @@
+{
+  "id": "BI-PF-1200",
+  "tag": "PF",
+  "type": "bug",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "rcca:scheduler-dep-eligibility",
+  "label": "PF Backlog 535",
+  "title": "RCCA: scheduler eligibility deadlock - dependency map excluded closed items + blocked on advisory RELATED",
+  "body": "## Problem\nAfter grooming+approving the backlog, /wg work claimed nothing (0 eligible). Two scheduler defects:\n1. The dependency map (by_id) was built from OPEN items only (next_eligible + eligible_backlog), so a dependency on a COMPLETED item read as 'unmet' (fail-closed) and blocked the item.\n2. eligible() treated EVERY dependency type as blocking, including advisory RELATED edges.\nNet effect: the whole backlog deadlocked (102 unmet-dependency blocks) even though 13 real roots existed.\n\n## Root cause (5-Why)\n1. Nothing eligible. 2. Roots blocked by 'unmet dependency'. 3. by_id lacked closed items AND all dep types blocked. 4. next_eligible/eligible_backlog built by_id from list_open only; eligible did not filter by dep type. 5. No test asserted a completed dependency is satisfied or that RELATED is non-blocking.\n\n## Fix\n- by_id includes open + CLOSED items (so terminal deps are satisfied) in next_eligible + eligible_backlog.\n- eligible() blocks only on REQUIRES/BLOCKS; RELATED is advisory (never blocks); flat deps/blocked_by still block (backward-compat); unknown refs still block (fail-closed).\n\n## In scope\n- core/scheduler.py: by_id (open+closed) + dep-type filtering\n- tests\n\n## Out of scope\n- changing AI grooming dependency inference\n- required_state semantics (informational)\n\n## Acceptance\n- A dependency on a completed item is satisfied; RELATED never blocks; REQUIRES on an open item blocks; unknown dep blocks.\n- Real backlog reports >0 eligible (roots).\n",
+  "source": "review",
+  "status": "new",
+  "priority": "P2",
+  "moscow": "Should",
+  "value": 4,
+  "effort": 2,
+  "risk": 3,
+  "deps": [],
+  "links": {
+    "backend_capability": [
+      {
+        "kind": "artifact",
+        "ref": "core/scheduler.py",
+        "detail": "next_eligible/eligible_backlog by_id + eligible dep types"
+      },
+      {
+        "kind": "test",
+        "ref": "test-framework/tests/pipeline/test_scheduler_dep_types.py",
+        "detail": "dep met/RELATED/blocks"
+      }
+    ]
+  },
+  "decisions": [],
+  "follow_up": {},
+  "brief": {
+    "problem": "Eligibility built the dep map from open items only (completed deps read as unmet) and blocked on every dep type incl. advisory RELATED -> whole backlog deadlocked.",
+    "what_adds": "by_id includes closed items; eligible blocks only on REQUIRES/BLOCKS; tests.",
+    "source": "authored"
+  },
+  "objective": "Fix scheduler eligibility so completed dependencies are recognized and advisory RELATED dependencies do not block, unblocking the approved backlog.",
+  "acceptance_criteria": [
+    "next_eligible/eligible_backlog build the dep map from open+closed items.",
+    "eligible blocks only on REQUIRES/BLOCKS; RELATED is advisory.",
+    "Unknown dep refs still block (fail-closed); flat deps/blocked_by still block.",
+    "Tests cover completed-dep-met, RELATED-non-blocking, REQUIRES-open-blocks, unknown-blocks."
+  ],
+  "in_scope": [
+    "scheduler by_id open+closed",
+    "eligible dep-type filter (REQUIRES/BLOCKS only)",
+    "tests"
+  ],
+  "out_of_scope": [
+    "AI dep inference changes",
+    "required_state semantics"
+  ],
+  "affected_components": [
+    "core"
+  ],
+  "affected_files": [
+    "core/scheduler.py"
+  ],
+  "approach": "core/scheduler.py: by_id (open+closed) + dep-type filtering; tests",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "A dependency on a completed item is satisfied; RELATED never blocks; REQUIRES on an open item blocks; unknown dep blocks.",
+    "Real backlog reports >0 eligible (roots)."
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "agent",
+  "requester": "review",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "",
+  "parent": "",
+  "revision": 2,
+  "priority_rank": 2,
+  "priority_class": "P2",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "IN_PROGRESS",
+    "analyzed_at": "",
+    "analyzed_by": "deterministic",
+    "revision_analyzed": 0,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/scheduler.py, /api/v1/backlog/items, /api/v1/backlog/items/{item_id}, /api/v1/backlog/items/{item_id}/analysis",
+    "existing_components": [
+      "core/scheduler.py"
+    ],
+    "existing_apis": [
+      "/api/v1/backlog/items",
+      "/api/v1/backlog/items/{item_id}",
+      "/api/v1/backlog/items/{item_id}/analysis",
+      "/api/v1/backlog/items/{item_id}/context-review",
+      "/api/v1/backlog/items/{item_id}/dependencies",
+      "/api/v1/backlog/items/{item_id}/groom",
+      "/api/v1/backlog/items/{item_id}/groom/decide",
+      "/api/v1/backlog/items/{item_id}/priority"
+    ],
+    "existing_modules": [],
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=1.0",
+      "components=1",
+      "apis=8"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": false,
+    "reasons": [],
+    "computed_at": ""
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": ""
+  },
+  "created_at": "2026-10-09T23:17:49.207017",
+  "updated_at": "2026-10-09T23:17:49.987976",
+  "score": 1.0,
+  "_note": "priority set",
+  "dashboard_impact": {
+    "needs_dashboard": false,
+    "reason": "scheduler correctness"
+  },
+  "api_impact": {
+    "needs_api": false,
+    "reason": "Behavior fix to existing eligibility endpoints."
+  },
+  "source_ref": "session:scheduler-dep-eligibility"
+}
