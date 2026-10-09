@@ -1,0 +1,171 @@
+{
+  "id": "BI-PF-1186",
+  "tag": "PF",
+  "type": "chore",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "commit-hygiene-mixed",
+  "label": "PF Backlog 524",
+  "title": "RCCA: commit hygiene - guard must block MIXED backlog-bookkeeping + unrelated files (any branch)",
+  "body": "## Problem / why\nA delivery/bookkeeping commit mixed the intended data/backlog/** change with 15 pre-staged unrelated files\n(knowledge-registry.json, learnings.json, portfolio.db, products/.conversations/*, intake/ideas/*). The\nbranch-guard BLOCKED the commit on develop (non-bookkeeping staged on a protected branch), but a feature-branch\ncommit did NOT block the MIX -> the unrelated files were swept in + merged.\n\n## Acceptance criteria\n- The commit guard BLOCKS a staged set that MIXES backlog bookkeeping (data/backlog/**) with non-bookkeeping\n  files, on ANY branch (split into two commits).\n- bookkeeping-only commits remain allowed (delivery); feature-only commits remain allowed.\n\n## Root cause (5-Why)\n1. Unrelated files landed in a delivery commit. 2. The commit swept pre-staged files. 3. The guard only blocked\non protected branches, not mixed sets on feature branches. 4. No commit-SCOPE check existed. 5. Guard: block\nmixed backlog-bookkeeping + other staged sets everywhere.\n\n## In scope\nbranch_guard mixed-commit check + test.\n\n## Out of scope\nRewriting history (superseded/pushed already; benign tracked data).",
+  "source": "self-detected",
+  "status": "new",
+  "priority": null,
+  "moscow": "Should",
+  "value": 4,
+  "effort": 1,
+  "risk": 1,
+  "deps": [
+    "BI-PF-0430"
+  ],
+  "links": {
+    "backend_capability": [
+      "module:scripts/dev/branch_guard.py",
+      "test:test-framework/tests/pipeline/test_branch_guard.py"
+    ],
+    "related": [
+      "product_forge:BI-PF-0430",
+      "product_forge:BI-PF-1176"
+    ]
+  },
+  "decisions": [],
+  "follow_up": {},
+  "brief": {
+    "problem": "A delivery/bookkeeping commit mixed the intended data/backlog/** change with 15 pre-staged unrelated files\n(knowledge-registry.json, learnings.json, portfolio.db, products/.conversations/*, intake/ideas/*). The\nbranch-guard BLOCKED the commit on develop (non-bookkeeping staged on a protected branch), but a feature-branch\ncommit did NOT block the MIX -> the unrelated files were swept in + merged.",
+    "what_adds": "RCCA: commit hygiene - guard must block MIXED backlog-bookkeeping + unrelated files (any branch)",
+    "why": "A delivery/bookkeeping commit mixed the intended data/backlog/** change with 15 pre-staged unrelated files\n(knowledge-registry.json, learnings.json, portfolio.db, products/.conversations/*, intake/ideas/*). The\nbranch-guard BLOCKED the commit on develop (non-bookkeeping staged on a protected branch), but a feature-branch\ncommit did NOT block the MIX -> the unrelated files were swept in + merged.",
+    "who_feels": "Product Forge maintainers and consumers.",
+    "source": "authored"
+  },
+  "objective": "RCCA: commit hygiene - guard must block MIXED backlog-bookkeeping + unrelated files (any branch)",
+  "acceptance_criteria": [
+    "The commit guard BLOCKS a staged set that MIXES backlog bookkeeping (data/backlog/**) with non-bookkeeping",
+    "bookkeeping-only commits remain allowed (delivery); feature-only commits remain allowed."
+  ],
+  "in_scope": [
+    "RCCA: commit hygiene - guard must block MIXED backlog-bookkeeping + unrelated files (any branch)"
+  ],
+  "out_of_scope": [
+    "Not specified."
+  ],
+  "affected_components": [
+    "scripts"
+  ],
+  "affected_files": [
+    "knowledge-registry.json",
+    "learnings.json",
+    "scripts/dev/branch_guard.py"
+  ],
+  "approach": "RCCA: commit hygiene - guard must block MIXED backlog-bookkeeping + unrelated files (any branch)",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "The commit guard BLOCKS a staged set that MIXES backlog bookkeeping (data/backlog/**) with non-bookkeeping",
+    "bookkeeping-only commits remain allowed (delivery); feature-only commits remain allowed."
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "agent",
+  "requester": "self-detected",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "",
+  "parent": "",
+  "revision": 1,
+  "priority_rank": null,
+  "priority_class": "",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "IN_PROGRESS",
+    "analyzed_at": "",
+    "analyzed_by": "deterministic",
+    "revision_analyzed": 0,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/guardrails.py, core/intake_files.py, core/run_guard.py, /api/v1/issues/{iid}/rcca",
+    "existing_components": [
+      "core/guardrails.py",
+      "core/intake_files.py",
+      "core/run_guard.py"
+    ],
+    "existing_apis": [
+      "/api/v1/issues/{iid}/rcca",
+      "/api/v1/validation/profiles",
+      "/api/v1/vcs/branch-name",
+      "/api/v1/vcs/branches",
+      "/api/v1/vcs/commits"
+    ],
+    "existing_modules": [
+      "config/guardrail-policy.json",
+      "config/id-blocks.json",
+      "config/validation-profiles.json"
+    ],
+    "dependency_findings": [
+      "depends on BI-PF-0430"
+    ],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=4.0",
+      "components=3",
+      "apis=5"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": false,
+    "reasons": [],
+    "computed_at": ""
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": ""
+  },
+  "created_at": "2026-10-09T19:18:37.495889",
+  "updated_at": "2026-10-09T19:18:38.227228",
+  "score": 4.0,
+  "_note": "analysis updated",
+  "api_impact": {
+    "needs_api": false,
+    "routes": [],
+    "consumers": [],
+    "reason": "pre-commit guard; no API surface"
+  }
+}
