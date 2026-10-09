@@ -1,24 +1,23 @@
 # Backlog Summary
 
-> GENERATED 2026-10-09T16:56:32 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-09T17:19:25 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 40  |  **Closed:** 427
-- `new`: 40
+- **Open:** 39  |  **Closed:** 430
+- `new`: 39
 
-### new, by category (40)
+### new, by category (39)
 **API / reports / HIL / misc** (1)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-PF-0332 | Should | chore | API-5 deferred hardening: rate limiting + request/upload limits + tenant-isolation expansion + event streaming | API-5 deferred hardening: rate limiting + request/upload limits + tenant-isolation expansion + event streaming |
 
-**Bug fixes** (2)
+**Bug fixes** (1)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-PF-0865 | Should | bug | Defect: core.agent_structure.KNOWN_AGENTS is stale (missing ux-ia/implement-*/design_critic) - derive from agent cards | the known-agents source equals the agents/*.agent.json ids and validators use it |
-| BI-PF-1173 | Must | bug | Defect/RCCA: traceability.json has TWO writers (core/traceability.py vs requirement_link.py) + registry concern mismatch | ONE writer for traceability.json (the registered owner, core/traceability.py), with requirement_link contribut... |
 
 **Discovery / HIL / prompts** (1)
 | ID | MoSCoW | Type | Title | Objective |
@@ -75,7 +74,7 @@
 | BI-PF-0408 | Should | change | /pf command: build mode only (not orchestrator) + global /pf for all opencode sessions | - `/pf ...` always executes in build mode (`agent: build`), with no model pin so the session's model is inheri... |
 | BI-PF-1066 | Should | epic | EPIC: Pipeline review quality - production-risk checklist for the code-review agent (LLM + corroboration + PR gate) | Each build iteration's code is reviewed against a concrete PRODUCTION-RISK checklist (business logic, security... |
 | BI-PF-1070 | Should | feature | E4: review-model docs (LLM vs non-LLM, per-iteration granularity, PR gate) + wire into the artifact map | E4: review-model docs (LLM vs non-LLM, per-iteration granularity, PR gate) + wire into the artifact map |
-| BI-PF-1169 | Should | feature | E8: Requirements Traceability Matrix artifact (req -> design -> code -> test) + gate | E8: Requirements Traceability Matrix artifact (req -> design -> code -> test) + gate |
+| BI-PF-1176 | Should | chore | Eliminate cross-session merge conflicts (step 1-2): union for history JSONL + regenerate-on-merge driver for derived indexes | Remove the repetitive manual resolution for the DERIVED/append data files (source/config conflicts stay fail-c... |
 
 ---
 
@@ -275,5 +274,5 @@
 ---
 
 ## Totals
-- backend: 40 open / 427 closed
+- backend: 39 open / 430 closed
 - dashboard: 146 open / 3 closed

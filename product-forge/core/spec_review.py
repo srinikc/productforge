@@ -47,6 +47,10 @@ ARTIFACTS: Dict[str, tuple] = {
 _FR = re.compile(r"\bFR[-_]?\d+\b", re.I)
 _NFR = re.compile(r"\bNFR[-_]?\d+\b", re.I)
 _PLACEHOLDER = re.compile(r"\b(TODO|TBD|FIXME|placeholder|lorem ipsum)\b", re.I)
+# BI-PF-1167 (E6): testability / NFR-target / edge-case signals
+_NUM = re.compile(r"\d")
+_IDS = re.compile(r"\b(FR|NFR|US|AC|EC|EH|BR|V|OQ|API|EDS)[-_]?\d+\b", re.I)
+_EDGE_ERR = re.compile(r"edge[\s-]?case|error[\s-]?case|error handling|exception|invalid input|\bnull\b|\bempty\b|failure mode|\bEC[-_]?\d|\bEH[-_]?\d", re.I)
 
 
 def _project_name(project_dir: str) -> str:
@@ -115,6 +119,7 @@ def _review_one(artifact: str, owner: str, text: str, idx: int,
 
     if artifact == "docs/requirements.md":
         fr, nfr = set(_FR.findall(text)), set(_NFR.findall(text))
+        body_txt = _IDS.sub(" ", text)          # ignore id digits (FR-1, NFR-2, AC-3 ...)
         if not fr:
             add(cls="BLOCKING", severity="high", category="requirements-coverage",
                 location="Functional Requirements",
@@ -127,6 +132,21 @@ def _review_one(artifact: str, owner: str, text: str, idx: int,
             add(cls="BLOCKING", severity="high", category="testability",
                 location="requirements",
                 recommendation="Add measurable acceptance criteria per FR/NFR (testability).")
+        # E6: acceptance criteria must be TESTABLE (concrete thresholds/measurables present)
+        elif not _NUM.search(body_txt):
+            add(cls="BLOCKING", severity="high", category="testability",
+                location="acceptance criteria",
+                recommendation="Acceptance criteria are not testable - add concrete pass/fail thresholds.")
+        # E6: NFRs need concrete TARGETS (numbers), not adjectives
+        if nfr and not _NUM.search(body_txt):
+            add(cls="BLOCKING", severity="high", category="testability",
+                location="Non-Functional Requirements",
+                recommendation="NFRs lack concrete targets - state numbers (latency %, throughput, availability).")
+        # E6: edge/error cases should be enumerated (advisory - avoid over-blocking)
+        if not _EDGE_ERR.search(text):
+            add(cls="OPTIONAL", severity="medium", category="testability",
+                location="requirements",
+                recommendation="Enumerate edge/error cases (EC/EH) so they are testable, not discovered late.")
 
     if artifact in ("docs/design.md", "docs/product-design-spec.md"):
         if "acceptance" not in low:
