@@ -38,3 +38,39 @@ def test_security_scan_runs_and_passes_clean_tree(tmp_path):
     r = ve._check_security("clean", str(d))
     assert r["status"] in ("pass", "fail")          # checker runs (not 'unknown')
     assert r["status"] == "pass"                     # a clean tree passes
+
+
+# ── BI-PF-0455: e2e checker runs the product's e2e suite (no prior-DOGFOOD-PASS dependency) ──
+
+def test_e2e_skips_without_suite(tmp_path):
+    d = tmp_path / "proj"
+    d.mkdir()
+    assert ve._check_e2e("p", str(d))["status"] == "skip"
+
+
+def _stub_runner(monkeypatch, ok):
+    from core import test_framework_integration as tfi
+    monkeypatch.setattr(tfi, "_run_plan_item",
+                        lambda item, pd, tech=None: {"category": "e2e", "runner": "playwright",
+                                                     "ok": ok, "tail": ""})
+
+
+def test_e2e_runs_suite_pass(tmp_path, monkeypatch):
+    d = tmp_path / "proj"
+    (d / "tests" / "e2e").mkdir(parents=True)
+    _stub_runner(monkeypatch, True)
+    assert ve._check_e2e("p", str(d))["status"] == "pass"
+
+
+def test_e2e_runs_suite_fail(tmp_path, monkeypatch):
+    d = tmp_path / "proj"
+    (d / "tests" / "e2e").mkdir(parents=True)
+    _stub_runner(monkeypatch, False)
+    assert ve._check_e2e("p", str(d))["status"] == "fail"
+
+
+def test_e2e_runner_absent_is_skip(tmp_path, monkeypatch):
+    d = tmp_path / "proj"
+    (d / "tests" / "e2e").mkdir(parents=True)
+    _stub_runner(monkeypatch, None)
+    assert ve._check_e2e("p", str(d))["status"] == "skip"

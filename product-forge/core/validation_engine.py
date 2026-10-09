@@ -212,14 +212,30 @@ def _check_cross_contract(project: str, project_dir: str) -> dict[str, Any]:
 
 
 def _check_e2e(project: str, project_dir: str) -> dict[str, Any]:
-    """BI-PF-0425: end-to-end evidence - the latest recorded DOGFOOD run (reuses this engine's list_runs)."""
-    runs = [r for r in list_runs("project", project, profile="DOGFOOD") if r.get("result")]
-    if not runs:
-        return {"status": "unknown", "detail": "no e2e/DOGFOOD run recorded"}
-    latest = runs[-1]
-    st = str(latest.get("result"))
-    return {"status": "pass" if st == "PASS" else "fail",
-            "detail": {"run_id": latest.get("run_id"), "result": st}}
+    """BI-PF-0455: real end-to-end evidence - run the product's ``e2e`` category through the canonical test
+    framework (``test_matrix`` plan + ``test_framework_integration`` runner). No dependence on a prior
+    DOGFOOD PASS (a first run is never permanently BLOCKED) and no hardcoded scope. Skip when the product
+    has no e2e suite; skip when no e2e runner is installed.
+    """
+    from core import test_framework_integration as tfi
+    from core import test_matrix
+    try:
+        tech = tfi._tech_stack(project_dir)
+        items = [it for it in test_matrix.plan(project_dir, ["e2e"], tech) if it.get("category") == "e2e"]
+    except Exception as e:  # noqa: BLE001
+        return {"status": "unknown", "detail": f"e2e plan error: {type(e).__name__}"}
+    has_cfg = any(os.path.exists(os.path.join(project_dir, f))
+                  for f in ("playwright.config.ts", "playwright.config.js", "playwright.config.mjs"))
+    runnable = [it for it in items if it.get("exists") or has_cfg]
+    if not runnable:
+        return {"status": "skip", "detail": {"project": project, "note": "no e2e suite detected"}}
+    results = [r for r in (tfi._run_plan_item(it, project_dir, tech) for it in runnable) if r is not None]
+    checkable = [r for r in results if r.get("ok") is not None]
+    if not checkable:
+        return {"status": "skip", "detail": {"project": project, "results": results,
+                                             "note": "e2e runner not installed"}}
+    return {"status": "pass" if all(r.get("ok") for r in checkable) else "fail",
+            "detail": {"project": project, "results": results}}
 
 
 def _check_security(project: str, project_dir: str) -> dict[str, Any]:
