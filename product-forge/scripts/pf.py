@@ -66,6 +66,16 @@ def _emit(obj, as_json: bool):
         print(obj)
 
 
+def _ask(prompt: str) -> bool:
+    """Interactive y/N confirm. False when stdin isn't a TTY (agents/non-interactive use --approve)."""
+    try:
+        if not sys.stdin.isatty():
+            return False
+        return input(prompt).strip().lower() in ("y", "yes")
+    except Exception:
+        return False
+
+
 def _scope(flags):
     return flags.get("scope", "product_forge"), (flags.get("project") or None)
 
@@ -164,14 +174,29 @@ def cmd_backlog(pos, flags):
         return grooming.refresh_stale(s, p, limit=limit, mode=mode)
     if sub in ("groom", "analyze") and len(pos) > 1:
         mode = "deterministic" if flags.get("no-ai") else ""
-        return grooming.groom(s, p, pos[1], mode=mode, force=bool(flags.get("force")))
+        approve = bool(flags.get("approve"))
+        res = grooming.groom(s, p, pos[1], mode=mode, force=bool(flags.get("force")), approve=approve)
+        if not approve and res.get("needs_approval") and _ask(f"Approve {pos[1]}? [y/N] "):
+            res["approval"] = grooming.decide(s, p, pos[1], "APPROVE")
+            res["needs_approval"] = False
+        return res
     if sub == "groom-all":
         mode = "deterministic" if flags.get("no-ai") else ""
         gids = [x.strip() for x in str(flags.get("ids") or "").split(",") if x.strip()]
-        return grooming.groom_all(s, p, mode=mode, batch=int(flags.get("batch") or 0),
-                                  limit=int(flags.get("limit") or 0), force=bool(flags.get("force")),
-                                  dry=bool(flags.get("dry")), jobs=int(flags.get("jobs") or 0),
-                                  ids=(gids or None))
+        approve = bool(flags.get("approve"))
+        res = grooming.groom_all(s, p, mode=mode, batch=int(flags.get("batch") or 0),
+                                 limit=int(flags.get("limit") or 0), force=bool(flags.get("force")),
+                                 dry=bool(flags.get("dry")), jobs=int(flags.get("jobs") or 0),
+                                 ids=(gids or None), approve=approve)
+        summ = res.get("summary") or {}
+        if not approve and not flags.get("dry") and summ.get("pending_approval") and _ask(
+                f"Approve {summ['pending_approval']} groomed item(s)? [y/N] "):
+            ids = [r.get("item_id") for r in (res.get("results") or []) if r.get("applied")]
+            ap = grooming.decide_all(s, p, "APPROVE", ids=ids)
+            res["approval"] = ap
+            res["summary"] = {**summ, "approved": int(ap.get("count") or 0),
+                              "flagged": len(ap.get("flagged") or []), "pending_approval": 0}
+        return res
     if sub == "review":
         return grooming.review(s, p)
     if sub == "approve" and len(pos) > 1:
@@ -181,8 +206,8 @@ def cmd_backlog(pos, flags):
         return grooming.decide_all(s, p, "APPROVE", ids=(ids or None), force=bool(flags.get("force")),
                                    dry=bool(flags.get("dry")))
     return {"error": "usage: pf backlog list|show <id>|epic-order <id> [--dry]|epic-status <id>|status [--all]|"
-                     "restamp [--limit N] [--ai]|groom <id> [--no-ai]|"
-                     "groom-all [--no-ai] [--batch N] [--limit N] [--force] [--dry]|"
+                     "restamp [--limit N] [--ai]|groom <id> [--no-ai] [--approve]|"
+                     "groom-all [--no-ai] [--batch N] [--limit N] [--force] [--dry] [--approve]|"
                      "review|approve <id>|approve-all [--ids a,b] [--force] [--dry]"}
 
 
@@ -280,10 +305,12 @@ _HELP = {
                  ("restamp [--limit N] [--ai]",
                   "re-stamp OPEN items whose analysis is stale vs the current architecture (re-analyzes + new "
                   "fingerprint; deterministic by default, --ai = deep AI); keeps authored context"),
-                 ("groom <id> [--no-ai] [--force]",
-                  "groom one item: analysis + full context + priority + deps (gap-fill; --force overwrites)"),
-                 ("groom-all [--no-ai] [--batch N] [--jobs N] [--limit N] [--ids a,b] [--force] [--dry]",
-                  "groom all open items incl. in-progress; batched AI (3/pass, N concurrent)"),
+                 ("groom <id> [--no-ai] [--force] [--approve]",
+                  "groom one item: analysis + full context + priority + deps (gap-fill; --force overwrites); "
+                  "shows a summary and asks to approve (--approve = approve now, no prompt)"),
+                 ("groom-all [--no-ai] [--batch N] [--jobs N] [--limit N] [--ids a,b] [--force] [--dry] [--approve]",
+                  "groom all open items incl. in-progress; batched AI (3/pass, N concurrent); shows a summary "
+                  "and asks to approve clean items (--approve = approve now, no prompt)"),
                  ("review", "groomed-but-undecided items: status/confidence/flags/context_review"),
                  ("approve <id>", "approve a groomed item"),
                  ("approve-all [--ids a,b] [--force] [--dry]",
@@ -293,6 +320,7 @@ _HELP = {
                  ("--jobs N", "concurrent AI batches (default 4)"),
                  ("--limit N", "process at most N items this run"),
                  ("--force", "groom/approve even if already groomed or flagged"),
+                 ("--approve", "groom/groom-all: approve CLEAN proposals now (default: show summary + prompt)"),
                  ("--dry", "preview what would change (no writes)"),
                  ("--all", "status: aggregate across every backlog/scope"),
                  ("--ai", "restamp: deep AI refresh (default is deterministic/offline)"),
