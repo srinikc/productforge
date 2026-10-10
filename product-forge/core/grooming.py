@@ -620,7 +620,9 @@ def groom(scope: str, project: str | None, item_id: str, mode: str = "", *,
     res["needs_approval"] = bool(res.get("applied")) and cur == "IN_PROGRESS"
     if approve and res.get("applied"):
         with contextlib.suppress(Exception):
-            res["approval"] = decide(scope, project, item_id, "APPROVE", by="cli")
+            res["approval"] = decide(scope, project, item_id, "APPROVE", by="cli", _reorder=False)
+    if res.get("applied"):
+        res["epics_reordered"] = reorder_epics(scope, project, [item_id])
     return res
 
 
@@ -763,6 +765,8 @@ def groom_all(scope: str, project: str | None, mode: str = "", *, batch: int = 0
         if str(((backlog.get_epic(scope, project, iid) or {}).get("analysis") or {}).get("status")) == "IN_PROGRESS")
     result["summary"] = {"groomed": len(groomed), "approved": int(ap.get("count") or 0),
                          "flagged": len(ap.get("flagged") or []), "pending_approval": pending}
+    if applied_ids:
+        result["epics_reordered"] = reorder_epics(scope, project, applied_ids)
     return result
 
 
@@ -795,6 +799,34 @@ def review(scope: str, project: str | None) -> dict[str, Any]:
             "context_review": cr or None,
         })
     return {"count": len(out), "items": out}
+
+
+def _epics_of(scope: str, project: str | None, item_ids: list) -> list[str]:
+    """The distinct parent epic ids of the given items ('' ignored)."""
+    from core import backlog
+    out: set[str] = set()
+    for iid in item_ids:
+        it = backlog.get_epic(scope, project, str(iid)) or {}
+        e = str(it.get("epic") or it.get("parent") or "")
+        if e:
+            out.add(e)
+    return sorted(out)
+
+
+def reorder_epics(scope: str, project: str | None, item_ids: list) -> list[str]:
+    """Recompute + SAVE ``execution_order`` for the parent epic(s) of the given items.
+
+    Called after grooming/approval so an epic's persisted order reflects the new child states. The computation
+    is read-only (``core.scheduler.epic_order``); the write is the single writer
+    ``core.backlog.set_execution_order``. Returns the epic ids actually reordered.
+    """
+    from core import scheduler
+    done: list[str] = []
+    for e in _epics_of(scope, project, item_ids):
+        with contextlib.suppress(Exception):
+            if scheduler.epic_order(scope, project, epic=e, save=True).get("saved"):
+                done.append(e)
+    return done
 
 
 def decide_all(scope: str, project: str | None, decision: str = "APPROVE", *,
@@ -835,10 +867,11 @@ def decide_all(scope: str, project: str | None, decision: str = "APPROVE", *,
         if dry:
             approved.append(iid)
             continue
-        decide(scope, project, iid, d, by=by)
+        decide(scope, project, iid, d, by=by, _reorder=False)
         approved.append(iid)
+    reordered = reorder_epics(scope, project, approved) if (approved and not dry) else []
     return {"decision": d, "approved": approved, "count": len(approved),
-            "flagged": flagged, "skipped": skipped, "dry": bool(dry)}
+            "flagged": flagged, "skipped": skipped, "dry": bool(dry), "epics_reordered": reordered}
 
 
 def _apply_consolidation(scope: str, project: str | None, item_id: str, by: str = "user",
@@ -888,8 +921,12 @@ def _apply_consolidation(scope: str, project: str | None, item_id: str, by: str 
 
 
 def decide(scope: str, project: str | None, item_id: str, decision: str,
-           note: str = "", by: str = "user") -> dict[str, Any]:
-    """User grooming decision: APPROVE -> analysis COMPLETE + item ready; MODIFY/REJECT/DEFER accordingly."""
+           note: str = "", by: str = "user", _reorder: bool = True) -> dict[str, Any]:
+    """User grooming decision: APPROVE -> analysis COMPLETE + item ready; MODIFY/REJECT/DEFER accordingly.
+
+    ``_reorder`` (internal): refresh+save the parent epic's ``execution_order`` after the decision (default on;
+    ``decide_all`` turns it off and reorders once for the batch).
+    """
     from core import backlog
     opts = [str(o).upper() for o in guidelines().get("decision_options", ["APPROVE", "MODIFY", "REJECT", "DEFER"])]
     d = str(decision or "").upper()
@@ -912,4 +949,6 @@ def decide(scope: str, project: str | None, item_id: str, decision: str,
     backlog.update(scope, project, item_id, decisions=[
         *(it.get("decisions") or []), {"at": datetime.now().isoformat(), "decision": d,
                                         "by": by, "note": str(note or "")}])
+    if _reorder:
+        reorder_epics(scope, project, [item_id])
     return {"item_id": item_id, "decision": d, "applied": True}
