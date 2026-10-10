@@ -1,0 +1,192 @@
+{
+  "id": "BI-PF-1219",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "sec-impact-decision",
+  "label": "PF Backlog 549",
+  "title": "C17: security_impact review decision on every work item + advisory validator (per-work security impact analysis)",
+  "body": "## Problem / why\nEvery change already records `api_impact` and `dashboard_impact` REVIEW decisions, but NOTHING records a\n**security impact**. Security work is therefore not surfaced at the point a change is groomed/planned, so it is\ncaught late (if at all).\n\n## Goal & value\nMake \"security impact for every work\" first-class and enforced at the same boundary as api/dashboard impact:\nevery item records a `security_impact` decision; an advisory validator surfaces gaps.\n\n## In scope\n- `security_impact` field on BacklogItem: `{needs_security: bool, tier: \"S0\"..\"S6\"|null, controls: [..], reason: str}`.\n- `core/backlog.py:set_security_impact(scope, project, eid, needs_security, tier, controls, reason)` (single writer).\n- `core/backlog.py:security_impact_warnings()` advisory (mirror `api_impact_warnings()`); wired into `wired_audit`.\n- Update path validates the field type fail-closed (like other structured fields).\n\n## Out of scope\n- The guidelines content (C18) and the implementing agent (C19).\n\n## Acceptance criteria (G/W/T)\n- Given an open item with no `security_impact` decision, when `wired_audit` runs, then a non-fatal advisory names it.\n- Given `needs_security=true` with no controls listed, then the validator flags it (unknown => surfaces).\n- Given `set_security_impact(...)`, then the item persists the decision and `wired_audit` no longer flags it.\n\n## Data model (what is stored, where, owner)\n`items/<ID>.json` -> `security_impact` (owner `core/backlog.py`; same store as `api_impact`/`dashboard_impact`).\n\n## API contract\nPOST /api/v1/backlog/items/{item_id}/security-impact  (records the decision via core/backlog.py)\n\n## Dependencies & links (by id)\nEPIC BI-PF-1202; C13 BI-PF-1215 (profile); C14 BI-PF-1216 (gates). Pattern source: BI-PF-1171 (api_impact E9).\n\n## Verification / test plan\nUnit: set + validator (missing / needs_security-without-controls / recorded). Wired into `wired_audit`.",
+  "source": "doc: GenAI Security Gateway Assessment",
+  "status": "new",
+  "priority": "P2",
+  "moscow": "Should",
+  "value": 5,
+  "effort": 2,
+  "risk": 2,
+  "deps": [],
+  "links": {
+    "source_ref": "docs/Product_Forge_GenAI_Security_Gateway_Assessment.md",
+    "backend_capability": [
+      {
+        "descriptor": "core/backlog.py:set_security_impact",
+        "kind": "function"
+      },
+      {
+        "descriptor": "core/backlog.py:security_impact_warnings",
+        "kind": "function"
+      },
+      {
+        "descriptor": "scripts/dev/wired_audit.py",
+        "kind": "script"
+      }
+    ]
+  },
+  "decisions": [],
+  "follow_up": {},
+  "brief": {
+    "problem": "Every change already records `api_impact` and `dashboard_impact` REVIEW decisions, but NOTHING records a\n**security impact**. Security work is therefore not surfaced at the point a change is groomed/planned, so it is\ncaught late (if at all).",
+    "what_adds": "Make \"security impact for every work\" first-class and enforced at the same boundary as api/dashboard impact:\nevery item records a `security_impact` decision; an advisory validator surfaces gaps.",
+    "why": "Every change already records `api_impact` and `dashboard_impact` REVIEW decisions, but NOTHING records a\n**security impact**. Security work is therefore not surfaced at the point a change is groomed/planned, so it is\ncaught late (if at all).",
+    "who_feels": "Product Forge maintainers and consumers.",
+    "source": "authored"
+  },
+  "objective": "Make \"security impact for every work\" first-class and enforced at the same boundary as api/dashboard impact:\nevery item records a `security_impact` decision; an advisory validator surfaces gaps.",
+  "acceptance_criteria": [
+    "Given an open item with no `security_impact` decision, when `wired_audit` runs, then a non-fatal advisory names it.",
+    "Given `needs_security=true` with no controls listed, then the validator flags it (unknown => surfaces).",
+    "Given `set_security_impact(...)`, then the item persists the decision and `wired_audit` no longer flags it."
+  ],
+  "in_scope": [
+    "`security_impact` field on BacklogItem: `{needs_security: bool, tier: \"S0\"..\"S6\"|null, controls: [..], reason: str}`.",
+    "`core/backlog.py:set_security_impact(scope, project, eid, needs_security, tier, controls, reason)` (single writer).",
+    "`core/backlog.py:security_impact_warnings()` advisory (mirror `api_impact_warnings()`); wired into `wired_audit`.",
+    "Update path validates the field type fail-closed (like other structured fields)."
+  ],
+  "out_of_scope": [
+    "The guidelines content (C18) and the implementing agent (C19)."
+  ],
+  "affected_components": [
+    "core"
+  ],
+  "affected_files": [
+    "core/backlog.py"
+  ],
+  "approach": "Unit: set + validator (missing / needs_security-without-controls / recorded). Wired into `wired_audit`.",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Given an open item with no `security_impact` decision, when `wired_audit` runs, then a non-fatal advisory names it.",
+    "Given `needs_security=true` with no controls listed, then the validator flags it (unknown => surfaces).",
+    "Given `set_security_impact(...)`, then the item persists the decision and `wired_audit` no longer flags it."
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "agent",
+  "requester": "doc: GenAI Security Gateway Assessment",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1202",
+  "parent": "BI-PF-1202",
+  "revision": 2,
+  "priority_rank": 2,
+  "priority_class": "P2",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "IN_PROGRESS",
+    "analyzed_at": "",
+    "analyzed_by": "deterministic",
+    "revision_analyzed": 0,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/context_review.py, core/cross_review.py, core/multi_model_review.py, core/rerun_review.py",
+    "existing_components": [
+      "core/context_review.py",
+      "core/cross_review.py",
+      "core/multi_model_review.py",
+      "core/rerun_review.py",
+      "core/review_ledger.py",
+      "core/schema_validator.py",
+      "core/spec_review.py",
+      "core/test_framework_bridge.py"
+    ],
+    "existing_apis": [
+      "/api/v1/backlog/items",
+      "/api/v1/backlog/items/{item_id}",
+      "/api/v1/backlog/items/{item_id}/analysis",
+      "/api/v1/backlog/items/{item_id}/context-review",
+      "/api/v1/backlog/items/{item_id}/dependencies",
+      "/api/v1/backlog/items/{item_id}/groom",
+      "/api/v1/backlog/items/{item_id}/groom/decide",
+      "/api/v1/backlog/items/{item_id}/priority"
+    ],
+    "existing_modules": [
+      "config/engineering-workers.json",
+      "config/review-focus.json"
+    ],
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=1.88",
+      "components=8",
+      "apis=8"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": false,
+    "reasons": [],
+    "computed_at": ""
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": ""
+  },
+  "created_at": "2026-10-10T09:49:56.253720",
+  "updated_at": "2026-10-10T09:50:10.536200",
+  "score": 1.88,
+  "_note": "security impact/api/dashboard decisions recorded",
+  "api_impact": {
+    "needs_api": true,
+    "routes": [
+      "POST /api/v1/backlog/items/{item_id}/security-impact"
+    ],
+    "consumers": [
+      "pipeline-orchestrator-ui"
+    ],
+    "reason": "security impact is a review decision written via the API-first control plane."
+  },
+  "dashboard_impact": {
+    "needs_dashboard": true,
+    "reason": "security impact per item is operator-visible in the backlog/orchestrator UI."
+  }
+}
