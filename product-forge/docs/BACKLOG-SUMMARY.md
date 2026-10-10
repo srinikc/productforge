@@ -1,14 +1,20 @@
 # Backlog Summary
 
-> GENERATED 2026-10-10T12:26:36 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-10T12:39:45 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
 - **Open:** 58  |  **Closed:** 463
-- `new`: 58
+- `new`: 57
+- `verifying`: 1
 
-### new, by category (58)
+### verifying (1)
+| ID | MoSCoW | Type | Title | Objective |
+|---|---|---|---|---|
+| BI-PF-0393 | Should | feature | A1: canonical contracts (thin) + Go<->Python contract | A1 — thin canonical contracts: ProductSpec, TechnologyProfile, RuntimeProfile, DeploymentProfile, LicenseProfi... |
+
+### new, by category (57)
 **API / reports / HIL / misc** (4)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
@@ -51,7 +57,7 @@
 | BI-0225 | Should | feature | Parallel section/feature generation | Run section/per-feature agent calls in parallel with a bounded worker pool and merge results deterministically... |
 | BI-PF-1212 | Should | feature | C10: Security-event audit/evidence (evidence-grade) + durable SecurityContext propagation | C10: Security-event audit/evidence (evidence-grade) + durable SecurityContext propagation |
 
-**Wiring / tech-debt / API** (40)
+**Wiring / tech-debt / API** (39)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0185 | Should | feature | EPIC: Multi-modal / media orchestration (pluggable capability packs) | Make the pipeline modality-agnostic via PLUGGABLE capability packs, enabled per project when the idea needs th... |
@@ -65,7 +71,6 @@
 | BI-PF-0387 | Should | feature | PF platform delivery baseline: ONE source for all editions; new shipped/sensitive logic -> Go; existing -> compiled (Nuitka); no raw .py at customer; migrate by value later | PF platform delivery baseline: ONE source for all editions; new shipped/sensitive logic -> Go; existing -> com... |
 | BI-PF-0388 | Should | task | ADR: PF platform shipped editions use compiled artifacts (Go core + compiled-Python), never raw .py; one source, many editions | ADR: PF platform shipped editions use compiled artifacts (Go core + compiled-Python), never raw .py; one sourc... |
 | BI-PF-0391 | Should | epic | EPIC B: PF Scale & Editions (gateways, persistence, OEM, Rust, WASM, decomposition, migration) | EPIC B — B1 PF Go core (compiled host, architectural/mandatory); B2 gateways (Model/Tool/Memory/Infra); B3 per... |
-| BI-PF-0393 | Should | feature | A1: canonical contracts (thin) + Go<->Python contract | A1 — thin canonical contracts: ProductSpec, TechnologyProfile, RuntimeProfile, DeploymentProfile, LicenseProfi... |
 | BI-PF-0394 | Should | feature | B1: PF Go core (Go<->Python seam) | B1 — a minimal native Go host: new shipped/sensitive logic lands here. The host COMPILES (go build); it never ... |
 | BI-PF-0395 | Should | feature | A6: change classifier + drift guard + language rule + no-undeclared-dep | A6 — governance: classify every change; enforce the language rule (shipped+sensitive -> Go); fail on undeclare... |
 | BI-PF-0397 | Should | feature | A4: EAP delivery manifest + validator/registry + compatibility | A4 — EAP (manifest) composes contracts; validator/registry; versioning + compatibility. Executor role is parke... |
