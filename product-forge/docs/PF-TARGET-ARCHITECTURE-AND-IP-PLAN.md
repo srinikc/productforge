@@ -273,3 +273,25 @@ STEP 12 Bmig migrate remaining → Go (aspiration)   ∥   B5 Rust / B6 WASM / B
 Compiled packaging (Nuitka/PyInstaller/PyArmor), licensing/entitlement, SaaS-first, source-available vs proprietary
 splits, signed updates, and keeping high-value intelligence server-side are the industry norms. See the analysis
 in the companion response.
+
+---
+
+## 11. A1 implementation note — canonical contracts + Go↔Python wire (BI-PF-0393)
+
+The contract surface is now materialized as a thin, code-emitted module (`core/contracts.py`) that owns **no
+store**: canonical data stays in the existing owners and is projected into the contracts on demand.
+
+- **Product contracts** (`product-forge/<name>@1`): `ProductSpec`, `TechnologyProfile`, `RuntimeProfile`,
+  `DeploymentProfile`, `LicenseProfile`, `EntitlementProfile`, `ComponentManifest`, `BOM`, `Evidence`.
+  Each has a JSON Schema (draft-07), fail-closed `validate(name, data)` and a thin `canonical(name, data)`
+  projection (keeps declared fields, drops unknown keys, stamps `schema`).
+- **Wire contract** (`product-forge/wire-request@1` / `product-forge/wire-response@1`, version `1`):
+  ops `ping | describe | validate | canonicalize`. `core.contracts.handle_wire(request)` is the Python core
+  handler; the Go host reference is `product-forge/go/contract/` (stdlib only) serving the same ops over stdio.
+- **Emission from existing code**: `core.bom.contract_view(project_dir)` projects the BOM onto the canonical
+  `bom` contract (the pattern for the other profiles as A2/A3/A5 land).
+- **Evidence/tests**: fixtures `test-framework/tests/fixtures/contracts/sample-*/` validate against the
+  contracts; `test-framework/tests/pipeline/test_contracts.py` proves the **Go host and Python core exchange a
+  valid payload** and asserts required-field parity between the Python source of truth and the Go mirror.
+
+Grow by need: add a contract only when a real producer/consumer needs it (no speculative fields).

@@ -189,6 +189,16 @@ def load(project_dir: str) -> Dict:
         return {}
 
 
+def contract_view(project_dir: str) -> Dict:
+    """Canonical ``bom`` contract view of the BOM (BI-PF-0393).
+
+    Projects ``build()`` onto the shared contract surface (``core.contracts``) so the same
+    shape is exchanged with the Go host. Thin projection, no new store.
+    """
+    from core import contracts
+    return contracts.canonical("bom", build(project_dir))
+
+
 if __name__ == "__main__":
     import sys
     print(json.dumps(build(sys.argv[1] if len(sys.argv) > 1 else "."), indent=2, ensure_ascii=False))
