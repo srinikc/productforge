@@ -20,7 +20,7 @@ generation (`/pf product ...`) delegates to `scripts/run_pipeline.py` (the canon
 ## Verb map
 - `/pf help [verb]` — usage overview, or per-verb details (subcommands + flags)
 - `/pf product new "idea" --tier <tier>` / `continue` / `fix "desc"` → `scripts/run_pipeline.py`
-- `/pf backlog list|show <id>|epic-order <id>|groom <id> [--no-ai]|approve <id>`
+- `/pf backlog list|show <id>|epic-order <id> [--dry]|epic-status <id>|status [--all]|groom <id> [--no-ai]|approve <id>`
 - `/pf dogfood [--dry]`
 - `/pf validate <PROFILE>` · `/pf release readiness|gate` · `/pf package <edition>`
 - `/pf audit` · `/pf status` · `/pf pidl decisions|show|candidates|policy|latest`

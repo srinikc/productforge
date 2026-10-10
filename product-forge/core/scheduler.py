@@ -538,13 +538,17 @@ def _waves(children: list[dict[str, Any]], by_id: dict[str, dict[str, Any]]) -> 
 
 
 def epic_order(scope: str = "product_forge", project: str | None = None,
-               epic: str = "", stage: str | None = None) -> dict[str, Any]:
+               epic: str = "", stage: str | None = None, save: bool = False) -> dict[str, Any]:
     """Execution order of an epic's OPEN children: dependency wave -> priority, with READY/wait status.
 
-    Read-only. Wave 0 items have no unmet prerequisite and come first; each further wave unlocks after the
-    prior one. ``status`` is READY when the child is eligible now (``eligible()``), else ``wait`` with the
-    blocking reasons. Dependencies resolve against the FULL backlog (open + closed), so prerequisites outside
-    the epic are still honored (an unmet external prereq shows the child waiting).
+    Read-only by default. Wave 0 items have no unmet prerequisite and come first; each further wave unlocks
+    after the prior one. ``status`` is READY when the child is eligible now (``eligible()``), else ``wait``
+    with the blocking reasons. Dependencies resolve against the FULL backlog (open + closed), so prerequisites
+    outside the epic are still honored (an unmet external prereq shows the child waiting).
+
+    ``save=True`` persists the computed order onto the epic as ``execution_order[]`` (delegated to
+    ``core.backlog.set_execution_order`` - the single writer; scheduler itself owns no state). ``children[]``
+    (membership) is never touched.
     """
     from core import backlog
     op = backlog.list_open(scope, project, order=False)
@@ -564,8 +568,148 @@ def epic_order(scope: str = "product_forge", project: str | None = None,
     rows.sort(key=lambda r: r["wave"])  # stable: priority order preserved within each wave
     epic_item = backlog.get_epic(scope, project, str(epic)) if epic else None
     ready = sum(1 for r in rows if r["status"] == "READY")
+    out: dict[str, Any] = {"scope": scope, "project": project or "", "epic": str(epic or ""),
+                           "title": (epic_item or {}).get("title", ""),
+                           "counts": {"total": len(rows), "ready": ready, "wait": len(rows) - ready,
+                                      "waves": (max(r["wave"] for r in rows) + 1) if rows else 0},
+                           "saved": False, "items": rows}
+    if save and epic:
+        with contextlib.suppress(Exception):
+            out["saved"] = backlog.set_execution_order(scope, project, str(epic), rows) is not None
+    return out
+
+
+def _is_closed_item(item: dict[str, Any]) -> bool:
+    from core import backlog
+    return backlog._normalize_status(str(item.get("status") or "")) in _TERMINAL_STATUSES
+
+
+def _analysis_state(item: dict[str, Any]) -> tuple[str, bool, bool]:
+    """(analysis_status, groomed, needs_reanalysis): ``groomed`` == COMPLETE and not stale."""
+    from core import backlog
+    a = str((item.get("analysis") or {}).get("status") or "NOT_ANALYZED")
+    try:
+        stale = bool(backlog.analysis_is_stale(item))
+    except Exception:
+        stale = False
+    groomed = a == "COMPLETE" and not stale
+    return a, groomed, (not groomed)
+
+
+def _child_row(c: dict[str, Any], *, state: str, wave, order_rank, order_status,
+               reasons: list, normal_status: str) -> dict[str, Any]:
+    an, groomed, needs = _analysis_state(c)
+    return {"id": str(c.get("id")), "title": c.get("title"), "state": state,
+            "status": normal_status, "analysis_status": an, "groomed": groomed,
+            "needs_reanalysis": needs, "ready": bool((c.get("readiness") or {}).get("ready")),
+            "worker_id": str((c.get("execution") or {}).get("worker_id") or ""),
+            "priority": c.get("priority"), "priority_rank": c.get("priority_rank"),
+            "wave": wave, "order_rank": order_rank, "order_status": order_status, "reasons": reasons}
+
+
+def epic_status(scope: str = "product_forge", project: str | None = None,
+                epic: str = "", stage: str | None = None) -> dict[str, Any]:
+    """Full lifecycle status of an epic: ALL children (open + closed) + an epic rollup (read-only).
+
+    Each child carries: ``state`` (open|closed), normalized ``status``, ``groomed`` (analysis COMPLETE and not
+    stale), ``needs_reanalysis``, ``ready``, assigned ``worker_id``, dependency ``wave``, execution
+    ``order_rank`` and ``order_status`` (READY/wait/closed) + eligibility ``reasons``. ``order`` lists the open
+    children in execution order; ``execution_order`` echoes the last saved order on the epic (BI-PF-1222).
+    """
+    from core import backlog
+    op = backlog.list_open(scope, project, order=False)
+    cl = backlog.list_closed(scope, project)
+    by_id = {str(i.get("id")): i for i in op}
+    by_id.update({str(i.get("id")): i for i in cl})
+    children = backlog._children_of(op, cl, str(epic))
+    active = [i for i in op if str((i.get("execution") or {}).get("worker_id") or "")]
+    open_kids = [c for c in children if not _is_closed_item(c)]
+    closed_kids = [c for c in children if _is_closed_item(c)]
+    waves = _waves(open_kids, by_id)
+    ordered = backlog.order_by_priority(open_kids)
+    ordered.sort(key=lambda c: waves.get(str(c.get("id")), 0))  # stable within a wave
+    rank = {str(c.get("id")): i + 1 for i, c in enumerate(ordered)}
+    rows: list[dict[str, Any]] = []
+    for c in ordered:
+        cid = str(c.get("id"))
+        e = eligible(c, by_id=by_id, active=active, stage=stage)
+        rows.append(_child_row(c, state="open", wave=waves.get(cid, 0), order_rank=rank.get(cid),
+                               order_status="READY" if e["ok"] else "wait", reasons=e["reasons"],
+                               normal_status=backlog._normalize_status(str(c.get("status") or ""))))
+    for c in backlog.order_by_priority(closed_kids):
+        rows.append(_child_row(c, state="closed", wave=None, order_rank=None, order_status="closed",
+                               reasons=[], normal_status=backlog._normalize_status(str(c.get("status") or ""))))
+    epic_item = backlog.get_epic(scope, project, str(epic)) if epic else None
+    groomed = sum(1 for r in rows if r["state"] == "open" and r["groomed"])
+    needs = sum(1 for r in rows if r["state"] == "open" and r["needs_reanalysis"])
+    ready = sum(1 for r in rows if r["order_status"] == "READY")
+    open_n = len(open_kids)
     return {"scope": scope, "project": project or "", "epic": str(epic or ""),
             "title": (epic_item or {}).get("title", ""),
-            "counts": {"total": len(rows), "ready": ready, "wait": len(rows) - ready,
-                       "waves": (max(r["wave"] for r in rows) + 1) if rows else 0},
-            "items": rows}
+            "rollup": {"total": len(rows), "open": open_n, "closed": len(closed_kids),
+                       "groomed": groomed, "need_reanalysis": needs, "ready": ready,
+                       "wait": open_n - ready, "done": bool(rows) and open_n == 0},
+            "order": [r["id"] for r in rows if r["state"] == "open"],
+            "execution_order": (epic_item or {}).get("execution_order") or [],
+            "children": rows}
+
+
+def _standalone_row(it: dict[str, Any], *, by_id, active, stage) -> dict[str, Any]:
+    from core import backlog
+    an, groomed, needs = _analysis_state(it)
+    e = eligible(it, by_id=by_id, active=active, stage=stage)
+    return {"id": str(it.get("id")), "title": it.get("title"), "state": "open",
+            "status": backlog._normalize_status(str(it.get("status") or "")),
+            "analysis_status": an, "groomed": groomed, "needs_reanalysis": needs,
+            "ready": bool((it.get("readiness") or {}).get("ready")),
+            "worker_id": str((it.get("execution") or {}).get("worker_id") or ""),
+            "priority": it.get("priority"), "priority_rank": it.get("priority_rank"),
+            "order_status": "READY" if e["ok"] else "wait", "reasons": e["reasons"]}
+
+
+def backlog_status(scope: str = "product_forge", project: str | None = None,
+                   stage: str | None = None) -> dict[str, Any]:
+    """Scope-level status: every epic with a rollup + open standalone items (read-only).
+
+    Rollup keys: items/open/closed, epics/epics_open, children_open/children_closed, groomed,
+    need_reanalysis, ready, wait, standalone_open, standalone_ready.
+    """
+    from core import backlog
+    op = backlog.list_open(scope, project, order=False)
+    cl = backlog.list_closed(scope, project)
+    epics = [it for it in (op + cl) if backlog.is_epic(it)]
+    by_id = {str(i.get("id")): i for i in op}
+    by_id.update({str(i.get("id")): i for i in cl})
+    active = [i for i in op if str((i.get("execution") or {}).get("worker_id") or "")]
+    agg = {"items": len(op) + len(cl), "open": len(op), "closed": len(cl),
+           "epics": len(epics), "epics_open": 0, "children_open": 0, "children_closed": 0,
+           "groomed": 0, "need_reanalysis": 0, "ready": 0, "wait": 0,
+           "standalone_open": 0, "standalone_ready": 0}
+    epic_rows = []
+    for e in backlog.order_by_priority(epics):
+        st = epic_status(scope, project, str(e.get("id")), stage=stage)
+        r = st["rollup"]
+        if r["open"] > 0:
+            agg["epics_open"] += 1
+        for k, src in (("children_open", "open"), ("children_closed", "closed"), ("groomed", "groomed"),
+                       ("need_reanalysis", "need_reanalysis"), ("ready", "ready"), ("wait", "wait")):
+            agg[k] += r[src]
+        epic_rows.append({"id": str(e.get("id")), "title": e.get("title"), "rollup": r})
+    standalone = [it for it in op if not str(it.get("epic") or it.get("parent") or "")]
+    arows = [_standalone_row(it, by_id=by_id, active=active, stage=stage)
+             for it in backlog.order_by_priority(standalone)]
+    agg["standalone_open"] = len(standalone)
+    agg["standalone_ready"] = sum(1 for r in arows if r["order_status"] == "READY")
+    return {"scope": scope, "project": project or "", "rollup": agg,
+            "epics": epic_rows, "standalone": arows}
+
+
+def backlog_status_all(stage: str | None = None) -> dict[str, Any]:
+    """Status across ALL backlogs/scopes (product_forge + every project); read-only (BI-PF-1222)."""
+    from core import backlog
+    scopes = []
+    for sc, pr in backlog._all_scopes():
+        with contextlib.suppress(Exception):
+            st = backlog_status(sc, pr, stage=stage)
+            scopes.append({"scope": sc, "project": pr or "", "rollup": st["rollup"], "epics": st["epics"]})
+    return {"count": len(scopes), "scopes": scopes}
