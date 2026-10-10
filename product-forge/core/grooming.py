@@ -584,7 +584,8 @@ def _apply_proposal(scope: str, project: str | None, item_id: str, it: dict, ctx
 
 
 def groom(scope: str, project: str | None, item_id: str, mode: str = "", *,
-          product: str = "", depth: str = "deep", force: bool = False) -> dict[str, Any]:
+          product: str = "", depth: str = "deep", force: bool = False,
+          approve: bool = False) -> dict[str, Any]:
     """Groom one item (deep by default). ``mode`` = ai (default) | deterministic.
 
     Deep analysis (existing components/APIs/modules, duplication/drift, strategy) is grounded in the real
@@ -615,6 +616,11 @@ def groom(scope: str, project: str | None, item_id: str, mode: str = "", *,
     res = _apply_proposal(scope, project, item_id, it, ctx, proposal, used, d, force=force)
     if m == "ai" and used != "ai":
         res["ai_failed"] = True   # asked for AI, fell back -> surface it (BI-PF-1196), never silent
+    cur = str(((backlog.get_epic(scope, project, item_id) or {}).get("analysis") or {}).get("status") or "")
+    res["needs_approval"] = bool(res.get("applied")) and cur == "IN_PROGRESS"
+    if approve and res.get("applied"):
+        with contextlib.suppress(Exception):
+            res["approval"] = decide(scope, project, item_id, "APPROVE", by="cli")
     return res
 
 
@@ -664,8 +670,11 @@ def refresh_stale(scope: str, project: str | None = None, *, limit: int = 10,
 
 def groom_all(scope: str, project: str | None, mode: str = "", *, batch: int = 0, limit: int = 0,
               force: bool = False, dry: bool = False, depth: str = "deep",
-              jobs: int = 0, ids: list[str] | None = None) -> dict[str, Any]:
+              jobs: int = 0, ids: list[str] | None = None, approve: bool = False) -> dict[str, Any]:
     """Groom every open backlog item (incl. EPICs) in batched, concurrent AI passes (BI-PF-1194/1197).
+
+    ``approve=True`` chains the decision: after grooming, approve the CLEAN proposals (via ``decide_all``) so
+    groomed items become ``COMPLETE``/eligible in one call; flagged ones are returned for manual handling.
 
     AI is the default; up to ``batch`` items share one LLM call (returning the analysis + advisory
     context_review per item) and up to ``jobs`` batches run concurrently (bounded threads; the LLM client
@@ -742,8 +751,19 @@ def groom_all(scope: str, project: str | None, mode: str = "", *, batch: int = 0
         for chunk in chunks:
             ctxs, props = _run_chunk(chunk)
             _apply_chunk(ctxs, props)
-    return {"mode": m, "batch": n, "jobs": workers, "count": len(groomed),
-            "groomed": groomed, "results": results}
+    result: dict[str, Any] = {"mode": m, "batch": n, "jobs": workers, "count": len(groomed),
+                              "groomed": groomed, "results": results}
+    applied_ids = [str(r.get("item_id")) for r in results if r.get("applied")]
+    if approve and applied_ids:
+        with contextlib.suppress(Exception):
+            result["approval"] = decide_all(scope, project, "APPROVE", ids=applied_ids, by="cli")
+    ap = result.get("approval") or {}
+    pending = 0 if approve else sum(
+        1 for iid in applied_ids
+        if str(((backlog.get_epic(scope, project, iid) or {}).get("analysis") or {}).get("status")) == "IN_PROGRESS")
+    result["summary"] = {"groomed": len(groomed), "approved": int(ap.get("count") or 0),
+                         "flagged": len(ap.get("flagged") or []), "pending_approval": pending}
+    return result
 
 
 def review(scope: str, project: str | None) -> dict[str, Any]:
