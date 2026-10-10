@@ -74,11 +74,12 @@ def test_gap_fill_vs_force_overwrite():
 def test_explicit_deps_mapped_to_structured():
     _clean()
     try:
-        iid = _mk(deps=["BI-PF-0001"])
+        dep = _mk(title="dependency item")
+        iid = _mk(deps=[dep])
         _reset(iid)
-        backlog.update("project", _PROJ, iid, deps=["BI-PF-0001"], dependencies=[])  # keep explicit dep
+        backlog.update("project", _PROJ, iid, deps=[dep], dependencies=[])  # keep explicit dep
         grooming.groom("project", _PROJ, iid, mode="deterministic")
         deps = _get(iid).get("dependencies") or []
-        assert any(str(d.get("task_id")) == "BI-PF-0001" for d in deps if isinstance(d, dict))
+        assert any(str(d.get("task_id")) == dep for d in deps if isinstance(d, dict))
     finally:
         _clean()
