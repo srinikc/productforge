@@ -274,13 +274,13 @@ capability packs + derived security profile (C13). So: default pipeline by const
 | PR / CI evidence | `pr-records.json`, `validation-runs.json`, `release-evidence.jsonl` | `core/github.py`, `core/validation_engine.py`, `core/release.py` |
 | gates (this page) | this doc + `scripts/dev/precheck.py` | `precheck.py`, `pr_gate.py` |
 
-**Gap (proposed):** there is no single read API that projects CI/CD + gates for the orchestrator/UI.
-Proposed (needs approval — **new concern → register a single writer**):
-- `GET /api/v1/engineering/ci-cd` — the model (tiers × gates × triggers × owners, from the configs above).
-- `GET /api/v1/engineering/gates` — gate catalog + last run verdict/evidence.
-- `GET /api/v1/engineering/ci-cd/{scope}` — per-scope (`product_forge` | `project:<id>`) effective pipeline.
-Owner: a new `core/ci_cd_model.py` (reads existing owners; **never** a second truth) + `api/routers/engineering.py`.
-Tracked by a backlog item (see §6).
+**Read API (shipped — BI-PF-1239):** one read-only projection over the owners above:
+- `GET /api/v1/engineering/ci-cd` — the model (tiers × gates × owners + counts).
+- `GET /api/v1/engineering/ci-cd/{scope}` — effective pipeline for `product_forge` or `project` (`?project=<id>`).
+- `GET /api/v1/engineering/gates` — gate catalog + last run verdict/evidence (from `validation-runs.json`).
+Owner: `core/ci_cd_model.py` (reads existing owners; **never** a second truth) + `api/routers/engineering.py`.
+The mechanical-gate catalog is a DERIVED registry `config/ci-cd-gates.json`, kept in lock-step with
+`scripts/dev/precheck.py::_GATES` by the fatal guard `scripts/dev/ci_cd_gates_check.py` (wired into precheck).
 
 ---
 
@@ -292,6 +292,6 @@ Tracked by a backlog item (see §6).
   (see `docs/ADDING-TO-PRODUCT-FORGE.md`).
 
 ## 6. Backlog
-- **CI/CD model + read API for orchestrator/UI** (Part D) — to be recorded as a backlog item
-  (owner: new `core/ci_cd_model.py`; API on `api/routers/engineering.py`).
+- **BI-PF-1239** — CI/CD model + read API (shipped; Part D). Epic **BI-PF-1243** (CI/CD & Gates; children 1238, 1239).
+- **BI-PF-1238** — this SSOT doc.
 - **CI health** epic BI-PF-1228 (deps/id-authority/cross-platform/generated-artifacts) — landed.

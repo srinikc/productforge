@@ -1,0 +1,155 @@
+{
+  "id": "BI-PF-1244",
+  "tag": "PF",
+  "type": "bug",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "single-path-root-path",
+  "label": "PF Backlog 561",
+  "title": "Defect/RCCA: scripts/dev/single_path_check.py crashes when core.paths.ROOT is a Path (TypeError on _ROOT.replace)",
+  "body": "## Problem / why\n`scripts/dev/single_path_check.py:45` calls `_ROOT.replace(\"\\\\\",\"/\")`; `core.paths.ROOT` is now a `Path`,\nso `Path.replace()` has a different signature -> `TypeError: Path.replace() takes 2 positional arguments but\n3 were given`. The gate crashes (exit 1) whenever it runs.\n\n## 5-Why\n1. The gate crashed on `_ROOT.replace(...)`.\n2. `_ROOT` is a `Path`, not `str`.\n3. The script assumed a str root and never normalized.\n4. `core.paths.ROOT` changed to `Path`; the script was not updated.\n5. The gate only runs when `enhance`/`worker` files changed, so the break was latent.\nROOT CAUSE: type drift (ROOT str -> Path) without normalizing consumers.\n\n## Corrective\n`_ROOT = str(_ROOT)` right after import (one line).\n\n## Guard\nThe gate now runs and passes; it is part of `precheck` (area enhance/worker). Follow-up: audit other\n`ROOT.replace(...)`-style consumers for the same Path/str drift.\n\n## Acceptance\n`python scripts/dev/single_path_check.py` exits 0.",
+  "source": "precheck (single-path gate)",
+  "status": "new",
+  "priority": "P2",
+  "moscow": "Should",
+  "value": 3,
+  "effort": 1,
+  "risk": 1,
+  "deps": [],
+  "links": {},
+  "decisions": [],
+  "follow_up": {},
+  "brief": {
+    "problem": "`scripts/dev/single_path_check.py:45` calls `_ROOT.replace(\"\\\\\",\"/\")`; `core.paths.ROOT` is now a `Path`,\nso `Path.replace()` has a different signature -> `TypeError: Path.replace() takes 2 positional arguments but\n3 were given`. The gate crashes (exit 1) whenever it runs.",
+    "what_adds": "Defect/RCCA: scripts/dev/single_path_check.py crashes when core.paths.ROOT is a Path (TypeError on _ROOT.replace)",
+    "why": "`scripts/dev/single_path_check.py:45` calls `_ROOT.replace(\"\\\\\",\"/\")`; `core.paths.ROOT` is now a `Path`,\nso `Path.replace()` has a different signature -> `TypeError: Path.replace() takes 2 positional arguments but\n3 were given`. The gate crashes (exit 1) whenever it runs.",
+    "who_feels": "Product Forge maintainers and consumers.",
+    "source": "authored"
+  },
+  "objective": "Defect/RCCA: scripts/dev/single_path_check.py crashes when core.paths.ROOT is a Path (TypeError on _ROOT.replace)",
+  "acceptance_criteria": [
+    "Objective achieved: Defect/RCCA: scripts/dev/single_path_check.py crashes when core.paths.ROOT is a Path (TypeError on _ROOT.replace)"
+  ],
+  "in_scope": [
+    "Defect/RCCA: scripts/dev/single_path_check.py crashes when core.paths.ROOT is a Path (TypeError on _ROOT.replace)"
+  ],
+  "out_of_scope": [
+    "Not specified."
+  ],
+  "affected_components": [
+    "scripts"
+  ],
+  "affected_files": [
+    "scripts/dev/single_path_check.py"
+  ],
+  "approach": "Defect/RCCA: scripts/dev/single_path_check.py crashes when core.paths.ROOT is a Path (TypeError on _ROOT.replace)",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Objective achieved: Defect/RCCA: scripts/dev/single_path_check.py crashes when core.paths.ROOT is a Path (TypeError on _ROOT.replace)"
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "agent",
+  "requester": "precheck (single-path gate)",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "",
+  "parent": "",
+  "revision": 2,
+  "priority_rank": 2,
+  "priority_class": "P2",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "IN_PROGRESS",
+    "analyzed_at": "",
+    "analyzed_by": "deterministic",
+    "revision_analyzed": 0,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/defect_loop.py, core/paths.py, core/stage_paths.py, /api/v1/issues/{iid}/rcca",
+    "existing_components": [
+      "core/defect_loop.py",
+      "core/paths.py",
+      "core/stage_paths.py"
+    ],
+    "existing_apis": [
+      "/api/v1/issues/{iid}/rcca",
+      "/api/v1/reservations/shared-paths"
+    ],
+    "existing_modules": [
+      "config/artifact-paths.json",
+      "config/shared-paths.json"
+    ],
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=3.0",
+      "components=3",
+      "apis=2"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": false,
+    "reasons": [],
+    "computed_at": ""
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-10T17:37:44.744566",
+  "updated_at": "2026-10-10T17:37:46.336333",
+  "score": 3.0,
+  "_note": "review decisions recorded",
+  "api_impact": {
+    "needs_api": false,
+    "reason": "gate script fix; no API"
+  },
+  "dashboard_impact": {
+    "needs_dashboard": false,
+    "reason": "gate script fix; no dashboard surface"
+  }
+}

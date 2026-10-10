@@ -97,6 +97,7 @@ def _changed_paths():
 _GATES = [
     ("compile", ["-m", "compileall", "-q", "core", "scripts", "dashboard", "api"], "fast", None),
     ("pycompat", ["scripts/dev/pycompat_check.py"], "fast", None),
+    ("ci-cd-gates", ["scripts/dev/ci_cd_gates_check.py"], "fast", None),
     ("wired-audit", ["scripts/dev/wired_audit.py"], "fast", None),
     ("store-contract", ["scripts/dev/store_check.py"], "fast", None),
     ("lint", ["scripts/dev/lint_check.py"], "fast", None),
