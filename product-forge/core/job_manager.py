@@ -337,30 +337,51 @@ def release(scope: str, project: str | None, item_id: str, reason: str = "releas
     return {"released": True, "item": item_id, "reason": reason, "terminal": terminal}
 
 
+def _elapsed_seconds(it: dict) -> int:
+    """Wall-clock seconds from execution.started_at to now (0 if unknown/invalid). BI-PF-123x."""
+    ex = it.get("execution") or {}
+    s = str(ex.get("started_at") or "")
+    if not s:
+        return 0
+    try:
+        return max(0, int((datetime.now() - datetime.fromisoformat(s)).total_seconds()))
+    except Exception:
+        return 0
+
+
 def complete(scope: str, project: str | None, item_id: str, *, status: str = "verifying",
              note: str = "") -> dict:
     """Worker reports an assignment DONE: set the execution status and clear the lease (BI-PF-0419).
 
+    Records the run duration on ``execution.duration_seconds`` (BI-PF-123x) for time tracking.
     Delivery (gates/PR/merge) is orchestrated separately (BI-PF-0421); this only closes the execution lease.
     """
     from core import backlog
-    if not backlog.get_epic(scope, project, item_id):
+    it = backlog.get_epic(scope, project, item_id)
+    if not it:
         return {"ok": False, "reason": "item not found"}
+    dur = _elapsed_seconds(it)
+    attempt = int((it.get("execution") or {}).get("attempt") or 0) + 1
     backlog.set_status(scope, project, item_id, status, note=note or "assignment complete")
     backlog.set_execution(scope, project, item_id, worker_id="", assignment_id="", lease_id="",
-                          lease_expires_at="", completed_at=datetime.now().isoformat())
-    return {"ok": True, "item": item_id, "status": status}
+                          lease_expires_at="", completed_at=datetime.now().isoformat(),
+                          duration_seconds=dur, attempt=attempt)
+    return {"ok": True, "item": item_id, "status": status, "duration_seconds": dur}
 
 
 def fail(scope: str, project: str | None, item_id: str, reason: str = "") -> dict:
     """Worker reports an assignment FAILED: mark blocked and clear the lease (BI-PF-0419)."""
     from core import backlog
-    if not backlog.get_epic(scope, project, item_id):
+    it = backlog.get_epic(scope, project, item_id)
+    if not it:
         return {"ok": False, "reason": "item not found"}
+    dur = _elapsed_seconds(it)
+    attempt = int((it.get("execution") or {}).get("attempt") or 0) + 1
     backlog.set_status(scope, project, item_id, "blocked", note=reason or "assignment failed")
     backlog.set_execution(scope, project, item_id, worker_id="", assignment_id="", lease_id="",
-                          lease_expires_at="", completed_at=datetime.now().isoformat())
-    return {"ok": True, "item": item_id, "status": "blocked"}
+                          lease_expires_at="", completed_at=datetime.now().isoformat(),
+                          duration_seconds=dur, attempt=attempt)
+    return {"ok": True, "item": item_id, "status": "blocked", "duration_seconds": dur}
 
 
 def recover_expired(scope: str = "product_forge", project: str | None = None,

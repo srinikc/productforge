@@ -151,3 +151,21 @@ def test_worker_path_is_product_forge_only(monkeypatch):
     assert r1.status_code in (400, 422), r1.text
     r2 = client.get(f"/api/v1/engineering/schedule/next?stage=execute&scope=project&project={_PROJ}")
     assert r2.status_code in (400, 422), r2.text
+
+
+def test_complete_records_duration_for_time_tracking():
+    """BI-PF-1237: complete() records execution.duration_seconds + attempt; backlog_status rolls up time."""
+    _clean()
+    try:
+        (iid,) = _seed(1)
+        assert job_manager.claim_next("project", _PROJ, worker="w1")["claimed"] is True
+        res = job_manager.complete("project", _PROJ, iid)
+        assert res["ok"] and "duration_seconds" in res
+        ex = backlog.get("project", _PROJ, iid)["execution"]
+        assert "duration_seconds" in ex and int(ex["duration_seconds"]) >= 0
+        assert int(ex.get("attempt") or 0) == 1
+        from core import scheduler
+        st = scheduler.backlog_status("project", _PROJ)
+        assert "time" in st["rollup"] and "total_seconds" in st["rollup"]["time"]
+    finally:
+        _clean()

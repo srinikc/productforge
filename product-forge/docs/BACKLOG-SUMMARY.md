@@ -1,21 +1,22 @@
 # Backlog Summary
 
-> GENERATED 2026-10-10T14:42:40 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-10T14:44:33 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 57  |  **Closed:** 464
-- `new`: 57
+- **Open:** 61  |  **Closed:** 464
+- `new`: 61
 
-### new, by category (57)
-**API / reports / HIL / misc** (4)
+### new, by category (61)
+**API / reports / HIL / misc** (5)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-PF-0332 | Should | chore | API-5 deferred hardening: rate limiting + request/upload limits + tenant-isolation expansion + event streaming | API-5 deferred hardening: rate limiting + request/upload limits + tenant-isolation expansion + event streaming |
 | BI-PF-1217 | Should | feature | C15: Security evaluation + red-team suite + security metrics (assurance) | C15: Security evaluation + red-team suite + security metrics (assurance) |
 | BI-PF-1230 | Should | bug | CI2: PF_ID_ALLOC=strict default breaks CI (shared git-CAS authority unavailable in CI) | CI2: PF_ID_ALLOC=strict default breaks CI (shared git-CAS authority unavailable in CI) |
 | BI-PF-1232 | Should | bug | CI4: regenerate committed derived artifacts (api/openapi.json + docs README/BACKLOG-SUMMARY/documentation-index) | CI4: regenerate committed derived artifacts (api/openapi.json + docs README/BACKLOG-SUMMARY/documentation-inde... |
+| BI-PF-1239 | Should | feature | CI/CD model + read API for orchestrator/UI (single projection of gates/tiers/triggers) | One read-only projection so the dashboard/orchestrator can render CI/CD + gate status. - `core/ci_cd_model.py`... |
 
 **Bug fixes** (4)
 | ID | MoSCoW | Type | Title | Objective |
@@ -25,13 +26,14 @@
 | BI-PF-1231 | Should | bug | CI3: core/write_safety.py file_lock uses Windows-only msvcrt -> POSIX fcntl (Linux CI NameError) | CI3: core/write_safety.py file_lock uses Windows-only msvcrt -> POSIX fcntl (Linux CI NameError) |
 | BI-PF-1233 | Should | bug | CI5: triage residual CI pipeline-test failures (pfssot fields IndexError, delivery integrate conflict, grooming completeness) | CI5: triage residual CI pipeline-test failures (pfssot fields IndexError, delivery integrate conflict, groomin... |
 
-**Discovery / HIL / prompts** (4)
+**Discovery / HIL / prompts** (5)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0218 | Should | feature | Backend: AI-era operations layer (evals + prompt/model/agent versioning + feedback loop + model-quality observability) | Add the AI-era lifecycle layer so the Product tab can show AI quality + the loop that keeps it good. |
 | BI-PF-1208 | Should | feature | C6: Tool/Action Security Gateway + Tool-Result Guardrail (policy+risk+approval+sandbox per action; injection-scan results) | C6: Tool/Action Security Gateway + Tool-Result Guardrail (policy+risk+approval+sandbox per action; injection-s... |
 | BI-PF-1214 | Should | feature | C12: Multi-agent delegation control (capability/delegated/resource/time/action/approval scope) | C12: Multi-agent delegation control (capability/delegated/resource/time/action/approval scope) |
 | BI-PF-1216 | Should | feature | C14: Security gates S0-S6 across the factory pipeline (intake->planning->impl->test->release->runtime->improve) | C14: Security gates S0-S6 across the factory pipeline (intake->planning->impl->test->release->runtime->improve... |
+| BI-PF-1236 | Should | change | Worker ops: worker charter (binding guidelines) + runtime prompt fix (no agent merge) + model pin | - workergrid/instructions.md: full worker charter (14 binding guidelines; manual-by-default, auto mode). - wor... |
 
 **Knowledge / KB** (1)
 | ID | MoSCoW | Type | Title | Objective |
@@ -44,14 +46,15 @@
 | BI-PF-0390 | Should | epic | EPIC A: PF Commercial & IP Foundation (contracts, Go core, licensing, packaging, EAP, RDC, governance, vertical slice) | EPIC A — the needed-now foundation: A0 baseline freeze + ADR register; A1 thin contracts incl. Go<->Python con... |
 | BI-PF-0396 | Should | feature | A2: capability registry + entitlement-at-boundary + asymmetric licensing | A2 — capability registry + entitlement checks at execution boundaries + asymmetric licensing (public-key verif... |
 
-**Specs / cache / context / artifacts** (3)
+**Specs / cache / context / artifacts** (4)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0206 | Should | tech-debt | Backend: model downloader + local cache + license-acceptance gate + models.lock (open-weights) | One owner module that downloads only the weights a project's capability pack needs, into a gitignored local ca... |
 | BI-0225 | Should | feature | Parallel section/feature generation | Run section/per-feature agent calls in parallel with a bounded worker pool and merge results deterministically... |
 | BI-PF-1212 | Should | feature | C10: Security-event audit/evidence (evidence-grade) + durable SecurityContext propagation | C10: Security-event audit/evidence (evidence-grade) + durable SecurityContext propagation |
+| BI-PF-1238 | Should | change | Docs: CI/CD & Gates SSOT (PF + generated products) - triggers, tiers, gates, delivery, text+Mermaid diagrams | One SSOT for how PF builds/verifies/ships and for generated products: trigger map, author-time hooks, precheck... |
 
-**Wiring / tech-debt / API** (39)
+**Wiring / tech-debt / API** (40)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0185 | Should | feature | EPIC: Multi-modal / media orchestration (pluggable capability packs) | Make the pipeline modality-agnostic via PLUGGABLE capability packs, enabled per project when the idea needs th... |
@@ -93,6 +96,7 @@
 | BI-PF-1221 | Should | feature | C19: Security implementation agent (review from guidelines SSOT + IMPLEMENT controls per iteration) + S3 gate | Security becomes an IMPLEMENTER, per iteration, not a post-hoc reviewer. Each implementation iteration reviews... |
 | BI-PF-1223 | Should | change | Process: exclude the legacy Dashboard scope from PF review checks + suspend backend<->dashboard reciprocity (retain, retire later) | Dashboard (design + instance) declared LEGACY: excluded from PF review/advisory checks, RETAINED in the backlo... |
 | BI-PF-1228 | Should | epic | EPIC: Make CI green - pre-existing build-breakage cleanup (deps, id-authority, cross-platform, generated artifacts, tests) | A green, trustworthy `structure` CI check so PRs merge normally (no override), and "green locally" == "green i... |
+| BI-PF-1237 | Should | feature | Per-item time tracking: execution.duration_seconds + attempt + time rollup | - job_manager.complete()/fail(): record execution.duration_seconds (wall-clock from started_at) + increment at... |
 
 ---
 
@@ -292,5 +296,5 @@
 ---
 
 ## Totals
-- backend: 57 open / 464 closed
+- backend: 61 open / 464 closed
 - dashboard: 146 open / 3 closed
