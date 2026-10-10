@@ -36,7 +36,7 @@ ROOT = str(_PF_ROOT)
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
-VERBS = ("product", "backlog", "dogfood", "validate", "release", "package", "audit", "status", "pidl", "sync")
+VERBS = ("product", "backlog", "dogfood", "validate", "release", "package", "audit", "status", "pidl", "go", "sync")
 
 
 def _flags(argv):
@@ -271,6 +271,27 @@ def cmd_status(pos, flags):
     return {"production_ready": audit.summary().get("production_ready")}
 
 
+def cmd_go(pos, flags):
+    """Native Go core (B1, BI-PF-0394): operator probe/invocation through the A1 wire contract."""
+    import json as _json
+    from core import go_host
+    sub = pos[0] if pos else "status"
+    if sub == "status":
+        return go_host.status()
+    if sub == "ping":
+        return go_host.invoke("ping")
+    if sub in ("validate", "describe") and len(pos) > 1:
+        payload = {}
+        raw = str(flags.get("payload") or "")
+        if raw:
+            try:
+                payload = _json.loads(raw)
+            except Exception as e:
+                return {"error": f"--payload is not valid JSON: {e}"}
+        return go_host.invoke(sub, contract_name=pos[1], payload=payload)
+    return {"error": "usage: pf go status|ping|validate <contract> [--payload JSON]|describe <contract>"}
+
+
 def cmd_sync(pos, flags):
     """Git sync (Stage 2a): fetch the remote and push the integration branch."""
     from core.vcs import VCSManager
@@ -414,6 +435,7 @@ def main(argv=None) -> int:
     as_json = "json" in flags or True  # structured by default
     fn = {"backlog": cmd_backlog, "dogfood": cmd_dogfood, "validate": cmd_validate,
           "release": cmd_release, "package": cmd_package, "audit": cmd_audit,
+          "go": cmd_go,
           "status": cmd_status, "pidl": cmd_pidl, "sync": cmd_sync}[verb]
     try:
         res = fn(pos, flags)

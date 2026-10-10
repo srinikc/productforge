@@ -113,20 +113,37 @@ def _product_kind(project_dir: str) -> str:
         return "default"
 
 
-def _last_cycle(project: str) -> Dict:
-    d = os.path.join(_TF, "results", "test-cycles")
-    best = None
-    if os.path.isdir(d):
-        for n in os.listdir(d):
-            if n.startswith(project + "_") and n.endswith(".json"):
-                c = _rj(os.path.join(d, n))
-                if c and (best is None or c.get("started_at", "") > best.get("started_at", "")):
-                    best = c
-    return best or {}
+def _last_cycle(project: str, project_dir: str = "") -> Dict:
+    bases = [project_dir, _REPO] if project_dir else [_REPO]
+    for base in bases:
+        d = os.path.join(base, "test-framework", "results", "test-cycles")
+        best = None
+        if os.path.isdir(d):
+            for n in os.listdir(d):
+                if n.startswith((project or "") + "_") and n.endswith(".json"):
+                    c = _rj(os.path.join(d, n))
+                    if c and (best is None or c.get("started_at", "") > best.get("started_at", "")):
+                        best = c
+            if best is not None:
+                return best
+    return {}
 
 
-def _audit_has(project: str, agent: str) -> bool:
-    p = os.path.join(_REPO, "products", project, "audit-trail.json")
+def _audit_file(project: str, project_dir: str = "") -> str:
+    """Audit-trail location, resolved against the VALIDATED tree (project_dir) first so a PR
+    validation reads the run-bound records at the validated SHA (IS-PF-0037/BI-PF-1246);
+    falls back to the module-global repo (operator store) when the validated tree lacks it."""
+    for base in (project_dir, _REPO):
+        if not base:
+            continue
+        p = os.path.join(base, "products", project or "", "audit-trail.json")
+        if os.path.isfile(p):
+            return p
+    return os.path.join(_REPO, "products", project or "", "audit-trail.json")
+
+
+def _audit_has(project: str, agent: str, project_dir: str = "") -> bool:
+    p = _audit_file(project, project_dir)
     data = _rj(p)
     if not isinstance(data, list):
         return False
@@ -136,20 +153,24 @@ def _audit_has(project: str, agent: str) -> bool:
 def evaluate(project: str, project_dir: str) -> Dict[str, Any]:
     """Return per-item status: pass | fail | unknown | skip (+ detail)."""
     kind = _product_kind(project_dir)
-    cycle = _last_cycle(project)
+    tf = project_dir or _REPO
+    cycle = _last_cycle(project, project_dir)
+    spec_dir = tf
     runs = cycle.get("test_runs", []) or []
     frameworks = " ".join(str(r.get("framework", "")) for r in runs).lower()
     any_failed = any(str(r.get("status")) == "failed" for r in runs)
     cyc_passed = str(cycle.get("status")) == "passed"
 
-    spec = _rj(os.path.join(_TF, "results", project, "spec-review.json")) or {}
+    spec = _rj(os.path.join(spec_dir, "test-framework", "results", project, "spec-review.json")) or {}
+    if not spec and project_dir:
+        spec = _rj(os.path.join(_TF, "results", project, "spec-review.json")) or {}
     blocking = (spec.get("summary") or {}).get("blocking_open", 0)
 
     items: Dict[str, Dict[str, str]] = {}
 
-    # code_review: reviewer agent completed
+    # code_review: reviewer agent completed (validated tree first, operator store fallback)
     items["code_review"] = ({"status": "pass", "detail": "code-review completed"}
-                            if _audit_has(project, "code-review")
+                            if _audit_has(project, "code-review", project_dir)
                             else {"status": "unknown", "detail": "no code-review record"})
 
     # review_changes_done: no blocking review findings

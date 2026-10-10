@@ -407,6 +407,13 @@ def feature_pr(project: str, project_dir: str, target: str = "", base: str = "",
         wt = v.add_worktree(f"validate-{rid}", branch=f"validation/{rid}", base=resolved["sha"])
         if wt.get("ok"):
             val_dir = wt["path"]
+    # IS-PF-0037 (framework PR): the validation worktree is cut at REPO level, but the PF code
+    # root (the app whose entrypoint/build/lint signals the gates read) is the `product-forge/`
+    # subtree. Run per-product checkers against the PR's code root inside the validated tree
+    # (repo-level audits like wired_audit still resolve their own repo paths).
+    if os.path.isdir(os.path.join(val_dir, "product-forge")) \
+            and os.path.isfile(os.path.join(val_dir, "product-forge", "core", "paths.py")):
+        val_dir = os.path.join(val_dir, "product-forge")
 
     checks: dict[str, Any] = {}
     for name in [c for c in profile("FEATURE_PR")["checks"] if c != "target"] + ["close_loop"]:
