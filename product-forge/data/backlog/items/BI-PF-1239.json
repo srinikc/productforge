@@ -1,0 +1,188 @@
+{
+  "id": "BI-PF-1239",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "ci-cd-model-api",
+  "label": "PF Backlog 557",
+  "title": "CI/CD model + read API for orchestrator/UI (single projection of gates/tiers/triggers)",
+  "body": "## Problem / why\nCI/CD + gates detail lives in several owners (engineering-flow.json, validation-profiles.json, test-matrix.json,\npipeline-definition.json, precheck.py, pr_gate.py) with no single read API for the orchestrator/UI.\n\n## Goal & value\nOne read-only projection so the dashboard/orchestrator can render CI/CD + gate status.\n- `core/ci_cd_model.py` (new): reads existing owners; NEVER a second truth (no duplicated status).\n- `api/routers/engineering.py`: `GET /api/v1/engineering/ci-cd`, `/ci-cd/{scope}` (product_forge|project:<id>),\n  `/gates` (catalog + last run verdict/evidence).\n\n## Acceptance\n- Endpoints return the model (tiers x gates x triggers x owners) + per-scope effective pipeline.\n- Reads only; no writes; registered in store-registry if it persists anything; wired + tested.",
+  "source": "user request",
+  "status": "new",
+  "priority": "P2",
+  "moscow": "Should",
+  "value": 4,
+  "effort": 3,
+  "risk": 2,
+  "deps": [],
+  "links": {
+    "source_ref": "docs/CI-CD-AND-GATES-SSOT.md"
+  },
+  "decisions": [],
+  "follow_up": {},
+  "brief": {
+    "problem": "CI/CD + gates detail lives in several owners (engineering-flow.json, validation-profiles.json, test-matrix.json,\npipeline-definition.json, precheck.py, pr_gate.py) with no single read API for the orchestrator/UI.",
+    "what_adds": "One read-only projection so the dashboard/orchestrator can render CI/CD + gate status.\n- `core/ci_cd_model.py` (new): reads existing owners; NEVER a second truth (no duplicated status).\n- `api/routers/engineering.py`: `GET /api/v1/engineering/ci-cd`, `/ci-cd/{scope}` (product_forge|project:<id>),\n  `/gates` (catalog + last run verdict/evidence).",
+    "why": "CI/CD + gates detail lives in several owners (engineering-flow.json, validation-profiles.json, test-matrix.json,\npipeline-definition.json, precheck.py, pr_gate.py) with no single read API for the orchestrator/UI.",
+    "who_feels": "Product Forge maintainers and consumers.",
+    "source": "authored"
+  },
+  "objective": "One read-only projection so the dashboard/orchestrator can render CI/CD + gate status.\n- `core/ci_cd_model.py` (new): reads existing owners; NEVER a second truth (no duplicated status).\n- `api/routers/engineering.py`: `GET /api/v1/engineering/ci-cd`, `/ci-cd/{scope}` (product_forge|project:<id>),\n  `/gates` (catalog + last run verdict/evidence).",
+  "acceptance_criteria": [
+    "Endpoints return the model (tiers x gates x triggers x owners) + per-scope effective pipeline.",
+    "Reads only; no writes; registered in store-registry if it persists anything; wired + tested."
+  ],
+  "in_scope": [
+    "CI/CD model + read API for orchestrator/UI (single projection of gates/tiers/triggers)"
+  ],
+  "out_of_scope": [
+    "Not specified."
+  ],
+  "affected_components": [
+    "api",
+    "core"
+  ],
+  "affected_files": [
+    "api/routers/engineering.py",
+    "core/ci_cd_model.py",
+    "engineering-flow.json",
+    "pipeline-definition.json",
+    "pr_gate.py",
+    "precheck.py",
+    "test-matrix.json",
+    "validation-profiles.json"
+  ],
+  "approach": "CI/CD model + read API for orchestrator/UI (single projection of gates/tiers/triggers)",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Endpoints return the model (tiers x gates x triggers x owners) + per-scope effective pipeline.",
+    "Reads only; no writes; registered in store-registry if it persists anything; wired + tested."
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "agent",
+  "requester": "user",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "",
+  "parent": "",
+  "revision": 2,
+  "priority_rank": 2,
+  "priority_class": "P2",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "IN_PROGRESS",
+    "analyzed_at": "",
+    "analyzed_by": "deterministic",
+    "revision_analyzed": 0,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/agent_model_override.py, core/agent_readiness.py, core/business_models_kb.py, core/conversation_models.py",
+    "existing_components": [
+      "core/agent_model_override.py",
+      "core/agent_readiness.py",
+      "core/business_models_kb.py",
+      "core/conversation_models.py",
+      "core/cost_model.py",
+      "core/cost_modeling.py",
+      "core/global_orchestrator.py",
+      "core/model_catalog.py"
+    ],
+    "existing_apis": [
+      "/api/v1/audit/readiness",
+      "/api/v1/enterprise/tiers",
+      "/api/v1/gates/go-no-go",
+      "/api/v1/gates/pr",
+      "/api/v1/gates/pr/merge",
+      "/api/v1/gates/quality",
+      "/api/v1/ready",
+      "/api/v1/release/readiness"
+    ],
+    "existing_modules": [
+      "config/business-models-kb.json",
+      "config/hardware-tiers.json",
+      "config/licensing-tiers.json",
+      "config/model-catalog.json",
+      "config/model-policy.json",
+      "config/model-tier.json"
+    ],
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=1.0",
+      "components=8",
+      "apis=8"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": false,
+    "reasons": [],
+    "computed_at": ""
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": ""
+  },
+  "created_at": "2026-10-10T14:42:49.925435",
+  "updated_at": "2026-10-10T14:42:51.350718",
+  "score": 1.0,
+  "_note": "review decisions recorded",
+  "api_impact": {
+    "needs_api": true,
+    "routes": [
+      "GET /api/v1/engineering/ci-cd",
+      "GET /api/v1/engineering/ci-cd/{scope}",
+      "GET /api/v1/engineering/gates"
+    ],
+    "consumers": [
+      "pipeline-orchestrator-ui",
+      "generated-product-runtime"
+    ],
+    "reason": "CI/CD + gates must be projected for the orchestrator/UI (API-first)."
+  },
+  "dashboard_impact": {
+    "needs_dashboard": true,
+    "reason": "operator visibility of CI/CD + gates in the UI."
+  }
+}
