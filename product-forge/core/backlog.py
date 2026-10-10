@@ -530,6 +530,83 @@ def is_epic(item: dict | None) -> bool:
     return str((item or {}).get("type") or "") == "epic"
 
 
+# ── BI-PF-1250: every item belongs to an epic; Unscoped is the last-resort holding epic ──
+
+UNSCOPED_TITLE = "Unscoped"
+
+
+def is_holding_epic(item: dict | None) -> bool:
+    """A holding epic (e.g. 'Unscoped') is a temporary container, not a real epic."""
+    return bool((item or {}).get("holding")) and is_epic(item)
+
+
+def _epics(scope: str, project: str | None, include_holding: bool = False) -> list:
+    return [e for e in list_items(scope, project)
+            if is_epic(e) and (include_holding or not e.get("holding"))]
+
+
+def ensure_unscoped_epic(scope: str, project: str | None) -> str:
+    """Get-or-create the holding 'Unscoped' epic (automated creators use it when nothing fits)."""
+    scope = _norm_scope(scope)
+    for e in list_items(scope, project):
+        if is_epic(e) and str(e.get("title") or "").strip() == UNSCOPED_TITLE:
+            return str(e.get("id"))
+    e = add_epic(scope, project, UNSCOPED_TITLE, type_="epic", origin="system",
+                 external_id="unscoped-epic", tag=tag_for(scope, project, "system", "epic"),
+                 brief={"problem": "Holding epic for items that do not yet fit a real epic.",
+                        "what_adds": "Temporary container; children are re-homed during grooming.",
+                        "why": "Keeps every item under an epic without inventing one prematurely.",
+                        "who_feels": "Backlog maintainers.", "source": "authored"})
+    update(scope, project, str(e.get("id")), holding=True, _note="holding epic")
+    return str(e.get("id"))
+
+
+def suggest_epic(scope: str, project: str | None, text: str, threshold: float = 0.18) -> str:
+    """Best-matching NON-holding epic for ``text`` (token overlap); '' when nothing fits well."""
+    toks = _tokens(text or "")
+    best, best_s = "", 0.0
+    for e in _epics(scope, project):
+        s = _similarity(toks, _tokens(f"{e.get('title','')} {e.get('summary','')} {e.get('objective','')}"))
+        if s > best_s:
+            best, best_s = str(e.get("id")), s
+    return best if best_s >= threshold else ""
+
+
+def auto_epic(scope: str, project: str | None, text: str) -> str:
+    """Epic for an automated creator: best matching epic, else the 'Unscoped' holding epic."""
+    return suggest_epic(scope, project, text) or ensure_unscoped_epic(scope, project)
+
+
+def epic_coverage_warnings(scope: str = "", project: str | None = None) -> list:
+    """Open non-epic items that belong to NO epic (advisory; the gate makes this fatal for NEW items)."""
+    warns: list = []
+    scopes = [(scope, project)] if scope else _all_scopes()
+    for sc, pr in scopes:
+        if _is_legacy_scope(sc, pr):
+            continue
+        for it in list_open(sc, pr, order=False):
+            if is_epic(it) or it.get("epic") or it.get("parent"):
+                continue
+            warns.append({"ref": qualify(sc, pr, it.get("id")), "item": it.get("id"),
+                          "title": it.get("title", "")})
+    return warns
+
+
+def unscoped_children(scope: str, project: str | None = None) -> list:
+    """Open children of the 'Unscoped' holding epic, each with a SUGGESTED epic to re-home to."""
+    out: list = []
+    for e in list_items(scope, project):
+        if not (is_epic(e) and str(e.get("title") or "").strip() == UNSCOPED_TITLE):
+            continue
+        for it in list_open(scope, project, order=False):
+            if str(it.get("epic") or it.get("parent") or "") != str(e.get("id")):
+                continue
+            sug = suggest_epic(scope, project, f"{it.get('title','')} {it.get('body','')}")
+            out.append({"item": it.get("id"), "title": it.get("title", ""),
+                        "suggested_epic": sug})
+    return out
+
+
 def _children_of(op: list, cl: list, epic_id: str) -> list:
     e = str(epic_id)
     return [i for i in (op + cl) if str(i.get("epic") or i.get("parent") or "") == e]
@@ -727,6 +804,9 @@ def add_epic(scope: str, project: str | None, title: str, body: str = "",
             from core import grooming
             grooming.groom(scope, project, created["id"], mode="deterministic",
                            depth=grooming.guidelines().get("default_depth", "deep"))
+    if not is_epic(created) and not (created.get("epic") or created.get("parent")):
+        print(f"[Backlog] {created['id']}: no epic - attach it to an epic, or it belongs in "
+              "'Unscoped' (every item needs an epic; see AGENTS.md)")
     return created
 
 

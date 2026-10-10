@@ -378,6 +378,32 @@ def api_impact_audit():
     return 0
 
 
+def epic_coverage_audit():
+    """Advisory (NON-FATAL): open items that belong to NO epic + Unscoped children to re-home (BI-PF-1250)."""
+    try:
+        if os.getcwd() not in sys.path:
+            sys.path.insert(0, os.getcwd())
+        from core import backlog as _bl
+        warns = _bl.epic_coverage_warnings()
+        unscoped = _bl.unscoped_children("product_forge", None)
+    except Exception as e:
+        print(f"\nepic-coverage: SKIPPED (advisory) - {e}")
+        return 0
+    if not warns and not unscoped:
+        print("\nepic-coverage: 0 warnings (every open item has an epic; Unscoped empty)")
+        return 0
+    if warns:
+        print(f"\nepic-coverage: {len(warns)} open item(s) with NO epic [non-fatal]")
+        for w in warns[:10]:
+            print(f"   {w.get('ref')}: {str(w.get('title') or '')[:80]}")
+    if unscoped:
+        print(f"unscoped-children: {len(unscoped)} item(s) to re-home during grooming [non-fatal]")
+        for u in unscoped[:10]:
+            sug = f" -> suggest {u['suggested_epic']}" if u.get("suggested_epic") else " (no match: create/keep)"
+            print(f"   {u.get('item')}: {str(u.get('title') or '')[:70]}{sug}")
+    return 0
+
+
 def backlog_duplicate_audit():
     """Advisory (NON-FATAL): near-duplicate OPEN backlog item pairs.
 
@@ -729,6 +755,7 @@ def main(fast: bool = False):
         return rc
     rc |= reciprocity_audit()
     rc |= api_impact_audit()
+    rc |= epic_coverage_audit()
     rc |= backlog_duplicate_audit()
     rc |= backlog_integrity_audit()
     rc |= tier_model_audit()

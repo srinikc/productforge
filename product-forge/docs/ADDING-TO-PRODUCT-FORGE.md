@@ -52,6 +52,11 @@ item = backlog.add_epic("project", "<project>", title="Add CSV export", type_="c
                         origin="intake", value=4, effort=2, risk=2, moscow="Should")
 ```
 - Link technical detail by id (never copy): `backlog.link(scope, project, item["id"], feature_id="F-9")`
+- **Every item belongs to an epic.** Pass `epic=<epic_id>`; if none fits, **create the epic first**
+  (`backlog.add_epic(..., type_="epic")`). Automated creators use `backlog.auto_epic(scope, project, text)`
+  (best-matching epic, else the **`Unscoped`** holding epic). **Grooming re-homes `Unscoped` children** into
+  real epics. Enforced by `scripts/dev/backlog_epic_audit.py` (fatal for NEW items) + `wired_audit`
+  `epic-coverage` (advisory). BI-PF-1250.
 - Status flows: `new → triaged → accepted → queued → scheduled → executing → verifying → done` (single writer = `core/backlog.py`).
 - Parked/explore items: `backlog.set_follow_up(...)` (weekly review, snoozable).
 - From the pipeline/insights: `backlog.ensure_item(..., external_id="defect:D-3", origin="pipeline")` (idempotent).

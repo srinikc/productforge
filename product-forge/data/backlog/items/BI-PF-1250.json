@@ -1,0 +1,174 @@
+{
+  "id": "BI-PF-1250",
+  "tag": "PF",
+  "type": "change",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "epic-required-every-item",
+  "label": "PF Backlog 565",
+  "title": "Governance: every backlog item must belong to an epic (analyze-first; 'Unscoped' last resort; grooming re-homes)",
+  "body": "## Goal\nEvery backlog item belongs to an epic, going forward, across the board.\n\n## Behaviour\n- Add time: try to fit an existing epic (`backlog.suggest_epic`); if none fits -> the `Unscoped` holding epic.\n- Human/agent: if no epic fits, ASK and create the epic first.\n- Grooming: highlight `Unscoped` children + a suggested epic -> create a new epic or move them.\n\n## Implementation\n- `core/backlog.py`: `suggest_epic`, `auto_epic`, `ensure_unscoped_epic` (holding epic), `epic_coverage_warnings`,\n  `unscoped_children`, `is_holding_epic`; add-time warning when an item has no epic.\n- Automated creators (intake/issues/insights/ops/intake_channels) attach `auto_epic(...)`.\n- `core/grooming.py`: `unscoped_review` + highlight at the review/approve step.\n- Gate `scripts/dev/backlog_epic_audit.py` (baseline-aware; fatal for NEW unparented items) wired into precheck;\n  advisory `epic-coverage` in `wired_audit`.\n- Rule: AGENTS.md + docs/ADDING-TO-PRODUCT-FORGE.md (recipe A).\n\n## Acceptance (G/W/T)\n- Given a NEW open non-epic item with no epic, when the gate runs, then it FAILS.\n- Given an automated create with no matching epic, then it lands under `Unscoped` (not unparented).\n- Given grooming, then `Unscoped` children are listed with a suggested epic.\n\n## Follow-up\nBI-PF-1251 (Unscoped triage loop).",
+  "source": "user request",
+  "status": "new",
+  "priority": "P2",
+  "moscow": "Should",
+  "value": 4,
+  "effort": 2,
+  "risk": 2,
+  "deps": [],
+  "links": {
+    "related": [
+      "BI-PF-1248"
+    ]
+  },
+  "decisions": [],
+  "follow_up": {},
+  "brief": {
+    "problem": "Every backlog item belongs to an epic, going forward, across the board.",
+    "what_adds": "Every backlog item belongs to an epic, going forward, across the board.",
+    "why": "Every backlog item belongs to an epic, going forward, across the board.",
+    "who_feels": "Product Forge maintainers and consumers.",
+    "source": "authored"
+  },
+  "objective": "Every backlog item belongs to an epic, going forward, across the board.",
+  "acceptance_criteria": [
+    "Given a NEW open non-epic item with no epic, when the gate runs, then it FAILS.",
+    "Given an automated create with no matching epic, then it lands under `Unscoped` (not unparented).",
+    "Given grooming, then `Unscoped` children are listed with a suggested epic."
+  ],
+  "in_scope": [
+    "Governance: every backlog item must belong to an epic (analyze-first; 'Unscoped' last resort; grooming re-homes)"
+  ],
+  "out_of_scope": [
+    "Not specified."
+  ],
+  "affected_components": [
+    "core",
+    "docs",
+    "scripts"
+  ],
+  "affected_files": [
+    "AGENTS.md",
+    "core/backlog.py",
+    "core/grooming.py",
+    "docs/ADDING-TO-PRODUCT-FORGE.md",
+    "scripts/dev/backlog_epic_audit.py"
+  ],
+  "approach": "- `core/backlog.py`: `suggest_epic`, `auto_epic`, `ensure_unscoped_epic` (holding epic), `epic_coverage_warnings`,\n  `unscoped_children`, `is_holding_epic`; add-time warning when an item has no epic.\n- Automated creators (intake/issues/insights/ops/intake_channels) attach `auto_epic(...)`.\n- `core/grooming.py`: `unscoped_review` + highlight at the review/approve step.\n- Gate `scripts/dev/backlog_epic_audit.py` (baseline-aware; fatal for NEW unparented items) wired into precheck;\n  advisory `epic-coverage` in `wired_audit`.\n- Rule: AGENTS.md + docs/ADDING-TO-PRODUCT-FORGE.md (recipe A).",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Given a NEW open non-epic item with no epic, when the gate runs, then it FAILS.",
+    "Given an automated create with no matching epic, then it lands under `Unscoped` (not unparented).",
+    "Given grooming, then `Unscoped` children are listed with a suggested epic."
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "agent",
+  "requester": "user",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1248",
+  "parent": "BI-PF-1248",
+  "revision": 2,
+  "priority_rank": 2,
+  "priority_class": "P2",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "IN_PROGRESS",
+    "analyzed_at": "",
+    "analyzed_by": "deterministic",
+    "revision_analyzed": 0,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/backlog.py, core/backlog_link.py, core/grooming.py, /api/v1/backlog",
+    "existing_components": [
+      "core/backlog.py",
+      "core/backlog_link.py",
+      "core/grooming.py"
+    ],
+    "existing_apis": [
+      "/api/v1/backlog",
+      "/api/v1/backlog/epics/{epic_id}/order",
+      "/api/v1/backlog/epics/{epic_id}/status",
+      "/api/v1/backlog/groom",
+      "/api/v1/backlog/groom/approve",
+      "/api/v1/backlog/grooming/guidelines",
+      "/api/v1/backlog/ids:reserve",
+      "/api/v1/backlog/items"
+    ],
+    "existing_modules": [
+      "config/grooming-guidelines.json"
+    ],
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=1.5",
+      "components=3",
+      "apis=8"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": false,
+    "reasons": [],
+    "computed_at": ""
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-10T19:31:21.302495",
+  "updated_at": "2026-10-10T19:31:23.559467",
+  "score": 1.5,
+  "_note": "review decisions recorded",
+  "api_impact": {
+    "needs_api": false,
+    "reason": "backlog governance + gate; no API"
+  },
+  "dashboard_impact": {
+    "needs_dashboard": false,
+    "reason": "backlog governance; no dashboard surface"
+  }
+}
