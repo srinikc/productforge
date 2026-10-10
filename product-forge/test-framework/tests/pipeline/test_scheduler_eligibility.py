@@ -150,3 +150,64 @@ def test_epic_order_waves_and_status():
         assert by[b]["wave"] == 0 and by[c]["wave"] == 1, by
     finally:
         _clean()
+
+
+def test_epic_order_save_persists_execution_order():
+    """epic_order(save=True) stores execution_order[] on the epic; read-only does not change it."""
+    _clean()
+    try:
+        ep = backlog.add_epic("project", _PROJ, "Epic SV", type_="epic", tag="TST")["id"]
+        a = backlog.add_epic("project", _PROJ, "SVA", epic=ep, tag="TST")["id"]
+        b = backlog.add_epic("project", _PROJ, "SVB", epic=ep, tag="TST")["id"]
+        _approve(a)
+        _approve(b)
+        backlog.set_dependencies("project", _PROJ, b, dependencies=[{"task_id": a, "type": "REQUIRES"}])
+        out = scheduler.epic_order("project", _PROJ, epic=ep, save=True)
+        assert out["saved"] is True
+        stored = backlog.get_epic("project", _PROJ, ep).get("execution_order")
+        assert [r["id"] for r in stored] == [a, b]
+        assert stored[0]["wave"] == 0 and stored[1]["wave"] == 1
+        out2 = scheduler.epic_order("project", _PROJ, epic=ep)  # read-only
+        assert out2["saved"] is False
+        assert backlog.get_epic("project", _PROJ, ep).get("execution_order") == stored
+    finally:
+        _clean()
+
+
+def test_epic_status_lists_all_children_and_rollup():
+    """epic_status: open + closed children with groomed/needs_reanalysis + epic rollup."""
+    _clean()
+    try:
+        ep = backlog.add_epic("project", _PROJ, "Epic ST", type_="epic", tag="TST")["id"]
+        a = backlog.add_epic("project", _PROJ, "STA", epic=ep, tag="TST")["id"]
+        b = backlog.add_epic("project", _PROJ, "STB", epic=ep, tag="TST")["id"]
+        c = backlog.add_epic("project", _PROJ, "STC", epic=ep, tag="TST")["id"]
+        _approve(a)
+        _approve(b)
+        # c is intentionally left un-groomed -> needs_reanalysis
+        backlog.set_status("project", _PROJ, b, "completed")  # a closed child must still be listed
+        st = scheduler.epic_status("project", _PROJ, epic=ep)
+        rows = {r["id"]: r for r in st["children"]}
+        assert rows[a]["state"] == "open" and rows[a]["groomed"] is True
+        assert rows[c]["state"] == "open" and rows[c]["needs_reanalysis"] is True
+        assert rows[b]["state"] == "closed" and rows[b]["order_status"] == "closed"
+        assert st["rollup"] == {"total": 3, "open": 2, "closed": 1, "groomed": 1,
+                                "need_reanalysis": 1, "ready": 1, "wait": 1, "done": False}
+        assert st["order"][:2] == [a, c]
+    finally:
+        _clean()
+
+
+def test_backlog_status_rollup():
+    """backlog_status: per-epic rollups for the whole scope."""
+    _clean()
+    try:
+        ep = backlog.add_epic("project", _PROJ, "Epic BS", type_="epic", tag="TST")["id"]
+        a = backlog.add_epic("project", _PROJ, "BSA", epic=ep, tag="TST")["id"]
+        _approve(a)
+        st = scheduler.backlog_status("project", _PROJ)
+        row = next(e for e in st["epics"] if e["id"] == ep)
+        assert row["rollup"]["open"] == 1 and row["rollup"]["total"] == 1
+        assert st["rollup"]["epics"] >= 1 and ep in {e["id"] for e in st["epics"]}
+    finally:
+        _clean()

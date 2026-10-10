@@ -148,7 +148,15 @@ def cmd_backlog(pos, flags):
         return backlog.get_epic(s, p, pos[1]) or {"error": "not found"}
     if sub in ("epic-order", "order") and len(pos) > 1:
         from core import scheduler
-        return scheduler.epic_order(s, p, epic=pos[1])
+        return scheduler.epic_order(s, p, epic=pos[1], save=not flags.get("dry"))
+    if sub in ("epic-status", "epic") and len(pos) > 1:
+        from core import scheduler
+        return scheduler.epic_status(s, p, epic=pos[1])
+    if sub == "status":
+        from core import scheduler
+        if flags.get("all"):
+            return scheduler.backlog_status_all()
+        return scheduler.backlog_status(s, p)
     if sub in ("groom", "analyze") and len(pos) > 1:
         mode = "deterministic" if flags.get("no-ai") else ""
         return grooming.groom(s, p, pos[1], mode=mode, force=bool(flags.get("force")))
@@ -167,9 +175,9 @@ def cmd_backlog(pos, flags):
         ids = [x.strip() for x in str(flags.get("ids") or "").split(",") if x.strip()]
         return grooming.decide_all(s, p, "APPROVE", ids=(ids or None), force=bool(flags.get("force")),
                                    dry=bool(flags.get("dry")))
-    return {"error": "usage: pf backlog list|show <id>|epic-order <id>|groom <id> [--no-ai]|groom-all "
-                     "[--no-ai] [--batch N] [--limit N] [--force] [--dry]|review|approve <id>|"
-                     "approve-all [--ids a,b] [--force] [--dry]"}
+    return {"error": "usage: pf backlog list|show <id>|epic-order <id> [--dry]|epic-status <id>|status [--all]|"
+                     "groom <id> [--no-ai]|groom-all [--no-ai] [--batch N] [--limit N] [--force] [--dry]|"
+                     "review|approve <id>|approve-all [--ids a,b] [--force] [--dry]"}
 
 
 # worker/scheduler/work/adapters/dispatch verbs MOVED to WorkerGrid (`/wg`, workergrid/wg.py) - decoupled.
@@ -255,8 +263,14 @@ _HELP = {
     "backlog": ("Backlog SSOT (single writer: core/backlog.py).",
                 [("list", "open backlog items (JSON: id/status/title)"),
                  ("show <id>", "full item record (e.g. BI-PF-0408)"),
-                 ("epic-order <id>",
-                  "an epic's open children ordered by dependency wave -> priority (READY/wait)"),
+                 ("epic-order <id> [--dry]",
+                  "order an epic's OPEN children (dependency wave -> priority, READY/wait); SAVES the order "
+                  "on the epic as execution_order[] (--dry = compute only, no write)"),
+                 ("epic-status <id>",
+                  "full lifecycle of an epic: ALL children (open/closed) with groomed/needs_reanalysis/ready/"
+                  "wave/order + rollup"),
+                 ("status [--all]",
+                  "scope status: every epic rollup + standalone items; --all = every backlog/scope"),
                  ("groom <id> [--no-ai] [--force]",
                   "groom one item: analysis + full context + priority + deps (gap-fill; --force overwrites)"),
                  ("groom-all [--no-ai] [--batch N] [--jobs N] [--limit N] [--ids a,b] [--force] [--dry]",
@@ -271,6 +285,7 @@ _HELP = {
                  ("--limit N", "process at most N items this run"),
                  ("--force", "groom/approve even if already groomed or flagged"),
                  ("--dry", "preview what would change (no writes)"),
+                 ("--all", "status: aggregate across every backlog/scope"),
                  ("--ids a,b", "approve-all: restrict to these item ids"))),
     "dogfood": ("Run Product Forge's own dogfood validation.", [],
                 (("--dry", "dry run (default on; pass without value to toggle)"),)),

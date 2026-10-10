@@ -57,16 +57,56 @@ def get_item(item_id: str, request: Request, scope: str = "product_forge", proje
 @router.get("/epics/{epic_id}/order", dependencies=[Depends(authenticate)])
 def epic_order(epic_id: str, request: Request, scope: str = "product_forge", project: str = "",
                stage: str = "", ctx: dict[str, Any] = Depends(authenticate)):
-    """Execution order of an epic's OPEN children: dependency wave -> priority, with READY/wait status.
+    """READ-ONLY: execution order of an epic's OPEN children (dependency wave -> priority, READY/wait).
 
-    Read-only scheduling view (delegates to ``core.scheduler.epic_order``); dependencies resolve against the
-    full backlog, so prerequisites outside the epic are honored.
+    Delegates to ``core.scheduler.epic_order`` (no writes). Use POST to persist the order on the epic.
     """
     from core import backlog, scheduler
     s, p = _scope_project(request, scope, project)
     if not backlog.get_epic(s, p, epic_id):
         raise ApiError("NOT_FOUND", "backlog epic not found")
     return from_request(request, scheduler.epic_order(s, p, epic=epic_id, stage=stage or None),
+                        resource="backlog", resource_id=epic_id)
+
+
+@router.post("/epics/{epic_id}/order", dependencies=[Depends(require_operator)])
+def epic_order_save(epic_id: str, request: Request, scope: str = "product_forge", project: str = "",
+                    stage: str = "", ctx: dict[str, Any] = Depends(require_operator)):
+    """SAVE: compute the epic's execution order AND persist it on the epic (``execution_order[]``).
+
+    BI-PF-1222: the write is delegated to ``core.backlog.set_execution_order`` (single writer). ``children[]``
+    (membership) is never touched.
+    """
+    from core import backlog, scheduler
+    s, p = _scope_project(request, scope, project)
+    if not backlog.get_epic(s, p, epic_id):
+        raise ApiError("NOT_FOUND", "backlog epic not found")
+    return from_request(request, scheduler.epic_order(s, p, epic=epic_id, stage=stage or None, save=True),
+                        resource="backlog", resource_id=epic_id)
+
+
+@router.get("/status", dependencies=[Depends(authenticate)])
+def backlog_status(request: Request, scope: str = "product_forge", project: str = "",
+                   stage: str = "", all: bool = False, ctx: dict[str, Any] = Depends(authenticate)):
+    """Scope-level status: every epic's rollup (open/closed/groomed/need_reanalysis/ready/wait) + standalone
+    items. ``all=true`` aggregates across EVERY backlog/scope (BI-PF-1222). Read-only."""
+    from core import scheduler
+    if all:
+        return from_request(request, scheduler.backlog_status_all(stage=stage or None), resource="backlog")
+    s, p = _scope_project(request, scope, project)
+    return from_request(request, scheduler.backlog_status(s, p, stage=stage or None), resource="backlog")
+
+
+@router.get("/epics/{epic_id}/status", dependencies=[Depends(authenticate)])
+def epic_status(epic_id: str, request: Request, scope: str = "product_forge", project: str = "",
+                stage: str = "", ctx: dict[str, Any] = Depends(authenticate)):
+    """Full lifecycle status of one epic: ALL children (open + closed) with state/status/groomed/
+    needs_reanalysis/ready/worker/wave/order_rank/order_status/reasons + an epic rollup. Read-only."""
+    from core import backlog, scheduler
+    s, p = _scope_project(request, scope, project)
+    if not backlog.get_epic(s, p, epic_id):
+        raise ApiError("NOT_FOUND", "backlog epic not found")
+    return from_request(request, scheduler.epic_status(s, p, epic=epic_id, stage=stage or None),
                         resource="backlog", resource_id=epic_id)
 
 
