@@ -44,6 +44,11 @@ Override is **HIL-only** (`qa.override_merge`), recorded + audited.
 - **`api_impact` + `consumer_impact`** (E9/BI-PF-1171): every item records an API/consumer decision (internal /
   UI-orchestrator / external / worker) — the API is built only when needed.
 
+> **Legacy scope exclusion.** Scopes declared legacy in `config/pf-review-scope.json` (currently
+> `project:ProductForge-Dashboard`) are excluded from the reciprocity / duplicates / api_impact advisory checks
+> but retained in the backlog (never deleted). The backend↔dashboard reciprocity rule is **suspended** while
+> `dashboard_reciprocity.active=false`; it re-activates when the new dashboard lands.
+
 ## 5. Flows
 ```
 ideation → design → [spec/arch gate: E6/E7] → architect → implement (iteration)

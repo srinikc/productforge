@@ -328,6 +328,9 @@ def reciprocity_audit():
         if os.getcwd() not in sys.path:
             sys.path.insert(0, os.getcwd())
         from core import backlog as _bl
+        if not _bl.dashboard_reciprocity_active():
+            print("\nreciprocity: SKIPPED (dashboard reciprocity suspended - see config/pf-review-scope.json)")
+            return 0
         warns = _bl.reciprocity_warnings()
     except Exception as e:
         print(f"\nreciprocity: SKIPPED (advisory) - {e}")
@@ -358,9 +361,12 @@ def api_impact_audit():
             sys.path.insert(0, os.getcwd())
         from core import backlog as _bl
         warns = _bl.api_impact_warnings()
+        _legacy = _bl.legacy_scopes()
     except Exception as e:
         print(f"\napi-impact: SKIPPED (advisory) - {e}")
         return 0
+    if _legacy:
+        print(f"\napi-impact: legacy scope(s) excluded: {', '.join(sorted(_legacy))}")
     if not warns:
         print("\napi-impact: 0 warnings (every open item records an api_impact decision)")
         return 0
@@ -384,9 +390,12 @@ def backlog_duplicate_audit():
             sys.path.insert(0, os.getcwd())
         from core import backlog as _bl
         pairs = _bl.duplicate_pairs(threshold=0.6)
+        _legacy = _bl.legacy_scopes()
     except Exception as e:
         print(f"\nbacklog-duplicates: SKIPPED (advisory) - {e}")
         return 0
+    if _legacy:
+        print(f"\nbacklog-duplicates: legacy scope(s) excluded: {', '.join(sorted(_legacy))}")
     if not pairs:
         print("\nbacklog-duplicates: 0 near-duplicate OPEN pairs (dedup-before-add)")
         return 0

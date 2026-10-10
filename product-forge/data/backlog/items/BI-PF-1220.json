@@ -1,0 +1,194 @@
+{
+  "id": "BI-PF-1220",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "sec-guidelines-ssot",
+  "label": "PF Backlog 550",
+  "title": "C18: PF security plan/guidelines SSOT (global, enforceable) - for PF itself and its agents",
+  "body": "## Problem / why\n`docs/SECURITY-ARCHITECTURE-CISO.md` (C1) is PF's POSTURE NARRATIVE (audience: humans/CISO). There is no\nmachine-enforceable security plan/guidelines an agent/gate can read and apply.\n\n## Goal & value\nONE PF-level security plan/guidelines SSOT that governs **PF itself and its agents** (the enforcing plane).\nThe generated product gets its OWN plan/guidelines, DERIVED from this SSOT + the product's capabilities (C13),\nnever hand-written and never a copy.\n\n## In scope\n- `config/security-guidelines.json` (SSOT, kind=config, scope=global): controls per capability (LLM, RAG, agents,\n  tools, external APIs, sensitive data, code-exec, browser, memory, delegation, autonomous), each mapped to the\n  S0-S6 gate that enforces it (C14) and a risk tier; rules PF's own agents must obey.\n- `docs/SECURITY-GUIDELINES.md` human narrative that REFERENCES the config (no second truth).\n- Loader `core/security_guidelines.py:load()` with sane defaults when missing; registered in store-registry.\n- CISO doc cross-links the SSOT (posture vs policy separation, one truth per concern).\n\n## Out of scope\n- The GENERATED per-product security plan/guidelines + profile/manifest (C13 = BI-PF-1215) and the gates'\n  enforcement code (C14 = BI-PF-1216).\n\n## Acceptance criteria (G/W/T)\n- Given the PF guidelines config, when a capability is enabled for a product, then the product's generated\n  plan/guidelines (C13) is produced from it (guidelines x capabilities).\n- Given PF's own agents, then they read/obey this same SSOT (not a copied doc).\n\n## Data model (what is stored, where, owner)\n`config/security-guidelines.json` -> owner `core/security_guidelines.py` (single writer). Per-product output is\nC13's derived store.\n\n## Dependencies & links (by id)\nC13 BI-PF-1215 (generates the product's own plan/guidelines from this), C14 BI-PF-1216 (gates cite controls),\nC1 BI-PF-1203 (posture doc links it).\n\n## Verification / test plan\nUnit: load() defaults + schema; guideline->control->gate mapping completeness; no drift vs register.",
+  "source": "doc: GenAI Security Gateway Assessment",
+  "status": "new",
+  "priority": "P2",
+  "moscow": "Should",
+  "value": 5,
+  "effort": 3,
+  "risk": 3,
+  "deps": [],
+  "links": {
+    "source_ref": "docs/Product_Forge_GenAI_Security_Gateway_Assessment.md",
+    "backend_capability": [
+      {
+        "descriptor": "core/security_guidelines.py:load",
+        "kind": "function"
+      },
+      {
+        "descriptor": "config/security-guidelines.json",
+        "kind": "config"
+      },
+      {
+        "descriptor": "docs/SECURITY-GUIDELINES.md",
+        "kind": "doc"
+      }
+    ],
+    "generates_for": "BI-PF-1215"
+  },
+  "decisions": [],
+  "follow_up": {},
+  "brief": {
+    "problem": "`docs/SECURITY-ARCHITECTURE-CISO.md` (C1) is PF's POSTURE NARRATIVE (audience: humans/CISO). There is no\nmachine-enforceable security plan/guidelines an agent/gate can read and apply.",
+    "what_adds": "ONE PF-level security plan/guidelines SSOT that governs **PF itself and its agents** (the enforcing plane).\nThe generated product gets its OWN plan/guidelines, DERIVED from this SSOT + the product's capabilities (C13),\nnever hand-written and never a copy.",
+    "why": "`docs/SECURITY-ARCHITECTURE-CISO.md` (C1) is PF's POSTURE NARRATIVE (audience: humans/CISO). There is no\nmachine-enforceable security plan/guidelines an agent/gate can read and apply.",
+    "who_feels": "Product Forge maintainers and consumers.",
+    "source": "authored"
+  },
+  "objective": "ONE PF-level security plan/guidelines SSOT that governs **PF itself and its agents** (the enforcing plane).\nThe generated product gets its OWN plan/guidelines, DERIVED from this SSOT + the product's capabilities (C13),\nnever hand-written and never a copy.",
+  "acceptance_criteria": [
+    "Given the PF guidelines config, when a capability is enabled for a product, then the product's generated",
+    "Given PF's own agents, then they read/obey this same SSOT (not a copied doc)."
+  ],
+  "in_scope": [
+    "`config/security-guidelines.json` (SSOT, kind=config, scope=global): controls per capability (LLM, RAG, agents,",
+    "`docs/SECURITY-GUIDELINES.md` human narrative that REFERENCES the config (no second truth).",
+    "Loader `core/security_guidelines.py:load()` with sane defaults when missing; registered in store-registry.",
+    "CISO doc cross-links the SSOT (posture vs policy separation, one truth per concern)."
+  ],
+  "out_of_scope": [
+    "The GENERATED per-product security plan/guidelines + profile/manifest (C13 = BI-PF-1215) and the gates'"
+  ],
+  "affected_components": [
+    "config",
+    "core",
+    "docs"
+  ],
+  "affected_files": [
+    "config/security-guidelines.json",
+    "core/security_guidelines.py",
+    "docs/SECURITY-ARCHITECTURE-CISO.md",
+    "docs/SECURITY-GUIDELINES.md"
+  ],
+  "approach": "Unit: load() defaults + schema; guideline->control->gate mapping completeness; no drift vs register.",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Given the PF guidelines config, when a capability is enabled for a product, then the product's generated",
+    "Given PF's own agents, then they read/obey this same SSOT (not a copied doc)."
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "agent",
+  "requester": "doc: GenAI Security Gateway Assessment",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1202",
+  "parent": "BI-PF-1202",
+  "revision": 3,
+  "priority_rank": 2,
+  "priority_class": "P2",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "IN_PROGRESS",
+    "analyzed_at": "",
+    "analyzed_by": "deterministic",
+    "revision_analyzed": 0,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/budget_planner.py, core/control_plane.py, core/global_orchestrator.py, core/iteration_planner.py",
+    "existing_components": [
+      "core/budget_planner.py",
+      "core/control_plane.py",
+      "core/global_orchestrator.py",
+      "core/iteration_planner.py",
+      "core/plan_evaluator.py",
+      "core/product_plan.py",
+      "core/run_plan.py",
+      "core/techstack_guidelines.py"
+    ],
+    "existing_apis": [
+      "/api/v1/agents",
+      "/api/v1/agents/{agent_id}",
+      "/api/v1/agents/{agent_id}/capabilities",
+      "/api/v1/backlog/grooming/guidelines",
+      "/api/v1/vcs/commits"
+    ],
+    "existing_modules": [
+      "config/grooming-guidelines.json",
+      "config/plan-groups.json"
+    ],
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=0.83",
+      "components=8",
+      "apis=5"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": false,
+    "reasons": [],
+    "computed_at": ""
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": ""
+  },
+  "created_at": "2026-10-10T09:50:02.215815",
+  "updated_at": "2026-10-10T09:50:10.722507",
+  "score": 0.83,
+  "_note": "security impact/api/dashboard decisions recorded",
+  "api_impact": {
+    "needs_api": true,
+    "routes": [
+      "GET /api/v1/security/guidelines"
+    ],
+    "consumers": [
+      "pipeline-orchestrator-ui",
+      "generated-product-runtime"
+    ],
+    "reason": "guidelines SSOT is consumed by agents/gates via the API-first plane."
+  },
+  "dashboard_impact": {
+    "needs_dashboard": false,
+    "reason": "read-only policy SSOT; no separate dashboard surface needed yet."
+  }
+}

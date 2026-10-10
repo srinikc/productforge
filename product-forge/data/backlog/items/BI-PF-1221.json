@@ -1,0 +1,204 @@
+{
+  "id": "BI-PF-1221",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "sec-implement-agent",
+  "label": "PF Backlog 551",
+  "title": "C19: Security implementation agent (review from guidelines SSOT + IMPLEMENT controls per iteration) + S3 gate",
+  "body": "## Problem / why\nToday security is only an END-stage scan (`security` agent, Stage 5) and a release gate (`security-audit`).\nSecurity `security.agent.json` explicitly does NOT write code. So security controls are REVIEWED late or not\nIMPLEMENTED at all - rework is expensive and gaps ship.\n\n## Goal & value\nSecurity becomes an IMPLEMENTER, per iteration, not a post-hoc reviewer. Each implementation iteration reviews\nagainst the guidelines SSOT + the product's derived security-profile and then WRITES the required controls\n(authz, input validation, secret handling, guardrail hooks, sandbox/egress hooks, audit hooks), re-verifies, and\nfeeds the S3 gate. Independence is preserved by the S4 release gate (`security-audit`).\n\n## In scope\n- New agent(s) under `agents/` with WRITE tools (`write_file`, `run_command`), parent link in\n  `config/agent-hierarchy.json`, stage wiring in `pipeline-definition.json` (per-iteration, parallel to\n  `code-review`), compliance checklist + regenerated cards.\n  - Recommended split: `security-review` (detect, independent) -> `security-implement` (write controls) ->\n    re-verify -> S3 gate; decision logic mirrors `code-review -> fix`.\n- Reads: `config/security-guidelines.json` (C18) + `products/<p>/security-profile.json` (C13) + the iteration diff.\n- Emits: implemented controls (code/config) + remaining gaps as security backlog/defect items (linked by item_id).\n- S3 gate consumes the verdict; S4 release gate stays `security-audit`.\n\n## Out of scope\n- The guidelines SSOT (C18), the per-product profile (C13), the gate matrix itself (C14), the runtime control\n  plane services (C5-C11).\n\n## Acceptance criteria (G/W/T)\n- Given an iteration that lacks a control required by the profile, when the security agent runs, then it\n  IMPLEMENTS the control (files changed) and re-verifies - not merely a report.\n- Given a critical gap it cannot implement, then it blocks the S3 gate and files a linked item.\n- Given the agent is added, then it is invoked on the runtime path (wired_audit 0 unwired).\n\n## Data model (what is stored, where, owner)\nAgent spec `agents/*.agent.json`; findings/implemented controls surfaced as backlog/defect items (no new truth).\n\n## Dependencies & links (by id)\nDepends on C18 (guidelines) + C13 (profile). Extends the review model (BI-PF-1066/1067) and C14 (BI-PF-1216).\n\n## Verification / test plan\nCategory test: agent invoked in the per-iteration lane; control implemented on a seeded gap; S3 gate blocks on a\nnon-implementable critical; wired_audit clean.",
+  "source": "doc: GenAI Security Gateway Assessment",
+  "status": "new",
+  "priority": "P2",
+  "moscow": "Should",
+  "value": 5,
+  "effort": 4,
+  "risk": 3,
+  "deps": [],
+  "links": {
+    "source_ref": "docs/Product_Forge_GenAI_Security_Gateway_Assessment.md",
+    "backend_capability": [
+      {
+        "descriptor": "agents/security-review.agent.json",
+        "kind": "agent"
+      },
+      {
+        "descriptor": "agents/security-implement.agent.json",
+        "kind": "agent"
+      },
+      {
+        "descriptor": "pipeline-definition.json",
+        "kind": "config"
+      }
+    ]
+  },
+  "decisions": [],
+  "follow_up": {},
+  "brief": {
+    "problem": "Today security is only an END-stage scan (`security` agent, Stage 5) and a release gate (`security-audit`).\nSecurity `security.agent.json` explicitly does NOT write code. So security controls are REVIEWED late or not\nIMPLEMENTED at all - rework is expensive and gaps ship.",
+    "what_adds": "Security becomes an IMPLEMENTER, per iteration, not a post-hoc reviewer. Each implementation iteration reviews\nagainst the guidelines SSOT + the product's derived security-profile and then WRITES the required controls\n(authz, input validation, secret handling, guardrail hooks, sandbox/egress hooks, audit hooks), re-verifies, and\nfeeds the S3 gate. Independence is preserved by the S4 release gate (`security-audit`).",
+    "why": "Today security is only an END-stage scan (`security` agent, Stage 5) and a release gate (`security-audit`).\nSecurity `security.agent.json` explicitly does NOT write code. So security controls are REVIEWED late or not\nIMPLEMENTED at all - rework is expensive and gaps ship.",
+    "who_feels": "Product Forge maintainers and consumers.",
+    "source": "authored"
+  },
+  "objective": "Security becomes an IMPLEMENTER, per iteration, not a post-hoc reviewer. Each implementation iteration reviews\nagainst the guidelines SSOT + the product's derived security-profile and then WRITES the required controls\n(authz, input validation, secret handling, guardrail hooks, sandbox/egress hooks, audit hooks), re-verifies, and\nfeeds the S3 gate. Independence is preserved by the S4 release gate (`security-audit`).",
+  "acceptance_criteria": [
+    "Given an iteration that lacks a control required by the profile, when the security agent runs, then it",
+    "Given a critical gap it cannot implement, then it blocks the S3 gate and files a linked item.",
+    "Given the agent is added, then it is invoked on the runtime path (wired_audit 0 unwired)."
+  ],
+  "in_scope": [
+    "New agent(s) under `agents/` with WRITE tools (`write_file`, `run_command`), parent link in",
+    "Recommended split: `security-review` (detect, independent) -> `security-implement` (write controls) ->",
+    "Reads: `config/security-guidelines.json` (C18) + `products/<p>/security-profile.json` (C13) + the iteration diff.",
+    "Emits: implemented controls (code/config) + remaining gaps as security backlog/defect items (linked by item_id).",
+    "S3 gate consumes the verdict; S4 release gate stays `security-audit`."
+  ],
+  "out_of_scope": [
+    "The guidelines SSOT (C18), the per-product profile (C13), the gate matrix itself (C14), the runtime control"
+  ],
+  "affected_components": [
+    "",
+    "config"
+  ],
+  "affected_files": [
+    ".agent.json",
+    "/security-profile.json",
+    "config/agent-hierarchy.json",
+    "config/security-guidelines.json",
+    "pipeline-definition.json",
+    "security.agent.json"
+  ],
+  "approach": "Category test: agent invoked in the per-iteration lane; control implemented on a seeded gap; S3 gate blocks on a\nnon-implementable critical; wired_audit clean.",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Given an iteration that lacks a control required by the profile, when the security agent runs, then it",
+    "Given a critical gap it cannot implement, then it blocks the S3 gate and files a linked item.",
+    "Given the agent is added, then it is invoked on the runtime path (wired_audit 0 unwired)."
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "agent",
+  "requester": "doc: GenAI Security Gateway Assessment",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1202",
+  "parent": "BI-PF-1202",
+  "revision": 2,
+  "priority_rank": 2,
+  "priority_class": "P2",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "IN_PROGRESS",
+    "analyzed_at": "",
+    "analyzed_by": "deterministic",
+    "revision_analyzed": 0,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/agent_capabilities.py, core/agent_card_loader.py, core/agent_hierarchy.py, core/agent_ledger.py",
+    "existing_components": [
+      "core/agent_capabilities.py",
+      "core/agent_card_loader.py",
+      "core/agent_hierarchy.py",
+      "core/agent_ledger.py",
+      "core/agent_memory.py",
+      "core/agent_messenger.py",
+      "core/agent_migrator.py",
+      "core/agent_model_override.py"
+    ],
+    "existing_apis": [
+      "/api/v1/agents",
+      "/api/v1/agents/{agent_id}",
+      "/api/v1/agents/{agent_id}/capabilities",
+      "/api/v1/artifacts/{stage_id}/{agent}",
+      "/api/v1/backlog/grooming/guidelines",
+      "/api/v1/backlog/items/{item_id}/context-review",
+      "/api/v1/portfolio/supervisor",
+      "/api/v1/portfolio/supervisor/start"
+    ],
+    "existing_modules": [
+      "config/agent-capabilities.json",
+      "config/agent-capability-vector.json",
+      "config/agent-hierarchy.json",
+      "config/agent-requirements.json",
+      "config/grooming-guidelines.json",
+      "config/persona.json"
+    ],
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=0.62",
+      "components=8",
+      "apis=8"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": false,
+    "reasons": [],
+    "computed_at": ""
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": ""
+  },
+  "created_at": "2026-10-10T09:50:08.754693",
+  "updated_at": "2026-10-10T09:50:10.953844",
+  "score": 0.62,
+  "_note": "security impact/api/dashboard decisions recorded",
+  "api_impact": {
+    "needs_api": true,
+    "routes": [
+      "GET /api/v1/security/reviews",
+      "POST /api/v1/security/reviews/{run}:implement"
+    ],
+    "consumers": [
+      "pipeline-orchestrator-ui"
+    ],
+    "reason": "security review+implementation evidence consumed by the orchestrator UI."
+  },
+  "dashboard_impact": {
+    "needs_dashboard": true,
+    "reason": "per-iteration security findings/implementation need operator visibility."
+  }
+}
