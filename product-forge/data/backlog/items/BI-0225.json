@@ -31,7 +31,7 @@
   ],
   "follow_up": {},
   "created_at": "2026-09-27T11:17:51.788834",
-  "updated_at": "2026-10-10T00:23:17.039760",
+  "updated_at": "2026-10-10T10:57:28.373695",
   "score": 0.75,
   "brief": {
     "problem": "Sectioned/per-feature generation runs agent calls serially, making generation wall-clock-bound.",
@@ -102,11 +102,11 @@
   },
   "analysis": {
     "status": "COMPLETE",
-    "analyzed_at": "2026-10-09T22:32:10.959539",
-    "analyzed_by": "user",
+    "analyzed_at": "2026-10-10T10:57:28.305334",
+    "analyzed_by": "deterministic",
     "revision_analyzed": 2,
     "architecture_fit": "EXTEND",
-    "implementation_strategy": "EXTEND agent_runtime section-generation loop with a bounded ThreadPool/asyncio pool; collect results, sort by section key before merge; thread budget through run_breaker so per-run budgets still apply. Reuse run_manifest/evidence as-is with concurrency-safe writes.",
+    "implementation_strategy": "Extend existing components/APIs: core/agent_runtime.py, core/dogfood_run.py, core/nfr_runner.py, core/rerun_review.py",
     "existing_components": [
       "core/agent_runtime.py",
       "core/dogfood_run.py",
@@ -131,45 +131,28 @@
       "config/engineering-workers.json"
     ],
     "dependency_findings": [
-      "RELATED BI-0106 (same bounded-concurrency pattern, could share helper)",
-      "BI-0220 REQUIRES coordination: events/budgets must be emitted correctly under parallelism",
-      "BI-0224 (structured output) would make merge simpler — optional"
+      "depends on BI-0220",
+      "depends on BI-0106",
+      "depends on BI-0224"
     ],
-    "conflict_findings": [
-      "Direct file overlap with BI-0220 on agent_runtime.py — sequence or feature-flag",
-      "Overlap with BI-0106 if both add concurrency helpers — dedupe into one utility"
-    ],
-    "duplication_findings": [
-      "BI-0106 parallelizes stage-4 layer agents (adjacent, different call site)",
-      "BI-PF-1197 is groom CLI parallelism (different surface)",
-      "BI-0220 may add lifecycle events — must coexist"
-    ],
+    "conflict_findings": [],
+    "duplication_findings": [],
     "drift": "NONE",
     "rewrite_required": false,
     "new_component_required": false,
-    "rationale": "Biggest wall-clock win per body; small, low-risk EXTEND of existing runtime; Should priority behind reliability P0.",
-    "assumptions": [
-      "Section calls are independent (no shared mutable state)",
-      "Order-independence already holds per BI-0224 note in body",
-      "Concurrency limit small (2-8) fits provider quotas"
-    ],
-    "risks": [
-      "Non-determinism if merge is not strictly keyed/sorted",
-      "Provider rate-limit pressure under parallel calls (needs pacing awareness)",
-      "Evidence/manifest write races under concurrency"
-    ],
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
     "evidence": [
-      "Existing agent_runtime.py + run_manifest.py + run_breaker.py cover execution points",
-      "BI-0106 precedent for bounded concurrency pattern"
+      "similar=4",
+      "score=0.75",
+      "components=8",
+      "apis=8"
     ],
     "confidence": "high",
-    "missing_info": [
-      "Default worker count and where it's configured (engineering-workers.json vs run config)",
-      "Whether provider rate pacing (BI-0220 P2) must land first",
-      "Sections count typical for sizing"
-    ],
+    "missing_info": [],
     "depth": "deep",
-    "mode": "ai",
+    "mode": "deterministic",
     "context_review": {
       "implementable": true,
       "missing": [
@@ -179,9 +162,10 @@
       ],
       "reason": "Extension points clearly identified; remaining items are config choices."
     },
-    "arch_fingerprint": "dccfa9aaa68e546a"
+    "arch_fingerprint": "124d603588017096",
+    "refreshed_at": "2026-10-10T10:57:28.238260"
   },
-  "_note": "dependencies set",
+  "_note": "analysis updated",
   "priority_rank": 2,
   "priority_class": "P2",
   "revision": 2,

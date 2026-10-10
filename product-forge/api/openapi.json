@@ -804,6 +804,277 @@
         ]
       }
     },
+    "/api/v1/backlog/epics/{epic_id}/order": {
+      "get": {
+        "description": "READ-ONLY: execution order of an epic's OPEN children (dependency wave -> priority, READY/wait).\n\nDelegates to ``core.scheduler.epic_order`` (no writes). Use POST to persist the order on the epic.",
+        "operationId": "epic_order_api_v1_backlog_epics__epic_id__order_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "epic_id",
+            "required": true,
+            "schema": {
+              "title": "Epic Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "scope",
+            "required": false,
+            "schema": {
+              "default": "product_forge",
+              "title": "Scope",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "project",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Project",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "stage",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Stage",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Authorization",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-roles",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-Roles",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Epic Order",
+        "tags": [
+          "backlog"
+        ]
+      },
+      "post": {
+        "description": "SAVE: compute the epic's execution order AND persist it on the epic (``execution_order[]``).\n\nBI-PF-1222: the write is delegated to ``core.backlog.set_execution_order`` (single writer). ``children[]``\n(membership) is never touched.",
+        "operationId": "epic_order_save_api_v1_backlog_epics__epic_id__order_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "epic_id",
+            "required": true,
+            "schema": {
+              "title": "Epic Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "scope",
+            "required": false,
+            "schema": {
+              "default": "product_forge",
+              "title": "Scope",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "project",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Project",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "stage",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Stage",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Authorization",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-roles",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-Roles",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Epic Order Save",
+        "tags": [
+          "backlog"
+        ]
+      }
+    },
+    "/api/v1/backlog/epics/{epic_id}/status": {
+      "get": {
+        "description": "Full lifecycle status of one epic: ALL children (open + closed) with state/status/groomed/\nneeds_reanalysis/ready/worker/wave/order_rank/order_status/reasons + an epic rollup. Read-only.",
+        "operationId": "epic_status_api_v1_backlog_epics__epic_id__status_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "epic_id",
+            "required": true,
+            "schema": {
+              "title": "Epic Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "scope",
+            "required": false,
+            "schema": {
+              "default": "product_forge",
+              "title": "Scope",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "project",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Project",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "stage",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Stage",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Authorization",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-roles",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-Roles",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Epic Status",
+        "tags": [
+          "backlog"
+        ]
+      }
+    },
     "/api/v1/backlog/groom": {
       "post": {
         "description": "Bulk groom every open item (BI-PF-1194): AI default, batched (default 3/pass), resumable.",
@@ -1697,6 +1968,134 @@
         ]
       }
     },
+    "/api/v1/backlog/refresh-stale": {
+      "post": {
+        "description": "Re-stamp OPEN items whose analysis is stale vs the current architecture (alias: /refresh-stale).\n\nRe-analyzes each item and records the current ``arch_fingerprint`` (does NOT overwrite authored context).\nDeterministic by default; ``mode=\"ai\"`` (or ``ai=true``) for a deep AI refresh. ``limit`` caps items per call.",
+        "operationId": "refresh_stale_api_v1_backlog_refresh_stale_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Authorization",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-roles",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-Roles",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "title": "Body",
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Refresh Stale",
+        "tags": [
+          "backlog"
+        ]
+      }
+    },
+    "/api/v1/backlog/restamp": {
+      "post": {
+        "description": "Re-stamp OPEN items whose analysis is stale vs the current architecture (alias: /refresh-stale).\n\nRe-analyzes each item and records the current ``arch_fingerprint`` (does NOT overwrite authored context).\nDeterministic by default; ``mode=\"ai\"`` (or ``ai=true``) for a deep AI refresh. ``limit`` caps items per call.",
+        "operationId": "refresh_stale_api_v1_backlog_restamp_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Authorization",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-roles",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-Roles",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "title": "Body",
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Refresh Stale",
+        "tags": [
+          "backlog"
+        ]
+      }
+    },
     "/api/v1/backlog/stats": {
       "get": {
         "operationId": "stats_api_v1_backlog_stats_get",
@@ -1763,6 +2162,98 @@
           }
         },
         "summary": "Stats",
+        "tags": [
+          "backlog"
+        ]
+      }
+    },
+    "/api/v1/backlog/status": {
+      "get": {
+        "description": "Scope-level status: every epic's rollup (open/closed/groomed/need_reanalysis/ready/wait) + standalone\nitems. ``all=true`` aggregates across EVERY backlog/scope (BI-PF-1222). Read-only.",
+        "operationId": "backlog_status_api_v1_backlog_status_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "scope",
+            "required": false,
+            "schema": {
+              "default": "product_forge",
+              "title": "Scope",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "project",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Project",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "stage",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Stage",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "all",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "All",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Authorization",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-roles",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-Roles",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Backlog Status",
         "tags": [
           "backlog"
         ]
@@ -3866,6 +4357,16 @@
             }
           },
           {
+            "in": "query",
+            "name": "epic",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Epic",
+              "type": "string"
+            }
+          },
+          {
             "in": "header",
             "name": "authorization",
             "required": false,
@@ -3943,6 +4444,16 @@
             "schema": {
               "default": "",
               "title": "Stage",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "epic",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Epic",
               "type": "string"
             }
           },

@@ -27,7 +27,9 @@ See `product-forge/docs/WORKERGRID-DESIGN.md` and `ADR-0002` (`product-forge/doc
 /wg register --runtime opencode --caps python,code
 /wg list
 /wg work --worker WRK-…
+/wg work --epic BI-PF-0390       # claim only that epic's next eligible child
 /wg schedule eligible
+/wg schedule next --epic BI-PF-0390
 /wg dispatch
 /wg instruct                     # show the shared instructions
 /wg instruct <text>              # append to instructions.md

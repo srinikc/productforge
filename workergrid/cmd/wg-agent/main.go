@@ -3,7 +3,7 @@
 // via a configured runtime command, renews its lease, and writes execution
 // status back to the producer. One process = one execution slot.
 //
-// Usage: wg-agent [-runtime R] [-worker-id W] [-scope S] [-project P]
+// Usage: wg-agent [-runtime R] [-worker-id W] [-scope S] [-project P] [-epic E]
 //
 //	[-service URL] [-once]
 //
@@ -25,6 +25,7 @@ func main() {
 	workerID := flag.String("worker-id", "", "worker id to register (default: generated)")
 	scope := flag.String("scope", "product_forge", "producer scope to claim work from")
 	project := flag.String("project", "", "producer project (optional)")
+	epic := flag.String("epic", "", "restrict claims to this epic's children (optional; BI-PF-1222)")
 	service := flag.String("service", "", "coordinator base URL (default: config service_url/host:port)")
 	once := flag.Bool("once", false, "claim+run at most one item, then exit (tests/one-shots)")
 	flag.Parse()
@@ -34,6 +35,7 @@ func main() {
 		Runtime:  *runtimeName,
 		Scope:    *scope,
 		Project:  *project,
+		Epic:     *epic,
 		Service:  *service,
 		Once:     *once,
 	}); err != nil {

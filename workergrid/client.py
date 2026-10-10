@@ -55,13 +55,17 @@ def _unwrap(raw: str):
         return raw
 
 
-def eligible(scope: str = "product_forge", project: str = "") -> dict:
+def eligible(scope: str = "product_forge", project: str = "", epic: str = "") -> dict:
     q = f"/api/v1/engineering/schedule/eligible?scope={scope}&project={project}"
+    if epic:
+        q += f"&epic={epic}"
     return call("GET", q)
 
 
-def next_item(scope: str = "product_forge", project: str = "") -> dict:
+def next_item(scope: str = "product_forge", project: str = "", epic: str = "") -> dict:
     q = f"/api/v1/engineering/schedule/next?scope={scope}&project={project}"
+    if epic:
+        q += f"&epic={epic}"
     return call("GET", q)
 
 

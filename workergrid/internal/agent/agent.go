@@ -41,6 +41,7 @@ type Options struct {
 	Runtime  string
 	Scope    string
 	Project  string
+	Epic     string // optional: restrict claims to one epic's children (BI-PF-1222)
 	Service  string // coordinator base URL ("" -> config ServiceBase())
 	Once     bool   // claim+run at most one item, then exit (tests/one-shots)
 }
@@ -213,7 +214,7 @@ func (a *Agent) loop(ctx context.Context) error {
 
 		claim, err := a.svc("POST", "/work", map[string]any{
 			"worker_id": a.wid, "runtime": a.opt.Runtime,
-			"scope": a.opt.Scope, "project": a.opt.Project})
+			"scope": a.opt.Scope, "project": a.opt.Project, "epic": a.opt.Epic})
 		if err != nil {
 			fmt.Printf("[wg-agent] claim error: %v\n", err)
 			if a.opt.Once {

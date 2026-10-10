@@ -18,7 +18,7 @@ $ARGUMENTS
 ## STEP 0: resolve pf.py (self-locating — no installer)
 Resolve `$PFSCRIPT` = the FIRST path below for which `Test-Path` returns `True`:
 1. `$env:PF_ROOT\scripts\pf.py` — explicit override (set the `PF_ROOT` env var if you use one)
-2. Known checkout: `C:\Users\ADMIN\Documents\Srinikc\AI Products\Exploring\product-forge\scripts\pf.py`
+2. Known checkout: `C:\Users\ADMIN\Documents\Srinikc\AI Products\Exploring\PF-validation\product-forge\scripts\pf.py`
 3. Discovery from the current directory: `<cwd>\scripts\pf.py`, then for each parent up to 5 levels:
    `<parent>\scripts\pf.py` and `<parent>\product-forge\scripts\pf.py`
 
@@ -37,15 +37,24 @@ Deterministic verbs (backlog, dogfood, validate, release, package, audit, status
 generation (`/pf product ...`) delegates to
 Product Forge's `scripts/run_pipeline.py` (the canonical agent runner).
 
+## Grooming -> approval (do not skip the ask)
+`groom`/`groom-all` only PROPOSE an analysis (`status=IN_PROGRESS`); they do not approve it. After a groom run:
+1. show the user the `summary` (groomed / pending_approval / flagged), then
+2. ASK for approval; only on an explicit yes run `approve <id>` / `approve-all` (or re-run with `--approve`).
+For one-shot (no prompt) use `/pf backlog groom-all --approve` (or `groom <id> --approve`).
+Grooming/approval also refreshes + saves the parent epic's `execution_order` (view with `epic-status <id>`,
+`epic-order <id>`).
+
 ## Verb map
 - `/pf help [verb]` — usage overview, or per-verb details (subcommands + flags)
 - `/pf product new "idea" --tier <tier>` / `continue` / `fix "desc"` → PF `scripts/run_pipeline.py`
-- `/pf backlog list|show <id>|groom <id> [--no-ai] [--force]|approve <id>`
+- `/pf backlog list|show <id>|epic-order <id> [--dry]|epic-status <id>|status [--all]|restamp [--limit N] [--ai]|groom <id> [--no-ai] [--force] [--approve]|approve <id>`
   — groom fills the full context (objective/AC/in_scope/…), priority, and structured deps; gap-fill by default,
   `--force` overwrites existing authored fields
-- `/pf backlog groom-all [--no-ai] [--batch N] [--jobs N] [--limit N] [--ids a,b] [--force] [--dry]|review|approve-all [--ids a,b] [--force] [--dry]`
+- `/pf backlog groom-all [--no-ai] [--batch N] [--jobs N] [--limit N] [--ids a,b] [--force] [--dry] [--approve]|review|approve-all [--ids a,b] [--force] [--dry]`
   — bulk: groom all open items (incl. in-progress) in batched AI passes (3/pass, 4 concurrent), review the results,
-  then approve clean items (approve-all skips flagged unless `--force`; COMPLETE items re-groomed only with `--force`)
+  then approve clean items (approve-all skips flagged unless `--force`; COMPLETE items re-groomed only with `--force`);
+  `--approve` chains the approval so groom+approve happen in one call
 - `/pf dogfood [--dry]`
 - `/pf sync` — git sync (fetch remote + push develop)
 - `/pf validate <PROFILE>` · `/pf release readiness|gate` · `/pf package <edition>`
