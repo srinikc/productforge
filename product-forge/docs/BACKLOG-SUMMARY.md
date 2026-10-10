@@ -1,14 +1,14 @@
 # Backlog Summary
 
-> GENERATED 2026-10-10T19:51:58 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-10T21:31:36 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 71  |  **Closed:** 464
-- `new`: 71
+- **Open:** 72  |  **Closed:** 464
+- `new`: 72
 
-### new, by category (71)
+### new, by category (72)
 **API / reports / HIL / misc** (8)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
@@ -60,7 +60,7 @@
 | BI-PF-1238 | Should | change | Docs: CI/CD & Gates SSOT (PF + generated products) - triggers, tiers, gates, delivery, text+Mermaid diagrams | One SSOT for how PF builds/verifies/ships and for generated products: trigger map, author-time hooks, precheck... |
 | BI-PF-1241 | Should | feature | Per-item token/cache/cost usage (execution.usage) + runtime usage capture + rollup | - backlog execution: + usage{} (input/output/reasoning/cache_read/cache_write/total/cost_usd/model/cost_source... |
 
-**Wiring / tech-debt / API** (44)
+**Wiring / tech-debt / API** (45)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0185 | Should | feature | EPIC: Multi-modal / media orchestration (pluggable capability packs) | Make the pipeline modality-agnostic via PLUGGABLE capability packs, enabled per project when the idea needs th... |
@@ -107,6 +107,7 @@
 | BI-PF-1248 | Should | epic | EPIC: Tech Debt & Repo Hygiene (generated artifacts, script drift, gate gaps) | One home for repo-hygiene / tech-debt work that is not a product feature: generated-artifact freshness, script... |
 | BI-PF-1249 | Should | change | Hygiene: pre-commit regenerates derived docs when data/backlog changes (docs-fresh staleness on bookkeeping commits) | Hygiene: pre-commit regenerates derived docs when data/backlog changes (docs-fresh staleness on bookkeeping co... |
 | BI-PF-1250 | Should | change | Governance: every backlog item must belong to an epic (analyze-first; 'Unscoped' last resort; grooming re-homes) | Every backlog item belongs to an epic, going forward, across the board. |
+| BI-PF-1252 | Should | epic | Unscoped | Unscoped |
 
 ---
 
@@ -306,5 +307,5 @@
 ---
 
 ## Totals
-- backend: 71 open / 464 closed
+- backend: 72 open / 464 closed
 - dashboard: 146 open / 3 closed
