@@ -58,25 +58,31 @@ class WriteSafety:
             # Try to acquire lock with timeout
             import time
             start_time = time.time()
-            
+            _is_windows = platform.system() == "Windows"
+
             while True:
                 try:
-                    # Windows locking
-                    msvcrt.locking(lock_file.fileno(), msvcrt.LK_NBLCK, 1)
+                    if _is_windows:
+                        msvcrt.locking(lock_file.fileno(), msvcrt.LK_NBLCK, 1)
+                    else:
+                        fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
                     break
-                except IOError:
+                except (IOError, OSError):
                     if time.time() - start_time > timeout:
                         raise TimeoutError(f"Could not acquire lock on {file_path}")
                     time.sleep(0.1)
-            
+
             yield
-            
+
         finally:
             try:
                 # Release lock
-                lock_file.seek(0)
-                msvcrt.locking(lock_file.fileno(), msvcrt.LK_UNLCK, 1)
-            except:
+                if platform.system() == "Windows":
+                    lock_file.seek(0)
+                    msvcrt.locking(lock_file.fileno(), msvcrt.LK_UNLCK, 1)
+                else:
+                    fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
+            except Exception:
                 pass
             lock_file.close()
             if lock_path.exists():

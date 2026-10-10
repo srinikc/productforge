@@ -13,6 +13,9 @@ on:
 jobs:
   structure:
     runs-on: ubuntu-latest
+    env:
+      # CI has no shared git-CAS id authority; strict mode fails closed. Use soft mode in CI.
+      PF_ID_ALLOC: "on"
     defaults:
       run:
         working-directory: product-forge
@@ -24,10 +27,16 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Configure git identity
+        run: |
+          git config --global user.email "ci@productforge.local"
+          git config --global user.name "Product Forge CI"
+
       - name: Install dev tools
         run: |
           python -m pip install --upgrade pip
           pip install pytest pytest-asyncio pytest-cov fastapi uvicorn pydantic ruff
+          pip install httpx requests pyyaml jsonschema
 
       - name: Precheck gates (REQUIRED) — compile, wired-audit, contract/governance, docs, lint, gates
         run: python scripts/dev/precheck.py --full

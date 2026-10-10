@@ -1,33 +1,42 @@
 # Backlog Summary
 
-> GENERATED 2026-10-09T21:42:04 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-10T11:49:02 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 35  |  **Closed:** 449
-- `new`: 35
+- **Open:** 54  |  **Closed:** 463
+- `new`: 54
 
-### new, by category (35)
-**API / reports / HIL / misc** (1)
+### new, by category (54)
+**API / reports / HIL / misc** (4)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-PF-0332 | Should | chore | API-5 deferred hardening: rate limiting + request/upload limits + tenant-isolation expansion + event streaming | API-5 deferred hardening: rate limiting + request/upload limits + tenant-isolation expansion + event streaming |
+| BI-PF-1217 | Should | feature | C15: Security evaluation + red-team suite + security metrics (assurance) | C15: Security evaluation + red-team suite + security metrics (assurance) |
+| BI-PF-1230 | Should | bug | CI2: PF_ID_ALLOC=strict default breaks CI (shared git-CAS authority unavailable in CI) | CI2: PF_ID_ALLOC=strict default breaks CI (shared git-CAS authority unavailable in CI) |
+| BI-PF-1232 | Should | bug | CI4: regenerate committed derived artifacts (api/openapi.json + docs README/BACKLOG-SUMMARY/documentation-index) | CI4: regenerate committed derived artifacts (api/openapi.json + docs README/BACKLOG-SUMMARY/documentation-inde... |
 
-**Bug fixes** (1)
+**Bug fixes** (4)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
-| BI-PF-1196 | Should | bug | RCCA: AI grooming never captures the agent proposal (wrong path) + output truncation -> silent deterministic fallback | Make AI grooming capture and store the agent's JSON proposal from the execution artifact, with a non-silent de... |
+| BI-PF-1225 | Should | bug | Defect/RCCA: CI (py3.11) broken by f-strings with a backslash inside {...} (PEP 701 is 3.12+); add a pycompat guard | Defect/RCCA: CI (py3.11) broken by f-strings with a backslash inside {...} (PEP 701 is 3.12+); add a pycompat ... |
+| BI-PF-1229 | Should | bug | CI1: workflow installs the declared test deps (jsonschema/httpx/requests/pyyaml) so pipeline tests collect | CI1: workflow installs the declared test deps (jsonschema/httpx/requests/pyyaml) so pipeline tests collect |
+| BI-PF-1231 | Should | bug | CI3: core/write_safety.py file_lock uses Windows-only msvcrt -> POSIX fcntl (Linux CI NameError) | CI3: core/write_safety.py file_lock uses Windows-only msvcrt -> POSIX fcntl (Linux CI NameError) |
+| BI-PF-1233 | Should | bug | CI5: triage residual CI pipeline-test failures (pfssot fields IndexError, delivery integrate conflict, grooming completeness) | CI5: triage residual CI pipeline-test failures (pfssot fields IndexError, delivery integrate conflict, groomin... |
 
-**Discovery / HIL / prompts** (1)
+**Discovery / HIL / prompts** (4)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0218 | Should | feature | Backend: AI-era operations layer (evals + prompt/model/agent versioning + feedback loop + model-quality observability) | Add the AI-era lifecycle layer so the Product tab can show AI quality + the loop that keeps it good. |
+| BI-PF-1208 | Should | feature | C6: Tool/Action Security Gateway + Tool-Result Guardrail (policy+risk+approval+sandbox per action; injection-scan results) | C6: Tool/Action Security Gateway + Tool-Result Guardrail (policy+risk+approval+sandbox per action; injection-s... |
+| BI-PF-1214 | Should | feature | C12: Multi-agent delegation control (capability/delegated/resource/time/action/approval scope) | C12: Multi-agent delegation control (capability/delegated/resource/time/action/approval scope) |
+| BI-PF-1216 | Should | feature | C14: Security gates S0-S6 across the factory pipeline (intake->planning->impl->test->release->runtime->improve) | C14: Security gates S0-S6 across the factory pipeline (intake->planning->impl->test->release->runtime->improve... |
 
 **Knowledge / KB** (1)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
-| BI-0208 | Should | feature | Backend: sensor/IoT capability pack + ingest adapters (MQTT/serial/BLE/Modbus/CAN) + time-series/anomaly models | A `sensor` capability pack that, only when the idea needs it, enables device ingest, a time-series store, fore... |
+| BI-0208 | Must | feature | Backend: sensor/IoT capability pack + ingest adapters (MQTT/serial/BLE/Modbus/CAN) + time-series/anomaly models | A `sensor` capability pack that, only when the idea needs it, enables device ingest, a time-series store, fore... |
 
 **Licensing / tenancy** (2)
 | ID | MoSCoW | Type | Title | Objective |
@@ -40,9 +49,9 @@
 |---|---|---|---|---|
 | BI-0206 | Should | tech-debt | Backend: model downloader + local cache + license-acceptance gate + models.lock (open-weights) | One owner module that downloads only the weights a project's capability pack needs, into a gitignored local ca... |
 | BI-0225 | Should | feature | Parallel section/feature generation | Run section/per-feature agent calls in parallel with a bounded worker pool and merge results deterministically... |
-| BI-PF-1197 | Should | feature | Parallel batch grooming: bounded concurrent LLM calls (groom-all --jobs) | Run independent grooming LLM batches concurrently (bounded), cutting bulk-groom wall time. |
+| BI-PF-1212 | Should | feature | C10: Security-event audit/evidence (evidence-grade) + durable SecurityContext propagation | C10: Security-event audit/evidence (evidence-grade) + durable SecurityContext propagation |
 
-**Wiring / tech-debt / API** (26)
+**Wiring / tech-debt / API** (36)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0185 | Should | feature | EPIC: Multi-modal / media orchestration (pluggable capability packs) | Make the pipeline modality-agnostic via PLUGGABLE capability packs, enabled per project when the idea needs th... |
@@ -50,8 +59,8 @@
 | BI-0209 | Should | feature | Backend: OCR/document capability pack + doc-parse kind + OCR generators/adapters | An `ocr` capability pack with a `ocr/doc-parse` kind, permissive self-host defaults, and paid API options -- e... |
 | BI-0220 | Should | feature | EPIC: pipeline E2E reliability - events, readiness checklist, model registry/capability gate, lock/status fixes | EPIC: pipeline E2E reliability - events, readiness checklist, model registry/capability gate, lock/status fixe... |
 | BI-PF-0331 | Should | chore | OS/shell neutrality: remove PowerShell-only scripting/doc workarounds | Make every scripted workflow and documented command cross-platform: pure Python entrypoints, a single shell-ne... |
-| BI-PF-0360 | Should | epic | EPIC: Backlog SSOT + Work Scheduler + Pluggable Worker Orchestration (doc: PF-Backlog-SSOT-Scheduler-Pluggable-Workers) | EPIC: Backlog SSOT + Work Scheduler + Pluggable Worker Orchestration (doc: PF-Backlog-SSOT-Scheduler-Pluggable... |
-| BI-PF-0374 | Should | feature | PFSSOT-P12: optimization (only after correctness) | PFSSOT-P12: optimization (only after correctness) |
+| BI-PF-0360 | Must | epic | EPIC: Backlog SSOT + Work Scheduler + Pluggable Worker Orchestration (doc: PF-Backlog-SSOT-Scheduler-Pluggable-Workers) | EPIC: Backlog SSOT + Work Scheduler + Pluggable Worker Orchestration (doc: PF-Backlog-SSOT-Scheduler-Pluggable... |
+| BI-PF-0374 | Could | feature | PFSSOT-P12: optimization (only after correctness) | PFSSOT-P12: optimization (only after correctness) |
 | BI-PF-0386 | Should | feature | PF platform: IP-value assessment of all modules (rewrite-by-value ranking: high-value -> Go/Rust, low-value -> compiled) | PF platform: IP-value assessment of all modules (rewrite-by-value ranking: high-value -> Go/Rust, low-value ->... |
 | BI-PF-0387 | Should | feature | PF platform delivery baseline: ONE source for all editions; new shipped/sensitive logic -> Go; existing -> compiled (Nuitka); no raw .py at customer; migrate by value later | PF platform delivery baseline: ONE source for all editions; new shipped/sensitive logic -> Go; existing -> com... |
 | BI-PF-0388 | Should | task | ADR: PF platform shipped editions use compiled artifacts (Go core + compiled-Python), never raw .py; one source, many editions | ADR: PF platform shipped editions use compiled artifacts (Go core + compiled-Python), never raw .py; one sourc... |
@@ -71,6 +80,16 @@
 | BI-PF-0406 | Should | feature | B7: service decomposition | B7 — service decomposition behind contracts. |
 | BI-PF-0407 | Should | feature | Bmig: migrate high-value legacy Python -> Go (by value) | Bmig — migrate high-value legacy Python -> Go (replace, not duplicate), then the remainder as an aspiration. |
 | BI-PF-0408 | Should | change | /pf command: build mode only (not orchestrator) + global /pf for all opencode sessions | - `/pf ...` always executes in build mode (`agent: build`), with no model pin so the session's model is inheri... |
+| BI-PF-1202 | Should | epic | EPIC: Security / Privacy / Compliance (CISO view) - posture doc, privacy controls, provable compliance, no false claims | A CISO-grade posture: one security-architecture doc (data flow, trust boundaries, controls, risk register, fra... |
+| BI-PF-1204 | Should | feature | C2: Privacy controls (DPDP/GDPR) - data-subject rights, retention, DPIA, consent as a gate + artifacts | C2: Privacy controls (DPDP/GDPR) - data-subject rights, retention, DPIA, consent as a gate + artifacts |
+| BI-PF-1207 | Should | feature | C5: AI Security Control Plane - Risk engine + Policy engine (+ policy versioning) | C5: AI Security Control Plane - Risk engine + Policy engine (+ policy versioning) |
+| BI-PF-1209 | Should | feature | C7: Secret broker (model sees credential_ref, never the secret; inject only into the authorized runtime) | C7: Secret broker (model sees credential_ref, never the secret; inject only into the authorized runtime) |
+| BI-PF-1210 | Should | feature | C8: Sandbox + Network/Egress policy for code/autonomous execution | C8: Sandbox + Network/Egress policy for code/autonomous execution |
+| BI-PF-1211 | Should | feature | C9: RAG/Document guardrail + trust levels (untrusted content can never gain authority) | C9: RAG/Document guardrail + trust levels (untrusted content can never gain authority) |
+| BI-PF-1213 | Should | feature | C11: Kill switch (independent of the LLM) - stop workflow/agent/tool/schedule/deploy/connectors | C11: Kill switch (independent of the LLM) - stop workflow/agent/tool/schedule/deploy/connectors |
+| BI-PF-1215 | Should | feature | C13: Per-generated-product Security Profile/Manifest derived from product capabilities | C13: Per-generated-product Security Profile/Manifest derived from product capabilities |
+| BI-PF-1218 | Should | feature | C16: Fail-safe behaviour policy (+ controlled security-policy improvement, never model-autonomous) | C16: Fail-safe behaviour policy (+ controlled security-policy improvement, never model-autonomous) |
+| BI-PF-1228 | Should | epic | EPIC: Make CI green - pre-existing build-breakage cleanup (deps, id-authority, cross-platform, generated artifacts, tests) | A green, trustworthy `structure` CI check so PRs merge normally (no override), and "green locally" == "green i... |
 
 ---
 
@@ -270,5 +289,5 @@
 ---
 
 ## Totals
-- backend: 35 open / 449 closed
+- backend: 54 open / 463 closed
 - dashboard: 146 open / 3 closed
