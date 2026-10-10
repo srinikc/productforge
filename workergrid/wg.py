@@ -194,32 +194,162 @@ def _ensure_worker(flags):
 
 
 def cmd_work(pos, flags):
+    """Assignment operations. Without a subcommand = MANUAL (in-session) worker mode (BI-PF-1242).
+
+    - ``wg work claim [--epic ID]``        claim the next eligible item; returns the full assignment package
+                                           (item/worktree/branch/acceptance criteria) for a session to work.
+    - ``wg work complete <id> [...]``      report done (PF delivery lane: push -> PR -> merge).
+    - ``wg work fail <id> [--reason R]``   report failure (item -> blocked; worktree auto-cleaned).
+    - ``wg work release <id>``             requeue: clears the lease, keeps the branch.
+    - ``wg work heartbeat <id>``           renew the lease (call during long runs).
+    - ``wg work [manual] [--epic ID]``     same as claim + attaches the 14-guidelines session instructions.
+    - ``/wg work auto ...``                headless self-approving worker (goes to cmd_agent via main()).
+    """
+    sub = pos[0].lower() if pos else ""
     scope = flags.get("scope", "product_forge")
     project = flags.get("project", "")
     epic = flags.get("epic", "")
-    wid, w = _ensure_worker(flags)
-    if _via_service(flags):
-        r = client.svc("POST", "/work", {"worker_id": wid, "runtime": w.get("runtime", ""),
-                       "scope": scope, "project": project, "epic": epic})
-        return {"mode": "service", **(r.get("data") or {"assigned": False, "reason": r.get("error")})}
-    r = client.next_item(scope, project, epic)
+
+    if sub in ("claim", "complete", "fail", "release", "heartbeat", "manual"):
+        return _work_sub(pos, flags, scope, project, epic, sub)
+
+    # default: MANUAL mode - claim an item and hand the assignment package to this session (BI-PF-1242)
+    r = client.claim_assignment(scope=scope, project=project, worker_id=flags.get("worker-id", ""), epic=epic)
     if not r.get("ok"):
-        return {"assigned": False, "reason": f"producer API: {r.get('status')} {r.get('error')}"}
-    data = r.get("data") or {}
-    # BI-PF-0417: the producer wraps the payload in {request_id,status,data:{found,item,...}};
-    # unwrap one level before reading (the coordinator's assign() does the same).
-    if isinstance(data, dict) and "found" not in data and isinstance(data.get("data"), dict):
-        data = data["data"]
-    item = data.get("item")
-    if not data.get("found") or not item:
-        return {"assigned": False, "reason": "no eligible item"}
-    lease = _leases()
-    secs = int(_cfg.load().get("lease_seconds") or 3600)
-    lease["leases"][item] = {"item_id": item, "worker_id": wid, "runtime": w.get("runtime", ""),
-                             "expires_at": time.time() + secs}
-    _save_leases(lease)
-    return {"mode": "local", "assigned": True, "item_id": item, "title": data.get("title"),
-            "worker_id": wid, "runtime": w.get("runtime", ""), "lease_seconds": secs}
+        return {"assigned": False, "reason": f"producer API: {r.get('status')} {r.get('error') or r.get('error')}"}
+    d = client.pf_data(r.get("data"))
+    if not d.get("assigned"):
+        return {"assigned": False, "reason": d.get("reason") or "no eligible item"}
+    d["guidelines"] = "Follow workergrid/instructions.md (the 14 binding guidelines). MANUAL mode: think -> " \
+                      "design -> 360-degree check -> RECONCILIATION block -> IMPACT REVIEW table -> plain-language " \
+                      "summary + risks. PAUSE for operator approval BEFORE implementing, and again BEFORE completing."
+    d["next"] = (f"Work in {d.get('worktree')} on {d.get('branch')}. Then: 'wg work complete {d.get('item_id')}' "
+                 "(PF delivery), 'wg work release <id>' (requeue), or 'wg work heartbeat <id>' (renew lease).")
+    return d
+
+
+def _work_sub(pos, flags, scope, project, epic, sub):  # noqa: C901
+    """work claim|complete|fail|release|heartbeat subcommands (BI-PF-1242)."""
+    if sub == "manual":
+        return cmd_work([], {"scope": scope, "project": project, "epic": flags.get("epic", "")})
+
+    if sub == "claim":
+        r = client.claim_assignment(scope=scope, project=project,
+                                    worker_id=flags.get("worker-id", ""), epic=flags.get("epic", ""))
+        d = client.pf_data(r.get("data")) if r.get("ok") else {"assigned": False, "error": r.get("error")}
+        return d if isinstance(d, dict) else {"assigned": False, "error": r.get("error")}
+
+    if len(pos) < 2:
+        return {"error": f"usage: wg work {sub} <item_id> [...]"}
+
+    item = pos[1]
+    if sub == "complete":
+        usage = {}
+        if flags.get("usage"):
+            try:
+                usage = json.loads(str(flags.get("usage")))
+            except Exception:
+                return {"error": "--usage is not valid JSON"}
+        elif flags.get("usage-file"):
+            try:
+                with open(str(flags.get("usage-file")), encoding="utf-8") as f:
+                    usage = json.load(f)
+            except Exception as e:
+                return {"error": f"usage-file unreadable: {e}"}
+        return client.complete_assignment(
+            item_id=item, scope=scope, project=project,
+            status=str(flags.get("status") or "verifying"),
+            note=str(flags.get("note") or ""), usage=usage or None)
+    if sub == "fail":
+        return client.fail_assignment(item, scope=scope, project=project,
+                                      reason=str(flags.get("reason") or ""))
+    if sub == "release":
+        return client.release_assignment(item, scope=scope, project=project,
+                                         reason=str(flags.get("reason") or "released"))
+    if sub == "heartbeat":
+        return client.heartbeat_assignment(item, scope=scope, project=project,
+                                           lease_seconds=int(flags.get("lease-seconds") or 0))
+    return {"error": f"unknown work subcommand {sub!r}"}
+
+
+def cmd_watch(pos, flags):
+    """Live progress: active assignments + the worker journal (BI-PF-1242). ``--follow`` tails live."""
+    scope = flags.get("scope", "product_forge")
+    project = flags.get("project", "")
+    epic = str(flags.get("epic") or "")
+    out = {"scope": scope, "project": project, "epic": epic,
+           "watch": _snapshot(scope, project, epic, int(flags.get("lines") or 15))}
+    if flags.get("follow"):
+        _tail_journal(out, epic)
+        return {"stopped": "follow-mode ended"}
+    return out
+
+
+def _journal_path() -> str:
+    import os
+    return os.path.join(_cfg.state_dir(), "agent-journal.jsonl")
+
+
+def _snapshot(scope, project, epic, lines=15) -> dict:
+    a = client.assignments(scope, project)
+    d = client.pf_data(a.get("data") or {})
+    rows = d.get("assignments") or []
+    if epic:
+        rows = [r for r in rows if str(r.get("item_id") or "") == epic or True]
+    events = _journal_events(lines, epic)
+    return {"active_count": d.get("count"), "assignments": rows, "journal": events,
+            "journal_file": _journal_path()}
+
+
+def _journal_events(lines, epic=""):
+    import os, json
+    p = _journal_path()
+    if not os.path.isfile(p):
+        return []
+    with open(p, encoding="utf-8", errors="replace") as f:
+        rows = f.read().splitlines()[-max(1, lines):]
+    out = []
+    for ln in rows:
+        try:
+            ev = json.loads(ln)
+        except Exception:
+            continue
+        if epic and str(ev.get("item_id") or "") != epic and ev.get("event") in ("claim", "exec_start"):
+            continue
+        out.append({"ts": ev.get("ts"), "event": ev.get("event"), "item_id": ev.get("item_id"),
+                    "detail": ev.get("reason") or ev.get("detail") or ev.get("title") or ""})
+    return out
+
+
+def _tail_journal(snapshot: dict) -> None:
+    """Print the snapshot then tail (like `tail -f`) until interrupted (Ctrl+C), filtering by epic."""
+    import os, json, time
+    epic = str(snapshot.get("epic") or "")
+    print(json.dumps({"watch": "following", "journal_file": _journal_path(), "epic": epic}), flush=True)
+    pos = 0
+    try:
+        while True:
+            p = _journal_path()
+            if os.path.isfile(p):
+                size = os.path.getsize(p)
+                if pos > size:
+                    pos = 0
+                if size > pos:
+                    with open(_journal_path(), encoding="utf-8", errors="replace") as f:
+                        f.seek(pos)
+                        data = f.read()
+                        pos = f.tell()
+                    for ln in data.splitlines():
+                        try:
+                            ev = json.loads(ln)
+                        except Exception:
+                            continue
+                        if epic and str(ev.get("item_id") or "") != epic:
+                            continue
+                        print(json.dumps(ev, default=str), flush=True)
+            time.sleep(int(_cfg.load().get("poll_seconds") or 5))
+    except KeyboardInterrupt:
+        return
 
 
 def cmd_schedule(pos, flags):
@@ -299,6 +429,7 @@ def cmd_recover(pos, flags):
 
 VERBS = {"serve": cmd_serve, "agent": cmd_agent, "register": cmd_register, "list": cmd_list, "status": cmd_status,
          "unregister": cmd_unregister, "work": cmd_work, "schedule": cmd_schedule, "recover": cmd_recover,
+         "watch": cmd_watch,
          "adapters": cmd_adapters, "dispatch": cmd_dispatch, "instruct": cmd_instruct, "config": cmd_config}
 
 
@@ -312,10 +443,16 @@ def main(argv=None) -> int:
         print(f"unknown verb {verb!r}. verbs: {', '.join(VERBS)}")
         return 2
     pos, flags = _flags(rest)
+    if verb == "work" and pos and pos[0].lower() in ("claim", "complete", "fail", "release", "heartbeat", "manual"):
+        _emit(cmd_work(pos, flags))       # BI-PF-1242: explicit work subcommands (session worker)
+        return 0
+    if verb == "work" and (flags.get("auto") or (pos and pos[0].lower() == "auto")):
+        return int(cmd_agent(pos, flags) or 0)   # BI-PF-1242: /wg work auto = headless self-approving agent
     if verb in ("serve", "agent"):
         return int(VERBS[verb](pos, flags) or 0)
-    if verb == "work" and not flags.get("claim-only"):
-        return int(cmd_agent(pos, flags) or 0)   # BI-PF-0423: /wg work = the worker (PF-mode agent)
+    if verb == "work" and flags.get("claim-only"):
+        _emit(cmd_work(pos, flags))       # explicit claim-only: return/renew the assignment package
+        return 0
     try:
         _emit(VERBS[verb](pos, flags))
     except Exception as e:

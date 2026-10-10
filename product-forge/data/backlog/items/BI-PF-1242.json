@@ -1,0 +1,192 @@
+{
+  "id": "BI-PF-1242",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "",
+  "label": "PF Backlog 560",
+  "title": "In-session manual/auto worker mode + /wg watch monitoring + 14-guidelines approval gates",
+  "body": "## Why\nThe worker currently runs only as a headless background daemon where the user cannot see proposals,\nguide decisions, or approve steps. Users need to run the worker interactively in their active CLI session\nunder the 14 binding guidelines with mandatory approval gates, while retaining headless mode (auto)\nand live progress monitoring (/wg watch).\n\n## What\n- In-session manual worker mode (/wg work manual, default):\n  1. Claims assignment atomically from PF via /assignments/claim (PF creates isolated worktree off develop).\n  2. Follows the 14 guidelines (RECONCILIATION block, IMPACT REVIEW table, plain language summary, risks).\n  3. Pauses for operator approval BEFORE coding; on approval, implements & tests in worktree.\n  4. Pauses for operator approval BEFORE delivery; on approval, completes via /assignments/{id}/complete (PF delivery merges to develop).\n- Headless auto mode (/wg work auto): runs autonomous wg-agent with self-approval.\n- /wg watch [--epic ID] [--follow]: live console monitoring of active assignments & journal events.\n- Zero references to specific AI tool frameworks or legacy dashboards in core PF modules (framework-agnostic).\n\n## Where\n- workergrid/wg.py: cmd_watch, cmd_work subcommands (claim, complete, release, fail, heartbeat)\n- workergrid/client.py: claim_assignment, complete_assignment, release_assignment, fail_assignment helpers\n- product-forge/.opencode/command_global/wg.md & command/wg.md: 14-guidelines interactive session protocol\n- test-framework/tests/pipeline/test_workergrid_session_worker.py: end-to-end tests\n\n## Verify\n- Python compileall, unit tests, wg_surface_check, lint check.\n- End-to-end manual claim, lifecycle, and watch verification.\n",
+  "source": "pre-implementation review",
+  "status": "new",
+  "priority": "P1",
+  "moscow": "Should",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [],
+  "links": {
+    "related": [
+      "product_forge:BI-PF-0360",
+      "product_forge:BI-PF-1236",
+      "product_forge:BI-PF-1238",
+      "product_forge:BI-PF-1239"
+    ],
+    "backend_capability": [
+      "file:workergrid/wg.py",
+      "file:workergrid/client.py",
+      "test:test-framework/tests/pipeline/test_workergrid_session_worker.py"
+    ]
+  },
+  "decisions": [],
+  "follow_up": {},
+  "brief": {
+    "problem": "The worker currently runs only as a headless background daemon where the user cannot see proposals,\nguide decisions, or approve steps. Users need to run the worker interactively in their active CLI session\nunder the 14 binding guidelines with mandatory approval gates, while retaining headless mode (auto)\nand live progress monitoring (/wg watch).",
+    "what_adds": "- In-session manual worker mode (/wg work manual, default):\n  1. Claims assignment atomically from PF via /assignments/claim (PF creates isolated worktree off develop).\n  2. Follows the 14 guidelines (RECONCILIATION block, IMPACT REVIEW table, plain language summary, risks).\n  3. Pauses for operator approval BEFORE coding; on approval, implements & tests in worktree.\n  4. Pauses for operator approval BEFORE delivery; on approval, completes via /assignments/{id}/complete (PF delivery merges to develop).\n- Headless auto mode (/wg work auto): runs autonomous wg-agent with self-approval.\n- /wg wat",
+    "why": "The worker currently runs only as a headless background daemon where the user cannot see proposals,\nguide decisions, or approve steps. Users need to run the worker interactively in their active CLI session\nunder the 14 binding guidelines with mandatory approval gates, while retaining headless mode (auto)\nand live progress monitoring (/wg watch).",
+    "who_feels": "Product Forge maintainers and consumers.",
+    "source": "extracted"
+  },
+  "objective": "- In-session manual worker mode (/wg work manual, default):\n  1. Claims assignment atomically from PF via /assignments/claim (PF creates isolated worktree off develop).\n  2. Follows the 14 guidelines (RECONCILIATION block, IMPACT REVIEW table, plain language summary, risks).\n  3. Pauses for operator approval BEFORE coding; on approval, implements & tests in worktree.\n  4. Pauses for operator approval BEFORE delivery; on approval, completes via /assignments/{id}/complete (PF delivery merges to develop).\n- Headless auto mode (/wg work auto): runs autonomous wg-agent with self-approval.\n- /wg watch [--epic ID] [--follow]: live console monitoring of active assignments & journal events.\n- Zero references to specific AI tool frameworks or legacy dashboards in core PF modules (framework-agnostic).",
+  "acceptance_criteria": [
+    "Objective achieved: - In-session manual worker mode (/wg work manual, default):\n  1. Claims assignment atomically from PF via /assignments/claim (PF creates isolated worktree off develop).\n  2. Follows the 14 guidelines (RECONCILIATION block, IMPACT REVIEW table, plain language summary, risks).\n  3. Pauses for operator approval BEFORE coding; on approval, implements & tests in worktree.\n  4. Pauses for operator approval BEFORE delivery; on approval, completes via /assignments/{id}/complete (PF delivery merges to develop).\n- Headless auto mode (/wg work auto): runs autonomous wg-agent with self-approval.\n- /wg watch [--epic ID] [--follow]: live console monitoring of active assignments & journal events.\n- Zero references to specific AI tool frameworks or legacy dashboards in core PF modules (framework-agnostic)."
+  ],
+  "in_scope": [
+    "In-session manual/auto worker mode + /wg watch monitoring + 14-guidelines approval gates"
+  ],
+  "out_of_scope": [
+    "Not specified."
+  ],
+  "affected_components": [
+    "command",
+    "product-forge",
+    "test-framework",
+    "workergrid"
+  ],
+  "affected_files": [
+    "command/wg.md",
+    "product-forge/.opencode/command_global/wg.md",
+    "test-framework/tests/pipeline/test_workergrid_session_worker.py",
+    "workergrid/client.py",
+    "workergrid/wg.py"
+  ],
+  "approach": "In-session manual/auto worker mode + /wg watch monitoring + 14-guidelines approval gates",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Objective achieved: - In-session manual worker mode (/wg work manual, default):\n  1. Claims assignment atomically from PF via /assignments/claim (PF creates isolated worktree off develop).\n  2. Follows the 14 guidelines (RECONCILIATION block, IMPACT REVIEW table, plain language summary, risks).\n  3. Pauses for operator approval BEFORE coding; on approval, implements & tests in worktree.\n  4. Pauses for operator approval BEFORE delivery; on approval, completes via /assignments/{id}/complete (PF delivery merges to develop).\n- Headless auto mode (/wg work auto): runs autonomous wg-agent with self-approval.\n- /wg watch [--epic ID] [--follow]: live console monitoring of active assignments & journal events.\n- Zero references to specific AI tool frameworks or legacy dashboards in core PF modules (framework-agnostic)."
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "agent",
+  "requester": "pre-implementation review",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-0360",
+  "parent": "BI-PF-0360",
+  "revision": 3,
+  "priority_rank": 1,
+  "priority_class": "P2",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "IN_PROGRESS",
+    "analyzed_at": "",
+    "analyzed_by": "deterministic",
+    "revision_analyzed": 0,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/agent_model_override.py, core/business_models_kb.py, core/conversation_models.py, core/cost_model.py",
+    "existing_components": [
+      "core/agent_model_override.py",
+      "core/business_models_kb.py",
+      "core/conversation_models.py",
+      "core/cost_model.py",
+      "core/cost_modeling.py",
+      "core/loop_modes.py",
+      "core/model_catalog.py",
+      "core/model_fit.py"
+    ],
+    "existing_apis": [
+      "/api/v1/backlog/grooming/guidelines",
+      "/api/v1/engineering/pidl/approvals/{decision_id}",
+      "/api/v1/engineering/worker-providers",
+      "/api/v1/gates/go-no-go",
+      "/api/v1/gates/pr",
+      "/api/v1/gates/pr/merge",
+      "/api/v1/gates/quality",
+      "/api/v1/workers/capacity"
+    ],
+    "existing_modules": [
+      "config/approval-policy.json",
+      "config/business-models-kb.json",
+      "config/engineering-workers.json",
+      "config/grooming-guidelines.json",
+      "config/model-catalog.json",
+      "config/model-policy.json"
+    ],
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=0.75",
+      "components=8",
+      "apis=8"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": false,
+    "reasons": [],
+    "computed_at": ""
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-10T16:19:38.694042",
+  "updated_at": "2026-10-10T16:19:40.835167",
+  "score": 0.75,
+  "_note": "priority set",
+  "dashboard_impact": {
+    "needs_dashboard": false,
+    "reason": "WorkerGrid execution plane and CLI session protocol; legacy dashboard not referenced",
+    "dashboard_item": null,
+    "reviewed_by": "agent",
+    "reviewed_at": "2026-10-10T16:19:40.463077"
+  },
+  "api_impact": {
+    "needs_api": false,
+    "reason": "Reuses existing PF assignment endpoints: claim, complete, release, fail, heartbeat"
+  }
+}

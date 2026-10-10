@@ -34,6 +34,7 @@ def call(method: str, path: str, body: dict | None = None, timeout: int = 30) ->
     data = json.dumps(body).encode("utf-8") if body is not None else None
     req = urllib.request.Request(url, data=data, method=method.upper())
     req.add_header("Content-Type", "application/json")
+    req.add_header("X-Roles", os.environ.get("WORKERGRID_ROLES", "worker,operator"))
     tok = _token()
     if tok:
         req.add_header("Authorization", f"Bearer {tok}")
@@ -75,6 +76,61 @@ def set_status(item_id: str, status: str, note: str = "") -> dict:
 
 def backlog_list(scope: str = "product_forge", project: str = "") -> dict:
     return call("GET", f"/api/v1/backlog?scope={scope}&project={project}")
+
+
+# ── Assignment lifecycle (ADR-0003: PF owns per-item assignment; BI-PF-1242) ──
+def pf_data(env):
+    """Unwrap the producer's canonical envelope one level: ``{status, data:{...}}`` -> the inner data."""
+    if isinstance(env, dict) and "data" in env:
+        d = env.get("data")
+        if isinstance(d, dict):
+            return d
+    return env if isinstance(env, dict) else {}
+
+
+def claim_assignment(scope: str = "product_forge", project: str = "", worker_id: str = "",
+                     lease_seconds: int = 0, epic: str = "") -> dict:
+    """Atomically claim the next eligible item; PF returns the assignment package (worktree/branch/context)."""
+    body = {"scope": scope, "project": project, "worker_id": worker_id, "lease_seconds": lease_seconds}
+    if epic:
+        body["epic"] = epic
+    return call("POST", "/api/v1/engineering/assignments/claim", body)
+
+
+def complete_assignment(item_id: str, *, scope: str = "product_forge", project: str = "",
+                        status: str = "verifying", note: str = "",
+                        usage: dict | None = None) -> dict:
+    """Report the assignment done (PF then runs its delivery lane: push -> PR -> merge -> push)."""
+    body = {"scope": scope, "project": project, "status": status, "note": note}
+    if usage:
+        body["usage"] = usage
+    return call("POST", f"/api/v1/engineering/assignments/{item_id}/complete", body)
+
+
+def fail_assignment(item_id: str, *, scope: str = "product_forge", project: str = "",
+                    reason: str = "", usage: dict | None = None) -> dict:
+    body = {"scope": scope, "project": project, "reason": reason}
+    if usage:
+        body["usage"] = usage
+    return call("POST", f"/api/v1/engineering/assignments/{item_id}/fail", body)
+
+
+def release_assignment(item_id: str, *, scope: str = "product_forge", project: str = "",
+                       reason: str = "released") -> dict:
+    """Requeue the item (clears the lease; keeps the branch)."""
+    return call("POST", f"/api/v1/engineering/assignments/{item_id}/release",
+                {"scope": scope, "project": project, "reason": reason})
+
+
+def heartbeat_assignment(item_id: str, *, scope: str = "product_forge", project: str = "",
+                         lease_seconds: int = 0) -> dict:
+    return call("POST", f"/api/v1/engineering/assignments/{item_id}/heartbeat",
+                {"scope": scope, "project": project, "lease_seconds": lease_seconds})
+
+
+def assignments(scope: str = "product_forge", project: str = "") -> dict:
+    """Active assignments (workers -> items) read-model."""
+    return call("GET", f"/api/v1/engineering/assignments?scope={scope}&project={project}")
 
 
 # ── WorkerGrid service (coordinator) ────────────────────────────────────────
