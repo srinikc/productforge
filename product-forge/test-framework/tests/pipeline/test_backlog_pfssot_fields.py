@@ -63,12 +63,13 @@ def test_structured_dependencies_sync_flat_deps():
     _clean()
     try:
         iid = backlog.add_epic("project", _PROJ, "T", tag="TST")["id"]
+        dep = backlog.add_epic("project", _PROJ, "Dep", tag="TST")["id"]
         backlog.set_dependencies("project", _PROJ, iid,
-                                 dependencies=[{"task_id": "BI-X-1", "type": "BLOCKS"}])
+                                 dependencies=[{"task_id": dep, "type": "BLOCKS"}])
         b = backlog.get("project", _PROJ, iid)
-        assert b["dependencies"][0]["task_id"] == "BI-X-1"
+        assert b["dependencies"][0]["task_id"] == dep
         assert b["dependencies"][0]["type"] == "BLOCKS"
-        assert b["deps"] == ["BI-X-1"]  # flat list kept in sync for the scheduler
+        assert b["deps"] == [dep]  # flat list kept in sync for the scheduler
     finally:
         _clean()
 
