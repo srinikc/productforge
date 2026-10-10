@@ -78,9 +78,12 @@ def main() -> int:
            "P4: terminal -> blocked")
     _check(scheduler.eligible(_item("BI-X-4", w="w1"))["ok"] is False, "P4: already assigned -> blocked")
     by = {"BI-DEP": _item("BI-DEP", status="new")}
-    e = scheduler.eligible(_item("BI-X-5", deps=[{"task_id": "BI-DEP", "type": "BLOCKS"}]), by_id=by)
+    e = scheduler.eligible(_item("BI-X-5", deps=[{"task_id": "BI-DEP", "type": "REQUIRES"}]), by_id=by)
     _check(e["ok"] is False and any("dependency" in r for r in e["reasons"]),
-           "P4: unmet dependency -> blocked")
+           "P4: unmet REQUIRES dependency -> blocked")
+    # A6.4 direction: BLOCKS X = THIS item is a prerequisite for X -> it does NOT block this item.
+    e = scheduler.eligible(_item("BI-X-6", deps=[{"task_id": "BI-DEP", "type": "BLOCKS"}]), by_id=by)
+    _check(e["ok"] is True, "P4: BLOCKS is not a blocking edge")
 
     if FAILS:
         print("scheduler: FAIL")

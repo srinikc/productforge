@@ -253,22 +253,24 @@ def schedule_status(request: Request, scope: str = "product_forge", project: str
 
 @router.get("/schedule/eligible", dependencies=[Depends(authenticate)])
 def schedule_eligible(request: Request, scope: str = "product_forge", project: str = "",
-                      stage: str = "", ctx: dict[str, Any] = Depends(authenticate)):
+                      stage: str = "", epic: str = "", ctx: dict[str, Any] = Depends(authenticate)):
     from core import scheduler
     s, p = _scope_project(scope, project)
-    return from_request(request, scheduler.eligible_backlog(s, p, stage=stage or None), resource="engineering")
+    return from_request(request, scheduler.eligible_backlog(s, p, stage=stage or None, epic=epic or None),
+                        resource="engineering")
 
 
 @router.get("/schedule/next", dependencies=[Depends(authenticate)])
 def schedule_next(request: Request, scope: str = "product_forge", project: str = "",
-                  stage: str = "", ctx: dict[str, Any] = Depends(authenticate)):
+                  stage: str = "", epic: str = "", ctx: dict[str, Any] = Depends(authenticate)):
     from core import scheduler
     s, p = _scope_project(scope, project)
     if stage == "execute" and s != "product_forge":
         raise ApiError("VALIDATION_FAILED",
                        "the worker claim path is product_forge-only; project changes run through the PF pipeline",
                        details={"scope": s})
-    return from_request(request, scheduler.next_eligible(s, p, stage=stage or None), resource="engineering")
+    return from_request(request, scheduler.next_eligible(s, p, stage=stage or None, epic=epic or None),
+                        resource="engineering")
 
 
 # ── BI-PF-0422: active assignments (read-model) ──

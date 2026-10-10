@@ -1,0 +1,194 @@
+{
+  "id": "BI-PF-1222",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "",
+  "label": "PF Backlog 537",
+  "title": "Epic-scoped work selection + epic execution-order view (scheduler + API + CLI)",
+  "body": "## Why\nThe scheduler could answer \"what can run now?\" for the whole backlog and for task-contracts, but not\n**scoped to an epic**. The data (epic children, eligibility, dependency graph, priority) already supported\nit, so this exposes two read-only views.\n\n## What\n- Epic-scoped selection: `scheduler.eligible_backlog(..., epic=)` / `scheduler.next_eligible(..., epic=)`\n  return the top eligible child of an epic (deps still resolve against the full backlog).\n- Epic execution-order view: `scheduler.epic_order(scope, project, epic)` - an epic's OPEN children ordered\n  by dependency wave -> priority, each with READY/wait + blocking reasons.\n\n## Where (surfaces)\n- API: `GET /engineering/schedule/eligible?epic=` and `/schedule/next?epic=`; `GET /backlog/epics/{id}/order`.\n- CLI: `/wg schedule eligible|next|status --epic ID`; `/pf backlog epic-order <id>`.\n\n## How verified\n- Unit: test-framework/tests/pipeline/test_scheduler_eligibility.py (epic filter + wave ordering).\n- Gates: scheduler_check, api_contract_check, pf_surface_check, wg_surface_check, wired_audit.\n- Live: next_eligible(epic=BI-PF-0390) -> BI-PF-0393; epic-order matches the intended wave plan.\n\n## Notes\nIdentifier is the epic **ID** (e.g. BI-PF-0390), not its title. Selection is read-only (no new store/writer).\nThe claim/work surface (/wg work) is a follow-up.\n",
+  "source": "pre-implementation review",
+  "status": "new",
+  "priority": "P1",
+  "moscow": "Should",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [],
+  "links": {
+    "related": [
+      "product_forge:BI-PF-0360",
+      "product_forge:BI-PF-0422"
+    ],
+    "backend_capability": [
+      "module:core/scheduler.py",
+      "module:api/routers/backlog.py",
+      "module:api/routers/engineering.py",
+      "module:workergrid/client.py",
+      "command:workergrid/wg.py",
+      "module:scripts/pf.py",
+      "test:test-framework/tests/pipeline/test_scheduler_eligibility.py"
+    ]
+  },
+  "decisions": [],
+  "follow_up": {},
+  "brief": {
+    "problem": "The scheduler could answer \"what can run now?\" for the whole backlog and for task-contracts, but not\n**scoped to an epic**. The data (epic children, eligibility, dependency graph, priority) already supported\nit, so this exposes two read-only views.",
+    "what_adds": "- Epic-scoped selection: `scheduler.eligible_backlog(..., epic=)` / `scheduler.next_eligible(..., epic=)`\n  return the top eligible child of an epic (deps still resolve against the full backlog).\n- Epic execution-order view: `scheduler.epic_order(scope, project, epic)` - an epic's OPEN children ordered\n  by dependency wave -> priority, each with READY/wait + blocking reasons.",
+    "why": "The scheduler could answer \"what can run now?\" for the whole backlog and for task-contracts, but not\n**scoped to an epic**. The data (epic children, eligibility, dependency graph, priority) already supported\nit, so this exposes two read-only views.",
+    "who_feels": "Product Forge maintainers and consumers.",
+    "source": "extracted"
+  },
+  "objective": "- Epic-scoped selection: `scheduler.eligible_backlog(..., epic=)` / `scheduler.next_eligible(..., epic=)`\n  return the top eligible child of an epic (deps still resolve against the full backlog).\n- Epic execution-order view: `scheduler.epic_order(scope, project, epic)` - an epic's OPEN children ordered\n  by dependency wave -> priority, each with READY/wait + blocking reasons.",
+  "acceptance_criteria": [
+    "Objective achieved: - Epic-scoped selection: `scheduler.eligible_backlog(..., epic=)` / `scheduler.next_eligible(..., epic=)`\n  return the top eligible child of an epic (deps still resolve against the full backlog).\n- Epic execution-order view: `scheduler.epic_order(scope, project, epic)` - an epic's OPEN children ordered\n  by dependency wave -> priority, each with READY/wait + blocking reasons."
+  ],
+  "in_scope": [
+    "Epic-scoped work selection + epic execution-order view (scheduler + API + CLI)"
+  ],
+  "out_of_scope": [
+    "Not specified."
+  ],
+  "affected_components": [
+    "api",
+    "core",
+    "scripts",
+    "test-framework",
+    "workergrid"
+  ],
+  "affected_files": [
+    "api/routers/backlog.py",
+    "api/routers/engineering.py",
+    "core/scheduler.py",
+    "scripts/pf.py",
+    "test-framework/tests/pipeline/test_scheduler_eligibility.py",
+    "workergrid/client.py"
+  ],
+  "approach": "Epic-scoped work selection + epic execution-order view (scheduler + API + CLI)",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Objective achieved: - Epic-scoped selection: `scheduler.eligible_backlog(..., epic=)` / `scheduler.next_eligible(..., epic=)`\n  return the top eligible child of an epic (deps still resolve against the full backlog).\n- Epic execution-order view: `scheduler.epic_order(scope, project, epic)` - an epic's OPEN children ordered\n  by dependency wave -> priority, each with READY/wait + blocking reasons."
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "agent",
+  "requester": "pre-implementation review",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "",
+  "parent": "",
+  "revision": 3,
+  "priority_rank": 2,
+  "priority_class": "P2",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "IN_PROGRESS",
+    "analyzed_at": "",
+    "analyzed_by": "deterministic",
+    "revision_analyzed": 0,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/context_review.py, core/cross_review.py, core/multi_model_review.py, core/rerun_review.py",
+    "existing_components": [
+      "core/context_review.py",
+      "core/cross_review.py",
+      "core/multi_model_review.py",
+      "core/rerun_review.py",
+      "core/review_ledger.py",
+      "core/scheduler.py",
+      "core/spec_review.py",
+      "core/test_framework_bridge.py"
+    ],
+    "existing_apis": [
+      "/api/v1/backlog/items/{item_id}/context-review",
+      "/api/v1/engineering/worker-providers",
+      "/api/v1/vcs/worktrees",
+      "/api/v1/vcs/worktrees/{name}/remove",
+      "/api/v1/workers/capacity",
+      "/api/v1/workers/metrics",
+      "/api/v1/workers/queue",
+      "/api/v1/workers/queue/{project}/pause"
+    ],
+    "existing_modules": [
+      "config/engineering-workers.json",
+      "config/review-focus.json"
+    ],
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=0.75",
+      "components=8",
+      "apis=8"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": false,
+    "reasons": [],
+    "computed_at": ""
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": ""
+  },
+  "created_at": "2026-10-10T10:17:19.458329",
+  "updated_at": "2026-10-10T10:17:21.286771",
+  "score": 0.75,
+  "_note": "priority set",
+  "dashboard_impact": {
+    "needs_dashboard": false,
+    "reason": "Read/plan surface exposed via the PF API + /wg + /pf CLI; the frozen dashboard is a separate surface",
+    "dashboard_item": null,
+    "reviewed_by": "agent",
+    "reviewed_at": "2026-10-10T10:17:20.867752"
+  },
+  "api_impact": {
+    "needs_api": true,
+    "reason": "epic query param on the schedule routes + a new epic-order read route",
+    "routes": [
+      "/api/v1/engineering/schedule/eligible",
+      "/api/v1/engineering/schedule/next",
+      "/api/v1/backlog/epics/{epic_id}/order"
+    ]
+  }
+}

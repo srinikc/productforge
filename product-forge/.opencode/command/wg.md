@@ -26,7 +26,7 @@ Run the WorkerGrid CLI with the given arguments, e.g. from the repo root:
 - `/wg status [--scope S] [--project P]` — active assignments from PF (`GET /engineering/assignments`, workers ↔ items)
 - `/wg agent …` — alias of the worker loop (legacy)
 - `/wg serve [--host H] [--port P]` — coordinator service (**fallback** only; not needed for PF)
-- `/wg schedule eligible|next|status [--scope S] [--project P]` — query PF eligibility
+- `/wg schedule eligible|next|status [--scope S] [--project P] [--epic ID]` — query PF eligibility (epic-scoped)
 - `/wg register --runtime <r> [--caps a,b]` · `/wg list` · `/wg unregister <id>` — coordinator-mode worker registry
 - `/wg adapters` · `/wg dispatch [--force]` — coordinator-mode
 - `/wg instruct` (show shared worker instructions) · `/wg instruct <text>` (append; `workergrid/instructions.md`)

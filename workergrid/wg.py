@@ -11,7 +11,7 @@ Verbs:
   wg register --runtime opencode [--caps a,b] [--worker-id X]   register a worker (service or local)
   wg list | wg status [<worker_id>] | wg unregister <worker_id>
   wg work [--worker X] [--runtime R] [--scope S] [--project P]  pull the next eligible item + lease it
-  wg schedule eligible|next|status [--scope S] [--project P]    query the producer's eligibility
+  wg schedule eligible|next|status [--scope S] [--project P] [--epic ID]  query the producer's eligibility
   wg adapters                                                   list runtimes
   wg dispatch [--force]                                         assign eligible work to ONLINE workers
   wg instruct [text] [--show]                                   view/edit the shared worker instructions
@@ -224,13 +224,15 @@ def cmd_schedule(pos, flags):
     sub = pos[0] if pos else "status"
     scope = flags.get("scope", "product_forge")
     project = flags.get("project", "")
+    epic = flags.get("epic", "")
     if sub == "next":
-        return client.next_item(scope, project)
+        return client.next_item(scope, project, epic)
     if sub == "status":
-        e = client.eligible(scope, project)
+        e = client.eligible(scope, project, epic)
         d = e.get("data") or {}
-        return {"total": d.get("total"), "eligible": d.get("eligible"), "blocked": d.get("blocked")}
-    return client.eligible(scope, project)
+        return {"total": d.get("total"), "eligible": d.get("eligible"), "blocked": d.get("blocked"),
+                "epic": d.get("epic", epic)}
+    return client.eligible(scope, project, epic)
 
 
 def cmd_adapters(pos, flags):
