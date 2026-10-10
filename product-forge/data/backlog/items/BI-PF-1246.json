@@ -1,0 +1,174 @@
+{
+  "id": "BI-PF-1246",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "",
+  "label": "PF Backlog 561",
+  "title": "Delivery lane reconciliation + auto-issue/auto-RCCA on validation FAIL + app_boot checker fix",
+  "body": "## Why\nIS-PF-0037: lane-driven delivery never self-heals and never escalates. Failure classes: (a) crashed/hung lane\nbetween PR-open and merge/provenance leaves item verifying with an OPEN PR forever; (b) validation FAIL blocks\nthe item without attaching the failing checks and without raising an issue; (c) app_boot checker builds a module\nname from the project dir (product-forge) -> import product-forge.api.app -> SyntaxError (invalid module).\n\n## What\n- delivery.reconcile(): remote truth (PR state + origin/develop tip) vs item state; hooks on worker start +\n  wg recover + lane exit. MERGED-but-unrecorded -> complete + provenance from remote. OPEN+FAIL -> attach\n  failing checks to item + raise issue. verifying with no progress -> event + issue signal.\n- FAIL wiring: classification work_failed|gate_failed|flaky; issue raise with checks evidence + backlog_ref;\n  auto re-run once for flaky; bounded auto-revision (2 attempts) for auto-mode work_failed; manual always asks.\n- app_boot fix: import via importlib path-based (no string-concat module names).\n- Scanner: reuse the scheduled tick/dogfood machinery to scan signals (blocked with FAIL, verifying stalled,\n  open issues aging) -> events + issues.\n\n## Where\ncore/delivery.py, core/validation_engine.py, core/pr_gate.py, core/issues.py hooks, scripts/dev check.\n\n## Verify\n- unit: reconcile each state (merged-unrecorded, open+fail, verifying-stalled)\n- gate: app_boot parses real worktree app; FAIL path raises issue with checks attached\n- e2e: re-deliver BI-PF-0394 through the lane (PR #26) to PASS.",
+  "source": "delivery validation FAIL (IS-PF-0037)",
+  "status": "new",
+  "priority": "P1",
+  "moscow": "Should",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [],
+  "links": {
+    "related": [
+      "product_forge:BI-PF-0418",
+      "product_forge:BI-PF-1242",
+      "product_forge:BI-PF-1238"
+    ],
+    "backend_capability": []
+  },
+  "decisions": [],
+  "follow_up": {},
+  "brief": {
+    "problem": "IS-PF-0037: lane-driven delivery never self-heals and never escalates. Failure classes: (a) crashed/hung lane\nbetween PR-open and merge/provenance leaves item verifying with an OPEN PR forever; (b) validation FAIL blocks\nthe item without attaching the failing checks and without raising an issue; (c) app_boot checker builds a module\nname from the project dir (product-forge) -> import product-forge.api.app -> SyntaxError (invalid module).",
+    "what_adds": "- delivery.reconcile(): remote truth (PR state + origin/develop tip) vs item state; hooks on worker start +\n  wg recover + lane exit. MERGED-but-unrecorded -> complete + provenance from remote. OPEN+FAIL -> attach\n  failing checks to item + raise issue. verifying with no progress -> event + issue signal.\n- FAIL wiring: classification work_failed|gate_failed|flaky; issue raise with checks evidence + backlog_ref;\n  auto re-run once for flaky; bounded auto-revision (2 attempts) for auto-mode work_failed; manual always asks.\n- app_boot fix: import via importlib path-based (no string-concat module ",
+    "why": "IS-PF-0037: lane-driven delivery never self-heals and never escalates. Failure classes: (a) crashed/hung lane\nbetween PR-open and merge/provenance leaves item verifying with an OPEN PR forever; (b) validation FAIL blocks\nthe item without attaching the failing checks and without raising an issue; (c) app_boot checker builds a module\nname from the project dir (product-forge) -> import product-forge.api.app -> SyntaxError (invalid module).",
+    "who_feels": "Product Forge maintainers and consumers.",
+    "source": "extracted"
+  },
+  "objective": "- delivery.reconcile(): remote truth (PR state + origin/develop tip) vs item state; hooks on worker start +\n  wg recover + lane exit. MERGED-but-unrecorded -> complete + provenance from remote. OPEN+FAIL -> attach\n  failing checks to item + raise issue. verifying with no progress -> event + issue signal.\n- FAIL wiring: classification work_failed|gate_failed|flaky; issue raise with checks evidence + backlog_ref;\n  auto re-run once for flaky; bounded auto-revision (2 attempts) for auto-mode work_failed; manual always asks.\n- app_boot fix: import via importlib path-based (no string-concat module names).\n- Scanner: reuse the scheduled tick/dogfood machinery to scan signals (blocked with FAIL, verifying stalled,\n  open issues aging) -> events + issues.",
+  "acceptance_criteria": [
+    "Objective achieved: - delivery.reconcile(): remote truth (PR state + origin/develop tip) vs item state; hooks on worker start +\n  wg recover + lane exit. MERGED-but-unrecorded -> complete + provenance from remote. OPEN+FAIL -> attach\n  failing checks to item + raise issue. verifying with no progress -> event + issue signal.\n- FAIL wiring: classification work_failed|gate_failed|flaky; issue raise with checks evidence + backlog_ref;\n  auto re-run once for flaky; bounded auto-revision (2 attempts) for auto-mode work_failed; manual always asks.\n- app_boot fix: import via importlib path-based (no string-concat module names).\n- Scanner: reuse the scheduled tick/dogfood machinery to scan signals (blocked with FAIL, verifying stalled,\n  open issues aging) -> events + issues."
+  ],
+  "in_scope": [
+    "Delivery lane reconciliation + auto-issue/auto-RCCA on validation FAIL + app_boot checker fix"
+  ],
+  "out_of_scope": [
+    "Not specified."
+  ],
+  "affected_components": [
+    "core"
+  ],
+  "affected_files": [
+    "core/delivery.py",
+    "core/issues.py",
+    "core/pr_gate.py",
+    "core/validation_engine.py"
+  ],
+  "approach": "Delivery lane reconciliation + auto-issue/auto-RCCA on validation FAIL + app_boot checker fix",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Objective achieved: - delivery.reconcile(): remote truth (PR state + origin/develop tip) vs item state; hooks on worker start +\n  wg recover + lane exit. MERGED-but-unrecorded -> complete + provenance from remote. OPEN+FAIL -> attach\n  failing checks to item + raise issue. verifying with no progress -> event + issue signal.\n- FAIL wiring: classification work_failed|gate_failed|flaky; issue raise with checks evidence + backlog_ref;\n  auto re-run once for flaky; bounded auto-revision (2 attempts) for auto-mode work_failed; manual always asks.\n- app_boot fix: import via importlib path-based (no string-concat module names).\n- Scanner: reuse the scheduled tick/dogfood machinery to scan signals (blocked with FAIL, verifying stalled,\n  open issues aging) -> events + issues."
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "agent",
+  "requester": "delivery validation FAIL (IS-PF-0037)",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "",
+  "parent": "",
+  "revision": 3,
+  "priority_rank": 1,
+  "priority_class": "P2",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "IN_PROGRESS",
+    "analyzed_at": "",
+    "analyzed_by": "deterministic",
+    "revision_analyzed": 0,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/control_plane.py, core/delivery.py, core/knowledge_compliance_checker.py, core/validation_engine.py",
+    "existing_components": [
+      "core/control_plane.py",
+      "core/delivery.py",
+      "core/knowledge_compliance_checker.py",
+      "core/validation_engine.py"
+    ],
+    "existing_apis": [
+      "/api/v1/engineering/assignments/{item_id}/fail",
+      "/api/v1/validation",
+      "/api/v1/validation/dogfood",
+      "/api/v1/validation/feature-pr",
+      "/api/v1/validation/integration",
+      "/api/v1/validation/merge-gate",
+      "/api/v1/validation/merge-gate/queue",
+      "/api/v1/validation/policy"
+    ],
+    "existing_modules": [
+      "config/validation-profiles.json"
+    ],
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=0.75",
+      "components=4",
+      "apis=8"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": false,
+    "reasons": [],
+    "computed_at": ""
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-10T18:51:50.825887",
+  "updated_at": "2026-10-10T18:51:52.550478",
+  "score": 0.75,
+  "_note": "priority set",
+  "dashboard_impact": {
+    "needs_dashboard": false,
+    "reason": "delivery/worker ops path",
+    "dashboard_item": null,
+    "reviewed_by": "agent",
+    "reviewed_at": "2026-10-10T18:51:52.259410"
+  },
+  "api_impact": {
+    "needs_api": false,
+    "reason": "core/lane internal"
+  }
+}
