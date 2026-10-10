@@ -1,18 +1,12 @@
 # Backlog Summary
 
-> GENERATED 2026-10-10T12:39:45 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-10T12:44:02 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 58  |  **Closed:** 463
+- **Open:** 57  |  **Closed:** 464
 - `new`: 57
-- `verifying`: 1
-
-### verifying (1)
-| ID | MoSCoW | Type | Title | Objective |
-|---|---|---|---|---|
-| BI-PF-0393 | Should | feature | A1: canonical contracts (thin) + Go<->Python contract | A1 — thin canonical contracts: ProductSpec, TechnologyProfile, RuntimeProfile, DeploymentProfile, LicenseProfi... |
 
 ### new, by category (57)
 **API / reports / HIL / misc** (4)
@@ -298,5 +292,5 @@
 ---
 
 ## Totals
-- backend: 58 open / 463 closed
+- backend: 57 open / 464 closed
 - dashboard: 146 open / 3 closed
