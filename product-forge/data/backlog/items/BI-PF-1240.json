@@ -1,0 +1,174 @@
+{
+  "id": "BI-PF-1240",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "",
+  "label": "PF Backlog 558",
+  "title": "Graceful orphan/stuck recovery: reap expired+stuck assignments, clean worktrees, wg recover",
+  "body": "## Why\nAn aborted/stuck worker left an orphaned lease AND a stale worktree/branch requiring manual cleanup; recovery was\nexpiry-only (~1h) and never removed worktrees.\n\n## What\n- job_manager: renew_lease/claim set execution.last_heartbeat_at; recover_expired also reaps STUCK assignments\n  (no heartbeat > PF_STUCK_MINUTES, default 15), keeps REQUIRE_REVIEW default; release/fail/recover remove the\n  assignment worktree (branch kept) via vcs.remove_worktree.\n- backlog._default_execution: + last_heartbeat_at.\n- wg recover verb -> POST /engineering/assignments/recover.\n- workergrid/config.json: agent.timeout_seconds 1800 (bound hung runs).\n\n## Verify\n- test_recover_reaps_stuck_assignment (stale heartbeat -> blocked, lease cleared).\n- 20 tests pass; wg_surface_check OK.\n",
+  "source": "pre-implementation review",
+  "status": "new",
+  "priority": "P1",
+  "moscow": "Should",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [],
+  "links": {
+    "related": [
+      "product_forge:BI-PF-0360"
+    ],
+    "backend_capability": [
+      "module:core/job_manager.py",
+      "module:core/backlog.py",
+      "file:workergrid/wg.py",
+      "file:workergrid/config.json",
+      "test:test-framework/tests/pipeline/test_assignments_api.py"
+    ]
+  },
+  "decisions": [],
+  "follow_up": {},
+  "brief": {
+    "problem": "An aborted/stuck worker left an orphaned lease AND a stale worktree/branch requiring manual cleanup; recovery was\nexpiry-only (~1h) and never removed worktrees.",
+    "what_adds": "- job_manager: renew_lease/claim set execution.last_heartbeat_at; recover_expired also reaps STUCK assignments\n  (no heartbeat > PF_STUCK_MINUTES, default 15), keeps REQUIRE_REVIEW default; release/fail/recover remove the\n  assignment worktree (branch kept) via vcs.remove_worktree.\n- backlog._default_execution: + last_heartbeat_at.\n- wg recover verb -> POST /engineering/assignments/recover.\n- workergrid/config.json: agent.timeout_seconds 1800 (bound hung runs).",
+    "why": "An aborted/stuck worker left an orphaned lease AND a stale worktree/branch requiring manual cleanup; recovery was\nexpiry-only (~1h) and never removed worktrees.",
+    "who_feels": "Product Forge maintainers and consumers.",
+    "source": "extracted"
+  },
+  "objective": "- job_manager: renew_lease/claim set execution.last_heartbeat_at; recover_expired also reaps STUCK assignments\n  (no heartbeat > PF_STUCK_MINUTES, default 15), keeps REQUIRE_REVIEW default; release/fail/recover remove the\n  assignment worktree (branch kept) via vcs.remove_worktree.\n- backlog._default_execution: + last_heartbeat_at.\n- wg recover verb -> POST /engineering/assignments/recover.\n- workergrid/config.json: agent.timeout_seconds 1800 (bound hung runs).",
+  "acceptance_criteria": [
+    "Objective achieved: - job_manager: renew_lease/claim set execution.last_heartbeat_at; recover_expired also reaps STUCK assignments\n  (no heartbeat > PF_STUCK_MINUTES, default 15), keeps REQUIRE_REVIEW default; release/fail/recover remove the\n  assignment worktree (branch kept) via vcs.remove_worktree.\n- backlog._default_execution: + last_heartbeat_at.\n- wg recover verb -> POST /engineering/assignments/recover.\n- workergrid/config.json: agent.timeout_seconds 1800 (bound hung runs)."
+  ],
+  "in_scope": [
+    "Graceful orphan/stuck recovery: reap expired+stuck assignments, clean worktrees, wg recover"
+  ],
+  "out_of_scope": [
+    "Not specified."
+  ],
+  "affected_components": [
+    "core",
+    "workergrid"
+  ],
+  "affected_files": [
+    "core/backlog.py",
+    "core/job_manager.py",
+    "workergrid/config.json",
+    "workergrid/wg.py"
+  ],
+  "approach": "Graceful orphan/stuck recovery: reap expired+stuck assignments, clean worktrees, wg recover",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Objective achieved: - job_manager: renew_lease/claim set execution.last_heartbeat_at; recover_expired also reaps STUCK assignments\n  (no heartbeat > PF_STUCK_MINUTES, default 15), keeps REQUIRE_REVIEW default; release/fail/recover remove the\n  assignment worktree (branch kept) via vcs.remove_worktree.\n- backlog._default_execution: + last_heartbeat_at.\n- wg recover verb -> POST /engineering/assignments/recover.\n- workergrid/config.json: agent.timeout_seconds 1800 (bound hung runs)."
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "agent",
+  "requester": "pre-implementation review",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "",
+  "parent": "",
+  "revision": 3,
+  "priority_rank": 2,
+  "priority_class": "P2",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "IN_PROGRESS",
+    "analyzed_at": "",
+    "analyzed_by": "deterministic",
+    "revision_analyzed": 0,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: /api/v1/engineering/assignments, /api/v1/engineering/assignments/claim, /api/v1/engineering/assignments/recover, /api/v1/engineering/assignments/{item_id}/complete",
+    "existing_components": [],
+    "existing_apis": [
+      "/api/v1/engineering/assignments",
+      "/api/v1/engineering/assignments/claim",
+      "/api/v1/engineering/assignments/recover",
+      "/api/v1/engineering/assignments/{item_id}/complete",
+      "/api/v1/engineering/assignments/{item_id}/deliver",
+      "/api/v1/engineering/assignments/{item_id}/fail",
+      "/api/v1/engineering/assignments/{item_id}/heartbeat",
+      "/api/v1/engineering/assignments/{item_id}/release"
+    ],
+    "existing_modules": [],
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=0.75",
+      "components=0",
+      "apis=8"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": false,
+    "reasons": [],
+    "computed_at": ""
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": ""
+  },
+  "created_at": "2026-10-10T15:33:02.827740",
+  "updated_at": "2026-10-10T15:33:04.570093",
+  "score": 0.75,
+  "_note": "priority set",
+  "dashboard_impact": {
+    "needs_dashboard": false,
+    "reason": "worker ops",
+    "dashboard_item": null,
+    "reviewed_by": "agent",
+    "reviewed_at": "2026-10-10T15:33:04.274197"
+  },
+  "api_impact": {
+    "needs_api": true,
+    "reason": "existing POST /assignments/recover now also reaps stuck + cleans worktrees",
+    "routes": [
+      "/api/v1/engineering/assignments/recover"
+    ]
+  }
+}

@@ -12,6 +12,7 @@ Verbs:
   wg list | wg status [<worker_id>] | wg unregister <worker_id>
   wg work [--worker X] [--runtime R] [--scope S] [--project P] [--epic ID]  pull the next eligible item + lease it
   wg schedule eligible|next|status [--scope S] [--project P] [--epic ID]  query the producer's eligibility
+  wg recover [--scope S] [--project P]                                 free dead/stuck assignments + clean worktrees
   wg adapters                                                   list runtimes
   wg dispatch [--force] [--epic ID]                             assign eligible work to ONLINE workers
   wg instruct [text] [--show]                                   view/edit the shared worker instructions
@@ -288,8 +289,16 @@ def cmd_config(pos, flags):
             "service_up": client.service_up()}
 
 
+def cmd_recover(pos, flags):
+    """Free dead/stuck assignments in PF (expired lease OR no heartbeat) + clean their worktrees. BI-PF-1238."""
+    scope = flags.get("scope", "product_forge")
+    project = flags.get("project", "")
+    return client.call("POST", "/api/v1/engineering/assignments/recover",
+                       {"scope": scope, "project": project})
+
+
 VERBS = {"serve": cmd_serve, "agent": cmd_agent, "register": cmd_register, "list": cmd_list, "status": cmd_status,
-         "unregister": cmd_unregister, "work": cmd_work, "schedule": cmd_schedule,
+         "unregister": cmd_unregister, "work": cmd_work, "schedule": cmd_schedule, "recover": cmd_recover,
          "adapters": cmd_adapters, "dispatch": cmd_dispatch, "instruct": cmd_instruct, "config": cmd_config}
 
 

@@ -94,7 +94,7 @@ def _default_analysis() -> dict:
 def _default_execution() -> dict:
     return {"worker_id": "", "assignment_id": "", "lease_id": "", "assigned_at": "",
             "lease_expires_at": "", "attempt": 0, "started_at": "", "completed_at": "",
-            "duration_seconds": 0}
+            "duration_seconds": 0, "last_heartbeat_at": ""}
 
 
 _EXECUTION_KEYS = frozenset(_default_execution().keys())

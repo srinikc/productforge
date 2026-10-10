@@ -169,3 +169,19 @@ def test_complete_records_duration_for_time_tracking():
         assert "time" in st["rollup"] and "total_seconds" in st["rollup"]["time"]
     finally:
         _clean()
+
+
+def test_recover_reaps_stuck_assignment():
+    """BI-PF-1238: recover_expired reaps a stuck assignment (stale heartbeat) even with an unexpired lease."""
+    _clean()
+    try:
+        (iid,) = _seed(1)
+        assert job_manager.claim_next("project", _PROJ, worker="w1")["claimed"] is True
+        backlog.set_execution("project", _PROJ, iid, last_heartbeat_at="2000-01-01T00:00:00")
+        res = job_manager.recover_expired("project", _PROJ)
+        assert res["count"] == 1 and res["recovered"][0]["reason"] == "stuck", res
+        it = backlog.get("project", _PROJ, iid)
+        assert it["status"] == "blocked"
+        assert not (it["execution"] or {}).get("worker_id")
+    finally:
+        _clean()
