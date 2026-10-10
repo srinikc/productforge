@@ -829,6 +829,12 @@ def reorder_epics(scope: str, project: str | None, item_ids: list) -> list[str]:
     return done
 
 
+def unscoped_review(scope: str, project: str | None) -> list[dict[str, Any]]:
+    """Open 'Unscoped' children + a SUGGESTED epic for each (BI-PF-1250; grooming re-homes them)."""
+    from core import backlog
+    return backlog.unscoped_children(scope, project)
+
+
 def decide_all(scope: str, project: str | None, decision: str = "APPROVE", *,
                ids: list[str] | None = None, force: bool = False, dry: bool = False,
                by: str = "user") -> dict[str, Any]:
@@ -870,8 +876,16 @@ def decide_all(scope: str, project: str | None, decision: str = "APPROVE", *,
         decide(scope, project, iid, d, by=by, _reorder=False)
         approved.append(iid)
     reordered = reorder_epics(scope, project, approved) if (approved and not dry) else []
+    unscoped = unscoped_review(scope, project)
+    if unscoped and not dry:
+        print(f"[Grooming] {len(unscoped)} 'Unscoped' child(ren) need an epic - create/move during grooming:")
+        for u in unscoped[:10]:
+            sug = (f" -> suggest {u['suggested_epic']}" if u.get("suggested_epic")
+                   else " (no match: create an epic)")
+            print(f"   {u['item']}: {str(u.get('title') or '')[:70]}{sug}")
     return {"decision": d, "approved": approved, "count": len(approved),
-            "flagged": flagged, "skipped": skipped, "dry": bool(dry), "epics_reordered": reordered}
+            "flagged": flagged, "skipped": skipped, "dry": bool(dry), "epics_reordered": reordered,
+            "unscoped_to_rehome": unscoped}
 
 
 def _apply_consolidation(scope: str, project: str | None, item_id: str, by: str = "user",

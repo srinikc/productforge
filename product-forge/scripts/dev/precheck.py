@@ -121,6 +121,7 @@ _GATES = [
     ("backlog-reconcile", ["scripts/dev/backlog_id_reconcile.py", "--write"], "fast", ["backlog"]),
     ("backlog-context", ["scripts/dev/backlog_context_check.py"], "fast", ["backlog"]),
     ("backlog-ids", ["scripts/dev/backlog_id_audit.py"], "fast", ["backlog"]),
+    ("backlog-epic", ["scripts/dev/backlog_epic_audit.py"], "fast", ["backlog"]),
     ("grooming", ["scripts/dev/grooming_check.py"], "fast", ["grooming"]),
     ("github", ["scripts/dev/github_check.py"], "fast", ["github"]),
     ("dogfood-run", ["scripts/dev/dogfood_run_check.py"], "fast", ["dogfood", "dogfood_run", "api"]),

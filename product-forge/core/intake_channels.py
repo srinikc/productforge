@@ -328,6 +328,7 @@ def ensure_backlog(products_dir: str, iid: str) -> Optional[str]:
     b = backlog.add_epic(scope, proj, it.get("title") or iid, body=it.get("body") or "",
                          source=it.get("source") or "intake", type_=item_type,
                          origin="intake", external_id=f"intake:{iid}", moscow="Should",
+                         epic=backlog.auto_epic(scope, proj, f"{it.get('title') or iid} {it.get('body') or ''}"),
                          links={"intake_id": iid, "conversation_id": it.get("conversation_id", "")})
     if b and b.get("id"):
         update_item(products_dir, iid, backlog_ref=b["id"])

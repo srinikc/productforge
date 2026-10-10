@@ -161,6 +161,8 @@ def ingest(source: str, payload: Dict, scope: Optional[str] = None,
                                   source=source, type_=fields["kind"], origin="intake",
                                   value=fields["value"], effort=fields["effort"],
                                   risk=fields["risk"], moscow=fields["moscow"],
+                                  epic=backlog.auto_epic(scope_f, proj,
+                                                         f"{fields['title']} {fields['body']}"),
                                   links={"raw": raw_path})
             _link_attachments({"scope": scope_f, "project": proj or ""}, it["id"], attachments)
             # BI-0183: change/new items (not planned features) get a functional spec.

@@ -25,6 +25,11 @@ Root-cause every defect via **`docs/RCCA_productForge.md`** (5-Why + a new guard
 1. **One truth per concern, one writer per file.** Only the owning module writes a store.
 2. **Work items live in the backlog** (`core/backlog.py`) — one backlog per scope
    (`products/<project>/backlog/`, `product-forge/backlog/`). Never create a new file for work.
+   **Every item belongs to an epic.** If none fits, **ask and create the epic first**. Automated creators
+   (intake/issues/insights/ops) attach to the best-matching epic, else the **`Unscoped`** holding epic;
+   **grooming re-homes `Unscoped` children** into real epics (create or move). Enforced by the baseline-aware
+   gate `scripts/dev/backlog_epic_audit.py` (fatal for NEW items) + the advisory `epic-coverage` in
+   `wired_audit`. BI-PF-1250.
 3. **Reference by id:** artifacts carry `item_id` (`BI-<TAG>-<nnn>`; legacy `BI-####`) and `feature_id` (`F-x`) where technical.
    Never duplicate status/logic in a second store.
 4. **Derived files are generated**, never hand-edited (`feature-status.md`, reports, manifests).

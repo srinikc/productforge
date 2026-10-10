@@ -241,6 +241,7 @@ def raise_issue(scope: str, project: str | None, title: str, *, body: str = "",
                 bitem = backlog.add_epic(
                     bscope, bproj, title, body=body or "", type_="task",
                     origin="issue", tag=(item.get("tag") or ""),
+                    epic=backlog.auto_epic(bscope, bproj, f"{title} {body or ''}"),
                     links={"issue": backlog.qualify(scope, project, iid)})
                 bid = (bitem or {}).get("id") or ""
             if bid:

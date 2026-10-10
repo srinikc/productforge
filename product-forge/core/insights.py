@@ -137,6 +137,8 @@ def promote_to_backlog(min_impact: str = "high", types: Optional[List[str]] = No
                 body=ins.get("description") or "",
                 type_="tech-debt", origin="pipeline", source="insights",
                 value=3, effort=3, risk=2, moscow="Should",
+                epic=backlog.auto_epic("product_forge", None,
+                                       f"{ins.get('title') or 'Insight'} {ins.get('description') or ''}"),
                 links={"insight_id": ins["id"], **({"project": ins["project"]} if ins.get("project") else {})},
             )
             ins["item_id"] = item.get("id", "")

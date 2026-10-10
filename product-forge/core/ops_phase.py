@@ -96,6 +96,8 @@ def maintenance(project: str, project_dir: str, report: Dict) -> Dict:
                 it = backlog.ensure_item("project", project, external_id=f"ops:defect:{did}",
                                          title=f"Post-deploy: fix defect {did}",
                                          type_="bug", origin="pipeline", source="ops",
+                                         epic=backlog.auto_epic("project", project,
+                                                                f"Post-deploy fix defect {did}"),
                                          body="Raised by the LIVE/OPS maintenance stage.")
                 if it and it.get("status") == "new":
                     created.append(it.get("id"))
