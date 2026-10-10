@@ -1,14 +1,14 @@
 # Backlog Summary
 
-> GENERATED 2026-10-10T18:42:19 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-10T18:59:06 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 67  |  **Closed:** 464
-- `new`: 67
+- **Open:** 69  |  **Closed:** 464
+- `new`: 69
 
-### new, by category (67)
+### new, by category (69)
 **API / reports / HIL / misc** (7)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
@@ -59,7 +59,7 @@
 | BI-PF-1238 | Should | change | Docs: CI/CD & Gates SSOT (PF + generated products) - triggers, tiers, gates, delivery, text+Mermaid diagrams | One SSOT for how PF builds/verifies/ships and for generated products: trigger map, author-time hooks, precheck... |
 | BI-PF-1241 | Should | feature | Per-item token/cache/cost usage (execution.usage) + runtime usage capture + rollup | - backlog execution: + usage{} (input/output/reasoning/cache_read/cache_write/total/cost_usd/model/cost_source... |
 
-**Wiring / tech-debt / API** (41)
+**Wiring / tech-debt / API** (43)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0185 | Should | feature | EPIC: Multi-modal / media orchestration (pluggable capability packs) | Make the pipeline modality-agnostic via PLUGGABLE capability packs, enabled per project when the idea needs th... |
@@ -103,6 +103,8 @@
 | BI-PF-1228 | Should | epic | EPIC: Make CI green - pre-existing build-breakage cleanup (deps, id-authority, cross-platform, generated artifacts, tests) | A green, trustworthy `structure` CI check so PRs merge normally (no override), and "green locally" == "green i... |
 | BI-PF-1237 | Should | feature | Per-item time tracking: execution.duration_seconds + attempt + time rollup | - job_manager.complete()/fail(): record execution.duration_seconds (wall-clock from started_at) + increment at... |
 | BI-PF-1240 | Should | feature | Graceful orphan/stuck recovery: reap expired+stuck assignments, clean worktrees, wg recover | - job_manager: renew_lease/claim set execution.last_heartbeat_at; recover_expired also reaps STUCK assignments... |
+| BI-PF-1248 | Should | epic | EPIC: Tech Debt & Repo Hygiene (generated artifacts, script drift, gate gaps) | One home for repo-hygiene / tech-debt work that is not a product feature: generated-artifact freshness, script... |
+| BI-PF-1249 | Should | change | Hygiene: pre-commit regenerates derived docs when data/backlog changes (docs-fresh staleness on bookkeeping commits) | Hygiene: pre-commit regenerates derived docs when data/backlog changes (docs-fresh staleness on bookkeeping co... |
 
 ---
 
@@ -302,5 +304,5 @@
 ---
 
 ## Totals
-- backend: 67 open / 464 closed
+- backend: 69 open / 464 closed
 - dashboard: 146 open / 3 closed

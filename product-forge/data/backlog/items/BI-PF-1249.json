@@ -1,0 +1,168 @@
+{
+  "id": "BI-PF-1249",
+  "tag": "PF",
+  "type": "change",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "derived-docs-on-backlog-commit",
+  "label": "PF Backlog 564",
+  "title": "Hygiene: pre-commit regenerates derived docs when data/backlog changes (docs-fresh staleness on bookkeeping commits)",
+  "body": "## Problem / why\nA bookkeeping-only commit on `develop` (stages only `data/backlog/**`) leaves the DERIVED docs\n(`docs/BACKLOG-SUMMARY.md`, `docs/documentation-index.html`) stale. Because bookkeeping commits are allowed\ndirectly on `develop` (branch_guard) and bypass `precheck`, the staleness only surfaces on the NEXT PR's CI\nas `docs-fresh` FAIL. (Observed on PR #27: BI-PF-1245 record -> stale BACKLOG-SUMMARY -> docs-fresh fail.)\n\n## 5-Why (RCCA)\n1. The next PR's CI failed `docs-fresh`.\n2. `BACKLOG-SUMMARY.md` did not reflect the just-recorded backlog item.\n3. Derived docs are regenerated only at `precheck` (merge/CI), not at commit time.\n4. Bookkeeping-only commits on `develop` bypass `precheck`.\nROOT CAUSE: derived-artifact regeneration is enforced at merge/CI, not at the commit boundary where the\nbacklog actually changes.\n\n## Corrective\nThe `pre-commit` hook regenerates the derived docs when `data/backlog/**` is staged and stages the neutral\nderived docs (BACKLOG-SUMMARY.md, documentation-index.html), so every backlog change keeps them fresh. The\ntwo files are already in branch_guard's `_NEUTRAL` set, so a bookkeeping-only commit on `develop` stays allowed.\n\n## Guard\nThe hook step (this item) + `docs-fresh` (already in precheck). Together: derived docs cannot be stale at\ncommit time.\n\n## Acceptance criteria (G/W/T)\n- Given a staged change under `data/backlog/**`, when `git commit` runs, then the derived docs are\n  regenerated + staged, and `docs-fresh` passes on the committed tree.\n- Given no backlog change, then the hook does nothing (no churn).\n\n## Related (by id)\nBI-PF-0258 (auto-refresh generated docs - incomplete coverage), BI-PF-1232 (CI4), BI-PF-1244 (script drift).",
+  "source": "user request",
+  "status": "new",
+  "priority": "P2",
+  "moscow": "Should",
+  "value": 4,
+  "effort": 1,
+  "risk": 1,
+  "deps": [],
+  "links": {
+    "related": [
+      "BI-PF-0258",
+      "BI-PF-1232",
+      "BI-PF-1244"
+    ]
+  },
+  "decisions": [],
+  "follow_up": {},
+  "brief": {
+    "problem": "A bookkeeping-only commit on `develop` (stages only `data/backlog/**`) leaves the DERIVED docs\n(`docs/BACKLOG-SUMMARY.md`, `docs/documentation-index.html`) stale. Because bookkeeping commits are allowed\ndirectly on `develop` (branch_guard) and bypass `precheck`, the staleness only surfaces on the NEXT PR's CI\nas `docs-fresh` FAIL. (Observed on PR #27: BI-PF-1245 record -> stale BACKLOG-SUMMARY -> docs-fresh fail.)",
+    "what_adds": "Hygiene: pre-commit regenerates derived docs when data/backlog changes (docs-fresh staleness on bookkeeping commits)",
+    "why": "A bookkeeping-only commit on `develop` (stages only `data/backlog/**`) leaves the DERIVED docs\n(`docs/BACKLOG-SUMMARY.md`, `docs/documentation-index.html`) stale. Because bookkeeping commits are allowed\ndirectly on `develop` (branch_guard) and bypass `precheck`, the staleness only surfaces on the NEXT PR's CI\nas `docs-fresh` FAIL. (Observed on PR #27: BI-PF-1245 record -> stale BACKLOG-SUMMARY -> docs-fresh fail.)",
+    "who_feels": "Product Forge maintainers and consumers.",
+    "source": "authored"
+  },
+  "objective": "Hygiene: pre-commit regenerates derived docs when data/backlog changes (docs-fresh staleness on bookkeeping commits)",
+  "acceptance_criteria": [
+    "Given a staged change under `data/backlog/**`, when `git commit` runs, then the derived docs are",
+    "Given no backlog change, then the hook does nothing (no churn)."
+  ],
+  "in_scope": [
+    "Hygiene: pre-commit regenerates derived docs when data/backlog changes (docs-fresh staleness on bookkeeping commits)"
+  ],
+  "out_of_scope": [
+    "Not specified."
+  ],
+  "affected_components": [
+    "docs"
+  ],
+  "affected_files": [
+    "BACKLOG-SUMMARY.md",
+    "docs/BACKLOG-SUMMARY.md"
+  ],
+  "approach": "Hygiene: pre-commit regenerates derived docs when data/backlog changes (docs-fresh staleness on bookkeeping commits)",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Given a staged change under `data/backlog/**`, when `git commit` runs, then the derived docs are",
+    "Given no backlog change, then the hook does nothing (no churn)."
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "agent",
+  "requester": "user",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1248",
+  "parent": "BI-PF-1248",
+  "revision": 2,
+  "priority_rank": 2,
+  "priority_class": "P2",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "IN_PROGRESS",
+    "analyzed_at": "",
+    "analyzed_by": "deterministic",
+    "revision_analyzed": 0,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/api_docs.py, core/backlog.py, core/backlog_link.py, core/workflow_docs.py",
+    "existing_components": [
+      "core/api_docs.py",
+      "core/backlog.py",
+      "core/backlog_link.py",
+      "core/workflow_docs.py"
+    ],
+    "existing_apis": [
+      "/api/v1/apidocs",
+      "/api/v1/apidocs.json",
+      "/api/v1/apidocs/render",
+      "/api/v1/backlog",
+      "/api/v1/backlog/epics/{epic_id}/order",
+      "/api/v1/backlog/epics/{epic_id}/status",
+      "/api/v1/backlog/groom",
+      "/api/v1/backlog/groom/approve"
+    ],
+    "existing_modules": [],
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=4.0",
+      "components=4",
+      "apis=8"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": false,
+    "reasons": [],
+    "computed_at": ""
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-10T18:53:54.326563",
+  "updated_at": "2026-10-10T18:53:56.492201",
+  "score": 4.0,
+  "_note": "review decisions recorded",
+  "api_impact": {
+    "needs_api": false,
+    "reason": "pre-commit hook; no API"
+  },
+  "dashboard_impact": {
+    "needs_dashboard": false,
+    "reason": "commit-time tooling; no dashboard surface"
+  }
+}
