@@ -351,7 +351,7 @@ def assignment_complete(item_id: str, body: dict[str, Any], request: Request, ba
     from core import delivery, job_manager
     s, p = _worker_scope(str(body.get("scope") or "product_forge"), str(body.get("project") or ""))
     res = job_manager.complete(s, p, item_id, status=str(body.get("status") or "verifying"),
-                               note=str(body.get("note") or ""))
+                               note=str(body.get("note") or ""), usage=body.get("usage"))
     # BI-PF-0421: async optimistic delivery lane (push+PR -> validate -> rebase -> merge -> push)
     if res.get("ok") and str(res.get("status")) == "verifying":
         background.add_task(delivery.deliver, s, p, item_id)
@@ -373,8 +373,8 @@ def assignment_fail(item_id: str, body: dict[str, Any], request: Request,
                     ctx: dict[str, Any] = Depends(require_worker)):
     from core import job_manager
     s, p = _worker_scope(str(body.get("scope") or "product_forge"), str(body.get("project") or ""))
-    return from_request(request, job_manager.fail(s, p, item_id, reason=str(body.get("reason") or "")),
-                        resource="engineering")
+    return from_request(request, job_manager.fail(s, p, item_id, reason=str(body.get("reason") or ""),
+                                                  usage=body.get("usage")), resource="engineering")
 
 
 @router.post("/assignments/{item_id}/release", dependencies=[Depends(require_worker)])
