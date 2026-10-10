@@ -1,22 +1,21 @@
 # Backlog Summary
 
-> GENERATED 2026-10-10T21:33:20 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-10T22:12:20 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 61  |  **Closed:** 477
-- `new`: 61
+- **Open:** 59  |  **Closed:** 479
+- `new`: 59
 
-### new, by category (61)
-**API / reports / HIL / misc** (5)
+### new, by category (59)
+**API / reports / HIL / misc** (4)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-PF-0332 | Should | chore | API-5 deferred hardening: rate limiting + request/upload limits + tenant-isolation expansion + event streaming | API-5 deferred hardening: rate limiting + request/upload limits + tenant-isolation expansion + event streaming |
 | BI-PF-1217 | Should | feature | C15: Security evaluation + red-team suite + security metrics (assurance) | C15: Security evaluation + red-team suite + security metrics (assurance) |
 | BI-PF-1243 | Should | epic | EPIC: CI/CD & Gates - SSOT doc + model + read API (PF + generated products) | One place to understand and read (via API) how PF builds/verifies/ships and how generated products do: the CI/... |
 | BI-PF-1245 | Should | feature | Orchestrator UI: small CI/CD view over the engineering ci-cd API (gates x tiers x status) | A small orchestrator UI view that renders the CI/CD + gates model from the read API (BI-PF-1239), so an operat... |
-| BI-PF-1251 | Should | change | Unscoped triage: re-home 'Unscoped' children into real epics (grooming cadence + aging advisory) | Keep `Unscoped` small: an ongoing curation loop re-homes its children into real epics. |
 
 **Discovery / HIL / prompts** (6)
 | ID | MoSCoW | Type | Title | Objective |
@@ -47,7 +46,7 @@
 | BI-PF-1212 | Should | feature | C10: Security-event audit/evidence (evidence-grade) + durable SecurityContext propagation | C10: Security-event audit/evidence (evidence-grade) + durable SecurityContext propagation |
 | BI-PF-1241 | Should | feature | Per-item token/cache/cost usage (execution.usage) + runtime usage capture + rollup | - backlog execution: + usage{} (input/output/reasoning/cache_read/cache_write/total/cost_usd/model/cost_source... |
 
-**Wiring / tech-debt / API** (43)
+**Wiring / tech-debt / API** (42)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0185 | Should | feature | EPIC: Multi-modal / media orchestration (pluggable capability packs) | Make the pipeline modality-agnostic via PLUGGABLE capability packs, enabled per project when the idea needs th... |
@@ -91,7 +90,6 @@
 | BI-PF-1240 | Should | feature | Graceful orphan/stuck recovery: reap expired+stuck assignments, clean worktrees, wg recover | - job_manager: renew_lease/claim set execution.last_heartbeat_at; recover_expired also reaps STUCK assignments... |
 | BI-PF-1246 | Should | feature | Delivery lane reconciliation + auto-issue/auto-RCCA on validation FAIL + app_boot checker fix | - delivery.reconcile(): remote truth (PR state + origin/develop tip) vs item state; hooks on worker start + wg... |
 | BI-PF-1247 | Should | feature | Worker-delivered PRs satisfy FEATURE_PR gates: review/lint/structure run-bound records on work complete | - work complete (manual + auto) runs the gate recorders in the worktree before handing to the lane: lint recor... |
-| BI-PF-1248 | Should | epic | EPIC: Tech Debt & Repo Hygiene (generated artifacts, script drift, gate gaps) | One home for repo-hygiene / tech-debt work that is not a product feature: generated-artifact freshness, script... |
 | BI-PF-1252 | Should | epic | Unscoped | Unscoped |
 
 ---
@@ -292,5 +290,5 @@
 ---
 
 ## Totals
-- backend: 61 open / 477 closed
+- backend: 59 open / 479 closed
 - dashboard: 146 open / 3 closed
