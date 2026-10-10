@@ -10,7 +10,7 @@
   "title": "Epic execution-order persistence + epic/backlog lifecycle status (epic-status, backlog status, all-scopes)",
   "body": "## Why\nFollow-up to BI-PF-1222: the epic execution order was read-only and no view surfaced an epic/backlog lifecycle\n(open/closed, groomed, needs-reanalysis, readiness, order).\n\n## What\n- epic_order(save=True) persists execution_order[] on the epic; children[] (membership) untouched.\n- epic_status: ALL children (open+closed) with state/status/groomed/needs_reanalysis/ready/worker/wave/order_rank/\n  order_status/reasons + rollup.\n- backlog_status: per-epic rollups + standalone items for a scope; backlog_status_all aggregates every scope.\n\n## Where\n- API: POST /backlog/epics/{id}/order (save); GET /backlog/epics/{id}/status; GET /backlog/status[?all=true].\n- CLI: /pf backlog epic-order <id> [--dry] (saves by default); epic-status <id>; status [--all].\n\n## Verify\n- test_scheduler_eligibility.py: save persists execution_order; epic_status open+closed+rollup; backlog_status rollup.\n- Gates: scheduler_check, api_contract_check, pf_surface_check, lint (0 new).\n",
   "source": "pre-implementation review",
-  "status": "new",
+  "status": "completed",
   "priority": "P2",
   "moscow": "Should",
   "value": 3,
@@ -30,7 +30,18 @@
       "route:/api/v1/backlog/epics/{epic_id}/status",
       "route:/api/v1/backlog/epics/{epic_id}/order",
       "test:test-framework/tests/pipeline/test_scheduler_eligibility.py"
-    ]
+    ],
+    "delivery": {
+      "branch": "feature/bi-pf-1224-epic-status",
+      "merge_sha": "85f43b25f7e0eaa7c264350f2bf3270715cd7cfc",
+      "commits": [
+        "309f764eb6ae639664e3b9cdb774af0165baef4b"
+      ],
+      "pr": "",
+      "pr_url": "",
+      "at": "2026-10-10T10:45:27.529349",
+      "note": "merged to develop"
+    }
   },
   "decisions": [],
   "follow_up": {},
@@ -95,7 +106,7 @@
   "children": [],
   "epic": "",
   "parent": "",
-  "revision": 3,
+  "revision": 4,
   "priority_rank": 3,
   "priority_class": "P2",
   "analyze_mode": "on_entry",
@@ -164,9 +175,9 @@
     "completed_at": ""
   },
   "created_at": "2026-10-10T10:44:56.026095",
-  "updated_at": "2026-10-10T10:44:57.156013",
+  "updated_at": "2026-10-10T10:45:27.760901",
   "score": 0.75,
-  "_note": "priority set",
+  "_note": "merged to develop",
   "dashboard_impact": {
     "needs_dashboard": false,
     "reason": "Read/plan + one save path exposed via PF API (POST /order) and /pf CLI; frozen dashboard is separate",
