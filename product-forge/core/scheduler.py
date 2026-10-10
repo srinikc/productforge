@@ -281,6 +281,30 @@ def _item_paths(item: dict[str, Any]) -> list[str]:
                        + [str(p) for p in (item.get("affected_components") or [])])
 
 
+def _requires(item: dict[str, Any]) -> list[str]:
+    """The blocking prerequisites of an item (A6.4 direction).
+
+    Structured ``dependencies[]`` first (only ``REQUIRES`` blocks; ``BLOCKS``/``RELATED`` do not), else flat
+    ``deps[]``; ``blocked_by[]`` always blocks. Deduped, order-free. Single source for ``eligible`` + waves.
+    """
+    structured = item.get("dependencies") or []
+    if structured:
+        deps = [str(d.get("task_id")) for d in structured
+                if isinstance(d, dict) and str(d.get("type") or "REQUIRES").upper() == "REQUIRES"]
+    else:
+        deps = [str(d) for d in (item.get("deps") or [])]
+    deps += [str(d) for d in (item.get("blocked_by") or [])]
+    return list(dict.fromkeys(d for d in deps if d))
+
+
+def _epic_children(items: list[dict[str, Any]], epic_id: str | None) -> list[dict[str, Any]]:
+    """Items that belong to an epic (``epic``/``parent`` == epic_id); all items when no epic is given."""
+    e = str(epic_id or "")
+    if not e:
+        return items
+    return [i for i in items if str(i.get("epic") or i.get("parent") or "") == e]
+
+
 def eligible(item: dict[str, Any], *, by_id: dict[str, dict[str, Any]] | None = None,
              worker: dict[str, Any] | None = None,
              active: list[dict[str, Any]] | None = None,
@@ -329,15 +353,9 @@ def eligible(item: dict[str, Any], *, by_id: dict[str, dict[str, Any]] | None = 
     # Direction (A6.4): REQUIRES X = THIS item waits on X (blocks it if X isn't terminal).
     # BLOCKS X = this item is a prerequisite for X (X waits on THIS) -> it does NOT block this item.
     # RELATED = advisory association -> never blocks.
-    structured = item.get("dependencies") or []
-    if structured:
-        deps = [str(d.get("task_id")) for d in structured
-                if isinstance(d, dict) and str(d.get("type") or "REQUIRES").upper() == "REQUIRES"]
-    else:
-        deps = [str(d) for d in (item.get("deps") or [])]
-    deps += [str(d) for d in (item.get("blocked_by") or [])]
+    deps = _requires(item)
     if by_id is not None:
-        for d in {x for x in deps if x}:
+        for d in deps:
             dep = by_id.get(d)
             if dep is None or backlog._normalize_status(str(dep.get("status") or "")) not in _TERMINAL_STATUSES:
                 reasons.append(f"unmet dependency {d}")
@@ -372,8 +390,12 @@ def eligible(item: dict[str, Any], *, by_id: dict[str, dict[str, Any]] | None = 
 
 def eligible_backlog(scope: str = "product_forge", project: str | None = None,
                      worker: dict[str, Any] | None = None,
-                     stage: str | None = None) -> dict[str, Any]:
-    """Eligibility view over the canonical backlog (read-only)."""
+                     stage: str | None = None, epic: str | None = None) -> dict[str, Any]:
+    """Eligibility view over the canonical backlog (read-only).
+
+    ``epic=<id>`` scopes the view to that epic's children (the work carriers); dependencies still resolve
+    against the FULL item set, so a child whose prerequisite lives outside the epic is judged correctly.
+    """
     from core import backlog
     items = backlog.list_open(scope, project, order=False)
     # Include CLOSED items so dependencies on completed items are recognized as satisfied (see next_eligible).
@@ -382,14 +404,15 @@ def eligible_backlog(scope: str = "product_forge", project: str | None = None,
         by_id.update({str(i.get("id")): i for i in backlog.list_closed(scope, project)})
     # active = items already assigned/executing (for contention)
     active = [i for i in items if str((i.get("execution") or {}).get("worker_id") or "")]
+    view = _epic_children(items, epic)
     rows = []
-    for it in items:
+    for it in view:
         e = eligible(it, by_id=by_id, worker=worker, active=active, stage=stage)
         e["title"] = it.get("title")
         e["priority_rank"] = it.get("priority_rank")
         rows.append(e)
     ready = [r for r in rows if r["ok"]]
-    return {"scope": scope, "project": project or "", "total": len(rows),
+    return {"scope": scope, "project": project or "", "epic": str(epic or ""), "total": len(rows),
             "eligible": len(ready), "blocked": len(rows) - len(ready), "items": rows}
 
 
@@ -421,7 +444,7 @@ def _near_duplicate(item: dict[str, Any], others: list[dict[str, Any]]) -> bool:
 
 def next_eligible(scope: str = "product_forge", project: str | None = None,
                   worker: dict[str, Any] | None = None,
-                  stage: str | None = None) -> dict[str, Any]:
+                  stage: str | None = None, epic: str | None = None) -> dict[str, Any]:
     """Highest-priority eligible item + the pickup contract (the PF-side claim handoff).
 
     WorkerGrid (ADR-0002) owns registry/lease, so a claim now passes through HERE: stale analyses
@@ -432,6 +455,8 @@ def next_eligible(scope: str = "product_forge", project: str | None = None,
 
     ``stage="execute"`` (BI-PF-0416) excludes already-executed items (``implemented``/``verifying``)
     so the worker claim path cannot re-run executed work.
+
+    ``epic=<id>`` restricts selection to that epic's children (deps still resolve against the full set).
     """
     from core import backlog
     # BI-PF-0389: re-analyze stale items against the current architecture before pickup
@@ -446,10 +471,12 @@ def next_eligible(scope: str = "product_forge", project: str | None = None,
     with contextlib.suppress(Exception):
         by_id.update({str(i.get("id")): i for i in backlog.list_closed(scope, project)})
     active = [i for i in items if str((i.get("execution") or {}).get("worker_id") or "")]
-    ok = [i for i in items
+    candidates = _epic_children(items, epic)
+    ok = [i for i in candidates
           if eligible(i, by_id=by_id, worker=worker, active=active, stage=stage)["ok"]]
     if not ok:
-        return {"scope": scope, "project": project or "", "found": False, "item": None}
+        return {"scope": scope, "project": project or "", "epic": str(epic or ""),
+                "found": False, "item": None}
     ordered = backlog.order_by_priority(ok)
     top = ordered[0]
     if stage == "execute":
@@ -464,9 +491,10 @@ def next_eligible(scope: str = "product_forge", project: str | None = None,
             top = cand
             break
         if top is None:
-            return {"scope": scope, "project": project or "", "found": False, "item": None}
-    out: dict[str, Any] = {"scope": scope, "project": project or "", "found": True,
-                           "item": top.get("id"), "title": top.get("title"),
+            return {"scope": scope, "project": project or "", "epic": str(epic or ""),
+                    "found": False, "item": None}
+    out: dict[str, Any] = {"scope": scope, "project": project or "", "epic": str(epic or ""),
+                           "found": True, "item": top.get("id"), "title": top.get("title"),
                            "priority_rank": top.get("priority_rank")}
     # PIDL-4 (BI-PF-0379): attach the relevant context + execution policy (advisory; read-only).
     with contextlib.suppress(Exception):
@@ -480,3 +508,64 @@ def next_eligible(scope: str = "product_forge", project: str | None = None,
         out["pidl_context"] = pd["pidl_context"]
         out["execution_policy"] = pd["execution_policy"]
     return out
+
+
+def _waves(children: list[dict[str, Any]], by_id: dict[str, dict[str, Any]]) -> dict[str, int]:
+    """Dependency wave per child: 0 = no unmet prerequisite, else 1 + max(prereq wave) within the set.
+
+    A prereq that is already terminal is satisfied and does not push the wave out; a prereq outside the epic
+    set that is still unmet counts as an external blocker (wave >= 1) so the child is shown waiting.
+    """
+    from core import backlog
+    ids = {str(c.get("id")): c for c in children}
+    memo: dict[str, int] = {}
+
+    def wave(cid: str, stack: frozenset) -> int:
+        if cid in memo:
+            return memo[cid]
+        if cid in stack or cid not in ids:
+            return 0
+        w = 0
+        for d in _requires(ids[cid]):
+            dep = by_id.get(d)
+            if dep is not None and backlog._normalize_status(str(dep.get("status") or "")) in _TERMINAL_STATUSES:
+                continue
+            w = max(w, 1 + wave(d, stack | {cid})) if d in ids else max(w, 1)
+        memo[cid] = w
+        return w
+
+    return {cid: wave(cid, frozenset()) for cid in ids}
+
+
+def epic_order(scope: str = "product_forge", project: str | None = None,
+               epic: str = "", stage: str | None = None) -> dict[str, Any]:
+    """Execution order of an epic's OPEN children: dependency wave -> priority, with READY/wait status.
+
+    Read-only. Wave 0 items have no unmet prerequisite and come first; each further wave unlocks after the
+    prior one. ``status`` is READY when the child is eligible now (``eligible()``), else ``wait`` with the
+    blocking reasons. Dependencies resolve against the FULL backlog (open + closed), so prerequisites outside
+    the epic are still honored (an unmet external prereq shows the child waiting).
+    """
+    from core import backlog
+    op = backlog.list_open(scope, project, order=False)
+    cl = backlog.list_closed(scope, project)
+    by_id = {str(i.get("id")): i for i in op}
+    by_id.update({str(i.get("id")): i for i in cl})
+    children = _epic_children(op, epic)
+    active = [i for i in op if str((i.get("execution") or {}).get("worker_id") or "")]
+    waves = _waves(children, by_id)
+    rows = []
+    for c in backlog.order_by_priority(children):
+        cid = str(c.get("id"))
+        e = eligible(c, by_id=by_id, active=active, stage=stage)
+        rows.append({"id": cid, "title": c.get("title"), "wave": waves.get(cid, 0),
+                     "status": "READY" if e["ok"] else "wait", "reasons": e["reasons"],
+                     "priority": c.get("priority"), "priority_rank": c.get("priority_rank")})
+    rows.sort(key=lambda r: r["wave"])  # stable: priority order preserved within each wave
+    epic_item = backlog.get_epic(scope, project, str(epic)) if epic else None
+    ready = sum(1 for r in rows if r["status"] == "READY")
+    return {"scope": scope, "project": project or "", "epic": str(epic or ""),
+            "title": (epic_item or {}).get("title", ""),
+            "counts": {"total": len(rows), "ready": ready, "wait": len(rows) - ready,
+                       "waves": (max(r["wave"] for r in rows) + 1) if rows else 0},
+            "items": rows}

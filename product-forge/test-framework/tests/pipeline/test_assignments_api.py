@@ -59,6 +59,24 @@ def test_claim_next_is_per_item_parallel():
         _clean()
 
 
+def test_claim_next_scoped_to_epic():
+    """BI-PF-1222: claim_next(epic=) restricts the pick to that epic's children, not the whole backlog."""
+    _clean()
+    try:
+        ep = backlog.add_epic("project", _PROJ, "Epic container", type_="epic", tag="TST")["id"]
+        outside = backlog.add_epic("project", _PROJ, "outside work item alpha", tag="TST")["id"]
+        child = backlog.add_epic("project", _PROJ, "child work item beta", epic=ep, tag="TST")["id"]
+        grooming.decide("project", _PROJ, outside, "APPROVE")
+        grooming.decide("project", _PROJ, child, "APPROVE")
+        backlog.set_priority("project", _PROJ, outside, priority_rank=0)   # outside outranks the child
+        backlog.set_priority("project", _PROJ, child, priority_rank=5)
+        r = job_manager.claim_next("project", _PROJ, worker="w1", epic=ep)
+        assert r["claimed"] and r["item"] == child, r
+        assert backlog.get("project", _PROJ, child)["execution"]["worker_id"] == "w1"
+    finally:
+        _clean()
+
+
 def test_no_double_claim_and_release_requeues():
     _clean()
     try:

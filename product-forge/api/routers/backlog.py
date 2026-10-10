@@ -54,6 +54,22 @@ def get_item(item_id: str, request: Request, scope: str = "product_forge", proje
     return from_request(request, it, resource="backlog", resource_id=item_id)
 
 
+@router.get("/epics/{epic_id}/order", dependencies=[Depends(authenticate)])
+def epic_order(epic_id: str, request: Request, scope: str = "product_forge", project: str = "",
+               stage: str = "", ctx: dict[str, Any] = Depends(authenticate)):
+    """Execution order of an epic's OPEN children: dependency wave -> priority, with READY/wait status.
+
+    Read-only scheduling view (delegates to ``core.scheduler.epic_order``); dependencies resolve against the
+    full backlog, so prerequisites outside the epic are honored.
+    """
+    from core import backlog, scheduler
+    s, p = _scope_project(request, scope, project)
+    if not backlog.get_epic(s, p, epic_id):
+        raise ApiError("NOT_FOUND", "backlog epic not found")
+    return from_request(request, scheduler.epic_order(s, p, epic=epic_id, stage=stage or None),
+                        resource="backlog", resource_id=epic_id)
+
+
 @router.post("/items", dependencies=[Depends(require_operator)])
 def add_item(body: dict[str, Any], request: Request, ctx: dict[str, Any] = Depends(require_operator)):
     from core import backlog
