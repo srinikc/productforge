@@ -58,6 +58,7 @@
 | [`BRANCHING-GIT-WORKFLOW.md`](BRANCHING-GIT-WORKFLOW.md) | Implemented | 100% | Branch/worktree/merge/push workflow reference: PF, generated products, intake + worker paths (BI-PF-0431) | — | — |
 | [`CAPABILITY-PACKS-DESIGN.md`](CAPABILITY-PACKS-DESIGN.md) | Design | 100% | Capability-pack registry + discovery->enablement (BI-0189) | — | — |
 | [`CAPABILITY-STEERING-DESIGN.md`](CAPABILITY-STEERING-DESIGN.md) | Design | 20% | Capability steering design + plan (BI-0221..BI-0230) | — | — |
+| [`CI-CD-AND-GATES-SSOT.md`](CI-CD-AND-GATES-SSOT.md) | SSOT | 100% | CI/CD + gates SSOT: triggers, precheck tiers, PR merge gate, delivery, generated-product CI (PF + products) | — | — |
 | [`COMPLIANCE-REGISTER.md`](COMPLIANCE-REGISTER.md) | SSOT | 100% | Generated compliance register: framework->control->evidence (BI-PF-1206) | — | — |
 | [`CONSTITUTION.md`](CONSTITUTION.md) | Implemented | 100% | Constitution: governance + non-negotiables | — | — |
 | [`DASHBOARD-E2E-DESIGN.md`](DASHBOARD-E2E-DESIGN.md) | Design | 70% | Dashboard E2E design (front-end not built yet) | **Front-end MVP not built: every dashboard screen/view described here (backend-first).** | ProductForge-Dashboard BI-0001–0149 (epic BI-0043) |
