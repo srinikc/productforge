@@ -1,14 +1,14 @@
 # Backlog Summary
 
-> GENERATED 2026-10-10T17:34:40 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-10T17:39:43 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 64  |  **Closed:** 464
-- `new`: 64
+- **Open:** 66  |  **Closed:** 464
+- `new`: 66
 
-### new, by category (64)
+### new, by category (66)
 **API / reports / HIL / misc** (6)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
@@ -19,15 +19,16 @@
 | BI-PF-1239 | Should | feature | CI/CD model + read API for orchestrator/UI (single projection of gates/tiers/triggers) | One read-only projection so the dashboard/orchestrator can render CI/CD + gate status. - `core/ci_cd_model.py`... |
 | BI-PF-1243 | Should | epic | EPIC: CI/CD & Gates - SSOT doc + model + read API (PF + generated products) | One place to understand and read (via API) how PF builds/verifies/ships and how generated products do: the CI/... |
 
-**Bug fixes** (4)
+**Bug fixes** (5)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-PF-1225 | Should | bug | Defect/RCCA: CI (py3.11) broken by f-strings with a backslash inside {...} (PEP 701 is 3.12+); add a pycompat guard | Defect/RCCA: CI (py3.11) broken by f-strings with a backslash inside {...} (PEP 701 is 3.12+); add a pycompat ... |
 | BI-PF-1229 | Should | bug | CI1: workflow installs the declared test deps (jsonschema/httpx/requests/pyyaml) so pipeline tests collect | CI1: workflow installs the declared test deps (jsonschema/httpx/requests/pyyaml) so pipeline tests collect |
 | BI-PF-1231 | Should | bug | CI3: core/write_safety.py file_lock uses Windows-only msvcrt -> POSIX fcntl (Linux CI NameError) | CI3: core/write_safety.py file_lock uses Windows-only msvcrt -> POSIX fcntl (Linux CI NameError) |
 | BI-PF-1233 | Should | bug | CI5: triage residual CI pipeline-test failures (pfssot fields IndexError, delivery integrate conflict, grooming completeness) | CI5: triage residual CI pipeline-test failures (pfssot fields IndexError, delivery integrate conflict, groomin... |
+| BI-PF-1244 | Should | bug | Defect/RCCA: scripts/dev/single_path_check.py crashes when core.paths.ROOT is a Path (TypeError on _ROOT.replace) | Defect/RCCA: scripts/dev/single_path_check.py crashes when core.paths.ROOT is a Path (TypeError on _ROOT.repla... |
 
-**Discovery / HIL / prompts** (5)
+**Discovery / HIL / prompts** (6)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0218 | Should | feature | Backend: AI-era operations layer (evals + prompt/model/agent versioning + feedback loop + model-quality observability) | Add the AI-era lifecycle layer so the Product tab can show AI quality + the loop that keeps it good. |
@@ -35,6 +36,7 @@
 | BI-PF-1214 | Should | feature | C12: Multi-agent delegation control (capability/delegated/resource/time/action/approval scope) | C12: Multi-agent delegation control (capability/delegated/resource/time/action/approval scope) |
 | BI-PF-1216 | Should | feature | C14: Security gates S0-S6 across the factory pipeline (intake->planning->impl->test->release->runtime->improve) | C14: Security gates S0-S6 across the factory pipeline (intake->planning->impl->test->release->runtime->improve... |
 | BI-PF-1236 | Should | change | Worker ops: worker charter (binding guidelines) + runtime prompt fix (no agent merge) + model pin | - workergrid/instructions.md: full worker charter (14 binding guidelines; manual-by-default, auto mode). - wor... |
+| BI-PF-1242 | Should | feature | In-session manual/auto worker mode + /wg watch monitoring + 14-guidelines approval gates | - In-session manual worker mode (/wg work manual, default): 1. Claims assignment atomically from PF via /assig... |
 
 **Knowledge / KB** (1)
 | ID | MoSCoW | Type | Title | Objective |
@@ -299,5 +301,5 @@
 ---
 
 ## Totals
-- backend: 64 open / 464 closed
+- backend: 66 open / 464 closed
 - dashboard: 146 open / 3 closed
