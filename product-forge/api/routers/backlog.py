@@ -250,6 +250,25 @@ def groom_batch(body: dict[str, Any], request: Request,
     return from_request(request, res, resource="backlog")
 
 
+@router.post("/restamp", dependencies=[Depends(require_operator)])
+@router.post("/refresh-stale", dependencies=[Depends(require_operator)])
+def refresh_stale(body: dict[str, Any], request: Request,
+                  ctx: dict[str, Any] = Depends(require_operator)):
+    """Re-stamp OPEN items whose analysis is stale vs the current architecture (alias: /refresh-stale).
+
+    Re-analyzes each item and records the current ``arch_fingerprint`` (does NOT overwrite authored context).
+    Deterministic by default; ``mode="ai"`` (or ``ai=true``) for a deep AI refresh. ``limit`` caps items per call.
+    """
+    from core import grooming
+    s, p = _scope_project(request, str(body.get("scope") or "product_forge"), str(body.get("project") or ""))
+    mode = str(body.get("mode") or "")
+    if body.get("ai") is True and not mode:
+        mode = "ai"
+    res = grooming.refresh_stale(s, p, limit=int(body.get("limit") or 0) or 1_000_000,
+                                 mode=mode or "deterministic")
+    return from_request(request, res, resource="backlog")
+
+
 @router.post("/groom/approve", dependencies=[Depends(require_operator)])
 def groom_approve_batch(body: dict[str, Any], request: Request,
                         ctx: dict[str, Any] = Depends(require_operator)):

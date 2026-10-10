@@ -39,7 +39,7 @@
   ],
   "follow_up": {},
   "created_at": "2026-09-24T23:39:15.324581",
-  "updated_at": "2026-10-10T00:23:20.505348",
+  "updated_at": "2026-10-10T10:57:26.243611",
   "score": 0.4,
   "dashboard_impact": {
     "needs_dashboard": true,
@@ -48,7 +48,7 @@
     "reviewed_by": "agent",
     "reviewed_at": "2026-09-25T21:26:16.919323"
   },
-  "_note": "dependencies set",
+  "_note": "analysis updated",
   "brief": {
     "problem": "The pipeline is text-centric: the catalog reads media (image/audio/video/file) but the LLM client is\ntext-only, there are no media generators, and no media pipeline. So projects that involve creating\nor editing media (images, video, voice, reels/movies) cannot be built. See docs/multimodal_orchestration.md.",
     "what_adds": "Make the pipeline modality-agnostic via PLUGGABLE capability packs, enabled per project when the idea\nneeds them (nothing extra for a plain app; image/video/audio/3D packs for media products).",
@@ -117,11 +117,11 @@
   },
   "analysis": {
     "status": "COMPLETE",
-    "analyzed_at": "2026-10-09T22:32:19.392023",
-    "analyzed_by": "user",
+    "analyzed_at": "2026-10-10T10:57:26.185158",
+    "analyzed_by": "deterministic",
     "revision_analyzed": 2,
     "architecture_fit": "EXTEND",
-    "implementation_strategy": "EPIC - orchestrate sub-items BI-0186..BI-0191. Extend `core/llm_client` plumbing via multimodal parts (BI-0186), build ingest/segmentation on `core/media_context.py`, generators via `core/model_catalog.py` adapters (BI-0188), the pluggable switch on existing `core/capability_packs.py` + `config/capability-packs.json` (BI-0189), agents via `core/capability_bridge.py`/`core/pipeline_capabilities.py` (BI-0190), QA via `core/media_qa.py` (BI-0191). Core remains modality-agnostic; packs enable per project at discovery.",
+    "implementation_strategy": "Extend existing components/APIs: core/capability_bridge.py, core/capability_packs.py, core/media_context.py, core/media_qa.py",
     "existing_components": [
       "core/capability_bridge.py",
       "core/capability_packs.py",
@@ -147,46 +147,30 @@
       "config/tool-catalog.json"
     ],
     "dependency_findings": [
-      "BLOCKED_BY sub-items BI-0186, BI-0187, BI-0188, BI-0189, BI-0190, BI-0191 completing",
-      "RELATED BI-0192 (model/capability strategy gate) as the enablement trigger",
-      "OUT_OF_SCOPE UI BI-0134 (dashboard multi-modal I/O)"
+      "depends on BI-0186",
+      "depends on BI-0187",
+      "depends on BI-0188",
+      "depends on BI-0189",
+      "depends on BI-0192"
     ],
-    "conflict_findings": [
-      "`core/model_catalog.py` touched by BI-0188 generators and BI-0195 plugin registry - partition provider adapter files",
-      "`config/model-catalog.json` shared with BI-0218 versioning - coordinate schema"
-    ],
-    "duplication_findings": [
-      "`capability_packs.py`, `capability-packs.json`, `media_qa.py`, `media_context.py` already exist - sub-items must EXTEND, not create new registries",
-      "BI-0189 owns the pack registry switch - avoid parallel registry work here",
-      "BI-0192 two-phase model selection overlaps pack enablement timing - align decision point"
-    ],
-    "drift": "LOW",
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
     "rewrite_required": false,
-    "new_component_required": true,
-    "rationale": "Epic with strong existing scaffolding: packs, media context, media QA, and catalog already exist, so this is extension around proven modules, not greenfield.",
-    "assumptions": [
-      "docs/multimodal_orchestration.md defines the pluggable architecture already",
-      "`capability_packs.py` is the canonical registry (config-driven enablement)",
-      "Non-media projects take zero code-path changes when packs disabled"
-    ],
-    "risks": [
-      "Open-weights generator adapters have varying licenses and hardware requirements",
-      "Per-project pack gating may leak media paths into non-media projects if not isolated",
-      "Sub-item sprawl risks inconsistent modality abstractions"
-    ],
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
     "evidence": [
-      "Candidate code already includes capability_packs.py, media_context.py, media_qa.py, model_catalog.py",
-      "config/capability-packs.json and config/model-catalog.json exist",
-      "Sub-item titles BI-0186..BI-0191 enumerate the work"
+      "similar=4",
+      "score=0.4",
+      "components=8",
+      "apis=5"
     ],
-    "confidence": "medium",
-    "missing_info": [
-      "Which generator models/vendors are approved (license, cost, hosting)",
-      "Storage backend and size limits for the media asset store",
-      "Ordering/parallelism plan among the six sub-items"
-    ],
+    "confidence": "high",
+    "missing_info": [],
     "depth": "deep",
-    "mode": "ai",
+    "mode": "deterministic",
     "context_review": {
       "implementable": true,
       "missing": [
@@ -196,7 +180,8 @@
       ],
       "reason": "Architecture docs and existing modules (capability packs, media context, media QA) define the shape; only vendor/hosting and sequencing decisions remain."
     },
-    "arch_fingerprint": "dccfa9aaa68e546a"
+    "arch_fingerprint": "124d603588017096",
+    "refreshed_at": "2026-10-10T10:57:26.127665"
   },
   "priority_rank": 2,
   "priority_class": "P2",

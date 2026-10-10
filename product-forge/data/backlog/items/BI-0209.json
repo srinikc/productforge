@@ -37,7 +37,7 @@
   ],
   "follow_up": {},
   "created_at": "2026-09-25T21:20:45.220692",
-  "updated_at": "2026-10-10T00:23:16.729029",
+  "updated_at": "2026-10-10T10:57:27.468287",
   "score": 0.75,
   "dashboard_impact": {
     "needs_dashboard": false,
@@ -46,7 +46,7 @@
     "reviewed_by": "agent",
     "reviewed_at": "2026-09-25T21:20:45.231229"
   },
-  "_note": "dependencies set",
+  "_note": "analysis updated",
   "brief": {
     "problem": "OCR/document understanding is a listed need but has no dedicated kind, pack, or adapters, so scanned/\nPDF/table content cannot be ingested reliably across products.",
     "what_adds": "An `ocr` capability pack with a `ocr/doc-parse` kind, permissive self-host defaults, and paid API\noptions -- enabled only for projects that need documents.",
@@ -121,11 +121,11 @@
   },
   "analysis": {
     "status": "COMPLETE",
-    "analyzed_at": "2026-10-09T22:32:10.225237",
-    "analyzed_by": "user",
+    "analyzed_at": "2026-10-10T10:57:27.412576",
+    "analyzed_by": "deterministic",
     "revision_analyzed": 2,
-    "architecture_fit": "NEW_CAPABILITY",
-    "implementation_strategy": "EXTEND provider_kinds with ocr/doc-parse; EXTEND generator_adapters with OCR adapter class (self-host + API variants); register pack in config/capability-packs.json mirroring BI-0208 sensor pack pattern; add pdf ingest via intake_adapters. New components only for pipeline steps not covered by existing adapters.",
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/capability_bridge.py, core/capability_packs.py, core/generator_adapters.py, core/intake_adapters.py",
     "existing_components": [
       "core/capability_bridge.py",
       "core/capability_packs.py",
@@ -149,45 +149,28 @@
       "config/generators.json"
     ],
     "dependency_findings": [
-      "REQUIRES BI-0185 (pluggable packs epic) for pack loading mechanism to be stable",
-      "RELATED BI-0208 (pack pattern reference, not blocking)",
-      "BI-PF-0334/0335 API gates unrelated to core work"
+      "depends on BI-0185",
+      "depends on BI-0208",
+      "depends on BI-0224"
     ],
-    "conflict_findings": [
-      "Low risk of overlap with BI-0208: both touch capability_packs.json/generators.json",
-      "Coordinate JSON edits with BI-0208 to avoid merge conflicts"
-    ],
-    "duplication_findings": [
-      "BI-0208 sensor pack is the pack-pattern template (non-overlapping domain)",
-      "BI-0185 EPIC multi-modal packs is parent epic; BI-0209 is a child slice",
-      "No existing ocr/doc kind in provider_kinds"
-    ],
+    "conflict_findings": [],
+    "duplication_findings": [],
     "drift": "NONE",
     "rewrite_required": false,
-    "new_component_required": true,
-    "rationale": "New domain capability; follows established pack pattern; reuse of kind/adapter/pack modules is high, so classified NEW_CAPABILITY not NEW_COMPONENT.",
-    "assumptions": [
-      "Pack loading/gating infra from BI-0185 or BI-0208 exists or lands first",
-      "Asset store registry supports text/table artifacts (per BI-0208 scope)",
-      "Tests can run without GPUs"
-    ],
-    "risks": [
-      "Heavy native deps (tessdata, paddle) bloat package; must stay optional per-pack",
-      "Per-page confidence not available for all engines (pdfplumber path)",
-      "License drift if a dependency sneaks restricted code"
-    ],
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
     "evidence": [
-      "Existing pack infra: capability_packs.py, capability-bridge.py, config/capability-packs.json",
-      "Candidate components listed cover kind/adapter registration"
+      "similar=4",
+      "score=0.75",
+      "components=8",
+      "apis=5"
     ],
-    "confidence": "medium",
-    "missing_info": [
-      "Default language set for OCR and whether tesseract-lang-* wheels are bundled or optional",
-      "Which paid API is the default for projects with API keys",
-      "GPU availability assumptions for PaddleOCR accuracy"
-    ],
+    "confidence": "high",
+    "missing_info": [],
     "depth": "deep",
-    "mode": "ai",
+    "mode": "deterministic",
     "context_review": {
       "implementable": true,
       "missing": [
@@ -197,7 +180,8 @@
       ],
       "reason": "Candidate code covers kind/adapter/pack extension points; remaining gaps are config decisions, not blockers."
     },
-    "arch_fingerprint": "dccfa9aaa68e546a"
+    "arch_fingerprint": "124d603588017096",
+    "refreshed_at": "2026-10-10T10:57:27.354394"
   },
   "priority_rank": 2,
   "priority_class": "P2",

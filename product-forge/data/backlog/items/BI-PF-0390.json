@@ -37,11 +37,11 @@
   "analyze_mode": "on_entry",
   "analysis": {
     "status": "COMPLETE",
-    "analyzed_at": "2026-10-09T22:32:12.834264",
-    "analyzed_by": "user",
+    "analyzed_at": "2026-10-10T10:57:31.068043",
+    "analyzed_by": "deterministic",
     "revision_analyzed": 3,
     "architecture_fit": "EXTEND",
-    "implementation_strategy": "Extend core/licensing.py, core/packaging.py, core/skill_contracts.py and existing /api/v1/packaging/* endpoints; emit edition manifests from config/licensing-tiers.json. Add Go build/packaging scaffolding referencing BI-PF-0388 ADR without rewriting existing Python flows.",
+    "implementation_strategy": "Extend existing components/APIs: core/licensing.py, core/packaging.py, core/skill_contracts.py, /api/v1/packaging/build",
     "existing_components": [
       "core/licensing.py",
       "core/packaging.py",
@@ -57,48 +57,28 @@
       "config/licensing-tiers.json"
     ],
     "dependency_findings": [
-      "REQUIRES BI-PF-0388 ADR settled (compiled artifacts decision)",
-      "REQUIRES BI-PF-0352 packaging/entitlement scope alignment",
-      "RELATED BI-PF-0336/0337 for API conventions"
+      "depends on BI-PF-0388",
+      "depends on BI-PF-0352",
+      "depends on BI-PF-0336"
     ],
-    "conflict_findings": [
-      "Potential concurrent edits to core/packaging.py with BI-PF-0352",
-      "Contract API changes could collide with BI-PF-0393 if run simultaneously"
-    ],
-    "duplication_findings": [
-      "Overlaps BI-PF-0352 (packaging/licensing/entitlement) — must coordinate to avoid duplicate work",
-      "Overlaps BI-PF-0388 ADR on compiled artifacts; use it as constraint, not duplicate effort",
-      "Overlaps BI-PF-0336/0337 API foundation; reuse /api/v1/packaging/* rather than new APIs"
-    ],
-    "drift": "LOW",
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
     "rewrite_required": false,
-    "new_component_required": true,
-    "rationale": "Core commercial/IP foundation; heavy existing reuse in packaging/licensing but epic breadth needs decomposition into sub-tasks.",
-    "assumptions": [
-      "Target architecture doc exists and is authoritative",
-      "Existing licensing tiers JSON is the source of truth for editions",
-      "EAP and RDC definitions are documented in the plan"
-    ],
-    "risks": [
-      "Scope is very broad (contracts, licensing, packaging, EAP, governance, slice) — risk of oversized epic",
-      "docs/PF-TARGET-ARCHITECTURE-AND-IP-PLAN.md may not exist or be stale",
-      "Go toolchain integration unproven"
-    ],
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
     "evidence": [
-      "Existing components: core/licensing.py, core/packaging.py",
-      "Existing APIs: /api/v1/packaging/*",
-      "Module: config/licensing-tiers.json",
-      "Ref to docs/PF-TARGET-ARCHITECTURE-AND-IP-PLAN.md"
+      "similar=4",
+      "score=0.75",
+      "components=3",
+      "apis=4"
     ],
-    "confidence": "medium",
-    "missing_info": [
-      "Exact definition/scope of EAP and RDC deliverables",
-      "Governance artifact list and approval process",
-      "Go core first-slice contents",
-      "Relationship/scheduling to BI-PF-0352"
-    ],
+    "confidence": "high",
+    "missing_info": [],
     "depth": "deep",
-    "mode": "ai",
+    "mode": "deterministic",
     "context_review": {
       "implementable": false,
       "missing": [
@@ -109,7 +89,8 @@
       ],
       "reason": "Epic-level body lacks specific acceptance criteria for sub-deliverables; needs decomposition and doc confirmation."
     },
-    "arch_fingerprint": "dccfa9aaa68e546a"
+    "arch_fingerprint": "124d603588017096",
+    "refreshed_at": "2026-10-10T10:57:31.005829"
   },
   "dependencies": [
     {
@@ -146,9 +127,9 @@
     "completed_at": ""
   },
   "created_at": "2026-10-06T18:30:29.635421",
-  "updated_at": "2026-10-10T00:23:17.832595",
+  "updated_at": "2026-10-10T10:57:31.127806",
   "score": 0.75,
-  "_note": "dependencies set",
+  "_note": "analysis updated",
   "brief": {
     "problem": "PF must become a commercially deployable, IP-protected platform shipped as editions from one source: new shipped/sensitive logic in Go, existing Python compiled, no raw .py shipped. See docs/PF-TARGET-ARCHITECTURE-AND-IP-PLAN.md.",
     "what_adds": "EPIC A — the needed-now foundation: A0 baseline freeze + ADR register; A1 thin contracts incl. Go<->Python contract; A2 capability registry + entitlement-at-boundary + asymmetric licensing; A3 build->package->deploy + compiled packaging (Nuitka + go build) + signing + SBOM/LBOM + no-raw-.py gate; A4 EAP delivery manifest + compatibility; A5 Runtime Dependency Compiler; A6 governance (change classifier, language rule, no-undeclared-dep); A7 vertical slice.",
