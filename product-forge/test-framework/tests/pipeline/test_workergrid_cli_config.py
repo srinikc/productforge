@@ -39,10 +39,31 @@ def test_config_home_honours_worker_home(tmp_path, monkeypatch):
 
 
 class _StubProducer(BaseHTTPRequestHandler):
+    """Stub producer for the assignment-claim contract (BI-PF-1242): claim + status write-back."""
     item = "BI-CLI-0001"
+    last_path = ""
 
     def log_message(self, *a):
         pass
+
+    def do_POST(self):
+        path = self.path.split("?", 1)[0]
+        self.last_path = path
+        if path == "/api/v1/engineering/assignments/claim":
+            ln = int(self.headers.get("Content-Length") or 0)
+            body = json.loads(self.rfile.read(ln) or b"{}") if ln else {}
+            pkg = {"assigned": True, "item_id": body.get("worker_id") and self.item or self.item,
+                   "title": "cli task", "worktree": "C:/wt", "branch": "feature/wg/cli",
+                   "worker_id": body.get("worker_id") or "", "lease_id": "LSE-1"}
+            body = json.dumps({"status": "ok", "data": pkg}).encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
+        self.send_response(404)
+        self.end_headers()
 
     def do_GET(self):
         if self.path.split("?", 1)[0] == "/api/v1/engineering/schedule/next":
@@ -59,16 +80,22 @@ class _StubProducer(BaseHTTPRequestHandler):
         self.end_headers()
 
 
-def test_local_work_unwraps_producer_envelope(monkeypatch):
+def test_local_work_claims_via_assignment_api(monkeypatch):
+    """BI-PF-1242: cmd_work (manual/claim) claims through POST /assignments/claim and returns the package."""
     srv = ThreadingHTTPServer(("127.0.0.1", 0), _StubProducer)
     threading.Thread(target=srv.serve_forever, daemon=True).start()
     try:
         monkeypatch.setenv("WORKERGRID_PF_API_URL", f"http://127.0.0.1:{srv.server_address[1]}")
         monkeypatch.setenv("WORKERGRID_STATE_DIR", tempfile.mkdtemp(prefix="wg-cli-state-"))
-        r = wg.cmd_work([], {"worker": "WRK-CLI", "local": "1", "scope": "product_forge"})
+        r = wg.cmd_work([], {"worker-id": "WRK-CLI", "scope": "product_forge"})
         assert r.get("assigned") is True, r
         assert r.get("item_id") == "BI-CLI-0001", r
-        assert r.get("worker_id") == "WRK-CLI", r
+        assert r.get("worktree") == "C:/wt", r
+        assert "guidelines" in r and "PAUSE" in r["guidelines"], r      # manual session instructions attached
+        assert "complete" in r.get("next", ""), r
+        # explicit claim sub: no instructions attached
+        r2 = wg.cmd_work(["claim"], {"worker-id": "WRK-CLI", "scope": "product_forge"})
+        assert r2.get("assigned") is True and "guidelines" not in r2, r2
     finally:
         srv.shutdown()
         srv.server_close()
