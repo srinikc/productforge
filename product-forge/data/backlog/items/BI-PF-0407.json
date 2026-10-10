@@ -37,67 +37,46 @@
   "analyze_mode": "on_entry",
   "analysis": {
     "status": "COMPLETE",
-    "analyzed_at": "2026-10-09T22:32:18.680302",
-    "analyzed_by": "user",
+    "analyzed_at": "2026-10-10T10:57:36.165391",
+    "analyzed_by": "deterministic",
     "revision_analyzed": 3,
-    "architecture_fit": "REFACTOR",
-    "implementation_strategy": "Follow the BI-PF-0386 value-assessment ranking: migrate modules ranked HIGH value from Python to Go, one module per PR. Start with core/persona.py (already flagged as candidate) by porting its logic to Go while keeping the existing Python API contracts (/api/v1/portfolio/supervisor/*) unchanged. config/legacy-frozen.json and config/persona.json must remain loadable by both runtimes during transition. Go binaries replace .py files per the BI-PF-0387 baseline (no raw .py at customer). Do NOT migrate low-value modules (those stay Nuitka-compiled).",
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/persona.py, /api/v1/portfolio/supervisor, /api/v1/portfolio/supervisor/start, /api/v1/portfolio/supervisor/stop",
     "existing_components": [
       "core/persona.py"
     ],
-    "existing_apis": [],
+    "existing_apis": [
+      "/api/v1/portfolio/supervisor",
+      "/api/v1/portfolio/supervisor/start",
+      "/api/v1/portfolio/supervisor/stop"
+    ],
     "existing_modules": [
       "config/legacy-frozen.json",
       "config/persona.json"
     ],
     "dependency_findings": [
-      "REQUIRES: BI-PF-0386 — value-ranking output must exist before migration order is determined.",
-      "RELATED: BI-PF-0387 — policy baseline (Go for high-value, Nuitka for rest) governs this item.",
-      "RELATED: BI-PF-0406 — Go service binaries may become decomposed service boundaries.",
-      "RELATED: BI-PF-0405 — WASM plugins may overlap with Go runtime embedding."
+      "depends on BI-PF-0386",
+      "depends on BI-PF-0387",
+      "depends on BI-PF-0406"
     ],
-    "conflict_findings": [
-      "core/persona.py is touched by any agent-persona work concurrent in the queue — serialize migration against those.",
-      "Supervisor APIs (/api/v1/portfolio/supervisor*) must keep identical request/response contracts while backend switches language — any concurrent API change conflicts.",
-      "config/persona.json and config/legacy-frozen.json are shared config files — migration must not break Python fallback loader."
-    ],
-    "duplication_findings": [
-      "BI-PF-0386 (IP-value assessment) is a hard prerequisite — migration order must come from its ranking, not be invented here.",
-      "BI-PF-0387 (platform delivery baseline) already settles the 'compile everything, Go for high-value' policy — do not restate, just follow.",
-      "core/persona.py is also a candidate in other AI/agent items — confirm no concurrent rewrite planned."
-    ],
-    "drift": "LOW",
-    "rewrite_required": true,
-    "new_component_required": true,
-    "rationale": "The item is a directive to execute a migration whose target order comes from BI-PF-0386. core/persona.py is the only concrete Python component named in candidate code. Confidence is low because the ranking artifact (BI-PF-0386) has not been delivered and the interop/cutover strategy is unsettled. Rewrite is required (Python→Go) but reuse applies to API contracts and JSON configs.",
-    "assumptions": [
-      "BI-PF-0386 ranking will identify core/persona.py as high-value (it is listed as a candidate here, but confirmation pending).",
-      "Go toolchain will be adopted as a first-class build dependency per BI-PF-0387.",
-      "API contracts (/api/v1/portfolio/supervisor*) remain stable during migration.",
-      "config JSON formats are runtime-agnostic and readable from Go without change.",
-      "A parity test harness will be used to validate Go output vs Python output on the same inputs."
-    ],
-    "risks": [
-      "Behavioral drift between Python and Go implementations (subtle differences in serialization, error handling).",
-      "Python↔Go interop during transition adds complexity (subprocess, FFI, or sidecar).",
-      "Dependency on BI-PF-0386 ranking being completed and accurate.",
-      "Go runtime adds a second toolchain to maintain.",
-      "Regression risk to persona.py behavior used by downstream agents."
-    ],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
     "evidence": [
-      "Candidate code: core/persona.py; supervisor APIs; persona.json and legacy-frozen.json configs",
-      "BI-PF-0387 policy text explicitly directs new high-value logic to Go."
+      "similar=4",
+      "score=0.75",
+      "components=1",
+      "apis=3"
     ],
-    "confidence": "low",
-    "missing_info": [
-      "BI-PF-0386 value-ranking results (which modules, what order, what counts as high-value).",
-      "Preferred Go↔Python interop strategy during transition (subprocess, sidecar, or hard cutover).",
-      "Who owns Go toolchain setup and CI for the Go build.",
-      "Parity-test scope and golden-input corpus definition.",
-      "Hard cutover vs dual-run period acceptance."
-    ],
+    "confidence": "high",
+    "missing_info": [],
     "depth": "deep",
-    "mode": "ai",
+    "mode": "deterministic",
     "context_review": {
       "implementable": false,
       "missing": [
@@ -108,7 +87,8 @@
       ],
       "reason": "The item is fully dependent on a prerequisite ranking artifact (BI-PF-0386) that has not yet been delivered; without it the concrete migration order and high-value definition are unknown."
     },
-    "arch_fingerprint": "dccfa9aaa68e546a"
+    "arch_fingerprint": "124d603588017096",
+    "refreshed_at": "2026-10-10T10:57:36.106871"
   },
   "dependencies": [
     {
@@ -148,9 +128,9 @@
     "completed_at": ""
   },
   "created_at": "2026-10-06T18:32:30.651751",
-  "updated_at": "2026-10-10T00:23:20.216250",
+  "updated_at": "2026-10-10T10:57:36.224908",
   "score": 0.75,
-  "_note": "dependencies set",
+  "_note": "analysis updated",
   "parent": "BI-PF-0391",
   "epic": "BI-PF-0391",
   "brief": {

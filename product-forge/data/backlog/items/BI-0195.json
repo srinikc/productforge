@@ -34,7 +34,7 @@
   ],
   "follow_up": {},
   "created_at": "2026-09-25T10:51:58.880826",
-  "updated_at": "2026-10-10T00:23:20.652133",
+  "updated_at": "2026-10-10T10:57:26.553271",
   "score": 0.4,
   "dashboard_impact": {
     "needs_dashboard": false,
@@ -43,7 +43,7 @@
     "reviewed_by": "agent",
     "reviewed_at": "2026-09-25T10:52:41.679986"
   },
-  "_note": "dependencies set",
+  "_note": "analysis updated",
   "brief": {
     "problem": "The harness should be pluggable/modular - scalable and adaptable to env/user needs - and interoperable\nwith the emerging industry standards (MCP for tools, A2A for agents, AG-UI for frontends, OpenTelemetry\nGenAI for observability). Today it is a capable but implicit monolith with bespoke protocols.",
     "what_adds": "Everything variable is a plugin behind a port; the core depends only on ports. Adopt the open standards\nso we interop with the ecosystem while KEEPING our differentiators (governed product pipeline).\nSee docs/architecture-pluggable-modular.md.",
@@ -110,11 +110,11 @@
   },
   "analysis": {
     "status": "COMPLETE",
-    "analyzed_at": "2026-10-09T22:32:19.745102",
-    "analyzed_by": "user",
+    "analyzed_at": "2026-10-10T10:57:26.499650",
+    "analyzed_by": "deterministic",
     "revision_analyzed": 2,
     "architecture_fit": "EXTEND",
-    "implementation_strategy": "EPIC over BI-0196..BI-0200. Formalize the plugin/registry framework (BI-0200) as ports+adapters on top of existing `core/mcp.py`, `core/a2a.py`, `core/otel.py`; register via `config/mcp-servers.json`, `config/a2a-remotes.json`. BI-0196 wraps existing tools as MCP + consumes external servers; BI-0197 A2A agent interop over `core/a2a.py`; BI-0198 AG-UI typed event stream for dashboard; BI-0199 OTel GenAI spans extending `core/otel.py`. Core depends only on ports; no bespoke protocol edits after.",
+    "implementation_strategy": "Extend existing components/APIs: core/a2a.py, core/mcp.py, core/otel.py",
     "existing_components": [
       "core/a2a.py",
       "core/mcp.py",
@@ -126,47 +126,31 @@
       "config/mcp-servers.json"
     ],
     "dependency_findings": [
-      "BLOCKS BI-0218 (observability layer needs OTel GenAI, BI-0199)",
-      "REQUIRES sub-items BI-0196..BI-0200 for epic completion",
-      "RELATED BI-0188/BI-0193 (media adapters as first registry consumers), BI-0189 (packs as registry kind)"
+      "depends on BI-0196",
+      "depends on BI-0197",
+      "depends on BI-0198",
+      "depends on BI-0199",
+      "depends on BI-0200",
+      "depends on BI-0218"
     ],
-    "conflict_findings": [
-      "`core/otel.py` also consumed by BI-0218 - BI-0218 must not re-implement spans",
-      "`config/model-catalog.json` / provider registries shared with BI-0185/BI-0218 - registry schema ownership must be settled here",
-      "Dashboard event stream (BI-0198) touches UI surfaces owned by BI-0134 work"
-    ],
-    "duplication_findings": [
-      "`core/mcp.py`, `core/a2a.py`, `core/otel.py` + configs already exist - adopt/extend, do not write new protocol layers",
-      "BI-0189 capability-pack registry overlaps plugin registry - define pack registry as a registry kind, not a second framework",
-      "BI-0218 observability panel reuses BI-0199 spans - single span emitter"
-    ],
-    "drift": "LOW",
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
     "rewrite_required": false,
-    "new_component_required": true,
-    "rationale": "Strong reuse: all four standards have existing modules and configs; the epic mostly formalizes them behind ports with the registry as the one genuinely new component.",
-    "assumptions": [
-      "docs/architecture-pluggable-modular.md defines the target ports+adapters layout",
-      "Existing mcp.py/a2a.py/otel.py are functional starting points, not throwaway",
-      "Differentiators (governed product pipeline) remain untouched by adapters"
-    ],
-    "risks": [
-      "Standards (MCP/A2A/AG-UI) are evolving; API churn risk",
-      "Over-abstraction into ports could destabilize working bespoke paths during migration",
-      "A2A adoption may require protocol negotiation features not yet needed"
-    ],
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
     "evidence": [
-      "Candidate code lists core/mcp.py, core/a2a.py, core/otel.py and both config JSONs",
-      "Sub-item titles BI-0196..BI-0200 enumerate the standards work",
-      "BI-0218 body lists OTel GenAI (BI-0199) as a dependency, confirming upstream need"
+      "similar=4",
+      "score=0.4",
+      "components=3",
+      "apis=0"
     ],
     "confidence": "high",
-    "missing_info": [
-      "Which standard versions/specs to pin (MCP/A2A release tags)",
-      "Priority/serialization among the five sub-items",
-      "Whether BI-0199 can ship independently ahead of the full registry framework"
-    ],
+    "missing_info": [],
     "depth": "deep",
-    "mode": "ai",
+    "mode": "deterministic",
     "context_review": {
       "implementable": true,
       "missing": [
@@ -176,7 +160,8 @@
       ],
       "reason": "Existing mcp/a2a/otel modules and architecture doc define the target; decisions needed are version pinning and sequencing."
     },
-    "arch_fingerprint": "dccfa9aaa68e546a"
+    "arch_fingerprint": "124d603588017096",
+    "refreshed_at": "2026-10-10T10:57:26.444660"
   },
   "priority_rank": 2,
   "priority_class": "P2",

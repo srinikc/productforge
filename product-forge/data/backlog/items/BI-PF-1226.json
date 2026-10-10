@@ -1,0 +1,171 @@
+{
+  "id": "BI-PF-1226",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "",
+  "label": "PF Backlog 550",
+  "title": "restamp: re-stamp stale analyses with the current architecture fingerprint (CLI/API)",
+  "body": "## Why\nRe-analysis after an architecture change was only reachable via core.grooming.refresh_stale (no CLI/API), and the\nname 'refresh-stale' was unclear. Expose it as a first-class, plainly-named command.\n\n## What\n- /pf backlog restamp [--limit N] [--ai]: re-analyze OPEN items whose analysis is stale vs the current\n  architecture and record the new arch_fingerprint; keeps authored context. Deterministic by default.\n- API: POST /backlog/restamp (alias /refresh-stale retained).\n- Semantics: restamp applies to items already COMPLETE-but-fingerprint-stale (re-stamps to COMPLETE); groom only\n  PROPOSES (IN_PROGRESS) and needs an approve decision.\n\n## Where\n- core/grooming.py refresh_stale (unchanged); scripts/pf.py; api/routers/backlog.py.\n\n## Verify\n- Applied to product_forge: 33 items restamped; scope groomed 32/need_reanalysis 0; BI-PF-0390 groomed 11/ready 2.\n- Gates: compileall, api_contract_check, pf_surface_check, ruff clean.\n",
+  "source": "pre-implementation review",
+  "status": "new",
+  "priority": "P2",
+  "moscow": "Should",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [],
+  "links": {
+    "related": [
+      "product_forge:BI-PF-1222",
+      "product_forge:BI-PF-1224"
+    ],
+    "backend_capability": [
+      "module:core/grooming.py",
+      "module:scripts/pf.py",
+      "module:api/routers/backlog.py",
+      "route:/api/v1/backlog/restamp"
+    ]
+  },
+  "decisions": [],
+  "follow_up": {},
+  "brief": {
+    "problem": "Re-analysis after an architecture change was only reachable via core.grooming.refresh_stale (no CLI/API), and the\nname 'refresh-stale' was unclear. Expose it as a first-class, plainly-named command.",
+    "what_adds": "- /pf backlog restamp [--limit N] [--ai]: re-analyze OPEN items whose analysis is stale vs the current\n  architecture and record the new arch_fingerprint; keeps authored context. Deterministic by default.\n- API: POST /backlog/restamp (alias /refresh-stale retained).\n- Semantics: restamp applies to items already COMPLETE-but-fingerprint-stale (re-stamps to COMPLETE); groom only\n  PROPOSES (IN_PROGRESS) and needs an approve decision.",
+    "why": "Re-analysis after an architecture change was only reachable via core.grooming.refresh_stale (no CLI/API), and the\nname 'refresh-stale' was unclear. Expose it as a first-class, plainly-named command.",
+    "who_feels": "Product Forge maintainers and consumers.",
+    "source": "extracted"
+  },
+  "objective": "- /pf backlog restamp [--limit N] [--ai]: re-analyze OPEN items whose analysis is stale vs the current\n  architecture and record the new arch_fingerprint; keeps authored context. Deterministic by default.\n- API: POST /backlog/restamp (alias /refresh-stale retained).\n- Semantics: restamp applies to items already COMPLETE-but-fingerprint-stale (re-stamps to COMPLETE); groom only\n  PROPOSES (IN_PROGRESS) and needs an approve decision.",
+  "acceptance_criteria": [
+    "Objective achieved: - /pf backlog restamp [--limit N] [--ai]: re-analyze OPEN items whose analysis is stale vs the current\n  architecture and record the new arch_fingerprint; keeps authored context. Deterministic by default.\n- API: POST /backlog/restamp (alias /refresh-stale retained).\n- Semantics: restamp applies to items already COMPLETE-but-fingerprint-stale (re-stamps to COMPLETE); groom only\n  PROPOSES (IN_PROGRESS) and needs an approve decision."
+  ],
+  "in_scope": [
+    "restamp: re-stamp stale analyses with the current architecture fingerprint (CLI/API)"
+  ],
+  "out_of_scope": [
+    "Not specified."
+  ],
+  "affected_components": [
+    "api",
+    "core",
+    "scripts"
+  ],
+  "affected_files": [
+    "api/routers/backlog.py",
+    "core/grooming.py",
+    "scripts/pf.py"
+  ],
+  "approach": "restamp: re-stamp stale analyses with the current architecture fingerprint (CLI/API)",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Objective achieved: - /pf backlog restamp [--limit N] [--ai]: re-analyze OPEN items whose analysis is stale vs the current\n  architecture and record the new arch_fingerprint; keeps authored context. Deterministic by default.\n- API: POST /backlog/restamp (alias /refresh-stale retained).\n- Semantics: restamp applies to items already COMPLETE-but-fingerprint-stale (re-stamps to COMPLETE); groom only\n  PROPOSES (IN_PROGRESS) and needs an approve decision."
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "agent",
+  "requester": "pre-implementation review",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "",
+  "parent": "",
+  "revision": 3,
+  "priority_rank": 3,
+  "priority_class": "P2",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "IN_PROGRESS",
+    "analyzed_at": "",
+    "analyzed_by": "deterministic",
+    "revision_analyzed": 0,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/architecture_diagram.py, core/change_log.py, core/change_registry.py, core/change_spec.py",
+    "existing_components": [
+      "core/architecture_diagram.py",
+      "core/change_log.py",
+      "core/change_registry.py",
+      "core/change_spec.py"
+    ],
+    "existing_apis": [
+      "/api/v1/changes",
+      "/api/v1/changes/kinds"
+    ],
+    "existing_modules": [],
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=0.75",
+      "components=4",
+      "apis=2"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": false,
+    "reasons": [],
+    "computed_at": ""
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": ""
+  },
+  "created_at": "2026-10-10T11:02:57.319313",
+  "updated_at": "2026-10-10T11:02:58.536996",
+  "score": 0.75,
+  "_note": "priority set",
+  "dashboard_impact": {
+    "needs_dashboard": false,
+    "reason": "Backlog maintenance command (CLI + API); no dashboard surface",
+    "dashboard_item": null,
+    "reviewed_by": "agent",
+    "reviewed_at": "2026-10-10T11:02:58.232679"
+  },
+  "api_impact": {
+    "needs_api": true,
+    "reason": "new POST /backlog/restamp maintenance route (alias /refresh-stale)",
+    "routes": [
+      "/api/v1/backlog/restamp"
+    ]
+  }
+}

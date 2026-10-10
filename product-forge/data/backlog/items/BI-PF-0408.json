@@ -55,11 +55,11 @@
   "analyze_mode": "on_entry",
   "analysis": {
     "status": "COMPLETE",
-    "analyzed_at": "2026-10-09T22:32:09.077849",
-    "analyzed_by": "user",
+    "analyzed_at": "2026-10-10T10:57:36.457227",
+    "analyzed_by": "deterministic",
     "revision_analyzed": 7,
     "architecture_fit": "EXTEND",
-    "implementation_strategy": "MODIFY the frontmatter of .opencode/command/pf.md and .opencode/command/pipeline.md (agent: build, drop model pin); NEW global command file ~/.config/opencode/command/pf.md that invokes scripts/pf.py by quoted absolute path (pf.py already self-locates ROOT). EXTEND scripts/pf.py with a help registry + renderer (verb -> usage line, subcommands, flags) returning exit 0 for known topics and exit 2 with verb list for unknown topics. Reuse the existing thin-client verb dispatch and the guard scripts/dev/pf_surface_check.py (extend it to assert agent: build and absence of model pin).",
+    "implementation_strategy": "Extend existing components/APIs: core/agent_model_override.py, core/budget_allocator.py, core/build_manager.py, core/build_utility.py",
     "existing_components": [
       "core/agent_model_override.py",
       "core/budget_allocator.py",
@@ -80,45 +80,26 @@
       "config/model-tier.json"
     ],
     "dependency_findings": [
-      "REQUIRES BI-PF-0372 (completed) - the /pf umbrella surface must exist.",
-      "RELATED BI-PF-1193 (docs correction for /pf) - keep help text consistent with run_pipeline.py vs pipeline.py naming.",
-      "Guard scripts/dev/pf_surface_check.py already exists and must be extended, not rebuilt."
+      "depends on BI-PF-0372"
     ],
-    "conflict_findings": [
-      "Single writer for .opencode/command/*.md frontmatter claimed by this item; no other open item appears to touch these files.",
-      "Global command file ~/.config/opencode/command/pf.md is a new path with no known concurrent writer."
-    ],
-    "duplication_findings": [
-      "BI-PF-0372 (completed) built the /pf umbrella surface; this item is a follow-up correction, not a duplicate.",
-      "Related BI-PF-1193 (docs fix for /pf delegation) touches docs only; coordinate wording but no overlap in frontmatter or help renderer.",
-      "No existing help-registry component found; candidate components (core/agent_model_override.py, core/cost_model.py etc.) are unrelated to the CLI surface."
-    ],
+    "conflict_findings": [],
+    "duplication_findings": [],
     "drift": "NONE",
     "rewrite_required": false,
     "new_component_required": false,
-    "rationale": "Small, well-scoped surface change: frontmatter edits, one new global command file, and a help renderer in the existing thin client. No API or data-model impact. Reuses the established /pf umbrella (BI-PF-0372) and the existing surface-check guard.",
-    "assumptions": [
-      "pf.py self-locates ROOT from its own file location, so an absolute-path invocation from any cwd works.",
-      "opencode resolves project commands over global commands when both define /pf.",
-      "~/.config/opencode/command/ is the correct global command directory on the target platforms (Windows profile path noted as $USERPROFILE in the item)."
-    ],
-    "risks": [
-      "Project vs global command collision inside the repo - mitigated because project overrides global and both are kept in sync at agent: build.",
-      "Absolute path with spaces in global command body - must be quoted; verify manually on Windows and Linux.",
-      "opencode restart required for the global command to appear; not verifiable in CI.",
-      "Help renderer must stay in sync with verb dispatch - drift risk if verbs are added without updating the registry; mitigated by a surface-check assertion."
-    ],
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
     "evidence": [
-      "Item states pf.py self-locates ROOT; scripts/dev/pf_surface_check.py already exists as the guard harness.",
-      "Candidate components listed (core/agent_model_override.py etc.) are model/cost modules unrelated to the slash-command surface, confirming no reusable help renderer exists."
+      "similar=4",
+      "score=3.0",
+      "components=8",
+      "apis=1"
     ],
     "confidence": "high",
-    "missing_info": [
-      "Confirm the exact global command directory path on Windows (APPDATA vs USERPROFILE/.config) for opencode.",
-      "Whether /pf help should also list pipeline verbs or only pf verbs."
-    ],
+    "missing_info": [],
     "depth": "deep",
-    "mode": "ai",
+    "mode": "deterministic",
     "context_review": {
       "implementable": true,
       "missing": [
@@ -127,7 +108,8 @@
       ],
       "reason": "All touched files are identified, the guard exists, and pf.py's self-location behavior is already relied upon; only minor platform-path confirmation is outstanding."
     },
-    "arch_fingerprint": "dccfa9aaa68e546a"
+    "arch_fingerprint": "124d603588017096",
+    "refreshed_at": "2026-10-10T10:57:36.400612"
   },
   "dependencies": [
     {
@@ -154,9 +136,9 @@
     "completed_at": ""
   },
   "created_at": "2026-10-06T19:06:58.917730",
-  "updated_at": "2026-10-10T00:23:16.266398",
+  "updated_at": "2026-10-10T10:57:36.523884",
   "score": 3.0,
-  "_note": "dependencies set",
+  "_note": "analysis updated",
   "dashboard_impact": {
     "needs_dashboard": false,
     "reason": "Command frontmatter + opencode command file only; no UI surface change.",

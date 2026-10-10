@@ -157,6 +157,11 @@ def cmd_backlog(pos, flags):
         if flags.get("all"):
             return scheduler.backlog_status_all()
         return scheduler.backlog_status(s, p)
+    if sub in ("restamp", "refresh-stale", "refresh"):
+        from core import grooming
+        mode = "ai" if flags.get("ai") else "deterministic"
+        limit = int(flags.get("limit") or 0) or 1_000_000
+        return grooming.refresh_stale(s, p, limit=limit, mode=mode)
     if sub in ("groom", "analyze") and len(pos) > 1:
         mode = "deterministic" if flags.get("no-ai") else ""
         return grooming.groom(s, p, pos[1], mode=mode, force=bool(flags.get("force")))
@@ -176,7 +181,8 @@ def cmd_backlog(pos, flags):
         return grooming.decide_all(s, p, "APPROVE", ids=(ids or None), force=bool(flags.get("force")),
                                    dry=bool(flags.get("dry")))
     return {"error": "usage: pf backlog list|show <id>|epic-order <id> [--dry]|epic-status <id>|status [--all]|"
-                     "groom <id> [--no-ai]|groom-all [--no-ai] [--batch N] [--limit N] [--force] [--dry]|"
+                     "restamp [--limit N] [--ai]|groom <id> [--no-ai]|"
+                     "groom-all [--no-ai] [--batch N] [--limit N] [--force] [--dry]|"
                      "review|approve <id>|approve-all [--ids a,b] [--force] [--dry]"}
 
 
@@ -271,6 +277,9 @@ _HELP = {
                   "wave/order + rollup"),
                  ("status [--all]",
                   "scope status: every epic rollup + standalone items; --all = every backlog/scope"),
+                 ("restamp [--limit N] [--ai]",
+                  "re-stamp OPEN items whose analysis is stale vs the current architecture (re-analyzes + new "
+                  "fingerprint; deterministic by default, --ai = deep AI); keeps authored context"),
                  ("groom <id> [--no-ai] [--force]",
                   "groom one item: analysis + full context + priority + deps (gap-fill; --force overwrites)"),
                  ("groom-all [--no-ai] [--batch N] [--jobs N] [--limit N] [--ids a,b] [--force] [--dry]",
@@ -286,6 +295,7 @@ _HELP = {
                  ("--force", "groom/approve even if already groomed or flagged"),
                  ("--dry", "preview what would change (no writes)"),
                  ("--all", "status: aggregate across every backlog/scope"),
+                 ("--ai", "restamp: deep AI refresh (default is deterministic/offline)"),
                  ("--ids a,b", "approve-all: restrict to these item ids"))),
     "dogfood": ("Run Product Forge's own dogfood validation.", [],
                 (("--dry", "dry run (default on; pass without value to toggle)"),)),

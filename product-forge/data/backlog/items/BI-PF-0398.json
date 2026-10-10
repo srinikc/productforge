@@ -47,11 +47,11 @@
   "analyze_mode": "on_entry",
   "analysis": {
     "status": "COMPLETE",
-    "analyzed_at": "2026-10-10T00:24:35.684991",
-    "analyzed_by": "cleanup",
+    "analyzed_at": "2026-10-10T10:57:33.317499",
+    "analyzed_by": "deterministic",
     "revision_analyzed": 5,
     "architecture_fit": "EXTEND",
-    "implementation_strategy": "Extend existing core/packaging.py to orchestrate a two-toolchain build pipeline: Nuitka for Python modules and go build for Go core. Add signing step via core/signing.py. Add SBOM/LBOM generation during packaging. Add a NO-RAW-.py release gate as a new gate function in core/code_quality_gate.py or core/run_quality_gate.py. Wire build-time plug/unplug via config/plugins-registry.json flags consumed by build_manager. Expose through existing /api/v1/packaging/build and /api/v1/packaging/editions endpoints.",
+    "implementation_strategy": "Extend existing components/APIs: core/code_quality_gate.py, core/deploy_providers.py, core/merge_gate.py, core/model_gate.py",
     "existing_components": [
       "core/code_quality_gate.py",
       "core/deploy_providers.py",
@@ -74,60 +74,28 @@
     ],
     "existing_modules": [],
     "dependency_findings": [
-      "REQUIRES BI-PF-0397 (EAP manifest) to have a defined schema so the build pipeline can emit an EAP as its output artifact",
-      "RELATED BI-PF-0388 (ADR: compiled artifacts) as the governing architectural decision",
-      "RELATED BI-PF-0387 (delivery baseline) as the policy input",
-      "RELATED BI-PF-0390 (EPIC A) as the parent epic",
-      "BI-PF-0393 (absorbed) should be marked as superseded/absorbed by this item"
+      "depends on BI-PF-0397",
+      "depends on BI-PF-0388",
+      "depends on BI-PF-0387"
     ],
-    "conflict_findings": [
-      "BI-PF-0397 also modifies /api/v1/packaging/manifest and core/artifact_registry.py; coordinate so the EAP output from this build pipeline matches the EAP schema from 0397",
-      "core/signing.py may also be touched by license/entitlement work in EPIC A; check for concurrent edits",
-      "config/plugins-registry.json may be edited by other plugin-related items; serialize edits"
-    ],
-    "duplication_findings": [
-      "core/packaging.py already provides packaging logic; extend rather than create a new pipeline module",
-      "core/signing.py already exists and should handle signing; do not duplicate",
-      "core/code_quality_gate.py, core/pr_gate.py, core/merge_gate.py already implement gate patterns; the NO-RAW-.py gate should follow the same pattern",
-      "BI-PF-0387 (delivery baseline) defines the policy; this item implements it—avoid duplicating policy text in code comments",
-      "BI-PF-0383 (build-time plug/unplug) is absorbed; its scope should be fully folded in, not re-implemented separately"
-    ],
-    "drift": "LOW",
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
     "rewrite_required": false,
     "new_component_required": false,
-    "rationale": "Existing packaging.py, signing.py, and gate modules provide clear extension points. The pipeline orchestration is additive. Not a new component because the build, signing, and gate responsibilities are already distributed across existing modules; this item wires them into a coherent pipeline.",
-    "assumptions": [
-      "Nuitka is the chosen Python compiler (per BI-PF-0388/0387)",
-      "Go core source exists or is being developed in parallel under EPIC A",
-      "CI pipeline has or can obtain Nuitka and Go toolchains",
-      "Signing uses an existing key management system or core/signing.py already abstracts this",
-      "EAP manifest (from 0397) provides the list of artifacts to compile/package",
-      "Build-time plug/unplug is controlled via config/plugins-registry.json flags consumed at build time"
-    ],
-    "risks": [
-      "Nuitka compilation may not cover all Python edge cases (dynamic imports, eval); need a fallback or exception list",
-      "go build and Nuitka toolchain availability in CI is an assumption; may require new CI images",
-      "Signing key management and rotation are non-trivial operational concerns",
-      "SBOM/LBOM generation adds build time; performance impact on packaging pipeline",
-      "Build-time plug/unplug (absorbed BI-PF-0383) may require deep changes to import structure"
-    ],
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
     "evidence": [
-      "core/packaging.py, core/signing.py, core/code_quality_gate.py listed as candidate existing code",
-      "/api/v1/packaging/build, /api/v1/packaging/editions, /api/v1/packaging/manifest already exist as endpoints",
-      "BI-PF-0388 and BI-PF-0387 establish the compiled-artifact policy",
-      "BI-PF-0383 explicitly scoped as absorbed by this item"
+      "similar=4",
+      "score=0.75",
+      "components=8",
+      "apis=8"
     ],
-    "confidence": "medium",
-    "missing_info": [
-      "Is Go core source already committed, or is it a deliverable of this item?",
-      "Signing key infrastructure: existing or to be built?",
-      "SBOM format preference (SPDX, CycloneDX, custom)?",
-      "Which Python modules are exempt from Nuitka compilation (if any)?",
-      "What does the release gate look like as a CI step—blocking merge or blocking release only?",
-      "Where is the NO-RAW-.py gate enforced: at build time or as a post-build check on the package contents?"
-    ],
+    "confidence": "high",
+    "missing_info": [],
     "depth": "deep",
-    "mode": "ai",
+    "mode": "deterministic",
     "context_review": {
       "implementable": true,
       "missing": [
@@ -138,7 +106,8 @@
       ],
       "reason": "Existing packaging.py, signing.py, and gate modules provide clear extension points. The missing items are operational and policy decisions, not architectural blockers."
     },
-    "arch_fingerprint": "dccfa9aaa68e546a"
+    "arch_fingerprint": "124d603588017096",
+    "refreshed_at": "2026-10-10T10:57:33.255896"
   },
   "dependencies": [
     {
@@ -179,9 +148,9 @@
     "completed_at": ""
   },
   "created_at": "2026-10-06T18:32:23.344615",
-  "updated_at": "2026-10-10T00:24:35.935820",
+  "updated_at": "2026-10-10T10:57:33.372508",
   "score": 0.75,
-  "_note": "readiness computed",
+  "_note": "analysis updated",
   "parent": "BI-PF-0390",
   "epic": "BI-PF-0390",
   "brief": {

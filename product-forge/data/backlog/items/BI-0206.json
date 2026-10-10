@@ -39,7 +39,7 @@
   ],
   "follow_up": {},
   "created_at": "2026-09-25T21:20:44.879245",
-  "updated_at": "2026-10-10T00:23:16.411740",
+  "updated_at": "2026-10-10T10:57:26.837687",
   "score": 1.0,
   "dashboard_impact": {
     "needs_dashboard": true,
@@ -48,7 +48,7 @@
     "reviewed_by": "agent",
     "reviewed_at": "2026-09-25T21:25:46.157349"
   },
-  "_note": "dependencies set",
+  "_note": "analysis updated",
   "brief": {
     "problem": "Open-weights models (image/video/tts/stt/music/3d/ocr/vlm/embedding) must be fetched, verified, cached,\nand license-gated before a self-host adapter can run them. Today there is no downloader, no cache, no\nlicense enforcement, so `provider_kind=self-host` cannot work and packaging could accidentally ship\nrestricted weights.",
     "what_adds": "One owner module that downloads only the weights a project's capability pack needs, into a gitignored\nlocal cache, refusing non-bundle-usable weights unless explicitly overridden.",
@@ -119,11 +119,11 @@
   },
   "analysis": {
     "status": "COMPLETE",
-    "analyzed_at": "2026-10-09T22:32:09.441905",
-    "analyzed_by": "user",
+    "analyzed_at": "2026-10-10T10:57:26.781789",
+    "analyzed_by": "deterministic",
     "revision_analyzed": 2,
-    "architecture_fit": "NEW_CAPABILITY",
-    "implementation_strategy": "NEW module core/model_manager.py as single writer: (1) source resolution (HF Hub / ModelScope / direct URL) reading config/model-catalog.json for license/open_weights/bundle_allowed fields; (2) download via huggingface_hub + hf_transfer with resume and sha256 verification; (3) cache layout product-forge/models/<provider>/<model>@<rev>/ (gitignored) with a models.lock JSON manifest (id, revision, size, sha256, license, fetched_at); (4) license gate blocking non-bundle-safe weights unless PF_ALLOW_RESTRICTED_WEIGHTS=1; (5) disk preflight (required size vs free space); (6) pack-scoped 'ensure only required modalities'; (7) CLI: python -m core.model_manager --list/--ensure/--verify/--prune. REUSE: config/model-catalog.json as the license/open_weights source of truth (extend it with bundle_allowed if absent); REUSE core/lock_manager.py only as a pattern reference for idempotent lock handling (it is a DB lock, not applicable directly); gates pattern from core/merge_gate.py for the license decision table. Tests use a fake source (no network) for unit level; one real small-model integration test.",
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/agent_model_override.py, core/business_models_kb.py, core/code_quality_gate.py, core/conversation_models.py",
     "existing_components": [
       "core/agent_model_override.py",
       "core/business_models_kb.py",
@@ -152,55 +152,27 @@
       "config/model-tier.json"
     ],
     "dependency_findings": [
-      "RELATED BI-0217 (BOM at packaging) - models.lock manifest fields (id, size, sha256, license) should align with the BOM schema.",
-      "REQUIRES nothing open; depends implicitly on config/model-catalog.json entries carrying license/open_weights/bundle_allowed (extend if missing).",
-      "Downstream: self-host adapters and packaging (BI-0214 destination-runtime triage) consume this capability later."
+      "depends on BI-0217",
+      "depends on BI-0214"
     ],
-    "conflict_findings": [
-      "core/model_manager.py claimed as single writer; no other open item creates this module.",
-      "Potential future conflict with BI-0217 which will read models.lock - read-only consumption, no write conflict.",
-      "Guard/merge-gate modules are listed as candidates but are unrelated writers; no overlap."
-    ],
-    "duplication_findings": [
-      "No existing downloader/cache component among candidates; core/agent_model_override.py, core/cost_model.py, core/business_models_kb.py are model-metadata and cost modules, not fetchers.",
-      "core/lock_manager.py is a database advisory-lock helper, not a file-based download lock - pattern reuse only, not a duplicate.",
-      "BI-0217 (BOM/footprint artifact) will want models.lock data - RELATED, not duplicate; models.lock can feed the BOM.",
-      "No open backlog item implements model fetching; duplication risk low."
-    ],
+    "conflict_findings": [],
+    "duplication_findings": [],
     "drift": "NONE",
     "rewrite_required": false,
-    "new_component_required": true,
-    "rationale": "No reusable downloader exists; a single new owner module (core/model_manager.py) is justified as NEW_CAPABILITY, while catalog and gate patterns are reused. Idempotent ensure, license gating, and pack-scoped downloads directly unblock provider_kind=self-host and safe packaging.",
-    "assumptions": [
-      "config/model-catalog.json can be extended with bundle_allowed and is the source of truth for license metadata.",
-      "Users can override the gate via PF_ALLOW_RESTRICTED_WEIGHTS=1.",
-      "huggingface_hub supports resume and exposes file-level sha256/revision info needed for the lock.",
-      "Self-host adapters will consume the cache path convention product-forge/models/<provider>/<model>@<rev>/."
-    ],
-    "risks": [
-      "Network availability in CI for the integration test - mitigated by a tiny model (Piper voice/tesseract tessdata) and by faking the source in unit tests.",
-      "huggingface_hub/hf_transfer become new runtime dependencies - must be declared and license-checked.",
-      "HF Hub rate limits and mirror availability (ModelScope) may affect resolution reliability.",
-      "Catalog entries may lack license/open_weights/bundle_allowed fields today - gate would default-refuse; needs a catalog extension step.",
-      "Huge model sizes vs CI disk - mitigated by pack-scoping and disk preflight.",
-      "License data on HF can be inaccurate; trusting catalog curation is an assumption."
-    ],
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
     "evidence": [
-      "Candidate components are metadata/cost/gate modules - none implements download, confirming a new module is required.",
-      "config/model-catalog.json exists and is the natural license/open_weights source.",
-      "core/merge_gate.py and core/lock_manager.py demonstrate existing gate and idempotency patterns to mirror.",
-      "Item's own verification plan identifies small real models suitable for integration testing."
+      "similar=4",
+      "score=1.0",
+      "components=8",
+      "apis=8"
     ],
-    "confidence": "medium",
-    "missing_info": [
-      "Confirm which catalog fields already exist (license/open_weights/bundle_allowed) vs must be added.",
-      "Default cache root override mechanism (env var? config?) for CI and multi-user machines.",
-      "Whether ModelScope is a required mirror or a fallback.",
-      "List of modality->model mappings in capability packs that drive pack-scoped ensure.",
-      "Dependency policy: are huggingface_hub and hf_transfer acceptable additions to the runtime dependency set?"
-    ],
+    "confidence": "high",
+    "missing_info": [],
     "depth": "deep",
-    "mode": "ai",
+    "mode": "deterministic",
     "context_review": {
       "implementable": true,
       "missing": [
@@ -211,7 +183,8 @@
       ],
       "reason": "Module scope, cache layout, gate semantics, CLI, and test strategy are all specified; remaining gaps are catalog/dependency confirmations the implementer can resolve quickly."
     },
-    "arch_fingerprint": "dccfa9aaa68e546a"
+    "arch_fingerprint": "124d603588017096",
+    "refreshed_at": "2026-10-10T10:57:26.726502"
   },
   "priority_rank": 2,
   "priority_class": "P2",
