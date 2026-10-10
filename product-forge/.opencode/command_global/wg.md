@@ -18,7 +18,7 @@ $ARGUMENTS
 ## STEP 0: resolve wg.py (self-locating — no installer)
 Resolve `$WGSCRIPT` = the FIRST path below for which `Test-Path` returns `True`:
 1. `$env:WORKERGRID_ROOT\wg.py` — explicit override (set the `WORKERGRID_ROOT` env var if you use one)
-2. Known checkout: `C:\Users\ADMIN\Documents\Srinikc\AI Products\Exploring\workergrid\wg.py`
+2. Known checkout: `C:\Users\ADMIN\Documents\Srinikc\AI Products\Exploring\PF-validation\workergrid\wg.py`
 3. Discovery from the current directory: for each parent up to 5 levels:
    `<parent>\workergrid\wg.py`
 

@@ -18,7 +18,7 @@ $ARGUMENTS
 ## STEP 0: resolve pf.py (self-locating — no installer)
 Resolve `$PFSCRIPT` = the FIRST path below for which `Test-Path` returns `True`:
 1. `$env:PF_ROOT\scripts\pf.py` — explicit override (set the `PF_ROOT` env var if you use one)
-2. Known checkout: `C:\Users\ADMIN\Documents\Srinikc\AI Products\Exploring\product-forge\scripts\pf.py`
+2. Known checkout: `C:\Users\ADMIN\Documents\Srinikc\AI Products\Exploring\PF-validation\product-forge\scripts\pf.py`
 3. Discovery from the current directory: `<cwd>\scripts\pf.py`, then for each parent up to 5 levels:
    `<parent>\scripts\pf.py` and `<parent>\product-forge\scripts\pf.py`
 
