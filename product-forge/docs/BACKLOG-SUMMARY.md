@@ -1,15 +1,15 @@
 # Backlog Summary
 
-> GENERATED 2026-10-10T17:39:43 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-10T18:42:19 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 66  |  **Closed:** 464
-- `new`: 66
+- **Open:** 67  |  **Closed:** 464
+- `new`: 67
 
-### new, by category (66)
-**API / reports / HIL / misc** (6)
+### new, by category (67)
+**API / reports / HIL / misc** (7)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-PF-0332 | Should | chore | API-5 deferred hardening: rate limiting + request/upload limits + tenant-isolation expansion + event streaming | API-5 deferred hardening: rate limiting + request/upload limits + tenant-isolation expansion + event streaming |
@@ -18,6 +18,7 @@
 | BI-PF-1232 | Should | bug | CI4: regenerate committed derived artifacts (api/openapi.json + docs README/BACKLOG-SUMMARY/documentation-index) | CI4: regenerate committed derived artifacts (api/openapi.json + docs README/BACKLOG-SUMMARY/documentation-inde... |
 | BI-PF-1239 | Should | feature | CI/CD model + read API for orchestrator/UI (single projection of gates/tiers/triggers) | One read-only projection so the dashboard/orchestrator can render CI/CD + gate status. - `core/ci_cd_model.py`... |
 | BI-PF-1243 | Should | epic | EPIC: CI/CD & Gates - SSOT doc + model + read API (PF + generated products) | One place to understand and read (via API) how PF builds/verifies/ships and how generated products do: the CI/... |
+| BI-PF-1245 | Should | feature | Orchestrator UI: small CI/CD view over the engineering ci-cd API (gates x tiers x status) | A small orchestrator UI view that renders the CI/CD + gates model from the read API (BI-PF-1239), so an operat... |
 
 **Bug fixes** (5)
 | ID | MoSCoW | Type | Title | Objective |
@@ -301,5 +302,5 @@
 ---
 
 ## Totals
-- backend: 66 open / 464 closed
+- backend: 67 open / 464 closed
 - dashboard: 146 open / 3 closed
