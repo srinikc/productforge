@@ -607,6 +607,42 @@ def unscoped_children(scope: str, project: str | None = None) -> list:
     return out
 
 
+def move_to_epic(scope: str, project: str | None, item_id: str, epic_id: str, note: str = "") -> dict:
+    """Re-home an item to a real epic (single writer; BI-PF-1251). Re-syncs both epics' children."""
+    scope = _norm_scope(scope)
+    it = get_epic(scope, project, str(item_id))
+    if not it:
+        return {"ok": False, "reason": "item not found"}
+    if str(item_id) == str(epic_id):
+        return {"ok": False, "reason": "an item cannot be its own epic"}
+    e = get_epic(scope, project, str(epic_id))
+    if not e or not is_epic(e):
+        return {"ok": False, "reason": "target epic not found"}
+    old = str(it.get("epic") or it.get("parent") or "")
+    update(scope, project, str(item_id), epic=str(epic_id), parent=str(epic_id),
+           _note=note or f"re-homed to epic {epic_id}")
+    for eid in {old, str(epic_id)}:
+        if eid:
+            with contextlib.suppress(Exception):
+                _sync_epic_children(scope, project, eid)
+    return {"ok": True, "item": str(item_id), "epic": str(epic_id)}
+
+
+def unscoped_aging(scope: str, project: str | None = None, days: int = 14) -> list:
+    """Unscoped children older than ``days`` (a growing/stale Unscoped = a missing epic; BI-PF-1251)."""
+    cutoff = datetime.now() - timedelta(days=int(days or 0))
+    out: list = []
+    for u in unscoped_children(scope, project):
+        it = get_epic(scope, project, str(u["item"])) or {}
+        try:
+            old = datetime.fromisoformat(str(it.get("created_at") or "")) < cutoff
+        except Exception:
+            old = False
+        if old:
+            out.append(u)
+    return out
+
+
 def _children_of(op: list, cl: list, epic_id: str) -> list:
     e = str(epic_id)
     return [i for i in (op + cl) if str(i.get("epic") or i.get("parent") or "") == e]

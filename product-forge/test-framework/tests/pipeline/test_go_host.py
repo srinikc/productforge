@@ -9,13 +9,21 @@ Fail-closed checks included: unknown op / missing required fields / unknown cont
 rejected by the Go host even when invoked from the PF runtime.
 """
 import os
+import shutil
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 os.environ.setdefault("PF_OFFLINE", "1")
 
+import pytest  # noqa: E402
+
 from core import go_host  # noqa: E402
+
+# B1 native Go core is optional in an environment without the Go toolchain (skip, don't fail).
+pytestmark = pytest.mark.skipif(
+    shutil.which("go") is None,
+    reason="Go toolchain not on PATH (B1 native core optional in this environment)")
 
 
 def test_pfcore_binary_builds():
