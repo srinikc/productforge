@@ -406,6 +406,14 @@ def epic_coverage_audit():
         for u in unscoped[:10]:
             sug = f" -> suggest {u['suggested_epic']}" if u.get("suggested_epic") else " (no match: create/keep)"
             print(f"   {u.get('item')}: {str(u.get('title') or '')[:70]}{sug}")
+        try:
+            from core import grooming as _gr
+            stale_days = int((_gr.guidelines().get("unscoped_triage") or {}).get("stale_days", 14))
+        except Exception:
+            stale_days = 14
+        aging = _bl.unscoped_aging("product_forge", None, stale_days)
+        if aging:
+            print(f"   [aging] {len(aging)} Unscoped child(ren) older than {stale_days}d - create/move an epic")
     return 0
 
 
