@@ -34,6 +34,10 @@ PF="product-forge"
 python "$PF/scripts/dev/branch_guard.py" || { echo "pre-commit: direct commit on develop/main is forbidden - create a feature branch (git checkout -b feature/<name>)"; exit 1; }
 python "$PF/scripts/dev/store_check.py" || { echo "pre-commit: store-contract failed (register the data file in config/store-registry.json)"; exit 1; }
 python "$PF/scripts/dev/dependency_catalog_check.py" || { echo "pre-commit: a new dependency has no tool-catalog entry (config/tool-catalog.json)"; exit 1; }
+CHANGED_PY=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\\.py$' || true)
+if [ -n "$CHANGED_PY" ]; then
+python "$PF/scripts/dev/pycompat_check.py" $CHANGED_PY || { echo "pre-commit: Python 3.11-incompatible f-string (backslash inside {...}) - CI runs 3.11"; exit 1; }
+fi
 python "$PF/scripts/dev/lint_check.py" --strict || { echo "pre-commit: lint failed on changed files (fix or run: python -m ruff check --fix <files>)"; exit 1; }
 exit 0
 """

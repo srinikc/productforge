@@ -629,6 +629,10 @@ Ready to get started?
     def _generate_blog_post(self, product_data: Dict[str, Any]) -> str:
         """Generate blog post draft"""
         name = product_data.get("name", "Product")
+        feature_list = "\n".join(
+            f"### {f.get('name', 'Feature')}\n{f.get('description', '')}"
+            for f in product_data.get('features', [])[:5]
+        )
 
         return f"""# Introducing {name}: [Value Proposition]
 
@@ -642,7 +646,7 @@ Author: [Author]
 Introducing {name} - {product_data.get('description', 'a revolutionary product')}
 
 ## Key Features
-{chr(10).join(f"### {f.get('name', 'Feature')}\n{f.get('description', '')}" for f in product_data.get('features', [])[:5])}
+{feature_list}
 
 ## How It Works
 [Explanation]

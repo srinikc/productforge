@@ -143,7 +143,8 @@ class CodeExecutor:
 
         # Create timestamped backup
         timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
-        backup_name = f"{timestamp}_{file_path.replace('/', '_').replace('\\', '_')}"
+        safe_path = file_path.replace('/', '_').replace('\\', '_')
+        backup_name = f"{timestamp}_{safe_path}"
         backup_path = self.backup_dir / backup_name
 
         try:
