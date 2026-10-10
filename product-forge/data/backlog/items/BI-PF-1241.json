@@ -1,0 +1,186 @@
+{
+  "id": "BI-PF-1241",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "",
+  "label": "PF Backlog 559",
+  "title": "Per-item token/cache/cost usage (execution.usage) + runtime usage capture + rollup",
+  "body": "## Why\nNo per-item token/cache/cost telemetry; only pipeline-level call_ledger. Needed per backlog item for cost analysis.\n\n## What\n- backlog execution: + usage{} (input/output/reasoning/cache_read/cache_write/total/cost_usd/model/cost_source).\n- job_manager.complete()/fail(usage=): store normalized usage; API assignment complete/fail forward body.usage.\n- scheduler backlog_status/epic_status: add usage rollup (sum tokens, sum cost).\n- WorkerGrid: runtime wrapper workergrid/runtime/opencode_usage.py runs the runtime --format json, sums step usage,\n  writes <worktree>/.wg/usage.json; Go agent forwards it as usage. PF stays framework-agnostic (no runtime names).\n\n## Verify\n- test_complete_records_usage_and_rollup; Go build/test; runtime JSON shape confirmed (step_finish.part.tokens+cost).\n",
+  "source": "pre-implementation review",
+  "status": "new",
+  "priority": "P2",
+  "moscow": "Should",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [],
+  "links": {
+    "related": [
+      "product_forge:BI-PF-0360"
+    ],
+    "backend_capability": [
+      "module:core/job_manager.py",
+      "module:core/backlog.py",
+      "module:core/scheduler.py",
+      "module:api/routers/engineering.py",
+      "file:workergrid/runtime/opencode_usage.py",
+      "file:workergrid/internal/agent/pf.go",
+      "file:workergrid/config.json",
+      "test:test-framework/tests/pipeline/test_assignments_api.py"
+    ]
+  },
+  "decisions": [],
+  "follow_up": {},
+  "brief": {
+    "problem": "No per-item token/cache/cost telemetry; only pipeline-level call_ledger. Needed per backlog item for cost analysis.",
+    "what_adds": "- backlog execution: + usage{} (input/output/reasoning/cache_read/cache_write/total/cost_usd/model/cost_source).\n- job_manager.complete()/fail(usage=): store normalized usage; API assignment complete/fail forward body.usage.\n- scheduler backlog_status/epic_status: add usage rollup (sum tokens, sum cost).\n- WorkerGrid: runtime wrapper workergrid/runtime/opencode_usage.py runs the runtime --format json, sums step usage,\n  writes <worktree>/.wg/usage.json; Go agent forwards it as usage. PF stays framework-agnostic (no runtime names).",
+    "why": "No per-item token/cache/cost telemetry; only pipeline-level call_ledger. Needed per backlog item for cost analysis.",
+    "who_feels": "Product Forge maintainers and consumers.",
+    "source": "extracted"
+  },
+  "objective": "- backlog execution: + usage{} (input/output/reasoning/cache_read/cache_write/total/cost_usd/model/cost_source).\n- job_manager.complete()/fail(usage=): store normalized usage; API assignment complete/fail forward body.usage.\n- scheduler backlog_status/epic_status: add usage rollup (sum tokens, sum cost).\n- WorkerGrid: runtime wrapper workergrid/runtime/opencode_usage.py runs the runtime --format json, sums step usage,\n  writes <worktree>/.wg/usage.json; Go agent forwards it as usage. PF stays framework-agnostic (no runtime names).",
+  "acceptance_criteria": [
+    "Objective achieved: - backlog execution: + usage{} (input/output/reasoning/cache_read/cache_write/total/cost_usd/model/cost_source).\n- job_manager.complete()/fail(usage=): store normalized usage; API assignment complete/fail forward body.usage.\n- scheduler backlog_status/epic_status: add usage rollup (sum tokens, sum cost).\n- WorkerGrid: runtime wrapper workergrid/runtime/opencode_usage.py runs the runtime --format json, sums step usage,\n  writes <worktree>/.wg/usage.json; Go agent forwards it as usage. PF stays framework-agnostic (no runtime names)."
+  ],
+  "in_scope": [
+    "Per-item token/cache/cost usage (execution.usage) + runtime usage capture + rollup"
+  ],
+  "out_of_scope": [
+    "Not specified."
+  ],
+  "affected_components": [
+    "",
+    "api",
+    "core",
+    "workergrid"
+  ],
+  "affected_files": [
+    "/.wg/usage.json",
+    "api/routers/engineering.py",
+    "core/backlog.py",
+    "core/job_manager.py",
+    "core/scheduler.py",
+    "workergrid/config.json",
+    "workergrid/internal/agent/pf.go",
+    "workergrid/runtime/opencode_usage.py"
+  ],
+  "approach": "Per-item token/cache/cost usage (execution.usage) + runtime usage capture + rollup",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Objective achieved: - backlog execution: + usage{} (input/output/reasoning/cache_read/cache_write/total/cost_usd/model/cost_source).\n- job_manager.complete()/fail(usage=): store normalized usage; API assignment complete/fail forward body.usage.\n- scheduler backlog_status/epic_status: add usage rollup (sum tokens, sum cost).\n- WorkerGrid: runtime wrapper workergrid/runtime/opencode_usage.py runs the runtime --format json, sums step usage,\n  writes <worktree>/.wg/usage.json; Go agent forwards it as usage. PF stays framework-agnostic (no runtime names)."
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "agent",
+  "requester": "pre-implementation review",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "",
+  "parent": "",
+  "revision": 3,
+  "priority_rank": 3,
+  "priority_class": "P2",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "IN_PROGRESS",
+    "analyzed_at": "",
+    "analyzed_by": "deterministic",
+    "revision_analyzed": 0,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/agent_runtime.py, core/cost_kpi.py, core/cost_model.py, core/cost_modeling.py",
+    "existing_components": [
+      "core/agent_runtime.py",
+      "core/cost_kpi.py",
+      "core/cost_model.py",
+      "core/cost_modeling.py",
+      "core/design_tokens.py",
+      "core/execution_contract.py",
+      "core/pipeline_telemetry.py",
+      "core/tool_cache.py"
+    ],
+    "existing_apis": [
+      "/api/v1/runs/time-cost"
+    ],
+    "existing_modules": [],
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=0.75",
+      "components=8",
+      "apis=1"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": false,
+    "reasons": [],
+    "computed_at": ""
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-10T16:06:52.825928",
+  "updated_at": "2026-10-10T16:06:56.597502",
+  "score": 0.75,
+  "_note": "priority set",
+  "dashboard_impact": {
+    "needs_dashboard": false,
+    "reason": "telemetry/read-model",
+    "dashboard_item": null,
+    "reviewed_by": "agent",
+    "reviewed_at": "2026-10-10T16:06:55.213915"
+  },
+  "api_impact": {
+    "needs_api": true,
+    "reason": "assignment complete/fail accept optional usage",
+    "routes": [
+      "/api/v1/engineering/assignments/{item_id}/complete"
+    ]
+  }
+}

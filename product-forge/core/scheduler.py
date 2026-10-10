@@ -616,6 +616,24 @@ def _time_rollup(items: list[dict[str, Any]]) -> dict[str, int]:
             "max_seconds": max(durs) if durs else 0}
 
 
+def _usage_rollup(items: list[dict[str, Any]]) -> dict[str, Any]:
+    """Aggregate recorded per-item token/cost usage (``execution.usage``). BI-PF-1239."""
+    tot: dict[str, Any] = {"tracked": 0, "calls": 0, "input_tokens": 0, "output_tokens": 0,
+                           "reasoning_tokens": 0, "cache_read_tokens": 0, "cache_write_tokens": 0,
+                           "total_tokens": 0, "cost_usd": 0.0}
+    for i in items:
+        u = (i.get("execution") or {}).get("usage") or {}
+        if not u:
+            continue
+        tot["tracked"] += 1
+        for k in ("calls", "input_tokens", "output_tokens", "reasoning_tokens",
+                  "cache_read_tokens", "cache_write_tokens", "total_tokens"):
+            tot[k] += int(u.get(k) or 0)
+        tot["cost_usd"] += float(u.get("cost_usd") or 0.0)
+    tot["cost_usd"] = round(tot["cost_usd"], 6)
+    return tot
+
+
 def epic_status(scope: str = "product_forge", project: str | None = None,
                 epic: str = "", stage: str | None = None) -> dict[str, Any]:
     """Full lifecycle status of an epic: ALL children (open + closed) + an epic rollup (read-only).
@@ -658,7 +676,7 @@ def epic_status(scope: str = "product_forge", project: str | None = None,
             "rollup": {"total": len(rows), "open": open_n, "closed": len(closed_kids),
                        "groomed": groomed, "need_reanalysis": needs, "ready": ready,
                        "wait": open_n - ready, "done": bool(rows) and open_n == 0,
-                       "time": _time_rollup(children)},
+                       "time": _time_rollup(children), "usage": _usage_rollup(children)},
             "order": [r["id"] for r in rows if r["state"] == "open"],
             "execution_order": (epic_item or {}).get("execution_order") or [],
             "children": rows}
@@ -711,6 +729,7 @@ def backlog_status(scope: str = "product_forge", project: str | None = None,
     agg["standalone_open"] = len(standalone)
     agg["standalone_ready"] = sum(1 for r in arows if r["order_status"] == "READY")
     agg["time"] = _time_rollup(op + cl)
+    agg["usage"] = _usage_rollup(op + cl)
     return {"scope": scope, "project": project or "", "rollup": agg,
             "epics": epic_rows, "standalone": arows}
 

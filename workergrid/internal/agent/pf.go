@@ -136,35 +136,39 @@ func (a *Agent) executePF(ctx context.Context, wid string, pkg map[string]any) {
 
 	// PIDL approval gate: never execute work that requires approval (fail-closed).
 	if pol, ok := pkg["execution_policy"].(map[string]any); ok && truthy(pol["approval_required"]) {
-		a.pfOutcome(item, "fail", "execution_policy.approval_required - not executed")
+		a.pfOutcome(item, "fail", "execution_policy.approval_required - not executed", nil)
 		a.journalEvent("rejected", map[string]any{"item_id": item})
 		return
 	}
 	if wt == "" {
-		a.pfOutcome(item, "fail", "no worktree in the assignment package")
+		a.pfOutcome(item, "fail", "no worktree in the assignment package", nil)
 		return
 	}
 	a.writeManifest(wt, pkg)
 
 	exit, out, killed, leaseLost := a.runRuntimePF(ctx, wid, item, title, wt, branch, baseRef)
+	usage := readUsage(wt)
 	switch {
 	case leaseLost:
 		a.journalEvent("lease_lost", map[string]any{"item_id": item}) // PF recovers the lease
 	case killed:
-		a.pfOutcome(item, "fail", "agent interrupted")
+		a.pfOutcome(item, "fail", "agent interrupted", usage)
 	case exit == 0:
-		a.pfOutcome(item, "complete", "")
+		a.pfOutcome(item, "complete", "", usage)
 	default:
-		a.pfOutcome(item, "fail", fmt.Sprintf("exit=%d %s", exit, lastLine(out)))
+		a.pfOutcome(item, "fail", fmt.Sprintf("exit=%d %s", exit, lastLine(out)), usage)
 	}
 	a.journalEvent("exec_end", map[string]any{"item_id": item, "exit": exit, "killed": killed, "lease_lost": leaseLost})
 }
 
 // pfOutcome posts complete/fail for the item (best-effort; the journal already records the local result).
-func (a *Agent) pfOutcome(item, kind, reason string) {
+func (a *Agent) pfOutcome(item, kind, reason string, usage map[string]any) {
 	body := map[string]any{"scope": a.opt.Scope, "project": a.opt.Project}
 	if kind == "fail" {
 		body["reason"] = reason
+	}
+	if usage != nil {
+		body["usage"] = usage
 	}
 	_, _, err := a.pf("POST", pfAssignmentsView+"/"+item+"/"+kind, body)
 	a.journalEvent("pf_"+kind, map[string]any{"item_id": item, "ok": err == nil})
@@ -178,6 +182,22 @@ func (a *Agent) writeManifest(wt string, pkg map[string]any) {
 	if raw, err := json.MarshalIndent(pkg, "", "  "); err == nil {
 		_ = os.WriteFile(filepath.Join(dir, "assignment.json"), raw, 0o644)
 	}
+}
+
+// readUsage reads the runtime's optional usage summary (<worktree>/.wg/usage.json); nil if absent. BI-PF-1239.
+func readUsage(wt string) map[string]any {
+	if wt == "" {
+		return nil
+	}
+	raw, err := os.ReadFile(filepath.Join(wt, ".wg", "usage.json"))
+	if err != nil {
+		return nil
+	}
+	var m map[string]any
+	if json.Unmarshal(raw, &m) != nil {
+		return nil
+	}
+	return m
 }
 
 // runRuntimePF runs the runtime command in the PF-made worktree, heart-beating the item via PF until it ends.

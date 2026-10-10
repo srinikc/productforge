@@ -185,3 +185,23 @@ def test_recover_reaps_stuck_assignment():
         assert not (it["execution"] or {}).get("worker_id")
     finally:
         _clean()
+
+
+def test_complete_records_usage_and_rollup():
+    """BI-PF-1239: complete(usage=) stores execution.usage; backlog_status rolls up tokens + cost."""
+    _clean()
+    try:
+        (iid,) = _seed(1)
+        job_manager.claim_next("project", _PROJ, worker="w1")
+        res = job_manager.complete("project", _PROJ, iid, usage={
+            "input_tokens": 100, "output_tokens": 20, "cache_read_tokens": 5,
+            "total_tokens": 125, "cost_usd": 0.003, "calls": 1})
+        assert res["ok"]
+        ex = backlog.get("project", _PROJ, iid)["execution"]
+        assert ex["usage"]["input_tokens"] == 100 and ex["usage"]["cost_usd"] == 0.003
+        from core import scheduler
+        st = scheduler.backlog_status("project", _PROJ)
+        assert st["rollup"]["usage"]["input_tokens"] == 100
+        assert st["rollup"]["usage"]["cost_usd"] == 0.003
+    finally:
+        _clean()

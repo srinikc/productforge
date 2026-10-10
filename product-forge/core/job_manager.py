@@ -371,6 +371,23 @@ def release(scope: str, project: str | None, item_id: str, reason: str = "releas
     return {"released": True, "item": item_id, "reason": reason, "terminal": terminal}
 
 
+_USAGE_KEYS = ("input_tokens", "output_tokens", "reasoning_tokens", "cache_read_tokens",
+               "cache_write_tokens", "total_tokens", "calls")
+
+
+def _norm_usage(usage) -> dict:
+    """Normalize a runtime-reported usage payload to a stable, framework-agnostic schema. BI-PF-1239."""
+    u = usage if isinstance(usage, dict) else {}
+    out: dict = {k: int(u.get(k) or 0) for k in _USAGE_KEYS}
+    try:
+        out["cost_usd"] = float(u.get("cost_usd") or 0.0)
+    except Exception:
+        out["cost_usd"] = 0.0
+    out["model"] = str(u.get("model") or "")
+    out["cost_source"] = str(u.get("cost_source") or ("reported" if u else "unknown"))
+    return out
+
+
 def _elapsed_seconds(it: dict) -> int:
     """Wall-clock seconds from execution.started_at to now (0 if unknown/invalid). BI-PF-123x."""
     ex = it.get("execution") or {}
@@ -384,7 +401,7 @@ def _elapsed_seconds(it: dict) -> int:
 
 
 def complete(scope: str, project: str | None, item_id: str, *, status: str = "verifying",
-             note: str = "") -> dict:
+             note: str = "", usage: dict | None = None) -> dict:
     """Worker reports an assignment DONE: set the execution status and clear the lease (BI-PF-0419).
 
     Records the run duration on ``execution.duration_seconds`` (BI-PF-123x) for time tracking.
@@ -399,11 +416,14 @@ def complete(scope: str, project: str | None, item_id: str, *, status: str = "ve
     backlog.set_status(scope, project, item_id, status, note=note or "assignment complete")
     backlog.set_execution(scope, project, item_id, worker_id="", assignment_id="", lease_id="",
                           lease_expires_at="", completed_at=datetime.now().isoformat(),
-                          duration_seconds=dur, attempt=attempt)
-    return {"ok": True, "item": item_id, "status": status, "duration_seconds": dur}
+                          duration_seconds=dur, attempt=attempt, usage=_norm_usage(usage))
+    _cleanup_worktree(scope, project, item_id)
+    return {"ok": True, "item": item_id, "status": status, "duration_seconds": dur,
+            "usage": _norm_usage(usage)}
 
 
-def fail(scope: str, project: str | None, item_id: str, reason: str = "") -> dict:
+def fail(scope: str, project: str | None, item_id: str, reason: str = "",
+         usage: dict | None = None) -> dict:
     """Worker reports an assignment FAILED: mark blocked and clear the lease (BI-PF-0419)."""
     from core import backlog
     it = backlog.get_epic(scope, project, item_id)
@@ -414,7 +434,7 @@ def fail(scope: str, project: str | None, item_id: str, reason: str = "") -> dic
     backlog.set_status(scope, project, item_id, "blocked", note=reason or "assignment failed")
     backlog.set_execution(scope, project, item_id, worker_id="", assignment_id="", lease_id="",
                           lease_expires_at="", completed_at=datetime.now().isoformat(),
-                          duration_seconds=dur, attempt=attempt)
+                          duration_seconds=dur, attempt=attempt, usage=_norm_usage(usage))
     _cleanup_worktree(scope, project, item_id)
     return {"ok": True, "item": item_id, "status": "blocked", "duration_seconds": dur}
 
