@@ -296,7 +296,8 @@ def claim_next(scope: str = "product_forge", project: str | None = None, worker:
         # write the lease while holding the mutex (backlog is the single writer of execution{})
         backlog.set_execution(scope, project, item_id, worker_id=worker, assignment_id=assignment_id,
                               lease_id=lease_id, assigned_at=now.isoformat(),
-                              lease_expires_at=expires, started_at=now.isoformat())
+                              lease_expires_at=expires, started_at=now.isoformat(),
+                              last_heartbeat_at=now.isoformat())
         c.commit()
     finally:
         c.close()
@@ -307,6 +308,36 @@ def claim_next(scope: str = "product_forge", project: str | None = None, worker:
         if nxt.get(k) is not None:
             out[k] = nxt[k]
     return out
+
+
+def _stuck_minutes() -> int:
+    """Minutes without a heartbeat before an assignment is treated as stuck (env ``PF_STUCK_MINUTES``)."""
+    try:
+        from core import env_flags
+        v = env_flags.get("PF_STUCK_MINUTES", "15")
+    except Exception:
+        import os
+        v = os.getenv("PF_STUCK_MINUTES", "15")
+    try:
+        return max(1, int(float(v)))
+    except Exception:
+        return 15
+
+
+def _cleanup_worktree(scope: str, project: str | None, item_id: str) -> bool:
+    """Best-effort removal of the assignment worktree (the branch is kept) after release/fail/recover.
+
+    BI-PF-1238: self-heal the stale worktree left by an aborted/stuck worker so no manual cleanup is needed.
+    """
+    import os
+    try:
+        from core import vcs
+        from core.paths import ROOT, PRODUCTS_DIR
+        proj_dir = os.path.join(str(PRODUCTS_DIR), project) if (scope == "project" and project) else str(ROOT)
+        vcs.VCSManager(proj_dir).remove_worktree(f"assign-{item_id}")
+        return True
+    except Exception:
+        return False
 
 
 def renew_lease(scope: str, project: str | None, item_id: str, lease_seconds: int = 0) -> dict:
@@ -320,8 +351,10 @@ def renew_lease(scope: str, project: str | None, item_id: str, lease_seconds: in
     if not str(ex.get("lease_id") or ""):
         return {"renewed": False, "reason": "no lease"}
     secs = int(lease_seconds or _lease_seconds())
-    expires = (datetime.now() + timedelta(seconds=secs)).isoformat()
-    backlog.set_execution(scope, project, item_id, lease_expires_at=expires)
+    now = datetime.now()
+    expires = (now + timedelta(seconds=secs)).isoformat()
+    backlog.set_execution(scope, project, item_id, lease_expires_at=expires,
+                          last_heartbeat_at=now.isoformat())
     return {"renewed": True, "item": item_id, "lease_expires_at": expires}
 
 
@@ -334,6 +367,7 @@ def release(scope: str, project: str | None, item_id: str, reason: str = "releas
         return {"released": False, "reason": "item not found"}
     backlog.set_execution(scope, project, item_id, worker_id="", assignment_id="", lease_id="",
                           lease_expires_at="", completed_at=datetime.now().isoformat() if terminal else "")
+    _cleanup_worktree(scope, project, item_id)
     return {"released": True, "item": item_id, "reason": reason, "terminal": terminal}
 
 
@@ -381,6 +415,7 @@ def fail(scope: str, project: str | None, item_id: str, reason: str = "") -> dic
     backlog.set_execution(scope, project, item_id, worker_id="", assignment_id="", lease_id="",
                           lease_expires_at="", completed_at=datetime.now().isoformat(),
                           duration_seconds=dur, attempt=attempt)
+    _cleanup_worktree(scope, project, item_id)
     return {"ok": True, "item": item_id, "status": "blocked", "duration_seconds": dur}
 
 
@@ -398,19 +433,30 @@ def recover_expired(scope: str = "product_forge", project: str | None = None,
         exp = str(ex.get("lease_expires_at") or "")
         if not exp or str(ex.get("completed_at") or ""):
             continue
-        if exp > now:
-            continue
         item_id = str(it.get("id"))
+        hb = str(ex.get("last_heartbeat_at") or ex.get("started_at") or ex.get("assigned_at") or "")
+        expired = exp <= now
+        stuck = False
+        if not expired and hb:
+            try:
+                stuck = (datetime.now() - datetime.fromisoformat(hb)).total_seconds() > _stuck_minutes() * 60
+            except Exception:
+                stuck = False
+        if not expired and not stuck:
+            continue
         # apply policy
         if pol == "MARK_FAILED":
             backlog.set_status(scope, project, item_id, "failed", note="lease expired")
         elif pol in ("RETRY", "REASSIGN", "RESUME"):
             backlog.set_readiness(scope, project, item_id, False, reasons=[])  # stays recoverable
         else:  # REQUIRE_REVIEW (default)
-            backlog.set_status(scope, project, item_id, "blocked", note="lease expired; review required")
+            why = "lease expired" if expired else "stuck (no heartbeat)"
+            backlog.set_status(scope, project, item_id, "blocked", note=f"{why}; review required")
         backlog.set_execution(scope, project, item_id, worker_id="", assignment_id="", lease_id="",
-                              lease_expires_at="")
-        recovered.append({"item": item_id, "policy": pol, "expired_at": exp})
+                              lease_expires_at="", last_heartbeat_at="")
+        _cleanup_worktree(scope, project, item_id)
+        recovered.append({"item": item_id, "policy": pol, "expired_at": exp,
+                          "reason": "expired" if expired else "stuck"})
     return {"policy": pol, "recovered": recovered, "count": len(recovered)}
 
 
