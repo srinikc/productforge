@@ -352,6 +352,7 @@
 
 ## Repo-root docs
 - `AGENTS.md` - Repo rules for agents/contributors (binding) (Implemented, 100%)
+- `CHANGELOG.md` - repo-root doc (Reference (verify), 50%)
 - `README.md` - Repo README - overview + entry links (Implemented, 100%)
 
 ## Pending & backlog (actionable roll-up - required, below 100%)

@@ -65,3 +65,37 @@ def test_unscoped_children_lists_suggestions():
         assert kids and kids[0]["item"]
     finally:
         _clean()
+
+
+def test_move_to_epic_rehomes_and_syncs_both():
+    _clean()
+    try:
+        uid = backlog.ensure_unscoped_epic("project", _PROJ)
+        real = backlog.add_epic("project", _PROJ, "Real Epic", type_="epic", tag="TST")
+        child = backlog.add_epic("project", _PROJ, "child", epic=uid, tag="TST")["id"]
+        r = backlog.move_to_epic("project", _PROJ, child, real["id"])
+        assert r["ok"] and r["epic"] == real["id"]
+        assert str(backlog.get_epic("project", _PROJ, child).get("epic")) == real["id"]
+        assert child in (backlog.get_epic("project", _PROJ, real["id"]).get("children") or [])
+        assert child not in (backlog.get_epic("project", _PROJ, uid).get("children") or [])
+    finally:
+        _clean()
+
+
+def test_move_to_epic_rejects_bad_target():
+    _clean()
+    try:
+        c = backlog.add_epic("project", _PROJ, "c", tag="TST")["id"]
+        assert backlog.move_to_epic("project", _PROJ, c, "NOPE")["ok"] is False
+    finally:
+        _clean()
+
+
+def test_unscoped_aging_fresh_item_not_flagged():
+    _clean()
+    try:
+        uid = backlog.ensure_unscoped_epic("project", _PROJ)
+        backlog.add_epic("project", _PROJ, "fresh", epic=uid, tag="TST")
+        assert backlog.unscoped_aging("project", _PROJ, 14) == []
+    finally:
+        _clean()
