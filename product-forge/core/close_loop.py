@@ -41,6 +41,10 @@ _DEFAULT_POLICY = {
                               "no_blocking_defects", "go_no_go"]},
         "entire": {"require": ["artifact_exists", "tests_passed", "compliance_passed",
                                "no_blocking_defects", "go_no_go"]},
+        # PR scope (IS-PF-0037): FEATURE_PR is code-delivery validation - a framework-repo PR
+        # gates on the QA decision (tests + no blocking defects + go-no-go), not on pipeline
+        # artifact/compliance evidence only a generated product run can produce (BI-PF-1246).
+        "pr": {"require": ["tests_passed", "no_blocking_defects", "go_no_go"]},
         "prototype": {"require": ["artifact_exists"]},
         "research": {"require": ["artifact_exists"]},
         "explore": {"require": ["artifact_exists"]},
@@ -92,7 +96,32 @@ def _tests_passed(project_dir: str) -> bool:
     qm = _rj(os.path.join(project_dir, "quality-metrics.json"), {}) or {}
     if qm.get("tests_failed") is not None:
         return int(qm.get("tests_failed") or 0) == 0 and int(qm.get("tests_total") or 0) > 0
-    return False
+    return _framework_tests_passed(project_dir)
+
+
+def _framework_tests_passed(project_dir: str) -> bool:
+    """IS-PF-0037 (framework scope): a direct test-cycle run writes results/test-cycles/<id>.json
+    (status=passed) without a full-pipeline qa-manifest. The LATEST cycle record IS the real
+    pytest/quality evidence for a framework PR - trust it only when its cycle status is passed
+    (fail-closed: any non-passed cycle verdict returns False; rejected-delivery cycles skipped
+    per PF-031)."""
+    d = os.path.join(project_dir, "test-framework", "results", "test-cycles")
+    if not os.path.isdir(d):
+        return False
+    latest = None
+    for fn in os.listdir(d):
+        if not fn.endswith(".json"):
+            continue
+        c = _rj(os.path.join(d, fn), None) or {}
+        cid = str(c.get("cycle_id") or "")
+        if cid.startswith("rejected"):
+            continue
+        at = str(c.get("completed_at") or "")
+        if at and (latest is None or at > latest[0]):
+            latest = (at, c)
+    if not latest:
+        return False
+    return str(latest[1].get("status") or "").lower() == "passed"
 
 
 def _compliance_passed(project_dir: str, run_id: str = "") -> bool:

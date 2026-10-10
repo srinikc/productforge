@@ -186,11 +186,12 @@ def _check_pr_gate(project: str, project_dir: str) -> dict[str, Any]:
             "detail": {"unmet": failed, "items": items}}
 
 
-def _check_close_loop(project_dir: str, run_id: str) -> dict[str, Any]:
+def _check_close_loop(project_dir: str, run_id: str, scope: str = "") -> dict[str, Any]:
     from core import close_loop
-    res = close_loop.verify_run(project_dir, run_id=run_id)
+    res = close_loop.verify_run(project_dir, run_id=run_id, scope=scope)
     return {"status": "pass" if res.get("verified") else "fail",
-            "detail": {"verified": res.get("verified"), "reasons": res.get("reasons", [])}}
+            "detail": {"verified": res.get("verified"), "scope": res.get("scope"),
+                       "reasons": res.get("reasons", [])}}
 
 
 def _check_cross_contract(project: str, project_dir: str) -> dict[str, Any]:
@@ -331,7 +332,7 @@ def run(project: str, project_dir: str, profile_name: str = "FEATURE_PR",
 
     # run-bound decision (canonical) as one more signal
     try:
-        checks["close_loop"] = _check_close_loop(project_dir, rid)
+        checks["close_loop"] = _check_close_loop(project_dir, rid, scope="pr")
     except Exception as e:
         checks["close_loop"] = {"status": "unknown", "detail": str(type(e).__name__)}
 
@@ -406,12 +407,23 @@ def feature_pr(project: str, project_dir: str, target: str = "", base: str = "",
         wt = v.add_worktree(f"validate-{rid}", branch=f"validation/{rid}", base=resolved["sha"])
         if wt.get("ok"):
             val_dir = wt["path"]
+    # IS-PF-0037 (framework PR): the validation worktree is cut at REPO level, but the PF code
+    # root (the app whose entrypoint/build/lint signals the gates read) is the `product-forge/`
+    # subtree. Run per-product checkers against the PR's code root inside the validated tree
+    # (repo-level audits like wired_audit still resolve their own repo paths).
+    if os.path.isdir(os.path.join(val_dir, "product-forge")) \
+            and os.path.isfile(os.path.join(val_dir, "product-forge", "core", "paths.py")):
+        val_dir = os.path.join(val_dir, "product-forge")
 
     checks: dict[str, Any] = {}
     for name in [c for c in profile("FEATURE_PR")["checks"] if c != "target"] + ["close_loop"]:
         try:
             if name == "close_loop":
-                checks[name] = _check_close_loop(val_dir, rid)
+                # IS-PF-0037: FEATURE_PR is code-delivery validation; the release-lane "entire"
+                # scope demands pipeline-artifact evidence a framework-repo PR cannot have.
+                # The PR scope gates on the QA decision instead (tests_passed + no_blocking_defects
+                # + go-no-go) - recorded decision, extend the close_loop policy (no new engine).
+                checks[name] = _check_close_loop(val_dir, rid, scope="pr")
             else:
                 fn = _CHECKERS.get(name)
                 checks[name] = fn(project, val_dir, rid) if fn else \

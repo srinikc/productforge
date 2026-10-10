@@ -29,7 +29,7 @@ def detect_entrypoint(project_dir: str) -> Optional[str]:
         ep = ((cfg.get("deploy") or {}).get("app_entrypoint")
               or cfg.get("app_entrypoint"))
         if ep:
-            return str(ep)
+            return _importable(str(ep)) and str(ep) or None
     except Exception:
         pass
     # 1) Dockerfile / compose command: uvicorn|gunicorn <module>:app
@@ -38,7 +38,7 @@ def detect_entrypoint(project_dir: str) -> Optional[str]:
         txt = _read(os.path.join(project_dir, rel))
         m = re.search(r"\b(?:uvicorn|gunicorn)\s+['\"]?([\w.]+):\w+", txt)
         if m:
-            return m.group(1)
+            return _importable(m.group(1)) and m.group(1) or None
     # 2) src/**/main.py declaring an ASGI/WSGI app (any framework entrypoint)
     for base in ("src", "."):
         root = os.path.join(project_dir, base)
@@ -53,8 +53,20 @@ def detect_entrypoint(project_dir: str) -> Optional[str]:
                             parts = parts[1:]
                         if parts and parts[-1] == "__init__":
                             parts = parts[:-1]
-                        return ".".join(parts)
+                        cand = ".".join(parts)
+                        # IS-PF-0037 guard: a dir segment that is not a valid identifier
+                        # (e.g. a dash, as in "product-forge") can never be imported - skip it
+                        # instead of reporting a guaranteed-to-syntax-error entrypoint.
+                        if _importable(cand):
+                            return cand
     return None
+
+
+def _importable(dotted: str) -> bool:
+    """A dotted module path is importable only if every segment is a valid identifier."""
+    if not dotted:
+        return False
+    return all(p.isidentifier() for p in dotted.split(".") if p != "")
 
 
 def boot_check(project_dir: str, timeout: int = 60) -> Dict:
