@@ -10,7 +10,7 @@
   "title": "Defect/RCCA: CI (py3.11) broken by f-strings with a backslash inside {...} (PEP 701 is 3.12+); add a pycompat guard",
   "body": "## Problem / why\nThe `structure` CI job failed on EVERY develop push (~14s) at `import core` - before any gate ran.\nCI runs Python 3.11; local dev runs 3.14, so the code was green locally but a SyntaxError in CI.\n\n## 5-Why (RCCA)\n1. CI died importing `core/__init__` -> SyntaxError in `core/presentation_generator.py:645`.\n2. The f-string had `\\n` inside a replacement field `{...}` (a nested f-string inside the braces).\n3. Python 3.11 forbids a backslash in an f-string expression part; 3.12 (PEP 701) relaxed it.\n4. Dev machine runs 3.14, so the construct parsed; nothing enforced the CI target interpreter (3.11).\n5. No compatibility guard + no pinned interpreter -> 3.12-only syntax can ship.\nROOT CAUSE: dev/CI interpreter divergence (3.14 vs 3.11) with no guard.\nSame class found in 3 places: presentation_generator.py:645, code_executor.py:146, customer_onboarding.py:115.\n\n## Corrective\nHoist the backslash out of the replacement field in all 3 sites (build the string in a local var / use chr(10)).\n\n## Guard (new - prevents recurrence)\n`scripts/dev/pycompat_check.py`: flags a backslash inside an f-string replacement field (any nesting).\nWired into the fast `precheck` tier AND the pre-commit hook (changed .py files).\n\n## Acceptance criteria (G/W/T)\n- Given a file with a backslash inside an f-string `{...}`, when `pycompat_check` runs, then it exits 1.\n- Given the clean tree, then `precheck` fast/`--full` is green and the CI `structure` job passes.\n- Given a dev on 3.12+, then the guard still catches the 3.11-incompatible construct.\n\n## Verification / test plan\n`python scripts/dev/pycompat_check.py` (whole tree) + `python scripts/dev/precheck.py` fast tier.",
   "source": "CI failure (structure job)",
-  "status": "new",
+  "status": "completed",
   "priority": "P2",
   "moscow": "Should",
   "value": 5,
@@ -171,9 +171,9 @@
     "completed_at": ""
   },
   "created_at": "2026-10-10T10:55:11.455557",
-  "updated_at": "2026-10-10T13:38:10.131041",
+  "updated_at": "2026-10-10T21:33:07.637985",
   "score": 1.88,
-  "_note": "delivery recorded",
+  "_note": "delivered: PR#16 py3.11 RCCA + pycompat guard",
   "api_impact": {
     "needs_api": false,
     "reason": "test/gate + syntax fix; no API surface"

@@ -10,7 +10,7 @@
   "title": "Process: exclude the legacy Dashboard scope from PF review checks + suspend backend<->dashboard reciprocity (retain, retire later)",
   "body": "## Problem / why\nThe legacy dashboard leaked into PF work/reviews: the backend<->dashboard reciprocity REVIEW rule flagged\nevery open PF item missing a `dashboard_impact` (25 + 14 warnings), and the `project:ProductForge-Dashboard`\nscope (146 open items) showed up in cross-scope advisory checks (dedup). The dashboard backlog is legacy and\nwill be redesigned separately, so this noise must be excluded now.\n\n## Goal & value\nDashboard (design + instance) declared LEGACY: excluded from PF review/advisory checks, RETAINED in the\nbacklog (never deleted), with retirement tracked for later. Fully reversible via one config flag.\n\n## In scope\n- `config/pf-review-scope.json` (owner core/backlog.py): `legacy_scopes` + `dashboard_reciprocity.active`.\n- `core/backlog.py`: `legacy_scopes()`, `dashboard_reciprocity_active()`, `_is_legacy_scope()`; exclusion in\n  `duplicate_pairs()`, `api_impact_warnings()`, `reciprocity_warnings()`.\n- `scripts/dev/wired_audit.py`: advisory audits honor it and report the exclusion.\n- `AGENTS.md` + `docs/REVIEW-MODEL.md`: note the suspension.\n\n## Out of scope\n- Deleting/archiving the dashboard items (retained); redesign of the new dashboard (future).\n\n## Acceptance criteria (G/W/T)\n- Given `dashboard_reciprocity.active=false`, when `wired_audit` runs, then reciprocity is skipped (0 warnings).\n- Given a legacy scope, when duplicate/api_impact audits run, then it is excluded.\n- Given the flag flips back to true, then the reciprocity rule re-activates (reversible).\n\n## Data model (what is stored, where, owner)\n`config/pf-review-scope.json` (kind=config, scope=global, owner core/backlog.py).\n\n## API contract\nNo API change (internal process/config). needs_api=false.\n\n## Dependencies & links (by id)\nSuspends the rule from BI-0082 (dashboard reciprocity). Related: BI-PF-1202 (security epic, unaffected).\n\n## Verification / test plan\n`wired_audit` exit 0; reciprocity 39->0; dedup dashboard pairs removed; legacy scope flag reversibility.\n\n## Retirement\nREVISIT later: redesign the dashboard, then retire/delete the `project:ProductForge-Dashboard` scope and the\nfrozen `dashboard/server.py`, and flip `dashboard_reciprocity.active` back on.",
   "source": "user request",
-  "status": "new",
+  "status": "completed",
   "priority": "P2",
   "moscow": "Should",
   "value": 4,
@@ -192,9 +192,9 @@
     "completed_at": ""
   },
   "created_at": "2026-10-10T10:34:43.914641",
-  "updated_at": "2026-10-10T13:38:09.514404",
+  "updated_at": "2026-10-10T21:33:07.382062",
   "score": 1.5,
-  "_note": "delivery recorded",
+  "_note": "delivered: PR#15 legacy dashboard exclusion",
   "api_impact": {
     "needs_api": false,
     "reason": "internal process/config change; no API surface"

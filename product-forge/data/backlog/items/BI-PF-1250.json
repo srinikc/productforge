@@ -10,7 +10,7 @@
   "title": "Governance: every backlog item must belong to an epic (analyze-first; 'Unscoped' last resort; grooming re-homes)",
   "body": "## Goal\nEvery backlog item belongs to an epic, going forward, across the board.\n\n## Behaviour\n- Add time: try to fit an existing epic (`backlog.suggest_epic`); if none fits -> the `Unscoped` holding epic.\n- Human/agent: if no epic fits, ASK and create the epic first.\n- Grooming: highlight `Unscoped` children + a suggested epic -> create a new epic or move them.\n\n## Implementation\n- `core/backlog.py`: `suggest_epic`, `auto_epic`, `ensure_unscoped_epic` (holding epic), `epic_coverage_warnings`,\n  `unscoped_children`, `is_holding_epic`; add-time warning when an item has no epic.\n- Automated creators (intake/issues/insights/ops/intake_channels) attach `auto_epic(...)`.\n- `core/grooming.py`: `unscoped_review` + highlight at the review/approve step.\n- Gate `scripts/dev/backlog_epic_audit.py` (baseline-aware; fatal for NEW unparented items) wired into precheck;\n  advisory `epic-coverage` in `wired_audit`.\n- Rule: AGENTS.md + docs/ADDING-TO-PRODUCT-FORGE.md (recipe A).\n\n## Acceptance (G/W/T)\n- Given a NEW open non-epic item with no epic, when the gate runs, then it FAILS.\n- Given an automated create with no matching epic, then it lands under `Unscoped` (not unparented).\n- Given grooming, then `Unscoped` children are listed with a suggested epic.\n\n## Follow-up\nBI-PF-1251 (Unscoped triage loop).",
   "source": "user request",
-  "status": "new",
+  "status": "completed",
   "priority": "P2",
   "moscow": "Should",
   "value": 4,
@@ -169,9 +169,9 @@
     "usage": {}
   },
   "created_at": "2026-10-10T19:31:21.302495",
-  "updated_at": "2026-10-10T19:51:48.182704",
+  "updated_at": "2026-10-10T21:33:09.923927",
   "score": 1.5,
-  "_note": "delivery recorded",
+  "_note": "delivered: PR#29 epic-required rule",
   "api_impact": {
     "needs_api": false,
     "reason": "backlog governance + gate; no API"
