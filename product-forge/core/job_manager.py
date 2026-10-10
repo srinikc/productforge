@@ -255,7 +255,7 @@ def _active_assignments(scope: str, project: str | None) -> int:
 
 
 def claim_next(scope: str = "product_forge", project: str | None = None, worker: str = "",
-               lease_seconds: int = 0) -> dict:
+               lease_seconds: int = 0, epic: str = "") -> dict:
     """Atomically claim the highest ELIGIBLE backlog item for ``worker`` and attach a per-ITEM lease.
 
     Single claimer path (IS-PF-0034): eligibility comes from ``core.scheduler`` (P4, read-only, stage=execute);
@@ -267,9 +267,11 @@ def claim_next(scope: str = "product_forge", project: str | None = None, worker:
 
     BI-PF-0427: the *worker path* (worker API + coordinator) is product_forge-only; that boundary guard lives in
     the API layer (``api/routers/engineering.py``), not here - this remains the scope-parameterized mechanism.
+
+    ``epic=<id>`` restricts the claim to that epic's children (BI-PF-1222).
     """
     from core import backlog, capacity, scheduler
-    nxt = scheduler.next_eligible(scope, project, stage="execute")
+    nxt = scheduler.next_eligible(scope, project, stage="execute", epic=epic or None)
     if not nxt.get("found"):
         return {"claimed": False, "reason": "no eligible item"}
     item_id = str(nxt["item"])

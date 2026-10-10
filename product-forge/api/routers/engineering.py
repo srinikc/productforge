@@ -303,7 +303,8 @@ def assignment_claim(body: dict[str, Any], request: Request,
     from core.paths import ROOT
     s, p = _worker_scope(str(body.get("scope") or "product_forge"), str(body.get("project") or ""))
     worker = str(body.get("worker_id") or ctx.get("actor") or "worker")
-    res = job_manager.claim_next(s, p, worker=worker, lease_seconds=int(body.get("lease_seconds") or 0))
+    res = job_manager.claim_next(s, p, worker=worker, lease_seconds=int(body.get("lease_seconds") or 0),
+                                 epic=str(body.get("epic") or ""))
     if not res.get("claimed"):
         return from_request(request, {"assigned": False, **res}, resource="engineering")
     item = str(res["item"])

@@ -32,7 +32,7 @@ If `$ARGUMENTS` is empty/whitespace, run `python "$WGSCRIPT" help` and STOP.
 Run `python "$WGSCRIPT" $ARGUMENTS` and report the output.
 
 ## Verb map
-- `/wg work [--runtime R] [--worker-id W] [--scope S] [--project P] [--once]` — **run the worker** (claim from PF →
+- `/wg work [--runtime R] [--worker-id W] [--scope S] [--project P] [--epic ID] [--once]` — **run the worker** (claim from PF →
   run the runtime in PF's worktree → complete/fail; loop; `--once` = one item). `--claim-only` = claim only.
 - `/wg status [--scope S] [--project P]` — active assignments from PF (`GET /engineering/assignments`, workers ↔ items)
 - `/wg agent …` — alias of the worker loop (legacy)

@@ -152,7 +152,9 @@ func assign(st *store.Store, cfg config.Config, body map[string]any) (map[string
 	}
 	// BI-PF-0416: ask only for execution-stage work (new/accepted/queued/scheduled) so an item
 	// that was already executed (implemented/verifying) is never re-claimed and re-run.
-	data, ok := producer.Next(cfg.ProducerBase(), cfg.Token(), scope, asString(body["project"]), "execute")
+	// BI-PF-1222: an optional epic scopes the pick to that epic's children.
+	data, ok := producer.Next(cfg.ProducerBase(), cfg.Token(), scope, asString(body["project"]), "execute",
+		asString(body["epic"]))
 	if data == nil {
 		data = map[string]any{}
 	}

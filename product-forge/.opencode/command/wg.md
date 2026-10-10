@@ -21,7 +21,7 @@ Run the WorkerGrid CLI with the given arguments, e.g. from the repo root:
 (or from `product-forge/`: `python ../workergrid/wg.py $ARGUMENTS`).
 
 ## Verb map
-- `/wg work [--runtime R] [--worker-id W] [--scope S] [--project P] [--once]` — **run the worker** (claim from PF →
+- `/wg work [--runtime R] [--worker-id W] [--scope S] [--project P] [--epic ID] [--once]` — **run the worker** (claim from PF →
   run the runtime in PF's worktree → complete/fail; loop; `--once` = one item). `--claim-only` = claim only.
 - `/wg status [--scope S] [--project P]` — active assignments from PF (`GET /engineering/assignments`, workers ↔ items)
 - `/wg agent …` — alias of the worker loop (legacy)
