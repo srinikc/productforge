@@ -54,6 +54,62 @@ def get_item(item_id: str, request: Request, scope: str = "product_forge", proje
     return from_request(request, it, resource="backlog", resource_id=item_id)
 
 
+@router.get("/epics/{epic_id}/order", dependencies=[Depends(authenticate)])
+def epic_order(epic_id: str, request: Request, scope: str = "product_forge", project: str = "",
+               stage: str = "", ctx: dict[str, Any] = Depends(authenticate)):
+    """READ-ONLY: execution order of an epic's OPEN children (dependency wave -> priority, READY/wait).
+
+    Delegates to ``core.scheduler.epic_order`` (no writes). Use POST to persist the order on the epic.
+    """
+    from core import backlog, scheduler
+    s, p = _scope_project(request, scope, project)
+    if not backlog.get_epic(s, p, epic_id):
+        raise ApiError("NOT_FOUND", "backlog epic not found")
+    return from_request(request, scheduler.epic_order(s, p, epic=epic_id, stage=stage or None),
+                        resource="backlog", resource_id=epic_id)
+
+
+@router.post("/epics/{epic_id}/order", dependencies=[Depends(require_operator)])
+def epic_order_save(epic_id: str, request: Request, scope: str = "product_forge", project: str = "",
+                    stage: str = "", ctx: dict[str, Any] = Depends(require_operator)):
+    """SAVE: compute the epic's execution order AND persist it on the epic (``execution_order[]``).
+
+    BI-PF-1222: the write is delegated to ``core.backlog.set_execution_order`` (single writer). ``children[]``
+    (membership) is never touched.
+    """
+    from core import backlog, scheduler
+    s, p = _scope_project(request, scope, project)
+    if not backlog.get_epic(s, p, epic_id):
+        raise ApiError("NOT_FOUND", "backlog epic not found")
+    return from_request(request, scheduler.epic_order(s, p, epic=epic_id, stage=stage or None, save=True),
+                        resource="backlog", resource_id=epic_id)
+
+
+@router.get("/status", dependencies=[Depends(authenticate)])
+def backlog_status(request: Request, scope: str = "product_forge", project: str = "",
+                   stage: str = "", all: bool = False, ctx: dict[str, Any] = Depends(authenticate)):
+    """Scope-level status: every epic's rollup (open/closed/groomed/need_reanalysis/ready/wait) + standalone
+    items. ``all=true`` aggregates across EVERY backlog/scope (BI-PF-1222). Read-only."""
+    from core import scheduler
+    if all:
+        return from_request(request, scheduler.backlog_status_all(stage=stage or None), resource="backlog")
+    s, p = _scope_project(request, scope, project)
+    return from_request(request, scheduler.backlog_status(s, p, stage=stage or None), resource="backlog")
+
+
+@router.get("/epics/{epic_id}/status", dependencies=[Depends(authenticate)])
+def epic_status(epic_id: str, request: Request, scope: str = "product_forge", project: str = "",
+                stage: str = "", ctx: dict[str, Any] = Depends(authenticate)):
+    """Full lifecycle status of one epic: ALL children (open + closed) with state/status/groomed/
+    needs_reanalysis/ready/worker/wave/order_rank/order_status/reasons + an epic rollup. Read-only."""
+    from core import backlog, scheduler
+    s, p = _scope_project(request, scope, project)
+    if not backlog.get_epic(s, p, epic_id):
+        raise ApiError("NOT_FOUND", "backlog epic not found")
+    return from_request(request, scheduler.epic_status(s, p, epic=epic_id, stage=stage or None),
+                        resource="backlog", resource_id=epic_id)
+
+
 @router.post("/items", dependencies=[Depends(require_operator)])
 def add_item(body: dict[str, Any], request: Request, ctx: dict[str, Any] = Depends(require_operator)):
     from core import backlog
@@ -191,6 +247,25 @@ def groom_batch(body: dict[str, Any], request: Request,
                              limit=int(body.get("limit") or 0), force=bool(body.get("force")),
                              dry=bool(body.get("dry")), depth=str(body.get("depth") or "deep"),
                              jobs=int(body.get("jobs") or 0), ids=body.get("ids"))
+    return from_request(request, res, resource="backlog")
+
+
+@router.post("/restamp", dependencies=[Depends(require_operator)])
+@router.post("/refresh-stale", dependencies=[Depends(require_operator)])
+def refresh_stale(body: dict[str, Any], request: Request,
+                  ctx: dict[str, Any] = Depends(require_operator)):
+    """Re-stamp OPEN items whose analysis is stale vs the current architecture (alias: /refresh-stale).
+
+    Re-analyzes each item and records the current ``arch_fingerprint`` (does NOT overwrite authored context).
+    Deterministic by default; ``mode="ai"`` (or ``ai=true``) for a deep AI refresh. ``limit`` caps items per call.
+    """
+    from core import grooming
+    s, p = _scope_project(request, str(body.get("scope") or "product_forge"), str(body.get("project") or ""))
+    mode = str(body.get("mode") or "")
+    if body.get("ai") is True and not mode:
+        mode = "ai"
+    res = grooming.refresh_stale(s, p, limit=int(body.get("limit") or 0) or 1_000_000,
+                                 mode=mode or "deterministic")
     return from_request(request, res, resource="backlog")
 
 

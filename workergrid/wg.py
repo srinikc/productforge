@@ -7,13 +7,13 @@ groom, or generate products — the producer owns those.
 
 Verbs:
   wg serve [--host H] [--port P]                                run the coordinator service (shared state)
-  wg agent [--runtime R] [--worker-id W] [--once]               run the worker agent loop (claim -> execute -> write back)
+  wg agent [--runtime R] [--worker-id W] [--scope S] [--project P] [--epic ID] [--once]  run the worker agent loop (claim -> execute -> write back)
   wg register --runtime opencode [--caps a,b] [--worker-id X]   register a worker (service or local)
   wg list | wg status [<worker_id>] | wg unregister <worker_id>
-  wg work [--worker X] [--runtime R] [--scope S] [--project P]  pull the next eligible item + lease it
-  wg schedule eligible|next|status [--scope S] [--project P]    query the producer's eligibility
+  wg work [--worker X] [--runtime R] [--scope S] [--project P] [--epic ID]  pull the next eligible item + lease it
+  wg schedule eligible|next|status [--scope S] [--project P] [--epic ID]  query the producer's eligibility
   wg adapters                                                   list runtimes
-  wg dispatch [--force]                                         assign eligible work to ONLINE workers
+  wg dispatch [--force] [--epic ID]                             assign eligible work to ONLINE workers
   wg instruct [text] [--show]                                   view/edit the shared worker instructions
   wg config                                                     show resolved config + paths
 
@@ -121,7 +121,7 @@ def cmd_agent(pos, flags):
         print("      build: cd workergrid && go build -o bin/ ./cmd/wg-agent", file=sys.stderr)
         return 1
     args = [exe]
-    for f in ("runtime", "worker-id", "scope", "project", "service"):
+    for f in ("runtime", "worker-id", "scope", "project", "epic", "service"):
         if flags.get(f):
             args += ["--" + f, str(flags[f])]
     if flags.get("once"):
@@ -195,12 +195,13 @@ def _ensure_worker(flags):
 def cmd_work(pos, flags):
     scope = flags.get("scope", "product_forge")
     project = flags.get("project", "")
+    epic = flags.get("epic", "")
     wid, w = _ensure_worker(flags)
     if _via_service(flags):
         r = client.svc("POST", "/work", {"worker_id": wid, "runtime": w.get("runtime", ""),
-                       "scope": scope, "project": project})
+                       "scope": scope, "project": project, "epic": epic})
         return {"mode": "service", **(r.get("data") or {"assigned": False, "reason": r.get("error")})}
-    r = client.next_item(scope, project)
+    r = client.next_item(scope, project, epic)
     if not r.get("ok"):
         return {"assigned": False, "reason": f"producer API: {r.get('status')} {r.get('error')}"}
     data = r.get("data") or {}
@@ -224,13 +225,15 @@ def cmd_schedule(pos, flags):
     sub = pos[0] if pos else "status"
     scope = flags.get("scope", "product_forge")
     project = flags.get("project", "")
+    epic = flags.get("epic", "")
     if sub == "next":
-        return client.next_item(scope, project)
+        return client.next_item(scope, project, epic)
     if sub == "status":
-        e = client.eligible(scope, project)
+        e = client.eligible(scope, project, epic)
         d = e.get("data") or {}
-        return {"total": d.get("total"), "eligible": d.get("eligible"), "blocked": d.get("blocked")}
-    return client.eligible(scope, project)
+        return {"total": d.get("total"), "eligible": d.get("eligible"), "blocked": d.get("blocked"),
+                "epic": d.get("epic", epic)}
+    return client.eligible(scope, project, epic)
 
 
 def cmd_adapters(pos, flags):
@@ -241,12 +244,13 @@ def cmd_adapters(pos, flags):
 def cmd_dispatch(pos, flags):
     scope = flags.get("scope", "product_forge")
     project = flags.get("project", "")
+    epic = flags.get("epic", "")
     if _via_service(flags):
         workers = (client.svc("GET", "/workers").get("data") or {}).get("workers") or []
         assigned = []
         for w in [x for x in workers if str(x.get("status")) in ("ONLINE", "IDLE")]:
             d = client.svc("POST", "/work", {"worker_id": w.get("worker_id"), "scope": scope,
-                                             "project": project}).get("data") or {}
+                                             "project": project, "epic": epic}).get("data") or {}
             if d.get("assigned"):
                 assigned.append({"worker_id": w.get("worker_id"), "item": d.get("item_id")})
         return {"mode": "service", "dispatched": len(assigned), "assigned": assigned}
@@ -254,7 +258,8 @@ def cmd_dispatch(pos, flags):
     online = [w for w in d["workers"].values() if str(w.get("status")) in ("ONLINE", "IDLE")]
     assigned = []
     for w in online:
-        r = cmd_work([], {"worker": w["worker_id"], "scope": scope, "project": project, "local": "1"})
+        r = cmd_work([], {"worker": w["worker_id"], "scope": scope, "project": project,
+                          "epic": epic, "local": "1"})
         if r.get("assigned"):
             assigned.append({"worker_id": w["worker_id"], "item": r.get("item_id")})
     return {"mode": "local", "dispatched": len(assigned), "assigned": assigned}

@@ -93,7 +93,8 @@ func (a *Agent) runPF(ctx context.Context) error {
 			map[string]any{"scope": a.opt.Scope, "project": a.opt.Project})
 
 		_, raw, err := a.pf("POST", pfAssignmentsView+"/claim",
-			map[string]any{"scope": a.opt.Scope, "project": a.opt.Project, "worker_id": wid})
+			map[string]any{"scope": a.opt.Scope, "project": a.opt.Project, "worker_id": wid,
+				"epic": a.opt.Epic})
 		if err != nil {
 			fmt.Printf("[wg-agent] claim error: %v\n", err)
 			if a.opt.Once {

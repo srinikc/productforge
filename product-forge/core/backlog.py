@@ -955,6 +955,22 @@ def set_delivery(scope: str, project: str | None, eid: str, *, branch: str = "",
                   _note="delivery recorded")
 
 
+def set_execution_order(scope: str, project: str | None, epic_id: str, order: list) -> dict | None:
+    """Persist the DERIVED epic execution order on the epic container (BI-PF-1222). Single writer.
+
+    ``order`` is the ordered row list from ``core.scheduler.epic_order``; stored on the epic as
+    ``execution_order[]`` (each ``{id, wave, status}``) plus ``execution_order_at``. This is the ORDER ONLY -
+    ``children[]`` (membership) is never touched. Returns the updated epic, or ``None`` if not found.
+    """
+    if get_epic(scope, project, epic_id) is None:
+        return None
+    rows = [{"id": str(r.get("id")), "wave": int(r.get("wave") or 0), "status": str(r.get("status") or "")}
+            for r in (order or []) if isinstance(r, dict) and r.get("id")]
+    return update(scope, project, epic_id, execution_order=rows,
+                  execution_order_at=datetime.now().isoformat(),
+                  _note="epic execution order saved")
+
+
 # ── PFSSOT (BI-PF-0362): first-class execution helpers (all reuse `update`, no new store) ──
 def set_analysis(scope: str, project: str | None, eid: str, *, status: str = "",
                  architecture_fit: str = "", implementation_strategy: str = "",
@@ -1346,6 +1362,7 @@ _STRUCT_FIELD_TYPES = {
     "approvals": (list,),
     "children": (list,),
     "api_impact": (dict,),
+    "execution_order": (list,),
 }
 
 

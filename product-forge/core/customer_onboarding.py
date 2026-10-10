@@ -99,6 +99,8 @@ class OnboardingGenerator:
         """Generate personalized welcome email"""
         name = product_data.get("name", "Product")
         customer_name = customer_data.get("name", "[Customer Name]") if customer_data else "[Customer Name]"
+        default_desc = ("Thank you for choosing our product. We're confident it will help you "
+                        "achieve your goals.")
 
         return f"""# Welcome to {name}!
 
@@ -112,7 +114,7 @@ Hi {customer_name},
 
 Welcome to {name}! We're thrilled to have you on board.
 
-{product_data.get('description', 'Thank you for choosing our product. We\'re confident it will help you achieve your goals.')}
+{product_data.get('description', default_desc)}
 
 ## What's Next?
 

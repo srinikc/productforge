@@ -18,7 +18,7 @@ $ARGUMENTS
 ## STEP 0: resolve wg.py (self-locating — no installer)
 Resolve `$WGSCRIPT` = the FIRST path below for which `Test-Path` returns `True`:
 1. `$env:WORKERGRID_ROOT\wg.py` — explicit override (set the `WORKERGRID_ROOT` env var if you use one)
-2. Known checkout: `C:\Users\ADMIN\Documents\Srinikc\AI Products\Exploring\workergrid\wg.py`
+2. Known checkout: `C:\Users\ADMIN\Documents\Srinikc\AI Products\Exploring\PF-validation\workergrid\wg.py`
 3. Discovery from the current directory: for each parent up to 5 levels:
    `<parent>\workergrid\wg.py`
 
@@ -32,12 +32,12 @@ If `$ARGUMENTS` is empty/whitespace, run `python "$WGSCRIPT" help` and STOP.
 Run `python "$WGSCRIPT" $ARGUMENTS` and report the output.
 
 ## Verb map
-- `/wg work [--runtime R] [--worker-id W] [--scope S] [--project P] [--once]` — **run the worker** (claim from PF →
+- `/wg work [--runtime R] [--worker-id W] [--scope S] [--project P] [--epic ID] [--once]` — **run the worker** (claim from PF →
   run the runtime in PF's worktree → complete/fail; loop; `--once` = one item). `--claim-only` = claim only.
 - `/wg status [--scope S] [--project P]` — active assignments from PF (`GET /engineering/assignments`, workers ↔ items)
 - `/wg agent …` — alias of the worker loop (legacy)
 - `/wg serve [--host H] [--port P]` — coordinator service (**fallback** only; not needed for PF)
-- `/wg schedule eligible|next|status [--scope S] [--project P]` — query PF eligibility
+- `/wg schedule eligible|next|status [--scope S] [--project P] [--epic ID]` — query PF eligibility (epic-scoped)
 - `/wg register --runtime <r> [--caps a,b]` · `/wg list` · `/wg unregister <id>` — coordinator-mode worker registry
 - `/wg adapters` · `/wg dispatch [--force]` — coordinator-mode
 - `/wg instruct` (show shared worker instructions) · `/wg instruct <text>` (append; `workergrid/instructions.md`)
