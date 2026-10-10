@@ -1,14 +1,14 @@
 # Backlog Summary
 
-> GENERATED 2026-10-10T11:49:02 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-10T12:26:36 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 54  |  **Closed:** 463
-- `new`: 54
+- **Open:** 58  |  **Closed:** 463
+- `new`: 58
 
-### new, by category (54)
+### new, by category (58)
 **API / reports / HIL / misc** (4)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
@@ -51,7 +51,7 @@
 | BI-0225 | Should | feature | Parallel section/feature generation | Run section/per-feature agent calls in parallel with a bounded worker pool and merge results deterministically... |
 | BI-PF-1212 | Should | feature | C10: Security-event audit/evidence (evidence-grade) + durable SecurityContext propagation | C10: Security-event audit/evidence (evidence-grade) + durable SecurityContext propagation |
 
-**Wiring / tech-debt / API** (36)
+**Wiring / tech-debt / API** (40)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0185 | Should | feature | EPIC: Multi-modal / media orchestration (pluggable capability packs) | Make the pipeline modality-agnostic via PLUGGABLE capability packs, enabled per project when the idea needs th... |
@@ -87,8 +87,12 @@
 | BI-PF-1210 | Should | feature | C8: Sandbox + Network/Egress policy for code/autonomous execution | C8: Sandbox + Network/Egress policy for code/autonomous execution |
 | BI-PF-1211 | Should | feature | C9: RAG/Document guardrail + trust levels (untrusted content can never gain authority) | C9: RAG/Document guardrail + trust levels (untrusted content can never gain authority) |
 | BI-PF-1213 | Should | feature | C11: Kill switch (independent of the LLM) - stop workflow/agent/tool/schedule/deploy/connectors | C11: Kill switch (independent of the LLM) - stop workflow/agent/tool/schedule/deploy/connectors |
-| BI-PF-1215 | Should | feature | C13: Per-generated-product Security Profile/Manifest derived from product capabilities | C13: Per-generated-product Security Profile/Manifest derived from product capabilities |
+| BI-PF-1215 | Should | feature | C13: Per-generated-product Security Profile/Manifest derived from product capabilities | C13: Per-generated-product Security Plan/Guidelines + Profile/Manifest, GENERATED from the PF guidelines SSOT ... |
 | BI-PF-1218 | Should | feature | C16: Fail-safe behaviour policy (+ controlled security-policy improvement, never model-autonomous) | C16: Fail-safe behaviour policy (+ controlled security-policy improvement, never model-autonomous) |
+| BI-PF-1219 | Should | feature | C17: security_impact review decision on every work item + advisory validator (per-work security impact analysis) | Make "security impact for every work" first-class and enforced at the same boundary as api/dashboard impact: e... |
+| BI-PF-1220 | Should | feature | C18: PF security plan/guidelines SSOT (global, enforceable) - for PF itself and its agents | ONE PF-level security plan/guidelines SSOT that governs **PF itself and its agents** (the enforcing plane). Th... |
+| BI-PF-1221 | Should | feature | C19: Security implementation agent (review from guidelines SSOT + IMPLEMENT controls per iteration) + S3 gate | Security becomes an IMPLEMENTER, per iteration, not a post-hoc reviewer. Each implementation iteration reviews... |
+| BI-PF-1223 | Should | change | Process: exclude the legacy Dashboard scope from PF review checks + suspend backend<->dashboard reciprocity (retain, retire later) | Dashboard (design + instance) declared LEGACY: excluded from PF review/advisory checks, RETAINED in the backlo... |
 | BI-PF-1228 | Should | epic | EPIC: Make CI green - pre-existing build-breakage cleanup (deps, id-authority, cross-platform, generated artifacts, tests) | A green, trustworthy `structure` CI check so PRs merge normally (no override), and "green locally" == "green i... |
 
 ---
@@ -289,5 +293,5 @@
 ---
 
 ## Totals
-- backend: 54 open / 463 closed
+- backend: 58 open / 463 closed
 - dashboard: 146 open / 3 closed

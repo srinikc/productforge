@@ -485,6 +485,8 @@ def duplicate_pairs(scope: str | None = None, threshold: float = 0.5,
     """Near-duplicate OPEN-item pairs (Jaccard >= threshold), ranked by score."""
     out: list[dict] = []
     for sc, pr in _scope_pairs(scope):
+        if _is_legacy_scope(sc, pr):
+            continue
         items = list_open(sc, pr, order=False)
         toks = [_tokens(_item_text(e)) for e in items]
         for i in range(len(items)):
@@ -509,6 +511,8 @@ def api_impact_warnings(scope: str = "product_forge", project: str | None = None
     Flags: (a) an open item with no ``api_impact`` decision, and (b) ``needs_api=true`` with no routes."""
     warns = []
     for it in list_open(scope, project):
+        if _is_legacy_scope(it.get("scope") or scope, it.get("project") or project):
+            continue
         ai = it.get("api_impact")
         if not ai:
             warns.append(f"{it.get('id')}: no api_impact decision (needs_api + reason)")
@@ -1486,6 +1490,40 @@ def _all_scopes():
     return scopes
 
 
+_REVIEW_SCOPE_PATH = os.path.join(_REPO, "config", "pf-review-scope.json")
+
+
+def _review_scope_cfg() -> dict:
+    """Load config/pf-review-scope.json (sane defaults when missing)."""
+    try:
+        with open(_REVIEW_SCOPE_PATH, encoding="utf-8-sig") as f:
+            return json.load(f) or {}
+    except Exception:
+        return {}
+
+
+def dashboard_reciprocity_active() -> bool:
+    """False when the backend<->dashboard reciprocity REVIEW rule is suspended
+    (config/pf-review-scope.json -> dashboard_reciprocity.active)."""
+    return bool((_review_scope_cfg().get("dashboard_reciprocity") or {}).get("active", True))
+
+
+def legacy_scopes() -> set:
+    """Qualified refs of scopes declared LEGACY (excluded from PF review/advisory
+    checks but retained in the backlog). E.g. ``{"project:ProductForge-Dashboard"}``."""
+    return {str(k) for k in (_review_scope_cfg().get("legacy_scopes") or {})}
+
+
+def _scope_ref(scope: str | None, project: str | None) -> str:
+    s = _norm_scope(scope or "")
+    return f"{s}:{project}" if (s and s != "product_forge" and project) else s
+
+
+def _is_legacy_scope(scope: str | None, project: str | None) -> bool:
+    ref = _scope_ref(scope, project)
+    return bool(ref) and ref in legacy_scopes()
+
+
 def stale(days: int = 7, scope: str = "", project: str | None = None) -> list[dict]:
     """Open items untouched for > `days` (follow-up / event-router signal)."""
     scopes = [(scope, project)] if scope else _all_scopes()
@@ -1556,8 +1594,12 @@ def reciprocity_warnings(scope: str = "", project: str | None = None) -> list[di
          or non-reciprocal.
     """
     warns: list[dict] = []
+    if not dashboard_reciprocity_active():
+        return warns
     scopes = [(scope, project)] if scope else _all_scopes()
     for sc, pr in scopes:
+        if _is_legacy_scope(sc, pr):
+            continue
         is_forge = _norm_scope(sc) == "product_forge"
         for e in list_open(sc, pr, order=False):
             ref = qualify(e.get("scope") or sc, e.get("project") or pr, e.get("id"))

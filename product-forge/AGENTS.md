@@ -53,7 +53,10 @@ Both must pass (0 unwired, 0 naming violations). The same audit runs in CI and i
 - **Dashboard reciprocity review:** every backend-scope item records a `dashboard_impact`
   decision (`needs_dashboard` + reason); create a dashboard item only when needed, cross-link
   it reciprocally with `links.paired_with`, and rely on the advisory validator
-  (`core/backlog.reciprocity_warnings()` via `wired_audit`, non-fatal).
+  (`core/backlog.reciprocity_warnings()` via `wired_audit`, non-fatal). **Suspended** while
+  `config/pf-review-scope.json` marks the dashboard legacy (`dashboard_reciprocity.active=false`) —
+  scopes listed under `legacy_scopes` are excluded from reciprocity/duplicates/api_impact checks
+  (retained in the backlog, never deleted); the rule re-activates when the new dashboard lands.
 - **One working tree per session (IS-PF-0036):** never run two concurrent sessions in the **same**
   folder — git `HEAD`/branch state is global to the working directory, so one session's checkout/commit
   races the other's and a commit can land on `develop` directly. Give each session its **own clone or
