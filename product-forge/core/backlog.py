@@ -93,7 +93,11 @@ def _default_analysis() -> dict:
 
 def _default_execution() -> dict:
     return {"worker_id": "", "assignment_id": "", "lease_id": "", "assigned_at": "",
-            "lease_expires_at": "", "attempt": 0, "started_at": "", "completed_at": ""}
+            "lease_expires_at": "", "attempt": 0, "started_at": "", "completed_at": "",
+            "duration_seconds": 0}
+
+
+_EXECUTION_KEYS = frozenset(_default_execution().keys())
 
 
 def _default_readiness(reasons: list[str] | None = None) -> dict:
@@ -1106,7 +1110,7 @@ def set_execution(scope: str, project: str | None, eid: str, **kw) -> dict | Non
     if not item:
         return None
     ex = dict(item.get("execution") or _default_execution())
-    ex.update({k: v for k, v in kw.items() if k in ex})
+    ex.update({k: v for k, v in kw.items() if k in _EXECUTION_KEYS})
     return update(scope, project, eid, execution=ex, _note="execution updated")
 
 

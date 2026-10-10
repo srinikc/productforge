@@ -191,8 +191,10 @@ def test_epic_status_lists_all_children_and_rollup():
         assert rows[a]["state"] == "open" and rows[a]["groomed"] is True
         assert rows[c]["state"] == "open" and rows[c]["needs_reanalysis"] is True
         assert rows[b]["state"] == "closed" and rows[b]["order_status"] == "closed"
-        assert st["rollup"] == {"total": 3, "open": 2, "closed": 1, "groomed": 1,
-                                "need_reanalysis": 1, "ready": 1, "wait": 1, "done": False}
+        r = st["rollup"]
+        assert (r["total"], r["open"], r["closed"], r["groomed"], r["need_reanalysis"],
+                r["ready"], r["wait"], r["done"]) == (3, 2, 1, 1, 1, 1, 1, False)
+        assert "time" in r  # BI-PF-1237 time rollup
         assert st["order"][:2] == [a, c]
     finally:
         _clean()
