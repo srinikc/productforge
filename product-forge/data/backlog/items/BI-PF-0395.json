@@ -17,7 +17,18 @@
   "effort": 3,
   "risk": 2,
   "deps": [],
-  "links": {},
+  "links": {
+    "backend_capability": [
+      "module:core/change_policy.py",
+      "file:config/language-rule.json",
+      "file:scripts/dev/language_rule_check.py",
+      "file:scripts/dev/precheck.py",
+      "file:config/store-registry.json",
+      "file:config/ci-cd-gates.json",
+      "test:test-framework/tests/pipeline/test_change_policy.py",
+      "file:docs/PF-TARGET-ARCHITECTURE-AND-IP-PLAN.md"
+    ]
+  },
   "decisions": [
     {
       "at": "2026-10-09T22:32:14.470105",
@@ -27,24 +38,23 @@
     }
   ],
   "follow_up": {},
-  "revision": 2,
+  "revision": 3,
   "priority_rank": 1,
   "priority_class": "",
   "analyze_mode": "on_entry",
   "analysis": {
-    "status": "COMPLETE",
+    "status": "STALE",
     "analyzed_at": "2026-10-10T17:03:51.320602",
     "analyzed_by": "deterministic",
     "revision_analyzed": 2,
     "architecture_fit": "EXTEND",
-    "implementation_strategy": "Extend existing components/APIs: core/agent_rules.py, core/change_log.py, core/change_registry.py, core/change_spec.py",
+    "implementation_strategy": "core/change_policy.py (pure classifier+rule+undeclared-dep policy; sole reader of registered config/language-rule.json) + scripts/dev/language_rule_check.py (changed-files gate; git-scoped; --files/--added overrides; PF_ALLOW_PY_SHIPPED escape) in precheck._GATES fast band + ci-cd-gates lockstep. Edits of shipped Python allowed; NEW shipped .py blocked unless allowlisted; undeclared third-party imports in shipped files fail (complements BI-PF-0443).",
     "existing_components": [
-      "core/agent_rules.py",
-      "core/change_log.py",
-      "core/change_registry.py",
-      "core/change_spec.py",
-      "core/guardrails.py",
-      "core/run_guard.py"
+      "scripts/dev/precheck.py",
+      "scripts/dev/store_check.py",
+      "scripts/dev/dependency_catalog_check.py",
+      "config/store-registry.json",
+      "config/pf-review-scope.json"
     ],
     "existing_apis": [
       "/api/v1/changes",
@@ -56,12 +66,16 @@
     "dependency_findings": [],
     "conflict_findings": [],
     "duplication_findings": [],
-    "drift": "NONE",
+    "drift": "assignment worktree not pruned post-delivery (IS-PF-0036 lifecycle gap) - separate follow-up item to file",
     "rewrite_required": false,
-    "new_component_required": false,
+    "new_component_required": true,
     "rationale": "deterministic deep grooming (codebase-grounded)",
     "assumptions": [],
-    "risks": [],
+    "risks": [
+      "alias-table drift (yaml/pyyaml style names) -> covered by test + single alias source",
+      "shipped_roots follow A3 build profiles - gate reads config, extension point documented",
+      "governance Python in shipped roots needs a declared allowlist entry (visible in diff, A6 spirit)"
+    ],
     "evidence": [
       "similar=4",
       "score=0.75",
@@ -106,7 +120,7 @@
     "completed_at": ""
   },
   "created_at": "2026-10-06T18:32:20.446713",
-  "updated_at": "2026-10-10T17:03:51.418318",
+  "updated_at": "2026-10-10T23:56:14.143940",
   "score": 0.75,
   "_note": "analysis updated",
   "parent": "BI-PF-0390",
@@ -150,7 +164,12 @@
   "target_release": "(derived) TBD",
   "approvals": [],
   "evidence": [
-    "pending"
+    "test-framework/tests/pipeline/test_change_policy.py",
+    "scripts/dev/language_rule_check.py",
+    "config/language-rule.json",
+    "config/store-registry.json",
+    "config/ci-cd-gates.json",
+    "docs/PF-TARGET-ARCHITECTURE-AND-IP-PLAN.md"
   ],
   "verification": [
     "gate fails on a Python shipped/sensitive change and on an undeclared runtime dep",
@@ -160,7 +179,7 @@
     "Not specified."
   ],
   "rollback": "Revert the change.",
-  "summary": "",
+  "summary": "A6 gate wired: language rule (new shipped .py must be Go or declared allowlist) + undeclared runtime-dep check + unclassified-path fail-closed + drift line; enforced author-time and in precheck fast band.",
   "in_scope": [
     "change classifier",
     "drift guard",
