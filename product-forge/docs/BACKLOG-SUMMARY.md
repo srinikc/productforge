@@ -1,15 +1,15 @@
 # Backlog Summary
 
-> GENERATED 2026-10-10T19:10:47 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-10T19:41:52 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 69  |  **Closed:** 464
-- `new`: 69
+- **Open:** 71  |  **Closed:** 464
+- `new`: 71
 
-### new, by category (69)
-**API / reports / HIL / misc** (7)
+### new, by category (71)
+**API / reports / HIL / misc** (8)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-PF-0332 | Should | chore | API-5 deferred hardening: rate limiting + request/upload limits + tenant-isolation expansion + event streaming | API-5 deferred hardening: rate limiting + request/upload limits + tenant-isolation expansion + event streaming |
@@ -19,6 +19,7 @@
 | BI-PF-1239 | Should | feature | CI/CD model + read API for orchestrator/UI (single projection of gates/tiers/triggers) | One read-only projection so the dashboard/orchestrator can render CI/CD + gate status. - `core/ci_cd_model.py`... |
 | BI-PF-1243 | Should | epic | EPIC: CI/CD & Gates - SSOT doc + model + read API (PF + generated products) | One place to understand and read (via API) how PF builds/verifies/ships and how generated products do: the CI/... |
 | BI-PF-1245 | Should | feature | Orchestrator UI: small CI/CD view over the engineering ci-cd API (gates x tiers x status) | A small orchestrator UI view that renders the CI/CD + gates model from the read API (BI-PF-1239), so an operat... |
+| BI-PF-1251 | Should | change | Unscoped triage: re-home 'Unscoped' children into real epics (grooming cadence + aging advisory) | Keep `Unscoped` small: an ongoing curation loop re-homes its children into real epics. |
 
 **Bug fixes** (5)
 | ID | MoSCoW | Type | Title | Objective |
@@ -59,7 +60,7 @@
 | BI-PF-1238 | Should | change | Docs: CI/CD & Gates SSOT (PF + generated products) - triggers, tiers, gates, delivery, text+Mermaid diagrams | One SSOT for how PF builds/verifies/ships and for generated products: trigger map, author-time hooks, precheck... |
 | BI-PF-1241 | Should | feature | Per-item token/cache/cost usage (execution.usage) + runtime usage capture + rollup | - backlog execution: + usage{} (input/output/reasoning/cache_read/cache_write/total/cost_usd/model/cost_source... |
 
-**Wiring / tech-debt / API** (43)
+**Wiring / tech-debt / API** (44)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0185 | Should | feature | EPIC: Multi-modal / media orchestration (pluggable capability packs) | Make the pipeline modality-agnostic via PLUGGABLE capability packs, enabled per project when the idea needs th... |
@@ -105,6 +106,7 @@
 | BI-PF-1240 | Should | feature | Graceful orphan/stuck recovery: reap expired+stuck assignments, clean worktrees, wg recover | - job_manager: renew_lease/claim set execution.last_heartbeat_at; recover_expired also reaps STUCK assignments... |
 | BI-PF-1248 | Should | epic | EPIC: Tech Debt & Repo Hygiene (generated artifacts, script drift, gate gaps) | One home for repo-hygiene / tech-debt work that is not a product feature: generated-artifact freshness, script... |
 | BI-PF-1249 | Should | change | Hygiene: pre-commit regenerates derived docs when data/backlog changes (docs-fresh staleness on bookkeeping commits) | Hygiene: pre-commit regenerates derived docs when data/backlog changes (docs-fresh staleness on bookkeeping co... |
+| BI-PF-1250 | Should | change | Governance: every backlog item must belong to an epic (analyze-first; 'Unscoped' last resort; grooming re-homes) | Every backlog item belongs to an epic, going forward, across the board. |
 
 ---
 
@@ -304,5 +306,5 @@
 ---
 
 ## Totals
-- backend: 69 open / 464 closed
+- backend: 71 open / 464 closed
 - dashboard: 146 open / 3 closed
