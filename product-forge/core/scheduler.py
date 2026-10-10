@@ -607,6 +607,15 @@ def _child_row(c: dict[str, Any], *, state: str, wave, order_rank, order_status,
             "wave": wave, "order_rank": order_rank, "order_status": order_status, "reasons": reasons}
 
 
+def _time_rollup(items: list[dict[str, Any]]) -> dict[str, int]:
+    """Aggregate recorded run durations (``execution.duration_seconds``) over items. BI-PF-1237."""
+    durs = [int((i.get("execution") or {}).get("duration_seconds") or 0) for i in items]
+    durs = [d for d in durs if d > 0]
+    return {"tracked": len(durs), "total_seconds": sum(durs),
+            "avg_seconds": round(sum(durs) / len(durs)) if durs else 0,
+            "max_seconds": max(durs) if durs else 0}
+
+
 def epic_status(scope: str = "product_forge", project: str | None = None,
                 epic: str = "", stage: str | None = None) -> dict[str, Any]:
     """Full lifecycle status of an epic: ALL children (open + closed) + an epic rollup (read-only).
@@ -648,7 +657,8 @@ def epic_status(scope: str = "product_forge", project: str | None = None,
             "title": (epic_item or {}).get("title", ""),
             "rollup": {"total": len(rows), "open": open_n, "closed": len(closed_kids),
                        "groomed": groomed, "need_reanalysis": needs, "ready": ready,
-                       "wait": open_n - ready, "done": bool(rows) and open_n == 0},
+                       "wait": open_n - ready, "done": bool(rows) and open_n == 0,
+                       "time": _time_rollup(children)},
             "order": [r["id"] for r in rows if r["state"] == "open"],
             "execution_order": (epic_item or {}).get("execution_order") or [],
             "children": rows}
@@ -700,6 +710,7 @@ def backlog_status(scope: str = "product_forge", project: str | None = None,
              for it in backlog.order_by_priority(standalone)]
     agg["standalone_open"] = len(standalone)
     agg["standalone_ready"] = sum(1 for r in arows if r["order_status"] == "READY")
+    agg["time"] = _time_rollup(op + cl)
     return {"scope": scope, "project": project or "", "rollup": agg,
             "epics": epic_rows, "standalone": arows}
 
