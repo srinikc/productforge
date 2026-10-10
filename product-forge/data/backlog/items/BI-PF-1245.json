@@ -1,0 +1,182 @@
+{
+  "id": "BI-PF-1245",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "cicd-orchestrator-view",
+  "label": "PF Backlog 562",
+  "title": "Orchestrator UI: small CI/CD view over the engineering ci-cd API (gates x tiers x status)",
+  "body": "## Goal & value\nA small orchestrator UI view that renders the CI/CD + gates model from the read API (BI-PF-1239), so an\noperator can see the pipeline, gates, owners and last verdict for `product_forge` and each generated product.\n\n## In scope (UI; consumes the API - adds none)\n- Read `GET /api/v1/engineering/ci-cd`, `/ci-cd/{scope}`, `/gates`.\n- Show: tiers x gates (catalog), owners, counts, and the last run verdict/evidence per scope.\n- Scope switcher (product_forge | project:<id>); `not_built` state for un-built products.\n\n## Out of scope\n- The API/model itself (BI-PF-1239, done) and any gate behaviour change.\n- The legacy dashboard scope (excluded; see config/pf-review-scope.json).\n\n## Acceptance (G/W/T)\n- Given the endpoints return data, when the view loads, then gates/tiers/owners + last verdict render per scope.\n- Given a `project` scope with no repo, then the view shows the explicit `not_built` state (no error).\n- Read-only: the view never mutates state.\n\n## Dependencies & links (by id)\nConsumes BI-PF-1239 (API). Epic BI-PF-1243. Model: docs/CI-CD-AND-GATES-SSOT.md (Part D).\n\n## Note\nDeferred - \"we will do it later\" (recorded now so it is not lost).",
+  "source": "user request",
+  "status": "new",
+  "priority": "P2",
+  "moscow": "Should",
+  "value": 3,
+  "effort": 2,
+  "risk": 1,
+  "deps": [],
+  "links": {
+    "uses_api": "BI-PF-1239",
+    "source_ref": "docs/CI-CD-AND-GATES-SSOT.md"
+  },
+  "decisions": [],
+  "follow_up": {},
+  "brief": {
+    "problem": "A small orchestrator UI view that renders the CI/CD + gates model from the read API (BI-PF-1239), so an\noperator can see the pipeline, gates, owners and last verdict for `product_forge` and each generated product.",
+    "what_adds": "A small orchestrator UI view that renders the CI/CD + gates model from the read API (BI-PF-1239), so an\noperator can see the pipeline, gates, owners and last verdict for `product_forge` and each generated product.",
+    "why": "A small orchestrator UI view that renders the CI/CD + gates model from the read API (BI-PF-1239), so an\noperator can see the pipeline, gates, owners and last verdict for `product_forge` and each generated product.",
+    "who_feels": "Product Forge maintainers and consumers.",
+    "source": "authored"
+  },
+  "objective": "A small orchestrator UI view that renders the CI/CD + gates model from the read API (BI-PF-1239), so an\noperator can see the pipeline, gates, owners and last verdict for `product_forge` and each generated product.",
+  "acceptance_criteria": [
+    "Given the endpoints return data, when the view loads, then gates/tiers/owners + last verdict render per scope.",
+    "Given a `project` scope with no repo, then the view shows the explicit `not_built` state (no error).",
+    "Read-only: the view never mutates state."
+  ],
+  "in_scope": [
+    "Read `GET /api/v1/engineering/ci-cd`, `/ci-cd/{scope}`, `/gates`.",
+    "Show: tiers x gates (catalog), owners, counts, and the last run verdict/evidence per scope.",
+    "Scope switcher (product_forge | project:<id>); `not_built` state for un-built products."
+  ],
+  "out_of_scope": [
+    "The API/model itself (BI-PF-1239, done) and any gate behaviour change.",
+    "The legacy dashboard scope (excluded; see config/pf-review-scope.json)."
+  ],
+  "affected_components": [
+    "config",
+    "docs"
+  ],
+  "affected_files": [
+    "config/pf-review-scope.json",
+    "docs/CI-CD-AND-GATES-SSOT.md"
+  ],
+  "approach": "Read `GET /api/v1/engineering/ci-cd`, `/ci-cd/{scope}`, `/gates`.; Show: tiers x gates (catalog), owners, counts, and the last run verdict/evidence per scope.; Scope switcher (product_forge | project:<id>); `not_built` state for un-built products.",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Given the endpoints return data, when the view loads, then gates/tiers/owners + last verdict render per scope.",
+    "Given a `project` scope with no repo, then the view shows the explicit `not_built` state (no error).",
+    "Read-only: the view never mutates state."
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "agent",
+  "requester": "user",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1243",
+  "parent": "BI-PF-1243",
+  "revision": 2,
+  "priority_rank": 2,
+  "priority_class": "P2",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "IN_PROGRESS",
+    "analyzed_at": "",
+    "analyzed_by": "deterministic",
+    "revision_analyzed": 0,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/agent_model_override.py, core/context_review.py, core/cross_review.py, core/discovery_engine.py",
+    "existing_components": [
+      "core/agent_model_override.py",
+      "core/context_review.py",
+      "core/cross_review.py",
+      "core/discovery_engine.py",
+      "core/discovery_panel.py",
+      "core/engineering_flow.py",
+      "core/global_orchestrator.py",
+      "core/multi_model_review.py"
+    ],
+    "existing_apis": [
+      "/api/v1/backlog/epics/{epic_id}/status",
+      "/api/v1/backlog/items/{item_id}/context-review",
+      "/api/v1/backlog/items/{item_id}/status",
+      "/api/v1/backlog/status",
+      "/api/v1/engineering",
+      "/api/v1/engineering/assignments",
+      "/api/v1/engineering/assignments/claim",
+      "/api/v1/engineering/assignments/recover"
+    ],
+    "existing_modules": [
+      "config/ci-cd-gates.json",
+      "config/discovery-panel-settings.json",
+      "config/engineering-flow.json",
+      "config/engineering-workers.json",
+      "config/hardware-tiers.json",
+      "config/licensing-tiers.json"
+    ],
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=1.5",
+      "components=8",
+      "apis=8"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": false,
+    "reasons": [],
+    "computed_at": ""
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-10T18:30:13.950367",
+  "updated_at": "2026-10-10T18:30:16.958961",
+  "score": 1.5,
+  "_note": "review decisions recorded",
+  "api_impact": {
+    "needs_api": false,
+    "reason": "consumes the existing engineering ci-cd API; adds none"
+  },
+  "dashboard_impact": {
+    "needs_dashboard": true,
+    "reason": "this item IS the UI view over the ci-cd API"
+  }
+}
