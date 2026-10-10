@@ -17,6 +17,7 @@ try:
     from core.paths import ROOT as _ROOT
 except ImportError:
     _ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+_ROOT = str(_ROOT)  # core.paths.ROOT may be a Path; normalize for str ops (BI-PF-1244)
 if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 

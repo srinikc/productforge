@@ -76,6 +76,33 @@ def coverage(request: Request, ctx: dict[str, Any] = Depends(authenticate)):
     return from_request(request, engineering_flow.coverage(), resource="engineering")
 
 
+# ── BI-PF-1239: CI/CD + gates model (read-only projection; no engine, no writes) ──
+
+@router.get("/ci-cd", dependencies=[Depends(authenticate)])
+def ci_cd(request: Request, ctx: dict[str, Any] = Depends(authenticate)):
+    """The CI/CD + gates model (tiers x gates x owners) - projection over existing owners."""
+    from core import ci_cd_model
+    return from_request(request, ci_cd_model.load(), resource="engineering")
+
+
+@router.get("/ci-cd/{scope}", dependencies=[Depends(authenticate)])
+def ci_cd_scope(scope: str, request: Request, project: str = "",
+                ctx: dict[str, Any] = Depends(authenticate)):
+    """The effective pipeline for a scope: product_forge, or project:<id> (its own repo/CI)."""
+    from core import ci_cd_model
+    s, p = _scope_project(scope, project)
+    return from_request(request, ci_cd_model.effective(s, p), resource="engineering")
+
+
+@router.get("/gates", dependencies=[Depends(authenticate)])
+def gates(request: Request, scope: str = "product_forge", project: str = "",
+          ctx: dict[str, Any] = Depends(authenticate)):
+    """Gate catalog + last run-bound verdict/evidence for a scope."""
+    from core import ci_cd_model
+    s, p = _scope_project(scope, project)
+    return from_request(request, ci_cd_model.gates(s, p), resource="engineering")
+
+
 # ── PIDL-1 (BI-PF-0376): personal-intelligence context resolver (read-only; orchestration, not worker) ──
 
 @router.get("/pidl/context", dependencies=[Depends(authenticate)])

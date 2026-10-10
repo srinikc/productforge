@@ -1,15 +1,15 @@
 # Backlog Summary
 
-> GENERATED 2026-10-10T14:44:33 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-10T17:34:40 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 61  |  **Closed:** 464
-- `new`: 61
+- **Open:** 64  |  **Closed:** 464
+- `new`: 64
 
-### new, by category (61)
-**API / reports / HIL / misc** (5)
+### new, by category (64)
+**API / reports / HIL / misc** (6)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-PF-0332 | Should | chore | API-5 deferred hardening: rate limiting + request/upload limits + tenant-isolation expansion + event streaming | API-5 deferred hardening: rate limiting + request/upload limits + tenant-isolation expansion + event streaming |
@@ -17,6 +17,7 @@
 | BI-PF-1230 | Should | bug | CI2: PF_ID_ALLOC=strict default breaks CI (shared git-CAS authority unavailable in CI) | CI2: PF_ID_ALLOC=strict default breaks CI (shared git-CAS authority unavailable in CI) |
 | BI-PF-1232 | Should | bug | CI4: regenerate committed derived artifacts (api/openapi.json + docs README/BACKLOG-SUMMARY/documentation-index) | CI4: regenerate committed derived artifacts (api/openapi.json + docs README/BACKLOG-SUMMARY/documentation-inde... |
 | BI-PF-1239 | Should | feature | CI/CD model + read API for orchestrator/UI (single projection of gates/tiers/triggers) | One read-only projection so the dashboard/orchestrator can render CI/CD + gate status. - `core/ci_cd_model.py`... |
+| BI-PF-1243 | Should | epic | EPIC: CI/CD & Gates - SSOT doc + model + read API (PF + generated products) | One place to understand and read (via API) how PF builds/verifies/ships and how generated products do: the CI/... |
 
 **Bug fixes** (4)
 | ID | MoSCoW | Type | Title | Objective |
@@ -46,15 +47,16 @@
 | BI-PF-0390 | Should | epic | EPIC A: PF Commercial & IP Foundation (contracts, Go core, licensing, packaging, EAP, RDC, governance, vertical slice) | EPIC A — the needed-now foundation: A0 baseline freeze + ADR register; A1 thin contracts incl. Go<->Python con... |
 | BI-PF-0396 | Should | feature | A2: capability registry + entitlement-at-boundary + asymmetric licensing | A2 — capability registry + entitlement checks at execution boundaries + asymmetric licensing (public-key verif... |
 
-**Specs / cache / context / artifacts** (4)
+**Specs / cache / context / artifacts** (5)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0206 | Should | tech-debt | Backend: model downloader + local cache + license-acceptance gate + models.lock (open-weights) | One owner module that downloads only the weights a project's capability pack needs, into a gitignored local ca... |
 | BI-0225 | Should | feature | Parallel section/feature generation | Run section/per-feature agent calls in parallel with a bounded worker pool and merge results deterministically... |
 | BI-PF-1212 | Should | feature | C10: Security-event audit/evidence (evidence-grade) + durable SecurityContext propagation | C10: Security-event audit/evidence (evidence-grade) + durable SecurityContext propagation |
 | BI-PF-1238 | Should | change | Docs: CI/CD & Gates SSOT (PF + generated products) - triggers, tiers, gates, delivery, text+Mermaid diagrams | One SSOT for how PF builds/verifies/ships and for generated products: trigger map, author-time hooks, precheck... |
+| BI-PF-1241 | Should | feature | Per-item token/cache/cost usage (execution.usage) + runtime usage capture + rollup | - backlog execution: + usage{} (input/output/reasoning/cache_read/cache_write/total/cost_usd/model/cost_source... |
 
-**Wiring / tech-debt / API** (40)
+**Wiring / tech-debt / API** (41)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0185 | Should | feature | EPIC: Multi-modal / media orchestration (pluggable capability packs) | Make the pipeline modality-agnostic via PLUGGABLE capability packs, enabled per project when the idea needs th... |
@@ -97,6 +99,7 @@
 | BI-PF-1223 | Should | change | Process: exclude the legacy Dashboard scope from PF review checks + suspend backend<->dashboard reciprocity (retain, retire later) | Dashboard (design + instance) declared LEGACY: excluded from PF review/advisory checks, RETAINED in the backlo... |
 | BI-PF-1228 | Should | epic | EPIC: Make CI green - pre-existing build-breakage cleanup (deps, id-authority, cross-platform, generated artifacts, tests) | A green, trustworthy `structure` CI check so PRs merge normally (no override), and "green locally" == "green i... |
 | BI-PF-1237 | Should | feature | Per-item time tracking: execution.duration_seconds + attempt + time rollup | - job_manager.complete()/fail(): record execution.duration_seconds (wall-clock from started_at) + increment at... |
+| BI-PF-1240 | Should | feature | Graceful orphan/stuck recovery: reap expired+stuck assignments, clean worktrees, wg recover | - job_manager: renew_lease/claim set execution.last_heartbeat_at; recover_expired also reaps STUCK assignments... |
 
 ---
 
@@ -296,5 +299,5 @@
 ---
 
 ## Totals
-- backend: 61 open / 464 closed
+- backend: 64 open / 464 closed
 - dashboard: 146 open / 3 closed
