@@ -32,8 +32,18 @@ def _which(exe: str) -> bool:
 
 
 def _run(cmd: List[str], cwd: str, timeout: int = 600) -> Dict:
+    # IS-PF-0037 (RCCA): a validated tree must import its OWN packages - the caller's inherited
+    # PYTHONPATH (pointing at the operator's checkout) makes the validator's tests import a
+    # MIX of validator + operator modules (161 collection errors in lane runs). Rely on the
+    # run itself for sys.path (python -m pytest resolves rootdir), and clear only foreign
+    # PYTHONPATH entries pointing outside cwd.
+    env = dict(os.environ)
+    if cwd:
+        parts = [p for p in env.get("PYTHONPATH", "").split(os.pathsep) if p]
+        kept = [p for p in parts if os.path.normcase(os.path.abspath(p)) == os.path.normcase(os.path.abspath(cwd))]
+        env["PYTHONPATH"] = os.pathsep.join(kept)
     try:
-        r = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, timeout=timeout)
+        r = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, timeout=timeout, env=env)
         tail = ((r.stdout or "") + (("\n[stderr]\n" + r.stderr) if r.stderr else ""))[-4000:]
         return {"cmd": " ".join(cmd), "ok": r.returncode == 0, "tail": tail}
     except subprocess.TimeoutExpired:
@@ -110,6 +120,13 @@ def run_verification(project_dir: str, stack_hints: Optional[List[str]] = None,
         )
         if _which("python"):
             args = ["python", "-m", "pytest", "-q"]
+            # IS-PF-0037: a bare `pytest -q` from the tree root makes pytest collect the WHOLE
+            # tree; same-basename test modules then collide and collection explodes with ~161
+            # errors (rootdir must be the suite's own dir). Target the project's declared suite
+            # root: the framework repo gates on its canonical suite (test-framework/tests).
+            suite_dir = os.path.join(project_dir, "test-framework", "tests")
+            if os.path.isdir(suite_dir):
+                args.append(suite_dir)
             paths = []
             if suite:
                 try:

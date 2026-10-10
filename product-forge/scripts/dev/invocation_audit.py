@@ -47,6 +47,7 @@ ENTRY_RUNTIME = [
 ]
 ENTRY_CLI = [
     "scripts/run_pipeline.py", "scripts/pipeline.py", "core/main.py",
+    "scripts/pf.py",
     "dashboard/server.py", "dashboard/api/app.py", "approve.py",
 ]
 ENTRY_TOOLING = ["scripts/dev", "adapters", "scripts/setup"]

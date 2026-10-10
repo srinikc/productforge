@@ -59,6 +59,11 @@ ALLOWLIST = {
     "agent_migrator", "service_catalog", "business_skills_selector", "code_analyzer",
     "build_utility", "code_executor", "docker_compose_generator", "websocket_manager",
     "memory_api", "marketing", "intake_api", "main", "agent_card_loader",
+    # go_host (B1, BI-PF-0394): compiled Go-core invocation edge; TODAY operator/CLI-wired
+    # (`/pf go status|ping|validate`). Becomes RUNTIME-wired when the first shipped/sensitive
+    # feature consumer (B2/B3, pipeline integration stage) lands in pfcore - recorded decision,
+    # IS-PF-0037/BI-PF-1246 (not a silent allowlist: explicit follow-through in the epic).
+    "go_host",
 }
 
 # Naming: "factory" is never stored/surfaced — it is "Product Forge".
@@ -535,7 +540,11 @@ def legacy_guard_audit():
             bad.append(f"{rel}: DELETED")
             continue
         try:
-            h = hashlib.sha256(open(p, "rb").read()).hexdigest()
+            raw = open(p, "rb").read()
+            # IS-PF-0037 (RCCA): hash as the git blob was hashed — normalize CRLF/CR to LF so a
+            # Windows CRLF checkout (core.autocrlf) of a byte-identical LF blob cannot flag the
+            # pristine file as CHANGED; content-not-bytes is the frozen intent.
+            h = hashlib.sha256(raw.replace(b"\r\n", b"\n").replace(b"\r", b"\n")).hexdigest()
         except Exception:
             bad.append(f"{rel}: UNREADABLE"); continue
         if h != meta.get("sha256"):

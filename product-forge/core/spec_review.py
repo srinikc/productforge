@@ -44,6 +44,23 @@ ARTIFACTS: Dict[str, tuple] = {
     "docs/infra.json": ("architect", False),
 }
 
+# IS-PF-0037: the FRAMEWORK repo (product_forge) does not author generated-product artifacts;
+# its architecture authority is docs/PF-TARGET-ARCHITECTURE-AND-IP-PLAN.md + the A0 ADR register.
+# Scope-aware: for product_forge these become OPTIONAL so the checker gates real content, not
+# generated-product file names. (Extend the owner mapping; no new store/checker.)
+_FRAMEWORK_OPTIONAL = {
+    "docs/architecture.md": "docs/PF-TARGET-ARCHITECTURE-AND-IP-PLAN.md",
+    "docs/requirements.md": "docs/PF-TARGET-ARCHITECTURE-AND-IP-PLAN.md",
+    "docs/design.md": "docs/PF-TARGET-ARCHITECTURE-AND-IP-PLAN.md",
+    "docs/product-design-spec.md": "",
+    "docs/ux-ia.md": "",
+    "docs/infra.json": "",
+}
+
+
+def _framework_scope(project: str) -> bool:
+    return str(project or "") == "product_forge"
+
 _FR = re.compile(r"\bFR[-_]?\d+\b", re.I)
 _NFR = re.compile(r"\bNFR[-_]?\d+\b", re.I)
 _PLACEHOLDER = re.compile(r"\b(TODO|TBD|FIXME|placeholder|lorem ipsum)\b", re.I)
@@ -87,7 +104,7 @@ def _finding(idx: int, artifact: str, owner: str, cls: str, severity: str,
 
 
 def _review_one(artifact: str, owner: str, text: str, idx: int,
-                required: bool = True) -> (List[Dict], int):
+                required: bool = True, framework: bool = False) -> (List[Dict], int):
     fs: List[Dict] = []
 
     def add(**kw):
@@ -117,19 +134,26 @@ def _review_one(artifact: str, owner: str, text: str, idx: int,
 
     low = text.lower()
 
+    # IS-PF-0037 (framework scope): FR-/NFR- numbering is the generated-product contract; the
+    # framework's requirements authority is the ADR register + item linkage (recorded decision),
+    # so these coverage heuristics are advisory here, not blocking. (fw flag arrives via
+    # _review_one(framework=...); the downgrade is applied at the add sites below via fw_cls.)
+    def _fw_cls(default_cls: str) -> str:
+        return "OPTIONAL" if framework else default_cls
+
     if artifact == "docs/requirements.md":
         fr, nfr = set(_FR.findall(text)), set(_NFR.findall(text))
         body_txt = _IDS.sub(" ", text)          # ignore id digits (FR-1, NFR-2, AC-3 ...)
         if not fr:
-            add(cls="BLOCKING", severity="high", category="requirements-coverage",
+            add(cls=_fw_cls("BLOCKING"), severity="high", category="requirements-coverage",
                 location="Functional Requirements",
                 recommendation="No FR-* functional requirements defined.")
         if not nfr:
-            add(cls="BLOCKING", severity="high", category="requirements-coverage",
+            add(cls=_fw_cls("BLOCKING"), severity="high", category="requirements-coverage",
                 location="Non-Functional Requirements",
                 recommendation="No NFR-* non-functional requirements defined.")
         if "acceptance" not in low:
-            add(cls="BLOCKING", severity="high", category="testability",
+            add(cls=_fw_cls("BLOCKING"), severity="high", category="testability",
                 location="requirements",
                 recommendation="Add measurable acceptance criteria per FR/NFR (testability).")
         # E6: acceptance criteria must be TESTABLE (concrete thresholds/measurables present)
@@ -209,13 +233,19 @@ def review_all(project_dir: str, project: Optional[str] = None,
     provided (opt-in, e.g. PIPELINE_SPEC_LLM=1).
     """
     project = project or _project_name(project_dir)
+    fw = _framework_scope(project)
     idx = 0
     reviews: List[Dict] = []
     for artifact, meta in ARTIFACTS.items():
         owner, required = (meta if isinstance(meta, tuple) else (meta, True))
-        path = os.path.join(project_dir, artifact)
+        if fw and artifact in _FRAMEWORK_OPTIONAL:
+            required = False
+            alt = _FRAMEWORK_OPTIONAL[artifact]
+            path = os.path.join(project_dir, alt) if alt else os.path.join(project_dir, artifact)
+        else:
+            path = os.path.join(project_dir, artifact)
         text = _read(path)
-        fs, idx = _review_one(artifact, owner, text, idx, required=required)
+        fs, idx = _review_one(artifact, owner, text, idx, required=required, framework=fw)
         if callable(llm_review) and text.strip():
             try:
                 for rec in (llm_review(artifact, text) or [])[:8]:

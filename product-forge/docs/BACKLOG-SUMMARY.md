@@ -1,14 +1,14 @@
 # Backlog Summary
 
-> GENERATED 2026-10-10T21:31:36 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-10T21:32:31 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 72  |  **Closed:** 464
-- `new`: 72
+- **Open:** 74  |  **Closed:** 464
+- `new`: 74
 
-### new, by category (72)
+### new, by category (74)
 **API / reports / HIL / misc** (8)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
@@ -60,7 +60,7 @@
 | BI-PF-1238 | Should | change | Docs: CI/CD & Gates SSOT (PF + generated products) - triggers, tiers, gates, delivery, text+Mermaid diagrams | One SSOT for how PF builds/verifies/ships and for generated products: trigger map, author-time hooks, precheck... |
 | BI-PF-1241 | Should | feature | Per-item token/cache/cost usage (execution.usage) + runtime usage capture + rollup | - backlog execution: + usage{} (input/output/reasoning/cache_read/cache_write/total/cost_usd/model/cost_source... |
 
-**Wiring / tech-debt / API** (45)
+**Wiring / tech-debt / API** (47)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0185 | Should | feature | EPIC: Multi-modal / media orchestration (pluggable capability packs) | Make the pipeline modality-agnostic via PLUGGABLE capability packs, enabled per project when the idea needs th... |
@@ -74,7 +74,7 @@
 | BI-PF-0387 | Should | feature | PF platform delivery baseline: ONE source for all editions; new shipped/sensitive logic -> Go; existing -> compiled (Nuitka); no raw .py at customer; migrate by value later | PF platform delivery baseline: ONE source for all editions; new shipped/sensitive logic -> Go; existing -> com... |
 | BI-PF-0388 | Should | task | ADR: PF platform shipped editions use compiled artifacts (Go core + compiled-Python), never raw .py; one source, many editions | ADR: PF platform shipped editions use compiled artifacts (Go core + compiled-Python), never raw .py; one sourc... |
 | BI-PF-0391 | Should | epic | EPIC B: PF Scale & Editions (gateways, persistence, OEM, Rust, WASM, decomposition, migration) | EPIC B — B1 PF Go core (compiled host, architectural/mandatory); B2 gateways (Model/Tool/Memory/Infra); B3 per... |
-| BI-PF-0394 | Should | feature | B1: PF Go core (Go<->Python seam) | B1 — a minimal native Go host: new shipped/sensitive logic lands here. The host COMPILES (go build); it never ... |
+| BI-PF-0394 | None | None | B1: PF Go core (Go<->Python seam) |  |
 | BI-PF-0395 | Should | feature | A6: change classifier + drift guard + language rule + no-undeclared-dep | A6 — governance: classify every change; enforce the language rule (shipped+sensitive -> Go); fail on undeclare... |
 | BI-PF-0397 | Should | feature | A4: EAP delivery manifest + validator/registry + compatibility | A4 — EAP (manifest) composes contracts; validator/registry; versioning + compatibility. Executor role is parke... |
 | BI-PF-0398 | Should | feature | A3: PF platform build->package->deploy + compiled packaging + signing + SBOM/LBOM + NO-RAW-.py gate (absorbs BI-PF-0383) | A3 — build->package->deploy pipeline: compiled packaging (Nuitka for Python + go build for Go) + signing + SBO... |
@@ -104,6 +104,8 @@
 | BI-PF-1228 | Should | epic | EPIC: Make CI green - pre-existing build-breakage cleanup (deps, id-authority, cross-platform, generated artifacts, tests) | A green, trustworthy `structure` CI check so PRs merge normally (no override), and "green locally" == "green i... |
 | BI-PF-1237 | Should | feature | Per-item time tracking: execution.duration_seconds + attempt + time rollup | - job_manager.complete()/fail(): record execution.duration_seconds (wall-clock from started_at) + increment at... |
 | BI-PF-1240 | Should | feature | Graceful orphan/stuck recovery: reap expired+stuck assignments, clean worktrees, wg recover | - job_manager: renew_lease/claim set execution.last_heartbeat_at; recover_expired also reaps STUCK assignments... |
+| BI-PF-1246 | Should | feature | Delivery lane reconciliation + auto-issue/auto-RCCA on validation FAIL + app_boot checker fix | - delivery.reconcile(): remote truth (PR state + origin/develop tip) vs item state; hooks on worker start + wg... |
+| BI-PF-1247 | Should | feature | Worker-delivered PRs satisfy FEATURE_PR gates: review/lint/structure run-bound records on work complete | - work complete (manual + auto) runs the gate recorders in the worktree before handing to the lane: lint recor... |
 | BI-PF-1248 | Should | epic | EPIC: Tech Debt & Repo Hygiene (generated artifacts, script drift, gate gaps) | One home for repo-hygiene / tech-debt work that is not a product feature: generated-artifact freshness, script... |
 | BI-PF-1249 | Should | change | Hygiene: pre-commit regenerates derived docs when data/backlog changes (docs-fresh staleness on bookkeeping commits) | Hygiene: pre-commit regenerates derived docs when data/backlog changes (docs-fresh staleness on bookkeeping co... |
 | BI-PF-1250 | Should | change | Governance: every backlog item must belong to an epic (analyze-first; 'Unscoped' last resort; grooming re-homes) | Every backlog item belongs to an epic, going forward, across the board. |
@@ -307,5 +309,5 @@
 ---
 
 ## Totals
-- backend: 72 open / 464 closed
+- backend: 74 open / 464 closed
 - dashboard: 146 open / 3 closed
