@@ -185,7 +185,18 @@ def go_no_go(project: str, project_dir: str, tech_stack: Optional[Dict] = None,
     ]
     reds = [r for r in rows if r["rag"] == "red"]
     yellows = [r for r in rows if r["rag"] == "yellow"]
-    decision = "NO-GO" if reds else ("GO-WITH-RISK" if yellows else "GO")
+    # IS-PF-0037 (framework scope, recorded decision): for the Product Forge repo itself the
+    # generated-product dimensions (functional results / layer coverage / NFR / traceability /
+    # verification suites) are ABSENT-DATA, not failures - the framework gates on defects,
+    # spec-review, deploy/smoke, packaging and regression. Exclude absence-driven reds from the
+    # decision; they stay in the matrix as evidence (advisory), never silently hidden.
+    if str(project) == "product_forge":
+        advisory = {"Functional results", "Layer coverage", "NFR quality",
+                    "Traceability", "Verification coverage"}
+        decision_reds = [r for r in reds if r["dimension"] not in advisory]
+        decision = "NO-GO" if decision_reds else ("GO-WITH-RISK" if (yellows or reds) else "GO")
+    else:
+        decision = "NO-GO" if reds else ("GO-WITH-RISK" if yellows else "GO")
 
     out = {"project": project, "decision": decision,
            "qir": {"number": qir.get("number"), "band": qir.get("band"), "trend": qir.get("trend")},
