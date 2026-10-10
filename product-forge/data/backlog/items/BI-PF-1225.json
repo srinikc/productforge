@@ -1,0 +1,176 @@
+{
+  "id": "BI-PF-1225",
+  "tag": "PF",
+  "type": "bug",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "ci-py311-fstring-compat",
+  "label": "PF Backlog 549",
+  "title": "Defect/RCCA: CI (py3.11) broken by f-strings with a backslash inside {...} (PEP 701 is 3.12+); add a pycompat guard",
+  "body": "## Problem / why\nThe `structure` CI job failed on EVERY develop push (~14s) at `import core` - before any gate ran.\nCI runs Python 3.11; local dev runs 3.14, so the code was green locally but a SyntaxError in CI.\n\n## 5-Why (RCCA)\n1. CI died importing `core/__init__` -> SyntaxError in `core/presentation_generator.py:645`.\n2. The f-string had `\\n` inside a replacement field `{...}` (a nested f-string inside the braces).\n3. Python 3.11 forbids a backslash in an f-string expression part; 3.12 (PEP 701) relaxed it.\n4. Dev machine runs 3.14, so the construct parsed; nothing enforced the CI target interpreter (3.11).\n5. No compatibility guard + no pinned interpreter -> 3.12-only syntax can ship.\nROOT CAUSE: dev/CI interpreter divergence (3.14 vs 3.11) with no guard.\nSame class found in 3 places: presentation_generator.py:645, code_executor.py:146, customer_onboarding.py:115.\n\n## Corrective\nHoist the backslash out of the replacement field in all 3 sites (build the string in a local var / use chr(10)).\n\n## Guard (new - prevents recurrence)\n`scripts/dev/pycompat_check.py`: flags a backslash inside an f-string replacement field (any nesting).\nWired into the fast `precheck` tier AND the pre-commit hook (changed .py files).\n\n## Acceptance criteria (G/W/T)\n- Given a file with a backslash inside an f-string `{...}`, when `pycompat_check` runs, then it exits 1.\n- Given the clean tree, then `precheck` fast/`--full` is green and the CI `structure` job passes.\n- Given a dev on 3.12+, then the guard still catches the 3.11-incompatible construct.\n\n## Verification / test plan\n`python scripts/dev/pycompat_check.py` (whole tree) + `python scripts/dev/precheck.py` fast tier.",
+  "source": "CI failure (structure job)",
+  "status": "new",
+  "priority": "P2",
+  "moscow": "Should",
+  "value": 5,
+  "effort": 2,
+  "risk": 2,
+  "deps": [],
+  "links": {
+    "source_ref": "https://github.com/srinikc/productforge/actions",
+    "backend_capability": [
+      {
+        "descriptor": "scripts/dev/pycompat_check.py",
+        "kind": "script"
+      },
+      {
+        "descriptor": "scripts/dev/precheck.py",
+        "kind": "script"
+      },
+      {
+        "descriptor": "core/presentation_generator.py",
+        "kind": "module"
+      }
+    ]
+  },
+  "decisions": [],
+  "follow_up": {},
+  "brief": {
+    "problem": "The `structure` CI job failed on EVERY develop push (~14s) at `import core` - before any gate ran.\nCI runs Python 3.11; local dev runs 3.14, so the code was green locally but a SyntaxError in CI.",
+    "what_adds": "Defect/RCCA: CI (py3.11) broken by f-strings with a backslash inside {...} (PEP 701 is 3.12+); add a pycompat guard",
+    "why": "The `structure` CI job failed on EVERY develop push (~14s) at `import core` - before any gate ran.\nCI runs Python 3.11; local dev runs 3.14, so the code was green locally but a SyntaxError in CI.",
+    "who_feels": "Product Forge maintainers and consumers.",
+    "source": "authored"
+  },
+  "objective": "Defect/RCCA: CI (py3.11) broken by f-strings with a backslash inside {...} (PEP 701 is 3.12+); add a pycompat guard",
+  "acceptance_criteria": [
+    "Given a file with a backslash inside an f-string `{...}`, when `pycompat_check` runs, then it exits 1.",
+    "Given the clean tree, then `precheck` fast/`--full` is green and the CI `structure` job passes.",
+    "Given a dev on 3.12+, then the guard still catches the 3.11-incompatible construct."
+  ],
+  "in_scope": [
+    "Defect/RCCA: CI (py3.11) broken by f-strings with a backslash inside {...} (PEP 701 is 3.12+); add a pycompat guard"
+  ],
+  "out_of_scope": [
+    "Not specified."
+  ],
+  "affected_components": [
+    "core",
+    "scripts"
+  ],
+  "affected_files": [
+    "code_executor.py",
+    "core/presentation_generator.py",
+    "customer_onboarding.py",
+    "presentation_generator.py",
+    "scripts/dev/precheck.py",
+    "scripts/dev/pycompat_check.py"
+  ],
+  "approach": "`python scripts/dev/pycompat_check.py` (whole tree) + `python scripts/dev/precheck.py` fast tier.",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Given a file with a backslash inside an f-string `{...}`, when `pycompat_check` runs, then it exits 1.",
+    "Given the clean tree, then `precheck` fast/`--full` is green and the CI `structure` job passes.",
+    "Given a dev on 3.12+, then the guard still catches the 3.11-incompatible construct."
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "agent",
+  "requester": "CI failure (structure job)",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "",
+  "parent": "",
+  "revision": 2,
+  "priority_rank": 2,
+  "priority_class": "P2",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "IN_PROGRESS",
+    "analyzed_at": "",
+    "analyzed_by": "deterministic",
+    "revision_analyzed": 0,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/defect_loop.py, core/guardrails.py, core/run_guard.py, /api/v1/issues/{iid}/rcca",
+    "existing_components": [
+      "core/defect_loop.py",
+      "core/guardrails.py",
+      "core/run_guard.py"
+    ],
+    "existing_apis": [
+      "/api/v1/issues/{iid}/rcca"
+    ],
+    "existing_modules": [
+      "config/guardrail-policy.json"
+    ],
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=1.88",
+      "components=3",
+      "apis=1"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": false,
+    "reasons": [],
+    "computed_at": ""
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": ""
+  },
+  "created_at": "2026-10-10T10:55:11.455557",
+  "updated_at": "2026-10-10T10:55:12.470799",
+  "score": 1.88,
+  "_note": "review decisions recorded",
+  "api_impact": {
+    "needs_api": false,
+    "reason": "test/gate + syntax fix; no API surface"
+  },
+  "dashboard_impact": {
+    "needs_dashboard": false,
+    "reason": "internal CI/tooling fix; no dashboard surface"
+  }
+}
