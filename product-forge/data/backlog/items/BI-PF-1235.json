@@ -1,0 +1,163 @@
+{
+  "id": "BI-PF-1235",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "",
+  "label": "PF Backlog 553",
+  "title": "grooming/approval refreshes + saves the parent epic execution_order",
+  "body": "## Why\ngrooming/approval updated a child's analysis but left the parent epic's saved execution_order stale (or absent).\nThe user wants grooming to (re)order the epic.\n\n## What\n- grooming.reorder_epics(scope, project, item_ids): recompute + SAVE execution_order for the parent epic(s) of\n  the given items (read-only compute via core.scheduler.epic_order; write via backlog.set_execution_order).\n- Wired into groom, groom_all, decide, decide_all (single reorder for the batch; decide_all suppresses the\n  per-item reorder). Results include epics_reordered.\n\n## Verify\n- test_scheduler_eligibility.test_grooming_reorders_epic: approving a child sets the epic's execution_order to\n  its open children.\n",
+  "source": "pre-implementation review",
+  "status": "new",
+  "priority": "P2",
+  "moscow": "Should",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [],
+  "links": {
+    "related": [
+      "product_forge:BI-PF-1222",
+      "product_forge:BI-PF-1227"
+    ],
+    "backend_capability": [
+      "module:core/grooming.py",
+      "test:test-framework/tests/pipeline/test_scheduler_eligibility.py"
+    ]
+  },
+  "decisions": [],
+  "follow_up": {},
+  "brief": {
+    "problem": "grooming/approval updated a child's analysis but left the parent epic's saved execution_order stale (or absent).\nThe user wants grooming to (re)order the epic.",
+    "what_adds": "- grooming.reorder_epics(scope, project, item_ids): recompute + SAVE execution_order for the parent epic(s) of\n  the given items (read-only compute via core.scheduler.epic_order; write via backlog.set_execution_order).\n- Wired into groom, groom_all, decide, decide_all (single reorder for the batch; decide_all suppresses the\n  per-item reorder). Results include epics_reordered.",
+    "why": "grooming/approval updated a child's analysis but left the parent epic's saved execution_order stale (or absent).\nThe user wants grooming to (re)order the epic.",
+    "who_feels": "Product Forge maintainers and consumers.",
+    "source": "extracted"
+  },
+  "objective": "- grooming.reorder_epics(scope, project, item_ids): recompute + SAVE execution_order for the parent epic(s) of\n  the given items (read-only compute via core.scheduler.epic_order; write via backlog.set_execution_order).\n- Wired into groom, groom_all, decide, decide_all (single reorder for the batch; decide_all suppresses the\n  per-item reorder). Results include epics_reordered.",
+  "acceptance_criteria": [
+    "Objective achieved: - grooming.reorder_epics(scope, project, item_ids): recompute + SAVE execution_order for the parent epic(s) of\n  the given items (read-only compute via core.scheduler.epic_order; write via backlog.set_execution_order).\n- Wired into groom, groom_all, decide, decide_all (single reorder for the batch; decide_all suppresses the\n  per-item reorder). Results include epics_reordered."
+  ],
+  "in_scope": [
+    "grooming/approval refreshes + saves the parent epic execution_order"
+  ],
+  "out_of_scope": [
+    "Not specified."
+  ],
+  "affected_components": [
+    "core"
+  ],
+  "affected_files": [
+    "core/grooming.py"
+  ],
+  "approach": "grooming/approval refreshes + saves the parent epic execution_order",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Objective achieved: - grooming.reorder_epics(scope, project, item_ids): recompute + SAVE execution_order for the parent epic(s) of\n  the given items (read-only compute via core.scheduler.epic_order; write via backlog.set_execution_order).\n- Wired into groom, groom_all, decide, decide_all (single reorder for the batch; decide_all suppresses the\n  per-item reorder). Results include epics_reordered."
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "agent",
+  "requester": "pre-implementation review",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "",
+  "parent": "",
+  "revision": 3,
+  "priority_rank": 3,
+  "priority_class": "P2",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "IN_PROGRESS",
+    "analyzed_at": "",
+    "analyzed_by": "deterministic",
+    "revision_analyzed": 0,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/grooming.py, /api/v1/backlog/grooming/guidelines, /api/v1/backlog/items/{item_id}/analysis, /api/v1/engineering/pidl/approvals/{decision_id}",
+    "existing_components": [
+      "core/grooming.py"
+    ],
+    "existing_apis": [
+      "/api/v1/backlog/grooming/guidelines",
+      "/api/v1/backlog/items/{item_id}/analysis",
+      "/api/v1/engineering/pidl/approvals/{decision_id}"
+    ],
+    "existing_modules": [
+      "config/approval-policy.json",
+      "config/grooming-guidelines.json"
+    ],
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=0.75",
+      "components=1",
+      "apis=3"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": false,
+    "reasons": [],
+    "computed_at": ""
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": ""
+  },
+  "created_at": "2026-10-10T11:18:38.610140",
+  "updated_at": "2026-10-10T11:18:40.129290",
+  "score": 0.75,
+  "_note": "priority set",
+  "dashboard_impact": {
+    "needs_dashboard": false,
+    "reason": "core grooming behavior only",
+    "dashboard_item": null,
+    "reviewed_by": "agent",
+    "reviewed_at": "2026-10-10T11:18:39.794858"
+  },
+  "api_impact": {
+    "needs_api": false,
+    "reason": "core behavior; no new route"
+  }
+}

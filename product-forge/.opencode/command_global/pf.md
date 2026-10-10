@@ -42,6 +42,8 @@ Product Forge's `scripts/run_pipeline.py` (the canonical agent runner).
 1. show the user the `summary` (groomed / pending_approval / flagged), then
 2. ASK for approval; only on an explicit yes run `approve <id>` / `approve-all` (or re-run with `--approve`).
 For one-shot (no prompt) use `/pf backlog groom-all --approve` (or `groom <id> --approve`).
+Grooming/approval also refreshes + saves the parent epic's `execution_order` (view with `epic-status <id>`,
+`epic-order <id>`).
 
 ## Verb map
 - `/pf help [verb]` — usage overview, or per-verb details (subcommands + flags)

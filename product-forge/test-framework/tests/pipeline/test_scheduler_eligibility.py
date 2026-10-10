@@ -211,3 +211,18 @@ def test_backlog_status_rollup():
         assert st["rollup"]["epics"] >= 1 and ep in {e["id"] for e in st["epics"]}
     finally:
         _clean()
+
+
+def test_grooming_reorders_epic():
+    """Grooming/approving a child refreshes+saves the parent epic's execution_order (BI-PF-1235)."""
+    _clean()
+    try:
+        ep = backlog.add_epic("project", _PROJ, "Epic GR", type_="epic", tag="TST")["id"]
+        a = backlog.add_epic("project", _PROJ, "GRA", epic=ep, tag="TST")["id"]
+        b = backlog.add_epic("project", _PROJ, "GRB", epic=ep, tag="TST")["id"]
+        grooming.groom("project", _PROJ, a, mode="deterministic")
+        grooming.decide("project", _PROJ, a, "APPROVE")  # approve -> reorder parent epic
+        eo = backlog.get_epic("project", _PROJ, ep).get("execution_order") or []
+        assert {r["id"] for r in eo} == {a, b}, eo
+    finally:
+        _clean()
