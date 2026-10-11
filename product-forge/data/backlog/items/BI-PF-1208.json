@@ -1,0 +1,175 @@
+{
+  "id": "BI-PF-1208",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "sec-tool-gw",
+  "label": "PF Backlog 538",
+  "title": "C6: Tool/Action Security Gateway + Tool-Result Guardrail (policy+risk+approval+sandbox per action; injection-scan results)",
+  "body": "## Problem / why\nWe have a tool allow-list, not a per-action authorization gateway; tool RESULTS are not scanned for injection.\n## Acceptance criteria\nEvery agent tool invocation passes policy->risk->approval->sandbox; tool results are content-classified + injection-scanned + trust-labelled before re-entering agent context (e.g. GitHub issue text is untrusted data).",
+  "source": "doc: GenAI Security Gateway Assessment",
+  "status": "new",
+  "priority": "P2",
+  "moscow": "Should",
+  "value": 5,
+  "effort": 3,
+  "risk": 3,
+  "deps": [],
+  "links": {},
+  "decisions": [],
+  "follow_up": {},
+  "brief": {
+    "problem": "We have a tool allow-list, not a per-action authorization gateway; tool RESULTS are not scanned for injection.",
+    "what_adds": "C6: Tool/Action Security Gateway + Tool-Result Guardrail (policy+risk+approval+sandbox per action; injection-scan results)",
+    "why": "We have a tool allow-list, not a per-action authorization gateway; tool RESULTS are not scanned for injection.",
+    "who_feels": "Product Forge maintainers and consumers.",
+    "source": "authored"
+  },
+  "objective": "C6: Tool/Action Security Gateway + Tool-Result Guardrail (policy+risk+approval+sandbox per action; injection-scan results)",
+  "acceptance_criteria": [
+    "Objective achieved: C6: Tool/Action Security Gateway + Tool-Result Guardrail (policy+risk+approval+sandbox per action; injection-scan results)"
+  ],
+  "in_scope": [
+    "C6: Tool/Action Security Gateway + Tool-Result Guardrail (policy+risk+approval+sandbox per action; injection-scan results)"
+  ],
+  "out_of_scope": [
+    "Not specified."
+  ],
+  "affected_components": [
+    "Not specified."
+  ],
+  "affected_files": [
+    "Not specified."
+  ],
+  "approach": "C6: Tool/Action Security Gateway + Tool-Result Guardrail (policy+risk+approval+sandbox per action; injection-scan results)",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Objective achieved: C6: Tool/Action Security Gateway + Tool-Result Guardrail (policy+risk+approval+sandbox per action; injection-scan results)"
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "agent",
+  "requester": "doc: GenAI Security Gateway Assessment",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1202",
+  "parent": "BI-PF-1202",
+  "revision": 2,
+  "priority_rank": 2,
+  "priority_class": "P2",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "IN_PROGRESS",
+    "analyzed_at": "",
+    "analyzed_by": "deterministic",
+    "revision_analyzed": 0,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/agent_tool_loop.py, core/compliance_action_handler.py, core/context_policy.py, core/guardrails.py",
+    "existing_components": [
+      "core/agent_tool_loop.py",
+      "core/compliance_action_handler.py",
+      "core/context_policy.py",
+      "core/guardrails.py",
+      "core/model_policy.py",
+      "core/persona.py",
+      "core/tool_cache.py",
+      "core/tool_catalog.py"
+    ],
+    "existing_apis": [
+      "/api/v1/engineering/pidl/approvals/{decision_id}",
+      "/api/v1/engineering/pidl/policy",
+      "/api/v1/portfolio/supervisor",
+      "/api/v1/portfolio/supervisor/start",
+      "/api/v1/portfolio/supervisor/stop",
+      "/api/v1/tools/catalog",
+      "/api/v1/tools/catalog/{name}",
+      "/api/v1/tools/web-search"
+    ],
+    "existing_modules": [
+      "config/approval-policy.json",
+      "config/context-policy.json",
+      "config/guardrail-policy.json",
+      "config/model-policy.json",
+      "config/persona.json",
+      "config/tool-catalog.json"
+    ],
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=0.83",
+      "components=8",
+      "apis=8"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": false,
+    "reasons": [],
+    "computed_at": ""
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": ""
+  },
+  "created_at": "2026-10-11T09:30:40.712557",
+  "updated_at": "2026-10-11T09:33:21.905461",
+  "score": 0.83,
+  "_note": "priority set",
+  "api_impact": {
+    "needs_api": true,
+    "routes": [
+      "POST /api/v1/security/tools:authorize",
+      "POST /api/v1/security/tool-results:scan"
+    ],
+    "consumers": [
+      "pipeline-orchestrator-ui",
+      "generated-product-runtime"
+    ],
+    "reason": "Security control plane is API-first: enforcement + evidence consumed by the pipeline orchestrator UI and external systems."
+  },
+  "dashboard_impact": {
+    "needs_dashboard": true,
+    "reason": "Security posture/decisions/kill-switch need operator visibility in the orchestrator UI."
+  }
+}
