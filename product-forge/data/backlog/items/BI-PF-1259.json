@@ -1,0 +1,187 @@
+{
+  "id": "BI-PF-1259",
+  "tag": "PF",
+  "type": "change",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "cicd-review-optimize",
+  "label": "PF Backlog 572",
+  "title": "CI/CD review & optimization: clear change-based gate/test/profile mapping (de-ambiguate commit/merge/push/CI)",
+  "body": "## Problem / why\nThe CI/CD gate/test surface has grown large and the mapping \"what runs on commit vs merge vs push vs CI, and which\ntests/gates matter for a given change/profile\" is ambiguous - hard to reason about and optimize (time, overlap,\nredundancy), and easy to be surprised by a pre-existing gate failing.\n\n## Goal & value\nA reviewed, optimized CI/CD that is explicit and change-aware:\n- One authoritative mapping: change type -> which gates/tests run, at which boundary (pre-commit hook / pre-push /\n  precheck tier / CI structure / release).\n- Profiles (FEATURE_PR / INTEGRATION / DOGFOOD / RELEASE) make the depth explicit.\n- Identify overlap/redundancy (gates running twice; full pytest in both precheck and the CI pytest step) and the\n  slowest gates; optimize the fast per-change loop while keeping CI fail-closed.\n- Clarify what is fatal vs advisory, and the area-scoping rules.\n\n## In scope\n- Audit scripts/dev/precheck.py (_GATES tiers/areas), the pre-commit/pre-push hooks, .github/workflows/structure.yml,\n  config/test-matrix.json, config/validation-profiles.json.\n- Produce the change->gate matrix (extend the CI/CD SSOT Part A/B) + a \"why\" per gate + dedup/timing findings.\n- Propose (and, where safe, implement) optimizations: remove duplicate runs, right-size tiers, tighten area-scoping.\n\n## Out of scope\n- Changing gate semantics; the deferred orchestrator CI/CD view (BI-PF-1245).\n\n## Acceptance\n- Documented change->gate/test matrix with owners + tier + fatal/advisory, and a list of concrete optimizations.\n- Measured fast-tier and CI times before/after; CI stays fail-closed.\n\n## Related\ndocs/CI-CD-AND-GATES-SSOT.md (SSOT); BI-PF-0382/0384 (tiers/scoped tests).",
+  "source": "user request",
+  "status": "new",
+  "priority": "P2",
+  "moscow": "Should",
+  "value": 4,
+  "effort": 3,
+  "risk": 2,
+  "deps": [],
+  "links": {
+    "related": [
+      "BI-PF-0382",
+      "BI-PF-0384",
+      "BI-PF-1238"
+    ]
+  },
+  "decisions": [],
+  "follow_up": {},
+  "brief": {
+    "problem": "The CI/CD gate/test surface has grown large and the mapping \"what runs on commit vs merge vs push vs CI, and which\ntests/gates matter for a given change/profile\" is ambiguous - hard to reason about and optimize (time, overlap,\nredundancy), and easy to be surprised by a pre-existing gate failing.",
+    "what_adds": "A reviewed, optimized CI/CD that is explicit and change-aware:\n- One authoritative mapping: change type -> which gates/tests run, at which boundary (pre-commit hook / pre-push /\n  precheck tier / CI structure / release).\n- Profiles (FEATURE_PR / INTEGRATION / DOGFOOD / RELEASE) make the depth explicit.\n- Identify overlap/redundancy (gates running twice; full pytest in both precheck and the CI pytest step) and the\n  slowest gates; optimize the fast per-change loop while keeping CI fail-closed.\n- Clarify what is fatal vs advisory, and the area-scoping rules.",
+    "why": "The CI/CD gate/test surface has grown large and the mapping \"what runs on commit vs merge vs push vs CI, and which\ntests/gates matter for a given change/profile\" is ambiguous - hard to reason about and optimize (time, overlap,\nredundancy), and easy to be surprised by a pre-existing gate failing.",
+    "who_feels": "Product Forge maintainers and consumers.",
+    "source": "authored"
+  },
+  "objective": "A reviewed, optimized CI/CD that is explicit and change-aware:\n- One authoritative mapping: change type -> which gates/tests run, at which boundary (pre-commit hook / pre-push /\n  precheck tier / CI structure / release).\n- Profiles (FEATURE_PR / INTEGRATION / DOGFOOD / RELEASE) make the depth explicit.\n- Identify overlap/redundancy (gates running twice; full pytest in both precheck and the CI pytest step) and the\n  slowest gates; optimize the fast per-change loop while keeping CI fail-closed.\n- Clarify what is fatal vs advisory, and the area-scoping rules.",
+  "acceptance_criteria": [
+    "Documented change->gate/test matrix with owners + tier + fatal/advisory, and a list of concrete optimizations.",
+    "Measured fast-tier and CI times before/after; CI stays fail-closed."
+  ],
+  "in_scope": [
+    "Audit scripts/dev/precheck.py (_GATES tiers/areas), the pre-commit/pre-push hooks, .github/workflows/structure.yml,",
+    "Produce the change->gate matrix (extend the CI/CD SSOT Part A/B) + a \"why\" per gate + dedup/timing findings.",
+    "Propose (and, where safe, implement) optimizations: remove duplicate runs, right-size tiers, tighten area-scoping."
+  ],
+  "out_of_scope": [
+    "Changing gate semantics; the deferred orchestrator CI/CD view (BI-PF-1245)."
+  ],
+  "affected_components": [
+    ".github",
+    "config",
+    "docs",
+    "scripts"
+  ],
+  "affected_files": [
+    ".github/workflows/structure.yml",
+    "config/test-matrix.json",
+    "config/validation-profiles.json",
+    "docs/CI-CD-AND-GATES-SSOT.md",
+    "scripts/dev/precheck.py"
+  ],
+  "approach": "Audit scripts/dev/precheck.py (_GATES tiers/areas), the pre-commit/pre-push hooks, .github/workflows/structure.yml,; Produce the change->gate matrix (extend the CI/CD SSOT Part A/B) + a \"why\" per gate + dedup/timing findings.; Propose (and, where safe, implement) optimizations: remove duplicate runs, right-size tiers, tighten area-scoping.",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Documented change->gate/test matrix with owners + tier + fatal/advisory, and a list of concrete optimizations.",
+    "Measured fast-tier and CI times before/after; CI stays fail-closed."
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "agent",
+  "requester": "user",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1243",
+  "parent": "BI-PF-1243",
+  "revision": 2,
+  "priority_rank": 2,
+  "priority_class": "P2",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "IN_PROGRESS",
+    "analyzed_at": "",
+    "analyzed_by": "deterministic",
+    "revision_analyzed": 0,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/code_quality_gate.py, core/context_review.py, core/cross_review.py, core/merge_gate.py",
+    "existing_components": [
+      "core/code_quality_gate.py",
+      "core/context_review.py",
+      "core/cross_review.py",
+      "core/merge_gate.py",
+      "core/mobile_tester.py",
+      "core/model_gate.py",
+      "core/multi_model_review.py",
+      "core/pr_gate.py"
+    ],
+    "existing_apis": [
+      "/api/v1/backlog/items/{item_id}/context-review",
+      "/api/v1/engineering/gates",
+      "/api/v1/engineering/pidl/gate",
+      "/api/v1/gates/go-no-go",
+      "/api/v1/gates/pr",
+      "/api/v1/gates/pr/merge",
+      "/api/v1/gates/quality",
+      "/api/v1/release/gate"
+    ],
+    "existing_modules": [
+      "config/ci-cd-gates.json",
+      "config/pf-review-scope.json",
+      "config/pidl-profile.json",
+      "config/review-focus.json",
+      "config/test-matrix.json",
+      "config/validation-profiles.json"
+    ],
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=1.0",
+      "components=8",
+      "apis=8"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": false,
+    "reasons": [],
+    "computed_at": ""
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-12T18:45:12.696796",
+  "updated_at": "2026-10-12T18:45:14.956268",
+  "score": 1.0,
+  "_note": "review decisions recorded",
+  "api_impact": {
+    "needs_api": false,
+    "reason": "CI/CD review + doc/optimization; no new API"
+  },
+  "dashboard_impact": {
+    "needs_dashboard": false,
+    "reason": "review/doc + gate tuning; no dashboard surface"
+  }
+}
