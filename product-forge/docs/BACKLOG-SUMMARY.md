@@ -1,21 +1,22 @@
 # Backlog Summary
 
-> GENERATED 2026-10-10T23:26:05 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-12T13:00:15 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 59  |  **Closed:** 479
-- `new`: 59
+- **Open:** 60  |  **Closed:** 479
+- `new`: 60
 
-### new, by category (59)
-**API / reports / HIL / misc** (4)
+### new, by category (60)
+**API / reports / HIL / misc** (5)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-PF-0332 | Should | chore | API-5 deferred hardening: rate limiting + request/upload limits + tenant-isolation expansion + event streaming | API-5 deferred hardening: rate limiting + request/upload limits + tenant-isolation expansion + event streaming |
 | BI-PF-1217 | Should | feature | C15: Security evaluation + red-team suite + security metrics (assurance) | C15: Security evaluation + red-team suite + security metrics (assurance) |
 | BI-PF-1243 | Should | epic | EPIC: CI/CD & Gates - SSOT doc + model + read API (PF + generated products) | One place to understand and read (via API) how PF builds/verifies/ships and how generated products do: the CI/... |
 | BI-PF-1245 | Should | feature | Orchestrator UI: small CI/CD view over the engineering ci-cd API (gates x tiers x status) | A small orchestrator UI view that renders the CI/CD + gates model from the read API (BI-PF-1239), so an operat... |
+| BI-PF-1256 | Should | feature | Local dev auth: self-configuring PF API <-> worker token + dev launcher (no manual env) | Local dev "just works": one command starts the API with a shared, gitignored dev token that the worker reads a... |
 
 **Discovery / HIL / prompts** (6)
 | ID | MoSCoW | Type | Title | Objective |
@@ -290,5 +291,5 @@
 ---
 
 ## Totals
-- backend: 59 open / 479 closed
+- backend: 60 open / 479 closed
 - dashboard: 146 open / 3 closed
