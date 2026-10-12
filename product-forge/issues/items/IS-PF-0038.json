@@ -1,0 +1,27 @@
+{
+  "id": "IS-PF-0038",
+  "tag": "PF",
+  "scope": "product_forge",
+  "project": "",
+  "title": "Defect/RCCA: cross-session double-claim - two sessions claimed the same backlog item (BI-PF-0396)",
+  "body": "## Observed\n`wg work --epic BI-PF-0390` returned `assigned: true` for **BI-PF-0396** while ANOTHER session already held it\n-> the same backlog item was claimed by two sessions (double-claim). A claim must fail closed if the item is taken.\n\n## RCCA (5-Why)\n1. BI-PF-0396 was assigned to two sessions at once.\n2. The lease lives in the git-shared item file (`item.execution{}`) but the other session's claim was only in\n   THEIR working copy (uncommitted/unpushed) -> invisible to my instance -> seen as free.\n3. Each session runs its OWN PF API instance over a SEPARATE working copy -> two assignment authorities.\n4. ADR-0003 assumes ONE PF (single assignment authority); N dev instances break it (the lease is only shared after\n   a commit/push, which is racy).\n5. No guard detects a second instance / foreign token / an uncoordinated (unpushed) lease.\n\nROOT CAUSE: multiple PF API instances == multiple assignment authorities; the per-item lease is not globally\ncoordinated at claim time (same class as BI-PF-0457, fixed for ids via a git-CAS authority).\n\n## Corrective\nAdopt a SINGLE shared PF API instance (one assignment authority) that all sessions use (shared URL + token);\noptionally coordinate the lease through a shared git-remote CAS (like the id counter) for cross-instance/offline.\n\n## Fixed where (planned)\ncore/job_manager.py (claim path), scripts/dev/dev_server.py (single-instance guard), docs/OPERATIONS.\nTracked by backlog BI-PF-1261.\n\n## Guard (preventive)\nRefuse/detect a second dev API on an owned port; a claim finding `execution.worker_id` set (even unpushed) fails\nclosed; verify the lease round-trips via the shared authority.",
+  "kind": "issue",
+  "priority": "P1",
+  "severity": "high",
+  "module": "core/job_manager.py",
+  "status": "open",
+  "rcca": {
+    "root_cause": "multiple PF API instances = multiple assignment authorities; per-item lease not coordinated at claim time",
+    "corrective": "ONE shared PF API instance (single assignment authority) all sessions use; optional git-CAS lease for cross-instance atomicity",
+    "fixed_where": "core/job_manager.py + scripts/dev/dev_server.py (BI-PF-1261)"
+  },
+  "backlog_ref": "BI-PF-1261",
+  "source": "review",
+  "source_ref": "double-claim:BI-PF-0396",
+  "evidence": [],
+  "links": {
+    "backlog": "BI-PF-1261"
+  },
+  "created_at": "2026-10-12T20:45:57.223852",
+  "updated_at": "2026-10-12T20:45:57.244205"
+}
