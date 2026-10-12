@@ -153,6 +153,21 @@ def _check_quality_gate(project_dir: str, run_id: str = "") -> dict[str, Any]:
             "detail": {"mode": latest.get("mode"), "reasons": latest.get("reasons", [])}}
 
 
+def _ensure_quality_gate(val_dir: str, run_id: str) -> None:
+    """BI-PF-1254: produce the repo quality-gate record for the validated tree.
+
+    FEATURE_PR validates a FRESH worktree, which never carries a pre-existing quality-gate record;
+    without running it here the ``quality_gate`` check is always ``unknown`` (-> BLOCKED) for every
+    framework-repo PR. Runs compileall+wired_audit on the PR's code root and records it run-scoped
+    (plus a latest record for back-compat) so ``_check_quality_gate`` reads the PR tree's real result.
+    """
+    try:
+        from core import run_quality_gate
+        run_quality_gate.evaluate(val_dir, "item", run_dir=val_dir, run_id=run_id)
+    except Exception:
+        pass
+
+
 def _check_tests(project_dir: str, project: str) -> dict[str, Any]:
     from core import qa_report
     rep = qa_report.load(project)
@@ -414,6 +429,13 @@ def feature_pr(project: str, project_dir: str, target: str = "", base: str = "",
     if os.path.isdir(os.path.join(val_dir, "product-forge")) \
             and os.path.isfile(os.path.join(val_dir, "product-forge", "core", "paths.py")):
         val_dir = os.path.join(val_dir, "product-forge")
+
+    # BI-PF-1254: FEATURE_PR must produce its OWN repo quality-gate record. A fresh validation
+    # worktree never carries one, so without running it the quality_gate check below would always
+    # be 'unknown' -> BLOCKED (every framework-repo PR). Run compileall+wired_audit on the PR's
+    # code root and record it run-scoped so the checker reads the PR tree's real result.
+    if "quality_gate" in profile("FEATURE_PR")["checks"]:
+        _ensure_quality_gate(val_dir, rid)
 
     checks: dict[str, Any] = {}
     for name in [c for c in profile("FEATURE_PR")["checks"] if c != "target"] + ["close_loop"]:

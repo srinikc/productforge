@@ -42,3 +42,13 @@ def test_active_validations_counts_only_validation_worktrees():
         def list_worktrees(self):
             return [{"branch": "validation/r1"}, {"branch": "wg/x"}, {"branch": "validation/r2"}]
     assert ve._active_validations(_V()) == 2
+
+
+def test_ensure_quality_gate_makes_feature_pr_check_readable(tmp_path, monkeypatch):
+    """BI-PF-1254: a fresh validation worktree has no quality-gate record; feature_pr must run the
+    repo gate so the check reads a real result instead of 'unknown' (-> BLOCKED)."""
+    monkeypatch.setattr(qg, "_run", lambda cmd, cwd, timeout=900: (0, "ok"))
+    pd = str(tmp_path)
+    assert ve._check_quality_gate(pd, "fpr-x")["status"] == "unknown"   # nothing recorded yet
+    ve._ensure_quality_gate(pd, "fpr-x")
+    assert ve._check_quality_gate(pd, "fpr-x")["status"] == "pass"      # reads the run-scoped record
