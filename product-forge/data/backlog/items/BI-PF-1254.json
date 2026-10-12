@@ -1,0 +1,180 @@
+{
+  "id": "BI-PF-1254",
+  "tag": "PF",
+  "type": "bug",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "ops",
+  "external_id": "FEATURE-PR-QUALITY-GATE-LIVE-1",
+  "label": "PF Backlog 569",
+  "title": "FEATURE_PR validation never runs the repo quality gate in the validation worktree -> framework-repo PRs BLOCK with quality_gate unknown",
+  "body": "Observed: BI-PF-0395 delivery BLOCKED on the single check quality_gate 'no quality-gate record' (3 runs, 2026-10-12; also seen on BI-PF-0394 which had to be merged by hand). Root cause: validation_engine.feature_pr runs the FEATURE_PR checks in a FRESH validation worktree, but _check_quality_gate only READS quality-gate.json; nothing RUNS compileall+wired_audit in that worktree, so the record can never exist there -> status 'unknown' -> BLOCKED (fail-closed) for every framework-repo PR. The quality gate is produced only by pipeline_executor (item/amend runs) and the delivery push-ref fallback - not by the PR validation path. RCCA fix: FEATURE_PR runs the repo gate live in the validated code root and records it (run-scoped for the run id) before the quality_gate check reads it.",
+  "source": "generic",
+  "status": "completed",
+  "priority": "P2",
+  "moscow": "Should",
+  "value": 4,
+  "effort": 2,
+  "risk": 2,
+  "deps": [],
+  "links": {
+    "delivery": {
+      "branch": "feature/wg/bi-pf-1254",
+      "merge_sha": "2547860e18e44d7711c83051bb0453e6b4e8a259",
+      "commits": [],
+      "pr": "33",
+      "pr_url": "https://github.com/srinikc/productforge/pull/33",
+      "at": "2026-10-12T12:15:06.501698",
+      "note": "delivery (gh-pr-merge) - PR merged; local branch kept (worker worktree)"
+    }
+  },
+  "decisions": [],
+  "follow_up": {},
+  "brief": {
+    "problem": "Observed: BI-PF-0395 delivery BLOCKED on the single check quality_gate 'no quality-gate record' (3 runs, 2026-10-12; also seen on BI-PF-0394 which had to be merged by hand). Root cause: validation_engine.feature_pr runs the FEATURE_PR checks in a FRESH validation worktree, but _check_quality_gate only READS quality-gate.json; nothing RUNS compileall+wired_audit in that worktree, so the record can never exist there -> status 'unknown' -> BLOCKED (fail-closed) for every framework-repo PR. The quality gate is produced only by pipeline_executor (item/amend runs) and the delivery push-ref fallback - not by the PR validation path. RCCA fix: FEATURE_PR runs the repo gate live in the validated code root and records it (run-scoped for the run id) before the quality_gate check reads it.",
+    "what_adds": "FEATURE_PR validation never runs the repo quality gate in the validation worktree -> framework-repo PRs BLOCK with quality_gate unknown",
+    "why": "Observed: BI-PF-0395 delivery BLOCKED on the single check quality_gate 'no quality-gate record' (3 runs, 2026-10-12; also seen on BI-PF-0394 which had to be merged by hand). Root cause: validation_engine.feature_pr runs the FEATURE_PR checks in a FRESH validation worktree, but _check_quality_gate only READS quality-gate.json; nothing RUNS compileall+wired_audit in that worktree, so the record can never exist there -> status 'unknown' -> BLOCKED (fail-closed) for every framework-repo PR. The quality gate is produced only by pipeline_executor (item/amend runs) and the delivery push-ref fallback ",
+    "who_feels": "Product Forge maintainers and consumers.",
+    "source": "extracted"
+  },
+  "objective": "Make FEATURE_PR validation self-sufficient: run compileall+wired_audit in the validated code root and record a run-scoped quality-gate record so quality_gate reflects the PR tree (pass/fail), never a spurious 'unknown'/BLOCKED.",
+  "acceptance_criteria": [
+    "feature_pr runs the repo quality gate in the validation worktree and records it (run-scoped + latest)",
+    "quality_gate check reads the just-produced record: pass on a clean PR tree, fail (not unknown) on a broken one",
+    "regression test: quality_gate is pass after feature_pr on a clean framework branch (no pre-existing record)"
+  ],
+  "in_scope": [
+    "core/validation_engine.feature_pr (run + record the gate before the check)",
+    "run_quality_gate.evaluate call wiring (run_dir/run_id)",
+    "pipeline test for feature_pr quality_gate"
+  ],
+  "out_of_scope": [
+    "changing the gate's checks (compileall+wired_audit stay as-is)",
+    "the RELEASE profile path (already runs the gate)"
+  ],
+  "affected_components": [
+    "Not specified."
+  ],
+  "affected_files": [
+    "core/validation_engine.py",
+    "test-framework/tests/pipeline/test_parallel_validation.py"
+  ],
+  "approach": "In feature_pr, after the validated code root (val_dir) is resolved and before the checker loop, call run_quality_gate.evaluate(val_dir, 'item', run_dir=val_dir, run_id=rid); the existing _check_quality_gate(val_dir, rid) then reads the run-scoped record. Fail-closed preserved: a failing gate yields status 'fail' -> run FAIL.",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Objective achieved: FEATURE_PR validation never runs the repo quality gate in the validation worktree -> framework-repo PRs BLOCK with quality_gate unknown"
+  ],
+  "risks": [
+    "running the gate adds ~30-60s to each FEATURE_PR run (acceptable: truth over speed)",
+    "wired_audit advisories must stay non-fatal (they already are)"
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "unassigned",
+  "requester": "generic",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-0360",
+  "parent": "BI-PF-0360",
+  "revision": 3,
+  "priority_rank": 2,
+  "priority_class": "P2",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "IN_PROGRESS",
+    "analyzed_at": "",
+    "analyzed_by": "deterministic",
+    "revision_analyzed": 0,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/code_quality_gate.py, core/merge_gate.py, core/model_gate.py, core/pr_gate.py",
+    "existing_components": [
+      "core/code_quality_gate.py",
+      "core/merge_gate.py",
+      "core/model_gate.py",
+      "core/pr_gate.py",
+      "core/qa_report.py",
+      "core/quality_metrics.py",
+      "core/repo_setup.py",
+      "core/run_quality_gate.py"
+    ],
+    "existing_apis": [
+      "/api/v1/dogfood/runs/{run_id}",
+      "/api/v1/engineering/gates",
+      "/api/v1/engineering/pidl/gate",
+      "/api/v1/gates/go-no-go",
+      "/api/v1/gates/pr",
+      "/api/v1/gates/pr/merge",
+      "/api/v1/gates/quality",
+      "/api/v1/projects/{project}/repo"
+    ],
+    "existing_modules": [
+      "config/ci-cd-gates.json",
+      "config/id-blocks.json",
+      "config/validation-profiles.json"
+    ],
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=1.5",
+      "components=8",
+      "apis=8"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": false,
+    "reasons": [],
+    "computed_at": ""
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-12T11:34:51.186589",
+  "updated_at": "2026-10-12T12:15:06.720335",
+  "score": 1.5,
+  "_note": "delivered: FEATURE_PR runs the repo quality gate live; PR#33 merged 2547860e",
+  "dashboard_impact": {
+    "needs_dashboard": false,
+    "reason": "delivery-lane correctness, no UI surface"
+  }
+}
