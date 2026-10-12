@@ -724,40 +724,42 @@ def restamp(scope: str, project: str | None = None, *, epic: str = "", ids: list
 
 
 def regroom(scope: str, project: str | None = None, *, epic: str = "", ids: list[str] | None = None,
-            limit: int = 0, mode: str = "ai", approve: bool = False,
-            include_fresh: bool = False) -> dict[str, Any]:
+            limit: int = 0, mode: str = "ai", approve: bool = False, include_fresh: bool = False,
+            batch: int = 0, jobs: int = 0) -> dict[str, Any]:
     """FULL (BI-PF-1258): re-groom items so they reflect the CURRENT architecture - analysis + context + restamp.
 
     Checks whether the design/architecture changed (``analysis_is_stale``): if so, the context is **updated**
     (force re-derive) so the item reflects the change; if context is merely **missing**, it is gap-filled.
-    **AI is the default** (deterministic fallback, never silent). Approval gate: with ``approve=True`` clean
-    items are approved (``decide_all``) in one call; flagged ones are returned for manual handling. The change
-    is recorded in the engineering change log. Scope: ``epic`` children / explicit ``ids`` / ALL in ``scope``.
+
+    **AI is the default** and is **batched + concurrent exactly like ``groom_all``** (``batch`` items per LLM
+    call, ``jobs`` batches in parallel; deterministic fallback per item, never silent). Approval gate: with
+    ``approve=True`` clean items are approved in one call; flagged ones are returned for manual handling. The
+    change is recorded in the engineering change log. Scope: ``epic`` children / explicit ``ids`` / ALL in ``scope``.
     """
     from core import backlog
-    regroomed: list[str] = []
+    targets: list[str] = []
     for it in _targets(scope, project, epic, ids):
-        if limit and len(regroomed) >= int(limit):
+        if limit and len(targets) >= int(limit):
             break
         stale = backlog.analysis_is_stale(it)
         missing = any(_empty(it.get(f)) for f in _CONTEXT_FIELDS)
-        if not include_fresh and not stale and not missing:
-            continue
-        # architecture changed (stale) => overwrite/refresh context; missing context => gap-fill.
-        with contextlib.suppress(Exception):
-            r = groom(scope, project, str(it.get("id")), mode=mode, force=bool(stale))
-            if r.get("applied"):
-                regroomed.append(str(it.get("id")))
-    approved: list[str] = []
-    flagged: list[dict] = []
-    if approve and regroomed:
-        d = decide_all(scope, project, "APPROVE", ids=regroomed)
-        approved = d.get("approved") or []
-        flagged = d.get("flagged") or []
+        if include_fresh or stale or missing:
+            targets.append(str(it.get("id")))
+    if not targets:
+        return {"regroomed": [], "count": 0, "approved": [], "flagged": [], "needs_approval": [],
+                "batch": 0, "jobs": 0}
+    # Delegate to the batched/concurrent groom path (force=True: stale items are COMPLETE and would be skipped).
+    res = groom_all(scope, project, mode=mode, batch=int(batch or 0), limit=0, force=True,
+                    jobs=int(jobs or 0), ids=targets, approve=approve)
+    regroomed = [str(x) for x in (res.get("groomed") or [])]
+    ap = res.get("approval") or {}
+    approved = [str(x) for x in (ap.get("approved") or [])]
+    flagged = ap.get("flagged") or []
     _record_change(scope, project, "redesign",
-                   f"regroom {len(regroomed)} item(s) (mode={mode}; update-on-change)", regroomed)
+                   f"regroom {len(regroomed)} item(s) (mode={mode}; batched)", regroomed)
     return {"regroomed": regroomed, "count": len(regroomed), "approved": approved, "flagged": flagged,
-            "needs_approval": [x for x in regroomed if x not in approved]}
+            "needs_approval": [x for x in regroomed if x not in approved],
+            "batch": res.get("batch"), "jobs": res.get("jobs"), "summary": res.get("summary")}
 
 
 def groom_all(scope: str, project: str | None, mode: str = "", *, batch: int = 0, limit: int = 0,
