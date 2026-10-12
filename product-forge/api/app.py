@@ -65,6 +65,35 @@ app.add_middleware(
 context_middleware(app)
 install_handlers(app)
 
+
+@app.on_event("startup")
+def _start_state_checkpoint():
+    """BI-PF-1257: periodic durable-state checkpoint (batch safety net for non-delivery mutations).
+
+    The delivery lane checkpoints per-delivery; this covers grooming/restamp/triage/intake mutations made
+    through the API. Interval via PF_STATE_CHECKPOINT_SECONDS (default 900; <=0 disables).
+    """
+    import threading
+    import time
+    try:
+        from core import env_flags
+        interval = int(env_flags.get("PF_STATE_CHECKPOINT_SECONDS", "900") or "900")
+    except Exception:
+        interval = 900
+    if interval <= 0:
+        return
+
+    def _loop():
+        from core import state_checkpoint
+        while True:
+            time.sleep(interval)
+            try:
+                state_checkpoint.checkpoint(note="periodic durable-state checkpoint")
+            except Exception:
+                pass
+
+    threading.Thread(target=_loop, daemon=True, name="state-checkpoint").start()
+
 app.include_router(health.router)
 app.include_router(health.router, prefix="/api/v1")
 
