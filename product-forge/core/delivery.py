@@ -105,7 +105,13 @@ def _land(v, repo: str, item_id: str, target: str, branch: str, pr: dict, title:
         m = _git_in(wt["path"], "merge", "--no-ff", branch, "-m", f"merge {item_id}: {title or ''}")
         if m.returncode != 0:
             return {"ok": False, "reason": "integrate merge conflict"}
-        g = run_quality_gate.evaluate(wt["path"], "item", run_dir=wt["path"], run_id=f"deliver-{item_id}")
+        # BI-PF-1254: run the gate on the PF code root (the product-forge/ subtree in a framework
+        # repo), not the repo root, so repo-level layouts don't spuriously fail wired_audit.
+        code_root = wt["path"]
+        _sub = os.path.join(wt["path"], "product-forge")
+        if os.path.isdir(_sub) and os.path.isfile(os.path.join(_sub, "core", "paths.py")):
+            code_root = _sub
+        g = run_quality_gate.evaluate(code_root, "item", run_dir=code_root, run_id=f"deliver-{item_id}")
         if not g.get("passed"):
             return {"ok": False, "reason": f"post-merge gate failed: {g.get('reasons')}"}
         merge_sha = _git_in(wt["path"], "rev-parse", "HEAD").stdout.strip()
@@ -139,8 +145,13 @@ def deliver(scope: str = "product_forge", project: str | None = None, item_id: s
 
     # 1) publish: push the feature branch + open a PR
     push = v.push(branch) if v.has_remote() else {"ok": False, "error": "no remote"}
-    pr = github.create_pr(project or scope, repo, title=f"{item_id}: {it.get('title') or ''}",
-                          head=branch, base=target, backlog_ref=item_id, scope=scope)
+    pr_res = github.create_pr(project or scope, repo, title=f"{item_id}: {it.get('title') or ''}",
+                              head=branch, base=target, backlog_ref=item_id, scope=scope)
+    # BI-PF-1254: create_pr returns {ok, pr:{number,url,...}, evidence}; _land + provenance need the
+    # PR record itself, not the envelope (the shape mismatch silently forced the push-ref fallback).
+    pr = pr_res.get("pr") if isinstance(pr_res, dict) else None
+    if not isinstance(pr, dict):
+        pr = pr_res if isinstance(pr_res, dict) else {}
 
     # 2) validate (parallel-safe; feature_pr uses its own validation worktree)
     val = validation_engine.feature_pr(project or scope, repo, target=branch, base=target, scope=scope)
