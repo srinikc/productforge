@@ -1,14 +1,14 @@
 # Backlog Summary
 
-> GENERATED 2026-10-12T18:32:45 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-12T18:43:15 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 60  |  **Closed:** 484
-- `new`: 60
+- **Open:** 59  |  **Closed:** 485
+- `new`: 59
 
-### new, by category (60)
+### new, by category (59)
 **API / reports / HIL / misc** (5)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
@@ -47,7 +47,7 @@
 | BI-PF-1212 | Should | feature | C10: Security-event audit/evidence (evidence-grade) + durable SecurityContext propagation | C10: Security-event audit/evidence (evidence-grade) + durable SecurityContext propagation |
 | BI-PF-1241 | Should | feature | Per-item token/cache/cost usage (execution.usage) + runtime usage capture + rollup | - backlog execution: + usage{} (input/output/reasoning/cache_read/cache_write/total/cost_usd/model/cost_source... |
 
-**Wiring / tech-debt / API** (42)
+**Wiring / tech-debt / API** (41)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0185 | Should | feature | EPIC: Multi-modal / media orchestration (pluggable capability packs) | Make the pipeline modality-agnostic via PLUGGABLE capability packs, enabled per project when the idea needs th... |
@@ -91,7 +91,6 @@
 | BI-PF-1247 | Should | feature | Worker-delivered PRs satisfy FEATURE_PR gates: review/lint/structure run-bound records on work complete | - work complete (manual + auto) runs the gate recorders in the worktree before handing to the lane: lint recor... |
 | BI-PF-1248 | Should | epic | EPIC: Tech Debt & Repo Hygiene (generated artifacts, script drift, gate gaps) | One home for repo-hygiene / tech-debt work that is not a product feature: generated-artifact freshness, script... |
 | BI-PF-1252 | Should | epic | Unscoped | Unscoped |
-| BI-PF-1258 | Should | feature | Grooming: restamp (light) + regroom (full, change-aware) + claim self-heal on architecture-stale | Two clear verbs + seamless claiming: - `restamp` (LIGHT): accept the current architecture for stale items - wr... |
 
 ---
 
@@ -291,5 +290,5 @@
 ---
 
 ## Totals
-- backend: 60 open / 484 closed
+- backend: 59 open / 485 closed
 - dashboard: 146 open / 3 closed

@@ -10,7 +10,7 @@
   "title": "Grooming: restamp (light) + regroom (full, change-aware) + claim self-heal on architecture-stale",
   "body": "## Problem / why\nAn architecture/config change flips every COMPLETE analysis to STALE (global arch fingerprint), so items become\nineligible and `/wg work` returns \"no eligible item\" - a manual, multi-command re-groom is needed, and the\nanalysis-only restamp never updates the item context.\n\n## Goal & value\nTwo clear verbs + seamless claiming:\n- `restamp`  (LIGHT): accept the current architecture for stale items - write the current arch_fingerprint,\n  NO re-analysis, NO context change (for benign changes). Reasoned + logged.\n- `regroom`  (FULL): re-groom stale/context-missing items - AI default (deterministic fallback); when the\n  architecture changed the context is UPDATED (force re-derive); when context is missing it is gap-filled;\n  approval gate (`--approve`); the change is recorded in the engineering change log.\n- Claim self-heal: when nothing is claimable ONLY because items are 'analysis stale (architecture changed)',\n  `claim_next` auto-regrooms those items (deterministic, approved) and retries once - never for other blockers.\n\n## Surface\n`/pf backlog restamp [all|<epic-id>|<item-id>] [--reason ...] [--limit N]`\n`/pf backlog regroom  [all|<epic-id>|<item-id>] [--no-ai] [--limit N] [--approve]`\n`core.grooming.restamp(...)`, `core.grooming.regroom(...)`; `core.job_manager.claim_next` self-heals.\n\n## Acceptance (G/W/T)\n- Given a stale item, when `restamp`, then it is COMPLETE again with no context change.\n- Given a stale/context-missing item, when `regroom`, then analysis+context are refreshed and (with --approve) COMPLETE.\n- Given nothing claimable but items blocked only by architecture-stale, when `wg work`, then it auto-regrooms and claims.\n\n## Out of scope (follow-ups)\nChange-aware AI prompt (feed the changed arch files); relevance-scoped staleness; narrow `arch_significant`.",
   "source": "user request",
-  "status": "new",
+  "status": "completed",
   "priority": "P2",
   "moscow": "Should",
   "value": 4,
@@ -20,7 +20,16 @@
   "links": {
     "related": [
       "BI-PF-0360"
-    ]
+    ],
+    "delivery": {
+      "branch": "feat/regroom-restamp",
+      "merge_sha": "e4d8bf80a6805a6ef9243e0ed67823a85022c087",
+      "commits": [],
+      "pr": "42",
+      "pr_url": "https://github.com/srinikc/productforge/pull/42",
+      "at": "2026-10-12T18:43:14.224235",
+      "note": "merged via PR"
+    }
   },
   "decisions": [],
   "follow_up": {},
@@ -83,7 +92,7 @@
   "children": [],
   "epic": "BI-PF-0360",
   "parent": "BI-PF-0360",
-  "revision": 2,
+  "revision": 3,
   "priority_rank": 2,
   "priority_class": "P2",
   "analyze_mode": "on_entry",
@@ -149,9 +158,9 @@
     "usage": {}
   },
   "created_at": "2026-10-12T18:20:55.834552",
-  "updated_at": "2026-10-12T18:20:57.973506",
+  "updated_at": "2026-10-12T18:43:14.499594",
   "score": 1.5,
-  "_note": "review decisions recorded",
+  "_note": "delivered PR#42",
   "api_impact": {
     "needs_api": true,
     "routes": [
