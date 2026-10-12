@@ -1,14 +1,14 @@
 # Backlog Summary
 
-> GENERATED 2026-10-12T19:03:26 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-12T19:13:06 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 60  |  **Closed:** 486
-- `new`: 60
+- **Open:** 59  |  **Closed:** 487
+- `new`: 59
 
-### new, by category (60)
+### new, by category (59)
 **API / reports / HIL / misc** (5)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
@@ -47,7 +47,7 @@
 | BI-PF-1212 | Should | feature | C10: Security-event audit/evidence (evidence-grade) + durable SecurityContext propagation | C10: Security-event audit/evidence (evidence-grade) + durable SecurityContext propagation |
 | BI-PF-1241 | Should | feature | Per-item token/cache/cost usage (execution.usage) + runtime usage capture + rollup | - backlog execution: + usage{} (input/output/reasoning/cache_read/cache_write/total/cost_usd/model/cost_source... |
 
-**Wiring / tech-debt / API** (42)
+**Wiring / tech-debt / API** (41)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0185 | Should | feature | EPIC: Multi-modal / media orchestration (pluggable capability packs) | Make the pipeline modality-agnostic via PLUGGABLE capability packs, enabled per project when the idea needs th... |
@@ -91,7 +91,6 @@
 | BI-PF-1248 | Should | epic | EPIC: Tech Debt & Repo Hygiene (generated artifacts, script drift, gate gaps) | One home for repo-hygiene / tech-debt work that is not a product feature: generated-artifact freshness, script... |
 | BI-PF-1252 | Should | epic | Unscoped | Unscoped |
 | BI-PF-1259 | Should | change | CI/CD review & optimization: clear change-based gate/test/profile mapping (de-ambiguate commit/merge/push/CI) | A reviewed, optimized CI/CD that is explicit and change-aware: - One authoritative mapping: change type -> whi... |
-| BI-PF-1260 | Should | change | Worker charter: add guideline 15 (reuse & simplicity; self-review the diff for dead code / duplicate logic / unused components before completing) | Codify the post-implementation clean-up discipline in the worker charter so every worker removes unneeded dead... |
 
 ---
 
@@ -291,5 +290,5 @@
 ---
 
 ## Totals
-- backend: 60 open / 486 closed
+- backend: 59 open / 487 closed
 - dashboard: 146 open / 3 closed
