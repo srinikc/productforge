@@ -124,6 +124,7 @@ TOP = {
     "PRODUCT-ISSUE-LOOP-DESIGN.md": ("Design", "Product-scope issue/RCCA/backlog integration + API (BI-PF-0272)", 100),
     "PROVIDER-KINDS-DESIGN.md": ("Design", "Provider-kind abstraction + kind-aware router (BI-0193)", 100),
     "CAPABILITY-PACKS-DESIGN.md": ("Design", "Capability-pack registry + discovery->enablement (BI-0189)", 100),
+    "LICENSING-ENTITLEMENTS-EDITIONS-MAP.md": ("Design", "Entitlements/licensing/editions/packaging map + flows (BI-PF-1263)", 100),
     "MULTIMODAL-LLM-DESIGN.md": ("Design", "Multimodal LLM plumbing: media parts in llm_client (BI-0186)", 100),
     "MEDIA-INGEST-DESIGN.md": ("Design", "Media ingest + segmentation/tiling + asset store (BI-0187)", 100),
     "MEDIA-AGENTS-DESIGN.md": ("Design", "Media agents: analyst/generator/editor/librarian (BI-0190)", 100),
