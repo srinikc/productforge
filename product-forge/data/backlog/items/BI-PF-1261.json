@@ -7,8 +7,8 @@
   "origin": "review",
   "external_id": "dev-api-session-scope",
   "label": "PF Backlog 574",
-  "title": "Defect/RCCA: dev API is not session-scoped (fixed port 8000 + global URL) -> concurrent sessions 401/collide; unique port + discovery file + guard",
-  "body": "## Problem / why\nThe local dev PF API is NOT session-scoped: `scripts/dev/dev_server.py` binds a FIXED port (8000) and the worker\ndefaults to a GLOBAL URL (`pf_api_url = http://127.0.0.1:8000`). With >1 session on the same host (allowed by\nIS-PF-0036 as long as they use separate folders), each folder generates its OWN `data/local/dev-api-token`\n(different tokens), but they all target port 8000 -> only one server binds; a worker in session B hits session\nA's server -> token mismatch -> 401. (Observed: `wg work` 401 'invalid or missing bearer token' after another\nsession's API was on 8000.)\n\n## 5-Why (RCCA)\n1. `wg work` got 401.\n2. The worker sent its token to a server holding a different token.\n3. Both session APIs target the same fixed port 8000; the worker URL is global, not session-scoped.\n4. IS-PF-0036 isolates the working TREE but not the API endpoint (host+port) or its discovery.\nROOT CAUSE: the dev API endpoint (port + URL) is not session-scoped.\n\n## Corrective\nMake the dev API endpoint session-scoped: `dev_server.py` binds a free/unique port and writes a discovery file\n`data/local/dev-api-url` next to `dev-api-token`; `workergrid/client._base()` falls back to it (like `token_file`).\n\n## Guard\nA check that the worker's resolved API URL+token belong to the same session/instance (or an explicit\n`WORKERGRID_PF_API_URL`); and the dev launcher refuses to reuse a port owned by another PF instance.\n\n## Acceptance (G/W/T)\n- Given two sessions with separate folders, when both run `dev_server`, then each worker talks to ITS OWN API\n  (no 401), using its own port + token.\n- Given a foreign server on the worker's target port, then the worker fails closed with a clear message, not a silent 401.\n\n## Related\nIS-PF-0036 (one working tree per session); BI-PF-0457 (concurrent-session id clash - same class).",
+  "title": "Defect/RCCA: assignment lease not coordinated across sessions -> double-claim (two sessions claim the same item); PF must be a SINGLE shared assignment authority + guard",
+  "body": "## Problem / why\nTwo sessions can claim the SAME backlog item -> double-claim. Observed: `wg work --epic BI-PF-0390` returned\n`assigned: true` for BI-PF-0396 even though another session already held it. The claim should have FAILED.\n\n## 5-Why (RCCA)\n1. BI-PF-0396 was assigned to two sessions at once.\n2. The lease lives in the backlog item file (`item.execution{}`, git-shared) BUT the other session's claim was only\n   in THEIR working copy (not committed/pushed) -> invisible to my instance -> seen as free.\n3. Each session runs its OWN PF API instance over a SEPARATE working copy -> two assignment authorities.\n4. ADR-0003 assumes ONE PF (single assignment authority). Running N dev instances breaks that guarantee; the lease\n   is only shared after a commit/push (racy).\n5. No guard detects a second instance / foreign token / an uncoordinated (unpushed) lease.\nROOT CAUSE: multiple PF API instances = multiple assignment authorities; the per-item lease is not globally\ncoordinated at claim time (same class as BI-PF-0457, which fixed the ID counter with a git-CAS authority).\n\n## Corrective (corrects the earlier per-session direction)\nMake the dev model a SINGLE shared PF API instance (one authority) that ALL sessions use (shared URL + shared\ntoken) -> one serializer of `execution{}` -> atomic claims. (Per-session APIs are WRONG here - they guarantee\ndouble-claims.)\n\n## Robust option\nCoordinate the lease through a shared git-remote CAS authority (like `refs/heads/pf-id-counter` for ids), so\nclaims are atomic even with multiple instances/offline.\n\n## Guard\n- Refuse to start a second dev API on an already-owned port (detect a foreign PF instance).\n- A claim that finds `execution.worker_id` set (even unpushed) fails closed.\n- Optional: claim via the shared CAS/authority; verify the lease round-trips.\n\n## Acceptance (G/W/T)\n- Given two sessions and one item, when both `wg work`, then exactly ONE is assigned and the other fails closed.\n- Given a second dev API on the same host, then it refuses (or the worker fails closed with a clear message).\n\n## Related\nADR-0003 (PF = single assignment authority); BI-PF-0457 (id double-alloc - same class); IS-PF-0036 (one working tree).",
   "source": "user request",
   "status": "new",
   "priority": "P2",
@@ -22,7 +22,14 @@
       "BI-PF-0360"
     ]
   },
-  "decisions": [],
+  "decisions": [
+    {
+      "at": "2026-10-12",
+      "decision": "RESCOPE",
+      "by": "operator",
+      "note": "Corrected direction: per-session dev APIs are WRONG (guarantee double-claims). Fix = ONE shared PF API instance (single assignment authority) all sessions use; optional git-CAS lease for cross-instance atomicity; guard against a second instance / uncoordinated lease."
+    }
+  ],
   "follow_up": {},
   "brief": {
     "problem": "The local dev PF API is NOT session-scoped: `scripts/dev/dev_server.py` binds a FIXED port (8000) and the worker\ndefaults to a GLOBAL URL (`pf_api_url = http://127.0.0.1:8000`). With >1 session on the same host (allowed by\nIS-PF-0036 as long as they use separate folders), each folder generates its OWN `data/local/dev-api-token`\n(different tokens), but they all target port 8000 -> only one server binds; a worker in session B hits session\nA's server -> token mismatch -> 401. (Observed: `wg work` 401 'invalid or missing bearer token' after another\nsession's API was on 8000.)",
@@ -82,7 +89,7 @@
   "children": [],
   "epic": "BI-PF-0360",
   "parent": "BI-PF-0360",
-  "revision": 2,
+  "revision": 3,
   "priority_rank": 2,
   "priority_class": "P2",
   "analyze_mode": "on_entry",
@@ -151,9 +158,9 @@
     "usage": {}
   },
   "created_at": "2026-10-12T19:33:40.998225",
-  "updated_at": "2026-10-12T19:33:43.362799",
+  "updated_at": "2026-10-12T20:44:53.178899",
   "score": 1.5,
-  "_note": "review decisions recorded",
+  "_note": "rescoped to the double-claim root cause (was: dev API port)",
   "api_impact": {
     "needs_api": false,
     "reason": "dev launcher/worker endpoint scoping; no new API"

@@ -1,6 +1,6 @@
 # Backlog Summary
 
-> GENERATED 2026-10-12T20:44:36 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-12T20:45:03 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
@@ -17,7 +17,7 @@
 | BI-PF-1243 | Should | epic | EPIC: CI/CD & Gates - SSOT doc + model + read API (PF + generated products) | One place to understand and read (via API) how PF builds/verifies/ships and how generated products do: the CI/... |
 | BI-PF-1245 | Should | feature | Orchestrator UI: small CI/CD view over the engineering ci-cd API (gates x tiers x status) | A small orchestrator UI view that renders the CI/CD + gates model from the read API (BI-PF-1239), so an operat... |
 | BI-PF-1251 | Should | change | Unscoped triage: re-home 'Unscoped' children into real epics (grooming cadence + aging advisory) | Keep `Unscoped` small: an ongoing curation loop re-homes its children into real epics. |
-| BI-PF-1261 | Should | bug | Defect/RCCA: dev API is not session-scoped (fixed port 8000 + global URL) -> concurrent sessions 401/collide; unique port + discovery file + guard | Defect/RCCA: dev API is not session-scoped (fixed port 8000 + global URL) -> concurrent sessions 401/collide; ... |
+| BI-PF-1261 | Should | bug | Defect/RCCA: assignment lease not coordinated across sessions -> double-claim (two sessions claim the same item); PF must be a SINGLE shared assignment authority + guard | Defect/RCCA: dev API is not session-scoped (fixed port 8000 + global URL) -> concurrent sessions 401/collide; ... |
 
 **Discovery / HIL / prompts** (6)
 | ID | MoSCoW | Type | Title | Objective |
