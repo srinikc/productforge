@@ -85,8 +85,19 @@ def _land(v, repo: str, item_id: str, target: str, branch: str, pr: dict, title:
         with contextlib.suppress(Exception):
             subprocess.run([gh, "pr", "update-branch", number], cwd=repo,
                            capture_output=True, text=True, timeout=180)
-        r = subprocess.run([gh, "pr", "merge", number, "--merge", "--delete-branch"],
-                           cwd=repo, capture_output=True, text=True, timeout=300)
+        # BI-PF-1255: no --delete-branch - the head branch is normally checked out by a worker
+        # worktree, so gh's LOCAL branch delete fails and would spuriously fail a good merge.
+        def _merge():
+            return subprocess.run([gh, "pr", "merge", number, "--merge"],
+                                  cwd=repo, capture_output=True, text=True, timeout=300)
+
+        r = _merge()
+        if r.returncode != 0 and "base branch was modified" in ((r.stderr or "") + (r.stdout or "")).lower():
+            # transient race (develop advanced mid-run): re-update the branch and retry once
+            with contextlib.suppress(Exception):
+                subprocess.run([gh, "pr", "update-branch", number], cwd=repo,
+                               capture_output=True, text=True, timeout=180)
+            r = _merge()
         if r.returncode == 0:
             with contextlib.suppress(Exception):
                 v.fetch()
