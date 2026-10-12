@@ -67,6 +67,26 @@ Both must pass (0 unwired, 0 naming violations). The same audit runs in CI and i
   races the other's and a commit can land on `develop` directly. Give each session its **own clone or
   `git worktree`**. This is how a worker session must be run (see `docs/WORKER-SCHEDULER-OPERATIONS.md`).
 
+## Review & communication standard (binding)
+
+Applies to EVERY review, Gate (**Gate 1** = approve the plan before coding; **Gate 2** = approve delivery),
+360-degree reconciliation, and status report.
+
+1. **Explain in context.** On FIRST mention of any term, code, or abbreviation (e.g., item codes like `A2`;
+   feature groups `G1`–`G10`; `AC` = acceptance criterion; `FEATURE_PR`; `REL-0`; `HMAC`; `Ed25519`;
+   "locked baseline"; "fail-closed"), give its plain-language meaning in the same sentence. No bare codes;
+   keep a short glossary when several appear.
+2. **Decision-ready.** Every approval must plainly say whether it is OK to approve or needs attention:
+   **Why** · **What changes** · **How** · detailed **Acceptance criteria** (what proves each) · **Scope** ·
+   360-degree reconciliation · **Impact review + risks split into MITIGATED vs OPEN (needs explicit operator
+   sign-off)** · technical details (files/tests) · a **Recommendation** banner (APPROVE / APPROVE WITH
+   ATTENTION / NEEDS REVIEW) · the exact decisions requested.
+3. **Language-rule assessment at take-up.** During backlog review / Gate 1 (BEFORE implementing), run
+   `python scripts/dev/language_rule_review.py <item>` and cite the verdict: new logic in **Go** vs **edits**
+   to existing shipped Python (allowed) vs **new shipped Python needing an allowlist entry** (needs approval).
+   This is the SAME policy precheck enforces (`scripts/dev/language_rule_check.py`, fast band) — decide it once,
+   up front, so it is not re-asked during implementation.
+
 ## Reconciliation before implementation (binding — any change)
 Before designing or implementing **anything**, produce a **RECONCILIATION** block and keep it with the work
 item / review. It reconciles the change against what has **already been decided** and what **already exists**:
