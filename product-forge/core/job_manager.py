@@ -259,8 +259,22 @@ _LEASE_PATH = "leases.json"
 _LEASE_TTL = 3600
 
 
-def _lease_enabled() -> bool:
-    return str(os.environ.get("PF_LEASE_REMOTE", "on")).strip().lower() not in ("off", "0", "false", "no")
+def _lease_mode() -> str:
+    """Lease authority mode: strict (default, fail-closed) | on (soft) | off (disabled)."""
+    try:
+        from core import env_flags
+        v = env_flags.get("PF_LEASE_REMOTE", os.environ.get("PF_LEASE_REMOTE", "strict"))
+    except Exception:
+        v = os.environ.get("PF_LEASE_REMOTE", "strict")
+    return str(v or "strict").strip().lower()
+
+
+def _lease_disabled() -> bool:
+    return _lease_mode() in ("off", "0", "false", "no")
+
+
+def _lease_strict() -> bool:
+    return _lease_mode() in ("strict", "hard", "required")
 
 
 def _lease_key(scope: str, project: str | None, item_id: str) -> str:
@@ -284,10 +298,13 @@ def lease_acquire(scope: str, project: str | None, item_id: str, worker_id: str,
     from core import id_allocator
     ttl = int(ttl_seconds or 0) or _LEASE_TTL
     expires = (datetime.now() + timedelta(seconds=ttl)).isoformat()
-    if not _lease_enabled():
+    if _lease_disabled():
         return {"ok": True, "authority": "local", "warning": "PF_LEASE_REMOTE=off (no shared authority)"}
     root = id_allocator._repo_root()
     if not root:
+        if _lease_strict():
+            return {"ok": False, "authority": "none",
+                    "reason": "shared lease authority unavailable (strict): no git root"}
         return {"ok": True, "authority": "local", "warning": "no git root (shared authority unavailable)"}
     key = _lease_key(scope, project, item_id)
     held: dict = {}
@@ -309,12 +326,16 @@ def lease_acquire(scope: str, project: str | None, item_id: str, worker_id: str,
         return {"ok": False, "authority": "remote", "reason": held["reason"]}
     if ok:
         return {"ok": True, "authority": "remote"}
+    if _lease_strict():
+        return {"ok": False, "authority": "none",
+                "reason": "shared lease authority unavailable (strict) - retry when online, "
+                          "or set PF_LEASE_REMOTE=on (soft)"}
     return {"ok": True, "authority": "local", "warning": "shared lease authority unavailable (offline?)"}
 
 
 def lease_release(scope: str, project: str | None, item_id: str, worker_id: str = "") -> bool:
     """Release the shared lease for an item (CAS). True when cleared (or authority off)."""
-    if not _lease_enabled():
+    if _lease_disabled():
         return True
     from core import id_allocator
     root = id_allocator._repo_root()
@@ -335,7 +356,7 @@ def lease_release(scope: str, project: str | None, item_id: str, worker_id: str 
 
 def lease_holder(scope: str, project: str | None, item_id: str):
     """The current (unexpired) lease holder of an item on the shared authority, or None."""
-    if not _lease_enabled():
+    if _lease_disabled():
         return None
     from core import id_allocator
     root = id_allocator._repo_root()
