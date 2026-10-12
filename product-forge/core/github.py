@@ -240,6 +240,20 @@ def create_pr(project: str, project_dir: str, *, title: str, body: str = "", bas
                 status, body = "pr_ready", body
         except Exception:
             status = "pr_ready"
+        # BI-PF-1254: idempotent - if a PR already exists for this head branch, reuse it.
+        if status != "created":
+            try:
+                rv = subprocess.run([gh, "pr", "view", head, "--json", "number,url"],
+                                    cwd=project_dir, capture_output=True, text=True, timeout=60)
+                if rv.returncode == 0 and rv.stdout.strip():
+                    import json as _json
+                    _d = _json.loads(rv.stdout)
+                    number = str(_d.get("number") or number)
+                    url = str(_d.get("url") or url)
+                    if number:
+                        status = "existing"
+            except Exception:
+                pass
     record = {"project": project, "number": number, "url": url, "head": head, "base": base,
               "commit_sha": commit_sha, "task_id": task_id, "run_id": run_id, "backlog_ref": backlog_ref,
               "status": status, "adapter": "gh" if gh else "none",
