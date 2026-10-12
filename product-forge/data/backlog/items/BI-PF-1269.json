@@ -1,0 +1,151 @@
+{
+  "id": "BI-PF-1269",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "",
+  "label": "PF Backlog 579",
+  "title": "Eventing SSOT (Go): subscriber registry + dispatcher (cursor, at-least-once, dedupe, retry->DLQ)",
+  "body": "## Problem / why\nNo persisted subscription registry and no cross-process dispatcher; delivery must be reliable.\n\n## Goal / value\nPersisted subscriber registry (single writer, store-registry entry) + a dispatcher that fans out with\nat-least-once delivery, event_id dedupe, and retry to the DLQ.\n\n## In scope\n- Subscription store {id, types[], filter, transport, target, auth_ref, enabled} registered in store-registry.json.\n- Dispatcher reading the stream via cursor; dedupe by event_id; retry/backoff -> core/dead_letter_queue.\n\n## Out of scope\n- Transport implementations (E5); alert policy (E6).\n\n## Acceptance criteria\n- A registered subscription receives matching events exactly-once-effective; failures retry then DLQ.\n- Registry has one writer; no second event store.\n\n## Verification / test plan\n- Retry/DLQ test; dedupe test; concurrency test.",
+  "source": "design",
+  "status": "new",
+  "priority": "P2",
+  "moscow": "Should",
+  "value": 5,
+  "effort": 4,
+  "risk": 4,
+  "deps": [],
+  "links": {},
+  "decisions": [],
+  "follow_up": {},
+  "brief": {
+    "problem": "No persisted subscription registry and no cross-process dispatcher; delivery must be reliable.",
+    "what_adds": "Persisted subscriber registry (single writer, store-registry entry) + a dispatcher that fans out with\nat-least-once delivery, event_id dedupe, and retry to the DLQ.",
+    "why": "No persisted subscription registry and no cross-process dispatcher; delivery must be reliable.",
+    "who_feels": "Product Forge maintainers and consumers.",
+    "source": "authored"
+  },
+  "objective": "Persisted subscriber registry (single writer, store-registry entry) + a dispatcher that fans out with\nat-least-once delivery, event_id dedupe, and retry to the DLQ.",
+  "acceptance_criteria": [
+    "A registered subscription receives matching events exactly-once-effective; failures retry then DLQ.",
+    "Registry has one writer; no second event store."
+  ],
+  "in_scope": [
+    "Subscription store {id, types[], filter, transport, target, auth_ref, enabled} registered in store-registry.json.",
+    "Dispatcher reading the stream via cursor; dedupe by event_id; retry/backoff -> core/dead_letter_queue."
+  ],
+  "out_of_scope": [
+    "Transport implementations (E5); alert policy (E6)."
+  ],
+  "affected_components": [
+    "Not specified."
+  ],
+  "affected_files": [
+    "store-registry.json"
+  ],
+  "approach": "- Retry/DLQ test; dedupe test; concurrency test.",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "A registered subscription receives matching events exactly-once-effective; failures retry then DLQ.",
+    "Registry has one writer; no second event store."
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "agent",
+  "requester": "design",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1265",
+  "parent": "BI-PF-1265",
+  "revision": 2,
+  "priority_rank": 2,
+  "priority_class": "P2",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "IN_PROGRESS",
+    "analyzed_at": "",
+    "analyzed_by": "deterministic",
+    "revision_analyzed": 0,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/artifact_registry.py, core/change_registry.py, core/knowledge_registry.py, core/model_registry.py",
+    "existing_components": [
+      "core/artifact_registry.py",
+      "core/change_registry.py",
+      "core/knowledge_registry.py",
+      "core/model_registry.py",
+      "core/skills_registry.py",
+      "core/tool_registry.py"
+    ],
+    "existing_apis": [],
+    "existing_modules": [
+      "config/knowledge-registry.json",
+      "config/plugins-registry.json",
+      "config/store-registry.json"
+    ],
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=0.31",
+      "components=6",
+      "apis=0"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": false,
+    "reasons": [],
+    "computed_at": ""
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-12T22:54:13.621978",
+  "updated_at": "2026-10-12T22:54:14.630418",
+  "score": 0.31,
+  "_note": "priority set"
+}

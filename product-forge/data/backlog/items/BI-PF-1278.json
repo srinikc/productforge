@@ -1,0 +1,159 @@
+{
+  "id": "BI-PF-1278",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "",
+  "label": "PF Backlog 588",
+  "title": "dogfood: drive pipeline to completion + correct post-run validation + fail-closed verdict",
+  "body": "## Problem / why\ndogfood.run enqueues then validates the baseline worktree immediately (core/dogfood.py:79-89; verdict :114-128);\nPASS requires pipeline.status=='enqueued' which never becomes 'done'.\n\n## Goal / value\nWait for the run to finish (bounded), validate the GENERATED product dir, and map terminal states fail-closed.\n\n## In scope\n- Enqueue (canonical) -> ensure runner -> bounded wait on run_status/job state -> validate product dir.\n- Verdict: pipeline failed->FAIL; timeout/could-not-start->BLOCKED; dry->PARTIAL_SUCCESS; done+PASS->PASS;\n  done+FAIL->FAIL; done+unknown->PARTIAL_SUCCESS.\n\n## Out of scope\n- A second engine/store; blocking HTTP without a wait/flag decision.\n\n## Acceptance criteria\n- dogfood on a small idea runs all stages then returns PASS/FAIL/BLOCKED correctly; dry never PASS.\n\n## Verification / test plan\n- dogfood_check updated; e2e run observed; no regression of existing dogfood tests.\n\n## Dependencies & links\n- Eventing SSOT epic (BI-PF-1265) progress signals; BI-PF-1266 decisions.",
+  "source": "design",
+  "status": "new",
+  "priority": "P2",
+  "moscow": "Should",
+  "value": 5,
+  "effort": 4,
+  "risk": 4,
+  "deps": [],
+  "links": {},
+  "decisions": [],
+  "follow_up": {},
+  "brief": {
+    "problem": "dogfood.run enqueues then validates the baseline worktree immediately (core/dogfood.py:79-89; verdict :114-128);\nPASS requires pipeline.status=='enqueued' which never becomes 'done'.",
+    "what_adds": "Wait for the run to finish (bounded), validate the GENERATED product dir, and map terminal states fail-closed.",
+    "why": "dogfood.run enqueues then validates the baseline worktree immediately (core/dogfood.py:79-89; verdict :114-128);\nPASS requires pipeline.status=='enqueued' which never becomes 'done'.",
+    "who_feels": "Product Forge maintainers and consumers.",
+    "source": "authored"
+  },
+  "objective": "Wait for the run to finish (bounded), validate the GENERATED product dir, and map terminal states fail-closed.",
+  "acceptance_criteria": [
+    "dogfood on a small idea runs all stages then returns PASS/FAIL/BLOCKED correctly; dry never PASS."
+  ],
+  "in_scope": [
+    "Enqueue (canonical) -> ensure runner -> bounded wait on run_status/job state -> validate product dir.",
+    "Verdict: pipeline failed->FAIL; timeout/could-not-start->BLOCKED; dry->PARTIAL_SUCCESS; done+PASS->PASS;"
+  ],
+  "out_of_scope": [
+    "A second engine/store; blocking HTTP without a wait/flag decision."
+  ],
+  "affected_components": [
+    "core"
+  ],
+  "affected_files": [
+    "core/dogfood.py"
+  ],
+  "approach": "- dogfood_check updated; e2e run observed; no regression of existing dogfood tests.",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "dogfood on a small idea runs all stages then returns PASS/FAIL/BLOCKED correctly; dry never PASS."
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "agent",
+  "requester": "design",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1277",
+  "parent": "BI-PF-1277",
+  "revision": 2,
+  "priority_rank": 2,
+  "priority_class": "P2",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "IN_PROGRESS",
+    "analyzed_at": "",
+    "analyzed_by": "deterministic",
+    "revision_analyzed": 0,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/agent_runtime.py, core/dogfood.py, core/dogfood_run.py, core/dogfood_schedule.py",
+    "existing_components": [
+      "core/agent_runtime.py",
+      "core/dogfood.py",
+      "core/dogfood_run.py",
+      "core/dogfood_schedule.py",
+      "core/nfr_runner.py",
+      "core/pipeline_capabilities.py",
+      "core/pipeline_composition.py",
+      "core/pipeline_executor.py"
+    ],
+    "existing_apis": [
+      "/api/v1/dogfood/run",
+      "/api/v1/dogfood/runs/{run_id}",
+      "/api/v1/dogfood/schedule",
+      "/api/v1/dogfood/schedule/tick",
+      "/api/v1/dogfood/trends",
+      "/api/v1/engineering/tasks/{task_id}/run",
+      "/api/v1/evidence/manifest/{run_id}",
+      "/api/v1/pipeline"
+    ],
+    "existing_modules": [
+      "config/dogfood-schedule.json",
+      "config/validation-profiles.json"
+    ],
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=0.31",
+      "components=8",
+      "apis=8"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": false,
+    "reasons": [],
+    "computed_at": ""
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-12T22:55:22.864411",
+  "updated_at": "2026-10-12T22:55:23.929503",
+  "score": 0.31,
+  "_note": "priority set"
+}

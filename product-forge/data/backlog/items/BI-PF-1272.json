@@ -1,0 +1,153 @@
+{
+  "id": "BI-PF-1272",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "",
+  "label": "PF Backlog 582",
+  "title": "Eventing SSOT: Python thin-client cutover of core/events.py over the A1 wire seam (edit-only)",
+  "body": "## Problem / why\nPY emitters currently write the stream directly; the Go core will own emit/seq. Must cut over with zero\nconsumer changes.\n\n## Goal / value\ncore/events.py (edit-only, no new module) delegates emit to the Go core via core/go_host while keeping its\npublic API and envelope back-compat; reads remain compatible.\n\n## In scope\n- Edit core/events.py + core/contracts seam; keep TYPES/EVENT_VERSION/emit/read/counts signatures.\n- Feature-flag/strangler: fall back to existing writer if Go host unavailable (fail-safe, not fail-open).\n\n## Out of scope\n- New Python modules; changing emit signatures.\n\n## Acceptance criteria\n- All 50 events consumers unchanged; test_api_events + test_event_ssot green; no duplicate store.\n\n## Verification / test plan\n- Contract test pins public symbols; run event/test suite + precheck.\n\n## Dependencies & links\n- E2, E3.",
+  "source": "design",
+  "status": "new",
+  "priority": "P2",
+  "moscow": "Should",
+  "value": 5,
+  "effort": 4,
+  "risk": 4,
+  "deps": [],
+  "links": {},
+  "decisions": [],
+  "follow_up": {},
+  "brief": {
+    "problem": "PY emitters currently write the stream directly; the Go core will own emit/seq. Must cut over with zero\nconsumer changes.",
+    "what_adds": "core/events.py (edit-only, no new module) delegates emit to the Go core via core/go_host while keeping its\npublic API and envelope back-compat; reads remain compatible.",
+    "why": "PY emitters currently write the stream directly; the Go core will own emit/seq. Must cut over with zero\nconsumer changes.",
+    "who_feels": "Product Forge maintainers and consumers.",
+    "source": "authored"
+  },
+  "objective": "core/events.py (edit-only, no new module) delegates emit to the Go core via core/go_host while keeping its\npublic API and envelope back-compat; reads remain compatible.",
+  "acceptance_criteria": [
+    "All 50 events consumers unchanged; test_api_events + test_event_ssot green; no duplicate store."
+  ],
+  "in_scope": [
+    "Edit core/events.py + core/contracts seam; keep TYPES/EVENT_VERSION/emit/read/counts signatures.",
+    "Feature-flag/strangler: fall back to existing writer if Go host unavailable (fail-safe, not fail-open)."
+  ],
+  "out_of_scope": [
+    "New Python modules; changing emit signatures."
+  ],
+  "affected_components": [
+    "core"
+  ],
+  "affected_files": [
+    "core/events.py"
+  ],
+  "approach": "- Contract test pins public symbols; run event/test suite + precheck.",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "All 50 events consumers unchanged; test_api_events + test_event_ssot green; no duplicate store."
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "agent",
+  "requester": "design",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1265",
+  "parent": "BI-PF-1265",
+  "revision": 2,
+  "priority_rank": 2,
+  "priority_class": "P2",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "IN_PROGRESS",
+    "analyzed_at": "",
+    "analyzed_by": "deterministic",
+    "revision_analyzed": 0,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/agent_model_override.py, core/discovery_engine.py, core/discovery_panel.py, core/events.py",
+    "existing_components": [
+      "core/agent_model_override.py",
+      "core/discovery_engine.py",
+      "core/discovery_panel.py",
+      "core/events.py",
+      "core/nfr_coverage.py",
+      "core/prompt_overlays.py"
+    ],
+    "existing_apis": [
+      "/api/v1/engineering/assignments/recover",
+      "/api/v1/engineering/coverage",
+      "/api/v1/events",
+      "/api/v1/events/types",
+      "/api/v1/evidence/events"
+    ],
+    "existing_modules": [
+      "config/discovery-panel-settings.json"
+    ],
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=0.31",
+      "components=6",
+      "apis=5"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": false,
+    "reasons": [],
+    "computed_at": ""
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-12T22:54:28.638039",
+  "updated_at": "2026-10-12T22:54:29.658739",
+  "score": 0.31,
+  "_note": "priority set"
+}

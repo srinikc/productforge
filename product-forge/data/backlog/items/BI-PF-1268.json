@@ -1,0 +1,155 @@
+{
+  "id": "BI-PF-1268",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "",
+  "label": "PF Backlog 578",
+  "title": "Eventing SSOT (Go): event core - append-only store, emit, monotonic seq, cursor/since",
+  "body": "## Problem / why\nThe canonical stream has no reliable cursor (since = string timestamp compare) and no Go-native core; new\nshipped logic must be Go.\n\n## Goal / value\nA Go event core owning emit + append-only store + monotonic seq + cursor reads; single writer.\n\n## In scope\n- Go package (extend go/pfcore or new go/eventbus) with emit/seq/cursor; single-writer store.\n- Invoked from Python via core/go_host + A1 wire (fail-closed).\n\n## Out of scope\n- Dispatch/transports (E4/E5); changing existing Python emit call sites (E7).\n\n## Acceptance criteria\n- Monotonic seq assigned; cursor read returns exactly events after a cursor (no races).\n- Existing events.jsonl readers still work; no duplicate store introduced.\n\n## Verification / test plan\n- Go unit tests + Python contract/e2e test; language_rule_check green.",
+  "source": "design",
+  "status": "new",
+  "priority": "P2",
+  "moscow": "Should",
+  "value": 5,
+  "effort": 4,
+  "risk": 3,
+  "deps": [],
+  "links": {},
+  "decisions": [],
+  "follow_up": {},
+  "brief": {
+    "problem": "The canonical stream has no reliable cursor (since = string timestamp compare) and no Go-native core; new\nshipped logic must be Go.",
+    "what_adds": "A Go event core owning emit + append-only store + monotonic seq + cursor reads; single writer.",
+    "why": "The canonical stream has no reliable cursor (since = string timestamp compare) and no Go-native core; new\nshipped logic must be Go.",
+    "who_feels": "Product Forge maintainers and consumers.",
+    "source": "authored"
+  },
+  "objective": "A Go event core owning emit + append-only store + monotonic seq + cursor reads; single writer.",
+  "acceptance_criteria": [
+    "Monotonic seq assigned; cursor read returns exactly events after a cursor (no races).",
+    "Existing events.jsonl readers still work; no duplicate store introduced."
+  ],
+  "in_scope": [
+    "Go package (extend go/pfcore or new go/eventbus) with emit/seq/cursor; single-writer store.",
+    "Invoked from Python via core/go_host + A1 wire (fail-closed)."
+  ],
+  "out_of_scope": [
+    "Dispatch/transports (E4/E5); changing existing Python emit call sites (E7)."
+  ],
+  "affected_components": [
+    "Not specified."
+  ],
+  "affected_files": [
+    "events.json"
+  ],
+  "approach": "- Go unit tests + Python contract/e2e test; language_rule_check green.",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Monotonic seq assigned; cursor read returns exactly events after a cursor (no races).",
+    "Existing events.jsonl readers still work; no duplicate store introduced."
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "agent",
+  "requester": "design",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1265",
+  "parent": "BI-PF-1265",
+  "revision": 2,
+  "priority_rank": 2,
+  "priority_class": "P2",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "IN_PROGRESS",
+    "analyzed_at": "",
+    "analyzed_by": "deterministic",
+    "revision_analyzed": 0,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/artifact_store.py, core/asset_store.py, core/events.py, core/event_bus.py",
+    "existing_components": [
+      "core/artifact_store.py",
+      "core/asset_store.py",
+      "core/events.py",
+      "core/event_bus.py",
+      "core/forge_store.py",
+      "core/pipeline_store.py",
+      "core/project_store.py"
+    ],
+    "existing_apis": [
+      "/api/v1/engineering/pidl/consequential",
+      "/api/v1/events",
+      "/api/v1/events/types",
+      "/api/v1/evidence/events"
+    ],
+    "existing_modules": [
+      "config/store-registry.json"
+    ],
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=0.62",
+      "components=7",
+      "apis=4"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": false,
+    "reasons": [],
+    "computed_at": ""
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-12T22:54:08.889301",
+  "updated_at": "2026-10-12T22:54:09.880889",
+  "score": 0.62,
+  "_note": "priority set"
+}

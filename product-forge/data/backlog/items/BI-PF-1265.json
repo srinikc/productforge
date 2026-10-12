@@ -1,0 +1,231 @@
+{
+  "id": "BI-PF-1265",
+  "tag": "PF",
+  "type": "epic",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "",
+  "label": "PF Backlog 575",
+  "title": "EPIC: Eventing & Alerting SSOT - Go-first event bus + subscriber/alert transports",
+  "body": "## Problem / why\nEventing + alerting is fragmented: canonical lifecycle stream (core/events.py) is emit-only; a second\norchestration stream + in-process handlers exist (core/event_bus.py); subscribers are bespoke\n(agent_messenger topics, legacy dashboard websocket, notification_system, alerts email). No cross-process\nsubscriber, no pluggable transports, no subscription/alert-rule registry. ADR-0001 (Go-first) requires new\nshipped/sensitive logic in Go, so the new bus core must be Go with Python as a thin client.\n\n## Goal / value\nOne SSOT event+alert bus used by all of PF. Producers emit once; consumers subscribe through stable\ncontracts (inproc in-process, SSE for UI, webhook for external, notify/email). Anyone needing\neventing/alerting calls the API - no bespoke plumbing. Existing wired paths keep working during migration.\n\n## In scope\n- Go event core (store, emit, monotonic seq, cursor), subscriber registry, dispatcher, transports, alert policy.\n- Python thin client over the A1 wire seam; migrate existing consumers behind compatibility shims.\n- Contracts (envelope+seq, subscription, alert-rule, webhook signature) with Go<->Python parity.\n- API surface: SSE stream + subscription CRUD; retire legacy websocket push (frozen dashboard).\n\n## Out of scope\n- Rewriting the Python FastAPI server; big-bang Python->Go; duplicating existing owners.\n- The legacy dashboard UI (frozen/legacy_exempt).\n\n## Acceptance criteria\n- A producer emits once and N heterogeneous subscribers (inproc/SSE/webhook/email) all receive it, across processes.\n- New capability lives in Go under go/ per ADR-0001; language_rule_check + wired_audit + precheck stay green.\n- No existing event/alert consumer regresses (event/ssot/redaction/tracing/run_status tests stay green).\n\n## Verification / test plan\n- Contract parity test (Go<->Python); dispatcher retry/DLQ test; SSE test; webhook HMAC test.\n- Full gate set: compileall, wired_audit, single_path_check, precheck, language_rule_check.\n\n## Dependencies & links\n- ADR-0001 / BI-PF-0387/0388 (Go-first); A1 contracts (Epic A BI-PF-0390); B1 Go core (BI-PF-0394).\n- Related: BI-0142, BI-0020, BI-0195/0198, BI-0049/0056, BI-PF-0332, BI-PF-0345, BI-PF-0260.",
+  "source": "design",
+  "status": "new",
+  "priority": "P2",
+  "moscow": "Should",
+  "value": 5,
+  "effort": 5,
+  "risk": 4,
+  "deps": [],
+  "links": {},
+  "decisions": [],
+  "follow_up": {},
+  "brief": {
+    "problem": "Eventing + alerting is fragmented: canonical lifecycle stream (core/events.py) is emit-only; a second\norchestration stream + in-process handlers exist (core/event_bus.py); subscribers are bespoke\n(agent_messenger topics, legacy dashboard websocket, notification_system, alerts email). No cross-process\nsubscriber, no pluggable transports, no subscription/alert-rule registry. ADR-0001 (Go-first) requires new\nshipped/sensitive logic in Go, so the new bus core must be Go with Python as a thin client.",
+    "what_adds": "One SSOT event+alert bus used by all of PF. Producers emit once; consumers subscribe through stable\ncontracts (inproc in-process, SSE for UI, webhook for external, notify/email). Anyone needing\neventing/alerting calls the API - no bespoke plumbing. Existing wired paths keep working during migration.",
+    "why": "Eventing + alerting is fragmented: canonical lifecycle stream (core/events.py) is emit-only; a second\norchestration stream + in-process handlers exist (core/event_bus.py); subscribers are bespoke\n(agent_messenger topics, legacy dashboard websocket, notification_system, alerts email). No cross-process\nsubscriber, no pluggable transports, no subscription/alert-rule registry. ADR-0001 (Go-first) requires new\nshipped/sensitive logic in Go, so the new bus core must be Go with Python as a thin client.",
+    "who_feels": "Product Forge maintainers and consumers.",
+    "source": "authored"
+  },
+  "objective": "One SSOT event+alert bus used by all of PF. Producers emit once; consumers subscribe through stable\ncontracts (inproc in-process, SSE for UI, webhook for external, notify/email). Anyone needing\neventing/alerting calls the API - no bespoke plumbing. Existing wired paths keep working during migration.",
+  "acceptance_criteria": [
+    "A producer emits once and N heterogeneous subscribers (inproc/SSE/webhook/email) all receive it, across processes.",
+    "New capability lives in Go under go/ per ADR-0001; language_rule_check + wired_audit + precheck stay green.",
+    "No existing event/alert consumer regresses (event/ssot/redaction/tracing/run_status tests stay green)."
+  ],
+  "in_scope": [
+    "Go event core (store, emit, monotonic seq, cursor), subscriber registry, dispatcher, transports, alert policy.",
+    "Python thin client over the A1 wire seam; migrate existing consumers behind compatibility shims.",
+    "Contracts (envelope+seq, subscription, alert-rule, webhook signature) with Go<->Python parity.",
+    "API surface: SSE stream + subscription CRUD; retire legacy websocket push (frozen dashboard)."
+  ],
+  "out_of_scope": [
+    "Rewriting the Python FastAPI server; big-bang Python->Go; duplicating existing owners.",
+    "The legacy dashboard UI (frozen/legacy_exempt)."
+  ],
+  "affected_components": [
+    "core"
+  ],
+  "affected_files": [
+    "core/event_bus.py",
+    "core/events.py"
+  ],
+  "approach": "- Contract parity test (Go<->Python); dispatcher retry/DLQ test; SSE test; webhook HMAC test.\n- Full gate set: compileall, wired_audit, single_path_check, precheck, language_rule_check.",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "A producer emits once and N heterogeneous subscribers (inproc/SSE/webhook/email) all receive it, across processes.",
+    "New capability lives in Go under go/ per ADR-0001; language_rule_check + wired_audit + precheck stay green.",
+    "No existing event/alert consumer regresses (event/ssot/redaction/tracing/run_status tests stay green)."
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "agent",
+  "requester": "design",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "One SSOT event+alert bus used by all of PF. Producers emit once; consumers subscribe through stable\ncontracts (inproc in-process, SSE for UI, webhook for external, notify/email). Anyone needing\neventing/alerting calls the API - no bespoke plumbing. Existing wired paths keep working during migration.",
+  "children": [
+    "BI-PF-1266",
+    "BI-PF-1267",
+    "BI-PF-1268",
+    "BI-PF-1269",
+    "BI-PF-1270",
+    "BI-PF-1271",
+    "BI-PF-1272",
+    "BI-PF-1273",
+    "BI-PF-1274",
+    "BI-PF-1275",
+    "BI-PF-1276"
+  ],
+  "epic": "",
+  "parent": "",
+  "revision": 2,
+  "priority_rank": 2,
+  "priority_class": "P2",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "IN_PROGRESS",
+    "analyzed_at": "",
+    "analyzed_by": "deterministic",
+    "revision_analyzed": 0,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/alerts.py, core/business_models_kb.py, core/business_skills_selector.py, core/events.py",
+    "existing_components": [
+      "core/alerts.py",
+      "core/business_models_kb.py",
+      "core/business_skills_selector.py",
+      "core/events.py",
+      "core/event_bus.py"
+    ],
+    "existing_apis": [
+      "/api/v1/backlog/epics/{epic_id}/order",
+      "/api/v1/backlog/epics/{epic_id}/status",
+      "/api/v1/events",
+      "/api/v1/events/types",
+      "/api/v1/evidence/events"
+    ],
+    "existing_modules": [
+      "config/alerts.json",
+      "config/business-models-kb.json"
+    ],
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=0.25",
+      "components=5",
+      "apis=5"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": false,
+    "reasons": [],
+    "computed_at": ""
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-12T22:53:54.466349",
+  "updated_at": "2026-10-12T22:54:50.123046",
+  "score": 0.25,
+  "_note": "epic execution order saved",
+  "execution_order": [
+    {
+      "id": "BI-PF-1266",
+      "wave": 0,
+      "status": "wait"
+    },
+    {
+      "id": "BI-PF-1276",
+      "wave": 0,
+      "status": "wait"
+    },
+    {
+      "id": "BI-PF-1267",
+      "wave": 0,
+      "status": "wait"
+    },
+    {
+      "id": "BI-PF-1271",
+      "wave": 0,
+      "status": "wait"
+    },
+    {
+      "id": "BI-PF-1274",
+      "wave": 0,
+      "status": "wait"
+    },
+    {
+      "id": "BI-PF-1268",
+      "wave": 0,
+      "status": "wait"
+    },
+    {
+      "id": "BI-PF-1270",
+      "wave": 0,
+      "status": "wait"
+    },
+    {
+      "id": "BI-PF-1275",
+      "wave": 0,
+      "status": "wait"
+    },
+    {
+      "id": "BI-PF-1269",
+      "wave": 0,
+      "status": "wait"
+    },
+    {
+      "id": "BI-PF-1272",
+      "wave": 0,
+      "status": "wait"
+    },
+    {
+      "id": "BI-PF-1273",
+      "wave": 0,
+      "status": "wait"
+    }
+  ],
+  "execution_order_at": "2026-10-12T22:54:50.059074"
+}
