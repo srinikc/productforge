@@ -147,6 +147,18 @@ def cmd_product(argv):
     return subprocess.run([sys.executable, runner, *run_args], cwd=ROOT).returncode
 
 
+def _backlog_target(pos, flags, s, p):
+    """Selector for restamp/regroom: 'all' -> whole scope; an epic id -> its children; an item id -> itself."""
+    t = (pos[1] if len(pos) > 1 else "").strip()
+    if not t or t.lower() == "all":
+        return "", None
+    from core import backlog
+    it = backlog.get_epic(s, p, t) or {}
+    if backlog.is_epic(it):
+        return t, None
+    return "", [t]
+
+
 def cmd_backlog(pos, flags):
     from core import backlog, grooming
     s, p = _scope(flags)
@@ -167,8 +179,17 @@ def cmd_backlog(pos, flags):
         if flags.get("all"):
             return scheduler.backlog_status_all()
         return scheduler.backlog_status(s, p)
-    if sub in ("restamp", "refresh-stale", "refresh"):
-        from core import grooming
+    if sub == "restamp":
+        epic, ids = _backlog_target(pos, flags, s, p)
+        return grooming.restamp(s, p, epic=epic, ids=ids, limit=int(flags.get("limit") or 0),
+                                reason=str(flags.get("reason") or ""))
+    if sub == "regroom":
+        epic, ids = _backlog_target(pos, flags, s, p)
+        mode = "deterministic" if flags.get("no-ai") else "ai"
+        return grooming.regroom(s, p, epic=epic, ids=ids, limit=int(flags.get("limit") or 0),
+                                mode=mode, approve=bool(flags.get("approve")),
+                                include_fresh=bool(flags.get("force")))
+    if sub in ("refresh-stale", "refresh"):   # back-compat (analysis re-ground, no context/approval)
         mode = "ai" if flags.get("ai") else "deterministic"
         limit = int(flags.get("limit") or 0) or 1_000_000
         return grooming.refresh_stale(s, p, limit=limit, mode=mode)
