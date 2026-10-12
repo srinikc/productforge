@@ -88,6 +88,7 @@
 | [`INTAKE-AND-BACKLOG-DESIGN.md`](INTAKE-AND-BACKLOG-DESIGN.md) | Implemented | 100% | Intake & backlog design | — | — |
 | [`ISSUE-CLOSE-LOOP-DESIGN.md`](ISSUE-CLOSE-LOOP-DESIGN.md) | Design | 100% | Issue<->backlog bidirectional close loop (BI-PF-0271) | — | — |
 | [`LEARNING-PIPELINE-DESIGN.md`](LEARNING-PIPELINE-DESIGN.md) | Design | 100% | Evidence-gated learning pipeline (BI-PF-0293/0294/0295) | — | — |
+| [`LICENSING-ENTITLEMENTS-EDITIONS-MAP.md`](LICENSING-ENTITLEMENTS-EDITIONS-MAP.md) | Design | 100% | Entitlements/licensing/editions/packaging map + flows (BI-PF-1263) | — | — |
 | [`LOGS-AND-OBSERVABILITY.md`](LOGS-AND-OBSERVABILITY.md) | Analysis (current) | 100% | As-is map of every log/event/state file + the no-SSOT gap to fix (BI-PF-0233/0234/0235) | — | — |
 | [`MASTER-0-CURRENT-STATE-TRUTH.md`](MASTER-0-CURRENT-STATE-TRUTH.md) | Design | 100% | MASTER-0 current-state architecture truth + discovery gate | — | — |
 | [`MCP-DESIGN.md`](MCP-DESIGN.md) | Design | 100% | MCP interop: expose tools + consume external servers (BI-0196) | — | — |
