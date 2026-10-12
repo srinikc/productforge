@@ -109,6 +109,59 @@ def test_deliver_blocks_when_branch_missing(monkeypatch):
         _clean()
 
 
+class _FakeV:
+    def fetch(self):
+        pass
+
+    def head_commit(self, ref):
+        return "deadbeef"
+
+
+def test_land_gh_merge_has_no_delete_branch(monkeypatch):
+    """BI-PF-1255: landing must not try to delete the local branch (held by a worker worktree)."""
+    seen = {}
+
+    class _R:
+        returncode = 0
+        stdout = ""
+        stderr = ""
+
+    def fake_run(cmd, **kw):
+        seen["cmd"] = cmd
+        return _R()
+
+    monkeypatch.setattr(delivery, "_gh", lambda: "gh")
+    monkeypatch.setattr(delivery.subprocess, "run", fake_run)
+    r = delivery._land(_FakeV(), "repo", "BI-X", "develop", "br", {"number": "9"}, "t")
+    assert r["ok"] is True and r["method"] == "gh-pr-merge", r
+    assert "--delete-branch" not in seen["cmd"], seen["cmd"]
+
+
+def test_land_retries_transient_base_modified(monkeypatch):
+    """BI-PF-1255: transient 'base branch was modified' is retried once after update-branch."""
+    merges = {"n": 0}
+
+    class _R:
+        def __init__(self, rc, err=""):
+            self.returncode = rc
+            self.stdout = ""
+            self.stderr = err
+
+    def fake_run(cmd, **kw):
+        if "merge" in cmd:
+            merges["n"] += 1
+            if merges["n"] == 1:
+                return _R(1, "GraphQL: Base branch was modified. Review and try the merge again.")
+            return _R(0)
+        return _R(0)
+
+    monkeypatch.setattr(delivery, "_gh", lambda: "gh")
+    monkeypatch.setattr(delivery.subprocess, "run", fake_run)
+    r = delivery._land(_FakeV(), "repo", "BI-X", "develop", "br", {"number": "9"}, "t")
+    assert r["ok"] is True, r
+    assert merges["n"] == 2, merges
+
+
 def test_deliver_blocks_on_validation_fail(monkeypatch):
     _clean()
     try:
