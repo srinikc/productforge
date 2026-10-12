@@ -1,14 +1,14 @@
 # Backlog Summary
 
-> GENERATED 2026-10-12T15:27:04 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-12T18:24:00 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 59  |  **Closed:** 480
-- `new`: 59
+- **Open:** 60  |  **Closed:** 480
+- `new`: 60
 
-### new, by category (59)
+### new, by category (60)
 **API / reports / HIL / misc** (4)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
@@ -46,7 +46,7 @@
 | BI-PF-1212 | Should | feature | C10: Security-event audit/evidence (evidence-grade) + durable SecurityContext propagation | C10: Security-event audit/evidence (evidence-grade) + durable SecurityContext propagation |
 | BI-PF-1241 | Should | feature | Per-item token/cache/cost usage (execution.usage) + runtime usage capture + rollup | - backlog execution: + usage{} (input/output/reasoning/cache_read/cache_write/total/cost_usd/model/cost_source... |
 
-**Wiring / tech-debt / API** (42)
+**Wiring / tech-debt / API** (43)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0185 | Should | feature | EPIC: Multi-modal / media orchestration (pluggable capability packs) | Make the pipeline modality-agnostic via PLUGGABLE capability packs, enabled per project when the idea needs th... |
@@ -91,6 +91,7 @@
 | BI-PF-1246 | Should | feature | Delivery lane reconciliation + auto-issue/auto-RCCA on validation FAIL + app_boot checker fix | - delivery.reconcile(): remote truth (PR state + origin/develop tip) vs item state; hooks on worker start + wg... |
 | BI-PF-1247 | Should | feature | Worker-delivered PRs satisfy FEATURE_PR gates: review/lint/structure run-bound records on work complete | - work complete (manual + auto) runs the gate recorders in the worktree before handing to the lane: lint recor... |
 | BI-PF-1252 | Should | epic | Unscoped | Unscoped |
+| BI-PF-1258 | Should | feature | Grooming: restamp (light) + regroom (full, change-aware) + claim self-heal on architecture-stale | Two clear verbs + seamless claiming: - `restamp` (LIGHT): accept the current architecture for stale items - wr... |
 
 ---
 
@@ -290,5 +291,5 @@
 ---
 
 ## Totals
-- backend: 59 open / 480 closed
+- backend: 60 open / 480 closed
 - dashboard: 146 open / 3 closed
