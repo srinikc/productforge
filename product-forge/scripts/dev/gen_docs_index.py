@@ -95,6 +95,7 @@ TOP = {
     "ENG-10-RELEASE.md": ("Design", "ENG-10 release: artifact qualification (build/regression/security/NFR/packaging/SBOM/deploy) + fail-closed release gate", 100),
     "REL-0-PACKAGING.md": ("Design", "REL-0 packaging: edition package manifest (community/enterprise/saas/on-prem/oem) from bom/licensing/deploy/release owners", 100),
     "FULL-DOGFOOD-AND-FINAL-AUDIT.md": ("Design", "Full dogfood lifecycle harness + final §42 production-readiness acceptance audit", 100),
+    "EVENTING-ALERTING-SSOT-DESIGN.md": ("Design", "Eventing & Alerting SSOT: Go-first event bus + subscriber/alert transports; Python thin client (BI-PF-1265/1266; ADR-0005)", 0),
     "WORKER-TIMING-TOKENS.md": ("Design", "Worker timing (active vs human-wait) + token/cost accounting on existing owners (no new store)", 100),
     "PFSSOT-P0-REUSE-MAP.md": ("Design", "PFSSOT P0 reuse map: existing owners for backlog SSOT + scheduler + workers (Phase 0 gate)", 100),
     "PFSSOT-P1-BACKLOG-FIELDS.md": ("Design", "PFSSOT P1 backlog fields: analysis/revision/priority_rank/structured deps/execution (extend backlog.py)", 100),
