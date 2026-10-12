@@ -13,7 +13,7 @@ import sys
 if os.getcwd() not in sys.path:
     sys.path.insert(0, os.getcwd())
 
-from core import dev_auth  # noqa: E402
+from api import auth  # noqa: E402
 
 
 def main(argv=None) -> int:
@@ -23,9 +23,9 @@ def main(argv=None) -> int:
     a = ap.parse_args(argv)
 
     os.environ["PF_DEV"] = "1"
-    tok = dev_auth.ensure_dev_token()
+    tok = auth.ensure_dev_token()
     os.environ["API_TOKEN"] = tok
-    print(f"dev API: http://{a.host}:{a.port}  (PF_DEV=1; token file: {dev_auth.TOKEN_PATH})")
+    print(f"dev API: http://{a.host}:{a.port}  (PF_DEV=1; token file: {auth.TOKEN_PATH})")
     print("worker: `python ../workergrid/wg.py work ...` reads the same token via token_file")
     import uvicorn
     uvicorn.run("api.app:app", host=a.host, port=a.port)
