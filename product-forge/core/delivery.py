@@ -130,10 +130,17 @@ def _land(v, repo: str, item_id: str, target: str, branch: str, pr: dict, title:
 def deliver(scope: str = "product_forge", project: str | None = None, item_id: str = "",
             *, integration: str = "") -> dict:
     """Deliver ONE item end to end (see module docstring). Idempotent per item; fail-closed."""
-    from core import backlog, github, validation_engine, vcs
+    from core import backlog, github, validation_engine, vcs, runtime_freshness
     it = backlog.get_epic(scope, project, item_id)
     if not it:
         return {"ok": False, "reason": "item not found"}
+    # BI-PF-1253: fail-closed on a stale runtime. A long-lived process (the API server) keeps executing
+    # its import-time snapshot after merges; refuse instead of validating/merging with outdated code.
+    fs = runtime_freshness.status()
+    if fs.get("stale"):
+        return _block(scope, project, item_id,
+                      f"stale runtime: loaded {fs['loaded_sha'][:8]} != tree {fs['current_sha'][:8]} "
+                      f"- restart the API server (or run `python -m core.delivery {item_id}` for a fresh process)")
     repo = repo_dir(scope, project)
     v = vcs.VCSManager(repo)
     if not v.is_repo():
@@ -187,3 +194,24 @@ def drain(scope: str = "product_forge", project: str | None = None, *, limit: in
         r = deliver(scope, project, str(it.get("id")))
         done.append({"item": it.get("id"), "ok": bool(r.get("ok")), "reason": r.get("reason", "")})
     return {"delivered": done, "count": len(done)}
+
+
+def _main(argv=None) -> int:
+    """BI-PF-1253: CLI so the lane can deliver in a FRESH process on current tree code.
+
+    ``python -m core.delivery <item> [--scope s] [--project p]`` - a short-lived process always loads
+    the current checkout (never a stale server snapshot).
+    """
+    import argparse
+    import json
+    ap = argparse.ArgumentParser(description="Delivery lane (BI-PF-1253: run on fresh tree code)")
+    ap.add_argument("item")
+    ap.add_argument("--scope", default="product_forge")
+    ap.add_argument("--project", default=None)
+    a = ap.parse_args(argv)
+    print(json.dumps(deliver(a.scope, a.project, a.item), ensure_ascii=False))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(_main())
