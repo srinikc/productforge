@@ -188,9 +188,18 @@ def deliver(scope: str = "product_forge", project: str | None = None, item_id: s
                              pr=str(pr.get("number") or ""), pr_url=str(pr.get("url") or ""),
                              note=f"delivery ({land['method']})")
         backlog.set_status(scope, project, item_id, "completed", note="delivered")
+        # BI-PF-1257: persist durable work-state (this item's provenance + indexes/history) to develop so a
+        # fresh clone sees the delivery. Best-effort: never fail a landed delivery on a checkpoint hiccup,
+        # but surface the outcome on the result.
+        ckpt = {"ok": False, "reason": "not run"}
+        try:
+            from core import state_checkpoint
+            ckpt = state_checkpoint.checkpoint(note=f"record delivery provenance: {item_id}")
+        except Exception as e:
+            ckpt = {"ok": False, "reason": type(e).__name__}
         return {"ok": True, "item": item_id, "branch": branch, "merge_sha": land["merge_sha"],
                 "pr": pr.get("number") or "", "pr_url": pr.get("url") or "",
-                "method": land["method"], "pushed": bool(push.get("ok"))}
+                "method": land["method"], "pushed": bool(push.get("ok")), "state_checkpoint": ckpt}
     finally:
         _release(lp)
 

@@ -773,6 +773,7 @@ def main(fast: bool = False):
     rc |= reciprocity_audit()
     rc |= api_impact_audit()
     rc |= epic_coverage_audit()
+    rc |= state_checkpoint_audit()
     rc |= backlog_duplicate_audit()
     rc |= backlog_integrity_audit()
     rc |= tier_model_audit()
@@ -783,6 +784,32 @@ def main(fast: bool = False):
     rc |= provider_fallback_audit()
     rc |= model_registry_audit()
     return rc
+
+
+def state_checkpoint_audit():
+    """Advisory (NON-FATAL): durable backlog/issue state not checkpointed to the integration branch.
+
+    A fresh clone can only resume if durable work-state is on develop; this surfaces uncommitted durable
+    state so it is checkpointed (BI-PF-1257). Fatal-at-release is intentionally left to precheck policy.
+    """
+    try:
+        here = os.path.dirname(os.path.abspath(__file__))
+        if here not in sys.path:
+            sys.path.insert(0, here)
+        from core import state_checkpoint
+        changed = state_checkpoint.durable_changes()
+        if changed:
+            print(f"\nstate-checkpoint: {len(changed)} durable file(s) NOT checkpointed (advisory, BI-PF-1257)")
+            for p in changed[:5]:
+                print(f"   {p}")
+            if len(changed) > 5:
+                print(f"   ... +{len(changed) - 5} more")
+        else:
+            print("\nstate-checkpoint: clean (durable state committed)")
+        return 0
+    except Exception as e:
+        print(f"\nstate-checkpoint: skipped ({type(e).__name__})")
+        return 0
 
 
 def invocation_audit():
