@@ -10,14 +10,24 @@
   "title": "A6: change classifier + drift guard + language rule + no-undeclared-dep",
   "body": "[A6] Governs A1-A7: classify every change; enforce language rule (shipped+sensitive->Go); fail on undeclared runtime dep.",
   "source": "generic",
-  "status": "new",
+  "status": "completed",
   "priority": "P0",
-  "moscow": "Should",
-  "value": 3,
+  "moscow": "Must",
+  "value": 4,
   "effort": 3,
   "risk": 2,
   "deps": [],
-  "links": {},
+  "links": {
+    "delivery": {
+      "branch": "feature/wg/bi-pf-0395",
+      "merge_sha": "209f78c85afae442f034a0ad90a1c0fb9b7b97c2",
+      "commits": [],
+      "pr": "31",
+      "pr_url": "https://github.com/srinikc/productforge/pull/31",
+      "at": "2026-10-12T12:27:38.350084",
+      "note": "delivery (gh-pr-merge) - A6 change governance; merged after lane rebuild to current develop"
+    }
+  },
   "decisions": [
     {
       "at": "2026-10-09T22:32:14.470105",
@@ -27,13 +37,13 @@
     }
   ],
   "follow_up": {},
-  "revision": 2,
+  "revision": 5,
   "priority_rank": 1,
   "priority_class": "",
   "analyze_mode": "on_entry",
   "analysis": {
-    "status": "COMPLETE",
-    "analyzed_at": "2026-10-10T17:03:51.320602",
+    "status": "STALE",
+    "analyzed_at": "2026-10-10T21:56:50.048315",
     "analyzed_by": "deterministic",
     "revision_analyzed": 2,
     "architecture_fit": "EXTEND",
@@ -82,8 +92,8 @@
       ],
       "reason": "The change registry, guardrails, and rule modules provide all needed substrate. The missing pieces are policy decisions, not technical unknowns; an engineer could implement warn-only mode immediately."
     },
-    "arch_fingerprint": "adee3f5193543e1b",
-    "refreshed_at": "2026-10-10T17:03:51.205599"
+    "arch_fingerprint": "2c320e60fc85a6ca",
+    "refreshed_at": "2026-10-10T21:56:49.968454"
   },
   "dependencies": [],
   "blocked_by": [
@@ -99,16 +109,16 @@
     "worker_id": "",
     "assignment_id": "",
     "lease_id": "",
-    "assigned_at": "",
+    "assigned_at": "2026-10-10T21:57:18.876137",
     "lease_expires_at": "",
     "attempt": 0,
-    "started_at": "",
-    "completed_at": ""
+    "started_at": "2026-10-10T21:57:18.876137",
+    "completed_at": "2026-10-11T00:13:13.581571"
   },
   "created_at": "2026-10-06T18:32:20.446713",
-  "updated_at": "2026-10-10T17:03:51.418318",
-  "score": 0.75,
-  "_note": "analysis updated",
+  "updated_at": "2026-10-12T12:27:38.615058",
+  "score": 1.0,
+  "_note": "delivered: A6 language rule + classifier + drift guard + no-undeclared-dep gate; PR#31 merged 209f78c8",
   "parent": "BI-PF-0390",
   "epic": "BI-PF-0390",
   "brief": {
@@ -157,7 +167,9 @@
     "gate passes on compliant changes"
   ],
   "risks": [
-    "Not specified."
+    "gate false-positives on new governance Python (classifier itself) - mitigated by declared allowlist in config/language-rule.json + PF_ALLOW_PY_SHIPPED escape, both visible in diff",
+    "import-name vs package-name drift (yaml/pyyaml) - mitigated by alias table + failing tests that can detect new cases",
+    "shipped-roots definition may shift when A3 build profiles land - extension point documented in config; roots are reviewed config, not code"
   ],
   "rollback": "Revert the change.",
   "summary": "",
@@ -175,5 +187,12 @@
     "routes": [],
     "consumers": [],
     "reason": "no API surface declared in backend_capability"
+  },
+  "dashboard_impact": {
+    "needs_dashboard": false,
+    "reason": "Author-time/CI gate + core policy module; no new dashboard surface (dashboard is legacy, excluded per BI-PF-1223)",
+    "dashboard_item": null,
+    "reviewed_by": "agent",
+    "reviewed_at": "2026-10-10T22:03:34.514551"
   }
 }
