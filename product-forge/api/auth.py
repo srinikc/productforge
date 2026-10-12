@@ -8,12 +8,53 @@ This reimplements the legacy ``auth``/``operator_guard``/``tenant_guard`` concep
 surface *without* editing the legacy dashboard app.
 """
 
+import os
+import secrets
 from typing import List
 
 from fastapi import Depends, Header, Request
 
 from .context import ctx_of
 from .errors import ApiError
+
+try:
+    from core.paths import ROOT as _ROOT
+except Exception:
+    _ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+
+# BI-PF-1256: local dev credential, shared with the worker via WorkerGrid `token_file`. Dev-only (PF_DEV=1);
+# the API falls back to this file ONLY when PF_DEV=1, so production stays fail-closed.
+TOKEN_PATH = os.path.join(str(_ROOT), "data", "local", "dev-api-token")
+
+
+def is_dev() -> bool:
+    return str(os.environ.get("PF_DEV", "")).strip().lower() in ("1", "true", "yes")
+
+
+def dev_token() -> str:
+    try:
+        with open(TOKEN_PATH, encoding="utf-8") as f:
+            return f.read().strip()
+    except Exception:
+        return ""
+
+
+def ensure_dev_token() -> str:
+    t = dev_token()
+    if t:
+        return t
+    os.makedirs(os.path.dirname(TOKEN_PATH), exist_ok=True)
+    t = secrets.token_urlsafe(32)
+    tmp = TOKEN_PATH + ".tmp"
+    with open(tmp, "w", encoding="utf-8", newline="\n") as f:
+        f.write(t + "\n")
+    try:
+        os.chmod(tmp, 0o600)
+    except Exception:
+        pass
+    os.replace(tmp, TOKEN_PATH)
+    return t
+
 
 _PUBLIC = {"/health", "/ready", "/metrics"}
 
@@ -29,7 +70,11 @@ def _flag(name: str, default: str = "") -> str:
 
 
 def _token() -> str:
-    return _flag("API_TOKEN", "") or _flag("DASHBOARD_API_TOKEN", "")
+    tok = _flag("API_TOKEN", "") or _flag("DASHBOARD_API_TOKEN", "")
+    if not tok and is_dev():
+        # BI-PF-1256: dev-only shared local token so local dev needs no manual env (never in prod).
+        tok = ensure_dev_token()
+    return tok
 
 
 def _anon_ok() -> bool:
