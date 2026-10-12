@@ -10,14 +10,24 @@
   "title": "Durable work-state is never committed to develop (a fresh clone shows delivered items as 'new' and lacks new items); auto-checkpoint backlog/issue state per-delivery + periodic batch, with a guard",
   "body": "Evidence: on origin/develop BI-PF-0394/BI-PF-0395 = status 'new' (no delivery), BI-PF-1253/54/55 absent, IS-PF-0037 absent; ~96 item + ~60 history + open/closed/counters/id-blocks are uncommitted in the runtime tree. Root cause: the delivery lane and API WRITE durable state (backlog items, indexes, history, counters, issues, id-blocks, delivery provenance) into the runtime tree but NO code path commits/pushes it. Code rides PRs; state does not. A fresh clone therefore cannot resume (redoes delivered work, lacks new items) even though it can run. RCCA guard: automated durable-state checkpoint + a gate that fails if durable state is left uncommitted.",
   "source": "generic",
-  "status": "new",
+  "status": "completed",
   "priority": "P2",
   "moscow": "Should",
   "value": 5,
   "effort": 3,
   "risk": 2,
   "deps": [],
-  "links": {},
+  "links": {
+    "delivery": {
+      "branch": "feature/wg/bi-pf-1257",
+      "merge_sha": "8a97e6b7c581f8c9b67c220fc5f56f820e872daf",
+      "commits": [],
+      "pr": "38",
+      "pr_url": "https://github.com/srinikc/productforge/pull/38",
+      "at": "2026-10-12T17:14:07.474656",
+      "note": "delivery (gh-pr-merge)"
+    }
+  },
   "decisions": [],
   "follow_up": {},
   "brief": {
@@ -93,7 +103,7 @@
   "children": [],
   "epic": "BI-PF-0360",
   "parent": "BI-PF-0360",
-  "revision": 2,
+  "revision": 3,
   "priority_rank": 2,
   "priority_class": "P2",
   "analyze_mode": "on_entry",
@@ -160,9 +170,9 @@
     "usage": {}
   },
   "created_at": "2026-10-12T16:21:51.815792",
-  "updated_at": "2026-10-12T16:21:54.243932",
+  "updated_at": "2026-10-12T17:14:07.851479",
   "score": 1.25,
-  "_note": "filed after fresh-clone audit; do one-time [data] sync + ship the mechanism",
+  "_note": "delivered: durable-state checkpoint PR#38",
   "dashboard_impact": {
     "needs_dashboard": false,
     "reason": "repo/state integrity, no UI surface"
