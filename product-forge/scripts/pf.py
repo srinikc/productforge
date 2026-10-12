@@ -188,7 +188,8 @@ def cmd_backlog(pos, flags):
         mode = "deterministic" if flags.get("no-ai") else "ai"
         return grooming.regroom(s, p, epic=epic, ids=ids, limit=int(flags.get("limit") or 0),
                                 mode=mode, approve=bool(flags.get("approve")),
-                                include_fresh=bool(flags.get("force")))
+                                include_fresh=bool(flags.get("force")),
+                                batch=int(flags.get("batch") or 0), jobs=int(flags.get("jobs") or 0))
     if sub in ("refresh-stale", "refresh"):   # back-compat (analysis re-ground, no context/approval)
         mode = "ai" if flags.get("ai") else "deterministic"
         limit = int(flags.get("limit") or 0) or 1_000_000
