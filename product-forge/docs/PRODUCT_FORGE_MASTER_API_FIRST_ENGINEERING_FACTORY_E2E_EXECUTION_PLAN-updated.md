@@ -2642,3 +2642,70 @@ The final Product Forge architecture is therefore:
 ```
 
 **This is the governing execution order:** API contracts first; engineering orchestration second; validation is a shared factory rather than separate implementations; GitHub is the source-control/PR/CI system of record; OpenCode is replaceable; and the future Dashboard is simply another client of the same stable Product Forge contracts.
+
+---
+
+## Addendum — Agentic ecosystem pluggability and phase gate (2026-10-12)
+
+### Decision
+
+**Make the core pluggable at stable boundaries; defer ecosystem integrations until the first end-to-end Product Forge factory slice is working and passes its release gates.** Do not turn MCP, A2A, a third-party agent framework, a marketplace, or a broad plugin runtime into a prerequisite for proving the factory.
+
+This follows the existing API-first execution order and the existing backlog direction for pluggable/modular core and standards adoption (notably BI-PF-0195), pluggable worker orchestration (BI-PF-0360), the commercial/IP foundation (BI-PF-0390), the vertical slice (BI-PF-0400), and later gateways (BI-PF-0401). Reuse and reconcile these items; do not create duplicates. Confirm their current state and dependencies from the live backlog before execution.
+
+### What “pluggable now” means
+
+During the first factory phase, define only the **minimum contracts required by the working vertical slice**:
+
+- A canonical request/task/result/evidence envelope with schema version and correlation IDs.
+- A narrow worker/runtime seam so the current OpenCode/WorkerGrid path is an adapter rather than the owner of PF orchestration.
+- A model-provider seam sufficient to exercise the current model path and a test double.
+- A tool/action boundary that always applies PF authorization, policy, budget, approval and audit controls.
+- Versioned capability/runtime/deployment descriptors where the existing A1/A2/A3/A4 work requires them.
+- Contract fixtures and compatibility tests proving the seam is real, not just a diagram.
+
+Do **not** build a generic plugin marketplace, implement every gateway, introduce multiple orchestration frameworks, or add protocol-specific dependencies just to make the first slice appear extensible. Avoid speculative abstractions: each port must have a current caller, an owner, tests and a documented reason.
+
+### Phase gate — first working factory
+
+The first phase is complete only when a clean-checkout run can:
+
+1. Accept a product requirement and produce a traceable plan/backlog work item.
+2. Execute bounded engineering work through the existing PF worker/orchestration path.
+3. Use an isolated feature branch/worktree and complete the Git/PR/CI lifecycle.
+4. Run required validation/security/quality gates with fail-closed semantics.
+5. Capture run-bound artifacts, test results, decisions, usage/cost and delivery provenance.
+6. Recover or report accurately on worker failure, timeout, cancellation and missing/stale evidence.
+7. Produce a verifiable package/release decision with human approval where required.
+8. Pass the governing precheck, wired audit and relevant end-to-end/dogfood tests.
+
+No external MCP/A2A or third-party agent-framework integration is required to pass this gate. The core must not falsely report a capability as implemented merely because a port or design document exists.
+
+### After the gate — add integrations as optional adapters
+
+Add integrations in small, independently testable increments, only when a concrete use case justifies them:
+
+1. **Model/runtime adapters:** prove a second provider/runtime can be substituted without changing PF-owned orchestration, policy or evidence semantics.
+2. **MCP adapter:** first consume a small allowlisted set of tools/resources; expose PF capabilities as an MCP server only after identity, tenant context and tool authorization are enforced.
+3. **A2A adapter:** start as a client for configured external agents; map remote task state and artifacts into PF's canonical task/evidence model. Publish PF agents later.
+4. **Other frameworks/enterprise systems:** add behind the same owned interfaces, with version pins, compatibility tests and explicit permissions.
+5. **Marketplace/commercial agent exchange:** defer until agent identity/trust, conformance, audit, metering, tenant isolation, revocation and support operations are proven.
+
+MCP is a tool/resource integration protocol; A2A is an agent-to-agent communication protocol. Neither replaces PF's orchestration, authorization, lifecycle, verification or governance. Protocol versions and conformance must be reviewed when an adapter is actually scheduled; do not freeze speculative version choices into the core.
+
+### Mandatory adapter acceptance criteria
+
+Every future adapter must:
+
+- Be optional and disableable without breaking the core factory.
+- Implement an owned, versioned PF port rather than leaking vendor-specific objects into core state.
+- Pass shared contract/compatibility fixtures and positive, negative, timeout, cancellation and recovery tests.
+- Enforce identity, least privilege, data/egress boundaries, budgets and human approval rules at PF-controlled boundaries.
+- Record provenance, usage/cost, latency, errors and verifiable outputs.
+- Have a fallback/disable strategy and a documented removal path.
+- Be introduced through a reconciled, epiced backlog item and a feature branch; never bypass the repository's precheck, wired audit or review rules.
+
+### Execution rule
+
+**First make the factory work. Then make it interoperable. Then make it an ecosystem.** Preserve stable seams and contract tests from the start, but defer the cost and complexity of broad adapters until the first factory phase passes its gate. This is the default ordering unless an explicit, evidence-backed product requirement justifies bringing a particular adapter forward.
+
