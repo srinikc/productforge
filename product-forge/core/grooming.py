@@ -63,7 +63,7 @@ def _context_review_cfg() -> dict[str, Any]:
     return dict(guidelines().get("context_review") or {})
 
 
-# ── deterministic groomer (no model) ────────────────────────────────────────
+# â”€â”€ deterministic groomer (no model) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 def _item_dir(scope: str, project: str | None) -> str:
     from core import backlog
     return backlog._dir(backlog._norm_scope(scope), project)
@@ -232,7 +232,7 @@ def deterministic(scope: str, project: str | None, item: dict, *, depth: str = "
     }
 
 
-# ── AI groomer (default) - reuses the existing agent runtime ────────────────
+# â”€â”€ AI groomer (default) - reuses the existing agent runtime â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 def _ai_prompt(item: dict, ctx: dict) -> str:
     gl = guidelines()
     checks = "\n".join(f"- {c.get('id')}: {c.get('ask')}" for c in gl.get("checklist", []))
@@ -401,7 +401,7 @@ def _run_ai_batch(items_ctx: list[tuple[dict, dict]], project: str | None,
     return out
 
 
-# ── public API ──────────────────────────────────────────────────────────────
+# â”€â”€ public API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 def _dup_threshold() -> float:
     """Jaccard threshold for near-duplicate marking (BI-PF-0432); env PF_DEDUP_THRESHOLD (default 0.6)."""
     import os as _os
@@ -668,6 +668,96 @@ def refresh_stale(scope: str, project: str | None = None, *, limit: int = 10,
                                  analyzed_by=used)
             refreshed.append(str(it.get("id")))
     return {"refreshed": refreshed, "count": len(refreshed)}
+
+
+def _record_change(scope: str, project: str | None, kind: str, summary: str, ids: list) -> None:
+    """Best-effort append to the engineering change log (BI-PF-1258)."""
+    with contextlib.suppress(Exception):
+        from core import change_log
+        change_log.record(scope, project, kind=kind, summary=summary, detected_by="grooming",
+                          details={"items": list(ids)[:200], "count": len(ids)})
+
+
+def _targets(scope: str, project: str | None, epic: str, ids: list[str] | None):
+    """Open non-epic items in scope, filtered by epic (children) or explicit ids."""
+    from core import backlog
+    want = {str(x) for x in ids} if ids else None
+    for it in backlog.list_open(scope, project, order=False):
+        if backlog.is_epic(it):
+            continue
+        iid = str(it.get("id"))
+        if want is not None and iid not in want:
+            continue
+        if epic and str(it.get("epic") or it.get("parent") or "") != str(epic):
+            continue
+        yield it
+
+
+def restamp(scope: str, project: str | None = None, *, epic: str = "", ids: list[str] | None = None,
+            limit: int = 0, reason: str = "") -> dict[str, Any]:
+    """LIGHT (BI-PF-1258): accept the current architecture for STALE items - signature only.
+
+    Writes the current ``arch_fingerprint`` (clears 'analysis stale') and leaves the analysis/context
+    untouched - for benign architecture changes where the item's design still holds. Reasoned + logged.
+    Scope: the ``epic``'s children, explicit ``ids``, or ALL stale in ``scope``.
+    """
+    from core import backlog
+    done: list[str] = []
+    fp = backlog.arch_fingerprint()
+    for it in _targets(scope, project, epic, ids):
+        if limit and len(done) >= int(limit):
+            break
+        if not backlog.analysis_is_stale(it):
+            continue
+        with contextlib.suppress(Exception):
+            a = dict(it.get("analysis") or {})
+            a["status"] = "COMPLETE"
+            a["arch_fingerprint"] = fp
+            a["restamped_at"] = datetime.now().isoformat()
+            a["restamped_reason"] = str(reason)
+            backlog.update(scope, project, str(it.get("id")), analysis=a, _note="restamped (signature only)")
+            done.append(str(it.get("id")))
+    _record_change(scope, project, "correction",
+                   f"restamp {len(done)} item(s) (signature only): {reason or 'architecture change acknowledged'}",
+                   done)
+    return {"restamped": done, "count": len(done), "reason": reason}
+
+
+def regroom(scope: str, project: str | None = None, *, epic: str = "", ids: list[str] | None = None,
+            limit: int = 0, mode: str = "ai", approve: bool = False,
+            include_fresh: bool = False) -> dict[str, Any]:
+    """FULL (BI-PF-1258): re-groom items so they reflect the CURRENT architecture - analysis + context + restamp.
+
+    Checks whether the design/architecture changed (``analysis_is_stale``): if so, the context is **updated**
+    (force re-derive) so the item reflects the change; if context is merely **missing**, it is gap-filled.
+    **AI is the default** (deterministic fallback, never silent). Approval gate: with ``approve=True`` clean
+    items are approved (``decide_all``) in one call; flagged ones are returned for manual handling. The change
+    is recorded in the engineering change log. Scope: ``epic`` children / explicit ``ids`` / ALL in ``scope``.
+    """
+    from core import backlog
+    regroomed: list[str] = []
+    for it in _targets(scope, project, epic, ids):
+        if limit and len(regroomed) >= int(limit):
+            break
+        stale = backlog.analysis_is_stale(it)
+        missing = any(_empty(it.get(f)) for f in _CONTEXT_FIELDS)
+        if not include_fresh and not stale and not missing:
+            continue
+        # architecture changed (stale) => overwrite/refresh context; missing context => gap-fill.
+        with contextlib.suppress(Exception):
+            r = groom(scope, project, str(it.get("id")), mode=mode, force=bool(stale))
+            if r.get("applied"):
+                regroomed.append(str(it.get("id")))
+    approved: list[str] = []
+    flagged: list[dict] = []
+    if approve and regroomed:
+        d = decide_all(scope, project, "APPROVE", ids=regroomed)
+        approved = d.get("approved") or []
+        flagged = d.get("flagged") or []
+    _record_change(scope, project, "redesign",
+                   f"regroom {len(regroomed)} item(s) (mode={mode}; update-on-change)", regroomed)
+    return {"regroomed": regroomed, "count": len(regroomed), "approved": approved, "flagged": flagged,
+            "needs_approval": [x for x in regroomed if x not in approved]}
 
 
 def groom_all(scope: str, project: str | None, mode: str = "", *, batch: int = 0, limit: int = 0,

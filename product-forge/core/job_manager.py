@@ -1,4 +1,4 @@
-"""Job Manager — the orchestration layer over the existing portfolio queue.
+"""Job Manager â€” the orchestration layer over the existing portfolio queue.
 
 This ENHANCES the existing queue (same SQLite file `product-forge/portfolio/portfolio.db`,
 same worker substrate, same `scripts/run_pipeline.py` launch); it does not replace it.
@@ -19,7 +19,7 @@ Ordering when a slot frees (lowest `rank`, then priority, then enqueued_at):
   3. (FIFO tie-break)
 
 Key ids aligned end-to-end on every job:
-  job_id(=project row) · run_id · backlog item(s) · intake IN-id · source · actor
+  job_id(=project row) Â· run_id Â· backlog item(s) Â· intake IN-id Â· source Â· actor
 """
 try:
     from core.paths import ROOT as _PF_ROOT
@@ -225,7 +225,7 @@ def finish(project: str, rc: int) -> dict:
     return {"job": row or {}, "auto_queued": resumed, "verification": verified}
 
 
-# ── PFSSOT-P5 (BI-PF-0366): worker-scoped claim + lease over the canonical backlog ──
+# â”€â”€ PFSSOT-P5 (BI-PF-0366): worker-scoped claim + lease over the canonical backlog â”€â”€
 _LEASE_SECONDS_DEFAULT = 3600
 RECOVERY_POLICIES = ("RESUME", "RETRY", "REASSIGN", "MARK_FAILED", "REQUIRE_REVIEW")
 
@@ -254,6 +254,31 @@ def _active_assignments(scope: str, project: str | None) -> int:
                if str((it.get("execution") or {}).get("worker_id") or ""))
 
 
+def _self_heal_arch_stale(scope: str, project: str | None, epic: str = "") -> dict | None:
+    """BI-PF-1258: if nothing is claimable ONLY because items are 'analysis stale (architecture changed)',
+    auto-regroom those items (deterministic, approved) so the claim can proceed.
+
+    Never heals other blockers (unmet deps, not-groomed, contention) - those are surfaced, not bypassed.
+    Returns the regroom result, or None when there is no architecture-stale-only blocker.
+    """
+    try:
+        from core import grooming, scheduler
+        eb = scheduler.eligible_backlog(scope, project, epic=(epic or None))
+        ids: list[str] = []
+        for i in (eb.get("items") or []):
+            reasons = [str(r) for r in (i.get("reasons") or [])]
+            if not any("architecture changed" in r for r in reasons):
+                continue
+            if any("architecture changed" not in r for r in reasons):
+                continue  # also blocked by something else (e.g. deps) -> leave it
+            ids.append(str(i.get("id")))
+        if not ids:
+            return None
+        return grooming.regroom(scope, project, ids=ids, mode="deterministic", approve=True)
+    except Exception:
+        return None
+
+
 def claim_next(scope: str = "product_forge", project: str | None = None, worker: str = "",
                lease_seconds: int = 0, epic: str = "") -> dict:
     """Atomically claim the highest ELIGIBLE backlog item for ``worker`` and attach a per-ITEM lease.
@@ -272,6 +297,11 @@ def claim_next(scope: str = "product_forge", project: str | None = None, worker:
     """
     from core import backlog, capacity, scheduler
     nxt = scheduler.next_eligible(scope, project, stage="execute", epic=epic or None)
+    if not nxt.get("found"):
+        # BI-PF-1258: self-heal an architecture-stale block only (auto-regroom those items), then retry once.
+        healed = _self_heal_arch_stale(scope, project, epic)
+        if healed and healed.get("regroomed"):
+            nxt = scheduler.next_eligible(scope, project, stage="execute", epic=epic or None)
     if not nxt.get("found"):
         return {"claimed": False, "reason": "no eligible item"}
     item_id = str(nxt["item"])
