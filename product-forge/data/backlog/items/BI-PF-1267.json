@@ -19,13 +19,16 @@
   "deps": [
     "BI-PF-1266"
   ],
-  "links": {},
+  "links": {
+    "epic": "BI-PF-1265",
+    "adr": "ADR-0005",
+    "design": "docs/EVENTING-ALERTING-SSOT-DESIGN.md"
+  },
   "decisions": [
     {
-      "at": "2026-10-12T23:26:54.876613",
-      "decision": "APPROVE",
-      "by": "cli",
-      "note": ""
+      "decision": "Extend the A1 contract surface additively; Go mirror + parity test; no new Python module",
+      "source": "BI-PF-1267",
+      "at": "2026-10-12T23:41:03.472587"
     }
   ],
   "follow_up": {},
@@ -59,15 +62,62 @@
   "approach": "- Parity test (mirrors test_contracts.py pattern); contract test pins events.py public symbols.",
   "review": {
     "reconciliation": {
-      "prior_decisions": [],
-      "existing_path": [],
-      "assumptions": [],
-      "divergences": [],
-      "open_questions": []
+      "prior_decisions": [
+        "ADR-0005 (EPIC BI-PF-1265): Python is schema source of truth; Go mirrors; extend additively; A1 wire",
+        "core/contracts.py:12-13: 'Grow by need: add a contract because a real producer or consumer needs it, never speculatively'",
+        "WIRE_VERSION=1; envelope fields fixed; existing wire ops (ping/describe/validate/canonicalize)"
+      ],
+      "existing_path": [
+        "canonical contract surface + JSON Schema + validate/canonical -> core/contracts.py (_SPECS/CONTRACTS)",
+        "wire envelope + handle_wire -> core/contracts.py:347-404",
+        "Go mirror required-field tables -> go/contract/contract.go, go/pfcore/pfcore.go contractShapes",
+        "parity test -> test-framework/tests/pipeline/test_contracts.py",
+        "Go invocation seam -> core/go_host.py",
+        "consumers of contracts -> core/bom.py:195,198; core/go_host.py"
+      ],
+      "assumptions": [
+        "B1 adding contracts is additive; existing consumers (bom.py, go_host) unaffected",
+        "B2 the Go mirror tables stay in lockstep, cross-checked by test_contracts.py",
+        "B3 event-envelope `seq` writer stays core/events.py (item 1268/1272); contracts define schemas only"
+      ],
+      "divergences": [
+        "none - additive; no prior decision contradicted"
+      ],
+      "open_questions": [
+        "Qa: model the event envelope as a first-class ContractSpec for Go parity (writer stays core/events.py)?",
+        "Qb: webhook signature = HMAC-SHA256, headers X-PF-Signature + X-PF-Idempotency-Key"
+      ]
     },
-    "impact_review": [],
-    "reviewed_by": "derived",
-    "at": ""
+    "impact_review": [
+      {
+        "claim": "Add contract specs (subscription, alert-rule, webhook-delivery, event-envelope)",
+        "verdict": "aligned",
+        "evidence": "core/contracts.py:328-343 grow-by-need; _SPECS"
+      },
+      {
+        "claim": "Go mirror extended additively",
+        "verdict": "aligned",
+        "evidence": "go/pfcore/pfcore.go contractShapes; go/contract/contract.go"
+      },
+      {
+        "claim": "Parity test extended",
+        "verdict": "aligned",
+        "evidence": "test-framework/tests/pipeline/test_contracts.py"
+      },
+      {
+        "claim": "Existing consumers unaffected",
+        "verdict": "aligned",
+        "evidence": "core/bom.py:195,198; core/go_host.py"
+      },
+      {
+        "claim": "New Python module in shipped root",
+        "verdict": "violates",
+        "evidence": "config/language-rule.json",
+        "recommendation": "not needed - edit core/contracts.py only"
+      }
+    ],
+    "reviewed_by": "architect",
+    "at": "2026-10-12T23:41:03.472587"
   },
   "verification": [
     "Go and Python required-field/shape parity tests pass; existing test_api_events stays green."
@@ -88,12 +138,12 @@
   "children": [],
   "epic": "BI-PF-1265",
   "parent": "BI-PF-1265",
-  "revision": 3,
+  "revision": 4,
   "priority_rank": 2,
   "priority_class": "P2",
   "analyze_mode": "on_entry",
   "analysis": {
-    "status": "COMPLETE",
+    "status": "STALE",
     "analyzed_at": "2026-10-12T23:26:54.709072",
     "analyzed_by": "cli",
     "revision_analyzed": 3,
@@ -162,7 +212,7 @@
     "usage": {}
   },
   "created_at": "2026-10-12T22:54:03.939725",
-  "updated_at": "2026-10-12T23:27:14.977977",
+  "updated_at": "2026-10-12T23:41:03.539133",
   "score": 0.83,
-  "_note": "readiness computed"
+  "_note": "item reconciliation + impact review recorded (pre-implementation)"
 }
