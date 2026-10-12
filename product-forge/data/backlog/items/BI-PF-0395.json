@@ -10,24 +10,23 @@
   "title": "A6: change classifier + drift guard + language rule + no-undeclared-dep",
   "body": "[A6] Governs A1-A7: classify every change; enforce language rule (shipped+sensitive->Go); fail on undeclared runtime dep.",
   "source": "generic",
-  "status": "new",
+  "status": "completed",
   "priority": "P0",
-  "moscow": "Should",
-  "value": 3,
+  "moscow": "Must",
+  "value": 4,
   "effort": 3,
   "risk": 2,
   "deps": [],
   "links": {
-    "backend_capability": [
-      "module:core/change_policy.py",
-      "file:config/language-rule.json",
-      "file:scripts/dev/language_rule_check.py",
-      "file:scripts/dev/precheck.py",
-      "file:config/store-registry.json",
-      "file:config/ci-cd-gates.json",
-      "test:test-framework/tests/pipeline/test_change_policy.py",
-      "file:docs/PF-TARGET-ARCHITECTURE-AND-IP-PLAN.md"
-    ]
+    "delivery": {
+      "branch": "feature/wg/bi-pf-0395",
+      "merge_sha": "209f78c85afae442f034a0ad90a1c0fb9b7b97c2",
+      "commits": [],
+      "pr": "31",
+      "pr_url": "https://github.com/srinikc/productforge/pull/31",
+      "at": "2026-10-12T12:27:38.350084",
+      "note": "delivery (gh-pr-merge) - A6 change governance; merged after lane rebuild to current develop"
+    }
   },
   "decisions": [
     {
@@ -38,23 +37,24 @@
     }
   ],
   "follow_up": {},
-  "revision": 3,
+  "revision": 5,
   "priority_rank": 1,
   "priority_class": "",
   "analyze_mode": "on_entry",
   "analysis": {
     "status": "STALE",
-    "analyzed_at": "2026-10-10T17:03:51.320602",
+    "analyzed_at": "2026-10-10T21:56:50.048315",
     "analyzed_by": "deterministic",
     "revision_analyzed": 2,
     "architecture_fit": "EXTEND",
-    "implementation_strategy": "core/change_policy.py (pure classifier+rule+undeclared-dep policy; sole reader of registered config/language-rule.json) + scripts/dev/language_rule_check.py (changed-files gate; git-scoped; --files/--added overrides; PF_ALLOW_PY_SHIPPED escape) in precheck._GATES fast band + ci-cd-gates lockstep. Edits of shipped Python allowed; NEW shipped .py blocked unless allowlisted; undeclared third-party imports in shipped files fail (complements BI-PF-0443).",
+    "implementation_strategy": "Extend existing components/APIs: core/agent_rules.py, core/change_log.py, core/change_registry.py, core/change_spec.py",
     "existing_components": [
-      "scripts/dev/precheck.py",
-      "scripts/dev/store_check.py",
-      "scripts/dev/dependency_catalog_check.py",
-      "config/store-registry.json",
-      "config/pf-review-scope.json"
+      "core/agent_rules.py",
+      "core/change_log.py",
+      "core/change_registry.py",
+      "core/change_spec.py",
+      "core/guardrails.py",
+      "core/run_guard.py"
     ],
     "existing_apis": [
       "/api/v1/changes",
@@ -66,16 +66,12 @@
     "dependency_findings": [],
     "conflict_findings": [],
     "duplication_findings": [],
-    "drift": "assignment worktree not pruned post-delivery (IS-PF-0036 lifecycle gap) - separate follow-up item to file",
+    "drift": "NONE",
     "rewrite_required": false,
-    "new_component_required": true,
+    "new_component_required": false,
     "rationale": "deterministic deep grooming (codebase-grounded)",
     "assumptions": [],
-    "risks": [
-      "alias-table drift (yaml/pyyaml style names) -> covered by test + single alias source",
-      "shipped_roots follow A3 build profiles - gate reads config, extension point documented",
-      "governance Python in shipped roots needs a declared allowlist entry (visible in diff, A6 spirit)"
-    ],
+    "risks": [],
     "evidence": [
       "similar=4",
       "score=0.75",
@@ -96,8 +92,8 @@
       ],
       "reason": "The change registry, guardrails, and rule modules provide all needed substrate. The missing pieces are policy decisions, not technical unknowns; an engineer could implement warn-only mode immediately."
     },
-    "arch_fingerprint": "adee3f5193543e1b",
-    "refreshed_at": "2026-10-10T17:03:51.205599"
+    "arch_fingerprint": "2c320e60fc85a6ca",
+    "refreshed_at": "2026-10-10T21:56:49.968454"
   },
   "dependencies": [],
   "blocked_by": [
@@ -113,16 +109,16 @@
     "worker_id": "",
     "assignment_id": "",
     "lease_id": "",
-    "assigned_at": "",
+    "assigned_at": "2026-10-10T21:57:18.876137",
     "lease_expires_at": "",
     "attempt": 0,
-    "started_at": "",
-    "completed_at": ""
+    "started_at": "2026-10-10T21:57:18.876137",
+    "completed_at": "2026-10-11T00:13:13.581571"
   },
   "created_at": "2026-10-06T18:32:20.446713",
-  "updated_at": "2026-10-10T23:56:14.143940",
-  "score": 0.75,
-  "_note": "analysis updated",
+  "updated_at": "2026-10-12T12:27:38.615058",
+  "score": 1.0,
+  "_note": "delivered: A6 language rule + classifier + drift guard + no-undeclared-dep gate; PR#31 merged 209f78c8",
   "parent": "BI-PF-0390",
   "epic": "BI-PF-0390",
   "brief": {
@@ -164,22 +160,19 @@
   "target_release": "(derived) TBD",
   "approvals": [],
   "evidence": [
-    "test-framework/tests/pipeline/test_change_policy.py",
-    "scripts/dev/language_rule_check.py",
-    "config/language-rule.json",
-    "config/store-registry.json",
-    "config/ci-cd-gates.json",
-    "docs/PF-TARGET-ARCHITECTURE-AND-IP-PLAN.md"
+    "pending"
   ],
   "verification": [
     "gate fails on a Python shipped/sensitive change and on an undeclared runtime dep",
     "gate passes on compliant changes"
   ],
   "risks": [
-    "Not specified."
+    "gate false-positives on new governance Python (classifier itself) - mitigated by declared allowlist in config/language-rule.json + PF_ALLOW_PY_SHIPPED escape, both visible in diff",
+    "import-name vs package-name drift (yaml/pyyaml) - mitigated by alias table + failing tests that can detect new cases",
+    "shipped-roots definition may shift when A3 build profiles land - extension point documented in config; roots are reviewed config, not code"
   ],
   "rollback": "Revert the change.",
-  "summary": "A6 gate wired: language rule (new shipped .py must be Go or declared allowlist) + undeclared runtime-dep check + unclassified-path fail-closed + drift line; enforced author-time and in precheck fast band.",
+  "summary": "",
   "in_scope": [
     "change classifier",
     "drift guard",
@@ -194,5 +187,12 @@
     "routes": [],
     "consumers": [],
     "reason": "no API surface declared in backend_capability"
+  },
+  "dashboard_impact": {
+    "needs_dashboard": false,
+    "reason": "Author-time/CI gate + core policy module; no new dashboard surface (dashboard is legacy, excluded per BI-PF-1223)",
+    "dashboard_item": null,
+    "reviewed_by": "agent",
+    "reviewed_at": "2026-10-10T22:03:34.514551"
   }
 }
