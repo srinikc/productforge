@@ -1,0 +1,180 @@
+{
+  "id": "BI-PF-1257",
+  "tag": "PF",
+  "type": "bug",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "ops",
+  "external_id": "DURABLE-STATE-CHECKPOINT-1",
+  "label": "PF Backlog 571",
+  "title": "Durable work-state is never committed to develop (a fresh clone shows delivered items as 'new' and lacks new items); auto-checkpoint backlog/issue state per-delivery + periodic batch, with a guard",
+  "body": "Evidence: on origin/develop BI-PF-0394/BI-PF-0395 = status 'new' (no delivery), BI-PF-1253/54/55 absent, IS-PF-0037 absent; ~96 item + ~60 history + open/closed/counters/id-blocks are uncommitted in the runtime tree. Root cause: the delivery lane and API WRITE durable state (backlog items, indexes, history, counters, issues, id-blocks, delivery provenance) into the runtime tree but NO code path commits/pushes it. Code rides PRs; state does not. A fresh clone therefore cannot resume (redoes delivered work, lacks new items) even though it can run. RCCA guard: automated durable-state checkpoint + a gate that fails if durable state is left uncommitted.",
+  "source": "generic",
+  "status": "completed",
+  "priority": "P2",
+  "moscow": "Should",
+  "value": 5,
+  "effort": 3,
+  "risk": 2,
+  "deps": [],
+  "links": {
+    "delivery": {
+      "branch": "feature/wg/bi-pf-1257",
+      "merge_sha": "8a97e6b7c581f8c9b67c220fc5f56f820e872daf",
+      "commits": [],
+      "pr": "38",
+      "pr_url": "https://github.com/srinikc/productforge/pull/38",
+      "at": "2026-10-12T17:04:26.665115",
+      "note": "delivery (gh-pr-merge)"
+    }
+  },
+  "decisions": [],
+  "follow_up": {},
+  "brief": {
+    "problem": "Evidence: on origin/develop BI-PF-0394/BI-PF-0395 = status 'new' (no delivery), BI-PF-1253/54/55 absent, IS-PF-0037 absent; ~96 item + ~60 history + open/closed/counters/id-blocks are uncommitted in the runtime tree. Root cause: the delivery lane and API WRITE durable state (backlog items, indexes, history, counters, issues, id-blocks, delivery provenance) into the runtime tree but NO code path commits/pushes it. Code rides PRs; state does not. A fresh clone therefore cannot resume (redoes delivered work, lacks new items) even though it can run. RCCA guard: automated durable-state checkpoint + a gate that fails if durable state is left uncommitted.",
+    "what_adds": "Durable work-state is never committed to develop (a fresh clone shows delivered items as 'new' and lacks new items); auto-checkpoint backlog/issue state per-delivery + periodic batch, with a guard",
+    "why": "Evidence: on origin/develop BI-PF-0394/BI-PF-0395 = status 'new' (no delivery), BI-PF-1253/54/55 absent, IS-PF-0037 absent; ~96 item + ~60 history + open/closed/counters/id-blocks are uncommitted in the runtime tree. Root cause: the delivery lane and API WRITE durable state (backlog items, indexes, history, counters, issues, id-blocks, delivery provenance) into the runtime tree but NO code path commits/pushes it. Code rides PRs; state does not. A fresh clone therefore cannot resume (redoes delivered work, lacks new items) even though it can run. RCCA guard: automated durable-state checkpoint +",
+    "who_feels": "Product Forge maintainers and consumers.",
+    "source": "extracted"
+  },
+  "objective": "Guarantee durable PF work-state is always on develop: auto-commit+push the durable state after every delivery and on a periodic batch, fail-closed if a checkpoint cannot land, and gate on uncommitted durable state so it can never silently regress.",
+  "acceptance_criteria": [
+    "core/state_checkpoint.py: single writer; allowlist of durable paths only; checkpoint(note) commit+push via protected-branch PR; idempotent no-op when clean; fail-closed on push failure",
+    "delivery.deliver() checkpoints provenance+state automatically after merge",
+    "periodic batch checkpoint runs from the scheduler for non-delivery mutations",
+    "wired_audit/precheck guard flags uncommitted durable state (advisory now, fatal at --release)",
+    ".gitignore excludes ephemeral runtime stores so only durable state is ever committed",
+    "fresh-clone check: after a delivery, develop shows the item completed with links.delivery"
+  ],
+  "in_scope": [
+    "core/state_checkpoint.py (durable allowlist + checkpoint + protection-aware push + CLI)",
+    "core/delivery.py post-merge checkpoint",
+    "scheduler/job_manager periodic batch checkpoint",
+    "wired_audit/precheck guard",
+    ".gitignore ephemeral set",
+    "workergrid/config.json repo_root portability"
+  ],
+  "out_of_scope": [
+    "versioning ephemeral runtime stores (events/gate/validation/products outputs)",
+    "changing branch protection"
+  ],
+  "affected_components": [
+    "Not specified."
+  ],
+  "affected_files": [
+    "core/state_checkpoint.py",
+    "core/delivery.py",
+    "core/job_manager.py",
+    "scripts/dev/wired_audit.py",
+    ".gitignore",
+    "test-framework/tests/pipeline/test_state_checkpoint.py"
+  ],
+  "approach": "New owner core/state_checkpoint.py: DURABLE paths = data/backlog/{items,history,open.json,closed.json,counters.json}, issues/{items,history,indexes}, config/id-blocks.json, portfolio-registry.json. checkpoint(note): temp worktree off origin/develop -> copy durable diffs -> commit '[data] <note>' -> push branch -> PR -> gh merge -> prune; no-op when clean; fail-closed if commit ok but push fails. Wire into delivery.deliver() post-merge and a scheduler tick; guard via wired_audit.",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Objective achieved: Durable work-state is never committed to develop (a fresh clone shows delivered items as 'new' and lacks new items); auto-checkpoint backlog/issue state per-delivery + periodic batch, with a guard"
+  ],
+  "risks": [
+    "state commit could race a concurrent delivery (serialize with the delivery lock)",
+    "protected develop requires the PR path (never direct push)",
+    "guard must be advisory to avoid blocking local dev, fatal at release"
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "unassigned",
+  "requester": "generic",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-0360",
+  "parent": "BI-PF-0360",
+  "revision": 3,
+  "priority_rank": 2,
+  "priority_class": "P2",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "IN_PROGRESS",
+    "analyzed_at": "",
+    "analyzed_by": "deterministic",
+    "revision_analyzed": 0,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/knowledge_refresh.py, /api/v1/backlog/items, /api/v1/backlog/items/{item_id}, /api/v1/backlog/items/{item_id}/analysis",
+    "existing_components": [
+      "core/knowledge_refresh.py"
+    ],
+    "existing_apis": [
+      "/api/v1/backlog/items",
+      "/api/v1/backlog/items/{item_id}",
+      "/api/v1/backlog/items/{item_id}/analysis",
+      "/api/v1/backlog/items/{item_id}/context-review",
+      "/api/v1/backlog/items/{item_id}/dependencies",
+      "/api/v1/backlog/items/{item_id}/groom",
+      "/api/v1/backlog/items/{item_id}/groom/decide",
+      "/api/v1/backlog/items/{item_id}/priority"
+    ],
+    "existing_modules": [],
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=1.25",
+      "components=1",
+      "apis=8"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": false,
+    "reasons": [],
+    "computed_at": ""
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-12T16:21:51.815792",
+  "updated_at": "2026-10-12T17:04:26.990071",
+  "score": 1.25,
+  "_note": "delivered",
+  "dashboard_impact": {
+    "needs_dashboard": false,
+    "reason": "repo/state integrity, no UI surface"
+  }
+}

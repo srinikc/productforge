@@ -1,0 +1,177 @@
+{
+  "id": "BI-PF-1255",
+  "tag": "PF",
+  "type": "bug",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "ops",
+  "external_id": "DELIVERY-LANDING-DELETE-BRANCH-1",
+  "label": "PF Backlog 570",
+  "title": "Delivery landing: gh pr merge --delete-branch fails when the head branch is checked out in a worker worktree -> false 'landing failed' after a successful merge",
+  "body": "Observed delivering BI-PF-1254: the PR (gh pr merge --merge --delete-branch) MERGED on GitHub, but the command returned non-zero because gh then tried to delete the LOCAL branch, which is checked out by the worker/assignment worktree ('cannot delete branch ... used by worktree'). delivery._land treats non-zero as failure -> returns {'ok': False}, so deliver() BLOCKs the item and records no provenance even though the merge landed. Also '#31' hit a transient 'Base branch was modified. Review and try the merge again.' when develop advanced mid-run. RCCA: landing conflates 'merge this PR' with 'delete the local branch' (impossible when the branch is in a worktree); and has no retry for the transient base-modified race.",
+  "source": "generic",
+  "status": "completed",
+  "priority": "P2",
+  "moscow": "Should",
+  "value": 4,
+  "effort": 1,
+  "risk": 1,
+  "deps": [],
+  "links": {
+    "delivery": {
+      "branch": "feature/wg/bi-pf-1255",
+      "merge_sha": "26bc7a696479e714b5d10e6b5cb6dd0134dccddb",
+      "commits": [],
+      "pr": "34",
+      "pr_url": "https://github.com/srinikc/productforge/pull/34",
+      "at": "2026-10-12T12:48:37.721630",
+      "note": "delivery (gh-pr-merge)"
+    }
+  },
+  "decisions": [],
+  "follow_up": {},
+  "brief": {
+    "problem": "Observed delivering BI-PF-1254: the PR (gh pr merge --merge --delete-branch) MERGED on GitHub, but the command returned non-zero because gh then tried to delete the LOCAL branch, which is checked out by the worker/assignment worktree ('cannot delete branch ... used by worktree'). delivery._land treats non-zero as failure -> returns {'ok': False}, so deliver() BLOCKs the item and records no provenance even though the merge landed. Also '#31' hit a transient 'Base branch was modified. Review and try the merge again.' when develop advanced mid-run. RCCA: landing conflates 'merge this PR' with 'delete the local branch' (impossible when the branch is in a worktree); and has no retry for the transient base-modified race.",
+    "what_adds": "Delivery landing: gh pr merge --delete-branch fails when the head branch is checked out in a worker worktree -> false 'landing failed' after a successful merge",
+    "why": "Observed delivering BI-PF-1254: the PR (gh pr merge --merge --delete-branch) MERGED on GitHub, but the command returned non-zero because gh then tried to delete the LOCAL branch, which is checked out by the worker/assignment worktree ('cannot delete branch ... used by worktree'). delivery._land treats non-zero as failure -> returns {'ok': False}, so deliver() BLOCKs the item and records no provenance even though the merge landed. Also '#31' hit a transient 'Base branch was modified. Review and try the merge again.' when develop advanced mid-run. RCCA: landing conflates 'merge this PR' with 'de",
+    "who_feels": "Product Forge maintainers and consumers.",
+    "source": "extracted"
+  },
+  "objective": "Landing must reflect the PR's actual merge state: merge without trying to delete the worktree-held local branch (and/or tolerate that deletion failing), and retry once on the transient 'base branch was modified' error after re-updating the branch.",
+  "acceptance_criteria": [
+    "gh pr merge runs without --delete-branch (or ignores local-branch-delete failure)",
+    "a merged PR yields ok=True + merge_sha even when the head branch is in a worker worktree",
+    "transient 'base branch was modified' retried once after gh pr update-branch",
+    "regression test: _land returns ok when gh merge succeeds but local-branch delete is impossible"
+  ],
+  "in_scope": [
+    "core/delivery._land gh-pr-merge path (drop --delete-branch; retry transient)",
+    "pipeline test for _land merge-result handling"
+  ],
+  "out_of_scope": [
+    "changing the push-ref fallback",
+    "GitHub branch protection settings"
+  ],
+  "affected_components": [
+    "Not specified."
+  ],
+  "affected_files": [
+    "core/delivery.py",
+    "test-framework/tests/pipeline/test_delivery.py"
+  ],
+  "approach": "Remove --delete-branch from the gh merge call (GitHub already deletes the remote branch optionally; the local branch is owned by the worker worktree). On a non-zero result, if stderr mentions 'base branch was modified', re-run gh pr update-branch and retry the merge once; only then treat as failure.",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Objective achieved: Delivery landing: gh pr merge --delete-branch fails when the head branch is checked out in a worker worktree -> false 'landing failed' after a successful merge"
+  ],
+  "risks": [
+    "remote head branch may linger after merge (harmless; cleanup is separate)",
+    "must not mask a genuine merge failure (retry is bounded to 1 and only for the known transient)"
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "unassigned",
+  "requester": "generic",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-0360",
+  "parent": "BI-PF-0360",
+  "revision": 3,
+  "priority_rank": 2,
+  "priority_class": "P2",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "IN_PROGRESS",
+    "analyzed_at": "",
+    "analyzed_by": "deterministic",
+    "revision_analyzed": 0,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/delivery.py, core/intent_router.py, core/knowledge_router.py, core/log_router.py",
+    "existing_components": [
+      "core/delivery.py",
+      "core/intent_router.py",
+      "core/knowledge_router.py",
+      "core/log_router.py",
+      "core/merge_gate.py",
+      "core/output_checklist.py",
+      "core/worker.py"
+    ],
+    "existing_apis": [
+      "/api/v1/engineering/pidl/decisions/{decision_id}/outcome",
+      "/api/v1/engineering/worker-providers",
+      "/api/v1/enterprise/tenants/{tenant}/checkout",
+      "/api/v1/gates/pr/merge",
+      "/api/v1/validation/merge-gate",
+      "/api/v1/validation/merge-gate/queue",
+      "/api/v1/vcs/branch-name",
+      "/api/v1/vcs/branches"
+    ],
+    "existing_modules": [
+      "config/engineering-workers.json"
+    ],
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=4.0",
+      "components=7",
+      "apis=8"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": false,
+    "reasons": [],
+    "computed_at": ""
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-12T12:36:16.309353",
+  "updated_at": "2026-10-12T12:48:38.044091",
+  "score": 4.0,
+  "_note": "delivered",
+  "dashboard_impact": {
+    "needs_dashboard": false,
+    "reason": "delivery-lane correctness, no UI surface"
+  }
+}

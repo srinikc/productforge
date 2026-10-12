@@ -1,0 +1,173 @@
+{
+  "id": "BI-PF-1253",
+  "tag": "PF",
+  "type": "bug",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "ops",
+  "external_id": "STALE-RUNTIME-DELIVERY-1",
+  "label": "PF Backlog 568",
+  "title": "Delivery lane runs in long-lived API process: loaded code goes stale after develop merges (3 blocked/failed lanes 2026-10-10; restarts manual)",
+  "body": "Root cause: python -m api.app imports modules once at process start; every PR merged to develop leaves the RUNNING server (and its in-process delivery/worker/jobs code) on the startup snapshot. Symptoms this session: heartbeat writes missing, stuck-reaping absent, worktree-prune on release missing, FEATURE_PR lane failing gates fixed hours earlier (dash app_boot SyntaxError + 'no quality-gate record'). RCCA: no freshness contract between tree state and executing process - fail-open on stale code.",
+  "source": "generic",
+  "status": "completed",
+  "priority": "P2",
+  "moscow": "Should",
+  "value": 4,
+  "effort": 2,
+  "risk": 2,
+  "deps": [],
+  "links": {
+    "delivery": {
+      "branch": "feature/wg/bi-pf-1253",
+      "merge_sha": "5733aea91f0376d8bbf2a13379f63482ece796d5",
+      "commits": [],
+      "pr": "35",
+      "pr_url": "https://github.com/srinikc/productforge/pull/35",
+      "at": "2026-10-12T13:02:11.789128",
+      "note": "delivery (gh-pr-merge)"
+    }
+  },
+  "decisions": [],
+  "follow_up": {},
+  "brief": {
+    "problem": "Root cause: python -m api.app imports modules once at process start; every PR merged to develop leaves the RUNNING server (and its in-process delivery/worker/jobs code) on the startup snapshot. Symptoms this session: heartbeat writes missing, stuck-reaping absent, worktree-prune on release missing, FEATURE_PR lane failing gates fixed hours earlier (dash app_boot SyntaxError + 'no quality-gate record'). RCCA: no freshness contract between tree state and executing process - fail-open on stale code.",
+    "what_adds": "Delivery lane runs in long-lived API process: loaded code goes stale after develop merges (3 blocked/failed lanes 2026-10-10; restarts manual)",
+    "why": "Root cause: python -m api.app imports modules once at process start; every PR merged to develop leaves the RUNNING server (and its in-process delivery/worker/jobs code) on the startup snapshot. Symptoms this session: heartbeat writes missing, stuck-reaping absent, worktree-prune on release missing, FEATURE_PR lane failing gates fixed hours earlier (dash app_boot SyntaxError + 'no quality-gate record'). RCCA: no freshness contract between tree state and executing process - fail-open on stale code.",
+    "who_feels": "Product Forge maintainers and consumers.",
+    "source": "extracted"
+  },
+  "objective": "Lane/worker execution always uses current develop code: run delivery jobs as short-lived subprocesses against the fast-forwarded tree (kills the bug class); fail-closed freshness guard (loaded sha != develop sha -> refuse + prompt restart); surface code sha in status/health.",
+  "acceptance_criteria": [
+    "delivery/worker job entry executes on tree code (subprocess CLI) or refuses when server snapshot is stale",
+    "loaded code_sha vs develop sha mismatch surfaced in status/health output",
+    "regression test simulating a stale process detects the mismatch"
+  ],
+  "in_scope": [
+    "core/delivery.py job entry (deliver/drain -> subprocess CLI)",
+    "api/app code_sha startup stamp",
+    "status/health surfaces (loaded vs develop sha)"
+  ],
+  "out_of_scope": [
+    "hot-reloading of the web server itself (subprocess job execution is enough)"
+  ],
+  "affected_components": [
+    "Not specified."
+  ],
+  "affected_files": [
+    "core/delivery.py",
+    "api/app.py",
+    "core/scheduler.py"
+  ],
+  "approach": "subprocess-first: expose deliver/drain via a fresh python -m core.delivery CLI per lane trigger; stamp code_sha at api startup; health/status compares vs develop sha; remaining in-process paths guarded by the sha check (belt+braces).",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Objective achieved: Delivery lane runs in long-lived API process: loaded code goes stale after develop merges (3 blocked/failed lanes 2026-10-10; restarts manual)"
+  ],
+  "risks": [
+    "subprocess job needs structured result handoff back to the job record",
+    "sha comparison must tolerate dirty local trees (compare commit, not content)"
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "unassigned",
+  "requester": "generic",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-0360",
+  "parent": "BI-PF-0360",
+  "revision": 3,
+  "priority_rank": 2,
+  "priority_class": "P2",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "IN_PROGRESS",
+    "analyzed_at": "",
+    "analyzed_by": "deterministic",
+    "revision_analyzed": 0,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/code_analyzer.py, core/code_executor.py, core/code_quality_gate.py, core/control_plane.py",
+    "existing_components": [
+      "core/code_analyzer.py",
+      "core/code_executor.py",
+      "core/code_quality_gate.py",
+      "core/control_plane.py",
+      "core/delivery.py"
+    ],
+    "existing_apis": [
+      "/api/v1/backlog/refresh-stale",
+      "/api/v1/dogfood/runs/{run_id}",
+      "/api/v1/runs",
+      "/api/v1/runs/active",
+      "/api/v1/runs/start",
+      "/api/v1/runs/stop",
+      "/api/v1/runs/time-cost",
+      "/api/v1/validation/runs"
+    ],
+    "existing_modules": [],
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=1.5",
+      "components=5",
+      "apis=8"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": false,
+    "reasons": [],
+    "computed_at": ""
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-11T00:33:03.391900",
+  "updated_at": "2026-10-12T13:02:12.066538",
+  "score": 1.5,
+  "_note": "delivered",
+  "dashboard_impact": {
+    "needs_dashboard": false,
+    "reason": "ops/runtime integrity, no UI surface"
+  }
+}

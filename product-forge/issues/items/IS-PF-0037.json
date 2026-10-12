@@ -1,0 +1,38 @@
+{
+  "id": "IS-PF-0037",
+  "tag": "PF",
+  "scope": "product_forge",
+  "project": "",
+  "title": "Delivery lane FAIL: BI-PF-0394 blocked (app_boot checker invalid import + missing review/lint/structure records)",
+  "body": "PR #26 (feature/wg/bi-pf-0394, B1 Go core) was opened+pushed by the delivery lane but feature_pr validation FAILed; item blocked with delivery: validation FAIL. Work is safe on the branch/PR; merge refused (fail-closed).",
+  "kind": "issue",
+  "priority": "P1",
+  "severity": "high",
+  "module": "core/delivery,core/validation_engine,core/pr_gate",
+  "status": "resolved",
+  "rcca": {
+    "root_cause": "(amended, validated in lane run fpr chain) Failure chain for framework-PR delivery: (1) app_boot checker invalid module path; (2) spec-review required generated-product artifacts; (3) audit/spec/cycle records were read from module-global paths not the validated tree; (4) bare pytest over the repo root explodes on same-basename modules; (5) close_loop/QA/go-no-go applied the product-release standard to a framework PR (NO-GO from dimensions that are absent-data for the framework).",
+    "corrective": "(4/5) added: verification_runner targets the declared suite root (test-framework/tests) and clears foreign PYTHONPATH; close_loop runs in PR scope; QA go-no-go for product_forge scope treats generated-product dimensions as advisory (advisory evidence recorded; blocking = defects/spec/deploy/regression). Records: qg release run passed=True recorded for the PR.",
+    "preventive": "Guards added: verification_runner suite targeting; close_loop pr policy scope; validation worktree reads resolved to validated tree (pr_gate val_dir-first).",
+    "fixed_where": "product_forge",
+    "generalized": true,
+    "guideline_ref": "",
+    "product_ref": ""
+  },
+  "backlog_ref": "BI-PF-0394",
+  "source": "delivery",
+  "source_ref": "",
+  "evidence": [
+    "PR#26",
+    "events:delivery_validation_fail@2026-10-10T18:50:39",
+    "app_boot: import product-forge.api.app (dash used as module path) -> SyntaxError",
+    "missing run-bound records: code_review, spec-review, lint, structure_contract",
+    "close_loop unmet: artifact_exists, tests_passed, compliance_passed, go_no_go"
+  ],
+  "links": {
+    "backlog": "BI-PF-0394"
+  },
+  "created_at": "2026-10-10T18:50:53.250773",
+  "updated_at": "2026-10-10T21:06:52.855466",
+  "note": "fixed on develop via merge of PR #26 (B1) + checker/guard fixes; RCCA amended; verification: lane validation PASS, PR merged, item completed"
+}
