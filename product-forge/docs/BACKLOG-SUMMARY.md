@@ -1,15 +1,15 @@
 # Backlog Summary
 
-> GENERATED 2026-10-12T19:13:06 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-12T19:34:25 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 59  |  **Closed:** 487
-- `new`: 59
+- **Open:** 60  |  **Closed:** 487
+- `new`: 60
 
-### new, by category (59)
-**API / reports / HIL / misc** (5)
+### new, by category (60)
+**API / reports / HIL / misc** (6)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-PF-0332 | Should | chore | API-5 deferred hardening: rate limiting + request/upload limits + tenant-isolation expansion + event streaming | API-5 deferred hardening: rate limiting + request/upload limits + tenant-isolation expansion + event streaming |
@@ -17,6 +17,7 @@
 | BI-PF-1243 | Should | epic | EPIC: CI/CD & Gates - SSOT doc + model + read API (PF + generated products) | One place to understand and read (via API) how PF builds/verifies/ships and how generated products do: the CI/... |
 | BI-PF-1245 | Should | feature | Orchestrator UI: small CI/CD view over the engineering ci-cd API (gates x tiers x status) | A small orchestrator UI view that renders the CI/CD + gates model from the read API (BI-PF-1239), so an operat... |
 | BI-PF-1251 | Should | change | Unscoped triage: re-home 'Unscoped' children into real epics (grooming cadence + aging advisory) | Keep `Unscoped` small: an ongoing curation loop re-homes its children into real epics. |
+| BI-PF-1261 | Should | bug | Defect/RCCA: dev API is not session-scoped (fixed port 8000 + global URL) -> concurrent sessions 401/collide; unique port + discovery file + guard | Defect/RCCA: dev API is not session-scoped (fixed port 8000 + global URL) -> concurrent sessions 401/collide; ... |
 
 **Discovery / HIL / prompts** (6)
 | ID | MoSCoW | Type | Title | Objective |
@@ -290,5 +291,5 @@
 ---
 
 ## Totals
-- backend: 59 open / 487 closed
+- backend: 60 open / 487 closed
 - dashboard: 146 open / 3 closed
