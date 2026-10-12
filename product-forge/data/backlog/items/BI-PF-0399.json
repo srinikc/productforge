@@ -11,17 +11,18 @@
   "body": "[A5] Authoritative composition engine: EAP + profiles + OS/arch + license/entitlement -> runtime composition. IP-leakage guard.",
   "source": "generic",
   "status": "new",
-  "priority": "P1",
+  "priority": "P2",
   "moscow": "Should",
   "value": 3,
   "effort": 3,
   "risk": 2,
   "deps": [
-    "BI-PF-0397",
-    "BI-PF-0398",
-    "BI-0217",
     "BI-0214",
-    "BI-PF-0347"
+    "BI-0217",
+    "BI-PF-0347",
+    "BI-PF-0393",
+    "BI-PF-0397",
+    "BI-PF-0398"
   ],
   "links": {},
   "decisions": [
@@ -30,18 +31,24 @@
       "decision": "APPROVE",
       "by": "user",
       "note": ""
+    },
+    {
+      "at": "2026-10-12T18:47:46.438076",
+      "decision": "APPROVE",
+      "by": "user",
+      "note": ""
     }
   ],
   "follow_up": {},
-  "revision": 3,
+  "revision": 5,
   "priority_rank": 2,
-  "priority_class": "",
+  "priority_class": "P2",
   "analyze_mode": "on_entry",
   "analysis": {
     "status": "COMPLETE",
-    "analyzed_at": "2026-10-10T21:56:51.675073",
-    "analyzed_by": "deterministic",
-    "revision_analyzed": 3,
+    "analyzed_at": "2026-10-12T18:47:46.211626",
+    "analyzed_by": "user",
+    "revision_analyzed": 5,
     "architecture_fit": "EXTEND",
     "implementation_strategy": "Extend existing components/APIs: core/agent_hierarchy.py, core/agent_runtime.py, core/architecture_diagram.py, core/context_engine.py",
     "existing_components": [
@@ -106,34 +113,39 @@
       ],
       "reason": "core/context_engine.py and core/agent_runtime.py already perform context composition and runtime wiring; the compiler is a natural extension. The missing items are specification decisions around license input format, target platforms, and guard placement—not architectural blockers. Blocked on BI-PF-0397 (EAP schema) and BI-PF-0398 (build pipeline) for upstream inputs."
     },
-    "arch_fingerprint": "2c320e60fc85a6ca",
+    "arch_fingerprint": "75d8f9eec037a28a",
     "refreshed_at": "2026-10-10T21:56:51.603015"
   },
   "dependencies": [
     {
+      "task_id": "BI-0214",
+      "type": "REQUIRES",
+      "required_state": "COMPLETE"
+    },
+    {
+      "task_id": "BI-0217",
+      "type": "REQUIRES",
+      "required_state": "COMPLETE"
+    },
+    {
+      "task_id": "BI-PF-0347",
+      "type": "REQUIRES",
+      "required_state": "COMPLETE"
+    },
+    {
+      "task_id": "BI-PF-0393",
+      "type": "REQUIRES",
+      "required_state": "COMPLETE"
+    },
+    {
       "task_id": "BI-PF-0397",
       "type": "REQUIRES",
-      "required_state": "EAP manifest schema approved and endpoint serving EAP objects"
+      "required_state": "COMPLETE"
     },
     {
       "task_id": "BI-PF-0398",
       "type": "REQUIRES",
-      "required_state": "Build pipeline producing compiled artifacts with plug/unplug flags"
-    },
-    {
-      "task_id": "BI-0217",
-      "type": "RELATED",
-      "required_state": "BOM/footprint artifact format defined"
-    },
-    {
-      "task_id": "BI-0214",
-      "type": "RELATED",
-      "required_state": "Destination runtime triage phase defined"
-    },
-    {
-      "task_id": "BI-PF-0347",
-      "type": "RELATED",
-      "required_state": "Common validation engine available for reuse"
+      "required_state": "COMPLETE"
     }
   ],
   "blocked_by": [
@@ -144,7 +156,7 @@
   "readiness": {
     "ready": true,
     "reasons": [],
-    "computed_at": "2026-10-09T22:32:15.847475"
+    "computed_at": "2026-10-12T18:47:46.301279"
   },
   "execution": {
     "worker_id": "",
@@ -157,23 +169,22 @@
     "completed_at": ""
   },
   "created_at": "2026-10-06T18:32:24.144884",
-  "updated_at": "2026-10-10T21:56:51.744194",
+  "updated_at": "2026-10-12T18:47:46.552124",
   "score": 0.75,
-  "_note": "analysis updated",
+  "_note": "readiness computed",
   "parent": "BI-PF-0390",
   "epic": "BI-PF-0390",
   "brief": {
-    "problem": "Runtime composition (which components run per edition/OS/arch/entitlement) needs one authoritative engine with an IP-leakage guard.",
-    "what_adds": "A5 — Runtime Dependency Compiler: composes EAP + profiles + OS/arch + license/entitlement into the runtime package, with an IP-leakage guard.",
-    "why": "Deterministic, safe runtime composition per edition without leaking protected source.",
-    "who_feels": "PF platform maintainers, workers, and customers.",
-    "source": "authored"
+    "problem": "[A5] Authoritative composition engine: EAP + profiles + OS/arch + license/entitlement -> runtime composition. IP-leakage guard.",
+    "what_adds": "A5: Runtime Dependency Compiler",
+    "why": "[A5] Authoritative composition engine: EAP + profiles + OS/arch + license/entitlement -> runtime composition. IP-leakage guard.",
+    "who_feels": "Product Forge maintainers and consumers.",
+    "source": "extracted"
   },
-  "objective": "A5 — Runtime Dependency Compiler: composes EAP + profiles + OS/arch + license/entitlement into the runtime package, with an IP-leakage guard.",
+  "objective": "A5: Runtime Dependency Compiler",
   "intent_derived": true,
   "acceptance_criteria": [
-    "sample-runtime-package/ composes correctly",
-    "an IP-leaking composition is refused"
+    "Objective achieved: A5: Runtime Dependency Compiler"
   ],
   "review": {
     "reconciliation": {
@@ -187,15 +198,12 @@
     "reviewed_by": "derived",
     "at": ""
   },
-  "approach": "Compose the runtime package from EAP + profiles + OS/arch + license/entitlement; refuse compositions that would leak source.",
+  "approach": "A5: Runtime Dependency Compiler",
   "affected_components": [
-    "rdc",
-    "eap",
-    "licensing"
+    "Not specified."
   ],
   "affected_files": [
-    "docs/PF-TARGET-ARCHITECTURE-AND-IP-PLAN.md",
-    "fixture: sample-runtime-package/"
+    "Not specified."
   ],
   "owner": "agent",
   "requester": "generic",
@@ -206,8 +214,7 @@
     "pending"
   ],
   "verification": [
-    "sample-runtime-package/ composes correctly",
-    "an IP-leaking composition is refused"
+    "Objective achieved: A5: Runtime Dependency Compiler"
   ],
   "risks": [
     "Not specified."
@@ -215,11 +222,10 @@
   "rollback": "Revert the change.",
   "summary": "",
   "in_scope": [
-    "runtime composition engine",
-    "IP-leakage guard"
+    "A5: Runtime Dependency Compiler"
   ],
   "out_of_scope": [
-    "build-time compilation (A3)"
+    "Not specified."
   ],
   "api_impact": {
     "needs_api": false,

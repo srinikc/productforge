@@ -1,11 +1,11 @@
 # Backlog Summary
 
-> GENERATED 2026-10-12T18:45:32 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-12T19:03:26 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 60  |  **Closed:** 485
+- **Open:** 60  |  **Closed:** 486
 - `new`: 60
 
 ### new, by category (60)
@@ -37,7 +37,7 @@
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-PF-0390 | Should | epic | EPIC A: PF Commercial & IP Foundation (contracts, Go core, licensing, packaging, EAP, RDC, governance, vertical slice) | EPIC A — the needed-now foundation: A0 baseline freeze + ADR register; A1 thin contracts incl. Go<->Python con... |
-| BI-PF-0396 | Should | feature | A2: capability registry + entitlement-at-boundary + asymmetric licensing | A2 — capability registry + entitlement checks at execution boundaries + asymmetric licensing (public-key verif... |
+| BI-PF-0396 | Should | feature | A2: capability registry + entitlement-at-boundary + asymmetric licensing | A2: capability registry + entitlement-at-boundary + asymmetric licensing |
 
 **Specs / cache / context / artifacts** (4)
 | ID | MoSCoW | Type | Title | Objective |
@@ -59,12 +59,11 @@
 | BI-PF-0374 | Could | feature | PFSSOT-P12: optimization (only after correctness) | PFSSOT-P12: optimization (only after correctness) |
 | BI-PF-0386 | Should | feature | PF platform: IP-value assessment of all modules (rewrite-by-value ranking: high-value -> Go/Rust, low-value -> compiled) | PF platform: IP-value assessment of all modules (rewrite-by-value ranking: high-value -> Go/Rust, low-value ->... |
 | BI-PF-0387 | Should | feature | PF platform delivery baseline: ONE source for all editions; new shipped/sensitive logic -> Go; existing -> compiled (Nuitka); no raw .py at customer; migrate by value later | PF platform delivery baseline: ONE source for all editions; new shipped/sensitive logic -> Go; existing -> com... |
-| BI-PF-0388 | Should | task | ADR: PF platform shipped editions use compiled artifacts (Go core + compiled-Python), never raw .py; one source, many editions | ADR: PF platform shipped editions use compiled artifacts (Go core + compiled-Python), never raw .py; one sourc... |
 | BI-PF-0391 | Should | epic | EPIC B: PF Scale & Editions (gateways, persistence, OEM, Rust, WASM, decomposition, migration) | EPIC B — B1 PF Go core (compiled host, architectural/mandatory); B2 gateways (Model/Tool/Memory/Infra); B3 per... |
-| BI-PF-0397 | Should | feature | A4: EAP delivery manifest + validator/registry + compatibility | A4 — EAP (manifest) composes contracts; validator/registry; versioning + compatibility. Executor role is parke... |
-| BI-PF-0398 | Should | feature | A3: PF platform build->package->deploy + compiled packaging + signing + SBOM/LBOM + NO-RAW-.py gate (absorbs BI-PF-0383) | A3 — build->package->deploy pipeline: compiled packaging (Nuitka for Python + go build for Go) + signing + SBO... |
-| BI-PF-0399 | Should | feature | A5: Runtime Dependency Compiler | A5 — Runtime Dependency Compiler: composes EAP + profiles + OS/arch + license/entitlement into the runtime pac... |
-| BI-PF-0400 | Should | feature | A7: vertical slice (Requirement->Tech->Factory->EAP->RDC->compiled+signed package) | A7 — vertical slice: Requirement -> Tech -> Factory -> EAP -> RDC -> compiled + signed package, containing no ... |
+| BI-PF-0397 | Should | feature | A4: EAP delivery manifest + validator/registry + compatibility | A4: EAP delivery manifest + validator/registry + compatibility |
+| BI-PF-0398 | Should | feature | A3: PF platform build->package->deploy + compiled packaging + signing + SBOM/LBOM + NO-RAW-.py gate (absorbs BI-PF-0383) | A3: PF platform build->package->deploy + compiled packaging + signing + SBOM/LBOM + NO-RAW-.py gate (absorbs B... |
+| BI-PF-0399 | Should | feature | A5: Runtime Dependency Compiler | A5: Runtime Dependency Compiler |
+| BI-PF-0400 | Should | feature | A7: vertical slice (Requirement->Tech->Factory->EAP->RDC->compiled+signed package) | A7: vertical slice (Requirement->Tech->Factory->EAP->RDC->compiled+signed package) |
 | BI-PF-0401 | Should | feature | B2: gateways (Model/Tool/Memory/Infrastructure) | B2 — gateways for Model / Tool / Memory / Infrastructure so core depends on ports, not concrete providers. |
 | BI-PF-0402 | Should | feature | B3: persistence adapters (SQLite/JSON/PostgreSQL) | B3 — persistence adapters (SQLite / JSON / PostgreSQL) behind one persistence port. |
 | BI-PF-0403 | Should | feature | B4: OEM / white-label profiles (no forks) | B4 — OEM / white-label profiles (no forks): one source -> per-OEM edition profile. |
@@ -92,6 +91,7 @@
 | BI-PF-1248 | Should | epic | EPIC: Tech Debt & Repo Hygiene (generated artifacts, script drift, gate gaps) | One home for repo-hygiene / tech-debt work that is not a product feature: generated-artifact freshness, script... |
 | BI-PF-1252 | Should | epic | Unscoped | Unscoped |
 | BI-PF-1259 | Should | change | CI/CD review & optimization: clear change-based gate/test/profile mapping (de-ambiguate commit/merge/push/CI) | A reviewed, optimized CI/CD that is explicit and change-aware: - One authoritative mapping: change type -> whi... |
+| BI-PF-1260 | Should | change | Worker charter: add guideline 15 (reuse & simplicity; self-review the diff for dead code / duplicate logic / unused components before completing) | Codify the post-implementation clean-up discipline in the worker charter so every worker removes unneeded dead... |
 
 ---
 
@@ -291,5 +291,5 @@
 ---
 
 ## Totals
-- backend: 60 open / 485 closed
+- backend: 60 open / 486 closed
 - dashboard: 146 open / 3 closed
