@@ -33,6 +33,7 @@ WorkerGrid reads `workergrid/config.json` (live; env overrides win):
 |---|---|---|
 | `pf_api_url` / `WORKERGRID_PF_API_URL` | `http://127.0.0.1:8000` | producer (PF) API base |
 | `token_env` (e.g. `API_TOKEN`) / `WORKERGRID_TOKEN` | — | bearer token for producer + coordinator |
+| `token_file` | — | read the bearer token from a file when the env is unset (offline/dev; BI-PF-1256) |
 | `default_runtime` | `opencode` | runtime used when a verb omits `--runtime` |
 | `lease_seconds` / `WORKERGRID_LEASE_SECONDS` | `3600` | assignment lease TTL |
 | `store.driver` / `WORKERGRID_STORE_DRIVER` | `sqlite` | coordination store backend: `sqlite` (single-node) or `postgres` (multi-node) |
@@ -49,6 +50,19 @@ WorkerGrid reads `workergrid/config.json` (live; env overrides win):
 
 The PF-side flags that governed the removed in-PF layer (`WORKER_INTEGRATION_ENABLED`,
 `WORKER_AUTO_DISPATCH`, `PF_LEASE_*`, `PF_WORKER_STALE_SECONDS`) are **historical**.
+
+### Local dev — no manual env (BI-PF-1256)
+
+One command starts the PF API with a shared, gitignored dev token; the worker reads the same token via
+WorkerGrid `token_file`, so `wg work` just works (no `API_TOKEN` to set by hand):
+
+```
+python scripts/dev/dev_server.py           # ensures data/local/dev-api-token, sets PF_DEV=1 + API_TOKEN, binds 127.0.0.1:8000
+python ../workergrid/wg.py work --epic …    # reads the same token via workergrid/config.json -> token_file
+```
+
+Dev-only: the API falls back to the token file **only when `PF_DEV=1`**; production stays fail-closed
+(no file fallback). The token file (`product-forge/data/local/`) is gitignored.
 
 ## 3. Register a worker
 

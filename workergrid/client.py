@@ -24,8 +24,20 @@ def _base() -> str:
 
 def _token() -> str:
     cfg = _cfg.load()
-    return os.environ.get(str(cfg.get("token_env") or "API_TOKEN"), "").strip() \
+    tok = os.environ.get(str(cfg.get("token_env") or "API_TOKEN"), "").strip() \
         or os.environ.get("WORKERGRID_TOKEN", "").strip()
+    if tok:
+        return tok
+    # BI-PF-1256: generic fallback - read the bearer token from a file (keeps WorkerGrid producer-agnostic).
+    tf = str(cfg.get("token_file") or "").strip()
+    if tf:
+        try:
+            p = tf if os.path.isabs(tf) else os.path.join(os.path.dirname(os.path.abspath(__file__)), tf)
+            with open(p, encoding="utf-8") as f:
+                return f.read().strip()
+        except Exception:
+            return ""
+    return ""
 
 
 def call(method: str, path: str, body: dict | None = None, timeout: int = 30) -> dict:

@@ -29,7 +29,16 @@ def _flag(name: str, default: str = "") -> str:
 
 
 def _token() -> str:
-    return _flag("API_TOKEN", "") or _flag("DASHBOARD_API_TOKEN", "")
+    tok = _flag("API_TOKEN", "") or _flag("DASHBOARD_API_TOKEN", "")
+    if not tok:
+        # BI-PF-1256: dev-only shared local token so local dev needs no manual env (never in prod).
+        try:
+            from core import dev_auth
+            if dev_auth.is_dev():
+                tok = dev_auth.ensure_dev_token()
+        except Exception:
+            pass
+    return tok
 
 
 def _anon_ok() -> bool:
