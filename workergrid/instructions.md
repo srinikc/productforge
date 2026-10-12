@@ -30,7 +30,8 @@ wire it → exercise it → record drift → approval (new path) → API-first �
    path when truly needed — and ask for approval with valid details).
 6. **Summarize + IMPACT REVIEW + approval BEFORE implementation.** State in plain language what functionality it
    adds; produce the mandated IMPACT REVIEW table; get approval before implementing.
-7. **Push to GitHub `develop`** only once validated (via the PF delivery lane; never force-push `develop`).
+7. **Delivery to `develop` goes via PF's delivery lane — the worker does NOT push/PR/merge.** Commit in the
+   worktree, then `wg work complete`; PF validates, opens the PR, and merges to `develop`. Never force-push.
 8. **Reconciliation before implementation** (binding for any change).
 9. **Produce the RECONCILIATION block:** `PRIOR DECISIONS` / `EXISTING PATH` / `ASSUMPTIONS` / `DIVERGENCES` /
    `OPEN QUESTIONS`.
