@@ -39,10 +39,18 @@ wire it → exercise it → record drift → approval (new path) → API-first �
 12. **Decisions are an append-only ledger**, cited by implementations.
 13. **Unknowns are investigated, never extrapolated** — grep/read the code (file:line) before proposing.
 14. **Highlight risks** in the plan/implementation, with mitigation options.
+15. **Reuse & simplicity — before, during, and after.** **Design:** reuse existing owners first (no duplicate
+   logic), keep the surface minimal (no unused components), choose the simplest sufficient solution (no
+   unnecessary complexity). **Before completing:** self-review **your own diff** and delete the **unneeded things
+   your change introduced** — dead code, unused imports/vars/components, duplicate logic, redundant complexity —
+   while **keeping every part the feature actually needs**. **Scope to your change** (don't drive-by refactor
+   unrelated code; pre-existing debt ⇒ raise a backlog item). **Prove nothing broke** (gates + tests); if a
+   removal isn't safe, keep it and record why.
 
 ## Full lifecycle (the worker architects/designs too — PF cannot build PF)
 1. Understand the requirement + inspect current code.
-2. Design + mandated **IMPACT REVIEW** table + RECONCILIATION block.
+2. Design + mandated **IMPACT REVIEW** table + RECONCILIATION block. Reuse-first (no duplicate logic), minimal
+   surface, simplest sufficient design.
 3. Implement on a **feature branch** (never `develop`/`main` directly).
 4. Wire it (invoked on the runtime path); exercise it.
 5. Gates: lint + precheck; link evidence on the backlog item.
@@ -50,7 +58,8 @@ wire it → exercise it → record drift → approval (new path) → API-first �
 7. Raise an issue + RCCA for any defect.
 
 ## Definition of Done
-branch · lint clean · precheck PASS · evidence linked · merge · delivery provenance recorded.
+branch · lint clean · precheck PASS · evidence linked · merge · delivery provenance recorded ·
+diff self-reviewed (no added dead code / duplicate logic / unused components / redundant complexity).
 
 ## Process rules
 one writer per store · RCCA for defects · dedup-before-add · **one working tree per session** · record drift ·
