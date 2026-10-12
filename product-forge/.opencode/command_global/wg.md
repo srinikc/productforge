@@ -45,6 +45,11 @@ For `work`, follow the **WORKER MODE PROTOCOL** below.
   3. Follow the charter: **think → design → 360° check → backlog gate →** (any epic to update? backlog fields
      complete?) `→ RECONCILIATION block (PRIOR DECISIONS / EXISTING PATH / ASSUMPTIONS / DIVERGENCES / OPEN
      QUESTIONS) → IMPACT REVIEW table → plain-language functionality summary + risks/mitigations`.
+     In the review/Gate: **explain every term/code/abbreviation in context** (no bare codes); be **decision-ready**
+     (why/what/how + detailed acceptance criteria + recommendation + risks split **mitigated vs open** needing
+     explicit sign-off); and run `python scripts/dev/language_rule_review.py <item_id>` **at take-up**, citing the
+     **language-rule** verdict (new logic in Go vs edits to existing Python vs new shipped Python needing an
+     allowlist) - the SAME policy precheck enforces, decided once up front (not re-asked during implementation).
      Framework-agnostic: no specific AI-tool references in PF code; the current dashboard is legacy — never
      reference it.
   4. **PAUSE: ASK OPERATOR FOR APPROVAL** presenting the items above. Do NOT implement before approval.
