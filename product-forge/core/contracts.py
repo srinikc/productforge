@@ -223,10 +223,80 @@ _WIRE_RESPONSE = ContractSpec(
     "Go<->Python response envelope.",
 )
 
+# ── Eventing & Alerting SSOT contracts (BI-PF-1267; ADR-0005) ────────────────────
+_EVENT_ENVELOPE = ContractSpec(
+    "event-envelope", "product-forge/event-envelope@1", "EventEnvelope",
+    (
+        Field("schema", required=True),
+        Field("event_id", required=True),
+        Field("event_type", required=True),
+        Field("event_version", required=True),
+        Field("occurred_at", required=True),
+        Field("seq", type="integer", required=True),
+        Field("tenant_id"), Field("project_id"), Field("run_id"), Field("stage_id"),
+        Field("task_id"), Field("worker_id"), Field("actor"), Field("correlation_id"),
+        Field("causation_id"), Field("payload", type="object"),
+        # legacy flat fields (back-compat with core/events.py)
+        Field("ts"), Field("type"), Field("level"), Field("stage"), Field("agent"),
+        Field("trace_id"), Field("span_id"),
+    ),
+    "Canonical event envelope (SSOT): identity + correlation + monotonic seq.",
+)
+
+_SUBSCRIPTION = ContractSpec(
+    "subscription", "product-forge/subscription@1", "Subscription",
+    (
+        Field("schema", required=True),
+        Field("id", required=True),
+        Field("types", type="array"),
+        Field("filter", type="object"),
+        Field("transport", type="enum", required=True,
+              enum=("inproc", "sse", "webhook", "notify", "email")),
+        Field("target"),
+        Field("auth_ref"),
+        Field("enabled", type="boolean"),
+        Field("created_by"),
+    ),
+    "A subscriber registration: which event types, delivered over which transport.",
+)
+
+_ALERT_RULE = ContractSpec(
+    "alert-rule", "product-forge/alert-rule@1", "AlertRule",
+    (
+        Field("schema", required=True),
+        Field("id"),
+        Field("event_type", required=True),
+        Field("severity", type="enum", enum=("low", "medium", "high", "critical")),
+        Field("channels", type="array", required=True),
+        Field("throttle_window", type="integer"),
+        Field("escalate", type="boolean"),
+        Field("enabled", type="boolean"),
+    ),
+    "Alert routing rule: event type/severity -> channels with throttle/escalation.",
+)
+
+_WEBHOOK_DELIVERY = ContractSpec(
+    "webhook-delivery", "product-forge/webhook-delivery@1", "WebhookDelivery",
+    (
+        Field("schema", required=True),
+        Field("delivery_id", required=True),
+        Field("event_id", required=True),
+        Field("subscription_id", required=True),
+        Field("target_url", required=True),
+        Field("payload", type="object"),
+        Field("signature"),
+        Field("idempotency_key"),
+        Field("attempts", type="integer"),
+        Field("status", type="enum", enum=("pending", "delivered", "failed", "dead")),
+    ),
+    "One webhook delivery attempt (HMAC-signed, idempotent, retried to DLQ).",
+)
+
 _SPECS: tuple[ContractSpec, ...] = (
     _PRODUCT_SPEC, _TECHNOLOGY_PROFILE, _RUNTIME_PROFILE, _DEPLOYMENT_PROFILE,
     _LICENSE_PROFILE, _ENTITLEMENT_PROFILE, _COMPONENT_MANIFEST, _BOM, _EVIDENCE,
     _WIRE_REQUEST, _WIRE_RESPONSE,
+    _EVENT_ENVELOPE, _SUBSCRIPTION, _ALERT_RULE, _WEBHOOK_DELIVERY,
 )
 
 CONTRACTS: dict[str, ContractSpec] = {s.name: s for s in _SPECS}
@@ -239,6 +309,11 @@ PRODUCT_CONTRACTS: tuple[str, ...] = (
 )
 
 WIRE_CONTRACTS: tuple[str, ...] = (_WIRE_REQUEST.name, _WIRE_RESPONSE.name)
+
+# Eventing & Alerting SSOT contracts (BI-PF-1267; ADR-0005).
+EVENTING_CONTRACTS: tuple[str, ...] = (
+    _EVENT_ENVELOPE.name, _SUBSCRIPTION.name, _ALERT_RULE.name, _WEBHOOK_DELIVERY.name,
+)
 
 
 # ── schema + validation ─────────────────────────────────────────────────────────

@@ -45,6 +45,10 @@ func TestRequiredFieldParityWithContractHost(t *testing.T) {
 		"evidence":            {"schema", "evidence_id", "kind"},
 		"wire-request":        {"schema", "id", "op"},
 		"wire-response":       {"schema", "id", "op", "ok", "status", "host"},
+		"event-envelope":      {"schema", "event_id", "event_type", "event_version", "occurred_at", "seq"},
+		"subscription":        {"schema", "id", "transport"},
+		"alert-rule":          {"schema", "event_type", "channels"},
+		"webhook-delivery":    {"schema", "delivery_id", "event_id", "subscription_id", "target_url"},
 	}
 	names := ContractNames()
 	if len(names) != len(expect) {
