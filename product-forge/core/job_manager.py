@@ -419,8 +419,14 @@ def claim_next(scope: str = "product_forge", project: str | None = None, worker:
     the API layer (``api/routers/engineering.py``), not here - this remains the scope-parameterized mechanism.
 
     ``epic=<id>`` restricts the claim to that epic's children (BI-PF-1222).
+
+    BI-PF-0396 (A2): the worker-claim IS an execution boundary - entitlement is enforced here, fail-closed.
     """
-    from core import backlog, capacity, scheduler
+    from core import backlog, capacity, licensing, scheduler
+    try:
+        licensing.enforce_for_instance("build-products")
+    except licensing.LicenseError as e:
+        return {"claimed": False, "reason": f"entitlement: {e}", "authority": "local"}
     nxt = scheduler.next_eligible(scope, project, stage="execute", epic=epic or None)
     if not nxt.get("found"):
         # BI-PF-1258: self-heal an architecture-stale block only (auto-regroom those items), then retry once.
