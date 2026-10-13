@@ -120,13 +120,19 @@ def _land_via_pr(branch: str, note: str) -> dict:
         return {"ok": False, "reason": f"PR create failed: {((c.stderr or c.stdout) or '').strip()[:200]}"}
     m = subprocess.run([gh, "pr", "merge", number, "--merge"],
                        cwd=str(ROOT), capture_output=True, text=True, timeout=300)
-    if m.returncode != 0 and "base branch was modified" in ((m.stderr or "") + (m.stdout or "")).lower():
-        subprocess.run([gh, "pr", "update-branch", number], cwd=str(ROOT),
-                       capture_output=True, text=True, timeout=180)
+    if m.returncode != 0:
+        # BI-PF-1285: sync the state branch with develop, then retry the merge once.
+        with contextlib.suppress(Exception):
+            subprocess.run([gh, "pr", "update-branch", number], cwd=str(ROOT),
+                           capture_output=True, text=True, timeout=180)
         m = subprocess.run([gh, "pr", "merge", number, "--merge"],
                            cwd=str(ROOT), capture_output=True, text=True, timeout=300)
     if m.returncode != 0:
-        return {"ok": False, "reason": f"PR merge failed: {((m.stderr or m.stdout) or '').strip()[:200]}"}
+        # BI-PF-1285: fail cleanly - never leave a conflicting state PR/branch behind (that spam is the defect).
+        with contextlib.suppress(Exception):
+            subprocess.run([gh, "pr", "close", number, "--delete-branch"], cwd=str(ROOT),
+                           capture_output=True, text=True, timeout=120)
+        return {"ok": False, "reason": f"PR merge failed (closed): {((m.stderr or m.stdout) or '').strip()[:200]}"}
     return {"ok": True, "pr": number}
 
 
@@ -142,6 +148,8 @@ def checkpoint(note: str = "") -> dict:
 
     ts = int(time.time())
     br = f"state/{ts}"
+    with contextlib.suppress(Exception):
+        v.fetch()  # BI-PF-1285: base the state branch on a FRESH origin/develop (a stale base causes conflicts)
     wt = v.add_worktree(f"state-{ts}", branch=br, base=v.base_ref(_INTEGRATION))
     if not wt.get("ok"):
         return {"ok": False, "reason": f"worktree: {wt.get('error')}"}
