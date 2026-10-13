@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import contextlib
 import json
+import os
 import sys
 from dataclasses import dataclass
 from typing import Any
@@ -479,6 +480,54 @@ def handle_wire(request: Any, host: str = "python") -> dict[str, Any]:
                           result={"contract": cname, "canonical": canonical(cname, payload)})
 
 
+# ── Artifact Contract Registry (thin client over the Go engine) ─────────────────
+# The ENGINE (load/resolve/validate/coverage) is Go (go/pfcore/artifact_contracts.go),
+# per the language rule "new shipped logic -> Go" (BI-PF-0387/0388). Data stays in
+# config/artifact-contracts/. This is only the thin Python client used by the API + tooling;
+# it never re-implements the logic. Goal: agent output bounded BY CONSTRUCTION, not free-flow.
+def _ac_dir() -> str:
+    from core.paths import ROOT  # single root authority (paths-contract: never re-derive ROOT)
+    return os.path.join(str(ROOT), "config", "artifact-contracts")
+
+
+def load_registry() -> dict:
+    """artifact_id -> contract descriptor (via the Go engine)."""
+    from core import go_host
+    return (go_host.artifact_contracts_registry(_ac_dir()).get("result") or {}).get("contracts") or {}
+
+
+def artifact_ids() -> list:
+    return sorted(load_registry().keys())
+
+
+def contract(artifact_id: str) -> dict:
+    return load_registry().get(artifact_id) or {}
+
+
+def resolve(agent: str = "", stage: str = "", kind: str = "*") -> dict:
+    """Resolution for an agent/stage: covered?, contracts, or explicit 'none' (Go engine)."""
+    from core import go_host
+    r = go_host.artifact_contracts_resolve(_ac_dir(), agent=agent, stage=stage, kind=kind)
+    return r.get("result") or {"agent": agent, "stage": stage, "kind": kind,
+                               "covered": False, "none": False, "contracts": [], "count": 0}
+
+
+def validate_artifact(artifact_id: str, text: str) -> dict:
+    """Validate produced text against a contract (Go engine; fail-closed)."""
+    from core import go_host
+    r = go_host.artifact_contracts_validate(_ac_dir(), artifact_id, text)
+    return r.get("result") or {"ok": False, "artifact_id": artifact_id,
+                               "reasons": ["go host unavailable"]}
+
+
+def coverage(agents: list, stages: list) -> dict:
+    """Coverage check (Go engine): every agent/stage mapped + registry metadata complete."""
+    from core import go_host
+    r = go_host.artifact_contracts_coverage(_ac_dir(), agents, stages)
+    return r.get("result") or {"ok": False, "missing_agents": list(agents),
+                               "missing_stages": list(stages), "bad_contracts": ["go host unavailable"]}
+
+
 # ── CLI ──────────────────────────────────────────────────────────────────────────
 def _cli(argv: list[str] | None = None) -> int:
     args = list(sys.argv[1:] if argv is None else argv)
@@ -508,6 +557,14 @@ def _cli(argv: list[str] | None = None) -> int:
     if cmd == "export" and len(args) >= 2:
         for p in export_schemas(args[1]):
             print(p)
+        return 0
+    if cmd == "artifacts":
+        print(json.dumps(artifact_ids(), indent=2))
+        return 0
+    if cmd == "artifact-resolve" and len(args) >= 2:
+        key = args[1]
+        kind = args[2] if len(args) >= 3 else "*"
+        print(json.dumps(resolve(agent=key, stage=key, kind=kind), indent=2))
         return 0
     print(f"unknown command: {' '.join(args)}")
     return 1

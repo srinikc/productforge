@@ -202,6 +202,8 @@ def groom_item(item_id: str, body: dict[str, Any], request: Request,
                          depth=str(body.get("depth") or "deep"), force=bool(body.get("force")))
     if res.get("error") == "not found":
         raise ApiError("NOT_FOUND", "backlog item not found")
+    from core import backlog
+    res["decision_request"] = ((backlog.get_epic(s, p, item_id) or {}).get("analysis") or {}).get("decision_request")
     return from_request(request, res, resource="backlog", resource_id=item_id)
 
 
@@ -279,6 +281,15 @@ def groom_approve_batch(body: dict[str, Any], request: Request,
                               force=bool(body.get("force")), dry=bool(body.get("dry")),
                               by=str(body.get("by") or "user"))
     return from_request(request, res, resource="backlog")
+
+
+@router.get("/grooming/stranded", dependencies=[Depends(authenticate)])
+def grooming_stranded(request: Request, scope: str = "product_forge", project: str = "",
+                      ctx: dict[str, Any] = Depends(authenticate)):
+    """Items left IN_PROGRESS/NOT_ANALYZED with an explicit decision request awaiting a human (BI-PF-1319)."""
+    from core import grooming
+    s, p = _scope_project(request, scope, project)
+    return from_request(request, grooming.stranded(s, p), resource="backlog")
 
 
 @router.post("/items/{item_id}/dependencies", dependencies=[Depends(require_operator)])

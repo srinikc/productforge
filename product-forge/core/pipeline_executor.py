@@ -783,9 +783,13 @@ class PipelineExecutor(AgentExecutionMixin, AgentRunnerMixin, StageRunnerMixin):
         for _sid, _info in list(stages.items()):
             if not isinstance(_info, dict):
                 continue
-            if _info.get("status") == "running":
+            if _info.get("status") in ("running", "failed"):
+                # IS-PF-0050: a killed (running) OR failed stage must be RE-RUNNABLE on
+                # resume/retry; otherwise the pipeline fails immediately on load.
                 _info["status"] = "pending"
                 _info["started_at"] = ""
+                _info["completed_at"] = ""
+                _info.pop("error", None)
             elif _info.get("status") == "completed" and (_hashes.get(_sid) or {}):
                 try:
                     from core import run_manifest as _rm

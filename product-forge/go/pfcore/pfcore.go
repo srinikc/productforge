@@ -121,7 +121,9 @@ func Validate(name string, payload map[string]any) (bool, []string) {
 // features land here per the language rule).
 func Capabilities() []string {
 	return []string{"ping", "describe", "validate", "event_append", "event_read",
-		"license.keygen", "license.issue", "license.verify"}
+		"license.keygen", "license.issue", "license.verify",
+		"artifact_contracts.registry", "artifact_contracts.resolve",
+		"artifact_contracts.validate", "artifact_contracts.coverage"}
 }
 
 // HostID is the distinct pfcore host tag (the wire contract's `host` enum is {python, go}).
@@ -145,7 +147,9 @@ func Ping(req WireRequest) WireResponse {
 // SupportedOps lists the seam ops pfcore understands.
 func SupportedOps() []string {
 	return []string{"ping", "describe", "validate", "event_append", "event_read",
-		"license.keygen", "license.issue", "license.verify"}
+		"license.keygen", "license.issue", "license.verify",
+		"artifact_contracts.registry", "artifact_contracts.resolve",
+		"artifact_contracts.validate", "artifact_contracts.coverage"}
 }
 
 func response(req WireRequest, ok bool, status string, result map[string]any, errMsg string) WireResponse {
@@ -203,6 +207,14 @@ func Handle(req WireRequest) WireResponse {
 		return LicenseIssue(req)
 	case "license.verify":
 		return LicenseVerify(req)
+	case "artifact_contracts.registry":
+		return acOp(req, ACContractRegistryOp)
+	case "artifact_contracts.resolve":
+		return acOp(req, ACContractResolveOp)
+	case "artifact_contracts.validate":
+		return acOp(req, ACContractValidateOp)
+	case "artifact_contracts.coverage":
+		return acOp(req, ACContractCoverageOp)
 	default:
 		return response(req, false, "error", nil, "unsupported op: "+req.Op)
 	}

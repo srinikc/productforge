@@ -1,12 +1,12 @@
 # Backlog Summary
 
-> GENERATED 2026-10-13T18:59:28 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-13T20:31:14 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 106  |  **Closed:** 503
-- `new`: 105
+- **Open:** 108  |  **Closed:** 504
+- `new`: 107
 - `parked`: 1
 
 ### parked (1)
@@ -14,7 +14,7 @@
 |---|---|---|---|---|
 | BI-PF-0374 | Could | feature | PFSSOT-P12: optimization (only after correctness) | PFSSOT-P12: optimization (only after correctness) |
 
-### new, by category (105)
+### new, by category (107)
 **API / reports / HIL / misc** (11)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
@@ -71,7 +71,7 @@
 | BI-PF-1312 | Must | feature | EDP-20: Append-only AuditStore; split orchestrator/storage.py (audit vs cache vs evidence); retention/redaction; large checkpoints -> object store | Deliver an append-only AuditStore, split orchestrator/storage.py into audit/cache/evidence responsibilities, a... |
 | BI-PF-1314 | Should | feature | EDP-22: Benchmarks/SLOs + EXPLAIN(ANALYZE,BUFFERS) tuning + observability + quotas + graceful degradation (DB/object/cache/queue) | Establish performance benchmarks/SLOs, EXPLAIN(ANALYZE,BUFFERS)-based tuning, observability, quotas, and grace... |
 
-**Wiring / tech-debt / API** (69)
+**Wiring / tech-debt / API** (71)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0185 | Should | feature | EPIC: Multi-modal / media orchestration (pluggable capability packs) | Make the pipeline modality-agnostic via PLUGGABLE capability packs, enabled per project when the idea needs th... |
@@ -139,10 +139,12 @@
 | BI-PF-1310 | Must | feature | EDP-18: Migration/import tooling (dry-run, hashes/counts parity, dual-read, rollback snapshot, cutover flag) for control-plane/portfolio/forge/project/pipeline; JSON demoted to projections | Deliver migration/import tooling with dry-run, hash/count parity verification, dual-read, rollback snapshot an... |
 | BI-PF-1311 | Must | feature | EDP-19: Durable JobStore/OutboxStore + leases/heartbeat/retry/cancel/dead-letter; one-owner boundary vs WorkerGrid (L2, no second queue) | Provide durable, DB-backed JobStore and OutboxStore with leases, heartbeat, retry, cancel, and dead-letter han... |
 | BI-PF-1313 | Must | feature | EDP-21: MemoryRepository behind the 8 memory types; PG metadata + object payloads; FTS then pgvector; ACL-filtered retrieval + leakage tests | Implement MemoryRepository behind all 8 memory types with PG metadata + object-store payloads, FTS-then-pgvect... |
-| BI-PF-1319 | Must | feature | Grooming/regroom must fully resolve items: populate all fields, interactively surface missing info/deps, never strand IN_PROGRESS | Grooming/regroom fully resolves every item (fields, deps, exec order); missing input or unmet deps are surface... |
 | BI-PF-1320 | Should | task | docs-fresh gate red on develop: unclassified doc Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md | docs-fresh gate red on develop: unclassified doc Product_Forge_Enterprise_Performance_Security_DB_Storage_Road... |
 | BI-PF-1323 | Must | chore | Harden sync_develop on a dirty/noisy working tree (untracked collisions; merge refused; generated-file hygiene) | A sync that just works on a realistic (noisy) working tree, so "sync often" stays reliable. |
 | BI-PF-1324 | Should | chore | Concurrent sessions: uniquely-name scratch/temp files (avoid shared temp-dir collision) | Concurrent sessions never collide on scratch files. |
+| BI-PF-1330 | Should | task | Failed stage blocks all re-runs: checkpoint restore keeps the failed stage (new/--from-stage fail immediately) | Failed stage blocks all re-runs: checkpoint restore keeps the failed stage (new/--from-stage fail immediately) |
+| BI-PF-1333 | Must | task | Design stage over-proportions output: 19 FRs + 15 NFRs for one trivial feature; 314KB partial blows run time/cost | Design stage over-proportions output: 19 FRs + 15 NFRs for one trivial feature; 314KB partial blows run time/c... |
+| BI-PF-1338 | Must | task | language_rule_check misses large new logic added via EDITS to existing shipped Python (should be Go) | language_rule_check misses large new logic added via EDITS to existing shipped Python (should be Go) |
 
 ---
 
@@ -342,5 +344,5 @@
 ---
 
 ## Totals
-- backend: 106 open / 503 closed
+- backend: 108 open / 504 closed
 - dashboard: 146 open / 3 closed

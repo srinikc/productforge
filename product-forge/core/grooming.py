@@ -503,6 +503,81 @@ def _empty(v: Any) -> bool:
     return False
 
 
+# BI-PF-1319: terminal backlog statuses - a REQUIRES dependency is satisfied only by one of these.
+_TERMINAL_DEPS = {"completed", "archived", "closed", "duplicate", "wontfix"}
+
+
+def _resolution_cfg() -> dict[str, Any]:
+    """Config for the completion post-pass (which gaps require a surfaced decision request)."""
+    r = guidelines().get("resolution")
+    return r if isinstance(r, dict) else {}
+
+
+def _unmet_requires(scope: str, project: str | None, it: dict) -> list[str]:
+    """Structured REQUIRES deps that are not terminal (fail-closed on an unknown ref - never guessed)."""
+    from core import backlog
+    out: list[str] = []
+    for d in (it.get("dependencies") or []):
+        if str((d or {}).get("type") or "").upper() != "REQUIRES":
+            continue
+        tid = str((d or {}).get("task_id") or "")
+        if not tid:
+            continue
+        dep = backlog.get(scope, project, tid) or backlog.get_epic(scope, project, tid)
+        if dep is None or str(dep.get("status") or "") not in _TERMINAL_DEPS:
+            out.append(tid)
+    return out
+
+
+def decision_request(scope: str, project: str | None, it: dict, analysis: dict) -> dict:
+    """BI-PF-1319: the explicit question/decision an item needs, so nothing is stranded silently.
+
+    Built from the analysis's ``missing_info`` + unmet REQUIRES deps + the existing hard flags
+    (low-confidence / unimplementable / consolidation). Returns ``{needed, reasons[], ask}``.
+    """
+    reasons: list[str] = []
+    mi = [str(x) for x in (analysis.get("missing_info") or []) if str(x).strip()]
+    if mi:
+        reasons.append("missing_info")
+    unmet = _unmet_requires(scope, project, it)
+    if unmet:
+        reasons.append("unmet_deps")
+    if str(analysis.get("confidence") or "") == "low":
+        reasons.append("low-confidence")
+    cr = analysis.get("context_review") or {}
+    if cr and cr.get("ok") is False:
+        reasons.append("unimplementable")
+    if analysis.get("consolidation_proposal"):
+        reasons.append("consolidation")
+    required = _resolution_cfg().get("require_request_for") or ["missing_info", "unmet_deps"]
+    needed = bool(reasons) if _resolution_cfg().get("on_stranded", "surface") == "surface" \
+        else any(r in reasons for r in required)
+    ask = ""
+    if "unmet_deps" in reasons:
+        ask = "Confirm dependency status (or change the dependency) for: " + ", ".join(unmet)
+    elif "missing_info" in reasons:
+        ask = "Provide the missing info: " + "; ".join(mi[:3])
+    elif "unimplementable" in reasons:
+        ask = "Context review: not implementable as written - clarify scope/approach."
+    elif "low-confidence" in reasons:
+        ask = "Low analysis confidence - confirm or MODIFY before approval."
+    elif "consolidation" in reasons:
+        ask = "A consolidation (near-duplicate) proposal exists - APPROVE/CONSOLIDATE/MODIFY."
+    return {"needed": bool(needed), "reasons": reasons, "ask": ask}
+
+
+def _attach_decision_request(scope: str, project: str | None, item_id: str, it: dict) -> dict:
+    """Compute + persist ``analysis.decision_request`` for one item (single writer: backlog). Returns it."""
+    from core import backlog
+    cur = backlog.get_epic(scope, project, item_id) or it
+    a = dict(cur.get("analysis") or {})
+    req = decision_request(scope, project, cur, a)
+    a["decision_request"] = req
+    with contextlib.suppress(Exception):
+        backlog.update(scope, project, item_id, analysis=a)
+    return req
+
+
 def _apply_proposal(scope: str, project: str | None, item_id: str, it: dict, ctx: dict,
                     proposal: dict, used: str, depth: str, *,
                     context_review: dict | None = None,
@@ -579,8 +654,10 @@ def _apply_proposal(scope: str, project: str | None, item_id: str, it: dict, ctx
             _a = dict((backlog.get_epic(scope, project, item_id) or {}).get("analysis") or {})
             _a["consolidation_proposal"] = _build_proposal(it, dups)
             backlog.update(scope, project, item_id, analysis=_a)
+    # BI-PF-1319: attach the explicit decision request so a groomed item is never a SILENT IN_PROGRESS.
+    req = _attach_decision_request(scope, project, item_id, it)
     return {"item_id": item_id, "mode": used, "depth": depth, "proposal": proposal,
-            "applied": True, "error": "", "marked_duplicates": marked}
+            "applied": True, "error": "", "marked_duplicates": marked, "decision_request": req}
 
 
 def groom(scope: str, project: str | None, item_id: str, mode: str = "", *,
@@ -862,6 +939,21 @@ def groom_all(scope: str, project: str | None, mode: str = "", *, batch: int = 0
                          "flagged": len(ap.get("flagged") or []), "pending_approval": pending}
     if applied_ids:
         result["epics_reordered"] = reorder_epics(scope, project, applied_ids)
+    # BI-PF-1319: completion post-pass - every item left IN_PROGRESS/NOT_ANALYZED must carry an explicit
+    # decision_request (never a silent stranding); surface the unresolved ones in the summary.
+    for it in backlog.list_open(scope, project):
+        if backlog.is_epic(it):
+            continue
+        if want is not None and str(it.get("id")) not in want:
+            continue
+        a = it.get("analysis") or {}
+        if str(a.get("status") or "NOT_ANALYZED") not in ("IN_PROGRESS", "NOT_ANALYZED"):
+            continue
+        if not (a.get("decision_request") or {}).get("needed"):
+            _attach_decision_request(scope, project, str(it.get("id")), it)
+    unresolved = stranded(scope, project)
+    result["stranded"] = unresolved["items"]
+    result["summary"]["stranded"] = unresolved["count"]
     return result
 
 
@@ -892,7 +984,26 @@ def review(scope: str, project: str | None) -> dict[str, Any]:
             "confidence": a.get("confidence") or "", "architecture_fit": a.get("architecture_fit") or "",
             "analyzed_by": a.get("analyzed_by") or "", "flags": flags,
             "context_review": cr or None,
+            "decision_request": a.get("decision_request") or None,   # BI-PF-1319
         })
+    return {"count": len(out), "items": out}
+
+
+def stranded(scope: str, project: str | None) -> dict[str, Any]:
+    """BI-PF-1319: items left IN_PROGRESS/NOT_ANALYZED that carry an explicit decision request (a surfaced
+    question awaiting a human decision) - so a groom run never ends silently with unresolved items."""
+    from core import backlog
+    out = []
+    for it in backlog.list_open(scope, project):
+        if backlog.is_epic(it):
+            continue
+        a = it.get("analysis") or {}
+        if str(a.get("status") or "NOT_ANALYZED") not in ("IN_PROGRESS", "NOT_ANALYZED"):
+            continue
+        req = a.get("decision_request") or {}
+        if req.get("needed"):
+            out.append({"id": it.get("id"), "title": it.get("title"), "status": a.get("status"),
+                        "reasons": req.get("reasons") or [], "ask": req.get("ask") or ""})
     return {"count": len(out), "items": out}
 
 
@@ -1058,6 +1169,12 @@ def decide(scope: str, project: str | None, item_id: str, decision: str,
     backlog.update(scope, project, item_id, decisions=[
         *(it.get("decisions") or []), {"at": datetime.now().isoformat(), "decision": d,
                                         "by": by, "note": str(note or "")}])
+    # BI-PF-1319: a finalized decision clears the surfaced request (MODIFY keeps it -> still needs a decision).
+    if d != "MODIFY":
+        with contextlib.suppress(Exception):
+            _a = dict((backlog.get_epic(scope, project, item_id) or {}).get("analysis") or {})
+            _a["decision_request"] = {"needed": False, "reasons": [], "ask": ""}
+            backlog.update(scope, project, item_id, analysis=_a)
     if _reorder:
         reorder_epics(scope, project, [item_id])
     return {"item_id": item_id, "decision": d, "applied": True}
