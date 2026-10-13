@@ -245,6 +245,8 @@ STEP 12 Bmig migrate remaining â†’ Go (aspiration)   âˆ¥   B5 Rust / B6 
 
 **B1 implemented (BI-PF-0394):** the native Go core lives in `go/pfcore` (the pfcore-host binary; stdlib-only, `go build`-clean). It speaks the A1 wire contract (contract `host` enum value `go`; pfcore identity rides as `result.host_id="go-pfcore"`) and is invoked from the PF runtime via `core/go_host.invoke(op, ...)` - built on demand, fail-closed. New shipped/sensitive implementations land there.
 
+**A2 implemented (BI-PF-0396):** asymmetric licensing landed in the Go core (`go/pfcore/license.go`: `license.keygen`/`license.issue`/`license.verify`, Ed25519, stdlib-only) and is invoked from `core/licensing.py` via `core/go_host.invoke` (edits to existing Python only - no new shipped `.py`). The product ships the PUBLIC key only and verifies; the private/dev keys never ship (legacy `data/licensing/.signing-key` untracked + ignored). Entitlement-at-boundary enforcement added fail-closed (`licensing.enforcement` / `require_entitlement` / `enforce_for_instance`).
+
 **A6 implemented (BI-PF-0395):** the language rule above is mechanically enforced: `core/change_policy.py`
 (classifier + rule + undeclared-dep policy, reading registered config `config/language-rule.json`) and the
 changed-files gate `scripts/dev/language_rule_check.py` (precheck fast band). A NEW shipped `.py`

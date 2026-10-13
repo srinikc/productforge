@@ -3,8 +3,9 @@
 EOS / AGENTS: feature work is never committed directly to `develop`/`main`; it lands via a `--no-ff` merge.
 This runs FIRST in the pre-commit hook. Allowed on a protected branch:
   - merge-resolution commits (``MERGE_HEAD`` present), and
-  - **bookkeeping-only** commits: every staged path is delivery/derived state (``data/backlog/**`` + the
-    generated backlog docs) - i.e. the post-merge ``set_delivery`` provenance write, not feature work.
+  - **bookkeeping-only** commits: every staged path is delivery/derived/evidence state (``data/backlog/**``,
+    the generated backlog docs, ``issues/**``, ``engineering/changes.jsonl``) - e.g. the post-merge
+    ``set_delivery`` provenance write or an issue/RCCA close, not feature work.
 Anything else on ``develop``/``main``/``master`` is blocked. Emergency override: ``PF_ALLOW_DIRECT_COMMIT=1``.
 
 Exit 0 = allow, 1 = block.
@@ -18,6 +19,9 @@ BOOKKEEPING = (
     "product-forge/data/backlog/",
     "product-forge/docs/BACKLOG-SUMMARY.md",
     "product-forge/docs/documentation-index.html",
+    # issue tracker + change log: evidence/bookkeeping state, not feature work - allowed on develop
+    "product-forge/issues/",
+    "product-forge/engineering/changes.jsonl",
 )
 
 
@@ -46,18 +50,25 @@ def _is_bookkeeping(path: str) -> bool:
 
 # BI-PF-1186: the backlog STORE (its own commit) - never mix it with other files.
 _BACKLOG_STORE = ("product-forge/data/backlog/",)
+# derived docs ride with ANY commit (bookkeeping delivery OR code) - neutral, never "mixed".
+_NEUTRAL = ("product-forge/docs/BACKLOG-SUMMARY.md", "product-forge/docs/documentation-index.html")
 
 
 def _is_backlog_store(path: str) -> bool:
     return any(path.replace("\\", "/").startswith(p) for p in _BACKLOG_STORE)
 
 
+def _is_neutral(path: str) -> bool:
+    return any(path.replace("\\", "/").startswith(p) for p in _NEUTRAL)
+
+
 def _mixed(staged) -> bool:
+    """True when the backlog STORE is combined with a non-store, non-neutral file (split the commit)."""
     if not staged:
         return False
-    bk = [p for p in staged if _is_bookkeeping(p)]
-    other = [p for p in staged if not _is_bookkeeping(p)]
-    return bool(bk) and bool(other)
+    store = [p for p in staged if _is_backlog_store(p)]
+    other = [p for p in staged if not _is_backlog_store(p) and not _is_neutral(p)]
+    return bool(store) and bool(other)
 
 
 def evaluate(branch: str, merge: bool, allow: bool, staged=None) -> tuple:

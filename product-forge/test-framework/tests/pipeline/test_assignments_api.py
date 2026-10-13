@@ -205,3 +205,10 @@ def test_complete_records_usage_and_rollup():
         assert st["rollup"]["usage"]["cost_usd"] == 0.003
     finally:
         _clean()
+
+
+def test_claim_refused_when_instance_unentitled(monkeypatch):
+    """BI-PF-0396 (A2/AC6): the worker-claim enforces entitlement (fail-closed) at the boundary."""
+    monkeypatch.setenv("PF_INSTANCE_TIER", "no-such-tier")
+    r = job_manager.claim_next("project", _PROJ, worker="w1")
+    assert r.get("claimed") is False and "entitlement" in str(r.get("reason")), r

@@ -33,8 +33,6 @@ except ImportError:  # executed as a script: seed the repo root on sys.path, the
     from core.paths import ROOT as _PF_ROOT
 
 import base64
-import hashlib
-import hmac
 import json
 import os
 import secrets
@@ -46,29 +44,48 @@ FORGE_DIR = os.path.join(REPO, "data", "licensing")
 TIERS_FILE = os.path.join(REPO, "config", "licensing-tiers.json")
 LICENSES_FILE = os.path.join(FORGE_DIR, "licenses.json")
 TENANTS_FILE = os.path.join(FORGE_DIR, "tenants.json")
-KEY_FILE = os.path.join(FORGE_DIR, ".signing-key")
+KEY_FILE = os.path.join(FORGE_DIR, ".signing-key")  # legacy HMAC key (unused by the A2 asymmetric path)
+PUBLIC_KEY_FILE = os.path.join(FORGE_DIR, "license-public-key")   # shipped: public key only
+DEV_PRIVATE_KEY_FILE = os.path.join(FORGE_DIR, ".dev-private-key")  # dev/operator signing env only (gitignored)
 
-FEATURE_GROUPS = {
-    "G1": "Core Orchestration & Portfolio",
-    "G2": "Discovery & Design",
-    "G3": "Quality & Compliance",
-    "G4": "Build/Deploy/Ops",
-    "G5": "Intake & Work Management",
-    "G6": "Collaboration & Tenancy",
-    "G7": "Intelligence (chat/learning/model-rec/BYOT)",
-    "G8": "Content & Media",
-    "G9": "Platform Ops & Licensing (operator-only)",
-    "G10": "Extensibility & API",
+# Entitlement model v1.0 (BI-PF-1264): customer-centric feature groups. Each group carries a name,
+# a category (base | addon | internal) and an `internal` flag. BASE 'Create Products' is in every tier;
+# ADD-ONS differentiate tiers; INTERNAL groups (worker, PF's own work, platform ops) are NEVER granted to a
+# customer tier. `FEATURE_GROUPS` is kept as a {key: name} map for existing read-models.
+DEFAULT_GROUPS: Dict[str, Dict[str, Any]] = {
+    "build-products": {"name": "Build Products (generation engine/workspace)", "category": "base", "internal": False},
+    "ideate-design": {"name": "Ideate & Design", "category": "base", "internal": False},
+    "assure-quality": {"name": "Assure Quality", "category": "base", "internal": False},
+    "plan-deliver": {"name": "Plan & Deliver", "category": "base", "internal": False},
+    "extend-integrate": {"name": "Integrate & Extend", "category": "addon", "internal": False},
+    "team-multi-tenancy": {"name": "Team & Multi-Tenancy", "category": "addon", "internal": False},
+    "choose-ai-models": {"name": "Choose Your AI Models", "category": "addon", "internal": False},
+    "content-media": {"name": "Create Content & Media", "category": "addon", "internal": False},
+    "ai-agents": {"name": "Automate with AI Agents", "category": "addon", "internal": False},
+    "launch-grow": {"name": "Launch & Grow", "category": "addon", "internal": False},
+    "advanced-compliance": {"name": "Advanced Compliance", "category": "addon", "internal": False},
+    "worker-internals": {"name": "Worker / Orchestration (internal)", "category": "internal", "internal": True},
+    "pf-internal-work": {"name": "PF Internal Work (internal)", "category": "internal", "internal": True},
+    "platform-ops-licensing": {"name": "Platform Ops & Licensing (internal)", "category": "internal", "internal": True},
 }
+_BASE_GROUPS = ["build-products", "ideate-design", "assure-quality", "plan-deliver"]
+_ADDON_GROUPS = ["extend-integrate", "team-multi-tenancy", "choose-ai-models", "content-media",
+                 "ai-agents", "launch-grow", "advanced-compliance"]
+
+# Back-compat {key: name} map consumed by read-models (API/dashboard); the config is the source of truth.
+FEATURE_GROUPS = {k: v["name"] for k, v in DEFAULT_GROUPS.items()}
+DEFAULT_BASELINE = ["security"]
+MODEL_VERSION = "1.0"
 
 DEFAULT_TIERS = {
-    "trial": {"rank": 0, "groups": ["G1", "G2", "G5"], "seats": 3,
+    "trial": {"rank": 0, "groups": list(_BASE_GROUPS), "seats": 3,
               "max_parallel_projects": 1, "max_created_projects": 2, "trial_days": 14},
-    "starter": {"rank": 1, "groups": ["G1", "G2", "G3", "G5", "G10"], "seats": 10,
+    "starter": {"rank": 1, "groups": _BASE_GROUPS + ["extend-integrate"], "seats": 10,
                 "max_parallel_projects": 3, "max_created_projects": 20},
-    "pro": {"rank": 2, "groups": ["G1", "G2", "G3", "G4", "G5", "G6", "G10"], "seats": 50,
+    "pro": {"rank": 2, "groups": _BASE_GROUPS + ["extend-integrate", "team-multi-tenancy", "choose-ai-models",
+                                                 "content-media", "ai-agents"], "seats": 50,
             "max_parallel_projects": 10, "max_created_projects": 100},
-    "enterprise": {"rank": 3, "groups": list(FEATURE_GROUPS.keys()), "seats": 0,
+    "enterprise": {"rank": 3, "groups": _BASE_GROUPS + _ADDON_GROUPS, "seats": 0,
                    "max_parallel_projects": 0, "max_created_projects": 0},  # 0 = unlimited
 }
 
@@ -89,25 +106,95 @@ def _wj(p: str, data) -> None:
     os.replace(tmp, p)
 
 
+def _cfg() -> Dict[str, Any]:
+    c = _rj(TIERS_FILE, {}) or {}
+    return c if isinstance(c, dict) else {}
+
+
 def tiers() -> Dict[str, Dict[str, Any]]:
-    cfg = _rj(TIERS_FILE, {}) or {}
-    prof = cfg.get("tiers") if isinstance(cfg, dict) else None
+    prof = _cfg().get("tiers")
     return prof or DEFAULT_TIERS
 
 
-def _signing_key() -> bytes:
-    env = os.getenv("LICENSE_SIGNING_KEY", "").strip()
-    if env:
-        return env.encode()
-    k = _rj(KEY_FILE, None)
-    if not k:
-        k = secrets.token_urlsafe(48)
-        _wj(KEY_FILE, {"key": k})
+def model_version() -> str:
+    """The entitlement model version governing this install (BI-PF-1264)."""
+    return str(_cfg().get("entitlement_model_version") or MODEL_VERSION)
+
+
+def baseline() -> List[str]:
+    """Entitlements present in EVERY tier (e.g., security)."""
+    return list(_cfg().get("baseline") or DEFAULT_BASELINE)
+
+
+def feature_groups() -> Dict[str, Dict[str, Any]]:
+    """The feature-group model: ``{key: {name, category, internal}}``."""
+    g = _cfg().get("feature_groups")
+    return g if isinstance(g, dict) and g else DEFAULT_GROUPS
+
+
+def is_internal(group: str) -> bool:
+    """Internal-only groups (worker, PF's own work, platform ops) - never granted to a customer tier."""
+    return bool((feature_groups().get(group) or {}).get("internal"))
+
+
+def _canonical(payload: Dict[str, Any]) -> bytes:
+    return json.dumps(payload, separators=(",", ":"), sort_keys=True).encode()
+
+
+def _go_license(op: str, payload: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Invoke the native Go core for the sensitive license crypto (A2 / BI-PF-0396).
+
+    New shipped/sensitive logic lives in Go (LOCKED baseline BI-PF-0387/0388). Fail-closed: any
+    failure (binary missing, non-zero exit, invalid response) returns None - the caller denies.
+    """
+    try:
+        from core import go_host
+        resp = go_host.invoke(op, "license-profile", payload, source="python")
+        if isinstance(resp, dict) and resp.get("ok"):
+            return resp.get("result") or {}
+    except Exception:
+        pass
+    return None
+
+
+def _ensure_keypair() -> tuple:
+    """(private_key_b64, public_key_b64) for the signing environment.
+
+    The product needs only the PUBLIC key. A dev keypair is generated (via the Go core) and cached
+    under ``data/licensing/`` (gitignored); production supplies ``PF_LICENSE_PRIVATE_KEY`` only in the
+    signing env and ``PF_LICENSE_PUBLIC_KEY`` to the product. The private key never ships.
+    """
+    priv = os.getenv("PF_LICENSE_PRIVATE_KEY", "").strip()
+    pub = os.getenv("PF_LICENSE_PUBLIC_KEY", "").strip()
+    if priv and pub:
+        return priv, pub
+    dk = _rj(DEV_PRIVATE_KEY_FILE, None) or {}
+    pk = _rj(PUBLIC_KEY_FILE, None) or {}
+    if not priv:
+        priv = str(dk.get("private_key") or "") if isinstance(dk, dict) else ""
+    if not pub:
+        pub = str(pk.get("public_key") or "") if isinstance(pk, dict) else ""
+    if priv and pub:
+        return priv, pub
+    gen = _go_license("license.keygen", {})
+    if not gen:
+        return priv, pub
+    priv = str(gen.get("private_key") or priv)
+    pub = str(gen.get("public_key") or pub)
+    if gen.get("private_key"):
+        _wj(DEV_PRIVATE_KEY_FILE, {"private_key": gen["private_key"]})
         try:
-            os.chmod(KEY_FILE, 0o600)
+            os.chmod(DEV_PRIVATE_KEY_FILE, 0o600)
         except Exception:
             pass
-    return (k.get("key") if isinstance(k, dict) else str(k)).encode()
+    if gen.get("public_key"):
+        _wj(PUBLIC_KEY_FILE, {"public_key": gen["public_key"]})
+    return priv, pub
+
+
+def public_key() -> str:
+    """The shipped license public key (base64 std), or '' (fail-closed verify)."""
+    return _ensure_keypair()[1]
 
 
 def _b64e(b: bytes) -> str:
@@ -121,11 +208,17 @@ def _b64d(s: str) -> bytes:
 def issue_key(tenant: str, tier: str, seats: Optional[int] = None,
               concurrency: Optional[int] = None, trial_days: int = 0,
               days: int = 365) -> str:
-    """Sign and return a license key for a tenant/tier."""
+    """Sign and return an ASYMMETRIC (Ed25519, via the Go core) license key for a tenant/tier.
+
+    Signing uses the vendor/dev PRIVATE key (env or local dev key); the product only needs the
+    PUBLIC key to verify. Returns '' (fail-closed) if the signing environment is unavailable.
+    """
     t = tiers().get(tier) or tiers()["trial"]
     exp = datetime.now() + timedelta(days=trial_days or days)
-    payload = {
+    license_body = {
+        "schema": "product-forge/license-profile@1",
         "tenant": tenant, "tier": tier,
+        "license_id": f"{tenant}-{tier}-{secrets.token_hex(4)}",
         "seats": int(t.get("seats", 0) if seats is None else seats),
         "concurrency": int(t.get("max_parallel_projects", 0) if concurrency is None else concurrency),
         "trial": bool(trial_days),
@@ -133,23 +226,30 @@ def issue_key(tenant: str, tier: str, seats: Optional[int] = None,
         "iat": datetime.now().isoformat(),
         "nonce": secrets.token_hex(6),
     }
-    raw = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode()
-    sig = hmac.new(_signing_key(), raw, hashlib.sha256).digest()
-    return f"PF-{_b64e(raw)}.{_b64e(sig)}"
+    priv, _pub = _ensure_keypair()
+    res = _go_license("license.issue", {"private_key": priv, "license": license_body})
+    if not res or not res.get("signature"):
+        return ""
+    sig = base64.b64decode(res["signature"])
+    return f"PF-{_b64e(_canonical(license_body))}.{_b64e(sig)}"
 
 
 def verify_key(key: str) -> Optional[Dict[str, Any]]:
-    """Verify a license key; return its payload or None if invalid/expired."""
+    """Verify an ASYMMETRIC license key via the Go core (public key only); payload or None.
+
+    Fail-closed: tampered/forged keys, a missing public key, or an unavailable Go core all return
+    None (never a partial/optimistic pass).
+    """
     try:
         if not key or not key.startswith("PF-"):
             return None
-        body = key[3:]
-        p_b64, s_b64 = body.split(".", 1)
-        raw = _b64d(p_b64)
-        sig = _b64d(s_b64)
-        if not hmac.compare_digest(sig, hmac.new(_signing_key(), raw, hashlib.sha256).digest()):
+        p_b64, s_b64 = key[3:].split(".", 1)
+        payload = json.loads(_b64d(p_b64).decode())
+        sig_std = base64.b64encode(_b64d(s_b64)).decode()
+        res = _go_license("license.verify", {"license": payload, "signature": sig_std,
+                                             "public_key": public_key()})
+        if not res or not res.get("valid"):
             return None
-        payload = json.loads(raw.decode())
         if payload.get("exp"):
             try:
                 if datetime.fromisoformat(payload["exp"]) < datetime.now():
@@ -162,20 +262,85 @@ def verify_key(key: str) -> Optional[Dict[str, Any]]:
 
 
 def entled(tier: str, group: str) -> bool:
-    """Is `group` (G1..G10) entitled by `tier`?"""
+    """Is `group` entitled by `tier`? Internal-only groups are never entitled to a customer tier."""
     t = tiers().get(tier)
-    if not t:
+    if not t or is_internal(group):
         return False
     return group in (t.get("groups") or [])
 
 
+class LicenseError(Exception):
+    """Raised when an action is refused by entitlement enforcement (fail-closed)."""
+
+
+def enforcement(tier: str, group: str) -> Dict[str, Any]:
+    """Entitlement decision at an execution boundary (fail-closed): never optimistic.
+
+    Returns ``{allowed, tier, group, reason}``; an unknown/missing tier is NOT allowed.
+    """
+    if not tier or not tiers().get(tier):
+        return {"allowed": False, "tier": tier, "group": group, "reason": "unknown tier"}
+    if not entled(tier, group):
+        return {"allowed": False, "tier": tier, "group": group,
+                "reason": f"tier '{tier}' is not entitled to {group} ({FEATURE_GROUPS.get(group, group)})"}
+    return {"allowed": True, "tier": tier, "group": group, "reason": ""}
+
+
+def require_entitlement(tier: str, group: str) -> None:
+    """Refuse (raise ``LicenseError``) unless ``tier`` entitles ``group``.
+
+    Call at execution boundaries (a gated action) - the enforcement counterpart to ``entled``.
+    """
+    d = enforcement(tier, group)
+    if not d["allowed"]:
+        raise LicenseError(d["reason"])
+
+
+def tenant_tier(tenant: str) -> str:
+    """The tier recorded for a tenant in the tenants store ('' if unknown)."""
+    try:
+        rec = (load_tenants() or {}).get(tenant) or {}
+        return str(rec.get("tier") or "")
+    except Exception:
+        return ""
+
+
+def effective_tier() -> str:
+    """The tier that gates THIS instance's actions.
+
+    Precedence: ``PF_INSTANCE_TIER`` (explicit) > operator => ``enterprise`` > the tenant's recorded tier.
+    Dev/open stays unblocked only when **no tenant is configured**; a CONFIGURED tenant whose tier is unknown
+    resolves to ``""`` so the boundary refuses (fail-closed) rather than silently passing.
+    """
+    override = os.getenv("PF_INSTANCE_TIER", "").strip()
+    if override:
+        return override
+    if instance_role() == "operator":
+        return "enterprise"
+    t = os.getenv("PF_TENANT", "").strip()
+    if not t:
+        return "enterprise"        # no tenant configured -> dev/open (not gated)
+    return tenant_tier(t)          # may be "" -> unknown tenant tier -> refused (fail-closed)
+
+
+def enforce_for_instance(group: str) -> None:
+    """Execution-boundary guard: refuse unless this instance's tier entitles ``group`` (fail-closed).
+
+    Operator/dev instances are exempt (enterprise); a tenant instance is refused for unentitled or
+    unknown/expired-license groups. Call immediately before a gated action runs.
+    """
+    require_entitlement(effective_tier(), group)
+
+
 def entitlements(tier: str) -> Dict[str, Any]:
     t = tiers().get(tier) or {}
-    return {"tier": tier, "groups": t.get("groups", []),
+    gi = feature_groups()
+    return {"tier": tier, "model_version": model_version(), "groups": t.get("groups", []),
+            "baseline": baseline(),
             "seats": t.get("seats", 0),
             "max_parallel_projects": t.get("max_parallel_projects", 0),
             "max_created_projects": t.get("max_created_projects", 0),
-            "group_titles": {g: FEATURE_GROUPS.get(g, g) for g in (t.get("groups") or [])}}
+            "group_titles": {g: (gi.get(g) or {}).get("name", g) for g in (t.get("groups") or [])}}
 
 
 def effective_limits(tier: str, global_limits: Dict[str, Any]) -> Dict[str, Any]:

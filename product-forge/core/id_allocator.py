@@ -95,8 +95,9 @@ _API_CACHE = {"base": None, "at": 0.0}
 
 def _up(base: str) -> bool:
     try:
-        import requests
-        return requests.get(base + "/health", timeout=2).status_code == 200
+        import urllib.request
+        with urllib.request.urlopen(base + "/health", timeout=2) as r:
+            return int(getattr(r, "status", None) or r.getcode()) == 200
     except Exception:
         return False
 
@@ -121,41 +122,37 @@ def _git(root: str, *args, env=None, stdin=None):
     return r.returncode, (r.stdout or "").strip(), (r.stderr or "").strip()
 
 
-def _remote_enabled() -> bool:
-    return str(os.environ.get("PF_ID_ALLOC_REMOTE", "on")).strip().lower() not in ("off", "0", "false", "no")
+def read_ref_json(root: str, ref: str, path: str) -> dict:
+    """Fetch + read ``ref:path`` as JSON ({} when absent/unreadable). Shared by the id + lease CAS."""
+    _git(root, "fetch", "origin", f"{ref}:{ref}")
+    rc, out, _ = _git(root, "show", f"{ref}:{path}")
+    try:
+        d = json.loads(out) if (rc == 0 and out) else {}
+    except Exception:
+        d = {}
+    return d if isinstance(d, dict) else {}
 
 
-def _reserve_git(scope: str, project: str | None, size: int, existing_max: int = 0) -> dict | None:
-    """Reserve a block via an ATOMIC CAS on the shared git remote (BI-PF-0764).
+def cas_commit_push(root: str, ref: str, path: str, make_data, message: str, retries: int = 5) -> bool:
+    """Atomic JSON update to ``ref`` (git compare-and-swap). ``make_data(current) -> new`` (None = ABORT).
 
-    The counter lives in ``id-counter.json`` on ``refs/heads/pf-id-counter``. We commit the new counter and
-    ``git push`` it: a NON-fast-forward push is rejected (someone else advanced it) -> retry. This is a
-    compare-and-swap, so any session/worker sharing the remote gets disjoint blocks with nothing to point at.
-    The block always starts ABOVE ``existing_max`` (so remote blocks are never behind local items).
+    Shared by the id allocator (``pf-id-counter``) and the assignment-lease authority (``pf-leases``, BI-PF-1261):
+    a non-fast-forward push (someone else advanced the ref) is rejected -> refetch and retry.
     """
-    if not _remote_enabled():
-        return None
-    root = _repo_root()
-    if not root:
-        return None
-    ref = str(os.environ.get("PF_ID_REMOTE_REF", "refs/heads/pf-id-counter"))
-    path = "id-counter" + ".json"
-    key = _key(scope, project)
-    for _ in range(5):
+    for _ in range(max(1, int(retries))):
         rc, _, _ = _git(root, "fetch", "origin", f"{ref}:{ref}")
         rc2, out, _ = _git(root, "show", f"{ref}:{path}")
         try:
-            data = json.loads(out) if (rc2 == 0 and out) else {"blocks": {}}
+            data = json.loads(out) if (rc2 == 0 and out) else {}
         except Exception:
-            data = {"blocks": {}}
-        st = data.setdefault("blocks", {}).setdefault(key, {"reserved_up_to": 0})
-        start = max(int(st.get("reserved_up_to") or 0), int(existing_max or 0), base()) + 1
-        end = start + size - 1
-        st["reserved_up_to"] = end
+            data = {}
+        new = make_data(data if isinstance(data, dict) else {})
+        if new is None:
+            return False
         rc3, blob, _ = _git(root, "hash-object", "-w", "--stdin",
-                            stdin=json.dumps(data, indent=2, ensure_ascii=False))
+                            stdin=json.dumps(new, indent=2, ensure_ascii=False))
         if rc3 != 0:
-            return None
+            return False
         td = tempfile.mkdtemp()
         envf = {"GIT_INDEX_FILE": os.path.join(td, "index")}
         if rc == 0:
@@ -166,17 +163,51 @@ def _reserve_git(scope: str, project: str | None, size: int, existing_max: int =
         rc4, tree, _ = _git(root, "write-tree", env=envf)
         shutil.rmtree(td, ignore_errors=True)
         if rc4 != 0:
-            return None
+            return False
         if rc == 0:
-            rc5, commit, _ = _git(root, "commit-tree", tree, "-p", ref, "-m", "reserve backlog ids [skip ci]")
+            rc5, commit, _ = _git(root, "commit-tree", tree, "-p", ref, "-m", message)
         else:
-            rc5, commit, _ = _git(root, "commit-tree", tree, "-m", "reserve backlog ids [skip ci]")
+            rc5, commit, _ = _git(root, "commit-tree", tree, "-m", message)
         if rc5 != 0:
-            return None
+            return False
         rc6, _, _ = _git(root, "push", "origin", f"{commit}:{ref}")
         if rc6 == 0:
-            return {"start": start, "end": end}
-        # CAS lost the race -> refetch and retry
+            return True
+        # CAS lost the race -> retry
+    return False
+
+
+def _remote_enabled() -> bool:
+    return str(os.environ.get("PF_ID_ALLOC_REMOTE", "on")).strip().lower() not in ("off", "0", "false", "no")
+
+
+def _reserve_git(scope: str, project: str | None, size: int, existing_max: int = 0) -> dict | None:
+    """Reserve a block via an ATOMIC CAS on the shared git remote (BI-PF-0764; plumbing: core/git_cas).
+
+    The counter lives in ``id-counter.json`` on ``refs/heads/pf-id-counter``. A non-fast-forward push is
+    rejected (someone else advanced it) -> retry. Any session/worker sharing the remote gets disjoint blocks.
+    The block always starts ABOVE ``existing_max``.
+    """
+    if not _remote_enabled():
+        return None
+    root = _repo_root()
+    if not root:
+        return None
+    ref = str(os.environ.get("PF_ID_REMOTE_REF", "refs/heads/pf-id-counter"))
+    path = "id-counter" + ".json"
+    key = _key(scope, project)
+    out: dict = {}
+
+    def _make(data: dict):
+        st = data.setdefault("blocks", {}).setdefault(key, {"reserved_up_to": 0})
+        start = max(int(st.get("reserved_up_to") or 0), int(existing_max or 0), base()) + 1
+        end = start + size - 1
+        st["reserved_up_to"] = end
+        out["start"], out["end"] = start, end
+        return data
+
+    if cas_commit_push(root, ref, path, _make, "reserve backlog ids [skip ci]"):
+        return {"start": out["start"], "end": out["end"]}
     return None
 
 
@@ -207,15 +238,19 @@ def _reserve_remote(scope: str, project: str | None, size: int) -> dict | None:
     if not base:
         return None
     try:
-        import requests
+        import urllib.request
         token = str(os.environ.get("API_TOKEN") or os.environ.get("WORKERGRID_TOKEN") or "")
-        r = requests.post(base + "/api/v1/backlog/ids:reserve",
-                          json={"scope": scope, "project": project or "", "size": size},
-                          headers={"Authorization": f"Bearer {token}"} if token else {}, timeout=5)
-        if r.status_code == 200:
-            d = (r.json() or {}).get("data") or {}
-            if d.get("start") and d.get("end"):
-                return {"start": int(d["start"]), "end": int(d["end"])}
+        body = json.dumps({"scope": scope, "project": project or "", "size": size}).encode("utf-8")
+        req = urllib.request.Request(
+            base + "/api/v1/backlog/ids:reserve", data=body, method="POST",
+            headers={"Content-Type": "application/json",
+                     **({"Authorization": f"Bearer {token}"} if token else {})})
+        with urllib.request.urlopen(req, timeout=5) as r:
+            if int(getattr(r, "status", None) or r.getcode()) == 200:
+                payload = json.loads(r.read().decode("utf-8", errors="ignore") or "{}")
+                d = (payload or {}).get("data") or {}
+                if d.get("start") and d.get("end"):
+                    return {"start": int(d["start"]), "end": int(d["end"])}
     except Exception:
         return None
     return None
@@ -225,7 +260,7 @@ def lift_remote(scope: str, project: str | None, at_least: int) -> dict | None:
     """CAS-advance the remote counter to at least ``at_least`` (never lowers it). No session block consumed.
 
     Called at merge/PR with the GLOBAL max id, so the shared counter is always >= every issued id -> a stale
-    session can never re-reserve an already-issued range (BI-PF-0866).
+    session can never re-reserve an already-issued range (BI-PF-0866). Plumbing: core/git_cas.
     """
     if not _remote_enabled():
         return None
@@ -235,43 +270,20 @@ def lift_remote(scope: str, project: str | None, at_least: int) -> dict | None:
     ref = str(os.environ.get("PF_ID_REMOTE_REF", "refs/heads/pf-id-counter"))
     path = "id-counter" + ".json"
     key = _key(scope, project)
-    for _ in range(5):
-        rc, _, _ = _git(root, "fetch", "origin", f"{ref}:{ref}")
-        rc2, out, _ = _git(root, "show", f"{ref}:{path}")
-        try:
-            data = json.loads(out) if (rc2 == 0 and out) else {"blocks": {}}
-        except Exception:
-            data = {"blocks": {}}
+    out: dict = {}
+
+    def _make(data: dict):
         st = data.setdefault("blocks", {}).setdefault(key, {"reserved_up_to": 0})
         cur = int(st.get("reserved_up_to") or 0)
+        out["cur"] = cur
         if cur >= int(at_least):
-            return {"reserved_up_to": cur}
+            return None  # already satisfied -> abort (no write)
         st["reserved_up_to"] = int(at_least)
-        rc3, blob, _ = _git(root, "hash-object", "-w", "--stdin",
-                            stdin=json.dumps(data, indent=2, ensure_ascii=False))
-        if rc3 != 0:
-            return None
-        td = tempfile.mkdtemp()
-        envf = {"GIT_INDEX_FILE": os.path.join(td, "index")}
-        if rc == 0:
-            _git(root, "read-tree", ref, env=envf)
-        else:
-            _git(root, "read-tree", "--empty", env=envf)
-        _git(root, "update-index", "--add", "--cacheinfo", f"100644,{blob},{path}", env=envf)
-        rc4, tree, _ = _git(root, "write-tree", env=envf)
-        shutil.rmtree(td, ignore_errors=True)
-        if rc4 != 0:
-            return None
-        if rc == 0:
-            rc5, commit, _ = _git(root, "commit-tree", tree, "-p", ref, "-m", "lift id-counter [skip ci]")
-        else:
-            rc5, commit, _ = _git(root, "commit-tree", tree, "-m", "lift id-counter [skip ci]")
-        if rc5 != 0:
-            return None
-        rc6, _, _ = _git(root, "push", "origin", f"{commit}:{ref}")
-        if rc6 == 0:
-            return {"reserved_up_to": int(at_least)}
-    return None
+        out["cur"] = int(at_least)
+        return data
+
+    cas_commit_push(root, ref, path, _make, "lift id-counter [skip ci]")
+    return {"reserved_up_to": out.get("cur")} if out.get("cur") is not None else None
 
 
 def reserve(scope: str, project: str | None = None, size: int = 0, session: str = "") -> dict:
