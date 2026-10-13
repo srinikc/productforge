@@ -1,0 +1,31 @@
+{
+  "id": "IS-PF-0039",
+  "tag": "PF",
+  "scope": "product_forge",
+  "project": "",
+  "title": "events.jsonl owner ambiguity: store-registry attributes it to event_bus.py but events.py is the writer",
+  "body": "config/store-registry.json registers events.jsonl under core/event_bus.py, while core/events.py declares itself the single writer; the BI-PF-0233 mirror makes both touch the file, so the registered owner is ambiguous (one truth per concern violated).",
+  "kind": "issue",
+  "priority": "P2",
+  "severity": "medium",
+  "module": "config/store-registry.json",
+  "status": "open",
+  "rcca": {
+    "root_cause": "The mirror (BI-PF-0233) wrote events.jsonl from two modules without updating the registered owner, so the store registry no longer names the true single writer.",
+    "corrective": "Record core/events.py as the single writer of events.jsonl; make event_bus a producer facade that delegates (no direct write).",
+    "preventive": "Store-registry owner must match the module that physically appends; store_audit enforces.",
+    "fixed_where": "config/store-registry.json + core/events.py/core/event_bus.py (pending BI-PF-1272)",
+    "generalized": true,
+    "guideline_ref": "",
+    "product_ref": ""
+  },
+  "backlog_ref": "BI-PF-1272",
+  "source": "review",
+  "source_ref": "events-jsonl-owner-drift",
+  "evidence": [],
+  "links": {
+    "backlog": "BI-PF-1272"
+  },
+  "created_at": "2026-10-12T23:36:27.843666",
+  "updated_at": "2026-10-12T23:36:28.040503"
+}

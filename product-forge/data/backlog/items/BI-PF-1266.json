@@ -1,0 +1,251 @@
+{
+  "id": "BI-PF-1266",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "",
+  "label": "PF Backlog 576",
+  "title": "Eventing SSOT: ADR + design (Go-first bus, Python thin client, no-duplication, migration)",
+  "body": "## Problem / why\nThe Go-first + Python-thin-client decision, the no-duplication rule, single-writer ownership of the event\nstore, and the five open forks (Go packaging, daemon vs library, who serves SSE, store-writer ownership,\nPython-emit handoff) are not yet recorded; coding cannot start unrecorded (AGENTS.md reconciliation).\n\n## Goal / value\nAn accepted ADR + design doc with RECONCILIATION + IMPACT REVIEW so the capability is governed before build.\n\n## In scope\n- ADR (docs/ARCHITECTURE-DECISIONS.md) recording Go-core + Python-thin-client, no second bus/store.\n- Design doc with the consumer migration matrix + no-regression DoD + the five open decisions.\n\n## Out of scope\n- Any implementation.\n\n## Acceptance criteria\n- ADR accepted; design doc lists frozen contracts, migration matrix, and resolved open decisions.\n- language/ownership conflicts recorded (events.jsonl owner; event_bus facade).\n\n## Verification / test plan\n- `python scripts/dev/design_review_check.py docs/<design>.md` clean; ADR index updated.",
+  "source": "design",
+  "status": "new",
+  "priority": "P2",
+  "moscow": "Should",
+  "value": 5,
+  "effort": 2,
+  "risk": 1,
+  "deps": [],
+  "links": {
+    "design": "docs/EVENTING-ALERTING-SSOT-DESIGN.md",
+    "adr": "ADR-0005",
+    "epic": "BI-PF-1265"
+  },
+  "decisions": [
+    {
+      "decision": "Go event core + Python thin client over the A1 seam; strangle consumers behind shims",
+      "source": "ADR-0005",
+      "at": "2026-10-12T23:36:27.306163"
+    },
+    {
+      "decision": "Extend go/pfcore first (Q1); standalone Go bus daemon (Q2); SSE at API edge (Q3)",
+      "source": "BI-PF-1266",
+      "at": "2026-10-12T23:36:27.306163"
+    },
+    {
+      "decision": "Python stays the event-store writer until a one-time Go cutover (Q4); emit via the seam (Q5)",
+      "source": "BI-PF-1266",
+      "at": "2026-10-12T23:36:27.306163"
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "The Go-first + Python-thin-client decision, the no-duplication rule, single-writer ownership of the event\nstore, and the five open forks (Go packaging, daemon vs library, who serves SSE, store-writer ownership,\nPython-emit handoff) are not yet recorded; coding cannot start unrecorded (AGENTS.md reconciliation).",
+    "what_adds": "An accepted ADR + design doc with RECONCILIATION + IMPACT REVIEW so the capability is governed before build.",
+    "why": "The Go-first + Python-thin-client decision, the no-duplication rule, single-writer ownership of the event\nstore, and the five open forks (Go packaging, daemon vs library, who serves SSE, store-writer ownership,\nPython-emit handoff) are not yet recorded; coding cannot start unrecorded (AGENTS.md reconciliation).",
+    "who_feels": "Product Forge maintainers and consumers.",
+    "source": "authored"
+  },
+  "objective": "An accepted ADR + design doc with RECONCILIATION + IMPACT REVIEW so the capability is governed before build.",
+  "acceptance_criteria": [
+    "ADR accepted; design doc lists frozen contracts, migration matrix, and resolved open decisions.",
+    "language/ownership conflicts recorded (events.jsonl owner; event_bus facade)."
+  ],
+  "in_scope": [
+    "ADR (docs/ARCHITECTURE-DECISIONS.md) recording Go-core + Python-thin-client, no second bus/store.",
+    "Design doc with the consumer migration matrix + no-regression DoD + the five open decisions."
+  ],
+  "out_of_scope": [
+    "Any implementation."
+  ],
+  "affected_components": [
+    "docs",
+    "scripts"
+  ],
+  "affected_files": [
+    "AGENTS.md",
+    "docs/ARCHITECTURE-DECISIONS.md",
+    "events.json",
+    "scripts/dev/design_review_check.py"
+  ],
+  "approach": "- `python scripts/dev/design_review_check.py docs/<design>.md` clean; ADR index updated.",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [
+        "ADR-0001 / PF-TARGET-ARCHITECTURE-AND-IP-PLAN.md 4.8: Go-first for new work; no duplication",
+        "ENG-9-DOGFOOD.md:30: pipeline via the ONE canonical path (run_entry)",
+        "core/events.py:1-11: this module is the single writer of the canonical stream",
+        "ADR-0004: Feature<->Epic<->children backlog model",
+        "BI-PF-0233: project-scoped bus events mirror into the per-project canonical stream"
+      ],
+      "existing_path": [
+        "canonical emit+taxonomy -> core/events.py",
+        "orchestration signal bus + in-proc handlers -> core/event_bus.py",
+        "payload secret redaction -> core/log_router.redact()",
+        "DLQ retry sink -> core/dead_letter_queue.py",
+        "notifications store -> core/notification_system.py; email -> core/alerts.py",
+        "Go invocation seam -> core/go_host.invoke + core/contracts.py (A1)",
+        "subscriber registry/dispatcher/transports/alert policy/SSE -> MISSING (to build)"
+      ],
+      "assumptions": [
+        "A1 Go core is the acceptable host for the new bus",
+        "A2 core/events.py may become a thin client keeping its public API",
+        "A3 event-store writer ownership can cut over to Go with no second writer",
+        "A4 SSE served at the API edge (thin Python read), not a Go HTTP server",
+        "A5 subscriber-registry + alert-rule stores registered with single writers",
+        "A6 existing consumers accept in-proc shims with identical behavior"
+      ],
+      "divergences": [
+        "blocking/Go-daemon model diverges from the historical emit-and-read async design (DOGFOOD-E2E-DESIGN.md:65) -> amended by ADR-0005",
+        "legacy WebSocket transport is not extended (superseded by SSE)"
+      ],
+      "open_questions": [
+        "Q1 Go packaging: extend go/pfcore vs new go/eventbus -> extend go/pfcore first",
+        "Q2 run model: standalone Go bus daemon for dispatch/external delivery",
+        "Q3 SSE edge: API edge",
+        "Q4 writer ownership: Python now; Go one-time cutover later",
+        "Q5 Python-emit handoff: call the Go core (seam); no dual writer"
+      ]
+    },
+    "impact_review": [
+      {
+        "claim": "New bus core in Go",
+        "verdict": "aligned",
+        "evidence": "ADR-0001; go/pfcore/pfcore.go:1-6; core/go_host.py"
+      },
+      {
+        "claim": "No new Python in shipped roots",
+        "verdict": "aligned",
+        "evidence": "config/language-rule.json shipped_roots"
+      },
+      {
+        "claim": "One event store (no second)",
+        "verdict": "aligned",
+        "evidence": "core/events.py:1-11; event_bus.py:48-62"
+      },
+      {
+        "claim": "Single writer per store",
+        "verdict": "aligned",
+        "evidence": "config/store-registry.json rules"
+      },
+      {
+        "claim": "Contract extension compatible",
+        "verdict": "aligned",
+        "evidence": "core/events.py:43-74; test_api_events.py"
+      },
+      {
+        "claim": "Consumers keep working",
+        "verdict": "aligned",
+        "evidence": "50 events importers; test_event_ssot.py"
+      },
+      {
+        "claim": "Reuse redaction + DLQ",
+        "verdict": "aligned",
+        "evidence": "core/log_router.py:58; core/dead_letter_queue.py:42"
+      },
+      {
+        "claim": "Cross-process delivery",
+        "verdict": "new-path",
+        "evidence": "pipeline child process vs API; Q2/Q4"
+      },
+      {
+        "claim": "Go API server rewrite",
+        "verdict": "violates",
+        "evidence": "ADR-0001 (existing Python stays)",
+        "recommendation": "do NOT; Python edge + Go behind seam"
+      }
+    ],
+    "reviewed_by": "architect",
+    "at": "2026-10-12T23:36:27.306163"
+  },
+  "verification": [
+    "ADR accepted; design doc lists frozen contracts, migration matrix, and resolved open decisions.",
+    "language/ownership conflicts recorded (events.jsonl owner; event_bus facade)."
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "agent",
+  "requester": "design",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1265",
+  "parent": "BI-PF-1265",
+  "revision": 3,
+  "priority_rank": 2,
+  "priority_class": "P2",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "STALE",
+    "analyzed_at": "2026-10-12T23:26:53.114727",
+    "analyzed_by": "cli",
+    "revision_analyzed": 2,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/business_models_kb.py, core/business_skills_selector.py, core/design_critic.py, core/design_tokens.py",
+    "existing_components": [
+      "core/business_models_kb.py",
+      "core/business_skills_selector.py",
+      "core/design_critic.py",
+      "core/design_tokens.py",
+      "core/event_bus.py",
+      "core/product_design_spec.py"
+    ],
+    "existing_apis": [],
+    "existing_modules": [
+      "config/business-models-kb.json"
+    ],
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=2.5",
+      "components=6",
+      "apis=0"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic",
+    "arch_fingerprint": "ba90c45005d704fa"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-12T23:27:14.824787"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-12T22:53:58.729980",
+  "updated_at": "2026-10-12T23:36:27.369734",
+  "score": 2.5,
+  "_note": "design: reconciliation + impact review + decisions recorded"
+}
