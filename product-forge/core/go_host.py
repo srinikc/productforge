@@ -1,4 +1,4 @@
-﻿"""PF Go-core runtime invocation (B1, BI-PF-0394): invoke the compiled native Go core.
+"""PF Go-core runtime invocation (B1, BI-PF-0394): invoke the compiled native Go core.
 
 "Go-first for new work" (LOCKED delivery baseline BI-PF-0387 / ADR BI-PF-0388): new shipped/sensitive
 logic lands in the Go core (``product-forge/go/pfcore``) and is invoked from the PF runtime through
@@ -81,6 +81,16 @@ def invoke(op: str, contract_name: str = "", payload: dict | None = None, *,
                                         contract_name, error="wire-response failed validation: "
                                         + "; ".join(check.get("errors") or [])[:200])
     return resp
+
+
+def event_append(path: str, event: dict) -> dict[str, Any]:
+    """Append one event to the Go event store (op ``event_append``); returns the wire response."""
+    return invoke("event_append", payload={"path": path, "event": event})
+
+
+def event_read(path: str, since_seq: int = 0, limit: int = 0) -> dict[str, Any]:
+    """Read events with ``seq > since_seq`` from the Go event store (op ``event_read``)."""
+    return invoke("event_read", payload={"path": path, "since_seq": since_seq, "limit": limit})
 
 
 def status() -> dict[str, Any]:
