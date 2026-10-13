@@ -254,6 +254,131 @@ def _active_assignments(scope: str, project: str | None) -> int:
                if str((it.get("execution") or {}).get("worker_id") or ""))
 
 
+_LEASE_REF = os.environ.get("PF_LEASE_REMOTE_REF", "refs/heads/pf-leases")
+_LEASE_PATH = "leases.json"
+_LEASE_TTL = 3600
+
+
+def _lease_mode() -> str:
+    """Lease authority mode: strict (default, fail-closed) | on (soft) | off (disabled).
+
+    Precedence (BI-PF-1283): an EXPLICIT ``PF_LEASE_REMOTE`` env value always wins; otherwise OFFLINE
+    (``PF_OFFLINE``) means there is no shared/remote authority -> ``off`` (keeps unit tests and offline runs
+    hermetic - no shared-CAS writes, no stray ``pf-leases`` refs); otherwise the config/default, else strict.
+    """
+    explicit = str(os.environ.get("PF_LEASE_REMOTE", "") or "").strip()
+    if explicit:
+        return explicit.lower()
+    try:
+        from core import env_flags
+        offline = str(env_flags.get("PF_OFFLINE", os.environ.get("PF_OFFLINE", "")) or "").strip().lower()
+        if offline in ("1", "true", "yes", "on"):
+            return "off"
+        return str(env_flags.get("PF_LEASE_REMOTE", "strict") or "strict").strip().lower()
+    except Exception:
+        return "strict"
+
+
+def _lease_disabled() -> bool:
+    return _lease_mode() in ("off", "0", "false", "no")
+
+
+def _lease_strict() -> bool:
+    return _lease_mode() in ("strict", "hard", "required")
+
+
+def _lease_key(scope: str, project: str | None, item_id: str) -> str:
+    return f"{scope}::{project or ''}::{item_id}"
+
+
+def _lease_expired(rec: dict) -> bool:
+    try:
+        return datetime.fromisoformat(str(rec.get("expires_at") or "")) <= datetime.now()
+    except Exception:
+        return True
+
+
+def lease_acquire(scope: str, project: str | None, item_id: str, worker_id: str, lease_id: str,
+                  ttl_seconds: int = 0) -> dict:
+    """Acquire the item lease on the SHARED git-CAS authority (BI-PF-1261; reuses core.id_allocator's CAS).
+
+    Fail-closed when the item is already held by another owner (unexpired); soft local fallback when the remote
+    is unavailable (offline). Returns {ok, authority, reason|warning}.
+    """
+    from core import id_allocator
+    ttl = int(ttl_seconds or 0) or _LEASE_TTL
+    expires = (datetime.now() + timedelta(seconds=ttl)).isoformat()
+    if _lease_disabled():
+        return {"ok": True, "authority": "local", "warning": "PF_LEASE_REMOTE=off (no shared authority)"}
+    root = id_allocator._repo_root()
+    if not root:
+        if _lease_strict():
+            return {"ok": False, "authority": "none",
+                    "reason": "shared lease authority unavailable (strict): no git root"}
+        return {"ok": True, "authority": "local", "warning": "no git root (shared authority unavailable)"}
+    key = _lease_key(scope, project, item_id)
+    held: dict = {}
+
+    def _make(data: dict):
+        leases = data.setdefault("leases", {})
+        for k in [k for k, v in list(leases.items()) if _lease_expired(v)]:
+            leases.pop(k, None)
+        cur = leases.get(key)
+        if cur and not _lease_expired(cur) and str(cur.get("worker_id") or "") != str(worker_id or ""):
+            held["reason"] = f"already leased by {cur.get('worker_id')}"
+            return None
+        leases[key] = {"worker_id": str(worker_id or ""), "lease_id": str(lease_id or ""),
+                       "expires_at": expires, "since": datetime.now().isoformat()}
+        return data
+
+    ok = id_allocator.cas_commit_push(root, _LEASE_REF, _LEASE_PATH, _make, f"lease {item_id} [skip ci]")
+    if held.get("reason"):
+        return {"ok": False, "authority": "remote", "reason": held["reason"]}
+    if ok:
+        return {"ok": True, "authority": "remote"}
+    if _lease_strict():
+        return {"ok": False, "authority": "none",
+                "reason": "shared lease authority unavailable (strict) - retry when online, "
+                          "or set PF_LEASE_REMOTE=on (soft)"}
+    return {"ok": True, "authority": "local", "warning": "shared lease authority unavailable (offline?)"}
+
+
+def lease_release(scope: str, project: str | None, item_id: str, worker_id: str = "") -> bool:
+    """Release the shared lease for an item (CAS). True when cleared (or authority off)."""
+    if _lease_disabled():
+        return True
+    from core import id_allocator
+    root = id_allocator._repo_root()
+    if not root:
+        return False
+    key = _lease_key(scope, project, item_id)
+
+    def _drop(data: dict):
+        leases = data.setdefault("leases", {})
+        cur = leases.get(key)
+        if cur and worker_id and str(cur.get("worker_id") or "") not in ("", str(worker_id)):
+            return None  # not ours -> abort
+        leases.pop(key, None)
+        return data
+
+    return id_allocator.cas_commit_push(root, _LEASE_REF, _LEASE_PATH, _drop, f"release {item_id} [skip ci]")
+
+
+def lease_holder(scope: str, project: str | None, item_id: str):
+    """The current (unexpired) lease holder of an item on the shared authority, or None."""
+    if _lease_disabled():
+        return None
+    from core import id_allocator
+    root = id_allocator._repo_root()
+    if not root:
+        return None
+    data = id_allocator.read_ref_json(root, _LEASE_REF, _LEASE_PATH)
+    cur = (data.get("leases") or {}).get(_lease_key(scope, project, item_id))
+    if cur and not _lease_expired(cur):
+        return str(cur.get("worker_id") or "") or None
+    return None
+
+
 def _self_heal_arch_stale(scope: str, project: str | None, epic: str = "") -> dict | None:
     """BI-PF-1258: if nothing is claimable ONLY because items are 'analysis stale (architecture changed)',
     auto-regroom those items (deterministic, approved) so the claim can proceed.
@@ -294,8 +419,14 @@ def claim_next(scope: str = "product_forge", project: str | None = None, worker:
     the API layer (``api/routers/engineering.py``), not here - this remains the scope-parameterized mechanism.
 
     ``epic=<id>`` restricts the claim to that epic's children (BI-PF-1222).
+
+    BI-PF-0396 (A2): the worker-claim IS an execution boundary - entitlement is enforced here, fail-closed.
     """
-    from core import backlog, capacity, scheduler
+    from core import backlog, capacity, licensing, scheduler
+    try:
+        licensing.enforce_for_instance("build-products")
+    except licensing.LicenseError as e:
+        return {"claimed": False, "reason": f"entitlement: {e}", "authority": "local"}
     nxt = scheduler.next_eligible(scope, project, stage="execute", epic=epic or None)
     if not nxt.get("found"):
         # BI-PF-1258: self-heal an architecture-stale block only (auto-regroom those items), then retry once.
@@ -311,6 +442,22 @@ def claim_next(scope: str = "product_forge", project: str | None = None, worker:
     assignment_id = f"ASG-{item_id}"
     lease_id = f"LSE-{item_id}-{int(now.timestamp())}"
 
+    # BI-PF-1261: gate on the SHARED lease authority (git-remote CAS) so two sessions - same host or different
+    # machines - cannot both claim the same item. Fail-closed when the item is already held by another owner.
+    try:
+        auth = lease_acquire(scope, project, item_id, worker, lease_id, secs)
+    except Exception as e:  # noqa: BLE001
+        auth = {"ok": True, "authority": "local", "warning": f"lease authority error: {type(e).__name__}"}
+    if not auth.get("ok"):
+        return {"claimed": False, "reason": auth.get("reason") or "already leased (shared authority)",
+                "authority": auth.get("authority")}
+
+    def _release_auth():
+        try:
+            lease_release(scope, project, item_id, worker)
+        except Exception:
+            pass
+
     c = _db()
     try:
         c.execute("BEGIN IMMEDIATE")  # cross-process mutex (also serializes with pipeline-run claims)
@@ -318,10 +465,12 @@ def claim_next(scope: str = "product_forge", project: str | None = None, worker:
         ex = it.get("execution") or {}
         if str(ex.get("worker_id") or ""):  # atomic re-check: another worker won the race
             c.commit()
+            _release_auth()
             return {"claimed": False, "reason": f"already claimed ({ex.get('worker_id')})"}
         cap = capacity.can_assign(_active_assignments(scope, project))
         if not cap.get("ok"):
             c.commit()
+            _release_auth()
             return {"claimed": False, "reason": cap.get("reason") or "no assignment slot"}
         # write the lease while holding the mutex (backlog is the single writer of execution{})
         backlog.set_execution(scope, project, item_id, worker_id=worker, assignment_id=assignment_id,
@@ -333,7 +482,10 @@ def claim_next(scope: str = "product_forge", project: str | None = None, worker:
         c.close()
     out: dict = {"claimed": True, "item": item_id, "project": project or str(it.get("project") or scope),
                  "worker_id": worker, "assignment_id": assignment_id, "lease_id": lease_id,
-                 "lease_expires_at": expires, "title": nxt.get("title")}
+                 "lease_expires_at": expires, "title": nxt.get("title"),
+                 "lease_authority": auth.get("authority")}
+    if auth.get("warning"):
+        out["lease_authority_warning"] = auth["warning"]
     for k in ("pidl_context", "execution_policy"):
         if nxt.get(k) is not None:
             out[k] = nxt[k]
@@ -388,6 +540,14 @@ def renew_lease(scope: str, project: str | None, item_id: str, lease_seconds: in
     return {"renewed": True, "item": item_id, "lease_expires_at": expires}
 
 
+def _release_shared_lease(scope: str, project: str | None, item_id: str, worker: str = "") -> None:
+    """Best-effort release of the shared (git-CAS) lease for an item (BI-PF-1261)."""
+    try:
+        lease_release(scope, project, item_id, worker)
+    except Exception:
+        pass
+
+
 def release(scope: str, project: str | None, item_id: str, reason: str = "released",
             terminal: bool = False) -> dict:
     """Release an assignment: clear the per-item lease; return the item to READY (or terminal)."""
@@ -395,8 +555,10 @@ def release(scope: str, project: str | None, item_id: str, reason: str = "releas
     it = backlog.get_epic(scope, project, item_id)
     if not it:
         return {"released": False, "reason": "item not found"}
+    _w = str((it.get("execution") or {}).get("worker_id") or "")
     backlog.set_execution(scope, project, item_id, worker_id="", assignment_id="", lease_id="",
                           lease_expires_at="", completed_at=datetime.now().isoformat() if terminal else "")
+    _release_shared_lease(scope, project, item_id, _w)
     _cleanup_worktree(scope, project, item_id)
     return {"released": True, "item": item_id, "reason": reason, "terminal": terminal}
 
@@ -443,10 +605,12 @@ def complete(scope: str, project: str | None, item_id: str, *, status: str = "ve
         return {"ok": False, "reason": "item not found"}
     dur = _elapsed_seconds(it)
     attempt = int((it.get("execution") or {}).get("attempt") or 0) + 1
+    _w = str((it.get("execution") or {}).get("worker_id") or "")
     backlog.set_status(scope, project, item_id, status, note=note or "assignment complete")
     backlog.set_execution(scope, project, item_id, worker_id="", assignment_id="", lease_id="",
                           lease_expires_at="", completed_at=datetime.now().isoformat(),
                           duration_seconds=dur, attempt=attempt, usage=_norm_usage(usage))
+    _release_shared_lease(scope, project, item_id, _w)
     _cleanup_worktree(scope, project, item_id)
     return {"ok": True, "item": item_id, "status": status, "duration_seconds": dur,
             "usage": _norm_usage(usage)}

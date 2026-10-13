@@ -765,7 +765,8 @@ def regroom(scope: str, project: str | None = None, *, epic: str = "", ids: list
 def groom_all(scope: str, project: str | None, mode: str = "", *, batch: int = 0, limit: int = 0,
               force: bool = False, dry: bool = False, depth: str = "deep",
               jobs: int = 0, ids: list[str] | None = None, approve: bool = False) -> dict[str, Any]:
-    """Groom every open backlog item (incl. EPICs) in batched, concurrent AI passes (BI-PF-1194/1197).
+    """Groom every open backlog item (epics are containers - excluded) in batched, concurrent AI passes
+    (BI-PF-1194/1197).
 
     ``approve=True`` chains the decision: after grooming, approve the CLEAN proposals (via ``decide_all``) so
     groomed items become ``COMPLETE``/eligible in one call; flagged ones are returned for manual handling.
@@ -788,6 +789,8 @@ def groom_all(scope: str, project: str | None, mode: str = "", *, batch: int = 0
     want = {str(x) for x in ids} if ids else None
     queue: list[dict] = []
     for it in backlog.list_open(scope, project):
+        if backlog.is_epic(it):      # BI-PF-1282: epics are containers - never groomed (children carry the work)
+            continue
         if want is not None and str(it.get("id")) not in want:
             continue
         st = str((it.get("analysis") or {}).get("status") or "NOT_ANALYZED")

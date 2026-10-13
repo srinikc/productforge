@@ -29,7 +29,13 @@ wire it → exercise it → record drift → approval (new path) → API-first �
    guard, record it in the backlog, and fix it **properly** (extend existing functionality; only design a new
    path when truly needed — and ask for approval with valid details).
 6. **Summarize + IMPACT REVIEW + approval BEFORE implementation.** State in plain language what functionality it
-   adds; produce the mandated IMPACT REVIEW table; get approval before implementing.
+   adds; produce the mandated IMPACT REVIEW table; get approval before implementing. In EVERY review/Gate:
+   (a) **explain every term/code/abbreviation in context** on first mention (no bare codes);
+   (b) be **decision-ready** — why/what/how, detailed acceptance criteria, a recommendation, and risks split into
+   **mitigated vs open (needs explicit operator sign-off)**;
+   (c) run `python scripts/dev/language_rule_review.py <item>` **at take-up** and cite the **language-rule**
+   verdict (new logic in Go vs edits to existing Python vs new shipped Python needing an allowlist) — the SAME
+   policy precheck enforces, decided once up front (not re-asked during implementation).
 7. **Delivery to `develop` goes via PF's delivery lane — the worker does NOT push/PR/merge.** Commit in the
    worktree, then `wg work complete`; PF validates, opens the PR, and merges to `develop`. Never force-push.
 8. **Reconciliation before implementation** (binding for any change).

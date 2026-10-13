@@ -86,8 +86,11 @@ def main(argv=None) -> int:
     pol = change_policy.policy()
 
     if a.files or a.added:
-        changed = [x.strip() for x in a.files.split(",") if x.strip()]
-        added = [x.strip() for x in a.added.split(",") if x.strip()] or changed
+        # BI-PF-1262: in manual scope, `--files` = CHANGED (edits); `--added` is a SEPARATE, additive list.
+        # (It previously defaulted `added` to `changed` -> planned EDITS were mis-flagged as NEW modules at
+        # review time, causing confusing re-asks during implementation. Edits to shipped Python are allowed.)
+        changed = [x.strip() for x in (a.files or a.added).split(",") if x.strip()]
+        added = [x.strip() for x in a.added.split(",") if x.strip()]
     else:
         changed, added = git_scope()
 
