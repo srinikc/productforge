@@ -1,0 +1,231 @@
+{
+  "id": "BI-PF-1290",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "",
+  "label": "PF Backlog 576",
+  "title": "Per-worker sync (BI-PF-1176 step 3): auto-resolve generated docs + counters on merge, and a sync_develop helper so each session folds origin/develop in often (minimal clash/conflicts)",
+  "body": "## Problem / why\nCross-session work drifts. The derived backlog stores auto-resolve on merge (BI-PF-1176 steps 1-2:\nhistory=union, open/closed=pf-derived regenerate), but the two GENERATED docs\n(docs/BACKLOG-SUMMARY.md, docs/documentation-index.html) and data/backlog/counters.json are NOT driver-covered,\nso every late merge still conflicts on them. Worse, nothing folds origin/develop into a working branch often, so\na session drifts for hours and then faces one large merge with a wide conflict surface.\n\n## Goal & value\nMinimal clash/conflicts across concurrent sessions: (a) every shared/derived file auto-resolves on merge, and\n(b) each worker folds origin/develop into their branch frequently (merge, never rebase/reset) so merges stay\nsmall.\n\n## In scope\n- config/.gitattributes: attach merge=pf-derived to data/backlog/counters.json and the two generated docs.\n- scripts/dev/pf_merge_driver.py: also (1) max-merge counters.json from the three merge inputs, and (2) regenerate\n  the two generated docs from the backlog on merge.\n- scripts/dev/sync_develop.py: fetch + merge origin/develop into the CURRENT branch; drivers auto-resolve the\n  derived files; on any non-derived (source) conflict ABORT cleanly + list the files; modes --check and --pre-push.\n- install_hooks.py: run the sync in the pre-push hook (per-worker self-service) so a push first folds develop in.\n- AGENTS.md: note the per-worker sync step.\n\n## Out of scope\n- A background/scheduled job: git state is per working directory, so a folder-local job cannot span sessions and\n  would race the editor (IS-PF-0036). Sync is per working tree, done by whoever is working.\n- Auto-resolving SOURCE-file conflicts (those stay fail-closed/manual).\n\n## Approach\nReuse the existing merge-driver mechanism (BI-PF-1176) and the existing hook installer (BI-PF-1249 precedent);\nadd the sync helper + wire it into pre-push. No new store, no new engine.\n\n## Acceptance criteria\n- A merge touching counters.json takes the max per key (no conflict).\n- A merge touching the two generated docs regenerates them (no conflict).\n- sync_develop.py merges develop into the branch; aborts cleanly + reports on a source conflict; --check reports\n  behind/ahead without writing.\n- pre-push runs the sync.\n- Tests cover the counter max-merge + doc regeneration + the sync helper decision paths; precheck passes.\n\n## Risks\n- Counters max-merge could over-increment a label counter (harmless: labels only need to be unique/monotonic).\n- Doc regeneration on merge depends on items/ being merged first (same assumption BI-PF-1176 already makes).\n\n## Rollback\nRevert the .gitattributes/driver/hook changes; merges fall back to manual resolution as today.\n\n## Related\nExtends BI-PF-1176 (steps 1-2); builds on BI-PF-1249 (pre-commit doc regen), BI-PF-0764 (remote id CAS).\n",
+  "source": "user",
+  "status": "new",
+  "priority": "P1",
+  "moscow": "Must",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [
+    "BI-PF-1176",
+    "BI-PF-1249",
+    "BI-PF-0764"
+  ],
+  "links": {
+    "backend_capability": [
+      "file:scripts/dev/pf_merge_driver.py",
+      "file:scripts/dev/sync_develop.py",
+      "file:scripts/dev/install_hooks.py"
+    ],
+    "related": [
+      "BI-PF-1176",
+      "BI-PF-1249"
+    ]
+  },
+  "decisions": [
+    {
+      "at": "2026-10-13T13:44:18.753826",
+      "decision": "APPROVE",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)"
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "Cross-session work drifts. The derived backlog stores auto-resolve on merge (BI-PF-1176 steps 1-2:\nhistory=union, open/closed=pf-derived regenerate), but the two GENERATED docs\n(docs/BACKLOG-SUMMARY.md, docs/documentation-index.html) and data/backlog/counters.json are NOT driver-covered,\nso every late merge still conflicts on them. Worse, nothing folds origin/develop into a working branch often, so\na session drifts for hours and then faces one large merge with a wide conflict surface.",
+    "what_adds": "Minimal clash/conflicts across concurrent sessions: (a) every shared/derived file auto-resolves on merge, and\n(b) each worker folds origin/develop into their branch frequently (merge, never rebase/reset) so merges stay\nsmall.",
+    "why": "Cross-session work drifts. The derived backlog stores auto-resolve on merge (BI-PF-1176 steps 1-2:\nhistory=union, open/closed=pf-derived regenerate), but the two GENERATED docs\n(docs/BACKLOG-SUMMARY.md, docs/documentation-index.html) and data/backlog/counters.json are NOT driver-covered,\nso every late merge still conflicts on them. Worse, nothing folds origin/develop into a working branch often, so\na session drifts for hours and then faces one large merge with a wide conflict surface.",
+    "who_feels": "Product Forge maintainers and consumers.",
+    "source": "authored"
+  },
+  "objective": "Minimal clash/conflicts across concurrent sessions: (a) every shared/derived file auto-resolves on merge, and\n(b) each worker folds origin/develop into their branch frequently (merge, never rebase/reset) so merges stay\nsmall.",
+  "acceptance_criteria": [
+    "A merge touching counters.json takes the max per key (no conflict).",
+    "A merge touching the two generated docs regenerates them (no conflict).",
+    "sync_develop.py merges develop into the branch; aborts cleanly + reports on a source conflict; --check reports",
+    "pre-push runs the sync.",
+    "Tests cover the counter max-merge + doc regeneration + the sync helper decision paths; precheck passes."
+  ],
+  "in_scope": [
+    "config/.gitattributes: attach merge=pf-derived to data/backlog/counters.json and the two generated docs.",
+    "scripts/dev/pf_merge_driver.py: also (1) max-merge counters.json from the three merge inputs, and (2) regenerate",
+    "scripts/dev/sync_develop.py: fetch + merge origin/develop into the CURRENT branch; drivers auto-resolve the",
+    "install_hooks.py: run the sync in the pre-push hook (per-worker self-service) so a push first folds develop in.",
+    "AGENTS.md: note the per-worker sync step."
+  ],
+  "out_of_scope": [
+    "A background/scheduled job: git state is per working directory, so a folder-local job cannot span sessions and",
+    "Auto-resolving SOURCE-file conflicts (those stay fail-closed/manual)."
+  ],
+  "affected_components": [
+    "data",
+    "docs",
+    "scripts"
+  ],
+  "affected_files": [
+    "AGENTS.md",
+    "counters.json",
+    "data/backlog/counters.json",
+    "docs/BACKLOG-SUMMARY.md",
+    "install_hooks.py",
+    "scripts/dev/install_hooks.py",
+    "scripts/dev/pf_merge_driver.py",
+    "scripts/dev/sync_develop.py",
+    "sync_develop.py"
+  ],
+  "approach": "Reuse the existing merge-driver mechanism (BI-PF-1176) and the existing hook installer (BI-PF-1249 precedent);\nadd the sync helper + wire it into pre-push. No new store, no new engine.",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "A merge touching counters.json takes the max per key (no conflict).",
+    "A merge touching the two generated docs regenerates them (no conflict).",
+    "sync_develop.py merges develop into the branch; aborts cleanly + reports on a source conflict; --check reports",
+    "pre-push runs the sync.",
+    "Tests cover the counter max-merge + doc regeneration + the sync helper decision paths; precheck passes."
+  ],
+  "risks": [
+    "Counters max-merge could over-increment a label counter (harmless: labels only need to be unique/monotonic).",
+    "Doc regeneration on merge depends on items/ being merged first (same assumption BI-PF-1176 already makes)."
+  ],
+  "rollback": "Revert the .gitattributes/driver/hook changes; merges fall back to manual resolution as today.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "agent",
+  "requester": "user",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-0360",
+  "parent": "BI-PF-0360",
+  "revision": 3,
+  "priority_rank": 2,
+  "priority_class": "P1",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "COMPLETE",
+    "analyzed_at": "2026-10-13T13:44:18.037231",
+    "analyzed_by": "system",
+    "revision_analyzed": 3,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend scripts/dev/pf_merge_driver.py (add counters.json max-merge + regenerate both generated docs on merge), extend config/.gitattributes with merge=pf-derived for counters.json and the two docs, add scripts/dev/sync_develop.py (fetch+merge origin/develop, abort+report on source conflicts, --check/--pre-push modes), wire into scripts/dev/install_hooks.py pre-push (BI-PF-1249 pattern). Reuse BI-PF-1176 driver and BI-PF-1249 hook installer; no new engine or store.",
+    "existing_components": [],
+    "existing_apis": [],
+    "existing_modules": [],
+    "dependency_findings": [
+      "REQUIRES BI-PF-1176 steps 1-2 landed (driver infrastructure exists in working tree).",
+      "REQUIRES BI-PF-1249 hook installer pattern (install_hooks.py) for pre-push wiring.",
+      "RELATED BI-PF-0764 remote-id CAS informs fetch safety in sync_develop."
+    ],
+    "conflict_findings": [
+      "BI-PF-1249/BI-PF-1232 touch the same doc generator and install_hooks.py — coordinate hook registration order.",
+      "BI-PF-1176 touched pf_merge_driver.py; if open in another session, serialize driver edits.",
+      "No API/component overlap with core/merge_gate.py (server-side PR gate, unrelated to git-local merge)."
+    ],
+    "duplication_findings": [
+      "BI-PF-1176 already established the merge=pf-derived driver for history/index; this extends it, not duplicates it.",
+      "BI-PF-1249 already regenerates docs in pre-commit; doc regen-on-merge is a new context for the same generator.",
+      "BI-PF-0258/BI-PF-1232 cover CI/pre-commit refresh of the same docs — keep generator calls shared to avoid drift."
+    ],
+    "drift": "LOW",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "Pure reuse-first extension of an existing merge driver + hook installer; fills the last un-driver-covered derived files and adds the missing frequent-sync helper. Low drift, bounded risk, clear rollback.",
+    "assumptions": [
+      "Git per working tree; no cross-session job possible (IS-PF-0036 settled).",
+      "Merge-only policy (never rebase/reset) is already settled architecture.",
+      "counters.json is small enough for a deterministic per-key max merge.",
+      "origin/develop is the single integration branch."
+    ],
+    "risks": [
+      "Counters max-merge can over-increment label counters (accept: uniqueness/monotonicity is what matters).",
+      "Doc regen on merge assumes items/ merged first (same assumption as BI-PF-1176).",
+      "Pre-push sync can surprise users by mutating their branch before push.",
+      "Source-conflict abort path must be rigorously tested to avoid half-merged state."
+    ],
+    "evidence": [
+      "BI-PF-1176 steps 1-2 landed the union+regenerate driver precedent.",
+      "BI-PF-1249 precedent for hook-based self-service automation.",
+      "Item explicitly scopes out background jobs citing IS-PF-0036."
+    ],
+    "confidence": "high",
+    "missing_info": [
+      "Exact counters.json key schema (which keys are safe to max vs. must sum) — confirm with maintainer.",
+      "Pre-push sync default on/off vs opt-in flag for first rollout.",
+      "Whether --pre-push should auto-stash uncommitted work or hard-fail."
+    ],
+    "depth": "deep",
+    "mode": "ai",
+    "context_review": {
+      "ok": true,
+      "source": "llm",
+      "implementable": true,
+      "missing": [],
+      "reason": "Concrete WHAT/WHY/HOW/WHERE: specific files (.gitattributes, pf_merge_driver.py, sync_develop.py, install_hooks.py, AGENTS.md), approach reuses existing merge-driver and hook precedent, with clear acceptance criteria and out-of-scope boundaries."
+    },
+    "arch_fingerprint": "40222c267c1b80fd"
+  },
+  "dependencies": [
+    {
+      "task_id": "BI-PF-1176",
+      "type": "REQUIRES",
+      "required_state": "merge-driver infrastructure present (steps 1-2 merged)"
+    },
+    {
+      "task_id": "BI-PF-1249",
+      "type": "REQUIRES",
+      "required_state": "install_hooks.py pre-commit wiring merged"
+    },
+    {
+      "task_id": "BI-PF-0764",
+      "type": "RELATED",
+      "required_state": "remote-id CAS available for safe fetch/push"
+    }
+  ],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-13T13:44:18.346453"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-13T13:42:43.351924",
+  "updated_at": "2026-10-13T13:44:19.087460",
+  "score": 0.75,
+  "_note": "readiness computed"
+}
