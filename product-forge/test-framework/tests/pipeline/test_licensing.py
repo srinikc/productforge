@@ -1,4 +1,4 @@
-"""Tests for core/licensing.py (BI-0057/0060..0064/0069 + A2 asymmetric licensing BI-PF-0396)."""
+﻿"""Tests for core/licensing.py (BI-0057/0060..0064/0069 + A2 asymmetric licensing BI-PF-0396)."""
 import base64
 import json
 import sys
@@ -70,16 +70,16 @@ def test_asymmetric_license_unlocks_entitlements():
     p = lic.verify_key(k)
     assert p and p["tier"] == "pro"
     ent = lic.entitlements(p["tier"])
-    assert "G4" in ent["groups"] and lic.entled(p["tier"], "G4")
+    assert "content-media" in ent["groups"] and lic.entled(p["tier"], "content-media")
 
 
 def test_unentitled_action_refused():
     """AC2: an unentitled action is refused at the boundary (fail-closed)."""
     with pytest.raises(lic.LicenseError):
-        lic.require_entitlement("trial", "G4")
-    lic.require_entitlement("pro", "G4")  # entitled -> no raise
-    assert lic.enforcement("trial", "G4")["allowed"] is False
-    assert lic.enforcement("", "G1")["allowed"] is False  # unknown tier refused
+        lic.require_entitlement("trial", "content-media")
+    lic.require_entitlement("pro", "content-media")  # entitled -> no raise
+    assert lic.enforcement("trial", "content-media")["allowed"] is False
+    assert lic.enforcement("", "build-products")["allowed"] is False  # unknown tier refused
 
 
 def test_forged_license_payload_rejected():
@@ -103,8 +103,8 @@ def test_verify_uses_public_key_only():
 def test_enforce_for_instance(monkeypatch):
     """AC2/AC6: the instance boundary refuses unentitled groups (tenant), operator is exempt."""
     monkeypatch.setenv("INSTANCE_ROLE", "operator")
-    lic.enforce_for_instance("G4")  # operator instance not gated -> allowed
+    lic.enforce_for_instance("content-media")  # operator instance not gated -> allowed
     monkeypatch.setenv("INSTANCE_ROLE", "tenant")
     monkeypatch.setenv("PF_TENANT", "no-such-tenant")
     with pytest.raises(lic.LicenseError):
-        lic.enforce_for_instance("G4")  # unknown tenant tier -> refused
+        lic.enforce_for_instance("content-media")  # unknown tenant tier -> refused
