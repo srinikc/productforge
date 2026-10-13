@@ -50,13 +50,26 @@ def run(*, project: str = "", dry: bool = False, keep: bool = False) -> dict[str
     def _git_init() -> None:
         import subprocess
         os.makedirs(pdir, exist_ok=True)
-        subprocess.run(["git", "init", "-q"], cwd=pdir, capture_output=True, text=True)
-        subprocess.run(["git", "config", "user.email", "e2e@local"], cwd=pdir, capture_output=True, text=True)
-        subprocess.run(["git", "config", "user.name", "e2e"], cwd=pdir, capture_output=True, text=True)
+        # Isolation guard (dev safety): never let scratch git walk UP to the parent repo. Sanitize the env and
+        # pin GIT_CEILING_DIRECTORIES to the scratch parent, then verify the toplevel IS the scratch dir.
+        env = {k: v for k, v in os.environ.items()
+               if k not in ("GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_COMMON_DIR", "GIT_CEILING_DIRECTORIES")}
+        env["GIT_CEILING_DIRECTORIES"] = os.path.dirname(os.path.abspath(pdir))
+
+        def _g(*a):
+            return subprocess.run(["git", *a], cwd=pdir, env=env, capture_output=True, text=True)
+
+        _g("init", "-q")
+        top = _g("rev-parse", "--show-toplevel").stdout.strip()
+        if not os.path.isdir(os.path.join(pdir, ".git")) or \
+                os.path.normcase(os.path.abspath(top)) != os.path.normcase(os.path.abspath(pdir)):
+            raise RuntimeError(f"e2e scratch git is not isolated (resolved to {top!r}): {pdir}")
+        _g("config", "user.email", "e2e@local")
+        _g("config", "user.name", "e2e")
         with open(os.path.join(pdir, "README.md"), "w", encoding="utf-8") as f:
             f.write("# e2e scratch\n")
-        subprocess.run(["git", "add", "-A"], cwd=pdir, capture_output=True, text=True)
-        subprocess.run(["git", "commit", "-q", "-m", "init"], cwd=pdir, capture_output=True, text=True)
+        _g("add", "-A")
+        _g("commit", "-q", "-m", "init")
 
     try:
         if not os.path.isdir(pdir):
