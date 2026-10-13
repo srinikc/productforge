@@ -48,44 +48,64 @@ def _changed_files():
             files.add(ln.strip())
     for ln in _git("diff", "--name-only", "HEAD").splitlines():
         files.add(ln.strip())
+    # BI-PF-1340: include UNTRACKED (new) files so a newly added test is discovered + run before commit.
+    for ln in _git("ls-files", "--others", "--exclude-standard").splitlines():
+        files.add(ln.strip())
     return sorted(f for f in files if f)
 
 
-def _scoped_tests(scope_csv: str = "") -> list[str]:
-    """Test files (relative) affected by the changed files; empty => caller should not scope."""
-    td = os.path.join(_ROOT, _TEST_DIR)
-    if not os.path.isdir(td):
+def _test_files() -> list:
+    """All test files under test-framework/tests (relative to product-forge/), any depth."""
+    base = os.path.join(_ROOT, "test-framework", "tests")
+    out = []
+    for dp, _dirs, fns in os.walk(base):
+        for fn in fns:
+            if fn.startswith("test_") and fn.endswith(".py"):
+                out.append(os.path.relpath(os.path.join(dp, fn), _ROOT).replace("\\", "/"))
+    return sorted(out)
+
+
+def _scoped_tests(scope_csv: str = "") -> list:
+    """Test files affected by the changed files; empty => caller should not scope.
+
+    BI-PF-1340: scans ALL test dirs (not only pipeline/) and includes NEW/untracked test files so a
+    change that adds a test runs it (and must pass) before commit/merge.
+    """
+    all_tests = _test_files()
+    if not all_tests:
         return []
-    all_tests = [f for f in os.listdir(td) if f.startswith("test_") and f.endswith(".py")]
     if scope_csv:
         wanted = [s.strip() for s in scope_csv.split(",") if s.strip()]
-        return sorted(f"{_TEST_DIR}/{t}" for t in all_tests if any(w in t for w in wanted))
+        return sorted(t for t in all_tests if any(w in os.path.basename(t) for w in wanted))
+
+    def _norm(p):
+        return p.replace("\\", "/")
+
     changed = _changed_files()
     core_mods = {os.path.splitext(os.path.basename(c))[0] for c in changed
-                 if c.replace("\\", "/").startswith("product-forge/core/") or c.startswith("core/")}
-    test_mods = {os.path.splitext(os.path.basename(c))[0] for c in changed
-                 if c.replace("\\", "/").endswith(".py") and "_test" in os.path.basename(c)
-                 or c.replace("\\", "/").startswith(f"{_TEST_DIR}/")}
-    picked: set[str] = set(_SMOKE)
+                 if _norm(c).startswith("product-forge/core/") or _norm(c).startswith("core/")}
+    picked = {t for t in all_tests if os.path.basename(t) in _SMOKE}
     for t in all_tests:
-        stem = t[len("test_"):-3]
+        stem = os.path.basename(t)[len("test_"):-3]
         if stem in core_mods or any(m == stem or m in stem or stem in m for m in core_mods):
             picked.add(t)
-    # tests whose filename matches a changed test module exactly
-    for t in all_tests:
-        if os.path.splitext(t)[0] in test_mods:
-            picked.add(t)
+    # changed/added test files (tracked OR untracked) must run
+    for c in changed:
+        cc = _norm(c)
+        cc = cc[len("product-forge/"):] if cc.startswith("product-forge/") else cc
+        if cc.startswith("test-framework/tests/") and cc.endswith(".py") and os.path.isfile(os.path.join(_ROOT, cc)):
+            picked.add(cc)
     # tests that import a changed core module (grep)
     if core_mods:
         for t in all_tests:
             try:
-                with open(os.path.join(td, t), encoding="utf-8", errors="ignore") as f:
+                with open(os.path.join(_ROOT, t), encoding="utf-8", errors="ignore") as f:
                     text = f.read()
             except Exception:
                 continue
             if any((f"import {m}") in text or (f"core.{m}") in text for m in core_mods):
                 picked.add(t)
-    return sorted(f"{_TEST_DIR}/{t}" for t in picked)
+    return sorted(picked)
 
 
 def _changed_paths():
@@ -101,6 +121,7 @@ _GATES = [
     ("wired-audit", ["scripts/dev/wired_audit.py"], "fast", None),
     ("store-contract", ["scripts/dev/store_check.py"], "fast", None),
     ("lint", ["scripts/dev/lint_check.py"], "fast", None),
+    ("changed-tests", ["scripts/dev/changed_tests_check.py"], "fast", None),
     ("secret-scan", ["scripts/dev/secret_scan.py"], "fast", None),
     ("workflow-matrix", ["scripts/dev/workflow_matrix_check.py"], "fast", None),
     ("api-contract", ["scripts/dev/api_contract_check.py"], "fast", ["api/"]),
@@ -142,9 +163,10 @@ _GATES = [
     ("review-static", ["scripts/dev/review_static_check.py"], "fast", None),
     ("compliance-register", ["scripts/dev/compliance_register_check.py", "--check"], "fast", None),
     # deep tier - real validation/lifecycle work; merge/CI only
-    ("validation-engine", ["scripts/dev/validation_engine_check.py"], "deep", None),
-    ("feature-pr", ["scripts/dev/feature_pr_check.py"], "deep", None),
-    ("merge-gate", ["scripts/dev/merge_gate_check.py"], "deep", None),
+    # BI-PF-1339: the CORRECTNESS gates stay on EVERY change (fast); only heavy/dogfood/release work is deep.
+    ("validation-engine", ["scripts/dev/validation_engine_check.py"], "fast", None),
+    ("feature-pr", ["scripts/dev/feature_pr_check.py"], "fast", None),
+    ("merge-gate", ["scripts/dev/merge_gate_check.py"], "fast", None),
     ("dogfood", ["scripts/dev/dogfood_check.py"], "deep", None),
     ("dogfood-replay", ["scripts/dev/dogfood_replay_check.py"], "deep", None),
     ("dogfood-schedule", ["scripts/dev/dogfood_schedule_check.py"], "deep", None),
