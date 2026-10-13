@@ -1558,9 +1558,17 @@ def update(scope: str, project: str | None, eid: str, **fields) -> dict | None:
         _save_item(d, target)
         _write_indexes(scope, project, op, cl)
         _hist(d, target, changes=_diff_fields(before, target), event="update")
-        return target
     finally:
         _unlock(lp)
+    # Keep epic.children[] in sync when epic/parent membership changes here. add_epic already syncs; update()
+    # must too, else the epic drifts and the backlog-residue gate fails on every branch. Runs AFTER the lock
+    # (via _sync_epic_children -> update on the epic) to avoid self-locking.
+    if target is not None and any(before.get(k) != target.get(k) for k in ("epic", "parent")):
+        for _e in {str(before.get("epic") or ""), str(target.get("epic") or ""),
+                   str(before.get("parent") or ""), str(target.get("parent") or "")}:
+            if _e:
+                _sync_epic_children(scope, project, _e)
+    return target
 
 
 def triage(scope: str, project: str | None, eid: str,
