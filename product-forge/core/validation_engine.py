@@ -332,6 +332,12 @@ def run(project: str, project_dir: str, profile_name: str = "FEATURE_PR",
         record(scope, project, result)
         return result
 
+    # BI-PF-1279: produce the repo quality-gate record for the validated tree when the profile
+    # checks it. feature_pr already does this (BI-PF-1254); the shared run() path did not, so the
+    # ``quality_gate`` check was always "unknown" -> BLOCKED for DOGFOOD/INTEGRATION/RELEASE.
+    if "quality_gate" in prof["checks"]:
+        _ensure_quality_gate(project_dir, rid)
+
     checks: dict[str, Any] = {}
     for name in prof["checks"]:
         if name == "target":
