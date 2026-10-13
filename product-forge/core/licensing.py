@@ -306,12 +306,20 @@ def tenant_tier(tenant: str) -> str:
 
 
 def effective_tier() -> str:
-    """The tier that gates THIS instance: the tenant's tier when INSTANCE_ROLE=tenant (env PF_TENANT),
-    else 'enterprise' (an operator/dev instance is not gated by a tenant license)."""
-    if instance_role() == "tenant":
-        t = os.getenv("PF_TENANT", "").strip()
-        return tenant_tier(t) if t else ""
-    return "enterprise"
+    """The tier that gates THIS instance's actions.
+
+    Precedence: ``PF_INSTANCE_TIER`` (explicit) > operator instance => ``enterprise`` >
+    the tenant's recorded tier (``PF_TENANT``) > ``enterprise`` (unconfigured dev is not gated).
+    Dev/test remain unblocked by default; a configured tenant is enforced against its real tier.
+    """
+    override = os.getenv("PF_INSTANCE_TIER", "").strip()
+    if override:
+        return override
+    if instance_role() == "operator":
+        return "enterprise"
+    t = os.getenv("PF_TENANT", "").strip()
+    tier = tenant_tier(t) if t else ""
+    return tier or "enterprise"
 
 
 def enforce_for_instance(group: str) -> None:
