@@ -1,0 +1,183 @@
+{
+  "id": "BI-PF-1264",
+  "tag": "PF",
+  "type": "change",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "FEATURE-GROUP-DEFINITION-1",
+  "label": "PF Backlog 574",
+  "title": "DECISION: define/review the contents of feature groups G1..G10 + their tier membership (currently only titles; not operator-approved)",
+  "body": "The feature groups G1..G10 and the tier->group membership exist only as short TITLES in core/licensing.py::FEATURE_GROUPS and config/licensing-tiers.json (introduced by BI-0060). There is NO per-feature -> group mapping, and the operator has NOT reviewed/approved this mapping. Decision needed: define what each group contains (which real capabilities/APIs/screens) and confirm the tier->group membership + limits (seats/parallel projects) before it is treated as contractual.",
+  "source": "generic",
+  "status": "blocked",
+  "priority": "P2",
+  "moscow": "Should",
+  "value": 5,
+  "effort": 3,
+  "risk": 2,
+  "deps": [],
+  "links": {},
+  "decisions": [
+    {
+      "at": "2026-10-12T23:31:07.748243",
+      "decision": "APPROVE",
+      "by": "user",
+      "note": ""
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "The feature groups G1..G10 and the tier->group membership exist only as short TITLES in core/licensing.py::FEATURE_GROUPS and config/licensing-tiers.json (introduced by BI-0060). There is NO per-feature -> group mapping, and the operator has NOT reviewed/approved this mapping. Decision needed: define what each group contains (which real capabilities/APIs/screens) and confirm the tier->group membership + limits (seats/parallel projects) before it is treated as contractual.",
+    "what_adds": "DECISION: define/review the contents of feature groups G1..G10 + their tier membership (currently only titles; not operator-approved)",
+    "why": "The feature groups G1..G10 and the tier->group membership exist only as short TITLES in core/licensing.py::FEATURE_GROUPS and config/licensing-tiers.json (introduced by BI-0060). There is NO per-feature -> group mapping, and the operator has NOT reviewed/approved this mapping. Decision needed: define what each group contains (which real capabilities/APIs/screens) and confirm the tier->group membership + limits (seats/parallel projects) before it is treated as contractual.",
+    "who_feels": "Product Forge maintainers and consumers.",
+    "source": "extracted"
+  },
+  "objective": "Operator-approved, versioned definition of the entitlement model: base 'Create Products' + add-ons, baseline security, internal-only set, per-tenant limits, tier ladder, and a versioning scheme (names/keys included).",
+  "acceptance_criteria": [
+    "entitlement_model_version present + embedded in license/edition",
+    "base 'Create Products' + add-ons + baseline security + internal-only set recorded",
+    "config/licensing-tiers.json + core/licensing.py reflect the v1.0 model (G-codes kept as aliases)",
+    "per-tenant hierarchy labelled: users(seats) -> projects -> parallel runs",
+    "A2 boundary gate uses a customer domain, not the (internal) worker",
+    "map doc updated; tests updated"
+  ],
+  "in_scope": [
+    "config/licensing-tiers.json -> v1.0 schema (entitlement_model_version; groups as key+name+internal+legacy-alias; tiers; per-tenant limits)",
+    "core/licensing.py -> FEATURE_GROUPS shape; entled/entitlements accept new keys + keep G1..G10 aliases; internal groups never granted; model-version aware",
+    "docs/LICENSING-ENTITLEMENTS-EDITIONS-MAP.md -> reflect v1.0 + internal/customer split",
+    "test_licensing.py -> cover base + add-ons + aliases + internal-never-granted"
+  ],
+  "out_of_scope": [
+    "A3 build-time edition exclusion (separate: BI-PF-0383)",
+    "pricing; actual per-feature code removal; the A2 license crypto (done in BI-PF-0396)"
+  ],
+  "affected_components": [
+    "config",
+    "core"
+  ],
+  "affected_files": [
+    "config/licensing-tiers.json",
+    "core/licensing.py",
+    "docs/LICENSING-ENTITLEMENTS-EDITIONS-MAP.md",
+    "test-framework/tests/pipeline/test_licensing.py"
+  ],
+  "approach": "Record the v1.0 model; then implement in config/licensing-tiers.json (groups with key+name+internal flag + version) + core/licensing.py (FEATURE_GROUPS, entled/entitlements, enforce gate -> customer domain 'build-products'); keep G-codes as aliases; update the map doc; update tests.",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Objective achieved: DECISION: define/review the contents of feature groups G1..G10 + their tier membership (currently only titles; not operator-approved)"
+  ],
+  "risks": [
+    "renaming identifiers could break existing references (mitigate: keep G1..G10 aliases)",
+    "legacy dashboard imports licensing.FEATURE_GROUPS (frozen) -> keep back-compat shape",
+    "code/doc drift (mitigate: doc cites config; add a consistency check if cheap)",
+    "versioning must be embedded so old licenses map to the version they were issued under"
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "agent",
+  "requester": "generic",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "Entitlement model v1.0 (customer-centric, versioned). BASE 'Create Products' (every paid tier): Build Products (generation engine/workspace); Ideate & Design; Assure Quality; Plan & Deliver. ADD-ONS: Team Size, Projects & Parallel Runs (scale); Team & Multi-Tenancy; Choose Your AI Models; Create Content & Media; Automate with AI Agents; Launch & Grow; Integrate & Extend; Advanced Compliance. BASELINE (all tiers): Security. INTERNAL-ONLY (never customer tiers): worker/orchestration internals; PF's own improvement work (pf-intake); Platform Ops & Licensing. LIMITS per tenant: users(seats) -> projects(created) -> parallel runs. LADDER: trial=base+tiny scale; starter=+Integrate & Extend; pro=+Team & Multi-Tenancy, Choose Your AI Models, Create Content & Media, Automate with AI Agents; enterprise=+Launch & Grow, Advanced Compliance, unlimited. VERSIONING: entitlement_model_version embedded in licenses + editions; renames are new versions. Internal aliases: legacy G1..G10 retained as aliases for compatibility.",
+  "children": [],
+  "epic": "BI-PF-0390",
+  "parent": "BI-PF-0390",
+  "revision": 4,
+  "priority_rank": 2,
+  "priority_class": "P2",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "COMPLETE",
+    "analyzed_at": "2026-10-12T23:31:07.582091",
+    "analyzed_by": "user",
+    "revision_analyzed": 4,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/context_review.py, core/cross_review.py, core/multi_model_review.py, core/rerun_review.py",
+    "existing_components": [
+      "core/context_review.py",
+      "core/cross_review.py",
+      "core/multi_model_review.py",
+      "core/rerun_review.py",
+      "core/review_ledger.py",
+      "core/spec_review.py",
+      "core/tier_builder.py"
+    ],
+    "existing_apis": [
+      "/api/v1/backlog/items/{item_id}/context-review",
+      "/api/v1/engineering/pidl/approvals/{decision_id}",
+      "/api/v1/engineering/pidl/decisions",
+      "/api/v1/engineering/pidl/decisions/{decision_id}",
+      "/api/v1/engineering/pidl/decisions/{decision_id}/outcome",
+      "/api/v1/enterprise/tiers"
+    ],
+    "existing_modules": [
+      "config/hardware-tiers.json",
+      "config/licensing-tiers.json",
+      "config/model-tier.json",
+      "config/pf-review-scope.json",
+      "config/plan-groups.json",
+      "config/review-focus.json"
+    ],
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=1.25",
+      "components=7",
+      "apis=6"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic",
+    "arch_fingerprint": "ba90c45005d704fa"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-12T23:31:07.654475"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-12T20:59:43.972444",
+  "updated_at": "2026-10-13T09:26:18.927691",
+  "score": 1.25,
+  "_note": "delivery: validation FAIL"
+}
