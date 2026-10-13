@@ -1,0 +1,196 @@
+{
+  "id": "BI-PF-1376",
+  "tag": "PF",
+  "type": "task",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "",
+  "label": "PF Backlog 627",
+  "title": "Dynamic/runtime agents: auto-register on creation + fail-closed resolution for unknown agents",
+  "body": "Dynamic agent creation (review_ledger.create_agent / agent_spec.save_spec) must register the agent in config/agent-registry/index.json (single writer, with outputs). Runtime resolution must fail-closed/record when an agent is unknown (not silently skip validation).",
+  "source": "generic",
+  "status": "new",
+  "priority": "P1",
+  "moscow": "Must",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [],
+  "links": {
+    "issue": "product_forge:IS-PF-0053"
+  },
+  "decisions": [
+    {
+      "at": "2026-10-13T23:46:27.939508",
+      "decision": "APPROVE",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)"
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "Dynamic agent creation (review_ledger.create_agent / agent_spec.save_spec) must register the agent in config/agent-registry/index.json (single writer, with outputs). Runtime resolution must fail-closed/record when an agent is unknown (not silently skip validation).",
+    "what_adds": "Dynamic/runtime agents: auto-register on creation + fail-closed resolution for unknown agents",
+    "why": "Dynamic agent creation (review_ledger.create_agent / agent_spec.save_spec) must register the agent in config/agent-registry/index.json (single writer, with outputs). Runtime resolution must fail-closed/record when an agent is unknown (not silently skip validation).",
+    "who_feels": "Product Forge maintainers and consumers.",
+    "source": "extracted"
+  },
+  "objective": "Dynamic/runtime agents: auto-register on creation + fail-closed resolution for unknown agents",
+  "acceptance_criteria": [
+    "Objective achieved: Dynamic/runtime agents: auto-register on creation + fail-closed resolution for unknown agents"
+  ],
+  "in_scope": [
+    "Dynamic/runtime agents: auto-register on creation + fail-closed resolution for unknown agents"
+  ],
+  "out_of_scope": [
+    "Not specified."
+  ],
+  "affected_components": [
+    "config"
+  ],
+  "affected_files": [
+    "config/agent-registry/index.json"
+  ],
+  "approach": "Dynamic/runtime agents: auto-register on creation + fail-closed resolution for unknown agents",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Objective achieved: Dynamic/runtime agents: auto-register on creation + fail-closed resolution for unknown agents"
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "agent",
+  "requester": "generic",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1342",
+  "parent": "BI-PF-1342",
+  "revision": 2,
+  "priority_rank": 2,
+  "priority_class": "P1",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "COMPLETE",
+    "analyzed_at": "2026-10-13T23:46:27.735573",
+    "analyzed_by": "system",
+    "revision_analyzed": 2,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend core/agent_card_loader.py with an auto-register path writing to config/agent-registry/index.json via a single-writer lock; hook into review_ledger.create_agent and agent_spec.save_spec; modify runtime contract resolution to fail-closed (record unknown agent, abort validation) instead of silent skip; expose status via existing /api/v1/validation/agents/* endpoints.",
+    "existing_components": [],
+    "existing_apis": [],
+    "existing_modules": [],
+    "dependency_findings": [
+      {
+        "task_id": "product_forge:BI-PF-1349",
+        "type": "REQUIRES",
+        "required_state": "done"
+      },
+      {
+        "task_id": "product_forge:BI-PF-1375",
+        "type": "RELATED",
+        "required_state": "n/a"
+      },
+      {
+        "task_id": "product_forge:BI-0096",
+        "type": "RELATED",
+        "required_state": "n/a"
+      }
+    ],
+    "conflict_findings": [
+      "BI-PF-1349 touches config/agent-registry/index.json schema — coordinate merge order",
+      "agent_ledger.py (review ledger) edits from BI-0096 may overlap create_agent hook"
+    ],
+    "duplication_findings": [
+      "BI-PF-1375 is near-duplicate (same problem, parent framing); this is the execution item — mark BI-PF-1375 as related/blocker-ref, not parallel work",
+      "BI-PF-1349 defines the agent registry contract this builds on",
+      "agent_card_loader.py already loads agent specs — extend, do not create new loader"
+    ],
+    "drift": "LOW",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "Extends existing agent loader and validation APIs; no new component needed. Blocked on registry schema from BI-PF-1349 for full readiness.",
+    "assumptions": [
+      "config/agent-registry/index.json schema defined by BI-PF-1349",
+      "review_ledger.create_agent and agent_spec.save_spec are the sole dynamic-agent entry points",
+      "Fail-closed = record + hard validation error, not silent pass"
+    ],
+    "risks": [
+      "Concurrent writers corrupting index.json without lock",
+      "Fail-closed could break existing pipelines using ad-hoc agents",
+      "Registry index.json not yet standardized (BI-PF-1349 pending)"
+    ],
+    "evidence": [
+      "Candidate components include core/agent_card_loader.py and core/agent_ledger.py",
+      "Existing APIs /api/v1/validation/agents/* already expose coverage/unknown status",
+      "config/agent-registry/index.json referenced in item body"
+    ],
+    "confidence": "medium",
+    "missing_info": [
+      "Exact index.json schema (awaiting BI-PF-1349)",
+      "Fail-closed behavior: abort run vs warn-and-record? Human must decide",
+      "Lock mechanism preference (file lock vs single-process queue)"
+    ],
+    "depth": "deep",
+    "mode": "ai",
+    "context_review": {
+      "ok": false,
+      "source": "llm",
+      "implementable": false,
+      "missing": [
+        "how",
+        "where"
+      ],
+      "reason": "Restates the title; problem section hints at create_agent/save_spec and index.json, but APPROACH is a copy of the objective, no concrete implementation steps or failure semantics (exit code, error type, logging), and AFFECTED_COMPONENTS/FILES omit the actual modules (review_ledger, agent_spec, runtime resolver) where code changes occur."
+    },
+    "decision_request": {
+      "needed": false,
+      "reasons": [],
+      "ask": ""
+    },
+    "arch_fingerprint": "1533932e5f48e4e1"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-13T23:46:27.825320"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-13T23:45:29.594213",
+  "updated_at": "2026-10-13T23:46:28.969569",
+  "score": 0.75,
+  "_note": "readiness computed"
+}

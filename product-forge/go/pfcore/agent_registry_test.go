@@ -68,3 +68,22 @@ func TestAgentRegistryResolveCoverage(t *testing.T) {
 		t.Fatalf("expected requirements.srs, got %v", cs[0]["artifact_id"])
 	}
 }
+
+func TestAgentRegisterValidation(t *testing.T) {
+	ac := writeAgentDir(t)
+	// valid output passes
+	r, _ := ARAgentRegisterOp(map[string]any{"dir": ac, "agent": "new-agent", "outputs": []any{"requirements.srs"}})
+	if r["ok"] != true {
+		t.Fatalf("valid output should pass: %v", r["errors"])
+	}
+	// unknown output fails
+	r2, _ := ARAgentRegisterOp(map[string]any{"dir": ac, "agent": "new-agent", "outputs": []any{"ghost.artifact"}})
+	if r2["ok"] != false {
+		t.Fatal("unknown output must fail")
+	}
+	// "none" is allowed (explicit no-contract)
+	r3, _ := ARAgentRegisterOp(map[string]any{"dir": ac, "agent": "new-agent", "outputs": []any{"none"}})
+	if r3["ok"] != true {
+		t.Fatal("'none' should pass")
+	}
+}

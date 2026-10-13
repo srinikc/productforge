@@ -263,6 +263,24 @@ def agents_coverage(request: Request, ctx: dict[str, Any] = Depends(authenticate
                         resource="agents", resource_id="coverage")
 
 
+@router.post("/agents/register", dependencies=[Depends(require_operator)])
+def agent_register(body: dict[str, Any], request: Request,
+                   ctx: dict[str, Any] = Depends(require_operator)):
+    """Register/update an agent in the agent registry (validates outputs; single writer)."""
+    from core import contracts
+    aid = str(body.get("agent") or "").strip()
+    if not aid:
+        raise ApiError("VALIDATION_FAILED", "agent is required")
+    res = contracts.register_agent(aid, outputs=body.get("outputs") or ["none"],
+                                   inputs=body.get("inputs") or [],
+                                   title=str(body.get("title") or ""),
+                                   kind_scope=str(body.get("kind_scope") or "*"))
+    if not res.get("ok"):
+        raise ApiError("VALIDATION_FAILED", "agent registration failed",
+                       details={"errors": res.get("errors") or []})
+    return from_request(request, res, resource="agents", resource_id=aid)
+
+
 @router.get("/agents/{agent_id}", dependencies=[Depends(authenticate)])
 def agent_one(agent_id: str, request: Request, ctx: dict[str, Any] = Depends(authenticate)):
     from core import contracts

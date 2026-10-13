@@ -75,6 +75,15 @@ def test_kind_detection():
     assert contracts.detect_kind("a simple todo list")["kind"] == "text"
 
 
+def test_register_agent():
+    assert contracts.agent_registered("design") is True
+    assert contracts.agent_registered("ghost-agent-xyz") is False
+    # invalid outputs -> validation fails and nothing is written
+    r = contracts.register_agent("_test_agent_xyz", outputs=["ghost.artifact.xyz"])
+    assert r["ok"] is False
+    assert contracts.agent_registered("_test_agent_xyz") is False
+
+
 def test_agent_registry():
     reg = contracts.agent_registry()
     assert len(reg) >= 60, f"expected >=60 agents, got {len(reg)}"

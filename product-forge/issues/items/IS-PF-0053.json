@@ -1,0 +1,31 @@
+{
+  "id": "IS-PF-0053",
+  "tag": "PF",
+  "scope": "product_forge",
+  "project": "",
+  "title": "Dynamic/runtime agents are not auto-registered; runtime contract resolution silently skips them (no fail-closed)",
+  "body": "Dynamic/runtime agents are not covered by the agent registry and runtime contract resolution silently skips them. Evidence: core/review_ledger.py::create_agent (BI-0117) + core/agent_spec.py::save_spec write agents/<id>.agent.json but do NOT register the agent in config/agent-registry/index.json. At runtime, core.contracts.resolve(agent=<new>) finds no spec -> falls back to agents.json by_agent -> empty -> no contracts -> artifact validation is a silent no-op. The coverage gate catches a missing registry entry only at the NEXT CI/precheck run (not at runtime). No fail-closed for an unknown agent.",
+  "kind": "issue",
+  "priority": "P1",
+  "severity": "high",
+  "module": "core/review_ledger.py",
+  "status": "open",
+  "rcca": {
+    "root_cause": "Dynamic agent creation writes the agent spec file but does not register the agent in the agent registry; resolve() returns no contracts for an unknown agent instead of failing closed.",
+    "corrective": "Register dynamically created agents in the agent registry (single writer) with their outputs; make resolve()/wiring fail-closed (recorded) when an agent is unknown.",
+    "preventive": "Test: a dynamically created agent must be registered; an unknown agent blocks (or is recorded) instead of silently passing.",
+    "fixed_where": "core/review_ledger.py",
+    "generalized": true,
+    "guideline_ref": "",
+    "product_ref": ""
+  },
+  "backlog_ref": "BI-PF-1376",
+  "source": "review",
+  "source_ref": "dynamic-agent-registry-gap",
+  "evidence": [],
+  "links": {
+    "backlog": "BI-PF-1376"
+  },
+  "created_at": "2026-10-13T23:41:57.578277",
+  "updated_at": "2026-10-13T23:46:28.784664"
+}

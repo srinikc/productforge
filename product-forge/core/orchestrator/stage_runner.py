@@ -92,6 +92,9 @@ class StageRunnerMixin:
         return self._ac_kind
 
     def _artifact_contracts_for(self, agent_id: str, stage_id: str) -> list:
+        return self._artifact_resolve(agent_id, stage_id).get("contracts") or []
+
+    def _artifact_resolve(self, agent_id: str, stage_id: str) -> dict:
         cache = getattr(self, "_ac_resolve_cache", None)
         if cache is None:
             cache = self._ac_resolve_cache = {}
@@ -99,11 +102,18 @@ class StageRunnerMixin:
         if key not in cache:
             try:
                 from core import contracts as _c
-                cache[key] = _c.resolve(agent=agent_id, stage=stage_id,
-                                        kind=self._artifact_kind()).get("contracts") or []
+                cache[key] = _c.resolve(agent=agent_id, stage=stage_id, kind=self._artifact_kind())
             except Exception:
-                cache[key] = []
+                cache[key] = {"covered": True, "contracts": []}
         return cache[key]
+
+    def _agent_is_registered(self, agent_id: str) -> bool:
+        """BI-PF-1376: is the agent declared in the agent registry? (unknown -> fail-closed)."""
+        try:
+            from core import contracts as _c
+            return _c.agent_registered(agent_id)
+        except Exception:
+            return True
 
     def _artifact_validation_failures(self, agent_id: str, stage_id: str, execution) -> list:
         """Validate the produced artifact text against the agent/stage contract."""
@@ -548,6 +558,17 @@ class StageRunnerMixin:
                 print(f"    [ARTIFACT CONTRACT] {agent_id}@{stage_id}: "
                       f"{len(_vfail)} failure(s) -> fail-closed")
                 execution.status = "needs_retry"
+            # BI-PF-1376: an UNREGISTERED agent must not silently skip validation.
+            _unreg = (self._artifact_validation_mode() != "off") and (not self._agent_is_registered(agent_id))
+            if _unreg:
+                try:
+                    self._emit_lifecycle("agent_unregistered", stage=stage_id, agent=agent_id,
+                                         mode=self._artifact_validation_mode())
+                except Exception:
+                    pass
+                if self._artifact_validation_mode() == "enforce":
+                    print(f"    [AGENT REGISTRY] {agent_id}@{stage_id}: not registered -> fail-closed")
+                    execution.status = "needs_retry"
             stage_executions.append(execution)
             self._record_cost_kpi(agent_id, stage_id, execution)
             if execution.status not in ("completed", "skipped"):

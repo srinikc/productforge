@@ -70,6 +70,31 @@ func ARAgentResolveOp(payload map[string]any) (map[string]any, string) {
 	return map[string]any{"agent": agent, "covered": ok, "spec": sp}, ""
 }
 
+// ARAgentRegisterOp validates a candidate agent spec (its outputs must reference known
+// artifact contracts). Does NOT write - the caller persists. Used by dynamic-agent creation.
+func ARAgentRegisterOp(payload map[string]any) (map[string]any, string) {
+	dir, _ := payload["dir"].(string)
+	agent, _ := payload["agent"].(string)
+	if agent == "" {
+		return nil, "agent id required"
+	}
+	outputs := acStrings(payload["outputs"])
+	reg, _, e := acLoad(dir)
+	if e != "" {
+		return nil, e
+	}
+	bad := []string{}
+	for _, out := range outputs {
+		if out == "none" || out == "modality" {
+			continue
+		}
+		if _, ok := reg[out]; !ok {
+			bad = append(bad, "unknown artifact "+out)
+		}
+	}
+	return map[string]any{"ok": len(bad) == 0, "agent": agent, "errors": bad}, ""
+}
+
 // ARAgentCoverageOp checks the agent registry: every supplied agent has a spec, and every
 // spec's outputs reference a known artifact contract.
 func ARAgentCoverageOp(payload map[string]any) (map[string]any, string) {
