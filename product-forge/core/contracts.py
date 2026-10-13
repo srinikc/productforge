@@ -199,7 +199,7 @@ _WIRE_REQUEST = ContractSpec(
         Field("schema", required=True),
         Field("id", required=True),
         Field("op", type="enum", required=True,
-              enum=("ping", "describe", "validate", "canonicalize")),
+              enum=("ping", "describe", "validate", "canonicalize", "event_append", "event_read")),
         Field("contract_name"),
         Field("payload", type="object"),
         Field("source", type="enum", enum=("python", "go")),

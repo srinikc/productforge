@@ -10,7 +10,7 @@
   "title": "Eventing SSOT (Go): event core - append-only store, emit, monotonic seq, cursor/since",
   "body": "## Problem / why\nThe canonical stream has no reliable cursor (since = string timestamp compare) and no Go-native core; new\nshipped logic must be Go.\n\n## Goal / value\nA Go event core owning emit + append-only store + monotonic seq + cursor reads; single writer.\n\n## In scope\n- Go package (extend go/pfcore or new go/eventbus) with emit/seq/cursor; single-writer store.\n- Invoked from Python via core/go_host + A1 wire (fail-closed).\n\n## Out of scope\n- Dispatch/transports (E4/E5); changing existing Python emit call sites (E7).\n\n## Acceptance criteria\n- Monotonic seq assigned; cursor read returns exactly events after a cursor (no races).\n- Existing events.jsonl readers still work; no duplicate store introduced.\n\n## Verification / test plan\n- Go unit tests + Python contract/e2e test; language_rule_check green.",
   "source": "design",
-  "status": "new",
+  "status": "executing",
   "priority": "P2",
   "moscow": "Should",
   "value": 5,
@@ -19,10 +19,19 @@
   "deps": [
     "BI-PF-1267"
   ],
-  "links": {},
+  "links": {
+    "epic": "BI-PF-1265",
+    "adr": "ADR-0005",
+    "design": "docs/EVENTING-ALERTING-SSOT-DESIGN.md"
+  },
   "decisions": [
     {
-      "at": "2026-10-12T23:26:56.479493",
+      "decision": "Add event append/read ops to go/pfcore via the A1 wire; Python stays writer until 1272; portable lockfile for append+seq",
+      "source": "BI-PF-1268 (proposed)",
+      "at": "2026-10-13T09:52:56.718617"
+    },
+    {
+      "at": "2026-10-13T11:18:38.492740",
       "decision": "APPROVE",
       "by": "cli",
       "note": ""
@@ -57,15 +66,75 @@
   "approach": "- Go unit tests + Python contract/e2e test; language_rule_check green.",
   "review": {
     "reconciliation": {
-      "prior_decisions": [],
-      "existing_path": [],
-      "assumptions": [],
-      "divergences": [],
-      "open_questions": []
+      "prior_decisions": [
+        "ADR-0005: Go core owns store+emit+seq+cursor; Python thin client; single writer; A1 seam; extend go/pfcore first (Q1)",
+        "BI-PF-1267: event-envelope contract (schema) defined; wire-request op enum = ping/describe/validate/canonicalize",
+        "core/events.py:1-11 is the single writer of events.jsonl (Python) until the 1272 cutover (Q4)",
+        "core/go_host.py: stateless one-shot subprocess seam (stdin/stdout), fail-closed, builds the binary on demand",
+        "ADR-0001: new shipped/sensitive logic -> Go under go/; no new Python modules in core/"
+      ],
+      "existing_path": [
+        "Go host + op dispatch -> go/pfcore/pfcore.go Handle; main.go reads one wire-request",
+        "wire contract + op enum -> core/contracts.py (_WIRE_REQUEST) + go/contract + go/pfcore mirrors",
+        "event store (SSOT) -> products/<project>/events.jsonl via core/events.py + core/log_router",
+        "retry sink -> core/dead_letter_queue.py",
+        "portable exclusive lock pattern -> core/worker.py:84-105 (O_CREAT|O_EXCL lockfile)",
+        "invocation -> core/go_host.invoke(op, contract_name, payload, req_id, source)"
+      ],
+      "assumptions": [
+        "C1 event ops are added to go/pfcore (not a separate binary) by extending the wire-request op enum (additive)",
+        "C2 the stateless Go core receives the store path in the payload (it does not know ROOT)",
+        "C3 during 1268 Python REMAINS the writer (no dual write); Go ops are exercised by tests + available via go_host; the emit-path cutover is 1272",
+        "C4 portable exclusive lock (O_CREATE|O_EXCL lockfile, mirroring core/worker) for append+seq; stdlib-only Go (no new deps)",
+        "C5 monotonic seq = last persisted seq + 1 under the lock (sidecar counter only if needed)"
+      ],
+      "divergences": [
+        "extending the frozen wire-request op enum is a contract change -> recorded as a decision (additive; both Go mirrors + parity test)",
+        "a Go writer alongside the Python writer would break single-writer -> explicitly avoided until the 1272 cutover"
+      ],
+      "open_questions": [
+        "Q1 op shape: discrete ops (event_append/event_read) vs one 'events' op with an action field",
+        "Q2 wiring for 1268: ops exercised by tests + reachable via go_host (dormant on the emit path) vs feature-flagged call",
+        "Q3 seq source: last-line+1 vs a sidecar counter file",
+        "Q4 store scope/path passed by the caller (product_forge root vs product dir)",
+        "Q5 ownership: 1268 builds+exposes the core; the Python cutover stays 1272 (no overlap)"
+      ]
     },
-    "impact_review": [],
-    "reviewed_by": "derived",
-    "at": ""
+    "impact_review": [
+      {
+        "claim": "Add event ops to go/pfcore",
+        "verdict": "aligned",
+        "evidence": "ADR-0005; go/pfcore/pfcore.go Handle; B1 pilot (BI-PF-0394)"
+      },
+      {
+        "claim": "Extend wire-request op enum (additive)",
+        "verdict": "aligned",
+        "evidence": "core/contracts.py _WIRE_REQUEST; go/contract + pfcore mirrors; parity test"
+      },
+      {
+        "claim": "Python remains the writer (no dual write)",
+        "verdict": "aligned",
+        "evidence": "core/events.py:1-11; ADR-0005 Q4"
+      },
+      {
+        "claim": "Stateless core takes store path in payload",
+        "verdict": "aligned",
+        "evidence": "go/pfcore/main.go:16-40"
+      },
+      {
+        "claim": "New Python module in core/",
+        "verdict": "violates",
+        "evidence": "config/language-rule.json",
+        "recommendation": "edit core/go_host.py only"
+      },
+      {
+        "claim": "Stdlib-only Go (no new deps)",
+        "verdict": "aligned",
+        "evidence": "go/pfcore/go.mod"
+      }
+    ],
+    "reviewed_by": "architect",
+    "at": "2026-10-13T09:52:56.718617"
   },
   "verification": [
     "Monotonic seq assigned; cursor read returns exactly events after a cursor (no races).",
@@ -87,15 +156,15 @@
   "children": [],
   "epic": "BI-PF-1265",
   "parent": "BI-PF-1265",
-  "revision": 3,
+  "revision": 4,
   "priority_rank": 2,
   "priority_class": "P2",
   "analyze_mode": "on_entry",
   "analysis": {
     "status": "COMPLETE",
-    "analyzed_at": "2026-10-12T23:26:56.309457",
+    "analyzed_at": "2026-10-13T11:18:38.154249",
     "analyzed_by": "cli",
-    "revision_analyzed": 3,
+    "revision_analyzed": 4,
     "architecture_fit": "EXTEND",
     "implementation_strategy": "Extend existing components/APIs: core/artifact_store.py, core/asset_store.py, core/events.py, core/event_bus.py",
     "existing_components": [
@@ -151,11 +220,9 @@
   ],
   "unlocks": [],
   "readiness": {
-    "ready": false,
-    "reasons": [
-      "unmet dependency BI-PF-1267"
-    ],
-    "computed_at": "2026-10-12T23:27:14.994440"
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-13T11:18:38.308523"
   },
   "execution": {
     "worker_id": "",
@@ -171,7 +238,7 @@
     "usage": {}
   },
   "created_at": "2026-10-12T22:54:08.889301",
-  "updated_at": "2026-10-12T23:27:15.072535",
+  "updated_at": "2026-10-13T11:18:38.636989",
   "score": 0.62,
   "_note": "readiness computed"
 }

@@ -78,6 +78,30 @@ func TestValidateFailClosed(t *testing.T) {
 	}
 }
 
+// TestEventAppendSeqAndCursor covers the Go event core (BI-PF-1268): monotonic seq + cursor read.
+func TestEventAppendSeqAndCursor(t *testing.T) {
+	path := t.TempDir() + string(os.PathSeparator) + "events.jsonl"
+	for i := 1; i <= 3; i++ {
+		res, e := EventAppendOp(map[string]any{"path": path, "event": map[string]any{"type": "t", "n": i}})
+		if e != "" {
+			t.Fatalf("append %d: %s", i, e)
+		}
+		if res["seq"] != int64(i) {
+			t.Fatalf("append %d: seq=%v want %d", i, res["seq"], i)
+		}
+	}
+	res, e := EventReadOp(map[string]any{"path": path, "since_seq": int64(1)})
+	if e != "" {
+		t.Fatalf("read: %s", e)
+	}
+	if res["count"] != 2 || res["max_seq"] != int64(3) {
+		t.Fatalf("read since 1: count=%v max_seq=%v (want 2, 3)", res["count"], res["max_seq"])
+	}
+	if _, e := EventReadOp(map[string]any{}); e == "" {
+		t.Fatalf("missing path must fail closed")
+	}
+}
+
 // TestBuiltBinaryExchangesWithRuntime is the B1 acceptance check: the built pfcore binary
 // (PF runtime invocation path) exchanges a valid wire payload with the host.
 func TestBuiltBinaryExchangesWithRuntime(t *testing.T) {

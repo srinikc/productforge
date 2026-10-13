@@ -120,7 +120,8 @@ func Validate(name string, payload map[string]any) (bool, []string) {
 // Capabilities are the Go-native features pfcore exposes (grows as new shipped/sensitive
 // features land here per the language rule).
 func Capabilities() []string {
-	return []string{"ping", "describe", "validate", "license.keygen", "license.issue", "license.verify"}
+	return []string{"ping", "describe", "validate", "event_append", "event_read",
+		"license.keygen", "license.issue", "license.verify"}
 }
 
 // HostID is the distinct pfcore host tag (the wire contract's `host` enum is {python, go}).
@@ -143,7 +144,8 @@ func Ping(req WireRequest) WireResponse {
 
 // SupportedOps lists the seam ops pfcore understands.
 func SupportedOps() []string {
-	return []string{"ping", "describe", "validate", "license.keygen", "license.issue", "license.verify"}
+	return []string{"ping", "describe", "validate", "event_append", "event_read",
+		"license.keygen", "license.issue", "license.verify"}
 }
 
 func response(req WireRequest, ok bool, status string, result map[string]any, errMsg string) WireResponse {
@@ -183,6 +185,18 @@ func Handle(req WireRequest) WireResponse {
 		return response(req, true, "ok", map[string]any{
 			"contract": req.ContractName, "valid": valid, "errors": errs,
 		}, "")
+	case "event_append":
+		res, e := EventAppendOp(req.Payload)
+		if e != "" {
+			return response(req, false, "error", nil, e)
+		}
+		return response(req, true, "ok", res, "")
+	case "event_read":
+		res, e := EventReadOp(req.Payload)
+		if e != "" {
+			return response(req, false, "error", nil, e)
+		}
+		return response(req, true, "ok", res, "")
 	case "license.keygen":
 		return LicenseKeygen(req)
 	case "license.issue":
