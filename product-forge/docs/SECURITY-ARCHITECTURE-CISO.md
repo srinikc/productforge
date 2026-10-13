@@ -11,7 +11,7 @@ CISO-level security posture for **Product Forge** and the **products it generate
 ## 2. Trust boundaries (data flow)
 ```
 clients (OpenCode / CLI / future UI / MCP / A2A)
-  │  authN at the boundary (api/auth.py: API_TOKEN or API_ALLOW_ANON dev-only); role checks (operator/worker)
+  │  authN at the boundary (api/auth.py: PF_API_TOKEN or API_ALLOW_ANON dev-only); role checks (operator/worker)
   ▼
 api/  ── the single control plane (API-first)
   │
@@ -27,7 +27,7 @@ Boundaries: **client→API**, **PF→provider**, **PF→worker**, **PF→generat
 ## 3. Control catalog (what enforces what)
 | control | mechanism | where |
 |---|---|---|
-| authN/authZ at the boundary | `API_TOKEN` + roles (operator/worker); fail-closed | `api/auth.py` |
+| authN/authZ at the boundary | `PF_API_TOKEN` + roles (operator/worker); fail-closed | `api/auth.py` |
 | tenant isolation ("who can see data") | tenant-scoped authz | `core/tenancy.py` |
 | secrets never committed | diff-scoped secret scan (+ `--release` full sweep) | `scripts/dev/secret_scan.py` (`gate:secret-scan`) |
 | injection / dangerous patterns | static high-risk scan (SQL/eval/exec/shell/pickle/yaml/DELETE) | `scripts/dev/review_static_check.py` (`gate:review-static`) |

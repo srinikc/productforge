@@ -93,7 +93,7 @@ stack trace. Secret redaction applied to `message`/`details`.
 ## 7. Authentication / authorization boundary
 
 - Enforced at the `api/` boundary (middleware/dependency), never trusted from clients.
-- **AuthN:** Bearer token. Dev no-op only when `DASHBOARD_API_TOKEN`-equivalent env is unset **and** an explicit
+- **AuthN:** Bearer token (`PF_API_TOKEN`; `API_TOKEN` deprecated alias). Dev no-op only when no token is set **and** an explicit
   `API_ALLOW_ANON=1` dev flag is set (fail-closed by default).
 - **AuthZ:** role claims (`X-Roles` / token) → `operator` (platform admin) vs `tenant` (scoped). Tenant routes
   require matching `tenant_id`; cross-tenant ⇒ 403.

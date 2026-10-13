@@ -1,8 +1,9 @@
 """Local dev launcher (BI-PF-1256): start the PF API with the shared local dev token.
 
 One command so `wg work` needs no manual env: it ensures the gitignored dev token
-(`data/local/dev-api-token`), sets `PF_DEV=1` + `API_TOKEN`, and runs `uvicorn api.app:app` on 127.0.0.1.
-The worker reads the same token via WorkerGrid `token_file`, so both sides agree automatically.
+(`data/local/dev-api-token`), sets `PF_DEV=1` + `PF_API_TOKEN` (BI-PF-1325; `API_TOKEN` kept as a back-compat
+alias), and runs `uvicorn api.app:app` on 127.0.0.1. The worker reads the same token via WorkerGrid `token_file`,
+so both sides agree automatically.
 
 BI-PF-1261: the PF API is the single assignment authority - this launcher refuses to start a SECOND live
 instance (a second authority would let two sessions claim the same item). It records a lock and blocks while a
@@ -59,8 +60,10 @@ def main(argv=None) -> int:
 
     os.environ["PF_DEV"] = "1"
     from api import auth
-    tok = auth.ensure_dev_token()
-    os.environ["API_TOKEN"] = tok
+    # BI-PF-1325: PF_API_TOKEN is canonical (respect a pre-set value); API_TOKEN stays as a back-compat alias.
+    tok = os.environ.get("PF_API_TOKEN", "").strip() or auth.ensure_dev_token()
+    os.environ["PF_API_TOKEN"] = tok
+    os.environ.setdefault("API_TOKEN", tok)
     _write_lock(a.host, a.port)
     print(f"dev API: http://{a.host}:{a.port}  (PF_DEV=1; token file: {auth.TOKEN_PATH})")
     print("worker: `python ../workergrid/wg.py work ...` reads the same token via token_file")
