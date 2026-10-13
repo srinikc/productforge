@@ -1,15 +1,15 @@
 # Backlog Summary
 
-> GENERATED 2026-10-13T15:01:42 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-13T16:29:39 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 75  |  **Closed:** 501
-- `new`: 75
+- **Open:** 77  |  **Closed:** 501
+- `new`: 77
 
-### new, by category (75)
-**API / reports / HIL / misc** (7)
+### new, by category (77)
+**API / reports / HIL / misc** (8)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-PF-0332 | Should | chore | API-5 deferred hardening: rate limiting + request/upload limits + tenant-isolation expansion + event streaming | API-5 deferred hardening: rate limiting + request/upload limits + tenant-isolation expansion + event streaming |
@@ -19,6 +19,7 @@
 | BI-PF-1251 | Should | change | Unscoped triage: re-home 'Unscoped' children into real epics (grooming cadence + aging advisory) | Keep `Unscoped` small: an ongoing curation loop re-homes its children into real epics. |
 | BI-PF-1274 | Should | feature | Eventing SSOT: API surface - SSE GET /events/stream + subscription CRUD (edge decision) | SSE stream + subscription CRUD exposed via edits to existing API routes; edge ownership decided in E1. |
 | BI-PF-1286 | Should | change | Entitlement enforcement: cover remaining boundaries (pipeline/capability/API) + action->group mapping (beyond the worker-claim wired by A2) | Extend entitlement enforcement to the remaining execution boundaries with per-action group mapping. |
+| BI-PF-1316 | Must | task | api-governance gate red on develop: committed api/openapi.json drifted from the routers (BI-PF-0397 EAP endpoints) | api-governance gate red on develop: committed api/openapi.json drifted from the routers (BI-PF-0397 EAP endpoi... |
 
 **Discovery / HIL / prompts** (6)
 | ID | MoSCoW | Type | Title | Objective |
@@ -50,7 +51,7 @@
 | BI-PF-1241 | Should | feature | Per-item token/cache/cost usage (execution.usage) + runtime usage capture + rollup | - backlog execution: + usage{} (input/output/reasoning/cache_read/cache_write/total/cost_usd/model/cost_source... |
 | BI-PF-1273 | Should | feature | Eventing SSOT: migrate existing consumers (event_bus/context/ops/capabilities/parked/notifications/alerts) behind shims | Migrate each consumer to the subscriber/transport API with a compatibility shim so behavior is identical durin... |
 
-**Wiring / tech-debt / API** (54)
+**Wiring / tech-debt / API** (55)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0185 | Should | feature | EPIC: Multi-modal / media orchestration (pluggable capability packs) | Make the pipeline modality-agnostic via PLUGGABLE capability packs, enabled per project when the idea needs th... |
@@ -107,6 +108,7 @@
 | BI-PF-1279 | Should | feature | dogfood/validation: ensure DOGFOOD-profile quality_gate record so PASS is reachable | Make the DOGFOOD profile produce/ensure the quality-gate record for the validated tree (reuse the existing own... |
 | BI-PF-1280 | Should | feature | dogfood: monitoring - wait/poll + terminal event/webhook + status aggregation | Expose progress via the shared bus: poll (run_status/events) + subscribe (SSE/webhook) + aggregate status. |
 | BI-PF-1288 | Must | task | Issue id collision: a local session minted IS-PF-0038 already present on develop | Issue id collision: a local session minted IS-PF-0038 already present on develop |
+| BI-PF-1318 | Should | feature | Per-worker sync hardening: sync at task start + pre-commit auto-sync + worker-charter guideline (BI-PF-1290 follow-up) | Keep every session near origin/develop all the time (minimal clash/conflicts): sync when a task STARTS, before... |
 
 ---
 
@@ -306,5 +308,5 @@
 ---
 
 ## Totals
-- backend: 75 open / 501 closed
+- backend: 77 open / 501 closed
 - dashboard: 146 open / 3 closed
