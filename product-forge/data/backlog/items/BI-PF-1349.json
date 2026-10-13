@@ -39,9 +39,12 @@
     "who_feels": "Product Forge maintainers and consumers.",
     "source": "extracted"
   },
-  "objective": "Agent definitions/specs registry: declarative agent contract (inputs/outputs/artifacts) + coverage gate for new/dynamic agents",
+  "objective": "Declarative agent registry (inputs/outputs/artifacts) as the single source for the agent->artifact mapping + coverage gate for new/dynamic agents.",
   "acceptance_criteria": [
-    "Objective achieved: Agent definitions/specs registry: declarative agent contract (inputs/outputs/artifacts) + coverage gate for new/dynamic agents"
+    "config/agent-registry/index.json declares every agent (title/stages/inputs/outputs/artifacts)",
+    "Go engine ops agents.registry/resolve/coverage; artifact resolve reads the agent registry",
+    "coverage gate fails when an agent lacks a spec or references an unknown artifact",
+    "API-first endpoints; Go + pytest pass; no regression"
   ],
   "in_scope": [
     "Agent definitions/specs registry: declarative agent contract (inputs/outputs/artifacts) + coverage gate for new/dynamic agents"
@@ -53,9 +56,14 @@
     "Not specified."
   ],
   "affected_files": [
-    "Not specified."
+    "config/agent-registry/index.json",
+    "go/pfcore/agent_registry.go",
+    "core/contracts.py",
+    "core/go_host.py",
+    "api/routers/validation.py",
+    "scripts/dev/artifact_contracts_check.py"
   ],
-  "approach": "Agent definitions/specs registry: declarative agent contract (inputs/outputs/artifacts) + coverage gate for new/dynamic agents",
+  "approach": "New agent-registry (Go engine go/pfcore/agent_registry.go) + thin client + API + coverage gate; agent registry is the single source for by_agent (agents.json by_agent kept as fallback).",
   "review": {
     "reconciliation": {
       "prior_decisions": [],
@@ -197,7 +205,7 @@
     "usage": {}
   },
   "created_at": "2026-10-13T20:59:31.403357",
-  "updated_at": "2026-10-13T21:01:04.674464",
+  "updated_at": "2026-10-13T23:31:21.078385",
   "score": 0.75,
-  "_note": "readiness computed"
+  "_note": "groomed for implementation"
 }

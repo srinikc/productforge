@@ -131,6 +131,21 @@ def artifact_contracts_coverage(dir_: str, agents: list, stages: list) -> dict[s
                   payload={"dir": str(dir_), "agents": list(agents), "stages": list(stages)})
 
 
+def agents_registry(dir_: str) -> dict[str, Any]:
+    """Full agent registry (Go engine; op ``agents.registry``)."""
+    return invoke("agents.registry", payload={"dir": str(dir_)})
+
+
+def agents_resolve(dir_: str, agent: str) -> dict[str, Any]:
+    """One agent's spec (Go engine; op ``agents.resolve``)."""
+    return invoke("agents.resolve", payload={"dir": str(dir_), "agent": agent})
+
+
+def agents_coverage(dir_: str, agents: list) -> dict[str, Any]:
+    """Agent-registry coverage: every agent has a spec + valid outputs (Go engine)."""
+    return invoke("agents.coverage", payload={"dir": str(dir_), "agents": list(agents)})
+
+
 def status() -> dict[str, Any]:
     """Operator-visible state of the native Go core (probe; read-only)."""
     r = invoke("ping", req_id="status")
