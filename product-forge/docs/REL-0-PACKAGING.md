@@ -17,6 +17,21 @@ scripts/dev/packaging_check.py # gate (in precheck)
 config/engineering-flow.json   # package_deploy step: planned -> partial
 ```
 
+## EAP — the delivery/build manifest (A4, BI-PF-0397)
+
+The **EAP (Edition/Artifact Package)** is the authoritative, **build-time** manifest of what goes into an
+edition's package: it **composes** the canonical contracts (`component-manifest`, `runtime-profile`,
+`deployment-profile`, `license-profile`, `entitlement-profile`, `bom`, `evidence`) + the edition's
+**entitlement** (A2) + **SBOM/build provenance**, and declares the **EAP version + compatibility**. It is
+**not shipped to customers** — it is how Product Forge decides package contents.
+
+- Owner: `core/packaging.py` (`eap_build` / `eap_validate` / `eap_compatible` / `eap_write` / `eap_load`).
+- Registry: `config/eap-registry.json` (known versions + compatibility ranges).
+- API: `GET /packaging/eap`, `GET /packaging/eap/validate`, `GET /packaging/eap/registry`, `POST /packaging/eap` (operator).
+- Fixture: `test-framework/tests/fixtures/contracts/sample-product/sample.eap`; tests `test-framework/tests/pipeline/test_eap.py`.
+- Validation is **fail-closed** (unknown version / missing fields ⇒ invalid); compatibility = the EAP's declared
+  ranges must cover the registry's current version. Concrete artifact **formats** (added by **A3**) ride in the EAP.
+
 ## Editions (§25)
 
 ```

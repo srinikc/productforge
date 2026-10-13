@@ -66,6 +66,12 @@ Both must pass (0 unwired, 0 naming violations). The same audit runs in CI and i
   folder — git `HEAD`/branch state is global to the working directory, so one session's checkout/commit
   races the other's and a commit can land on `develop` directly. Give each session its **own clone or
   `git worktree`**. This is how a worker session must be run (see `docs/WORKER-SCHEDULER-OPERATIONS.md`).
+- **Sync `develop` often, per worker (BI-PF-1290):** git state is per working directory, so sync is **per
+  session** — there is no background job that could cover all sessions. Fold the integration branch in
+  frequently so merges stay small: `python scripts/dev/sync_develop.py` (**merge** `origin/develop` into your
+  branch — **never** rebase/reset); the **pre-push hook** runs it automatically. The derived backlog files
+  (history / indexes / counters + the generated docs) auto-resolve via the `merge=pf-derived` driver; a
+  **source** conflict aborts cleanly and is resolved by hand.
 
 ## Review & communication standard (binding)
 
