@@ -16,6 +16,7 @@ Hook mode never leaves a half-merge: it MERGES develop as its own clean commit a
 caller re-runs its command (the merge is included the second time, when it is already up to date).
 """
 import argparse
+import os
 import subprocess
 import sys
 
@@ -38,6 +39,28 @@ def _behind_ahead(remote_ref: str):
 def _merge_in_progress() -> bool:
     rc, out, _ = _git("rev-parse", "-q", "--verify", "MERGE_HEAD")
     return rc == 0 and bool(out)
+
+
+def _pf_root() -> str:
+    _, top, _ = _git("rev-parse", "--show-toplevel")
+    cand = os.path.join(top or os.getcwd(), "product-forge")
+    return cand if os.path.isfile(os.path.join(cand, "core", "paths.py")) else ""
+
+
+def _refresh_docs() -> None:
+    """A merge may have changed ``data/backlog`` -> keep the generated docs fresh inside the merge commit
+    (a `git merge` commit does not run the pre-commit hook, so the docs-fresh gate would otherwise fail)."""
+    root = _pf_root()
+    if not root:
+        return
+    for s in ("gen_backlog_summary.py", "gen_docs_index.py"):
+        subprocess.run([sys.executable, os.path.join("scripts", "dev", s)], cwd=root,
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    docs = ["product-forge/docs/BACKLOG-SUMMARY.md", "product-forge/docs/documentation-index.html"]
+    _, dirty, _ = _git("status", "--porcelain", "--", *docs)
+    if dirty.strip():
+        _git("add", *docs)
+        _git("commit", "--amend", "--no-edit")   # fold the regenerated docs into the merge commit
 
 
 def main(argv=None) -> int:
@@ -79,6 +102,7 @@ def main(argv=None) -> int:
         print(f"sync: merge refused ({err or 'unknown'}) - commit/stash local changes and retry", file=sys.stderr)
         return 1
     print("sync: merged cleanly (the derived backlog files auto-resolve via the merge driver).")
+    _refresh_docs()
     if hook:
         rerun = "git push" if a.pre_push else "git commit"
         print(f"sync: re-run '{rerun}' to include the merge.", file=sys.stderr)
