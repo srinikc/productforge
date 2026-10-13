@@ -63,11 +63,25 @@ def _refresh_docs() -> None:
         _git("commit", "--amend", "--no-edit")   # fold the regenerated docs into the merge commit
 
 
+def _revalidate() -> int:
+    """BI-PF-1341: after a clean merge, run the fast gate + scoped tests so a merge-induced regression
+    (someone else's change broke the COMBINATION, with no textual conflict) is surfaced as broken vs fine."""
+    root = _pf_root()
+    if not root:
+        return 0
+    print("sync: revalidating the merged tree (fast precheck + scoped tests) ...")
+    r = subprocess.run([sys.executable, os.path.join("scripts", "dev", "precheck.py")], cwd=root)
+    return r.returncode
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description="Merge origin/develop into the current branch (per-worker sync)")
     ap.add_argument("--check", action="store_true", help="report behind/ahead only; exit 1 if behind")
     ap.add_argument("--pre-push", action="store_true", help="hook mode: exit 1 after a merge (re-run push)")
     ap.add_argument("--pre-commit", action="store_true", help="hook mode: exit 1 after a merge (re-run commit)")
+    ap.add_argument("--revalidate", action="store_true",
+                    help="BI-PF-1341: also revalidate after a merge in hook mode (fast gate + scoped tests)")
+    ap.add_argument("--no-revalidate", action="store_true", help="skip post-merge revalidation")
     ap.add_argument("--branch", default=_INTEGRATION, help="integration branch (default: develop)")
     a = ap.parse_args(argv)
     hook = a.pre_push or a.pre_commit
@@ -103,6 +117,14 @@ def main(argv=None) -> int:
         return 1
     print("sync: merged cleanly (the derived backlog files auto-resolve via the merge driver).")
     _refresh_docs()
+    # BI-PF-1341: revalidate the merged tree (default for an explicit sync; opt-in in hook mode).
+    if not a.no_revalidate and (not hook or a.revalidate):
+        if _revalidate() == 0:
+            print("sync: revalidation PASS - current branch is fine after the merge.")
+        else:
+            print("sync: revalidation FAIL - current branch is BROKEN by the merge; "
+                  "fix it before proceeding (run: python scripts/dev/precheck.py).", file=sys.stderr)
+            return 3
     if hook:
         rerun = "git push" if a.pre_push else "git commit"
         print(f"sync: re-run '{rerun}' to include the merge.", file=sys.stderr)
