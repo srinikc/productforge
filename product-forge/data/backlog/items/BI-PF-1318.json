@@ -10,7 +10,7 @@
   "title": "Per-worker sync hardening: sync at task start + pre-commit auto-sync + worker-charter guideline (BI-PF-1290 follow-up)",
   "body": "## Problem / why\nBI-PF-1290 added sync_develop.py + a pre-push hook, but nothing syncs DURING implementation - only at push time.\nA session that codes for hours drifts the whole time, then faces a big late merge. The guideline/behavior also\nlives only in AGENTS.md, not the worker charter a working agent reads.\n\n## Goal & value\nKeep every session near origin/develop all the time (minimal clash/conflicts): sync when a task STARTS, before\nevery COMMIT, and before every PUSH - plus an explicit guideline so the worker knows why/when.\n\n## In scope\n- scripts/dev/sync_develop.py: add a --pre-commit mode (safe: merge develop as its own clean commit, then exit 1\n  so the user re-runs the commit; abort cleanly on a source conflict). Share the hook logic with --pre-push.\n- install_hooks.py: run the sync in the pre-commit hook (FIRST, before the doc-regen/guards, so it is not run\n  against already-staged changes).\n- workergrid/instructions.md + AGENTS.md: the \"stay close to develop - sync often\" guideline (commands + why).\n\n## Out of scope\n- A background/scheduled job (git state is per working tree; cannot span sessions; would race the editor).\n\n## Approach\nReuse sync_develop.py + the existing hook installer. The mock/message differs per hook; the merge logic is shared.\n\n## Acceptance criteria\n- sync_develop.py --pre-commit merges is its own commit then exits 1 (re-run commit); aborts on source conflict;\n  exits 0 when up to date.\n- The pre-commit hook runs the sync first.\n- The guideline is present in the worker charter + AGENTS.\n- Tests cover --pre-commit; precheck passes.\n\n## Risks\n- The pre-commit sync adds a merge commit; harmless but noisier history when behind. Mitigation: only fires when\n  actually behind.\n\n## Rollback\nRemove the hook line + the mode; sync still available via the CLI and the pre-push hook.\n\n## Related\nFollow-up to BI-PF-1290 (sync_develop + pre-push). Epic BI-PF-0360.\n",
   "source": "user",
-  "status": "new",
+  "status": "completed",
   "priority": "P2",
   "moscow": "Should",
   "value": 3,
@@ -25,7 +25,16 @@
     ],
     "related": [
       "BI-PF-1290"
-    ]
+    ],
+    "delivery": {
+      "branch": "feature/sync-hardening",
+      "merge_sha": "da596f4c83507ba77f17a2d49e741ca3b6f5b3d5",
+      "commits": [],
+      "pr": "86",
+      "pr_url": "https://github.com/srinikc/productforge/pull/86",
+      "at": "2026-10-13T17:20:56.929598",
+      "note": "merged via PR"
+    }
   },
   "decisions": [
     {
@@ -105,12 +114,12 @@
   "children": [],
   "epic": "BI-PF-0360",
   "parent": "BI-PF-0360",
-  "revision": 2,
+  "revision": 3,
   "priority_rank": 2,
   "priority_class": "P2",
   "analyze_mode": "on_entry",
   "analysis": {
-    "status": "COMPLETE",
+    "status": "STALE",
     "analyzed_at": "2026-10-13T16:15:26.940013",
     "analyzed_by": "system",
     "revision_analyzed": 2,
@@ -176,7 +185,7 @@
     "usage": {}
   },
   "created_at": "2026-10-13T16:13:47.629304",
-  "updated_at": "2026-10-13T16:15:27.672289",
+  "updated_at": "2026-10-13T17:20:57.283141",
   "score": 0.75,
-  "_note": "readiness computed"
+  "_note": "delivered PR#86"
 }

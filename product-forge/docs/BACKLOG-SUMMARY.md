@@ -1,14 +1,14 @@
 # Backlog Summary
 
-> GENERATED 2026-10-13T17:10:39 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-13T17:20:58 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 103  |  **Closed:** 502
-- `new`: 103
+- **Open:** 102  |  **Closed:** 503
+- `new`: 102
 
-### new, by category (103)
+### new, by category (102)
 **API / reports / HIL / misc** (9)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
@@ -63,7 +63,7 @@
 | BI-PF-1312 | Must | feature | EDP-20: Append-only AuditStore; split orchestrator/storage.py (audit vs cache vs evidence); retention/redaction; large checkpoints -> object store | Deliver an append-only AuditStore, split orchestrator/storage.py into audit/cache/evidence responsibilities, a... |
 | BI-PF-1314 | Should | feature | EDP-22: Benchmarks/SLOs + EXPLAIN(ANALYZE,BUFFERS) tuning + observability + quotas + graceful degradation (DB/object/cache/queue) | Establish performance benchmarks/SLOs, EXPLAIN(ANALYZE,BUFFERS)-based tuning, observability, quotas, and grace... |
 
-**Wiring / tech-debt / API** (69)
+**Wiring / tech-debt / API** (68)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0185 | Should | feature | EPIC: Multi-modal / media orchestration (pluggable capability packs) | Make the pipeline modality-agnostic via PLUGGABLE capability packs, enabled per project when the idea needs th... |
@@ -132,7 +132,6 @@
 | BI-PF-1310 | Must | feature | EDP-18: Migration/import tooling (dry-run, hashes/counts parity, dual-read, rollback snapshot, cutover flag) for control-plane/portfolio/forge/project/pipeline; JSON demoted to projections | Deliver migration/import tooling with dry-run, hash/count parity verification, dual-read, rollback snapshot an... |
 | BI-PF-1311 | Must | feature | EDP-19: Durable JobStore/OutboxStore + leases/heartbeat/retry/cancel/dead-letter; one-owner boundary vs WorkerGrid (L2, no second queue) | Provide durable, DB-backed JobStore and OutboxStore with leases, heartbeat, retry, cancel, and dead-letter han... |
 | BI-PF-1313 | Must | feature | EDP-21: MemoryRepository behind the 8 memory types; PG metadata + object payloads; FTS then pgvector; ACL-filtered retrieval + leakage tests | Implement MemoryRepository behind all 8 memory types with PG metadata + object-store payloads, FTS-then-pgvect... |
-| BI-PF-1318 | Should | feature | Per-worker sync hardening: sync at task start + pre-commit auto-sync + worker-charter guideline (BI-PF-1290 follow-up) | Keep every session near origin/develop all the time (minimal clash/conflicts): sync when a task STARTS, before... |
 | BI-PF-1319 | Must | feature | Grooming/regroom must fully resolve items: populate all fields, interactively surface missing info/deps, never strand IN_PROGRESS | Grooming/regroom fully resolves every item (fields, deps, exec order); missing input or unmet deps are surface... |
 | BI-PF-1320 | Should | task | docs-fresh gate red on develop: unclassified doc Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md | docs-fresh gate red on develop: unclassified doc Product_Forge_Enterprise_Performance_Security_DB_Storage_Road... |
 
@@ -334,5 +333,5 @@
 ---
 
 ## Totals
-- backend: 103 open / 502 closed
+- backend: 102 open / 503 closed
 - dashboard: 146 open / 3 closed
