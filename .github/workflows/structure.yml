@@ -1,6 +1,8 @@
 name: structure
 
-# Structure Contract + full precheck gate for Product Forge.
+# Structure Contract + FAST precheck gate for Product Forge (the per-change gate).
+# The FULL sweep (all gates + the full test suite) runs in .github/workflows/full-sweep.yml on a schedule,
+# OUT of the per-change critical path, so a single change pays only targeted checks here (BI-PF-1336).
 # The product lives under product-forge/ (repo root holds the product + exploring projects).
 #
 # IMPORTANT (repo setting, not in this file): enable GitHub *branch protection* on `develop`/`main`
@@ -39,9 +41,5 @@ jobs:
           pip install pytest pytest-asyncio pytest-cov fastapi uvicorn pydantic ruff
           pip install httpx requests pyyaml jsonschema
 
-      - name: Precheck gates (REQUIRED) — compile, wired-audit, contract/governance, docs, lint, gates
-        run: python scripts/dev/precheck.py --full
-
-      - name: Full test suite (REQUIRED in CI; some tests need system libs)
-        run: python -m pytest test-framework/tests -q
-        continue-on-error: true   # 5 pdf tests need system libs (weasyprint/libgobject)
+      - name: Precheck gates (REQUIRED; fast/targeted tier)
+        run: python scripts/dev/precheck.py
