@@ -75,6 +75,20 @@ def test_kind_detection():
     assert contracts.detect_kind("a simple todo list")["kind"] == "text"
 
 
+def test_format_and_limits_validation():
+    # api.openapi: format=json -> invalid JSON fails; valid JSON with keys passes
+    assert contracts.validate_artifact("api.openapi", "not json")["ok"] is False
+    good = '{"openapi":"3.1.0","info":{"title":"x"},"paths":{}}'
+    assert contracts.validate_artifact("api.openapi", good)["ok"] is True
+    # requirements.srs: FR count limit enforced (regex count > max)
+    req = contracts.contract("requirements.srs")
+    body = "\n".join(f"## {s}" for s in req["required_sections"]) + "\n" + \
+        "\n".join(f"FR-{i}" for i in range(1, 100))
+    r = contracts.validate_artifact("requirements.srs", body)
+    assert r["ok"] is False
+    assert any("limit" in x for x in r["reasons"]), r["reasons"]
+
+
 def test_budget_and_slider():
     b = contracts.budget(agent="design", stage="1", kind="text")
     assert b["total_max_tokens"] > 0, b
