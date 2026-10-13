@@ -10,29 +10,32 @@
   "title": "A2: capability registry + entitlement-at-boundary + asymmetric licensing",
   "body": "[A2] Capability registry; entitlement checks at execution boundaries; asymmetric license (public-key verify; private key never ships).",
   "source": "generic",
-  "status": "new",
-  "priority": "P2",
+  "status": "completed",
+  "priority": "P1",
   "moscow": "Should",
   "value": 3,
   "effort": 3,
   "risk": 2,
   "deps": [
-    "BI-PF-0393"
+    "BI-PF-1264"
   ],
   "links": {
     "related": [
       "product_forge:BI-PF-1202"
-    ]
+    ],
+    "delivery": {
+      "branch": "feature/wg/bi-pf-0396",
+      "merge_sha": "3bc2fe1e1da182f1935ee4494b2ab7fbe85dac64",
+      "commits": [],
+      "pr": "60",
+      "pr_url": "https://github.com/srinikc/productforge/pull/60",
+      "at": "2026-10-13T10:52:44.704160",
+      "note": "delivery (gh-pr-merge)"
+    }
   },
   "decisions": [
     {
       "at": "2026-10-09T22:32:14.823772",
-      "decision": "APPROVE",
-      "by": "user",
-      "note": ""
-    },
-    {
-      "at": "2026-10-12T18:47:44.715192",
       "decision": "APPROVE",
       "by": "user",
       "note": ""
@@ -41,13 +44,13 @@
   "follow_up": {},
   "revision": 5,
   "priority_rank": 2,
-  "priority_class": "P2",
+  "priority_class": "",
   "analyze_mode": "on_entry",
   "analysis": {
-    "status": "COMPLETE",
-    "analyzed_at": "2026-10-12T18:47:44.467982",
-    "analyzed_by": "user",
-    "revision_analyzed": 5,
+    "status": "STALE",
+    "analyzed_at": "2026-10-12T19:11:02.967692",
+    "analyzed_by": "deterministic",
+    "revision_analyzed": 3,
     "architecture_fit": "EXTEND",
     "implementation_strategy": "Extend existing components/APIs: core/artifact_registry.py, core/capability_bridge.py, core/capability_packs.py, core/change_registry.py",
     "existing_components": [
@@ -102,16 +105,10 @@
       ],
       "reason": "Rich reuse surface exists (licensing, capability bridge/packs, execution contract, two tenant endpoints, six config modules). Missing items are design and ownership decisions, not unknown technical territory; implementation can begin once the BI-PF-0352 overlap is assigned."
     },
-    "arch_fingerprint": "75d8f9eec037a28a",
-    "refreshed_at": "2026-10-10T21:56:50.354291"
+    "arch_fingerprint": "ba90c45005d704fa",
+    "refreshed_at": "2026-10-12T19:11:02.893984"
   },
-  "dependencies": [
-    {
-      "task_id": "BI-PF-0393",
-      "type": "REQUIRES",
-      "required_state": "COMPLETE"
-    }
-  ],
+  "dependencies": [],
   "blocked_by": [
     "BI-PF-0393"
   ],
@@ -119,36 +116,37 @@
   "readiness": {
     "ready": true,
     "reasons": [],
-    "computed_at": "2026-10-12T18:47:44.574923"
+    "computed_at": "2026-10-09T22:32:14.735499"
   },
   "execution": {
-    "worker_id": "",
-    "assignment_id": "",
-    "lease_id": "",
-    "assigned_at": "2026-10-12T20:42:14.720724",
-    "lease_expires_at": "",
+    "worker_id": "worker",
+    "assignment_id": "ASG-BI-PF-0396",
+    "lease_id": "LSE-BI-PF-0396-1791812616",
+    "assigned_at": "2026-10-12T19:13:36.108695",
+    "lease_expires_at": "2026-10-12T20:13:36.108695",
     "attempt": 0,
-    "started_at": "2026-10-12T20:42:14.720724",
+    "started_at": "2026-10-12T19:13:36.108695",
     "completed_at": "",
-    "last_heartbeat_at": "2026-10-12T20:42:14.720724"
+    "last_heartbeat_at": "2026-10-12T19:13:36.108695"
   },
   "created_at": "2026-10-06T18:32:21.466893",
-  "updated_at": "2026-10-12T20:42:46.265207",
+  "updated_at": "2026-10-13T10:52:45.072226",
   "score": 0.75,
-  "_note": "execution updated",
+  "_note": "delivered",
   "parent": "BI-PF-0390",
   "epic": "BI-PF-0390",
   "brief": {
-    "problem": "[A2] Capability registry; entitlement checks at execution boundaries; asymmetric license (public-key verify; private key never ships).",
-    "what_adds": "A2: capability registry + entitlement-at-boundary + asymmetric licensing",
-    "why": "[A2] Capability registry; entitlement checks at execution boundaries; asymmetric license (public-key verify; private key never ships).",
-    "who_feels": "Product Forge maintainers and consumers.",
-    "source": "extracted"
+    "problem": "Commercial editions need capability gating and licensing that cannot be tampered with or leak the private key.",
+    "what_adds": "A2 — capability registry + entitlement checks at execution boundaries + asymmetric licensing (public-key verify; the private key never ships).",
+    "why": "Enforce edition entitlements at runtime and protect licenses from forgery.",
+    "who_feels": "PF platform maintainers, workers, and customers.",
+    "source": "authored"
   },
-  "objective": "A2: capability registry + entitlement-at-boundary + asymmetric licensing",
+  "objective": "A2 — capability registry + entitlement checks at execution boundaries + asymmetric licensing (public-key verify; the private key never ships).",
   "intent_derived": true,
   "acceptance_criteria": [
-    "Objective achieved: A2: capability registry + entitlement-at-boundary + asymmetric licensing"
+    "a license issued and verified via public key unlocks entitled capabilities",
+    "an unentitled action is refused"
   ],
   "review": {
     "reconciliation": {
@@ -162,12 +160,14 @@
     "reviewed_by": "derived",
     "at": ""
   },
-  "approach": "A2: capability registry + entitlement-at-boundary + asymmetric licensing",
+  "approach": "Register capabilities; check entitlements at execution boundaries (fail-closed); verify licenses with a public key; the private key stays in the signing environment only.",
   "affected_components": [
-    "Not specified."
+    "licensing",
+    "capabilities"
   ],
   "affected_files": [
-    "Not specified."
+    "docs/PF-TARGET-ARCHITECTURE-AND-IP-PLAN.md",
+    "fixture: license issued+verified"
   ],
   "owner": "agent",
   "requester": "generic",
@@ -178,7 +178,8 @@
     "pending"
   ],
   "verification": [
-    "Objective achieved: A2: capability registry + entitlement-at-boundary + asymmetric licensing"
+    "a license issued and verified via public key unlocks entitled capabilities",
+    "an unentitled action is refused"
   ],
   "risks": [
     "Not specified."
@@ -186,10 +187,12 @@
   "rollback": "Revert the change.",
   "summary": "",
   "in_scope": [
-    "A2: capability registry + entitlement-at-boundary + asymmetric licensing"
+    "capability registry",
+    "entitlement-at-boundary checks",
+    "asymmetric license verify"
   ],
   "out_of_scope": [
-    "Not specified."
+    "billing/marketplace integration"
   ],
   "api_impact": {
     "needs_api": false,
