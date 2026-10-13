@@ -1,0 +1,161 @@
+{
+  "id": "BI-PF-1285",
+  "tag": "PF",
+  "type": "bug",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "ops",
+  "external_id": "STATE-CHECKPOINT-DIVERGE-1",
+  "label": "PF Backlog 576",
+  "title": "Defect: durable-state checkpoint opens conflicting PRs (stale base; no cleanup) -> runtime work-state never reaches develop and drifts",
+  "body": "core/state_checkpoint.checkpoint (BI-PF-1257) creates the state branch from v.base_ref('develop') WITHOUT fetching first, so the branch is based on a STALE origin/develop; the copied durable files then conflict with the advanced origin/develop. _land_via_pr returns on merge failure without closing the PR/branch, so a stray conflicting '[data] periodic durable-state checkpoint' PR is left behind. Net: the runtime tree's durable state (items/provenance/indexes) never lands on develop and keeps diverging. RCCA: fetch the integration ref before basing the worktree; on merge failure, update-branch and retry once, else close the PR + delete the branch (no stray PRs).",
+  "source": "generic",
+  "status": "completed",
+  "priority": "P2",
+  "moscow": "Should",
+  "value": 4,
+  "effort": 1,
+  "risk": 1,
+  "deps": [],
+  "links": {
+    "delivery": {
+      "branch": "feature/wg/bi-pf-1285",
+      "merge_sha": "91808e0920fcfc18f71fe94b7af2e37d01e9d82c",
+      "commits": [],
+      "pr": "64",
+      "pr_url": "https://github.com/srinikc/productforge/pull/64",
+      "at": "2026-10-13T11:41:05.277074",
+      "note": "delivery (gh-pr-merge)"
+    }
+  },
+  "decisions": [],
+  "follow_up": {},
+  "brief": {
+    "problem": "core/state_checkpoint.checkpoint (BI-PF-1257) creates the state branch from v.base_ref('develop') WITHOUT fetching first, so the branch is based on a STALE origin/develop; the copied durable files then conflict with the advanced origin/develop. _land_via_pr returns on merge failure without closing the PR/branch, so a stray conflicting '[data] periodic durable-state checkpoint' PR is left behind. Net: the runtime tree's durable state (items/provenance/indexes) never lands on develop and keeps diverging. RCCA: fetch the integration ref before basing the worktree; on merge failure, update-branch and retry once, else close the PR + delete the branch (no stray PRs).",
+    "what_adds": "Defect: durable-state checkpoint opens conflicting PRs (stale base; no cleanup) -> runtime work-state never reaches develop and drifts",
+    "why": "core/state_checkpoint.checkpoint (BI-PF-1257) creates the state branch from v.base_ref('develop') WITHOUT fetching first, so the branch is based on a STALE origin/develop; the copied durable files then conflict with the advanced origin/develop. _land_via_pr returns on merge failure without closing the PR/branch, so a stray conflicting '[data] periodic durable-state checkpoint' PR is left behind. Net: the runtime tree's durable state (items/provenance/indexes) never lands on develop and keeps diverging. RCCA: fetch the integration ref before basing the worktree; on merge failure, update-branch ",
+    "who_feels": "Product Forge maintainers and consumers.",
+    "source": "extracted"
+  },
+  "objective": "Make the durable-state checkpoint land reliably on develop: base the state branch on a FRESH origin/develop and never leave a conflicting PR behind.",
+  "acceptance_criteria": [
+    "checkpoint fetches origin before creating the state worktree (fresh base)",
+    "on merge failure it retries via pr update-branch once, then closes the PR+branch (no stray PRs)",
+    "a checkpoint after a fresh fetch lands cleanly (no conflict)"
+  ],
+  "in_scope": [
+    "core/state_checkpoint.checkpoint (fetch before base)",
+    "core/state_checkpoint._land_via_pr (update-branch+retry, else close)"
+  ],
+  "out_of_scope": [
+    "the runtime-tree one-time sync (separate ops step after this lands)"
+  ],
+  "affected_components": [
+    "Not specified."
+  ],
+  "affected_files": [
+    "core/state_checkpoint.py"
+  ],
+  "approach": "Add v.fetch() before add_worktree; in _land_via_pr, on non-zero merge, pr update-branch + retry once, then pr close --delete-branch and return the reason.",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Objective achieved: Defect: durable-state checkpoint opens conflicting PRs (stale base; no cleanup) -> runtime work-state never reaches develop and drifts"
+  ],
+  "risks": [
+    "closing a PR on failure must only happen for the checkpoint's own state branch"
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "unassigned",
+  "requester": "generic",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-0360",
+  "parent": "BI-PF-0360",
+  "revision": 3,
+  "priority_rank": 2,
+  "priority_class": "P2",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "IN_PROGRESS",
+    "analyzed_at": "",
+    "analyzed_by": "deterministic",
+    "revision_analyzed": 0,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/agent_runtime.py, core/defect_loop.py, core/runtime_freshness.py, core/state_checkpoint.py",
+    "existing_components": [
+      "core/agent_runtime.py",
+      "core/defect_loop.py",
+      "core/runtime_freshness.py",
+      "core/state_checkpoint.py"
+    ],
+    "existing_apis": [
+      "/api/v1/backlog/refresh-stale"
+    ],
+    "existing_modules": [],
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=4.0",
+      "components=4",
+      "apis=1"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": false,
+    "reasons": [],
+    "computed_at": ""
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-13T11:25:52.011497",
+  "updated_at": "2026-10-13T11:41:05.657628",
+  "score": 4.0,
+  "_note": "delivered",
+  "dashboard_impact": {
+    "needs_dashboard": false,
+    "reason": "delivery/state infra"
+  }
+}
