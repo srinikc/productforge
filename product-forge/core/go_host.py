@@ -93,6 +93,30 @@ def event_read(path: str, since_seq: int = 0, limit: int = 0) -> dict[str, Any]:
     return invoke("event_read", payload={"path": path, "since_seq": since_seq, "limit": limit})
 
 
+def artifact_contracts_registry(dir_: str) -> dict[str, Any]:
+    """Full artifact-contract registry (Go engine; op ``artifact_contracts.registry``)."""
+    return invoke("artifact_contracts.registry", payload={"dir": str(dir_)})
+
+
+def artifact_contracts_resolve(dir_: str, agent: str = "", stage: str = "",
+                               kind: str = "*") -> dict[str, Any]:
+    """Resolve the contract(s) an agent/stage must produce (Go engine)."""
+    return invoke("artifact_contracts.resolve",
+                  payload={"dir": str(dir_), "agent": agent, "stage": stage, "kind": kind})
+
+
+def artifact_contracts_validate(dir_: str, artifact_id: str, text: str) -> dict[str, Any]:
+    """Validate produced text against a contract (Go engine; fail-closed)."""
+    return invoke("artifact_contracts.validate",
+                  payload={"dir": str(dir_), "artifact_id": artifact_id, "text": text})
+
+
+def artifact_contracts_coverage(dir_: str, agents: list, stages: list) -> dict[str, Any]:
+    """Coverage check: every agent/stage mapped + registry metadata complete (Go engine)."""
+    return invoke("artifact_contracts.coverage",
+                  payload={"dir": str(dir_), "agents": list(agents), "stages": list(stages)})
+
+
 def status() -> dict[str, Any]:
     """Operator-visible state of the native Go core (probe; read-only)."""
     r = invoke("ping", req_id="status")
