@@ -1,0 +1,215 @@
+{
+  "id": "BI-PF-1294",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "edp-02-inventory",
+  "label": "PF Backlog 583",
+  "title": "EDP-02: Store & data-flow inventory + extend store-registry.json (sensitivity, tenant_scope, backend, retention, recovery_tier, migration_status) + completeness gate",
+  "body": "Part of EPIC BI-PF-1292. Source: docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md. Phase item (see epic). Language rule L1 = Go; must pass scripts/dev/language_rule_review.py.",
+  "source": "review",
+  "status": "new",
+  "priority": "P0",
+  "moscow": "Must",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [
+    "BI-PF-1293"
+  ],
+  "links": {
+    "source_doc": "docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md",
+    "possible_duplicate_of": [
+      "product_forge:BI-PF-1293"
+    ]
+  },
+  "decisions": [
+    {
+      "at": "2026-10-13T16:33:26.798156",
+      "decision": "APPROVE",
+      "by": "agent",
+      "note": "finalized: decisions recorded 2026-10-13"
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "No authoritative inventory of stores, sensitivity, retention, or tenant scope",
+    "what_adds": "Extended registry + completeness gate",
+    "why": "Enterprise residency/retention work depends on it",
+    "who_feels": "Security, compliance, platform implementers",
+    "source": "authored"
+  },
+  "objective": "Complete store and data-flow inventory, extend store-registry.json with enterprise metadata fields, and add a CI completeness gate.",
+  "acceptance_criteria": [
+    "store-registry.json contains all stores with new fields populated",
+    "Completeness gate fails CI when a store is unregistered",
+    "Data-flow inventory documented"
+  ],
+  "in_scope": [
+    "Registry schema extension",
+    "Completeness CI gate",
+    "Data-flow inventory"
+  ],
+  "out_of_scope": [
+    "Interface refactor (EDP-07)",
+    "Runtime SQLite disposition"
+  ],
+  "affected_components": [
+    "core/artifact_store.py",
+    "core/asset_store.py",
+    "core/forge_store.py",
+    "core/pipeline_store.py",
+    "core/project_store.py"
+  ],
+  "affected_files": [
+    "config/store-registry.json"
+  ],
+  "approach": "Extend registry schema, backfill metadata from existing stores, add gate script.",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Gate catches a deliberately unregistered store",
+    "All registry entries pass schema validation"
+  ],
+  "risks": [
+    "Incomplete inventory may cause gate false positives",
+    "Registry schema churn if ADR evolves"
+  ],
+  "rollback": "Revert registry schema; gate disabled.",
+  "evidence": [
+    "config/store-registry.json exists",
+    "core/artifact_store.py, asset_store.py, forge_store.py, pipeline_store.py, project_store.py are registered stores"
+  ],
+  "owner": "platform-team",
+  "requester": "product-forge",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1292",
+  "parent": "BI-PF-1292",
+  "revision": 9,
+  "priority_rank": 2,
+  "priority_class": "P0",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "STALE",
+    "analyzed_at": "2026-10-13T16:33:26.499788",
+    "analyzed_by": "agent",
+    "revision_analyzed": 8,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend config/store-registry.json with new fields (sensitivity, tenant_scope, backend, retention, recovery_tier, migration_status); enrich existing *store.py components with registry metadata; add CI completeness gate validating all stores registered.",
+    "existing_components": [],
+    "existing_apis": [],
+    "existing_modules": [],
+    "dependency_findings": [
+      "BLOCKED BY BI-PF-1293 (ADR defines the taxonomy for new registry fields)",
+      "BLOCKS BI-PF-1295 (disposition needs full inventory)"
+    ],
+    "conflict_findings": [
+      "Shares config/store-registry.json with BI-PF-1293 — ADR owner must not edit fields concurrently"
+    ],
+    "duplication_findings": [
+      "Existing store-registry.json — extend not recreate",
+      "Individual *store.py modules already encode store behavior; avoid duplicating in registry"
+    ],
+    "drift": "LOW",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "Extends existing registry to cover enterprise metadata required by residency/retention work.",
+    "assumptions": [
+      "All current stores are discoverable via existing *store.py modules and registry",
+      "Retention/recovery tiers defined in ADR"
+    ],
+    "risks": [
+      "Incomplete inventory may cause gate false positives",
+      "Registry schema churn if ADR evolves"
+    ],
+    "evidence": [
+      "config/store-registry.json exists",
+      "core/artifact_store.py, asset_store.py, forge_store.py, pipeline_store.py, project_store.py are registered stores"
+    ],
+    "confidence": "high",
+    "missing_info": [
+      "Sensitivity classification per store requires data-owner input",
+      "Retention tier values for each store"
+    ],
+    "depth": "deep",
+    "mode": "ai",
+    "context_review": {
+      "implementable": true,
+      "missing": [
+        "Per-store sensitivity/retention classifications"
+      ],
+      "reason": "Registry and stores exist; classification decisions need human input."
+    },
+    "consolidation_proposal": {
+      "sources": [
+        "BI-PF-1293",
+        "BI-PF-1299"
+      ],
+      "title": "EDP-02: Store & data-flow inventory + extend store-registry.json (sensitivity, tenant_scope, backend, retention, recovery_tier, migration_status) + completeness gate",
+      "body": "Part of EPIC BI-PF-1292. Source: docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md. Phase item (see epic). Language rule L1 = Go; must pass scripts/dev/language_rule_review.py.",
+      "acceptance_criteria": [
+        "Every store entry has owner, kind, scope, concern, visibility, sensitivity, tenant_scope, backend, retention, recovery_tier, migration_status, rebuild_proc.",
+        "A wired_audit/registry check fails closed on an unclassified or ownerless store.",
+        "Data-flow register (beyond primary DBs) captured: object versions, WAL/PITR, replicas, caches, queues, logs, traces, model calls, exports.",
+        "ADR document committed covering storage layers, backends, and data-flow decisions",
+        "Develop commit SHA pinned and recorded",
+        "L1 Go rule passes language_rule_review.py",
+        "The 11 interfaces are declared with explicit optional capabilities (versioning/lock/conditional-write/KMS/signed-URL/multipart).",
+        "A conformance suite runs against any adapter (starting with WorkerGrid's store as reference).",
+        "No domain module depends on a concrete provider."
+      ],
+      "moscow": "Must"
+    },
+    "arch_fingerprint": "dc9598f15f6d5d5f"
+  },
+  "dependencies": [
+    {
+      "task_id": "BI-PF-1293",
+      "type": "REQUIRES",
+      "required_state": "COMPLETE"
+    }
+  ],
+  "blocked_by": [
+    "BI-PF-1293"
+  ],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-13T16:33:26.622792"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-13T16:02:07.122331",
+  "updated_at": "2026-10-13T16:35:23.496622",
+  "score": 0.75,
+  "source_ref": "docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md",
+  "_note": "dependencies set"
+}

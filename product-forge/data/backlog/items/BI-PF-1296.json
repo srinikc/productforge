@@ -1,0 +1,250 @@
+{
+  "id": "BI-PF-1296",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "edp-04-threat-model",
+  "label": "PF Backlog 585",
+  "title": "EDP-04: Data-plane threat model + data-flow register (cross-tenant IDOR, path traversal, token/role spoofing, object-URL leakage, egress, residency bypass)",
+  "body": "Part of EPIC BI-PF-1292. Source: docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md. Phase item (see epic). Language rule L1 = Go; must pass scripts/dev/language_rule_review.py.",
+  "source": "review",
+  "status": "new",
+  "priority": "P1",
+  "moscow": "Must",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [
+    "BI-PF-1293",
+    "BI-PF-1297",
+    "BI-PF-1303"
+  ],
+  "links": {
+    "source_doc": "docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md",
+    "possible_duplicate_of": [
+      "product_forge:BI-PF-1293"
+    ]
+  },
+  "decisions": [
+    {
+      "at": "2026-10-13T16:33:30.531983",
+      "decision": "APPROVE",
+      "by": "agent",
+      "note": "finalized: decisions recorded 2026-10-13"
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "Data plane has no documented threat model or data-flow inventory.",
+    "what_adds": "Versioned data-flow register + threat model with Go validation.",
+    "why": "Downstream EDP policy work needs a canonical threat inventory.",
+    "who_feels": "Security, platform, and compliance teams.",
+    "source": "authored"
+  },
+  "objective": "Produce an EDP-04 data-plane threat model and versioned data-flow register covering IDOR, path traversal, token/role spoofing, object-URL leakage, egress, and residency bypass.",
+  "acceptance_criteria": [
+    "Data-flow register covers all 6 threat categories with source/sink mapping",
+    "Go validator passes language_rule_review.py",
+    "Register is machine-readable and versioned",
+    "Findings link to ADR decisions from BI-PF-1293"
+  ],
+  "in_scope": [
+    "Threat model doc",
+    "Data-flow register artifact + Go validator"
+  ],
+  "out_of_scope": [
+    "Mitigation implementation (covered by EDP-07..16)",
+    "Counsel-owned policy text (BI-PF-1297)"
+  ],
+  "affected_components": [
+    "config/compliance-register.json",
+    "docs/"
+  ],
+  "affected_files": [
+    "config/data-flow-register.json",
+    "internal/threatmodel/validator.go",
+    "docs/EDP-04-threat-model.md"
+  ],
+  "approach": "Register-first: enumerate flows, map threats, encode checks in Go.",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Run language_rule_review.py",
+    "Threat-category coverage checklist",
+    "Security review sign-off"
+  ],
+  "risks": [
+    "Threat model could go stale without CI enforcement",
+    "Counsel/security review not scheduled"
+  ],
+  "rollback": "Revert new register/config and docs; no runtime impact.",
+  "evidence": [
+    "Roadmap threat category list",
+    "Existing compliance-register.json pattern"
+  ],
+  "owner": "security-engineering",
+  "requester": "product_forge",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1292",
+  "parent": "BI-PF-1292",
+  "revision": 9,
+  "priority_rank": 3,
+  "priority_class": "P1",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "STALE",
+    "analyzed_at": "2026-10-13T16:33:29.987622",
+    "analyzed_by": "agent",
+    "revision_analyzed": 8,
+    "architecture_fit": "NEW_CAPABILITY",
+    "implementation_strategy": "Author a Go data-flow register + threat model doc as config-driven register (extend config/compliance-register.json pattern) with a small Go validator package; consume ADR decisions from BI-PF-1293.",
+    "existing_components": [
+      "core/agent_model_override.py",
+      "core/business_models_kb.py",
+      "core/ci_cd_model.py",
+      "core/conversation_models.py",
+      "core/cost_model.py",
+      "core/cost_modeling.py",
+      "core/design_tokens.py",
+      "core/model_catalog.py"
+    ],
+    "existing_apis": [
+      "/api/v1/reservations/shared-paths"
+    ],
+    "existing_modules": [
+      "config/artifact-paths.json",
+      "config/business-models-kb.json",
+      "config/compliance-register.json",
+      "config/model-catalog.json",
+      "config/model-policy.json",
+      "config/model-tier.json"
+    ],
+    "dependency_findings": [
+      "REQUIRES BI-PF-1293 ADR merged (required_state=approved)",
+      "RELATED BI-PF-1297 consumes data-flow register as policy input"
+    ],
+    "conflict_findings": [
+      "Low: touches config/ + new docs only; no overlap with EDP-11/14 code"
+    ],
+    "duplication_findings": [
+      "No existing threat-model register in components; compliance-register.json closest pattern",
+      "BI-PF-1298 perf capture shares data-flow inventory but scoped to metrics, not threats"
+    ],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": true,
+    "rationale": "Doc+register deliverable with new validator component; no equivalent work exists in backlog.",
+    "assumptions": [
+      "Roadmap doc defines threat categories",
+      "Register consumed as JSON/YAML artifact"
+    ],
+    "risks": [
+      "Threat model could go stale without CI enforcement",
+      "Counsel/security review not scheduled"
+    ],
+    "evidence": [
+      "Roadmap threat category list",
+      "Existing compliance-register.json pattern"
+    ],
+    "confidence": "medium",
+    "missing_info": [
+      "Register format (JSON vs YAML) and owning security reviewer",
+      "Scope of egress/residency rules beyond BI-PF-1297"
+    ],
+    "depth": "deep",
+    "mode": "ai",
+    "consolidation_proposal": {
+      "sources": [
+        "BI-PF-1293",
+        "BI-PF-1299",
+        "BI-PF-1303"
+      ],
+      "title": "EDP-04: Data-plane threat model + data-flow register (cross-tenant IDOR, path traversal, token/role spoofing, object-URL leakage, egress, residency bypass)",
+      "body": "Part of EPIC BI-PF-1292. Source: docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md. Phase item (see epic). Language rule L1 = Go; must pass scripts/dev/language_rule_review.py.",
+      "acceptance_criteria": [
+        "Threat model enumerates cross-tenant IDOR, traversal/symlink, token/role spoofing, object-URL leakage, noisy-neighbor, compromised worker, backup exposure, tenant deletion, cross-region/egress and residency-bypass.",
+        "Each threat maps to an owner interface/control and a test.",
+        "Data-flow register covers all copies (versions, WAL, replicas, caches, queues, logs, exports, model calls).",
+        "ADR document committed covering storage layers, backends, and data-flow decisions",
+        "Develop commit SHA pinned and recorded",
+        "L1 Go rule passes language_rule_review.py",
+        "The 11 interfaces are declared with explicit optional capabilities (versioning/lock/conditional-write/KMS/signed-URL/multipart).",
+        "A conformance suite runs against any adapter (starting with WorkerGrid's store as reference).",
+        "No domain module depends on a concrete provider.",
+        "tenant.home_region, jurisdiction_profile_id, residency_policy_version are set at provisioning from authenticated config (never from X-Tenant-Id/X-Region/URL).",
+        "Provisioning fails closed if any required service (DB/object/backup/logs/KMS/queue/cache/vector/workers/model) lacks an approved region.",
+        "Region is immutable to ordinary users; changes require an audited migration plan."
+      ],
+      "moscow": "Must"
+    },
+    "context_review": {
+      "implementable": true,
+      "missing": [
+        "Register format decision",
+        "Security reviewer assignment"
+      ],
+      "reason": "Format and reviewer are human decisions; threat categories and ADR dependency are known."
+    },
+    "arch_fingerprint": "dc9598f15f6d5d5f"
+  },
+  "dependencies": [
+    {
+      "task_id": "BI-PF-1293",
+      "type": "REQUIRES",
+      "required_state": "COMPLETE"
+    },
+    {
+      "task_id": "BI-PF-1297",
+      "type": "RELATED",
+      "required_state": "completed"
+    },
+    {
+      "task_id": "BI-PF-1303",
+      "type": "RELATED",
+      "required_state": "completed"
+    }
+  ],
+  "blocked_by": [
+    "BI-PF-1293"
+  ],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-13T16:33:30.192889"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-13T16:02:14.571297",
+  "updated_at": "2026-10-13T16:35:24.389546",
+  "score": 0.75,
+  "source_ref": "docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md",
+  "_note": "dependencies set"
+}

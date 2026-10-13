@@ -1,0 +1,249 @@
+{
+  "id": "BI-PF-1302",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "edp-10-limits-quotas",
+  "label": "PF Backlog 591",
+  "title": "EDP-10: Timeouts, pool budgets, payload/upload limits, per-tenant & global quotas, structured errors; production profile rejects dev/anon auth",
+  "body": "Part of EPIC BI-PF-1292. Source: docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md. Phase item (see epic). Language rule L1 = Go; must pass scripts/dev/language_rule_review.py.",
+  "source": "review",
+  "status": "new",
+  "priority": "P1",
+  "moscow": "Must",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [
+    "BI-PF-1300",
+    "BI-PF-1301",
+    "BI-PF-1303"
+  ],
+  "links": {
+    "source_doc": "docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md",
+    "possible_duplicate_of": [
+      "product_forge:BI-PF-1293"
+    ],
+    "paired_with": [
+      "product_forge:BI-PF-0332"
+    ],
+    "backend_capability": "limits-quotas"
+  },
+  "decisions": [
+    {
+      "at": "2026-10-13T16:33:41.236010",
+      "decision": "APPROVE",
+      "by": "agent",
+      "note": "finalized: decisions recorded 2026-10-13"
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "No centralized enforcement of timeouts, pool budgets, payload limits, quotas, or structured errors; dev/anon auth can reach production.",
+    "what_adds": "Go limits package, enforcement middleware, structured error envelope, production profile auth guard.",
+    "why": "Baseline performance and security guardrails required before enterprise rollout.",
+    "who_feels": "Platform SRE, security reviewers, all API consumers.",
+    "source": "authored"
+  },
+  "objective": "Implement enforceable timeouts, pool budgets, payload/upload limits, per-tenant and global quotas, structured error responses, and a production profile that rejects dev/anon authentication.",
+  "acceptance_criteria": [
+    "All HTTP handlers enforce configured timeouts and body/upload size limits",
+    "Per-tenant and global quotas enforced fail-closed with structured errors",
+    "profile=production startup rejects dev/anon auth configs",
+    "Passes scripts/dev/language_rule_review.py (Go-only)"
+  ],
+  "in_scope": [
+    "Go limits/quota package",
+    "Structured error envelope",
+    "Production profile auth guard",
+    "Config wiring via orchestrator settings"
+  ],
+  "out_of_scope": [
+    "Billing/entitlement semantics",
+    "UI surfacing of quota state",
+    "Database schema redesign"
+  ],
+  "affected_components": [
+    "core/global_orchestrator.py (config source)",
+    "Go HTTP middleware/handlers",
+    "New Go limits package"
+  ],
+  "affected_files": [
+    "internal/limits/*.go (new)",
+    "internal/http/middleware/*.go",
+    "config/settings wiring"
+  ],
+  "approach": "Define limits struct + profile-aware loader, add middleware for enforcement, unit test per limit type, integration test quota attribution with pooled tenant context.",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Unit tests per limit/quota type",
+    "Integration test: quota breach returns structured 429/413",
+    "Prod profile boot test rejects anon auth",
+    "language_rule_review.py passes"
+  ],
+  "risks": [
+    "Quota attribution depends on tenant context correctness (BI-PF-1301)",
+    "Per-tenant quota storage choice (DB vs memory) unresolved",
+    "Prod-profile auth rejection may break staging workflows"
+  ],
+  "rollback": "Feature-flag the enforcement middleware; defaults-off config reverts to unlimited behavior without code rollback.",
+  "evidence": [
+    "Candidate core/global_orchestrator.py",
+    "Roadmap EDP-10",
+    "L1=Go language rule"
+  ],
+  "owner": "unassigned",
+  "requester": "epic BI-PF-1292",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1292",
+  "parent": "BI-PF-1292",
+  "revision": 11,
+  "priority_rank": 2,
+  "priority_class": "P1",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "STALE",
+    "analyzed_at": "2026-10-13T16:33:40.850006",
+    "analyzed_by": "agent",
+    "revision_analyzed": 10,
+    "architecture_fit": "NEW_CAPABILITY",
+    "implementation_strategy": "Add a Go limits/config package (timeouts, pool budgets, body/upload caps, per-tenant + global quotas, structured error envelope) and wire enforcement into Go HTTP handlers; source defaults from existing settings surfaced by core/global_orchestrator.py and reject dev/anon auth when profile=production.",
+    "existing_components": [],
+    "existing_apis": [],
+    "existing_modules": [],
+    "dependency_findings": [
+      "REQUIRES BI-PF-1300 (state: merged)",
+      "REQUIRES BI-PF-1301 (state: merged, tenant context available for quota attribution)",
+      "BLOCKS BI-PF-1303 (quota/error baseline needed for provisioning)"
+    ],
+    "conflict_findings": [
+      "Shares global config surface with BI-PF-1300/1301 - sequence after merge",
+      "Quota enforcement touches tenant middleware owned by BI-PF-1301"
+    ],
+    "duplication_findings": [
+      "No existing Go limits/quota module found",
+      "core/global_orchestrator.py holds global config only - reference, not reuse (L1=Go)",
+      "Structured error envelope may overlap EDP-09 error paths - consolidate"
+    ],
+    "drift": "LOW",
+    "rewrite_required": false,
+    "new_component_required": true,
+    "rationale": "Central limits and structured errors are a cross-cutting prerequisite; no reusable Go implementation exists so a new package with config hooks into the orchestrator settings is required.",
+    "assumptions": [
+      "1300/1301 merged and Go HTTP server exists",
+      "global_orchestrator.py remains the config source of truth",
+      "Fail-closed on limit breach is desired"
+    ],
+    "risks": [
+      "Quota attribution depends on tenant context correctness (BI-PF-1301)",
+      "Per-tenant quota storage choice (DB vs memory) unresolved",
+      "Prod-profile auth rejection may break staging workflows"
+    ],
+    "evidence": [
+      "Candidate core/global_orchestrator.py",
+      "Roadmap EDP-10",
+      "L1=Go language rule"
+    ],
+    "confidence": "medium",
+    "missing_info": [
+      "Default numeric values for each timeout/quota",
+      "Quota storage backend (Postgres vs in-memory)",
+      "Which auth methods count as 'dev/anon' for prod rejection"
+    ],
+    "depth": "deep",
+    "mode": "ai",
+    "context_review": {
+      "implementable": true,
+      "missing": [
+        "Default limit values",
+        "Quota storage backend",
+        "Prod vs staging auth allowlist"
+      ],
+      "reason": "Deps 1300/1301 provide config and tenant context; scope is clear but numeric defaults and storage backend need human input."
+    },
+    "consolidation_proposal": {
+      "sources": [
+        "BI-PF-1293",
+        "BI-PF-1299"
+      ],
+      "title": "EDP-10: Timeouts, pool budgets, payload/upload limits, per-tenant & global quotas, structured errors; production profile rejects dev/anon auth",
+      "body": "Part of EPIC BI-PF-1292. Source: docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md. Phase item (see epic). Language rule L1 = Go; must pass scripts/dev/language_rule_review.py.",
+      "acceptance_criteria": [
+        "Explicit request/body/upload/statement/lock timeouts and bounded pool sizes across API/workers/migrations.",
+        "Per-tenant and global quotas (bytes, object count, upload size, requests, concurrency) enforced server-side with predictable errors.",
+        "Production startup fails if API_ALLOW_ANON/dev-auth/missing credentials are configured.",
+        "ADR document committed covering storage layers, backends, and data-flow decisions",
+        "Develop commit SHA pinned and recorded",
+        "L1 Go rule passes language_rule_review.py",
+        "11 Go interfaces defined in internal/storage/ with godoc and compile-time assertions",
+        "Conformance harness package exposes embeddable test suites per interface",
+        "In-memory reference adapter passes all conformance suites",
+        "scripts/dev/language_rule_review.py passes (Go-only)",
+        "config/test-matrix.json extended with storage-conformance rows"
+      ],
+      "moscow": "Must"
+    },
+    "arch_fingerprint": "dc9598f15f6d5d5f"
+  },
+  "dependencies": [
+    {
+      "task_id": "BI-PF-1300",
+      "type": "REQUIRES",
+      "required_state": "COMPLETE"
+    },
+    {
+      "task_id": "BI-PF-1301",
+      "type": "RELATED",
+      "required_state": "completed"
+    },
+    {
+      "task_id": "BI-PF-1303",
+      "type": "RELATED",
+      "required_state": "completed"
+    }
+  ],
+  "blocked_by": [
+    "BI-PF-1300"
+  ],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-13T16:33:40.993338"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-13T16:02:37.925490",
+  "updated_at": "2026-10-13T16:35:27.183633",
+  "score": 0.75,
+  "source_ref": "docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md",
+  "_note": "dependencies set"
+}

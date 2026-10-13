@@ -1,0 +1,253 @@
+{
+  "id": "BI-PF-1308",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "edp-16-object-lifecycle",
+  "label": "PF Backlog 597",
+  "title": "EDP-16: Object lifecycle (versioning/lock/retention), signed-URL policy, delete/replica/backup reconciliation",
+  "body": "Part of EPIC BI-PF-1292. Source: docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md. Phase item (see epic). Language rule L1 = Go; must pass scripts/dev/language_rule_review.py.",
+  "source": "review",
+  "status": "new",
+  "priority": "P1",
+  "moscow": "Must",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [
+    "BI-PF-1307",
+    "BI-PF-1306",
+    "BI-PF-1299"
+  ],
+  "links": {
+    "source_doc": "docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md",
+    "possible_duplicate_of": [
+      "product_forge:BI-PF-1293"
+    ]
+  },
+  "decisions": [
+    {
+      "at": "2026-10-13T16:33:52.656328",
+      "decision": "APPROVE",
+      "by": "agent",
+      "note": "finalized: decisions recorded 2026-10-13"
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "Objects have no lifecycle/retention/lock guarantees and ad-hoc URLs bypass policy",
+    "what_adds": "Lifecycle capabilities, signed-URL policy, reconciliation",
+    "why": "Enterprise compliance and safe delete/backup semantics",
+    "who_feels": "Compliance, security, and storage operators",
+    "source": "authored"
+  },
+  "objective": "Define and enforce object lifecycle rules (versioning, lock, retention), signed-URL access policy, and delete/replica/backup reconciliation across the storage layer.",
+  "acceptance_criteria": [
+    "Lifecycle/lock/retention capabilities expressed on ObjectStore interface and implemented in S3 adapter",
+    "Signed-URL policy central minting with TTL bounds enforced",
+    "Delete/replica/backup reconciliation job detects and reports drift vs manifest",
+    "Conformance tests cover lifecycle behavior per provider",
+    "Language rule L1 (Go-capable) review passes"
+  ],
+  "in_scope": [
+    "Lifecycle capability interface + S3 implementation",
+    "Signed-URL policy module",
+    "Reconciliation scanner",
+    "Conformance/lifecycle tests"
+  ],
+  "out_of_scope": [
+    "Backup/PITR execution (BI-PF-1315)",
+    "Region migration workflow (BI-PF-1317)",
+    "Audit retention (BI-PF-1312)"
+  ],
+  "affected_components": [
+    "ObjectStore interface",
+    "S3 adapter",
+    "residency manifest gate",
+    "policy modules"
+  ],
+  "affected_files": [
+    "core/object_lifecycle.py",
+    "adapters/s3_adapter.py",
+    "config/lifecycle-policy.json",
+    "tests/object_lifecycle_conformance.py"
+  ],
+  "approach": "Interface-first: add optional LifecycleCapable/Capability assertions, implement per-provider, wire manifest validation into reconciliation.",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Conformance suite green",
+    "Manifest drift report in CI",
+    "Language rule review",
+    "Integration test with minio/local S3"
+  ],
+  "risks": [
+    "Provider capability gaps (local filesystem, non-S3) for object-lock/versioning",
+    "Retention rules conflicting with residency/backup retention",
+    "Signed-URL policy leakage across tenants"
+  ],
+  "rollback": "Feature-flag lifecycle enforcement; providers without capability degrade to no-op with warning.",
+  "evidence": [
+    "Roadmap EDP-16",
+    "Candidate code audit"
+  ],
+  "owner": "storage-team",
+  "requester": "BI-PF-1292 epic",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1292",
+  "parent": "BI-PF-1292",
+  "revision": 9,
+  "priority_rank": 1,
+  "priority_class": "P1",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "STALE",
+    "analyzed_at": "2026-10-13T16:33:52.218818",
+    "analyzed_by": "agent",
+    "revision_analyzed": 8,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend the provider-neutral ObjectStore interface (BI-PF-1299) and S3 adapter (BI-PF-1306) with lifecycle capabilities: versioning, object-lock/legal-hold, retention rules, signed-URL policy; reconcile deletes/replicas/backups via residency manifest from BI-PF-1304.",
+    "existing_components": [],
+    "existing_apis": [],
+    "existing_modules": [],
+    "dependency_findings": [
+      "REQUIRES BI-PF-1299 interfaces at done",
+      "REQUIRES BI-PF-1306 S3 adapter at done",
+      "REQUIRES BI-PF-1304 residency manifest at done",
+      "RELATED BI-PF-1293 ADR (must align)"
+    ],
+    "conflict_findings": [
+      "Low: S3 adapter (BI-PF-1306) files may still be warm; coordinate interface changes"
+    ],
+    "duplication_findings": [
+      "core/lock_manager.py is an in-process lock, not bucket object-lock — pattern reuse only, no duplication",
+      "No existing object lifecycle/signed-URL code in candidates; core/*_policy.py files are governance policies (different domain)"
+    ],
+    "drift": "LOW",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "Builds directly on existing storage interfaces/adapter; adds capability layer rather than new component. Reuse-first honored.",
+    "assumptions": [
+      "Lifecycle features are optional capabilities on ObjectStore interface",
+      "Signed URLs are minted centrally, never stored",
+      "Manifest from BI-PF-1304 is authoritative for allowed regions"
+    ],
+    "risks": [
+      "Provider capability gaps (local filesystem, non-S3) for object-lock/versioning",
+      "Retention rules conflicting with residency/backup retention",
+      "Signed-URL policy leakage across tenants"
+    ],
+    "evidence": [
+      "Roadmap EDP-16",
+      "Candidate code audit"
+    ],
+    "confidence": "medium",
+    "missing_info": [
+      "Default retention periods per data class",
+      "Whether object-lock applies in dev/local mode",
+      "Signed-URL TTL ceiling and audience model"
+    ],
+    "depth": "deep",
+    "mode": "ai",
+    "context_review": {
+      "implementable": true,
+      "missing": [
+        "Retention defaults per data class",
+        "Signed-URL TTL policy values"
+      ],
+      "reason": "Interfaces, adapter, and manifest exist or are pinned; only policy values need human input."
+    },
+    "consolidation_proposal": {
+      "sources": [
+        "BI-PF-1293",
+        "BI-PF-1299",
+        "BI-PF-1306",
+        "BI-PF-1304"
+      ],
+      "title": "EDP-16: Object lifecycle (versioning/lock/retention), signed-URL policy, delete/replica/backup reconciliation",
+      "body": "Part of EPIC BI-PF-1292. Source: docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md. Phase item (see epic). Language rule L1 = Go; must pass scripts/dev/language_rule_review.py.",
+      "acceptance_criteria": [
+        "lifecycle rules + optional object lock/immutability; versioning where required.",
+        "delete reconciles DB record, object versions, replicas and backups per retention; tenant deletion includes objects.",
+        "orphaned-object and lifecycle-expiry tests pass.",
+        "ADR document committed covering storage layers, backends, and data-flow decisions",
+        "Develop commit SHA pinned and recorded",
+        "L1 Go rule passes language_rule_review.py",
+        "11 Go interfaces defined in internal/storage/ with godoc and compile-time assertions",
+        "Conformance harness package exposes embeddable test suites per interface",
+        "In-memory reference adapter passes all conformance suites",
+        "scripts/dev/language_rule_review.py passes (Go-only)",
+        "config/test-matrix.json extended with storage-conformance rows",
+        "Adapter passes the shared conformance suite against MinIO in CI",
+        "Capabilities (region/replication/versioning) exposed via capability probe API",
+        "Language rule L1 (Go) passes scripts/dev/language_rule_review.py",
+        "No credentials logged; env-based config only",
+        "Packaging build emits residency manifest with all six field groups populated",
+        "Deploy gate fails (or warns per config) when manifest violates allowed_regions/retention policy",
+        "scripts/dev/language_rule_review.py passes for all Go code"
+      ],
+      "moscow": "Must"
+    },
+    "arch_fingerprint": "dc9598f15f6d5d5f"
+  },
+  "dependencies": [
+    {
+      "task_id": "BI-PF-1307",
+      "type": "REQUIRES",
+      "required_state": "COMPLETE"
+    },
+    {
+      "task_id": "BI-PF-1306",
+      "type": "RELATED",
+      "required_state": "completed"
+    },
+    {
+      "task_id": "BI-PF-1299",
+      "type": "RELATED",
+      "required_state": "completed"
+    }
+  ],
+  "blocked_by": [
+    "BI-PF-1307"
+  ],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-13T16:33:52.404837"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-13T16:03:00.740687",
+  "updated_at": "2026-10-13T16:35:29.514209",
+  "score": 0.75,
+  "source_ref": "docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md",
+  "_note": "dependencies set"
+}

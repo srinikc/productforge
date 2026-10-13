@@ -1,0 +1,265 @@
+{
+  "id": "BI-PF-1300",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "edp-08-migrations-roles",
+  "label": "PF Backlog 589",
+  "title": "EDP-08: Versioned migration framework + DB role separation (owner/runtime/read/backup) + schema-ownership policy (no auto-migrate on startup)",
+  "body": "Part of EPIC BI-PF-1292. Source: docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md. Phase item (see epic). Language rule L1 = Go; must pass scripts/dev/language_rule_review.py.",
+  "source": "review",
+  "status": "new",
+  "priority": "P0",
+  "moscow": "Must",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [
+    "BI-PF-1293",
+    "BI-PF-1299",
+    "BI-PF-1297",
+    "BI-PF-1308"
+  ],
+  "links": {
+    "source_doc": "docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md",
+    "possible_duplicate_of": [
+      "product_forge:BI-PF-1293"
+    ]
+  },
+  "decisions": [
+    {
+      "at": "2026-10-13T16:33:37.378222",
+      "decision": "APPROVE",
+      "by": "agent",
+      "note": "finalized: decisions recorded 2026-10-13"
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "Application startup may auto-migrate the database schema, and all database operations use a single superuser role — unacceptable for enterprise.",
+    "what_adds": "Versioned migration runner, four-scoped DB roles, and a fail-closed startup gate that refuses to run with an outdated schema.",
+    "why": "Prevents privilege escalation via database compromise and ensures schema changes are auditable and reversible.",
+    "who_feels": "Security teams (least-privilege), DBAs (controlled schema changes), SREs (deterministic deployments).",
+    "source": "authored"
+  },
+  "objective": "Implement a versioned migration framework in Go with four-tier DB role separation and a schema-ownership policy that prevents auto-migration on application startup.",
+  "acceptance_criteria": [
+    "Migration runner applies versioned SQL migrations with embedded files and checksum verification",
+    "Four DB roles (owner/runtime/read/backup) created with scoped GRANTs via migration",
+    "Application startup fails closed if schema version is behind expected",
+    "Integration tests run migrations against PostgreSQL in CI",
+    "Schema-ownership policy documented in config/guardrail-policy.json"
+  ],
+  "in_scope": [
+    "internal/migrations/ Go package (runner + embedded migrations)",
+    "Initial migration creating four DB roles with scoped GRANTs",
+    "Startup version-check gate (fail-closed, no auto-migrate)",
+    "PostgreSQL integration tests",
+    "Schema-ownership policy config entry"
+  ],
+  "out_of_scope": [
+    "Automatic data backfill/transform tooling",
+    "Cross-database migration (e.g., to non-PostgreSQL)",
+    "UI for migration management",
+    "RLS policy definitions (BI-PF-1301)"
+  ],
+  "affected_components": [
+    "internal/migrations/",
+    "config/guardrail-policy.json",
+    "cmd/server/startup.go"
+  ],
+  "affected_files": [
+    "internal/migrations/runner.go",
+    "internal/migrations/migrations/0001_roles.sql",
+    "internal/migrations/checksum.go",
+    "cmd/server/startup.go",
+    "config/guardrail-policy.json"
+  ],
+  "approach": "Define migration directory structure, implement checksummed runner, create roles migration, add startup gate, write integration tests against PostgreSQL.",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "go test ./internal/migrations/... passes with PostgreSQL",
+    "Startup with out-of-date schema returns 503 error",
+    "Four roles verified via \\du in integration test",
+    "Language rule review passes",
+    "No auto-migrate path exists (code review + test)"
+  ],
+  "risks": [
+    "Role separation must be tested against actual PostgreSQL; local dev may bypass",
+    "Versioned migrations with branching teams risk merge conflicts on version numbers",
+    "No-auto-migrate policy may break existing dev workflows if not gated early"
+  ],
+  "rollback": "Revert migrations package and startup gate; existing schema remains unchanged if no production migrations have run.",
+  "evidence": [
+    "core/change_policy.py and config/guardrail-policy.json show policy-as-code pattern",
+    "Language rule confirms Go-only for new code",
+    "No existing migration tooling detected in candidate list"
+  ],
+  "owner": "storage-platform-team",
+  "requester": "product_forge",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1292",
+  "parent": "BI-PF-1292",
+  "revision": 9,
+  "priority_rank": 2,
+  "priority_class": "P0",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "STALE",
+    "analyzed_at": "2026-10-13T16:33:37.050967",
+    "analyzed_by": "agent",
+    "revision_analyzed": 8,
+    "architecture_fit": "NEW_CAPABILITY",
+    "implementation_strategy": "Create Go package `internal/migrations/` with versioned migration runner using embedded SQL files. Define four DB roles (owner, runtime, read-only, backup) as migration steps creating PostgreSQL roles with scoped GRANTs. Implement schema-ownership policy: app startup checks migration version and refuses to run if out of date; no auto-migrate. Leverage config/verification-policy.json and config/artifact-owners.json patterns for role ownership metadata.",
+    "existing_components": [],
+    "existing_apis": [],
+    "existing_modules": [],
+    "dependency_findings": [
+      "REQUIRES BI-PF-1293 (architecture ADR) — DB role model must align with ADR",
+      "REQUIRES BI-PF-1299 (storage interfaces) — migration store interface may be consumed",
+      "RELATED BI-PF-1297 (Policy Registry) — schema-ownership mirrors versioned policy pattern"
+    ],
+    "conflict_findings": [
+      "BI-PF-1299 creates internal/storage/ package; migrations package should depend on it, not duplicate",
+      "BI-PF-1297 policy registry may be the enforcement point for schema-ownership — coordinate"
+    ],
+    "duplication_findings": [
+      "No existing Go migration framework in candidate components",
+      "core/change_policy.py provides a policy pattern that can inform migration approval gates",
+      "config/guardrail-policy.json could host schema-ownership policy declarations"
+    ],
+    "drift": "LOW",
+    "rewrite_required": false,
+    "new_component_required": true,
+    "rationale": "Database schema ownership and role separation are non-negotiable for the enterprise roadmap. No existing Go migration framework exists; a new package is required.",
+    "assumptions": [
+      "PostgreSQL 14+ is the target RDBMS",
+      "CI has access to a real PostgreSQL instance for integration tests",
+      "Existing app startup has no current migration logic to preserve"
+    ],
+    "risks": [
+      "Role separation must be tested against actual PostgreSQL; local dev may bypass",
+      "Versioned migrations with branching teams risk merge conflicts on version numbers",
+      "No-auto-migrate policy may break existing dev workflows if not gated early"
+    ],
+    "evidence": [
+      "core/change_policy.py and config/guardrail-policy.json show policy-as-code pattern",
+      "Language rule confirms Go-only for new code",
+      "No existing migration tooling detected in candidate list"
+    ],
+    "confidence": "medium",
+    "missing_info": [
+      "Exact set of PostgreSQL GRANTs per role — needs security review",
+      "Migration numbering convention (timestamp vs sequential)",
+      "How dev environments handle migrations (docker-compose integration?)"
+    ],
+    "depth": "deep",
+    "mode": "ai",
+    "context_review": {
+      "implementable": true,
+      "missing": [
+        "PostgreSQL role GRANT matrix needs security review",
+        "Migration numbering convention decision"
+      ],
+      "reason": "Well-scoped new Go package with clear PostgreSQL integration; dependent on ADR (1293) for role model alignment but technically independent."
+    },
+    "consolidation_proposal": {
+      "sources": [
+        "BI-PF-1293",
+        "BI-PF-1299",
+        "BI-PF-1297",
+        "BI-PF-1308"
+      ],
+      "title": "EDP-08: Versioned migration framework + DB role separation (owner/runtime/read/backup) + schema-ownership policy (no auto-migrate on startup)",
+      "body": "Part of EPIC BI-PF-1292. Source: docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md. Phase item (see epic). Language rule L1 = Go; must pass scripts/dev/language_rule_review.py.",
+      "acceptance_criteria": [
+        "Schema changes are versioned, reviewed files; application startup never auto-migrates in production.",
+        "Roles exist: migration/owner, restricted runtime (not superuser, not BYPASSRLS), read-only/analytics, backup.",
+        "Rollback/expand-contract path exercised on disposable data.",
+        "ADR document committed covering storage layers, backends, and data-flow decisions",
+        "Develop commit SHA pinned and recorded",
+        "L1 Go rule passes language_rule_review.py",
+        "11 Go interfaces defined in internal/storage/ with godoc and compile-time assertions",
+        "Conformance harness package exposes embeddable test suites per interface",
+        "In-memory reference adapter passes all conformance suites",
+        "scripts/dev/language_rule_review.py passes (Go-only)",
+        "config/test-matrix.json extended with storage-conformance rows",
+        "Registry versions policies and fails closed on unknown/missing region",
+        "IN-v1 and US-v1 profiles load from config and validate",
+        "Policy evaluation delegated to BI-PF-1303 interfaces",
+        "Go passes language_rule_review.py",
+        "lifecycle rules + optional object lock/immutability; versioning where required.",
+        "delete reconciles DB record, object versions, replicas and backups per retention; tenant deletion includes objects.",
+        "orphaned-object and lifecycle-expiry tests pass."
+      ],
+      "moscow": "Must"
+    },
+    "arch_fingerprint": "dc9598f15f6d5d5f"
+  },
+  "dependencies": [
+    {
+      "task_id": "BI-PF-1293",
+      "type": "REQUIRES",
+      "required_state": "COMPLETE"
+    },
+    {
+      "task_id": "BI-PF-1299",
+      "type": "RELATED",
+      "required_state": "completed"
+    },
+    {
+      "task_id": "BI-PF-1297",
+      "type": "RELATED",
+      "required_state": "completed"
+    },
+    {
+      "task_id": "BI-PF-1308",
+      "type": "RELATED",
+      "required_state": "completed"
+    }
+  ],
+  "blocked_by": [
+    "BI-PF-1293"
+  ],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-13T16:33:37.177900"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-13T16:02:30.104313",
+  "updated_at": "2026-10-13T16:35:26.326691",
+  "score": 0.75,
+  "source_ref": "docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md",
+  "_note": "dependencies set"
+}
