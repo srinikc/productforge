@@ -75,6 +75,21 @@ def test_kind_detection():
     assert contracts.detect_kind("a simple todo list")["kind"] == "text"
 
 
+def test_validate_agent():
+    ids = [c["artifact_id"] for c in contracts.resolve(agent="design", stage="1", kind="text")["contracts"]]
+    assert ids, "design/1 should resolve contracts"
+    secs = []
+    for aid in ids:
+        secs += contracts.contract(aid).get("required_sections") or []
+    good = "\n".join(f"## {s}" for s in secs)
+    r = contracts.validate_agent(agent="design", stage="1", kind="text", text=good)
+    assert r["ok"] is True, r["failures"]
+    assert set(r["checked"]) == set(ids)
+    bad = contracts.validate_agent(agent="design", stage="1", kind="text", text="nothing here")
+    assert bad["ok"] is False
+    assert bad["failures"]
+
+
 def test_format_and_limits_validation():
     # api.openapi: format=json -> invalid JSON fails; valid JSON with keys passes
     assert contracts.validate_artifact("api.openapi", "not json")["ok"] is False

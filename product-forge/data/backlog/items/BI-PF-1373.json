@@ -1,0 +1,197 @@
+{
+  "id": "BI-PF-1373",
+  "tag": "PF",
+  "type": "task",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "",
+  "label": "PF Backlog 624",
+  "title": "Artifact contracts: product-wide DRY (state NFRs/quality once, not per feature)",
+  "body": "Deduplicate cross-cutting content: NFRs/quality/security stated product-wide once; per-feature artifacts reference by id. Separate concern from BI-PF-1347.",
+  "source": "generic",
+  "status": "new",
+  "priority": "P2",
+  "moscow": "Should",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [],
+  "links": {
+    "issue": "product_forge:IS-PF-0051"
+  },
+  "decisions": [
+    {
+      "at": "2026-10-13T23:16:05.432269",
+      "decision": "APPROVE",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)"
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "Deduplicate cross-cutting content: NFRs/quality/security stated product-wide once; per-feature artifacts reference by id. Separate concern from BI-PF-1347.",
+    "what_adds": "Artifact contracts: product-wide DRY (state NFRs/quality once, not per feature)",
+    "why": "Deduplicate cross-cutting content: NFRs/quality/security stated product-wide once; per-feature artifacts reference by id. Separate concern from BI-PF-1347.",
+    "who_feels": "Product Forge maintainers and consumers.",
+    "source": "extracted"
+  },
+  "objective": "Artifact contracts: product-wide DRY (state NFRs/quality once, not per feature)",
+  "acceptance_criteria": [
+    "Objective achieved: Artifact contracts: product-wide DRY (state NFRs/quality once, not per feature)"
+  ],
+  "in_scope": [
+    "Artifact contracts: product-wide DRY (state NFRs/quality once, not per feature)"
+  ],
+  "out_of_scope": [
+    "Not specified."
+  ],
+  "affected_components": [
+    "Not specified."
+  ],
+  "affected_files": [
+    "Not specified."
+  ],
+  "approach": "Artifact contracts: product-wide DRY (state NFRs/quality once, not per feature)",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Objective achieved: Artifact contracts: product-wide DRY (state NFRs/quality once, not per feature)"
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "agent",
+  "requester": "generic",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1342",
+  "parent": "BI-PF-1342",
+  "revision": 2,
+  "priority_rank": 40,
+  "priority_class": "P2",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "COMPLETE",
+    "analyzed_at": "2026-10-13T23:16:05.206262",
+    "analyzed_by": "system",
+    "revision_analyzed": 2,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend core/contracts.py + core/artifact_registry.py to support a 'product-wide' shared artifact section registry: NFRs/quality/security defined once as canonical blocks with ids, emitted from config/artifact-formats.json. Per-feature artifact templates reference blocks via {{ref:<id>}} tokens resolved at generation and validate_artifact time. Extend /api/v1/validation/artifact-contracts to verify every referenced id exists and no per-feature duplication of shared blocks is present.",
+    "existing_components": [],
+    "existing_apis": [],
+    "existing_modules": [],
+    "dependency_findings": [
+      {
+        "task_id": "BI-PF-1347",
+        "type": "RELATED",
+        "required_state": "scoped-out or merged before implementation"
+      },
+      {
+        "task_id": "BI-PF-1372",
+        "type": "RELATED",
+        "required_state": "outline gate stable so reference tokens resolve before prose fill"
+      },
+      {
+        "task_id": "BI-PF-1248",
+        "type": "RELATED",
+        "required_state": "none"
+      }
+    ],
+    "conflict_findings": [
+      "Concurrent edits to core/contracts.py and config/artifact-formats.json with BI-PF-1347",
+      "/api/v1/validation/artifact-contracts endpoint also targeted by BI-PF-1347"
+    ],
+    "duplication_findings": [
+      "BI-PF-1347 already bundles 'product-wide DRY' — scope must be carved out to avoid duplicate implementation",
+      "core/quality_metrics.py and core/contracts.py both touch quality requirements; consolidate emission through contracts.py"
+    ],
+    "drift": "LOW",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "DRY-ing cross-cutting content reduces drift and token cost across artifacts; existing contracts/registry/format config provide a natural extension point with no new component needed. Scope must be explicitly separated from BI-PF-1347 to avoid duplicate work.",
+    "assumptions": [
+      "Artifact formats are already declarative in config/artifact-formats.json",
+      "validate_artifact is the single validation entrypoint",
+      "Per-feature artifacts already carry stable ids via artifact_registry"
+    ],
+    "risks": [
+      "Reference-token resolution could break existing generated artifacts lacking ids",
+      "Overlapping scope with BI-PF-1347 may cause merge conflicts",
+      "Shared-block registry may over-constrain features needing local NFR variance"
+    ],
+    "evidence": [
+      "Existing /api/v1/validation/artifact-contracts and /budget endpoints",
+      "core/contracts.py centralizes contract logic",
+      "config/artifact-formats.json is the declarative source of truth"
+    ],
+    "confidence": "medium",
+    "missing_info": [
+      "Canonical list of product-wide sections to deduplicate (NFRs, quality, security, others?)",
+      "Whether per-feature local overrides of shared blocks are permitted",
+      "Sequencing decision vs BI-PF-1347 (split or block)",
+      "Id namespace and reference token syntax"
+    ],
+    "depth": "deep",
+    "mode": "ai",
+    "context_review": {
+      "ok": false,
+      "source": "llm",
+      "implementable": false,
+      "missing": [
+        "what",
+        "how",
+        "where"
+      ],
+      "reason": "Title/objective/approach/acceptance are all circular restatements of the goal; no concrete reference-id mechanism, schema/format, or files/components specified; where fields say 'Not specified.'"
+    },
+    "decision_request": {
+      "needed": false,
+      "reasons": [],
+      "ask": ""
+    },
+    "arch_fingerprint": "1533932e5f48e4e1"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-13T23:16:05.309735"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-13T23:15:12.629228",
+  "updated_at": "2026-10-13T23:16:05.780525",
+  "score": 0.75,
+  "_note": "readiness computed"
+}

@@ -544,6 +544,26 @@ def coverage(agents: list, stages: list) -> dict:
                                "missing_stages": list(stages), "bad_contracts": ["go host unavailable"]}
 
 
+def validate_agent(agent: str = "", stage: str = "", kind: str = "*", text: str = "") -> dict:
+    """Validate an agent/stage's produced text against ALL its resolved contracts.
+
+    Thin composition (no logic): resolve -> validate each. Returns
+    ``{ok, failures:[{artifact_id, reasons}], checked:[artifact_id,...]}``.
+    """
+    res = resolve(agent=agent, stage=stage, kind=kind)
+    failures = []
+    checked = []
+    for c in (res.get("contracts") or []):
+        aid = c.get("artifact_id")
+        if not aid:
+            continue
+        checked.append(aid)
+        r = validate_artifact(aid, text)
+        if not r.get("ok"):
+            failures.append({"artifact_id": aid, "reasons": r.get("reasons") or []})
+    return {"ok": not failures, "failures": failures, "checked": checked}
+
+
 # ── CLI ──────────────────────────────────────────────────────────────────────────
 def _cli(argv: list[str] | None = None) -> int:
     args = list(sys.argv[1:] if argv is None else argv)
