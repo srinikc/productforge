@@ -218,3 +218,15 @@ def _isolate_id_allocator(tmp_path, monkeypatch):
     # would make claim tests non-hermetic (a stale lease blocks a re-run). Lease-specific tests set it explicitly.
     monkeypatch.setenv("PF_LEASE_REMOTE", "off")
     monkeypatch.delenv("PF_API_URL", raising=False)
+
+
+@pytest.fixture(autouse=True)
+def _isolate_learnings(tmp_path, monkeypatch):
+    """BI-PF-1332: tests must NOT write the real data/learnings.json.
+
+    A generalized RCCA routes a learning to the GLOBAL store (core.learnings.add with no project), so an
+    un-isolated test pollutes the committed store; high-count test rules then crowd out freshly added rules
+    in render() (bounded) and break test_global_render_unchanged. Redirect the global store to a temp file.
+    """
+    from core import learnings
+    monkeypatch.setattr(learnings, "_FILE", str(tmp_path / ("learnings" + ".json")))
