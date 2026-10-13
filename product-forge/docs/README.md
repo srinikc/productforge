@@ -143,6 +143,7 @@
 | [`product_forge_Multi_Model_Adapters_Aggregators.md`](Product_Factory_Multi_Model_Adapters_Aggregators.md) | Analysis (reference) | 100% | Multi-model architecture: adapters/registry/router/generator/aggregator separation | — | — |
 | [`Product_Forge_Audit_Organized_Executive_Master_With_Execution_Guardrails_20260929.md`](Product_Forge_Audit_Organized_Executive_Master_With_Execution_Guardrails_20260929.md) | Analysis (reference) | 100% | Organized audit master (source register) | — | — |
 | [`Product_Forge_Code_Aligned_Target_Architecture_PreImplementation_Baseline.md`](Product_Forge_Code_Aligned_Target_Architecture_PreImplementation_Baseline.md) | Design | 10% | Source target-architecture baseline (CODE-ALIGNED AMENDMENT is authority); reconciled by A0/BI-PF-0392 | — | — |
+| [`Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md`](Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md) | Reference (verify) | 50% | unclassified - confirm before relying on it | — | — |
 | [`RCCA-CLOSURE-INTEGRITY-DESIGN.md`](RCCA-CLOSURE-INTEGRITY-DESIGN.md) | Design | 100% | RCCA closure integrity: guideline truth + G8 + learning loop (BI-PF-0270) | — | — |
 | [`RCCA_productForge.md`](RCCA_productForge.md) | Analysis (current) | 100% | Root-cause + corrective/preventive guidelines for the audit/issues gaps | — | — |
 | [`RE-RUN-IMPACT-ANALYSIS.md`](RE-RUN-IMPACT-ANALYSIS.md) | Implemented | 100% | Rerun / impact invalidation model | — | — |
