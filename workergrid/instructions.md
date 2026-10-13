@@ -53,6 +53,12 @@ wire it → exercise it → record drift → approval (new path) → API-first �
    while **keeping every part the feature actually needs**. **Scope to your change** (don't drive-by refactor
    unrelated code; pre-existing debt ⇒ raise a backlog item). **Prove nothing broke** (gates + tests); if a
    removal isn't safe, keep it and record why.
+16. **Stay close to `develop` — sync often, not just at the end.** Drift causes last-minute conflicts and huge
+    merges. Run `python scripts/dev/sync_develop.py` when you **start** a task (and `--check` anytime to see if
+    you're behind); it **merges** `origin/develop` into your branch — **never** rebase/reset. The derived backlog
+    files (history / indexes / counters / generated docs) auto-resolve; a **source** conflict aborts cleanly —
+    resolve it before continuing. The `pre-commit` and `pre-push` hooks run it automatically (if a sync merges,
+    just re-run your command). Keep each session in its **own** working tree/clone (IS-PF-0036).
 
 ## Full lifecycle (the worker architects/designs too — PF cannot build PF)
 1. Understand the requirement + inspect current code.

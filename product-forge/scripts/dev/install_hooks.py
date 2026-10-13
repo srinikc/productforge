@@ -1,8 +1,10 @@
 """Install repo git hooks (author-time guards) — idempotent.
 
-Currently installs a ``pre-commit`` hook that runs the CHEAP, changed-file guards so a
+Currently installs a ``pre-commit`` hook that (0) folds ``origin/develop`` into the branch first (BI-PF-1318
+per-worker sync; merge, never rebase/reset) and then runs the CHEAP, changed-file guards so a
 store-contract/lint/branch violation is caught before it ever reaches the merge-time precheck:
 
+  - scripts/dev/sync_develop.py   (stay close to develop; merge, never rebase - BI-PF-1318)
   - scripts/dev/branch_guard.py   (never commit directly on develop/main - BI-PF-0430)
   - scripts/dev/store_check.py   (new data-file literals must be registered)
   - scripts/dev/lint_check.py --strict  (ruff on changed files)
@@ -32,6 +34,9 @@ _HOOK = """#!/bin/sh
 set -e
 PF="product-forge"
 [ -d "$PF/scripts/dev" ] || exit 0
+# BI-PF-1318: fold origin/develop into the branch before committing (per-worker sync; merge, never rebase).
+# If it merged, it exits 1 -> re-run `git commit` (the merge is its own clean commit). Skips when up to date.
+python "$PF/scripts/dev/sync_develop.py" --pre-commit || exit $?
 # BI-PF-1249: keep DERIVED docs fresh whenever the backlog changes (bookkeeping commits bypass precheck).
 if git diff --cached --name-only --diff-filter=ACM | grep -q '^product-forge/data/backlog/'; then
 ( cd "$PF" && python scripts/dev/gen_docs_index.py ) >/dev/null 2>&1 || true

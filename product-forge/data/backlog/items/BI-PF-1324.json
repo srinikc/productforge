@@ -1,0 +1,184 @@
+{
+  "id": "BI-PF-1324",
+  "tag": "PF",
+  "type": "chore",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "",
+  "label": "PF Backlog 609",
+  "title": "Concurrent sessions: uniquely-name scratch/temp files (avoid shared temp-dir collision)",
+  "body": "## Problem / why\nDuring BI-PF-1318 delivery, two concurrent agent sessions shared `%LOCALAPPDATA%\\Temp\\opencode` and one\nOVERWROTE the other's `resolve_merge.py`, so the wrong script ran (pointing at another session's worktree). Any\nsession that writes a fixed-name scratch file in a shared temp dir can clobber a peer's - silent, hard to trace.\n\n## Goal & value\nConcurrent sessions never collide on scratch files.\n\n## In scope\n- Guideline/rule: scratch/temp files (scripts, logs, dumps) must be UNIQUELY named per session\n  (e.g. include the session/pid/ULID), or written under a session-scoped directory.\n- Optionally: a tiny helper for session-scoped scratch paths.\n\n## Out of scope\n- The OS temp location itself.\n\n## Acceptance criteria\n- The worker charter / AGENTS note \"unique scratch filenames per session\".\n- A helper (if built) returns a session-scoped path; test covers uniqueness.\n\n## Rollback\nRemove the guidance/helper.\n\n## Related\nIS-PF-0036 (one working tree per session), BI-PF-0462 (id collisions). Epic BI-PF-1248.\n",
+  "source": "user",
+  "status": "new",
+  "priority": "P2",
+  "moscow": "Should",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [
+    "BI-PF-1318"
+  ],
+  "links": {
+    "related": [
+      "BI-PF-0462"
+    ]
+  },
+  "decisions": [
+    {
+      "at": "2026-10-13T17:53:11.343974",
+      "decision": "APPROVE",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)"
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "During BI-PF-1318 delivery, two concurrent agent sessions shared `%LOCALAPPDATA%\\Temp\\opencode` and one\nOVERWROTE the other's `resolve_merge.py`, so the wrong script ran (pointing at another session's worktree). Any\nsession that writes a fixed-name scratch file in a shared temp dir can clobber a peer's - silent, hard to trace.",
+    "what_adds": "Concurrent sessions never collide on scratch files.",
+    "why": "During BI-PF-1318 delivery, two concurrent agent sessions shared `%LOCALAPPDATA%\\Temp\\opencode` and one\nOVERWROTE the other's `resolve_merge.py`, so the wrong script ran (pointing at another session's worktree). Any\nsession that writes a fixed-name scratch file in a shared temp dir can clobber a peer's - silent, hard to trace.",
+    "who_feels": "Product Forge maintainers and consumers.",
+    "source": "authored"
+  },
+  "objective": "Concurrent sessions never collide on scratch files.",
+  "acceptance_criteria": [
+    "The worker charter / AGENTS note \"unique scratch filenames per session\".",
+    "A helper (if built) returns a session-scoped path; test covers uniqueness."
+  ],
+  "in_scope": [
+    "Guideline/rule: scratch/temp files (scripts, logs, dumps) must be UNIQUELY named per session",
+    "Optionally: a tiny helper for session-scoped scratch paths."
+  ],
+  "out_of_scope": [
+    "The OS temp location itself."
+  ],
+  "affected_components": [
+    "Not specified."
+  ],
+  "affected_files": [
+    "resolve_merge.py"
+  ],
+  "approach": "Guideline/rule: scratch/temp files (scripts, logs, dumps) must be UNIQUELY named per session; Optionally: a tiny helper for session-scoped scratch paths.",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "The worker charter / AGENTS note \"unique scratch filenames per session\".",
+    "A helper (if built) returns a session-scoped path; test covers uniqueness."
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Remove the guidance/helper.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "agent",
+  "requester": "user",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1248",
+  "parent": "BI-PF-1248",
+  "revision": 3,
+  "priority_rank": 40,
+  "priority_class": "P2",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "COMPLETE",
+    "analyzed_at": "2026-10-13T17:53:10.939170",
+    "analyzed_by": "system",
+    "revision_analyzed": 3,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend worker charter/AGENTS guidance (same surface as BI-PF-1318/BI-PF-1290) to require uniquely-named scratch files (session/pid/ULID suffix or session-scoped dir). Optionally add a tiny scratch-path helper near core utilities; no new component.",
+    "existing_components": [],
+    "existing_apis": [],
+    "existing_modules": [],
+    "dependency_findings": [
+      "BI-PF-1318 RELATED (charter text lands in same worker charter file)",
+      "IS-PF-0036 RELATED (one working tree per session aligns with session-scoped dirs)"
+    ],
+    "conflict_findings": [
+      "BI-PF-1318 edits the same worker charter/AGENTS file - sequence after it",
+      "BI-PF-1323 touches sync hygiene scripts, low overlap"
+    ],
+    "duplication_findings": [
+      "BI-PF-1290 sync_develop helper is adjacent but not duplicate",
+      "BI-PF-1318 charter-guideline pattern is reusable, not duplicated"
+    ],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "Small, well-evidenced fix reusing the charter-guideline pattern from BI-PF-1318; helper is optional and can reuse existing core utilities.",
+    "assumptions": [
+      "Worker charter is the single source of agent behavior rules",
+      "A session identifier (pid/ULID) is available where scratch files are written"
+    ],
+    "risks": [
+      "Guidance-only fix may not be enforced - agents can regress",
+      "Helper without call-site adoption may go unused"
+    ],
+    "evidence": [
+      "BI-PF-1318: resolve_merge.py overwritten between concurrent sessions in %LOCALAPPDATA%\\Temp\\opencode"
+    ],
+    "confidence": "high",
+    "missing_info": [
+      "Should the helper live in a specific module or be left to each session?",
+      "Is enforcement (lint/check in pre-commit) desired or is guidance enough?"
+    ],
+    "depth": "deep",
+    "mode": "ai",
+    "context_review": {
+      "ok": false,
+      "source": "llm",
+      "implementable": false,
+      "missing": [
+        "where"
+      ],
+      "reason": "What/why/how are clear (uniquely-named scratch files, optional session-scoped helper, guideline), but WHERE is unstated: AFFECTED_COMPONENTS is 'Not specified', and the charter/AGENTS location plus where a helper would live are not identified; resolve_merge.py is only an incident example, not the fix target."
+    },
+    "arch_fingerprint": "6e60000b1bbcc5ff"
+  },
+  "dependencies": [
+    {
+      "task_id": "BI-PF-1318",
+      "type": "RELATED",
+      "required_state": "merged"
+    }
+  ],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-13T17:53:11.116261"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-13T17:52:23.422633",
+  "updated_at": "2026-10-13T17:53:11.549211",
+  "score": 0.75,
+  "_note": "readiness computed"
+}
