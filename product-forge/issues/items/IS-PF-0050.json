@@ -1,0 +1,31 @@
+{
+  "id": "IS-PF-0050",
+  "tag": "PF",
+  "scope": "product_forge",
+  "project": "",
+  "title": "Failed stage blocks all re-runs: checkpoint restore keeps the failed stage (new/--from-stage fail immediately)",
+  "body": "A stage that FAILED makes the project unrecoverable via a normal re-run: execute_pipeline -> _load_checkpoint/_restore_from_checkpoint (core/pipeline_executor.py:718-787) restores the checkpoint and only resets stages left running; a failed stage is kept, so the DAG immediately reports pipeline_failed. Observed: a NEW run of MyToDo failed in 8.1s (pipeline_failed: 1 stages failed) without running any agent. Even selective rerun is clobbered because the checkpoint is restored AFTER run_pipeline.py invalidate_for_rerun. Result: no clean retry path; operators must delete pipeline-state.json.",
+  "kind": "issue",
+  "priority": "P1",
+  "severity": "high",
+  "module": "core/pipeline_executor.py",
+  "status": "open",
+  "rcca": {
+    "root_cause": "_restore_from_checkpoint resets only running stages and keeps failed stages; the checkpoint is restored after any selective-rerun invalidation, so a failed stage is never re-run and the pipeline fails on load.",
+    "corrective": "Treat a failed stage as re-runnable on an explicit new/continue/from-stage request (reset failed -> pending, or do not restore failed stages), so a retry actually re-executes.",
+    "preventive": "Test: a state with a failed stage + a new/from-stage request re-runs that stage instead of failing immediately.",
+    "fixed_where": "core/pipeline_executor.py",
+    "generalized": true,
+    "guideline_ref": "",
+    "product_ref": ""
+  },
+  "backlog_ref": "BI-PF-1330",
+  "source": "review",
+  "source_ref": "e2e-mytodo-failed-stage-blocks-rerun",
+  "evidence": [],
+  "links": {
+    "backlog": "BI-PF-1330"
+  },
+  "created_at": "2026-10-13T18:30:52.133015",
+  "updated_at": "2026-10-13T18:31:52.213960"
+}

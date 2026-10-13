@@ -1,0 +1,187 @@
+{
+  "id": "BI-PF-1333",
+  "tag": "PF",
+  "type": "task",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "issue",
+  "external_id": "",
+  "label": "PF Backlog 611",
+  "title": "Design stage over-proportions output: 19 FRs + 15 NFRs for one trivial feature; 314KB partial blows run time/cost",
+  "body": "Design over-proportions output. agents/design.agent.json instructs an FR for EVERY feature (no exceptions), full acceptance criteria, plus NFRs and user stories, with NO per-feature proportionality cap, and the under-500-lines rule is unenforced. Observed on MyToDo stage 1 (design): a trivial feature F-1 Create todo produced 19 FRs + 15 NFRs + 13 user stories; design-output.md.partial already 314KB; stage-1 output ~140k tokens over 11 calls (~10k output tokens each), while the agent declares expected ~5k input / ~10k output / 2-5 min. Combined with the per-feature strategy (10 features) this exhausts time/cost. Inputs were small and sane (~5-8k tokens) - it is output over-elaboration, not bad input data.",
+  "source": "generic",
+  "status": "new",
+  "priority": "P0",
+  "moscow": "Must",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [
+    "BI-0098"
+  ],
+  "links": {
+    "issue": "product_forge:IS-PF-0051"
+  },
+  "decisions": [
+    {
+      "at": "2026-10-13T18:58:11.685721",
+      "decision": "APPROVE",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)"
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "Design over-proportions output. agents/design.agent.json instructs an FR for EVERY feature (no exceptions), full acceptance criteria, plus NFRs and user stories, with NO per-feature proportionality cap, and the under-500-lines rule is unenforced. Observed on MyToDo stage 1 (design): a trivial feature F-1 Create todo produced 19 FRs + 15 NFRs + 13 user stories; design-output.md.partial already 314KB; stage-1 output ~140k tokens over 11 calls (~10k output tokens each), while the agent declares expected ~5k input / ~10k output / 2-5 min. Combined with the per-feature strategy (10 features) this exhausts time/cost. Inputs were small and sane (~5-8k tokens) - it is output over-elaboration, not bad input data.",
+    "what_adds": "Design stage over-proportions output: 19 FRs + 15 NFRs for one trivial feature; 314KB partial blows run time/cost",
+    "why": "Design over-proportions output. agents/design.agent.json instructs an FR for EVERY feature (no exceptions), full acceptance criteria, plus NFRs and user stories, with NO per-feature proportionality cap, and the under-500-lines rule is unenforced. Observed on MyToDo stage 1 (design): a trivial feature F-1 Create todo produced 19 FRs + 15 NFRs + 13 user stories; design-output.md.partial already 314KB; stage-1 output ~140k tokens over 11 calls (~10k output tokens each), while the agent declares expected ~5k input / ~10k output / 2-5 min. Combined with the per-feature strategy (10 features) this e",
+    "who_feels": "Product Forge maintainers and consumers.",
+    "source": "extracted"
+  },
+  "objective": "Design stage over-proportions output: 19 FRs + 15 NFRs for one trivial feature; 314KB partial blows run time/cost",
+  "acceptance_criteria": [
+    "Objective achieved: Design stage over-proportions output: 19 FRs + 15 NFRs for one trivial feature; 314KB partial blows run time/cost"
+  ],
+  "in_scope": [
+    "Design stage over-proportions output: 19 FRs + 15 NFRs for one trivial feature; 314KB partial blows run time/cost"
+  ],
+  "out_of_scope": [
+    "Not specified."
+  ],
+  "affected_components": [
+    "agents"
+  ],
+  "affected_files": [
+    "agents/design.agent.json",
+    "design-output.md"
+  ],
+  "approach": "Design stage over-proportions output: 19 FRs + 15 NFRs for one trivial feature; 314KB partial blows run time/cost",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Objective achieved: Design stage over-proportions output: 19 FRs + 15 NFRs for one trivial feature; 314KB partial blows run time/cost"
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "unassigned",
+  "requester": "generic",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1252",
+  "parent": "BI-PF-1252",
+  "revision": 3,
+  "priority_rank": 1,
+  "priority_class": "P0",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "COMPLETE",
+    "analyzed_at": "2026-10-13T18:58:11.440470",
+    "analyzed_by": "system",
+    "revision_analyzed": 3,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend agents/design.agent.json with a hard per-feature cap (e.g., <=5 FRs, <=3 NFRs, <=3 user stories for a simple feature; scale band by feature complexity from product-plan.json), add an explicit 'minimum sufficient spec' instruction with proportionality examples, and enforce the <500-line rule via a post-generation validator in core/output_checklist.py that truncates/rejects over-long design-output.md.partial before assembly. Reuse core/product_design_spec.py for parsing/cap checks and core/agent_runtime.py for max-output-token clamps per call.",
+    "existing_components": [],
+    "existing_apis": [],
+    "existing_modules": [],
+    "dependency_findings": [
+      "REQUIRES BI-0098's per-feature generation flow for the validation gate to slot in (or it must land independently on current design agent)",
+      "RELATED BI-0108 telemetry for post-fix verification of token reduction",
+      "RELATED BI-0027 progress banner unaffected"
+    ],
+    "conflict_findings": [
+      "BI-0098 touches design-stage generation/validation — coordinate cap enforcement to avoid two competing gates",
+      "BI-0108 instruments same agent_runtime call path — low touch overlap"
+    ],
+    "duplication_findings": [
+      "BI-0098 adds per-feature sectioned generation + validation gate — must share its validation gate, not duplicate",
+      "BI-0108 cost telemetry would observe but not fix this over-elaboration",
+      "core/output_checklist.py may already host line-count checks — extend rather than add new validator"
+    ],
+    "drift": "LOW",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "Root cause is prompt-level absence of proportionality plus unenforced size rule; cheapest fix is prompt caps + existing checklist validator, reuse-first with no new components.",
+    "assumptions": [
+      "MyToDo observed metrics are representative; product-plan.json exposes a complexity signal per feature",
+      "500-line rule target refers to per-feature design output section"
+    ],
+    "risks": [
+      "Caps may under-specify genuinely complex features — need complexity-scaled band, not flat cap",
+      "Validator reject-loop could stall runs if cap and template conflict",
+      "Post-hoc truncation may drop valid NFRs"
+    ],
+    "evidence": [
+      "BI-PF-1333: F-1 produced 19 FRs + 15 NFRs + 13 user stories for a trivial feature",
+      "314KB .partial and ~140k stage-1 output tokens vs declared ~10k budget",
+      "Inputs were small (5-8k tokens), confirming output-side over-elaboration"
+    ],
+    "confidence": "high",
+    "missing_info": [
+      "Exact per-feature cap values (FRs/NFRs/stories/lines) the human wants",
+      "Hard-fail vs truncate-and-warn behavior when caps are exceeded",
+      "Whether BI-0098 is confirmed in-flight (merge ordering decision)"
+    ],
+    "depth": "deep",
+    "mode": "ai",
+    "context_review": {
+      "ok": false,
+      "source": "llm",
+      "implementable": false,
+      "missing": [
+        "what",
+        "how"
+      ],
+      "reason": "Strong diagnosis (why) and clear affected files (where), but WHAT to change and HOW are just echoes of the title — no concrete fix (e.g., proportionality caps, enforced line limits, prompt edits) or verifiable acceptance criteria are specified."
+    },
+    "arch_fingerprint": "2ac583a2a8414c6d"
+  },
+  "dependencies": [
+    {
+      "task_id": "BI-0098",
+      "type": "RELATED",
+      "required_state": "optional"
+    }
+  ],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-13T18:58:11.544061"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-13T18:57:05.846028",
+  "updated_at": "2026-10-13T18:58:12.675633",
+  "score": 0.75,
+  "_note": "readiness computed"
+}
