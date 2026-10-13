@@ -63,6 +63,23 @@ def test_pre_push_returns_1_after_merge(tmp_path, monkeypatch):
     assert sd.main(["--pre-push"]) == 0       # now up to date -> push may proceed
 
 
+def test_pre_commit_returns_1_after_merge(tmp_path, monkeypatch):
+    w = _repo(tmp_path)
+    monkeypatch.chdir(w)
+    assert sd.main(["--pre-commit"]) == 1     # merged -> tell the caller to re-run the commit
+    assert (w / "c.txt").exists()
+    assert sd.main(["--pre-commit"]) == 0     # now up to date -> commit may proceed
+
+
+def test_sync_is_safe_on_dirty_tree(tmp_path, monkeypatch):
+    w = _repo(tmp_path)
+    (w / "b.txt").write_text("dirty-edit\n")     # uncommitted local change
+    monkeypatch.chdir(w)
+    assert sd.main([]) == 0
+    assert (w / "c.txt").exists()                # develop merged in
+    assert (w / "b.txt").read_text() == "dirty-edit\n"   # local change preserved (autostash)
+
+
 def test_source_conflict_aborts_clean(tmp_path, monkeypatch):
     w = _repo(tmp_path)
     _g(w, "checkout", "develop")
