@@ -120,7 +120,7 @@ func Validate(name string, payload map[string]any) (bool, []string) {
 // Capabilities are the Go-native features pfcore exposes (grows as new shipped/sensitive
 // features land here per the language rule).
 func Capabilities() []string {
-	return []string{"ping", "describe", "validate"}
+	return []string{"ping", "describe", "validate", "license.keygen", "license.issue", "license.verify"}
 }
 
 // HostID is the distinct pfcore host tag (the wire contract's `host` enum is {python, go}).
@@ -142,7 +142,9 @@ func Ping(req WireRequest) WireResponse {
 }
 
 // SupportedOps lists the seam ops pfcore understands.
-func SupportedOps() []string { return []string{"ping", "describe", "validate"} }
+func SupportedOps() []string {
+	return []string{"ping", "describe", "validate", "license.keygen", "license.issue", "license.verify"}
+}
 
 func response(req WireRequest, ok bool, status string, result map[string]any, errMsg string) WireResponse {
 	if result == nil {
@@ -181,6 +183,12 @@ func Handle(req WireRequest) WireResponse {
 		return response(req, true, "ok", map[string]any{
 			"contract": req.ContractName, "valid": valid, "errors": errs,
 		}, "")
+	case "license.keygen":
+		return LicenseKeygen(req)
+	case "license.issue":
+		return LicenseIssue(req)
+	case "license.verify":
+		return LicenseVerify(req)
 	default:
 		return response(req, false, "error", nil, "unsupported op: "+req.Op)
 	}

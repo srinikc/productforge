@@ -26,22 +26,30 @@ def test_api_base_precedence(monkeypatch):
 def test_remote_reserve_used_when_reachable(monkeypatch):
     monkeypatch.setenv("PF_ID_ALLOC_API", "on")
     monkeypatch.setattr(ia, "_api_base", lambda: "http://api")
-    import requests
+    import urllib.request
 
-    def fake_post(url, json=None, headers=None, timeout=None):
-        class Resp:
-            status_code = 200
+    class Resp:
+        status = 200
 
-            def json(self):
-                return {"data": {"start": 1000, "end": 1099}}
-        return Resp()
+        def getcode(self):
+            return 200
 
-    monkeypatch.setattr(requests, "post", fake_post)
+        def read(self):
+            return b'{"data": {"start": 1000, "end": 1099}}'
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+    monkeypatch.setattr(urllib.request, "urlopen", lambda *a, **k: Resp())
     assert ia._reserve_remote("product_forge", None, 100) == {"start": 1000, "end": 1099}
 
 
 def test_local_fallback_when_unreachable(monkeypatch):
     monkeypatch.setattr(ia, "_api_base", lambda: "http://down")
-    import requests
-    monkeypatch.setattr(requests, "post", lambda *a, **k: (_ for _ in ()).throw(ConnectionError()))
+    import urllib.request
+    monkeypatch.setattr(urllib.request, "urlopen",
+                        lambda *a, **k: (_ for _ in ()).throw(ConnectionError()))
     assert ia._reserve_remote("product_forge", None, 100) is None

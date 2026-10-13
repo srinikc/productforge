@@ -28,6 +28,18 @@ def test_bookkeeping_only_allowed_on_protected():
     assert bg.evaluate("develop", False, False, staged=[])[0] is False    # nothing staged -> block
 
 
+def test_issue_and_changelog_bookkeeping_allowed_on_protected():
+    # issue/RCCA close + change-log are evidence/derived state - allowed on develop (like the backlog store)
+    assert bg.evaluate("develop", False, False,
+                       staged=["product-forge/issues/items/IS-PF-X.json"])[0] is True
+    assert bg.evaluate("develop", False, False,
+                       staged=["product-forge/engineering/changes.jsonl"])[0] is True
+    # ...but still never mixed with feature work
+    assert bg.evaluate("develop", False, False,
+                       staged=["product-forge/issues/items/IS-PF-X.json",
+                               "product-forge/core/scheduler.py"])[0] is False
+
+
 def test_mixed_backlog_store_commit_blocked_anywhere():
     mixed = ["product-forge/data/backlog/items/BI-X.json", "product-forge/config/knowledge-registry.json"]
     ok, reason = bg.evaluate("feature/x", False, False, staged=mixed)     # even on a feature branch
@@ -35,6 +47,10 @@ def test_mixed_backlog_store_commit_blocked_anywhere():
     assert bg.evaluate("feature/x", False, False, staged=["product-forge/core/x.py"])[0] is True
     assert bg.evaluate("feature/x", False, False,
                        staged=["product-forge/data/backlog/open.json"])[0] is True   # store-only ok
+    # derived docs are NEUTRAL - a code commit may include them, and delivery mixes them with the store
+    assert bg.evaluate("feature/x", False, False,
+                       staged=["product-forge/core/x.py",
+                               "product-forge/docs/documentation-index.html"])[0] is True
 
 
 def test_main_exit_codes(monkeypatch):

@@ -214,4 +214,7 @@ def _isolate_id_allocator(tmp_path, monkeypatch):
     monkeypatch.setenv("PF_ID_ALLOC", "on")
     monkeypatch.setenv("PF_ID_ALLOC_API", "off")
     monkeypatch.setenv("PF_ID_ALLOC_REMOTE", "off")
+    # BI-PF-1282: tests must NOT touch the shared git-CAS lease ref - it outlives rmtree(products/<p>) and
+    # would make claim tests non-hermetic (a stale lease blocks a re-run). Lease-specific tests set it explicitly.
+    monkeypatch.setenv("PF_LEASE_REMOTE", "off")
     monkeypatch.delenv("PF_API_URL", raising=False)

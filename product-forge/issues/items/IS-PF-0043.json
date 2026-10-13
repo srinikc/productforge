@@ -1,0 +1,31 @@
+{
+  "id": "IS-PF-0043",
+  "tag": "PF",
+  "scope": "product_forge",
+  "project": "",
+  "title": "dogfood reports PARTIAL_SUCCESS because it treats enqueue as completion (no wait, premature validation)",
+  "body": "core/dogfood.run() enqueues the pipeline (async, status='enqueued') then immediately validates the baseline worktree; the PASS rule requires pipeline.status=='enqueued' and the pipeline is never waited on, so dogfood cannot observe a completed, passing product.",
+  "kind": "issue",
+  "priority": "P1",
+  "severity": "high",
+  "module": "core/dogfood.py",
+  "status": "open",
+  "rcca": {
+    "root_cause": "dogfood.run() treats an async enqueue as completion: it validates before the pipeline runs and its verdict rule never requires an observed terminal pipeline state.",
+    "corrective": "Drive the run to completion (bounded wait), validate the generated product dir, and map terminal states fail-closed (BI-PF-1278); ensure the DOGFOOD quality-gate record (BI-PF-1279).",
+    "preventive": "Verdict must derive from an observed terminal pipeline state + post-run validation; add a test that dogfood never returns PASS without a completed run and a passing validation.",
+    "fixed_where": "core/dogfood.py (pending BI-PF-1278/1279)",
+    "generalized": true,
+    "guideline_ref": "",
+    "product_ref": ""
+  },
+  "backlog_ref": "BI-PF-1278",
+  "source": "review",
+  "source_ref": "bi-pf-1278-dogfood-enqueue-not-execution",
+  "evidence": [],
+  "links": {
+    "backlog": "BI-PF-1278"
+  },
+  "created_at": "2026-10-12T23:36:27.625427",
+  "updated_at": "2026-10-12T23:36:27.815910"
+}

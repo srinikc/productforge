@@ -3,29 +3,26 @@
   "tag": "PF",
   "scope": "product_forge",
   "project": "",
-  "title": "dogfood reports PARTIAL_SUCCESS because it treats enqueue as completion (no wait, premature validation)",
-  "body": "core/dogfood.run() enqueues the pipeline (async, status='enqueued') then immediately validates the baseline worktree; the PASS rule requires pipeline.status=='enqueued' and the pipeline is never waited on, so dogfood cannot observe a completed, passing product.",
+  "title": "Defect/RCCA: cross-session double-claim - two sessions claimed the same backlog item (BI-PF-0396)",
+  "body": "## Observed\n`wg work --epic BI-PF-0390` returned `assigned: true` for **BI-PF-0396** while ANOTHER session already held it\n-> the same backlog item was claimed by two sessions (double-claim). A claim must fail closed if the item is taken.\n\n## RCCA (5-Why)\n1. BI-PF-0396 was assigned to two sessions at once.\n2. The lease lives in the git-shared item file (`item.execution{}`) but the other session's claim was only in\n   THEIR working copy (uncommitted/unpushed) -> invisible to my instance -> seen as free.\n3. Each session runs its OWN PF API instance over a SEPARATE working copy -> two assignment authorities.\n4. ADR-0003 assumes ONE PF (single assignment authority); N dev instances break it (the lease is only shared after\n   a commit/push, which is racy).\n5. No guard detects a second instance / foreign token / an uncoordinated (unpushed) lease.\n\nROOT CAUSE: multiple PF API instances == multiple assignment authorities; the per-item lease is not globally\ncoordinated at claim time (same class as BI-PF-0457, fixed for ids via a git-CAS authority).\n\n## Corrective\nAdopt a SINGLE shared PF API instance (one assignment authority) that all sessions use (shared URL + token);\noptionally coordinate the lease through a shared git-remote CAS (like the id counter) for cross-instance/offline.\n\n## Fixed where (planned)\ncore/job_manager.py (claim path), scripts/dev/dev_server.py (single-instance guard), docs/OPERATIONS.\nTracked by backlog BI-PF-1261.\n\n## Guard (preventive)\nRefuse/detect a second dev API on an owned port; a claim finding `execution.worker_id` set (even unpushed) fails\nclosed; verify the lease round-trips via the shared authority.",
   "kind": "issue",
   "priority": "P1",
   "severity": "high",
-  "module": "core/dogfood.py",
-  "status": "open",
+  "module": "core/job_manager.py",
+  "status": "verified",
   "rcca": {
-    "root_cause": "dogfood.run() treats an async enqueue as completion: it validates before the pipeline runs and its verdict rule never requires an observed terminal pipeline state.",
-    "corrective": "Drive the run to completion (bounded wait), validate the generated product dir, and map terminal states fail-closed (BI-PF-1278); ensure the DOGFOOD quality-gate record (BI-PF-1279).",
-    "preventive": "Verdict must derive from an observed terminal pipeline state + post-run validation; add a test that dogfood never returns PASS without a completed run and a passing validation.",
-    "fixed_where": "core/dogfood.py (pending BI-PF-1278/1279)",
-    "generalized": true,
-    "guideline_ref": "",
-    "product_ref": ""
+    "root_cause": "multiple PF API instances = multiple assignment authorities; per-item lease not coordinated at claim time",
+    "corrective": "ONE shared PF API instance (single assignment authority) all sessions use; optional git-CAS lease for cross-instance atomicity",
+    "fixed_where": "core/job_manager.py + scripts/dev/dev_server.py (BI-PF-1261)"
   },
-  "backlog_ref": "BI-PF-1278",
+  "backlog_ref": "BI-PF-1261",
   "source": "review",
-  "source_ref": "bi-pf-1278-dogfood-enqueue-not-execution",
+  "source_ref": "double-claim:BI-PF-0396",
   "evidence": [],
   "links": {
-    "backlog": "BI-PF-1278"
+    "backlog": "BI-PF-1261"
   },
-  "created_at": "2026-10-12T23:36:27.625427",
-  "updated_at": "2026-10-12T23:36:27.815910"
+  "created_at": "2026-10-12T20:45:57.223852",
+  "updated_at": "2026-10-12T21:54:40.191382",
+  "note": "fix merged: git-CAS lease authority (strict default) + single-instance guard, PR #46 / BI-PF-1261"
 }

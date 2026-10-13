@@ -45,10 +45,21 @@ def test_auto_epic_falls_back_to_unscoped():
         _clean()
 
 
+def test_add_never_leaves_item_unparented():
+    _clean()
+    try:
+        backlog.add_epic("project", _PROJ, "fresh item", tag="TST")
+        assert backlog.epic_coverage_warnings("project", _PROJ) == []   # add auto-parents (BI-PF-1282)
+    finally:
+        _clean()
+
+
 def test_epic_coverage_flags_unparented_item():
     _clean()
     try:
-        backlog.add_epic("project", _PROJ, "orphan item", tag="TST")
+        iid = backlog.add_epic("project", _PROJ, "orphan item", tag="TST")["id"]
+        # an add now auto-parents; clear it to simulate a LEGACY/hand-made orphan the warning must still catch
+        backlog.update("project", _PROJ, iid, epic="", parent="")
         warns = backlog.epic_coverage_warnings("project", _PROJ)
         assert any(w.get("title") == "orphan item" for w in warns)
     finally:
