@@ -260,13 +260,23 @@ _LEASE_TTL = 3600
 
 
 def _lease_mode() -> str:
-    """Lease authority mode: strict (default, fail-closed) | on (soft) | off (disabled)."""
+    """Lease authority mode: strict (default, fail-closed) | on (soft) | off (disabled).
+
+    Precedence (BI-PF-1283): an EXPLICIT ``PF_LEASE_REMOTE`` env value always wins; otherwise OFFLINE
+    (``PF_OFFLINE``) means there is no shared/remote authority -> ``off`` (keeps unit tests and offline runs
+    hermetic - no shared-CAS writes, no stray ``pf-leases`` refs); otherwise the config/default, else strict.
+    """
+    explicit = str(os.environ.get("PF_LEASE_REMOTE", "") or "").strip()
+    if explicit:
+        return explicit.lower()
     try:
         from core import env_flags
-        v = env_flags.get("PF_LEASE_REMOTE", os.environ.get("PF_LEASE_REMOTE", "strict"))
+        offline = str(env_flags.get("PF_OFFLINE", os.environ.get("PF_OFFLINE", "")) or "").strip().lower()
+        if offline in ("1", "true", "yes", "on"):
+            return "off"
+        return str(env_flags.get("PF_LEASE_REMOTE", "strict") or "strict").strip().lower()
     except Exception:
-        v = os.environ.get("PF_LEASE_REMOTE", "strict")
-    return str(v or "strict").strip().lower()
+        return "strict"
 
 
 def _lease_disabled() -> bool:
