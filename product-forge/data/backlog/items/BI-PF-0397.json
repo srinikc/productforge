@@ -11,14 +11,15 @@
   "body": "[A4] EAP as the authoritative delivery/build manifest (composes contracts); versioning + compatibility. Executor role parked.",
   "source": "generic",
   "status": "new",
-  "priority": "P2",
+  "priority": "P1",
   "moscow": "Should",
   "value": 3,
   "effort": 3,
   "risk": 2,
   "deps": [
+    "BI-PF-0398",
+    "BI-PF-0399",
     "BI-0171",
-    "BI-PF-0393",
     "BI-PF-0424"
   ],
   "links": {},
@@ -28,24 +29,18 @@
       "decision": "APPROVE",
       "by": "user",
       "note": ""
-    },
-    {
-      "at": "2026-10-12T18:47:45.278883",
-      "decision": "APPROVE",
-      "by": "user",
-      "note": ""
     }
   ],
   "follow_up": {},
-  "revision": 5,
+  "revision": 3,
   "priority_rank": 2,
-  "priority_class": "P2",
+  "priority_class": "",
   "analyze_mode": "on_entry",
   "analysis": {
     "status": "COMPLETE",
-    "analyzed_at": "2026-10-12T18:47:45.052978",
-    "analyzed_by": "user",
-    "revision_analyzed": 5,
+    "analyzed_at": "2026-10-12T19:11:03.363880",
+    "analyzed_by": "deterministic",
+    "revision_analyzed": 3,
     "architecture_fit": "EXTEND",
     "implementation_strategy": "Extend existing components/APIs: core/artifact_registry.py, core/build_manager.py, core/build_utility.py, core/change_registry.py",
     "existing_components": [
@@ -102,24 +97,29 @@
       ],
       "reason": "Existing artifact_registry, delivery, build_manager, and packaging manifest APIs provide a clear extension path; the missing items are policy decisions, not architectural blockers."
     },
-    "arch_fingerprint": "75d8f9eec037a28a",
-    "refreshed_at": "2026-10-10T21:56:50.743035"
+    "arch_fingerprint": "ba90c45005d704fa",
+    "refreshed_at": "2026-10-12T19:11:03.288989"
   },
   "dependencies": [
     {
-      "task_id": "BI-0171",
-      "type": "REQUIRES",
-      "required_state": "COMPLETE"
+      "task_id": "BI-PF-0398",
+      "type": "BLOCKS",
+      "required_state": "EAP manifest schema approved and validator implemented"
     },
     {
-      "task_id": "BI-PF-0393",
-      "type": "REQUIRES",
-      "required_state": "COMPLETE"
+      "task_id": "BI-PF-0399",
+      "type": "BLOCKS",
+      "required_state": "EAP manifest endpoint serving structured EAP objects"
+    },
+    {
+      "task_id": "BI-0171",
+      "type": "RELATED",
+      "required_state": "Knowledge-registry SSOT decision made"
     },
     {
       "task_id": "BI-PF-0424",
-      "type": "REQUIRES",
-      "required_state": "COMPLETE"
+      "type": "RELATED",
+      "required_state": "ADR superseding ADR-0002 in draft"
     }
   ],
   "blocked_by": [
@@ -129,7 +129,7 @@
   "readiness": {
     "ready": true,
     "reasons": [],
-    "computed_at": "2026-10-12T18:47:45.145365"
+    "computed_at": "2026-10-09T22:32:15.109126"
   },
   "execution": {
     "worker_id": "",
@@ -142,22 +142,23 @@
     "completed_at": ""
   },
   "created_at": "2026-10-06T18:32:22.437074",
-  "updated_at": "2026-10-12T18:47:45.401721",
+  "updated_at": "2026-10-12T19:11:03.443907",
   "score": 0.75,
-  "_note": "readiness computed",
+  "_note": "analysis updated",
   "parent": "BI-PF-0390",
   "epic": "BI-PF-0390",
   "brief": {
-    "problem": "[A4] EAP as the authoritative delivery/build manifest (composes contracts); versioning + compatibility. Executor role parked.",
-    "what_adds": "A4: EAP delivery manifest + validator/registry + compatibility",
-    "why": "[A4] EAP as the authoritative delivery/build manifest (composes contracts); versioning + compatibility. Executor role parked.",
-    "who_feels": "Product Forge maintainers and consumers.",
-    "source": "extracted"
+    "problem": "Editions need one authoritative delivery/build manifest to compose and ship consistently.",
+    "what_adds": "A4 — EAP (manifest) composes contracts; validator/registry; versioning + compatibility. Executor role is parked.",
+    "why": "Single source of truth for what ships per edition, enabling compatibility and repeatable builds.",
+    "who_feels": "PF platform maintainers, workers, and customers.",
+    "source": "authored"
   },
-  "objective": "A4: EAP delivery manifest + validator/registry + compatibility",
+  "objective": "A4 — EAP (manifest) composes contracts; validator/registry; versioning + compatibility. Executor role is parked.",
   "intent_derived": true,
   "acceptance_criteria": [
-    "Objective achieved: A4: EAP delivery manifest + validator/registry + compatibility"
+    "sample.eap validates",
+    "an incompatible version is rejected"
   ],
   "review": {
     "reconciliation": {
@@ -171,12 +172,14 @@
     "reviewed_by": "derived",
     "at": ""
   },
-  "approach": "A4: EAP delivery manifest + validator/registry + compatibility",
+  "approach": "Define EAP as the authoritative manifest composing A1 contracts; add a validator + registry with version/compat rules.",
   "affected_components": [
-    "Not specified."
+    "eap",
+    "contracts"
   ],
   "affected_files": [
-    "Not specified."
+    "docs/PF-TARGET-ARCHITECTURE-AND-IP-PLAN.md",
+    "fixture: sample.eap"
   ],
   "owner": "agent",
   "requester": "generic",
@@ -187,7 +190,8 @@
     "pending"
   ],
   "verification": [
-    "Objective achieved: A4: EAP delivery manifest + validator/registry + compatibility"
+    "sample.eap validates",
+    "an incompatible version is rejected"
   ],
   "risks": [
     "Not specified."
@@ -195,10 +199,12 @@
   "rollback": "Revert the change.",
   "summary": "",
   "in_scope": [
-    "A4: EAP delivery manifest + validator/registry + compatibility"
+    "EAP manifest",
+    "validator + registry",
+    "versioning + compatibility"
   ],
   "out_of_scope": [
-    "Not specified."
+    "executor role (parked)"
   ],
   "api_impact": {
     "needs_api": false,

@@ -10,18 +10,17 @@
   "title": "ADR: PF platform shipped editions use compiled artifacts (Go core + compiled-Python), never raw .py; one source, many editions",
   "body": "Context: PF platform is 100% Python; deploying it on-prem/OEM exposes readable source (IP/reverse-engineering risk). Decision: ship compiled artifacts only; Go for new shipped/sensitive logic and for migrated high-value modules; compiled-Python (Nuitka) for the remainder; one source with build profiles (no per-edition forks); licensing + signed updates for value retention. Consequences: partial protection for compiled-Python remainder; Go migration cost; dev stays Python. Register in the A0 architecture decision register.",
   "source": "generic",
-  "status": "duplicate",
-  "priority": "P2",
+  "status": "new",
+  "priority": "P1",
   "moscow": "Should",
   "value": 3,
   "effort": 3,
   "risk": 2,
   "deps": [
+    "BI-PF-0387",
     "BI-PF-0394"
   ],
-  "links": {
-    "duplicate_of": "ADR-0001"
-  },
+  "links": {},
   "decisions": [
     {
       "at": "2026-10-09T22:32:12.584928",
@@ -34,30 +33,18 @@
       "decision": "APPROVE",
       "by": "cleanup",
       "note": ""
-    },
-    {
-      "at": "2026-10-12T18:47:44.125156",
-      "decision": "APPROVE",
-      "by": "user",
-      "note": ""
-    },
-    {
-      "at": "2026-10-12",
-      "decision": "CLOSE_DUPLICATE",
-      "by": "operator",
-      "note": "Decision already recorded as ADR-0001 in docs/ARCHITECTURE-DECISIONS.md (Related: BI-PF-0388). No new ADR needed (would duplicate). Closing as duplicate."
     }
   ],
   "follow_up": {},
-  "revision": 7,
-  "priority_rank": 2,
-  "priority_class": "P2",
+  "revision": 4,
+  "priority_rank": 9,
+  "priority_class": "",
   "analyze_mode": "on_entry",
   "analysis": {
-    "status": "STALE",
-    "analyzed_at": "2026-10-12T18:47:43.871885",
-    "analyzed_by": "user",
-    "revision_analyzed": 6,
+    "status": "COMPLETE",
+    "analyzed_at": "2026-10-12T19:10:43.143863",
+    "analyzed_by": "deterministic",
+    "revision_analyzed": 4,
     "architecture_fit": "EXTEND",
     "implementation_strategy": "Extend existing components/APIs: /api/v1/artifacts, /api/v1/artifacts/{stage_id}/{agent}, /api/v1/enterprise/users, /api/v1/packaging/editions",
     "existing_components": [],
@@ -99,14 +86,19 @@
       ],
       "reason": "Body already contains complete context/decision/consequences; only register housekeeping is needed."
     },
-    "arch_fingerprint": "75d8f9eec037a28a",
-    "refreshed_at": "2026-10-10T21:56:48.747672"
+    "arch_fingerprint": "ba90c45005d704fa",
+    "refreshed_at": "2026-10-12T19:10:43.063261"
   },
   "dependencies": [
     {
+      "task_id": "BI-PF-0387",
+      "type": "BLOCKS",
+      "required_state": "ready"
+    },
+    {
       "task_id": "BI-PF-0394",
-      "type": "REQUIRES",
-      "required_state": "COMPLETE"
+      "type": "RELATED",
+      "required_state": "any"
     }
   ],
   "blocked_by": [],
@@ -114,23 +106,22 @@
   "readiness": {
     "ready": true,
     "reasons": [],
-    "computed_at": "2026-10-12T18:47:43.977340"
+    "computed_at": "2026-10-10T00:24:35.383243"
   },
   "execution": {
     "worker_id": "",
     "assignment_id": "",
     "lease_id": "",
-    "assigned_at": "2026-10-12T18:51:45.184523",
+    "assigned_at": "",
     "lease_expires_at": "",
     "attempt": 0,
-    "started_at": "2026-10-12T18:51:45.184523",
-    "completed_at": "",
-    "last_heartbeat_at": "2026-10-12T18:51:45.184523"
+    "started_at": "",
+    "completed_at": ""
   },
   "created_at": "2026-10-06T14:56:33.607127",
-  "updated_at": "2026-10-12T19:03:24.782329",
+  "updated_at": "2026-10-12T19:10:43.220769",
   "score": 0.75,
-  "_note": "duplicate of ADR-0001 (docs/ARCHITECTURE-DECISIONS.md)",
+  "_note": "analysis updated",
   "parent": "BI-PF-0390",
   "epic": "BI-PF-0390",
   "brief": {
@@ -157,12 +148,14 @@
     "reviewed_by": "derived",
     "at": ""
   },
-  "approach": "ADR: PF platform shipped editions use compiled artifacts (Go core + compiled-Python), never raw .py; one source, many editions",
+  "approach": "Record the ADR: shipped editions use compiled artifacts (Go for new/sensitive + migrated high-value; Nuitka for the remainder), one source with build profiles, licensing + signed updates; register it in the A0 decision register.",
   "affected_components": [
-    "Not specified."
+    "governance",
+    "platform"
   ],
   "affected_files": [
-    "Not specified."
+    "docs/PF-TARGET-ARCHITECTURE-AND-IP-PLAN.md",
+    "docs/adr/*"
   ],
   "owner": "agent",
   "requester": "generic",
@@ -173,7 +166,8 @@
     "pending"
   ],
   "verification": [
-    "Objective achieved: ADR: PF platform shipped editions use compiled artifacts (Go core + compiled-Python), never raw .py; one source, many editions"
+    "ADR recorded in the A0 decision register",
+    "subsequent design cites it"
   ],
   "risks": [
     "Not specified."
@@ -184,7 +178,7 @@
     "ADR: PF platform shipped editions use compiled artifacts (Go core + compiled-Python), never raw .py; one source, many editions"
   ],
   "out_of_scope": [
-    "Not specified."
+    "implementation (ADR only)"
   ],
   "api_impact": {
     "needs_api": false,
