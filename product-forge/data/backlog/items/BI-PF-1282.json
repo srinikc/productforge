@@ -10,7 +10,7 @@
   "title": "One-step add: groom the item at create (epic auto-assign, dependencies, execution order) instead of a separate later step",
   "body": "## Problem / why\nAdding a backlog item and grooming it are two logical steps today. On create only a deterministic\nanalysis runs (PFSSOT-P3, core/backlog.py:838-842); epic assignment happens only for some automated\ncreators (core/intake.py:164, core/issues.py:244, core/insights.py:140, core/intake_channels.py:331,\ncore/ops_phase.py:99 via auto_epic), a direct add leaves epic='' (warning core/backlog.py:843-845),\nstructured dependencies come only from explicit deps (core/grooming.py:191-198), and the epic execution\norder is computed later by the scheduler (core/scheduler.py:550-578). Items are therefore not\nscheduler-ready on creation.\n\n## Goal\nOn the FIRST add, run the SAME grooming the standard path runs (AI + deterministic, batch-capable) and\ncomplete planning: auto-assign the epic (best match else Unscoped), populate dependencies, and persist\nthe epic execution order - so add is one step and the item is scheduler-ready.\n\n## In scope\n- core/backlog.py add_epic (single create path): if no epic passed and the item is not an epic, auto_epic(...).\n- Call the SAME grooming routine as elsewhere (default mode: AI with deterministic fallback), not a\n  deterministic-only variant.\n- After the epic is known, derive and persist the epic execution order (core.scheduler.epic_order ->\n  backlog.set_execution_order).\n- First-time-only guard: stamp the item so re-adds (same external_id) and updates do not re-groom.\n\n## Out of scope\n- Inferring dependencies from related items (explicit deps/blocked_by only).\n- Changing the grooming engine or the AI prompt.\n\n## Approach\nMove the epic-assign + groom + order steps into add_epic after the item is written and the lock released\n(as today), guarded by a groomed marker; amend the PFSSOT-P3 decision (on-entry = full groom, not\ndeterministic-only).\n\n## Acceptance criteria\n- Adding an item with no epic attaches it to the best-match epic, else Unscoped (no epic-less item from a plain add).\n- The on-add analysis matches the standard grooming output (same routine).\n- The epic's execution_order is persisted after add.\n- Re-adding the same external_id and updating an item do not re-groom (first-time only).\n- Tests cover the above; precheck passes.\n\n## Risks\n- A create may block on a live AI call; mitigate with the existing deterministic fallback (never blocks)\n  and first-time-only scoping.\n\n## Rollback\nRevert the add_epic change; items still groom via the later pass (groom_all/refresh_stale).\n",
   "source": "user",
-  "status": "new",
+  "status": "completed",
   "priority": "P2",
   "moscow": "Should",
   "value": 3,
@@ -22,7 +22,16 @@
       "file:core/backlog.py",
       "file:core/grooming.py",
       "file:core/scheduler.py"
-    ]
+    ],
+    "delivery": {
+      "branch": "feature/one-step-add",
+      "merge_sha": "e33698fb81d27e9652105c3d8e38ebc37b3c5eeb",
+      "commits": [],
+      "pr": "55",
+      "pr_url": "https://github.com/srinikc/productforge/pull/55",
+      "at": "2026-10-13T11:29:03.202715",
+      "note": "merged via PR"
+    }
   },
   "decisions": [],
   "follow_up": {},
@@ -100,7 +109,7 @@
   "children": [],
   "epic": "BI-PF-0360",
   "parent": "BI-PF-0360",
-  "revision": 2,
+  "revision": 3,
   "priority_rank": 2,
   "priority_class": "P2",
   "analyze_mode": "on_entry",
@@ -170,7 +179,7 @@
     "usage": {}
   },
   "created_at": "2026-10-12T23:55:13.055546",
-  "updated_at": "2026-10-12T23:55:14.080964",
+  "updated_at": "2026-10-13T11:29:03.830233",
   "score": 0.75,
-  "_note": "priority set"
+  "_note": "delivered PR#55"
 }

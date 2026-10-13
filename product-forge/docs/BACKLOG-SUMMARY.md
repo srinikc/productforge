@@ -1,14 +1,14 @@
 # Backlog Summary
 
-> GENERATED 2026-10-13T11:16:16 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-13T11:29:05 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 59  |  **Closed:** 489
-- `new`: 59
+- **Open:** 58  |  **Closed:** 490
+- `new`: 58
 
-### new, by category (59)
+### new, by category (58)
 **API / reports / HIL / misc** (5)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
@@ -47,7 +47,7 @@
 | BI-PF-1212 | Should | feature | C10: Security-event audit/evidence (evidence-grade) + durable SecurityContext propagation | C10: Security-event audit/evidence (evidence-grade) + durable SecurityContext propagation |
 | BI-PF-1241 | Should | feature | Per-item token/cache/cost usage (execution.usage) + runtime usage capture + rollup | - backlog execution: + usage{} (input/output/reasoning/cache_read/cache_write/total/cost_usd/model/cost_source... |
 
-**Wiring / tech-debt / API** (41)
+**Wiring / tech-debt / API** (40)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0185 | Should | feature | EPIC: Multi-modal / media orchestration (pluggable capability packs) | Make the pipeline modality-agnostic via PLUGGABLE capability packs, enabled per project when the idea needs th... |
@@ -90,7 +90,6 @@
 | BI-PF-1248 | Should | epic | EPIC: Tech Debt & Repo Hygiene (generated artifacts, script drift, gate gaps) | One home for repo-hygiene / tech-debt work that is not a product feature: generated-artifact freshness, script... |
 | BI-PF-1252 | Should | epic | Unscoped | Unscoped |
 | BI-PF-1259 | Should | change | CI/CD review & optimization: clear change-based gate/test/profile mapping (de-ambiguate commit/merge/push/CI) | A reviewed, optimized CI/CD that is explicit and change-aware: - One authoritative mapping: change type -> whi... |
-| BI-PF-1282 | Should | feature | One-step add: groom the item at create (epic auto-assign, dependencies, execution order) instead of a separate later step | On the FIRST add, run the SAME grooming the standard path runs (AI + deterministic, batch-capable) and complet... |
 
 ---
 
@@ -290,5 +289,5 @@
 ---
 
 ## Totals
-- backend: 59 open / 489 closed
+- backend: 58 open / 490 closed
 - dashboard: 146 open / 3 closed
