@@ -1,6 +1,6 @@
 # Backlog Summary
 
-> GENERATED 2026-10-13T21:18:38 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-13T21:21:02 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
@@ -30,7 +30,7 @@
 | BI-PF-1316 | Must | task | api-governance gate red on develop: committed api/openapi.json drifted from the routers (BI-PF-0397 EAP endpoints) | api-governance gate red on develop: committed api/openapi.json drifted from the routers (BI-PF-0397 EAP endpoi... |
 | BI-PF-1321 | Must | task | Auto-mode HIL proxy gate fails stage 0: human agent invoked without the product brief / artifacts | Auto-mode HIL proxy gate fails stage 0: human agent invoked without the product brief / artifacts |
 | BI-PF-1322 | Must | task | Product run re-pointed the framework repo git remote (connect_remote walked up to the parent repo) | Product run re-pointed the framework repo git remote (connect_remote walked up to the parent repo) |
-| BI-PF-1345 | Should | task | Artifact contracts: structured schema validators (OpenAPI JSON Schema / CycloneDX / MusicXML XSD) + counts enforcement | Artifact contracts: structured schema validators (OpenAPI JSON Schema / CycloneDX / MusicXML XSD) + counts enf... |
+| BI-PF-1345 | Should | task | Artifact contracts: structured schema validators (OpenAPI JSON Schema / CycloneDX / MusicXML XSD) + counts enforcement | Enforce counts + structured format validation in the Go artifact-contract engine. |
 
 **Discovery / HIL / prompts** (7)
 | ID | MoSCoW | Type | Title | Objective |

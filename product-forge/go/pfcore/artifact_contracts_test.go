@@ -19,8 +19,22 @@ func writeACDir(t *testing.T) string {
 				"format_version": "1.0.0", "status": "standard",
 				"sections":          []string{"Functional Requirements", "Non-Functional Requirements"},
 				"required_sections": []string{"Functional Requirements"},
+				"format":            "markdown",
+				"limits":            []any{map[string]any{"id": "FR", "pattern": `FR-\d+`, "max": 3}},
 				"budget":            map[string]any{"max_tokens": 5000},
 				"size":              map[string]any{"max_lines": 100, "target_lines": 100},
+			},
+			"api.spec": map[string]any{
+				"title": "API", "tier": "universal", "applies_to": []string{"*"},
+				"source":        map[string]any{"canonical_url": "https://example.com/openapi"},
+				"license":       map[string]any{"spdx": "Apache-2.0"},
+				"format_version": "1.0.0", "status": "standard",
+				"format":            "json",
+				"sections":          []string{"openapi", "paths"},
+				"required_sections": []string{"openapi"},
+				"schema_required":   []string{"openapi", "paths"},
+				"budget":            map[string]any{"max_tokens": 4000},
+				"size":              map[string]any{"max_lines": 0, "target_lines": 0},
 			},
 			"media.video": map[string]any{
 				"title": "Video", "tier": "modality", "applies_to": []string{"video"},
@@ -77,6 +91,40 @@ func TestACKindAndBudgetAndSlider(t *testing.T) {
 	sz := cs[0]["size"].(map[string]any)
 	if sz["max_lines"].(int) != 50 {
 		t.Fatalf("expected scaled max_lines 50, got %v", sz["max_lines"])
+	}
+}
+
+func TestACFormatAndLimits(t *testing.T) {
+	d := writeACDir(t)
+
+	// json contract: invalid JSON -> fail
+	v, _ := ACContractValidateOp(map[string]any{"dir": d, "artifact_id": "api.spec", "text": "not json"})
+	if v["ok"] != false {
+		t.Fatalf("invalid JSON must fail")
+	}
+	// valid JSON but missing a required key -> fail
+	v2, _ := ACContractValidateOp(map[string]any{"dir": d, "artifact_id": "api.spec", "text": `{"openapi":"3.1"}`})
+	if v2["ok"] != false {
+		t.Fatalf("missing json key must fail: %v", v2["reasons"])
+	}
+	// valid JSON with required keys + required section -> pass
+	v3, _ := ACContractValidateOp(map[string]any{"dir": d, "artifact_id": "api.spec",
+		"text": `{"openapi":"3.1","paths":{}}`})
+	if v3["ok"] != true {
+		t.Fatalf("valid JSON should pass: %v", v3["reasons"])
+	}
+
+	// limits: 4 FRs > max 3 -> fail
+	v4, _ := ACContractValidateOp(map[string]any{"dir": d, "artifact_id": "requirements.srs",
+		"text": "Functional Requirements\nFR-1\nFR-2\nFR-3\nFR-4"})
+	if v4["ok"] != false {
+		t.Fatalf("FR limit exceeded must fail: %v", v4["reasons"])
+	}
+	// within limit -> pass
+	v5, _ := ACContractValidateOp(map[string]any{"dir": d, "artifact_id": "requirements.srs",
+		"text": "Functional Requirements\nFR-1\nFR-2"})
+	if v5["ok"] != true {
+		t.Fatalf("within-limit FRs should pass: %v", v5["reasons"])
 	}
 }
 

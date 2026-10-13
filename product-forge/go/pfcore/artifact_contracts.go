@@ -8,9 +8,12 @@ package main
 
 import (
 	"encoding/json"
+	"encoding/xml"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 )
@@ -25,13 +28,16 @@ type ACContract struct {
 	Source          map[string]any `json:"source"`
 	License         map[string]any `json:"license"`
 	FormatVersion   string         `json:"format_version"`
-	Status           string         `json:"status"`
-	Sections         []string       `json:"sections"`
-	RequiredSections []string       `json:"required_sections"`
-	Counts           map[string]any `json:"counts"`
-	Size             map[string]any `json:"size"`
-	Budget           map[string]any `json:"budget"`
-	Refresh          map[string]any `json:"refresh"`
+	Status           string           `json:"status"`
+	Format           string           `json:"format"`
+	Sections         []string         `json:"sections"`
+	RequiredSections []string         `json:"required_sections"`
+	SchemaRequired   []string         `json:"schema_required"`
+	Limits           []map[string]any `json:"limits"`
+	Counts           map[string]any   `json:"counts"`
+	Size             map[string]any   `json:"size"`
+	Budget           map[string]any   `json:"budget"`
+	Refresh          map[string]any   `json:"refresh"`
 }
 
 type acIndex struct {
@@ -372,8 +378,62 @@ func ACContractValidateOp(payload map[string]any) (map[string]any, string) {
 	if over {
 		reasons = append(reasons, fmt.Sprintf("over size budget: %d lines > max %d", lines, maxLines))
 	}
-	return map[string]any{"ok": len(reasons) == 0, "artifact_id": aid, "missing_sections": missing,
-		"lines": lines, "max_lines": maxLines, "over_size": over, "reasons": reasons}, ""
+
+	// format-aware structural validation (dependency-free; stdlib only).
+	switch strings.ToLower(c.Format) {
+	case "json":
+		var v any
+		if err := json.Unmarshal([]byte(text), &v); err != nil {
+			reasons = append(reasons, "invalid JSON")
+		} else if len(c.SchemaRequired) > 0 {
+			obj, _ := v.(map[string]any)
+			miss := []string{}
+			for _, k := range c.SchemaRequired {
+				if _, ok := obj[k]; !ok {
+					miss = append(miss, k)
+				}
+			}
+			if len(miss) > 0 {
+				reasons = append(reasons, "missing json keys: "+strings.Join(miss, ", "))
+			}
+		}
+	case "xml":
+		dec := xml.NewDecoder(strings.NewReader(text))
+		for {
+			_, err := dec.Token()
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				reasons = append(reasons, "invalid XML")
+				break
+			}
+		}
+		for _, el := range c.SchemaRequired {
+			if !strings.Contains(text, "<"+el) {
+				reasons = append(reasons, "missing xml element: "+el)
+			}
+		}
+	}
+
+	// limits: count rules (e.g. <=N FRs) enforced as regex-match counts.
+	for _, lim := range c.Limits {
+		pat, _ := lim["pattern"].(string)
+		id, _ := lim["id"].(string)
+		max, ok := acToInt(lim["max"])
+		if pat == "" || !ok || max <= 0 {
+			continue
+		}
+		if re, err := regexp.Compile(pat); err == nil {
+			if n := len(re.FindAllString(text, -1)); n > max {
+				reasons = append(reasons, fmt.Sprintf("limit %s exceeded: %d > %d", id, n, max))
+			}
+		}
+	}
+
+	return map[string]any{"ok": len(reasons) == 0, "artifact_id": aid, "format": c.Format,
+		"missing_sections": missing, "lines": lines, "max_lines": maxLines, "over_size": over,
+		"reasons": reasons}, ""
 }
 
 // ACContractCoverageOp checks that every supplied agent/stage is covered and the registry
@@ -411,6 +471,9 @@ func ACContractCoverageOp(payload map[string]any) (map[string]any, string) {
 		}
 		if len(c.Budget) == 0 {
 			bad = append(bad, id+": no budget")
+		}
+		if c.Format == "" {
+			bad = append(bad, id+": no format")
 		}
 	}
 	refCheck := func(m map[string][]string) {
