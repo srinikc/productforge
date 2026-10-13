@@ -1,0 +1,182 @@
+{
+  "id": "BI-PF-1318",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "",
+  "label": "PF Backlog 581",
+  "title": "Per-worker sync hardening: sync at task start + pre-commit auto-sync + worker-charter guideline (BI-PF-1290 follow-up)",
+  "body": "## Problem / why\nBI-PF-1290 added sync_develop.py + a pre-push hook, but nothing syncs DURING implementation - only at push time.\nA session that codes for hours drifts the whole time, then faces a big late merge. The guideline/behavior also\nlives only in AGENTS.md, not the worker charter a working agent reads.\n\n## Goal & value\nKeep every session near origin/develop all the time (minimal clash/conflicts): sync when a task STARTS, before\nevery COMMIT, and before every PUSH - plus an explicit guideline so the worker knows why/when.\n\n## In scope\n- scripts/dev/sync_develop.py: add a --pre-commit mode (safe: merge develop as its own clean commit, then exit 1\n  so the user re-runs the commit; abort cleanly on a source conflict). Share the hook logic with --pre-push.\n- install_hooks.py: run the sync in the pre-commit hook (FIRST, before the doc-regen/guards, so it is not run\n  against already-staged changes).\n- workergrid/instructions.md + AGENTS.md: the \"stay close to develop - sync often\" guideline (commands + why).\n\n## Out of scope\n- A background/scheduled job (git state is per working tree; cannot span sessions; would race the editor).\n\n## Approach\nReuse sync_develop.py + the existing hook installer. The mock/message differs per hook; the merge logic is shared.\n\n## Acceptance criteria\n- sync_develop.py --pre-commit merges is its own commit then exits 1 (re-run commit); aborts on source conflict;\n  exits 0 when up to date.\n- The pre-commit hook runs the sync first.\n- The guideline is present in the worker charter + AGENTS.\n- Tests cover --pre-commit; precheck passes.\n\n## Risks\n- The pre-commit sync adds a merge commit; harmless but noisier history when behind. Mitigation: only fires when\n  actually behind.\n\n## Rollback\nRemove the hook line + the mode; sync still available via the CLI and the pre-push hook.\n\n## Related\nFollow-up to BI-PF-1290 (sync_develop + pre-push). Epic BI-PF-0360.\n",
+  "source": "user",
+  "status": "new",
+  "priority": "P2",
+  "moscow": "Should",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [],
+  "links": {
+    "backend_capability": [
+      "file:scripts/dev/sync_develop.py",
+      "file:scripts/dev/install_hooks.py",
+      "file:workergrid/instructions.md"
+    ],
+    "related": [
+      "BI-PF-1290"
+    ]
+  },
+  "decisions": [
+    {
+      "at": "2026-10-13T16:15:27.439677",
+      "decision": "APPROVE",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)"
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "BI-PF-1290 added sync_develop.py + a pre-push hook, but nothing syncs DURING implementation - only at push time.\nA session that codes for hours drifts the whole time, then faces a big late merge. The guideline/behavior also\nlives only in AGENTS.md, not the worker charter a working agent reads.",
+    "what_adds": "Keep every session near origin/develop all the time (minimal clash/conflicts): sync when a task STARTS, before\nevery COMMIT, and before every PUSH - plus an explicit guideline so the worker knows why/when.",
+    "why": "BI-PF-1290 added sync_develop.py + a pre-push hook, but nothing syncs DURING implementation - only at push time.\nA session that codes for hours drifts the whole time, then faces a big late merge. The guideline/behavior also\nlives only in AGENTS.md, not the worker charter a working agent reads.",
+    "who_feels": "Product Forge maintainers and consumers.",
+    "source": "authored"
+  },
+  "objective": "Keep every session near origin/develop all the time (minimal clash/conflicts): sync when a task STARTS, before\nevery COMMIT, and before every PUSH - plus an explicit guideline so the worker knows why/when.",
+  "acceptance_criteria": [
+    "sync_develop.py --pre-commit merges is its own commit then exits 1 (re-run commit); aborts on source conflict;",
+    "The pre-commit hook runs the sync first.",
+    "The guideline is present in the worker charter + AGENTS.",
+    "Tests cover --pre-commit; precheck passes."
+  ],
+  "in_scope": [
+    "scripts/dev/sync_develop.py: add a --pre-commit mode (safe: merge develop as its own clean commit, then exit 1",
+    "install_hooks.py: run the sync in the pre-commit hook (FIRST, before the doc-regen/guards, so it is not run",
+    "workergrid/instructions.md + AGENTS.md: the \"stay close to develop - sync often\" guideline (commands + why)."
+  ],
+  "out_of_scope": [
+    "A background/scheduled job (git state is per working tree; cannot span sessions; would race the editor)."
+  ],
+  "affected_components": [
+    "scripts",
+    "workergrid"
+  ],
+  "affected_files": [
+    "AGENTS.md",
+    "install_hooks.py",
+    "scripts/dev/install_hooks.py",
+    "scripts/dev/sync_develop.py",
+    "sync_develop.py",
+    "workergrid/instructions.md"
+  ],
+  "approach": "Reuse sync_develop.py + the existing hook installer. The mock/message differs per hook; the merge logic is shared.",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "sync_develop.py --pre-commit merges is its own commit then exits 1 (re-run commit); aborts on source conflict;",
+    "The pre-commit hook runs the sync first.",
+    "The guideline is present in the worker charter + AGENTS.",
+    "Tests cover --pre-commit; precheck passes."
+  ],
+  "risks": [
+    "The pre-commit sync adds a merge commit; harmless but noisier history when behind. Mitigation: only fires when"
+  ],
+  "rollback": "Remove the hook line + the mode; sync still available via the CLI and the pre-push hook.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "agent",
+  "requester": "user",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-0360",
+  "parent": "BI-PF-0360",
+  "revision": 2,
+  "priority_rank": 2,
+  "priority_class": "P2",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "COMPLETE",
+    "analyzed_at": "2026-10-13T16:15:26.940013",
+    "analyzed_by": "system",
+    "revision_analyzed": 2,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/task_contract.py, core/techstack_guidelines.py, /api/v1/backlog/grooming/guidelines, /api/v1/engineering/tasks",
+    "existing_components": [
+      "core/task_contract.py",
+      "core/techstack_guidelines.py"
+    ],
+    "existing_apis": [
+      "/api/v1/backlog/grooming/guidelines",
+      "/api/v1/engineering/tasks",
+      "/api/v1/engineering/tasks/{task_id}",
+      "/api/v1/engineering/tasks/{task_id}/results",
+      "/api/v1/engineering/tasks/{task_id}/run",
+      "/api/v1/engineering/tasks/{task_id}/status",
+      "/api/v1/portfolio/supervisor/start",
+      "/api/v1/runs/start"
+    ],
+    "existing_modules": [
+      "config/grooming-guidelines.json"
+    ],
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=0.75",
+      "components=2",
+      "apis=8"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic",
+    "arch_fingerprint": "6e60000b1bbcc5ff"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-13T16:15:27.152937"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-13T16:13:47.629304",
+  "updated_at": "2026-10-13T16:15:27.672289",
+  "score": 0.75,
+  "_note": "readiness computed"
+}
