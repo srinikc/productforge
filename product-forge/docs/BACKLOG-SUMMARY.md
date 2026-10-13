@@ -1,13 +1,13 @@
 # Backlog Summary
 
-> GENERATED 2026-10-13T21:26:18 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-13T23:33:03 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 122  |  **Closed:** 512
+- **Open:** 123  |  **Closed:** 514
 - `accepted`: 1
-- `new`: 120
+- `new`: 121
 - `parked`: 1
 
 ### parked (1)
@@ -15,7 +15,7 @@
 |---|---|---|---|---|
 | BI-PF-0374 | Could | feature | PFSSOT-P12: optimization (only after correctness) | PFSSOT-P12: optimization (only after correctness) |
 
-### new, by category (120)
+### new, by category (121)
 **API / reports / HIL / misc** (14)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
@@ -80,9 +80,9 @@
 | BI-PF-1312 | Must | feature | EDP-20: Append-only AuditStore; split orchestrator/storage.py (audit vs cache vs evidence); retention/redaction; large checkpoints -> object store | Deliver an append-only AuditStore, split orchestrator/storage.py into audit/cache/evidence responsibilities, a... |
 | BI-PF-1314 | Should | feature | EDP-22: Benchmarks/SLOs + EXPLAIN(ANALYZE,BUFFERS) tuning + observability + quotas + graceful degradation (DB/object/cache/queue) | Establish performance benchmarks/SLOs, EXPLAIN(ANALYZE,BUFFERS)-based tuning, observability, quotas, and grace... |
 | BI-PF-1329 | Should | feature | WG-O5: Assign a SPECIFIC backlog item to a session/worker (claim-by-id + operator assignment) with lease semantics | Support claiming/assigning a specific item id (not just next-eligible). |
-| BI-PF-1349 | Must | task | Agent definitions/specs registry: declarative agent contract (inputs/outputs/artifacts) + coverage gate for new/dynamic agents | Agent definitions/specs registry: declarative agent contract (inputs/outputs/artifacts) + coverage gate for ne... |
+| BI-PF-1349 | Must | task | Agent definitions/specs registry: declarative agent contract (inputs/outputs/artifacts) + coverage gate for new/dynamic agents | Declarative agent registry (inputs/outputs/artifacts) as the single source for the agent->artifact mapping + c... |
 
-**Wiring / tech-debt / API** (78)
+**Wiring / tech-debt / API** (79)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0185 | Should | feature | EPIC: Multi-modal / media orchestration (pluggable capability packs) | Make the pipeline modality-agnostic via PLUGGABLE capability packs, enabled per project when the idea needs th... |
@@ -156,13 +156,14 @@
 | BI-PF-1326 | Must | feature | WG-O2: Start-from-anywhere wrapper (fetch -> pull --ff-only clean-guard -> shared token -> start) + periodic fetch-only thread | Add a start wrapper (sync + token + start) and a periodic fetch-only background thread. |
 | BI-PF-1330 | Should | task | Failed stage blocks all re-runs: checkpoint restore keeps the failed stage (new/--from-stage fail immediately) | Failed stage blocks all re-runs: checkpoint restore keeps the failed stage (new/--from-stage fail immediately) |
 | BI-PF-1333 | Must | task | Design stage over-proportions output: 19 FRs + 15 NFRs for one trivial feature; 314KB partial blows run time/cost | Design stage over-proportions output: 19 FRs + 15 NFRs for one trivial feature; 314KB partial blows run time/c... |
-| BI-PF-1336 | Should | feature | CI strategy: fast targeted per-change gate + scheduled full sweep (stop running full precheck on every change) | Cut per-change CI cost: fast targeted gate per PR + a scheduled full sweep on develop, without losing regressi... |
 | BI-PF-1337 | Should | chore | Reconciliation/360 review must include an explicit LANGUAGE CHECK (Go for new shipped/sensitive logic; Python only to extend existing; shipped/customer-visible runtime = Go) | Make the language rule an explicit, cited section of every reconciliation/Gate-1 review. |
 | BI-PF-1338 | Must | task | language_rule_check misses large new logic added via EDITS to existing shipped Python (should be Go) | language_rule_check misses large new logic added via EDITS to existing shipped Python (should be Go) |
-| BI-PF-1347 | Should | task | Artifact contracts: wire validate_artifact post-generation + repair/compress + outline gate + product-wide DRY | Artifact contracts: wire validate_artifact post-generation + repair/compress + outline gate + product-wide DRY |
 | BI-PF-1348 | Should | task | Artifact contracts: budget reconciliation with the run budget (work-estimate / PIPELINE_MAX_TOTAL_TIME) | Artifact contracts: budget reconciliation with the run budget (work-estimate / PIPELINE_MAX_TOTAL_TIME) |
 | BI-PF-1370 | Should | feature | Session isolation guard: never write outside the session's own working folder (hard ACL long-term + single-account alternative now) | A session can only affect its OWN working folder: cross-folder writes are prevented (long-term, hard) or at le... |
 | BI-PF-1371 | Must | feature | Session isolation guard: never write outside the session's own working folder (hard ACL long-term + single-account alternative now) | A session can only affect its OWN working folder: cross-folder writes are prevented (long-term, hard) or at le... |
+| BI-PF-1372 | Should | task | Artifact contracts: plan -> outline -> fill gate (approve size/outline before prose) | Artifact contracts: plan -> outline -> fill gate (approve size/outline before prose) |
+| BI-PF-1373 | Should | task | Artifact contracts: product-wide DRY (state NFRs/quality once, not per feature) | Artifact contracts: product-wide DRY (state NFRs/quality once, not per feature) |
+| BI-PF-1374 | Should | feature | precheck: a derived/bookkeeping-only tier (docs-fresh + compile only) so doc/backlog regeneration never runs the full gate | Add a derived/bookkeeping-only precheck tier (docs-fresh + compile) and stop doc-regen running the full gate. |
 
 ---
 
@@ -362,5 +363,5 @@
 ---
 
 ## Totals
-- backend: 122 open / 512 closed
+- backend: 123 open / 514 closed
 - dashboard: 146 open / 3 closed
