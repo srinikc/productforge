@@ -63,6 +63,77 @@ class StageRunnerMixin:
         sdef = self.pipeline_def.get("stages", {}).get(stage_id, {})
         return bool(sdef.get("parallel_safe", False))
 
+    # ── Artifact-contract validation (BI-PF-1347) ───────────────────────────────
+    # After an agent produces its artifacts, validate them against the agent/stage's
+    # artifact contract (Go engine). Failures feed the SAME bounded retry loop as a
+    # repair/compress signal. Enforcement is opt-in: PIPELINE_ARTIFACT_VALIDATION =
+    # off | advisory (default) | enforce. No logic here - the engine owns validation.
+    def _artifact_validation_mode(self) -> str:
+        import os as _os
+        m = str(_os.getenv("PIPELINE_ARTIFACT_VALIDATION", "advisory") or "advisory").strip().lower()
+        return m if m in ("off", "advisory", "enforce") else "advisory"
+
+    def _artifact_kind(self) -> str:
+        if getattr(self, "_ac_kind", ""):
+            return self._ac_kind
+        import json as _json
+        import os as _os
+        kind = ""
+        try:
+            pj = _os.path.join(str(getattr(self, "project_dir", "") or ""), "project.json")
+            cfg = _json.load(open(pj, encoding="utf-8")) or {}
+            kind = str(cfg.get("project_kind") or "")
+            if not kind:
+                from core import contracts as _c
+                kind = str((_c.detect_kind(str(cfg.get("idea") or "")) or {}).get("kind") or "text")
+        except Exception:
+            kind = "text"
+        self._ac_kind = kind or "text"
+        return self._ac_kind
+
+    def _artifact_contracts_for(self, agent_id: str, stage_id: str) -> list:
+        cache = getattr(self, "_ac_resolve_cache", None)
+        if cache is None:
+            cache = self._ac_resolve_cache = {}
+        key = (agent_id, stage_id)
+        if key not in cache:
+            try:
+                from core import contracts as _c
+                cache[key] = _c.resolve(agent=agent_id, stage=stage_id,
+                                        kind=self._artifact_kind()).get("contracts") or []
+            except Exception:
+                cache[key] = []
+        return cache[key]
+
+    def _artifact_validation_failures(self, agent_id: str, stage_id: str, execution) -> list:
+        """Validate the produced artifact text against the agent/stage contract."""
+        if self._artifact_validation_mode() == "off":
+            return []
+        if not self._artifact_contracts_for(agent_id, stage_id):
+            return []
+        text = ""
+        for p in (getattr(execution, "artifacts", []) or []):
+            try:
+                with open(p, "r", encoding="utf-8", errors="ignore") as f:
+                    text += f.read() + "\n"
+            except Exception:
+                pass
+        if not text.strip():
+            return []
+        try:
+            from core import contracts as _c
+            res = _c.validate_agent(agent=agent_id, stage=stage_id,
+                                    kind=self._artifact_kind(), text=text)
+            return res.get("failures") or []
+        except Exception:
+            return []
+
+    def _format_validation_feedback(self, failures: list) -> str:
+        lines = ["ARTIFACT CONTRACT - your output must satisfy (fix/compress, do not invent):"]
+        for f in (failures or [])[:6]:
+            lines.append(f"- {f.get('artifact_id')}: " + "; ".join(f.get("reasons") or []))
+        return "\n".join(lines)
+
     def _execute_stages_parallel(self, stage_ids: List[str]):
         """Execute multiple independent stages in parallel."""
         from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -432,17 +503,20 @@ class StageRunnerMixin:
                         self._write_control("stop")
                         return
 
-            # Compliance-driven bounded retry: re-run the agent with the
-            # violation feedback until it passes or the retry cap is hit.
+            # Compliance + artifact-contract bounded retry: re-run the agent with the
+            # violation / contract feedback until it passes or the retry cap is hit.
             attempts = 0
-            while execution.status == "needs_retry" and attempts < self.max_compliance_retries:
+            _vfail = self._artifact_validation_failures(agent_id, stage_id, execution)
+            while (execution.status == "needs_retry" or _vfail) and attempts < self.max_compliance_retries:
                 attempts += 1
                 feedback = ""
                 try:
                     feedback = (execution.compliance_report or {}).get("retry_feedback", "")
                 except Exception:
                     feedback = ""
-                print(f"    [COMPLIANCE RETRY {attempts}/{self.max_compliance_retries}] "
+                if _vfail:
+                    feedback = (feedback + "\n" + self._format_validation_feedback(_vfail)).strip()
+                print(f"    [RETRY {attempts}/{self.max_compliance_retries}] "
                       f"{agent_id} re-running with feedback")
                 retry_task = agent_task + (
                     "\n\nCOMPLIANCE FEEDBACK — fix these issues in this output:\n"
@@ -462,6 +536,18 @@ class StageRunnerMixin:
                     "agent_completed" if _rst in ("completed", "skipped") else
                     ("agent_failed" if _rst == "failed" else "agent_stage_changed"),
                     stage=stage_id, agent=agent_id, status=_rst, retry=attempts)
+                _vfail = self._artifact_validation_failures(agent_id, stage_id, execution)
+            # Record the artifact-contract result; enforce (opt-in) -> fail-closed.
+            try:
+                self._emit_lifecycle("artifact_validation", stage=stage_id, agent=agent_id,
+                                     ok=(not _vfail), mode=self._artifact_validation_mode(),
+                                     failures=(_vfail[:5] if _vfail else []))
+            except Exception:
+                pass
+            if _vfail and self._artifact_validation_mode() == "enforce":
+                print(f"    [ARTIFACT CONTRACT] {agent_id}@{stage_id}: "
+                      f"{len(_vfail)} failure(s) -> fail-closed")
+                execution.status = "needs_retry"
             stage_executions.append(execution)
             self._record_cost_kpi(agent_id, stage_id, execution)
             if execution.status not in ("completed", "skipped"):

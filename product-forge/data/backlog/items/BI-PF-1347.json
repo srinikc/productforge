@@ -36,9 +36,12 @@
     "who_feels": "Product Forge maintainers and consumers.",
     "source": "extracted"
   },
-  "objective": "Artifact contracts: wire validate_artifact post-generation + repair/compress + outline gate + product-wide DRY",
+  "objective": "Wire artifact-contract validation into agent completion (repair/compress via the existing bounded retry loop), fail-closed opt-in.",
   "acceptance_criteria": [
-    "Objective achieved: Artifact contracts: wire validate_artifact post-generation + repair/compress + outline gate + product-wide DRY"
+    "post-generation validation runs for each agent (advisory by default; enforce opt-in)",
+    "failures feed the existing bounded retry loop as repair/compress feedback",
+    "validation result recorded as a lifecycle event",
+    "Go + pytest pass; no regression"
   ],
   "in_scope": [
     "Artifact contracts: wire validate_artifact post-generation + repair/compress + outline gate + product-wide DRY"
@@ -50,9 +53,11 @@
     "Not specified."
   ],
   "affected_files": [
-    "Not specified."
+    "core/contracts.py",
+    "core/orchestrator/stage_runner.py",
+    "test-framework/tests/pipeline/test_artifact_contracts.py"
   ],
-  "approach": "Artifact contracts: wire validate_artifact post-generation + repair/compress + outline gate + product-wide DRY",
+  "approach": "Add contracts.validate_agent (thin composition) + stage_runner wiring: resolve by agent/stage/kind, validate produced artifacts, feed failures to the retry loop, block only when enforce.",
   "review": {
     "reconciliation": {
       "prior_decisions": [],
@@ -169,7 +174,7 @@
     "usage": {}
   },
   "created_at": "2026-10-13T20:56:59.531569",
-  "updated_at": "2026-10-13T20:57:53.587135",
+  "updated_at": "2026-10-13T23:14:16.744017",
   "score": 0.75,
-  "_note": "readiness computed"
+  "_note": "groomed for implementation (v1: wire+repair; outline gate + DRY split)"
 }
