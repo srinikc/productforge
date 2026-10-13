@@ -10,7 +10,7 @@
   "title": "Per-worker sync (BI-PF-1176 step 3): auto-resolve generated docs + counters on merge, and a sync_develop helper so each session folds origin/develop in often (minimal clash/conflicts)",
   "body": "## Problem / why\nCross-session work drifts. The derived backlog stores auto-resolve on merge (BI-PF-1176 steps 1-2:\nhistory=union, open/closed=pf-derived regenerate), but the two GENERATED docs\n(docs/BACKLOG-SUMMARY.md, docs/documentation-index.html) and data/backlog/counters.json are NOT driver-covered,\nso every late merge still conflicts on them. Worse, nothing folds origin/develop into a working branch often, so\na session drifts for hours and then faces one large merge with a wide conflict surface.\n\n## Goal & value\nMinimal clash/conflicts across concurrent sessions: (a) every shared/derived file auto-resolves on merge, and\n(b) each worker folds origin/develop into their branch frequently (merge, never rebase/reset) so merges stay\nsmall.\n\n## In scope\n- config/.gitattributes: attach merge=pf-derived to data/backlog/counters.json and the two generated docs.\n- scripts/dev/pf_merge_driver.py: also (1) max-merge counters.json from the three merge inputs, and (2) regenerate\n  the two generated docs from the backlog on merge.\n- scripts/dev/sync_develop.py: fetch + merge origin/develop into the CURRENT branch; drivers auto-resolve the\n  derived files; on any non-derived (source) conflict ABORT cleanly + list the files; modes --check and --pre-push.\n- install_hooks.py: run the sync in the pre-push hook (per-worker self-service) so a push first folds develop in.\n- AGENTS.md: note the per-worker sync step.\n\n## Out of scope\n- A background/scheduled job: git state is per working directory, so a folder-local job cannot span sessions and\n  would race the editor (IS-PF-0036). Sync is per working tree, done by whoever is working.\n- Auto-resolving SOURCE-file conflicts (those stay fail-closed/manual).\n\n## Approach\nReuse the existing merge-driver mechanism (BI-PF-1176) and the existing hook installer (BI-PF-1249 precedent);\nadd the sync helper + wire it into pre-push. No new store, no new engine.\n\n## Acceptance criteria\n- A merge touching counters.json takes the max per key (no conflict).\n- A merge touching the two generated docs regenerates them (no conflict).\n- sync_develop.py merges develop into the branch; aborts cleanly + reports on a source conflict; --check reports\n  behind/ahead without writing.\n- pre-push runs the sync.\n- Tests cover the counter max-merge + doc regeneration + the sync helper decision paths; precheck passes.\n\n## Risks\n- Counters max-merge could over-increment a label counter (harmless: labels only need to be unique/monotonic).\n- Doc regeneration on merge depends on items/ being merged first (same assumption BI-PF-1176 already makes).\n\n## Rollback\nRevert the .gitattributes/driver/hook changes; merges fall back to manual resolution as today.\n\n## Related\nExtends BI-PF-1176 (steps 1-2); builds on BI-PF-1249 (pre-commit doc regen), BI-PF-0764 (remote id CAS).\n",
   "source": "user",
-  "status": "new",
+  "status": "completed",
   "priority": "P1",
   "moscow": "Must",
   "value": 3,
@@ -30,7 +30,16 @@
     "related": [
       "BI-PF-1176",
       "BI-PF-1249"
-    ]
+    ],
+    "delivery": {
+      "branch": "feature/sync-develop",
+      "merge_sha": "5e3d00443c5037bfb65b410f10d669b41affb04c",
+      "commits": [],
+      "pr": "74",
+      "pr_url": "https://github.com/srinikc/productforge/pull/74",
+      "at": "2026-10-13T15:01:40.321233",
+      "note": "merged via PR"
+    }
   },
   "decisions": [
     {
@@ -120,12 +129,12 @@
   "children": [],
   "epic": "BI-PF-0360",
   "parent": "BI-PF-0360",
-  "revision": 3,
+  "revision": 4,
   "priority_rank": 2,
   "priority_class": "P1",
   "analyze_mode": "on_entry",
   "analysis": {
-    "status": "COMPLETE",
+    "status": "STALE",
     "analyzed_at": "2026-10-13T13:44:18.037231",
     "analyzed_by": "system",
     "revision_analyzed": 3,
@@ -225,7 +234,7 @@
     "usage": {}
   },
   "created_at": "2026-10-13T13:42:43.351924",
-  "updated_at": "2026-10-13T13:44:19.087460",
+  "updated_at": "2026-10-13T15:01:40.920816",
   "score": 0.75,
-  "_note": "readiness computed"
+  "_note": "delivered PR#74"
 }

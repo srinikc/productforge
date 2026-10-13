@@ -1,14 +1,14 @@
 # Backlog Summary
 
-> GENERATED 2026-10-13T14:25:58 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-13T15:01:42 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 76  |  **Closed:** 500
-- `new`: 76
+- **Open:** 75  |  **Closed:** 501
+- `new`: 75
 
-### new, by category (76)
+### new, by category (75)
 **API / reports / HIL / misc** (7)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
@@ -50,7 +50,7 @@
 | BI-PF-1241 | Should | feature | Per-item token/cache/cost usage (execution.usage) + runtime usage capture + rollup | - backlog execution: + usage{} (input/output/reasoning/cache_read/cache_write/total/cost_usd/model/cost_source... |
 | BI-PF-1273 | Should | feature | Eventing SSOT: migrate existing consumers (event_bus/context/ops/capabilities/parked/notifications/alerts) behind shims | Migrate each consumer to the subscriber/transport API with a compatibility shim so behavior is identical durin... |
 
-**Wiring / tech-debt / API** (55)
+**Wiring / tech-debt / API** (54)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0185 | Should | feature | EPIC: Multi-modal / media orchestration (pluggable capability packs) | Make the pipeline modality-agnostic via PLUGGABLE capability packs, enabled per project when the idea needs th... |
@@ -107,7 +107,6 @@
 | BI-PF-1279 | Should | feature | dogfood/validation: ensure DOGFOOD-profile quality_gate record so PASS is reachable | Make the DOGFOOD profile produce/ensure the quality-gate record for the validated tree (reuse the existing own... |
 | BI-PF-1280 | Should | feature | dogfood: monitoring - wait/poll + terminal event/webhook + status aggregation | Expose progress via the shared bus: poll (run_status/events) + subscribe (SSE/webhook) + aggregate status. |
 | BI-PF-1288 | Must | task | Issue id collision: a local session minted IS-PF-0038 already present on develop | Issue id collision: a local session minted IS-PF-0038 already present on develop |
-| BI-PF-1290 | Must | feature | Per-worker sync (BI-PF-1176 step 3): auto-resolve generated docs + counters on merge, and a sync_develop helper so each session folds origin/develop in often (minimal clash/conflicts) | Minimal clash/conflicts across concurrent sessions: (a) every shared/derived file auto-resolves on merge, and ... |
 
 ---
 
@@ -307,5 +306,5 @@
 ---
 
 ## Totals
-- backend: 76 open / 500 closed
+- backend: 75 open / 501 closed
 - dashboard: 146 open / 3 closed
