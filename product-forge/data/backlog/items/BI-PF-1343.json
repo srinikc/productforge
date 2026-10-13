@@ -1,0 +1,185 @@
+{
+  "id": "BI-PF-1343",
+  "tag": "PF",
+  "type": "task",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "",
+  "label": "PF Backlog 614",
+  "title": "Artifact contracts layer 2: kind detection + size slider/profiles + per-artifact budget + required/optional sections + counts + schema validators + enforcement wiring",
+  "body": "Extend the registry + Go engine: project-kind detector; profiles.json (SMALL/MED/LARGE size/depth slider); per-artifact token budget + reconciliation; required_sections subset; counts enforcement; structured schema validators; wire validate_artifact post-generation. Reuse PR #98 engine/API.",
+  "source": "generic",
+  "status": "new",
+  "priority": "P1",
+  "moscow": "Must",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [],
+  "links": {
+    "issue": "product_forge:IS-PF-0051"
+  },
+  "decisions": [
+    {
+      "at": "2026-10-13T20:33:41.201763",
+      "decision": "APPROVE",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)"
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "Extend the registry + Go engine: project-kind detector; profiles.json (SMALL/MED/LARGE size/depth slider); per-artifact token budget + reconciliation; required_sections subset; counts enforcement; structured schema validators; wire validate_artifact post-generation. Reuse PR #98 engine/API.",
+    "what_adds": "Artifact contracts layer 2: kind detection + size slider/profiles + per-artifact budget + required/optional sections + counts + schema validators + enforcement wiring",
+    "why": "Extend the registry + Go engine: project-kind detector; profiles.json (SMALL/MED/LARGE size/depth slider); per-artifact token budget + reconciliation; required_sections subset; counts enforcement; structured schema validators; wire validate_artifact post-generation. Reuse PR #98 engine/API.",
+    "who_feels": "Product Forge maintainers and consumers.",
+    "source": "extracted"
+  },
+  "objective": "Artifact contracts layer 2: kind detection + size slider/profiles + per-artifact budget + required/optional sections + counts + schema validators + enforcement wiring",
+  "acceptance_criteria": [
+    "Objective achieved: Artifact contracts layer 2: kind detection + size slider/profiles + per-artifact budget + required/optional sections + counts + schema validators + enforcement wiring"
+  ],
+  "in_scope": [
+    "Artifact contracts layer 2: kind detection + size slider/profiles + per-artifact budget + required/optional sections + counts + schema validators + enforcement wiring"
+  ],
+  "out_of_scope": [
+    "Not specified."
+  ],
+  "affected_components": [
+    "Not specified."
+  ],
+  "affected_files": [
+    "profiles.json"
+  ],
+  "approach": "Artifact contracts layer 2: kind detection + size slider/profiles + per-artifact budget + required/optional sections + counts + schema validators + enforcement wiring",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Objective achieved: Artifact contracts layer 2: kind detection + size slider/profiles + per-artifact budget + required/optional sections + counts + schema validators + enforcement wiring"
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "agent",
+  "requester": "generic",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1342",
+  "parent": "BI-PF-1342",
+  "revision": 2,
+  "priority_rank": 20,
+  "priority_class": "P1",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "COMPLETE",
+    "analyzed_at": "2026-10-13T20:33:41.003655",
+    "analyzed_by": "system",
+    "revision_analyzed": 2,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend core/artifact_registry.py + artifact_formats.py with kind-detection, profiles.json (SMALL/MED/LARGE), required_sections, counts, and schema validators; extend core/budget*.py for per-artifact budgets with reconciliation; add validate_artifact wiring on the /api/v1/validation/artifact-contracts endpoints post-generation; mirror registry fields into the Go engine from PR #98.",
+    "existing_components": [],
+    "existing_apis": [],
+    "existing_modules": [],
+    "dependency_findings": [
+      "REQUIRES BI-PF-1342 epic context for contract taxonomy",
+      "RELATED BI-PF-0335 (contract reconciliation artifact + gate) should consume the same validators",
+      "REQUIRES PR #98 engine/API code to be merged"
+    ],
+    "conflict_findings": [
+      "Any sibling child of BI-PF-1342 touching config/artifact-formats.json or budget modules may conflict",
+      "Go engine changes from PR #98 may still be in flight"
+    ],
+    "duplication_findings": [
+      "core/budget*.py already covers project-level budgets; ensure per-artifact budget is additive, not parallel",
+      "/api/v1/validation/artifact-contracts/validate already exists — extend, do not add a new endpoint",
+      "config/validation-profiles.json may already encode part of size profiles — reconcile before authoring profiles.json"
+    ],
+    "drift": "LOW",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "The registry, format configs, budget modules, and contract-validation API already exist; this item is a systematic extension across them rather than new surface area, so EXTEND with strict reuse of PR #98.",
+    "assumptions": [
+      "PR #98 is merged or near-merge and is the canonical engine/API surface",
+      "Artifact registry is the single source of truth for contracts",
+      "enforcement is advisory-fail, not blocking generation retry, in v1"
+    ],
+    "risks": [
+      "profiles.json semantics could conflict with existing validation-profiles.json",
+      "Go/Python registry field drift after PR #98",
+      "Budget reconciliation edge cases across artifact chains"
+    ],
+    "evidence": [
+      "Candidate components include full budget_* module family",
+      "Existing /api/v1/validation/artifact-contracts/* endpoints",
+      "config/artifact-formats.json already stores per-artifact format rules"
+    ],
+    "confidence": "medium",
+    "missing_info": [
+      "Exact SMALL/MED/LARGE token thresholds",
+      "Whether counts enforcement is hard-fail or warning-level",
+      "Owner of Go-side mirror changes post-PR #98",
+      "Relationship between profiles.json and config/validation-profiles.json"
+    ],
+    "depth": "deep",
+    "mode": "ai",
+    "context_review": {
+      "ok": false,
+      "source": "llm",
+      "implementable": false,
+      "missing": [
+        "how",
+        "where"
+      ],
+      "reason": "Circular/boilerplate text; describes features at title level only. Approach is just 'reuse PR #98' with no design detail, and affected components/files are unspecified beyond a single profiles.json."
+    },
+    "decision_request": {
+      "needed": false,
+      "reasons": [],
+      "ask": ""
+    },
+    "arch_fingerprint": "af8b4966e7eb8672"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-13T20:33:41.088475"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-13T20:32:44.289850",
+  "updated_at": "2026-10-13T20:33:41.489490",
+  "score": 0.75,
+  "_note": "readiness computed"
+}

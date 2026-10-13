@@ -504,12 +504,28 @@ def contract(artifact_id: str) -> dict:
     return load_registry().get(artifact_id) or {}
 
 
-def resolve(agent: str = "", stage: str = "", kind: str = "*") -> dict:
-    """Resolution for an agent/stage: covered?, contracts, or explicit 'none' (Go engine)."""
+def resolve(agent: str = "", stage: str = "", kind: str = "*", profile: str = "") -> dict:
+    """Resolution for an agent/stage, with the size slider (Go engine)."""
     from core import go_host
-    r = go_host.artifact_contracts_resolve(_ac_dir(), agent=agent, stage=stage, kind=kind)
-    return r.get("result") or {"agent": agent, "stage": stage, "kind": kind,
+    r = go_host.artifact_contracts_resolve(_ac_dir(), agent=agent, stage=stage, kind=kind,
+                                           profile=profile)
+    return r.get("result") or {"agent": agent, "stage": stage, "kind": kind, "profile": profile,
                                "covered": False, "none": False, "contracts": [], "count": 0}
+
+
+def detect_kind(idea: str) -> dict:
+    """Detect the project kind from the idea text (Go engine; heuristic)."""
+    from core import go_host
+    r = go_host.artifact_contracts_kind(_ac_dir(), idea)
+    return r.get("result") or {"kind": "text", "matches": {}, "hits": []}
+
+
+def budget(agent: str = "", stage: str = "", kind: str = "*", profile: str = "") -> dict:
+    """Sum per-artifact token budgets for the resolved contracts (Go engine)."""
+    from core import go_host
+    r = go_host.artifact_contracts_budget(_ac_dir(), agent=agent, stage=stage, kind=kind,
+                                          profile=profile)
+    return r.get("result") or {"profile": profile, "total_max_tokens": 0, "items": [], "count": 0}
 
 
 def validate_artifact(artifact_id: str, text: str) -> dict:
