@@ -1,0 +1,247 @@
+{
+  "id": "BI-PF-1305",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "edp-13-objectstore-local",
+  "label": "PF Backlog 594",
+  "title": "EDP-13: Local filesystem ObjectStore adapter (root containment, symlink defense, atomic writes, checksum, size limits)",
+  "body": "Part of EPIC BI-PF-1292. Source: docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md. Phase item (see epic). Language rule L1 = Go; must pass scripts/dev/language_rule_review.py.",
+  "source": "review",
+  "status": "new",
+  "priority": "P2",
+  "moscow": "Should",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [
+    "BI-PF-1299",
+    "BI-PF-1303"
+  ],
+  "links": {
+    "source_doc": "docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md",
+    "possible_duplicate_of": [
+      "product_forge:BI-PF-1293"
+    ]
+  },
+  "decisions": [
+    {
+      "at": "2026-10-13T16:33:46.659128",
+      "decision": "APPROVE",
+      "by": "agent",
+      "note": "finalized: decisions recorded 2026-10-13"
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "No ObjectStore adapter exists for local development/self-hosted deployments behind the provider-neutral interface.",
+    "what_adds": "Go localfs adapter with containment, symlink defense, atomic writes, checksums, size limits.",
+    "why": "Needed for dev/self-hosted parity and as reference implementation for the interface.",
+    "who_feels": "Developers, self-hosted operators, security reviewers.",
+    "source": "authored"
+  },
+  "objective": "Provide a Go local-filesystem ObjectStore adapter with root containment, symlink defense, atomic writes, checksum verification, and size limits, passing the shared conformance suite.",
+  "acceptance_criteria": [
+    "Adapter passes all BI-PF-1299 conformance tests",
+    "Symlink escape and path traversal attempts denied",
+    "Writes are atomic (no partial object visible on crash simulation)",
+    "Checksum mismatch on read detected; size limit enforced with clear error",
+    "Passes scripts/dev/language_rule_review.py"
+  ],
+  "in_scope": [
+    "Go localfs ObjectStore adapter",
+    "Path containment + symlink defense",
+    "Atomic write + sha256 checksum",
+    "Size limit enforcement",
+    "Conformance test wiring"
+  ],
+  "out_of_scope": [
+    "S3 adapter (BI-PF-1306)",
+    "Multi-root or networked filesystems",
+    "Encryption at rest",
+    "Retention/lifecycle policies"
+  ],
+  "affected_components": [
+    "core/generator_adapters.py (pattern ref)",
+    "core/intake_adapters.py (pattern ref)",
+    "core/test_adapters.py (pattern ref)",
+    "core/vendor_adapters.py (pattern ref)",
+    "BI-PF-1299 conformance harness"
+  ],
+  "affected_files": [
+    "internal/objectstore/localfs/*.go (new)",
+    "internal/objectstore/registry.go",
+    "config/objectstore settings"
+  ],
+  "approach": "Implement interface, register in adapter factory, write security-focused tests (traversal, symlink, TOCTOU), run shared conformance harness, wire config root/limits.",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Conformance suite green",
+    "Adversarial path/symlink test suite green",
+    "Crash-injection atomicity test",
+    "language_rule_review.py passes"
+  ],
+  "risks": [
+    "Symlink/TOCTOU races on some filesystems",
+    "Atomic rename not atomic across devices",
+    "Size-limit enforcement race on concurrent writes"
+  ],
+  "rollback": "Adapter is additive and opt-in via config; remove registration to revert without code rollback.",
+  "evidence": [
+    "core/*_adapters.py patterns",
+    "Roadmap EDP-13",
+    "BI-PF-1299 harness definition"
+  ],
+  "owner": "unassigned",
+  "requester": "epic BI-PF-1292",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1292",
+  "parent": "BI-PF-1292",
+  "revision": 9,
+  "priority_rank": 4,
+  "priority_class": "P2",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "STALE",
+    "analyzed_at": "2026-10-13T16:33:46.311198",
+    "analyzed_by": "agent",
+    "revision_analyzed": 8,
+    "architecture_fit": "NEW_COMPONENT",
+    "implementation_strategy": "Implement a Go local-filesystem ObjectStore adapter satisfying the provider-neutral interfaces from BI-PF-1299, validated against the shared conformance harness: root containment via path canonicalization, symlink defense (EvalSymlinks + root check), atomic writes (temp file + rename), checksum (sha256) verification, and configurable size limits. Use existing Python adapter modules (generator/intake/test/vendor_adapters.py) only as naming/behavioral pattern references.",
+    "existing_components": [],
+    "existing_apis": [],
+    "existing_modules": [],
+    "dependency_findings": [
+      "REQUIRES BI-PF-1299 (state: interfaces + conformance harness merged)",
+      "REQUIRES BI-PF-1306 (state: any - shared adapter wiring/conventions established)",
+      "RELATED BI-PF-1303 (attestation may gate which adapter is allowed per cell)"
+    ],
+    "conflict_findings": [
+      "Low conflict: adapter is isolated behind interface; only registration/factory wiring shared with BI-PF-1306"
+    ],
+    "duplication_findings": [
+      "No existing localfs ObjectStore implementation found",
+      "Python adapter components are structural precedents, not reusable under L1=Go",
+      "Conformance harness from BI-PF-1299 must be reused, not re-implemented"
+    ],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": true,
+    "rationale": "Local filesystem adapter is a natural first concrete implementation behind the new provider-neutral interface and is fully testable via the existing conformance harness.",
+    "assumptions": [
+      "BI-PF-1299 harness runs against in-process adapters",
+      "Single-root deployment model (root dir from config)",
+      "sha256 is the accepted checksum"
+    ],
+    "risks": [
+      "Symlink/TOCTOU races on some filesystems",
+      "Atomic rename not atomic across devices",
+      "Size-limit enforcement race on concurrent writes"
+    ],
+    "evidence": [
+      "core/*_adapters.py patterns",
+      "Roadmap EDP-13",
+      "BI-PF-1299 harness definition"
+    ],
+    "confidence": "high",
+    "missing_info": [
+      "Default root directory and config key",
+      "Max object size default",
+      "Whether directory listing/delete semantics are required by interface"
+    ],
+    "depth": "deep",
+    "mode": "ai",
+    "context_review": {
+      "implementable": true,
+      "missing": [
+        "Default root dir/config key",
+        "Max object size default",
+        "Required delete/list semantics"
+      ],
+      "reason": "Interface contract from BI-PF-1299 is the only real dependency; implementation is self-contained and highly testable."
+    },
+    "consolidation_proposal": {
+      "sources": [
+        "BI-PF-1306",
+        "BI-PF-1293",
+        "BI-PF-1299"
+      ],
+      "title": "EDP-13: Local filesystem ObjectStore adapter (root containment, symlink defense, atomic writes, checksum, size limits)",
+      "body": "Part of EPIC BI-PF-1292. Source: docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md. Phase item (see epic). Language rule L1 = Go; must pass scripts/dev/language_rule_review.py.",
+      "acceptance_criteria": [
+        "put/get/head/delete/list-prefix stream bytes with checksum and byte-count verification; atomic publish.",
+        "Root containment + symlink-escape + traversal defenses; content-type/size limits; untrusted-archive handling.",
+        "Deterministic test fixtures; conformance suite passes.",
+        "private buckets, least-privilege credentials, lifecycle/versioning where required; explicit region/backup/replication capability metadata.",
+        "Signed URLs only after authorization, constrained to object/method, short TTL.",
+        "Provider config stays inside the adapter; conformance suite passes (wrong-region, versions, delete, restore).",
+        "ADR document committed covering storage layers, backends, and data-flow decisions",
+        "Develop commit SHA pinned and recorded",
+        "L1 Go rule passes language_rule_review.py",
+        "11 Go interfaces defined in internal/storage/ with godoc and compile-time assertions",
+        "Conformance harness package exposes embeddable test suites per interface",
+        "In-memory reference adapter passes all conformance suites",
+        "scripts/dev/language_rule_review.py passes (Go-only)",
+        "config/test-matrix.json extended with storage-conformance rows"
+      ],
+      "moscow": "Must"
+    },
+    "arch_fingerprint": "dc9598f15f6d5d5f"
+  },
+  "dependencies": [
+    {
+      "task_id": "BI-PF-1299",
+      "type": "REQUIRES",
+      "required_state": "COMPLETE"
+    },
+    {
+      "task_id": "BI-PF-1303",
+      "type": "RELATED",
+      "required_state": "completed"
+    }
+  ],
+  "blocked_by": [
+    "BI-PF-1299"
+  ],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-13T16:33:46.467141"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-13T16:02:49.266825",
+  "updated_at": "2026-10-13T16:35:28.363824",
+  "score": 0.75,
+  "source_ref": "docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md",
+  "_note": "dependencies set"
+}

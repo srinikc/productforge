@@ -1,0 +1,233 @@
+{
+  "id": "BI-PF-1315",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "edp-23-backup-restore",
+  "label": "PF Backlog 604",
+  "title": "EDP-23: Backup/PITR + restore drills (full service + single-tenant) + DB<->object integrity reconciliation + region-aware restore",
+  "body": "Part of EPIC BI-PF-1292. Source: docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md.",
+  "source": "review",
+  "status": "new",
+  "priority": "P1",
+  "moscow": "Must",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [
+    "BI-PF-1310",
+    "BI-PF-1308",
+    "BI-PF-1317",
+    "BI-PF-1312"
+  ],
+  "links": {
+    "source_doc": "docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md"
+  },
+  "decisions": [
+    {
+      "at": "2026-10-13T16:12:14.521670",
+      "decision": "APPROVE",
+      "by": "cli",
+      "note": ""
+    },
+    {
+      "at": "2026-10-13T16:33:15.908709",
+      "decision": "APPROVE",
+      "by": "cli",
+      "note": ""
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "No tested backup/PITR, restore drills, or DB<->object integrity checks — DR claims are unproven.",
+    "what_adds": "PITR backups, automated restore drills (service + single-tenant), integrity reconciliation, region-aware restore.",
+    "why": "Enterprise DR and compliance require proven, repeatable restores.",
+    "who_feels": "Operators, compliance teams, and enterprise customers.",
+    "source": "authored"
+  },
+  "objective": "Deliver backup + PITR configuration, automated restore drills (full-service and single-tenant), DB<->object integrity reconciliation, and region-aware restore routing.",
+  "acceptance_criteria": [
+    "Automated full-service restore drill passes within agreed RTO/RPO",
+    "Single-tenant restore drill isolates and restores only that tenant's data",
+    "DB<->object integrity reconciliation reports and repairs orphaned rows/objects",
+    "Region-aware restore selects correct target cell (per BI-PF-1317 tiers)"
+  ],
+  "in_scope": [
+    "PG backup + PITR configuration",
+    "Restore-drill automation (full + single-tenant)",
+    "DB<->object integrity reconciliation (reuse BI-PF-1308 hooks)",
+    "Region-aware restore routing"
+  ],
+  "out_of_scope": [
+    "Object lifecycle/versioning itself (BI-PF-1308)",
+    "Region cell provisioning/partitioning (BI-PF-1317)",
+    "SLO benchmarking (BI-PF-1314)"
+  ],
+  "affected_components": [
+    "core/service_catalog.py",
+    "components/storage (reconciliation from BI-PF-1308)",
+    "DB backup config / infra manifests"
+  ],
+  "affected_files": [
+    "components/backup/restore_drills.py",
+    "components/backup/pitr_config.yaml",
+    "components/storage/integrity_reconciler.py",
+    "tests/test_restore_drill.py"
+  ],
+  "approach": "Configure WAL archiving/PITR, script restore drills for both scopes, extend 1308 reconciler, route restores by region cell.",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Automated restore drill in staging within RTO",
+    "Single-tenant drill restores isolated slice",
+    "Reconciliation finds seeded orphans and repairs them",
+    "Region routing unit tests"
+  ],
+  "risks": [
+    "Restore drills are expensive and environment-heavy — risk of never-run drills",
+    "PITR granularity vs object-store consistency window mismatch",
+    "Single-tenant restore may break shared-infrastructure assumptions"
+  ],
+  "rollback": "Backup config changes are additive; drills run against disposable environments; reconciler has dry-run mode.",
+  "evidence": [
+    "Roadmap EDP-23",
+    "BI-PF-1308 reconciliation scope",
+    "core/service_catalog.py candidate"
+  ],
+  "owner": "unassigned",
+  "requester": "Product Forge",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1292",
+  "parent": "BI-PF-1292",
+  "revision": 8,
+  "priority_rank": 40,
+  "priority_class": "P1",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "STALE",
+    "analyzed_at": "2026-10-13T16:33:15.612358",
+    "analyzed_by": "cli",
+    "revision_analyzed": 7,
+    "architecture_fit": "NEW_CAPABILITY",
+    "implementation_strategy": "New backup/restore capability: PG basebackup+PITR config, restore-drill automation (full-service and single-tenant), DB<->object-store integrity reconciliation reusing BI-PF-1308 lifecycle hooks and stored_objects metadata, region-aware restore routing.",
+    "existing_components": [],
+    "existing_apis": [],
+    "existing_modules": [],
+    "dependency_findings": [
+      "REQUIRES BI-PF-1310 (partitions) done",
+      "REQUIRES BI-PF-1308 (object lifecycle/reconciliation) done",
+      "REQUIRES BI-PF-1317 (region cells) any",
+      "RELATED BI-PF-1312 for evidence of restores"
+    ],
+    "conflict_findings": [
+      "Integrity reconciliation overlaps BI-PF-1308 — must reuse its registry, not fork",
+      "Region-aware restore coordinates with BI-PF-1317 partition/region work"
+    ],
+    "duplication_findings": [
+      "BI-PF-1308 covers delete/replica/backup reconciliation at object level — extend, do not rebuild",
+      "core/service_catalog.py reusable only for service-level drill orchestration patterns",
+      "BI-PF-1317 handles region cells — restore routing must defer to it"
+    ],
+    "drift": "LOW",
+    "rewrite_required": false,
+    "new_component_required": true,
+    "rationale": "Critical DR capability; depends on partitions and object lifecycle, reuses BI-PF-1308 reconciliation rather than duplicating it.",
+    "assumptions": [
+      "Managed PG supports PITR/WAL archiving",
+      "Object store supports versioning/replication per BI-PF-1308",
+      "Region cells from BI-PF-1317 define restore targets"
+    ],
+    "risks": [
+      "Restore drills are expensive and environment-heavy — risk of never-run drills",
+      "PITR granularity vs object-store consistency window mismatch",
+      "Single-tenant restore may break shared-infrastructure assumptions"
+    ],
+    "evidence": [
+      "Roadmap EDP-23",
+      "BI-PF-1308 reconciliation scope",
+      "core/service_catalog.py candidate"
+    ],
+    "confidence": "medium",
+    "missing_info": [
+      "RTO/RPO targets per tier",
+      "Which regions/cells are in scope for first restore drill",
+      "Frequency and automation level for drills"
+    ],
+    "depth": "deep",
+    "mode": "ai",
+    "context_review": {
+      "implementable": true,
+      "missing": [
+        "RTO/RPO targets",
+        "Region scope for first drill"
+      ],
+      "reason": "Depends on BI-PF-1308/1310 and coordination with BI-PF-1317; scope otherwise clear."
+    },
+    "arch_fingerprint": "dc9598f15f6d5d5f"
+  },
+  "dependencies": [
+    {
+      "task_id": "BI-PF-1310",
+      "type": "REQUIRES",
+      "required_state": "COMPLETE"
+    },
+    {
+      "task_id": "BI-PF-1308",
+      "type": "RELATED",
+      "required_state": "completed"
+    },
+    {
+      "task_id": "BI-PF-1317",
+      "type": "RELATED",
+      "required_state": "completed"
+    },
+    {
+      "task_id": "BI-PF-1312",
+      "type": "RELATED",
+      "required_state": "completed"
+    }
+  ],
+  "blocked_by": [
+    "BI-PF-1310"
+  ],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-13T16:33:15.746000"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-13T16:06:28.325096",
+  "updated_at": "2026-10-13T16:35:32.516001",
+  "score": 0.75,
+  "source_ref": "docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md",
+  "_note": "dependencies set"
+}

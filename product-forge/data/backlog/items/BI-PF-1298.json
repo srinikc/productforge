@@ -1,0 +1,250 @@
+{
+  "id": "BI-PF-1298",
+  "tag": "PF",
+  "type": "task",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "edp-06-perf-baseline",
+  "label": "PF Backlog 587",
+  "title": "EDP-06: Baseline performance capture (artifact list/read, project load/save, run transitions, memory retrieval, job claim/lease, DB/pool counts)",
+  "body": "Part of EPIC BI-PF-1292. Source: docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md. Phase item (see epic). Language rule L1 = Go; must pass scripts/dev/language_rule_review.py.",
+  "source": "review",
+  "status": "new",
+  "priority": "P1",
+  "moscow": "Must",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [
+    "BI-PF-1294",
+    "BI-PF-1293",
+    "BI-PF-1307"
+  ],
+  "links": {
+    "source_doc": "docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md",
+    "possible_duplicate_of": [
+      "product_forge:BI-PF-1293"
+    ]
+  },
+  "decisions": [
+    {
+      "at": "2026-10-13T16:33:34.129885",
+      "decision": "APPROVE",
+      "by": "agent",
+      "note": "finalized: decisions recorded 2026-10-13"
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "No measured performance baseline for core data-plane operations.",
+    "what_adds": "Reproducible Go benchmark harness + baseline report artifact.",
+    "why": "EDP optimization phases need before/after numbers to prove wins.",
+    "who_feels": "Platform team, SREs, and enterprise customers feeling slow artifact/project ops.",
+    "source": "authored"
+  },
+  "objective": "Capture reproducible baseline performance metrics for artifact list/read, project load/save, run transitions, memory retrieval, job claim/lease, and DB/pool counts.",
+  "acceptance_criteria": [
+    "Harness benchmarks all 6 operation groups with p50/p95 latency",
+    "Baseline report emitted as versioned artifact",
+    "Runs pass language_rule_review.py and CI",
+    "Metrics stored via BI-PF-1294 observability path"
+  ],
+  "in_scope": [
+    "Go benchmark harness + baseline report artifact"
+  ],
+  "out_of_scope": [
+    "Optimization work (later EDP phases)",
+    "Load-test soak suites"
+  ],
+  "affected_components": [
+    "core/artifact_store.py",
+    "core/artifact_registry.py",
+    "core/agent_runtime.py"
+  ],
+  "affected_files": [
+    "internal/bench/harness.go",
+    "internal/bench/scenarios.go",
+    "config/artifact-paths.json"
+  ],
+  "approach": "Scenario-driven harness hitting stable APIs; results written as artifact.",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Run harness twice; compare variance <10%",
+    "language_rule_review.py",
+    "Report artifact readable via /api/v1/artifacts"
+  ],
+  "risks": [
+    "API churn from BI-PF-1507/1297 refactor invalidating baselines",
+    "Baseline numbers unrepeatable without pinned environment"
+  ],
+  "rollback": "Retire harness job; baselines are additive artifacts with no runtime dependency.",
+  "evidence": [
+    "Candidate APIs enumerated in item candidates",
+    "core/artifact_store.py exists for output persistence"
+  ],
+  "owner": "platform-performance",
+  "requester": "product_forge",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1292",
+  "parent": "BI-PF-1292",
+  "revision": 9,
+  "priority_rank": 5,
+  "priority_class": "P1",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "STALE",
+    "analyzed_at": "2026-10-13T16:33:33.827285",
+    "analyzed_by": "agent",
+    "revision_analyzed": 8,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Build a Go benchmark harness that drives existing artifact/project/run/memory/job APIs, recording latency/throughput/pool metrics; emit baseline report artifact via existing artifact_store; reuse candidate /api/v1/artifacts and dogfood run endpoints.",
+    "existing_components": [
+      "core/adopt_project.py",
+      "core/agent_card_loader.py",
+      "core/agent_readiness.py",
+      "core/agent_runtime.py",
+      "core/artifact_formats.py",
+      "core/artifact_registry.py",
+      "core/artifact_store.py",
+      "core/cross_project_learning.py"
+    ],
+    "existing_apis": [
+      "/api/v1/artifacts",
+      "/api/v1/artifacts/{stage_id}/{agent}",
+      "/api/v1/audit/readiness",
+      "/api/v1/dogfood/run",
+      "/api/v1/dogfood/runs/{run_id}",
+      "/api/v1/engineering/tasks/{task_id}/run",
+      "/api/v1/evidence/manifest/{run_id}",
+      "/api/v1/projects"
+    ],
+    "existing_modules": [
+      "config/artifact-formats.json",
+      "config/artifact-owners.json",
+      "config/artifact-paths.json"
+    ],
+    "dependency_findings": [
+      "REQUIRES BI-PF-1294 (EDP-02 observability) for metric plumbing",
+      "RELATED BI-PF-1293 ADR for storage decisions"
+    ],
+    "conflict_findings": [
+      "Potential conflict with BI-PF-1307 which refactors /artifacts API; sequence harness before refactor or pin endpoint contract"
+    ],
+    "duplication_findings": [
+      "No existing perf-baseline harness in components",
+      "BI-PF-1307 refactors /artifacts API later — harness must use stable endpoints only"
+    ],
+    "drift": "LOW",
+    "rewrite_required": false,
+    "new_component_required": true,
+    "rationale": "New harness component but fully reuses existing APIs and artifact store for output; no duplicate work in backlog.",
+    "assumptions": [
+      "BI-PF-1294 delivers metrics collection before this item",
+      "Benchmark env is representative enough for relative comparisons"
+    ],
+    "risks": [
+      "API churn from BI-PF-1507/1297 refactor invalidating baselines",
+      "Baseline numbers unrepeatable without pinned environment"
+    ],
+    "evidence": [
+      "Candidate APIs enumerated in item candidates",
+      "core/artifact_store.py exists for output persistence"
+    ],
+    "confidence": "medium",
+    "missing_info": [
+      "Target env/cluster size for baseline",
+      "Retention policy for baseline reports"
+    ],
+    "depth": "deep",
+    "mode": "ai",
+    "consolidation_proposal": {
+      "sources": [
+        "BI-PF-1293",
+        "BI-PF-1299"
+      ],
+      "title": "EDP-06: Baseline performance capture (artifact list/read, project load/save, run transitions, memory retrieval, job claim/lease, DB/pool counts)",
+      "body": "Part of EPIC BI-PF-1292. Source: docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md. Phase item (see epic). Language rule L1 = Go; must pass scripts/dev/language_rule_review.py.",
+      "acceptance_criteria": [
+        "Baseline harness records p50/p95/p99 for artifact list/read, project load/save, run transitions, memory retrieval, job claim; plus connection counts and CPU/RAM/disk.",
+        "Results stored as evidence and reproducible in CI/release.",
+        "Methodology (data volume, concurrency, hardware) documented.",
+        "ADR document committed covering storage layers, backends, and data-flow decisions",
+        "Develop commit SHA pinned and recorded",
+        "L1 Go rule passes language_rule_review.py",
+        "The 11 interfaces are declared with explicit optional capabilities (versioning/lock/conditional-write/KMS/signed-URL/multipart).",
+        "A conformance suite runs against any adapter (starting with WorkerGrid's store as reference).",
+        "No domain module depends on a concrete provider."
+      ],
+      "moscow": "Must"
+    },
+    "context_review": {
+      "implementable": true,
+      "missing": [
+        "Target environment sizing",
+        "Baseline report retention"
+      ],
+      "reason": "Endpoints and artifact store exist; env and retention are human decisions."
+    },
+    "arch_fingerprint": "dc9598f15f6d5d5f"
+  },
+  "dependencies": [
+    {
+      "task_id": "BI-PF-1294",
+      "type": "REQUIRES",
+      "required_state": "COMPLETE"
+    },
+    {
+      "task_id": "BI-PF-1293",
+      "type": "RELATED",
+      "required_state": "completed"
+    },
+    {
+      "task_id": "BI-PF-1307",
+      "type": "RELATED",
+      "required_state": "completed"
+    }
+  ],
+  "blocked_by": [
+    "BI-PF-1294"
+  ],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-13T16:33:33.947379"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-13T16:02:22.292211",
+  "updated_at": "2026-10-13T16:35:25.358896",
+  "score": 0.75,
+  "source_ref": "docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md",
+  "_note": "dependencies set"
+}

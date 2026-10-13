@@ -1,0 +1,218 @@
+{
+  "id": "BI-PF-1309",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "edp-17-pg-schema",
+  "label": "PF Backlog 598",
+  "title": "EDP-17: Canonical PostgreSQL schema (tenants/memberships/projects/runs/stages/attempts/artifacts/usage/quotas/audit/schema_migrations) + indexes + pooling + optimistic versioning",
+  "body": "Part of EPIC BI-PF-1292. Source: docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md.",
+  "source": "review",
+  "status": "new",
+  "priority": "P0",
+  "moscow": "Must",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [
+    "BI-PF-1300",
+    "BI-PF-1301",
+    "BI-PF-1312"
+  ],
+  "links": {
+    "source_doc": "docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md"
+  },
+  "decisions": [
+    {
+      "at": "2026-10-13T16:12:08.327147",
+      "decision": "APPROVE",
+      "by": "cli",
+      "note": ""
+    },
+    {
+      "at": "2026-10-13T16:33:12.211791",
+      "decision": "APPROVE",
+      "by": "cli",
+      "note": ""
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "No canonical relational schema; state is scattered in registries and files.",
+    "what_adds": "Versioned PostgreSQL schema with pooling and optimistic versioning.",
+    "why": "Blocks artifacts metadata, audit store, quotas, and enterprise multi-tenancy.",
+    "who_feels": "Every downstream EDP phase and enterprise customers.",
+    "source": "authored"
+  },
+  "objective": "Deliver the canonical PostgreSQL schema (tenants, memberships, projects, runs, stages, attempts, artifacts, usage, quotas, audit, schema_migrations) with indexes, connection pooling, and optimistic versioning.",
+  "acceptance_criteria": [
+    "All listed tables created via versioned migrations with indexes for hot query paths",
+    "No auto-migrate on startup; migrations run via BI-PF-1300 tooling with separated DB roles",
+    "Go data layer uses pooled connections and enforces optimistic version conflicts",
+    "EXPLAIN-verified indexes for tenant/run/stage listing queries"
+  ],
+  "in_scope": [
+    "Migration files for canonical tables",
+    "Index design",
+    "Pool config + optimistic versioning in Go DAL",
+    "schema_migrations bookkeeping"
+  ],
+  "out_of_scope": [
+    "Row-level business logic (services in later items)",
+    "Backup/PITR (BI-PF-1315)",
+    "Benchmarking beyond EXPLAIN spot checks (BI-PF-1314)"
+  ],
+  "affected_components": [
+    "migrations directory",
+    "Go data-access layer",
+    "core/schema_validator.py (extend for canonical schema)"
+  ],
+  "affected_files": [
+    "migrations/*.sql",
+    "internal/db/*.go",
+    "core/schema_validator.py"
+  ],
+  "approach": "Draft DDL per domain object, review with EDP-20 audit shape, implement migrations, add DAL with version columns, validate queries with EXPLAIN(ANALYZE,BUFFERS).",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Migration up/down in CI",
+    "EXPLAIN checks on critical queries",
+    "language_rule_review.py"
+  ],
+  "risks": [
+    "Premature table shapes if EDP-20/EDP-22 designs shift audit/usage semantics",
+    "Pooling/optimistic-locking conventions not yet agreed across Go services"
+  ],
+  "rollback": "Down-migrations per version; no startup auto-migrate so app can pin prior schema version.",
+  "evidence": [
+    "EDP-17 table list",
+    "Existing /api/v1/enterprise/tenants endpoints define required entities"
+  ],
+  "owner": "storage-team",
+  "requester": "Product Forge",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1292",
+  "parent": "BI-PF-1292",
+  "revision": 8,
+  "priority_rank": 10,
+  "priority_class": "P0",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "STALE",
+    "analyzed_at": "2026-10-13T16:33:11.962964",
+    "analyzed_by": "cli",
+    "revision_analyzed": 7,
+    "architecture_fit": "NEW_CAPABILITY",
+    "implementation_strategy": "Define canonical PostgreSQL schema as versioned migrations under the BI-PF-1300 migration framework; add Go data-access layer with pool configuration and optimistic versioning (version columns) matching existing /api/v1/enterprise and run/stage APIs.",
+    "existing_components": [],
+    "existing_apis": [],
+    "existing_modules": [],
+    "dependency_findings": [
+      "REQUIRES BI-PF-1300 (migration framework + role separation)",
+      "REQUIRES BI-PF-1301",
+      "REQUIRES BI-PF-1312 (informs audit/usage table shapes)",
+      "BLOCKS BI-PF-1307 (stored_objects/artifacts tables)"
+    ],
+    "conflict_findings": [
+      "BI-PF-1312 also splits orchestrator/storage and touches audit tables — align table ownership early"
+    ],
+    "duplication_findings": [
+      "core/schema_validator.py validates but does not define a relational schema — complementary, not duplicated",
+      "Existing config/store-registry.json covers object stores, not relational tables"
+    ],
+    "drift": "LOW",
+    "rewrite_required": false,
+    "new_component_required": true,
+    "rationale": "Foundational schema blocking artifacts metadata and audit work; must land via the migration framework, not ad hoc.",
+    "assumptions": [
+      "PostgreSQL is the sole RDBMS; BI-PF-1300 migration framework API is settled",
+      "Tenants/runs/stages domain model from /api/v1/enterprise and /api/v1/engineering maps 1:1 to tables"
+    ],
+    "risks": [
+      "Premature table shapes if EDP-20/EDP-22 designs shift audit/usage semantics",
+      "Pooling/optimistic-locking conventions not yet agreed across Go services"
+    ],
+    "evidence": [
+      "EDP-17 table list",
+      "Existing /api/v1/enterprise/tenants endpoints define required entities"
+    ],
+    "confidence": "medium",
+    "missing_info": [
+      "Optimistic versioning convention (integer version vs updated_at etag)",
+      "Audit table partitioning/retention needs at design time"
+    ],
+    "depth": "deep",
+    "mode": "ai",
+    "context_review": {
+      "implementable": true,
+      "missing": [
+        "Versioning convention",
+        "Audit partitioning"
+      ],
+      "reason": "Domain entities are visible in existing APIs; two conventions need a human decision."
+    },
+    "arch_fingerprint": "dc9598f15f6d5d5f"
+  },
+  "dependencies": [
+    {
+      "task_id": "BI-PF-1300",
+      "type": "REQUIRES",
+      "required_state": "COMPLETE"
+    },
+    {
+      "task_id": "BI-PF-1301",
+      "type": "REQUIRES",
+      "required_state": "COMPLETE"
+    },
+    {
+      "task_id": "BI-PF-1312",
+      "type": "RELATED",
+      "required_state": "completed"
+    }
+  ],
+  "blocked_by": [
+    "BI-PF-1300",
+    "BI-PF-1301"
+  ],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-13T16:33:12.066407"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-13T16:06:03.901378",
+  "updated_at": "2026-10-13T16:35:29.997006",
+  "score": 0.75,
+  "source_ref": "docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md",
+  "_note": "dependencies set"
+}

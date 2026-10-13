@@ -1,0 +1,240 @@
+{
+  "id": "BI-PF-1306",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "edp-14-objectstore-s3",
+  "label": "PF Backlog 595",
+  "title": "EDP-14: S3-compatible ObjectStore adapter + conformance tests (region/replication/versioning capabilities)",
+  "body": "Part of EPIC BI-PF-1292. Source: docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md. Phase item (see epic). Language rule L1 = Go; must pass scripts/dev/language_rule_review.py.",
+  "source": "review",
+  "status": "new",
+  "priority": "P1",
+  "moscow": "Must",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [
+    "BI-PF-1305",
+    "BI-PF-1299",
+    "BI-PF-1293"
+  ],
+  "links": {
+    "source_doc": "docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md",
+    "possible_duplicate_of": [
+      "product_forge:BI-PF-1293"
+    ]
+  },
+  "decisions": [
+    {
+      "at": "2026-10-13T16:33:48.655032",
+      "decision": "APPROVE",
+      "by": "agent",
+      "note": "finalized: decisions recorded 2026-10-13"
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "No cloud object storage backend; only local FS planned.",
+    "what_adds": "S3-compatible adapter with tested capability detection.",
+    "why": "Required for production evidence/artifact durability.",
+    "who_feels": "Platform/enterprise admins and anyone storing run artifacts.",
+    "source": "authored"
+  },
+  "objective": "Deliver an S3-compatible ObjectStore adapter with capability detection (region, replication, versioning) validated by the shared conformance test harness.",
+  "acceptance_criteria": [
+    "Adapter passes the shared conformance suite against MinIO in CI",
+    "Capabilities (region/replication/versioning) exposed via capability probe API",
+    "Language rule L1 (Go) passes scripts/dev/language_rule_review.py",
+    "No credentials logged; env-based config only"
+  ],
+  "in_scope": [
+    "Go S3 adapter",
+    "Capability probe",
+    "Conformance test wiring",
+    "CI test doubles (MinIO)"
+  ],
+  "out_of_scope": [
+    "Lifecycle rules and signed URLs (BI-PF-1308)",
+    "Backup/restore (BI-PF-1315)"
+  ],
+  "affected_components": [
+    "core vendor/object-store adapters (new Go package)",
+    "conformance harness"
+  ],
+  "affected_files": [
+    "internal/storage/objectstore/s3/*.go",
+    "scripts/dev/language_rule_review.py (verification only)"
+  ],
+  "approach": "Define S3 client wrapper, implement interface methods, add capability detection via GetBucketVersioning/GetBucketReplication, wire MinIO-backed tests.",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "go test ./internal/storage/... conformance suite",
+    "language_rule_review.py"
+  ],
+  "risks": [
+    "MinIO/S3 test doubles and credential handling for CI",
+    "Go/Python language boundary if service stays Python"
+  ],
+  "rollback": "Remove the new Go package; no existing behavior depends on it yet.",
+  "evidence": [
+    "EDP-14 roadmap item",
+    "BI-PF-1299 interface list"
+  ],
+  "owner": "storage-team",
+  "requester": "Product Forge",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1292",
+  "parent": "BI-PF-1292",
+  "revision": 9,
+  "priority_rank": 20,
+  "priority_class": "P1",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "STALE",
+    "analyzed_at": "2026-10-13T16:33:48.252268",
+    "analyzed_by": "agent",
+    "revision_analyzed": 8,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Implement S3 adapter in Go against the provider-neutral ObjectStore interface (BI-PF-1299); reuse the local adapter patterns and conformance harness; add capability probing for region/replication/versioning.",
+    "existing_components": [],
+    "existing_apis": [],
+    "existing_modules": [],
+    "dependency_findings": [
+      "REQUIRES BI-PF-1299 (interfaces + harness)",
+      "REQUIRES BI-PF-1305 (adapter pattern reference)",
+      "REQUIRES BI-PF-1293 (ADR decisions)",
+      "BLOCKS BI-PF-1307 (ArtifactService needs S3 backend)"
+    ],
+    "conflict_findings": [
+      "Shared conformance harness touched by BI-PF-1305; coordinate harness extension points"
+    ],
+    "duplication_findings": [
+      "No S3 adapter exists yet in candidate code (Python registries are unrelated)",
+      "Conformance harness delivered by BI-PF-1299; do not rebuild"
+    ],
+    "drift": "LOW",
+    "rewrite_required": false,
+    "new_component_required": true,
+    "rationale": "Second adapter proving the provider-neutral interface; conformance harness already planned, so this is a focused extension.",
+    "assumptions": [
+      "S3-compatible target is MinIO or AWS S3; harness from BI-PF-1299 is stable enough to extend"
+    ],
+    "risks": [
+      "MinIO/S3 test doubles and credential handling for CI",
+      "Go/Python language boundary if service stays Python"
+    ],
+    "evidence": [
+      "EDP-14 roadmap item",
+      "BI-PF-1299 interface list"
+    ],
+    "confidence": "medium",
+    "missing_info": [
+      "Which S3-compatible providers are in-scope for launch (AWS only vs MinIO/GCS interop)",
+      "Where the Go binary ships relative to the Python API process"
+    ],
+    "depth": "deep",
+    "mode": "ai",
+    "context_review": {
+      "implementable": true,
+      "missing": [
+        "Target provider list"
+      ],
+      "reason": "Interfaces and harness are specified by dependencies; provider choice is the only open decision."
+    },
+    "consolidation_proposal": {
+      "sources": [
+        "BI-PF-1299",
+        "BI-PF-1305",
+        "BI-PF-1293",
+        "BI-PF-1308"
+      ],
+      "title": "EDP-14: S3-compatible ObjectStore adapter + conformance tests (region/replication/versioning capabilities)",
+      "body": "Part of EPIC BI-PF-1292. Source: docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md. Phase item (see epic). Language rule L1 = Go; must pass scripts/dev/language_rule_review.py.",
+      "acceptance_criteria": [
+        "private buckets, least-privilege credentials, lifecycle/versioning where required; explicit region/backup/replication capability metadata.",
+        "Signed URLs only after authorization, constrained to object/method, short TTL.",
+        "Provider config stays inside the adapter; conformance suite passes (wrong-region, versions, delete, restore).",
+        "11 Go interfaces defined in internal/storage/ with godoc and compile-time assertions",
+        "Conformance harness package exposes embeddable test suites per interface",
+        "In-memory reference adapter passes all conformance suites",
+        "scripts/dev/language_rule_review.py passes (Go-only)",
+        "config/test-matrix.json extended with storage-conformance rows",
+        "Adapter passes all BI-PF-1299 conformance tests",
+        "Symlink escape and path traversal attempts denied",
+        "Writes are atomic (no partial object visible on crash simulation)",
+        "Checksum mismatch on read detected; size limit enforced with clear error",
+        "Passes scripts/dev/language_rule_review.py",
+        "ADR document committed covering storage layers, backends, and data-flow decisions",
+        "Develop commit SHA pinned and recorded",
+        "L1 Go rule passes language_rule_review.py",
+        "lifecycle rules + optional object lock/immutability; versioning where required.",
+        "delete reconciles DB record, object versions, replicas and backups per retention; tenant deletion includes objects.",
+        "orphaned-object and lifecycle-expiry tests pass."
+      ],
+      "moscow": "Must"
+    },
+    "arch_fingerprint": "dc9598f15f6d5d5f"
+  },
+  "dependencies": [
+    {
+      "task_id": "BI-PF-1305",
+      "type": "REQUIRES",
+      "required_state": "COMPLETE"
+    },
+    {
+      "task_id": "BI-PF-1299",
+      "type": "RELATED",
+      "required_state": "completed"
+    },
+    {
+      "task_id": "BI-PF-1293",
+      "type": "RELATED",
+      "required_state": "completed"
+    }
+  ],
+  "blocked_by": [
+    "BI-PF-1305"
+  ],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-13T16:33:48.404348"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-13T16:02:53.148971",
+  "updated_at": "2026-10-13T16:35:28.803367",
+  "score": 0.75,
+  "source_ref": "docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md",
+  "_note": "dependencies set"
+}

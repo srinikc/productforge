@@ -1,0 +1,235 @@
+{
+  "id": "BI-PF-1304",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "edp-12-product-residency-manifest",
+  "label": "PF Backlog 593",
+  "title": "EDP-12: Generated-product residency manifest (data_classes/home_region/allowed_regions/backup/kms/egress/retention) + build/deploy gate",
+  "body": "Part of EPIC BI-PF-1292. Source: docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md. Phase item (see epic). Language rule L1 = Go; must pass scripts/dev/language_rule_review.py.",
+  "source": "review",
+  "status": "new",
+  "priority": "P1",
+  "moscow": "Must",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [
+    "BI-PF-1303",
+    "BI-PF-1307",
+    "BI-PF-1308"
+  ],
+  "links": {
+    "source_doc": "docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md",
+    "possible_duplicate_of": [
+      "product_forge:BI-PF-1293"
+    ]
+  },
+  "decisions": [
+    {
+      "at": "2026-10-13T16:33:44.916972",
+      "decision": "APPROVE",
+      "by": "agent",
+      "note": "finalized: decisions recorded 2026-10-13"
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "No record or enforcement of where generated product data resides",
+    "what_adds": "Residency manifest + build/deploy gate",
+    "why": "Enterprise compliance requires data-class and region guarantees",
+    "who_feels": "Enterprise customers and compliance reviewers",
+    "source": "authored"
+  },
+  "objective": "Generate a per-product residency manifest (data_classes, home_region, allowed_regions, backup, kms, egress, retention) and enforce it via a build/deploy gate in Go (language rule L1).",
+  "acceptance_criteria": [
+    "Packaging build emits residency manifest with all six field groups populated",
+    "Deploy gate fails (or warns per config) when manifest violates allowed_regions/retention policy",
+    "scripts/dev/language_rule_review.py passes for all Go code"
+  ],
+  "in_scope": [
+    "Residency manifest schema + generation",
+    "Go build/deploy gate check"
+  ],
+  "out_of_scope": [
+    "Provider adapter implementation (BI-PF-1306)",
+    "Lifecycle enforcement runtime (BI-PF-1308)"
+  ],
+  "affected_components": [
+    "core/qa_manifest.py",
+    "core/run_manifest.py",
+    "core/build_manager.py"
+  ],
+  "affected_files": [
+    "core/qa_manifest.py",
+    "core/run_manifest.py",
+    "config/file-manifest.json",
+    "gate/residency_check.go"
+  ],
+  "approach": "Extend existing manifest builders, add Go validation step to packaging build.",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Build emits manifest; gate blocks bad fixture; language rule review passes"
+  ],
+  "risks": [
+    "Go gate must satisfy language rule L1 review",
+    "Region/KMS field values depend on provider adapters (BI-PF-1306)"
+  ],
+  "rollback": "Disable gate via config flag; manifests remain informational.",
+  "evidence": [
+    "Existing manifest APIs /api/v1/packaging/manifest and /api/v1/evidence/manifest/{run_id}"
+  ],
+  "owner": "TBD",
+  "requester": "authored",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1292",
+  "parent": "BI-PF-1292",
+  "revision": 9,
+  "priority_rank": 12,
+  "priority_class": "P1",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "STALE",
+    "analyzed_at": "2026-10-13T16:33:44.573326",
+    "analyzed_by": "agent",
+    "revision_analyzed": 8,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend core/qa_manifest.py and run_manifest.py with a residency manifest schema (data_classes, home_region, allowed_regions, backup, kms, egress, retention); add a Go build/deploy gate that validates the manifest, exposed via /api/v1/packaging/manifest and build pipeline.",
+    "existing_components": [],
+    "existing_apis": [],
+    "existing_modules": [],
+    "dependency_findings": [
+      "REQUIRES BI-PF-1303 (ADR/phase precursor) DONE",
+      "REQUIRES BI-PF-1307 (DB layer regions/KMS) DONE",
+      "REQUIRES BI-PF-1308 (lifecycle/retention policy) DONE for retention/backup fields"
+    ],
+    "conflict_findings": [
+      "BI-PF-1308 also touches retention/reconciliation concepts; align field definitions"
+    ],
+    "duplication_findings": [
+      "core/qa_manifest.py and run_manifest.py already produce manifests; reuse their patterns rather than a new manifest component",
+      "file-manifest.json covers file inventory, not residency — extend, not duplicate"
+    ],
+    "drift": "LOW",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "Manifest extends existing manifest builders; only the Go gate check is modestly new.",
+    "assumptions": [
+      "Manifest rides with existing packaging build artifact",
+      "Region topology known from EDP ADR (BI-PF-1293)"
+    ],
+    "risks": [
+      "Go gate must satisfy language rule L1 review",
+      "Region/KMS field values depend on provider adapters (BI-PF-1306)"
+    ],
+    "evidence": [
+      "Existing manifest APIs /api/v1/packaging/manifest and /api/v1/evidence/manifest/{run_id}"
+    ],
+    "confidence": "medium",
+    "missing_info": [
+      "Enforcement action on gate failure: block vs warn"
+    ],
+    "depth": "deep",
+    "mode": "ai",
+    "context_review": {
+      "implementable": true,
+      "missing": [
+        "Gate failure mode (block vs warn)"
+      ],
+      "reason": "Existing manifest modules and packaging APIs provide clear extension points; depends on EDP predecessor items."
+    },
+    "consolidation_proposal": {
+      "sources": [
+        "BI-PF-1293",
+        "BI-PF-1299",
+        "BI-PF-1306",
+        "BI-PF-1308"
+      ],
+      "title": "EDP-12: Generated-product residency manifest (data_classes/home_region/allowed_regions/backup/kms/egress/retention) + build/deploy gate",
+      "body": "Part of EPIC BI-PF-1292. Source: docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md. Phase item (see epic). Language rule L1 = Go; must pass scripts/dev/language_rule_review.py.",
+      "acceptance_criteria": [
+        "Manifest schema includes data_classes, home_region, allowed_regions, replication_policy, backup_regions, kms_policy, allowed_subprocessors, model_processing_regions, egress_policy, retention_policy, transfer_approval_ref, evidence_requirements.",
+        "Build/deploy gate rejects a missing/invalid manifest.",
+        "PF does not route generated-product runtime data through itself by default.",
+        "ADR document committed covering storage layers, backends, and data-flow decisions",
+        "Develop commit SHA pinned and recorded",
+        "L1 Go rule passes language_rule_review.py",
+        "11 Go interfaces defined in internal/storage/ with godoc and compile-time assertions",
+        "Conformance harness package exposes embeddable test suites per interface",
+        "In-memory reference adapter passes all conformance suites",
+        "scripts/dev/language_rule_review.py passes (Go-only)",
+        "config/test-matrix.json extended with storage-conformance rows",
+        "Adapter passes the shared conformance suite against MinIO in CI",
+        "Capabilities (region/replication/versioning) exposed via capability probe API",
+        "Language rule L1 (Go) passes scripts/dev/language_rule_review.py",
+        "No credentials logged; env-based config only",
+        "lifecycle rules + optional object lock/immutability; versioning where required.",
+        "delete reconciles DB record, object versions, replicas and backups per retention; tenant deletion includes objects.",
+        "orphaned-object and lifecycle-expiry tests pass."
+      ],
+      "moscow": "Must"
+    },
+    "arch_fingerprint": "dc9598f15f6d5d5f"
+  },
+  "dependencies": [
+    {
+      "task_id": "BI-PF-1303",
+      "type": "REQUIRES",
+      "required_state": "COMPLETE"
+    },
+    {
+      "task_id": "BI-PF-1307",
+      "type": "RELATED",
+      "required_state": "completed"
+    },
+    {
+      "task_id": "BI-PF-1308",
+      "type": "RELATED",
+      "required_state": "completed"
+    }
+  ],
+  "blocked_by": [
+    "BI-PF-1303"
+  ],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-13T16:33:44.722480"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-13T16:02:45.510577",
+  "updated_at": "2026-10-13T16:35:27.948735",
+  "score": 0.75,
+  "source_ref": "docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md",
+  "_note": "dependencies set"
+}

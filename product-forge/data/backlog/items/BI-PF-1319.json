@@ -1,0 +1,194 @@
+{
+  "id": "BI-PF-1319",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "grooming-full-resolution",
+  "label": "PF Backlog 606",
+  "title": "Grooming/regroom must fully resolve items: populate all fields, interactively surface missing info/deps, never strand IN_PROGRESS",
+  "body": "Grooming/regroom and groom-all must FULLY resolve every item: populate all fields from AI + deterministic signals, set dependencies and refresh execution order. When required input is missing OR a dependency is unmet, it must SURFACE that to the user for an explicit decision instead of leaving the item NOT_ANALYZED / IN_PROGRESS. No item may be stranded in a silent in-progress state (flagged work piles up and nobody attends to it). Any action that needs input must be requested now; otherwise the item is finalized and downstream stages consume it. Observed on the EDP epic (BI-PF-1292): groom_all left 17/24 children IN_PROGRESS with unanswered missing_info and no prompt.",
+  "source": "review",
+  "status": "new",
+  "priority": "P0",
+  "moscow": "Must",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [
+    "BI-PF-1195",
+    "BI-PF-1282"
+  ],
+  "links": {
+    "related_epic": "product_forge:BI-PF-1292"
+  },
+  "decisions": [
+    {
+      "at": "2026-10-13T16:24:09.106244",
+      "decision": "APPROVE",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)"
+    },
+    {
+      "at": "2026-10-13T16:33:16.573929",
+      "decision": "APPROVE",
+      "by": "cli",
+      "note": ""
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "groom_all strands items IN_PROGRESS with unanswered missing_info and no prompt",
+    "what_adds": "Completion enforcement + interactive decision surfacing in grooming",
+    "why": "Flagged work piles up unattended, blocking downstream stages",
+    "who_feils": "PM/backlog owners consuming groomed items",
+    "source": "authored"
+  },
+  "objective": "Grooming/regroom fully resolves every item (fields, deps, exec order); missing input or unmet deps are surfaced for explicit human decision; no item stranded in NOT_ANALYZED/IN_PROGRESS.",
+  "acceptance_criteria": [
+    "After groom-all, zero items remain IN_PROGRESS/NOT_ANALYZED without an attached question or explicit decision request",
+    "missing_info or unmet deps always end at /groom/decide or a finalized state",
+    "Re-running groom-all finalizes or surfaces every previously stranded item"
+  ],
+  "in_scope": [
+    "groom, regroom, groom_all flows",
+    "decision surfacing API/UI hook"
+  ],
+  "out_of_scope": [
+    "Dedup scoring changes (BI-PF-1199)"
+  ],
+  "affected_components": [
+    "core/grooming.py",
+    "backlog grooming APIs"
+  ],
+  "affected_files": [
+    "core/grooming.py",
+    "config/grooming-guidelines.json",
+    "api routes for items/{id}/groom*"
+  ],
+  "approach": "Add completion-state post-pass and interactive decide handoff inside existing groom pipeline.",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Run groom_all on BI-PF-1292 epic; assert 0 stranded",
+    "Unit tests for missing_info and unmet-dep paths"
+  ],
+  "risks": [
+    "Interactive prompts during batch groom-all may not scale for 17+ items",
+    "Over-forcing decisions could reduce AI autonomy"
+  ],
+  "rollback": "Revert grooming post-pass flag; items return to previous flow.",
+  "evidence": [
+    "BI-PF-1292 epic: 17/24 children IN_PROGRESS after groom_all"
+  ],
+  "owner": "TBD",
+  "requester": "authored",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-0360",
+  "parent": "BI-PF-0360",
+  "revision": 6,
+  "priority_rank": 1,
+  "priority_class": "P0",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "COMPLETE",
+    "analyzed_at": "2026-10-13T16:33:16.316594",
+    "analyzed_by": "cli",
+    "revision_analyzed": 6,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend core/grooming.py and the groom/groom-all/decide APIs: after AI+signals pass, any unresolved missing_info or unmet deps triggers an interactive decision request (groom/decide) or forces a final status; add a stranded-item guard in groom_all.",
+    "existing_components": [],
+    "existing_apis": [],
+    "existing_modules": [],
+    "dependency_findings": [
+      "REQUIRES BI-PF-1195 DONE (completeness signals exist)",
+      "REQUIRES BI-PF-1282 DONE (create-time groom uses same path"
+    ],
+    "conflict_findings": [
+      "Touches core/grooming.py shared with BI-PF-1195/1199; coordinate or absorb"
+    ],
+    "duplication_findings": [
+      "Overlaps BI-PF-1195 (grooming completeness) and BI-PF-1199 (simplify grooming); fold their open scope in rather than building new flows"
+    ],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "Fixes observed production defect in existing grooming pipeline; pure extension of known code.",
+    "assumptions": [
+      "Items stranded IN_PROGRESS are a completion bug, not async work",
+      "Human reviewer available for decide calls"
+    ],
+    "risks": [
+      "Interactive prompts during batch groom-all may not scale for 17+ items",
+      "Over-forcing decisions could reduce AI autonomy"
+    ],
+    "evidence": [
+      "BI-PF-1292 epic: 17/24 children IN_PROGRESS after groom_all"
+    ],
+    "confidence": "high",
+    "missing_info": [
+      "Prompt UX: batch queue vs per-item prompt during groom-all"
+    ],
+    "depth": "deep",
+    "mode": "ai",
+    "context_review": {
+      "implementable": true,
+      "missing": [
+        "Prompt UX choice for batch groom-all"
+      ],
+      "reason": "Existing grooming module and decide API provide full implementation surface."
+    },
+    "arch_fingerprint": "dc9598f15f6d5d5f"
+  },
+  "dependencies": [
+    {
+      "task_id": "BI-PF-1195",
+      "type": "REQUIRES",
+      "required_state": "DONE"
+    },
+    {
+      "task_id": "BI-PF-1282",
+      "type": "REQUIRES",
+      "required_state": "DONE"
+    }
+  ],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-13T16:33:16.428620"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-13T16:23:02.097263",
+  "updated_at": "2026-10-13T16:33:16.721153",
+  "score": 0.75,
+  "_note": "readiness computed"
+}
