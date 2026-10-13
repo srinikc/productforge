@@ -1,0 +1,193 @@
+{
+  "id": "BI-PF-1321",
+  "tag": "PF",
+  "type": "task",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "issue",
+  "external_id": "",
+  "label": "PF Backlog 608",
+  "title": "Auto-mode HIL proxy gate fails stage 0: human agent invoked without the product brief / artifacts",
+  "body": "human_proxy.decide() ignores the artifacts arg and never passes the brief; in auto mode the gate runs before auto_approve and fails closed. IS-PF-0048.",
+  "source": "generic",
+  "status": "new",
+  "priority": "P0",
+  "moscow": "Must",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [
+    "BI-PF-0237",
+    "BI-PF-1247"
+  ],
+  "links": {
+    "issue": "product_forge:IS-PF-0048"
+  },
+  "decisions": [
+    {
+      "at": "2026-10-13T17:42:23.780493",
+      "decision": "APPROVE",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)"
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "human_proxy.decide() ignores the artifacts arg and never passes the brief; in auto mode the gate runs before auto_approve and fails closed. IS-PF-0048.",
+    "what_adds": "Auto-mode HIL proxy gate fails stage 0: human agent invoked without the product brief / artifacts",
+    "why": "human_proxy.decide() ignores the artifacts arg and never passes the brief; in auto mode the gate runs before auto_approve and fails closed. IS-PF-0048.",
+    "who_feels": "Product Forge maintainers and consumers.",
+    "source": "extracted"
+  },
+  "objective": "Auto-mode HIL proxy gate fails stage 0: human agent invoked without the product brief / artifacts",
+  "acceptance_criteria": [
+    "Objective achieved: Auto-mode HIL proxy gate fails stage 0: human agent invoked without the product brief / artifacts"
+  ],
+  "in_scope": [
+    "Auto-mode HIL proxy gate fails stage 0: human agent invoked without the product brief / artifacts"
+  ],
+  "out_of_scope": [
+    "Not specified."
+  ],
+  "affected_components": [
+    "Not specified."
+  ],
+  "affected_files": [
+    "Not specified."
+  ],
+  "approach": "Auto-mode HIL proxy gate fails stage 0: human agent invoked without the product brief / artifacts",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Objective achieved: Auto-mode HIL proxy gate fails stage 0: human agent invoked without the product brief / artifacts"
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "unassigned",
+  "requester": "generic",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1252",
+  "parent": "BI-PF-1252",
+  "revision": 3,
+  "priority_rank": 20,
+  "priority_class": "P0",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "COMPLETE",
+    "analyzed_at": "2026-10-13T17:42:23.590170",
+    "analyzed_by": "system",
+    "revision_analyzed": 3,
+    "architecture_fit": "MODIFY",
+    "implementation_strategy": "EXTEND human_proxy.decide() to accept and forward the artifacts/brief dict to the reviewer context; reorder auto-mode gate so auto_approve short-circuits BEFORE the HIL proxy call; reuse /api/v1/engineering/gates and existing artifact endpoints for brief retrieval. No new component.",
+    "existing_components": [],
+    "existing_apis": [],
+    "existing_modules": [],
+    "dependency_findings": [
+      "RELATED BI-PF-0237 - its fail-closed semantics must hold after reorder",
+      "REQUIRES artifact/brief retrievable at stage 0 (IS-PF-0048)",
+      "REQUIRES auto_approve flag semantics already defined in gate config"
+    ],
+    "conflict_findings": [
+      "Potential touch-point overlap with BI-PF-0237 on gate decision code path - coordinate ordering vs truth changes",
+      "BI-PF-1247 touches gate records; low overlap risk on same gates module"
+    ],
+    "duplication_findings": [
+      "BI-PF-0237 covers fail-closed approval truth - overlap on decision ordering; fold ordering fix here, keep truth semantics there",
+      "No existing component passes artifacts to human proxy; agent_* cores lack a decide() artifact path"
+    ],
+    "drift": "LOW",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "Bug is a narrow signature/ordering defect in an existing gate path; MODIFY with artifact forwarding plus auto_approve reorder reuses all existing gates/artifact plumbing, satisfying fail-closed intent without new components.",
+    "assumptions": [
+      "human_proxy.decide() is the sole HIL proxy entry point for stage 0",
+      "auto_approve is a config/flag evaluated per gate",
+      "Brief/artifacts are available in-pipeline before stage 0 gate executes"
+    ],
+    "risks": [
+      "Reordering may weaken fail-closed guarantees if auto_approve is trusted too early",
+      "Artifact payload size could exceed reviewer context limits",
+      "Hidden callers of decide() may rely on current arg signature"
+    ],
+    "evidence": [
+      "IS-PF-0048 reports artifacts arg ignored",
+      "Backlog item states gate runs before auto_approve and fails closed",
+      "Existing /api/v1/engineering/gates and artifact endpoints available for reuse"
+    ],
+    "confidence": "medium",
+    "missing_info": [
+      "Canonical module path/signature of human_proxy.decide()",
+      "Whether auto_approve should be checked before or after artifact enrichment",
+      "Required artifact payload schema for reviewer context",
+      "Whether BI-PF-0237 ordering fix is already merged"
+    ],
+    "depth": "deep",
+    "mode": "ai",
+    "context_review": {
+      "ok": false,
+      "source": "llm",
+      "implementable": false,
+      "missing": [
+        "how",
+        "where"
+      ],
+      "reason": "Problem and root cause are described (artifacts ignored, gate runs before auto_approve), but no affected files/components, no concrete fix approach, and acceptance/verification criteria are circular restatements of the title."
+    },
+    "arch_fingerprint": "2ac583a2a8414c6d"
+  },
+  "dependencies": [
+    {
+      "task_id": "BI-PF-0237",
+      "type": "RELATED",
+      "required_state": "fail-closed decision semantics defined"
+    },
+    {
+      "task_id": "BI-PF-1247",
+      "type": "RELATED",
+      "required_state": "gate records integration stable"
+    }
+  ],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-13T17:42:23.669183"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-13T17:40:54.068671",
+  "updated_at": "2026-10-13T17:42:24.513514",
+  "score": 0.75,
+  "_note": "readiness computed"
+}

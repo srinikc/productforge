@@ -87,6 +87,26 @@ def _record(project_dir: str, stage_id: str, agent_id: str, decision: Dict):
         pass
 
 
+_ARTIFACT_LIMIT = 6000
+
+
+def _artifact_context(artifacts: Optional[list], limit: int = _ARTIFACT_LIMIT) -> str:
+    """Read the artifacts under review (bounded) so the gate can judge real content.
+
+    IS-PF-0048: without this the proxy gate is blind and fails closed.
+    """
+    text = ""
+    for p in (artifacts or []):
+        try:
+            with open(str(p), "r", encoding="utf-8", errors="ignore") as f:
+                text += f.read() + "\n"
+        except Exception:
+            pass
+        if len(text) >= limit:
+            break
+    return text[:limit].strip()
+
+
 def decide(executor, agent_id: str, stage_id: str,
            artifacts: Optional[list] = None) -> Dict[str, Any]:
     """Invoke the `human` agent to make the gate decision (auto mode).
@@ -94,15 +114,25 @@ def decide(executor, agent_id: str, stage_id: str,
     Bounded (BI-PF-0245): one decision per gate per run — a repeat ask returns the cached
     decision without another proxy invocation. The decision is surfaced as an event and in the
     human-review journal so its cost/latency is visible.
+
+    IS-PF-0048: the product brief (``executor.project_idea``) and the artifacts under review are
+    passed into the gate task; without context the proxy cannot judge and fails closed.
     """
     project_dir = str(getattr(executor, "project_dir", "") or "")
     key = _cache_key(project_dir, stage_id)
     if key in _DECISIONS:
         _STATS["cache_hits"] += 1
         return dict(_DECISIONS[key])
-    task = (f"Decide as the human owner for gate '{stage_id}' (agent '{agent_id}'). "
-            "Review the stage context and artifacts, then output ONLY the JSON decision "
-            "{\"decision\":\"approve\"|\"changes\", \"gate\":..., \"reasons\":[...], \"notes\":...}.")
+    brief = str(getattr(executor, "project_idea", "") or "").strip()
+    art = _artifact_context(artifacts)
+    parts = [f"Decide as the human owner for gate '{stage_id}' (agent '{agent_id}')."]
+    if brief:
+        parts.append("Product brief (authoritative; do NOT invent beyond it):\n" + brief)
+    if art:
+        parts.append("Artifacts under review:\n" + art)
+    parts.append("Review the above and output ONLY the JSON decision "
+                 "{\"decision\":\"approve\"|\"changes\", \"gate\":..., \"reasons\":[...], \"notes\":...}.")
+    task = "\n\n".join(parts)
     try:
         ex = executor.execute_agent("human", stage_id, task)
         text = ""

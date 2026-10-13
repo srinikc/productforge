@@ -1,0 +1,185 @@
+{
+  "id": "BI-PF-1322",
+  "tag": "PF",
+  "type": "task",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "issue",
+  "external_id": "",
+  "label": "PF Backlog 609",
+  "title": "Product run re-pointed the framework repo git remote (connect_remote walked up to the parent repo)",
+  "body": "A generated-product run mutated the FRAMEWORK repo git remote. products/MyToDo is not its own git repo (no .git), so run_pipeline -> repo_setup.setup -> VCSManager(products/MyToDo).connect_remote(url) walked UP to the nearest .git (the PF clone) and set origin=https://github.com/srinikc/MyToDo on the framework repo. Observed: git remote -v in the PF clone showed origin=MyToDo; every subsequent fetch/push/ID-CAS went to the product repo; restored manually. Risk: silent pushes to the wrong repo (data loss / leakage).",
+  "source": "generic",
+  "status": "new",
+  "priority": "P0",
+  "moscow": "Must",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [
+    "BI-PF-0764"
+  ],
+  "links": {
+    "issue": "product_forge:IS-PF-0049"
+  },
+  "decisions": [
+    {
+      "at": "2026-10-13T17:44:17.572976",
+      "decision": "APPROVE",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)"
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "A generated-product run mutated the FRAMEWORK repo git remote. products/MyToDo is not its own git repo (no .git), so run_pipeline -> repo_setup.setup -> VCSManager(products/MyToDo).connect_remote(url) walked UP to the nearest .git (the PF clone) and set origin=https://github.com/srinikc/MyToDo on the framework repo. Observed: git remote -v in the PF clone showed origin=MyToDo; every subsequent fetch/push/ID-CAS went to the product repo; restored manually. Risk: silent pushes to the wrong repo (data loss / leakage).",
+    "what_adds": "Product run re-pointed the framework repo git remote (connect_remote walked up to the parent repo)",
+    "why": "A generated-product run mutated the FRAMEWORK repo git remote. products/MyToDo is not its own git repo (no .git), so run_pipeline -> repo_setup.setup -> VCSManager(products/MyToDo).connect_remote(url) walked UP to the nearest .git (the PF clone) and set origin=https://github.com/srinikc/MyToDo on the framework repo. Observed: git remote -v in the PF clone showed origin=MyToDo; every subsequent fetch/push/ID-CAS went to the product repo; restored manually. Risk: silent pushes to the wrong repo (data loss / leakage).",
+    "who_feels": "Product Forge maintainers and consumers.",
+    "source": "extracted"
+  },
+  "objective": "Product run re-pointed the framework repo git remote (connect_remote walked up to the parent repo)",
+  "acceptance_criteria": [
+    "Objective achieved: Product run re-pointed the framework repo git remote (connect_remote walked up to the parent repo)"
+  ],
+  "in_scope": [
+    "Product run re-pointed the framework repo git remote (connect_remote walked up to the parent repo)"
+  ],
+  "out_of_scope": [
+    "Not specified."
+  ],
+  "affected_components": [
+    "Not specified."
+  ],
+  "affected_files": [
+    "Not specified."
+  ],
+  "approach": "Product run re-pointed the framework repo git remote (connect_remote walked up to the parent repo)",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Objective achieved: Product run re-pointed the framework repo git remote (connect_remote walked up to the parent repo)"
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "unassigned",
+  "requester": "generic",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1252",
+  "parent": "BI-PF-1252",
+  "revision": 3,
+  "priority_rank": 1,
+  "priority_class": "P0",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "COMPLETE",
+    "analyzed_at": "2026-10-13T17:44:17.380953",
+    "analyzed_by": "system",
+    "revision_analyzed": 3,
+    "architecture_fit": "MODIFY",
+    "implementation_strategy": "Extend VCSManager/repo_setup: before connect_remote, resolve git root from the PRODUCT path; if git_root != product_path, either git_init the product dir or hard-fail with a clear error. Add a guard asserting the remote URL matches the product slug and that no ancestor .git is used when path lacks one.",
+    "existing_components": [],
+    "existing_apis": [],
+    "existing_modules": [],
+    "dependency_findings": [
+      "REQUIRES: repo_setup.setup / VCSManager must be locatable and tested",
+      "BLOCKS: BI-PF-0764 remote-CAS id authority (bad remote would poison CAS)"
+    ],
+    "conflict_findings": [
+      "Potential overlap with BI-PF-0255 (.gitignore/git rm) if both touch PF clone git state — keep changes scoped to product dir init",
+      "None in core/agent_runtime.py or APIs listed as candidates"
+    ],
+    "duplication_findings": [
+      "BI-PF-0764 touches Git-remote CAS authority but not the walk-up guard; RELATED only",
+      "BI-0024/BI-PF-0255 touch PF repo git hygiene, not product remote wiring",
+      "No existing backlog item fixes VCSManager path resolution"
+    ],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "Data-loss/leakage risk from mutating the framework repo's remote; fix is a narrow guard in repo_setup/VCSManager with a regression test.",
+    "assumptions": [
+      "products/<Name> should always be its own git repo when a remote is configured",
+      "run_pipeline can tolerate setup failing fast when repo is not initialized",
+      "VCSManager is the single entry point for connect_remote calls"
+    ],
+    "risks": [
+      "Silent pushes to wrong repo if guard regresses — add test asserting remote URL host/path",
+      "Auto git_init of product dir may surprise existing workflows",
+      "Worktrees/submodules edge cases could bypass the guard"
+    ],
+    "evidence": [
+      "git remote -v in PF clone showed origin=MyToDo",
+      "products/MyToDo had no .git"
+    ],
+    "confidence": "high",
+    "missing_info": [
+      "Decide fail-fast vs auto git init for product dirs without .git",
+      "Confirm whether PF-clone protection should also add an env var like PF_PROTECT_PARENT_GIT",
+      "Whether remote-CAS (BI-PF-0764) should own the URL-match guard long-term"
+    ],
+    "depth": "deep",
+    "mode": "ai",
+    "context_review": {
+      "ok": false,
+      "source": "llm",
+      "implementable": false,
+      "missing": [
+        "how",
+        "where"
+      ],
+      "reason": "Root cause is clear (VCSManager.connect_remote walked up to parent .git), but no fix approach is specified (guard vs. init product .git vs. validate repo root) and affected components/files are all 'Not specified'."
+    },
+    "arch_fingerprint": "2ac583a2a8414c6d"
+  },
+  "dependencies": [
+    {
+      "task_id": "BI-PF-0764",
+      "type": "BLOCKS",
+      "required_state": "remote-CAS not yet enforcing URL authority"
+    }
+  ],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-13T17:44:17.466029"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-13T17:43:02.650302",
+  "updated_at": "2026-10-13T17:44:18.348121",
+  "score": 0.75,
+  "_note": "readiness computed"
+}

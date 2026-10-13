@@ -57,8 +57,15 @@ def setup(project: str, project_dir: str, *, name: str = "", idea: str = "", pri
                     "adapter": r.get("adapter", "")})
     if out["url"]:
         from core.vcs import VCSManager
-        c = VCSManager(project_dir).connect_remote(out["url"])
+        v = VCSManager(project_dir)
+        # IS-PF-0049: the product must be its OWN repo before connecting, else the remote
+        # would land on an ancestor (framework) repo. Isolate first, then connect.
+        if not v.is_own_repo():
+            v.init()
+        c = v.connect_remote(out["url"])
         out["connected"] = bool(c.get("ok"))
+        if not out["connected"]:
+            out["connect_reason"] = c.get("error", "")
     try:
         from core import project_store
         project_store.update_section(project, "repo",

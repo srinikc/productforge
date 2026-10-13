@@ -1,0 +1,31 @@
+{
+  "id": "IS-PF-0049",
+  "tag": "PF",
+  "scope": "product_forge",
+  "project": "",
+  "title": "Product run re-pointed the framework repo git remote (connect_remote walked up to the parent repo)",
+  "body": "A generated-product run mutated the FRAMEWORK repo git remote. products/MyToDo is not its own git repo (no .git), so run_pipeline -> repo_setup.setup -> VCSManager(products/MyToDo).connect_remote(url) walked UP to the nearest .git (the PF clone) and set origin=https://github.com/srinikc/MyToDo on the framework repo. Observed: git remote -v in the PF clone showed origin=MyToDo; every subsequent fetch/push/ID-CAS went to the product repo; restored manually. Risk: silent pushes to the wrong repo (data loss / leakage).",
+  "kind": "issue",
+  "priority": "P0",
+  "severity": "critical",
+  "module": "core/repo_setup.py",
+  "status": "open",
+  "rcca": {
+    "root_cause": "repo_setup.setup() calls VCSManager(project_dir).connect_remote() without ensuring project_dir is its OWN git repo; when the product dir has no .git, VCSManager discovers the nearest ancestor .git (the framework repo) and rewrites ITS origin. No guard prevents operating on an ancestor repo.",
+    "corrective": "Ensure the product dir is initialized as its own git repo before connecting the remote, and add a fail-closed guard so connect_remote never mutates a repo whose root is not the target dir.",
+    "preventive": "Test: a product dir without .git is isolated (own repo) and the framework repo remote is unchanged; connect_remote on a non-dedicated repo is refused.",
+    "fixed_where": "core/repo_setup.py",
+    "generalized": true,
+    "guideline_ref": "",
+    "product_ref": ""
+  },
+  "backlog_ref": "BI-PF-1322",
+  "source": "review",
+  "source_ref": "e2e-mytodo-framework-remote-hijack",
+  "evidence": [],
+  "links": {
+    "backlog": "BI-PF-1322"
+  },
+  "created_at": "2026-10-13T17:42:58.901034",
+  "updated_at": "2026-10-13T17:44:18.378907"
+}

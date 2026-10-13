@@ -112,6 +112,24 @@ class VCSManager:
     def is_repo(self) -> bool:
         return self._git(["rev-parse", "--is-inside-work-tree"]).get("ok", False)
 
+    def repo_root(self) -> str:
+        """Absolute path of the repo working-tree root (empty when not a repo)."""
+        return self._git(["rev-parse", "--show-toplevel"]).get("out", "")
+
+    def is_own_repo(self) -> bool:
+        """True only when ``project_dir`` IS the repo root (not merely inside one).
+
+        IS-PF-0049: a product dir with no ``.git`` is *inside* the framework repo, so
+        ``is_repo()`` is true while git operations would mutate the framework repo.
+        """
+        if not self.is_repo():
+            return False
+        root = self.repo_root()
+        if not root:
+            return False
+        return (os.path.normcase(os.path.abspath(root))
+                == os.path.normcase(os.path.abspath(self.project_dir)))
+
     def init(self) -> dict[str, Any]:
         if self.is_repo():
             self.ensure_develop()
@@ -145,10 +163,17 @@ class VCSManager:
         return f"{self.remote}/{self.integration_branch}"
 
     def connect_remote(self, url: str, remote: str = "") -> dict[str, Any]:
-        """Add or replace a remote URL so delivery can push (uses the configured remote name)."""
+        """Add or replace a remote URL so delivery can push (uses the configured remote name).
+
+        IS-PF-0049 (fail-closed): refuse when ``project_dir`` is not its OWN repo root, so a
+        product run can never rewrite the framework (or any ancestor) repo's remote.
+        """
         rem = str(remote or self.remote or "origin")
         if not str(url or "").strip():
             return {"ok": False, "error": "empty url"}
+        if not self.is_own_repo():
+            return {"ok": False, "error": "refusing to set remote: project_dir is not its own "
+                                          "git repo (inside an ancestor repo)"}
         if self.has_remote():
             return self._git(["remote", "set-url", rem, str(url)])
         return self._git(["remote", "add", rem, str(url)])
