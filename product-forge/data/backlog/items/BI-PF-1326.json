@@ -1,0 +1,186 @@
+{
+  "id": "BI-PF-1326",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "wg-o2-start-wrapper",
+  "label": "PF Backlog 2",
+  "title": "WG-O2: Start-from-anywhere wrapper (fetch -> pull --ff-only clean-guard -> shared token -> start) + periodic fetch-only thread",
+  "body": "Part of EPIC BI-PF-0360. Source: docs/WORKER-SCHEDULER-OPERATIONS.md.",
+  "source": "review",
+  "status": "new",
+  "priority": "P0",
+  "moscow": "Must",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [
+    "BI-PF-1325"
+  ],
+  "links": {},
+  "decisions": [
+    {
+      "at": "2026-10-13T18:21:22.019372",
+      "decision": "APPROVE",
+      "by": "cli",
+      "note": ""
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "starting the API from an arbitrary clone risks a stale/divergent backlog; no shared token; no drift visibility.",
+    "what_adds": "A start wrapper that syncs develop then starts the single API, plus a periodic fetch-only thread in the API.",
+    "why": "Same backlog + same token regardless of which clone starts it; drift is visible.",
+    "who_feels": "Operators, sessions.",
+    "source": "review"
+  },
+  "objective": "Add a start wrapper (sync + token + start) and a periodic fetch-only background thread.",
+  "acceptance_criteria": [
+    "Wrapper: git fetch + git pull --ff-only origin develop, refuses if the tree is dirty, ensures PF_API_TOKEN, starts dev_server.",
+    "API startup performs one bounded git fetch before serving.",
+    "Background thread runs git fetch every N s (env-gated, default 60 dev / off in tests); fetch-only, never auto-merge.",
+    "Bill-PF-1261 single-authority refusal preserved."
+  ],
+  "in_scope": [
+    "start wrapper",
+    "periodic fetch thread"
+  ],
+  "out_of_scope": [
+    "live auto-merge (explicitly excluded)"
+  ],
+  "affected_components": [
+    "scripts/dev",
+    "api/app.py",
+    "core/vcs.py"
+  ],
+  "affected_files": [
+    "scripts/dev/dev_server.py",
+    "api/app.py",
+    "core/vcs.py"
+  ],
+  "approach": "Wrapper = fetch/pull/ff(clean-guard)+token+dev_server; thread mirrors the existing state-checkpoint pattern; fetch only.",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "dirty tree refuses; clean tree ffs; second instance still refused; thread fetches on interval."
+  ],
+  "risks": [
+    "fetch racing writer (fetch-only, low); churn if interval too low."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "agent",
+  "requester": "review",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-0360",
+  "parent": "BI-PF-0360",
+  "revision": 4,
+  "priority_rank": null,
+  "priority_class": "",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "COMPLETE",
+    "analyzed_at": "2026-10-13T18:21:21.792089",
+    "analyzed_by": "cli",
+    "revision_analyzed": 4,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Add a start-from-anywhere wrapper (script or endpoint extension) chaining git fetch -> pull --ff-only with clean-guard -> resolving shared token via PF_API_TOKEN -> invoking existing /api/v1/runs/start; plus a periodic fetch-only background thread.",
+    "existing_components": [],
+    "existing_apis": [],
+    "existing_modules": [],
+    "dependency_findings": [
+      "REQUIRES BI-PF-1325 for canonical PF_API_TOKEN + token_env"
+    ],
+    "conflict_findings": [
+      "Touches start APIs also relevant to BI-PF-1327 session model - coordinate endpoint ownership"
+    ],
+    "duplication_findings": [
+      "No existing start-from-anywhere wrapper in backlog",
+      "Start logic already in /api/v1/runs/start and /api/v1/portfolio/supervisor/start - extend, do not fork"
+    ],
+    "drift": "LOW",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "Extends existing start flows; blocked only on token rename item for shared-token semantics.",
+    "assumptions": [
+      "Canonical repo exists per WG-O3 plan",
+      "Shared token resolution pattern comes from BI-PF-1325"
+    ],
+    "risks": [
+      "git pull on dirty worktree could clobber local edits if clean-guard fails",
+      "Periodic fetch thread may conflict with worktree model (BI-PF-1327)"
+    ],
+    "evidence": [
+      "Candidate APIs /api/v1/runs/start and supervisor/start exist",
+      "config/shared-paths.json exists for shared paths"
+    ],
+    "confidence": "medium",
+    "missing_info": [
+      "Wrapper form: CLI script vs HTTP endpoint",
+      "Fetch thread interval and lifecycle owner"
+    ],
+    "depth": "deep",
+    "mode": "ai",
+    "context_review": {
+      "implementable": true,
+      "missing": [
+        "wrapper form (CLI vs endpoint)",
+        "fetch interval"
+      ],
+      "reason": "Depends on 1325 for token; existing start APIs provide integration points."
+    },
+    "arch_fingerprint": "2ac583a2a8414c6d"
+  },
+  "dependencies": [
+    {
+      "task_id": "BI-PF-1325",
+      "type": "REQUIRES",
+      "required_state": "PF_API_TOKEN canonical with token_env"
+    }
+  ],
+  "blocked_by": [
+    "BI-PF-1325"
+  ],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-13T18:21:21.881087"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-13T18:13:09.865336",
+  "updated_at": "2026-10-13T18:21:22.122967",
+  "score": 0.75,
+  "source_ref": "docs/WORKER-SCHEDULER-OPERATIONS.md",
+  "_note": "readiness computed"
+}

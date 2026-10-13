@@ -70,7 +70,9 @@ def _flag(name: str, default: str = "") -> str:
 
 
 def _token() -> str:
-    tok = _flag("API_TOKEN", "") or _flag("DASHBOARD_API_TOKEN", "")
+    # BI-PF-1325: PF_API_TOKEN is canonical; API_TOKEN is a deprecated back-compat alias.
+    # The legacy DASHBOARD_API_TOKEN alias was removed (no consumers; the dashboard is legacy/frozen).
+    tok = _flag("PF_API_TOKEN", "") or _flag("API_TOKEN", "")
     if not tok and is_dev():
         # BI-PF-1256: dev-only shared local token so local dev needs no manual env (never in prod).
         tok = ensure_dev_token()
@@ -95,7 +97,7 @@ def authenticate(request: Request, authorization: str = Header(default=""),
             ctx["roles"] = _roles(x_roles)
             ctx["authenticated"] = bool(_anon_ok())
             return ctx
-        raise ApiError("UNAUTHENTICATED", "no API token configured; set API_TOKEN or enable API_ALLOW_ANON for dev")
+        raise ApiError("UNAUTHENTICATED", "no API token configured; set PF_API_TOKEN or enable API_ALLOW_ANON for dev")
     if provided != token:
         raise ApiError("UNAUTHENTICATED", "invalid or missing bearer token")
     ctx["roles"] = _roles(x_roles)

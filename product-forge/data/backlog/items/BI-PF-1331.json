@@ -1,0 +1,172 @@
+{
+  "id": "BI-PF-1331",
+  "tag": "PF",
+  "type": "bug",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "precommit-lint-worktree-winerror",
+  "label": "PF Backlog 610",
+  "title": "pre-commit lint_check crashes in git worktrees (WinError 206 long path) - blocks commits",
+  "body": "Observed during EDP-01 (BI-PF-1293) in the assignment worktree product-forge-worktrees/assign-bi-pf-1293: the pre-commit hook step `python product-forge/scripts/dev/lint_check.py --strict` fails with FileNotFoundError [WinError 206] The filename or extension is too long (subprocess spawn), so the commit is blocked even for a docs-only change with 0 changed .py files. Running lint_check.py --strict manually from product-forge/ returns OK (exit 0); the crash is specific to the hook running at the worktree root. Precheck PASSES. Workaround used: git commit --no-verify. Needs RCCA: bound/relativize the changed-file path list / run lint from the product-forge dir so the Windows command line stays within limits.",
+  "source": "review",
+  "status": "new",
+  "priority": "P2",
+  "moscow": "Should",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [],
+  "links": {},
+  "decisions": [
+    {
+      "at": "2026-10-13T18:35:04.975926",
+      "decision": "APPROVE",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)"
+    },
+    {
+      "at": "2026-10-13T18:35:08.457426",
+      "decision": "APPROVE",
+      "by": "agent",
+      "note": "deterministic finalize"
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "pre-commit lint_check crashes (WinError 206) in a worktree, blocking commits.",
+    "what_adds": "Bound/relativize the hook's file list (or run lint from product-forge) so it works in worktrees.",
+    "why": "Workers commit from worktrees; a crashing hook blocks every delivery.",
+    "who_feels": "All worker sessions.",
+    "source": "review"
+  },
+  "objective": "Make the pre-commit lint_check work from a git worktree (no WinError 206 long-path crash).",
+  "acceptance_criteria": [
+    "git commit works in a worktree checkout (including deep paths with spaces) for a docs-only change.",
+    "The hook does not pass an over-long argument list; lint still runs on changed .py files.",
+    "A regression test or guard reproduces the worktree path case."
+  ],
+  "in_scope": [
+    "pre-commit lint_check crashes in git worktrees (WinError 206 long path) - blocks commits"
+  ],
+  "out_of_scope": [
+    "Not specified."
+  ],
+  "affected_components": [
+    "product-forge"
+  ],
+  "affected_files": [
+    "scripts/dev/install_hooks.py",
+    ".git/hooks/pre-commit",
+    "scripts/dev/lint_check.py"
+  ],
+  "approach": "pre-commit lint_check crashes in git worktrees (WinError 206 long path) - blocks commits",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Objective achieved: pre-commit lint_check crashes in git worktrees (WinError 206 long path) - blocks commits"
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "agent",
+  "requester": "review",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1248",
+  "parent": "BI-PF-1248",
+  "revision": 2,
+  "priority_rank": 2,
+  "priority_class": "P2",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "COMPLETE",
+    "analyzed_at": "2026-10-13T18:35:08.196534",
+    "analyzed_by": "agent",
+    "revision_analyzed": 2,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/github.py, core/paths.py, core/stage_paths.py, /api/v1/github",
+    "existing_components": [
+      "core/github.py",
+      "core/paths.py",
+      "core/stage_paths.py"
+    ],
+    "existing_apis": [
+      "/api/v1/github",
+      "/api/v1/github/evidence",
+      "/api/v1/github/pr",
+      "/api/v1/github/pr/{number}",
+      "/api/v1/github/pr/{number}/ci",
+      "/api/v1/reservations/shared-paths",
+      "/api/v1/vcs/commits",
+      "/api/v1/vcs/worktrees"
+    ],
+    "existing_modules": [
+      "config/artifact-paths.json",
+      "config/id-blocks.json",
+      "config/shared-paths.json"
+    ],
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=0.75",
+      "components=3",
+      "apis=8"
+    ],
+    "confidence": "high",
+    "arch_fingerprint": "2ac583a2a8414c6d",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-13T18:35:08.297067"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-13T18:35:04.113885",
+  "updated_at": "2026-10-13T18:35:08.616600",
+  "score": 0.75,
+  "_note": "readiness computed"
+}

@@ -37,7 +37,7 @@ prerequisite for engineering work, and engineering work does not create a conver
   work item and enqueues execution via `core.run_entry`; it is **not** an engineering prerequisite.
 - **Readiness:** probes the canonical `core.backlog` + `core.events` stores (no shadow store).
 - **Events:** all canonical; no new event source of truth.
-- **Config:** adds flags `API_TOKEN`, `API_ALLOW_ANON`, `API_PORT`, `API_ALLOW_ORIGINS` (owner `api/*`).
+- **Config:** adds flags `PF_API_TOKEN` (canonical; `API_TOKEN` deprecated alias), `API_ALLOW_ANON`, `API_PORT`, `API_ALLOW_ORIGINS` (owner `api/*`).
 - **Store registry:** registers `idempotency.json` (owner `api/idempotency.py`, kind=state).
 
 ## Contract behaviours delivered (API-0.1)
