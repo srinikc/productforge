@@ -1,14 +1,14 @@
 # Backlog Summary
 
-> GENERATED 2026-10-13T16:36:58 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-13T16:49:29 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 77  |  **Closed:** 501
-- `new`: 77
+- **Open:** 76  |  **Closed:** 502
+- `new`: 76
 
-### new, by category (77)
+### new, by category (76)
 **API / reports / HIL / misc** (8)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
@@ -51,7 +51,7 @@
 | BI-PF-1241 | Should | feature | Per-item token/cache/cost usage (execution.usage) + runtime usage capture + rollup | - backlog execution: + usage{} (input/output/reasoning/cache_read/cache_write/total/cost_usd/model/cost_source... |
 | BI-PF-1273 | Should | feature | Eventing SSOT: migrate existing consumers (event_bus/context/ops/capabilities/parked/notifications/alerts) behind shims | Migrate each consumer to the subscriber/transport API with a compatibility shim so behavior is identical durin... |
 
-**Wiring / tech-debt / API** (55)
+**Wiring / tech-debt / API** (54)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0185 | Should | feature | EPIC: Multi-modal / media orchestration (pluggable capability packs) | Make the pipeline modality-agnostic via PLUGGABLE capability packs, enabled per project when the idea needs th... |
@@ -105,7 +105,6 @@
 | BI-PF-1276 | Should | feature | Eventing SSOT: retire legacy websocket push (frozen dashboard -> SSE) | Stop extending the legacy WS; migrate its consumers to SSE; retain (never delete) until the new UI lands. |
 | BI-PF-1277 | Should | epic | EPIC: Product-generation run (dogfood) execution + monitoring correctness | dogfood drives the same engine to completion (all stages/agents), then validates the generated product and ret... |
 | BI-PF-1278 | Should | feature | dogfood: drive pipeline to completion + correct post-run validation + fail-closed verdict | Wait for the run to finish (bounded), validate the GENERATED product dir, and map terminal states fail-closed. |
-| BI-PF-1279 | Should | feature | dogfood/validation: ensure DOGFOOD-profile quality_gate record so PASS is reachable | Make the DOGFOOD profile produce/ensure the quality-gate record for the validated tree (reuse the existing own... |
 | BI-PF-1280 | Should | feature | dogfood: monitoring - wait/poll + terminal event/webhook + status aggregation | Expose progress via the shared bus: poll (run_status/events) + subscribe (SSE/webhook) + aggregate status. |
 | BI-PF-1288 | Must | task | Issue id collision: a local session minted IS-PF-0038 already present on develop | Issue id collision: a local session minted IS-PF-0038 already present on develop |
 | BI-PF-1318 | Should | feature | Per-worker sync hardening: sync at task start + pre-commit auto-sync + worker-charter guideline (BI-PF-1290 follow-up) | Keep every session near origin/develop all the time (minimal clash/conflicts): sync when a task STARTS, before... |
@@ -308,5 +307,5 @@
 ---
 
 ## Totals
-- backend: 77 open / 501 closed
+- backend: 76 open / 502 closed
 - dashboard: 146 open / 3 closed
