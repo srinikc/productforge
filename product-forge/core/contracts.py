@@ -486,8 +486,8 @@ def handle_wire(request: Any, host: str = "python") -> dict[str, Any]:
 # config/artifact-contracts/. This is only the thin Python client used by the API + tooling;
 # it never re-implements the logic. Goal: agent output bounded BY CONSTRUCTION, not free-flow.
 def _ac_dir() -> str:
-    return os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                        "config", "artifact-contracts")
+    from core.paths import ROOT
+    return os.path.join(str(ROOT), "config", "artifact-contracts")
 
 
 def load_registry() -> dict:
