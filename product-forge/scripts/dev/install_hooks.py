@@ -13,8 +13,9 @@ The hook never blocks on the full precheck (that stays the merge gate); it only 
 changed-file guards. Safe to re-run. Run from product-forge/: ``python scripts/dev/install_hooks.py``.
 
 Also installs a ``pre-push`` hook that (1) folds ``origin/develop`` into the branch first (BI-PF-1290 per-worker
-sync; merge, never rebase/reset) and (2) runs the cheap backlog **id-audit** (BI-PF-0463) so a duplicate
-backlog id is caught at the push boundary too (belt-and-braces on top of precheck/CI).
+sync; merge, never rebase/reset), (2) runs the cheap backlog **id-audit** (BI-PF-0463), and (3) enforces the
+test gate at the push boundary (BI-PF-1340): a shipped/sensitive change must add/update a test and the
+changed/new tests must PASS before the push is allowed (skip with ``PF_SKIP_TEST_GATE=1``).
 """
 import os
 import stat
@@ -63,12 +64,28 @@ PF="product-forge"
 [ -d "$PF/scripts/dev" ] || exit 0
 python "$PF/scripts/dev/sync_develop.py" --pre-push || exit $?
 python "$PF/scripts/dev/backlog_id_audit.py" || { echo "pre-push: duplicate backlog id(s) - renumber before pushing"; exit 1; }
+# BI-PF-1340: a shipped/sensitive change MUST add/update a test, and the changed/new tests MUST pass BEFORE push
+# (the same gate CI enforces at merge - here it is enforced at the push boundary). Skip with PF_SKIP_TEST_GATE=1.
+if [ "$PF_SKIP_TEST_GATE" != "1" ]; then
+python "$PF/scripts/dev/changed_tests_check.py" || { echo "pre-push: a shipped/sensitive change must add/update a test (or PF_ALLOW_NO_TEST=1 with a reason)"; exit 1; }
+( cd "$PF" && python scripts/dev/precheck.py --tests-changed ) || { echo "pre-push: the changed/new tests must pass before pushing"; exit 1; }
+fi
 exit 0
 """
 
 
+def _hooks_dir() -> str:
+    """Resolve the git hooks dir (worktree-aware: `.git` is a FILE in a worktree, so ask git)."""
+    r = subprocess.run(["git", "rev-parse", "--git-path", "hooks"],
+                       cwd=_REPO, capture_output=True, text=True)
+    p = (r.stdout or "").strip() or os.path.join(_REPO, ".git", "hooks")
+    if not os.path.isabs(p):
+        p = os.path.join(_REPO, p)
+    return os.path.normpath(p)
+
+
 def _install(name: str, body: str) -> str:
-    hooks = os.path.join(_REPO, ".git", "hooks")
+    hooks = _hooks_dir()
     os.makedirs(hooks, exist_ok=True)
     path = os.path.join(hooks, name)
     with open(path, "w", encoding="utf-8", newline="\n") as f:
