@@ -1453,24 +1453,34 @@ def archive(scope: str, project: str | None, eid: str, note: str = "archived") -
 
 
 def delete(scope: str, project: str | None, eid: str) -> dict | None:
-    """Remove an item's own files (item + journal) and refresh the index. Returns the item."""
+    """Remove an item's own files (item + journal), refresh the index, and re-sync its epic's children.
+
+    BI-PF-1282: an item now always carries a parent epic (auto-assigned on add), so deleting it must
+    re-sync that epic's ``children[]`` - otherwise the epic is left with a stale child (residue).
+    """
     scope = _norm_scope(scope)
     d, _of, _cf, _h, _c = _paths(scope, project)
     lp = _lock(d)
+    parent = ""
+    target = None
     try:
         op, cl = _load_all(scope, project)
         target, bucket = _find(op, cl, eid)
         if target is None:
             return None
+        parent = str(target.get("epic") or target.get("parent") or "")
         bucket.remove(target)
         for p in (os.path.join(_items_dir(d), f"{eid}.json"),
                   os.path.join(d, "history", f"{eid}.jsonl")):
             with contextlib.suppress(Exception):
                 os.remove(p)
         _write_indexes(scope, project, op, cl)
-        return target
     finally:
         _unlock(lp)
+    if parent:
+        with contextlib.suppress(Exception):
+            _sync_epic_children(scope, project, parent)
+    return target
 
 
 _STRUCT_FIELD_TYPES = {

@@ -72,3 +72,15 @@ def test_epic_execution_order_persisted_on_add():
         assert any(str(r.get("id")) == str(c) for r in order), order
     finally:
         _clean()
+
+
+def test_delete_resyncs_parent_epic_children():
+    _clean()
+    try:
+        ep = backlog.add_epic("project", _PROJ, "EPIC: del", type_="epic", tag="TST")["id"]
+        c = backlog.add_epic("project", _PROJ, "child", body=_BODY, tag="TST", epic=ep)["id"]
+        assert str(c) in (backlog.get_epic("project", _PROJ, ep).get("children") or [])
+        backlog.delete("project", _PROJ, c)
+        assert str(c) not in (backlog.get_epic("project", _PROJ, ep).get("children") or [])
+    finally:
+        _clean()
