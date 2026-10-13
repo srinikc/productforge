@@ -10,7 +10,7 @@
   "title": "Eventing SSOT (Go): event core - append-only store, emit, monotonic seq, cursor/since",
   "body": "## Problem / why\nThe canonical stream has no reliable cursor (since = string timestamp compare) and no Go-native core; new\nshipped logic must be Go.\n\n## Goal / value\nA Go event core owning emit + append-only store + monotonic seq + cursor reads; single writer.\n\n## In scope\n- Go package (extend go/pfcore or new go/eventbus) with emit/seq/cursor; single-writer store.\n- Invoked from Python via core/go_host + A1 wire (fail-closed).\n\n## Out of scope\n- Dispatch/transports (E4/E5); changing existing Python emit call sites (E7).\n\n## Acceptance criteria\n- Monotonic seq assigned; cursor read returns exactly events after a cursor (no races).\n- Existing events.jsonl readers still work; no duplicate store introduced.\n\n## Verification / test plan\n- Go unit tests + Python contract/e2e test; language_rule_check green.",
   "source": "design",
-  "status": "new",
+  "status": "executing",
   "priority": "P2",
   "moscow": "Should",
   "value": 5,
@@ -29,6 +29,12 @@
       "decision": "Add event append/read ops to go/pfcore via the A1 wire; Python stays writer until 1272; portable lockfile for append+seq",
       "source": "BI-PF-1268 (proposed)",
       "at": "2026-10-13T09:52:56.718617"
+    },
+    {
+      "at": "2026-10-13T11:18:38.492740",
+      "decision": "APPROVE",
+      "by": "cli",
+      "note": ""
     }
   ],
   "follow_up": {},
@@ -155,10 +161,10 @@
   "priority_class": "P2",
   "analyze_mode": "on_entry",
   "analysis": {
-    "status": "STALE",
-    "analyzed_at": "2026-10-12T23:26:56.309457",
+    "status": "COMPLETE",
+    "analyzed_at": "2026-10-13T11:18:38.154249",
     "analyzed_by": "cli",
-    "revision_analyzed": 3,
+    "revision_analyzed": 4,
     "architecture_fit": "EXTEND",
     "implementation_strategy": "Extend existing components/APIs: core/artifact_store.py, core/asset_store.py, core/events.py, core/event_bus.py",
     "existing_components": [
@@ -214,11 +220,9 @@
   ],
   "unlocks": [],
   "readiness": {
-    "ready": false,
-    "reasons": [
-      "unmet dependency BI-PF-1267"
-    ],
-    "computed_at": "2026-10-12T23:27:14.994440"
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-13T11:18:38.308523"
   },
   "execution": {
     "worker_id": "",
@@ -234,7 +238,7 @@
     "usage": {}
   },
   "created_at": "2026-10-12T22:54:08.889301",
-  "updated_at": "2026-10-13T09:53:02.119203",
+  "updated_at": "2026-10-13T11:18:38.636989",
   "score": 0.62,
-  "_note": "item reconciliation + impact review recorded (pre-implementation)"
+  "_note": "readiness computed"
 }
