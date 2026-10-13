@@ -260,13 +260,23 @@ _LEASE_TTL = 3600
 
 
 def _lease_mode() -> str:
-    """Lease authority mode: strict (default, fail-closed) | on (soft) | off (disabled)."""
+    """Lease authority mode: strict (default, fail-closed) | on (soft) | off (disabled).
+
+    Precedence (BI-PF-1283): an EXPLICIT ``PF_LEASE_REMOTE`` env value always wins; otherwise OFFLINE
+    (``PF_OFFLINE``) means there is no shared/remote authority -> ``off`` (keeps unit tests and offline runs
+    hermetic - no shared-CAS writes, no stray ``pf-leases`` refs); otherwise the config/default, else strict.
+    """
+    explicit = str(os.environ.get("PF_LEASE_REMOTE", "") or "").strip()
+    if explicit:
+        return explicit.lower()
     try:
         from core import env_flags
-        v = env_flags.get("PF_LEASE_REMOTE", os.environ.get("PF_LEASE_REMOTE", "strict"))
+        offline = str(env_flags.get("PF_OFFLINE", os.environ.get("PF_OFFLINE", "")) or "").strip().lower()
+        if offline in ("1", "true", "yes", "on"):
+            return "off"
+        return str(env_flags.get("PF_LEASE_REMOTE", "strict") or "strict").strip().lower()
     except Exception:
-        v = os.environ.get("PF_LEASE_REMOTE", "strict")
-    return str(v or "strict").strip().lower()
+        return "strict"
 
 
 def _lease_disabled() -> bool:
@@ -409,8 +419,14 @@ def claim_next(scope: str = "product_forge", project: str | None = None, worker:
     the API layer (``api/routers/engineering.py``), not here - this remains the scope-parameterized mechanism.
 
     ``epic=<id>`` restricts the claim to that epic's children (BI-PF-1222).
+
+    BI-PF-0396 (A2): the worker-claim IS an execution boundary - entitlement is enforced here, fail-closed.
     """
-    from core import backlog, capacity, scheduler
+    from core import backlog, capacity, licensing, scheduler
+    try:
+        licensing.enforce_for_instance("build-products")
+    except licensing.LicenseError as e:
+        return {"claimed": False, "reason": f"entitlement: {e}", "authority": "local"}
     nxt = scheduler.next_eligible(scope, project, stage="execute", epic=epic or None)
     if not nxt.get("found"):
         # BI-PF-1258: self-heal an architecture-stale block only (auto-regroom those items), then retry once.
