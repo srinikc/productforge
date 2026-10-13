@@ -1,0 +1,223 @@
+{
+  "id": "BI-PF-1371",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "",
+  "label": "PF Backlog 622",
+  "title": "Session isolation guard: never write outside the session's own working folder (hard ACL long-term + single-account alternative now)",
+  "body": "## Problem / why\nA worker session can read/write files ANYWHERE on the machine - there is no enforced boundary at the session's\nown working folder. During BI-PF-1325 a session amended a backlog item (BI-PF-1325) that exists only in ANOTHER\ncheckout (PF-features) by writing that checkout's file directly (the item was not present in the session's own\nfolder). All sessions currently run under ONE OS account, so filesystem ACLs cannot separate them today.\n\n## Goal & value\nA session can only affect its OWN working folder: cross-folder writes are prevented (long-term, hard) or at least\ndetected + reverted + escalated (now).\n\n## In scope\n- LONG-TERM (HARD): per-session OS identity (dedicated user / container / Windows AppContainer) whose ACL grants\n  write ONLY inside the session's worktree; sibling folders read-only/denied. Requires a per-session identity.\n- NOW (single account) - session-scope guard:\n  (a) declare the session root (the worker worktree) via env (e.g. PF_SESSION_ROOT);\n  (b) fail-closed on every PF/WorkerGrid-mediated write whose target is outside the root;\n  (c) a git hook that refuses staged paths outside the root;\n  (d) a filesystem watchdog that detects writes outside the root, reverts them, and raises an issue.\n- Charter/AGENTS rule: never write/delete outside your own working folder.\n\n## Out of scope\n- Provisioning multiple OS users (environment setup; enables the long-term hard guard).\n\n## Approach\nReuse existing owners (pre-commit/pre-push hooks, wired_audit, the WorkerGrid launcher); add a session-guard\nmodule wired into the worker launcher + the write paths; design the ACL path now, implement it once a\nper-session identity exists.\n\n## Acceptance criteria\n- A PF/WorkerGrid-mediated write outside the session root is refused; a raw-shell write is detected + reverted +\n  an issue raised (watchdog).\n- The pre-commit/pre-push hook fails on out-of-root staged paths.\n- The rule is documented; the long-term ACL design is recorded.\n\n## Risks\n- A raw shell/file call bypasses an in-agent guard (soft) -> mitigated by the ACL long-term.\n- Watchdog detect-after-write window -> documented.\n\n## Open question (needs a design decision BEFORE implementing)\nNo per-session OS identity exists today (one account runs all sessions), so an ACL-per-user hard guard is NOT\npossible yet. The \"hard now\" options must be reviewed/decided:\n- container per session (WSL2/Docker) with ONLY the worktree bind-mounted RW (write elsewhere -> EPERM), or\n- Windows AppContainer + a filesystem capability granting write only to the worktree.\nDecide which (and how) before coding; ACL-per-user becomes the hard guard once sessions get their own identity.\n\n## Related\nIssue IS-PF-0050; IS-PF-0036 (one working tree per session).",
+  "source": "user",
+  "status": "new",
+  "priority": "P1",
+  "moscow": "Must",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [
+    "BI-PF-1370",
+    "BI-PF-0428"
+  ],
+  "links": {
+    "related": [
+      "IS-PF-0050",
+      "IS-PF-0036"
+    ]
+  },
+  "decisions": [
+    {
+      "at": "2026-10-13T21:18:25.759379",
+      "decision": "APPROVE",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)"
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "A worker session can read/write files ANYWHERE on the machine - there is no enforced boundary at the session's\nown working folder. During BI-PF-1325 a session amended a backlog item (BI-PF-1325) that exists only in ANOTHER\ncheckout (PF-features) by writing that checkout's file directly (the item was not present in the session's own\nfolder). All sessions currently run under ONE OS account, so filesystem ACLs cannot separate them today.",
+    "what_adds": "A session can only affect its OWN working folder: cross-folder writes are prevented (long-term, hard) or at least\ndetected + reverted + escalated (now).",
+    "why": "A worker session can read/write files ANYWHERE on the machine - there is no enforced boundary at the session's\nown working folder. During BI-PF-1325 a session amended a backlog item (BI-PF-1325) that exists only in ANOTHER\ncheckout (PF-features) by writing that checkout's file directly (the item was not present in the session's own\nfolder). All sessions currently run under ONE OS account, so filesystem ACLs cannot separate them today.",
+    "who_feels": "Product Forge maintainers and consumers.",
+    "source": "authored"
+  },
+  "objective": "A session can only affect its OWN working folder: cross-folder writes are prevented (long-term, hard) or at least\ndetected + reverted + escalated (now).",
+  "acceptance_criteria": [
+    "A PF/WorkerGrid-mediated write outside the session root is refused; a raw-shell write is detected + reverted +",
+    "The pre-commit/pre-push hook fails on out-of-root staged paths.",
+    "The rule is documented; the long-term ACL design is recorded."
+  ],
+  "in_scope": [
+    "LONG-TERM (HARD): per-session OS identity (dedicated user / container / Windows AppContainer) whose ACL grants",
+    "NOW (single account) - session-scope guard:",
+    "Charter/AGENTS rule: never write/delete outside your own working folder."
+  ],
+  "out_of_scope": [
+    "Provisioning multiple OS users (environment setup; enables the long-term hard guard)."
+  ],
+  "affected_components": [
+    "Not specified."
+  ],
+  "affected_files": [
+    "Not specified."
+  ],
+  "approach": "Reuse existing owners (pre-commit/pre-push hooks, wired_audit, the WorkerGrid launcher); add a session-guard\nmodule wired into the worker launcher + the write paths; design the ACL path now, implement it once a\nper-session identity exists.",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "A PF/WorkerGrid-mediated write outside the session root is refused; a raw-shell write is detected + reverted +",
+    "The pre-commit/pre-push hook fails on out-of-root staged paths.",
+    "The rule is documented; the long-term ACL design is recorded."
+  ],
+  "risks": [
+    "A raw shell/file call bypasses an in-agent guard (soft) -> mitigated by the ACL long-term.",
+    "Watchdog detect-after-write window -> documented."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "agent",
+  "requester": "user",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1248",
+  "parent": "BI-PF-1248",
+  "revision": 3,
+  "priority_rank": 30,
+  "priority_class": "P1",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "COMPLETE",
+    "analyzed_at": "2026-10-13T21:18:25.498151",
+    "analyzed_by": "system",
+    "revision_analyzed": 3,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Reuse core/guardrails.py, core/run_guard.py, core/write_safety.py: add a session-root resolver (env PF_SESSION_ROOT), fail-closed checks on WorkerGrid/PF-mediated write paths, and an fs watchdog that reverts+issues on raw-shell writes. Extend existing pre-commit/pre-push hooks and wired_audit. Wire session-guard module into the worker launcher. Design-only doc for the long-term ACL/container path.",
+    "existing_components": [],
+    "existing_apis": [],
+    "existing_modules": [],
+    "dependency_findings": [
+      "REQUIRES per-session identity provisioning (out-of-scope env setup) for the long-term hard ACL guard.",
+      "RELATED IS-PF-0036 one-working-tree-per-session; IS-PF-0050.",
+      "REQUIRES BI-PF-1370 resolution (merge/defer) to avoid duplicate guard wiring."
+    ],
+    "conflict_findings": [
+      "Concurrent edits to core/write_safety.py and git hooks would conflict with any hook/guardrail-related tasks.",
+      "WorkerGrid launcher wiring may overlap with BI-PF-0428 runner setup work."
+    ],
+    "duplication_findings": [
+      "BI-PF-1370 has ~identical title/scope (similarity 0.92) — likely duplicate; merge or define distinct deliverables before starting.",
+      "BI-PF-0428 (dedicated runner worktree) overlaps the one-worktree-per-session prerequisite.",
+      "BI-PF-1324 (unique scratch/temp names) partially reduces cross-session write collisions."
+    ],
+    "drift": "LOW",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "Prevents cross-session data corruption (real incident in BI-PF-1325) with high leverage reuse of existing guard/hook infrastructure; blocked only on the containment design choice and duplicate consolidation.",
+    "assumptions": [
+      "All sessions still run under one OS account, so ACL-per-user is not yet implementable.",
+      "Existing hooks (pre-commit/pre-push) and wired_audit can host the out-of-root checks.",
+      "Worktree layout (IS-PF-0036) gives each session a unique, discoverable root."
+    ],
+    "risks": [
+      "Raw shell/file API bypasses in-agent guard (soft-only now); residual window until hard ACL.",
+      "Watchdog detect-after-write window: damage visible before revert.",
+      "PF_SESSION_ROOT misconfiguration could lock out legitimate writes or false-positive block.",
+      "Watchdog revert may clobber legitimate concurrent changes."
+    ],
+    "evidence": [
+      "Incident during BI-PF-1325: session wrote to PF-features checkout outside its own folder.",
+      "Candidate reuse modules exist: core/guardrails.py, core/run_guard.py, core/write_safety.py.",
+      "config/guardrail-policy.json already models guardrail policy entries."
+    ],
+    "confidence": "medium",
+    "missing_info": [
+      "BLOCKING: decide hard-now containment: container-per-session (WSL2/Docker with RW-only worktree bind-mount) vs Windows AppContainer + filesystem capability.",
+      "Confirm merge/relationship with BI-PF-1370 (duplicate risk).",
+      "Decide watchdog revert policy (git checkout vs backup-snapshot) and escalation channel (issue template).",
+      "Define PF_SESSION_ROOT contract (env var name, validation, override rules) and whether raw shell is even permitted."
+    ],
+    "depth": "deep",
+    "mode": "ai",
+    "context_review": {
+      "ok": false,
+      "source": "llm",
+      "implementable": false,
+      "missing": [
+        "where",
+        "how"
+      ],
+      "reason": "Components/files are explicitly 'Not specified'; only a high-level reuse-hint (hooks, wired_audit, WorkerGrid launcher) exists. The detection+revert mechanism for raw-shell writes is also undefined (how to detect an already-performed out-of-root write, how to revert, escalation target) — the 'write paths' to wrap are unnamed."
+    },
+    "consolidation_proposal": {
+      "sources": [
+        "BI-PF-1370"
+      ],
+      "title": "Session isolation guard: never write outside the session's own working folder (hard ACL long-term + single-account alternative now)",
+      "body": "## Problem / why\nA worker session can read/write files ANYWHERE on the machine - there is no enforced boundary at the session's\nown working folder. During BI-PF-1325 a session amended a backlog item (BI-PF-1325) that exists only in ANOTHER\ncheckout (PF-features) by writing that checkout's file directly (the item was not present in the session's own\nfolder). All sessions currently run under ONE OS account, so filesystem ACLs cannot separate them today.\n\n## Goal & value\nA session can only affect its OWN working folder: cross-folder writes are prevented (long-term, hard) or at least\ndetected + reverted + escalated (now).\n\n## In scope\n- LONG-TERM (HARD): per-session OS identity (dedicated user / container / Windows AppContainer) whose ACL grants\n  write ONLY inside the session's worktree; sibling folders read-only/denied. Requires a per-session identity.\n- NOW (single account) - session-scope guard:\n  (a) declare the session root (the worker worktree) via env (e.g. PF_SESSION_ROOT);\n  (b) fail-closed on every PF/WorkerGrid-mediated write whose target is outside the root;\n  (c) a git hook that refuses staged paths outside the root;\n  (d) a filesystem watchdog that detects writes outside the root, reverts them, and raises an issue.\n- Charter/AGENTS rule: never write/delete outside your own working folder.\n\n## Out of scope\n- Provisioning multiple OS users (environment setup; enables the long-term hard guard).\n\n## Approach\nReuse existing owners (pre-commit/pre-push hooks, wired_audit, the WorkerGrid launcher); add a session-guard\nmodule wired into the worker launcher + the write paths; design the ACL path now, implement it once a\nper-session identity exists.\n\n## Acceptance criteria\n- A PF/WorkerGrid-mediated write outside the session root is refused; a raw-shell write is detected + reverted +\n  an issue raised (watchdog).\n- The pre-commit/pre-push hook fails on out-of-root staged paths.\n- The rule is documented; the long-term ACL design is recorded.\n\n## Risks\n- A raw shell/file call bypasses an in-agent guard (soft) -> mitigated by the ACL long-term.\n- Watchdog detect-after-write window -> documented.\n\n## Open question (needs a design decision BEFORE implementing)\nNo per-session OS identity exists today (one account runs all sessions), so an ACL-per-user hard guard is NOT\npossible yet. The \"hard now\" options must be reviewed/decided:\n- container per session (WSL2/Docker) with ONLY the worktree bind-mounted RW (write elsewhere -> EPERM), or\n- Windows AppContainer + a filesystem capability granting write only to the worktree.\nDecide which (and how) before coding; ACL-per-user becomes the hard guard once sessions get their own identity.\n\n## Related\nIssue IS-PF-0050; IS-PF-0036 (one working tree per session).\n\n[consolidated from BI-PF-1370]: ## Problem / why\nA worker session can read/write files ANYWHERE on the machine - there is no enforced boundary at the session's\nown working folder. During BI-PF-1325 a session amended a backlog item (BI-PF-1325) that exists only in ANOTHER\ncheckout (PF-features) by writing that checkout's file directly (the item was not present in the session's own\nfolder). All sessions currently run under ONE OS account, so filesystem ACLs cannot separate them today.\n\n## Goal & value\nA session can only affect its OWN working folder: cross-folder writes are prevented (long-term, hard) or at least\ndetected + reverted + escalated (now).\n\n## In scope\n- LONG-TERM (HARD): per-session OS identity (dedicated user / container / Windows AppContainer) whose ACL grants\n  write ONLY inside the session's worktree; sibling folders read-only/denied. Requires a per-session identity.\n- NOW (single account) - session-scope guard:\n  (a) declare the session root (the worker worktree) via env (e.g. PF_SESSION_ROOT);\n  (b) fail-closed on every PF/WorkerGrid-mediated write whose target is outside the root;\n  (c) a git hook that refuses staged paths outside the root;\n  (d) a filesystem watchdog that detects writes outside the root, reverts them, and raises an issue.\n- Charter/AGENTS rule: never write/delete outside your own working folder.\n\n## Out of scope\n- Provisioning multiple OS users (environment setup; enables the long-term hard guard).\n\n## Approach\nReuse existing owners (pre-commit/pre-push hooks, wired_audit, the WorkerGrid launcher); add a session-guard\nmodule wired into the worker launcher + the write paths; design the ACL path now, implement it once a\nper-session identity exists.\n\n## Acceptance criteria\n- A PF/WorkerGrid-mediated write outside the session root is refused; a raw-shell write is detected + reverted +\n  an issue raised (watchdog).\n- The pre-commit/pre-push hook fails on out-of-root staged paths.\n- The rule is documented; the long-term ACL design is recorded.\n\n## Risks\n- A raw shell/file call bypasses an in-agent guard (soft) -> mitigated by the ACL long-term.\n- Watchdog detect-after-write window -> documented.\n\n## Related\nIssue IS-PF-0050; IS-PF-0036 (one working tree per session).",
+      "acceptance_criteria": [
+        "A PF/WorkerGrid-mediated write outside the session root is refused; a raw-shell write is detected + reverted +",
+        "The pre-commit/pre-push hook fails on out-of-root staged paths.",
+        "The rule is documented; the long-term ACL design is recorded."
+      ],
+      "moscow": "Should"
+    },
+    "decision_request": {
+      "needed": false,
+      "reasons": [],
+      "ask": ""
+    },
+    "arch_fingerprint": "91e0282bd4f51be8"
+  },
+  "dependencies": [
+    {
+      "task_id": "BI-PF-1370",
+      "type": "RELATED",
+      "required_state": "resolved_or_merged"
+    },
+    {
+      "task_id": "BI-PF-0428",
+      "type": "RELATED",
+      "required_state": "any"
+    }
+  ],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-13T21:18:25.601590"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-13T21:16:46.855998",
+  "updated_at": "2026-10-13T21:18:26.095124",
+  "score": 0.75,
+  "_note": "readiness computed"
+}
