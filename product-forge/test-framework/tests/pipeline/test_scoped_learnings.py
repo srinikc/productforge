@@ -101,3 +101,22 @@ def test_learning_synth_approve_writes_project_store():
     assert any("unique-echo" in e["rule"] for e in L.all_learnings(_PROJECT))
     assert not any("unique-echo" in e["rule"] for e in L.all_learnings())
     _restore_global(snap); _clean()
+
+
+def test_global_store_has_no_test_markers():
+    """BI-PF-1332 regression guard: the COMMITTED global learnings store must not contain
+    test-marker entries (a test that wrote to the real store polluted develop and failed
+    test_global_render_unchanged)."""
+    import json
+    snap = _snapshot_global()
+    try:
+        data = json.loads(snap) if snap else []
+    except Exception:
+        data = []
+    bad = []
+    for e in data if isinstance(data, list) else []:
+        sources = [str(s) for s in (e.get("sources") or [])]
+        rule = str(e.get("rule", "")).lower()
+        if "scratch" in rule or any(s.startswith("IS-TEST") or "_test" in s.lower() for s in sources):
+            bad.append(e.get("id"))
+    assert not bad, f"test markers committed into global learnings: {bad}"
