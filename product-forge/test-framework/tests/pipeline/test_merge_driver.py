@@ -46,8 +46,47 @@ def test_driver_max_merges_counters_file(tmp_path):
     a.write_text('{"next_label": 12}')
     b = tmp_path / "theirs.txt"
     b.write_text('{"next_label": 20}')
-    assert drv.main(["pf_merge_driver.py", "", str(a), str(b)]) == 0
+    assert drv.main(["pf_merge_driver.py", "", str(a), str(b), str(a)]) == 0
     assert json.loads(a.read_text(encoding="utf-8"))["next_label"] == 20
+
+
+def test_git_merge_invokes_driver_and_resolves_counters(tmp_path):
+    """Integration (BI-PF-1290): a real `git merge` must resolve counters.json via the driver (no conflict).
+
+    Guards the BI-PF-1176 bug: git passes TEMP files for %O/%A/%B, so the driver MUST use %P (the real
+    pathname). Without %P the driver cannot know the path and every derived file conflicts.
+    """
+    import subprocess
+    drv = str(ROOT / "scripts" / "dev" / "pf_merge_driver.py")
+
+    def g(*a):
+        return subprocess.run(["git", "-C", str(tmp_path), *a], capture_output=True, text=True, check=True)
+
+    g("init", "-q", "-b", "main")
+    g("config", "user.email", "t@t")
+    g("config", "user.name", "t")
+    g("config", "merge.pf-derived.driver", f'python "{drv}" %O %A %B %P')
+    (tmp_path / "data" / "backlog").mkdir(parents=True)
+    (tmp_path / ".gitattributes").write_text("data/backlog/counters.json merge=pf-derived\n")
+    cp = tmp_path / "data" / "backlog" / "counters.json"
+
+    def setc(v):
+        cp.write_text(json.dumps({"next_label": v}))
+
+    setc(10)
+    g("add", "-A")
+    g("commit", "-qm", "base")
+    g("checkout", "-q", "-b", "other")
+    setc(20)
+    g("add", "-A")
+    g("commit", "-qm", "other")
+    g("checkout", "-q", "main")
+    setc(12)
+    g("add", "-A")
+    g("commit", "-qm", "main")
+    r = subprocess.run(["git", "-C", str(tmp_path), "merge", "other"], capture_output=True, text=True)
+    assert r.returncode == 0, r.stdout + r.stderr          # driver resolved -> NO conflict
+    assert json.loads(cp.read_text(encoding="utf-8"))["next_label"] == 20   # max-merged
 
 
 def test_driver_regenerates_index_from_items():
@@ -57,7 +96,7 @@ def test_driver_regenerates_index_from_items():
         d, of, cf, h, c = backlog._paths("project", P)
         with open(of, "w", encoding="utf-8") as f:
             f.write("[ <<<<<<< garbage conflict >>>>>>> ]")   # drift the derived file
-        rc = drv.main(["pf_merge_driver.py", "", of, ""])
+        rc = drv.main(["pf_merge_driver.py", "", of, "", of])   # %A==%P (real path) for the unit test
         assert rc == 0
         rows = json.load(open(of, encoding="utf-8"))
         assert any(r.get("id") == iid for r in rows)              # regenerated from items/

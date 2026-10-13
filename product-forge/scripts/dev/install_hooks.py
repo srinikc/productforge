@@ -79,8 +79,8 @@ def main() -> int:
     # and max-merges counters from the shared stores)
     drv = os.path.join(_REPO, "product-forge", "scripts", "dev", "pf_merge_driver.py").replace("\\", "/")
     if os.path.isfile(drv):
-        for k, v in (("merge.pf-derived.name", "PF derived backlog index (regenerate)"),
-                     ("merge.pf-derived.driver", f'python "{drv}" %O %A %B')):
+        for k, v in (("merge.pf-derived.name", "PF derived backlog artifact (regenerate/max-merge)"),
+                     ("merge.pf-derived.driver", f'python "{drv}" %O %A %B %P')):
             subprocess.run(["git", "config", k, v], cwd=_REPO, capture_output=True, text=True)
         print("registered merge driver: merge.pf-derived.driver")
     return 0
