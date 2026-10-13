@@ -1,0 +1,170 @@
+{
+  "id": "BI-PF-1283",
+  "tag": "PF",
+  "type": "bug",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "ops",
+  "external_id": "LEASE-AUTHORITY-OFFLINE-1",
+  "label": "PF Backlog 575",
+  "title": "Defect: shared lease authority (BI-PF-1261) is active OFFLINE/unit-tests (ignores PF_OFFLINE) -> non-hermetic assignment tests + stray pf-leases refs; blocks deliveries",
+  "body": "BI-PF-1261 added a shared git-CAS lease authority (core/job_manager.lease_acquire). Its mode defaults to strict and does NOT honor PF_OFFLINE, so unit tests (test_assignments_api / test_assignment_dedup, which set PF_OFFLINE=1) write leases to the shared authority -> pollution ('already leased by w1' across runs) and stray pf-leases/pf-id-counter refs (pushed). In the delivery lane this manifests as flaky/timeout verification. RCCA: offline implies no remote authority -> lease mode must be OFF when PF_OFFLINE=1.",
+  "source": "generic",
+  "status": "completed",
+  "priority": "P2",
+  "moscow": "Should",
+  "value": 4,
+  "effort": 1,
+  "risk": 2,
+  "deps": [],
+  "links": {
+    "delivery": {
+      "branch": "feature/wg/bi-pf-1283",
+      "merge_sha": "a8b37b94eda03b7ff6c26b6046ba2598d61ddb42",
+      "commits": [],
+      "pr": "56",
+      "pr_url": "https://github.com/srinikc/productforge/pull/56",
+      "at": "2026-10-13T10:12:55.289249",
+      "note": "delivery (gh-pr-merge)"
+    }
+  },
+  "decisions": [],
+  "follow_up": {},
+  "brief": {
+    "problem": "BI-PF-1261 added a shared git-CAS lease authority (core/job_manager.lease_acquire). Its mode defaults to strict and does NOT honor PF_OFFLINE, so unit tests (test_assignments_api / test_assignment_dedup, which set PF_OFFLINE=1) write leases to the shared authority -> pollution ('already leased by w1' across runs) and stray pf-leases/pf-id-counter refs (pushed). In the delivery lane this manifests as flaky/timeout verification. RCCA: offline implies no remote authority -> lease mode must be OFF when PF_OFFLINE=1.",
+    "what_adds": "Defect: shared lease authority (BI-PF-1261) is active OFFLINE/unit-tests (ignores PF_OFFLINE) -> non-hermetic assignment tests + stray pf-leases refs; blocks deliveries",
+    "why": "BI-PF-1261 added a shared git-CAS lease authority (core/job_manager.lease_acquire). Its mode defaults to strict and does NOT honor PF_OFFLINE, so unit tests (test_assignments_api / test_assignment_dedup, which set PF_OFFLINE=1) write leases to the shared authority -> pollution ('already leased by w1' across runs) and stray pf-leases/pf-id-counter refs (pushed). In the delivery lane this manifests as flaky/timeout verification. RCCA: offline implies no remote authority -> lease mode must be OFF when PF_OFFLINE=1.",
+    "who_feels": "Product Forge maintainers and consumers.",
+    "source": "extracted"
+  },
+  "objective": "Make the lease authority hermetic offline/for unit tests: when PF_OFFLINE is set, force lease mode off (local) so tests are isolated and no shared refs are written.",
+  "acceptance_criteria": [
+    "PF_OFFLINE=1 => lease mode off (local); no shared-authority writes",
+    "assignment tests pass repeatedly (hermetic)",
+    "no stray pf-leases ref created during tests"
+  ],
+  "in_scope": [
+    "core/job_manager._lease_mode (honor PF_OFFLINE -> off)"
+  ],
+  "out_of_scope": [
+    "removing the shared authority for online use",
+    "cleaning the existing pf-leases ref (separate ops action)"
+  ],
+  "affected_components": [
+    "Not specified."
+  ],
+  "affected_files": [
+    "core/job_manager.py"
+  ],
+  "approach": "In _lease_mode(): if PF_OFFLINE is truthy -> return 'off'. Tests/offline then use the local path; online keeps the shared authority.",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Objective achieved: Defect: shared lease authority (BI-PF-1261) is active OFFLINE/unit-tests (ignores PF_OFFLINE) -> non-hermetic assignment tests + stray pf-leases refs; blocks deliveries"
+  ],
+  "risks": [
+    "offline mode must not weaken online safety (only affects PF_OFFLINE)"
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "unassigned",
+  "requester": "generic",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-0360",
+  "parent": "BI-PF-0360",
+  "revision": 3,
+  "priority_rank": 2,
+  "priority_class": "P2",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "IN_PROGRESS",
+    "analyzed_at": "",
+    "analyzed_by": "deterministic",
+    "revision_analyzed": 0,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/defect_loop.py, core/interactive.py, core/release.py, core/release_manager.py",
+    "existing_components": [
+      "core/defect_loop.py",
+      "core/interactive.py",
+      "core/release.py",
+      "core/release_manager.py"
+    ],
+    "existing_apis": [
+      "/api/v1/engineering/assignments",
+      "/api/v1/engineering/assignments/claim",
+      "/api/v1/engineering/assignments/recover",
+      "/api/v1/engineering/assignments/{item_id}/complete",
+      "/api/v1/engineering/assignments/{item_id}/deliver",
+      "/api/v1/engineering/assignments/{item_id}/fail",
+      "/api/v1/engineering/assignments/{item_id}/heartbeat",
+      "/api/v1/engineering/assignments/{item_id}/release"
+    ],
+    "existing_modules": [
+      "config/shared-paths.json"
+    ],
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=3.0",
+      "components=4",
+      "apis=8"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": false,
+    "reasons": [],
+    "computed_at": ""
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-13T09:43:14.140095",
+  "updated_at": "2026-10-13T10:12:55.826404",
+  "score": 3.0,
+  "_note": "delivered",
+  "dashboard_impact": {
+    "needs_dashboard": false,
+    "reason": "test/offline hermeticity"
+  }
+}
