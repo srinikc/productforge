@@ -1,21 +1,27 @@
 {
-  "_doc": "License tiers (BI-0060). Owner: core/licensing.py. Feature groups G1-G10; 0 in a numeric limit means unlimited (bounded by config/capacity.json global ceiling). Pricing is provisional/operator-configurable and intentionally omitted here.",
+  "_doc": "License tiers, entitlement model v1.0 (BI-PF-1264). Owner: core/licensing.py. Customer-centric feature groups: BASE 'Create Products' is in every tier; ADD-ONS differentiate tiers; BASELINE (security) is in all tiers; INTERNAL groups are NEVER granted to customer tiers. Limits are PER TENANT: users(seats) -> projects(max_created_projects) -> parallel runs(max_parallel_projects); 0 = unlimited (bounded by config/capacity.json). Renaming/changing groups or tiers is a NEW entitlement_model_version (do not edit silently). Pricing is operator-configurable and intentionally omitted.",
+  "entitlement_model_version": "1.0",
+  "baseline": ["security"],
   "feature_groups": {
-    "G1": "Core Orchestration & Portfolio",
-    "G2": "Discovery & Design",
-    "G3": "Quality & Compliance",
-    "G4": "Build/Deploy/Ops",
-    "G5": "Intake & Work Management",
-    "G6": "Collaboration & Tenancy",
-    "G7": "Intelligence (chat/learning/model-rec/BYOT)",
-    "G8": "Content & Media",
-    "G9": "Platform Ops & Licensing (operator-only)",
-    "G10": "Extensibility & API"
+    "build-products": { "name": "Build Products (generation engine/workspace)", "category": "base", "internal": false },
+    "ideate-design": { "name": "Ideate & Design", "category": "base", "internal": false },
+    "assure-quality": { "name": "Assure Quality", "category": "base", "internal": false },
+    "plan-deliver": { "name": "Plan & Deliver", "category": "base", "internal": false },
+    "extend-integrate": { "name": "Integrate & Extend", "category": "addon", "internal": false },
+    "team-multi-tenancy": { "name": "Team & Multi-Tenancy", "category": "addon", "internal": false },
+    "choose-ai-models": { "name": "Choose Your AI Models", "category": "addon", "internal": false },
+    "content-media": { "name": "Create Content & Media", "category": "addon", "internal": false },
+    "ai-agents": { "name": "Automate with AI Agents", "category": "addon", "internal": false },
+    "launch-grow": { "name": "Launch & Grow", "category": "addon", "internal": false },
+    "advanced-compliance": { "name": "Advanced Compliance", "category": "addon", "internal": false },
+    "worker-internals": { "name": "Worker / Orchestration (internal)", "category": "internal", "internal": true },
+    "pf-internal-work": { "name": "PF Internal Work (internal)", "category": "internal", "internal": true },
+    "platform-ops-licensing": { "name": "Platform Ops & Licensing (internal)", "category": "internal", "internal": true }
   },
   "tiers": {
     "trial": {
       "rank": 0,
-      "groups": ["G1", "G2", "G5"],
+      "groups": ["build-products", "ideate-design", "assure-quality", "plan-deliver"],
       "seats": 3,
       "max_parallel_projects": 1,
       "max_created_projects": 2,
@@ -23,21 +29,24 @@
     },
     "starter": {
       "rank": 1,
-      "groups": ["G1", "G2", "G3", "G5", "G10"],
+      "groups": ["build-products", "ideate-design", "assure-quality", "plan-deliver", "extend-integrate"],
       "seats": 10,
       "max_parallel_projects": 3,
       "max_created_projects": 20
     },
     "pro": {
       "rank": 2,
-      "groups": ["G1", "G2", "G3", "G4", "G5", "G6", "G10"],
+      "groups": ["build-products", "ideate-design", "assure-quality", "plan-deliver", "extend-integrate",
+                 "team-multi-tenancy", "choose-ai-models", "content-media", "ai-agents"],
       "seats": 50,
       "max_parallel_projects": 10,
       "max_created_projects": 100
     },
     "enterprise": {
       "rank": 3,
-      "groups": ["G1", "G2", "G3", "G4", "G5", "G6", "G7", "G8", "G9", "G10"],
+      "groups": ["build-products", "ideate-design", "assure-quality", "plan-deliver", "extend-integrate",
+                 "team-multi-tenancy", "choose-ai-models", "content-media", "ai-agents", "launch-grow",
+                 "advanced-compliance"],
       "seats": 0,
       "max_parallel_projects": 0,
       "max_created_projects": 0

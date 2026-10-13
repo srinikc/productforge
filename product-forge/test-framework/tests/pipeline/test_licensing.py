@@ -28,10 +28,25 @@ def test_trial_expiry_flags():
 
 
 def test_entitlements_and_effective_limits():
-    assert lic.entled("pro", "G4") and not lic.entled("trial", "G4")
+    # v1.0 model (BI-PF-1264): base 'Create Products' is in every tier; add-ons differentiate tiers.
+    assert lic.entled("trial", "build-products")            # base group
+    assert lic.entled("pro", "content-media")               # add-on present in pro
+    assert not lic.entled("trial", "content-media")         # add-on not in trial
+    assert not lic.entled("trial", "worker-internals")      # internal-only never granted
     eff = lic.effective_limits("trial", {"max_parallel_projects": 3, "max_created_projects": 20})
     assert eff["max_parallel_projects"] == 1  # tier 1 < global 3
     assert eff["max_created_projects"] == 2
+
+
+def test_entitlement_model_version_and_internal():
+    assert lic.model_version()
+    assert "security" in lic.baseline()
+    assert lic.is_internal("worker-internals") and not lic.is_internal("build-products")
+    ent = lic.entitlements("enterprise")
+    assert ent["model_version"] == lic.model_version() and "security" in ent["baseline"]
+    # internal groups are NEVER part of any tier's granted groups (customers can't buy them)
+    for t in lic.tiers().values():
+        assert not any(lic.is_internal(g) for g in (t.get("groups") or []))
 
 
 def test_instance_role_and_platform_admin(monkeypatch):

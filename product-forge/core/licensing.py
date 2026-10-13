@@ -48,27 +48,44 @@ LICENSES_FILE = os.path.join(FORGE_DIR, "licenses.json")
 TENANTS_FILE = os.path.join(FORGE_DIR, "tenants.json")
 KEY_FILE = os.path.join(FORGE_DIR, ".signing-key")
 
-FEATURE_GROUPS = {
-    "G1": "Core Orchestration & Portfolio",
-    "G2": "Discovery & Design",
-    "G3": "Quality & Compliance",
-    "G4": "Build/Deploy/Ops",
-    "G5": "Intake & Work Management",
-    "G6": "Collaboration & Tenancy",
-    "G7": "Intelligence (chat/learning/model-rec/BYOT)",
-    "G8": "Content & Media",
-    "G9": "Platform Ops & Licensing (operator-only)",
-    "G10": "Extensibility & API",
+# Entitlement model v1.0 (BI-PF-1264): customer-centric feature groups. Each group carries a name,
+# a category (base | addon | internal) and an `internal` flag. BASE 'Create Products' is in every tier;
+# ADD-ONS differentiate tiers; INTERNAL groups (worker, PF's own work, platform ops) are NEVER granted to a
+# customer tier. `FEATURE_GROUPS` is kept as a {key: name} map for existing read-models.
+DEFAULT_GROUPS: Dict[str, Dict[str, Any]] = {
+    "build-products": {"name": "Build Products (generation engine/workspace)", "category": "base", "internal": False},
+    "ideate-design": {"name": "Ideate & Design", "category": "base", "internal": False},
+    "assure-quality": {"name": "Assure Quality", "category": "base", "internal": False},
+    "plan-deliver": {"name": "Plan & Deliver", "category": "base", "internal": False},
+    "extend-integrate": {"name": "Integrate & Extend", "category": "addon", "internal": False},
+    "team-multi-tenancy": {"name": "Team & Multi-Tenancy", "category": "addon", "internal": False},
+    "choose-ai-models": {"name": "Choose Your AI Models", "category": "addon", "internal": False},
+    "content-media": {"name": "Create Content & Media", "category": "addon", "internal": False},
+    "ai-agents": {"name": "Automate with AI Agents", "category": "addon", "internal": False},
+    "launch-grow": {"name": "Launch & Grow", "category": "addon", "internal": False},
+    "advanced-compliance": {"name": "Advanced Compliance", "category": "addon", "internal": False},
+    "worker-internals": {"name": "Worker / Orchestration (internal)", "category": "internal", "internal": True},
+    "pf-internal-work": {"name": "PF Internal Work (internal)", "category": "internal", "internal": True},
+    "platform-ops-licensing": {"name": "Platform Ops & Licensing (internal)", "category": "internal", "internal": True},
 }
+_BASE_GROUPS = ["build-products", "ideate-design", "assure-quality", "plan-deliver"]
+_ADDON_GROUPS = ["extend-integrate", "team-multi-tenancy", "choose-ai-models", "content-media",
+                 "ai-agents", "launch-grow", "advanced-compliance"]
+
+# Back-compat {key: name} map consumed by read-models (API/dashboard); the config is the source of truth.
+FEATURE_GROUPS = {k: v["name"] for k, v in DEFAULT_GROUPS.items()}
+DEFAULT_BASELINE = ["security"]
+MODEL_VERSION = "1.0"
 
 DEFAULT_TIERS = {
-    "trial": {"rank": 0, "groups": ["G1", "G2", "G5"], "seats": 3,
+    "trial": {"rank": 0, "groups": list(_BASE_GROUPS), "seats": 3,
               "max_parallel_projects": 1, "max_created_projects": 2, "trial_days": 14},
-    "starter": {"rank": 1, "groups": ["G1", "G2", "G3", "G5", "G10"], "seats": 10,
+    "starter": {"rank": 1, "groups": _BASE_GROUPS + ["extend-integrate"], "seats": 10,
                 "max_parallel_projects": 3, "max_created_projects": 20},
-    "pro": {"rank": 2, "groups": ["G1", "G2", "G3", "G4", "G5", "G6", "G10"], "seats": 50,
+    "pro": {"rank": 2, "groups": _BASE_GROUPS + ["extend-integrate", "team-multi-tenancy", "choose-ai-models",
+                                                 "content-media", "ai-agents"], "seats": 50,
             "max_parallel_projects": 10, "max_created_projects": 100},
-    "enterprise": {"rank": 3, "groups": list(FEATURE_GROUPS.keys()), "seats": 0,
+    "enterprise": {"rank": 3, "groups": _BASE_GROUPS + _ADDON_GROUPS, "seats": 0,
                    "max_parallel_projects": 0, "max_created_projects": 0},  # 0 = unlimited
 }
 
@@ -89,10 +106,35 @@ def _wj(p: str, data) -> None:
     os.replace(tmp, p)
 
 
+def _cfg() -> Dict[str, Any]:
+    c = _rj(TIERS_FILE, {}) or {}
+    return c if isinstance(c, dict) else {}
+
+
 def tiers() -> Dict[str, Dict[str, Any]]:
-    cfg = _rj(TIERS_FILE, {}) or {}
-    prof = cfg.get("tiers") if isinstance(cfg, dict) else None
+    prof = _cfg().get("tiers")
     return prof or DEFAULT_TIERS
+
+
+def model_version() -> str:
+    """The entitlement model version governing this install (BI-PF-1264)."""
+    return str(_cfg().get("entitlement_model_version") or MODEL_VERSION)
+
+
+def baseline() -> List[str]:
+    """Entitlements present in EVERY tier (e.g., security)."""
+    return list(_cfg().get("baseline") or DEFAULT_BASELINE)
+
+
+def feature_groups() -> Dict[str, Dict[str, Any]]:
+    """The feature-group model: ``{key: {name, category, internal}}``."""
+    g = _cfg().get("feature_groups")
+    return g if isinstance(g, dict) and g else DEFAULT_GROUPS
+
+
+def is_internal(group: str) -> bool:
+    """Internal-only groups (worker, PF's own work, platform ops) - never granted to a customer tier."""
+    return bool((feature_groups().get(group) or {}).get("internal"))
 
 
 def _signing_key() -> bytes:
@@ -162,20 +204,22 @@ def verify_key(key: str) -> Optional[Dict[str, Any]]:
 
 
 def entled(tier: str, group: str) -> bool:
-    """Is `group` (G1..G10) entitled by `tier`?"""
+    """Is `group` entitled by `tier`? Internal-only groups are never entitled to a customer tier."""
     t = tiers().get(tier)
-    if not t:
+    if not t or is_internal(group):
         return False
     return group in (t.get("groups") or [])
 
 
 def entitlements(tier: str) -> Dict[str, Any]:
     t = tiers().get(tier) or {}
-    return {"tier": tier, "groups": t.get("groups", []),
+    gi = feature_groups()
+    return {"tier": tier, "model_version": model_version(), "groups": t.get("groups", []),
+            "baseline": baseline(),
             "seats": t.get("seats", 0),
             "max_parallel_projects": t.get("max_parallel_projects", 0),
             "max_created_projects": t.get("max_created_projects", 0),
-            "group_titles": {g: FEATURE_GROUPS.get(g, g) for g in (t.get("groups") or [])}}
+            "group_titles": {g: (gi.get(g) or {}).get("name", g) for g in (t.get("groups") or [])}}
 
 
 def effective_limits(tier: str, global_limits: Dict[str, Any]) -> Dict[str, Any]:
