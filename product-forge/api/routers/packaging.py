@@ -60,3 +60,40 @@ def build(body: dict[str, Any], request: Request, ctx: dict[str, Any] = Depends(
                                                                         "editions": list(packaging.EDITIONS)})
     return from_request(request, packaging.write(s, p or "", edition=ed),
                         resource="packaging", resource_id=p or s)
+
+
+@router.get("/eap", dependencies=[Depends(authenticate)])
+def get_eap(request: Request, scope: str = "product_forge", project: str = "", edition: str = "community",
+            ctx: dict[str, Any] = Depends(authenticate)):
+    from core import packaging
+    s, p = _scope_project(scope, project)
+    return from_request(request, packaging.eap_build(s, p or "", edition=edition),
+                        resource="packaging", resource_id=p or s)
+
+
+@router.get("/eap/registry", dependencies=[Depends(authenticate)])
+def get_eap_registry(request: Request, ctx: dict[str, Any] = Depends(authenticate)):
+    from core import packaging
+    return from_request(request, packaging.eap_registry(), resource="packaging")
+
+
+@router.get("/eap/validate", dependencies=[Depends(authenticate)])
+def validate_eap(request: Request, scope: str = "product_forge", project: str = "", edition: str = "community",
+                 ctx: dict[str, Any] = Depends(authenticate)):
+    from core import packaging
+    s, p = _scope_project(scope, project)
+    eap = packaging.eap_build(s, p or "", edition=edition)
+    return from_request(request, {**packaging.eap_validate(eap), "compatibility": packaging.eap_compatible(eap),
+                                  "edition": eap.get("edition")}, resource="packaging", resource_id=p or s)
+
+
+@router.post("/eap", dependencies=[Depends(require_operator)])
+def write_eap(body: dict[str, Any], request: Request, ctx: dict[str, Any] = Depends(require_operator)):
+    from core import packaging
+    s, p = _scope_project(str(body.get("scope") or "product_forge"), str(body.get("project") or ""))
+    ed = str(body.get("edition") or "community")
+    if packaging._resolve_edition(ed) is None:
+        raise ApiError("VALIDATION_FAILED", "unknown edition", details={"edition": ed,
+                                                                        "editions": list(packaging.EDITIONS)})
+    return from_request(request, packaging.eap_write(s, p or "", edition=ed), resource="packaging",
+                        resource_id=p or s)
