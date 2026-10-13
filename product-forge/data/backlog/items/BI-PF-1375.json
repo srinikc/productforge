@@ -1,0 +1,156 @@
+{
+  "id": "BI-PF-1375",
+  "tag": "PF",
+  "type": "task",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "issue",
+  "external_id": "",
+  "label": "PF Backlog 626",
+  "title": "Dynamic/runtime agents are not auto-registered; runtime contract resolution silently skips them (no fail-closed)",
+  "body": "Dynamic/runtime agents are not covered by the agent registry and runtime contract resolution silently skips them. Evidence: core/review_ledger.py::create_agent (BI-0117) + core/agent_spec.py::save_spec write agents/<id>.agent.json but do NOT register the agent in config/agent-registry/index.json. At runtime, core.contracts.resolve(agent=<new>) finds no spec -> falls back to agents.json by_agent -> empty -> no contracts -> artifact validation is a silent no-op. The coverage gate catches a missing registry entry only at the NEXT CI/precheck run (not at runtime). No fail-closed for an unknown agent.",
+  "source": "generic",
+  "status": "duplicate",
+  "priority": null,
+  "moscow": "Should",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [],
+  "links": {
+    "issue": "product_forge:IS-PF-0053"
+  },
+  "decisions": [],
+  "follow_up": {},
+  "brief": {
+    "problem": "Dynamic/runtime agents are not covered by the agent registry and runtime contract resolution silently skips them. Evidence: core/review_ledger.py::create_agent (BI-0117) + core/agent_spec.py::save_spec write agents/<id>.agent.json but do NOT register the agent in config/agent-registry/index.json. At runtime, core.contracts.resolve(agent=<new>) finds no spec -> falls back to agents.json by_agent -> empty -> no contracts -> artifact validation is a silent no-op. The coverage gate catches a missing registry entry only at the NEXT CI/precheck run (not at runtime). No fail-closed for an unknown agent.",
+    "what_adds": "Dynamic/runtime agents are not auto-registered; runtime contract resolution silently skips them (no fail-closed)",
+    "why": "Dynamic/runtime agents are not covered by the agent registry and runtime contract resolution silently skips them. Evidence: core/review_ledger.py::create_agent (BI-0117) + core/agent_spec.py::save_spec write agents/<id>.agent.json but do NOT register the agent in config/agent-registry/index.json. At runtime, core.contracts.resolve(agent=<new>) finds no spec -> falls back to agents.json by_agent -> empty -> no contracts -> artifact validation is a silent no-op. The coverage gate catches a missing registry entry only at the NEXT CI/precheck run (not at runtime). No fail-closed for an unknown age",
+    "who_feels": "Product Forge maintainers and consumers.",
+    "source": "extracted"
+  },
+  "objective": "Dynamic/runtime agents are not auto-registered; runtime contract resolution silently skips them (no fail-closed)",
+  "acceptance_criteria": [
+    "Objective achieved: Dynamic/runtime agents are not auto-registered; runtime contract resolution silently skips them (no fail-closed)"
+  ],
+  "in_scope": [
+    "Dynamic/runtime agents are not auto-registered; runtime contract resolution silently skips them (no fail-closed)"
+  ],
+  "out_of_scope": [
+    "Not specified."
+  ],
+  "affected_components": [
+    "config",
+    "core"
+  ],
+  "affected_files": [
+    ".agent.json",
+    "agents.json",
+    "config/agent-registry/index.json",
+    "core/agent_spec.py",
+    "core/review_ledger.py"
+  ],
+  "approach": "Dynamic/runtime agents are not auto-registered; runtime contract resolution silently skips them (no fail-closed)",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Objective achieved: Dynamic/runtime agents are not auto-registered; runtime contract resolution silently skips them (no fail-closed)"
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "unassigned",
+  "requester": "generic",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1342",
+  "parent": "BI-PF-1252",
+  "revision": 1,
+  "priority_rank": null,
+  "priority_class": "",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "IN_PROGRESS",
+    "analyzed_at": "",
+    "analyzed_by": "ai",
+    "revision_analyzed": 0,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "EXTEND core/contracts.resolve with UnknownAgentError (fail-closed, allow_unknown opt-in); add write-through registration in create_agent/save_spec reusing existing registry index format and /api/v1/validation/agents API.",
+    "existing_components": [],
+    "existing_apis": [],
+    "existing_modules": [],
+    "dependency_findings": [],
+    "conflict_findings": [
+      "BI-PF-1349 may edit config/agent-registry/index.json concurrently — coordinate schema"
+    ],
+    "duplication_findings": [
+      "BI-PF-1349 covers registry+coverage gate; this covers runtime fail-closed — complementary, avoid re-implementing schema",
+      "Reuse /api/v1/validation/agents/coverage for post-hoc checks"
+    ],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "Silent skipped validation is a correctness gap; minimal extension to resolve() closes it without new components.",
+    "assumptions": [
+      "registry index format is stable",
+      "BI-0117 create_agent is the primary dynamic-creation path"
+    ],
+    "risks": [
+      "fail-closed may break existing dynamic-agent flows",
+      "concurrent edits with BI-PF-1349 to registry index"
+    ],
+    "evidence": [
+      "core/review_ledger.py::create_agent writes agents/<id>.agent.json without registry entry",
+      "core.contracts.resolve falls back to empty by_agent -> silent no-op validation"
+    ],
+    "confidence": "high",
+    "missing_info": [
+      "default mode: fail-closed vs auto-register (needs human decision)",
+      "allowed_exception list for known dynamic agents"
+    ],
+    "depth": "deep",
+    "mode": "ai"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": false,
+    "reasons": [],
+    "computed_at": ""
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-13T23:42:03.006920",
+  "updated_at": "2026-10-13T23:56:12.495953",
+  "score": 0.75,
+  "_note": "auto_backlog duplicate of BI-PF-1376 (same issue IS-PF-0053); mis-parented to BI-PF-1252 by the auto-epic matcher"
+}

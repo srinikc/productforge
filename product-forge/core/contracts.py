@@ -584,6 +584,47 @@ def agent_coverage(agents: list) -> dict:
                                "bad_specs": ["go host unavailable"]}
 
 
+def agent_registered(agent_id: str) -> bool:
+    """True when the agent has a spec in the agent registry."""
+    return str(agent_id) in agent_registry()
+
+
+def register_agent(agent_id: str, outputs: list | None = None, inputs: list | None = None,
+                   title: str = "", stages: list | None = None, kind_scope: str = "*") -> dict:
+    """Register/update an agent in the agent registry (single writer).
+
+    Validates ``outputs`` against the artifact contracts via the Go engine, then writes
+    ``config/agent-registry/index.json``. Used by dynamic-agent creation so a runtime agent
+    cannot be added without a declared artifact mapping (BI-PF-1376).
+    """
+    from core import go_host
+    outs = [str(o) for o in (outputs or [])]
+    r = go_host.agents_register(_ac_dir(), str(agent_id), outs)
+    res = r.get("result") or {}
+    if not res.get("ok"):
+        return {"ok": False, "errors": res.get("errors") or ["agent-register validation failed"]}
+    path = os.path.join(os.path.dirname(_ac_dir()), "agent-registry", "index.json")
+    try:
+        with open(path, encoding="utf-8-sig") as f:
+            doc = json.load(f) or {}
+    except Exception:
+        doc = {"$schema": "pf-agent-registry-v1", "version": 1, "agents": {}}
+    agents = doc.setdefault("agents", {})
+    entry = dict(agents.get(str(agent_id)) or {})
+    entry.update({"title": title or entry.get("title") or str(agent_id),
+                  "stages": list(stages or entry.get("stages") or []),
+                  "inputs": list(inputs or entry.get("inputs") or []),
+                  "outputs": outs, "kind_scope": kind_scope or entry.get("kind_scope") or "*"})
+    agents[str(agent_id)] = entry
+    tmp = path + ".tmp"
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(tmp, "w", encoding="utf-8", newline="\n") as f:
+        json.dump(doc, f, indent=2, ensure_ascii=False)
+        f.write("\n")
+    os.replace(tmp, path)
+    return {"ok": True, "agent": str(agent_id), "entry": entry}
+
+
 # ── CLI ──────────────────────────────────────────────────────────────────────────
 def _cli(argv: list[str] | None = None) -> int:
     args = list(sys.argv[1:] if argv is None else argv)

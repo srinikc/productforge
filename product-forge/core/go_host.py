@@ -146,6 +146,12 @@ def agents_coverage(dir_: str, agents: list) -> dict[str, Any]:
     return invoke("agents.coverage", payload={"dir": str(dir_), "agents": list(agents)})
 
 
+def agents_register(dir_: str, agent: str, outputs: list) -> dict[str, Any]:
+    """Validate a candidate agent spec's outputs (Go engine; op ``agents.register``)."""
+    return invoke("agents.register",
+                  payload={"dir": str(dir_), "agent": agent, "outputs": list(outputs)})
+
+
 def status() -> dict[str, Any]:
     """Operator-visible state of the native Go core (probe; read-only)."""
     r = invoke("ping", req_id="status")

@@ -194,6 +194,18 @@ def create_agent(spec: Dict, register: bool = True) -> Dict:
         with open(jp, "w", encoding="utf-8", newline="\n") as f:
             json.dump(card, f, indent=2, ensure_ascii=False)
         paths["spec"] = jp
+        # BI-PF-1376: register the dynamic agent in the agent registry so it is COVERED
+        # (never silently unregistered). outputs = declared artifact contract ids (or "none").
+        try:
+            from core import contracts as _c
+            _reg = _c.register_agent(aid, outputs=spec.get("outputs") or ["none"],
+                                     inputs=spec.get("inputs") or [],
+                                     title=spec.get("name"), kind_scope=spec.get("kind") or "*")
+            paths["registry"] = bool(_reg.get("ok"))
+            if not _reg.get("ok"):
+                paths["registry_errors"] = _reg.get("errors")
+        except Exception as e:  # noqa: BLE001
+            paths["registry_errors"] = [type(e).__name__]
     return {"ok": True, "id": aid, "errors": [], "paths": paths, "card_md": md}
 
 
