@@ -18,12 +18,11 @@ it does **not** add a separate `analyze()` engine or store.
 
 ## Analysis at grooming time (default)
 
-- **On entry:** `backlog.add_epic` runs `grooming.groom(..., mode="deterministic", depth=deep)` when
-  `analyze_mode="on_entry"` (default), **after** the item is saved (best-effort; never blocks create).
-  Automated entry uses the **deterministic** deep scan (fast/offline-safe): an automatic create must never
-  block on a live model. **AI grooming is the default only for the explicit/interactive call**
-  (`/pf groom`, `POST /backlog/items/{id}/groom`). The item still arrives **scheduler-ready** with its
-  architecture/design plan in `analysis{}`.
+- **On entry:** `backlog.add_epic` runs the **same grooming routine as the standard path** (default mode:
+  AI, with a deterministic deep-scan fallback) when `analyze_mode="on_entry"` (default), **after** the item
+  is saved (best-effort; the fallback means it never blocks create). It also **auto-assigns the epic** (best
+  match else `Unscoped`) and **persists the epic execution order**, so the item arrives **worker-claimable** —
+  add is one step. *(Superseded by the BI-PF-1282 amendment below: earlier text used `mode="deterministic"`.)*
 - **`analyze_mode="defer"`:** skips; analysis runs before pickup.
 - **Stale-triggered:** a requirement/architecture change marks the analysis `STALE` (P1) → re-groomed before assignment.
 - **Cost model:** the deep analysis is paid **once, at entry** — **not** re-run at pickup (unless `STALE`).
@@ -51,3 +50,21 @@ python scripts/dev/grooming_check.py            # OK (deep default + codebase-gr
 python -m pytest .../test_deep_analysis.py .../test_grooming.py   # 8 passed
 python scripts/dev/precheck.py                  # PASS
 ```
+
+## Amendment (BI-PF-1282) — one-step add = worker-claimable
+
+**Supersedes:** the "on entry = deterministic only" clause above. Item **BI-PF-1282** (epic BI-PF-0360).
+
+Intention: **once an item is added it must be ready to be picked up by a worker** (or anyone) — the grooming,
+epic assignment and ordering must not be deferred to a later step.
+
+Decision — `backlog.add_epic` (the single create path), **on create only**:
+1. **epic** — if none was passed and the item is not itself an epic, `auto_epic(...)` (best match else `Unscoped`).
+2. **groom** — the **same** routine as the standard path (AI + deterministic, batch-capable), not a
+   deterministic-only variant; the deterministic fallback keeps a create from blocking on a live model.
+3. **execution order** — after the epic is known, derive + persist it (`core.scheduler.epic_order` →
+   `backlog.set_execution_order`).
+4. **first-time only** — stamp the item (`analysis.groomed_at`); re-adds (same `external_id`) and updates do
+   not re-groom.
+
+Dependencies stay **explicit-only** (`deps`/`blocked_by`); inference from related items is out of scope.

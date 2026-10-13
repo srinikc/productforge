@@ -827,19 +827,31 @@ def add_epic(scope: str, project: str | None, title: str, body: str = "",
         created = item
     finally:
         _unlock(lp)
-    if epic:
-        with contextlib.suppress(Exception):
-            _sync_epic_children(scope, project, str(epic))
-    # PFSSOT-P3 (BI-PF-0364): deep analysis at grooming time, by default, so the item is scheduler-ready.
-    # Runs AFTER the lock is released (it re-writes analysis via this module). Best-effort: never blocks create.
-    # AUTOMATIC entry uses DETERMINISTIC deep analysis (fast, offline-safe); AI grooming is the default only
-    # for the explicit/interactive groom call (`/pf groom`, POST /groom) - an automated create must never
-    # block on a live model. (Follow-up: raise a background AI groom where a worker pool exists.)
-    if created.get("analyze_mode", "on_entry") == "on_entry":
-        with contextlib.suppress(Exception):
+    # PFSSOT-P3 (BI-PF-0364) + BI-PF-1282: a FIRST add must leave the item worker-claimable - the epic
+    # assigned, groomed with the SAME routine as the standard path (AI + deterministic fallback), the
+    # grooming decision auto-approved (analysis COMPLETE -> eligible), and the epic execution order
+    # refreshed. Runs AFTER the lock is released; the deterministic fallback means a create never blocks on
+    # a live model. Create-only: ensure_item reuses an existing item without re-running this.
+    with contextlib.suppress(Exception):
+        target = str(created.get("epic") or created.get("parent") or "")
+        # 1. auto-assign the epic (best match else the Unscoped holding epic) when the add supplied none
+        if not is_epic(created) and not target:
+            target = auto_epic(scope, project,
+                               f"{created.get('title','')} {created.get('body','')}".strip())
+            if target:
+                update(scope, project, created["id"], epic=target, parent=target,
+                       _note=f"auto-assigned to epic {target}")
+                created["epic"] = created["parent"] = target
+        if target:
+            _sync_epic_children(scope, project, target)
+        # 2. groom (same routine as the standard path) and auto-approve so the item is claimable now;
+        #    decide(APPROVE) sets analysis COMPLETE + readiness and refreshes the epic execution order.
+        if not is_epic(created) and created.get("analyze_mode", "on_entry") == "on_entry":
             from core import grooming
-            grooming.groom(scope, project, created["id"], mode="deterministic",
+            grooming.groom(scope, project, created["id"],
                            depth=grooming.guidelines().get("default_depth", "deep"))
+            grooming.decide(scope, project, created["id"], "APPROVE", by="system",
+                            note="auto-approved on add (BI-PF-1282)")
     if not is_epic(created) and not (created.get("epic") or created.get("parent")):
         print(f"[Backlog] {created['id']}: no epic - attach it to an epic, or it belongs in "
               "'Unscoped' (every item needs an epic; see AGENTS.md)")
