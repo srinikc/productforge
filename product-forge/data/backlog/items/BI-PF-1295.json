@@ -1,0 +1,227 @@
+{
+  "id": "BI-PF-1295",
+  "tag": "PF",
+  "type": "task",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "edp-03-sqlite-disposition",
+  "label": "PF Backlog 584",
+  "title": "EDP-03: Investigate & disposition committed SQLite DBs (control-plane.db, portfolio.db) - fixtures vs live runtime; de-commit runtime data",
+  "body": "Part of EPIC BI-PF-1292. Source: docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md. Phase item (see epic). Language rule L1 = Go; must pass scripts/dev/language_rule_review.py.",
+  "source": "review",
+  "status": "new",
+  "priority": "P1",
+  "moscow": "Must",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [
+    "BI-PF-1293",
+    "BI-PF-1294"
+  ],
+  "links": {
+    "source_doc": "docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md",
+    "possible_duplicate_of": [
+      "product_forge:BI-PF-1293"
+    ]
+  },
+  "decisions": [
+    {
+      "at": "2026-10-13T16:33:28.509428",
+      "decision": "APPROVE",
+      "by": "agent",
+      "note": "finalized: decisions recorded 2026-10-13"
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "Runtime SQLite DBs committed to repo, mixing live data with source",
+    "what_adds": "Disposition + de-commit with reproducible fixtures",
+    "why": "Reduces compliance risk and repo drift",
+    "who_feels": "Developers, security/compliance reviewers",
+    "source": "authored"
+  },
+  "objective": "Investigate committed SQLite DBs (control-plane.db, portfolio.db), classify fixture vs live runtime, and de-commit any runtime data.",
+  "acceptance_criteria": [
+    "Each committed DB dispositioned (fixture or runtime) in inventory",
+    "No runtime SQLite DBs committed to git",
+    "Explicitly labeled fixtures remain reproducible via seed scripts"
+  ],
+  "in_scope": [
+    "Git history investigation",
+    "De-commit runtime DBs",
+    "Fixture seed scripts"
+  ],
+  "out_of_scope": [
+    "Storage interface refactor (EDP-07)",
+    "New backends"
+  ],
+  "affected_components": [
+    "core/portfolio.py",
+    "core/agent_runtime.py",
+    "core/delivery.py",
+    "core/runtime_freshness.py"
+  ],
+  "affected_files": [
+    "control-plane.db",
+    "portfolio.db",
+    ".gitignore"
+  ],
+  "approach": "Classify consumers, extract seeds, remove DBs from git, add .gitignore.",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "CI green after removal",
+    "Fresh clone bootstraps without committed DBs",
+    "language_rule_review.py passes"
+  ],
+  "risks": [
+    "Removing DBs may break tests that assume committed fixtures",
+    "Runtime consumers may have implicit live-data dependency"
+  ],
+  "rollback": "Restore DBs from git history commit.",
+  "evidence": [
+    "core/portfolio.py, core/agent_runtime.py, core/delivery.py, core/runtime_freshness.py consume stores",
+    "Portfolio supervisor API endpoints exist"
+  ],
+  "owner": "platform-team",
+  "requester": "product-forge",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1292",
+  "parent": "BI-PF-1292",
+  "revision": 9,
+  "priority_rank": 3,
+  "priority_class": "P1",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "STALE",
+    "analyzed_at": "2026-10-13T16:33:28.176415",
+    "analyzed_by": "agent",
+    "revision_analyzed": 8,
+    "architecture_fit": "REUSE",
+    "implementation_strategy": "Investigate committed SQLite DBs via git history and consumers (core/portfolio.py, core/agent_runtime.py, core/delivery.py); classify as fixture vs live; convert live data to seed scripts; de-commit runtime DBs via .gitignore; retain fixtures explicitly labeled.",
+    "existing_components": [],
+    "existing_apis": [],
+    "existing_modules": [],
+    "dependency_findings": [
+      "BLOCKED BY BI-PF-1293 (ADR defines expected DB disposition policy)",
+      "BLOCKED BY BI-PF-1294 (inventory classifies each DB's tier)"
+    ],
+    "conflict_findings": [
+      "core/portfolio.py and portfolio supervisor endpoints may rely on committed DBs at runtime — verify bootstrap path"
+    ],
+    "duplication_findings": [
+      "EDP-07 (BI-PF-1299) will refactor interfaces — do not overlap; this item only removes committed DBs",
+      "No existing de-commit work found in backlog"
+    ],
+    "drift": "LOW",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "Removes committed runtime data, reducing drift and compliance risk before enterprise storage work.",
+    "assumptions": [
+      "control-plane.db and portfolio.db are the only committed runtime DBs",
+      "Seed/fixture mechanism exists or is trivial to add"
+    ],
+    "risks": [
+      "Removing DBs may break tests that assume committed fixtures",
+      "Runtime consumers may have implicit live-data dependency"
+    ],
+    "evidence": [
+      "core/portfolio.py, core/agent_runtime.py, core/delivery.py, core/runtime_freshness.py consume stores",
+      "Portfolio supervisor API endpoints exist"
+    ],
+    "confidence": "medium",
+    "missing_info": [
+      "Which consumers treat DBs as fixtures vs live state",
+      "Whether seed scripts already exist"
+    ],
+    "depth": "deep",
+    "mode": "ai",
+    "context_review": {
+      "implementable": true,
+      "missing": [
+        "Fixture vs live classification for each DB"
+      ],
+      "reason": "Consumers and APIs exist; classification requires investigation and human sign-off."
+    },
+    "consolidation_proposal": {
+      "sources": [
+        "BI-PF-1293",
+        "BI-PF-1299",
+        "BI-PF-1306"
+      ],
+      "title": "EDP-03: Investigate & disposition committed SQLite DBs (control-plane.db, portfolio.db) - fixtures vs live runtime; de-commit runtime data",
+      "body": "Part of EPIC BI-PF-1292. Source: docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md. Phase item (see epic). Language rule L1 = Go; must pass scripts/dev/language_rule_review.py.",
+      "acceptance_criteria": [
+        "Both DBs' schemas and readers/writers are documented (owner, retention, source-of-truth).",
+        "Runtime DBs are gitignored; only sanitized fixtures remain if required.",
+        "Migration disposition recorded (Phase 3 input).",
+        "ADR document committed covering storage layers, backends, and data-flow decisions",
+        "Develop commit SHA pinned and recorded",
+        "L1 Go rule passes language_rule_review.py",
+        "The 11 interfaces are declared with explicit optional capabilities (versioning/lock/conditional-write/KMS/signed-URL/multipart).",
+        "A conformance suite runs against any adapter (starting with WorkerGrid's store as reference).",
+        "No domain module depends on a concrete provider.",
+        "private buckets, least-privilege credentials, lifecycle/versioning where required; explicit region/backup/replication capability metadata.",
+        "Signed URLs only after authorization, constrained to object/method, short TTL.",
+        "Provider config stays inside the adapter; conformance suite passes (wrong-region, versions, delete, restore)."
+      ],
+      "moscow": "Must"
+    },
+    "arch_fingerprint": "dc9598f15f6d5d5f"
+  },
+  "dependencies": [
+    {
+      "task_id": "BI-PF-1293",
+      "type": "REQUIRES",
+      "required_state": "COMPLETE"
+    },
+    {
+      "task_id": "BI-PF-1294",
+      "type": "RELATED",
+      "required_state": "completed"
+    }
+  ],
+  "blocked_by": [
+    "BI-PF-1293"
+  ],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-13T16:33:28.308437"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-13T16:02:10.701775",
+  "updated_at": "2026-10-13T16:35:23.859974",
+  "score": 0.75,
+  "source_ref": "docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md",
+  "_note": "dependencies set"
+}

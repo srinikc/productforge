@@ -1,0 +1,254 @@
+{
+  "id": "BI-PF-1307",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "edp-15-artifacts-metadata",
+  "label": "PF Backlog 596",
+  "title": "EDP-15: stored_objects + artifacts metadata; refactor artifact_store/registry behind ArtifactService; /artifacts API = authz + metadata + streaming",
+  "body": "Part of EPIC BI-PF-1292. Source: docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md. Phase item (see epic). Language rule L1 = Go; must pass scripts/dev/language_rule_review.py.",
+  "source": "review",
+  "status": "new",
+  "priority": "P1",
+  "moscow": "Must",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [
+    "BI-PF-1305",
+    "BI-PF-1301",
+    "BI-PF-1309",
+    "BI-PF-1306"
+  ],
+  "links": {
+    "source_doc": "docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md",
+    "possible_duplicate_of": [
+      "product_forge:BI-PF-1293"
+    ]
+  },
+  "decisions": [
+    {
+      "at": "2026-10-13T16:33:50.739467",
+      "decision": "APPROVE",
+      "by": "agent",
+      "note": "finalized: decisions recorded 2026-10-13"
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "Artifact handling is split across store/registry with no metadata model or authz.",
+    "what_adds": "Unified ArtifactService with DB metadata, authz, streaming.",
+    "why": "Needed before lifecycle, signed URLs and enterprise sharing.",
+    "who_feels": "API consumers and security reviewers.",
+    "source": "authored"
+  },
+  "objective": "Create stored_objects and artifacts metadata, refactor artifact_store/artifact_registry behind a unified ArtifactService, and expose /artifacts with authorization, metadata, and streaming.",
+  "acceptance_criteria": [
+    "stored_objects + artifacts tables populated with migration path from legacy store",
+    "/artifacts endpoints enforce authz and support streaming download",
+    "Existing Python artifact_store/registry delegated or retired with parity tests",
+    "Language rule L1 (Go) passes"
+  ],
+  "in_scope": [
+    "ArtifactService facade",
+    "Metadata schema usage",
+    "Authz + streaming on /artifacts",
+    "Refactor of core/artifact_store.py and core/artifact_registry.py"
+  ],
+  "out_of_scope": [
+    "Retention/lifecycle policies (BI-PF-1308)",
+    "Backup reconciliation (BI-PF-1315)"
+  ],
+  "affected_components": [
+    "core/artifact_store.py",
+    "core/artifact_registry.py",
+    "/api/v1/artifacts*",
+    "Go ArtifactService package"
+  ],
+  "affected_files": [
+    "core/artifact_store.py",
+    "core/artifact_registry.py",
+    "internal/artifacts/service.go",
+    "config/store-registry.json"
+  ],
+  "approach": "Write characterization tests on current endpoints, define ArtifactService interface, delegate Python store to metadata-backed service, migrate data, add streaming and authz.",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Parity test suite old vs new endpoints",
+    "Authz negative tests",
+    "language_rule_review.py"
+  ],
+  "risks": [
+    "Behavioral drift during Python→Go cutover of artifact endpoints",
+    "Authz model not yet defined for artifact scoping",
+    "Large refactor risk in registry/store modules"
+  ],
+  "rollback": "Feature-flag routing back to Python artifact_store during migration window.",
+  "evidence": [
+    "Candidate component list",
+    "Existing /api/v1/artifacts API paths"
+  ],
+  "owner": "storage-team",
+  "requester": "Product Forge",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1292",
+  "parent": "BI-PF-1292",
+  "revision": 9,
+  "priority_rank": 30,
+  "priority_class": "P1",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "STALE",
+    "analyzed_at": "2026-10-13T16:33:50.359415",
+    "analyzed_by": "agent",
+    "revision_analyzed": 8,
+    "architecture_fit": "REFACTOR",
+    "implementation_strategy": "Introduce ArtifactService facade in Go over ObjectStore + metadata store; refactor existing core/artifact_store.py and core/artifact_registry.py behind it; add stored_objects/artifacts tables via BI-PF-1309 schema; harden /artifacts API with authz and streaming.",
+    "existing_components": [],
+    "existing_apis": [],
+    "existing_modules": [],
+    "dependency_findings": [
+      "REQUIRES BI-PF-1305 (local adapter)",
+      "REQUIRES BI-PF-1301",
+      "REQUIRES BI-PF-1309 (schema for stored_objects/artifacts)",
+      "REQUIRES BI-PF-1306 (S3 backend)",
+      "RELATED BI-PF-1293 (ADR)"
+    ],
+    "conflict_findings": [
+      "/api/v1/artifacts endpoints currently served by Python core — coordinate cutover with BI-PF-1312 storage split"
+    ],
+    "duplication_findings": [
+      "core/artifact_registry.py and core/artifact_store.py already handle artifact tracking — refactor, not rebuild",
+      "Similar *_registry.py patterns (model/tool/skills) should stay untouched"
+    ],
+    "drift": "MEDIUM",
+    "rewrite_required": true,
+    "new_component_required": false,
+    "rationale": "Consolidates duplicated artifact handling behind one service; touches live APIs so needs an explicit compatibility plan.",
+    "assumptions": [
+      "Existing /api/v1/artifacts contract must remain backward compatible during migration",
+      "BI-PF-1309 tables land before metadata wiring"
+    ],
+    "risks": [
+      "Behavioral drift during Python→Go cutover of artifact endpoints",
+      "Authz model not yet defined for artifact scoping",
+      "Large refactor risk in registry/store modules"
+    ],
+    "evidence": [
+      "Candidate component list",
+      "Existing /api/v1/artifacts API paths"
+    ],
+    "confidence": "medium",
+    "missing_info": [
+      "Authz model for artifacts (tenant/run/stage scoping)",
+      "Migration window and deprecation policy for Python artifact code",
+      "Streaming format expectations (range requests?)"
+    ],
+    "depth": "deep",
+    "mode": "ai",
+    "context_review": {
+      "implementable": false,
+      "missing": [
+        "Authz model",
+        "Backward-compat window",
+        "Streaming requirements"
+      ],
+      "reason": "Refactor direction is clear but security and migration decisions are human-owned."
+    },
+    "consolidation_proposal": {
+      "sources": [
+        "BI-PF-1293",
+        "BI-PF-1299",
+        "BI-PF-1306"
+      ],
+      "title": "EDP-15: stored_objects + artifacts metadata; refactor artifact_store/registry behind ArtifactService; /artifacts API = authz + metadata + streaming",
+      "body": "Part of EPIC BI-PF-1292. Source: docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md. Phase item (see epic). Language rule L1 = Go; must pass scripts/dev/language_rule_review.py.",
+      "acceptance_criteria": [
+        "stored_objects/artifacts carry tenant/project/run/stage scope, hash, size, type, classification, version, retention, object ref.",
+        "Listing queries metadata (no directory scan); download streams authorized bytes; no unrestricted local paths returned.",
+        "artifact_store.py/artifact_registry.py become compatibility adapters over ArtifactService.",
+        "ADR document committed covering storage layers, backends, and data-flow decisions",
+        "Develop commit SHA pinned and recorded",
+        "L1 Go rule passes language_rule_review.py",
+        "11 Go interfaces defined in internal/storage/ with godoc and compile-time assertions",
+        "Conformance harness package exposes embeddable test suites per interface",
+        "In-memory reference adapter passes all conformance suites",
+        "scripts/dev/language_rule_review.py passes (Go-only)",
+        "config/test-matrix.json extended with storage-conformance rows",
+        "Adapter passes the shared conformance suite against MinIO in CI",
+        "Capabilities (region/replication/versioning) exposed via capability probe API",
+        "Language rule L1 (Go) passes scripts/dev/language_rule_review.py",
+        "No credentials logged; env-based config only"
+      ],
+      "moscow": "Must"
+    },
+    "arch_fingerprint": "dc9598f15f6d5d5f"
+  },
+  "dependencies": [
+    {
+      "task_id": "BI-PF-1305",
+      "type": "REQUIRES",
+      "required_state": "COMPLETE"
+    },
+    {
+      "task_id": "BI-PF-1301",
+      "type": "REQUIRES",
+      "required_state": "COMPLETE"
+    },
+    {
+      "task_id": "BI-PF-1309",
+      "type": "RELATED",
+      "required_state": "completed"
+    },
+    {
+      "task_id": "BI-PF-1306",
+      "type": "RELATED",
+      "required_state": "completed"
+    }
+  ],
+  "blocked_by": [
+    "BI-PF-1305",
+    "BI-PF-1301"
+  ],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-13T16:33:50.518677"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-13T16:02:56.893726",
+  "updated_at": "2026-10-13T16:35:29.145438",
+  "score": 0.75,
+  "source_ref": "docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md",
+  "_note": "dependencies set"
+}

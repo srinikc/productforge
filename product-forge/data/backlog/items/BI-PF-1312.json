@@ -1,0 +1,233 @@
+{
+  "id": "BI-PF-1312",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "edp-20-audit-store",
+  "label": "PF Backlog 601",
+  "title": "EDP-20: Append-only AuditStore; split orchestrator/storage.py (audit vs cache vs evidence); retention/redaction; large checkpoints -> object store",
+  "body": "Part of EPIC BI-PF-1292. Source: docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md.",
+  "source": "review",
+  "status": "new",
+  "priority": "P1",
+  "moscow": "Must",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [
+    "BI-PF-1309",
+    "BI-PF-1307",
+    "BI-PF-1308"
+  ],
+  "links": {
+    "source_doc": "docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md"
+  },
+  "decisions": [
+    {
+      "at": "2026-10-13T16:12:11.229503",
+      "decision": "APPROVE",
+      "by": "cli",
+      "note": ""
+    },
+    {
+      "at": "2026-10-13T16:33:14.432722",
+      "decision": "APPROVE",
+      "by": "cli",
+      "note": ""
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "Audit, cache, and evidence paths are tangled in storage.py with no tamper-evident audit store",
+    "what_adds": "Append-only AuditStore, clean module split, retention/redaction, checkpoint offload",
+    "why": "Compliance, maintainability, and storage cost control",
+    "who_feels": "Auditors, orchestrator maintainers, and storage operators",
+    "source": "authored"
+  },
+  "objective": "Deliver an append-only AuditStore, split orchestrator/storage.py into audit/cache/evidence responsibilities, apply retention/redaction rules, and offload large checkpoints to object storage.",
+  "acceptance_criteria": [
+    "AuditStore DAO enforces append-only (no update/delete at app layer)",
+    "storage.py split into audit/cache/evidence modules with no behavior regression",
+    "Retention/redaction policy applied and tested",
+    "Checkpoints over threshold stored in ObjectStore with manifest reference",
+    "Existing evidence/audit APIs remain green"
+  ],
+  "in_scope": [
+    "Append-only AuditStore",
+    "storage.py refactor",
+    "Retention/redaction policy",
+    "Checkpoint offload to object store"
+  ],
+  "out_of_scope": [
+    "Backup/PITR (BI-PF-1315)",
+    "Object lifecycle internals (BI-PF-1308)",
+    "Scale-out partitioning (BI-PF-1317)"
+  ],
+  "affected_components": [
+    "core/audit.py",
+    "core/audit_trail.py",
+    "orchestrator/storage.py",
+    "core/tool_cache.py",
+    "evidence APIs"
+  ],
+  "affected_files": [
+    "core/audit_store.py",
+    "orchestrator/storage_audit.py",
+    "orchestrator/storage_evidence.py",
+    "orchestrator/storage_cache.py",
+    "config/retention-policy.json"
+  ],
+  "approach": "Characterization tests first on storage.py; extract modules; add append-only DAO; wire retention and offload behind config.",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Characterization tests pass pre/post refactor",
+    "Append-only enforcement test (write attempts rejected)",
+    "Redaction round-trip test",
+    "Checkpoint offload integration test"
+  ],
+  "risks": [
+    "Append-only store growth without retention causes cost blowup",
+    "Redaction must not break audit chain integrity",
+    "Refactor of storage.py risks behavioral regression in orchestrator",
+    "Large checkpoint offload latency on hot path"
+  ],
+  "rollback": "Module split behind import shim keeping storage.py facade; offload flag reverts to inline storage.",
+  "evidence": [
+    "Roadmap EDP-20",
+    "Existing audit modules and evidence endpoints"
+  ],
+  "owner": "orchestration-team",
+  "requester": "BI-PF-1292 epic",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1292",
+  "parent": "BI-PF-1292",
+  "revision": 8,
+  "priority_rank": 3,
+  "priority_class": "P1",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "STALE",
+    "analyzed_at": "2026-10-13T16:33:14.129840",
+    "analyzed_by": "cli",
+    "revision_analyzed": 7,
+    "architecture_fit": "MODIFY",
+    "implementation_strategy": "Extend core/audit.py and core/audit_trail.py into an append-only AuditStore (hash-chained, tamper-evident); refactor orchestrator/storage.py to split audit vs cache vs evidence paths; route large checkpoints to the ObjectStore from BI-PF-1308/1306 with retention/redaction rules.",
+    "existing_components": [],
+    "existing_apis": [],
+    "existing_modules": [],
+    "dependency_findings": [
+      "REQUIRES BI-PF-1309 (DB foundation) at done",
+      "REQUIRES BI-PF-1307 at done",
+      "REQUIRES BI-PF-1314 (observability) at done",
+      "REQUIRES BI-PF-1308 (object store retention) at done for checkpoint offload"
+    ],
+    "conflict_findings": [
+      "orchestrator/storage.py is a hot module — concurrent edits by any storage item must be serialized",
+      "Overlap with evidence APIs owned by release/CI paths"
+    ],
+    "duplication_findings": [
+      "core/audit.py and core/audit_trail.py already exist — extend, do not rewrite",
+      "core/tool_cache.py is separate cache path — split keeps it distinct from audit",
+      "Evidence APIs (/api/v1/evidence/*) already exist — reuse as evidence branch"
+    ],
+    "drift": "LOW",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "Existing audit modules and evidence APIs provide strong reuse; work is primarily an extension plus a targeted refactor of storage.py with clear boundaries.",
+    "assumptions": [
+      "Append-only enforced at DAO level (no UPDATE/DELETE), retention via partition drop",
+      "Redaction is field-level and applied at read time or via tombstone entries",
+      "Checkpoint size threshold is configurable"
+    ],
+    "risks": [
+      "Append-only store growth without retention causes cost blowup",
+      "Redaction must not break audit chain integrity",
+      "Refactor of storage.py risks behavioral regression in orchestrator",
+      "Large checkpoint offload latency on hot path"
+    ],
+    "evidence": [
+      "Roadmap EDP-20",
+      "Existing audit modules and evidence endpoints"
+    ],
+    "confidence": "medium",
+    "missing_info": [
+      "Retention window per audit class",
+      "Redaction policy (which fields, GDPR vs internal)",
+      "Checkpoint offload size threshold"
+    ],
+    "depth": "deep",
+    "mode": "ai",
+    "context_review": {
+      "implementable": true,
+      "missing": [
+        "Retention windows per audit class",
+        "Redaction field policy",
+        "Checkpoint threshold value"
+      ],
+      "reason": "Existing audit/evidence code anchors the work; refactor boundaries are clear; only policy values need human decisions."
+    },
+    "arch_fingerprint": "dc9598f15f6d5d5f"
+  },
+  "dependencies": [
+    {
+      "task_id": "BI-PF-1309",
+      "type": "REQUIRES",
+      "required_state": "COMPLETE"
+    },
+    {
+      "task_id": "BI-PF-1307",
+      "type": "REQUIRES",
+      "required_state": "COMPLETE"
+    },
+    {
+      "task_id": "BI-PF-1308",
+      "type": "RELATED",
+      "required_state": "completed"
+    }
+  ],
+  "blocked_by": [
+    "BI-PF-1309",
+    "BI-PF-1307"
+  ],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-13T16:33:14.265981"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-13T16:06:15.883465",
+  "updated_at": "2026-10-13T16:35:31.137291",
+  "score": 0.75,
+  "source_ref": "docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md",
+  "_note": "dependencies set"
+}

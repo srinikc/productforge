@@ -1,0 +1,260 @@
+{
+  "id": "BI-PF-1299",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "edp-07-interfaces",
+  "label": "PF Backlog 588",
+  "title": "EDP-07: Provider-neutral storage interfaces (11) + shared conformance test harness (Go)",
+  "body": "Part of EPIC BI-PF-1292. Source: docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md. Phase item (see epic). Language rule L1 = Go; must pass scripts/dev/language_rule_review.py.",
+  "source": "review",
+  "status": "new",
+  "priority": "P0",
+  "moscow": "Must",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [
+    "BI-PF-1293",
+    "BI-PF-1306",
+    "BI-PF-1303",
+    "BI-PF-1297"
+  ],
+  "links": {
+    "source_doc": "docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md",
+    "possible_duplicate_of": [
+      "product_forge:BI-PF-1293"
+    ]
+  },
+  "decisions": [
+    {
+      "at": "2026-10-13T16:33:35.820227",
+      "decision": "APPROVE",
+      "by": "agent",
+      "note": "finalized: decisions recorded 2026-10-13"
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "Storage adapters are being built without a shared contract, risking provider lock-in and inconsistent behavior.",
+    "what_adds": "Go interfaces for 11 storage operations plus a conformance harness any adapter can validate against.",
+    "why": "Ensures every storage backend behaves identically, making swaps safe and residency enforcement reliable.",
+    "who_feels": "Platform engineers building adapters, SREs operating multi-region storage, and security teams verifying isolation.",
+    "source": "authored"
+  },
+  "objective": "Define 11 provider-neutral storage interfaces in Go and a reusable conformance test harness that validates any backend adapter against a shared behavioral contract.",
+  "acceptance_criteria": [
+    "11 Go interfaces defined in internal/storage/ with godoc and compile-time assertions",
+    "Conformance harness package exposes embeddable test suites per interface",
+    "In-memory reference adapter passes all conformance suites",
+    "scripts/dev/language_rule_review.py passes (Go-only)",
+    "config/test-matrix.json extended with storage-conformance rows"
+  ],
+  "in_scope": [
+    "internal/storage/ interface definitions (11 interfaces)",
+    "internal/storage/conformance/ test harness",
+    "In-memory reference adapter as conformance baseline",
+    "Test matrix integration"
+  ],
+  "out_of_scope": [
+    "S3/GCS/local filesystem concrete adapters (BI-PF-1306+)",
+    "Residency enforcement logic (BI-PF-1303)",
+    "Migration execution engine (BI-PF-1300)"
+  ],
+  "affected_components": [
+    "internal/storage/",
+    "internal/storage/conformance/",
+    "config/test-matrix.json"
+  ],
+  "affected_files": [
+    "internal/storage/interfaces.go",
+    "internal/storage/conformance/harness.go",
+    "internal/storage/adapters/memory/memory.go",
+    "config/test-matrix.json"
+  ],
+  "approach": "Start with ADR-derived interface list, define Go interfaces, build conformance harness with table-driven tests, implement in-memory adapter, wire into test matrix.",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "go test ./internal/storage/... passes",
+    "Conformance harness detects injected interface violations",
+    "Language rule review script exit 0",
+    "All 11 interfaces have at least one conformance suite"
+  ],
+  "risks": [
+    "Interface over-design leading to churn when S3 adapter (1306) lands",
+    "Conformance harness may be too permissive, masking provider-specific bugs",
+    "Language rule L1=Go enforced — any deviation caught late in CI"
+  ],
+  "rollback": "Revert the internal/storage/ package; no downstream items have merged yet so no integration breakage.",
+  "evidence": [
+    "Candidate components are all Python — confirms no Go storage layer exists",
+    "S3 adapter (1306) is an existing dep that will validate these interfaces",
+    "Language rule review script exists for Go-only enforcement"
+  ],
+  "owner": "storage-platform-team",
+  "requester": "product_forge",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1292",
+  "parent": "BI-PF-1292",
+  "revision": 9,
+  "priority_rank": 1,
+  "priority_class": "P0",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "STALE",
+    "analyzed_at": "2026-10-13T16:33:35.456476",
+    "analyzed_by": "agent",
+    "revision_analyzed": 8,
+    "architecture_fit": "NEW_CAPABILITY",
+    "implementation_strategy": "Create Go package `internal/storage/` with provider-neutral interfaces (BlobStore, ObjectStore, KeyValueStore, LockStore, QueueStore, CacheStore, FileStore, ArchiveStore, ReplicationStore, MigrationStore, SnapshotStore). Build a shared conformance test harness package `internal/storage/conformance/` that any adapter can embed. No existing Python components are directly reusable; this is new Go infrastructure.",
+    "existing_components": [],
+    "existing_apis": [],
+    "existing_modules": [],
+    "dependency_findings": [
+      "REQUIRES BI-PF-1293 (architecture ADR) — must be MERGED to pin interface decisions",
+      "RELATED BI-PF-1306 (S3 adapter) — S3 adapter will consume these interfaces",
+      "RELATED BI-PF-1303 (ResidencyPolicy) — residency checks depend on storage interface hooks",
+      "RELATED BI-PF-1297 (Policy Registry) — fail-closed enforcement at storage layer"
+    ],
+    "conflict_findings": [
+      "BI-PF-1306 (S3 adapter) will create code in same package tree — coordinate interface freeze first",
+      "BI-PF-1303 (RegionCell attestation) touches adjacent storage capability surfaces"
+    ],
+    "duplication_findings": [
+      "No existing Go storage abstraction layer found in candidate components",
+      "config/test-matrix.json could be extended to include storage conformance matrix rows",
+      "config/shared-paths.json relevant for cross-repo path conventions"
+    ],
+    "drift": "LOW",
+    "rewrite_required": false,
+    "new_component_required": true,
+    "rationale": "This is foundational infrastructure enabling all subsequent storage adapter items. New Go components are required because no existing code provides provider-neutral storage interfaces.",
+    "assumptions": [
+      "Storage architecture ADR (1293) defines the canonical interface taxonomy",
+      "Postgres is the primary relational backend for this phase",
+      "No existing Go storage abstraction in the repository yet"
+    ],
+    "risks": [
+      "Interface over-design leading to churn when S3 adapter (1306) lands",
+      "Conformance harness may be too permissive, masking provider-specific bugs",
+      "Language rule L1=Go enforced — any deviation caught late in CI"
+    ],
+    "evidence": [
+      "Candidate components are all Python — confirms no Go storage layer exists",
+      "S3 adapter (1306) is an existing dep that will validate these interfaces",
+      "Language rule review script exists for Go-only enforcement"
+    ],
+    "confidence": "medium",
+    "missing_info": [
+      "Exact list of 11 interfaces — needs confirmation from architecture ADR (1293)",
+      "Whether conformance harness runs in CI or only locally",
+      "Minimum set of test providers (in-memory, filesystem, Postgres?)"
+    ],
+    "depth": "deep",
+    "mode": "ai",
+    "context_review": {
+      "implementable": true,
+      "missing": [
+        "Complete interface list from ADR (1293)",
+        "Conformance CI integration decision"
+      ],
+      "reason": "Foundational item; architecture ADR must land first to lock interface taxonomy, but implementation approach is clear."
+    },
+    "consolidation_proposal": {
+      "sources": [
+        "BI-PF-1306",
+        "BI-PF-1293",
+        "BI-PF-1303",
+        "BI-PF-1297"
+      ],
+      "title": "EDP-07: Provider-neutral storage interfaces (11) + shared conformance test harness (Go)",
+      "body": "Part of EPIC BI-PF-1292. Source: docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md. Phase item (see epic). Language rule L1 = Go; must pass scripts/dev/language_rule_review.py.",
+      "acceptance_criteria": [
+        "The 11 interfaces are declared with explicit optional capabilities (versioning/lock/conditional-write/KMS/signed-URL/multipart).",
+        "A conformance suite runs against any adapter (starting with WorkerGrid's store as reference).",
+        "No domain module depends on a concrete provider.",
+        "private buckets, least-privilege credentials, lifecycle/versioning where required; explicit region/backup/replication capability metadata.",
+        "Signed URLs only after authorization, constrained to object/method, short TTL.",
+        "Provider config stays inside the adapter; conformance suite passes (wrong-region, versions, delete, restore).",
+        "ADR document committed covering storage layers, backends, and data-flow decisions",
+        "Develop commit SHA pinned and recorded",
+        "L1 Go rule passes language_rule_review.py",
+        "tenant.home_region, jurisdiction_profile_id, residency_policy_version are set at provisioning from authenticated config (never from X-Tenant-Id/X-Region/URL).",
+        "Provisioning fails closed if any required service (DB/object/backup/logs/KMS/queue/cache/vector/workers/model) lacks an approved region.",
+        "Region is immutable to ordinary users; changes require an audited migration plan.",
+        "Registry versions policies and fails closed on unknown/missing region",
+        "IN-v1 and US-v1 profiles load from config and validate",
+        "Policy evaluation delegated to BI-PF-1303 interfaces",
+        "Go passes language_rule_review.py"
+      ],
+      "moscow": "Must"
+    },
+    "arch_fingerprint": "dc9598f15f6d5d5f"
+  },
+  "dependencies": [
+    {
+      "task_id": "BI-PF-1293",
+      "type": "REQUIRES",
+      "required_state": "COMPLETE"
+    },
+    {
+      "task_id": "BI-PF-1306",
+      "type": "RELATED",
+      "required_state": "completed"
+    },
+    {
+      "task_id": "BI-PF-1303",
+      "type": "RELATED",
+      "required_state": "completed"
+    },
+    {
+      "task_id": "BI-PF-1297",
+      "type": "RELATED",
+      "required_state": "completed"
+    }
+  ],
+  "blocked_by": [
+    "BI-PF-1293"
+  ],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-13T16:33:35.569464"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-13T16:02:26.270907",
+  "updated_at": "2026-10-13T16:35:25.920586",
+  "score": 0.75,
+  "source_ref": "docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md",
+  "_note": "dependencies set"
+}

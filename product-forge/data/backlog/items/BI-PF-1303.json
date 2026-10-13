@@ -1,0 +1,264 @@
+{
+  "id": "BI-PF-1303",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "edp-11-residency-resolver",
+  "label": "PF Backlog 592",
+  "title": "EDP-11: ResidencyPolicy/RegionResolver + RegionCell capability attestation + fail-closed tenant provisioning",
+  "body": "Part of EPIC BI-PF-1292. Source: docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md. Phase item (see epic). Language rule L1 = Go; must pass scripts/dev/language_rule_review.py.",
+  "source": "review",
+  "status": "new",
+  "priority": "P1",
+  "moscow": "Must",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [
+    "BI-PF-1297",
+    "BI-PF-1302",
+    "BI-PF-1301",
+    "BI-PF-1299"
+  ],
+  "links": {
+    "source_doc": "docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md",
+    "possible_duplicate_of": [
+      "product_forge:BI-PF-1293"
+    ]
+  },
+  "decisions": [
+    {
+      "at": "2026-10-13T16:33:43.171378",
+      "decision": "APPROVE",
+      "by": "agent",
+      "note": "finalized: decisions recorded 2026-10-13"
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "Tenants can be provisioned without enforcing data-residency policy or verified region capability.",
+    "what_adds": "ResidencyPolicy evaluator, RegionResolver, RegionCell attestation checks, fail-closed provisioning.",
+    "why": "Enterprise and regulatory contracts require provable residency enforcement.",
+    "who_feels": "Compliance, enterprise customers, tenant admins.",
+    "source": "authored"
+  },
+  "objective": "Deliver ResidencyPolicy evaluation, RegionResolver, RegionCell capability attestation verification, and fail-closed tenant provisioning wired into enterprise tenant lifecycle.",
+  "acceptance_criteria": [
+    "Tenant provisioning fails closed when residency policy or RegionCell attestation cannot be satisfied",
+    "Residency evaluation consumes versioned policy registry (BI-PF-1297) with IN-v1/US-v1 profiles",
+    "RegionResolver maps tenant to compliant RegionCell deterministically",
+    "Passes scripts/dev/language_rule_review.py"
+  ],
+  "in_scope": [
+    "Go residency evaluator + resolver",
+    "Attestation verification hook",
+    "Fail-closed provisioning integration",
+    "Config via capability packs"
+  ],
+  "out_of_scope": [
+    "Policy content authorship (BI-PF-1297)",
+    "Physical RegionCell deployment",
+    "Data migration between cells"
+  ],
+  "affected_components": [
+    "core/capability_bridge.py",
+    "core/capability_packs.py",
+    "config/capability-packs.json",
+    "config/agent-capability-vector.json",
+    "/api/v1/enterprise/tenants*"
+  ],
+  "affected_files": [
+    "internal/residency/*.go (new)",
+    "internal/tenants/provisioning.go",
+    "config/capability-packs.json"
+  ],
+  "approach": "Implement policy evaluator against registry schema, add resolver, wire attestation check into provisioning with fail-closed default, add negative tests for missing/stale attestation.",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Negative test: no attestation => provisioning denied",
+    "Profile test: IN-v1 and US-v1 resolve to expected cells",
+    "Attestation stale/expired rejected",
+    "language_rule_review.py passes"
+  ],
+  "risks": [
+    "Fail-closed default could block all provisioning if attestation service is down",
+    "Counsel-owned policy content may change shape",
+    "RegionCell attestation trust model (signed claims?) undefined"
+  ],
+  "rollback": "Config flag to bypass attestation (audit-logged) for break-glass; policy registry rollback via version pin.",
+  "evidence": [
+    "core/capability_bridge.py",
+    "enterprise tenant endpoints",
+    "Roadmap EDP-11"
+  ],
+  "owner": "unassigned",
+  "requester": "epic BI-PF-1292",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1292",
+  "parent": "BI-PF-1292",
+  "revision": 9,
+  "priority_rank": 3,
+  "priority_class": "P1",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "STALE",
+    "analyzed_at": "2026-10-13T16:33:42.785899",
+    "analyzed_by": "agent",
+    "revision_analyzed": 8,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend the enterprise tenant provisioning path (capability_bridge/capability_packs patterns, /api/v1/enterprise/tenants) with a Go ResidencyPolicy evaluator + RegionResolver that consumes the versioned policy registry (BI-PF-1297), validates RegionCell capability attestation, and provisions fail-closed when attestation or residency match fails.",
+    "existing_components": [],
+    "existing_apis": [],
+    "existing_modules": [],
+    "dependency_findings": [
+      "REQUIRES BI-PF-1297 (state: policy registry merged, IN-v1/US-v1 profiles exist)",
+      "REQUIRES BI-PF-1302 (state: merged, structured errors + quotas available)",
+      "REQUIRES BI-PF-1301 (state: merged, tenant context/RLS for provisioning)"
+    ],
+    "conflict_findings": [
+      "Touches tenant provisioning endpoints also extended by BI-PF-1302 quotas - sequence after 1302",
+      "Shares capability-packs.json config with capability_bridge owners"
+    ],
+    "duplication_findings": [
+      "No existing residency/region resolver code found",
+      "capability_bridge.py is Python pattern reference only (L1=Go)",
+      "Policy content owned by BI-PF-1297 - do not duplicate here"
+    ],
+    "drift": "LOW",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "Existing capability bridge and tenant provisioning provide natural extension points; residency resolution is new logic but not a new component.",
+    "assumptions": [
+      "BI-PF-1297 registry exposes a machine-readable versioned API",
+      "RegionCell attestation can be verified locally or via signed endpoint",
+      "Fail-closed is the mandated default"
+    ],
+    "risks": [
+      "Fail-closed default could block all provisioning if attestation service is down",
+      "Counsel-owned policy content may change shape",
+      "RegionCell attestation trust model (signed claims?) undefined"
+    ],
+    "evidence": [
+      "core/capability_bridge.py",
+      "enterprise tenant endpoints",
+      "Roadmap EDP-11"
+    ],
+    "confidence": "medium",
+    "missing_info": [
+      "Attestation signing/verification mechanism for RegionCell",
+      "Which residency decisions are hard-block vs warn",
+      "RegionCell inventory and ownership"
+    ],
+    "depth": "deep",
+    "mode": "ai",
+    "context_review": {
+      "implementable": true,
+      "missing": [
+        "Attestation trust/signing mechanism",
+        "Hard-block vs warn policy tiers",
+        "RegionCell inventory"
+      ],
+      "reason": "Deps provide registry, errors, and tenant context; attestation verification model must be decided by the human."
+    },
+    "consolidation_proposal": {
+      "sources": [
+        "BI-PF-1297",
+        "BI-PF-1293",
+        "BI-PF-1299",
+        "BI-PF-1301"
+      ],
+      "title": "EDP-11: ResidencyPolicy/RegionResolver + RegionCell capability attestation + fail-closed tenant provisioning",
+      "body": "Part of EPIC BI-PF-1292. Source: docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md. Phase item (see epic). Language rule L1 = Go; must pass scripts/dev/language_rule_review.py.",
+      "acceptance_criteria": [
+        "tenant.home_region, jurisdiction_profile_id, residency_policy_version are set at provisioning from authenticated config (never from X-Tenant-Id/X-Region/URL).",
+        "Provisioning fails closed if any required service (DB/object/backup/logs/KMS/queue/cache/vector/workers/model) lacks an approved region.",
+        "Region is immutable to ordinary users; changes require an audited migration plan.",
+        "Registry versions policies and fails closed on unknown/missing region",
+        "IN-v1 and US-v1 profiles load from config and validate",
+        "Policy evaluation delegated to BI-PF-1303 interfaces",
+        "Go passes language_rule_review.py",
+        "ADR document committed covering storage layers, backends, and data-flow decisions",
+        "Develop commit SHA pinned and recorded",
+        "L1 Go rule passes language_rule_review.py",
+        "11 Go interfaces defined in internal/storage/ with godoc and compile-time assertions",
+        "Conformance harness package exposes embeddable test suites per interface",
+        "In-memory reference adapter passes all conformance suites",
+        "scripts/dev/language_rule_review.py passes (Go-only)",
+        "config/test-matrix.json extended with storage-conformance rows",
+        "TenantContextService validates membership/role against database on each request",
+        "RLS policies with USING and WITH CHECK created via migration for all tenant-scoped tables",
+        "Pooled connection negative tests confirm stale context is rejected and no cross-tenant data leaks",
+        "config/context-policy.json extended with tenant isolation settings",
+        "Language rule review passes (Go-only)"
+      ],
+      "moscow": "Must"
+    },
+    "arch_fingerprint": "dc9598f15f6d5d5f"
+  },
+  "dependencies": [
+    {
+      "task_id": "BI-PF-1297",
+      "type": "REQUIRES",
+      "required_state": "COMPLETE"
+    },
+    {
+      "task_id": "BI-PF-1302",
+      "type": "RELATED",
+      "required_state": "completed"
+    },
+    {
+      "task_id": "BI-PF-1301",
+      "type": "RELATED",
+      "required_state": "completed"
+    },
+    {
+      "task_id": "BI-PF-1299",
+      "type": "RELATED",
+      "required_state": "completed"
+    }
+  ],
+  "blocked_by": [
+    "BI-PF-1297"
+  ],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-13T16:33:42.965458"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-13T16:02:41.666385",
+  "updated_at": "2026-10-13T16:35:27.559807",
+  "score": 0.75,
+  "source_ref": "docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md",
+  "_note": "dependencies set"
+}

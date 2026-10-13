@@ -1,15 +1,15 @@
 # Backlog Summary
 
-> GENERATED 2026-10-13T16:53:38 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-13T17:09:40 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 76  |  **Closed:** 502
-- `new`: 76
+- **Open:** 103  |  **Closed:** 502
+- `new`: 103
 
-### new, by category (76)
-**API / reports / HIL / misc** (8)
+### new, by category (103)
+**API / reports / HIL / misc** (9)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-PF-0332 | Should | chore | API-5 deferred hardening: rate limiting + request/upload limits + tenant-isolation expansion + event streaming | API-5 deferred hardening: rate limiting + request/upload limits + tenant-isolation expansion + event streaming |
@@ -19,9 +19,10 @@
 | BI-PF-1251 | Should | change | Unscoped triage: re-home 'Unscoped' children into real epics (grooming cadence + aging advisory) | Keep `Unscoped` small: an ongoing curation loop re-homes its children into real epics. |
 | BI-PF-1274 | Should | feature | Eventing SSOT: API surface - SSE GET /events/stream + subscription CRUD (edge decision) | SSE stream + subscription CRUD exposed via edits to existing API routes; edge ownership decided in E1. |
 | BI-PF-1286 | Should | change | Entitlement enforcement: cover remaining boundaries (pipeline/capability/API) + action->group mapping (beyond the worker-claim wired by A2) | Extend entitlement enforcement to the remaining execution boundaries with per-action group mapping. |
+| BI-PF-1307 | Must | feature | EDP-15: stored_objects + artifacts metadata; refactor artifact_store/registry behind ArtifactService; /artifacts API = authz + metadata + streaming | Create stored_objects and artifacts metadata, refactor artifact_store/artifact_registry behind a unified Artif... |
 | BI-PF-1316 | Must | task | api-governance gate red on develop: committed api/openapi.json drifted from the routers (BI-PF-0397 EAP endpoints) | api-governance gate red on develop: committed api/openapi.json drifted from the routers (BI-PF-0397 EAP endpoi... |
 
-**Discovery / HIL / prompts** (6)
+**Discovery / HIL / prompts** (7)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0218 | Should | feature | Backend: AI-era operations layer (evals + prompt/model/agent versioning + feedback loop + model-quality observability) | Add the AI-era lifecycle layer so the Product tab can show AI quality + the loop that keeps it good. |
@@ -30,19 +31,27 @@
 | BI-PF-1216 | Should | feature | C14: Security gates S0-S6 across the factory pipeline (intake->planning->impl->test->release->runtime->improve) | C14: Security gates S0-S6 across the factory pipeline (intake->planning->impl->test->release->runtime->improve... |
 | BI-PF-1236 | Should | change | Worker ops: worker charter (binding guidelines) + runtime prompt fix (no agent merge) + model pin | - workergrid/instructions.md: full worker charter (14 binding guidelines; manual-by-default, auto mode). - wor... |
 | BI-PF-1242 | Should | feature | In-session manual/auto worker mode + /wg watch monitoring + 14-guidelines approval gates | - In-session manual worker mode (/wg work manual, default): 1. Claims assignment atomically from PF via /assig... |
+| BI-PF-1302 | Must | feature | EDP-10: Timeouts, pool budgets, payload/upload limits, per-tenant & global quotas, structured errors; production profile rejects dev/anon auth | Implement enforceable timeouts, pool budgets, payload/upload limits, per-tenant and global quotas, structured ... |
 
 **Knowledge / KB** (1)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0208 | Must | feature | Backend: sensor/IoT capability pack + ingest adapters (MQTT/serial/BLE/Modbus/CAN) + time-series/anomaly models | A `sensor` capability pack that, only when the idea needs it, enables device ingest, a time-series store, fore... |
 
-**Licensing / tenancy** (2)
+**Licensing / tenancy** (9)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-PF-0390 | Should | epic | EPIC A: PF Commercial & IP Foundation (contracts, Go core, licensing, packaging, EAP, RDC, governance, vertical slice) | EPIC A — the needed-now foundation: A0 baseline freeze + ADR register; A1 thin contracts incl. Go<->Python con... |
 | BI-PF-1287 | Should | change | License issuance production: vendor keypair management + signing-env integration (A3 packaging) | Provision a vendor signing keypair for production issuance; ship only the public key with the product; integra... |
+| BI-PF-1292 | Must | epic | EPIC: Enterprise Data Plane (DB & Storage) - PostgreSQL system of record + object store + tenant isolation + data residency | Build the provider-neutral enterprise data plane from docs/Product_Forge_Enterprise_Performance_Security_DB_St... |
+| BI-PF-1294 | Must | feature | EDP-02: Store & data-flow inventory + extend store-registry.json (sensitivity, tenant_scope, backend, retention, recovery_tier, migration_status) + completeness gate | Complete store and data-flow inventory, extend store-registry.json with enterprise metadata fields, and add a ... |
+| BI-PF-1296 | Must | feature | EDP-04: Data-plane threat model + data-flow register (cross-tenant IDOR, path traversal, token/role spoofing, object-URL leakage, egress, residency bypass) | Produce an EDP-04 data-plane threat model and versioned data-flow register covering IDOR, path traversal, toke... |
+| BI-PF-1303 | Must | feature | EDP-11: ResidencyPolicy/RegionResolver + RegionCell capability attestation + fail-closed tenant provisioning | Deliver ResidencyPolicy evaluation, RegionResolver, RegionCell capability attestation verification, and fail-c... |
+| BI-PF-1309 | Must | feature | EDP-17: Canonical PostgreSQL schema (tenants/memberships/projects/runs/stages/attempts/artifacts/usage/quotas/audit/schema_migrations) + indexes + pooling + optimistic versioning | Deliver the canonical PostgreSQL schema (tenants, memberships, projects, runs, stages, attempts, artifacts, us... |
+| BI-PF-1315 | Must | feature | EDP-23: Backup/PITR + restore drills (full service + single-tenant) + DB<->object integrity reconciliation + region-aware restore | Deliver backup + PITR configuration, automated restore drills (full-service and single-tenant), DB<->object in... |
+| BI-PF-1317 | Could | feature | EDP-24: Scale-out & enterprise isolation tiers (read replicas / partitioning / tenant isolation tiers / additional region cells / region-migration workflow) [EVIDENCE-GATED] | Provide scale-out and enterprise isolation tiers including read-replica support, DB partitioning, tenant isola... |
 
-**Specs / cache / context / artifacts** (5)
+**Specs / cache / context / artifacts** (8)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0206 | Should | tech-debt | Backend: model downloader + local cache + license-acceptance gate + models.lock (open-weights) | One owner module that downloads only the weights a project's capability pack needs, into a gitignored local ca... |
@@ -50,8 +59,11 @@
 | BI-PF-1212 | Should | feature | C10: Security-event audit/evidence (evidence-grade) + durable SecurityContext propagation | C10: Security-event audit/evidence (evidence-grade) + durable SecurityContext propagation |
 | BI-PF-1241 | Should | feature | Per-item token/cache/cost usage (execution.usage) + runtime usage capture + rollup | - backlog execution: + usage{} (input/output/reasoning/cache_read/cache_write/total/cost_usd/model/cost_source... |
 | BI-PF-1273 | Should | feature | Eventing SSOT: migrate existing consumers (event_bus/context/ops/capabilities/parked/notifications/alerts) behind shims | Migrate each consumer to the subscriber/transport API with a compatibility shim so behavior is identical durin... |
+| BI-PF-1301 | Must | feature | EDP-09: Tenant context service with server-side membership/role verification + RLS (USING + WITH CHECK) + pooled-context negative tests | Build a tenant context service in Go that enforces server-side membership/role verification, applies PostgreSQ... |
+| BI-PF-1312 | Must | feature | EDP-20: Append-only AuditStore; split orchestrator/storage.py (audit vs cache vs evidence); retention/redaction; large checkpoints -> object store | Deliver an append-only AuditStore, split orchestrator/storage.py into audit/cache/evidence responsibilities, a... |
+| BI-PF-1314 | Should | feature | EDP-22: Benchmarks/SLOs + EXPLAIN(ANALYZE,BUFFERS) tuning + observability + quotas + graceful degradation (DB/object/cache/queue) | Establish performance benchmarks/SLOs, EXPLAIN(ANALYZE,BUFFERS)-based tuning, observability, quotas, and grace... |
 
-**Wiring / tech-debt / API** (54)
+**Wiring / tech-debt / API** (69)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0185 | Should | feature | EPIC: Multi-modal / media orchestration (pluggable capability packs) | Make the pipeline modality-agnostic via PLUGGABLE capability packs, enabled per project when the idea needs th... |
@@ -107,7 +119,22 @@
 | BI-PF-1278 | Should | feature | dogfood: drive pipeline to completion + correct post-run validation + fail-closed verdict | Wait for the run to finish (bounded), validate the GENERATED product dir, and map terminal states fail-closed. |
 | BI-PF-1280 | Should | feature | dogfood: monitoring - wait/poll + terminal event/webhook + status aggregation | Expose progress via the shared bus: poll (run_status/events) + subscribe (SSE/webhook) + aggregate status. |
 | BI-PF-1288 | Must | task | Issue id collision: a local session minted IS-PF-0038 already present on develop | Issue id collision: a local session minted IS-PF-0038 already present on develop |
+| BI-PF-1293 | Must | task | EDP-01: Storage/data architecture ADR + pin develop commit for implementation | Author storage/data architecture ADR and pin develop commit as implementation baseline for the EDP epic. |
+| BI-PF-1295 | Must | task | EDP-03: Investigate & disposition committed SQLite DBs (control-plane.db, portfolio.db) - fixtures vs live runtime; de-commit runtime data | Investigate committed SQLite DBs (control-plane.db, portfolio.db), classify fixture vs live runtime, and de-co... |
+| BI-PF-1297 | Must | feature | EDP-05: Residency & Transfer Policy Registry (versioned, fail-closed) + IN-v1/US-v1 launch profiles (counsel-owned content) | Deliver a versioned, fail-closed residency and transfer policy registry with IN-v1 and US-v1 launch profiles w... |
+| BI-PF-1298 | Must | task | EDP-06: Baseline performance capture (artifact list/read, project load/save, run transitions, memory retrieval, job claim/lease, DB/pool counts) | Capture reproducible baseline performance metrics for artifact list/read, project load/save, run transitions, ... |
+| BI-PF-1299 | Must | feature | EDP-07: Provider-neutral storage interfaces (11) + shared conformance test harness (Go) | Define 11 provider-neutral storage interfaces in Go and a reusable conformance test harness that validates any... |
+| BI-PF-1300 | Must | feature | EDP-08: Versioned migration framework + DB role separation (owner/runtime/read/backup) + schema-ownership policy (no auto-migrate on startup) | Implement a versioned migration framework in Go with four-tier DB role separation and a schema-ownership polic... |
+| BI-PF-1304 | Must | feature | EDP-12: Generated-product residency manifest (data_classes/home_region/allowed_regions/backup/kms/egress/retention) + build/deploy gate | Generate a per-product residency manifest (data_classes, home_region, allowed_regions, backup, kms, egress, re... |
+| BI-PF-1305 | Should | feature | EDP-13: Local filesystem ObjectStore adapter (root containment, symlink defense, atomic writes, checksum, size limits) | Provide a Go local-filesystem ObjectStore adapter with root containment, symlink defense, atomic writes, check... |
+| BI-PF-1306 | Must | feature | EDP-14: S3-compatible ObjectStore adapter + conformance tests (region/replication/versioning capabilities) | Deliver an S3-compatible ObjectStore adapter with capability detection (region, replication, versioning) valid... |
+| BI-PF-1308 | Must | feature | EDP-16: Object lifecycle (versioning/lock/retention), signed-URL policy, delete/replica/backup reconciliation | Define and enforce object lifecycle rules (versioning, lock, retention), signed-URL access policy, and delete/... |
+| BI-PF-1310 | Must | feature | EDP-18: Migration/import tooling (dry-run, hashes/counts parity, dual-read, rollback snapshot, cutover flag) for control-plane/portfolio/forge/project/pipeline; JSON demoted to projections | Deliver migration/import tooling with dry-run, hash/count parity verification, dual-read, rollback snapshot an... |
+| BI-PF-1311 | Must | feature | EDP-19: Durable JobStore/OutboxStore + leases/heartbeat/retry/cancel/dead-letter; one-owner boundary vs WorkerGrid (L2, no second queue) | Provide durable, DB-backed JobStore and OutboxStore with leases, heartbeat, retry, cancel, and dead-letter han... |
+| BI-PF-1313 | Must | feature | EDP-21: MemoryRepository behind the 8 memory types; PG metadata + object payloads; FTS then pgvector; ACL-filtered retrieval + leakage tests | Implement MemoryRepository behind all 8 memory types with PG metadata + object-store payloads, FTS-then-pgvect... |
 | BI-PF-1318 | Should | feature | Per-worker sync hardening: sync at task start + pre-commit auto-sync + worker-charter guideline (BI-PF-1290 follow-up) | Keep every session near origin/develop all the time (minimal clash/conflicts): sync when a task STARTS, before... |
+| BI-PF-1319 | Must | feature | Grooming/regroom must fully resolve items: populate all fields, interactively surface missing info/deps, never strand IN_PROGRESS | Grooming/regroom fully resolves every item (fields, deps, exec order); missing input or unmet deps are surface... |
+| BI-PF-1320 | Should | task | docs-fresh gate red on develop: unclassified doc Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md | docs-fresh gate red on develop: unclassified doc Product_Forge_Enterprise_Performance_Security_DB_Storage_Road... |
 
 ---
 
@@ -307,5 +334,5 @@
 ---
 
 ## Totals
-- backend: 76 open / 502 closed
+- backend: 103 open / 502 closed
 - dashboard: 146 open / 3 closed
