@@ -1,14 +1,14 @@
 # Backlog Summary
 
-> GENERATED 2026-10-13T17:20:58 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-13T17:54:05 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 102  |  **Closed:** 503
-- `new`: 102
+- **Open:** 104  |  **Closed:** 503
+- `new`: 104
 
-### new, by category (102)
+### new, by category (104)
 **API / reports / HIL / misc** (9)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
@@ -63,7 +63,7 @@
 | BI-PF-1312 | Must | feature | EDP-20: Append-only AuditStore; split orchestrator/storage.py (audit vs cache vs evidence); retention/redaction; large checkpoints -> object store | Deliver an append-only AuditStore, split orchestrator/storage.py into audit/cache/evidence responsibilities, a... |
 | BI-PF-1314 | Should | feature | EDP-22: Benchmarks/SLOs + EXPLAIN(ANALYZE,BUFFERS) tuning + observability + quotas + graceful degradation (DB/object/cache/queue) | Establish performance benchmarks/SLOs, EXPLAIN(ANALYZE,BUFFERS)-based tuning, observability, quotas, and grace... |
 
-**Wiring / tech-debt / API** (68)
+**Wiring / tech-debt / API** (70)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0185 | Should | feature | EPIC: Multi-modal / media orchestration (pluggable capability packs) | Make the pipeline modality-agnostic via PLUGGABLE capability packs, enabled per project when the idea needs th... |
@@ -134,6 +134,8 @@
 | BI-PF-1313 | Must | feature | EDP-21: MemoryRepository behind the 8 memory types; PG metadata + object payloads; FTS then pgvector; ACL-filtered retrieval + leakage tests | Implement MemoryRepository behind all 8 memory types with PG metadata + object-store payloads, FTS-then-pgvect... |
 | BI-PF-1319 | Must | feature | Grooming/regroom must fully resolve items: populate all fields, interactively surface missing info/deps, never strand IN_PROGRESS | Grooming/regroom fully resolves every item (fields, deps, exec order); missing input or unmet deps are surface... |
 | BI-PF-1320 | Should | task | docs-fresh gate red on develop: unclassified doc Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md | docs-fresh gate red on develop: unclassified doc Product_Forge_Enterprise_Performance_Security_DB_Storage_Road... |
+| BI-PF-1323 | Must | chore | Harden sync_develop on a dirty/noisy working tree (untracked collisions; merge refused; generated-file hygiene) | A sync that just works on a realistic (noisy) working tree, so "sync often" stays reliable. |
+| BI-PF-1324 | Should | chore | Concurrent sessions: uniquely-name scratch/temp files (avoid shared temp-dir collision) | Concurrent sessions never collide on scratch files. |
 
 ---
 
@@ -333,5 +335,5 @@
 ---
 
 ## Totals
-- backend: 102 open / 503 closed
+- backend: 104 open / 503 closed
 - dashboard: 146 open / 3 closed

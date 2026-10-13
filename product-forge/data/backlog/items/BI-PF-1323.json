@@ -1,0 +1,203 @@
+{
+  "id": "BI-PF-1323",
+  "tag": "PF",
+  "type": "chore",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "",
+  "label": "PF Backlog 608",
+  "title": "Harden sync_develop on a dirty/noisy working tree (untracked collisions; merge refused; generated-file hygiene)",
+  "body": "## Problem / why\nDuring BI-PF-1318 delivery, `git merge --autostash origin/develop` (the sync) was REFUSED because untracked\nworking-tree files collided with files the merge wanted to add (\"The following untracked working tree files\nwould be overwritten by merge\"); the manual `git merge` hit the same wall, and `git merge --abort` then failed\n(\"Could not reset index file to revision 'HEAD'\") - leaving a stuck half-merge. Root: generated/stray files\n(dashboard/docs/*.pdf, products/inbox/*, docs/*.md, ad-hoc temp scripts) accumulate untracked/modified, so a\nfrequent sync is fragile exactly when it matters.\n\n## Goal & value\nA sync that just works on a realistic (noisy) working tree, so \"sync often\" stays reliable.\n\n## In scope\n- sync_develop.py: when a merge is refused due to untracked collisions, report the EXACT files and offer/perform\n  a safe recovery (stash-untracked or move-aside), instead of a bare failure.\n- Generated-file hygiene: ensure the high-churn generated paths (dashboard/docs/**, products/inbox/**,\n  products/_test_*/**) are gitignored or excluded so they never block a merge.\n- `git merge --abort` robustness: if abort fails, give a clear recovery path.\n\n## Out of scope\n- Changing what is generated.\n\n## Acceptance criteria\n- A sync on a tree with the known generated noise completes without \"untracked would be overwritten\".\n- A refused merge names the blocking files + prints the recovery.\n- Tests cover the noisy-tree case; precheck passes.\n\n## Rollback\nRevert the sync change; keep the .gitignore additions (harmless).\n\n## Related\nBI-PF-1290 / BI-PF-1318 (the sync + hooks). Epic BI-PF-1248.\n",
+  "source": "user",
+  "status": "new",
+  "priority": "P1",
+  "moscow": "Must",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [
+    "BI-PF-1318",
+    "BI-PF-1290",
+    "BI-PF-1249"
+  ],
+  "links": {
+    "related": [
+      "BI-PF-1290",
+      "BI-PF-1318"
+    ]
+  },
+  "decisions": [
+    {
+      "at": "2026-10-13T17:52:17.005926",
+      "decision": "APPROVE",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)"
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "During BI-PF-1318 delivery, `git merge --autostash origin/develop` (the sync) was REFUSED because untracked\nworking-tree files collided with files the merge wanted to add (\"The following untracked working tree files\nwould be overwritten by merge\"); the manual `git merge` hit the same wall, and `git merge --abort` then failed\n(\"Could not reset index file to revision 'HEAD'\") - leaving a stuck half-merge. Root: generated/stray files\n(dashboard/docs/*.pdf, products/inbox/*, docs/*.md, ad-hoc temp scripts) accumulate untracked/modified, so a\nfrequent sync is fragile exactly when it matters.",
+    "what_adds": "A sync that just works on a realistic (noisy) working tree, so \"sync often\" stays reliable.",
+    "why": "During BI-PF-1318 delivery, `git merge --autostash origin/develop` (the sync) was REFUSED because untracked\nworking-tree files collided with files the merge wanted to add (\"The following untracked working tree files\nwould be overwritten by merge\"); the manual `git merge` hit the same wall, and `git merge --abort` then failed\n(\"Could not reset index file to revision 'HEAD'\") - leaving a stuck half-merge. Root: generated/stray files\n(dashboard/docs/*.pdf, products/inbox/*, docs/*.md, ad-hoc temp scripts) accumulate untracked/modified, so a\nfrequent sync is fragile exactly when it matters.",
+    "who_feels": "Product Forge maintainers and consumers.",
+    "source": "authored"
+  },
+  "objective": "A sync that just works on a realistic (noisy) working tree, so \"sync often\" stays reliable.",
+  "acceptance_criteria": [
+    "A sync on a tree with the known generated noise completes without \"untracked would be overwritten\".",
+    "A refused merge names the blocking files + prints the recovery.",
+    "Tests cover the noisy-tree case; precheck passes."
+  ],
+  "in_scope": [
+    "sync_develop.py: when a merge is refused due to untracked collisions, report the EXACT files and offer/perform",
+    "Generated-file hygiene: ensure the high-churn generated paths (dashboard/docs/**, products/inbox/**,",
+    "`git merge --abort` robustness: if abort fails, give a clear recovery path."
+  ],
+  "out_of_scope": [
+    "Changing what is generated."
+  ],
+  "affected_components": [
+    "Not specified."
+  ],
+  "affected_files": [
+    "sync_develop.py"
+  ],
+  "approach": "sync_develop.py: when a merge is refused due to untracked collisions, report the EXACT files and offer/perform; Generated-file hygiene: ensure the high-churn generated paths (dashboard/docs/**, products/inbox/**,; `git merge --abort` robustness: if abort fails, give a clear recovery path.",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "A sync on a tree with the known generated noise completes without \"untracked would be overwritten\".",
+    "A refused merge names the blocking files + prints the recovery.",
+    "Tests cover the noisy-tree case; precheck passes."
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the sync change; keep the .gitignore additions (harmless).",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "agent",
+  "requester": "user",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1248",
+  "parent": "BI-PF-1248",
+  "revision": 3,
+  "priority_rank": 40,
+  "priority_class": "P1",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "COMPLETE",
+    "analyzed_at": "2026-10-13T17:52:16.583989",
+    "analyzed_by": "system",
+    "revision_analyzed": 3,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend core/sync_develop.py (from BI-PF-1290/1318): catch refused merges, diff untracked collisions via `git merge --dry-run`/`git status`, print exact blocking files, and auto stash-untracked (`git stash -u`) or move-aside before retrying; on abort failure fall back to `git reset --merge` then `git merge --abort --quit`. Add high-churn generated paths to .gitignore (dashboard/docs/**.pdf, products/inbox/**, products/_test_*/**) so they never block a merge. Do NOT touch merge_gate.py APIs.",
+    "existing_components": [],
+    "existing_apis": [],
+    "existing_modules": [],
+    "dependency_findings": [
+      "REQUIRES BI-PF-1318 (done/delivered) so sync_develop.py exists in its current form.",
+      "RELATED BI-PF-1290 (the sync helper itself).",
+      "RELATED BI-PF-1249 (generated-doc hygiene) for consistent gitignore/path choices."
+    ],
+    "conflict_findings": [
+      "core/merge_gate.py (/api/v1/gates/pr/merge) touches merge semantics — ensure no overlapping edits; this item targets the worker sync script, not the server gate.",
+      "If BI-PF-1318 hooks are still being amended, coordinate to avoid concurrent sync_develop.py edits."
+    ],
+    "duplication_findings": [
+      "BI-PF-1290 already auto-resolves generated docs/counters on merge; this item must extend that helper, not fork a new one.",
+      "BI-PF-1318 added pre-commit auto-sync; retry/recovery logic must land in the shared sync_develop.py used by both hooks.",
+      "No existing backlog item handles untracked-collision recovery (BI-PF-1252 unscoped, score low)."
+    ],
+    "drift": "LOW",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "Clear incident-driven hardening of an existing script with well-known noise paths; low drift, reuse of sync_develop.py, tests feasible in a scratch repo.",
+    "assumptions": [
+      "The generated noise paths listed in the item are still accurate current hot spots.",
+      "sync_develop.py currently uses `git merge --autostash origin/develop`.",
+      "Workers run sync on real working trees, not worktrees (worktree APIs exist but are out of scope)."
+    ],
+    "risks": [
+      "Auto `git stash -u` can stash real user work; recovery must be loud and reversible (stash list printed).",
+      "gitignore additions could mask files a developer expects to commit (e.g. dashboard docs).",
+      "`git reset --merge` fallback may discard in-progress merge state unexpectedly."
+    ],
+    "evidence": [
+      "Incident captured in BI-PF-1318 delivery notes: untracked collision refusal + failed merge --abort.",
+      "Affected files named: dashboard/docs/*.pdf, products/inbox/*, docs/*.md, temp scripts."
+    ],
+    "confidence": "high",
+    "missing_info": [
+      "Should auto-stash be default or prompt-gated (interactive vs CI/hook non-interactive)?",
+      "Confirm the final gitignore allowlist so intentional generated docs can still be committed if desired."
+    ],
+    "depth": "deep",
+    "mode": "ai",
+    "context_review": {
+      "ok": true,
+      "source": "llm",
+      "implementable": true,
+      "missing": [],
+      "reason": "Names sync_develop.py, explains the failure (untracked collisions, failed abort), and gives concrete behaviors (detect collisions, name blocking files, print recovery, abort robustness, gitignore hygiene) plus verifiable acceptance criteria; IN_SCOPE bullets are truncated but intent is inferable."
+    },
+    "arch_fingerprint": "6e60000b1bbcc5ff"
+  },
+  "dependencies": [
+    {
+      "task_id": "BI-PF-1318",
+      "type": "REQUIRES",
+      "required_state": "delivered"
+    },
+    {
+      "task_id": "BI-PF-1290",
+      "type": "RELATED",
+      "required_state": "any"
+    },
+    {
+      "task_id": "BI-PF-1249",
+      "type": "RELATED",
+      "required_state": "any"
+    }
+  ],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-13T17:52:16.771900"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-13T17:50:46.729848",
+  "updated_at": "2026-10-13T17:52:17.221027",
+  "score": 0.75,
+  "_note": "readiness computed"
+}
