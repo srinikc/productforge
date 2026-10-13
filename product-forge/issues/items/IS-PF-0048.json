@@ -1,0 +1,31 @@
+{
+  "id": "IS-PF-0048",
+  "tag": "PF",
+  "scope": "product_forge",
+  "project": "",
+  "title": "Auto-mode HIL proxy gate fails stage 0: human agent invoked without the product brief / artifacts",
+  "body": "Auto-mode HIL proxy gate rejects stage 0 (and every gate): the human agent is invoked without the product brief or the artifacts under review. Evidence: core/human_proxy.py:103-107 builds a generic task and ignores the artifacts arg (reads only the human agent own outputs); core/pipeline_executor.py:1087-1103 uses the proxy decision before the auto_approve short-circuit. Observed on e2e run MyToDo: ideation produced a grounded ideation-output quoting the brief, but the human gate returned changes with reasons No brief present / only the product name is available, twice -> agent needs_retry -> stage 0 FAILED.",
+  "kind": "issue",
+  "priority": "P1",
+  "severity": "high",
+  "module": "core/human_proxy.py",
+  "status": "open",
+  "rcca": {
+    "root_cause": "human_proxy.decide() builds a generic gate task and ignores the artifacts argument; the product brief (executor.project_idea) is never passed to the human agent, so in auto mode the gate cannot judge and fails closed. The proxy decision also precedes the auto_approve short-circuit, so --auto cannot override it.",
+    "corrective": "Pass the product brief and the artifacts under review into the human-proxy gate task so the auto-mode human agent can judge; keep fail-closed only for genuinely missing context.",
+    "preventive": "Add a test: auto mode with a valid brief approves stage 0 (proxy sees the brief); assert the proxy prompt contains the brief + artifact.",
+    "fixed_where": "core/human_proxy.py",
+    "generalized": true,
+    "guideline_ref": "",
+    "product_ref": ""
+  },
+  "backlog_ref": "BI-PF-1321",
+  "source": "review",
+  "source_ref": "e2e-mytodo-stage0-hil-proxy-brief",
+  "evidence": [],
+  "links": {
+    "backlog": "BI-PF-1321"
+  },
+  "created_at": "2026-10-13T17:35:02.531987",
+  "updated_at": "2026-10-13T17:42:24.355170"
+}
