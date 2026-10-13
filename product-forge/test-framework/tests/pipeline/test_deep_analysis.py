@@ -35,10 +35,12 @@ def test_analyze_on_entry_by_default():
         iid = backlog.add_epic("project", _PROJ, "Add worker heartbeat to backlog scheduler",
                                body="extend worker orchestration", tag="TST")["id"]
         a = backlog.get("project", _PROJ, iid)["analysis"]
-        # analysis ran automatically at create (deep)
-        assert a["status"] == "IN_PROGRESS"
+        # analysis ran automatically at create (deep) AND is auto-approved so the item is worker-claimable
+        # at add (BI-PF-1282 supersedes the earlier "IN_PROGRESS awaiting a separate decision" behavior)
+        assert a["status"] == "COMPLETE"
         assert a.get("depth") == "deep"
-        assert a["analyzed_by"] in ("ai", "deterministic")
+        assert a["analyzed_by"] in ("ai", "deterministic", "system")  # auto-approved on add (BI-PF-1282)
+        assert a.get("mode") in ("ai", "deterministic")               # groomer provenance preserved
         # grounded in the real codebase
         assert a["existing_components"], "expected existing component matches"
         assert any(c.endswith((".py",)) for c in a["existing_components"])

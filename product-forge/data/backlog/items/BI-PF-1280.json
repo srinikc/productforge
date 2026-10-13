@@ -1,0 +1,189 @@
+{
+  "id": "BI-PF-1280",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "",
+  "label": "PF Backlog 590",
+  "title": "dogfood: monitoring - wait/poll + terminal event/webhook + status aggregation",
+  "body": "## Problem / why\nA 5-30 min run needs poll + push; Phase 1 dogfood_run.status exists but there is no terminal push.\n\n## Goal / value\nExpose progress via the shared bus: poll (run_status/events) + subscribe (SSE/webhook) + aggregate status.\n\n## In scope\n- dogfood_run.status uses the shared bus; terminal dogfood.finished event; wait respects an env timeout.\n\n## Out of scope\n- Building the bus (BI-PF-1265); UI.\n\n## Acceptance criteria\n- A client can poll and/or subscribe and learn when a dogfood finishes and act.\n\n## Verification / test plan\n- Status/summary test; terminal event emitted on completion.",
+  "source": "design",
+  "status": "new",
+  "priority": "P2",
+  "moscow": "Should",
+  "value": 4,
+  "effort": 3,
+  "risk": 2,
+  "deps": [
+    "BI-PF-1278",
+    "BI-PF-1274"
+  ],
+  "links": {},
+  "decisions": [
+    {
+      "at": "2026-10-12T23:27:14.168246",
+      "decision": "APPROVE",
+      "by": "cli",
+      "note": ""
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "A 5-30 min run needs poll + push; Phase 1 dogfood_run.status exists but there is no terminal push.",
+    "what_adds": "Expose progress via the shared bus: poll (run_status/events) + subscribe (SSE/webhook) + aggregate status.",
+    "why": "A 5-30 min run needs poll + push; Phase 1 dogfood_run.status exists but there is no terminal push.",
+    "who_feels": "Product Forge maintainers and consumers.",
+    "source": "authored"
+  },
+  "objective": "Expose progress via the shared bus: poll (run_status/events) + subscribe (SSE/webhook) + aggregate status.",
+  "acceptance_criteria": [
+    "A client can poll and/or subscribe and learn when a dogfood finishes and act."
+  ],
+  "in_scope": [
+    "dogfood_run.status uses the shared bus; terminal dogfood.finished event; wait respects an env timeout."
+  ],
+  "out_of_scope": [
+    "Building the bus (BI-PF-1265); UI."
+  ],
+  "affected_components": [
+    "Not specified."
+  ],
+  "affected_files": [
+    "Not specified."
+  ],
+  "approach": "- Status/summary test; terminal event emitted on completion.",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "A client can poll and/or subscribe and learn when a dogfood finishes and act."
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "agent",
+  "requester": "design",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1277",
+  "parent": "BI-PF-1277",
+  "revision": 3,
+  "priority_rank": 2,
+  "priority_class": "P2",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "COMPLETE",
+    "analyzed_at": "2026-10-12T23:27:14.003394",
+    "analyzed_by": "cli",
+    "revision_analyzed": 3,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/dogfood.py, core/dogfood_run.py, core/dogfood_schedule.py, core/events.py",
+    "existing_components": [
+      "core/dogfood.py",
+      "core/dogfood_run.py",
+      "core/dogfood_schedule.py",
+      "core/events.py",
+      "core/event_bus.py",
+      "core/grooming.py",
+      "core/run_status.py",
+      "core/status.py"
+    ],
+    "existing_apis": [
+      "/api/v1/backlog/epics/{epic_id}/status",
+      "/api/v1/backlog/grooming/guidelines",
+      "/api/v1/backlog/items/{item_id}/status",
+      "/api/v1/backlog/status",
+      "/api/v1/dogfood/run",
+      "/api/v1/dogfood/runs/{run_id}",
+      "/api/v1/dogfood/schedule",
+      "/api/v1/dogfood/schedule/tick"
+    ],
+    "existing_modules": [
+      "config/dogfood-schedule.json",
+      "config/grooming-guidelines.json"
+    ],
+    "dependency_findings": [
+      "depends on BI-PF-1278",
+      "depends on BI-PF-1274"
+    ],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=1.0",
+      "components=8",
+      "apis=8"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic",
+    "arch_fingerprint": "ba90c45005d704fa"
+  },
+  "dependencies": [
+    {
+      "task_id": "BI-PF-1278",
+      "type": "REQUIRES",
+      "required_state": "completed"
+    },
+    {
+      "task_id": "BI-PF-1274",
+      "type": "REQUIRES",
+      "required_state": "completed"
+    }
+  ],
+  "blocked_by": [
+    "BI-PF-1278",
+    "BI-PF-1274"
+  ],
+  "unlocks": [],
+  "readiness": {
+    "ready": false,
+    "reasons": [
+      "unmet dependency BI-PF-1278",
+      "unmet dependency BI-PF-1274"
+    ],
+    "computed_at": "2026-10-12T23:27:16.036054"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-12T22:55:32.937709",
+  "updated_at": "2026-10-12T23:27:16.113824",
+  "score": 1.0,
+  "_note": "readiness computed"
+}

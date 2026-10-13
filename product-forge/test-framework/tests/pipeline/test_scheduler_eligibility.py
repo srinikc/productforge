@@ -22,10 +22,16 @@ def _approve(iid):
     grooming.decide("project", _PROJ, iid, "APPROVE")
 
 
+def _reset(iid):
+    # an add now auto-grooms + approves (BI-PF-1282); force an un-groomed item to exercise the gates
+    backlog.set_analysis("project", _PROJ, iid, status="NOT_ANALYZED", analysis={}, analyzed_by="")
+
+
 def test_analysis_gate_blocks_until_complete():
     _clean()
     try:
         iid = backlog.add_epic("project", _PROJ, "Feature A", tag="TST")["id"]
+        _reset(iid)
         e = scheduler.eligible(backlog.get("project", _PROJ, iid))
         assert e["ok"] is False
         assert any("analysis" in r for r in e["reasons"])
@@ -185,6 +191,7 @@ def test_epic_status_lists_all_children_and_rollup():
         _approve(a)
         _approve(b)
         # c is intentionally left un-groomed -> needs_reanalysis
+        _reset(c)   # add auto-grooms+approves (BI-PF-1282); force c un-groomed
         backlog.set_status("project", _PROJ, b, "completed")  # a closed child must still be listed
         st = scheduler.epic_status("project", _PROJ, epic=ep)
         rows = {r["id"]: r for r in st["children"]}

@@ -78,6 +78,7 @@
 | [`ENG-9-DOGFOOD.md`](ENG-9-DOGFOOD.md) | Design | 100% | ENG-9 dogfood: baseline->worktree->pipeline->generated-product validation, fail-closed states | — | — |
 | [`ENGINEERING_OPERATING_STANDARD.md`](ENGINEERING_OPERATING_STANDARD.md) | SSOT | 100% | Binding engineering standard: how we think/design/build/verify (+DoD) | — | — |
 | [`ENTRYPOINTS.md`](ENTRYPOINTS.md) | Implemented | 100% | Which entry script/API to use | — | — |
+| [`EVENTING-ALERTING-SSOT-DESIGN.md`](EVENTING-ALERTING-SSOT-DESIGN.md) | Design | 0% | Eventing & Alerting SSOT: Go-first event bus + subscriber/alert transports; Python thin client (BI-PF-1265/1266; ADR-0005) | — | — |
 | [`EXTERNAL-TARGETS-WORKFLOW.md`](EXTERNAL-TARGETS-WORKFLOW.md) | Design | 80% | External delivery targets workflow | **Pending: some external delivery targets + their dashboard selection/UI.** | BI-0044, BI-0071, BI-0121–BI-0123 |
 | [`FEASIBILITY-TRIAGE-DESIGN.md`](FEASIBILITY-TRIAGE-DESIGN.md) | Design | 100% | Two-phase feasibility & capability triage (BI-0214) | — | — |
 | [`FULL-DOGFOOD-AND-FINAL-AUDIT.md`](FULL-DOGFOOD-AND-FINAL-AUDIT.md) | Design | 100% | Full dogfood lifecycle harness + final §42 production-readiness acceptance audit | — | — |
