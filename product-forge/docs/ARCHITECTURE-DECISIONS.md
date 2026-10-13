@@ -17,6 +17,7 @@ ADR. Individual ADRs may later be split into `docs/adr/NNNN-*.md` (the index her
 | [ADR-0003](#adr-0003-assignment-authority-in-the-producer-workergrid-is-a-runtime-host) | Assignment authority in the producer; WorkerGrid is a runtime host | Accepted | 2026-10-07 |
 | [ADR-0004](#adr-0004-feature--epic--children-backlog-model) | Feature ↔ Epic ↔ children (backlog model) | Accepted | 2026-10-08 |
 | [ADR-0005](#adr-0005-eventing--alerting-ssot-go-first-bus-python-thin-client) | Eventing & Alerting SSOT: Go-first event bus; Python thin client | Accepted | 2026-10-12 |
+| [ADR-0006](#adr-0006-enterprise-data-plane-postgresql-system-of-record-object-store-tenant-isolation-residency) | Enterprise Data Plane (PostgreSQL system of record, object store, tenant isolation, residency) | Accepted | 2026-10-13 |
 
 ## Template
 ```markdown
@@ -284,4 +285,86 @@ no-regression via shims.
   green.
 - Existing event/alert consumers unchanged (`test_event_ssot`, `test_api_events`, `test_redaction`,
   `test_tracing`, `test_run_status_reconcile` green).
+
+---
+
+# ADR-0006: Enterprise Data Plane (PostgreSQL system of record, object store, tenant isolation, residency)
+
+**Status:** Accepted
+**Date:** 2026-10-13
+**Deciders:** Product/Architecture
+**Baseline:** `origin/develop` @ `e9cc7e371bcf8d79df01ee3e1fe20d5ab01ba8c1` (implementation baseline pinned for EPIC
+BI-PF-1292 / EDP-01).
+**Related:** EPIC BI-PF-1292 (Enterprise Data Plane); roadmap
+`docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md`; ADR-0001 (Go-first compiled
+delivery); ADR-0003 (assignment authority in the producer); ADR-0005 (eventing SSOT);
+`docs/WORKER-SCHEDULER-OPERATIONS.md`.
+
+## Context and Problem Statement
+Product Forge's own operational state (backlog, issues, run/pipeline state, artifacts, jobs/leases, audit) is
+stored as **local JSON files** plus two committed **SQLite** databases, with **no PostgreSQL, no row-level
+security, and no server-verified tenant membership** (`api/auth.py` trusts `X-Tenant-Id`/`X-Roles`). The same
+state is *also* git-tracked and worked on by multiple sessions, so parallel work collides on shared files
+(`counters.json`, `config/id-blocks.json`, `epic.children[]`, derived indexes) and diverges across clones. There
+is no single transactional job/lease truth and eventing is ad-hoc. This does not scale to the intended
+enterprise, multi-tenant, multi-session workload (tens–hundreds of items in parallel).
+
+## Decision Drivers
+- **Enterprise multi-tenancy:** server-verified tenant isolation; authorization on every path.
+- **Parallelism without conflict:** concurrent sessions must not contend on shared mutable files.
+- **Performance:** indexed, paginated, pooled access; bounded payloads; measured SLOs.
+- **Security & residency:** versioned, fail-closed data-residency/transfer policy; secrets out of git.
+- **Migration safety:** inventory → parity → dual-read → cutover → rollback; no big-bang rewrite.
+- **One writer per concern; Go-first (ADR-0001); thin workers (ADR-0003); one job truth.**
+- **Git = code + reviewed config only** — never live operational state.
+
+## Considered Options
+1. **Keep file-based state (status quo).** Simple now; scales to ~10 items; conflicts/divergence compound.
+2. **Full rewrite of every store at once.** Big-bang risk; prohibited by the roadmap and EOS.
+3. **Provider-neutral evolution to an externalized data plane** — canonical interfaces, PostgreSQL system of
+   record, object storage for bytes, durable jobs/outbox, git decoupled — chosen.
+4. **Premature distributed infrastructure** (Kafka/Kubernetes/multiple DBs) — deferred until measured.
+
+## Decision Outcome
+**Chosen option:** Option 3 — evolve behind contracts; externalize state; keep domain APIs.
+- **Relational system of record = PostgreSQL** (16 minimum) for authoritative shared/concurrent state
+  (tenancy, projects/products, runs/stages, artifacts metadata, jobs/leases, outbox, audit, usage/quotas).
+  JSON stores become **read-only compatibility projections** regenerated from the DB.
+- **Object store** for bytes via an `ObjectStore` interface: local filesystem (dev) + one S3-compatible
+  adapter (deploy). DB holds metadata + opaque object references; never bytes, never provider URLs as identity.
+- **Canonical interfaces** (Go, ADR-0001): `RelationalStore`, `ObjectStore`, `ArtifactService`,
+  `MemoryRepository`, `JobStore`, `OutboxStore`, `SecretStore`, `AuditStore`, `BackupProvider`,
+  `Search`/`Vector` (optional), with a shared local+cloud **conformance** suite.
+- **Tenant isolation:** tenant context resolved **server-side** from identity/membership (never trusted from
+  headers); PostgreSQL **row-level security** (`USING` + `WITH CHECK`, least-privilege runtime role) as
+  defense-in-depth; authorization enforced at every boundary.
+- **Jobs/leases:** a durable `JobStore`/`OutboxStore` is the **one** job/lease truth (reuse WorkerGrid's
+  PostgreSQL store per ADR-0003); retries, heartbeat/lease expiry, dead-letter; every async effect via the
+  **transactional outbox** and the Go event bus (ADR-0005).
+- **Data residency** is a **versioned, fail-closed policy** (JurisdictionProfile / RegionResolver / RegionCell
+  capability attestation); legal profiles are counsel-owned inputs, never encoded conclusions.
+- **Git is decoupled from live state:** backlog/issues/counters/IDs stop being text-merged; derived views are
+  generated. Delivery records provenance via `set_delivery` (branch → merge → PR).
+- **Migration:** incremental adoption behind interfaces; import/parity/rollback/cutover tooling; affected scope
+  first is PF's **own** backlog/issues (glue items), then the broader data plane.
+
+### Consequences
+**Positive:** conflict-free parallel sessions; one authority; transactional correctness; enterprise
+tenant isolation and residency; provider portability via tested contracts; measurable performance; git stays
+for code/config.
+**Negative:** a real data plane to build/operate (PostgreSQL + adapters + migrations); polyglot (Go) additions;
+migration effort; some file-based consumers need projection compatibility.
+**Risks / mitigations:**
+- *Two writers during migration* → single-writer discipline + staged cutover; JSON read-only projections.
+- *Live migration races* → import/dual-read/parity/rollback; never live text-merge into the cutover repo.
+- *Provider capability gaps* → explicit capability attestation; fail closed.
+- *Offline/dev + tests* → local Docker PostgreSQL + a file adapter default for isolated tests.
+- *Worker streams* → keep the HTTP API contract stable; only the API's storage backend changes behind cutover.
+
+### Confirmation
+- Parallel sessions adding/claiming items produce **no** git merge conflicts on operational state.
+- Creating item #N is a DB transaction; IDs are unique per scope with no local block minting.
+- A tenant context resolved server-side cannot read/write another tenant's rows (RLS + tests).
+- `language_rule_check` + `wired_audit` + `precheck` green; migration parity + rollback demonstrated before
+  cutover; worker `/wg` claim/complete unchanged.
 
