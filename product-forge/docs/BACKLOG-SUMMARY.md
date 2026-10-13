@@ -1,12 +1,13 @@
 # Backlog Summary
 
-> GENERATED 2026-10-13T20:31:14 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-13T21:01:18 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 108  |  **Closed:** 504
-- `new`: 107
+- **Open:** 113  |  **Closed:** 507
+- `accepted`: 1
+- `new`: 111
 - `parked`: 1
 
 ### parked (1)
@@ -14,8 +15,8 @@
 |---|---|---|---|---|
 | BI-PF-0374 | Could | feature | PFSSOT-P12: optimization (only after correctness) | PFSSOT-P12: optimization (only after correctness) |
 
-### new, by category (107)
-**API / reports / HIL / misc** (11)
+### new, by category (111)
+**API / reports / HIL / misc** (12)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-PF-0332 | Should | chore | API-5 deferred hardening: rate limiting + request/upload limits + tenant-isolation expansion + event streaming | API-5 deferred hardening: rate limiting + request/upload limits + tenant-isolation expansion + event streaming |
@@ -29,6 +30,7 @@
 | BI-PF-1316 | Must | task | api-governance gate red on develop: committed api/openapi.json drifted from the routers (BI-PF-0397 EAP endpoints) | api-governance gate red on develop: committed api/openapi.json drifted from the routers (BI-PF-0397 EAP endpoi... |
 | BI-PF-1321 | Must | task | Auto-mode HIL proxy gate fails stage 0: human agent invoked without the product brief / artifacts | Auto-mode HIL proxy gate fails stage 0: human agent invoked without the product brief / artifacts |
 | BI-PF-1322 | Must | task | Product run re-pointed the framework repo git remote (connect_remote walked up to the parent repo) | Product run re-pointed the framework repo git remote (connect_remote walked up to the parent repo) |
+| BI-PF-1345 | Should | task | Artifact contracts: structured schema validators (OpenAPI JSON Schema / CycloneDX / MusicXML XSD) + counts enforcement | Artifact contracts: structured schema validators (OpenAPI JSON Schema / CycloneDX / MusicXML XSD) + counts enf... |
 
 **Discovery / HIL / prompts** (7)
 | ID | MoSCoW | Type | Title | Objective |
@@ -59,7 +61,7 @@
 | BI-PF-1315 | Must | feature | EDP-23: Backup/PITR + restore drills (full service + single-tenant) + DB<->object integrity reconciliation + region-aware restore | Deliver backup + PITR configuration, automated restore drills (full-service and single-tenant), DB<->object in... |
 | BI-PF-1317 | Could | feature | EDP-24: Scale-out & enterprise isolation tiers (read replicas / partitioning / tenant isolation tiers / additional region cells / region-migration workflow) [EVIDENCE-GATED] | Provide scale-out and enterprise isolation tiers including read-replica support, DB partitioning, tenant isola... |
 
-**Specs / cache / context / artifacts** (8)
+**Specs / cache / context / artifacts** (9)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0206 | Should | tech-debt | Backend: model downloader + local cache + license-acceptance gate + models.lock (open-weights) | One owner module that downloads only the weights a project's capability pack needs, into a gitignored local ca... |
@@ -70,8 +72,9 @@
 | BI-PF-1301 | Must | feature | EDP-09: Tenant context service with server-side membership/role verification + RLS (USING + WITH CHECK) + pooled-context negative tests | Build a tenant context service in Go that enforces server-side membership/role verification, applies PostgreSQ... |
 | BI-PF-1312 | Must | feature | EDP-20: Append-only AuditStore; split orchestrator/storage.py (audit vs cache vs evidence); retention/redaction; large checkpoints -> object store | Deliver an append-only AuditStore, split orchestrator/storage.py into audit/cache/evidence responsibilities, a... |
 | BI-PF-1314 | Should | feature | EDP-22: Benchmarks/SLOs + EXPLAIN(ANALYZE,BUFFERS) tuning + observability + quotas + graceful degradation (DB/object/cache/queue) | Establish performance benchmarks/SLOs, EXPLAIN(ANALYZE,BUFFERS)-based tuning, observability, quotas, and grace... |
+| BI-PF-1349 | Must | task | Agent definitions/specs registry: declarative agent contract (inputs/outputs/artifacts) + coverage gate for new/dynamic agents | Agent definitions/specs registry: declarative agent contract (inputs/outputs/artifacts) + coverage gate for ne... |
 
-**Wiring / tech-debt / API** (71)
+**Wiring / tech-debt / API** (73)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0185 | Should | feature | EPIC: Multi-modal / media orchestration (pluggable capability packs) | Make the pipeline modality-agnostic via PLUGGABLE capability packs, enabled per project when the idea needs th... |
@@ -145,6 +148,8 @@
 | BI-PF-1330 | Should | task | Failed stage blocks all re-runs: checkpoint restore keeps the failed stage (new/--from-stage fail immediately) | Failed stage blocks all re-runs: checkpoint restore keeps the failed stage (new/--from-stage fail immediately) |
 | BI-PF-1333 | Must | task | Design stage over-proportions output: 19 FRs + 15 NFRs for one trivial feature; 314KB partial blows run time/cost | Design stage over-proportions output: 19 FRs + 15 NFRs for one trivial feature; 314KB partial blows run time/c... |
 | BI-PF-1338 | Must | task | language_rule_check misses large new logic added via EDITS to existing shipped Python (should be Go) | language_rule_check misses large new logic added via EDITS to existing shipped Python (should be Go) |
+| BI-PF-1347 | Should | task | Artifact contracts: wire validate_artifact post-generation + repair/compress + outline gate + product-wide DRY | Artifact contracts: wire validate_artifact post-generation + repair/compress + outline gate + product-wide DRY |
+| BI-PF-1348 | Should | task | Artifact contracts: budget reconciliation with the run budget (work-estimate / PIPELINE_MAX_TOTAL_TIME) | Artifact contracts: budget reconciliation with the run budget (work-estimate / PIPELINE_MAX_TOTAL_TIME) |
 
 ---
 
@@ -344,5 +349,5 @@
 ---
 
 ## Totals
-- backend: 108 open / 504 closed
+- backend: 113 open / 507 closed
 - dashboard: 146 open / 3 closed

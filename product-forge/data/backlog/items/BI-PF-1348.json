@@ -1,0 +1,168 @@
+{
+  "id": "BI-PF-1348",
+  "tag": "PF",
+  "type": "task",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "",
+  "label": "PF Backlog 619",
+  "title": "Artifact contracts: budget reconciliation with the run budget (work-estimate / PIPELINE_MAX_TOTAL_TIME)",
+  "body": "Reconcile summed per-artifact budgets against the run budget; surface over/under.",
+  "source": "generic",
+  "status": "new",
+  "priority": null,
+  "moscow": "Should",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [],
+  "links": {
+    "issue": "product_forge:IS-PF-0051"
+  },
+  "decisions": [],
+  "follow_up": {},
+  "brief": {
+    "problem": "Reconcile summed per-artifact budgets against the run budget; surface over/under.",
+    "what_adds": "Artifact contracts: budget reconciliation with the run budget (work-estimate / PIPELINE_MAX_TOTAL_TIME)",
+    "why": "Reconcile summed per-artifact budgets against the run budget; surface over/under.",
+    "who_feels": "Product Forge maintainers and consumers.",
+    "source": "extracted"
+  },
+  "objective": "Artifact contracts: budget reconciliation with the run budget (work-estimate / PIPELINE_MAX_TOTAL_TIME)",
+  "acceptance_criteria": [
+    "Objective achieved: Artifact contracts: budget reconciliation with the run budget (work-estimate / PIPELINE_MAX_TOTAL_TIME)"
+  ],
+  "in_scope": [
+    "Artifact contracts: budget reconciliation with the run budget (work-estimate / PIPELINE_MAX_TOTAL_TIME)"
+  ],
+  "out_of_scope": [
+    "Not specified."
+  ],
+  "affected_components": [
+    "Not specified."
+  ],
+  "affected_files": [
+    "Not specified."
+  ],
+  "approach": "Artifact contracts: budget reconciliation with the run budget (work-estimate / PIPELINE_MAX_TOTAL_TIME)",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Objective achieved: Artifact contracts: budget reconciliation with the run budget (work-estimate / PIPELINE_MAX_TOTAL_TIME)"
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "agent",
+  "requester": "generic",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1342",
+  "parent": "BI-PF-1342",
+  "revision": 1,
+  "priority_rank": null,
+  "priority_class": "",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "IN_PROGRESS",
+    "analyzed_at": "",
+    "analyzed_by": "ai",
+    "revision_analyzed": 0,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend core/budget.py + budget_allocator.py with a reconciliation pass that sums per-artifact budgets from artifact-formats.json/config and compares to PIPELINE_MAX_TOTAL_TIME; expose over/under deltas via artifact reconciliation gate and /api/v1/artifacts manifest; reuse budget_conservation for conservation checks.",
+    "existing_components": [],
+    "existing_apis": [],
+    "existing_modules": [],
+    "dependency_findings": [
+      {
+        "task_id": "BI-PF-0335",
+        "type": "REQUIRES",
+        "required_state": "in_progress"
+      },
+      {
+        "task_id": "BI-0072",
+        "type": "RELATED",
+        "required_state": "open"
+      }
+    ],
+    "conflict_findings": [
+      "BI-PF-0335 touches core/artifact_formats.py and reconciliation gate — coordinate merge order",
+      "Budget modules shared with scheduler/allocator work (BI-PF-1222) — serialize changes to core/budget*.py"
+    ],
+    "duplication_findings": [
+      "BI-PF-0335 already builds contract reconciliation artifact+gate — must extend, not duplicate",
+      "BI-0072 covers max_duration semantics — align total-time definitions to avoid drift",
+      "budget_planner/allocator already compute per-stage budgets — reuse rather than new math"
+    ],
+    "drift": "LOW",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "Reconciliation is pure budget-summing over existing artifact contracts and the run budget constant; extending budget_* modules and the BI-PF-0335 gate satisfies it without new components.",
+    "assumptions": [
+      "PIPELINE_MAX_TOTAL_TIME is the authoritative run budget",
+      "Per-artifact budgets are declared in artifact-formats config and are static per run",
+      "Over/under is informational, not a hard gate in v1"
+    ],
+    "risks": [
+      "Total-time definition mismatch between artifact budgets and pipeline elapsed (see BI-0072) may skew over/under results",
+      "HIL wait time inclusion could falsely report budget overrun",
+      "Concurrent edits to budget modules by scheduler epic may conflict"
+    ],
+    "evidence": [
+      "core/budget_allocator.py and budget_conservation.py already compute budget math",
+      "config/artifact-formats.json holds per-artifact contracts",
+      "/api/v1/evidence/manifest/{run_id} is the natural surfacing point"
+    ],
+    "confidence": "medium",
+    "missing_info": [
+      "Should over-budget block the run (gate) or only surface warnings?",
+      "Are artifact budgets advisory estimates or enforced contracts in v1?",
+      "Canonical total-time definition: wall clock vs compute-only excluding HIL wait"
+    ],
+    "depth": "deep",
+    "mode": "ai"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": false,
+    "reasons": [],
+    "computed_at": ""
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-13T20:57:58.063855",
+  "updated_at": "2026-10-13T20:58:45.488039",
+  "score": 0.75,
+  "_note": "analysis updated"
+}
