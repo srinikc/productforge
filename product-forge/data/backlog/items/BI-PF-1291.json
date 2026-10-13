@@ -1,0 +1,208 @@
+{
+  "id": "BI-PF-1291",
+  "tag": "PF",
+  "type": "bug",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "ops",
+  "external_id": "BACKLOG-EPIC-CHILDREN-SYNC-1",
+  "label": "PF Backlog 579",
+  "title": "Defect/RCCA: backlog.update() did not sync epic.children[] on epic/parent change -> chronic backlog residue that fails the residue gate on every branch (fixed; delivered with A4)",
+  "body": "5-Why: (1) branches failed test_real_backlog_has_no_residue with 'epic children[] out of sync'; (2) an epic's children[] listed fewer ids than items actually carrying that epic; (3) membership was set/changed via core.backlog.update(), which did NOT keep children[] in sync -- only add_epic did; (4) _sync_epic_children calls update() so it could not be called from inside update()'s lock without self-locking, so the writer left the gap; (5) no guard ensured epic.children == actual children on every membership write, so drift accumulated as items were added/re-homed (concurrent sessions). Guard/fix: backlog.update() now syncs children[] for the old+new epic/parent AFTER releasing the lock; delivered on the A4 branch (BI-PF-0397, PR #76) which also resynced the drifted epics.",
+  "source": "generic",
+  "status": "new",
+  "priority": "P3",
+  "moscow": "Should",
+  "value": 4,
+  "effort": 1,
+  "risk": 2,
+  "deps": [
+    "BI-PF-0397",
+    "BI-PF-1252",
+    "BI-PF-1201",
+    "BI-PF-1235"
+  ],
+  "links": {},
+  "decisions": [
+    {
+      "at": "2026-10-13T15:40:32.107202",
+      "decision": "APPROVE",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)"
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "5-Why: (1) branches failed test_real_backlog_has_no_residue with 'epic children[] out of sync'; (2) an epic's children[] listed fewer ids than items actually carrying that epic; (3) membership was set/changed via core.backlog.update(), which did NOT keep children[] in sync -- only add_epic did; (4) _sync_epic_children calls update() so it could not be called from inside update()'s lock without self-locking, so the writer left the gap; (5) no guard ensured epic.children == actual children on every membership write, so drift accumulated as items were added/re-homed (concurrent sessions). Guard/fix: backlog.update() now syncs children[] for the old+new epic/parent AFTER releasing the lock; delivered on the A4 branch (BI-PF-0397, PR #76) which also resynced the drifted epics.",
+    "what_adds": "Defect/RCCA: backlog.update() did not sync epic.children[] on epic/parent change -> chronic backlog residue that fails the residue gate on every branch (fixed; delivered with A4)",
+    "why": "5-Why: (1) branches failed test_real_backlog_has_no_residue with 'epic children[] out of sync'; (2) an epic's children[] listed fewer ids than items actually carrying that epic; (3) membership was set/changed via core.backlog.update(), which did NOT keep children[] in sync -- only add_epic did; (4) _sync_epic_children calls update() so it could not be called from inside update()'s lock without self-locking, so the writer left the gap; (5) no guard ensured epic.children == actual children on every membership write, so drift accumulated as items were added/re-homed (concurrent sessions). Guard/f",
+    "who_feels": "Product Forge maintainers and consumers.",
+    "source": "extracted"
+  },
+  "objective": "Keep epic.children[] in sync on every epic/parent membership change so the backlog-residue gate never drifts.",
+  "acceptance_criteria": [
+    "backlog.update() syncs epic.children[] when epic/parent changes (post-lock)",
+    "the residue gate stays clean after membership changes",
+    "regression covered by the existing residue test"
+  ],
+  "in_scope": [
+    "core/backlog.py update() children sync"
+  ],
+  "out_of_scope": [
+    "grooming re-home path (already syncs)"
+  ],
+  "affected_components": [
+    "Not specified."
+  ],
+  "affected_files": [
+    "core/backlog.py"
+  ],
+  "approach": "Defect/RCCA: backlog.update() did not sync epic.children[] on epic/parent change -> chronic backlog residue that fails the residue gate on every branch (fixed; delivered with A4)",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Objective achieved: Defect/RCCA: backlog.update() did not sync epic.children[] on epic/parent change -> chronic backlog residue that fails the residue gate on every branch (fixed; delivered with A4)"
+  ],
+  "risks": [
+    "calling _sync from update must be post-lock (done) to avoid self-lock"
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "unassigned",
+  "requester": "generic",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-0360",
+  "parent": "BI-PF-0360",
+  "revision": 3,
+  "priority_rank": 90,
+  "priority_class": "P3",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "COMPLETE",
+    "analyzed_at": "2026-10-13T15:40:31.759945",
+    "analyzed_by": "system",
+    "revision_analyzed": 3,
+    "architecture_fit": "REUSE",
+    "implementation_strategy": "VERIFY-ONLY: confirm backlog.update() post-lock _sync_epic_children for old+new epic/parent in core/backlog.py; add a regression unit test asserting epic.children == actual membership after re-homing via update(); keep test_real_backlog_has_no_residue as the gate. No new component; reuse core/backlog.py writer + defect_loop/CI residue gate.",
+    "existing_components": [],
+    "existing_apis": [],
+    "existing_modules": [],
+    "dependency_findings": [
+      "Requires A4 branch fix (PR #76) merged and drifted epics resynced",
+      "RELATED BI-PF-1201: writer-level dependency guard pattern mirrors this children-sync guard",
+      "RELATED BI-PF-1235: parent epic order refresh touches same update path"
+    ],
+    "conflict_findings": [
+      "Any task editing core/backlog.update() lock ordering could regress the post-lock sync",
+      "BI-PF-1235 groom/approve refreshes may call update() concurrently"
+    ],
+    "duplication_findings": [
+      "Fix already delivered on A4 branch (BI-PF-0397, PR #76) — do not re-implement",
+      "test_real_backlog_has_no_residue already exists as the enforcement gate",
+      "BI-PF-1252 (Unscoped) may overlap on residue checks — confirm scope"
+    ],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "Defect is already FIXED and delivered via A4/PR #76; the remaining work is verification and regression coverage so children[] drift cannot silently return. Reuse the existing writer sync plus the CI residue gate; no rewrite.",
+    "assumptions": [
+      "PR #76 fix is merged to the main line used by CI",
+      "Residue gate runs on every branch in CI",
+      "children[] is the single source for epic membership display/order"
+    ],
+    "risks": [
+      "Post-lock sync may race under concurrent sessions (two writers syncing different epics)",
+      "Re-homing during a read could expose transient children[] mismatch",
+      "Over-eager resync could mask other invariants"
+    ],
+    "evidence": [
+      "BI-PF-1291 body 5-Why items 1-5",
+      "Delivered with A4 (BI-PF-0397, PR #76)",
+      "core/backlog.py present in candidate code list"
+    ],
+    "confidence": "high",
+    "missing_info": [
+      "Confirm PR #76 is merged to all active branches (not just A4)",
+      "Whether the regression test already exists or must be authored",
+      "Owner/requester assignment for closure sign-off"
+    ],
+    "depth": "deep",
+    "mode": "ai",
+    "context_review": {
+      "ok": false,
+      "source": "llm",
+      "implementable": false,
+      "missing": [
+        "where"
+      ],
+      "reason": "Fix approach and acceptance criteria are clear (post-lock children[] sync), but AFFECTED_COMPONENTS/AFFECTED_FILES are 'Not specified' — no WHERE, and APPROACH field is just a title echo; item is also already delivered (A4), so re-implementation target is ambiguous."
+    },
+    "arch_fingerprint": "dc9598f15f6d5d5f"
+  },
+  "dependencies": [
+    {
+      "task_id": "BI-PF-0397",
+      "type": "REQUIRES",
+      "required_state": "merged"
+    },
+    {
+      "task_id": "BI-PF-1252",
+      "type": "RELATED",
+      "required_state": "triaged"
+    },
+    {
+      "task_id": "BI-PF-1201",
+      "type": "RELATED",
+      "required_state": "any"
+    },
+    {
+      "task_id": "BI-PF-1235",
+      "type": "RELATED",
+      "required_state": "any"
+    }
+  ],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-13T15:40:31.924359"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-13T15:39:31.025920",
+  "updated_at": "2026-10-13T15:40:33.150148",
+  "score": 3.0,
+  "_note": "RCCA of chronic residue; fix shipped with BI-PF-0397 (PR #76)",
+  "dashboard_impact": {
+    "needs_dashboard": false,
+    "reason": "backlog hygiene"
+  }
+}
