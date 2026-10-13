@@ -63,6 +63,10 @@ var contractShapes = map[string]contractShape{
 	"evidence":            {"product-forge/evidence@1", []string{"schema", "evidence_id", "kind"}},
 	"wire-request":        {"product-forge/wire-request@1", []string{"schema", "id", "op"}},
 	"wire-response":       {"product-forge/wire-response@1", []string{"schema", "id", "op", "ok", "status", "host"}},
+	"event-envelope":      {"product-forge/event-envelope@1", []string{"schema", "event_id", "event_type", "event_version", "occurred_at", "seq"}},
+	"subscription":        {"product-forge/subscription@1", []string{"schema", "id", "transport"}},
+	"alert-rule":          {"product-forge/alert-rule@1", []string{"schema", "event_type", "channels"}},
+	"webhook-delivery":    {"product-forge/webhook-delivery@1", []string{"schema", "delivery_id", "event_id", "subscription_id", "target_url"}},
 }
 
 // ContractNames returns the known contract names (sorted, deterministic describe output).
