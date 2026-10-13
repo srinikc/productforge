@@ -10,14 +10,24 @@
   "title": "CI strategy: fast targeted per-change gate + scheduled full sweep (stop running full precheck on every change)",
   "body": "Problem: every PR/merge currently runs precheck --full (58 gates, ~6-20 min), so any single fix pays the full suite cost and unrelated pre-existing red (e.g. committed learnings pollution, BI-PF-1332) blocks ALL merges. Observed: PR #93 (docs-only ADR) blocked by an unrelated pipeline test fail.\n\nProposal (industry shift-left model):\n1. PR/change gate = targeted checks only: compile + lint/static + code review + the tests that cover the changed area (runtime-selected) + API/governance contract tests for touched routes.\n2. A SEPARATE scheduled system runs the FULL suite/gates on develop every 30-60 min (10-20 min), surfacing cross-cutting regressions on the integration branch, not on every PR.\n3. Merge-time still re-validates: conflicts/regressions are caught at merge or by the scheduled full run and fixed forward.\n\nPF already has tiers (precheck fast vs --full) + core/validation_engine profiles (FEATURE_PR/INTEGRATION/DOGFOOD/RELEASE). Implement by: making the PR CI job run the fast/FEATURE_PR profile; adding a scheduled GitHub Actions workflow (cron) running precheck --full on develop; keeping the release/merge profile as a deliberate, heavier gate. Preserve fail-closed for genuine new issues (baseline-aware gates so legacy debt does not block).",
   "source": "review",
-  "status": "new",
+  "status": "completed",
   "priority": "P2",
   "moscow": "Should",
   "value": 3,
   "effort": 3,
   "risk": 2,
   "deps": [],
-  "links": {},
+  "links": {
+    "delivery": {
+      "branch": "feature/bi-pf-1336",
+      "merge_sha": "cf81b313ffef4d0ce01476e50d0a0bcb5339b900",
+      "commits": [],
+      "pr": "95",
+      "pr_url": "https://github.com/srinikc/productforge/pull/95",
+      "at": "2026-10-13T23:27:55.963196",
+      "note": "fast per-change gate + scheduled full sweep"
+    }
+  },
   "decisions": [
     {
       "at": "2026-10-13T19:39:35.908948",
@@ -93,12 +103,12 @@
   "children": [],
   "epic": "BI-PF-1243",
   "parent": "BI-PF-1243",
-  "revision": 2,
+  "revision": 3,
   "priority_rank": 2,
   "priority_class": "P2",
   "analyze_mode": "on_entry",
   "analysis": {
-    "status": "COMPLETE",
+    "status": "STALE",
     "analyzed_at": "2026-10-13T19:39:39.685421",
     "analyzed_by": "agent",
     "revision_analyzed": 2,
@@ -169,7 +179,7 @@
     "usage": {}
   },
   "created_at": "2026-10-13T19:39:34.781410",
-  "updated_at": "2026-10-13T19:39:40.181016",
+  "updated_at": "2026-10-13T23:27:56.225687",
   "score": 0.75,
-  "_note": "readiness computed"
+  "_note": "delivered via PR #95"
 }
