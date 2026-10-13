@@ -1,0 +1,176 @@
+{
+  "id": "BI-PF-1282",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "",
+  "label": "PF Backlog 575",
+  "title": "One-step add: groom the item at create (epic auto-assign, dependencies, execution order) instead of a separate later step",
+  "body": "## Problem / why\nAdding a backlog item and grooming it are two logical steps today. On create only a deterministic\nanalysis runs (PFSSOT-P3, core/backlog.py:838-842); epic assignment happens only for some automated\ncreators (core/intake.py:164, core/issues.py:244, core/insights.py:140, core/intake_channels.py:331,\ncore/ops_phase.py:99 via auto_epic), a direct add leaves epic='' (warning core/backlog.py:843-845),\nstructured dependencies come only from explicit deps (core/grooming.py:191-198), and the epic execution\norder is computed later by the scheduler (core/scheduler.py:550-578). Items are therefore not\nscheduler-ready on creation.\n\n## Goal\nOn the FIRST add, run the SAME grooming the standard path runs (AI + deterministic, batch-capable) and\ncomplete planning: auto-assign the epic (best match else Unscoped), populate dependencies, and persist\nthe epic execution order - so add is one step and the item is scheduler-ready.\n\n## In scope\n- core/backlog.py add_epic (single create path): if no epic passed and the item is not an epic, auto_epic(...).\n- Call the SAME grooming routine as elsewhere (default mode: AI with deterministic fallback), not a\n  deterministic-only variant.\n- After the epic is known, derive and persist the epic execution order (core.scheduler.epic_order ->\n  backlog.set_execution_order).\n- First-time-only guard: stamp the item so re-adds (same external_id) and updates do not re-groom.\n\n## Out of scope\n- Inferring dependencies from related items (explicit deps/blocked_by only).\n- Changing the grooming engine or the AI prompt.\n\n## Approach\nMove the epic-assign + groom + order steps into add_epic after the item is written and the lock released\n(as today), guarded by a groomed marker; amend the PFSSOT-P3 decision (on-entry = full groom, not\ndeterministic-only).\n\n## Acceptance criteria\n- Adding an item with no epic attaches it to the best-match epic, else Unscoped (no epic-less item from a plain add).\n- The on-add analysis matches the standard grooming output (same routine).\n- The epic's execution_order is persisted after add.\n- Re-adding the same external_id and updating an item do not re-groom (first-time only).\n- Tests cover the above; precheck passes.\n\n## Risks\n- A create may block on a live AI call; mitigate with the existing deterministic fallback (never blocks)\n  and first-time-only scoping.\n\n## Rollback\nRevert the add_epic change; items still groom via the later pass (groom_all/refresh_stale).\n",
+  "source": "user",
+  "status": "new",
+  "priority": "P2",
+  "moscow": "Should",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [],
+  "links": {
+    "backend_capability": [
+      "file:core/backlog.py",
+      "file:core/grooming.py",
+      "file:core/scheduler.py"
+    ]
+  },
+  "decisions": [],
+  "follow_up": {},
+  "brief": {
+    "problem": "Adding a backlog item and grooming it are two logical steps today. On create only a deterministic\nanalysis runs (PFSSOT-P3, core/backlog.py:838-842); epic assignment happens only for some automated\ncreators (core/intake.py:164, core/issues.py:244, core/insights.py:140, core/intake_channels.py:331,\ncore/ops_phase.py:99 via auto_epic), a direct add leaves epic='' (warning core/backlog.py:843-845),\nstructured dependencies come only from explicit deps (core/grooming.py:191-198), and the epic execution\norder is computed later by the scheduler (core/scheduler.py:550-578). Items are therefore not\nscheduler-ready on creation.",
+    "what_adds": "On the FIRST add, run the SAME grooming the standard path runs (AI + deterministic, batch-capable) and\ncomplete planning: auto-assign the epic (best match else Unscoped), populate dependencies, and persist\nthe epic execution order - so add is one step and the item is scheduler-ready.",
+    "why": "Adding a backlog item and grooming it are two logical steps today. On create only a deterministic\nanalysis runs (PFSSOT-P3, core/backlog.py:838-842); epic assignment happens only for some automated\ncreators (core/intake.py:164, core/issues.py:244, core/insights.py:140, core/intake_channels.py:331,\ncore/ops_phase.py:99 via auto_epic), a direct add leaves epic='' (warning core/backlog.py:843-845),\nstructured dependencies come only from explicit deps (core/grooming.py:191-198), and the epic execution\norder is computed later by the scheduler (core/scheduler.py:550-578). Items are therefore not\nsch",
+    "who_feels": "Product Forge maintainers and consumers.",
+    "source": "authored"
+  },
+  "objective": "On the FIRST add, run the SAME grooming the standard path runs (AI + deterministic, batch-capable) and\ncomplete planning: auto-assign the epic (best match else Unscoped), populate dependencies, and persist\nthe epic execution order - so add is one step and the item is scheduler-ready.",
+  "acceptance_criteria": [
+    "Adding an item with no epic attaches it to the best-match epic, else Unscoped (no epic-less item from a plain add).",
+    "The on-add analysis matches the standard grooming output (same routine).",
+    "The epic's execution_order is persisted after add.",
+    "Re-adding the same external_id and updating an item do not re-groom (first-time only).",
+    "Tests cover the above; precheck passes."
+  ],
+  "in_scope": [
+    "core/backlog.py add_epic (single create path): if no epic passed and the item is not an epic, auto_epic(...).",
+    "Call the SAME grooming routine as elsewhere (default mode: AI with deterministic fallback), not a",
+    "After the epic is known, derive and persist the epic execution order (core.scheduler.epic_order ->",
+    "First-time-only guard: stamp the item so re-adds (same external_id) and updates do not re-groom."
+  ],
+  "out_of_scope": [
+    "Inferring dependencies from related items (explicit deps/blocked_by only).",
+    "Changing the grooming engine or the AI prompt."
+  ],
+  "affected_components": [
+    "core"
+  ],
+  "affected_files": [
+    "core/backlog.py",
+    "core/grooming.py",
+    "core/insights.py",
+    "core/intake.py",
+    "core/intake_channels.py",
+    "core/issues.py",
+    "core/ops_phase.py",
+    "core/scheduler.py"
+  ],
+  "approach": "Move the epic-assign + groom + order steps into add_epic after the item is written and the lock released\n(as today), guarded by a groomed marker; amend the PFSSOT-P3 decision (on-entry = full groom, not\ndeterministic-only).",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Adding an item with no epic attaches it to the best-match epic, else Unscoped (no epic-less item from a plain add).",
+    "The on-add analysis matches the standard grooming output (same routine).",
+    "The epic's execution_order is persisted after add.",
+    "Re-adding the same external_id and updating an item do not re-groom (first-time only).",
+    "Tests cover the above; precheck passes."
+  ],
+  "risks": [
+    "A create may block on a live AI call; mitigate with the existing deterministic fallback (never blocks)"
+  ],
+  "rollback": "Revert the add_epic change; items still groom via the later pass (groom_all/refresh_stale).",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "agent",
+  "requester": "user",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-0360",
+  "parent": "BI-PF-0360",
+  "revision": 2,
+  "priority_rank": 2,
+  "priority_class": "P2",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "IN_PROGRESS",
+    "analyzed_at": "",
+    "analyzed_by": "deterministic",
+    "revision_analyzed": 0,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/execution_contract.py, core/grooming.py, /api/v1/backlog/epics/{epic_id}/order, /api/v1/backlog/epics/{epic_id}/status",
+    "existing_components": [
+      "core/execution_contract.py",
+      "core/grooming.py"
+    ],
+    "existing_apis": [
+      "/api/v1/backlog/epics/{epic_id}/order",
+      "/api/v1/backlog/epics/{epic_id}/status",
+      "/api/v1/backlog/groom",
+      "/api/v1/backlog/groom/approve",
+      "/api/v1/backlog/grooming/guidelines",
+      "/api/v1/backlog/items",
+      "/api/v1/backlog/items/{item_id}",
+      "/api/v1/backlog/items/{item_id}/analysis"
+    ],
+    "existing_modules": [
+      "config/grooming-guidelines.json"
+    ],
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=0.75",
+      "components=2",
+      "apis=8"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": false,
+    "reasons": [],
+    "computed_at": ""
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-12T23:55:13.055546",
+  "updated_at": "2026-10-12T23:55:14.080964",
+  "score": 0.75,
+  "_note": "priority set"
+}
