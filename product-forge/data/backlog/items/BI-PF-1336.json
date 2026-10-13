@@ -1,0 +1,175 @@
+{
+  "id": "BI-PF-1336",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "ci-fast-pr-scheduled-full",
+  "label": "PF Backlog 612",
+  "title": "CI strategy: fast targeted per-change gate + scheduled full sweep (stop running full precheck on every change)",
+  "body": "Problem: every PR/merge currently runs precheck --full (58 gates, ~6-20 min), so any single fix pays the full suite cost and unrelated pre-existing red (e.g. committed learnings pollution, BI-PF-1332) blocks ALL merges. Observed: PR #93 (docs-only ADR) blocked by an unrelated pipeline test fail.\n\nProposal (industry shift-left model):\n1. PR/change gate = targeted checks only: compile + lint/static + code review + the tests that cover the changed area (runtime-selected) + API/governance contract tests for touched routes.\n2. A SEPARATE scheduled system runs the FULL suite/gates on develop every 30-60 min (10-20 min), surfacing cross-cutting regressions on the integration branch, not on every PR.\n3. Merge-time still re-validates: conflicts/regressions are caught at merge or by the scheduled full run and fixed forward.\n\nPF already has tiers (precheck fast vs --full) + core/validation_engine profiles (FEATURE_PR/INTEGRATION/DOGFOOD/RELEASE). Implement by: making the PR CI job run the fast/FEATURE_PR profile; adding a scheduled GitHub Actions workflow (cron) running precheck --full on develop; keeping the release/merge profile as a deliberate, heavier gate. Preserve fail-closed for genuine new issues (baseline-aware gates so legacy debt does not block).",
+  "source": "review",
+  "status": "new",
+  "priority": "P2",
+  "moscow": "Should",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [],
+  "links": {},
+  "decisions": [
+    {
+      "at": "2026-10-13T19:39:35.908948",
+      "decision": "APPROVE",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)"
+    },
+    {
+      "at": "2026-10-13T19:39:40.022596",
+      "decision": "APPROVE",
+      "by": "agent",
+      "note": "deterministic finalize"
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "precheck --full on every PR is costly and lets unrelated red block all merges.",
+    "what_adds": "Fast targeted per-PR gate + scheduled full sweep on develop.",
+    "why": "Reduce change cost and unblock independent work without losing coverage.",
+    "who_feels": "All sessions, release.",
+    "source": "review"
+  },
+  "objective": "Cut per-change CI cost: fast targeted gate per PR + a scheduled full sweep on develop, without losing regression safety.",
+  "acceptance_criteria": [
+    "PR CI runs a fast/targeted profile (changed-area tests + lint + contract) instead of precheck --full.",
+    "A scheduled workflow runs precheck --full on develop periodically and reports; failures are actionable.",
+    "Genuine new breakages are still fail-closed (baseline-aware); legacy/pre-existing red does not block unrelated PRs.",
+    "Measured: median PR gate time drops materially; scheduled full run remains green-or-reported."
+  ],
+  "in_scope": [
+    "CI strategy: fast targeted per-change gate + scheduled full sweep (stop running full precheck on every change)"
+  ],
+  "out_of_scope": [
+    "Not specified."
+  ],
+  "affected_components": [
+    "Not specified."
+  ],
+  "affected_files": [
+    ".github/workflows/",
+    "scripts/dev/precheck.py",
+    "core/validation_engine.py"
+  ],
+  "approach": "CI strategy: fast targeted per-change gate + scheduled full sweep (stop running full precheck on every change)",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Objective achieved: CI strategy: fast targeted per-change gate + scheduled full sweep (stop running full precheck on every change)"
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "agent",
+  "requester": "review",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1243",
+  "parent": "BI-PF-1243",
+  "revision": 2,
+  "priority_rank": 2,
+  "priority_class": "P2",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "COMPLETE",
+    "analyzed_at": "2026-10-13T19:39:39.685421",
+    "analyzed_by": "agent",
+    "revision_analyzed": 2,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/code_quality_gate.py, core/merge_gate.py, core/model_gate.py, core/model_strategy.py",
+    "existing_components": [
+      "core/code_quality_gate.py",
+      "core/merge_gate.py",
+      "core/model_gate.py",
+      "core/model_strategy.py",
+      "core/pr_gate.py",
+      "core/run_quality_gate.py",
+      "core/stop_conditions.py"
+    ],
+    "existing_apis": [
+      "/api/v1/engineering/gates",
+      "/api/v1/engineering/pidl/gate",
+      "/api/v1/gates/go-no-go",
+      "/api/v1/gates/pr",
+      "/api/v1/gates/pr/merge",
+      "/api/v1/gates/quality",
+      "/api/v1/portfolio/supervisor/stop",
+      "/api/v1/release/gate"
+    ],
+    "existing_modules": [
+      "config/ci-cd-gates.json"
+    ],
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=0.75",
+      "components=7",
+      "apis=8"
+    ],
+    "confidence": "high",
+    "arch_fingerprint": "2ac583a2a8414c6d",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-13T19:39:39.818552"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-13T19:39:34.781410",
+  "updated_at": "2026-10-13T19:39:40.181016",
+  "score": 0.75,
+  "_note": "readiness computed"
+}

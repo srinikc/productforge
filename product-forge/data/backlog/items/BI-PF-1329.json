@@ -1,0 +1,206 @@
+{
+  "id": "BI-PF-1329",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "wg-o5-claim-specific",
+  "label": "PF Backlog 5",
+  "title": "WG-O5: Assign a SPECIFIC backlog item to a session/worker (claim-by-id + operator assignment) with lease semantics",
+  "body": "Part of EPIC BI-PF-0360. Source: docs/WORKER-SCHEDULER-OPERATIONS.md.",
+  "source": "review",
+  "status": "new",
+  "priority": "P1",
+  "moscow": "Should",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [
+    "BI-PF-1327",
+    "BI-PF-1325",
+    "BI-PF-1326"
+  ],
+  "links": {},
+  "decisions": [
+    {
+      "at": "2026-10-13T18:21:23.530584",
+      "decision": "APPROVE",
+      "by": "cli",
+      "note": ""
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "claim is next-eligible only; cannot hand a specific item to a specific session for parallel work.",
+    "what_adds": "Claim-by-item-id and operator assignment endpoints, reusing the existing lease/heartbeat/complete lifecycle.",
+    "why": "Enables deliberate parallel work: each session gets a chosen item, with leases still preventing overlap.",
+    "who_feels": "Operators, multi-session developers.",
+    "source": "review"
+  },
+  "objective": "Support claiming/assigning a specific item id (not just next-eligible).",
+  "acceptance_criteria": [
+    "POST assignments/claim accepts an optional item_id; eligibility + lease rules enforced identically.",
+    "An operator can assign item X to worker Y (audited).",
+    "Double-claim is still impossible; blocked/ineligible items are rejected fail-closed.",
+    "wg CLI exposes the by-id claim."
+  ],
+  "in_scope": [
+    "claim-by-id",
+    "operator assign",
+    "CLI"
+  ],
+  "out_of_scope": [
+    "bypassing eligibility/leases"
+  ],
+  "affected_components": [
+    "api/routers/engineering.py",
+    "core/job_manager.py"
+  ],
+  "affected_files": [
+    "api/routers/engineering.py",
+    "core/job_manager.py",
+    "workergrid/wg.py"
+  ],
+  "approach": "Extend claim_next with an item_id path; add an operator assign endpoint; reuse lease lifecycle.",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "claim a specific eligible item; blocked item rejected; second claim denied."
+  ],
+  "risks": [
+    "operator assigning an ineligible item (fail-closed)."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "agent",
+  "requester": "review",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-0360",
+  "parent": "BI-PF-0360",
+  "revision": 4,
+  "priority_rank": null,
+  "priority_class": "",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "COMPLETE",
+    "analyzed_at": "2026-10-13T18:21:23.320048",
+    "analyzed_by": "cli",
+    "revision_analyzed": 4,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend core/backlog.py with a claim-by-id operation exposing claim ownership + lease expiry; add REST endpoint POST /api/v1/backlog/items/{id}/claim (guarded, operator assignment via assignee override). Wire into core/worker.py session start so a worker can claim a specific item; release/expire logic reuses core/release.py lease patterns if present.",
+    "existing_components": [],
+    "existing_apis": [],
+    "existing_modules": [],
+    "dependency_findings": [
+      "REQUIRES BI-PF-1327 (worktree session model + API-only backlog writes guard) — claim endpoint must obey its write-guard allowlist.",
+      "RELATED BI-PF-1325 (PF_API_TOKEN) for auth on the new endpoint.",
+      "RELATED BI-PF-1326 (start-from-anywhere wrapper) will call claim-by-id."
+    ],
+    "conflict_findings": [
+      "core/backlog.py also touched by BI-PF-1328 (children regeneration) only via config validation — low overlap.",
+      "BI-PF-1327's API-only writes guard touches the same REST layer; sequence after 1327 completes."
+    ],
+    "duplication_findings": [
+      "No existing claim-by-id API; /api/v1/backlog/groom/approve and /api/v1/backlog/ids:reserve cover adjacent flows but not assignment+lease.",
+      "core/backlog_link.py handles item relations, not ownership — no overlap."
+    ],
+    "drift": "LOW",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "Operators need to pin a specific backlog item to a specific worker/session with safe lease semantics; this is the core scheduling primitive for the WG epic.",
+    "assumptions": [
+      "BI-PF-1327's write guard exposes an allowlist that can include claim/checkpoint/delivery endpoints.",
+      "Lease model similar to existing worker lease in core/worker.py.",
+      "config/engineering-workers.json lists workers that can be assigned."
+    ],
+    "risks": [
+      "Lease expiry vs session liveness mismatch could double-assign items.",
+      "Write-guard allowlist from BI-PF-1327 not yet defined may force rework of endpoint guard.",
+      "Operator assignment could conflict with a worker's in-flight claim — needs takeover policy."
+    ],
+    "evidence": [
+      "Candidate components core/backlog.py, core/worker.py, core/release.py exist.",
+      "Candidate APIs /api/v1/backlog/items and ids:reserve exist.",
+      "Dep BI-PF-1327 declared."
+    ],
+    "confidence": "medium",
+    "missing_info": [
+      "Lease duration and renewal cadence for claims.",
+      "Takeover policy: can an operator force-reassign an active claim?",
+      "Scope of the BI-PF-1327 write-guard allowlist."
+    ],
+    "depth": "deep",
+    "mode": "ai",
+    "context_review": {
+      "implementable": true,
+      "missing": [
+        "Lease duration policy",
+        "Takeover policy",
+        "BI-PF-1327 allowlist scope"
+      ],
+      "reason": "Building blocks (backlog API, worker module, release patterns) exist; implementation blocked only on BI-PF-1327 interface details."
+    },
+    "arch_fingerprint": "2ac583a2a8414c6d"
+  },
+  "dependencies": [
+    {
+      "task_id": "BI-PF-1327",
+      "type": "REQUIRES",
+      "required_state": "API-only backlog writes guard with endpoint allowlist"
+    },
+    {
+      "task_id": "BI-PF-1325",
+      "type": "RELATED",
+      "required_state": "PF_API_TOKEN auth rename merged"
+    },
+    {
+      "task_id": "BI-PF-1326",
+      "type": "RELATED",
+      "required_state": "start-from-anywhere wrapper ready to call claim"
+    }
+  ],
+  "blocked_by": [
+    "BI-PF-1327"
+  ],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-13T18:21:23.413270"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-13T18:13:21.492640",
+  "updated_at": "2026-10-13T18:21:23.626876",
+  "score": 0.75,
+  "source_ref": "docs/WORKER-SCHEDULER-OPERATIONS.md",
+  "_note": "readiness computed"
+}

@@ -1,13 +1,13 @@
 # Backlog Summary
 
-> GENERATED 2026-10-13T21:21:02 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-13T21:26:18 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 115  |  **Closed:** 507
+- **Open:** 122  |  **Closed:** 512
 - `accepted`: 1
-- `new`: 113
+- `new`: 120
 - `parked`: 1
 
 ### parked (1)
@@ -15,8 +15,8 @@
 |---|---|---|---|---|
 | BI-PF-0374 | Could | feature | PFSSOT-P12: optimization (only after correctness) | PFSSOT-P12: optimization (only after correctness) |
 
-### new, by category (113)
-**API / reports / HIL / misc** (12)
+### new, by category (120)
+**API / reports / HIL / misc** (14)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-PF-0332 | Should | chore | API-5 deferred hardening: rate limiting + request/upload limits + tenant-isolation expansion + event streaming | API-5 deferred hardening: rate limiting + request/upload limits + tenant-isolation expansion + event streaming |
@@ -30,7 +30,14 @@
 | BI-PF-1316 | Must | task | api-governance gate red on develop: committed api/openapi.json drifted from the routers (BI-PF-0397 EAP endpoints) | api-governance gate red on develop: committed api/openapi.json drifted from the routers (BI-PF-0397 EAP endpoi... |
 | BI-PF-1321 | Must | task | Auto-mode HIL proxy gate fails stage 0: human agent invoked without the product brief / artifacts | Auto-mode HIL proxy gate fails stage 0: human agent invoked without the product brief / artifacts |
 | BI-PF-1322 | Must | task | Product run re-pointed the framework repo git remote (connect_remote walked up to the parent repo) | Product run re-pointed the framework repo git remote (connect_remote walked up to the parent repo) |
-| BI-PF-1345 | Should | task | Artifact contracts: structured schema validators (OpenAPI JSON Schema / CycloneDX / MusicXML XSD) + counts enforcement | Enforce counts + structured format validation in the Go artifact-contract engine. |
+| BI-PF-1327 | Must | feature | WG-O3: Canonical repo + git worktree session model; API-only backlog writes (guarded, allow checkpoint/delivery) | Standardize on one canonical repo + worktrees, and route backlog writes through the API. |
+| BI-PF-1328 | Must | task | WG-O4: Merge-driver coverage for id-blocks.json (max-merge) + children[] regenerated | Extend the derived merge driver to id-blocks and children. |
+| BI-PF-1331 | Should | bug | pre-commit lint_check crashes in git worktrees (WinError 206 long path) - blocks commits | Make the pre-commit lint_check work from a git worktree (no WinError 206 long-path crash). |
+
+**Bug fixes** (1)
+| ID | MoSCoW | Type | Title | Objective |
+|---|---|---|---|---|
+| BI-PF-1332 | Should | bug | Develop red: test pollution committed into data/learnings.json breaks test_global_render_unchanged (scratch loop-learning marker 0270) | Restore develop green: purge test pollution from data/learnings.json + prevent test writes to the real learnin... |
 
 **Discovery / HIL / prompts** (7)
 | ID | MoSCoW | Type | Title | Objective |
@@ -61,7 +68,7 @@
 | BI-PF-1315 | Must | feature | EDP-23: Backup/PITR + restore drills (full service + single-tenant) + DB<->object integrity reconciliation + region-aware restore | Deliver backup + PITR configuration, automated restore drills (full-service and single-tenant), DB<->object in... |
 | BI-PF-1317 | Could | feature | EDP-24: Scale-out & enterprise isolation tiers (read replicas / partitioning / tenant isolation tiers / additional region cells / region-migration workflow) [EVIDENCE-GATED] | Provide scale-out and enterprise isolation tiers including read-replica support, DB partitioning, tenant isola... |
 
-**Specs / cache / context / artifacts** (9)
+**Specs / cache / context / artifacts** (10)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0206 | Should | tech-debt | Backend: model downloader + local cache + license-acceptance gate + models.lock (open-weights) | One owner module that downloads only the weights a project's capability pack needs, into a gitignored local ca... |
@@ -72,9 +79,10 @@
 | BI-PF-1301 | Must | feature | EDP-09: Tenant context service with server-side membership/role verification + RLS (USING + WITH CHECK) + pooled-context negative tests | Build a tenant context service in Go that enforces server-side membership/role verification, applies PostgreSQ... |
 | BI-PF-1312 | Must | feature | EDP-20: Append-only AuditStore; split orchestrator/storage.py (audit vs cache vs evidence); retention/redaction; large checkpoints -> object store | Deliver an append-only AuditStore, split orchestrator/storage.py into audit/cache/evidence responsibilities, a... |
 | BI-PF-1314 | Should | feature | EDP-22: Benchmarks/SLOs + EXPLAIN(ANALYZE,BUFFERS) tuning + observability + quotas + graceful degradation (DB/object/cache/queue) | Establish performance benchmarks/SLOs, EXPLAIN(ANALYZE,BUFFERS)-based tuning, observability, quotas, and grace... |
+| BI-PF-1329 | Should | feature | WG-O5: Assign a SPECIFIC backlog item to a session/worker (claim-by-id + operator assignment) with lease semantics | Support claiming/assigning a specific item id (not just next-eligible). |
 | BI-PF-1349 | Must | task | Agent definitions/specs registry: declarative agent contract (inputs/outputs/artifacts) + coverage gate for new/dynamic agents | Agent definitions/specs registry: declarative agent contract (inputs/outputs/artifacts) + coverage gate for ne... |
 
-**Wiring / tech-debt / API** (75)
+**Wiring / tech-debt / API** (78)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0185 | Should | feature | EPIC: Multi-modal / media orchestration (pluggable capability packs) | Make the pipeline modality-agnostic via PLUGGABLE capability packs, enabled per project when the idea needs th... |
@@ -145,8 +153,11 @@
 | BI-PF-1320 | Should | task | docs-fresh gate red on develop: unclassified doc Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md | docs-fresh gate red on develop: unclassified doc Product_Forge_Enterprise_Performance_Security_DB_Storage_Road... |
 | BI-PF-1323 | Must | chore | Harden sync_develop on a dirty/noisy working tree (untracked collisions; merge refused; generated-file hygiene) | A sync that just works on a realistic (noisy) working tree, so "sync often" stays reliable. |
 | BI-PF-1324 | Should | chore | Concurrent sessions: uniquely-name scratch/temp files (avoid shared temp-dir collision) | Concurrent sessions never collide on scratch files. |
+| BI-PF-1326 | Must | feature | WG-O2: Start-from-anywhere wrapper (fetch -> pull --ff-only clean-guard -> shared token -> start) + periodic fetch-only thread | Add a start wrapper (sync + token + start) and a periodic fetch-only background thread. |
 | BI-PF-1330 | Should | task | Failed stage blocks all re-runs: checkpoint restore keeps the failed stage (new/--from-stage fail immediately) | Failed stage blocks all re-runs: checkpoint restore keeps the failed stage (new/--from-stage fail immediately) |
 | BI-PF-1333 | Must | task | Design stage over-proportions output: 19 FRs + 15 NFRs for one trivial feature; 314KB partial blows run time/cost | Design stage over-proportions output: 19 FRs + 15 NFRs for one trivial feature; 314KB partial blows run time/c... |
+| BI-PF-1336 | Should | feature | CI strategy: fast targeted per-change gate + scheduled full sweep (stop running full precheck on every change) | Cut per-change CI cost: fast targeted gate per PR + a scheduled full sweep on develop, without losing regressi... |
+| BI-PF-1337 | Should | chore | Reconciliation/360 review must include an explicit LANGUAGE CHECK (Go for new shipped/sensitive logic; Python only to extend existing; shipped/customer-visible runtime = Go) | Make the language rule an explicit, cited section of every reconciliation/Gate-1 review. |
 | BI-PF-1338 | Must | task | language_rule_check misses large new logic added via EDITS to existing shipped Python (should be Go) | language_rule_check misses large new logic added via EDITS to existing shipped Python (should be Go) |
 | BI-PF-1347 | Should | task | Artifact contracts: wire validate_artifact post-generation + repair/compress + outline gate + product-wide DRY | Artifact contracts: wire validate_artifact post-generation + repair/compress + outline gate + product-wide DRY |
 | BI-PF-1348 | Should | task | Artifact contracts: budget reconciliation with the run budget (work-estimate / PIPELINE_MAX_TOTAL_TIME) | Artifact contracts: budget reconciliation with the run budget (work-estimate / PIPELINE_MAX_TOTAL_TIME) |
@@ -351,5 +362,5 @@
 ---
 
 ## Totals
-- backend: 115 open / 507 closed
+- backend: 122 open / 512 closed
 - dashboard: 146 open / 3 closed
