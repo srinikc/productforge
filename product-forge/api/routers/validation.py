@@ -150,3 +150,68 @@ def run_validation(body: dict[str, Any], request: Request,
                                 base=str(body.get("base") or ""), run_id=str(body.get("run_id") or ""),
                                 scope=s)
     return from_request(request, res, resource="validation", resource_id=str(res.get("run_id") or ""))
+
+
+# ── Artifact Contract Registry (given format/semantics per artifact type) ────
+# The registry tells each agent/stage the GIVEN sections/counts/size budget so output is
+# bounded by construction. Owner: core/contracts.py. Data: config/artifact-contracts/.
+
+@router.get("/artifact-contracts", dependencies=[Depends(authenticate)])
+def artifact_contracts(request: Request, tier: str = "", kind: str = "",
+                       ctx: dict[str, Any] = Depends(authenticate)):
+    from core import contracts
+    reg = contracts.load_registry()
+    items = []
+    for aid, c in reg.items():
+        if tier and str(c.get("tier")) != tier:
+            continue
+        applies = [str(x).lower() for x in (c.get("applies_to") or [])]
+        if kind and kind.lower() not in applies and "*" not in applies:
+            continue
+        items.append(dict(c, artifact_id=aid))
+    return from_request(request, {"count": len(items), "contracts": items},
+                        resource="artifact-contracts", resource_id="registry")
+
+
+@router.get("/artifact-contracts/resolve", dependencies=[Depends(authenticate)])
+def artifact_contracts_resolve(request: Request, agent: str = "", stage: str = "",
+                               kind: str = "*", ctx: dict[str, Any] = Depends(authenticate)):
+    from core import contracts
+    return from_request(request, contracts.resolve(agent=agent, stage=stage, kind=kind),
+                        resource="artifact-contracts", resource_id=agent or stage)
+
+
+@router.get("/artifact-contracts/{artifact_id}", dependencies=[Depends(authenticate)])
+def artifact_contract_one(artifact_id: str, request: Request,
+                          ctx: dict[str, Any] = Depends(authenticate)):
+    from core import contracts
+    c = contracts.contract(artifact_id)
+    if not c:
+        raise ApiError("NOT_FOUND", "unknown artifact contract", details={"artifact_id": artifact_id})
+    return from_request(request, dict(c, artifact_id=artifact_id),
+                        resource="artifact-contracts", resource_id=artifact_id)
+
+
+@router.post("/artifact-contracts/validate", dependencies=[Depends(require_operator)])
+def artifact_contract_validate(body: dict[str, Any], request: Request,
+                               ctx: dict[str, Any] = Depends(require_operator)):
+    from core import contracts
+    aid = str(body.get("artifact_id") or "").strip()
+    if not aid:
+        raise ApiError("VALIDATION_FAILED", "artifact_id is required")
+    return from_request(request, contracts.validate_artifact(aid, str(body.get("text") or "")),
+                        resource="artifact-contracts", resource_id=aid)
+
+
+@router.post("/artifact-contracts/refresh-check", dependencies=[Depends(require_operator)])
+def artifact_contract_refresh_check(request: Request,
+                                    ctx: dict[str, Any] = Depends(require_operator)):
+    """Advisory: check upstream sources for newer versions (never applies)."""
+    import subprocess
+    import sys as _sys
+    from core.paths import ROOT
+    p = subprocess.run([_sys.executable, "scripts/dev/artifact_contracts_refresh.py", "--check"],
+                       cwd=str(ROOT), capture_output=True, text=True)
+    return from_request(request, {"ok": p.returncode == 0,
+                                  "output": (p.stdout or p.stderr or "")[-4000:]},
+                        resource="artifact-contracts", resource_id="refresh-check")
