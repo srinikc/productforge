@@ -68,3 +68,20 @@ def test_validate_artifact_detects_gaps():
 
 def test_validate_unknown_contract_fails_closed():
     assert contracts.validate_artifact("does.not.exist", "x")["ok"] is False
+
+
+def test_kind_detection():
+    assert contracts.detect_kind("edit video clips and export a timeline")["kind"] == "video"
+    assert contracts.detect_kind("a simple todo list")["kind"] == "text"
+
+
+def test_budget_and_slider():
+    b = contracts.budget(agent="design", stage="1", kind="text")
+    assert b["total_max_tokens"] > 0, b
+    r = contracts.resolve(agent="design", stage="1", kind="text", profile="small")
+    assert r["size_multiplier"] == 0.5, r
+    assert r["profile"] == "small"
+    # contract items carry the given required sections + budget
+    c0 = r["contracts"][0]
+    assert c0.get("required_sections"), c0
+    assert c0.get("budget"), c0

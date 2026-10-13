@@ -17,8 +17,10 @@ func writeACDir(t *testing.T) string {
 				"source":        map[string]any{"canonical_url": "https://example.com/29148"},
 				"license":       map[string]any{"spdx": "NOASSERTION"},
 				"format_version": "1.0.0", "status": "standard",
-				"sections": []string{"Functional Requirements", "Non-Functional Requirements"},
-				"size":     map[string]any{"max_lines": 5},
+				"sections":          []string{"Functional Requirements", "Non-Functional Requirements"},
+				"required_sections": []string{"Functional Requirements"},
+				"budget":            map[string]any{"max_tokens": 5000},
+				"size":              map[string]any{"max_lines": 100, "target_lines": 100},
 			},
 			"media.video": map[string]any{
 				"title": "Video", "tier": "modality", "applies_to": []string{"video"},
@@ -38,7 +40,44 @@ func writeACDir(t *testing.T) string {
 	_ = os.WriteFile(filepath.Join(d, "index.json"), b, 0o600)
 	b2, _ := json.Marshal(am)
 	_ = os.WriteFile(filepath.Join(d, "agents.json"), b2, 0o600)
+	prof := map[string]any{"default": "medium", "profiles": map[string]any{
+		"small":  map[string]any{"size_multiplier": 0.5},
+		"medium": map[string]any{"size_multiplier": 1.0},
+		"large":  map[string]any{"size_multiplier": 2.0},
+	}}
+	b3, _ := json.Marshal(prof)
+	_ = os.WriteFile(filepath.Join(d, "profiles.json"), b3, 0o600)
 	return d
+}
+
+func TestACKindAndBudgetAndSlider(t *testing.T) {
+	d := writeACDir(t)
+
+	k, _ := ACContractKindOp(map[string]any{"idea": "an app to edit video clips and export a timeline"})
+	if k["kind"] != "video" {
+		t.Fatalf("expected video kind, got %v", k["kind"])
+	}
+	k2, _ := ACContractKindOp(map[string]any{"idea": "a simple todo list"})
+	if k2["kind"] != "text" {
+		t.Fatalf("expected text kind, got %v", k2["kind"])
+	}
+
+	// budget sums resolved contract budgets
+	b, _ := ACContractBudgetOp(map[string]any{"dir": d, "agent": "design", "stage": "1", "kind": "text"})
+	if b["total_max_tokens"].(int) != 5000 {
+		t.Fatalf("expected 5000 budget, got %v", b["total_max_tokens"])
+	}
+
+	// slider: small halves the size budget
+	r, _ := ACContractResolveOp(map[string]any{"dir": d, "agent": "design", "kind": "text", "profile": "small"})
+	if r["size_multiplier"].(float64) != 0.5 {
+		t.Fatalf("expected 0.5 multiplier, got %v", r["size_multiplier"])
+	}
+	cs := r["contracts"].([]map[string]any)
+	sz := cs[0]["size"].(map[string]any)
+	if sz["max_lines"].(int) != 50 {
+		t.Fatalf("expected scaled max_lines 50, got %v", sz["max_lines"])
+	}
 }
 
 func TestACResolveAndValidate(t *testing.T) {

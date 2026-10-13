@@ -25,11 +25,13 @@ type ACContract struct {
 	Source          map[string]any `json:"source"`
 	License         map[string]any `json:"license"`
 	FormatVersion   string         `json:"format_version"`
-	Status          string         `json:"status"`
-	Sections        []string       `json:"sections"`
-	Counts          map[string]any `json:"counts"`
-	Size            map[string]any `json:"size"`
-	Refresh         map[string]any `json:"refresh"`
+	Status           string         `json:"status"`
+	Sections         []string       `json:"sections"`
+	RequiredSections []string       `json:"required_sections"`
+	Counts           map[string]any `json:"counts"`
+	Size             map[string]any `json:"size"`
+	Budget           map[string]any `json:"budget"`
+	Refresh          map[string]any `json:"refresh"`
 }
 
 type acIndex struct {
@@ -95,6 +97,120 @@ func acStrings(v any) []string {
 		}
 	}
 	return out
+}
+
+func acToFloat(v any) (float64, bool) {
+	switch n := v.(type) {
+	case float64:
+		return n, true
+	case int:
+		return float64(n), true
+	case json.Number:
+		f, err := n.Float64()
+		return f, err == nil
+	}
+	return 0, false
+}
+
+// acSizeMultiplier resolves the project-size slider (profiles.json) for a profile name.
+func acSizeMultiplier(dir, profile string) (string, float64) {
+	doc := map[string]any{}
+	if raw, err := os.ReadFile(filepath.Join(dir, "profiles.json")); err == nil {
+		_ = json.Unmarshal(raw, &doc)
+	}
+	def, _ := doc["default"].(string)
+	if def == "" {
+		def = "medium"
+	}
+	if profile == "" {
+		profile = def
+	}
+	profiles, _ := doc["profiles"].(map[string]any)
+	mult := 1.0
+	get := func(name string) (float64, bool) {
+		pr, ok := profiles[name].(map[string]any)
+		if !ok {
+			return 0, false
+		}
+		return acToFloat(pr["size_multiplier"])
+	}
+	if m, ok := get(profile); ok {
+		return profile, m
+	}
+	if m, ok := get(def); ok {
+		return def, m
+	}
+	return profile, mult
+}
+
+// acKindKeywords: heuristic project-kind detection from the idea text (overridable).
+var acKindKeywords = map[string][]string{
+	"video":  {"video", "film", "movie", "clip", "timeline", "footage", "stream"},
+	"image":  {"image", "photo", "picture", "graphic", "render", "illustration", "thumbnail"},
+	"music":  {"music", "song", "melody", "score", "audio track", "beat", "album"},
+	"voice":  {"voice", "speech", "tts", "text-to-speech", "transcript", "voiceover"},
+	"3d":     {"3d", "mesh", "gltf", "usd", "scene graph", "asset pipeline"},
+	"sensor": {"sensor", "iot", "telemetry", "device", "mqtt", "measurement"},
+	"ml":     {"machine learning", " ml ", "model train", "dataset", "inference", "classifier", "embedding", "neural"},
+}
+
+// ACContractKindOp detects the project kind from the idea text (heuristic; overridable).
+func ACContractKindOp(payload map[string]any) (map[string]any, string) {
+	idea := " " + strings.ToLower(fmt.Sprintf("%v", payload["idea"])) + " "
+	matches := map[string]int{}
+	hits := []string{}
+	for kind, kws := range acKindKeywords {
+		n := 0
+		for _, kw := range kws {
+			if strings.Contains(idea, kw) {
+				n++
+			}
+		}
+		if n > 0 {
+			matches[kind] = n
+			hits = append(hits, kind)
+		}
+	}
+	sort.Strings(hits)
+	kind := "text"
+	if len(hits) == 1 {
+		kind = hits[0]
+	} else if len(hits) > 1 {
+		kind = "mixed"
+	}
+	return map[string]any{"kind": kind, "matches": matches, "hits": hits}, ""
+}
+
+// ACContractBudgetOp sums the per-artifact token budgets for the resolved contracts.
+func ACContractBudgetOp(payload map[string]any) (map[string]any, string) {
+	dir, _ := payload["dir"].(string)
+	agent, _ := payload["agent"].(string)
+	stage, _ := payload["stage"].(string)
+	kind, _ := payload["kind"].(string)
+	if kind == "" {
+		kind = "*"
+	}
+	profile, _ := payload["profile"].(string)
+	reg, am, e := acLoad(dir)
+	if e != "" {
+		return nil, e
+	}
+	prof, _ := acSizeMultiplier(dir, profile)
+	ids := acContractsFor(reg, am, agent, stage, kind)
+	total := 0
+	items := []map[string]any{}
+	for _, id := range ids {
+		bt := 0
+		if v, ok := reg[id].Budget["max_tokens"]; ok {
+			if n, ok2 := acToInt(v); ok2 {
+				bt = n
+			}
+		}
+		total += bt
+		items = append(items, map[string]any{"artifact_id": id, "max_tokens": bt})
+	}
+	return map[string]any{"profile": prof, "total_max_tokens": total, "items": items,
+		"count": len(items)}, ""
 }
 
 func acModalityFor(reg map[string]ACContract, kind string) []string {
@@ -187,13 +303,30 @@ func ACContractResolveOp(payload map[string]any) (map[string]any, string) {
 			covered = true
 		}
 	}
+	profile, _ := payload["profile"].(string)
+	prof, mult := acSizeMultiplier(dir, profile)
 	ids := acContractsFor(reg, am, agent, stage, kind)
 	items := []map[string]any{}
 	for _, id := range ids {
-		items = append(items, map[string]any{"artifact_id": id, "title": reg[id].Title, "tier": reg[id].Tier})
+		c := reg[id]
+		sz := map[string]any{}
+		for k, v := range c.Size {
+			sz[k] = v
+		}
+		if tl, ok := acToInt(sz["target_lines"]); ok {
+			sz["target_lines"] = int(float64(tl) * mult)
+		}
+		if ml, ok := acToInt(sz["max_lines"]); ok {
+			sz["max_lines"] = int(float64(ml) * mult)
+		}
+		items = append(items, map[string]any{
+			"artifact_id": id, "title": c.Title, "tier": c.Tier,
+			"required_sections": c.RequiredSections, "budget": c.Budget, "size": sz,
+		})
 	}
-	return map[string]any{"agent": agent, "stage": stage, "kind": kind, "covered": covered,
-		"none": len(ids) == 0 && covered, "contracts": items, "count": len(items)}, ""
+	return map[string]any{"agent": agent, "stage": stage, "kind": kind, "profile": prof,
+		"size_multiplier": mult, "covered": covered, "none": len(ids) == 0 && covered,
+		"contracts": items, "count": len(items)}, ""
 }
 
 // ACContractValidateOp validates produced text against a contract (fail-closed).
@@ -210,9 +343,13 @@ func ACContractValidateOp(payload map[string]any) (map[string]any, string) {
 		return map[string]any{"ok": false, "artifact_id": aid,
 			"reasons": []string{"unknown artifact contract " + aid}}, ""
 	}
+	req := c.RequiredSections
+	if len(req) == 0 {
+		req = c.Sections
+	}
 	low := strings.ToLower(text)
 	missing := []string{}
-	for _, s := range c.Sections {
+	for _, s := range req {
 		if !strings.Contains(low, strings.ToLower(s)) {
 			missing = append(missing, s)
 		}
@@ -268,6 +405,12 @@ func ACContractCoverageOp(payload map[string]any) (map[string]any, string) {
 		}
 		if _, ok := c.Source["canonical_url"]; !ok {
 			bad = append(bad, id+": no source.canonical_url")
+		}
+		if len(c.RequiredSections) == 0 {
+			bad = append(bad, id+": no required_sections")
+		}
+		if len(c.Budget) == 0 {
+			bad = append(bad, id+": no budget")
 		}
 	}
 	refCheck := func(m map[string][]string) {
