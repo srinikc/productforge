@@ -1,0 +1,31 @@
+{
+  "id": "IS-PF-0052",
+  "tag": "PF",
+  "scope": "product_forge",
+  "project": "",
+  "title": "language_rule_check misses large new logic added via EDITS to existing shipped Python (should be Go)",
+  "body": "language_rule_check.py is ADDED-FILE based: it only fails a NEW .py under a shipped root (core/ api/ adapters/). Substantial NEW logic delivered by EDITING an existing shipped .py passes. Evidence: a whole artifact-contract registry engine was added via an edit to core/contracts.py and the gate reported new_shipped_py_violations=0; it was only caught by human review and then moved to go/pfcore/artifact_contracts.go. The rule intent (BI-PF-0387/0388) is that new shipped LOGIC -> Go, regardless of file.",
+  "kind": "issue",
+  "priority": "P1",
+  "severity": "high",
+  "module": "scripts/dev/language_rule_check.py",
+  "status": "open",
+  "rcca": {
+    "root_cause": "The gate keys on ADDED .py paths under shipped roots (change_policy.check(changed, added, ...)); edits to existing shipped modules are always allowed, so new logic can be smuggled in via edits undetected.",
+    "corrective": "Add a logic-size signal for CHANGED shipped .py: flag when added lines and/or new top-level symbols exceed a threshold, requiring either a Go move or an explicit allowlist/declaration (per-module logic budget).",
+    "preventive": "Test that a large edit (many added lines / new functions) to a shipped .py is flagged; keep edits that are pure glue/wiring passing.",
+    "fixed_where": "scripts/dev/language_rule_check.py",
+    "generalized": true,
+    "guideline_ref": "",
+    "product_ref": ""
+  },
+  "backlog_ref": "BI-PF-1338",
+  "source": "review",
+  "source_ref": "language-rule-edit-gap-large-new-logic",
+  "evidence": [],
+  "links": {
+    "backlog": "BI-PF-1338"
+  },
+  "created_at": "2026-10-13T19:54:19.028512",
+  "updated_at": "2026-10-13T19:55:36.432599"
+}

@@ -1,0 +1,31 @@
+{
+  "id": "IS-PF-0051",
+  "tag": "PF",
+  "scope": "product_forge",
+  "project": "",
+  "title": "Design stage over-proportions output: 19 FRs + 15 NFRs for one trivial feature; 314KB partial blows run time/cost",
+  "body": "Design over-proportions output. agents/design.agent.json instructs an FR for EVERY feature (no exceptions), full acceptance criteria, plus NFRs and user stories, with NO per-feature proportionality cap, and the under-500-lines rule is unenforced. Observed on MyToDo stage 1 (design): a trivial feature F-1 Create todo produced 19 FRs + 15 NFRs + 13 user stories; design-output.md.partial already 314KB; stage-1 output ~140k tokens over 11 calls (~10k output tokens each), while the agent declares expected ~5k input / ~10k output / 2-5 min. Combined with the per-feature strategy (10 features) this exhausts time/cost. Inputs were small and sane (~5-8k tokens) - it is output over-elaboration, not bad input data.",
+  "kind": "issue",
+  "priority": "P1",
+  "severity": "high",
+  "module": "agents/design.agent.json",
+  "status": "open",
+  "rcca": {
+    "root_cause": "The design agent prompt mandates exhaustive per-feature requirements (FR per feature + NFRs + user stories) with no proportionality cap and no enforced length budget; the per-feature strategy multiplies by feature count, so a simple feature becomes a large spec.",
+    "corrective": "Add proportionality: cap/scale requirements per feature to feature complexity, dedupe product-wide NFRs (not per feature), and enforce the doc length budget (fail or trim when exceeded).",
+    "preventive": "Test: a simple feature yields a bounded requirement count and design doc size; assert the length cap is enforced.",
+    "fixed_where": "agents/design.agent.json",
+    "generalized": true,
+    "guideline_ref": "",
+    "product_ref": ""
+  },
+  "backlog_ref": "BI-PF-1333",
+  "source": "review",
+  "source_ref": "e2e-mytodo-design-overproportion",
+  "evidence": [],
+  "links": {
+    "backlog": "BI-PF-1333"
+  },
+  "created_at": "2026-10-13T18:57:00.320451",
+  "updated_at": "2026-10-13T18:58:12.713135"
+}
