@@ -223,6 +223,32 @@ def main(argv=None) -> int:
             scope_csv = argv[i + 1]
         elif a.startswith("--scope="):
             scope_csv = a.split("=", 1)[1]
+    if "--tests-only" in argv:
+        # BI-PF-1340: run ONLY the changed-scoped tests (used by the pre-push hook so the author's
+        # new/changed tests must pass before push; no gates).
+        tests = _scoped_tests(scope_csv)
+        if not tests:
+            print("[precheck] --tests-only: no scoped tests to run")
+            return 0
+        print(f"[precheck] --tests-only: {len(tests)} scoped test file(s)")
+        r = subprocess.run([sys.executable, "-m", "pytest", *tests, "-q", "-o", "addopts="], cwd=_ROOT)
+        return r.returncode
+    if "--tests-changed" in argv:
+        # BI-PF-1340: run ONLY the test files changed/added in this diff (the tests the author wrote/updated) -
+        # the fast, correct scope for the pre-push gate (no import fan-out; that stays at the merge gate).
+        tests = []
+        for c in _changed_files():
+            cc = c.replace("\\", "/")
+            cc = cc[len("product-forge/"):] if cc.startswith("product-forge/") else cc
+            if cc.startswith("test-framework/tests/") and cc.endswith(".py") and os.path.isfile(os.path.join(_ROOT, cc)):
+                tests.append(cc)
+        tests = sorted(set(tests))
+        if not tests:
+            print("[precheck] --tests-changed: no changed/new test files")
+            return 0
+        print(f"[precheck] --tests-changed: {len(tests)} changed/new test file(s)")
+        r = subprocess.run([sys.executable, "-m", "pytest", *tests, "-q", "-o", "addopts="], cwd=_ROOT)
+        return r.returncode
     tier = "release" if release else ("full" if full else "fast")
     print(f"[precheck] tier={tier} (fast = core+area gates+scoped tests; --full = +validation/lifecycle "
           f"+ full suite; --release = +periodic full-tree sweeps)")
