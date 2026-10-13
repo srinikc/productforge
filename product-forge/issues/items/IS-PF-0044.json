@@ -1,0 +1,31 @@
+{
+  "id": "IS-PF-0044",
+  "tag": "PF",
+  "scope": "product_forge",
+  "project": "",
+  "title": "Issue id collision: a local session minted IS-PF-0038 already present on develop",
+  "body": "During the eventing sync, our clone and develop both held IS-PF-0038 (ours: dogfood PARTIAL_SUCCESS; develop: cross-session double-claim). Issue ids are allocated from a local per-scope counter with no shared cross-session authority (unlike backlog ids), so a diverged clone can mint an id already used upstream.",
+  "kind": "issue",
+  "priority": "P2",
+  "severity": "medium",
+  "module": "core/issues.py",
+  "status": "open",
+  "rcca": {
+    "root_cause": "Issue ids come from a local counter (core/issues.py) with no shared authority; the backlog has one (core/id_allocator git-CAS), issues do not, so a clone diverged from develop can collide.",
+    "corrective": "Kept develop's IS-PF-0038; renumbered our colliding issue to IS-PF-0043 and updated the BI-PF-1278 back-reference.",
+    "preventive": "Extend the shared id authority (or a reservation/reconcile step) to issue ids; reconcile on sync.",
+    "fixed_where": "data/issues (IS-PF-0038 kept; ours renumbered to IS-PF-0043)",
+    "generalized": true,
+    "guideline_ref": "",
+    "product_ref": ""
+  },
+  "backlog_ref": "BI-PF-1288",
+  "source": "review",
+  "source_ref": "issue-id-collision-ispf0038",
+  "evidence": [],
+  "links": {
+    "backlog": "BI-PF-1288"
+  },
+  "created_at": "2026-10-13T13:35:40.942752",
+  "updated_at": "2026-10-13T13:36:55.126764"
+}

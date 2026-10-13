@@ -1,0 +1,32 @@
+{
+  "id": "IS-PF-0040",
+  "tag": "PF",
+  "scope": "product_forge",
+  "project": "",
+  "title": "core/contracts.py imports jsonschema but it was not a declared dependency",
+  "body": "core/contracts.py:26 and core/schema_validator.py:28 import jsonschema, but it was absent from pyproject dependencies; the language-rule gate (diff-scoped) surfaced it when core/contracts.py was edited for BI-PF-1267.",
+  "kind": "issue",
+  "priority": "P2",
+  "severity": "medium",
+  "module": "core/contracts.py",
+  "status": "verified",
+  "rcca": {
+    "root_cause": "jsonschema was adopted by the contract/schema validators without being added to the declared dependency set (pyproject) or the tool catalog (BI-PF-0443).",
+    "corrective": "Declared jsonschema>=4.0.0 in pyproject dependencies and added its tool-catalog entry (MIT, permissive, bundled).",
+    "preventive": "The change-scoped undeclared-dep gate + dependency-catalog gate now cover it; any new import must be declared and catalogued.",
+    "fixed_where": "product-forge/pyproject.toml; config/tool-catalog.json",
+    "generalized": true,
+    "guideline_ref": "",
+    "product_ref": ""
+  },
+  "backlog_ref": "BI-PF-1281",
+  "source": "review",
+  "source_ref": "jsonschema-undeclared-dep",
+  "evidence": [],
+  "links": {
+    "backlog": "BI-PF-1281"
+  },
+  "created_at": "2026-10-12T23:45:34.927270",
+  "updated_at": "2026-10-13T13:55:25.193004",
+  "note": "fix delivered to develop; verified"
+}

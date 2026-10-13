@@ -1,0 +1,180 @@
+{
+  "id": "BI-PF-1277",
+  "tag": "PF",
+  "type": "epic",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "",
+  "label": "PF Backlog 587",
+  "title": "EPIC: Product-generation run (dogfood) execution + monitoring correctness",
+  "body": "## Problem / why\ncore/dogfood.py only enqueues the pipeline then immediately validates the baseline worktree, so it cannot\nreturn a real PASS/FAIL; it never waits, and the DOGFOOD validation profile's quality_gate check is\nunreachable for e2e runs. dogfood_run/schedule inherit this.\n\n## Goal / value\ndogfood drives the same engine to completion (all stages/agents), then validates the generated product and\nreturns a fail-closed PASS/FAIL/BLOCKED; progress is observable via the shared event bus.\n\n## In scope\n- Run-to-completion + correct post-run validation + fail-closed verdict; DOGFOOD-profile quality_gate gap.\n- Consumes the Eventing SSOT bus for progress/terminal signals (sibling epic).\n\n## Out of scope\n- A dogfood-specific engine/store; the Eventing bus itself.\n\n## Acceptance criteria\n- A dogfood on a small idea reaches all stages/agents, then reports PASS only when the generated product\n  passes the DOGFOOD profile; dry/timeout/could-not-start never report PASS.\n\n## Verification / test plan\n- Gate/tests: dogfood_check + dogfood_run_check updated; e2e observation via events.\n\n## Dependencies & links\n- Eventing SSOT epic; ENG-9 (core/dogfood.py); BI-PF-0458/0459/0460.",
+  "source": "design",
+  "status": "new",
+  "priority": "P2",
+  "moscow": "Should",
+  "value": 5,
+  "effort": 4,
+  "risk": 4,
+  "deps": [],
+  "links": {},
+  "decisions": [],
+  "follow_up": {},
+  "brief": {
+    "problem": "core/dogfood.py only enqueues the pipeline then immediately validates the baseline worktree, so it cannot\nreturn a real PASS/FAIL; it never waits, and the DOGFOOD validation profile's quality_gate check is\nunreachable for e2e runs. dogfood_run/schedule inherit this.",
+    "what_adds": "dogfood drives the same engine to completion (all stages/agents), then validates the generated product and\nreturns a fail-closed PASS/FAIL/BLOCKED; progress is observable via the shared event bus.",
+    "why": "core/dogfood.py only enqueues the pipeline then immediately validates the baseline worktree, so it cannot\nreturn a real PASS/FAIL; it never waits, and the DOGFOOD validation profile's quality_gate check is\nunreachable for e2e runs. dogfood_run/schedule inherit this.",
+    "who_feels": "Product Forge maintainers and consumers.",
+    "source": "authored"
+  },
+  "objective": "dogfood drives the same engine to completion (all stages/agents), then validates the generated product and\nreturns a fail-closed PASS/FAIL/BLOCKED; progress is observable via the shared event bus.",
+  "acceptance_criteria": [
+    "A dogfood on a small idea reaches all stages/agents, then reports PASS only when the generated product"
+  ],
+  "in_scope": [
+    "Run-to-completion + correct post-run validation + fail-closed verdict; DOGFOOD-profile quality_gate gap.",
+    "Consumes the Eventing SSOT bus for progress/terminal signals (sibling epic)."
+  ],
+  "out_of_scope": [
+    "A dogfood-specific engine/store; the Eventing bus itself."
+  ],
+  "affected_components": [
+    "core"
+  ],
+  "affected_files": [
+    "core/dogfood.py"
+  ],
+  "approach": "- Gate/tests: dogfood_check + dogfood_run_check updated; e2e observation via events.",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "A dogfood on a small idea reaches all stages/agents, then reports PASS only when the generated product"
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "agent",
+  "requester": "design",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "dogfood drives the same engine to completion (all stages/agents), then validates the generated product and\nreturns a fail-closed PASS/FAIL/BLOCKED; progress is observable via the shared event bus.",
+  "children": [
+    "BI-PF-1278",
+    "BI-PF-1279",
+    "BI-PF-1280"
+  ],
+  "epic": "",
+  "parent": "",
+  "revision": 2,
+  "priority_rank": 2,
+  "priority_class": "P2",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "IN_PROGRESS",
+    "analyzed_at": "",
+    "analyzed_by": "deterministic",
+    "revision_analyzed": 0,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/agent_runtime.py, core/dogfood.py, core/dogfood_run.py, core/dogfood_schedule.py",
+    "existing_components": [
+      "core/agent_runtime.py",
+      "core/dogfood.py",
+      "core/dogfood_run.py",
+      "core/dogfood_schedule.py",
+      "core/execution_contract.py",
+      "core/nfr_runner.py",
+      "core/rerun_review.py",
+      "core/runtime_freshness.py"
+    ],
+    "existing_apis": [
+      "/api/v1/backlog/epics/{epic_id}/order",
+      "/api/v1/backlog/epics/{epic_id}/status",
+      "/api/v1/dogfood/run",
+      "/api/v1/dogfood/runs/{run_id}",
+      "/api/v1/dogfood/schedule",
+      "/api/v1/dogfood/schedule/tick",
+      "/api/v1/dogfood/trends",
+      "/api/v1/engineering/tasks/{task_id}/run"
+    ],
+    "existing_modules": [
+      "config/dogfood-schedule.json"
+    ],
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=0.31",
+      "components=8",
+      "apis=8"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": false,
+    "reasons": [],
+    "computed_at": ""
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-12T22:54:53.688744",
+  "updated_at": "2026-10-13T11:18:44.871109",
+  "score": 0.31,
+  "_note": "epic execution order saved",
+  "execution_order": [
+    {
+      "id": "BI-PF-1279",
+      "wave": 0,
+      "status": "READY"
+    },
+    {
+      "id": "BI-PF-1278",
+      "wave": 1,
+      "status": "wait"
+    },
+    {
+      "id": "BI-PF-1280",
+      "wave": 2,
+      "status": "wait"
+    }
+  ],
+  "execution_order_at": "2026-10-13T11:18:44.786639"
+}

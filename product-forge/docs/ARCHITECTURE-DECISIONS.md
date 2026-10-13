@@ -16,6 +16,7 @@ ADR. Individual ADRs may later be split into `docs/adr/NNNN-*.md` (the index her
 | [ADR-0002](#adr-0002-workergrid-external-execution-plane) | WorkerGrid: external, producer-agnostic execution plane | Superseded by ADR-0003 | 2026-10-06 |
 | [ADR-0003](#adr-0003-assignment-authority-in-the-producer-workergrid-is-a-runtime-host) | Assignment authority in the producer; WorkerGrid is a runtime host | Accepted | 2026-10-07 |
 | [ADR-0004](#adr-0004-feature--epic--children-backlog-model) | Feature ↔ Epic ↔ children (backlog model) | Accepted | 2026-10-08 |
+| [ADR-0005](#adr-0005-eventing--alerting-ssot-go-first-bus-python-thin-client) | Eventing & Alerting SSOT: Go-first event bus; Python thin client | Accepted | 2026-10-12 |
 
 ## Template
 ```markdown
@@ -213,4 +214,74 @@ the `backlog-context` gate.
 ### Confirmation
 - A feature creates an epic; its children carry `epic#` + `feature_id`; epic done = all children done.
 - The `backlog-context` gate fails an open item whose `epic` ref does not resolve.
+
+---
+
+# ADR-0005: Eventing & Alerting SSOT — Go-first bus; Python thin client
+
+**Status:** Accepted
+**Date:** 2026-10-12
+**Deciders:** Product/Architecture
+**Related:** EPIC BI-PF-1265, BI-PF-1266 (this design); ADR-0001 (Go-first compiled delivery);
+BI-PF-0387/0388 (delivery baseline); BI-PF-0390/0393/0394 (A1 contracts + B1 Go core);
+docs/EVENTING-ALERTING-SSOT-DESIGN.md
+
+## Context and Problem Statement
+Eventing + alerting across Product Forge is fragmented: the canonical run-lifecycle stream
+(`core/events.py`) is emit-only; a second orchestration stream with in-process handlers lives in
+`core/event_bus.py`; subscribers are bespoke (`core/agent_messenger.py` topics, a legacy WebSocket
+transport, `core/notification_system.py`, `core/alerts.py` email). There is **no cross-process
+subscriber, no pluggable transports, no subscription/alert-rule registry, and no single reusable
+publish/subscribe + alert capability** — so every concern re-invents delivery and every long-running
+run (5–30 min) has no reliable completion signal. ADR-0001 requires new shipped/sensitive logic to land
+in Go, so the new bus core must be Go with Python as a thin client.
+
+## Decision Drivers
+- One SSOT event/alert capability used by all of PF (producers emit once; consumers subscribe).
+- Cross-process delivery (the pipeline runs in a child process; API/UI run elsewhere).
+- Pluggable transports: in-process callbacks, SSE (clients), webhook (external), notify/email.
+- Go-first per ADR-0001; **no duplication** (a feature is Go xor Python); single writer per store.
+- Zero regression for existing wired event/alert consumers.
+
+## Considered Options
+1. **Keep fragmented** (status quo) — no SSOT; bespoke delivery per concern.
+2. **New Python bus** — contradicts ADR-0001 (new shipped logic → Go) and is blocked by
+   `scripts/dev/language_rule_check.py` (new `.py` under `core/`, `api/`, `adapters/`).
+3. **Go event core + Python thin client over the A1 wire seam** (strangle existing consumers behind
+   shims, one-time replacement of the writer later) — chosen.
+4. **Big-bang Python→Go rewrite** — non-goal (ADR-0001).
+
+## Decision Outcome
+**Chosen option:** Option 3.
+- **One** event store (append-only, single writer) is the SSOT; **one** canonical envelope + taxonomy.
+- The **new bus core is Go** under `go/` (extend `go/pfcore` or add `go/eventbus`): store + emit +
+  monotonic `seq` + cursor, subscriber registry, dispatcher, transports, alert policy; invoked from
+  Python via `core/go_host.invoke` + `core/contracts` (A1 wire, fail-closed).
+- **`core/events.py` becomes a thin client** (edit-only, no new module) delegating emit to the Go core
+  while keeping its public API (`TYPES`, `EVENT_VERSION`, `emit/read/counts`) and envelope back-compat.
+- **Existing consumers migrate behind compatibility shims** (never a parallel copy). The **legacy
+  WebSocket transport is retired when superseded, never extended**.
+- New stores (subscriber registry, alert rules) are registered in `config/store-registry.json` with a
+  **single writer**. A1 contracts are extended **additively** (`seq`; subscription; alert-rule; webhook
+  signature) with Go↔Python parity tests.
+
+### Consequences
+**Positive:** one reusable capability; cross-process; pluggable transports; ADR-0001-conformant;
+no-regression via shims.
+**Negative:** polyglot seam + Go ramp cost; one long-running Go component to operate; migration effort.
+**Risks / mitigations:**
+- *Two writers during strangler* → single-writer discipline; staged writer-ownership cutover.
+- *SSE over the subprocess wire seam is awkward* → SSE served at the API edge reading the stream
+  (Go HTTP only if the edge decision says so).
+- *Unreliable external delivery* → at-least-once + `event_id` dedupe + retry to the re-used DLQ.
+- *`language_rule_check` blocks new Python in shipped roots* → all new logic in Go; Python edits
+  existing files only.
+
+### Confirmation
+- A producer emits once; heterogeneous subscribers (inproc/SSE/webhook/email) receive it **across
+  processes**.
+- No new `.py` under `core/`, `api/`, `adapters/`; `language_rule_check` + `wired_audit` + `precheck`
+  green.
+- Existing event/alert consumers unchanged (`test_event_ssot`, `test_api_events`, `test_redaction`,
+  `test_tracing`, `test_run_status_reconcile` green).
 

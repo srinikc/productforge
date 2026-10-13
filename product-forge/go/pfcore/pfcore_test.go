@@ -45,6 +45,10 @@ func TestRequiredFieldParityWithContractHost(t *testing.T) {
 		"evidence":            {"schema", "evidence_id", "kind"},
 		"wire-request":        {"schema", "id", "op"},
 		"wire-response":       {"schema", "id", "op", "ok", "status", "host"},
+		"event-envelope":      {"schema", "event_id", "event_type", "event_version", "occurred_at", "seq"},
+		"subscription":        {"schema", "id", "transport"},
+		"alert-rule":          {"schema", "event_type", "channels"},
+		"webhook-delivery":    {"schema", "delivery_id", "event_id", "subscription_id", "target_url"},
 	}
 	names := ContractNames()
 	if len(names) != len(expect) {
@@ -71,6 +75,30 @@ func TestValidateFailClosed(t *testing.T) {
 	resp = Handle(WireRequest{Schema: WireRequestSchema, ID: "x", Op: "no-such-op"})
 	if resp.OK || !strings.Contains(resp.Error, "unsupported op") {
 		t.Fatalf("unknown op must be rejected, got %+v", resp)
+	}
+}
+
+// TestEventAppendSeqAndCursor covers the Go event core (BI-PF-1268): monotonic seq + cursor read.
+func TestEventAppendSeqAndCursor(t *testing.T) {
+	path := t.TempDir() + string(os.PathSeparator) + "events.jsonl"
+	for i := 1; i <= 3; i++ {
+		res, e := EventAppendOp(map[string]any{"path": path, "event": map[string]any{"type": "t", "n": i}})
+		if e != "" {
+			t.Fatalf("append %d: %s", i, e)
+		}
+		if res["seq"] != int64(i) {
+			t.Fatalf("append %d: seq=%v want %d", i, res["seq"], i)
+		}
+	}
+	res, e := EventReadOp(map[string]any{"path": path, "since_seq": int64(1)})
+	if e != "" {
+		t.Fatalf("read: %s", e)
+	}
+	if res["count"] != 2 || res["max_seq"] != int64(3) {
+		t.Fatalf("read since 1: count=%v max_seq=%v (want 2, 3)", res["count"], res["max_seq"])
+	}
+	if _, e := EventReadOp(map[string]any{}); e == "" {
+		t.Fatalf("missing path must fail closed")
 	}
 }
 

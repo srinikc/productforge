@@ -87,6 +87,27 @@ def test_schema_export(tmp_path):
         assert _load(p)["type"] == "object"
 
 
+# ── eventing SSOT contracts (BI-PF-1267; ADR-0005) ───────────────────────────────
+def test_eventing_contracts_present_and_validate():
+    for name in contracts.EVENTING_CONTRACTS:
+        assert name in contracts.CONTRACTS
+    env = {"schema": "product-forge/event-envelope@1", "event_id": "e1",
+           "event_type": "run_started", "event_version": "1",
+           "occurred_at": "2026-01-01T00:00:00", "seq": 1}
+    assert contracts.validate("event-envelope", env)["valid"]
+    assert contracts.validate("subscription", {"schema": "product-forge/subscription@1",
+                                               "id": "s1", "transport": "webhook"})["valid"]
+    assert contracts.validate("alert-rule", {"schema": "product-forge/alert-rule@1",
+                                             "event_type": "run_failed",
+                                             "channels": ["email"]})["valid"]
+    assert contracts.validate("webhook-delivery", {"schema": "product-forge/webhook-delivery@1",
+                                                   "delivery_id": "d1", "event_id": "e1",
+                                                   "subscription_id": "s1",
+                                                   "target_url": "https://example.test/hook"})["valid"]
+    # fail-closed: a missing required field is rejected
+    assert contracts.validate("subscription", {"schema": "product-forge/subscription@1"})["valid"] is False
+
+
 # ── runtime wiring: existing code emits a canonical contract ─────────────────────
 def test_bom_contract_view(tmp_path):
     proj = tmp_path / "proj"
