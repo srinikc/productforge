@@ -1,0 +1,172 @@
+{
+  "id": "BI-PF-1332",
+  "tag": "PF",
+  "type": "bug",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "learnings-test-pollution-0270",
+  "label": "PF Backlog 611",
+  "title": "Develop red: test pollution committed into data/learnings.json breaks test_global_render_unchanged (scratch loop-learning marker 0270)",
+  "body": "origin/develop:product-forge/data/learnings.json contains test-pollution rules (e.g. \"rule\": \"scratch loop-learning marker 0270\"), committed in 068dc588. As a result test-framework/tests/pipeline/test_scoped_learnings.py::test_global_render_unchanged FAILS (asserts a global rule is rendered; the LEARNINGS render instead shows scratch markers). This fails in isolation and in CI precheck --full (58 gates), so it blocks EVERY PR merge to develop (observed: PR #93 BI-PF-1293 docs-only, mergeable but structure gate red). Root cause: a test wrote scratch learnings into the real store (weak isolation) and they were committed. Fix: purge scratch/test entries from data/learnings.json + add a guard so tests use an isolated learnings store (temp scope) and cannot pollute the committed store.",
+  "source": "review",
+  "status": "new",
+  "priority": "P2",
+  "moscow": "Should",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [],
+  "links": {},
+  "decisions": [
+    {
+      "at": "2026-10-13T18:46:32.694670",
+      "decision": "APPROVE",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)"
+    },
+    {
+      "at": "2026-10-13T18:46:35.805445",
+      "decision": "APPROVE",
+      "by": "agent",
+      "note": "deterministic finalize"
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "Committed test pollution in data/learnings.json fails a pipeline test on develop, blocking all PR merges.",
+    "what_adds": "Purge scratch learnings + guard test isolation for the learnings store.",
+    "why": "develop is red; no PR can merge (including docs-only ones).",
+    "who_feels": "All sessions; release.",
+    "source": "review"
+  },
+  "objective": "Restore develop green: purge test pollution from data/learnings.json + prevent test writes to the real learnings store.",
+  "acceptance_criteria": [
+    "data/learnings.json contains no scratch/test marker entries; test_global_render_unchanged passes in isolation and in precheck --full.",
+    "A test-isolation guard ensures learnings writes in tests target a temp scope/store, never the committed store.",
+    "CI precheck --full green on develop; existing PRs (e.g. #93) can merge."
+  ],
+  "in_scope": [
+    "Develop red: test pollution committed into data/learnings.json breaks test_global_render_unchanged (scratch loop-learning marker 0270)"
+  ],
+  "out_of_scope": [
+    "Not specified."
+  ],
+  "affected_components": [
+    "data",
+    "product-forge",
+    "test-framework"
+  ],
+  "affected_files": [
+    "product-forge/data/learnings.json",
+    "test-framework/tests/pipeline/test_scoped_learnings.py"
+  ],
+  "approach": "Develop red: test pollution committed into data/learnings.json breaks test_global_render_unchanged (scratch loop-learning marker 0270)",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Objective achieved: Develop red: test pollution committed into data/learnings.json breaks test_global_render_unchanged (scratch loop-learning marker 0270)"
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "agent",
+  "requester": "review",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1248",
+  "parent": "BI-PF-1248",
+  "revision": 2,
+  "priority_rank": 2,
+  "priority_class": "P2",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "COMPLETE",
+    "analyzed_at": "2026-10-13T18:46:35.563862",
+    "analyzed_by": "agent",
+    "revision_analyzed": 2,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/credentials.py, core/learnings.py, core/mobile_tester.py, core/test_adapters.py",
+    "existing_components": [
+      "core/credentials.py",
+      "core/learnings.py",
+      "core/mobile_tester.py",
+      "core/test_adapters.py",
+      "core/test_framework_bridge.py",
+      "core/test_framework_integration.py",
+      "core/test_matrix.py"
+    ],
+    "existing_apis": [
+      "/api/v1/apidocs.json",
+      "/api/v1/reservations/shared-paths",
+      "/api/v1/tests/cycles",
+      "/api/v1/tests/matrix"
+    ],
+    "existing_modules": [
+      "config/shared-paths.json",
+      "config/test-matrix.json"
+    ],
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=0.75",
+      "components=7",
+      "apis=4"
+    ],
+    "confidence": "high",
+    "arch_fingerprint": "2ac583a2a8414c6d",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-13T18:46:35.658857"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-13T18:46:32.011704",
+  "updated_at": "2026-10-13T20:39:55.512427",
+  "score": 0.75,
+  "_note": "also unblocked by PR #101 (this tree green)"
+}

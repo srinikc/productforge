@@ -1,0 +1,218 @@
+{
+  "id": "BI-PF-1325",
+  "tag": "PF",
+  "type": "task",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "wg-o1-pf-api-token",
+  "label": "PF Backlog 1",
+  "title": "WG-O1: Rename auth env to PF_API_TOKEN (back-compat) + wg token_env + env registry + docs",
+  "body": "Part of EPIC BI-PF-0360. Source: docs/WORKER-SCHEDULER-OPERATIONS.md.",
+  "source": "review",
+  "status": "completed",
+  "priority": "P0",
+  "moscow": "Must",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [
+    "BI-PF-1326",
+    "BI-PF-1327"
+  ],
+  "links": {
+    "delivery": {
+      "branch": "feature/wg/bi-pf-1325",
+      "merge_sha": "e1c139d910e1a2577a7ee774f274efa1e54d8825",
+      "commits": [
+        "a0e81c29"
+      ],
+      "pr": "103",
+      "pr_url": "https://github.com/srinikc/productforge/pull/103",
+      "at": "2026-10-13T21:21:37.659281",
+      "note": "PF_API_TOKEN canonical; drop DASHBOARD_API_TOKEN - delivered"
+    }
+  },
+  "decisions": [
+    {
+      "at": "2026-10-13T18:21:21.498905",
+      "decision": "APPROVE",
+      "by": "cli",
+      "note": ""
+    },
+    {
+      "at": "2026-10-13T20:59:03.043507",
+      "decision": "AC_AMENDED",
+      "by": "operator",
+      "note": "drop legacy DASHBOARD_API_TOKEN fallback (BI-PF-1325)"
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "Auth env is generic API_TOKEN; per-clone tokens are random so cross-session access 401s.",
+    "what_adds": "PF_API_TOKEN as the single named env (with API_TOKEN/DASHBOARD_API_TOKEN fallback); wg token_env updated; registered in config/env-flags.json; docs updated.",
+    "why": "One clearly-named shared token everyone references for starting/accessing the API.",
+    "who_feels": "All worker sessions, operators.",
+    "source": "review"
+  },
+  "objective": "Introduce PF_API_TOKEN as the canonical auth env with full back-compat.",
+  "acceptance_criteria": [
+    "auth.py resolves PF_API_TOKEN first, then API_TOKEN (the legacy DASHBOARD_API_TOKEN fallback removed - BI-PF-1325 amendment, operator-approved).",
+    "dev_server.py sets/uses PF_API_TOKEN (respects a pre-set value).",
+    "Workergrid config token_env = PF_API_TOKEN.",
+    "PF_API_TOKEN registered in config/env-flags.json; docs updated."
+  ],
+  "in_scope": [
+    "env resolution + registry + docs"
+  ],
+  "out_of_scope": [
+    "per-worker tokens"
+  ],
+  "affected_components": [
+    "api/auth.py",
+    "scripts/dev/dev_server.py"
+  ],
+  "affected_files": [
+    "api/auth.py",
+    "scripts/dev/dev_server.py",
+    "config/env-flags.json",
+    "workergrid/config.json"
+  ],
+  "approach": "Add PF_API_TOKEN ahead of API_TOKEN in _flag resolution; keep fallbacks; register the flag; update dev_server + wg config + docs.",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "API accepts PF_API_TOKEN; old API_TOKEN still works (fallback)."
+  ],
+  "risks": [
+    "breaking clients that only set API_TOKEN (mitigated by fallback)."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "agent",
+  "requester": "review",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-0360",
+  "parent": "BI-PF-0360",
+  "revision": 4,
+  "priority_rank": null,
+  "priority_class": "",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "STALE",
+    "analyzed_at": "2026-10-13T18:21:21.292977",
+    "analyzed_by": "cli",
+    "revision_analyzed": 3,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend core/env_flags.py and config/env-flags.json to register PF_API_TOKEN as canonical with legacy env var fallback; add token_env field to worker-group config; update docs/WORKER-SCHEDULER-OPERATIONS.md.",
+    "existing_components": [],
+    "existing_apis": [],
+    "existing_modules": [],
+    "dependency_findings": [
+      "No hard deps; blocks BI-PF-1326 which needs shared token naming"
+    ],
+    "conflict_findings": [
+      "None concurrent; env-flags.json not touched by sibling WG items"
+    ],
+    "duplication_findings": [
+      "No existing PF_API_TOKEN rename item in backlog",
+      "config/env-flags.json already serves as env registry - reuse, do not create new registry"
+    ],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "Pure extension of existing env registry pattern; low risk, unblocks token sharing in WG-O2.",
+    "assumptions": [
+      "Legacy env var name is discoverable from env_flags.py",
+      "token_env lives in worker-group JSON config"
+    ],
+    "risks": [
+      "Silent breakage if any deploy lacks back-compat fallback",
+      "Docs drift if other WG docs not cross-updated"
+    ],
+    "evidence": [
+      "core/env_flags.py exists",
+      "config/env-flags.json exists",
+      "docs/WORKER-SCHEDULER-OPERATIONS.md referenced in body"
+    ],
+    "confidence": "high",
+    "missing_info": [
+      "Exact legacy env var name for fallback",
+      "Which worker-group config file carries token_env"
+    ],
+    "depth": "deep",
+    "mode": "ai",
+    "context_review": {
+      "implementable": true,
+      "missing": [
+        "legacy env var name"
+      ],
+      "reason": "Candidate components clearly map to env registry pattern; only naming detail pending."
+    },
+    "arch_fingerprint": "2ac583a2a8414c6d"
+  },
+  "dependencies": [
+    {
+      "task_id": "BI-PF-1326",
+      "type": "BLOCKS",
+      "required_state": "token_env field available"
+    },
+    {
+      "task_id": "BI-PF-1327",
+      "type": "RELATED",
+      "required_state": "any"
+    }
+  ],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-13T18:21:21.383234"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "2026-10-13T20:36:22.945749",
+    "lease_expires_at": "",
+    "attempt": 1,
+    "started_at": "2026-10-13T20:36:22.945749",
+    "completed_at": "2026-10-13T20:59:16.527578",
+    "duration_seconds": 1373,
+    "last_heartbeat_at": "2026-10-13T20:36:22.945749",
+    "usage": {
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "reasoning_tokens": 0,
+      "cache_read_tokens": 0,
+      "cache_write_tokens": 0,
+      "total_tokens": 0,
+      "calls": 0,
+      "cost_usd": 0.0,
+      "model": "",
+      "cost_source": "unknown"
+    }
+  },
+  "created_at": "2026-10-13T18:13:05.947829",
+  "updated_at": "2026-10-13T21:21:37.928850",
+  "score": 0.75,
+  "source_ref": "docs/WORKER-SCHEDULER-OPERATIONS.md",
+  "_note": "delivered via PR #103"
+}

@@ -1,0 +1,187 @@
+{
+  "id": "BI-PF-1340",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "changed-must-add-test",
+  "label": "PF Backlog 615",
+  "title": "Gate: a feature/fix change MUST add/update a test and RUN it (no test, no merge)",
+  "body": "Requirement: when a change implements a feature or fixes a defect, it must include a NEW or UPDATED test, and the fast gate must RUN those changed/new tests and require PASS, else FAIL. Today there is no such enforcement, and the scoped selection only scans test-framework/tests/pipeline (untracked new tests are missed locally; tests in other dirs are not selected). Also broaden scoped-test discovery to all test dirs and include untracked (new) test files.",
+  "source": "review",
+  "status": "completed",
+  "priority": "P2",
+  "moscow": "Should",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [],
+  "links": {
+    "delivery": {
+      "branch": "feature/ci-quality",
+      "merge_sha": "b0d6ca4a45a9db4c74f82664d4137f7b4f5cc37a",
+      "commits": [],
+      "pr": "99",
+      "pr_url": "https://github.com/srinikc/productforge/pull/99",
+      "at": "2026-10-13T20:39:54.414749",
+      "note": "CI quality delivered"
+    }
+  },
+  "decisions": [
+    {
+      "at": "2026-10-13T20:08:25.394174",
+      "decision": "APPROVE",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)"
+    },
+    {
+      "at": "2026-10-13T20:08:30.176320",
+      "decision": "APPROVE",
+      "by": "agent",
+      "note": "deterministic finalize"
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "Requirement: when a change implements a feature or fixes a defect, it must include a NEW or UPDATED test, and the fast gate must RUN those changed/new tests and require PASS, else FAIL. Today there is no such enforcement, and the scoped selection only scans test-framework/tests/pipeline (untracked new tests are missed locally; tests in other dirs are not selected). Also broaden scoped-test discovery to all test dirs and include untracked (new) test files.",
+    "what_adds": "Gate: a feature/fix change MUST add/update a test and RUN it (no test, no merge)",
+    "why": "Requirement: when a change implements a feature or fixes a defect, it must include a NEW or UPDATED test, and the fast gate must RUN those changed/new tests and require PASS, else FAIL. Today there is no such enforcement, and the scoped selection only scans test-framework/tests/pipeline (untracked new tests are missed locally; tests in other dirs are not selected). Also broaden scoped-test discovery to all test dirs and include untracked (new) test files.",
+    "who_feels": "Product Forge maintainers and consumers.",
+    "source": "extracted"
+  },
+  "objective": "Enforce test coverage of changes: new/updated tests present + executed + passing, or the gate fails.",
+  "acceptance_criteria": [
+    "A feature/fix change (per item type) that adds no test fails the fast gate with a clear message.",
+    "New/changed test files are (a) discovered (tracked AND untracked locally) and (b) executed in the fast gate, and must pass.",
+    "Scoped test discovery spans all test dirs (not only test-framework/tests/pipeline).",
+    "A documented exemption path exists (with recorded reason) for non-testable changes."
+  ],
+  "in_scope": [
+    "Gate: a feature/fix change MUST add/update a test and RUN it (no test, no merge)"
+  ],
+  "out_of_scope": [
+    "Not specified."
+  ],
+  "affected_components": [
+    "Not specified."
+  ],
+  "affected_files": [
+    "product-forge/scripts/dev/precheck.py",
+    "product-forge/scripts/dev/lint_check.py"
+  ],
+  "approach": "Gate: a feature/fix change MUST add/update a test and RUN it (no test, no merge)",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Objective achieved: Gate: a feature/fix change MUST add/update a test and RUN it (no test, no merge)"
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "agent",
+  "requester": "review",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1243",
+  "parent": "BI-PF-1243",
+  "revision": 3,
+  "priority_rank": 2,
+  "priority_class": "P2",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "STALE",
+    "analyzed_at": "2026-10-13T20:08:29.796589",
+    "analyzed_by": "agent",
+    "revision_analyzed": 2,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/agent_requirements.py, core/agent_runtime.py, core/change_log.py, core/change_policy.py",
+    "existing_components": [
+      "core/agent_requirements.py",
+      "core/agent_runtime.py",
+      "core/change_log.py",
+      "core/change_policy.py",
+      "core/change_registry.py",
+      "core/change_spec.py",
+      "core/code_quality_gate.py",
+      "core/defect_loop.py"
+    ],
+    "existing_apis": [
+      "/api/v1/changes",
+      "/api/v1/changes/kinds",
+      "/api/v1/dogfood/run",
+      "/api/v1/dogfood/runs/{run_id}",
+      "/api/v1/engineering/gates",
+      "/api/v1/engineering/pidl/gate",
+      "/api/v1/engineering/tasks/{task_id}/run",
+      "/api/v1/evidence/manifest/{run_id}"
+    ],
+    "existing_modules": [
+      "config/agent-requirements.json",
+      "config/ci-cd-gates.json",
+      "config/test-matrix.json"
+    ],
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=0.75",
+      "components=8",
+      "apis=8"
+    ],
+    "confidence": "high",
+    "arch_fingerprint": "2ac583a2a8414c6d",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-13T20:08:29.945297"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-13T20:08:24.283583",
+  "updated_at": "2026-10-13T20:39:54.794112",
+  "score": 0.75,
+  "_note": "delivered via PR #99"
+}

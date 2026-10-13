@@ -1,0 +1,183 @@
+{
+  "id": "BI-PF-1339",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "ci-pr-keep-correctness-gates",
+  "label": "PF Backlog 614",
+  "title": "BI-PF-1336 refinement: keep correctness gates (merge-gate, feature-pr, validation-engine, backlog-e2e) on the PR path",
+  "body": "BI-PF-1336 moved ALL deep gates off the PR path. But merge-gate, feature-pr, validation-engine and backlog-e2e are the genuine \"safe to merge\" checks (relatively quick, e.g. merge-gate ~26s). Keep the CORRECTNESS gates on every PR; move only the heavy/expensive work (full test suite, dogfood*, release, final-audit, secret-scan-all) to the scheduled full-sweep. Split by COST, not by fast/deep.",
+  "source": "review",
+  "status": "completed",
+  "priority": "P2",
+  "moscow": "Should",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [],
+  "links": {
+    "delivery": {
+      "branch": "feature/ci-quality",
+      "merge_sha": "b0d6ca4a45a9db4c74f82664d4137f7b4f5cc37a",
+      "commits": [],
+      "pr": "99",
+      "pr_url": "https://github.com/srinikc/productforge/pull/99",
+      "at": "2026-10-13T20:39:53.849285",
+      "note": "CI quality delivered"
+    }
+  },
+  "decisions": [
+    {
+      "at": "2026-10-13T20:08:13.975920",
+      "decision": "APPROVE",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)"
+    },
+    {
+      "at": "2026-10-13T20:08:18.696657",
+      "decision": "APPROVE",
+      "by": "agent",
+      "note": "deterministic finalize"
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "BI-PF-1336 moved ALL deep gates off the PR path. But merge-gate, feature-pr, validation-engine and backlog-e2e are the genuine \"safe to merge\" checks (relatively quick, e.g. merge-gate ~26s). Keep the CORRECTNESS gates on every PR; move only the heavy/expensive work (full test suite, dogfood*, release, final-audit, secret-scan-all) to the scheduled full-sweep. Split by COST, not by fast/deep.",
+    "what_adds": "BI-PF-1336 refinement: keep correctness gates (merge-gate, feature-pr, validation-engine, backlog-e2e) on the PR path",
+    "why": "BI-PF-1336 moved ALL deep gates off the PR path. But merge-gate, feature-pr, validation-engine and backlog-e2e are the genuine \"safe to merge\" checks (relatively quick, e.g. merge-gate ~26s). Keep the CORRECTNESS gates on every PR; move only the heavy/expensive work (full test suite, dogfood*, release, final-audit, secret-scan-all) to the scheduled full-sweep. Split by COST, not by fast/deep.",
+    "who_feels": "Product Forge maintainers and consumers.",
+    "source": "extracted"
+  },
+  "objective": "Keep merge-correctness gates on every PR; only heavy suite/dogfood/release work stays scheduled.",
+  "acceptance_criteria": [
+    "PR gate runs merge-gate, feature-pr, validation-engine, backlog-e2e (where quick) plus the fast tier.",
+    "Scheduled full-sweep keeps the full suite + dogfood* + release + final-audit + secret-scan-all.",
+    "Measured PR gate time stays bounded (target: a few minutes, not 8-20)."
+  ],
+  "in_scope": [
+    "BI-PF-1336 refinement: keep correctness gates (merge-gate, feature-pr, validation-engine, backlog-e2e) on the PR path"
+  ],
+  "out_of_scope": [
+    "Not specified."
+  ],
+  "affected_components": [
+    "Not specified."
+  ],
+  "affected_files": [
+    "product-forge/.github/workflows/structure.yml",
+    "product-forge/scripts/dev/precheck.py"
+  ],
+  "approach": "BI-PF-1336 refinement: keep correctness gates (merge-gate, feature-pr, validation-engine, backlog-e2e) on the PR path",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Objective achieved: BI-PF-1336 refinement: keep correctness gates (merge-gate, feature-pr, validation-engine, backlog-e2e) on the PR path"
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "agent",
+  "requester": "review",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1243",
+  "parent": "BI-PF-1243",
+  "revision": 3,
+  "priority_rank": 2,
+  "priority_class": "P2",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "STALE",
+    "analyzed_at": "2026-10-13T20:08:18.317644",
+    "analyzed_by": "agent",
+    "revision_analyzed": 2,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/budget_allocator.py, core/call_ledger.py, core/id_allocator.py, core/paths.py",
+    "existing_components": [
+      "core/budget_allocator.py",
+      "core/call_ledger.py",
+      "core/id_allocator.py",
+      "core/paths.py",
+      "core/stage_paths.py"
+    ],
+    "existing_apis": [
+      "/api/v1/engineering/gates",
+      "/api/v1/gates/go-no-go",
+      "/api/v1/gates/pr",
+      "/api/v1/gates/pr/merge",
+      "/api/v1/gates/quality",
+      "/api/v1/reservations/shared-paths",
+      "/api/v1/validation/feature-pr",
+      "/api/v1/validation/merge-gate"
+    ],
+    "existing_modules": [
+      "config/artifact-paths.json",
+      "config/ci-cd-gates.json",
+      "config/shared-paths.json"
+    ],
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=0.75",
+      "components=5",
+      "apis=8"
+    ],
+    "confidence": "high",
+    "arch_fingerprint": "2ac583a2a8414c6d",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-13T20:08:18.470712"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-13T20:08:12.837230",
+  "updated_at": "2026-10-13T20:39:54.226561",
+  "score": 0.75,
+  "_note": "delivered via PR #99"
+}

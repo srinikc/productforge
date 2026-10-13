@@ -1,0 +1,186 @@
+{
+  "id": "BI-PF-1328",
+  "tag": "PF",
+  "type": "task",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "wg-o4-merge-driver-coverage",
+  "label": "PF Backlog 4",
+  "title": "WG-O4: Merge-driver coverage for id-blocks.json (max-merge) + children[] regenerated",
+  "body": "Part of EPIC BI-PF-0360. Source: docs/WORKER-SCHEDULER-OPERATIONS.md.",
+  "source": "review",
+  "status": "new",
+  "priority": "P0",
+  "moscow": "Must",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [
+    "BI-PF-1327"
+  ],
+  "links": {},
+  "decisions": [
+    {
+      "at": "2026-10-13T18:21:23.016874",
+      "decision": "APPROVE",
+      "by": "cli",
+      "note": ""
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "config/id-blocks.json and epic children[] conflict on parallel merges.",
+    "what_adds": "id-blocks.json attached to the pf-derived max-merge driver; epic.children[] materialized-but-regenerated (derived).",
+    "why": "Removes today's most common backlog merge conflicts.",
+    "who_feels": "All sessions, release.",
+    "source": "review"
+  },
+  "objective": "Extend the derived merge driver to id-blocks and children.",
+  "acceptance_criteria": [
+    ".gitattributes attaches config/id-blocks.json to the pf-derived max-merge driver.",
+    "epic.children[] is regenerated on merge (derived), not text-merged, but stays materialized for readers.",
+    "A merge of two divergent backlogs yields no conflict in id-blocks/children."
+  ],
+  "in_scope": [
+    "merge driver coverage",
+    "children derivation"
+  ],
+  "out_of_scope": [
+    "removing children[] from readers"
+  ],
+  "affected_components": [
+    "scripts/dev/pf_merge_driver.py",
+    ".gitattributes"
+  ],
+  "affected_files": [
+    ".gitattributes",
+    "scripts/dev/pf_merge_driver.py"
+  ],
+  "approach": "Attach id-blocks to the existing max-merge; regenerate children[] during merge.",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "synthetic two-side merge keeps max reserved_up_to + union sessions; children regenerated."
+  ],
+  "risks": [
+    "children readers expect materialized list (kept)."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "agent",
+  "requester": "review",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-0360",
+  "parent": "BI-PF-0360",
+  "revision": 3,
+  "priority_rank": null,
+  "priority_class": "",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "COMPLETE",
+    "analyzed_at": "2026-10-13T18:21:22.811339",
+    "analyzed_by": "cli",
+    "revision_analyzed": 3,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Add a max-merge merge-driver script for config/id-blocks.json (e.g., tools/merge_id_blocks.py) wired via .gitattributes; script parses both sides, takes max per id-block key, and regenerates children[] arrays from the merged id list. Reuse core/backlog.py id parsing if available; add tests in core/nfr_coverage.py style.",
+    "existing_components": [],
+    "existing_apis": [],
+    "existing_modules": [],
+    "dependency_findings": [
+      "RELATED BI-PF-1327 (canonical repo/worktree) — concurrent branches make merge-drivers important but not strictly blocking.",
+      "REQUIRES git >= 2.38 for merge-driver support on worker machines (assumption)."
+    ],
+    "conflict_findings": [
+      "config/id-blocks.json may be concurrently edited by workers in BI-PF-1327 sessions; merge-driver mitigates rather than conflicts.",
+      "No other backlog item claims .gitattributes or id-blocks merge logic."
+    ],
+    "duplication_findings": [
+      "No existing merge-driver or id-blocks JSON merge logic found in candidate components.",
+      "core/nfr_coverage.py is a coverage validator, not a merger — only tangentially reusable for validation of regenerated children."
+    ],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "Workers branching in parallel will constantly conflict on id-blocks.json; a max-merge driver plus regenerated children[] removes the main source of merge pain in the WG epic.",
+    "assumptions": [
+      "id-blocks.json is flat {key: block} with numeric ids and children[] derived from keys.",
+      "Workers use git >= 2.38.",
+      "File lives at config/id-blocks.json in canonical repo."
+    ],
+    "risks": [
+      "Merge driver correctness on malformed JSON during conflict states.",
+      "children[] regeneration could diverge from existing API validation (core/nfr_coverage.py).",
+      "Local git config (.gitattributes wiring) may be missed by existing workers."
+    ],
+    "evidence": [
+      "Candidate module config/id-blocks.json exists.",
+      "Source doc: docs/WORKER-SCHEDULER-OPERATIONS.md."
+    ],
+    "confidence": "medium",
+    "missing_info": [
+      "Exact schema of id-blocks.json (keys, children[] derivation rule) not verified by human.",
+      "Whether driver must be registered in repo .gitattributes vs per-worker git config.",
+      "Conflict-resolution policy for overlapping id reservations (max of ranges)."
+    ],
+    "depth": "deep",
+    "mode": "ai",
+    "context_review": {
+      "implementable": true,
+      "missing": [
+        "Exact id-blocks.json schema",
+        "Range-overlap policy"
+      ],
+      "reason": "Component and file exist; implementation is self-contained but schema details must be confirmed."
+    },
+    "arch_fingerprint": "2ac583a2a8414c6d"
+  },
+  "dependencies": [
+    {
+      "task_id": "BI-PF-1327",
+      "type": "RELATED",
+      "required_state": "worktree session model defined"
+    }
+  ],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-13T18:21:22.901800"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-13T18:13:17.552323",
+  "updated_at": "2026-10-13T18:21:23.119576",
+  "score": 0.75,
+  "source_ref": "docs/WORKER-SCHEDULER-OPERATIONS.md",
+  "_note": "readiness computed"
+}
