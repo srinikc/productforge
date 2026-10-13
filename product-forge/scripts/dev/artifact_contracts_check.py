@@ -67,6 +67,13 @@ def main() -> int:
     for b in (cov.get("bad_contracts") or []):
         FAILS.append(f"contract issue: {b}")
 
+    # agent registry coverage (BI-PF-1349): every agent has a spec + valid outputs.
+    acov = contracts.agent_coverage(agents)
+    for a in (acov.get("missing_agents") or []):
+        FAILS.append(f"agent '{a}' has NO agent-registry spec (config/agent-registry/index.json)")
+    for b in (acov.get("bad_specs") or []):
+        FAILS.append(f"agent spec issue: {b}")
+
     # resolve smoke (must not raise)
     r = contracts.resolve(agent="design", stage="1", kind="text")
     if not r.get("contracts"):

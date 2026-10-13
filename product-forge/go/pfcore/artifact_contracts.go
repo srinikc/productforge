@@ -202,7 +202,7 @@ func ACContractBudgetOp(payload map[string]any) (map[string]any, string) {
 		return nil, e
 	}
 	prof, _ := acSizeMultiplier(dir, profile)
-	ids := acContractsFor(reg, am, agent, stage, kind)
+	ids := acContractsFor(reg, am, dir, agent, stage, kind)
 	total := 0
 	items := []map[string]any{}
 	for _, id := range ids {
@@ -237,10 +237,18 @@ func acModalityFor(reg map[string]ACContract, kind string) []string {
 	return out
 }
 
-func acContractsFor(reg map[string]ACContract, am acMap, agent, stage, kind string) []string {
+func acContractsFor(reg map[string]ACContract, am acMap, dir, agent, stage, kind string) []string {
 	var ids []string
 	if agent != "" {
-		ids = am.ByAgent[agent]
+		// BI-PF-1349: the agent registry is the SINGLE SOURCE for agent -> artifacts.
+		if areg, e := arLoad(dir); e == "" {
+			if sp, ok := areg[agent]; ok {
+				ids = sp.Outputs
+			}
+		}
+		if len(ids) == 0 {
+			ids = am.ByAgent[agent] // legacy fallback (agents.json)
+		}
 	}
 	if len(ids) == 0 && stage != "" {
 		ids = am.ByStage[stage]
@@ -311,7 +319,7 @@ func ACContractResolveOp(payload map[string]any) (map[string]any, string) {
 	}
 	profile, _ := payload["profile"].(string)
 	prof, mult := acSizeMultiplier(dir, profile)
-	ids := acContractsFor(reg, am, agent, stage, kind)
+	ids := acContractsFor(reg, am, dir, agent, stage, kind)
 	items := []map[string]any{}
 	for _, id := range ids {
 		c := reg[id]

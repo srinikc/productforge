@@ -1,6 +1,6 @@
 # Backlog Summary
 
-> GENERATED 2026-10-13T23:28:20 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-13T23:33:03 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
@@ -80,7 +80,7 @@
 | BI-PF-1312 | Must | feature | EDP-20: Append-only AuditStore; split orchestrator/storage.py (audit vs cache vs evidence); retention/redaction; large checkpoints -> object store | Deliver an append-only AuditStore, split orchestrator/storage.py into audit/cache/evidence responsibilities, a... |
 | BI-PF-1314 | Should | feature | EDP-22: Benchmarks/SLOs + EXPLAIN(ANALYZE,BUFFERS) tuning + observability + quotas + graceful degradation (DB/object/cache/queue) | Establish performance benchmarks/SLOs, EXPLAIN(ANALYZE,BUFFERS)-based tuning, observability, quotas, and grace... |
 | BI-PF-1329 | Should | feature | WG-O5: Assign a SPECIFIC backlog item to a session/worker (claim-by-id + operator assignment) with lease semantics | Support claiming/assigning a specific item id (not just next-eligible). |
-| BI-PF-1349 | Must | task | Agent definitions/specs registry: declarative agent contract (inputs/outputs/artifacts) + coverage gate for new/dynamic agents | Agent definitions/specs registry: declarative agent contract (inputs/outputs/artifacts) + coverage gate for ne... |
+| BI-PF-1349 | Must | task | Agent definitions/specs registry: declarative agent contract (inputs/outputs/artifacts) + coverage gate for new/dynamic agents | Declarative agent registry (inputs/outputs/artifacts) as the single source for the agent->artifact mapping + c... |
 
 **Wiring / tech-debt / API** (79)
 | ID | MoSCoW | Type | Title | Objective |

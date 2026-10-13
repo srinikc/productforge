@@ -564,6 +564,26 @@ def validate_agent(agent: str = "", stage: str = "", kind: str = "*", text: str 
     return {"ok": not failures, "failures": failures, "checked": checked}
 
 
+def agent_registry() -> dict:
+    """The agent registry (agent_id -> spec) via the Go engine."""
+    from core import go_host
+    return (go_host.agents_registry(_ac_dir()).get("result") or {}).get("agents") or {}
+
+
+def agent_spec(agent: str) -> dict:
+    """One agent's declarative spec (inputs/outputs/artifacts) via the Go engine."""
+    from core import go_host
+    return (go_host.agents_resolve(_ac_dir(), agent).get("result") or {}).get("spec") or {}
+
+
+def agent_coverage(agents: list) -> dict:
+    """Agent-registry coverage (Go engine): every agent has a spec + valid outputs."""
+    from core import go_host
+    r = go_host.agents_coverage(_ac_dir(), agents)
+    return r.get("result") or {"ok": False, "missing_agents": list(agents),
+                               "bad_specs": ["go host unavailable"]}
+
+
 # ── CLI ──────────────────────────────────────────────────────────────────────────
 def _cli(argv: list[str] | None = None) -> int:
     args = list(sys.argv[1:] if argv is None else argv)

@@ -233,3 +233,40 @@ def artifact_contract_refresh_check(request: Request,
     return from_request(request, {"ok": p.returncode == 0,
                                   "output": (p.stdout or p.stderr or "")[-4000:]},
                         resource="artifact-contracts", resource_id="refresh-check")
+
+
+# ── Agent Registry (declarative agent spec: inputs/outputs/artifacts) ─────────
+# Owner: core/contracts.py (Go engine). Data: config/agent-registry/index.json.
+
+@router.get("/agents", dependencies=[Depends(authenticate)])
+def agents(request: Request, ctx: dict[str, Any] = Depends(authenticate)):
+    from core import contracts
+    reg = contracts.agent_registry()
+    return from_request(request, {"count": len(reg), "agents": reg},
+                        resource="agents", resource_id="registry")
+
+
+@router.get("/agents/coverage", dependencies=[Depends(authenticate)])
+def agents_coverage(request: Request, ctx: dict[str, Any] = Depends(authenticate)):
+    import glob
+    import json
+    import os
+    from core.paths import ROOT
+    from core import contracts
+    ids = []
+    for f in glob.glob(os.path.join(str(ROOT), "agents", "*.agent.json")):
+        try:
+            ids.append(json.load(open(f, encoding="utf-8-sig"))["id"])
+        except Exception:
+            pass
+    return from_request(request, contracts.agent_coverage(ids),
+                        resource="agents", resource_id="coverage")
+
+
+@router.get("/agents/{agent_id}", dependencies=[Depends(authenticate)])
+def agent_one(agent_id: str, request: Request, ctx: dict[str, Any] = Depends(authenticate)):
+    from core import contracts
+    sp = contracts.agent_spec(agent_id)
+    if not sp:
+        raise ApiError("NOT_FOUND", "unknown agent", details={"agent": agent_id})
+    return from_request(request, dict(sp, agent_id=agent_id), resource="agents", resource_id=agent_id)

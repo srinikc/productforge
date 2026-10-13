@@ -75,6 +75,16 @@ def test_kind_detection():
     assert contracts.detect_kind("a simple todo list")["kind"] == "text"
 
 
+def test_agent_registry():
+    reg = contracts.agent_registry()
+    assert len(reg) >= 60, f"expected >=60 agents, got {len(reg)}"
+    sp = contracts.agent_spec("design")
+    assert sp.get("outputs"), f"design spec must declare outputs: {sp}"
+    cov = contracts.agent_coverage(["design", "ghost-agent-xyz"])
+    assert cov["ok"] is False
+    assert "ghost-agent-xyz" in cov["missing_agents"]
+
+
 def test_validate_agent():
     ids = [c["artifact_id"] for c in contracts.resolve(agent="design", stage="1", kind="text")["contracts"]]
     assert ids, "design/1 should resolve contracts"
