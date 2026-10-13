@@ -1,13 +1,13 @@
 # Backlog Summary
 
-> GENERATED 2026-10-13T21:01:18 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-13T21:18:38 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 113  |  **Closed:** 507
+- **Open:** 115  |  **Closed:** 507
 - `accepted`: 1
-- `new`: 111
+- `new`: 113
 - `parked`: 1
 
 ### parked (1)
@@ -15,7 +15,7 @@
 |---|---|---|---|---|
 | BI-PF-0374 | Could | feature | PFSSOT-P12: optimization (only after correctness) | PFSSOT-P12: optimization (only after correctness) |
 
-### new, by category (111)
+### new, by category (113)
 **API / reports / HIL / misc** (12)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
@@ -74,7 +74,7 @@
 | BI-PF-1314 | Should | feature | EDP-22: Benchmarks/SLOs + EXPLAIN(ANALYZE,BUFFERS) tuning + observability + quotas + graceful degradation (DB/object/cache/queue) | Establish performance benchmarks/SLOs, EXPLAIN(ANALYZE,BUFFERS)-based tuning, observability, quotas, and grace... |
 | BI-PF-1349 | Must | task | Agent definitions/specs registry: declarative agent contract (inputs/outputs/artifacts) + coverage gate for new/dynamic agents | Agent definitions/specs registry: declarative agent contract (inputs/outputs/artifacts) + coverage gate for ne... |
 
-**Wiring / tech-debt / API** (73)
+**Wiring / tech-debt / API** (75)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0185 | Should | feature | EPIC: Multi-modal / media orchestration (pluggable capability packs) | Make the pipeline modality-agnostic via PLUGGABLE capability packs, enabled per project when the idea needs th... |
@@ -150,6 +150,8 @@
 | BI-PF-1338 | Must | task | language_rule_check misses large new logic added via EDITS to existing shipped Python (should be Go) | language_rule_check misses large new logic added via EDITS to existing shipped Python (should be Go) |
 | BI-PF-1347 | Should | task | Artifact contracts: wire validate_artifact post-generation + repair/compress + outline gate + product-wide DRY | Artifact contracts: wire validate_artifact post-generation + repair/compress + outline gate + product-wide DRY |
 | BI-PF-1348 | Should | task | Artifact contracts: budget reconciliation with the run budget (work-estimate / PIPELINE_MAX_TOTAL_TIME) | Artifact contracts: budget reconciliation with the run budget (work-estimate / PIPELINE_MAX_TOTAL_TIME) |
+| BI-PF-1370 | Should | feature | Session isolation guard: never write outside the session's own working folder (hard ACL long-term + single-account alternative now) | A session can only affect its OWN working folder: cross-folder writes are prevented (long-term, hard) or at le... |
+| BI-PF-1371 | Must | feature | Session isolation guard: never write outside the session's own working folder (hard ACL long-term + single-account alternative now) | A session can only affect its OWN working folder: cross-folder writes are prevented (long-term, hard) or at le... |
 
 ---
 
@@ -349,5 +351,5 @@
 ---
 
 ## Totals
-- backend: 113 open / 507 closed
+- backend: 115 open / 507 closed
 - dashboard: 146 open / 3 closed
