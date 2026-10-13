@@ -99,10 +99,24 @@ def artifact_contracts_registry(dir_: str) -> dict[str, Any]:
 
 
 def artifact_contracts_resolve(dir_: str, agent: str = "", stage: str = "",
-                               kind: str = "*") -> dict[str, Any]:
-    """Resolve the contract(s) an agent/stage must produce (Go engine)."""
+                               kind: str = "*", profile: str = "") -> dict[str, Any]:
+    """Resolve the contract(s) an agent/stage must produce, with the size slider (Go engine)."""
     return invoke("artifact_contracts.resolve",
-                  payload={"dir": str(dir_), "agent": agent, "stage": stage, "kind": kind})
+                  payload={"dir": str(dir_), "agent": agent, "stage": stage, "kind": kind,
+                           "profile": profile})
+
+
+def artifact_contracts_kind(dir_: str, idea: str) -> dict[str, Any]:
+    """Detect the project kind from the idea text (Go engine; heuristic)."""
+    return invoke("artifact_contracts.kind", payload={"dir": str(dir_), "idea": idea})
+
+
+def artifact_contracts_budget(dir_: str, agent: str = "", stage: str = "", kind: str = "*",
+                              profile: str = "") -> dict[str, Any]:
+    """Sum per-artifact token budgets for the resolved contracts (Go engine)."""
+    return invoke("artifact_contracts.budget",
+                  payload={"dir": str(dir_), "agent": agent, "stage": stage, "kind": kind,
+                           "profile": profile})
 
 
 def artifact_contracts_validate(dir_: str, artifact_id: str, text: str) -> dict[str, Any]:

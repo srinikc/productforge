@@ -123,7 +123,8 @@ func Capabilities() []string {
 	return []string{"ping", "describe", "validate", "event_append", "event_read",
 		"license.keygen", "license.issue", "license.verify",
 		"artifact_contracts.registry", "artifact_contracts.resolve",
-		"artifact_contracts.validate", "artifact_contracts.coverage"}
+		"artifact_contracts.validate", "artifact_contracts.coverage",
+		"artifact_contracts.kind", "artifact_contracts.budget"}
 }
 
 // HostID is the distinct pfcore host tag (the wire contract's `host` enum is {python, go}).
@@ -149,7 +150,8 @@ func SupportedOps() []string {
 	return []string{"ping", "describe", "validate", "event_append", "event_read",
 		"license.keygen", "license.issue", "license.verify",
 		"artifact_contracts.registry", "artifact_contracts.resolve",
-		"artifact_contracts.validate", "artifact_contracts.coverage"}
+		"artifact_contracts.validate", "artifact_contracts.coverage",
+		"artifact_contracts.kind", "artifact_contracts.budget"}
 }
 
 func response(req WireRequest, ok bool, status string, result map[string]any, errMsg string) WireResponse {
@@ -215,6 +217,10 @@ func Handle(req WireRequest) WireResponse {
 		return acOp(req, ACContractValidateOp)
 	case "artifact_contracts.coverage":
 		return acOp(req, ACContractCoverageOp)
+	case "artifact_contracts.kind":
+		return acOp(req, ACContractKindOp)
+	case "artifact_contracts.budget":
+		return acOp(req, ACContractBudgetOp)
 	default:
 		return response(req, false, "error", nil, "unsupported op: "+req.Op)
 	}

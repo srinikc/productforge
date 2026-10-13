@@ -175,9 +175,27 @@ def artifact_contracts(request: Request, tier: str = "", kind: str = "",
 
 @router.get("/artifact-contracts/resolve", dependencies=[Depends(authenticate)])
 def artifact_contracts_resolve(request: Request, agent: str = "", stage: str = "",
-                               kind: str = "*", ctx: dict[str, Any] = Depends(authenticate)):
+                               kind: str = "*", profile: str = "",
+                               ctx: dict[str, Any] = Depends(authenticate)):
     from core import contracts
-    return from_request(request, contracts.resolve(agent=agent, stage=stage, kind=kind),
+    return from_request(request, contracts.resolve(agent=agent, stage=stage, kind=kind,
+                                                   profile=profile),
+                        resource="artifact-contracts", resource_id=agent or stage)
+
+
+@router.get("/artifact-contracts/kind", dependencies=[Depends(authenticate)])
+def artifact_contracts_kind(request: Request, idea: str = "",
+                            ctx: dict[str, Any] = Depends(authenticate)):
+    from core import contracts
+    return from_request(request, contracts.detect_kind(idea),
+                        resource="artifact-contracts", resource_id="kind")
+
+
+@router.get("/artifact-contracts/budget", dependencies=[Depends(authenticate)])
+def artifact_contracts_budget(request: Request, agent: str = "", stage: str = "", kind: str = "*",
+                              profile: str = "", ctx: dict[str, Any] = Depends(authenticate)):
+    from core import contracts
+    return from_request(request, contracts.budget(agent=agent, stage=stage, kind=kind, profile=profile),
                         resource="artifact-contracts", resource_id=agent or stage)
 
 
