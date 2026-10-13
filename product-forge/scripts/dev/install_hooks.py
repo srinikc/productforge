@@ -10,8 +10,9 @@ store-contract/lint/branch violation is caught before it ever reaches the merge-
 The hook never blocks on the full precheck (that stays the merge gate); it only fails on the
 changed-file guards. Safe to re-run. Run from product-forge/: ``python scripts/dev/install_hooks.py``.
 
-Also installs a ``pre-push`` hook that runs the cheap backlog **id-audit** (BI-PF-0463) so a duplicate backlog id
-is caught at the push boundary too (belt-and-braces on top of precheck/CI).
+Also installs a ``pre-push`` hook that (1) folds ``origin/develop`` into the branch first (BI-PF-1290 per-worker
+sync; merge, never rebase/reset) and (2) runs the cheap backlog **id-audit** (BI-PF-0463) so a duplicate
+backlog id is caught at the push boundary too (belt-and-braces on top of precheck/CI).
 """
 import os
 import stat
@@ -50,9 +51,12 @@ exit 0
 
 _PREPUSH = """#!/bin/sh
 # Product Forge pre-push guard (installed by scripts/dev/install_hooks.py).
-# Belt-and-braces: fail the push on a duplicate backlog id (BI-PF-0463; the merge-time gate is precheck).
+# 1) BI-PF-1290: fold origin/develop into the branch first (per-worker sync; merge, never rebase/reset) so a
+#    cross-session push stays small. If it merged, it exits 1 -> re-run `git push` to include the merge.
+# 2) Belt-and-braces: fail the push on a duplicate backlog id (BI-PF-0463; the merge-time gate is precheck).
 PF="product-forge"
 [ -d "$PF/scripts/dev" ] || exit 0
+python "$PF/scripts/dev/sync_develop.py" --pre-push || exit $?
 python "$PF/scripts/dev/backlog_id_audit.py" || { echo "pre-push: duplicate backlog id(s) - renumber before pushing"; exit 1; }
 exit 0
 """
@@ -71,7 +75,8 @@ def _install(name: str, body: str) -> str:
 def main() -> int:
     print(f"installed pre-commit hook -> {_install('pre-commit', _HOOK)}")
     print(f"installed pre-push hook -> {_install('pre-push', _PREPUSH)}")
-    # BI-PF-1176: register the pf-derived merge driver (regenerates backlog indexes from items/)
+    # BI-PF-1176 / BI-PF-1290: register the pf-derived merge driver (regenerates the derived backlog indexes/docs
+    # and max-merges counters from the shared stores)
     drv = os.path.join(_REPO, "product-forge", "scripts", "dev", "pf_merge_driver.py").replace("\\", "/")
     if os.path.isfile(drv):
         for k, v in (("merge.pf-derived.name", "PF derived backlog index (regenerate)"),
