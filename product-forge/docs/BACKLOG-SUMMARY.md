@@ -1,17 +1,17 @@
 # Backlog Summary
 
-> GENERATED 2026-10-14T17:45:04 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-14T17:47:15 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 120  |  **Closed:** 526
+- **Open:** 119  |  **Closed:** 527
 - `accepted`: 1
 - `blocked`: 1
 - `executing`: 3
-- `new`: 115
+- `new`: 114
 
-### new, by category (115)
+### new, by category (114)
 **API / reports / HIL / misc** (16)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
@@ -78,7 +78,7 @@
 | BI-PF-1314 | Should | feature | EDP-22: Benchmarks/SLOs + EXPLAIN(ANALYZE,BUFFERS) tuning + observability + quotas + graceful degradation (DB/object/cache/queue) | Establish performance benchmarks/SLOs, EXPLAIN(ANALYZE,BUFFERS)-based tuning, observability, quotas, and grace... |
 | BI-PF-1329 | Should | feature | WG-O5: Assign a SPECIFIC backlog item to a session/worker (claim-by-id + operator assignment) with lease semantics | Support claiming/assigning a specific item id (not just next-eligible). |
 
-**Wiring / tech-debt / API** (73)
+**Wiring / tech-debt / API** (72)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0185 | Should | feature | EPIC: Multi-modal / media orchestration (pluggable capability packs) | Make the pipeline modality-agnostic via PLUGGABLE capability packs, enabled per project when the idea needs th... |
@@ -150,7 +150,6 @@
 | BI-PF-1333 | Must | task | Design stage over-proportions output: 19 FRs + 15 NFRs for one trivial feature; 314KB partial blows run time/cost | Design stage over-proportions output: 19 FRs + 15 NFRs for one trivial feature; 314KB partial blows run time/c... |
 | BI-PF-1370 | Should | feature | Session isolation guard: never write outside the session's own working folder (hard ACL long-term + single-account alternative now) | A session can only affect its OWN working folder: cross-folder writes are prevented (long-term, hard) or at le... |
 | BI-PF-1371 | Must | feature | Session isolation guard: never write outside the session's own working folder (hard ACL long-term + single-account alternative now) | A session can only affect its OWN working folder: cross-folder writes are prevented (long-term, hard) or at le... |
-| BI-PF-1372 | Should | task | Artifact contracts: plan -> outline -> fill gate (approve size/outline before prose) | Artifact contracts: plan -> outline -> fill gate (approve size/outline before prose) |
 | BI-PF-1373 | Should | task | Artifact contracts: product-wide DRY (state NFRs/quality once, not per feature) | Artifact contracts: product-wide DRY (state NFRs/quality once, not per feature) |
 | BI-PF-1374 | Should | feature | precheck: a derived/bookkeeping-only tier (docs-fresh + compile only) so doc/backlog regeneration never runs the full gate | Add a derived/bookkeeping-only precheck tier (docs-fresh + compile) and stop doc-regen running the full gate. |
 | BI-PF-1381 | Should | feature | CI: add a Go-module build/vet/test gate for product-forge/go/* | CI: add a Go-module build/vet/test gate for product-forge/go/* |
@@ -353,5 +352,5 @@
 ---
 
 ## Totals
-- backend: 120 open / 526 closed
+- backend: 119 open / 527 closed
 - dashboard: 146 open / 3 closed
