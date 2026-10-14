@@ -1,18 +1,18 @@
 # Backlog Summary
 
-> GENERATED 2026-10-14T18:43:34 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-14T18:50:29 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 121  |  **Closed:** 527
+- **Open:** 122  |  **Closed:** 527
 - `accepted`: 1
 - `blocked`: 1
 - `executing`: 3
-- `new`: 116
+- `new`: 117
 
-### new, by category (116)
-**API / reports / HIL / misc** (17)
+### new, by category (117)
+**API / reports / HIL / misc** (18)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-PF-0332 | Should | chore | API-5 deferred hardening: rate limiting + request/upload limits + tenant-isolation expansion + event streaming | API-5 deferred hardening: rate limiting + request/upload limits + tenant-isolation expansion + event streaming |
@@ -32,6 +32,7 @@
 | BI-PF-1331 | Should | bug | pre-commit lint_check crashes in git worktrees (WinError 206 long path) - blocks commits | Make the pre-commit lint_check work from a git worktree (no WinError 206 long-path crash). |
 | BI-PF-1382 | Must | bug | Backlog API: POST /backlog/items returns empty resource_id (created id not surfaced) | Backlog API: POST /backlog/items returns empty resource_id (created id not surfaced) |
 | BI-PF-1386 | Must | feature | Backlog API: complete write surface + optimistic concurrency (expected_revision -> 409) | Backlog API: complete write surface + optimistic concurrency (expected_revision -> 409) |
+| BI-PF-1387 | Should | bug | Backlog API: POST /items 500s under PF_ID_ALLOC=strict when the shared id authority is unreachable | Backlog API: POST /items 500s under PF_ID_ALLOC=strict when the shared id authority is unreachable |
 
 **Bug fixes** (2)
 | ID | MoSCoW | Type | Title | Objective |
@@ -354,5 +355,5 @@
 ---
 
 ## Totals
-- backend: 121 open / 527 closed
+- backend: 122 open / 527 closed
 - dashboard: 146 open / 3 closed
