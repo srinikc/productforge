@@ -10,7 +10,7 @@
   "title": "Eventing SSOT (Go): event core - append-only store, emit, monotonic seq, cursor/since",
   "body": "## Problem / why\nThe canonical stream has no reliable cursor (since = string timestamp compare) and no Go-native core; new\nshipped logic must be Go.\n\n## Goal / value\nA Go event core owning emit + append-only store + monotonic seq + cursor reads; single writer.\n\n## In scope\n- Go package (extend go/pfcore or new go/eventbus) with emit/seq/cursor; single-writer store.\n- Invoked from Python via core/go_host + A1 wire (fail-closed).\n\n## Out of scope\n- Dispatch/transports (E4/E5); changing existing Python emit call sites (E7).\n\n## Acceptance criteria\n- Monotonic seq assigned; cursor read returns exactly events after a cursor (no races).\n- Existing events.jsonl readers still work; no duplicate store introduced.\n\n## Verification / test plan\n- Go unit tests + Python contract/e2e test; language_rule_check green.",
   "source": "design",
-  "status": "completed",
+  "status": "executing",
   "priority": "P2",
   "moscow": "Should",
   "value": 5,
@@ -22,16 +22,7 @@
   "links": {
     "epic": "BI-PF-1265",
     "adr": "ADR-0005",
-    "design": "docs/EVENTING-ALERTING-SSOT-DESIGN.md",
-    "delivery": {
-      "branch": "feature/bi-pf-1268-go-event-core",
-      "merge_sha": "6a9a74d7",
-      "commits": [],
-      "pr": "58",
-      "pr_url": "https://github.com/srinikc/productforge/pull/58",
-      "at": "2026-10-13T13:35:40.648223",
-      "note": "delivered; verified on develop"
-    }
+    "design": "docs/EVENTING-ALERTING-SSOT-DESIGN.md"
   },
   "decisions": [
     {
@@ -165,14 +156,14 @@
   "children": [],
   "epic": "BI-PF-1265",
   "parent": "BI-PF-1265",
-  "revision": 5,
+  "revision": 4,
   "priority_rank": 2,
   "priority_class": "P2",
   "analyze_mode": "on_entry",
   "analysis": {
-    "status": "STALE",
-    "analyzed_at": "2026-10-13T11:18:38.154249",
-    "analyzed_by": "cli",
+    "status": "COMPLETE",
+    "analyzed_at": "2026-10-13T16:55:38.329750",
+    "analyzed_by": "deterministic",
     "revision_analyzed": 4,
     "architecture_fit": "EXTEND",
     "implementation_strategy": "Extend existing components/APIs: core/artifact_store.py, core/asset_store.py, core/events.py, core/event_bus.py",
@@ -215,7 +206,8 @@
     "missing_info": [],
     "depth": "deep",
     "mode": "deterministic",
-    "arch_fingerprint": "ba90c45005d704fa"
+    "arch_fingerprint": "dc9598f15f6d5d5f",
+    "refreshed_at": "2026-10-13T16:55:38.210945"
   },
   "dependencies": [
     {
@@ -247,7 +239,7 @@
     "usage": {}
   },
   "created_at": "2026-10-12T22:54:08.889301",
-  "updated_at": "2026-10-13T13:35:40.746848",
+  "updated_at": "2026-10-13T16:55:38.443728",
   "score": 0.62,
-  "_note": "delivery recorded"
+  "_note": "analysis updated"
 }
