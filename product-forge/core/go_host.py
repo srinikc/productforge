@@ -119,6 +119,16 @@ def artifact_contracts_budget(dir_: str, agent: str = "", stage: str = "", kind:
                            "profile": profile})
 
 
+def artifact_contracts_reconcile(dir_: str, agent: str = "", stage: str = "", kind: str = "*",
+                                 profile: str = "", run_budget_seconds: float = 0.0,
+                                 work_estimate_seconds: float = 0.0) -> dict[str, Any]:
+    """Reconcile summed per-artifact budgets vs the run budget (Go engine; advisory)."""
+    return invoke("artifact_contracts.reconcile",
+                  payload={"dir": str(dir_), "agent": agent, "stage": stage, "kind": kind,
+                           "profile": profile, "run_budget_seconds": run_budget_seconds,
+                           "work_estimate_seconds": work_estimate_seconds})
+
+
 def artifact_contracts_validate(dir_: str, artifact_id: str, text: str) -> dict[str, Any]:
     """Validate produced text against a contract (Go engine; fail-closed)."""
     return invoke("artifact_contracts.validate",

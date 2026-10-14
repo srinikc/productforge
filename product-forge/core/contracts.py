@@ -528,6 +528,84 @@ def budget(agent: str = "", stage: str = "", kind: str = "*", profile: str = "")
     return r.get("result") or {"profile": profile, "total_max_tokens": 0, "items": [], "count": 0}
 
 
+_AC_RUN_BUDGET_DEFAULT = 1800.0
+
+
+def _project_max_total_time(project_dir: str):
+    """Return (seconds, source) from ``project.json:max_total_time`` or (None, "")."""
+    try:
+        p = os.path.join(str(project_dir), "project.json")
+        with open(p, encoding="utf-8-sig") as f:
+            v = (json.load(f) or {}).get("max_total_time")
+        if v is not None:
+            return float(v), "project.json"
+    except Exception:
+        pass
+    return None, ""
+
+
+def _run_budget_seconds(project_dir: str, explicit=None):
+    """Run-budget precedence: explicit arg -> project.json -> PIPELINE_MAX_TOTAL_TIME -> default.
+
+    ``0`` means unlimited (mirrors pipeline_executor._check_time_budget).
+    """
+    if explicit is not None:
+        return float(explicit), "explicit"
+    v, src = _project_max_total_time(project_dir)
+    if v is not None:
+        return v, src
+    env = os.getenv("PIPELINE_MAX_TOTAL_TIME", "")
+    if env != "":
+        try:
+            return float(env), "env:PIPELINE_MAX_TOTAL_TIME"
+        except ValueError:
+            pass
+    return float(_AC_RUN_BUDGET_DEFAULT), "default"
+
+
+def _work_estimate_seconds(project_dir: str, seconds=None, minutes=None) -> float:
+    """Work-estimate seconds from an explicit value or ``work-estimate.json`` (0 if unknown)."""
+    if seconds is not None:
+        return float(seconds)
+    if minutes is not None:
+        return float(minutes) * 60.0
+    if not project_dir:
+        return 0.0
+    try:
+        from core import work_estimate as _we
+        d = _we.load(project_dir) or _we.estimate_all(project_dir)
+        return float((d.get("totals") or {}).get("est_minutes", 0) or 0) * 60.0
+    except Exception:
+        return 0.0
+
+
+def reconcile(project_dir: str = "", agent: str = "", stage: str = "", kind: str = "*",
+              profile: str = "", run_budget_seconds=None,
+              work_estimate_seconds=None, work_estimate_minutes=None) -> dict:
+    """Reconcile the summed per-artifact budget against the run budget (Go engine; ADVISORY).
+
+    BI-PF-1348. Time-axis verdict only: the run budget is ``max_total_time`` /
+    ``PIPELINE_MAX_TOTAL_TIME`` (``0`` = unlimited); the work estimate comes from
+    ``work-estimate.json`` unless overridden. The artifact token/line budget is reported
+    alongside for context (a different axis - never compared against the time budget).
+    Reports ``under|within|over|unlimited``; it NEVER gates or stops a run.
+    """
+    from core import go_host
+    budget, src = _run_budget_seconds(project_dir, run_budget_seconds)
+    work = _work_estimate_seconds(project_dir, work_estimate_seconds, work_estimate_minutes)
+    r = go_host.artifact_contracts_reconcile(
+        _ac_dir(), agent=agent, stage=stage, kind=kind, profile=profile,
+        run_budget_seconds=budget, work_estimate_seconds=work)
+    res = r.get("result") or {
+        "profile": profile, "size_multiplier": 1.0, "run_budget_seconds": budget,
+        "work_estimate_seconds": round(work, 1), "work_estimate_minutes": round(work / 60.0, 1),
+        "artifact_budget": {"count": 0, "max_tokens": 0, "max_lines": 0},
+        "delta_seconds": 0.0, "pct_of_budget": 0.0, "near_threshold": 0.9,
+        "verdict": "unavailable"}
+    res["run_budget_source"] = src
+    return res
+
+
 def validate_artifact(artifact_id: str, text: str) -> dict:
     """Validate produced text against a contract (Go engine; fail-closed)."""
     from core import go_host

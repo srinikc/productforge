@@ -199,6 +199,21 @@ def artifact_contracts_budget(request: Request, agent: str = "", stage: str = ""
                         resource="artifact-contracts", resource_id=agent or stage)
 
 
+@router.get("/artifact-contracts/reconcile", dependencies=[Depends(authenticate)])
+def artifact_contracts_reconcile(request: Request, project: str = "", agent: str = "",
+                                 stage: str = "", kind: str = "*", profile: str = "",
+                                 run_budget_seconds: float = -1.0,
+                                 ctx: dict[str, Any] = Depends(authenticate)):
+    """Reconcile summed per-artifact budgets vs the run budget (ADVISORY; never gates)."""
+    from core import contracts
+    d = _common.project_dir(project) if project else ""
+    rb = None if run_budget_seconds is None or run_budget_seconds < 0 else run_budget_seconds
+    return from_request(request, contracts.reconcile(project_dir=d, agent=agent, stage=stage,
+                                                     kind=kind, profile=profile,
+                                                     run_budget_seconds=rb),
+                        resource="artifact-contracts", resource_id="reconcile")
+
+
 @router.get("/artifact-contracts/{artifact_id}", dependencies=[Depends(authenticate)])
 def artifact_contract_one(artifact_id: str, request: Request,
                           ctx: dict[str, Any] = Depends(authenticate)):
