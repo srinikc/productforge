@@ -1,13 +1,13 @@
 # Backlog Summary
 
-> GENERATED 2026-10-13T23:33:03 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-14T09:58:12 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 123  |  **Closed:** 514
+- **Open:** 122  |  **Closed:** 517
 - `accepted`: 1
-- `new`: 121
+- `new`: 120
 - `parked`: 1
 
 ### parked (1)
@@ -15,7 +15,7 @@
 |---|---|---|---|---|
 | BI-PF-0374 | Could | feature | PFSSOT-P12: optimization (only after correctness) | PFSSOT-P12: optimization (only after correctness) |
 
-### new, by category (121)
+### new, by category (120)
 **API / reports / HIL / misc** (14)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
@@ -68,7 +68,7 @@
 | BI-PF-1315 | Must | feature | EDP-23: Backup/PITR + restore drills (full service + single-tenant) + DB<->object integrity reconciliation + region-aware restore | Deliver backup + PITR configuration, automated restore drills (full-service and single-tenant), DB<->object in... |
 | BI-PF-1317 | Could | feature | EDP-24: Scale-out & enterprise isolation tiers (read replicas / partitioning / tenant isolation tiers / additional region cells / region-migration workflow) [EVIDENCE-GATED] | Provide scale-out and enterprise isolation tiers including read-replica support, DB partitioning, tenant isola... |
 
-**Specs / cache / context / artifacts** (10)
+**Specs / cache / context / artifacts** (9)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0206 | Should | tech-debt | Backend: model downloader + local cache + license-acceptance gate + models.lock (open-weights) | One owner module that downloads only the weights a project's capability pack needs, into a gitignored local ca... |
@@ -80,7 +80,6 @@
 | BI-PF-1312 | Must | feature | EDP-20: Append-only AuditStore; split orchestrator/storage.py (audit vs cache vs evidence); retention/redaction; large checkpoints -> object store | Deliver an append-only AuditStore, split orchestrator/storage.py into audit/cache/evidence responsibilities, a... |
 | BI-PF-1314 | Should | feature | EDP-22: Benchmarks/SLOs + EXPLAIN(ANALYZE,BUFFERS) tuning + observability + quotas + graceful degradation (DB/object/cache/queue) | Establish performance benchmarks/SLOs, EXPLAIN(ANALYZE,BUFFERS)-based tuning, observability, quotas, and grace... |
 | BI-PF-1329 | Should | feature | WG-O5: Assign a SPECIFIC backlog item to a session/worker (claim-by-id + operator assignment) with lease semantics | Support claiming/assigning a specific item id (not just next-eligible). |
-| BI-PF-1349 | Must | task | Agent definitions/specs registry: declarative agent contract (inputs/outputs/artifacts) + coverage gate for new/dynamic agents | Declarative agent registry (inputs/outputs/artifacts) as the single source for the agent->artifact mapping + c... |
 
 **Wiring / tech-debt / API** (79)
 | ID | MoSCoW | Type | Title | Objective |
@@ -363,5 +362,5 @@
 ---
 
 ## Totals
-- backend: 123 open / 514 closed
+- backend: 122 open / 517 closed
 - dashboard: 146 open / 3 closed
