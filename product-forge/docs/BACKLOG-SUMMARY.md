@@ -1,17 +1,16 @@
 # Backlog Summary
 
-> GENERATED 2026-10-14T18:41:15 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-14T20:09:42 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 121  |  **Closed:** 527
-- `accepted`: 1
+- **Open:** 118  |  **Closed:** 531
 - `blocked`: 1
 - `executing`: 3
-- `new`: 116
+- `new`: 114
 
-### new, by category (116)
+### new, by category (114)
 **API / reports / HIL / misc** (17)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
@@ -31,13 +30,12 @@
 | BI-PF-1328 | Must | task | WG-O4: Merge-driver coverage for id-blocks.json (max-merge) + children[] regenerated | Extend the derived merge driver to id-blocks and children. |
 | BI-PF-1331 | Should | bug | pre-commit lint_check crashes in git worktrees (WinError 206 long path) - blocks commits | Make the pre-commit lint_check work from a git worktree (no WinError 206 long-path crash). |
 | BI-PF-1382 | Must | bug | Backlog API: POST /backlog/items returns empty resource_id (created id not surfaced) | Backlog API: POST /backlog/items returns empty resource_id (created id not surfaced) |
-| BI-PF-1386 | Must | feature | Backlog API: complete write surface + optimistic concurrency (expected_revision -> 409) | Backlog API: complete write surface + optimistic concurrency (expected_revision -> 409) |
+| BI-PF-1387 | Should | bug | Backlog API: POST /items 500s under PF_ID_ALLOC=strict when the shared id authority is unreachable | Backlog API: POST /items 500s under PF_ID_ALLOC=strict when the shared id authority is unreachable |
 
-**Bug fixes** (2)
+**Bug fixes** (1)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-PF-1332 | Should | bug | Develop red: test pollution committed into data/learnings.json breaks test_global_render_unchanged (scratch loop-learning marker 0270) | Restore develop green: purge test pollution from data/learnings.json + prevent test writes to the real learnin... |
-| BI-PF-1384 | Should | bug | Merge driver path drifts to a dead worktree -> derived-file conflicts not auto-resolved | Merge driver path drifts to a dead worktree -> derived-file conflicts not auto-resolved |
 
 **Discovery / HIL / prompts** (7)
 | ID | MoSCoW | Type | Title | Objective |
@@ -80,7 +78,7 @@
 | BI-PF-1329 | Should | feature | WG-O5: Assign a SPECIFIC backlog item to a session/worker (claim-by-id + operator assignment) with lease semantics | Support claiming/assigning a specific item id (not just next-eligible). |
 | BI-PF-1385 | Must | bug | Backlog API: no deterministic endpoint to author item context fields (objective/acceptance_criteria/affected_files/approach) | Backlog API: no deterministic endpoint to author item context fields (objective/acceptance_criteria/affected_f... |
 
-**Wiring / tech-debt / API** (72)
+**Wiring / tech-debt / API** (71)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0185 | Should | feature | EPIC: Multi-modal / media orchestration (pluggable capability packs) | Make the pipeline modality-agnostic via PLUGGABLE capability packs, enabled per project when the idea needs th... |
@@ -152,7 +150,6 @@
 | BI-PF-1333 | Must | task | Design stage over-proportions output: 19 FRs + 15 NFRs for one trivial feature; 314KB partial blows run time/cost | Design stage over-proportions output: 19 FRs + 15 NFRs for one trivial feature; 314KB partial blows run time/c... |
 | BI-PF-1370 | Should | feature | Session isolation guard: never write outside the session's own working folder (hard ACL long-term + single-account alternative now) | A session can only affect its OWN working folder: cross-folder writes are prevented (long-term, hard) or at le... |
 | BI-PF-1371 | Must | feature | Session isolation guard: never write outside the session's own working folder (hard ACL long-term + single-account alternative now) | A session can only affect its OWN working folder: cross-folder writes are prevented (long-term, hard) or at le... |
-| BI-PF-1373 | Should | task | Artifact contracts: product-wide DRY (state NFRs/quality once, not per feature) | Artifact contracts: product-wide DRY (state NFRs/quality once, not per feature) |
 | BI-PF-1374 | Should | feature | precheck: a derived/bookkeeping-only tier (docs-fresh + compile only) so doc/backlog regeneration never runs the full gate | Add a derived/bookkeeping-only precheck tier (docs-fresh + compile) and stop doc-regen running the full gate. |
 | BI-PF-1381 | Should | feature | CI: add a Go-module build/vet/test gate for product-forge/go/* | CI: add a Go-module build/vet/test gate for product-forge/go/* |
 
@@ -354,5 +351,5 @@
 ---
 
 ## Totals
-- backend: 121 open / 527 closed
+- backend: 118 open / 531 closed
 - dashboard: 146 open / 3 closed

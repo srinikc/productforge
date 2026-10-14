@@ -947,9 +947,13 @@ class AgentRunnerMixin:
         try:
             from core.agent_requirements import (required_sections, per_feature_agents,
                                                  feature_outline, id_allocation,
-                                                 format_feature_range)
+                                                 format_feature_range, product_wide_sections,
+                                                 product_wide_id_range)
             spec = required_sections(agent_id) or {}
             _cap = int(getattr(self, "_outline_section_cap", 12) or 12)
+            # BI-PF-1373: product-wide sections (NFRs) are emitted ONCE, not per feature.
+            _pw_sections = set(product_wide_sections())
+            _pw_line = product_wide_id_range()
             is_pf = agent_id in per_feature_agents()
             feat_labels: List[str] = []
             if is_pf:
@@ -1020,15 +1024,16 @@ class AgentRunnerMixin:
 
             def _call_section(key, digest, concise=False):
                 label = self._section_label(key)
+                _pw = ("\n\n" + _pw_line) if (key in _pw_sections and _pw_line) else ""
                 if self._structured_output_enabled():
-                    sec_prompt = (shared +
+                    sec_prompt = (shared + _pw +
                                   f"\n\nIGNORE any instruction to write the full document. Output ONLY a "
                                   f"fenced ```json object for the '## {label}' section with keys: "
                                   f"heading, bullets (array of strings), text. No prose outside the fence."
                                   + (f"\n\nALREADY WRITTEN (stay consistent with these names/IDs):\n{digest}"
                                      if digest else ""))
                 else:
-                    sec_prompt = (shared +
+                    sec_prompt = (shared + _pw +
                                   f"\n\nIGNORE any instruction to write the full document. "
                                   f"WRITE ONLY the '## {label}' section now; do not write any other section."
                                   + (" Keep it concise (bullet lists)." if concise else "")
@@ -1096,6 +1101,21 @@ class AgentRunnerMixin:
                         _flush()
                     else:
                         print(f"  [GENERATION] {agent_id}: feature '{fid}' empty")
+
+                # BI-PF-1373: product-wide DRY (advisory) - features must REFERENCE NFRs, not restate them.
+                if pf_blocks and _pw_sections:
+                    try:
+                        from core import contracts as _c
+                        _frags = [{"id": fid, "text": blk} for fid, blk in pf_blocks]
+                        _dr = _c.dry_check(product_wide=sorted(_pw_sections), fragments=_frags) or {}
+                        _v = _dr.get("violations") or []
+                        if _v:
+                            print(f"  [DRY] {agent_id}: {len(_v)} per-feature block(s) restate "
+                                  f"product-wide sections: "
+                                  + ", ".join(f"{x.get('id')}:{','.join(x.get('sections') or [])}"
+                                              for x in _v[:5]))
+                    except Exception:
+                        pass
 
             for key in ordered:
                 content, ti = _call_section(key, digest)

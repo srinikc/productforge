@@ -255,6 +255,33 @@ func TestACOutline(t *testing.T) {
 	}
 }
 
+func TestACDryCheck(t *testing.T) {
+	// F-2 restates the product-wide section -> violation; F-1 (reference only) is clean
+	v, e := ACContractDryCheckOp(map[string]any{
+		"product_wide": []any{"non_functional_requirements"},
+		"fragments": []any{
+			map[string]any{"id": "F-1", "text": "## F-1\nNFRs referenced (see NFR-1..15)"},
+			map[string]any{"id": "F-2", "text": "## F-2\n## Non-Functional Requirements\nNFR-1 latency"},
+		}})
+	if e != "" {
+		t.Fatalf("dry_check error: %s", e)
+	}
+	if v["ok"] != false {
+		t.Fatalf("expected a violation")
+	}
+	vv := v["violations"].([]map[string]any)
+	if len(vv) != 1 || vv[0]["id"] != "F-2" {
+		t.Fatalf("expected only F-2 flagged, got %v", vv)
+	}
+	// clean
+	c, _ := ACContractDryCheckOp(map[string]any{
+		"product_wide": []any{"non_functional_requirements"},
+		"fragments":    []any{map[string]any{"id": "F-1", "text": "## F-1\nNFRs referenced"}}})
+	if c["ok"] != true {
+		t.Fatalf("clean fragments should pass: %v", c["violations"])
+	}
+}
+
 func TestACCoverage(t *testing.T) {
 	d := writeACDir(t)
 	cov, _ := ACContractCoverageOp(map[string]any{"dir": d, "agents": []any{"design", "ghost"}, "stages": []any{"1"}})
