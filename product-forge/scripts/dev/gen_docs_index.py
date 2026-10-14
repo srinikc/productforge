@@ -61,6 +61,7 @@ TOP = {
     "CI-CD-AND-GATES-SSOT.md": ("SSOT", "CI/CD + gates SSOT: triggers, precheck tiers, PR merge gate, delivery, generated-product CI (PF + products)", 100),
     "COMPLIANCE-REGISTER.md": ("SSOT", "Generated compliance register: framework->control->evidence (BI-PF-1206)", 100),
     "EDP-DATA-PLANE-THREAT-MODEL.md": ("SSOT", "Generated data-plane threat model + register matrix: 6 categories -> source/sink/control/owner/evidence (BI-PF-1296 / EDP-04)", 100),
+    "merge-drift-conflict-github.md": ("Design", "Merge/drift/conflict plan: root cause, stopgaps, and the EDP execution order that removes them (BI-PF-1292)", 100),
     "SECURITY-ARCHITECTURE-CISO.md": ("SSOT", "CISO security-architecture posture: trust boundaries, controls, risk, framework mapping (BI-PF-1203)", 100),
     "AUDIT-REGISTER-TRIAGE.md": ("Analysis (current)", "Audit PF/candidate disposition: fixed / tracked / new (BI-PF-0254)", 100),
     "CAPABILITY-STEERING-DESIGN.md": ("Design", "Capability steering design + plan (BI-0221..BI-0230)", 20),
