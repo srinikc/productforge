@@ -217,6 +217,44 @@ func TestACReconcile(t *testing.T) {
 	}
 }
 
+func TestACOutline(t *testing.T) {
+	d := writeACDir(t)
+
+	// required section present, projected within budget -> under
+	u, e := ACContractOutlineOp(map[string]any{"dir": d, "agent": "design", "kind": "text",
+		"lines_per_item": 3, "outline": []any{map[string]any{"section": "Functional Requirements", "count": 10}}})
+	if e != "" {
+		t.Fatalf("outline error: %s", e)
+	}
+	if u["verdict"] != "under" || u["over"] != false {
+		t.Fatalf("expected under, got %v/%v", u["verdict"], u["over"])
+	}
+	if u["budget_lines"].(int) != 100 {
+		t.Fatalf("expected 100 budget lines, got %v", u["budget_lines"])
+	}
+
+	// over budget -> compressed outline fits (min 1 per section)
+	o, _ := ACContractOutlineOp(map[string]any{"dir": d, "agent": "design", "kind": "text",
+		"lines_per_item": 3, "outline": []any{map[string]any{"section": "Functional Requirements", "count": 50}}})
+	if o["verdict"] != "over" || o["over"] != true {
+		t.Fatalf("expected over, got %v", o["verdict"])
+	}
+	if o["compressed_lines"].(int) > o["budget_lines"].(int) {
+		t.Fatalf("compressed %v should fit budget %v", o["compressed_lines"], o["budget_lines"])
+	}
+	comp := o["compressed"].([]map[string]any)
+	if comp[0]["count"].(int) < 1 {
+		t.Fatalf("compressed count must be >= 1")
+	}
+
+	// missing required section -> reported
+	m, _ := ACContractOutlineOp(map[string]any{"dir": d, "agent": "design", "kind": "text",
+		"outline": []any{map[string]any{"section": "Something Else", "count": 1}}})
+	if len(m["missing_sections"].([]string)) == 0 {
+		t.Fatalf("expected a missing required section")
+	}
+}
+
 func TestACCoverage(t *testing.T) {
 	d := writeACDir(t)
 	cov, _ := ACContractCoverageOp(map[string]any{"dir": d, "agents": []any{"design", "ghost"}, "stages": []any{"1"}})

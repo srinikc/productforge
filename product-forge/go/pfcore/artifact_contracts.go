@@ -333,6 +333,125 @@ func ACContractReconcileOp(payload map[string]any) (map[string]any, string) {
 	}, ""
 }
 
+// acOutlineItems parses payload["outline"] -> [{section, count}] (malformed entries ignored).
+func acOutlineItems(payload map[string]any) []map[string]any {
+	out := []map[string]any{}
+	arr, ok := payload["outline"].([]any)
+	if !ok {
+		return out
+	}
+	for _, x := range arr {
+		m, ok := x.(map[string]any)
+		if !ok {
+			continue
+		}
+		s, _ := m["section"].(string)
+		if strings.TrimSpace(s) == "" {
+			continue
+		}
+		n, _ := acToInt(m["count"])
+		if n < 1 {
+			n = 1
+		}
+		out = append(out, map[string]any{"section": s, "count": n})
+	}
+	return out
+}
+
+// ACContractOutlineOp validates a PRE-FILL outline (sections + counts) against the resolved
+// artifact contract(s): every required section present + projected lines within the size budget
+// (slider-scaled). Returns a COMPRESSED outline (proportional, min 1 per section, required
+// sections preserved) when over budget. Pure/deterministic - the caller decides enforce/advisory
+// (BI-PF-1372; plan -> outline -> fill).
+func ACContractOutlineOp(payload map[string]any) (map[string]any, string) {
+	dir, _ := payload["dir"].(string)
+	agent, _ := payload["agent"].(string)
+	stage, _ := payload["stage"].(string)
+	kind, _ := payload["kind"].(string)
+	if kind == "" {
+		kind = "*"
+	}
+	profile, _ := payload["profile"].(string)
+	reg, am, e := acLoad(dir)
+	if e != "" {
+		return nil, e
+	}
+	prof, mult := acSizeMultiplier(dir, profile)
+	ids := acContractsFor(reg, am, dir, agent, stage, kind)
+
+	required := map[string]bool{}
+	order := []string{}
+	budget := 0
+	for _, id := range ids {
+		c := reg[id]
+		req := c.RequiredSections
+		if len(req) == 0 {
+			req = c.Sections
+		}
+		for _, s := range req {
+			k := strings.ToLower(strings.TrimSpace(s))
+			if k != "" && !required[k] {
+				required[k] = true
+				order = append(order, s)
+			}
+		}
+		if v, ok := c.Size["max_lines"]; ok {
+			if n, ok2 := acToInt(v); ok2 && n > 0 {
+				budget += int(float64(n) * mult)
+			}
+		}
+	}
+	outline := acOutlineItems(payload)
+	linesPerItem, _ := acToInt(payload["lines_per_item"])
+	if linesPerItem < 1 {
+		linesPerItem = 3
+	}
+	present := map[string]bool{}
+	projected := 0
+	for _, it := range outline {
+		present[strings.ToLower(strings.TrimSpace(fmt.Sprintf("%v", it["section"])))] = true
+		n, _ := acToInt(it["count"])
+		projected += n * linesPerItem
+	}
+	missing := []string{}
+	for _, s := range order {
+		if !present[strings.ToLower(strings.TrimSpace(s))] {
+			missing = append(missing, s)
+		}
+	}
+	over := budget > 0 && projected > budget
+	compressed := outline
+	compLines := projected
+	if over && projected > 0 {
+		scale := float64(budget) / float64(projected)
+		compressed = []map[string]any{}
+		compLines = 0
+		for _, it := range outline {
+			n, _ := acToInt(it["count"])
+			nc := int(math.Floor(float64(n) * scale))
+			if nc < 1 {
+				nc = 1
+			}
+			compressed = append(compressed, map[string]any{"section": it["section"], "count": nc})
+			compLines += nc * linesPerItem
+		}
+	}
+	verdict := "over"
+	switch {
+	case budget <= 0:
+		verdict = "no_budget"
+	case !over:
+		verdict = "under"
+	}
+	return map[string]any{
+		"profile": prof, "size_multiplier": mult,
+		"budget_lines": budget, "projected_lines": projected,
+		"missing_sections": missing, "over": over, "verdict": verdict,
+		"lines_per_item": linesPerItem, "sections": order, "contracts": ids,
+		"compressed": compressed, "compressed_lines": compLines,
+	}, ""
+}
+
 func acModalityFor(reg map[string]ACContract, kind string) []string {
 	k := strings.ToLower(strings.TrimSpace(kind))
 	out := []string{}

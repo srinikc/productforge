@@ -125,7 +125,7 @@ func Capabilities() []string {
 		"artifact_contracts.registry", "artifact_contracts.resolve",
 		"artifact_contracts.validate", "artifact_contracts.coverage",
 		"artifact_contracts.kind", "artifact_contracts.budget",
-		"artifact_contracts.reconcile",
+		"artifact_contracts.reconcile", "artifact_contracts.outline",
 		"agents.registry", "agents.resolve", "agents.coverage", "agents.register"}
 }
 
@@ -154,7 +154,7 @@ func SupportedOps() []string {
 		"artifact_contracts.registry", "artifact_contracts.resolve",
 		"artifact_contracts.validate", "artifact_contracts.coverage",
 		"artifact_contracts.kind", "artifact_contracts.budget",
-		"artifact_contracts.reconcile",
+		"artifact_contracts.reconcile", "artifact_contracts.outline",
 		"agents.registry", "agents.resolve", "agents.coverage", "agents.register"}
 }
 
@@ -227,6 +227,8 @@ func Handle(req WireRequest) WireResponse {
 		return acOp(req, ACContractBudgetOp)
 	case "artifact_contracts.reconcile":
 		return acOp(req, ACContractReconcileOp)
+	case "artifact_contracts.outline":
+		return acOp(req, ACContractOutlineOp)
 	case "agents.registry":
 		return acOp(req, ARAgentRegistryOp)
 	case "agents.resolve":

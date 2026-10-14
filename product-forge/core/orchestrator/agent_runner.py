@@ -357,6 +357,7 @@ class AgentRunnerMixin:
         except Exception:
             strategy = "single"
             outline = None
+        self._outline_gate(agent_id, stage_id)  # BI-PF-1372: pre-fill outline/budget gate
         if strategy == "sectioned" and not use_tools:
             print(f"  [GENERATION] {agent_id}: sectioned (one call per section + merge)")
             content, token_info = self._generate_sectioned(agent_id, stage_id, task,
@@ -895,6 +896,42 @@ class AgentRunnerMixin:
               f"{os.path.relpath(fdir, self.project_dir)}/")
         return len(ordered)
 
+    def _outline_gate(self, agent_id: str, stage_id: str) -> None:
+        """BI-PF-1372: pre-fill outline/budget gate (plan -> outline -> fill).
+
+        Deterministic outline = the agent/stage contract's required sections; the Go engine
+        checks they are present and that projected lines fit the slider-scaled size budget.
+        ADVISORY by default (log only); in ``enforce`` the generated section cap is set to the
+        compressed outline. Mode shares ``PIPELINE_ARTIFACT_VALIDATION`` (off|advisory|enforce).
+        """
+        import os as _os
+        mode = str(_os.getenv("PIPELINE_ARTIFACT_VALIDATION", "advisory") or "advisory").strip().lower()
+        if mode not in ("advisory", "enforce"):
+            return
+        try:
+            from core import contracts as _c
+            res = _c.resolve(agent=agent_id, stage=stage_id)
+            secs: list = []
+            for ct in (res.get("contracts") or []):
+                for s in (ct.get("required_sections") or []):
+                    if s not in secs:
+                        secs.append(s)
+            if not secs:
+                return
+            lpi = int(_os.getenv("PIPELINE_OUTLINE_LINES_PER_SECTION", "3") or 3)
+            outline = [{"section": s, "count": 1} for s in secs]
+            chk = _c.outline_check(agent=agent_id, stage=stage_id, outline=outline, lines_per_item=lpi) or {}
+            print(f"  [OUTLINE] {agent_id}: {chk.get('verdict')} "
+                  f"({chk.get('projected_lines')} proj vs {chk.get('budget_lines')} budget lines; "
+                  f"{len(chk.get('missing_sections') or [])} missing)")
+            if mode == "enforce" and chk.get("over"):
+                cap = len(chk.get("compressed") or []) or 12
+                self._outline_section_cap = max(1, int(cap))
+                print(f"  [OUTLINE] {agent_id}: enforce -> section cap {self._outline_section_cap} "
+                      f"(compressed {chk.get('compressed_lines')} <= {chk.get('budget_lines')} lines)")
+        except Exception:
+            pass
+
     def _generate_sectioned(self, agent_id, stage_id, task, contract, artifact_file, base_prompt,
                             outline=None):
         """Write one section per LLM call, then deterministically merge.
@@ -912,6 +949,7 @@ class AgentRunnerMixin:
                                                  feature_outline, id_allocation,
                                                  format_feature_range)
             spec = required_sections(agent_id) or {}
+            _cap = int(getattr(self, "_outline_section_cap", 12) or 12)
             is_pf = agent_id in per_feature_agents()
             feat_labels: List[str] = []
             if is_pf:
@@ -933,13 +971,13 @@ class AgentRunnerMixin:
                 ordered = [k for k in (list((spec.get("essential") or {}).keys())
                                        + list((spec.get("recommended") or {}).keys()))
                            if k not in ("per_feature", "functional")]
-                ordered = ordered[:12]
+                ordered = ordered[:_cap]
             else:
                 ordered = (list((spec.get("essential") or {}).keys())
                            + list((spec.get("recommended") or {}).keys()))
                 if not ordered:
                     return self._call_llm(base_prompt, agent_id, stage_id)
-                ordered = ordered[:12]  # bounded, no runaway
+                ordered = ordered[:_cap]  # bounded by the outline gate (BI-PF-1372)
 
             acc = {"input_tokens": 0, "output_tokens": 0, "cached_tokens": 0, "reasoning_tokens": 0,
                    "total_tokens": 0, "cost": 0.0, "selected_model": "", "selected_provider": "",
