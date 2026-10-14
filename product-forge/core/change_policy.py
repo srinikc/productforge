@@ -248,13 +248,56 @@ def undeclared_import_findings(sources: dict[str, str],
     return findings
 
 
+def edit_growth_findings(changed: Iterable[str], added: Iterable[str],
+                         growth: dict[str, dict[str, int]] | None = None,
+                         pol: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+    """BI-PF-1338: flag LARGE new logic added by EDITING an existing shipped ``.py`` (not a new file).
+
+    ``growth`` maps normalized path -> ``{added, removed, new_defs, new_branches}`` (a real diff, or a declared
+    plan). Catches "bolting big new logic onto an existing shipped file" - the gap the new-file rule misses.
+    Excludes shrinks/refactors (removed >= added) and allowlisted files (fail-closed otherwise).
+    """
+    pol = pol or policy()
+    cfg = pol.get("edit_growth") or {}
+    added_set = {normalize(a) for a in added}
+    allow = {normalize(a) for a in (cfg.get("allow") or [])}
+    findings: list[dict[str, Any]] = []
+    for raw in changed:
+        n = normalize(raw)
+        if not n.endswith(".py") or n in added_set or n in allow:
+            continue
+        c = classify_file(n, pol)
+        if c.get("area") != "shipped":
+            continue
+        g = (growth or {}).get(n) or {}
+        add = int(g.get("added") or 0)
+        rem = int(g.get("removed") or 0)
+        defs = int(g.get("new_defs") or 0)
+        branches = int(g.get("new_branches") or 0)
+        if defs < int(cfg.get("min_new_defs", 1)) and branches < int(cfg.get("min_new_branches", 5)):
+            continue                              # no new logic units -> small/refactor edit
+        if rem >= add:
+            continue                              # shrinking / replace -> not "new logic"
+        threshold = int(cfg.get("sensitive_edit_added_lines", 20) if c.get("sensitive")
+                        else cfg.get("max_edit_added_lines", 60))
+        if (add - rem) >= threshold:
+            findings.append({
+                "rule": "language-rule-edit-growth", "path": n, "sensitive": bool(c.get("sensitive")),
+                "detail": f"large new logic added to shipped Python via edit (+{add}/-{rem}, new_defs={defs}, "
+                          f"new_branches={branches}) - new shipped/sensitive logic should be Go (or a declared "
+                          f"allowlist entry / {pol.get('escape_env')} exception)"})
+    return findings
+
+
 def check(changed: Iterable[str], added: Iterable[str], sources: dict[str, str],
-          pol: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+          pol: dict[str, Any] | None = None,
+          growth: dict[str, dict[str, int]] | None = None) -> list[dict[str, Any]]:
     """All policy findings in one call (gate consumes this)."""
     pol = pol or policy()
     return (language_rule_findings(changed, added, pol)
             + unclassified_findings(added, pol)
-            + undeclared_import_findings(sources, pol))
+            + undeclared_import_findings(sources, pol)
+            + edit_growth_findings(changed, added, growth, pol))
 
 
 def drift_report(added: Iterable[str], findings: list[dict[str, Any]],

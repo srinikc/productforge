@@ -9,9 +9,15 @@ Planning aid only; the ENFORCING gate remains ``scripts/dev/language_rule_check.
 delivery validation). Files that do not yet exist are treated as planned NEW files (added); existing files
 are planned EDITS (changed) - edits to shipped Python are allowed.
 
+Size verdict (BI-PF-1338): a big edit to shipped Python is really new logic and must be Go. The item may carry an
+APPROXIMATE ``planned_change`` = ``{path: {added, removed, new_defs, new_branches}}`` (an estimate is fine at
+Gate 1 - no diff exists yet) and it is fed through the SAME edit-growth policy as ``--plan``; the ENFORCING gate
+still evaluates the real ``git diff`` later.
+
 Usage:
   python scripts/dev/language_rule_review.py BI-PF-1264
   python scripts/dev/language_rule_review.py BI-PF-1264 --json
+  python scripts/dev/language_rule_review.py --plan "core/foo.py:120,5,4,9"
 """
 import argparse
 import json
@@ -40,6 +46,16 @@ def assess(item_id: str, scope: str = "product_forge", project: str = "") -> dic
     for f in files:
         (changed if _exists(f) else added).append(f)
     pol = change_policy.policy()
+    # Optional APPROXIMATE planned size (BI-PF-1338): item.planned_change = {path: {added, removed, new_defs,
+    # new_branches}} - enough for the Gate-1 Go/Python verdict (no diff exists yet; the enforced gate uses the real diff).
+    growth: dict = {}
+    planned = it.get("planned_change") or {}
+    if isinstance(planned, dict):
+        for p, g in planned.items():
+            g = g if isinstance(g, dict) else {}
+            growth[change_policy.normalize(p)] = {
+                "added": int(g.get("added") or 0), "removed": int(g.get("removed") or 0),
+                "new_defs": int(g.get("new_defs") or 0), "new_branches": int(g.get("new_branches") or 0)}
     shipped_py = [p for p in set(changed) if change_policy.normalize(p).endswith(".py")]
     sources = {}
     for p in shipped_py:
@@ -48,21 +64,61 @@ def assess(item_id: str, scope: str = "product_forge", project: str = "") -> dic
             sources[n] = open(os.path.join(_ROOT, *n.split("/")), encoding="utf-8", errors="ignore").read()
         except Exception:
             sources[n] = ""  # unreadable -> fail-closed parse path
-    findings = change_policy.check(changed, added, sources, pol)
+    findings = change_policy.check(changed, added, sources, pol, growth)
     drift = change_policy.drift_report(added, findings, pol)
-    return {"item": item_id, "changed": changed, "added": added, "drift": drift, "findings": findings}
+    return {"item": item_id, "changed": changed, "added": added, "planned_change": growth,
+            "drift": drift, "findings": findings}
+
+
+def _parse_plan(spec: str) -> dict:
+    """Parse ``--plan "path:add,rem,defs,branches; …"`` -> ``{path: growth}`` (BI-PF-1338)."""
+    from core import change_policy
+    growth: dict = {}
+    for entry in (spec or "").split(";"):
+        entry = entry.strip()
+        if not entry:
+            continue
+        path, _, nums = entry.partition(":")
+        parts = [p.strip() for p in nums.replace("/", ",").split(",") if p.strip()]
+        g = {"added": 0, "removed": 0, "new_defs": 0, "new_branches": 0}
+        for i, v in enumerate(parts[:4]):
+            try:
+                g[["added", "removed", "new_defs", "new_branches"][i]] = int(v)
+            except Exception:
+                pass
+        growth[change_policy.normalize(path)] = g
+    return growth
 
 
 def main(argv=None) -> int:
-    ap = argparse.ArgumentParser(description="Plan-time language-rule assessment (BI-PF-1262)")
-    ap.add_argument("item")
+    ap = argparse.ArgumentParser(description="Plan-time language-rule assessment (BI-PF-1262/1338)")
+    ap.add_argument("item", nargs="?", default="")
     ap.add_argument("--scope", default="product_forge")
     ap.add_argument("--project", default="")
+    ap.add_argument("--plan", default="", help='planned edits: "path:add,rem,defs,branches; ..."')
     ap.add_argument("--json", action="store_true")
     a = ap.parse_args(argv)
-    from core import backlog
-    if not backlog.get_epic(a.scope, a.project or None, a.item):
-        print(f"item {a.item} not found in this tree's backlog - run in the runtime tree that owns the item")
+    from core import backlog, change_policy
+    pol = change_policy.policy()
+
+    # Plan mode (BI-PF-1338): answer Go vs Python for the PLANNED change, before implementing.
+    if a.plan:
+        growth = _parse_plan(a.plan)
+        findings = change_policy.edit_growth_findings(list(growth), [], growth, pol)
+        rows = [{"path": p, "area": change_policy.classify_file(p, pol).get("area"),
+                 "go_required": any(f["path"] == p for f in findings)} for p in growth]
+        if a.json:
+            print(json.dumps({"plan": rows, "findings": findings}, ensure_ascii=False))
+            return 1 if findings else 0
+        print("language-rule assessment (plan-time):")
+        for r in rows:
+            verdict = ("Go required (large new logic in shipped Python)" if r["go_required"]
+                       else "Python OK (edit under threshold / tooling / go)")
+            print(f"   - {r['path']} [{r['area']}] -> {verdict}")
+        return 1 if findings else 0
+
+    if not a.item or not backlog.get_epic(a.scope, a.project or None, a.item):
+        print('provide an existing <item>, or --plan "path:add,rem,defs,branches; ..."')
         return 2
     r = assess(a.item, a.scope, a.project)
     if a.json:
@@ -70,11 +126,13 @@ def main(argv=None) -> int:
         return 1 if r["findings"] else 0
     print(f"language-rule assessment (plan-time) for {r['item']}: "
           f"{len(r['changed'])} planned edit(s) / {len(r['added'])} planned new file(s)")
+    if r.get("planned_change"):
+        print(f"   (using APPROXIMATE item.planned_change for {len(r['planned_change'])} file(s) - estimate is fine at Gate 1)")
     for f in r["findings"]:
         print(f"   - [{f['rule']}] {f['path']}: {f['detail']}")
     if r["findings"]:
-        print("   => language-rule: FAIL - planned NEW shipped Python must be Go or allowlisted "
-              "(edits to existing shipped Python are allowed)")
+        print("   => language-rule: FAIL - new / over-threshold shipped-Python logic must be Go (or allowlisted); "
+              "edits under threshold are allowed")
         return 1
     print("   => language-rule: OK (no new shipped Python; edits allowed)")
     return 0

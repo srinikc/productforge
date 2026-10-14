@@ -3124,6 +3124,28 @@ class PipelineExecutor(AgentExecutionMixin, AgentRunnerMixin, StageRunnerMixin):
         except Exception as _ee:
             print(f"[Estimate] skipped: {_ee}")
 
+        # Artifact-budget reconciliation vs the run budget (BI-PF-1348; ADVISORY - never gates).
+        try:
+            from core import contracts as _ct
+            _rc_kind = ""
+            try:
+                with open(os.path.join(self.project_dir, "project.json"), encoding="utf-8") as _pjf:
+                    _rc_kind = str((json.load(_pjf) or {}).get("project_kind") or "")
+            except Exception:
+                _rc_kind = ""
+            if not _rc_kind:
+                _rc_kind = str((_ct.detect_kind(getattr(self, "project_idea", "") or "") or {}).get("kind") or "text")
+            _rc = _ct.reconcile(project_dir=self.project_dir, kind=_rc_kind,
+                                run_budget_seconds=(self.max_total_time or 0))
+            _ab = _rc.get("artifact_budget") or {}
+            print(f"  [Reconcile] artifact budgets: {_ab.get('max_tokens', 0)} tok / "
+                  f"{_ab.get('max_lines', 0)} lines | work-estimate "
+                  f"~{_rc.get('work_estimate_minutes', 0)} min | run budget "
+                  f"{_rc.get('run_budget_seconds', 0)}s | verdict={_rc.get('verdict', '?')} "
+                  f"(delta={_rc.get('delta_seconds', 0)}s)")
+        except Exception as _rce:
+            print(f"[Reconcile] skipped: {_rce}")
+
         # Brief sufficiency (GENERIC, no placeholder list): never INVENT a product.
         # Always raise a clarification request; interactive -> wait for the user;
         # auto without an answer -> BLOCK by default (PIPELINE_ON_UNCLEAR=assume to

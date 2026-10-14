@@ -11,6 +11,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -217,6 +218,119 @@ func ACContractBudgetOp(payload map[string]any) (map[string]any, string) {
 	}
 	return map[string]any{"profile": prof, "total_max_tokens": total, "items": items,
 		"count": len(items)}, ""
+}
+
+// acRound1 rounds to 1 decimal for stable, human-readable wire values.
+func acRound1(v float64) float64 {
+	return math.Round(v*10) / 10
+}
+
+// acNearThreshold is the "within" band for the reconciliation verdict: a run whose
+// work estimate is >= 90% of (but not over) its budget is reported as "within".
+const acNearThreshold = 0.9
+
+// acRunContracts is the artifact set a FULL run is expected to produce: every universal
+// contract, plus modality contracts whose applies_to matches the detected project kind.
+func acRunContracts(reg map[string]ACContract, kind string) []string {
+	k := strings.ToLower(strings.TrimSpace(kind))
+	out := []string{}
+	for id, c := range reg {
+		if strings.ToLower(c.Tier) == "modality" {
+			match := false
+			for _, a := range c.AppliesTo {
+				if a == "*" || strings.ToLower(a) == k {
+					match = true
+					break
+				}
+			}
+			if !match {
+				continue
+			}
+		}
+		out = append(out, id)
+	}
+	sort.Strings(out)
+	return out
+}
+
+// ACContractReconcileOp reconciles the summed per-artifact budget against the RUN budget
+// (work-estimate / PIPELINE_MAX_TOTAL_TIME) - BI-PF-1348. ADVISORY: it reports the
+// artifact token/line envelope and a time-axis verdict (under|within|over|unlimited);
+// it NEVER gates or stops a run. Time axis is the run's own work estimate vs the budget;
+// the artifact token/line budget is reported alongside for context (different axis).
+func ACContractReconcileOp(payload map[string]any) (map[string]any, string) {
+	dir, _ := payload["dir"].(string)
+	agent, _ := payload["agent"].(string)
+	stage, _ := payload["stage"].(string)
+	kind, _ := payload["kind"].(string)
+	if kind == "" {
+		kind = "*"
+	}
+	profile, _ := payload["profile"].(string)
+	reg, am, e := acLoad(dir)
+	if e != "" {
+		return nil, e
+	}
+	prof, mult := acSizeMultiplier(dir, profile)
+
+	// Artifact set: an explicit agent/stage reconciles that set; otherwise the run-level set.
+	var ids []string
+	if agent != "" || stage != "" {
+		ids = acContractsFor(reg, am, dir, agent, stage, kind)
+	} else {
+		ids = acRunContracts(reg, kind)
+	}
+
+	totalTokens, totalLines := 0, 0
+	for _, id := range ids {
+		c := reg[id]
+		if v, ok := c.Budget["max_tokens"]; ok {
+			if n, ok2 := acToInt(v); ok2 {
+				totalTokens += n
+			}
+		}
+		if v, ok := c.Size["max_lines"]; ok {
+			if n, ok2 := acToInt(v); ok2 {
+				totalLines += int(float64(n) * mult)
+			}
+		}
+	}
+
+	budget, _ := acToFloat(payload["run_budget_seconds"])
+	work, _ := acToFloat(payload["work_estimate_seconds"])
+	if work == 0 {
+		if w, ok := acToFloat(payload["work_estimate_minutes"]); ok {
+			work = w * 60.0
+		}
+	}
+
+	verdict, delta, pct := "unlimited", 0.0, 0.0
+	if budget > 0 {
+		delta = budget - work
+		pct = work / budget * 100.0
+		switch {
+		case pct > 100.0:
+			verdict = "over"
+		case pct >= acNearThreshold*100.0:
+			verdict = "within"
+		default:
+			verdict = "under"
+		}
+	}
+	return map[string]any{
+		"profile":               prof,
+		"size_multiplier":       mult,
+		"run_budget_seconds":    acRound1(budget),
+		"work_estimate_seconds": acRound1(work),
+		"work_estimate_minutes": acRound1(work / 60.0),
+		"artifact_budget": map[string]any{
+			"count": len(ids), "max_tokens": totalTokens, "max_lines": totalLines,
+		},
+		"delta_seconds":  acRound1(delta),
+		"pct_of_budget":  acRound1(pct),
+		"near_threshold": acNearThreshold,
+		"verdict":        verdict,
+	}, ""
 }
 
 func acModalityFor(reg map[string]ACContract, kind string) []string {

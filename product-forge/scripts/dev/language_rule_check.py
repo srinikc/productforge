@@ -75,6 +75,36 @@ def load_sources(shipped_py_paths):
     return sources
 
 
+def growth_of(base, changed):
+    """BI-PF-1338: per changed ``.py`` -> ``{added, removed, new_defs, new_branches}`` vs merge-base.
+
+    Line counts from ``git diff --numstat``; new ``def``/``class`` + branch keywords parsed from ``git diff -U0``
+    added lines. Feeds core.change_policy.edit_growth_findings (large logic added via edits -> should be Go).
+    """
+    import re
+
+    from core import change_policy
+    want = {change_policy.normalize(p) for p in changed}
+    growth: dict = {}
+    for line in _git("diff", "--numstat", base):
+        parts = line.split("\t")
+        if len(parts) == 3 and parts[0].isdigit() and parts[1].isdigit():
+            n = change_policy.normalize(parts[2])
+            if n in want and n.endswith(".py"):
+                growth[n] = {"added": int(parts[0]), "removed": int(parts[1]), "new_defs": 0, "new_branches": 0}
+    cur = None
+    for line in _git("diff", "-U0", base):
+        if line.startswith("+++ b/"):
+            cur = change_policy.normalize(line[6:])
+        elif cur and cur in growth and line.startswith("+") and not line.startswith("+++"):
+            s = line[1:]
+            if re.match(r"\s*(def |class |async def )", s):
+                growth[cur]["new_defs"] += 1
+            elif re.match(r"\s*(if |elif |for |while |except |match |case |with )", s):
+                growth[cur]["new_branches"] += 1
+    return growth
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--files", default="", help="explicit changed list (comma-separated), skip git")
@@ -95,7 +125,8 @@ def main(argv=None) -> int:
         changed, added = git_scope()
 
     shipped_py = [p for p in set(changed) if change_policy.normalize(p).endswith(".py")]
-    findings = change_policy.check(changed, added, load_sources(shipped_py), pol)
+    growth = growth_of(_merge_base(), changed)
+    findings = change_policy.check(changed, added, load_sources(shipped_py), pol, growth)
     drift = change_policy.drift_report(added, findings, pol)
     escape = bool(os.environ.get(pol.get("escape_env", "PF_ALLOW_PY_SHIPPED")))
 

@@ -167,6 +167,56 @@ func TestACResolveAndValidate(t *testing.T) {
 	}
 }
 
+func TestACReconcile(t *testing.T) {
+	d := writeACDir(t)
+
+	// run-level (no agent/stage): universal contracts only for kind=text -> 5000+4000 tokens
+	r, e := ACContractReconcileOp(map[string]any{"dir": d, "kind": "text",
+		"run_budget_seconds": 600.0, "work_estimate_seconds": 300.0})
+	if e != "" {
+		t.Fatalf("reconcile error: %s", e)
+	}
+	ab := r["artifact_budget"].(map[string]any)
+	if ab["max_tokens"].(int) != 9000 {
+		t.Fatalf("expected 9000 run-level token budget, got %v", ab["max_tokens"])
+	}
+	if r["verdict"] != "under" {
+		t.Fatalf("expected under, got %v", r["verdict"])
+	}
+	if r["delta_seconds"].(float64) != 300.0 {
+		t.Fatalf("expected +300s spare, got %v", r["delta_seconds"])
+	}
+
+	// over budget -> verdict over + negative delta
+	r2, _ := ACContractReconcileOp(map[string]any{"dir": d, "kind": "text",
+		"run_budget_seconds": 60.0, "work_estimate_seconds": 600.0})
+	if r2["verdict"] != "over" || r2["delta_seconds"].(float64) >= 0 {
+		t.Fatalf("expected over with negative delta, got %v / %v", r2["verdict"], r2["delta_seconds"])
+	}
+
+	// within band (>=90% but not over)
+	r3, _ := ACContractReconcileOp(map[string]any{"dir": d, "kind": "text",
+		"run_budget_seconds": 100.0, "work_estimate_seconds": 95.0})
+	if r3["verdict"] != "within" {
+		t.Fatalf("expected within, got %v", r3["verdict"])
+	}
+
+	// 0 budget = unlimited (never gates)
+	r4, _ := ACContractReconcileOp(map[string]any{"dir": d, "kind": "text",
+		"run_budget_seconds": 0.0, "work_estimate_seconds": 9999.0})
+	if r4["verdict"] != "unlimited" {
+		t.Fatalf("expected unlimited, got %v", r4["verdict"])
+	}
+
+	// explicit agent set reconciles that agent's contracts only
+	r5, _ := ACContractReconcileOp(map[string]any{"dir": d, "agent": "design", "kind": "text",
+		"run_budget_seconds": 100.0, "work_estimate_seconds": 10.0})
+	ab5 := r5["artifact_budget"].(map[string]any)
+	if ab5["max_tokens"].(int) != 5000 {
+		t.Fatalf("expected 5000 for design, got %v", ab5["max_tokens"])
+	}
+}
+
 func TestACCoverage(t *testing.T) {
 	d := writeACDir(t)
 	cov, _ := ACContractCoverageOp(map[string]any{"dir": d, "agents": []any{"design", "ghost"}, "stages": []any{"1"}})
