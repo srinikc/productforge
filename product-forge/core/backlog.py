@@ -1236,7 +1236,21 @@ def set_dependencies(scope: str, project: str | None, eid: str, *,
             fields["dependencies"] = clean
             fields["deps"] = [c["task_id"] for c in clean]
         if blocked_by is not None:
-            fields["blocked_by"] = [str(x) for x in blocked_by if _ok(str(x), True)]
+            # BI-PF-1388: `blocked_by` OWNS the REQUIRES edges. Replace the item's existing REQUIRES
+            # dependencies (keep non-REQUIRES, e.g. RELATED) so a stale edge can never linger and the
+            # cycle guard sees the true graph. Rebuild dependencies/deps/blocked_by together.
+            keep = [d for d in (me.get("dependencies") or [])
+                    if isinstance(d, dict) and str(d.get("type") or "").upper() != "REQUIRES"]
+            ok_ids, add = [], []
+            for x in blocked_by:
+                tid = str(x)
+                if _ok(tid, True):
+                    ok_ids.append(tid)
+                    add.append({"task_id": tid, "type": "REQUIRES", "required_state": "COMPLETE"})
+            merged = keep + add
+            fields["dependencies"] = merged
+            fields["deps"] = [str(d.get("task_id") or d.get("id")) for d in merged]
+            fields["blocked_by"] = ok_ids
     if unlocks is not None:
         fields["unlocks"] = [str(x) for x in unlocks]
     if rejected:

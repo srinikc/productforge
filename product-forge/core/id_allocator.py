@@ -116,7 +116,11 @@ def _git(root: str, *args, env=None, stdin=None):
     if env:
         e.update(env)
     try:
-        r = subprocess.run(["git", *args], cwd=root, capture_output=True, text=True, env=e, input=stdin)
+        # BI-PF-1387: bound every git call so an unreachable remote can never hang id allocation.
+        r = subprocess.run(["git", *args], cwd=root, capture_output=True, text=True, env=e, input=stdin,
+                           timeout=15)
+    except subprocess.TimeoutExpired:
+        return 1, "", "timeout"
     except Exception:
         return 1, "", "exec-failed"
     return r.returncode, (r.stdout or "").strip(), (r.stderr or "").strip()
