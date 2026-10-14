@@ -127,3 +127,37 @@ def test_check_threads_growth():
     growth = {"core/contracts.py": {"added": 120, "removed": 5, "new_defs": 4, "new_branches": 9}}
     findings = cp.check(["core/contracts.py"], [], {"core/contracts.py": "import json\n"}, POL_EG, growth)
     assert any(f["rule"] == "language-rule-edit-growth" for f in findings)
+
+
+# --- BI-PF-1338 follow-up: <item> take-up review reads the item's APPROXIMATE planned_change ---
+def _load_review():
+    import importlib.util
+    root = Path(__file__).resolve().parents[3]
+    spec = importlib.util.spec_from_file_location(
+        "lrr", root / "scripts" / "dev" / "language_rule_review.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def test_review_assess_reads_item_planned_change(monkeypatch):
+    from core import backlog, change_policy
+    lrr = _load_review()
+    monkeypatch.setattr(change_policy, "policy", lambda *a, **k: POL_EG)
+    # core/licensing.py EXISTS -> an EDIT; the item's planned_change supplies the (approx) size
+    monkeypatch.setattr(backlog, "get_epic", lambda *a, **k: {
+        "affected_files": ["core/licensing.py"],
+        "planned_change": {"core/licensing.py": {"added": 25, "removed": 0, "new_defs": 1, "new_branches": 0}}})
+    r = lrr.assess("BI-TEST-1")
+    assert r["planned_change"]["core/licensing.py"]["added"] == 25
+    assert any(f["rule"] == "language-rule-edit-growth" for f in r["findings"])
+
+
+def test_review_assess_no_planned_change_is_ok(monkeypatch):
+    from core import backlog, change_policy
+    lrr = _load_review()
+    monkeypatch.setattr(change_policy, "policy", lambda *a, **k: POL_EG)
+    monkeypatch.setattr(backlog, "get_epic", lambda *a, **k: {"affected_files": ["core/licensing.py"]})
+    r = lrr.assess("BI-TEST-2")
+    assert r["planned_change"] == {}
+    assert r["findings"] == []

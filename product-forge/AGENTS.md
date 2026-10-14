@@ -91,7 +91,10 @@ Applies to EVERY review, Gate (**Gate 1** = approve the plan before coding; **Ga
    `python scripts/dev/language_rule_review.py <item>` and cite the verdict: new logic in **Go** vs **edits**
    to existing shipped Python (allowed) vs **new shipped Python needing an allowlist entry** (needs approval).
    This is the SAME policy precheck enforces (`scripts/dev/language_rule_check.py`, fast band) — decide it once,
-   up front, so it is not re-asked during implementation.
+   up front, so it is not re-asked during implementation. If the item carries an **approximate**
+   `planned_change` = `{path: {added, removed, new_defs, new_branches}}`, the SAME run also gives the **size**
+   verdict (a large edit to shipped Python is new logic → Go) — an estimate is fine at Gate 1; the enforcing
+   gate still evaluates the real `git diff`.
 
 ## Reconciliation before implementation (binding — any change)
 Before designing or implementing **anything**, produce a **RECONCILIATION** block and keep it with the work
