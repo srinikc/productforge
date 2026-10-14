@@ -1533,6 +1533,79 @@
         ]
       }
     },
+    "/api/v1/backlog/items/{item_id}/accept": {
+      "post": {
+        "description": "Accept an item: ``when=now`` -> queued; ``when=later`` -> accepted (unscheduled).",
+        "operationId": "accept_item_api_v1_backlog_items__item_id__accept_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "item_id",
+            "required": true,
+            "schema": {
+              "title": "Item Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Authorization",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-roles",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-Roles",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "title": "Body",
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Accept Item",
+        "tags": [
+          "backlog"
+        ]
+      }
+    },
     "/api/v1/backlog/items/{item_id}/analysis": {
       "post": {
         "operationId": "set_analysis_api_v1_backlog_items__item_id__analysis_post",
@@ -1600,6 +1673,152 @@
           }
         },
         "summary": "Set Analysis",
+        "tags": [
+          "backlog"
+        ]
+      }
+    },
+    "/api/v1/backlog/items/{item_id}/archive": {
+      "post": {
+        "description": "Non-destructive retire: move the item to the terminal ``archived`` status.",
+        "operationId": "archive_item_api_v1_backlog_items__item_id__archive_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "item_id",
+            "required": true,
+            "schema": {
+              "title": "Item Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Authorization",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-roles",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-Roles",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "title": "Body",
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Archive Item",
+        "tags": [
+          "backlog"
+        ]
+      }
+    },
+    "/api/v1/backlog/items/{item_id}/context": {
+      "post": {
+        "description": "Author an item's context fields deterministically (no AI) - the API-only take-up path.\n\nWhitelisted fields are written via ``core.backlog.update`` (single writer). Empty/None values are ignored.",
+        "operationId": "set_item_context_api_v1_backlog_items__item_id__context_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "item_id",
+            "required": true,
+            "schema": {
+              "title": "Item Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Authorization",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-roles",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-Roles",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "title": "Body",
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Set Item Context",
         "tags": [
           "backlog"
         ]
@@ -1673,6 +1892,79 @@
           }
         },
         "summary": "Context Review Item",
+        "tags": [
+          "backlog"
+        ]
+      }
+    },
+    "/api/v1/backlog/items/{item_id}/delete": {
+      "post": {
+        "description": "Remove an item (files + index) and re-sync its epic's children. Operator only; irreversible.",
+        "operationId": "delete_item_api_v1_backlog_items__item_id__delete_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "item_id",
+            "required": true,
+            "schema": {
+              "title": "Item Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Authorization",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-roles",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-Roles",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "title": "Body",
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Item",
         "tags": [
           "backlog"
         ]
@@ -1896,6 +2188,79 @@
         ]
       }
     },
+    "/api/v1/backlog/items/{item_id}/follow-up": {
+      "post": {
+        "description": "Set an item's follow-up review schedule (at / every_days / snooze_days).",
+        "operationId": "set_item_follow_up_api_v1_backlog_items__item_id__follow_up_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "item_id",
+            "required": true,
+            "schema": {
+              "title": "Item Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Authorization",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-roles",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-Roles",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "title": "Body",
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Set Item Follow Up",
+        "tags": [
+          "backlog"
+        ]
+      }
+    },
     "/api/v1/backlog/items/{item_id}/groom": {
       "post": {
         "description": "AI grooming by default; pass mode='deterministic' (or ai=false) for the no-AI path.",
@@ -2042,6 +2407,152 @@
         ]
       }
     },
+    "/api/v1/backlog/items/{item_id}/links": {
+      "post": {
+        "description": "Merge references into ``item.links`` (ids only); cross-scope refs must be scope-qualified.",
+        "operationId": "set_item_links_api_v1_backlog_items__item_id__links_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "item_id",
+            "required": true,
+            "schema": {
+              "title": "Item Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Authorization",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-roles",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-Roles",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "title": "Body",
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Set Item Links",
+        "tags": [
+          "backlog"
+        ]
+      }
+    },
+    "/api/v1/backlog/items/{item_id}/pair": {
+      "post": {
+        "description": "Cross-link two items reciprocally via ``links.paired_with`` (``other_ref`` scope-qualified).",
+        "operationId": "pair_item_api_v1_backlog_items__item_id__pair_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "item_id",
+            "required": true,
+            "schema": {
+              "title": "Item Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Authorization",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-roles",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-Roles",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "title": "Body",
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Pair Item",
+        "tags": [
+          "backlog"
+        ]
+      }
+    },
     "/api/v1/backlog/items/{item_id}/priority": {
       "post": {
         "operationId": "set_priority_api_v1_backlog_items__item_id__priority_post",
@@ -2114,6 +2625,152 @@
         ]
       }
     },
+    "/api/v1/backlog/items/{item_id}/readiness": {
+      "post": {
+        "description": "Record the computed readiness (ready + reasons) on an item.",
+        "operationId": "set_item_readiness_api_v1_backlog_items__item_id__readiness_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "item_id",
+            "required": true,
+            "schema": {
+              "title": "Item Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Authorization",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-roles",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-Roles",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "title": "Body",
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Set Item Readiness",
+        "tags": [
+          "backlog"
+        ]
+      }
+    },
+    "/api/v1/backlog/items/{item_id}/stale": {
+      "post": {
+        "description": "Force an item's analysis to STALE (e.g. a related component changed).",
+        "operationId": "mark_item_stale_api_v1_backlog_items__item_id__stale_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "item_id",
+            "required": true,
+            "schema": {
+              "title": "Item Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Authorization",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-roles",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-Roles",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "title": "Body",
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Mark Item Stale",
+        "tags": [
+          "backlog"
+        ]
+      }
+    },
     "/api/v1/backlog/items/{item_id}/status": {
       "post": {
         "operationId": "set_status_api_v1_backlog_items__item_id__status_post",
@@ -2181,6 +2838,141 @@
           }
         },
         "summary": "Set Status",
+        "tags": [
+          "backlog"
+        ]
+      }
+    },
+    "/api/v1/backlog/items/{item_id}/triage": {
+      "post": {
+        "description": "Triage an item (recommendation + value/effort/risk/moscow) -> status ``triaged``.",
+        "operationId": "triage_item_api_v1_backlog_items__item_id__triage_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "item_id",
+            "required": true,
+            "schema": {
+              "title": "Item Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Authorization",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-roles",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-Roles",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "title": "Body",
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Triage Item",
+        "tags": [
+          "backlog"
+        ]
+      }
+    },
+    "/api/v1/backlog/parked": {
+      "get": {
+        "description": "Parked items whose follow-up is due (weekly default). Read-only.",
+        "operationId": "parked_api_v1_backlog_parked_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "days",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "title": "Days",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Authorization",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-roles",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-Roles",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Parked",
         "tags": [
           "backlog"
         ]
