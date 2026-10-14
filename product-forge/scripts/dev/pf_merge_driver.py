@@ -21,6 +21,7 @@ import sys
 _INDEX_FILES = ("open.json", "closed.json")
 _COUNTER_FILES = ("counters.json",)
 _DOC_FILES = ("BACKLOG-SUMMARY.md", "documentation-index.html")
+_ITEM_DIR = "/backlog/items/"
 
 
 def _find_pf_root(ours: str) -> str:
@@ -56,6 +57,30 @@ def scope_from_path(path: str):
 def is_doc(path: str) -> bool:
     """True for the generated backlog docs (regenerate-on-merge)."""
     return path.replace("\\", "/").rsplit("/", 1)[-1] in _DOC_FILES
+
+
+def is_item(path: str) -> bool:
+    """True for a backlog WORK ITEM file (source; pf-item = newest-version wins)."""
+    p = path.replace("\\", "/")
+    return _ITEM_DIR in p and p.endswith(".json")
+
+
+def _item_key(item) -> tuple:
+    if not isinstance(item, dict):
+        return (-1, "")
+    return (int(item.get("revision") or 0), str(item.get("updated_at") or ""))
+
+
+def _newest_item(paths: list) -> str:
+    """Return the path holding the NEWEST item version (max revision, then updated_at)."""
+    best, best_key = "", None
+    for p in paths:
+        if not p:
+            continue
+        k = _item_key(_load(p))
+        if best_key is None or k > best_key:
+            best, best_key = p, k
+    return best
 
 
 def _load(p: str) -> dict:
@@ -116,6 +141,13 @@ def main(argv=None) -> int:
         except Exception as e:  # noqa: BLE001
             print(f"pf-merge-driver: doc regeneration failed ({type(e).__name__}: {e})", file=sys.stderr)
             return 1
+        return 0
+    # 3b. WORK ITEM file -> NEWEST version wins (never let a stale snapshot clobber newer state).
+    if is_item(path):
+        newest = _newest_item([base, ours, theirs])
+        if not newest:
+            return 1
+        _copy_result(ours, newest)
         return 0
     scope, project = scope_from_path(path)
     if scope is None:
