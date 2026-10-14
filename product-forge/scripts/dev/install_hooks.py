@@ -96,18 +96,36 @@ def _install(name: str, body: str) -> str:
     return path
 
 
+_DRIVER_REL = "product-forge/scripts/dev/pf_merge_driver.py"
+
+
+def ensure_merge_drivers(repo: str) -> bool:
+    """(Re)register the pf-derived/pf-item merge drivers with a repo-RELATIVE path (BI-PF-1384).
+
+    Idempotent + self-healing: rewrites any config whose driver path no longer resolves (e.g. an absolute
+    path into a removed worktree). Safe to call from install and from sync. Returns True when set.
+    """
+    if not os.path.isfile(os.path.join(repo, _DRIVER_REL)):
+        return False
+    want = f'python "{_DRIVER_REL}" %O %A %B %P'
+    for k, v in (("merge.pf-derived.name", "PF derived backlog artifact (regenerate/max-merge)"),
+                 ("merge.pf-derived.driver", want),
+                 ("merge.pf-item.name", "PF backlog work item (newest version wins)"),
+                 ("merge.pf-item.driver", want)):
+        cur = subprocess.run(["git", "config", "--get", k], cwd=repo,
+                             capture_output=True, text=True).stdout.strip()
+        if cur != v:
+            subprocess.run(["git", "config", k, v], cwd=repo, capture_output=True, text=True)
+    return True
+
+
 def main() -> int:
     print(f"installed pre-commit hook -> {_install('pre-commit', _HOOK)}")
     print(f"installed pre-push hook -> {_install('pre-push', _PREPUSH)}")
-    # BI-PF-1176 / BI-PF-1290: register the pf-derived merge driver (regenerates the derived backlog indexes/docs
-    # and max-merges counters from the shared stores)
-    drv = os.path.join(_REPO, "product-forge", "scripts", "dev", "pf_merge_driver.py").replace("\\", "/")
-    if os.path.isfile(drv):
-        for k, v in (("merge.pf-derived.name", "PF derived backlog artifact (regenerate/max-merge)"),
-                     ("merge.pf-derived.driver", f'python "{drv}" %O %A %B %P'),
-                     ("merge.pf-item.name", "PF backlog work item (newest version wins)"),
-                     ("merge.pf-item.driver", f'python "{drv}" %O %A %B %P')):
-            subprocess.run(["git", "config", k, v], cwd=_REPO, capture_output=True, text=True)
+    # BI-PF-1176 / BI-PF-1290 / BI-PF-1384: register the pf-derived merge driver. Use a path RELATIVE to the
+    # repo root so it resolves from ANY worktree/clone (an absolute path baked into a since-removed worktree
+    # left the shared git config pointing at a dead file -> derived merges silently stopped auto-resolving).
+    if ensure_merge_drivers(_REPO):
         print("registered merge drivers: merge.pf-derived.driver, merge.pf-item.driver")
     return 0
 
