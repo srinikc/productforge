@@ -1,58 +1,57 @@
 {
   "id": "BI-PF-1388",
   "tag": "PF",
-  "type": "bug",
+  "type": "epic",
   "scope": "product_forge",
   "project": "",
   "origin": "api",
   "external_id": "",
   "label": "PF Backlog 587",
-  "title": "EDP execution order was mis-sequenced: RLS (EDP-09) ordered before the schema/DAL (EDP-17) it depends on",
-  "body": "CONCERN (RCCA). Symptom: the EDP dependency ledger ordered EDP-09 (tenant context + RLS) before EDP-17 (canonical PostgreSQL schema + DAL/CRUD + pooling), so the epic would attempt RLS on tables that do not exist yet - wrong execution order across waves. Root cause: EDP-17 was seeded blocked_by [1300,1301] and EDP-09 by [1296] only; the schema was never made a prerequisite of the isolation/data-plane items. Fix applied: corrected blocked_by across ALL EDP waves - schema-first (EDP-17<-EDP-08/1300), then EDP-09<-EDP-17, then data-plane services (EDP-07<-schema, EDP-10/11/12/13<-systems, EDP-14/15/16/18/19/20/21<-schema/objects). Secondary defect found: POST /items/{id}/dependencies silently DROPS a blocker edge (EDP-09<-EDP-17 never persists) - needs RCCA + guard. Correct order: W0 EDP-01/02/03/04/07/08(+06); W1 EDP-17,05,13; W2 EDP-09,10,14,11; W3 EDP-15,18,19,20,12; W4 EDP-21,16,23; W5 EDP-22; W6 EDP-24.",
+  "title": "EPIC: Generation Proportionality - artifact contract + project profile drive generation (bounded by construction)",
+  "body": "## Problem / why\nThe Artifact Contract Registry (BI-PF-1342) mapped every agent/stage to a contract and validates output against it, but generation does NOT consume the contract: agent prompts hardcode big templates (design 3.1-3.10, architect 6.1-6.21), generation sections come from config/agent-requirements.json, and the project-size profile (small/medium/large) is never passed to resolve(). Result: design/architect over-produce (BI-PF-1333: 19 FRs + 15 NFRs + 13 user stories + 314KB partial for ONE trivial feature; ~140k tokens / 11 calls) and calls run long/costly. Three independent section sources (prompt template vs agent-requirements.json vs artifact-contract) drift.\n## Goal & value\nBounded by construction: ONE lever (artifact contract x project-size profile x kind) drives each agent's section plan, counts and size; the agent prompt/section plan is derived from it; output stays proportionate for simple vs medium vs large/complex projects - no arbitrary per-agent caps.\n## In scope\n- Contract + profile -> generation (section plan; resolve(profile); new Go op artifact_contracts.generation_plan)\n- Profile lever: required vs optional sections + counts bands + size budget (small/medium/large)\n- Contract-driven prompts; deprecate the hardcoded design/architect templates; framework-agnostic (remove .opencode refs)\n- Enforce per-feature FR/US caps + max_lines (scaled by the profile)\n- Single source for sections (reconcile the three sources)\n## Out of scope\n- EDP data-plane; per-agent model selection; the state-sync/backlog-area items\n## Acceptance criteria\n- Generation consumes the resolved artifact contract (required sections always; optional per profile); no hardcoded template duplication remains.\n- A trivial (small-profile) project yields the required-only section set within budget; larger profiles add optional sections/counts - all from the one profile lever.\n- No .opencode references in agent prompts.\n- BI-PF-1333 verified on MyToDo and closed.\n",
   "source": "api",
   "status": "new",
-  "priority": "P1",
-  "moscow": "Must",
+  "priority": null,
+  "moscow": "Should",
   "value": 3,
   "effort": 3,
   "risk": 2,
-  "deps": [
-    "BI-PF-1201"
-  ],
+  "deps": [],
   "links": {},
-  "decisions": [
-    {
-      "at": "2026-10-14T21:06:30.616925",
-      "decision": "APPROVE",
-      "by": "system",
-      "note": "auto-approved on add (BI-PF-1282)"
-    }
-  ],
+  "decisions": [],
   "follow_up": {},
   "brief": {
-    "problem": "CONCERN (RCCA). Symptom: the EDP dependency ledger ordered EDP-09 (tenant context + RLS) before EDP-17 (canonical PostgreSQL schema + DAL/CRUD + pooling), so the epic would attempt RLS on tables that do not exist yet - wrong execution order across waves. Root cause: EDP-17 was seeded blocked_by [1300,1301] and EDP-09 by [1296] only; the schema was never made a prerequisite of the isolation/data-plane items. Fix applied: corrected blocked_by across ALL EDP waves - schema-first (EDP-17<-EDP-08/1300), then EDP-09<-EDP-17, then data-plane services (EDP-07<-schema, EDP-10/11/12/13<-systems, EDP-14/15/16/18/19/20/21<-schema/objects). Secondary defect found: POST /items/{id}/dependencies silently DROPS a blocker edge (EDP-09<-EDP-17 never persists) - needs RCCA + guard. Correct order: W0 EDP-01/02/03/04/07/08(+06); W1 EDP-17,05,13; W2 EDP-09,10,14,11; W3 EDP-15,18,19,20,12; W4 EDP-21,16,23; W5 EDP-22; W6 EDP-24.",
-    "what_adds": "EDP execution order was mis-sequenced: RLS (EDP-09) ordered before the schema/DAL (EDP-17) it depends on",
-    "why": "CONCERN (RCCA). Symptom: the EDP dependency ledger ordered EDP-09 (tenant context + RLS) before EDP-17 (canonical PostgreSQL schema + DAL/CRUD + pooling), so the epic would attempt RLS on tables that do not exist yet - wrong execution order across waves. Root cause: EDP-17 was seeded blocked_by [1300,1301] and EDP-09 by [1296] only; the schema was never made a prerequisite of the isolation/data-plane items. Fix applied: corrected blocked_by across ALL EDP waves - schema-first (EDP-17<-EDP-08/1300), then EDP-09<-EDP-17, then data-plane services (EDP-07<-schema, EDP-10/11/12/13<-systems, EDP-14/",
+    "problem": "The Artifact Contract Registry (BI-PF-1342) mapped every agent/stage to a contract and validates output against it, but generation does NOT consume the contract: agent prompts hardcode big templates (design 3.1-3.10, architect 6.1-6.21), generation sections come from config/agent-requirements.json, and the project-size profile (small/medium/large) is never passed to resolve(). Result: design/architect over-produce (BI-PF-1333: 19 FRs + 15 NFRs + 13 user stories + 314KB partial for ONE trivial feature; ~140k tokens / 11 calls) and calls run long/costly. Three independent section sources (prompt template vs agent-requirements.json vs artifact-contract) drift.",
+    "what_adds": "Bounded by construction: ONE lever (artifact contract x project-size profile x kind) drives each agent's section plan, counts and size; the agent prompt/section plan is derived from it; output stays proportionate for simple vs medium vs large/complex projects - no arbitrary per-agent caps.",
+    "why": "The Artifact Contract Registry (BI-PF-1342) mapped every agent/stage to a contract and validates output against it, but generation does NOT consume the contract: agent prompts hardcode big templates (design 3.1-3.10, architect 6.1-6.21), generation sections come from config/agent-requirements.json, and the project-size profile (small/medium/large) is never passed to resolve(). Result: design/architect over-produce (BI-PF-1333: 19 FRs + 15 NFRs + 13 user stories + 314KB partial for ONE trivial feature; ~140k tokens / 11 calls) and calls run long/costly. Three independent section sources (prompt",
     "who_feels": "Product Forge maintainers and consumers.",
-    "source": "extracted"
+    "source": "authored"
   },
-  "objective": "EDP execution order was mis-sequenced: RLS (EDP-09) ordered before the schema/DAL (EDP-17) it depends on",
+  "objective": "Bounded by construction: ONE lever (artifact contract x project-size profile x kind) drives each agent's section plan, counts and size; the agent prompt/section plan is derived from it; output stays proportionate for simple vs medium vs large/complex projects - no arbitrary per-agent caps.",
   "acceptance_criteria": [
-    "Objective achieved: EDP execution order was mis-sequenced: RLS (EDP-09) ordered before the schema/DAL (EDP-17) it depends on"
+    "Generation consumes the resolved artifact contract (required sections always; optional per profile); no hardcoded template duplication remains.",
+    "A trivial (small-profile) project yields the required-only section set within budget; larger profiles add optional sections/counts - all from the one profile lever.",
+    "No .opencode references in agent prompts.",
+    "BI-PF-1333 verified on MyToDo and closed."
   ],
   "in_scope": [
-    "EDP execution order was mis-sequenced: RLS (EDP-09) ordered before the schema/DAL (EDP-17) it depends on"
+    "Contract + profile -> generation (section plan; resolve(profile); new Go op artifact_contracts.generation_plan)",
+    "Profile lever: required vs optional sections + counts bands + size budget (small/medium/large)",
+    "Contract-driven prompts; deprecate the hardcoded design/architect templates; framework-agnostic (remove .opencode refs)",
+    "Enforce per-feature FR/US caps + max_lines (scaled by the profile)",
+    "Single source for sections (reconcile the three sources)"
   ],
   "out_of_scope": [
-    "Not specified."
+    "EDP data-plane; per-agent model selection; the state-sync/backlog-area items"
   ],
   "affected_components": [
-    "Not specified."
+    "config"
   ],
   "affected_files": [
-    "Not specified."
+    "agent-requirements.json",
+    "config/agent-requirements.json"
   ],
-  "approach": "EDP execution order was mis-sequenced: RLS (EDP-09) ordered before the schema/DAL (EDP-17) it depends on",
+  "approach": "Contract + profile -> generation (section plan; resolve(profile); new Go op artifact_contracts.generation_plan); Profile lever: required vs optional sections + counts bands + size budget (small/medium/large); Contract-driven prompts; deprecate the hardcoded design/architect templates; framework-agnostic (remove .opencode refs)",
   "review": {
     "reconciliation": {
       "prior_decisions": [],
@@ -66,7 +65,10 @@
     "at": ""
   },
   "verification": [
-    "Objective achieved: EDP execution order was mis-sequenced: RLS (EDP-09) ordered before the schema/DAL (EDP-17) it depends on"
+    "Generation consumes the resolved artifact contract (required sections always; optional per profile); no hardcoded template duplication remains.",
+    "A trivial (small-profile) project yields the required-only section set within budget; larger profiles add optional sections/counts - all from the one profile lever.",
+    "No .opencode references in agent prompts.",
+    "BI-PF-1333 verified on MyToDo and closed."
   ],
   "risks": [
     "Not specified."
@@ -80,98 +82,51 @@
   "due": "",
   "target_release": "",
   "approvals": [],
-  "summary": "",
-  "children": [],
-  "epic": "BI-PF-1292",
-  "parent": "BI-PF-1292",
-  "revision": 3,
-  "priority_rank": 2,
-  "priority_class": "P1",
+  "summary": "Bounded by construction: ONE lever (artifact contract x project-size profile x kind) drives each agent's section plan, counts and size; the agent prompt/section plan is derived from it; output stays proportionate for simple vs medium vs large/complex projects - no arbitrary per-agent caps.",
+  "children": [
+    "BI-PF-1333",
+    "BI-PF-1389",
+    "BI-PF-1390",
+    "BI-PF-1391",
+    "BI-PF-1392",
+    "BI-PF-1393"
+  ],
+  "epic": "",
+  "parent": "",
+  "revision": 1,
+  "priority_rank": null,
+  "priority_class": "",
   "analyze_mode": "on_entry",
   "analysis": {
     "status": "COMPLETE",
-    "analyzed_at": "2026-10-14T21:06:30.420267",
-    "analyzed_by": "system",
-    "revision_analyzed": 3,
+    "analyzed_at": "2026-10-14T21:18:50.663086",
+    "analyzed_by": "review",
+    "revision_analyzed": 1,
     "architecture_fit": "EXTEND",
-    "implementation_strategy": "Extend the existing backlog dependency writer (BI-PF-1201 guard) to persist and return explicit outcomes; add RCCA tests reproducing the silently dropped EDP-09<-EDP-17 edge, plus a schema-first invariant check for EDP waves. Reuse POST /items/{id}/dependencies and the order API at /api/v1/backlog/epics/{epic_id}/order.",
+    "implementation_strategy": "SINGLE SOURCE FOR GENERATION = resolve(agent, stage, kind, profile) from config/artifact-contracts/ (index.json contracts + agents.json map + profiles.json). Align the THREE current section sources to it: (1) agents/*.agent.json `instructions` hardcoded templates (design.md 3.1-3.10; architect 6.1-6.21 NFR tables) -> become contract-driven; (2) config/agent-requirements.json `required_sections` (the CURRENT generation section list; agent_runner.py:948-952 `spec = required_sections(agent_id)`) -> reconcile to the contract or deprecate; (3) config/artifact-contracts (sections/required_sections/counts/size) + profiles.json -> THE source. PROFILE LEVER: profiles.json small/medium/large (size_multiplier+depth) extended to select required-vs-optional sections + counts bands + size; the project profile (project.json) is passed into resolve() so the lever actually bites (today resolve is called WITHOUT profile at agent_runner.py:913 and stage_runner.py:105 -> always medium). WIRING: new Go op artifact_contracts.generation_plan (go/pfcore/artifact_contracts.go) returns the per-agent section plan for a profile (required always; optional per profile; counts bands; size budget); core/contracts.py thin client; core/orchestrator/agent_runner._generate_sectioned consumes the plan for `ordered`/per-feature; stage_runner passes the profile; enforce via PIPELINE_ARTIFACT_VALIDATION.",
     "existing_components": [],
     "existing_apis": [],
     "existing_modules": [],
-    "dependency_findings": [
-      "REQUIRES BI-PF-1201 guard merged (required_state: implemented) to host the drop-fix",
-      "BLOCKS any EDP wave automation that trusts dependency writes (required_state: verified)",
-      "RELATED BI-PF-0442 (RCCA test-first pattern to mirror)",
-      "RELATED BI-PF-0412 (no direct impact)"
-    ],
-    "conflict_findings": [
-      "Concurrent edits possible with BI-PF-1201 on the dependency writer module - serialize or rebase",
-      "EDP epic ownership may touch the same blocked_by ledger - coordinate before edits"
-    ],
-    "duplication_findings": [
-      "BI-PF-1201 already adds writer-side dependency guard (self/unknown/cycle) - extend it, do not rebuild",
-      "Ordering/wave logic may already exist in core/execution_contract.py and core/schema_validator.py - verify before adding checks",
-      "BI-PF-1252 unscoped - low relevance, no overlap confirmed"
-    ],
-    "drift": "LOW",
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
     "rewrite_required": false,
     "new_component_required": false,
-    "rationale": "Data-ordering fix is already applied; the durable work is an RCCA with a regression guard preventing silent edge drops. The existing dependency writer (BI-PF-1201) is the natural host, so this is an EXTEND with no new components.",
-    "assumptions": [
-      "The fix to blocked_by across EDP waves is already applied and persists in the current store",
-      "Dependency guard from BI-PF-1201 is the correct host for the return-strict fix",
-      "EDP wave table in the item body is the authoritative target order"
-    ],
-    "risks": [
-      "Silent edge drop may affect other backlog items beyond EDP-09<-EDP-17",
-      "Corrected blocked_by ledger could be re-broken by future seeding scripts without a guard",
-      "Root cause of drop (write path vs validation path) not yet pinpointed"
-    ],
-    "evidence": [
-      "Item body: 'Fix applied: corrected blocked_by across ALL EDP waves'",
-      "Item body: 'POST /items/{id}/dependencies silently DROPS a blocker edge'",
-      "Candidate reuse: core/schema_validator.py, /api/v1/backlog/epics/{epic_id}/order",
-      "BI-PF-1201 scope matches writer guard",
-      "BI-PF-0442 establishes RED-first RCCA test pattern"
-    ],
-    "confidence": "medium",
-    "missing_info": [
-      "Which code path swallows the edge (validator drop vs store write failure vs response masking)?",
-      "Should invalid dependency POSTs hard-fail (4xx) or return a structured rejection report?",
-      "Who owns the EDP ledger: enforce a schema-first invariant automatically or leave to reviewers?"
-    ],
-    "depth": "deep",
-    "mode": "ai",
-    "context_review": {
-      "ok": false,
-      "source": "llm",
-      "implementable": false,
-      "missing": [
-        "how",
-        "where"
-      ],
-      "reason": "Ordering fix is described as already applied, but the remaining work (API silently dropping blocker edges) lacks concrete approach, affected components/files, and any specific defect detail beyond the endpoint name; affected components/files are 'Not specified'."
-    },
-    "decision_request": {
-      "needed": false,
-      "reasons": [],
-      "ask": ""
-    },
+    "rationale": "",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [],
+    "confidence": "",
     "arch_fingerprint": "fa203c86348c004a"
   },
-  "dependencies": [
-    {
-      "task_id": "BI-PF-1201",
-      "type": "REQUIRES",
-      "required_state": "implemented"
-    }
-  ],
+  "dependencies": [],
   "blocked_by": [],
   "unlocks": [],
   "readiness": {
-    "ready": true,
+    "ready": false,
     "reasons": [],
-    "computed_at": "2026-10-14T21:06:30.507572"
+    "computed_at": ""
   },
   "execution": {
     "worker_id": "",
@@ -186,8 +141,41 @@
     "last_heartbeat_at": "",
     "usage": {}
   },
-  "created_at": "2026-10-14T21:05:11.465383",
-  "updated_at": "2026-10-14T21:06:30.901586",
+  "created_at": "2026-10-14T21:12:28.893563",
+  "updated_at": "2026-10-14T21:30:37.451847",
   "score": 0.75,
-  "_note": "readiness computed"
+  "_note": "epic execution order saved",
+  "execution_order": [
+    {
+      "id": "BI-PF-1389",
+      "wave": 0,
+      "status": "READY"
+    },
+    {
+      "id": "BI-PF-1390",
+      "wave": 1,
+      "status": "wait"
+    },
+    {
+      "id": "BI-PF-1391",
+      "wave": 1,
+      "status": "wait"
+    },
+    {
+      "id": "BI-PF-1392",
+      "wave": 2,
+      "status": "wait"
+    },
+    {
+      "id": "BI-PF-1393",
+      "wave": 3,
+      "status": "wait"
+    },
+    {
+      "id": "BI-PF-1333",
+      "wave": 4,
+      "status": "wait"
+    }
+  ],
+  "execution_order_at": "2026-10-14T21:30:37.365426"
 }

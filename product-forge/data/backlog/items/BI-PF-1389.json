@@ -1,0 +1,197 @@
+{
+  "id": "BI-PF-1389",
+  "tag": "PF",
+  "type": "task",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "api",
+  "external_id": "",
+  "label": "PF Backlog 588",
+  "title": "Wire the artifact contract + project-size profile into generation (single source for the section plan)",
+  "body": "## Problem / why\nGeneration uses config/agent-requirements.json sections + hardcoded prompt templates; the artifact contract + profile are only used for post-hoc validation (BI-PF-1347) and the advisory outline gate (BI-PF-1372). resolve() is called WITHOUT the project profile (agent_runner.py:913, stage_runner.py:105), so the slider never bites.\n## Goal & value\nThe resolved contract (required vs optional sections per profile + counts + size) becomes the single source for an agent's generation section plan.\n## Acceptance criteria\n- A new Go op artifact_contracts.generation_plan returns the agent/stage section plan for a given profile (required always; optional per profile; counts; size).\n- stage_runner/agent_runner build sections from that plan (no hardcoded template list).\n## Approach\nExtend go/pfcore/artifact_contracts.go (reuse resolve) + thin client core/contracts.py + wire in core/orchestrator/agent_runner.py.",
+  "source": "api",
+  "status": "new",
+  "priority": "P2",
+  "moscow": "Should",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [],
+  "links": {},
+  "decisions": [
+    {
+      "at": "2026-10-14T21:13:45.061901",
+      "decision": "APPROVE",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)"
+    },
+    {
+      "at": "2026-10-14T21:27:14.279850",
+      "decision": "APPROVE",
+      "by": "operator",
+      "note": ""
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "Generation uses config/agent-requirements.json sections + hardcoded prompt templates; the artifact contract + profile are only used for post-hoc validation (BI-PF-1347) and the advisory outline gate (BI-PF-1372). resolve() is called WITHOUT the project profile (agent_runner.py:913, stage_runner.py:105), so the slider never bites.",
+    "what_adds": "The resolved contract (required vs optional sections per profile + counts + size) becomes the single source for an agent's generation section plan.",
+    "why": "Generation uses config/agent-requirements.json sections + hardcoded prompt templates; the artifact contract + profile are only used for post-hoc validation (BI-PF-1347) and the advisory outline gate (BI-PF-1372). resolve() is called WITHOUT the project profile (agent_runner.py:913, stage_runner.py:105), so the slider never bites.",
+    "who_feels": "Product Forge maintainers and consumers.",
+    "source": "authored"
+  },
+  "objective": "The resolved contract (required vs optional sections per profile + counts + size) becomes the single source for an agent's generation section plan.",
+  "acceptance_criteria": [
+    "A new Go op artifact_contracts.generation_plan returns the agent/stage section plan for a given profile (required always; optional per profile; counts; size).",
+    "stage_runner/agent_runner build sections from that plan (no hardcoded template list)."
+  ],
+  "in_scope": [
+    "Wire the artifact contract + project-size profile into generation (single source for the section plan)"
+  ],
+  "out_of_scope": [
+    "Not specified."
+  ],
+  "affected_components": [
+    "config",
+    "core",
+    "go"
+  ],
+  "affected_files": [
+    "agent_runner.py",
+    "config/agent-requirements.json",
+    "core/contracts.py",
+    "core/orchestrator/agent_runner.py",
+    "go/pfcore/artifact_contracts.go",
+    "stage_runner.py"
+  ],
+  "approach": "Extend go/pfcore/artifact_contracts.go (reuse resolve) + thin client core/contracts.py + wire in core/orchestrator/agent_runner.py.",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "A new Go op artifact_contracts.generation_plan returns the agent/stage section plan for a given profile (required always; optional per profile; counts; size).",
+    "stage_runner/agent_runner build sections from that plan (no hardcoded template list)."
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "unassigned",
+  "requester": "api",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1388",
+  "parent": "BI-PF-1388",
+  "revision": 3,
+  "priority_rank": 2,
+  "priority_class": "P2",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "COMPLETE",
+    "analyzed_at": "2026-10-14T21:27:14.028223",
+    "analyzed_by": "operator",
+    "revision_analyzed": 3,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/artifact_formats.py, core/artifact_registry.py, core/artifact_store.py, core/budget_planner.py",
+    "existing_components": [
+      "core/artifact_formats.py",
+      "core/artifact_registry.py",
+      "core/artifact_store.py",
+      "core/budget_planner.py",
+      "core/contracts.py",
+      "core/control_plane.py",
+      "core/execution_contract.py",
+      "core/iteration_planner.py"
+    ],
+    "existing_apis": [
+      "/api/v1/artifacts",
+      "/api/v1/artifacts/{stage_id}/{agent}",
+      "/api/v1/validation/artifact-contracts",
+      "/api/v1/validation/artifact-contracts/budget",
+      "/api/v1/validation/artifact-contracts/kind",
+      "/api/v1/validation/artifact-contracts/reconcile",
+      "/api/v1/validation/artifact-contracts/refresh-check",
+      "/api/v1/validation/artifact-contracts/resolve"
+    ],
+    "existing_modules": [
+      "config/artifact-formats.json",
+      "config/artifact-owners.json",
+      "config/artifact-paths.json",
+      "config/data-plane-threats.json",
+      "config/pidl-profile.json",
+      "config/plan-groups.json"
+    ],
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=0.75",
+      "components=8",
+      "apis=8"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic",
+    "context_review": {
+      "ok": true,
+      "source": "llm",
+      "implementable": true,
+      "missing": [],
+      "reason": "States what (new Go op artifact_contracts.generation_plan + rebuild sections from it), why (slider never bites because resolve() lacks profile), how (extend Go resolve, thin Python client, wire into agent_runner), and where (named files/components). Acceptance criteria give concrete, testable outcomes."
+    },
+    "decision_request": {
+      "needed": false,
+      "reasons": [],
+      "ask": ""
+    },
+    "arch_fingerprint": "fa203c86348c004a"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-14T21:27:14.164711"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-14T21:12:40.879279",
+  "updated_at": "2026-10-14T21:27:14.566323",
+  "score": 0.75,
+  "_note": "readiness computed"
+}
