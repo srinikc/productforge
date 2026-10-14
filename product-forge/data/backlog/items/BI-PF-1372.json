@@ -89,63 +89,58 @@
   "priority_class": "P1",
   "analyze_mode": "on_entry",
   "analysis": {
-    "status": "COMPLETE",
+    "status": "IN_PROGRESS",
     "analyzed_at": "2026-10-13T23:15:08.023969",
-    "analyzed_by": "system",
+    "analyzed_by": "deterministic",
     "revision_analyzed": 2,
     "architecture_fit": "EXTEND",
-    "implementation_strategy": "Extend core/artifact_formats.py + core/budget_planner.py: add generate_outline(stage_id) producing headings+counts, validate_outline against size budget before fill; hook into /api/v1/artifacts flow and ci-cd-gates.json. Reuse validate_artifact/repair from BI-PF-1347 when landed.",
-    "existing_components": [],
-    "existing_apis": [],
-    "existing_modules": [],
-    "dependency_findings": [
-      {
-        "task_id": "BI-PF-1347",
-        "type": "RELATED",
-        "required_state": "clarified scope split; avoid double-implementing outline gate"
-      },
-      {
-        "task_id": "BI-PF-0334",
-        "type": "RELATED",
-        "required_state": "artifact gate patterns established"
-      }
+    "implementation_strategy": "Extend existing components/APIs: core/artifact_formats.py, core/artifact_registry.py, core/artifact_store.py, core/budget_planner.py",
+    "existing_components": [
+      "core/artifact_formats.py",
+      "core/artifact_registry.py",
+      "core/artifact_store.py",
+      "core/budget_planner.py",
+      "core/code_quality_gate.py",
+      "core/contracts.py",
+      "core/control_plane.py",
+      "core/iteration_planner.py"
     ],
-    "conflict_findings": [
-      "BI-PF-1347 touches same modules - coordinate to keep outline gate only here",
-      "Shared edit to ci-cd-gates.json with BI-PF-1347"
+    "existing_apis": [
+      "/api/v1/artifacts",
+      "/api/v1/artifacts/{stage_id}/{agent}",
+      "/api/v1/backlog/groom/approve",
+      "/api/v1/engineering/gates",
+      "/api/v1/engineering/pidl/gate",
+      "/api/v1/engineering/pidl/synthesize",
+      "/api/v1/gates/go-no-go",
+      "/api/v1/gates/pr"
     ],
-    "duplication_findings": [
-      "BI-PF-1347 bundles outline gate within a larger item - this isolates it",
-      "Reuse validate_artifact repair/compress path; do not reimplement",
-      "Reuse budget_planner size budgets rather than new budget logic"
+    "existing_modules": [
+      "config/artifact-formats.json",
+      "config/artifact-owners.json",
+      "config/artifact-paths.json",
+      "config/ci-cd-gates.json",
+      "config/plan-groups.json"
     ],
-    "drift": "LOW",
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
     "rewrite_required": false,
     "new_component_required": false,
-    "rationale": "Cheap outline-first validation catches over-scope before prose spend; EXTEND existing artifact/budget/gate components; scope split from BI-PF-1347 avoids one mega-change.",
-    "assumptions": [
-      "Outline generation is deterministic/cheap enough to gate",
-      "Size budgets already exist in budget_planner",
-      "Outline gate runs before prose fill in the same stage"
-    ],
-    "risks": [
-      "Double implementation with BI-PF-1347 if not coordinated",
-      "Outline model call adds latency to cheap path",
-      "Gate false negatives reject valid outlines"
-    ],
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
     "evidence": [
-      "core/artifact_formats.py + registry/store provide artifact contract surface",
-      "Existing gates: /api/v1/gates/*, code_quality_gate.py",
-      "BI-PF-1347 body explicitly defers outline gate as separate concern"
+      "similar=4",
+      "score=0.75",
+      "components=8",
+      "apis=8"
     ],
-    "confidence": "medium",
-    "missing_info": [
-      "Which artifact stages require the outline gate by default",
-      "Hard-fail vs warn on outline budget violation",
-      "Model/prompt source for outline generation"
-    ],
+    "confidence": "high",
+    "missing_info": [],
     "depth": "deep",
-    "mode": "ai",
+    "mode": "deterministic",
     "context_review": {
       "ok": false,
       "source": "llm",
@@ -157,9 +152,11 @@
       "reason": "Only restates the title/idea; no concrete approach (where the gate hooks into the plan/outline/fill pipeline, how size budget is defined/validated, outline schema) and no affected components or files specified."
     },
     "decision_request": {
-      "needed": false,
-      "reasons": [],
-      "ask": ""
+      "needed": true,
+      "reasons": [
+        "unimplementable"
+      ],
+      "ask": "Context review: not implementable as written - clarify scope/approach."
     },
     "arch_fingerprint": "1533932e5f48e4e1"
   },
@@ -185,7 +182,7 @@
     "usage": {}
   },
   "created_at": "2026-10-13T23:14:20.580421",
-  "updated_at": "2026-10-13T23:15:08.612276",
+  "updated_at": "2026-10-14T17:16:27.246348",
   "score": 0.75,
-  "_note": "readiness computed"
+  "_note": "analysis updated"
 }
