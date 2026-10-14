@@ -176,6 +176,7 @@ TOP = {
     "INTAKE-AND-BACKLOG-DESIGN.md": ("Implemented", "Intake & backlog design", 100),
     "UNWIRED-MODULES-TRIAGE.md": ("Adopted (reference)", "Deprecated/legacy module triage", 90),
     "PIPELINE-STAGES-REFERENCE.md": ("Generated", "Regenerable stages/agents reference", 100),
+    "STORE-DATAFLOW.md": ("Generated", "Generated store data-flow inventory from config/store-registry.json (EDP-02/BI-PF-1294)", 100),
     "pipeline-diagrams-reference.md": ("Generated", "Regenerable diagram reference", 100),
     "pipeline-quick-reference.md": ("Adopted (reference)", "Quick reference", 100),
     "PIPELINE-RESUME-ProductForge-Dashboard.md": ("Adopted (reference)", "Old resume notes for a project", 50),

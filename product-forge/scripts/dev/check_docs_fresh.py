@@ -1,8 +1,8 @@
-"""Verify generated docs are fresh (BI-PF-0258 parity for BI-0205).
+"""Verify generated docs are fresh (BI-PF-0258).
 
-Regenerates the docs index + backlog summary and fails if the committed versions differ (ignoring
-`Generated ...` timestamp lines), matching the CI "Generated docs are fresh" step. Also fails on
-unclassified docs (`gen_docs_index.py --check`). Run from product-forge/.
+Always FAILS on unclassified docs (`gen_docs_index.py --check`) and on generator errors. Stale
+DERIVED docs (BACKLOG-SUMMARY/documentation-index/README) race a moving `develop`, so they are a WARN by
+default and FATAL only with `--strict` (run in the full/scheduled sweep). Run from product-forge/.
 """
 import os
 import re
@@ -34,6 +34,8 @@ def _strip(path: str) -> str:
 
 
 def main(argv=None) -> int:
+    argv = list(sys.argv[1:] if argv is None else argv)
+    strict = "--strict" in argv
     rc = 0
     r = subprocess.run([sys.executable, "scripts/dev/gen_docs_index.py", "--check"])
     if r.returncode != 0:
@@ -53,8 +55,13 @@ def main(argv=None) -> int:
         head = "\n".join(ln for ln in head.splitlines() if not _GEN.search(ln))
         work = _strip(os.path.join(root, gf))
         if head and head != work:
-            print(f"[FAIL] stale generated doc: {gf} (regenerate + commit)")
-            rc = 1
+            # Derived docs (BACKLOG-SUMMARY/documentation-index/README) race a moving `develop`, so a
+            # per-change run WARNS; the full/scheduled sweep enforces with --strict (BI-PF-1374).
+            if strict:
+                print(f"[FAIL] stale generated doc: {gf} (regenerate + commit)")
+                rc = 1
+            else:
+                print(f"[warn] stale generated doc: {gf} (derived; enforced by --strict in the full sweep)")
     print("docs-fresh:", "OK" if rc == 0 else "STALE")
     return rc
 
