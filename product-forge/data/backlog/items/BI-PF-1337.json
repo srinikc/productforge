@@ -10,14 +10,21 @@
   "title": "Reconciliation/360 review must include an explicit LANGUAGE CHECK (Go for new shipped/sensitive logic; Python only to extend existing; shipped/customer-visible runtime = Go)",
   "body": "Problem: the binding RECONCILIATION block (AGENTS.md/EOS) has PRIOR DECISIONS / EXISTING PATH / ASSUMPTIONS / DIVERGENCES / OPEN QUESTIONS, but no explicit LANGUAGE CHECK line, so the Go-first rule (BI-PF-0395 enforcing BI-PF-0387/0388) is applied ad hoc - e.g. is a new file shipped logic (Go) or tooling/CI (allowed)?\n\nPolicy (config/language-rule.json): shipped_roots = core/, api/, adapters/; sensitive = core/licensing.py, core/billing.py; new modules/logic there MUST be Go (existing .py edits allowed; allow_new_python exemptions); tooling_roots (scripts/, config/, docs/, data/, test-framework/, templates/, .github/, ...) may be Python/other; dashboard/ is legacy-exempt.\n\nProposal: add a LANGUAGE CHECK section to the reconciliation template + the Gate-1 checklist, citing `python scripts/dev/language_rule_review.py <item>` output, and stating for each new/edited file whether it is Go-required, an allowed .py edit, or tooling. Enforce in the pre-implementation review so it is decided once, up front (as already required at take-up).",
   "source": "review",
-  "status": "new",
+  "status": "completed",
   "priority": "P2",
   "moscow": "Should",
   "value": 3,
   "effort": 3,
   "risk": 2,
   "deps": [],
-  "links": {},
+  "links": {
+    "satisfied_by": [
+      "BI-PF-1262",
+      "file:AGENTS.md",
+      "file:workergrid/instructions.md",
+      "file:scripts/dev/language_rule_review.py"
+    ]
+  },
   "decisions": [
     {
       "at": "2026-10-13T19:53:07.414390",
@@ -38,7 +45,7 @@
     "what_adds": "LANGUAGE CHECK section + Gate-1 citation of language_rule_review.py.",
     "why": "New shipped/sensitive logic must be Go; decide once up front, not ad hoc.",
     "who_feels": "Reviewers, implementers, release.",
-    "source": "review"
+    "source": "authored"
   },
   "objective": "Make the language rule an explicit, cited section of every reconciliation/Gate-1 review.",
   "acceptance_criteria": [
@@ -94,12 +101,12 @@
   "children": [],
   "epic": "BI-PF-1243",
   "parent": "BI-PF-1243",
-  "revision": 2,
+  "revision": 3,
   "priority_rank": 2,
   "priority_class": "P2",
   "analyze_mode": "on_entry",
   "analysis": {
-    "status": "COMPLETE",
+    "status": "STALE",
     "analyzed_at": "2026-10-13T19:53:10.444653",
     "analyzed_by": "agent",
     "revision_analyzed": 2,
@@ -167,7 +174,7 @@
     "usage": {}
   },
   "created_at": "2026-10-13T19:53:06.718745",
-  "updated_at": "2026-10-13T19:53:10.841844",
+  "updated_at": "2026-10-14T11:12:41.188508",
   "score": 0.75,
-  "_note": "readiness computed"
+  "_note": "Satisfied by BI-PF-1262 (PR#51): reconciliation/360 requires an explicit language-rule assessment at take-up; AGENTS.md + worker charter + language_rule_review.py."
 }
