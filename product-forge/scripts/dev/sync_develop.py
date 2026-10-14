@@ -74,6 +74,23 @@ def _revalidate() -> int:
     return r.returncode
 
 
+def _heal_merge_drivers() -> None:
+    """BI-PF-1384: re-register the pf merge drivers if their configured path no longer resolves.
+
+    Cheap + idempotent; keeps the shared git config from pointing at a removed worktree (which silently
+    disabled derived-file auto-resolution).
+    """
+    root = _pf_root()
+    if not root:
+        return
+    try:
+        sys.path.insert(0, os.path.join(root, "scripts", "dev"))
+        from install_hooks import ensure_merge_drivers
+        ensure_merge_drivers(os.path.dirname(os.path.abspath(root)))
+    except Exception:
+        pass
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description="Merge origin/develop into the current branch (per-worker sync)")
     ap.add_argument("--check", action="store_true", help="report behind/ahead only; exit 1 if behind")
@@ -85,6 +102,7 @@ def main(argv=None) -> int:
     ap.add_argument("--branch", default=_INTEGRATION, help="integration branch (default: develop)")
     a = ap.parse_args(argv)
     hook = a.pre_push or a.pre_commit
+    _heal_merge_drivers()
 
     remote_ref = f"origin/{a.branch}"
     rc, _, err = _git("fetch", "origin", a.branch)
