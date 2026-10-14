@@ -129,6 +129,16 @@ def artifact_contracts_reconcile(dir_: str, agent: str = "", stage: str = "", ki
                            "work_estimate_seconds": work_estimate_seconds})
 
 
+def artifact_contracts_outline(dir_: str, agent: str = "", stage: str = "", kind: str = "*",
+                               profile: str = "", outline: list | None = None,
+                               lines_per_item: int = 3) -> dict[str, Any]:
+    """Pre-fill outline check: required sections + projected size vs budget (Go engine)."""
+    return invoke("artifact_contracts.outline",
+                  payload={"dir": str(dir_), "agent": agent, "stage": stage, "kind": kind,
+                           "profile": profile, "outline": list(outline or []),
+                           "lines_per_item": int(lines_per_item or 3)})
+
+
 def artifact_contracts_validate(dir_: str, artifact_id: str, text: str) -> dict[str, Any]:
     """Validate produced text against a contract (Go engine; fail-closed)."""
     return invoke("artifact_contracts.validate",

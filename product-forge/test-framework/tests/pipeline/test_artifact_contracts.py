@@ -135,6 +135,25 @@ def test_budget_and_slider():
     assert c0.get("budget"), c0
 
 
+def test_outline_gate():
+    # deterministic outline = the resolved contracts' required sections (union), as the wiring does
+    res = contracts.resolve(agent="design", stage="1", kind="text")
+    secs = []
+    for ct in (res.get("contracts") or []):
+        for s in (ct.get("required_sections") or []):
+            if s not in secs:
+                secs.append(s)
+    outline = [{"section": s, "count": 1} for s in secs]
+    r = contracts.outline_check(agent="design", stage="1", kind="text", outline=outline)
+    assert r["verdict"] in ("under", "over", "no_budget"), r
+    assert r["budget_lines"] > 0, r
+    assert r["missing_sections"] == [], r          # all required sections supplied
+    # a bare outline is missing required sections
+    m = contracts.outline_check(agent="design", stage="1", kind="text",
+                                outline=[{"section": "Not A Required Section", "count": 1}])
+    assert m["missing_sections"], m
+
+
 def test_budget_reconcile_is_advisory():
     # over the run budget -> verdict over + negative delta (never gates the run)
     over = contracts.reconcile(agent="design", stage="1", kind="text",

@@ -606,6 +606,22 @@ def reconcile(project_dir: str = "", agent: str = "", stage: str = "", kind: str
     return res
 
 
+def outline_check(agent: str = "", stage: str = "", kind: str = "*", profile: str = "",
+                  outline: list | None = None, lines_per_item: int = 3) -> dict:
+    """Pre-fill outline gate (Go engine; BI-PF-1372): validate an outline (sections + counts)
+    against the resolved contract(s) - required sections present + projected lines within the
+    size budget - and return a compressed outline when over budget. Pure; caller decides mode.
+    """
+    from core import go_host
+    r = go_host.artifact_contracts_outline(_ac_dir(), agent=agent, stage=stage, kind=kind,
+                                           profile=profile, outline=outline,
+                                           lines_per_item=lines_per_item)
+    return r.get("result") or {
+        "agent": agent, "stage": stage, "kind": kind, "profile": profile, "verdict": "unavailable",
+        "budget_lines": 0, "projected_lines": 0, "missing_sections": [], "over": False,
+        "sections": [], "contracts": [], "compressed": outline or [], "compressed_lines": 0}
+
+
 def validate_artifact(artifact_id: str, text: str) -> dict:
     """Validate produced text against a contract (Go engine; fail-closed)."""
     from core import go_host
