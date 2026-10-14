@@ -112,6 +112,23 @@ def _changed_paths():
     return [c.replace("\\", "/") for c in _changed_files()]
 
 
+# BI-PF-1374: a DERIVED/BOOKKEEPING-only change (the generated docs + the backlog stores) needs only a minimal
+# tier (docs-fresh + compile). Prefixes end with '/' (match as prefixes); exact paths match literally.
+_BOOKKEEPING = (
+    "product-forge/data/backlog/",                  # open/closed.json, counters.json, history/, items/
+    "product-forge/docs/BACKLOG-SUMMARY.md",        # generated
+    "product-forge/docs/documentation-index.html",  # generated
+)
+
+
+def _bookkeeping_only(changed) -> bool:
+    """True when EVERY changed path is derived/bookkeeping state (no source/tests/config) -> minimal tier."""
+    norm = [c.replace("\\", "/") for c in changed]
+    if not norm:
+        return False
+    return all(any(c.startswith(p) if p.endswith("/") else c == p for p in _BOOKKEEPING) for c in norm)
+
+
 # Each gate: (name, cmd, tier, area)  tier in {"fast","deep"}; area = list of path substrings OR None
 # (None = always run in its tier). Fast tier = per-change/per-phase; deep tier = merge/CI (`--full`).
 _GATES = [
@@ -188,6 +205,9 @@ def _area_touched(area, changed):
 
 def _steps(full: bool, scope_csv: str, release: bool = False):
     changed = _changed_paths()
+    # BI-PF-1374: a derived/bookkeeping-only change -> MINIMAL tier (docs-fresh + compile); no area gates, no tests.
+    if not full and _bookkeeping_only(changed):
+        return [(n, [sys.executable, *c]) for n, c, _t, _a in _GATES if n in ("compile", "docs-fresh")]
     steps = []
     for name, cmd, tier, area in _GATES:
         if tier == "deep" and not full:
@@ -249,10 +269,11 @@ def main(argv=None) -> int:
         print(f"[precheck] --tests-changed: {len(tests)} changed/new test file(s)")
         r = subprocess.run([sys.executable, "-m", "pytest", *tests, "-q", "-o", "addopts="], cwd=_ROOT)
         return r.returncode
-    tier = "release" if release else ("full" if full else "fast")
-    print(f"[precheck] tier={tier} (fast = core+area gates+scoped tests; --full = +validation/lifecycle "
-          f"+ full suite; --release = +periodic full-tree sweeps)")
-    if not full:
+    bookkeeping = (not full) and _bookkeeping_only(_changed_paths())
+    tier = "release" if release else ("full" if full else ("bookkeeping" if bookkeeping else "fast"))
+    print(f"[precheck] tier={tier} (bookkeeping = derived/docs-only -> docs-fresh + compile; fast = core+area "
+          f"gates+scoped tests; --full = +validation/lifecycle + full suite; --release = +periodic full-tree sweeps)")
+    if not full and not bookkeeping:
         tests = _scoped_tests(scope_csv)
         print(f"[precheck] changed-scoped tests: {len(tests)} file(s) "
               f"(use --full for the complete suite)" if tests else
