@@ -1,0 +1,208 @@
+{
+  "id": "BI-PF-1381",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "api",
+  "external_id": "",
+  "label": "PF Backlog 581",
+  "title": "CI: add a Go-module build/vet/test gate for product-forge/go/*",
+  "body": "Product-forge Go modules (contract, pfcore, datastore, migrate) are not exercised by CI - no go build/vet/test/gofmt gate (only workergrid has wg_go_check). Add scripts/dev/go_modules_check.py (discover go/*/go.mod; gofmt -l; go vet; go build; go test) and wire into precheck (area go/). Covers EDP-07 datastore + EDP-08 migrate.",
+  "source": "api",
+  "status": "new",
+  "priority": "P2",
+  "moscow": "Should",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [
+    "BI-BI-1380"
+  ],
+  "links": {
+    "possible_duplicate_of": [
+      "product_forge:BI-BI-1380"
+    ]
+  },
+  "decisions": [
+    {
+      "at": "2026-10-14T16:19:43.430781",
+      "decision": "APPROVE",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)"
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "Product-forge Go modules (contract, pfcore, datastore, migrate) are not exercised by CI - no go build/vet/test/gofmt gate (only workergrid has wg_go_check). Add scripts/dev/go_modules_check.py (discover go/*/go.mod; gofmt -l; go vet; go build; go test) and wire into precheck (area go/). Covers EDP-07 datastore + EDP-08 migrate.",
+    "what_adds": "CI: add a Go-module build/vet/test gate for product-forge/go/*",
+    "why": "Product-forge Go modules (contract, pfcore, datastore, migrate) are not exercised by CI - no go build/vet/test/gofmt gate (only workergrid has wg_go_check). Add scripts/dev/go_modules_check.py (discover go/*/go.mod; gofmt -l; go vet; go build; go test) and wire into precheck (area go/). Covers EDP-07 datastore + EDP-08 migrate.",
+    "who_feels": "Product Forge maintainers and consumers.",
+    "source": "extracted"
+  },
+  "objective": "CI: add a Go-module build/vet/test gate for product-forge/go/*",
+  "acceptance_criteria": [
+    "Objective achieved: CI: add a Go-module build/vet/test gate for product-forge/go/*"
+  ],
+  "in_scope": [
+    "CI: add a Go-module build/vet/test gate for product-forge/go/*"
+  ],
+  "out_of_scope": [
+    "Not specified."
+  ],
+  "affected_components": [
+    "scripts"
+  ],
+  "affected_files": [
+    "scripts/dev/go_modules_check.py"
+  ],
+  "approach": "CI: add a Go-module build/vet/test gate for product-forge/go/*",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Objective achieved: CI: add a Go-module build/vet/test gate for product-forge/go/*"
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "unassigned",
+  "requester": "api",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1292",
+  "parent": "BI-PF-1292",
+  "revision": 4,
+  "priority_rank": 40,
+  "priority_class": "P2",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "COMPLETE",
+    "analyzed_at": "2026-10-14T16:19:42.766630",
+    "analyzed_by": "system",
+    "revision_analyzed": 4,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Reuse wg_go_check as the pattern: add scripts/dev/go_modules_check.py (discover go/*/go.mod, run gofmt -l, go vet ./..., go build ./..., go test ./...) modeled on workergrid's wg_go_check; wire into the existing precheck pipeline via config/ci-cd-gates.json and config/shared-paths.json (area go/). Do NOT reuse Python-side core/code_quality_gate.py directly — it targets a different toolchain — but mirror its gate-reporting contract so /api/v1/gates/quality picks results up.",
+    "existing_components": [],
+    "existing_apis": [],
+    "existing_modules": [],
+    "dependency_findings": [
+      {
+        "task_id": "BI-BI-1380",
+        "type": "BLOCKS",
+        "required_state": "deduplicated"
+      },
+      {
+        "task_id": "BI-PF-0443",
+        "type": "RELATED",
+        "required_state": "manifest/tool-catalog entries exist for go toolchain"
+      }
+    ],
+    "conflict_findings": [
+      "Any concurrent workergrid gate changes may collide in scripts/dev/",
+      "config/ci-cd-gates.json edits are shared — serialize with other gate-wiring items"
+    ],
+    "duplication_findings": [
+      "BI-BI-1380 (score 0.98) is an exact duplicate — dedupe or mark one BLOCKED-by the other",
+      "wg_go_check in workergrid already implements the Go gate for one module; generalize rather than reimplement"
+    ],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "Straightforward generalization of an existing, proven Go gate (wg_go_check) to the four product-forge modules; all machinery (precheck, gate config, gate APIs) already exists. Reuse-first, low novelty; main risk is latent test failures unblocking CI noise.",
+    "assumptions": [
+      "Go toolchain is available in the precheck/CI environment",
+      "The four modules (contract, pfcore, datastore, migrate) each have a go.mod under go/",
+      "wg_go_check is representative of the desired gate behaviour"
+    ],
+    "risks": [
+      "Go toolchain version mismatch across modules (contract/pfcore/datastore/migrate go.mod divergence)",
+      "Existing modules may already fail vet/test — gate would block CI immediately",
+      "gofmt drift on legacy code could produce large noisy diffs"
+    ],
+    "evidence": [
+      "Item body names scripts/dev/go_modules_check.py and precheck area go/",
+      "wg_go_check exists for workergrid as the reference implementation",
+      "EDP-07 datastore and EDP-08 migrate are explicitly in scope"
+    ],
+    "confidence": "high",
+    "missing_info": [
+      "Whether the gate should be blocking (P0) or advisory initially",
+      "Desired Go version pin and how it is provisioned in CI",
+      "Whether pre-existing vet/test failures should be fixed in this item or filed separately"
+    ],
+    "depth": "deep",
+    "mode": "ai",
+    "context_review": {
+      "ok": true,
+      "source": "llm",
+      "implementable": true,
+      "missing": [],
+      "reason": "States what (Go gate for go/* modules), why (modules unexercised in CI), how (go_modules_check.py: discover go/*/go.mod, gofmt -l, vet, build, test), and where (scripts/dev/go_modules_check.py, wire into precheck area go/)."
+    },
+    "consolidation_proposal": {
+      "sources": [
+        "BI-BI-1380"
+      ],
+      "title": "CI: add a Go-module build/vet/test gate for product-forge/go/*",
+      "body": "Product-forge Go modules (contract, pfcore, datastore, migrate) are not exercised by CI - no go build/vet/test/gofmt gate (only workergrid has wg_go_check). Add scripts/dev/go_modules_check.py (discover go/*/go.mod; gofmt -l; go vet; go build; go test) and wire into precheck (area go/). Covers EDP-07 datastore + EDP-08 migrate.\n\n[consolidated from BI-BI-1380]: Product-forge Go modules (contract, pfcore, datastore, migrate) are not exercised by CI - no go build/vet/test/gofmt gate (only workergrid has wg_go_check). Add scripts/dev/go_modules_check.py (discover go/*/go.mod, run gofmt -l, go vet, go build, go test) and wire it into precheck (area go/). Covers EDP-07 datastore + EDP-08 migrate.",
+      "acceptance_criteria": [
+        "Objective achieved: CI: add a Go-module build/vet/test gate for product-forge/go/*"
+      ],
+      "moscow": "Must"
+    },
+    "decision_request": {
+      "needed": false,
+      "reasons": [],
+      "ask": ""
+    },
+    "arch_fingerprint": "d3285da0f59c3e99"
+  },
+  "dependencies": [
+    {
+      "task_id": "BI-BI-1380",
+      "type": "BLOCKS",
+      "required_state": "deduplicated"
+    }
+  ],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-14T16:19:43.008452"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-14T16:18:48.524519",
+  "updated_at": "2026-10-14T16:19:44.221233",
+  "score": 0.75,
+  "_note": "readiness computed"
+}
