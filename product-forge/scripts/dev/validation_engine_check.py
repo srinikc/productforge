@@ -19,6 +19,7 @@ except ImportError:
     _PRODUCTS = os.path.join(_ROOT, "products")
 if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
+from scripts.dev import scratch_repo as sr  # noqa: E402
 
 FAILS = []
 
@@ -60,13 +61,13 @@ def main() -> int:
 
         # git repo -> resolves target and returns a defined result
         os.makedirs(scratch, exist_ok=True)
-        _git(scratch, "init", "-q")
-        _git(scratch, "config", "user.email", "t@local")
-        _git(scratch, "config", "user.name", "t")
+        sr.init(scratch)
+        sr.run(scratch, "config", "user.email", "t@local")
+        sr.run(scratch, "config", "user.name", "t")
         with open(os.path.join(scratch, "README.md"), "w", encoding="utf-8") as f:
             f.write("x\n")
-        _git(scratch, "add", "-A")
-        _git(scratch, "commit", "-q", "-m", "init")
+        sr.run(scratch, "add", "-A")
+        sr.run(scratch, "commit", "-q", "-m", "init")
         res = ve.run("_test_validation_engine", scratch, profile_name="FEATURE_PR", scope="project")
         _check(res.get("result") in ("PASS", "FAIL", "BLOCKED"), "run result is a defined verdict")
         _check((res.get("target_resolved") or {}).get("ok"), "target resolved on a repo")
