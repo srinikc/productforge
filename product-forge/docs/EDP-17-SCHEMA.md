@@ -63,5 +63,24 @@ Budget —history—< SpendRecord ; —> CallLedger/Usage ; IdBlock —(scope,pr
 - **EDP-21**: Memory/RAG/embeddings (+ pgvector).
 - **Dashboard / derived stores**: **views**, not tables.
 
-## E. Status
-Model is complete (full discovery). **Slice 1** (`0002_core_schema`) delivered = tenants/memberships/projects/runs/stages/attempts/usage/quotas. Next: expand `0002`+ add `0003`… per §D, then the Go DAL (`product-forge/go/store`). Order: `docs/EDP-EXECUTION-ORDER.md`.
+## E. Create / initialize the database (bootstrap)
+The DB is **not** created on app startup (ADR-0006). Provision + migrate explicitly:
+
+```sh
+# 1. provision a Postgres instance (local, deterministic)
+docker compose -f docker-compose.edp.yml up -d        # POSTGRES: productforge / pf_owner / pf_owner
+
+# 2. point PF at it (credentials come only from the env; see config/database.json, PF_DB_DSN)
+#    bash:   export PF_DB_DSN="postgres://pf_owner:pf_owner@localhost:5432/productforge?sslmode=disable"
+#    ps:     $env:PF_DB_DSN = "postgres://pf_owner:pf_owner@localhost:5432/productforge?sslmode=disable"
+
+# 3. apply roles + schema (deploy step; idempotent; records schema_migrations)
+python scripts/dev/db_bootstrap.py                    # add --skip-roles if the role lacks CREATEROLE
+```
+- `0001_roles` creates `pf_owner`/`pf_runtime`/`pf_readonly`/`pf_backup`/`pf_admin` (needs a superuser).
+- `0002_core_schema` creates the core tables (+ `version`, FKs, indexes).
+- Re-running is a no-op for applied versions. **No auto-migrate on startup.**
+- Provisioning gap tracked in `BI-PF-1394` (Postgres not installed/provisioned by default).
+
+## F. Status
+Model is complete (full discovery). **Slice 1** (`0002_core_schema`) delivered = tenants/memberships/projects/runs/stages/attempts/usage/quotas; **bootstrap** (`db_bootstrap.py` + `docker-compose.edp.yml` + `PF_DB_DSN`) delivered. Next: `go/store` pgx pool client + remaining domain slices per §D. Order: `docs/EDP-EXECUTION-ORDER.md`.
