@@ -1,18 +1,18 @@
 # Backlog Summary
 
-> GENERATED 2026-10-14T18:41:35 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-14T18:43:34 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 119  |  **Closed:** 527
+- **Open:** 121  |  **Closed:** 527
 - `accepted`: 1
 - `blocked`: 1
 - `executing`: 3
-- `new`: 114
+- `new`: 116
 
-### new, by category (114)
-**API / reports / HIL / misc** (16)
+### new, by category (116)
+**API / reports / HIL / misc** (17)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-PF-0332 | Should | chore | API-5 deferred hardening: rate limiting + request/upload limits + tenant-isolation expansion + event streaming | API-5 deferred hardening: rate limiting + request/upload limits + tenant-isolation expansion + event streaming |
@@ -31,6 +31,7 @@
 | BI-PF-1328 | Must | task | WG-O4: Merge-driver coverage for id-blocks.json (max-merge) + children[] regenerated | Extend the derived merge driver to id-blocks and children. |
 | BI-PF-1331 | Should | bug | pre-commit lint_check crashes in git worktrees (WinError 206 long path) - blocks commits | Make the pre-commit lint_check work from a git worktree (no WinError 206 long-path crash). |
 | BI-PF-1382 | Must | bug | Backlog API: POST /backlog/items returns empty resource_id (created id not surfaced) | Backlog API: POST /backlog/items returns empty resource_id (created id not surfaced) |
+| BI-PF-1386 | Must | feature | Backlog API: complete write surface + optimistic concurrency (expected_revision -> 409) | Backlog API: complete write surface + optimistic concurrency (expected_revision -> 409) |
 
 **Bug fixes** (2)
 | ID | MoSCoW | Type | Title | Objective |
@@ -65,7 +66,7 @@
 | BI-PF-1315 | Must | feature | EDP-23: Backup/PITR + restore drills (full service + single-tenant) + DB<->object integrity reconciliation + region-aware restore | Deliver backup + PITR configuration, automated restore drills (full-service and single-tenant), DB<->object in... |
 | BI-PF-1317 | Could | feature | EDP-24: Scale-out & enterprise isolation tiers (read replicas / partitioning / tenant isolation tiers / additional region cells / region-migration workflow) [EVIDENCE-GATED] | Provide scale-out and enterprise isolation tiers including read-replica support, DB partitioning, tenant isola... |
 
-**Specs / cache / context / artifacts** (9)
+**Specs / cache / context / artifacts** (10)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0206 | Should | tech-debt | Backend: model downloader + local cache + license-acceptance gate + models.lock (open-weights) | One owner module that downloads only the weights a project's capability pack needs, into a gitignored local ca... |
@@ -77,6 +78,7 @@
 | BI-PF-1312 | Must | feature | EDP-20: Append-only AuditStore; split orchestrator/storage.py (audit vs cache vs evidence); retention/redaction; large checkpoints -> object store | Deliver an append-only AuditStore, split orchestrator/storage.py into audit/cache/evidence responsibilities, a... |
 | BI-PF-1314 | Should | feature | EDP-22: Benchmarks/SLOs + EXPLAIN(ANALYZE,BUFFERS) tuning + observability + quotas + graceful degradation (DB/object/cache/queue) | Establish performance benchmarks/SLOs, EXPLAIN(ANALYZE,BUFFERS)-based tuning, observability, quotas, and grace... |
 | BI-PF-1329 | Should | feature | WG-O5: Assign a SPECIFIC backlog item to a session/worker (claim-by-id + operator assignment) with lease semantics | Support claiming/assigning a specific item id (not just next-eligible). |
+| BI-PF-1385 | Must | bug | Backlog API: no deterministic endpoint to author item context fields (objective/acceptance_criteria/affected_files/approach) | Backlog API: no deterministic endpoint to author item context fields (objective/acceptance_criteria/affected_f... |
 
 **Wiring / tech-debt / API** (72)
 | ID | MoSCoW | Type | Title | Objective |
@@ -352,5 +354,5 @@
 ---
 
 ## Totals
-- backend: 119 open / 527 closed
+- backend: 121 open / 527 closed
 - dashboard: 146 open / 3 closed
