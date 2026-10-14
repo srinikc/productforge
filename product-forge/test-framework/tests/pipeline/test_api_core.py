@@ -124,3 +124,26 @@ def test_stop_cancels_and_signals_control_channel(client, scratch_project, monke
     assert data["status"] == "stop_requested" and data["cancelled"] is True and data["signaled"] is True
     ctrl = Path(_paths.PRODUCTS_DIR) / scratch_project / "control.json"
     assert ctrl.is_file() and json.loads(ctrl.read_text(encoding="utf-8"))["action"] == "stop"
+
+
+def test_backlog_item_epic_and_delivery_via_api(client, scratch_project):
+    scope = {"scope": "project", "project": scratch_project}
+    epic = client.post("/api/v1/backlog/items", json={**scope, "title": "API test epic", "type": "epic"})
+    assert epic.status_code == 200, epic.text
+    eid = epic.json()["data"]["id"]
+
+    item = client.post("/api/v1/backlog/items",
+                       json={**scope, "title": "child work", "type": "feature", "epic": eid})
+    assert item.status_code == 200, item.text
+    iid = item.json()["data"]["id"]
+
+    got = client.get(f"/api/v1/backlog/items/{iid}", params=scope)
+    assert got.json()["data"]["epic"] == eid
+
+    mv = client.post(f"/api/v1/backlog/items/{iid}/epic", json={**scope, "epic": eid})
+    assert mv.status_code == 200, mv.text
+
+    dl = client.post(f"/api/v1/backlog/items/{iid}/delivery",
+                     json={**scope, "branch": "b", "merge_sha": "abc123", "pr": "7", "pr_url": "u"})
+    assert dl.status_code == 200, dl.text
+    assert dl.json()["data"]["links"]["delivery"]["merge_sha"] == "abc123"
