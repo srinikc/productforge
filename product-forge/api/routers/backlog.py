@@ -23,6 +23,27 @@ def _scope_project(request: Request, scope: str, project: str):
     return s, p
 
 
+def _guard_revision(backlog, scope: str, project: str | None, item_id: str, expected) -> None:
+    """Optimistic concurrency (BI-PF-0360): reject a write whose expected revision is stale (409).
+
+    The API is the single writer; an item carries a monotonic ``revision`` (bumped by
+    ``core.backlog.update`` on material changes). Callers may pass ``expected_revision`` to detect a
+    concurrent read-modify-write instead of silently clobbering (last-write-wins). Omitted -> no check.
+    Durable multi-host concurrency arrives with the EDP Postgres system of record (EDP-17/18 + G3).
+    """
+    if expected in (None, ""):
+        return
+    it = backlog.get_epic(scope, project, item_id)
+    if it is None:
+        raise ApiError("NOT_FOUND", "backlog item not found")
+    try:
+        want, current = int(expected), int(it.get("revision") or 0)
+    except (TypeError, ValueError):
+        raise ApiError("VALIDATION_FAILED", "expected_revision must be an integer") from None
+    if current != want:
+        raise ApiError("CONFLICT", f"stale revision: expected {want}, current {current}")
+
+
 @router.get("", dependencies=[Depends(authenticate)])
 def list_backlog(request: Request, scope: str = "product_forge", project: str = "",
                  status: str = "", limit: int = 50, cursor: str = "",
@@ -113,14 +134,20 @@ def epic_status(epic_id: str, request: Request, scope: str = "product_forge", pr
 @router.post("/items", dependencies=[Depends(require_operator)])
 def add_item(body: dict[str, Any], request: Request, ctx: dict[str, Any] = Depends(require_operator)):
     from core import backlog
-    s, p = _scope_project(request, str(body.get("scope") or "product_forge"), str(body.get("project") or ""))
+    s, p = _scope_project(request, str(body.get("scope") or "product_forge"),
+                          str(body.get("project") or ""))
     title = str(body.get("title") or "").strip()
     if not title:
         raise ApiError("VALIDATION_FAILED", "title required")
-    it = backlog.add_epic(s, p, title, body=str(body.get("body") or ""),
-                          source="api", type_=str(body.get("type") or "feature"),
-                          origin="api", tag=str(body.get("tag") or ""),
-                          epic=str(body.get("epic") or ""))
+    external_id = str(body.get("external_id") or "")
+    if external_id:
+        it = backlog.ensure_item(s, p, external_id, title, type_=str(body.get("type") or "feature"),
+                                 origin="api", tag=str(body.get("tag") or ""))
+    else:
+        it = backlog.add_epic(s, p, title, body=str(body.get("body") or ""),
+                              source="api", type_=str(body.get("type") or "feature"),
+                              origin="api", tag=str(body.get("tag") or ""),
+                              epic=str(body.get("epic") or ""))
     return from_request(request, it, resource="backlog", resource_id=str(it.get("id") or ""))
 
 
@@ -139,6 +166,7 @@ def set_status(item_id: str, body: dict[str, Any], request: Request,
                ctx: dict[str, Any] = Depends(require_operator)):
     from core import backlog
     s, p = _scope_project(request, str(body.get("scope") or "product_forge"), str(body.get("project") or ""))
+    _guard_revision(backlog, s, p, item_id, body.get("expected_revision"))
     status = str(body.get("status") or "").strip()
     if not status:
         raise ApiError("VALIDATION_FAILED", "status required")
@@ -157,6 +185,7 @@ def set_analysis(item_id: str, body: dict[str, Any], request: Request,
                  ctx: dict[str, Any] = Depends(require_operator)):
     from core import backlog
     s, p = _scope_project(request, str(body.get("scope") or "product_forge"), str(body.get("project") or ""))
+    _guard_revision(backlog, s, p, item_id, body.get("expected_revision"))
     try:
         res = backlog.set_analysis(s, p, item_id, status=str(body.get("status") or ""),
                                    architecture_fit=str(body.get("architecture_fit") or ""),
@@ -175,6 +204,7 @@ def set_priority(item_id: str, body: dict[str, Any], request: Request,
                  ctx: dict[str, Any] = Depends(require_operator)):
     from core import backlog
     s, p = _scope_project(request, str(body.get("scope") or "product_forge"), str(body.get("project") or ""))
+    _guard_revision(backlog, s, p, item_id, body.get("expected_revision"))
     res = backlog.set_priority(s, p, item_id, priority=body.get("priority"),
                                priority_rank=body.get("priority_rank"),
                                priority_class=str(body.get("priority_class") or ""),
@@ -298,6 +328,7 @@ def set_dependencies(item_id: str, body: dict[str, Any], request: Request,
                      ctx: dict[str, Any] = Depends(require_operator)):
     from core import backlog
     s, p = _scope_project(request, str(body.get("scope") or "product_forge"), str(body.get("project") or ""))
+    _guard_revision(backlog, s, p, item_id, body.get("expected_revision"))
     try:
         res = backlog.set_dependencies(s, p, item_id, dependencies=body.get("dependencies"),
                                        blocked_by=body.get("blocked_by"), unlocks=body.get("unlocks"))
@@ -317,6 +348,7 @@ def set_item_epic(item_id: str, body: dict[str, Any], request: Request,
     """
     from core import backlog
     s, p = _scope_project(request, str(body.get("scope") or "product_forge"), str(body.get("project") or ""))
+    _guard_revision(backlog, s, p, item_id, body.get("expected_revision"))
     epic_id = str(body.get("epic") or "").strip()
     if not epic_id:
         raise ApiError("VALIDATION_FAILED", "epic required")
@@ -340,6 +372,7 @@ def set_delivery(item_id: str, body: dict[str, Any], request: Request,
     """
     from core import backlog
     s, p = _scope_project(request, str(body.get("scope") or "product_forge"), str(body.get("project") or ""))
+    _guard_revision(backlog, s, p, item_id, body.get("expected_revision"))
     res = backlog.set_delivery(s, p, item_id, branch=str(body.get("branch") or ""),
                                merge_sha=str(body.get("merge_sha") or ""),
                                commits=body.get("commits") or None,
@@ -348,4 +381,174 @@ def set_delivery(item_id: str, body: dict[str, Any], request: Request,
     if res is None:
         raise ApiError("NOT_FOUND", "backlog item not found")
     return from_request(request, res, resource="backlog", resource_id=item_id)
+
+
+# ── Full backlog e2e workflow over the API (BI-PF-0360): expose the remaining core.backlog writers so
+# every workflow step is API-only (no direct access). Each endpoint is a thin wrapper over the single
+# writer; no new logic. ──
+_CONTEXT_FIELDS = ("objective", "acceptance_criteria", "in_scope", "out_of_scope",
+                   "affected_components", "affected_files", "approach", "verification",
+                   "risks", "rollback", "evidence", "owner", "summary", "brief")
+
+
+@router.post("/items/{item_id}/context", dependencies=[Depends(require_operator)])
+def set_item_context(item_id: str, body: dict[str, Any], request: Request,
+                     ctx: dict[str, Any] = Depends(require_operator)):
+    """Author an item's context fields deterministically (no AI) - the API-only take-up path.
+
+    Whitelisted fields are written via ``core.backlog.update`` (single writer). Empty/None values are ignored.
+    """
+    from core import backlog
+    s, p = _scope_project(request, str(body.get("scope") or "product_forge"), str(body.get("project") or ""))
+    _guard_revision(backlog, s, p, item_id, body.get("expected_revision"))
+    fields = {k: body[k] for k in _CONTEXT_FIELDS if body.get(k) not in (None, "", [], {})}
+    if not fields:
+        raise ApiError("VALIDATION_FAILED", "no context fields provided (allowed: " + ", ".join(_CONTEXT_FIELDS) + ")")
+    try:
+        res = backlog.update(s, p, item_id, **fields)
+    except ValueError as e:
+        raise ApiError("VALIDATION_FAILED", str(e)) from None
+    if res is None:
+        raise ApiError("NOT_FOUND", "backlog item not found")
+    return from_request(request, res, resource="backlog", resource_id=item_id)
+
+
+@router.post("/items/{item_id}/links", dependencies=[Depends(require_operator)])
+def set_item_links(item_id: str, body: dict[str, Any], request: Request,
+                   ctx: dict[str, Any] = Depends(require_operator)):
+    """Merge references into ``item.links`` (ids only); cross-scope refs must be scope-qualified."""
+    from core import backlog
+    s, p = _scope_project(request, str(body.get("scope") or "product_forge"), str(body.get("project") or ""))
+    _guard_revision(backlog, s, p, item_id, body.get("expected_revision"))
+    refs = body.get("refs") or body.get("links") or {}
+    if not isinstance(refs, dict) or not refs:
+        raise ApiError("VALIDATION_FAILED", "refs (object of link references) required")
+    res = backlog.link(s, p, item_id, **refs)
+    if res is None:
+        raise ApiError("NOT_FOUND", "backlog item not found")
+    return from_request(request, res, resource="backlog", resource_id=item_id)
+
+
+@router.post("/items/{item_id}/pair", dependencies=[Depends(require_operator)])
+def pair_item(item_id: str, body: dict[str, Any], request: Request,
+              ctx: dict[str, Any] = Depends(require_operator)):
+    """Cross-link two items reciprocally via ``links.paired_with`` (``other_ref`` scope-qualified)."""
+    from core import backlog
+    s, p = _scope_project(request, str(body.get("scope") or "product_forge"), str(body.get("project") or ""))
+    _guard_revision(backlog, s, p, item_id, body.get("expected_revision"))
+    other = str(body.get("other_ref") or "").strip()
+    if not other:
+        raise ApiError("VALIDATION_FAILED", "other_ref required")
+    try:
+        res = backlog.pair(s, p, item_id, other, capability=body.get("capability"))
+    except ValueError as e:
+        raise ApiError("VALIDATION_FAILED", str(e)) from None
+    if res is None:
+        raise ApiError("NOT_FOUND", "backlog item not found")
+    return from_request(request, res, resource="backlog", resource_id=item_id)
+
+
+@router.post("/items/{item_id}/triage", dependencies=[Depends(require_operator)])
+def triage_item(item_id: str, body: dict[str, Any], request: Request,
+                ctx: dict[str, Any] = Depends(require_operator)):
+    """Triage an item (recommendation + value/effort/risk/moscow) -> status ``triaged``."""
+    from core import backlog
+    s, p = _scope_project(request, str(body.get("scope") or "product_forge"), str(body.get("project") or ""))
+    _guard_revision(backlog, s, p, item_id, body.get("expected_revision"))
+    res = backlog.triage(s, p, item_id, recommendation=str(body.get("recommendation") or ""),
+                         value=body.get("value"), effort=body.get("effort"), risk=body.get("risk"),
+                         moscow=body.get("moscow"))
+    if res is None:
+        raise ApiError("NOT_FOUND", "backlog item not found")
+    return from_request(request, res, resource="backlog", resource_id=item_id)
+
+
+@router.post("/items/{item_id}/accept", dependencies=[Depends(require_operator)])
+def accept_item(item_id: str, body: dict[str, Any], request: Request,
+                ctx: dict[str, Any] = Depends(require_operator)):
+    """Accept an item: ``when=now`` -> queued; ``when=later`` -> accepted (unscheduled)."""
+    from core import backlog
+    s, p = _scope_project(request, str(body.get("scope") or "product_forge"), str(body.get("project") or ""))
+    _guard_revision(backlog, s, p, item_id, body.get("expected_revision"))
+    res = backlog.accept(s, p, item_id, when=str(body.get("when") or "later"), by=str(body.get("by") or "hil"))
+    if res is None:
+        raise ApiError("NOT_FOUND", "backlog item not found")
+    return from_request(request, res, resource="backlog", resource_id=item_id)
+
+
+@router.post("/items/{item_id}/follow-up", dependencies=[Depends(require_operator)])
+def set_item_follow_up(item_id: str, body: dict[str, Any], request: Request,
+                       ctx: dict[str, Any] = Depends(require_operator)):
+    """Set an item's follow-up review schedule (at / every_days / snooze_days)."""
+    from core import backlog
+    s, p = _scope_project(request, str(body.get("scope") or "product_forge"), str(body.get("project") or ""))
+    _guard_revision(backlog, s, p, item_id, body.get("expected_revision"))
+    kw = {}
+    if body.get("every_days") not in (None, ""):
+        kw["every_days"] = int(body["every_days"])
+    if body.get("snooze_days") not in (None, ""):
+        kw["snooze_days"] = int(body["snooze_days"])
+    res = backlog.set_follow_up(s, p, item_id, at=str(body.get("at") or ""), **kw)
+    if res is None:
+        raise ApiError("NOT_FOUND", "backlog item not found")
+    return from_request(request, res, resource="backlog", resource_id=item_id)
+
+
+@router.post("/items/{item_id}/stale", dependencies=[Depends(require_operator)])
+def mark_item_stale(item_id: str, body: dict[str, Any], request: Request,
+                    ctx: dict[str, Any] = Depends(require_operator)):
+    """Force an item's analysis to STALE (e.g. a related component changed)."""
+    from core import backlog
+    s, p = _scope_project(request, str(body.get("scope") or "product_forge"), str(body.get("project") or ""))
+    _guard_revision(backlog, s, p, item_id, body.get("expected_revision"))
+    res = backlog.mark_stale(s, p, item_id, reason=str(body.get("reason") or ""))
+    if res is None:
+        raise ApiError("NOT_FOUND", "backlog item not found")
+    return from_request(request, res, resource="backlog", resource_id=item_id)
+
+
+@router.post("/items/{item_id}/readiness", dependencies=[Depends(require_operator)])
+def set_item_readiness(item_id: str, body: dict[str, Any], request: Request,
+                       ctx: dict[str, Any] = Depends(require_operator)):
+    """Record the computed readiness (ready + reasons) on an item."""
+    from core import backlog
+    s, p = _scope_project(request, str(body.get("scope") or "product_forge"), str(body.get("project") or ""))
+    _guard_revision(backlog, s, p, item_id, body.get("expected_revision"))
+    res = backlog.set_readiness(s, p, item_id, ready=bool(body.get("ready")), reasons=body.get("reasons"))
+    if res is None:
+        raise ApiError("NOT_FOUND", "backlog item not found")
+    return from_request(request, res, resource="backlog", resource_id=item_id)
+
+
+@router.post("/items/{item_id}/archive", dependencies=[Depends(require_operator)])
+def archive_item(item_id: str, body: dict[str, Any], request: Request,
+                 ctx: dict[str, Any] = Depends(require_operator)):
+    """Non-destructive retire: move the item to the terminal ``archived`` status."""
+    from core import backlog
+    s, p = _scope_project(request, str(body.get("scope") or "product_forge"), str(body.get("project") or ""))
+    _guard_revision(backlog, s, p, item_id, body.get("expected_revision"))
+    res = backlog.archive(s, p, item_id, note=str(body.get("note") or "archived"))
+    if res is None:
+        raise ApiError("NOT_FOUND", "backlog item not found")
+    return from_request(request, res, resource="backlog", resource_id=item_id)
+
+
+@router.post("/items/{item_id}/delete", dependencies=[Depends(require_operator)])
+def delete_item(item_id: str, body: dict[str, Any], request: Request,
+                ctx: dict[str, Any] = Depends(require_operator)):
+    """Remove an item (files + index) and re-sync its epic's children. Operator only; irreversible."""
+    from core import backlog
+    s, p = _scope_project(request, str(body.get("scope") or "product_forge"), str(body.get("project") or ""))
+    _guard_revision(backlog, s, p, item_id, body.get("expected_revision"))
+    res = backlog.delete(s, p, item_id)
+    if res is None:
+        raise ApiError("NOT_FOUND", "backlog item not found")
+    return from_request(request, res, resource="backlog", resource_id=item_id)
+
+
+@router.get("/parked", dependencies=[Depends(authenticate)])
+def parked(request: Request, days: int = 0, ctx: dict[str, Any] = Depends(authenticate)):
+    """Parked items whose follow-up is due (weekly default). Read-only."""
+    from core import backlog
+    return from_request(request, backlog.parked_review(days=int(days or 0)), resource="backlog")
 
