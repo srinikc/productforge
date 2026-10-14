@@ -147,6 +147,21 @@ def store_audit():
         print(f"\nSTORE-CONTRACT: {len(bad_vis)} store(s) missing/invalid `visibility` "
               f"(shared|scope-local|module-local): {', '.join(bad_vis[:10])}")
         return 1
+    # EDP-02 (BI-PF-1294): every store must carry a data classification. `classification_defaults`
+    # provides the baseline; a store may override per-field via its own `classification{}` block.
+    cls_keys = ("sensitivity", "tenant_scope", "backend", "retention", "recovery_tier", "migration_status")
+    cls_def = data.get("classification_defaults", {}) or {}
+    bad_cls = []
+    for n, m in reg.items():
+        eff = dict(cls_def)
+        eff.update((m or {}).get("classification") or {})
+        if any(k not in eff for k in cls_keys):
+            bad_cls.append(n)
+    if bad_cls:
+        print(f"\nSTORE-CONTRACT: {len(bad_cls)} store(s) missing classification "
+              f"({', '.join(cls_keys)}) - set them in `classification_defaults` or the store's `classification{{}}`: "
+              f"{', '.join(bad_cls[:10])}")
+        return 1
     ext_re = "|".join(STORE_EXTS)
     pattern = _re.compile(r'["\']([A-Za-z0-9_\-\./]+\.(?:%s))["\']' % ext_re, _re.I)
 

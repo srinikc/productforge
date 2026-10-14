@@ -1,6 +1,14 @@
 {
   "$schema": "store-registry-v1",
   "description": "Authoritative data stores for Product Forge. One truth per concern, one writer per file. Enforced by scripts/dev/wired_audit.py (store_audit).",
+  "classification_defaults": {
+    "sensitivity": "internal",
+    "tenant_scope": "auto",
+    "backend": "auto",
+    "retention": "unbounded",
+    "recovery_tier": "standard",
+    "migration_status": "not-migrated"
+  },
   "rules": [
     "work items live only in backlog/items/<ID>.json (truth), written only by core/backlog.py; open/closed.json are DERIVED indexes",
     "every artifact about work references item_id (BI-####); technical detail adds feature_id (F-x)",
@@ -40,8 +48,9 @@
   "owner": "core/tool_settings.py",
   "kind": "tool-secrets",
   "scope": "product_forge",
-  "concern": "GITIGNORED tool secrets (web_search api_key); never returned by the API",
-  "visibility": "module-local"
+      "concern": "GITIGNORED tool secrets (web_search api_key); never returned by the API",
+      "classification": {"sensitivity": "secret", "tenant_scope": "global", "backend": "json", "retention": "policy", "recovery_tier": "critical", "migration_status": "deferred"},
+      "visibility": "module-local"
  },
     "conversations.json": {
       "owner": "core/conversation_models.py",
@@ -160,6 +169,7 @@
       "kind": "provider-registry",
       "scope": "product_forge",
       "concern": "provider credential REFERENCES (env var names, never secrets) + budget caps (BI-0207)",
+      "classification": {"sensitivity": "secret-ref", "tenant_scope": "global", "backend": "json", "retention": "policy", "recovery_tier": "critical", "migration_status": "deferred"},
       "visibility": "shared"
     },
     "traceability.json": {
