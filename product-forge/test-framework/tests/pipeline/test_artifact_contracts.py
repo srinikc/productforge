@@ -133,3 +133,24 @@ def test_budget_and_slider():
     c0 = r["contracts"][0]
     assert c0.get("required_sections"), c0
     assert c0.get("budget"), c0
+
+
+def test_budget_reconcile_is_advisory():
+    # over the run budget -> verdict over + negative delta (never gates the run)
+    over = contracts.reconcile(agent="design", stage="1", kind="text",
+                               run_budget_seconds=60, work_estimate_seconds=600)
+    assert over["verdict"] == "over", over
+    assert over["delta_seconds"] < 0, over
+    assert over["artifact_budget"]["max_tokens"] > 0, over
+    # well under -> verdict under + positive delta
+    under = contracts.reconcile(agent="design", stage="1", kind="text",
+                                run_budget_seconds=600, work_estimate_seconds=120)
+    assert under["verdict"] == "under", under
+    assert under["delta_seconds"] > 0, under
+    # 0 budget -> unlimited
+    unl = contracts.reconcile(kind="text", run_budget_seconds=0, work_estimate_seconds=9999)
+    assert unl["verdict"] == "unlimited", unl
+    # run-level (no agent/stage) sums the full artifact set
+    run = contracts.reconcile(kind="text", run_budget_seconds=600, work_estimate_seconds=120)
+    assert run["artifact_budget"]["count"] >= 10, run
+    assert run["run_budget_source"] == "explicit", run
