@@ -1,17 +1,17 @@
 # Backlog Summary
 
-> GENERATED 2026-10-14T18:55:50 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-14T20:09:42 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 120  |  **Closed:** 529
+- **Open:** 118  |  **Closed:** 531
 - `blocked`: 1
 - `executing`: 3
-- `new`: 116
+- `new`: 114
 
-### new, by category (116)
-**API / reports / HIL / misc** (18)
+### new, by category (114)
+**API / reports / HIL / misc** (17)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-PF-0332 | Should | chore | API-5 deferred hardening: rate limiting + request/upload limits + tenant-isolation expansion + event streaming | API-5 deferred hardening: rate limiting + request/upload limits + tenant-isolation expansion + event streaming |
@@ -30,14 +30,12 @@
 | BI-PF-1328 | Must | task | WG-O4: Merge-driver coverage for id-blocks.json (max-merge) + children[] regenerated | Extend the derived merge driver to id-blocks and children. |
 | BI-PF-1331 | Should | bug | pre-commit lint_check crashes in git worktrees (WinError 206 long path) - blocks commits | Make the pre-commit lint_check work from a git worktree (no WinError 206 long-path crash). |
 | BI-PF-1382 | Must | bug | Backlog API: POST /backlog/items returns empty resource_id (created id not surfaced) | Backlog API: POST /backlog/items returns empty resource_id (created id not surfaced) |
-| BI-PF-1386 | Must | feature | Backlog API: complete write surface + optimistic concurrency (expected_revision -> 409) | Backlog API: complete write surface + optimistic concurrency (expected_revision -> 409) |
 | BI-PF-1387 | Should | bug | Backlog API: POST /items 500s under PF_ID_ALLOC=strict when the shared id authority is unreachable | Backlog API: POST /items 500s under PF_ID_ALLOC=strict when the shared id authority is unreachable |
 
-**Bug fixes** (2)
+**Bug fixes** (1)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-PF-1332 | Should | bug | Develop red: test pollution committed into data/learnings.json breaks test_global_render_unchanged (scratch loop-learning marker 0270) | Restore develop green: purge test pollution from data/learnings.json + prevent test writes to the real learnin... |
-| BI-PF-1384 | Should | bug | Merge driver path drifts to a dead worktree -> derived-file conflicts not auto-resolved | Merge driver path drifts to a dead worktree -> derived-file conflicts not auto-resolved |
 
 **Discovery / HIL / prompts** (7)
 | ID | MoSCoW | Type | Title | Objective |
@@ -353,5 +351,5 @@
 ---
 
 ## Totals
-- backend: 120 open / 529 closed
+- backend: 118 open / 531 closed
 - dashboard: 146 open / 3 closed
