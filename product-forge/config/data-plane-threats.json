@@ -1,0 +1,84 @@
+{
+  "_doc": "Data-plane threat register (BI-PF-1296 / EDP-04). Machine-readable, versioned map of the six EDP data-plane threat categories -> source -> sink -> data flows -> control -> owner -> evidence. Validated by scripts/dev/data_plane_threat_check.py (precheck gate 'data-plane-threats'); every finding cites the ADR ledger (ADR-0006, BI-PF-1293). status: implemented | partial | planned; evidence resolves to a repo path, 'gate:<name>' or 'item:<BI-PF-id>'.",
+  "version": 1,
+  "threats": [
+    {
+      "id": "cross-tenant-idor",
+      "title": "Cross-tenant IDOR (a tenant reads/writes another tenant's record or object)",
+      "source": "authenticated tenant-A request",
+      "sink": "tenant-B data (DB row or stored object)",
+      "flows": ["HTTP request -> api routers -> store read/write"],
+      "control": "authorization at the boundary + per-tenant row scoping (RLS USING/WITH CHECK)",
+      "owner": "api/auth.py",
+      "evidence": "api/auth.py",
+      "status": "partial",
+      "adr": ["ADR-0006"],
+      "mitigation_item": "BI-PF-1301"
+    },
+    {
+      "id": "path-traversal",
+      "title": "Path traversal / symlink escape in local object storage",
+      "source": "client-supplied object key",
+      "sink": "filesystem outside the object-store root",
+      "flows": ["artifact upload/download -> local ObjectStore adapter"],
+      "control": "root containment + symlink defense + key normalization + size limits",
+      "owner": "BI-PF-1305",
+      "evidence": "item:BI-PF-1305",
+      "status": "planned",
+      "adr": ["ADR-0006"],
+      "mitigation_item": "BI-PF-1305"
+    },
+    {
+      "id": "token-role-spoofing",
+      "title": "Token / role spoofing (forged bearer token, client-supplied roles)",
+      "source": "untrusted client",
+      "sink": "privileged API action",
+      "flows": ["HTTP request -> api/auth.py -> role check"],
+      "control": "fail-closed Bearer auth; roles derive from the token, not the client",
+      "owner": "api/auth.py",
+      "evidence": "gate:api-governance",
+      "status": "implemented",
+      "adr": ["ADR-0006"],
+      "mitigation_item": "BI-PF-1301"
+    },
+    {
+      "id": "object-url-leakage",
+      "title": "Object-URL leakage (guarded/predictable keys or over-long signed URLs)",
+      "source": "artifact identifier / stored key",
+      "sink": "unauthorized reader of an object payload",
+      "flows": ["artifact metadata -> signed URL -> object store"],
+      "control": "authz-gated metadata + scoped, short-lived signed URLs",
+      "owner": "BI-PF-1308",
+      "evidence": "item:BI-PF-1308",
+      "status": "planned",
+      "adr": ["ADR-0006"],
+      "mitigation_item": "BI-PF-1308"
+    },
+    {
+      "id": "egress",
+      "title": "Uncontrolled egress (data leaving the tenant's allowed region/network)",
+      "source": "service/agent outbound call",
+      "sink": "external endpoint outside the allowed regions",
+      "flows": ["service -> outbound network / third-party API"],
+      "control": "residency & transfer policy (fail-closed) + egress allow-list",
+      "owner": "BI-PF-1297",
+      "evidence": "item:BI-PF-1297",
+      "status": "planned",
+      "adr": ["ADR-0006"],
+      "mitigation_item": "BI-PF-1297"
+    },
+    {
+      "id": "residency-bypass",
+      "title": "Residency bypass (data stored/processed outside the tenant home region)",
+      "source": "tenant provisioning / data write",
+      "sink": "region cell that is not the tenant home region",
+      "flows": ["tenant provisioning -> RegionResolver -> store placement"],
+      "control": "RegionResolver + region-cell attestation + fail-closed provisioning",
+      "owner": "BI-PF-1303",
+      "evidence": "item:BI-PF-1303",
+      "status": "planned",
+      "adr": ["ADR-0006"],
+      "mitigation_item": "BI-PF-1303"
+    }
+  ]
+}
