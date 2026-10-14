@@ -1,22 +1,18 @@
 # Backlog Summary
 
-> GENERATED 2026-10-14T09:34:40 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-14T09:56:01 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 122  |  **Closed:** 517
+- **Open:** 123  |  **Closed:** 517
 - `accepted`: 1
-- `new`: 120
-- `parked`: 1
+- `blocked`: 1
+- `executing`: 3
+- `new`: 118
 
-### parked (1)
-| ID | MoSCoW | Type | Title | Objective |
-|---|---|---|---|---|
-| BI-PF-0374 | Could | feature | PFSSOT-P12: optimization (only after correctness) | PFSSOT-P12: optimization (only after correctness) |
-
-### new, by category (120)
-**API / reports / HIL / misc** (14)
+### new, by category (118)
+**API / reports / HIL / misc** (15)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-PF-0332 | Should | chore | API-5 deferred hardening: rate limiting + request/upload limits + tenant-isolation expansion + event streaming | API-5 deferred hardening: rate limiting + request/upload limits + tenant-isolation expansion + event streaming |
@@ -26,6 +22,7 @@
 | BI-PF-1251 | Should | change | Unscoped triage: re-home 'Unscoped' children into real epics (grooming cadence + aging advisory) | Keep `Unscoped` small: an ongoing curation loop re-homes its children into real epics. |
 | BI-PF-1274 | Should | feature | Eventing SSOT: API surface - SSE GET /events/stream + subscription CRUD (edge decision) | SSE stream + subscription CRUD exposed via edits to existing API routes; edge ownership decided in E1. |
 | BI-PF-1286 | Should | change | Entitlement enforcement: cover remaining boundaries (pipeline/capability/API) + action->group mapping (beyond the worker-claim wired by A2) | Extend entitlement enforcement to the remaining execution boundaries with per-action group mapping. |
+| BI-PF-1291 | Should | bug | Defect/RCCA: backlog.update() did not sync epic.children[] on epic/parent change -> chronic backlog residue that fails the residue gate on every branch (fixed; delivered with A4) | Keep epic.children[] in sync on every epic/parent membership change so the backlog-residue gate never drifts. |
 | BI-PF-1307 | Must | feature | EDP-15: stored_objects + artifacts metadata; refactor artifact_store/registry behind ArtifactService; /artifacts API = authz + metadata + streaming | Create stored_objects and artifacts metadata, refactor artifact_store/artifact_registry behind a unified Artif... |
 | BI-PF-1316 | Must | task | api-governance gate red on develop: committed api/openapi.json drifted from the routers (BI-PF-0397 EAP endpoints) | api-governance gate red on develop: committed api/openapi.json drifted from the routers (BI-PF-0397 EAP endpoi... |
 | BI-PF-1321 | Must | task | Auto-mode HIL proxy gate fails stage 0: human agent invoked without the product brief / artifacts | Auto-mode HIL proxy gate fails stage 0: human agent invoked without the product brief / artifacts |
@@ -55,13 +52,12 @@
 |---|---|---|---|---|
 | BI-0208 | Must | feature | Backend: sensor/IoT capability pack + ingest adapters (MQTT/serial/BLE/Modbus/CAN) + time-series/anomaly models | A `sensor` capability pack that, only when the idea needs it, enables device ingest, a time-series store, fore... |
 
-**Licensing / tenancy** (9)
+**Licensing / tenancy** (8)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-PF-0390 | Should | epic | EPIC A: PF Commercial & IP Foundation (contracts, Go core, licensing, packaging, EAP, RDC, governance, vertical slice) | EPIC A — the needed-now foundation: A0 baseline freeze + ADR register; A1 thin contracts incl. Go<->Python con... |
 | BI-PF-1287 | Should | change | License issuance production: vendor keypair management + signing-env integration (A3 packaging) | Provision a vendor signing keypair for production issuance; ship only the public key with the product; integra... |
 | BI-PF-1292 | Must | epic | EPIC: Enterprise Data Plane (DB & Storage) - PostgreSQL system of record + object store + tenant isolation + data residency | Build the provider-neutral enterprise data plane from docs/Product_Forge_Enterprise_Performance_Security_DB_St... |
-| BI-PF-1294 | Must | feature | EDP-02: Store & data-flow inventory + extend store-registry.json (sensitivity, tenant_scope, backend, retention, recovery_tier, migration_status) + completeness gate | Complete store and data-flow inventory, extend store-registry.json with enterprise metadata fields, and add a ... |
 | BI-PF-1296 | Must | feature | EDP-04: Data-plane threat model + data-flow register (cross-tenant IDOR, path traversal, token/role spoofing, object-URL leakage, egress, residency bypass) | Produce an EDP-04 data-plane threat model and versioned data-flow register covering IDOR, path traversal, toke... |
 | BI-PF-1303 | Must | feature | EDP-11: ResidencyPolicy/RegionResolver + RegionCell capability attestation + fail-closed tenant provisioning | Deliver ResidencyPolicy evaluation, RegionResolver, RegionCell capability attestation verification, and fail-c... |
 | BI-PF-1309 | Must | feature | EDP-17: Canonical PostgreSQL schema (tenants/memberships/projects/runs/stages/attempts/artifacts/usage/quotas/audit/schema_migrations) + indexes + pooling + optimistic versioning | Deliver the canonical PostgreSQL schema (tenants, memberships, projects, runs, stages, attempts, artifacts, us... |
@@ -81,7 +77,7 @@
 | BI-PF-1314 | Should | feature | EDP-22: Benchmarks/SLOs + EXPLAIN(ANALYZE,BUFFERS) tuning + observability + quotas + graceful degradation (DB/object/cache/queue) | Establish performance benchmarks/SLOs, EXPLAIN(ANALYZE,BUFFERS)-based tuning, observability, quotas, and grace... |
 | BI-PF-1329 | Should | feature | WG-O5: Assign a SPECIFIC backlog item to a session/worker (claim-by-id + operator assignment) with lease semantics | Support claiming/assigning a specific item id (not just next-eligible). |
 
-**Wiring / tech-debt / API** (79)
+**Wiring / tech-debt / API** (77)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0185 | Should | feature | EPIC: Multi-modal / media orchestration (pluggable capability packs) | Make the pipeline modality-agnostic via PLUGGABLE capability packs, enabled per project when the idea needs th... |
@@ -90,11 +86,10 @@
 | BI-0220 | Should | feature | EPIC: pipeline E2E reliability - events, readiness checklist, model registry/capability gate, lock/status fixes | EPIC: pipeline E2E reliability - events, readiness checklist, model registry/capability gate, lock/status fixe... |
 | BI-PF-0331 | Should | chore | OS/shell neutrality: remove PowerShell-only scripting/doc workarounds | Make every scripted workflow and documented command cross-platform: pure Python entrypoints, a single shell-ne... |
 | BI-PF-0360 | Must | epic | EPIC: Backlog SSOT + Work Scheduler + Pluggable Worker Orchestration (doc: PF-Backlog-SSOT-Scheduler-Pluggable-Workers) | EPIC: Backlog SSOT + Work Scheduler + Pluggable Worker Orchestration (doc: PF-Backlog-SSOT-Scheduler-Pluggable... |
+| BI-PF-0374 | Could | feature | PFSSOT-P12: optimization (only after correctness) | PFSSOT-P12: optimization (only after correctness) |
 | BI-PF-0386 | Should | feature | PF platform: IP-value assessment of all modules (rewrite-by-value ranking: high-value -> Go/Rust, low-value -> compiled) | PF platform: IP-value assessment of all modules (rewrite-by-value ranking: high-value -> Go/Rust, low-value ->... |
 | BI-PF-0387 | Should | feature | PF platform delivery baseline: ONE source for all editions; new shipped/sensitive logic -> Go; existing -> compiled (Nuitka); no raw .py at customer; migrate by value later | PF platform delivery baseline: ONE source for all editions; new shipped/sensitive logic -> Go; existing -> com... |
-| BI-PF-0388 | Should | task | ADR: PF platform shipped editions use compiled artifacts (Go core + compiled-Python), never raw .py; one source, many editions | ADR: PF platform shipped editions use compiled artifacts (Go core + compiled-Python), never raw .py; one sourc... |
 | BI-PF-0391 | Should | epic | EPIC B: PF Scale & Editions (gateways, persistence, OEM, Rust, WASM, decomposition, migration) | EPIC B — B1 PF Go core (compiled host, architectural/mandatory); B2 gateways (Model/Tool/Memory/Infra); B3 per... |
-| BI-PF-0397 | Should | feature | A4: EAP delivery manifest + validator/registry + compatibility | A4: EAP delivery manifest + validator/registry + compatibility |
 | BI-PF-0398 | Should | feature | A3: PF platform build->package->deploy + compiled packaging + signing + SBOM/LBOM + NO-RAW-.py gate (absorbs BI-PF-0383) | A3 — build->package->deploy pipeline: compiled packaging (Nuitka for Python + go build for Go) + signing + SBO... |
 | BI-PF-0399 | Should | feature | A5: Runtime Dependency Compiler | A5 — Runtime Dependency Compiler: composes EAP + profiles + OS/arch + license/entitlement into the runtime pac... |
 | BI-PF-0400 | Should | feature | A7: vertical slice (Requirement->Tech->Factory->EAP->RDC->compiled+signed package) | A7 — vertical slice: Requirement -> Tech -> Factory -> EAP -> RDC -> compiled + signed package, containing no ... |
@@ -135,6 +130,7 @@
 | BI-PF-1277 | Should | epic | EPIC: Product-generation run (dogfood) execution + monitoring correctness | dogfood drives the same engine to completion (all stages/agents), then validates the generated product and ret... |
 | BI-PF-1278 | Should | feature | dogfood: drive pipeline to completion + correct post-run validation + fail-closed verdict | Wait for the run to finish (bounded), validate the GENERATED product dir, and map terminal states fail-closed. |
 | BI-PF-1280 | Should | feature | dogfood: monitoring - wait/poll + terminal event/webhook + status aggregation | Expose progress via the shared bus: poll (run_status/events) + subscribe (SSE/webhook) + aggregate status. |
+| BI-PF-1281 | Should | task | core/contracts.py imports jsonschema but it was not a declared dependency | core/contracts.py imports jsonschema but it was not a declared dependency |
 | BI-PF-1288 | Must | task | Issue id collision: a local session minted IS-PF-0038 already present on develop | Issue id collision: a local session minted IS-PF-0038 already present on develop |
 | BI-PF-1293 | Must | task | EDP-01: Storage/data architecture ADR + pin develop commit for implementation | Author storage/data architecture ADR and pin develop commit as implementation baseline for the EDP epic. |
 | BI-PF-1295 | Must | task | EDP-03: Investigate & disposition committed SQLite DBs (control-plane.db, portfolio.db) - fixtures vs live runtime; de-commit runtime data | Investigate committed SQLite DBs (control-plane.db, portfolio.db), classify fixture vs live runtime, and de-co... |
@@ -155,14 +151,12 @@
 | BI-PF-1326 | Must | feature | WG-O2: Start-from-anywhere wrapper (fetch -> pull --ff-only clean-guard -> shared token -> start) + periodic fetch-only thread | Add a start wrapper (sync + token + start) and a periodic fetch-only background thread. |
 | BI-PF-1330 | Should | task | Failed stage blocks all re-runs: checkpoint restore keeps the failed stage (new/--from-stage fail immediately) | Failed stage blocks all re-runs: checkpoint restore keeps the failed stage (new/--from-stage fail immediately) |
 | BI-PF-1333 | Must | task | Design stage over-proportions output: 19 FRs + 15 NFRs for one trivial feature; 314KB partial blows run time/cost | Design stage over-proportions output: 19 FRs + 15 NFRs for one trivial feature; 314KB partial blows run time/c... |
-| BI-PF-1337 | Should | chore | Reconciliation/360 review must include an explicit LANGUAGE CHECK (Go for new shipped/sensitive logic; Python only to extend existing; shipped/customer-visible runtime = Go) | Make the language rule an explicit, cited section of every reconciliation/Gate-1 review. |
 | BI-PF-1338 | Must | task | language_rule_check misses large new logic added via EDITS to existing shipped Python (should be Go) | language_rule_check misses large new logic added via EDITS to existing shipped Python (should be Go) |
 | BI-PF-1348 | Should | task | Artifact contracts: budget reconciliation with the run budget (work-estimate / PIPELINE_MAX_TOTAL_TIME) | Artifact contracts: budget reconciliation with the run budget (work-estimate / PIPELINE_MAX_TOTAL_TIME) |
 | BI-PF-1370 | Should | feature | Session isolation guard: never write outside the session's own working folder (hard ACL long-term + single-account alternative now) | A session can only affect its OWN working folder: cross-folder writes are prevented (long-term, hard) or at le... |
 | BI-PF-1371 | Must | feature | Session isolation guard: never write outside the session's own working folder (hard ACL long-term + single-account alternative now) | A session can only affect its OWN working folder: cross-folder writes are prevented (long-term, hard) or at le... |
 | BI-PF-1372 | Should | task | Artifact contracts: plan -> outline -> fill gate (approve size/outline before prose) | Artifact contracts: plan -> outline -> fill gate (approve size/outline before prose) |
 | BI-PF-1373 | Should | task | Artifact contracts: product-wide DRY (state NFRs/quality once, not per feature) | Artifact contracts: product-wide DRY (state NFRs/quality once, not per feature) |
-| BI-PF-1374 | Should | feature | precheck: a derived/bookkeeping-only tier (docs-fresh + compile only) so doc/backlog regeneration never runs the full gate | Add a derived/bookkeeping-only precheck tier (docs-fresh + compile) and stop doc-regen running the full gate. |
 
 ---
 
@@ -362,5 +356,5 @@
 ---
 
 ## Totals
-- backend: 122 open / 517 closed
+- backend: 123 open / 517 closed
 - dashboard: 146 open / 3 closed
