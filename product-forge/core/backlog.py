@@ -758,6 +758,15 @@ def _draft_context(title: str, body: str, origin: str = "", source: str = "", ty
     }
 
 
+def _brief_source(brief: dict) -> str:
+    """Coerce an EXPLICITLY-provided brief.source to the checker's allowed set {authored, extracted}.
+
+    An explicit brief is authored; never emit the placeholder 'derived' for a provided brief.
+    """
+    s = str((brief or {}).get("source") or "").strip().lower()
+    return s if s in ("authored", "extracted") else "authored"
+
+
 def add_epic(scope: str, project: str | None, title: str, body: str = "",
              source: str = "generic", type_: str = "feature", origin: str = "intake",
              value: int = 3, effort: int = 3, risk: int = 2, moscow: str = "Should",
@@ -793,6 +802,9 @@ def add_epic(scope: str, project: str | None, title: str, body: str = "",
                 print(f"   - {s['ref']} (score {s['score']}) [{s['status']}]: {s['title']}")
         _tag = str(tag or "").strip().upper() or tag_for(scope, project, origin, type_)
         _draft_ctx = _draft_context(title, body, origin, source, type_, links=links)
+        _brief_provided = dict(brief or {})
+        if _brief_provided:
+            _brief_provided["source"] = _brief_source(_brief_provided)
         item = {
             "id": _next_id(op, cl, _tag, scope, project),
             "tag": _tag, "type": type_, "scope": scope, "project": project or "",
@@ -801,7 +813,8 @@ def add_epic(scope: str, project: str | None, title: str, body: str = "",
             "priority": None, "moscow": moscow, "value": value, "effort": effort, "risk": risk,
             "deps": deps or [], "links": links or {}, "decisions": [], "follow_up": {},
             # BI-PF-0445: authored context (WHY/WHAT/WHERE/HOW/REVIEW/WHO/WHEN/APPROVAL/EVIDENCE)
-            "brief": dict(brief or {}) or _draft_ctx["brief"], "objective": objective or _draft_ctx["objective"],
+            "brief": _brief_provided or _draft_ctx["brief"],
+            "objective": objective or _draft_ctx["objective"],
             "acceptance_criteria": list(acceptance_criteria or []) or _draft_ctx["acceptance_criteria"],
             "in_scope": [], "out_of_scope": [], "affected_components": [], "affected_files": [],
             "approach": "", "review": {}, "verification": [], "risks": [], "rollback": "",
@@ -1527,6 +1540,8 @@ def update(scope: str, project: str | None, eid: str, **fields) -> dict | None:
         if target is None:
             return None
         before = dict(target)
+        if isinstance(fields.get("brief"), dict):
+            fields = {**fields, "brief": {**fields["brief"], "source": _brief_source(fields["brief"])}}
         target.update(fields)
         target["updated_at"] = datetime.now().isoformat()
         target["score"] = score(target)

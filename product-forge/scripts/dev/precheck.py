@@ -158,9 +158,10 @@ _GATES = [
     ("dependency-catalog", ["scripts/dev/dependency_catalog_check.py"], "fast", None),
     ("language-rule", ["scripts/dev/language_rule_check.py"], "fast", ["config/language-rule.json"]),
     ("backlog-reconcile", ["scripts/dev/backlog_id_reconcile.py", "--write"], "fast", ["backlog"]),
-    ("backlog-context", ["scripts/dev/backlog_context_check.py"], "fast", ["backlog"]),
-    ("backlog-ids", ["scripts/dev/backlog_id_audit.py"], "fast", ["backlog"]),
-    ("backlog-epic", ["scripts/dev/backlog_epic_audit.py"], "fast", ["backlog"]),
+    # BI-PF-1374: the cheap backlog invariants ALWAYS run (a code change can mutate the backlog) - not area-gated.
+    ("backlog-context", ["scripts/dev/backlog_context_check.py"], "fast", None),
+    ("backlog-ids", ["scripts/dev/backlog_id_audit.py"], "fast", None),
+    ("backlog-epic", ["scripts/dev/backlog_epic_audit.py"], "fast", None),
     ("grooming", ["scripts/dev/grooming_check.py"], "fast", ["grooming"]),
     ("github", ["scripts/dev/github_check.py"], "fast", ["github"]),
     ("dogfood-run", ["scripts/dev/dogfood_run_check.py"], "fast", ["dogfood", "dogfood_run", "api"]),
