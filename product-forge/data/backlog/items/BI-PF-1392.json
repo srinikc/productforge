@@ -1,0 +1,213 @@
+{
+  "id": "BI-PF-1392",
+  "tag": "PF",
+  "type": "task",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "api",
+  "external_id": "",
+  "label": "PF Backlog 591",
+  "title": "Enforce per-feature FR/US caps + max_lines in the Go artifact engine (scaled by the profile) and reconcile the three section sources",
+  "body": "## Problem / why\nrequirements.srs counts.functional_requirements is TEXT (\"<=N per feature, scaled by complexity\"); only a global limits[FR].max=80 exists; the <500-line rule is unenforced. Three section sources drift (prompt template vs config/agent-requirements.json vs config/artifact-contracts).\n## Goal & value\nPer-feature FR/US caps + max_lines enforced NUMERICALLY (scaled by profile); sections have ONE source.\n## In scope\n- Go validator enforces per-feature FR/US caps + max_lines (scaled by profile); violations feed the bounded repair (BI-PF-1347) under enforce mode.\n- Reconcile config/agent-requirements.json sections to the artifact contract (or remove).\n## Acceptance criteria\n- A per-feature over-count (e.g. 19 FR for one feature) fails validation under enforce and is repaired to the cap.\n- agent-requirements.json no longer duplicates the contract sections.\n## Approach\nExtend go/pfcore/artifact_contracts.go validate/limits; reconcile config.",
+  "source": "api",
+  "status": "new",
+  "priority": "P2",
+  "moscow": "Should",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [
+    "BI-PF-1389",
+    "BI-PF-1391"
+  ],
+  "links": {},
+  "decisions": [
+    {
+      "at": "2026-10-14T21:20:13.197224",
+      "decision": "APPROVE",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)"
+    },
+    {
+      "at": "2026-10-14T21:27:25.347036",
+      "decision": "APPROVE",
+      "by": "operator",
+      "note": ""
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "requirements.srs counts.functional_requirements is TEXT (\"<=N per feature, scaled by complexity\"); only a global limits[FR].max=80 exists; the <500-line rule is unenforced. Three section sources drift (prompt template vs config/agent-requirements.json vs config/artifact-contracts).",
+    "what_adds": "Per-feature FR/US caps + max_lines enforced NUMERICALLY (scaled by profile); sections have ONE source.",
+    "why": "requirements.srs counts.functional_requirements is TEXT (\"<=N per feature, scaled by complexity\"); only a global limits[FR].max=80 exists; the <500-line rule is unenforced. Three section sources drift (prompt template vs config/agent-requirements.json vs config/artifact-contracts).",
+    "who_feels": "Product Forge maintainers and consumers.",
+    "source": "authored"
+  },
+  "objective": "Per-feature FR/US caps + max_lines enforced NUMERICALLY (scaled by profile); sections have ONE source.",
+  "acceptance_criteria": [
+    "A per-feature over-count (e.g. 19 FR for one feature) fails validation under enforce and is repaired to the cap.",
+    "agent-requirements.json no longer duplicates the contract sections."
+  ],
+  "in_scope": [
+    "Go validator enforces per-feature FR/US caps + max_lines (scaled by profile); violations feed the bounded repair (BI-PF-1347) under enforce mode.",
+    "Reconcile config/agent-requirements.json sections to the artifact contract (or remove)."
+  ],
+  "out_of_scope": [
+    "Not specified."
+  ],
+  "affected_components": [
+    "config",
+    "go"
+  ],
+  "affected_files": [
+    "agent-requirements.json",
+    "config/agent-requirements.json",
+    "go/pfcore/artifact_contracts.go"
+  ],
+  "approach": "Extend go/pfcore/artifact_contracts.go validate/limits; reconcile config.",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "A per-feature over-count (e.g. 19 FR for one feature) fails validation under enforce and is repaired to the cap.",
+    "agent-requirements.json no longer duplicates the contract sections."
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "unassigned",
+  "requester": "api",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1388",
+  "parent": "BI-PF-1388",
+  "revision": 5,
+  "priority_rank": 2,
+  "priority_class": "P2",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "COMPLETE",
+    "analyzed_at": "2026-10-14T21:27:25.136508",
+    "analyzed_by": "operator",
+    "revision_analyzed": 5,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/artifact_formats.py, core/artifact_registry.py, core/artifact_store.py, core/context_engine.py",
+    "existing_components": [
+      "core/artifact_formats.py",
+      "core/artifact_registry.py",
+      "core/artifact_store.py",
+      "core/context_engine.py",
+      "core/discovery_engine.py",
+      "core/engineering_flow.py",
+      "core/validation_engine.py"
+    ],
+    "existing_apis": [
+      "/api/v1/artifacts",
+      "/api/v1/artifacts/{stage_id}/{agent}",
+      "/api/v1/engineering",
+      "/api/v1/engineering/assignments",
+      "/api/v1/engineering/assignments/claim",
+      "/api/v1/engineering/assignments/recover",
+      "/api/v1/engineering/assignments/{item_id}/complete",
+      "/api/v1/engineering/assignments/{item_id}/deliver"
+    ],
+    "existing_modules": [
+      "config/artifact-formats.json",
+      "config/artifact-owners.json",
+      "config/artifact-paths.json",
+      "config/engineering-flow.json",
+      "config/engineering-workers.json",
+      "config/pidl-profile.json"
+    ],
+    "dependency_findings": [
+      "depends on BI-PF-1389",
+      "depends on BI-PF-1391"
+    ],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=0.75",
+      "components=7",
+      "apis=8"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic",
+    "context_review": {
+      "ok": false,
+      "source": "llm",
+      "implementable": false,
+      "missing": [
+        "what",
+        "how"
+      ],
+      "reason": "Cap numbers and profile-scaling formula are never specified (still says '<=N per feature, scaled by complexity'); max_lines per artifact is unspecified; reconcile direction ambiguous ('to the artifact contract (or remove)')."
+    },
+    "decision_request": {
+      "needed": false,
+      "reasons": [],
+      "ask": ""
+    },
+    "arch_fingerprint": "fa203c86348c004a"
+  },
+  "dependencies": [
+    {
+      "task_id": "BI-PF-1389",
+      "type": "REQUIRES",
+      "required_state": "COMPLETE"
+    },
+    {
+      "task_id": "BI-PF-1391",
+      "type": "REQUIRES",
+      "required_state": "COMPLETE"
+    }
+  ],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-14T21:27:25.231714"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-14T21:19:03.941828",
+  "updated_at": "2026-10-14T21:27:25.671573",
+  "score": 0.75,
+  "_note": "readiness computed"
+}
