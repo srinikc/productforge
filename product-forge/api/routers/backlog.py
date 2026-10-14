@@ -140,14 +140,18 @@ def add_item(body: dict[str, Any], request: Request, ctx: dict[str, Any] = Depen
     if not title:
         raise ApiError("VALIDATION_FAILED", "title required")
     external_id = str(body.get("external_id") or "")
-    if external_id:
-        it = backlog.ensure_item(s, p, external_id, title, type_=str(body.get("type") or "feature"),
-                                 origin="api", tag=str(body.get("tag") or ""))
-    else:
-        it = backlog.add_epic(s, p, title, body=str(body.get("body") or ""),
-                              source="api", type_=str(body.get("type") or "feature"),
-                              origin="api", tag=str(body.get("tag") or ""),
-                              epic=str(body.get("epic") or ""))
+    try:
+        if external_id:
+            it = backlog.ensure_item(s, p, external_id, title, type_=str(body.get("type") or "feature"),
+                                     origin="api", tag=str(body.get("tag") or ""))
+        else:
+            it = backlog.add_epic(s, p, title, body=str(body.get("body") or ""),
+                                  source="api", type_=str(body.get("type") or "feature"),
+                                  origin="api", tag=str(body.get("tag") or ""),
+                                  epic=str(body.get("epic") or ""))
+    except (RuntimeError, TimeoutError) as e:
+        # BI-PF-1387: id allocation can be unavailable -> 503 (not a 500), never hang.
+        raise ApiError("DEPENDENCY_UNAVAILABLE", f"id allocation unavailable: {e}") from None
     return from_request(request, it, resource="backlog", resource_id=str(it.get("id") or ""))
 
 

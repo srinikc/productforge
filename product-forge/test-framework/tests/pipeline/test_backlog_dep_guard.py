@@ -75,3 +75,31 @@ def test_guard_keeps_related_and_valid_requires():
         assert _deps(a) == [b, b]
     finally:
         _clean()
+
+
+def test_blocked_by_replaces_requires_keeps_related_no_stale_edge():
+    """BI-PF-1388: `blocked_by` replaces the item's REQUIRES edges (keeps RELATED) and never cycles."""
+    _clean()
+    try:
+        ep = backlog.add_epic("project", _PROJ, "E", type_="epic")["id"]
+        a = backlog.add_epic("project", _PROJ, "A", epic=ep)["id"]
+        b = backlog.add_epic("project", _PROJ, "B", epic=ep)["id"]
+        c = backlog.add_epic("project", _PROJ, "C", epic=ep)["id"]
+
+        # a RELATED c (non-REQUIRES) is preserved across blocked_by changes
+        backlog.set_dependencies("project", _PROJ, a, dependencies=[{"task_id": c, "type": "RELATED"}])
+        backlog.set_dependencies("project", _PROJ, a, blocked_by=[b])
+        by = {(d["task_id"], d["type"]) for d in backlog.get("project", _PROJ, a)["dependencies"]}
+        assert (c, "RELATED") in by and (b, "REQUIRES") in by
+
+        # re-setting blocked_by to [c] REPLACES the REQUIRES b edge (the old bug left it stale)
+        backlog.set_dependencies("project", _PROJ, a, blocked_by=[c])
+        assert backlog.get("project", _PROJ, a)["blocked_by"] == [c]
+        reqs_a = {d["task_id"] for d in backlog.get("project", _PROJ, a)["dependencies"]
+                  if d["type"] == "REQUIRES"}
+        assert reqs_a == {c}                                     # b REQUIRES edge removed; RELATED c kept
+        # c REQUIRES a + a REQUIRES c would cycle -> dropped
+        backlog.set_dependencies("project", _PROJ, c, blocked_by=[a])
+        assert _deps(c) == []
+    finally:
+        _clean()
