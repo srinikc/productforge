@@ -1,0 +1,186 @@
+{
+  "id": "BI-PF-1377",
+  "tag": "PF",
+  "type": "bug",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "scratch-git-parent-wipe",
+  "label": "PF Backlog 580",
+  "title": "RCCA: dev checks scratch `git init` could resolve to the PARENT repo and wipe a worktree (stray init commit; core.bare flip)",
+  "body": "5-Why: a worktree got wiped (stray `commit: init`; `core.bare` flipped) -> a scratch git op ran against the worktree repo -> the scratch dir had no own `.git` at that moment / a leaked GIT_DIR/GIT_WORK_TREE let git walk UP to the parent -> scratch git ops used `subprocess.run([\"git\",...], cwd=scratch)` with no env sanitization and no ceiling -> PF dev checks/tests (`validation_engine_check`, `feature_pr_check`, `e2e_lifecycle`, `github_check`, `worker_check`, `repo_setup_check`, `dogfood_check`, `vcs_worktree_check`, `core/vcs.py`) create scratch repos but did not guarantee isolation.\n\nFix (PR #116): `scripts/dev/scratch_repo.py` isolates scratch repos - keep under `products/_test_*`, sanitize GIT_* env, pin GIT_CEILING_DIRECTORIES, verify toplevel==scratch (fail closed); patched `validation_engine_check` + `core/e2e_lifecycle`; regression test `test_scratch_repo_isolation.py`. Guard: the same helper should be adopted by the remaining scratch-git checks.",
+  "source": "review",
+  "status": "completed",
+  "priority": "P2",
+  "moscow": "Should",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [],
+  "links": {
+    "delivery": {
+      "branch": "fix/scratch-repo-isolation",
+      "merge_sha": "d8e59011bcf6c5a5aa5b13b43c9fa0f1529671f9",
+      "commits": [],
+      "pr": "116",
+      "pr_url": "https://github.com/srinikc/productforge/pull/116",
+      "at": "2026-10-14T09:57:21.910867",
+      "note": "scratch git isolation guard"
+    }
+  },
+  "decisions": [
+    {
+      "at": "2026-10-14T09:57:15.990084",
+      "decision": "APPROVE",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)"
+    },
+    {
+      "at": "2026-10-14T09:57:20.531870",
+      "decision": "APPROVE",
+      "by": "agent",
+      "note": "deterministic finalize"
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "5-Why: a worktree got wiped (stray `commit: init`; `core.bare` flipped) -> a scratch git op ran against the worktree repo -> the scratch dir had no own `.git` at that moment / a leaked GIT_DIR/GIT_WORK_TREE let git walk UP to the parent -> scratch git ops used `subprocess.run([\"git\",...], cwd=scratch)` with no env sanitization and no ceiling -> PF dev checks/tests (`validation_engine_check`, `feature_pr_check`, `e2e_lifecycle`, `github_check`, `worker_check`, `repo_setup_check`, `dogfood_check`, `vcs_worktree_check`, `core/vcs.py`) create scratch repos but did not guarantee isolation.",
+    "what_adds": "RCCA: dev checks scratch `git init` could resolve to the PARENT repo and wipe a worktree (stray init commit; core.bare flip)",
+    "why": "5-Why: a worktree got wiped (stray `commit: init`; `core.bare` flipped) -> a scratch git op ran against the worktree repo -> the scratch dir had no own `.git` at that moment / a leaked GIT_DIR/GIT_WORK_TREE let git walk UP to the parent -> scratch git ops used `subprocess.run([\"git\",...], cwd=scratch)` with no env sanitization and no ceiling -> PF dev checks/tests (`validation_engine_check`, `feature_pr_check`, `e2e_lifecycle`, `github_check`, `worker_check`, `repo_setup_check`, `dogfood_check`, `vcs_worktree_check`, `core/vcs.py`) create scratch repos but did not guarantee isolation.",
+    "who_feels": "Product Forge maintainers and consumers.",
+    "source": "extracted"
+  },
+  "objective": "Prevent dev scratch git ops from resolving to the parent repo (never wipe a worktree).",
+  "acceptance_criteria": [
+    "A scratch git op can never run against the parent repo (env sanitized + ceiling + toplevel guard).",
+    "Scratch repos live under products/_test_* with their own .git (verified).",
+    "A regression test proves isolation even with a leaked GIT_DIR."
+  ],
+  "in_scope": [
+    "RCCA: dev checks scratch `git init` could resolve to the PARENT repo and wipe a worktree (stray init commit; core.bare flip)"
+  ],
+  "out_of_scope": [
+    "Not specified."
+  ],
+  "affected_components": [
+    "core",
+    "scripts"
+  ],
+  "affected_files": [
+    "product-forge/scripts/dev/scratch_repo.py",
+    "product-forge/scripts/dev/validation_engine_check.py",
+    "product-forge/core/e2e_lifecycle.py",
+    "product-forge/test-framework/tests/pipeline/test_scratch_repo_isolation.py"
+  ],
+  "approach": "RCCA: dev checks scratch `git init` could resolve to the PARENT repo and wipe a worktree (stray init commit; core.bare flip)",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Objective achieved: RCCA: dev checks scratch `git init` could resolve to the PARENT repo and wipe a worktree (stray init commit; core.bare flip)"
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "agent",
+  "requester": "review",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1248",
+  "parent": "BI-PF-1248",
+  "revision": 3,
+  "priority_rank": 2,
+  "priority_class": "P2",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "STALE",
+    "analyzed_at": "2026-10-14T09:57:20.236867",
+    "analyzed_by": "agent",
+    "revision_analyzed": 2,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/github.py, core/qa_report.py, core/repo_setup.py, core/__init__.py",
+    "existing_components": [
+      "core/github.py",
+      "core/qa_report.py",
+      "core/repo_setup.py",
+      "core/__init__.py"
+    ],
+    "existing_apis": [
+      "/api/v1/github",
+      "/api/v1/github/evidence",
+      "/api/v1/github/pr",
+      "/api/v1/github/pr/{number}",
+      "/api/v1/github/pr/{number}/ci",
+      "/api/v1/issues/{iid}/rcca",
+      "/api/v1/projects/{project}/repo",
+      "/api/v1/validation/artifact-contracts/resolve"
+    ],
+    "existing_modules": [],
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=0.75",
+      "components=4",
+      "apis=8"
+    ],
+    "confidence": "high",
+    "arch_fingerprint": "d3285da0f59c3e99",
+    "decision_request": {
+      "needed": false,
+      "reasons": [],
+      "ask": ""
+    },
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-14T09:57:20.361890"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-14T09:57:14.888938",
+  "updated_at": "2026-10-14T09:57:22.275033",
+  "score": 0.75,
+  "_note": "delivered via PR #116"
+}
