@@ -556,3 +556,30 @@ def parked(request: Request, days: int = 0, ctx: dict[str, Any] = Depends(authen
     from core import backlog
     return from_request(request, backlog.parked_review(days=int(days or 0)), resource="backlog")
 
+
+_EDITABLE_FIELDS = ("title", "body", "type", "label", "tag", "summary", "origin",
+                    "value", "effort", "risk", "moscow")
+
+
+@router.patch("/items/{item_id}", dependencies=[Depends(require_operator)])
+def edit_item(item_id: str, body: dict[str, Any], request: Request,
+              ctx: dict[str, Any] = Depends(require_operator)):
+    """Edit an item's core fields (whitelisted) via ``core.backlog.update`` (single writer).
+
+    Covers the generic edit/update path (title/body/type/label/tag/summary/origin/value/effort/risk/moscow).
+    Optimistic-concurrency aware via ``expected_revision`` (-> 409).
+    """
+    from core import backlog
+    s, p = _scope_project(request, str(body.get("scope") or "product_forge"), str(body.get("project") or ""))
+    _guard_revision(backlog, s, p, item_id, body.get("expected_revision"))
+    fields = {k: body[k] for k in _EDITABLE_FIELDS if k in body}
+    if not fields:
+        raise ApiError("VALIDATION_FAILED", "no editable fields provided (allowed: " + ", ".join(_EDITABLE_FIELDS) + ")")
+    try:
+        res = backlog.update(s, p, item_id, **fields)
+    except ValueError as e:
+        raise ApiError("VALIDATION_FAILED", str(e)) from None
+    if res is None:
+        raise ApiError("NOT_FOUND", "backlog item not found")
+    return from_request(request, res, resource="backlog", resource_id=item_id)
+
