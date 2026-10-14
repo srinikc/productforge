@@ -193,16 +193,27 @@ Producer (PF) routes WorkerGrid uses: `GET /api/v1/engineering/schedule/next|eli
 | `/wg work` assigned but nothing ran | claim ≠ execute; run `/wg agent` |
 | two workers got same item | should not happen — coordinator lease + atomic claim prevent it |
 
-## 12. Concurrency — one working tree per session (IS-PF-0036)
+## 12. Canonical repo + one worktree per session; API-only backlog writes (IS-PF-0036, BI-PF-1327)
 
-**Never run two concurrent sessions in the same folder.** git `HEAD`/branch state is global to the working
+**One canonical checkout, one `git worktree` per session.** git `HEAD`/branch state is global to the working
 directory, so one session's checkout/commit races the other's — a commit can land on `develop` directly.
-Give each session its **own clone or `git worktree`** (the `/wg agent` does this automatically for every
-assignment):
+Keep a single **canonical** working tree (the runtime) and give every concurrent session its **own
+`git worktree`** (the `/wg agent` does this automatically for each assignment):
 
 ```
 git worktree add ../pf-worker-1 develop     # separate working tree for a worker session
 ```
+
+**Backlog writes go through the API only.** The durable backlog store (`product-forge/data/backlog/**`) has
+a single writer, `core/backlog.py`, and exactly one sanctioned read/write surface for callers: the **backlog
+API** (`/api/v1/backlog/*`). Never edit the backlog files directly, and never call the module's private
+writers (`_save_item`/`_write_indexes`/`_load_all`/`_paths`) from new code. Besides the API, the only
+allowed publishers are the **checkpoint** (`core/state_checkpoint.py`) and **delivery** (`core/delivery.py`)
+bookkeeping paths, plus the merge/reconcile maintenance utilities under `scripts/dev/`. A session therefore:
+- **reads/writes items via the API** (`GET`/`POST /api/v1/backlog/...`) — never by touching the store files;
+- lets the **post-merge checkpoint** and the **delivery provenance** write persist the store.
+
+Enforced advisory-first, baseline-aware, by `scripts/dev/backlog_write_guard.py` (run by `precheck`).
 
 ## 13. Non-goals
 
