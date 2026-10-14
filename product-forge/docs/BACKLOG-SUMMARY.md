@@ -1,16 +1,16 @@
 # Backlog Summary
 
-> GENERATED 2026-10-14T23:35:10 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-14T23:53:18 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 122  |  **Closed:** 533
+- **Open:** 123  |  **Closed:** 533
 - `blocked`: 1
 - `executing`: 3
-- `new`: 118
+- `new`: 119
 
-### new, by category (118)
+### new, by category (119)
 **API / reports / HIL / misc** (15)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
@@ -30,10 +30,11 @@
 | BI-PF-1331 | Should | bug | pre-commit lint_check crashes in git worktrees (WinError 206 long path) - blocks commits | Make the pre-commit lint_check work from a git worktree (no WinError 206 long-path crash). |
 | BI-PF-1382 | Must | bug | Backlog API: POST /backlog/items returns empty resource_id (created id not surfaced) | Backlog API: POST /backlog/items returns empty resource_id (created id not surfaced) |
 
-**Bug fixes** (1)
+**Bug fixes** (2)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-PF-1332 | Should | bug | Develop red: test pollution committed into data/learnings.json breaks test_global_render_unchanged (scratch loop-learning marker 0270) | Restore develop green: purge test pollution from data/learnings.json + prevent test writes to the real learnin... |
+| BI-PF-1394 | Must | bug | EDP prerequisite: no PostgreSQL installed/provisioned or bootstrapped for PF's system of record | EDP prerequisite: no PostgreSQL installed/provisioned or bootstrapped for PF's system of record |
 
 **Discovery / HIL / prompts** (7)
 | ID | MoSCoW | Type | Title | Objective |
@@ -359,5 +360,5 @@
 ---
 
 ## Totals
-- backend: 122 open / 533 closed
+- backend: 123 open / 533 closed
 - dashboard: 146 open / 3 closed

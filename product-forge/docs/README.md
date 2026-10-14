@@ -65,6 +65,7 @@
 | [`DEVOPS-WORKFLOW-ANALYSIS.md`](DEVOPS-WORKFLOW-ANALYSIS.md) | Design | 70% | DevOps / PR-CI workflow analysis | **Not wired: PR branch -> pre-check gates (syntax/audit/lint/tests/secrets) -> review workflow.** | BI-0205 |
 | [`DOGFOOD-E2E-DESIGN.md`](DOGFOOD-E2E-DESIGN.md) | Design | 60% | DOGFOOD end-to-end design (deterministic LLM replay seam, BI-PF-0459) | — | — |
 | [`Diagram-Generation-Spec.md`](Diagram-Generation-Spec.md) | Implemented | 100% | Diagram generation spec (mermaid/drawio/svg) | — | — |
+| [`EDP-17-SCHEMA.md`](EDP-17-SCHEMA.md) | Design | 100% | Canonical schema domain + relationship model for EDP-17 (BI-PF-1309): entities, FKs, ownership, extensibility contract | — | — |
 | [`EDP-DATA-PLANE-THREAT-MODEL.md`](EDP-DATA-PLANE-THREAT-MODEL.md) | SSOT | 100% | Generated data-plane threat model + register matrix: 6 categories -> source/sink/control/owner/evidence (BI-PF-1296 / EDP-04) | — | — |
 | [`EDP-EXECUTION-ORDER.md`](EDP-EXECUTION-ORDER.md) | SSOT | 100% | Authoritative wave-by-wave EDP execution order + dependencies (schema-first); mirrors the backlog epic BI-PF-1292 (BI-PF-1388) | — | — |
 | [`ENG-0-ENGINEERING-ARCHITECTURE.md`](ENG-0-ENGINEERING-ARCHITECTURE.md) | Design | 100% | ENG-0 engineering architecture: requirement->deploy flow mapped to canonical owners + APIs | — | — |
