@@ -1,0 +1,31 @@
+{
+  "id": "IS-PF-0054",
+  "tag": "PF",
+  "scope": "product_forge",
+  "project": "",
+  "title": "Durable-state checkpoint clobbered newer backlog items (state/sync merge)",
+  "body": "A state/sync merge (PR #135) overwrote newer backlog items with a stale snapshot (revisions/updated_at backward, history deleted, epics/delivery lost). Root cause + guards in the linked backlog item.",
+  "kind": "bug",
+  "priority": "P1",
+  "severity": "high",
+  "module": "core/state_checkpoint.py",
+  "status": "open",
+  "rcca": {
+    "symptom": "Newer backlog items reverted on develop by a state/sync merge (PR #135)",
+    "why1": "core/state_checkpoint copied the whole durable tree from a stale runtime checkout",
+    "why2": "It used _copy_durable + git add -A (whole-store overwrite), not a per-item reconcile",
+    "why3": "Item files are SOURCE and had no version guard / merge driver (only derived files did)",
+    "why4": "No gate detected a revision/updated_at regression (backlog-context only checks presence)",
+    "why5": "The checkpoint was treated as a blanket snapshot, not a reconcile against the base",
+    "guard": "pf-item newest-wins merge driver + backlog-monotonic precheck gate + checkpoint newest-wins reconcile"
+  },
+  "backlog_ref": "BI-PF-1379",
+  "source": "review",
+  "source_ref": "state-sync-clobber:c9c16613",
+  "evidence": [],
+  "links": {
+    "backlog": "BI-PF-1379"
+  },
+  "created_at": "2026-10-14T16:10:59.188066",
+  "updated_at": "2026-10-14T16:10:59.220649"
+}

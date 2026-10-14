@@ -1,17 +1,17 @@
 # Backlog Summary
 
-> GENERATED 2026-10-14T17:17:42 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-14T17:25:23 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 120  |  **Closed:** 524
+- **Open:** 121  |  **Closed:** 524
 - `accepted`: 1
 - `blocked`: 1
 - `executing`: 3
-- `new`: 115
+- `new`: 116
 
-### new, by category (115)
+### new, by category (116)
 **API / reports / HIL / misc** (16)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
@@ -78,7 +78,7 @@
 | BI-PF-1314 | Should | feature | EDP-22: Benchmarks/SLOs + EXPLAIN(ANALYZE,BUFFERS) tuning + observability + quotas + graceful degradation (DB/object/cache/queue) | Establish performance benchmarks/SLOs, EXPLAIN(ANALYZE,BUFFERS)-based tuning, observability, quotas, and grace... |
 | BI-PF-1329 | Should | feature | WG-O5: Assign a SPECIFIC backlog item to a session/worker (claim-by-id + operator assignment) with lease semantics | Support claiming/assigning a specific item id (not just next-eligible). |
 
-**Wiring / tech-debt / API** (73)
+**Wiring / tech-debt / API** (74)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0185 | Should | feature | EPIC: Multi-modal / media orchestration (pluggable capability packs) | Make the pipeline modality-agnostic via PLUGGABLE capability packs, enabled per project when the idea needs th... |
@@ -133,6 +133,7 @@
 | BI-PF-1280 | Should | feature | dogfood: monitoring - wait/poll + terminal event/webhook + status aggregation | Expose progress via the shared bus: poll (run_status/events) + subscribe (SSE/webhook) + aggregate status. |
 | BI-PF-1281 | Should | task | core/contracts.py imports jsonschema but it was not a declared dependency | core/contracts.py imports jsonschema but it was not a declared dependency |
 | BI-PF-1288 | Must | task | Issue id collision: a local session minted IS-PF-0038 already present on develop | Issue id collision: a local session minted IS-PF-0038 already present on develop |
+| BI-PF-1293 | Must | task | EDP-01: Storage/data architecture ADR + pin develop commit for implementation | Author storage/data architecture ADR and pin develop commit as implementation baseline for the EDP epic. |
 | BI-PF-1297 | Must | feature | EDP-05: Residency & Transfer Policy Registry (versioned, fail-closed) + IN-v1/US-v1 launch profiles (counsel-owned content) | Deliver a versioned, fail-closed residency and transfer policy registry with IN-v1 and US-v1 launch profiles w... |
 | BI-PF-1298 | Must | task | EDP-06: Baseline performance capture (artifact list/read, project load/save, run transitions, memory retrieval, job claim/lease, DB/pool counts) | Capture reproducible baseline performance metrics for artifact list/read, project load/save, run transitions, ... |
 | BI-PF-1304 | Must | feature | EDP-12: Generated-product residency manifest (data_classes/home_region/allowed_regions/backup/kms/egress/retention) + build/deploy gate | Generate a per-product residency manifest (data_classes, home_region, allowed_regions, backup, kms, egress, re... |
@@ -353,5 +354,5 @@
 ---
 
 ## Totals
-- backend: 120 open / 524 closed
+- backend: 121 open / 524 closed
 - dashboard: 146 open / 3 closed
