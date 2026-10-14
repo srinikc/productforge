@@ -622,6 +622,17 @@ def outline_check(agent: str = "", stage: str = "", kind: str = "*", profile: st
         "sections": [], "contracts": [], "compressed": outline or [], "compressed_lines": 0}
 
 
+def dry_check(product_wide: list, fragments: list) -> dict:
+    """Product-wide DRY check (Go engine; BI-PF-1373): product-wide sections (e.g. NFRs) are stated
+    ONCE; per-feature fragments must reference them, not restate them. ``fragments`` is a list of
+    ``{id, text}``. Returns ``{ok, checked, violations:[{id, sections}]}``. Advisory-capable.
+    """
+    from core import go_host
+    r = go_host.artifact_contracts_dry_check(product_wide, fragments)
+    return r.get("result") or {"ok": True, "checked": len(fragments or []),
+                               "product_wide": list(product_wide or []), "violations": []}
+
+
 def validate_artifact(artifact_id: str, text: str) -> dict:
     """Validate produced text against a contract (Go engine; fail-closed)."""
     from core import go_host
