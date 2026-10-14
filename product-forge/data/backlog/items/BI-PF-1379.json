@@ -10,7 +10,7 @@
   "title": "Fix durable-state clobber: checkpoint newest-wins reconcile + backlog monotonic guard + pf-item merge driver",
   "body": "## Problem / why\nThe PF Checkpoint state/sync path (core/state_checkpoint.py) copied the WHOLE durable tree from a session'''s possibly-stale runtime checkout over a fresh branch and git add -A'''d it, so an OLDER snapshot overwrote NEWER backlog items on develop (commit c9c16613 / PR #135): revisions/updated_at went backward, history lines were deleted, BI-PF-1246/1247 lost their epic, BI-PF-1348 lost delivery provenance.\n## Goal & value\nA stale session can never regress durable backlog state; a regression fails closed at PR time.\n## In scope\n- checkpoint copies ONLY the session'''s changed durable files, NEWEST-wins for items, union for history\n- precheck backlog-monotonic guard (fails on revision/updated_at regression or dropped delivery/epic)\n- pf-item merge driver (newest version) for data/backlog/items/*.json\n## Acceptance criteria\n- A stale checkpoint cannot lower an item revision/updated_at or drop delivery/epic\n- precheck fails on any item regression vs the integration base\n- merging divergent item files resolves to the newest version\n",
   "source": "review",
-  "status": "new",
+  "status": "completed",
   "priority": "P1",
   "moscow": "Must",
   "value": 3,
@@ -19,7 +19,16 @@
   "deps": [],
   "links": {
     "found_in": "c9c16613",
-    "issue": "product_forge:IS-PF-0054"
+    "issue": "product_forge:IS-PF-0054",
+    "delivery": {
+      "branch": "fix/backlog-state-clobber",
+      "merge_sha": "04667d57",
+      "commits": [],
+      "pr": "151",
+      "pr_url": "https://github.com/srinikc/productforge/pull/151",
+      "at": "2026-10-14T17:02:27.409885",
+      "note": "merged to develop (PR #151); state-sync clobber fix + guards"
+    }
   },
   "decisions": [
     {
@@ -91,7 +100,7 @@
   "children": [],
   "epic": "BI-PF-0360",
   "parent": "BI-PF-0360",
-  "revision": 3,
+  "revision": 4,
   "priority_rank": 20,
   "priority_class": "P1",
   "analyze_mode": "on_entry",
@@ -183,7 +192,7 @@
     "usage": {}
   },
   "created_at": "2026-10-14T16:09:46.097969",
-  "updated_at": "2026-10-14T16:10:59.558417",
+  "updated_at": "2026-10-14T17:02:27.702925",
   "score": 0.75,
-  "_note": "readiness computed"
+  "_note": "delivery recorded"
 }
