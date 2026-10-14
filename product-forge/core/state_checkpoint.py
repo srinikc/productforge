@@ -67,18 +67,56 @@ def durable_changes() -> list:
     return changed
 
 
-def _copy_durable(src_app: str, dst_app: str) -> None:
-    for rel in _DURABLE:
+def _load_json(path: str):
+    try:
+        with open(path, encoding="utf-8") as f:
+            return json.load(f) or {}
+    except Exception:
+        return None
+
+
+def _item_key(item) -> tuple:
+    if not isinstance(item, dict):
+        return (-1, "")
+    return (int(item.get("revision") or 0), str(item.get("updated_at") or ""))
+
+
+def _union_history(src: str, dst: str) -> None:
+    """Union an append-only ``history/*.jsonl`` (never lose either side's lines)."""
+    def _lines(p):
+        try:
+            with open(p, encoding="utf-8") as f:
+                return [ln for ln in f.read().splitlines() if ln.strip()]
+        except Exception:
+            return []
+    merged = sorted(dict.fromkeys(_lines(src) + _lines(dst)),
+                    key=lambda ln: (json.loads(ln).get("at", "") if ln.startswith("{") else ""))
+    os.makedirs(os.path.dirname(dst), exist_ok=True)
+    with open(dst, "w", encoding="utf-8", newline="\n") as f:
+        f.write("\n".join(merged) + ("\n" if merged else ""))
+
+
+def _reconcile_durable(src_app: str, dst_app: str, changed: list) -> None:
+    """Copy ONLY the session's actually-changed durable files into the fresh base, NEWEST-wins.
+
+    A stale runtime checkout must never overwrite newer state on the integration branch
+    (RCCA: state-sync clobber). Item JSON wins by ``(revision, updated_at)``; history is
+    unioned; everything else is the session's own change. No wholesale copy, no deletion mirroring.
+    """
+    for rel in changed or []:
+        rel = rel.replace("\\", "/")
         s = os.path.join(src_app, rel)
         d = os.path.join(dst_app, rel)
-        if os.path.isdir(s):
-            shutil.copytree(s, d, dirs_exist_ok=True)
-            for root, _dirs, files in os.walk(d):  # mirror deletions
-                for f in files:
-                    r = os.path.relpath(os.path.join(root, f), d)
-                    if not os.path.exists(os.path.join(s, r)):
-                        os.remove(os.path.join(root, f))
-        elif os.path.isfile(s):
+        if not os.path.isfile(s):
+            continue
+        if rel.startswith("data/backlog/history/") and rel.endswith(".jsonl"):
+            _union_history(s, d)
+        elif rel.endswith(".json") and "/items/" in rel:
+            a, b = _load_json(s), _load_json(d)
+            if b is None or _item_key(a) > _item_key(b):
+                os.makedirs(os.path.dirname(d), exist_ok=True)
+                shutil.copy2(s, d)
+        else:
             os.makedirs(os.path.dirname(d), exist_ok=True)
             shutil.copy2(s, d)
 
@@ -155,7 +193,7 @@ def checkpoint(note: str = "") -> dict:
         return {"ok": False, "reason": f"worktree: {wt.get('error')}"}
     wt_path = wt["path"]
     try:
-        _copy_durable(str(ROOT), _app_dir_of(wt_path))
+        _reconcile_durable(str(ROOT), _app_dir_of(wt_path), changed)
         _git(wt_path, "add", "-A", "--", "product-forge/data/backlog", "product-forge/issues",
              "product-forge/config/id-blocks.json", "product-forge/data/portfolio/portfolio-registry.json")
         staged = [l for l in _git(wt_path, "status", "--porcelain").stdout.splitlines() if l.strip()]

@@ -16,7 +16,7 @@ from core import backlog as B  # noqa: E402
 
 
 def _item(**kw):
-    base = {"id": "BI-X", "type": "feature",
+    base = {"id": "BI-X", "type": "feature", "created_at": "2099-01-01T00:00:00",
             "brief": {"problem": "p", "what_adds": "w", "source": "authored"},
             "objective": "o", "acceptance_criteria": ["a"], "in_scope": ["s"], "out_of_scope": ["n"],
             "affected_components": ["c"], "affected_files": ["f"], "approach": "a", "verification": ["v"],
