@@ -65,6 +65,7 @@
 | [`DEVOPS-WORKFLOW-ANALYSIS.md`](DEVOPS-WORKFLOW-ANALYSIS.md) | Design | 70% | DevOps / PR-CI workflow analysis | **Not wired: PR branch -> pre-check gates (syntax/audit/lint/tests/secrets) -> review workflow.** | BI-0205 |
 | [`DOGFOOD-E2E-DESIGN.md`](DOGFOOD-E2E-DESIGN.md) | Design | 60% | DOGFOOD end-to-end design (deterministic LLM replay seam, BI-PF-0459) | — | — |
 | [`Diagram-Generation-Spec.md`](Diagram-Generation-Spec.md) | Implemented | 100% | Diagram generation spec (mermaid/drawio/svg) | — | — |
+| [`EDP-DATA-PLANE-THREAT-MODEL.md`](EDP-DATA-PLANE-THREAT-MODEL.md) | SSOT | 100% | Generated data-plane threat model + register matrix: 6 categories -> source/sink/control/owner/evidence (BI-PF-1296 / EDP-04) | — | — |
 | [`ENG-0-ENGINEERING-ARCHITECTURE.md`](ENG-0-ENGINEERING-ARCHITECTURE.md) | Design | 100% | ENG-0 engineering architecture: requirement->deploy flow mapped to canonical owners + APIs | — | — |
 | [`ENG-1-TASK-CONTRACT.md`](ENG-1-TASK-CONTRACT.md) | Design | 100% | ENG-1 engineering task contract: executable unit of work (model + store + API + schema gate) | — | — |
 | [`ENG-10-RELEASE.md`](ENG-10-RELEASE.md) | Design | 100% | ENG-10 release: artifact qualification (build/regression/security/NFR/packaging/SBOM/deploy) + fail-closed release gate | — | — |
@@ -158,6 +159,7 @@
 | [`SECURITY-ARCHITECTURE-CISO.md`](SECURITY-ARCHITECTURE-CISO.md) | SSOT | 100% | CISO security-architecture posture: trust boundaries, controls, risk, framework mapping (BI-PF-1203) | — | — |
 | [`SESSION-RESUME-MASTER-PLAN.md`](SESSION-RESUME-MASTER-PLAN.md) | Analysis (current) | 100% | Session hand-off notes to resume master-plan execution | — | — |
 | [`SHARED-PATH-RESERVATION-DESIGN.md`](SHARED-PATH-RESERVATION-DESIGN.md) | Design | 0% | Shared-path reservation + common-code detection (allowlist + git hotspots) for parallel workers (BI-PF-0357) | — | — |
+| [`STORE-DATAFLOW.md`](STORE-DATAFLOW.md) | Generated | 100% | Generated store data-flow inventory from config/store-registry.json (EDP-02/BI-PF-1294) | — | — |
 | [`STRUCTURE-CONTRACT.md`](STRUCTURE-CONTRACT.md) | Implemented | 100% | Binding repo structure contract (folders + owners) | — | — |
 | [`TESTING-REFERENCE.md`](TESTING-REFERENCE.md) | Implemented | 100% | Testing reference: how to run/write the PF test suites | — | — |
 | [`TOOLS-AND-DEPENDENCIES.md`](TOOLS-AND-DEPENDENCIES.md) | Implemented | 100% | PF tool layer + tools we have/need, sourcing, API keys, licensing & redistribution (BI-PF-0436) | — | — |

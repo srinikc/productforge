@@ -182,6 +182,9 @@ _GATES = [
     ("review-focus", ["scripts/dev/gen_review_focus.py", "--check"], "fast", None),
     ("review-static", ["scripts/dev/review_static_check.py"], "fast", None),
     ("compliance-register", ["scripts/dev/compliance_register_check.py", "--check"], "fast", None),
+    # BI-PF-1296 (EDP-04): data-plane threat register completeness/evidence gate (config/docs change).
+    ("data-plane-threats", ["scripts/dev/data_plane_threat_check.py", "--check"], "fast",
+     ["config/data-plane-threats.json", "docs/EDP-DATA-PLANE"]),
     # deep tier - real validation/lifecycle work; merge/CI only
     # BI-PF-1339: the CORRECTNESS gates stay on EVERY change (fast); only heavy/dogfood/release work is deep.
     ("validation-engine", ["scripts/dev/validation_engine_check.py"], "fast", None),
