@@ -34,8 +34,16 @@ def test_empty_body_is_flagged_derived_without_placeholders():
 
 
 def test_no_derived_sentinel_in_created_items():
+    # BI-PF-1338: use the checker's VALUE-PATTERN regex (backlog_context_check._DERIVED), not a raw
+    # "(derived)" substring, so legitimate prose (e.g. "materialized-but-regenerated (derived)") passes.
+    import importlib.util
     import json
+    from pathlib import Path
+    spec = importlib.util.spec_from_file_location(
+        "bcc", Path(__file__).resolve().parents[3] / "scripts" / "dev" / "backlog_context_check.py")
+    bcc = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(bcc)
     for it in backlog.list_open("product_forge", None):
-        assert "(derived)" not in json.dumps({k: it.get(k) for k in
-                                              ("brief", "approach", "verification", "affected_files")},
-                                             default=str), it["id"]
+        blob = json.dumps({k: it.get(k) for k in ("brief", "approach", "verification", "affected_files")},
+                          default=str)
+        assert not bcc._DERIVED.search(blob), it["id"]
