@@ -94,55 +94,47 @@
   "analyze_mode": "on_entry",
   "analysis": {
     "status": "COMPLETE",
-    "analyzed_at": "2026-10-13T13:36:53.177680",
-    "analyzed_by": "system",
+    "analyzed_at": "2026-10-14T12:03:13.571021",
+    "analyzed_by": "deterministic",
     "revision_analyzed": 3,
     "architecture_fit": "EXTEND",
-    "implementation_strategy": "Extend core/issues.py id minting with the shared git-remote CAS authority from BI-PF-0764 (same allocator pattern as backlog ids); add merge/PR-time duplicate-id reconcile in core/issue_tracker.py and a collision guard in /api/v1/issues create path.",
-    "existing_components": [],
-    "existing_apis": [],
+    "implementation_strategy": "Extend existing components/APIs: core/issues.py, core/issue_tracker.py, core/presentation_generator.py, /api/v1/issues",
+    "existing_components": [
+      "core/issues.py",
+      "core/issue_tracker.py",
+      "core/presentation_generator.py"
+    ],
+    "existing_apis": [
+      "/api/v1/issues",
+      "/api/v1/issues/stats",
+      "/api/v1/issues/{iid}",
+      "/api/v1/issues/{iid}/rcca",
+      "/api/v1/issues/{iid}/status"
+    ],
     "existing_modules": [],
     "dependency_findings": [
-      "REQUIRES BI-PF-0764 CAS allocator implemented for backlog ids (reusable pattern)",
-      "RELATED BI-PF-0457 (backlog id counters), BI-PF-1261 (assignment lease), BI-PF-0271 (issue lifecycle)"
+      "depends on BI-PF-0764",
+      "depends on BI-PF-0457",
+      "depends on BI-PF-1261"
     ],
-    "conflict_findings": [
-      "BI-PF-0457/BI-PF-0764 touch core/id-allocation paths; coordinate to share one allocator rather than fork",
-      "Presentation generator stats unaffected but verify IS-PF-* rendering after renumbering"
-    ],
-    "duplication_findings": [
-      "BI-PF-0457 fixes the SAME root cause for backlog ids; issue ids are the remaining instance",
-      "BI-PF-0764 defines the reusable CAS id authority component to adopt",
-      "No separate issue-id collision task exists"
-    ],
+    "conflict_findings": [],
+    "duplication_findings": [],
     "drift": "NONE",
     "rewrite_required": false,
     "new_component_required": false,
-    "rationale": "Same root cause as backlog-id collisions, already being fixed via a reusable git-remote CAS allocator; extend that allocator to issue ids and add a merge-time reconcile guard rather than inventing new infrastructure.",
-    "assumptions": [
-      "Git remote (GitHub) is the authoritative remote for PF repos",
-      "Issue ids follow IS-PF-NNNN format with a parseable counter",
-      "BI-PF-0764 CAS allocator will be available or is in flight"
-    ],
-    "risks": [
-      "Duplicate IS-PF-0038-style ids may already exist in history; reconcile must handle retroactive duplicates",
-      "CAS introduces push-time coupling; offline minting needs a documented fallback",
-      "Re-numbering references may break RCCA/backlog links"
-    ],
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
     "evidence": [
-      "Item body documents IS-PF-0038 collision across clone and develop",
-      "CANDIDATE code shows local per-scope counter in core/issues.py and /api/v1/issues",
-      "Related items confirm identical root cause already solved for backlog ids"
+      "similar=4",
+      "score=0.75",
+      "components=3",
+      "apis=5"
     ],
-    "confidence": "medium",
-    "missing_info": [
-      "Ordering/required_state of BI-PF-0764 (must it land first?)",
-      "Policy for existing duplicate ids: renumber vs alias-merge",
-      "Offline/air-gapped minting fallback behavior",
-      "Whether the CAS authority is per-repo or org-wide"
-    ],
+    "confidence": "high",
+    "missing_info": [],
     "depth": "deep",
-    "mode": "ai",
+    "mode": "deterministic",
     "context_review": {
       "ok": false,
       "source": "llm",
@@ -154,7 +146,8 @@
       ],
       "reason": "Why (collision root cause) is clear, but objective, approach, scope, and acceptance criteria just echo the title; no fix strategy (e.g., shared id authority, remap IS-PF-0038), and affected components/files are 'Not specified.'"
     },
-    "arch_fingerprint": "dc9598f15f6d5d5f"
+    "arch_fingerprint": "d3285da0f59c3e99",
+    "refreshed_at": "2026-10-14T12:03:13.362073"
   },
   "dependencies": [
     {
@@ -194,7 +187,7 @@
     "usage": {}
   },
   "created_at": "2026-10-13T13:35:47.158660",
-  "updated_at": "2026-10-13T13:36:55.081655",
+  "updated_at": "2026-10-14T12:03:13.759367",
   "score": 0.75,
-  "_note": "readiness computed"
+  "_note": "analysis updated"
 }

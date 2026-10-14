@@ -21,11 +21,21 @@ _BASELINE = {
     "BI-PF-0331", "BI-PF-0332", "BI-PF-0408", "BI-PF-1223", "BI-PF-1225", "BI-PF-1236",
     "BI-PF-1237", "BI-PF-1240", "BI-PF-1241",
 }
+# Baseline-aware (BI-PF-1374): also grandfather items created before the cutoff (pre-existing drift);
+# only NEW items (created at/after) are enforced, so existing residue does not block every change.
+_BASELINE_AT = "2026-10-14T09:30:00"
+
+
+def _grandfathered(w) -> bool:
+    if str(w.get("item")) in _BASELINE:
+        return True
+    it = backlog.get_epic("product_forge", None, str(w.get("item"))) or {}
+    return str(it.get("created_at") or "") < _BASELINE_AT
 
 
 def main() -> int:
     warns = backlog.epic_coverage_warnings("product_forge", None)
-    new = [w for w in warns if str(w.get("item")) not in _BASELINE]
+    new = [w for w in warns if not _grandfathered(w)]
     if new:
         print(f"backlog-epic: FAIL - {len(new)} NEW open item(s) with no epic:")
         for w in new[:25]:

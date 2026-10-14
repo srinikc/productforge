@@ -108,12 +108,12 @@
   "priority_class": "P1",
   "analyze_mode": "on_entry",
   "analysis": {
-    "status": "STALE",
-    "analyzed_at": "2026-10-13T16:33:32.116553",
-    "analyzed_by": "agent",
-    "revision_analyzed": 8,
-    "architecture_fit": "EXTEND",
-    "implementation_strategy": "Add a Go residency/transfer policy registry following existing registry patterns (core/*_registry.py equivalents in Go, config/*-policy.json); version policies, fail-closed on unknown region; IN-v1/US-v1 profiles as config JSON.",
+    "status": "COMPLETE",
+    "analyzed_at": "2026-10-14T12:03:17.549729",
+    "analyzed_by": "deterministic",
+    "revision_analyzed": 9,
+    "architecture_fit": "REUSE",
+    "implementation_strategy": "Extend existing components/APIs: core/artifact_registry.py, core/change_policy.py, core/change_registry.py, core/context_policy.py",
     "existing_components": [
       "core/artifact_registry.py",
       "core/change_policy.py",
@@ -126,52 +126,48 @@
     ],
     "existing_apis": [
       "/api/v1/engineering/pidl/policy",
+      "/api/v1/packaging/eap/registry",
       "/api/v1/validation/policy",
       "/api/v1/validation/profiles"
     ],
     "existing_modules": [
       "config/approval-policy.json",
       "config/context-policy.json",
+      "config/eap-registry.json",
       "config/guardrail-policy.json",
       "config/knowledge-registry.json",
-      "config/model-policy.json",
-      "config/plugins-registry.json"
+      "config/model-policy.json"
     ],
     "dependency_findings": [
-      "REQUIRES BI-PF-1296 data-flow register (required_state=merged)",
-      "RELATED BI-PF-1303 owns policy evaluation",
-      "RELATED BI-PF-1293 ADR"
+      "depends on BI-PF-1296",
+      "depends on BI-PF-1303",
+      "depends on BI-PF-1293"
     ],
-    "conflict_findings": [
-      "Watch overlap with BI-PF-1303 policy types; agree interface boundary up front"
-    ],
+    "conflict_findings": [],
     "duplication_findings": [
-      "Strong overlap with BI-PF-1303 (ResidencyPolicy/RegionResolver) — must delegate enforcement to that item; this item owns registry+content only",
-      "Registry pattern reusable from knowledge/model registries"
+      "product_forge:BI-PF-1303 (score 0.68)",
+      "product_forge:BI-PF-1293 (score 0.66)",
+      "product_forge:BI-PF-1299 (score 0.66)",
+      "product_forge:BI-PF-1306 (score 0.62)"
     ],
-    "drift": "LOW",
+    "drift": "NONE",
     "rewrite_required": false,
     "new_component_required": false,
-    "rationale": "Reuse registry+policy config patterns; content is counsel-owned, evaluation delegated to EDP-11.",
-    "assumptions": [
-      "Counsel supplies IN-v1/US-v1 policy text",
-      "Fail-closed default is acceptable to tenants"
-    ],
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
     "risks": [
-      "Boundary drift with BI-PF-1303 causing duplicate policy logic",
-      "Counsel content turnaround delay"
+      "possible duplicate"
     ],
     "evidence": [
-      "config/model-policy.json, config/guardrail-policy.json as patterns",
-      "BI-PF-1303 scope boundary"
+      "similar=4",
+      "score=0.75",
+      "components=8",
+      "apis=4"
     ],
-    "confidence": "medium",
-    "missing_info": [
-      "Counsel-owned profile content and review SLA",
-      "Registry API shape shared with BI-PF-1303"
-    ],
+    "confidence": "high",
+    "missing_info": [],
     "depth": "deep",
-    "mode": "ai",
+    "mode": "deterministic",
     "consolidation_proposal": {
       "sources": [
         "BI-PF-1303",
@@ -208,7 +204,8 @@
       ],
       "reason": "Registry mechanics and patterns are known; content and cross-item interface need human decisions."
     },
-    "arch_fingerprint": "dc9598f15f6d5d5f"
+    "arch_fingerprint": "d3285da0f59c3e99",
+    "refreshed_at": "2026-10-14T12:03:17.376135"
   },
   "dependencies": [
     {
@@ -250,8 +247,8 @@
     "usage": {}
   },
   "created_at": "2026-10-13T16:02:18.398062",
-  "updated_at": "2026-10-13T16:35:24.885033",
+  "updated_at": "2026-10-14T12:03:17.752524",
   "score": 0.75,
   "source_ref": "docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md",
-  "_note": "dependencies set"
+  "_note": "analysis updated"
 }

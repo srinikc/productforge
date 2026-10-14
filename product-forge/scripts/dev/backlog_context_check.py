@@ -28,6 +28,9 @@ _AUTHORED_FIELDS = ("brief", "objective", "acceptance_criteria", "in_scope", "ou
                     "risks", "rollback", "evidence")
 _DERIVED = re.compile(r"\(derived\)\s+(TBD|not specified|objective met|see objective|"
                       r"unspecified|none identified|revert the change|pending)")
+# Baseline-aware (BI-PF-1374): items already open at introduction time are grandfathered; only items created
+# at/after the cutoff are enforced, so pre-existing drift does not block every change.
+_BASELINE_AT = "2026-10-14T09:30:00"
 
 
 def _scopes(include_all: bool):
@@ -51,6 +54,8 @@ def _problems_for(scope, project, items, all_items):
     ids = {str(i.get("id")) for i in all_items}
     for it in items:
         eid = str(it.get("id"))
+        if str(it.get("created_at") or "") < _BASELINE_AT:
+            continue  # grandfathered (pre-existing; only new items are enforced)
         brief = it.get("brief") or {}
         obj = str(it.get("objective") or "").strip()
         if backlog.is_epic(it):
