@@ -10,7 +10,7 @@
   "title": "language_rule_check misses large new logic added via EDITS to existing shipped Python (should be Go)",
   "body": "language_rule_check.py is ADDED-FILE based: it only fails a NEW .py under a shipped root (core/ api/ adapters/). Substantial NEW logic delivered by EDITING an existing shipped .py passes. Evidence: a whole artifact-contract registry engine was added via an edit to core/contracts.py and the gate reported new_shipped_py_violations=0; it was only caught by human review and then moved to go/pfcore/artifact_contracts.go. The rule intent (BI-PF-0387/0388) is that new shipped LOGIC -> Go, regardless of file.",
   "source": "generic",
-  "status": "new",
+  "status": "blocked",
   "priority": "P1",
   "moscow": "Must",
   "value": 3,
@@ -36,24 +36,35 @@
     "who_feels": "Product Forge maintainers and consumers.",
     "source": "extracted"
   },
-  "objective": "language_rule_check misses large new logic added via EDITS to existing shipped Python (should be Go)",
+  "objective": "Extend the A6 language rule so large NEW logic added by EDITING an existing shipped (core/api/adapters) .py is flagged (Go-first), not just brand-new .py files.",
   "acceptance_criteria": [
-    "Objective achieved: language_rule_check misses large new logic added via EDITS to existing shipped Python (should be Go)"
+    "a changed shipped .py that adds new logic units (def/class/branches) and grows by >= threshold net lines is flagged",
+    "small edits and refactors (removed >= added) are NOT flagged",
+    "sensitive roots use a lower bar; an allowlist can exempt (governed)",
+    "the check runs at plan time (Go vs Python verdict) AND author/precheck time (enforced)"
   ],
   "in_scope": [
-    "language_rule_check misses large new logic added via EDITS to existing shipped Python (should be Go)"
+    "core/change_policy.py edit_growth_findings + check(growth)",
+    "scripts/dev/language_rule_check.py numstat/+line growth",
+    "scripts/dev/language_rule_review.py --plan verdict",
+    "config/language-rule.json edit_growth knobs",
+    "tests"
   ],
   "out_of_scope": [
-    "Not specified."
+    "auto-migrating Python->Go",
+    "per-line attribution",
+    "the customer-visible runtime"
   ],
   "affected_components": [
     "core",
     "go"
   ],
   "affected_files": [
-    "core/contracts.py",
-    "go/pfcore/artifact_contracts.go",
-    "language_rule_check.py"
+    "core/change_policy.py",
+    "scripts/dev/language_rule_check.py",
+    "scripts/dev/language_rule_review.py",
+    "config/language-rule.json",
+    "test-framework/tests/pipeline/test_change_policy.py"
   ],
   "approach": "language_rule_check misses large new logic added via EDITS to existing shipped Python (should be Go)",
   "review": {
@@ -72,7 +83,8 @@
     "Objective achieved: language_rule_check misses large new logic added via EDITS to existing shipped Python (should be Go)"
   ],
   "risks": [
-    "Not specified."
+    "false positives on big refactors -> new-def signal + net-growth + allowlist; advisory-first",
+    "threshold tuning needed -> config-driven"
   ],
   "rollback": "Revert the change.",
   "evidence": [
@@ -85,7 +97,7 @@
   "approvals": [],
   "summary": "",
   "children": [],
-  "epic": "BI-PF-1252",
+  "epic": "BI-PF-1243",
   "parent": "BI-PF-1252",
   "revision": 2,
   "priority_rank": 20,
@@ -175,7 +187,7 @@
     "usage": {}
   },
   "created_at": "2026-10-13T19:54:27.866107",
-  "updated_at": "2026-10-13T19:55:36.396260",
+  "updated_at": "2026-10-14T10:15:21.153356",
   "score": 0.75,
-  "_note": "readiness computed"
+  "_note": "delivery: validation FAIL"
 }
