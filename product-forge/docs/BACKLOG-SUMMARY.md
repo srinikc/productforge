@@ -1,17 +1,17 @@
 # Backlog Summary
 
-> GENERATED 2026-10-14T20:09:42 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-14T21:18:48 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 118  |  **Closed:** 531
+- **Open:** 118  |  **Closed:** 532
 - `blocked`: 1
 - `executing`: 3
 - `new`: 114
 
 ### new, by category (114)
-**API / reports / HIL / misc** (17)
+**API / reports / HIL / misc** (16)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-PF-0332 | Should | chore | API-5 deferred hardening: rate limiting + request/upload limits + tenant-isolation expansion + event streaming | API-5 deferred hardening: rate limiting + request/upload limits + tenant-isolation expansion + event streaming |
@@ -26,16 +26,16 @@
 | BI-PF-1316 | Must | task | api-governance gate red on develop: committed api/openapi.json drifted from the routers (BI-PF-0397 EAP endpoints) | api-governance gate red on develop: committed api/openapi.json drifted from the routers (BI-PF-0397 EAP endpoi... |
 | BI-PF-1321 | Must | task | Auto-mode HIL proxy gate fails stage 0: human agent invoked without the product brief / artifacts | Auto-mode HIL proxy gate fails stage 0: human agent invoked without the product brief / artifacts |
 | BI-PF-1322 | Must | task | Product run re-pointed the framework repo git remote (connect_remote walked up to the parent repo) | Product run re-pointed the framework repo git remote (connect_remote walked up to the parent repo) |
-| BI-PF-1327 | Must | feature | WG-O3: Canonical repo + git worktree session model; API-only backlog writes (guarded, allow checkpoint/delivery) | Standardize on one canonical repo + worktrees, and route backlog writes through the API. |
 | BI-PF-1328 | Must | task | WG-O4: Merge-driver coverage for id-blocks.json (max-merge) + children[] regenerated | Extend the derived merge driver to id-blocks and children. |
 | BI-PF-1331 | Should | bug | pre-commit lint_check crashes in git worktrees (WinError 206 long path) - blocks commits | Make the pre-commit lint_check work from a git worktree (no WinError 206 long-path crash). |
 | BI-PF-1382 | Must | bug | Backlog API: POST /backlog/items returns empty resource_id (created id not surfaced) | Backlog API: POST /backlog/items returns empty resource_id (created id not surfaced) |
 | BI-PF-1387 | Should | bug | Backlog API: POST /items 500s under PF_ID_ALLOC=strict when the shared id authority is unreachable | Backlog API: POST /items 500s under PF_ID_ALLOC=strict when the shared id authority is unreachable |
 
-**Bug fixes** (1)
+**Bug fixes** (2)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-PF-1332 | Should | bug | Develop red: test pollution committed into data/learnings.json breaks test_global_render_unchanged (scratch loop-learning marker 0270) | Restore develop green: purge test pollution from data/learnings.json + prevent test writes to the real learnin... |
+| BI-PF-1388 | Must | bug | EDP execution order was mis-sequenced: RLS (EDP-09) ordered before the schema/DAL (EDP-17) it depends on | EDP execution order was mis-sequenced: RLS (EDP-09) ordered before the schema/DAL (EDP-17) it depends on |
 
 **Discovery / HIL / prompts** (7)
 | ID | MoSCoW | Type | Title | Objective |
@@ -351,5 +351,5 @@
 ---
 
 ## Totals
-- backend: 118 open / 531 closed
+- backend: 118 open / 532 closed
 - dashboard: 146 open / 3 closed
