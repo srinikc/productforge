@@ -1,0 +1,198 @@
+{
+  "id": "BI-PF-1379",
+  "tag": "PF",
+  "type": "bug",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "rcca:state-sync-backlog-clobber",
+  "label": "PF Backlog 580",
+  "title": "Fix durable-state clobber: checkpoint newest-wins reconcile + backlog monotonic guard + pf-item merge driver",
+  "body": "## Problem / why\nThe PF Checkpoint state/sync path (core/state_checkpoint.py) copied the WHOLE durable tree from a session'''s possibly-stale runtime checkout over a fresh branch and git add -A'''d it, so an OLDER snapshot overwrote NEWER backlog items on develop (commit c9c16613 / PR #135): revisions/updated_at went backward, history lines were deleted, BI-PF-1246/1247 lost their epic, BI-PF-1348 lost delivery provenance.\n## Goal & value\nA stale session can never regress durable backlog state; a regression fails closed at PR time.\n## In scope\n- checkpoint copies ONLY the session'''s changed durable files, NEWEST-wins for items, union for history\n- precheck backlog-monotonic guard (fails on revision/updated_at regression or dropped delivery/epic)\n- pf-item merge driver (newest version) for data/backlog/items/*.json\n## Acceptance criteria\n- A stale checkpoint cannot lower an item revision/updated_at or drop delivery/epic\n- precheck fails on any item regression vs the integration base\n- merging divergent item files resolves to the newest version\n",
+  "source": "review",
+  "status": "completed",
+  "priority": "P1",
+  "moscow": "Must",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [],
+  "links": {
+    "found_in": "c9c16613",
+    "issue": "product_forge:IS-PF-0054",
+    "delivery": {
+      "branch": "fix/backlog-state-clobber",
+      "merge_sha": "04667d57",
+      "commits": [],
+      "pr": "151",
+      "pr_url": "https://github.com/srinikc/productforge/pull/151",
+      "at": "2026-10-14T17:02:27.409885",
+      "note": "merged to develop (PR #151); state-sync clobber fix + guards"
+    }
+  },
+  "decisions": [
+    {
+      "at": "2026-10-14T16:10:57.120547",
+      "decision": "APPROVE",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)"
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "The PF Checkpoint state/sync path (core/state_checkpoint.py) copied the WHOLE durable tree from a session'''s possibly-stale runtime checkout over a fresh branch and git add -A'''d it, so an OLDER snapshot overwrote NEWER backlog items on develop (commit c9c16613 / PR #135): revisions/updated_at went backward, history lines were deleted, BI-PF-1246/1247 lost their epic, BI-PF-1348 lost delivery provenance.",
+    "what_adds": "A stale session can never regress durable backlog state; a regression fails closed at PR time.",
+    "why": "The PF Checkpoint state/sync path (core/state_checkpoint.py) copied the WHOLE durable tree from a session'''s possibly-stale runtime checkout over a fresh branch and git add -A'''d it, so an OLDER snapshot overwrote NEWER backlog items on develop (commit c9c16613 / PR #135): revisions/updated_at went backward, history lines were deleted, BI-PF-1246/1247 lost their epic, BI-PF-1348 lost delivery provenance.",
+    "who_feels": "Product Forge maintainers and consumers.",
+    "source": "authored"
+  },
+  "objective": "A stale session can never regress durable backlog state; a regression fails closed at PR time.",
+  "acceptance_criteria": [
+    "A stale checkpoint cannot lower an item revision/updated_at or drop delivery/epic",
+    "precheck fails on any item regression vs the integration base",
+    "merging divergent item files resolves to the newest version"
+  ],
+  "in_scope": [
+    "checkpoint copies ONLY the session'''s changed durable files, NEWEST-wins for items, union for history",
+    "precheck backlog-monotonic guard (fails on revision/updated_at regression or dropped delivery/epic)",
+    "pf-item merge driver (newest version) for data/backlog/items/*.json"
+  ],
+  "out_of_scope": [
+    "Not specified."
+  ],
+  "affected_components": [
+    "core"
+  ],
+  "affected_files": [
+    "core/state_checkpoint.py"
+  ],
+  "approach": "checkpoint copies ONLY the session'''s changed durable files, NEWEST-wins for items, union for history; precheck backlog-monotonic guard (fails on revision/updated_at regression or dropped delivery/epic); pf-item merge driver (newest version) for data/backlog/items/*.json",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "A stale checkpoint cannot lower an item revision/updated_at or drop delivery/epic",
+    "precheck fails on any item regression vs the integration base",
+    "merging divergent item files resolves to the newest version"
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "agent",
+  "requester": "review",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-0360",
+  "parent": "BI-PF-0360",
+  "revision": 4,
+  "priority_rank": 20,
+  "priority_class": "P1",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "STALE",
+    "analyzed_at": "2026-10-14T16:10:56.599769",
+    "analyzed_by": "system",
+    "revision_analyzed": 2,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend core/state_checkpoint.py reconcile to diff runtime vs fresh branch and copy only session-changed files with newest-wins (version then updated_at) and history union; add monotonic check in core/merge_gate.py or core/guardrails.py reusing config/guardrail-policy.json; register a pf-item merge driver script under core/ (or tools/) wired via .gitattributes; surface failures through existing merge_gate precheck.",
+    "existing_components": [],
+    "existing_apis": [],
+    "existing_modules": [],
+    "dependency_findings": [
+      "REQUIRES: item schema fields (version/updated_at/delivery/epic) stable — assumed present",
+      "RELATED: BI-PF-1257 (origin of checkpoint), BI-PF-1285 (stale PR base), BI-PF-1290 (per-worker sync)"
+    ],
+    "conflict_findings": [
+      "BI-PF-1285/1290 touch state_checkpoint/sync paths — potential concurrent edits; sequence after or coordinate",
+      "No known conflict with backlog API components"
+    ],
+    "duplication_findings": [
+      "BI-PF-1285 addresses stale-base PRs (lifecycle), this targets content-level clobber — complementary, not duplicate",
+      "BI-PF-1290 auto-resolves generated docs/counters on merge; item-file merge driver is adjacent but scoped to items",
+      "BI-PF-1257 introduced the checkpoint path being fixed — this is the regression fix"
+    ],
+    "drift": "LOW",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "Directly fixes a confirmed data-loss regression with a clear fail-closed design; all three changes extend existing modules (state_checkpoint, merge_gate/guardrails, git attributes) — reuse-first, no new component. Related items cover adjacent lifecycle concerns but not content-level monotonicity, so duplication risk is low. Priority P1/Must: durable state regression silently loses backlog history.",
+    "assumptions": [
+      "Item JSON carries version and updated_at on develop",
+      "Integration base ref is available in the precheck environment",
+      "Merge driver runs in the same repo where checkpoint PRs are opened"
+    ],
+    "risks": [
+      "Merge driver needs explicit git config registration; unregistered repos silently fall back to default",
+      "Version field may be absent on legacy items — needs fallback to updated_at/content",
+      "Concurrent edits with BI-PF-1285/1290 may conflict in state_checkpoint.py",
+      "History union semantics could resurrect logically-deleted lines"
+    ],
+    "evidence": [
+      "Regression committed as c9c16613 / PR #135; BI-PF-1246/1247 epic loss and BI-PF-1348 provenance loss documented in item body",
+      "Candidate modules state_checkpoint.py, merge_gate.py, guardrails.py exist with precheck hooks",
+      "guardrail-policy.json already drives fail-closed checks"
+    ],
+    "confidence": "high",
+    "missing_info": [
+      "Which field is authoritative for 'newest' if version ties (updated_at vs content hash)?",
+      "Should history union also apply to non-backlog durable files, or items+history only?",
+      "Where is the integration base ref defined for precheck (develop vs PR base SHA)?",
+      "Merge driver language/location preference (Python module under core/ vs tools/)"
+    ],
+    "depth": "deep",
+    "mode": "ai",
+    "context_review": {
+      "ok": true,
+      "source": "llm",
+      "implementable": true,
+      "missing": [],
+      "reason": "What/why/how and affected file (core/state_checkpoint.py) are all specified with clear acceptance criteria; only the merge-driver registration location (.gitattributes/scripts) is implied, not blocking."
+    },
+    "decision_request": {
+      "needed": false,
+      "reasons": [],
+      "ask": ""
+    },
+    "arch_fingerprint": "d3285da0f59c3e99"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-14T16:10:56.833919"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-14T16:09:46.097969",
+  "updated_at": "2026-10-14T17:02:27.702925",
+  "score": 0.75,
+  "_note": "delivery recorded"
+}

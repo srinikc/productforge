@@ -119,7 +119,8 @@ def add_item(body: dict[str, Any], request: Request, ctx: dict[str, Any] = Depen
         raise ApiError("VALIDATION_FAILED", "title required")
     it = backlog.add_epic(s, p, title, body=str(body.get("body") or ""),
                           source="api", type_=str(body.get("type") or "feature"),
-                          origin="api", tag=str(body.get("tag") or ""))
+                          origin="api", tag=str(body.get("tag") or ""),
+                          epic=str(body.get("epic") or ""))
     return from_request(request, it, resource="backlog", resource_id=str(it.get("id") or ""))
 
 
@@ -302,6 +303,48 @@ def set_dependencies(item_id: str, body: dict[str, Any], request: Request,
                                        blocked_by=body.get("blocked_by"), unlocks=body.get("unlocks"))
     except ValueError as e:
         raise ApiError("VALIDATION_FAILED", str(e)) from None
+    if res is None:
+        raise ApiError("NOT_FOUND", "backlog item not found")
+    return from_request(request, res, resource="backlog", resource_id=item_id)
+
+
+@router.post("/items/{item_id}/epic", dependencies=[Depends(require_operator)])
+def set_item_epic(item_id: str, body: dict[str, Any], request: Request,
+                  ctx: dict[str, Any] = Depends(require_operator)):
+    """Assign/move an item to an epic (single writer ``core.backlog.move_to_epic``).
+
+    Every backlog item belongs to an epic; this exposes the assignment so it can be done API-only.
+    """
+    from core import backlog
+    s, p = _scope_project(request, str(body.get("scope") or "product_forge"), str(body.get("project") or ""))
+    epic_id = str(body.get("epic") or "").strip()
+    if not epic_id:
+        raise ApiError("VALIDATION_FAILED", "epic required")
+    if not backlog.get_epic(s, p, epic_id):
+        raise ApiError("NOT_FOUND", "epic not found")
+    try:
+        res = backlog.move_to_epic(s, p, item_id, epic_id, note=str(body.get("note") or ""))
+    except ValueError as e:
+        raise ApiError("VALIDATION_FAILED", str(e)) from None
+    if res is None:
+        raise ApiError("NOT_FOUND", "backlog item not found")
+    return from_request(request, res, resource="backlog", resource_id=item_id)
+
+
+@router.post("/items/{item_id}/delivery", dependencies=[Depends(require_operator)])
+def set_delivery(item_id: str, body: dict[str, Any], request: Request,
+                 ctx: dict[str, Any] = Depends(require_operator)):
+    """Record delivery provenance (``branch``/``merge_sha``/``commits``/``pr``/``pr_url``).
+
+    Completes the traceability loop backlog item -> branch -> merge -> PR without hand-editing the store.
+    """
+    from core import backlog
+    s, p = _scope_project(request, str(body.get("scope") or "product_forge"), str(body.get("project") or ""))
+    res = backlog.set_delivery(s, p, item_id, branch=str(body.get("branch") or ""),
+                               merge_sha=str(body.get("merge_sha") or ""),
+                               commits=body.get("commits") or None,
+                               pr=str(body.get("pr") or ""), pr_url=str(body.get("pr_url") or ""),
+                               note=str(body.get("note") or ""))
     if res is None:
         raise ApiError("NOT_FOUND", "backlog item not found")
     return from_request(request, res, resource="backlog", resource_id=item_id)

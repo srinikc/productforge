@@ -59,6 +59,7 @@ def test_epic_is_not_dispatchable():
 
 def test_context_gate_flags_missing_fields():
     from scripts.dev import backlog_context_check as g
-    bad = {"id": "BI-X", "type": "feature", "brief": {}, "objective": "", "acceptance_criteria": []}
+    bad = {"id": "BI-X", "type": "feature", "brief": {}, "objective": "", "acceptance_criteria": [],
+           "created_at": "2099-01-01T00:00:00"}  # post-baseline -> enforced (BI-PF-1374 grandfathering)
     probs = g._problems_for("product_forge", None, [bad], [bad])
     assert any("brief" in p for p in probs) and any("acceptance_criteria" in p for p in probs)
