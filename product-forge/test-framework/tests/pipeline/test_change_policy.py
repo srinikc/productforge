@@ -90,3 +90,40 @@ def test_default_policy_loads_registered_config():
     assert "core/" in pol["shipped_roots"]
     assert "core/change_policy.py" in pol["allow_new_python"]
     assert "dashboard/" in pol["legacy_exempt_roots"]
+
+
+# --- BI-PF-1338: large new logic added via EDITS to shipped Python -> Go ---
+POL_EG = {**POL, "edit_growth": {"max_edit_added_lines": 60, "min_new_defs": 1,
+                                 "min_new_branches": 5, "sensitive_edit_added_lines": 20, "allow": []}}
+
+
+def test_edit_growth_flags_large_new_logic_in_shipped_edit():
+    growth = {"core/contracts.py": {"added": 120, "removed": 5, "new_defs": 4, "new_branches": 9}}
+    f = cp.edit_growth_findings(["core/contracts.py"], [], growth, POL_EG)
+    assert len(f) == 1 and f[0]["rule"] == "language-rule-edit-growth" and f[0]["path"] == "core/contracts.py"
+
+
+def test_edit_growth_ignores_refactor_small_and_tooling():
+    # refactor/move (removed >= added, no new logic) not flagged
+    assert cp.edit_growth_findings(["core/x.py"], [],
+        {"core/x.py": {"added": 100, "removed": 100, "new_defs": 0, "new_branches": 0}}, POL_EG) == []
+    # small edit under threshold not flagged
+    assert cp.edit_growth_findings(["core/x.py"], [],
+        {"core/x.py": {"added": 30, "removed": 0, "new_defs": 2, "new_branches": 3}}, POL_EG) == []
+    # tooling is exempt
+    assert cp.edit_growth_findings(["scripts/dev/x.py"], [],
+        {"scripts/dev/x.py": {"added": 500, "removed": 0, "new_defs": 9, "new_branches": 9}}, POL_EG) == []
+
+
+def test_edit_growth_sensitive_lower_bar_and_allowlist():
+    g = {"core/licensing.py": {"added": 25, "removed": 0, "new_defs": 1, "new_branches": 0}}
+    assert cp.edit_growth_findings(["core/licensing.py"], [], g, POL_EG)          # 25 < 60 but sensitive bar 20
+    allow = {**POL_EG, "edit_growth": {**POL_EG["edit_growth"], "allow": ["core/contracts.py"]}}
+    assert cp.edit_growth_findings(["core/contracts.py"], [],
+        {"core/contracts.py": {"added": 120, "removed": 5, "new_defs": 4, "new_branches": 9}}, allow) == []
+
+
+def test_check_threads_growth():
+    growth = {"core/contracts.py": {"added": 120, "removed": 5, "new_defs": 4, "new_branches": 9}}
+    findings = cp.check(["core/contracts.py"], [], {"core/contracts.py": "import json\n"}, POL_EG, growth)
+    assert any(f["rule"] == "language-rule-edit-growth" for f in findings)

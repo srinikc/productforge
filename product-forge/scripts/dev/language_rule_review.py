@@ -53,16 +53,55 @@ def assess(item_id: str, scope: str = "product_forge", project: str = "") -> dic
     return {"item": item_id, "changed": changed, "added": added, "drift": drift, "findings": findings}
 
 
+def _parse_plan(spec: str) -> dict:
+    """Parse ``--plan "path:add,rem,defs,branches; …"`` -> ``{path: growth}`` (BI-PF-1338)."""
+    from core import change_policy
+    growth: dict = {}
+    for entry in (spec or "").split(";"):
+        entry = entry.strip()
+        if not entry:
+            continue
+        path, _, nums = entry.partition(":")
+        parts = [p.strip() for p in nums.replace("/", ",").split(",") if p.strip()]
+        g = {"added": 0, "removed": 0, "new_defs": 0, "new_branches": 0}
+        for i, v in enumerate(parts[:4]):
+            try:
+                g[["added", "removed", "new_defs", "new_branches"][i]] = int(v)
+            except Exception:
+                pass
+        growth[change_policy.normalize(path)] = g
+    return growth
+
+
 def main(argv=None) -> int:
-    ap = argparse.ArgumentParser(description="Plan-time language-rule assessment (BI-PF-1262)")
-    ap.add_argument("item")
+    ap = argparse.ArgumentParser(description="Plan-time language-rule assessment (BI-PF-1262/1338)")
+    ap.add_argument("item", nargs="?", default="")
     ap.add_argument("--scope", default="product_forge")
     ap.add_argument("--project", default="")
+    ap.add_argument("--plan", default="", help='planned edits: "path:add,rem,defs,branches; ..."')
     ap.add_argument("--json", action="store_true")
     a = ap.parse_args(argv)
-    from core import backlog
-    if not backlog.get_epic(a.scope, a.project or None, a.item):
-        print(f"item {a.item} not found in this tree's backlog - run in the runtime tree that owns the item")
+    from core import backlog, change_policy
+    pol = change_policy.policy()
+
+    # Plan mode (BI-PF-1338): answer Go vs Python for the PLANNED change, before implementing.
+    if a.plan:
+        growth = _parse_plan(a.plan)
+        findings = change_policy.edit_growth_findings(list(growth), [], growth, pol)
+        rows = [{"path": p, "area": change_policy.classify_file(p, pol).get("area"),
+                 "go_required": any(f["path"] == p for f in findings)} for p in growth]
+        if a.json:
+            print(json.dumps({"plan": rows, "findings": findings}, ensure_ascii=False))
+            return 1 if findings else 0
+        print("language-rule assessment (plan-time):")
+        for r in rows:
+            verdict = ("Go required (large new logic in shipped Python)" if r["go_required"]
+                       else "Python OK (edit under threshold / tooling / go)")
+            print(f"   - {r['path']} [{r['area']}] -> {verdict}")
+        return 1 if findings else 0
+
+    if not a.item or not backlog.get_epic(a.scope, a.project or None, a.item):
+        print('provide an existing <item>, or --plan "path:add,rem,defs,branches; ..."')
         return 2
     r = assess(a.item, a.scope, a.project)
     if a.json:
