@@ -452,6 +452,58 @@ func ACContractOutlineOp(payload map[string]any) (map[string]any, string) {
 	}, ""
 }
 
+// acNormSection normalizes a section name for matching (lowercase, '_' -> ' ').
+func acNormSection(s string) string {
+	s = strings.ReplaceAll(s, "_", " ")
+	s = strings.ReplaceAll(s, "-", " ")
+	return strings.ToLower(strings.TrimSpace(s))
+}
+
+// ACContractDryCheckOp flags per-feature fragments that RESTATE a product-wide section
+// (BI-PF-1373): product-wide sections (e.g. NFRs) are stated ONCE and features REFERENCE them.
+// A fragment that contains a markdown heading for a product-wide section is a violation.
+// Pure/deterministic - the caller decides enforce/advisory.
+func ACContractDryCheckOp(payload map[string]any) (map[string]any, string) {
+	productWide := acStrings(payload["product_wide"])
+	pw := map[string]string{}
+	for _, s := range productWide {
+		if k := acNormSection(s); k != "" {
+			pw[k] = s
+		}
+	}
+	frags, _ := payload["fragments"].([]any)
+	violations := []map[string]any{}
+	for _, f := range frags {
+		m, ok := f.(map[string]any)
+		if !ok {
+			continue
+		}
+		id, _ := m["id"].(string)
+		text, _ := m["text"].(string)
+		hits := []string{}
+		for _, line := range strings.Split(text, "\n") {
+			t := strings.TrimSpace(line)
+			if !strings.HasPrefix(t, "#") {
+				continue
+			}
+			h := acNormSection(strings.TrimLeft(t, "# "))
+			for key, orig := range pw {
+				if h != "" && strings.Contains(h, key) {
+					hits = append(hits, orig)
+					break
+				}
+			}
+		}
+		if len(hits) > 0 {
+			violations = append(violations, map[string]any{"id": id, "sections": hits})
+		}
+	}
+	return map[string]any{
+		"ok": len(violations) == 0, "checked": len(frags),
+		"product_wide": productWide, "violations": violations,
+	}, ""
+}
+
 func acModalityFor(reg map[string]ACContract, kind string) []string {
 	k := strings.ToLower(strings.TrimSpace(kind))
 	out := []string{}

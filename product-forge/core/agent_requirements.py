@@ -87,6 +87,36 @@ def per_feature_agents() -> list:
     return [str(x) for x in v if str(x).strip()]
 
 
+def product_wide_sections() -> list:
+    """Section keys stated ONCE product-wide (no per-feature block) - e.g. NFRs. Config-driven."""
+    v = load().get("product_wide_sections")
+    if isinstance(v, list) and v:
+        return [str(x) for x in v if str(x).strip()]
+    return ["non_functional_requirements"]
+
+
+_SECTION_PREFIX = {"non_functional_requirements": "NFR"}
+
+
+def product_wide_prefixes() -> set:
+    """Id prefixes (FR/NFR/US) that are product-wide -> excluded from per-feature id ranges (BI-PF-1373)."""
+    return {_SECTION_PREFIX.get(s, s.upper()) for s in product_wide_sections()}
+
+
+def product_wide_id_range() -> str:
+    """The single product-wide id instruction (e.g. NFR-1..NFR-15) for the once-emitted section."""
+    parts = []
+    for s in product_wide_sections():
+        p = _SECTION_PREFIX.get(s)
+        size = int(ID_BLOCK_SIZES.get(p, 0) or 0)
+        if p and size > 0:
+            parts.append(f"{p}-1..{p}-{size}")
+    if not parts:
+        return ""
+    return ("PRODUCT-WIDE ID RANGE (state these ONCE for the whole product - features REFERENCE "
+            "these ids, never restate them): " + ", ".join(parts) + ".")
+
+
 def feature_outline(products_dir: str, project: str) -> List[str]:
     """Read products/<p>/product-plan.json and return ["F-1: <name>", ...].
 
@@ -191,7 +221,10 @@ def format_feature_range(fid, entry):
     if not entry:
         return ""
     parts = []
+    _skip = product_wide_prefixes()  # BI-PF-1373: never assign product-wide ids per feature
     for prefix in ("FR", "NFR", "US"):
+        if prefix in _skip:
+            continue
         rng = entry.get(prefix)
         if rng:
             parts.append(f"{prefix}-{rng[0]}..{prefix}-{rng[1]}")

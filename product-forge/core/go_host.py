@@ -139,6 +139,13 @@ def artifact_contracts_outline(dir_: str, agent: str = "", stage: str = "", kind
                            "lines_per_item": int(lines_per_item or 3)})
 
 
+def artifact_contracts_dry_check(product_wide: list, fragments: list) -> dict[str, Any]:
+    """Product-wide DRY check: flag per-feature fragments that restate a product-wide section."""
+    return invoke("artifact_contracts.dry_check",
+                  payload={"product_wide": list(product_wide or []),
+                           "fragments": list(fragments or [])})
+
+
 def artifact_contracts_validate(dir_: str, artifact_id: str, text: str) -> dict[str, Any]:
     """Validate produced text against a contract (Go engine; fail-closed)."""
     return invoke("artifact_contracts.validate",

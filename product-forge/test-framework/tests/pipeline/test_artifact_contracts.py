@@ -135,6 +135,27 @@ def test_budget_and_slider():
     assert c0.get("budget"), c0
 
 
+def test_product_wide_nfr_not_per_feature():
+    # BI-PF-1373: NFR is product-wide (stated ONCE); the per-feature prompt must NOT ask for NFR ids.
+    from core import agent_requirements as ar
+    rng = ar.format_feature_range("F-1", ar.id_allocation(["F-1: a", "F-2: b"])["F-1"])
+    assert "FR-" in rng and "US-" in rng, rng
+    assert "NFR-" not in rng, rng
+    assert "NFR" in ar.product_wide_prefixes(), ar.product_wide_prefixes()
+    assert "NFR-1" in ar.product_wide_id_range(), ar.product_wide_id_range()
+
+
+def test_dry_check_flags_restatement():
+    clean = contracts.dry_check(product_wide=["non_functional_requirements"],
+                                fragments=[{"id": "F-1", "text": "## F-1\nNFRs referenced (NFR-1..15)"}])
+    assert clean["ok"] is True, clean
+    bad = contracts.dry_check(product_wide=["non_functional_requirements"],
+                              fragments=[{"id": "F-2",
+                                          "text": "## F-2\n## Non-Functional Requirements\nNFR-1 latency"}])
+    assert bad["ok"] is False, bad
+    assert bad["violations"][0]["id"] == "F-2", bad
+
+
 def test_outline_gate():
     # deterministic outline = the resolved contracts' required sections (union), as the wiring does
     res = contracts.resolve(agent="design", stage="1", kind="text")
