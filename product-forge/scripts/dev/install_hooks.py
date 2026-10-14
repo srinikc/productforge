@@ -38,7 +38,9 @@ PF="product-forge"
 # BI-PF-1318: fold origin/develop into the branch before committing (per-worker sync; merge, never rebase).
 # If it merged, it exits 1 -> re-run `git commit` (the merge is its own clean commit). Skips when up to date.
 python "$PF/scripts/dev/sync_develop.py" --pre-commit || exit $?
-# BI-PF-1249: keep DERIVED docs fresh whenever the backlog changes (bookkeeping commits bypass precheck).
+# BI-PF-1249 + BI-PF-1374: keep DERIVED docs fresh whenever the backlog changes, so they ride the SAME commit.
+# A bookkeeping-only commit then runs precheck's minimal tier (docs-fresh + compile) - never split the doc
+# regeneration into its own PR and never use --no-verify.
 if git diff --cached --name-only --diff-filter=ACM | grep -q '^product-forge/data/backlog/'; then
 ( cd "$PF" && python scripts/dev/gen_docs_index.py ) >/dev/null 2>&1 || true
 ( cd "$PF" && python scripts/dev/gen_backlog_summary.py ) >/dev/null 2>&1 || true
