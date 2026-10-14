@@ -1,6 +1,6 @@
 # Backlog Summary
 
-> GENERATED 2026-10-14T23:18:33 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-14T23:18:42 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
