@@ -147,3 +147,36 @@ def test_backlog_item_epic_and_delivery_via_api(client, scratch_project):
                      json={**scope, "branch": "b", "merge_sha": "abc123", "pr": "7", "pr_url": "u"})
     assert dl.status_code == 200, dl.text
     assert dl.json()["data"]["links"]["delivery"]["merge_sha"] == "abc123"
+
+
+def test_backlog_context_and_optimistic_concurrency(client, scratch_project):
+    scope = {"scope": "project", "project": scratch_project}
+    ep = client.post("/api/v1/backlog/items", json={**scope, "title": "ctx epic", "type": "epic"})
+    eid = ep.json()["data"]["id"]
+    it = client.post("/api/v1/backlog/items", json={**scope, "title": "ctx item", "type": "feature", "epic": eid})
+    iid = it.json()["data"]["id"]
+
+    r = client.post(f"/api/v1/backlog/items/{iid}/context",
+                    json={**scope, "objective": "do X", "acceptance_criteria": ["a", "b"]})
+    assert r.status_code == 200, r.text
+    assert r.json()["data"]["objective"] == "do X"
+    rev = int(r.json()["data"]["revision"])
+
+    stale = client.post(f"/api/v1/backlog/items/{iid}/context",
+                        json={**scope, "objective": "do Y", "expected_revision": rev - 1})
+    assert stale.status_code == 409, stale.text
+
+    ok = client.post(f"/api/v1/backlog/items/{iid}/context",
+                     json={**scope, "objective": "do Y", "expected_revision": rev})
+    assert ok.status_code == 200, ok.text
+
+
+def test_backlog_links_and_delete_via_api(client, scratch_project):
+    scope = {"scope": "project", "project": scratch_project}
+    ep = client.post("/api/v1/backlog/items", json={**scope, "title": "lnk epic", "type": "epic"}).json()["data"]["id"]
+    a = client.post("/api/v1/backlog/items", json={**scope, "title": "A", "type": "feature", "epic": ep}).json()["data"]["id"]
+    b = client.post("/api/v1/backlog/items", json={**scope, "title": "B", "type": "feature", "epic": ep}).json()["data"]["id"]
+    lk = client.post(f"/api/v1/backlog/items/{a}/links", json={**scope, "refs": {"depends_on": b}})
+    assert lk.status_code == 200, lk.text
+    dl = client.post(f"/api/v1/backlog/items/{b}/delete", json=scope)
+    assert dl.status_code == 200, dl.text
