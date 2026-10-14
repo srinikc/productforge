@@ -1,13 +1,13 @@
 # Backlog Summary
 
-> GENERATED 2026-10-14T09:56:24 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-14T11:13:27 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 123  |  **Closed:** 517
+- **Open:** 124  |  **Closed:** 517
 - `accepted`: 1
-- `blocked`: 1
+- `blocked`: 2
 - `executing`: 3
 - `new`: 118
 
@@ -151,12 +151,12 @@
 | BI-PF-1326 | Must | feature | WG-O2: Start-from-anywhere wrapper (fetch -> pull --ff-only clean-guard -> shared token -> start) + periodic fetch-only thread | Add a start wrapper (sync + token + start) and a periodic fetch-only background thread. |
 | BI-PF-1330 | Should | task | Failed stage blocks all re-runs: checkpoint restore keeps the failed stage (new/--from-stage fail immediately) | Failed stage blocks all re-runs: checkpoint restore keeps the failed stage (new/--from-stage fail immediately) |
 | BI-PF-1333 | Must | task | Design stage over-proportions output: 19 FRs + 15 NFRs for one trivial feature; 314KB partial blows run time/cost | Design stage over-proportions output: 19 FRs + 15 NFRs for one trivial feature; 314KB partial blows run time/c... |
-| BI-PF-1338 | Must | task | language_rule_check misses large new logic added via EDITS to existing shipped Python (should be Go) | language_rule_check misses large new logic added via EDITS to existing shipped Python (should be Go) |
 | BI-PF-1348 | Should | task | Artifact contracts: budget reconciliation with the run budget (work-estimate / PIPELINE_MAX_TOTAL_TIME) | Artifact contracts: budget reconciliation with the run budget (work-estimate / PIPELINE_MAX_TOTAL_TIME) |
 | BI-PF-1370 | Should | feature | Session isolation guard: never write outside the session's own working folder (hard ACL long-term + single-account alternative now) | A session can only affect its OWN working folder: cross-folder writes are prevented (long-term, hard) or at le... |
 | BI-PF-1371 | Must | feature | Session isolation guard: never write outside the session's own working folder (hard ACL long-term + single-account alternative now) | A session can only affect its OWN working folder: cross-folder writes are prevented (long-term, hard) or at le... |
 | BI-PF-1372 | Should | task | Artifact contracts: plan -> outline -> fill gate (approve size/outline before prose) | Artifact contracts: plan -> outline -> fill gate (approve size/outline before prose) |
 | BI-PF-1373 | Should | task | Artifact contracts: product-wide DRY (state NFRs/quality once, not per feature) | Artifact contracts: product-wide DRY (state NFRs/quality once, not per feature) |
+| BI-PF-1374 | Should | feature | precheck: a derived/bookkeeping-only tier (docs-fresh + compile only) so doc/backlog regeneration never runs the full gate | Add a derived/bookkeeping-only precheck tier (docs-fresh + compile) and stop doc-regen running the full gate. |
 
 ---
 
@@ -356,5 +356,5 @@
 ---
 
 ## Totals
-- backend: 123 open / 517 closed
+- backend: 124 open / 517 closed
 - dashboard: 146 open / 3 closed
