@@ -16,12 +16,7 @@
   "value": 3,
   "effort": 3,
   "risk": 2,
-  "deps": [
-    "BI-PF-1296",
-    "BI-PF-1300",
-    "BI-PF-1299",
-    "BI-PF-1303"
-  ],
+  "deps": [],
   "links": {
     "source_doc": "docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md",
     "possible_duplicate_of": [
@@ -116,62 +111,72 @@
   "children": [],
   "epic": "BI-PF-1292",
   "parent": "BI-PF-1292",
-  "revision": 9,
+  "revision": 10,
   "priority_rank": 3,
   "priority_class": "P0",
   "analyze_mode": "on_entry",
   "analysis": {
-    "status": "STALE",
+    "status": "IN_PROGRESS",
     "analyzed_at": "2026-10-13T16:33:38.702151",
-    "analyzed_by": "agent",
+    "analyzed_by": "deterministic",
     "revision_analyzed": 8,
-    "architecture_fit": "NEW_CAPABILITY",
-    "implementation_strategy": "Create Go package `internal/tenantcontext/` with a TenantContextService that validates server-side membership/role on every request and sets PostgreSQL session variables for RLS. Define RLS policies with both USING and WITH CHECK clauses via migrations (consumes BI-PF-1300 migration framework). Build pooled-context negative tests that verify stale/wrong-tenant contexts are rejected. Extend config/context-policy.json with tenant isolation settings.",
-    "existing_components": [],
-    "existing_apis": [],
-    "existing_modules": [],
+    "architecture_fit": "REUSE",
+    "implementation_strategy": "Extend existing components/APIs: core/brief_check.py, core/compliance_check.py, core/context_discipline.py, core/context_engine.py",
+    "existing_components": [
+      "core/brief_check.py",
+      "core/compliance_check.py",
+      "core/context_discipline.py",
+      "core/context_engine.py",
+      "core/context_manager.py",
+      "core/context_policy.py",
+      "core/context_preflight.py",
+      "core/context_review.py"
+    ],
+    "existing_apis": [
+      "/api/v1/backlog/items/{item_id}/context",
+      "/api/v1/backlog/items/{item_id}/context-review",
+      "/api/v1/engineering/pidl/context",
+      "/api/v1/enterprise/tenants",
+      "/api/v1/enterprise/tenants/{tenant}",
+      "/api/v1/enterprise/tenants/{tenant}/checkout",
+      "/api/v1/enterprise/tenants/{tenant}/entitlements",
+      "/api/v1/enterprise/tenants/{tenant}/license"
+    ],
+    "existing_modules": [
+      "config/context-policy.json",
+      "config/verification-policy.json"
+    ],
     "dependency_findings": [
-      "REQUIRES BI-PF-1296 (tenant service) — membership/role data source",
-      "REQUIRES BI-PF-1300 (migration framework) — RLS policies applied via migrations",
-      "RELATED BI-PF-1299 (storage interfaces) — context flows through storage abstraction",
-      "RELATED BI-PF-1303 (ResidencyPolicy) — residency enforcement interacts with tenant isolation"
+      "depends on BI-PF-1296",
+      "depends on BI-PF-1300",
+      "depends on BI-PF-1299",
+      "depends on BI-PF-1303"
     ],
-    "conflict_findings": [
-      "BI-PF-1300 creates migration framework; RLS migrations must be sequenced after role creation",
-      "BI-PF-1303 RegionCell attestation may also set session context — coordinate session variable ownership"
-    ],
+    "conflict_findings": [],
     "duplication_findings": [
-      "core/context_policy.py and config/context-policy.json provide context-policy patterns but in Python — reusable as config schema only",
-      "Existing tenant APIs (/api/v1/enterprise/tenants/*) confirm tenant model exists — reuse membership/role data model",
-      "core/context_preflight.py preflight-check pattern relevant for context validation design"
+      "product_forge:BI-PF-1293 (score 0.64)",
+      "product_forge:BI-PF-1299 (score 0.64)",
+      "product_forge:BI-PF-1306 (score 0.64)",
+      "product_forge:BI-PF-1303 (score 0.61)"
     ],
-    "drift": "LOW",
+    "drift": "NONE",
     "rewrite_required": false,
-    "new_component_required": true,
-    "rationale": "Tenant isolation via RLS is a critical enterprise security control. No existing Go implementation exists; new package required. Existing Python context-policy patterns inform config schema only.",
-    "assumptions": [
-      "PostgreSQL RLS is the enforcement mechanism",
-      "Tenant membership/role is stored in a database table accessible by the verification query",
-      "Connection pooling uses a library that supports per-request session setup/teardown"
-    ],
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
     "risks": [
-      "RLS USING + WITH CHECK on all tables increases migration complexity",
-      "Pooled connections leaking tenant context between requests is a critical security risk",
-      "Performance impact of server-side membership verification on every request"
+      "possible duplicate"
     ],
     "evidence": [
-      "Existing tenant APIs confirm tenant/membership model",
-      "config/context-policy.json provides config schema pattern",
-      "core/context_discipline.py shows context validation precedents in codebase"
+      "similar=4",
+      "score=0.75",
+      "components=8",
+      "apis=8"
     ],
-    "confidence": "medium",
-    "missing_info": [
-      "Connection pooling library choice (pgxpool? database/sql?)",
-      "Whether tenant context is per-request or per-session",
-      "Performance SLA for membership verification (<1ms?)"
-    ],
+    "confidence": "high",
+    "missing_info": [],
     "depth": "deep",
-    "mode": "ai",
+    "mode": "deterministic",
     "context_review": {
       "implementable": true,
       "missing": [
@@ -191,10 +196,11 @@
       "title": "EDP-09: Tenant context service with server-side membership/role verification + RLS (USING + WITH CHECK) + pooled-context negative tests",
       "body": "Part of EPIC BI-PF-1292. Source: docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md. Phase item (see epic). Language rule L1 = Go; must pass scripts/dev/language_rule_review.py.",
       "acceptance_criteria": [
-        "Tenant membership/roles resolved from identity/token, never trusted from headers; X-Tenant-Id is a selector only.",
-        "Tenant-owned tables use RLS with USING + WITH CHECK and default deny; runtime role cannot bypass.",
-        "Transaction-local tenant context is cleared between pooled requests; negative tests prove no bleed.",
-        "cross_tenant_allowed is wired at the API boundary.",
+        "TenantContextService validates membership/role against database on each request",
+        "RLS policies with USING and WITH CHECK created via migration for all tenant-scoped tables",
+        "Pooled connection negative tests confirm stale context is rejected and no cross-tenant data leaks",
+        "config/context-policy.json extended with tenant isolation settings",
+        "Language rule review passes (Go-only)",
         "ADR document committed covering storage layers, backends, and data-flow decisions",
         "Develop commit SHA pinned and recorded",
         "L1 Go rule passes language_rule_review.py",
@@ -203,39 +209,27 @@
         "In-memory reference adapter passes all conformance suites",
         "scripts/dev/language_rule_review.py passes (Go-only)",
         "config/test-matrix.json extended with storage-conformance rows",
-        "private buckets, least-privilege credentials, lifecycle/versioning where required; explicit region/backup/replication capability metadata.",
-        "Signed URLs only after authorization, constrained to object/method, short TTL.",
-        "Provider config stays inside the adapter; conformance suite passes (wrong-region, versions, delete, restore).",
-        "tenant.home_region, jurisdiction_profile_id, residency_policy_version are set at provisioning from authenticated config (never from X-Tenant-Id/X-Region/URL).",
-        "Provisioning fails closed if any required service (DB/object/backup/logs/KMS/queue/cache/vector/workers/model) lacks an approved region.",
-        "Region is immutable to ordinary users; changes require an audited migration plan."
+        "Adapter passes the shared conformance suite against MinIO in CI",
+        "Capabilities (region/replication/versioning) exposed via capability probe API",
+        "Language rule L1 (Go) passes scripts/dev/language_rule_review.py",
+        "No credentials logged; env-based config only",
+        "Tenant provisioning fails closed when residency policy or RegionCell attestation cannot be satisfied",
+        "Residency evaluation consumes versioned policy registry (BI-PF-1297) with IN-v1/US-v1 profiles",
+        "RegionResolver maps tenant to compliant RegionCell deterministically",
+        "Passes scripts/dev/language_rule_review.py"
       ],
       "moscow": "Must"
     },
-    "arch_fingerprint": "dc9598f15f6d5d5f"
-  },
-  "dependencies": [
-    {
-      "task_id": "BI-PF-1296",
-      "type": "REQUIRES",
-      "required_state": "COMPLETE"
-    },
-    {
-      "task_id": "BI-PF-1300",
-      "type": "RELATED",
-      "required_state": "completed"
-    },
-    {
-      "task_id": "BI-PF-1299",
-      "type": "RELATED",
-      "required_state": "completed"
-    },
-    {
-      "task_id": "BI-PF-1303",
-      "type": "RELATED",
-      "required_state": "completed"
+    "arch_fingerprint": "dc9598f15f6d5d5f",
+    "decision_request": {
+      "needed": true,
+      "reasons": [
+        "consolidation"
+      ],
+      "ask": "A consolidation (near-duplicate) proposal exists - APPROVE/CONSOLIDATE/MODIFY."
     }
-  ],
+  },
+  "dependencies": [],
   "blocked_by": [
     "BI-PF-1296"
   ],
@@ -259,7 +253,7 @@
     "usage": {}
   },
   "created_at": "2026-10-13T16:02:33.833888",
-  "updated_at": "2026-10-13T16:35:26.731506",
+  "updated_at": "2026-10-14T21:04:56.991600",
   "score": 0.75,
   "source_ref": "docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md",
   "_note": "dependencies set"
