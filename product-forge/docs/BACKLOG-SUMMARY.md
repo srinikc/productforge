@@ -1,16 +1,16 @@
 # Backlog Summary
 
-> GENERATED 2026-10-15T21:44:23 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-15T23:19:50 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 131  |  **Closed:** 540
+- **Open:** 129  |  **Closed:** 542
 - `blocked`: 1
 - `executing`: 3
-- `new`: 127
+- `new`: 125
 
-### new, by category (127)
+### new, by category (125)
 **API / reports / HIL / misc** (16)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
@@ -64,7 +64,7 @@
 | BI-PF-1401 | Should | feature | Expose doc-driven backlog ingest via a Go capability service (generic surface); tooling becomes a client | Expose doc-driven backlog ingest via a Go capability service (generic surface); tooling becomes a client |
 | BI-PF-1403 | Should | feature | Doc-ingest extraction: design Go extraction for .docx/.pdf (and future formats) in the capability service | Doc-ingest extraction: design Go extraction for .docx/.pdf (and future formats) in the capability service |
 
-**Licensing / tenancy** (8)
+**Licensing / tenancy** (7)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-PF-0390 | Should | epic | EPIC A: PF Commercial & IP Foundation (contracts, Go core, licensing, packaging, EAP, RDC, governance, vertical slice) | EPIC A — the needed-now foundation: A0 baseline freeze + ADR register; A1 thin contracts incl. Go<->Python con... |
@@ -74,9 +74,8 @@
 | BI-PF-1309 | Must | feature | EDP-17: Canonical PostgreSQL schema (tenants/memberships/projects/runs/stages/attempts/artifacts/usage/quotas/audit/schema_migrations) + indexes + pooling + optimistic versioning | Deliver the canonical PostgreSQL schema (tenants, memberships, projects, runs, stages, attempts, artifacts, us... |
 | BI-PF-1315 | Must | feature | EDP-23: Backup/PITR + restore drills (full service + single-tenant) + DB<->object integrity reconciliation + region-aware restore | Deliver backup + PITR configuration, automated restore drills (full-service and single-tenant), DB<->object in... |
 | BI-PF-1317 | Could | feature | EDP-24: Scale-out & enterprise isolation tiers (read replicas / partitioning / tenant isolation tiers / additional region cells / region-migration workflow) [EVIDENCE-GATED] | Provide scale-out and enterprise isolation tiers including read-replica support, DB partitioning, tenant isola... |
-| BI-PF-1407 | Must | defect | RCCA: EDP-09 tenant RLS ineffective - runtime connects as superuser pf_owner (bypasses RLS); need non-superuser runtime role + grants | RCCA: EDP-09 tenant RLS ineffective - runtime connects as superuser pf_owner (bypasses RLS); need non-superuse... |
 
-**Specs / cache / context / artifacts** (11)
+**Specs / cache / context / artifacts** (10)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0206 | Should | tech-debt | Backend: model downloader + local cache + license-acceptance gate + models.lock (open-weights) | One owner module that downloads only the weights a project's capability pack needs, into a gitignored local ca... |
@@ -84,7 +83,6 @@
 | BI-PF-1212 | Should | feature | C10: Security-event audit/evidence (evidence-grade) + durable SecurityContext propagation | C10: Security-event audit/evidence (evidence-grade) + durable SecurityContext propagation |
 | BI-PF-1241 | Should | feature | Per-item token/cache/cost usage (execution.usage) + runtime usage capture + rollup | - backlog execution: + usage{} (input/output/reasoning/cache_read/cache_write/total/cost_usd/model/cost_source... |
 | BI-PF-1273 | Should | feature | Eventing SSOT: migrate existing consumers (event_bus/context/ops/capabilities/parked/notifications/alerts) behind shims | Migrate each consumer to the subscriber/transport API with a compatibility shim so behavior is identical durin... |
-| BI-PF-1301 | Must | feature | EDP-09: Tenant context service with server-side membership/role verification + RLS (USING + WITH CHECK) + pooled-context negative tests | Deliver tenant isolation: a server-side tenant-context service (membership/role verification) + Postgres RLS (... |
 | BI-PF-1312 | Must | feature | EDP-20: Append-only AuditStore; split orchestrator/storage.py (audit vs cache vs evidence); retention/redaction; large checkpoints -> object store | Deliver an append-only AuditStore, split orchestrator/storage.py into audit/cache/evidence responsibilities, a... |
 | BI-PF-1314 | Should | feature | EDP-22: Benchmarks/SLOs + EXPLAIN(ANALYZE,BUFFERS) tuning + observability + quotas + graceful degradation (DB/object/cache/queue) | Establish performance benchmarks/SLOs, EXPLAIN(ANALYZE,BUFFERS)-based tuning, observability, quotas, and grace... |
 | BI-PF-1329 | Should | feature | WG-O5: Assign a SPECIFIC backlog item to a session/worker (claim-by-id + operator assignment) with lease semantics | Support claiming/assigning a specific item id (not just next-eligible). |
@@ -368,5 +366,5 @@
 ---
 
 ## Totals
-- backend: 131 open / 540 closed
+- backend: 129 open / 542 closed
 - dashboard: 146 open / 3 closed
