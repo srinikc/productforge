@@ -1,16 +1,16 @@
 # Backlog Summary
 
-> GENERATED 2026-10-15T13:02:09 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-15T19:13:48 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 129  |  **Closed:** 535
+- **Open:** 130  |  **Closed:** 535
 - `blocked`: 1
 - `executing`: 3
-- `new`: 125
+- `new`: 126
 
-### new, by category (125)
+### new, by category (126)
 **API / reports / HIL / misc** (16)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
@@ -48,11 +48,12 @@
 | BI-PF-1302 | Must | feature | EDP-10: Timeouts, pool budgets, payload/upload limits, per-tenant & global quotas, structured errors; production profile rejects dev/anon auth | Implement enforceable timeouts, pool budgets, payload/upload limits, per-tenant and global quotas, structured ... |
 | BI-PF-1398 | Must | bug | Dependency gap: pypdf and python-docx used by core/intake_files.py are undeclared in pyproject.toml and uncatalogued in config/tool-catalog.json | Dependency gap: pypdf and python-docx used by core/intake_files.py are undeclared in pyproject.toml and uncata... |
 
-**Dynamic pipeline / agents** (2)
+**Dynamic pipeline / agents** (3)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-PF-1390 | Should | task | Contract-driven agent prompts: deprecate the hardcoded templates (design 3.1-3.10, architect 6.1-6.21) + remove .opencode refs | Prompts state 'minimum sufficient' + the section plan/ids come from the contract; only relevant/required secti... |
 | BI-PF-1400 | Must | feature | API-first standard (ADR-0007): assess API need per capability; where needed, expose a secured API for internal + external consumers | API-first standard (ADR-0007): every PF capability exposes a secured API; tooling is a client only |
+| BI-PF-1404 | Should | defect | API-first is documented but not enforced: add an automated gate (every item declares an API-surface decision or a justified 'no need') | API-first is documented but not enforced: add an automated gate (every item declares an API-surface decision o... |
 
 **Knowledge / KB** (3)
 | ID | MoSCoW | Type | Title | Objective |
@@ -366,5 +367,5 @@
 ---
 
 ## Totals
-- backend: 129 open / 535 closed
+- backend: 130 open / 535 closed
 - dashboard: 146 open / 3 closed
