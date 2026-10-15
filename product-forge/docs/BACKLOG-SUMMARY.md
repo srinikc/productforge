@@ -1,16 +1,16 @@
 # Backlog Summary
 
-> GENERATED 2026-10-15T20:27:22 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-15T20:39:08 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 130  |  **Closed:** 536
+- **Open:** 129  |  **Closed:** 537
 - `blocked`: 1
 - `executing`: 3
-- `new`: 126
+- `new`: 125
 
-### new, by category (126)
+### new, by category (125)
 **API / reports / HIL / misc** (15)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
@@ -88,7 +88,7 @@
 | BI-PF-1385 | Must | bug | Backlog API: no deterministic endpoint to author item context fields (objective/acceptance_criteria/affected_files/approach) | Backlog API: no deterministic endpoint to author item context fields (objective/acceptance_criteria/affected_f... |
 | BI-PF-1392 | Should | task | Enforce per-feature FR/US caps + max_lines in the Go artifact engine (scaled by the profile) and reconcile the three section sources | Per-feature FR/US caps + max_lines enforced NUMERICALLY (scaled by profile); sections have ONE source. |
 
-**Wiring / tech-debt / API** (77)
+**Wiring / tech-debt / API** (76)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0185 | Should | feature | EPIC: Multi-modal / media orchestration (pluggable capability packs) | Make the pipeline modality-agnostic via PLUGGABLE capability packs, enabled per project when the idea needs th... |
@@ -146,7 +146,6 @@
 | BI-PF-1297 | Must | feature | EDP-05: Residency & Transfer Policy Registry (versioned, fail-closed) + IN-v1/US-v1 launch profiles (counsel-owned content) | Deliver a versioned, fail-closed residency and transfer policy registry with IN-v1 and US-v1 launch profiles w... |
 | BI-PF-1298 | Must | task | EDP-06: Baseline performance capture (artifact list/read, project load/save, run transitions, memory retrieval, job claim/lease, DB/pool counts) | Capture reproducible baseline performance metrics for artifact list/read, project load/save, run transitions, ... |
 | BI-PF-1304 | Must | feature | EDP-12: Generated-product residency manifest (data_classes/home_region/allowed_regions/backup/kms/egress/retention) + build/deploy gate | Generate a per-product residency manifest (data_classes, home_region, allowed_regions, backup, kms, egress, re... |
-| BI-PF-1305 | Should | feature | EDP-13: Local filesystem ObjectStore adapter (root containment, symlink defense, atomic writes, checksum, size limits) | Provide a Go local-filesystem ObjectStore adapter with root containment, symlink defense, atomic writes, check... |
 | BI-PF-1306 | Must | feature | EDP-14: S3-compatible ObjectStore adapter + conformance tests (region/replication/versioning capabilities) | Deliver an S3-compatible ObjectStore adapter with capability detection (region, replication, versioning) valid... |
 | BI-PF-1308 | Must | feature | EDP-16: Object lifecycle (versioning/lock/retention), signed-URL policy, delete/replica/backup reconciliation | Define and enforce object lifecycle rules (versioning, lock, retention), signed-URL access policy, and delete/... |
 | BI-PF-1310 | Must | feature | EDP-18: Migration/import tooling (dry-run, hashes/counts parity, dual-read, rollback snapshot, cutover flag) for control-plane/portfolio/forge/project/pipeline; JSON demoted to projections | Deliver migration/import tooling with dry-run, hash/count parity verification, dual-read, rollback snapshot an... |
@@ -367,5 +366,5 @@
 ---
 
 ## Totals
-- backend: 130 open / 536 closed
+- backend: 129 open / 537 closed
 - dashboard: 146 open / 3 closed

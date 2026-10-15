@@ -130,6 +130,9 @@ Before implementing **any** new design, flow, review recommendation, or external
    dependency; the two independent entry paths).
 3. Produce an **IMPACT REVIEW** table:
    `claim | verdict (aligned | violates | new-path | derails | stale) | evidence (file:line) | recommendation`.
+   The table **MUST** include an **`API CHECK`** row (mirroring the language-rule row): `needs_api` (true/false) +
+   the API **surface** (method/path) + **security** (authn/authz/tenant/validation), **or** a justified
+   `no API need`. Enforced per item by `scripts/dev/api_first_check.py`; per change by `api-contract`/`api-governance`.
 4. If **any** verdict is not `aligned`: **STOP** — highlight the conflict to the user and ask **yes/no** before
    writing code.
 5. After approval, **record the accepted work as backlog item(s) BEFORE coding** (`origin=review`,
