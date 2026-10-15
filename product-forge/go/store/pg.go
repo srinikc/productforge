@@ -17,17 +17,9 @@ import (
 // PgStore is the PostgreSQL implementation of datastore.RelationalStore, backed by a pgx connection pool.
 type PgStore struct{ pool *pgxpool.Pool }
 
-// Open creates a pooled store for dsn and verifies connectivity. Close it when done.
+// Open creates a pooled store for dsn using DefaultPoolOptions and verifies connectivity. Close it when done.
 func Open(ctx context.Context, dsn string) (*PgStore, error) {
-	pool, err := pgxpool.New(ctx, dsn)
-	if err != nil {
-		return nil, err
-	}
-	if err := pool.Ping(ctx); err != nil {
-		pool.Close()
-		return nil, err
-	}
-	return &PgStore{pool: pool}, nil
+	return OpenWithPool(ctx, dsn, DefaultPoolOptions())
 }
 
 // Close releases the pool.
