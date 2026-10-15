@@ -1,0 +1,205 @@
+{
+  "id": "BI-PF-1394",
+  "tag": "PF",
+  "type": "bug",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "api",
+  "external_id": "",
+  "label": "PF Backlog 593",
+  "title": "EDP prerequisite: no PostgreSQL installed/provisioned or bootstrapped for PF's system of record",
+  "body": "Gap found during EDP-17 (BI-PF-1309): the repo had DDL migrations + a migration runner (go/migrate) but NOTHING to provision/connect/apply them - no Postgres installed or running, no PF_DB_DSN/connection config, no pool client, no bootstrap/deploy step, no schema_migrations ever created. (The POSTGRES_* code in docker_compose_generator/service_catalog is for GENERATED products, not PF's own SoR.) Resolution: added docker-compose.edp.yml + config/database.json + PF_DB_DSN env flag + scripts/dev/db_bootstrap.py (EnsureTable -> apply migrations/*.up.sql, idempotent) + runbook in docs/EDP-17-SCHEMA.md. Remaining: env must actually be provisioned to run it.",
+  "source": "api",
+  "status": "new",
+  "priority": "P1",
+  "moscow": "Must",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [
+    "BI-PF-1300",
+    "BI-0155"
+  ],
+  "links": {},
+  "decisions": [
+    {
+      "at": "2026-10-14T23:53:03.431032",
+      "decision": "APPROVE",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)"
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "Gap found during EDP-17 (BI-PF-1309): the repo had DDL migrations + a migration runner (go/migrate) but NOTHING to provision/connect/apply them - no Postgres installed or running, no PF_DB_DSN/connection config, no pool client, no bootstrap/deploy step, no schema_migrations ever created. (The POSTGRES_* code in docker_compose_generator/service_catalog is for GENERATED products, not PF's own SoR.) Resolution: added docker-compose.edp.yml + config/database.json + PF_DB_DSN env flag + scripts/dev/db_bootstrap.py (EnsureTable -> apply migrations/*.up.sql, idempotent) + runbook in docs/EDP-17-SCHEMA.md. Remaining: env must actually be provisioned to run it.",
+    "what_adds": "EDP prerequisite: no PostgreSQL installed/provisioned or bootstrapped for PF's system of record",
+    "why": "Gap found during EDP-17 (BI-PF-1309): the repo had DDL migrations + a migration runner (go/migrate) but NOTHING to provision/connect/apply them - no Postgres installed or running, no PF_DB_DSN/connection config, no pool client, no bootstrap/deploy step, no schema_migrations ever created. (The POSTGRES_* code in docker_compose_generator/service_catalog is for GENERATED products, not PF's own SoR.) Resolution: added docker-compose.edp.yml + config/database.json + PF_DB_DSN env flag + scripts/dev/db_bootstrap.py (EnsureTable -> apply migrations/*.up.sql, idempotent) + runbook in docs/EDP-17-SCHEM",
+    "who_feels": "Product Forge maintainers and consumers.",
+    "source": "extracted"
+  },
+  "objective": "EDP prerequisite: no PostgreSQL installed/provisioned or bootstrapped for PF's system of record",
+  "acceptance_criteria": [
+    "Objective achieved: EDP prerequisite: no PostgreSQL installed/provisioned or bootstrapped for PF's system of record"
+  ],
+  "in_scope": [
+    "EDP prerequisite: no PostgreSQL installed/provisioned or bootstrapped for PF's system of record"
+  ],
+  "out_of_scope": [
+    "Not specified."
+  ],
+  "affected_components": [
+    "config",
+    "docs",
+    "scripts"
+  ],
+  "affected_files": [
+    "config/database.json",
+    "docker-compose.edp.yml",
+    "docs/EDP-17-SCHEMA.md",
+    "scripts/dev/db_bootstrap.py"
+  ],
+  "approach": "EDP prerequisite: no PostgreSQL installed/provisioned or bootstrapped for PF's system of record",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Objective achieved: EDP prerequisite: no PostgreSQL installed/provisioned or bootstrapped for PF's system of record"
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "unassigned",
+  "requester": "api",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1292",
+  "parent": "BI-PF-1292",
+  "revision": 3,
+  "priority_rank": 2,
+  "priority_class": "P1",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "COMPLETE",
+    "analyzed_at": "2026-10-14T23:53:03.240650",
+    "analyzed_by": "system",
+    "revision_analyzed": 3,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend scripts/dev/db_bootstrap.py + docker-compose.edp.yml with a provisioning step: ensure Postgres service is up (docker compose up -d), derive PF_DB_DSN from config/database.json, create schema_migrations via the existing migration runner, and expose scripts/dev/db_provision.py as a single idempotent entrypoint. No new component.",
+    "existing_components": [],
+    "existing_apis": [],
+    "existing_modules": [],
+    "dependency_findings": [
+      "REQUIRES scripts/dev/db_bootstrap.py (EnsureTable + apply migrations/*.up.sql) from EDP-17",
+      "REQUIRES docker-compose.edp.yml + config/database.json from EDP-17",
+      "RELATED BI-PF-1300 (migration framework + role separation) - required_state: schema_migrations table managed by runner",
+      "RELATED BI-0155 (env-flag registry) - PF_DB_DSN must be registered there"
+    ],
+    "conflict_findings": [
+      "BI-PF-1300 may touch the same migration runner and DDL files - coordinate ordering",
+      "BI-0155 may touch env-flag registration files for PF_DB_DSN"
+    ],
+    "duplication_findings": [
+      "docker_compose_generator/service_catalog POSTGRES_* is for generated products, not PF SoR - not reusable here",
+      "BI-PF-1300 covers migration framework/roles - overlap on schema_migrations; assume it landed or defer role separation",
+      "No existing PF SoR provisioning script found in components list"
+    ],
+    "drift": "LOW",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "The bootstrap code exists; the remaining gap is provisioning the actual Postgres instance and wiring PF_DB_DSN so the runner can apply migrations and create schema_migrations. This is a small, incremental extension with clear reuse of EDP-17 artifacts.",
+    "assumptions": [
+      "Docker (or a reachable Postgres host) is available in the dev/EDP environment",
+      "EDP-17 artifacts (db_bootstrap.py, docker-compose.edp.yml, config/database.json) are committed",
+      "PF_DB_DSN is the single source of truth for connection",
+      "Migration files follow *.up.sql naming already in repo"
+    ],
+    "risks": [
+      "PF_DB_DSN may be unset in target env, blocking bootstrap",
+      "Local Docker may be unavailable for the EDP environment",
+      "Migration files may assume an owner role not yet provisioned (BI-PF-1300)",
+      "Idempotency must hold across repeated runs to avoid schema drift"
+    ],
+    "evidence": [
+      "Item body: gap found in EDP-17; resolution added bootstrap script + compose + DSN flag; 'remaining: env must be provisioned'",
+      "Body confirms POSTGRES_* catalog code is out of scope",
+      "go/migrate runner and migrations/*.up.sql exist in repo per body"
+    ],
+    "confidence": "medium",
+    "missing_info": [
+      "Target environment (local dev vs CI vs deployed) for provisioning",
+      "Whether Docker is permitted or a managed Postgres instance should be used",
+      "Postgres version pin",
+      "Expected DB roles/users to create (ties to BI-PF-1300)"
+    ],
+    "depth": "deep",
+    "mode": "ai",
+    "context_review": {
+      "ok": false,
+      "source": "llm",
+      "implementable": false,
+      "missing": [
+        "what",
+        "how"
+      ],
+      "reason": "WHAT/APPROACH/acceptance are just the title restated; PROBLEM describes work already done and a vague 'env must be provisioned' remainder without concrete actionable steps or acceptance criteria."
+    },
+    "decision_request": {
+      "needed": false,
+      "reasons": [],
+      "ask": ""
+    },
+    "arch_fingerprint": "182589f7faa97ca9"
+  },
+  "dependencies": [
+    {
+      "task_id": "BI-PF-1300",
+      "type": "RELATED",
+      "required_state": "schema_migrations owned by migration runner; role separation optional for this step"
+    },
+    {
+      "task_id": "BI-0155",
+      "type": "RELATED",
+      "required_state": "PF_DB_DSN registered in env-flag registry"
+    }
+  ],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-14T23:53:03.325263"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-14T23:51:16.645344",
+  "updated_at": "2026-10-14T23:53:03.712708",
+  "score": 0.75,
+  "_note": "readiness computed"
+}
