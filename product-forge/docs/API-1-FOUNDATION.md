@@ -4,6 +4,30 @@
 **Status:** Implemented — gate PASS
 **Depends on:** API-0 (`docs/API-0-DISCOVERY.md`), API-0.1 (`docs/API-0.1-CONTRACT-RECONCILIATION.md`)
 
+## Governance: API-first, language, and service topology (ADR-0007 / ADR-0008)
+
+Binding for everything built in Product Forge (rationale in `docs/ARCHITECTURE-DECISIONS.md`):
+
+1. **API-first (need-assessed).** For each capability, assess whether an API is needed; where an internal or
+   external consumer needs it, expose a **secured** API — authn, authz/tenant scope, input validation,
+   quotas/rate limits, audit, and a versioned contract. No blind APIs: if none is needed, record the
+   justification at Gate 1.
+2. **Each service owns its language.** New shipped/sensitive logic is **Go** (language rule, BI-PF-0387/0388).
+   Go-backed capabilities are exposed by **Go API services**, never bridged through the Python API (no
+   subprocess/cgo on a request path). Python API routes stay thin (validate + delegate only).
+3. **Service topology / placement.** Domain data ⇒ that domain's service; cross-cutting ⇒ generic surface:
+   - **EDP data-plane service (Go):** the system of record and everything operating it (schema,
+     tenants/projects/runs/stages/attempts/artifacts/objects, object store, RLS, quotas, audit,
+     **schema-migration admin**).
+   - **Generic capability service (Go):** cross-cutting Go capabilities (e.g., backlog **doc-ingest**), which
+     consume other services over HTTP.
+   - **Python control-plane API (`api/`):** existing Python-owned concerns (backlog, engineering, …).
+4. **Integration is over HTTP APIs only** — services consume each other's APIs; no language bridges.
+5. All surfaces share the **same security model** (authn roles, authz/tenant scope, validation, quotas, audit).
+
+**Enforced at Gate 1:** every item declares its **API-surface decision** (surface + security, or a written
+"no API need") **and** its service home.
+
 ## What this phase builds
 
 The canonical HTTP control plane in a **new `api/` package** (the legacy `dashboard/` app is frozen and untouched;

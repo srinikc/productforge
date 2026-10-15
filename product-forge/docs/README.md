@@ -53,6 +53,7 @@
 | [`Agent-LLM-PromptHandling.md`](Agent-LLM-PromptHandling.md) | Design | 60% | Agent/LLM prompt handling | **Pending: capability vectors per agent, capability-aware request builder, structured-output-first render.** | BI-0221–BI-0224, BI-0228 |
 | [`Agent_llm_process.md`](Agent_llm_process.md) | Review (pending) | 0% | Agent<->LLM process analysis + recommendations | **Findings not yet implemented: per-call capability steering, reasoning on/off, and verbose loop/tool-call logging.** | BI-0221–BI-0229 |
 | [`BACKLOG-AND-INTAKE.md`](BACKLOG-AND-INTAKE.md) | Implemented | 100% | Backlog + intake design | — | — |
+| [`BACKLOG-DOC-INGEST.md`](BACKLOG-DOC-INGEST.md) | Tooling | 100% | Doc-driven backlog ingest: project a plan/.md/.pdf doc onto an epic + children via the API (dry-run default) (BI-PF-1396) | — | — |
 | [`BACKLOG-SUMMARY.md`](BACKLOG-SUMMARY.md) | Generated | 100% | Regenerable backlog summary | — | — |
 | [`BOM-DESIGN.md`](BOM-DESIGN.md) | Design | 100% | Product BOM/footprint at packaging design (BI-0217) | — | — |
 | [`BRANCHING-GIT-WORKFLOW.md`](BRANCHING-GIT-WORKFLOW.md) | Implemented | 100% | Branch/worktree/merge/push workflow reference: PF, generated products, intake + worker paths (BI-PF-0431) | — | — |
