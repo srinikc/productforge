@@ -1,17 +1,17 @@
 # Backlog Summary
 
-> GENERATED 2026-10-15T20:02:31 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-15T20:27:22 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 131  |  **Closed:** 535
+- **Open:** 130  |  **Closed:** 536
 - `blocked`: 1
 - `executing`: 3
-- `new`: 127
+- `new`: 126
 
-### new, by category (127)
-**API / reports / HIL / misc** (16)
+### new, by category (126)
+**API / reports / HIL / misc** (15)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-PF-0332 | Should | chore | API-5 deferred hardening: rate limiting + request/upload limits + tenant-isolation expansion + event streaming | API-5 deferred hardening: rate limiting + request/upload limits + tenant-isolation expansion + event streaming |
@@ -29,7 +29,6 @@
 | BI-PF-1328 | Must | task | WG-O4: Merge-driver coverage for id-blocks.json (max-merge) + children[] regenerated | Extend the derived merge driver to id-blocks and children. |
 | BI-PF-1331 | Should | bug | pre-commit lint_check crashes in git worktrees (WinError 206 long path) - blocks commits | Make the pre-commit lint_check work from a git worktree (no WinError 206 long-path crash). |
 | BI-PF-1382 | Must | bug | Backlog API: POST /backlog/items returns empty resource_id (created id not surfaced) | Backlog API: POST /backlog/items returns empty resource_id (created id not surfaced) |
-| BI-PF-1402 | Should | feature | Migrations admin API in the EDP data-plane service (status/up/down) behind admin authz | Migrations admin API in the EDP data-plane service (status/up/down) behind admin authz |
 
 **Bug fixes** (1)
 | ID | MoSCoW | Type | Title | Objective |
@@ -368,5 +367,5 @@
 ---
 
 ## Totals
-- backend: 131 open / 535 closed
+- backend: 130 open / 536 closed
 - dashboard: 146 open / 3 closed

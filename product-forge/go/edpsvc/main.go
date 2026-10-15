@@ -19,7 +19,9 @@ import (
 	"path/filepath"
 	"strings"
 
+	"productforge/datastore"
 	"productforge/migrate"
+	"productforge/objstore"
 	"productforge/store"
 )
 
@@ -27,6 +29,7 @@ type server struct {
 	dsn    string
 	admin  string
 	migDir string
+	obj    *objstore.LocalStore
 }
 
 func main() {
@@ -38,6 +41,12 @@ func main() {
 	if s.admin == "" {
 		log.Fatal("PF_ADMIN_TOKEN is required")
 	}
+	objRoot := envOr("PF_OBJECT_ROOT", "data/local/objects")
+	obj, err := objstore.NewLocalStore(objRoot, 0)
+	if err != nil {
+		log.Fatalf("object store: %v", err)
+	}
+	s.obj = obj
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
@@ -46,6 +55,8 @@ func main() {
 	mux.HandleFunc("/admin/migrations/up", s.adminOnly(s.migrationsUp))
 	mux.HandleFunc("/admin/migrations/down", s.adminOnly(s.migrationsDown))
 	mux.HandleFunc("/admin/schema-check", s.adminOnly(s.schemaCheck))
+	mux.HandleFunc("/admin/object-store/capabilities", s.adminOnly(s.objectStoreCapabilities))
+	mux.HandleFunc("/admin/object-store/conform", s.adminOnly(s.objectStoreConform))
 	addr := envOr("PF_EDP_ADDR", "127.0.0.1:8030")
 	log.Printf("edpsvc listening on %s (migrations=%s)", addr, s.migDir)
 	log.Fatal(http.ListenAndServe(addr, mux))
@@ -198,6 +209,23 @@ func (s *server) schemaCheck(w http.ResponseWriter, r *http.Request) {
 		code = http.StatusConflict
 	}
 	writeJSON(w, code, out)
+}
+
+func (s *server) objectStoreCapabilities(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, s.obj.Capabilities())
+}
+
+func (s *server) objectStoreConform(w http.ResponseWriter, r *http.Request) {
+	errs := datastore.ConformObjectStore(context.Background(), s.obj)
+	msgs := make([]string, 0, len(errs))
+	for _, e := range errs {
+		msgs = append(msgs, e.Error())
+	}
+	code := http.StatusOK
+	if len(msgs) > 0 {
+		code = http.StatusConflict
+	}
+	writeJSON(w, code, map[string]any{"ok": len(msgs) == 0, "errors": msgs})
 }
 
 func writeJSON(w http.ResponseWriter, code int, v any) {
