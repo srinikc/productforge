@@ -10,7 +10,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"productforge/datastore"
 	"productforge/store"
 )
 
@@ -46,14 +45,9 @@ func main() {
 	}
 	defer st.Close()
 
-	tables, err := queryNames(ctx, st, "SELECT table_name FROM information_schema.tables WHERE table_schema = current_schema()")
+	tables, indexes, err := store.LiveSchema(ctx, st)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "query tables:", err)
-		os.Exit(1)
-	}
-	indexes, err := queryNames(ctx, st, "SELECT indexname FROM pg_indexes WHERE schemaname = current_schema()")
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "query indexes:", err)
+		fmt.Fprintln(os.Stderr, "query schema:", err)
 		os.Exit(1)
 	}
 
@@ -68,26 +62,6 @@ func main() {
 		os.Exit(1)
 	}
 	fmt.Println("schema-check: OK (all declared tables/indexes present)")
-}
-
-func queryNames(ctx context.Context, st *store.PgStore, sql string) ([]string, error) {
-	var out []string
-	err := st.WithTx(ctx, func(tx datastore.Tx) error {
-		rows, err := tx.Query(ctx, sql)
-		if err != nil {
-			return err
-		}
-		defer rows.Close()
-		for rows.Next() {
-			var name string
-			if err := rows.Scan(&name); err != nil {
-				return err
-			}
-			out = append(out, name)
-		}
-		return rows.Err()
-	})
-	return out, err
 }
 
 func findMigrations() (string, error) {
