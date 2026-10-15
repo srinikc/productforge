@@ -68,6 +68,7 @@
 | [`EDP-17-SCHEMA.md`](EDP-17-SCHEMA.md) | Design | 100% | Canonical schema domain + relationship model for EDP-17 (BI-PF-1309): entities, FKs, ownership, extensibility contract | — | — |
 | [`EDP-DATA-PLANE-THREAT-MODEL.md`](EDP-DATA-PLANE-THREAT-MODEL.md) | SSOT | 100% | Generated data-plane threat model + register matrix: 6 categories -> source/sink/control/owner/evidence (BI-PF-1296 / EDP-04) | — | — |
 | [`EDP-EXECUTION-ORDER.md`](EDP-EXECUTION-ORDER.md) | SSOT | 100% | Authoritative wave-by-wave EDP execution order + dependencies (schema-first); mirrors the backlog epic BI-PF-1292 (BI-PF-1388) | — | — |
+| [`EDP-STORAGE-ADAPTERS.md`](EDP-STORAGE-ADAPTERS.md) | SSOT | 100% | EDP ports & adapters: every store is a port with swappable adapters (Postgres/S3/local/NFS/...); conformance-tested (BI-PF-1309/1305) | — | — |
 | [`ENG-0-ENGINEERING-ARCHITECTURE.md`](ENG-0-ENGINEERING-ARCHITECTURE.md) | Design | 100% | ENG-0 engineering architecture: requirement->deploy flow mapped to canonical owners + APIs | — | — |
 | [`ENG-1-TASK-CONTRACT.md`](ENG-1-TASK-CONTRACT.md) | Design | 100% | ENG-1 engineering task contract: executable unit of work (model + store + API + schema gate) | — | — |
 | [`ENG-10-RELEASE.md`](ENG-10-RELEASE.md) | Design | 100% | ENG-10 release: artifact qualification (build/regression/security/NFR/packaging/SBOM/deploy) + fail-closed release gate | — | — |

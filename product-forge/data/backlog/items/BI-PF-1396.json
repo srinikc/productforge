@@ -34,23 +34,34 @@
     "who_feels": "Product Forge maintainers and consumers.",
     "source": "extracted"
   },
-  "objective": "Backlog API: doc-driven context ingest - POST /backlog/epics/{id}/context:from-doc (project a plan .md onto an epic + children; dry-run default)",
+  "objective": "Tooling CLI to ingest a plan/design document (.md/.txt/.doc/.docx/.pdf/.rtf) and project its sections onto an epic + children, updating any writable field (context, editable, dependencies) via the backlog API.",
   "acceptance_criteria": [
-    "Objective achieved: Backlog API: doc-driven context ingest - POST /backlog/epics/{id}/context:from-doc (project a plan .md onto an epic + children; dry-run default)"
+    "dry-run lists per-item changed fields, writes nothing",
+    "--apply writes only doc-supplied fields; revision bumps",
+    "re-applying same doc is idempotent",
+    "unknown ids reported unless --create",
+    "writes via API; unit test covers parser+mapping+diff"
   ],
   "in_scope": [
-    "Backlog API: doc-driven context ingest - POST /backlog/epics/{id}/context:from-doc (project a plan .md onto an epic + children; dry-run default)"
+    "all formats via core.intake_files.extract",
+    "context+editable+structured fields",
+    "upsert: fill-missing / --overwrite / --create-as-epic-child",
+    "dry-run default; --apply writes via API"
   ],
   "out_of_scope": [
-    "Not specified."
+    "HTTP endpoint in api/ (would need Go + bridge)",
+    "OCR for images/audio/video",
+    "robust legacy .doc (best-effort only)"
   ],
   "affected_components": [
     "api"
   ],
   "affected_files": [
-    "api/routers/backlog.py"
+    "scripts/dev/backlog_ingest_doc.py",
+    "test-framework/tests/test_backlog_ingest_doc.py",
+    "docs/BACKLOG-DOC-INGEST.md"
   ],
-  "approach": "Backlog API: doc-driven context ingest - POST /backlog/epics/{id}/context:from-doc (project a plan .md onto an epic + children; dry-run default)",
+  "approach": "scripts/dev/backlog_ingest_doc.py (tooling Python) reuses core.intake_files.extract for text; parses '## <BI-PF-id>' sections + 'field: value'/bullets; routes fields to POST /items/{id}/context, PATCH /items/{id}, POST /items/{id}/dependencies; upsert (fill-missing default, --overwrite, --create). API-only single writer; dry-run default.",
   "review": {
     "reconciliation": {
       "prior_decisions": [],
@@ -176,7 +187,7 @@
     "usage": {}
   },
   "created_at": "2026-10-15T08:07:23.099752",
-  "updated_at": "2026-10-15T08:08:35.797490",
+  "updated_at": "2026-10-15T08:37:16.354593",
   "score": 0.75,
   "_note": "readiness computed"
 }

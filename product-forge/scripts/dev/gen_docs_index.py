@@ -65,6 +65,7 @@ TOP = {
     "EDP-EXECUTION-ORDER.md": ("SSOT", "Authoritative wave-by-wave EDP execution order + dependencies (schema-first); mirrors the backlog epic BI-PF-1292 (BI-PF-1388)", 100),
     "EDP-17-SCHEMA.md": ("Design", "Canonical schema domain + relationship model for EDP-17 (BI-PF-1309): entities, FKs, ownership, extensibility contract", 100),
     "EDP-STORAGE-ADAPTERS.md": ("SSOT", "EDP ports & adapters: every store is a port with swappable adapters (Postgres/S3/local/NFS/...); conformance-tested (BI-PF-1309/1305)", 100),
+    "BACKLOG-DOC-INGEST.md": ("Tooling", "Doc-driven backlog ingest: project a plan/.md/.pdf doc onto an epic + children via the API (dry-run default) (BI-PF-1396)", 100),
     "SECURITY-ARCHITECTURE-CISO.md": ("SSOT", "CISO security-architecture posture: trust boundaries, controls, risk, framework mapping (BI-PF-1203)", 100),
     "AUDIT-REGISTER-TRIAGE.md": ("Analysis (current)", "Audit PF/candidate disposition: fixed / tracked / new (BI-PF-0254)", 100),
     "CAPABILITY-STEERING-DESIGN.md": ("Design", "Capability steering design + plan (BI-0221..BI-0230)", 20),
