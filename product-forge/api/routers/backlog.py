@@ -139,16 +139,29 @@ def add_item(body: dict[str, Any], request: Request, ctx: dict[str, Any] = Depen
     title = str(body.get("title") or "").strip()
     if not title:
         raise ApiError("VALIDATION_FAILED", "title required")
+    typ = str(body.get("type") or "feature")
+    ac = body.get("acceptance_criteria") or []
+    if isinstance(ac, str):
+        ac = [ac]
+    ac = [str(x).strip() for x in ac if str(x).strip()]
+    if typ != "epic":
+        # BI-PF-1410: detailed Acceptance Criteria are the DoD - creation fails without them.
+        if not ac:
+            raise ApiError("VALIDATION_FAILED", "acceptance_criteria required (>=1 detailed criterion)")
+        if any(len(x) < 40 for x in ac):
+            raise ApiError("VALIDATION_FAILED", "each acceptance criterion must be >= 40 characters (detailed DoD)")
     external_id = str(body.get("external_id") or "")
     try:
         if external_id:
-            it = backlog.ensure_item(s, p, external_id, title, type_=str(body.get("type") or "feature"),
+            it = backlog.ensure_item(s, p, external_id, title, type_=typ,
                                      origin="api", tag=str(body.get("tag") or ""))
+            if ac and not (it.get("acceptance_criteria") or []):
+                it = backlog.update(s, p, str(it.get("id")), acceptance_criteria=ac) or it
         else:
             it = backlog.add_epic(s, p, title, body=str(body.get("body") or ""),
-                                  source="api", type_=str(body.get("type") or "feature"),
+                                  source="api", type_=typ,
                                   origin="api", tag=str(body.get("tag") or ""),
-                                  epic=str(body.get("epic") or ""))
+                                  epic=str(body.get("epic") or ""), acceptance_criteria=ac or None)
     except (RuntimeError, TimeoutError) as e:
         # BI-PF-1387: id allocation can be unavailable -> 503 (not a 500), never hang.
         raise ApiError("DEPENDENCY_UNAVAILABLE", f"id allocation unavailable: {e}") from None

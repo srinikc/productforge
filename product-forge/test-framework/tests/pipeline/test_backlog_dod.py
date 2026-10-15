@@ -1,0 +1,35 @@
+"""BI-PF-1410: DoD gate - detailed Acceptance Criteria required (write-time + baseline logic)."""
+import os
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[3]
+sys.path.insert(0, str(ROOT))
+os.environ.setdefault("API_ALLOW_ANON", "1")
+
+from fastapi.testclient import TestClient  # noqa: E402
+
+from api.app import app  # noqa: E402
+from scripts.dev import backlog_dod_check as d  # noqa: E402
+
+
+def _op() -> dict:
+    tok = (ROOT / "data" / "local" / "dev-api-token").read_text(encoding="utf-8").strip()
+    return {"Authorization": f"Bearer {tok}", "X-Roles": "operator"}
+
+
+def test_min_ac_is_detailed():
+    assert d.MIN_AC >= 40
+
+
+def test_create_without_ac_rejected():
+    r = TestClient(app).post("/api/v1/backlog/items",
+                             json={"title": "dod test - no ac", "type": "task"}, headers=_op())
+    assert r.status_code == 400
+
+
+def test_create_with_short_ac_rejected():
+    r = TestClient(app).post("/api/v1/backlog/items",
+                             json={"title": "dod test - short ac", "type": "task",
+                                   "acceptance_criteria": ["too short"]}, headers=_op())
+    assert r.status_code == 400
