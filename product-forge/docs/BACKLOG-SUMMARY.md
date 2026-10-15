@@ -1,16 +1,16 @@
 # Backlog Summary
 
-> GENERATED 2026-10-15T07:41:38 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-15T08:51:14 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 123  |  **Closed:** 533
+- **Open:** 127  |  **Closed:** 533
 - `blocked`: 1
 - `executing`: 3
-- `new`: 119
+- `new`: 123
 
-### new, by category (119)
+### new, by category (123)
 **API / reports / HIL / misc** (15)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
@@ -36,7 +36,7 @@
 | BI-PF-1332 | Should | bug | Develop red: test pollution committed into data/learnings.json breaks test_global_render_unchanged (scratch loop-learning marker 0270) | Restore develop green: purge test pollution from data/learnings.json + prevent test writes to the real learnin... |
 | BI-PF-1394 | Must | bug | EDP prerequisite: no PostgreSQL installed/provisioned or bootstrapped for PF's system of record | EDP prerequisite: no PostgreSQL installed/provisioned or bootstrapped for PF's system of record |
 
-**Discovery / HIL / prompts** (7)
+**Discovery / HIL / prompts** (9)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0218 | Should | feature | Backend: AI-era operations layer (evals + prompt/model/agent versioning + feedback loop + model-quality observability) | Add the AI-era lifecycle layer so the Product tab can show AI quality + the loop that keeps it good. |
@@ -46,16 +46,19 @@
 | BI-PF-1236 | Should | change | Worker ops: worker charter (binding guidelines) + runtime prompt fix (no agent merge) + model pin | - workergrid/instructions.md: full worker charter (14 binding guidelines; manual-by-default, auto mode). - wor... |
 | BI-PF-1242 | Should | feature | In-session manual/auto worker mode + /wg watch monitoring + 14-guidelines approval gates | - In-session manual worker mode (/wg work manual, default): 1. Claims assignment atomically from PF via /assig... |
 | BI-PF-1302 | Must | feature | EDP-10: Timeouts, pool budgets, payload/upload limits, per-tenant & global quotas, structured errors; production profile rejects dev/anon auth | Implement enforceable timeouts, pool budgets, payload/upload limits, per-tenant and global quotas, structured ... |
+| BI-PF-1397 | Should | bug | Dependency gap: pypdf and python-docx used by core/intake_files.py are undeclared in pyproject.toml and uncatalogued in config/tool-catalog.json | Dependency gap: pypdf and python-docx used by core/intake_files.py are undeclared in pyproject.toml and uncata... |
+| BI-PF-1398 | Must | bug | Dependency gap: pypdf and python-docx used by core/intake_files.py are undeclared in pyproject.toml and uncatalogued in config/tool-catalog.json | Dependency gap: pypdf and python-docx used by core/intake_files.py are undeclared in pyproject.toml and uncata... |
 
 **Dynamic pipeline / agents** (1)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-PF-1390 | Should | task | Contract-driven agent prompts: deprecate the hardcoded templates (design 3.1-3.10, architect 6.1-6.21) + remove .opencode refs | Prompts state 'minimum sufficient' + the section plan/ids come from the contract; only relevant/required secti... |
 
-**Knowledge / KB** (1)
+**Knowledge / KB** (2)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0208 | Must | feature | Backend: sensor/IoT capability pack + ingest adapters (MQTT/serial/BLE/Modbus/CAN) + time-series/anomaly models | A `sensor` capability pack that, only when the idea needs it, enables device ingest, a time-series store, fore... |
+| BI-PF-1396 | Should | feature | Backlog API: doc-driven context ingest - POST /backlog/epics/{id}/context:from-doc (project a plan .md onto an epic + children; dry-run default) | Tooling CLI to ingest a plan/design document (.md/.txt/.doc/.docx/.pdf/.rtf) and project its sections onto an ... |
 
 **Licensing / tenancy** (7)
 | ID | MoSCoW | Type | Title | Objective |
@@ -83,7 +86,7 @@
 | BI-PF-1385 | Must | bug | Backlog API: no deterministic endpoint to author item context fields (objective/acceptance_criteria/affected_files/approach) | Backlog API: no deterministic endpoint to author item context fields (objective/acceptance_criteria/affected_f... |
 | BI-PF-1392 | Should | task | Enforce per-feature FR/US caps + max_lines in the Go artifact engine (scaled by the profile) and reconcile the three section sources | Per-feature FR/US caps + max_lines enforced NUMERICALLY (scaled by profile); sections have ONE source. |
 
-**Wiring / tech-debt / API** (75)
+**Wiring / tech-debt / API** (76)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0185 | Should | feature | EPIC: Multi-modal / media orchestration (pluggable capability packs) | Make the pipeline modality-agnostic via PLUGGABLE capability packs, enabled per project when the idea needs th... |
@@ -161,6 +164,7 @@
 | BI-PF-1389 | Should | task | Wire the artifact contract + project-size profile into generation (single source for the section plan) | The resolved contract (required vs optional sections per profile + counts + size) becomes the single source fo... |
 | BI-PF-1391 | Should | task | Project-size profile lever: small/medium/large selects required vs optional sections + counts bands + size budget | One lever scales depth: small -> required sections only, low counts, small budgets; medium -> recommended; lar... |
 | BI-PF-1393 | Should | task | Verify small/medium/large profiles on MyToDo (no over-scope) + close BI-PF-1333 | Prove a trivial run stays proportionate per profile and close BI-PF-1333. |
+| BI-PF-1395 | Should | feature | EDP: additional ObjectStore adapters (NFS/SMB, Google Drive, Azure Blob, GCS, ...) behind the ObjectStore port | EDP: additional ObjectStore adapters (NFS/SMB, Google Drive, Azure Blob, GCS, ...) behind the ObjectStore port |
 
 ---
 
@@ -360,5 +364,5 @@
 ---
 
 ## Totals
-- backend: 123 open / 533 closed
+- backend: 127 open / 533 closed
 - dashboard: 146 open / 3 closed
