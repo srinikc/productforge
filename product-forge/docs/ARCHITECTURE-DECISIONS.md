@@ -402,3 +402,38 @@ API surface**:
 - API surface passes `api_contract`/governance gates; authz/tenant-isolation negative tests exist.
 - New logic appears in `go/`; Python routes contain no business logic (language-rule green).
 
+# ADR-0008: Service topology — Go-backed capabilities are exposed by Go services
+
+## Context and Problem Statement
+ADR-0007 exposes capabilities as APIs, and the language rule (BI-PF-0387/0388) puts new logic in Go. Bridging Go
+logic through the Python API (subprocess/cgo) couples two languages in one request path. Each service should own
+its language, and services should integrate over network APIs.
+
+## Decision Drivers
+- No cross-language in-process/subprocess bridge; keep each service single-language.
+- A clear placement rule for where a Go-backed capability lives.
+- Uniform security across surfaces.
+
+## Decision Outcome
+1. **Go-backed capabilities are exposed by Go API service(s)** — never bridged through the Python API.
+2. **Placement criterion:** a capability that owns/operates a domain's data or infrastructure lives in that
+   domain's service; cross-cutting Go capabilities live in the **generic capability service**.
+   - **EDP data-plane service (Go):** the system of record and everything operating it — schema, tenants/
+     projects/runs/stages/attempts/artifacts/objects, object store, RLS (EDP-09), quotas (EDP-10), audit
+     (EDP-20), and **schema-migration admin**.
+   - **Generic capability service (Go):** cross-cutting Go capabilities (e.g., backlog **doc-ingest** projection),
+     which **call other services over HTTP** (e.g., the backlog API) to act.
+   - **Python control-plane API (`api/`):** existing Python-owned concerns (backlog, engineering, …).
+3. **Integration is over HTTP APIs only** — services consume each other's APIs; no language bridges.
+4. All surfaces apply the **same security model** (authn roles, authz/tenant scope, validation, quotas, audit).
+
+## Consequences
+- **Doc-ingest** (`context:from-doc`) → **generic capability service**; applies changes via the backlog HTTP API.
+- **Migrations admin** (`/admin/migrations/*`) → **EDP data-plane service**; reuses `go/migrate` + `go/store`.
+- New Go services must implement the shared security contract (authn/authz/tenant/audit).
+- No Python route carries Go-bridged logic.
+
+### Confirmation
+- Go-backed endpoints are served by Go services; no Python↔Go bridge exists on a request path.
+- Service-to-service calls are HTTP; the EDP/go capability services share the auth/tenant model.
+

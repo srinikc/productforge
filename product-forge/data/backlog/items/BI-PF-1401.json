@@ -1,0 +1,196 @@
+{
+  "id": "BI-PF-1401",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "api",
+  "external_id": "doc-ingest-api",
+  "label": "PF Backlog 600",
+  "title": "Expose doc-driven backlog ingest via a Go capability service (generic surface); tooling becomes a client",
+  "body": "",
+  "source": "generic",
+  "status": "new",
+  "priority": "P2",
+  "moscow": "Should",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [
+    "BI-PF-1396",
+    "BI-PF-1400",
+    "BI-PF-0372"
+  ],
+  "links": {},
+  "decisions": [
+    {
+      "at": "2026-10-15T12:45:49.818199",
+      "decision": "APPROVE",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)"
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "what_adds": "A generic Go capability service exposing context:from-doc that applies via the backlog HTTP API",
+    "problem": "Doc-driven backlog ingest is tooling-only, so internal/external actors cannot consume it",
+    "source": "authored"
+  },
+  "objective": "Expose doc-driven backlog ingest via a Go capability service (generic surface); tooling becomes a client",
+  "acceptance_criteria": [
+    "Objective achieved: Expose doc-driven backlog ingest via a Go capability service (generic surface); tooling becomes a client"
+  ],
+  "in_scope": [
+    "Expose doc-driven backlog ingest via a Go capability service (generic surface); tooling becomes a client"
+  ],
+  "out_of_scope": [
+    "Not specified."
+  ],
+  "affected_components": [
+    "Not specified."
+  ],
+  "affected_files": [
+    "Not specified."
+  ],
+  "approach": "Expose doc-driven backlog ingest via a Go capability service (generic surface); tooling becomes a client",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Objective achieved: Expose doc-driven backlog ingest via a Go capability service (generic surface); tooling becomes a client"
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "unassigned",
+  "requester": "generic",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1252",
+  "parent": "BI-PF-1252",
+  "revision": 3,
+  "priority_rank": 40,
+  "priority_class": "P2",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "COMPLETE",
+    "analyzed_at": "2026-10-15T12:45:49.619346",
+    "analyzed_by": "system",
+    "revision_analyzed": 3,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend the existing Go core/backlog and product_ingestion modules with a new HTTP route POST /api/v1/backlog/epics/{epic_id}/context:from-doc delegating to the shared ingest function; the doc-parsing tooling is refactored into a thin client of this capability service.",
+    "existing_components": [],
+    "existing_apis": [],
+    "existing_modules": [],
+    "dependency_findings": [
+      "REQUIRES BI-PF-1396 endpoint contract finalized",
+      "RELATED BI-PF-1400 (API-first standard)",
+      "RELATED BI-PF-0372 worker/scheduler surface"
+    ],
+    "conflict_findings": [
+      "Possible concurrent edits to core/backlog.py with BI-PF-1396",
+      "capability_bridge.py touched by BI-PF-1400 work"
+    ],
+    "duplication_findings": [
+      "BI-PF-1396 defines the same endpoint — scope this item as the service+tooling split while 1396 covers endpoint acceptance",
+      "core/product_ingestion.py already performs plan-.md projection — reuse, do not reimplement"
+    ],
+    "drift": "LOW",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "The capability already exists in-process; the gap is exposing it via an HTTP surface and making doc tooling call it instead of inlining logic — a pure EXTEND of existing Go modules.",
+    "assumptions": [
+      "Existing /api/v1/backlog routes provide the auth+error envelope to reuse",
+      "Tooling currently invokes ingest logic in-process",
+      "Dry-run defaults apply on the service side"
+    ],
+    "risks": [
+      "Endpoint contract drift between service and tooling client",
+      "Dry-run default semantics could be bypassed by client",
+      "Auth model for internal consumers not yet defined"
+    ],
+    "evidence": [
+      "Candidate list includes core/backlog.py and existing /api/v1/backlog endpoints",
+      "BI-PF-1396 backlog item explicitly specifies the endpoint",
+      "Existing groom/dry-run patterns already present in route set"
+    ],
+    "confidence": "medium",
+    "missing_info": [
+      "Which specific tooling binary/script is the client",
+      "Auth requirements for internal vs external callers",
+      "Whether dry-run should be a query param or body flag"
+    ],
+    "depth": "deep",
+    "mode": "ai",
+    "context_review": {
+      "ok": null,
+      "source": "llm-unparseable",
+      "implementable": null,
+      "missing": [],
+      "reason": "reviewer returned no JSON"
+    },
+    "decision_request": {
+      "needed": false,
+      "reasons": [],
+      "ask": ""
+    },
+    "arch_fingerprint": "182589f7faa97ca9"
+  },
+  "dependencies": [
+    {
+      "task_id": "BI-PF-1396",
+      "type": "REQUIRES",
+      "required_state": "endpoint contract accepted"
+    },
+    {
+      "task_id": "BI-PF-1400",
+      "type": "RELATED",
+      "required_state": "API standard assessed"
+    },
+    {
+      "task_id": "BI-PF-0372",
+      "type": "RELATED",
+      "required_state": "none"
+    }
+  ],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-15T12:45:49.706739"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-15T12:45:09.667590",
+  "updated_at": "2026-10-15T13:01:01.053909",
+  "score": 0.75,
+  "_note": "readiness computed"
+}
