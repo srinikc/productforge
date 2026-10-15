@@ -1,11 +1,14 @@
 package store
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
+
+	"productforge/datastore"
 )
 
 var (
@@ -43,6 +46,39 @@ func ExpectedFromDir(dir string) (ExpectedSchema, error) {
 		}
 	}
 	return ExpectedSchema{Tables: sortedKeys(tables), Indexes: sortedKeys(indexes)}, nil
+}
+
+// LiveSchema returns the tables and indexes present in the current schema.
+func LiveSchema(ctx context.Context, st *PgStore) (tables, indexes []string, err error) {
+	tables, err = listNames(ctx, st, "SELECT table_name FROM information_schema.tables WHERE table_schema = current_schema()")
+	if err != nil {
+		return nil, nil, err
+	}
+	indexes, err = listNames(ctx, st, "SELECT indexname FROM pg_indexes WHERE schemaname = current_schema()")
+	if err != nil {
+		return nil, nil, err
+	}
+	return tables, indexes, nil
+}
+
+func listNames(ctx context.Context, st *PgStore, sql string) ([]string, error) {
+	var out []string
+	err := st.WithTx(ctx, func(tx datastore.Tx) error {
+		rows, err := tx.Query(ctx, sql)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var name string
+			if err := rows.Scan(&name); err != nil {
+				return err
+			}
+			out = append(out, name)
+		}
+		return rows.Err()
+	})
+	return out, err
 }
 
 // Missing returns the expected names not present in live (case-insensitive).
