@@ -1,0 +1,211 @@
+{
+  "id": "BI-PF-1406",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "api",
+  "external_id": "api-first-retrofit",
+  "label": "PF Backlog 605",
+  "title": "API-first retrofit: add api-impact write endpoint + record api_impact decisions across open items + build missing API surfaces",
+  "body": "",
+  "source": "generic",
+  "status": "new",
+  "priority": "P1",
+  "moscow": "Must",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [
+    "BI-PF-1171",
+    "BI-PF-1219",
+    "BI-PF-0434"
+  ],
+  "links": {},
+  "decisions": [
+    {
+      "at": "2026-10-15T19:33:00.930665",
+      "decision": "APPROVE",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)"
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "what_adds": "A POST /backlog/items/{id}/api-impact write endpoint + a retrofit pass to record decisions and build the missing surfaces",
+    "problem": "Recording an api_impact decision was not API-only and pending API surfaces were never built",
+    "source": "authored"
+  },
+  "objective": "API-first retrofit: add api-impact write endpoint + record api_impact decisions across open items + build missing API surfaces",
+  "acceptance_criteria": [
+    "Objective achieved: API-first retrofit: add api-impact write endpoint + record api_impact decisions across open items + build missing API surfaces"
+  ],
+  "in_scope": [
+    "API-first retrofit: add api-impact write endpoint + record api_impact decisions across open items + build missing API surfaces"
+  ],
+  "out_of_scope": [
+    "Not specified."
+  ],
+  "affected_components": [
+    "Not specified."
+  ],
+  "affected_files": [
+    "Not specified."
+  ],
+  "approach": "API-first retrofit: add api-impact write endpoint + record api_impact decisions across open items + build missing API surfaces",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Objective achieved: API-first retrofit: add api-impact write endpoint + record api_impact decisions across open items + build missing API surfaces"
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "unassigned",
+  "requester": "generic",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1252",
+  "parent": "BI-PF-1252",
+  "revision": 3,
+  "priority_rank": 40,
+  "priority_class": "P1",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "COMPLETE",
+    "analyzed_at": "2026-10-15T19:33:00.738371",
+    "analyzed_by": "system",
+    "revision_analyzed": 3,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend core/build_manager.py + write_safety.py to persist an api_impact decision (needs_api, routes, consumers, reason) on backlog items; add PUT /api/v1/backlog/items/{id}/api-impact endpoint alongside existing /analysis and /context-review; apply bulk decisions to open items; fill missing API surfaces per config/api-first-baseline.json gaps.",
+    "existing_components": [],
+    "existing_apis": [],
+    "existing_modules": [],
+    "dependency_findings": [
+      "REQUIRES: api_impact decision schema/model defined (BI-PF-1171)",
+      "REQUIRES: write_safety.py guardrails for decision writes",
+      "RELATED: BI-PF-1219 advisory validator pattern"
+    ],
+    "conflict_findings": [
+      "BI-PF-1171 touches same backlog item model - sequence after schema lands",
+      "BI-PF-1219 adds parallel impact column - coordinate migration order",
+      "config/api-first-baseline.json edits may collide with other API-first items"
+    ],
+    "duplication_findings": [
+      "BI-PF-1171 (E9) defines the api-impact decision model - consolidate, don't rebuild",
+      "BI-PF-1219 (C17) mirrors the pattern for security_impact - reuse its validator shape",
+      "Existing /analysis and /context-review endpoints provide the decision-write pattern to copy"
+    ],
+    "drift": "LOW",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "Retrofit is mostly EXTEND: add one endpoint mirroring existing decision writes, persist api_impact on the item model, and close baseline API gaps. No new component fits better than the existing build_manager/write_safety path.",
+    "assumptions": [
+      "api_impact decision schema from BI-PF-1171 is final or near-final",
+      "api-first-baseline.json accurately lists required API surfaces",
+      "Existing /analysis endpoint pattern is the accepted decision-write style"
+    ],
+    "risks": [
+      "Schema migration conflict with BI-PF-1219's security_impact column",
+      "Bulk backfill of open items could produce misleading defaults",
+      "Missing API surfaces scope could balloon beyond baseline gaps"
+    ],
+    "evidence": [
+      "components list shows build_manager/write_safety as write paths",
+      "Existing per-item decision endpoints (/analysis, /context-review) exist",
+      "config/api-first-baseline.json already tracked as module"
+    ],
+    "confidence": "medium",
+    "missing_info": [
+      "Canonical api_impact field names and types (pending BI-PF-1171)",
+      "Which missing API surfaces are in-scope vs deferred",
+      "Backfill policy for already-open items: default vs mandatory human decision",
+      "Owner assignment for migration sequencing"
+    ],
+    "depth": "deep",
+    "mode": "ai",
+    "context_review": {
+      "ok": false,
+      "source": "llm",
+      "implementable": false,
+      "missing": [
+        "what",
+        "why",
+        "how",
+        "where"
+      ],
+      "reason": "Every field just repeats the title verbatim; no concrete endpoint spec, approach, files, or components defined."
+    },
+    "decision_request": {
+      "needed": false,
+      "reasons": [],
+      "ask": ""
+    },
+    "arch_fingerprint": "1c99aaf6db006a51"
+  },
+  "dependencies": [
+    {
+      "task_id": "BI-PF-1171",
+      "type": "REQUIRES",
+      "required_state": "api_impact schema/model defined"
+    },
+    {
+      "task_id": "BI-PF-1219",
+      "type": "RELATED",
+      "required_state": "impact-column write pattern established"
+    },
+    {
+      "task_id": "BI-PF-0434",
+      "type": "RELATED",
+      "required_state": "n/a"
+    }
+  ],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-15T19:33:00.823392"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-15T19:32:12.253055",
+  "updated_at": "2026-10-15T19:42:12.346833",
+  "score": 0.75,
+  "_note": "readiness computed",
+  "api_impact": {
+    "needs_api": true,
+    "reason": "retrofit: recording the API-first decision is API-only",
+    "routes": [
+      "POST /backlog/items/{id}/api-impact"
+    ]
+  }
+}

@@ -557,6 +557,36 @@ def parked(request: Request, days: int = 0, ctx: dict[str, Any] = Depends(authen
     return from_request(request, backlog.parked_review(days=int(days or 0)), resource="backlog")
 
 
+@router.post("/items/{item_id}/api-impact", dependencies=[Depends(require_operator)])
+def set_item_api_impact(item_id: str, body: dict[str, Any], request: Request,
+                        ctx: dict[str, Any] = Depends(require_operator)):
+    """Record the API-first decision for an item (BI-PF-1066 E9; ADR-0007) via ``core.backlog.update``.
+
+    Body: ``{scope, project, needs_api, reason, routes, expected_revision}``. Writes ``item.api_impact``
+    (mandatory decision; routes required only when ``needs_api`` is true). Thin wrapper over the single writer.
+    """
+    from core import backlog
+    s, p = _scope_project(request, str(body.get("scope") or "product_forge"), str(body.get("project") or ""))
+    _guard_revision(backlog, s, p, item_id, body.get("expected_revision"))
+    if "needs_api" not in body:
+        raise ApiError("VALIDATION_FAILED", "needs_api (bool) is required")
+    needs_api = bool(body.get("needs_api"))
+    reason = str(body.get("reason") or "").strip()
+    if not reason:
+        raise ApiError("VALIDATION_FAILED", "reason is required (why the API is or is not needed)")
+    routes = list(body.get("routes") or [])
+    if needs_api and not routes:
+        raise ApiError("VALIDATION_FAILED", "routes are required when needs_api is true")
+    try:
+        res = backlog.update(s, p, item_id,
+                             api_impact={"needs_api": needs_api, "reason": reason, "routes": routes})
+    except ValueError as e:
+        raise ApiError("VALIDATION_FAILED", str(e)) from None
+    if res is None:
+        raise ApiError("NOT_FOUND", "backlog item not found")
+    return from_request(request, res, resource="backlog", resource_id=item_id)
+
+
 _EDITABLE_FIELDS = ("title", "body", "type", "label", "tag", "summary", "origin",
                     "value", "effort", "risk", "moscow")
 
