@@ -127,6 +127,53 @@ func (r *pgProjectRepo) Create(ctx context.Context, p Project) (Project, error) 
 	return p, nil
 }
 
+func (r *pgProjectRepo) Get(ctx context.Context, id string) (Project, error) {
+	var p Project
+	var found bool
+	err := r.db.WithTx(ctx, func(tx datastore.Tx) error {
+		rows, err := tx.Query(ctx,
+			`SELECT id, tenant_id, slug, name, status, version FROM projects WHERE id = $1`, id)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		if rows.Next() {
+			if err := rows.Scan(&p.ID, &p.TenantID, &p.Slug, &p.Name, &p.Status, &p.Version); err != nil {
+				return err
+			}
+			found = true
+		}
+		return rows.Err()
+	})
+	if err != nil {
+		return Project{}, err
+	}
+	if !found {
+		return Project{}, ErrNotFound
+	}
+	return p, nil
+}
+
+func (r *pgProjectRepo) Update(ctx context.Context, id string, expected int64, name, status string) (Project, error) {
+	newVersion := expected + 1
+	var affected int64
+	err := r.db.WithTx(ctx, func(tx datastore.Tx) error {
+		n, err := tx.Exec(ctx,
+			`UPDATE projects SET name = $1, status = $2, version = $3, updated_at = now()
+			 WHERE id = $4 AND version = $5`,
+			name, status, newVersion, id, expected)
+		affected = n
+		return err
+	})
+	if err != nil {
+		return Project{}, err
+	}
+	if affected == 0 {
+		return Project{}, ErrVersionConflict
+	}
+	return r.Get(ctx, id)
+}
+
 func (r *pgProjectRepo) ListByTenant(ctx context.Context, tenantID string) ([]Project, error) {
 	var out []Project
 	err := r.db.WithTx(ctx, func(tx datastore.Tx) error {

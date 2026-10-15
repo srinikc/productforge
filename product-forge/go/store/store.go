@@ -53,6 +53,9 @@ type TenantRepository interface {
 // ProjectRepository is the port for project persistence.
 type ProjectRepository interface {
 	Create(ctx context.Context, p Project) (Project, error)
+	Get(ctx context.Context, id string) (Project, error)
+	// Update applies a change under optimistic concurrency (expected version); stale -> ErrVersionConflict.
+	Update(ctx context.Context, id string, expected int64, name, status string) (Project, error)
 	ListByTenant(ctx context.Context, tenantID string) ([]Project, error)
 }
 
