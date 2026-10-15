@@ -161,6 +161,7 @@ _GATES = [
     # BI-PF-1374: the cheap backlog invariants ALWAYS run (a code change can mutate the backlog) - not area-gated.
     ("backlog-context", ["scripts/dev/backlog_context_check.py"], "fast", None),
     ("backlog-dod", ["scripts/dev/backlog_dod_check.py"], "fast", None),
+    ("store-registry", ["scripts/dev/store_registry_check.py"], "fast", None),
     ("backlog-ids", ["scripts/dev/backlog_id_audit.py"], "fast", None),
     ("backlog-epic", ["scripts/dev/backlog_epic_audit.py"], "fast", None),
     ("backlog-monotonic", ["scripts/dev/backlog_monotonic_check.py"], "fast", None),
