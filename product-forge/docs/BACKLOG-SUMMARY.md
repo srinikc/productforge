@@ -1,16 +1,16 @@
 # Backlog Summary
 
-> GENERATED 2026-10-15T21:20:46 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-15T21:32:02 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 132  |  **Closed:** 538
+- **Open:** 133  |  **Closed:** 538
 - `blocked`: 1
 - `executing`: 3
-- `new`: 128
+- `new`: 129
 
-### new, by category (128)
+### new, by category (129)
 **API / reports / HIL / misc** (16)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
@@ -91,7 +91,7 @@
 | BI-PF-1385 | Must | bug | Backlog API: no deterministic endpoint to author item context fields (objective/acceptance_criteria/affected_files/approach) | Backlog API: no deterministic endpoint to author item context fields (objective/acceptance_criteria/affected_f... |
 | BI-PF-1392 | Should | task | Enforce per-feature FR/US caps + max_lines in the Go artifact engine (scaled by the profile) and reconcile the three section sources | Per-feature FR/US caps + max_lines enforced NUMERICALLY (scaled by profile); sections have ONE source. |
 
-**Wiring / tech-debt / API** (76)
+**Wiring / tech-debt / API** (77)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0185 | Should | feature | EPIC: Multi-modal / media orchestration (pluggable capability packs) | Make the pipeline modality-agnostic via PLUGGABLE capability packs, enabled per project when the idea needs th... |
@@ -170,6 +170,7 @@
 | BI-PF-1395 | Should | feature | EDP: additional ObjectStore adapters (NFS/SMB, Google Drive, Azure Blob, GCS, ...) behind the ObjectStore port | EDP: additional ObjectStore adapters (NFS/SMB, Google Drive, Azure Blob, GCS, ...) behind the ObjectStore port |
 | BI-PF-1399 | Must | feature | EDP: move the canonical backlog system-of-record to PostgreSQL (JSON backlog files become derived/server state) | EDP: move the canonical backlog system-of-record to PostgreSQL (JSON backlog files become derived/server state... |
 | BI-PF-1410 | Must | feature | Hard DoD gate: every item needs detailed Acceptance Criteria + independent verification (verifier != implementer) before close/merge | Hard DoD gate: every item needs detailed Acceptance Criteria + independent verification (verifier != implement... |
+| BI-PF-1411 | Must | defect | RCCA: language-rule gate area-gated to config/language-rule.json, so it is SKIPPED in precheck fast on code changes (would miss Go-first violations) | RCCA: language-rule gate area-gated to config/language-rule.json, so it is SKIPPED in precheck fast on code ch... |
 
 ---
 
@@ -369,5 +370,5 @@
 ---
 
 ## Totals
-- backend: 132 open / 538 closed
+- backend: 133 open / 538 closed
 - dashboard: 146 open / 3 closed
