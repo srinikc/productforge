@@ -133,6 +133,11 @@ Before implementing **any** new design, flow, review recommendation, or external
    The table **MUST** include an **`API CHECK`** row (mirroring the language-rule row): `needs_api` (true/false) +
    the API **surface** (method/path) + **security** (authn/authz/tenant/validation), **or** a justified
    `no API need`. Enforced per item by `scripts/dev/api_first_check.py`; per change by `api-contract`/`api-governance`.
+   The table **MUST** also include an **`AC`** row holding the **detailed Acceptance Criteria** (each >= 40 chars) —
+   the Definition of Done. **Gate 1** presents these AC; **Gate 2** (delivery) shows, **per AC**, the
+   **verification result + evidence** (pass/fail and who/what verified it **outside** the implementation).
+   Creation without detailed AC is rejected (`POST /backlog/items` -> 400) and the fast gate
+   `scripts/dev/backlog_dod_check.py` enforces it (BI-PF-1410).
 4. If **any** verdict is not `aligned`: **STOP** — highlight the conflict to the user and ask **yes/no** before
    writing code.
 5. After approval, **record the accepted work as backlog item(s) BEFORE coding** (`origin=review`,
