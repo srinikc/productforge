@@ -1,0 +1,198 @@
+{
+  "id": "BI-PF-1411",
+  "tag": "PF",
+  "type": "defect",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "api",
+  "external_id": "rcca-language-rule-area-gate",
+  "label": "PF Backlog 610",
+  "title": "RCCA: language-rule gate area-gated to config/language-rule.json, so it is SKIPPED in precheck fast on code changes (would miss Go-first violations)",
+  "body": "",
+  "source": "generic",
+  "status": "new",
+  "priority": "P1",
+  "moscow": "Must",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [
+    "BI-PF-1337"
+  ],
+  "links": {},
+  "decisions": [
+    {
+      "at": "2026-10-15T21:24:47.503620",
+      "decision": "APPROVE",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)"
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "what_adds": "Always-run language-rule in the fast tier so Go-first violations on code changes are caught",
+    "problem": "language-rule was area-gated to config/language-rule.json and skipped in fast on code changes",
+    "source": "authored"
+  },
+  "objective": "RCCA: language-rule gate area-gated to config/language-rule.json, so it is SKIPPED in precheck fast on code changes (would miss Go-first violations)",
+  "acceptance_criteria": [
+    "Objective achieved: RCCA: language-rule gate area-gated to config/language-rule.json, so it is SKIPPED in precheck fast on code changes (would miss Go-first violations)"
+  ],
+  "in_scope": [
+    "RCCA: language-rule gate area-gated to config/language-rule.json, so it is SKIPPED in precheck fast on code changes (would miss Go-first violations)"
+  ],
+  "out_of_scope": [
+    "Not specified."
+  ],
+  "affected_components": [
+    "Not specified."
+  ],
+  "affected_files": [
+    "Not specified."
+  ],
+  "approach": "RCCA: language-rule gate area-gated to config/language-rule.json, so it is SKIPPED in precheck fast on code changes (would miss Go-first violations)",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Objective achieved: RCCA: language-rule gate area-gated to config/language-rule.json, so it is SKIPPED in precheck fast on code changes (would miss Go-first violations)"
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "unassigned",
+  "requester": "generic",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1252",
+  "parent": "BI-PF-1252",
+  "revision": 3,
+  "priority_rank": 20,
+  "priority_class": "P1",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "COMPLETE",
+    "analyzed_at": "2026-10-15T21:24:47.283723",
+    "analyzed_by": "system",
+    "revision_analyzed": 3,
+    "architecture_fit": "MODIFY",
+    "implementation_strategy": "Modify config/language-rule.json and config/ci-cd-gates.json to add code-file area triggers (e.g. **/*.go, **/*.py) alongside the existing config/language-rule.json trigger so the precheck fast path invokes the language gate on code changes. Extend core/pr_gate.py or core/run_quality_gate.py area-matching logic if the gate runner only supports a single config-file area. No new component.",
+    "existing_components": [],
+    "existing_apis": [],
+    "existing_modules": [],
+    "dependency_findings": [
+      {
+        "task_id": "BI-PF-1337",
+        "type": "RELATED",
+        "required_state": "open"
+      },
+      {
+        "task_id": "BI-PF-0412",
+        "type": "RELATED",
+        "required_state": "open"
+      }
+    ],
+    "conflict_findings": [
+      "BI-PF-1337 may touch the same language-rule config or gate runner; coordinate area-trigger changes to avoid clobbering"
+    ],
+    "duplication_findings": [
+      "BI-PF-1337 adds a language check to reconciliation/360 review — RELATED, but different surface (review vs precheck gate)",
+      "core/merge_gate.py and core/pr_gate.py already contain gate machinery — reuse, do not add parallel gate"
+    ],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "The language-rule gate is a governance control that is silently skipped when code changes do not touch its own config file. Broadening its area triggers to include code file patterns restores enforcement with a small config/logic change on existing gate infrastructure — reuse-first, no new component.",
+    "assumptions": [
+      "Gate runner supports or can trivially support multiple area patterns per gate",
+      "language-rule.json violations are detectable from file extension alone",
+      "Precheck fast path uses config/ci-cd-gates.json area definitions"
+    ],
+    "risks": [
+      "Over-broadening the trigger could slow every precheck (perf regression)",
+      "Area-matching syntax in gate runner may not support multi-pattern OR triggers — unknown until inspected",
+      "False positives on vendored/test Go or Python files"
+    ],
+    "evidence": [
+      "Item body states gate is area-gated to config/language-rule.json and skipped on code-only changes",
+      "Candidate components include core/pr_gate.py, core/run_quality_gate.py, config/language-rule.json, config/ci-cd-gates.json"
+    ],
+    "confidence": "medium",
+    "missing_info": [
+      "Exact area-matching semantics of the gate runner (single string vs list, glob support)",
+      "Whether fast-path gating lives in ci-cd-gates.json or in Python code",
+      "Desired scope of code-file triggers (all code, or only shipped/sensitive paths per BI-PF-1337)"
+    ],
+    "depth": "deep",
+    "mode": "ai",
+    "context_review": {
+      "ok": false,
+      "source": "llm",
+      "implementable": false,
+      "missing": [
+        "how",
+        "where",
+        "what"
+      ],
+      "reason": "Problem is stated (gate skipped on code changes) but no concrete fix approach, affected files/components are 'Not specified', and required behavior is only restated as the title."
+    },
+    "decision_request": {
+      "needed": false,
+      "reasons": [],
+      "ask": ""
+    },
+    "arch_fingerprint": "3a9a4ee177f5b562"
+  },
+  "dependencies": [
+    {
+      "task_id": "BI-PF-1337",
+      "type": "RELATED",
+      "required_state": "open"
+    }
+  ],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-15T21:24:47.375655"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-15T21:23:53.652010",
+  "updated_at": "2026-10-15T21:30:29.936910",
+  "score": 0.75,
+  "_note": "readiness computed",
+  "api_impact": {
+    "needs_api": false,
+    "reason": "CI gate wiring fix; no API surface",
+    "routes": []
+  }
+}

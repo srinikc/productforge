@@ -1,0 +1,210 @@
+{
+  "id": "BI-PF-1407",
+  "tag": "PF",
+  "type": "defect",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "api",
+  "external_id": "rcca-rls-superuser-bypass",
+  "label": "PF Backlog 606",
+  "title": "RCCA: EDP-09 tenant RLS ineffective - runtime connects as superuser pf_owner (bypasses RLS); need non-superuser runtime role + grants",
+  "body": "",
+  "source": "generic",
+  "status": "new",
+  "priority": "P1",
+  "moscow": "Must",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [
+    "BI-PF-1300",
+    "BI-PF-1301",
+    "BI-PF-1296"
+  ],
+  "links": {},
+  "decisions": [
+    {
+      "at": "2026-10-15T20:56:22.073187",
+      "decision": "APPROVE",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)"
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "what_adds": "A non-superuser runtime login role mapped to pf_runtime + grants, so RLS actually isolates tenants",
+    "problem": "RLS is bypassed because the runtime connects as the superuser pf_owner",
+    "source": "authored"
+  },
+  "objective": "RCCA: EDP-09 tenant RLS ineffective - runtime connects as superuser pf_owner (bypasses RLS); need non-superuser runtime role + grants",
+  "acceptance_criteria": [
+    "Objective achieved: RCCA: EDP-09 tenant RLS ineffective - runtime connects as superuser pf_owner (bypasses RLS); need non-superuser runtime role + grants"
+  ],
+  "in_scope": [
+    "RCCA: EDP-09 tenant RLS ineffective - runtime connects as superuser pf_owner (bypasses RLS); need non-superuser runtime role + grants"
+  ],
+  "out_of_scope": [
+    "Not specified."
+  ],
+  "affected_components": [
+    "Not specified."
+  ],
+  "affected_files": [
+    "Not specified."
+  ],
+  "approach": "RCCA: EDP-09 tenant RLS ineffective - runtime connects as superuser pf_owner (bypasses RLS); need non-superuser runtime role + grants",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Objective achieved: RCCA: EDP-09 tenant RLS ineffective - runtime connects as superuser pf_owner (bypasses RLS); need non-superuser runtime role + grants"
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "unassigned",
+  "requester": "generic",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1252",
+  "parent": "BI-PF-1252",
+  "revision": 3,
+  "priority_rank": 30,
+  "priority_class": "P1",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "COMPLETE",
+    "analyzed_at": "2026-10-15T20:56:21.872771",
+    "analyzed_by": "system",
+    "revision_analyzed": 3,
+    "architecture_fit": "MODIFY",
+    "implementation_strategy": "Modify DB connection layer (core/agent_runtime.py, core/runtime_freshness.py) to authenticate as non-superuser 'pf_runtime' instead of pf_owner; add a migration (via BI-PF-1300 framework) creating the runtime role with SELECT/INSERT/UPDATE/DELETE grants minus ownership; keep pf_owner for migrations only; add startup guard asserting session_user != table owner and RLS enabled on tenant-scoped tables.",
+    "existing_components": [],
+    "existing_apis": [],
+    "existing_modules": [],
+    "dependency_findings": [
+      "REQUIRES BI-PF-1300: migration framework + settled role names must exist before adding the runtime-role grant migration",
+      "RELATED BI-PF-1301: RLS policies must be present so the role switch yields real isolation",
+      "RELATED BI-PF-1296: cross-tenant IDOR threat model is the risk driver"
+    ],
+    "conflict_findings": [
+      "core/agent_runtime.py connection config may be concurrently touched by freshness work (BI-PF-1300/1301) — coordinate merge order",
+      "Grant migration ordering must not collide with BI-PF-1300 migration sequence numbers"
+    ],
+    "duplication_findings": [
+      "BI-PF-1300 already scopes owner/runtime/read/backup role separation + migration framework — this item is the concrete remediation of the runtime-role slice (verify not already delivered)",
+      "BI-PF-1301 defines the RLS policies this fix makes effective — no duplicate policy work here",
+      "No existing component implements connection-as-runtime-role; core/agent_runtime.py is the reuse target"
+    ],
+    "drift": "LOW",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "RLS is silently ineffective while the pool connects as the table owner — this is a security defect (cross-tenant exposure) and a small, targeted change reusing BI-PF-1300's migration framework and the existing connection layer.",
+    "assumptions": [
+      "Postgres is the backing store and supports SET ROLE / table ownership semantics",
+      "BI-PF-1300 role naming (pf_owner/pf_runtime) is settled or will be",
+      "RLS policies from BI-PF-1301 (USING + WITH CHECK) are already applied to tenant tables",
+      "Single-tenant dev environments can tolerate the runtime role via local seed script"
+    ],
+    "risks": [
+      "Over-privileging or under-privileging runtime role breaks reads/writes at runtime",
+      "Migration/backup paths still need pf_owner credentials in secrets store",
+      "Connection pooling may cache superuser sessions; restart/rebind required",
+      "RLS bypass detection may false-positive on legitimately owner-scoped migrations"
+    ],
+    "evidence": [
+      "Item states runtime connects as superuser pf_owner, bypassing RLS",
+      "Candidate component core/agent_runtime.py owns the connection pool",
+      "Enterprise tenant APIs (/api/v1/enterprise/tenants/*) depend on tenant isolation"
+    ],
+    "confidence": "medium",
+    "missing_info": [
+      "Confirmation that BI-PF-1300 migration framework is merged (required_state)",
+      "Canonical runtime role name and whether read-only/backup roles are in scope here or deferred",
+      "Which tables are tenant-scoped for grant enumeration",
+      "Whether verification runs against a managed Postgres with CREATEROLE privileges"
+    ],
+    "depth": "deep",
+    "mode": "ai",
+    "context_review": {
+      "ok": false,
+      "source": "llm",
+      "implementable": false,
+      "missing": [
+        "what",
+        "why",
+        "how",
+        "where"
+      ],
+      "reason": "All fields just echo the title; no concrete runtime role name, grant specifics, affected files/components, or testable acceptance criteria."
+    },
+    "decision_request": {
+      "needed": false,
+      "reasons": [],
+      "ask": ""
+    },
+    "arch_fingerprint": "1c99aaf6db006a51"
+  },
+  "dependencies": [
+    {
+      "task_id": "BI-PF-1300",
+      "type": "REQUIRES",
+      "required_state": "migration framework + role definitions merged"
+    },
+    {
+      "task_id": "BI-PF-1301",
+      "type": "RELATED",
+      "required_state": "RLS policies present on tenant tables"
+    },
+    {
+      "task_id": "BI-PF-1296",
+      "type": "RELATED",
+      "required_state": "threat model documented"
+    }
+  ],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-15T20:56:21.959206"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-15T20:55:20.910762",
+  "updated_at": "2026-10-15T21:18:03.887257",
+  "score": 0.75,
+  "_note": "readiness computed",
+  "api_impact": {
+    "needs_api": false,
+    "reason": "governance/infra/tooling change; no external API surface",
+    "routes": []
+  }
+}

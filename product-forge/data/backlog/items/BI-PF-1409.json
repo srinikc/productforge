@@ -1,0 +1,208 @@
+{
+  "id": "BI-PF-1409",
+  "tag": "PF",
+  "type": "defect",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "api",
+  "external_id": "rcca-partial-delivery",
+  "label": "PF Backlog 608",
+  "title": "RCCA (process, P0): partial delivery reported as complete - EDP-02 closed without store classification/mapping; add artifact-completeness gates + evidence-based DoD + re-open audit",
+  "body": "",
+  "source": "generic",
+  "status": "new",
+  "priority": "P0",
+  "moscow": "Must",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [
+    "BI-PF-0448",
+    "BI-PF-1246",
+    "BI-PF-1292"
+  ],
+  "links": {},
+  "decisions": [
+    {
+      "at": "2026-10-15T21:01:53.998611",
+      "decision": "APPROVE",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)"
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "what_adds": "Artifact-completeness gates + evidence-based DoD + re-open/audit falsely-closed items so partial work cannot pass",
+    "problem": "Partial discovery work was reported/closed as complete (no classification/mapping), and nothing caught it",
+    "source": "authored"
+  },
+  "objective": "RCCA (process, P0): partial delivery reported as complete - EDP-02 closed without store classification/mapping; add artifact-completeness gates + evidence-based DoD + re-open audit",
+  "acceptance_criteria": [
+    "Objective achieved: RCCA (process, P0): partial delivery reported as complete - EDP-02 closed without store classification/mapping; add artifact-completeness gates + evidence-based DoD + re-open audit"
+  ],
+  "in_scope": [
+    "RCCA (process, P0): partial delivery reported as complete - EDP-02 closed without store classification/mapping; add artifact-completeness gates + evidence-based DoD + re-open audit"
+  ],
+  "out_of_scope": [
+    "Not specified."
+  ],
+  "affected_components": [
+    "Not specified."
+  ],
+  "affected_files": [
+    "Not specified."
+  ],
+  "approach": "RCCA (process, P0): partial delivery reported as complete - EDP-02 closed without store classification/mapping; add artifact-completeness gates + evidence-based DoD + re-open audit",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Objective achieved: RCCA (process, P0): partial delivery reported as complete - EDP-02 closed without store classification/mapping; add artifact-completeness gates + evidence-based DoD + re-open audit"
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "unassigned",
+  "requester": "generic",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1252",
+  "parent": "BI-PF-1252",
+  "revision": 3,
+  "priority_rank": 10,
+  "priority_class": "P0",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "COMPLETE",
+    "analyzed_at": "2026-10-15T21:01:53.787245",
+    "analyzed_by": "system",
+    "revision_analyzed": 3,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend delivery/engineering-complete endpoints with a reusable artifact-completeness validator: per-lane required-artifact manifest (EDP-02 must include store classification + mapping) checked fail-closed before any 'complete' status persists. Derive the gate from a declarative manifest (config) rather than hardcoding. Wire re-open audit: log reopen events, record evidence references, and trigger auto-RCCA via existing /issues/{iid}/rcca flow (reuse BI-PF-1246 reconciliation).",
+    "existing_components": [],
+    "existing_apis": [],
+    "existing_modules": [],
+    "dependency_findings": [
+      "REQUIRES BI-PF-0448 fail-closed guard pattern in delivery lane (same code path)",
+      "RELATED BI-PF-1246 (reuse auto-RCCA on validation FAIL)",
+      "RELATED BI-PF-1292 EDP-02 (data plane) - defines which store classification artifacts exist"
+    ],
+    "conflict_findings": [
+      "core/delivery.py likely touched by BI-PF-1246/0448 - serialize or coordinate PRs",
+      "engineering complete endpoint may be modified by multiple gate items - centralize validator to avoid divergence"
+    ],
+    "duplication_findings": [
+      "BI-PF-1246 covers auto-RCCA on validation FAIL - reuse its reconciliation hook, do not reimplement RCCA creation",
+      "BI-PF-0448 covers fail-closed delivery context gates - align artifact gate with that gate family, share guard pattern",
+      "artifact_store/asset_store already track artifacts - reuse as evidence source, no new store"
+    ],
+    "drift": "LOW",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "The gap is an enforcement hole, not a new capability: existing stores + delivery APIs can gate closures and record evidence with modest extension, reusing BI-PF-0448 guard pattern and BI-PF-1246 auto-RCCA. No new component needed.",
+    "assumptions": [
+      "EDP-02 required artifacts = store classification doc + store mapping (per EDP-02 spec)",
+      "Re-open is an explicit audited action, not automatic revert without human/RCCA link",
+      "artifact_store/asset_store hold evidence with stable IDs usable as DoD references"
+    ],
+    "risks": [
+      "Manifest over-specification could block legitimate partial deliveries - needs lane-scoped rules",
+      "Existing completed items (EDP-02 already closed) lack artifacts - re-open triggers a backlog of remediation",
+      "Conflicts with in-flight delivery-gate work could cause merge churn"
+    ],
+    "evidence": [
+      "Candidate APIs include /delivery and /engineering/assignments/{item_id}/complete as closure points to gate",
+      "Existing stores (artifact_store, asset_store, forge_store) provide evidence backing for completeness checks",
+      "BI-PF-1246 already established validation-FAIL -> auto-RCCA pipeline to reuse"
+    ],
+    "confidence": "medium",
+    "missing_info": [
+      "Canonical list of required artifacts per work-item type/lane (especially EDP-02)",
+      "Whether historical closed items are auto re-opened or grandfathered",
+      "Who reviews re-open decisions (owner vs. governance board)",
+      "RCCA SLA and severity mapping for completeness failures"
+    ],
+    "depth": "deep",
+    "mode": "ai",
+    "context_review": {
+      "ok": false,
+      "source": "llm",
+      "implementable": false,
+      "missing": [
+        "what",
+        "why",
+        "how",
+        "where"
+      ],
+      "reason": "Every field just repeats the title; no specifics on which artifacts are missing, what the completeness gates or evidence-based DoD should look like, no affected components/files, and no concrete acceptance criteria."
+    },
+    "decision_request": {
+      "needed": false,
+      "reasons": [],
+      "ask": ""
+    },
+    "arch_fingerprint": "1c99aaf6db006a51"
+  },
+  "dependencies": [
+    {
+      "task_id": "BI-PF-0448",
+      "type": "REQUIRES",
+      "required_state": "delivery context gates merged"
+    },
+    {
+      "task_id": "BI-PF-1246",
+      "type": "RELATED",
+      "required_state": "auto-RCCA on validation FAIL available"
+    },
+    {
+      "task_id": "BI-PF-1292",
+      "type": "RELATED",
+      "required_state": "EDP-02 artifact taxonomy defined"
+    }
+  ],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-15T21:01:53.881971"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-15T21:00:58.791196",
+  "updated_at": "2026-10-15T21:18:04.197342",
+  "score": 0.75,
+  "_note": "readiness computed",
+  "api_impact": {
+    "needs_api": false,
+    "reason": "governance/infra/tooling change; no external API surface",
+    "routes": []
+  }
+}

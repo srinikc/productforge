@@ -1,0 +1,213 @@
+{
+  "id": "BI-PF-1410",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "api",
+  "external_id": "dod-ac-verification-gate",
+  "label": "PF Backlog 609",
+  "title": "Hard DoD gate: every item needs detailed Acceptance Criteria + independent verification (verifier != implementer) before close/merge",
+  "body": "",
+  "source": "generic",
+  "status": "new",
+  "priority": "P1",
+  "moscow": "Must",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [
+    "BI-0205",
+    "BI-PF-1221"
+  ],
+  "links": {},
+  "decisions": [
+    {
+      "at": "2026-10-15T21:05:52.822300",
+      "decision": "APPROVE",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)"
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "what_adds": "Hard gates requiring detailed AC + independent (verifier != implementer) verification before close/merge",
+    "problem": "Items can be closed/merged with weak or absent AC and self-verified, so partial work passes",
+    "source": "authored"
+  },
+  "objective": "Hard DoD gate: every item needs detailed Acceptance Criteria + independent verification (verifier != implementer) before close/merge",
+  "acceptance_criteria": [
+    "WRITE-TIME (hard): POST /backlog/items REJECTS a non-epic create with no acceptance_criteria or any criterion < 40 chars (HTTP 400, error VALIDATION_FAILED); verified by test-framework/tests/pipeline/test_backlog_dod.py",
+    "PRECHECK FAST (hard): scripts/dev/backlog_dod_check.py runs in precheck fast tier and FAILS for any non-epic open item without detailed AC (baseline-aware: config/backlog-dod-baseline.json)",
+    "INDEPENDENT VERIFICATION (hard): the gate FAILS when a DELIVERED item lacks non-empty verification/evidence (baseline-aware)",
+    "WIRING: registered in config/ci-cd-gates.json + scripts/dev/precheck.py (fast) + config/store-registry.json",
+    "EVIDENCE: no-AC create returns 400 VALIDATION_FAILED and the gate returns exit 1 on a non-compliant item; compliant items PASS"
+  ],
+  "in_scope": [
+    "Hard DoD gate: every item needs detailed Acceptance Criteria + independent verification (verifier != implementer) before close/merge"
+  ],
+  "out_of_scope": [
+    "Not specified."
+  ],
+  "affected_components": [
+    "Not specified."
+  ],
+  "affected_files": [
+    "Not specified."
+  ],
+  "approach": "Hard DoD gate: every item needs detailed Acceptance Criteria + independent verification (verifier != implementer) before close/merge",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Objective achieved: Hard DoD gate: every item needs detailed Acceptance Criteria + independent verification (verifier != implementer) before close/merge"
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "unassigned",
+  "requester": "generic",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1252",
+  "parent": "BI-PF-1252",
+  "revision": 3,
+  "priority_rank": 20,
+  "priority_class": "P1",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "COMPLETE",
+    "analyzed_at": "2026-10-15T21:05:52.623873",
+    "analyzed_by": "system",
+    "revision_analyzed": 3,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend core/verification_policy.py and core/verification_runner.py to require structured Acceptance Criteria on every item before it can enter execution; extend core/merge_gate.py to hard-block close/merge unless a verifier (actor != implementer) recorded a passing verification against those criteria; expose status via /api/v1/backlog/items/{item_id} and /api/v1/audit/acceptance.",
+    "existing_components": [],
+    "existing_apis": [],
+    "existing_modules": [],
+    "dependency_findings": [
+      {
+        "task_id": "BI-0205",
+        "type": "RELATED",
+        "required_state": "merge_gate integrated into PR workflow"
+      },
+      {
+        "task_id": "BI-PF-1221",
+        "type": "RELATED",
+        "required_state": "security gate runs alongside new DoD gate"
+      }
+    ],
+    "conflict_findings": [
+      "core/merge_gate.py also touched by BI-0205 - sequence or coordinate changes",
+      "Backlog item schema changes may collide with BI-0179 per-file storage refactor"
+    ],
+    "duplication_findings": [
+      "core/verification_runner.py already runs independent verifications - reuse, do not rebuild",
+      "core/compliance_verifier.py covers guideline compliance - different axis, keep separate",
+      "core/merge_gate.py already gates merges - extend with AC-verification check only",
+      "BI-PF-1221 security gate is additive, not duplicative"
+    ],
+    "drift": "LOW",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "Existing verification and gate infrastructure makes this a policy-plus-gate extension rather than a new subsystem; the main unknowns are rollout scope and independence definition.",
+    "assumptions": [
+      "Actor identity (implementer vs verifier) is already captured by the run system",
+      "Verification runner supports per-item, per-criteria pass/fail results",
+      "Existing closed items are grandfathered or backfilled, not auto-rejected"
+    ],
+    "risks": [
+      "Enforcement retroactive on existing items may mass-block the pipeline",
+      "Verifier identity tracking needs reliable actor attribution in runs",
+      "False sense of rigor if ACs are trivially written to pass"
+    ],
+    "evidence": [
+      "Candidate components include verification_policy, verification_runner, merge_gate",
+      "config/verification-policy.json already exists for policy-driven thresholds",
+      "/api/v1/audit/acceptance endpoint already surfaces acceptance data"
+    ],
+    "confidence": "medium",
+    "missing_info": [
+      "Retroactive policy: apply only to newly opened items or backfill all?",
+      "Minimum AC quality bar (who authors ACs, template/required sections)?",
+      "What counts as independent: human-only, agent-vs-agent, or same?"
+    ],
+    "depth": "deep",
+    "mode": "ai",
+    "context_review": {
+      "ok": false,
+      "source": "llm",
+      "implementable": false,
+      "missing": [
+        "what",
+        "why",
+        "how",
+        "where"
+      ],
+      "reason": "Every field is the same boilerplate sentence; no concrete mechanism, repo/tool (e.g. CI workflow, PR template, hook), affected files, or enforcement design is specified."
+    },
+    "decision_request": {
+      "needed": false,
+      "reasons": [],
+      "ask": ""
+    },
+    "arch_fingerprint": "1c99aaf6db006a51"
+  },
+  "dependencies": [
+    {
+      "task_id": "BI-0205",
+      "type": "RELATED",
+      "required_state": "PR workflow gates in place"
+    },
+    {
+      "task_id": "BI-PF-1221",
+      "type": "RELATED",
+      "required_state": "security gate integrated"
+    }
+  ],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-15T21:05:52.712272"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-15T21:05:00.403448",
+  "updated_at": "2026-10-15T21:18:04.317420",
+  "score": 0.75,
+  "_note": "readiness computed",
+  "api_impact": {
+    "needs_api": false,
+    "reason": "governance/infra/tooling change; no external API surface",
+    "routes": []
+  }
+}
