@@ -22,6 +22,7 @@ import (
 	"productforge/datastore"
 	"productforge/migrate"
 	"productforge/objstore"
+	"productforge/s3store"
 	"productforge/store"
 )
 
@@ -29,7 +30,23 @@ type server struct {
 	dsn    string
 	admin  string
 	migDir string
-	obj    *objstore.LocalStore
+	obj    datastore.ObjectStore
+}
+
+// buildObjectStore selects the object-store adapter (EDP-13 local / EDP-14 S3) by PF_OBJECT_BACKEND.
+func buildObjectStore() (datastore.ObjectStore, error) {
+	if strings.EqualFold(os.Getenv("PF_OBJECT_BACKEND"), "s3") {
+		return s3store.New(context.Background(), s3store.Config{
+			Endpoint:  os.Getenv("PF_S3_ENDPOINT"),
+			AccessKey: os.Getenv("PF_S3_ACCESS_KEY"),
+			SecretKey: os.Getenv("PF_S3_SECRET_KEY"),
+			Bucket:    os.Getenv("PF_S3_BUCKET"),
+			Region:    os.Getenv("PF_S3_REGION"),
+			UseSSL:    os.Getenv("PF_S3_USE_SSL") == "1",
+			Ensure:    os.Getenv("PF_S3_ENSURE") == "1",
+		})
+	}
+	return objstore.NewLocalStore(envOr("PF_OBJECT_ROOT", "data/local/objects"), 0)
 }
 
 func main() {
@@ -41,8 +58,7 @@ func main() {
 	if s.admin == "" {
 		log.Fatal("PF_ADMIN_TOKEN is required")
 	}
-	objRoot := envOr("PF_OBJECT_ROOT", "data/local/objects")
-	obj, err := objstore.NewLocalStore(objRoot, 0)
+	obj, err := buildObjectStore()
 	if err != nil {
 		log.Fatalf("object store: %v", err)
 	}
