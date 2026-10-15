@@ -1,0 +1,199 @@
+{
+  "id": "BI-PF-1400",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "api",
+  "external_id": "api-first-standard",
+  "label": "PF Backlog 599",
+  "title": "API-first standard (ADR-0007): assess API need per capability; where needed, expose a secured API for internal + external consumers",
+  "body": "ADR-0007. For each capability: do a proper need assessment for an API; where a need exists (internal or external consumer), expose a secured API surface (authn, authz/tenant scope, validation, quotas, audit, versioned contract). Admin capabilities get an admin-scoped API. Where an API is provided, tooling/CLIs become clients of it. No blind API: if no consumer needs one, record the justification at Gate 1. New logic in Go; Python routes thin.",
+  "source": "generic",
+  "status": "new",
+  "priority": "P1",
+  "moscow": "Must",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [
+    "BI-PF-1265",
+    "BI-0122",
+    "BI-0123"
+  ],
+  "links": {},
+  "decisions": [
+    {
+      "at": "2026-10-15T11:33:14.327352",
+      "decision": "APPROVE",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)"
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "API-first standard (ADR-0007): every PF capability exposes a secured API; tooling is a client only",
+    "what_adds": "API-first standard (ADR-0007): every PF capability exposes a secured API; tooling is a client only",
+    "why": "API-first standard (ADR-0007): every PF capability exposes a secured API; tooling is a client only",
+    "who_feels": "Product Forge maintainers and consumers.",
+    "source": "derived"
+  },
+  "objective": "API-first standard (ADR-0007): every PF capability exposes a secured API; tooling is a client only",
+  "acceptance_criteria": [
+    "Objective achieved: API-first standard (ADR-0007): every PF capability exposes a secured API; tooling is a client only"
+  ],
+  "in_scope": [
+    "API-first standard (ADR-0007): every PF capability exposes a secured API; tooling is a client only"
+  ],
+  "out_of_scope": [
+    "Not specified."
+  ],
+  "affected_components": [
+    "Not specified."
+  ],
+  "affected_files": [
+    "Not specified."
+  ],
+  "approach": "API-first standard (ADR-0007): every PF capability exposes a secured API; tooling is a client only",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Objective achieved: API-first standard (ADR-0007): every PF capability exposes a secured API; tooling is a client only"
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "unassigned",
+  "requester": "generic",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1252",
+  "parent": "BI-PF-1252",
+  "revision": 4,
+  "priority_rank": 20,
+  "priority_class": "P1",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "COMPLETE",
+    "analyzed_at": "2026-10-15T11:33:14.109199",
+    "analyzed_by": "system",
+    "revision_analyzed": 4,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Leverage core/capability_bridge.py and core/capability_packs.py as the registry; formalize each PF capability behind a secured HTTP API (authn/z via existing capability vectors). CLI/tooling becomes a thin client of the API. Codify ADR-0007 as docs/adr/0007-api-first.md plus an enforcement check (lint/CI) verifying every pack entry has an API route registered.",
+    "existing_components": [],
+    "existing_apis": [],
+    "existing_modules": [],
+    "dependency_findings": [
+      "BI-1265 event bus provides transport patterns REUSE for API security/middleware",
+      "BI-0123 capability wiring defines authz model REQUIRES settled"
+    ],
+    "conflict_findings": [
+      "BI-1265 may touch same transport/auth middleware concurrently",
+      "BI-0122 could double-register routes if not coordinated"
+    ],
+    "duplication_findings": [
+      "BI-0122 'API-first exposure for all new pipeline capabilities' overlaps; scope it as a subset and mark RELATED",
+      "capability_bridge already exposes programmatic access; avoid rebuilding a second registry"
+    ],
+    "drift": "LOW",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "Enshrines API-first as a codified, enforced standard with minimal new code by extending the existing capability registry/bridge; tooling demoted to client role.",
+    "assumptions": [
+      "capability_bridge is the SSOT for capability discovery",
+      "An authn/z mechanism (tokens/RBAC) already exists or is funded",
+      "PF runs as a long-lived service able to host HTTP routes"
+    ],
+    "risks": [
+      "Legacy capabilities lacking API surface force wide refactor scope",
+      "Auth enforcement may lag, creating interim insecure endpoints"
+    ],
+    "evidence": [
+      "core/capability_bridge.py and core/capability_packs.py exist as candidate reuse points",
+      "config/capability-packs.json enumerates capabilities"
+    ],
+    "confidence": "medium",
+    "missing_info": [
+      "Which authn/z stack (OIDC, mTLS, API keys) is mandated",
+      "Backlog coverage inventory: which capabilities currently lack APIs",
+      "Owner assignment for ADR ratification"
+    ],
+    "depth": "deep",
+    "mode": "ai",
+    "context_review": {
+      "ok": false,
+      "source": "llm",
+      "implementable": false,
+      "missing": [
+        "what",
+        "how",
+        "where"
+      ],
+      "reason": "Item is a restated policy statement; no concrete capabilities, endpoints, security mechanism, components or files identified."
+    },
+    "decision_request": {
+      "needed": false,
+      "reasons": [],
+      "ask": ""
+    },
+    "arch_fingerprint": "182589f7faa97ca9"
+  },
+  "dependencies": [
+    {
+      "task_id": "BI-PF-1265",
+      "type": "RELATED",
+      "required_state": "transport patterns agreed"
+    },
+    {
+      "task_id": "BI-0122",
+      "type": "RELATED",
+      "required_state": "route scope de-duplicated"
+    },
+    {
+      "task_id": "BI-0123",
+      "type": "REQUIRES",
+      "required_state": "capability/authz model settled"
+    }
+  ],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-15T11:33:14.198979"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-15T11:32:17.335423",
+  "updated_at": "2026-10-15T11:33:14.637419",
+  "score": 0.75,
+  "_note": "readiness computed"
+}

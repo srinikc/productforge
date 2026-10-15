@@ -368,3 +368,37 @@ migration effort; some file-based consumers need projection compatibility.
 - `language_rule_check` + `wired_audit` + `precheck` green; migration parity + rollback demonstrated before
   cutover; worker `/wg` claim/complete unchanged.
 
+# ADR-0007: API-first — every capability is a secured API surface
+
+## Context and Problem Statement
+Capabilities implemented only as CLIs/scripts/tooling are not consumable by other actors (agents, workers,
+generated products, internal or external clients) and cannot carry a consistent security posture. Product
+Forge already treats its backlog/governance as an authoritative API (`api/`); each new capability must be
+**assessed for API need**, and where there is a need, exposed as a secured API.
+
+## Decision Drivers
+- Uniform, secure way for **internal and external** consumers to use PF capabilities.
+- Avoid needless API surface (assess the need first), but never trap a needed capability behind a script.
+- Security must be uniform: authentication, authorization, tenant isolation, validation, quotas, audit.
+- Language rule (BI-PF-0387/0388): new shipped logic is Go; Python API routes stay thin.
+
+## Decision Outcome
+For each capability, **do a proper need assessment for an API**, and where a need exists expose a **secured
+API surface**:
+1. **authn** (token/roles), **authz** (tenant scope; RLS for data — EDP-09), **input validation**,
+   **quotas/rate limits** (EDP-10), **audit** (EDP-20), and a versioned **contract** (`api_contract` gate).
+2. **Admin capabilities** get an **admin-scoped** API (operator authz), not a hidden local step.
+3. Where an API is provided, **tooling/CLIs become clients of it** — not the sole path.
+4. If no consumer (internal or external) needs an API, record that justification at Gate 1 (no blind API).
+5. New capability **logic is Go** (language rule); Python API routes only validate + delegate.
+
+## Consequences
+- Backlog doc-ingest (BI-PF-1396): assess API need → if needed, expose it (tooling becomes a client).
+- Schema migrations: assess → admin API where an admin consumer needs it (deploy step remains).
+- Every new item's **Gate 1 states its API-surface decision (surface + security, or a written "no need")**.
+
+### Confirmation
+- An item reaching delivery either has a secured API surface or an approved "no API need" justification.
+- API surface passes `api_contract`/governance gates; authz/tenant-isolation negative tests exist.
+- New logic appears in `go/`; Python routes contain no business logic (language-rule green).
+
