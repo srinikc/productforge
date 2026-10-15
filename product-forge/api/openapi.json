@@ -1749,6 +1749,79 @@
         ]
       }
     },
+    "/api/v1/backlog/items/{item_id}/api-impact": {
+      "post": {
+        "description": "Record the API-first decision for an item (BI-PF-1066 E9; ADR-0007) via ``core.backlog.update``.\n\nBody: ``{scope, project, needs_api, reason, routes, expected_revision}``. Writes ``item.api_impact``\n(mandatory decision; routes required only when ``needs_api`` is true). Thin wrapper over the single writer.",
+        "operationId": "set_item_api_impact_api_v1_backlog_items__item_id__api_impact_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "item_id",
+            "required": true,
+            "schema": {
+              "title": "Item Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Authorization",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-roles",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-Roles",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "title": "Body",
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Set Item Api Impact",
+        "tags": [
+          "backlog"
+        ]
+      }
+    },
     "/api/v1/backlog/items/{item_id}/archive": {
       "post": {
         "description": "Non-destructive retire: move the item to the terminal ``archived`` status.",
