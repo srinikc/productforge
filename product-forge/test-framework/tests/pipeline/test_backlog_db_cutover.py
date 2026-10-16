@@ -60,6 +60,34 @@ def test_mirror_sends_full_item_as_data(monkeypatch):
     assert payload["Data"] == item  # lossless: the full item is sent as Data
 
 
+def test_shadow_compare_equal(monkeypatch):
+    item = {"id": "BI-PF-0000", "title": "x"}
+    monkeypatch.setattr(backlog, "_fetch_item_from_db", lambda i, t: {"Data": item})
+    assert backlog._shadow_compare(item) is True
+
+
+def test_shadow_compare_detects_drift(monkeypatch):
+    monkeypatch.setattr(backlog, "_fetch_item_from_db", lambda i, t: {"Data": {"id": "BI-PF-0000", "title": "DIFFERENT"}})
+    assert backlog._shadow_compare({"id": "BI-PF-0000", "title": "x"}) is False
+
+
+def test_shadow_compare_fetch_failure_is_false(monkeypatch):
+    def _boom(i, t):
+        raise RuntimeError("db down")
+    monkeypatch.setattr(backlog, "_fetch_item_from_db", _boom)
+    assert backlog._shadow_compare({"id": "BI-PF-0000", "title": "x"}) is False
+
+
+def test_save_item_shadow_mode_compares(tmp_path, monkeypatch):
+    monkeypatch.setenv("PF_BACKLOG_DB", "shadow")
+    calls = {"mirror": 0, "compare": 0}
+    monkeypatch.setattr(backlog, "_mirror_item_to_db", lambda item: calls.__setitem__("mirror", calls["mirror"] + 1))
+    monkeypatch.setattr(backlog, "_shadow_compare", lambda item: calls.__setitem__("compare", calls["compare"] + 1) or True)
+    d = str(tmp_path)
+    backlog._save_item(d, {"id": "BI-PF-0000", "title": "x", "scope": "product_forge"})
+    assert calls["mirror"] == 1 and calls["compare"] == 1
+
+
 def test_mirror_on_propagates_failure(monkeypatch):
     monkeypatch.setenv("PF_BACKLOG_DB", "on")
     monkeypatch.setenv("PF_BACKLOG_API", "http://127.0.0.1:1")

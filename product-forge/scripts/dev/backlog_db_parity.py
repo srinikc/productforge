@@ -52,8 +52,10 @@ def main() -> int:
             print(f"   extra_in_db: {i}")
         for i in mism[:10]:
             print(f"   data_mismatch: {i}")
+        print("cutover gate: BLOCKED -> fix drift before setting PF_BACKLOG_DB=on")
         return 1
     print("backlog parity: OK (files == DB, full item data)")
+    print("cutover gate: OK -> safe to set PF_BACKLOG_DB=on (BI-PF-1399 Phase 3)")
     return 0
 
 
