@@ -89,6 +89,8 @@ func main() {
 	mux.HandleFunc("/jobs/action", s.adminOnly(s.jobAction))
 	mux.HandleFunc("/memory", s.adminOnly(s.memoryHandle))
 	mux.HandleFunc("/memory/", s.adminOnly(s.memoryByID))
+	mux.HandleFunc("/backlog", s.adminOnly(s.backlogHandle))
+	mux.HandleFunc("/backlog/", s.adminOnly(s.backlogByID))
 	addr := envOr("PF_EDP_ADDR", "127.0.0.1:8030")
 	log.Printf("edpsvc listening on %s (migrations=%s)", addr, s.migDir)
 	log.Fatal(http.ListenAndServe(addr, mux))
@@ -540,6 +542,68 @@ func (s *server) memoryByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, e)
+}
+
+func (s *server) backlogHandle(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query()
+	tenant := q.Get("tenant")
+	st, err := s.tenantStore(tenant)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
+	}
+	defer st.Close()
+	bl := edpdata.NewBacklog(store.BindTenant(st, tenant))
+	switch r.Method {
+	case http.MethodPost:
+		var b struct{ ID, Tenant, Type, Status, Title, Body string }
+		if err := json.NewDecoder(r.Body).Decode(&b); err != nil || b.ID == "" || b.Tenant == "" {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "id and tenant are required"})
+			return
+		}
+		it, err := bl.Put(r.Context(), edpdata.BacklogItem{ID: b.ID, TenantID: b.Tenant, Type: b.Type,
+			Status: b.Status, Title: b.Title, Body: b.Body})
+		if err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+			return
+		}
+		writeJSON(w, http.StatusOK, it)
+	case http.MethodGet:
+		items, err := bl.List(r.Context(), q.Get("status"), 50)
+		if err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"items": items})
+	default:
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "use GET or POST"})
+	}
+}
+
+func (s *server) backlogByID(w http.ResponseWriter, r *http.Request) {
+	id := strings.TrimPrefix(r.URL.Path, "/backlog/")
+	tenant := r.URL.Query().Get("tenant")
+	st, err := s.tenantStore(tenant)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
+	}
+	defer st.Close()
+	bl := edpdata.NewBacklog(store.BindTenant(st, tenant))
+	if r.Method == http.MethodDelete {
+		if err := bl.Delete(r.Context(), id); err != nil {
+			writeJSON(w, http.StatusNotFound, map[string]string{"error": err.Error()})
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+		return
+	}
+	it, err := bl.Get(r.Context(), id)
+	if err != nil {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, it)
 }
 
 func writeJSON(w http.ResponseWriter, code int, v any) {

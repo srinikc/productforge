@@ -33,6 +33,7 @@ func TestAuditAndJobs_Integration(t *testing.T) {
 	defer bind.WithTx(ctx, func(tx datastore.Tx) error {
 		_, _ = tx.Exec(ctx, `DELETE FROM jobs WHERE tenant_id=$1`, tenant)
 		_, _ = tx.Exec(ctx, `DELETE FROM memory WHERE tenant_id=$1`, tenant)
+		_, _ = tx.Exec(ctx, `DELETE FROM backlog_items WHERE tenant_id=$1`, tenant)
 		_, _ = tx.Exec(ctx, `DELETE FROM audit WHERE tenant_id=$1`, tenant)
 		_, _ = tx.Exec(ctx, `DELETE FROM tenants WHERE id=$1`, tenant)
 		return nil
@@ -79,6 +80,26 @@ func TestAuditAndJobs_Integration(t *testing.T) {
 		t.Fatalf("memory scope filter leaked: hits=%d err=%v", len(none), err)
 	}
 	if err := mem.Delete(ctx, "mem-"+tenant); err != nil {
+		t.Fatal(err)
+	}
+
+	// Backlog item lifecycle + revision bump.
+	bl := NewBacklog(bind)
+	bi := "BL-" + tenant
+	if _, err := bl.Put(ctx, BacklogItem{ID: bi, TenantID: tenant, Type: "feature", Title: "first"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := bl.Put(ctx, BacklogItem{ID: bi, TenantID: tenant, Type: "feature", Title: "second"}); err != nil {
+		t.Fatal(err)
+	}
+	gotBL, err := bl.Get(ctx, bi)
+	if err != nil || gotBL.Title != "second" || gotBL.Revision < 1 {
+		t.Fatalf("backlog put/get: %+v err=%v", gotBL, err)
+	}
+	if items, err := bl.List(ctx, "", 10); err != nil || len(items) == 0 {
+		t.Fatalf("backlog list: n=%d err=%v", len(items), err)
+	}
+	if err := bl.Delete(ctx, bi); err != nil {
 		t.Fatal(err)
 	}
 }
