@@ -88,6 +88,31 @@ def test_save_item_shadow_mode_compares(tmp_path, monkeypatch):
     assert calls["mirror"] == 1 and calls["compare"] == 1
 
 
+def test_load_all_on_mode_reads_db(monkeypatch):
+    import json as _j
+
+    monkeypatch.setenv("PF_BACKLOG_DB", "on")
+    monkeypatch.setenv("PF_BACKLOG_API", "http://127.0.0.1:1")
+    items = [{"ID": "BI-PF-1", "Data": {"id": "BI-PF-1", "status": "new"}},
+             {"ID": "BI-PF-2", "Data": {"id": "BI-PF-2", "status": "completed"}}]
+
+    class _R:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def read(self):
+            return _j.dumps({"items": items}).encode("utf-8")
+
+    from urllib import request as _ur
+    monkeypatch.setattr(_ur, "urlopen", lambda req, timeout=0: _R())
+    op, cl = backlog._load_all("product_forge", None)
+    assert [i["id"] for i in op] == ["BI-PF-1"]
+    assert [i["id"] for i in cl] == ["BI-PF-2"]
+
+
 def test_mirror_on_propagates_failure(monkeypatch):
     monkeypatch.setenv("PF_BACKLOG_DB", "on")
     monkeypatch.setenv("PF_BACKLOG_API", "http://127.0.0.1:1")

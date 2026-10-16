@@ -167,12 +167,36 @@ def _index_row(it: dict) -> dict:
     return row
 
 
+def _load_all_from_db(scope: str, project: str | None):
+    """BI-PF-1399 Phase 3 (read-switch): read items from the DB SoR (via the Go edpsvc /backlog)."""
+    import json as _json
+    import urllib.request as _ureq
+
+    tenant = str(project or scope or "product_forge")
+    api = str(os.environ.get("PF_BACKLOG_API", "http://127.0.0.1:8030")).rstrip("/")
+    req = _ureq.Request(f"{api}/backlog?tenant={tenant}&limit=100000", method="GET")
+    req.add_header("Authorization", f"Bearer {os.environ.get('PF_API_TOKEN', '')}")
+    with _ureq.urlopen(req, timeout=30) as r:
+        payload = _json.loads(r.read().decode("utf-8"))
+    op: list[dict] = []
+    cl: list[dict] = []
+    for row in (payload.get("items") or []):
+        data = row.get("Data") if isinstance(row, dict) else None
+        if not (isinstance(data, dict) and data.get("id")):
+            continue
+        (cl if _normalize_status(data.get("status", "new")) in _CLOSED else op).append(data)
+    return op, cl
+
+
 def _load_all(scope: str, project: str | None):
     """Return (open_items, closed_items) as FULL items from items/<ID>.json (the truth).
 
     Fallback: if `items/` is empty, read the legacy full-array open.json/closed.json so a
-    not-yet-migrated scope still works (see `migrate_scope`).
+    not-yet-migrated scope still works (see `migrate_scope`). In `PF_BACKLOG_DB=on` the DB is the
+    source of truth for reads.
     """
+    if _backlog_db_mode() == "on":
+        return _load_all_from_db(scope, project)
     d, of, cf, _h, _c = _paths(scope, project)
     idir = _items_dir(d)
     op: list[dict] = []

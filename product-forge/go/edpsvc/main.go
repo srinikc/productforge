@@ -22,6 +22,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -572,7 +573,13 @@ func (s *server) backlogHandle(w http.ResponseWriter, r *http.Request) {
 		}
 		writeJSON(w, http.StatusOK, it)
 	case http.MethodGet:
-		items, err := bl.List(r.Context(), q.Get("status"), 50)
+		limit := 50
+		if v := q.Get("limit"); v != "" {
+			if n, e := strconv.Atoi(v); e == nil && n > 0 {
+				limit = n
+			}
+		}
+		items, err := bl.List(r.Context(), q.Get("status"), limit)
 		if err != nil {
 			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 			return
