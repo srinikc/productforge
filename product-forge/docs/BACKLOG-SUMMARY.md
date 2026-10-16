@@ -1,11 +1,11 @@
 # Backlog Summary
 
-> GENERATED 2026-10-16T19:38:50 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-16T20:30:15 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 134  |  **Closed:** 542
+- **Open:** 134  |  **Closed:** 543
 - `blocked`: 1
 - `executing`: 3
 - `new`: 130
@@ -171,7 +171,7 @@
 | BI-PF-1414 | Should | defect | RCCA: schema designed without field-level reconciliation vs the owning port (artifact schema mismatched datastore.Artifact) - found only at C1b | RCCA: schema designed without field-level reconciliation vs the owning port (artifact schema mismatched datast... |
 | BI-PF-1416 | Should | feature | Automate PF persistence setup: one-command provisioning + roles + migrations + storage config + secrets + verify (dev and SaaS) | Automate PF persistence setup: one-command provisioning + roles + migrations + storage config + secrets + veri... |
 | BI-PF-1417 | Should | feature | Standard: EDP is the single storage/data-plane standard - every capability uses datastore ports + Postgres RLS / object store (no bespoke stores) | Standard: EDP is the single storage/data-plane standard - every capability uses datastore ports + Postgres RLS... |
-| BI-PF-1419 | Should | feature | Split full precheck into sequential named groups (4-5) with per-group pass/fail + duration (no opaque 20-min block); add --group/--only | Split full precheck into sequential named groups (4-5) with per-group pass/fail + duration (no opaque 20-min b... |
+| BI-PF-1421 | Should | feature | Add project_id scoping to backlog_items (+ stages/attempts) so product/project data is directly scoped, not only via joins/JSON | Add project_id scoping to backlog_items (+ stages/attempts) so product/project data is directly scoped, not on... |
 
 ---
 
@@ -371,5 +371,5 @@
 ---
 
 ## Totals
-- backend: 134 open / 542 closed
+- backend: 134 open / 543 closed
 - dashboard: 146 open / 3 closed

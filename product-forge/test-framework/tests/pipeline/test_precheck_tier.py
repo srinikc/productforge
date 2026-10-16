@@ -34,17 +34,19 @@ def test_bookkeeping_only_false_when_empty():
 
 def test_steps_minimal_for_bookkeeping(monkeypatch):
     monkeypatch.setattr(precheck, "_changed_paths", lambda: list(_BK))
-    names = [n for n, _ in precheck._steps(full=False, scope_csv="")]
+    names = [n for n, _ in precheck._steps(scope_csv="")]
     assert names == ["compile", "docs-fresh"], names    # minimal tier only
 
 
 def test_steps_full_tier_for_source(monkeypatch):
     monkeypatch.setattr(precheck, "_changed_paths", lambda: ["product-forge/core/scheduler.py"])
-    names = [n for n, _ in precheck._steps(full=False, scope_csv="")]
+    names = [n for n, _ in precheck._steps(scope_csv="")]
     assert "compile" in names and len(names) > 2         # full fast tier, not the minimal one
 
 
-def test_steps_minimal_only_when_not_full(monkeypatch):
+def test_groups_ignore_bookkeeping_shortcut(monkeypatch):
+    # BI-PF-1419: the bookkeeping shortcut only applies to the default fast path (`_steps`);
+    # --full churns the NAMED groups, which always run (so `--full` ignores the shortcut).
     monkeypatch.setattr(precheck, "_changed_paths", lambda: list(_BK))
-    names = [n for n, _ in precheck._steps(full=True, scope_csv="")]
-    assert len(names) > 2                                 # --full ignores the bookkeeping shortcut
+    steps, _label = precheck._group_steps("backlog")
+    assert steps and len(steps) > 2
