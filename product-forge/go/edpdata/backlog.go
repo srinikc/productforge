@@ -2,13 +2,14 @@ package edpdata
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 
 	"productforge/datastore"
 )
 
-// BacklogItem is a backlog work item's persisted form (a subset of the backlog model; BI-PF-1399 owns the
-// full file->DB cutover). This is the DB repository used behind the API.
+// BacklogItem is a backlog work item's persisted form. `Data` holds the FULL item JSON (lossless) so the DB
+// is a complete copy of the file item - no field is dropped. BI-PF-1399 owns the cutover.
 type BacklogItem struct {
 	ID       string
 	TenantID string
@@ -16,6 +17,7 @@ type BacklogItem struct {
 	Status   string
 	Title    string
 	Body     string
+	Data     json.RawMessage // full item JSON (jsonb)
 	Revision int64
 }
 
@@ -25,7 +27,14 @@ type BacklogStore struct{ db datastore.RelationalStore }
 // NewBacklog returns a BacklogStore over db.
 func NewBacklog(db datastore.RelationalStore) *BacklogStore { return &BacklogStore{db: db} }
 
-// Put upserts a backlog item; material changes bump revision.
+func orEmpty(raw json.RawMessage) string {
+	if len(raw) == 0 {
+		return "{}"
+	}
+	return string(raw)
+}
+
+// Put upserts a backlog item (idempotent on id; material changes bump revision). `Data` is stored verbatim.
 func (s *BacklogStore) Put(ctx context.Context, it BacklogItem) (BacklogItem, error) {
 	if it.ID == "" || it.TenantID == "" {
 		return BacklogItem{}, errors.New("edpdata: backlog id and tenant_id are required")
@@ -36,13 +45,15 @@ func (s *BacklogStore) Put(ctx context.Context, it BacklogItem) (BacklogItem, er
 	if it.Status == "" {
 		it.Status = "new"
 	}
+	data := orEmpty(it.Data)
 	err := s.db.WithTx(ctx, func(tx datastore.Tx) error {
 		_, err := tx.Exec(ctx,
-			`INSERT INTO backlog_items (id, tenant_id, type, status, title, body, revision)
-			 VALUES ($1,$2,$3,$4,$5,$6,$7)
+			`INSERT INTO backlog_items (id, tenant_id, type, status, title, body, data, revision)
+			 VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8)
 			 ON CONFLICT (id) DO UPDATE SET type=EXCLUDED.type, status=EXCLUDED.status,
-			   title=EXCLUDED.title, body=EXCLUDED.body, revision=backlog_items.revision + 1, updated_at=now()`,
-			it.ID, it.TenantID, it.Type, it.Status, it.Title, it.Body, it.Revision)
+			   title=EXCLUDED.title, body=EXCLUDED.body, data=EXCLUDED.data,
+			   revision=backlog_items.revision + 1, updated_at=now()`,
+			it.ID, it.TenantID, it.Type, it.Status, it.Title, it.Body, data, it.Revision)
 		return err
 	})
 	if err != nil {
@@ -51,19 +62,19 @@ func (s *BacklogStore) Put(ctx context.Context, it BacklogItem) (BacklogItem, er
 	return s.Get(ctx, it.ID)
 }
 
-// Get reads a backlog item.
+// Get reads a backlog item (including its full Data).
 func (s *BacklogStore) Get(ctx context.Context, id string) (BacklogItem, error) {
 	var it BacklogItem
 	var found bool
 	err := s.db.WithTx(ctx, func(tx datastore.Tx) error {
 		rows, err := tx.Query(ctx,
-			`SELECT id, tenant_id, type, status, title, body, revision FROM backlog_items WHERE id=$1`, id)
+			`SELECT id, tenant_id, type, status, title, body, data, revision FROM backlog_items WHERE id=$1`, id)
 		if err != nil {
 			return err
 		}
 		defer rows.Close()
 		if rows.Next() {
-			if err := rows.Scan(&it.ID, &it.TenantID, &it.Type, &it.Status, &it.Title, &it.Body, &it.Revision); err != nil {
+			if err := rows.Scan(&it.ID, &it.TenantID, &it.Type, &it.Status, &it.Title, &it.Body, &it.Data, &it.Revision); err != nil {
 				return err
 			}
 			found = true
@@ -87,7 +98,7 @@ func (s *BacklogStore) List(ctx context.Context, status string, limit int) ([]Ba
 	var out []BacklogItem
 	err := s.db.WithTx(ctx, func(tx datastore.Tx) error {
 		rows, err := tx.Query(ctx,
-			`SELECT id, tenant_id, type, status, title, body, revision FROM backlog_items
+			`SELECT id, tenant_id, type, status, title, body, data, revision FROM backlog_items
 			 WHERE ($1 = '' OR status = $1) ORDER BY created_at DESC LIMIT $2`, status, limit)
 		if err != nil {
 			return err
@@ -95,7 +106,7 @@ func (s *BacklogStore) List(ctx context.Context, status string, limit int) ([]Ba
 		defer rows.Close()
 		for rows.Next() {
 			var it BacklogItem
-			if err := rows.Scan(&it.ID, &it.TenantID, &it.Type, &it.Status, &it.Title, &it.Body, &it.Revision); err != nil {
+			if err := rows.Scan(&it.ID, &it.TenantID, &it.Type, &it.Status, &it.Title, &it.Body, &it.Data, &it.Revision); err != nil {
 				return err
 			}
 			out = append(out, it)

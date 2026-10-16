@@ -33,6 +33,33 @@ def test_mirror_dual_is_best_effort(monkeypatch):
     backlog._mirror_item_to_db({"id": "BI-PF-0000", "title": "x", "type": "feature", "status": "new"})
 
 
+def test_mirror_sends_full_item_as_data(monkeypatch):
+    import json as _j
+
+    monkeypatch.setenv("PF_BACKLOG_DB", "dual")
+    monkeypatch.setenv("PF_BACKLOG_API", "http://127.0.0.1:1")
+    captured = {}
+
+    class _R:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+    def _fake(req, timeout=0):
+        captured["body"] = req.data
+        return _R()
+
+    from urllib import request as _ur
+    monkeypatch.setattr(_ur, "urlopen", _fake)
+    item = {"id": "BI-PF-0000", "type": "feature", "status": "new",
+            "acceptance_criteria": ["criterion that is at least forty characters long"]}
+    backlog._mirror_item_to_db(item)
+    payload = _j.loads(captured["body"])
+    assert payload["Data"] == item  # lossless: the full item is sent as Data
+
+
 def test_mirror_on_propagates_failure(monkeypatch):
     monkeypatch.setenv("PF_BACKLOG_DB", "on")
     monkeypatch.setenv("PF_BACKLOG_API", "http://127.0.0.1:1")

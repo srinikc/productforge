@@ -16,11 +16,17 @@ ROOT = Path(__file__).resolve().parents[2]
 ITEMS = ROOT / "data" / "backlog" / "items"
 
 
-def file_ids() -> set[str]:
-    ids = set()
+def file_items() -> dict[str, dict]:
+    out = {}
     for f in ITEMS.glob("*.json"):
-        ids.add(json.loads(f.read_text(encoding="utf-8")).get("id"))
-    return {i for i in ids if i}
+        d = json.loads(f.read_text(encoding="utf-8"))
+        if d.get("id"):
+            out[d["id"]] = d
+    return out
+
+
+def file_ids() -> set[str]:
+    return set(file_items().keys())
 
 
 def main() -> int:
@@ -28,21 +34,26 @@ def main() -> int:
     if not dsn:
         print("PF_DB_DSN required", file=sys.stderr)
         return 2
-    fids = file_ids()
+    fitems = file_items()
+    fids = set(fitems)
     import psycopg
     with psycopg.connect(dsn) as c, c.cursor() as cur:
-        cur.execute("SELECT id FROM backlog_items")
-        dids = {r[0] for r in cur.fetchall()}
-    missing = sorted(fids - dids)
-    extra = sorted(dids - fids)
-    print(f"backlog parity: files={len(fids)} db={len(dids)} missing_in_db={len(missing)} extra_in_db={len(extra)}")
-    if missing or extra:
+        cur.execute("SELECT id, data FROM backlog_items")
+        drows = {r[0]: r[1] for r in cur.fetchall()}
+    missing = sorted(fids - set(drows))
+    extra = sorted(set(drows) - fids)
+    mism = [i for i in sorted(fids & set(drows)) if drows[i] != fitems[i]]
+    print(f"backlog parity: files={len(fids)} db={len(drows)} missing_in_db={len(missing)} "
+          f"extra_in_db={len(extra)} data_mismatch={len(mism)}")
+    if missing or extra or mism:
         for i in missing[:10]:
             print(f"   missing_in_db: {i}")
         for i in extra[:10]:
             print(f"   extra_in_db: {i}")
+        for i in mism[:10]:
+            print(f"   data_mismatch: {i}")
         return 1
-    print("backlog parity: OK (files == DB)")
+    print("backlog parity: OK (files == DB, full item data)")
     return 0
 
 

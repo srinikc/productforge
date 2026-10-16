@@ -556,13 +556,16 @@ func (s *server) backlogHandle(w http.ResponseWriter, r *http.Request) {
 	bl := edpdata.NewBacklog(store.BindTenant(st, tenant))
 	switch r.Method {
 	case http.MethodPost:
-		var b struct{ ID, Tenant, Type, Status, Title, Body string }
+		var b struct {
+			ID, Tenant, Type, Status, Title, Body string
+			Data                                  json.RawMessage
+		}
 		if err := json.NewDecoder(r.Body).Decode(&b); err != nil || b.ID == "" || b.Tenant == "" {
 			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "id and tenant are required"})
 			return
 		}
 		it, err := bl.Put(r.Context(), edpdata.BacklogItem{ID: b.ID, TenantID: b.Tenant, Type: b.Type,
-			Status: b.Status, Title: b.Title, Body: b.Body})
+			Status: b.Status, Title: b.Title, Body: b.Body, Data: b.Data})
 		if err != nil {
 			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 			return
