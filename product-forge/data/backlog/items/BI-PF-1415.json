@@ -1,0 +1,200 @@
+{
+  "id": "BI-PF-1415",
+  "tag": "PF",
+  "type": "defect",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "api",
+  "external_id": "rcca-review-config-derived-stores",
+  "label": "PF Backlog 614",
+  "title": "RCCA: config/derived stores classified by kind heuristic (not reviewed) - 78 project/tenant-scoped stores likely belong in DB (views/tables)",
+  "body": "",
+  "source": "generic",
+  "status": "new",
+  "priority": "P2",
+  "moscow": "Should",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [
+    "BI-0043",
+    "BI-0092"
+  ],
+  "links": {},
+  "decisions": [
+    {
+      "at": "2026-10-16T13:53:58.771500",
+      "decision": "APPROVE",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)"
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "what_adds": "A per-store review assigning file|view|table with reasons, and mapping/views updated",
+    "problem": "139 config/derived stores were classified by kind heuristic, not reviewed; 78 are project-scoped and likely need DB (views/tables)",
+    "source": "authored"
+  },
+  "objective": "RCCA: config/derived stores classified by kind heuristic (not reviewed) - 78 project/tenant-scoped stores likely belong in DB (views/tables)",
+  "acceptance_criteria": [
+    "Objective achieved: RCCA: config/derived stores classified by kind heuristic (not reviewed) - 78 project/tenant-scoped stores likely belong in DB (views/tables)"
+  ],
+  "in_scope": [
+    "RCCA: config/derived stores classified by kind heuristic (not reviewed) - 78 project/tenant-scoped stores likely belong in DB (views/tables)"
+  ],
+  "out_of_scope": [
+    "Not specified."
+  ],
+  "affected_components": [
+    "Not specified."
+  ],
+  "affected_files": [
+    "Not specified."
+  ],
+  "approach": "RCCA: config/derived stores classified by kind heuristic (not reviewed) - 78 project/tenant-scoped stores likely belong in DB (views/tables)",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Objective achieved: RCCA: config/derived stores classified by kind heuristic (not reviewed) - 78 project/tenant-scoped stores likely belong in DB (views/tables)"
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "unassigned",
+  "requester": "generic",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1252",
+  "parent": "BI-PF-1252",
+  "revision": 3,
+  "priority_rank": 20,
+  "priority_class": "P2",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "COMPLETE",
+    "analyzed_at": "2026-10-16T13:53:58.499715",
+    "analyzed_by": "system",
+    "revision_analyzed": 3,
+    "architecture_fit": "MODIFY",
+    "implementation_strategy": "Extend core/project_store.py and core/port_config.py to add explicit store-kind metadata (config/derived/persistent) reviewed by humans, replacing heuristic classification. Migrate qualifying project/tenant-scoped stores to DB-backed views/tables via core/cross_project_learning.py patterns.",
+    "existing_components": [],
+    "existing_apis": [],
+    "existing_modules": [],
+    "dependency_findings": [
+      "REQUIRES BI-0043 settled storage decisions (DB vs file) for consistent classification targets",
+      "RELATED BI-PF-1388 generation proportionality may alter store access patterns"
+    ],
+    "conflict_findings": [
+      "BI-0043 touches store placement decisions — coordinate on DB vs file classification criteria",
+      "Notification/archive stores may be in-flight from BI-0092 blueprint work"
+    ],
+    "duplication_findings": [
+      "BI-0043 addresses hybrid storage (DB control-plane) — overlap on where stores live",
+      "BI-0092 blueprint may already define store classification — verify before building"
+    ],
+    "drift": "LOW",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "Corrective-action refinement of store classification; MODIFY existing store layer rather than new component. Blocked on human confirmation of store inventory and BI-0043 decisions.",
+    "assumptions": [
+      "The 78 stores were identified by prior audit (RCCA) with evidence trail",
+      "DB target is SQLite/Postgres per BI-0043 hybrid storage direction",
+      "Heuristic classification exists in codebase as a function/filter"
+    ],
+    "risks": [
+      "Heuristic misclassification causes data access breakage at migration boundary",
+      "78 stores is large scope — some may have undeclared consumers",
+      "Tenant-scoping logic changes could introduce cross-tenant leakage if views are wrong"
+    ],
+    "evidence": [
+      "Item title states 'RCCA' — root-cause corrective action already performed",
+      "Candidate code includes project_store.py, port_config.py, provider_kinds.py as classification surfaces",
+      "API /api/v1/changes/kinds suggests kind-aware logic already present"
+    ],
+    "confidence": "medium",
+    "missing_info": [
+      "List of the 78 specific store identifiers and their current classification",
+      "Target classification per store (config→file, derived→DB view, persistent→DB table)",
+      "Whether BI-0043 hybrid storage decisions are final or still in flux",
+      "Migration deadline / release target"
+    ],
+    "depth": "deep",
+    "mode": "ai",
+    "context_review": {
+      "ok": false,
+      "source": "llm",
+      "implementable": false,
+      "missing": [
+        "what",
+        "why",
+        "how",
+        "where"
+      ],
+      "reason": "Auto-generated stub: title repeated in every field; no list of the 78 stores, no files/components ('Not specified'), no approach or criteria, WHY not explained."
+    },
+    "decision_request": {
+      "needed": false,
+      "reasons": [],
+      "ask": ""
+    },
+    "arch_fingerprint": "81780f0af79c6dbf"
+  },
+  "dependencies": [
+    {
+      "task_id": "BI-0043",
+      "type": "RELATED",
+      "required_state": "storage strategy decisions settled"
+    },
+    {
+      "task_id": "BI-0092",
+      "type": "RELATED",
+      "required_state": "blueprint store classification confirmed"
+    }
+  ],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-16T13:53:58.613271"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-16T13:53:04.729664",
+  "updated_at": "2026-10-16T13:54:00.395819",
+  "score": 0.75,
+  "_note": "readiness computed",
+  "api_impact": {
+    "needs_api": false,
+    "reason": "classification review",
+    "routes": []
+  }
+}
