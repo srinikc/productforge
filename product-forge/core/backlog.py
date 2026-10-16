@@ -205,11 +205,51 @@ def _load_all(scope: str, project: str | None):
     return list(lo or []), list(lc or [])
 
 
+def _backlog_db_mode() -> str:
+    """BI-PF-1399: files->DB cutover mode. off (default) | dual (write-through, best-effort) | on (DB truth)."""
+    return str(os.environ.get("PF_BACKLOG_DB", "off")).strip().lower()
+
+
+def _mirror_item_to_db(item: dict) -> None:
+    """BI-PF-1399 Phase 1 (dual-write): mirror a saved item to the Go backlog SoR over HTTP (Option B).
+
+    Thin client only - the DB logic lives in the Go service (edpsvc /backlog); language rule respected.
+    In 'dual' the call is best-effort (files stay the source of truth); in 'on' failure propagates.
+    """
+    import json as _json
+    import logging as _logging
+    import urllib.error as _uerr
+    import urllib.request as _ureq
+
+    mode = _backlog_db_mode()
+    if mode not in ("dual", "on"):
+        return
+    iid = str(item.get("id") or "")
+    if not iid:
+        return
+    tenant = str(item.get("project") or item.get("scope") or "product_forge")
+    api = str(os.environ.get("PF_BACKLOG_API", "http://127.0.0.1:8030")).rstrip("/")
+    body = _json.dumps({"ID": iid, "Tenant": tenant, "Type": str(item.get("type") or "feature"),
+                        "Status": str(item.get("status") or "new"), "Title": str(item.get("title") or ""),
+                        "Body": str(item.get("body") or "")}).encode("utf-8")
+    req = _ureq.Request(f"{api}/backlog?tenant={tenant}", data=body, method="POST")
+    req.add_header("Content-Type", "application/json")
+    req.add_header("Authorization", f"Bearer {os.environ.get('PF_API_TOKEN', '')}")
+    try:
+        with _ureq.urlopen(req, timeout=5):
+            pass
+    except Exception as e:  # noqa: BLE001
+        if mode == "on":
+            raise
+        _logging.getLogger(__name__).warning("backlog dual-write skipped (%s): %s", iid, e)
+
+
 def _save_item(d: str, item: dict) -> None:
     iid = str(item.get("id") or "")
     if not iid:
         return
     _wj(os.path.join(_items_dir(d), f"{iid}.json"), item)
+    _mirror_item_to_db(item)
 
 
 def _write_indexes(scope: str, project: str | None, op: list[dict], cl: list[dict]) -> None:

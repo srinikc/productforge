@@ -1,16 +1,16 @@
 # Backlog Summary
 
-> GENERATED 2026-10-16T15:48:23 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-16T18:50:29 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 133  |  **Closed:** 542
+- **Open:** 134  |  **Closed:** 542
 - `blocked`: 1
 - `executing`: 3
-- `new`: 129
+- `new`: 130
 
-### new, by category (129)
+### new, by category (130)
 **API / reports / HIL / misc** (15)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
@@ -89,7 +89,7 @@
 | BI-PF-1385 | Must | bug | Backlog API: no deterministic endpoint to author item context fields (objective/acceptance_criteria/affected_files/approach) | Backlog API: no deterministic endpoint to author item context fields (objective/acceptance_criteria/affected_f... |
 | BI-PF-1392 | Should | task | Enforce per-feature FR/US caps + max_lines in the Go artifact engine (scaled by the profile) and reconcile the three section sources | Per-feature FR/US caps + max_lines enforced NUMERICALLY (scaled by profile); sections have ONE source. |
 
-**Wiring / tech-debt / API** (79)
+**Wiring / tech-debt / API** (80)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0185 | Should | feature | EPIC: Multi-modal / media orchestration (pluggable capability packs) | Make the pipeline modality-agnostic via PLUGGABLE capability packs, enabled per project when the idea needs th... |
@@ -171,6 +171,7 @@
 | BI-PF-1414 | Should | defect | RCCA: schema designed without field-level reconciliation vs the owning port (artifact schema mismatched datastore.Artifact) - found only at C1b | RCCA: schema designed without field-level reconciliation vs the owning port (artifact schema mismatched datast... |
 | BI-PF-1416 | Should | feature | Automate PF persistence setup: one-command provisioning + roles + migrations + storage config + secrets + verify (dev and SaaS) | Automate PF persistence setup: one-command provisioning + roles + migrations + storage config + secrets + veri... |
 | BI-PF-1417 | Should | feature | Standard: EDP is the single storage/data-plane standard - every capability uses datastore ports + Postgres RLS / object store (no bespoke stores) | Standard: EDP is the single storage/data-plane standard - every capability uses datastore ports + Postgres RLS... |
+| BI-PF-1419 | Should | feature | Split full precheck into sequential named groups (4-5) with per-group pass/fail + duration (no opaque 20-min block); add --group/--only | Split full precheck into sequential named groups (4-5) with per-group pass/fail + duration (no opaque 20-min b... |
 
 ---
 
@@ -370,5 +371,5 @@
 ---
 
 ## Totals
-- backend: 133 open / 542 closed
+- backend: 134 open / 542 closed
 - dashboard: 146 open / 3 closed
