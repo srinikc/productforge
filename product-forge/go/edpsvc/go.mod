@@ -3,6 +3,7 @@ module productforge/edpsvc
 go 1.25.0
 
 require (
+	productforge/artifacts v0.0.0
 	productforge/datastore v0.0.0
 	productforge/migrate v0.0.0
 	productforge/objstore v0.0.0
@@ -30,6 +31,8 @@ require (
 	golang.org/x/sys v0.24.0 // indirect
 	golang.org/x/text v0.29.0 // indirect
 )
+
+replace productforge/artifacts => ../artifacts
 
 replace productforge/datastore => ../datastore
 
