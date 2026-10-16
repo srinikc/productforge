@@ -222,7 +222,7 @@ def _mirror_item_to_db(item: dict) -> None:
     import urllib.request as _ureq
 
     mode = _backlog_db_mode()
-    if mode not in ("dual", "on"):
+    if mode not in ("dual", "shadow", "on"):
         return
     iid = str(item.get("id") or "")
     if not iid:
@@ -244,12 +244,50 @@ def _mirror_item_to_db(item: dict) -> None:
         _logging.getLogger(__name__).warning("backlog dual-write skipped (%s): %s", iid, e)
 
 
+def _fetch_item_from_db(iid: str, tenant: str) -> dict:
+    """BI-PF-1399 Phase 2 (shadow-read): read the item back from the Go backlog SoR (for comparison only)."""
+    import json as _json
+    import urllib.request as _ureq
+
+    api = str(os.environ.get("PF_BACKLOG_API", "http://127.0.0.1:8030")).rstrip("/")
+    req = _ureq.Request(f"{api}/backlog/{iid}?tenant={tenant}", method="GET")
+    req.add_header("Authorization", f"Bearer {os.environ.get('PF_API_TOKEN', '')}")
+    with _ureq.urlopen(req, timeout=5) as r:
+        return _json.loads(r.read().decode("utf-8"))
+
+
+def _shadow_compare(item: dict) -> bool:
+    """BI-PF-1399 Phase 2: compare the file item (truth) to the DB copy; log drift. Returns True when equal.
+
+    Never changes what is returned to callers (files remain the source of truth in ``shadow``).
+    """
+    import logging as _logging
+
+    iid = str(item.get("id") or "")
+    if not iid:
+        return True
+    tenant = str(item.get("project") or item.get("scope") or "product_forge")
+    try:
+        db = _fetch_item_from_db(iid, tenant)
+    except Exception as e:  # noqa: BLE001
+        _logging.getLogger(__name__).warning("shadow-read: DB fetch failed (%s): %s", iid, e)
+        return False
+    db_data = db.get("Data") if isinstance(db, dict) else None
+    if db_data != item:
+        _logging.getLogger(__name__).warning("shadow-read DRIFT: %s (file != DB)", iid)
+        return False
+    return True
+
+
 def _save_item(d: str, item: dict) -> None:
     iid = str(item.get("id") or "")
     if not iid:
         return
     _wj(os.path.join(_items_dir(d), f"{iid}.json"), item)
+    mode = _backlog_db_mode()
     _mirror_item_to_db(item)
+    if mode == "shadow":
+        _shadow_compare(item)
 
 
 def _write_indexes(scope: str, project: str | None, op: list[dict], cl: list[dict]) -> None:
