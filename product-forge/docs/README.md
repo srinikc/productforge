@@ -140,6 +140,7 @@
 | [`PIPELINE-STAGES-REFERENCE.md`](PIPELINE-STAGES-REFERENCE.md) | Generated | 100% | Regenerable stages/agents reference | — | — |
 | [`PLUGINS-DESIGN.md`](PLUGINS-DESIGN.md) | Design | 100% | Plugin/registry framework (ports & adapters) (BI-0200) | — | — |
 | [`PR-WORKFLOW.md`](PR-WORKFLOW.md) | Implemented | 100% | Branch -> pre-check gates -> review -> merge (BI-0205) | — | — |
+| [`PRECHECK-GROUPS.md`](PRECHECK-GROUPS.md) | Reference (verify) | 50% | unclassified - confirm before relying on it | — | — |
 | [`PRODUCT-ISSUE-LOOP-DESIGN.md`](PRODUCT-ISSUE-LOOP-DESIGN.md) | Design | 100% | Product-scope issue/RCCA/backlog integration + API (BI-PF-0272) | — | — |
 | [`PRODUCT_FORGE_MASTER_API_FIRST_ENGINEERING_product-forge_E2E_EXECUTION_PLAN-updated.md`](PRODUCT_FORGE_MASTER_API_FIRST_ENGINEERING_FACTORY_E2E_EXECUTION_PLAN-updated.md) | SSOT | 0% | Governing master API-first -> engineering -> E2E execution plan | — | — |
 | [`PRODUCT_FORGE_MASTER_API_FIRST_ENGINEERING_product-forge_E2E_EXECUTION_PLAN.md`](PRODUCT_FORGE_MASTER_API_FIRST_ENGINEERING_FACTORY_E2E_EXECUTION_PLAN.md) | SSOT | 0% | Governing master API-first -> engineering -> E2E execution plan | — | — |
