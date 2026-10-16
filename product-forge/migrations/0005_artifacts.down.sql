@@ -1,0 +1,12 @@
+-- Rollback EDP-15 C1a.
+
+DROP POLICY IF EXISTS tenant_isolation ON stored_objects;
+ALTER TABLE stored_objects NO FORCE ROW LEVEL SECURITY;
+ALTER TABLE stored_objects DISABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON artifacts;
+ALTER TABLE artifacts NO FORCE ROW LEVEL SECURITY;
+ALTER TABLE artifacts DISABLE ROW LEVEL SECURITY;
+
+DROP TABLE IF EXISTS artifacts;
+DROP TABLE IF EXISTS stored_objects;

@@ -46,10 +46,11 @@
   },
   "objective": "Create stored_objects and artifacts metadata, refactor artifact_store/artifact_registry behind a unified ArtifactService, and expose /artifacts with authorization, metadata, and streaming.",
   "acceptance_criteria": [
-    "stored_objects + artifacts tables populated with migration path from legacy store",
-    "/artifacts endpoints enforce authz and support streaming download",
-    "Existing Python artifact_store/registry delegated or retired with parity tests",
-    "Language rule L1 (Go) passes"
+    "C1a: migration 0005_artifacts creates stored_objects(tenant_id,checksum PK) + artifacts(id,tenant_id,project_id,run_id,name,version,checksum,size,soft-delete) with FK + indexes; applied via pfmigrate (no auto-migrate)",
+    "C1a: both tables have RLS ENABLE+FORCE + a tenant_isolation policy (USING + WITH CHECK) matching 0003",
+    "C1b: ArtifactService implemented in Go (metadata in Postgres, bytes via the object store) with round-trip + checksum + RLS negative tests",
+    "C1c: /artifacts API in go/edpsvc (authorized metadata + streaming or signed URL) verified e2e",
+    "Evidence: schemacheck shows the new tables; RLS/isolation test; language-rule OK; precheck fast PASS"
   ],
   "in_scope": [
     "ArtifactService facade",
@@ -73,7 +74,7 @@
     "internal/artifacts/service.go",
     "config/store-registry.json"
   ],
-  "approach": "Write characterization tests on current endpoints, define ArtifactService interface, delegate Python store to metadata-backed service, migrate data, add streaming and authz.",
+  "approach": "EDP-15 slices C1a (migration) -> C1b (ArtifactService Go) -> C1c (/artifacts API). Decisions: identity = logical artifacts.id + content-addressed stored_objects.checksum(sha256); versioning = immutable append-only (monotonic version); signed-URL vs streaming chosen by ObjectStore Capabilities; retention deferred to EDP-16",
   "review": {
     "reconciliation": {
       "prior_decisions": [],
@@ -248,13 +249,17 @@
     "usage": {}
   },
   "created_at": "2026-10-13T16:02:56.893726",
-  "updated_at": "2026-10-15T19:52:04.439320",
+  "updated_at": "2026-10-16T10:07:21.369435",
   "score": 0.75,
   "source_ref": "docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md",
   "_note": "dependencies set",
   "api_impact": {
-    "needs_api": false,
-    "reason": "retrofit assessment (ADR-0007): no external API consumer recorded; treated as internal until an API surface is required (then set needs_api=true with routes)",
-    "routes": []
+    "needs_api": true,
+    "reason": "artifact bytes/metadata consumable by internal+external clients",
+    "routes": [
+      "POST /artifacts",
+      "GET /artifacts/{id}",
+      "GET /artifacts/{id}/content"
+    ]
   }
 }
