@@ -1,0 +1,211 @@
+{
+  "id": "BI-PF-1417",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "api",
+  "external_id": "edp-storage-standard",
+  "label": "PF Backlog 616",
+  "title": "Standard: EDP is the single storage/data-plane standard - every capability uses datastore ports + Postgres RLS / object store (no bespoke stores)",
+  "body": "",
+  "source": "generic",
+  "status": "new",
+  "priority": "P2",
+  "moscow": "Should",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [
+    "BI-PF-0414",
+    "BI-0043"
+  ],
+  "links": {},
+  "decisions": [
+    {
+      "at": "2026-10-16T15:39:31.929612",
+      "decision": "APPROVE",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)"
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "Standard: EDP is the single storage/data-plane standard - every capability uses datastore ports + Postgres RLS / object store (no bespoke stores)",
+    "what_adds": "Standard: EDP is the single storage/data-plane standard - every capability uses datastore ports + Postgres RLS / object store (no bespoke stores)",
+    "why": "Standard: EDP is the single storage/data-plane standard - every capability uses datastore ports + Postgres RLS / object store (no bespoke stores)",
+    "who_feels": "Product Forge maintainers and consumers.",
+    "source": "derived"
+  },
+  "objective": "Standard: EDP is the single storage/data-plane standard - every capability uses datastore ports + Postgres RLS / object store (no bespoke stores)",
+  "acceptance_criteria": [
+    "Objective achieved: Standard: EDP is the single storage/data-plane standard - every capability uses datastore ports + Postgres RLS / object store (no bespoke stores)"
+  ],
+  "in_scope": [
+    "Standard: EDP is the single storage/data-plane standard - every capability uses datastore ports + Postgres RLS / object store (no bespoke stores)"
+  ],
+  "out_of_scope": [
+    "Not specified."
+  ],
+  "affected_components": [
+    "Not specified."
+  ],
+  "affected_files": [
+    "Not specified."
+  ],
+  "approach": "Standard: EDP is the single storage/data-plane standard - every capability uses datastore ports + Postgres RLS / object store (no bespoke stores)",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Objective achieved: Standard: EDP is the single storage/data-plane standard - every capability uses datastore ports + Postgres RLS / object store (no bespoke stores)"
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "unassigned",
+  "requester": "generic",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1292",
+  "parent": "BI-PF-1292",
+  "revision": 3,
+  "priority_rank": 320,
+  "priority_class": "P2",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "COMPLETE",
+    "analyzed_at": "2026-10-16T15:39:31.635783",
+    "analyzed_by": "system",
+    "revision_analyzed": 3,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend core/capability_bridge.py + core/net_ports.py to classify every capability's storage via datastore ports; enforce Postgres RLS/object-store rules via config/agent-capability-vector.json, capability-packs.json, and data-plane-threats.json lint rules. No new component; default port adapters wrap Postgres + S3-compatible store.",
+    "existing_components": [],
+    "existing_apis": [],
+    "existing_modules": [],
+    "dependency_findings": [
+      {
+        "task_id": "BI-PF-1292",
+        "type": "REQUIRES",
+        "required_state": "in_progress"
+      },
+      {
+        "task_id": "BI-PF-0414",
+        "type": "RELATED",
+        "required_state": "defined"
+      },
+      {
+        "task_id": "BI-0043",
+        "type": "RELATED",
+        "required_state": "any"
+      }
+    ],
+    "conflict_findings": [
+      "BI-PF-0414 may add non-Postgres stores concurrently in net_ports adapters",
+      "BI-0043 pipeline file-store truths could be read as bypassing the standard"
+    ],
+    "duplication_findings": [
+      "BI-PF-1292 defines EDP itself - this item only sets/enforce the standard on top",
+      "BI-PF-0414 pluggable SQLite store is an allowed test/dev exception to document, not duplicate work",
+      "BI-0043 hybrid file-store stance conflicts at wording level only"
+    ],
+    "drift": "LOW",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "Standard enforcement is best served by extending existing capability-bridge/net_ports plumbing and config vectors; new component would duplicate EDP epic work. Low drift, clear deps on BI-PF-1292.",
+    "assumptions": [
+      "Datastore port abstraction already exists via net_ports/capability_bridge",
+      "BI-PF-1292 provides Postgres RLS and object-store adapters as primitives",
+      "Standard applies to new and migrated capabilities, not one-off spikes"
+    ],
+    "risks": [
+      "Enforcement could block dev/test flows needing SQLite or local files",
+      "Existing capabilities may lack declared storage ports (undocumented bespoke stores)",
+      "Over-broad standard could stall delivery of thin spikes"
+    ],
+    "evidence": [
+      "Reuse of candidate files limits surface area",
+      "Low drift vs settled EDP epic",
+      "Dependencies clearly map to existing backlog"
+    ],
+    "confidence": "medium",
+    "missing_info": [
+      "Which capabilities are exempt (spikes, CI/local dev)?",
+      "Is SQLite allowed as dev-only default per BI-PF-0414 or prohibited entirely?",
+      "Enforcement mechanism: build-time lint, runtime assert, or both?",
+      "Owner of the standard sign-off"
+    ],
+    "depth": "deep",
+    "mode": "ai",
+    "context_review": {
+      "ok": false,
+      "source": "llm",
+      "implementable": false,
+      "missing": [
+        "what",
+        "why",
+        "how",
+        "where"
+      ],
+      "reason": "Title/policy text copied verbatim into every field; no concrete capabilities to migrate, no listed files/components, no actionable migration steps or verification beyond restating the standard."
+    },
+    "decision_request": {
+      "needed": false,
+      "reasons": [],
+      "ask": ""
+    },
+    "arch_fingerprint": "a99a654014d9d53f"
+  },
+  "dependencies": [
+    {
+      "task_id": "BI-PF-0414",
+      "type": "RELATED",
+      "required_state": "defined"
+    },
+    {
+      "task_id": "BI-0043",
+      "type": "RELATED",
+      "required_state": "any"
+    }
+  ],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-16T15:39:31.768071"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-16T15:38:35.070426",
+  "updated_at": "2026-10-16T15:39:32.442148",
+  "score": 0.75,
+  "_note": "readiness computed"
+}
