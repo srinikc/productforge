@@ -78,6 +78,7 @@ TOP = {
     "PF-TARGET-ARCHITECTURE-AND-IP-PLAN.md": ("Design", "Consolidated target-architecture + IP-protection plan for the PF platform (phases A0-A7/B1-B7; BI-PF-0386/0387/0388)", 10),
     "Product_Forge_Code_Aligned_Target_Architecture_PreImplementation_Baseline.md": ("Design", "Source target-architecture baseline (CODE-ALIGNED AMENDMENT is authority); reconciled by A0/BI-PF-0392", 10),
     "Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md": ("Design", "Enterprise DB/storage architecture: performance+security design, repo reconciliation, phased roadmap (BI-PF-1320)", 0),
+    "GENERATION-PROPORTIONALITY.md": ("Design", "Generation proportionality work plan: artifact contract + project profile drive generation (epic BI-PF-1388)", 0),
     "ARCHITECTURE-DECISIONS.md": ("Implemented", "Architecture Decision Register (ADR) - governance anchor for Epic A; ADR-0001 Go-first compiled delivery", 100),
     "BRANCHING-GIT-WORKFLOW.md": ("Implemented", "Branch/worktree/merge/push workflow reference: PF, generated products, intake + worker paths (BI-PF-0431)", 100),
     "TOOLS-AND-DEPENDENCIES.md": ("Implemented", "PF tool layer + tools we have/need, sourcing, API keys, licensing & redistribution (BI-PF-0436)", 100),

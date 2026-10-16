@@ -90,6 +90,7 @@
 | [`FEASIBILITY-TRIAGE-DESIGN.md`](FEASIBILITY-TRIAGE-DESIGN.md) | Design | 100% | Two-phase feasibility & capability triage (BI-0214) | — | — |
 | [`FULL-DOGFOOD-AND-FINAL-AUDIT.md`](FULL-DOGFOOD-AND-FINAL-AUDIT.md) | Design | 100% | Full dogfood lifecycle harness + final §42 production-readiness acceptance audit | — | — |
 | [`Failure-Recovery-System.md`](Failure-Recovery-System.md) | Implemented | 100% | Failure / retry / checkpoint recovery | — | — |
+| [`GENERATION-PROPORTIONALITY.md`](GENERATION-PROPORTIONALITY.md) | Design | 0% | Generation proportionality work plan: artifact contract + project profile drive generation (epic BI-PF-1388) | — | — |
 | [`GENERATOR-ADAPTERS-DESIGN.md`](GENERATOR-ADAPTERS-DESIGN.md) | Design | 100% | Generator-model adapters (image/video/audio/music/3d) (BI-0188) | — | — |
 | [`GUARDRAILS-DESIGN.md`](GUARDRAILS-DESIGN.md) | Design | 100% | Output guardrails + model/data cards + C2PA provenance + NIST/EU governance (BI-0219) | — | — |
 | [`HOW-TO-START-NEW-PROJECT.md`](HOW-TO-START-NEW-PROJECT.md) | Implemented | 100% | Step-by-step to start a project | — | — |
