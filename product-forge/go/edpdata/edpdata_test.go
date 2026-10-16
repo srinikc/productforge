@@ -32,6 +32,7 @@ func TestAuditAndJobs_Integration(t *testing.T) {
 	}
 	defer bind.WithTx(ctx, func(tx datastore.Tx) error {
 		_, _ = tx.Exec(ctx, `DELETE FROM jobs WHERE tenant_id=$1`, tenant)
+		_, _ = tx.Exec(ctx, `DELETE FROM memory WHERE tenant_id=$1`, tenant)
 		_, _ = tx.Exec(ctx, `DELETE FROM audit WHERE tenant_id=$1`, tenant)
 		_, _ = tx.Exec(ctx, `DELETE FROM tenants WHERE id=$1`, tenant)
 		return nil
@@ -61,5 +62,23 @@ func TestAuditAndJobs_Integration(t *testing.T) {
 	got, err := jobs.Get(ctx, jobID)
 	if err != nil || got.Status != "completed" {
 		t.Fatalf("after complete: %+v err=%v", got, err)
+	}
+
+	// Memory lifecycle + scoped search.
+	mem := NewMemory(bind)
+	if _, err := mem.Put(ctx, datastore.MemoryEntry{ID: "mem-" + tenant, TenantID: tenant,
+		Kind: "note", ACLScope: "team"}); err != nil {
+		t.Fatal(err)
+	}
+	hits, err := mem.Search(ctx, "", datastore.MemoryScope{TenantID: tenant, Source: "team"}, 10)
+	if err != nil || len(hits) != 1 {
+		t.Fatalf("memory search: hits=%d err=%v", len(hits), err)
+	}
+	none, err := mem.Search(ctx, "", datastore.MemoryScope{TenantID: tenant, Source: "other"}, 10)
+	if err != nil || len(none) != 0 {
+		t.Fatalf("memory scope filter leaked: hits=%d err=%v", len(none), err)
+	}
+	if err := mem.Delete(ctx, "mem-"+tenant); err != nil {
+		t.Fatal(err)
 	}
 }
