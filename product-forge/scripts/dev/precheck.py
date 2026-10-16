@@ -244,8 +244,65 @@ def _steps(full: bool, scope_csv: str, release: bool = False):
     return steps
 
 
+def _group_of(argv) -> str | None:
+    for i, a in enumerate(argv):
+        if a == "--group" and i + 1 < len(argv):
+            return argv[i + 1]
+        if a.startswith("--group="):
+            return a.split("=", 1)[1]
+    return None
+
+
+def _test_files() -> list[str]:
+    import glob as _glob
+    return sorted(_glob.glob(os.path.join(_TEST_DIR, "test_*.py")))
+
+
+def _group_steps(group: str) -> list[tuple[str, list[str]]]:
+    """BI-PF-1419: run the precheck in small sequential groups (~3-4 min each).
+
+    Groups 1-3 = gate tiers (fast/deep/release); groups 4-5 = the test suite split in half.
+    """
+    if group in ("1", "2", "3"):
+        tier = {"1": "fast", "2": "deep", "3": "release"}[group]
+        return [(n, [sys.executable, *c]) for n, c, t, _a in _GATES if t == tier]
+    if group in ("4", "5"):
+        files = _test_files()
+        half = len(files) // 2
+        sel = files[:half] if group == "4" else files[half:]
+        return [(f"tests-half-{group}", [sys.executable, "-m", "pytest", *sel, "-q", "-o", "addopts="])]
+    return []
+
+
 def main(argv=None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
+    grp = _group_of(argv)
+    if grp:
+        import time as _gt
+        steps = _group_steps(grp)
+        if not steps:
+            print(f"[precheck] --group {grp}: unknown group (use 1..5)")
+            return 2
+        print(f"[precheck] group {grp}: {len(steps)} step(s)")
+        grc = 0
+        gt0 = _gt.time()
+        gtimes = []
+        for name, cmd in steps:
+            print(f"\n=== precheck[g{grp}]: {name} ===", flush=True)
+            s0 = _gt.time()
+            try:
+                r = subprocess.run(cmd, cwd=_ROOT)
+            except FileNotFoundError as e:
+                print(f"[SKIP] {name}: {e}")
+                continue
+            dt = _gt.time() - s0
+            gtimes.append((name, dt, r.returncode))
+            print(f"[{'OK' if r.returncode == 0 else 'FAIL'}] {name} ({dt:.1f}s)")
+            if r.returncode != 0:
+                grc = 1
+        print(f"\nprecheck[group {grp}]: {'PASS' if grc == 0 else 'FAIL'} ({_gt.time() - gt0:.1f}s, "
+              f"{len(gtimes)} step(s))")
+        return grc
     release = "--release" in argv
     full = "--full" in argv or release
     scope_csv = ""

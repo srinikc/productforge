@@ -69,6 +69,7 @@
 | [`EDP-17-SCHEMA.md`](EDP-17-SCHEMA.md) | Design | 100% | Canonical schema domain + relationship model for EDP-17 (BI-PF-1309): entities, FKs, ownership, extensibility contract | — | — |
 | [`EDP-DATA-PLANE-THREAT-MODEL.md`](EDP-DATA-PLANE-THREAT-MODEL.md) | SSOT | 100% | Generated data-plane threat model + register matrix: 6 categories -> source/sink/control/owner/evidence (BI-PF-1296 / EDP-04) | — | — |
 | [`EDP-EXECUTION-ORDER.md`](EDP-EXECUTION-ORDER.md) | SSOT | 100% | Authoritative wave-by-wave EDP execution order + dependencies (schema-first); mirrors the backlog epic BI-PF-1292 (BI-PF-1388) | — | — |
+| [`EDP-SAAS-PERSISTENCE-AND-DEPLOYMENT.md`](EDP-SAAS-PERSISTENCE-AND-DEPLOYMENT.md) | SSOT | 100% | PF persistence + SaaS deployment: what lives in DB vs object store vs files, how to configure/swap DB and storage, deploy workflow, SaaS gaps (BI-PF-1292) | — | — |
 | [`EDP-STORAGE-ADAPTERS.md`](EDP-STORAGE-ADAPTERS.md) | SSOT | 100% | EDP ports & adapters: every store is a port with swappable adapters (Postgres/S3/local/NFS/...); conformance-tested (BI-PF-1309/1305) | — | — |
 | [`ENG-0-ENGINEERING-ARCHITECTURE.md`](ENG-0-ENGINEERING-ARCHITECTURE.md) | Design | 100% | ENG-0 engineering architecture: requirement->deploy flow mapped to canonical owners + APIs | — | — |
 | [`ENG-1-TASK-CONTRACT.md`](ENG-1-TASK-CONTRACT.md) | Design | 100% | ENG-1 engineering task contract: executable unit of work (model + store + API + schema gate) | — | — |
