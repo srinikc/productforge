@@ -1,17 +1,17 @@
 # Backlog Summary
 
-> GENERATED 2026-10-16T12:13:57 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-16T13:24:33 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 131  |  **Closed:** 541
+- **Open:** 130  |  **Closed:** 542
 - `blocked`: 1
 - `executing`: 3
-- `new`: 127
+- `new`: 126
 
-### new, by category (127)
-**API / reports / HIL / misc** (16)
+### new, by category (126)
+**API / reports / HIL / misc** (15)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-PF-0332 | Should | chore | API-5 deferred hardening: rate limiting + request/upload limits + tenant-isolation expansion + event streaming | API-5 deferred hardening: rate limiting + request/upload limits + tenant-isolation expansion + event streaming |
@@ -22,7 +22,6 @@
 | BI-PF-1274 | Should | feature | Eventing SSOT: API surface - SSE GET /events/stream + subscription CRUD (edge decision) | SSE stream + subscription CRUD exposed via edits to existing API routes; edge ownership decided in E1. |
 | BI-PF-1286 | Should | change | Entitlement enforcement: cover remaining boundaries (pipeline/capability/API) + action->group mapping (beyond the worker-claim wired by A2) | Extend entitlement enforcement to the remaining execution boundaries with per-action group mapping. |
 | BI-PF-1291 | Should | bug | Defect/RCCA: backlog.update() did not sync epic.children[] on epic/parent change -> chronic backlog residue that fails the residue gate on every branch (fixed; delivered with A4) | Keep epic.children[] in sync on every epic/parent membership change so the backlog-residue gate never drifts. |
-| BI-PF-1307 | Must | feature | EDP-15: stored_objects + artifacts metadata; refactor artifact_store/registry behind ArtifactService; /artifacts API = authz + metadata + streaming | Create stored_objects and artifacts metadata, refactor artifact_store/artifact_registry behind a unified Artif... |
 | BI-PF-1316 | Must | task | api-governance gate red on develop: committed api/openapi.json drifted from the routers (BI-PF-0397 EAP endpoints) | api-governance gate red on develop: committed api/openapi.json drifted from the routers (BI-PF-0397 EAP endpoi... |
 | BI-PF-1321 | Must | task | Auto-mode HIL proxy gate fails stage 0: human agent invoked without the product brief / artifacts | Auto-mode HIL proxy gate fails stage 0: human agent invoked without the product brief / artifacts |
 | BI-PF-1322 | Must | task | Product run re-pointed the framework repo git remote (connect_remote walked up to the parent repo) | Product run re-pointed the framework repo git remote (connect_remote walked up to the parent repo) |
@@ -368,5 +367,5 @@
 ---
 
 ## Totals
-- backend: 131 open / 541 closed
+- backend: 130 open / 542 closed
 - dashboard: 146 open / 3 closed
