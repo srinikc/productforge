@@ -21,14 +21,16 @@ def main() -> int:
     bad: list[str] = []
     for name, v in stores.items():
         cls = (v or {}).get("classification") if isinstance(v, dict) else None
-        if not isinstance(cls, dict) or any(k not in cls for k in REQUIRED):
+        tgt = (v or {}).get("target") if isinstance(v, dict) else None
+        if (not isinstance(cls, dict) or any(k not in cls for k in REQUIRED)
+                or not isinstance(tgt, dict) or "kind" not in tgt):
             bad.append(name)
     if bad:
-        print(f"store-registry: FAIL ({len(bad)}/{len(stores)} stores missing a complete classification)")
+        print(f"store-registry: FAIL ({len(bad)}/{len(stores)} stores missing a complete classification/target)")
         for n in bad[:15]:
             print(f"   {n}")
         return 1
-    print(f"store-registry: OK ({len(stores)} stores classified)")
+    print(f"store-registry: OK ({len(stores)} stores classified + mapped to a target)")
     return 0
 
 
