@@ -87,6 +87,8 @@ func main() {
 	mux.HandleFunc("/jobs", s.adminOnly(s.jobSubmit))
 	mux.HandleFunc("/jobs/claim", s.adminOnly(s.jobClaim))
 	mux.HandleFunc("/jobs/action", s.adminOnly(s.jobAction))
+	mux.HandleFunc("/memory", s.adminOnly(s.memoryHandle))
+	mux.HandleFunc("/memory/", s.adminOnly(s.memoryByID))
 	addr := envOr("PF_EDP_ADDR", "127.0.0.1:8030")
 	log.Printf("edpsvc listening on %s (migrations=%s)", addr, s.migDir)
 	log.Fatal(http.ListenAndServe(addr, mux))
@@ -474,6 +476,70 @@ func (s *server) jobAction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+}
+
+func (s *server) memoryHandle(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query()
+	tenant := q.Get("tenant")
+	st, err := s.tenantStore(tenant)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
+	}
+	defer st.Close()
+	mem := edpdata.NewMemory(store.BindTenant(st, tenant))
+	switch r.Method {
+	case http.MethodPost:
+		var b struct{ ID, Tenant, Project, Kind, ObjectRef, ACLScope string }
+		if err := json.NewDecoder(r.Body).Decode(&b); err != nil || b.ID == "" || b.Tenant == "" {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "id and tenant are required"})
+			return
+		}
+		e, err := mem.Put(r.Context(), datastore.MemoryEntry{ID: b.ID, TenantID: b.Tenant, Project: b.Project,
+			Kind: b.Kind, ObjectRef: b.ObjectRef, ACLScope: b.ACLScope})
+		if err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+			return
+		}
+		writeJSON(w, http.StatusOK, e)
+	case http.MethodGet:
+		k := 20
+		hits, err := mem.Search(r.Context(), q.Get("kind"), datastore.MemoryScope{
+			TenantID: tenant, Project: q.Get("project"), Source: q.Get("source")}, k)
+		if err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"hits": hits})
+	default:
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "use GET or POST"})
+	}
+}
+
+func (s *server) memoryByID(w http.ResponseWriter, r *http.Request) {
+	id := strings.TrimPrefix(r.URL.Path, "/memory/")
+	tenant := r.URL.Query().Get("tenant")
+	st, err := s.tenantStore(tenant)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
+	}
+	defer st.Close()
+	mem := edpdata.NewMemory(store.BindTenant(st, tenant))
+	if r.Method == http.MethodDelete {
+		if err := mem.Delete(r.Context(), id); err != nil {
+			writeJSON(w, http.StatusNotFound, map[string]string{"error": err.Error()})
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+		return
+	}
+	e, err := mem.Get(r.Context(), id)
+	if err != nil {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, e)
 }
 
 func writeJSON(w http.ResponseWriter, code int, v any) {
