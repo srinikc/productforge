@@ -5,6 +5,7 @@ go 1.25.0
 require (
 	productforge/artifacts v0.0.0
 	productforge/datastore v0.0.0
+	productforge/edpdata v0.0.0
 	productforge/migrate v0.0.0
 	productforge/objstore v0.0.0
 	productforge/s3store v0.0.0
@@ -35,6 +36,8 @@ require (
 replace productforge/artifacts => ../artifacts
 
 replace productforge/datastore => ../datastore
+
+replace productforge/edpdata => ../edpdata
 
 replace productforge/migrate => ../migrate
 

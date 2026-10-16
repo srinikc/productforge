@@ -1,16 +1,16 @@
 # Backlog Summary
 
-> GENERATED 2026-10-16T13:24:33 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-16T14:35:40 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 130  |  **Closed:** 542
+- **Open:** 131  |  **Closed:** 542
 - `blocked`: 1
 - `executing`: 3
-- `new`: 126
+- `new`: 127
 
-### new, by category (126)
+### new, by category (127)
 **API / reports / HIL / misc** (15)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
@@ -63,7 +63,7 @@
 | BI-PF-1401 | Should | feature | Expose doc-driven backlog ingest via a Go capability service (generic surface); tooling becomes a client | Expose doc-driven backlog ingest via a Go capability service (generic surface); tooling becomes a client |
 | BI-PF-1403 | Should | feature | Doc-ingest extraction: design Go extraction for .docx/.pdf (and future formats) in the capability service | Doc-ingest extraction: design Go extraction for .docx/.pdf (and future formats) in the capability service |
 
-**Licensing / tenancy** (7)
+**Licensing / tenancy** (8)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-PF-0390 | Should | epic | EPIC A: PF Commercial & IP Foundation (contracts, Go core, licensing, packaging, EAP, RDC, governance, vertical slice) | EPIC A — the needed-now foundation: A0 baseline freeze + ADR register; A1 thin contracts incl. Go<->Python con... |
@@ -73,6 +73,7 @@
 | BI-PF-1309 | Must | feature | EDP-17: Canonical PostgreSQL schema (tenants/memberships/projects/runs/stages/attempts/artifacts/usage/quotas/audit/schema_migrations) + indexes + pooling + optimistic versioning | Deliver the canonical PostgreSQL schema (tenants, memberships, projects, runs, stages, attempts, artifacts, us... |
 | BI-PF-1315 | Must | feature | EDP-23: Backup/PITR + restore drills (full service + single-tenant) + DB<->object integrity reconciliation + region-aware restore | Deliver backup + PITR configuration, automated restore drills (full-service and single-tenant), DB<->object in... |
 | BI-PF-1317 | Could | feature | EDP-24: Scale-out & enterprise isolation tiers (read replicas / partitioning / tenant isolation tiers / additional region cells / region-migration workflow) [EVIDENCE-GATED] | Provide scale-out and enterprise isolation tiers including read-replica support, DB partitioning, tenant isola... |
+| BI-PF-1415 | Should | defect | RCCA: config/derived stores classified by kind heuristic (not reviewed) - 78 project/tenant-scoped stores likely belong in DB (views/tables) | RCCA: config/derived stores classified by kind heuristic (not reviewed) - 78 project/tenant-scoped stores like... |
 
 **Specs / cache / context / artifacts** (10)
 | ID | MoSCoW | Type | Title | Objective |
@@ -367,5 +368,5 @@
 ---
 
 ## Totals
-- backend: 130 open / 542 closed
+- backend: 131 open / 542 closed
 - dashboard: 146 open / 3 closed

@@ -23,9 +23,11 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"productforge/artifacts"
 	"productforge/datastore"
+	"productforge/edpdata"
 	"productforge/migrate"
 	"productforge/objstore"
 	"productforge/s3store"
@@ -81,6 +83,10 @@ func main() {
 	mux.HandleFunc("/admin/object-store/conform", s.adminOnly(s.objectStoreConform))
 	mux.HandleFunc("/artifacts", s.adminOnly(s.artifactUpload))
 	mux.HandleFunc("/artifacts/", s.adminOnly(s.artifactRoute))
+	mux.HandleFunc("/audit", s.adminOnly(s.auditAppend))
+	mux.HandleFunc("/jobs", s.adminOnly(s.jobSubmit))
+	mux.HandleFunc("/jobs/claim", s.adminOnly(s.jobClaim))
+	mux.HandleFunc("/jobs/action", s.adminOnly(s.jobAction))
 	addr := envOr("PF_EDP_ADDR", "127.0.0.1:8030")
 	log.Printf("edpsvc listening on %s (migrations=%s)", addr, s.migDir)
 	log.Fatal(http.ListenAndServe(addr, mux))
@@ -353,6 +359,121 @@ func (s *server) artifactContent(w http.ResponseWriter, r *http.Request, id stri
 	defer rc.Close()
 	w.Header().Set("Content-Type", "application/octet-stream")
 	_, _ = io.Copy(w, rc)
+}
+
+func (s *server) tenantStore(tenant string) (*store.PgStore, error) {
+	st, err := store.Open(context.Background(), s.dsn)
+	return st, err
+}
+
+func (s *server) auditAppend(w http.ResponseWriter, r *http.Request) {
+	var b struct {
+		Tenant, Actor, Action, Resource, Outcome, CorrelationID string
+	}
+	if err := json.NewDecoder(r.Body).Decode(&b); err != nil || b.Tenant == "" || b.Action == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "tenant and action are required"})
+		return
+	}
+	st, err := s.tenantStore(b.Tenant)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
+	}
+	defer st.Close()
+	err = edpdata.NewAudit(store.BindTenant(st, b.Tenant)).Append(r.Context(), datastore.AuditEvent{
+		TenantID: b.Tenant, Actor: b.Actor, Action: b.Action, Resource: b.Resource,
+		Outcome: b.Outcome, CorrelationID: b.CorrelationID, At: time.Now(),
+	})
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+}
+
+func (s *server) jobSubmit(w http.ResponseWriter, r *http.Request) {
+	var b struct {
+		Tenant, ID, Kind, IdempotencyKey string
+		Priority                         int
+	}
+	if err := json.NewDecoder(r.Body).Decode(&b); err != nil || b.Tenant == "" || b.ID == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "tenant and id are required"})
+		return
+	}
+	st, err := s.tenantStore(b.Tenant)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
+	}
+	defer st.Close()
+	j, err := edpdata.NewJobs(store.BindTenant(st, b.Tenant)).Submit(r.Context(), datastore.Job{
+		ID: b.ID, TenantID: b.Tenant, Kind: b.Kind, Priority: b.Priority, IdempotencyKey: b.IdempotencyKey})
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, j)
+}
+
+func (s *server) jobClaim(w http.ResponseWriter, r *http.Request) {
+	var b struct {
+		Tenant, Worker string
+		TTLSeconds     int
+	}
+	if err := json.NewDecoder(r.Body).Decode(&b); err != nil || b.Tenant == "" || b.Worker == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "tenant and worker are required"})
+		return
+	}
+	if b.TTLSeconds <= 0 {
+		b.TTLSeconds = 60
+	}
+	st, err := s.tenantStore(b.Tenant)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
+	}
+	defer st.Close()
+	j, ok, err := edpdata.NewJobs(store.BindTenant(st, b.Tenant)).Claim(r.Context(), b.Worker, time.Duration(b.TTLSeconds)*time.Second)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"claimed": ok, "job": j})
+}
+
+func (s *server) jobAction(w http.ResponseWriter, r *http.Request) {
+	var b struct {
+		Tenant, ID, Lease, Action, Reason string
+	}
+	if err := json.NewDecoder(r.Body).Decode(&b); err != nil || b.Tenant == "" || b.ID == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "tenant and id are required"})
+		return
+	}
+	st, err := s.tenantStore(b.Tenant)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
+	}
+	defer st.Close()
+	jobs := edpdata.NewJobs(store.BindTenant(st, b.Tenant))
+	switch b.Action {
+	case "complete":
+		err = jobs.Complete(r.Context(), b.ID, b.Lease)
+	case "fail":
+		err = jobs.Fail(r.Context(), b.ID, b.Lease, b.Reason)
+	case "release":
+		err = jobs.Release(r.Context(), b.ID, b.Lease)
+	case "heartbeat":
+		err = jobs.Heartbeat(r.Context(), b.ID, b.Lease)
+	default:
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "action must be complete|fail|release|heartbeat"})
+		return
+	}
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
 func writeJSON(w http.ResponseWriter, code int, v any) {
