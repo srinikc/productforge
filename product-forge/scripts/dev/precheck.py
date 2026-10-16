@@ -2,10 +2,13 @@
 
 Runs the same checks CI enforces (compile, structure audit, matrix, secrets, tests) so a PR is
 green before it is opened. Exit nonzero if any step fails. Run from `product-forge/`:
-    python scripts/dev/precheck.py                 # changed-scoped tests (fast; default)
-    python scripts/dev/precheck.py --full          # full test suite + validation/lifecycle (merge/CI)
-    python scripts/dev/precheck.py --release       # --full + periodic full-tree sweeps (pre-release only)
-    python scripts/dev/precheck.py --scope a,b      # explicit test-name substrings
+    python scripts/dev/precheck.py                  # changed-scoped tests (fast; default)
+    python scripts/dev/precheck.py --full           # ALL named groups sequentially (merge/CI)
+    python scripts/dev/precheck.py --release        # --full + the periodic full-tree secret sweep
+    python scripts/dev/precheck.py --scope a,b       # explicit test-name substrings
+    python scripts/dev/precheck.py --list-groups    # named groups + membership + test counts (BI-PF-1419)
+    python scripts/dev/precheck.py --group backlog  # run ONE named group
+    python scripts/dev/precheck.py --only a,b       # run a subset of named groups
 
 Tiers (BI-PF-0385): the secret scan is **diff-scoped** by default (changed vs develop) so a merge/CI never
 walks the whole tree; the full-tree sweep runs only under `--release` (a few times before a release). The
@@ -208,103 +211,205 @@ _GATES = [
 ]
 
 
+# BI-PF-1419: NAMED groups partition EVERY gate (+ the test suite) so the full run can be churned in small
+# sequential chunks, each with its own PASS/FAIL + duration (no opaque ~20-min block) and early failure.
+# EVERY gate must be in exactly one group - enforced by test-framework/tests/pipeline/test_precheck_groups.py.
+_GROUP_OF = {
+    # structure: compile / static hygiene / generated-doc freshness
+    "compile": "structure", "pycompat": "structure", "ci-cd-gates": "structure", "wired-audit": "structure",
+    "store-contract": "structure", "store-registry": "structure", "lint": "structure", "changed-tests": "structure",
+    "workflow-matrix": "structure", "docs-fresh": "structure", "artifact-map": "structure",
+    "review-focus": "structure", "review-static": "structure",
+    # security: secrets / language rule / compliance / threat register
+    "secret-scan": "security", "language-rule": "security", "compliance-register": "security",
+    "data-plane-threats": "security",
+    # contracts: API surface / contracts / infra / public surfaces
+    "api-contract": "contracts", "api-governance": "contracts", "api-docs-regen": "contracts",
+    "api-docs": "contracts", "api-first": "contracts", "engineering-flow": "contracts",
+    "task-contract": "contracts", "scheduler": "contracts", "reservations": "contracts",
+    "packaging": "contracts", "tool-catalog": "contracts", "dependency-catalog": "contracts",
+    "github": "contracts", "pf-surface": "contracts", "wg-surface": "contracts", "global-commands": "contracts",
+    # worker: leases / worktrees / worker layer
+    "lease": "worker", "single-path": "worker", "vcs-worktree": "worker", "worker": "worker", "wg-go": "worker",
+    # backlog: SSOT invariants / grooming / staleness / trace
+    "backlog-reconcile": "backlog", "backlog-context": "backlog", "backlog-dod": "backlog",
+    "backlog-verification": "backlog", "backlog-ids": "backlog", "backlog-epic": "backlog",
+    "backlog-monotonic": "backlog", "backlog-write": "backlog", "grooming": "backlog",
+    "staleness": "backlog", "intent-trace": "backlog",
+    # quality: pidl / validation / close-loop
+    "dogfood-run": "quality", "pidl": "quality", "pidl-gate": "quality", "pidl-synthesis": "quality",
+    "pidl-trace": "quality", "validation-engine": "quality", "feature-pr": "quality", "merge-gate": "quality",
+    "rate-budget": "quality",
+    # deep tier (merge/CI heavy) + release tier (periodic)
+    "dogfood": "deep", "dogfood-replay": "deep", "dogfood-schedule": "deep", "repo-setup": "deep",
+    "docs-fresh-strict": "deep", "release": "deep", "final-audit": "deep", "backlog-e2e": "deep",
+    "secret-scan-all": "release",
+}
+# order for a full churned run: cheapest structural first (fail fast), tests before the heavy deep tier
+_GROUP_ORDER = ["structure", "security", "contracts", "worker", "backlog", "quality",
+                "tests-a", "tests-b", "deep", "release"]
+_TEST_GROUPS = ("tests-a", "tests-b")
+# deprecated numeric aliases (kept from PR#210): 1=all fast gates, 2..5 = the pre-1419 semantics
+_GROUP_ALIASES = {"1": "fast", "2": "deep", "3": "release", "4": "tests-a", "5": "tests-b"}
+
+
 def _area_touched(area, changed):
     if not area:
         return True
     return any(any(a in c for a in area) for c in changed)
 
 
-def _steps(full: bool, scope_csv: str, release: bool = False):
+def _steps(scope_csv: str = ""):
+    """Default (fast/bookkeeping) steps. Deep/release gates run via --full/--release (named groups)."""
     changed = _changed_paths()
     # BI-PF-1374: a derived/bookkeeping-only change -> MINIMAL tier (docs-fresh + compile); no area gates, no tests.
-    if not full and _bookkeeping_only(changed):
+    if _bookkeeping_only(changed):
         return [(n, [sys.executable, *c]) for n, c, _t, _a in _GATES if n in ("compile", "docs-fresh")]
     steps = []
     for name, cmd, tier, area in _GATES:
-        if tier == "deep" and not full:
-            continue  # heavy validation/lifecycle gates -> merge/CI (--full)
-        if tier == "release" and not release:
-            continue  # periodic full-tree sweeps -> release only (--release)
-        if tier == "fast" and not _area_touched(area, changed) and not full:
-            continue  # skip unrelated area gates in the fast tier
+        if tier != "fast" or not _area_touched(area, changed):
+            continue  # deep/release gates run via --full/--release; skip unrelated-area fast gates
         cmd_list = [sys.executable, *cmd]
-        if name == "wired-audit" and not full:
+        if name == "wired-audit":
             cmd_list.append("--fast")  # skip advisory sub-audits in the per-phase tier
         steps.append((name, cmd_list))
-    if full:
-        steps.append(("pipeline-tests-full",
-                      [sys.executable, "-m", "pytest", _TEST_DIR, "-q", "-o", "addopts="]))
+    tests = _scoped_tests(scope_csv)
+    if tests:
+        steps.append(("tests-scoped", [sys.executable, "-m", "pytest", *tests, "-q", "-o", "addopts="]))
     else:
-        tests = _scoped_tests(scope_csv)
-        if tests:
-            steps.append(("tests-scoped", [sys.executable, "-m", "pytest", *tests, "-q", "-o", "addopts="]))
-        else:
-            steps.append(("pipeline-tests-full",
-                          [sys.executable, "-m", "pytest", _TEST_DIR, "-q", "-o", "addopts="]))
+        steps.append(("pipeline-tests-full", [sys.executable, "-m", "pytest", _TEST_DIR, "-q", "-o", "addopts="]))
     return steps
 
 
-def _group_of(argv) -> str | None:
+def _selected_groups(argv) -> list:
+    """BI-PF-1419: collect group names from --group <name> and --only <a,b> (repeatable)."""
+    out = []
     for i, a in enumerate(argv):
-        if a == "--group" and i + 1 < len(argv):
-            return argv[i + 1]
-        if a.startswith("--group="):
-            return a.split("=", 1)[1]
-    return None
+        if a in ("--group", "--only") and i + 1 < len(argv):
+            out += [s.strip() for s in argv[i + 1].split(",") if s.strip()]
+        elif a.startswith("--group=") or a.startswith("--only="):
+            out += [s.strip() for s in a.split("=", 1)[1].split(",") if s.strip()]
+    return out
 
 
-def _test_files() -> list[str]:
-    import glob as _glob
-    return sorted(_glob.glob(os.path.join(_TEST_DIR, "test_*.py")))
+def _resolve_group(spec: str) -> str:
+    s = str(spec or "").strip()
+    return _GROUP_ALIASES.get(s, s)
 
 
-def _group_steps(group: str) -> list[tuple[str, list[str]]]:
-    """BI-PF-1419: run the precheck in small sequential groups (~3-4 min each).
+_SUITE_CACHE = {}
 
-    Groups 1-3 = gate tiers (fast/deep/release); groups 4-5 = the test suite split in half.
+
+def _suite_files() -> list:
+    """The precheck test-suite files (test-framework/tests/pipeline) split into tests-a/tests-b halves."""
+    if "files" not in _SUITE_CACHE:
+        import glob as _glob
+        _SUITE_CACHE["files"] = sorted(_glob.glob(os.path.join(_ROOT, _TEST_DIR, "test_*.py")))
+    return _SUITE_CACHE["files"]
+
+
+def _suite_halves() -> dict:
+    files = _suite_files()
+    half = len(files) // 2
+    return {"tests-a": files[:half], "tests-b": files[half:]}
+
+
+def _count_tests(files) -> int:
+    """Number of test items in ``files`` via one pytest collection (best-effort; 0 on failure)."""
+    files = list(files or [])
+    if not files:
+        return 0
+    try:
+        r = subprocess.run([sys.executable, "-m", "pytest", "--collect-only", "-q", "-o", "addopts=", *files],
+                           cwd=_ROOT, capture_output=True, text=True)
+    except Exception:
+        return 0
+    return sum(1 for ln in (r.stdout or "").splitlines() if "::" in ln)
+
+
+def _group_steps(group: str):
+    """BI-PF-1419: (steps, label) for a named group (or the numeric aliases / the 'fast' aggregate).
+
+    ``steps`` is None for an unknown group. Test groups report their file + test counts in the label.
     """
-    if group in ("1", "2", "3"):
-        tier = {"1": "fast", "2": "deep", "3": "release"}[group]
-        return [(n, [sys.executable, *c]) for n, c, t, _a in _GATES if t == tier]
-    if group in ("4", "5"):
-        files = _test_files()
-        half = len(files) // 2
-        sel = files[:half] if group == "4" else files[half:]
-        return [(f"tests-half-{group}", [sys.executable, "-m", "pytest", *sel, "-q", "-o", "addopts="])]
-    return []
+    key = _resolve_group(group)
+    if key in _TEST_GROUPS:
+        files = _suite_halves().get(key, [])
+        label = f"{len(files)} file(s), {_count_tests(files)} test(s)"
+        return [(key, [sys.executable, "-m", "pytest", *files, "-q", "-o", "addopts="])], label
+    sel = ([g for g in _GATES if g[2] == "fast"] if key == "fast" else
+           [g for g in _GATES if _GROUP_OF.get(g[0]) == key])
+    if not sel:
+        return None, ""
+    return [(n, [sys.executable, *c]) for n, c, _t, _a in sel], f"{len(sel)} gate(s)"
 
 
-def main(argv=None) -> int:
-    argv = list(sys.argv[1:] if argv is None else argv)
-    grp = _group_of(argv)
-    if grp:
-        import time as _gt
-        steps = _group_steps(grp)
-        if not steps:
-            print(f"[precheck] --group {grp}: unknown group (use 1..5)")
+def _list_groups() -> int:
+    print("precheck groups (named; BI-PF-1419):")
+    for key in _GROUP_ORDER:
+        if key in _TEST_GROUPS:
+            files = _suite_halves().get(key, [])
+            print(f"  {key:10s} {len(files):4d} file(s), {_count_tests(files):5d} test(s)")
+        else:
+            n = sum(1 for g in _GATES if _GROUP_OF.get(g[0]) == key)
+            print(f"  {key:10s} {n:4d} gate(s)")
+    print(f"  {'fast':10s} {sum(1 for g in _GATES if g[2] == 'fast'):4d} gate(s)  (aggregate alias 1)")
+    print("  aliases: 1=fast 2=deep 3=release 4=tests-a 5=tests-b")
+    print("  usage:   --group <name> | --only a,b | --full (all groups except release) | --release (all)")
+    return 0
+
+
+def _run_groups(keys) -> int:
+    """Run each named group in order: per-group PASS/FAIL + duration, then a rollup (BI-PF-1419)."""
+    import time as _t
+    rc, rollup, t_all = 0, [], _t.time()
+    for raw in keys:
+        key = _resolve_group(raw)
+        steps, label = _group_steps(key)
+        if steps is None:
+            print(f"[precheck] unknown group {raw!r} (use --list-groups)")
             return 2
-        print(f"[precheck] group {grp}: {len(steps)} step(s)")
-        grc = 0
-        gt0 = _gt.time()
-        gtimes = []
+        print(f"\n########## precheck group: {key} ({label}) ##########", flush=True)
+        g0, g_rc, g_times = _t.time(), 0, []
         for name, cmd in steps:
-            print(f"\n=== precheck[g{grp}]: {name} ===", flush=True)
-            s0 = _gt.time()
+            print(f"\n=== precheck[{key}]: {name} ===", flush=True)
+            s0 = _t.time()
             try:
                 r = subprocess.run(cmd, cwd=_ROOT)
             except FileNotFoundError as e:
                 print(f"[SKIP] {name}: {e}")
                 continue
-            dt = _gt.time() - s0
-            gtimes.append((name, dt, r.returncode))
-            print(f"[{'OK' if r.returncode == 0 else 'FAIL'}] {name} ({dt:.1f}s)")
+            dt = _t.time() - s0
+            g_times.append((name, dt, r.returncode))
+            print(f"[{'OK' if r.returncode == 0 else 'FAIL'}] {name} ({dt:.1f}s)", flush=True)
             if r.returncode != 0:
-                grc = 1
-        print(f"\nprecheck[group {grp}]: {'PASS' if grc == 0 else 'FAIL'} ({_gt.time() - gt0:.1f}s, "
-              f"{len(gtimes)} step(s))")
-        return grc
+                g_rc = 1
+        gdt = _t.time() - g0
+        print(f"precheck[{key}]: {'PASS' if g_rc == 0 else 'FAIL'} ({gdt:.1f}s, {len(g_times)} step(s))", flush=True)
+        rollup.append((key, gdt, g_rc))
+        if g_rc:
+            rc = 1
+    print("\n===== precheck group rollup =====")
+    for key, dt, g_rc in rollup:
+        print(f"  [{'PASS' if g_rc == 0 else 'FAIL'}] {key:10s} {dt:7.1f}s")
+    print(f"precheck: {'PASS' if rc == 0 else 'FAIL'} ({_t.time() - t_all:.1f}s, {len(rollup)} group(s))")
+    return rc
+
+
+def main(argv=None) -> int:
+    argv = list(sys.argv[1:] if argv is None else argv)
+    if "--list-groups" in argv:
+        return _list_groups()
     release = "--release" in argv
     full = "--full" in argv or release
+    # BI-PF-1419: --group/--only run named groups; --full churns ALL named groups sequentially (per-group
+    # PASS/FAIL + duration + rollup). The periodic release sweep stays OUT of --full (BI-PF-0385); --release adds it.
+    selected = _selected_groups(argv)
+    if selected:
+        return _run_groups(selected)
+    if full:
+        keys = list(_GROUP_ORDER) if release else [g for g in _GROUP_ORDER if g != "release"]
+        return _run_groups(keys)
     scope_csv = ""
     for i, a in enumerate(argv):
         if a == "--scope" and i + 1 < len(argv):
@@ -337,11 +442,11 @@ def main(argv=None) -> int:
         print(f"[precheck] --tests-changed: {len(tests)} changed/new test file(s)")
         r = subprocess.run([sys.executable, "-m", "pytest", *tests, "-q", "-o", "addopts="], cwd=_ROOT)
         return r.returncode
-    bookkeeping = (not full) and _bookkeeping_only(_changed_paths())
-    tier = "release" if release else ("full" if full else ("bookkeeping" if bookkeeping else "fast"))
+    bookkeeping = _bookkeeping_only(_changed_paths())
+    tier = "bookkeeping" if bookkeeping else "fast"
     print(f"[precheck] tier={tier} (bookkeeping = derived/docs-only -> docs-fresh + compile; fast = core+area "
-          f"gates+scoped tests; --full = +validation/lifecycle + full suite; --release = +periodic full-tree sweeps)")
-    if not full and not bookkeeping:
+          f"gates+scoped tests; --full = all groups; --release = +periodic full-tree sweeps)")
+    if not bookkeeping:
         tests = _scoped_tests(scope_csv)
         print(f"[precheck] changed-scoped tests: {len(tests)} file(s) "
               f"(use --full for the complete suite)" if tests else
@@ -350,7 +455,7 @@ def main(argv=None) -> int:
     rc = 0
     timings = []
     t_all = _time.time()
-    for name, cmd in _steps(full, scope_csv, release):
+    for name, cmd in _steps(scope_csv):
         print(f"\n=== precheck: {name} ===", flush=True)
         t0 = _time.time()
         try:

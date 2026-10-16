@@ -34,21 +34,29 @@
   },
   "objective": "Split full precheck into sequential named groups (4-5) with per-group pass/fail + duration (no opaque 20-min block); add --group/--only",
   "acceptance_criteria": [
-    "Objective achieved: Split full precheck into sequential named groups (4-5) with per-group pass/fail + duration (no opaque 20-min block); add --group/--only"
+    "Full precheck runs as named groups (structure/security/contracts/worker/backlog/quality/tests-a/tests-b/deep/release), each printing its OWN pass/fail + duration, so a failure surfaces within the first few minutes instead of after one opaque ~20-min block.",
+    "--group <name>, --only a,b and --list-groups are supported; --list-groups prints every group with its gate count or test count; the numeric aliases 1..5 still resolve (back-compat with PR#210).",
+    "--full iterates ALL named groups sequentially and prints a per-group rollup; the periodic full-tree release sweep stays behind --release (BI-PF-0385).",
+    "Every gate belongs to exactly one group and the two test halves partition the test suite (proven by unit tests)."
   ],
   "in_scope": [
-    "Split full precheck into sequential named groups (4-5) with per-group pass/fail + duration (no opaque 20-min block); add --group/--only"
+    "named-group partition of every precheck gate + the test suite",
+    "--group/--only/--list-groups",
+    "--full churns all groups with per-group rollup",
+    "per-group + per-test-group counts"
   ],
   "out_of_scope": [
-    "Not specified."
+    "changing gate membership/tiers",
+    "the release-tier sweep inside --full (stays --release, BI-PF-0385)"
   ],
   "affected_components": [
-    "Not specified."
+    "scripts/dev"
   ],
   "affected_files": [
-    "Not specified."
+    "scripts/dev/precheck.py",
+    "test-framework/tests/pipeline/test_precheck_groups.py"
   ],
-  "approach": "Implemented --group N (1..5) in scripts/dev/precheck.py: 1-3=gate tiers (fast/deep/release), 4-5=test suite split in half (214 files -> ~107 each). HANDOFF/REMAINING: (a) Group 1 runs all 58 fast gates UNCONDITIONALLY and is >15 min (normal fast skips area-gated gates) - RE-SPLIT Group 1 into ~4 sub-groups by weight: 1a structure/lint/backlog, 1b api/contracts/infra, 1c security/config/language, 1d pidl/dogfood/validation/grooming; (b) measure groups 2-5 durations (2 deep=8 gates, 3 release=1, 4/5 tests) and sub-split any >4 min; (c) after re-split, run 1a..5 sequentially (each ~3-4 min) and merge the pending test fixes (test_api_core.py AC).",
+  "approach": "Add a NAMED group map (_GROUP_OF/_GROUP_ORDER) partitioning every _GATES entry plus the test suite (tests-a/tests-b halves), and a runner (_run_groups) that emits per-group PASS/FAIL + duration + a rollup. main() routes --group/--only/--list-groups and makes --full iterate the groups (release excluded). Numeric aliases 1..5 retained. Also restore the scoped-tests walk shadowed by PR#210's duplicate _test_files.",
   "review": {
     "reconciliation": {
       "prior_decisions": [],
@@ -62,10 +70,13 @@
     "at": ""
   },
   "verification": [
-    "Objective achieved: Split full precheck into sequential named groups (4-5) with per-group pass/fail + duration (no opaque 20-min block); add --group/--only"
+    "precheck.py --list-groups; --group worker PASS 50.1s; --only security PASS 1.0s",
+    "5 unit tests in test_precheck_groups.py",
+    "python -m compileall clean; wired_audit OK (0 unwired)",
+    "default fast path unchanged"
   ],
   "risks": [
-    "Not specified."
+    "pre-existing test_backlog_dod failures are unrelated (fail on clean develop); release sweep kept out of --full per BI-PF-0385"
   ],
   "rollback": "Revert the change.",
   "evidence": [
@@ -180,12 +191,11 @@
     "usage": {}
   },
   "created_at": "2026-10-16T17:23:47.733002",
-  "updated_at": "2026-10-16T18:06:12.886357",
+  "updated_at": "2026-10-16T19:41:44.161320",
   "score": 0.75,
-  "_note": "readiness computed",
+  "_note": "named groups + --group/--only/--list-groups",
   "api_impact": {
     "needs_api": false,
-    "reason": "CI tooling",
-    "routes": []
+    "reason": "developer tooling (CLI); no HTTP surface, no customer-visible runtime"
   }
 }
