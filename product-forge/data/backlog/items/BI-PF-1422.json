@@ -1,0 +1,190 @@
+{
+  "id": "BI-PF-1422",
+  "tag": "PF",
+  "type": "bug",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "DOD-TEST-DEV-TOKEN-1",
+  "label": "PF Backlog 620",
+  "title": "test_backlog_dod depends on the gitignored dev-api-token file -> red in any clean checkout/CI",
+  "body": "RCCA: (1) test_backlog_dod._op() read data/local/dev-api-token directly. (2) That path is gitignored (.gitignore:45 product-forge/data/local/) so the file is absent in CI/fresh worktrees. (3) The test then errored FileNotFoundError, failing the 3 DoD tests in every clean checkout. Why it slipped: the test was authored/run on a machine that had already run the dev server (which creates the token). Guard: the test now computes the token via api.auth._token() (no file dependency) - the same mechanism the app uses.",
+  "source": "generic",
+  "status": "new",
+  "priority": "P1",
+  "moscow": "Must",
+  "value": 4,
+  "effort": 1,
+  "risk": 1,
+  "deps": [
+    "BI-PF-1256"
+  ],
+  "links": {},
+  "decisions": [
+    {
+      "at": "2026-10-16T21:46:51.594186",
+      "decision": "APPROVE",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)"
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "RCCA: (1) test_backlog_dod._op() read data/local/dev-api-token directly. (2) That path is gitignored (.gitignore:45 product-forge/data/local/) so the file is absent in CI/fresh worktrees. (3) The test then errored FileNotFoundError, failing the 3 DoD tests in every clean checkout. Why it slipped: the test was authored/run on a machine that had already run the dev server (which creates the token). Guard: the test now computes the token via api.auth._token() (no file dependency) - the same mechanism the app uses.",
+    "what_adds": "test_backlog_dod depends on the gitignored dev-api-token file -> red in any clean checkout/CI",
+    "why": "RCCA: (1) test_backlog_dod._op() read data/local/dev-api-token directly. (2) That path is gitignored (.gitignore:45 product-forge/data/local/) so the file is absent in CI/fresh worktrees. (3) The test then errored FileNotFoundError, failing the 3 DoD tests in every clean checkout. Why it slipped: the test was authored/run on a machine that had already run the dev server (which creates the token). Guard: the test now computes the token via api.auth._token() (no file dependency) - the same mechanism the app uses.",
+    "who_feels": "Product Forge maintainers and consumers.",
+    "source": "extracted"
+  },
+  "objective": "Make the DoD tests hermetic so they pass in a clean checkout (no untracked local token file).",
+  "acceptance_criteria": [
+    "The pipeline test suite is green in a clean checkout with NO data/local/dev-api-token present (that token is gitignored under product-forge/data/local/ and must never be required by a test).",
+    "test_backlog_dod exercises the DoD write-time gate by sending the same token the app computes (api.auth._token), so it passes on CI and in every fresh worktree, not only on a machine that has run the server."
+  ],
+  "in_scope": [
+    "test_backlog_dod token handling"
+  ],
+  "out_of_scope": [
+    "api.auth behaviour (unchanged)",
+    "other tests (already hermetic)"
+  ],
+  "affected_components": [
+    "Not specified."
+  ],
+  "affected_files": [
+    "test-framework/tests/pipeline/test_backlog_dod.py"
+  ],
+  "approach": "Replace the direct file read in _op() with api.auth._token() (env PF_API_TOKEN/API_TOKEN, else the dev token) so the test needs no local file.",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "test_backlog_dod + test_dev_auth = 8 passed in a worktree without data/local/dev-api-token"
+  ],
+  "risks": [
+    "none material (test-only)"
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "agent",
+  "requester": "generic",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1252",
+  "parent": "BI-PF-1252",
+  "revision": 3,
+  "priority_rank": 10,
+  "priority_class": "P1",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "COMPLETE",
+    "analyzed_at": "2026-10-16T21:46:51.366911",
+    "analyzed_by": "system",
+    "revision_analyzed": 3,
+    "architecture_fit": "REUSE",
+    "implementation_strategy": "Reuse api.auth._token() in test_backlog_dod._op() to derive the dev token, removing the gitignored file read. No new code; verify existing fix and guard against regressions (e.g., CI run in clean checkout).",
+    "existing_components": [],
+    "existing_apis": [],
+    "existing_modules": [],
+    "dependency_findings": [
+      "REQUIRES api.auth._token() exists and works without dev server",
+      "RELATED BI-PF-1256 (self-configuring token)"
+    ],
+    "conflict_findings": [
+      "Low risk of conflict with BI-PF-1256 touching local dev auth",
+      "BI-0083 smoke test may touch same auth helper"
+    ],
+    "duplication_findings": [
+      "BI-PF-1256 covers local dev auth token bootstrapping (related, not duplicate)",
+      "BI-0083 api smoke test may share auth-token wiring"
+    ],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "RCCA root cause identified and guard already implemented; item is closure/verification. Reuse existing auth helper; no new components.",
+    "assumptions": [
+      "Fix already applied in codebase (per RCCA)",
+      "CI runs tests in clean checkout"
+    ],
+    "risks": [
+      "api.auth._token() may still require a running dev server in some paths",
+      "Other tests may still read gitignored files"
+    ],
+    "evidence": [
+      "RCCA body: guard implemented via api.auth._token()",
+      ".gitignore:45 excludes product-forge/data/local/",
+      "3 DoD tests previously errored FileNotFoundError"
+    ],
+    "confidence": "high",
+    "missing_info": [
+      "Confirmation the fix is committed to the shared branch",
+      "Whether other tests read gitignored paths"
+    ],
+    "depth": "deep",
+    "mode": "ai",
+    "context_review": {
+      "ok": false,
+      "source": "llm",
+      "implementable": false,
+      "missing": [
+        "where"
+      ],
+      "reason": "Fix mechanism is clear (use api.auth._token() in test_backlog_dod), but AFFECTED_FILES/AFFECTED_COMPONENTS are explicitly 'Not specified' — the exact test file path is unknown without searching."
+    },
+    "decision_request": {
+      "needed": false,
+      "reasons": [],
+      "ask": ""
+    },
+    "arch_fingerprint": "a99a654014d9d53f"
+  },
+  "dependencies": [
+    {
+      "task_id": "BI-PF-1256",
+      "type": "RELATED",
+      "required_state": "open"
+    }
+  ],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-16T21:46:51.468017"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-16T21:46:09.424130",
+  "updated_at": "2026-10-16T21:46:52.593004",
+  "score": 4.0,
+  "_note": "hermetic DoD test",
+  "api_impact": {
+    "needs_api": false,
+    "reason": "test-only change"
+  }
+}
