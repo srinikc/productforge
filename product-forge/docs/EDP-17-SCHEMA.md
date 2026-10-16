@@ -84,3 +84,5 @@ python scripts/dev/db_bootstrap.py                    # add --skip-roles if the 
 
 ## F. Status
 Model is complete (full discovery). **Slice 1** (`0002_core_schema`) delivered = tenants/memberships/projects/runs/stages/attempts/usage/quotas; **bootstrap** (`db_bootstrap.py` + `docker-compose.edp.yml` + `PF_DB_DSN`) delivered. Next: `go/store` pgx pool client + remaining domain slices per §D. Order: `docs/EDP-EXECUTION-ORDER.md`.
+
+**BI-PF-1421 (`0012_project_scope`)** adds the direct discriminators promised in §A.1: `backlog_items` gains `scope` + `project_id` (indexed `(scope, project_id)`), and `stages`/`attempts` gain a denormalized `project_id` (indexed) so per-project data is queried without JSON extraction or joins to `runs`. These are **soft references (TEXT + index, no FK)** per §A.3 — the backlog spans `product_forge` (no project) and generated products not necessarily in the `projects` registry; integrity is enforced at the write boundary.

@@ -27,6 +27,8 @@ QUERIES: list[tuple[str, str]] = [
 EXPECTED_INDEXES = {
     "idx_memberships_tenant", "idx_projects_tenant", "idx_runs_tenant_status", "idx_runs_project",
     "idx_stages_run", "idx_attempts_stage", "idx_usage_tenant_metric",
+    # BI-PF-1421: direct scope/project discriminators
+    "idx_backlog_items_scope_project", "idx_stages_project", "idx_attempts_project",
 }
 
 
