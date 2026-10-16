@@ -231,7 +231,7 @@ def _mirror_item_to_db(item: dict) -> None:
     api = str(os.environ.get("PF_BACKLOG_API", "http://127.0.0.1:8030")).rstrip("/")
     body = _json.dumps({"ID": iid, "Tenant": tenant, "Type": str(item.get("type") or "feature"),
                         "Status": str(item.get("status") or "new"), "Title": str(item.get("title") or ""),
-                        "Body": str(item.get("body") or "")}).encode("utf-8")
+                        "Body": str(item.get("body") or ""), "Data": item}).encode("utf-8")
     req = _ureq.Request(f"{api}/backlog?tenant={tenant}", data=body, method="POST")
     req.add_header("Content-Type", "application/json")
     req.add_header("Authorization", f"Bearer {os.environ.get('PF_API_TOKEN', '')}")

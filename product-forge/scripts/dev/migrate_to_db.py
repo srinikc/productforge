@@ -26,6 +26,7 @@ def load_backlog() -> list[dict]:
         rows.append({
             "id": d.get("id"), "tenant_id": "product_forge", "type": d.get("type", "feature"),
             "status": d.get("status", "new"), "title": d.get("title", ""), "body": d.get("body", ""),
+            "data": json.dumps(d, separators=(",", ":")),
         })
     return rows
 
@@ -55,9 +56,11 @@ def main(argv: list[str]) -> int:
     with psycopg.connect(a.dsn) as c, c.cursor() as cur:
         for r in rows:
             cur.execute(
-                """INSERT INTO backlog_items (id, tenant_id, type, status, title, body)
-                   VALUES (%(id)s, %(tenant_id)s, %(type)s, %(status)s, %(title)s, %(body)s)
-                   ON CONFLICT (id) DO NOTHING""", r)
+                """INSERT INTO backlog_items (id, tenant_id, type, status, title, body, data)
+                   VALUES (%(id)s, %(tenant_id)s, %(type)s, %(status)s, %(title)s, %(body)s, %(data)s::jsonb)
+                   ON CONFLICT (id) DO UPDATE SET data=EXCLUDED.data, type=EXCLUDED.type,
+                     status=EXCLUDED.status, title=EXCLUDED.title, body=EXCLUDED.body
+                   WHERE backlog_items.data IS DISTINCT FROM EXCLUDED.data""", r)
             written += cur.rowcount
     print(f"  migrated {written} new row(s) into backlog_items")
     return 0
