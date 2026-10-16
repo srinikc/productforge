@@ -49,3 +49,22 @@ generated-product data live.*
 - **Backlog data = migrated (676)**; **everything else = file (config, by design) or empty table (not migrated)**.
 - Remaining data migration = **EDP-18 domains** (portfolio/forge/project/pipeline) + **per-store migration**
   (incl. SQLite, intake, generated-product data). Tracked, not assumed done.
+
+## 8. Deployment models — same split, different location
+The file-vs-DB split is **data-nature-driven**, **constant across deployments**; only **where** the DB/storage
+lives and the **tenancy** change.
+
+| Model | Authored config | Runtime DB | Object store | Secrets | Tenancy |
+|---|---|---|---|---|---|
+| **SaaS (managed)** | files (shipped) | managed Postgres | S3 | secret manager | multi-tenant (RLS) |
+| **On-prem / customer** | files (shipped) | customer-provided or bundled Postgres | NFS / MinIO / local | customer vault | often single-tenant |
+| **OEM (embedded)** | files embedded | customer-provided or bundled | customer-provided | customer | OEM/licensing model |
+| **Dev / offline** | files | local Docker Postgres (or file-only degraded) | local dir | env | single |
+
+**Rule:** authored config → **files in every model**; runtime data → **DB in every model**. Deployment choice
+changes **DB location, tenancy, secrets, TLS** — not the split.
+
+## 9. Product/project scoping (current state + gap)
+`projects`, `runs`, `artifacts`, `memory`, `derived_outputs` carry `tenant_id` **+ `project_id`**. Gaps:
+**`backlog_items` has no `project_id`** (project only inside `data`), and **`stages`/`attempts` scope via
+`run_id`** (no direct `project_id`). Direct per-product scoping is tracked in **`BI-PF-1421`**.
