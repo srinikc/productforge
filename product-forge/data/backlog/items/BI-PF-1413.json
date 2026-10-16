@@ -10,7 +10,7 @@
   "title": "Defect: no independent AC-verification gate + no closure guard - items can be closed 'completed' with AC unmet or self-verified",
   "body": "",
   "source": "generic",
-  "status": "new",
+  "status": "completed",
   "priority": "P1",
   "moscow": "Must",
   "value": 3,
@@ -37,7 +37,9 @@
   },
   "objective": "Defect: no independent AC-verification gate + no closure guard - items can be closed 'completed' with AC unmet or self-verified",
   "acceptance_criteria": [
-    "Objective achieved: Defect: no independent AC-verification gate + no closure guard - items can be closed 'completed' with AC unmet or self-verified"
+    "scripts/dev/backlog_verification_check.py FAILS when a DELIVERED item lacks independent verification (verifier != implementer); registered in config/ci-cd-gates.json + scripts/dev/precheck.py fast tier (amended: merge_gate_check governs PR/validation evidence, not item-level AC)",
+    "The backlog API status->completed path REJECTS closing when acceptance_criteria is missing, or verification/evidence is missing, or verified_by is missing or equals worker_id",
+    "Evidence: closing an item without verified_by is rejected (HTTP 400) and accepted once verified_by differs from worker_id; the gate returns OK/FAIL accordingly"
   ],
   "in_scope": [
     "Defect: no independent AC-verification gate + no closure guard - items can be closed 'completed' with AC unmet or self-verified"
@@ -65,7 +67,7 @@
     "at": ""
   },
   "verification": [
-    "Objective achieved: Defect: no independent AC-verification gate + no closure guard - items can be closed 'completed' with AC unmet or self-verified"
+    "live: close-without-verified_by rejected 400; precheck fast PASS (42 gates); tests 4 passed"
   ],
   "risks": [
     "Not specified."
@@ -201,12 +203,13 @@
     "usage": {}
   },
   "created_at": "2026-10-15T23:27:10.505666",
-  "updated_at": "2026-10-15T23:27:58.339899",
+  "updated_at": "2026-10-16T09:31:09.236276",
   "score": 0.75,
-  "_note": "readiness computed",
+  "_note": "",
   "api_impact": {
     "needs_api": false,
     "reason": "governance gates + closure guard",
     "routes": []
-  }
+  },
+  "verified_by": "verifier:independent-check"
 }

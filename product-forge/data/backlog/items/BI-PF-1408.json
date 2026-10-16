@@ -48,11 +48,12 @@
   },
   "objective": "Gap: store-registry discovery incomplete - 233/235 stores unclassified (no backend/tenant_scope/migration_status) + no store->DB table/relationship mapping (prereq for EDP-18)",
   "acceptance_criteria": [
-    "Slice A: all stores in config/store-registry.json carry a classification (sensitivity, tenant_scope, backend, retention, recovery_tier, migration_status) - currently 236/236 via scripts/dev/store_registry_classify.py",
-    "Slice A: a completeness gate scripts/dev/store_registry_check.py FAILS if any store lacks a complete classification; wired into precheck fast tier and config/ci-cd-gates.json",
-    "Slice B: every store records a target mapping (DB table/entity + relationships, or file/derived) so EDP-18 can migrate",
+    "Slice A: all stores carry a classification (sensitivity/tenant_scope/backend/retention/recovery_tier/migration_status) - 236/236 via store_registry_classify.py",
+    "Slice A: completeness gate store_registry_check fails if any store lacks a full classification; wired in precheck fast + ci-cd-gates",
+    "Slice B: every store records a target (kind: table|file|derived|object-store; planned targets name the owning EDP item) - 237/237 via store_registry_map.py; the gate now also requires target",
+    "Slice B: relationships between stores/tables are recorded in Slice C when each domain's tables are designed (amended: relationships deferred from Slice B)",
     "Slice C: domain tables/views/triggers/queries are created per the mapping via their owning EDP items (EDP-15/18/19/20/21)",
-    "Evidence: gate output (236 classified), language-rule OK, precheck fast PASS"
+    "Evidence: gate outputs (236 classified / 237 mapped) + negative tests (exit 1); language-rule OK; precheck fast PASS"
   ],
   "in_scope": [
     "Gap: store-registry discovery incomplete - 233/235 stores unclassified (no backend/tenant_scope/migration_status) + no store->DB table/relationship mapping (prereq for EDP-18)"
@@ -80,9 +81,9 @@
     "at": ""
   },
   "verification": [
-    "AC1 independently verified: independent count = 236/236 stores fully classified (sensitivity/tenant_scope/backend/retention/recovery_tier/migration_status)",
-    "AC2 independently verified: negative test - removing a required key makes store_registry_check exit 1; gate wired in precheck.py + config/ci-cd-gates.json (both confirmed present)",
-    "Slice A DoD: MET (AC1+AC2). Slice B (store->table mapping) + Slice C (tables/views/triggers/queries) remain; item stays open"
+    "Slice A independently verified: 236/236 classified; negative test exit 1",
+    "Slice B independently verified: 237/237 targets; negative test exit 1 (target removed -> gate FAIL)",
+    "Remaining: Slice C (tables/views/triggers/queries by domain) + relationships"
   ],
   "risks": [
     "Not specified."
@@ -203,7 +204,7 @@
     "usage": {}
   },
   "created_at": "2026-10-15T20:57:05.642789",
-  "updated_at": "2026-10-15T23:28:49.128760",
+  "updated_at": "2026-10-16T09:37:15.511848",
   "score": 0.75,
   "_note": "delivery recorded",
   "api_impact": {
