@@ -90,6 +90,7 @@
 | [`FEASIBILITY-TRIAGE-DESIGN.md`](FEASIBILITY-TRIAGE-DESIGN.md) | Design | 100% | Two-phase feasibility & capability triage (BI-0214) | — | — |
 | [`FULL-DOGFOOD-AND-FINAL-AUDIT.md`](FULL-DOGFOOD-AND-FINAL-AUDIT.md) | Design | 100% | Full dogfood lifecycle harness + final §42 production-readiness acceptance audit | — | — |
 | [`Failure-Recovery-System.md`](Failure-Recovery-System.md) | Implemented | 100% | Failure / retry / checkpoint recovery | — | — |
+| [`GENERATION-PROPORTIONALITY.md`](GENERATION-PROPORTIONALITY.md) | Design | 0% | Generation proportionality work plan: artifact contract + project profile drive generation (epic BI-PF-1388) | — | — |
 | [`GENERATOR-ADAPTERS-DESIGN.md`](GENERATOR-ADAPTERS-DESIGN.md) | Design | 100% | Generator-model adapters (image/video/audio/music/3d) (BI-0188) | — | — |
 | [`GUARDRAILS-DESIGN.md`](GUARDRAILS-DESIGN.md) | Design | 100% | Output guardrails + model/data cards + C2PA provenance + NIST/EU governance (BI-0219) | — | — |
 | [`HOW-TO-START-NEW-PROJECT.md`](HOW-TO-START-NEW-PROJECT.md) | Implemented | 100% | Step-by-step to start a project | — | — |
@@ -140,7 +141,7 @@
 | [`PIPELINE-STAGES-REFERENCE.md`](PIPELINE-STAGES-REFERENCE.md) | Generated | 100% | Regenerable stages/agents reference | — | — |
 | [`PLUGINS-DESIGN.md`](PLUGINS-DESIGN.md) | Design | 100% | Plugin/registry framework (ports & adapters) (BI-0200) | — | — |
 | [`PR-WORKFLOW.md`](PR-WORKFLOW.md) | Implemented | 100% | Branch -> pre-check gates -> review -> merge (BI-0205) | — | — |
-| [`PRECHECK-GROUPS.md`](PRECHECK-GROUPS.md) | Reference (verify) | 50% | unclassified - confirm before relying on it | — | — |
+| [`PRECHECK-GROUPS.md`](PRECHECK-GROUPS.md) | Tooling | 100% | Precheck split into sequential named groups (--group 1..5) + test sharding design (BI-PF-1419) | — | — |
 | [`PRODUCT-ISSUE-LOOP-DESIGN.md`](PRODUCT-ISSUE-LOOP-DESIGN.md) | Design | 100% | Product-scope issue/RCCA/backlog integration + API (BI-PF-0272) | — | — |
 | [`PRODUCT_FORGE_MASTER_API_FIRST_ENGINEERING_product-forge_E2E_EXECUTION_PLAN-updated.md`](PRODUCT_FORGE_MASTER_API_FIRST_ENGINEERING_FACTORY_E2E_EXECUTION_PLAN-updated.md) | SSOT | 0% | Governing master API-first -> engineering -> E2E execution plan | — | — |
 | [`PRODUCT_FORGE_MASTER_API_FIRST_ENGINEERING_product-forge_E2E_EXECUTION_PLAN.md`](PRODUCT_FORGE_MASTER_API_FIRST_ENGINEERING_FACTORY_E2E_EXECUTION_PLAN.md) | SSOT | 0% | Governing master API-first -> engineering -> E2E execution plan | — | — |
