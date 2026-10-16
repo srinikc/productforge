@@ -1,0 +1,201 @@
+{
+  "id": "BI-PF-1414",
+  "tag": "PF",
+  "type": "defect",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "api",
+  "external_id": "rcca-field-level-reconciliation",
+  "label": "PF Backlog 613",
+  "title": "RCCA: schema designed without field-level reconciliation vs the owning port (artifact schema mismatched datastore.Artifact) - found only at C1b",
+  "body": "",
+  "source": "generic",
+  "status": "new",
+  "priority": "P2",
+  "moscow": "Should",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [
+    "BI-PF-0335",
+    "BI-PF-0412"
+  ],
+  "links": {},
+  "decisions": [
+    {
+      "at": "2026-10-16T10:27:20.097702",
+      "decision": "APPROVE",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)"
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "what_adds": "A field-level (port fields vs table columns) reconciliation step required in Gate 1 for schema work",
+    "problem": "Schema changes reconciled against the interface's existence, not its fields, so mismatches surface late",
+    "source": "authored"
+  },
+  "objective": "RCCA: schema designed without field-level reconciliation vs the owning port (artifact schema mismatched datastore.Artifact) - found only at C1b",
+  "acceptance_criteria": [
+    "Objective achieved: RCCA: schema designed without field-level reconciliation vs the owning port (artifact schema mismatched datastore.Artifact) - found only at C1b"
+  ],
+  "in_scope": [
+    "RCCA: schema designed without field-level reconciliation vs the owning port (artifact schema mismatched datastore.Artifact) - found only at C1b"
+  ],
+  "out_of_scope": [
+    "Not specified."
+  ],
+  "affected_components": [
+    "Not specified."
+  ],
+  "affected_files": [
+    "Not specified."
+  ],
+  "approach": "RCCA: schema designed without field-level reconciliation vs the owning port (artifact schema mismatched datastore.Artifact) - found only at C1b",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Objective achieved: RCCA: schema designed without field-level reconciliation vs the owning port (artifact schema mismatched datastore.Artifact) - found only at C1b"
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "unassigned",
+  "requester": "generic",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1252",
+  "parent": "BI-PF-1252",
+  "revision": 3,
+  "priority_rank": 22,
+  "priority_class": "P2",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "COMPLETE",
+    "analyzed_at": "2026-10-16T10:27:19.758171",
+    "analyzed_by": "system",
+    "revision_analyzed": 3,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend core/schema_validator.py + /api/v1/validation/artifact-contracts with a field-level diff vs datastore.Artifact (core/artifact_store.py), driven by config/artifact-formats.json. Add an RCCA pre-check hook in /api/v1/issues/{iid}/rcca that fails C1b when artifact format fields diverge from the ORM model.",
+    "existing_components": [],
+    "existing_apis": [],
+    "existing_modules": [],
+    "dependency_findings": [
+      "REQUIRES BI-PF-0335 (contract reconciliation gate) in delivered state",
+      "RELATED BI-PF-0412 (Stage 3a coordinator) for artifact claim flow parity"
+    ],
+    "conflict_findings": [
+      "Overlaps BI-PF-0335 gate implementation in schema_validator.py - coordinate sequencing",
+      "config/artifact-formats.json may be edited concurrently by contract gate work"
+    ],
+    "duplication_findings": [
+      "BI-PF-0335 already adds a contract reconciliation artifact + gate; reuse its gate rather than build a second one",
+      "qa_report.py already emits contract findings; extend instead of new reporting path",
+      "artifact_registry.py already maps artifacts to owners/paths"
+    ],
+    "drift": "LOW",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "Reuse-first: existing schema validator, artifact formats config and contract-contracts API provide a diff harness; add field-level comparison and a gate hook rather than new components.",
+    "assumptions": [
+      "datastore.Artifact is the single source of truth for artifact fields",
+      "config/artifact-formats.json mirrors the ORM field set 1:1 today or can be reconciled once",
+      "C1b is the RCCA check stage where the mismatch surfaced"
+    ],
+    "risks": [
+      "RCCA runs after schema validation, so mismatch may be masked by earlier gates",
+      "Store model may evolve without format config sync unless a CI diff is added",
+      "Port owner (owning port) authority over fields may be ambiguous"
+    ],
+    "evidence": [
+      "Item reports schema mismatch found only at C1b",
+      "Existing /api/v1/validation/artifact-contracts endpoint and artifact_formats/registry/store modules",
+      "Related BI-PF-0335 contract gate already in backlog"
+    ],
+    "confidence": "medium",
+    "missing_info": [
+      "Which specific fields mismatch between artifact format config and datastore.Artifact",
+      "Who owns the canonical field list (port owner vs core)",
+      "Whether gate should block RCCA or only warn",
+      "Whether the C1b mismatch is a one-off or systemic"
+    ],
+    "depth": "deep",
+    "mode": "ai",
+    "context_review": {
+      "ok": false,
+      "source": "llm",
+      "implementable": false,
+      "missing": [
+        "what",
+        "why",
+        "how",
+        "where"
+      ],
+      "reason": "Every field repeats the same boilerplate title; no specific mismatched fields, no reconciliation approach, and affected components/files are 'Not specified.'"
+    },
+    "decision_request": {
+      "needed": false,
+      "reasons": [],
+      "ask": ""
+    },
+    "arch_fingerprint": "971bf71a1ff1b1a7"
+  },
+  "dependencies": [
+    {
+      "task_id": "BI-PF-0335",
+      "type": "REQUIRES",
+      "required_state": "delivered"
+    },
+    {
+      "task_id": "BI-PF-0412",
+      "type": "RELATED",
+      "required_state": "any"
+    }
+  ],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-16T10:27:19.897840"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-16T10:26:30.937122",
+  "updated_at": "2026-10-16T10:27:22.060902",
+  "score": 0.75,
+  "_note": "readiness computed",
+  "api_impact": {
+    "needs_api": false,
+    "reason": "process standard",
+    "routes": []
+  }
+}

@@ -14,6 +14,8 @@ import (
 var (
 	createTableRE = regexp.MustCompile(`(?i)\bCREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?([a-z_][a-z0-9_]*)`)
 	createIndexRE = regexp.MustCompile(`(?i)\bCREATE\s+(?:UNIQUE\s+)?INDEX\s+(?:IF\s+NOT\s+EXISTS\s+)?([a-z_][a-z0-9_]*)`)
+	dropTableRE   = regexp.MustCompile(`(?i)\bDROP\s+TABLE\s+(?:IF\s+EXISTS\s+)?([a-z_][a-z0-9_]*)`)
+	dropIndexRE   = regexp.MustCompile(`(?i)\bDROP\s+INDEX\s+(?:IF\s+EXISTS\s+)?([a-z_][a-z0-9_]*)`)
 )
 
 // ExpectedSchema is the set of tables and indexes declared by the migration files (the single source of truth).
@@ -38,11 +40,18 @@ func ExpectedFromDir(dir string) (ExpectedSchema, error) {
 		if err != nil {
 			return ExpectedSchema{}, err
 		}
-		for _, m := range createTableRE.FindAllStringSubmatch(string(b), -1) {
-			tables[strings.ToLower(m[1])] = true
-		}
-		for _, m := range createIndexRE.FindAllStringSubmatch(string(b), -1) {
-			indexes[strings.ToLower(m[1])] = true
+		// Line-by-line so DROP (e.g. an index rename) is applied in migration order.
+		for _, line := range strings.Split(string(b), "\n") {
+			if m := createTableRE.FindStringSubmatch(line); m != nil {
+				tables[strings.ToLower(m[1])] = true
+			} else if m := dropTableRE.FindStringSubmatch(line); m != nil {
+				delete(tables, strings.ToLower(m[1]))
+			}
+			if m := createIndexRE.FindStringSubmatch(line); m != nil {
+				indexes[strings.ToLower(m[1])] = true
+			} else if m := dropIndexRE.FindStringSubmatch(line); m != nil {
+				delete(indexes, strings.ToLower(m[1]))
+			}
 		}
 	}
 	return ExpectedSchema{Tables: sortedKeys(tables), Indexes: sortedKeys(indexes)}, nil

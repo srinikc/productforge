@@ -11,14 +11,20 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
+	"errors"
+	"io"
 	"log"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"productforge/artifacts"
 	"productforge/datastore"
 	"productforge/migrate"
 	"productforge/objstore"
@@ -73,6 +79,8 @@ func main() {
 	mux.HandleFunc("/admin/schema-check", s.adminOnly(s.schemaCheck))
 	mux.HandleFunc("/admin/object-store/capabilities", s.adminOnly(s.objectStoreCapabilities))
 	mux.HandleFunc("/admin/object-store/conform", s.adminOnly(s.objectStoreConform))
+	mux.HandleFunc("/artifacts", s.adminOnly(s.artifactUpload))
+	mux.HandleFunc("/artifacts/", s.adminOnly(s.artifactRoute))
 	addr := envOr("PF_EDP_ADDR", "127.0.0.1:8030")
 	log.Printf("edpsvc listening on %s (migrations=%s)", addr, s.migDir)
 	log.Fatal(http.ListenAndServe(addr, mux))
@@ -242,6 +250,109 @@ func (s *server) objectStoreConform(w http.ResponseWriter, r *http.Request) {
 		code = http.StatusConflict
 	}
 	writeJSON(w, code, map[string]any{"ok": len(msgs) == 0, "errors": msgs})
+}
+
+var errTenant = errors.New("tenant query parameter is required")
+
+func (s *server) artifactUpload(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseMultipartForm(64 << 20); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "multipart body required"})
+		return
+	}
+	tenant := r.FormValue("tenant")
+	if tenant == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": errTenant.Error()})
+		return
+	}
+	f, hdr, err := r.FormFile("file")
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "file part required"})
+		return
+	}
+	defer f.Close()
+	data, err := io.ReadAll(io.LimitReader(f, 64<<20))
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
+	}
+	ctx := context.Background()
+	sum := sha256.Sum256(data)
+	checksum := hex.EncodeToString(sum[:])
+	if _, err := s.obj.Put(ctx, checksum, bytes.NewReader(data), int64(len(data)),
+		datastore.PutOptions{ContentType: hdr.Header.Get("Content-Type")}); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
+	}
+	st, err := store.Open(ctx, s.dsn)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
+	}
+	defer st.Close()
+	svc := artifacts.New(store.BindTenant(st, tenant), s.obj)
+	a, err := svc.Register(ctx, datastore.Artifact{
+		ID: r.FormValue("id"), TenantID: tenant, Project: r.FormValue("project"), Run: r.FormValue("run"),
+		Stage: r.FormValue("stage"), Type: r.FormValue("type"), Checksum: checksum,
+		Size: int64(len(data)), Version: checksum,
+	})
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, a)
+}
+
+func (s *server) artifactRoute(w http.ResponseWriter, r *http.Request) {
+	rest := strings.TrimPrefix(r.URL.Path, "/artifacts/")
+	if strings.HasSuffix(rest, "/content") {
+		s.artifactContent(w, r, strings.TrimSuffix(rest, "/content"))
+		return
+	}
+	s.artifactGet(w, r, rest)
+}
+
+func (s *server) artifactSvc(r *http.Request) (*artifacts.Service, func(), error) {
+	tenant := r.URL.Query().Get("tenant")
+	if tenant == "" {
+		return nil, nil, errTenant
+	}
+	st, err := store.Open(context.Background(), s.dsn)
+	if err != nil {
+		return nil, nil, err
+	}
+	return artifacts.New(store.BindTenant(st, tenant), s.obj), st.Close, nil
+}
+
+func (s *server) artifactGet(w http.ResponseWriter, r *http.Request, id string) {
+	svc, closeFn, err := s.artifactSvc(r)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		return
+	}
+	defer closeFn()
+	a, err := svc.Get(r.Context(), id)
+	if err != nil {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, a)
+}
+
+func (s *server) artifactContent(w http.ResponseWriter, r *http.Request, id string) {
+	svc, closeFn, err := s.artifactSvc(r)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		return
+	}
+	defer closeFn()
+	rc, err := svc.FetchContent(r.Context(), id)
+	if err != nil {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": err.Error()})
+		return
+	}
+	defer rc.Close()
+	w.Header().Set("Content-Type", "application/octet-stream")
+	_, _ = io.Copy(w, rc)
 }
 
 func writeJSON(w http.ResponseWriter, code int, v any) {
