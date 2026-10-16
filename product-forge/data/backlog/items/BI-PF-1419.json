@@ -1,0 +1,191 @@
+{
+  "id": "BI-PF-1419",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "api",
+  "external_id": "precheck-grouped-full",
+  "label": "PF Backlog 618",
+  "title": "Split full precheck into sequential named groups (4-5) with per-group pass/fail + duration (no opaque 20-min block); add --group/--only",
+  "body": "",
+  "source": "generic",
+  "status": "new",
+  "priority": "P1",
+  "moscow": "Should",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [],
+  "links": {},
+  "decisions": [
+    {
+      "at": "2026-10-16T17:24:46.060007",
+      "decision": "APPROVE",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)"
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "what_adds": "Sequential named groups with per-group pass/fail + duration, and --group/--only",
+    "problem": "Full precheck is one long opaque block with no per-step progress",
+    "source": "authored"
+  },
+  "objective": "Split full precheck into sequential named groups (4-5) with per-group pass/fail + duration (no opaque 20-min block); add --group/--only",
+  "acceptance_criteria": [
+    "Objective achieved: Split full precheck into sequential named groups (4-5) with per-group pass/fail + duration (no opaque 20-min block); add --group/--only"
+  ],
+  "in_scope": [
+    "Split full precheck into sequential named groups (4-5) with per-group pass/fail + duration (no opaque 20-min block); add --group/--only"
+  ],
+  "out_of_scope": [
+    "Not specified."
+  ],
+  "affected_components": [
+    "Not specified."
+  ],
+  "affected_files": [
+    "Not specified."
+  ],
+  "approach": "Implemented --group N (1..5) in scripts/dev/precheck.py: 1-3=gate tiers (fast/deep/release), 4-5=test suite split in half (214 files -> ~107 each). HANDOFF/REMAINING: (a) Group 1 runs all 58 fast gates UNCONDITIONALLY and is >15 min (normal fast skips area-gated gates) - RE-SPLIT Group 1 into ~4 sub-groups by weight: 1a structure/lint/backlog, 1b api/contracts/infra, 1c security/config/language, 1d pidl/dogfood/validation/grooming; (b) measure groups 2-5 durations (2 deep=8 gates, 3 release=1, 4/5 tests) and sub-split any >4 min; (c) after re-split, run 1a..5 sequentially (each ~3-4 min) and merge the pending test fixes (test_api_core.py AC).",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Objective achieved: Split full precheck into sequential named groups (4-5) with per-group pass/fail + duration (no opaque 20-min block); add --group/--only"
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "unassigned",
+  "requester": "generic",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1252",
+  "parent": "BI-PF-1252",
+  "revision": 2,
+  "priority_rank": 2,
+  "priority_class": "P1",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "COMPLETE",
+    "analyzed_at": "2026-10-16T17:24:45.823850",
+    "analyzed_by": "system",
+    "revision_analyzed": 2,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend the existing config/plan-groups.json as the single source for group membership; extend the precheck runner to iterate groups sequentially, emit per-group pass/fail + duration, and parse --group/--only flags. Reuse existing engineering gate endpoints for result reporting instead of new ones.",
+    "existing_components": [],
+    "existing_apis": [],
+    "existing_modules": [],
+    "dependency_findings": [
+      {
+        "task_id": "BI-PF-1336",
+        "type": "RELATED",
+        "required_state": "defined"
+      },
+      {
+        "task_id": "BI-0184",
+        "type": "RELATED",
+        "required_state": "defined"
+      }
+    ],
+    "conflict_findings": [
+      "BI-0184 touches the same quality-gate execution path; coordinate group definitions vs run-mode profiles.",
+      "BI-PF-1336 may change which groups run on change vs schedule."
+    ],
+    "duplication_findings": [
+      "BI-PF-1336 overlaps on CI gating but targets per-change vs scheduled cadence; this item is the grouping primitive it would reuse.",
+      "BI-0184 run-mode-aware gate must be expressed as a group/profile mapping, not reimplemented."
+    ],
+    "drift": "LOW",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "Existing plan-groups config and gate endpoints make this an additive EXTEND; groups are the reusable primitive that BI-PF-1336 and BI-0184 both need.",
+    "assumptions": [
+      "config/plan-groups.json already models grouping and can be extended with ordering + mandatory flags.",
+      "Current precheck is invoked via a single CLI entry point that can be refactored into a group loop without behavior change.",
+      "Existing gate/fail endpoints are sufficient for per-group result recording."
+    ],
+    "risks": [
+      "Group boundaries may not match real dependency order, causing skipped-but-required checks.",
+      "Per-group duration reporting could add noise or slow the runner.",
+      "--only could let users bypass mandatory safety groups."
+    ],
+    "evidence": [
+      "Candidate module config/plan-groups.json exists as grouping config.",
+      "Candidate APIs /engineering/assignments/{item_id}/fail and /pidl/consequential show existing gate/report paths."
+    ],
+    "confidence": "medium",
+    "missing_info": [
+      "Exact names and membership of the 4-5 groups (final list needs human confirmation).",
+      "Whether --only may exclude mandatory groups or is advisory-only.",
+      "Whether per-group results must persist to the API or are console/CI-output only.",
+      "Default behavior when no --group flag is given (full sequential run vs prior behavior)."
+    ],
+    "depth": "deep",
+    "mode": "ai",
+    "context_review": {
+      "ok": false,
+      "source": "llm",
+      "implementable": false,
+      "missing": [
+        "how",
+        "where"
+      ],
+      "reason": "Only a repeated one-line objective; no named groups, no approach details (CLI wiring, output format), and no affected files/components specified."
+    },
+    "decision_request": {
+      "needed": false,
+      "reasons": [],
+      "ask": ""
+    },
+    "arch_fingerprint": "a99a654014d9d53f"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-16T17:24:45.922128"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-16T17:23:47.733002",
+  "updated_at": "2026-10-16T18:06:12.886357",
+  "score": 0.75,
+  "_note": "readiness computed",
+  "api_impact": {
+    "needs_api": false,
+    "reason": "CI tooling",
+    "routes": []
+  }
+}

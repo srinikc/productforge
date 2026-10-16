@@ -133,7 +133,7 @@ def test_backlog_item_epic_and_delivery_via_api(client, scratch_project):
     eid = epic.json()["data"]["id"]
 
     item = client.post("/api/v1/backlog/items",
-                       json={**scope, "title": "child work", "type": "feature", "epic": eid})
+                       json={**scope, "title": "child work", "type": "feature", "acceptance_criteria": ["test criterion meeting the minimum detailed acceptance length"], "epic": eid})
     assert item.status_code == 200, item.text
     iid = item.json()["data"]["id"]
 
@@ -153,7 +153,7 @@ def test_backlog_context_and_optimistic_concurrency(client, scratch_project):
     scope = {"scope": "project", "project": scratch_project}
     ep = client.post("/api/v1/backlog/items", json={**scope, "title": "ctx epic", "type": "epic"})
     eid = ep.json()["data"]["id"]
-    it = client.post("/api/v1/backlog/items", json={**scope, "title": "ctx item", "type": "feature", "epic": eid})
+    it = client.post("/api/v1/backlog/items", json={**scope, "title": "ctx item", "type": "feature", "acceptance_criteria": ["test criterion meeting the minimum detailed acceptance length"], "epic": eid})
     iid = it.json()["data"]["id"]
 
     r = client.post(f"/api/v1/backlog/items/{iid}/context",
@@ -174,8 +174,8 @@ def test_backlog_context_and_optimistic_concurrency(client, scratch_project):
 def test_backlog_links_and_delete_via_api(client, scratch_project):
     scope = {"scope": "project", "project": scratch_project}
     ep = client.post("/api/v1/backlog/items", json={**scope, "title": "lnk epic", "type": "epic"}).json()["data"]["id"]
-    a = client.post("/api/v1/backlog/items", json={**scope, "title": "A", "type": "feature", "epic": ep}).json()["data"]["id"]
-    b = client.post("/api/v1/backlog/items", json={**scope, "title": "B", "type": "feature", "epic": ep}).json()["data"]["id"]
+    a = client.post("/api/v1/backlog/items", json={**scope, "title": "A", "type": "feature", "acceptance_criteria": ["test criterion meeting the minimum detailed acceptance length"], "epic": ep}).json()["data"]["id"]
+    b = client.post("/api/v1/backlog/items", json={**scope, "title": "B", "type": "feature", "acceptance_criteria": ["test criterion meeting the minimum detailed acceptance length"], "epic": ep}).json()["data"]["id"]
     lk = client.post(f"/api/v1/backlog/items/{a}/links", json={**scope, "refs": {"depends_on": b}})
     assert lk.status_code == 200, lk.text
     dl = client.post(f"/api/v1/backlog/items/{b}/delete", json=scope)
@@ -186,7 +186,7 @@ def test_backlog_edit_patch(client, scratch_project):
     scope = {"scope": "project", "project": scratch_project}
     ep = client.post("/api/v1/backlog/items", json={**scope, "title": "edit epic", "type": "epic"}).json()["data"]["id"]
     it = client.post("/api/v1/backlog/items",
-                     json={**scope, "title": "old title", "type": "feature", "epic": ep}).json()["data"]["id"]
+                     json={**scope, "title": "old title", "type": "feature", "acceptance_criteria": ["test criterion meeting the minimum detailed acceptance length"], "epic": ep}).json()["data"]["id"]
     r = client.patch(f"/api/v1/backlog/items/{it}", json={**scope, "title": "new title", "body": "b"})
     assert r.status_code == 200, r.text
     assert r.json()["data"]["title"] == "new title"

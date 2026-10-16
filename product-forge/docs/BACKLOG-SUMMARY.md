@@ -1,16 +1,16 @@
 # Backlog Summary
 
-> GENERATED 2026-10-16T15:16:39 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-16T15:48:23 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 131  |  **Closed:** 542
+- **Open:** 133  |  **Closed:** 542
 - `blocked`: 1
 - `executing`: 3
-- `new`: 127
+- `new`: 129
 
-### new, by category (127)
+### new, by category (129)
 **API / reports / HIL / misc** (15)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
@@ -89,7 +89,7 @@
 | BI-PF-1385 | Must | bug | Backlog API: no deterministic endpoint to author item context fields (objective/acceptance_criteria/affected_files/approach) | Backlog API: no deterministic endpoint to author item context fields (objective/acceptance_criteria/affected_f... |
 | BI-PF-1392 | Should | task | Enforce per-feature FR/US caps + max_lines in the Go artifact engine (scaled by the profile) and reconcile the three section sources | Per-feature FR/US caps + max_lines enforced NUMERICALLY (scaled by profile); sections have ONE source. |
 
-**Wiring / tech-debt / API** (77)
+**Wiring / tech-debt / API** (79)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0185 | Should | feature | EPIC: Multi-modal / media orchestration (pluggable capability packs) | Make the pipeline modality-agnostic via PLUGGABLE capability packs, enabled per project when the idea needs th... |
@@ -169,6 +169,8 @@
 | BI-PF-1399 | Must | feature | EDP: move the canonical backlog system-of-record to PostgreSQL (JSON backlog files become derived/server state) | EDP: move the canonical backlog system-of-record to PostgreSQL (JSON backlog files become derived/server state... |
 | BI-PF-1410 | Must | feature | Hard DoD gate: every item needs detailed Acceptance Criteria + independent verification (verifier != implementer) before close/merge | Hard DoD gate: every item needs detailed Acceptance Criteria + independent verification (verifier != implement... |
 | BI-PF-1414 | Should | defect | RCCA: schema designed without field-level reconciliation vs the owning port (artifact schema mismatched datastore.Artifact) - found only at C1b | RCCA: schema designed without field-level reconciliation vs the owning port (artifact schema mismatched datast... |
+| BI-PF-1416 | Should | feature | Automate PF persistence setup: one-command provisioning + roles + migrations + storage config + secrets + verify (dev and SaaS) | Automate PF persistence setup: one-command provisioning + roles + migrations + storage config + secrets + veri... |
+| BI-PF-1417 | Should | feature | Standard: EDP is the single storage/data-plane standard - every capability uses datastore ports + Postgres RLS / object store (no bespoke stores) | Standard: EDP is the single storage/data-plane standard - every capability uses datastore ports + Postgres RLS... |
 
 ---
 
@@ -368,5 +370,5 @@
 ---
 
 ## Totals
-- backend: 131 open / 542 closed
+- backend: 133 open / 542 closed
 - dashboard: 146 open / 3 closed
