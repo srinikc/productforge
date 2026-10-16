@@ -187,6 +187,23 @@ def set_status(item_id: str, body: dict[str, Any], request: Request,
     status = str(body.get("status") or "").strip()
     if not status:
         raise ApiError("VALIDATION_FAILED", "status required")
+    if status.lower() in ("completed", "done", "closed"):
+        # BI-PF-1413 closure guard: an item cannot be completed unless its DoD is met AND the verification is
+        # independent (verifier != implementer). Prevents closing partial/self-verified work.
+        it = backlog.get_epic(s, p, item_id)
+        if it is None:
+            raise ApiError("NOT_FOUND", "backlog item not found")
+        if not backlog.is_epic(it):
+            if not (it.get("acceptance_criteria") or []):
+                raise ApiError("VALIDATION_FAILED", "cannot complete: acceptance_criteria missing (DoD)")
+            if not (it.get("verification") or it.get("evidence")):
+                raise ApiError("VALIDATION_FAILED", "cannot complete: verification/evidence missing")
+            vb = str(it.get("verified_by") or "").strip()
+            wi = str(it.get("worker_id") or "").strip()
+            if not vb:
+                raise ApiError("VALIDATION_FAILED", "cannot complete: verified_by missing (independent verifier)")
+            if wi and vb == wi:
+                raise ApiError("VALIDATION_FAILED", "cannot complete: verifier must differ from implementer (worker_id)")
     try:
         res = backlog.set_status(s, p, item_id, status, note=str(body.get("note") or ""))
     except Exception as e:
@@ -405,7 +422,7 @@ def set_delivery(item_id: str, body: dict[str, Any], request: Request,
 # writer; no new logic. ──
 _CONTEXT_FIELDS = ("objective", "acceptance_criteria", "in_scope", "out_of_scope",
                    "affected_components", "affected_files", "approach", "verification",
-                   "risks", "rollback", "evidence", "owner", "summary", "brief")
+                   "risks", "rollback", "evidence", "owner", "summary", "brief", "verified_by")
 
 
 @router.post("/items/{item_id}/context", dependencies=[Depends(require_operator)])

@@ -33,3 +33,11 @@ def test_create_with_short_ac_rejected():
                              json={"title": "dod test - short ac", "type": "task",
                                    "acceptance_criteria": ["too short"]}, headers=_op())
     assert r.status_code == 400
+
+
+def test_close_without_independent_verification_rejected():
+    # BI-PF-1413 closure guard: an item with AC+verification but no verified_by cannot be completed.
+    r = TestClient(app).post("/api/v1/backlog/items/BI-PF-1408/status",
+                             json={"status": "completed"}, headers=_op())
+    assert r.status_code == 400
+    assert "verified_by" in (r.json().get("error", {}).get("message") or "")
