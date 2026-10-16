@@ -10,7 +10,7 @@
   "title": "Add project_id scoping to backlog_items (+ stages/attempts) so product/project data is directly scoped, not only via joins/JSON",
   "body": "",
   "source": "generic",
-  "status": "new",
+  "status": "completed",
   "priority": "P2",
   "moscow": "Should",
   "value": 3,
@@ -20,7 +20,19 @@
     "BI-PF-1388",
     "BI-PF-0434"
   ],
-  "links": {},
+  "links": {
+    "delivery": {
+      "branch": "feature/wg/bi-pf-1421",
+      "merge_sha": "bd041c4e4be308ebaef982201936452f0405ce5e",
+      "commits": [
+        "ef0d1725"
+      ],
+      "pr": "222",
+      "pr_url": "https://github.com/srinikc/productforge/pull/222",
+      "at": "2026-10-16T21:33:38.828908",
+      "note": "direct scope/project_id scoping (migration 0012 + edpdata store)"
+    }
+  },
   "decisions": [
     {
       "at": "2026-10-16T20:20:45.250959",
@@ -37,21 +49,35 @@
   },
   "objective": "Add project_id scoping to backlog_items (+ stages/attempts) so product/project data is directly scoped, not only via joins/JSON",
   "acceptance_criteria": [
-    "Objective achieved: Add project_id scoping to backlog_items (+ stages/attempts) so product/project data is directly scoped, not only via joins/JSON"
+    "backlog_items exposes first-class scope + project_id columns (indexed (scope, project_id)) so a project's items are directly queryable without JSON extraction.",
+    "stages and attempts expose a denormalized project_id (indexed) so a project's stages/attempts are directly queryable without joining runs.",
+    "The 0012_project_scope migration is reversible (paired up/down), idempotent under the runner, and backfills existing rows; go/migrate TestShippedMigrationsLoadAndPair passes and the down SQL executes cleanly.",
+    "edpdata.BacklogStore round-trips scope/project_id (integration test against Postgres passes) and reads COALESCE(project_id,'') so nullable rows scan safely."
   ],
   "in_scope": [
-    "Add project_id scoping to backlog_items (+ stages/attempts) so product/project data is directly scoped, not only via joins/JSON"
+    "direct scope/project_id columns on backlog_items",
+    "denormalized project_id on stages/attempts",
+    "indexed soft refs (no FK)",
+    "reversible migration + Go store + tests"
   ],
   "out_of_scope": [
-    "Not specified."
+    "foreign keys (soft refs chosen per EDP-17 A.1/A.3)",
+    "other tables (jobs/events/etc.)",
+    "the backlog SoR cutover (BI-PF-1399)"
   ],
   "affected_components": [
-    "Not specified."
+    "go/edpdata",
+    "migrations"
   ],
   "affected_files": [
-    "Not specified."
+    "migrations/0012_project_scope.up.sql",
+    "migrations/0012_project_scope.down.sql",
+    "go/edpdata/backlog.go",
+    "go/edpdata/edpdata_test.go",
+    "scripts/dev/db_explain_check.py",
+    "docs/EDP-17-SCHEMA.md"
   ],
-  "approach": "Add project_id scoping to backlog_items (+ stages/attempts) so product/project data is directly scoped, not only via joins/JSON",
+  "approach": "New migration 0012_project_scope.{up,down}.sql: ADD COLUMN scope/project_id to backlog_items (+index), project_id to stages/attempts (+index), backfilled from data->>'project' / runs.project_id / stages.project_id. Extend go/edpdata/backlog.go (BacklogItem Scope/ProjectID + Put/Get/List incl. COALESCE on read). Add new indexes to db_explain_check EXPECTED_INDEXES; note in EDP-17-SCHEMA.md. Soft refs (TEXT+index, no FK).",
   "review": {
     "reconciliation": {
       "prior_decisions": [],
@@ -65,10 +91,13 @@
     "at": ""
   },
   "verification": [
-    "Objective achieved: Add project_id scoping to backlog_items (+ stages/attempts) so product/project data is directly scoped, not only via joins/JSON"
+    "migration applied to Postgres (db_bootstrap: applied 0012); columns + 3 indexes verified",
+    "go build/vet clean; edpdata integration test PASS (scope/project round-trip)",
+    "go/migrate load+pair test PASS; down SQL executes cleanly (rolled-back tx)",
+    "db-explain OK (10/10 indexes); precheck fast green except 3 PRE-EXISTING test_backlog_dod failures"
   ],
   "risks": [
-    "Not specified."
+    "pre-existing test_backlog_dod failures unrelated; nullable project_id handled via COALESCE on read"
   ],
   "rollback": "Revert the change.",
   "evidence": [
@@ -83,12 +112,12 @@
   "children": [],
   "epic": "BI-PF-0451",
   "parent": "BI-PF-0451",
-  "revision": 3,
+  "revision": 4,
   "priority_rank": 30,
   "priority_class": "P2",
   "analyze_mode": "on_entry",
   "analysis": {
-    "status": "COMPLETE",
+    "status": "STALE",
     "analyzed_at": "2026-10-16T20:20:44.871632",
     "analyzed_by": "system",
     "revision_analyzed": 3,
@@ -190,12 +219,11 @@
     "usage": {}
   },
   "created_at": "2026-10-16T20:19:59.854003",
-  "updated_at": "2026-10-16T20:20:47.041891",
+  "updated_at": "2026-10-16T21:33:39.167014",
   "score": 0.75,
-  "_note": "readiness computed",
+  "_note": "merged PR 222",
   "api_impact": {
     "needs_api": false,
-    "reason": "schema scoping",
-    "routes": []
+    "reason": "data-layer schema + store only; no HTTP surface change"
   }
 }

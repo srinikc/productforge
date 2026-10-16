@@ -9,13 +9,15 @@ os.environ.setdefault("API_ALLOW_ANON", "1")
 
 from fastapi.testclient import TestClient  # noqa: E402
 
+from api import auth as _auth  # noqa: E402
 from api.app import app  # noqa: E402
 from scripts.dev import backlog_dod_check as d  # noqa: E402
 
 
 def _op() -> dict:
-    tok = (ROOT / "data" / "local" / "dev-api-token").read_text(encoding="utf-8").strip()
-    return {"Authorization": f"Bearer {tok}", "X-Roles": "operator"}
+    # Do NOT read the gitignored local token file (data/local/dev-api-token is absent in a clean
+    # checkout/CI). Use the SAME token the app computes (env PF_API_TOKEN/API_TOKEN, else the dev token).
+    return {"Authorization": f"Bearer {_auth._token()}", "X-Roles": "operator"}
 
 
 def test_min_ac_is_detailed():

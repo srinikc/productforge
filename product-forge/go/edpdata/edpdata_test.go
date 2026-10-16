@@ -83,18 +83,22 @@ func TestAuditAndJobs_Integration(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Backlog item lifecycle + revision bump.
+	// Backlog item lifecycle + revision bump + direct scope/project scoping (BI-PF-1421).
 	bl := NewBacklog(bind)
 	bi := "BL-" + tenant
 	if _, err := bl.Put(ctx, BacklogItem{ID: bi, TenantID: tenant, Type: "feature", Title: "first"}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := bl.Put(ctx, BacklogItem{ID: bi, TenantID: tenant, Type: "feature", Title: "second"}); err != nil {
+	if _, err := bl.Put(ctx, BacklogItem{ID: bi, TenantID: tenant, Type: "feature", Title: "second",
+		Scope: "project", ProjectID: "demo-app"}); err != nil {
 		t.Fatal(err)
 	}
 	gotBL, err := bl.Get(ctx, bi)
 	if err != nil || gotBL.Title != "second" || gotBL.Revision < 1 {
 		t.Fatalf("backlog put/get: %+v err=%v", gotBL, err)
+	}
+	if gotBL.Scope != "project" || gotBL.ProjectID != "demo-app" {
+		t.Fatalf("scope/project not directly scoped: %+v", gotBL)
 	}
 	if items, err := bl.List(ctx, "", 10); err != nil || len(items) == 0 {
 		t.Fatalf("backlog list: n=%d err=%v", len(items), err)
