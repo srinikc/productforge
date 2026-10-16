@@ -11,14 +11,16 @@ import (
 // BacklogItem is a backlog work item's persisted form. `Data` holds the FULL item JSON (lossless) so the DB
 // is a complete copy of the file item - no field is dropped. BI-PF-1399 owns the cutover.
 type BacklogItem struct {
-	ID       string
-	TenantID string
-	Type     string
-	Status   string
-	Title    string
-	Body     string
-	Data     json.RawMessage // full item JSON (jsonb)
-	Revision int64
+	ID        string
+	TenantID  string
+	Scope     string // product_forge | project (direct discriminator; BI-PF-1421)
+	ProjectID string // project slug for project-scope items; '' for product_forge (soft ref, no FK)
+	Type      string
+	Status    string
+	Title     string
+	Body      string
+	Data      json.RawMessage // full item JSON (jsonb)
+	Revision  int64
 }
 
 // BacklogStore is a Postgres repository over backlog_items (tenant-scoped; RLS enforced by the caller).
@@ -45,15 +47,19 @@ func (s *BacklogStore) Put(ctx context.Context, it BacklogItem) (BacklogItem, er
 	if it.Status == "" {
 		it.Status = "new"
 	}
+	if it.Scope == "" {
+		it.Scope = "product_forge"
+	}
 	data := orEmpty(it.Data)
 	err := s.db.WithTx(ctx, func(tx datastore.Tx) error {
 		_, err := tx.Exec(ctx,
-			`INSERT INTO backlog_items (id, tenant_id, type, status, title, body, data, revision)
-			 VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8)
-			 ON CONFLICT (id) DO UPDATE SET type=EXCLUDED.type, status=EXCLUDED.status,
+			`INSERT INTO backlog_items (id, tenant_id, scope, project_id, type, status, title, body, data, revision)
+			 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10)
+			 ON CONFLICT (id) DO UPDATE SET scope=EXCLUDED.scope, project_id=EXCLUDED.project_id,
+			   type=EXCLUDED.type, status=EXCLUDED.status,
 			   title=EXCLUDED.title, body=EXCLUDED.body, data=EXCLUDED.data,
 			   revision=backlog_items.revision + 1, updated_at=now()`,
-			it.ID, it.TenantID, it.Type, it.Status, it.Title, it.Body, data, it.Revision)
+			it.ID, it.TenantID, it.Scope, it.ProjectID, it.Type, it.Status, it.Title, it.Body, data, it.Revision)
 		return err
 	})
 	if err != nil {
@@ -68,13 +74,13 @@ func (s *BacklogStore) Get(ctx context.Context, id string) (BacklogItem, error) 
 	var found bool
 	err := s.db.WithTx(ctx, func(tx datastore.Tx) error {
 		rows, err := tx.Query(ctx,
-			`SELECT id, tenant_id, type, status, title, body, data, revision FROM backlog_items WHERE id=$1`, id)
+			`SELECT id, tenant_id, scope, COALESCE(project_id, ''), type, status, title, body, data, revision FROM backlog_items WHERE id=$1`, id)
 		if err != nil {
 			return err
 		}
 		defer rows.Close()
 		if rows.Next() {
-			if err := rows.Scan(&it.ID, &it.TenantID, &it.Type, &it.Status, &it.Title, &it.Body, &it.Data, &it.Revision); err != nil {
+			if err := rows.Scan(&it.ID, &it.TenantID, &it.Scope, &it.ProjectID, &it.Type, &it.Status, &it.Title, &it.Body, &it.Data, &it.Revision); err != nil {
 				return err
 			}
 			found = true
@@ -98,7 +104,7 @@ func (s *BacklogStore) List(ctx context.Context, status string, limit int) ([]Ba
 	var out []BacklogItem
 	err := s.db.WithTx(ctx, func(tx datastore.Tx) error {
 		rows, err := tx.Query(ctx,
-			`SELECT id, tenant_id, type, status, title, body, data, revision FROM backlog_items
+			`SELECT id, tenant_id, scope, COALESCE(project_id, ''), type, status, title, body, data, revision FROM backlog_items
 			 WHERE ($1 = '' OR status = $1) ORDER BY created_at DESC LIMIT $2`, status, limit)
 		if err != nil {
 			return err
@@ -106,7 +112,7 @@ func (s *BacklogStore) List(ctx context.Context, status string, limit int) ([]Ba
 		defer rows.Close()
 		for rows.Next() {
 			var it BacklogItem
-			if err := rows.Scan(&it.ID, &it.TenantID, &it.Type, &it.Status, &it.Title, &it.Body, &it.Data, &it.Revision); err != nil {
+			if err := rows.Scan(&it.ID, &it.TenantID, &it.Scope, &it.ProjectID, &it.Type, &it.Status, &it.Title, &it.Body, &it.Data, &it.Revision); err != nil {
 				return err
 			}
 			out = append(out, it)
