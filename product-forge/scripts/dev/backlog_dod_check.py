@@ -5,7 +5,8 @@ the gate does not retro-fail the existing backlog; the goal is to drive both lis
 
   1. AC: every non-epic, non-legacy OPEN item must have >= 1 acceptance criterion, each >= MIN_AC chars.
   2. VERIFICATION: every DELIVERED item (carries ``delivery``) must carry a non-empty ``verification`` or
-     ``evidence`` record - proof produced and checked outside the implementation.
+     ``evidence`` record. (Presence only - INDEPENDENT verification, i.e. verifier != implementer, is enforced
+     by ``scripts/dev/backlog_verification_check.py`` (BI-PF-1413) and the ``status -> completed`` closure guard.)
 """
 from __future__ import annotations
 

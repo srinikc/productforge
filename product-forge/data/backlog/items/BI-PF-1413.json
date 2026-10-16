@@ -1,0 +1,212 @@
+{
+  "id": "BI-PF-1413",
+  "tag": "PF",
+  "type": "defect",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "api",
+  "external_id": "defect-verification-and-closure-guard",
+  "label": "PF Backlog 612",
+  "title": "Defect: no independent AC-verification gate + no closure guard - items can be closed 'completed' with AC unmet or self-verified",
+  "body": "",
+  "source": "generic",
+  "status": "new",
+  "priority": "P1",
+  "moscow": "Must",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [
+    "BI-PF-1412",
+    "BI-PF-1257"
+  ],
+  "links": {},
+  "decisions": [
+    {
+      "at": "2026-10-15T23:27:57.255383",
+      "decision": "APPROVE",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)"
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "what_adds": "A real independent-verification gate + a write-time guard on status->completed",
+    "problem": "Closing an item is self-asserted: no independent-verification gate and no closure guard, so AC can be unmet at close",
+    "source": "authored"
+  },
+  "objective": "Defect: no independent AC-verification gate + no closure guard - items can be closed 'completed' with AC unmet or self-verified",
+  "acceptance_criteria": [
+    "Objective achieved: Defect: no independent AC-verification gate + no closure guard - items can be closed 'completed' with AC unmet or self-verified"
+  ],
+  "in_scope": [
+    "Defect: no independent AC-verification gate + no closure guard - items can be closed 'completed' with AC unmet or self-verified"
+  ],
+  "out_of_scope": [
+    "Not specified."
+  ],
+  "affected_components": [
+    "Not specified."
+  ],
+  "affected_files": [
+    "Not specified."
+  ],
+  "approach": "Defect: no independent AC-verification gate + no closure guard - items can be closed 'completed' with AC unmet or self-verified",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Objective achieved: Defect: no independent AC-verification gate + no closure guard - items can be closed 'completed' with AC unmet or self-verified"
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "unassigned",
+  "requester": "generic",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1252",
+  "parent": "BI-PF-1252",
+  "revision": 3,
+  "priority_rank": 20,
+  "priority_class": "P1",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "COMPLETE",
+    "analyzed_at": "2026-10-15T23:27:57.052448",
+    "analyzed_by": "system",
+    "revision_analyzed": 3,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend core/guardrails.py + core/defect_loop.py to add an independent AC-verification gate (verifier != implementer; each AC resolved with evidence) and a closure guard on /items/{id}/accept that rejects 'completed' when any AC is unverified. Reuse run_guard/merge_gate wiring; add policy entries in config/guardrail-policy.json and config/ci-cd-gates.json.",
+    "existing_components": [],
+    "existing_apis": [],
+    "existing_modules": [],
+    "dependency_findings": [
+      {
+        "task_id": "BI-PF-1412",
+        "type": "RELATED",
+        "required_state": "defined"
+      },
+      {
+        "task_id": "BI-PF-1257",
+        "type": "RELATED",
+        "required_state": "delivered"
+      },
+      {
+        "task_id": "BI-PF-0416",
+        "type": "RELATED",
+        "required_state": "delivered"
+      }
+    ],
+    "conflict_findings": [
+      "BI-PF-1412 likely touches guardrails.py/defect_loop.py — coordinate ordering to avoid duplicate gate code",
+      "No concurrent accept-endpoint changes identified"
+    ],
+    "duplication_findings": [
+      "BI-PF-1412 covers building the independent-verification gate; this item must align, not rebuild it",
+      "No existing closure guard on accept endpoint; not duplicated elsewhere",
+      "defect_loop/guardrails provide reusable gate scaffolding"
+    ],
+    "drift": "LOW",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "Items can be closed 'completed' with unmet or self-verified ACs; enforcing an independent verifier plus a closure guard on accept closes the integrity gap while reusing the existing gate architecture.",
+    "assumptions": [
+      "accept endpoint currently self-attests and records no independent verifier",
+      "guardrail-policy.json is the intended configuration surface",
+      "Item history records implementer identity per AC"
+    ],
+    "risks": [
+      "Overlapping scope with BI-PF-1412 could produce duplicate gates",
+      "Gate could block legitimate closes if evidence format is too strict",
+      "Verifier availability may stall closure"
+    ],
+    "evidence": [
+      "Candidate modules include core/guardrails.py, core/defect_loop.py",
+      "/items/{id}/accept endpoint exists without verification sub-resource",
+      "config/guardrail-policy.json is the existing policy surface"
+    ],
+    "confidence": "medium",
+    "missing_info": [
+      "Relationship to BI-PF-1412: merge, supersede, or sequential?",
+      "Definition of acceptable AC evidence (link, text, artifact?)",
+      "Who may act as verifier (any non-implementer actor, or a specific role)?",
+      "Hard-block vs warn mode for the closure guard"
+    ],
+    "depth": "deep",
+    "mode": "ai",
+    "context_review": {
+      "ok": false,
+      "source": "llm",
+      "implementable": false,
+      "missing": [
+        "how",
+        "where"
+      ],
+      "reason": "All fields merely repeat the title verbatim; no concrete approach, affected files/components, or testable criteria are given beyond restating the problem statement."
+    },
+    "decision_request": {
+      "needed": false,
+      "reasons": [],
+      "ask": ""
+    },
+    "arch_fingerprint": "afd3f7f640de374c"
+  },
+  "dependencies": [
+    {
+      "task_id": "BI-PF-1412",
+      "type": "RELATED",
+      "required_state": "defined"
+    },
+    {
+      "task_id": "BI-PF-1257",
+      "type": "RELATED",
+      "required_state": "delivered"
+    }
+  ],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-15T23:27:57.140048"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-15T23:27:10.505666",
+  "updated_at": "2026-10-15T23:27:58.339899",
+  "score": 0.75,
+  "_note": "readiness computed",
+  "api_impact": {
+    "needs_api": false,
+    "reason": "governance gates + closure guard",
+    "routes": []
+  }
+}
