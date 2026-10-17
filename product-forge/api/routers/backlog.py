@@ -422,7 +422,8 @@ def set_delivery(item_id: str, body: dict[str, Any], request: Request,
 # writer; no new logic. ──
 _CONTEXT_FIELDS = ("objective", "acceptance_criteria", "in_scope", "out_of_scope",
                    "affected_components", "affected_files", "approach", "verification",
-                   "risks", "rollback", "evidence", "owner", "summary", "brief", "verified_by")
+                   "risks", "rollback", "evidence", "owner", "summary", "brief", "verified_by",
+                   "review_dispositions")
 
 
 @router.post("/items/{item_id}/context", dependencies=[Depends(require_operator)])
