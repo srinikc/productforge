@@ -1,17 +1,17 @@
 # Backlog Summary
 
-> GENERATED 2026-10-17T15:45:07 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-17T18:31:16 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 128  |  **Closed:** 551
+- **Open:** 125  |  **Closed:** 557
 - `blocked`: 1
 - `executing`: 3
-- `in_progress`: 3
-- `new`: 121
+- `in_progress`: 2
+- `new`: 119
 
-### new, by category (121)
+### new, by category (119)
 **API / reports / HIL / misc** (15)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
@@ -36,7 +36,7 @@
 |---|---|---|---|---|
 | BI-PF-1332 | Should | bug | Develop red: test pollution committed into data/learnings.json breaks test_global_render_unchanged (scratch loop-learning marker 0270) | Restore develop green: purge test pollution from data/learnings.json + prevent test writes to the real learnin... |
 
-**Discovery / HIL / prompts** (9)
+**Discovery / HIL / prompts** (8)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0218 | Should | feature | Backend: AI-era operations layer (evals + prompt/model/agent versioning + feedback loop + model-quality observability) | Add the AI-era lifecycle layer so the Product tab can show AI quality + the loop that keeps it good. |
@@ -46,7 +46,6 @@
 | BI-PF-1236 | Should | change | Worker ops: worker charter (binding guidelines) + runtime prompt fix (no agent merge) + model pin | - workergrid/instructions.md: full worker charter (14 binding guidelines; manual-by-default, auto mode). - wor... |
 | BI-PF-1242 | Should | feature | In-session manual/auto worker mode + /wg watch monitoring + 14-guidelines approval gates | - In-session manual worker mode (/wg work manual, default): 1. Claims assignment atomically from PF via /assig... |
 | BI-PF-1302 | Must | feature | EDP-10: Timeouts, pool budgets, payload/upload limits, per-tenant & global quotas, structured errors; production profile rejects dev/anon auth | Implement enforceable timeouts, pool budgets, payload/upload limits, per-tenant and global quotas, structured ... |
-| BI-PF-1398 | Must | bug | Dependency gap: pypdf and python-docx used by core/intake_files.py are undeclared in pyproject.toml and uncatalogued in config/tool-catalog.json | Dependency gap: pypdf and python-docx used by core/intake_files.py are undeclared in pyproject.toml and uncata... |
 | BI-PF-1408 | Must | defect | Gap: store-registry discovery incomplete - 233/235 stores unclassified (no backend/tenant_scope/migration_status) + no store->DB table/relationship mapping (prereq for EDP-18) | Gap: store-registry discovery incomplete - 233/235 stores unclassified (no backend/tenant_scope/migration_stat... |
 
 **Dynamic pipeline / agents** (4)
@@ -64,18 +63,17 @@
 | BI-PF-1401 | Should | feature | Expose doc-driven backlog ingest via a Go capability service (generic surface); tooling becomes a client | Expose doc-driven backlog ingest via a Go capability service (generic surface); tooling becomes a client |
 | BI-PF-1403 | Should | feature | Doc-ingest extraction: design Go extraction for .docx/.pdf (and future formats) in the capability service | Doc-ingest extraction: design Go extraction for .docx/.pdf (and future formats) in the capability service |
 
-**Licensing / tenancy** (7)
+**Licensing / tenancy** (6)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-PF-0390 | Should | epic | EPIC A: PF Commercial & IP Foundation (contracts, Go core, licensing, packaging, EAP, RDC, governance, vertical slice) | EPIC A — the needed-now foundation: A0 baseline freeze + ADR register; A1 thin contracts incl. Go<->Python con... |
 | BI-PF-1287 | Should | change | License issuance production: vendor keypair management + signing-env integration (A3 packaging) | Provision a vendor signing keypair for production issuance; ship only the public key with the product; integra... |
 | BI-PF-1292 | Must | epic | EPIC: Enterprise Data Plane (DB & Storage) - PostgreSQL system of record + object store + tenant isolation + data residency | Build the provider-neutral enterprise data plane from docs/Product_Forge_Enterprise_Performance_Security_DB_St... |
-| BI-PF-1303 | Must | feature | EDP-11: ResidencyPolicy/RegionResolver + RegionCell capability attestation + fail-closed tenant provisioning | Deliver ResidencyPolicy evaluation, RegionResolver, RegionCell capability attestation verification, and fail-c... |
 | BI-PF-1315 | Must | feature | EDP-23: Backup/PITR + restore drills (full service + single-tenant) + DB<->object integrity reconciliation + region-aware restore | Deliver backup + PITR configuration, automated restore drills (full-service and single-tenant), DB<->object in... |
 | BI-PF-1317 | Could | feature | EDP-24: Scale-out & enterprise isolation tiers (read replicas / partitioning / tenant isolation tiers / additional region cells / region-migration workflow) [EVIDENCE-GATED] | Provide scale-out and enterprise isolation tiers including read-replica support, DB partitioning, tenant isola... |
 | BI-PF-1415 | Should | defect | RCCA: config/derived stores classified by kind heuristic (not reviewed) - 78 project/tenant-scoped stores likely belong in DB (views/tables) | RCCA: config/derived stores classified by kind heuristic (not reviewed) - 78 project/tenant-scoped stores like... |
 
-**Specs / cache / context / artifacts** (9)
+**Specs / cache / context / artifacts** (10)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0206 | Should | tech-debt | Backend: model downloader + local cache + license-acceptance gate + models.lock (open-weights) | One owner module that downloads only the weights a project's capability pack needs, into a gitignored local ca... |
@@ -87,8 +85,9 @@
 | BI-PF-1329 | Should | feature | WG-O5: Assign a SPECIFIC backlog item to a session/worker (claim-by-id + operator assignment) with lease semantics | Support claiming/assigning a specific item id (not just next-eligible). |
 | BI-PF-1385 | Must | bug | Backlog API: no deterministic endpoint to author item context fields (objective/acceptance_criteria/affected_files/approach) | Backlog API: no deterministic endpoint to author item context fields (objective/acceptance_criteria/affected_f... |
 | BI-PF-1392 | Should | task | Enforce per-feature FR/US caps + max_lines in the Go artifact engine (scaled by the profile) and reconcile the three section sources | Per-feature FR/US caps + max_lines enforced NUMERICALLY (scaled by profile); sections have ONE source. |
+| BI-PF-1425 | Should | feature | Migrate orchestrator cache + evidence/summarizer (and remaining audit logic) from Python to Go (Go-first alignment) | Migrate orchestrator cache + evidence/summarizer (and remaining audit logic) from Python to Go (Go-first align... |
 
-**Wiring / tech-debt / API** (73)
+**Wiring / tech-debt / API** (72)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0185 | Should | feature | EPIC: Multi-modal / media orchestration (pluggable capability packs) | Make the pipeline modality-agnostic via PLUGGABLE capability packs, enabled per project when the idea needs th... |
@@ -143,8 +142,6 @@
 | BI-PF-1280 | Should | feature | dogfood: monitoring - wait/poll + terminal event/webhook + status aggregation | Expose progress via the shared bus: poll (run_status/events) + subscribe (SSE/webhook) + aggregate status. |
 | BI-PF-1281 | Should | task | core/contracts.py imports jsonschema but it was not a declared dependency | core/contracts.py imports jsonschema but it was not a declared dependency |
 | BI-PF-1288 | Must | task | Issue id collision: a local session minted IS-PF-0038 already present on develop | Issue id collision: a local session minted IS-PF-0038 already present on develop |
-| BI-PF-1297 | Must | feature | EDP-05: Residency & Transfer Policy Registry (versioned, fail-closed) + IN-v1/US-v1 launch profiles (counsel-owned content) | Deliver a versioned, fail-closed residency and transfer policy registry with IN-v1 and US-v1 launch profiles w... |
-| BI-PF-1298 | Must | task | EDP-06: Baseline performance capture (artifact list/read, project load/save, run transitions, memory retrieval, job claim/lease, DB/pool counts) | Capture reproducible baseline performance metrics for artifact list/read, project load/save, run transitions, ... |
 | BI-PF-1304 | Must | feature | EDP-12: Generated-product residency manifest (data_classes/home_region/allowed_regions/backup/kms/egress/retention) + build/deploy gate | Generate a per-product residency manifest (data_classes, home_region, allowed_regions, backup, kms, egress, re... |
 | BI-PF-1308 | Must | feature | EDP-16: Object lifecycle (versioning/lock/retention), signed-URL policy, delete/replica/backup reconciliation | Define and enforce object lifecycle rules (versioning, lock, retention), signed-URL access policy, and delete/... |
 | BI-PF-1323 | Must | chore | Harden sync_develop on a dirty/noisy working tree (untracked collisions; merge refused; generated-file hygiene) | A sync that just works on a realistic (noisy) working tree, so "sync often" stays reliable. |
@@ -155,7 +152,6 @@
 | BI-PF-1370 | Should | feature | Session isolation guard: never write outside the session's own working folder (hard ACL long-term + single-account alternative now) | A session can only affect its OWN working folder: cross-folder writes are prevented (long-term, hard) or at le... |
 | BI-PF-1371 | Must | feature | Session isolation guard: never write outside the session's own working folder (hard ACL long-term + single-account alternative now) | A session can only affect its OWN working folder: cross-folder writes are prevented (long-term, hard) or at le... |
 | BI-PF-1374 | Should | feature | precheck: a derived/bookkeeping-only tier (docs-fresh + compile only) so doc/backlog regeneration never runs the full gate | Add a derived/bookkeeping-only precheck tier (docs-fresh + compile) and stop doc-regen running the full gate. |
-| BI-PF-1381 | Should | feature | CI: add a Go-module build/vet/test gate for product-forge/go/* | CI: add a Go-module build/vet/test gate for product-forge/go/* |
 | BI-PF-1388 | Should | epic | EPIC: Generation Proportionality - artifact contract + project profile drive generation (bounded by construction) | Bounded by construction: ONE lever (artifact contract x project-size profile x kind) drives each agent's secti... |
 | BI-PF-1389 | Should | task | Wire the artifact contract + project-size profile into generation (single source for the section plan) | The resolved contract (required vs optional sections per profile + counts + size) becomes the single source fo... |
 | BI-PF-1391 | Should | task | Project-size profile lever: small/medium/large selects required vs optional sections + counts bands + size budget | One lever scales depth: small -> required sections only, low counts, small budgets; medium -> recommended; lar... |
@@ -164,6 +160,8 @@
 | BI-PF-1410 | Must | feature | Hard DoD gate: every item needs detailed Acceptance Criteria + independent verification (verifier != implementer) before close/merge | Hard DoD gate: every item needs detailed Acceptance Criteria + independent verification (verifier != implement... |
 | BI-PF-1414 | Should | defect | RCCA: schema designed without field-level reconciliation vs the owning port (artifact schema mismatched datastore.Artifact) - found only at C1b | RCCA: schema designed without field-level reconciliation vs the owning port (artifact schema mismatched datast... |
 | BI-PF-1416 | Should | feature | Automate PF persistence setup: one-command provisioning + roles + migrations + storage config + secrets + verify (dev and SaaS) | Automate PF persistence setup: one-command provisioning + roles + migrations + storage config + secrets + veri... |
+| BI-PF-1424 | Must | feature | Consolidate Python orchestrator audit (AgentAuditLog) into the DB AuditStore - single audit truth via /audit | Consolidate Python orchestrator audit (AgentAuditLog) into the DB AuditStore - single audit truth via /audit |
+| BI-PF-1426 | Should | change | Harden auto-loaded config against schema mixing + tooling writes outside the repo (residency-profiles vs residency-cells) | Make schema-mixing in auto-loaded dirs and out-of-repo tooling writes fail loudly, repo-wide. |
 
 ---
 
@@ -363,5 +361,5 @@
 ---
 
 ## Totals
-- backend: 128 open / 551 closed
+- backend: 125 open / 557 closed
 - dashboard: 146 open / 3 closed
