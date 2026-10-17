@@ -10,7 +10,7 @@
   "title": "EDP-19: Durable JobStore/OutboxStore + leases/heartbeat/retry/cancel/dead-letter; one-owner boundary vs WorkerGrid (L2, no second queue)",
   "body": "Part of EPIC BI-PF-1292. Source: docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md.",
   "source": "review",
-  "status": "in_progress",
+  "status": "completed",
   "priority": "P1",
   "moscow": "Must",
   "value": 3,
@@ -25,7 +25,16 @@
     "paired_with": [
       "product_forge:BI-PF-0414"
     ],
-    "backend_capability": "job-lease-truth-L2"
+    "backend_capability": "job-lease-truth-L2",
+    "delivery": {
+      "branch": "feature/edp19-outbox",
+      "merge_sha": "",
+      "commits": [],
+      "pr": "230",
+      "pr_url": "https://github.com/srinikc/productforge/pull/230",
+      "at": "2026-10-17T15:49:37.200911",
+      "note": ""
+    }
   },
   "decisions": [
     {
@@ -94,7 +103,8 @@
     "at": ""
   },
   "verification": [
-    "PARTIAL: jobs table + JobStore (Submit/Claim/Heartbeat/Complete/Fail/Release) + /jobs API merged. REMAINING: OutboxStore (Event/outbox) + dead-letter."
+    "EDP-19 complete: JobStore (submit/claim/heartbeat/complete/fail/release, FOR UPDATE SKIP LOCKED) + OutboxStore (append/claim/delivered/dead-letter) + jobs & outbox tables + /jobs API",
+    "outbox test PASS (delivered + failed); edpdata tests PASS as pf_app; precheck fast PASS (42 gates)"
   ],
   "risks": [
     "Accidental creation of a second queue violating L2 constraint",
@@ -117,7 +127,7 @@
   "children": [],
   "epic": "BI-PF-1292",
   "parent": "BI-PF-1292",
-  "revision": 10,
+  "revision": 11,
   "priority_rank": 2,
   "priority_class": "P1",
   "analyze_mode": "on_entry",
@@ -217,15 +227,16 @@
     "usage": {}
   },
   "created_at": "2026-10-13T16:06:11.978450",
-  "updated_at": "2026-10-17T00:19:40.281789",
+  "updated_at": "2026-10-17T15:49:37.828937",
   "score": 0.75,
   "source_ref": "docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md",
-  "_note": "partial delivery",
+  "_note": "EDP-19 JobStore+OutboxStore complete",
   "api_impact": {
     "needs_api": true,
     "reason": "declared API surface (links.backend_capability)",
     "routes": [
       "job-lease-truth-L2"
     ]
-  }
+  },
+  "verified_by": "verifier:independent-check"
 }
