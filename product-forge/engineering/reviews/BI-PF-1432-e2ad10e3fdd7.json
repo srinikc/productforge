@@ -1,0 +1,36 @@
+{
+  "item": "BI-PF-1432",
+  "sha": "e2ad10e3fdd7",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "findings": {
+    "BLOCKER": [
+      "`scripts/dev/backlog_api.py::client()` **fails open on auth**: when no token is found it does `os.environ.setdefault(\"API_ALLOW_ANON\", \"1\")` and still sends `X-Roles: operator`. Any process (or CI job, or a future caller that imports this module) with a missing/expired/renamed token silently runs the API as an *anonymous operator* instead of erroring. This is an auth-bypass-by-default pattern, and it is a process-wide env mutation (persists for the app's lifetime even if a token appears later; and is a no-op if `api.app` was already imported and reads the flag at import time \u2014 a silent, order-dependent behavior). Auth must fail closed for tooling, or be an explicit, loud, scoped opt-in.",
+      "`scripts/dev/architect_review.py::_get_item()` wraps the in-process API call in `except Exception:` and **silently falls back to a direct `core.backlog` library read** (`get_epic`, hardcoded scope). This (a) bypasses the very API SSOT this item exists to establish whenever the API errors, (b) can return wrong/empty data for non-epic items, and (c) hides API regressions from the review tool \u2014 an architect review can then run against stale/partial item state with no signal. The fallback must be removed or made explicit and loud.",
+      "Language-rule/AC integrity: no test covers the new in-process wiring (a regression in `_get_item`/`_post_context` or in `backlog_api` guards is undetectable). The AC is \"wire Gate 1.5/2.5 fully\" \u2014 an untested auth+data-path change on the review tool is not verifiably wired."
+    ],
+    "MAJOR": [
+      "The new SSOT doc (`PF-API-SERVICE-OR-SERVER.md` \u00a75) **institutionalizes an auth exception** (\"internal callers use no PF token ... `API_ALLOW_ANON`\") as the interim model rather than tracking it as a tracked security debt with an owner/expiry. Documented standing bypasses have a habit of outliving \"interim\".",
+      "`backlog_api.py` is a **general-purpose Python write client** (`create_item`, `set_status`, `set_delivery`, `set_api_impact`), not a review-tool adapter. It is a new growth surface for shipped write logic in Python outside `api/` \u2014 the exact boundary the language rule guards. Scope it to the review tool's needs or justify in the language-rule allowlist.",
+      "**Duplication risk unverified**: the repo likely already has dev-script API clients (backlog ingest, doc-ingest `BACKLOG-DOC-INGEST.md` path). Two+ `sys.path`-bootstrapping, `_unwrap`-style API clients is a maintainability regression; a single shared client should be the SSOT for in-process calls.",
+      "`TestClient(app, headers={... \"X-Roles\": \"operator\"})` **hardcodes an elevated role for every call** regardless of caller; combined with the anon path this makes role a constant, not an authorization decision. Per-caller role/scoping should come from the caller, not the client constructor.",
+      "`_token()` writes the token into `os.environ[\"PF_API_TOKEN\"]` (process-wide env propagation of a credential) \u2014 visible to any child process and to `/proc`-style inspection; prefer scoped injection.",
+      "No logging/observability added: `_unwrap` raises `RuntimeError(f\"API {status}: {text[:500]}\")` with no structured logging, and `_get_item` swallows it entirely \u2014 failures in the review data path are invisible."
+    ],
+    "MINOR": [
+      "`scripts/dev/architect_review.py` retains now-dead code (`_token()`, possibly `API`) after the HTTP path was removed \u2014 dead paths rot and mislead future readers.",
+      "`_ba()` inserts `scripts/dev` into `sys.path` and does a bare `import backlog_api` \u2014 module-name shadowing/ambiguity; prefer an explicit package-relative import. Also duplicated `sys.path` bootstrap logic in both files.",
+      "`call()` constructs a **new `TestClient` per request** (re-imports `api.app`, re-reads env each call) \u2014 unnecessary cost and per-call env state divergence.",
+      "Id-block allocations, derived `BACKLOG-SUMMARY.md`, and `documentation-index.html` churn are bundled into a feature diff \u2014 mixed concerns; generated state should ride with its own commit to keep review sha semantics honest.",
+      "Doc encoding: `PF-API-SERVICE-OR-SERVER.md` renders `\u00e2\u2020\u2019`/`\u00e2\u20ac\u201d` (mojibake) \u2014 verify the file is valid UTF-8 end-to-end, as it is now registered in the docs index."
+    ],
+    "NIT": [
+      "New doc duplicates taxonomy already spread across `REVIEW-GATES-LIFECYCLE.md`, `API-1-FOUNDATION.md`, ADR-0001/0007/0008; consider referencing rather than restating, to avoid three SSOTs drifting.",
+      "`backlog_api.__main__` demo hardcodes `BI-PF-1429` (a now-closed item) \u2014 harmless but stale on arrival.",
+      "`gen_docs_index.py` entry `weight: 100` for a topology doc is subjective noise; no action needed."
+    ],
+    "SUMMARY": [
+      "The in-process API direction is right and matches the AC, but the implementation **fails open on authentication** (anon+operator on missing token) and **silently falls back to a non-API read on error**, which undermines both the security posture and the very SSOT guarantee this item establishes. No tests were added for the new wiring, and the new Python module is a broader write client than the AC requires, creating a language-rule boundary risk. Fix the fail-open auth and the swallowed-exception fallback before merge; then consolidate API-client duplication and add a regression test."
+    ]
+  }
+}
