@@ -197,8 +197,8 @@ def _build_prompt(item: dict, item_id: str, mode: str) -> str:
                          item=item_id, ac=ac, body=body)
 
 
-def _post_context(item_id: str, lines: list) -> None:
-    body = json.dumps({"verification": lines}).encode("utf-8")
+def _post_context(item_id: str, payload: dict) -> None:
+    body = json.dumps(payload).encode("utf-8")
     req = urllib.request.Request(f"{API.rstrip('/')}/backlog/items/{item_id}/context", data=body, method="POST")
     req.add_header("Authorization", f"Bearer {_token()}")
     req.add_header("Content-Type", "application/json")
@@ -206,20 +206,53 @@ def _post_context(item_id: str, lines: list) -> None:
     urllib.request.urlopen(req, timeout=15).read()
 
 
-def _ingest(item_id: str, text: str, model: str, apply: bool) -> int:
+def review_block(findings: dict, model: str, sha: str, mode: str) -> str:
+    """Human-readable findings block (BLOCKER/MAJOR/MINOR/NIT/SUMMARY + recommendation), stated IN the gate review."""
+    gate = "1.5" if mode == "design" else "2.5"
+    lines = [f"Gate {gate} architect review - model={model} sha={sha}"]
+    for s in SEVERITIES:
+        lines.append(f"{s}:")
+        lines += [f"  - {x}" for x in findings.get(s, [])] or ["  - none"]
+    lines.append("SUMMARY:")
+    lines += [f"  - {x}" for x in findings.get("SUMMARY", [])] or ["  - none"]
+    rec = "BLOCKED - objectively verifiable blocker(s) present" if findings.get("BLOCKER") else \
+        "no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)"
+    lines.append(f"RECOMMENDATION: {rec}")
+    return "\n".join(lines)
+
+
+def _latest_review(item_id: str, mode: str):
+    if not EVID.is_dir():
+        return None
+    best, best_m = None, -1.0
+    for fp in EVID.glob(f"{item_id}-*.json"):
+        try:
+            d = json.loads(fp.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        if (d.get("mode") or "diff") == mode and fp.stat().st_mtime > best_m:
+            best, best_m = d, fp.stat().st_mtime
+    return best
+
+
+def _ingest(item_id: str, text: str, model: str, apply: bool, mode: str = "diff") -> int:
     findings = parse_review(text)
     sha = diff_sha()
     EVID.mkdir(parents=True, exist_ok=True)
     out = EVID / f"{item_id}-{sha}.json"
-    out.write_text(json.dumps({"item": item_id, "sha": sha, "model": model, "findings": findings},
-                              indent=2), encoding="utf-8")
+    out.write_text(json.dumps({"item": item_id, "sha": sha, "model": model, "mode": mode,
+                               "findings": findings}, indent=2), encoding="utf-8")
     counts = {s: len(findings[s]) for s in SEVERITIES}
     print(f"review captured: {out} {counts}")
     blockers = findings["BLOCKER"]
     if apply:
-        summary = "; ".join(blockers) if blockers else "no blockers"
-        _post_context(item_id, [f"Gate2.5 architect review ({counts}): {summary}"])
-        print("summary appended to item context")
+        gate = "1.5" if mode == "design" else "2.5"
+        item = _get_item(item_id)
+        ev = list(item.get("evidence") or [])
+        ev.append(review_block(findings, model, sha, mode))
+        _post_context(item_id, {"evidence": ev,
+                                "verification": [f"Gate {gate} architect review ({model}): {counts}"]})
+        print(f"Gate {gate} findings stored on item (evidence + verification)")
     return 1 if blockers else 0
 
 
@@ -241,6 +274,9 @@ def main(argv: list[str]) -> int:
     ing.add_argument("--file", required=True)
     ing.add_argument("--apply", action="store_true")
     ing.add_argument("--model", default=default_model, help="reviewer model label recorded in evidence")
+    g = sub.add_parser("gate")
+    g.add_argument("--item", required=True)
+    g.add_argument("--gate", choices=["1", "2"], required=True)
     a = ap.parse_args(argv)
 
     item = _get_item(a.item)
@@ -250,6 +286,17 @@ def main(argv: list[str]) -> int:
         return 0
     if a.cmd == "ingest":
         return _ingest(a.item, Path(a.file).read_text(encoding="utf-8"), a.model, a.apply)
+    if a.cmd == "gate":
+        mode = "design" if a.gate == "1" else "diff"
+        gate = "1.5" if mode == "design" else "2.5"
+        print(f"=== GATE {a.gate} REVIEW - {a.item} (informed by Gate {gate}) ===")
+        rev = _latest_review(a.item, mode)
+        if not rev:
+            print(f"(no Gate {gate} evidence - run: python scripts/dev/architect_review.py run "
+                  f"--item {a.item} --mode {mode})")
+            return 1
+        print(review_block(rev.get("findings") or {}, rev.get("model", ""), rev.get("sha", ""), mode))
+        return 0
 
     prompt = _build_prompt(item, a.item, a.mode)
     try:
@@ -260,7 +307,7 @@ def main(argv: list[str]) -> int:
     if not out.strip():
         print("review call returned empty content")
         return 2
-    return _ingest(a.item, out, a.model, a.apply)
+    return _ingest(a.item, out, a.model, a.apply, a.mode)
 
 
 if __name__ == "__main__":
