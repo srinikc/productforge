@@ -25,7 +25,7 @@ type agentRegistry struct {
 	Agents map[string]AgentSpec `json:"agents"`
 }
 
-// arLoad loads the agent registry. ``acDir`` is config/artifact-contracts; the registry
+// arLoad loads the agent registry. “acDir“ is config/artifact-contracts; the registry
 // lives beside it at config/agent-registry/index.json.
 func arLoad(acDir string) (map[string]AgentSpec, string) {
 	path := filepath.Join(filepath.Dir(acDir), "agent-registry", "index.json")

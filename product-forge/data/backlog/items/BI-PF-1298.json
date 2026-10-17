@@ -51,11 +51,10 @@
     "Metrics stored via BI-PF-1294 observability path"
   ],
   "in_scope": [
-    "Go benchmark harness + baseline report artifact"
+    "harness + scenarios + baseline artifact"
   ],
   "out_of_scope": [
-    "Optimization work (later EDP phases)",
-    "Load-test soak suites"
+    "observability publishing (BI-PF-1294)"
   ],
   "affected_components": [
     "core/artifact_store.py",
@@ -63,11 +62,11 @@
     "core/agent_runtime.py"
   ],
   "affected_files": [
-    "internal/bench/harness.go",
-    "internal/bench/scenarios.go",
-    "config/artifact-paths.json"
+    "go/edpsvc/internal/bench/harness.go",
+    "go/edpsvc/internal/bench/scenarios.go",
+    "go/edpsvc/internal/bench/harness_test.go"
   ],
-  "approach": "Scenario-driven harness hitting stable APIs; results written as artifact.",
+  "approach": "New go/edpsvc/internal/bench package: Measure(group,name,ops,fn)->p50/p95/p99; Report + WriteReport (versioned baseline artifact). scenarios() defines the 6 operation groups (artifact/project/run/memory/job/db) over real tables; RunAll runs them (DB-gated by PF_RUNTIME_DSN, self-skips). Publishing to the observability path is BI-PF-1294's job.",
   "review": {
     "reconciliation": {
       "prior_decisions": [],
@@ -81,9 +80,7 @@
     "at": ""
   },
   "verification": [
-    "Run harness twice; compare variance <10%",
-    "language_rule_review.py",
-    "Report artifact readable via /api/v1/artifacts"
+    "go build/vet/test in go/edpsvc pass (percentiles, report round-trip, 6 groups, no-DSN skip)"
   ],
   "risks": [
     "API churn from BI-PF-1507/1297 refactor invalidating baselines",
@@ -243,13 +240,12 @@
     "usage": {}
   },
   "created_at": "2026-10-13T16:02:22.292211",
-  "updated_at": "2026-10-15T19:52:03.680455",
+  "updated_at": "2026-10-17T16:42:20.035248",
   "score": 0.75,
   "source_ref": "docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md",
-  "_note": "dependencies set",
+  "_note": "impl fields",
   "api_impact": {
     "needs_api": false,
-    "reason": "retrofit assessment (ADR-0007): no external API consumer recorded; treated as internal until an API surface is required (then set needs_api=true with routes)",
-    "routes": []
+    "reason": "Go benchmark harness"
   }
 }

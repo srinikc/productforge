@@ -45,18 +45,20 @@
     "Objective achieved: CI: add a Go-module build/vet/test gate for product-forge/go/*"
   ],
   "in_scope": [
-    "CI: add a Go-module build/vet/test gate for product-forge/go/*"
+    "Go-module CI gate for go/*"
   ],
   "out_of_scope": [
-    "Not specified."
+    "workergrid/ (has wg_go_check)"
   ],
   "affected_components": [
     "scripts"
   ],
   "affected_files": [
-    "scripts/dev/go_modules_check.py"
+    "scripts/dev/go_modules_check.py",
+    "scripts/dev/precheck.py",
+    "config/ci-cd-gates.json"
   ],
-  "approach": "CI: add a Go-module build/vet/test gate for product-forge/go/*",
+  "approach": "Add scripts/dev/go_modules_check.py: discover go/*/go.mod; per module gofmt -l + go vet + go build + go test; fail-closed if Go missing. Wire into precheck _GATES (area go/) + the named-group map (worker).",
   "review": {
     "reconciliation": {
       "prior_decisions": [],
@@ -70,7 +72,8 @@
     "at": ""
   },
   "verification": [
-    "Objective achieved: CI: add a Go-module build/vet/test gate for product-forge/go/*"
+    "python scripts/dev/go_modules_check.py -> OK (12 modules)",
+    "precheck PASS (45 gates) incl. the new go-modules gate"
   ],
   "risks": [
     "Not specified."
@@ -202,12 +205,11 @@
     "usage": {}
   },
   "created_at": "2026-10-14T16:18:48.524519",
-  "updated_at": "2026-10-15T19:52:10.233034",
+  "updated_at": "2026-10-17T16:42:18.960076",
   "score": 0.75,
-  "_note": "readiness computed",
+  "_note": "impl fields",
   "api_impact": {
     "needs_api": false,
-    "reason": "retrofit assessment (ADR-0007): no external API consumer recorded; treated as internal until an API surface is required (then set needs_api=true with routes)",
-    "routes": []
+    "reason": "CI tooling"
   }
 }
