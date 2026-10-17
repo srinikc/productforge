@@ -1,17 +1,17 @@
-"""Gate 2.5 / Gate 1.5 - second-model Architect review helper (BI-PF-1427, ADR/process: docs/REVIEW-GATES-LIFECYCLE.md).
+"""Gate 2.5 / Gate 1.5 - second-model Architect review helper (BI-PF-1427, docs/REVIEW-GATES-LIFECYCLE.md).
 
-Model-agnostic by design: the reviewer is usually a DIFFERENT model (default Mimo v2.6/flash) in a FRESH
-context. This tool:
-  * emit  : builds the architect-review prompt from the item + AC + (design | git diff) + standards.
-  * ingest: parses a review (BLOCKER/MAJOR/MINOR/NIT), writes evidence engineering/reviews/<item>-<sha>.json,
-            and (--apply) appends the summary to the item's context via the API.
+Provider- and model-AGNOSTIC. The reviewer is a SEPARATE fresh-context sub-agent on a configurable model
+(default from config/architect-review.json, e.g. mimo-v2.6-flash; override --model / PF_ARCHITECT_REVIEW_MODEL
+to gemini/claude/anything). Nothing here is coupled to OpenCode or Mimo: `run` launches whatever command the
+config `launch_command` names.
 
-Why not call the model here: the catalog is stale (mimo-v2.6 absent) and model calls must not sit inside
-precheck. Emitting the prompt lets ANY reviewer model produce the review; ingest captures it as evidence.
+Commands:
+  emit   --item ID [--mode design|diff]                 : print the fresh-context reviewer prompt.
+  run    --item ID [--mode design|diff] [--apply]        : launch the reviewer sub-agent, capture + ingest.
+  ingest --item ID --file review.md [--apply]            : ingest an externally-produced review.
 
-Usage:
-  python scripts/dev/architect_review.py emit   --item BI-PF-XXXX [--mode design|diff]
-  python scripts/dev/architect_review.py ingest --item BI-PF-XXXX --file review.md [--apply]
+ingest parses BLOCKER/MAJOR/MINOR/NIT -> engineering/reviews/<item>-<sha>.json; --apply appends the summary
+to the item context. Exit 1 when a BLOCKER is present (objectively verifiable only). NOT inside precheck.
 """
 from __future__ import annotations
 
@@ -22,6 +22,7 @@ import os
 import re
 import subprocess
 import sys
+import tempfile
 import urllib.request
 from pathlib import Path
 
@@ -30,14 +31,6 @@ EVID = ROOT / "engineering" / "reviews"
 CONFIG = ROOT / "config" / "architect-review.json"
 API = os.environ.get("PF_API_URL", "http://127.0.0.1:8010/api/v1")
 SEVERITIES = ("BLOCKER", "MAJOR", "MINOR", "NIT")
-
-
-def _config() -> dict:
-    """Provider/model-agnostic config (config/architect-review.json). Any model id is valid."""
-    try:
-        return json.loads(CONFIG.read_text(encoding="utf-8"))
-    except Exception:
-        return {}
 
 PROMPT = """You are a Principal Enterprise System Architect performing an independent review.
 
@@ -68,10 +61,27 @@ Output format (exact headings, bullet findings):
 """
 
 
+def _config() -> dict:
+    """Provider/model-agnostic config (config/architect-review.json). Any model id is valid."""
+    try:
+        return json.loads(CONFIG.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
+def _token() -> str:
+    tok = os.environ.get("PF_API_TOKEN", "")
+    if tok:
+        return tok
+    try:
+        return (ROOT / "data" / "local" / "dev-api-token").read_text(encoding="utf-8").strip()
+    except Exception:
+        return ""
+
+
 def _get_item(item: str) -> dict:
-    tok = os.environ.get("PF_API_TOKEN", "") or (ROOT / "data" / "local" / "dev-api-token").read_text().strip()
     req = urllib.request.Request(f"{API.rstrip('/')}/backlog/items/{item}", method="GET")
-    req.add_header("Authorization", f"Bearer {tok}")
+    req.add_header("Authorization", f"Bearer {_token()}")
     with urllib.request.urlopen(req, timeout=15) as r:
         return json.loads(r.read().decode("utf-8")).get("data") or {}
 
@@ -104,6 +114,39 @@ def parse_review(text: str) -> dict:
     return out
 
 
+def _build_prompt(item: dict, item_id: str, mode: str) -> str:
+    ac = "\n".join(f"- {c}" for c in (item.get("acceptance_criteria") or [])) or "- (none)"
+    body = _design_body(item) if mode == "design" else "Diff:\n```diff\n" + _git_diff()[:60000] + "\n```"
+    return PROMPT.format(target=("design" if mode == "design" else "implementation diff"),
+                         item=item_id, ac=ac, body=body)
+
+
+def _post_context(item_id: str, lines: list) -> None:
+    body = json.dumps({"verification": lines}).encode("utf-8")
+    req = urllib.request.Request(f"{API.rstrip('/')}/backlog/items/{item_id}/context", data=body, method="POST")
+    req.add_header("Authorization", f"Bearer {_token()}")
+    req.add_header("Content-Type", "application/json")
+    req.add_header("X-Roles", "operator")
+    urllib.request.urlopen(req, timeout=15).read()
+
+
+def _ingest(item_id: str, text: str, model: str, apply: bool) -> int:
+    findings = parse_review(text)
+    sha = hashlib.sha256(_git_diff().encode("utf-8")).hexdigest()[:12]
+    EVID.mkdir(parents=True, exist_ok=True)
+    out = EVID / f"{item_id}-{sha}.json"
+    out.write_text(json.dumps({"item": item_id, "sha": sha, "model": model, "findings": findings},
+                              indent=2), encoding="utf-8")
+    counts = {s: len(findings[s]) for s in SEVERITIES}
+    print(f"review captured: {out} {counts}")
+    blockers = findings["BLOCKER"]
+    if apply:
+        summary = "; ".join(blockers) if blockers else "no blockers"
+        _post_context(item_id, [f"Gate2.5 architect review ({counts}): {summary}"])
+        print("summary appended to item context")
+    return 1 if blockers else 0
+
+
 def main(argv: list[str]) -> int:
     ap = argparse.ArgumentParser(description="Gate 2.5 / 1.5 architect review (BI-PF-1427).")
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -112,6 +155,11 @@ def main(argv: list[str]) -> int:
     e.add_argument("--item", required=True)
     e.add_argument("--mode", choices=["design", "diff"], default="diff")
     e.add_argument("--model", default=default_model, help="reviewer model label (configurable)")
+    rn = sub.add_parser("run")
+    rn.add_argument("--item", required=True)
+    rn.add_argument("--mode", choices=["design", "diff"], default="diff")
+    rn.add_argument("--apply", action="store_true")
+    rn.add_argument("--model", default=default_model, help="reviewer model id (configurable)")
     ing = sub.add_parser("ingest")
     ing.add_argument("--item", required=True)
     ing.add_argument("--file", required=True)
@@ -121,34 +169,29 @@ def main(argv: list[str]) -> int:
 
     item = _get_item(a.item)
     if a.cmd == "emit":
-        ac = "\n".join(f"- {c}" for c in (item.get("acceptance_criteria") or [])) or "- (none)"
-        body = _design_body(item) if a.mode == "design" else "Diff:\n```diff\n" + _git_diff()[:60000] + "\n```"
         print(f"Reviewer model: {a.model}\n")
-        print(PROMPT.format(target=("design" if a.mode == "design" else "implementation diff"),
-                            item=a.item, ac=ac, body=body))
+        print(_build_prompt(item, a.item, a.mode))
         return 0
+    if a.cmd == "ingest":
+        return _ingest(a.item, Path(a.file).read_text(encoding="utf-8"), a.model, a.apply)
 
-    text = Path(a.file).read_text(encoding="utf-8")
-    findings = parse_review(text)
-    sha = hashlib.sha256(_git_diff().encode("utf-8")).hexdigest()[:12]
-    EVID.mkdir(parents=True, exist_ok=True)
-    out = EVID / f"{a.item}-{sha}.json"
-    out.write_text(json.dumps({"item": a.item, "sha": sha, "model": a.model,
-                               "findings": findings}, indent=2), encoding="utf-8")
-    counts = {s: len(findings[s]) for s in SEVERITIES}
-    print(f"review captured: {out} {counts}")
-    blockers = findings["BLOCKER"]
-    if a.apply:
-        summary = "; ".join(blockers) if blockers else "no blockers"
-        tok = os.environ.get("PF_API_TOKEN", "") or (ROOT / "data" / "local" / "dev-api-token").read_text().strip()
-        body = json.dumps({"verification": [f"Gate2.5 architect review ({counts}): {summary}"]}).encode("utf-8")
-        req = urllib.request.Request(f"{API.rstrip('/')}/backlog/items/{a.item}/context", data=body, method="POST")
-        req.add_header("Authorization", f"Bearer {tok}")
-        req.add_header("Content-Type", "application/json")
-        req.add_header("X-Roles", "operator")
-        urllib.request.urlopen(req, timeout=15).read()
-        print("summary appended to item context")
-    return 1 if blockers else 0
+    cfg = _config()
+    prompt = _build_prompt(item, a.item, a.mode)
+    tmp = Path(tempfile.gettempdir()) / f"architect-review-{a.item}.md"
+    tmp.write_text(prompt, encoding="utf-8")
+    tmpl = os.environ.get("PF_ARCHITECT_REVIEW_CMD") or cfg.get("launch_command", "")
+    if not tmpl:
+        print("no launch_command configured (config/architect-review.json:launch_command or PF_ARCHITECT_REVIEW_CMD)")
+        return 2
+    cmd = tmpl.format(agent=cfg.get("agent", "architect-reviewer"), model=a.model,
+                      prompt_file=str(tmp), item=a.item)
+    print(f"launching reviewer: {cmd}")
+    proc = subprocess.run(cmd, cwd=str(ROOT), shell=True, capture_output=True, text=True, timeout=1800)
+    out = (proc.stdout or "").strip()
+    if not out:
+        print(f"launch produced no output (rc={proc.returncode}); stderr tail:\n{(proc.stderr or '')[-800:]}")
+        return 2
+    return _ingest(a.item, out, a.model, a.apply)
 
 
 if __name__ == "__main__":
