@@ -15,7 +15,9 @@ delivery approval)**. HIL always sees the reviewer's findings + recommendation a
 
 2. **Gate 1 — Take-up / design approval (HIL, manual), informed by Gate 1.5.**
    Reconciliation block (PRIOR DECISIONS / EXISTING PATH / ASSUMPTIONS / DIVERGENCES / OPEN) + IMPACT REVIEW
-   (LANGUAGE CHECK, API CHECK, AC) + risks. `language_rule_review.py` verdict. **No code before approval.**
+   (LANGUAGE CHECK, API CHECK, AC) + risks. `language_rule_review.py` verdict.
+   **The Gate 1 review MUST state the Gate 1.5 findings + recommendation inline** (so HIL decides with them
+   visible; not a separate artifact). **No code before approval.**
 
 3. **Implement on a feature branch** (never `develop`). Backlog writes are **API-only**; integrity gates apply
    at write time: **AC required** at create (`POST /items` → 400), **api_impact** (`api-first`),
@@ -26,6 +28,7 @@ delivery approval)**. HIL always sees the reviewer's findings + recommendation a
 
 5. **Gate 2 — Delivery review (HIL), informed by Gate 2.5.**
    Self/peer review of the diff + **AC verified independently** (verifier ≠ implementer) + linked evidence.
+   **The Gate 2 review MUST state the Gate 2.5 findings + recommendation inline** (HIL decides with them visible).
 
 6. **`precheck` — fast tier (blocking, deterministic, offline).** ~40–58 gates (compile, wired-audit,
    store-contract, api-contract/governance/docs, language-rule, backlog-*, api-first, docs-fresh, secret-scan,
@@ -65,6 +68,9 @@ future-proofing, reuse/no-duplication, "the right thing") before precheck/PR.
   data-loss, missing migration/test, language-rule violation, RLS bypass). **MAJOR/MINOR/NIT are advisory** →
   **HIL decides**. Never make subjective LLM output a flaky CI blocker.
 - **Size gate:** run on **code / schema / security** changes; skip trivial docs/config-only change sets.
+- **Presented as part of the HIL gate it informs (binding):** a review is not a standalone artifact — the
+  **Gate 1.5 findings + recommendation are stated inside the Gate 1 review**, and the **Gate 2.5 findings +
+  recommendation inside the Gate 2 review**, so the human decision always sees them.
 - **The model run is NOT inside `precheck`** (network/model calls) — run it separately as the **Gate-2.5 step**
   and commit the evidence (`engineering/reviews/<item>-<sha>.json`). Record usage/cost/time.
 - **ENFORCED as a hard rule** (BI-PF-1428): `precheck` fast runs `scripts/dev/architect_review_check.py`

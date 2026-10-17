@@ -98,6 +98,10 @@ Applies to EVERY review, Gate (**Gate 1** = approve the plan before coding; **Ga
 
 ## Review gates (binding — full chain in `docs/REVIEW-GATES-LIFECYCLE.md`)
 
+**Review findings are stated IN the HIL gate they inform:** the **Gate 1.5 findings + recommendation are part of
+the Gate 1 (design) review**, and the **Gate 2.5 findings + recommendation are part of the Gate 2 (delivery)
+review** — HIL must decide with them visible (never a separate, easily-skipped artifact).
+
 **Reviews precede HIL at each stage (the review informs the human decision):**
 **Gate 1.5 (design review)** → Gate 1 (design/HIL approval, *informed by 1.5*) → implement →
 **Gate 2.5 (second-model Architect delivery review** — fresh context, configurable model default `mimo-v2.6-flash`/
