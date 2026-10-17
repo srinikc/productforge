@@ -99,9 +99,15 @@ Applies to EVERY review, Gate (**Gate 1** = approve the plan before coding; **Ga
 ## Review gates (binding — full chain in `docs/REVIEW-GATES-LIFECYCLE.md`)
 
 Gate 1 (design/HIL) → Gate 1.5 (design review) → implement → Gate 2 (review + independent AC verification) →
-**Gate 2.5 (second-model Architect review** — fresh context, configurable model default `mimo-v2.6`/rotatable,
-advisory-vs-blocking split, **not** inside precheck, results stored as evidence) → precheck fast → PR/CI →
-merge gate → **closure guard** → delivery provenance → DoD.
+**Gate 2.5 (second-model Architect review** — fresh context, configurable model default `mimo-v2.6-flash`/rotatable,
+advisory-vs-blocking split, results stored as evidence) → precheck fast → PR/CI → merge gate → **closure guard** →
+delivery provenance → DoD.
+
+**Gate 2.5 is a HARD rule (BI-PF-1428):** the *model run* stays out of precheck, but precheck fast runs
+`scripts/dev/architect_review_check.py` (deterministic/offline) — a **code / schema / security** change **fails
+closed** unless `engineering/reviews/<item>-<sha>.json` exists for the current diff (docs/config-only skipped;
+grandfather via `config/architect-review-baseline.json`). Run the review with
+`python scripts/dev/architect_review.py run --item <ID>` and commit the evidence.
 
 ## Reconciliation before implementation (binding — any change)
 Before designing or implementing **anything**, produce a **RECONCILIATION** block and keep it with the work

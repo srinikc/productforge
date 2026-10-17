@@ -198,6 +198,9 @@ _GATES = [
     ("validation-engine", ["scripts/dev/validation_engine_check.py"], "fast", None),
     ("feature-pr", ["scripts/dev/feature_pr_check.py"], "fast", None),
     ("merge-gate", ["scripts/dev/merge_gate_check.py"], "fast", None),
+    # BI-PF-1428: Gate 2.5 is a HARD rule - code/schema/security changes need a committed architect-review
+    # evidence file (deterministic/offline check; the review itself is run separately, see docs/REVIEW-GATES-LIFECYCLE.md).
+    ("architect-review", ["scripts/dev/architect_review_check.py"], "fast", None),
     ("dogfood", ["scripts/dev/dogfood_check.py"], "deep", None),
     ("dogfood-replay", ["scripts/dev/dogfood_replay_check.py"], "deep", None),
     ("dogfood-schedule", ["scripts/dev/dogfood_schedule_check.py"], "deep", None),
@@ -241,7 +244,7 @@ _GROUP_OF = {
     # quality: pidl / validation / close-loop
     "dogfood-run": "quality", "pidl": "quality", "pidl-gate": "quality", "pidl-synthesis": "quality",
     "pidl-trace": "quality", "validation-engine": "quality", "feature-pr": "quality", "merge-gate": "quality",
-    "rate-budget": "quality",
+    "architect-review": "quality", "rate-budget": "quality",
     # deep tier (merge/CI heavy) + release tier (periodic)
     "dogfood": "deep", "dogfood-replay": "deep", "dogfood-schedule": "deep", "repo-setup": "deep",
     "docs-fresh-strict": "deep", "release": "deep", "final-audit": "deep", "backlog-e2e": "deep",

@@ -60,8 +60,13 @@ future-proofing, reuse/no-duplication, "the right thing") before precheck/PR.
   data-loss, missing migration/test, language-rule violation, RLS bypass). **MAJOR/MINOR/NIT are advisory** →
   **HIL decides**. Never make subjective LLM output a flaky CI blocker.
 - **Size gate:** run on **code / schema / security** changes; skip trivial docs/config-only change sets.
-- **Not inside `precheck`** (it makes network/model calls). Run as a separate **Gate-2.5 step**; store results
-  as evidence. Record usage/cost/time.
+- **The model run is NOT inside `precheck`** (network/model calls) — run it separately as the **Gate-2.5 step**
+  and commit the evidence (`engineering/reviews/<item>-<sha>.json`). Record usage/cost/time.
+- **ENFORCED as a hard rule** (BI-PF-1428): `precheck` fast runs `scripts/dev/architect_review_check.py`
+  (deterministic, offline — no model). A **code / schema / security** change **fails closed** unless a matching
+  review evidence file exists for the current diff sha; **docs/config-only** changes are skipped (size gate);
+  pre-existing changes are grandfathered via `config/architect-review-baseline.json`. So no change reaches the
+  PR/merge gate without a Gate 2.5 review, in every session and worktree.
 
 **Tool:** `scripts/dev/architect_review.py` (tooling; Python OK; `BI-PF-1427`). Model-agnostic:
 `emit --mode design|diff` builds the fresh-context reviewer prompt from the item + AC + design/diff;
