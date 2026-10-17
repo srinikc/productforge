@@ -3,11 +3,12 @@
 //
 // It measures each scenario's latency over N operations and reports p50/p95/p99, then emits a versioned
 // baseline report artifact (JSON). DB-backed scenarios run when PF_RUNTIME_DSN is set and self-skip otherwise,
-// so the harness is safe in CI. Publishing the metrics into the EDP-06 observability path is BI-PF-1294's job;
-// this package is the measurement + artifact owner.
+// so the harness is safe in CI. Publishing the report into the observability/SLO sink is EDP-22's job (via the
+// Sink seam below); this package is the measurement + artifact owner.
 package bench
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"sort"
@@ -87,4 +88,20 @@ func WriteReport(path string, rep Report) error {
 		return err
 	}
 	return os.WriteFile(path, append(b, '\n'), 0o644)
+}
+
+// Sink is where a baseline Report is published for observability / SLO consumption. The harness owns the
+// measurement + the versioned artifact; the SINK is owned by EDP-22 (the benchmarks/SLO item), which provides
+// a concrete Sink (e.g. an OTel metrics exporter or the SLO store) so this package stays transport-agnostic.
+type Sink interface {
+	Publish(ctx context.Context, rep Report) error
+}
+
+// Publish sends rep to sink. A nil sink is a no-op: the metrics are still captured and the artifact written,
+// they are simply not forwarded to an observability store (which does not exist until EDP-22).
+func Publish(ctx context.Context, sink Sink, rep Report) error {
+	if sink == nil {
+		return nil
+	}
+	return sink.Publish(ctx, rep)
 }

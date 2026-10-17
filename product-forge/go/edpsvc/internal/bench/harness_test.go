@@ -84,3 +84,35 @@ func TestRunAllWithoutDSNStillReports(t *testing.T) {
 		}
 	}
 }
+
+type fakeSink struct {
+	n   int
+	got Report
+}
+
+func (f *fakeSink) Publish(_ context.Context, rep Report) error { f.n++; f.got = rep; return nil }
+
+func TestPublishDelegatesToSink(t *testing.T) {
+	rep := Report{Version: BaselineVersion, Results: []Result{{Group: "db", Scenario: "db.pool_counts"}}}
+	f := &fakeSink{}
+	if err := Publish(context.Background(), f, rep); err != nil {
+		t.Fatal(err)
+	}
+	if f.n != 1 || f.got.Version != BaselineVersion {
+		t.Fatalf("sink not invoked: %+v", f)
+	}
+	// nil sink is a no-op (metrics captured, not published)
+	if err := Publish(context.Background(), nil, rep); err != nil {
+		t.Fatalf("nil sink must be a no-op: %v", err)
+	}
+}
+
+func TestRunAllWithSinkPublishes(t *testing.T) {
+	f := &fakeSink{}
+	if _, err := RunAllWithSink(context.Background(), "", "", 2, f); err != nil {
+		t.Fatal(err)
+	}
+	if f.n != 1 {
+		t.Fatalf("RunAllWithSink did not publish (n=%d)", f.n)
+	}
+}

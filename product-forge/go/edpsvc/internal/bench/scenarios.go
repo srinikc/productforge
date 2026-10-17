@@ -151,3 +151,16 @@ func RunAll(ctx context.Context, dsn, outPath string, ops int) (Report, error) {
 	}
 	return rep, nil
 }
+
+// RunAllWithSink measures + writes the report, then publishes it to sink so the metrics reach the
+// observability/SLO store (EDP-22). A nil sink is a no-op (report captured + artifact written, not published).
+func RunAllWithSink(ctx context.Context, dsn, outPath string, ops int, sink Sink) (Report, error) {
+	rep, err := RunAll(ctx, dsn, outPath, ops)
+	if err != nil {
+		return rep, err
+	}
+	if err := Publish(ctx, sink, rep); err != nil {
+		return rep, err
+	}
+	return rep, nil
+}
