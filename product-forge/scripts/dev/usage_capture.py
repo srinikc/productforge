@@ -1,13 +1,18 @@
-"""BI-PF-1423: per-task usage capture for a backlog item from OpenCode's local usage DB.
+"""BI-PF-1423: GENERIC per-task usage capture with pluggable SOURCE adapters.
 
-OpenCode persists REAL (API-reported) usage in ``~/.local/share/opencode/opencode.db`` - the ``session`` table
-carries ``cost, tokens_input, tokens_output, tokens_reasoning, tokens_cache_read, tokens_cache_write`` and
-``time_updated``. That DB has no backlog id, so per-item attribution = **snapshot at task start, delta at task
-end**, written to the item's ``execution.usage`` (+ ``duration_seconds``) via ``POST /backlog/items/{id}/execution``.
+Each harness/usage source is an **adapter** returning a *cumulative* usage dict in the ``execution.usage``
+schema the epic rollup reads (``core/scheduler._usage_rollup``):
+``input_tokens, output_tokens, reasoning_tokens, cache_read_tokens, cache_write_tokens, total_tokens, calls,
+cost_usd``. Per-item attribution = **snapshot at task start -> delta at task end** -> recorded via
+``POST /backlog/items/{id}/execution``.
+
+Built-in adapters (add more for other harnesses - Claude Code, Codex, a provider API, PF's own call_ledger):
+  - ``opencode`` : reads OpenCode's SQLite usage DB (session table: cost + tokens_*).
+  - ``json``     : reads a JSON file any wrapper can write (same schema) - the framework-agnostic feed.
 
 Usage:
-  python scripts/dev/usage_capture.py snapshot --item BI-PF-1234
-  python scripts/dev/usage_capture.py delta --item BI-PF-1234 [--apply]
+  python scripts/dev/usage_capture.py snapshot --item BI-PF-XXXX [--source opencode|json]
+  python scripts/dev/usage_capture.py delta --item BI-PF-XXXX [--apply]
 """
 from __future__ import annotations
 
@@ -21,37 +26,63 @@ import urllib.request
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-DB = Path(os.environ.get("PF_OPENCODE_DB", str(Path.home() / ".local" / "share" / "opencode" / "opencode.db")))
+DEFAULT_OPENCODE_DB = Path(os.environ.get("PF_OPENCODE_DB", str(Path.home() / ".local" / "share" / "opencode" / "opencode.db")))
 BASELINE = ROOT / ".usage-baseline.json"
+USAGE_KEYS = ("input_tokens", "output_tokens", "reasoning_tokens", "cache_read_tokens",
+              "cache_write_tokens", "total_tokens", "calls", "cost_usd")
 
 
-def latest_session() -> dict:
-    if not DB.is_file():
-        raise SystemExit(f"opencode usage db not found: {DB}")
-    con = sqlite3.connect(f"file:{DB}?mode=ro", uri=True)
-    try:
-        cur = con.execute(
-            "SELECT id, cost, tokens_input, tokens_output, tokens_reasoning, tokens_cache_read, "
-            "tokens_cache_write, time_updated FROM session "
-            "ORDER BY CAST(time_updated AS INTEGER) DESC LIMIT 1")
-        cols = [d[0] for d in cur.description]
-        row = cur.fetchone()
-    finally:
-        con.close()
-    return dict(zip(cols, row)) if row else {}
+class OpencodeSource:
+    """Usage adapter for the OpenCode harness (reads its local SQLite usage DB)."""
+
+    name = "opencode"
+
+    def __init__(self, db: Path | str | None = None):
+        self.db = Path(db or DEFAULT_OPENCODE_DB)
+
+    def total(self) -> dict:
+        if not self.db.is_file():
+            raise SystemExit(f"opencode usage db not found: {self.db}")
+        con = sqlite3.connect(f"file:{self.db}?mode=ro", uri=True)
+        try:
+            cur = con.execute(
+                "SELECT cost, tokens_input, tokens_output, tokens_reasoning, tokens_cache_read, "
+                "tokens_cache_write FROM session ORDER BY CAST(time_updated AS INTEGER) DESC LIMIT 1")
+            row = cur.fetchone() or (0, 0, 0, 0, 0, 0)
+        finally:
+            con.close()
+        inp, out, rea = int(row[1] or 0), int(row[2] or 0), int(row[3] or 0)
+        return {"input_tokens": inp, "output_tokens": out, "reasoning_tokens": rea,
+                "cache_read_tokens": int(row[4] or 0), "cache_write_tokens": int(row[5] or 0),
+                "total_tokens": inp + out, "calls": 0, "cost_usd": float(row[0] or 0)}
 
 
-def usage_of(s: dict) -> dict:
-    return {"input_tokens": int(s.get("tokens_input") or 0), "output_tokens": int(s.get("tokens_output") or 0),
-            "reasoning_tokens": int(s.get("tokens_reasoning") or 0), "cache_read": int(s.get("tokens_cache_read") or 0),
-            "cache_write": int(s.get("tokens_cache_write") or 0), "cost_usd": float(s.get("cost") or 0)}
+class JsonFileSource:
+    """Usage adapter for a JSON file any wrapper can write (framework-agnostic feed)."""
+
+    name = "json"
+
+    def __init__(self, path: Path | str | None = None):
+        self.path = Path(path or os.environ.get("PF_USAGE_FILE", str(ROOT / ".usage-current.json")))
+
+    def total(self) -> dict:
+        d = json.loads(self.path.read_text(encoding="utf-8")) if self.path.is_file() else {}
+        return {k: (float(d.get(k) or 0) if k == "cost_usd" else int(d.get(k) or 0)) for k in USAGE_KEYS}
+
+
+def build_source(name: str, db=None, usage_file=None):
+    if name == "opencode":
+        return OpencodeSource(db)
+    if name == "json":
+        return JsonFileSource(usage_file)
+    raise SystemExit(f"unknown source '{name}' (available: opencode, json)")
 
 
 def delta(base: dict, cur: dict) -> dict:
-    return {k: round(cur[k] - base.get(k, 0), 6) for k in cur}
+    return {k: round(float(cur.get(k, 0)) - float(base.get(k, 0)), 6) for k in USAGE_KEYS}
 
 
-def _record(item: str, usage: dict, duration: float, api: str) -> None:
+def record(item: str, usage: dict, duration: float, api: str) -> None:
     token = os.environ.get("PF_API_TOKEN", "") or (ROOT / "data" / "local" / "dev-api-token").read_text().strip()
     body = json.dumps({"usage": usage, "duration_seconds": duration}).encode("utf-8")
     req = urllib.request.Request(f"{api.rstrip('/')}/backlog/items/{item}/execution", data=body, method="POST")
@@ -64,6 +95,10 @@ def _record(item: str, usage: dict, duration: float, api: str) -> None:
 
 def main(argv: list[str]) -> int:
     ap = argparse.ArgumentParser(description="Per-task usage capture (BI-PF-1423).")
+    ap.add_argument("--source", default=os.environ.get("PF_USAGE_SOURCE", "opencode"),
+                    help="usage source adapter: opencode | json")
+    ap.add_argument("--db", default=None, help="opencode: usage db path")
+    ap.add_argument("--usage-file", default=None, help="json: usage file path")
     sub = ap.add_subparsers(dest="cmd", required=True)
     snap = sub.add_parser("snapshot")
     snap.add_argument("--item", required=True)
@@ -73,12 +108,12 @@ def main(argv: list[str]) -> int:
     dl.add_argument("--api", default=os.environ.get("PF_BACKLOG_API", "http://127.0.0.1:8030"))
     a = ap.parse_args(argv)
 
-    s = latest_session()
-    cur = usage_of(s)
+    src = build_source(a.source, a.db, a.usage_file)
+    cur = src.total()
     if a.cmd == "snapshot":
-        BASELINE.write_text(json.dumps({"item": a.item, "session_id": s.get("id"), "usage": cur,
-                                        "ts": time.time()}), encoding="utf-8")
-        print(f"baseline[{a.item}]: session={s.get('id')} cost={cur['cost_usd']} "
+        BASELINE.write_text(json.dumps({"item": a.item, "source": a.source, "usage": cur, "ts": time.time()}),
+                            encoding="utf-8")
+        print(f"baseline[{a.item}] source={a.source} cost={cur['cost_usd']} "
               f"tokens={cur['input_tokens'] + cur['output_tokens']}")
         return 0
 
@@ -88,11 +123,11 @@ def main(argv: list[str]) -> int:
     base = json.loads(BASELINE.read_text(encoding="utf-8"))
     d = delta(base["usage"], cur)
     duration = round(time.time() - float(base.get("ts") or time.time()), 1)
-    print(f"delta[{a.item}]: {json.dumps(d)} duration_seconds={duration}")
+    print(f"delta[{a.item}] source={base.get('source', a.source)} {json.dumps(d)} duration_seconds={duration}")
     if not a.apply:
         print("(dry-run; pass --apply to record on the item)")
         return 0
-    _record(a.item, d, duration, a.api)
+    record(a.item, d, duration, a.api)
     print("recorded execution.usage on the item")
     return 0
 
