@@ -1,17 +1,17 @@
 # Backlog Summary
 
-> GENERATED 2026-10-17T18:31:22 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-17T19:16:10 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 125  |  **Closed:** 557
+- **Open:** 126  |  **Closed:** 558
 - `blocked`: 1
 - `executing`: 3
 - `in_progress`: 2
-- `new`: 119
+- `new`: 120
 
-### new, by category (119)
+### new, by category (120)
 **API / reports / HIL / misc** (15)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
@@ -87,7 +87,7 @@
 | BI-PF-1392 | Should | task | Enforce per-feature FR/US caps + max_lines in the Go artifact engine (scaled by the profile) and reconcile the three section sources | Per-feature FR/US caps + max_lines enforced NUMERICALLY (scaled by profile); sections have ONE source. |
 | BI-PF-1425 | Should | feature | Migrate orchestrator cache + evidence/summarizer (and remaining audit logic) from Python to Go (Go-first alignment) | Migrate orchestrator cache + evidence/summarizer (and remaining audit logic) from Python to Go (Go-first align... |
 
-**Wiring / tech-debt / API** (72)
+**Wiring / tech-debt / API** (73)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0185 | Should | feature | EPIC: Multi-modal / media orchestration (pluggable capability packs) | Make the pipeline modality-agnostic via PLUGGABLE capability packs, enabled per project when the idea needs th... |
@@ -162,6 +162,7 @@
 | BI-PF-1416 | Should | feature | Automate PF persistence setup: one-command provisioning + roles + migrations + storage config + secrets + verify (dev and SaaS) | Automate PF persistence setup: one-command provisioning + roles + migrations + storage config + secrets + veri... |
 | BI-PF-1424 | Must | feature | Consolidate Python orchestrator audit (AgentAuditLog) into the DB AuditStore - single audit truth via /audit | Consolidate Python orchestrator audit (AgentAuditLog) into the DB AuditStore - single audit truth via /audit |
 | BI-PF-1426 | Should | change | Harden auto-loaded config against schema mixing + tooling writes outside the repo (residency-profiles vs residency-cells) | Make schema-mixing in auto-loaded dirs and out-of-repo tooling writes fail loudly, repo-wide. |
+| BI-PF-1428 | Must | feature | Enforce Gate 2.5 as a hard rule: deterministic offline architect-review evidence gate in precheck fast | Enforce Gate 2.5 as a hard rule: deterministic offline architect-review evidence gate in precheck fast |
 
 ---
 
@@ -361,5 +362,5 @@
 ---
 
 ## Totals
-- backend: 125 open / 557 closed
+- backend: 126 open / 558 closed
 - dashboard: 146 open / 3 closed

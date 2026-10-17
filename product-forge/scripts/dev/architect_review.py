@@ -86,12 +86,41 @@ def _get_item(item: str) -> dict:
         return json.loads(r.read().decode("utf-8")).get("data") or {}
 
 
-def _git_diff() -> str:
+# The review sha must NOT change when the review itself (evidence) or its baseline is committed, so both are
+# excluded from the hashed diff. The SAME exclusions are used by scripts/dev/architect_review_check.py.
+EXCLUDE = [":(exclude)engineering/reviews/**", ":(exclude)config/architect-review-baseline.json"]
+
+
+def _merge_base() -> str:
     try:
-        return subprocess.run(["git", "diff", "--no-color", "origin/develop..."], cwd=str(ROOT),
-                              capture_output=True, text=True, timeout=30).stdout
+        mb = subprocess.run(["git", "merge-base", "origin/develop", "HEAD"], cwd=str(ROOT),
+                            capture_output=True, text=True, timeout=30).stdout.strip()
+        return mb or "origin/develop"
+    except Exception:
+        return "origin/develop"
+
+
+def _git_diff() -> str:
+    # Committed diff only (merge-base..HEAD): stable across precheck's own writing gates and equal to the CI PR
+    # diff. The developer commits the change, runs the review (evidence committed next), then pushes.
+    try:
+        return subprocess.run(["git", "diff", "--no-color", f"{_merge_base()}..HEAD", "--", ".", *EXCLUDE],
+                              cwd=str(ROOT), capture_output=True, text=True, timeout=30).stdout
     except Exception:
         return ""
+
+
+def changed_files() -> list:
+    try:
+        out = subprocess.run(["git", "diff", "--name-only", f"{_merge_base()}..HEAD", "--", ".", *EXCLUDE],
+                             cwd=str(ROOT), capture_output=True, text=True, timeout=30).stdout
+    except Exception:
+        return []
+    return [ln.strip() for ln in out.splitlines() if ln.strip()]
+
+
+def diff_sha() -> str:
+    return hashlib.sha256(_git_diff().encode("utf-8")).hexdigest()[:12]
 
 
 def _design_body(item: dict) -> str:
@@ -132,7 +161,7 @@ def _post_context(item_id: str, lines: list) -> None:
 
 def _ingest(item_id: str, text: str, model: str, apply: bool) -> int:
     findings = parse_review(text)
-    sha = hashlib.sha256(_git_diff().encode("utf-8")).hexdigest()[:12]
+    sha = diff_sha()
     EVID.mkdir(parents=True, exist_ok=True)
     out = EVID / f"{item_id}-{sha}.json"
     out.write_text(json.dumps({"item": item_id, "sha": sha, "model": model, "findings": findings},

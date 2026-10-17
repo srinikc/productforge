@@ -1,0 +1,199 @@
+{
+  "id": "BI-PF-1428",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "api",
+  "external_id": "architect-review-enforce",
+  "label": "PF Backlog 624",
+  "title": "Enforce Gate 2.5 as a hard rule: deterministic offline architect-review evidence gate in precheck fast",
+  "body": "",
+  "source": "generic",
+  "status": "new",
+  "priority": "P1",
+  "moscow": "Must",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [
+    "BI-PF-1411",
+    "BI-PF-1259"
+  ],
+  "links": {},
+  "decisions": [
+    {
+      "at": "2026-10-17T19:11:35.271800",
+      "decision": "APPROVE",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)"
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "what_adds": "A deterministic offline precheck gate that blocks code/schema/security changes until architect-review evidence for the exact diff exists",
+    "problem": "Gate 2.5 was honor-system; a session could skip it",
+    "source": "authored"
+  },
+  "objective": "Enforce Gate 2.5 as a hard rule: deterministic offline architect-review evidence gate in precheck fast",
+  "acceptance_criteria": [
+    "Objective achieved: Enforce Gate 2.5 as a hard rule: deterministic offline architect-review evidence gate in precheck fast"
+  ],
+  "in_scope": [
+    "Enforce Gate 2.5 as a hard rule: deterministic offline architect-review evidence gate in precheck fast"
+  ],
+  "out_of_scope": [
+    "Not specified."
+  ],
+  "affected_components": [
+    "Not specified."
+  ],
+  "affected_files": [
+    "Not specified."
+  ],
+  "approach": "Enforce Gate 2.5 as a hard rule: deterministic offline architect-review evidence gate in precheck fast",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Objective achieved: Enforce Gate 2.5 as a hard rule: deterministic offline architect-review evidence gate in precheck fast"
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "unassigned",
+  "requester": "generic",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1252",
+  "parent": "BI-PF-1252",
+  "revision": 3,
+  "priority_rank": 20,
+  "priority_class": "P1",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "COMPLETE",
+    "analyzed_at": "2026-10-17T19:11:35.067529",
+    "analyzed_by": "system",
+    "revision_analyzed": 3,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend core/merge_gate.py and core/run_quality_gate.py to add a deterministic Gate 2.5 check that validates architect-review evidence (config/architect-review.json + config/architect-review-baseline.json) is present and valid before allowing fast-path precheck pass. Wire into /api/v1/gates/go-no-go and /api/v1/evidence/events for evidence recording. Reuse existing gate plumbing pattern from model_gate.py.",
+    "existing_components": [],
+    "existing_apis": [],
+    "existing_modules": [],
+    "dependency_findings": [
+      "BI-PF-1411: RELATED — both address precheck-fast gate coverage gaps; resolve its config pattern first",
+      "BI-PF-1259: RELATED — gate/test mapping affects where Gate 2.5 slots into CI stages"
+    ],
+    "conflict_findings": [
+      "BI-PF-1411 likely touches core/agent_rules.py or gate config loading — coordinate module edits",
+      "No other concurrent task specifically targets merge_gate.py Gate 2.5 insertion"
+    ],
+    "duplication_findings": [
+      "BI-PF-1411 covers similar precheck-fast gate area-gating pattern (language-rule) — must coordinate",
+      "core/pr_gate.py already has gate-checking infrastructure to reuse",
+      "evidence manifest endpoint /api/v1/evidence/manifest/{run_id} already exists"
+    ],
+    "drift": "LOW",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "Gate 2.5 enforcement closes a governance gap in precheck fast. Extending existing gate framework in merge_gate.py/run_quality_gate.py follows reuse-first and fits established patterns.",
+    "assumptions": [
+      "Gate 2.5 definition and evidence schema already documented in architecture docs",
+      "Architect-review evidence is produced by an upstream architect agent or human process",
+      "Deterministic means no LLM calls needed — pure config/file validation"
+    ],
+    "risks": [
+      "Over-blocking precheck-fast if architect-review evidence is absent for non-architect changes (false positive gate fail)",
+      "Config staleness in architect-review.json causing incorrect baseline comparison",
+      "Regression in fast-path performance if evidence index scan is unoptimized"
+    ],
+    "evidence": [
+      "config/architect-review.json and config/architect-review-baseline.json exist as candidate configs",
+      "core/merge_gate.py and core/run_quality_gate.py provide existing gate framework to extend",
+      "Existing /api/v1/gates/go-no-go endpoint is the natural insertion point"
+    ],
+    "confidence": "medium",
+    "missing_info": [
+      "What exact evidence artifact does Gate 2.5 require (file hash, signature, manifest entry)?",
+      "Should Gate 2.5 apply to all precheck-fast runs or only architect-related changes?",
+      "What is the failure action — hard block vs. warn with override?"
+    ],
+    "depth": "deep",
+    "mode": "ai",
+    "context_review": {
+      "ok": false,
+      "source": "llm",
+      "implementable": false,
+      "missing": [
+        "what",
+        "how",
+        "where"
+      ],
+      "reason": "Every field just repeats the title verbatim. No files, components, gate semantics, evidence format, or implementation approach specified."
+    },
+    "decision_request": {
+      "needed": false,
+      "reasons": [],
+      "ask": ""
+    },
+    "arch_fingerprint": "1eb8b4dae56937b2"
+  },
+  "dependencies": [
+    {
+      "task_id": "BI-PF-1411",
+      "type": "RELATED",
+      "required_state": "in_review"
+    },
+    {
+      "task_id": "BI-PF-1259",
+      "type": "RELATED",
+      "required_state": "open"
+    }
+  ],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-17T19:11:35.160499"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-17T19:10:25.961975",
+  "updated_at": "2026-10-17T19:11:36.398583",
+  "score": 0.75,
+  "_note": "readiness computed",
+  "api_impact": {
+    "needs_api": false,
+    "reason": "dev/CI precheck gate; no runtime HTTP surface",
+    "routes": []
+  }
+}
