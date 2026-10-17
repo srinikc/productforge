@@ -1,0 +1,31 @@
+{
+  "item": "BI-PF-1432",
+  "sha": "df173509d1b9",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "findings": {
+    "BLOCKER": [
+      "none"
+    ],
+    "MAJOR": [
+      "`scripts/dev/backlog_api.py::client()` hard-codes `\"X-Roles\": \"operator\"` on **every** in-process call. Previously `GET /backlog/items/{id}` ran unauthenticated-as-operator and only the explicit context POST carried `X-Roles: operator`. The new client silently grants operator role to all reads and any future wrapper calls (create_item, set_status, set_delivery\u2026), defeating role-scoped authz on the contract the doc claims is binding everywhere. Role should be a per-call parameter, not a client-wide elevation.",
+      "`client()` mutates **process-global** state as a side effect of being imported/called: `os.environ.setdefault(\"API_ALLOW_ANON\", \"1\")` and `_token()` writing `os.environ[\"PF_API_TOKEN\"]`. Once any code path imports this module, the whole process \u2014 including the HTTP/external surface and any later code that resolves the app in a different context \u2014 inherits anon-allow. The new SSOT doc itself flags `API_ALLOW_ANON` as an interim, in-process-only escape hatch; wiring it to a module import makes that boundary unenforceable. This should be a TestClient-scoped dependency override or an explicit, logged, opt-in parameter \u2014 not ambient env mutation.",
+      "`_get_item()` in `architect_review.py` wraps the in-process API call in a bare `except Exception` that **silently** falls back to `from core import backlog` library access. That defeats API-first (ADR-0007): any contract/guard regression is masked by a direct single-writer read, and the architect review proceeds against data that never traversed the contract. Fail loudly, or at minimum log + distinguish transport errors from 4xx.",
+      "No test exercises the new in-process API path (`backlog_api.py`), i.e. that the guards the change claims to preserve (AC-at-create, closure guard, revision guard, envelope) actually fire in TestClient mode, and specifically that anon-mode does **not** weaken authn for the HTTP surface. This is the load-bearing claim of BI-PF-1432 and is unverified.",
+      "`client()` builds a fresh `TestClient(app)` per `call()` and never enters the context manager, so FastAPI **lifespan/startup hooks never run** and shutdown never fires. Fine today only by accident (no startup-critical state); this is a latent break for any app-level init (DB pool, migrations check, audit sink) and makes the in-process path behave differently from the HTTP path."
+    ],
+    "MINOR": [
+      "New SSOT `docs/PF-API-SERVICE-OR-SERVER.md` is written in a corrupted encoding \u2014 every em-dash renders as `\u00e2\u20ac\"`. For the document that is *the* vocabulary SSOT and is indexed as such in `gen_docs_index.py`, this is a credibility defect; also matches the existing `\u00c2\u00b7` mojibake in `documentation-index.html`, suggesting the generator pipeline is lossy.",
+      "`API = \"/api/v1/backlog\"` is duplicated between `architect_review.py` and `backlog_api.py`. The SSOT principle this item ships argues for a single constant.",
+      "`backlog_api.py` docstring shows `from scripts.dev import backlog_api` but the module also self-inserts `ROOT` and `scripts/dev` into `sys.path` on import \u2014 two competing import idioms plus `architect_review.py` inserting `scripts/dev` again. Fragile under packaging/import-linter.",
+      "`_get_item()` drops the `scope`/`project` query params the API supports (`get_item` has them but `architect_review._get_item` never passes them) \u2014 items outside `product_forge` scope will silently 404-to-fallback."
+    ],
+    "NIT": [
+      "`if __name__ == \"__main__\"` smoke block defaults to `BI-PF-1429`, an item unrelated to this change.",
+      "`_unwrap` raises `RuntimeError` with only the first 500 chars of the body \u2014 envelope error codes/guards are truncated, which will slow triage of guard failures surfaced through this client."
+    ],
+    "SUMMARY": [
+      "Direction is right: an in-process API client removes the `dev_server`/port dependency and the new topology SSOT doc is a genuine architectural asset (clear domain ownership, Go-forward language rule, explicit interim-anon caveat). But the implementation undermines its own security claims \u2014 hard-coded operator role, process-global `API_ALLOW_ANON` mutation, and a silent library fallback that bypasses the contract it claims to exercise \u2014 and ships with zero tests proving the guards survive the in-process path. Top risks: privilege elevation and anon-boundary erosion that will be very hard to unwind once more callers adopt `backlog_api.py`; silent fallback masking contract regressions in the architect review tool that gates merges."
+    ]
+  }
+}
