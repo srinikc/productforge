@@ -53,7 +53,7 @@ MongoDB, …) can change **without touching domain code**. Companion to `docs/ED
 |---|---|---|---|
 | Local FS / NFS / SMB | `go/objstore` | **shipped** | confined root, atomic writes, sha256; use over an NFS/SMB **mount** — no separate adapter (reuse, not a clone) |
 | S3-compatible | `go/s3store` | **shipped** | minio-go (EDP-14) |
-| Google Cloud Storage | `go/gcsstore` | **shipped** | stdlib REST via `go/objstorerest`; conformance via emulator/mock + gated real-provider run |
+| Google Cloud Storage | `go/gcsstore` | **shipped (mock-conformant)** | stdlib REST via `go/objstorerest`; real-provider qualification (creds) pending |
 | Azure Blob | — | planned | next adapter on `objstorerest` |
 | Google Drive | — | planned | key<->fileID model must be designed first (no `/` paths, non-unique names, trash-vs-delete) |
 

@@ -83,7 +83,9 @@ func (c *Client) Do(ctx context.Context, method, rawURL string, body io.Reader, 
 	headers map[string]string) (*http.Response, error) {
 	var lastErr error
 	for attempt := 0; attempt <= c.maxRetries; attempt++ {
-		if attempt > 0 {
+		if attempt > 0 && body != nil {
+			// a request WITH a body is retried only if it can be rewound (never silently truncate a stream);
+			// a BODYLESS request (GET/HEAD/DELETE) is always safe to retry.
 			if rewind == nil {
 				return nil, fmt.Errorf("objstorerest: %s %s: not retried (no rewindable body): %w", method, Redact(rawURL), lastErr)
 			}

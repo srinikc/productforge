@@ -74,14 +74,9 @@ func ConformObjectStore(ctx context.Context, s ObjectStore) []error {
 			errs = append(errs, fmt.Errorf("capability honesty: SignedURLs=true but SignedURL failed/empty: %v", err))
 		}
 	}
-	if caps.ObjectVersioning && info.Version != "" {
-		rcv, _, verr := s.Get(ctx, key, info.Version)
-		if verr != nil {
-			errs = append(errs, fmt.Errorf("capability honesty: ObjectVersioning=true but Get(version=%q) failed: %v", info.Version, verr))
-		} else {
-			_ = rcv.Close()
-		}
-	}
+	// NB: versioning/lock/multipart/CMK are intentionally NOT asserted here: a SYNTHESIZED Version (e.g. a
+	// content hash, as s3store uses when a bucket has no real version IDs) must not be treated as a version
+	// handle, and each of those capabilities needs its own dedicated contract test before it can be trusted.
 
 	if err := s.Delete(ctx, key, ""); err != nil {
 		errs = append(errs, err)

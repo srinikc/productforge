@@ -8,6 +8,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -18,9 +19,10 @@ import (
 
 // mockGCS is an in-memory GCS JSON/Media API (upload multipart, metadata, media, delete, list-by-prefix).
 type mockGCS struct {
-	mu   sync.Mutex
-	objs map[string]mockObj
-	gen  int
+	mu       sync.Mutex
+	objs     map[string]mockObj
+	gen      int
+	pageSize int
 }
 
 type mockObj struct {
@@ -31,11 +33,16 @@ type mockObj struct {
 }
 
 func newMockGCS() *httptest.Server {
-	m := &mockGCS{objs: map[string]mockObj{}}
+	srv, _ := newMockGCSSized(0)
+	return srv
+}
+
+func newMockGCSSized(pageSize int) (*httptest.Server, *mockGCS) {
+	m := &mockGCS{objs: map[string]mockObj{}, pageSize: pageSize}
 	mux := http.NewServeMux()
 	mux.HandleFunc("/upload/storage/v1/b/", m.upload)
 	mux.HandleFunc("/storage/v1/b/", m.objects)
-	return httptest.NewServer(mux)
+	return httptest.NewServer(mux), m
 }
 
 func (m *mockGCS) upload(w http.ResponseWriter, r *http.Request) {
@@ -123,20 +130,45 @@ func (m *mockGCS) objects(w http.ResponseWriter, r *http.Request) {
 
 func (m *mockGCS) list(w http.ResponseWriter, r *http.Request) {
 	prefix := r.URL.Query().Get("prefix")
+	pageSize := m.pageSize
+	if pageSize <= 0 {
+		pageSize = 1000
+	}
+	start := 0
+	if tok := r.URL.Query().Get("pageToken"); tok != "" {
+		start, _ = strconv.Atoi(tok)
+	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	items := []map[string]any{}
-	for name, o := range m.objs {
+	names := make([]string, 0, len(m.objs))
+	for name := range m.objs {
 		if prefix != "" && !strings.HasPrefix(name, prefix) {
 			continue
 		}
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	if start > len(names) {
+		start = len(names)
+	}
+	end := start + pageSize
+	if end > len(names) {
+		end = len(names)
+	}
+	items := []map[string]any{}
+	for _, name := range names[start:end] {
+		o := m.objs[name]
 		items = append(items, map[string]any{
 			"name": name, "size": strconv.Itoa(len(o.data)), "contentType": o.ct,
 			"generation": o.generation, "metadata": o.meta,
 		})
 	}
+	next := ""
+	if end < len(names) {
+		next = strconv.Itoa(end)
+	}
 	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(map[string]any{"items": items})
+	_ = json.NewEncoder(w).Encode(map[string]any{"items": items, "nextPageToken": next})
 }
 
 func writeObjJSON(w http.ResponseWriter, name, ct, gen string, meta map[string]string, size int) {
@@ -155,6 +187,25 @@ func TestGCSStoreConformance(t *testing.T) {
 	}
 	if errs := datastore.ConformObjectStore(context.Background(), st); len(errs) > 0 {
 		t.Fatalf("conformance failures: %v", errs)
+	}
+}
+
+func TestGCSListPaginates(t *testing.T) {
+	srv, _ := newMockGCSSized(1) // force 1 item per page
+	defer srv.Close()
+	st, _ := New(Config{Bucket: "b", BaseURL: srv.URL, HTTPClient: srv.Client()})
+	ctx := context.Background()
+	for _, k := range []string{"p/a", "p/b", "p/c"} {
+		if _, err := st.Put(ctx, k, strings.NewReader("x"), 1, datastore.PutOptions{ContentType: "text/plain"}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	items, err := st.List(ctx, "p/")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(items) != 3 {
+		t.Fatalf("pagination truncated: got %d, want 3 (nextPageToken not followed)", len(items))
 	}
 }
 

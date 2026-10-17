@@ -59,6 +59,28 @@ func TestRetryOn429ThenSuccess(t *testing.T) {
 	}
 }
 
+func TestBodylessRequestIsRetried(t *testing.T) {
+	var hits int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if atomic.AddInt32(&hits, 1) == 1 {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("ok"))
+	}))
+	defer srv.Close()
+	c, _ := New(Config{BaseURL: srv.URL, MaxRetries: 2})
+	resp, err := c.Do(context.Background(), http.MethodGet, srv.URL+"/x", nil, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK || atomic.LoadInt32(&hits) != 2 {
+		t.Fatalf("bodyless GET must be retried: status=%d hits=%d", resp.StatusCode, hits)
+	}
+}
+
 func TestNoRewindIsNotRetried(t *testing.T) {
 	var hits int32
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

@@ -65,14 +65,18 @@ def _git(*args) -> str:
 
 
 def _changed_files() -> set:
-    """Repo-relative changed files (vs origin/develop + working tree + untracked) for the diff-scoped gofmt."""
+    """Paths (relative to _ROOT) changed vs origin/develop + working tree + untracked (diff-scoped gofmt)."""
+    pfx = _git("rev-parse", "--show-prefix").replace("\\", "/")  # e.g. "product-forge/"
     files = set()
 
     def _add(out):
         for ln in (out or "").splitlines():
-            ln = ln.strip()
-            if ln:
-                files.add(ln.replace("\\", "/"))
+            p = ln.strip().replace("\\", "/")
+            if not p:
+                continue
+            if pfx and p.startswith(pfx):
+                p = p[len(pfx):]
+            files.add(p)
 
     _add(_git("diff", "--name-only", "origin/develop", "--"))
     _add(_git("diff", "--name-only", "--cached"))

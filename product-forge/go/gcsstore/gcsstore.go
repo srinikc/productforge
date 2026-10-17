@@ -155,31 +155,47 @@ func (s *Store) Delete(ctx context.Context, key, version string) error {
 	return s.client.EnsureOK(resp)
 }
 
-// List returns objects under prefix (the provider filters by prefix).
+// List returns ALL objects under prefix, following pagination (nextPageToken) to completion.
 func (s *Store) List(ctx context.Context, prefix string) ([]datastore.ObjectInfo, error) {
-	u := fmt.Sprintf("%s/storage/v1/b/%s/o", s.client.BaseURL(), url.PathEscape(s.bucket))
-	if prefix != "" {
-		u += "?prefix=" + url.QueryEscape(prefix)
+	base := fmt.Sprintf("%s/storage/v1/b/%s/o", s.client.BaseURL(), url.PathEscape(s.bucket))
+	out := []datastore.ObjectInfo{}
+	pageToken := ""
+	for {
+		q := url.Values{}
+		if prefix != "" {
+			q.Set("prefix", prefix)
+		}
+		if pageToken != "" {
+			q.Set("pageToken", pageToken)
+		}
+		u := base
+		if len(q) > 0 {
+			u += "?" + q.Encode()
+		}
+		resp, err := s.client.Do(ctx, http.MethodGet, u, nil, nil, nil)
+		if err != nil {
+			return nil, err
+		}
+		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+			return nil, s.client.EnsureOK(resp) // EnsureOK closes the body
+		}
+		var lr struct {
+			Items         []gcsObject `json:"items"`
+			NextPageToken string      `json:"nextPageToken"`
+		}
+		derr := json.NewDecoder(resp.Body).Decode(&lr)
+		_ = resp.Body.Close()
+		if derr != nil {
+			return nil, derr
+		}
+		for _, o := range lr.Items {
+			out = append(out, o.toInfo(o.Name, o.Metadata[checksumMeta]))
+		}
+		if lr.NextPageToken == "" {
+			return out, nil
+		}
+		pageToken = lr.NextPageToken
 	}
-	resp, err := s.client.Do(ctx, http.MethodGet, u, nil, nil, nil)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-	if err := s.client.EnsureOK(resp); err != nil {
-		return nil, err
-	}
-	var lr struct {
-		Items []gcsObject `json:"items"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&lr); err != nil {
-		return nil, err
-	}
-	out := make([]datastore.ObjectInfo, 0, len(lr.Items))
-	for _, o := range lr.Items {
-		out = append(out, o.toInfo(o.Name, o.Metadata[checksumMeta]))
-	}
-	return out, nil
 }
 
 // SignedURL is not implemented by this adapter (declared via Capabilities).
