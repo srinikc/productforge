@@ -86,9 +86,11 @@ def _get_item(item: str) -> dict:
         return json.loads(r.read().decode("utf-8")).get("data") or {}
 
 
-# The review sha must NOT change when the review itself (evidence) or its baseline is committed, so both are
-# excluded from the hashed diff. The SAME exclusions are used by scripts/dev/architect_review_check.py.
-EXCLUDE = [":(exclude)engineering/reviews/**", ":(exclude)config/architect-review-baseline.json"]
+# The review sha covers SOURCE changes only - it must not change when derived/generated artifacts move
+# (committed evidence, the baseline, the derived backlog projections that --apply itself writes). The SAME
+# exclusions are used by scripts/dev/architect_review_check.py.
+EXCLUDE = [":(exclude)engineering/**", ":(exclude)config/architect-review-baseline.json",
+           ":(exclude)data/backlog/**"]
 
 
 def _merge_base() -> str:
