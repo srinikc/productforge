@@ -10,7 +10,7 @@
   "title": "Gate 1.5/2.5: call the provider LLM directly (OpenAI-compatible) instead of the nested opencode CLI",
   "body": "",
   "source": "generic",
-  "status": "new",
+  "status": "completed",
   "priority": "P1",
   "moscow": "Should",
   "value": 3,
@@ -20,7 +20,19 @@
     "BI-0220",
     "BI-PF-1196"
   ],
-  "links": {},
+  "links": {
+    "delivery": {
+      "branch": "feat/direct-llm-review",
+      "merge_sha": "08678c86",
+      "commits": [
+        "08678c86"
+      ],
+      "pr": "244",
+      "pr_url": "https://github.com/srinikc/productforge/pull/244",
+      "at": "2026-10-17T20:14:18.185868",
+      "note": ""
+    }
+  },
   "decisions": [
     {
       "at": "2026-10-17T20:02:26.540069",
@@ -65,7 +77,7 @@
     "at": ""
   },
   "verification": [
-    "Gate2.5 architect review ({'BLOCKER': 2, 'MAJOR': 6, 'MINOR': 4, 'NIT': 3}): New network + secret-handling code path ships with zero test coverage: `_api_key()`, `_llm_call()`, empty-content handling and response-shape parsing (`choices`/`message`/`reasoning_content`) are untested. Per the operating standard, a missing test for new shipped logic is a blocker.; Config declares `\"api_key_env\": \". . .\" (OPENCODE_ZEN_API_KEY)` and `\"api_key_file\": \".opencode/opencode.key\"`, but `_api_key()` hardcodes `OPENCODE_ZEN_API_KEY`, `PF_ARCHITECT_REVIEW_KEY`, `ROOT/.opencode/opencode.key`, `ROOT/opencode.key`. The config contract is silently ignored — an operator who sets `api_key_env`/`api_key_file` to their org's secret source gets an unexplained \"no API key\" failure (or the wrong key is read). Config-declared behavior must be honored or the keys must not exist."
+    "direct provider call works; review produced + ingested; precheck PASS (architect-review gate satisfied by evidence)"
   ],
   "risks": [
     "Not specified."
@@ -83,12 +95,12 @@
   "children": [],
   "epic": "BI-PF-1252",
   "parent": "BI-PF-1252",
-  "revision": 3,
+  "revision": 4,
   "priority_rank": 2,
   "priority_class": "P1",
   "analyze_mode": "on_entry",
   "analysis": {
-    "status": "COMPLETE",
+    "status": "STALE",
     "analyzed_at": "2026-10-17T20:02:26.339983",
     "analyzed_by": "system",
     "revision_analyzed": 3,
@@ -191,12 +203,13 @@
     "usage": {}
   },
   "created_at": "2026-10-17T20:01:34.265068",
-  "updated_at": "2026-10-17T20:04:16.222383",
+  "updated_at": "2026-10-17T20:14:18.263278",
   "score": 0.75,
-  "_note": "readiness computed",
+  "_note": "delivery recorded",
   "api_impact": {
     "needs_api": false,
     "reason": "dev/CI tooling; no runtime HTTP surface",
     "routes": []
-  }
+  },
+  "verified_by": "mimo-v2.6-flash"
 }

@@ -1,0 +1,37 @@
+{
+  "item": "BI-PF-1430",
+  "sha": "f91d60670c92",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "findings": {
+    "BLOCKER": [
+      "Acceptance criteria half-met: the AC is \"store on item **+ gate sheet**\". The diff persists findings to the item (evidence + verification) but nothing writes to a gate sheet anywhere \u2014 the new `gate` subcommand only prints to stdout and returns. Either the gate-sheet leg is missing entirely, or the design silently assumes an undocumented caller captures stdout, which is not a store.",
+      "`_post_context` now posts a new `{\"evidence\": [...], \"verification\": [...]}` shape with no shown API-side contract. If `/backlog/items/{id}/context` only appends/accepts `verification` (as the previous code assumed), the `evidence` payload \u2014 the exact deliverable of this AC \u2014 is silently dropped or, worse, replaces/appends the whole list, producing data duplication. The acceptance deliverable's persistence path is unverified."
+    ],
+    "MAJOR": [
+      "Review-sha exclusion broadened from `engineering/reviews/**` to `engineering/**`. Any non-derived, hand-authored content under `engineering/` (design docs, checklists, gate templates, anything else that lands there) no longer invalidates the review sha. That is a long-term integrity hole: source-of-truth changes can ship under a \"passing\" architect review. Exclusions should be explicitly whitelist-derived, not tree-wide.",
+      "`_latest_review` selects by `mode` + mtime only and never compares the stored `sha` to the current `diff_sha()`. The `gate` command will present findings from an older diff as if they were the current gate verdict \u2014 stale evidence masquerading as a live review. This is exactly the failure mode a \"deterministic evidence gate\" is supposed to prevent.",
+      "The `gate` subcommand returns 0 whenever any evidence exists, even when findings contain BLOCKERs (`_ingest` returns 1 in that case). A gate that is meant to be a hard rule (BI-PF-1428 lineage) must fail closed; printing \"BLOCKED\" while exiting success is an integrity break for any CI/pipeline consumer.",
+      "Evidence filename is `{item_id}-{sha}.json` and does not include `mode`. A design review and a diff review at the same sha silently overwrite one another (the new `mode` field implies the file is mode-scoped, but the key isn't). Data loss of prior evidence.",
+      "`_ingest(..., apply=True)` appends a fresh `review_block` to `item.evidence` on every run with no dedup/idempotency key (sha+mode). Re-running the ingest grows item context unboundedly and duplicates \"latest\" findings \u2014 maintainability and observability debt on the item record.",
+      "New shipped-facing logic (the `gate` enforcement path, recommendation computation, exit-code policy) is written as new Python in `scripts/dev/`. If this is invoked by the precheck/gate pipeline (hard rule), it is shipped logic and should be Go per the language rule; if it is purely a human dev tool, that boundary should be stated in the code so it doesn't get promoted later unnoticed."
+    ],
+    "MINOR": [
+      "The `verification` line previously carried the blocker summary text (`\"; \".join(blockers)`); it now carries only counts. The human-quick-signal in the item's verification history is lost \u2014 the blocker detail now lives only in a multi-line evidence blob.",
+      "Comment claims the `data/backlog/**` exclusion covers \"the derived backlog projections that `--apply` itself writes\" \u2014 `--apply` writes item context via the API; the projections are written by `gen_backlog_summary.py`/`gen_docs_index.py`. Misleading provenance comment invites someone to \"clean up\" a justified exclusion.",
+      "`_latest_review` swallows all `json.loads`/stat exceptions silently (`except Exception: continue`), which can hide corrupt evidence and let the gate fall through to \"no evidence\" or pick an older file without any observability signal.",
+      "`_latest_review` returns `d` (parsed) but reads `fp.stat().st_mtime` twice and never checks the file's `sha` field against the filename, so filename/contents mismatch is undetected."
+    ],
+    "NIT": [
+      "The diff mixes unrelated concerns: id-block allocator churn for test scopes (`_test_staleness`, `_test_lease_gate`) and derived doc regeneration ride along with a gate-behavior change, hurting reviewability and bisectability.",
+      "`documentation-index.html` regains \"no newline at end of file\" on every generator run \u2014 a persistent, noisy one-line diff.",
+      "`review_block` recomputes the gate label from `mode` in three places (`review_block`, `_ingest`, `main`) \u2014 single source of truth for mode\u2192gate mapping would be less brittle if a Gate 3 ever appears.",
+      "`gate` parser help/description is absent; the operator-facing hint about running `run --mode design` is only emitted in the failure path."
+    ],
+    "SUMMARY": [
+      "Verdict: does not yet satisfy the AC. Item-side storage is attempted but its API contract is unproven and non-idempotent, and the \"gate sheet\" half of the acceptance criterion has no implementation at all.",
+      "Top risks: (1) acceptance half-delivered; (2) gate exits 0 on BLOCKER findings \u2014 fails open; (3) stale, sha-unvalidated reviews presented as current; (4) over-broad `engineering/**` sha exclusion weakens review integrity; (5) mode-less evidence filenames overwrite each other.",
+      "Recommend: confirm the context API's evidence contract, fail-closed exit codes, sha freshness check, and an explicit gate-sheet write before this can be considered done."
+    ]
+  }
+}
