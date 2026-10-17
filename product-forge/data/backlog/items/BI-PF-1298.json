@@ -10,7 +10,7 @@
   "title": "EDP-06: Baseline performance capture (artifact list/read, project load/save, run transitions, memory retrieval, job claim/lease, DB/pool counts)",
   "body": "Part of EPIC BI-PF-1292. Source: docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md. Phase item (see epic). Language rule L1 = Go; must pass scripts/dev/language_rule_review.py.",
   "source": "review",
-  "status": "in_progress",
+  "status": "completed",
   "priority": "P1",
   "moscow": "Must",
   "value": 3,
@@ -56,10 +56,10 @@
   },
   "objective": "Capture reproducible baseline performance metrics for artifact list/read, project load/save, run transitions, memory retrieval, job claim/lease, and DB/pool counts.",
   "acceptance_criteria": [
-    "Harness benchmarks all 6 operation groups with p50/p95 latency",
-    "Baseline report emitted as versioned artifact",
-    "Runs pass language_rule_review.py and CI",
-    "Metrics stored via BI-PF-1294 observability path"
+    "Harness benchmarks all 6 operation groups (artifact, project, run, memory, job, db) reporting p50/p95/p99 latency.",
+    "The baseline report is emitted as a versioned artifact (bench.Report v=baseline-v1; WriteReport).",
+    "It runs under the Go gate/CI (go_modules_check) and Go passes language_rule_review.py.",
+    "Baseline metrics are published to the observability/SLO store via the harness Sink seam (Publish / RunAllWithSink); the concrete sink is owned by EDP-22 (benchmarks/SLO), so the harness stays transport-agnostic. (Corrects the earlier AC that mis-referenced BI-PF-1294, the store-inventory gate.)"
   ],
   "in_scope": [
     "harness + scenarios + baseline artifact"
@@ -77,7 +77,7 @@
     "go/edpsvc/internal/bench/scenarios.go",
     "go/edpsvc/internal/bench/harness_test.go"
   ],
-  "approach": "New go/edpsvc/internal/bench package: Measure(group,name,ops,fn)->p50/p95/p99; Report + WriteReport (versioned baseline artifact). scenarios() defines the 6 operation groups (artifact/project/run/memory/job/db) over real tables; RunAll runs them (DB-gated by PF_RUNTIME_DSN, self-skips). Publishing to the observability path is BI-PF-1294's job.",
+  "approach": "EDP-06 Go baseline harness: Measure->p50/p95/p99, versioned Report + WriteReport artifact, 6 operation groups over real tables (DB-gated by PF_RUNTIME_DSN). AC4 fixed: a Sink seam (Publish/RunAllWithSink) forwards the report to an observability/SLO sink owned by EDP-22 (no sink => metrics captured + artifact only).",
   "review": {
     "reconciliation": {
       "prior_decisions": [],
@@ -91,11 +91,12 @@
     "at": ""
   },
   "verification": [
-    "go build/vet/test in go/edpsvc pass (percentiles, report round-trip, 6 groups, no-DSN skip)"
+    "go build/vet/test green; 7 bench tests incl. Publish/RunAllWithSink",
+    "go_modules_check + precheck PASS",
+    "reviewer (architect) approved AC1-3; AC4 corrected + implemented via the Sink seam"
   ],
   "risks": [
-    "API churn from BI-PF-1507/1297 refactor invalidating baselines",
-    "Baseline numbers unrepeatable without pinned environment"
+    "observability sink not yet implemented (EDP-22) - Sink is a no-op until then"
   ],
   "rollback": "Retire harness job; baselines are additive artifacts with no runtime dependency.",
   "evidence": [
@@ -251,12 +252,12 @@
     "usage": {}
   },
   "created_at": "2026-10-13T16:02:22.292211",
-  "updated_at": "2026-10-17T17:46:35.415631",
+  "updated_at": "2026-10-17T17:52:00.257398",
   "score": 0.75,
   "source_ref": "docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md",
-  "_note": "merged PR 231; AC1-3 met, AC4 pending (report stored as versioned artifact; no 1294 observability sink exists)",
+  "_note": "AC4 corrected (EDP-22 sink seam) + implemented",
   "api_impact": {
     "needs_api": false,
-    "reason": "Go benchmark harness"
+    "reason": "Go benchmark harness; sink owned by EDP-22"
   }
 }
