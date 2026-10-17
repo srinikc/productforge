@@ -7,7 +7,7 @@ config `launch_command` names.
 
 Commands:
   emit   --item ID [--mode design|diff]                 : print the fresh-context reviewer prompt.
-  run    --item ID [--mode design|diff] [--apply]        : launch the reviewer sub-agent, capture + ingest.
+  run    --item ID [--mode design|diff] [--apply]        : call the provider endpoint directly (LLM), ingest.
   ingest --item ID --file review.md [--apply]            : ingest an externally-produced review.
 
 ingest parses BLOCKER/MAJOR/MINOR/NIT -> engineering/reviews/<item>-<sha>.json; --apply appends the summary
@@ -22,8 +22,8 @@ import os
 import re
 import subprocess
 import sys
-import tempfile
 import urllib.request
+import uuid
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -143,6 +143,53 @@ def parse_review(text: str) -> dict:
     return out
 
 
+ARCHITECT_SYSTEM = (
+    "You are a Principal Enterprise System Architect performing an independent review. Judge from an "
+    "enterprise, long-term lens (integrity, adaptability, scalability, security, observability, "
+    "maintainability, reuse). Output ONLY the sections: ### BLOCKER, ### MAJOR, ### MINOR, ### NIT, ### SUMMARY "
+    "(bullet findings; write '- none' under an empty section). Do not rewrite code.")
+
+
+def _api_key() -> str:
+    key = (os.environ.get("OPENCODE_ZEN_API_KEY") or os.environ.get("PF_ARCHITECT_REVIEW_KEY") or "").strip()
+    if key:
+        return key
+    for p in (ROOT / ".opencode" / "opencode.key", ROOT / "opencode.key"):
+        try:
+            if p.is_file():
+                return p.read_text(encoding="utf-8").strip()
+        except Exception:
+            pass
+    return ""
+
+
+def _llm_call(prompt: str, model: str) -> str:
+    """Call the OpenAI-compatible provider endpoint DIRECTLY (no nested CLI/agent runtime).
+
+    Default: OpenCode Go gateway (provider `opencode-go`) which serves `mimo-v2.6-flash`; it requires the
+    routing header `x-opencode-session`. Model/provider/base are all configurable (config or env), so any
+    gateway/model can be used.
+    """
+    cfg = _config()
+    base = (os.environ.get("PF_ARCHITECT_REVIEW_BASE_URL") or cfg.get("base_url")
+            or "https://opencode.ai/zen/go/v1")
+    key = _api_key()
+    if not key:
+        raise RuntimeError("no API key (set OPENCODE_ZEN_API_KEY or provide .opencode/opencode.key)")
+    body = json.dumps({"model": model, "temperature": 0.2, "max_tokens": 4000, "messages": [
+        {"role": "system", "content": ARCHITECT_SYSTEM},
+        {"role": "user", "content": prompt}]}).encode("utf-8")
+    req = urllib.request.Request(base.rstrip("/") + "/chat/completions", data=body, method="POST")
+    req.add_header("Authorization", f"Bearer {key}")
+    req.add_header("Content-Type", "application/json")
+    req.add_header("User-Agent", cfg.get("user_agent", "opencode/1.18.35"))
+    req.add_header("x-opencode-session", str(uuid.uuid4()))
+    with urllib.request.urlopen(req, timeout=300) as r:
+        data = json.loads(r.read().decode("utf-8"))
+    msg = (data.get("choices") or [{}])[0].get("message") or {}
+    return msg.get("content") or msg.get("reasoning_content") or ""
+
+
 def _build_prompt(item: dict, item_id: str, mode: str) -> str:
     ac = "\n".join(f"- {c}" for c in (item.get("acceptance_criteria") or [])) or "- (none)"
     body = _design_body(item) if mode == "design" else "Diff:\n```diff\n" + _git_diff()[:60000] + "\n```"
@@ -204,21 +251,14 @@ def main(argv: list[str]) -> int:
     if a.cmd == "ingest":
         return _ingest(a.item, Path(a.file).read_text(encoding="utf-8"), a.model, a.apply)
 
-    cfg = _config()
     prompt = _build_prompt(item, a.item, a.mode)
-    tmp = Path(tempfile.gettempdir()) / f"architect-review-{a.item}.md"
-    tmp.write_text(prompt, encoding="utf-8")
-    tmpl = os.environ.get("PF_ARCHITECT_REVIEW_CMD") or cfg.get("launch_command", "")
-    if not tmpl:
-        print("no launch_command configured (config/architect-review.json:launch_command or PF_ARCHITECT_REVIEW_CMD)")
+    try:
+        out = _llm_call(prompt, a.model)
+    except Exception as e:
+        print(f"review call failed: {e}")
         return 2
-    cmd = tmpl.format(agent=cfg.get("agent", "architect-reviewer"), model=a.model,
-                      prompt_file=str(tmp), item=a.item)
-    print(f"launching reviewer: {cmd}")
-    proc = subprocess.run(cmd, cwd=str(ROOT), shell=True, capture_output=True, text=True, timeout=1800)
-    out = (proc.stdout or "").strip()
-    if not out:
-        print(f"launch produced no output (rc={proc.returncode}); stderr tail:\n{(proc.stderr or '')[-800:]}")
+    if not out.strip():
+        print("review call returned empty content")
         return 2
     return _ingest(a.item, out, a.model, a.apply)
 
