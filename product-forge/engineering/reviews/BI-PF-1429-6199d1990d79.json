@@ -1,0 +1,35 @@
+{
+  "item": "BI-PF-1429",
+  "sha": "6199d1990d79",
+  "model": "mimo-v2.6-flash",
+  "findings": {
+    "BLOCKER": [
+      "New network + secret-handling logic (`_api_key()`, `_llm_call()`, response-shape parsing) ships with zero test coverage \u2014 no unit tests for key resolution, request construction, empty/`reasoning_content` fallback, or HTTP failure paths. The item's own `verification` field records this as a Gate 2.5 blocker, yet the diff contains no tests.",
+      "Backlog data integrity: `BI-PF-1428` was removed from `BI-PF-1252.execution_order` but only re-appended to `children` \u2014 it is now a child of the epic with no execution slot, so epic orchestration will never schedule it."
+    ],
+    "MAJOR": [
+      "Config contract is silently ignored: `architect-review.json` declares `api_key_env: OPENCODE_ZEN_API_KEY` and `api_key_file: .opencode/opencode.key`, but `_api_key()` hardcodes different env names (`OPENCODE_ZEN_API_KEY`, `PF_ARCHITECT_REVIEW_KEY`) and different file paths (`ROOT/.opencode/opencode.key`, `ROOT/opencode.key`). An operator honoring the documented config gets an unexplained \"no API key\" failure or the wrong key. Either honor the config keys or delete them.",
+      "Stale/misleading config: `launch_command` and `agent` are now dead keys, and the config `description` still says the reviewer \"is launched as a separate fresh-context sub-agent\" \u2014 which is no longer true. Config drift will mislead future maintainers.",
+      "The analysis promised \"keep `core/llm_error_handler.py` for retries and `core/call_ledger.py` for call accounting\" and \"CLI path remains as a fallback behind a feature flag\". The implementation does neither: raw `urllib` with a single attempt, no retry/backoff on 429/5xx, no call-ledger accounting, no usage recording, and the CLI fallback (`launch_command`/`PF_ARCHITECT_REVIEW_CMD`) was deleted outright. The shipped design diverges from the approved architecture record.",
+      "\"Provider- and model-AGNOSTIC\" claim is broken by vendor coupling in code: the `x-opencode-session` header (random UUID per call, so no real session affinity) and the pinned `User-Agent: opencode/1.18.35` are OpenCode-specific and hardcoded in the fallback path, not config.",
+      "Process integrity: `context_review` recorded `ok: false`, `implementable: false`, and `decision_request.needed: true` (missing_info/unimplementable), yet the item was auto-approved (`APPROVE by system`), marked `readiness.ready: true`, and the `decision_request` was later flipped to `needed: false` with no answering of the open questions. Auto-approval is bypassing the very gate it exists for.",
+      "`reasoning_content` is accepted as a valid review output fallback and ingested as findings \u2014 this can inject raw chain-of-thought into `engineering/reviews/*.json` and downstream `--apply` summary writes.",
+      "Secret hygiene: key material is read from a repo-relative `.opencode/opencode.key` / `opencode.key` with errors swallowed (`except Exception: pass`), encouraging committing secrets to the repo tree and masking permission/corruption failures. Prefer env/secret-manager resolution with explicit, logged failures and a `.gitignore` guarantee."
+    ],
+    "MINOR": [
+      "No observability: all failures are `print()` to stdout; no structured logging, no timing, no token/usage capture \u2014 inconsistent with the ledger/metrics approach the analysis described.",
+      "`max_tokens` hardcoded to 4000 with no truncation detection; a long review will be silently cut off and ingested as complete (BI-PF-1196 truncation risk was explicitly a dependency).",
+      "`BI-PF-1429.json` committed with mojibake (`\u00e2\u20ac\u201d`) in the `verification` field, placeholder values (\"Not specified.\") in `affected_components`/`affected_files`/`risks` despite a `deep` analysis that named concrete modules, and a self-referential `acceptance_criteria`/`in_scope`/`approach` that all just echo the title \u2014 the exact defect `context_review` flagged, then shipped anyway.",
+      "Redundant churn in `BI-PF-1252.jsonl` (duplicate \"epic children synced\" / \"epic execution order saved\" events within seconds) inflates history without information.",
+      "`_api_key()` fallback chain and `base_url` default are duplicated across config and code (`https://opencode.ai/zen/go/v1` appears in both), creating two sources of truth."
+    ],
+    "NIT": [
+      "`import subprocess` is now unused after the CLI path was removed \u2014 dead import.",
+      "`counters.json` and `BI-PF-1429.json` still lack trailing newlines (pre-existing style, but repeated).",
+      "`temperature: 0.2` is hardcoded; make it config-driven alongside `max_tokens` for reproducibility tuning."
+    ],
+    "SUMMARY": [
+      "The direction is right \u2014 direct OpenAI-compatible calls eliminate a fragile nested-CLI spawn \u2014 but the change ships as a hardcoded, vendor-coupled path that ignores its own config contract, drops the promised retries/ledger/fallback, and has zero test coverage on new secret-handling code. Combined with an epic data defect that strands BI-PF-1428 and an auto-approval that overrode an explicit \"not implementable\" finding, this needs fixes on integrity (config honored, execution_order restored) and robustness (tests, retries, logging) before merge."
+    ]
+  }
+}
