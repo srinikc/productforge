@@ -1,17 +1,17 @@
 # Backlog Summary
 
-> GENERATED 2026-10-17T14:07:53 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-17T15:45:07 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 131  |  **Closed:** 548
+- **Open:** 128  |  **Closed:** 551
 - `blocked`: 1
 - `executing`: 3
-- `in_progress`: 4
-- `new`: 123
+- `in_progress`: 3
+- `new`: 121
 
-### new, by category (123)
+### new, by category (121)
 **API / reports / HIL / misc** (15)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
@@ -88,7 +88,7 @@
 | BI-PF-1385 | Must | bug | Backlog API: no deterministic endpoint to author item context fields (objective/acceptance_criteria/affected_files/approach) | Backlog API: no deterministic endpoint to author item context fields (objective/acceptance_criteria/affected_f... |
 | BI-PF-1392 | Should | task | Enforce per-feature FR/US caps + max_lines in the Go artifact engine (scaled by the profile) and reconcile the three section sources | Per-feature FR/US caps + max_lines enforced NUMERICALLY (scaled by profile); sections have ONE source. |
 
-**Wiring / tech-debt / API** (75)
+**Wiring / tech-debt / API** (73)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0185 | Should | feature | EPIC: Multi-modal / media orchestration (pluggable capability packs) | Make the pipeline modality-agnostic via PLUGGABLE capability packs, enabled per project when the idea needs th... |
@@ -147,7 +147,6 @@
 | BI-PF-1298 | Must | task | EDP-06: Baseline performance capture (artifact list/read, project load/save, run transitions, memory retrieval, job claim/lease, DB/pool counts) | Capture reproducible baseline performance metrics for artifact list/read, project load/save, run transitions, ... |
 | BI-PF-1304 | Must | feature | EDP-12: Generated-product residency manifest (data_classes/home_region/allowed_regions/backup/kms/egress/retention) + build/deploy gate | Generate a per-product residency manifest (data_classes, home_region, allowed_regions, backup, kms, egress, re... |
 | BI-PF-1308 | Must | feature | EDP-16: Object lifecycle (versioning/lock/retention), signed-URL policy, delete/replica/backup reconciliation | Define and enforce object lifecycle rules (versioning, lock, retention), signed-URL access policy, and delete/... |
-| BI-PF-1320 | Should | task | docs-fresh gate red on develop: unclassified doc Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md | docs-fresh gate red on develop: unclassified doc Product_Forge_Enterprise_Performance_Security_DB_Storage_Road... |
 | BI-PF-1323 | Must | chore | Harden sync_develop on a dirty/noisy working tree (untracked collisions; merge refused; generated-file hygiene) | A sync that just works on a realistic (noisy) working tree, so "sync often" stays reliable. |
 | BI-PF-1324 | Should | chore | Concurrent sessions: uniquely-name scratch/temp files (avoid shared temp-dir collision) | Concurrent sessions never collide on scratch files. |
 | BI-PF-1326 | Must | feature | WG-O2: Start-from-anywhere wrapper (fetch -> pull --ff-only clean-guard -> shared token -> start) + periodic fetch-only thread | Add a start wrapper (sync + token + start) and a periodic fetch-only background thread. |
@@ -165,7 +164,6 @@
 | BI-PF-1410 | Must | feature | Hard DoD gate: every item needs detailed Acceptance Criteria + independent verification (verifier != implementer) before close/merge | Hard DoD gate: every item needs detailed Acceptance Criteria + independent verification (verifier != implement... |
 | BI-PF-1414 | Should | defect | RCCA: schema designed without field-level reconciliation vs the owning port (artifact schema mismatched datastore.Artifact) - found only at C1b | RCCA: schema designed without field-level reconciliation vs the owning port (artifact schema mismatched datast... |
 | BI-PF-1416 | Should | feature | Automate PF persistence setup: one-command provisioning + roles + migrations + storage config + secrets + verify (dev and SaaS) | Automate PF persistence setup: one-command provisioning + roles + migrations + storage config + secrets + veri... |
-| BI-PF-1417 | Should | feature | Standard: EDP is the single storage/data-plane standard - every capability uses datastore ports + Postgres RLS / object store (no bespoke stores) | Standard: EDP is the single storage/data-plane standard - every capability uses datastore ports + Postgres RLS... |
 
 ---
 
@@ -365,5 +363,5 @@
 ---
 
 ## Totals
-- backend: 131 open / 548 closed
+- backend: 128 open / 551 closed
 - dashboard: 146 open / 3 closed

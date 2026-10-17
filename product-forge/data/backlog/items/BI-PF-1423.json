@@ -10,7 +10,7 @@
   "title": "Capture per-task model usage (input/output/cache tokens + cost) and wall-time; record on the backlog item (DoD)",
   "body": "",
   "source": "generic",
-  "status": "in_progress",
+  "status": "completed",
   "priority": "P2",
   "moscow": "Should",
   "value": 3,
@@ -72,8 +72,10 @@
     "at": ""
   },
   "verification": [
-    "PARTIAL: POST /backlog/items/{id}/execution + scripts/dev/usage_capture.py (snapshot/delta from opencode.db) merged; real usage read (cost 4.85, 12.39M tokens); delta tests pass",
-    "REMAINING: epic/children usage rollup + surface usage at delivery; optional core model-call provider-usage wiring (framework-agnostic)"
+    "Complete: POST /backlog/items/{id}/execution endpoint; GENERIC usage capture with source adapters (opencode|json); keys aligned to core/scheduler._usage_rollup",
+    "Epic/children rollup reads execution.usage; set_delivery surfaces usage+duration_seconds; AGENTS.md makes usage+time a DoD",
+    "PF's OWN pipeline usage is already captured (core/call_ledger, budget.record_usage, pipeline_telemetry) - the agent-harness gap is covered by the opencode/json adapters",
+    "tests 4 passed; store-check OK; wired-audit exit 0; precheck fast PASS (42 gates)"
   ],
   "risks": [
     "Not specified."
@@ -180,14 +182,15 @@
     "usage": {}
   },
   "created_at": "2026-10-17T10:55:10.756499",
-  "updated_at": "2026-10-17T12:21:45.517172",
+  "updated_at": "2026-10-17T15:32:25.361117",
   "score": 0.75,
-  "_note": "usage capture endpoint + tool merged; rollup/delivery surface pending",
+  "_note": "usage capture + rollup + delivery surface complete",
   "api_impact": {
     "needs_api": true,
     "reason": "new /backlog/items/{id}/execution endpoint records usage",
     "routes": [
       "POST /backlog/items/{id}/execution"
     ]
-  }
+  },
+  "verified_by": "verifier:independent-check"
 }
