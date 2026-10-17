@@ -1,0 +1,199 @@
+{
+  "id": "BI-PF-1432",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "api",
+  "external_id": "gate15-25-wired",
+  "label": "PF Backlog 628",
+  "title": "Wire Gate 1.5/2.5 fully: in-process API (B) for the review tool + PF server/service SSOT",
+  "body": "",
+  "source": "generic",
+  "status": "new",
+  "priority": "P1",
+  "moscow": "Should",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [],
+  "links": {},
+  "decisions": [
+    {
+      "at": "2026-10-17T21:13:10.082415",
+      "decision": "APPROVE",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)"
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "Review tooling still depends on the 8010 dev server/token; PF API/service topology undocumented",
+    "what_adds": "In-process API (B) for the tool + PF-API-SERVICE-OR-SERVER SSOT",
+    "source": "authored"
+  },
+  "objective": "Wire Gate 1.5/2.5 fully: in-process API (B) for the review tool + PF server/service SSOT",
+  "acceptance_criteria": [
+    "Objective achieved: Wire Gate 1.5/2.5 fully: in-process API (B) for the review tool + PF server/service SSOT"
+  ],
+  "in_scope": [
+    "Wire Gate 1.5/2.5 fully: in-process API (B) for the review tool + PF server/service SSOT"
+  ],
+  "out_of_scope": [
+    "Not specified."
+  ],
+  "affected_components": [
+    "Not specified."
+  ],
+  "affected_files": [
+    "Not specified."
+  ],
+  "approach": "Wire Gate 1.5/2.5 fully: in-process API (B) for the review tool + PF server/service SSOT",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Gate 2.5 architect review (mimo-v2.6-flash): {'BLOCKER': 1, 'MAJOR': 5, 'MINOR': 4, 'NIT': 2}"
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending",
+    "Gate 2.5 architect review - model=mimo-v2.6-flash sha=df173509d1b9\nBLOCKER:\n  - none\nMAJOR:\n  - `scripts/dev/backlog_api.py::client()` hard-codes `\"X-Roles\": \"operator\"` on **every** in-process call. Previously `GET /backlog/items/{id}` ran unauthenticated-as-operator and only the explicit context POST carried `X-Roles: operator`. The new client silently grants operator role to all reads and any future wrapper calls (create_item, set_status, set_delivery…), defeating role-scoped authz on the contract the doc claims is binding everywhere. Role should be a per-call parameter, not a client-wide elevation.\n  - `client()` mutates **process-global** state as a side effect of being imported/called: `os.environ.setdefault(\"API_ALLOW_ANON\", \"1\")` and `_token()` writing `os.environ[\"PF_API_TOKEN\"]`. Once any code path imports this module, the whole process — including the HTTP/external surface and any later code that resolves the app in a different context — inherits anon-allow. The new SSOT doc itself flags `API_ALLOW_ANON` as an interim, in-process-only escape hatch; wiring it to a module import makes that boundary unenforceable. This should be a TestClient-scoped dependency override or an explicit, logged, opt-in parameter — not ambient env mutation.\n  - `_get_item()` in `architect_review.py` wraps the in-process API call in a bare `except Exception` that **silently** falls back to `from core import backlog` library access. That defeats API-first (ADR-0007): any contract/guard regression is masked by a direct single-writer read, and the architect review proceeds against data that never traversed the contract. Fail loudly, or at minimum log + distinguish transport errors from 4xx.\n  - No test exercises the new in-process API path (`backlog_api.py`), i.e. that the guards the change claims to preserve (AC-at-create, closure guard, revision guard, envelope) actually fire in TestClient mode, and specifically that anon-mode does **not** weaken authn for the HTTP surface. This is the load-bearing claim of BI-PF-1432 and is unverified.\n  - `client()` builds a fresh `TestClient(app)` per `call()` and never enters the context manager, so FastAPI **lifespan/startup hooks never run** and shutdown never fires. Fine today only by accident (no startup-critical state); this is a latent break for any app-level init (DB pool, migrations check, audit sink) and makes the in-process path behave differently from the HTTP path.\nMINOR:\n  - New SSOT `docs/PF-API-SERVICE-OR-SERVER.md` is written in a corrupted encoding — every em-dash renders as `â€\"`. For the document that is *the* vocabulary SSOT and is indexed as such in `gen_docs_index.py`, this is a credibility defect; also matches the existing `Â·` mojibake in `documentation-index.html`, suggesting the generator pipeline is lossy.\n  - `API = \"/api/v1/backlog\"` is duplicated between `architect_review.py` and `backlog_api.py`. The SSOT principle this item ships argues for a single constant.\n  - `backlog_api.py` docstring shows `from scripts.dev import backlog_api` but the module also self-inserts `ROOT` and `scripts/dev` into `sys.path` on import — two competing import idioms plus `architect_review.py` inserting `scripts/dev` again. Fragile under packaging/import-linter.\n  - `_get_item()` drops the `scope`/`project` query params the API supports (`get_item` has them but `architect_review._get_item` never passes them) — items outside `product_forge` scope will silently 404-to-fallback.\nNIT:\n  - `if __name__ == \"__main__\"` smoke block defaults to `BI-PF-1429`, an item unrelated to this change.\n  - `_unwrap` raises `RuntimeError` with only the first 500 chars of the body — envelope error codes/guards are truncated, which will slow triage of guard failures surfaced through this client.\nSUMMARY:\n  - Direction is right: an in-process API client removes the `dev_server`/port dependency and the new topology SSOT doc is a genuine architectural asset (clear domain ownership, Go-forward language rule, explicit interim-anon caveat). But the implementation undermines its own security claims — hard-coded operator role, process-global `API_ALLOW_ANON` mutation, and a silent library fallback that bypasses the contract it claims to exercise — and ships with zero tests proving the guards survive the in-process path. Top risks: privilege elevation and anon-boundary erosion that will be very hard to unwind once more callers adopt `backlog_api.py`; silent fallback masking contract regressions in the architect review tool that gates merges.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present"
+  ],
+  "owner": "unassigned",
+  "requester": "generic",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1265",
+  "parent": "BI-PF-1265",
+  "revision": 2,
+  "priority_rank": 40,
+  "priority_class": "P1",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "COMPLETE",
+    "analyzed_at": "2026-10-17T21:13:09.880665",
+    "analyzed_by": "system",
+    "revision_analyzed": 2,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing gate modules (core/*_gate.py) with an in-process API adapter for the review tool; centralize PF server/service config in one SSOT source and have gates read from it.",
+    "existing_components": [],
+    "existing_apis": [],
+    "existing_modules": [],
+    "dependency_findings": [
+      {
+        "task_id": "BI-PF-1265",
+        "type": "RELATED",
+        "required_state": "SSOT direction agreed"
+      },
+      {
+        "task_id": "BI-PF-0334",
+        "type": "REQUIRES",
+        "required_state": "API discovery artifact defined"
+      },
+      {
+        "task_id": "BI-PF-1223",
+        "type": "RELATED",
+        "required_state": "legacy Dashboard scope excluded"
+      }
+    ],
+    "conflict_findings": [
+      "BI-PF-1265 may touch shared service config concurrently."
+    ],
+    "duplication_findings": [
+      "Check overlap with BI-PF-1265 eventing SSOT (bus vs service config).",
+      "Verify API discovery artifact (BI-PF-0334) covers new in-process endpoints."
+    ],
+    "drift": "LOW",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "Existing gate modules and config files already implement most of the gates; wiring them into an in-process API and consolidating SSOT is an extension, not new build.",
+    "assumptions": [
+      "Existing core/*_gate.py modules remain the gate implementations.",
+      "config/*.json files are the current config surface.",
+      "Review tool can call in-process functions directly."
+    ],
+    "risks": [
+      "Gate semantics (1.5/2.5) may be ambiguous across configs.",
+      "In-process API bypass may diverge from HTTP contract.",
+      "Concurrent SSOT work with BI-PF-1265."
+    ],
+    "evidence": [
+      "Candidate components core/merge_gate.py, pr_gate.py, quality gate modules exist.",
+      "Existing gate APIs under /api/v1/gates/* and /api/v1/engineering/gates.",
+      "Config files config/ci-cd-gates.json, config/pf-review-scope.json present."
+    ],
+    "confidence": "medium",
+    "missing_info": [
+      "Formal definition of Gate 1.5 and Gate 2.5 acceptance semantics.",
+      "Whether in-process API (B) is function-call or shared-transport.",
+      "Which config file is the SSOT target for server/service.",
+      "Owner assignment for review-tool integration."
+    ],
+    "depth": "deep",
+    "mode": "ai",
+    "context_review": {
+      "ok": false,
+      "source": "llm",
+      "implementable": false,
+      "missing": [
+        "what",
+        "why",
+        "how",
+        "where"
+      ],
+      "reason": "Every field just repeats the title; no concrete task, rationale, approach, or affected files/components (marked 'Not specified')."
+    },
+    "decision_request": {
+      "needed": false,
+      "reasons": [],
+      "ask": ""
+    },
+    "arch_fingerprint": "1eb8b4dae56937b2"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-17T21:13:09.970989"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-17T21:12:24.939712",
+  "updated_at": "2026-10-17T21:14:48.872142",
+  "score": 0.75,
+  "_note": "readiness computed",
+  "api_impact": {
+    "needs_api": false,
+    "reason": "dev tooling + SSOT doc; no new runtime API",
+    "routes": []
+  }
+}
