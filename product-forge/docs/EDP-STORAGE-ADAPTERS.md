@@ -72,3 +72,9 @@ case "gcs":
     st, err = gcsstore.New(gcsstore.Config{Bucket: os.Getenv("PF_GCS_BUCKET"), Auth: gcsAuth})
 // "local" (objstore) and "s3" (s3store) already handled; "azure"/"gdrive" land per adapter item
 ```
+
+**Known limitations (`gcsstore`, BI-PF-1395):** content is **buffered in memory** (large-object streaming +
+resumable upload is a follow-up); GCS `uploadType=multipart` caps at **~5 MB** (use resumable for larger);
+`SignedURL`/versioning/lock are **not implemented** (capabilities declared `false`). The `buildObjectStore()`
+config switch is owned by `go/edpsvc/main.go` (apply the one-line case above). The adapter is
+**mock-conformant, NOT production-qualified** until a real-provider (creds) run.

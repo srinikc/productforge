@@ -52,19 +52,31 @@ func ConformObjectStore(ctx context.Context, s ObjectStore) []error {
 		}
 	}
 
-	// List must actually filter by prefix (return the just-written key).
+	// List must actually FILTER by prefix: the probe key is present AND an object under a DIFFERENT prefix is
+	// absent (presence alone would pass an adapter that ignores prefix entirely).
+	otherKey := fmt.Sprintf("pf/conformance-other/probe-%d", time.Now().UnixNano())
+	_, otherErr := s.Put(ctx, otherKey, bytes.NewReader(body), int64(len(body)), PutOptions{ContentType: "text/plain"})
 	if items, err := s.List(ctx, "pf/conformance/"); err != nil {
 		errs = append(errs, err)
 	} else {
-		found := false
+		found, leaked := false, false
 		for _, it := range items {
 			if it.Key == key {
 				found = true
 			}
+			if it.Key == otherKey {
+				leaked = true
+			}
 		}
 		if !found {
-			errs = append(errs, errors.New("List: prefix did not return the written key (real prefix filtering required)"))
+			errs = append(errs, errors.New("List: prefix did not return the written key"))
 		}
+		if leaked {
+			errs = append(errs, errors.New("List: prefix filtering leaked an object from another prefix"))
+		}
+	}
+	if otherErr == nil {
+		_ = s.Delete(ctx, otherKey, "")
 	}
 
 	// Capability honesty: a DECLARED capability must work; a false claim fails the suite.

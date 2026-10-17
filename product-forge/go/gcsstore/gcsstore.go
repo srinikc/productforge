@@ -76,6 +76,9 @@ func (s *Store) Put(ctx context.Context, key string, r io.Reader, size int64, op
 	if err != nil {
 		return datastore.ObjectInfo{}, err
 	}
+	if size > 0 && int64(len(body)) != size {
+		return datastore.ObjectInfo{}, fmt.Errorf("gcsstore: size mismatch: declared %d, read %d", size, len(body))
+	}
 	ct := opts.ContentType
 	if ct == "" {
 		ct = "application/octet-stream"
@@ -105,7 +108,11 @@ func (s *Store) Put(ctx context.Context, key string, r io.Reader, size int64, op
 
 // Get downloads an object; the returned info carries the recomputed sha256 (content-addressed).
 func (s *Store) Get(ctx context.Context, key, version string) (io.ReadCloser, datastore.ObjectInfo, error) {
-	resp, err := s.client.Do(ctx, http.MethodGet, s.objectURL(key)+"?alt=media", nil, nil, nil)
+	u := s.objectURL(key) + "?alt=media"
+	if version != "" {
+		u += "&generation=" + url.QueryEscape(version)
+	}
+	resp, err := s.client.Do(ctx, http.MethodGet, u, nil, nil, nil)
 	if err != nil {
 		return nil, datastore.ObjectInfo{}, err
 	}
