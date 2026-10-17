@@ -10,7 +10,8 @@ The authoritative gate chain for taking a backlog item from **take-up → merge 
    (LANGUAGE CHECK, API CHECK, AC) + risks. `language_rule_review.py` verdict. **No code before approval.**
 
 1.5 **Gate 1.5 — Architect design review (optional, recommended for large/security/schema work).**
-   Fresh-context review of the **design** by a different model (see Gate 2.5 rules), before coding.
+   Fresh-context review of the **design** by a separately-launched reviewer on a **configurable model**
+   (see Gate 2.5 rules), before coding.
 
 2. **Implement on a feature branch** (never `develop`). Backlog writes are **API-only**; integrity gates apply
    at write time: **AC required** at create (`POST /items` → 400), **api_impact** (`api-first`),
@@ -46,9 +47,12 @@ The authoritative gate chain for taking a backlog item from **take-up → merge 
 future-proofing, reuse/no-duplication, "the right thing") before precheck/PR.
 
 **Rules (binding):**
-- **Fresh context, separate invocation** — not the implementer's context.
-- **Different model**, **configurable** — default `mimo-v2.6`, **rotatable/second-opinion** allowed; never
-  hard-code one model for all reviews (a different model is *not* a different person).
+- **Fresh context, separate invocation** — a **separately-launched review sub-agent** (its own context + role),
+  not the implementer's context.
+- **Configurable model, provider-agnostic** — the reviewer model is set in `config/architect-review.json`
+  (default `mimo-v2.6-flash`), overridable per run via `--model` / `PF_ARCHITECT_REVIEW_MODEL`. **Any** model
+  works (opencode-go/mimo, google/gemini-2.5-flash, anthropic/claude, …). **Nothing is coupled to OpenCode or
+  Mimo**; never hard-code one model for all reviews (a different model is *not* a different person).
 - **Inputs:** item + AC + the diff + relevant ADRs / `AGENTS.md` / standards.
 - **Output:** structured findings `{BLOCKER | MAJOR | MINOR | NIT}` + a short summary + evidence file
   `engineering/reviews/<item>-<sha>.json`; append the summary to the item context.
@@ -59,8 +63,11 @@ future-proofing, reuse/no-duplication, "the right thing") before precheck/PR.
 - **Not inside `precheck`** (it makes network/model calls). Run as a separate **Gate-2.5 step**; store results
   as evidence. Record usage/cost/time.
 
-**Tool:** `scripts/dev/architect_review.py` (tooling; Python OK). Implementation tracked in the backlog
-(`BI-PF-1427`). Until it exists, Gate 2.5 is performed manually by the architect session.
+**Tool:** `scripts/dev/architect_review.py` (tooling; Python OK; `BI-PF-1427`). Model-agnostic:
+`emit --mode design|diff` builds the fresh-context reviewer prompt from the item + AC + design/diff;
+`ingest --file <review>` parses findings → `engineering/reviews/<item>-<sha>.json` and (with `--apply`)
+appends the summary to the item context. The reviewer **sub-agent** (any model from
+`config/architect-review.json`) is launched separately; the tool does not embed or lock a model.
 
 ## One line
 **Gate 1 (design) → Gate 1.5 (design review) → implement → Gate 2 (review + AC verify) → Gate 2.5 (second-model
