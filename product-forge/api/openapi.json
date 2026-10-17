@@ -2332,6 +2332,79 @@
         ]
       }
     },
+    "/api/v1/backlog/items/{item_id}/execution": {
+      "post": {
+        "description": "Record an item's execution fields (BI-PF-1423): ``usage`` (tokens/cost) + ``duration_seconds`` etc.\n\nThin wrapper over ``core.backlog.set_execution`` (single writer). ``usage`` is a dict, e.g.\n``{input_tokens, output_tokens, reasoning_tokens, cache_read, cache_write, cost_usd}``.",
+        "operationId": "set_item_execution_api_v1_backlog_items__item_id__execution_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "item_id",
+            "required": true,
+            "schema": {
+              "title": "Item Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Authorization",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-roles",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-Roles",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "title": "Body",
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Set Item Execution",
+        "tags": [
+          "backlog"
+        ]
+      }
+    },
     "/api/v1/backlog/items/{item_id}/follow-up": {
       "post": {
         "description": "Set an item's follow-up review schedule (at / every_days / snooze_days).",

@@ -1,0 +1,182 @@
+{
+  "id": "BI-PF-1423",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "api",
+  "external_id": "usage-time-capture",
+  "label": "PF Backlog 620",
+  "title": "Capture per-task model usage (input/output/cache tokens + cost) and wall-time; record on the backlog item (DoD)",
+  "body": "",
+  "source": "generic",
+  "status": "new",
+  "priority": "P2",
+  "moscow": "Should",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [],
+  "links": {},
+  "decisions": [
+    {
+      "at": "2026-10-17T10:56:01.619588",
+      "decision": "APPROVE",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)"
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "what_adds": "An API endpoint + model-usage wiring to record execution.usage + time on items, rolled up to the epic and surfaced at delivery",
+    "problem": "No per-task token/cost/time on items; agent cannot self-report tokens/cost (runtime-only)",
+    "source": "authored"
+  },
+  "objective": "Capture per-task model usage (input/output/cache tokens + cost) and wall-time; record on the backlog item (DoD)",
+  "acceptance_criteria": [
+    "Objective achieved: Capture per-task model usage (input/output/cache tokens + cost) and wall-time; record on the backlog item (DoD)"
+  ],
+  "in_scope": [
+    "Capture per-task model usage (input/output/cache tokens + cost) and wall-time; record on the backlog item (DoD)"
+  ],
+  "out_of_scope": [
+    "Not specified."
+  ],
+  "affected_components": [
+    "Not specified."
+  ],
+  "affected_files": [
+    "Not specified."
+  ],
+  "approach": "RESEARCHED (net): OpenCode persists REAL usage in SQLite ~/.local/share/opencode/opencode.db (verified present, 51GB). The 'session' table rows carry: cost, tokens_input, tokens_output, tokens_reasoning, tokens_cache_read, tokens_cache_write, model, directory, time_created/time_updated -> gives input/output/cache-hit(read)/cache-miss(write) tokens + cost + wall-time directly (API-reported, not estimated). Also a built-in 'opencode stats' CLI aggregates by day/model/agent/project. Implementation: scripts/dev/usage_capture.py reads opencode.db (read-only) for the task's session/time window -> maps to execution.usage {input_tokens, output_tokens, cache_read, cache_write, cost_usd, reasoning_tokens} + duration_seconds -> writes via new POST /backlog/items/{id}/execution -> epic rollup + delivery. Path is harness-specific; keep a provider-usage fallback (core model-call 'usage') for framework-agnostic mode.",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Objective achieved: Capture per-task model usage (input/output/cache tokens + cost) and wall-time; record on the backlog item (DoD)"
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "unassigned",
+  "requester": "generic",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1252",
+  "parent": "BI-PF-1252",
+  "revision": 2,
+  "priority_rank": 2,
+  "priority_class": "P2",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "COMPLETE",
+    "analyzed_at": "2026-10-17T10:56:01.327668",
+    "analyzed_by": "system",
+    "revision_analyzed": 2,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/agent_model_override.py, core/backlog.py, core/backlog_link.py, core/business_models_kb.py",
+    "existing_components": [
+      "core/agent_model_override.py",
+      "core/backlog.py",
+      "core/backlog_link.py",
+      "core/business_models_kb.py",
+      "core/ci_cd_model.py",
+      "core/conversation_models.py",
+      "core/cost_kpi.py",
+      "core/cost_model.py"
+    ],
+    "existing_apis": [
+      "/api/v1/backlog",
+      "/api/v1/backlog/epics/{epic_id}/order",
+      "/api/v1/backlog/epics/{epic_id}/status",
+      "/api/v1/backlog/groom",
+      "/api/v1/backlog/groom/approve",
+      "/api/v1/backlog/grooming/guidelines",
+      "/api/v1/backlog/grooming/stranded",
+      "/api/v1/backlog/ids:reserve"
+    ],
+    "existing_modules": [
+      "config/backlog-dod-baseline.json",
+      "config/backlog-verification-baseline.json",
+      "config/business-models-kb.json",
+      "config/model-catalog.json",
+      "config/model-policy.json",
+      "config/model-tier.json"
+    ],
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=0.75",
+      "components=8",
+      "apis=8"
+    ],
+    "confidence": "high",
+    "missing_info": [
+      "body/acceptance criteria thin"
+    ],
+    "depth": "deep",
+    "mode": "deterministic",
+    "decision_request": {
+      "needed": false,
+      "reasons": [],
+      "ask": ""
+    },
+    "arch_fingerprint": "a99a654014d9d53f"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-17T10:56:01.466339"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-17T10:55:10.756499",
+  "updated_at": "2026-10-17T11:51:39.284275",
+  "score": 0.75,
+  "_note": "readiness computed",
+  "api_impact": {
+    "needs_api": true,
+    "reason": "new /backlog/items/{id}/execution endpoint records usage",
+    "routes": [
+      "POST /backlog/items/{id}/execution"
+    ]
+  }
+}

@@ -617,6 +617,30 @@ def set_item_api_impact(item_id: str, body: dict[str, Any], request: Request,
     return from_request(request, res, resource="backlog", resource_id=item_id)
 
 
+@router.post("/items/{item_id}/execution", dependencies=[Depends(require_operator)])
+def set_item_execution(item_id: str, body: dict[str, Any], request: Request,
+                       ctx: dict[str, Any] = Depends(require_operator)):
+    """Record an item's execution fields (BI-PF-1423): ``usage`` (tokens/cost) + ``duration_seconds`` etc.
+
+    Thin wrapper over ``core.backlog.set_execution`` (single writer). ``usage`` is a dict, e.g.
+    ``{input_tokens, output_tokens, reasoning_tokens, cache_read, cache_write, cost_usd}``.
+    """
+    from core import backlog
+    s, p = _scope_project(request, str(body.get("scope") or "product_forge"), str(body.get("project") or ""))
+    _guard_revision(backlog, s, p, item_id, body.get("expected_revision"))
+    allowed = ("usage", "duration_seconds", "started_at", "last_heartbeat_at", "worker_id", "status", "stage")
+    fields = {k: body[k] for k in allowed if k in body}
+    if not fields:
+        raise ApiError("VALIDATION_FAILED", "no execution fields provided (allowed: " + ", ".join(allowed) + ")")
+    try:
+        res = backlog.set_execution(s, p, item_id, **fields)
+    except ValueError as e:
+        raise ApiError("VALIDATION_FAILED", str(e)) from None
+    if res is None:
+        raise ApiError("NOT_FOUND", "backlog item not found")
+    return from_request(request, res, resource="backlog", resource_id=item_id)
+
+
 _EDITABLE_FIELDS = ("title", "body", "type", "label", "tag", "summary", "origin",
                     "value", "effort", "risk", "moscow")
 
