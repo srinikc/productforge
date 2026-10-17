@@ -6,10 +6,22 @@ package edpdata
 import (
 	"context"
 	"errors"
+	"regexp"
 	"time"
 
 	"productforge/datastore"
 )
+
+var (
+	emailPII = regexp.MustCompile(`[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}`)
+	secretPII = regexp.MustCompile(`(?i)\b(bearer|token|secret|password)\b\s*[:=]?\s*[A-Za-z0-9._\-]{6,}`)
+)
+
+// redact masks PII/sensitive values at INGEST (evidence must never be mutated afterwards). BI-PF-1312.
+func redact(s string) string {
+	s = emailPII.ReplaceAllString(s, "[redacted-email]")
+	return secretPII.ReplaceAllString(s, "[redacted-secret]")
+}
 
 // ErrNotFound is returned when a row does not exist.
 var ErrNotFound = errors.New("edpdata: not found")
@@ -22,13 +34,15 @@ type AuditStore struct{ db datastore.RelationalStore }
 // NewAudit returns an AuditStore over db.
 func NewAudit(db datastore.RelationalStore) *AuditStore { return &AuditStore{db: db} }
 
-// Append writes one audit event. The table denies UPDATE/DELETE (append-only trigger).
+// Append writes one audit event with INGEST-TIME redaction (PII masked before write). The table denies
+// UPDATE/DELETE (append-only trigger) - evidence is immutable once written.
 func (s *AuditStore) Append(ctx context.Context, e datastore.AuditEvent) error {
 	return s.db.WithTx(ctx, func(tx datastore.Tx) error {
 		_, err := tx.Exec(ctx,
 			`INSERT INTO audit (tenant_id, actor, action, resource, outcome, correlation_id, at)
 			 VALUES ($1,$2,$3,$4,$5,$6,$7)`,
-			e.TenantID, e.Actor, e.Action, e.Resource, e.Outcome, e.CorrelationID, e.At)
+			e.TenantID, redact(e.Actor), redact(e.Action), redact(e.Resource), redact(e.Outcome),
+			redact(e.CorrelationID), e.At)
 		return err
 	})
 }
