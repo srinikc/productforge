@@ -243,6 +243,45 @@ def _latest_review(item_id: str, mode: str):
     return best
 
 
+def _disp_path(item_id: str, mode: str):
+    return EVID / f"{item_id}-{mode}-dispositions.json"
+
+
+def _load_disp(item_id: str, mode: str) -> dict:
+    try:
+        return json.loads(_disp_path(item_id, mode).read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
+def _save_disp(item_id: str, mode: str, disp: dict) -> None:
+    EVID.mkdir(parents=True, exist_ok=True)
+    _disp_path(item_id, mode).write_text(json.dumps(disp, indent=2), encoding="utf-8")
+
+
+def _render_review(rev: dict, disp: dict, mode: str) -> str:
+    """ONE consolidated section: each finding with OUR response + status beside it."""
+    gate = "1.5" if mode == "design" else "2.5"
+    f = rev.get("findings") or {}
+    lines = [f"Gate {gate} - Findings & Dispositions (model={rev.get('model','?')} sha={rev.get('sha','?')})",
+             "status: PENDING | actioned | accepted | deferred | rejected"]
+    n, pending = 0, 0
+    for sev in SEVERITIES:
+        for text in f.get(sev, []):
+            n += 1
+            d = disp.get(str(n)) or {}
+            st = (d.get("status") or "PENDING").upper()
+            if st == "PENDING":
+                pending += 1
+            lines.append(f"[{sev}] #{n} ({st})")
+            lines.append(f"  finding : {text}")
+            lines.append(f"  response: {d.get('note') or '(no response yet)'}")
+    lines.append("--- SUMMARY (review) ---")
+    lines += [f"  {x}" for x in f.get("SUMMARY", [])]
+    lines.append(f"=== {n} finding(s), {pending} pending ===")
+    return "\n".join(lines)
+
+
 def _ingest(item_id: str, text: str, model: str, apply: bool, mode: str = "diff") -> int:
     findings = parse_review(text)
     sha = diff_sha()
@@ -285,7 +324,19 @@ def main(argv: list[str]) -> int:
     g = sub.add_parser("gate")
     g.add_argument("--item", required=True)
     g.add_argument("--gate", choices=["1", "2"], required=True)
+    rs = sub.add_parser("respond")
+    rs.add_argument("--item", required=True)
+    rs.add_argument("--gate", choices=["1", "2"], required=True)
+    rs.add_argument("--index", type=int, required=True, help="finding number shown by `gate`")
+    rs.add_argument("--status", choices=["PENDING", "actioned", "accepted", "deferred", "rejected"],
+                    default="actioned")
+    rs.add_argument("--note", required=True, help="our response/action for this finding")
     a = ap.parse_args(argv)
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
 
     item = _get_item(a.item)
     if a.cmd == "emit":
@@ -294,6 +345,13 @@ def main(argv: list[str]) -> int:
         return 0
     if a.cmd == "ingest":
         return _ingest(a.item, Path(a.file).read_text(encoding="utf-8"), a.model, a.apply)
+    if a.cmd == "respond":
+        mode = "design" if a.gate == "1" else "diff"
+        disp = _load_disp(a.item, mode)
+        disp[str(a.index)] = {"status": a.status, "note": a.note}
+        _save_disp(a.item, mode, disp)
+        print(f"disposition saved: finding #{a.index} -> {a.status}")
+        return 0
     if a.cmd == "gate":
         mode = "design" if a.gate == "1" else "diff"
         gate = "1.5" if mode == "design" else "2.5"
@@ -303,7 +361,7 @@ def main(argv: list[str]) -> int:
             print(f"(no Gate {gate} evidence - run: python scripts/dev/architect_review.py run "
                   f"--item {a.item} --mode {mode})")
             return 1
-        print(review_block(rev.get("findings") or {}, rev.get("model", ""), rev.get("sha", ""), mode))
+        print(_render_review(rev, _load_disp(a.item, mode), mode))
         return 0
 
     prompt = _build_prompt(item, a.item, a.mode)
