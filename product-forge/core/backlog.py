@@ -1197,7 +1197,10 @@ def set_delivery(scope: str, project: str | None, eid: str, *, branch: str = "",
         return None
     delivery = {"branch": str(branch or ""), "merge_sha": str(merge_sha or ""),
                 "commits": [str(c) for c in (commits or [])], "pr": str(pr or ""),
-                "pr_url": str(pr_url or ""), "at": datetime.now().isoformat(), "note": str(note or "")}
+                "pr_url": str(pr_url or ""), "at": datetime.now().isoformat(), "note": str(note or ""),
+                # BI-PF-1423: surface the recorded usage/time with the delivery provenance.
+                "usage": (item.get("execution") or {}).get("usage") or {},
+                "duration_seconds": int((item.get("execution") or {}).get("duration_seconds") or 0)}
     return update(scope, project, eid, links=_merge_links(item.get("links"), delivery=delivery),
                   _note="delivery recorded")
 

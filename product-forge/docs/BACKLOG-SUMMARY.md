@@ -1,6 +1,6 @@
 # Backlog Summary
 
-> GENERATED 2026-10-17T12:13:05 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-17T14:07:53 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
@@ -8,10 +8,10 @@
 - **Open:** 131  |  **Closed:** 548
 - `blocked`: 1
 - `executing`: 3
-- `in_progress`: 3
-- `new`: 124
+- `in_progress`: 4
+- `new`: 123
 
-### new, by category (124)
+### new, by category (123)
 **API / reports / HIL / misc** (15)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
@@ -75,7 +75,7 @@
 | BI-PF-1317 | Could | feature | EDP-24: Scale-out & enterprise isolation tiers (read replicas / partitioning / tenant isolation tiers / additional region cells / region-migration workflow) [EVIDENCE-GATED] | Provide scale-out and enterprise isolation tiers including read-replica support, DB partitioning, tenant isola... |
 | BI-PF-1415 | Should | defect | RCCA: config/derived stores classified by kind heuristic (not reviewed) - 78 project/tenant-scoped stores likely belong in DB (views/tables) | RCCA: config/derived stores classified by kind heuristic (not reviewed) - 78 project/tenant-scoped stores like... |
 
-**Specs / cache / context / artifacts** (10)
+**Specs / cache / context / artifacts** (9)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0206 | Should | tech-debt | Backend: model downloader + local cache + license-acceptance gate + models.lock (open-weights) | One owner module that downloads only the weights a project's capability pack needs, into a gitignored local ca... |
@@ -87,7 +87,6 @@
 | BI-PF-1329 | Should | feature | WG-O5: Assign a SPECIFIC backlog item to a session/worker (claim-by-id + operator assignment) with lease semantics | Support claiming/assigning a specific item id (not just next-eligible). |
 | BI-PF-1385 | Must | bug | Backlog API: no deterministic endpoint to author item context fields (objective/acceptance_criteria/affected_files/approach) | Backlog API: no deterministic endpoint to author item context fields (objective/acceptance_criteria/affected_f... |
 | BI-PF-1392 | Should | task | Enforce per-feature FR/US caps + max_lines in the Go artifact engine (scaled by the profile) and reconcile the three section sources | Per-feature FR/US caps + max_lines enforced NUMERICALLY (scaled by profile); sections have ONE source. |
-| BI-PF-1423 | Should | feature | Capture per-task model usage (input/output/cache tokens + cost) and wall-time; record on the backlog item (DoD) | Capture per-task model usage (input/output/cache tokens + cost) and wall-time; record on the backlog item (DoD... |
 
 **Wiring / tech-debt / API** (75)
 | ID | MoSCoW | Type | Title | Objective |
