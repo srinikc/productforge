@@ -1,0 +1,35 @@
+{
+  "item": "BI-PF-1429",
+  "sha": "12555ad9b39d",
+  "model": "mimo-v2.6-flash",
+  "findings": {
+    "BLOCKER": [
+      "New network + secret-handling code path ships with zero test coverage: `_api_key()`, `_llm_call()`, empty-content handling and response-shape parsing (`choices`/`message`/`reasoning_content`) are untested. Per the operating standard, a missing test for new shipped logic is a blocker.",
+      "Config declares `\"api_key_env\": \". . .\" (OPENCODE_ZEN_API_KEY)` and `\"api_key_file\": \".opencode/opencode.key\"`, but `_api_key()` hardcodes `OPENCODE_ZEN_API_KEY`, `PF_ARCHITECT_REVIEW_KEY`, `ROOT/.opencode/opencode.key`, `ROOT/opencode.key`. The config contract is silently ignored \u2014 an operator who sets `api_key_env`/`api_key_file` to their org's secret source gets an unexplained \"no API key\" failure (or the wrong key is read). Config-declared behavior must be honored or the keys must not exist."
+    ],
+    "MAJOR": [
+      "Contract/implementation contradiction: config description says \"provider- and model-AGNOSTIC \u2026 Not coupled to OpenCode or Mimo\", yet the code hardcodes the `x-opencode-session` routing header, `https://opencode.ai/zen/go/v1` default base URL, `opencode/1.18.35` User-Agent default and an `opencode-go` model id. Meanwhile `launch_command`, `agent`, `provider` become dead config. Either the claim or the implementation must change; dead config fields will mislead the next maintainer.",
+      "Secret hygiene: API key is read from `.opencode/opencode.key` under the repo root with `except Exception: pass`. Must be provably gitignored/outside the working tree, and there should be one authoritative secret source rather than a four-step silent fallback chain (silent fallbacks hide misconfiguration).",
+      "Observability: a single bare `except Exception` in `main` reduces every failure to `str(e)`. `urllib` `HTTPError` bodies (provider error messages, rate-limit hints, request ids) and response `usage` are discarded; no structured logging, no retry/backoff on 429/5xx for a request carrying a ~60k-char prompt. Incident triage will be blind.",
+      "Integrity of ingested findings: falling back to `reasoning_content` can ingest chain-of-thought as a \"review\"; response text is passed straight to `parse_review` without validating that all five required sections exist, so a truncated/garbled completion silently produces an empty or partial review artifact attributed to a model.",
+      "Timeout regression: CLI path allowed 1800s; direct HTTP path allows 300s for up to 60k chars of diff against a reasoning model, with no retry \u2014 expect intermittent Gate 1.5/2.5 failures.",
+      "Duplicated reviewer persona: `ARCHITECT_SYSTEM` in code now coexists with the instructions embedded in `_build_prompt` / the `emit` prompt path \u2014 two sources of truth for the same review contract (and `emit`'s prompt is now orphaned from what `run` actually sends)."
+    ],
+    "MINOR": [
+      "`subprocess` import appears now unused after the launch-command removal \u2192 lint/CI failure risk.",
+      "Backward-compat break: `PF_ARCHITECT_REVIEW_CMD` and `config:launch_command` are silently dropped with no deprecation notice or fallback to the CLI path if the endpoint is unreachable (no resilience path for the gate).",
+      "`PF_ARCHITECT_REVIEW_BASE_URL` is accepted without scheme validation \u2014 an `http://` value silently ships proprietary diffs in cleartext.",
+      "`user_agent` default is duplicated in config and in code; same for base URL \u2014 pick one source."
+    ],
+    "NIT": [
+      "`x-opencode-session` is a fresh `uuid4()` per request; if the gateway expects session affinity for moderation/routing/quotas, randomizing per call is pointless or harmful.",
+      "`temperature` and `max_tokens` are hardcoded; make them config-driven like the other knobs.",
+      "`_llm_call` re-fetches `_config()` although `main` already loads it \u2014 pass `cfg` in."
+    ],
+    "SUMMARY": [
+      "The change achieves the objective (direct OpenAI-compatible call, no nested CLI) and is a net simplification of the run path.",
+      "Top risks: config keys that are declared but ignored (operational failure/misdirection), an \"agnostic\" contract that the code contradicts with OpenAI/OpenCode-specific hardcoding, near-zero observability on failures, and an untested secret+network code path with a tightened timeout and no retry.",
+      "Recommend before merge: honor or remove `api_key_env`/`api_key_file`, align config description with reality, surface HTTP error bodies + usage in logs, validate response sections before ingest, and add unit tests around key resolution and response parsing."
+    ]
+  }
+}
