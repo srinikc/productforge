@@ -3,6 +3,7 @@ package residency
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -86,6 +87,21 @@ func write(t *testing.T, dir, name, body string) {
 	t.Helper()
 	if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o644); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestLoadDirRejectsNonPolicyFile(t *testing.T) {
+	// schema-dir contract: a NON-policy JSON in the policies dir must fail loudly (never be silently ignored),
+	// so region-cell/keyring JSON can never be mixed into the policy dir.
+	dir := t.TempDir()
+	write(t, dir, "ok.json", `{"id":"us-v1","version":"1.0","region":"US","residency":"in-region","cross_border_transfer":"allowed","allowed_regions":["US"]}`)
+	write(t, dir, "attestation-keys.json", `{"keys":{"dev-1":{"public_key":"x"}}}`)
+	_, err := LoadDir(dir)
+	if err == nil {
+		t.Fatal("a non-policy JSON in the policies dir must fail loudly")
+	}
+	if !strings.Contains(err.Error(), "attestation-keys.json") {
+		t.Fatalf("error should name the offending file: %v", err)
 	}
 }
 
