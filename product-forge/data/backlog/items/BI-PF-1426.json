@@ -1,0 +1,210 @@
+{
+  "id": "BI-PF-1426",
+  "tag": "PF",
+  "type": "change",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "RESIDENCY-SCHEMA-DIR-GUARD-1",
+  "label": "PF Backlog 621",
+  "title": "Harden auto-loaded config against schema mixing + tooling writes outside the repo (residency-profiles vs residency-cells)",
+  "body": "RCCA (BI-PF-1303): a tool call used relative '..\\..\\' paths that resolved OUTSIDE the repo (a dev key + region-cells could have been written to a stray folder). Separately, residency.LoadDir loads every *.json in the policy dir as a policy, so region-cell/keyring JSON placed there was mis-parsed. Fix (done in 1303): separate config/residency-profiles (policies) from config/residency-cells (cells+keyring); LoadDir now fails loudly naming a non-policy file. This item tracks the GENERAL guard: one-schema-per-dir + no tooling writes outside the repo (IS-PF-0036 family).",
+  "source": "generic",
+  "status": "new",
+  "priority": "P1",
+  "moscow": "Should",
+  "value": 3,
+  "effort": 2,
+  "risk": 1,
+  "deps": [
+    "BI-PF-1303",
+    "BI-PF-1370",
+    "BI-PF-1371"
+  ],
+  "links": {},
+  "decisions": [
+    {
+      "at": "2026-10-17T18:28:27.226920",
+      "decision": "APPROVE",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)"
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "RCCA (BI-PF-1303): a tool call used relative '..\\..\\' paths that resolved OUTSIDE the repo (a dev key + region-cells could have been written to a stray folder). Separately, residency.LoadDir loads every *.json in the policy dir as a policy, so region-cell/keyring JSON placed there was mis-parsed. Fix (done in 1303): separate config/residency-profiles (policies) from config/residency-cells (cells+keyring); LoadDir now fails loudly naming a non-policy file. This item tracks the GENERAL guard: one-schema-per-dir + no tooling writes outside the repo (IS-PF-0036 family).",
+    "what_adds": "Harden auto-loaded config against schema mixing + tooling writes outside the repo (residency-profiles vs residency-cells)",
+    "why": "RCCA (BI-PF-1303): a tool call used relative '..\\..\\' paths that resolved OUTSIDE the repo (a dev key + region-cells could have been written to a stray folder). Separately, residency.LoadDir loads every *.json in the policy dir as a policy, so region-cell/keyring JSON placed there was mis-parsed. Fix (done in 1303): separate config/residency-profiles (policies) from config/residency-cells (cells+keyring); LoadDir now fails loudly naming a non-policy file. This item tracks the GENERAL guard: one-schema-per-dir + no tooling writes outside the repo (IS-PF-0036 family).",
+    "who_feels": "Product Forge maintainers and consumers.",
+    "source": "extracted"
+  },
+  "objective": "Make schema-mixing in auto-loaded dirs and out-of-repo tooling writes fail loudly, repo-wide.",
+  "acceptance_criteria": [
+    "An auto-loaded config directory (e.g. residency policy profiles) that contains a NON-conforming JSON file fails loudly, naming the offending file, instead of silently mis-parsing it as the wrong schema.",
+    "Tooling/scripts that write files cannot write outside the repository/worktree: a relative path traversal (..\\..) is rejected/flagged, never silently resolved into a different folder."
+  ],
+  "in_scope": [
+    "auto-loaded-dir schema guard",
+    "tooling path-traversal guard"
+  ],
+  "out_of_scope": [
+    "the residency feature"
+  ],
+  "affected_components": [
+    "Not specified."
+  ],
+  "affected_files": [
+    "scripts/dev/wired_audit.py",
+    "go/edpsvc/internal/residency/registry.go"
+  ],
+  "approach": "Extend the store/diff guard (wired_audit) to flag writes that escape the repo, and document one-schema-per-dir for auto-loaded config; residency already fails loudly (done in 1303).",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "pending: a wired_audit check + a test"
+  ],
+  "risks": [
+    "scope: keep it advisory-first"
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "agent",
+  "requester": "generic",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1248",
+  "parent": "BI-PF-1248",
+  "revision": 3,
+  "priority_rank": 40,
+  "priority_class": "P1",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "COMPLETE",
+    "analyzed_at": "2026-10-17T18:28:27.020454",
+    "analyzed_by": "system",
+    "revision_analyzed": 3,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend core/schema_validator.py with a per-dir schema manifest (one expected schema per config dir) and a repo-root containment check; extend core/port_config.py LoadDir to use it. Add path guard util in core/repo_setup.py validating resolved write targets stay under repo root. Reuse existing QA gates in core/qa_report.py.",
+    "existing_components": [],
+    "existing_apis": [],
+    "existing_modules": [],
+    "dependency_findings": [
+      "REQUIRES BI-PF-1303 fix shipped (LoadDir loud-fail) — verify merged state",
+      "RELATED BI-PF-1370/1371: their write-containment helper is the long-term ACL; align interfaces to avoid two guards",
+      "RELATED BI-PF-0415: workergrid descriptors must also carry schema kind for dir-typing"
+    ],
+    "conflict_findings": [
+      "BI-PF-1370/1371 touch write-path guards concurrently — coordinate so containment logic lives in one module",
+      "No current task modifies core/schema_validator.py per candidate scan"
+    ],
+    "duplication_findings": [
+      "BI-PF-1303 already split residency-profiles vs residency-cells and made LoadDir fail loudly — do not redo",
+      "BI-PF-1370/BI-PF-1371 cover hard session-isolation ACL writes-outside-workdir — RELATED; this item should reuse their containment helper once available",
+      "core/schema_validator.py already validates known schemas — extend, not new component"
+    ],
+    "drift": "LOW",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "Generalizes the 1303 fix into a reusable guard (one-schema-per-dir + repo-root write containment) by extending existing schema_validator/port_config code. Reuse-first: no new component; coordinate with session-isolation items to avoid duplicate path guards.",
+    "assumptions": [
+      "IS-PF-0036 family defines the general guard scope; config dirs are the only auto-loaded schema dirs",
+      "repo root is discoverable at runtime (repo_setup.py already does this)",
+      "One expected schema kind per dir is declarable via a small manifest or dir-name convention"
+    ],
+    "risks": [
+      "Double maintenance if session-isolation ACL (1370/1371) lands a separate path guard",
+      "Fail-loud LoadDir change could break existing deployments with mixed dirs — needs migration note",
+      "Windows '..\\..\\' separator handling must be covered cross-platform"
+    ],
+    "evidence": [
+      "RCCA BI-PF-1303: relative '..\\..\\' write escaped repo; mixed JSON in policy dir mis-parsed",
+      "core/schema_validator.py exists and is the natural extension point",
+      "Related items BI-PF-1370/1371 (scores ~0.17) confirm ongoing session-isolation work"
+    ],
+    "confidence": "medium",
+    "missing_info": [
+      "Final decision on dir-typing mechanism: manifest file vs dir-name convention vs embedded schema-kind field",
+      "Whether containment check should hard-fail or warn during a deprecation window",
+      "Owner alignment with BI-PF-1370/1371 implementers on where the shared path-guard helper lives",
+      "Target platforms (Windows path semantics) for the '..\\..\\' reproduction"
+    ],
+    "depth": "deep",
+    "mode": "ai",
+    "context_review": {
+      "ok": false,
+      "source": "llm",
+      "implementable": false,
+      "missing": [
+        "how",
+        "where"
+      ],
+      "reason": "WHAT and WHY are clear (acceptance criteria define behavior), but APPROACH merely restates the title and AFFECTED_COMPONENTS/AFFECTED_FILES are 'Not specified' — no guidance on which loaders/tooling entry points to modify or how the repo-write guard should work."
+    },
+    "decision_request": {
+      "needed": false,
+      "reasons": [],
+      "ask": ""
+    },
+    "arch_fingerprint": "63df3676bfe5114e"
+  },
+  "dependencies": [
+    {
+      "task_id": "BI-PF-1303",
+      "type": "REQUIRES",
+      "required_state": "merged"
+    },
+    {
+      "task_id": "BI-PF-1370",
+      "type": "RELATED",
+      "required_state": "interface-aligned"
+    },
+    {
+      "task_id": "BI-PF-1371",
+      "type": "RELATED",
+      "required_state": "interface-aligned"
+    }
+  ],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-17T18:28:27.113400"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-17T18:27:22.415172",
+  "updated_at": "2026-10-17T18:28:28.170216",
+  "score": 1.5,
+  "_note": "readiness computed",
+  "api_impact": {
+    "needs_api": false,
+    "reason": "tooling guard"
+  }
+}

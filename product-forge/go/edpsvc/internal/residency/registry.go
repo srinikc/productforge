@@ -88,10 +88,11 @@ func LoadDir(dir string) (*Registry, error) {
 		}
 		var p Policy
 		if err := json.Unmarshal(raw, &p); err != nil {
-			return nil, fmt.Errorf("residency: parse %s: %w", e.Name(), err)
+			return nil, fmt.Errorf("residency: %s is not a policy profile: invalid JSON: %w", e.Name(), err)
 		}
 		if err := p.validate(); err != nil {
-			return nil, fmt.Errorf("%w (%s)", err, e.Name())
+			return nil, fmt.Errorf("residency: %s is not a policy profile: %w "+
+				"(this directory must contain ONLY policy profiles; keep region-cell/keyring JSON in a separate directory)", e.Name(), err)
 		}
 		if prev, dup := seen[p.ID]; dup {
 			return nil, fmt.Errorf("residency: duplicate policy id %q (%s and %s)", p.ID, prev, e.Name())

@@ -70,11 +70,21 @@
     "/api/v1/enterprise/tenants*"
   ],
   "affected_files": [
-    "internal/residency/*.go (new)",
-    "internal/tenants/provisioning.go",
-    "config/capability-packs.json"
+    "go/edpsvc/internal/residency/regioncell.go",
+    "go/edpsvc/internal/residency/resolver.go",
+    "go/edpsvc/internal/residency/evaluator.go",
+    "go/edpsvc/internal/residency/regioncell_test.go",
+    "go/edpsvc/internal/residency/registry.go",
+    "go/edpsvc/internal/residency/registry_test.go",
+    "go/edpsvc/internal/tenants/provisioning.go",
+    "go/edpsvc/internal/tenants/provisioning_test.go",
+    "go/edpsvc/cmd/attest/main.go",
+    "go/edpsvc/cmd/attest/cells.template.json",
+    "config/residency-cells/region-cells.json",
+    "config/residency-cells/attestation-keys.json",
+    "config/store-registry.json"
   ],
-  "approach": "PARALLEL HAND-OFF (other session): EDP-11 continues residency from EDP-05/BI-PF-1297 - build in go/edpsvc/internal/residency/ (Registry already there). FILE-OWNERSHIP: do NOT edit go/edpdata/*, go/edpsvc/main.go, or migrations/* (main session owns these for EDP-20/21). If a residency route is needed in go/edpsvc/main.go, add it in a marked block '// --- residency routes ---' or send the line to the main session to merge. Migrations >=0020. Backlog writes via the API only; batch the bookkeeping. Unblocks BI-PF-1304.",
+  "approach": "Concrete residency Evaluator + RegionResolver (deterministic, capability-matched, attestation-verified) reusing the 1297 registry; Ed25519 region-cell attestation (key_id + digest + not_after) via stdlib, mirroring pfcore/license; fail-closed provisioning (internal/tenants) + a mountable http.Handler. Cells/keyring in config/residency-cells; policies in config/residency-profiles. Config.capability-packs.json NOT touched (it is the media-pack catalog).",
   "review": {
     "reconciliation": {
       "prior_decisions": [],
@@ -88,10 +98,9 @@
     "at": ""
   },
   "verification": [
-    "Negative test: no attestation => provisioning denied",
-    "Profile test: IN-v1 and US-v1 resolve to expected cells",
-    "Attestation stale/expired rejected",
-    "language_rule_review.py passes"
+    "go build/vet/test green (residency + tenants + bench)",
+    "go_modules_check OK (12 modules); precheck PASS (45 gates)",
+    "tests: attestation verify (tamper/expired/unknown-key fail-closed), resolver determinism, evaluator modes, provisioning + handler fail-closed"
   ],
   "risks": [
     "Fail-closed default could block all provisioning if attestation service is down",
@@ -257,13 +266,12 @@
     "usage": {}
   },
   "created_at": "2026-10-13T16:02:41.666385",
-  "updated_at": "2026-10-17T17:51:16.363502",
+  "updated_at": "2026-10-17T18:28:28.301108",
   "score": 0.75,
   "source_ref": "docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md",
-  "_note": "dependencies set",
+  "_note": "affected_files corrected (capability-packs mis-ref); AC unchanged",
   "api_impact": {
-    "needs_api": false,
-    "reason": "retrofit assessment (ADR-0007): no external API consumer recorded; treated as internal until an API surface is required (then set needs_api=true with routes)",
-    "routes": []
+    "needs_api": true,
+    "surface": "POST /residency/provision (Provisioner.Handler) - mounted by the enterprise lifecycle (owner: other session)"
   }
 }
