@@ -1,0 +1,35 @@
+{
+  "item": "BI-PF-1395",
+  "sha": "e3b0c44298fc",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "Duplication vs. reuse \u00e2\u20ac\u201d `netfsstore` clones `objstore`. NFS/SMB are just mounted filesystems; `go/objstore/objstore.go` already implements confined-root + atomic temp/fsync/rename + sha256 over \"a filesystem root\". Creating `go/netfsstore` as a near-copy violates reuse-first. Either reuse `LocalStore` pointed at the mount root or extract one shared FS core both wrap.",
+      "Lifecycle contract (EDP-16) is specified but never implemented. `PutOptions.Immutable`/`Retention` are ignored by both existing adapters and the design says nothing about mapping them. Declaring `ObjectLock`/`CustomerManagedKeys` for Azure/GCS without a backing implementation contradicts AC2. Map Azure immutability/legal-hold and GCS object-hold/retention + CMEK, or declare them `false` and fail closed.",
+      "Mock-only conformance is self-referential. Cloud adapters tested against implementer-authored `httptest` servers verify the client's own assumptions, not the provider contract. \"Provider parity gated behind creds\" must mean a recorded/qualified contract test + a documented real-provider run; docs must not label an adapter \"shipped/conformant\" on mock evidence alone.",
+      "Google Drive key model does not fit the port. GDrive has no `/` path (parent-folder + file IDs), non-unique names, trash-by-default Delete, and paginated folder walks. The fixed probe key + `List(prefix)` semantics don't map. Specify key\u00e2\u2020\u201dfileID encoding, collision handling, permanent-delete behavior, pagination \u00e2\u20ac\u201d else silent misidentification/overwrite (data loss).",
+      "Checksum + streaming contract unaddressed and unscalable. Each cloud API must persist sha256 in provider metadata (like s3store `pf-checksum`). A \"stdlib net/http REST core\" risks buffering the whole body in memory (as s3store.Put does). Specify streaming/resumable upload reconciled with sha256.",
+      "Delivery sizing / adaptability. Bundling a shared core + 4 adapters contradicts the item's own conflict_findings (\"one adapter per PR\"). Land `objstorerest` + one adapter first, then per-backend items.",
+      "Merged adapters are dead code. Selection lives in `buildObjectStore()` (go/edpsvc/main.go) keyed on `PF_OBJECT_BACKEND`; \"no main.go edits + wiring later\" conflicts with \"build a thing \u00e2\u2020\u2019 wire it\". Add the config switch (or a follow-up item) so \"adding a backend never changes call-site code\" is demonstrable e2e.",
+      "Auth/token seam is the security boundary and is under-specified. Credentials via SecretStore, never logged/echoed; signed-URL keys (GCS RSA / Azure SAS HMAC) not embedded; GDrive has no pre-signed URL \u00e2\u2020\u2019 declare `SignedURLs:false`.",
+      "NFS/SMB \"conformance over a temp dir\" proves nothing about NFS/SMB. Locking/case-insensitivity/rename-atomicity/fsync differ; on case-insensitive FS the prefix confinement can collide (A/b vs a/b \u00e2\u2020\u2019 overwrite). Canonicalize keys; state honestly a temp dir is not NFS/SMB qualification.",
+      "Observability omitted. No per-op metrics/tracing, bounded retry/backoff, rate-limit handling, or context-deadline propagation; GDrive is quota-limited."
+    ],
+    "MINOR": [
+      "`ConformObjectStore` does not assert capability honesty (SignedURLs=>SignedURL works; ObjectVersioning=>Get/Delete by version), Immutable/Retention, or real List-prefix filtering \u00e2\u20ac\u201d extend the shared suite.",
+      "Conformance uses a FIXED key then overwrites/deletes it; the live `/admin/object-store/conform` handler can clobber a real object at `pf/conformance/probe`. Use a unique probe key; document \"never run against prod\".",
+      "`docs/EDP-STORAGE-ADAPTERS.md` is already stale \u00e2\u20ac\u201d local FS/S3 listed \"planned\" though `go/objstore`/`go/s3store` are shipped. Reconcile shipped/planned + link owning items.",
+      "No shared error taxonomy: map cloud not-found/forbidden/throttled to a portable sentinel (os.ErrNotExist) so callers degrade portably.",
+      "Each adapter as its own go.mod with replace ../datastore is a growing wiring tax; document a registry (or go.work) so \"add a backend\" stays mechanical."
+    ],
+    "NIT": [
+      "Confirm package-name style matches existing objstore/s3store.",
+      "\"dependency-free\" is imprecise: signed URLs need stdlib crypto/rsa and crypto/hmac; say \"no third-party deps\".",
+      "SMB is not always a filesystem root; note the mount-based assumption.",
+      "Mojibake in docs/ARCHITECTURE-DECISIONS.md and the EDP doc; cosmetic sweep when touched."
+    ],
+    "SUMMARY": []
+  }
+}

@@ -4,15 +4,20 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"io"
+	"time"
 )
 
 // ConformObjectStore runs the shared ObjectStore conformance suite against an adapter. It returns a slice
 // of failures (empty == conformant). Adapters (local FS, S3-compatible, ...) MUST pass this suite; it is the
 // contract that lets domain code swap providers without change (ADR-0006).
+//
+// The probe key is UNIQUE per run so it can never clobber a real object; and a DECLARED capability must
+// actually work (capability honesty) - a false claim fails the suite.
 func ConformObjectStore(ctx context.Context, s ObjectStore) []error {
 	var errs []error
-	key := "pf/conformance/probe"
+	key := fmt.Sprintf("pf/conformance/probe-%d", time.Now().UnixNano())
 	body := []byte("conformance probe")
 
 	info, err := s.Put(ctx, key, bytes.NewReader(body), int64(len(body)), PutOptions{ContentType: "text/plain"})
@@ -47,8 +52,35 @@ func ConformObjectStore(ctx context.Context, s ObjectStore) []error {
 		}
 	}
 
-	if _, err := s.List(ctx, "pf/conformance/"); err != nil {
+	// List must actually filter by prefix (return the just-written key).
+	if items, err := s.List(ctx, "pf/conformance/"); err != nil {
 		errs = append(errs, err)
+	} else {
+		found := false
+		for _, it := range items {
+			if it.Key == key {
+				found = true
+			}
+		}
+		if !found {
+			errs = append(errs, errors.New("List: prefix did not return the written key (real prefix filtering required)"))
+		}
+	}
+
+	// Capability honesty: a DECLARED capability must work; a false claim fails the suite.
+	caps := s.Capabilities()
+	if caps.SignedURLs {
+		if u, err := s.SignedURL(ctx, key, "GET", time.Minute); err != nil || u == "" {
+			errs = append(errs, fmt.Errorf("capability honesty: SignedURLs=true but SignedURL failed/empty: %v", err))
+		}
+	}
+	if caps.ObjectVersioning && info.Version != "" {
+		rcv, _, verr := s.Get(ctx, key, info.Version)
+		if verr != nil {
+			errs = append(errs, fmt.Errorf("capability honesty: ObjectVersioning=true but Get(version=%q) failed: %v", info.Version, verr))
+		} else {
+			_ = rcv.Close()
+		}
 	}
 
 	if err := s.Delete(ctx, key, ""); err != nil {

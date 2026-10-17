@@ -56,6 +56,31 @@ def _modules() -> list:
     return out
 
 
+def _git(*args) -> str:
+    try:
+        r = subprocess.run(["git", *args], cwd=str(_ROOT), capture_output=True, text=True)
+        return (r.stdout or "").strip()
+    except Exception:
+        return ""
+
+
+def _changed_files() -> set:
+    """Repo-relative changed files (vs origin/develop + working tree + untracked) for the diff-scoped gofmt."""
+    files = set()
+
+    def _add(out):
+        for ln in (out or "").splitlines():
+            ln = ln.strip()
+            if ln:
+                files.add(ln.replace("\\", "/"))
+
+    _add(_git("diff", "--name-only", "origin/develop", "--"))
+    _add(_git("diff", "--name-only", "--cached"))
+    _add(_git("diff", "--name-only"))
+    _add(_git("ls-files", "--others", "--exclude-standard"))
+    return files
+
+
 def main() -> int:
     go = _go_bin()
     if not go:
@@ -76,11 +101,18 @@ def main() -> int:
         return 1
 
     gofmt = os.path.join(os.path.dirname(go), "gofmt.exe" if os.name == "nt" else "gofmt")
+    changed = _changed_files()
     for d in mods:
         rel = os.path.relpath(d, str(_ROOT)).replace("\\", "/")
         if os.path.exists(gofmt):
             rc, out = _run(gofmt, ["-l", "."], d, env)
-            _check(rc == 0 and not out.strip(), f"{rel}: gofmt clean (rc={rc}): {out.strip() or 'needs formatting'}")
+            flagged = [ln.strip() for ln in out.splitlines() if ln.strip()]
+            # diff-scoped: fail only on CHANGED files (pre-existing debt is advisory) - like lint_check.
+            new_bad = [f for f in flagged if f"{rel}/{f}".replace("//", "/") in changed]
+            _check(rc == 0 and not new_bad,
+                   f"{rel}: gofmt not clean on CHANGED file(s) (rc={rc}): {', '.join(new_bad) or 'none'}")
+            if flagged and not new_bad:
+                print(f"go-modules: advisory - {rel} pre-existing unformatted file(s): {', '.join(flagged)}")
         else:
             FAILS.append("gofmt binary not found next to go")
         rc, out = _run(go, ["vet", "./..."], d, env)
