@@ -5,41 +5,46 @@ The authoritative gate chain for taking a backlog item from **take-up → merge 
 
 ## Lifecycle (in order)
 
-1. **Gate 1 — Take-up / design approval (HIL, manual).**
+**Principle — reviews precede HIL at each stage:** an independent review *informs* the human decision.
+**Gate 1.5 (design review) → Gate 1 (HIL design approval)**, and **Gate 2.5 (delivery review) → Gate 2 (HIL
+delivery approval)**. HIL always sees the reviewer's findings + recommendation as an input to the decision.
+
+1. **Gate 1.5 — Architect DESIGN review (independent sub-agent; fresh context; configurable model).**
+   Reviews the **design / reconciliation block** *before* HIL approval (see §Gate 2.5 rules). Recommended for
+   large/security/schema work. Its findings + recommendation are presented to HIL.
+
+2. **Gate 1 — Take-up / design approval (HIL, manual), informed by Gate 1.5.**
    Reconciliation block (PRIOR DECISIONS / EXISTING PATH / ASSUMPTIONS / DIVERGENCES / OPEN) + IMPACT REVIEW
    (LANGUAGE CHECK, API CHECK, AC) + risks. `language_rule_review.py` verdict. **No code before approval.**
 
-1.5 **Gate 1.5 — Architect design review (optional, recommended for large/security/schema work).**
-   Fresh-context review of the **design** by a separately-launched reviewer on a **configurable model**
-   (see Gate 2.5 rules), before coding.
-
-2. **Implement on a feature branch** (never `develop`). Backlog writes are **API-only**; integrity gates apply
+3. **Implement on a feature branch** (never `develop`). Backlog writes are **API-only**; integrity gates apply
    at write time: **AC required** at create (`POST /items` → 400), **api_impact** (`api-first`),
    **context/brief** (`backlog-context`), **epic** (`backlog-epic`), **ids / monotonic / reconcile / write-guard**.
 
-3. **Gate 2 — Delivery review (HIL).**
+4. **Gate 2.5 — Architect DELIVERY review (independent sub-agent).** *Runs before Gate 2; see §Gate 2.5.*
+   Findings + recommendation are presented to HIL.
+
+5. **Gate 2 — Delivery review (HIL), informed by Gate 2.5.**
    Self/peer review of the diff + **AC verified independently** (verifier ≠ implementer) + linked evidence.
 
-4. **Gate 2.5 — Second-model Architect review (before precheck).**  ← see §Gate 2.5
-
-5. **`precheck` — fast tier (blocking, deterministic, offline).** ~40–58 gates (compile, wired-audit,
+6. **`precheck` — fast tier (blocking, deterministic, offline).** ~40–58 gates (compile, wired-audit,
    store-contract, api-contract/governance/docs, language-rule, backlog-*, api-first, docs-fresh, secret-scan,
-   compliance, data-plane-threats, intent-trace, validation-engine, feature-pr, merge-gate, rate-budget,
-   tests-scoped).
+   compliance, data-plane-threats, intent-trace, validation-engine, feature-pr, merge-gate, architect-review,
+   rate-budget, tests-scoped).
 
-6. **`--full` / `--release` tiers.** Full adds lifecycle gates (dogfood/replay/schedule, repo-setup,
+7. **`--full` / `--release` tiers.** Full adds lifecycle gates (dogfood/replay/schedule, repo-setup,
    docs-fresh-strict, release, final-audit, backlog-e2e) + the full test suite; release adds `secret-scan-all`.
 
-7. **PR / CI gate.** `structure.yml` runs precheck fast on the PR (required).
+8. **PR / CI gate.** `structure.yml` runs precheck fast on the PR (required).
 
-8. **Merge gate.** `merge_gate_check` (pr_gate + validation evidence) → **PR merge, no admin-merge**.
+9. **Merge gate.** `merge_gate_check` (pr_gate + validation evidence) → **PR merge, no admin-merge**.
 
-9. **Closure guard (BI-PF-1413).** `status→completed` rejects unless **AC + verification/evidence +
-   `verified_by` ≠ `worker_id`**.
+10. **Closure guard (BI-PF-1413).** `status→completed` rejects unless **AC + verification/evidence +
+    `verified_by` ≠ `worker_id`**.
 
-10. **Delivery provenance.** `set_delivery` (branch / merge_sha / PR) (+ usage/duration).
+11. **Delivery provenance.** `set_delivery` (branch / merge_sha / PR) (+ usage/duration).
 
-11. **Definition of Done.** `intent-trace` descriptors resolve; evidence linked; language/API checks green.
+12. **Definition of Done.** `intent-trace` descriptors resolve; evidence linked; language/API checks green.
 
 ## Gate 2.5 — Second-model Architect review
 
@@ -75,5 +80,5 @@ appends the summary to the item context. The reviewer **sub-agent** (any model f
 `config/architect-review.json`) is launched separately; the tool does not embed or lock a model.
 
 ## One line
-**Gate 1 (design) → Gate 1.5 (design review) → implement → Gate 2 (review + AC verify) → Gate 2.5 (second-model
-architect review) → precheck fast → PR/CI → merge gate → closure guard → delivery → DoD.**
+**Gate 1.5 (design review) → Gate 1 (HIL design approval) → implement → Gate 2.5 (delivery review) → Gate 2
+(HIL delivery approval) → precheck fast → PR/CI → merge gate → closure guard → delivery → DoD.**

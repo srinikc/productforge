@@ -98,10 +98,11 @@ Applies to EVERY review, Gate (**Gate 1** = approve the plan before coding; **Ga
 
 ## Review gates (binding — full chain in `docs/REVIEW-GATES-LIFECYCLE.md`)
 
-Gate 1 (design/HIL) → Gate 1.5 (design review) → implement → Gate 2 (review + independent AC verification) →
-**Gate 2.5 (second-model Architect review** — fresh context, configurable model default `mimo-v2.6-flash`/rotatable,
-advisory-vs-blocking split, results stored as evidence) → precheck fast → PR/CI → merge gate → **closure guard** →
-delivery provenance → DoD.
+**Reviews precede HIL at each stage (the review informs the human decision):**
+**Gate 1.5 (design review)** → Gate 1 (design/HIL approval, *informed by 1.5*) → implement →
+**Gate 2.5 (second-model Architect delivery review** — fresh context, configurable model default `mimo-v2.6-flash`/
+rotatable, advisory-vs-blocking split, results stored as evidence) → Gate 2 (delivery review + independent AC
+verification, *informed by 2.5*) → precheck fast → PR/CI → merge gate → **closure guard** → delivery provenance → DoD.
 
 **Gate 2.5 is a HARD rule (BI-PF-1428):** the *model run* stays out of precheck, but precheck fast runs
 `scripts/dev/architect_review_check.py` (deterministic/offline) — a **code / schema / security** change **fails
