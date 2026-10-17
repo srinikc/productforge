@@ -1,16 +1,17 @@
 # Backlog Summary
 
-> GENERATED 2026-10-16T21:01:27 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-17T09:13:58 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 134  |  **Closed:** 543
+- **Open:** 131  |  **Closed:** 547
 - `blocked`: 1
 - `executing`: 3
-- `new`: 130
+- `in_progress`: 4
+- `new`: 123
 
-### new, by category (130)
+### new, by category (123)
 **API / reports / HIL / misc** (15)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
@@ -63,19 +64,18 @@
 | BI-PF-1401 | Should | feature | Expose doc-driven backlog ingest via a Go capability service (generic surface); tooling becomes a client | Expose doc-driven backlog ingest via a Go capability service (generic surface); tooling becomes a client |
 | BI-PF-1403 | Should | feature | Doc-ingest extraction: design Go extraction for .docx/.pdf (and future formats) in the capability service | Doc-ingest extraction: design Go extraction for .docx/.pdf (and future formats) in the capability service |
 
-**Licensing / tenancy** (8)
+**Licensing / tenancy** (7)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-PF-0390 | Should | epic | EPIC A: PF Commercial & IP Foundation (contracts, Go core, licensing, packaging, EAP, RDC, governance, vertical slice) | EPIC A — the needed-now foundation: A0 baseline freeze + ADR register; A1 thin contracts incl. Go<->Python con... |
 | BI-PF-1287 | Should | change | License issuance production: vendor keypair management + signing-env integration (A3 packaging) | Provision a vendor signing keypair for production issuance; ship only the public key with the product; integra... |
 | BI-PF-1292 | Must | epic | EPIC: Enterprise Data Plane (DB & Storage) - PostgreSQL system of record + object store + tenant isolation + data residency | Build the provider-neutral enterprise data plane from docs/Product_Forge_Enterprise_Performance_Security_DB_St... |
 | BI-PF-1303 | Must | feature | EDP-11: ResidencyPolicy/RegionResolver + RegionCell capability attestation + fail-closed tenant provisioning | Deliver ResidencyPolicy evaluation, RegionResolver, RegionCell capability attestation verification, and fail-c... |
-| BI-PF-1309 | Must | feature | EDP-17: Canonical PostgreSQL schema (tenants/memberships/projects/runs/stages/attempts/artifacts/usage/quotas/audit/schema_migrations) + indexes + pooling + optimistic versioning | Deliver the canonical PostgreSQL schema (tenants, memberships, projects, runs, stages, attempts, artifacts, us... |
 | BI-PF-1315 | Must | feature | EDP-23: Backup/PITR + restore drills (full service + single-tenant) + DB<->object integrity reconciliation + region-aware restore | Deliver backup + PITR configuration, automated restore drills (full-service and single-tenant), DB<->object in... |
 | BI-PF-1317 | Could | feature | EDP-24: Scale-out & enterprise isolation tiers (read replicas / partitioning / tenant isolation tiers / additional region cells / region-migration workflow) [EVIDENCE-GATED] | Provide scale-out and enterprise isolation tiers including read-replica support, DB partitioning, tenant isola... |
 | BI-PF-1415 | Should | defect | RCCA: config/derived stores classified by kind heuristic (not reviewed) - 78 project/tenant-scoped stores likely belong in DB (views/tables) | RCCA: config/derived stores classified by kind heuristic (not reviewed) - 78 project/tenant-scoped stores like... |
 
-**Specs / cache / context / artifacts** (10)
+**Specs / cache / context / artifacts** (9)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0206 | Should | tech-debt | Backend: model downloader + local cache + license-acceptance gate + models.lock (open-weights) | One owner module that downloads only the weights a project's capability pack needs, into a gitignored local ca... |
@@ -83,13 +83,12 @@
 | BI-PF-1212 | Should | feature | C10: Security-event audit/evidence (evidence-grade) + durable SecurityContext propagation | C10: Security-event audit/evidence (evidence-grade) + durable SecurityContext propagation |
 | BI-PF-1241 | Should | feature | Per-item token/cache/cost usage (execution.usage) + runtime usage capture + rollup | - backlog execution: + usage{} (input/output/reasoning/cache_read/cache_write/total/cost_usd/model/cost_source... |
 | BI-PF-1273 | Should | feature | Eventing SSOT: migrate existing consumers (event_bus/context/ops/capabilities/parked/notifications/alerts) behind shims | Migrate each consumer to the subscriber/transport API with a compatibility shim so behavior is identical durin... |
-| BI-PF-1312 | Must | feature | EDP-20: Append-only AuditStore; split orchestrator/storage.py (audit vs cache vs evidence); retention/redaction; large checkpoints -> object store | Deliver an append-only AuditStore, split orchestrator/storage.py into audit/cache/evidence responsibilities, a... |
 | BI-PF-1314 | Should | feature | EDP-22: Benchmarks/SLOs + EXPLAIN(ANALYZE,BUFFERS) tuning + observability + quotas + graceful degradation (DB/object/cache/queue) | Establish performance benchmarks/SLOs, EXPLAIN(ANALYZE,BUFFERS)-based tuning, observability, quotas, and grace... |
 | BI-PF-1329 | Should | feature | WG-O5: Assign a SPECIFIC backlog item to a session/worker (claim-by-id + operator assignment) with lease semantics | Support claiming/assigning a specific item id (not just next-eligible). |
 | BI-PF-1385 | Must | bug | Backlog API: no deterministic endpoint to author item context fields (objective/acceptance_criteria/affected_files/approach) | Backlog API: no deterministic endpoint to author item context fields (objective/acceptance_criteria/affected_f... |
 | BI-PF-1392 | Should | task | Enforce per-feature FR/US caps + max_lines in the Go artifact engine (scaled by the profile) and reconcile the three section sources | Per-feature FR/US caps + max_lines enforced NUMERICALLY (scaled by profile); sections have ONE source. |
 
-**Wiring / tech-debt / API** (80)
+**Wiring / tech-debt / API** (75)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0185 | Should | feature | EPIC: Multi-modal / media orchestration (pluggable capability packs) | Make the pipeline modality-agnostic via PLUGGABLE capability packs, enabled per project when the idea needs th... |
@@ -148,9 +147,6 @@
 | BI-PF-1298 | Must | task | EDP-06: Baseline performance capture (artifact list/read, project load/save, run transitions, memory retrieval, job claim/lease, DB/pool counts) | Capture reproducible baseline performance metrics for artifact list/read, project load/save, run transitions, ... |
 | BI-PF-1304 | Must | feature | EDP-12: Generated-product residency manifest (data_classes/home_region/allowed_regions/backup/kms/egress/retention) + build/deploy gate | Generate a per-product residency manifest (data_classes, home_region, allowed_regions, backup, kms, egress, re... |
 | BI-PF-1308 | Must | feature | EDP-16: Object lifecycle (versioning/lock/retention), signed-URL policy, delete/replica/backup reconciliation | Define and enforce object lifecycle rules (versioning, lock, retention), signed-URL access policy, and delete/... |
-| BI-PF-1310 | Must | feature | EDP-18: Migration/import tooling (dry-run, hashes/counts parity, dual-read, rollback snapshot, cutover flag) for control-plane/portfolio/forge/project/pipeline; JSON demoted to projections | Deliver migration/import tooling with dry-run, hash/count parity verification, dual-read, rollback snapshot an... |
-| BI-PF-1311 | Must | feature | EDP-19: Durable JobStore/OutboxStore + leases/heartbeat/retry/cancel/dead-letter; one-owner boundary vs WorkerGrid (L2, no second queue) | Provide durable, DB-backed JobStore and OutboxStore with leases, heartbeat, retry, cancel, and dead-letter han... |
-| BI-PF-1313 | Must | feature | EDP-21: MemoryRepository behind the 8 memory types; PG metadata + object payloads; FTS then pgvector; ACL-filtered retrieval + leakage tests | Implement MemoryRepository behind all 8 memory types with PG metadata + object-store payloads, FTS-then-pgvect... |
 | BI-PF-1320 | Should | task | docs-fresh gate red on develop: unclassified doc Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md | docs-fresh gate red on develop: unclassified doc Product_Forge_Enterprise_Performance_Security_DB_Storage_Road... |
 | BI-PF-1323 | Must | chore | Harden sync_develop on a dirty/noisy working tree (untracked collisions; merge refused; generated-file hygiene) | A sync that just works on a realistic (noisy) working tree, so "sync often" stays reliable. |
 | BI-PF-1324 | Should | chore | Concurrent sessions: uniquely-name scratch/temp files (avoid shared temp-dir collision) | Concurrent sessions never collide on scratch files. |
@@ -166,12 +162,10 @@
 | BI-PF-1391 | Should | task | Project-size profile lever: small/medium/large selects required vs optional sections + counts bands + size budget | One lever scales depth: small -> required sections only, low counts, small budgets; medium -> recommended; lar... |
 | BI-PF-1393 | Should | task | Verify small/medium/large profiles on MyToDo (no over-scope) + close BI-PF-1333 | Prove a trivial run stays proportionate per profile and close BI-PF-1333. |
 | BI-PF-1395 | Should | feature | EDP: additional ObjectStore adapters (NFS/SMB, Google Drive, Azure Blob, GCS, ...) behind the ObjectStore port | EDP: additional ObjectStore adapters (NFS/SMB, Google Drive, Azure Blob, GCS, ...) behind the ObjectStore port |
-| BI-PF-1399 | Must | feature | EDP: move the canonical backlog system-of-record to PostgreSQL (JSON backlog files become derived/server state) | EDP: move the canonical backlog system-of-record to PostgreSQL (JSON backlog files become derived/server state... |
 | BI-PF-1410 | Must | feature | Hard DoD gate: every item needs detailed Acceptance Criteria + independent verification (verifier != implementer) before close/merge | Hard DoD gate: every item needs detailed Acceptance Criteria + independent verification (verifier != implement... |
 | BI-PF-1414 | Should | defect | RCCA: schema designed without field-level reconciliation vs the owning port (artifact schema mismatched datastore.Artifact) - found only at C1b | RCCA: schema designed without field-level reconciliation vs the owning port (artifact schema mismatched datast... |
 | BI-PF-1416 | Should | feature | Automate PF persistence setup: one-command provisioning + roles + migrations + storage config + secrets + verify (dev and SaaS) | Automate PF persistence setup: one-command provisioning + roles + migrations + storage config + secrets + veri... |
 | BI-PF-1417 | Should | feature | Standard: EDP is the single storage/data-plane standard - every capability uses datastore ports + Postgres RLS / object store (no bespoke stores) | Standard: EDP is the single storage/data-plane standard - every capability uses datastore ports + Postgres RLS... |
-| BI-PF-1421 | Should | feature | Add project_id scoping to backlog_items (+ stages/attempts) so product/project data is directly scoped, not only via joins/JSON | Add project_id scoping to backlog_items (+ stages/attempts) so product/project data is directly scoped, not on... |
 
 ---
 
@@ -371,5 +365,5 @@
 ---
 
 ## Totals
-- backend: 134 open / 543 closed
+- backend: 131 open / 547 closed
 - dashboard: 146 open / 3 closed

@@ -40,8 +40,47 @@ def domain_backlog() -> list[dict]:
     return rows
 
 
-# domain name -> (loader, target table, db-id column, db-data column)
-DOMAINS = {"backlog": (domain_backlog, "backlog_items", "id", "data")}
+def _sqlite_rows(db_path: Path, table: str) -> list[dict]:
+    import sqlite3
+    if not db_path.is_file():
+        return []
+    c = sqlite3.connect(str(db_path))
+    try:
+        cur = c.execute(f'SELECT * FROM "{table}"')
+        cols = [d[0] for d in cur.description]
+        return [dict(zip(cols, row)) for row in cur.fetchall()]
+    except sqlite3.OperationalError:
+        return []
+    finally:
+        c.close()
+
+
+def _sqlite_loader(db_path: Path, table: str):
+    def load() -> list[dict]:
+        rows = _sqlite_rows(db_path, table)
+        out = []
+        for i, r in enumerate(rows):
+            rid = str(r.get("id") or f"{table}-{i}")
+            out.append({"id": rid, "tenant_id": "product_forge", "type": table, "status": "new",
+                        "title": table, "body": "",
+                        "data": json.dumps(r, separators=(",", ":"), default=str), "_item": r})
+        return out
+    return load
+
+
+CONTROL_DB = ROOT / "data" / "control-plane" / "control-plane.db"
+PORTFOLIO_DB = ROOT / "data" / "portfolio" / "portfolio.db"
+
+# domain name -> (loader, target table | None, db-id column, db-data column)
+DOMAINS = {
+    "backlog": (domain_backlog, "backlog_items", "id", "data"),
+    # SQLite runtime sources (report-only when empty / until a target table is assigned):
+    "control-plane": (_sqlite_loader(CONTROL_DB, "settings"), None, "id", "data"),
+    "portfolio": (_sqlite_loader(PORTFOLIO_DB, "jobs"), None, "id", "data"),
+    "forge": (_sqlite_loader(CONTROL_DB, "settings"), None, "id", "data"),
+    "project": (_sqlite_loader(CONTROL_DB, "settings"), None, "id", "data"),
+    "pipeline": (_sqlite_loader(CONTROL_DB, "settings"), None, "id", "data"),
+}
 
 
 def _db_state(dsn: str, table: str, id_col: str, data_col: str) -> dict[str, dict]:
@@ -66,6 +105,11 @@ def main(argv: list[str]) -> int:
     src_hash = _sha(items)
     print(f"migrate[{a.domain}]: source rows={len(rows)} sha256={src_hash[:16]}")
 
+    if table is None:
+        # No assigned target table (authored config / empty source): report only, nothing to migrate.
+        print(f"  report-only: {len(rows)} source row(s); no runtime data to migrate "
+              f"(config/derived stays files by design)")
+        return 0
     if not a.dsn:
         print("  dry-run (set PF_DB_DSN to compare/apply)")
         return 0
