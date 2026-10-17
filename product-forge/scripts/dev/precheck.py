@@ -178,6 +178,7 @@ _GATES = [
     ("wg-surface", ["scripts/dev/wg_surface_check.py"], "fast", None),
     ("global-commands", ["scripts/dev/sync_global_commands.py", "--check"], "fast", None),
     ("wg-go", ["scripts/dev/wg_go_check.py"], "fast", ["workergrid", "wg"]),
+    ("go-modules", ["scripts/dev/go_modules_check.py"], "fast", ["go/"]),
     ("pidl", ["scripts/dev/pidl_check.py"], "fast", ["pidl"]),
     ("pidl-gate", ["scripts/dev/pidl_gate_check.py"], "fast", ["pidl", "close_loop"]),
     ("pidl-synthesis", ["scripts/dev/pidl_synthesis_check.py"], "fast", ["pidl", "scheduler", "close_loop"]),
@@ -231,6 +232,7 @@ _GROUP_OF = {
     "github": "contracts", "pf-surface": "contracts", "wg-surface": "contracts", "global-commands": "contracts",
     # worker: leases / worktrees / worker layer
     "lease": "worker", "single-path": "worker", "vcs-worktree": "worker", "worker": "worker", "wg-go": "worker",
+    "go-modules": "worker",
     # backlog: SSOT invariants / grooming / staleness / trace
     "backlog-reconcile": "backlog", "backlog-context": "backlog", "backlog-dod": "backlog",
     "backlog-verification": "backlog", "backlog-ids": "backlog", "backlog-epic": "backlog",

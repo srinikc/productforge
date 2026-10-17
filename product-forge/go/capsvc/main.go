@@ -78,13 +78,13 @@ func (s *server) authorized(r *http.Request) bool {
 }
 
 type docRequest struct {
-	Doc        string `json:"doc"`
-	SourceDoc  string `json:"source_doc"`
-	Apply      bool   `json:"apply"`
-	Overwrite  bool   `json:"overwrite"`
-	Create     bool   `json:"create"`
-	Scope      string `json:"scope"`
-	Project    string `json:"project"`
+	Doc       string `json:"doc"`
+	SourceDoc string `json:"source_doc"`
+	Apply     bool   `json:"apply"`
+	Overwrite bool   `json:"overwrite"`
+	Create    bool   `json:"create"`
+	Scope     string `json:"scope"`
+	Project   string `json:"project"`
 }
 
 func (s *server) contextFromDoc(w http.ResponseWriter, r *http.Request, epicID string) {

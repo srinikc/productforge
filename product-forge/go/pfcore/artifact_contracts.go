@@ -21,14 +21,14 @@ import (
 
 // ACContract mirrors one entry in config/artifact-contracts/index.json.
 type ACContract struct {
-	Title           string         `json:"title"`
-	Tier            string         `json:"tier"`
-	AppliesTo       []string       `json:"applies_to"`
-	Standard        string         `json:"standard"`
-	StandardVersion string         `json:"standard_version"`
-	Source          map[string]any `json:"source"`
-	License         map[string]any `json:"license"`
-	FormatVersion   string         `json:"format_version"`
+	Title            string           `json:"title"`
+	Tier             string           `json:"tier"`
+	AppliesTo        []string         `json:"applies_to"`
+	Standard         string           `json:"standard"`
+	StandardVersion  string           `json:"standard_version"`
+	Source           map[string]any   `json:"source"`
+	License          map[string]any   `json:"license"`
+	FormatVersion    string           `json:"format_version"`
 	Status           string           `json:"status"`
 	Format           string           `json:"format"`
 	Sections         []string         `json:"sections"`

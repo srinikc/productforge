@@ -14,8 +14,8 @@ func writeACDir(t *testing.T) string {
 		"contracts": map[string]any{
 			"requirements.srs": map[string]any{
 				"title": "SRS", "tier": "universal", "applies_to": []string{"*"},
-				"source":        map[string]any{"canonical_url": "https://example.com/29148"},
-				"license":       map[string]any{"spdx": "NOASSERTION"},
+				"source":         map[string]any{"canonical_url": "https://example.com/29148"},
+				"license":        map[string]any{"spdx": "NOASSERTION"},
 				"format_version": "1.0.0", "status": "standard",
 				"sections":          []string{"Functional Requirements", "Non-Functional Requirements"},
 				"required_sections": []string{"Functional Requirements"},
@@ -26,8 +26,8 @@ func writeACDir(t *testing.T) string {
 			},
 			"api.spec": map[string]any{
 				"title": "API", "tier": "universal", "applies_to": []string{"*"},
-				"source":        map[string]any{"canonical_url": "https://example.com/openapi"},
-				"license":       map[string]any{"spdx": "Apache-2.0"},
+				"source":         map[string]any{"canonical_url": "https://example.com/openapi"},
+				"license":        map[string]any{"spdx": "Apache-2.0"},
 				"format_version": "1.0.0", "status": "standard",
 				"format":            "json",
 				"sections":          []string{"openapi", "paths"},
@@ -38,8 +38,8 @@ func writeACDir(t *testing.T) string {
 			},
 			"media.video": map[string]any{
 				"title": "Video", "tier": "modality", "applies_to": []string{"video"},
-				"source":        map[string]any{"canonical_url": "https://example.com/imf"},
-				"license":       map[string]any{"spdx": "Apache-2.0"},
+				"source":         map[string]any{"canonical_url": "https://example.com/imf"},
+				"license":        map[string]any{"spdx": "Apache-2.0"},
 				"format_version": "1.0.0", "status": "standard",
 				"sections": []string{"Timeline", "Tracks"},
 				"size":     map[string]any{"max_lines": 0},
