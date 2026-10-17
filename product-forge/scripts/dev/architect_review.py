@@ -79,11 +79,21 @@ def _token() -> str:
         return ""
 
 
+def _ba():
+    """In-process Backlog API module (no dev_server/URL/port)."""
+    p = str(ROOT / "scripts" / "dev")
+    if p not in sys.path:
+        sys.path.insert(0, p)
+    import backlog_api
+    return backlog_api
+
+
 def _get_item(item: str) -> dict:
-    req = urllib.request.Request(f"{API.rstrip('/')}/backlog/items/{item}", method="GET")
-    req.add_header("Authorization", f"Bearer {_token()}")
-    with urllib.request.urlopen(req, timeout=15) as r:
-        return json.loads(r.read().decode("utf-8")).get("data") or {}
+    try:
+        return _ba().get_item(item) or {}
+    except Exception:
+        from core import backlog as _b
+        return _b.get_epic("product_forge", None, item) or {}
 
 
 # The review sha covers SOURCE changes only - it must not change when derived/generated artifacts move
@@ -200,12 +210,8 @@ def _build_prompt(item: dict, item_id: str, mode: str) -> str:
 
 
 def _post_context(item_id: str, payload: dict) -> None:
-    body = json.dumps(payload).encode("utf-8")
-    req = urllib.request.Request(f"{API.rstrip('/')}/backlog/items/{item_id}/context", data=body, method="POST")
-    req.add_header("Authorization", f"Bearer {_token()}")
-    req.add_header("Content-Type", "application/json")
-    req.add_header("X-Roles", "operator")
-    urllib.request.urlopen(req, timeout=15).read()
+    # In-process Backlog API (no dev_server/URL/port).
+    _ba().set_context(item_id, payload)
 
 
 def review_block(findings: dict, model: str, sha: str, mode: str) -> str:
