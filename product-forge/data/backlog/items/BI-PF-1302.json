@@ -52,7 +52,9 @@
     "All HTTP handlers enforce configured timeouts and body/upload size limits",
     "Per-tenant and global quotas enforced fail-closed with structured errors",
     "profile=production startup rejects dev/anon auth configs",
-    "Passes scripts/dev/language_rule_review.py (Go-only)"
+    "Passes scripts/dev/language_rule_review.py (Go-only)",
+    "Runtime DB connections MUST use a non-superuser role (pf_app/pf_runtime); a fail-closed guard rejects a superuser (pf_owner) runtime DSN so RLS cannot be silently bypassed",
+    "The production profile rejects dev/anon auth and a superuser runtime role at startup (fail-closed) with a clear error"
   ],
   "in_scope": [
     "Go limits/quota package",
@@ -75,7 +77,7 @@
     "internal/http/middleware/*.go",
     "config/settings wiring"
   ],
-  "approach": "Define limits struct + profile-aware loader, add middleware for enforcement, unit test per limit type, integration test quota attribution with pooled tenant context.",
+  "approach": "EDP-10 scope + RLS-role guard (from BI-PF-1407 review): timeouts, pool budgets, payload/upload limits, per-tenant & global quotas, structured errors, production profile rejects dev/anon auth. ADDED: runtime DSN must be a non-superuser role (pf_app/pf_runtime); fail-closed guard refuses pf_owner/superuser at startup so RLS is never silently bypassed.",
   "review": {
     "reconciliation": {
       "prior_decisions": [],
@@ -242,7 +244,7 @@
     "usage": {}
   },
   "created_at": "2026-10-13T16:02:37.925490",
-  "updated_at": "2026-10-15T19:52:03.943748",
+  "updated_at": "2026-10-17T18:24:10.098993",
   "score": 0.75,
   "source_ref": "docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md",
   "_note": "dependencies set",

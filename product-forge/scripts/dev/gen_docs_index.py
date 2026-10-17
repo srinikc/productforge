@@ -68,6 +68,7 @@ TOP = {
     "EDP-SAAS-PERSISTENCE-AND-DEPLOYMENT.md": ("SSOT", "PF persistence + SaaS deployment: what lives in DB vs object store vs files, how to configure/swap DB and storage, deploy workflow, SaaS gaps (BI-PF-1292)", 100),
     "EDP-STORE-STATUS-AND-CONCURRENCY.md": ("SSOT", "Store status matrix (file|view|table, migrated?) + concurrency, RAG, intake, generated-product data homes (BI-PF-1292)", 100),
     "PRECHECK-GROUPS.md": ("Tooling", "Precheck split into sequential named groups (--group 1..5) + test sharding design (BI-PF-1419)", 100),
+    "REVIEW-GATES-LIFECYCLE.md": ("SSOT", "Binding backlog item lifecycle gates Gate1 -> Gate1.5 -> Gate2 -> Gate2.5 (second-model architect review) -> precheck -> merge -> closure -> DoD", 100),
     "BACKLOG-DOC-INGEST.md": ("Tooling", "Doc-driven backlog ingest: project a plan/.md/.pdf doc onto an epic + children via the API (dry-run default) (BI-PF-1396)", 100),
     "SECURITY-ARCHITECTURE-CISO.md": ("SSOT", "CISO security-architecture posture: trust boundaries, controls, risk, framework mapping (BI-PF-1203)", 100),
     "AUDIT-REGISTER-TRIAGE.md": ("Analysis (current)", "Audit PF/candidate disposition: fixed / tracked / new (BI-PF-0254)", 100),

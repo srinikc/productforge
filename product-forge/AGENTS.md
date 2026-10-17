@@ -96,6 +96,13 @@ Applies to EVERY review, Gate (**Gate 1** = approve the plan before coding; **Ga
    verdict (a large edit to shipped Python is new logic → Go) — an estimate is fine at Gate 1; the enforcing
    gate still evaluates the real `git diff`.
 
+## Review gates (binding — full chain in `docs/REVIEW-GATES-LIFECYCLE.md`)
+
+Gate 1 (design/HIL) → Gate 1.5 (design review) → implement → Gate 2 (review + independent AC verification) →
+**Gate 2.5 (second-model Architect review** — fresh context, configurable model default `mimo-v2.6`/rotatable,
+advisory-vs-blocking split, **not** inside precheck, results stored as evidence) → precheck fast → PR/CI →
+merge gate → **closure guard** → delivery provenance → DoD.
+
 ## Reconciliation before implementation (binding — any change)
 Before designing or implementing **anything**, produce a **RECONCILIATION** block and keep it with the work
 item / review. It reconciles the change against what has **already been decided** and what **already exists**:
