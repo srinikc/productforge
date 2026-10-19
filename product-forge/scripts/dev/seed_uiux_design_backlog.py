@@ -112,7 +112,7 @@ ITEMS = [
         "out_scope": ["Authoring NEW design systems beyond the 18 sampled."],
         "ac": [
             "GuidelineContentLoader resolves the ui-ux layer to the new files.",
-            "accessibility.md states WCAG 2.2 AA.",
+            "docs/reference/uiux/accessibility.md states the WCAG 2.2 AA target and the verification approach.",
             "Samples run under docs/reference/uiux-samples/ and are store-registry allow-listed.",
         ],
         "dod": ["docs served; no derived file hand-edited.", "store-registry allow-globs present."],
@@ -217,7 +217,7 @@ ITEMS = [
         "ac": [
             "UI agents declare the relevant skills and ui-ux/design-systems layers.",
             "config/agent-capabilities.json mirrors the bindings.",
-            "agent-card and role-prompt audits pass.",
+            "Agent-card and role-prompt audits pass with the new bindings and report no missing skills.",
         ],
         "dod": ["generate_agent_cards re-run; .opencode/agent/*.md in sync."],
         "files": ["agents/design.agent.json", "agents/ux-ia.agent.json",
@@ -238,7 +238,7 @@ ITEMS = [
         "out_scope": ["Manual assistive-tech testing (human task)."],
         "ac": [
             "a11y.audit returns a WCAG 2.2 AA verdict (fail-closed).",
-            "a11y-audit wired as a blocking stage.",
+            "The a11y-audit stage is wired as a blocking stage that fails closed on violations.",
             "test-framework/templates/accessibility/ exists.",
         ],
         "dod": ["Known-bad page FAILS the gate; known-good passes."],
@@ -274,6 +274,19 @@ WAVES = {
     "direction-stage": 4,
 }
 
+API_IMPACT = {
+    "epic": "coordination epic; delivered through child items and existing pipeline/CLI surfaces",
+    "skills-registry": "internal Go skill resolver plus repo files; no new HTTP surface",
+    "knowledge-ingestion": "documentation and ingestion tooling only; no runtime API surface",
+    "catalog-engine": "internal Go capability ops (design.catalog/design.select); no new HTTP route",
+    "token-engine": "internal Go token generator; no new HTTP surface",
+    "direction-stage": "pipeline stage using the existing HIL gate; no new HTTP API",
+    "skill-injection": "internal agent-runner prompt injection; no new API surface",
+    "agent-bindings": "config and tooling for agent bindings; no API surface",
+    "a11y-engine": "internal Go a11y op plus a pipeline stage; no new HTTP API",
+    "design-qa": "internal verifier integrated with existing QA surfaces; no new API",
+}
+
 
 def main() -> int:
     prior_ext = {e.get("external_id") for e in backlog.list_open(S, P) + backlog.list_closed(S, P)}
@@ -285,6 +298,9 @@ def main() -> int:
         acceptance_criteria=EPIC["ac"],
     )
     epic_id = epic["id"]
+    if EPIC["ext"] not in prior_ext:
+        backlog.update(S, P, epic_id, api_impact={
+            "needs_api": False, "routes": [], "consumers": [], "reason": API_IMPACT["epic"]})
     print(f"epic {epic_id}: {epic['title']}")
 
     created = {}
@@ -299,8 +315,11 @@ def main() -> int:
         )
         created[it["ext"].split(":")[-1]] = row["id"]
         if it["ext"] not in prior_ext:
-            backlog.update(S, P, row["id"], affected_files=it["files"], verification=full_dod,
-                           _note="planned affected files + DoD (design)")
+            backlog.update(
+                S, P, row["id"], affected_files=it["files"], verification=full_dod,
+                api_impact={"needs_api": False, "routes": [], "consumers": [],
+                            "reason": API_IMPACT[it["ext"].split(":")[-1]]},
+                _note="planned affected files + DoD (design)")
         print(f"  {row['id']:12} {it['title']}")
 
     for it in ITEMS:
