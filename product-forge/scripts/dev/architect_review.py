@@ -292,9 +292,14 @@ def _is_resolved(d: dict) -> bool:
 
 
 def iter_findings(findings: dict):
-    """Yield (severity, text) in the canonical severity order (stable disposition numbering)."""
+    """Yield (severity, text) in the canonical severity order (stable disposition numbering).
+
+    The reviewer's explicit ``- none`` placeholder for an empty section is not a finding.
+    """
     for sev in SEVERITIES:
         for text in (findings or {}).get(sev, []) or []:
+            if str(text).strip().lower() in ("none", "", "-"):
+                continue
             yield sev, text
 
 

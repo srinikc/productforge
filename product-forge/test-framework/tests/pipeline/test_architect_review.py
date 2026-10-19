@@ -50,6 +50,12 @@ def test_pending_blocking_only_blocks_blocker_and_major():
     assert blocking == []
 
 
+def test_none_placeholder_is_not_a_finding():
+    f = {"BLOCKER": ["none"], "MAJOR": ["-"], "MINOR": [], "NIT": []}
+    assert list(ar.iter_findings(f)) == []
+    assert ar.pending_blocking(f, {}) == (0, 0, [])
+
+
 def test_dispositions_bind_by_content_signature_across_reorder():
     # a content-hash disposition stays attached when findings are reordered/reclassified
     disp = {"sig:" + ar.finding_sig("finding A"): {"status": "accepted"}}
