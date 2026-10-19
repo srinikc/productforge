@@ -205,8 +205,14 @@ def _llm_call(prompt: str, model: str) -> str:
 def _build_prompt(item: dict, item_id: str, mode: str) -> str:
     ac = "\n".join(f"- {c}" for c in (item.get("acceptance_criteria") or [])) or "- (none)"
     body = _design_body(item) if mode == "design" else "Diff:\n```diff\n" + _git_diff()[:60000] + "\n```"
-    return PROMPT.format(target=("design" if mode == "design" else "implementation diff"),
-                         item=item_id, ac=ac, body=body)
+    prompt = PROMPT.format(target=("design" if mode == "design" else "implementation diff"),
+                           item=item_id, ac=ac, body=body)
+    if mode == "design":
+        cl = [str(q) for q in (_config().get("design_checklist") or []) if str(q).strip()]
+        if cl:
+            prompt += ("\n\nDesign pre-check checklist (verify each is addressed; report a finding for any gap):\n"
+                       + "\n".join(f"- {q}" for q in cl))
+    return prompt
 
 
 def _post_context(item_id: str, payload: dict) -> None:
@@ -387,6 +393,9 @@ def main(argv: list[str]) -> int:
         print(_render_review(rev, _item_dispositions(a.item, mode), mode))
         return 0
 
+    if a.mode == "design":
+        n = len([q for q in (_config().get("design_checklist") or []) if str(q).strip()])
+        print(f"design pre-check: {n} checklist item(s) included in the review prompt")
     prompt = _build_prompt(item, a.item, a.mode)
     try:
         out = _llm_call(prompt, a.model)

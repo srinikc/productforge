@@ -1,0 +1,134 @@
+{
+  "schema": "pf.review-learnings/1",
+  "reviews": 12,
+  "severity": {
+    "BLOCKER": 19,
+    "MAJOR": 63,
+    "MINOR": 49,
+    "NIT": 29
+  },
+  "findings_per_review": 13.33,
+  "recurring": [
+    {
+      "sig": "164b889c00",
+      "count": 2,
+      "severity": "MAJOR",
+      "text": "**SSOT docs marked \"SSOT / 100%\" while their enforcement is explicitly \"pending\":** `CORRECTION-LEDGER.md` seed rows (`ownership gate (pending)`), RAG staging, and the claimed rule \"all dispositions non-PENDING before Gate 2\" have no gate script/precheck change in this diff \u2014 asserting 100% completion for mechanisms that are unenforced risks exactly the late drift these docs are meant to prevent.",
+      "items": [
+        "BI-PF-1432"
+      ],
+      "captured": false
+    },
+    {
+      "sig": "2cc9d09ca4",
+      "count": 2,
+      "severity": "NIT",
+      "text": "Mojibake/Cp1252 artifacts in the newly added SSOT docs (`\u00e2\u2020\u2019`, `\u00c2\u00b7`, `\u00e2\u2021\u2019`) \u2014 encoding inconsistency in files declared binding.",
+      "items": [
+        "BI-PF-1432"
+      ],
+      "captured": false
+    },
+    {
+      "sig": "40f57c8f7f",
+      "count": 2,
+      "severity": "MINOR",
+      "text": "No test covers `_render_review`/`_item_dispositions` (index alignment, missing-item, unknown-status paths); only the context round-trip is tested, so the gate-rendering logic is unverified.",
+      "items": [
+        "BI-PF-1432"
+      ],
+      "captured": false
+    },
+    {
+      "sig": "40fa238a4e",
+      "count": 2,
+      "severity": "MAJOR",
+      "text": "**Ownership split (CL-002) is documented, not enforced:** `review_dispositions` was added to `_CONTEXT_FIELDS`, making it writable by *any* caller passing `require_operator` via the generic `/context` endpoint \u2014 with no schema, no status-enum validation (`PENDING|actioned|accepted|deferred|rejected`), and nothing preventing the reviewer tool (or any operator) from authoring dispositions or mutating reviewer-owned state. The SSOT the diff introduces claims corrections must land in machine-readable enforcement; this one did not.",
+      "items": [
+        "BI-PF-1432"
+      ],
+      "captured": false
+    },
+    {
+      "sig": "4f5960ebb5",
+      "count": 2,
+      "severity": "MINOR",
+      "text": "Any status string not equal to `\"PENDING\"` (typos, `\"pending\"`, `\"accepted \"` etc.) counts as resolved; unknown/stale dispositions (indices beyond the current finding count) are silently ignored rather than flagged.",
+      "items": [
+        "BI-PF-1432"
+      ],
+      "captured": false
+    },
+    {
+      "sig": "6a6dec57f8",
+      "count": 2,
+      "severity": "MAJOR",
+      "text": "**Fail-open in gate evidence:** `_item_dispositions` swallows all exceptions and returns `{}`, so a fetch failure renders \"=== 0 finding(s), 0 pending ===\" with no dispositions and no signal \u2014 a Gate 2 \"all non-PENDING\" check can pass on missing evidence. This directly contradicts the repo's stated **fail-closed** standard (and the newly added glossary entry) for a gate-critical artifact.",
+      "items": [
+        "BI-PF-1432"
+      ],
+      "captured": false
+    },
+    {
+      "sig": "89657c92a9",
+      "count": 2,
+      "severity": "MINOR",
+      "text": "`_render_review` duplicates the pre-existing `review_block` renderer (two render paths will drift, or `review_block` is now dead code) \u2014 reuse violation.",
+      "items": [
+        "BI-PF-1432"
+      ],
+      "captured": false
+    },
+    {
+      "sig": "9bc95dd204",
+      "count": 2,
+      "severity": "MAJOR",
+      "text": "**Findings\u2194dispositions correlated by positional index:** `disp.get(str(n))` where `n` is a running ordinal across `SEVERITIES` iteration. Any re-run of the reviewer, reordering, or changed finding count silently remaps recorded responses onto *different* findings (or drops them), corrupting Gate 1.5/2.5 approval integrity with no detection. Findings need a stable ID/hash, and dispositions should be validated against it.",
+      "items": [
+        "BI-PF-1432"
+      ],
+      "captured": false
+    },
+    {
+      "sig": "ad89b3e8cb",
+      "count": 2,
+      "severity": "MINOR",
+      "text": "Unrelated change in scope: `opencode.json` model id switch (`opencode/mimo-v2.5` \u2192 `opencode-go/mimo-v2.5`) inside a Gate 1.5/2.5 wiring item \u2014 hurts reviewability and bisectability.",
+      "items": [
+        "BI-PF-1432"
+      ],
+      "captured": false
+    },
+    {
+      "sig": "bc72100bb5",
+      "count": 2,
+      "severity": "MAJOR",
+      "text": "**AC not demonstrably met (\"wire fully\"):** the diff adds no distinct in-process API (B) surface \u2014 `_item_dispositions`/`_render_review` are private helpers inside the reviewer script (`scripts/dev/architect_review.py`), not a registered in-process contract/adapter the review tool calls through; `PF-API-SERVICE-OR-SERVER.md` (the PF server/service SSOT half of the AC) is untouched by this diff. From an audit standpoint the objective \"in-process API (B) + PF server/service SSOT\" cannot be verified as wired.",
+      "items": [
+        "BI-PF-1432"
+      ],
+      "captured": false
+    },
+    {
+      "sig": "c01b59ec5f",
+      "count": 2,
+      "severity": "NIT",
+      "text": "`documentation-index.html` regenerated without a trailing newline (generator output hygiene).",
+      "items": [
+        "BI-PF-1432"
+      ],
+      "captured": false
+    },
+    {
+      "sig": "c6bc275a8a",
+      "count": 2,
+      "severity": "MINOR",
+      "text": "`_item_dispositions`'s fallback `d.get(mode) or d.get(\"design\" if mode == \"design\" else \"diff\")` is a no-op (both branches resolve to the same key) \u2014 evidence the storage key namespace (`\"design\"`/`\"diff\"` vs gate `\"1.5\"`/`\"2.5\"`) is still unpinned; the glossary defines disposition *statuses* but not disposition *keys*.",
+      "items": [
+        "BI-PF-1432"
+      ],
+      "captured": false
+    }
+  ],
+  "uncaptured": 12
+}

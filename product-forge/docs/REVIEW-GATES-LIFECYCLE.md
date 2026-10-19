@@ -20,9 +20,10 @@ delivery approval)**. HIL always sees the reviewer's findings + recommendation a
    Reconciliation block (PRIOR DECISIONS / EXISTING PATH / ASSUMPTIONS / DIVERGENCES / OPEN) + IMPACT REVIEW
    (LANGUAGE CHECK, API CHECK, AC) + risks. `language_rule_review.py` verdict.
    **The Gate 1 review MUST state the Gate 1.5 findings + recommendation inline** (so HIL decides with them
-   visible; not a separate artifact). **Gate 1 is only valid with the consolidated view:**
-   `python scripts/dev/gate1_check.py --item <ID>` (exits non-zero while any BLOCKER/MAJOR is PENDING) — include
-   its output. Pending MINOR/NIT do not block but must be recorded. **No code before approval.**
+   visible; not a separate artifact).    **Gate 1 is only valid with the consolidated view:** produce it with
+   `python scripts/dev/architect_review.py gate --item <ID> --gate 1` and enforce it with
+   `python scripts/dev/gate1_check.py --item <ID>` (exits non-zero while any BLOCKER/MAJOR is PENDING). Include
+   both in the approval package. Pending MINOR/NIT do not block but must be recorded. **No code before approval.**
 
 3. **Implement on a feature branch** (never `develop`). Backlog writes are **API-only**; integrity gates apply
    at write time: **AC required** at create (`POST /items` → 400), **api_impact** (`api-first`),
@@ -98,7 +99,9 @@ Reviews are a learning input, not a one-off artifact:
 - **Gate 1 check** (`scripts/dev/gate1_check.py`) blocks Gate 1 while BLOCKER/MAJOR are PENDING.
 - **Findings → durable rules** (`scripts/dev/review_learnings.py`): recurring findings not captured in
   `docs/CORRECTION-LEDGER.md` are flagged (`--check`) and emitted as ledger rows (`--propose`), each carrying a
-  stable `sig:<digest>` so capture is machine-traceable.
+  stable `sig:<digest>` so capture is machine-traceable. `--write` persists the durable trend/recurrence report
+  to `engineering/learnings/review-findings.json` (registered store) — the machine-readable source for
+  `RAG-PROCESS-MEMORY` retrieval.
 - **Expected trend:** findings per review should fall over time. If it does not, the design pre-check/ledger is
   not being applied — that is itself a finding.
 

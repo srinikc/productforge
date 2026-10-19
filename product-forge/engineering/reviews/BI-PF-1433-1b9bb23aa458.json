@@ -1,0 +1,18 @@
+{
+  "item": "BI-PF-1433",
+  "sha": "1b9bb23aa458",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "findings": {
+    "BLOCKER": [
+      "Acceptance criterion not implemented: the findings-per-review trend is not reported **via the RAG-PROCESS-MEMORY store**. `scripts/dev/review_learnings.py` only prints/JSON-dumps a local report over `engineering/reviews/*.json`; it never reads or writes the RAG-PROCESS-MEMORY store, and no other diff code does. The trend therefore has no durable, queryable home and will be lost between runs/hosts \u2014 the learning loop is local and ephemeral, exactly what the AC was meant to prevent.",
+      "Acceptance criterion partially unmet on the binding package: `architect_review.py gate --item <ID> --gate 1` output is **not** documented as a required/binding input anywhere in `docs/REVIEW-GATES-LIFECYCLE.md` \u2014 the doc only names the new `scripts/dev/gate1_check.py`. `gate1_check` reuses `_render_review` but is a different command with different exit codes; the explicitly AC-named artifact is absent from the approval package definition, so a Gate 1 approval could be \"compliant\" while never producing the required `architect_review.py gate` evidence."
+    ],
+    "MAJOR": [
+      "The design pre-check checklist is **not emitted before a 1.5 run**; it is a separate, fully opt-in `checklist` subcommand. `architect_review.py run` neither prints nor requires it, so nothing prevents a 1.5 run without the pre-check \u2014 the recurring-blocker preemption (the whole point of the item) is advisory only, with no enforcement point"
+    ],
+    "MINOR": [],
+    "NIT": [],
+    "SUMMARY": []
+  }
+}
