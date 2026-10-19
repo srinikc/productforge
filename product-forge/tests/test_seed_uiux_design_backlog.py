@@ -22,6 +22,17 @@ def test_should_write_only_for_new_or_empty_deps():
         "uiux-design-system-inclusion:skills-registry", prior, [{"task_id": "BI-PF-1"}]) is False
 
 
+def test_id_ledger_records_shared_reservations():
+    import json
+
+    data = json.loads((ROOT / "config" / "id-blocks.json").read_text(encoding="utf-8"))
+    sessions = data["blocks"]["product_forge::"]["sessions"]
+    assert (sessions["shared:pf-id-counter"]["start"],
+            sessions["shared:pf-id-counter"]["end"]) == (1433, 1435)
+    assert (sessions["shared:pf-id-counter-2"]["start"],
+            sessions["shared:pf-id-counter-2"]["end"]) == (1446, 1447)
+
+
 def test_seed_contract_and_rerun(tmp_path, monkeypatch):
     import core.backlog as backlog
     import core.id_allocator as id_allocator

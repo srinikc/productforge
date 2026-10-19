@@ -141,7 +141,7 @@ ITEMS = [
         ],
         "dod": ["Store registered; no Tier-1 palette leaks into components.", "Unit test for select()."],
         "files": ["config/design-systems.json", "go/pfcore/design_system.go",
-                  "core/go_host.py", "config/store-registry.json"],
+                  "core/go_host.py"],
         "value": 5, "effort": 4, "risk": 2, "moscow": "Should", "deps": ["knowledge-ingestion"],
     },
     {
@@ -334,13 +334,17 @@ def main() -> int:
             backlog.set_dependencies(S, P, eid, dependencies=deps)
 
     prior_order = {r.get("id"): r for r in (backlog.get(S, P, epic_id) or {}).get("execution_order", [])}
+
+    def _wave(k: str) -> int:
+        prior = prior_order.get(created[k]) or {}
+        w = prior.get("wave")
+        return w if isinstance(w, int) and w > 0 else WAVES[k]
+
     order = []
-    for k in sorted(created, key=lambda x: WAVES[x]):
+    for k in sorted(created, key=lambda x: (_wave(x), WAVES[x])):
         eid = created[k]
         prior = prior_order.get(eid) or {}
-        prior_wave = prior.get("wave")
-        wave = prior_wave if isinstance(prior_wave, int) and prior_wave > 0 else WAVES[k]
-        order.append({"id": eid, "wave": wave, "status": prior.get("status", "new")})
+        order.append({"id": eid, "wave": _wave(k), "status": prior.get("status", "new")})
     backlog.set_execution_order(S, P, epic_id, order)
     print(f"execution order set on {epic_id}: {len(order)} items across 4 waves")
     return 0

@@ -109,7 +109,7 @@ Copy the **body + frontmatter + any `LICENSE.txt`/attribution verbatim** (§8 li
 | `config/knowledge-registry.json` | register the `ui-ux` and `design-systems` knowledge layers (not skill bodies) |
 | `pipeline/skills-registry.json` | register the 8 skills as the single skills catalog (path, layers, agents) |
 | `config/agent-capabilities.json` | bind skills→agents |
-| `config/store-registry.json` | Agent manifests are registered/allow-listed by DSI-7 when they change (no broad glob now). `config/design-systems.json` is registered as `kind:config`, `status:planned` (owner: `go/pfcore/design_system.go`, item BI-PF-1439) — flip it to `exists` when the store lands. Allow-globs for `docs/reference/uiux-samples/**`, `pipeline/skills/**`. |
+| `config/store-registry.json` | Agent manifests are registered/allow-listed by DSI-7 when they change (no broad glob now). `config/design-systems.json` is registered as `kind:config`, `status:planned` (owner: `go/pfcore/design_system.go`, item BI-PF-1439) — flip it to `exists` when the store lands. DSI-2/DSI-1 add the `docs/reference/uiux-samples/**` and `pipeline/skills/**` allow-globs when those files land. |
 | `agents/*.agent.json` | add skills + `knowledge_layers:[ui-ux, design-systems]` + `allowed_inputs:[design_direction]` |
 | `pipeline-definition.json` | add stage **1-0 "Design Direction"** (HIL suggest gate) + wire **a11y-audit** stage |
 | `test-framework/templates/accessibility/` | create (missing today) |
@@ -144,7 +144,7 @@ docs/design-direction.md  +  design-spec.json   (recorded decision, referenced b
 
 **Epic:** *Design System & UI/UX Knowledge (framework-agnostic)*.
 
-**ID authority:** the backlog (`core/backlog.py`) is the source of truth; the `BI-PF-*` ids below are authoritative and `DSI-N` are plan labels used only in this document. IDs `1433–1435` are recorded in `config/id-blocks.json` as a consumed shared-counter reservation (`shared:pf-id-counter`) and remain intentionally unused.
+**ID authority:** the backlog (`core/backlog.py`) is the source of truth; the `BI-PF-*` ids below are authoritative and `DSI-N` are plan labels used only in this document. IDs `1433–1435` and `1446–1447` are recorded in `config/id-blocks.json` as consumed shared-counter reservations and remain intentionally unused; `1448` belongs to another session.
 
 | Plan label | Backlog id | Child | Depends on (REQUIRES) | Wave | Language |
 |---|---|---|---|---|---|
@@ -173,7 +173,22 @@ store registered in `config/store-registry.json` · skills registered · a11y + 
 
 **Observability (required before the gates go live):** `design.select` emits the ranked candidates + rationale, `a11y.audit` emits its verdict/failure reason, and `skills.resolve` emits the chosen path/sha + any legacy fallback. Fail-closed gates are unauditable without emitted verdicts.
 
-**Doc reconciliation:** each child updates §4/§6 in the same PR that lands its row; the child item owns the edit (no separate sync task).
+**Doc reconciliation (enforced at Gate 2):** each child updates §4/§6 in the same PR that lands its row. The delivery review carries a blocking checklist item **D4**: compare §4/§6 to the diff and fail on mismatch. No separate sync task.
+
+---
+
+## 7.5 Risks & mitigations
+
+| Risk | Blast radius | Mitigation |
+|---|---|---|
+| a11y fail-closed false positives block delivery | a project cannot ship | evidence-backed waiver via HIL + recorded verdict; never a silent bypass |
+| Skill prompt injection / poisoned corpus | agent behavior, data exposure | scan + sha256 + local-only reviewed content (§8); refuse unresolved bodies |
+| Token/prompt budget overflow from large skills | cost/latency, truncated guidance | tiered budgets + caps + `skills.resolve` metrics; skill-router enforcement |
+| License/attribution exposure | redistribution/legal | license metadata + NOTICE + no unlicensed redistribution (§8) |
+| Selection bias/drift (ranking) | wrong direction chosen | 2–3 ranked candidates + rationale + HIL confirm; baseline samples |
+| Doc/store drift across nine children | stale §4, wrong owner | planned registration + Gate 2 checklist D4 (§7) |
+| Legacy `.opencode` fallback masks missing skills | harness coupling | explicit `ALLOW_OPENCODE_LEGACY=1` + fallback telemetry |
+| ID ledger gaps | untraceable ids | reserved ranges recorded in `config/id-blocks.json` |
 
 ---
 
@@ -190,6 +205,8 @@ Several skills carry licenses/attribution — **copy the frontmatter + `LICENSE.
 - `architect` — Apache-2.0
 
 Commit a `NOTICE`/`pipeline/skills/<id>/LICENSE.txt` where one exists; keep `source` + `attribution` in frontmatter.
+
+Of these entries, DSI-1 ports the **8 UI/UX skills** enumerated in §3a; the remaining entries are non-UI or reference-only.
 
 **Integrity / trust boundary:** skill text is untrusted input to the LLM. Record `source` + `license` + `sha256` in the skills registry, copy only reviewed local content (no runtime fetch), and scan for prompt-injection markers before the `SKILLS:` block is injected. `skills.resolve` reports the selected path/sha.
 
