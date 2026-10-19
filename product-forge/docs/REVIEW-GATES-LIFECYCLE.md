@@ -13,7 +13,7 @@ delivery approval)**. HIL always sees the reviewer's findings + recommendation a
    Reviews the **design / reconciliation block** *before* HIL approval (see §Gate 2.5 rules). Recommended for
    large/security/schema work. Its findings + recommendation are presented to HIL.
    **Default runner = direct provider call** (`architect_review.py run` — one LLM call, no tools, lowest
-   cost/latency); the sub-agent `launch_command` is **opt-in** for investigation-heavy reviews (BI-PF-1433).
+   cost/latency); the sub-agent `launch_command` is **opt-in** for investigation-heavy reviews (BI-PF-1449).
    Run the **design pre-check checklist** first: `architect_review.py checklist --item <ID>`.
 
 2. **Gate 1 — Take-up / design approval (HIL, manual), informed by Gate 1.5.**
@@ -93,7 +93,7 @@ future-proofing, reuse/no-duplication, "the right thing") before precheck/PR.
 appends the summary to the item context. The reviewer **sub-agent** (any model from
 `config/architect-review.json`) is launched separately; the tool does not embed or lock a model.
 
-## Review learning loop (BI-PF-1433)
+## Review learning loop (BI-PF-1449)
 
 Reviews are a learning input, not a one-off artifact:
 - **Design pre-check** (`architect_review.py checklist --item <ID>`) pre-empts recurring finding classes

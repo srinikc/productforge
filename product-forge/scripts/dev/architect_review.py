@@ -273,7 +273,7 @@ def pending_blocking(findings: dict, dispositions: dict):
     """Return (total, pending, blocking) for a review.
 
     ``blocking`` lists (n, severity, text) for BLOCKER/MAJOR findings that have no non-PENDING
-    disposition. Pending MINOR/NIT never block (BI-PF-1433).
+    disposition. Pending MINOR/NIT never block (BI-PF-1449).
     """
     total = pending = 0
     blocking = []
@@ -379,7 +379,7 @@ def main(argv: list[str]) -> int:
     item = _get_item(a.item)
     if a.cmd == "checklist":
         questions = [str(q) for q in (_config().get("design_checklist") or []) if str(q).strip()]
-        print("Design pre-check (answer BEFORE Gate 1.5; BI-PF-1433):")
+        print("Design pre-check (answer BEFORE Gate 1.5; BI-PF-1449):")
         for i, q in enumerate(questions, 1):
             print(f"  {i}. [ ] {q}")
         if not questions:

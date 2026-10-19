@@ -1,4 +1,4 @@
-"""BI-PF-1433: turn Gate 1.5/2.5 findings into a learning loop.
+"""BI-PF-1449: turn Gate 1.5/2.5 findings into a learning loop.
 
 Reads the committed review evidence (``engineering/reviews/*.json``) and reports:
   - findings per review + per severity (is review churn trending down?),
@@ -162,7 +162,7 @@ def _propose(agg: dict, ledger: set[str], threshold: int) -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
-    ap = argparse.ArgumentParser(description="Review-findings learning loop (BI-PF-1433)")
+    ap = argparse.ArgumentParser(description="Review-findings learning loop (BI-PF-1449)")
     ap.add_argument("--threshold", type=int, default=2, help="occurrences to count as recurring (default 2)")
     ap.add_argument("--check", action="store_true", help="exit 1 when recurring findings are uncaptured")
     ap.add_argument("--propose", action="store_true", help="print CORRECTION-LEDGER rows to add")

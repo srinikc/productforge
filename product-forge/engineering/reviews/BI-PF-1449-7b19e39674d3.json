@@ -1,0 +1,30 @@
+{
+  "item": "BI-PF-1449",
+  "sha": "7b19e39674d3",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "findings": {
+    "BLOCKER": [
+      "No test exercises `gate1_check.py` end-to-end: the diff adds unit tests for `ar.pending_blocking` only \u2014 nothing asserts that `gate1_check.main()` exits 1 with a PENDING BLOCKER/MAJOR and 0 when all are dispositioned (AC explicitly requires \"a test covers the PENDING-blocking behaviour: the Gate 1 check fails\u2026 and passes\u2026\"). The exit-code contract (incl. the undocumented code-2 no-evidence path) is untested."
+    ],
+    "MAJOR": [
+      "`config/architect-review.json` `runner_default: \"direct\"` is dead configuration \u2014 nothing in the diff reads it; no code gates a sub-agent `launch_command` behind an opt-in flag. The AC \"sub-agent launch is opt-in only\" is satisfied only by prose, so the config advertises an invariant the system does not enforce (drift by construction).",
+      "The persisted report does not contain a *trend*: `review_learnings.write_report()` drops the `per_review` series computed by `aggregate()` and stores only a single scalar `findings_per_review`. A point-in-time average cannot show \"findings per review falling over time\" \u2014 the core AC is only nominally met.",
+      "The capture loop cannot close for this item's own rules: `--check` only treats a recurring finding as captured if its `sig:<digest>` literally appears in `docs/CORRECTION-LEDGER.md`, yet the newly added CL-006/CL-007 rows carry no `sig:` marker (while `--propose` output does). Corresponding review findings will be reported \"uncaptured\" forever until someone hand-edits digests into the ledger.",
+      "`gate1_check.py` is documented as \"binding\" but is wired into no automated gate (CI, precheck, or backlog-write path) \u2014 enforcement depends on a human remembering to run it, which is the same failure mode the item is trying to eliminate.",
+      "`gate1_check.py` reaches into `architect_review`'s underscore-private API (`_latest_review`, `_item_dispositions`, `_render_review`) as its public surface. Any refactor of those internals silently breaks the enforcement check; the shared view logic needs a stable, declared interface (this is the load-bearing reuse of the change)."
+    ],
+    "MINOR": [
+      "`architect_review.py checklist --record` appends to `item.evidence` unconditionally \u2014 repeated runs duplicate the evidence entry (no idempotency key).",
+      "`gate1_check.py --mode diff` lets a command named \"gate1\" validate the Gate 2.5 review; the name/semantics mismatch will confuse operators and invites wrong invocations in the approval package.",
+      "`review_learnings.load_reviews()` swallows unreadable/corrupt `engineering/reviews/*.json` with a bare `except: continue` and no warning \u2014 the trend silently undercounts with no observability signal.",
+      "Store registry entry for `review-findings.json` declares `target.status: \"planned\"` although `--write` already produces the file, and `retention: \"unbounded\"` for an append-heavy derived analytics file has no compaction/ownership policy.",
+      "`docs/REVIEW-GATES-LIFECYCLE.md` Gate 1 paragraph is a run-on: \"\u2026not a separate artifact).    **Gate 1 is only valid\u2026**\" merges two paragraphs onto one line, breaking the markdown structure of the binding rule.",
+      "`config/id-blocks.json`: the new block ends at 1433 with `next: 1434`, but the next listed block starts at 1448 \u2014 verify 1434\u20131447 are covered elsewhere, or the allocator has a hole."
+    ],
+    "NIT": [
+      "`review_learnings._propose` emits a table whose columns don't match the actual CORRECTION-LEDGER.md row shape and hardcodes `CL-XXX`, so pasted output requires manual fixing (fine for a proposal tool, but the id/digest placement"
+    ],
+    "SUMMARY": []
+  }
+}

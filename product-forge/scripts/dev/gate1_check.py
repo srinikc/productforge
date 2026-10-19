@@ -1,4 +1,4 @@
-"""BI-PF-1433: deterministic Gate 1 gate - the latest Gate 1.5 findings MUST be dispositioned.
+"""BI-PF-1449: deterministic Gate 1 gate - the latest Gate 1.5 findings MUST be dispositioned.
 
 Gate 1 (HIL design approval) is only valid when the Gate 1.5 findings are visible **and** every
 BLOCKER/MAJOR has a disposition (actioned/accepted/deferred/rejected). Pending MINOR/NIT never block.
