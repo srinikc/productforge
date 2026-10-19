@@ -189,7 +189,7 @@
     "usage": {}
   },
   "created_at": "2026-10-19T21:31:02.436677",
-  "updated_at": "2026-10-19T21:41:47.693955",
+  "updated_at": "2026-10-19T22:04:58.353596",
   "score": 0.75,
   "_note": "readiness computed",
   "api_impact": {
@@ -204,47 +204,55 @@
       },
       "2": {
         "status": "accepted",
-        "note": "False positive: subprocess is imported at module scope in architect_review_check.py (line 19); the diff only added the except tuple."
+        "note": "False positive: subprocess is already imported at module scope in architect_review_check.py (line 19); only the except tuple changed."
       },
       "3": {
         "status": "accepted",
-        "note": "Fail-closed termination is the intended contract: a broken git must stop precheck, never pass on an empty changed-file set. Friendly-message polish is optional."
+        "note": "Verified: all _git() call sites (4) are inside _changed_files(); no other caller exists in precheck.py."
       },
       "4": {
         "status": "accepted",
-        "note": "Scope is the Gate 2.5 path (architect_review + precheck); gitutil is now the shared policy. Migrating the remaining pre-existing text=True callers is follow-up debt, not this item."
+        "note": "CI uses actions/checkout fetch-depth: 0 (structure.yml), so origin/develop resolves. Fail-closed on a shallow/unsupported checkout is intended and now prints a clear reason."
       },
       "5": {
         "status": "accepted",
-        "note": "git C-quotes non-ASCII paths deterministically (core.quotepath default) on every OS, so the sha is stable; raw-path output is a separate improvement."
+        "note": "Test imports intentionally mirror the runtime top-level import style so GitError class identity matches; duplicates within this file are avoided."
       },
       "6": {
-        "status": "deferred",
-        "note": "Direct architect_review.py CLI tracebacks are acceptable fail-closed for now; add the friendly handler when the CLI is next touched."
+        "status": "accepted",
+        "note": "AC#3 means future changes do not need the duplicate CI-sha workaround; historical BI-PF-1395/1432 evidence files are correctly retained."
       },
       "7": {
         "status": "accepted",
-        "note": "Keyword-only timeout in gitutil.git_text would be cleaner; the wrapper signature is internal."
+        "note": "_baseline_shas() reads a local JSON file (no git); the only git-touching calls are changed_files()/diff_sha(), which are inside the handler."
       },
       "8": {
         "status": "accepted",
-        "note": "U+FFFD warning is advisory; a legitimate U+FFFD in content is rare and harmless."
+        "note": "30s default is inherited; git_text accepts a per-call timeout when a wider range needs more."
       },
       "9": {
         "status": "accepted",
-        "note": "Test imports mirror the runtime import style (scripts/dev on sys.path) so module identity matches; this is intentional."
+        "note": "The U+FFFD warning is advisory; legitimate replacement characters are rare."
       },
       "10": {
         "status": "accepted",
-        "note": "Fixed: gitutil error message joins repr(arg) per argument."
+        "note": "The single policy lives in gitutil.git_text; the local wrappers are thin compatibility shims."
       },
       "11": {
         "status": "accepted",
-        "note": "Single-site warning logic; the shared helper already centralizes the policy."
+        "note": "Cosmetic; GitError messages already use repr per argument."
       },
       "12": {
         "status": "accepted",
-        "note": "Ticket reference in the docstring is fine; a policy-doc entry can follow if this becomes standard."
+        "note": "Per-file sys.path mirrors existing repo test conventions; a conftest refactor is separate."
+      },
+      "13": {
+        "status": "accepted",
+        "note": "Pre-existing generator behavior, unchanged by this item."
+      },
+      "14": {
+        "status": "accepted",
+        "note": "scripts/dev is the tooling carve-out; stated explicitly in the PR description."
       }
     }
   }
