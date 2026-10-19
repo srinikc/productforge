@@ -1,0 +1,195 @@
+{
+  "id": "BI-PF-1440",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "uiux-design-system-inclusion:token-engine",
+  "label": "PF Backlog 633",
+  "title": "Design-token engine upgrade (3-tier OKLCH, light+dark)",
+  "body": "## Problem / why\ncore/design_tokens.py ships fixed M3 defaults; no 3-tier architecture, no OKLCH, no direction seeding.\n\n## Goal & value\nGenerate real design tokens from the selected direction.\n\n## In scope\n- Go token engine go/pfcore/design_tokens.go (global->alias->component, OKLCH ramps, light+dark, from a DesignDirection).\n- Edit core/design_tokens.py to consume it while staying the single writer of tokens.json/tokens.css.\n\n## Out of scope\n- Multi-brand theming beyond the selected direction (later).\n\n## Acceptance criteria\n- Tokens emitted as 3 tiers with OKLCH + light/dark values.\n- Seeded by the selected design direction.\n- core/design_tokens.py remains the single writer of the token store.\n\n## Definition of Done\n- Contrast validated per theme.\n- Existing token callers unaffected (regression test).\n\n## Verification / test plan\n- Tokens emitted as 3 tiers with OKLCH + light/dark values.\n- Seeded by the selected design direction.\n- core/design_tokens.py remains the single writer of the token store.\n",
+  "source": "design:UIUX-DESIGN-SYSTEM-INCLUSION-DESIGN.md",
+  "status": "new",
+  "priority": "P2",
+  "moscow": "Should",
+  "value": 4,
+  "effort": 4,
+  "risk": 2,
+  "deps": [
+    "BI-PF-1439"
+  ],
+  "links": {},
+  "decisions": [
+    {
+      "at": "2026-10-19T16:21:07.861939",
+      "decision": "APPROVE",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)"
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "core/design_tokens.py ships fixed M3 defaults; no 3-tier architecture, no OKLCH, no direction seeding.",
+    "what_adds": "Generate real design tokens from the selected direction.",
+    "why": "core/design_tokens.py ships fixed M3 defaults; no 3-tier architecture, no OKLCH, no direction seeding.",
+    "who_feels": "Product Forge maintainers and consumers.",
+    "source": "authored"
+  },
+  "objective": "Generate real design tokens from the selected direction.",
+  "acceptance_criteria": [
+    "Tokens emitted as 3 tiers with OKLCH + light/dark values.",
+    "Seeded by the selected design direction.",
+    "core/design_tokens.py remains the single writer of the token store."
+  ],
+  "in_scope": [
+    "Go token engine go/pfcore/design_tokens.go (global->alias->component, OKLCH ramps, light+dark, from a DesignDirection).",
+    "Edit core/design_tokens.py to consume it while staying the single writer of tokens.json/tokens.css."
+  ],
+  "out_of_scope": [
+    "Multi-brand theming beyond the selected direction (later)."
+  ],
+  "affected_components": [
+    "core",
+    "go"
+  ],
+  "affected_files": [
+    "go/pfcore/design_tokens.go",
+    "core/design_tokens.py",
+    "core/go_host.py"
+  ],
+  "approach": "- Tokens emitted as 3 tiers with OKLCH + light/dark values.\n- Seeded by the selected design direction.\n- core/design_tokens.py remains the single writer of the token store.",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Contrast validated per theme.",
+    "Existing token callers unaffected (regression test).",
+    "Feature branch off develop (never commit to develop/main directly).",
+    "Code review of the diff; findings fixed.",
+    "Lint/static clean (scripts/dev/lint_check.py).",
+    "language_rule_check PASS - new logic in Go (go/pfcore/*.go), edits to existing shipped Python only.",
+    "precheck PASS (compileall, wired_audit, api/governance, engineering-flow, backlog-e2e, docs-fresh, secret-scan, pipeline tests).",
+    "Evidence (artifact + test descriptors) linked on this item; intent_trace resolves.",
+    "Merged to develop immediately after green; delivery provenance recorded (branch, merge_sha, pr)."
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "agent",
+  "requester": "design:UIUX-DESIGN-SYSTEM-INCLUSION-DESIGN.md",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1436",
+  "parent": "BI-PF-1436",
+  "revision": 3,
+  "priority_rank": 2,
+  "priority_class": "P2",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "STALE",
+    "analyzed_at": "2026-10-19T16:21:07.492339",
+    "analyzed_by": "system",
+    "revision_analyzed": 2,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/context_engine.py, core/context_preflight.py, core/design_tokens.py, core/discovery_engine.py",
+    "existing_components": [
+      "core/context_engine.py",
+      "core/context_preflight.py",
+      "core/design_tokens.py",
+      "core/discovery_engine.py",
+      "core/engineering_flow.py",
+      "core/tier_builder.py",
+      "core/validation_engine.py"
+    ],
+    "existing_apis": [
+      "/api/v1/engineering",
+      "/api/v1/engineering/assignments",
+      "/api/v1/engineering/assignments/claim",
+      "/api/v1/engineering/assignments/recover",
+      "/api/v1/engineering/assignments/{item_id}/complete",
+      "/api/v1/engineering/assignments/{item_id}/deliver",
+      "/api/v1/engineering/assignments/{item_id}/fail",
+      "/api/v1/engineering/assignments/{item_id}/heartbeat"
+    ],
+    "existing_modules": [
+      "config/engineering-flow.json",
+      "config/engineering-workers.json",
+      "config/hardware-tiers.json",
+      "config/licensing-tiers.json",
+      "config/model-tier.json"
+    ],
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=0.75",
+      "components=7",
+      "apis=8"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic",
+    "decision_request": {
+      "needed": false,
+      "reasons": [],
+      "ask": ""
+    },
+    "arch_fingerprint": "3cc69be884387fcf"
+  },
+  "dependencies": [
+    {
+      "task_id": "BI-PF-1439",
+      "type": "REQUIRES",
+      "required_state": "completed"
+    }
+  ],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-19T16:21:07.647979"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-19T16:21:03.742593",
+  "updated_at": "2026-10-19T16:23:14.086024",
+  "score": 0.75,
+  "_note": "dependencies set"
+}

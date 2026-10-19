@@ -1,0 +1,178 @@
+{
+  "id": "BI-PF-1437",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "uiux-design-system-inclusion:skills-registry",
+  "label": "PF Backlog 630",
+  "title": "Framework-agnostic skills home + resolver",
+  "body": "## Problem / why\nUI/UX skills live only under .opencode/skills/*/SKILL.md, coupling PF to the harness and leaving them unregistered.\n\n## Goal & value\nPF owns the skill bodies; .opencode is a legacy fallback only.\n\n## In scope\n- Copy the 8 UI/UX skills into pipeline/skills/<id>/SKILL.md (body+frontmatter+LICENSE verbatim).\n- Neutral-first resolver (Go op skills.resolve/list/describe) via core/go_host.py.\n- Register in config/knowledge-registry.json (kind:skill) and pipeline/skills-registry.json.\n\n## Out of scope\n- Migrating non-UI skills\n- Deleting .opencode (kept as legacy fallback).\n\n## Acceptance criteria\n- Given a skill id, skills.resolve returns the neutral body from pipeline/skills/<id>/SKILL.md.\n- .opencode/skills is read only when ALLOW_OPENCODE_LEGACY=1.\n- Both registries contain the 8 skills; license/attribution preserved.\n\n## Definition of Done\n- wired_audit green (no unwired file).\n- skills.resolve covered by a unit test.\n\n## Verification / test plan\n- Given a skill id, skills.resolve returns the neutral body from pipeline/skills/<id>/SKILL.md.\n- .opencode/skills is read only when ALLOW_OPENCODE_LEGACY=1.\n- Both registries contain the 8 skills; license/attribution preserved.\n",
+  "source": "design:UIUX-DESIGN-SYSTEM-INCLUSION-DESIGN.md",
+  "status": "new",
+  "priority": "P2",
+  "moscow": "Should",
+  "value": 5,
+  "effort": 3,
+  "risk": 2,
+  "deps": [],
+  "links": {},
+  "decisions": [
+    {
+      "at": "2026-10-19T16:20:33.551525",
+      "decision": "APPROVE",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)"
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "UI/UX skills live only under .opencode/skills/*/SKILL.md, coupling PF to the harness and leaving them unregistered.",
+    "what_adds": "PF owns the skill bodies; .opencode is a legacy fallback only.",
+    "why": "UI/UX skills live only under .opencode/skills/*/SKILL.md, coupling PF to the harness and leaving them unregistered.",
+    "who_feels": "Product Forge maintainers and consumers.",
+    "source": "authored"
+  },
+  "objective": "PF owns the skill bodies; .opencode is a legacy fallback only.",
+  "acceptance_criteria": [
+    "Given a skill id, skills.resolve returns the neutral body from pipeline/skills/<id>/SKILL.md.",
+    ".opencode/skills is read only when ALLOW_OPENCODE_LEGACY=1.",
+    "Both registries contain the 8 skills; license/attribution preserved."
+  ],
+  "in_scope": [
+    "Copy the 8 UI/UX skills into pipeline/skills/<id>/SKILL.md (body+frontmatter+LICENSE verbatim).",
+    "Neutral-first resolver (Go op skills.resolve/list/describe) via core/go_host.py.",
+    "Register in config/knowledge-registry.json (kind:skill) and pipeline/skills-registry.json."
+  ],
+  "out_of_scope": [
+    "Migrating non-UI skills",
+    "Deleting .opencode (kept as legacy fallback)."
+  ],
+  "affected_components": [
+    "",
+    "config",
+    "core",
+    "pipeline"
+  ],
+  "affected_files": [
+    "go/pfcore/skill_registry.go",
+    "core/go_host.py",
+    "config/knowledge-registry.json",
+    "pipeline/skills-registry.json"
+  ],
+  "approach": "- Given a skill id, skills.resolve returns the neutral body from pipeline/skills/<id>/SKILL.md.\n- .opencode/skills is read only when ALLOW_OPENCODE_LEGACY=1.\n- Both registries contain the 8 skills; license/attribution preserved.",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "wired_audit green (no unwired file).",
+    "skills.resolve covered by a unit test.",
+    "Feature branch off develop (never commit to develop/main directly).",
+    "Code review of the diff; findings fixed.",
+    "Lint/static clean (scripts/dev/lint_check.py).",
+    "language_rule_check PASS - new logic in Go (go/pfcore/*.go), edits to existing shipped Python only.",
+    "precheck PASS (compileall, wired_audit, api/governance, engineering-flow, backlog-e2e, docs-fresh, secret-scan, pipeline tests).",
+    "Evidence (artifact + test descriptors) linked on this item; intent_trace resolves.",
+    "Merged to develop immediately after green; delivery provenance recorded (branch, merge_sha, pr)."
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "agent",
+  "requester": "design:UIUX-DESIGN-SYSTEM-INCLUSION-DESIGN.md",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1436",
+  "parent": "BI-PF-1436",
+  "revision": 2,
+  "priority_rank": 2,
+  "priority_class": "P2",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "COMPLETE",
+    "analyzed_at": "2026-10-19T16:20:33.075516",
+    "analyzed_by": "system",
+    "revision_analyzed": 2,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/business_skills_selector.py, core/delivery.py, core/reasoning_skills.py, core/skills_registry.py",
+    "existing_components": [
+      "core/business_skills_selector.py",
+      "core/delivery.py",
+      "core/reasoning_skills.py",
+      "core/skills_registry.py",
+      "core/skill_contracts.py"
+    ],
+    "existing_apis": [
+      "/api/v1/backlog/items/{item_id}/delivery",
+      "/api/v1/engineering/assignments/{item_id}/deliver"
+    ],
+    "existing_modules": [],
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=1.25",
+      "components=5",
+      "apis=2"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic",
+    "decision_request": {
+      "needed": false,
+      "reasons": [],
+      "ask": ""
+    },
+    "arch_fingerprint": "3cc69be884387fcf"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-19T16:20:33.348325"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-19T16:20:29.228751",
+  "updated_at": "2026-10-19T16:20:35.097571",
+  "score": 1.25,
+  "_note": "planned affected files + DoD (design)"
+}
