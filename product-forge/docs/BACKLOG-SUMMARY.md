@@ -1,17 +1,17 @@
 # Backlog Summary
 
-> GENERATED 2026-10-19T20:29:15 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-19T21:49:54 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 129  |  **Closed:** 567
+- **Open:** 132  |  **Closed:** 567
 - `blocked`: 1
 - `executing`: 3
 - `in_progress`: 3
-- `new`: 122
+- `new`: 125
 
-### new, by category (122)
+### new, by category (125)
 **API / reports / HIL / misc** (15)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
@@ -87,7 +87,7 @@
 | BI-PF-1392 | Should | task | Enforce per-feature FR/US caps + max_lines in the Go artifact engine (scaled by the profile) and reconcile the three section sources | Per-feature FR/US caps + max_lines enforced NUMERICALLY (scaled by profile); sections have ONE source. |
 | BI-PF-1425 | Should | feature | Migrate orchestrator cache + evidence/summarizer (and remaining audit logic) from Python to Go (Go-first alignment) | Migrate orchestrator cache + evidence/summarizer (and remaining audit logic) from Python to Go (Go-first align... |
 
-**Wiring / tech-debt / API** (75)
+**Wiring / tech-debt / API** (78)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0185 | Should | feature | EPIC: Multi-modal / media orchestration (pluggable capability packs) | Make the pipeline modality-agnostic via PLUGGABLE capability packs, enabled per project when the idea needs th... |
@@ -165,6 +165,9 @@
 | BI-PF-1433 | Should | feature | ObjectStore adapter: Azure Blob (on go/objstorerest) | ObjectStore adapter: Azure Blob (on go/objstorerest) |
 | BI-PF-1434 | Should | feature | ObjectStore adapter: Google Drive (design key<->fileID model first) | ObjectStore adapter: Google Drive (design key<->fileID model first) |
 | BI-PF-1435 | Should | feature | GCS ObjectStore adapter: streaming/resumable upload + wire buildObjectStore (production-qualification) | Remove the GCS adapter's memory buffering/5 MB ceiling and wire it on the runtime path. |
+| BI-PF-1465 | Must | feature | Fix: Gate 1 check must treat unparsable/empty review evidence as indeterminate (fail-closed) | Make Gate 1 fail closed on unparsable/empty review evidence instead of silently passing. |
+| BI-PF-1466 | Should | feature | Gate 1 enforcement at the backlog transition: block new->in_progress when a design review has PENDING BLOCKER/MAJOR (grandfather legacy) | Machine-enforce Gate 1 at the backlog new->in_progress transition, with a legacy grandfather. |
+| BI-PF-1467 | Should | feature | RCCA: inject review learnings at design/grooming time (not only at Gate 1.5) via a design-guardrails block | Feed review learnings into the design/grooming phase so 1.5 verifies rather than discovers; keep the ledger/ch... |
 
 ---
 
@@ -364,5 +367,5 @@
 ---
 
 ## Totals
-- backend: 129 open / 567 closed
+- backend: 132 open / 567 closed
 - dashboard: 146 open / 3 closed

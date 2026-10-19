@@ -1,0 +1,205 @@
+{
+  "id": "BI-PF-1467",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "api",
+  "external_id": "rcca-design-time-learnings",
+  "label": "PF Backlog 635",
+  "title": "RCCA: inject review learnings at design/grooming time (not only at Gate 1.5) via a design-guardrails block",
+  "body": "",
+  "source": "generic",
+  "status": "new",
+  "priority": "P2",
+  "moscow": "Should",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [
+    "BI-PF-1466",
+    "BI-PF-0389"
+  ],
+  "links": {},
+  "decisions": [
+    {
+      "at": "2026-10-19T21:42:49.671829",
+      "decision": "APPROVE",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)"
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "Learnings were only written to the correction ledger and shown to the 1.5 reviewer, so the original design/grooming phase did not benefit and 1.5 kept re-discovering the same classes.",
+    "what_adds": "A design-guardrails block (ledger rules + checklist + recurrence) injected at design/grooming time and in the design prompt.",
+    "why": "Corrections must shape the design up front, not be re-found in review; that is how review findings shrink over time.",
+    "who_feels": "Item authors, groomers, reviewers, HIL.",
+    "source": "authored"
+  },
+  "objective": "Feed review learnings into the design/grooming phase so 1.5 verifies rather than discovers; keep the ledger/checklist/RAG sources.",
+  "acceptance_criteria": [
+    "scripts/dev/design_guardrails.py --item <ID> emits the generic checklist plus the most relevant CORRECTION-LEDGER rules and recurring review findings for that item.",
+    "The design-mode review prompt (architect_review.py run/emit --mode design) includes the same design-guardrails block so the author and reviewer work from the same guidance.",
+    "design_guardrails.py --record stores the applied guardrails on the item evidence idempotently, and the design/grooming phase requires running it before writing the design.",
+    "Docs (REVIEW-GATES-LIFECYCLE / MODEL-ASSISTED-ENGINEERING) state that learnings are injected at design time; 1.5 only verifies, it does not first-discover.",
+    "A test covers relevance selection (a ledger rule matched by item keywords) and idempotent --record behaviour."
+  ],
+  "in_scope": [
+    "RCCA: inject review learnings at design/grooming time (not only at Gate 1.5) via a design-guardrails block"
+  ],
+  "out_of_scope": [
+    "Not specified."
+  ],
+  "affected_components": [
+    "Not specified."
+  ],
+  "affected_files": [
+    "Not specified."
+  ],
+  "approach": "RCCA: inject review learnings at design/grooming time (not only at Gate 1.5) via a design-guardrails block",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Objective achieved: RCCA: inject review learnings at design/grooming time (not only at Gate 1.5) via a design-guardrails block"
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "unassigned",
+  "requester": "generic",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1243",
+  "parent": "BI-PF-1243",
+  "revision": 3,
+  "priority_rank": 30,
+  "priority_class": "P2",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "COMPLETE",
+    "analyzed_at": "2026-10-19T21:42:49.445284",
+    "analyzed_by": "system",
+    "revision_analyzed": 3,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend core/grooming.py and core/learnings.py to surface review learnings (from design_critic/cross_review review history) as a design-guardrails block during grooming; expose via /api/v1/backlog/grooming/guidelines and enrich item context-review output with prior-gate lessons.",
+    "existing_components": [],
+    "existing_apis": [],
+    "existing_modules": [],
+    "dependency_findings": [
+      "RELATED BI-PF-1466: enforcement works best once learnings exist at design time",
+      "REQUIRES core/learnings.py data populated from prior reviews (assumed existing)"
+    ],
+    "conflict_findings": [
+      "Low conflict risk: BI-PF-0432 and BI-PF-0389 touch backlog/grooming but different concern (dedup, staleness)",
+      "config/grooming-guidelines.json may be concurrently edited - coordinate"
+    ],
+    "duplication_findings": [
+      "BI-PF-1466 gates enforcement at new->in_progress; this injects learnings earlier (grooming) - complementary, not duplicate",
+      "config/review-focus.json and arch-review baselines partially overlap but serve Gate 1.5 checks, not grooming-time guidance"
+    ],
+    "drift": "LOW",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "Item reuses existing learnings, design_critic and grooming infrastructure to inject review lessons at design time, closing the gap before Gate 1.5 enforcement (BI-PF-1466). Pure extension; no new component needed.",
+    "assumptions": [
+      "Review learnings are persisted/queryable via core/learnings.py",
+      "Grooming already renders guidelines from config/grooming-guidelines.json",
+      "Design reviews at Gate 1.5 produce reusable BLOCKER/MAJOR patterns"
+    ],
+    "risks": [
+      "Learnings data may be sparse/noisy early, reducing guardrail value",
+      "Guidelines block could bloat grooming output",
+      "Mapping reviews to new designs may produce false positives"
+    ],
+    "evidence": [
+      "core/learnings.py exists as candidate module",
+      "/api/v1/backlog/grooming/guidelines API exists",
+      "config/grooming-guidelines.json exists"
+    ],
+    "confidence": "medium",
+    "missing_info": [
+      "Which review learnings qualify (BLOCKER/MAJOR only vs all)?",
+      "Should guardrails be advisory text or structured checklist items?",
+      "Retention window for learning injection (per-project vs global)?"
+    ],
+    "depth": "deep",
+    "mode": "ai",
+    "context_review": {
+      "ok": false,
+      "source": "llm",
+      "implementable": false,
+      "missing": [
+        "what",
+        "why",
+        "how",
+        "where"
+      ],
+      "reason": "Every field just repeats the title; no concrete change, mechanism, files, or success criteria are specified."
+    },
+    "decision_request": {
+      "needed": false,
+      "reasons": [],
+      "ask": ""
+    },
+    "arch_fingerprint": "cbe9c3e2434fd2c7"
+  },
+  "dependencies": [
+    {
+      "task_id": "BI-PF-1466",
+      "type": "RELATED",
+      "required_state": "any"
+    },
+    {
+      "task_id": "BI-PF-0389",
+      "type": "RELATED",
+      "required_state": "any"
+    }
+  ],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-19T21:42:49.549873"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-19T21:41:59.988140",
+  "updated_at": "2026-10-19T21:42:52.340400",
+  "score": 0.75,
+  "_note": "re-homed to epic BI-PF-1243",
+  "api_impact": {
+    "needs_api": false,
+    "reason": "process/tooling change: no external API surface (dev scripts + gates + docs).",
+    "routes": []
+  }
+}
