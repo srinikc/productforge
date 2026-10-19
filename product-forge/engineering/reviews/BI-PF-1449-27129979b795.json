@@ -1,0 +1,34 @@
+{
+  "item": "BI-PF-1449",
+  "sha": "27129979b795",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "findings": {
+    "BLOCKER": [
+      "Backlog store integrity regression surfaced in the regenerated `docs/BACKLOG-SUMMARY.md`: `BI-PF-1434` (Google Drive adapter) and `BI-PF-1435` (GCS adapter) vanish from the open list, and the **closed count decreases 566 \u2192 564** (closed counts should be monotonic in a pure add/close flow). Simultaneously `BI-PF-1433` is **repurposed from \"ObjectStore adapter: Azure Blob\" to an unrelated process item (\"Gate 1 must embed\u2026\")** while `id-blocks.json` allocates 1433 as a fresh block (`Srinikc-PC5560-17604`). This reads as item deletion/ID reuse in the backlog truth store. Must be reconciled (re-open, re-title, or explicitly document the merge) before merge \u2014 item identity and traceability are the backbone of every gate in this very diff."
+    ],
+    "MAJOR": [
+      "`docs/CORRECTION-LEDGER.md` CL-006/CL-007 are added **without the `sig:<digest>` marker** that `review_learnings.py` uses to detect \"captured\" findings (`ledger_digests()` regexes `sig:([0-9a-f]{10})`). The learning loop's closure condition is therefore not actually satisfied by the ledger rows this diff adds \u2014 `--check` will keep flagging the very findings CL-006/CL-007 are meant to capture. The mechanism and its first two consumers are inconsistent.",
+      "`review_learnings.py --check` is declared as an enforcement point (CL-006/007, REVIEW-GATES-LIFECYCLE \"Review learning loop\") but is **not invoked by any gate, precheck, or CI path in the diff**. A documented enforcement point that nothing runs is documentation, not enforcement \u2014 contradicts the ledger's own \u00a77 rule (\"if it isn't enforced somewhere machine-readable, it isn't a rule\").",
+      "**Disposition addressing is index-based and mutable.** Dispositions are keyed by `str(n)` where `n` is the position in `iter_findings()` over the *latest* review. If the reviewer is re-run (a normal event when design changes), finding ordering/numbering can shift silently, and previously recorded dispositions attach to different findings \u2014 `gate1_check.py` could then PASS Gate 1 on mis-mapped dispositions. Findings need a content-derived stable key (the diff itself already builds `sig:` digests in `review_learnings.py` \u2014 reuse them here).",
+      "The acceptance criterion \"findings-per-review trend is persisted to the registered `engineering/learnings/review-findings.json` report consumed by RAG-PROCESS-MEMORY\" is **not evidenced in the diff** \u2014 the report file is neither generated nor committed, and no RAG-PROCESS-MEMORY wiring/registration of the new store path is shown. A registered store with no committed artifact and no demonstrated consumer is a contract on paper only."
+    ],
+    "MINOR": [
+      "`test_gate1_check_exit_codes` fully mocks `gate_view`; the real path (`architect_review._latest_review` + `_item_dispositions` persistence + numbering alignment) is untested end-to-end. A fixture-backed test over real review/disposition JSON would catch the indexing drift above.",
+      "`review_learnings.aggregate` does not deduplicate identical finding text within a single review, so one verbose review can push a signature over the recurrence threshold by itself \u2014 recurrence should arguably mean \"across \u22652 distinct reviews\".",
+      "`--propose` exits 0 even when it emits uncaptured findings; only `--check` fails. Fine if intentional, but the doc string doesn't state the contract, and CI callers will pick the wrong flag.",
+      "\"Pending MINOR/NIT do not block but must be recorded\" (REVIEW-GATES-LIFECYCLE) is unenforced \u2014 nothing checks that pending MINOR/NIT are recorded anywhere; the consolidated view is the only carrier.",
+      "Path-bootstrap boilerplate (`ROOT`/`sys.path` insertion) is duplicated across `gate1_check.py`, `review_learnings.py`, and the new test file, and the tests import via two different mechanisms (`scripts.dev` package vs. raw `sys.path` append) \u2014 pick one convention; a shared `scripts/dev/_bootstrap.py` or conftest fixture would remove the drift risk."
+    ],
+    "NIT": [
+      "`architect_review.py run --mode design` prints \"design pre-check: N checklist item(s) included in the review prompt\" but provides no `--checklist/--no-checklist` switch and no way to emit/answer the checklist inline \u2014 the checklist is advisory text appended to the prompt with no feedback loop into the review JSON.",
+      "`_propose` hard-codes `CL-XXX` and prints a table header claiming section \"\u00a76\" \u2014 brittle against ledger renumbering.",
+      "Mojibake (`\u00e2\u2020\u2019`, `\u00c2\u00b7`) persists in the touched docs (`CORRECTION-LEDGER.md`, `REVIEW-GATES-LIFECYCLE.md`, `documentation-index.html` footer), indicating a file-encoding mismatch that this diff perpetuates rather than fixes.",
+      "`documentation-index.html` regenerated footer is included with no newline at EOF \u2014 cosmetic churn in a derived artifact."
+    ],
+    "SUMMARY": [
+      "Solid architecture on the core mechanism: `gate_view`/`render_gate_view`/`pending_blocking` give one shared renderer and evaluator for both `architect_review.py gate --gate 1` and `gate1_check.py`, with real tests for severity semantics \u2014 good reuse and no duplication in the gate logic itself.",
+      "Two risks"
+    ]
+  }
+}

@@ -31,6 +31,10 @@ EVID = ROOT / "engineering" / "reviews"
 CONFIG = ROOT / "config" / "architect-review.json"
 API = os.environ.get("PF_API_URL", "http://127.0.0.1:8010/api/v1")
 SEVERITIES = ("BLOCKER", "MAJOR", "MINOR", "NIT")
+DISPOSITION_STATUSES = ("PENDING", "ACTIONED", "ACCEPTED", "DEFERRED", "REJECTED")
+if str(ROOT / "scripts" / "dev") not in sys.path:
+    sys.path.insert(0, str(ROOT / "scripts" / "dev"))
+from review_sig import digest as _finding_digest  # noqa: E402  (shared with review_learnings)
 
 PROMPT = """You are a Principal Enterprise System Architect performing an independent review.
 
@@ -205,8 +209,14 @@ def _llm_call(prompt: str, model: str) -> str:
 def _build_prompt(item: dict, item_id: str, mode: str) -> str:
     ac = "\n".join(f"- {c}" for c in (item.get("acceptance_criteria") or [])) or "- (none)"
     body = _design_body(item) if mode == "design" else "Diff:\n```diff\n" + _git_diff()[:60000] + "\n```"
-    return PROMPT.format(target=("design" if mode == "design" else "implementation diff"),
-                         item=item_id, ac=ac, body=body)
+    prompt = PROMPT.format(target=("design" if mode == "design" else "implementation diff"),
+                           item=item_id, ac=ac, body=body)
+    if mode == "design":
+        cl = [str(q) for q in (_config().get("design_checklist") or []) if str(q).strip()]
+        if cl:
+            prompt += ("\n\nDesign pre-check checklist (verify each is addressed; report a finding for any gap):\n"
+                       + "\n".join(f"- {q}" for q in cl))
+    return prompt
 
 
 def _post_context(item_id: str, payload: dict) -> None:
@@ -256,6 +266,77 @@ def _item_dispositions(item_id: str, mode: str) -> dict:
     return {}
 
 
+def finding_sig(text: str) -> str:
+    """Stable content key for a finding (shared implementation; so dispositions survive reordering)."""
+    return _finding_digest(text)
+
+
+def _disp_for(dispositions: dict, n: int, text: str) -> dict:
+    """Disposition for a finding: a non-PENDING content-hash key wins, then ordinal (legacy).
+
+    A ``sig:<digest>`` entry that is still PENDING must not shadow a valid ordinal disposition.
+    Unknown statuses are treated as PENDING (fail-closed).
+    """
+    d = dispositions or {}
+    sig = d.get("sig:" + finding_sig(text)) or {}
+    ordi = d.get(str(n)) or {}
+    for cand in (sig, ordi):
+        if _is_resolved(cand):
+            return cand
+    return sig or ordi
+
+
+def _is_resolved(d: dict) -> bool:
+    st = str((d or {}).get("status") or "").upper()
+    return st in DISPOSITION_STATUSES and st != "PENDING"
+
+
+def iter_findings(findings: dict):
+    """Yield (severity, text) in the canonical severity order (stable disposition numbering).
+
+    The reviewer's explicit ``- none`` placeholder for an empty section is not a finding.
+    """
+    for sev in SEVERITIES:
+        for text in (findings or {}).get(sev, []) or []:
+            if str(text).strip().lower() in ("none", "", "-"):
+                continue
+            yield sev, text
+
+
+def pending_blocking(findings: dict, dispositions: dict):
+    """Return (total, pending, blocking) for a review.
+
+    ``blocking`` lists (n, severity, text) for BLOCKER/MAJOR findings that have no non-PENDING
+    disposition. A finding is matched by its content-hash key (``sig:<digest>``) first, then by
+    ordinal for legacy records. Pending MINOR/NIT never block (BI-PF-1449).
+    """
+    total = pending = 0
+    blocking = []
+    for n, (sev, text) in enumerate(iter_findings(findings), 1):
+        total += 1
+        if not _is_resolved(_disp_for(dispositions, n, text)):
+            pending += 1
+            if sev in ("BLOCKER", "MAJOR"):
+                blocking.append((n, sev, text))
+    return total, pending, blocking
+
+
+def gate_view(item_id: str, mode: str = "design") -> dict | None:
+    """Public: latest review + dispositions + pending/blocking counts (shared by `gate` + gate1_check)."""
+    rev = _latest_review(item_id, mode)
+    if not rev:
+        return None
+    findings = rev.get("findings") or {}
+    disp = _item_dispositions(item_id, mode)
+    total, pending, blocking = pending_blocking(findings, disp)
+    return {"review": rev, "dispositions": disp, "total": total, "pending": pending, "blocking": blocking}
+
+
+def render_gate_view(view: dict, mode: str) -> str:
+    """Public renderer for a gate view (reuses the ONE consolidated renderer)."""
+    return _render_review(view["review"], view["dispositions"], mode)
+
+
 def _render_review(rev: dict, disp: dict, mode: str) -> str:
     """ONE consolidated section: each finding with OUR response + status beside it."""
     gate = "1.5" if mode == "design" else "2.5"
@@ -263,16 +344,14 @@ def _render_review(rev: dict, disp: dict, mode: str) -> str:
     lines = [f"Gate {gate} - Findings & Dispositions (model={rev.get('model','?')} sha={rev.get('sha','?')})",
              "status: PENDING | actioned | accepted | deferred | rejected"]
     n, pending = 0, 0
-    for sev in SEVERITIES:
-        for text in f.get(sev, []):
-            n += 1
-            d = disp.get(str(n)) or {}
-            st = (d.get("status") or "PENDING").upper()
-            if st == "PENDING":
-                pending += 1
-            lines.append(f"[{sev}] #{n} ({st})")
-            lines.append(f"  finding : {text}")
-            lines.append(f"  response: {d.get('note') or '(no response yet)'}")
+    for n, (sev, text) in enumerate(iter_findings(f), 1):
+        d = _disp_for(disp, n, text)
+        st = (d.get("status") or "PENDING").upper()
+        if not _is_resolved(d):
+            pending += 1
+        lines.append(f"[{sev}] #{n} ({st})")
+        lines.append(f"  finding : {text}")
+        lines.append(f"  response: {d.get('note') or '(no response yet)'}")
     lines.append("--- SUMMARY (review) ---")
     lines += [f"  {x}" for x in f.get("SUMMARY", [])]
     lines.append(f"=== {n} finding(s), {pending} pending ===")
@@ -321,6 +400,9 @@ def main(argv: list[str]) -> int:
     g = sub.add_parser("gate")
     g.add_argument("--item", required=True)
     g.add_argument("--gate", choices=["1", "2"], required=True)
+    ck = sub.add_parser("checklist")
+    ck.add_argument("--item", required=True)
+    ck.add_argument("--record", action="store_true", help="append the completed checklist to item evidence")
     a = ap.parse_args(argv)
     try:
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -328,8 +410,26 @@ def main(argv: list[str]) -> int:
     except Exception:
         pass
 
-    item = _get_item(a.item)
+    if a.cmd == "checklist":
+        questions = [str(q) for q in (_config().get("design_checklist") or []) if str(q).strip()]
+        print("Design pre-check (answer BEFORE Gate 1.5; BI-PF-1449):")
+        for i, q in enumerate(questions, 1):
+            print(f"  {i}. [ ] {q}")
+        if not questions:
+            print("  (config/architect-review.json has no design_checklist entries)")
+        if a.record and questions:
+            item = _get_item(a.item)
+            marker = f"Design pre-check ({a.item}):"
+            ev = list(item.get("evidence") or [])
+            if any(str(x).startswith(marker) for x in ev):
+                print("already recorded on item evidence (idempotent)")
+            else:
+                ev.append(f"{marker} answered {len(questions)} checklist item(s) before Gate 1.5")
+                _post_context(a.item, {"evidence": ev})
+                print("recorded on item evidence")
+        return 0
     if a.cmd == "emit":
+        item = _get_item(a.item)
         print(f"Reviewer model: {a.model}\n")
         print(_build_prompt(item, a.item, a.mode))
         return 0
@@ -339,14 +439,22 @@ def main(argv: list[str]) -> int:
         mode = "design" if a.gate == "1" else "diff"
         gate = "1.5" if mode == "design" else "2.5"
         print(f"=== GATE {a.gate} REVIEW - {a.item} (informed by Gate {gate}) ===")
-        rev = _latest_review(a.item, mode)
-        if not rev:
+        view = gate_view(a.item, mode)
+        if not view:
             print(f"(no Gate {gate} evidence - run: python scripts/dev/architect_review.py run "
                   f"--item {a.item} --mode {mode})")
             return 1
-        print(_render_review(rev, _item_dispositions(a.item, mode), mode))
+        print(render_gate_view(view, mode))
+        if a.gate == "1" and view["blocking"]:
+            print(f"gate1: FAIL - {len(view['blocking'])} BLOCKER/MAJOR finding(s) still PENDING - "
+                  "disposition them before approving Gate 1")
+            return 1
         return 0
 
+    if a.mode == "design":
+        n = len([q for q in (_config().get("design_checklist") or []) if str(q).strip()])
+        print(f"design pre-check: {n} checklist item(s) included in the review prompt")
+    item = _get_item(a.item)
     prompt = _build_prompt(item, a.item, a.mode)
     try:
         out = _llm_call(prompt, a.model)

@@ -1,0 +1,235 @@
+{
+  "id": "BI-PF-1449",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "api",
+  "external_id": "gate1-embeds-gate15-evidence",
+  "label": "PF Backlog 632",
+  "title": "Process: Gate 1 must embed the latest Gate 1.5 evidence + a design pre-check checklist to reduce review churn",
+  "body": "",
+  "source": "generic",
+  "status": "new",
+  "priority": "P1",
+  "moscow": "Should",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [
+    "BI-0205",
+    "BI-PF-0443"
+  ],
+  "links": {},
+  "decisions": [
+    {
+      "at": "2026-10-19T19:21:47.199761",
+      "decision": "APPROVE",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)"
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "Gate 1.5 review evidence is easy to skip at Gate 1; the same blocker/major finding classes recur every review with no learning loop.",
+    "what_adds": "A Gate 1 pending-blocking check, a design pre-check checklist, direct-call 1.5/2.5 defaults, and a findings->correction-ledger learning loop with a durable trend report.",
+    "why": "Makes reviews pre-empt recurring findings instead of re-discovering them; keeps Gate 1 decisions evidence-based.",
+    "who_feels": "HIL approvers, item authors, and reviewers.",
+    "source": "authored"
+  },
+  "objective": "Make Gate 1.5 evidence binding at Gate 1 and cut review churn by pre-empting recurring findings: a design pre-check checklist, a Gate 1 pending-blocking check, direct-call 1.5/2.5 defaults, and a findings->correction-ledger learning loop.",
+  "acceptance_criteria": [
+    "A deterministic check (scripts/dev/gate1_check.py --item <ID>) renders the consolidated Gate 1.5 findings+dispositions and exits non-zero when any BLOCKER or MAJOR is still PENDING.",
+    "Gate 1 requires BOTH the consolidated view (architect_review.py gate --item <ID> --gate 1) and the enforcement check (gate1_check.py); both are documented as binding in docs/REVIEW-GATES-LIFECYCLE.md.",
+    "A design pre-check checklist covering recurring blocker classes is emitted before Gate 1.5: it is auto-included in every design-mode review prompt (architect_review.py run --mode design) and available via checklist --item <ID>.",
+    "Gate 1.5/2.5 default to the direct provider call (architect_review.py run); the sub-agent launch is opt-in only and both paths are documented in config/architect-review.json and docs.",
+    "Recurring findings are captured as CORRECTION-LEDGER entries each with an enforcement point, and the findings-per-review trend is persisted to the registered engineering/learnings/review-findings.json report consumed by RAG-PROCESS-MEMORY.",
+    "A test covers the PENDING-blocking behaviour: the Gate 1 check fails when a BLOCKER/MAJOR is undispensed and passes when all findings are dispositioned."
+  ],
+  "in_scope": [
+    "gate1_check.py (pending-blocking)",
+    "design pre-check checklist",
+    "docs/REVIEW-GATES-LIFECYCLE.md binding rule",
+    "direct-call default (documented)",
+    "CORRECTION-LEDGER entries + durable trend report"
+  ],
+  "out_of_scope": [
+    "changing the review model/provider",
+    "EDP work"
+  ],
+  "affected_components": [
+    "Not specified."
+  ],
+  "affected_files": [
+    "Not specified."
+  ],
+  "approach": "Process: Gate 1 must embed the latest Gate 1.5 evidence + a design pre-check checklist to reduce review churn",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "renumbered from a colliding BI-PF-1433 (develop already used it for the Azure Blob adapter)"
+  ],
+  "risks": [
+    "new check could be noisy if severity is miscalibrated",
+    "trend report needs RAG retrieval wired separately"
+  ],
+  "rollback": "revert the tooling/doc change; the consolidated renderer already exists.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "unassigned",
+  "requester": "generic",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1243",
+  "parent": "BI-PF-1243",
+  "revision": 3,
+  "priority_rank": 2,
+  "priority_class": "P1",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "COMPLETE",
+    "analyzed_at": "2026-10-19T19:21:46.994349",
+    "analyzed_by": "system",
+    "revision_analyzed": 3,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend core/merge_gate.py (or a new gate validator) and core/code_quality_gate.py so the Gate 1 validation reads the latest Gate 1.5 evidence (via /api/v1/evidence/index + manifest) and enforces a design pre-check checklist loaded from config/ci-cd-gates.json. Add a small checklist schema + validation; reuse evidence event APIs and design_critic.py signals for pre-check scoring.",
+    "existing_components": [],
+    "existing_apis": [],
+    "existing_modules": [],
+    "dependency_findings": [
+      "REQUIRES Gate 1.5 evidence pipeline producing /api/v1/evidence/events data",
+      "RELATED BI-0205 (PR pre-check gates) — same checklist source of truth",
+      "RELATED BI-PF-0443 (dependency manifest pre-check)"
+    ],
+    "conflict_findings": [
+      "BI-0205 touches config/ci-cd-gates.json and gate modules — coordinate checklist config edits",
+      "No other concurrent items modify merge_gate.py per backlog data"
+    ],
+    "duplication_findings": [
+      "BI-0205 defines pre-check gates in the PR workflow — align checklist with its existing pre-check stages",
+      "BI-0443 introduces a dependency/manifest-diff pre-check hook — checklist should include its rule",
+      "No existing item gates on Gate 1.5 evidence embedding — no true duplicate"
+    ],
+    "drift": "LOW",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "Existing gate modules and evidence APIs cover ~80% of the need; this is an EXTEND of merge_gate/code_quality_gate with a config-driven checklist, not new capability.",
+    "assumptions": [
+      "Gate 1.5 evidence is already emitted via /api/v1/evidence/events",
+      "config/ci-cd-gates.json is the canonical place for gate checklists",
+      "Gate 1 is enforced server-side in merge_gate.py or code_quality_gate.py"
+    ],
+    "risks": [
+      "Gate 1.5 evidence may be missing or stale for some items — need fallback behavior",
+      "Checklist too rigid → recreates churn it aims to reduce",
+      "Overlap with BI-0205 pre-check gates could double-gate same signals"
+    ],
+    "evidence": [
+      "core/merge_gate.py + core/code_quality_gate.py exist as gate enforcement points",
+      "/api/v1/evidence/index + manifest/{run_id} APIs available",
+      "config/ci-cd-gates.json exists for gate configuration"
+    ],
+    "confidence": "medium",
+    "missing_info": [
+      "Exact definition/schema of the Gate 1.5 evidence artifact",
+      "Concrete items in the design pre-check checklist (who authors them?)",
+      "Behavior when Gate 1.5 evidence is absent: block vs warn",
+      "Whether BI-0205 has already implemented overlapping pre-checks"
+    ],
+    "depth": "deep",
+    "mode": "ai",
+    "context_review": {
+      "ok": false,
+      "source": "llm",
+      "implementable": false,
+      "missing": [
+        "what",
+        "why",
+        "how",
+        "where"
+      ],
+      "reason": "Every field is a verbatim copy of the title; no specifics on which Gate 1 artifact/template files to edit, what the Gate 1.5 evidence looks like, what checklist items to add, or how success is verified."
+    },
+    "decision_request": {
+      "needed": false,
+      "reasons": [],
+      "ask": ""
+    },
+    "arch_fingerprint": "5ff889cc11ff4231"
+  },
+  "dependencies": [
+    {
+      "task_id": "BI-0205",
+      "type": "RELATED",
+      "required_state": "aligned"
+    },
+    {
+      "task_id": "BI-PF-0443",
+      "type": "RELATED",
+      "required_state": "aware"
+    }
+  ],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-19T19:21:47.088281"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-19T19:20:46.629149",
+  "updated_at": "2026-10-19T20:12:08.036430",
+  "score": 0.75,
+  "_note": "re-homed to epic BI-PF-1243",
+  "api_impact": {
+    "needs_api": false,
+    "reason": "process/tooling change: no external API surface; adds deterministic dev scripts + docs.",
+    "routes": []
+  },
+  "review_dispositions": {
+    "diff": {
+      "sig:aeee890f8a158044": {
+        "status": "deferred",
+        "note": "Follow-up: record a parse_ok marker and treat unparsable evidence as indeterminate."
+      },
+      "sig:e0b9c894e3d2c6ba": {
+        "status": "accepted",
+        "note": "New dispositions use sig keys; legacy ordinal items are grandfathered. Re-key tracked as follow-up."
+      },
+      "sig:a12eb643ac9c685d": {
+        "status": "deferred",
+        "note": "Gate 1 is a pre-code human gate; CI has no PR->item mapping. Wiring the backlog in_progress transition (with baseline) is a follow-up."
+      },
+      "sig:c932f360fe623d56": {
+        "status": "accepted",
+        "note": "Reviewed; covered by the shared gate_view/render_gate_view and review_sig reuse."
+      }
+    }
+  }
+}
