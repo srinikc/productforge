@@ -1,17 +1,17 @@
 # Backlog Summary
 
-> GENERATED 2026-10-19T19:05:37 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-19T19:07:53 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 127  |  **Closed:** 562
+- **Open:** 128  |  **Closed:** 564
 - `blocked`: 1
 - `executing`: 3
 - `in_progress`: 2
-- `new`: 121
+- `new`: 122
 
-### new, by category (121)
+### new, by category (122)
 **API / reports / HIL / misc** (15)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
@@ -31,10 +31,11 @@
 | BI-PF-1382 | Must | bug | Backlog API: POST /backlog/items returns empty resource_id (created id not surfaced) | Backlog API: POST /backlog/items returns empty resource_id (created id not surfaced) |
 | BI-PF-1409 | Must | defect | RCCA (process, P0): partial delivery reported as complete - EDP-02 closed without store classification/mapping; add artifact-completeness gates + evidence-based DoD + re-open audit | RCCA (process, P0): partial delivery reported as complete - EDP-02 closed without store classification/mapping... |
 
-**Bug fixes** (1)
+**Bug fixes** (2)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-PF-1332 | Should | bug | Develop red: test pollution committed into data/learnings.json breaks test_global_render_unchanged (scratch loop-learning marker 0270) | Restore develop green: purge test pollution from data/learnings.json + prevent test writes to the real learnin... |
+| BI-PF-1448 | Must | bug | [Gate 2.5] skip_globs miss product-forge/-prefixed paths: docs-only changes falsely require architect-review evidence | Make Gate 2.5 skip docs/config-only changes regardless of the repo-root-relative path prefix, without skipping... |
 
 **Discovery / HIL / prompts** (8)
 | ID | MoSCoW | Type | Title | Objective |
@@ -363,5 +364,5 @@
 ---
 
 ## Totals
-- backend: 127 open / 562 closed
+- backend: 128 open / 564 closed
 - dashboard: 146 open / 3 closed
