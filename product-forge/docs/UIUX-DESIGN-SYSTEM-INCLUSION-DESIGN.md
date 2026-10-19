@@ -144,7 +144,7 @@ docs/design-direction.md  +  design-spec.json   (recorded decision, referenced b
 
 **Epic:** *Design System & UI/UX Knowledge (framework-agnostic)*.
 
-**ID authority:** the backlog (`core/backlog.py`) is the source of truth; the `BI-PF-*` ids below are authoritative and `DSI-N` are plan labels used only in this document. IDs `1433–1435` were reserved by the shared `pf-id-counter` before this seed and remain intentionally unused; the id ledger records that reservation.
+**ID authority:** the backlog (`core/backlog.py`) is the source of truth; the `BI-PF-*` ids below are authoritative and `DSI-N` are plan labels used only in this document. IDs `1433–1435` are recorded in `config/id-blocks.json` as a consumed shared-counter reservation (`shared:pf-id-counter`) and remain intentionally unused.
 
 | Plan label | Backlog id | Child | Depends on (REQUIRES) | Wave | Language |
 |---|---|---|---|---|---|
@@ -172,6 +172,8 @@ store registered in `config/store-registry.json` · skills registered · a11y + 
 **No runtime module defaults to reading `.opencode`.**
 
 **Observability (required before the gates go live):** `design.select` emits the ranked candidates + rationale, `a11y.audit` emits its verdict/failure reason, and `skills.resolve` emits the chosen path/sha + any legacy fallback. Fail-closed gates are unauditable without emitted verdicts.
+
+**Doc reconciliation:** each child updates §4/§6 in the same PR that lands its row; the child item owns the edit (no separate sync task).
 
 ---
 

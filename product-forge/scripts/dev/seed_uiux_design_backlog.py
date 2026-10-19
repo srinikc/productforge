@@ -67,6 +67,7 @@ EPIC = {
         "The design doc is committed and linked to BI-PF-1436, covering corpus, skills, tokens, stages, gates, and risks.",
         "All nine children (BI-PF-1437..1445) are seeded with detailed AC, dependencies, waves, and api_impact decisions.",
         "Children remain new for wave execution; no implementation is claimed by this design/seed phase.",
+        "Each child updates §4/§6 of the design doc in the same PR that lands its row (no separate sync task).",
     ],
     "dod": [
         "Design + seed reviewed at Gate 1; no child is marked delivered before its own AC evidence.",
@@ -90,6 +91,7 @@ ITEMS = [
             "Given a skill id, skills.resolve returns the neutral body from pipeline/skills/<id>/SKILL.md.",
             ".opencode/skills is read only when ALLOW_OPENCODE_LEGACY=1.",
             "pipeline/skills-registry.json contains the 8 skills; license/attribution preserved.",
+            "skills.resolve records source+sha256, emits the chosen path, and rejects bodies with prompt-injection markers.",
         ],
         "dod": ["wired_audit green (no unwired file).", "skills.resolve covered by a unit test."],
         "files": ["go/pfcore/skill_registry.go", "core/go_host.py",
@@ -134,7 +136,7 @@ ITEMS = [
         "out_scope": ["UI to browse the catalog (dashboard work, separate)."],
         "ac": [
             "config/design-systems.json is registered (kind:config, single writer).",
-            "design.select returns 2-3 ranked candidates with rationale for a given product_type/domain.",
+            "design.select returns and emits 2-3 ranked candidates with rationale for a given product_type/domain.",
             "Selection logic lives in Go and passes language_rule_check.",
         ],
         "dod": ["Store registered; no Tier-1 palette leaks into components.", "Unit test for select()."],
@@ -195,6 +197,7 @@ ITEMS = [
             "Prompt assembly adds a SKILLS: block for agents with skill bindings.",
             "Bodies load from pipeline/skills (neutral), not .opencode.",
             "Token budget enforced (skill-router tiers).",
+            "Only scanned, registry-resolved bodies enter the SKILLS: block; the block records source + sha256.",
         ],
         "dod": ["Agent prompt snapshot test asserts the SKILLS: block."],
         "files": ["core/orchestrator/agent_runner.py", "core/knowledge_compliance_checker.py",
@@ -236,6 +239,7 @@ ITEMS = [
         "ac": [
             "a11y.audit returns a WCAG 2.2 AA verdict (fail-closed).",
             "The a11y-audit stage is wired as a blocking stage that fails closed on violations.",
+            "a11y.audit emits its verdict/failure reason.",
             "test-framework/templates/accessibility/ exists.",
         ],
         "dod": ["Known-bad page FAILS the gate; known-good passes."],
