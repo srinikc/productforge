@@ -1,0 +1,196 @@
+{
+  "id": "BI-PF-1448",
+  "tag": "PF",
+  "type": "bug",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "",
+  "label": "PF Backlog 629",
+  "title": "[Gate 2.5] skip_globs miss product-forge/-prefixed paths: docs-only changes falsely require architect-review evidence",
+  "body": "architect_review.changed_files() returns repo-root-relative paths (e.g. product-forge/docs/documentation-index.html) but config/architect-review.json skip_globs are written as docs/**, **/*.md, config/**. The docs/** and config/** patterns do not match the product-forge/ prefix, so a generated-docs-only change (documentation-index.html) is treated as review-required and blocks precheck. Fix the globs to match both layouts without weakening the code/schema/security gate.",
+  "source": "review",
+  "status": "new",
+  "priority": "P1",
+  "moscow": "Must",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [],
+  "links": {},
+  "decisions": [
+    {
+      "at": "2026-10-19T18:45:21.943061",
+      "decision": "APPROVE",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)"
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "architect_review.changed_files() returns repo-root-relative paths (e.g. product-forge/docs/documentation-index.html) but config/architect-review.json skip_globs are written as docs/**, **/*.md, config/**. The docs/** and config/** patterns do not match the product-forge/ prefix, so a generated-docs-only change (documentation-index.html) is treated as review-required and blocks precheck. Fix the globs to match both layouts without weakening the code/schema/security gate.",
+    "what_adds": "[Gate 2.5] skip_globs miss product-forge/-prefixed paths: docs-only changes falsely require architect-review evidence",
+    "why": "architect_review.changed_files() returns repo-root-relative paths (e.g. product-forge/docs/documentation-index.html) but config/architect-review.json skip_globs are written as docs/**, **/*.md, config/**. The docs/** and config/** patterns do not match the product-forge/ prefix, so a generated-docs-only change (documentation-index.html) is treated as review-required and blocks precheck. Fix the globs to match both layouts without weakening the code/schema/security gate.",
+    "who_feels": "Product Forge maintainers and consumers.",
+    "source": "extracted"
+  },
+  "objective": "Make Gate 2.5 skip docs/config-only changes regardless of the repo-root-relative path prefix, without skipping code/schema/security changes.",
+  "acceptance_criteria": [
+    "architect_review_check.is_applicable skips a change whose files are only docs/ or config/ even when git returns repo-root-relative paths prefixed with product-forge/; verified by running the gate on a docs-only branch.",
+    "The skip_globs in config/architect-review.json match both product-forge/-prefixed and unprefixed docs/config paths; the gate prints OK (skip ...) for a documentation-index.html change and still requires evidence for code changes.",
+    "python scripts/dev/precheck.py passes on the docs-only backlog bookkeeping branch and on this config-only fix, while a code-only change still fails closed without Gate 2.5 evidence."
+  ],
+  "in_scope": [
+    "[Gate 2.5] skip_globs miss product-forge/-prefixed paths: docs-only changes falsely require architect-review evidence"
+  ],
+  "out_of_scope": [
+    "Not specified."
+  ],
+  "affected_components": [
+    "config"
+  ],
+  "affected_files": [
+    "config/architect-review.json"
+  ],
+  "approach": "[Gate 2.5] skip_globs miss product-forge/-prefixed paths: docs-only changes falsely require architect-review evidence",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Objective achieved: [Gate 2.5] skip_globs miss product-forge/-prefixed paths: docs-only changes falsely require architect-review evidence"
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "agent",
+  "requester": "review",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "Gate 2.5 false-positive on generated docs: skip_globs do not match product-forge/-prefixed paths.",
+  "children": [],
+  "epic": "BI-PF-1252",
+  "parent": "BI-PF-1252",
+  "revision": 2,
+  "priority_rank": 30,
+  "priority_class": "P1",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "COMPLETE",
+    "analyzed_at": "2026-10-19T18:45:21.734676",
+    "analyzed_by": "system",
+    "revision_analyzed": 2,
+    "architecture_fit": "MODIFY",
+    "implementation_strategy": "Modify config/architect-review.json skip_globs to add product-forge/-prefixed variants (e.g. product-forge/docs/**, **/docs/**, product-forge/**/*.md, product-forge/config/**) while keeping strict review-required globs for code/schema/security paths. No code change needed unless glob matching is found non-recursive; verify architect_review.changed_files() path normalization in core/merge_gate.py or core/pr_gate.py.",
+    "existing_components": [],
+    "existing_apis": [],
+    "existing_modules": [],
+    "dependency_findings": [
+      {
+        "task_id": "product_forge:BI-PF-1428",
+        "type": "RELATED",
+        "required_state": "open"
+      },
+      {
+        "task_id": "product_forge:BI-PF-1411",
+        "type": "RELATED",
+        "required_state": "open"
+      },
+      {
+        "task_id": "product_forge:BI-PF-1430",
+        "type": "RELATED",
+        "required_state": "open"
+      }
+    ],
+    "conflict_findings": [
+      "Potential concurrent edits to config/architect-review.json if BI-PF-1428 hardening touches the same config; coordinate ordering",
+      "core/merge_gate.py or core/pr_gate.py glob evaluation shared by other gates"
+    ],
+    "duplication_findings": [
+      "BI-PF-1428 makes Gate 2.5 a hard rule in precheck; fix must land before/with it to avoid blocking docs-only changes",
+      "BI-PF-1411 similar config-glob gating bug pattern in language-rule gate",
+      "No existing component already fixes these globs"
+    ],
+    "drift": "LOW",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "Pure config-glob alignment fix, minimal blast radius; keeps Gate 2.5 strict for code/schema/security while unblocking docs-only changes. Reuses existing gate infrastructure.",
+    "assumptions": [
+      "Paths from architect_review.changed_files() are always repo-root-relative",
+      "Glob matching supports ** semantics in current implementation",
+      "Skipping globs only affects evidence requirement, not other gates"
+    ],
+    "risks": [
+      "Over-broad globs (**/docs/**) could skip genuinely risky files if a code file lands under docs/",
+      "If product is ever vendored outside product-forge/ prefix, globs must remain backward compatible",
+      "Glob engine semantics (fnmatch vs regex) unverified"
+    ],
+    "evidence": [
+      "config/architect-review.json skip_globs list docs/**, **/*.md, config/** as cited in item",
+      "Item body states product-forge/docs/documentation-index.html is falsely review-required"
+    ],
+    "confidence": "medium",
+    "missing_info": [
+      "Confirm exact glob engine and whether ** matches leading path segments",
+      "Decide canonical path layout (repo-root vs product-forge/ prefixed) for future configs",
+      "Confirm no other skip_globs configs (artifact-paths, shared-paths) have same prefix bug"
+    ],
+    "depth": "deep",
+    "mode": "ai",
+    "context_review": {
+      "ok": true,
+      "source": "llm",
+      "implementable": true,
+      "missing": [],
+      "reason": "States exact file (config/architect-review.json), current broken globs, required fix (match product-forge/-prefixed and unprefixed paths), and precise acceptance criteria/testable verification."
+    },
+    "decision_request": {
+      "needed": false,
+      "reasons": [],
+      "ask": ""
+    },
+    "arch_fingerprint": "1eb8b4dae56937b2"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-19T18:45:21.826999"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-19T18:42:27.183218",
+  "updated_at": "2026-10-19T18:49:55.785917",
+  "score": 0.75,
+  "_note": "readiness computed",
+  "api_impact": {
+    "needs_api": false,
+    "reason": "Config/test-tooling fix only: adjust Gate 2.5 skip_globs in config/architect-review.json; no runtime API surface or routes."
+  }
+}
