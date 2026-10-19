@@ -1,17 +1,17 @@
 # Backlog Summary
 
-> GENERATED 2026-10-19T16:09:27 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-19T18:50:59 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 126  |  **Closed:** 562
+- **Open:** 127  |  **Closed:** 562
 - `blocked`: 1
 - `executing`: 3
 - `in_progress`: 2
-- `new`: 120
+- `new`: 121
 
-### new, by category (120)
+### new, by category (121)
 **API / reports / HIL / misc** (15)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
@@ -87,7 +87,7 @@
 | BI-PF-1392 | Should | task | Enforce per-feature FR/US caps + max_lines in the Go artifact engine (scaled by the profile) and reconcile the three section sources | Per-feature FR/US caps + max_lines enforced NUMERICALLY (scaled by profile); sections have ONE source. |
 | BI-PF-1425 | Should | feature | Migrate orchestrator cache + evidence/summarizer (and remaining audit logic) from Python to Go (Go-first alignment) | Migrate orchestrator cache + evidence/summarizer (and remaining audit logic) from Python to Go (Go-first align... |
 
-**Wiring / tech-debt / API** (73)
+**Wiring / tech-debt / API** (74)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0185 | Should | feature | EPIC: Multi-modal / media orchestration (pluggable capability packs) | Make the pipeline modality-agnostic via PLUGGABLE capability packs, enabled per project when the idea needs th... |
@@ -163,6 +163,7 @@
 | BI-PF-1424 | Must | feature | Consolidate Python orchestrator audit (AgentAuditLog) into the DB AuditStore - single audit truth via /audit | Consolidate Python orchestrator audit (AgentAuditLog) into the DB AuditStore - single audit truth via /audit |
 | BI-PF-1426 | Should | change | Harden auto-loaded config against schema mixing + tooling writes outside the repo (residency-profiles vs residency-cells) | Make schema-mixing in auto-loaded dirs and out-of-repo tooling writes fail loudly, repo-wide. |
 | BI-PF-1431 | Must | feature | Design & implement the PF server/service + token model (sharing for internal/external callers) | Design & implement the PF server/service + token model (sharing for internal/external callers) |
+| BI-PF-1433 | Should | feature | Process: Gate 1 must embed the latest Gate 1.5 evidence + a design pre-check checklist to reduce review churn | Make Gate 1.5 evidence binding at Gate 1 and cut review churn by pre-empting recurring findings: a design pre-... |
 
 ---
 
@@ -362,5 +363,5 @@
 ---
 
 ## Totals
-- backend: 126 open / 562 closed
+- backend: 127 open / 562 closed
 - dashboard: 146 open / 3 closed
