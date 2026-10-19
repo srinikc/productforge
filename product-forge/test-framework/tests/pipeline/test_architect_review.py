@@ -58,6 +58,28 @@ def test_dispositions_bind_by_content_signature_across_reorder():
     assert [t for _, _, t in blocking] == ["finding B"]
 
 
+def test_sig_pending_does_not_shadow_valid_ordinal():
+    disp = {"sig:" + ar.finding_sig("A"): {"status": "PENDING"}, "1": {"status": "actioned"}}
+    assert ar.pending_blocking({"BLOCKER": ["A"]}, disp) == (1, 0, [])
+
+
+def test_unknown_status_is_fail_closed():
+    total, pending, blocking = ar.pending_blocking({"MAJOR": ["A"]}, {"1": {"status": "typo"}})
+    assert (total, pending) == (1, 1) and blocking
+
+
+def test_design_prompt_includes_checklist():
+    p = ar._build_prompt({"acceptance_criteria": ["x"]}, "ID", "design")
+    assert "Design pre-check checklist" in p
+
+
+def test_gate_command_blocks_on_pending(monkeypatch):
+    pending = {"review": {"findings": {"BLOCKER": ["b"]}, "model": "m", "sha": "s"},
+               "dispositions": {}, "total": 1, "pending": 1, "blocking": [(1, "BLOCKER", "b")]}
+    monkeypatch.setattr(ar, "gate_view", lambda item, mode="design": pending)
+    assert ar.main(["gate", "--item", "X", "--gate", "1"]) == 1
+
+
 def test_gate1_check_exit_codes(monkeypatch):
     from scripts.dev import gate1_check as g1
 

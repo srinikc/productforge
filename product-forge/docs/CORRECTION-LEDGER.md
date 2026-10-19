@@ -47,7 +47,12 @@ Ledger entries are an indexed source (`type=correction`) and are **retrieved + i
 | CL-004 | **Don't delegate small decisions to sub-agents**; delegate only large/isolated/parallel/independent work | `docs/MODEL-ASSISTED-ENGINEERING.md` §5 |
 | CL-005 | **No PF token for internal callers (interim)**; one shared instance per service per environment | `docs/PF-API-SERVICE-OR-SERVER.md` |
 | CL-006 | **Gate 1 must embed the latest Gate 1.5 findings + dispositions; approval is invalid while any BLOCKER/MAJOR is PENDING** | `scripts/dev/gate1_check.py` + `docs/REVIEW-GATES-LIFECYCLE.md` |
-| CL-007 | **Default 1.5/2.5 to the direct provider call; use a sub-agent only when investigation is needed; pre-check recurring blocker classes before 1.5** | `config/architect-review.json` (`runner_default`, `design_checklist`) + `architect_review.py checklist` |
+| CL-007 | **Default 1.5/2.5 to the direct provider call; use a sub-agent only when investigation is needed; pre-check recurring blocker classes before 1.5** | `config/architect-review.json` (`design_checklist`) + `architect_review.py checklist` |
+
+> **Machine capture:** `scripts/dev/review_learnings.py --propose` emits rows carrying a
+> `<!-- sig:<digest> -->` marker so `--check` sees the recurring finding as captured. Manually-authored
+> process rules (e.g. CL-006/007) have no single review digest and are intentionally not tracked by
+> `--check`.
 
 ## 7. One line
 **Every correction → a durable rule + an enforcement point; if it isn't enforced somewhere machine-readable, it

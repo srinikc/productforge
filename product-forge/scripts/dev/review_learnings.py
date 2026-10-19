@@ -18,7 +18,6 @@ Run:
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import re
 import sys
@@ -31,6 +30,9 @@ LEARNINGS = ROOT / "engineering" / "learnings" / "review-findings.json"
 LEDGER = ROOT / "docs" / "CORRECTION-LEDGER.md"
 SEV = ("BLOCKER", "MAJOR", "MINOR", "NIT")
 _SIG_RE = re.compile(r"sig:([0-9a-f]{10})")
+if str(ROOT / "scripts" / "dev") not in sys.path:
+    sys.path.insert(0, str(ROOT / "scripts" / "dev"))
+from review_sig import digest as _digest_shared, signature as _signature_shared  # noqa: E402
 
 
 def load_reviews(dir_path: Path | None = None) -> list[dict]:
@@ -56,16 +58,13 @@ def load_reviews(dir_path: Path | None = None) -> list[dict]:
 
 
 def signature(text: str) -> str:
-    """Stable normalisation: lowercase, drop code spans/punctuation, collapse whitespace, first 14 words."""
-    s = str(text or "").lower()
-    s = re.sub(r"`[^`]*`", " ", s)
-    s = re.sub(r"[^a-z0-9 ]+", " ", s)
-    s = re.sub(r"\s+", " ", s).strip()
-    return " ".join(s.split()[:14])
+    """Stable normalisation (shared with architect_review via review_sig)."""
+    return _signature_shared(text)
 
 
 def digest(text: str) -> str:
-    return hashlib.sha1(signature(text).encode("utf-8")).hexdigest()[:10]
+    """10-hex content key (shared with architect_review via review_sig)."""
+    return _digest_shared(text)
 
 
 def ledger_digests(path: Path | None = None) -> set[str]:
@@ -189,7 +188,8 @@ def main(argv: list[str] | None = None) -> int:
         }, indent=2))
         return 1 if (a.check and todo) else 0
     if a.propose:
-        return _propose(agg, ledger, max(1, a.threshold))
+        rc = _propose(agg, ledger, max(1, a.threshold))
+        return 1 if (a.check and todo) else rc
     _report(agg, max(1, a.threshold))
     if a.check and todo:
         print(f"review-learnings: {len(todo)} recurring finding(s) NOT captured in the correction ledger")

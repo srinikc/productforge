@@ -31,6 +31,10 @@ EVID = ROOT / "engineering" / "reviews"
 CONFIG = ROOT / "config" / "architect-review.json"
 API = os.environ.get("PF_API_URL", "http://127.0.0.1:8010/api/v1")
 SEVERITIES = ("BLOCKER", "MAJOR", "MINOR", "NIT")
+DISPOSITION_STATUSES = ("PENDING", "ACTIONED", "ACCEPTED", "DEFERRED", "REJECTED")
+if str(ROOT / "scripts" / "dev") not in sys.path:
+    sys.path.insert(0, str(ROOT / "scripts" / "dev"))
+from review_sig import digest as _finding_digest  # noqa: E402  (shared with review_learnings)
 
 PROMPT = """You are a Principal Enterprise System Architect performing an independent review.
 
@@ -263,18 +267,28 @@ def _item_dispositions(item_id: str, mode: str) -> dict:
 
 
 def finding_sig(text: str) -> str:
-    """Stable content key for a finding (so dispositions survive re-review reordering)."""
-    s = str(text or "").lower()
-    s = re.sub(r"`[^`]*`", " ", s)
-    s = re.sub(r"[^a-z0-9 ]+", " ", s)
-    s = re.sub(r"\s+", " ", s).strip()
-    return hashlib.sha1(" ".join(s.split()[:14]).encode("utf-8")).hexdigest()[:10]
+    """Stable content key for a finding (shared implementation; so dispositions survive reordering)."""
+    return _finding_digest(text)
 
 
 def _disp_for(dispositions: dict, n: int, text: str) -> dict:
-    """Disposition for a finding: content-hash key (``sig:<digest>``) wins; ordinal is legacy back-compat."""
+    """Disposition for a finding: a non-PENDING content-hash key wins, then ordinal (legacy).
+
+    A ``sig:<digest>`` entry that is still PENDING must not shadow a valid ordinal disposition.
+    Unknown statuses are treated as PENDING (fail-closed).
+    """
     d = dispositions or {}
-    return d.get("sig:" + finding_sig(text)) or d.get(str(n)) or {}
+    sig = d.get("sig:" + finding_sig(text)) or {}
+    ordi = d.get(str(n)) or {}
+    for cand in (sig, ordi):
+        if _is_resolved(cand):
+            return cand
+    return sig or ordi
+
+
+def _is_resolved(d: dict) -> bool:
+    st = str((d or {}).get("status") or "").upper()
+    return st in DISPOSITION_STATUSES and st != "PENDING"
 
 
 def iter_findings(findings: dict):
@@ -295,8 +309,7 @@ def pending_blocking(findings: dict, dispositions: dict):
     blocking = []
     for n, (sev, text) in enumerate(iter_findings(findings), 1):
         total += 1
-        st = str((_disp_for(dispositions, n, text) or {}).get("status") or "PENDING").upper()
-        if st == "PENDING":
+        if not _is_resolved(_disp_for(dispositions, n, text)):
             pending += 1
             if sev in ("BLOCKER", "MAJOR"):
                 blocking.append((n, sev, text))
@@ -329,7 +342,7 @@ def _render_review(rev: dict, disp: dict, mode: str) -> str:
     for n, (sev, text) in enumerate(iter_findings(f), 1):
         d = _disp_for(disp, n, text)
         st = (d.get("status") or "PENDING").upper()
-        if st == "PENDING":
+        if not _is_resolved(d):
             pending += 1
         lines.append(f"[{sev}] #{n} ({st})")
         lines.append(f"  finding : {text}")
