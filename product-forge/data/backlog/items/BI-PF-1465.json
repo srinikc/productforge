@@ -1,0 +1,208 @@
+{
+  "id": "BI-PF-1465",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "api",
+  "external_id": "gate1-unparsable-evidence-fail-closed",
+  "label": "PF Backlog 633",
+  "title": "Fix: Gate 1 check must treat unparsable/empty review evidence as indeterminate (fail-closed)",
+  "body": "",
+  "source": "generic",
+  "status": "completed",
+  "priority": "P1",
+  "moscow": "Must",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [
+    "BI-PF-1375"
+  ],
+  "links": {
+    "delivery": {
+      "branch": "feat/bi-pf-1465-1467-gate-hardening",
+      "merge_sha": "0decb70f1c5295834382475aab18493a6f54aef2",
+      "commits": [
+        "ef077da9"
+      ],
+      "pr": "260",
+      "pr_url": "https://github.com/srinikc/productforge/pull/260",
+      "at": "2026-10-19T22:18:34.480055",
+      "note": "",
+      "usage": {},
+      "duration_seconds": 0
+    }
+  },
+  "decisions": [
+    {
+      "at": "2026-10-19T21:40:34.425053",
+      "decision": "APPROVE",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)"
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "A Gate 1.5 review whose text fails to section parses to zero findings and silently PASSes the binding Gate 1 check (fail-open).",
+    "what_adds": "A parsed_ok marker on evidence + indeterminate handling in gate_view/gate1_check.",
+    "why": "A binding gate must fail closed when evidence is unreadable, not treat it as clean.",
+    "who_feels": "HIL approvers and reviewers.",
+    "source": "authored"
+  },
+  "objective": "Make Gate 1 fail closed on unparsable/empty review evidence instead of silently passing.",
+  "acceptance_criteria": [
+    "The review ingest records a parsed_ok flag that is true only when the raw review text contained at least one severity/SUMMARY heading.",
+    "gate_view and gate1_check treat parsed_ok=false as indeterminate (exit code 2), never as PASS, so evidence that failed to parse cannot clear Gate 1.",
+    "Backward compatible: committed evidence files without parsed_ok are treated as parsed (true); a genuinely clean review with headings still passes.",
+    "A test covers unparsable evidence -> exit 2, no evidence -> exit 2, and parsed clean evidence -> exit 0."
+  ],
+  "in_scope": [
+    "Fix: Gate 1 check must treat unparsable/empty review evidence as indeterminate (fail-closed)"
+  ],
+  "out_of_scope": [
+    "Not specified."
+  ],
+  "affected_components": [
+    "Not specified."
+  ],
+  "affected_files": [
+    "Not specified."
+  ],
+  "approach": "Fix: Gate 1 check must treat unparsable/empty review evidence as indeterminate (fail-closed)",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "review evidence parsed_ok marker + gate1_check/gate treat unparsable evidence as indeterminate (exit 2); tests added.",
+    "precheck fast PASS (44 gates) + Gate 2.5 clean (0 findings) + pytest; PR #260 merged (0decb70f)."
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "orchestration-team",
+  "requester": "generic",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1243",
+  "parent": "BI-PF-1243",
+  "revision": 4,
+  "priority_rank": 15,
+  "priority_class": "P1",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "STALE",
+    "analyzed_at": "2026-10-19T21:40:34.221597",
+    "analyzed_by": "system",
+    "revision_analyzed": 3,
+    "architecture_fit": "MODIFY",
+    "implementation_strategy": "Extend core/cross_review.py (and sibling gate modules) so review evidence parsing failures yield an explicit 'indeterminate' result instead of defaulting to pass; add structured error handling + fail-closed default at the evidence ingestion layer.",
+    "existing_components": [],
+    "existing_apis": [],
+    "existing_modules": [],
+    "dependency_findings": [
+      "RELATED BI-PF-1375 — reuse fail-closed helper if present.",
+      "RELATED BI-PF-0665 — LLM backlog review depends on same evidence pipeline."
+    ],
+    "conflict_findings": [
+      "BI-PF-1375 may touch core/cross_review.py; coordinate merge order."
+    ],
+    "duplication_findings": [
+      "BI-PF-1375 already addresses fail-closed semantics for dynamic agents — align patterns.",
+      "No existing item covers review-evidence parsing failure specifically."
+    ],
+    "drift": "LOW",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "Fail-closed on unparsable/empty review evidence is a correctness/safety fix in existing gate modules; minimal MODIFY scope fits reuse-first.",
+    "assumptions": [
+      "Evidence parsing currently defaults to pass on empty/unparsable input.",
+      "Downstream consumers tolerate an 'indeterminate' state."
+    ],
+    "risks": [
+      "Gate behavior change could block currently passing pipelines.",
+      "Callers may rely on implicit pass-on-empty behavior."
+    ],
+    "evidence": [
+      "Candidate modules: core/cross_review.py, core/code_quality_gate.py, core/merge_gate.py.",
+      "APIs: /api/v1/gates/go-no-go, /api/v1/evidence/events."
+    ],
+    "confidence": "medium",
+    "missing_info": [
+      "Which specific gate/check currently swallows parse failures?",
+      "Desired UX for indeterminate: block, warn, or queue-for-retry?",
+      "Rollout strategy for existing pipelines with legacy evidence."
+    ],
+    "depth": "deep",
+    "mode": "ai",
+    "context_review": {
+      "ok": false,
+      "source": "llm",
+      "implementable": false,
+      "missing": [
+        "how",
+        "where"
+      ],
+      "reason": "All fields repeat the same title line; no affected files/components or concrete parsing logic described, so an engineer can't locate the Gate 1 check or know how evidence is parsed."
+    },
+    "decision_request": {
+      "needed": false,
+      "reasons": [],
+      "ask": ""
+    },
+    "arch_fingerprint": "cbe9c3e2434fd2c7"
+  },
+  "dependencies": [
+    {
+      "task_id": "BI-PF-1375",
+      "type": "RELATED",
+      "required_state": "in_progress"
+    }
+  ],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-19T21:40:34.313412"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-19T21:39:57.991015",
+  "updated_at": "2026-10-19T22:18:34.996652",
+  "score": 0.75,
+  "_note": "",
+  "api_impact": {
+    "needs_api": false,
+    "reason": "process/tooling change: no external API surface (dev scripts + gates + docs).",
+    "routes": []
+  },
+  "verified_by": "architect-review + precheck + pytest"
+}

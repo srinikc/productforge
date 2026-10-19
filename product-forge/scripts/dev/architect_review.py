@@ -206,10 +206,14 @@ def _build_prompt(item: dict, item_id: str, mode: str) -> str:
     prompt = PROMPT.format(target=("design" if mode == "design" else "implementation diff"),
                            item=item_id, ac=ac, body=body)
     if mode == "design":
-        cl = [str(q) for q in (_config().get("design_checklist") or []) if str(q).strip()]
-        if cl:
-            prompt += ("\n\nDesign pre-check checklist (verify each is addressed; report a finding for any gap):\n"
-                       + "\n".join(f"- {q}" for q in cl))
+        try:
+            from design_guardrails import render as _render_guardrails  # BI-PF-1467: design-time learnings
+            prompt += "\n\n" + _render_guardrails(item, item_id)
+        except Exception:
+            cl = [str(q) for q in (_config().get("design_checklist") or []) if str(q).strip()]
+            if cl:
+                prompt += ("\n\nDesign pre-check checklist (verify each is addressed; report a finding for any gap):\n"
+                           + "\n".join(f"- {q}" for q in cl))
     return prompt
 
 
@@ -323,7 +327,8 @@ def gate_view(item_id: str, mode: str = "design") -> dict | None:
     findings = rev.get("findings") or {}
     disp = _item_dispositions(item_id, mode)
     total, pending, blocking = pending_blocking(findings, disp)
-    return {"review": rev, "dispositions": disp, "total": total, "pending": pending, "blocking": blocking}
+    return {"review": rev, "dispositions": disp, "total": total, "pending": pending, "blocking": blocking,
+            "parsed_ok": rev.get("parsed_ok", True)}
 
 
 def render_gate_view(view: dict, mode: str) -> str:
@@ -354,11 +359,13 @@ def _render_review(rev: dict, disp: dict, mode: str) -> str:
 
 def _ingest(item_id: str, text: str, model: str, apply: bool, mode: str = "diff") -> int:
     findings = parse_review(text)
+    # BI-PF-1465: fail closed - evidence that did not parse must never look like a clean review.
+    parsed_ok = bool(re.search(r"^\s*#{2,4}\s*(BLOCKER|MAJOR|MINOR|NIT|SUMMARY)\s*$", text, re.I | re.M))
     sha = diff_sha()
     EVID.mkdir(parents=True, exist_ok=True)
     out = EVID / f"{item_id}-{sha}.json"
     out.write_text(json.dumps({"item": item_id, "sha": sha, "model": model, "mode": mode,
-                               "findings": findings}, indent=2), encoding="utf-8")
+                               "parsed_ok": parsed_ok, "findings": findings}, indent=2), encoding="utf-8")
     counts = {s: len(findings[s]) for s in SEVERITIES}
     print(f"review captured: {out} {counts}")
     blockers = findings["BLOCKER"]
@@ -439,6 +446,9 @@ def main(argv: list[str]) -> int:
                   f"--item {a.item} --mode {mode})")
             return 1
         print(render_gate_view(view, mode))
+        if a.gate == "1" and not view.get("parsed_ok", True):
+            print("gate1: FAIL - review evidence could not be parsed (indeterminate); re-run the review")
+            return 2
         if a.gate == "1" and view["blocking"]:
             print(f"gate1: FAIL - {len(view['blocking'])} BLOCKER/MAJOR finding(s) still PENDING - "
                   "disposition them before approving Gate 1")
