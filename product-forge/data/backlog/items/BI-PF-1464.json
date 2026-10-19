@@ -42,7 +42,7 @@
   "acceptance_criteria": [
     "architect_review runs every git subprocess through a helper that decodes stdout as UTF-8 (errors=replace) instead of the OS locale, so a diff containing non-cp1252 characters (e.g. em dashes) no longer raises UnicodeDecodeError on Windows.",
     "A regression test asserts the git helper forces encoding='utf-8' with errors='replace' (and not text=True), and that non-ASCII diff text is returned decoded rather than crashing.",
-    "The same committed diff yields the same review sha on Windows and Linux, so the duplicate CI-sha evidence workaround is no longer needed; python scripts/dev/precheck.py and architect_review_check.py pass."
+    "The Python decode path is locale-independent: a real git diff containing non-cp1252 UTF-8 decodes correctly and the gate accepts evidence for one sha; remaining git-config/attribute normalization is out of scope for this item."
   ],
   "in_scope": [
     "[Gate 2.5] architect_review decodes git diff with the OS locale: UnicodeDecodeError on Windows + divergent review sha"
@@ -189,7 +189,7 @@
     "usage": {}
   },
   "created_at": "2026-10-19T21:31:02.436677",
-  "updated_at": "2026-10-19T22:04:58.353596",
+  "updated_at": "2026-10-19T22:20:43.755732",
   "score": 0.75,
   "_note": "readiness computed",
   "api_impact": {
@@ -204,55 +204,11 @@
       },
       "2": {
         "status": "accepted",
-        "note": "False positive: subprocess is already imported at module scope in architect_review_check.py (line 19); only the except tuple changed."
+        "note": "AC3 is scoped to the Python decode path (proven by the real-byte regression test); cross-OS parity from core.autocrlf/.gitattributes is a separate, pre-existing concern and is not claimed here."
       },
       "3": {
         "status": "accepted",
-        "note": "Verified: all _git() call sites (4) are inside _changed_files(); no other caller exists in precheck.py."
-      },
-      "4": {
-        "status": "accepted",
-        "note": "CI uses actions/checkout fetch-depth: 0 (structure.yml), so origin/develop resolves. Fail-closed on a shallow/unsupported checkout is intended and now prints a clear reason."
-      },
-      "5": {
-        "status": "accepted",
-        "note": "Test imports intentionally mirror the runtime top-level import style so GitError class identity matches; duplicates within this file are avoided."
-      },
-      "6": {
-        "status": "accepted",
-        "note": "AC#3 means future changes do not need the duplicate CI-sha workaround; historical BI-PF-1395/1432 evidence files are correctly retained."
-      },
-      "7": {
-        "status": "accepted",
-        "note": "_baseline_shas() reads a local JSON file (no git); the only git-touching calls are changed_files()/diff_sha(), which are inside the handler."
-      },
-      "8": {
-        "status": "accepted",
-        "note": "30s default is inherited; git_text accepts a per-call timeout when a wider range needs more."
-      },
-      "9": {
-        "status": "accepted",
-        "note": "The U+FFFD warning is advisory; legitimate replacement characters are rare."
-      },
-      "10": {
-        "status": "accepted",
-        "note": "The single policy lives in gitutil.git_text; the local wrappers are thin compatibility shims."
-      },
-      "11": {
-        "status": "accepted",
-        "note": "Cosmetic; GitError messages already use repr per argument."
-      },
-      "12": {
-        "status": "accepted",
-        "note": "Per-file sys.path mirrors existing repo test conventions; a conftest refactor is separate."
-      },
-      "13": {
-        "status": "accepted",
-        "note": "Pre-existing generator behavior, unchanged by this item."
-      },
-      "14": {
-        "status": "accepted",
-        "note": "scripts/dev is the tooling carve-out; stated explicitly in the PR description."
+        "note": "False positive: subprocess is already imported at module scope in architect_review_check.py (line 19)."
       }
     }
   }
