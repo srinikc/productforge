@@ -85,6 +85,7 @@ TOP = {
     "Product_Forge_Code_Aligned_Target_Architecture_PreImplementation_Baseline.md": ("Design", "Source target-architecture baseline (CODE-ALIGNED AMENDMENT is authority); reconciled by A0/BI-PF-0392", 10),
     "Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md": ("Design", "Enterprise DB/storage architecture: performance+security design, repo reconciliation, phased roadmap (BI-PF-1320)", 0),
     "GENERATION-PROPORTIONALITY.md": ("Design", "Generation proportionality work plan: artifact contract + project profile drive generation (epic BI-PF-1388)", 0),
+    "UIUX-DESIGN-SYSTEM-INCLUSION-DESIGN.md": ("Design", "Framework-agnostic UI/UX + design-system inclusion: knowledge, skills, catalog, tokens, direction, a11y, design QA (epic BI-PF-1436)", 0),
     "ARCHITECTURE-DECISIONS.md": ("Implemented", "Architecture Decision Register (ADR) - governance anchor for Epic A; ADR-0001 Go-first compiled delivery", 100),
     "BRANCHING-GIT-WORKFLOW.md": ("Implemented", "Branch/worktree/merge/push workflow reference: PF, generated products, intake + worker paths (BI-PF-0431)", 100),
     "TOOLS-AND-DEPENDENCIES.md": ("Implemented", "PF tool layer + tools we have/need, sourcing, API keys, licensing & redistribution (BI-PF-0436)", 100),

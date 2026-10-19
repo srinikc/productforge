@@ -177,6 +177,7 @@
 | [`STRUCTURE-CONTRACT.md`](STRUCTURE-CONTRACT.md) | Implemented | 100% | Binding repo structure contract (folders + owners) | — | — |
 | [`TESTING-REFERENCE.md`](TESTING-REFERENCE.md) | Implemented | 100% | Testing reference: how to run/write the PF test suites | — | — |
 | [`TOOLS-AND-DEPENDENCIES.md`](TOOLS-AND-DEPENDENCIES.md) | Implemented | 100% | PF tool layer + tools we have/need, sourcing, API keys, licensing & redistribution (BI-PF-0436) | — | — |
+| [`UIUX-DESIGN-SYSTEM-INCLUSION-DESIGN.md`](UIUX-DESIGN-SYSTEM-INCLUSION-DESIGN.md) | Design | 0% | Framework-agnostic UI/UX + design-system inclusion: knowledge, skills, catalog, tokens, direction, a11y, design QA (epic BI-PF-1436) | — | — |
 | [`UNWIRED-MODULES-TRIAGE.md`](UNWIRED-MODULES-TRIAGE.md) | Adopted (reference) | 90% | Deprecated/legacy module triage | Triage applied; retired modules removed. | — |
 | [`VENDORED-TOOLS.md`](VENDORED-TOOLS.md) | Design | 100% | Neutral vendored tools location (drawio), no .opencode coupling (BI-0202) | — | — |
 | [`WORKER-NEW-ARCHITECTURE.md`](WORKER-NEW-ARCHITECTURE.md) | Design | 0% | Worker fleet redesign (PARKED, after EDP-17): state + coordination substrate, control plane (schedule/assign/coordinate/observe/deliver), data plane (isolated execution) | — | — |
