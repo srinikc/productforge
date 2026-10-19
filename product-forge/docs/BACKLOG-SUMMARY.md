@@ -1,18 +1,18 @@
 # Backlog Summary
 
-> GENERATED 2026-10-17T21:24:15 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-19T15:39:59 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 127  |  **Closed:** 561
+- **Open:** 126  |  **Closed:** 562
 - `blocked`: 1
 - `executing`: 3
 - `in_progress`: 2
-- `new`: 121
+- `new`: 120
 
-### new, by category (121)
-**API / reports / HIL / misc** (16)
+### new, by category (120)
+**API / reports / HIL / misc** (15)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-PF-0332 | Should | chore | API-5 deferred hardening: rate limiting + request/upload limits + tenant-isolation expansion + event streaming | API-5 deferred hardening: rate limiting + request/upload limits + tenant-isolation expansion + event streaming |
@@ -30,7 +30,6 @@
 | BI-PF-1331 | Should | bug | pre-commit lint_check crashes in git worktrees (WinError 206 long path) - blocks commits | Make the pre-commit lint_check work from a git worktree (no WinError 206 long-path crash). |
 | BI-PF-1382 | Must | bug | Backlog API: POST /backlog/items returns empty resource_id (created id not surfaced) | Backlog API: POST /backlog/items returns empty resource_id (created id not surfaced) |
 | BI-PF-1409 | Must | defect | RCCA (process, P0): partial delivery reported as complete - EDP-02 closed without store classification/mapping; add artifact-completeness gates + evidence-based DoD + re-open audit | RCCA (process, P0): partial delivery reported as complete - EDP-02 closed without store classification/mapping... |
-| BI-PF-1432 | Should | feature | Wire Gate 1.5/2.5 fully: in-process API (B) for the review tool + PF server/service SSOT | Wire Gate 1.5/2.5 fully: in-process API (B) for the review tool + PF server/service SSOT |
 
 **Bug fixes** (1)
 | ID | MoSCoW | Type | Title | Objective |
@@ -363,5 +362,5 @@
 ---
 
 ## Totals
-- backend: 127 open / 561 closed
+- backend: 126 open / 562 closed
 - dashboard: 146 open / 3 closed
