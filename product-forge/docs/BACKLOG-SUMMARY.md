@@ -1,18 +1,18 @@
 # Backlog Summary
 
-> GENERATED 2026-10-17T20:30:32 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-19T17:41:56 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 126  |  **Closed:** 560
+- **Open:** 127  |  **Closed:** 563
 - `blocked`: 1
 - `executing`: 3
 - `in_progress`: 2
-- `new`: 120
+- `new`: 121
 
-### new, by category (120)
-**API / reports / HIL / misc** (15)
+### new, by category (121)
+**API / reports / HIL / misc** (16)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-PF-0332 | Should | chore | API-5 deferred hardening: rate limiting + request/upload limits + tenant-isolation expansion + event streaming | API-5 deferred hardening: rate limiting + request/upload limits + tenant-isolation expansion + event streaming |
@@ -30,6 +30,7 @@
 | BI-PF-1331 | Should | bug | pre-commit lint_check crashes in git worktrees (WinError 206 long path) - blocks commits | Make the pre-commit lint_check work from a git worktree (no WinError 206 long-path crash). |
 | BI-PF-1382 | Must | bug | Backlog API: POST /backlog/items returns empty resource_id (created id not surfaced) | Backlog API: POST /backlog/items returns empty resource_id (created id not surfaced) |
 | BI-PF-1409 | Must | defect | RCCA (process, P0): partial delivery reported as complete - EDP-02 closed without store classification/mapping; add artifact-completeness gates + evidence-based DoD + re-open audit | RCCA (process, P0): partial delivery reported as complete - EDP-02 closed without store classification/mapping... |
+| BI-PF-1432 | Should | feature | Wire Gate 1.5/2.5 fully: in-process API (B) for the review tool + PF server/service SSOT | Wire Gate 1.5/2.5 fully: in-process API (B) for the review tool + PF server/service SSOT |
 
 **Bug fixes** (1)
 | ID | MoSCoW | Type | Title | Objective |
@@ -162,7 +163,7 @@
 | BI-PF-1416 | Should | feature | Automate PF persistence setup: one-command provisioning + roles + migrations + storage config + secrets + verify (dev and SaaS) | Automate PF persistence setup: one-command provisioning + roles + migrations + storage config + secrets + veri... |
 | BI-PF-1424 | Must | feature | Consolidate Python orchestrator audit (AgentAuditLog) into the DB AuditStore - single audit truth via /audit | Consolidate Python orchestrator audit (AgentAuditLog) into the DB AuditStore - single audit truth via /audit |
 | BI-PF-1426 | Should | change | Harden auto-loaded config against schema mixing + tooling writes outside the repo (residency-profiles vs residency-cells) | Make schema-mixing in auto-loaded dirs and out-of-repo tooling writes fail loudly, repo-wide. |
-| BI-PF-1430 | Should | feature | Surface Gate 1.5/2.5 findings IN the Gate 1/Gate 2 review (store on item + gate sheet) | Surface Gate 1.5/2.5 findings IN the Gate 1/Gate 2 review (store on item + gate sheet) |
+| BI-PF-1431 | Must | feature | Design & implement the PF server/service + token model (sharing for internal/external callers) | Design & implement the PF server/service + token model (sharing for internal/external callers) |
 
 ---
 
@@ -362,5 +363,5 @@
 ---
 
 ## Totals
-- backend: 126 open / 560 closed
+- backend: 127 open / 563 closed
 - dashboard: 146 open / 3 closed

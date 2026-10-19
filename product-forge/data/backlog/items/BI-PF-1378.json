@@ -1,0 +1,176 @@
+{
+  "id": "BI-PF-1378",
+  "tag": "PF",
+  "type": "change",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "LANGREVIEW-ITEM-PLAN-1",
+  "label": "PF Backlog 580",
+  "title": "language_rule_review <item>: read the item's APPROXIMATE planned_change so Gate 1 gives the Go/Python size verdict without --plan (decide at Gate 1, avoid rework)",
+  "body": "At Gate 1 the worker knows (approximately) how big the planned change is. The take-up language review should answer Go-vs-Python for BOTH the file KIND (shipped/tooling/new) and the planned SIZE (a large edit to shipped Python is new logic -> Go), from the item alone. Enhancement: read an optional item.planned_change = {path: {added, removed, new_defs, new_branches}} (an estimate is fine) and feed the SAME edit-growth policy. The ENFORCING language_rule_check still uses the real git diff.",
+  "source": "review",
+  "status": "completed",
+  "priority": null,
+  "moscow": "Should",
+  "value": 4,
+  "effort": 1,
+  "risk": 1,
+  "deps": [],
+  "links": {
+    "delivery": {
+      "branch": "feature/wg/bi-pf-1338b",
+      "merge_sha": "2c32c604",
+      "commits": [
+        "a1acbbb5"
+      ],
+      "pr": "137",
+      "pr_url": "https://github.com/srinikc/productforge/pull/137",
+      "at": "2026-10-14T14:31:54.598571",
+      "note": "Gate-1 size verdict from item.planned_change (BI-PF-1338 follow-up)"
+    }
+  },
+  "decisions": [],
+  "follow_up": {},
+  "brief": {
+    "problem": "At Gate 1 the worker knows (approximately) how big the planned change is, so the take-up language review should give the Go/Python verdict for BOTH the file kind and the planned size (large edit -> Go). Enhancement: read an optional item.planned_change = {path: {added, removed, new_defs, new_branches}} (approximate is fine) and feed the SAME edit-growth policy.",
+    "what_adds": "language_rule_review <item>: read the item's APPROXIMATE planned_change so Gate 1 gives the Go/Python size verdict without --plan (decide at Gate 1, avoid rework)",
+    "why": "At Gate 1 the worker knows (approximately) how big the planned change is, so the take-up language review should give the Go/Python verdict for BOTH the file kind and the planned size (large edit -> Go). Enhancement: read an optional item.planned_change = {path: {added, removed, new_defs, new_branches}} (approximate is fine) and feed the SAME edit-growth policy.",
+    "who_feels": "Product Forge maintainers and consumers.",
+    "source": "extracted"
+  },
+  "objective": "Decide language (kind + approximate size) at Gate 1 from the item alone; avoid late rework.",
+  "acceptance_criteria": [
+    "language_rule_review <item> reads item.planned_change and reports the size verdict",
+    "estimate accepted; enforcing gate still uses the real diff",
+    "tests cover the planned_change path"
+  ],
+  "in_scope": [
+    "language_rule_review.assess reads planned_change",
+    "AGENTS.md take-up rule",
+    "test"
+  ],
+  "out_of_scope": [
+    "the enforced language_rule_check (real diff)",
+    "widening the checker"
+  ],
+  "affected_components": [
+    "Not specified."
+  ],
+  "affected_files": [
+    "scripts/dev/language_rule_review.py",
+    "AGENTS.md",
+    "test-framework/tests/pipeline/test_change_policy.py"
+  ],
+  "approach": "language_rule_review <item>: read the item's APPROXIMATE planned_change so Gate 1 gives the Go/Python size verdict without --plan (decide at Gate 1, avoid rework)",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Objective achieved: language_rule_review <item>: read the item's APPROXIMATE planned_change so Gate 1 gives the Go/Python size verdict without --plan (decide at Gate 1, avoid rework)"
+  ],
+  "risks": [
+    "approximate numbers may under/over-state -> advisory at Gate 1; enforced gate uses the diff"
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "agent",
+  "requester": "generic",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1243",
+  "parent": "BI-PF-1243",
+  "revision": 2,
+  "priority_rank": null,
+  "priority_class": "",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "IN_PROGRESS",
+    "analyzed_at": "",
+    "analyzed_by": "ai",
+    "revision_analyzed": 0,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend the existing take-up/context-review language gate (core/context_review or core/iteration_planner edit-growth policy) to read optional item.planned_change (per-path added/removed/new_defs/new_branches, approximate OK) from /api/v1/backlog/items/{item_id} and apply the SAME edit-growth thresholds so Gate 1 returns a combined Go/Python verdict for file kind + planned size. Reuse code_quality_gate thresholds from config/ci-cd-gates.json; no new component.",
+    "existing_components": [],
+    "existing_apis": [],
+    "existing_modules": [],
+    "dependency_findings": [
+      "REQUIRES item schema to accept optional planned_change field (backlog item model + groom API)",
+      "RELATED BI-PF-0339: architecture descriptor is a natural source of approximate planned_change"
+    ],
+    "conflict_findings": [
+      "Possible overlap with BI-PF-0343 (ENG-4 worker runtime) if it also consumes language gate; keep verdict logic in core gate module"
+    ],
+    "duplication_findings": [
+      "No existing item exposes planned_change consumption; BI-PF-0339 (ENG-0 architecture descriptor) is upstream producer, not duplicate",
+      "Edit-growth policy already exists in iteration_planner/code_quality_gate - reuse, do not reimplement"
+    ],
+    "drift": "LOW",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "Small extension of an existing gate with reused thresholds; makes Gate 1 verdict deterministic in one pass and avoids rework. Optional field keeps it backward compatible.",
+    "assumptions": [
+      "item.planned_change is optional and may be absent -> fall back to existing file-kind-only verdict",
+      "Edit-growth thresholds are shared config, not per-gate constants"
+    ],
+    "risks": [
+      "planned_change values are approximate; wrong thresholds could emit false Python verdicts early",
+      "Gate 1 timing: verdict must not slow item fetch"
+    ],
+    "evidence": [
+      "Existing endpoints: /context-review, /groom/decide",
+      "Candidate reuse list includes iteration_planner.py, code_quality_gate.py, ci-cd-gates.json"
+    ],
+    "confidence": "medium",
+    "missing_info": [
+      "Authoritative threshold for 'large edit -> Go' (added+removed lines cutoff)",
+      "Who populates item.planned_change (worker, estimator, human)",
+      "Verdict precedence when file kind and planned size disagree"
+    ],
+    "depth": "deep",
+    "mode": "ai"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": false,
+    "reasons": [],
+    "computed_at": ""
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-14T14:24:16.773905",
+  "updated_at": "2026-10-14T14:31:55.026311",
+  "score": 4.0,
+  "_note": "merged via PR 137",
+  "dashboard_impact": {
+    "needs_dashboard": false,
+    "reason": "review tooling"
+  }
+}

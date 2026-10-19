@@ -113,6 +113,7 @@
 | [`Multi-Agent-Multi-Project-Unique-Features.md`](Multi-Agent-Multi-Project-Unique-Features.md) | Design | 80% | Unique multi-agent / multi-project features | Informational only: a few nice-to-have surfaces, not tracked as work. | — |
 | [`OTEL-GENAI-DESIGN.md`](OTEL-GENAI-DESIGN.md) | Design | 100% | OpenTelemetry GenAI observability incl. multimodal (BI-0199) | — | — |
 | [`PER-UNIT-COST-DESIGN.md`](PER-UNIT-COST-DESIGN.md) | Design | 100% | Per-unit media cost model + projection (BI-0194) | — | — |
+| [`PF-API-SERVICE-OR-SERVER.md`](PF-API-SERVICE-OR-SERVER.md) | SSOT | 100% | PF Server/Service topology: many services serve API + operate PF; ownership by domain not language; language rule is Go-forward not a port; caller classes x transport; one instance per service per environment; interim: no PF token for internal | — | — |
 | [`PF-BASELINE.md`](PF-BASELINE.md) | Implemented | 100% | PF baseline freeze: develop SHA, test/gate baseline, doc reconciliation, frozen decisions (A0/BI-PF-0392) | — | — |
 | [`PF-Backlog-SSOT-Scheduler-Pluggable-Workers-updated.md`](PF-Backlog-SSOT-Scheduler-Pluggable-Workers-updated.md) | Design | 0% | Backlog SSOT + pluggable worker scheduler architecture (source doc; epic BI-PF-0360) | — | — |
 | [`PF-TARGET-ARCHITECTURE-AND-IP-PLAN.md`](PF-TARGET-ARCHITECTURE-AND-IP-PLAN.md) | Design | 10% | Consolidated target-architecture + IP-protection plan for the PF platform (phases A0-A7/B1-B7; BI-PF-0386/0387/0388) | — | — |
