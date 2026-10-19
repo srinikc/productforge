@@ -10,7 +10,7 @@
   "title": "[Gate 2.5] architect_review decodes git diff with the OS locale: UnicodeDecodeError on Windows + divergent review sha",
   "body": "architect_review._git_diff()/changed_files()/_merge_base() call subprocess.run(..., text=True), which decodes with the OS locale. On Windows (cp1252) any diff containing non-cp1252 bytes (em dashes, arrows, non-breaking hyphens in docs) raises UnicodeDecodeError, so the Gate 2.5 review/gate cannot run locally; and where it does decode, the sha can differ from Linux CI, forcing duplicate '<item>-<ci-sha>.json' evidence files (see BI-PF-1432/BI-PF-1395). Fix: force UTF-8 decoding in one git helper.",
   "source": "review",
-  "status": "new",
+  "status": "completed",
   "priority": "P1",
   "moscow": "Must",
   "value": 3,
@@ -21,7 +21,24 @@
     "BI-PF-1428",
     "BI-PF-0257"
   ],
-  "links": {},
+  "links": {
+    "delivery": {
+      "branch": "fix/architect-review-utf8",
+      "merge_sha": "57c9ff655314fee1631dfbfdf508025486fd63ac",
+      "commits": [
+        "24684106",
+        "20cd6214",
+        "445ab6ca",
+        "0b3bed49"
+      ],
+      "pr": "259",
+      "pr_url": "https://github.com/srinikc/productforge/pull/259",
+      "at": "2026-10-19T22:32:52.526773",
+      "note": "Shared UTF-8/fail-closed git helper (scripts/dev/gitutil.py); Gate 2.5 sha now locale-independent, CI reused the local evidence sha.",
+      "usage": {},
+      "duration_seconds": 0
+    }
+  },
   "decisions": [
     {
       "at": "2026-10-19T21:31:58.883202",
@@ -88,12 +105,12 @@
   "children": [],
   "epic": "BI-PF-1252",
   "parent": "BI-PF-1252",
-  "revision": 3,
+  "revision": 4,
   "priority_rank": 40,
   "priority_class": "P1",
   "analyze_mode": "on_entry",
   "analysis": {
-    "status": "COMPLETE",
+    "status": "STALE",
     "analyzed_at": "2026-10-19T21:31:58.688317",
     "analyzed_by": "system",
     "revision_analyzed": 3,
@@ -189,9 +206,9 @@
     "usage": {}
   },
   "created_at": "2026-10-19T21:31:02.436677",
-  "updated_at": "2026-10-19T22:28:02.935440",
+  "updated_at": "2026-10-19T22:32:52.728651",
   "score": 0.75,
-  "_note": "readiness computed",
+  "_note": "merged PR 259",
   "api_impact": {
     "needs_api": false,
     "reason": "Developer tooling only (scripts/dev/architect_review.py); no runtime API surface."
