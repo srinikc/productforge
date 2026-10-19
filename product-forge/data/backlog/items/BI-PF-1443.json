@@ -1,0 +1,209 @@
+{
+  "id": "BI-PF-1443",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "uiux-design-system-inclusion:agent-bindings",
+  "label": "PF Backlog 636",
+  "title": "Agent skill & knowledge-layer bindings",
+  "body": "## Problem / why\nUI agents declare empty skills:[] and only the 'frontend' layer.\n\n## Goal & value\nBind the 8 skills + ui-ux/design-systems layers to the right agents.\n\n## In scope\n- Edit agents/*.agent.json (design, ux-ia, product-design-spec, implement-ui, design_critic, visual_qa, a11y-audit) with skills + knowledge_layers + allowed_inputs:design_direction.\n- Mirror in config/agent-capabilities.json; regenerate agent cards.\n\n## Out of scope\n- New agents.\n\n## Definition of Done\n- generate_agent_cards re-run; .opencode/agent/*.md in sync.\n\n## Verification\nStructured `acceptance_criteria` is the single source of truth for verification.\n",
+  "source": "design:UIUX-DESIGN-SYSTEM-INCLUSION-DESIGN.md",
+  "status": "new",
+  "priority": "P2",
+  "moscow": "Should",
+  "value": 4,
+  "effort": 3,
+  "risk": 2,
+  "deps": [
+    "BI-PF-1437",
+    "BI-PF-1442"
+  ],
+  "links": {},
+  "decisions": [
+    {
+      "at": "2026-10-19T16:22:12.160002",
+      "decision": "APPROVE",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)"
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "UI agents declare empty skills:[] and only the 'frontend' layer.",
+    "what_adds": "Bind the 8 skills + ui-ux/design-systems layers to the right agents.",
+    "why": "UI agents declare empty skills:[] and only the 'frontend' layer.",
+    "who_feels": "Product Forge maintainers and consumers.",
+    "source": "authored"
+  },
+  "objective": "Bind the 8 skills + ui-ux/design-systems layers to the right agents.",
+  "acceptance_criteria": [
+    "UI agents declare the relevant skills and ui-ux/design-systems layers.",
+    "config/agent-capabilities.json mirrors the bindings.",
+    "Agent-card and role-prompt audits pass with the new bindings and report no missing skills."
+  ],
+  "in_scope": [
+    "Edit agents/*.agent.json (design, ux-ia, product-design-spec, implement-ui, design_critic, visual_qa, a11y-audit) with skills + knowledge_layers + allowed_inputs:design_direction.",
+    "Mirror in config/agent-capabilities.json; regenerate agent cards."
+  ],
+  "out_of_scope": [
+    "New agents."
+  ],
+  "affected_components": [
+    "config"
+  ],
+  "affected_files": [
+    "agents/design.agent.json",
+    "agents/ux-ia.agent.json",
+    "agents/implement-ui.agent.json",
+    "agents/design_critic.agent.json",
+    "agents/visual_qa.agent.json",
+    "agents/a11y-audit.agent.json",
+    "config/agent-capabilities.json"
+  ],
+  "approach": "- UI agents declare the relevant skills and ui-ux/design-systems layers.\n- config/agent-capabilities.json mirrors the bindings.\n- agent-card and role-prompt audits pass.",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "generate_agent_cards re-run; .opencode/agent/*.md in sync.",
+    "Feature branch off develop (never commit to develop/main directly).",
+    "Code review of the diff; findings fixed.",
+    "Lint/static clean (scripts/dev/lint_check.py).",
+    "language_rule_check PASS - new logic in Go (go/pfcore/*.go), edits to existing shipped Python only.",
+    "precheck PASS (compileall, wired_audit, api/governance, engineering-flow, backlog-e2e, docs-fresh, secret-scan, pipeline tests).",
+    "Evidence (artifact + test descriptors) linked on this item; intent_trace resolves.",
+    "Merged to develop immediately after green; delivery provenance recorded (branch, merge_sha, pr)."
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "agent",
+  "requester": "design:UIUX-DESIGN-SYSTEM-INCLUSION-DESIGN.md",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1436",
+  "parent": "BI-PF-1436",
+  "revision": 4,
+  "priority_rank": 2,
+  "priority_class": "P2",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "STALE",
+    "analyzed_at": "2026-10-19T16:22:11.009868",
+    "analyzed_by": "system",
+    "revision_analyzed": 2,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/agent_capabilities.py, core/agent_card_loader.py, core/agent_hierarchy.py, core/agent_ledger.py",
+    "existing_components": [
+      "core/agent_capabilities.py",
+      "core/agent_card_loader.py",
+      "core/agent_hierarchy.py",
+      "core/agent_ledger.py",
+      "core/agent_memory.py",
+      "core/agent_messenger.py",
+      "core/agent_migrator.py",
+      "core/agent_model_override.py"
+    ],
+    "existing_apis": [
+      "/api/v1/agents",
+      "/api/v1/agents/{agent_id}",
+      "/api/v1/agents/{agent_id}/capabilities",
+      "/api/v1/artifacts/{stage_id}/{agent}",
+      "/api/v1/validation/agents",
+      "/api/v1/validation/agents/coverage",
+      "/api/v1/validation/agents/register",
+      "/api/v1/validation/agents/{agent_id}"
+    ],
+    "existing_modules": [
+      "config/agent-capabilities.json",
+      "config/agent-capability-vector.json",
+      "config/agent-hierarchy.json",
+      "config/agent-requirements.json"
+    ],
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=1.0",
+      "components=8",
+      "apis=8"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic",
+    "decision_request": {
+      "needed": false,
+      "reasons": [],
+      "ask": ""
+    },
+    "arch_fingerprint": "3cc69be884387fcf"
+  },
+  "dependencies": [
+    {
+      "task_id": "BI-PF-1437",
+      "type": "REQUIRES",
+      "required_state": "completed"
+    },
+    {
+      "task_id": "BI-PF-1442",
+      "type": "REQUIRES",
+      "required_state": "completed"
+    }
+  ],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-19T16:22:11.523028"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-19T16:21:59.318379",
+  "updated_at": "2026-10-19T18:42:10.211918",
+  "score": 1.0,
+  "_note": "dependencies set",
+  "api_impact": {
+    "needs_api": false,
+    "routes": [],
+    "consumers": [],
+    "reason": "config and tooling for agent bindings; no API surface"
+  }
+}
