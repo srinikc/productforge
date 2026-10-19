@@ -74,9 +74,17 @@ def test_unknown_status_is_fail_closed():
     assert (total, pending) == (1, 1) and blocking
 
 
-def test_design_prompt_includes_checklist():
+def test_design_prompt_includes_guardrails():
     p = ar._build_prompt({"acceptance_criteria": ["x"]}, "ID", "design")
-    assert "Design pre-check checklist" in p
+    assert "DESIGN GUARDRAILS" in p or "Design pre-check checklist" in p
+
+
+def test_gate1_check_unparsable_returns_2(monkeypatch):
+    from scripts.dev import gate1_check as g1
+    view = {"review": {"findings": {}, "model": "m", "sha": "s"}, "dispositions": {},
+            "total": 0, "pending": 0, "blocking": [], "parsed_ok": False}
+    monkeypatch.setattr(g1.ar, "gate_view", lambda item, mode="design": view)
+    assert g1.main(["--item", "X"]) == 2
 
 
 def test_gate_command_blocks_on_pending(monkeypatch):

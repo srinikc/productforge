@@ -1,0 +1,206 @@
+{
+  "id": "BI-PF-1466",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "api",
+  "external_id": "gate1-transition-enforcement",
+  "label": "PF Backlog 634",
+  "title": "Gate 1 enforcement at the backlog transition: block new->in_progress when a design review has PENDING BLOCKER/MAJOR (grandfather legacy)",
+  "body": "",
+  "source": "generic",
+  "status": "new",
+  "priority": "P2",
+  "moscow": "Should",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [],
+  "links": {},
+  "decisions": [
+    {
+      "at": "2026-10-19T21:41:52.579447",
+      "decision": "APPROVE",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)"
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "Gate 1 enforcement depends on a human running gate1_check; nothing machine-checks the new->in_progress (design approval) transition.",
+    "what_adds": "A precheck gate that inspects backlog item transitions and enforces clean Gate 1.5 dispositions for reviewed items.",
+    "why": "Binding gates must be machine-enforced at the transition point, not remembered.",
+    "who_feels": "HIL approvers, item owners, CI.",
+    "source": "authored"
+  },
+  "objective": "Machine-enforce Gate 1 at the backlog new->in_progress transition, with a legacy grandfather.",
+  "acceptance_criteria": [
+    "A deterministic precheck gate (scripts/dev/gate1_transition_check.py) detects items moved to in_progress in the change set and, when a design review exists, requires zero pending BLOCKER/MAJOR.",
+    "Items with no design review are allowed (legacy grandfather) and are reported as 'no design review' rather than failing.",
+    "The gate is wired into the precheck fast tier (_GATES) and config/ci-cd-gates.json stays in sync (ci-cd-gates gate passes).",
+    "A test covers pending BLOCKER/MAJOR -> fail, fully dispositioned -> pass, and no design evidence -> pass."
+  ],
+  "in_scope": [
+    "Gate 1 enforcement at the backlog transition: block new->in_progress when a design review has PENDING BLOCKER/MAJOR (grandfather legacy)"
+  ],
+  "out_of_scope": [
+    "Not specified."
+  ],
+  "affected_components": [
+    "Not specified."
+  ],
+  "affected_files": [
+    "Not specified."
+  ],
+  "approach": "Gate 1 enforcement at the backlog transition: block new->in_progress when a design review has PENDING BLOCKER/MAJOR (grandfather legacy)",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Objective achieved: Gate 1 enforcement at the backlog transition: block new->in_progress when a design review has PENDING BLOCKER/MAJOR (grandfather legacy)"
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "unassigned",
+  "requester": "generic",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1243",
+  "parent": "BI-PF-1243",
+  "revision": 2,
+  "priority_rank": 420,
+  "priority_class": "P2",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "COMPLETE",
+    "analyzed_at": "2026-10-19T21:41:52.365881",
+    "analyzed_by": "system",
+    "revision_analyzed": 2,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend the backlog status-transition handler (core/backlog.py, /api/v1/backlog/epics/{epic_id}/status and item-level status update) with a Gate 1 check modeled on merge_gate.py: before new->in_progress, query design_critic.py for the item's latest design review; block with a structured 409 listing pending BLOCKER/MAJOR review ids. Grandfather: items already in_progress (or in any post-new state) at deploy cutoff skip the check; only the new->in_progress edge is gated.",
+    "existing_components": [],
+    "existing_apis": [],
+    "existing_modules": [],
+    "dependency_findings": [
+      {
+        "task_id": "BI-PF-1531",
+        "type": "REQUIRES",
+        "required_state": "done"
+      },
+      {
+        "task_id": "BI-PF-1526",
+        "type": "RELATED",
+        "required_state": "any"
+      },
+      {
+        "task_id": "BI-0183",
+        "type": "RELATED",
+        "required_state": "any"
+      }
+    ],
+    "conflict_findings": [
+      "Shares core/backlog.py transition path with BI-PF-1531 (status rework) - sequence or split files",
+      "Shares design review query logic with BI-PF-1526 - extract shared helper to avoid dup"
+    ],
+    "duplication_findings": [
+      "No existing backlog-transition gate in candidate components; merge_gate.py gates merges, not transitions",
+      "BI-PF-1526 (Gate 2 at reconciliation) is sibling work with same review-source, share helper",
+      "BI-PF-1531 reworks status states incl. in_review - must land compatible edge definitions"
+    ],
+    "drift": "LOW",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "Small, high-leverage EXTEND: intercept one transition edge, reuse design review source and the established merge-gate refusal pattern; no new component. Medium confidence due to grandfather and no-review edge cases needing human decision.",
+    "assumptions": [
+      "A design review exists as a persisted record queryable per backlog item via design_critic.py",
+      "PENDING BLOCKER/MAJOR means latest non-superseded review has unresolved blocker/major findings",
+      "Grandfather = snapshot at deploy: items already past 'new' at cutover are exempt forever",
+      "409-style structured refusal (no hard exception) matches existing API error conventions"
+    ],
+    "risks": [
+      "Grandfather cutoff semantics unclear - could wrongly block or wrongly allow legacy items",
+      "Gate may block legitimate hotfix work; needs documented override/escalation path",
+      "Design review may not exist at all for an item - block vs pass decision is ambiguous",
+      "Interaction with in_review state from BI-PF-1531 could make 'new' edge definition drift"
+    ],
+    "evidence": [
+      "core/merge_gate.py establishes the gate-then-structured-refusal pattern to mirror",
+      "core/design_critic.py holds design review data model and finding severity",
+      "config/ci-cd-gates.json shows declarative gate config precedent"
+    ],
+    "confidence": "medium",
+    "missing_info": [
+      "Grandfather cutoff: hard deploy-time snapshot vs rolling exempt list maintained in config?",
+      "Item has NO design review at all: block, warn, or auto-create review task (cf. BI-0183)?",
+      "Is there a manual override (role-gated force flag) for emergency in_progress?",
+      "Should the gate also apply to in_progress -> in_review or only the single edge (scoped as single edge)?"
+    ],
+    "depth": "deep",
+    "mode": "ai",
+    "context_review": {
+      "ok": false,
+      "source": "llm",
+      "implementable": false,
+      "missing": [
+        "why",
+        "how",
+        "where"
+      ],
+      "reason": "Title states the rule (WHAT) but approach merely repeats it; no details on querying review status, grandfathering logic, or files/components (all 'Not specified')"
+    },
+    "decision_request": {
+      "needed": false,
+      "reasons": [],
+      "ask": ""
+    },
+    "arch_fingerprint": "cbe9c3e2434fd2c7"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-19T21:41:52.461073"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-19T21:40:48.750322",
+  "updated_at": "2026-10-19T21:41:55.320911",
+  "score": 0.75,
+  "_note": "re-homed to epic BI-PF-1243",
+  "api_impact": {
+    "needs_api": false,
+    "reason": "process/tooling change: no external API surface (dev scripts + gates + docs).",
+    "routes": []
+  }
+}

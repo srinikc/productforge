@@ -98,9 +98,16 @@ appends the summary to the item context. The reviewer **sub-agent** (any model f
 ## Review learning loop (BI-PF-1449)
 
 Reviews are a learning input, not a one-off artifact:
-- **Design pre-check** (`architect_review.py checklist --item <ID>`) pre-empts recurring finding classes
-  (reversibility, availability/SPOF, authz/RLS, blast radius, invariants, tests, language rule, API).
-- **Gate 1 check** (`scripts/dev/gate1_check.py`) blocks Gate 1 while BLOCKER/MAJOR are PENDING.
+- **Design-time injection (BI-PF-1467):** before writing a design, run
+  `python scripts/dev/design_guardrails.py --item <ID>` — it injects the checklist + the most relevant
+  CORRECTION-LEDGER rules + recurring review findings into the design. The design-mode review prompt carries
+  the same block, so **Gate 1.5 verifies; it is not the first place these are discovered**.
+- **Gate 1 transition enforcement (BI-PF-1466):** `scripts/dev/gate1_transition_check.py` is a precheck gate
+  that blocks `new → in_progress` for a reviewed item while any BLOCKER/MAJOR is PENDING (items without a
+  design review are grandfathered).
+- **Design pre-check** (`architect_review.py checklist --item <ID>`) remains the generic checklist.
+- **Gate 1 check** (`scripts/dev/gate1_check.py`) blocks Gate 1 while BLOCKER/MAJOR are PENDING, and treats
+  unparsable evidence as indeterminate (BI-PF-1465).
 - **Findings → durable rules** (`scripts/dev/review_learnings.py`): recurring findings not captured in
   `docs/CORRECTION-LEDGER.md` are flagged (`--check`) and emitted as ledger rows (`--propose`), each carrying a
   stable `sig:<digest>` so capture is machine-traceable. `--write` persists the durable trend/recurrence report

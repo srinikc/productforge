@@ -51,6 +51,13 @@ def main(argv: list[str] | None = None) -> int:
             print(f"  run: python scripts/dev/architect_review.py run --item {a.item} --mode design")
         return 2
 
+    if not view.get("parsed_ok", True):
+        if a.json:
+            print(json.dumps({"ok": False, "reason": "unparsable_evidence", "gate": "1.5"}))
+        else:
+            print(f"gate1: FAIL - review evidence for {a.item} could not be parsed (indeterminate); re-run the review")
+        return 2
+
     if a.json:
         print(json.dumps({
             "ok": not view["blocking"],
@@ -60,6 +67,7 @@ def main(argv: list[str] | None = None) -> int:
             "blocking_pending": [{"n": n, "severity": s, "finding": t} for n, s, t in view["blocking"]],
             "review_sha": view["review"].get("sha"),
             "model": view["review"].get("model"),
+            "parsed_ok": view.get("parsed_ok", True),
         }, indent=2))
     else:
         print(ar.render_gate_view(view, "design"))
