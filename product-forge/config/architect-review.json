@@ -1,6 +1,19 @@
 {
   "schema": "pf.architect-review/1",
-  "description": "Gate 1.5 / Gate 2.5 second-model Architect review. Provider- and model-AGNOSTIC: set any model id. Not coupled to OpenCode or Mimo. The reviewer is launched as a separate fresh-context sub-agent; scripts/dev/architect_review.py only builds context and ingests the findings.",
+  "description": "Gate 1.5 / Gate 2.5 second-model Architect review. Provider- and model-AGNOSTIC: set any model id. Not coupled to OpenCode or Mimo. DEFAULT runner is the direct provider call (scripts/dev/architect_review.py run = one LLM call, no tools, lowest cost/latency). The sub-agent launch_command is OPT-IN for cases that need code investigation (BI-PF-1433).",
+  "runner_default": "direct",
+  "design_checklist": [
+    "Reversibility & backup: is the change reversible, and is a verified backup/restore path defined before any destructive step?",
+    "Availability & single-point-of-failure: what happens if the scheduler/worker/DB is down; is there defence-in-depth (on-startup check) and an alert lead-time?",
+    "Authorization & privilege boundary: is authz enforced at the boundary, and do runtime roles stay subject to RLS (no BYPASSRLS/superuser inheritance)?",
+    "Blast radius & dry-run: do destructive operations have bounds, a dry-run/report mode, and never touch current/future data?",
+    "Invariants & ordering: are keys/ids/sequence/ordering invariants stated and tested?",
+    "Tests & rollback: does the change have fail-able tests, and is rollback / migration-interrupted recovery covered?",
+    "Language rule: new shipped logic is Go; edits to shipped Python are allowed; tooling/tests/config/docs may be Python.",
+    "API & contracts: is needs_api decided; if yes, method/path/authn/authz/validation/tenant-scoping defined and contracts in sync?",
+    "Data & tenant isolation: is tenant/RLS scope, redaction/retention, and no-cross-tenant-leakage stated?",
+    "Reuse & observability: does it reuse existing owners/ports (no duplicate), and emit the minimum metrics/logs to diagnose failure?"
+  ],
   "model": "mimo-v2.6-flash",
   "provider": "opencode-go",
   "base_url": "https://opencode.ai/zen/go/v1",

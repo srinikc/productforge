@@ -256,6 +256,31 @@ def _item_dispositions(item_id: str, mode: str) -> dict:
     return {}
 
 
+def iter_findings(findings: dict):
+    """Yield (severity, text) in the canonical severity order (stable disposition numbering)."""
+    for sev in SEVERITIES:
+        for text in (findings or {}).get(sev, []) or []:
+            yield sev, text
+
+
+def pending_blocking(findings: dict, dispositions: dict):
+    """Return (total, pending, blocking) for a review.
+
+    ``blocking`` lists (n, severity, text) for BLOCKER/MAJOR findings that have no non-PENDING
+    disposition. Pending MINOR/NIT never block (BI-PF-1433).
+    """
+    total = pending = 0
+    blocking = []
+    for n, (sev, text) in enumerate(iter_findings(findings), 1):
+        total += 1
+        st = str(((dispositions or {}).get(str(n)) or {}).get("status") or "PENDING").upper()
+        if st == "PENDING":
+            pending += 1
+            if sev in ("BLOCKER", "MAJOR"):
+                blocking.append((n, sev, text))
+    return total, pending, blocking
+
+
 def _render_review(rev: dict, disp: dict, mode: str) -> str:
     """ONE consolidated section: each finding with OUR response + status beside it."""
     gate = "1.5" if mode == "design" else "2.5"
@@ -263,16 +288,14 @@ def _render_review(rev: dict, disp: dict, mode: str) -> str:
     lines = [f"Gate {gate} - Findings & Dispositions (model={rev.get('model','?')} sha={rev.get('sha','?')})",
              "status: PENDING | actioned | accepted | deferred | rejected"]
     n, pending = 0, 0
-    for sev in SEVERITIES:
-        for text in f.get(sev, []):
-            n += 1
-            d = disp.get(str(n)) or {}
-            st = (d.get("status") or "PENDING").upper()
-            if st == "PENDING":
-                pending += 1
-            lines.append(f"[{sev}] #{n} ({st})")
-            lines.append(f"  finding : {text}")
-            lines.append(f"  response: {d.get('note') or '(no response yet)'}")
+    for n, (sev, text) in enumerate(iter_findings(f), 1):
+        d = disp.get(str(n)) or {}
+        st = (d.get("status") or "PENDING").upper()
+        if st == "PENDING":
+            pending += 1
+        lines.append(f"[{sev}] #{n} ({st})")
+        lines.append(f"  finding : {text}")
+        lines.append(f"  response: {d.get('note') or '(no response yet)'}")
     lines.append("--- SUMMARY (review) ---")
     lines += [f"  {x}" for x in f.get("SUMMARY", [])]
     lines.append(f"=== {n} finding(s), {pending} pending ===")
@@ -321,6 +344,9 @@ def main(argv: list[str]) -> int:
     g = sub.add_parser("gate")
     g.add_argument("--item", required=True)
     g.add_argument("--gate", choices=["1", "2"], required=True)
+    ck = sub.add_parser("checklist")
+    ck.add_argument("--item", required=True)
+    ck.add_argument("--record", action="store_true", help="append the completed checklist to item evidence")
     a = ap.parse_args(argv)
     try:
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -329,6 +355,20 @@ def main(argv: list[str]) -> int:
         pass
 
     item = _get_item(a.item)
+    if a.cmd == "checklist":
+        questions = [str(q) for q in (_config().get("design_checklist") or []) if str(q).strip()]
+        print("Design pre-check (answer BEFORE Gate 1.5; BI-PF-1433):")
+        for i, q in enumerate(questions, 1):
+            print(f"  {i}. [ ] {q}")
+        if not questions:
+            print("  (config/architect-review.json has no design_checklist entries)")
+        if a.record and questions:
+            ev = list(item.get("evidence") or [])
+            ev.append(f"Design pre-check ({a.item}): answered {len(questions)} checklist item(s) "
+                      "before Gate 1.5")
+            _post_context(a.item, {"evidence": ev})
+            print("recorded on item evidence")
+        return 0
     if a.cmd == "emit":
         print(f"Reviewer model: {a.model}\n")
         print(_build_prompt(item, a.item, a.mode))
