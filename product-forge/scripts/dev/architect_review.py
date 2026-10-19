@@ -405,7 +405,6 @@ def main(argv: list[str]) -> int:
     except Exception:
         pass
 
-    item = _get_item(a.item)
     if a.cmd == "checklist":
         questions = [str(q) for q in (_config().get("design_checklist") or []) if str(q).strip()]
         print("Design pre-check (answer BEFORE Gate 1.5; BI-PF-1449):")
@@ -414,6 +413,7 @@ def main(argv: list[str]) -> int:
         if not questions:
             print("  (config/architect-review.json has no design_checklist entries)")
         if a.record and questions:
+            item = _get_item(a.item)
             marker = f"Design pre-check ({a.item}):"
             ev = list(item.get("evidence") or [])
             if any(str(x).startswith(marker) for x in ev):
@@ -424,6 +424,7 @@ def main(argv: list[str]) -> int:
                 print("recorded on item evidence")
         return 0
     if a.cmd == "emit":
+        item = _get_item(a.item)
         print(f"Reviewer model: {a.model}\n")
         print(_build_prompt(item, a.item, a.mode))
         return 0
@@ -448,6 +449,7 @@ def main(argv: list[str]) -> int:
     if a.mode == "design":
         n = len([q for q in (_config().get("design_checklist") or []) if str(q).strip()])
         print(f"design pre-check: {n} checklist item(s) included in the review prompt")
+    item = _get_item(a.item)
     prompt = _build_prompt(item, a.item, a.mode)
     try:
         out = _llm_call(prompt, a.model)
