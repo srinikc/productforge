@@ -1,0 +1,22 @@
+{
+  "item": "BI-PF-1436",
+  "sha": "49ebf0ae1301",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "findings": {
+    "BLOCKER": [
+      "No test asserts this item's own acceptance criteria. `tests/test_seed_uiux_design_backlog.py` only exercises the trivial `_should_write` helper; nothing verifies \"epic + nine children BI-PF-1437..1445 exist, are linked to the epic, have dependencies/waves set, all statuses are `new`, and every item carries an `api_impact` decision\" (AC2/AC3). The seed's core contract is unverified, and a regression in `add_epic`/`set_dependencies`/`set_execution_order` wiring (e.g. children not actually parented, `verification`/`affected_files` silently skipped on rerun) would ship undetected."
+    ],
+    "MAJOR": [
+      "Design-doc claim is not substantiated by the diff: \u00a76 states \"IDs 1433\u20131435 \u2026 remain intentionally unused; **the id ledger records that reservation**\", but `id-blocks.json` contains no entry covering 1433\u20131435 (previous session ends at 1432 with `next: 1433`; the new session starts at 1436). Either the ledger records nothing (doc is wrong) or those IDs are actually free for any other session to claim (stated intent is unenforceable). Committed design truth must match the artifact it cites.",
+      "Stated security control has no owner: \u00a78 requires \"scan for prompt-injection markers before the `SKILLS:` block is injected\" and sha256/source recording, but no child (DSI-1..DSI-9) has an AC or DoD for the injection scan or hash recording. The trust-boundary control will fall through the wave plan and likely never be built \u2014 exactly the kind of gate the doc promises.",
+      "Observability promises in \u00a77 (`skills.resolve` emits chosen path/sha + legacy-fallback event) are not reflected in any child AC; DSI-1's AC only asserts the returned body. Fail-closed gates and legacy-fallback silently activating would be unauditable despite the doc's own requirement.",
+      "Doc-integrity risk in `docs/README.md` / `documentation-index.html`: both mark the new design doc as \"Design / 0%\" while \u00a76 already enumerates concrete child implementations \u2014 acceptable, but the 0% plus a fully-authored implementation plan (file-level Go/Python tables) means the doc will drift the moment wave 1 lands; there is no stated reconciliation owner/trigger for keeping \u00a74 in sync with delivered reality (same failure mode as the docs it claims to follow)."
+    ],
+    "MINOR": [
+      "Scope creep in a seed-only phase: `config/store-registry.json` gains a new `allow` glob (`agents/*.agent.json`) in a diff whose AC explicitly says \"no implementation is claimed by this design/seed"
+    ],
+    "NIT": [],
+    "SUMMARY": []
+  }
+}

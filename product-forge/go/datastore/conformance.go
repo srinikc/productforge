@@ -4,15 +4,20 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"io"
+	"time"
 )
 
 // ConformObjectStore runs the shared ObjectStore conformance suite against an adapter. It returns a slice
 // of failures (empty == conformant). Adapters (local FS, S3-compatible, ...) MUST pass this suite; it is the
 // contract that lets domain code swap providers without change (ADR-0006).
+//
+// The probe key is UNIQUE per run so it can never clobber a real object; and a DECLARED capability must
+// actually work (capability honesty) - a false claim fails the suite.
 func ConformObjectStore(ctx context.Context, s ObjectStore) []error {
 	var errs []error
-	key := "pf/conformance/probe"
+	key := fmt.Sprintf("pf/conformance/probe-%d", time.Now().UnixNano())
 	body := []byte("conformance probe")
 
 	info, err := s.Put(ctx, key, bytes.NewReader(body), int64(len(body)), PutOptions{ContentType: "text/plain"})
@@ -47,9 +52,43 @@ func ConformObjectStore(ctx context.Context, s ObjectStore) []error {
 		}
 	}
 
-	if _, err := s.List(ctx, "pf/conformance/"); err != nil {
+	// List must actually FILTER by prefix: the probe key is present AND an object under a DIFFERENT prefix is
+	// absent (presence alone would pass an adapter that ignores prefix entirely).
+	otherKey := fmt.Sprintf("pf/conformance-other/probe-%d", time.Now().UnixNano())
+	_, otherErr := s.Put(ctx, otherKey, bytes.NewReader(body), int64(len(body)), PutOptions{ContentType: "text/plain"})
+	if items, err := s.List(ctx, "pf/conformance/"); err != nil {
 		errs = append(errs, err)
+	} else {
+		found, leaked := false, false
+		for _, it := range items {
+			if it.Key == key {
+				found = true
+			}
+			if it.Key == otherKey {
+				leaked = true
+			}
+		}
+		if !found {
+			errs = append(errs, errors.New("List: prefix did not return the written key"))
+		}
+		if leaked {
+			errs = append(errs, errors.New("List: prefix filtering leaked an object from another prefix"))
+		}
 	}
+	if otherErr == nil {
+		_ = s.Delete(ctx, otherKey, "")
+	}
+
+	// Capability honesty: a DECLARED capability must work; a false claim fails the suite.
+	caps := s.Capabilities()
+	if caps.SignedURLs {
+		if u, err := s.SignedURL(ctx, key, "GET", time.Minute); err != nil || u == "" {
+			errs = append(errs, fmt.Errorf("capability honesty: SignedURLs=true but SignedURL failed/empty: %v", err))
+		}
+	}
+	// NB: versioning/lock/multipart/CMK are intentionally NOT asserted here: a SYNTHESIZED Version (e.g. a
+	// content hash, as s3store uses when a bucket has no real version IDs) must not be treated as a version
+	// handle, and each of those capabilities needs its own dedicated contract test before it can be trusted.
 
 	if err := s.Delete(ctx, key, ""); err != nil {
 		errs = append(errs, err)

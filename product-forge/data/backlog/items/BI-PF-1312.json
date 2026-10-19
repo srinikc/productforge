@@ -48,11 +48,14 @@
   },
   "objective": "EDP-20 slice 1: partition audit by RANGE(at) with a safe swap + managed partition/retention lifecycle (no lost audit events).",
   "acceptance_criteria": [
-    "AuditStore DAO enforces append-only (no update/delete at app layer)",
-    "storage.py split into audit/cache/evidence modules with no behavior regression",
-    "Retention/redaction policy applied and tested",
-    "Checkpoints over threshold stored in ObjectStore with manifest reference",
-    "Existing evidence/audit APIs remain green"
+    "Migration 0014_audit_partitioning.{up,down}.sql converts `audit` to a RANGE-partitioned table by `at` (monthly); migrate.LoadDir pairing test passes.",
+    "Append-only preserved: UPDATE/DELETE on `audit` still raises via deny_mutation on the partitioned parent; integration test proves it.",
+    "RLS preserved: a cross-tenant SELECT returns 0 rows under the pf_app/pf_runtime role; tenant_isolation is ENABLE+FORCE on the partitioned table.",
+    "Partition routing works: an insert lands in the expected month partition; audit_ensure_partitions(n) is idempotent, provisions >=N months ahead and a named grace partition, and auto-provisions a missing month at insert time (no lost events).",
+    "audit_apply_retention(keep_months) drops only partitions fully older than the window (never row UPDATE/DELETE, never current/future, respects legal holds), supports a dry-run report, and ids stay unique/monotonic (sequence setval from legacy max; invariant test).",
+    "audit_partition_coverage() reports the provisioned horizon so a coverage check can alert before exhaustion (alert wiring tracked under EDP-22).",
+    "The existing write path AuditStore.Append works unchanged against the partitioned table (DSN-gated integration test green); the /audit admin op is unaffected.",
+    "Docs updated (EDP-17-SCHEMA audit=partitioned; EDP-STORE-STATUS audit backend/retention) and store-registry reflects backend/retention; ADR addendum records the RANGE(at)/UTC decision."
   ],
   "in_scope": [
     "partitioned audit + safe swap",
@@ -221,7 +224,7 @@
     "usage": {}
   },
   "created_at": "2026-10-13T16:06:15.883465",
-  "updated_at": "2026-10-17T21:57:11.538034",
+  "updated_at": "2026-10-19T18:31:16.191553",
   "score": 0.75,
   "source_ref": "docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md",
   "_note": "partial delivery",
@@ -234,19 +237,87 @@
     "design": {
       "1": {
         "status": "actioned",
-        "note": "ACs will be sliced per slice; epic-wide ACs replaced (redaction marked delivered, PR #236) - main thread"
+        "note": "ACs sliced per slice; epic-wide ACs replaced on the item (redaction delivered PR #236)."
       },
       "2": {
         "status": "accepted",
-        "note": "redaction already shipped (PR #236); retention is this slice - main thread"
+        "note": "redaction already shipped (PR #236); this slice is retention via partitioning."
       },
       "3": {
         "status": "actioned",
-        "note": "all new logic = SQL functions invoked by the existing scheduler (no new Python) - main thread"
+        "note": "all new logic = SQL functions + Go admin ops; no new shipped Python."
       },
       "4": {
         "status": "actioned",
-        "note": "add migration rollback + partition routing + retention tests - main thread"
+        "note": "tests: migrate pairing + DSN-gated partition-routing/retention integration + RLS/append-only assertions."
+      },
+      "5": {
+        "status": "actioned",
+        "note": "up.sql declares non-reversible after the swap; verified backup/snapshot checkpoint + restore runbook required before step 1."
+      },
+      "6": {
+        "status": "actioned",
+        "note": "audit is empty today; batch/delta copy + size threshold + abort criterion for non-empty envs; documented deploy window."
+      },
+      "7": {
+        "status": "actioned",
+        "note": "verified no FK/ORM depends on audit(id); keep a btree index for id lookups; invariant test."
+      },
+      "8": {
+        "status": "accepted",
+        "note": "auto-provision the needed month at insert (BEFORE INSERT trigger) so overflow is not a static SPOF; grace partition + coverage alert remain."
+      },
+      "9": {
+        "status": "actioned",
+        "note": "on-startup provisioning check in edpsvc + coverage SLO + alert lead-time so a stalled scheduler cannot lose events."
+      },
+      "10": {
+        "status": "actioned",
+        "note": "integration test asserts pf_app/pf_runtime are subject to RLS (no BYPASSRLS inherit) after the migration."
+      },
+      "11": {
+        "status": "actioned",
+        "note": "sequence setval pinned in the same tx after copy; invariant test: ids unique/monotonic, no collision."
+      },
+      "12": {
+        "status": "actioned",
+        "note": "keep_months bounded (min 1), dry-run/report mode, legal-hold check, dropped-partition logging before any prod run."
+      },
+      "13": {
+        "status": "accepted",
+        "note": "monthly granularity documented as a constraint (13-month default)."
+      },
+      "14": {
+        "status": "actioned",
+        "note": "no view/RAG references audit (verified 0008/0009); enumeration method documented."
+      },
+      "15": {
+        "status": "actioned",
+        "note": "migration-interrupted recovery runbook for a failure between swap steps."
+      },
+      "16": {
+        "status": "actioned",
+        "note": "PF_AUDIT_RETENTION_MONTHS validated at config load (integer >= legal minimum)."
+      },
+      "17": {
+        "status": "deferred",
+        "note": "metrics/SLO/alert routing tracked under EDP-22; this slice exposes the coverage accessor only."
+      },
+      "18": {
+        "status": "actioned",
+        "note": "PITR interplay documented: a restore between swap steps resurrects audit_legacy; recovery runbook added."
+      },
+      "19": {
+        "status": "actioned",
+        "note": "grace partition named with its horizon (audit_grace_<YYYYMM>)."
+      },
+      "20": {
+        "status": "actioned",
+        "note": "ADR addendum records the RANGE(at) + UTC-bounds decision."
+      },
+      "21": {
+        "status": "actioned",
+        "note": "ops runbook pointer for the 'coverage alert fired' first action."
       }
     }
   }

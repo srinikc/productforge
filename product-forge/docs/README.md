@@ -180,6 +180,7 @@
 | [`UIUX-DESIGN-SYSTEM-INCLUSION-DESIGN.md`](UIUX-DESIGN-SYSTEM-INCLUSION-DESIGN.md) | Design | 0% | Framework-agnostic UI/UX + design-system inclusion: knowledge, skills, catalog, tokens, direction, a11y, design QA (epic BI-PF-1436) | — | — |
 | [`UNWIRED-MODULES-TRIAGE.md`](UNWIRED-MODULES-TRIAGE.md) | Adopted (reference) | 90% | Deprecated/legacy module triage | Triage applied; retired modules removed. | — |
 | [`VENDORED-TOOLS.md`](VENDORED-TOOLS.md) | Design | 100% | Neutral vendored tools location (drawio), no .opencode coupling (BI-0202) | — | — |
+| [`WORKER-NEW-ARCHITECTURE.md`](WORKER-NEW-ARCHITECTURE.md) | Design | 0% | Worker fleet redesign (PARKED, after EDP-17): state + coordination substrate, control plane (schedule/assign/coordinate/observe/deliver), data plane (isolated execution) | — | — |
 | [`WORKER-SCHEDULER-OPERATIONS.md`](WORKER-SCHEDULER-OPERATIONS.md) | Implemented | 100% | Worker/scheduler ops: register, manual pull (/pf work), auto-dispatch, eligibility, lease/recovery | — | — |
 | [`WORKER-TIMING-TOKENS.md`](WORKER-TIMING-TOKENS.md) | Design | 100% | Worker timing (active vs human-wait) + token/cost accounting on existing owners (no new store) | — | — |
 | [`WORKERGRID-DESIGN.md`](WORKERGRID-DESIGN.md) | Design | 10% | WorkerGrid: external producer-agnostic execution plane (ADR-0002); PF=producer/SSOT, executor split, shared service | — | — |

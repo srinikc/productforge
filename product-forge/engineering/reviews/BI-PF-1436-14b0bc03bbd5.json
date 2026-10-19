@@ -1,0 +1,35 @@
+{
+  "item": "BI-PF-1436",
+  "sha": "14b0bc03bbd5",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "findings": {
+    "BLOCKER": [
+      "Generated `docs/BACKLOG-SUMMARY.md` shows **BI-PF-1448 (Must, Gate 2.5 skip_globs bug) vanishing from the open backlog** with `Closed` unchanged (562) and `Open` only +9 despite 10 new items seeded (net \u22121). No deletion/closure is represented in the diff; combined with the unallocated id gap 1446\u20131447 in `id-blocks.json`, this is a possible backlog-store data-loss/overwrite event. Must be explained or reverted before merge.",
+      "Acceptance criterion \"covering corpus, skills, tokens, stages, gates, and **risks**\" is only partially met: the design doc has no Risks section (\u00a77 gates, \u00a78 licensing/trust, \u00a79 open decisions are not a risk register \u2014 no failure modes, blast radius, rollback, or mitigations for fail-closed a11y gate, token-budget overflow, corpus licensing exposure)."
+    ],
+    "MAJOR": [
+      "`config/store-registry.json` registers owner `go/pfcore/design_system.go`, a module that does not exist in this change, while BI-PF-1439's own `files` list also claims `config/store-registry.json`. Two items edit the same registry row with no stated ownership/precedence rule \u2014 the same class of \"who syncs the shared file\" problem the \u00a74/\u00a76 rule was created to prevent. If any precheck/wired audit resolves `owner` paths, this row fails on land.",
+      "The \u00a74/\u00a76 same-PR reconciliation rule is prose only \u2014 no gate, checklist item, or `wired_audit`-style check enforces it. Given this program's own standard (BI-PF-1404: \"documented but not enforced\" is a defect), a nine-child, four-wave doc-codification relying on unenforced discipline will drift.",
+      "Design doc \u00a74 presents store-registry actions as done in this PR (\"Allow-globs for `docs/reference/uiux-samples/**`, `pipeline/skills/**`\") but the diff registers only `config/design-systems.json`; doc and registry state diverge at land time, undermining the doc's authority claim for \u00a74."
+    ],
+    "MINOR": [
+      "Seed idempotency preserves prior waves but sorts the execution order by the *plan* `WAVES` map; if a wave is ever edited, persisted row order and persisted wave numbers disagree silently.",
+      "No test or validation covers the hand-edited `id-blocks.json` ranges (overlap/gap/contiguity vs. `next`); the test explicitly disables `id_allocator.enabled`, so the id-reservation half of this change is untested.",
+      "Test reaches into `backlog._paths` (private) and rewrites store fixtures \u2014 brittle coupling to internals; a public test seam would survive refactors.",
+      "`store-registry` classification for a `planned` file asserts `retention: unbounded`, `recovery_tier: standard`, `migration_status: pending` for content that does not exist yet \u2014 classification-of-nothing risks a later mismatch when the real file lands.",
+      "`API_IMPACT` decision is hardcoded `needs_api: false` for all ten items; `design.select`/`a11y.audit`/`skills.resolve` will eventually be exposed as capability ops \u2014 the \"no HTTP route\" rationale conflates internal op surface with API surface (ADR-0007 assessment is asserted, not reasoned per item).",
+      "Id gap 1446\u20131447 (`next: 1446` before an existing 1448 block) is left dangling without a comment, unlike the documented 1433\u20131435 reservation."
+    ],
+    "NIT": [
+      "`backlog.add_epic(..., type_=\"feature\")` is used to create children; the helper name misleads future maintainers (a `add_item` alias would be clearer).",
+      "`documentation-index.html` still has no trailing newline (pre-existing, re-touched here).",
+      "Doc \u00a73a skill table and \u00a78 license list use two different enumerations of the same skills (`8` vs. 11 entries) \u2014 reconcile wording to avoid counting disputes during review."
+    ],
+    "SUMMARY": [
+      "Solid design/seed phase: doc committed and indexed, nine children seeded with AC/deps/waves/api_impact, children left `new`, idempotency covered by tests, language rule respected (Python only under `scripts/dev/` + tooling).",
+      "Top risks: an unexplained disappearance of BI-PF-1448 from the open backlog (integrity \u2014 verify before merge), a missing Risks section against an explicit AC, and unenforced \u00a74/\u00a76 + shared store-registry ownership rules across a nine-child program.",
+      "Recommend: block on the backlog delta explanation and the risks AC; add an enforceable doc-sync check before wave 1 executes."
+    ]
+  }
+}

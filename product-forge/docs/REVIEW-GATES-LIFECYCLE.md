@@ -9,15 +9,25 @@ The authoritative gate chain for taking a backlog item from **take-up → merge 
 **Gate 1.5 (design review) → Gate 1 (HIL design approval)**, and **Gate 2.5 (delivery review) → Gate 2 (HIL
 delivery approval)**. HIL always sees the reviewer's findings + recommendation as an input to the decision.
 
-1. **Gate 1.5 — Architect DESIGN review (independent sub-agent; fresh context; configurable model).**
+1. **Gate 1.5 — Architect DESIGN review (independent; fresh context; configurable model).**
    Reviews the **design / reconciliation block** *before* HIL approval (see §Gate 2.5 rules). Recommended for
    large/security/schema work. Its findings + recommendation are presented to HIL.
+   **Default runner = direct provider call** (`architect_review.py run` — one LLM call, no tools, lowest
+   cost/latency); the sub-agent `launch_command` is **opt-in** for investigation-heavy reviews (BI-PF-1449).
+   Run the **design pre-check checklist** first: `architect_review.py checklist --item <ID>`.
 
 2. **Gate 1 — Take-up / design approval (HIL, manual), informed by Gate 1.5.**
    Reconciliation block (PRIOR DECISIONS / EXISTING PATH / ASSUMPTIONS / DIVERGENCES / OPEN) + IMPACT REVIEW
    (LANGUAGE CHECK, API CHECK, AC) + risks. `language_rule_review.py` verdict.
    **The Gate 1 review MUST state the Gate 1.5 findings + recommendation inline** (so HIL decides with them
-   visible; not a separate artifact). **No code before approval.**
+   visible; not a separate artifact).
+
+   **Gate 1 is only valid with the consolidated view:** produce it with
+   `python scripts/dev/architect_review.py gate --item <ID> --gate 1` and enforce it with
+   `python scripts/dev/gate1_check.py --item <ID>` (exits non-zero while any BLOCKER/MAJOR is PENDING). Include
+   both in the approval package. Pending MINOR/NIT do not block but must be recorded. Dispositions may be keyed
+   by a stable `sig:<digest>` (preferred — survives re-review reordering) or by ordinal (legacy). **No code
+   before approval.**
 
 3. **Implement on a feature branch** (never `develop`). Backlog writes are **API-only**; integrity gates apply
    at write time: **AC required** at create (`POST /items` → 400), **api_impact** (`api-first`),
@@ -84,6 +94,20 @@ future-proofing, reuse/no-duplication, "the right thing") before precheck/PR.
 `ingest --file <review>` parses findings → `engineering/reviews/<item>-<sha>.json` and (with `--apply`)
 appends the summary to the item context. The reviewer **sub-agent** (any model from
 `config/architect-review.json`) is launched separately; the tool does not embed or lock a model.
+
+## Review learning loop (BI-PF-1449)
+
+Reviews are a learning input, not a one-off artifact:
+- **Design pre-check** (`architect_review.py checklist --item <ID>`) pre-empts recurring finding classes
+  (reversibility, availability/SPOF, authz/RLS, blast radius, invariants, tests, language rule, API).
+- **Gate 1 check** (`scripts/dev/gate1_check.py`) blocks Gate 1 while BLOCKER/MAJOR are PENDING.
+- **Findings → durable rules** (`scripts/dev/review_learnings.py`): recurring findings not captured in
+  `docs/CORRECTION-LEDGER.md` are flagged (`--check`) and emitted as ledger rows (`--propose`), each carrying a
+  stable `sig:<digest>` so capture is machine-traceable. `--write` persists the durable trend/recurrence report
+  to `engineering/learnings/review-findings.json` (registered store) — the machine-readable source for
+  `RAG-PROCESS-MEMORY` retrieval.
+- **Expected trend:** findings per review should fall over time. If it does not, the design pre-check/ledger is
+  not being applied — that is itself a finding.
 
 ## One line
 **Gate 1.5 (design review) → Gate 1 (HIL design approval) → implement → Gate 2.5 (delivery review) → Gate 2

@@ -1,0 +1,29 @@
+{
+  "item": "BI-PF-1463",
+  "sha": "fbb965b40954",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "findings": {
+    "BLOCKER": [
+      "none"
+    ],
+    "MAJOR": [
+      "**BI-PF-1463's backlog record is not visible in the diff, so AC#2 is unverifiable.** The only backlog-side evidence is the *generated* `BACKLOG-SUMMARY.md`. The acceptance criteria require `source_ref = docs/WORKER-NEW-ARCHITECTURE.md`, an explicit `api_impact` decision, and a recorded next step (Gate 1 reconciliation: keep/change/drop, ownership table, child items, open decisions) *on the item*. If the item store is git-backed (as the note's own \u00a71 single-writer table implies), that record should appear in this diff or be referenced by a committed store path/SHA; as submitted, the reviewer must take it on faith, which defeats independent review of the \"bookkeeping\" half of the change.",
+      "**`id-blocks.json` reservation leaves an unexplained 14-id hole (1449\u20131462).** `reserved_up_to` jumps 1448 \u2192 1463 and a new session block `Srinikc-PC5560-460` claims only 1463, while AC#3 says the diff contains \"the id-block reservation for this item\". Either ~14 ids were silently burned (or were allocated by an off-diff session on the same machine \u2014 in which case the concurrent-edit reconciliation is not shown), and the AC as written doesn't match what's committed. Unexplained gaps in a CAS-managed id counter are exactly the kind of drift that later produces duplicate-id debugging sessions."
+    ],
+    "MINOR": [
+      "**New session key `Srinikc-PC5560-460` vs existing `Srinikc-PC5560-24608`.** The machine identity string is inconsistent (different suffix scheme) for what appears to be the same host. If session keys are used for lease ownership/audit attribution, drift here undermines traceability; the key format should be normalized or documented.",
+      "**`docs/WORKER-NEW-ARCHITECTURE.md` has no trailing newline** (`\\ No newline at end of file`). Trivial, but the file is also the tail of the diff where a stray ` ``` ` context line appears immediately after the last checklist item \u2014 worth confirming the shipped file does not accidentally contain a dangling code fence.",
+      "**No cross-links from/to the sibling worker docs.** The note overlaps heavily with `WORKERGRID-DESIGN.md`, `WORKER-SCHEDULER-OPERATIONS.md`, and `WORKER-TIMING-TOKENS.md` (ADR-0002/0003, lease/eligibility territory) but neither cites them as supersession/related candidates, nor do the older docs' index rows mention the parked successor. Gate 1 reconciliation will be harder without an explicit \"this note supersedes/extends X\" statement."
+    ],
+    "NIT": [
+      "The docs-index entries (README.md table + documentation-index.html + generator TOP map) are correctly kept in sync via `gen_docs_index.py` \u2014 good \u2014 but the generated `%` (0%) and status (\"Design\") are hard-coded in the generator's TOP map rather than derived; a short comment explaining why a parked doc ships at 0% would help future maintainers not \"fix\" it.",
+      "The design note is 260 lines of substantive architecture opinion (DB SSOT, event bus, autonomy tiers) parked at 0% adopted; consider a one-line pointer from `MASTER-0-CURRENT-STATE-TRUTH.md` so current-state truth consumers know a contested redesign exists."
+    ],
+    "SUMMARY": [
+      "The change is properly scoped and language-rule compliant (only tooling Python, derived-file regenerations, and an id-block bookkeeping edit; no shipped logic). AC#1 and AC#3 are effectively met, with a caveat on the id-block gap.",
+      "Top risks: (1) AC#2 \u2014 the item's `source_ref` / `api_impact` / next-step record \u2014 is asserted but not evidenced in the diff, so the gate decision trail rests on an off-diff artifact; (2) the 1449\u20131462 id gap suggests concurrent or unreconciled id allocation that should be explained before the reservation is accepted as bookkeeping-only.",
+      "Recommendation: approve after the backlog item's raw record (or store commit reference) and the id-gap provenance are attached to the review."
+    ]
+  }
+}

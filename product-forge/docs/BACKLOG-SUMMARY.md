@@ -1,17 +1,17 @@
 # Backlog Summary
 
-> GENERATED 2026-10-19T19:08:56 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-19T21:33:25 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 137  |  **Closed:** 564
+- **Open:** 139  |  **Closed:** 567
 - `blocked`: 1
 - `executing`: 3
-- `in_progress`: 2
-- `new`: 131
+- `in_progress`: 3
+- `new`: 132
 
-### new, by category (131)
+### new, by category (132)
 **API / reports / HIL / misc** (16)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
@@ -32,11 +32,10 @@
 | BI-PF-1409 | Must | defect | RCCA (process, P0): partial delivery reported as complete - EDP-02 closed without store classification/mapping; add artifact-completeness gates + evidence-based DoD + re-open audit | RCCA (process, P0): partial delivery reported as complete - EDP-02 closed without store classification/mapping... |
 | BI-PF-1441 | Should | feature | Dynamic design-direction stage + HIL suggest gate | At the start of design, PF suggests ranked directions and the operator confirms one. |
 
-**Bug fixes** (2)
+**Bug fixes** (1)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-PF-1332 | Should | bug | Develop red: test pollution committed into data/learnings.json breaks test_global_render_unchanged (scratch loop-learning marker 0270) | Restore develop green: purge test pollution from data/learnings.json + prevent test writes to the real learnin... |
-| BI-PF-1448 | Must | bug | [Gate 2.5] skip_globs miss product-forge/-prefixed paths: docs-only changes falsely require architect-review evidence | Make Gate 2.5 skip docs/config-only changes regardless of the repo-root-relative path prefix, without skipping... |
 
 **Discovery / HIL / prompts** (9)
 | ID | MoSCoW | Type | Title | Objective |
@@ -94,7 +93,7 @@
 | BI-PF-1392 | Should | task | Enforce per-feature FR/US caps + max_lines in the Go artifact engine (scaled by the profile) and reconcile the three section sources | Per-feature FR/US caps + max_lines enforced NUMERICALLY (scaled by profile); sections have ONE source. |
 | BI-PF-1425 | Should | feature | Migrate orchestrator cache + evidence/summarizer (and remaining audit logic) from Python to Go (Go-first alignment) | Migrate orchestrator cache + evidence/summarizer (and remaining audit logic) from Python to Go (Go-first align... |
 
-**Wiring / tech-debt / API** (77)
+**Wiring / tech-debt / API** (79)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0185 | Should | feature | EPIC: Multi-modal / media orchestration (pluggable capability packs) | Make the pipeline modality-agnostic via PLUGGABLE capability packs, enabled per project when the idea needs th... |
@@ -163,13 +162,15 @@
 | BI-PF-1389 | Should | task | Wire the artifact contract + project-size profile into generation (single source for the section plan) | The resolved contract (required vs optional sections per profile + counts + size) becomes the single source fo... |
 | BI-PF-1391 | Should | task | Project-size profile lever: small/medium/large selects required vs optional sections + counts bands + size budget | One lever scales depth: small -> required sections only, low counts, small budgets; medium -> recommended; lar... |
 | BI-PF-1393 | Should | task | Verify small/medium/large profiles on MyToDo (no over-scope) + close BI-PF-1333 | Prove a trivial run stays proportionate per profile and close BI-PF-1333. |
-| BI-PF-1395 | Should | feature | EDP: additional ObjectStore adapters (NFS/SMB, Google Drive, Azure Blob, GCS, ...) behind the ObjectStore port | EDP: additional ObjectStore adapters (NFS/SMB, Google Drive, Azure Blob, GCS, ...) behind the ObjectStore port |
 | BI-PF-1410 | Must | feature | Hard DoD gate: every item needs detailed Acceptance Criteria + independent verification (verifier != implementer) before close/merge | Hard DoD gate: every item needs detailed Acceptance Criteria + independent verification (verifier != implement... |
 | BI-PF-1414 | Should | defect | RCCA: schema designed without field-level reconciliation vs the owning port (artifact schema mismatched datastore.Artifact) - found only at C1b | RCCA: schema designed without field-level reconciliation vs the owning port (artifact schema mismatched datast... |
 | BI-PF-1416 | Should | feature | Automate PF persistence setup: one-command provisioning + roles + migrations + storage config + secrets + verify (dev and SaaS) | Automate PF persistence setup: one-command provisioning + roles + migrations + storage config + secrets + veri... |
 | BI-PF-1424 | Must | feature | Consolidate Python orchestrator audit (AgentAuditLog) into the DB AuditStore - single audit truth via /audit | Consolidate Python orchestrator audit (AgentAuditLog) into the DB AuditStore - single audit truth via /audit |
 | BI-PF-1426 | Should | change | Harden auto-loaded config against schema mixing + tooling writes outside the repo (residency-profiles vs residency-cells) | Make schema-mixing in auto-loaded dirs and out-of-repo tooling writes fail loudly, repo-wide. |
 | BI-PF-1431 | Must | feature | Design & implement the PF server/service + token model (sharing for internal/external callers) | Design & implement the PF server/service + token model (sharing for internal/external callers) |
+| BI-PF-1433 | Should | feature | ObjectStore adapter: Azure Blob (on go/objstorerest) | ObjectStore adapter: Azure Blob (on go/objstorerest) |
+| BI-PF-1434 | Should | feature | ObjectStore adapter: Google Drive (design key<->fileID model first) | ObjectStore adapter: Google Drive (design key<->fileID model first) |
+| BI-PF-1435 | Should | feature | GCS ObjectStore adapter: streaming/resumable upload + wire buildObjectStore (production-qualification) | Remove the GCS adapter's memory buffering/5 MB ceiling and wire it on the runtime path. |
 | BI-PF-1437 | Should | feature | Framework-agnostic skills home + resolver | PF owns the skill bodies; .opencode is a legacy fallback only. |
 | BI-PF-1439 | Should | feature | Design-system catalog store + selection engine (Go) | PF can SELECT a ranked design direction from the idea. |
 | BI-PF-1440 | Should | feature | Design-token engine upgrade (3-tier OKLCH, light+dark) | Generate real design tokens from the selected direction. |
@@ -373,5 +374,5 @@
 ---
 
 ## Totals
-- backend: 137 open / 564 closed
+- backend: 139 open / 567 closed
 - dashboard: 146 open / 3 closed

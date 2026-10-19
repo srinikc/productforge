@@ -1,0 +1,32 @@
+{
+  "item": "BI-PF-1395",
+  "sha": "fa7ecd72ebab",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "findings": {
+    "BLOCKER": [
+      "none"
+    ],
+    "MAJOR": [
+      "GCS adapter is unwired (dead code on the runtime path): buildObjectStore() in go/edpsvc/main.go has no \"gcs\" case and edpsvc/go.mod does not require gcsstore. Deliberate deferral (main.go is owned by the other session); tracked in BI-PF-1435. Advisory, not a BLOCKER.",
+      "Full-object buffering unchanged in Put/Get (io.ReadAll + bytes.Buffer); no resumable path; GCS uploadType=multipart caps at ~5 MB. Tracked in BI-PF-1435 (streaming/resumable). Adapter is labeled mock-conformant, NOT production-qualified.",
+      "Get ignores the version argument (no generation param) - FIXED in this pass (Get now appends &generation when version != \"\")."
+    ],
+    "MINOR": [
+      "Capability honesty only exercises SignedURLs; ObjectVersioning/MultipartUpload/ConditionalWrites/CMK/ObjectLock unverified (AC \"declared capability must work\" is partial; deferred - a synthesized Version must not be treated as a handle).",
+      "Put now validates declared size vs bytes read - FIXED.",
+      "Conformance List prefix filtering now puts an object under a DIFFERENT prefix and asserts it is NOT leaked - FIXED (the claim is now actually proven).",
+      "Diff-scoped gofmt gate is functional in a normal dev checkout (verified by injection) but no-ops if origin/develop is absent (shallow CI) - documented; acceptable.",
+      "No test exercises the new conformance FAILURE paths (adapter ignoring prefix / lying about a capability) - follow-up.",
+      "Docs: mock-conformant labeling + known limitations added - FIXED.",
+      "Double resp.Body.Close() (harmless) and Redact covering query params only - noted, low risk."
+    ],
+    "NIT": [
+      "List returns a non-nil empty slice (s3store returns nil) - cosmetic.",
+      "Retry-After parses integer seconds only (HTTP-date falls back to exponential) - acceptable.",
+      "Probe-key uniqueness uses wall-clock nanos - negligible."
+    ],
+    "SUMMARY": []
+  },
+  "note": "CI sha (Windows/Linux diff normalization); same code diff as cfdb0fa46fcc"
+}

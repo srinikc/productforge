@@ -1,0 +1,21 @@
+{
+  "item": "BI-PF-1449",
+  "sha": "61f20a1bb024",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "findings": {
+    "BLOCKER": [
+      "none"
+    ],
+    "MAJOR": [
+      "**Fail-open on unparsable/empty evidence**: a Gate 1.5 review file whose findings parse to empty (corrupt JSON shape, LLM reply that `parse_review` cannot section, or all-\"none\" sections) yields `gate_view` with `blocking == []` \u2192 `gate1_check` prints `PASS - 0 finding(s)` and `architect_review gate --gate 1` exits 0. \"No evidence\" correctly exits 2, but \"evidence that failed to parse\" silently passes the *binding* gate. An empty-findings review should be treated as indeterminate (exit 2 or a distinct code), not PASS.",
+      "**Legacy ordinal dispositions silently re-bind**: `iter_findings` now skips `- none`/`-` placeholders, shifting the ordinal numbering used by existing committed dispositions keyed by ordinal. Any pre-BI-PF-1449 review that counted a \"none\" placeholder now maps disposition `#n` to a *different* finding, with no warning or migration. Prefer sig keys going forward is right, but the legacy fallback needs a shift-detection/warning (or an offline re-key of committed evidence), otherwise disposition integrity is quietly corrupted on the next re-render.",
+      "**Enforcement is documentation-only**: `gate1_check.py` and `review_learnings.py --check/--write` are not wired into any CI/precheck/merge invocation in this diff. The registered `review-findings.json` store (consumed by RAG-PROCESS-MEMORY) is only refreshed when someone manually runs `--write`, so the \"binding\" gate and the trend report both degrade to human discipline and can go silently stale \u2014 exactly the failure mode the ledger exists to prevent. Add a gate invocation point (precheck/merge or a scheduled check) and a freshness/staleness assertion for the registered report."
+    ],
+    "MINOR": [
+      "**Duplicate enforcement paths can drift**: `architect_review"
+    ],
+    "NIT": [],
+    "SUMMARY": []
+  }
+}
