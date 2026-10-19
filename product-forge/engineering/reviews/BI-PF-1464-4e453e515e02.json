@@ -1,0 +1,35 @@
+{
+  "item": "BI-PF-1464",
+  "sha": "4e453e515e02",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "findings": {
+    "BLOCKER": [
+      "none"
+    ],
+    "MAJOR": [
+      "`precheck._changed_files` now hard-fails (`SystemExit`) when neither `develop` nor `origin/develop` resolves. Previously it degraded (empty merge-base \u2192 still ran the `HEAD`/untracked diff). A fresh clone, shallow clone, feature-branch-only checkout, or worktree where the integration branch was never fetched will now abort the entire precheck \u2014 including commits that touch no code at all. Fail-closed is correct for the *gate* sha, but for a developer loop the safer degradation is \"assume the full step set\" (run everything) rather than \"block all commits\"; consider distinguishing *integrity-critical* consumers (sha computation) from *scoping* consumers (which tests to run).",
+      "The two modules now have divergent, non-reused base-ref policies: `precheck` grew `_integration_ref()` (local `develop` \u2192 `origin/develop` \u2192 fatal), while `architect_review._merge_base` still hardcodes `origin/develop` with no local fallback. On a machine with only local `develop`, Gate 2.5 will now fail-closed (GitError \u2192 exit 1) where precheck succeeds. This is exactly the class of \"same repo, different tool, different result\" divergence the item is trying to eliminate; the ref-resolution logic belongs in `gitutil` as a single shared function.",
+      "Session-wide `sys.path` mutation in `test_architect_review.py`: `sys.path.insert(0, str(ROOT / \"scripts\" / \"dev\"))` at module import leaks into the whole pytest session and makes every subsequent import resolve `scripts/dev/*` first. Combined with the switch from `from scripts.dev import architect_review` to bare `import architect_review`, the same file is now imported under two module identities (`scripts.dev.architect_review` vs `architect_review`) \u2014 monkeypatching one instance will silently not affect the other, producing order-dependent, flaky tests. If `scripts/dev` contains any module name that shadows stdlib or a site-package (or will in future), every other test file is affected. Prefer importing through the package or doing the path manipulation scoped to the fixtures/tests that need it.",
+      "Verify that `architect_review_check.py` actually has `import subprocess` at module top: the new `except (RuntimeError, OSError, subprocess.TimeoutExpired)` references `subprocess` but the diff does not add the import. If it is absent, the exception tuple raises `NameError` at runtime and the fail-closed path never executes (and, worse, fails only when a git error occurs). A test that forces a genuine `subprocess.TimeoutExpired` (not a monkeypatched `RuntimeError`) would cover this."
+    ],
+    "MINOR": [
+      "`errors=\"replace\"` makes the decode deterministic (good for sha stability) but lossy: any byte sequence that is not valid UTF-8 becomes U+FFFD and the review sha is then computed over *corrupted* evidence. The stderr warning exists, but the gate still accepts the evidence. Consider failing (or at least recording the affected paths in the finding output) when `--name-only` output contains replacement chars, since a mangled path means the changed-file set itself is unreliable.",
+      "Fail-closed propagation is only wired in `architect_review_check.py`. Other in-process callers of `ar.changed_files()` / `ar._git_diff()` / `ar.diff_sha()` (e.g. `architect_review.py`'s own write flow, `gate1_check.py`, `review_learnings.py`) will now surface raw `GitError` tracebacks instead of the old silent-empty behavior. Non-zero exit preserves integrity, but the observability story (actionable message vs stack trace) is inconsistent across entry points.",
+      "`git_text` applies a 30s timeout to *all* precheck git calls where previously precheck had no timeout. On large working trees or slow CI filesystems, `ls-files`/`status`/`diff --name-only` can exceed 30s, turning a slow machine into a `SystemExit` fatal. Consider a larger default for precheck's bulk-listing calls, or per-call timeout.",
+      "The U+FFFD warning uses `print(..., file=sys.stderr)` in a shared library; callers embedding `git_text` get unstructured stderr output with no way to capture/rate-limit it. For a repo that already standardizes on structured logging, route through the existing logging convention.",
+      "`precheck.py` adds `_DEV_DIR` to `sys.path` at runtime in a shipped entrypoint \u2014 same shadowing hazard as the test, just in production. Acceptable for a dev tool today, but it should be a one-line comment-enforced convention (or relative import) rather than a pattern others copy."
+    ],
+    "NIT": [
+      "`architect_review._git_text` is a one-line pass-through wrapper; fine for cohesion, but the docstring duplicates `gitutil`'s policy text. Point at `gitutil.git_text` as the single source of truth to avoid doc drift.",
+      "`BACKLOG-SUMMARY.md` shows Closed going 570 \u2192 567 while Open only goes 139 \u2192 140; the regenerated derived file is fine, but three items silently re-opening in one commit is worth an eyeball to confirm it's intentional churn and not a state-machine bug elsewhere.",
+      "`except (RuntimeError, OSError, subprocess.TimeoutExpired)` in the check is partially redundant (gitutil already wraps `OSError`/`TimeoutExpired` into `GitError` \u2282 `RuntimeError`); harmless belt-and-suspenders, but if kept, a brief comment on why raw exceptions are also guarded would help the next reader."
+    ],
+    "SUMMARY": [
+      "Direction is right: a single shared `git_text` helper with explicit `encoding=\"utf-8\"` / `errors=\"replace\"`, fail-closed on non-zero exit, plus a mock-based and a real-repo regression test, satisfies the acceptance criteria and removes the locale-dependent sha divergence.",
+      "Top risks: (1) precheck's new fatal on a missing integration ref trades a silent scoping gap for a full commit-flow outage on legitimate checkouts \u2014 degrade to \"run all steps\" rather than abort; (2) base-ref resolution is duplicated/divergent between precheck and architect_review, undermining the item's own consistency goal; (3) the test file's session-wide `sys.path` insert plus dual import identity is a latent order-dependence trap across the suite.",
+      "No data-loss, secret, or language-rule issues; the change is tooling Python and stays in bounds. Verify the `subprocess` import in `architect_review_check.py` before merge."
+    ]
+  }
+}

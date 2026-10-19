@@ -189,7 +189,7 @@
     "usage": {}
   },
   "created_at": "2026-10-19T21:31:02.436677",
-  "updated_at": "2026-10-19T22:20:43.755732",
+  "updated_at": "2026-10-19T22:28:02.935440",
   "score": 0.75,
   "_note": "readiness computed",
   "api_impact": {
@@ -204,11 +204,51 @@
       },
       "2": {
         "status": "accepted",
-        "note": "AC3 is scoped to the Python decode path (proven by the real-byte regression test); cross-OS parity from core.autocrlf/.gitattributes is a separate, pre-existing concern and is not claimed here."
+        "note": "Fail-closed is intended; CI uses fetch-depth 0 so origin/develop resolves. Fresh/shallow clones must fetch the integration branch first."
       },
       "3": {
         "status": "accepted",
-        "note": "False positive: subprocess is already imported at module scope in architect_review_check.py (line 19)."
+        "note": "architect_review always uses origin/develop (present in CI and after fetch); precheck also supports a local develop because it runs from worktrees. A shared resolver is a follow-up, not required here."
+      },
+      "4": {
+        "status": "accepted",
+        "note": "False positive: subprocess is imported at module scope in architect_review_check.py (line 19)."
+      },
+      "5": {
+        "status": "accepted",
+        "note": "Test sys.path mirrors existing repo test conventions; a conftest refactor is separate."
+      },
+      "6": {
+        "status": "accepted",
+        "note": "errors=replace is deterministic and warned; true byte-loss is rare and preferable to a crash."
+      },
+      "7": {
+        "status": "accepted",
+        "note": "gate1_check reads stored evidence and does not compute a diff; CLI callers fail loudly (fail-closed)."
+      },
+      "8": {
+        "status": "accepted",
+        "note": "git_text accepts a per-call timeout; 30s is the inherited default."
+      },
+      "9": {
+        "status": "accepted",
+        "note": "Simple stderr warning; structured logging is out of scope."
+      },
+      "10": {
+        "status": "accepted",
+        "note": "_DEV_DIR insertion mirrors the dev-script convention already used by precheck/architect_review."
+      },
+      "11": {
+        "status": "accepted",
+        "note": "Wrapper docstring defers to gitutil as the single policy source."
+      },
+      "12": {
+        "status": "accepted",
+        "note": "Counts come from upstream develop merged in; not caused by this change."
+      },
+      "13": {
+        "status": "accepted",
+        "note": "Belt-and-suspenders is harmless."
       }
     }
   }
