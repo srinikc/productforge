@@ -91,6 +91,7 @@ TOP = {
     "PF-BASELINE.md": ("Implemented", "PF baseline freeze: develop SHA, test/gate baseline, doc reconciliation, frozen decisions (A0/BI-PF-0392)", 100),
     "WORKER-SCHEDULER-OPERATIONS.md": ("Implemented", "Worker/scheduler ops: register, manual pull (/pf work), auto-dispatch, eligibility, lease/recovery", 100),
     "WORKERGRID-DESIGN.md": ("Design", "WorkerGrid: external producer-agnostic execution plane (ADR-0002); PF=producer/SSOT, executor split, shared service", 10),
+    "WORKER-NEW-ARCHITECTURE.md": ("Design", "Worker fleet redesign (PARKED, after EDP-17): state + coordination substrate, control plane (schedule/assign/coordinate/observe/deliver), data plane (isolated execution)", 0),
     "MASTER-0-CURRENT-STATE-TRUTH.md": ("Design", "MASTER-0 current-state architecture truth + discovery gate", 100),
     "API-0-DISCOVERY.md": ("Design", "API-0 API discovery: legacy surface, intake path, consumers, gaps", 100),
     "API-0.1-CONTRACT-RECONCILIATION.md": ("Design", "API-0.1 canonical contract: envelopes, errors, IDs, idempotency, versioning", 100),
