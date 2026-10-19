@@ -1,0 +1,199 @@
+{
+  "id": "BI-PF-1464",
+  "tag": "PF",
+  "type": "bug",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "",
+  "label": "PF Backlog 633",
+  "title": "[Gate 2.5] architect_review decodes git diff with the OS locale: UnicodeDecodeError on Windows + divergent review sha",
+  "body": "architect_review._git_diff()/changed_files()/_merge_base() call subprocess.run(..., text=True), which decodes with the OS locale. On Windows (cp1252) any diff containing non-cp1252 bytes (em dashes, arrows, non-breaking hyphens in docs) raises UnicodeDecodeError, so the Gate 2.5 review/gate cannot run locally; and where it does decode, the sha can differ from Linux CI, forcing duplicate '<item>-<ci-sha>.json' evidence files (see BI-PF-1432/BI-PF-1395). Fix: force UTF-8 decoding in one git helper.",
+  "source": "review",
+  "status": "new",
+  "priority": "P1",
+  "moscow": "Must",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [
+    "BI-PF-1432",
+    "BI-PF-1428",
+    "BI-PF-0257"
+  ],
+  "links": {},
+  "decisions": [
+    {
+      "at": "2026-10-19T21:31:58.883202",
+      "decision": "APPROVE",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)"
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "architect_review._git_diff()/changed_files()/_merge_base() call subprocess.run(..., text=True), which decodes with the OS locale. On Windows (cp1252) any diff containing non-cp1252 bytes (em dashes, arrows, non-breaking hyphens in docs) raises UnicodeDecodeError, so the Gate 2.5 review/gate cannot run locally; and where it does decode, the sha can differ from Linux CI, forcing duplicate '<item>-<ci-sha>.json' evidence files (see BI-PF-1432/BI-PF-1395). Fix: force UTF-8 decoding in one git helper.",
+    "what_adds": "[Gate 2.5] architect_review decodes git diff with the OS locale: UnicodeDecodeError on Windows + divergent review sha",
+    "why": "architect_review._git_diff()/changed_files()/_merge_base() call subprocess.run(..., text=True), which decodes with the OS locale. On Windows (cp1252) any diff containing non-cp1252 bytes (em dashes, arrows, non-breaking hyphens in docs) raises UnicodeDecodeError, so the Gate 2.5 review/gate cannot run locally; and where it does decode, the sha can differ from Linux CI, forcing duplicate '<item>-<ci-sha>.json' evidence files (see BI-PF-1432/BI-PF-1395). Fix: force UTF-8 decoding in one git helper.",
+    "who_feels": "Product Forge maintainers and consumers.",
+    "source": "extracted"
+  },
+  "objective": "Make Gate 2.5 git diff decoding locale-independent (UTF-8) so local Windows and Linux CI compute the same sha without crashing.",
+  "acceptance_criteria": [
+    "architect_review runs every git subprocess through a helper that decodes stdout as UTF-8 (errors=replace) instead of the OS locale, so a diff containing non-cp1252 characters (e.g. em dashes) no longer raises UnicodeDecodeError on Windows.",
+    "A regression test asserts the git helper forces encoding='utf-8' with errors='replace' (and not text=True), and that non-ASCII diff text is returned decoded rather than crashing.",
+    "The same committed diff yields the same review sha on Windows and Linux, so the duplicate CI-sha evidence workaround is no longer needed; python scripts/dev/precheck.py and architect_review_check.py pass."
+  ],
+  "in_scope": [
+    "[Gate 2.5] architect_review decodes git diff with the OS locale: UnicodeDecodeError on Windows + divergent review sha"
+  ],
+  "out_of_scope": [
+    "Not specified."
+  ],
+  "affected_components": [
+    "Not specified."
+  ],
+  "affected_files": [
+    "Not specified."
+  ],
+  "approach": "[Gate 2.5] architect_review decodes git diff with the OS locale: UnicodeDecodeError on Windows + divergent review sha",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Objective achieved: [Gate 2.5] architect_review decodes git diff with the OS locale: UnicodeDecodeError on Windows + divergent review sha"
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "agent",
+  "requester": "review",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "Gate 2.5 tool crashes or diverges across OSes because git stdout is decoded with the locale instead of UTF-8.",
+  "children": [],
+  "epic": "BI-PF-1252",
+  "parent": "BI-PF-1252",
+  "revision": 3,
+  "priority_rank": 40,
+  "priority_class": "P1",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "COMPLETE",
+    "analyzed_at": "2026-10-19T21:31:58.688317",
+    "analyzed_by": "system",
+    "revision_analyzed": 3,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Add a single `_git_output(args) -> str` helper in architect_review that runs subprocess with encoding='utf-8', errors='replace', text=False and decodes bytes explicitly; route _git_diff/changed_files/_merge_base through it. Mirror the pattern used in core/github.py where a UTF-8-safe git run already exists.",
+    "existing_components": [],
+    "existing_apis": [],
+    "existing_modules": [],
+    "dependency_findings": [
+      "BI-PF-1432/1435 related: sha-duplicate evidence files depend on deterministic decoding",
+      "BI-PF-1428 related: Gate 2.5 hard-rule enforcement depends on this running on Windows",
+      "BI-PF-0257 related: encoding hygiene precedent"
+    ],
+    "conflict_findings": [
+      "No concurrent item currently modifies architect_review; risk only if BI-PF-1428 lands simultaneously"
+    ],
+    "duplication_findings": [
+      "BI-PF-0257 fixed cp1252 in backlog CLI console — same class of bug, do not regress",
+      "Verify core/github.py and merge_gate.py do not already ship a UTF-8 git wrapper to reuse verbatim"
+    ],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "Small, isolated MODIFY of one helper; forces UTF-8 decoding, removes platform-dependent sha drift and unblocks local Gate 2.5 on Windows.",
+    "assumptions": [
+      "UTF-8 is already the repo-wide encoding on Linux CI",
+      "Git outputs UTF-8 for these repos by default"
+    ],
+    "risks": [
+      "errors='replace' could mask genuine binary diffs in evidence hashes",
+      "Windows CI coverage may be absent, so fix could regress unobserved"
+    ],
+    "evidence": [
+      "BI-PF-1464 body",
+      "BI-PF-0257 prior art"
+    ],
+    "confidence": "high",
+    "missing_info": [
+      "Whether CI runs any Windows runner that could validate the fix",
+      "Whether errors='replace' or errors='strict' is preferred for evidence fidelity"
+    ],
+    "depth": "deep",
+    "mode": "ai",
+    "context_review": {
+      "ok": true,
+      "source": "llm",
+      "implementable": true,
+      "missing": [],
+      "reason": "Names exact module/methods (architect_review._git_diff/changed_files/_merge_base) plus explicit fix (single git helper forcing encoding='utf-8', errors='replace', not text=True), rationale, and verifiable acceptance criteria incl. regression test and sha parity."
+    },
+    "decision_request": {
+      "needed": false,
+      "reasons": [],
+      "ask": ""
+    },
+    "arch_fingerprint": "cbe9c3e2434fd2c7"
+  },
+  "dependencies": [
+    {
+      "task_id": "BI-PF-1432",
+      "type": "RELATED",
+      "required_state": "open"
+    },
+    {
+      "task_id": "BI-PF-1428",
+      "type": "RELATED",
+      "required_state": "open"
+    },
+    {
+      "task_id": "BI-PF-0257",
+      "type": "RELATED",
+      "required_state": "done"
+    }
+  ],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-19T21:31:58.772540"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-19T21:31:02.436677",
+  "updated_at": "2026-10-19T21:31:59.740440",
+  "score": 0.75,
+  "_note": "readiness computed",
+  "api_impact": {
+    "needs_api": false,
+    "reason": "Developer tooling only (scripts/dev/architect_review.py); no runtime API surface."
+  }
+}

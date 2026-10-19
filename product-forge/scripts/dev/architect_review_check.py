@@ -53,12 +53,16 @@ def is_applicable(files: list, skip_globs: list) -> bool:
 def main() -> int:
     cfg = _cfg()
     skip = (cfg.get("size_gate") or {}).get("skip_globs") or ["docs/**", "**/*.md", "config/**"]
-    files = ar.changed_files()
-    if not is_applicable(files, skip):
-        print(f"architect-review: OK (skip - no code/schema/security change; {len(files)} file(s))")
-        return 0
+    try:
+        files = ar.changed_files()
+        if not is_applicable(files, skip):
+            print(f"architect-review: OK (skip - no code/schema/security change; {len(files)} file(s))")
+            return 0
+        sha = ar.diff_sha()
+    except (RuntimeError, OSError, subprocess.TimeoutExpired) as e:
+        print(f"architect-review: FAIL - cannot compute the change set (fail-closed): {e}")
+        return 1
 
-    sha = ar.diff_sha()
     if sha in _baseline_shas():
         print(f"architect-review: OK (baseline sha {sha})")
         return 0

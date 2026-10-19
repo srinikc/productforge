@@ -27,6 +27,10 @@ import sys
 if os.getcwd() not in sys.path:
     sys.path.insert(0, os.getcwd())
 from core.paths import ROOT as _PF_ROOT  # noqa: E402
+_DEV_DIR = os.path.dirname(os.path.abspath(__file__))
+if _DEV_DIR not in sys.path:
+    sys.path.insert(0, _DEV_DIR)
+from gitutil import git_text  # noqa: E402  (shared UTF-8/fail-closed git policy, BI-PF-1464)
 
 _ROOT = str(_PF_ROOT)
 _TEST_DIR = "test-framework/tests/pipeline"
@@ -36,11 +40,8 @@ _SMOKE = ("test_api_foundation.py", "test_backlog_refs.py", "test_main.py")
 
 
 def _git(*args):
-    try:
-        r = subprocess.run(["git", *args], cwd=_ROOT, capture_output=True, text=True)
-        return (r.stdout or "").strip()
-    except Exception:
-        return ""
+    # Shared helper: UTF-8 decoding + fail closed (never an empty changed-file set on a broken git).
+    return git_text(args, _ROOT).strip()
 
 
 def _changed_files():
