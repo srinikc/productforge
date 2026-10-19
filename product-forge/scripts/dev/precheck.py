@@ -27,6 +27,10 @@ import sys
 if os.getcwd() not in sys.path:
     sys.path.insert(0, os.getcwd())
 from core.paths import ROOT as _PF_ROOT  # noqa: E402
+_DEV_DIR = os.path.dirname(os.path.abspath(__file__))
+if _DEV_DIR not in sys.path:
+    sys.path.insert(0, _DEV_DIR)
+from gitutil import GitError, git_text  # noqa: E402  (shared UTF-8/fail-closed git policy, BI-PF-1464)
 
 _ROOT = str(_PF_ROOT)
 _TEST_DIR = "test-framework/tests/pipeline"
@@ -36,19 +40,31 @@ _SMOKE = ("test_api_foundation.py", "test_backlog_refs.py", "test_main.py")
 
 
 def _git(*args):
-    try:
-        r = subprocess.run(["git", *args], cwd=_ROOT, capture_output=True, text=True)
-        return (r.stdout or "").strip()
-    except Exception:
-        return ""
+    # Shared helper: UTF-8 decoding + fail closed (never an empty changed-file set on a broken git).
+    return git_text(args, _ROOT).strip()
+
+
+def _integration_ref() -> str:
+    """The integration base ref: local `develop` when present, else `origin/develop` (CI detached checkout)."""
+    for ref in (_INTEGRATION, f"origin/{_INTEGRATION}"):
+        try:
+            _git("rev-parse", "--verify", "--quiet", f"{ref}^{{commit}}")
+            return ref
+        except GitError:
+            continue
+    raise GitError(f"neither {_INTEGRATION!r} nor origin/{_INTEGRATION!r} exists - fetch the integration branch")
 
 
 def _changed_files():
     files = set()
-    base = _git("merge-base", _INTEGRATION, "HEAD")
-    if base:
-        for ln in _git("diff", "--name-only", base, "HEAD").splitlines():
-            files.add(ln.strip())
+    try:
+        base = _git("merge-base", _integration_ref(), "HEAD")
+    except GitError as e:
+        raise SystemExit(f"[precheck] FATAL: cannot resolve the changed file set: {e}")
+    if not base:
+        raise SystemExit("[precheck] FATAL: git merge-base returned no base commit")
+    for ln in _git("diff", "--name-only", base, "HEAD").splitlines():
+        files.add(ln.strip())
     for ln in _git("diff", "--name-only", "HEAD").splitlines():
         files.add(ln.strip())
     # BI-PF-1340: include UNTRACKED (new) files so a newly added test is discovered + run before commit.

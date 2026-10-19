@@ -35,6 +35,7 @@ DISPOSITION_STATUSES = ("PENDING", "ACTIONED", "ACCEPTED", "DEFERRED", "REJECTED
 if str(ROOT / "scripts" / "dev") not in sys.path:
     sys.path.insert(0, str(ROOT / "scripts" / "dev"))
 from review_sig import digest as _finding_digest  # noqa: E402  (shared with review_learnings)
+from gitutil import git_text as _git_text_shared  # noqa: E402  (shared UTF-8/fail-closed git policy)
 
 PROMPT = """You are a Principal Enterprise System Architect performing an independent review.
 
@@ -107,31 +108,24 @@ EXCLUDE = [":(exclude)engineering/**", ":(exclude)config/architect-review-baseli
            ":(exclude)data/backlog/**"]
 
 
+def _git_text(args: list[str], timeout: int = 30) -> str:
+    """Run git through the shared UTF-8/fail-closed helper (BI-PF-1464)."""
+    return _git_text_shared(args, ROOT, timeout)
+
+
 def _merge_base() -> str:
-    try:
-        mb = subprocess.run(["git", "merge-base", "origin/develop", "HEAD"], cwd=str(ROOT),
-                            capture_output=True, text=True, timeout=30).stdout.strip()
-        return mb or "origin/develop"
-    except Exception:
-        return "origin/develop"
+    mb = _git_text(["merge-base", "origin/develop", "HEAD"]).strip()
+    return mb or "origin/develop"
 
 
 def _git_diff() -> str:
     # Committed diff only (merge-base..HEAD): stable across precheck's own writing gates and equal to the CI PR
     # diff. The developer commits the change, runs the review (evidence committed next), then pushes.
-    try:
-        return subprocess.run(["git", "diff", "--no-color", f"{_merge_base()}..HEAD", "--", ".", *EXCLUDE],
-                              cwd=str(ROOT), capture_output=True, text=True, timeout=30).stdout
-    except Exception:
-        return ""
+    return _git_text(["diff", "--no-color", f"{_merge_base()}..HEAD", "--", ".", *EXCLUDE])
 
 
 def changed_files() -> list:
-    try:
-        out = subprocess.run(["git", "diff", "--name-only", f"{_merge_base()}..HEAD", "--", ".", *EXCLUDE],
-                             cwd=str(ROOT), capture_output=True, text=True, timeout=30).stdout
-    except Exception:
-        return []
+    out = _git_text(["diff", "--name-only", f"{_merge_base()}..HEAD", "--", ".", *EXCLUDE])
     return [ln.strip() for ln in out.splitlines() if ln.strip()]
 
 

@@ -1,18 +1,18 @@
 # Backlog Summary
 
-> GENERATED 2026-10-19T22:18:48 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-19T22:24:37 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 139  |  **Closed:** 570
+- **Open:** 140  |  **Closed:** 567
 - `blocked`: 1
 - `executing`: 3
 - `in_progress`: 3
-- `new`: 132
+- `new`: 133
 
-### new, by category (132)
-**API / reports / HIL / misc** (16)
+### new, by category (133)
+**API / reports / HIL / misc** (17)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-PF-0332 | Should | chore | API-5 deferred hardening: rate limiting + request/upload limits + tenant-isolation expansion + event streaming | API-5 deferred hardening: rate limiting + request/upload limits + tenant-isolation expansion + event streaming |
@@ -31,6 +31,7 @@
 | BI-PF-1382 | Must | bug | Backlog API: POST /backlog/items returns empty resource_id (created id not surfaced) | Backlog API: POST /backlog/items returns empty resource_id (created id not surfaced) |
 | BI-PF-1409 | Must | defect | RCCA (process, P0): partial delivery reported as complete - EDP-02 closed without store classification/mapping; add artifact-completeness gates + evidence-based DoD + re-open audit | RCCA (process, P0): partial delivery reported as complete - EDP-02 closed without store classification/mapping... |
 | BI-PF-1441 | Should | feature | Dynamic design-direction stage + HIL suggest gate | At the start of design, PF suggests ranked directions and the operator confirms one. |
+| BI-PF-1464 | Must | bug | [Gate 2.5] architect_review decodes git diff with the OS locale: UnicodeDecodeError on Windows + divergent review sha | Make Gate 2.5 git diff decoding locale-independent (UTF-8) so local Windows and Linux CI compute the same sha ... |
 
 **Bug fixes** (1)
 | ID | MoSCoW | Type | Title | Objective |
@@ -374,5 +375,5 @@
 ---
 
 ## Totals
-- backend: 139 open / 570 closed
+- backend: 140 open / 567 closed
 - dashboard: 146 open / 3 closed
