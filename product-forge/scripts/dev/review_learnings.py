@@ -29,7 +29,7 @@ EVID = ROOT / "engineering" / "reviews"
 LEARNINGS = ROOT / "engineering" / "learnings" / "review-findings.json"
 LEDGER = ROOT / "docs" / "CORRECTION-LEDGER.md"
 SEV = ("BLOCKER", "MAJOR", "MINOR", "NIT")
-_SIG_RE = re.compile(r"sig:([0-9a-f]{10})")
+_SIG_RE = re.compile(r"sig:([0-9a-f]{16})")
 if str(ROOT / "scripts" / "dev") not in sys.path:
     sys.path.insert(0, str(ROOT / "scripts" / "dev"))
 from review_sig import digest as _digest_shared, signature as _signature_shared  # noqa: E402

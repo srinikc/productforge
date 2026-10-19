@@ -17,7 +17,7 @@ def test_signature_normalises_and_is_stable():
     a = rl.signature("**Rollback is not actually reversible.** `up.sql` drops audit_legacy.")
     b = rl.signature("Rollback is not actually reversible. drops audit_legacy.")
     assert a == b
-    assert len(rl.digest("x")) == 10
+    assert len(rl.digest("x")) == 16
 
 
 def test_aggregate_counts_and_ignores_none():

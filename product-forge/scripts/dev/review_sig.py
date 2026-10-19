@@ -16,7 +16,7 @@ SIGNATURE_WORDS = 14
 
 
 def signature(text: str) -> str:
-    """Stable normalisation: lowercase, drop code spans/punctuation, collapse whitespace, first N words."""
+    """Human-readable stable normalisation (first N words) - for display/proposals."""
     s = str(text or "").lower()
     s = re.sub(r"`[^`]*`", " ", s)
     s = re.sub(r"[^a-z0-9 ]+", " ", s)
@@ -24,6 +24,15 @@ def signature(text: str) -> str:
     return " ".join(s.split()[:SIGNATURE_WORDS])
 
 
+def _normalize_full(text: str) -> str:
+    """Full-text normalisation (NOT truncated) so distinct findings cannot share a digest prefix."""
+    s = str(text or "").lower()
+    s = re.sub(r"`[^`]*`", " ", s)
+    s = re.sub(r"[^a-z0-9 ]+", " ", s)
+    s = re.sub(r"\s+", " ", s).strip()
+    return s
+
+
 def digest(text: str) -> str:
-    """10-hex content key used for ``sig:<digest>`` disposition keys and ledger markers."""
-    return hashlib.sha1(signature(text).encode("utf-8")).hexdigest()[:10]
+    """16-hex (64-bit) content key over the FULL normalised text, used for ``sig:<digest>``."""
+    return hashlib.sha256(_normalize_full(text).encode("utf-8")).hexdigest()[:16]
