@@ -49,3 +49,20 @@ def test_pending_blocking_only_blocks_blocker_and_major():
     # a pending MINOR/NIT never blocks
     assert blocking == []
 
+
+def test_gate1_check_exit_codes(monkeypatch):
+    from scripts.dev import gate1_check as g1
+
+    monkeypatch.setattr(g1.ar, "gate_view", lambda item, mode="design": None)
+    assert g1.main(["--item", "X"]) == 2          # no evidence
+
+    clean = {"review": {"findings": {}, "model": "m", "sha": "s"}, "dispositions": {},
+             "total": 0, "pending": 0, "blocking": []}
+    monkeypatch.setattr(g1.ar, "gate_view", lambda item, mode="design": clean)
+    assert g1.main(["--item", "X"]) == 0          # all dispositioned
+
+    pending = {"review": {"findings": {"MAJOR": ["m"]}, "model": "m", "sha": "s"},
+               "dispositions": {}, "total": 1, "pending": 1, "blocking": [(1, "MAJOR", "m")]}
+    monkeypatch.setattr(g1.ar, "gate_view", lambda item, mode="design": pending)
+    assert g1.main(["--item", "X"]) == 1          # BLOCKER/MAJOR pending
+

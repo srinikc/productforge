@@ -3,12 +3,13 @@
 Gate 1 (HIL design approval) is only valid when the Gate 1.5 findings are visible **and** every
 BLOCKER/MAJOR has a disposition (actioned/accepted/deferred/rejected). Pending MINOR/NIT never block.
 
-This renders the SAME consolidated view as the reviewer tool (no duplicate renderer) and exits:
+Uses the reviewer tool's public ``gate_view``/``render_gate_view`` (ONE renderer, no duplication) and exits:
   0  all BLOCKER/MAJOR dispositioned (Gate 1 may proceed)
   1  one or more BLOCKER/MAJOR still PENDING (Gate 1 must not proceed)
   2  no Gate 1.5 (design) review evidence exists
 
 Run: ``python scripts/dev/gate1_check.py --item <ID>`` (add ``--json`` for machine output).
+The same enforcement is applied by ``architect_review.py gate --item <ID> --gate 1``.
 """
 from __future__ import annotations
 
@@ -26,22 +27,14 @@ if str(ROOT / "scripts" / "dev") not in sys.path:
 import architect_review as ar  # noqa: E402
 
 
-def evaluate(item_id: str, mode: str = "design") -> dict | None:
-    """Pure-ish evaluation over the latest review + the item's dispositions (no LLM calls)."""
-    rev = ar._latest_review(item_id, mode)
-    if not rev:
-        return None
-    findings = rev.get("findings") or {}
-    disp = ar._item_dispositions(item_id, mode)
-    total, pending, blocking = ar.pending_blocking(findings, disp)
-    return {"review": rev, "dispositions": disp, "total": total,
-            "pending": pending, "blocking": blocking}
+def evaluate(item_id: str) -> dict | None:
+    """Gate 1.5 (design) view: review + dispositions + pending/blocking counts (no LLM calls)."""
+    return ar.gate_view(item_id, "design")
 
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="Gate 1 check: BLOCKER/MAJOR findings must be dispositioned")
     ap.add_argument("--item", required=True)
-    ap.add_argument("--mode", choices=["design", "diff"], default="design")
     ap.add_argument("--json", action="store_true")
     a = ap.parse_args(argv)
     try:
@@ -49,34 +42,33 @@ def main(argv: list[str] | None = None) -> int:
     except Exception:
         pass
 
-    res = evaluate(a.item, a.mode)
-    if res is None:
-        gate = "1.5" if a.mode == "design" else "2.5"
+    view = evaluate(a.item)
+    if view is None:
         if a.json:
-            print(json.dumps({"ok": False, "reason": "no_evidence", "gate": gate}))
+            print(json.dumps({"ok": False, "reason": "no_evidence", "gate": "1.5"}))
         else:
-            print(f"gate1: FAIL - no Gate {gate} review evidence for {a.item}")
-            print(f"  run: python scripts/dev/architect_review.py run --item {a.item} --mode {a.mode}")
+            print(f"gate1: FAIL - no Gate 1.5 review evidence for {a.item}")
+            print(f"  run: python scripts/dev/architect_review.py run --item {a.item} --mode design")
         return 2
 
     if a.json:
         print(json.dumps({
-            "ok": not res["blocking"],
+            "ok": not view["blocking"],
             "item": a.item,
-            "total": res["total"],
-            "pending": res["pending"],
-            "blocking_pending": [{"n": n, "severity": s, "finding": t} for n, s, t in res["blocking"]],
-            "review_sha": res["review"].get("sha"),
-            "model": res["review"].get("model"),
+            "total": view["total"],
+            "pending": view["pending"],
+            "blocking_pending": [{"n": n, "severity": s, "finding": t} for n, s, t in view["blocking"]],
+            "review_sha": view["review"].get("sha"),
+            "model": view["review"].get("model"),
         }, indent=2))
     else:
-        print(ar._render_review(res["review"], res["dispositions"], a.mode))
-        if res["blocking"]:
-            print(f"gate1: FAIL - {len(res['blocking'])} BLOCKER/MAJOR finding(s) still PENDING "
-                  f"(of {res['total']} total) - disposition them before Gate 1")
+        print(ar.render_gate_view(view, "design"))
+        if view["blocking"]:
+            print(f"gate1: FAIL - {len(view['blocking'])} BLOCKER/MAJOR finding(s) still PENDING "
+                  f"(of {view['total']} total) - disposition them before Gate 1")
         else:
-            print(f"gate1: PASS - {res['total']} finding(s); no BLOCKER/MAJOR pending")
-    return 0 if not res["blocking"] else 1
+            print(f"gate1: PASS - {view['total']} finding(s); no BLOCKER/MAJOR pending")
+    return 0 if not view["blocking"] else 1
 
 
 if __name__ == "__main__":

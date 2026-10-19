@@ -287,6 +287,22 @@ def pending_blocking(findings: dict, dispositions: dict):
     return total, pending, blocking
 
 
+def gate_view(item_id: str, mode: str = "design") -> dict | None:
+    """Public: latest review + dispositions + pending/blocking counts (shared by `gate` + gate1_check)."""
+    rev = _latest_review(item_id, mode)
+    if not rev:
+        return None
+    findings = rev.get("findings") or {}
+    disp = _item_dispositions(item_id, mode)
+    total, pending, blocking = pending_blocking(findings, disp)
+    return {"review": rev, "dispositions": disp, "total": total, "pending": pending, "blocking": blocking}
+
+
+def render_gate_view(view: dict, mode: str) -> str:
+    """Public renderer for a gate view (reuses the ONE consolidated renderer)."""
+    return _render_review(view["review"], view["dispositions"], mode)
+
+
 def _render_review(rev: dict, disp: dict, mode: str) -> str:
     """ONE consolidated section: each finding with OUR response + status beside it."""
     gate = "1.5" if mode == "design" else "2.5"
@@ -369,11 +385,14 @@ def main(argv: list[str]) -> int:
         if not questions:
             print("  (config/architect-review.json has no design_checklist entries)")
         if a.record and questions:
+            marker = f"Design pre-check ({a.item}):"
             ev = list(item.get("evidence") or [])
-            ev.append(f"Design pre-check ({a.item}): answered {len(questions)} checklist item(s) "
-                      "before Gate 1.5")
-            _post_context(a.item, {"evidence": ev})
-            print("recorded on item evidence")
+            if any(str(x).startswith(marker) for x in ev):
+                print("already recorded on item evidence (idempotent)")
+            else:
+                ev.append(f"{marker} answered {len(questions)} checklist item(s) before Gate 1.5")
+                _post_context(a.item, {"evidence": ev})
+                print("recorded on item evidence")
         return 0
     if a.cmd == "emit":
         print(f"Reviewer model: {a.model}\n")
@@ -385,12 +404,16 @@ def main(argv: list[str]) -> int:
         mode = "design" if a.gate == "1" else "diff"
         gate = "1.5" if mode == "design" else "2.5"
         print(f"=== GATE {a.gate} REVIEW - {a.item} (informed by Gate {gate}) ===")
-        rev = _latest_review(a.item, mode)
-        if not rev:
+        view = gate_view(a.item, mode)
+        if not view:
             print(f"(no Gate {gate} evidence - run: python scripts/dev/architect_review.py run "
                   f"--item {a.item} --mode {mode})")
             return 1
-        print(_render_review(rev, _item_dispositions(a.item, mode), mode))
+        print(render_gate_view(view, mode))
+        if a.gate == "1" and view["blocking"]:
+            print(f"gate1: FAIL - {len(view['blocking'])} BLOCKER/MAJOR finding(s) still PENDING - "
+                  "disposition them before approving Gate 1")
+            return 1
         return 0
 
     if a.mode == "design":

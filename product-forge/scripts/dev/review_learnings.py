@@ -36,18 +36,22 @@ _SIG_RE = re.compile(r"sig:([0-9a-f]{10})")
 def load_reviews(dir_path: Path | None = None) -> list[dict]:
     d = dir_path or EVID
     out: list[dict] = []
+    bad = 0
     if not d.is_dir():
         return out
     for fp in sorted(d.glob("*.json")):
         try:
             data = json.loads(fp.read_text(encoding="utf-8"))
         except Exception:
+            bad += 1
             continue
         findings = data.get("findings")
         if not isinstance(findings, dict):
             continue
         out.append({"file": fp.name, "item": data.get("item"), "mode": data.get("mode"),
                     "sha": data.get("sha"), "mtime": fp.stat().st_mtime, "findings": findings})
+    if bad:
+        print(f"review-learnings: WARN {bad} unreadable review file(s) skipped", file=sys.stderr)
     return out
 
 
@@ -131,6 +135,8 @@ def write_report(agg: dict, ledger: set[str], threshold: int, path: Path | None 
         "reviews": agg["reviews"],
         "severity": agg["severity"],
         "findings_per_review": round(sum(agg["severity"].values()) / (agg["reviews"] or 1), 2),
+        "per_review": [{"item": r.get("item"), "mode": r.get("mode"), "findings": r.get("findings")}
+                       for r in agg["per_review"]],
         "recurring": [{"sig": k, "count": v["count"], "severity": v["severity"], "text": v["text"],
                        "items": sorted(v["items"]), "captured": k in ledger} for k, v in rec],
         "uncaptured": len(unresolved(agg, ledger, threshold)),

@@ -20,7 +20,9 @@ delivery approval)**. HIL always sees the reviewer's findings + recommendation a
    Reconciliation block (PRIOR DECISIONS / EXISTING PATH / ASSUMPTIONS / DIVERGENCES / OPEN) + IMPACT REVIEW
    (LANGUAGE CHECK, API CHECK, AC) + risks. `language_rule_review.py` verdict.
    **The Gate 1 review MUST state the Gate 1.5 findings + recommendation inline** (so HIL decides with them
-   visible; not a separate artifact).    **Gate 1 is only valid with the consolidated view:** produce it with
+   visible; not a separate artifact).
+
+   **Gate 1 is only valid with the consolidated view:** produce it with
    `python scripts/dev/architect_review.py gate --item <ID> --gate 1` and enforce it with
    `python scripts/dev/gate1_check.py --item <ID>` (exits non-zero while any BLOCKER/MAJOR is PENDING). Include
    both in the approval package. Pending MINOR/NIT do not block but must be recorded. **No code before approval.**
