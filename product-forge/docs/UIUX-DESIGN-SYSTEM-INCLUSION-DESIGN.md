@@ -109,7 +109,7 @@ Copy the **body + frontmatter + any `LICENSE.txt`/attribution verbatim** (§8 li
 | `config/knowledge-registry.json` | register the `ui-ux` and `design-systems` knowledge layers (not skill bodies) |
 | `pipeline/skills-registry.json` | register the 8 skills as the single skills catalog (path, layers, agents) |
 | `config/agent-capabilities.json` | bind skills→agents |
-| `config/store-registry.json` | **now:** allowlist existing `agents/*.agent.json` manifests; both this and the sample/skill entries live in the registry's `allow` list (not an ignore list). `config/design-systems.json` is registered as `kind:config`, `status:planned` (owner: `go/pfcore/design_system.go`, item BI-PF-1439) — flip it to `exists` when the store lands. Allow-globs for `docs/reference/uiux-samples/**`, `pipeline/skills/**`. |
+| `config/store-registry.json` | Agent manifests are registered/allow-listed by DSI-7 when they change (no broad glob now). `config/design-systems.json` is registered as `kind:config`, `status:planned` (owner: `go/pfcore/design_system.go`, item BI-PF-1439) — flip it to `exists` when the store lands. Allow-globs for `docs/reference/uiux-samples/**`, `pipeline/skills/**`. |
 | `agents/*.agent.json` | add skills + `knowledge_layers:[ui-ux, design-systems]` + `allowed_inputs:[design_direction]` |
 | `pipeline-definition.json` | add stage **1-0 "Design Direction"** (HIL suggest gate) + wire **a11y-audit** stage |
 | `test-framework/templates/accessibility/` | create (missing today) |

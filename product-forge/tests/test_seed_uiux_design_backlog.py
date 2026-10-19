@@ -48,6 +48,7 @@ def test_seed_contract_and_rerun(tmp_path, monkeypatch):
     kids = [i for i in items if i.get("epic") == epic["id"]]
     assert epic["type"] == "epic"
     assert len(kids) == 9
+    assert all(k["type"] == "feature" and not k.get("execution_order") for k in kids)
     assert all(k["status"] == "new" for k in kids)
     assert all((i.get("api_impact") or {}).get("reason") for i in [epic, *kids])
     assert all(i.get("acceptance_criteria")

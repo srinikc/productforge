@@ -220,10 +220,7 @@ ITEMS = [
             "Agent-card and role-prompt audits pass with the new bindings and report no missing skills.",
         ],
         "dod": ["generate_agent_cards re-run; .opencode/agent/*.md in sync."],
-        "files": ["agents/design.agent.json", "agents/ux-ia.agent.json",
-                  "agents/implement-ui.agent.json", "agents/design_critic.agent.json",
-                  "agents/visual_qa.agent.json", "agents/a11y-audit.agent.json",
-                  "config/agent-capabilities.json"],
+        "files": ["agents/*.agent.json", "config/agent-capabilities.json"],
         "value": 4, "effort": 3, "risk": 2, "moscow": "Should", "deps": ["skills-registry", "skill-injection"],
     },
     {
@@ -336,9 +333,14 @@ def main() -> int:
         if deps and _should_write(it["ext"], prior_ext, (backlog.get(S, P, eid) or {}).get("dependencies")):
             backlog.set_dependencies(S, P, eid, dependencies=deps)
 
-    prior_status = {r.get("id"): r.get("status") for r in (backlog.get(S, P, epic_id) or {}).get("execution_order", [])}
-    order = [{"id": created[k], "wave": WAVES[k], "status": prior_status.get(created[k], "new")}
-             for k in sorted(created, key=lambda x: WAVES[x])]
+    prior_order = {r.get("id"): r for r in (backlog.get(S, P, epic_id) or {}).get("execution_order", [])}
+    order = []
+    for k in sorted(created, key=lambda x: WAVES[x]):
+        eid = created[k]
+        prior = prior_order.get(eid) or {}
+        prior_wave = prior.get("wave")
+        wave = prior_wave if isinstance(prior_wave, int) and prior_wave > 0 else WAVES[k]
+        order.append({"id": eid, "wave": wave, "status": prior.get("status", "new")})
     backlog.set_execution_order(S, P, epic_id, order)
     print(f"execution order set on {epic_id}: {len(order)} items across 4 waves")
     return 0
