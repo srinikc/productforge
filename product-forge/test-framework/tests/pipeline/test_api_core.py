@@ -190,3 +190,18 @@ def test_backlog_edit_patch(client, scratch_project):
     r = client.patch(f"/api/v1/backlog/items/{it}", json={**scope, "title": "new title", "body": "b"})
     assert r.status_code == 200, r.text
     assert r.json()["data"]["title"] == "new title"
+
+
+def test_backlog_context_review_dispositions(client, scratch_project):
+    """review_dispositions (main-thread-owned review responses) is an authorable context field."""
+    scope = {"scope": "project", "project": scratch_project}
+    ep = client.post("/api/v1/backlog/items", json={**scope, "title": "disp epic", "type": "epic"}).json()["data"]["id"]
+    iid = client.post("/api/v1/backlog/items",
+                      json={**scope, "title": "disp item", "type": "feature",
+                            "acceptance_criteria": ["test criterion meeting the minimum detailed acceptance length"],
+                            "epic": ep}).json()["data"]["id"]
+    disp = {"design": {"1": {"status": "actioned", "note": "done by main thread"}}}
+    r = client.post(f"/api/v1/backlog/items/{iid}/context", json={**scope, "review_dispositions": disp})
+    assert r.status_code == 200, r.text
+    got = client.get(f"/api/v1/backlog/items/{iid}", params=scope).json()["data"]
+    assert got.get("review_dispositions") == disp

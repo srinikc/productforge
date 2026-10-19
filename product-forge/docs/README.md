@@ -62,6 +62,7 @@
 | [`CI-CD-AND-GATES-SSOT.md`](CI-CD-AND-GATES-SSOT.md) | SSOT | 100% | CI/CD + gates SSOT: triggers, precheck tiers, PR merge gate, delivery, generated-product CI (PF + products) | — | — |
 | [`COMPLIANCE-REGISTER.md`](COMPLIANCE-REGISTER.md) | SSOT | 100% | Generated compliance register: framework->control->evidence (BI-PF-1206) | — | — |
 | [`CONSTITUTION.md`](CONSTITUTION.md) | Implemented | 100% | Constitution: governance + non-negotiables | — | — |
+| [`CORRECTION-LEDGER.md`](CORRECTION-LEDGER.md) | SSOT | 100% | Every HIL correction becomes a durable rule + an enforcement point; schema, enforcement, RAG feed, seed entries | — | — |
 | [`DASHBOARD-E2E-DESIGN.md`](DASHBOARD-E2E-DESIGN.md) | Design | 70% | Dashboard E2E design (front-end not built yet) | **Front-end MVP not built: every dashboard screen/view described here (backend-first).** | ProductForge-Dashboard BI-0001–0149 (epic BI-0043) |
 | [`DEVOPS-WORKFLOW-ANALYSIS.md`](DEVOPS-WORKFLOW-ANALYSIS.md) | Design | 70% | DevOps / PR-CI workflow analysis | **Not wired: PR branch -> pre-check gates (syntax/audit/lint/tests/secrets) -> review workflow.** | BI-0205 |
 | [`DOGFOOD-E2E-DESIGN.md`](DOGFOOD-E2E-DESIGN.md) | Design | 60% | DOGFOOD end-to-end design (deterministic LLM replay seam, BI-PF-0459) | — | — |
@@ -92,6 +93,7 @@
 | [`Failure-Recovery-System.md`](Failure-Recovery-System.md) | Implemented | 100% | Failure / retry / checkpoint recovery | — | — |
 | [`GENERATION-PROPORTIONALITY.md`](GENERATION-PROPORTIONALITY.md) | Design | 0% | Generation proportionality work plan: artifact contract + project profile drive generation (epic BI-PF-1388) | — | — |
 | [`GENERATOR-ADAPTERS-DESIGN.md`](GENERATOR-ADAPTERS-DESIGN.md) | Design | 100% | Generator-model adapters (image/video/audio/music/3d) (BI-0188) | — | — |
+| [`GLOSSARY.md`](GLOSSARY.md) | SSOT | 100% | Pinned definitions (API=contract vs transport, service, caller classes, gates, dispositions, review terms, model-working terms) - define before building | — | — |
 | [`GUARDRAILS-DESIGN.md`](GUARDRAILS-DESIGN.md) | Design | 100% | Output guardrails + model/data cards + C2PA provenance + NIST/EU governance (BI-0219) | — | — |
 | [`HOW-TO-START-NEW-PROJECT.md`](HOW-TO-START-NEW-PROJECT.md) | Implemented | 100% | Step-by-step to start a project | — | — |
 | [`INTAKE-AND-BACKLOG-DESIGN.md`](INTAKE-AND-BACKLOG-DESIGN.md) | Implemented | 100% | Intake & backlog design | — | — |
@@ -106,6 +108,7 @@
 | [`MEDIA-CONTEXT-DESIGN.md`](MEDIA-CONTEXT-DESIGN.md) | Design | 100% | Media context: asset->prompt selection + summary/native parts (BI-PF-0287) | — | — |
 | [`MEDIA-INGEST-DESIGN.md`](MEDIA-INGEST-DESIGN.md) | Design | 100% | Media ingest + segmentation/tiling + asset store (BI-0187) | — | — |
 | [`MEDIA-QA-DESIGN.md`](MEDIA-QA-DESIGN.md) | Design | 100% | Media QA validators (BI-0191) | — | — |
+| [`MODEL-ASSISTED-ENGINEERING.md`](MODEL-ASSISTED-ENGINEERING.md) | SSOT | 100% | Process guardrails for model-assisted engineering: LLM failure modes/drift, don't-trust-the-model, sub-agent cost+optimization, train-vs-structure (runtime LLM guardrails are separate) | — | — |
 | [`MODEL-POLICY-DESIGN.md`](MODEL-POLICY-DESIGN.md) | Design | 100% | Versioned per-model eligibility policy schema (BI-PF-0278) | — | — |
 | [`MODEL-STRATEGY-DESIGN.md`](MODEL-STRATEGY-DESIGN.md) | Design | 100% | Two-phase model & capability strategy gate (BI-0192/BI-0210) | — | — |
 | [`MULTIMODAL-E2E-DESIGN.md`](MULTIMODAL-E2E-DESIGN.md) | Design | 100% | Multimodal end-to-end acceptance (BI-0212) | — | — |
@@ -154,6 +157,7 @@
 | [`Product_Forge_Audit_Organized_Executive_Master_With_Execution_Guardrails_20260929.md`](Product_Forge_Audit_Organized_Executive_Master_With_Execution_Guardrails_20260929.md) | Analysis (reference) | 100% | Organized audit master (source register) | — | — |
 | [`Product_Forge_Code_Aligned_Target_Architecture_PreImplementation_Baseline.md`](Product_Forge_Code_Aligned_Target_Architecture_PreImplementation_Baseline.md) | Design | 10% | Source target-architecture baseline (CODE-ALIGNED AMENDMENT is authority); reconciled by A0/BI-PF-0392 | — | — |
 | [`Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md`](Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md) | Design | 0% | Enterprise DB/storage architecture: performance+security design, repo reconciliation, phased roadmap (BI-PF-1320) | — | — |
+| [`RAG-PROCESS-MEMORY.md`](RAG-PROCESS-MEMORY.md) | SSOT | 100% | RAG + process memory: index decisions/learning/corrections with metadata + supersession, retrieve/inject at task start and gates; durable vs working memory | — | — |
 | [`RCCA-CLOSURE-INTEGRITY-DESIGN.md`](RCCA-CLOSURE-INTEGRITY-DESIGN.md) | Design | 100% | RCCA closure integrity: guideline truth + G8 + learning loop (BI-PF-0270) | — | — |
 | [`RCCA_productForge.md`](RCCA_productForge.md) | Analysis (current) | 100% | Root-cause + corrective/preventive guidelines for the audit/issues gaps | — | — |
 | [`RE-RUN-IMPACT-ANALYSIS.md`](RE-RUN-IMPACT-ANALYSIS.md) | Implemented | 100% | Rerun / impact invalidation model | — | — |
