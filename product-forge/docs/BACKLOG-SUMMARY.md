@@ -1,17 +1,17 @@
 # Backlog Summary
 
-> GENERATED 2026-10-19T19:10:54 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-19T19:20:41 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 128  |  **Closed:** 566
+- **Open:** 129  |  **Closed:** 566
 - `blocked`: 1
 - `executing`: 3
 - `in_progress`: 2
-- `new`: 122
+- `new`: 123
 
-### new, by category (122)
+### new, by category (123)
 **API / reports / HIL / misc** (15)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
@@ -87,7 +87,7 @@
 | BI-PF-1392 | Should | task | Enforce per-feature FR/US caps + max_lines in the Go artifact engine (scaled by the profile) and reconcile the three section sources | Per-feature FR/US caps + max_lines enforced NUMERICALLY (scaled by profile); sections have ONE source. |
 | BI-PF-1425 | Should | feature | Migrate orchestrator cache + evidence/summarizer (and remaining audit logic) from Python to Go (Go-first alignment) | Migrate orchestrator cache + evidence/summarizer (and remaining audit logic) from Python to Go (Go-first align... |
 
-**Wiring / tech-debt / API** (75)
+**Wiring / tech-debt / API** (76)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0185 | Should | feature | EPIC: Multi-modal / media orchestration (pluggable capability packs) | Make the pipeline modality-agnostic via PLUGGABLE capability packs, enabled per project when the idea needs th... |
@@ -165,6 +165,7 @@
 | BI-PF-1433 | Should | feature | ObjectStore adapter: Azure Blob (on go/objstorerest) | ObjectStore adapter: Azure Blob (on go/objstorerest) |
 | BI-PF-1434 | Should | feature | ObjectStore adapter: Google Drive (design key<->fileID model first) | ObjectStore adapter: Google Drive (design key<->fileID model first) |
 | BI-PF-1435 | Should | feature | GCS ObjectStore adapter: streaming/resumable upload + wire buildObjectStore (production-qualification) | Remove the GCS adapter's memory buffering/5 MB ceiling and wire it on the runtime path. |
+| BI-PF-1463 | Should | feature | Worker fleet redesign (PARKED): state/coordination substrate + control plane + data plane per docs/WORKER-NEW-ARCHITECTURE.md | Preserve the parked worker-architecture design note and register it for Gate 1 reconciliation; no implementati... |
 
 ---
 
@@ -364,5 +365,5 @@
 ---
 
 ## Totals
-- backend: 128 open / 566 closed
+- backend: 129 open / 566 closed
 - dashboard: 146 open / 3 closed
