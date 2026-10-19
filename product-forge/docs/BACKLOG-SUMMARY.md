@@ -1,11 +1,11 @@
 # Backlog Summary
 
-> GENERATED 2026-10-17T20:30:32 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-19T16:09:27 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 126  |  **Closed:** 560
+- **Open:** 126  |  **Closed:** 562
 - `blocked`: 1
 - `executing`: 3
 - `in_progress`: 2
@@ -162,7 +162,7 @@
 | BI-PF-1416 | Should | feature | Automate PF persistence setup: one-command provisioning + roles + migrations + storage config + secrets + verify (dev and SaaS) | Automate PF persistence setup: one-command provisioning + roles + migrations + storage config + secrets + veri... |
 | BI-PF-1424 | Must | feature | Consolidate Python orchestrator audit (AgentAuditLog) into the DB AuditStore - single audit truth via /audit | Consolidate Python orchestrator audit (AgentAuditLog) into the DB AuditStore - single audit truth via /audit |
 | BI-PF-1426 | Should | change | Harden auto-loaded config against schema mixing + tooling writes outside the repo (residency-profiles vs residency-cells) | Make schema-mixing in auto-loaded dirs and out-of-repo tooling writes fail loudly, repo-wide. |
-| BI-PF-1430 | Should | feature | Surface Gate 1.5/2.5 findings IN the Gate 1/Gate 2 review (store on item + gate sheet) | Surface Gate 1.5/2.5 findings IN the Gate 1/Gate 2 review (store on item + gate sheet) |
+| BI-PF-1431 | Must | feature | Design & implement the PF server/service + token model (sharing for internal/external callers) | Design & implement the PF server/service + token model (sharing for internal/external callers) |
 
 ---
 
@@ -362,5 +362,5 @@
 ---
 
 ## Totals
-- backend: 126 open / 560 closed
+- backend: 126 open / 562 closed
 - dashboard: 146 open / 3 closed
