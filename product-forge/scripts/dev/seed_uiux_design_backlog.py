@@ -4,7 +4,8 @@ Design: docs/UIUX-DESIGN-SYSTEM-INCLUSION-DESIGN.md
 - Creates the epic, its child items, REQUIRES dependencies, and the epic execution order (waves).
 - Each item gets authored context: brief/objective, Acceptance Criteria (testable) and Definition of Done.
 - Grooming is performed by the backlog API on add (deterministic; run with PF_GROOMING_AI=0 to avoid live calls).
-- Idempotent by ``external_id`` - re-running extends, never duplicates.
+- Idempotent by ``external_id`` - re-running never duplicates and never rewrites fields on an existing item.
+- Lifecycle: rerunnable seed kept under ``scripts/dev/`` until the epic is delivered; remove it once the last child closes.
 
 Run from the product-forge root:
   $env:PF_GROOMING_AI=0; python scripts/dev/seed_uiux_design_backlog.py
@@ -275,6 +276,7 @@ WAVES = {
 
 
 def main() -> int:
+    prior_ext = {e.get("external_id") for e in backlog.list_open(S, P) + backlog.list_closed(S, P)}
     epic = backlog.add_epic(
         S, P, EPIC["title"],
         body=body(EPIC["problem"], EPIC["goal"], EPIC["in_scope"], EPIC["out_scope"], EPIC["ac"], EPIC["dod"]),
@@ -296,18 +298,20 @@ def main() -> int:
             acceptance_criteria=it["ac"],
         )
         created[it["ext"].split(":")[-1]] = row["id"]
-        backlog.update(S, P, row["id"], affected_files=it["files"], verification=full_dod,
-                       _note="planned affected files + DoD (design)")
+        if it["ext"] not in prior_ext:
+            backlog.update(S, P, row["id"], affected_files=it["files"], verification=full_dod,
+                           _note="planned affected files + DoD (design)")
         print(f"  {row['id']:12} {it['title']}")
 
     for it in ITEMS:
         eid = created[it["ext"].split(":")[-1]]
         deps = [{"task_id": created[d], "type": "REQUIRES", "required_state": "completed"}
                 for d in it["deps"]]
-        if deps:
+        if deps and (it["ext"] not in prior_ext or not (backlog.get(S, P, eid) or {}).get("dependencies")):
             backlog.set_dependencies(S, P, eid, dependencies=deps)
 
-    order = [{"id": created[k], "wave": WAVES[k], "status": "new"}
+    prior_status = {r.get("id"): r.get("status") for r in (backlog.get(S, P, epic_id) or {}).get("execution_order", [])}
+    order = [{"id": created[k], "wave": WAVES[k], "status": prior_status.get(created[k], "new")}
              for k in sorted(created, key=lambda x: WAVES[x])]
     backlog.set_execution_order(S, P, epic_id, order)
     print(f"execution order set on {epic_id}: {len(order)} items across 4 waves")

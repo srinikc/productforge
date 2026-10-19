@@ -98,15 +98,15 @@ Copy the **body + frontmatter + any `LICENSE.txt`/attribution verbatim** (§8 li
 | `core/product_design_spec.py` | consume `DesignDirection` |
 | `core/design_critic.py` | checks from `anti-patterns.md` + non-negotiables + catalog conformance |
 | `core/visual_qa.py` | execute `visual-regression-aesthetics`; compare vs direction + sample baselines |
-| `core/orchestrator/agent_runner.py` | inject a `SKILLS:` block (`_load_knowledge_for_agent` ~`:1679`; block ~`:1419`) |
-| `core/knowledge_compliance_checker.py` | `GuidelineContentLoader` loads skill bodies from `pipeline/skills/` (`:456`) |
+| `core/orchestrator/agent_runner.py` | inject a `SKILLS:` block (extend `_load_knowledge_for_agent`; reuse the existing knowledge-block builder) |
+| `core/knowledge_compliance_checker.py` | `GuidelineContentLoader` loads skill bodies from `pipeline/skills/` |
 
 **Tooling/config (Python/JSON allowed):**
 | Artifact | Action |
 |---|---|
 | `config/knowledge-registry.json` | register the 8 skills (`kind:"skill"`, `path`, `layers`, `agents`) |
 | `config/agent-capabilities.json` | bind skills→agents |
-| `config/store-registry.json` | register `config/design-systems.json` (`kind:config`); allow-globs for `docs/reference/uiux-samples/**`, `pipeline/skills/**` |
+| `config/store-registry.json` | **now:** allowlist the planned `config/design-systems.json` and existing `agents/*.agent.json` manifests (design-phase references); **when the store lands:** replace the allow entry with a real `kind:config` registration (owner: `go/pfcore/design_system.go`, single writer). Allow-globs for `docs/reference/uiux-samples/**`, `pipeline/skills/**`. |
 | `agents/*.agent.json` | add skills + `knowledge_layers:[ui-ux, design-systems]` + `allowed_inputs:[design_direction]` |
 | `pipeline-definition.json` | add stage **1-0 "Design Direction"** (HIL suggest gate) + wire **a11y-audit** stage |
 | `test-framework/templates/accessibility/` | create (missing today) |
@@ -141,19 +141,21 @@ docs/design-direction.md  +  design-spec.json   (recorded decision, referenced b
 
 **Epic:** *Design System & UI/UX Knowledge (framework-agnostic)*.
 
-| ID | Child | Depends on (REQUIRES) | Wave | Language |
-|---|---|---|---|---|
-| DSI-1 | Framework-agnostic skills home + resolver | — | 1 | new **Go** + edits; `pipeline/skills/**` tooling |
-| DSI-2 | UIUX knowledge ingestion (guidelines, design-systems, samples) | — | 1 | tooling/docs |
-| DSI-3 | Design-system catalog store + selection engine | DSI-2 | 2 | new **Go** + `config/design-systems.json` |
-| DSI-4 | Design-token engine upgrade (3-tier OKLCH, light+dark) | DSI-3 | 3 | new **Go** + edit `core/design_tokens.py` |
-| DSI-5 | Dynamic design-direction stage + HIL suggest gate | DSI-3, DSI-4 | 4 | edit `pipeline-definition.json` + Go |
-| DSI-6 | Skill/guideline prompt injection (`SKILLS:` block) | DSI-1 | 2 | new **Go** + edit `agent_runner.py` |
-| DSI-7 | Agent skill & knowledge-layer bindings | DSI-1, DSI-6 | 3 | tooling/config |
-| DSI-8 | Accessibility engine + fail-closed gate + templates | DSI-2 | 2 | new **Go** + stage |
-| DSI-9 | design_critic / visual_qa integration | DSI-3, DSI-6 | 3 | edits |
+**ID authority:** the backlog (`core/backlog.py`) is the source of truth; the `BI-PF-*` ids below are authoritative and `DSI-N` are plan labels used only in this document.
 
-**Execution order (waves):** `1 {DSI-1, DSI-2}` → `2 {DSI-3, DSI-6, DSI-8}` → `3 {DSI-4, DSI-7, DSI-9}` → `4 {DSI-5}`.
+| Plan label | Backlog id | Child | Depends on (REQUIRES) | Wave | Language |
+|---|---|---|---|---|---|
+| DSI-1 | BI-PF-1437 | Framework-agnostic skills home + resolver | — | 1 | new **Go** + edits; `pipeline/skills/**` tooling |
+| DSI-2 | BI-PF-1438 | UIUX knowledge ingestion (guidelines, design-systems, samples) | — | 1 | tooling/docs |
+| DSI-3 | BI-PF-1439 | Design-system catalog store + selection engine | DSI-2 | 2 | new **Go** + `config/design-systems.json` |
+| DSI-4 | BI-PF-1440 | Design-token engine upgrade (3-tier OKLCH, light+dark) | DSI-3 | 3 | new **Go** + edit `core/design_tokens.py` |
+| DSI-5 | BI-PF-1441 | Dynamic design-direction stage + HIL suggest gate | DSI-3, DSI-4 | 4 | edit `pipeline-definition.json` + Go |
+| DSI-6 | BI-PF-1442 | Skill/guideline prompt injection (`SKILLS:` block) | DSI-1 | 2 | new **Go** + edit `agent_runner.py` |
+| DSI-7 | BI-PF-1443 | Agent skill & knowledge-layer bindings | DSI-1, DSI-6 | 3 | tooling/config |
+| DSI-8 | BI-PF-1444 | Accessibility engine + fail-closed gate + templates | DSI-2 | 2 | new **Go** + stage |
+| DSI-9 | BI-PF-1445 | design_critic / visual_qa integration | DSI-3, DSI-6 | 3 | edits |
+
+**Epic:** BI-PF-1436. **Execution order (waves):** `1 {DSI-1, DSI-2}` → `2 {DSI-3, DSI-6, DSI-8}` → `3 {DSI-4, DSI-7, DSI-9}` → `4 {DSI-5}`.
 
 Each item: dedup-checked (`core.backlog --similar`), feature branch off `develop`, Go for new logic, evidence linked, merge immediately after green.
 
