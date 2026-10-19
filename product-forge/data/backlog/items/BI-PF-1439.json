@@ -1,0 +1,205 @@
+{
+  "id": "BI-PF-1439",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "uiux-design-system-inclusion:catalog-engine",
+  "label": "PF Backlog 632",
+  "title": "Design-system catalog store + selection engine (Go)",
+  "body": "## Problem / why\nNo machine-readable mapping from product type to a design direction; tokens are hardcoded M3.\n\n## Goal & value\nPF can SELECT a ranked design direction from the idea.\n\n## In scope\n- New store config/design-systems.json (per system: product_types, style, stack, palette, radius/type/motion dials, component_set, a11y target).\n- Go selection engine go/pfcore/design_system.go (REPORT 3 tree, ranked candidates).\n- Expose design.select / design.catalog via core/go_host.py.\n\n## Out of scope\n- UI to browse the catalog (dashboard work, separate).\n\n## Definition of Done\n- Store registered; no Tier-1 palette leaks into components.\n- Unit test for select().\n\n## Verification\nStructured `acceptance_criteria` is the single source of truth for verification.\n",
+  "source": "design:UIUX-DESIGN-SYSTEM-INCLUSION-DESIGN.md",
+  "status": "new",
+  "priority": "P2",
+  "moscow": "Should",
+  "value": 5,
+  "effort": 4,
+  "risk": 2,
+  "deps": [
+    "BI-PF-1438"
+  ],
+  "links": {},
+  "decisions": [
+    {
+      "at": "2026-10-19T16:20:56.393689",
+      "decision": "APPROVE",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)"
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "No machine-readable mapping from product type to a design direction; tokens are hardcoded M3.",
+    "what_adds": "PF can SELECT a ranked design direction from the idea.",
+    "why": "No machine-readable mapping from product type to a design direction; tokens are hardcoded M3.",
+    "who_feels": "Product Forge maintainers and consumers.",
+    "source": "authored"
+  },
+  "objective": "PF can SELECT a ranked design direction from the idea.",
+  "acceptance_criteria": [
+    "config/design-systems.json is registered (kind:config, single writer).",
+    "design.select returns and emits 2-3 ranked candidates with rationale for a given product_type/domain.",
+    "Selection logic lives in Go and passes language_rule_check."
+  ],
+  "in_scope": [
+    "New store config/design-systems.json (per system: product_types, style, stack, palette, radius/type/motion dials, component_set, a11y target).",
+    "Go selection engine go/pfcore/design_system.go (REPORT 3 tree, ranked candidates).",
+    "Expose design.select / design.catalog via core/go_host.py."
+  ],
+  "out_of_scope": [
+    "UI to browse the catalog (dashboard work, separate)."
+  ],
+  "affected_components": [
+    "config",
+    "core",
+    "go"
+  ],
+  "affected_files": [
+    "config/design-systems.json",
+    "go/pfcore/design_system.go",
+    "core/go_host.py"
+  ],
+  "approach": "- config/design-systems.json is registered (kind:config, single writer).\n- design.select returns 2-3 ranked candidates with rationale for a given product_type/domain.\n- Selection logic lives in Go and passes language_rule_check.",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Store registered; no Tier-1 palette leaks into components.",
+    "Unit test for select().",
+    "Feature branch off develop (never commit to develop/main directly).",
+    "Code review of the diff; findings fixed.",
+    "Lint/static clean (scripts/dev/lint_check.py).",
+    "language_rule_check PASS - new logic in Go (go/pfcore/*.go), edits to existing shipped Python only.",
+    "precheck PASS (compileall, wired_audit, api/governance, engineering-flow, backlog-e2e, docs-fresh, secret-scan, pipeline tests).",
+    "Evidence (artifact + test descriptors) linked on this item; intent_trace resolves.",
+    "Merged to develop immediately after green; delivery provenance recorded (branch, merge_sha, pr)."
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "agent",
+  "requester": "design:UIUX-DESIGN-SYSTEM-INCLUSION-DESIGN.md",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1436",
+  "parent": "BI-PF-1436",
+  "revision": 4,
+  "priority_rank": 2,
+  "priority_class": "P2",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "STALE",
+    "analyzed_at": "2026-10-19T16:20:56.036236",
+    "analyzed_by": "system",
+    "revision_analyzed": 2,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/artifact_store.py, core/asset_store.py, core/context_engine.py, core/dashboard_archetypes.py",
+    "existing_components": [
+      "core/artifact_store.py",
+      "core/asset_store.py",
+      "core/context_engine.py",
+      "core/dashboard_archetypes.py",
+      "core/discovery_engine.py",
+      "core/engineering_flow.py",
+      "core/forge_store.py",
+      "core/model_catalog.py"
+    ],
+    "existing_apis": [
+      "/api/v1/engineering",
+      "/api/v1/engineering/assignments",
+      "/api/v1/engineering/assignments/claim",
+      "/api/v1/engineering/assignments/recover",
+      "/api/v1/engineering/assignments/{item_id}/complete",
+      "/api/v1/engineering/assignments/{item_id}/deliver",
+      "/api/v1/engineering/assignments/{item_id}/fail",
+      "/api/v1/engineering/assignments/{item_id}/heartbeat"
+    ],
+    "existing_modules": [
+      "config/engineering-flow.json",
+      "config/engineering-workers.json",
+      "config/model-catalog.json",
+      "config/store-registry.json",
+      "config/techstack-catalog.json",
+      "config/tool-catalog.json"
+    ],
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=0.94",
+      "components=8",
+      "apis=8"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic",
+    "decision_request": {
+      "needed": false,
+      "reasons": [],
+      "ask": ""
+    },
+    "arch_fingerprint": "3cc69be884387fcf"
+  },
+  "dependencies": [
+    {
+      "task_id": "BI-PF-1438",
+      "type": "REQUIRES",
+      "required_state": "completed"
+    }
+  ],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-19T16:20:56.198741"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-19T16:20:52.218003",
+  "updated_at": "2026-10-19T19:08:30.450777",
+  "score": 0.94,
+  "_note": "dependencies set",
+  "api_impact": {
+    "needs_api": false,
+    "routes": [],
+    "consumers": [],
+    "reason": "internal Go capability ops (design.catalog/design.select); no new HTTP route"
+  }
+}
