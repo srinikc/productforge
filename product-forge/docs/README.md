@@ -177,6 +177,7 @@
 | [`STRUCTURE-CONTRACT.md`](STRUCTURE-CONTRACT.md) | Implemented | 100% | Binding repo structure contract (folders + owners) | — | — |
 | [`TESTING-REFERENCE.md`](TESTING-REFERENCE.md) | Implemented | 100% | Testing reference: how to run/write the PF test suites | — | — |
 | [`TOOLS-AND-DEPENDENCIES.md`](TOOLS-AND-DEPENDENCIES.md) | Implemented | 100% | PF tool layer + tools we have/need, sourcing, API keys, licensing & redistribution (BI-PF-0436) | — | — |
+| [`UIUX-DESIGN-SYSTEM-INCLUSION-DESIGN.md`](UIUX-DESIGN-SYSTEM-INCLUSION-DESIGN.md) | Reference (verify) | 50% | unclassified - confirm before relying on it | — | — |
 | [`UNWIRED-MODULES-TRIAGE.md`](UNWIRED-MODULES-TRIAGE.md) | Adopted (reference) | 90% | Deprecated/legacy module triage | Triage applied; retired modules removed. | — |
 | [`VENDORED-TOOLS.md`](VENDORED-TOOLS.md) | Design | 100% | Neutral vendored tools location (drawio), no .opencode coupling (BI-0202) | — | — |
 | [`WORKER-SCHEDULER-OPERATIONS.md`](WORKER-SCHEDULER-OPERATIONS.md) | Implemented | 100% | Worker/scheduler ops: register, manual pull (/pf work), auto-dispatch, eligibility, lease/recovery | — | — |
