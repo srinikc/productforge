@@ -4,26 +4,23 @@
   "type": "feature",
   "scope": "product_forge",
   "project": "",
-  "origin": "api",
-  "external_id": "gate1-embeds-gate15-evidence",
+  "origin": "review",
+  "external_id": "AZURE-BLOB-ADAPTER-1",
   "label": "PF Backlog 629",
-  "title": "Process: Gate 1 must embed the latest Gate 1.5 evidence + a design pre-check checklist to reduce review churn",
+  "title": "ObjectStore adapter: Azure Blob (on go/objstorerest)",
   "body": "",
   "source": "generic",
   "status": "new",
-  "priority": "P1",
+  "priority": "P2",
   "moscow": "Should",
   "value": 3,
   "effort": 3,
   "risk": 2,
-  "deps": [
-    "BI-0205",
-    "BI-PF-0443"
-  ],
+  "deps": [],
   "links": {},
   "decisions": [
     {
-      "at": "2026-10-19T18:34:23.761821",
+      "at": "2026-10-17T22:39:59.896118",
       "decision": "APPROVE",
       "by": "system",
       "note": "auto-approved on add (BI-PF-1282)"
@@ -31,31 +28,22 @@
   ],
   "follow_up": {},
   "brief": {
-    "problem": "Process: Gate 1 must embed the latest Gate 1.5 evidence + a design pre-check checklist to reduce review churn",
-    "what_adds": "Process: Gate 1 must embed the latest Gate 1.5 evidence + a design pre-check checklist to reduce review churn",
-    "why": "Process: Gate 1 must embed the latest Gate 1.5 evidence + a design pre-check checklist to reduce review churn",
+    "problem": "ObjectStore adapter: Azure Blob (on go/objstorerest)",
+    "what_adds": "ObjectStore adapter: Azure Blob (on go/objstorerest)",
+    "why": "ObjectStore adapter: Azure Blob (on go/objstorerest)",
     "who_feels": "Product Forge maintainers and consumers.",
-    "source": "derived"
+    "source": "authored"
   },
-  "objective": "Make Gate 1.5 evidence binding at Gate 1 and cut review churn by pre-empting recurring findings: a design pre-check checklist, a Gate 1 pending-blocking check, direct-call 1.5/2.5 defaults, and a findings->correction-ledger learning loop.",
+  "objective": "ObjectStore adapter: Azure Blob (on go/objstorerest)",
   "acceptance_criteria": [
-    "A deterministic check (scripts/dev/gate1_check.py --item <ID>) renders the consolidated Gate 1.5 findings+dispositions and exits non-zero when any BLOCKER or MAJOR is still PENDING.",
-    "Gate 1 requires BOTH the consolidated view (architect_review.py gate --item <ID> --gate 1) and the enforcement check (gate1_check.py); both are documented as binding in docs/REVIEW-GATES-LIFECYCLE.md.",
-    "A design pre-check checklist covering recurring blocker classes is emitted before Gate 1.5: it is auto-included in every design-mode review prompt (architect_review.py run --mode design) and available via checklist --item <ID>.",
-    "Gate 1.5/2.5 default to the direct provider call (architect_review.py run); the sub-agent launch is opt-in only and both paths are documented in config/architect-review.json and docs.",
-    "Recurring findings are captured as CORRECTION-LEDGER entries each with an enforcement point, and the findings-per-review trend is persisted to the registered engineering/learnings/review-findings.json report consumed by RAG-PROCESS-MEMORY.",
-    "A test covers the PENDING-blocking behaviour: the Gate 1 check fails when a BLOCKER/MAJOR is undispensed and passes when all findings are dispositioned."
+    "The Azure Blob adapter implements datastore.ObjectStore on go/objstorerest and passes the hardened ConformObjectStore suite against the Azurite emulator/mock.",
+    "Capabilities are declared honestly (immutability/legal-hold/versioning/CMK implemented or declared false and fail-closed) and the adapter is dependency-lean (no Azure SDK)."
   ],
   "in_scope": [
-    "gate1_check.py (pending-blocking)",
-    "design pre-check checklist",
-    "docs/REVIEW-GATES-LIFECYCLE.md binding rule",
-    "direct-call default (documented)",
-    "CORRECTION-LEDGER entries + trend"
+    "adapter on go/objstorerest"
   ],
   "out_of_scope": [
-    "changing the review model/provider",
-    "EDP work"
+    "Not specified."
   ],
   "affected_components": [
     "Not specified."
@@ -63,7 +51,7 @@
   "affected_files": [
     "Not specified."
   ],
-  "approach": "Process: Gate 1 must embed the latest Gate 1.5 evidence + a design pre-check checklist to reduce review churn",
+  "approach": "ObjectStore adapter: Azure Blob (on go/objstorerest)",
   "review": {
     "reconciliation": {
       "prior_decisions": [],
@@ -77,87 +65,64 @@
     "at": ""
   },
   "verification": [
-    "Objective achieved: Process: Gate 1 must embed the latest Gate 1.5 evidence + a design pre-check checklist to reduce review churn"
+    "Objective achieved: ObjectStore adapter: Azure Blob (on go/objstorerest)"
   ],
   "risks": [
-    "new check could be noisy if severity is miscalibrated",
-    "trend reporting needs the RAG store wired"
+    "Not specified."
   ],
-  "rollback": "revert the tooling/doc change; the renderer already exists.",
+  "rollback": "Revert the change.",
   "evidence": [
     "pending"
   ],
-  "owner": "unassigned",
+  "owner": "agent",
   "requester": "generic",
   "due": "",
   "target_release": "",
   "approvals": [],
   "summary": "",
   "children": [],
-  "epic": "BI-PF-1243",
-  "parent": "BI-PF-1243",
-  "revision": 3,
+  "epic": "BI-PF-1292",
+  "parent": "BI-PF-1292",
+  "revision": 2,
   "priority_rank": 2,
-  "priority_class": "P1",
+  "priority_class": "P2",
   "analyze_mode": "on_entry",
   "analysis": {
     "status": "COMPLETE",
-    "analyzed_at": "2026-10-19T18:34:23.451401",
+    "analyzed_at": "2026-10-17T22:39:59.659746",
     "analyzed_by": "system",
-    "revision_analyzed": 3,
+    "revision_analyzed": 2,
     "architecture_fit": "EXTEND",
-    "implementation_strategy": "Extend core/model_gate.py + core/code_quality_gate.py so Gate 1 pulls the latest /api/v1/evidence/manifest + Gate 1.5 events into its payload; add a design pre-check checklist (from config/architect-review-baseline.json + config/review-focus.json) rendered in the Gate 1 gate report via /api/v1/engineering/gates.",
-    "existing_components": [],
+    "implementation_strategy": "Extend existing components/APIs: core/generator_adapters.py, core/intake_adapters.py, core/test_adapters.py, core/vendor_adapters.py",
+    "existing_components": [
+      "core/generator_adapters.py",
+      "core/intake_adapters.py",
+      "core/test_adapters.py",
+      "core/vendor_adapters.py"
+    ],
     "existing_apis": [],
     "existing_modules": [],
-    "dependency_findings": [
-      "Gate 1.5 must emit evidence events before Gate 1 can embed (REQUIRES)",
-      "BI-PF-0443 dependency-hook pre-check feeds same gate pipeline (RELATED)"
-    ],
-    "conflict_findings": [
-      "BI-0205 may touch core/merge_gate.py + config/ci-cd-gates.json concurrently — coordinate config edits"
-    ],
-    "duplication_findings": [
-      "BI-0205 covers pre-check gates for PRs, not Gate 1 evidence embedding — different stage",
-      "core/design_critic.py already runs design review; checklist must reuse, not re-implement"
-    ],
-    "drift": "LOW",
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
     "rewrite_required": false,
     "new_component_required": false,
-    "rationale": "Reuse existing gate + evidence plumbing; embed Gate 1.5 output and a config-driven design checklist into Gate 1 to cut churn without new components.",
-    "assumptions": [
-      "Gate 1.5 already publishes structured evidence to /api/v1/evidence/events",
-      "Existing gate config files are the source of truth for checklist content"
-    ],
-    "risks": [
-      "Gate 1.5 evidence may be absent/stale for older items, causing empty embed",
-      "Checklist additions could lengthen Gate 1 and slow pipeline"
-    ],
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
     "evidence": [
-      "/api/v1/evidence/manifest/{run_id}",
-      "/api/v1/engineering/gates",
-      "config/architect-review-baseline.json"
+      "similar=4",
+      "score=0.75",
+      "components=4",
+      "apis=0"
     ],
-    "confidence": "medium",
+    "confidence": "high",
     "missing_info": [
-      "Exact definition of Gate 1.5 and which run_id to pull for 'latest'",
-      "Which checklist items reduce the most observed review churn (data needed)",
-      "Owner for gate config changes"
+      "body/acceptance criteria thin"
     ],
     "depth": "deep",
-    "mode": "ai",
-    "context_review": {
-      "ok": false,
-      "source": "llm",
-      "implementable": false,
-      "missing": [
-        "what",
-        "why",
-        "how",
-        "where"
-      ],
-      "reason": "All fields repeat the title verbatim; no Gate 1/Gate 1.5 definitions, file locations, or concrete checklist contents given."
-    },
+    "mode": "deterministic",
     "decision_request": {
       "needed": false,
       "reasons": [],
@@ -165,24 +130,13 @@
     },
     "arch_fingerprint": "1eb8b4dae56937b2"
   },
-  "dependencies": [
-    {
-      "task_id": "BI-0205",
-      "type": "RELATED",
-      "required_state": "PR gate pipeline settled"
-    },
-    {
-      "task_id": "BI-PF-0443",
-      "type": "RELATED",
-      "required_state": "Dependency pre-check hooks defined"
-    }
-  ],
-  "blocked_by": [],
+  "dependencies": [],
+  "blocked_by": "BI-PF-1395",
   "unlocks": [],
   "readiness": {
     "ready": true,
     "reasons": [],
-    "computed_at": "2026-10-19T18:34:23.585947"
+    "computed_at": "2026-10-17T22:39:59.770597"
   },
   "execution": {
     "worker_id": "",
@@ -197,8 +151,15 @@
     "last_heartbeat_at": "",
     "usage": {}
   },
-  "created_at": "2026-10-19T18:33:26.492796",
-  "updated_at": "2026-10-19T19:01:48.021168",
+  "created_at": "2026-10-17T22:39:55.386018",
+  "updated_at": "2026-10-17T22:59:43.523253",
   "score": 0.75,
-  "_note": "re-homed to epic BI-PF-1243"
+  "_note": "brief.source authored",
+  "affects_scope": [
+    "go/<adapter>"
+  ],
+  "api_impact": {
+    "needs_api": false,
+    "reason": "Go port adapter"
+  }
 }
