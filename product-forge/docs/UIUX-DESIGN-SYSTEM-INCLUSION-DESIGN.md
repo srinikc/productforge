@@ -56,6 +56,8 @@ Neutral home: **`product-forge/pipeline/skills/<id>/SKILL.md`** (existing `pipel
 
 Copy the **body + frontmatter + any `LICENSE.txt`/attribution verbatim** (§8 licensing).
 
+**Corpus location:** `Exploring/UIUX/` is the external research corpus (outside `product-forge/`); DSI-2 normalizes it into the in-repo authoritative copies under `product-forge/docs/guidelines/` and `docs/reference/uiux-samples/`. No runtime path reads `Exploring/`.
+
 ### 3b. UIUX corpus → PF guidelines / reference
 | From `Exploring/UIUX/…` | To `product-forge/…` |
 |---|---|
@@ -93,7 +95,7 @@ Copy the **body + frontmatter + any `LICENSE.txt`/attribution verbatim** (§8 li
 |---|---|
 | `core/go_host.py` | add wrappers `skills_resolve/list/describe`, `design_select/catalog`, `design_tokens`, `a11y_audit` |
 | `core/skills_registry.py` | neutral resolution + register the 8 skills as catalog entries |
-| `core/knowledge_registry.py` | accept `kind:"skill"` entries whose `path` is a neutral skill body; expose to `resolve_layers` |
+| `core/knowledge_registry.py` | resolve the `ui-ux`/`design-systems` layers; skill bodies resolve through the skills registry (no duplicate skill truth) |
 | `core/design_tokens.py` | consume the Go token engine (keep it the single writer of `tokens.json`) |
 | `core/product_design_spec.py` | consume `DesignDirection` |
 | `core/design_critic.py` | checks from `anti-patterns.md` + non-negotiables + catalog conformance |
@@ -104,9 +106,10 @@ Copy the **body + frontmatter + any `LICENSE.txt`/attribution verbatim** (§8 li
 **Tooling/config (Python/JSON allowed):**
 | Artifact | Action |
 |---|---|
-| `config/knowledge-registry.json` | register the 8 skills (`kind:"skill"`, `path`, `layers`, `agents`) |
+| `config/knowledge-registry.json` | register the `ui-ux` and `design-systems` knowledge layers (not skill bodies) |
+| `pipeline/skills-registry.json` | register the 8 skills as the single skills catalog (path, layers, agents) |
 | `config/agent-capabilities.json` | bind skills→agents |
-| `config/store-registry.json` | **now:** allowlist the planned `config/design-systems.json` and existing `agents/*.agent.json` manifests (design-phase references); **when the store lands:** replace the allow entry with a real `kind:config` registration (owner: `go/pfcore/design_system.go`, single writer). Allow-globs for `docs/reference/uiux-samples/**`, `pipeline/skills/**`. |
+| `config/store-registry.json` | **now:** allowlist existing `agents/*.agent.json` manifests; both this and the sample/skill entries live in the registry's `allow` list (not an ignore list). `config/design-systems.json` is registered as `kind:config`, `status:planned` (owner: `go/pfcore/design_system.go`, item BI-PF-1439) — flip it to `exists` when the store lands. Allow-globs for `docs/reference/uiux-samples/**`, `pipeline/skills/**`. |
 | `agents/*.agent.json` | add skills + `knowledge_layers:[ui-ux, design-systems]` + `allowed_inputs:[design_direction]` |
 | `pipeline-definition.json` | add stage **1-0 "Design Direction"** (HIL suggest gate) + wire **a11y-audit** stage |
 | `test-framework/templates/accessibility/` | create (missing today) |
@@ -141,7 +144,7 @@ docs/design-direction.md  +  design-spec.json   (recorded decision, referenced b
 
 **Epic:** *Design System & UI/UX Knowledge (framework-agnostic)*.
 
-**ID authority:** the backlog (`core/backlog.py`) is the source of truth; the `BI-PF-*` ids below are authoritative and `DSI-N` are plan labels used only in this document.
+**ID authority:** the backlog (`core/backlog.py`) is the source of truth; the `BI-PF-*` ids below are authoritative and `DSI-N` are plan labels used only in this document. IDs `1433–1435` were reserved by the shared `pf-id-counter` before this seed and remain intentionally unused; the id ledger records that reservation.
 
 | Plan label | Backlog id | Child | Depends on (REQUIRES) | Wave | Language |
 |---|---|---|---|---|---|
@@ -168,6 +171,8 @@ Each item: dedup-checked (`core.backlog --similar`), feature branch off `develop
 store registered in `config/store-registry.json` · skills registered · a11y + visual gates green · docs updated.
 **No runtime module defaults to reading `.opencode`.**
 
+**Observability (required before the gates go live):** `design.select` emits the ranked candidates + rationale, `a11y.audit` emits its verdict/failure reason, and `skills.resolve` emits the chosen path/sha + any legacy fallback. Fail-closed gates are unauditable without emitted verdicts.
+
 ---
 
 ## 8. Licensing (must be preserved on copy)
@@ -183,6 +188,8 @@ Several skills carry licenses/attribution — **copy the frontmatter + `LICENSE.
 - `architect` — Apache-2.0
 
 Commit a `NOTICE`/`pipeline/skills/<id>/LICENSE.txt` where one exists; keep `source` + `attribution` in frontmatter.
+
+**Integrity / trust boundary:** skill text is untrusted input to the LLM. Record `source` + `license` + `sha256` in the skills registry, copy only reviewed local content (no runtime fetch), and scan for prompt-injection markers before the `SKILLS:` block is injected. `skills.resolve` reports the selected path/sha.
 
 ---
 

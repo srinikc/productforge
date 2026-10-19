@@ -33,7 +33,7 @@ UNIVERSAL_DOD = [
 ]
 
 
-def body(problem, goal, in_scope, out_scope, ac, dod):
+def body(problem, goal, in_scope, out_scope, dod):
     def sec(title, lines):
         return f"## {title}\n" + "\n".join(f"- {x}" for x in lines) + "\n"
     return (
@@ -41,9 +41,8 @@ def body(problem, goal, in_scope, out_scope, ac, dod):
         f"## Goal & value\n{goal}\n\n"
         + sec("In scope", in_scope) + "\n"
         + sec("Out of scope", out_scope) + "\n"
-        + sec("Acceptance criteria", ac) + "\n"
         + sec("Definition of Done", dod) + "\n"
-        + "## Verification / test plan\n" + "\n".join(f"- {x}" for x in ac) + "\n"
+        + "## Verification\nStructured `acceptance_criteria` is the single source of truth for verification.\n"
     )
 
 
@@ -65,14 +64,12 @@ EPIC = {
     ],
     "out_scope": ["Redesigning the pipeline itself", "Non-UI skills", "Generated-product code changes."],
     "ac": [
-        "Given a project idea, PF suggests 2-3 ranked design directions at a HIL gate.",
-        "Skills resolve neutral-first from pipeline/skills; no default .opencode read.",
-        "Tokens are 3-tier OKLCH with light+dark, seeded by the chosen system.",
-        "New logic lands in Go and passes scripts/dev/language_rule_check.py.",
+        "The design doc is committed and linked to BI-PF-1436, covering corpus, skills, tokens, stages, gates, and risks.",
+        "All nine children (BI-PF-1437..1445) are seeded with detailed AC, dependencies, waves, and api_impact decisions.",
+        "Children remain new for wave execution; no implementation is claimed by this design/seed phase.",
     ],
     "dod": [
-        "All child items complete and their gates green.",
-        "A sample product end-to-end run produces a named design direction + tokens + passing a11y/visual gates.",
+        "Design + seed reviewed at Gate 1; no child is marked delivered before its own AC evidence.",
     ],
     "value": 5, "effort": 5, "risk": 3, "moscow": "Should",
 }
@@ -86,13 +83,13 @@ ITEMS = [
         "in_scope": [
             "Copy the 8 UI/UX skills into pipeline/skills/<id>/SKILL.md (body+frontmatter+LICENSE verbatim).",
             "Neutral-first resolver (Go op skills.resolve/list/describe) via core/go_host.py.",
-            "Register in config/knowledge-registry.json (kind:skill) and pipeline/skills-registry.json.",
+            "Register in pipeline/skills-registry.json (single skills catalog); expose ui-ux/design-systems layer metadata via config/knowledge-registry.json.",
         ],
         "out_scope": ["Migrating non-UI skills", "Deleting .opencode (kept as legacy fallback)."],
         "ac": [
             "Given a skill id, skills.resolve returns the neutral body from pipeline/skills/<id>/SKILL.md.",
             ".opencode/skills is read only when ALLOW_OPENCODE_LEGACY=1.",
-            "Both registries contain the 8 skills; license/attribution preserved.",
+            "pipeline/skills-registry.json contains the 8 skills; license/attribution preserved.",
         ],
         "dod": ["wired_audit green (no unwired file).", "skills.resolve covered by a unit test."],
         "files": ["go/pfcore/skill_registry.go", "core/go_host.py",
@@ -288,11 +285,17 @@ API_IMPACT = {
 }
 
 
+def _should_write(ext: str, prior_ext: set, existing_deps: list | None) -> bool:
+    """Deps are written only for a new item, or when an existing item has none yet."""
+    return ext not in prior_ext or not existing_deps
+
+
 def main() -> int:
     prior_ext = {e.get("external_id") for e in backlog.list_open(S, P) + backlog.list_closed(S, P)}
+    # add_epic is the generic item-create API; type_ distinguishes an epic from its child features.
     epic = backlog.add_epic(
         S, P, EPIC["title"],
-        body=body(EPIC["problem"], EPIC["goal"], EPIC["in_scope"], EPIC["out_scope"], EPIC["ac"], EPIC["dod"]),
+        body=body(EPIC["problem"], EPIC["goal"], EPIC["in_scope"], EPIC["out_scope"], EPIC["dod"]),
         type_="epic", origin="review", source=SRC, external_id=EPIC["ext"],
         value=EPIC["value"], effort=EPIC["effort"], risk=EPIC["risk"], moscow=EPIC["moscow"],
         acceptance_criteria=EPIC["ac"],
@@ -308,7 +311,7 @@ def main() -> int:
         full_dod = it["dod"] + UNIVERSAL_DOD
         row = backlog.add_epic(
             S, P, it["title"],
-            body=body(it["problem"], it["goal"], it["in_scope"], it["out_scope"], it["ac"], it["dod"]),
+            body=body(it["problem"], it["goal"], it["in_scope"], it["out_scope"], it["dod"]),
             type_="feature", origin="review", source=SRC, external_id=it["ext"], epic=str(epic_id),
             value=it["value"], effort=it["effort"], risk=it["risk"], moscow=it["moscow"],
             acceptance_criteria=it["ac"],
@@ -326,7 +329,7 @@ def main() -> int:
         eid = created[it["ext"].split(":")[-1]]
         deps = [{"task_id": created[d], "type": "REQUIRES", "required_state": "completed"}
                 for d in it["deps"]]
-        if deps and (it["ext"] not in prior_ext or not (backlog.get(S, P, eid) or {}).get("dependencies")):
+        if deps and _should_write(it["ext"], prior_ext, (backlog.get(S, P, eid) or {}).get("dependencies")):
             backlog.set_dependencies(S, P, eid, dependencies=deps)
 
     prior_status = {r.get("id"): r.get("status") for r in (backlog.get(S, P, epic_id) or {}).get("execution_order", [])}
