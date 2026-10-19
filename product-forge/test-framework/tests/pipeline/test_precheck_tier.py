@@ -3,6 +3,8 @@ import os
 import sys
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT))
 os.environ.setdefault("PF_OFFLINE", "1")
@@ -50,3 +52,24 @@ def test_groups_ignore_bookkeeping_shortcut(monkeypatch):
     monkeypatch.setattr(precheck, "_changed_paths", lambda: list(_BK))
     steps, _label = precheck._group_steps("backlog")
     assert steps and len(steps) > 2
+
+
+def test_integration_ref_falls_back_to_origin(monkeypatch):
+    def fake_git(*args):
+        ref = args[-1].replace("^{commit}", "")
+        if ref == "develop":
+            raise precheck.GitError("no local develop")
+        assert ref == "origin/develop"
+        return "abc123"
+
+    monkeypatch.setattr(precheck, "_git", fake_git)
+    assert precheck._integration_ref() == "origin/develop"
+
+
+def test_integration_ref_fails_closed_when_missing(monkeypatch):
+    def fake_git(*args):
+        raise precheck.GitError("missing ref")
+
+    monkeypatch.setattr(precheck, "_git", fake_git)
+    with pytest.raises(precheck.GitError):
+        precheck._integration_ref()
