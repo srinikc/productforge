@@ -1,17 +1,17 @@
 # Backlog Summary
 
-> GENERATED 2026-10-19T22:09:51 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-19T22:18:48 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 142  |  **Closed:** 567
+- **Open:** 139  |  **Closed:** 570
 - `blocked`: 1
 - `executing`: 3
 - `in_progress`: 3
-- `new`: 135
+- `new`: 132
 
-### new, by category (135)
+### new, by category (132)
 **API / reports / HIL / misc** (16)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
@@ -93,7 +93,7 @@
 | BI-PF-1392 | Should | task | Enforce per-feature FR/US caps + max_lines in the Go artifact engine (scaled by the profile) and reconcile the three section sources | Per-feature FR/US caps + max_lines enforced NUMERICALLY (scaled by profile); sections have ONE source. |
 | BI-PF-1425 | Should | feature | Migrate orchestrator cache + evidence/summarizer (and remaining audit logic) from Python to Go (Go-first alignment) | Migrate orchestrator cache + evidence/summarizer (and remaining audit logic) from Python to Go (Go-first align... |
 
-**Wiring / tech-debt / API** (82)
+**Wiring / tech-debt / API** (79)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0185 | Should | feature | EPIC: Multi-modal / media orchestration (pluggable capability packs) | Make the pipeline modality-agnostic via PLUGGABLE capability packs, enabled per project when the idea needs th... |
@@ -175,9 +175,6 @@
 | BI-PF-1439 | Should | feature | Design-system catalog store + selection engine (Go) | PF can SELECT a ranked design direction from the idea. |
 | BI-PF-1440 | Should | feature | Design-token engine upgrade (3-tier OKLCH, light+dark) | Generate real design tokens from the selected direction. |
 | BI-PF-1445 | Should | feature | design_critic / visual_qa integration (anti-patterns + catalog + aesthetics) | QA validates against the chosen direction, non-negotiables and anti-patterns. |
-| BI-PF-1465 | Must | feature | Fix: Gate 1 check must treat unparsable/empty review evidence as indeterminate (fail-closed) | Make Gate 1 fail closed on unparsable/empty review evidence instead of silently passing. |
-| BI-PF-1466 | Should | feature | Gate 1 enforcement at the backlog transition: block new->in_progress when a design review has PENDING BLOCKER/MAJOR (grandfather legacy) | Machine-enforce Gate 1 at the backlog new->in_progress transition, with a legacy grandfather. |
-| BI-PF-1467 | Should | feature | RCCA: inject review learnings at design/grooming time (not only at Gate 1.5) via a design-guardrails block | Feed review learnings into the design/grooming phase so 1.5 verifies rather than discovers; keep the ledger/ch... |
 
 ---
 
@@ -377,5 +374,5 @@
 ---
 
 ## Totals
-- backend: 142 open / 567 closed
+- backend: 139 open / 570 closed
 - dashboard: 146 open / 3 closed
