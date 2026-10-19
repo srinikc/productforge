@@ -262,6 +262,21 @@ def _item_dispositions(item_id: str, mode: str) -> dict:
     return {}
 
 
+def finding_sig(text: str) -> str:
+    """Stable content key for a finding (so dispositions survive re-review reordering)."""
+    s = str(text or "").lower()
+    s = re.sub(r"`[^`]*`", " ", s)
+    s = re.sub(r"[^a-z0-9 ]+", " ", s)
+    s = re.sub(r"\s+", " ", s).strip()
+    return hashlib.sha1(" ".join(s.split()[:14]).encode("utf-8")).hexdigest()[:10]
+
+
+def _disp_for(dispositions: dict, n: int, text: str) -> dict:
+    """Disposition for a finding: content-hash key (``sig:<digest>``) wins; ordinal is legacy back-compat."""
+    d = dispositions or {}
+    return d.get("sig:" + finding_sig(text)) or d.get(str(n)) or {}
+
+
 def iter_findings(findings: dict):
     """Yield (severity, text) in the canonical severity order (stable disposition numbering)."""
     for sev in SEVERITIES:
@@ -273,13 +288,14 @@ def pending_blocking(findings: dict, dispositions: dict):
     """Return (total, pending, blocking) for a review.
 
     ``blocking`` lists (n, severity, text) for BLOCKER/MAJOR findings that have no non-PENDING
-    disposition. Pending MINOR/NIT never block (BI-PF-1449).
+    disposition. A finding is matched by its content-hash key (``sig:<digest>``) first, then by
+    ordinal for legacy records. Pending MINOR/NIT never block (BI-PF-1449).
     """
     total = pending = 0
     blocking = []
     for n, (sev, text) in enumerate(iter_findings(findings), 1):
         total += 1
-        st = str(((dispositions or {}).get(str(n)) or {}).get("status") or "PENDING").upper()
+        st = str((_disp_for(dispositions, n, text) or {}).get("status") or "PENDING").upper()
         if st == "PENDING":
             pending += 1
             if sev in ("BLOCKER", "MAJOR"):
@@ -311,7 +327,7 @@ def _render_review(rev: dict, disp: dict, mode: str) -> str:
              "status: PENDING | actioned | accepted | deferred | rejected"]
     n, pending = 0, 0
     for n, (sev, text) in enumerate(iter_findings(f), 1):
-        d = disp.get(str(n)) or {}
+        d = _disp_for(disp, n, text)
         st = (d.get("status") or "PENDING").upper()
         if st == "PENDING":
             pending += 1

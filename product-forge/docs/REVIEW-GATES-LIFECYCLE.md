@@ -25,7 +25,9 @@ delivery approval)**. HIL always sees the reviewer's findings + recommendation a
    **Gate 1 is only valid with the consolidated view:** produce it with
    `python scripts/dev/architect_review.py gate --item <ID> --gate 1` and enforce it with
    `python scripts/dev/gate1_check.py --item <ID>` (exits non-zero while any BLOCKER/MAJOR is PENDING). Include
-   both in the approval package. Pending MINOR/NIT do not block but must be recorded. **No code before approval.**
+   both in the approval package. Pending MINOR/NIT do not block but must be recorded. Dispositions may be keyed
+   by a stable `sig:<digest>` (preferred — survives re-review reordering) or by ordinal (legacy). **No code
+   before approval.**
 
 3. **Implement on a feature branch** (never `develop`). Backlog writes are **API-only**; integrity gates apply
    at write time: **AC required** at create (`POST /items` → 400), **api_impact** (`api-first`),

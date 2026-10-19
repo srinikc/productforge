@@ -50,6 +50,14 @@ def test_pending_blocking_only_blocks_blocker_and_major():
     assert blocking == []
 
 
+def test_dispositions_bind_by_content_signature_across_reorder():
+    # a content-hash disposition stays attached when findings are reordered/reclassified
+    disp = {"sig:" + ar.finding_sig("finding A"): {"status": "accepted"}}
+    total, pending, blocking = ar.pending_blocking({"MAJOR": ["finding B", "finding A"]}, disp)
+    assert (total, pending) == (2, 1)
+    assert [t for _, _, t in blocking] == ["finding B"]
+
+
 def test_gate1_check_exit_codes(monkeypatch):
     from scripts.dev import gate1_check as g1
 
