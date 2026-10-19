@@ -18,7 +18,7 @@ MongoDB, …) can change **without touching domain code**. Companion to `docs/ED
 |---|---|---|
 | `RelationalStore` (SQL SoR) | **PostgreSQL (pgx)** shipped (`go/store/pg.go`) | EDP-17 (`BI-PF-1309`) |
 | **Repository ports** (`TenantRepository`, `ProjectRepository`, …) | **PostgreSQL adapter** shipped (`go/store/pg_repos.go`); later another SQL DB / **MongoDB** = new adapter | EDP-17 |
-| `ObjectStore` (bytes) | **local FS** (planned `BI-PF-1305`), **S3-compatible** (planned `BI-PF-1306`); later **NFS / Google Drive / Azure Blob / GCS** = new adapters | EDP-13/14 (`BI-PF-1305/1306`) |
+| `ObjectStore` (bytes) | **local FS** shipped (`go/objstore`, EDP-13), **S3-compatible** shipped (`go/s3store`, EDP-14), **GCS** shipped (`go/gcsstore`, BI-PF-1395); **Azure Blob / Google Drive** planned (new adapters); **NFS/SMB = `objstore` over a mount** (no new adapter) | EDP-13/14 (`BI-PF-1305/1306`) |
 | `CacheStore` | in-memory / Redis / file | EDP-19 |
 | `SecretStore` | file / vault / cloud KMS | EDP (security) |
 | `JobStore` / `OutboxStore` | PostgreSQL | EDP-19 (`BI-PF-1311`) |
@@ -46,3 +46,35 @@ MongoDB, …) can change **without touching domain code**. Companion to `docs/ED
 - **Shipped:** Postgres `RelationalStore` adapter + repository ports (`go/store`, PR #178); schema + bootstrap
   (`docs/EDP-17-SCHEMA.md`).
 - **Next:** `ObjectStore` local adapter (EDP-13 `BI-PF-1305`) → S3 (EDP-14 `BI-PF-1306`).
+
+## ObjectStore adapters — current state (BI-PF-1395)
+
+| backend | module | status | notes |
+|---|---|---|---|
+| Local FS / NFS / SMB | `go/objstore` | **shipped** | confined root, atomic writes, sha256; use over an NFS/SMB **mount** — no separate adapter (reuse, not a clone) |
+| S3-compatible | `go/s3store` | **shipped** | minio-go (EDP-14) |
+| Google Cloud Storage | `go/gcsstore` | **shipped (mock-conformant)** | stdlib REST via `go/objstorerest`; real-provider qualification (creds) pending |
+| Azure Blob | — | planned | next adapter on `objstorerest` |
+| Google Drive | — | planned | key<->fileID model must be designed first (no `/` paths, non-unique names, trash-vs-delete) |
+
+**Shared core — `go/objstorerest`:** stdlib-only (auth/token seam, bounded retry/backoff honoring `Retry-After`,
+context deadlines, portable error taxonomy, secret redaction). New REST adapters build on it; **no provider SDK**.
+
+**Conformance honesty:** `datastore.ConformObjectStore` now uses a **unique** probe key, asserts real `List`
+prefix filtering, and **capability honesty** (a *declared* capability must actually work). Mock/emulator
+conformance is **not** provider parity — a real-provider run (creds) is required before an adapter is called
+production-qualified.
+
+**Wiring (one line — owner: `go/edpsvc/main.go` `buildObjectStore()`):**
+```go
+// --- object store backend selection (config-only; no call-site change) ---
+case "gcs":
+    st, err = gcsstore.New(gcsstore.Config{Bucket: os.Getenv("PF_GCS_BUCKET"), Auth: gcsAuth})
+// "local" (objstore) and "s3" (s3store) already handled; "azure"/"gdrive" land per adapter item
+```
+
+**Known limitations (`gcsstore`, BI-PF-1395):** content is **buffered in memory** (large-object streaming +
+resumable upload is a follow-up); GCS `uploadType=multipart` caps at **~5 MB** (use resumable for larger);
+`SignedURL`/versioning/lock are **not implemented** (capabilities declared `false`). The `buildObjectStore()`
+config switch is owned by `go/edpsvc/main.go` (apply the one-line case above). The adapter is
+**mock-conformant, NOT production-qualified** until a real-provider (creds) run.

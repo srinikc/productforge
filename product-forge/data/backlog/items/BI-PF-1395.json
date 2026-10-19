@@ -10,7 +10,7 @@
   "title": "EDP: additional ObjectStore adapters (NFS/SMB, Google Drive, Azure Blob, GCS, ...) behind the ObjectStore port",
   "body": "Ports/adapters (docs/EDP-STORAGE-ADAPTERS.md): add adapters for the remaining storage backends behind the existing datastore.ObjectStore port + pass ConformObjectStore. Each backend = a new adapter (no domain changes): NFS/SMB, Google Drive, Azure Blob, GCS, and any future type. Depends on EDP-14 (S3) establishing the conformance-tested adapter pattern + EDP-16 lifecycle semantics. Capabilities declared per adapter (versioning, lock, signed URLs, multipart, CMK) so callers degrade explicitly.",
   "source": "api",
-  "status": "new",
+  "status": "in_progress",
   "priority": "P2",
   "moscow": "Should",
   "value": 3,
@@ -36,21 +36,35 @@
   },
   "objective": "EDP: additional ObjectStore adapters (NFS/SMB, Google Drive, Azure Blob, GCS, ...) behind the ObjectStore port",
   "acceptance_criteria": [
-    "Objective achieved: EDP: additional ObjectStore adapters (NFS/SMB, Google Drive, Azure Blob, GCS, ...) behind the ObjectStore port"
+    "A shared stdlib-only REST core (go/objstorerest) provides the auth/token seam, bounded retry/backoff honoring Retry-After, context deadlines, a portable error taxonomy, and secret redaction for provider adapters.",
+    "The GCS adapter (go/gcsstore) implements datastore.ObjectStore, persists sha256 in object metadata, and passes the shared ConformObjectStore suite against an emulator/mock.",
+    "ConformObjectStore is hardened: a unique probe key (never clobbers real objects), real List prefix filtering, and capability honesty (a declared capability must actually work).",
+    "Adapters are dependency-lean (NO provider SDKs) and self-contained; NFS/SMB reuse objstore over a mount (no clone); docs updated with honest mock-vs-provider labeling; backend wiring is a one-line config switch provided for edpsvc/main.go."
   ],
   "in_scope": [
-    "EDP: additional ObjectStore adapters (NFS/SMB, Google Drive, Azure Blob, GCS, ...) behind the ObjectStore port"
+    "go/objstorerest core",
+    "go/gcsstore adapter",
+    "ConformObjectStore hardening",
+    "docs"
   ],
   "out_of_scope": [
-    "Not specified."
+    "Azure Blob adapter (follow-up)",
+    "Google Drive adapter (follow-up)",
+    "NFS/SMB new adapter (reuse objstore)"
   ],
   "affected_components": [
     "docs"
   ],
   "affected_files": [
+    "go/objstorerest/objstorerest.go",
+    "go/objstorerest/objstorerest_test.go",
+    "go/gcsstore/gcsstore.go",
+    "go/gcsstore/gcsstore_test.go",
+    "go/datastore/conformance.go",
+    "scripts/dev/go_modules_check.py",
     "docs/EDP-STORAGE-ADAPTERS.md"
   ],
-  "approach": "PARALLEL HAND-OFF (other session): implement the extra ObjectStore adapters (NFS/SMB, Google Drive, Azure Blob, GCS) as NEW self-contained Go modules implementing datastore.ObjectStore + passing ConformObjectStore - no go/edpdata/go/edpsvc/main.go/migrations edits required (adapter selection is a one-line addition later). Migrations >=0020 if any. Backlog via API; batch bookkeeping.",
+  "approach": "Split per Gate 1.5: this item delivers go/objstorerest (stdlib-only core) + go/gcsstore (GCS REST adapter) + the hardened ConformObjectStore. NFS/SMB = existing go/objstore over a mount (no new adapter). Azure Blob + Google Drive are follow-up adapter items on objstorerest (GDrive needs a key<->fileID design first). No provider SDKs; no go/edpdata/main.go/migrations edits.",
   "review": {
     "reconciliation": {
       "prior_decisions": [],
@@ -64,14 +78,18 @@
     "at": ""
   },
   "verification": [
-    "Objective achieved: EDP: additional ObjectStore adapters (NFS/SMB, Google Drive, Azure Blob, GCS, ...) behind the ObjectStore port"
+    "Gate 2.5 architect review (mimo-v2.6-flash): {'BLOCKER': 1, 'MAJOR': 3, 'MINOR': 7, 'NIT': 3}"
   ],
   "risks": [
-    "Not specified."
+    "mock/emulator conformance is not provider parity (gated real-provider run required before production-qualified)",
+    "GCS SignedURL/versioning/lock not implemented -> capabilities declared false (callers degrade)"
   ],
   "rollback": "Revert the change.",
   "evidence": [
-    "pending"
+    "pending",
+    "Gate 2.5 architect review - model=mimo-v2.6-flash sha=e3b0c44298fc\nBLOCKER:\n  - none (design-stage review; no code shipped yet and no objectively verifiable data-loss/secret/RLS/migration/language-rule violation in the proposed plan)\nMAJOR:\n  - Duplication vs. reuse — `netfsstore` clones `objstore`. NFS/SMB are just mounted filesystems; `go/objstore/objstore.go` already implements confined-root + atomic temp/fsync/rename + sha256 over \"a filesystem root\". Creating `go/netfsstore` as a near-copy violates reuse-first. Either reuse `LocalStore` pointed at the mount root or extract one shared FS core both wrap.\n  - Lifecycle contract (EDP-16) is specified but never implemented. `PutOptions.Immutable`/`Retention` are ignored by both existing adapters and the design says nothing about mapping them. Declaring `ObjectLock`/`CustomerManagedKeys` for Azure/GCS without a backing implementation contradicts AC2. Map Azure immutability/legal-hold and GCS object-hold/retention + CMEK, or declare them `false` and fail closed.\n  - Mock-only conformance is self-referential. Cloud adapters tested against implementer-authored `httptest` servers verify the client's own assumptions, not the provider contract. \"Provider parity gated behind creds\" must mean a recorded/qualified contract test + a documented real-provider run; docs must not label an adapter \"shipped/conformant\" on mock evidence alone.\n  - Google Drive key model does not fit the port. GDrive has no `/` path (parent-folder + file IDs), non-unique names, trash-by-default Delete, and paginated folder walks. The fixed probe key + `List(prefix)` semantics don't map. Specify key↔fileID encoding, collision handling, permanent-delete behavior, pagination — else silent misidentification/overwrite (data loss).\n  - Checksum + streaming contract unaddressed and unscalable. Each cloud API must persist sha256 in provider metadata (like s3store `pf-checksum`). A \"stdlib net/http REST core\" risks buffering the whole body in memory (as s3store.Put does). Specify streaming/resumable upload reconciled with sha256.\n  - Delivery sizing / adaptability. Bundling a shared core + 4 adapters contradicts the item's own conflict_findings (\"one adapter per PR\"). Land `objstorerest` + one adapter first, then per-backend items.\n  - Merged adapters are dead code. Selection lives in `buildObjectStore()` (go/edpsvc/main.go) keyed on `PF_OBJECT_BACKEND`; \"no main.go edits + wiring later\" conflicts with \"build a thing → wire it\". Add the config switch (or a follow-up item) so \"adding a backend never changes call-site code\" is demonstrable e2e.\n  - Auth/token seam is the security boundary and is under-specified. Credentials via SecretStore, never logged/echoed; signed-URL keys (GCS RSA / Azure SAS HMAC) not embedded; GDrive has no pre-signed URL → declare `SignedURLs:false`.\n  - NFS/SMB \"conformance over a temp dir\" proves nothing about NFS/SMB. Locking/case-insensitivity/rename-atomicity/fsync differ; on case-insensitive FS the prefix confinement can collide (A/b vs a/b → overwrite). Canonicalize keys; state honestly a temp dir is not NFS/SMB qualification.\n  - Observability omitted. No per-op metrics/tracing, bounded retry/backoff, rate-limit handling, or context-deadline propagation; GDrive is quota-limited.\nMINOR:\n  - `ConformObjectStore` does not assert capability honesty (SignedURLs=>SignedURL works; ObjectVersioning=>Get/Delete by version), Immutable/Retention, or real List-prefix filtering — extend the shared suite.\n  - Conformance uses a FIXED key then overwrites/deletes it; the live `/admin/object-store/conform` handler can clobber a real object at `pf/conformance/probe`. Use a unique probe key; document \"never run against prod\".\n  - `docs/EDP-STORAGE-ADAPTERS.md` is already stale — local FS/S3 listed \"planned\" though `go/objstore`/`go/s3store` are shipped. Reconcile shipped/planned + link owning items.\n  - No shared error taxonomy: map cloud not-found/forbidden/throttled to a portable sentinel (os.ErrNotExist) so callers degrade portably.\n  - Each adapter as its own go.mod with replace ../datastore is a growing wiring tax; document a registry (or go.work) so \"add a backend\" stays mechanical.\nNIT:\n  - Confirm package-name style matches existing objstore/s3store.\n  - \"dependency-free\" is imprecise: signed URLs need stdlib crypto/rsa and crypto/hmac; say \"no third-party deps\".\n  - SMB is not always a filesystem root; note the mount-based assumption.\n  - Mojibake in docs/ARCHITECTURE-DECISIONS.md and the EDP doc; cosmetic sweep when touched.\nSUMMARY:\n  - none\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
+    "Gate 2.5 architect review - model=mimo-v2.6-flash sha=e3b0c44298fc\nBLOCKER:\n  - none\nMAJOR:\n  - Duplication vs. reuse â€” `netfsstore` clones `objstore`. NFS/SMB are just mounted filesystems; `go/objstore/objstore.go` already implements confined-root + atomic temp/fsync/rename + sha256 over \"a filesystem root\". Creating `go/netfsstore` as a near-copy violates reuse-first. Either reuse `LocalStore` pointed at the mount root or extract one shared FS core both wrap.\n  - Lifecycle contract (EDP-16) is specified but never implemented. `PutOptions.Immutable`/`Retention` are ignored by both existing adapters and the design says nothing about mapping them. Declaring `ObjectLock`/`CustomerManagedKeys` for Azure/GCS without a backing implementation contradicts AC2. Map Azure immutability/legal-hold and GCS object-hold/retention + CMEK, or declare them `false` and fail closed.\n  - Mock-only conformance is self-referential. Cloud adapters tested against implementer-authored `httptest` servers verify the client's own assumptions, not the provider contract. \"Provider parity gated behind creds\" must mean a recorded/qualified contract test + a documented real-provider run; docs must not label an adapter \"shipped/conformant\" on mock evidence alone.\n  - Google Drive key model does not fit the port. GDrive has no `/` path (parent-folder + file IDs), non-unique names, trash-by-default Delete, and paginated folder walks. The fixed probe key + `List(prefix)` semantics don't map. Specify keyâ†”fileID encoding, collision handling, permanent-delete behavior, pagination â€” else silent misidentification/overwrite (data loss).\n  - Checksum + streaming contract unaddressed and unscalable. Each cloud API must persist sha256 in provider metadata (like s3store `pf-checksum`). A \"stdlib net/http REST core\" risks buffering the whole body in memory (as s3store.Put does). Specify streaming/resumable upload reconciled with sha256.\n  - Delivery sizing / adaptability. Bundling a shared core + 4 adapters contradicts the item's own conflict_findings (\"one adapter per PR\"). Land `objstorerest` + one adapter first, then per-backend items.\n  - Merged adapters are dead code. Selection lives in `buildObjectStore()` (go/edpsvc/main.go) keyed on `PF_OBJECT_BACKEND`; \"no main.go edits + wiring later\" conflicts with \"build a thing â†’ wire it\". Add the config switch (or a follow-up item) so \"adding a backend never changes call-site code\" is demonstrable e2e.\n  - Auth/token seam is the security boundary and is under-specified. Credentials via SecretStore, never logged/echoed; signed-URL keys (GCS RSA / Azure SAS HMAC) not embedded; GDrive has no pre-signed URL â†’ declare `SignedURLs:false`.\n  - NFS/SMB \"conformance over a temp dir\" proves nothing about NFS/SMB. Locking/case-insensitivity/rename-atomicity/fsync differ; on case-insensitive FS the prefix confinement can collide (A/b vs a/b â†’ overwrite). Canonicalize keys; state honestly a temp dir is not NFS/SMB qualification.\n  - Observability omitted. No per-op metrics/tracing, bounded retry/backoff, rate-limit handling, or context-deadline propagation; GDrive is quota-limited.\nMINOR:\n  - `ConformObjectStore` does not assert capability honesty (SignedURLs=>SignedURL works; ObjectVersioning=>Get/Delete by version), Immutable/Retention, or real List-prefix filtering â€” extend the shared suite.\n  - Conformance uses a FIXED key then overwrites/deletes it; the live `/admin/object-store/conform` handler can clobber a real object at `pf/conformance/probe`. Use a unique probe key; document \"never run against prod\".\n  - `docs/EDP-STORAGE-ADAPTERS.md` is already stale â€” local FS/S3 listed \"planned\" though `go/objstore`/`go/s3store` are shipped. Reconcile shipped/planned + link owning items.\n  - No shared error taxonomy: map cloud not-found/forbidden/throttled to a portable sentinel (os.ErrNotExist) so callers degrade portably.\n  - Each adapter as its own go.mod with replace ../datastore is a growing wiring tax; document a registry (or go.work) so \"add a backend\" stays mechanical.\nNIT:\n  - Confirm package-name style matches existing objstore/s3store.\n  - \"dependency-free\" is imprecise: signed URLs need stdlib crypto/rsa and crypto/hmac; say \"no third-party deps\".\n  - SMB is not always a filesystem root; note the mount-based assumption.\n  - Mojibake in docs/ARCHITECTURE-DECISIONS.md and the EDP doc; cosmetic sweep when touched.\nSUMMARY:\n  - none\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)",
+    "Gate 2.5 architect review - model=mimo-v2.6-flash sha=cfdb0fa46fcc\nBLOCKER:\n  - none\nMAJOR:\n  - GCS adapter is unwired (dead code on the runtime path): buildObjectStore() in go/edpsvc/main.go has no \"gcs\" case and edpsvc/go.mod does not require gcsstore. Deliberate deferral (main.go is owned by the other session); tracked in BI-PF-1435. Advisory, not a BLOCKER.\n  - Full-object buffering unchanged in Put/Get (io.ReadAll + bytes.Buffer); no resumable path; GCS uploadType=multipart caps at ~5 MB. Tracked in BI-PF-1435 (streaming/resumable). Adapter is labeled mock-conformant, NOT production-qualified.\n  - Get ignores the version argument (no generation param) - FIXED in this pass (Get now appends &generation when version != \"\").\nMINOR:\n  - Capability honesty only exercises SignedURLs; ObjectVersioning/MultipartUpload/ConditionalWrites/CMK/ObjectLock unverified (AC \"declared capability must work\" is partial; deferred - a synthesized Version must not be treated as a handle).\n  - Put now validates declared size vs bytes read - FIXED.\n  - Conformance List prefix filtering now puts an object under a DIFFERENT prefix and asserts it is NOT leaked - FIXED (the claim is now actually proven).\n  - Diff-scoped gofmt gate is functional in a normal dev checkout (verified by injection) but no-ops if origin/develop is absent (shallow CI) - documented; acceptable.\n  - No test exercises the new conformance FAILURE paths (adapter ignoring prefix / lying about a capability) - follow-up.\n  - Docs: mock-conformant labeling + known limitations added - FIXED.\n  - Double resp.Body.Close() (harmless) and Redact covering query params only - noted, low risk.\nNIT:\n  - List returns a non-nil empty slice (s3store returns nil) - cosmetic.\n  - Retry-After parses integer seconds only (HTTP-date falls back to exponential) - acceptable.\n  - Probe-key uniqueness uses wall-clock nanos - negligible.\nSUMMARY:\n  - none\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present"
   ],
   "owner": "unassigned",
   "requester": "api",
@@ -198,12 +216,11 @@
     "usage": {}
   },
   "created_at": "2026-10-15T07:51:47.801436",
-  "updated_at": "2026-10-17T17:51:16.200782",
+  "updated_at": "2026-10-19T17:01:36.123611",
   "score": 0.75,
-  "_note": "readiness computed",
+  "_note": "objstorerest + GCS adapter delivered (mock-conformant); wiring/streaming follow-up BI-PF-1435",
   "api_impact": {
     "needs_api": false,
-    "reason": "retrofit assessment (ADR-0007): no external API consumer recorded; treated as internal until an API surface is required (then set needs_api=true with routes)",
-    "routes": []
+    "reason": "Go port adapters; no HTTP surface"
   }
 }
