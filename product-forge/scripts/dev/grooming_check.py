@@ -43,6 +43,14 @@ def main() -> int:
 
         iid = backlog.add_epic("project", _PROJ, "Gate item", body="x", tag="TST")["id"]
 
+        # BI-PF-1468: grooming applies the design guardrails (prompt) and records the marker (idempotent).
+        _check("DESIGN GUARDRAILS" in grooming._ai_prompt(
+            {"id": iid, "title": "Gate item", "body": "x"}, {"deps": [], "similar": []}),
+            "single groom prompt includes design guardrails")
+        _check("DESIGN GUARDRAILS" in grooming._ai_prompt_batch(
+            [({"id": iid, "title": "Gate item", "body": "x"}, {})]),
+            "batch groom prompt includes design guardrails")
+
         # default (AI) resolves to the AI mode logically; offline it falls back deterministically.
         _check(grooming.default_mode() == "ai", "default mode is ai")
         r = grooming.groom("project", _PROJ, iid)  # default mode (offline -> deterministic fallback)

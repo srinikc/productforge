@@ -98,10 +98,18 @@ appends the summary to the item context. The reviewer **sub-agent** (any model f
 ## Review learning loop (BI-PF-1449)
 
 Reviews are a learning input, not a one-off artifact:
-- **Design-time injection (BI-PF-1467):** before writing a design, run
+- **Design-time injection (BI-PF-1467/1468):** before writing a design, run
   `python scripts/dev/design_guardrails.py --item <ID>` — it injects the checklist + the most relevant
-  CORRECTION-LEDGER rules + recurring review findings into the design. The design-mode review prompt carries
-  the same block, so **Gate 1.5 verifies; it is not the first place these are discovered**.
+  CORRECTION-LEDGER rules + recurring **Gate 1.5** findings into the design. Grooming does this
+  **automatically**: the AI groom prompt carries the block and the item records
+  `Design guardrails applied (<ID>): sig:<digest>` on evidence. The design-mode review prompt carries the same
+  block, so **Gate 1.5 verifies; it is not the first place these are discovered**.
+- **Coding-time injection (BI-PF-1468):** the implementation path carries the same source filtered to recurring
+  **Gate 2.5** findings — the worker appends `CODING GUARDRAILS` to the objective and the code agents
+  (`implement*`, `devops`, `fix`) get it in their prompt. Coding pre-empts the delivery-review classes instead of
+  repeating them; the worker records `coding_guardrails` in its run evidence.
+- **One source, no repetition:** both phases read `core/design_guardrails.py` (checklist + ledger + recurrence
+  report), rules are relevance-ranked and capped, and recurring findings are deduped by `sig:<digest>`.
 - **Gate 1 transition enforcement (BI-PF-1466):** `scripts/dev/gate1_transition_check.py` is a precheck gate
   that blocks `new → in_progress` for a reviewed item while any BLOCKER/MAJOR is PENDING (items without a
   design review are grandfathered).
