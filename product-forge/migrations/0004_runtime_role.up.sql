@@ -6,7 +6,12 @@
 --
 -- No password is set here (secrets are never committed): the local/dev bootstrap sets it out-of-band.
 
-CREATE ROLE pf_app LOGIN NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE INHERIT;
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'pf_app') THEN
+        CREATE ROLE pf_app LOGIN NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE INHERIT;
+    END IF;
+END $$;
 GRANT pf_runtime TO pf_app;
 
 GRANT USAGE ON SCHEMA public TO pf_runtime;

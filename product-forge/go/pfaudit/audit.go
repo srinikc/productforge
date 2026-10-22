@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -36,6 +37,12 @@ const (
 
 // ErrNotReady means the schema substrate (0014) has not been applied yet.
 var ErrNotReady = errors.New("pfaudit: audit_partitioning substrate not applied (run migration 0014)")
+
+// ErrDeltaTooLarge is returned when the remaining delta cannot fit inside the freeze budget.
+var ErrDeltaTooLarge = errors.New("pfaudit: delta exceeds max_delta_rows")
+
+// ErrLockTimeout is returned when ACCESS EXCLUSIVE cannot be acquired within lock_timeout (55P03).
+var ErrLockTimeout = errors.New("pfaudit: lock timeout acquiring audit (55P03)")
 
 // State is the catalog-derived phase of the audit migration. It is the source of truth for resumability:
 // a re-run decides what to do from the catalog, never from an in-memory flag.
@@ -81,8 +88,11 @@ func DetectState(ctx context.Context, pool *pgxpool.Pool) (State, error) {
 func CheckConfig(ctx context.Context, pool *pgxpool.Pool) (batch, maxDelta int, err error) {
 	err = pool.QueryRow(ctx, `SELECT batch_rows, max_delta_rows FROM audit_partition_config WHERE id`).
 		Scan(&batch, &maxDelta)
-	if err != nil {
+	if errors.Is(err, pgx.ErrNoRows) {
 		return 0, 0, ErrNotReady
+	}
+	if err != nil {
+		return 0, 0, fmt.Errorf("pfaudit: read config: %w", err)
 	}
 	if batch != DefaultBatchRows || maxDelta != DefaultMaxDeltaRows {
 		return batch, maxDelta, fmt.Errorf(
@@ -132,9 +142,10 @@ type Checksum struct {
 	Hash     string
 }
 
-const checksumExpr = `encode(sha256(convert_to(
-	string_agg(id::text || '|' || tenant_id || '|' || action || '|' || at::text, E'\n' ORDER BY id, at),
-	'UTF8')), 'hex')`
+// Constant-memory, order-independent per-tenant digest: an aggregate of 64-bit row hashes. The count is
+// compared alongside it, so a collision cannot silently pass verification.
+const checksumExpr = `sum(hashtextextended(
+	id::text || '|' || tenant_id || '|' || action || '|' || at::text, 0))::text`
 
 // TableChecksums computes per-tenant (count, SHA-256) for a table. The table name is validated.
 func TableChecksums(ctx context.Context, pool *pgxpool.Pool, table string) (map[string]Checksum, error) {
@@ -244,6 +255,10 @@ func Swap(ctx context.Context, pool *pgxpool.Pool, maxDelta int) (int64, error) 
 	}
 	// Advisory locks don't take the table lock; do it explicitly, then re-count INSIDE the lock (TOCTOU).
 	if _, err := tx.Exec(ctx, `LOCK TABLE audit IN ACCESS EXCLUSIVE MODE`); err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "55P03" {
+			return 0, ErrLockTimeout
+		}
 		return 0, fmt.Errorf("pfaudit: acquire audit lock: %w", err)
 	}
 	var lastID int64
@@ -255,7 +270,7 @@ func Swap(ctx context.Context, pool *pgxpool.Pool, maxDelta int) (int64, error) 
 		return 0, err
 	}
 	if delta > int64(maxDelta) {
-		return delta, fmt.Errorf("pfaudit: delta %d exceeds max_delta_rows %d - rollback and run another pre-stage batch", delta, maxDelta)
+		return delta, fmt.Errorf("%w (delta=%d max=%d)", ErrDeltaTooLarge, delta, maxDelta)
 	}
 	if delta > 0 {
 		if _, err := tx.Exec(ctx, `
@@ -303,6 +318,10 @@ func Down(ctx context.Context, pool *pgxpool.Pool, force bool, reason string) er
 	if force && strings.TrimSpace(reason) == "" {
 		return errors.New("pfaudit: --force-with-reason requires a non-empty reason")
 	}
+	from, err := DetectState(ctx, pool)
+	if err != nil {
+		return err
+	}
 	tx, err := pool.Begin(ctx)
 	if err != nil {
 		return err
@@ -319,18 +338,21 @@ func Down(ctx context.Context, pool *pgxpool.Pool, force bool, reason string) er
 			return fmt.Errorf("pfaudit: down: %w", err)
 		}
 	}
+	// No id reuse: the restored sequence must sit above BOTH surviving tables.
 	var gap int64
-	if err := tx.QueryRow(ctx, `SELECT GREATEST((SELECT COALESCE(max(id),0) FROM audit), 1)`).Scan(&gap); err != nil {
+	if err := tx.QueryRow(ctx, `SELECT GREATEST(
+		(SELECT COALESCE(max(id),0) FROM audit),
+		(SELECT COALESCE(max(id),0) FROM audit_partitioned), 1) + 1`).Scan(&gap); err != nil {
 		return err
 	}
-	if _, err := tx.Exec(ctx, `SELECT setval('audit_id_seq', $1, true)`, gap); err != nil {
+	if _, err := tx.Exec(ctx, `SELECT setval('audit_id_seq', $1, false)`, gap); err != nil {
 		return err
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return err
 	}
 	_, err = pool.Exec(ctx, `INSERT INTO audit_migration_state_events(actor, from_state, to_state, detail)
-		VALUES (current_user, 'swapped', 'down', jsonb_build_object('reason',$1))`, reason)
+		VALUES (current_user, $1, 'down', jsonb_build_object('reason',$2))`, string(from), reason)
 	return err
 }
 
@@ -359,5 +381,49 @@ func AuditMonthName(ts time.Time) string {
 	return "audit_" + ts.UTC().Format("200601")
 }
 
-// Ensure pgx is referenced even in builds that only use the higher-level helpers.
-var _ = pgx.ErrNoRows
+// MonthLabel formats a partition month for humans; nil renders as "-".
+func MonthLabel(t *time.Time) string {
+	if t == nil {
+		return "-"
+	}
+	return t.Format("2006-01-02")
+}
+
+// PostVerify re-checks the swapped cluster: counts, sequence coverage and per-leaf hardening.
+func PostVerify(ctx context.Context, pool *pgxpool.Pool) error {
+	// Post-swap the trusted side is audit_legacy (the frozen flat table), not audit_partitioned.
+	legacy, err := TableChecksums(ctx, pool, "audit_legacy")
+	if err != nil {
+		return fmt.Errorf("pfaudit: checksum audit_legacy: %w", err)
+	}
+	live, err := TableChecksums(ctx, pool, "audit")
+	if err != nil {
+		return fmt.Errorf("pfaudit: checksum audit: %w", err)
+	}
+	for tenant, want := range legacy {
+		if got, ok := live[tenant]; !ok || got != want {
+			return fmt.Errorf("pfaudit: post-swap mismatch for tenant %s", tenant)
+		}
+	}
+	for tenant := range live {
+		if _, ok := legacy[tenant]; !ok {
+			return fmt.Errorf("pfaudit: post-swap extra tenant %s", tenant)
+		}
+	}
+	var last, maxID int64
+	if err := pool.QueryRow(ctx, `SELECT last_value FROM audit_id_seq`).Scan(&last); err != nil {
+		return err
+	}
+	if err := pool.QueryRow(ctx, `SELECT GREATEST(
+		(SELECT COALESCE(max(id),0) FROM audit),
+		(SELECT COALESCE(max(id),0) FROM audit_legacy))`).Scan(&maxID); err != nil {
+		return err
+	}
+	if last <= maxID {
+		return fmt.Errorf("pfaudit: sequence %d is not above max id %d (id reuse risk)", last, maxID)
+	}
+	if _, err := pool.Exec(ctx, `SELECT audit_assert_hardened()`); err != nil {
+		return fmt.Errorf("pfaudit: post-swap hardening: %w", err)
+	}
+	return nil
+}

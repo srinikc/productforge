@@ -56,6 +56,14 @@ func TestLockConstantsMatchSQL(t *testing.T) {
 			t.Fatalf("migration does not contain advisory namespace %q", k)
 		}
 	}
+	// The SQL must lock through the shared helper (single hashing implementation) and the helper must use
+	// hashtext over the namespace, matching Go's pg_advisory_* calls.
+	if !strings.Contains(sql, "audit_advisory_lock('"+LockProvision+"')") {
+		t.Fatalf("migration does not call audit_advisory_lock(%q)", LockProvision)
+	}
+	if !strings.Contains(sql, "pg_advisory_xact_lock(hashtext(p_ns))") {
+		t.Fatal("audit_advisory_lock does not hash the namespace")
+	}
 }
 
 func TestStateNames(t *testing.T) {

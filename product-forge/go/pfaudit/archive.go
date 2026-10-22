@@ -3,6 +3,8 @@ package pfaudit
 import (
 	"bufio"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -109,6 +111,8 @@ func ExportMonth(ctx context.Context, pool *pgxpool.Pool, obj datastore.ObjectSt
 	key := ArchiveKey(month)
 	info, err := obj.Put(ctx, key, f, size, datastore.PutOptions{
 		ContentType: "application/x-ndjson", Checksum: hash, Immutable: true,
+		// Kept empty for the local adapter (it rejects SSE); cloud wiring sets PF_AUDIT_SSE (e.g. aws:kms).
+		ServerSideEncryption: os.Getenv("PF_AUDIT_SSE"),
 	})
 	f.Close()
 	if err != nil {
@@ -132,11 +136,18 @@ func RestoreMonth(ctx context.Context, pool *pgxpool.Pool, obj datastore.ObjectS
 		return 0, fmt.Errorf("pfaudit: invalid partition %q", month)
 	}
 	scratch := "audit_restore_" + month[len(month)-6:]
+	var wantRows int64
+	var wantSum string
+	if err := pool.QueryRow(ctx, `SELECT row_count, checksum FROM audit_archive_manifest WHERE month = $1`, month).
+		Scan(&wantRows, &wantSum); err != nil {
+		return 0, fmt.Errorf("pfaudit: manifest for %s: %w", month, err)
+	}
 	rc, _, err := obj.Get(ctx, ArchiveKey(month), "")
 	if err != nil {
 		return 0, fmt.Errorf("pfaudit: get %s: %w", ArchiveKey(month), err)
 	}
 	defer rc.Close()
+	h := sha256.New()
 
 	from, to := monthBounds(month)
 	if _, err := pool.Exec(ctx, fmt.Sprintf(
@@ -147,7 +158,7 @@ func RestoreMonth(ctx context.Context, pool *pgxpool.Pool, obj datastore.ObjectS
 	if _, err := pool.Exec(ctx, `SELECT audit_harden_partition($1)`, scratch); err != nil {
 		return 0, err
 	}
-	sc := bufio.NewScanner(rc)
+	sc := bufio.NewScanner(io.TeeReader(rc, h))
 	sc.Buffer(make([]byte, 0, 1<<20), 16<<20)
 	batch := make([][]any, 0, 1000)
 	var n int64
@@ -191,10 +202,41 @@ func RestoreMonth(ctx context.Context, pool *pgxpool.Pool, obj datastore.ObjectS
 	if err := flush(); err != nil {
 		return n, err
 	}
+	if got := hex.EncodeToString(h.Sum(nil)); wantSum != "" && got != wantSum {
+		return n, fmt.Errorf("pfaudit: archive checksum %s != manifest %s", got, wantSum)
+	}
+	if n != wantRows {
+		return n, fmt.Errorf("pfaudit: archive has %d row(s), manifest says %d", n, wantRows)
+	}
+	var restored int64
+	if err := pool.QueryRow(ctx, `SELECT count(*) FROM `+scratch).Scan(&restored); err != nil {
+		return n, err
+	}
+	if restored != wantRows {
+		return n, fmt.Errorf("pfaudit: restored %d row(s), manifest says %d", restored, wantRows)
+	}
 	if _, err := pool.Exec(ctx, `SELECT audit_restore_lock($1, current_user, 'cold restore')`, month); err != nil {
 		return n, err
 	}
 	return n, nil
+}
+
+// VerifyHoldExtraction proves that every row still under an active hold in month has been copied to
+// audit_legal_hold_archive before the hot partition may be dropped.
+func VerifyHoldExtraction(ctx context.Context, pool *pgxpool.Pool, month string) (archived, missing int64, err error) {
+	if !validTable(month) {
+		return 0, 0, fmt.Errorf("pfaudit: invalid partition %q", month)
+	}
+	q := `SELECT
+	  (SELECT count(*) FROM audit_legal_hold_archive WHERE source_partition = $1),
+	  (SELECT count(*) FROM ` + month + ` a
+	     JOIN audit_legal_hold_events e ON e.month = $1 AND e.action = 'hold'
+	    WHERE NOT EXISTS (SELECT 1 FROM audit_legal_hold_events r
+	                       WHERE r.hold_id = e.hold_id AND r.action = 'release' AND r.at > e.at)
+	      AND NOT EXISTS (SELECT 1 FROM audit_legal_hold_archive x
+	                       WHERE x.hold_id = e.hold_id AND x.id = a.id AND x.at = a.at))`
+	err = pool.QueryRow(ctx, q, month).Scan(&archived, &missing)
+	return archived, missing, err
 }
 
 // PurgeMonth deletes the archived objects and records the irreversible purge (approval must exist).

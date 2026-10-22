@@ -334,6 +334,12 @@ BEGIN
     IF p_month !~ '^audit_[0-9]{6}$' THEN
         RAISE EXCEPTION 'audit_drop_partition: refusing %', p_month;
     END IF;
+    IF to_date(substr(p_month, 7, 6), 'YYYYMM') >= audit_month_start(now()) THEN
+        RAISE EXCEPTION 'audit_drop_partition: % is current/future (never dropped)', p_month;
+    END IF;
+    IF EXISTS (SELECT 1 FROM pg_class WHERE relname = p_month AND relname LIKE 'audit_grace_%') THEN
+        RAISE EXCEPTION 'audit_drop_partition: % is the grace partition', p_month;
+    END IF;
     IF NOT EXISTS (SELECT 1 FROM audit_archive_manifest WHERE month = p_month AND archived_at IS NOT NULL) THEN
         RAISE EXCEPTION 'audit_drop_partition: % has no verified archive', p_month;
     END IF;

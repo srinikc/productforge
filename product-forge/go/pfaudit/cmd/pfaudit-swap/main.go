@@ -8,6 +8,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -34,6 +35,7 @@ func main() {
 	dsn := fs.String("dsn", os.Getenv("PF_DB_DSN"), "PostgreSQL DSN")
 	batch := fs.Int("batch", pfaudit.DefaultBatchRows, "rows per copy batch")
 	maxDelta := fs.Int("max-delta", pfaudit.DefaultMaxDeltaRows, "maximum delta rows to drain under the lock")
+	metricsOut := fs.Bool("metrics", true, "emit one structured metrics line on exit")
 	objRoot := fs.String("object-root", os.Getenv("PF_OBJECT_ROOT"), "local object-store root (when no cloud adapter)")
 	backupKey := fs.String("backup-key", os.Getenv("PF_AUDIT_BACKUP_KEY"), "object key of the encrypted pre-swap dump")
 	recipient := fs.String("age-recipient", os.Getenv("PF_AGE_RECIPIENT"), "age recipient for the encrypted dump")
@@ -49,6 +51,8 @@ func main() {
 		fail("connect: %v", err)
 	}
 	defer pool.Close()
+	_ = metricsOut
+	m := pfaudit.NewMetrics()
 
 	switch cmd {
 	case "plan", "status":
@@ -73,6 +77,10 @@ func main() {
 		if err == nil {
 			fmt.Printf("coverage: min=%v max=%v grace=%v months_ahead=%d\n",
 				deref(cov.MinMonth), deref(cov.MaxMonth), deref(cov.GraceMonth), cov.MonthsAhead)
+			m.Gauge(pfaudit.MetricMonthsAhead, float64(cov.MonthsAhead))
+			if cov.MonthsAhead < 2 {
+				m.Inc(pfaudit.MetricLowCoverage)
+			}
 		}
 	case "backup":
 		if *recipient == "" {
@@ -81,11 +89,14 @@ func main() {
 		if *backupKey == "" {
 			*backupKey = fmt.Sprintf("audit-backup/%s/audit.dump.age", time.Now().UTC().Format("20060102T150405"))
 		}
-		if err := backup(ctx, *dsn, *objRoot, *backupKey, *recipient); err != nil {
+		obj := openObjectStore(*objRoot)
+		if err := backup(ctx, *dsn, obj, *backupKey, *recipient); err != nil {
 			fail("%v", err)
 		}
-		fmt.Printf("backup written: %s\n", *backupKey)
-		fail("run the restore rehearsal before prestage; then: --backup-key %s", *backupKey)
+		if err := rehearsal(ctx, obj, *backupKey); err != nil {
+			fail("restore rehearsal: %v", err)
+		}
+		fmt.Printf("backup written + rehearsal OK: %s (pass --backup-key %s to close)\n", *backupKey, *backupKey)
 	case "prestage":
 		runPrestage(ctx, pool, *batch)
 		_, _, _ = pfaudit.CheckConfig(ctx, pool)
@@ -99,10 +110,22 @@ func main() {
 		}
 		fmt.Println("verify: OK (per-tenant count + sha256 match)")
 	case "swap":
-		runSwap(ctx, pool, *maxDelta)
+		runSwap(ctx, pool, *maxDelta, m)
 	case "close":
 		if *backupKey == "" {
 			fail("--backup-key is required to close: the dump must survive until sign-off")
+		}
+		var elapsed float64
+		if err := pool.QueryRow(ctx, `SELECT COALESCE(EXTRACT(EPOCH FROM (now() - max(at)))/86400, -1)
+			FROM audit_migration_state_events WHERE to_state = 'swapped'`).Scan(&elapsed); err != nil || elapsed < 0 {
+			fail("close: no recorded swap (elapsed=%v err=%v)", elapsed, err)
+		}
+		var window int
+		if err := pool.QueryRow(ctx, `SELECT rollback_days FROM audit_partition_config WHERE id`).Scan(&window); err != nil {
+			fail("close: read rollback_days: %v", err)
+		}
+		if elapsed < float64(window) && !(*force && *reason != "") {
+			fail("close: rollback window is %dd, only %.1fd elapsed (use --force-with-reason --reason)", window, elapsed)
 		}
 		if err := pfaudit.RecordState(ctx, pool, "swap_closed", fmt.Sprintf(`{"backup":%q}`, *backupKey)); err != nil {
 			fail("record close: %v", err)
@@ -120,6 +143,18 @@ func main() {
 	default:
 		usage()
 	}
+	if *metricsOut {
+		emitMetrics(m)
+	}
+}
+
+func emitMetrics(m *pfaudit.Metrics) {
+	c, g := m.Snapshot()
+	if len(c) == 0 && len(g) == 0 {
+		return
+	}
+	b, _ := json.Marshal(map[string]any{"metrics": c, "gauges": g})
+	fmt.Println(string(b))
 }
 
 func runPrestage(ctx context.Context, pool *pgxpool.Pool, batch int) {
@@ -149,35 +184,109 @@ func runPrestage(ctx context.Context, pool *pgxpool.Pool, batch int) {
 	fmt.Printf("prestage complete: %d row(s) newly staged\n", total)
 }
 
-func runSwap(ctx context.Context, pool *pgxpool.Pool, maxDelta int) {
+func runSwap(ctx context.Context, pool *pgxpool.Pool, maxDelta int, m *pfaudit.Metrics) {
+	st, err := pfaudit.DetectState(ctx, pool)
+	if err != nil {
+		fail("swap: detect state: %v", err)
+	}
+	if st == pfaudit.StateSwapped {
+		// Crash after the rename: the data is already live - finish verification instead of re-swapping.
+		if err := pfaudit.PostVerify(ctx, pool); err != nil {
+			fail("swap: resume verification failed: %v", err)
+		}
+		fmt.Println("swap: already committed; post-swap verification OK")
+		return
+	}
+	if st != pfaudit.StatePrestage {
+		fail("swap: requires pre-staged state, got %s (run backup + prestage first)", st)
+	}
+	if problems, err := pfaudit.Verify(ctx, pool); err != nil {
+		fail("swap: pre-swap verify: %v", err)
+	} else if len(problems) != 0 {
+		for t, p := range problems {
+			fmt.Printf("MISMATCH %s: %s\n", t, p)
+		}
+		fail("swap: refusing to swap with %d mismatch(es)", len(problems))
+	}
 	backoff := time.Second
 	for attempt := 1; attempt <= pfaudit.MaxSwapAttempts; attempt++ {
+		start := time.Now()
 		n, err := pfaudit.Swap(ctx, pool, maxDelta)
 		if err == nil {
-			if err := pfaudit.RecordState(ctx, pool, "swapped", fmt.Sprintf(`{"drained":%d}`, n)); err != nil {
+			m.Gauge(pfaudit.MetricSwapFreeze, time.Since(start).Seconds())
+			if err := pfaudit.PostVerify(ctx, pool); err != nil {
+				fail("swap: committed but post-verification failed: %v", err)
+			}
+			if err := pfaudit.RecordState(ctx, pool, "swapped",
+				fmt.Sprintf(`{"drained":%d,"freeze_seconds":%.3f}`, n, time.Since(start).Seconds())); err != nil {
 				fail("record swap: %v", err)
 			}
-			fmt.Printf("swap: committed (drained %d row(s))\n", n)
+			fmt.Printf("swap: committed (drained %d row(s), freeze %.1fs)\n", n, time.Since(start).Seconds())
 			return
 		}
+		retryable := errors.Is(err, pfaudit.ErrDeltaTooLarge) || errors.Is(err, pfaudit.ErrLockTimeout)
 		var pgErr *pgconn.PgError
-		retryable := strings.Contains(err.Error(), "exceeds max_delta_rows")
-		if errors.As(err, &pgErr) {
-			retryable = retryable || pgErr.Code == "55P03"
+		if errors.As(err, &pgErr) && pgErr.Code == "55P03" {
+			retryable = true
 		}
 		if !retryable {
 			fail("swap: %v", err)
 		}
+		m.Inc(pfaudit.MetricSwapRetry)
 		fmt.Printf("swap attempt %d/%d deferred: %v\n", attempt, pfaudit.MaxSwapAttempts, err)
+		if attempt == pfaudit.MaxSwapAttempts {
+			break
+		}
 		time.Sleep(backoff)
 		backoff *= 2
 	}
+	m.Inc(pfaudit.MetricSwapRetryExhaust)
 	_ = pfaudit.RecordState(ctx, pool, "retry_exhausted", "{}")
 	fail("swap: retry budget exhausted; re-run prestage and retry")
 }
 
-func backup(ctx context.Context, dsn, root, key, recipient string) error {
-	dump := exec.CommandContext(ctx, "pg_dump", "-Fc", "-t", "audit", "-f", "-", dsn)
+// rehearsal proves the encrypted dump is readable and contains the table, its sequence and RLS policies.
+func rehearsal(ctx context.Context, obj datastore.ObjectStore, key string) error {
+	rc, _, err := obj.Get(ctx, key, "")
+	if err != nil {
+		return err
+	}
+	defer rc.Close()
+	tmp, err := os.CreateTemp("", "pfaudit-backup-*.age")
+	if err != nil {
+		return err
+	}
+	defer os.Remove(tmp.Name())
+	if _, err := io.Copy(tmp, rc); err != nil {
+		return err
+	}
+	tmp.Close()
+	// age is required to reach plaintext; a missing key is a hard failure, not a skip.
+	dec := exec.CommandContext(ctx, "age", "-d", "-i", os.Getenv("PF_AGE_IDENTITY"), tmp.Name())
+	list := exec.CommandContext(ctx, "pg_restore", "-l")
+	pr, pw := io.Pipe()
+	dec.Stdout = pw
+	dec.Stderr = os.Stderr
+	list.Stdin = pr
+	out, err := list.Output()
+	if startErr := dec.Start(); startErr != nil {
+		pr.Close()
+		return fmt.Errorf("age -d: %w", startErr)
+	}
+	go func() { pw.CloseWithError(dec.Wait()) }()
+	if err != nil {
+		return fmt.Errorf("pg_restore -l: %w", err)
+	}
+	for _, want := range []string{"TABLE public audit", "SEQUENCE public audit_id_seq"} {
+		if !strings.Contains(string(out), want) {
+			return fmt.Errorf("dump is missing %q", want)
+		}
+	}
+	return nil
+}
+
+func backup(ctx context.Context, dsn string, obj datastore.ObjectStore, key, recipient string) error {
+	dump := exec.CommandContext(ctx, "pg_dump", "-Fc", "-t", "audit", "-t", "audit_id_seq", "-f", "-", dsn)
 	age := exec.CommandContext(ctx, "age", "-r", recipient)
 	dp, err := dump.StdoutPipe()
 	if err != nil {
@@ -194,9 +303,9 @@ func backup(ctx context.Context, dsn, root, key, recipient string) error {
 		return fmt.Errorf("age: %w", err)
 	}
 	go func() { pw.CloseWithError(age.Wait()) }()
-	obj := openObjectStore(root)
 	info, putErr := obj.Put(ctx, key, pr, -1, datastore.PutOptions{
 		ContentType: "application/octet-stream", Immutable: true, Retention: 14 * 24 * time.Hour,
+		ServerSideEncryption: os.Getenv("PF_AUDIT_SSE"),
 	})
 	if werr := dump.Wait(); werr != nil {
 		return fmt.Errorf("pg_dump: %w", werr)
@@ -221,12 +330,7 @@ func openObjectStore(root string) datastore.ObjectStore {
 	return obj
 }
 
-func deref(t *time.Time) string {
-	if t == nil {
-		return "-"
-	}
-	return t.Format("2006-01-02")
-}
+func deref(t *time.Time) string { return pfaudit.MonthLabel(t) }
 
 func usage() {
 	fmt.Fprintln(os.Stderr, "usage: pfaudit-swap <plan|status|backup|prestage|verify|swap|close|down> [flags]")

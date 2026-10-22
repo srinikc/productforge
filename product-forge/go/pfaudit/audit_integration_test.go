@@ -69,6 +69,10 @@ func TestAuditPartitioningIntegration(t *testing.T) {
 	if st, err := DetectState(ctx, pool); err != nil || st != StateSwapped {
 		t.Fatalf("post-swap state = %v, %v", st, err)
 	}
+	// Crash-after-rename resume path: a re-run must not re-swap, only verify.
+	if err := PostVerify(ctx, pool); err != nil {
+		t.Fatalf("post-swap verify: %v", err)
+	}
 
 	// the canonical sequence continues above both tables' max id
 	var id int64
@@ -84,8 +88,35 @@ func TestAuditPartitioningIntegration(t *testing.T) {
 		t.Fatalf("post-swap id %d reused legacy range (max %d)", id, maxID)
 	}
 
-	// row-level hold extraction, then two-stage retention (export -> manifest -> drop)
-	month := AuditMonthName(now)
+	// row-level hold extraction, then two-stage retention (export -> manifest -> drop) on an OLD month:
+	// retention must never touch the current/future month or the grace partition.
+	old := now.AddDate(0, -20, 0)
+	month := AuditMonthName(old)
+	from := time.Date(old.Year(), old.Month(), 1, 0, 0, 0, 0, time.UTC)
+	to := from.AddDate(0, 1, 0)
+	if _, err := pool.Exec(ctx, fmt.Sprintf(
+		`CREATE TABLE public.%s PARTITION OF audit FOR VALUES FROM ('%s') TO ('%s')`,
+		month, from.Format("2006-01-02 15:04:05+00"), to.Format("2006-01-02 15:04:05+00"))); err != nil {
+		t.Fatalf("create old partition: %v", err)
+	}
+	if _, err := pool.Exec(ctx, `SELECT audit_harden_partition($1)`, month); err != nil {
+		t.Fatalf("harden old partition: %v", err)
+	}
+	for i := 0; i < 3; i++ {
+		if _, err := pool.Exec(ctx, `INSERT INTO audit (tenant_id, actor, action, at) VALUES ($1,'a','cold',$2)`,
+			tenant, from.Add(time.Duration(i)*time.Hour)); err != nil {
+			t.Fatalf("seed cold month: %v", err)
+		}
+	}
+	if cands, err := RetentionCandidates(ctx, pool, 13); err != nil {
+		t.Fatalf("candidates: %v", err)
+	} else {
+		for _, c := range cands {
+			if c == AuditMonthName(now) {
+				t.Fatalf("current month %s is a retention candidate", c)
+			}
+		}
+	}
 	if _, err := pool.Exec(ctx, `INSERT INTO audit_legal_hold_events(hold_id, tenant_id, month, action, actor, reason)
 		VALUES ('hold-it', $1, $2, 'hold', 'tester', 'legal')`, tenant, month); err != nil {
 		t.Fatalf("hold event: %v", err)
@@ -93,9 +124,8 @@ func TestAuditPartitioningIntegration(t *testing.T) {
 	if _, err := pool.Exec(ctx, `SELECT audit_hold_extract($1)`, month); err != nil {
 		t.Fatalf("hold extract: %v", err)
 	}
-	if _, err := pool.Exec(ctx, `INSERT INTO audit_legal_hold_events(hold_id, tenant_id, month, action, actor, reason)
-		VALUES ('hold-it', $1, $2, 'release', 'tester', 'released')`, tenant, month); err != nil {
-		t.Fatalf("release hold: %v", err)
+	if archived, missing, err := VerifyHoldExtraction(ctx, pool, month); err != nil || missing != 0 || archived == 0 {
+		t.Fatalf("hold verify: archived=%d missing=%d err=%v", archived, missing, err)
 	}
 	var held int64
 	if err := pool.QueryRow(ctx, `SELECT count(*) FROM audit_legal_hold_archive WHERE hold_id='hold-it'`).Scan(&held); err != nil {
@@ -103,6 +133,13 @@ func TestAuditPartitioningIntegration(t *testing.T) {
 	}
 	if held == 0 {
 		t.Fatal("hold extract archived no rows")
+	}
+	if _, err := pool.Exec(ctx, `SELECT audit_drop_partition($1)`, month); err == nil {
+		t.Fatal("drop with an active hold must be refused")
+	}
+	if _, err := pool.Exec(ctx, `INSERT INTO audit_legal_hold_events(hold_id, tenant_id, month, action, actor, reason)
+		VALUES ('hold-it', $1, $2, 'release', 'tester', 'released')`, tenant, month); err != nil {
+		t.Fatalf("release hold: %v", err)
 	}
 
 	obj, err := objstore.NewLocalStore(t.TempDir(), 1<<30)
@@ -128,7 +165,46 @@ func TestAuditPartitioningIntegration(t *testing.T) {
 	if err := PurgeMonth(ctx, pool, obj, month, "tester", "retention policy"); err != nil {
 		t.Fatalf("purge: %v", err)
 	}
-	if _, err := pool.Exec(ctx, `SELECT audit_drop_partition($1)`, month); err == nil {
-		t.Fatal("drop after purge must fail")
+	if _, err := RestoreMonth(ctx, pool, obj, month); err == nil {
+		t.Fatal("restore of a purged month must fail")
+	}
+}
+
+// TestVerifyDetectsDivergence proves an extra/divergent shadow row (the shape an ON CONFLICT id reuse would
+// take) aborts the swap instead of being masked.
+func TestVerifyDetectsDivergence(t *testing.T) {
+	if os.Getenv("PF_DB_DSN") == "" {
+		t.Skip("PF_DB_DSN not set - skipping PostgreSQL integration test")
+	}
+	ctx := context.Background()
+	pool := setup(t)
+	tenant := fmt.Sprintf("it-div-%d", time.Now().UnixNano())
+	now := time.Now().UTC()
+	for i := 0; i < 3; i++ {
+		if _, err := pool.Exec(ctx, `INSERT INTO audit (tenant_id, actor, action, at) VALUES ($1,'a','x',$2)`,
+			tenant, now.Add(-time.Duration(i)*time.Minute)); err != nil {
+			t.Fatalf("seed: %v", err)
+		}
+	}
+	var cursor int64
+	for {
+		r, err := CopyBatch(ctx, pool, cursor, 2)
+		if err != nil {
+			t.Fatalf("copy: %v", err)
+		}
+		cursor = r.LastID
+		if r.Done {
+			break
+		}
+	}
+	if problems, err := Verify(ctx, pool); err != nil || len(problems) != 0 {
+		t.Fatalf("baseline verify: %v %v", problems, err)
+	}
+	if _, err := pool.Exec(ctx, `INSERT INTO audit_partitioned (tenant_id, actor, action, at)
+		VALUES ($1,'a','intruder',now())`, tenant); err != nil {
+		t.Fatalf("inject divergence: %v", err)
+	}
+	if problems, _ := Verify(ctx, pool); len(problems) == 0 {
+		t.Fatal("verify missed a divergent shadow row")
 	}
 }

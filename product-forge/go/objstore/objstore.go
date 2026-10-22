@@ -111,6 +111,9 @@ func (s *LocalStore) Put(ctx context.Context, key string, r io.Reader, size int6
 	if err != nil {
 		return datastore.ObjectInfo{}, err
 	}
+	if opts.ServerSideEncryption != "" {
+		return datastore.ObjectInfo{}, fmt.Errorf("objstore: local store cannot honour ServerSideEncryption")
+	}
 	if s.maxSize > 0 && size > s.maxSize {
 		return datastore.ObjectInfo{}, ErrTooLarge
 	}

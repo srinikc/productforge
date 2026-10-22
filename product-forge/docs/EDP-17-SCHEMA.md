@@ -104,7 +104,8 @@ The append-only `audit` table is migrated to monthly `RANGE (at)` partitioning (
   retried), then one atomic rename and `setval` on the canonical `audit_id_seq`.
 
 Security: RLS is `ENABLE + FORCE` with `tenant_isolation` on the parent and every leaf; `deny_mutation`
-covers UPDATE/DELETE on all leaves; `TRUNCATE` is revoked; app/tenant roles hold `INSERT, SELECT` on the
+covers UPDATE/DELETE rows on the parent and every leaf; `TRUNCATE` is statement-level (not visible to row
+triggers) and is therefore revoked from every role; app/tenant roles hold `INSERT, SELECT` on the
 **parent only** (no leaf grants). `audit_attach_partition` is the only supported attach path
 (create + harden + attach); `audit_assert_hardened()` detects a privileged attach that skipped hardening.
 

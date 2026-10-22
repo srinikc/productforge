@@ -207,7 +207,7 @@ def _llm_call(prompt: str, model: str) -> str:
 
 def _build_prompt(item: dict, item_id: str, mode: str) -> str:
     ac = "\n".join(f"- {c}" for c in (item.get("acceptance_criteria") or [])) or "- (none)"
-    body = _design_body(item) if mode == "design" else "Diff:\n```diff\n" + _git_diff()[:60000] + "\n```"
+    body = _design_body(item) if mode == "design" else "Diff:\n```diff\n" + _git_diff()[:400000] + "\n```"
     prompt = PROMPT.format(target=("design" if mode == "design" else "implementation diff"),
                            item=item_id, ac=ac, body=body)
     if mode == "design":

@@ -8,6 +8,8 @@ import (
 	"testing"
 	"time"
 
+	"strings"
+
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"productforge/migrate"
@@ -20,6 +22,10 @@ func setup(t *testing.T) *pgxpool.Pool {
 	if dsn == "" {
 		t.Skip("PF_DB_DSN not set - skipping PostgreSQL integration test")
 	}
+	// This harness drops and recreates the schema: only ever point it at a disposable database.
+	if os.Getenv("PF_DB_TEST_RESET") != "1" || !strings.Contains(dsn, "test") {
+		t.Skip("destructive harness: set PF_DB_TEST_RESET=1 and a DSN whose database name contains 'test'")
+	}
 	ctx := context.Background()
 	pool, err := pgxpool.New(ctx, dsn)
 	if err != nil {
@@ -27,9 +33,7 @@ func setup(t *testing.T) *pgxpool.Pool {
 	}
 	t.Cleanup(pool.Close)
 	// disposable test DB: start from a clean schema so tests never inherit each other's state.
-	// Migration 0004 creates pf_app (not idempotent across a schema reset), so drop it too.
-	_, _ = pool.Exec(ctx, `DROP OWNED BY pf_app`)
-	_, _ = pool.Exec(ctx, `DROP ROLE IF EXISTS pf_app`)
+	// Roles are cluster-scoped and survive a schema reset; 0004 is idempotent so it is simply re-run.
 	if _, err := pool.Exec(ctx, `DROP SCHEMA public CASCADE`); err != nil {
 		t.Fatalf("reset schema: %v", err)
 	}

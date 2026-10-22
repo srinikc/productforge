@@ -8,6 +8,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
@@ -44,10 +45,17 @@ func main() {
 	}
 	defer pool.Close()
 	obj := objectStore(*root)
-	if _, err := pool.Exec(ctx, `SELECT pg_advisory_lock(hashtext('AURE'))`); err != nil {
+	met := pfaudit.NewMetrics()
+	// The lock must live on one dedicated connection: a pool-level Exec may unlock on a different backend.
+	lockConn, err := pool.Acquire(ctx)
+	if err != nil {
+		fail("retention lock conn: %v", err)
+	}
+	defer lockConn.Release()
+	if _, err := lockConn.Exec(ctx, `SELECT pg_advisory_lock(hashtext('AURE'))`); err != nil {
 		fail("retention lock: %v", err)
 	}
-	defer pool.Exec(ctx, `SELECT pg_advisory_unlock(hashtext('AURE'))`)
+	defer lockConn.Exec(ctx, `SELECT pg_advisory_unlock(hashtext('AURE'))`)
 
 	switch cmd {
 	case "coverage":
@@ -57,6 +65,13 @@ func main() {
 		}
 		fmt.Printf("min=%v max=%v grace=%v months_ahead=%d\n",
 			fmtTime(c.MinMonth), fmtTime(c.MaxMonth), fmtTime(c.GraceMonth), c.MonthsAhead)
+		met.Gauge(pfaudit.MetricMonthsAhead, float64(c.MonthsAhead))
+		if c.MonthsAhead < 2 {
+			met.Inc(pfaudit.MetricLowCoverage)
+		}
+		if c.MinMonth != nil && c.MaxMonth != nil {
+			fmt.Printf("retention: keep %d month(s); candidates are fully-old months only\n", *keep)
+		}
 	case "candidates":
 		months, err := pfaudit.RetentionCandidates(ctx, pool, *keep)
 		if err != nil {
@@ -77,31 +92,43 @@ func main() {
 		if err != nil {
 			fail("%v", err)
 		}
-		fmt.Printf("holds: extracted %d row(s) from %s\n", n, *month)
+		met.Inc(pfaudit.MetricHoldExtract)
+		if err := verifyHolds(ctx, pool, met, *month); err != nil {
+			fail("%v", err)
+		}
+		fmt.Printf("holds: extracted %d row(s) from %s (verified)\n", n, *month)
 	case "export":
 		months, err := pfaudit.RetentionCandidates(ctx, pool, *keep)
 		if err != nil {
 			fail("%v", err)
 		}
-		for _, m := range months {
+		for _, mon := range months {
 			if *dry {
-				fmt.Printf("would export+drop %s\n", m)
+				fmt.Printf("would export+drop %s\n", mon)
 				continue
 			}
-			if n, err := pfaudit.ExtractHolds(ctx, pool, m); err != nil {
-				fail("holds %s: %v", m, err)
+			if n, err := pfaudit.ExtractHolds(ctx, pool, mon); err != nil {
+				fail("holds %s: %v", mon, err)
 			} else if n > 0 {
-				fmt.Printf("%s: extracted %d held row(s)\n", m, n)
+				fmt.Printf("%s: extracted %d held row(s)\n", mon, n)
+				met.Inc(pfaudit.MetricHoldExtract)
 			}
-			man, err := pfaudit.ExportMonth(ctx, pool, obj, m)
+			if err := verifyHolds(ctx, pool, met, mon); err != nil {
+				fail("holds %s: %v", mon, err)
+			}
+			man, err := pfaudit.ExportMonth(ctx, pool, obj, mon)
 			if err != nil {
-				fail("export %s: %v", m, err)
+				fail("export %s: %v", mon, err)
 			}
-			fmt.Printf("%s: exported rows=%d sha256=%s key=%s\n", m, man.Rows, man.Checksum, man.Keys)
-			if _, err := pool.Exec(ctx, `SELECT audit_drop_partition($1)`, m); err != nil {
-				fail("drop %s: %v", m, err)
+			met.Inc(pfaudit.MetricExport)
+			if err != nil {
+				fail("export %s: %v", mon, err)
 			}
-			fmt.Printf("%s: hot partition dropped\n", m)
+			fmt.Printf("%s: exported rows=%d sha256=%s key=%s\n", mon, man.Rows, man.Checksum, man.Keys)
+			if _, err := pool.Exec(ctx, `SELECT audit_drop_partition($1)`, mon); err != nil {
+				fail("drop %s: %v", mon, err)
+			}
+			fmt.Printf("%s: hot partition dropped\n", mon)
 		}
 	case "purge":
 		if *month == "" || *actor == "" || *reason == "" {
@@ -114,6 +141,7 @@ func main() {
 		if err := pfaudit.PurgeMonth(ctx, pool, obj, *month, *actor, *reason); err != nil {
 			fail("%v", err)
 		}
+		met.Inc(pfaudit.MetricPurge)
 		fmt.Printf("purged %s (irreversible; approval recorded)\n", *month)
 	case "restore":
 		if *month == "" {
@@ -127,6 +155,29 @@ func main() {
 	default:
 		usage()
 	}
+	emitMetrics(met)
+}
+
+func verifyHolds(ctx context.Context, pool *pgxpool.Pool, met *pfaudit.Metrics, month string) error {
+	archived, missing, err := pfaudit.VerifyHoldExtraction(ctx, pool, month)
+	if err != nil {
+		return err
+	}
+	if missing != 0 {
+		met.Inc(pfaudit.MetricHoldAfterPurge)
+		return fmt.Errorf("holds %s: %d held row(s) are NOT archived - refusing to drop", month, missing)
+	}
+	fmt.Printf("holds %s: archived=%d missing=0\n", month, archived)
+	return nil
+}
+
+func emitMetrics(m *pfaudit.Metrics) {
+	c, g := m.Snapshot()
+	if len(c) == 0 && len(g) == 0 {
+		return
+	}
+	b, _ := json.Marshal(map[string]any{"metrics": c, "gauges": g})
+	fmt.Println(string(b))
 }
 
 func objectStore(root string) datastore.ObjectStore {
@@ -140,12 +191,7 @@ func objectStore(root string) datastore.ObjectStore {
 	return obj
 }
 
-func fmtTime(t *time.Time) string {
-	if t == nil {
-		return "-"
-	}
-	return t.Format("2006-01-02")
-}
+func fmtTime(t *time.Time) string { return pfaudit.MonthLabel(t) }
 
 func usage() {
 	fmt.Fprintln(os.Stderr, "usage: pfaudit-retention <coverage|candidates|holds|export|purge|restore> [flags]")
