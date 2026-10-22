@@ -181,16 +181,18 @@ func RestoreMonth(ctx context.Context, pool *pgxpool.Pool, obj datastore.ObjectS
 	if _, err := tmp.Seek(0, io.SeekStart); err != nil {
 		return 0, err
 	}
+	// Standalone scratch table, NOT a partition: attaching the archived month range would overlap the
+	// canonical partition that rotation re-creates for the same month.
 	scratch := "audit_restore_" + month[len(month)-6:]
 	var parent string
 	if err := pool.QueryRow(ctx, `SELECT audit_parent()::text`).Scan(&parent); err != nil {
 		return 0, fmt.Errorf("pfaudit: audit_parent: %w", err)
 	}
-	from, to := monthBounds(month)
-	if _, err := pool.Exec(ctx, fmt.Sprintf(
-		`CREATE TABLE IF NOT EXISTS %s PARTITION OF %s FOR VALUES FROM (%s) TO (%s)`,
-		scratch, parent, quoteDate(from), quoteDate(to))); err != nil {
-		return 0, fmt.Errorf("pfaudit: create scratch partition: %w", err)
+	if _, err := pool.Exec(ctx, fmt.Sprintf(`DROP TABLE IF EXISTS %s`, scratch)); err != nil {
+		return 0, fmt.Errorf("pfaudit: reset scratch: %w", err)
+	}
+	if _, err := pool.Exec(ctx, fmt.Sprintf(`CREATE TABLE %s (LIKE %s INCLUDING ALL)`, scratch, parent)); err != nil {
+		return 0, fmt.Errorf("pfaudit: create scratch table: %w", err)
 	}
 	if _, err := pool.Exec(ctx, `SELECT audit_harden_partition($1)`, scratch); err != nil {
 		return 0, err
@@ -278,6 +280,16 @@ func PurgeMonth(ctx context.Context, pool *pgxpool.Pool, obj datastore.ObjectSto
 	if actor == "" || reason == "" {
 		return fmt.Errorf("pfaudit: purge requires actor and reason")
 	}
+	var active int64
+	if err := pool.QueryRow(ctx, `SELECT count(*) FROM audit_legal_hold_events h
+		WHERE h.month = $1 AND h.action = 'hold' AND NOT EXISTS (
+		    SELECT 1 FROM audit_legal_hold_events r
+		    WHERE r.hold_id = h.hold_id AND r.action = 'release' AND r.at > h.at)`, month).Scan(&active); err != nil {
+		return err
+	}
+	if active > 0 {
+		return fmt.Errorf("pfaudit: %s has an active legal hold (%d) - purge refused", month, active)
+	}
 	if _, err := pool.Exec(ctx, `SELECT audit_approve_purge($1, $2, $3)`, month, actor, reason); err != nil {
 		return err
 	}
@@ -289,14 +301,18 @@ func PurgeMonth(ctx context.Context, pool *pgxpool.Pool, obj datastore.ObjectSto
 	if err := json.Unmarshal(keysJSON, &keys); err != nil {
 		return err
 	}
+	// Durable record first: a crash after this leaves only orphan cold objects (recoverable), never data
+	// destruction without an audit trail.
+	if _, err := pool.Exec(ctx, `SELECT audit_mark_purged($1)`, month); err != nil {
+		return err
+	}
 	for _, k := range keys {
 		// Idempotent: a partially completed purge must be resumable, not stuck on a missing object.
 		if err := obj.Delete(ctx, k, ""); err != nil && !errors.Is(err, fs.ErrNotExist) {
 			return fmt.Errorf("pfaudit: delete %s: %w", k, err)
 		}
 	}
-	_, err := pool.Exec(ctx, `SELECT audit_mark_purged($1)`, month)
-	return err
+	return nil
 }
 
 // ExtractHolds archives held rows of a month before it is dropped/archived.

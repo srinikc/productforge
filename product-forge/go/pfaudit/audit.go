@@ -12,6 +12,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"hash"
 	"io"
 	"strings"
 	"time"
@@ -146,32 +147,46 @@ type Checksum struct {
 
 // Constant-memory, order-independent per-tenant digest: an aggregate of 64-bit row hashes. The count is
 // compared alongside it, so a collision cannot silently pass verification.
-const checksumExpr = `sum(hashtextextended(
-	id::text || '|' || tenant_id || '|' || action || '|' || at::text, 0))::text`
-
-// TableChecksums computes per-tenant (count, SHA-256) for a table. The table name is validated.
+// TableChecksums streams rows in (tenant, id, at) order and hashes them with SHA-256 per tenant.
+// Constant memory: only one tenant hash is live at a time, so it scales with tenant count, not table size.
 func TableChecksums(ctx context.Context, pool *pgxpool.Pool, table string) (map[string]Checksum, error) {
 	if !validTable(table) {
 		return nil, fmt.Errorf("pfaudit: invalid table %q", table)
 	}
-	rows, err := pool.Query(ctx, `SELECT tenant_id, count(*), `+checksumExpr+` FROM `+table+` GROUP BY tenant_id`)
+	rows, err := pool.Query(ctx, `SELECT tenant_id, id, action, at FROM `+table+` ORDER BY tenant_id, id, at`)
 	if err != nil {
 		return nil, fmt.Errorf("checksums %s: %w", table, err)
 	}
 	defer rows.Close()
 	out := map[string]Checksum{}
+	var cur string
+	var h hash.Hash
+	var n int64
+	flush := func() {
+		if cur == "" {
+			return
+		}
+		out[cur] = Checksum{TenantID: cur, Rows: n, Hash: hex.EncodeToString(h.Sum(nil))}
+	}
 	for rows.Next() {
-		var c Checksum
-		var hash *string
-		if err := rows.Scan(&c.TenantID, &c.Rows, &hash); err != nil {
+		var tenant, action string
+		var id int64
+		var at time.Time
+		if err := rows.Scan(&tenant, &id, &action, &at); err != nil {
 			return nil, err
 		}
-		if hash != nil {
-			c.Hash = *hash
+		if tenant != cur {
+			flush()
+			cur, h, n = tenant, sha256.New(), 0
 		}
-		out[c.TenantID] = c
+		fmt.Fprintf(h, "%d|%s|%s|%s\n", id, tenant, action, at.UTC().Format(time.RFC3339Nano))
+		n++
 	}
-	return out, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	flush()
+	return out, nil
 }
 
 // Verify compares legacy vs shadow per tenant AND in total. Any difference is a hard failure.
@@ -343,6 +358,11 @@ func Down(ctx context.Context, pool *pgxpool.Pool, force bool, reason string) er
 		SELECT count(*) FROM moved`).Scan(&missed); err != nil {
 		return fmt.Errorf("pfaudit: down copy-back: %w", err)
 	}
+	// Re-advance the flat table's sequence over the rows just copied back.
+	if _, err := tx.Exec(ctx, `SELECT setval('audit_legacy_id_seq', GREATEST(
+		(SELECT COALESCE(max(id),0) FROM audit_legacy), (SELECT last_value FROM audit_legacy_id_seq)))`); err != nil {
+		return fmt.Errorf("pfaudit: down sequence: %w", err)
+	}
 	stmts := []string{
 		`ALTER TABLE audit RENAME TO audit_partitioned`,
 		`ALTER SEQUENCE audit_id_seq RENAME TO audit_partitioned_id_seq`,
@@ -409,6 +429,8 @@ func MonthLabel(t *time.Time) string {
 // PostVerify re-checks the swapped cluster: counts, sequence coverage and per-leaf hardening.
 func PostVerify(ctx context.Context, pool *pgxpool.Pool) error {
 	// Post-swap the trusted side is audit_legacy (the frozen flat table), not audit_partitioned.
+	// The pre-swap Verify proved an exact match under the lock. Post-commit, live inserts are legal, so
+	// compare counts with legacy as a floor (never a spurious mismatch from a concurrent append).
 	legacy, err := TableChecksums(ctx, pool, "audit_legacy")
 	if err != nil {
 		return fmt.Errorf("pfaudit: checksum audit_legacy: %w", err)
@@ -418,13 +440,9 @@ func PostVerify(ctx context.Context, pool *pgxpool.Pool) error {
 		return fmt.Errorf("pfaudit: checksum audit: %w", err)
 	}
 	for tenant, want := range legacy {
-		if got, ok := live[tenant]; !ok || got != want {
-			return fmt.Errorf("pfaudit: post-swap mismatch for tenant %s", tenant)
-		}
-	}
-	for tenant := range live {
-		if _, ok := legacy[tenant]; !ok {
-			return fmt.Errorf("pfaudit: post-swap extra tenant %s", tenant)
+		got, ok := live[tenant]
+		if !ok || got.Rows < want.Rows {
+			return fmt.Errorf("pfaudit: post-swap lost rows for tenant %s (%d < %d)", tenant, got.Rows, want.Rows)
 		}
 	}
 	var last, maxID int64

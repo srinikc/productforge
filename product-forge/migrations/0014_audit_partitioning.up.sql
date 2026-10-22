@@ -102,6 +102,21 @@ CREATE TABLE IF NOT EXISTS audit_legal_hold_archive (
     PRIMARY KEY (hold_id, id, at)
 );
 
+-- Spoliation guard: a hold cannot be recorded against a month whose archive was already purged.
+CREATE OR REPLACE FUNCTION audit_hold_guard() RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, public AS $$
+BEGIN
+    IF NEW.action = 'hold' AND EXISTS (
+        SELECT 1 FROM audit_archive_manifest m WHERE m.month = NEW.month AND m.purged_at IS NOT NULL) THEN
+        INSERT INTO audit_migration_state_events(actor, from_state, to_state, detail)
+        VALUES (current_user, 'hold_after_purge', 'hold_after_purge',
+                jsonb_build_object('month', NEW.month, 'hold_id', NEW.hold_id));
+        RAISE EXCEPTION 'audit_hold_guard: % was purged; cannot place hold % (spoliation attempt recorded)',
+            NEW.month, NEW.hold_id;
+    END IF;
+    RETURN NEW;
+END $$;
+
 -- ---- 6. archive manifest (cold objects + purge approval, actor/time/reason recorded) --------------
 CREATE TABLE IF NOT EXISTS audit_archive_manifest (
     month           TEXT PRIMARY KEY,
@@ -462,6 +477,10 @@ CREATE TRIGGER audit_partitioned_append_only BEFORE UPDATE OR DELETE ON audit_pa
 DROP TRIGGER IF EXISTS audit_provision_trg ON audit_partitioned;
 CREATE TRIGGER audit_provision_trg BEFORE INSERT ON audit_partitioned
     FOR EACH ROW EXECUTE FUNCTION audit_provision();
+
+DROP TRIGGER IF EXISTS audit_legal_hold_guard ON audit_legal_hold_events;
+CREATE TRIGGER audit_legal_hold_guard BEFORE INSERT ON audit_legal_hold_events
+    FOR EACH ROW EXECUTE FUNCTION audit_hold_guard();
 
 ALTER TABLE audit_legal_hold_archive ENABLE ROW LEVEL SECURITY;
 ALTER TABLE audit_legal_hold_archive FORCE ROW LEVEL SECURITY;

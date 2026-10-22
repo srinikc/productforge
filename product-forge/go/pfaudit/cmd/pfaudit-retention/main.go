@@ -12,6 +12,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -137,6 +138,9 @@ func main() {
 			return
 		}
 		if err := pfaudit.PurgeMonth(ctx, pool, obj, *month, *actor, *reason); err != nil {
+			if strings.Contains(err.Error(), "active legal hold") {
+				met.Inc(pfaudit.MetricHoldAfterPurge)
+			}
 			fail("%v", err)
 		}
 		met.Inc(pfaudit.MetricPurge)
@@ -175,7 +179,7 @@ func emitMetrics(m *pfaudit.Metrics) {
 		return
 	}
 	b, _ := json.Marshal(map[string]any{"metrics": c, "gauges": g})
-	fmt.Println(string(b))
+	fmt.Fprintln(os.Stderr, string(b))
 }
 
 func objectStore(ctx context.Context) datastore.ObjectStore {

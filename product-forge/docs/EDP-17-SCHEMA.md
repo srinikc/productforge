@@ -97,9 +97,9 @@ The append-only `audit` table is migrated to monthly `RANGE (at)` partitioning (
   before the oldest data, and the operational tables (`audit_partition_config`, `audit_migration_state`
   + append-only events, legal-hold tables, `audit_archive_manifest`). No `DEFAULT` partition: an
   out-of-range `at` fails closed (`23514`); `audit_append_late` covers corrected late evidence (bounded to
-  24 months, `audit_late_YYYYMM`).
+  24 months, inserted into the canonical `audit_YYYYMM` partition so retention can still drop it).
 - **Phase 2 (`go/pfaudit`) runs outside the migration transaction**: encrypted backup (retained until
-  sign-off), resumable batched copy (`cursor` persisted), per-tenant count + SHA-256 verification, a
+  sign-off), resumable batched copy (`cursor` persisted), per-tenant count + SHA-256 over (id, tenant_id, action, at) in order, a
   **bounded** delta drain under `ACCESS EXCLUSIVE` (delta re-counted inside the lock; 5 attempts; `55P03`
   retried), then one atomic rename and `setval` on the canonical `audit_id_seq`.
 
@@ -113,8 +113,8 @@ Retention is two-stage and reversible until the final purge:
 1. **hot -> cold:** export a fully-old month to the object store as immutable NDJSON (`audit/cold/<month>/`)
    with a SHA-256 manifest recorded in `audit_archive_manifest`, then drop the hot partition;
 2. **cold -> purge:** only after `purge_grace_days` (default 90) **and** an explicit audited approval
-   (actor/time/reason recorded); `audit_restore_archive` re-imports a cold month into an RLS-protected
-   scratch partition.
+   (actor/time/reason recorded); `audit_restore_archive` re-imports a cold month into a standalone, RLS-protected
+   `audit_restore_YYYYMM` scratch table (never a partition, so rotation ranges never overlap).
 
 Row-level legal holds are preserved: held rows are extracted to append-only `audit_legal_hold_archive`
 before a partition leaves the hot table, and a hold placed after archive is reconciled the same way.

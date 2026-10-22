@@ -97,7 +97,7 @@ func main() {
 		}
 		fmt.Printf("backup written + rehearsal OK: %s (pass --backup-key %s to close)\n", *backupKey, *backupKey)
 	case "prestage":
-		runPrestage(ctx, pool, *batch)
+		runPrestage(ctx, pool, *batch, m)
 		_, _, _ = pfaudit.CheckConfig(ctx, pool)
 	case "verify":
 		problems, err := pfaudit.Verify(ctx, pool)
@@ -126,12 +126,14 @@ func main() {
 		if elapsed < float64(window) && !(*force && *reason != "") {
 			fail("close: rollback window is %dd, only %.1fd elapsed (use --force-with-reason --reason)", window, elapsed)
 		}
+		// Record the sign-off FIRST: if the delete then fails we keep an auditable trail and an orphan
+		// backup (recoverable), never an untracked destruction.
+		if err := pfaudit.RecordState(ctx, pool, "swap_closed", fmt.Sprintf(`{"backup":%q}`, *backupKey)); err != nil {
+			fail("record close: %v", err)
+		}
 		obj := openObjectStore(ctx)
 		if err := obj.Delete(ctx, *backupKey, ""); err != nil {
 			fail("delete backup after sign-off: %v", err)
-		}
-		if err := pfaudit.RecordState(ctx, pool, "swap_closed", fmt.Sprintf(`{"backup":%q}`, *backupKey)); err != nil {
-			fail("record close: %v", err)
 		}
 		fmt.Println("closed: sign-off recorded, encrypted dump destroyed")
 	case "down":
@@ -153,14 +155,17 @@ func emitMetrics(m *pfaudit.Metrics) {
 		return
 	}
 	b, _ := json.Marshal(map[string]any{"metrics": c, "gauges": g})
-	fmt.Println(string(b))
+	fmt.Fprintln(os.Stderr, string(b))
 }
 
-func runPrestage(ctx context.Context, pool *pgxpool.Pool, batch int) {
+func runPrestage(ctx context.Context, pool *pgxpool.Pool, batch int, m *pfaudit.Metrics) {
 	var cursor int64
 	if err := pool.QueryRow(ctx, `SELECT COALESCE((value->>'last_id')::bigint, 0) FROM audit_migration_state WHERE key = 'copy'`).
 		Scan(&cursor); err != nil {
 		cursor = 0
+	}
+	if cursor > 0 {
+		m.Inc(pfaudit.MetricCopyResumed)
 	}
 	total := 0
 	for {
@@ -273,12 +278,12 @@ func rehearsal(ctx context.Context, obj datastore.ObjectStore, key string) error
 	dec.Stdout = pw
 	dec.Stderr = os.Stderr
 	list.Stdin = pr
-	out, err := list.Output()
 	if startErr := dec.Start(); startErr != nil {
 		pr.Close()
 		return fmt.Errorf("age -d: %w", startErr)
 	}
 	go func() { pw.CloseWithError(dec.Wait()) }()
+	out, err := list.Output()
 	if err != nil {
 		return fmt.Errorf("pg_restore -l: %w", err)
 	}
@@ -291,7 +296,7 @@ func rehearsal(ctx context.Context, obj datastore.ObjectStore, key string) error
 }
 
 func backup(ctx context.Context, dsn string, obj datastore.ObjectStore, key, recipient string) error {
-	dump := exec.CommandContext(ctx, "pg_dump", "-Fc", "-t", "audit", "-t", "audit_id_seq", "-f", "-", dsn)
+	dump := exec.CommandContext(ctx, "pg_dump", "-Fc", "-t", "audit", "-t", "audit_legacy_id_seq", "-f", "-", dsn)
 	age := exec.CommandContext(ctx, "age", "-r", recipient)
 	dp, err := dump.StdoutPipe()
 	if err != nil {

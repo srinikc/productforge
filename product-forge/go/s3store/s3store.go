@@ -75,15 +75,21 @@ func (s *S3Store) Put(ctx context.Context, key string, r io.Reader, size int64, 
 	if strings.TrimSpace(key) == "" {
 		return datastore.ObjectInfo{}, errors.New("s3store: empty key")
 	}
-	h := sha256.New()
-	body, err := io.ReadAll(io.TeeReader(r, h))
-	if err != nil {
-		return datastore.ObjectInfo{}, err
+	// Known-size objects are hashed for the manifest; unknown-size (e.g. pg_dump pipe) stream with a
+	// multipart upload so memory stays bounded.
+	var sum string
+	var body []byte
+	if size >= 0 {
+		h := sha256.New()
+		b, err := io.ReadAll(io.TeeReader(r, h))
+		if err != nil {
+			return datastore.ObjectInfo{}, err
+		}
+		if int64(len(b)) != size {
+			return datastore.ObjectInfo{}, errors.New("s3store: size mismatch")
+		}
+		body, sum = b, hex.EncodeToString(h.Sum(nil))
 	}
-	if size >= 0 && int64(len(body)) != size {
-		return datastore.ObjectInfo{}, errors.New("s3store: size mismatch")
-	}
-	sum := hex.EncodeToString(h.Sum(nil))
 	ct := opts.ContentType
 	if ct == "" {
 		ct = "application/octet-stream"
@@ -94,7 +100,10 @@ func (s *S3Store) Put(ctx context.Context, key string, r io.Reader, size int64, 
 		case strings.EqualFold(sse, "AES256"), strings.EqualFold(sse, "SSE-S3"):
 			putOpts.ServerSideEncryption = encrypt.NewSSE()
 		case strings.HasPrefix(strings.ToLower(sse), "aws:kms"):
-			keyID := strings.TrimPrefix(sse, "aws:kms:")
+			keyID := strings.TrimSpace(strings.TrimPrefix(sse, "aws:kms:"))
+			if keyID == "" {
+				return datastore.ObjectInfo{}, errors.New("s3store: SSE-KMS requires a key id (aws:kms:<key-id>)")
+			}
 			kms, kerr := encrypt.NewSSEKMS(keyID, nil)
 			if kerr != nil {
 				return datastore.ObjectInfo{}, fmt.Errorf("s3store: SSE-KMS: %w", kerr)
@@ -104,7 +113,15 @@ func (s *S3Store) Put(ctx context.Context, key string, r io.Reader, size int64, 
 			return datastore.ObjectInfo{}, fmt.Errorf("s3store: unsupported ServerSideEncryption %q", sse)
 		}
 	}
-	up, err := s.client.PutObject(ctx, s.bucket, key, bytes.NewReader(body), int64(len(body)), putOpts)
+	var reader io.Reader
+	var n int64
+	if size >= 0 {
+		reader, n = bytes.NewReader(body), int64(len(body))
+	} else {
+		reader, n = r, -1
+		putOpts.PartSize = 16 << 20
+	}
+	up, err := s.client.PutObject(ctx, s.bucket, key, reader, n, putOpts)
 	if err != nil {
 		return datastore.ObjectInfo{}, err
 	}
@@ -112,7 +129,7 @@ func (s *S3Store) Put(ctx context.Context, key string, r io.Reader, size int64, 
 	if ver == "" {
 		ver = sum
 	}
-	return datastore.ObjectInfo{Key: key, Version: ver, Checksum: sum, ContentType: ct, Size: int64(len(body))}, nil
+	return datastore.ObjectInfo{Key: key, Version: ver, Checksum: sum, ContentType: ct, Size: up.Size}, nil
 }
 
 func (s *S3Store) stat(ctx context.Context, key, version string) (minio.ObjectInfo, error) {
