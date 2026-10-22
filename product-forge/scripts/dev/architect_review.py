@@ -157,7 +157,9 @@ ARCHITECT_SYSTEM = (
     "You are a Principal Enterprise System Architect performing an independent review. Judge from an "
     "enterprise, long-term lens (integrity, adaptability, scalability, security, observability, "
     "maintainability, reuse). Output ONLY the sections: ### BLOCKER, ### MAJOR, ### MINOR, ### NIT, ### SUMMARY "
-    "(bullet findings; write '- none' under an empty section). Do not rewrite code.")
+    "(bullet findings; write '- none' under an empty section). Do not rewrite code. "
+    "Do NOT show any reasoning, analysis, preamble or sign-off: your reply MUST begin with the literal string "
+    "'### BLOCKER' and contain no text before it. Keep each finding to at most 3 lines.")
 
 
 def _api_key() -> str:
@@ -186,7 +188,8 @@ def _llm_call(prompt: str, model: str) -> str:
     key = _api_key()
     if not key:
         raise RuntimeError("no API key (set OPENCODE_ZEN_API_KEY or provide .opencode/opencode.key)")
-    body = json.dumps({"model": model, "temperature": 0.2, "max_tokens": 4000, "messages": [
+    body = json.dumps({"model": model, "temperature": 0.2,
+                       "max_tokens": int(cfg.get("max_tokens") or 16000), "messages": [
         {"role": "system", "content": ARCHITECT_SYSTEM},
         {"role": "user", "content": prompt}]}).encode("utf-8")
     req = urllib.request.Request(base.rstrip("/") + "/chat/completions", data=body, method="POST")
@@ -197,7 +200,9 @@ def _llm_call(prompt: str, model: str) -> str:
     with urllib.request.urlopen(req, timeout=300) as r:
         data = json.loads(r.read().decode("utf-8"))
     msg = (data.get("choices") or [{}])[0].get("message") or {}
-    return msg.get("content") or msg.get("reasoning_content") or ""
+    # Never treat chain-of-thought as the review: if the provider returned no content (truncated or
+    # reasoning-only), return empty so the gate stays fail-closed (parsed_ok=false) and the caller retries.
+    return (msg.get("content") or "").strip()
 
 
 def _build_prompt(item: dict, item_id: str, mode: str) -> str:

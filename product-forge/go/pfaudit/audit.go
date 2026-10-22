@@ -1,0 +1,363 @@
+// Package pfaudit is the OFFLINE operations tooling for EDP-20 (BI-PF-1312): the audit partitioning
+// swap, and two-stage retention (hot -> cold object store -> audited purge).
+//
+// It is deliberately NOT on the request path: it uses pgx directly for DDL, advisory locks and bulk
+// COPY-style streaming, while the domain data plane keeps using the provider-neutral datastore ports.
+// All schema objects it relies on are created by migrations/0014_audit_partitioning.up.sql.
+package pfaudit
+
+import (
+	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"errors"
+	"fmt"
+	"io"
+	"strings"
+	"time"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
+)
+
+// Advisory lock namespaces (must match the SQL constants in 0014; api_test asserts this).
+const (
+	LockProvision = "AUDP"
+	LockSwap      = "AUSW"
+	LockRetention = "AURE"
+)
+
+// Config defaults mirrored from audit_partition_config; the tool refuses to run when they disagree.
+const (
+	DefaultBatchRows    = 10000
+	DefaultMaxDeltaRows = 5000
+	DefaultLeadMonths   = 2
+)
+
+// ErrNotReady means the schema substrate (0014) has not been applied yet.
+var ErrNotReady = errors.New("pfaudit: audit_partitioning substrate not applied (run migration 0014)")
+
+// State is the catalog-derived phase of the audit migration. It is the source of truth for resumability:
+// a re-run decides what to do from the catalog, never from an in-memory flag.
+type State string
+
+const (
+	StateNotPrepared State = "not_prepared" // no shadow table
+	StatePrestage    State = "prestage"     // flat audit + shadow: copy/verify
+	StateSwapped     State = "swapped"      // partitioned audit + audit_legacy: post-verify/close
+	StateDone        State = "done"         // partitioned audit, no legacy
+)
+
+// DetectState reads the real catalog. Crash-safe: the rename is the commit point.
+func DetectState(ctx context.Context, pool *pgxpool.Pool) (State, error) {
+	var audit, shadow, legacy bool
+	var kind string
+	err := pool.QueryRow(ctx, `
+		SELECT to_regclass('audit') IS NOT NULL,
+		       to_regclass('audit_partitioned') IS NOT NULL,
+		       to_regclass('audit_legacy') IS NOT NULL,
+		       COALESCE((SELECT relkind::text FROM pg_class WHERE oid = to_regclass('audit')), '')`).
+		Scan(&audit, &shadow, &legacy, &kind)
+	if err != nil {
+		return "", fmt.Errorf("detect state: %w", err)
+	}
+	switch {
+	case !shadow && !legacy:
+		return StateNotPrepared, nil
+	case audit && kind == "p":
+		if legacy {
+			return StateSwapped, nil
+		}
+		return StateDone, nil
+	case audit && kind == "r" && shadow:
+		return StatePrestage, nil
+	default:
+		return StateNotPrepared, fmt.Errorf("unexpected catalog state: audit=%v kind=%q shadow=%v legacy=%v",
+			audit, kind, shadow, legacy)
+	}
+}
+
+// CheckConfig fails fast when the Go defaults disagree with the DB config row (single source).
+func CheckConfig(ctx context.Context, pool *pgxpool.Pool) (batch, maxDelta int, err error) {
+	err = pool.QueryRow(ctx, `SELECT batch_rows, max_delta_rows FROM audit_partition_config WHERE id`).
+		Scan(&batch, &maxDelta)
+	if err != nil {
+		return 0, 0, ErrNotReady
+	}
+	if batch != DefaultBatchRows || maxDelta != DefaultMaxDeltaRows {
+		return batch, maxDelta, fmt.Errorf(
+			"pfaudit: config drift (db batch=%d max_delta=%d, go defaults %d/%d) - update the tool",
+			batch, maxDelta, DefaultBatchRows, DefaultMaxDeltaRows)
+	}
+	return batch, maxDelta, nil
+}
+
+// BatchResult is the outcome of one idempotent copy batch.
+type BatchResult struct {
+	LastID   int64
+	Read     int64
+	Inserted int64
+	Done     bool
+}
+
+// CopyBatch idempotently copies up to batch rows with id > afterID. ON CONFLICT makes a resumed or
+// repeated batch safe; the cursor is the max id READ (not inserted) so a fully-conflicting batch advances.
+func CopyBatch(ctx context.Context, pool *pgxpool.Pool, afterID int64, batch int) (BatchResult, error) {
+	var r BatchResult
+	err := pool.QueryRow(ctx, `
+		WITH src AS (
+		    SELECT id, tenant_id, actor, action, resource, outcome, correlation_id, at
+		    FROM audit WHERE id > $1 ORDER BY id LIMIT $2
+		), ins AS (
+		    INSERT INTO audit_partitioned (id, tenant_id, actor, action, resource, outcome, correlation_id, at)
+		    SELECT * FROM src
+		    ON CONFLICT (id, at) DO NOTHING
+		    RETURNING id
+		)
+		SELECT COALESCE((SELECT max(id) FROM src), $1),
+		       (SELECT count(*) FROM src),
+		       (SELECT count(*) FROM ins)`,
+		afterID, batch).Scan(&r.LastID, &r.Read, &r.Inserted)
+	if err != nil {
+		return r, fmt.Errorf("copy batch: %w", err)
+	}
+	r.Done = r.Read < int64(batch)
+	return r, nil
+}
+
+// Checksum is the reproducible integrity primitive: SHA-256 over the ordered rows of one tenant.
+type Checksum struct {
+	TenantID string
+	Rows     int64
+	Hash     string
+}
+
+const checksumExpr = `encode(sha256(convert_to(
+	string_agg(id::text || '|' || tenant_id || '|' || action || '|' || at::text, E'\n' ORDER BY id, at),
+	'UTF8')), 'hex')`
+
+// TableChecksums computes per-tenant (count, SHA-256) for a table. The table name is validated.
+func TableChecksums(ctx context.Context, pool *pgxpool.Pool, table string) (map[string]Checksum, error) {
+	if !validTable(table) {
+		return nil, fmt.Errorf("pfaudit: invalid table %q", table)
+	}
+	rows, err := pool.Query(ctx, `SELECT tenant_id, count(*), `+checksumExpr+` FROM `+table+` GROUP BY tenant_id`)
+	if err != nil {
+		return nil, fmt.Errorf("checksums %s: %w", table, err)
+	}
+	defer rows.Close()
+	out := map[string]Checksum{}
+	for rows.Next() {
+		var c Checksum
+		var hash *string
+		if err := rows.Scan(&c.TenantID, &c.Rows, &hash); err != nil {
+			return nil, err
+		}
+		if hash != nil {
+			c.Hash = *hash
+		}
+		out[c.TenantID] = c
+	}
+	return out, rows.Err()
+}
+
+// Verify compares legacy vs shadow per tenant AND in total. Any difference is a hard failure.
+func Verify(ctx context.Context, pool *pgxpool.Pool) (map[string]string, error) {
+	a, err := TableChecksums(ctx, pool, "audit")
+	if err != nil {
+		return nil, err
+	}
+	b, err := TableChecksums(ctx, pool, "audit_partitioned")
+	if err != nil {
+		return nil, err
+	}
+	problems := map[string]string{}
+	for t, ca := range a {
+		cb, ok := b[t]
+		if !ok {
+			problems[t] = "missing in audit_partitioned"
+			continue
+		}
+		if ca.Rows != cb.Rows || ca.Hash != cb.Hash {
+			problems[t] = fmt.Sprintf("mismatch rows %d/%d hash %s/%s", ca.Rows, cb.Rows, ca.Hash, cb.Hash)
+		}
+	}
+	for t := range b {
+		if _, ok := a[t]; !ok {
+			problems[t] = "extra tenant in audit_partitioned"
+		}
+	}
+	if len(problems) > 0 {
+		return problems, fmt.Errorf("pfaudit: verification failed for %d tenant(s)", len(problems))
+	}
+	return nil, nil
+}
+
+func validTable(t string) bool {
+	if t == "" {
+		return false
+	}
+	for _, r := range t {
+		if !(r == '_' || (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9')) {
+			return false
+		}
+	}
+	return true
+}
+
+// SHA256 reads r and returns the hex digest (streaming, used by export and restore).
+func SHA256(r io.Reader) (string, int64, error) {
+	h := sha256.New()
+	n, err := io.Copy(h, r)
+	if err != nil {
+		return "", n, err
+	}
+	return hex.EncodeToString(h.Sum(nil)), n, nil
+}
+
+// RenamePair is the single atomic rename used by Swap. Exposed for the integration test.
+const (
+	SwapLockTimeout = "3s"
+	MaxSwapAttempts = 5
+)
+
+// Swap performs S4: it enforces the delta bound under the lock, drains, renames and advances the
+// canonical sequence. It returns the number of drained delta rows.
+func Swap(ctx context.Context, pool *pgxpool.Pool, maxDelta int) (int64, error) {
+	conn, err := pool.Acquire(ctx)
+	if err != nil {
+		return 0, err
+	}
+	defer conn.Release()
+
+	tx, err := conn.Begin(ctx)
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback(ctx)
+
+	if _, err := tx.Exec(ctx, `SET LOCAL lock_timeout = '`+SwapLockTimeout+`'`); err != nil {
+		return 0, err
+	}
+	if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtext($1))`, LockSwap); err != nil {
+		return 0, err
+	}
+	// Advisory locks don't take the table lock; do it explicitly, then re-count INSIDE the lock (TOCTOU).
+	if _, err := tx.Exec(ctx, `LOCK TABLE audit IN ACCESS EXCLUSIVE MODE`); err != nil {
+		return 0, fmt.Errorf("pfaudit: acquire audit lock: %w", err)
+	}
+	var lastID int64
+	if err := tx.QueryRow(ctx, `SELECT COALESCE(max(id), 0) FROM audit_partitioned`).Scan(&lastID); err != nil {
+		return 0, err
+	}
+	var delta int64
+	if err := tx.QueryRow(ctx, `SELECT count(*) FROM audit WHERE id > $1`, lastID).Scan(&delta); err != nil {
+		return 0, err
+	}
+	if delta > int64(maxDelta) {
+		return delta, fmt.Errorf("pfaudit: delta %d exceeds max_delta_rows %d - rollback and run another pre-stage batch", delta, maxDelta)
+	}
+	if delta > 0 {
+		if _, err := tx.Exec(ctx, `
+			INSERT INTO audit_partitioned (id, tenant_id, actor, action, resource, outcome, correlation_id, at)
+			SELECT id, tenant_id, actor, action, resource, outcome, correlation_id, at
+			FROM audit WHERE id > $1
+			ON CONFLICT (id, at) DO NOTHING`, lastID); err != nil {
+			return delta, fmt.Errorf("pfaudit: drain delta: %w", err)
+		}
+	}
+	if _, err := tx.Exec(ctx, `ALTER TABLE audit RENAME TO audit_legacy`); err != nil {
+		return delta, fmt.Errorf("pfaudit: rename legacy: %w", err)
+	}
+	if _, err := tx.Exec(ctx, `ALTER TABLE audit_partitioned RENAME TO audit`); err != nil {
+		return delta, fmt.Errorf("pfaudit: rename shadow: %w", err)
+	}
+	if _, err := tx.Exec(ctx, `
+		SELECT setval('audit_id_seq', GREATEST(
+		    (SELECT COALESCE(max(id), 0) FROM audit),
+		    COALESCE((SELECT max(id) FROM audit_legacy), 0)) + 1, false)`); err != nil {
+		return delta, fmt.Errorf("pfaudit: setval: %w", err)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return delta, fmt.Errorf("pfaudit: commit swap: %w", err)
+	}
+	return delta, nil
+}
+
+// Down reverses a committed swap. Gated: refuses when any month is archived/purged or a hold exists.
+func Down(ctx context.Context, pool *pgxpool.Pool, force bool, reason string) error {
+	var archived, holds int64
+	if err := pool.QueryRow(ctx, `SELECT count(*) FROM audit_archive_manifest WHERE archived_at IS NOT NULL`).Scan(&archived); err != nil {
+		return err
+	}
+	if err := pool.QueryRow(ctx, `
+		SELECT count(*) FROM audit_legal_hold_events h
+		WHERE h.action = 'hold' AND NOT EXISTS (
+		    SELECT 1 FROM audit_legal_hold_events r
+		    WHERE r.hold_id = h.hold_id AND r.action = 'release' AND r.at > h.at)`).Scan(&holds); err != nil {
+		return err
+	}
+	if (archived > 0 || holds > 0) && !force {
+		return fmt.Errorf("pfaudit: down refused (archived=%d active_holds=%d); pass --force-with-reason after sign-off", archived, holds)
+	}
+	if force && strings.TrimSpace(reason) == "" {
+		return errors.New("pfaudit: --force-with-reason requires a non-empty reason")
+	}
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+	stmts := []string{
+		`ALTER TABLE audit RENAME TO audit_partitioned`,
+		`ALTER SEQUENCE audit_id_seq RENAME TO audit_partitioned_id_seq`,
+		`ALTER TABLE audit_legacy RENAME TO audit`,
+		`ALTER SEQUENCE audit_legacy_id_seq RENAME TO audit_id_seq`,
+	}
+	for _, s := range stmts {
+		if _, err := tx.Exec(ctx, s); err != nil {
+			return fmt.Errorf("pfaudit: down: %w", err)
+		}
+	}
+	var gap int64
+	if err := tx.QueryRow(ctx, `SELECT GREATEST((SELECT COALESCE(max(id),0) FROM audit), 1)`).Scan(&gap); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(ctx, `SELECT setval('audit_id_seq', $1, true)`, gap); err != nil {
+		return err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return err
+	}
+	_, err = pool.Exec(ctx, `INSERT INTO audit_migration_state_events(actor, from_state, to_state, detail)
+		VALUES (current_user, 'swapped', 'down', jsonb_build_object('reason',$1))`, reason)
+	return err
+}
+
+// RecordState appends an append-only event and refreshes the projection.
+func RecordState(ctx context.Context, pool *pgxpool.Pool, to, detail string) error {
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+	if _, err := tx.Exec(ctx, `INSERT INTO audit_migration_state_events(actor, from_state, to_state, detail)
+		VALUES (current_user, (SELECT COALESCE(value->>'phase','') FROM audit_migration_state WHERE key='phase'), $1, $2::jsonb)`,
+		to, detail); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(ctx, `INSERT INTO audit_migration_state(key, value, updated_at)
+		VALUES ('phase', jsonb_build_object('phase',$1), now())
+		ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now()`, to); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
+}
+
+// AuditMonthName returns the canonical monthly partition name for ts (UTC).
+func AuditMonthName(ts time.Time) string {
+	return "audit_" + ts.UTC().Format("200601")
+}
+
+// Ensure pgx is referenced even in builds that only use the higher-level helpers.
+var _ = pgx.ErrNoRows
