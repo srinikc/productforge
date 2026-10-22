@@ -7,6 +7,14 @@
 -- Canonical names: before the swap, audit_id_seq is the shadow sequence and audit_legacy_id_seq is the
 -- live one; the names are restored here.
 
+-- Post-swap the live partitioned table is named audit: refuse rather than half-apply.
+DO $$
+BEGIN
+    IF to_regclass('public.audit_partitioned') IS NULL AND to_regclass('public.audit_legacy') IS NOT NULL THEN
+        RAISE EXCEPTION '0014 down: swap is committed; run pfaudit-swap --down first';
+    END IF;
+END $$;
+
 DROP TABLE IF EXISTS audit_partitioned CASCADE;
 
 DROP TABLE IF EXISTS audit_legal_hold_archive;

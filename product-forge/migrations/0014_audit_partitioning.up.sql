@@ -232,6 +232,7 @@ DECLARE
     v_n INTEGER := 0;
 BEGIN
     SELECT horizon_months INTO v_horizon FROM audit_partition_config WHERE id;
+    PERFORM audit_advisory_lock('AUDP');  -- serialise with the insert fast path before creating leaves
     v_target := COALESCE(audit_month_start(p_through), v_cur) + make_interval(months => v_horizon) - interval '1 month';
     WHILE v_cur <= v_target::date LOOP
         IF to_regclass('public.' || audit_partition_name(v_cur)) IS NULL THEN
@@ -540,6 +541,10 @@ DECLARE
     v_horizon INTEGER;
     v_grace DATE;
 BEGIN
+    -- Fresh install: there is no legacy table to seed from; rotation starts with the first insert.
+    IF to_regclass('public.audit') IS NULL THEN
+        RETURN;
+    END IF;
     EXECUTE 'SELECT COALESCE(audit_month_start(min(at)), audit_month_start(now())) FROM audit' INTO v_min;
     SELECT horizon_months INTO v_horizon FROM audit_partition_config WHERE id;
     v_grace := (v_min - interval '1 month')::date;

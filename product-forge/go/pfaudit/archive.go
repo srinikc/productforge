@@ -45,7 +45,7 @@ func ExportMonth(ctx context.Context, pool *pgxpool.Pool, obj datastore.ObjectSt
 	var m ArchiveManifest
 	m.Month = month
 	m.ArchivedAt = time.Now().UTC()
-	if !validTable(month) {
+	if !validMonth(month) {
 		return m, fmt.Errorf("pfaudit: invalid partition %q", month)
 	}
 	// Export must see every tenant: a filtered read would record a short manifest and then drop the month.
@@ -141,7 +141,7 @@ func ExportMonth(ctx context.Context, pool *pgxpool.Pool, obj datastore.ObjectSt
 
 // RestoreMonth re-imports a cold month into a scratch partition of the live audit table (RLS applies).
 func RestoreMonth(ctx context.Context, pool *pgxpool.Pool, obj datastore.ObjectStore, month string) (int64, error) {
-	if !validTable(month) {
+	if !validMonth(month) {
 		return 0, fmt.Errorf("pfaudit: invalid partition %q", month)
 	}
 	var wantRows int64
@@ -195,6 +195,10 @@ func RestoreMonth(ctx context.Context, pool *pgxpool.Pool, obj datastore.ObjectS
 		return 0, fmt.Errorf("pfaudit: create scratch table: %w", err)
 	}
 	if _, err := pool.Exec(ctx, `SELECT audit_harden_partition($1)`, scratch); err != nil {
+		return 0, err
+	}
+	// Forensic readers use the runtime role: RLS still filters per tenant.
+	if _, err := pool.Exec(ctx, fmt.Sprintf(`GRANT SELECT ON %s TO pf_runtime`, scratch)); err != nil {
 		return 0, err
 	}
 	sc := bufio.NewScanner(tmp)
@@ -260,7 +264,7 @@ func RestoreMonth(ctx context.Context, pool *pgxpool.Pool, obj datastore.ObjectS
 // VerifyHoldExtraction proves that every row still under an active hold in month has been copied to
 // audit_legal_hold_archive before the hot partition may be dropped.
 func VerifyHoldExtraction(ctx context.Context, pool *pgxpool.Pool, month string) (archived, missing int64, err error) {
-	if !validTable(month) {
+	if !validMonth(month) {
 		return 0, 0, fmt.Errorf("pfaudit: invalid partition %q", month)
 	}
 	q := `SELECT

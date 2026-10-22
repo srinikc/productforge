@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"productforge/datastore"
 	"productforge/objstore"
@@ -40,7 +41,10 @@ func DefaultSSE() string {
 		return v
 	}
 	if os.Getenv("PF_S3_BUCKET") != "" {
-		return "AES256"
+		if k := os.Getenv("PF_S3_KMS_KEY"); k != "" {
+			return "aws:kms:" + k
+		}
+		return "aws:kms"
 	}
 	return ""
 }
@@ -52,6 +56,9 @@ func CheckSSE(store datastore.ObjectStore, sse string) error {
 	}
 	if _, ok := store.(*s3store.S3Store); !ok {
 		return fmt.Errorf("pfaudit: %q requested but backend %T cannot provide server-side encryption", sse, store)
+	}
+	if strings.EqualFold(sse, "aws:kms") {
+		return fmt.Errorf("pfaudit: SSE-KMS requires PF_S3_KMS_KEY (or PF_AUDIT_SSE=aws:kms:<key-id>)")
 	}
 	return nil
 }

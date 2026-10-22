@@ -145,8 +145,6 @@ type Checksum struct {
 	Hash     string
 }
 
-// Constant-memory, order-independent per-tenant digest: an aggregate of 64-bit row hashes. The count is
-// compared alongside it, so a collision cannot silently pass verification.
 // TableChecksums streams rows in (tenant, id, at) order and hashes them with SHA-256 per tenant.
 // Constant memory: only one tenant hash is live at a time, so it scales with tenant count, not table size.
 func TableChecksums(ctx context.Context, pool *pgxpool.Pool, table string) (map[string]Checksum, error) {
@@ -219,6 +217,19 @@ func Verify(ctx context.Context, pool *pgxpool.Pool) (map[string]string, error) 
 		return problems, fmt.Errorf("pfaudit: verification failed for %d tenant(s)", len(problems))
 	}
 	return nil, nil
+}
+
+// validMonth accepts exactly audit_YYYYMM (restore/export inputs).
+func validMonth(t string) bool {
+	if len(t) != 12 || !strings.HasPrefix(t, "audit_") {
+		return false
+	}
+	for _, r := range t[6:] {
+		if r < '0' || r > '9' {
+			return false
+		}
+	}
+	return true
 }
 
 func validTable(t string) bool {
@@ -347,6 +358,13 @@ func Down(ctx context.Context, pool *pgxpool.Pool, force bool, reason string) er
 		return err
 	}
 	defer tx.Rollback(ctx)
+	// Emergency rollback must not race with live appends: take the swap lock and block audit writes.
+	if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtext($1))`, LockSwap); err != nil {
+		return fmt.Errorf("pfaudit: down lock: %w", err)
+	}
+	if _, err := tx.Exec(ctx, `LOCK TABLE audit IN ACCESS EXCLUSIVE MODE`); err != nil {
+		return fmt.Errorf("pfaudit: down access exclusive: %w", err)
+	}
 	// Copy rows written after the swap back into the flat table: down must not strand live events.
 	var missed int64
 	if err := tx.QueryRow(ctx, `WITH moved AS (
@@ -391,6 +409,26 @@ func Down(ctx context.Context, pool *pgxpool.Pool, force bool, reason string) er
 		VALUES (current_user, $1::text, 'down', jsonb_build_object('reason',$2::text,'copied_back',$3::bigint))`,
 		string(from), reason, missed)
 	return err
+}
+
+// SaveCursor persists the copy cursor as an append-only event plus its projection (the projection stays
+// rebuildable from events, as the schema contract requires).
+func SaveCursor(ctx context.Context, pool *pgxpool.Pool, lastID int64) error {
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+	if _, err := tx.Exec(ctx, `INSERT INTO audit_migration_state_events(actor, from_state, to_state, detail)
+		VALUES (current_user, 'prestage', 'prestage_copy', jsonb_build_object('last_id', $1::bigint))`, lastID); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(ctx, `INSERT INTO audit_migration_state(key, value, updated_at)
+		VALUES ('copy', jsonb_build_object('last_id', $1::bigint), now())
+		ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now()`, lastID); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
 }
 
 // RecordState appends an append-only event and refreshes the projection.

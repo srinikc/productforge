@@ -171,6 +171,26 @@ func TestAuditPartitioningIntegration(t *testing.T) {
 	} else if n != man.Rows {
 		t.Fatalf("restored %d rows, manifest says %d", n, man.Rows)
 	}
+	// Tenant isolation must survive the restore: the runtime role sees only its own rows.
+	scratch := "audit_restore_" + month[len(month)-6:]
+	rtx, err := pool.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := rtx.Exec(ctx, `SET LOCAL ROLE pf_app`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := rtx.Exec(ctx, `SELECT set_config('app.tenant_id', $1, true)`, tenant); err != nil {
+		t.Fatal(err)
+	}
+	var visible int64
+	if err := rtx.QueryRow(ctx, `SELECT count(*) FROM `+scratch).Scan(&visible); err != nil {
+		t.Fatalf("restored RLS read: %v", err)
+	}
+	_ = rtx.Rollback(ctx)
+	if visible != man.Rows {
+		t.Fatalf("restored table exposed %d row(s), want %d", visible, man.Rows)
+	}
 	if err := PurgeMonth(ctx, pool, obj, month, "tester", "retention policy"); err != nil {
 		t.Fatalf("purge: %v", err)
 	}
@@ -316,5 +336,30 @@ func TestReapplyAfterSwapIsRefused(t *testing.T) {
 	}
 	if shadow {
 		t.Fatal("re-apply created an empty shadow table next to the live partitioned audit")
+	}
+}
+
+// TestRetentionLockDoesNotBlockProvisioning proves the AURE retention lock is a separate namespace from the
+// AUDP insert-provisioning lock (an export must not stall writes to a new month).
+func TestRetentionLockDoesNotBlockProvisioning(t *testing.T) {
+	if os.Getenv("PF_DB_DSN") == "" {
+		t.Skip("PF_DB_DSN not set - skipping PostgreSQL integration test")
+	}
+	ctx := context.Background()
+	pool := setup(t)
+	conn, err := pool.Acquire(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Release()
+	if _, err := conn.Exec(ctx, `SELECT pg_advisory_lock(hashtext('AURE'))`); err != nil {
+		t.Fatalf("AURE lock: %v", err)
+	}
+	defer conn.Exec(ctx, `SELECT pg_advisory_unlock(hashtext('AURE'))`)
+	ctx2, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	if _, err := pool.Exec(ctx2, `INSERT INTO audit (tenant_id, actor, action, at)
+		VALUES ('slow-path','a','x', now() + interval '8 months')`); err != nil {
+		t.Fatalf("insert while AURE held must not block: %v", err)
 	}
 }

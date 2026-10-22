@@ -32,6 +32,14 @@ func setup(t *testing.T) *pgxpool.Pool {
 		t.Fatalf("pool: %v", err)
 	}
 	t.Cleanup(pool.Close)
+	// AC requires PostgreSQL >= 14 (declarative partitioning + FORCE RLS semantics).
+	var version int
+	if err := pool.QueryRow(ctx, `SELECT current_setting('server_version_num')::int`).Scan(&version); err != nil {
+		t.Fatalf("server version: %v", err)
+	}
+	if version < 140000 {
+		t.Fatalf("PostgreSQL >= 14 required, got %d", version)
+	}
 	// disposable test DB: start from a clean schema so tests never inherit each other's state.
 	// Roles are cluster-scoped and survive a schema reset; 0004 is idempotent so it is simply re-run.
 	if _, err := pool.Exec(ctx, `DROP SCHEMA public CASCADE`); err != nil {

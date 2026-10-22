@@ -13,6 +13,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net/url"
 	"os"
 	"os/exec"
 	"strconv"
@@ -107,6 +108,9 @@ func main() {
 		if err != nil {
 			fail("%v", err)
 		}
+		if err := pfaudit.RecordState(ctx, pool, "verified", "{}"); err != nil {
+			fail("record verify: %v", err)
+		}
 		fmt.Println("verify: OK (per-tenant count + sha256 match)")
 	case "swap":
 		runSwap(ctx, pool, *maxDelta, m)
@@ -175,15 +179,16 @@ func runPrestage(ctx context.Context, pool *pgxpool.Pool, batch int, m *pfaudit.
 		}
 		cursor = r.LastID
 		total += int(r.Inserted)
-		if _, err := pool.Exec(ctx, `INSERT INTO audit_migration_state(key, value, updated_at)
-			VALUES ('copy', jsonb_build_object('last_id', $1), now())
-			ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now()`, cursor); err != nil {
+		if err := pfaudit.SaveCursor(ctx, pool, cursor); err != nil {
 			fail("persist cursor: %v", err)
 		}
 		fmt.Printf("prestage: read=%d inserted=%d cursor=%d\n", r.Read, r.Inserted, r.LastID)
 		if r.Done {
 			break
 		}
+	}
+	if err := pfaudit.RecordState(ctx, pool, "prestaged", fmt.Sprintf(`{"inserted":%d}`, total)); err != nil {
+		fail("record prestage: %v", err)
 	}
 	fmt.Printf("prestage complete: %d row(s) newly staged\n", total)
 }
@@ -219,12 +224,15 @@ func runSwap(ctx context.Context, pool *pgxpool.Pool, maxDelta int, m *pfaudit.M
 		if err == nil {
 			m.Gauge(pfaudit.MetricSwapFreeze, time.Since(start).Seconds())
 			if err := pfaudit.PostVerify(ctx, pool); err != nil {
-				m.Inc(pfaudit.MetricAttachUnhardened)
+				if strings.Contains(err.Error(), "hardening") {
+					m.Inc(pfaudit.MetricAttachUnhardened)
+				}
 				fail("swap: committed but post-verification failed: %v", err)
 			}
 			if budget := os.Getenv("PF_AUDIT_FREEZE_BUDGET_SECONDS"); budget != "" {
 				if secs, convErr := strconv.ParseFloat(budget, 64); convErr == nil && time.Since(start).Seconds() > secs {
-					fmt.Printf("WARNING swap: freeze %.1fs exceeds budget %.1fs\n", time.Since(start).Seconds(), secs)
+					fail("swap: freeze %.1fs exceeds budget %.1fs (committed; investigate before close)",
+						time.Since(start).Seconds(), secs)
 				}
 			}
 			if err := pfaudit.RecordState(ctx, pool, "swapped",
@@ -296,7 +304,11 @@ func rehearsal(ctx context.Context, obj datastore.ObjectStore, key string) error
 }
 
 func backup(ctx context.Context, dsn string, obj datastore.ObjectStore, key, recipient string) error {
-	dump := exec.CommandContext(ctx, "pg_dump", "-Fc", "-t", "audit", "-t", "audit_legacy_id_seq", "-f", "-", dsn)
+	safeDSN, password := splitDSN(dsn)
+	dump := exec.CommandContext(ctx, "pg_dump", "-Fc", "-t", "audit", "-t", "audit_legacy_id_seq", "-f", "-", safeDSN)
+	if password != "" {
+		dump.Env = append(os.Environ(), "PGPASSWORD="+password)
+	}
 	age := exec.CommandContext(ctx, "age", "-r", recipient)
 	dp, err := dump.StdoutPipe()
 	if err != nil {
@@ -327,6 +339,20 @@ func backup(ctx context.Context, dsn string, obj datastore.ObjectStore, key, rec
 		return fmt.Errorf("empty backup object")
 	}
 	return nil
+}
+
+// splitDSN removes the password from the argv-visible DSN and returns it for PGPASSWORD instead.
+func splitDSN(dsn string) (string, string) {
+	u, err := url.Parse(dsn)
+	if err != nil || u.User == nil {
+		return dsn, ""
+	}
+	pw, has := u.User.Password()
+	if !has {
+		return dsn, ""
+	}
+	u.User = url.User(u.User.Username())
+	return u.String(), pw
 }
 
 func openObjectStore(ctx context.Context) datastore.ObjectStore {

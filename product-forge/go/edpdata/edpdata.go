@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgconn"
@@ -52,7 +53,8 @@ func (s *AuditStore) Append(ctx context.Context, e datastore.AuditEvent) error {
 	// needed month once and retry - never drop the event on the floor.
 	err := s.db.WithTx(ctx, insert)
 	var pgErr *pgconn.PgError
-	if !errors.As(err, &pgErr) || pgErr.Code != "23514" {
+	if !errors.As(err, &pgErr) || pgErr.Code != "23514" ||
+		!strings.Contains(pgErr.Message, "no partition of relation") {
 		return err
 	}
 	if perr := s.db.WithTx(ctx, func(tx datastore.Tx) error {
