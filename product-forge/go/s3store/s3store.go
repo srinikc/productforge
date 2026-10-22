@@ -11,6 +11,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"io"
 	"net/url"
 	"strings"
@@ -18,6 +19,7 @@ import (
 
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
+	"github.com/minio/minio-go/v7/pkg/encrypt"
 
 	"productforge/datastore"
 )
@@ -86,8 +88,23 @@ func (s *S3Store) Put(ctx context.Context, key string, r io.Reader, size int64, 
 	if ct == "" {
 		ct = "application/octet-stream"
 	}
-	up, err := s.client.PutObject(ctx, s.bucket, key, bytes.NewReader(body), int64(len(body)),
-		minio.PutObjectOptions{ContentType: ct, UserMetadata: map[string]string{checksumMeta: sum}})
+	putOpts := minio.PutObjectOptions{ContentType: ct, UserMetadata: map[string]string{checksumMeta: sum}}
+	if sse := strings.TrimSpace(opts.ServerSideEncryption); sse != "" {
+		switch {
+		case strings.EqualFold(sse, "AES256"), strings.EqualFold(sse, "SSE-S3"):
+			putOpts.ServerSideEncryption = encrypt.NewSSE()
+		case strings.HasPrefix(strings.ToLower(sse), "aws:kms"):
+			keyID := strings.TrimPrefix(sse, "aws:kms:")
+			kms, kerr := encrypt.NewSSEKMS(keyID, nil)
+			if kerr != nil {
+				return datastore.ObjectInfo{}, fmt.Errorf("s3store: SSE-KMS: %w", kerr)
+			}
+			putOpts.ServerSideEncryption = kms
+		default:
+			return datastore.ObjectInfo{}, fmt.Errorf("s3store: unsupported ServerSideEncryption %q", sse)
+		}
+	}
+	up, err := s.client.PutObject(ctx, s.bucket, key, bytes.NewReader(body), int64(len(body)), putOpts)
 	if err != nil {
 		return datastore.ObjectInfo{}, err
 	}

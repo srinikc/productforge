@@ -22,6 +22,7 @@ const (
 	MetricHoldExtractFailed = "audit_hold_extract_failed_total"
 	MetricLateInsert        = "audit_late_insert_total"
 	MetricHoldAfterPurge    = "audit_hold_after_purge_total"
+	MetricHoldUnarchived    = "audit_hold_unarchived_total"
 	MetricAttachUnhardened  = "audit_attach_unhardened_total"
 )
 

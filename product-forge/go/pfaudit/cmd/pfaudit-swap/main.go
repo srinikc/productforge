@@ -15,13 +15,13 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"productforge/datastore"
-	"productforge/objstore"
 	"productforge/pfaudit"
 )
 
@@ -36,7 +36,6 @@ func main() {
 	batch := fs.Int("batch", pfaudit.DefaultBatchRows, "rows per copy batch")
 	maxDelta := fs.Int("max-delta", pfaudit.DefaultMaxDeltaRows, "maximum delta rows to drain under the lock")
 	metricsOut := fs.Bool("metrics", true, "emit one structured metrics line on exit")
-	objRoot := fs.String("object-root", os.Getenv("PF_OBJECT_ROOT"), "local object-store root (when no cloud adapter)")
 	backupKey := fs.String("backup-key", os.Getenv("PF_AUDIT_BACKUP_KEY"), "object key of the encrypted pre-swap dump")
 	recipient := fs.String("age-recipient", os.Getenv("PF_AGE_RECIPIENT"), "age recipient for the encrypted dump")
 	force := fs.Bool("force-with-reason", false, "down: proceed even with archives/holds (audited)")
@@ -89,7 +88,7 @@ func main() {
 		if *backupKey == "" {
 			*backupKey = fmt.Sprintf("audit-backup/%s/audit.dump.age", time.Now().UTC().Format("20060102T150405"))
 		}
-		obj := openObjectStore(*objRoot)
+		obj := openObjectStore(ctx)
 		if err := backup(ctx, *dsn, obj, *backupKey, *recipient); err != nil {
 			fail("%v", err)
 		}
@@ -127,12 +126,12 @@ func main() {
 		if elapsed < float64(window) && !(*force && *reason != "") {
 			fail("close: rollback window is %dd, only %.1fd elapsed (use --force-with-reason --reason)", window, elapsed)
 		}
-		if err := pfaudit.RecordState(ctx, pool, "swap_closed", fmt.Sprintf(`{"backup":%q}`, *backupKey)); err != nil {
-			fail("record close: %v", err)
-		}
-		obj := openObjectStore(*objRoot)
+		obj := openObjectStore(ctx)
 		if err := obj.Delete(ctx, *backupKey, ""); err != nil {
 			fail("delete backup after sign-off: %v", err)
+		}
+		if err := pfaudit.RecordState(ctx, pool, "swap_closed", fmt.Sprintf(`{"backup":%q}`, *backupKey)); err != nil {
+			fail("record close: %v", err)
 		}
 		fmt.Println("closed: sign-off recorded, encrypted dump destroyed")
 	case "down":
@@ -215,7 +214,13 @@ func runSwap(ctx context.Context, pool *pgxpool.Pool, maxDelta int, m *pfaudit.M
 		if err == nil {
 			m.Gauge(pfaudit.MetricSwapFreeze, time.Since(start).Seconds())
 			if err := pfaudit.PostVerify(ctx, pool); err != nil {
+				m.Inc(pfaudit.MetricAttachUnhardened)
 				fail("swap: committed but post-verification failed: %v", err)
+			}
+			if budget := os.Getenv("PF_AUDIT_FREEZE_BUDGET_SECONDS"); budget != "" {
+				if secs, convErr := strconv.ParseFloat(budget, 64); convErr == nil && time.Since(start).Seconds() > secs {
+					fmt.Printf("WARNING swap: freeze %.1fs exceeds budget %.1fs\n", time.Since(start).Seconds(), secs)
+				}
 			}
 			if err := pfaudit.RecordState(ctx, pool, "swapped",
 				fmt.Sprintf(`{"drained":%d,"freeze_seconds":%.3f}`, n, time.Since(start).Seconds())); err != nil {
@@ -277,7 +282,7 @@ func rehearsal(ctx context.Context, obj datastore.ObjectStore, key string) error
 	if err != nil {
 		return fmt.Errorf("pg_restore -l: %w", err)
 	}
-	for _, want := range []string{"TABLE public audit", "SEQUENCE public audit_id_seq"} {
+	for _, want := range []string{"TABLE public audit", "SEQUENCE public audit_legacy_id_seq"} {
 		if !strings.Contains(string(out), want) {
 			return fmt.Errorf("dump is missing %q", want)
 		}
@@ -305,7 +310,7 @@ func backup(ctx context.Context, dsn string, obj datastore.ObjectStore, key, rec
 	go func() { pw.CloseWithError(age.Wait()) }()
 	info, putErr := obj.Put(ctx, key, pr, -1, datastore.PutOptions{
 		ContentType: "application/octet-stream", Immutable: true, Retention: 14 * 24 * time.Hour,
-		ServerSideEncryption: os.Getenv("PF_AUDIT_SSE"),
+		ServerSideEncryption: pfaudit.DefaultSSE(),
 	})
 	if werr := dump.Wait(); werr != nil {
 		return fmt.Errorf("pg_dump: %w", werr)
@@ -319,13 +324,15 @@ func backup(ctx context.Context, dsn string, obj datastore.ObjectStore, key, rec
 	return nil
 }
 
-func openObjectStore(root string) datastore.ObjectStore {
-	if root == "" {
-		root = os.TempDir() + string(os.PathSeparator) + "pfaudit-objects"
-	}
-	obj, err := objstore.NewLocalStore(root, 1<<34)
+func openObjectStore(ctx context.Context) datastore.ObjectStore {
+	obj, err := pfaudit.ObjectStore(ctx)
 	if err != nil {
 		fail("object store: %v", err)
+	}
+	if sse := pfaudit.DefaultSSE(); sse != "" {
+		if err := pfaudit.CheckSSE(obj, sse); err != nil {
+			fail("%v", err)
+		}
 	}
 	return obj
 }

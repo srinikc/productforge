@@ -69,13 +69,15 @@ func DetectState(ctx context.Context, pool *pgxpool.Pool) (State, error) {
 		return "", fmt.Errorf("detect state: %w", err)
 	}
 	switch {
-	case !shadow && !legacy:
-		return StateNotPrepared, nil
 	case audit && kind == "p":
 		if legacy {
 			return StateSwapped, nil
 		}
 		return StateDone, nil
+	case !audit:
+		return StateNotPrepared, nil
+	case !shadow && !legacy:
+		return StateNotPrepared, nil
 	case audit && kind == "r" && shadow:
 		return StatePrestage, nil
 	default:
@@ -84,7 +86,7 @@ func DetectState(ctx context.Context, pool *pgxpool.Pool) (State, error) {
 	}
 }
 
-// CheckConfig fails fast when the Go defaults disagree with the DB config row (single source).
+// CheckConfig reads the DB config row (the single source of truth for thresholds).
 func CheckConfig(ctx context.Context, pool *pgxpool.Pool) (batch, maxDelta int, err error) {
 	err = pool.QueryRow(ctx, `SELECT batch_rows, max_delta_rows FROM audit_partition_config WHERE id`).
 		Scan(&batch, &maxDelta)
@@ -94,9 +96,9 @@ func CheckConfig(ctx context.Context, pool *pgxpool.Pool) (batch, maxDelta int, 
 	if err != nil {
 		return 0, 0, fmt.Errorf("pfaudit: read config: %w", err)
 	}
-	if batch != DefaultBatchRows || maxDelta != DefaultMaxDeltaRows {
+	if batch <= 0 || maxDelta <= 0 {
 		return batch, maxDelta, fmt.Errorf(
-			"pfaudit: config drift (db batch=%d max_delta=%d, go defaults %d/%d) - update the tool",
+			"pfaudit: invalid config (db batch=%d max_delta=%d, go defaults %d/%d) - update the tool",
 			batch, maxDelta, DefaultBatchRows, DefaultMaxDeltaRows)
 	}
 	return batch, maxDelta, nil
@@ -312,21 +314,35 @@ func Down(ctx context.Context, pool *pgxpool.Pool, force bool, reason string) er
 		    WHERE r.hold_id = h.hold_id AND r.action = 'release' AND r.at > h.at)`).Scan(&holds); err != nil {
 		return err
 	}
+	from, err := DetectState(ctx, pool)
+	if err != nil {
+		return err
+	}
+	if from != StateSwapped {
+		return fmt.Errorf("pfaudit: down requires the swapped state, got %s", from)
+	}
 	if (archived > 0 || holds > 0) && !force {
 		return fmt.Errorf("pfaudit: down refused (archived=%d active_holds=%d); pass --force-with-reason after sign-off", archived, holds)
 	}
 	if force && strings.TrimSpace(reason) == "" {
 		return errors.New("pfaudit: --force-with-reason requires a non-empty reason")
 	}
-	from, err := DetectState(ctx, pool)
-	if err != nil {
-		return err
-	}
 	tx, err := pool.Begin(ctx)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback(ctx)
+	// Copy rows written after the swap back into the flat table: down must not strand live events.
+	var missed int64
+	if err := tx.QueryRow(ctx, `WITH moved AS (
+			INSERT INTO audit_legacy (id, tenant_id, actor, action, resource, outcome, correlation_id, at)
+			SELECT p.id, p.tenant_id, p.actor, p.action, p.resource, p.outcome, p.correlation_id, p.at
+			FROM audit p
+			WHERE NOT EXISTS (SELECT 1 FROM audit_legacy l WHERE l.id = p.id AND l.at = p.at)
+			RETURNING 1)
+		SELECT count(*) FROM moved`).Scan(&missed); err != nil {
+		return fmt.Errorf("pfaudit: down copy-back: %w", err)
+	}
 	stmts := []string{
 		`ALTER TABLE audit RENAME TO audit_partitioned`,
 		`ALTER SEQUENCE audit_id_seq RENAME TO audit_partitioned_id_seq`,
@@ -352,7 +368,8 @@ func Down(ctx context.Context, pool *pgxpool.Pool, force bool, reason string) er
 		return err
 	}
 	_, err = pool.Exec(ctx, `INSERT INTO audit_migration_state_events(actor, from_state, to_state, detail)
-		VALUES (current_user, $1, 'down', jsonb_build_object('reason',$2))`, string(from), reason)
+		VALUES (current_user, $1::text, 'down', jsonb_build_object('reason',$2::text,'copied_back',$3::bigint))`,
+		string(from), reason, missed)
 	return err
 }
 

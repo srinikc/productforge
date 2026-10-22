@@ -4,10 +4,13 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
+	"productforge/migrate"
 	"productforge/objstore"
+	"productforge/store"
 )
 
 // TestAuditPartitioningIntegration exercises the real substrate against PostgreSQL. It self-skips unless
@@ -162,6 +165,12 @@ func TestAuditPartitioningIntegration(t *testing.T) {
 	if _, err := pool.Exec(ctx, `SELECT audit_drop_partition($1)`, month); err == nil {
 		t.Fatal("second drop must fail (partition gone)")
 	}
+	// Round-trip restore before purge: cold data re-imports into an RLS-protected scratch leaf.
+	if n, err := RestoreMonth(ctx, pool, obj, month); err != nil {
+		t.Fatalf("restore: %v", err)
+	} else if n != man.Rows {
+		t.Fatalf("restored %d rows, manifest says %d", n, man.Rows)
+	}
 	if err := PurgeMonth(ctx, pool, obj, month, "tester", "retention policy"); err != nil {
 		t.Fatalf("purge: %v", err)
 	}
@@ -206,5 +215,101 @@ func TestVerifyDetectsDivergence(t *testing.T) {
 	}
 	if problems, _ := Verify(ctx, pool); len(problems) == 0 {
 		t.Fatal("verify missed a divergent shadow row")
+	}
+}
+
+// TestDownCopiesBackPostSwapRows proves --down does not strand events written after the swap.
+func TestDownCopiesBackPostSwapRows(t *testing.T) {
+	if os.Getenv("PF_DB_DSN") == "" {
+		t.Skip("PF_DB_DSN not set - skipping PostgreSQL integration test")
+	}
+	ctx := context.Background()
+	pool := setup(t)
+	tenant := fmt.Sprintf("it-down-%d", time.Now().UnixNano())
+	if _, err := pool.Exec(ctx, `INSERT INTO audit (tenant_id, actor, action, at) VALUES ($1,'a','pre',now())`, tenant); err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+	var cursor int64
+	for {
+		r, err := CopyBatch(ctx, pool, cursor, 10)
+		if err != nil {
+			t.Fatalf("copy: %v", err)
+		}
+		cursor = r.LastID
+		if r.Done {
+			break
+		}
+	}
+	if _, err := Swap(ctx, pool, DefaultMaxDeltaRows); err != nil {
+		t.Fatalf("swap: %v", err)
+	}
+	for i := 0; i < 2; i++ {
+		if _, err := pool.Exec(ctx, `INSERT INTO audit (tenant_id, actor, action, at) VALUES ($1,'a','post',now())`,
+			tenant); err != nil {
+			t.Fatalf("post-swap insert: %v", err)
+		}
+	}
+	if err := Down(ctx, pool, false, ""); err != nil {
+		t.Fatalf("down: %v", err)
+	}
+	if st, err := DetectState(ctx, pool); err != nil || st != StatePrestage {
+		t.Fatalf("post-down state = %v, %v; want prestage (flat audit + retained shadow)", st, err)
+	}
+	var n int64
+	if err := pool.QueryRow(ctx, `SELECT count(*) FROM audit WHERE tenant_id = $1`, tenant).Scan(&n); err != nil {
+		t.Fatal(err)
+	}
+	if n != 3 {
+		t.Fatalf("flat audit has %d row(s) for tenant, want 3 (down stranded data)", n)
+	}
+}
+
+// TestReapplyAfterSwapIsRefused proves migration 0014 will not recreate an empty shadow on a swapped DB.
+func TestReapplyAfterSwapIsRefused(t *testing.T) {
+	dsn := os.Getenv("PF_DB_DSN")
+	if dsn == "" {
+		t.Skip("PF_DB_DSN not set - skipping PostgreSQL integration test")
+	}
+	ctx := context.Background()
+	pool := setup(t)
+	tenant := fmt.Sprintf("it-reapply-%d", time.Now().UnixNano())
+	if _, err := pool.Exec(ctx, `INSERT INTO audit (tenant_id, actor, action, at) VALUES ($1,'a','x',now())`, tenant); err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+	var cursor int64
+	for {
+		r, err := CopyBatch(ctx, pool, cursor, 10)
+		if err != nil {
+			t.Fatalf("copy: %v", err)
+		}
+		cursor = r.LastID
+		if r.Done {
+			break
+		}
+	}
+	if _, err := Swap(ctx, pool, DefaultMaxDeltaRows); err != nil {
+		t.Fatalf("swap: %v", err)
+	}
+	if _, err := pool.Exec(ctx, `DELETE FROM schema_migrations WHERE version = 14`); err != nil {
+		t.Fatalf("forget migration: %v", err)
+	}
+	pg, err := store.Open(ctx, dsn)
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	defer pg.Close()
+	migs, err := migrate.LoadDir(filepath.Join("..", "..", "migrations"))
+	if err != nil {
+		t.Fatalf("load migrations: %v", err)
+	}
+	if _, err := migrate.Up(ctx, pg, migs); err == nil {
+		t.Fatal("re-applying 0014 after the swap must be refused")
+	}
+	var shadow bool
+	if err := pool.QueryRow(ctx, `SELECT to_regclass('audit_partitioned') IS NOT NULL`).Scan(&shadow); err != nil {
+		t.Fatal(err)
+	}
+	if shadow {
+		t.Fatal("re-apply created an empty shadow table next to the live partitioned audit")
 	}
 }

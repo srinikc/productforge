@@ -56,7 +56,7 @@ func (s *AuditStore) Append(ctx context.Context, e datastore.AuditEvent) error {
 		return err
 	}
 	if perr := s.db.WithTx(ctx, func(tx datastore.Tx) error {
-		_, execErr := tx.Exec(ctx, `SELECT audit_ensure_partitions()`)
+		_, execErr := tx.Exec(ctx, `SELECT audit_ensure_partitions(audit_month_start($1)::date)`, e.At)
 		return execErr
 	}); perr != nil {
 		return fmt.Errorf("edpdata: audit provisioning after out-of-range insert: %w (original: %v)", perr, err)

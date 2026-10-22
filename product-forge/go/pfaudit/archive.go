@@ -3,11 +3,11 @@ package pfaudit
 import (
 	"bufio"
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"strconv"
 	"time"
@@ -47,6 +47,15 @@ func ExportMonth(ctx context.Context, pool *pgxpool.Pool, obj datastore.ObjectSt
 	m.ArchivedAt = time.Now().UTC()
 	if !validTable(month) {
 		return m, fmt.Errorf("pfaudit: invalid partition %q", month)
+	}
+	// Export must see every tenant: a filtered read would record a short manifest and then drop the month.
+	var unfiltered bool
+	if err := pool.QueryRow(ctx, `SELECT r.rolsuper OR r.rolbypassrls FROM pg_roles r
+		WHERE r.rolname = current_user`).Scan(&unfiltered); err != nil {
+		return m, fmt.Errorf("pfaudit: export role check: %w", err)
+	}
+	if !unfiltered {
+		return m, errors.New("pfaudit: export must run as pf_owner (superuser/bypassrls); RLS would hide rows")
 	}
 	f, err := os.CreateTemp("", "pfaudit-export-*.ndjson")
 	if err != nil {
@@ -112,7 +121,7 @@ func ExportMonth(ctx context.Context, pool *pgxpool.Pool, obj datastore.ObjectSt
 	info, err := obj.Put(ctx, key, f, size, datastore.PutOptions{
 		ContentType: "application/x-ndjson", Checksum: hash, Immutable: true,
 		// Kept empty for the local adapter (it rejects SSE); cloud wiring sets PF_AUDIT_SSE (e.g. aws:kms).
-		ServerSideEncryption: os.Getenv("PF_AUDIT_SSE"),
+		ServerSideEncryption: DefaultSSE(),
 	})
 	f.Close()
 	if err != nil {
@@ -135,7 +144,6 @@ func RestoreMonth(ctx context.Context, pool *pgxpool.Pool, obj datastore.ObjectS
 	if !validTable(month) {
 		return 0, fmt.Errorf("pfaudit: invalid partition %q", month)
 	}
-	scratch := "audit_restore_" + month[len(month)-6:]
 	var wantRows int64
 	var wantSum string
 	if err := pool.QueryRow(ctx, `SELECT row_count, checksum FROM audit_archive_manifest WHERE month = $1`, month).
@@ -147,18 +155,47 @@ func RestoreMonth(ctx context.Context, pool *pgxpool.Pool, obj datastore.ObjectS
 		return 0, fmt.Errorf("pfaudit: get %s: %w", ArchiveKey(month), err)
 	}
 	defer rc.Close()
-	h := sha256.New()
-
+	tmp, err := os.CreateTemp("", "pfaudit-restore-*.ndjson")
+	if err != nil {
+		return 0, err
+	}
+	defer os.Remove(tmp.Name())
+	defer tmp.Close()
+	if _, err := io.Copy(tmp, rc); err != nil {
+		return 0, err
+	}
+	if _, err := tmp.Seek(0, io.SeekStart); err != nil {
+		return 0, err
+	}
+	// Integrity is checked BEFORE any row reaches the live cluster.
+	sum, _, err := SHA256(tmp)
+	if err != nil {
+		return 0, err
+	}
+	if wantSum == "" {
+		return 0, errors.New("pfaudit: manifest has no checksum; refusing to restore unverified data")
+	}
+	if sum != wantSum {
+		return 0, fmt.Errorf("pfaudit: archive checksum %s != manifest %s", sum, wantSum)
+	}
+	if _, err := tmp.Seek(0, io.SeekStart); err != nil {
+		return 0, err
+	}
+	scratch := "audit_restore_" + month[len(month)-6:]
+	var parent string
+	if err := pool.QueryRow(ctx, `SELECT audit_parent()::text`).Scan(&parent); err != nil {
+		return 0, fmt.Errorf("pfaudit: audit_parent: %w", err)
+	}
 	from, to := monthBounds(month)
 	if _, err := pool.Exec(ctx, fmt.Sprintf(
-		`CREATE TABLE IF NOT EXISTS %s PARTITION OF audit_partitioned FOR VALUES FROM (%s) TO (%s)`,
-		scratch, quoteDate(from), quoteDate(to))); err != nil {
+		`CREATE TABLE IF NOT EXISTS %s PARTITION OF %s FOR VALUES FROM (%s) TO (%s)`,
+		scratch, parent, quoteDate(from), quoteDate(to))); err != nil {
 		return 0, fmt.Errorf("pfaudit: create scratch partition: %w", err)
 	}
 	if _, err := pool.Exec(ctx, `SELECT audit_harden_partition($1)`, scratch); err != nil {
 		return 0, err
 	}
-	sc := bufio.NewScanner(io.TeeReader(rc, h))
+	sc := bufio.NewScanner(tmp)
 	sc.Buffer(make([]byte, 0, 1<<20), 16<<20)
 	batch := make([][]any, 0, 1000)
 	var n int64
@@ -201,9 +238,6 @@ func RestoreMonth(ctx context.Context, pool *pgxpool.Pool, obj datastore.ObjectS
 	}
 	if err := flush(); err != nil {
 		return n, err
-	}
-	if got := hex.EncodeToString(h.Sum(nil)); wantSum != "" && got != wantSum {
-		return n, fmt.Errorf("pfaudit: archive checksum %s != manifest %s", got, wantSum)
 	}
 	if n != wantRows {
 		return n, fmt.Errorf("pfaudit: archive has %d row(s), manifest says %d", n, wantRows)
@@ -256,7 +290,8 @@ func PurgeMonth(ctx context.Context, pool *pgxpool.Pool, obj datastore.ObjectSto
 		return err
 	}
 	for _, k := range keys {
-		if err := obj.Delete(ctx, k, ""); err != nil {
+		// Idempotent: a partially completed purge must be resumable, not stuck on a missing object.
+		if err := obj.Delete(ctx, k, ""); err != nil && !errors.Is(err, fs.ErrNotExist) {
 			return fmt.Errorf("pfaudit: delete %s: %w", k, err)
 		}
 	}

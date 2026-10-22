@@ -16,7 +16,6 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"productforge/datastore"
-	"productforge/objstore"
 	"productforge/pfaudit"
 )
 
@@ -28,7 +27,6 @@ func main() {
 	cmd := os.Args[1]
 	fs := flag.NewFlagSet(cmd, flag.ExitOnError)
 	dsn := fs.String("dsn", os.Getenv("PF_DB_DSN"), "PostgreSQL DSN")
-	root := fs.String("object-root", os.Getenv("PF_OBJECT_ROOT"), "local object-store root")
 	keep := fs.Int("keep-months", 13, "months of hot audit data to keep")
 	month := fs.String("month", "", "audit_YYYYMM partition")
 	actor := fs.String("actor", os.Getenv("PF_OPERATOR"), "operator identity (recorded)")
@@ -44,7 +42,7 @@ func main() {
 		fail("connect: %v", err)
 	}
 	defer pool.Close()
-	obj := objectStore(*root)
+	obj := objectStore(ctx)
 	met := pfaudit.NewMetrics()
 	// The lock must live on one dedicated connection: a pool-level Exec may unlock on a different backend.
 	lockConn, err := pool.Acquire(ctx)
@@ -164,7 +162,7 @@ func verifyHolds(ctx context.Context, pool *pgxpool.Pool, met *pfaudit.Metrics, 
 		return err
 	}
 	if missing != 0 {
-		met.Inc(pfaudit.MetricHoldAfterPurge)
+		met.Inc(pfaudit.MetricHoldUnarchived)
 		return fmt.Errorf("holds %s: %d held row(s) are NOT archived - refusing to drop", month, missing)
 	}
 	fmt.Printf("holds %s: archived=%d missing=0\n", month, archived)
@@ -180,13 +178,15 @@ func emitMetrics(m *pfaudit.Metrics) {
 	fmt.Println(string(b))
 }
 
-func objectStore(root string) datastore.ObjectStore {
-	if root == "" {
-		root = os.TempDir() + string(os.PathSeparator) + "pfaudit-objects"
-	}
-	obj, err := objstore.NewLocalStore(root, 1<<34)
+func objectStore(ctx context.Context) datastore.ObjectStore {
+	obj, err := pfaudit.ObjectStore(ctx)
 	if err != nil {
 		fail("object store: %v", err)
+	}
+	if sse := pfaudit.DefaultSSE(); sse != "" {
+		if err := pfaudit.CheckSSE(obj, sse); err != nil {
+			fail("%v", err)
+		}
 	}
 	return obj
 }

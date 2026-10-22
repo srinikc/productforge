@@ -8,6 +8,16 @@
 -- audit_legacy_id_seq. --down swaps the names back. No other name is used.
 
 -- ---- 1. sequence handoff (canonical names) -------------------------------------------------------
+-- Re-entry guard: after a committed swap the substrate is live under its final names. Re-creating a
+-- shadow then would be unsafe, so refuse early (the runner's transaction rolls back cleanly).
+DO $$
+BEGIN
+    IF to_regclass('public.audit_legacy') IS NOT NULL
+       AND to_regclass('public.audit_partitioned') IS NULL THEN
+        RAISE EXCEPTION '0014: swap already committed (audit is partitioned); nothing to apply';
+    END IF;
+END $$;
+
 DO $$
 BEGIN
     IF to_regclass('audit_id_seq') IS NOT NULL
@@ -235,6 +245,11 @@ DECLARE
     v_month DATE := audit_month_start(NEW.at);
     v_name  TEXT := audit_partition_name(v_month);
 BEGIN
+    -- The trigger is cloned onto every leaf; only the parent insert path may provision. A leaf insert (e.g.
+    -- cold restore into a scratch partition) must never try to attach the canonical month alongside it.
+    IF TG_TABLE_NAME <> audit_parent()::text THEN
+        RETURN NEW;
+    END IF;
     IF to_regclass('public.' || v_name) IS NOT NULL THEN
         RETURN NEW;  -- fast path: no lock, no catalog scan beyond the name lookup
     END IF;
@@ -277,30 +292,23 @@ CREATE OR REPLACE FUNCTION audit_append_late(
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, public AS $$
 DECLARE
     v_month DATE := audit_month_start(p_at);
-    v_name  TEXT := 'audit_late_' || to_char(v_month, 'YYYYMM');
     v_covered TEXT := audit_partition_name(v_month);
     v_id BIGINT;
 BEGIN
     IF v_month < audit_month_start(now()) - interval '24 months' THEN
         RAISE EXCEPTION 'audit_append_late: % is older than the 24-month lookback', p_at;
     END IF;
-    IF to_regclass('public.' || v_covered) IS NOT NULL THEN
-        EXECUTE format('INSERT INTO public.%I (tenant_id, actor, action, resource, outcome, correlation_id, at) '
-                       'VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id', v_covered)
-            INTO v_id USING p_tenant, p_actor, p_action, p_resource, p_outcome, p_correlation, p_at;
-        RETURN v_id;
-    END IF;
-    IF to_regclass('public.' || v_name) IS NULL THEN
-        EXECUTE format('CREATE TABLE public.%I PARTITION OF %s FOR VALUES FROM (%L) TO (%L)',
-                       v_name, audit_parent(), audit_month_ts(v_month), audit_month_ts((v_month + interval '1 month')::date));
-        PERFORM audit_harden_partition(v_name);
+    -- Always use the canonical month partition: a separate audit_late_* range would overlap the month
+    -- partition that rotation later tries to attach (23P01) and could never be dropped by retention.
+    IF to_regclass('public.' || v_covered) IS NULL THEN
+        PERFORM audit_attach_partition(v_month);
     END IF;
     EXECUTE format('INSERT INTO public.%I (tenant_id, actor, action, resource, outcome, correlation_id, at) '
-                   'VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id', v_name)
+                   'VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id', v_covered)
         INTO v_id USING p_tenant, p_actor, p_action, p_resource, p_outcome, p_correlation, p_at;
     INSERT INTO audit_migration_state_events(actor, from_state, to_state, detail)
         VALUES (current_user, 'late_insert', 'late_insert',
-                jsonb_build_object('id', v_id, 'month', v_name, 'reason', p_reason));
+                jsonb_build_object('id', v_id, 'month', v_covered, 'reason', p_reason));
     RETURN v_id;
 END $$;
 
@@ -331,18 +339,30 @@ END $$;
 CREATE OR REPLACE FUNCTION audit_drop_partition(p_month TEXT) RETURNS void
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, public AS $$
 BEGIN
+    IF p_month LIKE 'audit_grace_%' THEN
+        RAISE EXCEPTION 'audit_drop_partition: % is the grace partition', p_month;
+    END IF;
     IF p_month !~ '^audit_[0-9]{6}$' THEN
         RAISE EXCEPTION 'audit_drop_partition: refusing %', p_month;
     END IF;
     IF to_date(substr(p_month, 7, 6), 'YYYYMM') >= audit_month_start(now()) THEN
         RAISE EXCEPTION 'audit_drop_partition: % is current/future (never dropped)', p_month;
     END IF;
-    IF EXISTS (SELECT 1 FROM pg_class WHERE relname = p_month AND relname LIKE 'audit_grace_%') THEN
-        RAISE EXCEPTION 'audit_drop_partition: % is the grace partition', p_month;
-    END IF;
     IF NOT EXISTS (SELECT 1 FROM audit_archive_manifest WHERE month = p_month AND archived_at IS NOT NULL) THEN
         RAISE EXCEPTION 'audit_drop_partition: % has no verified archive', p_month;
     END IF;
+    -- Cross-check the live rows against the recorded manifest: a filtered/partial export must not drop data.
+    DECLARE
+        v_actual BIGINT;
+        v_expected BIGINT;
+    BEGIN
+        EXECUTE format('SELECT count(*) FROM public.%I', p_month) INTO v_actual;
+        SELECT row_count INTO v_expected FROM audit_archive_manifest WHERE month = p_month;
+        IF v_actual <> v_expected THEN
+            RAISE EXCEPTION 'audit_drop_partition: % has % row(s) but the manifest recorded % - refusing',
+                p_month, v_actual, v_expected;
+        END IF;
+    END;
     IF EXISTS (SELECT 1 FROM audit_legal_hold_events WHERE month = p_month AND action = 'hold'
                AND hold_id NOT IN (SELECT hold_id FROM audit_legal_hold_events e
                                    WHERE e.month = p_month AND e.action = 'release'
