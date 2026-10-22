@@ -356,6 +356,22 @@ def task_project_dir(scope: str, project: str | None) -> str:
     return ROOT if _norm_scope(scope) == "product_forge" else os.path.join(PRODUCTS_DIR, str(project or ""))
 
 
+def coding_guardrails_objective(task: dict[str, Any], objective: str) -> tuple[str, str]:
+    """BI-PF-1468: append the 2.5-derived coding guardrails to the implementation objective.
+
+    Returns ``(objective, block_sig)``; never raises (a guardrails failure must not block work).
+    """
+    try:
+        from core import design_guardrails as _dg
+        gid = str(task.get("task_id") or task.get("item_id") or "task")
+        block = _dg.render(task, gid, stage="diff")
+        if not block:
+            return objective, ""
+        return (objective + "\n\n" + block if objective else block), _dg.block_digest(block)
+    except Exception:
+        return objective, ""
+
+
 def run_task(task: dict[str, Any], project_dir: str, provider: str = "noop", base: str = "",
              run_id: str = "", command: Any = None, commit: bool = False,
              timeout: int = 1800) -> WorkerResult:
@@ -399,8 +415,11 @@ def run_task(task: dict[str, Any], project_dir: str, provider: str = "noop", bas
     res.base_commit = _git(worktree, "rev-parse", "HEAD")
 
     res.lifecycle.append("WORKING")
+    objective, _gsig = coding_guardrails_objective(task, str(task.get("objective") or ""))
+    if _gsig:
+        res.evidence["coding_guardrails"] = {"applied": True, "sig": _gsig}
     ctx = {"task": task, "project_dir": project_dir, "worktree": worktree, "branch": res.branch,
-           "run_id": res.run_id, "objective": task.get("objective"), "timeout": timeout,
+           "run_id": res.run_id, "objective": objective or task.get("objective"), "timeout": timeout,
            "command": command or (task.get("branch_policy") or {}).get("worker_command")}
     _work_start = time.time()
     out = prov.run(ctx)

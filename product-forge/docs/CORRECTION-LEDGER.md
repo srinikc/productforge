@@ -48,7 +48,8 @@ Ledger entries are an indexed source (`type=correction`) and are **retrieved + i
 | CL-005 | **No PF token for internal callers (interim)**; one shared instance per service per environment | `docs/PF-API-SERVICE-OR-SERVER.md` |
 | CL-006 | **Gate 1 must embed the latest Gate 1.5 findings + dispositions; approval is invalid while any BLOCKER/MAJOR is PENDING** | `scripts/dev/gate1_check.py` + `docs/REVIEW-GATES-LIFECYCLE.md` |
 | CL-007 | **Default 1.5/2.5 to the direct provider call; use a sub-agent only when investigation is needed; pre-check recurring blocker classes before 1.5** | `config/architect-review.json` (`design_checklist`) + `architect_review.py checklist` |
-| CL-008 | **Inject review learnings at DESIGN/GROOMING time, not only at Gate 1.5; the design must address the guardrails before review** | `scripts/dev/design_guardrails.py` + design-mode review prompt + `docs/REVIEW-GATES-LIFECYCLE.md` |
+| CL-008 | **Inject review learnings at DESIGN/GROOMING time, not only at Gate 1.5; the design must address the guardrails before review** | `core/design_guardrails.py` + grooming prompt hook + design-mode review prompt + `docs/REVIEW-GATES-LIFECYCLE.md` |
+| CL-009 | **Inject the same learnings at CODING time (worker objective + code-agent prompt), filtered to Gate 2.5 findings, so delivery-review classes are not repeated** | `core/design_guardrails.py` (`stage=diff`) + `core/worker.py` + `core/orchestrator/agent_runner.py` |
 
 > **Machine capture:** `scripts/dev/review_learnings.py --propose` emits rows carrying a
 > `<!-- sig:<digest> -->` marker so `--check` sees the recurring finding as captured. Manually-authored

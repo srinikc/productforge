@@ -1,0 +1,208 @@
+{
+  "id": "BI-PF-1468",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "api",
+  "external_id": "",
+  "label": "PF Backlog 639",
+  "title": "Grooming hook: auto-attach design guardrails during grooming (zero-touch)",
+  "body": "Follow-up to BI-PF-1467. The design guardrails exist as a CLI and in the design review prompt, but nothing forces them onto an item when it is groomed. Add a core grooming hook so every groomed spec is produced against the guardrails and the item records that they were applied, with no manual step.",
+  "source": "api",
+  "status": "new",
+  "priority": "P2",
+  "moscow": "Should",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [
+    "BI-PF-1467",
+    "BI-PF-1258",
+    "BI-PF-1250"
+  ],
+  "links": {},
+  "decisions": [
+    {
+      "at": "2026-10-20T18:43:39.140087",
+      "decision": "APPROVE",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)"
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "Follow-up to BI-PF-1467. The design guardrails exist as a CLI and in the design review prompt, but nothing forces them onto an item when it is groomed. Add a core grooming hook so every groomed spec is produced against the guardrails and the item records that they were applied, with no manual step.",
+    "what_adds": "Grooming hook: auto-attach design guardrails during grooming (zero-touch)",
+    "why": "Follow-up to BI-PF-1467. The design guardrails exist as a CLI and in the design review prompt, but nothing forces them onto an item when it is groomed. Add a core grooming hook so every groomed spec is produced against the guardrails and the item records that they were applied, with no manual step.",
+    "who_feels": "Product Forge maintainers and consumers.",
+    "source": "extracted"
+  },
+  "objective": "Grooming hook: auto-attach design guardrails during grooming (zero-touch)",
+  "acceptance_criteria": [
+    "The AI grooming prompt for a single item includes the DESIGN GUARDRAILS block (checklist, relevant corrections, recurring findings) so the produced spec addresses them.",
+    "The batched AI grooming prompt (groom_all) also includes a DESIGN GUARDRAILS block covering the batched items, so batch grooming is not weaker than single grooming.",
+    "Every groom path (groom, groom_all, regroom) appends an idempotent 'Design guardrails applied (<id>): sig:<digest>' marker to the item evidence without creating a new store or API route.",
+    "The guardrails logic has a single owner in core (core/design_guardrails.py); the existing scripts/dev CLI delegates to it and its tests keep passing.",
+    "A deterministic test proves the grooming prompt contains DESIGN GUARDRAILS and that a deterministic groom records the marker exactly once on re-groom."
+  ],
+  "in_scope": [
+    "Grooming hook: auto-attach design guardrails during grooming (zero-touch)"
+  ],
+  "out_of_scope": [
+    "Not specified."
+  ],
+  "affected_components": [
+    "Not specified."
+  ],
+  "affected_files": [
+    "Not specified."
+  ],
+  "approach": "Grooming hook: auto-attach design guardrails during grooming (zero-touch)",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Objective achieved: Grooming hook: auto-attach design guardrails during grooming (zero-touch)"
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending"
+  ],
+  "owner": "unassigned",
+  "requester": "api",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1252",
+  "parent": "BI-PF-1252",
+  "revision": 3,
+  "priority_rank": 50,
+  "priority_class": "P2",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "COMPLETE",
+    "analyzed_at": "2026-10-20T18:43:38.796851",
+    "analyzed_by": "system",
+    "revision_analyzed": 3,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend core/grooming.py to invoke core/guardrails.py + core/design_critic.py at groom time; stamp an applied_guardrails block (guardrail set, version, hash) onto the groomed spec; expose via existing /api/v1/backlog/grooming/guidelines endpoint and config/grooming-guidelines.json; reuse core/design_tokens.py for guardrail rendering.",
+    "existing_components": [],
+    "existing_apis": [],
+    "existing_modules": [],
+    "dependency_findings": [
+      "REQUIRES BI-PF-1467 guardrails to exist (state: implemented)",
+      "RELATED BI-PF-1258 restamp/regroom must re-apply guardrails",
+      "RELATED BI-PF-1250 epic-grooming hook shares core/grooming.py"
+    ],
+    "conflict_findings": [
+      "BI-PF-1258 also modifies core/grooming.py restamp path",
+      "BI-PF-1250 modifies core/grooming.py re-home logic"
+    ],
+    "duplication_findings": [
+      "BI-PF-1467 defines guardrail content; this only automates attachment",
+      "core/guardrails.py already implements CLI enforcement",
+      "core/design_critic.py already performs guardrail critique"
+    ],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "Grooming pipeline and guardrail engine both exist; this item is a small wiring+stamping change, not new capability.",
+    "assumptions": [
+      "BI-PF-1467 shipped a stable guardrails CLI/API",
+      "Grooming hook ordering: guardrails after parse, before spec finalization",
+      "Guardrail application is deterministic given config hash"
+    ],
+    "risks": [
+      "Guardrail evaluation cost on large specs",
+      "Guardrail version churn causing spurious restamps",
+      "Bikeshed on which guardrail set applies per item type"
+    ],
+    "evidence": [
+      "Candidate code shows core/guardrails.py + core/design_critic.py already exist",
+      "/api/v1/backlog/grooming/guidelines endpoint exists",
+      "config/grooming-guidelines.json already loaded by core/grooming.py"
+    ],
+    "confidence": "medium",
+    "missing_info": [
+      "Which guardrail sets map to which item types/epics",
+      "Whether guardrail failure blocks grooming or only annotates",
+      "Restamp cadence when guardrail config changes"
+    ],
+    "depth": "deep",
+    "mode": "ai",
+    "context_review": {
+      "ok": true,
+      "source": "llm",
+      "implementable": true,
+      "missing": [],
+      "reason": "Acceptance criteria are concrete: they name the single owner module (core/design_guardrails.py), the exact paths to hook (groom, groom_all, regroom), the required DESIGN GUARDRAILS prompt block, the idempotent evidence marker format, the constraint to avoid new stores/routes, delegation from scripts/dev CLI, and the deterministic test to add. WHY is well-stated (guardrails exist but aren't enforced at grooming, zero-touch requirement). These are enough for a standalone engineer/agent to implement without further digging, even though the APPROACH and AFFECTED_* fields are boilerplate."
+    },
+    "decision_request": {
+      "needed": false,
+      "reasons": [],
+      "ask": ""
+    },
+    "arch_fingerprint": "691d1fa5c525f28a"
+  },
+  "dependencies": [
+    {
+      "task_id": "BI-PF-1467",
+      "type": "REQUIRES",
+      "required_state": "implemented"
+    },
+    {
+      "task_id": "BI-PF-1258",
+      "type": "RELATED",
+      "required_state": "any"
+    },
+    {
+      "task_id": "BI-PF-1250",
+      "type": "RELATED",
+      "required_state": "any"
+    }
+  ],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-20T18:43:38.940541"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-20T18:42:36.929531",
+  "updated_at": "2026-10-20T19:19:02.381041",
+  "score": 0.75,
+  "_note": "readiness computed",
+  "api_impact": {
+    "needs_api": false,
+    "reason": "internal grooming/worker hook: no external API surface; reuses existing backlog context writes.",
+    "routes": []
+  }
+}

@@ -1,17 +1,17 @@
 # Backlog Summary
 
-> GENERATED 2026-10-19T22:33:01 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-20T19:22:02 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 139  |  **Closed:** 571
+- **Open:** 140  |  **Closed:** 571
 - `blocked`: 1
 - `executing`: 3
 - `in_progress`: 3
-- `new`: 132
+- `new`: 133
 
-### new, by category (132)
+### new, by category (133)
 **API / reports / HIL / misc** (16)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
@@ -93,7 +93,7 @@
 | BI-PF-1392 | Should | task | Enforce per-feature FR/US caps + max_lines in the Go artifact engine (scaled by the profile) and reconcile the three section sources | Per-feature FR/US caps + max_lines enforced NUMERICALLY (scaled by profile); sections have ONE source. |
 | BI-PF-1425 | Should | feature | Migrate orchestrator cache + evidence/summarizer (and remaining audit logic) from Python to Go (Go-first alignment) | Migrate orchestrator cache + evidence/summarizer (and remaining audit logic) from Python to Go (Go-first align... |
 
-**Wiring / tech-debt / API** (79)
+**Wiring / tech-debt / API** (80)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0185 | Should | feature | EPIC: Multi-modal / media orchestration (pluggable capability packs) | Make the pipeline modality-agnostic via PLUGGABLE capability packs, enabled per project when the idea needs th... |
@@ -175,6 +175,7 @@
 | BI-PF-1439 | Should | feature | Design-system catalog store + selection engine (Go) | PF can SELECT a ranked design direction from the idea. |
 | BI-PF-1440 | Should | feature | Design-token engine upgrade (3-tier OKLCH, light+dark) | Generate real design tokens from the selected direction. |
 | BI-PF-1445 | Should | feature | design_critic / visual_qa integration (anti-patterns + catalog + aesthetics) | QA validates against the chosen direction, non-negotiables and anti-patterns. |
+| BI-PF-1468 | Should | feature | Grooming hook: auto-attach design guardrails during grooming (zero-touch) | Grooming hook: auto-attach design guardrails during grooming (zero-touch) |
 
 ---
 
@@ -374,5 +375,5 @@
 ---
 
 ## Totals
-- backend: 139 open / 571 closed
+- backend: 140 open / 571 closed
 - dashboard: 146 open / 3 closed

@@ -1393,6 +1393,16 @@ Execute this task and produce the required output.""")
                     instruction += _lb
             except Exception:
                 pass
+            # BI-PF-1468: 2.5 learnings applied while coding (bounded; code agents only).
+            try:
+                if agent_id.startswith("implement") or agent_id in ("devops", "fix"):
+                    from core import design_guardrails as _dg
+                    _gid = str(contract.get("item_id") or contract.get("task_id") or "task")
+                    _gb = _dg.render({"title": str(task)[:600]}, _gid, stage="diff")
+                    if _gb:
+                        instruction += "\n\n" + _gb
+            except Exception:
+                pass
             # BI-PF-0294: opt-in, bounded memory read-back (memory is otherwise write-only).
             try:
                 from core import env_flags as _ef
