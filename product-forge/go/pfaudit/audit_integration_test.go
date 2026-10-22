@@ -4,14 +4,10 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"path/filepath"
 	"testing"
 	"time"
 
-	"github.com/jackc/pgx/v5/pgxpool"
-	"productforge/migrate"
 	"productforge/objstore"
-	"productforge/store"
 )
 
 // TestAuditPartitioningIntegration exercises the real substrate against PostgreSQL. It self-skips unless
@@ -22,28 +18,7 @@ func TestAuditPartitioningIntegration(t *testing.T) {
 		t.Skip("PF_DB_DSN not set - skipping PostgreSQL integration test")
 	}
 	ctx := context.Background()
-	pg, err := store.Open(ctx, dsn)
-	if err != nil {
-		t.Fatalf("open store: %v", err)
-	}
-	defer pg.Close()
-	migs, err := migrate.LoadDir(filepath.Join("..", "..", "migrations"))
-	if err != nil {
-		t.Fatalf("load migrations: %v", err)
-	}
-	if _, err := migrate.Up(ctx, pg, migs); err != nil {
-		t.Fatalf("migrate: %v", err)
-	}
-	// 0014 must be re-applicable (idempotent) after months have elapsed.
-	if _, err := migrate.Up(ctx, pg, migs); err != nil {
-		t.Fatalf("second migrate (idempotency): %v", err)
-	}
-
-	pool, err := pgxpool.New(ctx, dsn)
-	if err != nil {
-		t.Fatalf("pool: %v", err)
-	}
-	defer pool.Close()
+	pool := setup(t)
 
 	if st, err := DetectState(ctx, pool); err != nil || st != StatePrestage {
 		t.Fatalf("state = %v, %v; want prestage", st, err)

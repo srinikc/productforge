@@ -121,11 +121,22 @@ LANGUAGE sql IMMUTABLE AS $$
     SELECT (month::timestamp AT TIME ZONE 'UTC')
 $$;
 
+-- ---- 7b. live parent resolution (pre-swap shadow, post-swap audit) --------------------------------
+CREATE OR REPLACE FUNCTION audit_parent() RETURNS regclass
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = pg_catalog, public AS $$
+    SELECT CASE
+        WHEN to_regclass('public.audit') IS NOT NULL
+             AND (SELECT relkind = 'p' FROM pg_class WHERE oid = to_regclass('public.audit'))
+        THEN to_regclass('public.audit')
+        ELSE to_regclass('public.audit_partitioned')
+    END
+$$;
+
 -- ---- 8. hardening + enforce-by-privilege ----------------------------------------------------------
 CREATE OR REPLACE FUNCTION audit_harden_partition(p_name TEXT) RETURNS void
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, public AS $$
 DECLARE
-    v_reg regclass := to_regclass(p_name);
+    v_reg regclass := to_regclass(CASE WHEN p_name LIKE '%.%' THEN p_name ELSE 'public.' || p_name END);
 BEGIN
     IF v_reg IS NULL THEN
         RAISE EXCEPTION 'audit_harden_partition: % does not exist', p_name;
@@ -152,9 +163,12 @@ DECLARE
     v_from TIMESTAMPTZ := audit_month_ts(p_month);
     v_to   TIMESTAMPTZ := audit_month_ts((p_month + interval '1 month')::date);
 BEGIN
-    IF to_regclass(v_name) IS NULL THEN
-        EXECUTE format('CREATE TABLE %I PARTITION OF audit_partitioned FOR VALUES FROM (%L) TO (%L)',
-                       v_name, v_from, v_to);
+    IF audit_parent() IS NULL THEN
+        RAISE EXCEPTION 'audit_attach_partition: no audit parent (run migration 0014)';
+    END IF;
+    IF to_regclass('public.' || v_name) IS NULL THEN
+        EXECUTE format('CREATE TABLE public.%I PARTITION OF %s FOR VALUES FROM (%L) TO (%L)',
+                       v_name, audit_parent(), v_from, v_to);
     END IF;
     PERFORM audit_harden_partition(v_name);
     RETURN v_name;
@@ -168,7 +182,7 @@ BEGIN
         SELECT c.relname
         FROM pg_inherits i
         JOIN pg_class c ON c.oid = i.inhrelid
-        WHERE i.inhparent = 'audit_partitioned'::regclass
+        WHERE i.inhparent = audit_parent()
     LOOP
         IF NOT EXISTS (SELECT 1 FROM pg_class WHERE relname = r.relname AND relrowsecurity AND relforcerowsecurity) THEN
             RAISE EXCEPTION 'audit_assert_hardened: leaf % has no FORCE RLS', r.relname;
@@ -177,7 +191,7 @@ BEGIN
             RAISE EXCEPTION 'audit_assert_hardened: leaf % has no tenant_isolation policy', r.relname;
         END IF;
         IF NOT EXISTS (SELECT 1 FROM pg_trigger
-                       WHERE tgrelid = r.relname::regclass AND tgname LIKE '%append_only') THEN
+                       WHERE tgrelid = to_regclass('public.' || r.relname) AND tgname LIKE '%append_only') THEN
             RAISE EXCEPTION 'audit_assert_hardened: leaf % has no append-only trigger', r.relname;
         END IF;
     END LOOP;
@@ -195,7 +209,7 @@ BEGIN
     SELECT horizon_months INTO v_horizon FROM audit_partition_config WHERE id;
     v_target := COALESCE(audit_month_start(p_through), v_cur) + make_interval(months => v_horizon) - interval '1 month';
     WHILE v_cur <= v_target::date LOOP
-        IF to_regclass(audit_partition_name(v_cur)) IS NULL THEN
+        IF to_regclass('public.' || audit_partition_name(v_cur)) IS NULL THEN
             PERFORM audit_attach_partition(v_cur);
             v_n := v_n + 1;
         END IF;
@@ -221,7 +235,7 @@ DECLARE
     v_month DATE := audit_month_start(NEW.at);
     v_name  TEXT := audit_partition_name(v_month);
 BEGIN
-    IF to_regclass(v_name) IS NOT NULL THEN
+    IF to_regclass('public.' || v_name) IS NOT NULL THEN
         RETURN NEW;  -- fast path: no lock, no catalog scan beyond the name lookup
     END IF;
     PERFORM audit_advisory_lock('AUDP');  -- insert-path namespace
@@ -245,7 +259,7 @@ BEGIN
     WITH leaves AS (
         SELECT (regexp_match(c.relname, '^audit_(\d{6})$'))[1] AS ym
         FROM pg_inherits i JOIN pg_class c ON c.oid = i.inhrelid
-        WHERE i.inhparent = 'audit_partitioned'::regclass
+        WHERE i.inhparent = audit_parent()
     ), m AS (
         SELECT to_date(ym, 'YYYYMM') AS mon FROM leaves WHERE ym IS NOT NULL
     )
@@ -270,18 +284,18 @@ BEGIN
     IF v_month < audit_month_start(now()) - interval '24 months' THEN
         RAISE EXCEPTION 'audit_append_late: % is older than the 24-month lookback', p_at;
     END IF;
-    IF to_regclass(v_covered) IS NOT NULL THEN
-        EXECUTE format('INSERT INTO %I (tenant_id, actor, action, resource, outcome, correlation_id, at) '
+    IF to_regclass('public.' || v_covered) IS NOT NULL THEN
+        EXECUTE format('INSERT INTO public.%I (tenant_id, actor, action, resource, outcome, correlation_id, at) '
                        'VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id', v_covered)
             INTO v_id USING p_tenant, p_actor, p_action, p_resource, p_outcome, p_correlation, p_at;
         RETURN v_id;
     END IF;
-    IF to_regclass(v_name) IS NULL THEN
-        EXECUTE format('CREATE TABLE %I PARTITION OF audit_partitioned FOR VALUES FROM (%L) TO (%L)',
-                       v_name, audit_month_ts(v_month), audit_month_ts((v_month + interval '1 month')::date));
+    IF to_regclass('public.' || v_name) IS NULL THEN
+        EXECUTE format('CREATE TABLE public.%I PARTITION OF %s FOR VALUES FROM (%L) TO (%L)',
+                       v_name, audit_parent(), audit_month_ts(v_month), audit_month_ts((v_month + interval '1 month')::date));
         PERFORM audit_harden_partition(v_name);
     END IF;
-    EXECUTE format('INSERT INTO %I (tenant_id, actor, action, resource, outcome, correlation_id, at) '
+    EXECUTE format('INSERT INTO public.%I (tenant_id, actor, action, resource, outcome, correlation_id, at) '
                    'VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id', v_name)
         INTO v_id USING p_tenant, p_actor, p_action, p_resource, p_outcome, p_correlation, p_at;
     INSERT INTO audit_migration_state_events(actor, from_state, to_state, detail)
@@ -296,7 +310,7 @@ RETURNS TABLE(month TEXT, month_start DATE) LANGUAGE sql SECURITY DEFINER
 SET search_path = pg_catalog, public AS $$
     SELECT c.relname, to_date((regexp_match(c.relname, '^audit_(\d{6})$'))[1], 'YYYYMM')
     FROM pg_inherits i JOIN pg_class c ON c.oid = i.inhrelid
-    WHERE i.inhparent = 'audit_partitioned'::regclass
+    WHERE i.inhparent = audit_parent()
       AND c.relname ~ '^audit_[0-9]{6}$'
       AND to_date((regexp_match(c.relname, '^audit_(\d{6})$'))[1], 'YYYYMM')
           <= audit_month_start(now()) - make_interval(months => GREATEST(p_keep_months, 1))
@@ -329,7 +343,7 @@ BEGIN
                                      AND e.at > audit_legal_hold_events.at)) THEN
         RAISE EXCEPTION 'audit_drop_partition: % has an active hold', p_month;
     END IF;
-    EXECUTE format('DROP TABLE %I', p_month);
+    EXECUTE format('DROP TABLE public.%I', p_month);
 END $$;
 
 CREATE OR REPLACE FUNCTION audit_purge_candidates(p_grace_days INTEGER)
@@ -389,7 +403,7 @@ BEGIN
          (hold_id, id, tenant_id, actor, action, resource, outcome, correlation_id, at, reason, source_partition)
        SELECT e.hold_id, a.id, a.tenant_id, a.actor, a.action, a.resource, a.outcome, a.correlation_id, a.at,
               e.reason, %L
-       FROM %I a
+       FROM public.%I a
        JOIN audit_legal_hold_events e ON e.month = %L AND e.action = ''hold''
        WHERE NOT EXISTS (SELECT 1 FROM audit_legal_hold_events r
                          WHERE r.hold_id = e.hold_id AND r.action = ''release'' AND r.at > e.at)
@@ -484,8 +498,8 @@ BEGIN
     EXECUTE 'SELECT COALESCE(audit_month_start(min(at)), audit_month_start(now())) FROM audit' INTO v_min;
     SELECT horizon_months INTO v_horizon FROM audit_partition_config WHERE id;
     v_grace := (v_min - interval '1 month')::date;
-    EXECUTE format('CREATE TABLE IF NOT EXISTS %I PARTITION OF audit_partitioned FOR VALUES FROM (%L) TO (%L)',
-                   'audit_grace_' || to_char(v_grace, 'YYYYMM'), audit_month_ts(v_grace), audit_month_ts(v_min));
+    EXECUTE format('CREATE TABLE IF NOT EXISTS public.%I PARTITION OF %s FOR VALUES FROM (%L) TO (%L)',
+                   'audit_grace_' || to_char(v_grace, 'YYYYMM'), audit_parent(), audit_month_ts(v_grace), audit_month_ts(v_min));
     PERFORM audit_harden_partition('audit_grace_' || to_char(v_grace, 'YYYYMM'));
     WHILE v_min <= (v_cur + make_interval(months => v_horizon) - interval '1 month')::date LOOP
         PERFORM audit_attach_partition(v_min);

@@ -30,6 +30,7 @@ DROP FUNCTION IF EXISTS audit_advisory_lock(TEXT);
 DROP FUNCTION IF EXISTS audit_provision();
 DROP FUNCTION IF EXISTS audit_ensure_partitions(DATE);
 DROP FUNCTION IF EXISTS audit_assert_hardened();
+DROP FUNCTION IF EXISTS audit_parent();
 DROP FUNCTION IF EXISTS audit_attach_partition(DATE);
 DROP FUNCTION IF EXISTS audit_harden_partition(TEXT);
 DROP FUNCTION IF EXISTS audit_partition_name(DATE);
