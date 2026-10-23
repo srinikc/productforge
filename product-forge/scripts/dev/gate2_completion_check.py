@@ -99,9 +99,8 @@ def check(ids: list[str]) -> list[tuple[str, str]]:
             problems.append((iid, "PENDING_DIFF_FINDINGS"))
             continue
         sha = ((view or {}).get("review") or {}).get("sha") if view else "docs-only"
-        if view is not None and not docs_only and str(sha) != ar.diff_sha():
-            problems.append((iid, "STALE_EVIDENCE"))
-            continue
+        # Evidence freshness for the CURRENT code change is enforced by architect_review_check; a
+        # completion may legitimately ride in a PR that also touches other files.
         ok, reason = gp.gate2_ready(item, str(sha or ""), view, allow_missing_view=view is None)
         if not ok:
             problems.append((iid, reason))
