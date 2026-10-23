@@ -29,7 +29,7 @@ func ObjectStore(ctx context.Context) (datastore.ObjectStore, error) {
 	root := os.Getenv("PF_OBJECT_ROOT")
 	if root == "" {
 		// A reboot-wiped temp dir is not an archive: evidence would vanish with the dropped partition.
-		panic("pfaudit: set PF_OBJECT_ROOT (durable path) or the S3 vars; refusing an ephemeral archive")
+		return nil, fmt.Errorf("pfaudit: set PF_OBJECT_ROOT (durable path) or the S3 vars; refusing an ephemeral archive")
 	}
 	return objstore.NewLocalStore(root, 1<<34)
 }
@@ -44,7 +44,8 @@ func DefaultSSE() string {
 		if k := os.Getenv("PF_S3_KMS_KEY"); k != "" {
 			return "aws:kms:" + k
 		}
-		return "aws:kms"
+		// SSE-S3 is the portable default; an explicit KMS key opts into SSE-KMS.
+		return "AES256"
 	}
 	return ""
 }

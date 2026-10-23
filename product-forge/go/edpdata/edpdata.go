@@ -50,20 +50,25 @@ func (s *AuditStore) Append(ctx context.Context, e datastore.AuditEvent) error {
 	// EDP-20 fast path: the audit_provision trigger attaches a missing month without a lock in the common
 	// case. If a concurrent rotation/drop still lands the row outside every partition (23514), provision the
 	// needed month once and retry - never drop the event on the floor.
-	err := s.db.WithTx(ctx, insert)
 	// Classify by SQLSTATE through a driver-neutral interface: the port layer must not import pgconn.
-	var sqlErr interface{ SQLState() string }
-	if !errors.As(err, &sqlErr) || sqlErr.SQLState() != "23514" ||
-		!strings.Contains(err.Error(), "no partition of relation") {
-		return err
+	classify := func(err error) bool {
+		var sqlErr interface{ SQLState() string }
+		return errors.As(err, &sqlErr) && sqlErr.SQLState() == "23514" &&
+			strings.Contains(err.Error(), "no partition of relation")
 	}
-	if perr := s.db.WithTx(ctx, func(tx datastore.Tx) error {
-		_, execErr := tx.Exec(ctx, `SELECT audit_ensure_partitions(audit_month_start($1)::date)`, e.At)
-		return execErr
-	}); perr != nil {
-		return fmt.Errorf("edpdata: audit provisioning after out-of-range insert: %w (original: %v)", perr, err)
+	err := s.db.WithTx(ctx, insert)
+	for attempt := 0; attempt < 3 && classify(err); attempt++ {
+		// A concurrent retention drop can still race the heal: re-provision and retry, but never swallow
+		// the event - after the bounded attempts the caller gets the error and can retry/alert.
+		if perr := s.db.WithTx(ctx, func(tx datastore.Tx) error {
+			_, execErr := tx.Exec(ctx, `SELECT audit_ensure_partitions(audit_month_start($1)::date)`, e.At)
+			return execErr
+		}); perr != nil {
+			return fmt.Errorf("edpdata: audit provisioning after out-of-range insert: %w (original: %v)", perr, err)
+		}
+		err = s.db.WithTx(ctx, insert)
 	}
-	return s.db.WithTx(ctx, insert)
+	return err
 }
 
 // ---- JobStore (lease-based) ----

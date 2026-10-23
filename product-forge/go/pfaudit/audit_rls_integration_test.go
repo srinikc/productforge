@@ -155,3 +155,30 @@ func TestUnhardenedLeafDetected(t *testing.T) {
 		t.Fatalf("assert after harden: %v", err)
 	}
 }
+
+// TestPrivilegeBoundary proves the runtime role cannot call SECURITY DEFINER primitives (forge an archive,
+// approve a purge) nor attach a partition of its own.
+func TestPrivilegeBoundary(t *testing.T) {
+	ctx := context.Background()
+	pool := setup(t)
+	cases := []string{
+		`SELECT audit_mark_archived('audit_202001', 0, 'x', '[]'::jsonb)`,
+		`SELECT audit_approve_purge('audit_202001', 'attacker', 'forged')`,
+		`SELECT audit_drop_partition('audit_202001')`,
+		`CREATE TABLE public.audit_202001 PARTITION OF audit FOR VALUES FROM ('2020-01-01') TO ('2020-02-01')`,
+	}
+	for _, q := range cases {
+		tx, err := pool.Begin(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := tx.Exec(ctx, `SET LOCAL ROLE pf_app`); err != nil {
+			t.Fatal(err)
+		}
+		_, err = tx.Exec(ctx, q)
+		_ = tx.Rollback(ctx)
+		if err == nil || !(strings.Contains(err.Error(), "permission denied") || strings.Contains(err.Error(), "must be owner")) {
+			t.Fatalf("pf_app must be denied %q, got %v", q, err)
+		}
+	}
+}

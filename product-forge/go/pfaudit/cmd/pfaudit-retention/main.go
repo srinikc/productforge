@@ -140,7 +140,7 @@ func main() {
 		}
 		if err := pfaudit.PurgeMonth(ctx, pool, obj, *month, *actor, *reason); err != nil {
 			if strings.Contains(err.Error(), "active legal hold") {
-				met.Inc(pfaudit.MetricHoldAfterPurge)
+				met.Inc(pfaudit.MetricPurgeBlockedHold)
 			}
 			fail("%v", err)
 		}

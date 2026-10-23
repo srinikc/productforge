@@ -419,13 +419,13 @@ func Down(ctx context.Context, pool *pgxpool.Pool, force bool, reason string) er
 	if _, err := tx.Exec(ctx, `SELECT setval('audit_id_seq', $1, false)`, gap); err != nil {
 		return err
 	}
-	if err := tx.Commit(ctx); err != nil {
+	// Record the down event in the same transaction: a crash must not lose the permanent record.
+	if _, err := tx.Exec(ctx, `INSERT INTO audit_migration_state_events(actor, from_state, to_state, detail)
+		VALUES (current_user, $1::text, 'down', jsonb_build_object('reason',$2::text,'copied_back',$3::bigint))`,
+		string(from), reason, missed); err != nil {
 		return err
 	}
-	_, err = pool.Exec(ctx, `INSERT INTO audit_migration_state_events(actor, from_state, to_state, detail)
-		VALUES (current_user, $1::text, 'down', jsonb_build_object('reason',$2::text,'copied_back',$3::bigint))`,
-		string(from), reason, missed)
-	return err
+	return tx.Commit(ctx)
 }
 
 // SaveCursor persists the copy cursor as an append-only event plus its projection (the projection stays

@@ -41,6 +41,16 @@ CREATE TABLE IF NOT EXISTS audit_partition_config (
 );
 INSERT INTO audit_partition_config (id) VALUES (TRUE) ON CONFLICT (id) DO NOTHING;
 
+CREATE OR REPLACE FUNCTION audit_config_touch() RETURNS trigger
+LANGUAGE plpgsql AS $$
+BEGIN
+    NEW.updated_at := now();
+    RETURN NEW;
+END $$;
+DROP TRIGGER IF EXISTS audit_partition_config_touch ON audit_partition_config;
+CREATE TRIGGER audit_partition_config_touch BEFORE UPDATE ON audit_partition_config
+    FOR EACH ROW EXECUTE FUNCTION audit_config_touch();
+
 -- ---- 3. shadow partitioned table ------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS audit_partitioned (
     id             BIGINT NOT NULL DEFAULT nextval('audit_id_seq'),
@@ -86,6 +96,7 @@ CREATE TABLE IF NOT EXISTS audit_legal_hold_events (
 CREATE INDEX IF NOT EXISTS idx_audit_hold_events_month
     ON audit_legal_hold_events (month, action);
 
+
 CREATE TABLE IF NOT EXISTS audit_legal_hold_archive (
     hold_id          TEXT NOT NULL,
     id               BIGINT NOT NULL,
@@ -101,6 +112,8 @@ CREATE TABLE IF NOT EXISTS audit_legal_hold_archive (
     held_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
     PRIMARY KEY (hold_id, id, at)
 );
+CREATE INDEX IF NOT EXISTS idx_audit_hold_archive_source
+    ON audit_legal_hold_archive (source_partition);
 
 -- Spoliation guard: a hold cannot be recorded against a month whose archive was already purged.
 CREATE OR REPLACE FUNCTION audit_hold_guard() RETURNS trigger
@@ -192,8 +205,15 @@ BEGIN
         RAISE EXCEPTION 'audit_attach_partition: no audit parent (run migration 0014)';
     END IF;
     IF to_regclass('public.' || v_name) IS NULL THEN
-        EXECUTE format('CREATE TABLE public.%I PARTITION OF %s FOR VALUES FROM (%L) TO (%L)',
-                       v_name, audit_parent(), v_from, v_to);
+        BEGIN
+            EXECUTE format('CREATE TABLE public.%I PARTITION OF %s FOR VALUES FROM (%L) TO (%L)',
+                           v_name, audit_parent(), v_from, v_to);
+        EXCEPTION WHEN exclusion_violation THEN
+            -- The grace partition already owns this range; the insert is covered, no canonical leaf needed.
+            IF to_regclass('public.' || v_name) IS NULL THEN
+                RETURN v_name;
+            END IF;
+        END;
     END IF;
     PERFORM audit_harden_partition(v_name);
     RETURN v_name;
@@ -284,8 +304,8 @@ BEGIN
     PERFORM audit_advisory_lock('AUDP');  -- insert-path namespace
     BEGIN
         PERFORM audit_attach_partition(v_month);
-    EXCEPTION WHEN duplicate_table OR unique_violation THEN
-        NULL;  -- 42P07 race: another connection attached it
+    EXCEPTION WHEN duplicate_table OR unique_violation OR exclusion_violation THEN
+        NULL;  -- 42P07 race, or the grace partition already covers the range
     END;
     RETURN NEW;
 END $$;
@@ -307,7 +327,11 @@ BEGIN
         SELECT to_date(ym, 'YYYYMM') AS mon FROM leaves WHERE ym IS NOT NULL
     )
     SELECT min(mon), max(mon),
-           (min(mon) - interval '1 month')::date,
+           COALESCE((SELECT to_date(substr(c.relname, 13, 6), 'YYYYMM')
+                       FROM pg_inherits i JOIN pg_class c ON c.oid = i.inhrelid
+                      WHERE i.inhparent = audit_parent() AND c.relname LIKE 'audit_grace_%'
+                      ORDER BY c.relname DESC LIMIT 1),
+                    (min(mon) - interval '1 month')::date),
            COALESCE((EXTRACT(YEAR FROM max(mon)) * 12 + EXTRACT(MONTH FROM max(mon)))
                   - (EXTRACT(YEAR FROM audit_month_start(now())) * 12 + EXTRACT(MONTH FROM audit_month_start(now()))), 0)::int
     FROM m;
@@ -325,6 +349,13 @@ DECLARE
 BEGIN
     IF v_month < audit_month_start(now()) - interval '24 months' THEN
         RAISE EXCEPTION 'audit_append_late: % is older than the 24-month lookback', p_at;
+    END IF;
+    -- A late row in a held month must not bypass the hold archive (it would be dropped unextracted).
+    IF EXISTS (SELECT 1 FROM audit_legal_hold_events h
+               WHERE h.month = audit_partition_name(v_month) AND h.action = 'hold'
+                 AND NOT EXISTS (SELECT 1 FROM audit_legal_hold_events r
+                                  WHERE r.hold_id = h.hold_id AND r.action = 'release' AND r.at > h.at)) THEN
+        RAISE EXCEPTION 'audit_append_late: % has an active legal hold; use the hold workflow', p_at;
     END IF;
     -- Always use the canonical month partition: a separate audit_late_* range would overlap the month
     -- partition that rotation later tries to attach (23P01) and could never be dropped by retention.
@@ -533,6 +564,7 @@ END $$;
 
 -- ---- 16. grants (only if the runtime roles exist; test DBs may not have them) ----------------------
 DO $$
+DECLARE r RECORD;
 BEGIN
   IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'pf_app') THEN
     EXECUTE 'REVOKE ALL ON audit_partitioned FROM pf_app';
@@ -554,6 +586,22 @@ BEGIN
   EXECUTE 'REVOKE ALL ON audit_partitioned FROM PUBLIC';
   EXECUTE 'REVOKE TRUNCATE ON audit_partitioned, audit_legal_hold_archive FROM PUBLIC';
   EXECUTE 'REVOKE TRUNCATE ON audit_migration_state_events, audit_legal_hold_events FROM PUBLIC';
+  -- SECURITY DEFINER primitives are owner-only: PUBLIC EXECUTE would let pf_app forge archives/purges.
+  FOR r IN SELECT p.oid::regprocedure AS sig FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+            WHERE n.nspname = 'public' AND p.proname LIKE 'audit\_%'
+  LOOP
+    EXECUTE format('REVOKE ALL ON FUNCTION %s FROM PUBLIC', r.sig);
+  END LOOP;
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'pf_app') THEN
+    EXECUTE 'GRANT EXECUTE ON FUNCTION audit_ensure_partitions(date) TO pf_app';
+    EXECUTE 'GRANT EXECUTE ON FUNCTION audit_month_start(timestamptz) TO pf_app';
+    EXECUTE 'GRANT EXECUTE ON FUNCTION audit_partition_name(date) TO pf_app';
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'pf_runtime') THEN
+    EXECUTE 'GRANT EXECUTE ON FUNCTION audit_ensure_partitions(date) TO pf_runtime';
+    EXECUTE 'GRANT EXECUTE ON FUNCTION audit_month_start(timestamptz) TO pf_runtime';
+    EXECUTE 'GRANT EXECUTE ON FUNCTION audit_partition_name(date) TO pf_runtime';
+  END IF;
 END $$;
 
 -- ---- 17. initial partitions (legacy_min .. current+horizon, plus one grace month) -----------------
