@@ -6,7 +6,9 @@ package objreconcile
 
 import (
 	"context"
+	"errors"
 	"log"
+	"os"
 	"sort"
 	"strings"
 
@@ -69,19 +71,31 @@ func Scan(ctx context.Context, store datastore.ObjectStore, prefix string, manif
 		want[e.Key] = e
 	}
 	for _, e := range want {
-		head, err := store.Head(ctx, e.Key)
-		if err != nil {
+		info, ok := actual[e.Key]
+		if !ok {
 			rep.Missing = append(rep.Missing, e.Key)
 			continue
 		}
-		if head.Size != e.Size {
+		// Use List's ObjectInfo; Head only when the manifest needs a digest List did not provide.
+		if e.Checksum != "" && info.Checksum == "" {
+			head, err := store.Head(ctx, e.Key)
+			if err != nil {
+				if notFound(err) {
+					rep.Missing = append(rep.Missing, e.Key)
+					continue
+				}
+				return rep, err // fail closed: transient/permission errors are not drift
+			}
+			info = head
+		}
+		if info.Size != e.Size {
 			rep.SizeMismatch = append(rep.SizeMismatch, e.Key)
 		}
 		if e.Checksum != "" {
 			switch {
-			case head.Checksum == "":
+			case info.Checksum == "":
 				rep.ChecksumUnverifiable = append(rep.ChecksumUnverifiable, e.Key)
-			case !strings.EqualFold(head.Checksum, e.Checksum):
+			case !strings.EqualFold(info.Checksum, e.Checksum):
 				rep.ChecksumMismatch = append(rep.ChecksumMismatch, e.Key)
 			}
 		}
@@ -103,4 +117,13 @@ func Scan(ctx context.Context, store datastore.ObjectStore, prefix string, manif
 			len(rep.ChecksumMismatch), len(rep.ChecksumUnverifiable), len(rep.Invalid))
 	}
 	return rep, nil
+}
+
+// notFound distinguishes true absence from transient/permission errors.
+func notFound(err error) bool {
+	if errors.Is(err, os.ErrNotExist) {
+		return true
+	}
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "nosuchkey") || strings.Contains(msg, "not found")
 }

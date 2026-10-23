@@ -104,10 +104,10 @@ func TestLifecycleUnsupported(t *testing.T) {
 	if _, ok := datastore.Lifecycle(st); ok {
 		t.Fatal("local store must not advertise lifecycle capability")
 	}
-	if err := st.ApplyLifecycle(context.Background(), "k", datastore.LifecyclePolicy{Mode: "GOVERNANCE"}); !errors.Is(err, datastore.ErrUnsupported) {
+	if err := st.ApplyLifecycle(context.Background(), "k", "", datastore.LifecyclePolicy{Mode: "GOVERNANCE"}); !errors.Is(err, datastore.ErrUnsupported) {
 		t.Fatalf("ApplyLifecycle: want ErrUnsupported, got %v", err)
 	}
-	if _, err := st.ObjectLifecycle(context.Background(), "k"); !errors.Is(err, datastore.ErrUnsupported) {
+	if _, err := st.ObjectLifecycle(context.Background(), "k", ""); !errors.Is(err, datastore.ErrUnsupported) {
 		t.Fatalf("ObjectLifecycle: want ErrUnsupported, got %v", err)
 	}
 }

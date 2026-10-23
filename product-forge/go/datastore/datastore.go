@@ -93,8 +93,8 @@ var ErrUnsupported = errors.New("datastore: capability unsupported")
 // LifecycleCapable is an OPTIONAL capability: providers that support object lock/retention implement it.
 // Look it up with Lifecycle(store) instead of asserting it unconditionally.
 type LifecycleCapable interface {
-	ApplyLifecycle(ctx context.Context, key string, policy LifecyclePolicy) error
-	ObjectLifecycle(ctx context.Context, key string) (LifecycleState, error)
+	ApplyLifecycle(ctx context.Context, key, version string, policy LifecyclePolicy) error
+	ObjectLifecycle(ctx context.Context, key, version string) (LifecycleState, error)
 }
 
 // Lifecycle returns the provider's lifecycle capability, if any.

@@ -30,19 +30,19 @@ func TestLifecycleConformance(t *testing.T) {
 		t.Fatalf("put: %v", err)
 	}
 	defer st.Delete(ctx, key, "")
-	if err := st.ApplyLifecycle(ctx, key, datastore.LifecyclePolicy{
+	if err := st.ApplyLifecycle(ctx, key, "", datastore.LifecyclePolicy{
 		Mode: "GOVERNANCE", RetainUntil: time.Now().Add(time.Hour), LegalHold: true,
 	}); err != nil {
 		t.Fatalf("apply lifecycle: %v", err)
 	}
-	state, err := st.ObjectLifecycle(ctx, key)
+	state, err := st.ObjectLifecycle(ctx, key, "")
 	if err != nil {
 		t.Fatalf("read lifecycle: %v", err)
 	}
 	if !strings.EqualFold(state.Mode, "GOVERNANCE") || !state.LegalHold {
 		t.Fatalf("lifecycle state = %+v", state)
 	}
-	if err := st.ApplyLifecycle(ctx, key, datastore.LifecyclePolicy{ReleaseLegalHold: true}); err != nil {
+	if err := st.ApplyLifecycle(ctx, key, "", datastore.LifecyclePolicy{ReleaseLegalHold: true}); err != nil {
 		t.Fatalf("release legal hold: %v", err)
 	}
 }

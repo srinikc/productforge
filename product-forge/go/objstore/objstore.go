@@ -301,11 +301,11 @@ func info(m meta) datastore.ObjectInfo {
 var errLocalLifecycle = fmt.Errorf("objstore: lifecycle/object-lock requires an object-lock capable provider: %w", datastore.ErrUnsupported)
 
 // ApplyLifecycle is unsupported: the local filesystem cannot enforce retention or legal hold.
-func (s *LocalStore) ApplyLifecycle(_ context.Context, _ string, _ datastore.LifecyclePolicy) error {
+func (s *LocalStore) ApplyLifecycle(_ context.Context, _, _ string, _ datastore.LifecyclePolicy) error {
 	return errLocalLifecycle
 }
 
 // ObjectLifecycle is unsupported on the local adapter.
-func (s *LocalStore) ObjectLifecycle(_ context.Context, _ string) (datastore.LifecycleState, error) {
+func (s *LocalStore) ObjectLifecycle(_ context.Context, _, _ string) (datastore.LifecycleState, error) {
 	return datastore.LifecycleState{}, errLocalLifecycle
 }

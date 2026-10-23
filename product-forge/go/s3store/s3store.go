@@ -229,7 +229,7 @@ func retentionFor(opts datastore.PutOptions) (minio.RetentionMode, time.Time, er
 }
 
 // ApplyLifecycle sets object retention/legal hold. COMPLIANCE is irreversible once applied.
-func (s *S3Store) ApplyLifecycle(ctx context.Context, key string, policy datastore.LifecyclePolicy) error {
+func (s *S3Store) ApplyLifecycle(ctx context.Context, key, version string, policy datastore.LifecyclePolicy) error {
 	if strings.TrimSpace(key) == "" {
 		return errors.New("s3store: empty key")
 	}
@@ -250,7 +250,7 @@ func (s *S3Store) ApplyLifecycle(ctx context.Context, key string, policy datasto
 		}
 		until := policy.RetainUntil
 		if err := s.client.PutObjectRetention(ctx, s.bucket, key, minio.PutObjectRetentionOptions{
-			Mode: &mode, RetainUntilDate: &until,
+			Mode: &mode, RetainUntilDate: &until, VersionID: version,
 		}); err != nil {
 			return fmt.Errorf("s3store: apply retention: %w", err)
 		}
@@ -261,7 +261,7 @@ func (s *S3Store) ApplyLifecycle(ctx context.Context, key string, policy datasto
 			status = minio.LegalHoldDisabled
 		}
 		if err := s.client.PutObjectLegalHold(ctx, s.bucket, key, minio.PutObjectLegalHoldOptions{
-			Status: &status,
+			Status: &status, VersionID: version,
 		}); err != nil {
 			return fmt.Errorf("s3store: apply legal hold: %w", err)
 		}
@@ -270,9 +270,9 @@ func (s *S3Store) ApplyLifecycle(ctx context.Context, key string, policy datasto
 }
 
 // ObjectLifecycle returns the effective retention/legal-hold state.
-func (s *S3Store) ObjectLifecycle(ctx context.Context, key string) (datastore.LifecycleState, error) {
+func (s *S3Store) ObjectLifecycle(ctx context.Context, key, version string) (datastore.LifecycleState, error) {
 	var st datastore.LifecycleState
-	mode, until, err := s.client.GetObjectRetention(ctx, s.bucket, key, "")
+	mode, until, err := s.client.GetObjectRetention(ctx, s.bucket, key, version)
 	if err != nil {
 		return st, fmt.Errorf("s3store: get retention: %w", err)
 	}
@@ -282,7 +282,7 @@ func (s *S3Store) ObjectLifecycle(ctx context.Context, key string) (datastore.Li
 	if until != nil {
 		st.RetainUntil = *until
 	}
-	hold, err := s.client.GetObjectLegalHold(ctx, s.bucket, key, minio.GetObjectLegalHoldOptions{})
+	hold, err := s.client.GetObjectLegalHold(ctx, s.bucket, key, minio.GetObjectLegalHoldOptions{VersionID: version})
 	if err != nil {
 		return st, fmt.Errorf("s3store: get legal hold: %w", err)
 	}
