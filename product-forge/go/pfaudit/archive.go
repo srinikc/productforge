@@ -280,10 +280,10 @@ func VerifyHoldExtraction(ctx context.Context, pool *pgxpool.Pool, month string)
 	}
 	// Counts alone cannot detect swapped/tampered rows, so the archived copy is also digest-checked.
 	dq := `SELECT
-	  coalesce((SELECT encode(sha256(convert_to(string_agg(t::text, E'\n' ORDER BY t.id, t.at), 'UTF8')), 'hex')
+	  coalesce((SELECT encode(sha256(convert_to(string_agg(concat_ws('|', t.id, t.tenant_id, t.actor, t.action, t.resource, t.outcome, t.correlation_id, extract(epoch from t.at)), E'\n' ORDER BY t.id, t.at), 'UTF8')), 'hex')
 	    FROM (SELECT DISTINCT id, tenant_id, actor, action, resource, outcome, correlation_id, at
 	            FROM audit_legal_hold_archive WHERE source_partition = $1) t), ''),
-	  coalesce((SELECT encode(sha256(convert_to(string_agg(t::text, E'\n' ORDER BY t.id, t.at), 'UTF8')), 'hex')
+	  coalesce((SELECT encode(sha256(convert_to(string_agg(concat_ws('|', t.id, t.tenant_id, t.actor, t.action, t.resource, t.outcome, t.correlation_id, extract(epoch from t.at)), E'\n' ORDER BY t.id, t.at), 'UTF8')), 'hex')
 	    FROM (SELECT DISTINCT a.id, a.tenant_id, a.actor, a.action, a.resource, a.outcome, a.correlation_id, a.at
 	            FROM ` + month + ` a
 	            JOIN audit_legal_hold_events e ON e.month = $1 AND e.action = 'hold'

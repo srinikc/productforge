@@ -332,6 +332,17 @@ func Swap(ctx context.Context, pool *pgxpool.Pool, maxDelta int) (int64, error) 
 			return delta, fmt.Errorf("pfaudit: drain delta: %w", err)
 		}
 	}
+	// Verify the delta landed exactly: ON CONFLICT could hide an id-reuse/divergent row.
+	var liveCount, shadowCount int64
+	if err := tx.QueryRow(ctx, `SELECT count(*) FROM audit`).Scan(&liveCount); err != nil {
+		return delta, err
+	}
+	if err := tx.QueryRow(ctx, `SELECT count(*) FROM audit_partitioned`).Scan(&shadowCount); err != nil {
+		return delta, err
+	}
+	if liveCount != shadowCount {
+		return delta, fmt.Errorf("pfaudit: drain diverged (live=%d shadow=%d); refusing swap", liveCount, shadowCount)
+	}
 	if _, err := tx.Exec(ctx, `ALTER TABLE audit RENAME TO audit_legacy`); err != nil {
 		return delta, fmt.Errorf("pfaudit: rename legacy: %w", err)
 	}

@@ -309,7 +309,8 @@ BEGIN
     END IF;
     IF v_month < audit_month_start(now()) - interval '24 months'
        OR v_month > audit_month_start(now()) + make_interval(months => (SELECT horizon_months FROM audit_partition_config WHERE id)) THEN
-        RAISE EXCEPTION 'audit_provision: % is outside the provisionable window', NEW.at;
+        -- Keep the documented out-of-range contract: SQLSTATE 23514 + the stable partition message.
+        RAISE EXCEPTION 'no partition of relation "audit" found for row (%)', NEW.at USING ERRCODE = '23514';
     END IF;
     IF to_regclass('public.' || v_name) IS NOT NULL THEN
         RETURN NEW;  -- fast path: no lock, no catalog scan beyond the name lookup
