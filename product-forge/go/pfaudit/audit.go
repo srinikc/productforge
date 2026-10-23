@@ -148,10 +148,20 @@ type Checksum struct {
 // TableChecksums streams rows in (tenant, id, at) order and hashes them with SHA-256 per tenant.
 // Constant memory: only one tenant hash is live at a time, so it scales with tenant count, not table size.
 func TableChecksums(ctx context.Context, pool *pgxpool.Pool, table string) (map[string]Checksum, error) {
+	return tableChecksums(ctx, pool, table, "", nil)
+}
+
+// tableChecksumsUpTo hashes only rows with id <= maxID: the frozen legacy prefix, so PostVerify never
+// reports a false mismatch from appends that happened after the swap committed.
+func tableChecksumsUpTo(ctx context.Context, pool *pgxpool.Pool, table string, maxID int64) (map[string]Checksum, error) {
+	return tableChecksums(ctx, pool, table, "WHERE id <= $1", []any{maxID})
+}
+
+func tableChecksums(ctx context.Context, pool *pgxpool.Pool, table, where string, args []any) (map[string]Checksum, error) {
 	if !validTable(table) {
 		return nil, fmt.Errorf("pfaudit: invalid table %q", table)
 	}
-	rows, err := pool.Query(ctx, `SELECT tenant_id, id, action, at FROM `+table+` ORDER BY tenant_id, id, at`)
+	rows, err := pool.Query(ctx, `SELECT tenant_id, id, action, at FROM `+table+` `+where+` ORDER BY tenant_id, id, at`, args...)
 	if err != nil {
 		return nil, fmt.Errorf("checksums %s: %w", table, err)
 	}
@@ -187,7 +197,6 @@ func TableChecksums(ctx context.Context, pool *pgxpool.Pool, table string) (map[
 	return out, nil
 }
 
-// Verify compares legacy vs shadow per tenant AND in total. Any difference is a hard failure.
 // RequireUnfilteredVisibility fails unless the current role sees every audit row: a filtered read under
 // FORCE RLS would make checksums/decisions look correct while hiding data.
 func RequireUnfilteredVisibility(ctx context.Context, pool *pgxpool.Pool) error {
@@ -570,14 +579,19 @@ func PostVerify(ctx context.Context, pool *pgxpool.Pool) error {
 	if err != nil {
 		return fmt.Errorf("pfaudit: checksum audit_legacy: %w", err)
 	}
-	live, err := TableChecksums(ctx, pool, "audit")
+	var legacyMax int64
+	if err := pool.QueryRow(ctx, `SELECT COALESCE(max(id),0) FROM audit_legacy`).Scan(&legacyMax); err != nil {
+		return err
+	}
+	bounded, err := tableChecksumsUpTo(ctx, pool, "audit", legacyMax)
 	if err != nil {
-		return fmt.Errorf("pfaudit: checksum audit: %w", err)
+		return fmt.Errorf("pfaudit: checksum live prefix: %w", err)
 	}
 	for tenant, want := range legacy {
-		got, ok := live[tenant]
-		if !ok || got.Rows < want.Rows {
-			return fmt.Errorf("pfaudit: post-swap lost rows for tenant %s (%d < %d)", tenant, got.Rows, want.Rows)
+		got, ok := bounded[tenant]
+		if !ok || got.Rows != want.Rows || got.Hash != want.Hash {
+			return fmt.Errorf("pfaudit: post-swap divergence for tenant %s (rows %d/%d, hash %s/%s)",
+				tenant, got.Rows, want.Rows, got.Hash, want.Hash)
 		}
 	}
 	var last, maxID int64

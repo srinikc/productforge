@@ -307,13 +307,13 @@ BEGIN
     IF TG_TABLE_NAME <> audit_parent()::text THEN
         RETURN NEW;
     END IF;
+    IF to_regclass('public.' || v_name) IS NOT NULL THEN
+        RETURN NEW;  -- fast path: existing leaves accept backdated rows (prestage/backfill)
+    END IF;
     IF v_month < audit_month_start(now()) - interval '24 months'
        OR v_month > audit_month_start(now()) + make_interval(months => (SELECT horizon_months FROM audit_partition_config WHERE id)) THEN
         -- Keep the documented out-of-range contract: SQLSTATE 23514 + the stable partition message.
         RAISE EXCEPTION 'no partition of relation "audit" found for row (%)', NEW.at USING ERRCODE = '23514';
-    END IF;
-    IF to_regclass('public.' || v_name) IS NOT NULL THEN
-        RETURN NEW;  -- fast path: no lock, no catalog scan beyond the name lookup
     END IF;
     PERFORM audit_advisory_lock('AUDP');  -- insert-path namespace
     BEGIN
@@ -363,6 +363,11 @@ DECLARE
 BEGIN
     IF v_month < audit_month_start(now()) - interval '24 months' THEN
         RAISE EXCEPTION 'audit_append_late: % is older than the 24-month lookback', p_at;
+    END IF;
+    -- Archived/purged months are immutable: a late row would invalidate the manifest or resurrect a purge.
+    IF EXISTS (SELECT 1 FROM audit_archive_manifest
+               WHERE month = v_covered AND (archived_at IS NOT NULL OR purged_at IS NOT NULL)) THEN
+        RAISE EXCEPTION 'audit_append_late: % is archived; restore it before appending', v_covered;
     END IF;
     -- A late row in a held month must not bypass the hold archive (it would be dropped unextracted).
     IF EXISTS (SELECT 1 FROM audit_legal_hold_events h
