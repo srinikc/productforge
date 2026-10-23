@@ -53,6 +53,7 @@ func main() {
 	}
 	defer pool.Close()
 	m := pfaudit.NewMetrics()
+	activeMetrics = m
 
 	switch cmd {
 	case "plan", "status":
@@ -165,6 +166,7 @@ func main() {
 }
 
 func emitMetrics(m *pfaudit.Metrics) {
+	metricsEmitted = true
 	c, g := m.Snapshot()
 	if len(c) == 0 && len(g) == 0 {
 		return
@@ -240,7 +242,9 @@ func runSwap(ctx context.Context, pool *pgxpool.Pool, maxDelta int, m *pfaudit.M
 		start := time.Now()
 		n, err := pfaudit.Swap(ctx, pool, maxDelta)
 		if err == nil {
-			m.Gauge(pfaudit.MetricSwapFreeze, time.Since(start).Seconds())
+			// Freeze ends when the rename transaction commits; verification happens after the writers resume.
+			frozen := time.Since(start)
+			m.Gauge(pfaudit.MetricSwapFreeze, frozen.Seconds())
 			if err := pfaudit.PostVerify(ctx, pool); err != nil {
 				if strings.Contains(err.Error(), "hardening") {
 					m.Inc(pfaudit.MetricAttachUnhardened)
@@ -248,16 +252,16 @@ func runSwap(ctx context.Context, pool *pgxpool.Pool, maxDelta int, m *pfaudit.M
 				fail("swap: committed but post-verification failed: %v", err)
 			}
 			if budget := os.Getenv("PF_AUDIT_FREEZE_BUDGET_SECONDS"); budget != "" {
-				if secs, convErr := strconv.ParseFloat(budget, 64); convErr == nil && time.Since(start).Seconds() > secs {
+				if secs, convErr := strconv.ParseFloat(budget, 64); convErr == nil && frozen.Seconds() > secs {
 					fail("swap: freeze %.1fs exceeds budget %.1fs (committed; investigate before close)",
-						time.Since(start).Seconds(), secs)
+						frozen.Seconds(), secs)
 				}
 			}
 			if err := pfaudit.RecordState(ctx, pool, "swapped",
-				fmt.Sprintf(`{"drained":%d,"freeze_seconds":%.3f}`, n, time.Since(start).Seconds())); err != nil {
+				fmt.Sprintf(`{"drained":%d,"freeze_seconds":%.3f}`, n, frozen.Seconds())); err != nil {
 				fail("record swap: %v", err)
 			}
-			fmt.Printf("swap: committed (drained %d row(s), freeze %.1fs)\n", n, time.Since(start).Seconds())
+			fmt.Printf("swap: committed (drained %d row(s), freeze %.1fs)\n", n, frozen.Seconds())
 			return
 		}
 		retryable := errors.Is(err, pfaudit.ErrDeltaTooLarge) || errors.Is(err, pfaudit.ErrLockTimeout)
@@ -344,7 +348,7 @@ func backup(ctx context.Context, dsn string, obj datastore.ObjectStore, key, rec
 	}
 	go func() { pw.CloseWithError(age.Wait()) }()
 	info, putErr := obj.Put(ctx, key, pr, -1, datastore.PutOptions{
-		ContentType: "application/octet-stream", Immutable: true, Retention: 14 * 24 * time.Hour,
+		ContentType: "application/octet-stream", Immutable: true, Retention: backupRetention(),
 		ServerSideEncryption: pfaudit.DefaultSSE(),
 	})
 	if werr := dump.Wait(); werr != nil {
@@ -393,7 +397,27 @@ func usage() {
 	os.Exit(2)
 }
 
+var (
+	activeMetrics  *pfaudit.Metrics
+	metricsEmitted bool
+)
+
+// backupRetention keeps the encrypted dump at least as long as the rollback window unless overridden.
+func backupRetention() time.Duration {
+	if v := os.Getenv("PF_AUDIT_BACKUP_RETENTION_DAYS"); v != "" {
+		if d, err := strconv.Atoi(v); err == nil && d > 0 {
+			return time.Duration(d) * 24 * time.Hour
+		}
+	}
+	return 30 * 24 * time.Hour
+}
+
 func fail(format string, args ...any) {
+	// Emit metrics before exiting: failure paths (retry exhaustion, budget) are exactly when they matter.
+	if activeMetrics != nil && !metricsEmitted {
+		metricsEmitted = true
+		emitMetrics(activeMetrics)
+	}
 	fmt.Fprintf(os.Stderr, "pfaudit-swap: "+format+"\n", args...)
 	os.Exit(1)
 }

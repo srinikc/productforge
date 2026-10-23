@@ -13,6 +13,11 @@ BEGIN
     IF to_regclass('public.audit_partitioned') IS NULL AND to_regclass('public.audit_legacy') IS NOT NULL THEN
         RAISE EXCEPTION '0014 down: swap is committed; run pfaudit-swap --down first';
     END IF;
+    -- Legally held rows must not disappear with a schema rollback.
+    IF to_regclass('public.audit_legal_hold_archive') IS NOT NULL
+       AND EXISTS (SELECT 1 FROM audit_legal_hold_archive) THEN
+        RAISE EXCEPTION '0014 down: legal hold archive is not empty; resolve holds before dropping the substrate';
+    END IF;
 END $$;
 
 DROP TABLE IF EXISTS audit_partitioned CASCADE;

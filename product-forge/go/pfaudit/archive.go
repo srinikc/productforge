@@ -50,15 +50,8 @@ func ExportMonth(ctx context.Context, pool *pgxpool.Pool, obj datastore.ObjectSt
 	}
 	// Export must see every tenant: a filtered read would record a short manifest and then drop the month.
 	// pf_owner is the audit table owner (owner_bypass policy), NOT superuser: ownership is sufficient.
-	var unfiltered bool
-	if err := pool.QueryRow(ctx, `SELECT r.rolsuper OR r.rolbypassrls OR c.relowner = (SELECT oid FROM pg_roles WHERE rolname = current_user)
-		FROM pg_roles r
-		JOIN pg_class c ON c.relname = CASE WHEN to_regclass('public.audit') IS NOT NULL THEN 'audit' ELSE 'audit_partitioned' END
-		WHERE r.rolname = current_user`).Scan(&unfiltered); err != nil {
-		return m, fmt.Errorf("pfaudit: export role check: %w", err)
-	}
-	if !unfiltered {
-		return m, errors.New("pfaudit: export must run as the audit table owner or a BYPASSRLS role; RLS would hide rows")
+	if err := RequireUnfilteredVisibility(ctx, pool); err != nil {
+		return m, err
 	}
 	f, err := os.CreateTemp("", "pfaudit-export-*.ndjson")
 	if err != nil {

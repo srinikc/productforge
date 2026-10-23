@@ -44,8 +44,8 @@ func DefaultSSE() string {
 		if k := os.Getenv("PF_S3_KMS_KEY"); k != "" {
 			return "aws:kms:" + k
 		}
-		// SSE-S3 is the portable default; an explicit KMS key opts into SSE-KMS.
-		return "AES256"
+		// Legal evidence requires SSE-KMS: fail closed (CheckSSE) instead of silently using SSE-S3.
+		return "aws:kms"
 	}
 	return ""
 }

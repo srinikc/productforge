@@ -188,7 +188,27 @@ func TableChecksums(ctx context.Context, pool *pgxpool.Pool, table string) (map[
 }
 
 // Verify compares legacy vs shadow per tenant AND in total. Any difference is a hard failure.
+// RequireUnfilteredVisibility fails unless the current role sees every audit row: a filtered read under
+// FORCE RLS would make checksums/decisions look correct while hiding data.
+func RequireUnfilteredVisibility(ctx context.Context, pool *pgxpool.Pool) error {
+	var ok bool
+	if err := pool.QueryRow(ctx, `SELECT r.rolsuper OR r.rolbypassrls OR EXISTS (
+		SELECT 1 FROM pg_class c
+		WHERE c.relname IN ('audit','audit_partitioned','audit_legacy')
+		  AND c.relowner = (SELECT oid FROM pg_roles WHERE rolname = current_user))
+		FROM pg_roles r WHERE r.rolname = current_user`).Scan(&ok); err != nil {
+		return fmt.Errorf("pfaudit: visibility check: %w", err)
+	}
+	if !ok {
+		return errors.New("pfaudit: refusing to read audit rows under RLS filtering; run as the table owner or a BYPASSRLS role")
+	}
+	return nil
+}
+
 func Verify(ctx context.Context, pool *pgxpool.Pool) (map[string]string, error) {
+	if err := RequireUnfilteredVisibility(ctx, pool); err != nil {
+		return nil, err
+	}
 	a, err := TableChecksums(ctx, pool, "audit")
 	if err != nil {
 		return nil, err
@@ -263,6 +283,9 @@ const (
 // Swap performs S4: it enforces the delta bound under the lock, drains, renames and advances the
 // canonical sequence. It returns the number of drained delta rows.
 func Swap(ctx context.Context, pool *pgxpool.Pool, maxDelta int) (int64, error) {
+	if err := RequireUnfilteredVisibility(ctx, pool); err != nil {
+		return 0, err
+	}
 	conn, err := pool.Acquire(ctx)
 	if err != nil {
 		return 0, err
@@ -319,6 +342,17 @@ func Swap(ctx context.Context, pool *pgxpool.Pool, maxDelta int) (int64, error) 
 	if _, err := tx.Exec(ctx, `DO $$
 		BEGIN
 		  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'pf_app') THEN
+		    EXECUTE 'GRANT INSERT, SELECT ON audit TO pf_app';
+		  END IF;
+		  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'pf_runtime') THEN
+		    EXECUTE 'GRANT INSERT, SELECT ON audit TO pf_runtime';
+		  END IF;
+		END $$`); err != nil {
+		return delta, fmt.Errorf("pfaudit: grant partitioned audit: %w", err)
+	}
+	if _, err := tx.Exec(ctx, `DO $$
+		BEGIN
+		  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'pf_app') THEN
 		    EXECUTE 'REVOKE ALL ON audit_legacy FROM pf_app';
 		  END IF;
 		  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'pf_runtime') THEN
@@ -357,6 +391,9 @@ func DownPlan(ctx context.Context, pool *pgxpool.Pool) (state State, archived, h
 
 // Down reverses a committed swap. Gated: refuses when any month is archived/purged or a hold exists.
 func Down(ctx context.Context, pool *pgxpool.Pool, force bool, reason string) error {
+	if err := RequireUnfilteredVisibility(ctx, pool); err != nil {
+		return err
+	}
 	from, archived, holds, err := DownPlan(ctx, pool)
 	if err != nil {
 		return err
@@ -408,6 +445,18 @@ func Down(ctx context.Context, pool *pgxpool.Pool, force bool, reason string) er
 		if _, err := tx.Exec(ctx, s); err != nil {
 			return fmt.Errorf("pfaudit: down: %w", err)
 		}
+	}
+	// The swap revoked app grants on the old flat table; restore them on the rolled-back parent.
+	if _, err := tx.Exec(ctx, `DO $$
+		BEGIN
+		  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'pf_app') THEN
+		    EXECUTE 'GRANT INSERT, SELECT ON audit TO pf_app';
+		  END IF;
+		  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'pf_runtime') THEN
+		    EXECUTE 'GRANT INSERT, SELECT ON audit TO pf_runtime';
+		  END IF;
+		END $$`); err != nil {
+		return fmt.Errorf("pfaudit: down grants: %w", err)
 	}
 	// No id reuse: the restored sequence must sit above BOTH surviving tables.
 	var gap int64
@@ -485,6 +534,9 @@ func MonthLabel(t *time.Time) string {
 
 // PostVerify re-checks the swapped cluster: counts, sequence coverage and per-leaf hardening.
 func PostVerify(ctx context.Context, pool *pgxpool.Pool) error {
+	if err := RequireUnfilteredVisibility(ctx, pool); err != nil {
+		return err
+	}
 	// Post-swap the trusted side is audit_legacy (the frozen flat table), not audit_partitioned.
 	// The pre-swap Verify proved an exact match under the lock. Post-commit, live inserts are legal, so
 	// compare counts with legacy as a floor (never a spurious mismatch from a concurrent append).

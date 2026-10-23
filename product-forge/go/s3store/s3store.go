@@ -104,8 +104,8 @@ func (s *S3Store) Put(ctx context.Context, key string, r io.Reader, size int64, 
 			putOpts.ServerSideEncryption = encrypt.NewSSE()
 		case strings.HasPrefix(strings.ToLower(sse), "aws:kms"):
 			keyID := ""
-			if i := strings.IndexByte(sse, ':'); i >= 0 {
-				keyID = strings.TrimSpace(sse[i+1:])
+			if strings.HasPrefix(strings.ToLower(sse), "aws:kms:") {
+				keyID = strings.TrimSpace(sse[len("aws:kms:"):])
 			}
 			if keyID == "" {
 				return datastore.ObjectInfo{}, errors.New("s3store: SSE-KMS requires a key id (aws:kms:<key-id>)")

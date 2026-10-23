@@ -258,6 +258,10 @@ BEGIN
     SELECT horizon_months INTO v_horizon FROM audit_partition_config WHERE id;
     PERFORM audit_advisory_lock('AUDP');  -- serialise with the insert fast path before creating leaves
     -- A late event can reference a past month (Append heal): create exactly that month, never a horizon.
+    IF p_through IS NOT NULL AND (audit_month_start(p_through) < v_cur - interval '24 months'
+                                   OR audit_month_start(p_through) > v_cur + make_interval(months => v_horizon)) THEN
+        RAISE EXCEPTION 'audit_ensure_partitions: % is outside the provisionable window', p_through;
+    END IF;
     IF p_through IS NOT NULL AND audit_month_start(p_through) < v_cur THEN
         IF to_regclass('public.' || audit_partition_name(audit_month_start(p_through))) IS NULL THEN
             PERFORM audit_attach_partition(audit_month_start(p_through));
@@ -571,7 +575,8 @@ BEGIN
     EXECUTE 'REVOKE ALL ON audit_legal_hold_archive FROM pf_app';
     EXECUTE 'REVOKE ALL ON audit_migration_state, audit_migration_state_events, audit_archive_manifest, '
             'audit_legal_hold_events, audit_partition_config FROM pf_app';
-    EXECUTE 'GRANT INSERT, SELECT ON audit_partitioned TO pf_app';
+    -- The shadow is migration-owned pre-swap; app writes stay on the legacy table until the rename.
+    EXECUTE 'GRANT SELECT ON audit_partitioned TO pf_app';
     EXECUTE 'GRANT SELECT ON audit_legal_hold_archive TO pf_app';
     -- The append-only journal must not be erasable by the runtime (row triggers do not fire on TRUNCATE).
     EXECUTE 'REVOKE TRUNCATE ON audit_migration_state_events, audit_legal_hold_events FROM pf_app, pf_runtime';
