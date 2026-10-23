@@ -218,7 +218,13 @@ func Verify(ctx context.Context, pool *pgxpool.Pool) (map[string]string, error) 
 	if err := RequireUnfilteredVisibility(ctx, pool); err != nil {
 		return nil, err
 	}
-	a, err := TableChecksums(ctx, pool, "audit")
+	// Writes may continue between prestage and swap: verify the frozen prefix (rows staged so far) and
+	// leave the remaining delta to the bounded drain under the exclusive lock.
+	var shadowMax int64
+	if err := pool.QueryRow(ctx, `SELECT COALESCE(max(id),0) FROM audit_partitioned`).Scan(&shadowMax); err != nil {
+		return nil, err
+	}
+	a, err := tableChecksumsUpTo(ctx, pool, "audit", shadowMax)
 	if err != nil {
 		return nil, err
 	}
@@ -341,16 +347,17 @@ func Swap(ctx context.Context, pool *pgxpool.Pool, maxDelta int) (int64, error) 
 			return delta, fmt.Errorf("pfaudit: drain delta: %w", err)
 		}
 	}
-	// Verify the delta landed exactly: ON CONFLICT could hide an id-reuse/divergent row.
-	var liveCount, shadowCount int64
-	if err := tx.QueryRow(ctx, `SELECT count(*) FROM audit`).Scan(&liveCount); err != nil {
+	// Verify the delta landed exactly (delta-bounded scans only): ON CONFLICT could hide an id-reuse.
+	var liveDelta, shadowDelta int64
+	if err := tx.QueryRow(ctx, `SELECT count(*) FROM audit WHERE id > $1`, lastID).Scan(&liveDelta); err != nil {
 		return delta, err
 	}
-	if err := tx.QueryRow(ctx, `SELECT count(*) FROM audit_partitioned`).Scan(&shadowCount); err != nil {
+	if err := tx.QueryRow(ctx, `SELECT count(*) FROM audit_partitioned WHERE id > $1`, lastID).Scan(&shadowDelta); err != nil {
 		return delta, err
 	}
-	if liveCount != shadowCount {
-		return delta, fmt.Errorf("pfaudit: drain diverged (live=%d shadow=%d); refusing swap", liveCount, shadowCount)
+	if liveDelta != delta || shadowDelta != delta {
+		return delta, fmt.Errorf("pfaudit: drain diverged (live=%d shadow=%d want=%d); refusing swap",
+			liveDelta, shadowDelta, delta)
 	}
 	if _, err := tx.Exec(ctx, `ALTER TABLE audit RENAME TO audit_legacy`); err != nil {
 		return delta, fmt.Errorf("pfaudit: rename legacy: %w", err)
