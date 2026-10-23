@@ -23,7 +23,7 @@ for p in (ROOT, ROOT / "scripts" / "dev"):
         sys.path.insert(0, str(p))
 
 import architect_review as ar  # noqa: E402
-from core import gate_predicates as gp  # noqa: E402
+import gate_predicates as gp  # noqa: E402
 
 _MARK = "/data/backlog/items/"
 DONE = {"completed", "closed", "done"}

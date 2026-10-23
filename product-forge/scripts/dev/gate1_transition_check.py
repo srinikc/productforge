@@ -23,7 +23,7 @@ for p in (ROOT, ROOT / "scripts" / "dev"):
 
 import architect_review as ar  # noqa: E402
 from gate1_check import evaluate  # noqa: E402  (ONE predicate, no duplication)
-from core import gate_predicates as gp  # noqa: E402
+import gate_predicates as gp  # noqa: E402
 
 _MARK = "/data/backlog/items/"
 
@@ -66,7 +66,7 @@ def transitions(base: str = "") -> list[str]:
 
 def _self_test() -> int:
     """Predicate matrix: allow, no decision, no evidence, stale sha, unauthorized approver."""
-    from core import gate_predicates as gp
+    import gate_predicates as gp
     view = {"parsed_ok": True, "blocking": [], "dispositions": {"sig:a": {"status": "ACTIONED"}},
             "review": {"sha": "abc", "at": "2026-01-01T00:00:00+00:00"}}
     digest = gp.findings_digest(view)

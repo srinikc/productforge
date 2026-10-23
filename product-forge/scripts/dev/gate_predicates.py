@@ -13,7 +13,7 @@ import json
 from datetime import date, datetime, timezone
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 BASELINE = ROOT / "config" / "gate-baseline.json"
 APPROVED = {"APPROVE", "APPROVE_WITH_ATTENTION"}
 MAX_BASELINE_DAYS = 90
@@ -134,3 +134,8 @@ def approval(item: dict, gate: int, evidence_sha: str, view: dict | None,
 def gate2_ready(item: dict, diff_sha: str, diff_view: dict | None,
                 allow_missing_view: bool = False) -> tuple[bool, str]:
     return approval(item, 2, diff_sha, diff_view, allow_missing_view=allow_missing_view)
+
+
+def force_allowed(env: dict) -> bool:
+    """Force is a local, audited convenience: PF_GATE_FORCE=1 and PF_CI must be absent (key presence)."""
+    return str(env.get("PF_GATE_FORCE") or "") == "1" and "PF_CI" not in env
