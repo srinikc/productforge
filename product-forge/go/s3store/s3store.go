@@ -244,6 +244,9 @@ func (s *S3Store) ApplyLifecycle(ctx context.Context, key, version string, polic
 	default:
 		return fmt.Errorf("s3store: unsupported retention mode %q", policy.Mode)
 	}
+	if mode == "" && !policy.RetainUntil.IsZero() {
+		return errors.New("s3store: RetainUntil requires a retention mode (GOVERNANCE or COMPLIANCE)")
+	}
 	if mode != "" {
 		if policy.RetainUntil.IsZero() || !policy.RetainUntil.After(time.Now()) {
 			return errors.New("s3store: RetainUntil must be in the future")
@@ -254,6 +257,9 @@ func (s *S3Store) ApplyLifecycle(ctx context.Context, key, version string, polic
 		}); err != nil {
 			return fmt.Errorf("s3store: apply retention: %w", err)
 		}
+	}
+	if policy.LegalHold && policy.ReleaseLegalHold {
+		return errors.New("s3store: LegalHold and ReleaseLegalHold are mutually exclusive")
 	}
 	if policy.LegalHold || policy.ReleaseLegalHold {
 		status := minio.LegalHoldEnabled
