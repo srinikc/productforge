@@ -33,7 +33,7 @@ DROP FUNCTION IF EXISTS audit_coverage_status();
 DROP FUNCTION IF EXISTS audit_deny_truncate();
 DROP FUNCTION IF EXISTS audit_config_touch();
 DROP FUNCTION IF EXISTS audit_hold_guard();
-DROP FUNCTION IF EXISTS audit_hold_extract(TEXT);
+DROP FUNCTION IF EXISTS audit_hold_extract(TEXT, TEXT);
 DROP FUNCTION IF EXISTS audit_approve_purge(TEXT, TEXT, TEXT);
 DROP FUNCTION IF EXISTS audit_mark_purged(TEXT);
 DROP FUNCTION IF EXISTS audit_purge_candidates(INTEGER);

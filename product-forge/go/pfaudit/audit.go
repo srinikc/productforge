@@ -393,10 +393,16 @@ func Swap(ctx context.Context, pool *pgxpool.Pool, maxDelta int) (int64, error) 
 		END $$`); err != nil {
 		return delta, fmt.Errorf("pfaudit: revoke legacy grants: %w", err)
 	}
+	// Advance the sequence that actually backs the (now live) partitioned table's DEFAULT: after a
+	// rollback the canonical names differ, so never hardcode the sequence name.
+	seq, err := auditIDSequence(ctx, tx)
+	if err != nil {
+		return delta, err
+	}
 	if _, err := tx.Exec(ctx, `
-		SELECT setval('audit_id_seq', GREATEST(
+		SELECT setval($1::regclass, GREATEST(
 		    (SELECT COALESCE(max(id), 0) FROM audit),
-		    COALESCE((SELECT max(id) FROM audit_legacy), 0)) + 1, false)`); err != nil {
+		    COALESCE((SELECT max(id) FROM audit_legacy), 0)) + 1, false)`, seq); err != nil {
 		return delta, fmt.Errorf("pfaudit: setval: %w", err)
 	}
 	if err := tx.Commit(ctx); err != nil {
@@ -521,7 +527,11 @@ func Down(ctx context.Context, pool *pgxpool.Pool, force bool, reason string) er
 		(SELECT COALESCE(max(id),0) FROM audit_partitioned), 1) + 1`).Scan(&gap); err != nil {
 		return err
 	}
-	if _, err := tx.Exec(ctx, `SELECT setval('audit_id_seq', $1, false)`, gap); err != nil {
+	seq, err := auditIDSequence(ctx, tx)
+	if err != nil {
+		return err
+	}
+	if _, err := tx.Exec(ctx, `SELECT setval($1::regclass, $2, false)`, seq, gap); err != nil {
 		return err
 	}
 	// Record the down event in the same transaction: a crash must not lose the permanent record.
@@ -583,6 +593,21 @@ func PlaceHold(ctx context.Context, pool *pgxpool.Pool, h Hold, m *Metrics) erro
 		return ErrHoldAfterPurge
 	}
 	return err
+}
+
+// auditIDSequence resolves the sequence behind audit.id's DEFAULT. pg_get_serial_sequence returns NULL
+// because the shadow's sequence is not OWNED BY the column, so parse the DEFAULT expression instead.
+func auditIDSequence(ctx context.Context, tx pgx.Tx) (string, error) {
+	var seq *string
+	if err := tx.QueryRow(ctx, `SELECT substring(pg_get_expr(d.adbin, d.adrelid) FROM 'nextval\(''([^'']+)''')
+		FROM pg_attrdef d JOIN pg_attribute a ON a.attrelid = d.adrelid AND a.attnum = d.adnum
+		WHERE d.adrelid = 'public.audit'::regclass AND a.attname = 'id'`).Scan(&seq); err != nil {
+		return "", fmt.Errorf("pfaudit: resolve sequence: %w", err)
+	}
+	if seq == nil || *seq == "" {
+		return "", errors.New("pfaudit: audit.id has no sequence default")
+	}
+	return *seq, nil
 }
 
 // RecordState appends an append-only event and refreshes the projection.

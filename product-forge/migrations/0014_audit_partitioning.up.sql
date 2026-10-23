@@ -189,6 +189,12 @@ BEGIN
         EXECUTE format('DROP POLICY IF EXISTS owner_bypass ON %s', v_reg);
         EXECUTE format('CREATE POLICY owner_bypass ON %s TO pf_owner USING (true) WITH CHECK (true)', v_reg);
     END IF;
+    -- Per-leaf TRUNCATE guard: parent statement triggers do not fire for a direct leaf truncate.
+    IF to_regprocedure('audit_deny_truncate()') IS NOT NULL THEN
+        EXECUTE format('DROP TRIGGER IF EXISTS %I ON %s', p_name || '_no_truncate', v_reg);
+        EXECUTE format('CREATE TRIGGER %I BEFORE TRUNCATE ON %s FOR EACH STATEMENT EXECUTE FUNCTION audit_deny_truncate()',
+                       p_name || '_no_truncate', v_reg);
+    END IF;
     IF NOT EXISTS (SELECT 1 FROM pg_trigger
                    WHERE tgrelid = v_reg AND tgname = p_name || '_append_only') THEN
         EXECUTE format('CREATE TRIGGER %I BEFORE UPDATE OR DELETE ON %s '
