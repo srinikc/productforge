@@ -76,16 +76,18 @@ def check(ids: list[str]) -> list[tuple[str, str]]:
     docs_only = _docs_only()
     for iid in ids:
         item = ar._get_item(iid)
+        # Validate against the delivery evidence named by the newest Gate 2 decision; this works for
+        # data-only and mixed PRs alike (the decision is bound to the reviewed delivery diff).
         view = None
-        if docs_only:
-            for d in reversed((item.get("decisions") or [])):
-                try:
-                    g = int(d.get("gate") or 0)
-                except Exception:
-                    g = 0
-                sha_d = str(d.get("findings_sha") or "")
-                if g == 2 and sha_d and sha_d != "docs-only":
-                    view = ar.gate_view_sha(iid, "diff", sha_d)
+        for d in reversed((item.get("decisions") or [])):
+            try:
+                g = int(d.get("gate") or 0)
+            except Exception:
+                g = 0
+            sha_d = str(d.get("findings_sha") or "")
+            if g == 2 and sha_d and sha_d != "docs-only":
+                view = ar.gate_view_sha(iid, "diff", sha_d)
+                if view is not None:
                     break
         if view is None:
             view = ar.gate_view(iid, "diff")
