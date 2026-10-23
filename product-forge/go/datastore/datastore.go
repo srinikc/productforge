@@ -73,9 +73,10 @@ type ObjectInfo struct {
 // LifecyclePolicy is the requested object-lock state. Mode is GOVERNANCE or COMPLIANCE; COMPLIANCE cannot
 // be shortened or removed once applied (one-way door - callers must opt in explicitly).
 type LifecyclePolicy struct {
-	Mode        string // GOVERNANCE | COMPLIANCE
-	RetainUntil time.Time
-	LegalHold   bool
+	Mode             string // GOVERNANCE | COMPLIANCE (COMPLIANCE cannot be shortened/released)
+	RetainUntil      time.Time
+	LegalHold        bool
+	ReleaseLegalHold bool
 }
 
 // LifecycleState is the effective object-lock state reported by a provider.
@@ -83,6 +84,7 @@ type LifecycleState struct {
 	Mode        string
 	RetainUntil time.Time
 	LegalHold   bool
+	Versioning  bool
 }
 
 // ErrUnsupported is returned by adapters that cannot honour a requested capability (fail closed).
@@ -97,6 +99,9 @@ type LifecycleCapable interface {
 
 // Lifecycle returns the provider's lifecycle capability, if any.
 func Lifecycle(store ObjectStore) (LifecycleCapable, bool) {
+	if !store.Capabilities().ObjectLock {
+		return nil, false
+	}
 	lc, ok := store.(LifecycleCapable)
 	return lc, ok
 }

@@ -298,12 +298,14 @@ func info(m meta) datastore.ObjectInfo {
 		ContentType: m.ContentType, Size: m.Size}
 }
 
+var errLocalLifecycle = fmt.Errorf("objstore: lifecycle/object-lock requires an object-lock capable provider: %w", datastore.ErrUnsupported)
+
 // ApplyLifecycle is unsupported: the local filesystem cannot enforce retention or legal hold.
-func (s *LocalStore) ApplyLifecycle(ctx context.Context, key string, policy datastore.LifecyclePolicy) error {
-	return fmt.Errorf("objstore: lifecycle/object-lock requires an object-lock capable provider: %w", datastore.ErrUnsupported)
+func (s *LocalStore) ApplyLifecycle(_ context.Context, _ string, _ datastore.LifecyclePolicy) error {
+	return errLocalLifecycle
 }
 
 // ObjectLifecycle is unsupported on the local adapter.
-func (s *LocalStore) ObjectLifecycle(ctx context.Context, key string) (datastore.LifecycleState, error) {
-	return datastore.LifecycleState{}, fmt.Errorf("objstore: lifecycle/object-lock requires an object-lock capable provider: %w", datastore.ErrUnsupported)
+func (s *LocalStore) ObjectLifecycle(_ context.Context, _ string) (datastore.LifecycleState, error) {
+	return datastore.LifecycleState{}, errLocalLifecycle
 }

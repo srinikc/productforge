@@ -62,3 +62,9 @@ func TestMintRejectsProviderWithoutSignedURLs(t *testing.T) {
 		t.Fatalf("want ErrUnsupported, got %v", err)
 	}
 }
+
+func TestMintRejectsTraversal(t *testing.T) {
+	if _, err := Mint(context.Background(), stubStore{signed: true}, "tenant-a", "tenant-a/../tenant-b/x", "GET", time.Minute); !errors.Is(err, ErrTenantKey) {
+		t.Fatalf("want ErrTenantKey for traversal, got %v", err)
+	}
+}

@@ -255,8 +255,11 @@ func (s *S3Store) ApplyLifecycle(ctx context.Context, key string, policy datasto
 			return fmt.Errorf("s3store: apply retention: %w", err)
 		}
 	}
-	if policy.LegalHold {
+	if policy.LegalHold || policy.ReleaseLegalHold {
 		status := minio.LegalHoldEnabled
+		if policy.ReleaseLegalHold {
+			status = minio.LegalHoldDisabled
+		}
 		if err := s.client.PutObjectLegalHold(ctx, s.bucket, key, minio.PutObjectLegalHoldOptions{
 			Status: &status,
 		}); err != nil {
@@ -285,6 +288,9 @@ func (s *S3Store) ObjectLifecycle(ctx context.Context, key string) (datastore.Li
 	}
 	if hold != nil && *hold == minio.LegalHoldEnabled {
 		st.LegalHold = true
+	}
+	if ver, err := s.client.GetBucketVersioning(ctx, s.bucket); err == nil {
+		st.Versioning = strings.EqualFold(string(ver.Status), "Enabled")
 	}
 	return st, nil
 }

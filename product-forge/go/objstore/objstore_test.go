@@ -95,3 +95,19 @@ func TestPutRetentionFailsClosed(t *testing.T) {
 		t.Fatal("local store must refuse retention")
 	}
 }
+
+func TestLifecycleUnsupported(t *testing.T) {
+	st, err := NewLocalStore(t.TempDir(), 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := datastore.Lifecycle(st); ok {
+		t.Fatal("local store must not advertise lifecycle capability")
+	}
+	if err := st.ApplyLifecycle(context.Background(), "k", datastore.LifecyclePolicy{Mode: "GOVERNANCE"}); !errors.Is(err, datastore.ErrUnsupported) {
+		t.Fatalf("ApplyLifecycle: want ErrUnsupported, got %v", err)
+	}
+	if _, err := st.ObjectLifecycle(context.Background(), "k"); !errors.Is(err, datastore.ErrUnsupported) {
+		t.Fatalf("ObjectLifecycle: want ErrUnsupported, got %v", err)
+	}
+}
