@@ -1,0 +1,37 @@
+{
+  "item": "BI-PF-1469",
+  "sha": "30249e0cecf5",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-23T18:50:10.308577",
+  "findings": {
+    "BLOCKER": [
+      "`set_status(force=True)` is a silent no-op: `force` is accepted but never validated, never requires PF_GATE_FORCE/PF_CI, and appends no `gate_override` decision; `gp.force_allowed()` is dead code. The required force audit sink AC is unimplemented while the API still advertises force.",
+      "Evidence `at` is written with naive local time (`datetime.now().isoformat()` in `_ingest`) while decisions use `datetime.now(timezone.utc)`; `_parse_ts` assumes naive==UTC. In any TZ ahead of UTC this inverts the `decision.at >= evidence.at` ordering predicate and can approve stale designs \u2014 a gate-integrity (fail-open) flaw."
+    ],
+    "MAJOR": [
+      "`gate2_completion_check.main` prints `baseline_problems()` but never fails on them, unlike `gate1_transition_check` which returns 1 \u2014 baseline governance is unenforced on the delivery side, breaking the single fail-closed rule.",
+      "\"Single predicate\" AC is violated: docs-only + evidence-sha + transition logic is duplicated between `gate2_completion_check.check()` and `gate_decisions.gate2_status()` (plus `transitions/_git/_load` duplicated across both checkers). The CI path and the `set_status` path can diverge.",
+      "`core/backlog.py` (shipped control-plane) dynamically execs `scripts/dev/gate_decisions.py` by path via importlib on every call (no caching, sys.path mutation, module re-exec). Shipped runtime depending on dev-tree files is fragile and non-deployable independently.",
+      "`gp.approval()` skips decisions lacking `seq` (and implicitly `at`) entirely \u2014 legacy or hand-edited decision records are neither validated nor rejected, a fail-open hole in the append-only invariant."
+    ],
+    "MINOR": [
+      "`_gate2_status`/`_gate2_tooling` in `core/backlog.py` are dead or vestigial after set_status stopped enforcing Gate 2; only `record_gate_decision` uses the tooling loader.",
+      "`import gate_predicates as gp` exists both at module level and re-imported inside `_self_test` in `gate1_transition_check.py`.",
+      "Precheck wires `gate2-completion` with `--self-test` but `gate1-transition` without it \u2014 inconsistent CI coverage of the negative matrices.",
+      "`gate_decisions.record_gate_decision` binds a Gate 1 decision to `ar.design_sha(item)` without verifying the loaded design evidence's own sha matches; stale design evidence yields a decision that only fails later at transition time.",
+      "Gate 2 self-test mutates the module global `gp.BASELINE` (parallel-import hazard if other gates import the module concurrently)."
+    ],
+    "NIT": [
+      "`id-blocks.json`: 1468 is skipped between the 1467 and 1469 session blocks \u2014 unexplained ID gap.",
+      "Cross-module use of `ar._get_item` / `ar._config` private helpers from the gate checkers.",
+      "`--report` emits ad-hoc `key=value` prints rather than a stable machine-readable (JSON) report format for rollout tooling."
+    ],
+    "SUMMARY": [
+      "Sound architecture direction: shared predicates, baseline with expiry, digest+sha bound decisions, negative self-tests, and CI-boundary fail-closed enforcement all land.",
+      "Two blockers undermine the core guarantee: the force/override AC is unimplemented (force silently ignored), and the naive-local evidence timestamp can invert the ordering predicate and approve stale designs.",
+      "Top risks before merge: fix the timestamp/UTC binding, wire baseline failures into gate 2, and collapse the duplicated docs-only/evidence predicate into `gate_predicates` so the CI and control-plane paths cannot diverge."
+    ]
+  }
+}
