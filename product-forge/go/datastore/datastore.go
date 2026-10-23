@@ -10,6 +10,7 @@ package datastore
 
 import (
 	"context"
+	"errors"
 	"io"
 	"time"
 )
@@ -67,6 +68,37 @@ type ObjectInfo struct {
 	Checksum    string
 	ContentType string
 	Size        int64
+}
+
+// LifecyclePolicy is the requested object-lock state. Mode is GOVERNANCE or COMPLIANCE; COMPLIANCE cannot
+// be shortened or removed once applied (one-way door - callers must opt in explicitly).
+type LifecyclePolicy struct {
+	Mode        string // GOVERNANCE | COMPLIANCE
+	RetainUntil time.Time
+	LegalHold   bool
+}
+
+// LifecycleState is the effective object-lock state reported by a provider.
+type LifecycleState struct {
+	Mode        string
+	RetainUntil time.Time
+	LegalHold   bool
+}
+
+// ErrUnsupported is returned by adapters that cannot honour a requested capability (fail closed).
+var ErrUnsupported = errors.New("datastore: capability unsupported")
+
+// LifecycleCapable is an OPTIONAL capability: providers that support object lock/retention implement it.
+// Look it up with Lifecycle(store) instead of asserting it unconditionally.
+type LifecycleCapable interface {
+	ApplyLifecycle(ctx context.Context, key string, policy LifecyclePolicy) error
+	ObjectLifecycle(ctx context.Context, key string) (LifecycleState, error)
+}
+
+// Lifecycle returns the provider's lifecycle capability, if any.
+func Lifecycle(store ObjectStore) (LifecycleCapable, bool) {
+	lc, ok := store.(LifecycleCapable)
+	return lc, ok
 }
 
 type ObjectStore interface {

@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"productforge/datastore"
 )
@@ -81,5 +82,16 @@ func TestSignedURLUnsupported(t *testing.T) {
 	s, _ := NewLocalStore(t.TempDir(), 0)
 	if _, err := s.SignedURL(context.Background(), "k", "GET", 0); !errors.Is(err, ErrNotSupported) {
 		t.Fatalf("want ErrNotSupported, got %v", err)
+	}
+}
+
+func TestPutRetentionFailsClosed(t *testing.T) {
+	st, err := NewLocalStore(t.TempDir(), 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := st.Put(context.Background(), "k", bytes.NewReader([]byte("x")), 1,
+		datastore.PutOptions{Retention: time.Hour, Immutable: true}); err == nil {
+		t.Fatal("local store must refuse retention")
 	}
 }

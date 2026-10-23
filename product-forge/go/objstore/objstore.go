@@ -114,6 +114,9 @@ func (s *LocalStore) Put(ctx context.Context, key string, r io.Reader, size int6
 	if opts.ServerSideEncryption != "" {
 		return datastore.ObjectInfo{}, fmt.Errorf("objstore: local store cannot honour ServerSideEncryption")
 	}
+	if opts.Retention > 0 {
+		return datastore.ObjectInfo{}, fmt.Errorf("objstore: local store cannot honour object retention: %w", datastore.ErrUnsupported)
+	}
 	if s.maxSize > 0 && size > s.maxSize {
 		return datastore.ObjectInfo{}, ErrTooLarge
 	}
@@ -293,4 +296,14 @@ func (s *LocalStore) Capabilities() datastore.Capabilities {
 func info(m meta) datastore.ObjectInfo {
 	return datastore.ObjectInfo{Key: m.Key, Version: m.Version, Checksum: m.Checksum,
 		ContentType: m.ContentType, Size: m.Size}
+}
+
+// ApplyLifecycle is unsupported: the local filesystem cannot enforce retention or legal hold.
+func (s *LocalStore) ApplyLifecycle(ctx context.Context, key string, policy datastore.LifecyclePolicy) error {
+	return fmt.Errorf("objstore: lifecycle/object-lock requires an object-lock capable provider: %w", datastore.ErrUnsupported)
+}
+
+// ObjectLifecycle is unsupported on the local adapter.
+func (s *LocalStore) ObjectLifecycle(ctx context.Context, key string) (datastore.LifecycleState, error) {
+	return datastore.LifecycleState{}, fmt.Errorf("objstore: lifecycle/object-lock requires an object-lock capable provider: %w", datastore.ErrUnsupported)
 }
