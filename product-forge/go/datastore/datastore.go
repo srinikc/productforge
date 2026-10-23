@@ -131,9 +131,9 @@ type MemoryScope struct {
 	TenantID string
 	Project  string
 	Source   string
-	ACL      string   // optional acl_scope filter (legacy `source` values are mapped by the API)
-	User     string   // caller principal: private entries are visible only to their owner
-	Kinds    []string // optional memory-type filter (all eight types when empty)
+	ACL      string    // optional acl_scope filter (legacy `source` values are mapped by the API)
+	User     string    // caller principal: private entries are visible only to their owner
+	Kinds    []string  // optional memory-type filter (all eight types when empty)
 	Vector   []float32 // optional query embedding; used only when pgvector is available
 }
 
