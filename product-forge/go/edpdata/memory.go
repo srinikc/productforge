@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"strings"
 	"sync"
 
@@ -26,27 +27,31 @@ const EmbeddingDim = 1536
 // SQL (RLS also enforces the tenant via store.BindTenant's app.tenant_id) and never returns rows outside the
 // requested scope.
 type MemoryStore struct {
-	db      datastore.RelationalStore
-	vecOnce sync.Once
-	hasVec  bool
+	db     datastore.RelationalStore
+	vecMu  sync.Mutex
+	hasVec bool
 }
 
 // NewMemory returns a MemoryStore over db.
 func NewMemory(db datastore.RelationalStore) *MemoryStore { return &MemoryStore{db: db} }
 
 func (s *MemoryStore) vectorAvailable(ctx context.Context, tx datastore.Tx) bool {
-	s.vecOnce.Do(func() {
-		rows, err := tx.Query(ctx, `SELECT EXISTS (
-			SELECT 1 FROM information_schema.columns
-			WHERE table_schema = 'public' AND table_name = 'memory' AND column_name = 'embedding')`)
-		if err != nil {
-			return
-		}
-		defer rows.Close()
-		if rows.Next() {
-			_ = rows.Scan(&s.hasVec)
-		}
-	})
+	s.vecMu.Lock()
+	defer s.vecMu.Unlock()
+	if s.hasVec {
+		return true
+	}
+	// Cache only the positive result: a transient failure must not pin FTS-only mode forever.
+	rows, err := tx.Query(ctx, `SELECT EXISTS (
+		SELECT 1 FROM information_schema.columns
+		WHERE table_schema = 'public' AND table_name = 'memory' AND column_name = 'embedding')`)
+	if err != nil {
+		return false
+	}
+	defer rows.Close()
+	if rows.Next() {
+		_ = rows.Scan(&s.hasVec)
+	}
 	return s.hasVec
 }
 
@@ -65,14 +70,19 @@ func (s *MemoryStore) Put(ctx context.Context, e datastore.MemoryEntry) (datasto
 		return datastore.MemoryEntry{}, fmt.Errorf("edpdata: embedding must have %d dimensions, got %d", EmbeddingDim, len(e.Embedding))
 	}
 	err := s.db.WithTx(ctx, func(tx datastore.Tx) error {
-		if _, err := tx.Exec(ctx,
+		n, err := tx.Exec(ctx,
 			`INSERT INTO memory (id, tenant_id, project_id, kind, object_ref, acl_scope, content, source, owner)
 			 VALUES ($1,$2,NULLIF($3,''),$4,$5,$6,$7,$8,$9)
 			 ON CONFLICT (id) DO UPDATE SET project_id=EXCLUDED.project_id, kind=EXCLUDED.kind,
 			   object_ref=EXCLUDED.object_ref, acl_scope=EXCLUDED.acl_scope, content=EXCLUDED.content,
-			   source=EXCLUDED.source, owner=EXCLUDED.owner`,
-			e.ID, e.TenantID, e.Project, e.Kind, e.ObjectRef, e.ACLScope, e.Content, e.Source, e.Owner); err != nil {
+			   source=EXCLUDED.source, owner=EXCLUDED.owner
+			 WHERE memory.tenant_id = EXCLUDED.tenant_id AND memory.owner = EXCLUDED.owner`,
+			e.ID, e.TenantID, e.Project, e.Kind, e.ObjectRef, e.ACLScope, e.Content, e.Source, e.Owner)
+		if err != nil {
 			return err
+		}
+		if n == 0 {
+			return fmt.Errorf("edpdata: memory %s belongs to another tenant/owner", e.ID)
 		}
 		if len(e.Embedding) != 0 && s.vectorAvailable(ctx, tx) {
 			vec := formatVector(e.Embedding)
@@ -158,6 +168,9 @@ func (s *MemoryStore) Search(ctx context.Context, q string, scope datastore.Memo
 	if scope.Source != "" {
 		where = append(where, "source = "+add(scope.Source))
 	}
+	if scope.ACL != "" {
+		where = append(where, "acl_scope = "+add(scope.ACL))
+	}
 	if len(scope.Kinds) > 0 {
 		where = append(where, "kind = ANY("+add(scope.Kinds)+")")
 	}
@@ -184,6 +197,9 @@ func (s *MemoryStore) Search(ctx context.Context, q string, scope datastore.Memo
 		var ok bool
 		if err := s.db.WithTx(ctx, func(tx datastore.Tx) error { ok = s.vectorAvailable(ctx, tx); return nil }); err != nil {
 			return nil, err
+		}
+		if !ok {
+			log.Printf("edpdata: memory vector query ignored (pgvector unavailable); serving FTS-only")
 		}
 		if ok {
 			hybrid = true

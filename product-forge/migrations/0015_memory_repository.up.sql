@@ -36,6 +36,9 @@ BEGIN
     EXCEPTION WHEN OTHERS THEN
         NULL;
     END;
+    IF NOT EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'vector') THEN
+        RAISE NOTICE 'pgvector unavailable: memory search serves FTS-only';
+    END IF;
     IF EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'vector') THEN
         EXECUTE 'ALTER TABLE memory ADD COLUMN IF NOT EXISTS embedding vector(1536)';
         BEGIN

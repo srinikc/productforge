@@ -586,6 +586,9 @@ func (s *server) memoryHandle(w http.ResponseWriter, r *http.Request) {
 	}
 	defer st.Close()
 	mem := edpdata.NewMemory(store.BindTenant(st, tenant))
+	// The ACL principal is server-side (this admin API has one authenticated principal). Client-supplied
+	// `owner`/`user` are never trusted.
+	principal := envOr("PF_MEMORY_PRINCIPAL", "admin")
 	switch r.Method {
 	case http.MethodPost:
 		var b struct {
@@ -597,9 +600,13 @@ func (s *server) memoryHandle(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "id and tenant are required"})
 			return
 		}
+		if b.Owner != "" && b.Owner != principal {
+			writeJSON(w, http.StatusForbidden, map[string]string{"error": "owner is derived from the authenticated principal"})
+			return
+		}
 		e, err := mem.Put(r.Context(), datastore.MemoryEntry{ID: b.ID, TenantID: b.Tenant, Project: b.Project,
 			Kind: b.Kind, ObjectRef: b.ObjectRef, ACLScope: b.ACLScope, Content: b.Content, Source: b.Source,
-			Owner: b.Owner, Embedding: b.Embedding})
+			Owner: principal, Embedding: b.Embedding})
 		if err != nil {
 			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 			return
@@ -613,8 +620,12 @@ func (s *server) memoryHandle(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		var kinds []string
-		if v := strings.TrimSpace(q.Get("types")); v != "" {
-			for _, part := range strings.Split(v, ",") {
+		kv := strings.TrimSpace(q.Get("kinds"))
+		if kv == "" {
+			kv = strings.TrimSpace(q.Get("types"))
+		}
+		if kv != "" {
+			for _, part := range strings.Split(kv, ",") {
 				if p := strings.TrimSpace(part); p != "" {
 					kinds = append(kinds, p)
 				}
@@ -625,9 +636,13 @@ func (s *server) memoryHandle(w http.ResponseWriter, r *http.Request) {
 		if text == "" {
 			text = q.Get("kind")
 		}
+		src, acl := q.Get("source"), ""
+		if src == "private" || src == "project" || src == "tenant" || src == "shared" {
+			acl, src = src, "" // legacy: `source` used to filter acl_scope
+		}
 		hits, err := mem.Search(r.Context(), text, datastore.MemoryScope{
-			TenantID: tenant, Project: q.Get("project"), Source: q.Get("source"),
-			User: q.Get("user"), Kinds: kinds}, k)
+			TenantID: tenant, Project: q.Get("project"), Source: src, ACL: acl,
+			User: principal, Kinds: kinds}, k)
 		if err != nil {
 			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 			return
@@ -648,17 +663,19 @@ func (s *server) memoryByID(w http.ResponseWriter, r *http.Request) {
 	}
 	defer st.Close()
 	mem := edpdata.NewMemory(store.BindTenant(st, tenant))
+	principal := envOr("PF_MEMORY_PRINCIPAL", "admin")
+	visible := func(e datastore.MemoryEntry) bool { return e.ACLScope != "private" || e.Owner == principal }
+	e, err := mem.Get(r.Context(), id)
+	if err != nil || !visible(e) {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "not found"})
+		return
+	}
 	if r.Method == http.MethodDelete {
 		if err := mem.Delete(r.Context(), id); err != nil {
 			writeJSON(w, http.StatusNotFound, map[string]string{"error": err.Error()})
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
-		return
-	}
-	e, err := mem.Get(r.Context(), id)
-	if err != nil {
-		writeJSON(w, http.StatusNotFound, map[string]string{"error": err.Error()})
 		return
 	}
 	writeJSON(w, http.StatusOK, e)

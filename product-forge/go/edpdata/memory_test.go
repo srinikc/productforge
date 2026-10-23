@@ -15,6 +15,9 @@ func memorySetup(t *testing.T) (*store.PgStore, context.Context, string) {
 	t.Helper()
 	dsn := os.Getenv("PF_DB_DSN")
 	if dsn == "" {
+		if os.Getenv("PF_REQUIRE_MEMORY_TESTS") == "1" {
+			t.Fatal("PF_REQUIRE_MEMORY_TESTS=1 but PF_DB_DSN is unset")
+		}
 		t.Skip("PF_DB_DSN not set - skipping memory integration test")
 	}
 	ctx := context.Background()
