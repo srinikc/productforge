@@ -1045,27 +1045,8 @@ def set_status(scope: str, project: str | None, eid: str, status: str, note: str
             if not ok:
                 print(f"[Backlog] refusing to close {eid}: {reason}")
                 return it
-    # Gate 2 hard gate (BI-PF-1469): delivery approval is mandatory before completion.
-    if status in {"completed", "closed", "done"}:
-        it = get_epic(scope, project, eid) or {}
-        if force:
-            import os as _os
-            from datetime import datetime as _dt, timezone as _tz
-            _gp = _gate2_tooling()._gp()
-            if not _gp.force_allowed(_os.environ):
-                print(f"[Backlog] refusing forced close of {eid}: PF_GATE_FORCE=1 required and CI cannot force")
-                return it
-            dec = list(it.get("decisions") or [])
-            dec.append({"at": _dt.now(_tz.utc).isoformat(), "by": "hil:forced", "decision": "GATE_OVERRIDE",
-                        "gate": 2, "findings_sha": "", "findings_digest": "", "seq": len(dec) + 1,
-                        "note": note or "forced close"})
-            it = update(scope, project, eid, decisions=dec) or it
-        else:
-            ok, reason = _gate2_status(it, eid)
-            if not ok:
-                print(f"[Backlog] refusing to close {eid}: Gate 2 not satisfied ({reason})")
-                print("   fix: run Gate 2.5, disposition findings, record a gate=2 decision")
-                return it
+    # Gate 2 is enforced at the precheck/CI boundary (gate2_completion_check) for every completion
+    # transition: the control-plane write path stays usable for library callers and epic rollups.
     return update(scope, project, eid, status=status, _note=note)
 
 
