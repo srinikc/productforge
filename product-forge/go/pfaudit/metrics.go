@@ -9,6 +9,7 @@ import (
 const (
 	MetricMonthsAhead       = "audit_partition_months_ahead"
 	MetricLowCoverage       = "audit_partition_low_coverage_total"
+	MetricRotationStale     = "audit_rotation_stale_total"
 	MetricInsertOutOfRange  = "audit_insert_out_of_range_total"
 	MetricProvisionSeconds  = "audit_provision_seconds"
 	MetricSwapFreeze        = "audit_swap_freeze_seconds"

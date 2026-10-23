@@ -122,3 +122,12 @@ before a partition leaves the hot table, and a hold placed after archive is reco
 recorded after a purge cannot resurrect the evidence (rejected + spoliation metric `audit_hold_after_purge_total`).
 
 Canonical advisory-lock namespaces: `AUDP` (insert provisioning), `AUSW` (swap), `AURE` (retention).
+
+**Operations.** `edpsvc` runs `pfaudit.CheckCoverage` at startup (non-fatal) and exposes
+`GET /admin/audit-coverage`; `pfaudit-retention check` is the cron probe (hourly, exit 0 unless `--strict`)
+emitting `audit_partition_months_ahead`, `audit_partition_low_coverage_total` and
+`audit_rotation_stale_total` (rotation older than `--max-age-hours`, default 48). A sample crontab lives in
+`ops/cron/pfaudit-retention.cron`. A hold recorded **after** a month is cold-archived is reconciled by
+`pfaudit-retention reconcile --month audit_YYYYMM`: it restores the archive into `audit_restore_YYYYMM`,
+extracts the newly-held rows into `audit_legal_hold_archive`, verifies counts **and** SHA-256 digests, then
+drops the scratch table.

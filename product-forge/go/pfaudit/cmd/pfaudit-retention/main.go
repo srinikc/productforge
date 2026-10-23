@@ -33,6 +33,8 @@ func main() {
 	actor := fs.String("actor", os.Getenv("PF_OPERATOR"), "operator identity (recorded)")
 	reason := fs.String("reason", "", "reason (recorded)")
 	dry := fs.Bool("dry-run", false, "print the plan without changing anything")
+	maxAgeHours := fs.Float64("max-age-hours", 48, "check: rotation older than this is stale")
+	strict := fs.Bool("strict", false, "check: exit 2 when coverage is low or rotation is stale")
 	_ = fs.Parse(os.Args[2:])
 
 	if *dsn == "" {
@@ -43,20 +45,54 @@ func main() {
 		fail("connect: %v", err)
 	}
 	defer pool.Close()
-	obj := objectStore(ctx)
 	met := pfaudit.NewMetrics()
-	// The lock must live on one dedicated connection: a pool-level Exec may unlock on a different backend.
-	lockConn, err := pool.Acquire(ctx)
-	if err != nil {
-		fail("retention lock conn: %v", err)
+	needsStore := cmd == "export" || cmd == "purge" || cmd == "restore" || cmd == "reconcile"
+	var obj datastore.ObjectStore
+	if needsStore {
+		obj = objectStore(ctx)
 	}
-	defer lockConn.Release()
-	if _, err := lockConn.Exec(ctx, `SELECT pg_advisory_lock(hashtext('AURE'))`); err != nil {
-		fail("retention lock: %v", err)
+	// Only mutating retention commands serialise on AURE; check/coverage must never block behind a job.
+	if cmd == "export" || cmd == "purge" || cmd == "holds" {
+		// The lock must live on one dedicated connection: a pool Exec may unlock on a different backend.
+		lockConn, err := pool.Acquire(ctx)
+		if err != nil {
+			fail("retention lock conn: %v", err)
+		}
+		defer lockConn.Release()
+		if _, err := lockConn.Exec(ctx, `SELECT pg_advisory_lock(hashtext('AURE'))`); err != nil {
+			fail("retention lock: %v", err)
+		}
+		defer lockConn.Exec(ctx, `SELECT pg_advisory_unlock(hashtext('AURE'))`)
 	}
-	defer lockConn.Exec(ctx, `SELECT pg_advisory_unlock(hashtext('AURE'))`)
 
 	switch cmd {
+	case "check":
+		st, err := pfaudit.CheckCoverage(ctx, pool, *maxAgeHours)
+		if err != nil {
+			fail("%v", err)
+		}
+		pfaudit.EmitCoverage(met, st)
+		fmt.Printf("coverage: min=%v max=%v grace=%v months_ahead=%d lead=%d low=%v last_rotation_hours=%.1f stale=%v\n",
+			fmtTime(st.MinMonth), fmtTime(st.MaxMonth), fmtTime(st.GraceMonth), st.MonthsAhead, st.LeadMonths,
+			st.Low(), st.LastRotationAgeHours, st.Stale)
+		if *strict && (st.Low() || st.Stale) {
+			emitMetrics(met)
+			os.Exit(2)
+		}
+	case "reconcile":
+		if *month == "" {
+			fail("--month is required")
+		}
+		if *dry {
+			fmt.Printf("would restore %s, extract newly-held rows and verify (scratch table dropped on success)\n", *month)
+			return
+		}
+		restored, extracted, err := pfaudit.ReconcileHolds(ctx, pool, obj, *month)
+		if err != nil {
+			fail("reconcile %s: %v", *month, err)
+		}
+		met.Inc(pfaudit.MetricHoldExtract)
+		fmt.Printf("reconciled %s: restored=%d newly_extracted=%d (verified)\n", *month, restored, extracted)
 	case "coverage":
 		c, err := pfaudit.ReadCoverage(ctx, pool)
 		if err != nil {
@@ -199,7 +235,7 @@ func objectStore(ctx context.Context) datastore.ObjectStore {
 func fmtTime(t *time.Time) string { return pfaudit.MonthLabel(t) }
 
 func usage() {
-	fmt.Fprintln(os.Stderr, "usage: pfaudit-retention <coverage|candidates|holds|export|purge|restore> [flags]")
+	fmt.Fprintln(os.Stderr, "usage: pfaudit-retention <check|coverage|candidates|holds|export|purge|restore|reconcile> [flags]")
 	os.Exit(2)
 }
 

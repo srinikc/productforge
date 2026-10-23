@@ -10,6 +10,7 @@ import (
 	"io/fs"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -271,12 +272,24 @@ func RestoreMonth(ctx context.Context, pool *pgxpool.Pool, obj datastore.ObjectS
 // VerifyHoldExtraction proves that every row still under an active hold in month has been copied to
 // audit_legal_hold_archive before the hot partition may be dropped.
 func VerifyHoldExtraction(ctx context.Context, pool *pgxpool.Pool, month string) (archived, missing int64, err error) {
+	return VerifyHoldExtractionFrom(ctx, pool, month, "")
+}
+
+// VerifyHoldExtractionFrom verifies archived held rows against a source table (live partition or scratch).
+func VerifyHoldExtractionFrom(ctx context.Context, pool *pgxpool.Pool, month, source string) (archived, missing int64, err error) {
 	if !validMonth(month) {
 		return 0, 0, fmt.Errorf("pfaudit: invalid partition %q", month)
 	}
+	table := month
+	if source != "" {
+		if !validScratch(source) {
+			return 0, 0, fmt.Errorf("pfaudit: invalid source table %q", source)
+		}
+		table = source
+	}
 	q := `SELECT
 	  (SELECT count(*) FROM audit_legal_hold_archive WHERE source_partition = $1),
-	  (SELECT count(*) FROM ` + month + ` a
+	  (SELECT count(*) FROM ` + table + ` a
 	     JOIN audit_legal_hold_events e ON e.month = $1 AND e.action = 'hold'
 	       AND (length(e.tenant_id) = 0 OR e.tenant_id = a.tenant_id)
 	    WHERE NOT EXISTS (SELECT 1 FROM audit_legal_hold_events r
@@ -299,7 +312,7 @@ func VerifyHoldExtraction(ctx context.Context, pool *pgxpool.Pool, month string)
 	                                                   WHERE r.hold_id = h.hold_id AND r.action = 'release' AND r.at > h.at))) t), ''),
 	  coalesce((SELECT encode(sha256(convert_to(string_agg(concat_ws('|', t.id, t.tenant_id, t.actor, t.action, t.resource, t.outcome, t.correlation_id, extract(epoch from t.at)), E'\n' ORDER BY t.id, t.at), 'UTF8')), 'hex')
 	    FROM (SELECT DISTINCT a.id, a.tenant_id, a.actor, a.action, a.resource, a.outcome, a.correlation_id, a.at
-	            FROM ` + month + ` a
+	            FROM ` + table + ` a
 	            JOIN audit_legal_hold_events e ON e.month = $1 AND e.action = 'hold'
 	             AND (length(e.tenant_id) = 0 OR e.tenant_id = a.tenant_id)
 	           WHERE NOT EXISTS (SELECT 1 FROM audit_legal_hold_events r
@@ -312,6 +325,45 @@ func VerifyHoldExtraction(ctx context.Context, pool *pgxpool.Pool, month string)
 		return archived, missing, fmt.Errorf("pfaudit: hold archive digest %s != live %s", archSum, liveSum)
 	}
 	return archived, missing, nil
+}
+
+// validScratch accepts only audit_restore_YYYYMM (never a caller-supplied table name).
+func validScratch(t string) bool {
+	if len(t) != 20 || !strings.HasPrefix(t, "audit_restore_") {
+		return false
+	}
+	for _, r := range t[14:] {
+		if r < '0' || r > '9' {
+			return false
+		}
+	}
+	return true
+}
+
+// ReconcileHolds handles a hold placed AFTER the month was cold-archived: restore the archive into a
+// scratch table, extract the newly-held rows into the hold archive, verify, then drop the scratch.
+func ReconcileHolds(ctx context.Context, pool *pgxpool.Pool, obj datastore.ObjectStore, month string) (restored, extracted int64, err error) {
+	if !validMonth(month) {
+		return 0, 0, fmt.Errorf("pfaudit: invalid partition %q", month)
+	}
+	restored, err = RestoreMonth(ctx, pool, obj, month)
+	if err != nil {
+		return 0, 0, err
+	}
+	scratch := "audit_restore_" + month[len(month)-6:]
+	extracted, err = ExtractHoldsFrom(ctx, pool, month, scratch)
+	if err != nil {
+		return restored, 0, fmt.Errorf("pfaudit: extract holds from %s: %w", scratch, err)
+	}
+	if _, missing, verr := VerifyHoldExtractionFrom(ctx, pool, month, scratch); verr != nil {
+		return restored, extracted, fmt.Errorf("pfaudit: verify reconciled holds: %w", verr)
+	} else if missing != 0 {
+		return restored, extracted, fmt.Errorf("pfaudit: %d held row(s) still missing after reconcile", missing)
+	}
+	if _, err := pool.Exec(ctx, `DROP TABLE IF EXISTS `+scratch); err != nil {
+		return restored, extracted, fmt.Errorf("pfaudit: drop scratch: %w", err)
+	}
+	return restored, extracted, nil
 }
 
 // PurgeMonth deletes the archived objects and records the irreversible purge (approval must exist).
@@ -356,8 +408,19 @@ func PurgeMonth(ctx context.Context, pool *pgxpool.Pool, obj datastore.ObjectSto
 
 // ExtractHolds archives held rows of a month before it is dropped/archived.
 func ExtractHolds(ctx context.Context, pool *pgxpool.Pool, month string) (int64, error) {
+	return ExtractHoldsFrom(ctx, pool, month, "")
+}
+
+// ExtractHoldsFrom extracts held rows from an explicit source table (a restored scratch table).
+func ExtractHoldsFrom(ctx context.Context, pool *pgxpool.Pool, month, source string) (int64, error) {
+	if !validMonth(month) {
+		return 0, fmt.Errorf("pfaudit: invalid partition %q", month)
+	}
+	if source != "" && !validScratch(source) {
+		return 0, fmt.Errorf("pfaudit: invalid source table %q", source)
+	}
 	var n int64
-	if err := pool.QueryRow(ctx, `SELECT audit_hold_extract($1)`, month).Scan(&n); err != nil {
+	if err := pool.QueryRow(ctx, `SELECT audit_hold_extract($1, NULLIF($2,''))`, month, source).Scan(&n); err != nil {
 		return 0, err
 	}
 	if err := RecordState(ctx, pool, "holds_extracted", fmt.Sprintf(`{"month":%q,"rows":%d}`, month, n)); err != nil {

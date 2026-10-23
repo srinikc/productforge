@@ -3,11 +3,13 @@ module productforge/edpsvc
 go 1.25.0
 
 require (
+	github.com/jackc/pgx/v5 v5.11.0
 	productforge/artifacts v0.0.0
 	productforge/datastore v0.0.0
 	productforge/edpdata v0.0.0
 	productforge/migrate v0.0.0
 	productforge/objstore v0.0.0
+	productforge/pfaudit v0.0.0-00010101000000-000000000000
 	productforge/s3store v0.0.0
 	productforge/store v0.0.0
 )
@@ -19,7 +21,6 @@ require (
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
-	github.com/jackc/pgx/v5 v5.11.0 // indirect
 	github.com/jackc/puddle/v2 v2.2.2 // indirect
 	github.com/klauspost/compress v1.17.9 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.8 // indirect
@@ -42,6 +43,8 @@ replace productforge/edpdata => ../edpdata
 replace productforge/migrate => ../migrate
 
 replace productforge/objstore => ../objstore
+
+replace productforge/pfaudit => ../pfaudit
 
 replace productforge/s3store => ../s3store
 

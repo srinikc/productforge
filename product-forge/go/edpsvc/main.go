@@ -17,6 +17,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -26,11 +27,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgxpool"
 	"productforge/artifacts"
 	"productforge/datastore"
 	"productforge/edpdata"
 	"productforge/migrate"
 	"productforge/objstore"
+	"productforge/pfaudit"
 	"productforge/s3store"
 	"productforge/store"
 )
@@ -85,6 +88,7 @@ func main() {
 	mux.HandleFunc("/artifacts", s.adminOnly(s.artifactUpload))
 	mux.HandleFunc("/artifacts/", s.adminOnly(s.artifactRoute))
 	mux.HandleFunc("/audit", s.adminOnly(s.auditAppend))
+	mux.HandleFunc("/admin/audit-coverage", s.adminOnly(s.auditCoverage))
 	mux.HandleFunc("/jobs", s.adminOnly(s.jobSubmit))
 	mux.HandleFunc("/jobs/claim", s.adminOnly(s.jobClaim))
 	mux.HandleFunc("/jobs/action", s.adminOnly(s.jobAction))
@@ -92,9 +96,66 @@ func main() {
 	mux.HandleFunc("/memory/", s.adminOnly(s.memoryByID))
 	mux.HandleFunc("/backlog", s.adminOnly(s.backlogHandle))
 	mux.HandleFunc("/backlog/", s.adminOnly(s.backlogByID))
+	// AC: surface coverage non-fatally at startup (a stale/low rotation must not stop the service).
+	s.checkAuditCoverage()
 	addr := envOr("PF_EDP_ADDR", "127.0.0.1:8030")
 	log.Printf("edpsvc listening on %s (migrations=%s)", addr, s.migDir)
 	log.Fatal(http.ListenAndServe(addr, mux))
+}
+
+// checkAuditCoverage emits the AC metrics once on startup; every failure is logged, never fatal.
+func (s *server) checkAuditCoverage() {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	pool, err := pgxpool.New(ctx, s.dsn)
+	if err != nil {
+		log.Printf("audit coverage: connect: %v (non-fatal)", err)
+		return
+	}
+	defer pool.Close()
+	maxAge := 48.0
+	if v := os.Getenv("PF_AUDIT_ROTATION_MAX_AGE_HOURS"); v != "" {
+		if n, err := strconv.ParseFloat(v, 64); err == nil && n > 0 {
+			maxAge = n
+		}
+	}
+	st, err := pfaudit.CheckCoverage(ctx, pool, maxAge)
+	if err != nil {
+		log.Printf("audit coverage: %v (non-fatal)", err)
+		return
+	}
+	m := pfaudit.NewMetrics()
+	pfaudit.EmitCoverage(m, st)
+	c, g := m.Snapshot()
+	if b, err := json.Marshal(map[string]any{"metrics": c, "gauges": g}); err == nil {
+		fmt.Fprintln(os.Stderr, string(b))
+	}
+	if st.Low() {
+		log.Printf("WARNING audit coverage low: months_ahead=%d lead=%d", st.MonthsAhead, st.LeadMonths)
+	}
+	if st.Stale {
+		log.Printf("WARNING audit rotation stale: last_rotation_hours=%.1f", st.LastRotationAgeHours)
+	}
+}
+
+func (s *server) auditCoverage(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+	defer cancel()
+	pool, err := pgxpool.New(ctx, s.dsn)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
+	}
+	defer pool.Close()
+	st, err := pfaudit.CheckCoverage(ctx, pool, 48)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"months_ahead": st.MonthsAhead, "lead_months": st.LeadMonths, "low": st.Low(),
+		"last_rotation_hours": st.LastRotationAgeHours, "stale": st.Stale,
+	})
 }
 
 func envOr(k, d string) string {

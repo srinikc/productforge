@@ -363,3 +363,94 @@ func TestRetentionLockDoesNotBlockProvisioning(t *testing.T) {
 		t.Fatalf("insert while AURE held must not block: %v", err)
 	}
 }
+
+// TestReconcileHoldsAfterArchive proves an AC flow: a hold placed after the month left the hot table is
+// reconciled by restoring the cold archive, extracting the newly-held rows and verifying the digests.
+func TestReconcileHoldsAfterArchive(t *testing.T) {
+	ctx := context.Background()
+	pool := setup(t)
+	obj, err := objstore.NewLocalStore(t.TempDir(), 1<<32)
+	if err != nil {
+		t.Fatalf("object store: %v", err)
+	}
+	old := time.Now().UTC().AddDate(0, -6, 0)
+	month := "audit_" + old.Format("200601")
+	tenant := fmt.Sprintf("reconcile-%d", time.Now().UnixNano())
+	if _, err := CopyBatch(ctx, pool, 0, 1000); err != nil {
+		t.Fatalf("prestage: %v", err)
+	}
+	for i := 0; i < 3; i++ {
+		if _, err := pool.Exec(ctx, `INSERT INTO audit (tenant_id, actor, action, at) VALUES ($1,'a','x',$2)`,
+			tenant, old.Add(time.Duration(i)*time.Minute)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := pool.Exec(ctx, `SELECT audit_ensure_partitions(audit_month_start($1)::date)`, old); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := CopyBatch(ctx, pool, 0, 1000); err != nil {
+		t.Fatalf("stage old month: %v", err)
+	}
+	man, err := ExportMonth(ctx, pool, obj, month)
+	if err != nil {
+		t.Fatalf("export: %v", err)
+	}
+	if man.Rows != 3 {
+		t.Fatalf("manifest rows = %d, want 3", man.Rows)
+	}
+	if _, err := pool.Exec(ctx, `SELECT audit_drop_partition($1)`, month); err != nil {
+		t.Fatalf("drop: %v", err)
+	}
+	if _, err := pool.Exec(ctx, `INSERT INTO audit_legal_hold_events(hold_id, tenant_id, month, action, actor, reason)
+		VALUES ('h-late', $1, $2, 'hold', 'ops', 'litigation')`, tenant, month); err != nil {
+		t.Fatalf("late hold: %v", err)
+	}
+	restored, extracted, err := ReconcileHolds(ctx, pool, obj, month)
+	if err != nil {
+		t.Fatalf("reconcile: %v", err)
+	}
+	if restored != 3 || extracted != 3 {
+		t.Fatalf("reconcile restored=%d extracted=%d, want 3/3", restored, extracted)
+	}
+	var archived int64
+	if err := pool.QueryRow(ctx, `SELECT count(*) FROM audit_legal_hold_archive WHERE source_partition = $1`, month).
+		Scan(&archived); err != nil {
+		t.Fatal(err)
+	}
+	if archived != 3 {
+		t.Fatalf("hold archive rows = %d, want 3", archived)
+	}
+	var scratch bool
+	if err := pool.QueryRow(ctx, `SELECT to_regclass('public.audit_restore_`+month[6:]+`') IS NOT NULL`).Scan(&scratch); err != nil {
+		t.Fatal(err)
+	}
+	if scratch {
+		t.Fatal("scratch table was not dropped after a successful reconcile")
+	}
+}
+
+// TestCoverageCheck proves the startup/cron contract: coverage is readable and a never-rotated system is
+// reported stale without raising.
+func TestCoverageCheck(t *testing.T) {
+	ctx := context.Background()
+	pool := setup(t)
+	st, err := CheckCoverage(ctx, pool, 48)
+	if err != nil {
+		t.Fatalf("check coverage: %v", err)
+	}
+	if st.LeadMonths < 1 || st.MonthsAhead < 1 {
+		t.Fatalf("coverage = %+v, want lead>=1 and months_ahead>=1", st)
+	}
+	if !st.Stale || st.LastRotationAgeHours >= 0 {
+		t.Fatalf("fresh system should report stale rotation, got %+v", st)
+	}
+	m := NewMetrics()
+	EmitCoverage(m, st)
+	c, g := m.Snapshot()
+	if _, ok := g[MetricMonthsAhead]; !ok {
+		t.Fatal("months_ahead gauge not emitted")
+	}
+	if _, ok := c[MetricRotationStale]; !ok {
+		t.Fatal("rotation stale counter not emitted")
+	}
+}

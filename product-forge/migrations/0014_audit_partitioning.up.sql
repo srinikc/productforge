@@ -514,13 +514,14 @@ BEGIN
 END $$;
 
 -- ---- 14. hold extract (row level) -----------------------------------------------------------------
-CREATE OR REPLACE FUNCTION audit_hold_extract(p_month TEXT) RETURNS BIGINT
+CREATE OR REPLACE FUNCTION audit_hold_extract(p_month TEXT, p_source TEXT DEFAULT NULL) RETURNS BIGINT
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, public AS $$
 DECLARE
     v_rows BIGINT := 0;
+    v_source TEXT := COALESCE(NULLIF(p_source, ''), p_month);
 BEGIN
-    IF p_month !~ '^audit_[0-9]{6}$' THEN
-        RAISE EXCEPTION 'audit_hold_extract: refusing %', p_month;
+    IF p_month !~ '^audit_[0-9]{6}$' OR v_source !~ '^audit_(restore_)?[0-9]{6}$' THEN
+        RAISE EXCEPTION 'audit_hold_extract: refusing % / %', p_month, v_source;
     END IF;
     EXECUTE format(
       'INSERT INTO audit_legal_hold_archive
@@ -534,7 +535,7 @@ BEGIN
                          WHERE r.hold_id = e.hold_id AND r.action = ''release'' AND r.at > e.at)
          AND NOT EXISTS (SELECT 1 FROM audit_legal_hold_archive x
                          WHERE x.hold_id = e.hold_id AND x.id = a.id AND x.at = a.at)
-       ON CONFLICT DO NOTHING', p_month, p_month, p_month);
+       ON CONFLICT DO NOTHING', p_month, v_source, p_month);
     GET DIAGNOSTICS v_rows = ROW_COUNT;
     RETURN v_rows;
 END $$;
