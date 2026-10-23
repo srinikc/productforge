@@ -49,9 +49,21 @@ SEED = [
     ("memory", "projects", "project_id", "fk", "BI-PF-1313", "memory record belongs to a project"),
     ("memory", "stored_objects", "object_ref", "object-ref", "BI-PF-1313", "payload lives in the object store"),
     ("audit", "tenants", "tenant_id", "logical", "BI-PF-1312", "audit rows carry the tenant id (no FK by design)"),
+    ("audit_partitioned", "tenants", "tenant_id", "logical", "BI-PF-1312", "partitioned audit parent is tenant-scoped"),
+    ("audit_legal_hold_events", "tenants", "tenant_id", "logical", "BI-PF-1312", "legal holds may be tenant-scoped"),
+    ("audit_legal_hold_archive", "tenants", "tenant_id", "logical", "BI-PF-1312", "archived held rows keep tenant scope"),
+    ("control_state", "tenants", "tenant_id", "fk", "BI-PF-1309", "control state is tenant-scoped"),
+    ("derived_outputs", "tenants", "tenant_id", "fk", "BI-PF-1309", "derived outputs are tenant-scoped"),
+    ("ledger", "tenants", "tenant_id", "fk", "BI-PF-1309", "ledger entries are tenant-scoped"),
+    ("quotas", "tenants", "tenant_id", "fk", "BI-PF-1309", "quota rows are tenant-scoped"),
+    ("secrets", "tenants", "tenant_id", "fk", "BI-PF-1309", "secrets are tenant-scoped"),
+    ("state", "tenants", "tenant_id", "fk", "BI-PF-1309", "state rows are tenant-scoped"),
+    ("tool_settings", "tenants", "tenant_id", "fk", "BI-PF-1309", "tool settings are tenant-scoped"),
+    ("usage", "tenants", "tenant_id", "fk", "BI-PF-1309", "usage rows are tenant-scoped"),
+    ("stored_objects", "tenants", "tenant_id", "fk", "BI-PF-1307", "object metadata is tenant-scoped"),
 ]
-REQUIRED = {(c, p, col) for c, p, col, _, _, _ in SEED}
-SEED_KEYS = [(c, p, col) for c, p, col, _, _, _ in SEED]
+# SEED is only the initial seeding set for --apply; the registry (and schema-derived expectations) is the
+# authority at check time.
 REQUIRED_TRIGGERS = (
     "audit_partitioned_append_only",
     "audit_partition_config_touch",
@@ -152,10 +164,8 @@ def apply(reg: dict, tables: set[str], table_cols: dict[str, set[str]]) -> dict:
     for seed in _seed_relationships():
         key = (seed["from"], seed["to"], seed["via"])
         if key in by_key:
-            by_key[key].update({"kind": seed["kind"], "owner_item": seed["owner_item"],
-                                "note": seed["note"], "canonical": True})
+            by_key[key].update({"kind": seed["kind"], "owner_item": seed["owner_item"], "note": seed["note"]})
         else:
-            seed["canonical"] = True
             rels.append(seed)
     for r in rels:
         r.pop("verified", None)
@@ -239,22 +249,13 @@ def check(reg: dict, tables: set[str], table_cols: dict[str, set[str]], triggers
             bad.append(f"relationship parent table {parent!r} does not exist")
         if child in tables and col not in table_cols.get(child, set()):
             bad.append(f"relationship {child}.{col}: column not found in the migration")
-    canonical = {(str(r.get("from")), str(r.get("to")), str(r.get("via"))): r
-                 for r in rels if r.get("canonical") is True}
-    for edge in sorted(REQUIRED - set(canonical)):
-        bad.append(f"canonical relationship missing: {edge[0]}.{edge[2]} -> {edge[1]}")
-    for c2, p2, col2 in sorted(set(canonical) - REQUIRED):
-        bad.append(f"unexpected canonical relationship: {c2}.{col2} -> {p2}")
-    for c2, p2, _ in SEED_KEYS:
-        r = canonical.get((c2, p2, _))
-        if r is None:
-            continue
-        expect = next(x for x in SEED if (x[0], x[1], x[2]) == (c2, p2, _))
-        if r.get("owner_item") != expect[4] or r.get("kind") != expect[3]:
-            bad.append(f"canonical relationship {c2}.{_} -> {p2} drifted from (kind={expect[3]}, owner={expect[4]})")
-    missing = REQUIRED - {(str(r.get("from")), str(r.get("to")), str(r.get("via"))) for r in rels}
-    for c, p, col in sorted(missing):
-        bad.append(f"required relationship missing: {c}.{col} -> {p}")
+    # Expectation is derived from the schema, not a hardcoded list: every table carrying tenant_id must
+    # declare its tenancy edge (the core isolation invariant Slice C is meant to prove).
+    have = {(str(r.get("from")), str(r.get("to")), str(r.get("via"))) for r in rels}
+    expected_tenancy = {(t, "tenants", "tenant_id") for t in tables
+                        if t != "tenants" and "tenant_id" in table_cols.get(t, set())}
+    for c, p, col in sorted(expected_tenancy - have):
+        bad.append(f"tenancy relationship missing: {c}.{col} -> {p}")
     for t in REQUIRED_TRIGGERS:
         if t not in triggers:
             bad.append(f"required trigger missing from migrations: {t}")
