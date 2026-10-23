@@ -1,0 +1,38 @@
+{
+  "item": "BI-PF-1469",
+  "sha": "673104732651",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-23T18:31:23.226479",
+  "findings": {
+    "BLOCKER": [
+      "none"
+    ],
+    "MAJOR": [
+      "gate2_completion_check._docs_only() re-implements the docs-only predicate (fnmatch + hardcoded skip-globs default) instead of calling gate_predicates.is_docs_only; set_status/gate_decisions use the shared one. Two copies can diverge \u2014 direct violation of the \"single predicate\" acceptance criterion and the stated purpose of gate_predicates.py.",
+      "core/backlog.py (shipped control-plane) loads scripts/dev/gate_decisions.py by raw filesystem path via importlib on every Gate 2 check, re-exec'ing the module per call. A deployed core without scripts/dev breaks all completions (fail-closed GATE_ERROR, i.e., availability outage), and the \"keeps core free of dev imports\" claim is only cosmetically true \u2014 this is a runtime dependency on dev tooling layout, not an architectural boundary.",
+      "The ordering predicate (decision.at >= evidence.at) is silently skipped when the evidence record lacks a parseable `at`, and _ingest writes `at` as naive local time while decisions are UTC; _parse_ts assumes naive==UTC. Both cases can let a pre-evidence approval pass as valid, weakening the STALE_APPROVAL guarantee.",
+      "store-registry.json declares gate-baseline.json owner as \"core/gate_predicates.py\", but the module actually lives at scripts/dev/gate_predicates.py. Registry drift misroutes ownership/impact analysis for a fail-closed gate config.",
+      "force path in set_status bypasses record_gate_decision entirely, hardcodes by=\"hil:forced\" (not a real actor, though it passes the hil: prefix check), and performs two non-atomic updates (append decision, then set status). No fsync/rollback semantics if the second write fails."
+    ],
+    "MINOR": [
+      "The negative self-test matrix required by the AC (missing Gate 1, stale approval, force-without-PF_GATE_FORCE, pending diff findings) is split inconsistently: gate1_transition_check has --self-test but it is never wired into precheck/ci-cd-gates, so the gate-1 predicate matrix never executes in CI.",
+      "The hardcoded skip-globs default [\"docs/**\",\"**/*.md\",\"config/**\"] is duplicated in gate2_completion_check, gate_decisions, and gate_predicates call sites; a config change to size_gate.skip_globs silently changes Gate 2 semantics with no versioned contract.",
+      "record_gate_decision for gate 2 does not validate that the recorded decision.at is after the evidence timestamp at write time; ordering is only enforced at read, so an out-of-order decision can be persisted and later confuse audit history.",
+      "set_status does not handle a missing item (get_epic returns {}); if the working set happens to be docs-only, a nonexistent eid can pass the Gate 2 predicate before update() no-ops.",
+      "Observability: all gate outcomes are plain print() to stdout with no structured event/JSON line in the enforcement path (--report exists but CI runs are grep-driven); long-term, machine consumers will parse free text.",
+      "gate_decide.py exists as the canonical recorder but core.backlog.record_gate_decision re-exports the same path with sys.modules[__name__] injection \u2014 two entry points to the same operation invites drift."
+    ],
+    "NIT": [
+      "gate1_transition_check imports gate_predicates as gp at module level and re-imports it inside _self_test, shadowing the outer binding.",
+      "gate_predicates.is_docs_only imports fnmatch inside the function body on every call.",
+      "gate2_completion_check.py imports fnmatch at top level but never uses it directly (only _docs_only does)."
+    ],
+    "SUMMARY": [
+      "Sound overall design: shared predicates, fail-closed defaults, baseline governance, and append-only decision journal are the right shape, and the self-test/unit matrices cover the key negative cases.",
+      "Top risks: the \"single predicate\" AC is violated by _docs_only duplication; shipped core/backlog.py reaching into scripts/dev via importlib is a fragile boundary with availability consequences; and the decision/evidence ordering check is bypassable due to missing/naive `at` timestamps.",
+      "Recommend fixing the docs-only duplication, making the ordering check fail-closed on missing `at`, and moving gate_predicates into a real core module before this is treated as a hard enterprise gate."
+    ]
+  }
+}
