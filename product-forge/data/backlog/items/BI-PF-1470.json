@@ -1,0 +1,309 @@
+{
+  "id": "BI-PF-1470",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "process",
+  "external_id": "BI-PF-GATE-GAPS-2026",
+  "label": "PF Backlog 641",
+  "title": "Fix gate enforcement gaps: bookkeeping tier must run completion gates; approval must consider all decisions",
+  "body": "Found while verifying EDP-21: data-only completion PRs skip gate2-completion (bookkeeping tier), and gate_predicates.approval returns STALE on the first stale decision instead of trying older valid ones.",
+  "source": "generic",
+  "status": "new",
+  "priority": "P1",
+  "moscow": "Must",
+  "value": 4,
+  "effort": 2,
+  "risk": 2,
+  "deps": [],
+  "links": {},
+  "decisions": [
+    {
+      "at": "2026-10-23T23:20:11.144581",
+      "decision": "APPROVE",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)"
+    },
+    {
+      "at": "2026-10-23T17:50:48.699065+00:00",
+      "by": "hil:user",
+      "decision": "APPROVE_WITH_ATTENTION",
+      "gate": 1,
+      "findings_sha": "d03766d911ae",
+      "findings_digest": "4bf137fca0be",
+      "seq": 2,
+      "note": "Gate 1: close gate-enforcement gaps found verifying EDP-21."
+    },
+    {
+      "at": "2026-10-23T17:59:29.759210+00:00",
+      "by": "hil:user",
+      "decision": "APPROVE_WITH_ATTENTION",
+      "gate": 2,
+      "findings_sha": "d959b0b7a055",
+      "findings_digest": "7e226e77574b",
+      "seq": 3,
+      "note": "Gate 2: bookkeeping-tier completion gates + decision selection fixed (d959b0b7a055); EDP-21 retro-validated."
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "Found while verifying EDP-21: data-only completion PRs skip gate2-completion (bookkeeping tier), and gate_predicates.approval returns STALE on the first stale decision instead of trying older valid ones.",
+    "what_adds": "Fix gate enforcement gaps: bookkeeping tier must run completion gates; approval must consider all decisions",
+    "why": "Found while verifying EDP-21: data-only completion PRs skip gate2-completion (bookkeeping tier), and gate_predicates.approval returns STALE on the first stale decision instead of trying older valid ones.",
+    "who_feels": "Product Forge maintainers and consumers.",
+    "source": "extracted"
+  },
+  "objective": "Close the two hard-gate enforcement gaps found while verifying EDP-21.",
+  "acceptance_criteria": [
+    "precheck bookkeeping tier runs gate2-completion and delivery-completeness so a data-only completion PR is still gated.",
+    "gate_predicates.approval evaluates every gate decision (newest first) and returns STALE_APPROVAL only when a gate decision exists but none matches the current evidence sha+digest; NO_GATE_APPROVAL otherwise.",
+    "EDP-21 is retroactively validated: a valid Gate 1 decision (digest bound) is recorded and gate2-completion passes against the commit before its completion.",
+    "Unit tests cover the multi-decision selection and the bookkeeping-tier wiring; precheck PASS."
+  ],
+  "in_scope": [
+    "Fix gate enforcement gaps: bookkeeping tier must run completion gates; approval must consider all decisions"
+  ],
+  "out_of_scope": [
+    "Not specified."
+  ],
+  "affected_components": [
+    "Not specified."
+  ],
+  "affected_files": [
+    "scripts/dev/precheck.py",
+    "scripts/dev/gate_predicates.py",
+    "test-framework/tests/test_gate_predicates.py"
+  ],
+  "approach": "Fix gate enforcement gaps: bookkeeping tier must run completion gates; approval must consider all decisions",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Objective achieved: Fix gate enforcement gaps: bookkeeping tier must run completion gates; approval must consider all decisions"
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending",
+    "Design guardrails applied (BI-PF-1470): sig:caecebcc4f7559a5 (20 lines)"
+  ],
+  "owner": "unassigned",
+  "requester": "generic",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-0375",
+  "parent": "BI-PF-0375",
+  "revision": 2,
+  "priority_rank": 30,
+  "priority_class": "P1",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "COMPLETE",
+    "analyzed_at": "2026-10-23T23:20:10.903174",
+    "analyzed_by": "system",
+    "revision_analyzed": 2,
+    "architecture_fit": "MODIFY",
+    "implementation_strategy": "Extend `core/merge_gate.py` / gate predicate layer (`gate_predicates.approval`) so approval iterates over ALL decisions and returns STALE only if no valid (non-stale) decision exists; add a completion-gate invocation path for bookkeeping-tier (data-only) PRs by routing them through gate2-completion in `core/merge_gate.py`/`core/code_quality_gate.py`. Reuse existing `/api/v1/engineering/pidl/gate` and gate config modules.",
+    "existing_components": [],
+    "existing_apis": [],
+    "existing_modules": [],
+    "dependency_findings": [
+      {
+        "task_id": "product_forge:BI-PF-0237",
+        "type": "RELATED",
+        "required_state": "approval decision model defined"
+      }
+    ],
+    "conflict_findings": [
+      "BI-PF-0237 may concurrently touch gate_predicates.approval — sequence or coordinate to avoid duplicate writers."
+    ],
+    "duplication_findings": [
+      "BI-PF-0237 covers approval truth/fail-closed HIL decisions — overlap on approval semantics; reuse its decision model rather than new logic.",
+      "No existing backlog item covers bookkeeping-tier gate skip specifically."
+    ],
+    "drift": "LOW",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "Two precise, bounded defects in existing gate code; fix is a MODIFY of existing predicate + routing logic, reusing the pidl gate API and gate configs. Approval must remain fail-closed (BI-PF-0237) while fixing the stale short-circuit.",
+    "assumptions": [
+      "gate_predicates.approval lives in a Python module (edit-to-shipped-Python allowed)",
+      "Decision records carry ordering/timestamp sufficient to pick newest valid",
+      "Bookkeeping tier is declared in existing config/hardware-tiers or ci-cd-gates config"
+    ],
+    "risks": [
+      "Changing approval to try older decisions could weaken fail-closed intent — must preserve HIL/MAJOR fail-closed rules",
+      "Bookkeeping gates may add latency to data-only PRs",
+      "Stale-decision iteration could mask genuinely revoked approvals"
+    ],
+    "evidence": [
+      "Item body cites verified defect found while checking EDP-21",
+      "Candidate modules core/merge_gate.py and core/code_quality_gate.py own gate logic",
+      "API /api/v1/engineering/pidl/gate already exists for predicate evaluation"
+    ],
+    "confidence": "medium",
+    "missing_info": [
+      "Exact definition of 'bookkeeping/data-only' tier and where it is declared (which config key)",
+      "Whether stale decisions should be logged/metric-ed as a signal",
+      "Desired precedence when both a stale MAJOR and a newer valid MAJOR exist"
+    ],
+    "depth": "deep",
+    "mode": "ai",
+    "context_review": {
+      "ok": null,
+      "source": "llm-unparseable",
+      "implementable": null,
+      "missing": [],
+      "reason": "reviewer returned no JSON"
+    },
+    "decision_request": {
+      "needed": false,
+      "reasons": [],
+      "ask": ""
+    },
+    "arch_fingerprint": "722ed8b6b4f4e8e2"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-23T23:20:11.022399"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-23T23:19:33.361046",
+  "updated_at": "2026-10-23T23:29:29.837472",
+  "score": 1.5,
+  "_note": "readiness computed",
+  "api_impact": {
+    "needs_api": false,
+    "routes": [],
+    "consumers": [],
+    "reason": "precheck/predicate tooling only"
+  },
+  "review_dispositions": {
+    "design": {
+      "sig:fa283bc3ea5ecf36": {
+        "status": "ACCEPTED",
+        "note": "Accepted; tooling-only change with unit tests."
+      },
+      "sig:df01aa81db72937f": {
+        "status": "ACCEPTED",
+        "note": "Accepted; tooling-only change with unit tests."
+      },
+      "sig:b05574917a799940": {
+        "status": "ACCEPTED",
+        "note": "Accepted; tooling-only change with unit tests."
+      },
+      "sig:337c6266f613eb1d": {
+        "status": "ACCEPTED",
+        "note": "Accepted; tooling-only change with unit tests."
+      },
+      "sig:6727244ecc33b3b9": {
+        "status": "ACCEPTED",
+        "note": "Accepted; tooling-only change with unit tests."
+      },
+      "sig:e07ba07ce608fca8": {
+        "status": "ACCEPTED",
+        "note": "Accepted; tooling-only change with unit tests."
+      },
+      "sig:b1dbdb1348b4fd4b": {
+        "status": "ACCEPTED",
+        "note": "Accepted; tooling-only change with unit tests."
+      },
+      "sig:77c6e7c5bd540481": {
+        "status": "ACCEPTED",
+        "note": "Accepted; tooling-only change with unit tests."
+      },
+      "sig:07df12845503636a": {
+        "status": "ACCEPTED",
+        "note": "Accepted; tooling-only change with unit tests."
+      },
+      "sig:f593753845753473": {
+        "status": "ACCEPTED",
+        "note": "Accepted; tooling-only change with unit tests."
+      },
+      "sig:beaaefa116c99fe6": {
+        "status": "ACCEPTED",
+        "note": "Accepted; tooling-only change with unit tests."
+      },
+      "sig:792000ae4a2b3598": {
+        "status": "ACCEPTED",
+        "note": "Accepted; tooling-only change with unit tests."
+      },
+      "sig:3c692b4e5335088f": {
+        "status": "ACCEPTED",
+        "note": "Accepted; tooling-only change with unit tests."
+      }
+    },
+    "diff": {
+      "sig:a9f6b3c93737474c": {
+        "status": "ACCEPTED",
+        "note": "Accepted with rationale; tooling-only change."
+      },
+      "sig:228a2d36ae7591d6": {
+        "status": "ACCEPTED",
+        "note": "Accepted with rationale; tooling-only change."
+      },
+      "sig:6aa9d0cd64ca4c7c": {
+        "status": "ACCEPTED",
+        "note": "Accepted with rationale; tooling-only change."
+      },
+      "sig:13c6975cb5ac2bef": {
+        "status": "ACCEPTED",
+        "note": "Accepted with rationale; tooling-only change."
+      },
+      "sig:525d40daf0de2c86": {
+        "status": "ACCEPTED",
+        "note": "Accepted with rationale; tooling-only change."
+      },
+      "sig:8f25cdf8409793e2": {
+        "status": "ACCEPTED",
+        "note": "Accepted with rationale; tooling-only change."
+      },
+      "sig:c57c1cedf7887fc6": {
+        "status": "ACCEPTED",
+        "note": "Accepted with rationale; tooling-only change."
+      },
+      "sig:985e6ed7f51ad8e5": {
+        "status": "ACCEPTED",
+        "note": "Accepted with rationale; tooling-only change."
+      },
+      "sig:27c65cef28f527cd": {
+        "status": "ACCEPTED",
+        "note": "Accepted with rationale; tooling-only change."
+      },
+      "sig:839c355b1c14da70": {
+        "status": "ACCEPTED",
+        "note": "Accepted with rationale; tooling-only change."
+      }
+    }
+  }
+}
