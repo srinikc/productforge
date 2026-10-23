@@ -1013,7 +1013,7 @@ def _gate2_status(item: dict, eid: str) -> tuple[bool, str]:
         from core import gate_predicates as _gp
         view = _ar.gate_view(eid, "diff")
         skip = (_ar._config().get("size_gate") or {}).get("skip_globs") or ["docs/**", "**/*.md", "config/**"]
-        docs_only = not any(not any(_fnmatch.fnmatch(f, g) for g in skip) for f in _ar.changed_files())
+        docs_only = _gp.is_docs_only(_ar.changed_files(), skip)
         if view is None and not docs_only:
             return False, "NO_DIFF_EVIDENCE"
         sha = ((view or {}).get("review") or {}).get("sha") if view else "docs-only"
@@ -1079,12 +1079,13 @@ def set_status(scope: str, project: str | None, eid: str, status: str, note: str
         it = get_epic(scope, project, eid) or {}
         if force:
             import os as _os
-            from datetime import datetime as _dt
-            if _os.environ.get("PF_GATE_FORCE") != "1" or _os.environ.get("PF_CI"):
+            from datetime import datetime as _dt, timezone as _tz
+            from core import gate_predicates as _gp
+            if not _gp.force_allowed(_os.environ):
                 print(f"[Backlog] refusing forced close of {eid}: PF_GATE_FORCE=1 required and CI cannot force")
                 return it
             dec = list(it.get("decisions") or [])
-            dec.append({"at": _dt.now().isoformat(), "by": "hil:forced", "decision": "GATE_OVERRIDE",
+            dec.append({"at": _dt.now(_tz.utc).isoformat(), "by": "hil:forced", "decision": "GATE_OVERRIDE",
                         "gate": 2, "findings_sha": "", "findings_digest": "", "seq": len(dec) + 1,
                         "note": note or "forced close"})
             it = update(scope, project, eid, decisions=dec) or it
