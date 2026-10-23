@@ -32,6 +32,8 @@ func main() {
 	month := fs.String("month", "", "audit_YYYYMM partition")
 	actor := fs.String("actor", os.Getenv("PF_OPERATOR"), "operator identity (recorded)")
 	reason := fs.String("reason", "", "reason (recorded)")
+	holdID := fs.String("hold-id", "", "hold: unique hold id")
+	holdTenant := fs.String("tenant", "", "hold: tenant scope (empty = whole month)")
 	dry := fs.Bool("dry-run", false, "print the plan without changing anything")
 	maxAgeHours := fs.Float64("max-age-hours", 48, "check: rotation older than this is stale")
 	strict := fs.Bool("strict", false, "check: exit 2 when coverage is low or rotation is stale")
@@ -79,6 +81,21 @@ func main() {
 			emitMetrics(met)
 			os.Exit(2)
 		}
+	case "hold":
+		if *month == "" || *holdID == "" {
+			fail("--month and --hold-id are required")
+		}
+		if *dry {
+			fmt.Printf("would record hold %s on %s (tenant=%q)\n", *holdID, *month, *holdTenant)
+			return
+		}
+		err := pfaudit.PlaceHold(ctx, pool, pfaudit.Hold{
+			ID: *holdID, Tenant: *holdTenant, Month: *month, Actor: *actor, Reason: *reason,
+		}, met)
+		if err != nil {
+			fail("hold %s: %v", *month, err)
+		}
+		fmt.Printf("hold %s recorded on %s\n", *holdID, *month)
 	case "reconcile":
 		if *month == "" {
 			fail("--month is required")
@@ -233,7 +250,7 @@ func objectStore(ctx context.Context) datastore.ObjectStore {
 func fmtTime(t *time.Time) string { return pfaudit.MonthLabel(t) }
 
 func usage() {
-	fmt.Fprintln(os.Stderr, "usage: pfaudit-retention <check|coverage|candidates|holds|export|purge|restore|reconcile> [flags]")
+	fmt.Fprintln(os.Stderr, "usage: pfaudit-retention <check|coverage|candidates|holds|hold|export|purge|restore|reconcile> [flags]")
 	os.Exit(2)
 }
 

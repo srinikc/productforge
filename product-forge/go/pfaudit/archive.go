@@ -62,7 +62,7 @@ func ExportMonth(ctx context.Context, pool *pgxpool.Pool, obj datastore.ObjectSt
 	if alreadyArchived {
 		return m, fmt.Errorf("pfaudit: %s is already archived (immutable)", month)
 	}
-	f, err := os.CreateTemp("", "pfaudit-export-*.ndjson")
+	f, err := os.CreateTemp(os.Getenv("PF_AUDIT_TMP"), "pfaudit-export-*.ndjson")
 	if err != nil {
 		return m, err
 	}
@@ -163,7 +163,7 @@ func RestoreMonth(ctx context.Context, pool *pgxpool.Pool, obj datastore.ObjectS
 		return 0, fmt.Errorf("pfaudit: get %s: %w", ArchiveKey(month), err)
 	}
 	defer rc.Close()
-	tmp, err := os.CreateTemp("", "pfaudit-restore-*.ndjson")
+	tmp, err := os.CreateTemp(os.Getenv("PF_AUDIT_TMP"), "pfaudit-restore-*.ndjson")
 	if err != nil {
 		return 0, err
 	}

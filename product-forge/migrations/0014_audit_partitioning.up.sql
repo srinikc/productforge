@@ -644,12 +644,20 @@ BEGIN
     EXECUTE 'GRANT EXECUTE ON FUNCTION audit_month_start(timestamptz) TO pf_app';
     EXECUTE 'GRANT EXECUTE ON FUNCTION audit_partition_name(date) TO pf_app';
     EXECUTE 'GRANT EXECUTE ON FUNCTION audit_coverage_status() TO pf_app';
+    EXECUTE 'GRANT USAGE, SELECT ON SEQUENCE audit_id_seq, audit_legacy_id_seq TO pf_app';
+    IF to_regclass('public.audit_partitioned_id_seq') IS NOT NULL THEN
+      EXECUTE 'GRANT USAGE, SELECT ON SEQUENCE audit_partitioned_id_seq TO pf_app';
+    END IF;
   END IF;
   IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'pf_runtime') THEN
     EXECUTE 'GRANT EXECUTE ON FUNCTION audit_ensure_partitions(date) TO pf_runtime';
     EXECUTE 'GRANT EXECUTE ON FUNCTION audit_month_start(timestamptz) TO pf_runtime';
     EXECUTE 'GRANT EXECUTE ON FUNCTION audit_partition_name(date) TO pf_runtime';
     EXECUTE 'GRANT EXECUTE ON FUNCTION audit_coverage_status() TO pf_runtime';
+    EXECUTE 'GRANT USAGE, SELECT ON SEQUENCE audit_id_seq, audit_legacy_id_seq TO pf_runtime';
+    IF to_regclass('public.audit_partitioned_id_seq') IS NOT NULL THEN
+      EXECUTE 'GRANT USAGE, SELECT ON SEQUENCE audit_partitioned_id_seq TO pf_runtime';
+    END IF;
   END IF;
 END $$;
 

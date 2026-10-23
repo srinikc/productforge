@@ -350,7 +350,7 @@ func rehearsal(ctx context.Context, obj datastore.ObjectStore, key string) error
 	if err != nil {
 		return fmt.Errorf("pg_restore -l: %w", err)
 	}
-	for _, want := range []string{"TABLE public audit", "SEQUENCE public audit_legacy_id_seq"} {
+	for _, want := range []string{"TABLE public audit", "SEQUENCE public audit_legacy_id_seq", "SEQUENCE public audit_id_seq"} {
 		if !strings.Contains(string(out), want) {
 			return fmt.Errorf("dump is missing %q", want)
 		}
@@ -359,6 +359,8 @@ func rehearsal(ctx context.Context, obj datastore.ObjectStore, key string) error
 }
 
 func backup(ctx context.Context, pool *pgxpool.Pool, dsn string, obj datastore.ObjectStore, key, recipient string, rollbackDays int) error {
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Minute)
+	defer cancel()
 	safeDSN, password := splitDSN(dsn)
 	dump := exec.CommandContext(ctx, "pg_dump", "-Fc", "-t", "audit", "-t", "audit_legacy_id_seq",
 		"-t", "audit_id_seq", "-f", "-", safeDSN)
@@ -390,6 +392,10 @@ func backup(ctx context.Context, pool *pgxpool.Pool, dsn string, obj datastore.O
 		ContentType: "application/octet-stream", Immutable: true, Retention: backupRetention(rollbackDays),
 		ServerSideEncryption: pfaudit.DefaultSSE(),
 	})
+	if putErr != nil {
+		// Unblock age/pg_dump writers so the pipeline can be reaped instead of deadlocking.
+		_ = pr.CloseWithError(putErr)
+	}
 	if werr := dump.Wait(); werr != nil {
 		return fmt.Errorf("pg_dump: %w", werr)
 	}

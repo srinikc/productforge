@@ -460,3 +460,38 @@ func TestCoverageCheck(t *testing.T) {
 		t.Fatal("rotation stale gauge not emitted")
 	}
 }
+
+// TestAppendAsRuntimeAfterSwap proves the post-swap path works for the app role: table grants, the
+// sequence USAGE for DEFAULT nextval, RLS WITH CHECK and a monotonic id.
+func TestAppendAsRuntimeAfterSwap(t *testing.T) {
+	ctx := context.Background()
+	pool := setup(t)
+	if _, err := CopyBatch(ctx, pool, 0, 1000); err != nil {
+		t.Fatalf("prestage: %v", err)
+	}
+	if _, err := Swap(ctx, pool, 1000); err != nil {
+		t.Fatalf("swap: %v", err)
+	}
+	tenant := fmt.Sprintf("app-%d", time.Now().UnixNano())
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := tx.Exec(ctx, `SET LOCAL ROLE pf_app`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := tx.Exec(ctx, `SELECT set_config('app.tenant_id', $1, true)`, tenant); err != nil {
+		t.Fatal(err)
+	}
+	var id int64
+	if err := tx.QueryRow(ctx, `INSERT INTO audit (tenant_id, actor, action, at)
+		VALUES ($1, 'svc', 'post-swap', now()) RETURNING id`, tenant).Scan(&id); err != nil {
+		t.Fatalf("app insert after swap (grants/sequence/RLS): %v", err)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if id <= 0 {
+		t.Fatalf("sequence default did not produce an id: %d", id)
+	}
+}
