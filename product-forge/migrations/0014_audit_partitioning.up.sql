@@ -275,6 +275,11 @@ BEGIN
     END IF;
     v_target := COALESCE(audit_month_start(p_through), v_cur) + make_interval(months => v_horizon);
     WHILE v_cur <= v_target::date LOOP
+        IF EXISTS (SELECT 1 FROM audit_archive_manifest m
+                   WHERE m.month = audit_partition_name(v_cur)
+                     AND (m.archived_at IS NOT NULL OR m.purged_at IS NOT NULL)) THEN
+            RAISE EXCEPTION 'audit_ensure_partitions: % is archived', audit_partition_name(v_cur);
+        END IF;
         IF to_regclass('public.' || audit_partition_name(v_cur)) IS NULL THEN
             PERFORM audit_attach_partition(v_cur);
             v_n := v_n + 1;
@@ -305,6 +310,12 @@ BEGIN
     -- cold restore into a scratch partition) must never try to attach the canonical month alongside it.
     IF TG_TABLE_NAME <> audit_parent()::text THEN
         RETURN NEW;
+    END IF;
+    -- Archived/purged months are immutable: never accept a row that would invalidate the manifest.
+    IF EXISTS (SELECT 1 FROM audit_archive_manifest m
+               WHERE m.month = v_name AND (m.archived_at IS NOT NULL OR m.purged_at IS NOT NULL)) THEN
+        RAISE EXCEPTION 'audit_provision: % is archived; restore it before appending', v_name
+            USING ERRCODE = '23514';
     END IF;
     IF to_regclass('public.' || v_name) IS NOT NULL THEN
         RETURN NEW;  -- fast path: existing leaves accept backdated rows (prestage/backfill)
@@ -406,6 +417,10 @@ CREATE OR REPLACE FUNCTION audit_mark_archived(
     p_month TEXT, p_rows BIGINT, p_checksum TEXT, p_keys JSONB) RETURNS void
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, public AS $$
 BEGIN
+    IF EXISTS (SELECT 1 FROM audit_archive_manifest
+               WHERE month = p_month AND archived_at IS NOT NULL) THEN
+        RAISE EXCEPTION 'audit_mark_archived: % is already archived (immutable)', p_month;
+    END IF;
     INSERT INTO audit_archive_manifest (month, row_count, checksum, object_keys, archived_at)
     VALUES (p_month, p_rows, p_checksum, p_keys, now())
     ON CONFLICT (month) DO UPDATE
@@ -562,6 +577,9 @@ CREATE TRIGGER audit_partitioned_no_truncate BEFORE TRUNCATE ON audit_partitione
 DROP TRIGGER IF EXISTS audit_legal_hold_archive_no_truncate ON audit_legal_hold_archive;
 CREATE TRIGGER audit_legal_hold_archive_no_truncate BEFORE TRUNCATE ON audit_legal_hold_archive
     FOR EACH STATEMENT EXECUTE FUNCTION audit_deny_truncate();
+DROP TRIGGER IF EXISTS audit_legal_hold_archive_append_only ON audit_legal_hold_archive;
+CREATE TRIGGER audit_legal_hold_archive_append_only BEFORE UPDATE OR DELETE ON audit_legal_hold_archive
+    FOR EACH ROW EXECUTE FUNCTION deny_mutation();
 DROP TRIGGER IF EXISTS audit_provision_trg ON audit_partitioned;
 CREATE TRIGGER audit_provision_trg BEFORE INSERT ON audit_partitioned
     FOR EACH ROW EXECUTE FUNCTION audit_provision();
@@ -623,7 +641,7 @@ BEGIN
             'audit_migration_state_events, audit_archive_manifest, audit_legal_hold_events, '
             'audit_partition_config TO pf_owner';
     EXECUTE 'REVOKE TRUNCATE ON audit_migration_state_events, audit_legal_hold_events FROM pf_owner';
-    EXECUTE 'REVOKE UPDATE, DELETE ON audit_migration_state_events, audit_legal_hold_events FROM pf_owner';
+    EXECUTE 'REVOKE UPDATE, DELETE ON audit_migration_state_events, audit_legal_hold_events, audit_legal_hold_archive FROM pf_owner';
     EXECUTE 'REVOKE TRUNCATE ON audit_partitioned, audit_legal_hold_archive FROM pf_owner';
   END IF;
   EXECUTE 'REVOKE ALL ON audit_partitioned FROM PUBLIC';

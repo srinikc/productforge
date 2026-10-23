@@ -203,8 +203,11 @@ func RequireUnfilteredVisibility(ctx context.Context, pool *pgxpool.Pool) error 
 	var ok bool
 	if err := pool.QueryRow(ctx, `SELECT r.rolsuper OR r.rolbypassrls OR EXISTS (
 		SELECT 1 FROM pg_class c
-		WHERE c.relname IN ('audit','audit_partitioned','audit_legacy')
-		  AND c.relowner = (SELECT oid FROM pg_roles WHERE rolname = current_user))
+		WHERE c.relname IN ('audit','audit_partitioned')
+		  AND c.relowner = (SELECT oid FROM pg_roles WHERE rolname = current_user)
+		  AND EXISTS (SELECT 1 FROM pg_policies p
+		               WHERE p.schemaname = 'public' AND p.tablename = c.relname
+		                 AND p.policyname = 'owner_bypass'))
 		FROM pg_roles r WHERE r.rolname = current_user`).Scan(&ok); err != nil {
 		return fmt.Errorf("pfaudit: visibility check: %w", err)
 	}

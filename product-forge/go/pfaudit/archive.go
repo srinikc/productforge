@@ -53,6 +53,14 @@ func ExportMonth(ctx context.Context, pool *pgxpool.Pool, obj datastore.ObjectSt
 	if err := RequireUnfilteredVisibility(ctx, pool); err != nil {
 		return m, err
 	}
+	var alreadyArchived bool
+	if err := pool.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM audit_archive_manifest
+		WHERE month = $1 AND archived_at IS NOT NULL)`, month).Scan(&alreadyArchived); err != nil {
+		return m, err
+	}
+	if alreadyArchived {
+		return m, fmt.Errorf("pfaudit: %s is already archived (immutable)", month)
+	}
 	f, err := os.CreateTemp("", "pfaudit-export-*.ndjson")
 	if err != nil {
 		return m, err
