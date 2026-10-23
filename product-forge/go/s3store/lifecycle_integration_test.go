@@ -29,20 +29,21 @@ func TestLifecycleConformance(t *testing.T) {
 	if _, err := st.Put(ctx, key, strings.NewReader("x"), 1, datastore.PutOptions{Immutable: true}); err != nil {
 		t.Fatalf("put: %v", err)
 	}
-	defer st.Delete(ctx, key, "")
-	if err := st.ApplyLifecycle(ctx, key, "", datastore.LifecyclePolicy{
-		Mode: "GOVERNANCE", RetainUntil: time.Now().Add(time.Hour), LegalHold: true,
-	}); err != nil {
+	// Legal hold only: GOVERNANCE retention would make the test object undeletable by its owner.
+	if err := st.ApplyLifecycle(ctx, key, "", datastore.LifecyclePolicy{LegalHold: true}); err != nil {
 		t.Fatalf("apply lifecycle: %v", err)
 	}
 	state, err := st.ObjectLifecycle(ctx, key, "")
 	if err != nil {
 		t.Fatalf("read lifecycle: %v", err)
 	}
-	if !strings.EqualFold(state.Mode, "GOVERNANCE") || !state.LegalHold {
-		t.Fatalf("lifecycle state = %+v", state)
+	if !state.LegalHold {
+		t.Fatalf("legal hold not applied: %+v", state)
 	}
 	if err := st.ApplyLifecycle(ctx, key, "", datastore.LifecyclePolicy{ReleaseLegalHold: true}); err != nil {
 		t.Fatalf("release legal hold: %v", err)
+	}
+	if err := st.Delete(ctx, key, ""); err != nil {
+		t.Fatalf("delete after release: %v", err)
 	}
 }

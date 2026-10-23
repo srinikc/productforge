@@ -46,6 +46,7 @@ func (r Report) Clean() bool {
 
 // Scan lists the store under prefix and compares every expected key via Head (authoritative fields).
 func Scan(ctx context.Context, store datastore.ObjectStore, prefix string, manifest []Entry) (Report, error) {
+	prefix = normalizePrefix(prefix)
 	rep := Report{Schema: Schema, Prefix: prefix, Expected: len(manifest),
 		Invalid: []string{}, Missing: []string{}, Orphaned: []string{},
 		SizeMismatch: []string{}, ChecksumMismatch: []string{}, ChecksumUnverifiable: []string{}}
@@ -119,11 +120,19 @@ func Scan(ctx context.Context, store datastore.ObjectStore, prefix string, manif
 	return rep, nil
 }
 
+// normalizePrefix makes a prefix a directory boundary ("p" -> "p/", "p/" unchanged).
+func normalizePrefix(p string) string {
+	p = strings.TrimSpace(p)
+	if p == "" || strings.HasSuffix(p, "/") {
+		return p
+	}
+	return p + "/"
+}
+
 // notFound distinguishes true absence from transient/permission errors.
 func notFound(err error) bool {
 	if errors.Is(err, os.ErrNotExist) {
 		return true
 	}
-	msg := strings.ToLower(err.Error())
-	return strings.Contains(msg, "nosuchkey") || strings.Contains(msg, "not found")
+	return false
 }

@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"io"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 
@@ -39,8 +40,9 @@ type Config struct {
 
 // S3Store is the S3-compatible ObjectStore adapter.
 type S3Store struct {
-	client *minio.Client
-	bucket string
+	client     *minio.Client
+	bucket     string
+	objectLock bool // probed once: bucket-level object-lock configuration
 }
 
 // New creates the adapter and (optionally) ensures the bucket exists.
@@ -57,6 +59,9 @@ func New(ctx context.Context, cfg Config) (*S3Store, error) {
 		return nil, err
 	}
 	s := &S3Store{client: cl, bucket: cfg.Bucket}
+	if _, _, _, _, lerr := cl.GetObjectLockConfig(ctx, cfg.Bucket); lerr == nil {
+		s.objectLock = true // best-effort probe; unsupported buckets report false
+	}
 	if cfg.Ensure {
 		ok, err := cl.BucketExists(ctx, cfg.Bucket)
 		if err != nil {
@@ -151,6 +156,9 @@ func (s *S3Store) stat(ctx context.Context, key, version string) (minio.ObjectIn
 func (s *S3Store) Head(ctx context.Context, key string) (datastore.ObjectInfo, error) {
 	st, err := s.stat(ctx, key, "")
 	if err != nil {
+		if minio.ToErrorResponse(err).Code == "NoSuchKey" {
+			return datastore.ObjectInfo{}, os.ErrNotExist
+		}
 		return datastore.ObjectInfo{}, err
 	}
 	return s.info(key, st), nil
@@ -211,7 +219,7 @@ func (s *S3Store) SignedURL(ctx context.Context, key, method string, ttl time.Du
 }
 
 func (s *S3Store) Capabilities() datastore.Capabilities {
-	return datastore.Capabilities{SignedURLs: true, ObjectVersioning: true, ObjectLock: true, MultipartUpload: true}
+	return datastore.Capabilities{SignedURLs: true, ObjectVersioning: true, ObjectLock: s.objectLock, MultipartUpload: true}
 }
 
 // retentionFor maps PutOptions to object-lock headers: retention requires Immutable and a >=1m window.
@@ -233,6 +241,12 @@ func (s *S3Store) ApplyLifecycle(ctx context.Context, key, version string, polic
 	if strings.TrimSpace(key) == "" {
 		return errors.New("s3store: empty key")
 	}
+	if policy.LegalHold && policy.ReleaseLegalHold {
+		return errors.New("s3store: LegalHold and ReleaseLegalHold are mutually exclusive")
+	}
+	if strings.TrimSpace(policy.Mode) == "" && !policy.RetainUntil.IsZero() {
+		return errors.New("s3store: RetainUntil requires a retention mode (GOVERNANCE or COMPLIANCE)")
+	}
 	var mode minio.RetentionMode
 	switch strings.ToUpper(strings.TrimSpace(policy.Mode)) {
 	case "GOVERNANCE":
@@ -244,9 +258,6 @@ func (s *S3Store) ApplyLifecycle(ctx context.Context, key, version string, polic
 	default:
 		return fmt.Errorf("s3store: unsupported retention mode %q", policy.Mode)
 	}
-	if mode == "" && !policy.RetainUntil.IsZero() {
-		return errors.New("s3store: RetainUntil requires a retention mode (GOVERNANCE or COMPLIANCE)")
-	}
 	if mode != "" {
 		if policy.RetainUntil.IsZero() || !policy.RetainUntil.After(time.Now()) {
 			return errors.New("s3store: RetainUntil must be in the future")
@@ -257,9 +268,6 @@ func (s *S3Store) ApplyLifecycle(ctx context.Context, key, version string, polic
 		}); err != nil {
 			return fmt.Errorf("s3store: apply retention: %w", err)
 		}
-	}
-	if policy.LegalHold && policy.ReleaseLegalHold {
-		return errors.New("s3store: LegalHold and ReleaseLegalHold are mutually exclusive")
 	}
 	if policy.LegalHold || policy.ReleaseLegalHold {
 		status := minio.LegalHoldEnabled
