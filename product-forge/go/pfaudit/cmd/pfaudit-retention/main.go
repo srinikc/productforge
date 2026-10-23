@@ -52,7 +52,7 @@ func main() {
 		obj = objectStore(ctx)
 	}
 	// Only mutating retention commands serialise on AURE; check/coverage must never block behind a job.
-	if cmd == "export" || cmd == "purge" || cmd == "holds" {
+	if cmd == "export" || cmd == "purge" || cmd == "holds" || cmd == "restore" || cmd == "reconcile" {
 		// The lock must live on one dedicated connection: a pool Exec may unlock on a different backend.
 		lockConn, err := pool.Acquire(ctx)
 		if err != nil {
@@ -94,17 +94,15 @@ func main() {
 		met.Inc(pfaudit.MetricHoldExtract)
 		fmt.Printf("reconciled %s: restored=%d newly_extracted=%d (verified)\n", *month, restored, extracted)
 	case "coverage":
-		c, err := pfaudit.ReadCoverage(ctx, pool)
+		st, err := pfaudit.CheckCoverage(ctx, pool, *maxAgeHours)
 		if err != nil {
 			fail("%v", err)
 		}
-		fmt.Printf("min=%v max=%v grace=%v months_ahead=%d\n",
-			fmtTime(c.MinMonth), fmtTime(c.MaxMonth), fmtTime(c.GraceMonth), c.MonthsAhead)
-		met.Gauge(pfaudit.MetricMonthsAhead, float64(c.MonthsAhead))
-		if c.MonthsAhead < 2 {
-			met.Inc(pfaudit.MetricLowCoverage)
-		}
-		if c.MinMonth != nil && c.MaxMonth != nil {
+		fmt.Printf("min=%v max=%v grace=%v months_ahead=%d lead=%d low=%v stale=%v\n",
+			fmtTime(st.MinMonth), fmtTime(st.MaxMonth), fmtTime(st.GraceMonth), st.MonthsAhead,
+			st.LeadMonths, st.Low(), st.Stale)
+		pfaudit.EmitCoverage(met, st)
+		if st.MinMonth != nil && st.MaxMonth != nil {
 			fmt.Printf("retention: keep %d month(s); candidates are fully-old months only\n", *keep)
 		}
 	case "candidates":

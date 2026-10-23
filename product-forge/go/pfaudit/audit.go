@@ -203,7 +203,7 @@ func RequireUnfilteredVisibility(ctx context.Context, pool *pgxpool.Pool) error 
 	var ok bool
 	if err := pool.QueryRow(ctx, `SELECT r.rolsuper OR r.rolbypassrls OR EXISTS (
 		SELECT 1 FROM pg_class c
-		WHERE c.relname IN ('audit','audit_partitioned')
+		WHERE c.relname IN ('audit','audit_partitioned','audit_legacy')
 		  AND c.relowner = (SELECT oid FROM pg_roles WHERE rolname = current_user)
 		  AND EXISTS (SELECT 1 FROM pg_policies p
 		               WHERE p.schemaname = 'public' AND p.tablename = c.relname
@@ -462,6 +462,15 @@ func Down(ctx context.Context, pool *pgxpool.Pool, force bool, reason string) er
 			RETURNING 1)
 		SELECT count(*) FROM moved`).Scan(&missed); err != nil {
 		return fmt.Errorf("pfaudit: down copy-back: %w", err)
+	}
+	// Post-condition: every post-swap row must now exist in the flat table (no silent strand).
+	var stranded int64
+	if err := tx.QueryRow(ctx, `SELECT count(*) FROM audit p
+		WHERE NOT EXISTS (SELECT 1 FROM audit_legacy l WHERE l.id = p.id AND l.at = p.at)`).Scan(&stranded); err != nil {
+		return fmt.Errorf("pfaudit: down copy-back check: %w", err)
+	}
+	if stranded != 0 {
+		return fmt.Errorf("pfaudit: down copy-back left %d row(s) behind; aborting rollback", stranded)
 	}
 	// Re-advance the flat table's sequence over the rows just copied back.
 	if _, err := tx.Exec(ctx, `SELECT setval('audit_legacy_id_seq', GREATEST(

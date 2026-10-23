@@ -22,6 +22,8 @@ import os
 import re
 import subprocess
 import sys
+import time
+import urllib.error
 import urllib.request
 import uuid
 from pathlib import Path
@@ -188,21 +190,51 @@ def _llm_call(prompt: str, model: str) -> str:
     key = _api_key()
     if not key:
         raise RuntimeError("no API key (set OPENCODE_ZEN_API_KEY or provide .opencode/opencode.key)")
-    body = json.dumps({"model": model, "temperature": 0.2,
-                       "max_tokens": int(cfg.get("max_tokens") or 16000), "messages": [
-        {"role": "system", "content": ARCHITECT_SYSTEM},
-        {"role": "user", "content": prompt}]}).encode("utf-8")
-    req = urllib.request.Request(base.rstrip("/") + "/chat/completions", data=body, method="POST")
-    req.add_header("Authorization", f"Bearer {key}")
-    req.add_header("Content-Type", "application/json")
-    req.add_header("User-Agent", cfg.get("user_agent", "opencode/1.18.35"))
-    req.add_header("x-opencode-session", str(uuid.uuid4()))
-    with urllib.request.urlopen(req, timeout=900) as r:
-        data = json.loads(r.read().decode("utf-8"))
-    msg = (data.get("choices") or [{}])[0].get("message") or {}
-    # Never treat chain-of-thought as the review: if the provider returned no content (truncated or
-    # reasoning-only), return empty so the gate stays fail-closed (parsed_ok=false) and the caller retries.
-    return (msg.get("content") or "").strip()
+    # Gateways intermittently answer 502/429 or an empty (reasoning-only) message; retry a few times
+    # with backoff instead of failing the whole gate. Wrong-content still fails closed downstream.
+    timeout = float(cfg.get("request_timeout") or os.environ.get("PF_ARCHITECT_REVIEW_TIMEOUT") or 300)
+    attempts = int(cfg.get("attempts") or 3)
+    last_err = None
+    for attempt in range(1, attempts + 1):
+        nudge = "" if attempt == 1 else (
+            "\n\nIMPORTANT: the previous attempt returned no content. Respond with ONLY the required "
+            "BLOCKER/MAJOR/MINOR/NIT/SUMMARY sections.")
+        body = json.dumps({"model": model, "temperature": 0.2,
+                           "max_tokens": int(cfg.get("max_tokens") or 16000), "messages": [
+            {"role": "system", "content": ARCHITECT_SYSTEM},
+            {"role": "user", "content": prompt + nudge}]}).encode("utf-8")
+        req = urllib.request.Request(base.rstrip("/") + "/chat/completions", data=body, method="POST")
+        req.add_header("Authorization", f"Bearer {key}")
+        req.add_header("Content-Type", "application/json")
+        req.add_header("User-Agent", cfg.get("user_agent", "opencode/1.18.35"))
+        req.add_header("x-opencode-session", str(uuid.uuid4()))
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as r:
+                data = json.loads(r.read().decode("utf-8"))
+        except urllib.error.HTTPError as e:
+            last_err = e
+            if e.code not in (408, 425, 429, 500, 502, 503, 504) or attempt == attempts:
+                raise
+            print(f"architect-review: attempt {attempt} HTTP {e.code}; retrying", file=sys.stderr)
+            time.sleep(min(30, 5 * (2 ** (attempt - 1))))
+            continue
+        except (urllib.error.URLError, TimeoutError, OSError) as e:
+            last_err = e
+            if attempt == attempts:
+                raise
+            print(f"architect-review: attempt {attempt} failed ({e}); retrying", file=sys.stderr)
+            time.sleep(min(30, 5 * (2 ** (attempt - 1))))
+            continue
+        msg = (data.get("choices") or [{}])[0].get("message") or {}
+        # Never treat chain-of-thought as the review: empty content stays fail-closed.
+        content = (msg.get("content") or "").strip()
+        if content:
+            return content
+        last_err = RuntimeError("review call returned empty content")
+        print(f"architect-review: attempt {attempt} returned empty content; retrying", file=sys.stderr)
+        if attempt < attempts:
+            time.sleep(min(30, 5 * (2 ** (attempt - 1))))
+    raise last_err or RuntimeError("review call failed")
 
 
 def _build_prompt(item: dict, item_id: str, mode: str) -> str:
