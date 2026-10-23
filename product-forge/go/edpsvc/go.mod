@@ -43,6 +43,8 @@ replace productforge/migrate => ../migrate
 
 replace productforge/objstore => ../objstore
 
+replace productforge/pfaudit => ../pfaudit
+
 replace productforge/s3store => ../s3store
 
 replace productforge/store => ../store

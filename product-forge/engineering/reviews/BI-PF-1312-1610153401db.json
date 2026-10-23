@@ -1,0 +1,53 @@
+{
+  "item": "BI-PF-1312",
+  "sha": "1610153401db",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "findings": {
+    "BLOCKER": [
+      "`pfaudit.Swap`/`Verify`/`PostVerify`/`Down` perform the safety-critical reads (max(id), delta count, per-tenant checksums) without asserting unfiltered visibility, unlike `ExportMonth` which does. Under `FORCE ROW LEVEL SECURITY` a connecting role that is neither superuser/BYPASSRLS nor covered by `owner_bypass` silently reads empty/partial sets, so verify and the delta bound become no-ops and the rename commits with a staged table missing history."
+    ],
+    "MAJOR": [
+      "Freeze measurement is wrong: the budget comparison and the recorded `freeze_seconds` use `time.Since(start)` *after* `PostVerify` (two full dual-table checksum passes), so legitimate swaps false-fail `PF_AUDIT_FREEZE_BUDGET_SECONDS` and the emitted `audit_swap_freeze_seconds` is inflated.",
+      "`fail()` calls `os.Exit(1)` before `emitMetrics`, so `audit_swap_retry_exhausted_total`, `audit_swap_retry_total`, `audit_purge_blocked_hold_total` and the freeze gauge are never printed on the failure paths where the AC requires them.",
+      "`AuditStore.Append` classifies 23514 by matching the English substring \"no partition of relation\"; any locale/message/driver-wrap change turns the heal into a hard failure and drops the audit event.",
+      "`s3store` SSE-KMS parsing is broken: for `aws:kms:<key>` it slices at the *first* colon and passes `kms:<key>` to `NewSSEKMS`; `DefaultSSE()` produces the same malformed value, so every KMS archive fails or uses a bogus key id.",
+      "`DefaultSSE()` falls back to SSE-S3 (`AES256`) whenever a bucket is set; the AC requires SSE-KMS for cold legal evidence \u2014 a misconfigured prod silently archives without KMS.",
+      "0014 \u00a716 grants `pf_app` INSERT on `audit_partitioned`, making the pre-swap shadow app-writable \u2014 violating \"shadow not writable by app roles pre-swap\" and letting any app writer abort the swap via divergence.",
+      "Hold-reconcile for a hold placed AFTER archive is unimplemented: nothing restores a cold month to scratch, extracts and verifies, so a valid late hold never preserves its rows (only the purge refusal fires).",
+      "The EDP service startup check and ops cron emitting `audit_partition_months_ahead` / `audit_partition_low_coverage_total` non-fatally with a stale-job alert are absent; only the offline CLI emits them.",
+      "`Down` renames `audit_legacy` back to `audit` without restoring the `pf_app`/`pf_runtime` grants revoked at swap time, leaving the live audit table unwritable after a rollback; the test only asserts row counts.",
+      "Unbounded partition creation: the insert heal path (and `audit_ensure_partitions`, EXECUTE-granted to `pf_app`) attaches an arbitrary past/future month from a client-controlled `at`, enabling catalog/storage exhaustion and resurrecting already archived/dropped months behind the manifest.",
+      "`VerifyHoldExtraction` builds two month-sized `string_agg` text digests in backend memory \u2014 OOM risk on the exact gate that precedes a DROP.",
+      "0014 down drops `audit_legal_hold_archive` (legally held evidence) with no hold/approval gate, bypassing the checks `pfaudit --down` enforces.",
+      "Backup object `Retention` is hardcoded 14 days while `rollback_days` is config-driven; a raised rollback window lets `close` succeed against an already-expired only encrypted backup."
+    ],
+    "MINOR": [
+      "`PostVerify` compares only per-tenant row counts, not the per-tenant SHA-256 digest the AC requires.",
+      "`Down` sets no `lock_timeout` (unbounded ACCESS EXCLUSIVE stall) and does not pre-check that `audit_partitioned` still exists before the rename set.",
+      "Forced `close` records the backup key but not the `--reason` in the state event.",
+      "TRUNCATE revokes are ineffective against a table owner (implicit owner privilege), so the append-only journals stay truncatable by their owner.",
+      "`audit_append_late`'s 24-month lookback is hardcoded instead of config-driven.",
+      "Re-running 0014 after a successful `--down` fails: \u00a717 reads `audit_legacy_id_seq`, which `--down` renamed away.",
+      "`RestoreMonth` unconditionally `GRANT`s SELECT to `pf_runtime` (errors on role-less DBs) and never checks the month is archived/purged before restoring.",
+      "`ExportMonth`'s role check joins `pg_class` without a namespace filter; a same-named relation in another schema yields a wrong verdict.",
+      "The suite enforces only PG \u2265 14 and calls `PostVerify` directly; it never injects a crash between the two renames despite the AC's Postgres-16 resume-path claim.",
+      "Postgres-specific provisioning SQL now lives in the shared `edpdata` domain store, coupling the port layer to the partition scheme.",
+      "Unrelated tooling churn (architect_review.py prompt/timeout, review-config reformat, store-registry edits) is bundled into an audit-delivery item, hurting traceability and revertability.",
+      "`audit_legacy` is never dropped and `StateDone` is unreachable \u2014 the post-swap lifecycle of the legacy table is undefined."
+    ],
+    "NIT": [
+      "Unused constants/helpers: `MetricProvisionSeconds`, `MetricLateInsert`, `MetricHoldAfterPurge`, `MetricHoldExtractFailed`, `quoteDate`, `DefaultLeadMonths`.",
+      "`emitMetrics` is duplicated verbatim in both CLIs.",
+      "`DetectState`'s `!shadow && !legacy` branch duplicates the `not_prepared` outcome and hides the diagnostic."
+    ],
+    "SUMMARY": [
+      "The architecture is sound and largely fail-closed: catalog-driven resumability, privilege-enforced hardening, gated purge, and real integration tests are all present and good.",
+      "The single biggest risk is the missing unfiltered-visibility guard in the swap's verification path \u2014 the only thing standing between a silent partial migration and lost audit history.",
+      "AC coverage gaps remain: hold-reconcile, service/cron coverage wiring, and digest-level PostVerify are unimplemented, and the KMS archive path is broken by a key-parsing bug.",
+      "Observability is defined but not delivered on failure paths (metrics never emitted when `fail()` fires), which undermines the alerting contract.",
+      "Recommend: add the visibility assertion to Swap/Verify/PostVerify/Down, fix the freeze metric, emit metrics on failure, correct SSE-KMS parsing/default, and close the shadow-grant and hold-reconcile gaps before merge."
+    ]
+  }
+}

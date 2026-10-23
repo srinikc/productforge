@@ -1,0 +1,37 @@
+{
+  "item": "BI-PF-1312",
+  "sha": "bb94b17c051e",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "findings": {
+    "BLOCKER": [
+      "`audit_provision()` checks the \u00b124-month window BEFORE the partition-existence fast path, so `CopyBatch` prestage inserts (and `AuditStore.Append` for backdated events) hard-fail with 23514 for any legacy row older than 24 months; `audit_ensure_partitions()` rejects that window too, so the swap can never complete on a deployment whose `legacy_min` predates 24 months \u2014 contradicting the AC/\u00a717 design that provisions `legacy_min..current+3`."
+    ],
+    "MAJOR": [
+      "Hold-reconcile is entirely missing: a hold recorded for an already-archived (not purged) month is accepted but nothing restores/extracts it, so those rows never reach `audit_legal_hold_archive` \u2014 only the purge-rejection guard exists.",
+      "AC-required coverage observability is absent: no EDP service startup check, no ops cron, no stale-job alert; `audit_partition_months_ahead`/`audit_partition_low_coverage_total` are emitted only by the `pfaudit-*` CLIs.",
+      "`PostVerify` on the crash-resume path computes per-tenant digests but compares only row counts (`got.Hash` is never used), which is weaker than the AC-mandated digest check exactly where re-entry trusts it.",
+      "`audit_append_late` has no `purged_at`/`archived_at` guard: it will re-create a canonical partition for a purged month (defeating documented irreversibility) or insert into an archived month and silently invalidate the manifest row-count contract.",
+      "Several AC-mandated metrics are defined but never incremented anywhere: `audit_hold_after_purge_total`, `audit_late_insert_total`, `audit_insert_out_of_range_total`, `audit_provision_seconds`, `audit_hold_extract_failed_total`.",
+      "AC requires digests \"compared per batch\"; the implementation only runs one end-of-prestage `Verify`, so a divergent batch is detected late, after the full copy."
+    ],
+    "MINOR": [
+      "`0014` down does not fully drop the substrate: `audit_hold_guard`, `audit_deny_truncate`, `audit_config_touch` functions and any `audit_restore_*`/`audit_late_*` scratch tables survive.",
+      "Role names `pf_app`/`pf_runtime` are hardcoded inside Go DDL (`Swap`/`Down`/`RestoreMonth`) as well as in SQL \u2014 grant logic now lives in two places and can drift.",
+      "The AC-required \"fresh-install (empty audit, setval to 1)\" test and a leaf-SELECT (not just leaf-INSERT) denial test are not in the diff.",
+      "The coverage AC's `audit_late_YYYYMM` partitions are never created (late rows go to canonical month partitions) \u2014 a deliberate but undocumented deviation from the stated AC.",
+      "Editing already-applied `0004_runtime_role.up.sql` will invalidate any checksum-based migration verification for existing environments.",
+      "Under-lock swap verification is count-only (`liveCount != shadowCount`); the \"id-reuse masked by ON CONFLICT\" guarantee rests solely on the pre-lock `Verify`.",
+      "TRUNCATE protection/revokes are applied to the new tables but not to the live legacy `audit` table during the pre-swap window."
+    ],
+    "NIT": [
+      "Metric emitted is `audit_swap_retry_exhausted_total` while the AC names `audit_swap_retry_exhausted`.",
+      "Dead code: `quoteDate`, `monthBounds` (test-only), and several metric constants are never referenced.",
+      "`PurgeMonth` marks `purged_at` before deleting objects, so a crash leaves the manifest asserting a purge that hasn't happened until re-run."
+    ],
+    "SUMMARY": [
+      "Solid substrate: ensure-based DDL, privilege-enforced hardening, gated down, and a genuine resumable swap with a real integration suite. Top risks: the 24-month provisioning window can permanently block prestage on real data, legal-hold reconcile and coverage/alerting ACs are simply unimplemented, and post-resume verification is counts-only despite AC requiring digest comparison."
+    ]
+  }
+}

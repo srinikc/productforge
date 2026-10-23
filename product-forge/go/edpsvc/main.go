@@ -17,6 +17,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -85,6 +86,7 @@ func main() {
 	mux.HandleFunc("/artifacts", s.adminOnly(s.artifactUpload))
 	mux.HandleFunc("/artifacts/", s.adminOnly(s.artifactRoute))
 	mux.HandleFunc("/audit", s.adminOnly(s.auditAppend))
+	mux.HandleFunc("/admin/audit-coverage", s.adminOnly(s.auditCoverage))
 	mux.HandleFunc("/jobs", s.adminOnly(s.jobSubmit))
 	mux.HandleFunc("/jobs/claim", s.adminOnly(s.jobClaim))
 	mux.HandleFunc("/jobs/action", s.adminOnly(s.jobAction))
@@ -92,9 +94,102 @@ func main() {
 	mux.HandleFunc("/memory/", s.adminOnly(s.memoryByID))
 	mux.HandleFunc("/backlog", s.adminOnly(s.backlogHandle))
 	mux.HandleFunc("/backlog/", s.adminOnly(s.backlogByID))
+	// AC: surface coverage non-fatally at startup (a stale/low rotation must not stop the service).
+	s.checkAuditCoverage()
 	addr := envOr("PF_EDP_ADDR", "127.0.0.1:8030")
 	log.Printf("edpsvc listening on %s (migrations=%s)", addr, s.migDir)
 	log.Fatal(http.ListenAndServe(addr, mux))
+}
+
+// coverageStatus mirrors audit_partition_coverage for the startup probe and the admin endpoint.
+type coverageStatus struct {
+	MonthsAhead       int
+	LeadMonths        int
+	LastRotationHours float64
+	Stale             bool
+}
+
+func (c coverageStatus) Low() bool { return c.MonthsAhead < c.LeadMonths }
+
+// rotationMaxAge reads the stale threshold once (env), defaulting to 48h.
+func rotationMaxAge() float64 {
+	if v := os.Getenv("PF_AUDIT_ROTATION_MAX_AGE_HOURS"); v != "" {
+		if n, err := strconv.ParseFloat(v, 64); err == nil && n > 0 {
+			return n
+		}
+	}
+	return 48
+}
+
+// readCoverage uses the store port (no second pool / provider import in the service layer).
+func (s *server) readCoverage(ctx context.Context, maxAge float64) (coverageStatus, error) {
+	var st coverageStatus
+	_, err := s.withStore(ctx, func(pg *store.PgStore) (any, error) {
+		return nil, pg.WithTx(ctx, func(tx datastore.Tx) error {
+			rows, err := tx.Query(ctx, `SELECT months_ahead, lead_months, last_rotation_hours
+				FROM audit_coverage_status()`)
+			if err != nil {
+				return err
+			}
+			defer rows.Close()
+			if !rows.Next() {
+				return errors.New("audit coverage: no row")
+			}
+			if err := rows.Scan(&st.MonthsAhead, &st.LeadMonths, &st.LastRotationHours); err != nil {
+				return err
+			}
+			st.Stale = maxAge > 0 && (st.LastRotationHours < 0 || st.LastRotationHours > maxAge)
+			return rows.Err()
+		})
+	})
+	return st, err
+}
+
+// checkAuditCoverage emits the AC metrics once on startup; every failure is logged, never fatal.
+func (s *server) checkAuditCoverage() {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	st, err := s.readCoverage(ctx, rotationMaxAge())
+	if err != nil {
+		log.Printf("audit coverage: %v (non-fatal)", err)
+		return
+	}
+	metrics := map[string]int64{}
+	if st.Low() {
+		metrics["audit_partition_low_coverage_total"] = 1
+	}
+	stale := 0.0
+	if st.Stale {
+		stale = 1
+	}
+	b, _ := json.Marshal(map[string]any{
+		"metrics": metrics,
+		"gauges": map[string]float64{
+			"audit_partition_months_ahead": float64(st.MonthsAhead),
+			"audit_rotation_stale":         stale,
+		},
+	})
+	fmt.Fprintln(os.Stderr, string(b))
+	if st.Low() {
+		log.Printf("WARNING audit coverage low: months_ahead=%d lead=%d", st.MonthsAhead, st.LeadMonths)
+	}
+	if st.Stale {
+		log.Printf("WARNING audit rotation stale: last_rotation_hours=%.1f", st.LastRotationHours)
+	}
+}
+
+func (s *server) auditCoverage(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+	defer cancel()
+	st, err := s.readCoverage(ctx, rotationMaxAge())
+	if err != nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"months_ahead": st.MonthsAhead, "lead_months": st.LeadMonths, "low": st.Low(),
+		"last_rotation_hours": st.LastRotationHours, "stale": st.Stale,
+	})
 }
 
 func envOr(k, d string) string {

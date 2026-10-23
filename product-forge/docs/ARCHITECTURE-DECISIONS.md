@@ -437,3 +437,27 @@ its language, and services should integrate over network APIs.
 - Go-backed endpoints are served by Go services; no Python↔Go bridge exists on a request path.
 - Service-to-service calls are HTTP; the EDP/go capability services share the auth/tenant model.
 
+### ADR addendum: audit partitioning, retention and holds (EDP-20 / BI-PF-1312)
+
+**Decision.** Partition `audit` monthly by `at` (UTC) with a shadow-table swap, and treat retention as a
+two-stage pipeline (hot -> immutable cold archive -> audited purge) with row-level legal holds.
+
+**Why.** A single append-only table cannot be pruned without a full-table `DELETE` (which the append-only
+trigger forbids) and cannot scale indefinitely; partition `DROP` is the only safe prune. Enterprise
+retention requires that a drop is not the end of the data's life.
+
+**Constraints accepted (operator sign-off, Gate 1):**
+- PostgreSQL >= 14 (row-level BEFORE triggers on partitioned tables).
+- A privileged (`pf_owner`/superuser) `ATTACH PARTITION` outside the app boundary is **detected**
+  (`audit_assert_hardened`) and audited, not prevented.
+- Out-of-range writes **fail closed**; `audit_append_late` is the audited correction path.
+- The swap freeze is short but non-zero; the delta bound is enforced, not measured.
+- Evidence purged before a hold is recorded is unrecoverable (rejected at hold insert + spoliation alert).
+
+**SQL vs Go ownership (CL-001).** SQL owns single-purpose, set-based primitives (attach/harden/assert,
+candidates, mark, drop, extract); all orchestration, state machines, retries and object-storage I/O live in
+Go (`go/pfaudit`), which is the single writer for swap and retention.
+
+**Consequences.** New tables are `pf_owner`-only (no blanket RLS policy); `audit_legal_hold_archive` keeps
+tenant `SELECT` under `tenant_isolation`. `audit_id_seq` is the one canonical sequence name; `--down`
+restores the names and is gated on archives/holds plus an audited reason.

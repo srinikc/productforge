@@ -56,6 +56,9 @@ type PutOptions struct {
 	Checksum    string
 	Immutable   bool
 	Retention   time.Duration
+	// ServerSideEncryption requests provider-managed encryption (e.g. "aws:kms"); adapters that cannot
+	// honour it MUST reject the write rather than silently store plaintext.
+	ServerSideEncryption string
 }
 
 type ObjectInfo struct {

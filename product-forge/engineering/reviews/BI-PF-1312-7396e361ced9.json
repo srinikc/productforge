@@ -1,0 +1,38 @@
+{
+  "item": "BI-PF-1312",
+  "sha": "7396e361ced9",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "findings": {
+    "BLOCKER": [
+      "0014 \u00a710 (\"insert-path provisioning: lock-free fast path\") is empty: no `audit_provision()` function and no BEFORE INSERT trigger exist, so the AC-required in-database provisioning is absent; 0014 down.sql even drops `audit_provision()` that up never creates, and inserts into a missing month rely solely on the Go 23514 retry.",
+      "Leaf partitions get no privilege revokes and no statement-level TRUNCATE guard. On PostgreSQL 14 (the documented floor) new tables default to `ALL ... TO PUBLIC`, so any login role can `TRUNCATE public.audit_YYYYMM` directly (parent statement triggers do not fire on leaf truncates), destroying audit data despite \"TRUNCATE is revoked from every role\".",
+      "`audit_append_late` hardcodes `INSERT INTO public.<canonical leaf>`; when the grace partition owns that range, `audit_attach_partition` swallows the 23P01 and returns a name that does not exist, so the audited late-evidence correction path fails with 42P01 instead of routing via the parent."
+    ],
+    "MAJOR": [
+      "`audit_ensure_partitions`' past-month branch and `audit_attach_partition` have no archived/purged guard (only the horizon loop does): a heal retry or a re-run of migration 0014 (e.g. lost `schema_migrations` row, as the new test itself does) re-creates a hot leaf for an archived month; it can never satisfy `audit_drop_partition`'s manifest row-count check, permanently wedging retention for that month.",
+      "`pfaudit-swap close` computes rollback elapsed from `max(at)` of `to_state='swapped'` events; the crash-resume path in `runSwap` records `swapped` again, so simply re-running `swap` resets the rollback clock and can let `close` destroy the backup before `rollback_days` since the actual swap \u2014 violating the S1 gate.",
+      "Shipped migration `0004_runtime_role.up.sql` is edited to make a destructive test harness idempotent; applied migration history should not be rewritten for test ergonomics (guard in the harness instead).",
+      "`RestoreMonth` does `DROP TABLE IF EXISTS scratch` + `CREATE` + batched inserts with no transactional boundary: a crash mid-load leaves a partially populated `audit_restore_YYYYMM` that the next run silently drops, and nothing detects an abandoned scratch after a failed reconcile."
+    ],
+    "MINOR": [
+      "Error classification by substring is brittle: `PlaceHold` matches `\"purged\"` and `edpdata.Append` matches `\"no partition of relation\"`; use SQLSTATE plus a stable constraint/function marker.",
+      "0014 down drops `audit_hold_extract(TEXT)` but the function is `(TEXT, TEXT)` \u2014 the drop silently no-ops (IF EXISTS), leaving an orphan function referencing dropped tables.",
+      "Doc drift: EDP-17 \u00a7G documents `audit_late_YYYYMM` partitions and an `audit_rotation_stale_total` counter; code deliberately creates no late partitions and emits only the `audit_rotation_stale` gauge.",
+      "SECURITY DEFINER primitives own `audit_legal_hold_archive`/leaves; if migrations run as a non-superuser not in `pf_owner`, FORCE RLS `WITH CHECK` rejects multi-tenant hold extraction/export \u2014 an implicit, untested deployment requirement.",
+      "`ExportMonth` materialises the full plaintext NDJSON in the process temp dir before encryption; evidence-grade flows usually want stream-through encryption or an explicit `PF_AUDIT_TMP` on encrypted storage.",
+      "The \"one tenant cannot read another tenant's rows through any path\" AC is only proven at the parent; no test attempts a direct leaf read or leaf INSERT-by-other-tenant under RLS."
+    ],
+    "NIT": [
+      "`fail`/`activeMetrics`/`metricsEmitted` package globals in cmd/main; pass `*pfaudit.Metrics` explicitly.",
+      "`edpdata.Append` heal comment says \"retry once\" but the loop allows 3 attempts, and the AC says \"once\"; align code, comment and AC.",
+      "`edpsvc.coverageStatus` + `Low()` duplicate `pfaudit.CoverageStatus`; the service already depends on the package \u2014 reuse the type."
+    ],
+    "SUMMARY": [
+      "Solid overall shape: catalog-driven swap state, bounded delta under ACCESS EXCLUSIVE, per-tenant digests, two-stage retention and gated down are all present and integration-tested.",
+      "Three blockers: the in-database insert-provisioning trigger is entirely missing from 0014, leaf partitions retain PG14 PUBLIC privileges with no TRUNCATE guard (audit data destructible by any role), and `audit_append_late` breaks on grace-covered months.",
+      "Highest long-term risks: the missing archived-month guard in the attach/ensure path can permanently wedge retention, and the `close` rollback-window computation is resettable by re-running `swap`."
+    ]
+  }
+}

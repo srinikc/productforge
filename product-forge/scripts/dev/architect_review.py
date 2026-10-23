@@ -22,6 +22,8 @@ import os
 import re
 import subprocess
 import sys
+import time
+import urllib.error
 import urllib.request
 import uuid
 from pathlib import Path
@@ -104,8 +106,13 @@ def _get_item(item: str) -> dict:
 # The review sha covers SOURCE changes only - it must not change when derived/generated artifacts move
 # (committed evidence, the baseline, the derived backlog projections that --apply itself writes). The SAME
 # exclusions are used by scripts/dev/architect_review_check.py.
-EXCLUDE = [":(exclude)engineering/**", ":(exclude)config/architect-review-baseline.json",
-           ":(exclude)data/backlog/**"]
+EXCLUDE = [
+    ":(exclude,glob)**/engineering/**",
+    ":(exclude,glob)**/config/architect-review-baseline.json",
+    ":(exclude,glob)**/data/backlog/**",
+    ":(exclude,glob)**/docs/BACKLOG-SUMMARY.md",
+    ":(exclude,glob)**/docs/documentation-index.html",
+]
 
 
 def _git_text(args: list[str], timeout: int = 30) -> str:
@@ -157,7 +164,9 @@ ARCHITECT_SYSTEM = (
     "You are a Principal Enterprise System Architect performing an independent review. Judge from an "
     "enterprise, long-term lens (integrity, adaptability, scalability, security, observability, "
     "maintainability, reuse). Output ONLY the sections: ### BLOCKER, ### MAJOR, ### MINOR, ### NIT, ### SUMMARY "
-    "(bullet findings; write '- none' under an empty section). Do not rewrite code.")
+    "(bullet findings; write '- none' under an empty section). Do not rewrite code. "
+    "Do NOT show any reasoning, analysis, preamble or sign-off: your reply MUST begin with the literal string "
+    "'### BLOCKER' and contain no text before it. Keep each finding to at most 3 lines.")
 
 
 def _api_key() -> str:
@@ -186,23 +195,56 @@ def _llm_call(prompt: str, model: str) -> str:
     key = _api_key()
     if not key:
         raise RuntimeError("no API key (set OPENCODE_ZEN_API_KEY or provide .opencode/opencode.key)")
-    body = json.dumps({"model": model, "temperature": 0.2, "max_tokens": 4000, "messages": [
-        {"role": "system", "content": ARCHITECT_SYSTEM},
-        {"role": "user", "content": prompt}]}).encode("utf-8")
-    req = urllib.request.Request(base.rstrip("/") + "/chat/completions", data=body, method="POST")
-    req.add_header("Authorization", f"Bearer {key}")
-    req.add_header("Content-Type", "application/json")
-    req.add_header("User-Agent", cfg.get("user_agent", "opencode/1.18.35"))
-    req.add_header("x-opencode-session", str(uuid.uuid4()))
-    with urllib.request.urlopen(req, timeout=300) as r:
-        data = json.loads(r.read().decode("utf-8"))
-    msg = (data.get("choices") or [{}])[0].get("message") or {}
-    return msg.get("content") or msg.get("reasoning_content") or ""
+    # Gateways intermittently answer 502/429 or an empty (reasoning-only) message; retry a few times
+    # with backoff instead of failing the whole gate. Wrong-content still fails closed downstream.
+    timeout = float(cfg.get("request_timeout") or os.environ.get("PF_ARCHITECT_REVIEW_TIMEOUT") or 300)
+    attempts = int(cfg.get("attempts") or 3)
+    last_err = None
+    for attempt in range(1, attempts + 1):
+        nudge = "" if attempt == 1 else (
+            "\n\nIMPORTANT: the previous attempt returned no content. Respond with ONLY the required "
+            "BLOCKER/MAJOR/MINOR/NIT/SUMMARY sections.")
+        body = json.dumps({"model": model, "temperature": 0.2,
+                           "max_tokens": int(cfg.get("max_tokens") or 16000), "messages": [
+            {"role": "system", "content": ARCHITECT_SYSTEM},
+            {"role": "user", "content": prompt + nudge}]}).encode("utf-8")
+        req = urllib.request.Request(base.rstrip("/") + "/chat/completions", data=body, method="POST")
+        req.add_header("Authorization", f"Bearer {key}")
+        req.add_header("Content-Type", "application/json")
+        req.add_header("User-Agent", cfg.get("user_agent", "opencode/1.18.35"))
+        req.add_header("x-opencode-session", str(uuid.uuid4()))
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as r:
+                data = json.loads(r.read().decode("utf-8"))
+        except urllib.error.HTTPError as e:
+            last_err = e
+            if e.code not in (408, 425, 429, 500, 502, 503, 504) or attempt == attempts:
+                raise RuntimeError(f"review call failed (model={model} attempt={attempt}/{attempts}): HTTP {e.code}") from e
+            print(f"architect-review: attempt {attempt} HTTP {e.code}; retrying", file=sys.stderr)
+            time.sleep(min(30, 5 * (2 ** (attempt - 1))))
+            continue
+        except (urllib.error.URLError, TimeoutError, OSError) as e:
+            last_err = e
+            if attempt == attempts:
+                raise
+            print(f"architect-review: attempt {attempt} failed ({e}); retrying", file=sys.stderr)
+            time.sleep(min(30, 5 * (2 ** (attempt - 1))))
+            continue
+        msg = (data.get("choices") or [{}])[0].get("message") or {}
+        # Never treat chain-of-thought as the review: empty content stays fail-closed.
+        content = (msg.get("content") or "").strip()
+        if content:
+            return content
+        last_err = RuntimeError("review call returned empty content")
+        print(f"architect-review: attempt {attempt} returned empty content; retrying", file=sys.stderr)
+        if attempt < attempts:
+            time.sleep(min(30, 5 * (2 ** (attempt - 1))))
+    raise last_err or RuntimeError("review call failed")
 
 
 def _build_prompt(item: dict, item_id: str, mode: str) -> str:
     ac = "\n".join(f"- {c}" for c in (item.get("acceptance_criteria") or [])) or "- (none)"
-    body = _design_body(item) if mode == "design" else "Diff:\n```diff\n" + _git_diff()[:60000] + "\n```"
+    body = _design_body(item) if mode == "design" else "Diff:\n```diff\n" + _git_diff()[:180000] + "\n```"
     prompt = PROMPT.format(target=("design" if mode == "design" else "implementation diff"),
                            item=item_id, ac=ac, body=body)
     if mode == "design":

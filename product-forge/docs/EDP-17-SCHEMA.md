@@ -86,3 +86,48 @@ python scripts/dev/db_bootstrap.py                    # add --skip-roles if the 
 Model is complete (full discovery). **Slice 1** (`0002_core_schema`) delivered = tenants/memberships/projects/runs/stages/attempts/usage/quotas; **bootstrap** (`db_bootstrap.py` + `docker-compose.edp.yml` + `PF_DB_DSN`) delivered. Next: `go/store` pgx pool client + remaining domain slices per §D. Order: `docs/EDP-EXECUTION-ORDER.md`.
 
 **BI-PF-1421 (`0012_project_scope`)** adds the direct discriminators promised in §A.1: `backlog_items` gains `scope` + `project_id` (indexed `(scope, project_id)`), and `stages`/`attempts` gain a denormalized `project_id` (indexed) so per-project data is queried without JSON extraction or joins to `runs`. These are **soft references (TEXT + index, no FK)** per §A.3 — the backlog spans `product_forge` (no project) and generated products not necessarily in the `projects` registry; integrity is enforced at the write boundary.
+
+## G. Audit partitioning + retention (EDP-20 / BI-PF-1312)
+
+The append-only `audit` table is migrated to monthly `RANGE (at)` partitioning (UTC) in two phases:
+
+- **Phase 1 (migration `0014_audit_partitioning`)** is DDL-only and transactional. It renames the legacy
+  sequence (`audit_id_seq` -> `audit_legacy_id_seq`), creates `audit_partitioned` (`PK (id, at)`), monthly
+  partitions (`legacy_min .. current + horizon_months`) plus one bounded `audit_grace_YYYYMM` for the month
+  before the oldest data, and the operational tables (`audit_partition_config`, `audit_migration_state`
+  + append-only events, legal-hold tables, `audit_archive_manifest`). No `DEFAULT` partition: an
+  out-of-range `at` fails closed (`23514`); `audit_append_late` covers corrected late evidence (bounded to
+  24 months, inserted into the canonical `audit_YYYYMM` partition so retention can still drop it).
+- **Phase 2 (`go/pfaudit`) runs outside the migration transaction**: encrypted backup (retained until
+  sign-off), resumable batched copy (`cursor` persisted), per-tenant count + SHA-256 over (id, tenant_id, action, at) in order, a
+  **bounded** delta drain under `ACCESS EXCLUSIVE` (delta re-counted inside the lock; 5 attempts; `55P03`
+  retried), then one atomic rename and `setval` on the canonical `audit_id_seq`.
+
+Security: RLS is `ENABLE + FORCE` with `tenant_isolation` on the parent and every leaf; `deny_mutation`
+covers UPDATE/DELETE rows on the parent and every leaf; `TRUNCATE` is statement-level (not visible to row
+triggers) and is therefore revoked from every role; app/tenant roles hold `INSERT, SELECT` on the
+**parent only** (no leaf grants). `audit_attach_partition` is the only supported attach path
+(create + harden + attach); `audit_assert_hardened()` detects a privileged attach that skipped hardening.
+
+Retention is two-stage and reversible until the final purge:
+1. **hot -> cold:** export a fully-old month to the object store as immutable NDJSON (`audit/cold/<month>/`)
+   with a SHA-256 manifest recorded in `audit_archive_manifest`, then drop the hot partition;
+2. **cold -> purge:** only after `purge_grace_days` (default 90) **and** an explicit audited approval
+   (actor/time/reason recorded); `audit_restore_archive` re-imports a cold month into a standalone, RLS-protected
+   `audit_restore_YYYYMM` scratch table (never a partition, so rotation ranges never overlap).
+
+Row-level legal holds are preserved: held rows are extracted to append-only `audit_legal_hold_archive`
+before a partition leaves the hot table, and a hold placed after archive is reconciled the same way.
+**Documented irreversibility:** a purge destroys the only remaining copy (beyond backups), and a hold
+recorded after a purge cannot resurrect the evidence (rejected + spoliation metric `audit_hold_after_purge_total`).
+
+Canonical advisory-lock namespaces: `AUDP` (insert provisioning), `AUSW` (swap), `AURE` (retention).
+
+**Operations.** `edpsvc` runs `pfaudit.CheckCoverage` at startup (non-fatal) and exposes
+`GET /admin/audit-coverage`; `pfaudit-retention check` is the cron probe (hourly, exit 0 unless `--strict`)
+emitting `audit_partition_months_ahead`, `audit_partition_low_coverage_total` and
+`audit_rotation_stale_total` (rotation older than `--max-age-hours`, default 48). A sample crontab lives in
+`ops/cron/pfaudit-retention.cron`. A hold recorded **after** a month is cold-archived is reconciled by
+`pfaudit-retention reconcile --month audit_YYYYMM`: it restores the archive into `audit_restore_YYYYMM`,
+extracts the newly-held rows into `audit_legal_hold_archive`, verifies counts **and** SHA-256 digests, then
+drops the scratch table.

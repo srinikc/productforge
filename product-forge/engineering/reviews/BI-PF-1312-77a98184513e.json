@@ -1,0 +1,39 @@
+{
+  "item": "BI-PF-1312",
+  "sha": "77a98184513e",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "findings": {
+    "BLOCKER": [
+      "0014 creates `audit_id_seq` with no USAGE grant to pf_app/pf_runtime, and `Swap`/`Down` only grant INSERT/SELECT on the table; `DEFAULT nextval(...)` is privilege-checked against the inserting role, so the first app audit write after the swap fails 42501. Append's heal only matches 23514, so the audit write path hard-fails post-swap.",
+      "Integration tests insert as the pool/owner role (and pre-swap into the flat table), so the missing post-swap sequence grant is untested; the AC's \"freshness/monotonicity after swap as the app role\" proof is absent."
+    ],
+    "MAJOR": [
+      "`backup()` deadlocks on any early `obj.Put` failure (SSE/config/size): nothing drains the `io.Pipe`, `age` blocks writing, and `dump.Wait()` hangs the swap tool with no context timeout on the dump pipeline.",
+      "`PlaceHold` \u2014 the only code emitting `audit_hold_after_purge_total` \u2014 is not wired to any pfaudit-retention subcommand; holds can only be placed via raw SQL as pf_owner, so the spoliation metric/alert can never fire in production.",
+      "edpsvc reimplements coverage/staleness logic (`coverageStatus`, `rotationMaxAge`, `readCoverage`) and a parallel metrics JSON instead of reusing `pfaudit.CheckCoverage`/`EmitCoverage`; the added `replace productforge/pfaudit` is unused \u2014 two drifting implementations of one operational contract.",
+      "0014's seed block runs `min(at)`/`max(id)` over the entire legacy `audit` table inside the migration transaction; on a large production log this is a long-running migration holding transactional locks \u2014 needs a bounded pre-check or documented estimate step.",
+      "`edpdata.Append`'s comment (\"the audit_provision trigger attaches a missing month\") and `DROP FUNCTION audit_provision()` in the down migration reference a fast path 0014 never creates (section 10 is empty) \u2014 shipped code and SQL disagree about the insert path.",
+      "`VerifyHoldExtractionFrom` builds per-month digests with unbounded `string_agg` over the whole month (twice), O(month) DB memory \u2014 contradicts the scalability intent when export already streams."
+    ],
+    "MINOR": [
+      "RLS test proves cross-tenant isolation only on the parent; \"cannot read another tenant's rows through any path\" is not asserted for direct leaf SELECTs (only leaf INSERT denial is tested).",
+      "Fresh-install AC case (empty audit \u2192 setval to 1) is neither implemented (`GREATEST(max, last_value)+1` yields 2 on a fresh sequence) nor tested.",
+      "Backup rehearsal asserts `SEQUENCE public audit_legacy_id_seq` but not `audit_id_seq`; S1 requires the sequence present.",
+      "s3store unknown-size (streamed) Put returns empty `Checksum` and `Version`; any caller relying on `Version` for versioned Get silently loses it for backups.",
+      "Plaintext NDJSON evidence is staged in `os.TempDir` before upload; allow a configurable/encrypted staging dir for legal evidence.",
+      "`architect_review.py`/config changes (retry/backoff, EXCLUDE glob rewrites, token/timeout, 180KB diff cap) are unrelated scope creep on an audit-partitioning item."
+    ],
+    "NIT": [
+      "`audit_partition_config` as BOOLEAN PK with `CHECK (id)` is an odd singleton idiom; a constant-key table reads clearer.",
+      "`CoverageStatus.LastRotationAgeHours < 0` sentinel plus a separate `Stale` bool is redundant with the emitted gauge.",
+      "Down migration drops `audit_provision()`, a function 0014-up never creates."
+    ],
+    "SUMMARY": [
+      "Strong overall design: catalog-driven resumable swap, fail-closed retention/holds, privilege-enforced hardening and good crash-ordering (record-before-destroy) are all real and largely tested against PG16.",
+      "One blocker must be fixed before merge: no USAGE grant on the new `audit_id_seq` breaks every app audit insert the moment the swap commits, and no test exercises the app-role write path post-swap.",
+      "Top risks after that: the pg_dump/age pipe deadlock in `backup`, no shipped operator path for placing legal holds (metric dead), and duplicated coverage logic between edpsvc and pfaudit that will drift."
+    ]
+  }
+}

@@ -6,14 +6,16 @@ package edpdata
 import (
 	"context"
 	"errors"
+	"fmt"
 	"regexp"
+	"strings"
 	"time"
 
 	"productforge/datastore"
 )
 
 var (
-	emailPII = regexp.MustCompile(`[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}`)
+	emailPII  = regexp.MustCompile(`[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}`)
 	secretPII = regexp.MustCompile(`(?i)\b(bearer|token|secret|password)\b\s*[:=]?\s*[A-Za-z0-9._\-]{6,}`)
 )
 
@@ -37,14 +39,36 @@ func NewAudit(db datastore.RelationalStore) *AuditStore { return &AuditStore{db:
 // Append writes one audit event with INGEST-TIME redaction (PII masked before write). The table denies
 // UPDATE/DELETE (append-only trigger) - evidence is immutable once written.
 func (s *AuditStore) Append(ctx context.Context, e datastore.AuditEvent) error {
-	return s.db.WithTx(ctx, func(tx datastore.Tx) error {
+	insert := func(tx datastore.Tx) error {
 		_, err := tx.Exec(ctx,
 			`INSERT INTO audit (tenant_id, actor, action, resource, outcome, correlation_id, at)
 			 VALUES ($1,$2,$3,$4,$5,$6,$7)`,
 			e.TenantID, redact(e.Actor), redact(e.Action), redact(e.Resource), redact(e.Outcome),
 			redact(e.CorrelationID), e.At)
 		return err
-	})
+	}
+	// EDP-20 fast path: the audit_provision trigger attaches a missing month without a lock in the common
+	// case. If a concurrent rotation/drop still lands the row outside every partition (23514), provision the
+	// needed month once and retry - never drop the event on the floor.
+	// Classify by SQLSTATE through a driver-neutral interface: the port layer must not import pgconn.
+	classify := func(err error) bool {
+		var sqlErr interface{ SQLState() string }
+		return errors.As(err, &sqlErr) && sqlErr.SQLState() == "23514" &&
+			strings.Contains(err.Error(), "no partition of relation")
+	}
+	err := s.db.WithTx(ctx, insert)
+	for attempt := 0; attempt < 3 && classify(err); attempt++ {
+		// A concurrent retention drop can still race the heal: re-provision and retry, but never swallow
+		// the event - after the bounded attempts the caller gets the error and can retry/alert.
+		if perr := s.db.WithTx(ctx, func(tx datastore.Tx) error {
+			_, execErr := tx.Exec(ctx, `SELECT audit_ensure_partitions(audit_month_start($1)::date)`, e.At)
+			return execErr
+		}); perr != nil {
+			return fmt.Errorf("edpdata: audit provisioning after out-of-range insert: %w (original: %v)", perr, err)
+		}
+		err = s.db.WithTx(ctx, insert)
+	}
+	return err
 }
 
 // ---- JobStore (lease-based) ----

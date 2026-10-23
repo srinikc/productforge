@@ -1,0 +1,49 @@
+{
+  "item": "BI-PF-1312",
+  "sha": "6ea168bbc962",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "findings": {
+    "BLOCKER": [
+      "`audit_hold_guard` does `INSERT INTO audit_migration_state_events \u2026 ; RAISE EXCEPTION` in the same function: the RAISE aborts the transaction, so the spoliation record is rolled back and never persisted.",
+      "`MetricHoldAfterPurge` (`audit_hold_after_purge_total`) is defined but never incremented anywhere; the AC's spoliation signal does not exist at runtime.",
+      "`audit_deny_truncate` is created but attached only to the two events tables. `audit_partitioned` and `audit_legal_hold_archive` get TRUNCATE *revokes* only, and the code's own comment states owners ignore REVOKE \u2014 pf_owner/superuser can TRUNCATE the live audit journal.",
+      "AC \"EDP service startup check and ops cron emit `audit_partition_months_ahead` / `audit_partition_low_coverage_total` and raise a stale-job alert\" is entirely unimplemented in this diff; only CLIs print coverage.",
+      "AC \"a hold placed AFTER archive triggers hold-reconcile (restore to scratch, extract, verify)\" has no implementation \u2014 no reconcile path exists in SQL or Go."
+    ],
+    "MAJOR": [
+      "`VerifyHoldExtraction`'s \"missing\" subquery joins holds to live rows **without** the `(length(e.tenant_id)=0 OR e.tenant_id=a.tenant_id)` filter that `audit_hold_extract` and the digest query both apply; any tenant-scoped hold makes `missing>0` forever, wedging export/drop.",
+      "`pfaudit-swap` uses `--batch` / `--max-delta` flags and never calls `CheckConfig`, contradicting the \"tool refuses to run when they disagree\" contract \u2014 DB config changes are silently ignored on the critical path.",
+      "Migration `0004_runtime_role.up.sql` is edited after being shipped (made idempotent so a test can re-run the full migration list). Migration history should not be rewritten; this also silently changes an applied artifact for every environment.",
+      "`backup()` dumps `-t audit -t audit_legacy_id_seq` only. At pre-swap time the shadow's `audit_id_seq` (the DEFAULT of the future live table) is not dumped, so the restore rehearsal proves an incomplete restore set for the partitioned target.",
+      "The streaming (`size < 0`) path in `s3store.Put` computes no SHA-256 and sets no checksum metadata; `ObjectInfo.Checksum`/`Version` come back empty, so the pre-swap dump has no recorded digest anywhere.",
+      "`ExportMonth` and `RestoreMonth` write full plaintext audit evidence to `os.CreateTemp(\"\")` (`/tmp`) on the DB host \u2014 0600 and unlinked, but outside the SSE-KMS at-rest boundary the AC establishes.",
+      "`audit_append_late` inserts into the canonical `audit_YYYYMM` partition, not `audit_late_YYYYMM`; the AC clause \"grace and audit_late_YYYYMM partitions \u2026 cannot satisfy coverage\" is left dangling with no AC/doc reconciliation.",
+      "Metric constants `audit_insert_out_of_range_total`, `audit_provision_seconds`, `audit_late_insert_total`, `audit_hold_extract_failed_total` are declared but never emitted \u2014 observability AC is half-satisfied.",
+      "Events tables: AC requires \"revokes **plus** a deny_mutation trigger\" for UPDATE/DELETE; only the trigger is present \u2014 `GRANT ALL \u2026 TO pf_owner` still carries UPDATE/DELETE privileges.",
+      "Revokes target `pf_app` only; `pf_runtime` is a separate role and is never revoked from `audit_migration_state*`, `audit_archive_manifest`, `audit_legal_hold_events`, `audit_partition_config`.",
+      "Partition span is `current + horizon - 1 month` (= current+2 at horizon 3), not the AC's \"current+3\"; a fresh system reports `months_ahead=2`, exactly at the low-coverage alert threshold.",
+      "AC \"row count and SHA-256 compared **per batch**\" is not implemented: `CopyBatch` performs no verification; only a single pre-swap `Verify` runs."
+    ],
+    "MINOR": [
+      "`audit_harden_partition` creates a per-leaf `<leaf>_append_only` trigger even though the parent's `audit_partitioned_append_only` is cloned onto every attached partition \u2014 duplicate deny triggers on every leaf.",
+      "`audit_provision` compares `TG_TABLE_NAME <> audit_parent()::text`; regclass\u2192text is search_path sensitive, so under a different search_path every leaf insert would attempt provisioning.",
+      "Forced `close` bypasses the rollback window but records only the backup key, not the `--reason`, so the override itself is not auditable.",
+      "`RestoreMonth` leaves `audit_restore_YYYYMM` behind with no teardown command; repeated restores `DROP TABLE IF EXISTS` a table forensic readers may be querying.",
+      "`pfaudit-retention` acquires the AURE advisory lock for read-only `coverage`/`candidates`, serializing them behind a long export.",
+      "`pfaudit-retention purge --dry-run` prints a canned sentence rather than the object keys that would be deleted, per the \"dry-run lists candidates\" intent.",
+      "`audit_migration_state` (the projection) has no TRUNCATE guard and no documented rebuild function, though it is claimed to be rebuildable."
+    ],
+    "NIT": [
+      "`TestRetentionLockDoesNotBlockProvisioning` hardcodes `'AURE'` instead of using `LockRetention`, defeating its own anti-drift purpose.",
+      "`quoteDate` and `monthBounds` are dead or test-only helpers in `archive.go`.",
+      "The diff mixes review-harness tuning (`architect_review.py`, `architect-review.json` max_tokens/diff cap) with the product migration; these are unrelated changes sharing one review surface."
+    ],
+    "SUMMARY": [
+      "Solid architecture overall: catalog-driven state, single atomic rename, privilege-enforced hardening, and a two-stage retention pipeline with manifests are the right shape, and the integration suite covers the resume, divergence, down and isolation paths.",
+      "Top risks are integrity-of-record gaps: the spoliation event is rolled back by its own RAISE, the required `audit_hold_after_purge_total` never fires, TRUNCATE is still possible on the live journal for privileged roles, and hold-after-archive reconcile plus the coverage startup/cron checks are missing.",
+      "Secondary systemic concerns: rewriting an applied migration, tenant-filter asymmetry in hold verification that can wedge retention, and a backup/restore rehearsal that does not cover the partitioned target's sequence."
+    ]
+  }
+}
