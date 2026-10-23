@@ -209,10 +209,14 @@ BEGIN
         JOIN pg_class c ON c.oid = i.inhrelid
         WHERE i.inhparent = audit_parent()
     LOOP
-        IF NOT EXISTS (SELECT 1 FROM pg_class WHERE relname = r.relname AND relrowsecurity AND relforcerowsecurity) THEN
+        IF NOT EXISTS (SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+                       WHERE n.nspname = 'public' AND c.relname = r.relname
+                         AND c.relrowsecurity AND c.relforcerowsecurity) THEN
             RAISE EXCEPTION 'audit_assert_hardened: leaf % has no FORCE RLS', r.relname;
         END IF;
-        IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = r.relname AND policyname = 'tenant_isolation') THEN
+        IF NOT EXISTS (SELECT 1 FROM pg_policies
+                       WHERE schemaname = 'public' AND tablename = r.relname AND policyname = 'tenant_isolation'
+                         AND qual LIKE '%app.tenant_id%') THEN
             RAISE EXCEPTION 'audit_assert_hardened: leaf % has no tenant_isolation policy', r.relname;
         END IF;
         IF NOT EXISTS (SELECT 1 FROM pg_trigger
@@ -233,6 +237,14 @@ DECLARE
 BEGIN
     SELECT horizon_months INTO v_horizon FROM audit_partition_config WHERE id;
     PERFORM audit_advisory_lock('AUDP');  -- serialise with the insert fast path before creating leaves
+    -- A late event can reference a past month (Append heal): create exactly that month, never a horizon.
+    IF p_through IS NOT NULL AND audit_month_start(p_through) < v_cur THEN
+        IF to_regclass('public.' || audit_partition_name(audit_month_start(p_through))) IS NULL THEN
+            PERFORM audit_attach_partition(audit_month_start(p_through));
+            RETURN 1;
+        END IF;
+        RETURN 0;
+    END IF;
     v_target := COALESCE(audit_month_start(p_through), v_cur) + make_interval(months => v_horizon) - interval '1 month';
     WHILE v_cur <= v_target::date LOOP
         IF to_regclass('public.' || audit_partition_name(v_cur)) IS NULL THEN

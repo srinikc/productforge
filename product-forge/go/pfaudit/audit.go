@@ -456,12 +456,14 @@ func RecordState(ctx context.Context, pool *pgxpool.Pool, to, detail string) err
 	}
 	defer tx.Rollback(ctx)
 	if _, err := tx.Exec(ctx, `INSERT INTO audit_migration_state_events(actor, from_state, to_state, detail)
-		VALUES (current_user, (SELECT COALESCE(value->>'phase','') FROM audit_migration_state WHERE key='phase'), $1, $2::jsonb)`,
+		SELECT current_user::text,
+		       COALESCE((SELECT value->>'phase' FROM audit_migration_state WHERE key='phase'), ''),
+		       CAST($1 AS text), CAST($2 AS jsonb)`,
 		to, detail); err != nil {
 		return err
 	}
 	if _, err := tx.Exec(ctx, `INSERT INTO audit_migration_state(key, value, updated_at)
-		VALUES ('phase', jsonb_build_object('phase',$1), now())
+		VALUES ('phase', jsonb_build_object('phase',$1::text), now())
 		ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now()`, to); err != nil {
 		return err
 	}

@@ -94,13 +94,19 @@ func (s *S3Store) Put(ctx context.Context, key string, r io.Reader, size int64, 
 	if ct == "" {
 		ct = "application/octet-stream"
 	}
-	putOpts := minio.PutObjectOptions{ContentType: ct, UserMetadata: map[string]string{checksumMeta: sum}}
+	putOpts := minio.PutObjectOptions{ContentType: ct}
+	if size >= 0 {
+		putOpts.UserMetadata = map[string]string{checksumMeta: sum}
+	}
 	if sse := strings.TrimSpace(opts.ServerSideEncryption); sse != "" {
 		switch {
 		case strings.EqualFold(sse, "AES256"), strings.EqualFold(sse, "SSE-S3"):
 			putOpts.ServerSideEncryption = encrypt.NewSSE()
 		case strings.HasPrefix(strings.ToLower(sse), "aws:kms"):
-			keyID := strings.TrimSpace(strings.TrimPrefix(sse, "aws:kms:"))
+			keyID := ""
+			if i := strings.IndexByte(sse, ':'); i >= 0 {
+				keyID = strings.TrimSpace(sse[i+1:])
+			}
 			if keyID == "" {
 				return datastore.ObjectInfo{}, errors.New("s3store: SSE-KMS requires a key id (aws:kms:<key-id>)")
 			}

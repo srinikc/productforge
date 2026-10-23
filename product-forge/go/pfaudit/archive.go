@@ -135,6 +135,9 @@ func ExportMonth(ctx context.Context, pool *pgxpool.Pool, obj datastore.ObjectSt
 	}
 	m.Checksum = hash
 	m.Keys = []string{key}
+	if err := RecordState(ctx, pool, "archived", fmt.Sprintf(`{"month":%q,"rows":%d}`, month, m.Rows)); err != nil {
+		return m, fmt.Errorf("pfaudit: record archive event: %w", err)
+	}
 	if _, err := pool.Exec(ctx, `SELECT audit_mark_archived($1, $2, $3, $4::jsonb)`,
 		month, m.Rows, m.Checksum, mustJSON(m.Keys)); err != nil {
 		return m, fmt.Errorf("pfaudit: record manifest: %w", err)
@@ -340,7 +343,7 @@ func PurgeMonth(ctx context.Context, pool *pgxpool.Pool, obj datastore.ObjectSto
 			return fmt.Errorf("pfaudit: delete %s: %w", k, err)
 		}
 	}
-	return nil
+	return RecordState(ctx, pool, "purged", fmt.Sprintf(`{"month":%q}`, month))
 }
 
 // ExtractHolds archives held rows of a month before it is dropped/archived.
@@ -348,6 +351,9 @@ func ExtractHolds(ctx context.Context, pool *pgxpool.Pool, month string) (int64,
 	var n int64
 	if err := pool.QueryRow(ctx, `SELECT audit_hold_extract($1)`, month).Scan(&n); err != nil {
 		return 0, err
+	}
+	if err := RecordState(ctx, pool, "holds_extracted", fmt.Sprintf(`{"month":%q,"rows":%d}`, month, n)); err != nil {
+		return n, err
 	}
 	return n, nil
 }

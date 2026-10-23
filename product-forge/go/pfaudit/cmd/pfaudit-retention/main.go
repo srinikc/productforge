@@ -120,13 +120,14 @@ func main() {
 				fail("export %s: %v", mon, err)
 			}
 			met.Inc(pfaudit.MetricExport)
-			if err != nil {
-				fail("export %s: %v", mon, err)
-			}
 			fmt.Printf("%s: exported rows=%d sha256=%s key=%s\n", mon, man.Rows, man.Checksum, man.Keys)
 			if _, err := pool.Exec(ctx, `SELECT audit_drop_partition($1)`, mon); err != nil {
 				fail("drop %s: %v", mon, err)
 			}
+			if err := pfaudit.RecordState(ctx, pool, "dropped", fmt.Sprintf(`{"month":%q}`, mon)); err != nil {
+				fail("record drop %s: %v", mon, err)
+			}
+			met.Inc(pfaudit.MetricDrop)
 			fmt.Printf("%s: hot partition dropped\n", mon)
 		}
 	case "purge":

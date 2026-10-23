@@ -52,7 +52,6 @@ func main() {
 		fail("connect: %v", err)
 	}
 	defer pool.Close()
-	_ = metricsOut
 	m := pfaudit.NewMetrics()
 
 	switch cmd {
@@ -100,7 +99,6 @@ func main() {
 		fmt.Printf("backup written + rehearsal OK: %s (pass --backup-key %s to close)\n", *backupKey, *backupKey)
 	case "prestage":
 		runPrestage(ctx, pool, *batch, m)
-		_, _, _ = pfaudit.CheckConfig(ctx, pool)
 	case "verify":
 		problems, err := pfaudit.Verify(ctx, pool)
 		for t, p := range problems {
