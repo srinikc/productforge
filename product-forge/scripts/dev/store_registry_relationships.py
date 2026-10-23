@@ -51,6 +51,7 @@ SEED = [
     ("audit", "tenants", "tenant_id", "logical", "BI-PF-1312", "audit rows carry the tenant id (no FK by design)"),
 ]
 REQUIRED = {(c, p, col) for c, p, col, _, _, _ in SEED}
+SEED_KEYS = [(c, p, col) for c, p, col, _, _, _ in SEED]
 REQUIRED_TRIGGERS = (
     "audit_partitioned_append_only",
     "audit_partition_config_touch",
@@ -116,10 +117,10 @@ def _item_status(owner: str) -> str:
     try:
         return str(json.loads((ITEMS / f"{owner}.json").read_text(encoding="utf-8")).get("status") or "").lower()
     except Exception:
-        return ""
+        return "unknown"
 
 
-def _expected_status(target: dict, backend: str = "") -> str:
+def _expected_status(target: dict, backend: str = "", store_kind: str = "") -> str:
     """migration_status describes where the DATA lives, not whether a table exists."""
     st, kind = str(target.get("status") or ""), str(target.get("kind") or "")
     if st == "retained":
@@ -128,7 +129,11 @@ def _expected_status(target: dict, backend: str = "") -> str:
         return "pending"
     if st == "exists":
         if kind == "table":
-            return "migrated" if backend == "postgres" else "pending"
+            if backend == "postgres":
+                return "migrated"
+            if store_kind == "config" and target.get("retained_reason"):
+                return "retained"
+            return "pending"
         if kind == "object-store":
             return "migrated" if backend == "object-store" else "pending"
         return "retained"
@@ -147,8 +152,10 @@ def apply(reg: dict, tables: set[str], table_cols: dict[str, set[str]]) -> dict:
     for seed in _seed_relationships():
         key = (seed["from"], seed["to"], seed["via"])
         if key in by_key:
-            by_key[key].update({"kind": seed["kind"], "owner_item": seed["owner_item"], "note": seed["note"]})
+            by_key[key].update({"kind": seed["kind"], "owner_item": seed["owner_item"],
+                                "note": seed["note"], "canonical": True})
         else:
+            seed["canonical"] = True
             rels.append(seed)
     for r in rels:
         r.pop("verified", None)
@@ -156,11 +163,12 @@ def apply(reg: dict, tables: set[str], table_cols: dict[str, set[str]]) -> dict:
     for v in (reg.get("stores") or {}).values():
         tgt = v.get("target") or {}
         cls = v.setdefault("classification", {})
-        # Config domains are deliberately file-retained (EDP decision); a table existing in the schema
-        # does not mean the data moved.
-        if str(v.get("kind") or "") == "config" and cls.get("backend") == "file":
-            v["target"] = {"kind": "file", "status": "retained", "ref": "", "owner_item": ""}
-            tgt = v["target"]
+        # Config domains are deliberately file-retained (EDP decision); keep the recorded target/ref but
+        # state why the data stays in files so planning does not see phantom migration work.
+        if (str(v.get("kind") or "") == "config" and cls.get("backend") == "file"
+                and str(tgt.get("kind") or "") == "table"):
+            tgt["retained_reason"] = ("config/tenant settings remain file-backed by EDP decision; "
+                                      "the table is reserved for a later cutover")
         if tgt.get("status") == "planned":
             owner = str(tgt.get("owner_item") or "")
             ref, kind = str(tgt.get("ref") or ""), str(tgt.get("kind") or "")
@@ -169,7 +177,8 @@ def apply(reg: dict, tables: set[str], table_cols: dict[str, set[str]]) -> dict:
                               or (kind == "object-store" and cls.get("backend") == "object-store"
                                   and ref in OBJECT_META)):
                 tgt["status"] = "exists"
-        cls["migration_status"] = _expected_status(tgt, str(cls.get("backend") or ""))
+        cls["migration_status"] = _expected_status(tgt, str(cls.get("backend") or ""),
+                                                    str(v.get("kind") or ""))
     return reg
 
 
@@ -193,15 +202,22 @@ def check(reg: dict, tables: set[str], table_cols: dict[str, set[str]], triggers
                            f"(want backend object-store and ref in {sorted(OBJECT_META)})")
         if st == "planned":
             owner = str(tgt.get("owner_item") or "")
-            if owner and _item_status(owner) in DONE:
-                bad.append(f"{name}: planned under completed {owner} - map it to a real target")
+            if not owner:
+                bad.append(f"{name}: planned target has no owner_item")
+            else:
+                st_owner = _item_status(owner)
+                if st_owner == "unknown":
+                    bad.append(f"{name}: planned owner {owner} cannot be read")
+                elif st_owner in DONE:
+                    bad.append(f"{name}: planned under completed {owner} - map it to a real target")
         if kind == "table" and backend not in {"postgres", "file"}:
             bad.append(f"{name}: kind=table but backend={backend!r}")
         if kind == "object-store" and backend != "object-store":
             bad.append(f"{name}: kind=object-store but backend={backend!r}")
         if kind in {"file", "view", "derived"} and backend not in {"file", "derived"}:
             bad.append(f"{name}: kind={kind} but backend={backend!r}")
-        want, have = _expected_status(tgt, backend), str(cls.get("migration_status") or "")
+        want = _expected_status(tgt, backend, str(v.get("kind") or ""))
+        have = str(cls.get("migration_status") or "")
         if have != want:
             bad.append(f"{name}: migration_status={have!r}, expected {want!r}")
     rels = reg.get("relationships") or []
@@ -223,6 +239,19 @@ def check(reg: dict, tables: set[str], table_cols: dict[str, set[str]], triggers
             bad.append(f"relationship parent table {parent!r} does not exist")
         if child in tables and col not in table_cols.get(child, set()):
             bad.append(f"relationship {child}.{col}: column not found in the migration")
+    canonical = {(str(r.get("from")), str(r.get("to")), str(r.get("via"))): r
+                 for r in rels if r.get("canonical") is True}
+    for edge in sorted(REQUIRED - set(canonical)):
+        bad.append(f"canonical relationship missing: {edge[0]}.{edge[2]} -> {edge[1]}")
+    for c2, p2, col2 in sorted(set(canonical) - REQUIRED):
+        bad.append(f"unexpected canonical relationship: {c2}.{col2} -> {p2}")
+    for c2, p2, _ in SEED_KEYS:
+        r = canonical.get((c2, p2, _))
+        if r is None:
+            continue
+        expect = next(x for x in SEED if (x[0], x[1], x[2]) == (c2, p2, _))
+        if r.get("owner_item") != expect[4] or r.get("kind") != expect[3]:
+            bad.append(f"canonical relationship {c2}.{_} -> {p2} drifted from (kind={expect[3]}, owner={expect[4]})")
     missing = REQUIRED - {(str(r.get("from")), str(r.get("to")), str(r.get("via"))) for r in rels}
     for c, p, col in sorted(missing):
         bad.append(f"required relationship missing: {c}.{col} -> {p}")
