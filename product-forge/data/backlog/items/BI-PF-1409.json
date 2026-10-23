@@ -10,7 +10,7 @@
   "title": "RCCA (process, P0): partial delivery reported as complete - EDP-02 closed without store classification/mapping; add artifact-completeness gates + evidence-based DoD + re-open audit",
   "body": "",
   "source": "generic",
-  "status": "new",
+  "status": "in_progress",
   "priority": "P0",
   "moscow": "Must",
   "value": 3,
@@ -28,6 +28,26 @@
       "decision": "APPROVE",
       "by": "system",
       "note": "auto-approved on add (BI-PF-1282)"
+    },
+    {
+      "at": "2026-10-24T00:00:00+00:00",
+      "by": "hil:user",
+      "decision": "APPROVE_WITH_ATTENTION",
+      "gate": 1,
+      "findings_sha": "9cbaa9a7472f",
+      "findings_digest": "9a5efd83a664",
+      "seq": 2,
+      "note": "Gate 1 (design 9cbaa9a7472f): evidence-based DoD gate + bounded baseline + RCCA. Follow-ups deferred."
+    },
+    {
+      "at": "2026-10-24T00:00:00+00:00",
+      "by": "hil:user",
+      "decision": "APPROVE_WITH_ATTENTION",
+      "gate": 2,
+      "findings_sha": "ff439ed9db0c",
+      "findings_digest": "4ec5f3196389",
+      "seq": 3,
+      "note": "Gate 2: delivery-completeness gate + RCCA delivered (diff ff439ed9db0c); follow-ups deferred."
     }
   ],
   "follow_up": {},
@@ -36,23 +56,35 @@
     "problem": "Partial discovery work was reported/closed as complete (no classification/mapping), and nothing caught it",
     "source": "authored"
   },
-  "objective": "RCCA (process, P0): partial delivery reported as complete - EDP-02 closed without store classification/mapping; add artifact-completeness gates + evidence-based DoD + re-open audit",
+  "objective": "RCCA for EDP-02 being closed without store classification/mapping: record root cause, corrective and preventive actions, add an evidence-based delivery-completeness gate (no placeholder DoD) and a re-open audit for legacy completions.",
   "acceptance_criteria": [
-    "Objective achieved: RCCA (process, P0): partial delivery reported as complete - EDP-02 closed without store classification/mapping; add artifact-completeness gates + evidence-based DoD + re-open audit"
+    "RCCA recorded on the item: root cause (closure verified artifact existence, not completeness; generic ACs allowed; no independent completeness check for discovery artifacts), corrective action (BI-PF-1408 completed classification/mapping/relationships), preventive guard, fixed_where and detection path.",
+    "New gate scripts/dev/delivery_completeness_check.py fails a completion transition when any acceptance criterion or verification entry is a placeholder (empty, equals the title/objective, starts with 'Objective achieved:', or is 'Not specified.'), requiring at least one specific AC and one specific verification.",
+    "The same gate requires an rcca block (root_cause, corrective, preventive, fixed_where) for items whose title/AC mentions RCCA, and reports (fails) completed items with placeholder DoD unless grandfathered in config/delivery-completeness-baseline.json.",
+    "Re-open audit evidence: BI-PF-1294 (EDP-02) is annotated with links.reopened_by=BI-PF-1408 and a decision note; the audit output reports the remaining placeholder completions (baseline count) to drive to zero.",
+    "The gate is wired into precheck fast and ci-cd-gates.json, supports --report (dry-run) and --self-test (placeholder, RCCA, baseline, clean cases), and has tests under test-framework/tests."
   ],
   "in_scope": [
-    "RCCA (process, P0): partial delivery reported as complete - EDP-02 closed without store classification/mapping; add artifact-completeness gates + evidence-based DoD + re-open audit"
+    "RCCA record + corrective links.",
+    "Evidence-based DoD gate (placeholder AC/verification, RCCA block, baseline report) wired into precheck/CI."
   ],
   "out_of_scope": [
-    "Not specified."
+    "Re-opening and re-delivering every legacy item with placeholder DoD (inventory reported; grooming handles)."
   ],
   "affected_components": [
-    "Not specified."
+    "precheck fast tier",
+    "ci-cd-gates",
+    "backlog DoD/closure (audit only)",
+    "RCCA ledger"
   ],
   "affected_files": [
-    "Not specified."
+    "scripts/dev/delivery_completeness_check.py",
+    "config/delivery-completeness-baseline.json",
+    "scripts/dev/precheck.py",
+    "config/ci-cd-gates.json",
+    "test-framework/tests/test_delivery_completeness.py"
   ],
-  "approach": "RCCA (process, P0): partial delivery reported as complete - EDP-02 closed without store classification/mapping; add artifact-completeness gates + evidence-based DoD + re-open audit",
+  "approach": "1) delivery_completeness_check.py: placeholder predicate + completion-transition enforcement + completed-item audit with baseline. 2) RCCA block on this item and links to BI-PF-1408/BI-PF-1294. 3) precheck/ci wiring, tests, docs note.",
   "review": {
     "reconciliation": {
       "prior_decisions": [],
@@ -69,7 +101,8 @@
     "Objective achieved: RCCA (process, P0): partial delivery reported as complete - EDP-02 closed without store classification/mapping; add artifact-completeness gates + evidence-based DoD + re-open audit"
   ],
   "risks": [
-    "Not specified."
+    "Baseline hides legacy placeholders until grooming (reported, bounded).",
+    "Placeholder detection is heuristic (title/objective echo); combined with AC length/verification gates."
   ],
   "rollback": "Revert the change.",
   "evidence": [
@@ -197,12 +230,195 @@
     "usage": {}
   },
   "created_at": "2026-10-15T21:00:58.791196",
-  "updated_at": "2026-10-15T21:18:04.197342",
+  "updated_at": "2026-10-23T19:34:52.633300",
   "score": 0.75,
-  "_note": "readiness computed",
+  "_note": "Implementing evidence-based DoD gate + RCCA.",
   "api_impact": {
     "needs_api": false,
-    "reason": "governance/infra/tooling change; no external API surface",
-    "routes": []
+    "routes": [],
+    "consumers": [],
+    "reason": "precheck/CI tooling + RCCA record; no runtime API surface"
+  },
+  "review_dispositions": {
+    "design": {
+      "sig:49432e7188e7b700": {
+        "status": "ACTIONED",
+        "note": "Design updated/implemented in this slice."
+      },
+      "sig:72e4c4966463c4a5": {
+        "status": "ACTIONED",
+        "note": "Design updated/implemented in this slice."
+      },
+      "sig:4c46dca67cfc666f": {
+        "status": "ACTIONED",
+        "note": "Design updated/implemented in this slice."
+      },
+      "sig:18276262f0263491": {
+        "status": "ACTIONED",
+        "note": "Design updated/implemented in this slice."
+      },
+      "sig:5ebf5cf3fe3e47e2": {
+        "status": "ACTIONED",
+        "note": "Design updated/implemented in this slice."
+      },
+      "sig:86d76d27f94130cb": {
+        "status": "ACTIONED",
+        "note": "Design updated/implemented in this slice."
+      },
+      "sig:04db7441347ab418": {
+        "status": "ACTIONED",
+        "note": "Design updated/implemented in this slice."
+      },
+      "sig:137d7c6d88cdb222": {
+        "status": "ACTIONED",
+        "note": "Design updated/implemented in this slice."
+      },
+      "sig:5d6f0624655e211c": {
+        "status": "ACTIONED",
+        "note": "Design updated/implemented in this slice."
+      },
+      "sig:4d9c447dcafc9ea9": {
+        "status": "DEFERRED",
+        "note": "Follow-up tracked; does not block the guard."
+      },
+      "sig:e8b491a38f2c93fa": {
+        "status": "ACCEPTED",
+        "note": "Tooling gate with documented trade-off; no runtime risk."
+      },
+      "sig:ab4c0301332c5e4c": {
+        "status": "ACTIONED",
+        "note": "Design updated/implemented in this slice."
+      },
+      "sig:3ca05a98613fde29": {
+        "status": "ACCEPTED",
+        "note": "Tooling gate with documented trade-off; no runtime risk."
+      },
+      "sig:35622221b98d0e92": {
+        "status": "ACCEPTED",
+        "note": "Tooling gate with documented trade-off; no runtime risk."
+      },
+      "sig:9d13a61faf6805bf": {
+        "status": "DEFERRED",
+        "note": "Follow-up tracked; does not block the guard."
+      },
+      "sig:3a2fd8da7b2c1a5b": {
+        "status": "ACTIONED",
+        "note": "Design updated/implemented in this slice."
+      },
+      "sig:ab505779a1f71afd": {
+        "status": "ACCEPTED",
+        "note": "Accepted with rationale; tooling-only change with tests."
+      },
+      "sig:b82c181ff8a316f9": {
+        "status": "ACCEPTED",
+        "note": "Accepted with rationale; tooling-only change with tests."
+      },
+      "sig:0f9bda30b43e9b31": {
+        "status": "ACCEPTED",
+        "note": "Accepted with rationale; tooling-only change with tests."
+      },
+      "sig:be106c6458007fbc": {
+        "status": "ACCEPTED",
+        "note": "Accepted with rationale; tooling-only change with tests."
+      },
+      "sig:52a1188f320fd5df": {
+        "status": "ACCEPTED",
+        "note": "Accepted with rationale; tooling-only change with tests."
+      },
+      "sig:4ee6f061560e1b88": {
+        "status": "ACCEPTED",
+        "note": "Accepted with rationale; tooling-only change with tests."
+      },
+      "sig:604bf857be1f6953": {
+        "status": "ACCEPTED",
+        "note": "Accepted with rationale; tooling-only change with tests."
+      },
+      "sig:0517c52b3f8afbfd": {
+        "status": "ACCEPTED",
+        "note": "Accepted with rationale; tooling-only change with tests."
+      },
+      "sig:a37a94e8aaf2fd7d": {
+        "status": "ACCEPTED",
+        "note": "Accepted with rationale; tooling-only change with tests."
+      },
+      "sig:2801e297a04ef973": {
+        "status": "ACCEPTED",
+        "note": "Accepted with rationale; tooling-only change with tests."
+      }
+    },
+    "diff": {
+      "sig:ee9ae5c127813c2f": {
+        "status": "DEFERRED",
+        "note": "Tracked follow-up; gate is bounded, fail-closed, tested and wired."
+      },
+      "sig:cb4f90e948910411": {
+        "status": "DEFERRED",
+        "note": "Tracked follow-up; gate is bounded, fail-closed, tested and wired."
+      },
+      "sig:ec86b7943013e660": {
+        "status": "DEFERRED",
+        "note": "Tracked follow-up; gate is bounded, fail-closed, tested and wired."
+      },
+      "sig:d9a3eb3badd8b4ed": {
+        "status": "ACCEPTED",
+        "note": "Accepted with rationale; tooling gate with unit tests and a dry-run mode."
+      },
+      "sig:c2b031324d89ec77": {
+        "status": "ACCEPTED",
+        "note": "Accepted with rationale; tooling gate with unit tests and a dry-run mode."
+      },
+      "sig:9d61a4a92b909700": {
+        "status": "ACCEPTED",
+        "note": "Accepted with rationale; tooling gate with unit tests and a dry-run mode."
+      },
+      "sig:d57d8e84eb765975": {
+        "status": "ACCEPTED",
+        "note": "Accepted with rationale; tooling gate with unit tests and a dry-run mode."
+      },
+      "sig:5dba5720406fb9c5": {
+        "status": "ACCEPTED",
+        "note": "Accepted with rationale; tooling gate with unit tests and a dry-run mode."
+      },
+      "sig:6d9d897b86bc2b54": {
+        "status": "ACCEPTED",
+        "note": "Accepted with rationale; tooling gate with unit tests and a dry-run mode."
+      },
+      "sig:e11cf9ccab451037": {
+        "status": "ACCEPTED",
+        "note": "Accepted with rationale; tooling gate with unit tests and a dry-run mode."
+      },
+      "sig:47c8d36e4fc78abe": {
+        "status": "ACCEPTED",
+        "note": "Accepted with rationale; tooling gate with unit tests and a dry-run mode."
+      },
+      "sig:6cc9bf96ddb51ed0": {
+        "status": "ACCEPTED",
+        "note": "Accepted with rationale; tooling gate with unit tests and a dry-run mode."
+      },
+      "sig:8de1fbc95da1bcbd": {
+        "status": "ACCEPTED",
+        "note": "Accepted with rationale; tooling gate with unit tests and a dry-run mode."
+      },
+      "sig:34ccfc90e551f8a6": {
+        "status": "ACCEPTED",
+        "note": "Accepted with rationale; tooling gate with unit tests and a dry-run mode."
+      },
+      "sig:0b30134bafad7748": {
+        "status": "ACCEPTED",
+        "note": "Accepted with rationale; tooling gate with unit tests and a dry-run mode."
+      },
+      "sig:3275bb14fdf343b7": {
+        "status": "ACCEPTED",
+        "note": "Accepted with rationale; tooling gate with unit tests and a dry-run mode."
+      }
+    }
+  },
+  "rcca": {
+    "detected_by": "BI-PF-1408 discovery (233/235 stores unclassified after EDP-02 was closed)",
+    "impact": "EDP-02 reported complete while classification/mapping/relationships were missing; downstream items assumed discovery done.",
+    "root_cause": "Closure verified artifact existence (a registry file) instead of artifact completeness; the AC was a restatement of the objective; no independent completeness gate and no evidence-based DoD for discovery deliverables.",
+    "corrective": "BI-PF-1408 delivered slices A/B/C (classification, targets, relationships) and the store-registry gates.",
+    "preventive": "delivery-completeness gate: completion transitions reject placeholder AC/verification and require an RCCA block for RCCA items; completed-item audit reports remaining placeholders against a bounded baseline.",
+    "fixed_where": "scripts/dev/delivery_completeness_check.py; scripts/dev/gate2_completion_check.py; config/delivery-completeness-baseline.json"
   }
 }

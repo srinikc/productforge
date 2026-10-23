@@ -1,0 +1,40 @@
+{
+  "item": "BI-PF-1409",
+  "sha": "aacb78dc7b77",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-10-23T19:27:35.331692",
+  "findings": {
+    "BLOCKER": [
+      "none"
+    ],
+    "MAJOR": [
+      "Language rule ambiguity: `scripts/dev/delivery_completeness_check.py` is new logic, not an edit. If it gates CI/precheck it is effectively shipped enforcement logic; the design must explicitly justify it as tooling (or port to Go) and record the decision in docs/ARCHITECTURE-DECISIONS.md.",
+      "Baseline is an unbounded ratchet: `config/delivery-completeness-baseline.json` lets any new placeholder completion be grandfathered. Design must require entries to carry owner + expiry + rationale and enforce a monotonic non-growth rule (only shrink), otherwise the guard erodes silently.",
+      "Ambiguity in AC 3: \"reports (fails) completed items with placeholder DoD unless grandfathered\" does not state whether audit failures gate CI or are report-only. A gating audit on legacy data will red-build immediately; a report-only audit will be ignored. Decide and specify.",
+      "Detection heuristics are unspec'd: placeholder predicate (title/objective echo, 'Objective achieved:', 'Not specified.') and RCCA-by-mentions have no normalization rules (case, whitespace, unicode, punctuation) and both false-positive (legit AC echoing a short title) and false-negative (\"root cause\" without the token \"RCCA\") paths. Require a structured RCCA marker (e.g., field/type) instead of substring matching on free text.",
+      "Blast radius: wiring an unproven heuristic gate into \"precheck fast\" blocks all completion transitions with no stated escape hatch, kill switch, or alerting. Add a documented disable path with audit trail and a failure-mode (gate errors = fail-open vs fail-closed) decision.",
+      "Reversibility claimed as \"Revert the change\" but BI-PF-1294 is mutated (`links.reopened_by`, decision note). No append-only/immutable note guarantee, no schema definition for the new link type, no rollback path for the annotation. Specify.",
+      "Reuse/observability unaddressed: no statement of which existing gate framework/owner this hooks into, whether placeholder detection already exists elsewhere, or what structured output (exit codes, JSON report schema) CI consumes for diagnosis. Risk of a bespoke duplicate gate.",
+      "`fixed_where` is free text; the AC requires a \"detection path\", but nothing validates the cited files/paths exist. Add existence validation or the RCCA block regenerates the same artifact-existence-not-completeness failure mode it is meant to prevent."
+    ],
+    "MINOR": [
+      "AC 5 omits an integration test proving the gate actually fails precheck-fast and CI wiring (only `--self-test` and unit tests are mentioned); wiring regressions would go undetected.",
+      "`--self-test` case list lacks malformed/missing baseline, unreadable item store, non-ASCII/long titles, and concurrent-run cases.",
+      "Performance/SLO for scanning the full item set inside \"precheck fast\" is unstated; define a latency budget or incremental scan.",
+      "`affected_components: ['Not specified.']` is itself a placeholder in an item whose AC bans placeholders; ironic integrity gap\u2014populate it.",
+      "Risks section acknowledges the heuristic but no compensating control (e.g., allowlist of known-good items or review override with audit log)."
+    ],
+    "NIT": [
+      "Baseline file name/location (`config/delivery-completeness-baseline.json`) should be listed in docs so grooming owns it explicitly.",
+      "Consider emitting a \"placeholder trend to zero\" metric so the drive-to-zero goal is observable over releases, not per-run.",
+      "`--report` dry-run semantics should be pinned in the AC output contract (exit code 0 vs distinct code) for CI composition."
+    ],
+    "SUMMARY": [
+      "Verdict: sound intent and good self-test/dry-run posture, but Gate 1 cannot be approved as-is: the language-rule classification, baseline ratchet protections, gating-vs-reporting ambiguity, and un-normalized detection heuristics are unresolved MAJORs.",
+      "Top risks: (1) heuristic gate silently mis-fires or is trivially gamed via baseline growth; (2) CI/precheck availability impact with no kill switch; (3) RCCA \"fixed_where\"/\"mentions RCCA\" fields recreate the free-text integrity problem the item exists to fix.",
+      "Action: resolve MAJORs in design (and embed latest Gate 1.5 findings per CL-006) before Gate 1 approval."
+    ]
+  }
+}

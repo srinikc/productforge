@@ -1,0 +1,38 @@
+{
+  "item": "BI-PF-1409",
+  "sha": "ff439ed9db0c",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-23T19:32:08.035350",
+  "findings": {
+    "BLOCKER": [
+      "Gate never fails on non-grandfathered placeholder completions: `audit()` results are appended only to `warnings`, so items outside the baseline still exit 0 \u2014 AC requires failing \"unless grandfathered\".",
+      "Diff contains no wiring into precheck fast or ci-cd-gates.json, and no RCCA/annotation updates to BI-PF-1409 or BI-PF-1294 (links.reopened_by/decision note) \u2014 AC bullets 1, 4 and 5 are absent from this change.",
+      "`--self-test` does not cover a baseline scenario (AC requires placeholder, RCCA, baseline, clean); only 4 scenarios run and baseline is untested in it."
+    ],
+    "MAJOR": [
+      "Fail-open design: if `merge-base develop` and `origin/develop` both fail, `_git` swallows the error and `transitions()` returns [] \u2192 gate exits 0 with no indication it checked nothing.",
+      "`PF_ALLOW_PLACEHOLDER_DOD=1` env bypass is not in the AC and downgrades failures without an explicit \"escape hatch used\" marker in output, enabling silent CI disablement.",
+      "Baseline is never reconciled with real data: stale/duplicate/already-remediated IDs are undetected, so the \"drive to zero\" count can drift or be gamed indefinitely.",
+      "`remaining` count is warning-only and unbounded by baseline health: after `until` expires the 87 items become non-baselined but still only warn."
+    ],
+    "MINOR": [
+      "Docstring promises \"one JSON line on stderr\"; `_emit` prints JSON plus human lines to stdout \u2014 contract mismatch for downstream parsers.",
+      "`audit()` silently `continue`s on unparseable item files, hiding corruption from observability.",
+      "Audit output reports only a count, not the offending item IDs, weakening actionability.",
+      "`--self-test` falls through and executes the full gate afterward instead of exiting after the matrix.",
+      "`transitions()` uses `--name-only` (no `-M`/`--name-status`), so renames of already-completed items can be misread as new completions.",
+      "`_exists()` does `ROOT / p` plus `ROOT.glob(p)` on data-supplied strings \u2014 accepts `..`/glob patterns, an existence oracle in gate output."
+    ],
+    "NIT": [
+      "`MIN_FIELD` is enforced only for rcca fields; a 1\u20132 character AC/verification entry passes as \"specific\".",
+      "`origin/develop` hardcoded fallback alongside merge-base duplicates ref policy in code.",
+      "store-registry entry sets `owner` to a script path rather than an accountable owner/team."
+    ],
+    "SUMMARY": [
+      "The gate logic is a reasonable tooling-Python addition and tests exist, but as delivered it cannot fail a bad completion outside the grandfathered list, lacks required wiring and item-level RCCA/re-open evidence, and is fail-open on git resolution errors.",
+      "Top risks: false confidence from a green gate, permanent baseline ratchet with no reconciliation, and self-test/AC coverage gaps hiding regressions."
+    ]
+  }
+}
