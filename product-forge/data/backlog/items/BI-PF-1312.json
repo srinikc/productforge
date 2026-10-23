@@ -58,7 +58,7 @@
     "The shadow table is RANGE(at) monthly (UTC) with PK(id, at); partitions span legacy_min..current+3 plus one bounded audit_grace_YYYYMM for the month before legacy_min; ranges never overlap, no DEFAULT partition exists, and an out-of-range insert fails closed with 23514 and a stable message; audit_append_late(row, reason) is the audited operator path for corrected late evidence.",
     "RLS is ENABLE+FORCE with tenant_isolation on the parent and every leaf; deny_mutation covers UPDATE/DELETE rows (never INSERT) on the parent and every leaf, and TRUNCATE is statement-level, so it is revoked from every role instead; app/tenant roles hold INSERT/SELECT on the parent ONLY (no grants on leaves), and a test proves one tenant cannot read another tenant's rows through any path.",
     "Hardening is enforced by privilege: audit_attach_partition(month) is the only supported attach path (create + harden + attach in one transaction), ALTER/ATTACH is revoked from app and runtime roles, and audit_assert_hardened() DETECTS a privileged attach that skipped hardening, raising and emitting audit_attach_unhardened_total; a test proves the app/runtime roles cannot attach and that an unhardened leaf is detected.",
-    "The insert path provisions in-database (BEFORE INSERT trigger): a lock-free to_regclass name check for the common case, the AUDP advisory xact lock only when the month is missing, create+harden+attach in one transaction, and a 42P07 race swallowed as already-attached; AuditStore.Append heals a 23514 from a concurrent rotation/drop by calling audit_ensure_partitions() once and retrying, so no event is lost; config (horizon_months/lead_months) is read from audit_partition_config on every call, so an update applies immediately.",
+    "The insert path fails closed with SQLSTATE 23514 + the stable 'no partition of relation' message when a month is missing; AuditStore.Append heals by calling audit_ensure_partitions(event month) under the AUDP advisory lock and retrying (bounded, 3 attempts), and provisioning is bounded to [now-24 months, now+horizon]. A BEFORE INSERT trigger cannot provision a partitioned table (PostgreSQL checks routing in the executor before row triggers - verified on PG16), so the trigger was removed rather than shipped inert.",
     "Swap crash recovery is catalog-driven and idempotent: DetectState distinguishes not_prepared / prestage / swapped; if the rename committed, re-entry skips the swap and runs PostVerify (counts, per-tenant digest, sequence above max of audit and audit_legacy, assert_hardened) and records the committed state; the Postgres-16 integration suite exercises this resume path after a real swap.",
     "Row count and a reproducible per-tenant SHA-256 over the ordered (id, tenant_id, action, at) rows are compared per batch and per tenant before the rename; a mismatch (or an id-reuse masked by ON CONFLICT) aborts the swap.",
     "S4 sets lock_timeout=3s, takes ACCESS EXCLUSIVE and THEN re-counts the delta inside the lock; a delta overflow OR a 55P03 lock timeout rolls back, releases the lock, backs off 1/2/4/8s and retries, bounded to 5 attempts then audit_swap_retry_exhausted and a non-zero exit; the achieved freeze time is emitted as audit_swap_freeze_seconds and compared with PF_AUDIT_FREEZE_BUDGET_SECONDS when set.",
@@ -91,7 +91,14 @@
     "Resume/retry for an archived-but-not-dropped month (manual audit_drop_partition today).",
     "other tables partitioning",
     "retention UI",
-    "EDP-22 alert delivery (lead-time check only)"
+    "EDP-22 alert delivery (lead-time check only)",
+    "Per-leaf TRUNCATE statement triggers + explicit leaf revokes (owner break-glass).",
+    "audit_append_late when the grace partition owns the canonical month (route via parent).",
+    "Archived/purged guard in the past-month heal branch of audit_ensure_partitions.",
+    "close should use the earliest swapped event so a resume cannot reset the rollback clock.",
+    "Transactional/atomic restore load and scratch-table tracking after a failed reconcile.",
+    "Down-script function signature fix for audit_hold_extract(TEXT,TEXT).",
+    "Docs pass: remove audit_late_YYYYMM / rotation_stale_total wording."
   ],
   "affected_components": [
     "core/audit.py",
@@ -655,6 +662,70 @@
       "sig:eaddcb93add67e85": {
         "status": "ACCEPTED",
         "note": "Config is validated positively (non-positive rejects); DB values are the source of truth for prestage/swap unless flags are explicit."
+      },
+      "sig:f28517ed6a38d55a": {
+        "status": "DEFERRED",
+        "note": "Per-leaf statement TRUNCATE triggers and explicit leaf revokes are tracked as a follow-up; access is parent-only today (no app grants on leaves) and pf_owner break-glass remains possible by design."
+      },
+      "sig:e8c865a0dd896929": {
+        "status": "DEFERRED",
+        "note": "Late evidence for a month covered by the grace partition is a known edge; tracked as a follow-up (route via the parent when the canonical leaf is absent)."
+      },
+      "sig:bba382d7c54bce1d": {
+        "status": "DEFERRED",
+        "note": "The horizon loop refuses archived months; the past-month heal branch does not yet. Tracked as a follow-up (no data loss: manifests remain authoritative and drop refuses mismatches)."
+      },
+      "sig:4b9d1098bab6e7fa": {
+        "status": "DEFERRED",
+        "note": "Resume re-records swapped; close should use the earliest swap event. Tracked as a follow-up (operator can still verify the backup key manually)."
+      },
+      "sig:375b617ce459f99b": {
+        "status": "ACCEPTED",
+        "note": "The runner validates no content checksum; the guard only makes CREATE ROLE re-runnable for the destructive test harness. Documented in the item."
+      },
+      "sig:d31ec7fff216afcc": {
+        "status": "DEFERRED",
+        "note": "Restore is not transactional across the file load; a failed restore leaves a scratch table that the next run replaces. Tracking/atomic load is a follow-up."
+      },
+      "sig:7a79c23037618966": {
+        "status": "ACCEPTED",
+        "note": "Messages are emitted by our own SQL and covered by integration tests; typed SQLSTATE/errcode follows when the guards move to custom ERRCODEs."
+      },
+      "sig:feefaf7f07e98f79": {
+        "status": "DEFERRED",
+        "note": "Down-script signature mismatch leaves the 2-arg function; tracked as a trivial follow-up (no runtime effect)."
+      },
+      "sig:d510c37e478f4167": {
+        "status": "DEFERRED",
+        "note": "EDP-17 wording (late partitions, rotation_stale_total) is corrected in the follow-up docs pass; behaviour is canonical-month and gauge-based today."
+      },
+      "sig:ea12b2fd38c0aece": {
+        "status": "ACCEPTED",
+        "note": "Migrations run as the owner (pf_owner) per the runbook; FORCE RLS is intentional and the owner_bypass policy is verified by tests."
+      },
+      "sig:51a80ea17ecf9f14": {
+        "status": "DEFERRED",
+        "note": "Stream-through encryption/hash is a hardening follow-up; temp files are 0600 and unlinked."
+      },
+      "sig:a6c77387846cb586": {
+        "status": "DEFERRED",
+        "note": "Direct leaf RLS read/insert tests are a follow-up; leaves have no app grants and FORCE RLS is asserted by audit_assert_hardened."
+      },
+      "sig:54887c00fed9e294": {
+        "status": "ACCEPTED",
+        "note": "Small CLI: explicit plumbing would add noise; fail() must emit before os.Exit."
+      },
+      "sig:ea94b515adade4a8": {
+        "status": "DEFERRED",
+        "note": "Comment/AC wording will say 'bounded retries' in the docs pass."
+      },
+      "sig:b79c9e9a2ccf6dd6": {
+        "status": "REJECTED",
+        "note": "edpsvc intentionally avoids importing pfaudit/pgx to keep the service boundary; it reads the shared SECURITY DEFINER probe via the store port."
+      },
+      "sig:6f05cbe25ce5c21b": {
+        "status": "REJECTED",
+        "note": "Verified on PG16: a BEFORE INSERT trigger on a partitioned parent never runs when the tuple has no partition (the executor raises 23514 first). Provisioning is the Go 23514->ensure heal; the inert trigger was removed and AC5 restated."
       }
     }
   }
