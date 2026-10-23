@@ -23,6 +23,7 @@ import re
 import subprocess
 import sys
 import time
+from datetime import datetime
 import urllib.error
 import urllib.request
 import uuid
@@ -138,6 +139,21 @@ def changed_files() -> list:
 
 def diff_sha() -> str:
     return hashlib.sha256(_git_diff().encode("utf-8")).hexdigest()[:12]
+
+
+_DESIGN_KEYS = ("objective", "approach", "in_scope", "out_of_scope", "acceptance_criteria",
+                "affected_components", "affected_files", "risks", "rollback")
+
+
+def design_sha(item: dict) -> str:
+    """Canonical design hash: fixed key set, sorted JSON, absent fields as null.
+
+    Design evidence must bind to the DESIGN, not to the (usually empty) diff: otherwise every design review
+    collides on sha256("") and a re-designed item silently reuses the old approval.
+    """
+    payload = {k: item.get(k) for k in _DESIGN_KEYS}
+    canon = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    return hashlib.sha256(canon.encode("utf-8")).hexdigest()[:12]
 
 
 def _design_body(item: dict) -> str:
@@ -403,11 +419,12 @@ def _ingest(item_id: str, text: str, model: str, apply: bool, mode: str = "diff"
     findings = parse_review(text)
     # BI-PF-1465: fail closed - evidence that did not parse must never look like a clean review.
     parsed_ok = bool(re.search(r"^\s*#{2,4}\s*(BLOCKER|MAJOR|MINOR|NIT|SUMMARY)\s*$", text, re.I | re.M))
-    sha = diff_sha()
+    sha = design_sha(_get_item(item_id)) if mode == "design" else diff_sha()
     EVID.mkdir(parents=True, exist_ok=True)
     out = EVID / f"{item_id}-{sha}.json"
     out.write_text(json.dumps({"item": item_id, "sha": sha, "model": model, "mode": mode,
-                               "parsed_ok": parsed_ok, "findings": findings}, indent=2), encoding="utf-8")
+                               "parsed_ok": parsed_ok, "at": datetime.now().isoformat(),
+                               "findings": findings}, indent=2), encoding="utf-8")
     counts = {s: len(findings[s]) for s in SEVERITIES}
     print(f"review captured: {out} {counts}")
     blockers = findings["BLOCKER"]

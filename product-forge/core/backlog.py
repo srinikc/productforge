@@ -999,6 +999,63 @@ def ensure_item(scope: str, project: str | None, external_id: str, title: str,
                     external_id=external_id, tag=tag, **fields)
 
 
+def _gate2_status(item: dict, eid: str) -> tuple[bool, str]:
+    """Shared Gate 2 predicate (BI-PF-1469): the same code path as gate2_completion_check."""
+    try:
+        import sys as _sys
+        import fnmatch as _fnmatch
+        from pathlib import Path as _Path
+        _root = _Path(__file__).resolve().parents[1]
+        for _p in (str(_root), str(_root / "scripts" / "dev")):
+            if _p not in _sys.path:
+                _sys.path.insert(0, _p)
+        import architect_review as _ar
+        from core import gate_predicates as _gp
+        view = _ar.gate_view(eid, "diff")
+        skip = (_ar._config().get("size_gate") or {}).get("skip_globs") or ["docs/**", "**/*.md", "config/**"]
+        docs_only = not any(not any(_fnmatch.fnmatch(f, g) for g in skip) for f in _ar.changed_files())
+        if view is None and not docs_only:
+            return False, "NO_DIFF_EVIDENCE"
+        sha = ((view or {}).get("review") or {}).get("sha") if view else "docs-only"
+        return _gp.gate2_ready(item, str(sha or ""), view, allow_missing_view=view is None)
+    except Exception as e:  # fail closed
+        return False, f"GATE_ERROR:{e}"
+
+
+def record_gate_decision(scope: str, project: str | None, eid: str, gate: int, decision: str,
+                         by: str, note: str = "") -> dict | None:
+    """Record a Gate 1/2 decision only when the current review is clean (BI-PF-1469).
+
+    Binds findings_sha (design sha for gate 1, diff evidence sha for gate 2) and findings_digest (current
+    dispositions) and appends a monotonic seq. A re-review changes the sha and invalidates old approvals.
+    """
+    import sys as _sys
+    from pathlib import Path as _Path
+    from datetime import datetime as _dt
+    _root = _Path(__file__).resolve().parents[1]
+    for _p in (str(_root), str(_root / "scripts" / "dev")):
+        if _p not in _sys.path:
+            _sys.path.insert(0, _p)
+    import architect_review as _ar
+    from core import gate_predicates as _gp
+    item = get_epic(scope, project, eid) or {}
+    if not item:
+        return None
+    if str(decision).upper() not in _gp.APPROVED:
+        print(f"[Backlog] refusing gate {gate} decision for {eid}: only APPROVE/APPROVE_WITH_ATTENTION")
+        return item
+    view = _ar.gate_view(eid, "design" if int(gate) == 1 else "diff")
+    if view is not None and (not view.get("parsed_ok", True) or view.get("blocking")):
+        print(f"[Backlog] refusing gate {gate} decision for {eid}: findings are pending/unparsable")
+        return item
+    sha = _ar.design_sha(item) if int(gate) == 1 else str(((view or {}).get("review") or {}).get("sha") or "docs-only")
+    dec = list(item.get("decisions") or [])
+    dec.append({"at": _dt.now().isoformat(), "by": by, "decision": str(decision).upper(),
+                "gate": int(gate), "findings_sha": sha,
+                "findings_digest": _gp.findings_digest(view), "seq": len(dec) + 1, "note": note})
+    return update(scope, project, eid, decisions=dec)
+
+
 def set_status(scope: str, project: str | None, eid: str, status: str, note: str = "",
                force: bool = False) -> dict | None:
     # RCCA gate (1:1 with the issue tracker): a backlog item linked to an issue may only
@@ -1016,6 +1073,26 @@ def set_status(scope: str, project: str | None, eid: str, status: str, note: str
                 ok, reason = False, f"issue check failed: {e}"
             if not ok:
                 print(f"[Backlog] refusing to close {eid}: {reason}")
+                return it
+    # Gate 2 hard gate (BI-PF-1469): delivery approval is mandatory before completion.
+    if status in {"completed", "closed", "done"}:
+        it = get_epic(scope, project, eid) or {}
+        if force:
+            import os as _os
+            from datetime import datetime as _dt
+            if _os.environ.get("PF_GATE_FORCE") != "1" or _os.environ.get("PF_CI"):
+                print(f"[Backlog] refusing forced close of {eid}: PF_GATE_FORCE=1 required and CI cannot force")
+                return it
+            dec = list(it.get("decisions") or [])
+            dec.append({"at": _dt.now().isoformat(), "by": "hil:forced", "decision": "GATE_OVERRIDE",
+                        "gate": 2, "findings_sha": "", "findings_digest": "", "seq": len(dec) + 1,
+                        "note": note or "forced close"})
+            it = update(scope, project, eid, decisions=dec) or it
+        else:
+            ok, reason = _gate2_status(it, eid)
+            if not ok:
+                print(f"[Backlog] refusing to close {eid}: Gate 2 not satisfied ({reason})")
+                print("   fix: run Gate 2.5, disposition findings, record a gate=2 decision")
                 return it
     return update(scope, project, eid, status=status, _note=note)
 

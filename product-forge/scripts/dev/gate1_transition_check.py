@@ -1,25 +1,29 @@
-"""BI-PF-1466: machine-enforce Gate 1 at the backlog ``new -> in_progress`` transition.
+"""BI-PF-1466/1469: hard Gate 1 at the backlog `new -> in_progress` transition.
 
-Gate 1 is the design/HIL approval point. This deterministic precheck gate inspects the backlog items that
-transitioned to ``in_progress`` in the change set and, when a Gate 1.5 (design) review exists for that item,
-requires **no pending BLOCKER/MAJOR** (and parseable evidence). Items with no design review are grandfathered
-(reported, not blocked) so legacy/backlog-only items keep flowing.
+Every item entering in_progress must have:
+  * committed Gate 1.5 (design) evidence for the CURRENT design sha, parseable, zero PENDING BLOCKER/MAJOR;
+  * a Gate 1 decision (gate=1, APPROVE/APPROVE_WITH_ATTENTION, by hil:<actor>) bound to that design sha and
+    to the current findings digest.
 
-Run: python scripts/dev/gate1_transition_check.py   (wired into precheck fast)
+No silent grandfathering: only config/gate-baseline.json entries with a valid, unexpired date are exempt
+(printed as ALLOW/BASELINE). `--report` is the explicit dry-run (exit 0) for rollout/impact analysis.
 """
 from __future__ import annotations
 
 import argparse
 import json
-import os
 import subprocess
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-if str(ROOT / "scripts" / "dev") not in sys.path:
-    sys.path.insert(0, str(ROOT / "scripts" / "dev"))
+for p in (ROOT, ROOT / "scripts" / "dev"):
+    if str(p) not in sys.path:
+        sys.path.insert(0, str(p))
+
 import architect_review as ar  # noqa: E402
+from gate1_check import evaluate  # noqa: E402  (ONE predicate, no duplication)
+from core import gate_predicates as gp  # noqa: E402
 
 _MARK = "/data/backlog/items/"
 
@@ -33,22 +37,19 @@ def _repo_root() -> str:
     return _git("rev-parse", "--show-toplevel") or str(ROOT)
 
 
-def _load(path_rel_repo: str) -> dict:
+def _load(rel_repo: str) -> dict:
     try:
-        return json.loads(Path(_repo_root(), path_rel_repo).read_text(encoding="utf-8"))
+        return json.loads(Path(_repo_root(), rel_repo).read_text(encoding="utf-8"))
     except Exception:
         return {}
 
 
-def transitions(base: str = "", repo_root: str = "") -> list[str]:
-    """Item ids that moved to ``in_progress`` in the committed change set (merge-base..HEAD)."""
+def transitions(base: str = "") -> list[str]:
     base = base or _git("merge-base", "develop", "HEAD") or "origin/develop"
-    rr = repo_root or _repo_root()
-    changed = _git("diff", "--name-only", f"{base}..HEAD").splitlines()
     out = []
-    for rel in changed:
+    for rel in _git("diff", "--name-only", f"{base}..HEAD").splitlines():
         rel = rel.replace("\\", "/")
-        if _MARK not in rel or not rel.endswith(".json"):
+        if _MARK not in rel or not rel.endswith(".json") or rel.endswith("open.json") or rel.endswith("closed.json"):
             continue
         cur = _load(rel)
         if str(cur.get("status") or "") != "in_progress":
@@ -63,34 +64,61 @@ def transitions(base: str = "", repo_root: str = "") -> list[str]:
     return sorted(set(out))
 
 
-def check(item_ids: list[str], gate_view=None) -> list[tuple[str, str]]:
-    """Return [(item_id, problem)] for reviewed items with pending BLOCKER/MAJOR or unparsable evidence."""
-    gv = gate_view or ar.gate_view
+def check(ids: list[str]) -> list[tuple[str, str]]:
     problems: list[tuple[str, str]] = []
-    for iid in item_ids:
-        view = gv(iid, "design")
+    for iid in ids:
+        state = gp.baseline_state(iid)
+        if state == "ACTIVE":
+            print(f"gate1: ALLOW item={iid} reason=BASELINE")
+            continue
+        if state in {"EXPIRED", "UNKNOWN"}:
+            problems.append((iid, f"BASELINE_{state}"))
+            continue
+        view = evaluate(iid)
         if view is None:
-            continue  # grandfathered: no Gate 1.5 evidence
+            problems.append((iid, "NO_EVIDENCE"))
+            continue
         if not view.get("parsed_ok", True):
-            problems.append((iid, "Gate 1.5 evidence could not be parsed (indeterminate)"))
-        elif view.get("blocking"):
-            problems.append((iid, f"{len(view['blocking'])} pending BLOCKER/MAJOR at Gate 1"))
+            problems.append((iid, "UNPARSABLE"))
+            continue
+        if view.get("blocking"):
+            problems.append((iid, "PENDING_FINDINGS"))
+            continue
+        item = ar._get_item(iid)
+        sha = ar.design_sha(item)
+        evidence_sha = str(((view.get("review") or {}).get("sha")) or "")
+        if evidence_sha != sha:
+            problems.append((iid, "STALE_EVIDENCE"))
+            continue
+        ok, reason = gp.approval(item, 1, sha, view)
+        if not ok:
+            problems.append((iid, reason))
+        else:
+            print(f"gate1: ALLOW item={iid} reason=OK sha={sha}")
     return problems
 
 
 def main(argv: list[str] | None = None) -> int:
-    argparse.ArgumentParser(description="Gate 1 transition enforcement (BI-PF-1466)").parse_args(argv)
-    ids = transitions()
+    ap = argparse.ArgumentParser(description="Gate 1 transition enforcement (BI-PF-1466/1469)")
+    ap.add_argument("--report", action="store_true", help="dry-run: report only, exit 0")
+    ap.add_argument("--base", default="", help="git base (default merge-base develop)")
+    a = ap.parse_args(argv)
+    for b in gp.baseline_problems():
+        print(f"gate1: BASELINE_CONFIG {b}")
+    ids = transitions(a.base)
     problems = check(ids)
-    reviewed = [i for i in ids if ar.gate_view(i, "design") is not None]
-    if problems:
-        print(f"gate1-transition: FAIL ({len(problems)} item(s) moved to in_progress with unresolved Gate 1 findings)")
+    if a.report:
+        print(f"gate1: REPORT {len(ids)} transition(s), {len(problems)} would fail")
         for iid, why in problems:
-            print(f"   - {iid}: {why}")
-        print("   fix: python scripts/dev/gate1_check.py --item <ID>  (disposition all BLOCKER/MAJOR)")
+            print(f"gate1: DENY item={iid} reason={why}")
+        return 0
+    if problems:
+        print(f"gate1-transition: FAIL ({len(problems)} item(s) lack a valid Gate 1.5/Gate 1)")
+        for iid, why in problems:
+            print(f"gate1: DENY item={iid} reason={why}")
+        print("   fix: architect_review run --mode design; disposition; record a gate=1 decision")
         return 1
-    print(f"gate1-transition: OK ({len(ids)} transition(s); {len(reviewed)} reviewed, "
-          f"{len(ids) - len(reviewed)} grandfathered without a design review)")
+    print(f"gate1-transition: OK ({len(ids)} transition(s))")
     return 0
 
 
