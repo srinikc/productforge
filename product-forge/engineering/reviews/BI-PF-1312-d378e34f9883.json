@@ -1,0 +1,47 @@
+{
+  "item": "BI-PF-1312",
+  "sha": "d378e34f9883",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "findings": {
+    "BLOCKER": [
+      "`migrations/0014_audit_partitioning.down.sql` is truncated mid-statement (`DROP FUNCTION IF EXISTS audit_`), and no `0014_audit_partitioning.up.sql` appears in the diff at all \u2014 the AC's central DDL artifact is unreviewable/invalid as shipped.",
+      "Crash recovery is not implemented: `runSwap` never calls `DetectState`, so a re-run after a committed rename attempts `ALTER TABLE audit RENAME TO audit_legacy` against an existing name, fails hard, and never performs the required post-swap verification (sequence >= max, counts, assert_hardened) or marks `swap_committed`; the required failure-injection test is absent.",
+      "The insert fast path AC (prepared single-row `audit_partition_config` lookup, AUDP lock only on missing month, 42P07 retry, no app cache) and the `AuditStore.Append` retry/fail-closed-over-freeze behavior are entirely missing from the diff.",
+      "`pfaudit-swap --down` performs `setval('audit_id_seq', max(audit))` using only the legacy max and never asserts no id reuse against surviving rows still in `audit_partitioned` \u2014 post-down inserts will reissue ids that exist in the shadow table.",
+      "Verification does not gate the swap: `runSwap` never calls `Verify`, and `CopyBatch`'s `ON CONFLICT DO NOTHING` silently masks id reuse \u2014 an `Inserted < Read` conflict is never surfaced as the AC-required abort.",
+      "S1 backup has no restore verification (sequence, triggers, grants, views), no `rollback_window_days` enforcement before `close` destroys the dump, and no `needs_api=false` record; `pg_dump -t audit` also risks omitting the owned sequence definition and dependent views."
+    ],
+    "MAJOR": [
+      "No required metric is ever emitted: `audit_swap_retry_exhausted`, `audit_swap_freeze_seconds` (freeze timing is neither measured nor asserted against a budget), `audit_attach_unhardened_total`, `audit_partition_months_ahead`, `audit_partition_low_coverage_total`, `audit_hold_after_purge_total` \u2014 observability AC is unmet.",
+      "Cold archive objects are written with no SSE-KMS/encryption option in `PutOptions`; only `Immutable` is set, so plaintext audit evidence lands in the object store.",
+      "The integration test successfully drops the *current* month's partition (`audit_drop_partition` on `AuditMonthName(now)`), demonstrating the \"never touches current/future or grace\" guard is missing in the retention path.",
+      "`pfaudit-retention` takes the AURE session advisory lock via `pool.Exec`, but subsequent queries may run on different pool connections \u2014 the lock neither serializes the operation nor is reliably released.",
+      "`RestoreMonth` re-imports with `ON CONFLICT DO NOTHING` and never verifies restored row count/SHA-256 against `audit_archive_manifest`, so a partial or corrupt restore succeeds silently.",
+      "`setup()` in tests executes `DROP SCHEMA public CASCADE` and `DROP ROLE IF EXISTS pf_app` against whatever database `PF_DB_DSN` points at \u2014 a destructive harness unsafe for any shared/dev/prod DSN.",
+      "`close` destroys the backup immediately after recording state, with no check that `rollback_window_days` (14) has elapsed since the swap.",
+      "Hold handling records only a row count from `audit_hold_extract`; the AC-required count *and* SHA-256 verification before export/drop is not performed by Go.",
+      "The `backup` subcommand ends with `fail(\"run the restore rehearsal...\")`, exiting non-zero on success \u2014 breaks scripted pipelines."
+    ],
+    "MINOR": [
+      "`runSwap` classifies retryable errors by `strings.Contains(err.Error(), \"exceeds max_delta_rows\")` \u2014 brittle message matching instead of a typed sentinel.",
+      "`CheckConfig` maps *any* query error to `ErrNotReady`, masking connectivity/permission failures as \"migration not applied\".",
+      "`checksumExpr` uses `string_agg` over an entire tenant's rows \u2014 unbounded memory per tenant as audit grows; risk of work_mem spill/timeout on large tenants.",
+      "Backoff sleeps 16s after the 5th failed attempt before exiting, adding an pointless final wait.",
+      "`Down` hardcodes `from_state='swapped'` in the state event regardless of actual catalog state; state events aren't validated against `DetectState`.",
+      "Doc drift: EDP-17-SCHEMA.md says `deny_mutation` covers only UPDATE/DELETE on leaves while the AC requires UPDATE/DELETE/TRUNCATE.",
+      "`TestLockConstantsMatchSQL` only checks substring presence of `'AUDP'` etc., not that SQL uses the same hashing/namespace wiring as Go."
+    ],
+    "NIT": [
+      "`var _ = pgx.ErrNoRows` \"ensure referenced\" comment is dead weight; pgx is used directly elsewhere in the package.",
+      "`ArchiveManifest.Keys` is a single-element slice for a one-object layout \u2014 a plain `key` field would be simpler until multi-part exports exist.",
+      "`deref`/`fmtTime` are duplicated across the two command mains instead of living in the shared `pfaudit` package."
+    ],
+    "SUMMARY": [
+      "The Go orchestration layer is a reasonable skeleton, but the migration SQL is truncated/absent and three AC-critical paths \u2014 crash-safe swap re-entry, the insert fast path/freeze handling, and backup restore verification/lifespan \u2014 are simply not in the diff.",
+      "Largest systemic risks: id reuse after `--down`, unverified ON CONFLICT-masked swap integrity, unencrypted cold archives, and zero metric emission for every required observability signal.",
+      "Recommend not merging until 0014 (up+down) is present and reviewable and the swap resume/verify path is implemented with its failure-injection test."
+    ]
+  }
+}

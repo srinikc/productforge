@@ -315,6 +315,18 @@ func Swap(ctx context.Context, pool *pgxpool.Pool, maxDelta int) (int64, error) 
 	if _, err := tx.Exec(ctx, `ALTER TABLE audit_partitioned RENAME TO audit`); err != nil {
 		return delta, fmt.Errorf("pfaudit: rename shadow: %w", err)
 	}
+	// The renamed legacy table still carries app grants: revoke them or roles keep a split-brain write path.
+	if _, err := tx.Exec(ctx, `DO $$
+		BEGIN
+		  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'pf_app') THEN
+		    EXECUTE 'REVOKE ALL ON audit_legacy FROM pf_app';
+		  END IF;
+		  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'pf_runtime') THEN
+		    EXECUTE 'REVOKE ALL ON audit_legacy FROM pf_runtime';
+		  END IF;
+		END $$`); err != nil {
+		return delta, fmt.Errorf("pfaudit: revoke legacy grants: %w", err)
+	}
 	if _, err := tx.Exec(ctx, `
 		SELECT setval('audit_id_seq', GREATEST(
 		    (SELECT COALESCE(max(id), 0) FROM audit),
@@ -327,20 +339,25 @@ func Swap(ctx context.Context, pool *pgxpool.Pool, maxDelta int) (int64, error) 
 	return delta, nil
 }
 
-// Down reverses a committed swap. Gated: refuses when any month is archived/purged or a hold exists.
-func Down(ctx context.Context, pool *pgxpool.Pool, force bool, reason string) error {
-	var archived, holds int64
-	if err := pool.QueryRow(ctx, `SELECT count(*) FROM audit_archive_manifest WHERE archived_at IS NOT NULL`).Scan(&archived); err != nil {
-		return err
+// DownPlan reports what a down migration would do and why it is gated (dry-run surface).
+func DownPlan(ctx context.Context, pool *pgxpool.Pool) (state State, archived, holds int64, err error) {
+	if err = pool.QueryRow(ctx, `SELECT count(*) FROM audit_archive_manifest WHERE archived_at IS NOT NULL`).Scan(&archived); err != nil {
+		return "", 0, 0, err
 	}
-	if err := pool.QueryRow(ctx, `
+	if err = pool.QueryRow(ctx, `
 		SELECT count(*) FROM audit_legal_hold_events h
 		WHERE h.action = 'hold' AND NOT EXISTS (
 		    SELECT 1 FROM audit_legal_hold_events r
 		    WHERE r.hold_id = h.hold_id AND r.action = 'release' AND r.at > h.at)`).Scan(&holds); err != nil {
-		return err
+		return "", 0, 0, err
 	}
-	from, err := DetectState(ctx, pool)
+	state, err = DetectState(ctx, pool)
+	return state, archived, holds, err
+}
+
+// Down reverses a committed swap. Gated: refuses when any month is archived/purged or a hold exists.
+func Down(ctx context.Context, pool *pgxpool.Pool, force bool, reason string) error {
+	from, archived, holds, err := DownPlan(ctx, pool)
 	if err != nil {
 		return err
 	}

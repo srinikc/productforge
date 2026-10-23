@@ -197,7 +197,7 @@ def _llm_call(prompt: str, model: str) -> str:
     req.add_header("Content-Type", "application/json")
     req.add_header("User-Agent", cfg.get("user_agent", "opencode/1.18.35"))
     req.add_header("x-opencode-session", str(uuid.uuid4()))
-    with urllib.request.urlopen(req, timeout=300) as r:
+    with urllib.request.urlopen(req, timeout=900) as r:
         data = json.loads(r.read().decode("utf-8"))
     msg = (data.get("choices") or [{}])[0].get("message") or {}
     # Never treat chain-of-thought as the review: if the provider returned no content (truncated or
@@ -207,7 +207,7 @@ def _llm_call(prompt: str, model: str) -> str:
 
 def _build_prompt(item: dict, item_id: str, mode: str) -> str:
     ac = "\n".join(f"- {c}" for c in (item.get("acceptance_criteria") or [])) or "- (none)"
-    body = _design_body(item) if mode == "design" else "Diff:\n```diff\n" + _git_diff()[:400000] + "\n```"
+    body = _design_body(item) if mode == "design" else "Diff:\n```diff\n" + _git_diff()[:180000] + "\n```"
     prompt = PROMPT.format(target=("design" if mode == "design" else "implementation diff"),
                            item=item_id, ac=ac, body=body)
     if mode == "design":

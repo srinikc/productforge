@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"productforge/datastore"
@@ -29,7 +28,8 @@ func ObjectStore(ctx context.Context) (datastore.ObjectStore, error) {
 	}
 	root := os.Getenv("PF_OBJECT_ROOT")
 	if root == "" {
-		root = filepath.Join(os.TempDir(), "pfaudit-objects")
+		// A reboot-wiped temp dir is not an archive: evidence would vanish with the dropped partition.
+		panic("pfaudit: set PF_OBJECT_ROOT (durable path) or the S3 vars; refusing an ephemeral archive")
 	}
 	return objstore.NewLocalStore(root, 1<<34)
 }

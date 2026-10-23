@@ -11,7 +11,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jackc/pgx/v5/pgconn"
 	"productforge/datastore"
 )
 
@@ -52,9 +51,10 @@ func (s *AuditStore) Append(ctx context.Context, e datastore.AuditEvent) error {
 	// case. If a concurrent rotation/drop still lands the row outside every partition (23514), provision the
 	// needed month once and retry - never drop the event on the floor.
 	err := s.db.WithTx(ctx, insert)
-	var pgErr *pgconn.PgError
-	if !errors.As(err, &pgErr) || pgErr.Code != "23514" ||
-		!strings.Contains(pgErr.Message, "no partition of relation") {
+	// Classify by SQLSTATE through a driver-neutral interface: the port layer must not import pgconn.
+	var sqlErr interface{ SQLState() string }
+	if !errors.As(err, &sqlErr) || sqlErr.SQLState() != "23514" ||
+		!strings.Contains(err.Error(), "no partition of relation") {
 		return err
 	}
 	if perr := s.db.WithTx(ctx, func(tx datastore.Tx) error {

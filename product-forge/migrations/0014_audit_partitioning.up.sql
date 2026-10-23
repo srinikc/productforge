@@ -368,6 +368,8 @@ BEGIN
         RAISE EXCEPTION 'audit_drop_partition: % has no verified archive', p_month;
     END IF;
     -- Cross-check the live rows against the recorded manifest: a filtered/partial export must not drop data.
+    -- The exclusive lock closes the race with audit_append_late writers between the count and the DROP.
+    EXECUTE format('LOCK TABLE public.%I IN ACCESS EXCLUSIVE MODE', p_month);
     DECLARE
         v_actual BIGINT;
         v_expected BIGINT;
@@ -407,6 +409,10 @@ END $$;
 CREATE OR REPLACE FUNCTION audit_approve_purge(p_month TEXT, p_actor TEXT, p_reason TEXT) RETURNS void
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, public AS $$
 BEGIN
+    -- Resumable: a crash after mark_purged must not wedge the month; deleting objects again is idempotent.
+    IF EXISTS (SELECT 1 FROM audit_archive_manifest WHERE month = p_month AND purged_at IS NOT NULL) THEN
+        RETURN;
+    END IF;
     IF NOT EXISTS (SELECT 1 FROM audit_purge_candidates(
         (SELECT purge_grace_days FROM audit_partition_config WHERE id)) WHERE month = p_month) THEN
         RAISE EXCEPTION 'audit_approve_purge: % is not a purge candidate', p_month;
@@ -523,14 +529,19 @@ BEGIN
             'audit_legal_hold_events, audit_partition_config FROM pf_app';
     EXECUTE 'GRANT INSERT, SELECT ON audit_partitioned TO pf_app';
     EXECUTE 'GRANT SELECT ON audit_legal_hold_archive TO pf_app';
+    -- The append-only journal must not be erasable by the runtime (row triggers do not fire on TRUNCATE).
+    EXECUTE 'REVOKE TRUNCATE ON audit_migration_state_events, audit_legal_hold_events FROM pf_app, pf_runtime';
   END IF;
   IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'pf_owner') THEN
     EXECUTE 'GRANT ALL ON audit_partitioned, audit_legal_hold_archive, audit_migration_state, '
             'audit_migration_state_events, audit_archive_manifest, audit_legal_hold_events, '
             'audit_partition_config TO pf_owner';
+    EXECUTE 'REVOKE TRUNCATE ON audit_migration_state_events, audit_legal_hold_events FROM pf_owner';
+    EXECUTE 'REVOKE TRUNCATE ON audit_partitioned, audit_legal_hold_archive FROM pf_owner';
   END IF;
   EXECUTE 'REVOKE ALL ON audit_partitioned FROM PUBLIC';
   EXECUTE 'REVOKE TRUNCATE ON audit_partitioned, audit_legal_hold_archive FROM PUBLIC';
+  EXECUTE 'REVOKE TRUNCATE ON audit_migration_state_events, audit_legal_hold_events FROM PUBLIC';
 END $$;
 
 -- ---- 17. initial partitions (legacy_min .. current+horizon, plus one grace month) -----------------

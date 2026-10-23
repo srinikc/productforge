@@ -1,0 +1,41 @@
+{
+  "item": "BI-PF-1312",
+  "sha": "d52bd102b36d",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "findings": {
+    "BLOCKER": [
+      "`rehearsal()` in `pfaudit-swap/main.go` calls `list.Output()` (which blocks until `pg_restore -l` finishes reading its stdin) *before* `dec.Start()`; nothing has started writing to the pipe yet, so the rehearsal deadlocks every time it runs.",
+      "The rehearsal asserts the dump contains `\"SEQUENCE public audit_legacy_id_seq\"`, but `backup()` dumps `-t audit_id_seq` (the *new* shadow sequence) \u2014 the legacy sequence is never in the dump, so the rehearsal can never pass even after the deadlock is fixed.",
+      "`PostVerify` runs *after* the swap transaction commits and compares `audit_legacy` vs `audit` row-for-row; any concurrent insert between commit and verify causes a spurious mismatch that blocks the documented crash-resume path."
+    ],
+    "MAJOR": [
+      "`checksumExpr` uses `hashtextextended` (a 64-bit order-independent sum), not the SHA-256-over-ordered-rows digest the AC and `EDP-17-SCHEMA.md` both promise; the advertised integrity guarantee is materially weaker than documented.",
+      "`RestoreMonth` attaches an `audit_restore_YYYYMM` partition to the live parent with the same range as the original month and never detaches/drops it; the next `audit_ensure_partitions` call will hit a 23P01 range-overlap failure for that month.",
+      "No code rejects a legal hold recorded against a purged month or emits `audit_hold_after_purge_total`; the AC and ADR both promise this spoliation guard but it is absent from the migration and the Go tooling.",
+      "`PurgeMonth` deletes object-store keys *before* `audit_mark_purged`; a crash in between leaves purged data with a manifest still marked un-purged and no durable purge record.",
+      "`close` calls `obj.Delete` on the encrypted backup *before* `RecordState(..., \"swap_closed\", ...)`; if the state write fails the backup is destroyed with no audit trail of the sign-off.",
+      "`S3Store.Put` buffers the entire object via `io.ReadAll` before upload, so the pre-swap `pg_dump` of a large audit table will OOM rather than stream."
+    ],
+    "MINOR": [
+      "`audit_append_late` inserts into the canonical `audit_YYYYMM` partition, not a distinct `audit_late_YYYYMM` partition as the AC and `EDP-17-SCHEMA.md` describe; docs and implementation disagree.",
+      "`architect_review.py` is modified in the same diff to force the review output format and raise the diff limit; scope creep that changes the review gate alongside the feature.",
+      "Metrics JSON is emitted to stdout mixed with human-readable progress lines, making reliable ops parsing difficult.",
+      "`s3store` SSE-KMS path does not validate that `aws:kms:` includes a non-empty key ID before calling `NewSSEKMS`.",
+      "Several declared metric constants (`MetricInsertOutOfRange`, `MetricProvisionSeconds`, `MetricCopyResumed`, `MetricDrop`, `MetricLateInsert`, `MetricHoldAfterPurge`, `MetricHoldExtractFailed`) are never emitted anywhere in the diff.",
+      "`audit_drop_partition`'s row-count cross-check will permanently block retention of any month that received a late insert after export; no reconcile path is provided."
+    ],
+    "NIT": [
+      "`Down` copies back post-swap rows but does not explicitly re-advance `audit_legacy_id_seq` before the rename; the later `setval` covers it but the intermediate state is briefly inconsistent.",
+      "`pfaudit-retention` acquires the `AURE` advisory lock on a dedicated connection but performs all work on other pool connections; the lock serializes runs but does not protect the work itself.",
+      "`ExportMonth`'s role check requires `rolsuper OR rolbypassrls`; if `pf_owner` is neither, export always fails and no alternative is documented."
+    ],
+    "SUMMARY": [
+      "The diff delivers a large, well-structured partitioning and retention substrate but contains several objectively verifiable correctness defects that block merge: a guaranteed deadlock in the backup rehearsal, a rehearsal assertion that can never pass against the actual dump contents, and a post-swap verification step that races with live inserts.",
+      "The integrity primitive advertised as SHA-256 is in fact a 64-bit hash, and the documented spoliation guard for holds-after-purge is entirely absent.",
+      "Restore leaves an orphaned partition that will break future rotation, and purge/close both destroy data before durably recording the action.",
+      "These must be fixed before the swap and retention paths are trusted in production."
+    ]
+  }
+}

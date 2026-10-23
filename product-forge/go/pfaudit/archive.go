@@ -49,13 +49,16 @@ func ExportMonth(ctx context.Context, pool *pgxpool.Pool, obj datastore.ObjectSt
 		return m, fmt.Errorf("pfaudit: invalid partition %q", month)
 	}
 	// Export must see every tenant: a filtered read would record a short manifest and then drop the month.
+	// pf_owner is the audit table owner (owner_bypass policy), NOT superuser: ownership is sufficient.
 	var unfiltered bool
-	if err := pool.QueryRow(ctx, `SELECT r.rolsuper OR r.rolbypassrls FROM pg_roles r
+	if err := pool.QueryRow(ctx, `SELECT r.rolsuper OR r.rolbypassrls OR c.relowner = (SELECT oid FROM pg_roles WHERE rolname = current_user)
+		FROM pg_roles r
+		JOIN pg_class c ON c.relname = CASE WHEN to_regclass('public.audit') IS NOT NULL THEN 'audit' ELSE 'audit_partitioned' END
 		WHERE r.rolname = current_user`).Scan(&unfiltered); err != nil {
 		return m, fmt.Errorf("pfaudit: export role check: %w", err)
 	}
 	if !unfiltered {
-		return m, errors.New("pfaudit: export must run as pf_owner (superuser/bypassrls); RLS would hide rows")
+		return m, errors.New("pfaudit: export must run as the audit table owner or a BYPASSRLS role; RLS would hide rows")
 	}
 	f, err := os.CreateTemp("", "pfaudit-export-*.ndjson")
 	if err != nil {
@@ -276,7 +279,28 @@ func VerifyHoldExtraction(ctx context.Context, pool *pgxpool.Pool, month string)
 	      AND NOT EXISTS (SELECT 1 FROM audit_legal_hold_archive x
 	                       WHERE x.hold_id = e.hold_id AND x.id = a.id AND x.at = a.at))`
 	err = pool.QueryRow(ctx, q, month).Scan(&archived, &missing)
-	return archived, missing, err
+	if err != nil {
+		return archived, missing, err
+	}
+	// Counts alone cannot detect swapped/tampered rows, so the archived copy is also digest-checked.
+	dq := `SELECT
+	  coalesce((SELECT encode(sha256(convert_to(string_agg(t::text, E'\n' ORDER BY t.id, t.at), 'UTF8')), 'hex')
+	    FROM (SELECT id, tenant_id, actor, action, resource, outcome, correlation_id, at
+	            FROM audit_legal_hold_archive WHERE source_partition = $1) t), ''),
+	  coalesce((SELECT encode(sha256(convert_to(string_agg(t::text, E'\n' ORDER BY t.id, t.at), 'UTF8')), 'hex')
+	    FROM (SELECT a.id, a.tenant_id, a.actor, a.action, a.resource, a.outcome, a.correlation_id, a.at
+	            FROM ` + month + ` a
+	            JOIN audit_legal_hold_events e ON e.month = $1 AND e.action = 'hold'
+	           WHERE NOT EXISTS (SELECT 1 FROM audit_legal_hold_events r
+	                              WHERE r.hold_id = e.hold_id AND r.action = 'release' AND r.at > e.at)) t), '')`
+	var archSum, liveSum string
+	if err := pool.QueryRow(ctx, dq, month).Scan(&archSum, &liveSum); err != nil {
+		return archived, missing, err
+	}
+	if missing == 0 && archSum != liveSum {
+		return archived, missing, fmt.Errorf("pfaudit: hold archive digest %s != live %s", archSum, liveSum)
+	}
+	return archived, missing, nil
 }
 
 // PurgeMonth deletes the archived objects and records the irreversible purge (approval must exist).

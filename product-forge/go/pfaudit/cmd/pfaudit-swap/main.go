@@ -40,6 +40,7 @@ func main() {
 	backupKey := fs.String("backup-key", os.Getenv("PF_AUDIT_BACKUP_KEY"), "object key of the encrypted pre-swap dump")
 	recipient := fs.String("age-recipient", os.Getenv("PF_AGE_RECIPIENT"), "age recipient for the encrypted dump")
 	force := fs.Bool("force-with-reason", false, "down: proceed even with archives/holds (audited)")
+	dryRun := fs.Bool("dry-run", false, "down: report the plan and exit without changing data")
 	reason := fs.String("reason", "", "down: mandatory reason when forcing")
 	_ = fs.Parse(os.Args[2:])
 
@@ -141,6 +142,18 @@ func main() {
 		}
 		fmt.Println("closed: sign-off recorded, encrypted dump destroyed")
 	case "down":
+		if *dryRun {
+			st, archived, holds, err := pfaudit.DownPlan(ctx, pool)
+			if err != nil {
+				fail("%v", err)
+			}
+			fmt.Printf("down plan: state=%s archived_months=%d active_holds=%d force_required=%v\n",
+				st, archived, holds, archived > 0 || holds > 0)
+			if st != pfaudit.StateSwapped {
+				fail("down requires the swapped state, got %s", st)
+			}
+			return
+		}
 		if err := pfaudit.Down(ctx, pool, *force, *reason); err != nil {
 			fail("%v", err)
 		}
@@ -201,7 +214,14 @@ func runSwap(ctx context.Context, pool *pgxpool.Pool, maxDelta int, m *pfaudit.M
 	if st == pfaudit.StateSwapped {
 		// Crash after the rename: the data is already live - finish verification instead of re-swapping.
 		if err := pfaudit.PostVerify(ctx, pool); err != nil {
+			if recErr := pfaudit.RecordState(ctx, pool, "swap_verify_failed", fmt.Sprintf(`{"error":%q}`, err.Error())); recErr != nil {
+				fmt.Printf("WARN swap: record verification failure: %v\n", recErr)
+			}
 			fail("swap: resume verification failed: %v", err)
+		}
+		// Record the commit even on resume: `close` keys off this event and must not be blocked by a crash.
+		if err := pfaudit.RecordState(ctx, pool, "swapped", `{"resumed":true}`); err != nil {
+			fail("swap: record resumed swap: %v", err)
 		}
 		fmt.Println("swap: already committed; post-swap verification OK")
 		return

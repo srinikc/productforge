@@ -1,0 +1,49 @@
+{
+  "item": "BI-PF-1312",
+  "sha": "f0f3a9aa3159",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "findings": {
+    "BLOCKER": [
+      "Cold archive defaults to `os.TempDir()/pfaudit-objects` (PF_OBJECT_ROOT/PF_S3 unset); the hot partition is then dropped, so evidence lives only in a reboot-wiped temp dir with no durability gate.",
+      "Hold-after-archive reconcile (restore to scratch \u2192 extract \u2192 verify) is not implemented anywhere in the diff and has no test; purge refuses such a month forever, leaving held rows unextractable.",
+      "AC item \"EDP service startup check + ops cron emit months_ahead/low_coverage and raise stale-job alert\" has no implementation: coverage is emitted only by pfaudit CLIs; no startup check, cron or alert exists.",
+      "`audit_drop_partition` count-check and `DROP TABLE` are separate statements with no lock against writers: a row inserted by `audit_append_late` after the export but before the drop is silently destroyed (manifest cross-check already passed)."
+    ],
+    "MAJOR": [
+      "Committed swap can be left unrecorded: `RecordState(\"swapped\")` runs only after PostVerify/budget checks, and the StateSwapped resume path runs PostVerify but never records state \u2192 `close` (requires the `swapped` event) can never succeed, violating the AC resume requirement.",
+      "The rename leaves app/tenant grants on `audit_legacy` intact: post-swap roles still hold INSERT/SELECT on the flat table, enabling split-brain audit writes/reads outside the partitioned, hardened parent.",
+      "`audit_migration_state_events` and `audit_legal_hold_events` are TRUNCATE-able by pf_owner: row-level `audit_events_immutable` doesn't cover TRUNCATE and no TRUNCATE revoke is issued for these tables (AC \"deny TRUNCATE for every role\" unmet).",
+      "Purge is not resumable: `audit_mark_purged` sets `purged_at` before object deletion, but re-run calls `audit_approve_purge`, which requires `purged_at IS NULL` \u2192 a partial purge can never be completed by the tool.",
+      "Hold verification is counts-only (`VerifyHoldExtraction`); AC requires count **and SHA-256** verification of the hold archive before export/drop \u2014 no digest exists.",
+      "`ExportMonth` refuses unless `current_user` is superuser/BYPASSRLS, contradicting the design where pf_owner reads via its `owner_bypass` policy \u2014 the mandated ops role (non-superuser pf_owner) cannot export at all.",
+      "Missing AC tests: app/runtime role cannot ATTACH/ALTER, out-of-range 23514 stable message, swap retry/backoff+55P03 loop, fresh-install setval-to-1, freeze-budget comparison.",
+      "`edpdata` (domain layer) now imports `pgconn`, leaking a provider-specific driver type into the port layer the same diff declares \"provider-neutral\".",
+      "`--down` prints no dry-run (AC requires one) and forces only when archives/holds exist, so the audited `--force-with-reason` gate is not universally applied.",
+      "none"
+    ],
+    "MINOR": [
+      "AC-documented `audit_late_YYYYMM` partitions are deliberately not implemented (canonical months instead) \u2014 AC and code now disagree with no AC update.",
+      "`audit_ensure_partitions` only provisions current-month-forward, so the Append 23514 heal cannot recover a past-month gap despite the AC's \"no event is lost\" claim.",
+      "Retry classification matches localized message text (\"no partition of relation\") rather than a stable SQLSTATE/constraint name; any 23514 check-violation containing it is retried.",
+      "Metrics declared but never emitted: `audit_insert_out_of_range_total`, `audit_provision_seconds`, `audit_drop_total`, `audit_hold_extract_failed_total`, `audit_late_insert_total`; exhausted metric is `..._exhausted_total`, not AC's `audit_swap_retry_exhausted`.",
+      "`audit_assert_hardened` resolves `pg_class` by unqualified relname and checks only existence, not that `tenant_isolation`'s definition is actually the tenant predicate.",
+      "Export/drop/purge write no rows to the append-only events tables (manifest only), despite AC \"all retention/export/purge/hold/swap actions write audit events\".",
+      "Shipped migration `0004` edited in place for role idempotency \u2014 breaks checksum verification if the runner validates applied-migration hashes; belongs in a new migration.",
+      "SECURITY DEFINER functions keep `public` in `search_path`, a standard hardening miss for definer-owned DDL paths."
+    ],
+    "NIT": [
+      "`rehearsal` comment claims RLS policies are verified; code asserts only two TOC substrings.",
+      "Restore scratch tables accumulate with no teardown and copy `nextval('audit_id_seq')` defaults via `LIKE ... INCLUDING ALL`.",
+      "Dead code: duplicate `if err != nil` after `fail` in retention `export`, `_ = metricsOut`, `_, _, _ = CheckConfig` in prestage, `m` shadowed by config vars in `plan/status`.",
+      "s3store `TrimPrefix(sse, \"aws:kms:\")` is case-sensitive while the match above it lowercases; streamed (size=-1) puts record an empty `checksumMeta`.",
+      "AC names `go/cmd/pfaudit-retention`; shipped path is `go/pfaudit/cmd/pfaudit-retention`.",
+      "Stale comment \"trigger is cloned onto every leaf\" \u2014 hardening creates only the append-only trigger."
+    ],
+    "SUMMARY": [
+      "Solid substrate design (ensure-based DDL, privilege-enforced hardening, catalog-driven resume, bounded S4 freeze), but it is not yet safe to ship: evidence can be destroyed (temp-dir default, drop/insert race), a required legal-hold reconcile path and the coverage startup/alerting component are absent, and a committed swap can go permanently unrecorded, breaking `close`.",
+      "Top risks: data-loss windows in retention, unenforced append-only guarantees on the events tables and post-swap `audit_legacy`, and several untested ACs (attach denial, 23514 fail-closed, retry loop, fresh install)."
+    ]
+  }
+}
