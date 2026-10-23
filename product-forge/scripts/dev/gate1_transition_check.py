@@ -64,6 +64,36 @@ def transitions(base: str = "") -> list[str]:
     return sorted(set(out))
 
 
+def _self_test() -> int:
+    """Predicate matrix: allow, no decision, no evidence, stale sha, unauthorized approver."""
+    from core import gate_predicates as gp
+    view = {"parsed_ok": True, "blocking": [], "dispositions": {"sig:a": {"status": "ACTIONED"}},
+            "review": {"sha": "abc", "at": "2026-01-01T00:00:00+00:00"}}
+    digest = gp.findings_digest(view)
+    good = {"decisions": [{"gate": 1, "decision": "APPROVE", "by": "hil:test",
+                           "at": "2026-01-02T00:00:00+00:00",
+                           "findings_sha": "abc", "findings_digest": digest, "seq": 1}]}
+    cases = [
+        ("allow", good, "abc", view, True, "OK"),
+        ("no-decision", {"decisions": []}, "abc", view, False, "NO_GATE_APPROVAL"),
+        ("no-evidence", good, "abc", None, False, "NO_EVIDENCE"),
+        ("stale", good, "zzz", view, False, "STALE_APPROVAL"),
+        ("unauthorized", {"decisions": [dict(good["decisions"][0], by="system:auto")]}, "abc", view,
+         False, "UNAUTHORIZED_APPROVER"),
+    ]
+    bad = []
+    for name, it, sha, v, want_ok, want_reason in cases:
+        ok, reason = gp.approval(it, 1, sha, v)
+        if ok != want_ok or reason != want_reason:
+            bad.append(f"{name}: got {ok}/{reason}, want {want_ok}/{want_reason}")
+    if bad:
+        for b in bad:
+            print("gate1 self-test: FAIL - " + b)
+        return 1
+    print("gate1: self-test OK (allow, no-decision, no-evidence, stale, unauthorized)")
+    return 0
+
+
 def check(ids: list[str]) -> list[tuple[str, str]]:
     problems: list[tuple[str, str]] = []
     for iid in ids:
@@ -101,12 +131,19 @@ def check(ids: list[str]) -> list[tuple[str, str]]:
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="Gate 1 transition enforcement (BI-PF-1466/1469)")
     ap.add_argument("--report", action="store_true", help="dry-run: report only, exit 0")
+    ap.add_argument("--self-test", action="store_true", help="run the predicate negative matrix")
     ap.add_argument("--base", default="", help="git base (default merge-base develop)")
     a = ap.parse_args(argv)
-    for b in gp.baseline_problems():
+    if a.self_test and _self_test() != 0:
+        return 1
+    base_problems = gp.baseline_problems()
+    for b in base_problems:
         print(f"gate1: BASELINE_CONFIG {b}")
     ids = transitions(a.base)
     problems = check(ids)
+    if base_problems and not a.report:
+        print(f"gate1-transition: FAIL ({len(base_problems)} baseline governance problem(s))")
+        return 1
     if a.report:
         print(f"gate1: REPORT {len(ids)} transition(s), {len(problems)} would fail")
         for iid, why in problems:

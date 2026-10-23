@@ -76,6 +76,20 @@ def _evidence_sha(view: dict | None) -> str:
     return str(((view or {}).get("review") or {}).get("sha") or "")
 
 
+def _parse_ts(v) -> datetime | None:
+    try:
+        d = datetime.fromisoformat(str(v))
+        return d if d.tzinfo else d.replace(tzinfo=timezone.utc)
+    except Exception:
+        return None
+
+
+def is_docs_only(files: list[str], skip_globs: list[str]) -> bool:
+    """One shared docs-only predicate (used by set_status and gate2_completion_check)."""
+    import fnmatch
+    return not any(not any(fnmatch.fnmatch(f, g) for g in skip_globs) for f in files)
+
+
 def approval(item: dict, gate: int, evidence_sha: str, view: dict | None,
              allow_missing_view: bool = False) -> tuple[bool, str]:
     if view is None and not allow_missing_view:
@@ -103,7 +117,13 @@ def approval(item: dict, gate: int, evidence_sha: str, view: dict | None,
             g = 0
         if g != gate or str(d.get("decision") or "").upper() not in APPROVED:
             continue
+        if not str(d.get("by") or "").startswith("hil:"):
+            return False, "UNAUTHORIZED_APPROVER"
         if str(d.get("findings_sha") or "") != str(evidence_sha or ""):
+            return False, "STALE_APPROVAL"
+        ev_at = _parse_ts(((view or {}).get("review") or {}).get("at"))
+        dec_at = _parse_ts(d.get("at"))
+        if ev_at and dec_at and dec_at < ev_at:
             return False, "STALE_APPROVAL"
         if view is not None and str(d.get("findings_digest") or "") != digest:
             return False, "STALE_APPROVAL"
