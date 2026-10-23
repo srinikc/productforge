@@ -295,7 +295,12 @@ def review_block(findings: dict, model: str, sha: str, mode: str) -> str:
     return "\n".join(lines)
 
 
-def _latest_review(item_id: str, mode: str):
+def _latest_review(item_id: str, mode: str, prefer_sha: str = ""):
+    """Prefer the review for the CURRENT design/diff sha; fall back to newest mtime.
+
+    mtime is not stable across checkouts (CI writes files in tree order), so sha selection is the only
+    deterministic choice when a matching artifact exists.
+    """
     if not EVID.is_dir():
         return None
     best, best_m = None, -1.0
@@ -304,7 +309,11 @@ def _latest_review(item_id: str, mode: str):
             d = json.loads(fp.read_text(encoding="utf-8"))
         except Exception:
             continue
-        if (d.get("mode") or "diff") == mode and fp.stat().st_mtime > best_m:
+        if (d.get("mode") or "diff") != mode:
+            continue
+        if prefer_sha and str(d.get("sha") or "") == prefer_sha:
+            return d
+        if fp.stat().st_mtime > best_m:
             best, best_m = d, fp.stat().st_mtime
     return best
 
@@ -379,7 +388,12 @@ def pending_blocking(findings: dict, dispositions: dict):
 
 def gate_view(item_id: str, mode: str = "design") -> dict | None:
     """Public: latest review + dispositions + pending/blocking counts (shared by `gate` + gate1_check)."""
-    rev = _latest_review(item_id, mode)
+    prefer = ""
+    try:
+        prefer = design_sha(_get_item(item_id)) if mode == "design" else diff_sha()
+    except Exception:
+        prefer = ""
+    rev = _latest_review(item_id, mode, prefer)
     if not rev:
         return None
     findings = rev.get("findings") or {}
