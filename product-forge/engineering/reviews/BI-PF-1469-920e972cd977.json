@@ -1,0 +1,38 @@
+{
+  "item": "BI-PF-1469",
+  "sha": "920e972cd977",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-23T18:07:00.810570",
+  "findings": {
+    "BLOCKER": [
+      "AC requires a negative self-test proving \"force without PF_GATE_FORCE fails\"; no such test exists in gate1/gate2 self-tests or elsewhere in the diff \u2014 an explicit acceptance criterion is unmet.",
+      "gate2_completion_check/set_status never verify the evidence sha equals the CURRENT diff_sha() (gate1 has a STALE_EVIDENCE check; gate2 does not), so Gate 2 can approve against Gate 2.5 evidence for an outdated diff \u2014 the \"architect diff evidence for the change sha\" hard rule is not enforced."
+    ],
+    "MAJOR": [
+      "core/backlog.py mutates sys.path and imports scripts/dev/architect_review (including private `ar._config()`, `ar._get_item`) inside the set_status hot path: core is now coupled to git-based dev tooling and will fail/branch differently outside a repo checkout.",
+      "gate2_completion_check honors the Gate-1 rollout baseline (ACTIVE \u2192 ALLOW), silently exempting the *completion* gate; the baseline file's own description scopes it to Gate 1 exemptions \u2014 undocumented, broader fail-open than the AC allows.",
+      "record_gate_decision enforces HIL authorization only via the `by` string prefix (\"hil:\"); any caller can forge `by=\"hil:x\"`. AC requires decisions be recorded only by the HIL session \u2014 no caller identity check.",
+      "approval() ordering check (decision.at >= evidence.at) is skipped whenever evidence lacks `at` (all pre-existing evidence files) or view is None (docs-only): fail-open instead of the mandated fail-closed STALE_APPROVAL.",
+      "gate_predicates.is_docs_only is introduced as the single predicate but is dead code: `_gate2_status` and `gate2_completion_check._docs_only` each reimplement it inline \u2014 the exact duplication the \"single predicate\" AC forbids."
+    ],
+    "MINOR": [
+      "gate1_transition_check's negative matrix is not wired with --self-test into precheck or ci-cd-gates (only gate2 is), so Gate 1 self-tests never run in CI.",
+      "record_gate_decision happily records a gate=1 decision when design evidence is absent (view None), deferring failure to the transition check \u2014 confusing and risks approvals bound to unreviewed designs.",
+      "seq = len(decisions)+1 assumes an intact journal; any edit/removal of decisions silently reuses seq numbers rather than failing append-only invariant on write.",
+      "Naive local datetimes (`datetime.now().isoformat()`) are compared as UTC in _parse_ts; ordering can be wrong across hosts/timezones.",
+      "gate2 self-test items omit `at` and `seq` fields, so the ordering/append-only branches are never actually exercised."
+    ],
+    "NIT": [
+      "`_DESIGN_KEYS` duplicates the key tuple already in `_design_body` in the same file.",
+      "sys.path bootstrap block is copy-pasted across three scripts.",
+      "Observability is print-only; no structured machine-readable event sink for allow/deny or gate decisions."
+    ],
+    "SUMMARY": [
+      "Solid skeleton: shared predicate module, fail-closed error paths, baseline governance, and good docs/schema work.",
+      "Two hard AC gaps block merge: missing force-override negative self-test, and Gate 2 accepting stale Gate 2.5 evidence (no current diff_sha binding).",
+      "Top risks: core\u2192scripts/dev coupling, baseline exemptions leaking into the completion gate, and spoofable HIL authorization undermine the control-plane integrity claim."
+    ]
+  }
+}
