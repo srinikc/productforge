@@ -79,7 +79,7 @@ def check(ids: list[str]) -> list[tuple[str, str]]:
         # Validate against the delivery evidence named by the newest Gate 2 decision; this works for
         # data-only and mixed PRs alike (the decision is bound to the reviewed delivery diff).
         view = None
-        for d in reversed((item.get("decisions") or [])):
+        for d in reversed(item.get("decisions") or []):
             try:
                 g = int(d.get("gate") or 0)
             except Exception:

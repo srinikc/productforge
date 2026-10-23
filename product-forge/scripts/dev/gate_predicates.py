@@ -111,7 +111,7 @@ def approval(item: dict, gate: int, evidence_sha: str, view: dict | None,
             return False, "DECISION_ORDER_INVALID"
         last_seq = max(last_seq, seq)
     saw_gate_decision = False
-    for d in reversed((item.get("decisions") or [])):
+    for d in reversed(item.get("decisions") or []):
         try:
             g = int(d.get("gate") or 0)
         except Exception:
