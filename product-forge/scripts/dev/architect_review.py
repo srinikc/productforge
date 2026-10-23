@@ -20,13 +20,12 @@ import hashlib
 import json
 import os
 import re
-import subprocess
 import sys
 import time
-from datetime import datetime
 import urllib.error
 import urllib.request
 import uuid
+from datetime import datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -37,8 +36,10 @@ SEVERITIES = ("BLOCKER", "MAJOR", "MINOR", "NIT")
 DISPOSITION_STATUSES = ("PENDING", "ACTIONED", "ACCEPTED", "DEFERRED", "REJECTED")
 if str(ROOT / "scripts" / "dev") not in sys.path:
     sys.path.insert(0, str(ROOT / "scripts" / "dev"))
+from gitutil import (  # noqa: E402  (shared UTF-8/fail-closed git policy)
+    git_text as _git_text_shared,
+)
 from review_sig import digest as _finding_digest  # noqa: E402  (shared with review_learnings)
-from gitutil import git_text as _git_text_shared  # noqa: E402  (shared UTF-8/fail-closed git policy)
 
 PROMPT = """You are a Principal Enterprise System Architect performing an independent review.
 
@@ -265,7 +266,9 @@ def _build_prompt(item: dict, item_id: str, mode: str) -> str:
                            item=item_id, ac=ac, body=body)
     if mode == "design":
         try:
-            from design_guardrails import render as _render_guardrails  # BI-PF-1467: design-time learnings
+            from design_guardrails import (
+                render as _render_guardrails,  # BI-PF-1467: design-time learnings
+            )
             prompt += "\n\n" + _render_guardrails(item, item_id)
         except Exception:
             cl = [str(q) for q in (_config().get("design_checklist") or []) if str(q).strip()]
@@ -451,7 +454,7 @@ def _ingest(item_id: str, text: str, model: str, apply: bool, mode: str = "diff"
     EVID.mkdir(parents=True, exist_ok=True)
     out = EVID / f"{item_id}-{sha}.json"
     out.write_text(json.dumps({"item": item_id, "sha": sha, "model": model, "mode": mode,
-                               "parsed_ok": parsed_ok, "at": datetime.now().isoformat(),
+                               "parsed_ok": parsed_ok, "at": datetime.now(timezone.utc).isoformat(),
                                "findings": findings}, indent=2), encoding="utf-8")
     counts = {s: len(findings[s]) for s in SEVERITIES}
     print(f"review captured: {out} {counts}")

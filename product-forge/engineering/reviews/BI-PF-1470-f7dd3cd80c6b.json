@@ -1,0 +1,33 @@
+{
+  "item": "BI-PF-1470",
+  "sha": "f7dd3cd80c6b",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-23T18:15:28.860546+00:00",
+  "findings": {
+    "BLOCKER": [
+      "Acceptance criteria unmet by the diff: no bookkeeping-tier change wiring gate2-completion/delivery-completeness into precheck, no changes to `gate_predicates.approval` semantics (STALE_APPROVAL vs NO_GATE_APPROVAL), no EDP-21 retroactive validation, and no unit tests added.",
+      "`gate_predicates.approval` and `gate2_completion_check` changes are cosmetic parenthesis removals only; the described \"newest-first, digest-bound\" selection is not evidenced as introduced here, so a reviewer cannot verify the STALE_APPROVAL/NO_GATE_APPROVAL contract from this diff.",
+      "If any of the AC-required behavior is genuinely new shipped logic not shown in Python, the language rule (new shipped logic \u2192 Go) is either violated or the substantive Go diff is missing from this review input."
+    ],
+    "MAJOR": [
+      "No test files in the diff; AC \"Unit tests cover the multi-decision selection and the bookkeeping-tier wiring; precheck PASS\" is unverifiable \u2014 evidence of precheck execution and test additions must accompany the change.",
+      "No observability/audit artifact for EDP-21 retroactive validation (e.g., recorded Gate 1 decision JSON, digest, commit sha); without it the AC is a narrative claim, not a checkable state transition."
+    ],
+    "MINOR": [
+      "`datetime.now(timezone.utc)` in `_ingest` fixes naive timestamps \u2014 good \u2014 but it changes the stored `at` format for new evidence rows with no backfill or reader compatibility note; consumers comparing lexicographically across old/new rows may mis-order.",
+      "Import reordering and formatting-only edits (`ruff`-style) are mixed into a functional-intent change; separating lint/format commits from behavior commits would improve traceability and bisectability.",
+      "`raise ... from e` in precheck is correct but changes exception chaining output; any log-parsing/CI regex keyed on the old message shape should be confirmed."
+    ],
+    "NIT": [
+      "The `reversed((...))` \u2192 `reversed(...)` parenthesis cleanups are harmless but unrelated churn; bundle with formatting-only commits to keep diffs reviewable.",
+      "Reordering the `gitutil`/`review_sig` imports for alphabetical consistency has no functional effect; fine as-is."
+    ],
+    "SUMMARY": [
+      "This diff is almost entirely cosmetic (lint, import order, UTC timestamps, exception chaining); none of the stated acceptance criteria \u2014 bookkeeping-tier gate wiring, digest-bound multi-decision approval semantics, EDP-21 validation, or tests \u2014 is demonstrated.",
+      "Top risks: shipping an item whose ACs are satisfied only on paper, and unverifiable gate-integrity behavior (STALE vs NO_GATE) that downstream delivery gating depends on.",
+      "Request the substantive diff (Go predicates and/or Python wiring plus tests and precheck evidence) before this can be approved."
+    ]
+  }
+}
