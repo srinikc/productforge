@@ -207,7 +207,9 @@ func RequireUnfilteredVisibility(ctx context.Context, pool *pgxpool.Pool) error 
 		  AND c.relowner = (SELECT oid FROM pg_roles WHERE rolname = current_user)
 		  AND EXISTS (SELECT 1 FROM pg_policies p
 		               WHERE p.schemaname = 'public' AND p.tablename = c.relname
-		                 AND p.policyname = 'owner_bypass'))
+		                 AND p.policyname = 'owner_bypass')
+		    AND EXISTS (SELECT 1 FROM pg_roles pr
+		                 WHERE pr.rolname = 'pf_owner' AND pg_has_role(current_user, pr.oid, 'MEMBER')))
 		FROM pg_roles r WHERE r.rolname = current_user`).Scan(&ok); err != nil {
 		return fmt.Errorf("pfaudit: visibility check: %w", err)
 	}

@@ -8,6 +8,6 @@ SHELL=/bin/sh
 PATH=/usr/local/bin:/usr/bin:/bin
 # Hourly: coverage + stale-rotation probe. Emits audit_partition_months_ahead,
 # audit_partition_low_coverage_total and audit_rotation_stale as one JSON line on stderr.
-17 * * * *  pfaudit pfaudit-retention check --max-age-hours 48 >> /var/log/pfaudit-retention.log 2>&1
+17 * * * *  pfaudit pfaudit-retention check --max-age-hours 48 --strict >> /var/log/pfaudit-retention.log 2>&1
 # Daily: archive fully-old months, extract holds, then drop the hot partitions.
 23 3 * * *  pfaudit pfaudit-retention export --keep-months 13 --actor "${PF_OPERATOR:-retention}" --reason "scheduled retention" >> /var/log/pfaudit-retention.log 2>&1

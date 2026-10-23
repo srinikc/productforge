@@ -300,44 +300,7 @@ BEGIN
 END $$;
 
 -- ---- 10. insert-path provisioning: lock-free fast path --------------------------------------------
-CREATE OR REPLACE FUNCTION audit_provision() RETURNS trigger
-LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, public AS $$
-DECLARE
-    v_month DATE := audit_month_start(NEW.at);
-    v_name  TEXT := audit_partition_name(v_month);
-BEGIN
-    -- The trigger is cloned onto every leaf; only the parent insert path may provision. A leaf insert (e.g.
-    -- cold restore into a scratch partition) must never try to attach the canonical month alongside it.
-    IF TG_TABLE_NAME <> audit_parent()::text THEN
-        RETURN NEW;
-    END IF;
-    -- Archived/purged months are immutable: never accept a row that would invalidate the manifest.
-    IF EXISTS (SELECT 1 FROM audit_archive_manifest m
-               WHERE m.month = v_name AND (m.archived_at IS NOT NULL OR m.purged_at IS NOT NULL)) THEN
-        RAISE EXCEPTION 'audit_provision: % is archived; restore it before appending', v_name
-            USING ERRCODE = '23514';
-    END IF;
-    IF to_regclass('public.' || v_name) IS NOT NULL THEN
-        RETURN NEW;  -- fast path: existing leaves accept backdated rows (prestage/backfill)
-    END IF;
-    IF v_month < audit_month_start(now()) - interval '24 months'
-       OR v_month > audit_month_start(now()) + make_interval(months => (SELECT horizon_months FROM audit_partition_config WHERE id)) THEN
-        -- Keep the documented out-of-range contract: SQLSTATE 23514 + the stable partition message.
-        RAISE EXCEPTION 'no partition of relation "audit" found for row (%)', NEW.at USING ERRCODE = '23514';
-    END IF;
-    PERFORM audit_advisory_lock('AUDP');  -- insert-path namespace
-    BEGIN
-        PERFORM audit_attach_partition(v_month);
-    EXCEPTION WHEN duplicate_table OR unique_violation OR exclusion_violation THEN
-        -- 42P07 race or grace overlap: the insert must still be routable, otherwise surface the failure.
-        -- Grace covers the range only when ITS month is the one we tried to attach.
-        IF to_regclass('public.' || v_name) IS NULL
-           AND to_regclass(format('public.audit_grace_%s', to_char(v_month, 'YYYYMM'))) IS NULL THEN
-            RAISE;
-        END IF;
-    END;
-    RETURN NEW;
-END $$;
+
 
 -- ---- 11. coverage ---------------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION audit_partition_coverage()
@@ -599,9 +562,7 @@ CREATE TRIGGER audit_legal_hold_archive_no_truncate BEFORE TRUNCATE ON audit_leg
 DROP TRIGGER IF EXISTS audit_legal_hold_archive_append_only ON audit_legal_hold_archive;
 CREATE TRIGGER audit_legal_hold_archive_append_only BEFORE UPDATE OR DELETE ON audit_legal_hold_archive
     FOR EACH ROW EXECUTE FUNCTION deny_mutation();
-DROP TRIGGER IF EXISTS audit_provision_trg ON audit_partitioned;
-CREATE TRIGGER audit_provision_trg BEFORE INSERT ON audit_partitioned
-    FOR EACH ROW EXECUTE FUNCTION audit_provision();
+
 
 DROP TRIGGER IF EXISTS audit_legal_hold_guard ON audit_legal_hold_events;
 CREATE TRIGGER audit_legal_hold_guard BEFORE INSERT ON audit_legal_hold_events

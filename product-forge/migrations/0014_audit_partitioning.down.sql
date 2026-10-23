@@ -29,6 +29,7 @@ DROP TABLE IF EXISTS audit_migration_state_events;
 DROP TABLE IF EXISTS audit_migration_state;
 DROP TABLE IF EXISTS audit_partition_config;
 
+DROP FUNCTION IF EXISTS audit_coverage_status();
 DROP FUNCTION IF EXISTS audit_deny_truncate();
 DROP FUNCTION IF EXISTS audit_config_touch();
 DROP FUNCTION IF EXISTS audit_hold_guard();
