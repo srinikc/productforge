@@ -59,6 +59,9 @@ REQUIRED_TRIGGERS = (
 )
 DONE = {"completed", "closed", "done"}
 OBJECT_META = {"artifacts", "stored_objects"}
+KINDS = {"table", "file", "derived", "object-store", "view"}
+STATUSES = {"exists", "planned", "retained"}
+RESERVED_COLS = {"primary", "foreign", "constraint", "unique", "check", "exclude", "like"}
 
 
 def _sql_files() -> list[Path]:
@@ -102,7 +105,8 @@ def _schema() -> tuple[set[str], dict[str, set[str]], set[str]]:
             name = m.group(1).lower()
             if name == "public":
                 continue
-            cols = set(c.lower() for c in re.findall(r"^\s*\"?([a-z_][a-z0-9_]*)\"?\s+[a-z]", body, re.M | re.I))
+            cols = {c.lower() for c in re.findall(r"^\s*\"?([a-z_][a-z0-9_]*)\"?\s+[a-z]", body, re.M | re.I)
+                    if c.lower() not in RESERVED_COLS}
             tables.setdefault(name, set()).update(cols)
         triggers.update(t.group(1).lower() for t in re.finditer(r"CREATE\s+TRIGGER\s+\"?([a-z_][a-z0-9_]*)\"?", s, re.I))
     return set(tables), tables, triggers
@@ -137,11 +141,26 @@ def _seed_relationships() -> list[dict]:
 
 
 def apply(reg: dict, tables: set[str], table_cols: dict[str, set[str]]) -> dict:
-    if not isinstance(reg.get("relationships"), list) or not reg["relationships"]:
-        reg["relationships"] = _seed_relationships()
+    # Registry is the storage; the seed is the canonical edge set. Upsert canonical edges, keep extras.
+    rels = [r for r in (reg.get("relationships") or []) if isinstance(r, dict)]
+    by_key = {(r.get("from"), r.get("to"), r.get("via")): r for r in rels}
+    for seed in _seed_relationships():
+        key = (seed["from"], seed["to"], seed["via"])
+        if key in by_key:
+            by_key[key].update({"kind": seed["kind"], "owner_item": seed["owner_item"], "note": seed["note"]})
+        else:
+            rels.append(seed)
+    for r in rels:
+        r.pop("verified", None)
+    reg["relationships"] = rels
     for v in (reg.get("stores") or {}).values():
         tgt = v.get("target") or {}
         cls = v.setdefault("classification", {})
+        # Config domains are deliberately file-retained (EDP decision); a table existing in the schema
+        # does not mean the data moved.
+        if str(v.get("kind") or "") == "config" and cls.get("backend") == "file":
+            v["target"] = {"kind": "file", "status": "retained", "ref": "", "owner_item": ""}
+            tgt = v["target"]
         if tgt.get("status") == "planned":
             owner = str(tgt.get("owner_item") or "")
             ref, kind = str(tgt.get("ref") or ""), str(tgt.get("kind") or "")
@@ -162,6 +181,10 @@ def check(reg: dict, tables: set[str], table_cols: dict[str, set[str]], triggers
         cls = (v or {}).get("classification") or {}
         kind, ref, st = str(tgt.get("kind") or ""), str(tgt.get("ref") or ""), str(tgt.get("status") or "")
         backend = str(cls.get("backend") or "")
+        if kind not in KINDS:
+            bad.append(f"{name}: target.kind={kind!r} is not one of {sorted(KINDS)}")
+        if st not in STATUSES:
+            bad.append(f"{name}: target.status={st!r} is not one of {sorted(STATUSES)}")
         if kind == "table" and st == "exists" and ref not in tables:
             bad.append(f"{name}: target table {ref!r} is not created by any migration")
         if kind == "object-store" and st == "exists":
@@ -210,11 +233,10 @@ def check(reg: dict, tables: set[str], table_cols: dict[str, set[str]], triggers
 
 
 def _counts(reg: dict) -> dict[str, int]:
-    out = {"migrated": 0, "retained": 0, "pending": 0}
+    out = {"migrated": 0, "retained": 0, "pending": 0, "invalid": 0}
     for v in (reg.get("stores") or {}).values():
         s = str(((v or {}).get("classification") or {}).get("migration_status") or "")
-        if s in out:
-            out[s] += 1
+        out[s if s in out else "invalid"] += 1
     return out
 
 
@@ -222,20 +244,26 @@ def _report(reg: dict, bad: list[str], verbose: bool) -> int:
     c = _counts(reg)
     print(f"store-relationships: stores={len(reg.get('stores') or {})} "
           f"relationships={len(reg.get('relationships') or [])} "
-          f"migrated={c['migrated']} retained={c['retained']} pending={c['pending']}")
+          f"migrated={c['migrated']} retained={c['retained']} pending={c['pending']}"
+          + (f" invalid={c['invalid']}" if c["invalid"] else ""))
     if not bad:
         print("store-relationships: OK")
         return 0
     print(f"store-relationships: FAIL ({len(bad)} problem(s))")
-    for b in (bad if verbose else bad[:20]):
+    for b in bad:  # always print every problem: truncation hides bulk drift in CI
         print("   " + b)
     return 1
 
 
 def _self_test(reg: dict, tables, cols, triggers) -> int:
     failures = []
+    table_store = next((n for n, v in (reg.get("stores") or {}).items()
+                        if (v.get("target") or {}).get("kind") == "table"), None)
+    if table_store is None:
+        print("self-test: FAIL - no table store to mutate")
+        return 1
     bad_ref = copy.deepcopy(reg)
-    bad_ref["stores"]["open.json"]["target"]["ref"] = "no_such_table"
+    bad_ref["stores"][table_store]["target"]["ref"] = "no_such_table"
     if not check(bad_ref, tables, cols, triggers):
         failures.append("unknown table target was not detected")
     bad_rel = copy.deepcopy(reg)
