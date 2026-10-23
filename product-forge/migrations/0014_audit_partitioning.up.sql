@@ -366,6 +366,19 @@ BEGIN
     FROM m;
 END $$;
 
+-- Deployed coverage probe: runtime roles may execute this without table-level grants.
+CREATE OR REPLACE FUNCTION audit_coverage_status()
+RETURNS TABLE(months_ahead INTEGER, lead_months INTEGER, last_rotation_hours DOUBLE PRECISION)
+LANGUAGE sql SECURITY DEFINER SET search_path = pg_catalog, public AS $$
+    SELECT c.months_ahead, cfg.lead_months,
+           COALESCE(EXTRACT(EPOCH FROM (now() - (SELECT max(at) FROM audit_migration_state_events
+              WHERE to_state IN ('archived', 'dropped', 'purged'))))/3600, -1)::float8
+      FROM audit_partition_coverage() c, audit_partition_config cfg
+     WHERE cfg.id
+$$;
+
+
+
 -- ---- 12. late evidence (bounded ad-hoc month; excluded from coverage) -----------------------------
 CREATE OR REPLACE FUNCTION audit_append_late(
     p_tenant TEXT, p_actor TEXT, p_action TEXT, p_resource TEXT, p_outcome TEXT,
@@ -663,11 +676,13 @@ BEGIN
     EXECUTE 'GRANT EXECUTE ON FUNCTION audit_ensure_partitions(date) TO pf_app';
     EXECUTE 'GRANT EXECUTE ON FUNCTION audit_month_start(timestamptz) TO pf_app';
     EXECUTE 'GRANT EXECUTE ON FUNCTION audit_partition_name(date) TO pf_app';
+    EXECUTE 'GRANT EXECUTE ON FUNCTION audit_coverage_status() TO pf_app';
   END IF;
   IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'pf_runtime') THEN
     EXECUTE 'GRANT EXECUTE ON FUNCTION audit_ensure_partitions(date) TO pf_runtime';
     EXECUTE 'GRANT EXECUTE ON FUNCTION audit_month_start(timestamptz) TO pf_runtime';
     EXECUTE 'GRANT EXECUTE ON FUNCTION audit_partition_name(date) TO pf_runtime';
+    EXECUTE 'GRANT EXECUTE ON FUNCTION audit_coverage_status() TO pf_runtime';
   END IF;
 END $$;
 

@@ -126,10 +126,8 @@ func (s *server) readCoverage(ctx context.Context, maxAge float64) (coverageStat
 	var st coverageStatus
 	_, err := s.withStore(ctx, func(pg *store.PgStore) (any, error) {
 		return nil, pg.WithTx(ctx, func(tx datastore.Tx) error {
-			rows, err := tx.Query(ctx, `SELECT c.months_ahead, cfg.lead_months,
-				COALESCE(EXTRACT(EPOCH FROM (now() - (SELECT max(at) FROM audit_migration_state_events
-				  WHERE to_state IN ('archived','dropped','purged'))))/3600, -1)::float8
-				FROM audit_partition_coverage() c, audit_partition_config cfg WHERE cfg.id`)
+			rows, err := tx.Query(ctx, `SELECT months_ahead, lead_months, last_rotation_hours
+				FROM audit_coverage_status()`)
 			if err != nil {
 				return err
 			}

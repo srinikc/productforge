@@ -279,15 +279,17 @@ func runSwap(ctx context.Context, pool *pgxpool.Pool, maxDelta int, m *pfaudit.M
 				}
 				fail("swap: committed but post-verification failed: %v", err)
 			}
+			// Record the commit BEFORE any budget check: the swap is irreversible and `close` must be able
+			// to proceed even when the operator is paged about an over-budget freeze.
+			if err := pfaudit.RecordState(ctx, pool, "swapped",
+				fmt.Sprintf(`{"drained":%d,"freeze_seconds":%.3f}`, n, frozen.Seconds())); err != nil {
+				fail("record swap: %v", err)
+			}
 			if budget := os.Getenv("PF_AUDIT_FREEZE_BUDGET_SECONDS"); budget != "" {
 				if secs, convErr := strconv.ParseFloat(budget, 64); convErr == nil && frozen.Seconds() > secs {
 					fail("swap: freeze %.1fs exceeds budget %.1fs (committed; investigate before close)",
 						frozen.Seconds(), secs)
 				}
-			}
-			if err := pfaudit.RecordState(ctx, pool, "swapped",
-				fmt.Sprintf(`{"drained":%d,"freeze_seconds":%.3f}`, n, frozen.Seconds())); err != nil {
-				fail("record swap: %v", err)
 			}
 			fmt.Printf("swap: committed (drained %d row(s), freeze %.1fs)\n", n, frozen.Seconds())
 			return

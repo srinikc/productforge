@@ -27,22 +27,12 @@ func CheckCoverage(ctx context.Context, pool *pgxpool.Pool, maxAgeHours float64)
 		return st, err
 	}
 	st.Coverage = cov
-	if err := pool.QueryRow(ctx, `SELECT lead_months FROM audit_partition_config WHERE id`).Scan(&st.LeadMonths); err != nil {
+	// One SECURITY DEFINER probe: runtime roles can execute it without table grants.
+	if err := pool.QueryRow(ctx, `SELECT months_ahead, lead_months, last_rotation_hours FROM audit_coverage_status()`).
+		Scan(&st.MonthsAhead, &st.LeadMonths, &st.LastRotationAgeHours); err != nil {
 		return st, err
 	}
-	var age *float64
-	if err := pool.QueryRow(ctx, `SELECT EXTRACT(EPOCH FROM (now() - max(at)))/3600
-		FROM audit_migration_state_events
-		WHERE to_state IN ('archived', 'dropped', 'purged')`).Scan(&age); err != nil {
-		return st, err
-	}
-	if age == nil {
-		st.LastRotationAgeHours = -1
-		st.Stale = true
-	} else {
-		st.LastRotationAgeHours = *age
-		st.Stale = maxAgeHours > 0 && *age > maxAgeHours
-	}
+	st.Stale = maxAgeHours > 0 && (st.LastRotationAgeHours < 0 || st.LastRotationAgeHours > maxAgeHours)
 	return st, nil
 }
 
