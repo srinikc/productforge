@@ -281,12 +281,13 @@ func VerifyHoldExtraction(ctx context.Context, pool *pgxpool.Pool, month string)
 	// Counts alone cannot detect swapped/tampered rows, so the archived copy is also digest-checked.
 	dq := `SELECT
 	  coalesce((SELECT encode(sha256(convert_to(string_agg(t::text, E'\n' ORDER BY t.id, t.at), 'UTF8')), 'hex')
-	    FROM (SELECT id, tenant_id, actor, action, resource, outcome, correlation_id, at
+	    FROM (SELECT DISTINCT id, tenant_id, actor, action, resource, outcome, correlation_id, at
 	            FROM audit_legal_hold_archive WHERE source_partition = $1) t), ''),
 	  coalesce((SELECT encode(sha256(convert_to(string_agg(t::text, E'\n' ORDER BY t.id, t.at), 'UTF8')), 'hex')
-	    FROM (SELECT a.id, a.tenant_id, a.actor, a.action, a.resource, a.outcome, a.correlation_id, a.at
+	    FROM (SELECT DISTINCT a.id, a.tenant_id, a.actor, a.action, a.resource, a.outcome, a.correlation_id, a.at
 	            FROM ` + month + ` a
 	            JOIN audit_legal_hold_events e ON e.month = $1 AND e.action = 'hold'
+	             AND (length(e.tenant_id) = 0 OR e.tenant_id = a.tenant_id)
 	           WHERE NOT EXISTS (SELECT 1 FROM audit_legal_hold_events r
 	                              WHERE r.hold_id = e.hold_id AND r.action = 'release' AND r.at > e.at)) t), '')`
 	var archSum, liveSum string
