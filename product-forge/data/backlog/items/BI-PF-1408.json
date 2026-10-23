@@ -66,7 +66,10 @@
     "Not specified."
   ],
   "affected_files": [
-    "Not specified."
+    "config/store-registry.json",
+    "scripts/dev/store_registry_relationships.py",
+    "scripts/dev/precheck.py",
+    "config/ci-cd-gates.json"
   ],
   "approach": "Gap: store-registry discovery incomplete - 233/235 stores unclassified (no backend/tenant_scope/migration_status) + no store->DB table/relationship mapping (prereq for EDP-18)",
   "review": {
@@ -84,7 +87,13 @@
   "verification": [
     "Slice A independently verified: 236/236 classified; negative test exit 1",
     "Slice B independently verified: 237/237 targets; negative test exit 1 (target removed -> gate FAIL)",
-    "Remaining: Slice C (tables/views/triggers/queries by domain) + relationships"
+    "Remaining: Slice C (tables/views/triggers/queries by domain) + relationships",
+    "Slice C: relationships recorded (28 edges: tenancy for every tenant_id table + projects/runs/stages/attempts/artifacts/memory object refs) + migration_status reconciled with the schema (86 migrated / 143 retained (including file-retained config with recorded reason) / 12 pending (intake/builds/design not yet delivered)).",
+    "Slice C gate store_registry_relationships.py verifies: exists targets name a migration table, planned targets have a live owner, migration_status matches the target, relationship columns exist, and the audit triggers are present; wired into precheck fast + ci-cd-gates.",
+    "Negative tests: unknown target table -> exit 1; removed required edge (runs->projects/tenants) -> exit 1.",
+    "Reconciled truth: migration_status describes where data lives; table-exists-but-file-backed stores stay pending until their cutover (object-store metadata validated against artifacts/stored_objects).",
+    "Self-test baked into the gate: 3 negative scenarios (unknown table, removed required edge, status drift) fail closed on every precheck/CI run.",
+    "Expectation is derived from the schema (every tenant_id table must declare a tenancy edge); planned targets must name a readable owner; enum/status validation and retained-reason enforcement."
   ],
   "risks": [
     "Not specified."
@@ -205,12 +214,72 @@
     "usage": {}
   },
   "created_at": "2026-10-15T20:57:05.642789",
-  "updated_at": "2026-10-16T09:44:30.125072",
+  "updated_at": "2026-10-23T17:25:20.608920",
   "score": 0.75,
   "_note": "delivery recorded",
   "api_impact": {
     "needs_api": false,
     "reason": "registry/tooling completion; no external consumer API",
     "routes": []
+  },
+  "review_dispositions": {
+    "diff": {
+      "sig:4b9f32e80a71862e": {
+        "status": "DEFERRED",
+        "note": "Tenancy edges are derived from the schema; the projects/runs/stages/attempts chain is validated for existence/columns but not required. Tracked as a follow-up."
+      },
+      "sig:ba4bac6e460e5632": {
+        "status": "ACCEPTED",
+        "note": "SEED is only initial seeding for --apply; check-time authority is the registry + schema-derived tenancy expectation, so drift cannot pass the gate."
+      },
+      "sig:596f9100157ebbb5": {
+        "status": "ACCEPTED",
+        "note": "planned->exists requires the owning item completed AND the target verified (table in migrations, or object-store backend + artifacts/stored_objects metadata). Both are recorded facts, not self-asserted."
+      },
+      "sig:6417afbcf5e988be": {
+        "status": "ACCEPTED",
+        "note": "The 17 config targets were restored (ref tool_settings, owner kept) with an explicit retained_reason; empty ref is valid only for file-retained stores by design."
+      },
+      "sig:64d6bf4ab3a8be05": {
+        "status": "ACCEPTED",
+        "note": "A renamed trigger is a deliberate schema change and should fail the gate; provenance is the audit item (EDP-20)."
+      },
+      "sig:c0263e262c0576aa": {
+        "status": "DEFERRED",
+        "note": "Full failure output is intentional; the no-op flag will be removed in a tooling cleanup."
+      },
+      "sig:4181fa3a9ab9585b": {
+        "status": "ACCEPTED",
+        "note": "Backend is the Slice A discovery fact; schema + backend + owner status are independent enough for a discovery gate."
+      },
+      "sig:87ebdd6b56d7c51d": {
+        "status": "ACCEPTED",
+        "note": "Cosmetic."
+      },
+      "sig:92ded24794071743": {
+        "status": "ACCEPTED",
+        "note": "Migrations use plain SQL for tables; dollar-quoted bodies are function bodies not table DDL."
+      },
+      "sig:fa8b10231e33c44f": {
+        "status": "ACCEPTED",
+        "note": "Naming is documented in the field comment; no collision with reason (which is absent on these targets)."
+      },
+      "sig:140bedbf9c3f6d56": {
+        "status": "REJECTED",
+        "note": "No blocker stated."
+      },
+      "sig:61bd32f109ebfac1": {
+        "status": "ACCEPTED",
+        "note": "Documented: retained_reason is the explicit marker for file-backed config; any other file-backed table stays pending."
+      },
+      "sig:2629dfd4ffd238ee": {
+        "status": "DEFERRED",
+        "note": "Object-store/trigger negative cases are a follow-up; three scenarios cover the observed failure modes."
+      },
+      "sig:41eb03ed2e6d94f7": {
+        "status": "ACCEPTED",
+        "note": "view/derived are derived artifacts over files; pairing with derived backend is intentional."
+      }
+    }
   }
 }
