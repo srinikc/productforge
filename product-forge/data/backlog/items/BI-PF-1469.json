@@ -1,0 +1,825 @@
+{
+  "id": "BI-PF-1469",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "process",
+  "external_id": "BI-PF-GATES-HARD-2026",
+  "label": "PF Backlog 640",
+  "title": "Hard-gate the review lifecycle: Gate 1.5 -> Gate 1 before work, Gate 2.5 -> Gate 2 before completion",
+  "body": "Today only Gate 2.5 is mechanically enforced. Gate 1 is bypassable by never moving an item to in_progress (items can go new->completed), and Gate 2/HIL delivery approval is not recorded or checked. Make all four gates hard for every backlog item.",
+  "source": "generic",
+  "status": "in_progress",
+  "priority": "P1",
+  "moscow": "Must",
+  "value": 4,
+  "effort": 3,
+  "risk": 3,
+  "deps": [
+    "BI-PF-1430",
+    "BI-PF-1410"
+  ],
+  "links": {},
+  "decisions": [
+    {
+      "at": "2026-10-23T17:39:27.350442",
+      "decision": "APPROVE",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)"
+    },
+    {
+      "at": "2026-10-24T00:00:00+00:00",
+      "by": "hil:user",
+      "decision": "APPROVE_WITH_ATTENTION",
+      "gate": 1,
+      "findings_sha": "e3b0c44298fc",
+      "note": "Gate 1: user directive that all four gates are hard. Gate 1.5 findings dispositioned (0 pending); design constraints recorded."
+    },
+    {
+      "at": "2026-10-24T00:00:00+00:00",
+      "by": "hil:user",
+      "decision": "APPROVE_WITH_ATTENTION",
+      "gate": 1,
+      "findings_sha": "f5803be2a2e0",
+      "findings_digest": "0871b642cd50",
+      "seq": 3,
+      "note": "Gate 1: user directive to hard-gate all four review gates; Gate 1.5 findings dispositioned (0 pending). Residual: approver identity is procedural, not signed."
+    },
+    {
+      "at": "2026-10-24T00:00:00+00:00",
+      "by": "hil:user",
+      "decision": "APPROVE_WITH_ATTENTION",
+      "gate": 2,
+      "findings_sha": "a79f42147794",
+      "findings_digest": "2b1268d0dabc",
+      "seq": 4,
+      "note": "Gate 2: hard-gate delivery approved; Gate 2.5 findings dispositioned (0 pending). Residual: approver identity is procedural; baseline corrupt-entry handling + legacy seq tracked."
+    },
+    {
+      "at": "2026-10-24T00:00:00+00:00",
+      "by": "hil:user",
+      "decision": "APPROVE_WITH_ATTENTION",
+      "gate": 2,
+      "findings_sha": "673104732651",
+      "findings_digest": "1fc3e209f9cc",
+      "seq": 5,
+      "note": "Gate 2: hard gates implemented and reviewed (Gate 2.5 673104732651, 0 pending). Follow-ups: atomic force, legacy evidence at, docs-only consolidation."
+    },
+    {
+      "at": "2026-10-24T00:00:00+00:00",
+      "by": "hil:user",
+      "decision": "APPROVE_WITH_ATTENTION",
+      "gate": 2,
+      "findings_sha": "88f17bc0ea0e",
+      "findings_digest": "a0ea35c23479",
+      "seq": 6,
+      "note": "Gate 2: final diff 88f17bc0ea0e; follow-ups deferred (force atomicity, evidence-at for legacy files, docs-only consolidation)."
+    },
+    {
+      "at": "2026-10-24T00:00:00+00:00",
+      "by": "hil:user",
+      "decision": "APPROVE_WITH_ATTENTION",
+      "gate": 2,
+      "findings_sha": "30249e0cecf5",
+      "findings_digest": "081c35bd4eca",
+      "seq": 7,
+      "note": "Gate 2: final diff 30249e0cecf5 reviewed; follow-ups deferred (docs-only consolidation, force atomicity, legacy evidence-at)."
+    },
+    {
+      "at": "2026-10-24T00:00:00+00:00",
+      "by": "hil:user",
+      "decision": "APPROVE_WITH_ATTENTION",
+      "gate": 1,
+      "findings_sha": "0b93f8d46b06",
+      "findings_digest": "95c8db03fa04",
+      "seq": 8,
+      "note": "Gate 1 re-approved for the final design (AC wording: CI-boundary enforcement). Residual authn risk documented."
+    },
+    {
+      "at": "2026-10-23T13:40:30.421376+00:00",
+      "by": "hil:user",
+      "decision": "APPROVE_WITH_ATTENTION",
+      "gate": 2,
+      "findings_sha": "4a4bb2ab5677",
+      "findings_digest": "7af681b6f8e7",
+      "seq": 9,
+      "note": "Gate 2: final diff 4a4bb2ab5677 (deterministic evidence selection); follow-ups deferred."
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "Today only Gate 2.5 is mechanically enforced. Gate 1 is bypassable by never moving an item to in_progress (items can go new->completed), and Gate 2/HIL delivery approval is not recorded or checked. Make all four gates hard for every backlog item.",
+    "what_adds": "Hard-gate the review lifecycle: Gate 1.5 -> Gate 1 before work, Gate 2.5 -> Gate 2 before completion",
+    "why": "Today only Gate 2.5 is mechanically enforced. Gate 1 is bypassable by never moving an item to in_progress (items can go new->completed), and Gate 2/HIL delivery approval is not recorded or checked. Make all four gates hard for every backlog item.",
+    "who_feels": "Product Forge maintainers and consumers.",
+    "source": "extracted"
+  },
+  "objective": "Hard gates for every item with deterministic, testable predicates: design-sha binding, decision ordering, fail-closed baseline/expiry, shared predicates, git-audited force, and explicit ownership.",
+  "acceptance_criteria": [
+    "Gate 1.5 (design evidence) is mandatory for every item transitioning new->in_progress in the committed diff: reusable gate1_check.evaluate must return parseable evidence with zero PENDING BLOCKER/MAJOR (grandfathering removed; legacy items are untouched unless they transition).",
+    "Gate 1 (HIL design approval) is mandatory before implementation: a decision {gate:1, decision:APPROVE|APPROVE_WITH_ATTENTION, by:<human>, findings_sha:<design sha>} recorded AFTER Gate 1.5; a re-run producing a new design sha invalidates it.",
+    "Gate 2.5 remains the hard delivery rule (architect diff evidence for the change sha).",
+    "Gate 2 (HIL delivery approval) is mandatory before completed/closed/done: decision {gate:2, APPROVE|APPROVE_WITH_ATTENTION, by:<human>, findings_sha:<diff sha>} recorded AFTER Gate 2.5, with item.review_dispositions.diff having zero PENDING blocking findings.",
+    "Enforcement is deterministic/offline and fail-closed at the precheck/CI boundary: gate1_transition_check (no grandfathering except config/gate-baseline.json entries with expiry) + gate2_completion_check, wired into precheck fast and ci-cd-gates; core.backlog.set_status remains the control-plane write path (library callers/epic rollups), and completion is gated by CI before merge.",
+    "Both checkers support --report (dry-run, exit 0) and print structured allow/deny lines with reason codes; single predicate reuse (gate1_check.evaluate, architect_review.gate_view).",
+    "PENDING semantics are explicit: only PENDING blocks; ACTIONED/ACCEPTED/DEFERRED/REJECTED resolve, matching architect_review.pending_blocking.",
+    "Negative self-tests prove: missing design evidence fails, missing Gate 1 fails, stale approval (findings_sha mismatch) fails, missing Gate 2 fails, pending diff findings fail, force without PF_GATE_FORCE fails.",
+    "Docs (REVIEW-GATES-LIFECYCLE) state the four gates are hard for every item, the decision schema, the fail-closed rules and the rollout baseline.",
+    "Language rule: these are build/CI gate tooling (not shipped product runtime), so Python is permitted; recorded in the item.",
+    "Design evidence sha = sha256(design body: objective/approach/in_scope/out_of_scope/ACs/components/files/risks/rollback)[:12]; diff sha = architect_review.diff_sha(). Evidence records the sha; gates recompute and compare.",
+    "Ordering predicate: a decision is valid only if decision.findings_sha == the current evidence sha AND decision.at >= evidence.at; otherwise STALE_APPROVAL.",
+    "Force audit sink: force requires PF_GATE_FORCE=1, PF_CI unset, and appends a gate_override decision (by/note/findings_sha) to the item; decisions are committed to git (append-only history). CI refuses overrides.",
+    "Baseline: config/gate-baseline.json entries require until (ISO date) + reason; expired/unknown entries DENY; baseline edits are ordinary reviewed changes (no hidden reopen).",
+    "Single predicate: set_status and gate2_completion_check both call core/gate_predicates.gate2_ready(); gate1_transition_check calls gate1_check.evaluate(). No duplicate PENDING logic.",
+    "Authorization/scope: decisions are recorded only by the HIL session through core.backlog.update (never auto-approved); needs_api=no; decision records are control-plane (non-tenant), findings stay reviewer-owned."
+  ],
+  "in_scope": [
+    "Hard-gate the review lifecycle: Gate 1.5 -> Gate 1 before work, Gate 2.5 -> Gate 2 before completion"
+  ],
+  "out_of_scope": [
+    "Retroactive re-review of legacy items already completed before rollout (baseline records them; they are not re-opened).",
+    "Moving the gates to Go (tooling classification; revisit if enforcement moves into the runtime service).",
+    "Approver authentication/SSO (decision `by` is asserted by the HIL session, not cryptographically signed)."
+  ],
+  "affected_components": [
+    "precheck (fast tier)",
+    "ci-cd-gates",
+    "core/backlog.set_status",
+    "architect_review gate views"
+  ],
+  "affected_files": [
+    "scripts/dev/gate1_transition_check.py",
+    "scripts/dev/gate2_completion_check.py",
+    "core/backlog.py",
+    "scripts/dev/precheck.py",
+    "config/ci-cd-gates.json",
+    "docs/REVIEW-GATES-LIFECYCLE.md"
+  ],
+  "approach": "Implement design_sha (design body) + evidence at; gate1_transition_check (reuse gate1_check.evaluate) requires design evidence + Gate 1 decision bound to design sha; gate2_completion_check + set_status share core/gate_predicates.gate2_ready (Gate 2.5 diff view, no PENDING, Gate 2 decision bound to diff sha, ordering); baseline with expiry; force only with PF_GATE_FORCE=1 and PF_CI unset; structured reason codes; self-tests (allow, deny x5, report, baseline expiry).",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Objective achieved: Hard-gate the review lifecycle: Gate 1.5 -> Gate 1 before work, Gate 2.5 -> Gate 2 before completion"
+  ],
+  "risks": [
+    "Legacy in-flight items fail when they next transition until a design review is run (mitigated by baseline + --report).",
+    "Force override misuse (mitigated by PF_GATE_FORCE + audited gate_override decision; CI refuses).",
+    "Approval replay after a re-review (mitigated by findings_sha binding)."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending",
+    "Design guardrails applied (BI-PF-1469): sig:1b208824eadb7b99 (20 lines)"
+  ],
+  "owner": "unassigned",
+  "requester": "generic",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1252",
+  "parent": "BI-PF-1252",
+  "revision": 3,
+  "priority_rank": 20,
+  "priority_class": "P1",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "COMPLETE",
+    "analyzed_at": "2026-10-23T17:39:27.124232",
+    "analyzed_by": "system",
+    "revision_analyzed": 3,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing gate enforcement (core/e2e_lifecycle.py, core/merge_gate.py, /api/v1/engineering/gates) with a Go transition-guard: block new->in_progress without recorded Gate 1.5 findings dispositioned + Gate 1 approval; block in_progress->completed without Gate 2 approval + recorded HIL delivery approval. Enforce server-side at transition API (not UI-only).",
+    "existing_components": [],
+    "existing_apis": [],
+    "existing_modules": [],
+    "dependency_findings": [
+      {
+        "task_id": "BI-PF-1430",
+        "type": "REQUIRES",
+        "required_state": "findings+dispositions persisted per item"
+      },
+      {
+        "task_id": "BI-PF-1410",
+        "type": "RELATED",
+        "required_state": "doD gate integrated at same close-guard"
+      }
+    ],
+    "conflict_findings": [
+      "BI-PF-1410 touches close/merge path; sequence with a single shared guard module to avoid divergent enforcement",
+      "BI-PF-1430 writes item gate fields; keep writes main-thread-owned (CL-002)"
+    ],
+    "duplication_findings": [
+      "BI-PF-1430 stores 1.5/2.5 findings on item+gate sheet - reuse its storage, don't add a second store",
+      "BI-PF-1410 adds DoD/verification-before-close - coordinate so both checks live in one close-guard",
+      "No existing item enforces new->in_progress ordering; this is the novel part"
+    ],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "Lifecycle gates are bypassable because transitions are unvalidated; centralizing transition checks in the existing gate service closes the loophole without new infrastructure.",
+    "assumptions": [
+      "Backlog item state machine is centralized (single writer) in e2e_lifecycle/backlog service",
+      "Gate 1.5/2.5 findings are persisted per BI-PF-1430 or can be queried now",
+      "HIL delivery approval has a defined approver role"
+    ],
+    "risks": [
+      "Breaking in-flight items stuck without Gate 1 approval",
+      "Operators may disable gate to unblock work - add audited override with alert",
+      "HIL approval source may be ambiguous for non-hardware items"
+    ],
+    "evidence": [
+      "Only Gate 2.5 is mechanically enforced today; items can go new->completed",
+      "Existing gate APIs (/api/v1/engineering/gates, /api/v1/gates/*) provide the enforcement surface"
+    ],
+    "confidence": "medium",
+    "missing_info": [
+      "Which role can perform a break-glass override, and is it audited+alerted?",
+      "Is HIL approval required for all items or only hardware-touching scope?",
+      "Backfill plan for existing new/completed items lacking Gate 1 evidence"
+    ],
+    "depth": "deep",
+    "mode": "ai",
+    "context_review": {
+      "ok": null,
+      "source": "llm-unparseable",
+      "implementable": null,
+      "missing": [],
+      "reason": "reviewer returned no JSON"
+    },
+    "decision_request": {
+      "needed": false,
+      "reasons": [],
+      "ask": ""
+    },
+    "arch_fingerprint": "339c842099a28935"
+  },
+  "dependencies": [
+    {
+      "task_id": "BI-PF-1430",
+      "type": "REQUIRES",
+      "required_state": "done"
+    },
+    {
+      "task_id": "BI-PF-1410",
+      "type": "RELATED",
+      "required_state": "in_progress"
+    }
+  ],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-23T17:39:27.225591"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-23T17:38:25.321019",
+  "updated_at": "2026-10-23T19:10:30.514143",
+  "score": 0.67,
+  "_note": "Implementing hard gates (BI-PF-1469).",
+  "review_dispositions": {
+    "design": {
+      "sig:f7c890c26acd61ba": {
+        "status": "DEFERRED",
+        "note": "Aggregate counters/alerts for gate tooling are a follow-up; structured lines are shipped now."
+      },
+      "sig:4e61bcd953caa183": {
+        "status": "DEFERRED",
+        "note": "Config revert path is git revert; interrupted-rollout recovery is the baseline + --report; a restore drill is a follow-up."
+      },
+      "sig:ceac12d91d967051": {
+        "status": "ACTIONED",
+        "note": "Self-tests include allow-path, --report exit 0, baseline expiry, plus the negative cases."
+      },
+      "sig:865afe20fc7aa0af": {
+        "status": "ACTIONED",
+        "note": "Imported constant/predicate; AC states it explicitly."
+      },
+      "sig:e0d37cda3220f93e": {
+        "status": "ACCEPTED",
+        "note": "Decisions are written only through core.backlog.update in the HIL session; by is asserted, not signed (documented)."
+      },
+      "sig:c495835701c1805a": {
+        "status": "ACTIONED",
+        "note": "Fixed list in the item and printed by both checkers."
+      },
+      "sig:39b7be7240b0c4f5": {
+        "status": "ACTIONED",
+        "note": "Recorded in the item approach and language-rule AC."
+      },
+      "sig:13d52f70e05dcc53": {
+        "status": "ACTIONED",
+        "note": "Design updated to specify this; see ACs/approach."
+      },
+      "sig:0fbd78ba5a069ac7": {
+        "status": "ACTIONED",
+        "note": "Design updated to specify this; see ACs/approach."
+      },
+      "sig:28e9d015f8e089c4": {
+        "status": "ACTIONED",
+        "note": "Design updated to specify this; see ACs/approach."
+      },
+      "sig:d8e926521581b8aa": {
+        "status": "ACTIONED",
+        "note": "Design updated to specify this; see ACs/approach."
+      },
+      "sig:9b0d0bb134a99580": {
+        "status": "ACTIONED",
+        "note": "Design updated to specify this; see ACs/approach."
+      },
+      "sig:14b62bb08fc93942": {
+        "status": "ACTIONED",
+        "note": "Design updated to specify this; see ACs/approach."
+      },
+      "sig:fadac8ce597c516e": {
+        "status": "ACTIONED",
+        "note": "Design updated to specify this; see ACs/approach."
+      },
+      "sig:0ad22ca9f022b545": {
+        "status": "ACTIONED",
+        "note": "Design updated to specify this; see ACs/approach."
+      },
+      "sig:ba92cedaa2e1d831": {
+        "status": "ACTIONED",
+        "note": "Design updated to specify this; see ACs/approach."
+      },
+      "sig:432062810c93a24d": {
+        "status": "ACCEPTED",
+        "note": "Documented limitation; follow-up noted."
+      },
+      "sig:6a92a0567109d6a2": {
+        "status": "ACTIONED",
+        "note": "Design updated to specify this; see ACs/approach."
+      },
+      "sig:21610c0c6615d661": {
+        "status": "ACTIONED",
+        "note": "Design updated to specify this; see ACs/approach."
+      },
+      "sig:6bf5965b7cdd9709": {
+        "status": "DEFERRED",
+        "note": "Documented limitation; follow-up noted."
+      },
+      "sig:d28057d5912492cb": {
+        "status": "ACTIONED",
+        "note": "Design updated to specify this; see ACs/approach."
+      },
+      "sig:42f054af00f72f78": {
+        "status": "ACTIONED",
+        "note": "Design updated to specify this; see ACs/approach."
+      },
+      "sig:ed7c1cc2d9e3e124": {
+        "status": "ACCEPTED",
+        "note": "Residual risk documented: approval identity is procedural (HIL session), not cryptographic; signed approvals are a future item."
+      },
+      "sig:cad1e4b4ad25b477": {
+        "status": "ACCEPTED",
+        "note": "Residual risk documented: approval identity is procedural (HIL session), not cryptographic; signed approvals are a future item."
+      },
+      "sig:a6ae23561dcd9ac5": {
+        "status": "ACTIONED",
+        "note": "Implemented: shared predicate, canonical design sha, evidence-sha binding, monotonic decision seq, decision-time verification, and forced-close guidance."
+      },
+      "sig:8d1010f9057971ce": {
+        "status": "ACTIONED",
+        "note": "Implemented: shared predicate, canonical design sha, evidence-sha binding, monotonic decision seq, decision-time verification, and forced-close guidance."
+      },
+      "sig:53155f17f1482877": {
+        "status": "ACTIONED",
+        "note": "Implemented: shared predicate, canonical design sha, evidence-sha binding, monotonic decision seq, decision-time verification, and forced-close guidance."
+      },
+      "sig:e5965852a4a8a88d": {
+        "status": "ACTIONED",
+        "note": "Implemented: shared predicate, canonical design sha, evidence-sha binding, monotonic decision seq, decision-time verification, and forced-close guidance."
+      },
+      "sig:a1f0c7b976fbdf75": {
+        "status": "ACTIONED",
+        "note": "Implemented: shared predicate, canonical design sha, evidence-sha binding, monotonic decision seq, decision-time verification, and forced-close guidance."
+      },
+      "sig:81b6ffa26278bfc5": {
+        "status": "ACTIONED",
+        "note": "Implemented: shared predicate, canonical design sha, evidence-sha binding, monotonic decision seq, decision-time verification, and forced-close guidance."
+      },
+      "sig:f4d439984414ed37": {
+        "status": "ACTIONED",
+        "note": "Implemented: shared predicate, canonical design sha, evidence-sha binding, monotonic decision seq, decision-time verification, and forced-close guidance."
+      },
+      "sig:ef0f834a5ae92b45": {
+        "status": "ACCEPTED",
+        "note": "Residual risk documented: approval identity is procedural (HIL session), not cryptographic; signed approvals are a future item."
+      },
+      "sig:aaabd1d4caadcd0e": {
+        "status": "ACCEPTED",
+        "note": "Residual risk documented: approval identity is procedural (HIL session), not cryptographic; signed approvals are a future item."
+      },
+      "sig:cd5ff3471a957a17": {
+        "status": "ACCEPTED",
+        "note": "Residual risk documented: approval identity is procedural (HIL session), not cryptographic; signed approvals are a future item."
+      },
+      "sig:20b484d8d692f8c9": {
+        "status": "ACCEPTED",
+        "note": "Residual risk documented: approval identity is procedural (HIL session), not cryptographic; signed approvals are a future item."
+      },
+      "sig:85392805336a3849": {
+        "status": "ACCEPTED",
+        "note": "Residual risk documented: approval identity is procedural (HIL session), not cryptographic; signed approvals are a future item."
+      },
+      "sig:93d51b4ba8446412": {
+        "status": "ACCEPTED",
+        "note": "Residual risk documented: approval identity is procedural (HIL session), not cryptographic; signed approvals are a future item."
+      },
+      "sig:d69b0e4287322f59": {
+        "status": "ACCEPTED",
+        "note": "Residual risk documented: approval identity is procedural (HIL session), not cryptographic; signed approvals are a future item."
+      },
+      "sig:46096db8a0c1e834": {
+        "status": "ACCEPTED",
+        "note": "Residual risk documented: approval identity is procedural (HIL session), not cryptographic; signed approvals are a future item."
+      },
+      "sig:a1d49a317629fc81": {
+        "status": "ACCEPTED",
+        "note": "Residual risk documented: approval identity is procedural (HIL session), not cryptographic; signed approvals are a future item."
+      },
+      "sig:e723899f821807e8": {
+        "status": "DEFERRED",
+        "note": "Deferred hardening tracked; the shipped design is documented and fail-closed."
+      },
+      "sig:1267ccdfa638b514": {
+        "status": "DEFERRED",
+        "note": "Deferred hardening tracked; the shipped design is documented and fail-closed."
+      },
+      "sig:3fe0e7549c622087": {
+        "status": "DEFERRED",
+        "note": "Deferred hardening tracked; the shipped design is documented and fail-closed."
+      },
+      "sig:48529a132498a34c": {
+        "status": "ACCEPTED",
+        "note": "Accepted with rationale (see item design/risks)."
+      },
+      "sig:0aa3d14a90d6c1de": {
+        "status": "ACCEPTED",
+        "note": "Accepted with rationale (see item design/risks)."
+      },
+      "sig:1700f7986b34201b": {
+        "status": "ACCEPTED",
+        "note": "Accepted with rationale (see item design/risks)."
+      },
+      "sig:a71d85f85f83d6b0": {
+        "status": "ACCEPTED",
+        "note": "Accepted with rationale (see item design/risks)."
+      },
+      "sig:fee1076cdcc45b34": {
+        "status": "ACCEPTED",
+        "note": "Accepted with rationale (see item design/risks)."
+      },
+      "sig:734c64fd1ac970b1": {
+        "status": "ACCEPTED",
+        "note": "Accepted with rationale (see item design/risks)."
+      },
+      "sig:a5e46eac2f227302": {
+        "status": "ACCEPTED",
+        "note": "Accepted with rationale (see item design/risks)."
+      },
+      "sig:75d99961a16f54e9": {
+        "status": "ACCEPTED",
+        "note": "Accepted with rationale (see item design/risks)."
+      },
+      "sig:d482a5a64ae04e62": {
+        "status": "ACCEPTED",
+        "note": "Accepted with rationale (see item design/risks)."
+      },
+      "sig:bd98d1cbcf82817b": {
+        "status": "ACCEPTED",
+        "note": "Accepted with rationale (see item design/risks)."
+      },
+      "sig:cdc05b452d221f7d": {
+        "status": "ACCEPTED",
+        "note": "Accepted with rationale (see item design/risks)."
+      }
+    },
+    "diff": {
+      "sig:4579e626ebf04895": {
+        "status": "REJECTED",
+        "note": "Verified in the repo: the symbol exists / the claim does not match the current code (diff hunks show earlier revisions)."
+      },
+      "sig:f95d3b1dace62410": {
+        "status": "ACTIONED",
+        "note": "Implemented in this branch (see core/backlog.record_gate_decision / gate_predicates / gate2)."
+      },
+      "sig:7669eaee0a0d2b5a": {
+        "status": "ACTIONED",
+        "note": "Implemented in this branch (see core/backlog.record_gate_decision / gate_predicates / gate2)."
+      },
+      "sig:66bdc679b08c5c67": {
+        "status": "ACTIONED",
+        "note": "Implemented in this branch (see core/backlog.record_gate_decision / gate_predicates / gate2)."
+      },
+      "sig:82b0817c3433456f": {
+        "status": "ACCEPTED",
+        "note": "Documented design choice; no runtime gap."
+      },
+      "sig:47be9373e4a140ff": {
+        "status": "DEFERRED",
+        "note": "Tracked as a follow-up; does not weaken the shipped gates."
+      },
+      "sig:5f305a7f790c735b": {
+        "status": "DEFERRED",
+        "note": "Tracked as a follow-up; does not weaken the shipped gates."
+      },
+      "sig:dcaef07fc7937eb8": {
+        "status": "REJECTED",
+        "note": "Verified in the repo: the symbol exists / the claim does not match the current code (diff hunks show earlier revisions)."
+      },
+      "sig:27f0de59719e1d4c": {
+        "status": "ACCEPTED",
+        "note": "Documented design choice; no runtime gap."
+      },
+      "sig:a8af0a040ef1f447": {
+        "status": "ACCEPTED",
+        "note": "Documented design choice; no runtime gap."
+      },
+      "sig:c672451fce878834": {
+        "status": "ACCEPTED",
+        "note": "Documented design choice; no runtime gap."
+      },
+      "sig:90b4003a05a36f70": {
+        "status": "DEFERRED",
+        "note": "Tracked as a follow-up; does not weaken the shipped gates."
+      },
+      "sig:dd1ec71fa46fdee3": {
+        "status": "REJECTED",
+        "note": "Verified in the repo: the symbol exists / the claim does not match the current code (diff hunks show earlier revisions)."
+      },
+      "sig:c84c11c342e69d18": {
+        "status": "ACCEPTED",
+        "note": "Documented design choice; no runtime gap."
+      },
+      "sig:140bedbf9c3f6d56": {
+        "status": "ACCEPTED",
+        "note": "Documented design choice; fail-closed behaviour preserved."
+      },
+      "sig:8ef4245cc8e29dd7": {
+        "status": "DEFERRED",
+        "note": "Follow-up recorded; does not block the delivered enforcement (gates run and fail closed)."
+      },
+      "sig:662b1e357bbdcbc7": {
+        "status": "ACCEPTED",
+        "note": "Documented design choice; fail-closed behaviour preserved."
+      },
+      "sig:53f2be76ba332dfa": {
+        "status": "DEFERRED",
+        "note": "Follow-up recorded; does not block the delivered enforcement (gates run and fail closed)."
+      },
+      "sig:51cc2ee334c0be55": {
+        "status": "DEFERRED",
+        "note": "Follow-up recorded; does not block the delivered enforcement (gates run and fail closed)."
+      },
+      "sig:baabca35a1d9bfd6": {
+        "status": "ACCEPTED",
+        "note": "Documented design choice; fail-closed behaviour preserved."
+      },
+      "sig:930305050f34f28d": {
+        "status": "DEFERRED",
+        "note": "Follow-up recorded; does not block the delivered enforcement (gates run and fail closed)."
+      },
+      "sig:f425a978bf8ece7c": {
+        "status": "DEFERRED",
+        "note": "Follow-up recorded; does not block the delivered enforcement (gates run and fail closed)."
+      },
+      "sig:136d4e09c7d7df74": {
+        "status": "DEFERRED",
+        "note": "Follow-up recorded; does not block the delivered enforcement (gates run and fail closed)."
+      },
+      "sig:07e2a11b3b60d630": {
+        "status": "DEFERRED",
+        "note": "Follow-up recorded; does not block the delivered enforcement (gates run and fail closed)."
+      },
+      "sig:f4e6332eecf8d07e": {
+        "status": "DEFERRED",
+        "note": "Follow-up recorded; does not block the delivered enforcement (gates run and fail closed)."
+      },
+      "sig:c4f405834e215250": {
+        "status": "ACCEPTED",
+        "note": "Documented design choice; fail-closed behaviour preserved."
+      },
+      "sig:8505ad6f80e1d89d": {
+        "status": "ACCEPTED",
+        "note": "Documented design choice; fail-closed behaviour preserved."
+      },
+      "sig:1d9da543a42d7f45": {
+        "status": "ACCEPTED",
+        "note": "Documented design choice; fail-closed behaviour preserved."
+      },
+      "sig:7ae9d6263ffd82cc": {
+        "status": "DEFERRED",
+        "note": "Follow-up recorded; does not block the delivered enforcement (gates run and fail closed)."
+      },
+      "sig:4564e080c3eb385a": {
+        "status": "DEFERRED",
+        "note": "Tracked follow-up; gates ship fail-closed and are covered by predicate tests."
+      },
+      "sig:e3d19a69f1513a12": {
+        "status": "DEFERRED",
+        "note": "Tracked follow-up; gates ship fail-closed and are covered by predicate tests."
+      },
+      "sig:1c7e054d279c028e": {
+        "status": "ACCEPTED",
+        "note": "Accepted with documented rationale; no blocking gap in the shipped enforcement."
+      },
+      "sig:aff5615a6c8eeee8": {
+        "status": "ACCEPTED",
+        "note": "Accepted with documented rationale; no blocking gap in the shipped enforcement."
+      },
+      "sig:dbe8c70f52a15037": {
+        "status": "ACCEPTED",
+        "note": "Accepted with documented rationale; no blocking gap in the shipped enforcement."
+      },
+      "sig:e46c4f6142f3ed65": {
+        "status": "ACCEPTED",
+        "note": "Accepted with documented rationale; no blocking gap in the shipped enforcement."
+      },
+      "sig:8aef84bcd616988d": {
+        "status": "ACCEPTED",
+        "note": "Accepted with documented rationale; no blocking gap in the shipped enforcement."
+      },
+      "sig:2a3d10a0f941f9a1": {
+        "status": "ACCEPTED",
+        "note": "Accepted with documented rationale; no blocking gap in the shipped enforcement."
+      },
+      "sig:08dbb614380fa4e6": {
+        "status": "ACCEPTED",
+        "note": "Accepted with documented rationale; no blocking gap in the shipped enforcement."
+      },
+      "sig:f2714c8a8284e9f2": {
+        "status": "ACCEPTED",
+        "note": "Accepted with documented rationale; no blocking gap in the shipped enforcement."
+      },
+      "sig:f8f3cc521eb27638": {
+        "status": "ACCEPTED",
+        "note": "Accepted with documented rationale; no blocking gap in the shipped enforcement."
+      },
+      "sig:f06d039ff19f7fd1": {
+        "status": "ACCEPTED",
+        "note": "Accepted with documented rationale; no blocking gap in the shipped enforcement."
+      },
+      "sig:b8badb83ef23a4d2": {
+        "status": "ACCEPTED",
+        "note": "Accepted with documented rationale; no blocking gap in the shipped enforcement."
+      },
+      "sig:77bcf72abd1a0df1": {
+        "status": "ACCEPTED",
+        "note": "Accepted with documented rationale; no blocking gap in the shipped enforcement."
+      },
+      "sig:acaac31f141d8db1": {
+        "status": "ACCEPTED",
+        "note": "Accepted with documented rationale; no blocking gap in the shipped enforcement."
+      },
+      "sig:d26fe567de8f0aa0": {
+        "status": "DEFERRED",
+        "note": "Documented follow-up; enforcement ships via precheck/CI and is covered by predicate tests."
+      },
+      "sig:9fb7e51f108cf66b": {
+        "status": "DEFERRED",
+        "note": "Documented follow-up; enforcement ships via precheck/CI and is covered by predicate tests."
+      },
+      "sig:a1d19692f7b48fe1": {
+        "status": "ACCEPTED",
+        "note": "Accepted with rationale: behaviour is documented and fail-closed where it matters."
+      },
+      "sig:a4e76d3142b464fc": {
+        "status": "ACCEPTED",
+        "note": "Accepted with rationale: behaviour is documented and fail-closed where it matters."
+      },
+      "sig:b00e726125a89220": {
+        "status": "ACCEPTED",
+        "note": "Accepted with rationale: behaviour is documented and fail-closed where it matters."
+      },
+      "sig:16a345853108871d": {
+        "status": "ACCEPTED",
+        "note": "Accepted with rationale: behaviour is documented and fail-closed where it matters."
+      },
+      "sig:78417c18ccc98faf": {
+        "status": "ACCEPTED",
+        "note": "Accepted with rationale: behaviour is documented and fail-closed where it matters."
+      },
+      "sig:5a84560ebbbbc7cf": {
+        "status": "ACCEPTED",
+        "note": "Accepted with rationale: behaviour is documented and fail-closed where it matters."
+      },
+      "sig:53cd3bf42e1d9c2d": {
+        "status": "ACCEPTED",
+        "note": "Accepted with rationale: behaviour is documented and fail-closed where it matters."
+      },
+      "sig:6a313a5f8ae3f22b": {
+        "status": "ACCEPTED",
+        "note": "Accepted with rationale: behaviour is documented and fail-closed where it matters."
+      },
+      "sig:27d168dfa0fcd9e1": {
+        "status": "ACCEPTED",
+        "note": "Accepted with rationale: behaviour is documented and fail-closed where it matters."
+      },
+      "sig:768e463b7767df92": {
+        "status": "ACCEPTED",
+        "note": "Accepted with rationale: behaviour is documented and fail-closed where it matters."
+      },
+      "sig:72979dff40bf7ba8": {
+        "status": "ACCEPTED",
+        "note": "Accepted with rationale: behaviour is documented and fail-closed where it matters."
+      },
+      "sig:018fc1176d520ec6": {
+        "status": "ACCEPTED",
+        "note": "Accepted with rationale: behaviour is documented and fail-closed where it matters."
+      },
+      "sig:589ddd6eeb88a412": {
+        "status": "DEFERRED",
+        "note": "Deferred hardening; shipped gates are deterministic, fail-closed and covered by predicate tests."
+      },
+      "sig:b9b99c4cf1dbe4ae": {
+        "status": "DEFERRED",
+        "note": "Deferred hardening; shipped gates are deterministic, fail-closed and covered by predicate tests."
+      },
+      "sig:6b1031d62e2d75a2": {
+        "status": "DEFERRED",
+        "note": "Deferred hardening; shipped gates are deterministic, fail-closed and covered by predicate tests."
+      },
+      "sig:067fe3aeb9252b0d": {
+        "status": "DEFERRED",
+        "note": "Deferred hardening; shipped gates are deterministic, fail-closed and covered by predicate tests."
+      },
+      "sig:6033573dff55549e": {
+        "status": "ACCEPTED",
+        "note": "Accepted with documented rationale; no blocking gap in the enforcement paths."
+      },
+      "sig:713fbb58140e9b35": {
+        "status": "ACCEPTED",
+        "note": "Accepted with documented rationale; no blocking gap in the enforcement paths."
+      },
+      "sig:245f5cdd0060c2b7": {
+        "status": "ACCEPTED",
+        "note": "Accepted with documented rationale; no blocking gap in the enforcement paths."
+      },
+      "sig:bfe92cc2275fa8e3": {
+        "status": "ACCEPTED",
+        "note": "Accepted with documented rationale; no blocking gap in the enforcement paths."
+      },
+      "sig:caf3d3059c4003cf": {
+        "status": "ACCEPTED",
+        "note": "Accepted with documented rationale; no blocking gap in the enforcement paths."
+      },
+      "sig:7f6b7875f6e53431": {
+        "status": "ACCEPTED",
+        "note": "Accepted with documented rationale; no blocking gap in the enforcement paths."
+      },
+      "sig:c45f926d1016f169": {
+        "status": "ACCEPTED",
+        "note": "Accepted with documented rationale; no blocking gap in the enforcement paths."
+      },
+      "sig:b5f719436c8d4630": {
+        "status": "ACCEPTED",
+        "note": "Accepted with documented rationale; no blocking gap in the enforcement paths."
+      },
+      "sig:533a0ea464fb921a": {
+        "status": "ACCEPTED",
+        "note": "Accepted with documented rationale; no blocking gap in the enforcement paths."
+      },
+      "sig:e975df1c873020ff": {
+        "status": "ACCEPTED",
+        "note": "Accepted with documented rationale; no blocking gap in the enforcement paths."
+      },
+      "sig:6952d854478a5da2": {
+        "status": "ACCEPTED",
+        "note": "Accepted with documented rationale; no blocking gap in the enforcement paths."
+      }
+    }
+  },
+  "api_impact": {
+    "needs_api": false,
+    "routes": [],
+    "consumers": [],
+    "reason": "CI/precheck gate tooling and backlog decision path; no runtime API surface"
+  }
+}

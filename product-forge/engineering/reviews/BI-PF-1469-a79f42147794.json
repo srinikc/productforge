@@ -1,0 +1,35 @@
+{
+  "item": "BI-PF-1469",
+  "sha": "a79f42147794",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-23T18:16:25.120946",
+  "findings": {
+    "BLOCKER": [
+      "`gate1_transition_check.py` imports `from gate1_check import evaluate` but the diff never shows `evaluate` being added to `gate1_check.py`; if absent, the gate crashes at import in precheck/CI with an opaque ImportError instead of a structured DENY line."
+    ],
+    "MAJOR": [
+      "`record_gate_decision` does not validate `by.startswith(\"hil:\")` at record time \u2014 a decision recorded with `by: \"system:auto\"` is silently written and only rejected later by `gp.approval()`, creating a wasted decision slot and a confusing state that looks like an approval.",
+      "`record_gate_decision` for gate 1 proceeds even when `view is None` (no Gate 1.5 evidence), recording an approval bound only to `design_sha(item)` with no evidence file; AC requires Gate 1.5 evidence before Gate 1.",
+      "`_docs_only()` in `gate2_completion_check.py` re-implements the glob/skip logic inline instead of calling `gp.is_docs_only(ar.changed_files(), skip)`, violating the single-predicate reuse requirement.",
+      "`_gate2_status` in `backlog.py` duplicates the view-retrieval / docs-only / sha-computation logic already present in `gate2_completion_check.check()`; only `gate2_ready` is shared, so the two paths can diverge.",
+      "`load_baseline()` swallows every exception and returns `{}`, so a corrupt or missing `gate-baseline.json` is silently treated as \"no entries\" with no governance error; AC requires fail-closed for unknown/expired entries \u2014 a corrupt file should also DENY.",
+      "`approval()` skips the seq-monotonicity check when `seq` is 0 or missing (`if seq and seq <= last_seq`), so manually-edited or legacy decisions without a `seq` bypass the append-only invariant."
+    ],
+    "MINOR": [
+      "`_gate2_status` imports `fnmatch` as `_fnmatch` but never uses it \u2014 dead import.",
+      "`backlog.py` manipulates `sys.path` to import `architect_review` and `gate_predicates` from `scripts/dev` \u2014 a core module reaching into a dev-scripts path is a layering violation and fragile to repo restructuring.",
+      "`gate1_transition_check.check()` and `gate2_completion_check.check()` call `ar._get_item(iid)` \u2014 coupling to a private function that is not part of the public API surface.",
+      "`_DESIGN_KEYS` tuple in `architect_review.py` duplicates the key tuple already defined inside `_design_body()`; a single constant should be shared.",
+      "`gate1-transition` in `precheck.py` does not pass `--self-test`, unlike `gate2-completion` \u2014 inconsistent CI coverage of the negative self-test matrix."
+    ],
+    "NIT": [
+      "`record_gate_decision` uses `_dt.now().isoformat()` (naive) while `set_status` force-override uses `_dt.now(_tz.utc).isoformat()` (aware); `_parse_ts` treats naive as UTC so it works today, but mixing naive/aware timestamps is fragile.",
+      "`gate2_completion_check._self_test()` mutates `gp.BASELINE` globally then restores in `finally`; safe single-threaded but racy if self-tests ever run in parallel."
+    ],
+    "SUMMARY": [
+      "The diff delivers a solid, fail-closed gate architecture with a shared predicate module and self-tests, but has a critical unresolved import (`gate1_check.evaluate`) that must be verified, and several places where `record_gate_decision` or duplicated logic bypasses or weakens the single-predicate invariant the AC demands."
+    ]
+  }
+}

@@ -191,6 +191,9 @@ _GATES = [
     # BI-PF-1466: Gate 1 (design approval) machine-enforced at the new->in_progress transition.
     ("gate1-transition", ["scripts/dev/gate1_transition_check.py"], "fast",
      ["data/backlog", "engineering/reviews"]),
+    # BI-PF-1469: Gate 2 (delivery approval) machine-enforced at -> completed.
+    ("gate2-completion", ["scripts/dev/gate2_completion_check.py", "--self-test"], "fast",
+     ["data/backlog", "engineering/reviews"]),
     ("grooming", ["scripts/dev/grooming_check.py"], "fast", ["grooming"]),
     ("github", ["scripts/dev/github_check.py"], "fast", ["github"]),
     ("dogfood-run", ["scripts/dev/dogfood_run_check.py"], "fast", ["dogfood", "dogfood_run", "api"]),
@@ -260,7 +263,7 @@ _GROUP_OF = {
     "backlog-reconcile": "backlog", "backlog-context": "backlog", "backlog-dod": "backlog",
     "backlog-verification": "backlog", "backlog-ids": "backlog", "backlog-epic": "backlog",
     "backlog-monotonic": "backlog", "backlog-write": "backlog", "grooming": "backlog",
-    "gate1-transition": "backlog",
+    "gate1-transition": "backlog", "gate2-completion": "backlog",
     "staleness": "backlog", "intent-trace": "backlog",
     # quality: pidl / validation / close-loop
     "dogfood-run": "quality", "pidl": "quality", "pidl-gate": "quality", "pidl-synthesis": "quality",

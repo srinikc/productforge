@@ -59,6 +59,30 @@ delivery approval)**. HIL always sees the reviewer's findings + recommendation a
 
 12. **Definition of Done.** `intent-trace` descriptors resolve; evidence linked; language/API checks green.
 
+## Hard gates for every item (BI-PF-1469)
+
+All four gates are enforced for every backlog item (no silent grandfathering):
+
+1. **Gate 1.5**: `gate1_transition_check.py` inspects items moving `new -> in_progress` in the committed diff and
+   requires committed design evidence for the **current design sha** (`architect_review.design_sha`, a canonical
+   hash of the design fields), parseable and with zero PENDING BLOCKER/MAJOR.
+2. **Gate 1**: a decision `{gate:1, decision:APPROVE|APPROVE_WITH_ATTENTION, by:"hil:<actor>",
+   findings_sha:<design sha>, findings_digest:<digest of dispositions>}`. A new design changes the sha and
+   invalidates the approval.
+3. **Gate 2.5**: unchanged hard rule - committed diff evidence for the change sha.
+4. **Gate 2**: `gate2_completion_check.py` (and `core.backlog.set_status`) require Gate 2.5 evidence with zero
+   PENDING findings **and** a decision `{gate:2, ..., findings_sha:<diff evidence sha>, findings_digest:...}`.
+   Docs/config-only changes use `findings_sha:"docs-only"`.
+
+Shared predicate: `core/gate_predicates.py` (used by both precheck/CI and `set_status`, so local and CI cannot
+diverge). Fail-closed: missing/unparsable evidence, stale sha, digest mismatch, unknown/expired baseline, or a
+gate-tool error deny. `--report` is the explicit non-blocking dry-run.
+
+Baseline: `config/gate-baseline.json` exempts legacy items that transition during rollout; entries require
+`owner_item`, `reason`, and `until` (UTC, inclusive, <=90 days), max 10 entries; expired/unknown entries deny.
+Force: `set_status(force=True)` requires `PF_GATE_FORCE=1` and `PF_CI` unset, appends an audited
+`gate_override` decision, and is a convenience override - not an authorization boundary.
+
 ## Gate 2.5 — Second-model Architect review
 
 **Purpose:** an *independent* architect-lens review (integrity, adaptability, scalability, security,

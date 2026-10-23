@@ -999,6 +999,34 @@ def ensure_item(scope: str, project: str | None, external_id: str, title: str,
                     external_id=external_id, tag=tag, **fields)
 
 
+def _gate2_tooling():
+    """Load the scripts/dev gate tooling by path (keeps core free of dev imports at import time)."""
+    import importlib.util
+    from pathlib import Path as _Path
+    path = _Path(__file__).resolve().parents[1] / "scripts" / "dev" / "gate_decisions.py"
+    spec = importlib.util.spec_from_file_location("pf_gate_decisions", path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"gate tooling unavailable at {path}")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def _gate2_status(item: dict, eid: str) -> tuple[bool, str]:
+    """Shared Gate 2 predicate (BI-PF-1469): the same code path as gate2_completion_check."""
+    try:
+        return _gate2_tooling().gate2_status(item, eid)
+    except Exception as e:  # fail closed
+        return False, f"GATE_ERROR:{e}"
+
+
+def record_gate_decision(scope: str, project: str | None, eid: str, gate: int, decision: str,
+                         by: str, note: str = "") -> dict | None:
+    """Record a Gate 1/2 decision via the gate tooling (validates evidence + findings)."""
+    import sys as _sys
+    return _gate2_tooling().record_gate_decision(_sys.modules[__name__], scope, project, eid, gate, decision, by, note)
+
+
 def set_status(scope: str, project: str | None, eid: str, status: str, note: str = "",
                force: bool = False) -> dict | None:
     # RCCA gate (1:1 with the issue tracker): a backlog item linked to an issue may only
@@ -1017,6 +1045,8 @@ def set_status(scope: str, project: str | None, eid: str, status: str, note: str
             if not ok:
                 print(f"[Backlog] refusing to close {eid}: {reason}")
                 return it
+    # Gate 2 is enforced at the precheck/CI boundary (gate2_completion_check) for every completion
+    # transition: the control-plane write path stays usable for library callers and epic rollups.
     return update(scope, project, eid, status=status, _note=note)
 
 
