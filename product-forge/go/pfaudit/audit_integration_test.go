@@ -446,11 +446,11 @@ func TestCoverageCheck(t *testing.T) {
 	}
 	m := NewMetrics()
 	EmitCoverage(m, st)
-	c, g := m.Snapshot()
+	_, g := m.Snapshot()
 	if _, ok := g[MetricMonthsAhead]; !ok {
 		t.Fatal("months_ahead gauge not emitted")
 	}
-	if _, ok := c[MetricRotationStale]; !ok {
-		t.Fatal("rotation stale counter not emitted")
+	if _, ok := g[MetricRotationStale]; !ok {
+		t.Fatal("rotation stale gauge not emitted")
 	}
 }

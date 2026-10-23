@@ -214,7 +214,7 @@ def _llm_call(prompt: str, model: str) -> str:
         except urllib.error.HTTPError as e:
             last_err = e
             if e.code not in (408, 425, 429, 500, 502, 503, 504) or attempt == attempts:
-                raise
+                raise RuntimeError(f"review call failed (model={model} attempt={attempt}/{attempts}): HTTP {e.code}") from e
             print(f"architect-review: attempt {attempt} HTTP {e.code}; retrying", file=sys.stderr)
             time.sleep(min(30, 5 * (2 ** (attempt - 1))))
             continue

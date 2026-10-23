@@ -1,12 +1,13 @@
-﻿# pfaudit retention cron (EDP-20 / BI-PF-1312). Install under /etc/cron.d/pfaudit-retention.
-# Required env: PF_DB_DSN (pf_owner), PF_OBJECT_ROOT or PF_S3_* (+SSE), PF_OPERATOR.
-# The CLI holds the AURE advisory lock for export/purge, so jobs never overlap.
+# pfaudit retention cron (EDP-20 / BI-PF-1312). Install as /etc/cron.d/pfaudit-retention.
+# Environment: cron.d does not inherit a login shell. Set PF_DB_DSN / PF_OBJECT_ROOT (or PF_S3_*)
+# in /etc/environment (or a wrapper that sources /etc/pfaudit/retention.env) before enabling this file.
+# export/purge/reconcile hold the AURE advisory lock, so jobs never overlap.
+# Purge is intentionally NOT scheduled: it is irreversible and requires an explicit operator approval
+# (`pfaudit-retention purge --month audit_YYYYMM --actor ... --reason ...`).
 SHELL=/bin/sh
 PATH=/usr/local/bin:/usr/bin:/bin
-# Hourly: silent coverage + stale-rotation check. Emits audit_partition_months_ahead,
-# audit_partition_low_coverage_total and audit_rotation_stale_total as one JSON line on stderr.
+# Hourly: coverage + stale-rotation probe. Emits audit_partition_months_ahead,
+# audit_partition_low_coverage_total and audit_rotation_stale as one JSON line on stderr.
 17 * * * *  pfaudit pfaudit-retention check --max-age-hours 48 >> /var/log/pfaudit-retention.log 2>&1
-# Daily: archive fully-old months and drop their hot partitions (holds extracted first).
-23 3 * * *  pfaudit pfaudit-retention export --keep-months 13 --actor "$PF_OPERATOR" --reason "scheduled retention" >> /var/log/pfaudit-retention.log 2>&1
-# Weekly: irreversibly purge archives past the grace window (requires explicit approval).
-41 4 * * 0  pfaudit pfaudit-retention purge --month "$PF_AUDIT_PURGE_MONTH" --actor "$PF_OPERATOR" --reason "grace elapsed" >> /var/log/pfaudit-retention.log 2>&1
+# Daily: archive fully-old months, extract holds, then drop the hot partitions.
+23 3 * * *  pfaudit pfaudit-retention export --keep-months 13 --actor "${PF_OPERATOR:-retention}" --reason "scheduled retention" >> /var/log/pfaudit-retention.log 2>&1

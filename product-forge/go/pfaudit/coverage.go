@@ -52,7 +52,9 @@ func EmitCoverage(m *Metrics, st CoverageStatus) {
 	if st.Low() {
 		m.Inc(MetricLowCoverage)
 	}
+	stale := 0.0
 	if st.Stale {
-		m.Inc(MetricRotationStale)
+		stale = 1
 	}
+	m.Gauge(MetricRotationStale, stale)
 }

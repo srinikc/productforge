@@ -315,6 +315,9 @@ func runSwap(ctx context.Context, pool *pgxpool.Pool, maxDelta int, m *pfaudit.M
 
 // rehearsal proves the encrypted dump is readable and contains the table, its sequence and RLS policies.
 func rehearsal(ctx context.Context, obj datastore.ObjectStore, key string) error {
+	// A wrong identity or wedged pipe must not stall the swap window indefinitely.
+	ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
+	defer cancel()
 	rc, _, err := obj.Get(ctx, key, "")
 	if err != nil {
 		return err
@@ -373,6 +376,10 @@ func backup(ctx context.Context, pool *pgxpool.Pool, dsn string, obj datastore.O
 		return fmt.Errorf("pg_dump: %w", err)
 	}
 	if err := age.Start(); err != nil {
+		if dump.Process != nil {
+			_ = dump.Process.Kill()
+			_, _ = dump.Process.Wait()
+		}
 		return fmt.Errorf("age: %w", err)
 	}
 	go func() { pw.CloseWithError(age.Wait()) }()
@@ -447,10 +454,11 @@ func backupRetention(rollbackDays int) time.Duration {
 		}
 	}
 	// Never expire the dump before the rollback window closes (plus a week of slack).
+	const minBackupRetention = 30 * 24 * time.Hour
 	if days := rollbackDays + 7; days > 30 {
 		return time.Duration(days) * 24 * time.Hour
 	}
-	return 30 * 24 * time.Hour
+	return minBackupRetention
 }
 
 func fail(format string, args ...any) {
