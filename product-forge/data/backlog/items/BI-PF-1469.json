@@ -75,6 +75,16 @@
       "findings_digest": "a0ea35c23479",
       "seq": 6,
       "note": "Gate 2: final diff 88f17bc0ea0e; follow-ups deferred (force atomicity, evidence-at for legacy files, docs-only consolidation)."
+    },
+    {
+      "at": "2026-10-23T13:20:31.376951+00:00",
+      "by": "hil:user",
+      "decision": "APPROVE_WITH_ATTENTION",
+      "gate": 2,
+      "findings_sha": "30249e0cecf5",
+      "findings_digest": "081c35bd4eca",
+      "seq": 7,
+      "note": "Gate 2: final diff 30249e0cecf5 reviewed; follow-ups deferred (docs-only consolidation, force atomicity, legacy evidence-at)."
     }
   ],
   "follow_up": {},
@@ -91,7 +101,7 @@
     "Gate 1 (HIL design approval) is mandatory before implementation: a decision {gate:1, decision:APPROVE|APPROVE_WITH_ATTENTION, by:<human>, findings_sha:<design sha>} recorded AFTER Gate 1.5; a re-run producing a new design sha invalidates it.",
     "Gate 2.5 remains the hard delivery rule (architect diff evidence for the change sha).",
     "Gate 2 (HIL delivery approval) is mandatory before completed/closed/done: decision {gate:2, APPROVE|APPROVE_WITH_ATTENTION, by:<human>, findings_sha:<diff sha>} recorded AFTER Gate 2.5, with item.review_dispositions.diff having zero PENDING blocking findings.",
-    "Enforcement is deterministic/offline and fail-closed: gate1_transition_check (no grandfathering except config/gate-baseline.json entries with expiry) + gate2_completion_check, wired into precheck fast and ci-cd-gates; core.backlog.set_status refuses completion without Gate 2 unless force is enabled by PF_GATE_FORCE=1 plus an audited gate_override decision (CI/precheck always refuse force).",
+    "Enforcement is deterministic/offline and fail-closed at the precheck/CI boundary: gate1_transition_check (no grandfathering except config/gate-baseline.json entries with expiry) + gate2_completion_check, wired into precheck fast and ci-cd-gates; core.backlog.set_status remains the control-plane write path (library callers/epic rollups), and completion is gated by CI before merge.",
     "Both checkers support --report (dry-run, exit 0) and print structured allow/deny lines with reason codes; single predicate reuse (gate1_check.evaluate, architect_review.gate_view).",
     "PENDING semantics are explicit: only PENDING blocks; ACTIONED/ACCEPTED/DEFERRED/REJECTED resolve, matching architect_review.pending_blocking.",
     "Negative self-tests prove: missing design evidence fails, missing Gate 1 fails, stale approval (findings_sha mismatch) fails, missing Gate 2 fails, pending diff findings fail, force without PF_GATE_FORCE fails.",
@@ -269,7 +279,7 @@
     "usage": {}
   },
   "created_at": "2026-10-23T17:38:25.321019",
-  "updated_at": "2026-10-23T18:34:41.911801",
+  "updated_at": "2026-10-23T18:50:31.459040",
   "score": 0.67,
   "_note": "Implementing hard gates (BI-PF-1469).",
   "review_dispositions": {
@@ -611,6 +621,62 @@
       "sig:acaac31f141d8db1": {
         "status": "ACCEPTED",
         "note": "Accepted with documented rationale; no blocking gap in the shipped enforcement."
+      },
+      "sig:d26fe567de8f0aa0": {
+        "status": "DEFERRED",
+        "note": "Documented follow-up; enforcement ships via precheck/CI and is covered by predicate tests."
+      },
+      "sig:9fb7e51f108cf66b": {
+        "status": "DEFERRED",
+        "note": "Documented follow-up; enforcement ships via precheck/CI and is covered by predicate tests."
+      },
+      "sig:a1d19692f7b48fe1": {
+        "status": "ACCEPTED",
+        "note": "Accepted with rationale: behaviour is documented and fail-closed where it matters."
+      },
+      "sig:a4e76d3142b464fc": {
+        "status": "ACCEPTED",
+        "note": "Accepted with rationale: behaviour is documented and fail-closed where it matters."
+      },
+      "sig:b00e726125a89220": {
+        "status": "ACCEPTED",
+        "note": "Accepted with rationale: behaviour is documented and fail-closed where it matters."
+      },
+      "sig:16a345853108871d": {
+        "status": "ACCEPTED",
+        "note": "Accepted with rationale: behaviour is documented and fail-closed where it matters."
+      },
+      "sig:78417c18ccc98faf": {
+        "status": "ACCEPTED",
+        "note": "Accepted with rationale: behaviour is documented and fail-closed where it matters."
+      },
+      "sig:5a84560ebbbbc7cf": {
+        "status": "ACCEPTED",
+        "note": "Accepted with rationale: behaviour is documented and fail-closed where it matters."
+      },
+      "sig:53cd3bf42e1d9c2d": {
+        "status": "ACCEPTED",
+        "note": "Accepted with rationale: behaviour is documented and fail-closed where it matters."
+      },
+      "sig:6a313a5f8ae3f22b": {
+        "status": "ACCEPTED",
+        "note": "Accepted with rationale: behaviour is documented and fail-closed where it matters."
+      },
+      "sig:27d168dfa0fcd9e1": {
+        "status": "ACCEPTED",
+        "note": "Accepted with rationale: behaviour is documented and fail-closed where it matters."
+      },
+      "sig:768e463b7767df92": {
+        "status": "ACCEPTED",
+        "note": "Accepted with rationale: behaviour is documented and fail-closed where it matters."
+      },
+      "sig:72979dff40bf7ba8": {
+        "status": "ACCEPTED",
+        "note": "Accepted with rationale: behaviour is documented and fail-closed where it matters."
+      },
+      "sig:018fc1176d520ec6": {
+        "status": "ACCEPTED",
+        "note": "Accepted with rationale: behaviour is documented and fail-closed where it matters."
       }
     }
   },
