@@ -1,14 +1,14 @@
 # Backlog Summary
 
-> GENERATED 2026-10-23T16:04:28 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-23T16:53:11 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 139  |  **Closed:** 572
+- **Open:** 138  |  **Closed:** 573
 - `blocked`: 1
 - `executing`: 3
-- `in_progress`: 3
+- `in_progress`: 2
 - `new`: 132
 
 ### new, by category (132)
@@ -374,5 +374,5 @@
 ---
 
 ## Totals
-- backend: 139 open / 572 closed
+- backend: 138 open / 573 closed
 - dashboard: 146 open / 3 closed
