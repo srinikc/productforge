@@ -386,6 +386,20 @@ def pending_blocking(findings: dict, dispositions: dict):
     return total, pending, blocking
 
 
+def gate_view_sha(item_id: str, mode: str, sha: str) -> dict | None:
+    """View for a SPECIFIC evidence sha (deterministic completion checks on data-only PRs)."""
+    fp = EVID / f"{item_id}-{sha}.json"
+    try:
+        rev = json.loads(fp.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+    findings = rev.get("findings") or {}
+    disp = _item_dispositions(item_id, mode)
+    total, pending, blocking = pending_blocking(findings, disp)
+    return {"review": rev, "dispositions": disp, "total": total, "pending": pending,
+            "blocking": blocking, "parsed_ok": rev.get("parsed_ok", True)}
+
+
 def gate_view(item_id: str, mode: str = "design") -> dict | None:
     """Public: latest review + dispositions + pending/blocking counts (shared by `gate` + gate1_check)."""
     prefer = ""

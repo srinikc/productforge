@@ -70,3 +70,24 @@ def test_force_requires_env_and_no_ci():
 def test_docs_only():
     assert gp.is_docs_only(["docs/x.md"], ["docs/**"]) is True
     assert gp.is_docs_only(["core/x.py"], ["docs/**"]) is False
+
+
+def test_older_valid_decision_is_used():
+    view = _view()
+    good = _item()["decisions"][0]
+    stale = dict(good, findings_sha="zzz", seq=2, at="2026-02-01T00:00:00+00:00")
+    it = {"decisions": [good, stale]}
+    assert gp.gate2_ready(it, "abc", view) == (True, "OK")
+
+
+def test_all_stale_reports_stale():
+    view = _view()
+    d = _item()["decisions"][0]
+    it = {"decisions": [dict(d, findings_sha="zzz")]}
+    assert gp.gate2_ready(it, "abc", view)[1] == "STALE_APPROVAL"
+
+
+def test_bookkeeping_tier_runs_delivery_gates():
+    src = (ROOT / "scripts" / "dev" / "precheck.py").read_text(encoding="utf-8")
+    assert "gate2-completion" in src and "delivery-completeness" in src
+    assert 'must = ("compile", "docs-fresh", "gate2-completion", "delivery-completeness")' in src

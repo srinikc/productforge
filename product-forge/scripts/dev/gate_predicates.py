@@ -110,6 +110,7 @@ def approval(item: dict, gate: int, evidence_sha: str, view: dict | None,
         if seq and seq <= last_seq:
             return False, "DECISION_ORDER_INVALID"
         last_seq = max(last_seq, seq)
+    saw_gate_decision = False
     for d in reversed((item.get("decisions") or [])):
         try:
             g = int(d.get("gate") or 0)
@@ -117,18 +118,20 @@ def approval(item: dict, gate: int, evidence_sha: str, view: dict | None,
             g = 0
         if g != gate or str(d.get("decision") or "").upper() not in APPROVED:
             continue
+        saw_gate_decision = True
         if not str(d.get("by") or "").startswith("hil:"):
             return False, "UNAUTHORIZED_APPROVER"
+        # A re-review creates a new sha; keep looking for the decision that matches THIS evidence.
         if str(d.get("findings_sha") or "") != str(evidence_sha or ""):
-            return False, "STALE_APPROVAL"
+            continue
         ev_at = _parse_ts(((view or {}).get("review") or {}).get("at"))
         dec_at = _parse_ts(d.get("at"))
         if ev_at and dec_at and dec_at < ev_at:
-            return False, "STALE_APPROVAL"
+            continue
         if view is not None and str(d.get("findings_digest") or "") != digest:
-            return False, "STALE_APPROVAL"
+            continue
         return True, "OK"
-    return False, "NO_GATE_APPROVAL"
+    return False, ("STALE_APPROVAL" if saw_gate_decision else "NO_GATE_APPROVAL")
 
 
 def gate2_ready(item: dict, diff_sha: str, diff_view: dict | None,
