@@ -588,13 +588,18 @@ func (s *server) memoryHandle(w http.ResponseWriter, r *http.Request) {
 	mem := edpdata.NewMemory(store.BindTenant(st, tenant))
 	switch r.Method {
 	case http.MethodPost:
-		var b struct{ ID, Tenant, Project, Kind, ObjectRef, ACLScope string }
+		var b struct {
+			ID, Tenant, Project, Kind, ObjectRef, ACLScope string
+			Content, Source, Owner                         string
+			Embedding                                      []float32
+		}
 		if err := json.NewDecoder(r.Body).Decode(&b); err != nil || b.ID == "" || b.Tenant == "" {
 			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "id and tenant are required"})
 			return
 		}
 		e, err := mem.Put(r.Context(), datastore.MemoryEntry{ID: b.ID, TenantID: b.Tenant, Project: b.Project,
-			Kind: b.Kind, ObjectRef: b.ObjectRef, ACLScope: b.ACLScope})
+			Kind: b.Kind, ObjectRef: b.ObjectRef, ACLScope: b.ACLScope, Content: b.Content, Source: b.Source,
+			Owner: b.Owner, Embedding: b.Embedding})
 		if err != nil {
 			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 			return
@@ -602,8 +607,27 @@ func (s *server) memoryHandle(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, e)
 	case http.MethodGet:
 		k := 20
-		hits, err := mem.Search(r.Context(), q.Get("kind"), datastore.MemoryScope{
-			TenantID: tenant, Project: q.Get("project"), Source: q.Get("source")}, k)
+		if v := q.Get("k"); v != "" {
+			if n, convErr := strconv.Atoi(v); convErr == nil && n > 0 {
+				k = n
+			}
+		}
+		var kinds []string
+		if v := strings.TrimSpace(q.Get("types")); v != "" {
+			for _, part := range strings.Split(v, ",") {
+				if p := strings.TrimSpace(part); p != "" {
+					kinds = append(kinds, p)
+				}
+			}
+		}
+		// Backward compatible: `kind` used to be the free-text query.
+		text := q.Get("q")
+		if text == "" {
+			text = q.Get("kind")
+		}
+		hits, err := mem.Search(r.Context(), text, datastore.MemoryScope{
+			TenantID: tenant, Project: q.Get("project"), Source: q.Get("source"),
+			User: q.Get("user"), Kinds: kinds}, k)
 		if err != nil {
 			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 			return

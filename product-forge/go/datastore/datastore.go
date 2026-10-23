@@ -112,6 +112,10 @@ type MemoryEntry struct {
 	Kind      string
 	ObjectRef string
 	ACLScope  string
+	Content   string
+	Source    string
+	Owner     string
+	Score     float32
 	Embedding []float32
 }
 
@@ -127,6 +131,9 @@ type MemoryScope struct {
 	TenantID string
 	Project  string
 	Source   string
+	User     string   // caller principal: private entries are visible only to their owner
+	Kinds    []string // optional memory-type filter (all eight types when empty)
+	Vector   []float32 // optional query embedding; used only when pgvector is available
 }
 
 // ---- Durable jobs / leases (ONE job truth; reuse workergrid/internal/store as reference) ----
