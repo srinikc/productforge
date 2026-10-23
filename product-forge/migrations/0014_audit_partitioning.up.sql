@@ -185,6 +185,11 @@ BEGIN
     EXECUTE format(
         'CREATE POLICY tenant_isolation ON %s USING (tenant_id = current_setting(''app.tenant_id'', true)) ' ||
         'WITH CHECK (tenant_id = current_setting(''app.tenant_id'', true))', v_reg);
+    -- FORCE RLS also applies to the owner: without this policy pf_owner sees 0 rows in a leaf.
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'pf_owner') THEN
+        EXECUTE format('DROP POLICY IF EXISTS owner_bypass ON %s', v_reg);
+        EXECUTE format('CREATE POLICY owner_bypass ON %s TO pf_owner USING (true) WITH CHECK (true)', v_reg);
+    END IF;
     IF NOT EXISTS (SELECT 1 FROM pg_trigger
                    WHERE tgrelid = v_reg AND tgname = p_name || '_append_only') THEN
         EXECUTE format('CREATE TRIGGER %I BEFORE UPDATE OR DELETE ON %s '
@@ -301,6 +306,10 @@ BEGIN
     -- cold restore into a scratch partition) must never try to attach the canonical month alongside it.
     IF TG_TABLE_NAME <> audit_parent()::text THEN
         RETURN NEW;
+    END IF;
+    IF v_month < audit_month_start(now()) - interval '24 months'
+       OR v_month > audit_month_start(now()) + make_interval(months => (SELECT horizon_months FROM audit_partition_config WHERE id)) THEN
+        RAISE EXCEPTION 'audit_provision: % is outside the provisionable window', NEW.at;
     END IF;
     IF to_regclass('public.' || v_name) IS NOT NULL THEN
         RETURN NEW;  -- fast path: no lock, no catalog scan beyond the name lookup
@@ -500,6 +509,7 @@ BEGIN
               e.reason, %L
        FROM public.%I a
        JOIN audit_legal_hold_events e ON e.month = %L AND e.action = ''hold''
+         AND (length(e.tenant_id) = 0 OR e.tenant_id = a.tenant_id)
        WHERE NOT EXISTS (SELECT 1 FROM audit_legal_hold_events r
                          WHERE r.hold_id = e.hold_id AND r.action = ''release'' AND r.at > e.at)
          AND NOT EXISTS (SELECT 1 FROM audit_legal_hold_archive x
@@ -528,6 +538,19 @@ END $$;
 DROP TRIGGER IF EXISTS audit_partitioned_append_only ON audit_partitioned;
 CREATE TRIGGER audit_partitioned_append_only BEFORE UPDATE OR DELETE ON audit_partitioned
     FOR EACH ROW EXECUTE FUNCTION deny_mutation();
+
+-- Row triggers do not fire on TRUNCATE, and owners ignore REVOKE: a statement trigger is the only guard.
+CREATE OR REPLACE FUNCTION audit_deny_truncate() RETURNS trigger
+LANGUAGE plpgsql AS $$
+BEGIN
+    RAISE EXCEPTION 'audit: TRUNCATE is not permitted on append-only journals';
+END $$;
+DROP TRIGGER IF EXISTS audit_migration_state_events_no_truncate ON audit_migration_state_events;
+CREATE TRIGGER audit_migration_state_events_no_truncate BEFORE TRUNCATE ON audit_migration_state_events
+    FOR EACH STATEMENT EXECUTE FUNCTION audit_deny_truncate();
+DROP TRIGGER IF EXISTS audit_legal_hold_events_no_truncate ON audit_legal_hold_events;
+CREATE TRIGGER audit_legal_hold_events_no_truncate BEFORE TRUNCATE ON audit_legal_hold_events
+    FOR EACH STATEMENT EXECUTE FUNCTION audit_deny_truncate();
 DROP TRIGGER IF EXISTS audit_provision_trg ON audit_partitioned;
 CREATE TRIGGER audit_provision_trg BEFORE INSERT ON audit_partitioned
     FOR EACH ROW EXECUTE FUNCTION audit_provision();

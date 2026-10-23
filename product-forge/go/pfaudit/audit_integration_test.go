@@ -359,7 +359,7 @@ func TestRetentionLockDoesNotBlockProvisioning(t *testing.T) {
 	ctx2, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 	if _, err := pool.Exec(ctx2, `INSERT INTO audit (tenant_id, actor, action, at)
-		VALUES ('slow-path','a','x', now() + interval '8 months')`); err != nil {
+		VALUES ('slow-path','a','x', now() + interval '2 months')`); err != nil {
 		t.Fatalf("insert while AURE held must not block: %v", err)
 	}
 }

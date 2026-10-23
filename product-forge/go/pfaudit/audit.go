@@ -413,6 +413,9 @@ func Down(ctx context.Context, pool *pgxpool.Pool, force bool, reason string) er
 	}
 	defer tx.Rollback(ctx)
 	// Emergency rollback must not race with live appends: take the swap lock and block audit writes.
+	if _, err := tx.Exec(ctx, `SET LOCAL lock_timeout = '`+SwapLockTimeout+`'`); err != nil {
+		return fmt.Errorf("pfaudit: down lock_timeout: %w", err)
+	}
 	if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtext($1))`, LockSwap); err != nil {
 		return fmt.Errorf("pfaudit: down lock: %w", err)
 	}
@@ -445,6 +448,18 @@ func Down(ctx context.Context, pool *pgxpool.Pool, force bool, reason string) er
 		if _, err := tx.Exec(ctx, s); err != nil {
 			return fmt.Errorf("pfaudit: down: %w", err)
 		}
+	}
+	// The shadow is migration-owned again: revoke the writes Swap granted on the live name.
+	if _, err := tx.Exec(ctx, `DO $$
+		BEGIN
+		  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'pf_app') THEN
+		    EXECUTE 'REVOKE INSERT, UPDATE, DELETE ON audit_partitioned FROM pf_app';
+		  END IF;
+		  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'pf_runtime') THEN
+		    EXECUTE 'REVOKE INSERT, UPDATE, DELETE ON audit_partitioned FROM pf_runtime';
+		  END IF;
+		END $$`); err != nil {
+		return fmt.Errorf("pfaudit: down revoke shadow grants: %w", err)
 	}
 	// The swap revoked app grants on the old flat table; restore them on the rolled-back parent.
 	if _, err := tx.Exec(ctx, `DO $$

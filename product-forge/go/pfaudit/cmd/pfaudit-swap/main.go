@@ -90,8 +90,12 @@ func main() {
 		if *backupKey == "" {
 			*backupKey = fmt.Sprintf("audit-backup/%s/audit.dump.age", time.Now().UTC().Format("20060102T150405"))
 		}
+		var rollbackDays int
+		if err := pool.QueryRow(ctx, `SELECT rollback_days FROM audit_partition_config WHERE id`).Scan(&rollbackDays); err != nil {
+			fail("backup: read rollback_days: %v", err)
+		}
 		obj := openObjectStore(ctx)
-		if err := backup(ctx, *dsn, obj, *backupKey, *recipient); err != nil {
+		if err := backup(ctx, *dsn, obj, *backupKey, *recipient, rollbackDays); err != nil {
 			fail("%v", err)
 		}
 		if err := rehearsal(ctx, obj, *backupKey); err != nil {
@@ -325,7 +329,7 @@ func rehearsal(ctx context.Context, obj datastore.ObjectStore, key string) error
 	return nil
 }
 
-func backup(ctx context.Context, dsn string, obj datastore.ObjectStore, key, recipient string) error {
+func backup(ctx context.Context, dsn string, obj datastore.ObjectStore, key, recipient string, rollbackDays int) error {
 	safeDSN, password := splitDSN(dsn)
 	dump := exec.CommandContext(ctx, "pg_dump", "-Fc", "-t", "audit", "-t", "audit_legacy_id_seq", "-f", "-", safeDSN)
 	if password != "" {
@@ -348,7 +352,7 @@ func backup(ctx context.Context, dsn string, obj datastore.ObjectStore, key, rec
 	}
 	go func() { pw.CloseWithError(age.Wait()) }()
 	info, putErr := obj.Put(ctx, key, pr, -1, datastore.PutOptions{
-		ContentType: "application/octet-stream", Immutable: true, Retention: backupRetention(),
+		ContentType: "application/octet-stream", Immutable: true, Retention: backupRetention(rollbackDays),
 		ServerSideEncryption: pfaudit.DefaultSSE(),
 	})
 	if werr := dump.Wait(); werr != nil {
@@ -403,11 +407,15 @@ var (
 )
 
 // backupRetention keeps the encrypted dump at least as long as the rollback window unless overridden.
-func backupRetention() time.Duration {
+func backupRetention(rollbackDays int) time.Duration {
 	if v := os.Getenv("PF_AUDIT_BACKUP_RETENTION_DAYS"); v != "" {
 		if d, err := strconv.Atoi(v); err == nil && d > 0 {
 			return time.Duration(d) * 24 * time.Hour
 		}
+	}
+	// Never expire the dump before the rollback window closes (plus a week of slack).
+	if days := rollbackDays + 7; days > 30 {
+		return time.Duration(days) * 24 * time.Hour
 	}
 	return 30 * 24 * time.Hour
 }
