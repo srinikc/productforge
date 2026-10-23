@@ -98,7 +98,9 @@
     "close should use the earliest swapped event so a resume cannot reset the rollback clock.",
     "Transactional/atomic restore load and scratch-table tracking after a failed reconcile.",
     "Down-script function signature fix for audit_hold_extract(TEXT,TEXT).",
-    "Docs pass: remove audit_late_YYYYMM / rotation_stale_total wording."
+    "Docs pass: remove audit_late_YYYYMM / rotation_stale_total wording.",
+    "TRUNCATE guards/revokes on operational tables (manifest/config) for owner break-glass.",
+    "Sharded cold archives (one object per month today; multipart upload)."
   ],
   "affected_components": [
     "core/audit.py",
@@ -726,6 +728,62 @@
       "sig:6f05cbe25ce5c21b": {
         "status": "REJECTED",
         "note": "Verified on PG16: a BEFORE INSERT trigger on a partitioned parent never runs when the tuple has no partition (the executor raises 23514 first). Provisioning is the Go 23514->ensure heal; the inert trigger was removed and AC5 restated."
+      },
+      "sig:fa01ff902f40106a": {
+        "status": "REJECTED",
+        "note": "Record-first is deliberate (durable trail before irreversible deletion), and a failed delete is resumable: audit_approve_purge returns early but PurgeMonth then re-reads the keys and deletes them; the CLI can simply be re-run."
+      },
+      "sig:83a0b3af0a478661": {
+        "status": "REJECTED",
+        "note": "urllib.error.URLError (including TimeoutError/connection resets) is caught in the second except clause, with backoff; only non-retryable HTTP codes are fatal."
+      },
+      "sig:faa0daad3d2a2c6e": {
+        "status": "DEFERRED",
+        "note": "Comment/AC wording cleanup is batched with the docs pass; the down DROP is guarded by IF EXISTS and harmless."
+      },
+      "sig:ba62b958194e0151": {
+        "status": "ACCEPTED",
+        "note": "A generic retry nudge is harmless; the model still receives the full prompt. Not worth another tooling change this cycle."
+      },
+      "sig:1ed768f4718f6f44": {
+        "status": "ACCEPTED",
+        "note": "Intentional: the repo root is the workspace parent, so nested-path globs are required for the gate to ignore generated evidence/backlog. Code under engineering/ is documentation/tooling, not shipped code."
+      },
+      "sig:61f133c411b6b62d": {
+        "status": "DEFERRED",
+        "note": "Owner-level TRUNCATE on operational tables is break-glass; statement triggers on them are tracked as a follow-up."
+      },
+      "sig:dc2755df3aaaeaee": {
+        "status": "ACCEPTED",
+        "note": "Record-before-delete is the documented order; a failed delete leaves an orphan object (recoverable) and an auditable closed state. Re-running close is idempotent to the state journal."
+      },
+      "sig:4fe5c967798320e4": {
+        "status": "ACCEPTED",
+        "note": "The structured JSON line on stderr is the repo's existing metrics convention (pfaudit CLIs); wiring a scrape endpoint is deployment scope."
+      },
+      "sig:5d19aa83124e5e79": {
+        "status": "ACCEPTED",
+        "note": "Fail-closed is intentional: legal evidence requires SSE-KMS, so an S3 bucket without a KMS key must be configured explicitly (PF_S3_KMS_KEY or PF_AUDIT_SSE)."
+      },
+      "sig:0159f4ba141109ad": {
+        "status": "ACCEPTED",
+        "note": "All interpolated names pass strict regex validation (audit_restore_YYYYMM); quoteIdentifier is a readability follow-up."
+      },
+      "sig:8158511824d06bb1": {
+        "status": "DEFERRED",
+        "note": "Sharded archives are a scalability follow-up; a month is a bounded dataset and S3 multipart still uploads a single large object in parts."
+      },
+      "sig:582511037189bb78": {
+        "status": "ACCEPTED",
+        "note": "The sequence remains the shadow's DEFAULT and is reused on a later swap; it is not dead, and the down path intentionally preserves it."
+      },
+      "sig:684f4ab6b5d1a273": {
+        "status": "ACCEPTED",
+        "note": "Token cost is negligible and only applies to retries."
+      },
+      "sig:8f35e8f8def3e11a": {
+        "status": "ACCEPTED",
+        "note": "Renaming is cosmetic; the function also records the restore event used for audit."
       }
     }
   }
