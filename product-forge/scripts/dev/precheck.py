@@ -182,7 +182,7 @@ _GATES = [
     ("backlog-dod", ["scripts/dev/backlog_dod_check.py"], "fast", None),
     ("backlog-verification", ["scripts/dev/backlog_verification_check.py"], "fast", None),
     ("store-registry", ["scripts/dev/store_registry_check.py"], "fast", None),
-    ("store-relationships", ["scripts/dev/store_registry_relationships.py"], "fast", None),
+    ("store-relationships", ["scripts/dev/store_registry_relationships.py", "--self-test"], "fast", None),
     ("backlog-ids", ["scripts/dev/backlog_id_audit.py"], "fast", None),
     ("backlog-epic", ["scripts/dev/backlog_epic_audit.py"], "fast", None),
     ("backlog-monotonic", ["scripts/dev/backlog_monotonic_check.py"], "fast", None),
