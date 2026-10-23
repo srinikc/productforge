@@ -182,6 +182,7 @@ _GATES = [
     ("backlog-dod", ["scripts/dev/backlog_dod_check.py"], "fast", None),
     ("backlog-verification", ["scripts/dev/backlog_verification_check.py"], "fast", None),
     ("store-registry", ["scripts/dev/store_registry_check.py"], "fast", None),
+    ("store-relationships", ["scripts/dev/store_registry_relationships.py"], "fast", None),
     ("backlog-ids", ["scripts/dev/backlog_id_audit.py"], "fast", None),
     ("backlog-epic", ["scripts/dev/backlog_epic_audit.py"], "fast", None),
     ("backlog-monotonic", ["scripts/dev/backlog_monotonic_check.py"], "fast", None),
@@ -240,7 +241,7 @@ _GATES = [
 _GROUP_OF = {
     # structure: compile / static hygiene / generated-doc freshness
     "compile": "structure", "pycompat": "structure", "ci-cd-gates": "structure", "wired-audit": "structure",
-    "store-contract": "structure", "store-registry": "structure", "lint": "structure", "changed-tests": "structure",
+    "store-contract": "structure", "store-registry": "structure", "store-relationships": "structure", "lint": "structure", "changed-tests": "structure",
     "workflow-matrix": "structure", "docs-fresh": "structure", "artifact-map": "structure",
     "review-focus": "structure", "review-static": "structure",
     # security: secrets / language rule / compliance / threat register
