@@ -1,0 +1,39 @@
+{
+  "item": "BI-PF-1312",
+  "sha": "5a1e9ed4e161",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "findings": {
+    "BLOCKER": [
+      "After `pfaudit-swap --down`, `audit_id_seq`\u2192`audit_partitioned_id_seq` but the retained shadow's DEFAULT still binds to that stale sequence; a follow-up prestage/swap makes live `audit` draw ids from it (unadvanced, starting at 1), silently reusing ids already in `audit_legacy`, while PostVerify only reads `audit_id_seq` and passes.",
+      "`audit_harden_partition` adds no BEFORE TRUNCATE trigger and no TRUNCATE revoke on dynamically created `audit_YYYYMM` leaves; the revoke block covers only the parent + journals, so a privileged role can TRUNCATE a leaf directly, bypassing the append-only guarantee the AC requires \"revoked from every role\".",
+      "Neither `pfaudit Down` nor `0014.down.sql` drops or re-points `audit_partitioned_id_seq`, so the down path permanently orphans a sequence that still backs the shadow's id DEFAULT."
+    ],
+    "MAJOR": [
+      "Fresh-install AC unmet/untested: section 17 computes `GREATEST(0, legacy last_value=1)+1 = 2`, not the specified setval to 1, and no test covers the empty-audit case.",
+      "edpsvc reimplements coverage reading, the 48h staleness threshold and metric JSON emission instead of reusing `pfaudit.CoverageStatus/CheckCoverage/EmitCoverage` (pfaudit was added to edpsvc's go.mod but not used here) \u2192 two drifting definitions of \"low coverage\"/\"stale\".",
+      "`architect_review_check.py` is not updated with the new `EXCLUDE` globs; if that list is duplicated, writer and checker now compute different review SHAs, weakening the gate.",
+      "Historical migration `0004_runtime_role.up.sql` was edited in place; already-applied deployments won't re-run it and any checksum-based runner will see a changed shipped migration.",
+      "`0014.down.sql` drops `audit_hold_extract(TEXT)` but the function is `(text,text)`, leaving an orphan function over the dropped hold archive; it also drops `audit_provision()` which is never created, and up-migration \u00a710 is an empty placeholder while `edpdata.Append`'s comment still claims an `audit_provision` fast-path trigger exists.",
+      "`pfaudit-retention restore` leaves `audit_restore_YYYYMM` (full data + `GRANT SELECT TO pf_runtime`) with no cleanup/GC path or documented lifecycle; its output also misdescribes it as \"partitioned\"."
+    ],
+    "MINOR": [
+      "`Swap`'s grant DO block carries the comment describing the opposite action (\"revoke legacy grants\" above the GRANT block); misleading in a security-critical transaction.",
+      "`rehearsal()` comment claims RLS policies are asserted in the dump listing, but only table + sequence names are checked.",
+      "The active-hold check in `audit_drop_partition`/`audit_approve_purge` uses `hold_id NOT IN (... e.at > outer.at)` without correlating `e.hold_id = outer.hold_id`; correct only by accident of hold-id set semantics.",
+      "Metric constants declared but never incremented (`audit_insert_out_of_range_total`, `audit_provision_seconds`, `audit_late_insert_total`, `audit_hold_extract_failed_total`) \u2014 dashboards wired to nothing.",
+      "The \"one tenant cannot read another through any path\" AC is only proven for `audit` and the restore scratch; `audit_legal_hold_archive` (granted to pf_app under RLS) is never exercised cross-tenant."
+    ],
+    "NIT": [
+      "Confirm `strconv`/`time` are already imported in `edpsvc/main.go`; the diff adds their use but only shows `fmt` being added.",
+      "Parallel names diverge (`coverageStatus.LastRotationHours` vs `pfaudit.CoverageStatus.LastRotationAgeHours`), inviting drift.",
+      "`edpdata.Append`'s fast-path comment describes a trigger-based attach that the diff explicitly removed."
+    ],
+    "SUMMARY": [
+      "Solid overall architecture: catalog-driven state machine, privilege-enforced hardening, two-stage retention with verified manifests, and a real PG16 resume/integration suite.",
+      "Top risks are id-integrity on the down\u2192re-swap path (stale shadow sequence) and TRUNCATE bypass on dynamically created leaves \u2014 both undermine the append-only/id-uniqueness guarantees the AC exists to enforce.",
+      "Secondary concerns: duplicated coverage/observability logic in edpsvc, edits to shipped migrations and review-gate exclusions, and a down migration that doesn't fully unwind the substrate."
+    ]
+  }
+}
