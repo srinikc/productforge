@@ -1,0 +1,36 @@
+{
+  "item": "BI-PF-1313",
+  "sha": "df6e2eae6c40",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-23T20:29:29.731007",
+  "findings": {
+    "BLOCKER": [
+      "`edpsvc/memoryHandle` derives the ACL principal from the client-supplied `?user=` query param; any caller can set `user=alice` and read other users' `private` entries. The principal must come from the authenticated session (JWT/identity), not the request.",
+      "The same handler lets the client set `Owner` on POST, enabling spoofed ownership and planting entries into another user's private view; ownership must be derived server-side."
+    ],
+    "MAJOR": [
+      "Backward-compat break: previously `scope.Source` was compared against `acl_scope` in SQL; it now filters the new `source` column. Existing clients passing `?source=private`/`project` will silently get zero results instead of ACL-scoped results.",
+      "AC requires the kinds filter parameter named `kinds`; the handler exposes `types` instead \u2014 acceptance mismatch, and a second param name will be needed later.",
+      "`Put`'s `ON CONFLICT (id) DO UPDATE` has no tenant/owner match guard; combined with client-settable `TenantID`/`Owner`, any in-tenant principal can overwrite any memory row (including `policy`/`failure` kinds) if RLS is absent or permissive.",
+      "`vectorAvailable` uses `sync.Once` and swallows query errors, permanently caching \"no vector\" for the lifetime of a long-lived `MemoryStore` after one transient failure; cache the positive case, re-probe or bound the negative result.",
+      "Migration swallows `EXCEPTION WHEN OTHERS` for extension creation and HNSW index build with no log/metric, so pgvector silently degrades with zero observability; downstream teams cannot tell FTS-only mode from a bug.",
+      "Integration tests `t.Skip` when `PF_DB_DSN` is unset \u2014 the ACL-leakage and ranking guarantees are only verified when someone remembers to set the DSN; CI wiring/required-tag is not evident in the diff."
+    ],
+    "MINOR": [
+      "`websearch_to_tsquery('english', ...)` hardcodes English; the tsv column does the same \u2014 no per-locale path for multi-language tenants.",
+      "Hybrid ranking weights (0.7/0.3) are magic numbers inline; extract as named, documented constants (and note the FTS and cosine scores are not calibrated to the same scale, so ranking is heuristic).",
+      "POST accepts unbounded `Content`/`Embedding` payload sizes (only dim is validated) \u2014 add a max-size guard consistent with other endpoints.",
+      "Down migration intentionally keeps `content/source/owner/embedding` but drops `tsv`; a down\u2192up round trip silently loses the derived index state for large tables (rebuild cost) \u2014 worth a comment or lock_timeout note.",
+      "`Search` with a supplied vector but zero rows carrying embeddings returns nothing rather than degrading to FTS-only; consider falling back explicitly.",
+      "No metrics/logging distinguishing FTS-only vs hybrid execution; add an observable signal for the chosen path."
+    ],
+    "NIT": [
+      "`formatVector` reimplements pgvector serialization; when pgvector is actually available, prefer the official driver codec (or assert round-trip equality in a test) to avoid subtle precision/NaN divergences.",
+      "`MemoryEntry.Score` is exported in API responses with no doc that it is internal ranking state \u2014 consider omitting or namespacing it in the JSON payload.",
+      "Test cleanup deletes tenants but relies on cascade for `memory` rows; make the FK/cascade assumption explicit."
+    ],
+    "SUMMARY": []
+  }
+}

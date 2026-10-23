@@ -1,0 +1,37 @@
+{
+  "item": "BI-PF-1313",
+  "sha": "fbf7f15d28a3",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-10-23T20:23:36.444338",
+  "findings": {
+    "BLOCKER": [
+      "RLS enforcement mechanism unspecified: design says \"RLS plus explicit guard\" but never states how tenant context reaches the policy (session GUC vs. transaction-scoped), nor that the runtime role is non-owner / not `BYPASSRLS`. With pgx pooling, a tenant GUC set outside the transaction leaks to the next borrower of the connection \u2192 cross-tenant read path that the \"explicit guard\" alone may not cover.",
+      "Migration 0015 down drops `content`/`source`/`owner`/embedding columns \u2014 destructive and irreversible (embeddings are caller-supplied and explicitly out of scope to regenerate). No verified backup/restore path is defined before this destructive step (Guardrail 1)."
+    ],
+    "MAJOR": [
+      "Conditional DDL (vector column created only when pgvector exists) makes schema environment-dependent: prod/dev/test diverge, and the down migration cannot deterministically reverse a state it cannot know. Prefer uniform schema + runtime capability flag, or record the branch taken in the migration ledger.",
+      "Adding a *stored generated* tsvector column to the shared `memory` table forces a full table rewrite with an unbounded lock; no `lock_timeout`, online-build strategy, or rehearsal size bound is stated (Guardrail 4). An expression GIN index (`to_tsvector(...)`) avoids the rewrite entirely \u2014 the design choice itself is unexamined.",
+      "Rollback plan \"fall back to legacy agent_memory path\" implies two readers/writers of the same table with divergent schemas \u2192 split-brain and version skew on partial rollback. Route-by-kind/single-writer must be pinned (CL-001) with an explicit read-compat story for rows written only by the new path.",
+      "AC demands \"deterministic order\" but the design specifies no tiebreaker for equal `ts_rank` scores, and hybrid merge has no stated normalization or weighting between ts_rank and vector similarity \u2192 non-reproducible result ordering.",
+      "pgvector column dimension is unspecified; callers supply vectors of arbitrary dimension against a fixed `vector(n)` column \u2192 insert failures or per-tenant schema drift. The embedding contract (dimension, distance metric, normalization) must be defined and validated at the API boundary.",
+      "ACL semantics undefined: `acl_scope` values are not enumerated, fail-closed behavior for unknown scopes is unstated, and fail-closed is enforced only in Go \u2014 no DB `CHECK` constraint on `kind`/`acl_scope` as defense in depth.",
+      "Observability gap (Guardrail 10): no metrics/logs for FTS-only fallback count, pgvector availability, search latency, or ACL denials \u2014 the degradation path the AC depends on would be invisible in production.",
+      "Backward compatibility is asserted but not contract-pinned: \"kind-as-query\" and retained fields need a `needs_api` decision (Guardrail 8), OpenAPI/contract sync, and a dedicated compat test."
+    ],
+    "MINOR": [
+      "Retention/redaction policy (esp. for `working` and `raw_evidence`) not addressed \u2014 Guardrail 9 explicitly asks for it.",
+      "`object_ref` accepted without referential integrity check or validation; dangling refs will surface as late failures.",
+      "ACL index design vague (\"ACL indexes\"): needs the composite `(tenant_id, project, source, kind, owner)` prefix order stated, not individual single-column indexes.",
+      "Migration-interrupted recovery (e.g. vector column created, index build failed) not covered by tests (Guardrail 6).",
+      "Terms `acl_scope`, `kind`, `hybrid` are used but not pinned in the glossary (CL-003).",
+      "Gate 1 must embed latest Gate 1.5 findings + dispositions; approval is invalid while any BLOCKER/MAJOR is PENDING (CL-006) \u2014 not stated in the plan."
+    ],
+    "NIT": [
+      "`ts_rank` normalization (e.g. `cdft`) should be documented: rank depends on corpus statistics, so scores drift as data grows even if ordering is stable.",
+      "`k` pagination has no deterministic cursor; fine now, but revisit before BI-PF-1317 region/partitioning work."
+    ],
+    "SUMMARY": []
+  }
+}
