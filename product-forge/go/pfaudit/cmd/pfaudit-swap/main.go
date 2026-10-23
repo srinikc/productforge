@@ -8,6 +8,8 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -43,6 +45,15 @@ func main() {
 	dryRun := fs.Bool("dry-run", false, "down: report the plan and exit without changing data")
 	reason := fs.String("reason", "", "down: mandatory reason when forcing")
 	_ = fs.Parse(os.Args[2:])
+	batchSet, deltaSet := false, false
+	fs.Visit(func(f *flag.Flag) {
+		switch f.Name {
+		case "batch":
+			batchSet = true
+		case "max-delta":
+			deltaSet = true
+		}
+	})
 
 	if *dsn == "" {
 		fail("PF_DB_DSN (or --dsn) is required")
@@ -54,6 +65,19 @@ func main() {
 	defer pool.Close()
 	m := pfaudit.NewMetrics()
 	activeMetrics = m
+	if cmd == "prestage" || cmd == "swap" {
+		// The DB config is the source of truth unless the operator explicitly overrides it.
+		cfgBatch, cfgMax, cerr := pfaudit.CheckConfig(ctx, pool)
+		if cerr != nil {
+			fail("%v", cerr)
+		}
+		if !batchSet {
+			*batch = cfgBatch
+		}
+		if !deltaSet {
+			*maxDelta = cfgMax
+		}
+	}
 
 	switch cmd {
 	case "plan", "status":
@@ -95,7 +119,7 @@ func main() {
 			fail("backup: read rollback_days: %v", err)
 		}
 		obj := openObjectStore(ctx)
-		if err := backup(ctx, *dsn, obj, *backupKey, *recipient, rollbackDays); err != nil {
+		if err := backup(ctx, pool, *dsn, obj, *backupKey, *recipient, rollbackDays); err != nil {
 			fail("%v", err)
 		}
 		if err := rehearsal(ctx, obj, *backupKey); err != nil {
@@ -329,9 +353,10 @@ func rehearsal(ctx context.Context, obj datastore.ObjectStore, key string) error
 	return nil
 }
 
-func backup(ctx context.Context, dsn string, obj datastore.ObjectStore, key, recipient string, rollbackDays int) error {
+func backup(ctx context.Context, pool *pgxpool.Pool, dsn string, obj datastore.ObjectStore, key, recipient string, rollbackDays int) error {
 	safeDSN, password := splitDSN(dsn)
-	dump := exec.CommandContext(ctx, "pg_dump", "-Fc", "-t", "audit", "-t", "audit_legacy_id_seq", "-f", "-", safeDSN)
+	dump := exec.CommandContext(ctx, "pg_dump", "-Fc", "-t", "audit", "-t", "audit_legacy_id_seq",
+		"-t", "audit_id_seq", "-f", "-", safeDSN)
 	if password != "" {
 		dump.Env = append(os.Environ(), "PGPASSWORD="+password)
 	}
@@ -351,7 +376,8 @@ func backup(ctx context.Context, dsn string, obj datastore.ObjectStore, key, rec
 		return fmt.Errorf("age: %w", err)
 	}
 	go func() { pw.CloseWithError(age.Wait()) }()
-	info, putErr := obj.Put(ctx, key, pr, -1, datastore.PutOptions{
+	h := sha256.New()
+	info, putErr := obj.Put(ctx, key, io.TeeReader(pr, h), -1, datastore.PutOptions{
 		ContentType: "application/octet-stream", Immutable: true, Retention: backupRetention(rollbackDays),
 		ServerSideEncryption: pfaudit.DefaultSSE(),
 	})
@@ -363,6 +389,13 @@ func backup(ctx context.Context, dsn string, obj datastore.ObjectStore, key, rec
 	}
 	if info.Size == 0 || info.Key == "" {
 		return fmt.Errorf("empty backup object")
+	}
+	digest := hex.EncodeToString(h.Sum(nil))
+	if err := pfaudit.RecordState(ctx, pool, "backup", fmt.Sprintf(`{"key":%q,"sha256":%q}`, key, digest)); err != nil {
+		return fmt.Errorf("record backup digest: %w", err)
+	}
+	if info.Checksum != "" && info.Checksum != digest {
+		return fmt.Errorf("backup checksum mismatch: store=%s local=%s", info.Checksum, digest)
 	}
 	return nil
 }

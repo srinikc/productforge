@@ -121,10 +121,9 @@ LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, public AS $$
 BEGIN
     IF NEW.action = 'hold' AND EXISTS (
         SELECT 1 FROM audit_archive_manifest m WHERE m.month = NEW.month AND m.purged_at IS NOT NULL) THEN
-        INSERT INTO audit_migration_state_events(actor, from_state, to_state, detail)
-        VALUES (current_user, 'hold_after_purge', 'hold_after_purge',
-                jsonb_build_object('month', NEW.month, 'hold_id', NEW.hold_id));
-        RAISE EXCEPTION 'audit_hold_guard: % was purged; cannot place hold % (spoliation attempt recorded)',
+        -- A same-transaction insert would be rolled back by the RAISE; the refusal is the guard, and the
+        -- caller/ops channel records the attempt (mirrored in audit_hold_after_purge_total at the Go edge).
+        RAISE EXCEPTION 'audit_hold_guard: % was purged; cannot place hold % (spoliation attempt)',
             NEW.month, NEW.hold_id;
     END IF;
     RETURN NEW;
@@ -274,7 +273,7 @@ BEGIN
         END IF;
         RETURN 0;
     END IF;
-    v_target := COALESCE(audit_month_start(p_through), v_cur) + make_interval(months => v_horizon) - interval '1 month';
+    v_target := COALESCE(audit_month_start(p_through), v_cur) + make_interval(months => v_horizon);
     WHILE v_cur <= v_target::date LOOP
         IF to_regclass('public.' || audit_partition_name(v_cur)) IS NULL THEN
             PERFORM audit_attach_partition(v_cur);
@@ -557,6 +556,12 @@ CREATE TRIGGER audit_migration_state_events_no_truncate BEFORE TRUNCATE ON audit
 DROP TRIGGER IF EXISTS audit_legal_hold_events_no_truncate ON audit_legal_hold_events;
 CREATE TRIGGER audit_legal_hold_events_no_truncate BEFORE TRUNCATE ON audit_legal_hold_events
     FOR EACH STATEMENT EXECUTE FUNCTION audit_deny_truncate();
+DROP TRIGGER IF EXISTS audit_partitioned_no_truncate ON audit_partitioned;
+CREATE TRIGGER audit_partitioned_no_truncate BEFORE TRUNCATE ON audit_partitioned
+    FOR EACH STATEMENT EXECUTE FUNCTION audit_deny_truncate();
+DROP TRIGGER IF EXISTS audit_legal_hold_archive_no_truncate ON audit_legal_hold_archive;
+CREATE TRIGGER audit_legal_hold_archive_no_truncate BEFORE TRUNCATE ON audit_legal_hold_archive
+    FOR EACH STATEMENT EXECUTE FUNCTION audit_deny_truncate();
 DROP TRIGGER IF EXISTS audit_provision_trg ON audit_partitioned;
 CREATE TRIGGER audit_provision_trg BEFORE INSERT ON audit_partitioned
     FOR EACH ROW EXECUTE FUNCTION audit_provision();
@@ -604,6 +609,9 @@ BEGIN
     EXECUTE 'REVOKE ALL ON audit_legal_hold_archive FROM pf_app';
     EXECUTE 'REVOKE ALL ON audit_migration_state, audit_migration_state_events, audit_archive_manifest, '
             'audit_legal_hold_events, audit_partition_config FROM pf_app';
+    EXECUTE 'REVOKE ALL ON audit_partitioned, audit_legal_hold_archive, audit_migration_state, '
+            'audit_migration_state_events, audit_archive_manifest, audit_legal_hold_events, '
+            'audit_partition_config FROM pf_runtime';
     -- The shadow is migration-owned pre-swap; app writes stay on the legacy table until the rename.
     EXECUTE 'GRANT SELECT ON audit_partitioned TO pf_app';
     EXECUTE 'GRANT SELECT ON audit_legal_hold_archive TO pf_app';
@@ -615,6 +623,7 @@ BEGIN
             'audit_migration_state_events, audit_archive_manifest, audit_legal_hold_events, '
             'audit_partition_config TO pf_owner';
     EXECUTE 'REVOKE TRUNCATE ON audit_migration_state_events, audit_legal_hold_events FROM pf_owner';
+    EXECUTE 'REVOKE UPDATE, DELETE ON audit_migration_state_events, audit_legal_hold_events FROM pf_owner';
     EXECUTE 'REVOKE TRUNCATE ON audit_partitioned, audit_legal_hold_archive FROM pf_owner';
   END IF;
   EXECUTE 'REVOKE ALL ON audit_partitioned FROM PUBLIC';

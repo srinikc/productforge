@@ -270,6 +270,7 @@ func VerifyHoldExtraction(ctx context.Context, pool *pgxpool.Pool, month string)
 	  (SELECT count(*) FROM audit_legal_hold_archive WHERE source_partition = $1),
 	  (SELECT count(*) FROM ` + month + ` a
 	     JOIN audit_legal_hold_events e ON e.month = $1 AND e.action = 'hold'
+	       AND (length(e.tenant_id) = 0 OR e.tenant_id = a.tenant_id)
 	    WHERE NOT EXISTS (SELECT 1 FROM audit_legal_hold_events r
 	                       WHERE r.hold_id = e.hold_id AND r.action = 'release' AND r.at > e.at)
 	      AND NOT EXISTS (SELECT 1 FROM audit_legal_hold_archive x
