@@ -330,9 +330,9 @@ BEGIN
         PERFORM audit_attach_partition(v_month);
     EXCEPTION WHEN duplicate_table OR unique_violation OR exclusion_violation THEN
         -- 42P07 race or grace overlap: the insert must still be routable, otherwise surface the failure.
-        IF to_regclass('public.' || v_name) IS NULL AND NOT EXISTS (
-            SELECT 1 FROM pg_inherits i JOIN pg_class c ON c.oid = i.inhrelid
-             WHERE i.inhparent = audit_parent() AND c.relname LIKE 'audit_grace_%') THEN
+        -- Grace covers the range only when ITS month is the one we tried to attach.
+        IF to_regclass('public.' || v_name) IS NULL
+           AND to_regclass(format('public.audit_grace_%s', to_char(v_month, 'YYYYMM'))) IS NULL THEN
             RAISE;
         END IF;
     END;

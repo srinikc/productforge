@@ -2,6 +2,7 @@ package pfaudit
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -197,10 +198,15 @@ func TestAuditPartitioningIntegration(t *testing.T) {
 	if _, err := RestoreMonth(ctx, pool, obj, month); err == nil {
 		t.Fatal("restore of a purged month must fail")
 	}
-	// Spoliation guard: a hold cannot be recorded against an already-purged month.
-	if _, err := pool.Exec(ctx, `INSERT INTO audit_legal_hold_events(hold_id, tenant_id, month, action, actor, reason)
-		VALUES ('hold-late', $1, $2, 'hold', 'tester', 'after purge')`, tenant, month); err == nil {
-		t.Fatal("hold on a purged month must be refused")
+	// Spoliation guard: a hold cannot be recorded against an already-purged month, and the Go edge
+	// mirrors the refusal into the alertable metric.
+	m := NewMetrics()
+	err = PlaceHold(ctx, pool, Hold{ID: "hold-late", Tenant: tenant, Month: month, Actor: "tester", Reason: "after purge"}, m)
+	if !errors.Is(err, ErrHoldAfterPurge) {
+		t.Fatalf("hold on a purged month must be refused, got %v", err)
+	}
+	if c, _ := m.Snapshot(); c[MetricHoldAfterPurge] != 1 {
+		t.Fatalf("audit_hold_after_purge_total = %d, want 1", c[MetricHoldAfterPurge])
 	}
 }
 

@@ -551,6 +551,38 @@ func SaveCursor(ctx context.Context, pool *pgxpool.Pool, lastID int64) error {
 	return tx.Commit(ctx)
 }
 
+// Hold is a legal-hold request. All holds go through PlaceHold so a purged-month attempt increments the
+// spoliation metric (the SQL guard itself must roll back its own journal insert).
+type Hold struct {
+	ID     string
+	Tenant string
+	Month  string
+	Actor  string
+	Reason string
+}
+
+// ErrHoldAfterPurge is returned when a hold targets a month whose archive was already purged.
+var ErrHoldAfterPurge = errors.New("pfaudit: hold targets a purged month")
+
+// PlaceHold records a hold, mirroring the DB spoliation refusal into audit_hold_after_purge_total.
+func PlaceHold(ctx context.Context, pool *pgxpool.Pool, h Hold, m *Metrics) error {
+	if !validMonth(h.Month) {
+		return fmt.Errorf("pfaudit: invalid partition %q", h.Month)
+	}
+	_, err := pool.Exec(ctx, `INSERT INTO audit_legal_hold_events(hold_id, tenant_id, month, action, actor, reason)
+		VALUES ($1, $2, $3, 'hold', $4, $5)`, h.ID, h.Tenant, h.Month, h.Actor, h.Reason)
+	if err == nil {
+		return nil
+	}
+	if strings.Contains(err.Error(), "purged") {
+		if m != nil {
+			m.Inc(MetricHoldAfterPurge)
+		}
+		return ErrHoldAfterPurge
+	}
+	return err
+}
+
 // RecordState appends an append-only event and refreshes the projection.
 func RecordState(ctx context.Context, pool *pgxpool.Pool, to, detail string) error {
 	tx, err := pool.Begin(ctx)
