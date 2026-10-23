@@ -1,17 +1,17 @@
 # Backlog Summary
 
-> GENERATED 2026-10-23T17:28:22 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-23T17:32:52 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 138  |  **Closed:** 573
+- **Open:** 137  |  **Closed:** 574
 - `blocked`: 1
 - `executing`: 3
 - `in_progress`: 2
-- `new`: 132
+- `new`: 131
 
-### new, by category (132)
+### new, by category (131)
 **API / reports / HIL / misc** (16)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
@@ -37,7 +37,7 @@
 |---|---|---|---|---|
 | BI-PF-1332 | Should | bug | Develop red: test pollution committed into data/learnings.json breaks test_global_render_unchanged (scratch loop-learning marker 0270) | Restore develop green: purge test pollution from data/learnings.json + prevent test writes to the real learnin... |
 
-**Discovery / HIL / prompts** (9)
+**Discovery / HIL / prompts** (8)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0218 | Should | feature | Backend: AI-era operations layer (evals + prompt/model/agent versioning + feedback loop + model-quality observability) | Add the AI-era lifecycle layer so the Product tab can show AI quality + the loop that keeps it good. |
@@ -47,7 +47,6 @@
 | BI-PF-1236 | Should | change | Worker ops: worker charter (binding guidelines) + runtime prompt fix (no agent merge) + model pin | - workergrid/instructions.md: full worker charter (14 binding guidelines; manual-by-default, auto mode). - wor... |
 | BI-PF-1242 | Should | feature | In-session manual/auto worker mode + /wg watch monitoring + 14-guidelines approval gates | - In-session manual worker mode (/wg work manual, default): 1. Claims assignment atomically from PF via /assig... |
 | BI-PF-1302 | Must | feature | EDP-10: Timeouts, pool budgets, payload/upload limits, per-tenant & global quotas, structured errors; production profile rejects dev/anon auth | Implement enforceable timeouts, pool budgets, payload/upload limits, per-tenant and global quotas, structured ... |
-| BI-PF-1408 | Must | defect | Gap: store-registry discovery incomplete - 233/235 stores unclassified (no backend/tenant_scope/migration_status) + no store->DB table/relationship mapping (prereq for EDP-18) | Gap: store-registry discovery incomplete - 233/235 stores unclassified (no backend/tenant_scope/migration_stat... |
 | BI-PF-1442 | Should | feature | Skill/guideline prompt injection (SKILLS: block) | Agents receive applicable skills through PF's own prompt builder. |
 
 **Dynamic pipeline / agents** (5)
@@ -374,5 +373,5 @@
 ---
 
 ## Totals
-- backend: 138 open / 573 closed
+- backend: 137 open / 574 closed
 - dashboard: 146 open / 3 closed
