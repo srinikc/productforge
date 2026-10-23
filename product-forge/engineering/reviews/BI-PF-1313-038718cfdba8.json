@@ -1,0 +1,39 @@
+{
+  "item": "BI-PF-1313",
+  "sha": "038718cfdba8",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-23T20:33:45.984725",
+  "findings": {
+    "BLOCKER": [
+      "Put's `ON CONFLICT ... WHERE memory.owner = EXCLUDED.owner` plus `n == 0 \u2192 error` freezes every pre-0015 row (migration backfills `owner=''`), while the API always sends `Owner=principal`: legacy entries can never be upserted and now 500 with a misleading \"belongs to another tenant/owner\" message.",
+      "AC claims hybrid/vector-degradation tests, but `memory_test.go` only asserts the wrong-dimension error; no test covers FTS-only degradation, hybrid score merging, or migration 0015's optional-column behaviour \u2014 a core acceptance criterion is unverified."
+    ],
+    "MAJOR": [
+      "Static `PF_MEMORY_PRINCIPAL` (default \"admin\") is the only principal: all requests share one owner, so private-ACL ownership and the \"cross-user leakage\" guarantee hold only in the store unit, not in the running API.",
+      "AC-required `user` and GET-level `embedding`/`acl_scope` params are never read by the handler, so hybrid search and per-user scoping are unreachable through `/memory`.",
+      "HNSW index is dead: ranking via `CASE WHEN ... 1 - (embedding <=> ...) END` in SELECT/ORDER BY prevents ANN plan selection, giving O(table) distance computation per query.",
+      "`Search` with empty `scope.TenantID` emits no tenant predicate, failing open unless RLS happens to be bound \u2014 the AC's \"RLS plus explicit guard\" pairing is conditional.",
+      "Non-ACL legacy `?source=` values now filter the new `source` column (always `''`) instead of `acl_scope`, silently returning nothing for previously valid callers."
+    ],
+    "MINOR": [
+      "Down migration removes indexes/tsv but leaves `memory_kind_valid`/`memory_acl_valid` CHECK constraints, contradicting its own \"only derived/index objects are removed\" contract.",
+      "Validation paths (kind/acl/dimension) have no DB-free unit tests; everything skips when `PF_DB_DSN` is unset.",
+      "`log.Printf` for pgvector degradation bypasses structured logging/metrics \u2014 no counter for FTS-only fallback.",
+      "`formatVector`/`tsq` adds the query parameter twice in hybrid mode; harmless but signals unreviewed SQL assembly.",
+      "API returns raw `err.Error()` on Put/Search failures, leaking SQL/driver detail to clients.",
+      "`SET LOCAL lock_timeout` is a no-op if the migrator runs non-transactionally; non-concurrent `CREATE INDEX` takes a table lock."
+    ],
+    "NIT": [
+      "`%g` can render `NaN`/`+Inf`, producing an invalid pgvector literal and an opaque SQL error.",
+      "`EmbeddingDim = 1536` is duplicated as a literal `vector(1536)` in the migration; drift would only surface at runtime.",
+      "Positive `hasVec` cache is never invalidated if the column/extension is later dropped."
+    ],
+    "SUMMARY": [
+      "Solid substrate direction: parameterised SQL, server-side ACL predicates, fail-closed kinds, and a genuinely stock-Postgres-safe migration.",
+      "Top risks: legacy rows become un-upsertable (blocker), unverified hybrid/degradation AC, unreachable API vector/user params, and a static principal making owner-ACL largely symbolic.",
+      "Re-run precheck with the legacy-row upsert case and hybrid tests added before merge."
+    ]
+  }
+}
