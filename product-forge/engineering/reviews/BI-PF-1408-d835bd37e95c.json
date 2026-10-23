@@ -1,0 +1,37 @@
+{
+  "item": "BI-PF-1408",
+  "sha": "d835bd37e95c",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "findings": {
+    "BLOCKER": [
+      "none"
+    ],
+    "MAJOR": [
+      "Schema truth is derived by regex-parsing `*.up.sql` (`_schema`, `_statements_after`): columns added via `ALTER TABLE ... ADD COLUMN`, quoted/mixed-case identifiers, inline constraints, and comments will be mis-parsed. A gate that decides \"migrated\" from brittle text scanning will both false-fail and false-pass; introspect the applied database (or migrations tool metadata) instead.",
+      "`migration_status` semantics were loosened in bulk: ~80 stores flip `pending`\u2192`migrated` purely because a `CREATE TABLE` line exists in some migration file. \"migrated\" now means \"a DDL statement exists\", not \"data lives there / migration applied\". This overstates readiness and will mislead capacity, DR, and compliance planning.",
+      "The registry content does not match what `--apply` produces: apply() preserves `kind: table` targets and injects `retained_reason`, but the diff hand-rewrites those entries to `kind: file`/`retained` with empty `ref`/`owner_item`. The `retained_reason` branch in `_expected_status` is dead code, and the next `--apply` run's behavior versus this hand state is unverified \u2014 registry edits must go through the tool, not around it.",
+      "Canonical edge set is hardcoded twice (SEED in the shipped tool + JSON in the registry), and `check` fails on any \"unexpected canonical relationship\". Adding a domain relationship (the stated Slice C purpose) now requires editing shipped tooling code, inverting the AC's intent. The tool should own validation rules; the registry should own the edge catalog.",
+      "Deleting `reason` from retained-file targets and substituting empty `\"ref\": \"\", \"owner_item\": \"\"` fields is pure information loss: the audit rationale (\"global authored config -> file (git-reviewed)\") is gone, replaced by two no-op empty strings. Empty-string required fields also defeat the \"planned targets must name an owner\" invariant by satisfying presence-checks with nulls."
+    ],
+    "MINOR": [
+      "`_item_status` swallows every exception into `\"unknown\"`, which then hard-fails the gate \u2014 a missing/renamed backlog item file breaks CI with a misleading message; narrow the except and distinguish \"missing\" from \"unreadable\".",
+      "Hardcoded `REQUIRED_TRIGGERS`, `OBJECT_META` (`{\"artifacts\",\"stored_objects\"}`), and the table/backend allow-lists embed current-state knowledge in shipped code; renaming a trigger or adding an object bucket breaks the fast gate for reasons unrelated to the change under review.",
+      "`_schema` ignores `ALTER TABLE ADD COLUMN`, so any column added post-creation (indexes/audits/tombstones) is invisible to relationship validation \u2014 same root cause as the regex issue but worth an explicit tracked follow-up.",
+      "`KINDS` admits `\"view\"` while the AC enumerates table|file|derived|object-store; either the AC or the enum is wrong \u2014 align them so the gate enforces the accepted taxonomy.",
+      "Duplicate required-edge computation (`REQUIRED - set(canonical)` and `REQUIRED - set(all rels)`) emits two overlapping messages for one defect; consolidate for cleaner CI output.",
+      "`--verbose` is parsed and threaded to `_report`, which unconditionally prints every problem and ignores the flag \u2014 dead parameter."
+    ],
+    "NIT": [
+      "`import glob` + `glob.glob` instead of `Path.glob`; the module already uses `path` objects everywhere else.",
+      "`--self-test` picks the \"first\" table store from the live registry to mutate; a fixed synthetic fixture would make the negative tests independent of registry churn.",
+      "`_statements_after` treats `\"` and `'` identically when skipping quoted regions \u2014 a comment containing an apostrophe inside a migration can desync paren matching."
+    ],
+    "SUMMARY": [
+      "Solid gate discipline (fail-closed checks, negative self-tests, wiring into precheck + ci-cd-gates), but the foundation \u2014 regex DDL parsing as schema truth and a hardcoded canonical edge set in shipped code \u2014 is fragile and will not scale past the next few domains.",
+      "Highest risks: mass `migration_status` flip to \"migrated\" based on DDL-text presence (overstates readiness), registry hand-edited in a state `--apply` would not reproduce (tool/state drift), and rationale-bearing `reason` fields replaced with empty strings (auditability loss).",
+      "Recommend: validate against real schema state, move the edge catalog fully into the registry, restore human-readable retention rationale, and re-derive the registry via `--apply` before merge."
+    ]
+  }
+}
