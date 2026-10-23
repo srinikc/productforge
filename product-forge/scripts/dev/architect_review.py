@@ -106,8 +106,13 @@ def _get_item(item: str) -> dict:
 # The review sha covers SOURCE changes only - it must not change when derived/generated artifacts move
 # (committed evidence, the baseline, the derived backlog projections that --apply itself writes). The SAME
 # exclusions are used by scripts/dev/architect_review_check.py.
-EXCLUDE = [":(exclude)engineering/**", ":(exclude)config/architect-review-baseline.json",
-           ":(exclude)data/backlog/**"]
+EXCLUDE = [
+    ":(exclude,glob)**/engineering/**",
+    ":(exclude,glob)**/config/architect-review-baseline.json",
+    ":(exclude,glob)**/data/backlog/**",
+    ":(exclude,glob)**/docs/BACKLOG-SUMMARY.md",
+    ":(exclude,glob)**/docs/documentation-index.html",
+]
 
 
 def _git_text(args: list[str], timeout: int = 30) -> str:
