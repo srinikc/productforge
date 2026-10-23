@@ -293,7 +293,9 @@ def _steps(scope_csv: str = ""):
     changed = _changed_paths()
     # BI-PF-1374: a derived/bookkeeping-only change -> MINIMAL tier (docs-fresh + compile); no area gates, no tests.
     if _bookkeeping_only(changed):
-        return [(n, [sys.executable, *c]) for n, c, _t, _a in _GATES if n in ("compile", "docs-fresh")]
+        # Data-only completion PRs still must pass the delivery gates (BI-PF-1470).
+        must = ("compile", "docs-fresh", "gate2-completion", "delivery-completeness")
+        return [(n, [sys.executable, *c]) for n, c, _t, _a in _GATES if n in must]
     steps = []
     for name, cmd, tier, area in _GATES:
         if tier != "fast" or not _area_touched(area, changed):

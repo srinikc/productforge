@@ -1,0 +1,35 @@
+{
+  "item": "BI-PF-1470",
+  "sha": "c4b85db94ada",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-23T23:35:17.226752",
+  "findings": {
+    "BLOCKER": [
+      "none"
+    ],
+    "MAJOR": [
+      "Baseline gating silently removed: `baseline_state` ACTIVE allow, EXPIRED/UNKNOWN hard-fail, and `baseline_problems()` reporting are all deleted from `gate2_completion_check`, yet the module docstring still claims \"Expired/unknown baseline entries hard-fail\" \u2014 a control-path regression contradicting both code and docs.",
+      "Evidence binding is now self-referential: the evidence sha is taken from the Gate 2 decision itself, so `findings_sha == view.review.sha` matches by construction; freshness relies entirely on an unproven claim that `architect_review_check` covers it, and that check is *not* in the bookkeeping tier (which now runs gate2-completion).",
+      "The baseline-expiry negative coverage in `_self_test` was deleted and not replaced elsewhere (force-allowed cases already exist in `test_gate_predicates.py`) \u2014 net test coverage regression on a hard-fail path.",
+      "EDP-21 retroactive validation (valid digest-bound Gate 1 decision + gate2-completion pass) has no test in this diff; acceptance criterion is unverified."
+    ],
+    "MINOR": [
+      "`gate_view_sha` duplicates the body of `gate_view` (read file, dispositions, `pending_blocking`) instead of parameterizing one function \u2014 drift risk as the view shape evolves.",
+      "The newest-first gate-2 decision scan is implemented twice (in `gate2_completion_check.check` and in `gate_predicates.approval`) rather than shared in `gp` \u2014 duplicated policy logic.",
+      "`gate_view_sha` swallows all exceptions to `None`, so corrupt-but-present evidence silently falls back to the latest view instead of failing closed.",
+      "`test_bookkeeping_tier_runs_delivery_gates` asserts on source substrings (including a literal tuple line) rather than exercising `precheck._steps` \u2014 brittle and proves wiring only textually; acceptance asks for precheck PASS evidence which is not shown."
+    ],
+    "NIT": [
+      "Non-APPROVED gate decisions (e.g. REJECT) do not set `saw_gate_decision`, so a rejected-then-nothing history reports `NO_GATE_APPROVAL`; confirm this matches the \"gate decision exists\" wording in the AC.",
+      "`UNAUTHORIZED_APPROVER` short-circuits the whole scan while sha/digest mismatches `continue`; inconsistent fail-closed vs. continue semantics for a single malformed entry.",
+      "Comment \"a completion may legitimately ride in a PR that also touches other files\" justifies skipping freshness here, but the rationale lives only in an inline comment \u2014 belongs in the ADR/operating docs."
+    ],
+    "SUMMARY": [
+      "Sound direction: shared `is_docs_only`, digest-bound multi-decision selection, and bookkeeping-tier gating close a real hole for data-only completion PRs.",
+      "Top risks: silent removal of baseline enforcement contradicts the shipped docstring, and evidence binding has become self-referential with freshness delegated to a check the bookkeeping tier skips.",
+      "Coverage gaps (EDP-21, baseline expiry) and a source-string-only precheck test weaken confidence; recommend restoring baseline handling or documenting its removal as an ADR before merge."
+    ]
+  }
+}

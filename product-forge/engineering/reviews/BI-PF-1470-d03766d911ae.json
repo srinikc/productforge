@@ -1,0 +1,33 @@
+{
+  "item": "BI-PF-1470",
+  "sha": "d03766d911ae",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-10-23T23:20:36.629519",
+  "findings": {
+    "BLOCKER": [
+      "none"
+    ],
+    "MAJOR": [
+      "`gate_predicates.approval` decision on \"newest first\" is undefined when two decisions share the same timestamp; no deterministic tie-breaker is specified.",
+      "Retroactive EDP-21 validation records a Gate 1 decision retroactively; no audit-trail or provenance marker distinguishes retroactive from contemporaneous decisions.",
+      "The design omits `affected_components` and `out_of_scope` are \"Not specified\"; this violates CL-008's requirement to embed findings and scope before Gate 1.5.",
+      "No observability signal (metric/log) is specified when `STALE_APPROVAL` is returned \u2014 a silent gate failure with no diagnosis path.",
+      "The design does not address ownership/route-by-kind (CL-001) for the `precheck.py` and `gate_predicates.py` changes; no single-writer owner is identified."
+    ],
+    "MINOR": [
+      "Reversibility (guardrail 1) is \"Revert the change\" but no verified rollback test path is defined for a partially-applied multi-decision predicate change.",
+      "Guardrail 10 (observability): no minimum metric or structured log event is specified for the new tier-running or multi-decision paths.",
+      "Language rule (guardrail 7) is satisfied (edits to shipped Python) but the design does not state this explicitly.",
+      "Guardrail 9 (data/tenant isolation) and guardrail 3 (authorization) are unaddressed \u2014 likely N/A for dev tooling, but this should be stated rather than left blank.",
+      "`affected_files` is listed but the test file `test_gate_predicates.py` is expected to grow; no test-coverage target (e.g., mutation score) is stated."
+    ],
+    "NIT": [
+      "The design does not note whether `gate2-completion` and `delivery-completeness` are existing predicates being reused (CL-001 reuse) or newly authored.",
+      "No explicit statement that precheck's bookkeeping tier already has the necessary permissions to invoke the new gates.",
+      "The \"newest first\" ordering should specify the ordering key (timestamp vs. sequence number) to avoid wall-clock drift ambiguity."
+    ],
+    "SUMMARY": []
+  }
+}

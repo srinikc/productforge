@@ -1,17 +1,17 @@
 # Backlog Summary
 
-> GENERATED 2026-10-23T20:58:06 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-23T23:35:33 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 135  |  **Closed:** 577
+- **Open:** 136  |  **Closed:** 577
 - `blocked`: 1
 - `executing`: 3
 - `in_progress`: 1
-- `new`: 130
+- `new`: 131
 
-### new, by category (130)
+### new, by category (131)
 **API / reports / HIL / misc** (15)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
@@ -36,7 +36,7 @@
 |---|---|---|---|---|
 | BI-PF-1332 | Should | bug | Develop red: test pollution committed into data/learnings.json breaks test_global_render_unchanged (scratch loop-learning marker 0270) | Restore develop green: purge test pollution from data/learnings.json + prevent test writes to the real learnin... |
 
-**Discovery / HIL / prompts** (8)
+**Discovery / HIL / prompts** (9)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0218 | Should | feature | Backend: AI-era operations layer (evals + prompt/model/agent versioning + feedback loop + model-quality observability) | Add the AI-era lifecycle layer so the Product tab can show AI quality + the loop that keeps it good. |
@@ -47,6 +47,7 @@
 | BI-PF-1242 | Should | feature | In-session manual/auto worker mode + /wg watch monitoring + 14-guidelines approval gates | - In-session manual worker mode (/wg work manual, default): 1. Claims assignment atomically from PF via /assig... |
 | BI-PF-1302 | Must | feature | EDP-10: Timeouts, pool budgets, payload/upload limits, per-tenant & global quotas, structured errors; production profile rejects dev/anon auth | Implement enforceable timeouts, pool budgets, payload/upload limits, per-tenant and global quotas, structured ... |
 | BI-PF-1442 | Should | feature | Skill/guideline prompt injection (SKILLS: block) | Agents receive applicable skills through PF's own prompt builder. |
+| BI-PF-1470 | Must | feature | Fix gate enforcement gaps: bookkeeping tier must run completion gates; approval must consider all decisions | Close the two hard-gate enforcement gaps found while verifying EDP-21. |
 
 **Dynamic pipeline / agents** (5)
 | ID | MoSCoW | Type | Title | Objective |
@@ -372,5 +373,5 @@
 ---
 
 ## Totals
-- backend: 135 open / 577 closed
+- backend: 136 open / 577 closed
 - dashboard: 146 open / 3 closed
