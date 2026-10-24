@@ -1,0 +1,35 @@
+{
+  "item": "BI-PF-1315",
+  "sha": "460e79fcd219",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-24T15:32:33.153202+00:00",
+  "findings": {
+    "BLOCKER": [
+      "Diff ships only a cron file; no Go PITR check, drill/reconcile/region-guard logic, or the required tests appear \u2014 acceptance criteria and the language rule (new logic \u2192 Go) are unmet by what is under review.",
+      "/etc/cron.d lines lack the mandatory user field: `17 * * * * pfbackupdrill --command ...` parses `pfbackupdrill` as the user and `--command ...` as the command, so every drill silently fails or is rejected.",
+      "File begins with a UTF-8 BOM (`\ufeff`) before the first comment; cron does not treat BOM-prefixed lines as comments and may refuse the entire file."
+    ],
+    "MAJOR": [
+      "Cron lines expand `$PF_BACKUP_DRILL_REPORT_DIR`, `$PF_DRILL_TENANT`, `$PF_DB_DSN` but the file never assigns them (only a comment mentions \"Env\"); /etc/cron.d does not inherit shell/profile env, so drills run with empty tenant/report dir/DSN.",
+      "The `status` staleness check uses `--max-age-hours 26` yet only covers daily drills; the weekly tenant drill (7-day cadence) will always look stale or is unchecked, producing false alerts or blind spots.",
+      "Failures are observability-dead: output goes only to `/var/log/backup-drill.log` with no rotation, and \"cron mail/alert\" assumes a configured MTA that is unlikely to exist \u2014 failed drills can go unnoticed indefinitely.",
+      "Destructive daily restore (`PF_ALLOW_DESTRUCTIVE_DRILL=1`, scratch DB create/drop) runs unattended with no concurrency guard, freeze window, or confirmation the target DSN is staging, risking interference with live traffic."
+    ],
+    "MINOR": [
+      "Fixed, guessable scratch DB names (`pf_scratch_daily`, `pf_scratch_tenant`) collide across overlapping runs and leave residue if a drill is killed mid-way.",
+      "Log redirection is duplicated per line instead of a single `LOG` variable or wrapper, making rotation/destination changes error-prone.",
+      "Hourly PITR check logs to the same file as daily drills, burying actionable PITR failures in a high-volume stream."
+    ],
+    "NIT": [
+      "Comment references \"EDP-23\" while the item is BI-PF-1315; traceability would be clearer with both identifiers.",
+      "`# Alert hook:` comment promises behavior (missing/failed/stale detection) that this file itself does not implement beyond one exit-code check."
+    ],
+    "SUMMARY": [
+      "Only an ops cron wrapper is delivered; the required Go checks, drills, reconcile/region guard, and tests are absent from the diff, so the acceptance criteria are not demonstrably met.",
+      "Even as shipped, the cron file is broken: missing user field, missing env assignments, and a BOM make the schedules unreliable.",
+      "Top risks: silently non-executing drills giving false DR confidence, and unattended destructive scratch-DB operations without guardrails."
+    ]
+  }
+}
