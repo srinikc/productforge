@@ -50,17 +50,17 @@
   },
   "objective": "Harden the Go EDP data-plane service with enforceable timeouts, body/upload limits, per-tenant and global quotas/concurrency, a structured error contract, a bounded shared DB pool, and a production profile that fails closed on dev/anon auth or a superuser runtime role.",
   "acceptance_criteria": [
-    "go/edpsvc enforces configurable request, header/read/write and DB timeouts plus a per-request body cap (1 MiB default) and a 64 MiB upload cap on /artifacts; an over-limit body returns the structured 413 envelope, a deadline returns 504, and every handler uses r.Context() so cancellation propagates to DB/object IO.",
-    "A per-tenant and global token-bucket request quota plus per-tenant and global concurrency caps (env-driven, fail-closed) reject over-limit requests with 429 and Retry-After; the tenant key is X-Tenant-Id (fallback tenant query), the global bucket always applies, and /health, /ready and /metrics are exempt.",
-    "Every edpsvc error path returns {\"error\":{\"code\",\"message\",\"category\",\"retryable\",\"request_id\"}} with an X-Request-ID response header; 400/401/403/404/405/409/413/429/500/503/504 map to stable SCREAMING_SNAKE codes and messages are redacted of token/secret material.",
-    "PF_PROFILE=production startup fails closed when PF_DEV, API_ALLOW_ANON or PF_ALLOW_ANON is enabled, PF_ADMIN_TOKEN is missing/default/shorter than 24 chars, or the runtime DB role is superuser/BYPASSRLS; the superuser escape hatch is honored only when profile != production and PF_ALLOW_SUPERUSER_DSN=1, and the failure names the offending setting.",
-    "edpsvc uses ONE shared, bounded store.PgStore (PoolOptions from env) for all handlers, never opens a pool per request, closes it on graceful shutdown, and GET /admin/limits (admin bearer) returns the effective non-secret limits plus global quota/pool counters.",
-    "Tests prove: config parsing/validation; token-bucket refill/deny/Retry-After and concurrency caps; profile + runtime-role fail-closed decisions; the structured envelope and request id; an httptest mux test for 401/413/429/504; a DB-gated test that opens the shared pool and verifies the non-superuser role guard; go test ./... and precheck pass."
+    "go/edpsvc enforces configurable request (30s), DB (5s), upload (120s for /artifacts) and server read/write/idle/header timeouts plus a 1 MiB body cap (64 MiB upload cap); over-limit bodies return structured 413, deadlines return 504, and every handler uses r.Context()/dbCtx so cancellation reaches DB/object IO.",
+    "A per-tenant and global token-bucket request quota plus per-tenant and global concurrency caps (env-driven, fail-closed) reject over-limit requests with 429 + Retry-After; the tenant key is the tenant the request targets (X-Tenant-Id, validated against the tenant query where present); the global bucket always applies and is the hard anti-evasion control because edpsvc has one admin principal; /health, /ready and /metrics are exempt but still DB-timeout bounded.",
+    "Every edpsvc error path returns the versioned envelope {\"error\":{\"code\",\"message\",\"category\",\"retryable\",\"request_id\"}} (v1, documented in docs/PF-API-SERVICE-OR-SERVER.md) with X-Request-ID (propagated when valid, else generated); 400/401/403/404/405/409/413/429/500/503/504 map to stable codes and messages are redacted.",
+    "PF_PROFILE=production fails closed when PF_DEV/API_ALLOW_ANON/PF_ALLOW_ANON is enabled, PF_ADMIN_TOKEN is missing/default/shorter than 24 chars, or the runtime DB role is superuser/BYPASSRLS; PF_EDP_ENFORCE_LIMITS=0 is refused in production (non-production only), and the superuser escape hatch requires profile != production and PF_ALLOW_SUPERUSER_DSN=1; the error names the offending setting.",
+    "edpsvc uses ONE shared bounded store.PgStore for all handlers, validates global concurrency <= PoolOptions.MaxConns at startup, never opens a pool per request, drains in-flight work on graceful shutdown (30s) before closing the pool, and exposes GET /admin/limits (admin) + GET /metrics (counters only: 413/429/504, denials, evictions, pool saturation).",
+    "Tests prove: config/validation incl. cap<=MaxConns; token-bucket refill/deny/Retry-After with an injected clock; tenant validation, max-tenant cap (LRU idle eviction, 429 when none idle) and no active-bucket reset; profile/kill-switch/role fail-closed; envelope + request-id propagation + redaction; httptest mux 401/413/429/504; DB-gated shared-pool role guard; go test ./... and precheck pass."
   ],
   "in_scope": [
-    "go/edpsvc/internal/limits (config, errors, middleware, quota, profile/role validators, tests)",
-    "go/edpsvc/main.go wiring: shared pool, r.Context(), middleware chain, /admin/limits, http.Server timeouts, graceful shutdown",
-    "config/env-flags.json registrations + service docs for the new surface",
+    "go/edpsvc/internal/limits (config, errors, middleware, quota, metrics, profile/role validators, tests)",
+    "go/edpsvc/main.go wiring: shared pool, r.Context(), middleware chain, /admin/limits, /metrics, http.Server timeouts, graceful shutdown",
+    "config/env-flags.json registrations + docs/PF-API-SERVICE-OR-SERVER.md (v1 envelope/routes/config)",
     "Tests: unit + httptest mux + DB-gated role guard"
   ],
   "out_of_scope": [
@@ -86,7 +86,7 @@
     "config/env-flags.json",
     "docs/PF-API-SERVICE-OR-SERVER.md"
   ],
-  "approach": "Add go/edpsvc/internal/limits: env-backed Config (defaults above), request-id/structured-error writer, timeout/body-limit/quota+concurrency middleware, token bucket with idle eviction, and pure profile/role validators. Refactor edpsvc/main.go to build one shared store.OpenWithPool at startup, use r.Context()/dbCtx for every DB/object call, wrap the mux with the middleware chain, add GET /admin/limits, and serve via http.Server with read/write/idle/timeout budgets + graceful shutdown. Register the new env flags in config/env-flags.json and document the surface in the service header/docs. No schema change.",
+  "approach": "Add go/edpsvc/internal/limits: env Config (defaults/invariants incl. global concurrency <= MaxConns), request-id + v1 error writer, timeout/body-limit/quota/concurrency middleware with per-path timeouts (JSON vs upload), token bucket with injectable clock + idle eviction/max-tenant cap, Prometheus counters, and pure profile/kill-switch/role validators. Refactor edpsvc/main.go to one shared store.OpenWithPool, r.Context()/dbCtx everywhere, GET /admin/limits + GET /metrics, http.Server timeouts and graceful shutdown (drain 30s). Register env flags and document the v1 envelope/routes in docs/PF-API-SERVICE-OR-SERVER.md. PF_EDP_ENFORCE_LIMITS=0 is non-production only. No schema change.",
   "review": {
     "reconciliation": {
       "prior_decisions": [
@@ -105,32 +105,35 @@
         "migrations/0002_core_schema.up.sql: quotas table exists for tenant limits (billing/entitlement overrides out of scope)."
       ],
       "assumptions": [
-        "The EDP-10 target is go/edpsvc (the Go data plane), not the Python api/ surface (BI-PF-0332); the AC's 'All HTTP handlers' means every edpsvc route.",
-        "Limits are configured by env vars exported by the orchestrator (existing edpsvc config path), registered in config/env-flags.json; no new config file/store is introduced.",
-        "Per-tenant/global request quotas are enforced in-process (token bucket + semaphore) because edpsvc is the single data-plane process; exact multi-replica coordination is EDP-24 scale-out.",
-        "The runtime DSN (PF_DB_DSN) is a non-superuser role (pf_app/pf_runtime) in production; migrations are a deploy step (scripts/dev/db_migrate.py) and the /admin/migrations endpoints are dev/ops-only.",
-        "Defaults: request 30s, DB 5s, read-header 5s, read 30s, write 60s, idle 120s, max headers/body 1 MiB, upload 64 MiB, pool 10, tenant 600 rpm / 20 concurrent, global 6000 rpm / 100 concurrent.",
-        "Quota buckets allow a burst of one minute's rate (capacity = rpm) and refill at rpm/60 per second; idle tenant buckets are evicted to bound memory."
+        "The EDP-10 target is go/edpsvc (the Go data plane), not the Python api/ surface (BI-PF-0332); 'All HTTP handlers' means every edpsvc route.",
+        "Limits are env-configured (exported by the orchestrator) and registered in config/env-flags.json; no new config file/store.",
+        "Per-tenant/global request quotas are enforced in-process (token bucket + semaphore); exact multi-replica coordination is EDP-24.",
+        "The runtime DSN (PF_DB_DSN) is non-superuser in production; migrations are a deploy step (db_migrate.py); /admin/migrations is dev/ops-only.",
+        "Defaults: request 30s, DB 5s, upload 120s, read-header 5s, read 30s, write 180s, idle 120s, max headers/body 1 MiB, upload 64 MiB, pool 10, tenant 600 rpm / 20 concurrent, global 6000 rpm / 100 concurrent; burst = one minute's rate.",
+        "edpsvc has ONE admin bearer principal; per-tenant buckets are fair-use attribution for the tenant a request targets, while the global bucket is the hard anti-evasion control. True per-tenant authentication/isolation is the documented auth follow-up (PF-API-SERVICE-OR-SERVER).",
+        "Enforcement can be disabled with PF_EDP_ENFORCE_LIMITS=0 ONLY outside production; production refuses that setting at startup."
       ],
       "divergences": [
-        "The stale item affected_files point at internal/limits and internal/http/middleware; the implementation lives in go/edpsvc/internal/limits (same module) to avoid a new Go module for a single consumer.",
-        "The item's 'Config wiring via orchestrator settings' is realized as env vars exported by the orchestrator and registered in config/env-flags.json, matching the existing edpsvc config path; no orchestrator code change is required.",
-        "The error body changes from {\"error\":\"...\"} to the structured envelope (a documented breaking shape for edpsvc admin clients).",
-        "The Python api/ surface is intentionally out of scope (paired BI-PF-0332); its auth/error/limits work is not duplicated here."
+        "Affected files live in go/edpsvc/internal/limits (same module), not a new Go module.",
+        "'Config via orchestrator settings' is env vars registered in config/env-flags.json, matching the existing edpsvc path.",
+        "The error body changes from {\"error\":\"...\"} to the v1 structured envelope (documented breaking shape).",
+        "Python api/ hardening is out of scope (BI-PF-0332).",
+        "Per-tenant quotas are attribution keyed by the target tenant, not cryptographically bound to a per-tenant principal (edpsvc has one admin principal); the global cap is the security boundary. Confirm or request per-tenant auth as a follow-up."
       ],
       "open_questions": [
         "Confirm the target is go/edpsvc (not the Python api/ surface).",
-        "Confirm the default values and the in-process quota model (single-process caps; multi-replica exactness deferred to EDP-24).",
-        "Confirm PF_DB_DSN becomes the non-superuser runtime DSN and production migrations run as a deploy step, with PF_ALLOW_SUPERUSER_DSN=1 only for non-production local use.",
-        "Confirm the new GET /admin/limits route and the structured error envelope shape."
+        "Confirm the defaults and the in-process quota model (single-process caps; multi-replica exactness deferred to EDP-24).",
+        "Confirm PF_DB_DSN becomes the non-superuser runtime DSN and production migrations run as a deploy step (PF_ALLOW_SUPERUSER_DSN=1 only outside production).",
+        "Confirm per-tenant quotas are attribution under the single admin principal (global cap is the hard boundary) OR request per-tenant authentication now (scope increase).",
+        "Confirm the new GET /admin/limits + GET /metrics routes and the v1 structured error envelope."
       ]
     },
     "impact_review": [
       {
         "claim": "API CHECK",
         "verdict": "aligned",
-        "evidence": "needs_api=true. New admin-only GET /admin/limits (bearer admin token) returns effective limits/counters; no public route is added. Existing routes keep method/path; their error body becomes the structured envelope.",
-        "recommendation": "needs_api=true; route GET /admin/limits (admin authn)"
+        "evidence": "needs_api=true. New admin-only GET /admin/limits + GET /metrics (counters only, no auth like /health); existing routes keep method/path; error body becomes the v1 structured envelope.",
+        "recommendation": "needs_api=true; GET /admin/limits (admin), GET /metrics (internal)"
       },
       {
         "claim": "AC coverage",
@@ -160,7 +163,7 @@
       {
         "claim": "tenant isolation",
         "verdict": "aligned",
-        "evidence": "Quota key is X-Tenant-Id/tenant; counters exposed by /admin/limits are global only (no per-tenant state leaked); DB writes keep store.BindTenant/RLS.",
+        "evidence": "Quota key = the tenant the request targets (X-Tenant-Id, validated against the tenant query); edpsvc has one admin principal, so per-tenant buckets are attribution and the global bucket is the hard anti-evasion control; /admin/limits exposes global counters only.",
         "recommendation": "approve"
       },
       {
@@ -184,7 +187,7 @@
       {
         "claim": "observability",
         "verdict": "aligned",
-        "evidence": "X-Request-ID + structured error envelope; /admin/limits exposes global counters and pool stats; EDP-22 consumes these for SLOs/metrics.",
+        "evidence": "X-Request-ID + v1 envelope; /metrics exposes 413/429/504, denial, eviction and pool counters; /admin/limits returns the effective limits; EDP-22 consumes them.",
         "recommendation": "approve"
       }
     ],
@@ -192,24 +195,25 @@
     "at": ""
   },
   "verification": [
-    "Unit tests per limit/quota type",
-    "Integration test: quota breach returns structured 429/413",
-    "Prod profile boot test rejects anon auth",
-    "language_rule_review.py passes"
+    "Gate 1.5 architect review (mimo-v2.6-flash): {'BLOCKER': 2, 'MAJOR': 6, 'MINOR': 5, 'NIT': 2}"
   ],
   "risks": [
-    "Error-shape breaking change for edpsvc admin clients: mitigated by documenting the envelope and keeping HTTP status codes stable; enforcement rollback via PF_EDP_ENFORCE_LIMITS=0 (error shape is not disabled).",
-    "In-process quotas under-enforce across replicas: mitigated by per-replica caps (fail-closed locally) and EDP-24 for shared/global coordination.",
-    "Production DSN guard may break a staging run that uses pf_owner: mitigated by PF_ALLOW_SUPERUSER_DSN=1 only outside production plus a clear startup error naming the role.",
-    "Handlers using context.Background() would ignore the request deadline: mitigated by converting every DB/object call to r.Context()/dbCtx and a grep/test for context.Background in edpsvc handlers.",
-    "Quota map growth with many tenants: mitigated by evicting idle buckets and a max-tenant cap.",
-    "Timeout/body middleware interacts with the upload path: mitigated by a per-path upload cap (64 MiB) and tests for 413 on both JSON and upload."
+    "Error-shape breaking change: documented v1 envelope + stable status codes; enforcement rollback is non-production only.",
+    "Per-tenant attribution under one admin principal can be rotated by an authorized admin client: the global bucket is the hard cap; per-tenant auth is a documented follow-up (scope decision requested).",
+    "In-process quotas under-enforce across replicas: per-replica fail-closed caps; EDP-24 for shared coordination.",
+    "Production DSN guard/staging: PF_ALLOW_SUPERUSER_DSN=1 outside production + clear startup error.",
+    "Handlers ignoring r.Context(): convert every DB/object call and add a canceled-context 504 test; a grep guard is not relied on alone.",
+    "Quota map growth: idle eviction (10 min) + max-tenant cap; when full with no idle bucket, reject 429 (fail closed) and never evict active buckets.",
+    "Upload timeout vs slow links: 120s upload budget distinct from the 30s JSON request budget.",
+    "Metrics endpoint exposure: counters only (no tenant/secret data); /metrics is internal like /health."
   ],
   "rollback": "Set PF_EDP_ENFORCE_LIMITS=0 to disable quota/timeout/body-limit enforcement (structured errors and the production profile guard remain), or revert the commit; the shared pool and r.Context() changes are behavior-preserving and no schema/data change is involved.",
   "evidence": [
     "Candidate core/global_orchestrator.py",
     "Roadmap EDP-10",
-    "L1=Go language rule"
+    "L1=Go language rule",
+    "Design pre-check (BI-PF-1302): answered 10 checklist item(s) before Gate 1.5",
+    "Gate 1.5 architect review - model=mimo-v2.6-flash sha=345a7dc7cb3c\nBLOCKER:\n  - `PF_EDP_ENFORCE_LIMITS=0` is a fail-open kill switch that contradicts the fail-closed AC for quotas/timeouts; in production it silently removes all limits while /health stays green. Restrict it to profile != production, or drop it.\n  - Tenant identity is taken from an unauthenticated `X-Tenant-Id` header, so any client can claim or rotate tenant keys to evade per-tenant quotas and skew concurrency accounting. Bind the tenant key to the authenticated principal.\nMAJOR:\n  - No stated invariant between global concurrency cap and `PoolOptions.MaxConns`; if cap > pool size, overload converts into request pile-up and 504s. State and test `global_cap <= MaxConns`.\n  - A 64 MiB /artifacts upload is often unreachable under the global request/write timeout on slow links; a size cap alone is insufficient — define a per-path upload timeout budget.\n  - The error envelope is a wire-breaking change; pin the needs_api/contract decision and versioning in the service contract + GLOSSARY, not just \"documented in the service header\" (CL-003/CL-001).\n  - No metrics for 413/429/504 counts, quota denials, bucket evictions, or pool saturation; /admin/limits counters cannot drive alerting. Emit Prometheus series now even if dashboards are out of scope.\n  - Behaviour when the max-tenant cap is reached (reject legitimate new tenants fail-closed vs fail-open) and whether idle eviction can reset an *active* tenant's bucket are unspecified — define and test both.\n  - Interaction of `PF_EDP_ENFORCE_LIMITS=0` with the production profile guard is unspecified (does it also bypass the fail-closed startup check?). Must be pinned in the design.\nMINOR:\n  - Secret redaction needs tests with known token/secret fixtures and a single documented source of truth, else it drifts from the Python redactor.\n  - `grep for context.Background` as a test is brittle; prefer a lint rule or an injected-context spy seam.\n  - Graceful shutdown: define drain deadline and what happens to in-flight requests when the shared pool closes.\n  - /health, /ready, /metrics are exempt from limits but must still carry DB/read timeouts so a hung DB cannot block them unboundedly.\n  - Retry-After needs an injectable clock for deterministic tests.\nNIT:\n  - env-flags.json defaults should be generated from, or asserted against, the Go constants to prevent drift.\n  - X-Request-ID: define whether an inbound id is propagated or always regenerated, for trace continuity.\nSUMMARY:\n  - Design is directionally right (shared pool, r.Context, structured errors, profile fail-closed) but ships a fail-open kill switch and header-derived tenant identity that undermine the core guarantees; both must be resolved before Gate 1.5.\n  - Top risks: quota bypass via tenant-key spoofing, concurrency/pool sizing deadlock, and an unversioned breaking error contract.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present"
   ],
   "owner": "unassigned",
   "requester": "epic BI-PF-1292",
@@ -348,20 +352,21 @@
     "usage": {}
   },
   "created_at": "2026-10-13T16:02:37.925490",
-  "updated_at": "2026-10-24T22:55:11.973908",
+  "updated_at": "2026-10-24T22:57:32.403229",
   "score": 0.75,
   "source_ref": "docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md",
   "_note": "dependencies set",
   "api_impact": {
     "needs_api": true,
     "routes": [
-      "GET /admin/limits"
+      "GET /admin/limits",
+      "GET /metrics"
     ],
     "consumers": [
       "EDP operators/SRE",
-      "edpsvc admin clients"
+      "Prometheus (internal)"
     ],
-    "reason": "Read-only introspection of the effective limits/counters; admin bearer auth, no public surface."
+    "reason": "Read-only introspection + counters; /admin/limits is admin-bearer, /metrics is internal counters only; no public tenant data."
   },
   "language_rule": "Go for new logic (go/edpsvc/internal/limits + edpsvc wiring); env-flags JSON/docs are declarative; language_rule_review BI-PF-1302 = OK."
 }
