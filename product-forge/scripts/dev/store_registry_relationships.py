@@ -91,6 +91,11 @@ def adr_ids(text: str) -> set[str]:
     return {f"ADR-{i}" for i in index & sections}
 
 
+def adr_section(text: str, ref: str) -> str:
+    m = re.search(rf"^#\s+{re.escape(ref)}:.*?(?=^#\s+ADR-\d{{4}}:|\Z)", text or "", re.M | re.S)
+    return m.group(0) if m else ""
+
+
 def retained_problems(reg: dict, adr_text: str) -> list[str]:
     """Fail-closed retained-store invariants (BI-PF-1476).
 
@@ -111,6 +116,8 @@ def retained_problems(reg: dict, adr_text: str) -> list[str]:
                 bad.append(f"{name}: retained target has decision_ref {ref} but no retained_reason")
             if ref not in ids:
                 bad.append(f"{name}: decision_ref {ref} does not resolve to an ADR index row + section")
+            elif "supersede" not in adr_section(adr_text, ref).lower():
+                bad.append(f"{name}: decision_ref {ref} section has no supersede/revisit trigger")
     for name, ref in FORMALLY_RETAINED.items():
         entry = stores.get(name)
         if not isinstance(entry, dict):
@@ -373,6 +380,12 @@ def _self_test(reg: dict, tables, cols, triggers) -> int:
     applied = apply(copy.deepcopy(reg), tables, cols)
     if check(applied, tables, cols, triggers):
         failures.append("apply() broke the registry invariants")
+    try:
+        adr_text = ADR_DOC.read_text(encoding="utf-8")
+    except Exception:
+        adr_text = ""
+    if adr_text and not retained_problems(reg, re.sub(r"(?i)supersede", "omitted", adr_text)):
+        failures.append("missing supersede trigger was not detected")
     table_store = next((n for n, v in (reg.get("stores") or {}).items()
                         if (v.get("target") or {}).get("kind") == "table"), None)
     if table_store is None:
