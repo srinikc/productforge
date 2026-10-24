@@ -29,10 +29,13 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--decision", required=True, choices=("APPROVE", "APPROVE_WITH_ATTENTION"))
     ap.add_argument("--by", required=True, help="hil:<actor>")
     ap.add_argument("--note", default="")
+    ap.add_argument("--hil-confirmed", action="store_true", required=True,
+                    help="set ONLY by the HIL after explicit approval")
     ap.add_argument("--scope", default="product_forge")
     ap.add_argument("--project", default="")
     a = ap.parse_args(argv)
-    res = backlog.record_gate_decision(a.scope, a.project or None, a.item, a.gate, a.decision, a.by, a.note)
+    res = backlog.record_gate_decision(a.scope, a.project or None, a.item, a.gate, a.decision, a.by, a.note,
+                                       hil_confirmed=a.hil_confirmed)
     if not res:
         print(json.dumps({"ok": False, "item": a.item, "gate": a.gate}))
         return 1
