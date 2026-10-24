@@ -242,12 +242,18 @@ def main(argv: list[str] | None = None) -> int:
     problems: list[str] = []
     warnings: list[str] = []
     ids: list[str] = []
-    for it in transitions(a.base):
-        iid = str(it.get("id"))
-        ids.append(iid)
-        for p in transition_problems(it):
-            (warnings if os.environ.get("PF_ALLOW_PLACEHOLDER_DOD") == "1" else problems).append(f"{iid}: {p}")
-    remaining, base_bad = audit()
+    try:
+        for it in transitions(a.base):
+            iid = str(it.get("id"))
+            ids.append(iid)
+            for p in transition_problems(it):
+                (warnings if os.environ.get("PF_ALLOW_PLACEHOLDER_DOD") == "1" else problems).append(f"{iid}: {p}")
+        remaining, base_bad = audit()
+    except RuntimeError as e:  # git/IO failure: fail closed, but keep --report non-fatal
+        print(json.dumps({"ok": False, "checked": ids, "problems": [str(e)], "warnings": warnings,
+                          "error": str(e)}))
+        print(f"delivery-completeness: {'REPORT' if a.report else 'FAIL'} - {e}")
+        return 0 if a.report else 1
     problems += [f"baseline: {b}" for b in base_bad]
     if remaining:
         warnings.append(f"{len(remaining)} completed item(s) still carry placeholder DoD (baseline/audit)")

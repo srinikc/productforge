@@ -119,3 +119,13 @@ def test_transitions_fails_closed_on_malformed_item(tmp_path, monkeypatch):
     monkeypatch.setattr(d, "_git", fake_git)
     with pytest.raises(RuntimeError, match="BI-TEST-BAD.json"):
         d.transitions("base-sha")
+
+
+def test_main_report_is_nonfatal_on_git_failure(monkeypatch):
+    monkeypatch.setattr(d, "transitions", lambda base="": (_ for _ in ()).throw(RuntimeError("git boom")))
+    assert d.main(["--report"]) == 0
+
+
+def test_main_fails_closed_on_git_failure(monkeypatch):
+    monkeypatch.setattr(d, "transitions", lambda base="": (_ for _ in ()).throw(RuntimeError("git boom")))
+    assert d.main([]) == 1
