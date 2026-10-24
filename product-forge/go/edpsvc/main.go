@@ -14,6 +14,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"crypto/subtle"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -22,14 +23,17 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"productforge/artifacts"
 	"productforge/datastore"
 	"productforge/edpdata"
+	"productforge/edpsvc/internal/limits"
 	"productforge/migrate"
 	"productforge/objpolicy"
 	"productforge/objstore"
@@ -38,10 +42,15 @@ import (
 )
 
 type server struct {
-	dsn    string
-	admin  string
-	migDir string
-	obj    datastore.ObjectStore
+	dsn     string
+	admin   string
+	migDir  string
+	obj     datastore.ObjectStore
+	cfg     limits.Config
+	st      *store.PgStore
+	quota   *limits.Quota
+	metrics *limits.Metrics
+	role    *limits.RoleGuard
 }
 
 // buildObjectStore selects the object-store adapter (EDP-13 local / EDP-14 S3) by PF_OBJECT_BACKEND.
@@ -61,29 +70,107 @@ func buildObjectStore() (datastore.ObjectStore, error) {
 }
 
 func main() {
-	s := &server{dsn: os.Getenv("PF_DB_DSN"), admin: os.Getenv("PF_ADMIN_TOKEN"),
-		migDir: envOr("PF_MIGRATIONS_DIR", findMigrations())}
-	if s.dsn == "" {
+	cfg, err := limits.Load(os.Getenv)
+	if err != nil {
+		log.Fatalf("config: %v", err)
+	}
+	if err := limits.ValidateProfile(cfg, os.Getenv); err != nil {
+		log.Fatalf("profile: %v", err)
+	}
+	dsn := os.Getenv("PF_DB_DSN")
+	if dsn == "" {
 		log.Fatal("PF_DB_DSN is required")
 	}
-	if s.admin == "" {
+	admin := os.Getenv("PF_ADMIN_TOKEN")
+	if admin == "" {
 		log.Fatal("PF_ADMIN_TOKEN is required")
 	}
+	st, err := store.OpenWithPool(context.Background(), dsn, store.PoolOptions{
+		MaxConns:          cfg.Pool.MaxConns,
+		MinConns:          cfg.Pool.MinConns,
+		MaxConnLifetime:   cfg.Pool.MaxConnLifetime,
+		MaxConnIdleTime:   cfg.Pool.MaxConnIdleTime,
+		HealthCheckPeriod: cfg.Pool.HealthCheckPeriod,
+		ConnectTimeout:    cfg.Pool.ConnectTimeout,
+	})
+	if err != nil {
+		log.Fatalf("database: %v", err)
+	}
+	guard := limits.NewRoleGuard()
+	role, err := limits.CheckDBRole(context.Background(), st, cfg.AllowSuperuserDSN)
+	if err != nil {
+		st.Close()
+		log.Fatalf("runtime DB role: %v", err)
+	}
+	guard.Set(role)
+	if role.Superuser || role.BypassRLS {
+		log.Printf("WARNING runtime DB role %q is superuser/BYPASSRLS (explicitly allowed)", role.Name)
+	}
+	m := limits.NewMetrics()
+	q := limits.NewQuota(cfg, nil, m)
+	s := &server{dsn: dsn, admin: admin, migDir: envOr("PF_MIGRATIONS_DIR", findMigrations()),
+		cfg: cfg, st: st, quota: q, metrics: m, role: guard}
 	obj, err := buildObjectStore()
 	if err != nil {
+		st.Close()
 		log.Fatalf("object store: %v", err)
 	}
 	s.obj = obj
+	recheckCtx, stopRecheck := context.WithCancel(context.Background())
+	defer stopRecheck()
+	go guard.RecheckLoop(recheckCtx, st, cfg.AllowSuperuserDSN, cfg.RoleRecheckInterval, func(err error) {
+		log.Printf("WARNING runtime DB role recheck failed: %v", err)
+		m.Inc("edp_role_check_failures_total")
+	})
+	// AC: surface coverage non-fatally at startup (a stale/low rotation must not stop the service).
+	s.checkAuditCoverage()
+	handler := limits.Chain(s.buildMux(), cfg, q, m, guard.OK)
+	addr := envOr("PF_EDP_ADDR", "127.0.0.1:8030")
+	srv := &http.Server{
+		Addr:              addr,
+		Handler:           handler,
+		ReadHeaderTimeout: cfg.ReadHeaderTimeout,
+		ReadTimeout:       cfg.ReadTimeout,
+		WriteTimeout:      cfg.WriteTimeout,
+		IdleTimeout:       cfg.IdleTimeout,
+		MaxHeaderBytes:    int(cfg.MaxHeaderBytes),
+	}
+	sigCtx, stopSig := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stopSig()
+	go func() {
+		log.Printf("edpsvc listening on %s (migrations=%s, profile=%s)", addr, s.migDir, cfg.Profile)
+		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Fatalf("edpsvc: %v", err)
+		}
+	}()
+	<-sigCtx.Done()
+	stopRecheck()
+	drain := cfg.WriteTimeout
+	if drain < 30*time.Second {
+		drain = 30 * time.Second
+	}
+	shutCtx, cancel := context.WithTimeout(context.Background(), drain)
+	defer cancel()
+	if err := srv.Shutdown(shutCtx); err != nil {
+		log.Printf("edpsvc shutdown: %v", err)
+	}
+	st.Close()
+}
+
+func (s *server) buildMux() *http.ServeMux {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 	})
+	mux.HandleFunc("/ready", s.ready)
+	mux.HandleFunc("/metrics", s.metricsHandler)
 	mux.HandleFunc("/admin/migrations/status", s.adminOnly(s.migrationsStatus))
 	mux.HandleFunc("/admin/migrations/up", s.adminOnly(s.migrationsUp))
 	mux.HandleFunc("/admin/migrations/down", s.adminOnly(s.migrationsDown))
 	mux.HandleFunc("/admin/schema-check", s.adminOnly(s.schemaCheck))
 	mux.HandleFunc("/admin/object-store/capabilities", s.adminOnly(s.objectStoreCapabilities))
 	mux.HandleFunc("/admin/object-store/conform", s.adminOnly(s.objectStoreConform))
+	mux.HandleFunc("/admin/limits", s.adminOnly(s.adminLimits))
 	mux.HandleFunc("/artifacts", s.adminOnly(s.artifactUpload))
 	mux.HandleFunc("/artifacts/", s.adminOnly(s.artifactRoute))
 	mux.HandleFunc("/audit", s.adminOnly(s.auditAppend))
@@ -96,11 +183,7 @@ func main() {
 	mux.HandleFunc("/memory/", s.adminOnly(s.memoryByID))
 	mux.HandleFunc("/backlog", s.adminOnly(s.backlogHandle))
 	mux.HandleFunc("/backlog/", s.adminOnly(s.backlogByID))
-	// AC: surface coverage non-fatally at startup (a stale/low rotation must not stop the service).
-	s.checkAuditCoverage()
-	addr := envOr("PF_EDP_ADDR", "127.0.0.1:8030")
-	log.Printf("edpsvc listening on %s (migrations=%s)", addr, s.migDir)
-	log.Fatal(http.ListenAndServe(addr, mux))
+	return mux
 }
 
 // coverageStatus mirrors audit_partition_coverage for the startup probe and the admin endpoint.
@@ -185,7 +268,7 @@ func (s *server) auditCoverage(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 	st, err := s.readCoverage(ctx, rotationMaxAge())
 	if err != nil {
-		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": err.Error()})
+		s.fail(w, r, http.StatusServiceUnavailable, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
@@ -197,13 +280,13 @@ func (s *server) auditCoverage(w http.ResponseWriter, r *http.Request) {
 // objectURL mints a signed URL through the single objpolicy boundary (admin API; tenant from the request).
 func (s *server) objectURL(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "use GET"})
+		s.bad(w, r, http.StatusMethodNotAllowed, "use GET")
 		return
 	}
 	q := r.URL.Query()
 	tenant, key := q.Get("tenant"), q.Get("key")
 	if tenant == "" || key == "" {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "tenant and key are required"})
+		s.bad(w, r, http.StatusBadRequest, "tenant and key are required")
 		return
 	}
 	ttl := 5 * time.Minute
@@ -219,7 +302,7 @@ func (s *server) objectURL(w http.ResponseWriter, r *http.Request) {
 	ctx := objpolicy.WithTenant(r.Context(), tenant)
 	u, err := objpolicy.Mint(ctx, s.obj, key, method, ttl)
 	if err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		s.fail(w, r, http.StatusBadRequest, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"url": u})
@@ -253,8 +336,12 @@ func findMigrations() string {
 func (s *server) adminOnly(fn http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		auth := r.Header.Get("Authorization")
-		if !strings.HasPrefix(auth, "Bearer ") || strings.TrimSpace(strings.TrimPrefix(auth, "Bearer ")) != s.admin {
-			writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "admin authorization required"})
+		token := ""
+		if strings.HasPrefix(auth, "Bearer ") {
+			token = strings.TrimSpace(strings.TrimPrefix(auth, "Bearer "))
+		}
+		if subtle.ConstantTimeCompare([]byte(token), []byte(s.admin)) != 1 {
+			limits.WriteError(w, r, http.StatusUnauthorized, "admin authorization required")
 			return
 		}
 		fn(w, r)
@@ -262,16 +349,12 @@ func (s *server) adminOnly(fn http.HandlerFunc) http.HandlerFunc {
 }
 
 func (s *server) withStore(ctx context.Context, fn func(*store.PgStore) (any, error)) (any, error) {
-	st, err := store.Open(ctx, s.dsn)
-	if err != nil {
-		return nil, err
-	}
-	defer st.Close()
-	return fn(st)
+	return fn(s.st)
 }
 
 func (s *server) migrationsStatus(w http.ResponseWriter, r *http.Request) {
-	ctx := context.Background()
+	ctx, cancel := s.dbCtx(r)
+	defer cancel()
 	out, err := s.withStore(ctx, func(st *store.PgStore) (any, error) {
 		all, err := migrate.LoadDir(s.migDir)
 		if err != nil {
@@ -291,14 +374,15 @@ func (s *server) migrationsStatus(w http.ResponseWriter, r *http.Request) {
 		return map[string]any{"migrations": rows}, nil
 	})
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		s.fail(w, r, http.StatusInternalServerError, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, out)
 }
 
 func (s *server) migrationsUp(w http.ResponseWriter, r *http.Request) {
-	ctx := context.Background()
+	ctx, cancel := s.dbCtx(r)
+	defer cancel()
 	out, err := s.withStore(ctx, func(st *store.PgStore) (any, error) {
 		all, err := migrate.LoadDir(s.migDir)
 		if err != nil {
@@ -314,14 +398,15 @@ func (s *server) migrationsUp(w http.ResponseWriter, r *http.Request) {
 		return map[string]any{"applied": n}, nil
 	})
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		s.fail(w, r, http.StatusInternalServerError, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, out)
 }
 
 func (s *server) migrationsDown(w http.ResponseWriter, r *http.Request) {
-	ctx := context.Background()
+	ctx, cancel := s.dbCtx(r)
+	defer cancel()
 	out, err := s.withStore(ctx, func(st *store.PgStore) (any, error) {
 		all, err := migrate.LoadDir(s.migDir)
 		if err != nil {
@@ -336,14 +421,15 @@ func (s *server) migrationsDown(w http.ResponseWriter, r *http.Request) {
 		return map[string]string{"result": "rolled back one migration"}, nil
 	})
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		s.fail(w, r, http.StatusInternalServerError, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, out)
 }
 
 func (s *server) schemaCheck(w http.ResponseWriter, r *http.Request) {
-	ctx := context.Background()
+	ctx, cancel := s.dbCtx(r)
+	defer cancel()
 	out, err := s.withStore(ctx, func(st *store.PgStore) (any, error) {
 		expected, err := store.ExpectedFromDir(s.migDir)
 		if err != nil {
@@ -364,7 +450,7 @@ func (s *server) schemaCheck(w http.ResponseWriter, r *http.Request) {
 		}, nil
 	})
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		s.fail(w, r, http.StatusInternalServerError, err)
 		return
 	}
 	code := http.StatusOK
@@ -379,7 +465,7 @@ func (s *server) objectStoreCapabilities(w http.ResponseWriter, r *http.Request)
 }
 
 func (s *server) objectStoreConform(w http.ResponseWriter, r *http.Request) {
-	errs := datastore.ConformObjectStore(context.Background(), s.obj)
+	errs := datastore.ConformObjectStore(r.Context(), s.obj)
 	msgs := make([]string, 0, len(errs))
 	for _, e := range errs {
 		msgs = append(msgs, e.Error())
@@ -394,48 +480,47 @@ func (s *server) objectStoreConform(w http.ResponseWriter, r *http.Request) {
 var errTenant = errors.New("tenant query parameter is required")
 
 func (s *server) artifactUpload(w http.ResponseWriter, r *http.Request) {
-	if err := r.ParseMultipartForm(64 << 20); err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "multipart body required"})
+	if err := r.ParseMultipartForm(s.cfg.MaxUploadBytes); err != nil {
+		s.bad(w, r, http.StatusBadRequest, "multipart body required")
 		return
 	}
 	tenant := r.FormValue("tenant")
 	if tenant == "" {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": errTenant.Error()})
+		s.fail(w, r, http.StatusBadRequest, errTenant)
 		return
 	}
 	f, hdr, err := r.FormFile("file")
 	if err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "file part required"})
+		s.bad(w, r, http.StatusBadRequest, "file part required")
 		return
 	}
 	defer f.Close()
-	data, err := io.ReadAll(io.LimitReader(f, 64<<20))
+	data, err := io.ReadAll(io.LimitReader(f, s.cfg.MaxUploadBytes+1))
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		s.fail(w, r, http.StatusInternalServerError, err)
 		return
 	}
-	ctx := context.Background()
+	if int64(len(data)) > s.cfg.MaxUploadBytes {
+		s.bad(w, r, http.StatusRequestEntityTooLarge, "upload exceeds the configured limit")
+		return
+	}
 	sum := sha256.Sum256(data)
 	checksum := hex.EncodeToString(sum[:])
-	if _, err := s.obj.Put(ctx, checksum, bytes.NewReader(data), int64(len(data)),
+	if _, err := s.obj.Put(r.Context(), checksum, bytes.NewReader(data), int64(len(data)),
 		datastore.PutOptions{ContentType: hdr.Header.Get("Content-Type")}); err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		s.fail(w, r, http.StatusInternalServerError, err)
 		return
 	}
-	st, err := store.Open(ctx, s.dsn)
-	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
-		return
-	}
-	defer st.Close()
-	svc := artifacts.New(store.BindTenant(st, tenant), s.obj)
+	ctx, cancel := s.dbCtx(r)
+	defer cancel()
+	svc := artifacts.New(store.BindTenant(s.st, tenant), s.obj)
 	a, err := svc.Register(ctx, datastore.Artifact{
 		ID: r.FormValue("id"), TenantID: tenant, Project: r.FormValue("project"), Run: r.FormValue("run"),
 		Stage: r.FormValue("stage"), Type: r.FormValue("type"), Checksum: checksum,
 		Size: int64(len(data)), Version: checksum,
 	})
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		s.fail(w, r, http.StatusInternalServerError, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, a)
@@ -455,23 +540,19 @@ func (s *server) artifactSvc(r *http.Request) (*artifacts.Service, func(), error
 	if tenant == "" {
 		return nil, nil, errTenant
 	}
-	st, err := store.Open(context.Background(), s.dsn)
-	if err != nil {
-		return nil, nil, err
-	}
-	return artifacts.New(store.BindTenant(st, tenant), s.obj), st.Close, nil
+	return artifacts.New(store.BindTenant(s.st, tenant), s.obj), func() {}, nil
 }
 
 func (s *server) artifactGet(w http.ResponseWriter, r *http.Request, id string) {
 	svc, closeFn, err := s.artifactSvc(r)
 	if err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		s.fail(w, r, http.StatusBadRequest, err)
 		return
 	}
 	defer closeFn()
 	a, err := svc.Get(r.Context(), id)
 	if err != nil {
-		writeJSON(w, http.StatusNotFound, map[string]string{"error": err.Error()})
+		s.fail(w, r, http.StatusNotFound, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, a)
@@ -480,13 +561,13 @@ func (s *server) artifactGet(w http.ResponseWriter, r *http.Request, id string) 
 func (s *server) artifactContent(w http.ResponseWriter, r *http.Request, id string) {
 	svc, closeFn, err := s.artifactSvc(r)
 	if err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		s.fail(w, r, http.StatusBadRequest, err)
 		return
 	}
 	defer closeFn()
 	rc, err := svc.FetchContent(r.Context(), id)
 	if err != nil {
-		writeJSON(w, http.StatusNotFound, map[string]string{"error": err.Error()})
+		s.fail(w, r, http.StatusNotFound, err)
 		return
 	}
 	defer rc.Close()
@@ -495,66 +576,69 @@ func (s *server) artifactContent(w http.ResponseWriter, r *http.Request, id stri
 }
 
 func (s *server) tenantStore(tenant string) (*store.PgStore, error) {
-	st, err := store.Open(context.Background(), s.dsn)
-	return st, err
+	return s.st, nil
 }
 
 func (s *server) auditAppend(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := s.dbCtx(r)
+	defer cancel()
 	var b struct {
 		Tenant, Actor, Action, Resource, Outcome, CorrelationID string
 	}
 	if err := json.NewDecoder(r.Body).Decode(&b); err != nil || b.Tenant == "" || b.Action == "" {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "tenant and action are required"})
+		s.bad(w, r, http.StatusBadRequest, "tenant and action are required")
 		return
 	}
 	st, err := s.tenantStore(b.Tenant)
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		s.fail(w, r, http.StatusInternalServerError, err)
 		return
 	}
-	defer st.Close()
-	err = edpdata.NewAudit(store.BindTenant(st, b.Tenant)).Append(r.Context(), datastore.AuditEvent{
+	err = edpdata.NewAudit(store.BindTenant(st, b.Tenant)).Append(ctx, datastore.AuditEvent{
 		TenantID: b.Tenant, Actor: b.Actor, Action: b.Action, Resource: b.Resource,
 		Outcome: b.Outcome, CorrelationID: b.CorrelationID, At: time.Now(),
 	})
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		s.fail(w, r, http.StatusInternalServerError, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
 func (s *server) jobSubmit(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := s.dbCtx(r)
+	defer cancel()
 	var b struct {
 		Tenant, ID, Kind, IdempotencyKey string
 		Priority                         int
 	}
 	if err := json.NewDecoder(r.Body).Decode(&b); err != nil || b.Tenant == "" || b.ID == "" {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "tenant and id are required"})
+		s.bad(w, r, http.StatusBadRequest, "tenant and id are required")
 		return
 	}
 	st, err := s.tenantStore(b.Tenant)
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		s.fail(w, r, http.StatusInternalServerError, err)
 		return
 	}
-	defer st.Close()
-	j, err := edpdata.NewJobs(store.BindTenant(st, b.Tenant)).Submit(r.Context(), datastore.Job{
+	j, err := edpdata.NewJobs(store.BindTenant(st, b.Tenant)).Submit(ctx, datastore.Job{
 		ID: b.ID, TenantID: b.Tenant, Kind: b.Kind, Priority: b.Priority, IdempotencyKey: b.IdempotencyKey})
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		s.fail(w, r, http.StatusInternalServerError, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, j)
 }
 
 func (s *server) jobClaim(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := s.dbCtx(r)
+	defer cancel()
 	var b struct {
 		Tenant, Worker string
 		TTLSeconds     int
 	}
 	if err := json.NewDecoder(r.Body).Decode(&b); err != nil || b.Tenant == "" || b.Worker == "" {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "tenant and worker are required"})
+		s.bad(w, r, http.StatusBadRequest, "tenant and worker are required")
 		return
 	}
 	if b.TTLSeconds <= 0 {
@@ -562,62 +646,63 @@ func (s *server) jobClaim(w http.ResponseWriter, r *http.Request) {
 	}
 	st, err := s.tenantStore(b.Tenant)
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		s.fail(w, r, http.StatusInternalServerError, err)
 		return
 	}
-	defer st.Close()
-	j, ok, err := edpdata.NewJobs(store.BindTenant(st, b.Tenant)).Claim(r.Context(), b.Worker, time.Duration(b.TTLSeconds)*time.Second)
+	j, ok, err := edpdata.NewJobs(store.BindTenant(st, b.Tenant)).Claim(ctx, b.Worker, time.Duration(b.TTLSeconds)*time.Second)
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		s.fail(w, r, http.StatusInternalServerError, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"claimed": ok, "job": j})
 }
 
 func (s *server) jobAction(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := s.dbCtx(r)
+	defer cancel()
 	var b struct {
 		Tenant, ID, Lease, Action, Reason string
 	}
 	if err := json.NewDecoder(r.Body).Decode(&b); err != nil || b.Tenant == "" || b.ID == "" {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "tenant and id are required"})
+		s.bad(w, r, http.StatusBadRequest, "tenant and id are required")
 		return
 	}
 	st, err := s.tenantStore(b.Tenant)
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		s.fail(w, r, http.StatusInternalServerError, err)
 		return
 	}
-	defer st.Close()
 	jobs := edpdata.NewJobs(store.BindTenant(st, b.Tenant))
 	switch b.Action {
 	case "complete":
-		err = jobs.Complete(r.Context(), b.ID, b.Lease)
+		err = jobs.Complete(ctx, b.ID, b.Lease)
 	case "fail":
-		err = jobs.Fail(r.Context(), b.ID, b.Lease, b.Reason)
+		err = jobs.Fail(ctx, b.ID, b.Lease, b.Reason)
 	case "release":
-		err = jobs.Release(r.Context(), b.ID, b.Lease)
+		err = jobs.Release(ctx, b.ID, b.Lease)
 	case "heartbeat":
-		err = jobs.Heartbeat(r.Context(), b.ID, b.Lease)
+		err = jobs.Heartbeat(ctx, b.ID, b.Lease)
 	default:
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "action must be complete|fail|release|heartbeat"})
+		s.bad(w, r, http.StatusBadRequest, "action must be complete|fail|release|heartbeat")
 		return
 	}
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		s.fail(w, r, http.StatusInternalServerError, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
 func (s *server) memoryHandle(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := s.dbCtx(r)
+	defer cancel()
 	q := r.URL.Query()
 	tenant := q.Get("tenant")
 	st, err := s.tenantStore(tenant)
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		s.fail(w, r, http.StatusInternalServerError, err)
 		return
 	}
-	defer st.Close()
 	mem := edpdata.NewMemory(store.BindTenant(st, tenant))
 	// The ACL principal is server-side (this admin API has one authenticated principal). Client-supplied
 	// `owner`/`user` are never trusted.
@@ -630,18 +715,18 @@ func (s *server) memoryHandle(w http.ResponseWriter, r *http.Request) {
 			Embedding                                      []float32
 		}
 		if err := json.NewDecoder(r.Body).Decode(&b); err != nil || b.ID == "" || b.Tenant == "" {
-			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "id and tenant are required"})
+			s.bad(w, r, http.StatusBadRequest, "id and tenant are required")
 			return
 		}
 		if b.Owner != "" && b.Owner != principal {
-			writeJSON(w, http.StatusForbidden, map[string]string{"error": "owner is derived from the authenticated principal"})
+			s.bad(w, r, http.StatusForbidden, "owner is derived from the authenticated principal")
 			return
 		}
-		e, err := mem.Put(r.Context(), datastore.MemoryEntry{ID: b.ID, TenantID: b.Tenant, Project: b.Project,
+		e, err := mem.Put(ctx, datastore.MemoryEntry{ID: b.ID, TenantID: b.Tenant, Project: b.Project,
 			Kind: b.Kind, ObjectRef: b.ObjectRef, ACLScope: b.ACLScope, Content: b.Content, Source: b.Source,
 			Owner: principal, Embedding: b.Embedding})
 		if err != nil {
-			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+			s.fail(w, r, http.StatusInternalServerError, err)
 			return
 		}
 		writeJSON(w, http.StatusOK, e)
@@ -673,39 +758,40 @@ func (s *server) memoryHandle(w http.ResponseWriter, r *http.Request) {
 		if src == "private" || src == "project" || src == "tenant" || src == "shared" {
 			acl, src = src, "" // legacy: `source` used to filter acl_scope
 		}
-		hits, err := mem.Search(r.Context(), text, datastore.MemoryScope{
+		hits, err := mem.Search(ctx, text, datastore.MemoryScope{
 			TenantID: tenant, Project: q.Get("project"), Source: src, ACL: acl,
 			User: principal, Kinds: kinds}, k)
 		if err != nil {
-			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+			s.fail(w, r, http.StatusInternalServerError, err)
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"hits": hits})
 	default:
-		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "use GET or POST"})
+		s.bad(w, r, http.StatusMethodNotAllowed, "use GET or POST")
 	}
 }
 
 func (s *server) memoryByID(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := s.dbCtx(r)
+	defer cancel()
 	id := strings.TrimPrefix(r.URL.Path, "/memory/")
 	tenant := r.URL.Query().Get("tenant")
 	st, err := s.tenantStore(tenant)
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		s.fail(w, r, http.StatusInternalServerError, err)
 		return
 	}
-	defer st.Close()
 	mem := edpdata.NewMemory(store.BindTenant(st, tenant))
 	principal := envOr("PF_MEMORY_PRINCIPAL", "admin")
 	visible := func(e datastore.MemoryEntry) bool { return e.ACLScope != "private" || e.Owner == principal }
-	e, err := mem.Get(r.Context(), id)
+	e, err := mem.Get(ctx, id)
 	if err != nil || !visible(e) {
-		writeJSON(w, http.StatusNotFound, map[string]string{"error": "not found"})
+		s.bad(w, r, http.StatusNotFound, "not found")
 		return
 	}
 	if r.Method == http.MethodDelete {
-		if err := mem.Delete(r.Context(), id); err != nil {
-			writeJSON(w, http.StatusNotFound, map[string]string{"error": err.Error()})
+		if err := mem.Delete(ctx, id); err != nil {
+			s.fail(w, r, http.StatusNotFound, err)
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
@@ -715,14 +801,15 @@ func (s *server) memoryByID(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) backlogHandle(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := s.dbCtx(r)
+	defer cancel()
 	q := r.URL.Query()
 	tenant := q.Get("tenant")
 	st, err := s.tenantStore(tenant)
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		s.fail(w, r, http.StatusInternalServerError, err)
 		return
 	}
-	defer st.Close()
 	bl := edpdata.NewBacklog(store.BindTenant(st, tenant))
 	switch r.Method {
 	case http.MethodPost:
@@ -731,13 +818,13 @@ func (s *server) backlogHandle(w http.ResponseWriter, r *http.Request) {
 			Data                                  json.RawMessage
 		}
 		if err := json.NewDecoder(r.Body).Decode(&b); err != nil || b.ID == "" || b.Tenant == "" {
-			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "id and tenant are required"})
+			s.bad(w, r, http.StatusBadRequest, "id and tenant are required")
 			return
 		}
-		it, err := bl.Put(r.Context(), edpdata.BacklogItem{ID: b.ID, TenantID: b.Tenant, Type: b.Type,
+		it, err := bl.Put(ctx, edpdata.BacklogItem{ID: b.ID, TenantID: b.Tenant, Type: b.Type,
 			Status: b.Status, Title: b.Title, Body: b.Body, Data: b.Data})
 		if err != nil {
-			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+			s.fail(w, r, http.StatusInternalServerError, err)
 			return
 		}
 		writeJSON(w, http.StatusOK, it)
@@ -748,41 +835,112 @@ func (s *server) backlogHandle(w http.ResponseWriter, r *http.Request) {
 				limit = n
 			}
 		}
-		items, err := bl.List(r.Context(), q.Get("status"), limit)
+		items, err := bl.List(ctx, q.Get("status"), limit)
 		if err != nil {
-			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+			s.fail(w, r, http.StatusInternalServerError, err)
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"items": items})
 	default:
-		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "use GET or POST"})
+		s.bad(w, r, http.StatusMethodNotAllowed, "use GET or POST")
 	}
 }
 
 func (s *server) backlogByID(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := s.dbCtx(r)
+	defer cancel()
 	id := strings.TrimPrefix(r.URL.Path, "/backlog/")
 	tenant := r.URL.Query().Get("tenant")
 	st, err := s.tenantStore(tenant)
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		s.fail(w, r, http.StatusInternalServerError, err)
 		return
 	}
-	defer st.Close()
 	bl := edpdata.NewBacklog(store.BindTenant(st, tenant))
 	if r.Method == http.MethodDelete {
-		if err := bl.Delete(r.Context(), id); err != nil {
-			writeJSON(w, http.StatusNotFound, map[string]string{"error": err.Error()})
+		if err := bl.Delete(ctx, id); err != nil {
+			s.fail(w, r, http.StatusNotFound, err)
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 		return
 	}
-	it, err := bl.Get(r.Context(), id)
+	it, err := bl.Get(ctx, id)
 	if err != nil {
-		writeJSON(w, http.StatusNotFound, map[string]string{"error": err.Error()})
+		s.fail(w, r, http.StatusNotFound, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, it)
+}
+
+func (s *server) dbCtx(r *http.Request) (context.Context, context.CancelFunc) {
+	return context.WithTimeout(r.Context(), s.cfg.DBTimeout)
+}
+
+func (s *server) bad(w http.ResponseWriter, r *http.Request, status int, msg string) {
+	limits.WriteError(w, r, status, msg)
+}
+
+func (s *server) fail(w http.ResponseWriter, r *http.Request, status int, err error) {
+	if err == nil {
+		s.bad(w, r, status, "request failed")
+		return
+	}
+	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+		limits.WriteHandlerError(w, r, err)
+		return
+	}
+	if status >= http.StatusInternalServerError {
+		log.Printf("edpsvc: %s %s: %v", r.Method, r.URL.Path, err)
+		limits.WriteError(w, r, status, "internal error")
+		return
+	}
+	limits.WriteError(w, r, status, err.Error())
+}
+
+func (s *server) ready(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+	defer cancel()
+	if err := s.st.Ping(ctx); err != nil {
+		limits.WriteError(w, r, http.StatusServiceUnavailable, "database unavailable")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"status": "ready"})
+}
+
+func (s *server) metricsHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/plain; version=0.0.4")
+	s.metrics.Write(w)
+}
+
+func (s *server) poolStats() map[string]int32 {
+	if s.st == nil {
+		return map[string]int32{}
+	}
+	return s.st.Stats()
+}
+
+func (s *server) adminLimits(w http.ResponseWriter, r *http.Request) {
+	role := s.role.Role()
+	writeJSON(w, http.StatusOK, map[string]any{
+		"profile": s.cfg.Profile,
+		"enforce": s.cfg.Enforce,
+		"timeouts": map[string]string{
+			"request": s.cfg.RequestTimeout.String(), "db": s.cfg.DBTimeout.String(),
+			"upload": s.cfg.UploadTimeout.String(), "read": s.cfg.ReadTimeout.String(),
+			"write": s.cfg.WriteTimeout.String(), "idle": s.cfg.IdleTimeout.String(),
+		},
+		"limits": map[string]any{
+			"max_body_bytes": s.cfg.MaxBodyBytes, "max_upload_bytes": s.cfg.MaxUploadBytes,
+			"tenant_rpm": s.cfg.TenantRPM, "global_rpm": s.cfg.GlobalRPM,
+			"tenant_concurrency": s.cfg.TenantConcurrency, "global_concurrency": s.cfg.GlobalConcurrency,
+			"max_tenant_buckets": s.cfg.MaxTenantBuckets,
+		},
+		"pool":           s.poolStats(),
+		"tenant_buckets": s.quota.TenantBuckets(),
+		"role": map[string]any{"name": role.Name, "superuser": role.Superuser,
+			"bypassrls": role.BypassRLS, "ok": s.role.OK(), "last_check_unix": s.role.LastCheck()},
+	})
 }
 
 func writeJSON(w http.ResponseWriter, code int, v any) {
