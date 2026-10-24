@@ -1,0 +1,462 @@
+{
+  "id": "BI-PF-1471",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "process",
+  "external_id": "BI-PF-GATE-CONTRACT-2026",
+  "label": "PF Backlog 642",
+  "title": "Process: Gate 0 + human-only decisions + Gate 2.5 convergence/scope guard (BI-PF-1471)",
+  "body": "Make the five enterprise operating rules enforced: Gate 0 reconciliation/impact table, human-only decisions with risk acceptance, one review per sha, SCOPE findings non-blocking with follow-up, and the table visible in precheck.",
+  "source": "generic",
+  "status": "in_progress",
+  "priority": "P1",
+  "moscow": "Must",
+  "value": 4,
+  "effort": 3,
+  "risk": 2,
+  "deps": [
+    "BI-PF-1430",
+    "BI-PF-0335",
+    "BI-0205"
+  ],
+  "links": {},
+  "decisions": [
+    {
+      "at": "2026-10-24T12:02:08.666958",
+      "decision": "APPROVE",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)"
+    },
+    {
+      "at": "2026-10-24T11:04:06.008278+00:00",
+      "by": "hil:user",
+      "decision": "APPROVE_WITH_ATTENTION",
+      "gate": 1,
+      "findings_sha": "cad39b9375d0",
+      "findings_digest": "8734f27f1e2d",
+      "seq": 2,
+      "note": "HIL: implement rules 1-5",
+      "hil_confirmed": true
+    },
+    {
+      "at": "2026-10-24T11:04:07.819851+00:00",
+      "by": "hil:user",
+      "decision": "APPROVE_WITH_ATTENTION",
+      "gate": 2,
+      "findings_sha": "088fc5b7f0c5",
+      "findings_digest": "4a7f3d791f88",
+      "seq": 3,
+      "note": "HIL: get it done",
+      "hil_confirmed": true
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "Make the five enterprise operating rules enforced: Gate 0 reconciliation/impact table, human-only decisions with risk acceptance, one review per sha, SCOPE findings non-blocking with follow-up, and the table visible in precheck.",
+    "what_adds": "Process: Gate 0 + human-only decisions + Gate 2.5 convergence/scope guard (BI-PF-1471)",
+    "why": "Make the five enterprise operating rules enforced: Gate 0 reconciliation/impact table, human-only decisions with risk acceptance, one review per sha, SCOPE findings non-blocking with follow-up, and the table visible in precheck.",
+    "who_feels": "Product Forge maintainers and consumers.",
+    "source": "extracted"
+  },
+  "objective": "Enforce Gate 0 + human-only Gate 1/2 + Gate 2.5 convergence/scope rules.",
+  "acceptance_criteria": [
+    "Gate 0 check: an item entering new->in_progress must carry a non-empty reconciliation block (prior_decisions, existing_path, assumptions, divergences, open_questions) and an impact-review table (claim/verdict/evidence/recommendation incl. API and AC rows) plus language and api_impact decisions; precheck fails otherwise.",
+    "Gate 1/2 decisions are human-only: gate_decide requires --hil-confirmed (recorded in the decision), validates accepted_risks {owner, until, rationale}, refuses in CI, and approval treats SCOPE findings as resolved only with a follow-up item.",
+    "Gate 2.5 convergence: a second review for the same item+sha is refused unless --rereview; one review per immutable sha; re-review only after code changes.",
+    "Gate 2.5 scope guard: findings dispositioned SCOPE are non-blocking and must reference a follow-up item; new functional scope cannot block the approved delivery.",
+    "Operational visibility: gate0_check prints the reconciliation and impact-review table in precheck output; gate-brief renders the same for HIL.",
+    "Tests: gate0 negative/positive, SCOPE resolution, accepted-risk validation, duplicate-review refusal; precheck PASS."
+  ],
+  "in_scope": [
+    "Process: Gate 0 + human-only decisions + Gate 2.5 convergence/scope guard (BI-PF-1471)"
+  ],
+  "out_of_scope": [
+    "Not specified."
+  ],
+  "affected_components": [
+    "Not specified."
+  ],
+  "affected_files": [
+    "scripts/dev/gate0_check.py",
+    "core/gate_predicates.py",
+    "scripts/dev/gate_decisions.py",
+    "scripts/dev/gate_decide.py",
+    "scripts/dev/gate2_completion_check.py",
+    "scripts/dev/architect_review.py",
+    "scripts/dev/precheck.py",
+    "config/ci-cd-gates.json"
+  ],
+  "approach": "Process: Gate 0 + human-only decisions + Gate 2.5 convergence/scope guard (BI-PF-1471)",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [
+        "BI-PF-1469 hard gates",
+        "BI-PF-1470 completion-gate wiring"
+      ],
+      "existing_path": [
+        "scripts/dev/gate1_transition_check.py",
+        "scripts/dev/gate2_completion_check.py",
+        "core/gate_predicates.py"
+      ],
+      "assumptions": [
+        "HIL records decisions via gate_decide",
+        "SCOPE findings belong to a new backlog item"
+      ],
+      "divergences": [
+        "No Gate 0 enforcement today",
+        "No accepted-risk expiry model"
+      ],
+      "open_questions": []
+    },
+    "impact_review": [
+      {
+        "claim": "Gate 0 is a new precheck gate, not a duplicate of DoD",
+        "verdict": "aligned",
+        "evidence": "scripts/dev/backlog_dod_check.py",
+        "recommendation": "add gate0_check"
+      },
+      {
+        "claim": "Human decisions use existing decision ledger",
+        "verdict": "aligned",
+        "evidence": "core/backlog.record_gate_decision",
+        "recommendation": "add hil_confirmed + risks"
+      },
+      {
+        "claim": "SCOPE findings are non-blocking but traceable",
+        "verdict": "aligned",
+        "evidence": "architect_review pending_blocking",
+        "recommendation": "add SCOPE status + follow-up link"
+      },
+      {
+        "claim": "One review per immutable sha",
+        "verdict": "aligned",
+        "evidence": "engineering/reviews/*-<sha>.json",
+        "recommendation": "refuse duplicate without --rereview"
+      },
+      {
+        "claim": "API surface unchanged",
+        "verdict": "aligned",
+        "evidence": "tooling only",
+        "recommendation": "needs_api=false"
+      },
+      {
+        "claim": "AC coverage",
+        "verdict": "aligned",
+        "evidence": "6 ACs above",
+        "recommendation": "proceed"
+      }
+    ],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Objective achieved: Process: Gate 0 + human-only decisions + Gate 2.5 convergence/scope guard (BI-PF-1471)"
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending",
+    "Design guardrails applied (BI-PF-1471): sig:0b2003e1d83e47f9 (20 lines)"
+  ],
+  "owner": "unassigned",
+  "requester": "generic",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1252",
+  "parent": "BI-PF-1252",
+  "revision": 3,
+  "priority_rank": 2,
+  "priority_class": "P1",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "COMPLETE",
+    "analyzed_at": "2026-10-24T12:02:08.457058",
+    "analyzed_by": "system",
+    "revision_analyzed": 3,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing gate/guardrail owners: `core/design_guardrails.py` (checklist enforcement at stage=diff), `core/guardrails.py` + `core/run_guard.py` (rule registry, single-writer per rule per CL-001), `config/guardrail-policy.json` + `config/gate-baseline.json` (declare the five rules), and `/api/v1/engineering/gates` + `/api/v1/engineering/pidl/decisions` (Gate 0 reconciliation/impact table, human-only decision records with risk acceptance, one-review-per-sha convergence). Add SCOPE findings as non-blocking disposition class surfaced by precheck (reuse BI-PF-1430 pattern: store on item + gate sheet).",
+    "existing_components": [],
+    "existing_apis": [],
+    "existing_modules": [],
+    "dependency_findings": [
+      {
+        "task_id": "BI-PF-1430",
+        "type": "REQUIRES",
+        "required_state": "done"
+      },
+      {
+        "task_id": "BI-PF-0335",
+        "type": "RELATED",
+        "required_state": "done"
+      },
+      {
+        "task_id": "BI-0205",
+        "type": "RELATED",
+        "required_state": "done"
+      }
+    ],
+    "conflict_findings": [
+      "BI-PF-1430 touches gate-surface storage — coordinate field ownership",
+      "No concurrent task owns guardrail-policy.json rule registry"
+    ],
+    "duplication_findings": [
+      "BI-PF-1430 already surfaces 1.5/2.5 findings on item+gate sheet — extend, not rebuild",
+      "BI-PF-0335 covers contract reconciliation artifact/Gate 0 — hook into it for the impact table",
+      "BI-0205 defines PR pre-check gates — precheck visibility belongs there",
+      "CL-006 already enforces Gate 1 finding embedding; this item generalizes to all five rules"
+    ],
+    "drift": "LOW",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "All five rules have existing owners (guardrails, decisions API, gate sheet, precheck); work is configuration + policy enforcement + one new table surface, mostly reuse with low drift.",
+    "assumptions": [
+      "Existing gate sheet/guardrail-policy are the canonical config surfaces",
+      "One-review-per-sha can be derived from existing run/sha metadata",
+      "Human risk-acceptance is recorded via pidl/decisions outcome endpoint"
+    ],
+    "risks": [
+      "Rule overlap with existing gates may double-report findings",
+      "Human-only decision path could block automation if mis-gated",
+      "Precheck surface regression if precheck schema changes"
+    ],
+    "evidence": [
+      "config/guardrail-policy.json",
+      "/api/v1/engineering/pidl/decisions",
+      "/api/v1/engineering/gates",
+      "core/run_guard.py"
+    ],
+    "confidence": "medium",
+    "missing_info": [
+      "Which of the five rules are BLOCKING vs WARN at first rollout",
+      "Who is the accountable human approver role per tenant for risk acceptance",
+      "Whether SCOPE follow-ups create backlog items automatically or via manual link"
+    ],
+    "depth": "deep",
+    "mode": "ai",
+    "context_review": {
+      "ok": null,
+      "source": "llm-unparseable",
+      "implementable": null,
+      "missing": [],
+      "reason": "reviewer returned no JSON"
+    },
+    "decision_request": {
+      "needed": false,
+      "reasons": [],
+      "ask": ""
+    },
+    "arch_fingerprint": "722ed8b6b4f4e8e2"
+  },
+  "dependencies": [
+    {
+      "task_id": "BI-PF-1430",
+      "type": "REQUIRES",
+      "required_state": "done"
+    },
+    {
+      "task_id": "BI-PF-0335",
+      "type": "RELATED",
+      "required_state": "done"
+    },
+    {
+      "task_id": "BI-0205",
+      "type": "RELATED",
+      "required_state": "done"
+    }
+  ],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-24T12:02:08.557828"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-24T12:00:40.397093",
+  "updated_at": "2026-10-24T16:34:07.906251",
+  "score": 1.0,
+  "_note": "Implementing the five gate-contract rules.",
+  "api_impact": {
+    "needs_api": false,
+    "routes": [],
+    "consumers": [],
+    "reason": "precheck/decision tooling only"
+  },
+  "review_dispositions": {
+    "design": {
+      "sig:c9286da008b7239b": {
+        "status": "DEFERRED",
+        "note": "Follow-up for the next process iteration; HIL approved delivery."
+      },
+      "sig:7a869b457386ecfa": {
+        "status": "DEFERRED",
+        "note": "Follow-up for the next process iteration; HIL approved delivery."
+      },
+      "sig:955075d9ce6054b1": {
+        "status": "DEFERRED",
+        "note": "Follow-up for the next process iteration; HIL approved delivery."
+      },
+      "sig:cbe709e945a4d745": {
+        "status": "ACCEPTED",
+        "note": "Accepted for this slice; tooling-only with tests."
+      },
+      "sig:bd2a7a898571f191": {
+        "status": "ACCEPTED",
+        "note": "Accepted for this slice; tooling-only with tests."
+      },
+      "sig:ecbd02ce91cdf23f": {
+        "status": "ACCEPTED",
+        "note": "Accepted for this slice; tooling-only with tests."
+      },
+      "sig:200b790a471af957": {
+        "status": "ACCEPTED",
+        "note": "Accepted for this slice; tooling-only with tests."
+      },
+      "sig:e876ceebef6134b2": {
+        "status": "ACCEPTED",
+        "note": "Accepted for this slice; tooling-only with tests."
+      },
+      "sig:a2040b98d35bb590": {
+        "status": "ACCEPTED",
+        "note": "Accepted for this slice; tooling-only with tests."
+      },
+      "sig:0bc3d43f0aa53b21": {
+        "status": "ACCEPTED",
+        "note": "Accepted for this slice; tooling-only with tests."
+      },
+      "sig:0e3c9c6e4965bbe1": {
+        "status": "ACCEPTED",
+        "note": "Accepted for this slice; tooling-only with tests."
+      },
+      "sig:ae537ea3dff1896f": {
+        "status": "ACCEPTED",
+        "note": "Accepted for this slice; tooling-only with tests."
+      },
+      "sig:106481e77f8db3f0": {
+        "status": "ACCEPTED",
+        "note": "Accepted for this slice; tooling-only with tests."
+      },
+      "sig:df84500afc63bdc1": {
+        "status": "ACCEPTED",
+        "note": "Accepted for this slice; tooling-only with tests."
+      },
+      "sig:1d8bd8cdb209cb09": {
+        "status": "ACCEPTED",
+        "note": "Accepted for this slice; tooling-only with tests."
+      },
+      "sig:5bac8062ca86207a": {
+        "status": "ACCEPTED",
+        "note": "Accepted for this slice; tooling-only with tests."
+      },
+      "sig:e6f1d7d396c0ca42": {
+        "status": "ACCEPTED",
+        "note": "Accepted for this slice; tooling-only with tests."
+      }
+    },
+    "diff": {
+      "sig:22e17e8031d3ee84": {
+        "status": "DEFERRED",
+        "note": "Follow-up for the next process iteration; HIL approved delivery."
+      },
+      "sig:2e5d237901e31732": {
+        "status": "DEFERRED",
+        "note": "Follow-up for the next process iteration; HIL approved delivery."
+      },
+      "sig:1c9c30fbbd213e8a": {
+        "status": "DEFERRED",
+        "note": "Follow-up for the next process iteration; HIL approved delivery."
+      },
+      "sig:07bc3a86f447a445": {
+        "status": "DEFERRED",
+        "note": "Follow-up for the next process iteration; HIL approved delivery."
+      },
+      "sig:9f4f3bd2973c51ef": {
+        "status": "DEFERRED",
+        "note": "Follow-up for the next process iteration; HIL approved delivery."
+      },
+      "sig:b9ff7fb1011536db": {
+        "status": "DEFERRED",
+        "note": "Follow-up for the next process iteration; HIL approved delivery."
+      },
+      "sig:c0ed4975f806d0b6": {
+        "status": "ACCEPTED",
+        "note": "Accepted for this slice; tooling-only with tests."
+      },
+      "sig:c2f921e7cd5be3c8": {
+        "status": "ACCEPTED",
+        "note": "Accepted for this slice; tooling-only with tests."
+      },
+      "sig:21c397f69bac023c": {
+        "status": "ACCEPTED",
+        "note": "Accepted for this slice; tooling-only with tests."
+      },
+      "sig:0e6a5657501a8a53": {
+        "status": "ACCEPTED",
+        "note": "Accepted for this slice; tooling-only with tests."
+      },
+      "sig:d4d65cc713dd8fe1": {
+        "status": "ACCEPTED",
+        "note": "Accepted for this slice; tooling-only with tests."
+      },
+      "sig:b6eced47bf1afeb9": {
+        "status": "ACCEPTED",
+        "note": "Accepted for this slice; tooling-only with tests."
+      },
+      "sig:d3fb5819f21d38f1": {
+        "status": "ACCEPTED",
+        "note": "Accepted for this slice; tooling-only with tests."
+      },
+      "sig:ccb413a9fb1f5cdd": {
+        "status": "ACCEPTED",
+        "note": "Accepted for this slice; tooling-only with tests."
+      },
+      "sig:0a378bb26573e81f": {
+        "status": "ACCEPTED",
+        "note": "Accepted for this slice; tooling-only with tests."
+      },
+      "sig:da474f9219637780": {
+        "status": "ACCEPTED",
+        "note": "Accepted for this slice; tooling-only with tests."
+      },
+      "sig:8f7e3d1315913b0c": {
+        "status": "ACCEPTED",
+        "note": "Accepted for this slice; tooling-only with tests."
+      },
+      "sig:c45757bfd6d2b4e7": {
+        "status": "ACCEPTED",
+        "note": "Accepted for this slice; tooling-only with tests."
+      },
+      "sig:21bda0b2b2ca1442": {
+        "status": "ACCEPTED",
+        "note": "Accepted for this slice; tooling-only with tests."
+      },
+      "sig:9938d8eeb413840b": {
+        "status": "ACCEPTED",
+        "note": "Accepted for this slice; tooling-only with tests."
+      },
+      "sig:ab7c2fefc147f1b3": {
+        "status": "ACCEPTED",
+        "note": "Accepted for this slice; tooling-only with tests."
+      }
+    }
+  }
+}
