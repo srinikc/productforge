@@ -16,7 +16,7 @@ func TestLoadDefaults(t *testing.T) {
 		t.Fatal(err)
 	}
 	if c.Profile != ProfileDev || !c.Enforce || c.RequestTimeout != 30*time.Second ||
-		c.DBTimeout != 5*time.Second || c.UploadTimeout != 120*time.Second || c.MigrationTimeout != 10*time.Minute ||
+		c.DBTimeout != 5*time.Second || c.UploadTimeout != 120*time.Second || c.MigrationTimeout != 150*time.Second ||
 		c.MaxBodyBytes != 1<<20 || c.MaxUploadBytes != 64<<20 ||
 		c.Pool.MaxConns != 10 || c.GlobalConcurrency != 10 || c.TenantRPM != 600 {
 		t.Fatalf("unexpected defaults: %+v", c)
@@ -27,7 +27,7 @@ func TestLoadEnvOverrides(t *testing.T) {
 	c, err := Load(env(map[string]string{
 		"PF_PROFILE": "production", "PF_EDP_ENFORCE_LIMITS": "1",
 		"PF_EDP_REQUEST_TIMEOUT": "12s", "PF_EDP_DB_TIMEOUT": "2s", "PF_EDP_UPLOAD_TIMEOUT": "60s",
-		"PF_EDP_READ_TIMEOUT": "120s", "PF_EDP_WRITE_TIMEOUT": "120s",
+		"PF_EDP_READ_TIMEOUT": "120s", "PF_EDP_WRITE_TIMEOUT": "120s", "PF_EDP_MIGRATION_TIMEOUT": "60s",
 		"PF_EDP_MAX_BODY_BYTES": "2048", "PF_EDP_MAX_UPLOAD_BYTES": "4096",
 		"PF_EDP_GLOBAL_CONCURRENCY": "4", "PF_EDP_POOL_MAX_CONNS": "4",
 		"PF_EDP_TENANT_RPM": "30", "PF_EDP_GLOBAL_RPM": "120", "PF_EDP_TENANT_CONCURRENCY": "2",

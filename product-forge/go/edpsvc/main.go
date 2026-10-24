@@ -124,7 +124,7 @@ func main() {
 	})
 	// AC: surface coverage non-fatally at startup (a stale/low rotation must not stop the service).
 	s.checkAuditCoverage()
-	handler := limits.Chain(s.buildMux(), cfg, q, m, guard.OK)
+	handler := limits.Chain(limits.EnvelopeFallback(s.buildMux()), cfg, q, m, guard.OK)
 	addr := envOr("PF_EDP_ADDR", "127.0.0.1:8030")
 	srv := &http.Server{
 		Addr:              addr,
@@ -152,9 +152,10 @@ func main() {
 	shutCtx, cancel := context.WithTimeout(context.Background(), drain)
 	defer cancel()
 	if err := srv.Shutdown(shutCtx); err != nil {
-		log.Printf("edpsvc shutdown: %v", err)
+		log.Printf("edpsvc shutdown: %v (leaving the pool open for in-flight work)", err)
+	} else {
+		st.Close()
 	}
-	st.Close()
 }
 
 func (s *server) buildMux() *http.ServeMux {
@@ -551,7 +552,7 @@ func (s *server) artifactGet(w http.ResponseWriter, r *http.Request, id string) 
 	}
 	a, err := svc.Get(r.Context(), id)
 	if err != nil {
-		s.fail(w, r, http.StatusNotFound, err)
+		s.bad(w, r, http.StatusNotFound, "artifact not found")
 		return
 	}
 	writeJSON(w, http.StatusOK, a)
@@ -565,7 +566,7 @@ func (s *server) artifactContent(w http.ResponseWriter, r *http.Request, id stri
 	}
 	rc, err := svc.FetchContent(r.Context(), id)
 	if err != nil {
-		s.fail(w, r, http.StatusNotFound, err)
+		s.bad(w, r, http.StatusNotFound, "artifact not found")
 		return
 	}
 	defer rc.Close()
@@ -931,7 +932,7 @@ func (s *server) fail(w http.ResponseWriter, r *http.Request, status int, err er
 }
 
 func (s *server) ready(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), s.cfg.DBTimeout)
 	defer cancel()
 	if err := s.st.Ping(ctx); err != nil {
 		limits.WriteError(w, r, http.StatusServiceUnavailable, "database unavailable")
@@ -941,6 +942,10 @@ func (s *server) ready(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) metricsHandler(w http.ResponseWriter, r *http.Request) {
+	for k, v := range s.poolStats() {
+		s.metrics.Set("edp_db_pool_"+k, int(v))
+	}
+	s.metrics.Set("edp_quota_tenant_buckets", s.quota.TenantBuckets())
 	w.Header().Set("Content-Type", "text/plain; version=0.0.4")
 	s.metrics.Write(w)
 }

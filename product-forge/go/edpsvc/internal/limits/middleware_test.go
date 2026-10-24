@@ -205,3 +205,39 @@ func TestEnforceKillSwitchDisablesLimits(t *testing.T) {
 		t.Fatalf("kill switch must disable body/timeout/quota, got %d", rr.Code)
 	}
 }
+
+func TestEnvelopeFallback404And405(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /ok", func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusOK) })
+	h := Chain(EnvelopeFallback(mux), DefaultConfig(), nil, NewMetrics(), nil)
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/nope", nil))
+	if rr.Code != http.StatusNotFound || !strings.Contains(rr.Body.String(), `"code":"NOT_FOUND"`) {
+		t.Fatalf("404 not enveloped: %d %s", rr.Code, rr.Body.String())
+	}
+	rr = httptest.NewRecorder()
+	h.ServeHTTP(rr, httptest.NewRequest(http.MethodPost, "/ok", nil))
+	if rr.Code != http.StatusMethodNotAllowed || !strings.Contains(rr.Body.String(), `"code":"METHOD_NOT_ALLOWED"`) {
+		t.Fatalf("405 not enveloped: %d %s", rr.Code, rr.Body.String())
+	}
+}
+
+func TestQuotaAttributesJSONBodyTenant(t *testing.T) {
+	cfg := DefaultConfig()
+	cfg.TenantRPM = 1
+	q := NewQuota(cfg, func() time.Time { return time.Unix(1, 0) }, NewMetrics())
+	h := testChain(cfg, q, NewMetrics(), nil, okHandler())
+	do := func() int {
+		rr := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodPost, "/x", strings.NewReader(`{"tenant":"t1","action":"a"}`))
+		req.Header.Set("Content-Type", "application/json")
+		h.ServeHTTP(rr, req)
+		return rr.Code
+	}
+	if code := do(); code != http.StatusOK {
+		t.Fatalf("first want 200, got %d", code)
+	}
+	if code := do(); code != http.StatusTooManyRequests {
+		t.Fatalf("second want 429 from the body tenant, got %d", code)
+	}
+}

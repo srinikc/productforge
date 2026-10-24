@@ -86,7 +86,7 @@ implementation=library). One shared instance per service per environment; sessio
 ## 10. EDP data-plane limits (BI-PF-1302 / EDP-10)
 
 `go/edpsvc` enforces the EDP data-plane guardrails:
-- **Timeouts:** request 30s (JSON), DB 5s, upload 120s, migrations 10m; server read-header 5s / read 180s / write 180s / idle 120s.
+- **Timeouts:** request 30s (JSON), DB 5s, upload 120s, migrations 150s; server read-header 5s / read 180s / write 180s / idle 120s.
 - **Caps:** 1 MiB headers and JSON body; 64 MiB `/artifacts` upload.
 - **Quotas:** per-tenant 600 rpm / 5 concurrent, global 6000 rpm / 10 concurrent (in-process token buckets + semaphores). The global cap is the hard anti-evasion control because `edpsvc` has one admin principal; per-tenant buckets are attribution. Hard per-tenant authentication/isolation is **BI-PF-1478**.
 - **Pool:** one shared bounded pgx pool (10 connections by default); `PF_EDP_GLOBAL_CONCURRENCY` must be <= the pool max or startup fails.

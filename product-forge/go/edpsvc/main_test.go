@@ -121,3 +121,19 @@ func TestChunkedOversizeReturns413(t *testing.T) {
 		t.Fatalf("want PAYLOAD_TOO_LARGE envelope, got %s", rr.Body.String())
 	}
 }
+
+func TestMuxLevelTimeoutReturns504(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/slow", func(w http.ResponseWriter, r *http.Request) {
+		<-r.Context().Done()
+		limits.WriteHandlerError(w, r, r.Context().Err())
+	})
+	cfg := limits.DefaultConfig()
+	cfg.RequestTimeout = 20 * time.Millisecond
+	h := limits.Chain(mux, cfg, nil, limits.NewMetrics(), nil)
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/slow", nil))
+	if rr.Code != http.StatusGatewayTimeout {
+		t.Fatalf("want 504, got %d", rr.Code)
+	}
+}

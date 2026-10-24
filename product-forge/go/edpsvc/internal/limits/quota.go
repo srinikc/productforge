@@ -30,6 +30,7 @@ type Quota struct {
 	mu      sync.Mutex
 	global  bucket
 	tenants map[string]*bucket
+	active  map[string]int
 	gSem    chan struct{}
 	tSems   map[string]chan struct{}
 }
@@ -40,7 +41,8 @@ func NewQuota(cfg Config, clock Clock, m *Metrics) *Quota {
 		clock = time.Now
 	}
 	q := &Quota{cfg: cfg, now: clock, metrics: m, tenants: map[string]*bucket{},
-		gSem: make(chan struct{}, cfg.GlobalConcurrency), tSems: map[string]chan struct{}{}}
+		active: map[string]int{}, gSem: make(chan struct{}, cfg.GlobalConcurrency),
+		tSems: map[string]chan struct{}{}}
 	now := clock()
 	q.global = bucket{tokens: float64(cfg.GlobalRPM), last: now, seen: now}
 	return q
@@ -81,9 +83,13 @@ func (q *Quota) tenantBucket(tenant string, now time.Time) *bucket {
 	}
 	if len(q.tenants) >= q.cfg.MaxTenantBuckets {
 		for name, b := range q.tenants {
+			if q.active[name] > 0 {
+				continue
+			}
 			if now.Sub(b.seen) >= q.cfg.BucketIdleTTL {
 				delete(q.tenants, name)
 				delete(q.tSems, name)
+				delete(q.active, name)
 				if q.metrics != nil {
 					q.metrics.Inc("edp_quota_evictions_total")
 					q.metrics.Set("edp_quota_tenant_buckets", len(q.tenants))
@@ -164,12 +170,20 @@ func (q *Quota) Acquire(tenant string) (Decision, func()) {
 			return Decision{Allowed: false, RetryAfter: time.Second, Scope: "tenant_concurrency"}, func() {}
 		}
 	}
+	if tb != nil {
+		q.active[tenant]++
+	}
 	var once sync.Once
 	release := func() {
 		once.Do(func() {
 			<-q.gSem
 			if tSem != nil {
 				<-tSem
+				q.mu.Lock()
+				if q.active[tenant] > 0 {
+					q.active[tenant]--
+				}
+				q.mu.Unlock()
 			}
 		})
 	}

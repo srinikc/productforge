@@ -78,6 +78,7 @@ func (m *Metrics) Observe(class string, status int, d time.Duration) {
 		return
 	}
 	m.Inc("edp_http_requests_total", "class", class, "status", strconv.Itoa(status))
+	m.Inc("edp_http_status_total", "status", strconv.Itoa(status))
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	h := m.hists[class]

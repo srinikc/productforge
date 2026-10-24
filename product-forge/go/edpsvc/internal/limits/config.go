@@ -31,9 +31,8 @@ type PoolConfig struct {
 
 // Config is the effective guardrail configuration.
 type Config struct {
-	Profile  string
-	Enforce  bool
-	AdminTok string // not the secret itself; presence is read from env where needed
+	Profile string
+	Enforce bool
 
 	RequestTimeout    time.Duration
 	DBTimeout         time.Duration
@@ -70,7 +69,7 @@ func DefaultConfig() Config {
 	return Config{
 		Profile: ProfileDev, Enforce: true,
 		RequestTimeout: 30 * time.Second, DBTimeout: 5 * time.Second, UploadTimeout: 120 * time.Second,
-		MigrationTimeout:  10 * time.Minute,
+		MigrationTimeout:  150 * time.Second,
 		ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 180 * time.Second, WriteTimeout: 180 * time.Second,
 		IdleTimeout:    120 * time.Second,
 		MaxHeaderBytes: 1 << 20, MaxBodyBytes: 1 << 20, MaxUploadBytes: 64 << 20,
@@ -220,6 +219,9 @@ func (c Config) Validate() error {
 	}
 	if c.UploadTimeout > c.ReadTimeout || c.UploadTimeout > c.WriteTimeout {
 		return fmt.Errorf("PF_EDP_UPLOAD_TIMEOUT must be <= read/write server timeouts")
+	}
+	if c.MigrationTimeout > c.ReadTimeout || c.MigrationTimeout > c.WriteTimeout {
+		return fmt.Errorf("PF_EDP_MIGRATION_TIMEOUT must be <= read/write server timeouts")
 	}
 	if c.MaxBodyBytes <= 0 || c.MaxUploadBytes < c.MaxBodyBytes || c.MaxHeaderBytes <= 0 {
 		return fmt.Errorf("body/upload/header caps must be > 0 and upload >= body")

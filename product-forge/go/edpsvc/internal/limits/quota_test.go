@@ -141,3 +141,29 @@ func TestQuotaUniqueTenantsStillConsumeGlobal(t *testing.T) {
 		t.Fatalf("unique tenant must still consume the global bucket, got %+v", d)
 	}
 }
+
+func TestActiveTenantBucketIsNotEvicted(t *testing.T) {
+	c := quotaCfg()
+	c.MaxTenantBuckets = 1
+	c.BucketIdleTTL = time.Minute
+	c.TenantConcurrency = 1
+	c.GlobalConcurrency = 2
+	now := time.Unix(6000, 0)
+	q := NewQuota(c, func() time.Time { return now }, NewMetrics())
+	d, release := q.Acquire("a")
+	if !d.Allowed {
+		t.Fatal(d)
+	}
+	now = now.Add(2 * time.Minute)
+	d, _ = q.Acquire("b")
+	if d.Allowed || d.Scope != "tenant_cap" {
+		t.Fatalf("active tenant must not be evicted, got %+v", d)
+	}
+	release()
+	now = now.Add(2 * time.Minute)
+	d, release2 := q.Acquire("b")
+	if !d.Allowed {
+		t.Fatalf("after release+idle want allowed, got %+v", d)
+	}
+	release2()
+}

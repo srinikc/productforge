@@ -1,7 +1,10 @@
 package limits
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
+	"io"
 	"log"
 	"math"
 	"net/http"
@@ -17,6 +20,65 @@ var tenantRE = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$`)
 func ValidTenant(t string) bool { return tenantRE.MatchString(t) }
 
 func isUpload(path string) bool { return path == "/artifacts" }
+
+// EnvelopeFallback rewrites ServeMux's plain-text 404/405 responses into the v1 JSON envelope, so every
+// response on the surface is structured.
+func EnvelopeFallback(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		next.ServeHTTP(&fallbackWriter{ResponseWriter: w, r: r}, r)
+	})
+}
+
+type fallbackWriter struct {
+	http.ResponseWriter
+	r           *http.Request
+	intercepted bool
+}
+
+func (w *fallbackWriter) WriteHeader(code int) {
+	if code == http.StatusNotFound || code == http.StatusMethodNotAllowed {
+		w.intercepted = true
+		msg := "not found"
+		if code == http.StatusMethodNotAllowed {
+			msg = "method not allowed"
+		}
+		WriteError(w.ResponseWriter, w.r, code, msg)
+		return
+	}
+	w.ResponseWriter.WriteHeader(code)
+}
+
+func (w *fallbackWriter) Write(b []byte) (int, error) {
+	if w.intercepted {
+		return len(b), nil
+	}
+	return w.ResponseWriter.Write(b)
+}
+
+func (w *fallbackWriter) Flush() {
+	if f, ok := w.ResponseWriter.(http.Flusher); ok {
+		f.Flush()
+	}
+}
+
+// peekJSONTenant reads a bounded JSON body to attribute a POST to the tenant it targets, then restores it.
+func peekJSONTenant(r *http.Request) (string, error) {
+	ct := strings.ToLower(r.Header.Get("Content-Type"))
+	if r.Body == nil || (r.Method != http.MethodPost && r.Method != http.MethodPut &&
+		r.Method != http.MethodPatch) || !strings.HasPrefix(ct, "application/json") {
+		return "", nil
+	}
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		return "", err
+	}
+	r.Body = io.NopCloser(bytes.NewReader(body))
+	var v struct {
+		Tenant string `json:"tenant"`
+	}
+	_ = json.Unmarshal(body, &v)
+	return strings.TrimSpace(v.Tenant), nil
+}
 func isExempt(path string) bool {
 	return path == "/health" || path == "/ready" || path == "/metrics"
 }
@@ -157,9 +219,21 @@ func quotaMiddleware(next http.Handler, q *Quota) http.Handler {
 			WriteError(w, r, http.StatusBadRequest, "X-Tenant-Id does not match the tenant query parameter")
 			return
 		}
+		bodyTenant, err := peekJSONTenant(r)
+		if err != nil {
+			WriteHandlerError(w, r, err)
+			return
+		}
+		if header != "" && bodyTenant != "" && header != bodyTenant {
+			WriteError(w, r, http.StatusBadRequest, "X-Tenant-Id does not match the body tenant")
+			return
+		}
 		tenant := header
 		if tenant == "" {
 			tenant = query
+		}
+		if tenant == "" {
+			tenant = bodyTenant
 		}
 		if tenant != "" && !ValidTenant(tenant) {
 			WriteError(w, r, http.StatusBadRequest, "invalid tenant")
