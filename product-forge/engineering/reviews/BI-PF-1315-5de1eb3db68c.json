@@ -1,0 +1,36 @@
+{
+  "item": "BI-PF-1315",
+  "sha": "5de1eb3db68c",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-10-24T14:52:50.147712+00:00",
+  "findings": {
+    "BLOCKER": [
+      "Single-tenant drill artifact leakage: no statement that the tenant export executes under an RLS-bound role or a mandatory tenant predicate; if run as superuser, a missing filter silently leaks cross-tenant rows into dump artifacts stored in the object store (AC says \"zero cross-tenant rows\" but the design doesn't enforce the isolation mechanism, only verifies it post-hoc).",
+      "Scratch-DB drop has no fail-closed guard: design does not state a non-prod-only marker, required name prefix/suffix, or refusal when target isn't confirmed scratch \u2014 a mis-resolved connection string drops a live DB. Guardrail 4 unanswered."
+    ],
+    "MAJOR": [
+      "`--allow-cross-region` override lacks authorization and audit: no stated principal restriction, mandatory machine-readable reason, or tamper-evident audit log for a residency-violating restore. Guardrail 3 unanswered.",
+      "Drill scheduling/cadence is undefined: acknowledged risk \"never-run drills\" is unmitigated \u2014 no CI/cron owner, no staleness alert on last successful drill, so RTO/RPO regressions surface only during a real incident. Guardrail 2 unanswered.",
+      "PITR check verifies configuration, not outcome: non-empty `archive_command` can still fail persistently; archiver age/failure reporting has no defined thresholds, metrics emission, or alerting hook, so \"explicit and actionable\" is unmet operationally.",
+      "RTO/RPO results have no home: no destination (metrics, datastore, artifact) or retention for drill results; without observability there's no trend data to prove readiness over time. Guardrail 10 unanswered.",
+      "Reconcile `--repair` semantics are under-specified: no transactionality/idempotency contract, no concurrency guard against racing writes to the artifacts table during repair, and no audit record of mutated METADATA rows.",
+      "Core-table list for tenant drill is a hardcoded/mirrored set: schema evolution will silently widen or narrow the tenant export; needs a single source of truth (e.g., derived from `schema_migrations`/catalog) and a drift test. Guardrail 5 (invariants) unanswered.",
+      "Ownership not registered: new Go module `go/backupdrill` needs an owner/port/registration entry per CL-001 route-by-kind; `affected_components` listing `core/service_catalog.py` hints at a Python-side hook whose nature is unstated."
+    ],
+    "MINOR": [
+      "Cross-version checksum stability: per-table checksum algorithm/versioning not specified \u2014 a hash-format change will produce false drill failures; pin algorithm and include it in the recorded result.",
+      "`config/residency-policy.json` has no schema version or validation path; malformed/misplaced policy must fail closed (stated as intent but not enforced/ tested).",
+      "Reconcile \"orphaned object\" reporting needs a bounded page/scope strategy (large buckets) and a rate limit against the object store API.",
+      "Guardrail checklist items (reversibility, availability, authz, invariants, needs_api, observability) are not explicitly answered in the design text \u2014 CL-008 requires them at design time; add an explicit section mapping each of the 10 items.",
+      "`needs_api` decision is unstated; even a \"no API, CLI-only\" decision must be recorded explicitly per the checklist."
+    ],
+    "NIT": [
+      "Elapsed RTO measurement should exclude scratch-DB teardown so numbers are comparable run-to-run.",
+      "Consider emitting a single machine-readable drill report (JSON) alongside human output to ease later automation.",
+      "`archive_command` non-empty check could additionally flag placeholder/echo commands via a small denylist."
+    ],
+    "SUMMARY": []
+  }
+}
