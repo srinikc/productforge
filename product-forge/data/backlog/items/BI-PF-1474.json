@@ -1,0 +1,245 @@
+{
+  "id": "BI-PF-1474",
+  "tag": "PF",
+  "type": "bug",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "BI-PF-GOMOD-SCOPE",
+  "label": "PF Backlog 645",
+  "title": "Fix go-modules scoping path parsing (BI-PF-1474)",
+  "body": "",
+  "source": "generic",
+  "status": "new",
+  "priority": "P1",
+  "moscow": "Should",
+  "value": 3,
+  "effort": 1,
+  "risk": 1,
+  "deps": [
+    "BI-PF-1234"
+  ],
+  "links": {},
+  "decisions": [
+    {
+      "at": "2026-10-24T19:56:01.456152",
+      "decision": "APPROVE",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)"
+    },
+    {
+      "at": "2026-10-24T14:28:21.581924+00:00",
+      "by": "hil:user",
+      "decision": "APPROVE_WITH_ATTENTION",
+      "gate": 2,
+      "findings_sha": "f56f7775ab26",
+      "findings_digest": "2c8663dbc8b2",
+      "seq": 2,
+      "note": "Scoping fix approved.",
+      "hil_confirmed": true
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "Scoping treated ' M go/...' porcelain lines as non-Go paths, so the gate reported 'no Go changes'.",
+    "what_adds": "Normalize diff+status paths and add --all.",
+    "why_now": "A Go change could bypass module builds/tests.",
+    "success": "A branch touching go/<mod> runs that module (and dependents); no-Go branches skip; --all runs everything.",
+    "source": "authored"
+  },
+  "objective": "Go-modules scoping skipped Go changes because git status porcelain prefixes were not stripped.",
+  "acceptance_criteria": [
+    "_git_changed normalizes git status porcelain lines (status columns, renames, product-forge/ prefix) so Go changes are always detected.",
+    "go_modules_check supports --all to force the full module matrix (CI escape hatch) and prints the scoped module list.",
+    "Unit tests cover porcelain normalization and scoped detection; precheck PASS."
+  ],
+  "in_scope": [
+    "Fix go-modules scoping path parsing (BI-PF-1474)"
+  ],
+  "out_of_scope": [
+    "Not specified."
+  ],
+  "affected_components": [
+    "Not specified."
+  ],
+  "affected_files": [
+    "scripts/dev/go_modules_check.py",
+    "test-framework/tests/test_go_modules_scope.py"
+  ],
+  "approach": "Fix go-modules scoping path parsing (BI-PF-1474)",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Objective achieved: Fix go-modules scoping path parsing (BI-PF-1474)"
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending",
+    "Design guardrails applied (BI-PF-1474): sig:4694b2ea0353e9e9 (16 lines)"
+  ],
+  "owner": "agent",
+  "requester": "generic",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1252",
+  "parent": "BI-PF-1252",
+  "revision": 3,
+  "priority_rank": 20,
+  "priority_class": "P1",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "COMPLETE",
+    "analyzed_at": "2026-10-24T19:56:01.259405",
+    "analyzed_by": "system",
+    "revision_analyzed": 3,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend go-modules scoping path parsing in core/paths.py + core/stage_paths.py to correctly resolve configured module roots from config/artifact-paths.json and config/shared-paths.json; add regression fixtures, no new API (reuse /api/v1/reservations/shared-paths contract).",
+    "existing_components": [],
+    "existing_apis": [],
+    "existing_modules": [],
+    "dependency_findings": [
+      "BI-PF-1234 RELATED — required_state: pending (verify overlap before impl)"
+    ],
+    "conflict_findings": [
+      "No active backlog item edits go-modules parsing in core/paths.py concurrently"
+    ],
+    "duplication_findings": [
+      "BI-PF-1234: path resolution to wrong repo — same path-parsing family, check before coding",
+      "BI-PF-1384: worktree path drift — adjacent, may share path helpers"
+    ],
+    "drift": "LOW",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "Reuse-first: fix lives in existing path helpers and config inputs; no new component/API. Scope narrow but needs a concrete failing input to pin acceptance.",
+    "assumptions": [
+      "go-modules scoping parses paths already present in artifact-paths.json/shared-paths.json",
+      "Bug is local to path resolution, not config generation"
+    ],
+    "risks": [
+      "Shared path helpers used broadly; regressions could break other scopings",
+      "Config JSON schema assumptions may be stale"
+    ],
+    "evidence": [
+      "Candidate code: core/paths.py, core/stage_paths.py",
+      "Candidate modules: config/artifact-paths.json, config/shared-paths.json",
+      "Existing API: /api/v1/reservations/shared-paths"
+    ],
+    "confidence": "medium",
+    "missing_info": [
+      "Exact repro/example of the wrongly parsed go-modules path",
+      "Whether fix must be backward compatible with stored parsed results"
+    ],
+    "depth": "deep",
+    "mode": "ai",
+    "context_review": {
+      "ok": null,
+      "source": "llm-unparseable",
+      "implementable": null,
+      "missing": [],
+      "reason": "reviewer returned no JSON"
+    },
+    "decision_request": {
+      "needed": false,
+      "reasons": [],
+      "ask": ""
+    },
+    "arch_fingerprint": "722ed8b6b4f4e8e2"
+  },
+  "dependencies": [
+    {
+      "task_id": "BI-PF-1234",
+      "type": "RELATED",
+      "required_state": "pending"
+    }
+  ],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-24T19:56:01.349226"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-24T19:55:42.731940",
+  "updated_at": "2026-10-24T19:58:21.661479",
+  "score": 3.0,
+  "_note": "readiness computed",
+  "api_impact": {
+    "needs_api": false,
+    "routes": [],
+    "consumers": [],
+    "reason": "precheck tooling only"
+  },
+  "review_dispositions": {
+    "diff": {
+      "sig:08786874de5ac49e": {
+        "status": "DEFERRED",
+        "note": "Accepted/deferred; HIL approved."
+      },
+      "sig:64e8b9491d3f4f78": {
+        "status": "DEFERRED",
+        "note": "Accepted/deferred; HIL approved."
+      },
+      "sig:40dbdf7427cd174c": {
+        "status": "ACCEPTED",
+        "note": "Accepted/deferred; HIL approved."
+      },
+      "sig:6b4fd4c147e14482": {
+        "status": "ACCEPTED",
+        "note": "Accepted/deferred; HIL approved."
+      },
+      "sig:72b59bf4dc49de52": {
+        "status": "ACCEPTED",
+        "note": "Accepted/deferred; HIL approved."
+      },
+      "sig:39c15009a240b726": {
+        "status": "ACCEPTED",
+        "note": "Accepted/deferred; HIL approved."
+      },
+      "sig:062df502fe4f14cb": {
+        "status": "ACCEPTED",
+        "note": "Accepted/deferred; HIL approved."
+      },
+      "sig:50888a0a37ca4800": {
+        "status": "ACCEPTED",
+        "note": "Accepted/deferred; HIL approved."
+      },
+      "sig:2c321b787b592540": {
+        "status": "ACCEPTED",
+        "note": "Accepted/deferred; HIL approved."
+      },
+      "sig:4d3e1e80936cdc25": {
+        "status": "ACCEPTED",
+        "note": "Accepted/deferred; HIL approved."
+      }
+    }
+  }
+}
