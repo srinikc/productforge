@@ -6,13 +6,12 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
-
-	"flag"
 
 	"productforge/intakeingest"
 	"productforge/objstore"
@@ -89,6 +88,7 @@ func run() int {
 	flag.StringVar(&reportFile, "report-file", "", "write the pf.intake-ingest/1 report to this path")
 	flag.BoolVar(&allowBypass, "allow-bypassrls", false, "allow a BYPASSRLS role (local test DB only)")
 	flag.Parse()
+	runStart := time.Now()
 
 	fail := func(format string, args ...any) int {
 		fmt.Fprintf(os.Stderr, "pfingest: "+format+"\n", args...)
@@ -153,13 +153,25 @@ func run() int {
 	if verify {
 		mode = "verify"
 	}
-	runID := intakeingest.NewRunID()
+	runID, err := intakeingest.NewRunID()
+	if err != nil {
+		return fail("%v", err)
+	}
 	report := intakeingest.NewReport(runID, mode, tenant, dryRun)
-	report.StartedAt = time.Now().UTC()
+	report.StartedAt = runStart.UTC()
 	for _, rel := range files {
+		if strings.EqualFold(filepath.Base(rel), "product_forge_context.json") {
+			r := intakeingest.FileResult{Store: bucket + "/" + rel, Bucket: bucket, Name: rel,
+				Status: intakeingest.Failed,
+				Error:  "legacy dashboard store is out of scope (stays planned under BI-PF-1292)"}
+			report.Add(r)
+			logResult(r, runID)
+			continue
+		}
 		f, err := os.Open(filepath.Join(root, filepath.FromSlash(rel)))
 		if err != nil {
-			r := intakeingest.FileResult{Store: bucket, Name: rel, Status: intakeingest.Failed, Error: err.Error()}
+			r := intakeingest.FileResult{Store: bucket + "/" + rel, Bucket: bucket, Name: rel,
+				Status: intakeingest.Failed, Error: err.Error()}
 			report.Add(r)
 			logResult(r, runID)
 			continue
@@ -171,9 +183,6 @@ func run() int {
 			res, err = svc.Ingest(ctx, tenant, bucket, rel, f, contentType, dryRun)
 		}
 		_ = f.Close()
-		if verify {
-			res.Store = bucket
-		}
 		if err != nil && res.Status == "" {
 			res.Status = intakeingest.Failed
 			res.Error = err.Error()
@@ -188,7 +197,7 @@ func run() int {
 		}
 		report.OrphanObjects = list
 	}
-	report.DurationMS = time.Since(report.StartedAt).Milliseconds()
+	report.DurationMS = time.Since(runStart).Milliseconds()
 
 	out, err := json.MarshalIndent(report, "", "  ")
 	if err != nil {

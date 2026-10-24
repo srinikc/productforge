@@ -16,6 +16,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -27,14 +28,14 @@ import (
 const Schema = "pf.intake-ingest/1"
 
 // NewRunID returns a UUIDv4 run id (pinned in the pf.intake-ingest/1 contract).
-func NewRunID() string {
+func NewRunID() (string, error) {
 	var b [16]byte
 	if _, err := rand.Read(b[:]); err != nil {
-		return fmt.Sprintf("fallback-%d", time.Now().UnixNano())
+		return "", fmt.Errorf("intakeingest: cannot generate run id: %w", err)
 	}
 	b[6] = (b[6] & 0x0f) | 0x40
 	b[8] = (b[8] & 0x3f) | 0x80
-	return fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:16])
+	return fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:16]), nil
 }
 
 const (
@@ -48,6 +49,8 @@ const (
 type Status string
 
 const (
+	// Planned means a dry run validated the file but mutated nothing.
+	Planned Status = "planned"
 	// Written means the object and metadata were created.
 	Written Status = "written"
 	// SkippedUnchanged means the same artifact id already existed (or verify passed).
@@ -63,11 +66,16 @@ var (
 	ErrBadBucket = errors.New("intakeingest: bucket must be intake or builds")
 	ErrNoTenant  = errors.New("intakeingest: tenant is required")
 	ErrNoName    = errors.New("intakeingest: name is required")
+	// ErrBadTenant rejects a tenant id that could escape the tenant/ object prefix (path traversal).
+	ErrBadTenant = errors.New("intakeingest: tenant id must match [A-Za-z0-9][A-Za-z0-9._-]*")
 )
+
+var tenantRE = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]*$`)
 
 // FileResult is one file's outcome. It is also emitted as one structured log line.
 type FileResult struct {
 	Store      string `json:"store"`
+	Bucket     string `json:"bucket"`
 	Name       string `json:"name"`
 	Status     Status `json:"status"`
 	ArtifactID string `json:"artifact_id,omitempty"`
@@ -96,7 +104,8 @@ type Report struct {
 func NewReport(runID, mode, tenant string, dryRun bool) Report {
 	return Report{Schema: Schema, RunID: runID, Mode: mode, Tenant: tenant, DryRun: dryRun,
 		StartedAt: time.Now().UTC(), Files: []FileResult{}, Counts: map[string]int{
-			string(Written): 0, string(SkippedUnchanged): 0, string(Drift): 0, string(Failed): 0}}
+			string(Planned): 0, string(Written): 0, string(SkippedUnchanged): 0,
+			string(Drift): 0, string(Failed): 0}}
 }
 
 // Add appends a result and updates the counts.
@@ -151,6 +160,9 @@ func validate(tenant, bucket, name string) error {
 	if strings.TrimSpace(tenant) == "" {
 		return ErrNoTenant
 	}
+	if !tenantRE.MatchString(tenant) {
+		return ErrBadTenant
+	}
 	if bucket != BucketIntake && bucket != BucketBuilds {
 		return ErrBadBucket
 	}
@@ -178,7 +190,7 @@ func (s *Service) read(r io.Reader) ([]byte, error) {
 func (s *Service) Ingest(ctx context.Context, tenant, bucket, name string, r io.Reader,
 	contentType string, dryRun bool) (FileResult, error) {
 	start := time.Now()
-	res := FileResult{Store: bucket, Name: name}
+	res := FileResult{Store: bucket + "/" + name, Bucket: bucket, Name: name}
 	finish := func(err error) (FileResult, error) {
 		res.DurationMS = time.Since(start).Milliseconds()
 		if err != nil {
@@ -198,7 +210,7 @@ func (s *Service) Ingest(ctx context.Context, tenant, bucket, name string, r io.
 	res.Checksum = Checksum(body)
 	res.ArtifactID = ArtifactID(tenant, bucket, name, res.Checksum)
 	if dryRun {
-		res.Status = Written
+		res.Status = Planned
 		return finish(nil)
 	}
 
@@ -238,7 +250,7 @@ func (s *Service) Ingest(ctx context.Context, tenant, bucket, name string, r io.
 // Verify checks the current source against the latest stored revision and the object store.
 func (s *Service) Verify(ctx context.Context, tenant, bucket, name string, r io.Reader) (FileResult, error) {
 	start := time.Now()
-	res := FileResult{Store: bucket, Name: name}
+	res := FileResult{Store: bucket + "/" + name, Bucket: bucket, Name: name}
 	finish := func(err error) (FileResult, error) {
 		res.DurationMS = time.Since(start).Milliseconds()
 		if err != nil {
@@ -273,6 +285,11 @@ func (s *Service) Verify(ctx context.Context, tenant, bucket, name string, r io.
 	}
 	objSum, err := s.objectChecksum(ctx, ObjectKey(tenant, bucket, res.Checksum))
 	if err != nil {
+		if errors.Is(err, ErrTooLarge) {
+			res.Status = Drift
+			res.Error = "stored object exceeds max-bytes and cannot match the source"
+			return finish(nil)
+		}
 		return finish(err)
 	}
 	if objSum != res.Checksum {
@@ -298,7 +315,9 @@ func (s *Service) Orphans(ctx context.Context, tenant, bucket string) ([]string,
 	}
 	known := map[string]bool{}
 	if err := s.db.WithTx(ctx, func(tx datastore.Tx) error {
-		rows, err := tx.Query(ctx, `SELECT checksum FROM stored_objects WHERE tenant_id=$1`, tenant)
+		rows, err := tx.Query(ctx,
+			`SELECT checksum FROM artifacts WHERE tenant_id=$1 AND name LIKE $2 AND deleted_at IS NULL`,
+			tenant, bucket+"/%")
 		if err != nil {
 			return err
 		}
@@ -399,7 +418,7 @@ func (s *Service) register(ctx context.Context, tenant, bucket, name, id, sum st
 	logicalName := bucket + "/" + name
 	var rev int64
 	var lastErr error
-	for attempt := 0; attempt < 5; attempt++ {
+	for attempt := 0; attempt < 10; attempt++ {
 		err := s.db.WithTx(ctx, func(tx datastore.Tx) error {
 			if _, err := tx.Exec(ctx,
 				`INSERT INTO stored_objects (tenant_id, checksum, size, content_type)
@@ -457,6 +476,11 @@ func (s *Service) register(ctx context.Context, tenant, bucket, name, id, sum st
 			return 0, err
 		}
 		lastErr = err
+		select {
+		case <-ctx.Done():
+			return 0, ctx.Err()
+		case <-time.After(time.Duration(attempt+1) * 10 * time.Millisecond):
+		}
 	}
 	return 0, fmt.Errorf("intakeingest: revision allocation conflict after retries: %w", lastErr)
 }

@@ -59,6 +59,37 @@ func TestIngestRejectsTooLarge(t *testing.T) {
 	}
 }
 
+func TestTenantTraversalRejected(t *testing.T) {
+	svc := New(nil, nil, 0)
+	for _, tenant := range []string{"../escape", "a/b", "..", "a\\b", "a b"} {
+		_, err := svc.Ingest(context.Background(), tenant, "intake", "a.json",
+			strings.NewReader("x"), "", true)
+		if !errors.Is(err, ErrBadTenant) {
+			t.Fatalf("tenant %q must be rejected with ErrBadTenant, got %v", tenant, err)
+		}
+	}
+	if _, err := svc.Ingest(context.Background(), "", "intake", "a.json",
+		strings.NewReader("x"), "", true); !errors.Is(err, ErrNoTenant) {
+		t.Fatalf("empty tenant must be ErrNoTenant, got %v", err)
+	}
+	if _, err := svc.Ingest(context.Background(), "t1", "intake", "a.json",
+		strings.NewReader("x"), "", true); err != nil {
+		t.Fatalf("safe tenant must be accepted, got %v", err)
+	}
+}
+
+func TestDryRunIsPlanned(t *testing.T) {
+	svc := New(nil, nil, 0)
+	res, err := svc.Ingest(context.Background(), "t1", "intake", "a.json",
+		strings.NewReader("x"), "", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Status != Planned {
+		t.Fatalf("dry run must report %q, got %q", Planned, res.Status)
+	}
+}
+
 func TestEnsureRuntimeRoleRefusesBypass(t *testing.T) {
 	dsn := os.Getenv("PF_RUNTIME_DSN")
 	if dsn == "" {
@@ -88,9 +119,9 @@ func TestReportGolden(t *testing.T) {
 	rep := Report{
 		Schema: Schema, RunID: "00000000-0000-4000-8000-000000000000", Mode: "ingest",
 		Tenant: "t1", StartedAt: started, DurationMS: 12,
-		Files: []FileResult{{Store: "intake", Name: "a.json", Status: Written, ArtifactID: "abc",
-			Revision: 0, Checksum: "def", Bytes: 3, DurationMS: 1}},
-		Counts: map[string]int{"written": 1, "skipped-unchanged": 0, "drift": 0, "failed": 0},
+		Files: []FileResult{{Store: "intake/a.json", Bucket: "intake", Name: "a.json", Status: Written,
+			ArtifactID: "abc", Revision: 0, Checksum: "def", Bytes: 3, DurationMS: 1}},
+		Counts: map[string]int{"planned": 0, "written": 1, "skipped-unchanged": 0, "drift": 0, "failed": 0},
 	}
 	got, err := json.MarshalIndent(rep, "", "  ")
 	if err != nil {
@@ -106,7 +137,8 @@ func TestReportGolden(t *testing.T) {
   "duration_ms": 12,
   "files": [
     {
-      "store": "intake",
+      "store": "intake/a.json",
+      "bucket": "intake",
       "name": "a.json",
       "status": "written",
       "artifact_id": "abc",
@@ -119,6 +151,7 @@ func TestReportGolden(t *testing.T) {
   "counts": {
     "drift": 0,
     "failed": 0,
+    "planned": 0,
     "skipped-unchanged": 0,
     "written": 1
   }
@@ -130,7 +163,10 @@ func TestReportGolden(t *testing.T) {
 
 func TestNewRunIDIsUUIDv4(t *testing.T) {
 	re := regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`)
-	id := NewRunID()
+	id, err := NewRunID()
+	if err != nil {
+		t.Fatal(err)
+	}
 	if !re.MatchString(id) {
 		t.Fatalf("run id is not UUIDv4: %q", id)
 	}
