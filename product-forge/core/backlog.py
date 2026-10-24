@@ -1021,10 +1021,10 @@ def _gate2_status(item: dict, eid: str) -> tuple[bool, str]:
 
 
 def record_gate_decision(scope: str, project: str | None, eid: str, gate: int, decision: str,
-                         by: str, note: str = "") -> dict | None:
+                         by: str, note: str = "", hil_confirmed: bool = False) -> dict | None:
     """Record a Gate 1/2 decision via the gate tooling (validates evidence + findings)."""
     import sys as _sys
-    return _gate2_tooling().record_gate_decision(_sys.modules[__name__], scope, project, eid, gate, decision, by, note)
+    return _gate2_tooling().record_gate_decision(_sys.modules[__name__], scope, project, eid, gate, decision, by, note, hil_confirmed)
 
 
 def set_status(scope: str, project: str | None, eid: str, status: str, note: str = "",
