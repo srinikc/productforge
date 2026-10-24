@@ -22,4 +22,11 @@ func TestRetentionFor(t *testing.T) {
 	if err != nil || mode != minio.Governance || !until.After(time.Now()) {
 		t.Fatalf("valid retention mapping wrong: %v %v %v", mode, until, err)
 	}
+	cmode, _, err := retentionFor(datastore.PutOptions{Retention: time.Hour, Immutable: true, RetentionMode: "COMPLIANCE"})
+	if err != nil || cmode != minio.Compliance {
+		t.Fatalf("COMPLIANCE mapping wrong: %v %v", cmode, err)
+	}
+	if _, _, err := retentionFor(datastore.PutOptions{Retention: time.Hour, Immutable: true, RetentionMode: "bogus"}); err == nil {
+		t.Fatal("unknown retention mode must fail closed")
+	}
 }

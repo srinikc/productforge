@@ -55,8 +55,13 @@ type Rows interface {
 type PutOptions struct {
 	ContentType string
 	Checksum    string
-	Immutable   bool
-	Retention   time.Duration
+	// Immutable asks the adapter not to replace an existing object with DIFFERENT content (local) and to
+	// keep versions (S3). It is NOT a retention lock: set Retention/RetentionMode for object lock.
+	Immutable bool
+	Retention time.Duration
+	// RetentionMode is GOVERNANCE (default) or COMPLIANCE. COMPLIANCE requires Immutable=true and cannot
+	// be shortened or removed once applied.
+	RetentionMode string
 	// ServerSideEncryption requests provider-managed encryption (e.g. "aws:kms"); adapters that cannot
 	// honour it MUST reject the write rather than silently store plaintext.
 	ServerSideEncryption string
@@ -77,6 +82,8 @@ type LifecyclePolicy struct {
 	RetainUntil      time.Time
 	LegalHold        bool
 	ReleaseLegalHold bool
+	// ComplianceOptIn must be true for Mode=COMPLIANCE: the one-way door is never implicit.
+	ComplianceOptIn bool
 }
 
 // LifecycleState is the effective object-lock state reported by a provider.
@@ -89,6 +96,35 @@ type LifecycleState struct {
 
 // ErrUnsupported is returned by adapters that cannot honour a requested capability (fail closed).
 var ErrUnsupported = errors.New("datastore: capability unsupported")
+
+// ErrImmutable is returned when an immutable object would be replaced by different content.
+var ErrImmutable = errors.New("datastore: immutable object exists with different content")
+
+// ErrInvalidPolicy marks caller policy errors (missing mode, conflicting flags, missing COMPLIANCE opt-in).
+var ErrInvalidPolicy = errors.New("datastore: invalid lifecycle policy")
+
+// UnsupportedError carries the provider and capability for diagnostics while matching ErrUnsupported.
+type UnsupportedError struct {
+	Provider   string
+	Capability string
+}
+
+func (e *UnsupportedError) Error() string {
+	return "datastore: " + e.Provider + " does not support " + e.Capability
+}
+
+func (e *UnsupportedError) Is(target error) bool { return target == ErrUnsupported }
+
+// PartialApplyError reports which lifecycle step succeeded before a later step failed.
+type PartialApplyError struct {
+	Applied string
+	Err     error
+}
+
+func (e *PartialApplyError) Error() string {
+	return "datastore: partial lifecycle apply (" + e.Applied + "): " + e.Err.Error()
+}
+func (e *PartialApplyError) Unwrap() error { return e.Err }
 
 // LifecycleCapable is an OPTIONAL capability: providers that support object lock/retention implement it.
 // Look it up with Lifecycle(store) instead of asserting it unconditionally.

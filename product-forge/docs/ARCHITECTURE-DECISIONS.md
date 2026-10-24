@@ -461,3 +461,20 @@ Go (`go/pfaudit`), which is the single writer for swap and retention.
 **Consequences.** New tables are `pf_owner`-only (no blanket RLS policy); `audit_legal_hold_archive` keeps
 tenant `SELECT` under `tenant_isolation`. `audit_id_seq` is the one canonical sequence name; `--down`
 restores the names and is gated on archives/holds plus an audited reason.
+
+## EDP-16 - Object lifecycle, signed URLs, reconciliation (BI-PF-1308)
+
+- **Lifecycle is an optional capability** (`datastore.LifecycleCapable`, found via `datastore.Lifecycle`), never
+  a widened base `ObjectStore`. Providers that cannot lock fail closed with `datastore.ErrUnsupported`.
+- **Retention modes**: `GOVERNANCE` is the default; `COMPLIANCE` requires `LifecyclePolicy.ComplianceOptIn=true`
+  and is a **one-way door** (cannot be shortened or released). Retention at Put is requested via
+  `PutOptions.Retention` + `RetentionMode` and always requires `Immutable`.
+- **Local filesystem** cannot lock: retention/lifecycle return `UnsupportedError`; `Immutable` rejects replacing
+  an existing object with different content (`ErrImmutable`).
+- **Signed URLs have ONE minting boundary** (`go/objpolicy.Mint`): method allowlist, TTL bounds (30s..15m,
+  default 5m), and the tenant taken from the authenticated context (`objpolicy.WithTenant`) - never a caller
+  argument. Denials are counted (`objpolicy.Stats()`) and logged with a reason code.
+- **Reconciliation is read-only** (`go/objreconcile`): manifest vs `List`/`Head`, sha256 comparisons (never
+  ETags), deterministic versioned report; it never deletes or repairs.
+- **Ownership/modules**: each new package is its own module per the one-module-per-directory rule; the
+  `go-modules` gate discovers and tests all modules.

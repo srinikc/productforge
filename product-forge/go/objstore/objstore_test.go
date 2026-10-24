@@ -111,3 +111,16 @@ func TestLifecycleUnsupported(t *testing.T) {
 		t.Fatalf("ObjectLifecycle: want ErrUnsupported, got %v", err)
 	}
 }
+
+func TestImmutableRejectsDifferentContent(t *testing.T) {
+	st, err := NewLocalStore(t.TempDir(), 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := st.Put(context.Background(), "k", bytes.NewReader([]byte("a")), 1, datastore.PutOptions{Immutable: true}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := st.Put(context.Background(), "k", bytes.NewReader([]byte("b")), 1, datastore.PutOptions{Immutable: true}); !errors.Is(err, datastore.ErrImmutable) {
+		t.Fatalf("want ErrImmutable, got %v", err)
+	}
+}

@@ -13,9 +13,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/url"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/minio/minio-go/v7"
@@ -42,7 +44,8 @@ type Config struct {
 type S3Store struct {
 	client     *minio.Client
 	bucket     string
-	objectLock bool // probed once: bucket-level object-lock configuration
+	lockMu     sync.Mutex
+	objectLock bool // probed: bucket-level object-lock configuration
 }
 
 // New creates the adapter and (optionally) ensures the bucket exists.
@@ -60,7 +63,9 @@ func New(ctx context.Context, cfg Config) (*S3Store, error) {
 	}
 	s := &S3Store{client: cl, bucket: cfg.Bucket}
 	if _, _, _, _, lerr := cl.GetObjectLockConfig(ctx, cfg.Bucket); lerr == nil {
-		s.objectLock = true // best-effort probe; unsupported buckets report false
+		s.objectLock = true
+	} else {
+		log.Printf("s3store: object-lock probe failed for bucket %q (lifecycle disabled): %v", cfg.Bucket, lerr)
 	}
 	if cfg.Ensure {
 		ok, err := cl.BucketExists(ctx, cfg.Bucket)
@@ -153,15 +158,19 @@ func (s *S3Store) Put(ctx context.Context, key string, r io.Reader, size int64, 
 }
 
 func (s *S3Store) stat(ctx context.Context, key, version string) (minio.ObjectInfo, error) {
-	return s.client.StatObject(ctx, s.bucket, key, minio.StatObjectOptions{VersionID: version})
+	st, err := s.client.StatObject(ctx, s.bucket, key, minio.StatObjectOptions{VersionID: version})
+	if err != nil {
+		if minio.ToErrorResponse(err).Code == "NoSuchKey" {
+			return minio.ObjectInfo{}, os.ErrNotExist
+		}
+		return minio.ObjectInfo{}, err
+	}
+	return st, nil
 }
 
 func (s *S3Store) Head(ctx context.Context, key string) (datastore.ObjectInfo, error) {
 	st, err := s.stat(ctx, key, "")
 	if err != nil {
-		if minio.ToErrorResponse(err).Code == "NoSuchKey" {
-			return datastore.ObjectInfo{}, os.ErrNotExist
-		}
 		return datastore.ObjectInfo{}, err
 	}
 	return s.info(key, st), nil
@@ -189,7 +198,11 @@ func (s *S3Store) Get(ctx context.Context, key, version string) (io.ReadCloser, 
 }
 
 func (s *S3Store) Delete(ctx context.Context, key, version string) error {
-	return s.client.RemoveObject(ctx, s.bucket, key, minio.RemoveObjectOptions{VersionID: version})
+	err := s.client.RemoveObject(ctx, s.bucket, key, minio.RemoveObjectOptions{VersionID: version})
+	if err != nil && minio.ToErrorResponse(err).Code == "NoSuchKey" {
+		return os.ErrNotExist
+	}
+	return err
 }
 
 func (s *S3Store) List(ctx context.Context, prefix string) ([]datastore.ObjectInfo, error) {
@@ -222,57 +235,79 @@ func (s *S3Store) SignedURL(ctx context.Context, key, method string, ttl time.Du
 }
 
 func (s *S3Store) Capabilities() datastore.Capabilities {
-	return datastore.Capabilities{SignedURLs: true, ObjectVersioning: true, ObjectLock: s.objectLock, MultipartUpload: true}
+	s.lockMu.Lock()
+	lock := s.objectLock
+	s.lockMu.Unlock()
+	return datastore.Capabilities{SignedURLs: true, ObjectVersioning: true, ObjectLock: lock, MultipartUpload: true}
 }
 
-// retentionFor maps PutOptions to object-lock headers: retention requires Immutable and a >=1m window.
+// retentionFor maps PutOptions to object-lock headers. GOVERNANCE is the default; COMPLIANCE must be named
+// explicitly (it is irreversible). Retention always requires Immutable.
 func retentionFor(opts datastore.PutOptions) (minio.RetentionMode, time.Time, error) {
 	if opts.Retention <= 0 {
 		return "", time.Time{}, nil
 	}
 	if !opts.Immutable {
-		return "", time.Time{}, errors.New("s3store: retention requires Immutable=true")
+		return "", time.Time{}, fmt.Errorf("%w: retention requires Immutable=true", datastore.ErrInvalidPolicy)
 	}
 	if opts.Retention < time.Minute {
-		return "", time.Time{}, errors.New("s3store: retention must be at least 1 minute")
+		return "", time.Time{}, fmt.Errorf("%w: retention must be at least 1 minute", datastore.ErrInvalidPolicy)
 	}
-	return minio.Governance, time.Now().Add(opts.Retention), nil
+	mode := strings.ToUpper(strings.TrimSpace(opts.RetentionMode))
+	switch mode {
+	case "", "GOVERNANCE":
+		return minio.Governance, time.Now().Add(opts.Retention), nil
+	case "COMPLIANCE":
+		return minio.Compliance, time.Now().Add(opts.Retention), nil
+	default:
+		return "", time.Time{}, fmt.Errorf("%w: unknown retention mode %q", datastore.ErrInvalidPolicy, opts.RetentionMode)
+	}
 }
 
-// ApplyLifecycle sets object retention/legal hold. COMPLIANCE is irreversible once applied.
+// ApplyLifecycle sets object retention/legal hold. All arguments are validated BEFORE any mutation;
+// COMPLIANCE requires an explicit opt-in and is irreversible. A failure after retention is reported as a
+// typed PartialApplyError so callers know the object is already locked.
 func (s *S3Store) ApplyLifecycle(ctx context.Context, key, version string, policy datastore.LifecyclePolicy) error {
 	if strings.TrimSpace(key) == "" {
-		return errors.New("s3store: empty key")
-	}
-	if !s.objectLock {
-		// Re-probe once: New() may have seen a transient failure.
-		if _, _, _, _, lerr := s.client.GetObjectLockConfig(ctx, s.bucket); lerr == nil {
-			s.objectLock = true
-		} else {
-			return fmt.Errorf("s3store: lifecycle requires an object-lock enabled bucket: %w", datastore.ErrUnsupported)
-		}
+		return fmt.Errorf("%w: empty key", datastore.ErrInvalidPolicy)
 	}
 	if policy.LegalHold && policy.ReleaseLegalHold {
-		return errors.New("s3store: LegalHold and ReleaseLegalHold are mutually exclusive")
+		return fmt.Errorf("%w: LegalHold and ReleaseLegalHold are mutually exclusive", datastore.ErrInvalidPolicy)
 	}
 	if strings.TrimSpace(policy.Mode) == "" && !policy.RetainUntil.IsZero() {
-		return errors.New("s3store: RetainUntil requires a retention mode (GOVERNANCE or COMPLIANCE)")
+		return fmt.Errorf("%w: RetainUntil requires a retention mode", datastore.ErrInvalidPolicy)
 	}
 	var mode minio.RetentionMode
 	switch strings.ToUpper(strings.TrimSpace(policy.Mode)) {
 	case "GOVERNANCE":
 		mode = minio.Governance
 	case "COMPLIANCE":
+		if !policy.ComplianceOptIn {
+			return fmt.Errorf("%w: COMPLIANCE requires ComplianceOptIn=true (irreversible)", datastore.ErrInvalidPolicy)
+		}
 		mode = minio.Compliance
 	case "":
-		mode = ""
 	default:
-		return fmt.Errorf("s3store: unsupported retention mode %q", policy.Mode)
+		return fmt.Errorf("%w: unsupported retention mode %q", datastore.ErrInvalidPolicy, policy.Mode)
+	}
+	if mode != "" && (policy.RetainUntil.IsZero() || !policy.RetainUntil.After(time.Now())) {
+		return fmt.Errorf("%w: RetainUntil must be in the future", datastore.ErrInvalidPolicy)
+	}
+
+	s.lockMu.Lock()
+	lock := s.objectLock
+	s.lockMu.Unlock()
+	if !lock {
+		// Re-probe once: New() may have seen a transient failure.
+		if _, _, _, _, lerr := s.client.GetObjectLockConfig(ctx, s.bucket); lerr == nil {
+			s.lockMu.Lock()
+			s.objectLock = true
+			s.lockMu.Unlock()
+		} else {
+			return &datastore.UnsupportedError{Provider: "s3", Capability: "object-lock"}
+		}
 	}
 	if mode != "" {
-		if policy.RetainUntil.IsZero() || !policy.RetainUntil.After(time.Now()) {
-			return errors.New("s3store: RetainUntil must be in the future")
-		}
 		until := policy.RetainUntil
 		if err := s.client.PutObjectRetention(ctx, s.bucket, key, minio.PutObjectRetentionOptions{
 			Mode: &mode, RetainUntilDate: &until, VersionID: version,
@@ -281,17 +316,22 @@ func (s *S3Store) ApplyLifecycle(ctx context.Context, key, version string, polic
 		}
 	}
 	if policy.LegalHold || policy.ReleaseLegalHold {
-		status := minio.LegalHoldEnabled
-		if policy.ReleaseLegalHold {
-			status = minio.LegalHoldDisabled
-		}
+		status := legalHoldStatus(policy)
 		if err := s.client.PutObjectLegalHold(ctx, s.bucket, key, minio.PutObjectLegalHoldOptions{
 			Status: &status, VersionID: version,
 		}); err != nil {
-			return fmt.Errorf("s3store: apply legal hold: %w", err)
+			return &datastore.PartialApplyError{Applied: "retention", Err: fmt.Errorf("legal hold: %w", err)}
 		}
 	}
 	return nil
+}
+
+// legalHoldStatus maps the policy flags to the provider status.
+func legalHoldStatus(policy datastore.LifecyclePolicy) minio.LegalHoldStatus {
+	if policy.ReleaseLegalHold {
+		return minio.LegalHoldDisabled
+	}
+	return minio.LegalHoldEnabled
 }
 
 // ObjectLifecycle returns the effective retention/legal-hold state.

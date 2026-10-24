@@ -6,6 +6,7 @@ package objreconcile
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"log"
 	"os"
@@ -65,7 +66,7 @@ func Scan(ctx context.Context, store datastore.ObjectStore, prefix string, manif
 			rep.Invalid = append(rep.Invalid, e.Key)
 			continue
 		}
-		if !strings.HasPrefix(e.Key, prefix) {
+		if !strings.HasPrefix(e.Key, prefix) || !validChecksum(e.Checksum) {
 			rep.Invalid = append(rep.Invalid, e.Key)
 			continue
 		}
@@ -118,6 +119,18 @@ func Scan(ctx context.Context, store datastore.ObjectStore, prefix string, manif
 			len(rep.ChecksumMismatch), len(rep.ChecksumUnverifiable), len(rep.Invalid))
 	}
 	return rep, nil
+}
+
+// validChecksum accepts empty (size-only) or a 32-byte hex sha256 digest.
+func validChecksum(s string) bool {
+	if s == "" {
+		return true
+	}
+	if len(s) != 64 {
+		return false
+	}
+	_, err := hex.DecodeString(s)
+	return err == nil
 }
 
 // normalizePrefix makes a prefix a directory boundary ("p" -> "p/", "p/" unchanged).
