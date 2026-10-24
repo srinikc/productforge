@@ -103,6 +103,9 @@ func (s *S3Store) Put(ctx context.Context, key string, r io.Reader, size int64, 
 	if mode, until, lerr := retentionFor(opts); lerr != nil {
 		return datastore.ObjectInfo{}, lerr
 	} else if mode != "" {
+		if !s.objectLock {
+			return datastore.ObjectInfo{}, fmt.Errorf("s3store: retention requested but the bucket has no object-lock configuration: %w", datastore.ErrUnsupported)
+		}
 		putOpts.Mode = mode
 		putOpts.RetainUntilDate = until
 	}
@@ -240,6 +243,14 @@ func retentionFor(opts datastore.PutOptions) (minio.RetentionMode, time.Time, er
 func (s *S3Store) ApplyLifecycle(ctx context.Context, key, version string, policy datastore.LifecyclePolicy) error {
 	if strings.TrimSpace(key) == "" {
 		return errors.New("s3store: empty key")
+	}
+	if !s.objectLock {
+		// Re-probe once: New() may have seen a transient failure.
+		if _, _, _, _, lerr := s.client.GetObjectLockConfig(ctx, s.bucket); lerr == nil {
+			s.objectLock = true
+		} else {
+			return fmt.Errorf("s3store: lifecycle requires an object-lock enabled bucket: %w", datastore.ErrUnsupported)
+		}
 	}
 	if policy.LegalHold && policy.ReleaseLegalHold {
 		return errors.New("s3store: LegalHold and ReleaseLegalHold are mutually exclusive")
