@@ -66,9 +66,10 @@
     "go/intakeingest/go.mod",
     "go/intakeingest/cmd/pfingest/main.go",
     "config/store-registry.json",
-    "docs/STORE-DATAFLOW.md"
+    "docs/STORE-DATAFLOW.md",
+    "scripts/dev/gate0_check.py"
   ],
-  "approach": "Add a Go ingestion service (go/intakeingest) over the existing datastore.ObjectStore + RelationalStore ports. For each source file it computes sha256, writes bytes under intake|builds/<sha256> with Immutable=true, then upserts stored_objects (ON CONFLICT DO NOTHING) and artifacts (deterministic id, ON CONFLICT DO NOTHING) inside one RLS-bound transaction. A thin cmd/pfingest wires DSN/object-root/tenant and prints a JSON report; --verify re-checks Head checksums. Registry targets for the 11 stores flip to artifacts/exists/migrated and the derived STORE-DATAFLOW doc is regenerated.",
+  "approach": "Add a Go ingestion service (go/intakeingest) over the existing datastore.ObjectStore + RelationalStore ports. For each source file it computes sha256, writes bytes under intake|builds/<sha256> with Immutable=true, then upserts stored_objects (ON CONFLICT DO NOTHING) and artifacts (deterministic id, ON CONFLICT DO NOTHING) inside one RLS-bound transaction. A thin cmd/pfingest wires DSN/object-root/tenant and prints a JSON report; --verify re-checks Head checksums. Registry targets for the 11 stores flip to artifacts/exists/migrated and the derived STORE-DATAFLOW doc is regenerated. Also fixes scripts/dev/gate0_check.py to resolve backlog items from the git repo root (same pattern as gate1_transition_check); the gate previously read product-forge/... twice and silently reported zero transitions when product-forge is a subdirectory of the git root.",
   "review": {
     "reconciliation": {
       "prior_decisions": [
@@ -150,7 +151,8 @@
   "rollback": "Revert the commit; content-addressed objects are safe to leave in place and no schema change is made.",
   "evidence": [
     "pending",
-    "Design guardrails applied (BI-PF-1475): sig:1227ed0e0e60aa6b (16 lines)"
+    "Design guardrails applied (BI-PF-1475): sig:1227ed0e0e60aa6b (16 lines)",
+    "Design pre-check (BI-PF-1475): answered 10 checklist item(s) before Gate 1.5"
   ],
   "owner": "agent",
   "requester": "generic",
@@ -268,7 +270,7 @@
     "usage": {}
   },
   "created_at": "2026-10-24T20:52:47.175530",
-  "updated_at": "2026-10-24T21:11:34.793710",
+  "updated_at": "2026-10-24T21:12:36.750062",
   "score": 0.75,
   "_note": "readiness computed",
   "api_impact": {
