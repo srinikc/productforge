@@ -16,7 +16,7 @@ func TestLoadDefaults(t *testing.T) {
 		t.Fatal(err)
 	}
 	if c.Profile != ProfileDev || !c.Enforce || c.RequestTimeout != 30*time.Second ||
-		c.DBTimeout != 5*time.Second || c.UploadTimeout != 120*time.Second ||
+		c.DBTimeout != 5*time.Second || c.UploadTimeout != 120*time.Second || c.MigrationTimeout != 10*time.Minute ||
 		c.MaxBodyBytes != 1<<20 || c.MaxUploadBytes != 64<<20 ||
 		c.Pool.MaxConns != 10 || c.GlobalConcurrency != 10 || c.TenantRPM != 600 {
 		t.Fatalf("unexpected defaults: %+v", c)

@@ -57,6 +57,13 @@ func (w *statusWriter) Write(b []byte) (int, error) {
 	return w.ResponseWriter.Write(b)
 }
 
+// Flush forwards to the underlying writer when it supports streaming.
+func (w *statusWriter) Flush() {
+	if f, ok := w.ResponseWriter.(http.Flusher); ok {
+		f.Flush()
+	}
+}
+
 func requestIDMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		id := strings.TrimSpace(r.Header.Get("X-Request-ID"))

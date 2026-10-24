@@ -38,6 +38,7 @@ type Config struct {
 	RequestTimeout    time.Duration
 	DBTimeout         time.Duration
 	UploadTimeout     time.Duration
+	MigrationTimeout  time.Duration
 	ReadHeaderTimeout time.Duration
 	ReadTimeout       time.Duration
 	WriteTimeout      time.Duration
@@ -69,6 +70,7 @@ func DefaultConfig() Config {
 	return Config{
 		Profile: ProfileDev, Enforce: true,
 		RequestTimeout: 30 * time.Second, DBTimeout: 5 * time.Second, UploadTimeout: 120 * time.Second,
+		MigrationTimeout:  10 * time.Minute,
 		ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 180 * time.Second, WriteTimeout: 180 * time.Second,
 		IdleTimeout:    120 * time.Second,
 		MaxHeaderBytes: 1 << 20, MaxBodyBytes: 1 << 20, MaxUploadBytes: 64 << 20,
@@ -143,6 +145,7 @@ func Load(getenv Getenv) (Config, error) {
 	setDur("PF_EDP_REQUEST_TIMEOUT", &c.RequestTimeout)
 	setDur("PF_EDP_DB_TIMEOUT", &c.DBTimeout)
 	setDur("PF_EDP_UPLOAD_TIMEOUT", &c.UploadTimeout)
+	setDur("PF_EDP_MIGRATION_TIMEOUT", &c.MigrationTimeout)
 	setDur("PF_EDP_READ_HEADER_TIMEOUT", &c.ReadHeaderTimeout)
 	setDur("PF_EDP_READ_TIMEOUT", &c.ReadTimeout)
 	setDur("PF_EDP_WRITE_TIMEOUT", &c.WriteTimeout)
@@ -200,7 +203,7 @@ func (c Config) Validate() error {
 	if c.Profile == ProfileProduction && c.AllowSuperuserDSN {
 		return fmt.Errorf("PF_ALLOW_SUPERUSER_DSN=1 is refused in the production profile")
 	}
-	if c.RequestTimeout <= 0 || c.DBTimeout <= 0 || c.UploadTimeout <= 0 || c.ReadHeaderTimeout <= 0 ||
+	if c.RequestTimeout <= 0 || c.DBTimeout <= 0 || c.UploadTimeout <= 0 || c.MigrationTimeout <= 0 || c.ReadHeaderTimeout <= 0 ||
 		c.ReadTimeout <= 0 || c.WriteTimeout <= 0 || c.IdleTimeout <= 0 {
 		return fmt.Errorf("all timeouts must be > 0")
 	}

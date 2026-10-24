@@ -185,3 +185,23 @@ func TestMetricsFromChain(t *testing.T) {
 		t.Fatalf("missing histogram:\n%s", out)
 	}
 }
+
+func TestEnforceKillSwitchDisablesLimits(t *testing.T) {
+	cfg := DefaultConfig()
+	cfg.Enforce = false
+	cfg.MaxBodyBytes = 1
+	cfg.RequestTimeout = time.Millisecond
+	h := testChain(cfg, NewQuota(cfg, nil, NewMetrics()), NewMetrics(), nil,
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			time.Sleep(5 * time.Millisecond)
+			_, _ = io.Copy(io.Discard, r.Body)
+			w.WriteHeader(http.StatusOK)
+		}))
+	rr := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/x", strings.NewReader(strings.Repeat("x", 100)))
+	req.ContentLength = 100
+	h.ServeHTTP(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("kill switch must disable body/timeout/quota, got %d", rr.Code)
+	}
+}

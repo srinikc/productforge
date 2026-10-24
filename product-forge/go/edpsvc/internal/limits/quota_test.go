@@ -125,3 +125,19 @@ func TestQuotaClockSkewDoesNotMint(t *testing.T) {
 		t.Fatal("backwards clock must not mint tokens")
 	}
 }
+
+func TestQuotaUniqueTenantsStillConsumeGlobal(t *testing.T) {
+	c := quotaCfg()
+	c.GlobalRPM = 1
+	now := time.Unix(5000, 0)
+	q := NewQuota(c, func() time.Time { return now }, NewMetrics())
+	d, release := q.Acquire("a")
+	if !d.Allowed {
+		t.Fatal(d)
+	}
+	release()
+	d, _ = q.Acquire("b")
+	if d.Allowed || d.Scope != "global" {
+		t.Fatalf("unique tenant must still consume the global bucket, got %+v", d)
+	}
+}

@@ -24,8 +24,8 @@ func TestWriteErrorEnvelopeAndRedaction(t *testing.T) {
 	if err := json.Unmarshal(rr.Body.Bytes(), &env); err != nil {
 		t.Fatal(err)
 	}
-	if env.Error.Code != "RATE_LIMITED" || !env.Error.Retryable || env.Error.RequestID != "rid-1" {
-		t.Fatalf("unexpected envelope %+v", env.Error)
+	if env.Version != "1" || env.Error.Code != "RATE_LIMITED" || !env.Error.Retryable || env.Error.RequestID != "rid-1" {
+		t.Fatalf("unexpected envelope %+v version=%q", env.Error, env.Version)
 	}
 	if strings.Contains(env.Error.Message, "abc") || !strings.Contains(env.Error.Message, "token=[REDACTED]") {
 		t.Fatalf("message not redacted: %q", env.Error.Message)

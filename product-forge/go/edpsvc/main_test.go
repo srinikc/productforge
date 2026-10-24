@@ -103,3 +103,21 @@ func TestReadyWithDB(t *testing.T) {
 		t.Fatalf("ready %d %q", rr.Code, rr.Body.String())
 	}
 }
+
+func TestChunkedOversizeReturns413(t *testing.T) {
+	s := testServer(t)
+	s.cfg.MaxBodyBytes = 10
+	h := limits.Chain(s.buildMux(), s.cfg, s.quota, s.metrics, s.role.OK)
+	rr := httptest.NewRecorder()
+	body := `{"tenant":"t","action":"a","pad":"` + strings.Repeat("x", 200) + `"}`
+	req := httptest.NewRequest(http.MethodPost, "/audit", strings.NewReader(body))
+	req.ContentLength = -1 // chunked
+	req.Header.Set("Authorization", "Bearer test-token")
+	h.ServeHTTP(rr, req)
+	if rr.Code != http.StatusRequestEntityTooLarge {
+		t.Fatalf("want 413, got %d %q", rr.Code, rr.Body.String())
+	}
+	if !strings.Contains(rr.Body.String(), `"code":"PAYLOAD_TOO_LARGE"`) {
+		t.Fatalf("want PAYLOAD_TOO_LARGE envelope, got %s", rr.Body.String())
+	}
+}

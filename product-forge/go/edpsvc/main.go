@@ -381,7 +381,7 @@ func (s *server) migrationsStatus(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) migrationsUp(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := s.dbCtx(r)
+	ctx, cancel := s.migrationCtx(r)
 	defer cancel()
 	out, err := s.withStore(ctx, func(st *store.PgStore) (any, error) {
 		all, err := migrate.LoadDir(s.migDir)
@@ -405,7 +405,7 @@ func (s *server) migrationsUp(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) migrationsDown(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := s.dbCtx(r)
+	ctx, cancel := s.migrationCtx(r)
 	defer cancel()
 	out, err := s.withStore(ctx, func(st *store.PgStore) (any, error) {
 		all, err := migrate.LoadDir(s.migDir)
@@ -481,7 +481,7 @@ var errTenant = errors.New("tenant query parameter is required")
 
 func (s *server) artifactUpload(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseMultipartForm(s.cfg.MaxUploadBytes); err != nil {
-		s.bad(w, r, http.StatusBadRequest, "multipart body required")
+		s.fail(w, r, http.StatusBadRequest, err)
 		return
 	}
 	tenant := r.FormValue("tenant")
@@ -535,21 +535,20 @@ func (s *server) artifactRoute(w http.ResponseWriter, r *http.Request) {
 	s.artifactGet(w, r, rest)
 }
 
-func (s *server) artifactSvc(r *http.Request) (*artifacts.Service, func(), error) {
+func (s *server) artifactSvc(r *http.Request) (*artifacts.Service, error) {
 	tenant := r.URL.Query().Get("tenant")
 	if tenant == "" {
-		return nil, nil, errTenant
+		return nil, errTenant
 	}
-	return artifacts.New(store.BindTenant(s.st, tenant), s.obj), func() {}, nil
+	return artifacts.New(store.BindTenant(s.st, tenant), s.obj), nil
 }
 
 func (s *server) artifactGet(w http.ResponseWriter, r *http.Request, id string) {
-	svc, closeFn, err := s.artifactSvc(r)
+	svc, err := s.artifactSvc(r)
 	if err != nil {
 		s.fail(w, r, http.StatusBadRequest, err)
 		return
 	}
-	defer closeFn()
 	a, err := svc.Get(r.Context(), id)
 	if err != nil {
 		s.fail(w, r, http.StatusNotFound, err)
@@ -559,12 +558,11 @@ func (s *server) artifactGet(w http.ResponseWriter, r *http.Request, id string) 
 }
 
 func (s *server) artifactContent(w http.ResponseWriter, r *http.Request, id string) {
-	svc, closeFn, err := s.artifactSvc(r)
+	svc, err := s.artifactSvc(r)
 	if err != nil {
 		s.fail(w, r, http.StatusBadRequest, err)
 		return
 	}
-	defer closeFn()
 	rc, err := svc.FetchContent(r.Context(), id)
 	if err != nil {
 		s.fail(w, r, http.StatusNotFound, err)
@@ -585,7 +583,11 @@ func (s *server) auditAppend(w http.ResponseWriter, r *http.Request) {
 	var b struct {
 		Tenant, Actor, Action, Resource, Outcome, CorrelationID string
 	}
-	if err := json.NewDecoder(r.Body).Decode(&b); err != nil || b.Tenant == "" || b.Action == "" {
+	if err := json.NewDecoder(r.Body).Decode(&b); err != nil {
+		s.fail(w, r, http.StatusBadRequest, err)
+		return
+	}
+	if b.Tenant == "" || b.Action == "" {
 		s.bad(w, r, http.StatusBadRequest, "tenant and action are required")
 		return
 	}
@@ -612,7 +614,11 @@ func (s *server) jobSubmit(w http.ResponseWriter, r *http.Request) {
 		Tenant, ID, Kind, IdempotencyKey string
 		Priority                         int
 	}
-	if err := json.NewDecoder(r.Body).Decode(&b); err != nil || b.Tenant == "" || b.ID == "" {
+	if err := json.NewDecoder(r.Body).Decode(&b); err != nil {
+		s.fail(w, r, http.StatusBadRequest, err)
+		return
+	}
+	if b.Tenant == "" || b.ID == "" {
 		s.bad(w, r, http.StatusBadRequest, "tenant and id are required")
 		return
 	}
@@ -637,7 +643,11 @@ func (s *server) jobClaim(w http.ResponseWriter, r *http.Request) {
 		Tenant, Worker string
 		TTLSeconds     int
 	}
-	if err := json.NewDecoder(r.Body).Decode(&b); err != nil || b.Tenant == "" || b.Worker == "" {
+	if err := json.NewDecoder(r.Body).Decode(&b); err != nil {
+		s.fail(w, r, http.StatusBadRequest, err)
+		return
+	}
+	if b.Tenant == "" || b.Worker == "" {
 		s.bad(w, r, http.StatusBadRequest, "tenant and worker are required")
 		return
 	}
@@ -663,7 +673,11 @@ func (s *server) jobAction(w http.ResponseWriter, r *http.Request) {
 	var b struct {
 		Tenant, ID, Lease, Action, Reason string
 	}
-	if err := json.NewDecoder(r.Body).Decode(&b); err != nil || b.Tenant == "" || b.ID == "" {
+	if err := json.NewDecoder(r.Body).Decode(&b); err != nil {
+		s.fail(w, r, http.StatusBadRequest, err)
+		return
+	}
+	if b.Tenant == "" || b.ID == "" {
 		s.bad(w, r, http.StatusBadRequest, "tenant and id are required")
 		return
 	}
@@ -714,7 +728,11 @@ func (s *server) memoryHandle(w http.ResponseWriter, r *http.Request) {
 			Content, Source, Owner                         string
 			Embedding                                      []float32
 		}
-		if err := json.NewDecoder(r.Body).Decode(&b); err != nil || b.ID == "" || b.Tenant == "" {
+		if err := json.NewDecoder(r.Body).Decode(&b); err != nil {
+			s.fail(w, r, http.StatusBadRequest, err)
+			return
+		}
+		if b.ID == "" || b.Tenant == "" {
 			s.bad(w, r, http.StatusBadRequest, "id and tenant are required")
 			return
 		}
@@ -817,7 +835,11 @@ func (s *server) backlogHandle(w http.ResponseWriter, r *http.Request) {
 			ID, Tenant, Type, Status, Title, Body string
 			Data                                  json.RawMessage
 		}
-		if err := json.NewDecoder(r.Body).Decode(&b); err != nil || b.ID == "" || b.Tenant == "" {
+		if err := json.NewDecoder(r.Body).Decode(&b); err != nil {
+			s.fail(w, r, http.StatusBadRequest, err)
+			return
+		}
+		if b.ID == "" || b.Tenant == "" {
 			s.bad(w, r, http.StatusBadRequest, "id and tenant are required")
 			return
 		}
@@ -877,6 +899,11 @@ func (s *server) dbCtx(r *http.Request) (context.Context, context.CancelFunc) {
 	return context.WithTimeout(r.Context(), s.cfg.DBTimeout)
 }
 
+// migrationCtx bounds DDL with the (longer) migration timeout, not the per-query DB timeout.
+func (s *server) migrationCtx(r *http.Request) (context.Context, context.CancelFunc) {
+	return context.WithTimeout(r.Context(), s.cfg.MigrationTimeout)
+}
+
 func (s *server) bad(w http.ResponseWriter, r *http.Request, status int, msg string) {
 	limits.WriteError(w, r, status, msg)
 }
@@ -886,12 +913,17 @@ func (s *server) fail(w http.ResponseWriter, r *http.Request, status int, err er
 		s.bad(w, r, status, "request failed")
 		return
 	}
+	var mbe *http.MaxBytesError
+	if errors.As(err, &mbe) {
+		limits.WriteError(w, r, http.StatusRequestEntityTooLarge, "request body exceeds the configured limit")
+		return
+	}
 	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
 		limits.WriteHandlerError(w, r, err)
 		return
 	}
 	if status >= http.StatusInternalServerError {
-		log.Printf("edpsvc: %s %s: %v", r.Method, r.URL.Path, err)
+		log.Printf("edpsvc: %s %s: %s", r.Method, r.URL.Path, limits.Redact(err.Error()))
 		limits.WriteError(w, r, status, "internal error")
 		return
 	}

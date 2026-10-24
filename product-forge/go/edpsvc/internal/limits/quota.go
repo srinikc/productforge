@@ -110,21 +110,22 @@ func (q *Quota) Acquire(tenant string) (Decision, func()) {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 
-	var tb *bucket
-	if tenant != "" {
-		tb = q.tenantBucket(tenant, now)
-		if tb == nil {
-			if q.metrics != nil {
-				q.metrics.Inc("edp_quota_denials_total", "scope", "tenant_cap")
-			}
-			return Decision{Allowed: false, RetryAfter: time.Second, Scope: "tenant_cap"}, func() {}
-		}
-	}
 	if ok, wait := q.take(&q.global, float64(q.cfg.GlobalRPM), float64(q.cfg.GlobalRPM)/60.0, now); !ok {
 		if q.metrics != nil {
 			q.metrics.Inc("edp_quota_denials_total", "scope", "global")
 		}
 		return Decision{Allowed: false, RetryAfter: wait, Scope: "global"}, func() {}
+	}
+	var tb *bucket
+	if tenant != "" {
+		tb = q.tenantBucket(tenant, now)
+		if tb == nil {
+			q.refund(&q.global, float64(q.cfg.GlobalRPM))
+			if q.metrics != nil {
+				q.metrics.Inc("edp_quota_denials_total", "scope", "tenant_cap")
+			}
+			return Decision{Allowed: false, RetryAfter: time.Second, Scope: "tenant_cap"}, func() {}
+		}
 	}
 	if tb != nil {
 		if ok, wait := q.take(tb, float64(q.cfg.TenantRPM), float64(q.cfg.TenantRPM)/60.0, now); !ok {

@@ -66,7 +66,8 @@ type ErrorPayload struct {
 
 // ErrorEnvelope is the v1 error envelope.
 type ErrorEnvelope struct {
-	Error ErrorPayload `json:"error"`
+	Version string       `json:"version"`
+	Error   ErrorPayload `json:"error"`
 }
 
 var statusCodes = map[int]struct {
@@ -117,7 +118,7 @@ func WriteErrorCode(w http.ResponseWriter, r *http.Request, status int, code, me
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(ErrorEnvelope{Error: ErrorPayload{
+	_ = json.NewEncoder(w).Encode(ErrorEnvelope{Version: "1", Error: ErrorPayload{
 		Code: code, Message: Redact(message), Category: category, Retryable: retryable, RequestID: rid}})
 }
 

@@ -86,12 +86,12 @@ implementation=library). One shared instance per service per environment; sessio
 ## 10. EDP data-plane limits (BI-PF-1302 / EDP-10)
 
 `go/edpsvc` enforces the EDP data-plane guardrails:
-- **Timeouts:** request 30s (JSON), DB 5s, upload 120s; server read-header 5s / read 180s / write 180s / idle 120s.
+- **Timeouts:** request 30s (JSON), DB 5s, upload 120s, migrations 10m; server read-header 5s / read 180s / write 180s / idle 120s.
 - **Caps:** 1 MiB headers and JSON body; 64 MiB `/artifacts` upload.
 - **Quotas:** per-tenant 600 rpm / 5 concurrent, global 6000 rpm / 10 concurrent (in-process token buckets + semaphores). The global cap is the hard anti-evasion control because `edpsvc` has one admin principal; per-tenant buckets are attribution. Hard per-tenant authentication/isolation is **BI-PF-1478**.
 - **Pool:** one shared bounded pgx pool (10 connections by default); `PF_EDP_GLOBAL_CONCURRENCY` must be <= the pool max or startup fails.
 - **Config:** `PF_EDP_*` env flags are registered in `config/env-flags.json`; `PF_PROFILE=dev|production`; `PF_ALLOW_SUPERUSER_DSN=1` is a non-production escape hatch only.
-- **Error contract (v1):** `{"error":{"code","message","category","retryable","request_id"}}` plus `X-Request-ID`; 413/429/504 are stable codes.
+- **Error contract (v1):** `{"version":"1","error":{"code","message","category","retryable","request_id"}}` plus `X-Request-ID`; 413/429/504 are stable codes.
 - **Routes:** `GET /admin/limits` (admin bearer: effective limits + aggregate counters/pool/role), `GET /metrics` (Prometheus counters/histograms; internal), `GET /ready` (DB ping).
 - **Production:** `PF_PROFILE=production` refuses `PF_DEV`/`API_ALLOW_ANON`/`PF_ALLOW_ANON`, a missing/weak `PF_ADMIN_TOKEN`, and a superuser/BYPASSRLS runtime DSN. Migrations are a deploy step (`scripts/dev/db_migrate.py`); `/admin/migrations/*` is dev/ops-only. `PF_EDP_ENFORCE_LIMITS=0` is refused in production.
 - **Rollback:** production is code revert/redeploy; non-production may set `PF_EDP_ENFORCE_LIMITS=0` (structured errors and the profile guard stay on).
