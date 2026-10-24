@@ -1,17 +1,17 @@
 # Backlog Summary
 
-> GENERATED 2026-10-24T20:32:35 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-24T20:34:37 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 134  |  **Closed:** 583
+- **Open:** 133  |  **Closed:** 584
 - `blocked`: 1
 - `executing`: 3
 - `in_progress`: 1
-- `new`: 129
+- `new`: 128
 
-### new, by category (129)
+### new, by category (128)
 **API / reports / HIL / misc** (15)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
@@ -67,13 +67,12 @@
 | BI-PF-1438 | Should | feature | UIUX knowledge ingestion (guidelines, design-systems, samples) | Distill UIUX/ into PF guidelines + reference baselines the existing loader already injects. |
 | BI-PF-1443 | Should | feature | Agent skill & knowledge-layer bindings | Bind the 8 skills + ui-ux/design-systems layers to the right agents. |
 
-**Licensing / tenancy** (6)
+**Licensing / tenancy** (5)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-PF-0390 | Should | epic | EPIC A: PF Commercial & IP Foundation (contracts, Go core, licensing, packaging, EAP, RDC, governance, vertical slice) | EPIC A — the needed-now foundation: A0 baseline freeze + ADR register; A1 thin contracts incl. Go<->Python con... |
 | BI-PF-1287 | Should | change | License issuance production: vendor keypair management + signing-env integration (A3 packaging) | Provision a vendor signing keypair for production issuance; ship only the public key with the product; integra... |
 | BI-PF-1292 | Must | epic | EPIC: Enterprise Data Plane (DB & Storage) - PostgreSQL system of record + object store + tenant isolation + data residency | Build the provider-neutral enterprise data plane from docs/Product_Forge_Enterprise_Performance_Security_DB_St... |
-| BI-PF-1315 | Must | feature | EDP-23: Backup/PITR + restore drills (full service + single-tenant) + DB<->object integrity reconciliation + region-aware restore | Deliver PITR readiness, automated full/single-tenant restore drills, DB<->object integrity reconciliation and ... |
 | BI-PF-1317 | Could | feature | EDP-24: Scale-out & enterprise isolation tiers (read replicas / partitioning / tenant isolation tiers / additional region cells / region-migration workflow) [EVIDENCE-GATED] | Provide scale-out and enterprise isolation tiers including read-replica support, DB partitioning, tenant isola... |
 | BI-PF-1415 | Should | defect | RCCA: config/derived stores classified by kind heuristic (not reviewed) - 78 project/tenant-scoped stores likely belong in DB (views/tables) | RCCA: config/derived stores classified by kind heuristic (not reviewed) - 78 project/tenant-scoped stores like... |
 
@@ -371,5 +370,5 @@
 ---
 
 ## Totals
-- backend: 134 open / 583 closed
+- backend: 133 open / 584 closed
 - dashboard: 146 open / 3 closed
