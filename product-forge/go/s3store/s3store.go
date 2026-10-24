@@ -108,7 +108,10 @@ func (s *S3Store) Put(ctx context.Context, key string, r io.Reader, size int64, 
 	if mode, until, lerr := retentionFor(opts); lerr != nil {
 		return datastore.ObjectInfo{}, lerr
 	} else if mode != "" {
-		if !s.objectLock {
+		s.lockMu.Lock()
+		lock := s.objectLock
+		s.lockMu.Unlock()
+		if !lock {
 			return datastore.ObjectInfo{}, fmt.Errorf("s3store: retention requested but the bucket has no object-lock configuration: %w", datastore.ErrUnsupported)
 		}
 		putOpts.Mode = mode
@@ -245,6 +248,9 @@ func (s *S3Store) Capabilities() datastore.Capabilities {
 // explicitly (it is irreversible). Retention always requires Immutable.
 func retentionFor(opts datastore.PutOptions) (minio.RetentionMode, time.Time, error) {
 	if opts.Retention <= 0 {
+		if strings.TrimSpace(opts.RetentionMode) != "" {
+			return "", time.Time{}, fmt.Errorf("%w: RetentionMode requires Retention", datastore.ErrInvalidPolicy)
+		}
 		return "", time.Time{}, nil
 	}
 	if !opts.Immutable {

@@ -17,6 +17,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"productforge/datastore"
@@ -37,6 +38,7 @@ var (
 type LocalStore struct {
 	root    string
 	maxSize int64
+	mu      sync.Mutex // serializes the immutable check + rename
 }
 
 type meta struct {
@@ -155,14 +157,18 @@ func (s *LocalStore) Put(ctx context.Context, key string, r io.Reader, size int6
 		return datastore.ObjectInfo{}, err
 	}
 	sum := hex.EncodeToString(h.Sum(nil))
+	s.mu.Lock()
 	if opts.Immutable {
 		if m, _, merr := s.readMeta(key); merr == nil && m.Checksum != "" && m.Checksum != sum {
+			s.mu.Unlock()
 			_ = os.Remove(tmp.Name())
 			return datastore.ObjectInfo{}, datastore.ErrImmutable
 		}
 	}
-	if err := os.Rename(tmp.Name(), full); err != nil {
-		return datastore.ObjectInfo{}, err
+	renameErr := os.Rename(tmp.Name(), full)
+	s.mu.Unlock()
+	if renameErr != nil {
+		return datastore.ObjectInfo{}, renameErr
 	}
 	ct := opts.ContentType
 	if ct == "" {
