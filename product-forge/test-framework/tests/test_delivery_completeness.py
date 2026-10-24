@@ -2,6 +2,8 @@
 import sys
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "scripts" / "dev"))
 
@@ -62,8 +64,9 @@ def test_load_resolves_repo_root_relative_paths(tmp_path, monkeypatch):
 
 def test_load_skips_deleted_and_rejects_escape(tmp_path, monkeypatch):
     monkeypatch.setattr(d, "_repo_root", lambda: str(tmp_path))
-    assert d._load("product-forge/data/backlog/items/BI-TEST-MISSING.json") == {}
-    assert d._load("../../BI-TEST-OUTSIDE.json") == {}
+    assert d._load("product-forge/data/backlog/items/BI-TEST-MISSING.json") is None
+    with pytest.raises(RuntimeError, match="escapes the repo root"):
+        d._load("../../BI-TEST-OUTSIDE.json")
 
 
 def test_load_fails_closed_on_malformed_item(tmp_path, monkeypatch):
@@ -71,12 +74,17 @@ def test_load_fails_closed_on_malformed_item(tmp_path, monkeypatch):
     item.parent.mkdir(parents=True)
     item.write_text("{not json", encoding="utf-8")
     monkeypatch.setattr(d, "_repo_root", lambda: str(tmp_path))
-    try:
+    with pytest.raises(RuntimeError, match="BI-TEST-BAD.json"):
         d._load("product-forge/data/backlog/items/BI-TEST-BAD.json")
-    except RuntimeError as e:
-        assert "BI-TEST-BAD.json" in str(e)
-    else:
-        raise AssertionError("malformed item must fail closed")
+
+
+def test_load_fails_closed_on_non_object(tmp_path, monkeypatch):
+    item = tmp_path / "product-forge" / "data" / "backlog" / "items" / "BI-TEST-ARR.json"
+    item.parent.mkdir(parents=True)
+    item.write_text("[1, 2]", encoding="utf-8")
+    monkeypatch.setattr(d, "_repo_root", lambda: str(tmp_path))
+    with pytest.raises(RuntimeError, match="not a JSON object"):
+        d._load("product-forge/data/backlog/items/BI-TEST-ARR.json")
 
 
 def test_transitions_uses_repo_root(tmp_path, monkeypatch):
@@ -85,7 +93,7 @@ def test_transitions_uses_repo_root(tmp_path, monkeypatch):
     item.parent.mkdir(parents=True)
     item.write_text('{"id": "BI-TEST-X", "status": "completed"}', encoding="utf-8")
 
-    def fake_git(*args):
+    def fake_git(*args, **kwargs):
         if args and args[0] == "diff":
             return rel
         if args and args[0] == "show":

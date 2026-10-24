@@ -18,6 +18,7 @@ Output is one JSON line on stderr; --report exits 0; --self-test runs the negati
 from __future__ import annotations
 
 import argparse
+import functools
 import json
 import os
 import re
@@ -86,11 +87,15 @@ def transition_problems(item: dict) -> list[str]:
     return bad
 
 
-def _git(*args: str) -> str:
+def _git(*args: str, allow_fail: bool = False) -> str:
     r = subprocess.run(["git", *args], cwd=str(ROOT), capture_output=True, text=True, timeout=20)
+    if r.returncode != 0 and not allow_fail:
+        raise RuntimeError(f"delivery-completeness: git {' '.join(args)} failed (rc={r.returncode}): "
+                           f"{(r.stderr or '').strip()}")
     return (r.stdout or "").strip()
 
 
+@functools.lru_cache(maxsize=1)
 def _repo_root() -> str:
     """Git top-level (the workspace root is an ancestor of product-forge in this layout)."""
     try:
@@ -104,23 +109,27 @@ def _repo_root() -> str:
     return out
 
 
-def _load(rel_repo: str) -> dict:
+def _load(rel_repo: str) -> dict | None:
     """Read a changed item from the git repo root, not from product-forge/ROOT.
 
-    Deleted paths are skipped ({}); unreadable/malformed items fail closed with the path in the error.
+    Returns None only for a path absent from the tree (deleted in the diff). A path escaping the repo root,
+    an unreadable file, malformed JSON or a non-object item fails closed with the path in the error.
     """
     root = Path(_repo_root()).resolve()
     p = (root / rel_repo).resolve()
     try:
         p.relative_to(root)
-    except ValueError:
-        return {}
+    except ValueError as e:
+        raise RuntimeError(f"delivery-completeness: changed item escapes the repo root: {rel_repo}") from e
     try:
-        return json.loads(p.read_text(encoding="utf-8"))
+        data = json.loads(p.read_text(encoding="utf-8"))
     except FileNotFoundError:
-        return {}
+        return None
     except (OSError, json.JSONDecodeError) as e:
         raise RuntimeError(f"delivery-completeness: cannot read changed item {rel_repo}: {e}") from e
+    if not isinstance(data, dict):
+        raise RuntimeError(f"delivery-completeness: changed item is not a JSON object: {rel_repo}")
+    return data
 
 
 def transitions(base: str = "") -> list[dict]:
@@ -132,12 +141,12 @@ def transitions(base: str = "") -> list[dict]:
         if "/data/backlog/items/" not in rel or not rel.endswith(".json"):
             continue
         cur = _load(rel)
-        if not cur:
+        if cur is None:
             skipped += 1
             continue
         if str(cur.get("status") or "").lower() not in DONE:
             continue
-        prev_raw = _git("show", f"{base}:{rel}")
+        prev_raw = _git("show", f"{base}:{rel}", allow_fail=True)
         try:
             prev = json.loads(prev_raw) if prev_raw else {}
         except Exception:
@@ -145,7 +154,7 @@ def transitions(base: str = "") -> list[dict]:
         if str(prev.get("status") or "").lower() not in DONE:
             out.append(cur)
     if skipped:
-        print(f"delivery-completeness: skipped {skipped} deleted path(s) in the diff", file=sys.stderr)
+        print(f"delivery-completeness: skipped {skipped} deleted/absent path(s) in the diff", file=sys.stderr)
     return out
 
 
