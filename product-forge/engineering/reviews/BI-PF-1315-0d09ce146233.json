@@ -1,0 +1,43 @@
+{
+  "item": "BI-PF-1315",
+  "sha": "0d09ce146233",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-24T14:41:06.790245+00:00",
+  "findings": {
+    "BLOCKER": [
+      "reconcile --prefix + --repair is a data-loss machine: Classify filters *objects* by prefix but loads *all* metadata rows, so every row outside the prefix is classified Missing and RepairMissing DELETEs it \u2014 irreversible backup-registry loss from one well-intentioned command.",
+      "product-forge/config/residency-policy.json starts with a UTF-8 BOM (\ufeff); Go's encoding/json rejects BOM, so LoadRegionPolicy fails on the default path and the region guard is unusable with shipped config.",
+      "Full-service drill does not meet AC: no schema_migrations verification, no per-table checksums, and DrillReport has no RPO/archive-age field \u2014 only counts and elapsed time are recorded.",
+      "pg_dump runs without the password env: dsnEnv extracts PGPASSWORD but FullRestore never sets cmd.Env and TenantRestore discards the env entirely (`safe, _ :=`), while the password is stripped from the DSN \u2014 drills fail on any password-auth cluster, the enterprise norm; .Output() also discards stderr so failures aren't actionable."
+    ],
+    "MAJOR": [
+      "--repair is destructive beyond the blocker: row-by-row DELETEs, no transaction, no dry-run listing, no audit log of what was removed, and semantics (delete metadata for *missing* objects) risk erasing legitimate records of temporarily-unlistable objects; AC wording was \"repair orphaned METADATA rows\" \u2014 confirm intent and add guardrails.",
+      "TenantRestore never drops the scratch DB (no defer drop as FullRestore has) \u2014 leaks databases and credentials-adjacent state on every run.",
+      "PITR check has no staleness threshold: LastArchivedAgo is reported but never evaluated, so a cluster whose last WAL archived 3 days ago still reports ok=true.",
+      "`_ = conn.QueryRow(... pg_stat_archiver).Scan(...)` swallows all errors \u2192 the tool reports \"no WAL segment archived yet\" instead of the real failure (fail-open on the exact signal that matters).",
+      "AC test coverage gap: no test for drill verification math, none for RepairMissing/--repair guard, none for archiver result parsing \u2014 AC explicitly requires all three.",
+      "withDB strips every query parameter (sslmode, options, search_path) when deriving scratch DSNs, so drill connections can silently run with different TLS/role semantics than production."
+    ],
+    "MINOR": [
+      "run() ignores cmd.Env for all psql invocations; only pg_restore receives the password env \u2014 inconsistent auth handling across sibling commands in the same function.",
+      "withDB misbehaves on a DSN without \"/\" (slash == -1 \u2192 base[:0] yields a bare db name, no error).",
+      "FullRestore: dst-count failure path `continue`s before Rows accumulation; RTOOK=false does not affect the exit code, so a blown RTO budget still exits 0.",
+      "Tenant export builds `COPY (... WHERE tenant_id = '%s')` with manual quote-escaping while verification uses parameters \u2014 inconsistent injection defense; use parameterized COPY/pgx CopyFrom.",
+      "Table and scratch DB names are concatenated into SQL/DSN unquoted; repair allowlists table names but still interpolates into DELETE.",
+      "main.go: os.Exit inside deferred-output closure skips conn.Close and defers; acceptable for CLI but fragile if reused."
+    ],
+    "NIT": [
+      "Classify re-filters objects by prefix even though st.List(prefix) already scopes the listing \u2014 redundant, and it's the mechanism behind the blocker.",
+      "go.sum carries testify/humanize entries for modules the package doesn't import \u2014 trim to keep dependency surface auditable.",
+      "go_modules_check.py now only expands the check set when hit \u2286 registered module names; a stray new directory under go/ silently narrows coverage \u2014 confirm intended.",
+      "residency-policy default path is CWD-relative (\"config/residency-policy.json\") \u2014 brittle under cron/CI; resolve relative to a known root or env."
+    ],
+    "SUMMARY": [
+      "Correct shape (Go, cmd/library split, explicit exit codes, region fail-closed default) but not shippable: the prefix+repair combination can mass-delete backup metadata, the shipped policy file cannot be parsed, the drills fail on password-auth clusters, and three explicit AC elements (schema_migrations, checksums, RPO) are absent.",
+      "Top risks: destructive repair path without transaction/audit, BOM-broken guard config, and tests that skip the very verification math the AC calls out.",
+      "Recommend blocking merge until the repair path is prefix-consistent and dry-run-by-default, config parses, drills authenticate correctly, and the missing AC checks plus their tests land."
+    ]
+  }
+}
