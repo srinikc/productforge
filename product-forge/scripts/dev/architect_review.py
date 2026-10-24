@@ -425,24 +425,85 @@ def render_gate_view(view: dict, mode: str) -> str:
     return _render_review(view["review"], view["dispositions"], mode)
 
 
+def _norm_status(status) -> str:
+    st = str(status or "PENDING").upper()
+    return st if st in DISPOSITION_STATUSES else "PENDING"
+
+
+def _is_resolved_status(status) -> bool:
+    return _norm_status(status) not in ("PENDING",)
+
+
+def overall_recommendation(rows: list[tuple[str, str]], parsed_ok: bool = True) -> tuple[str, str]:
+    """Pure overall verdict from (severity, disposition-status) rows (worst wins).
+
+    Fail closed: unparsable evidence or a pending BLOCKER/MAJOR is NOT READY. A resolved BLOCKER/MAJOR that
+    was accepted/deferred/scope/rejected is APPROVE WITH ATTENTION; otherwise APPROVE. Unknown statuses are
+    normalized to PENDING. Pending MINOR/NIT are advisory and do not block (they are counted).
+    """
+    counts = {s: 0 for s in SEVERITIES}
+    dispo: dict[str, int] = {}
+    blocking = 0
+    attention = 0
+    for sev, status in rows:
+        sev = str(sev or "").upper()
+        counts[sev] = counts.get(sev, 0) + 1
+        st = _norm_status(status)
+        dispo[st] = dispo.get(st, 0) + 1
+        if sev in ("BLOCKER", "MAJOR"):
+            if not _is_resolved_status(st):
+                blocking += 1
+            elif st in ("ACCEPTED", "DEFERRED", "SCOPE", "REJECTED"):
+                attention += 1
+    total = len(rows)
+    counts_txt = (f"Findings: {total} (BLOCKER {counts.get('BLOCKER', 0)} / MAJOR {counts.get('MAJOR', 0)} / "
+                  f"MINOR {counts.get('MINOR', 0)} / NIT {counts.get('NIT', 0)}); dispositions: "
+                  + (", ".join(f"{k.lower()} {v}" for k, v in sorted(dispo.items())) or "none"))
+    if not parsed_ok:
+        return "NOT READY", f"{counts_txt}; review evidence is unparsable/missing"
+    if blocking:
+        return "NOT READY", f"{counts_txt}; {blocking} blocking finding(s) pending"
+    if attention:
+        return "APPROVE WITH ATTENTION", (f"{counts_txt}; {attention} blocker/major finding(s) "
+                                          "accepted/deferred/scope/rejected")
+    return "APPROVE", f"{counts_txt}; all blockers/majors actioned"
+
+
+def _pending_count(rows: list[tuple[str, str]]) -> int:
+    """ONE pending predicate shared by the verdict and the footer."""
+    return sum(1 for _, st in rows if not _is_resolved_status(st))
+
+
+def _cell(text) -> str:
+    return (str(text or "").replace("\\", "\\\\").replace("|", "\\|")
+            .replace("\r", " ").replace("\n", " ").strip())
+
+
 def _render_review(rev: dict, disp: dict, mode: str) -> str:
-    """ONE consolidated section: each finding with OUR response + status beside it."""
+    """ONE consolidated decision table: finding + disposition + response, plus the overall verdict."""
     gate = "1.5" if mode == "design" else "2.5"
     f = rev.get("findings") or {}
-    lines = [f"Gate {gate} - Findings & Dispositions (model={rev.get('model','?')} sha={rev.get('sha','?')})",
-             "status: PENDING | actioned | accepted | deferred | rejected"]
-    n, pending = 0, 0
+    rows: list[tuple[str, str, str, str]] = []
     for n, (sev, text) in enumerate(iter_findings(f), 1):
         d = _disp_for(disp, n, text)
-        st = (d.get("status") or "PENDING").upper()
-        if not _is_resolved(d):
-            pending += 1
-        lines.append(f"[{sev}] #{n} ({st})")
-        lines.append(f"  finding : {text}")
-        lines.append(f"  response: {d.get('note') or '(no response yet)'}")
+        st = _norm_status(d.get("status"))
+        rows.append((sev, st, text, d.get("note") or "(no response yet)"))
+    pairs = [(r[0], r[1]) for r in rows]
+    verdict, counts = overall_recommendation(pairs, parsed_ok=bool(rev.get("parsed_ok", True)))
+    pending = _pending_count(pairs)
+    lines = [f"Gate {gate} - Findings & Dispositions (model={rev.get('model', '?')} sha={rev.get('sha', '?')})",
+             f"**Overall architect recommendation: {verdict}**",
+             counts,
+             "status: PENDING | ACTIONED | ACCEPTED | DEFERRED | REJECTED | SCOPE",
+             "",
+             "| # | Severity | Finding | Disposition | Response / resolution |",
+             "|---|---|---|---|---|"]
+    for n, (sev, st, text, note) in enumerate(rows, 1):
+        lines.append(f"| {n} | {sev} | {_cell(text)} | {st} | {_cell(note)} |")
+    lines.append("")
     lines.append("--- SUMMARY (review) ---")
     lines += [f"  {x}" for x in f.get("SUMMARY", [])]
-    lines.append(f"=== {n} finding(s), {pending} pending ===")
+    lines.append(f"=== {len(rows)} finding(s), {pending} pending ===")
     return "\n".join(lines)
 
 

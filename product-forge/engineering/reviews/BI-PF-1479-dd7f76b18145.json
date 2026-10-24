@@ -1,0 +1,34 @@
+{
+  "item": "BI-PF-1479",
+  "sha": "dd7f76b18145",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-24T17:43:29.710479+00:00",
+  "findings": {
+    "BLOCKER": [
+      "Acceptance requires `gate1_check.py` to render the same decision table; the diff contains no change to `gate1_check.py` and no test exercising it \u2014 AC coverage for that half is unproven (may be an independent renderer that now diverges).",
+      "If `gate1_check.py` has its own `_render_review`, there are now two recommendation/table implementations with no shared source of truth (reuse/integrity violation); no test asserts parity between the two entry points."
+    ],
+    "MAJOR": [
+      "`id-blocks.json` allocation integrity: prior session ended at 1477 with `next: 1478`, yet the new session starts at 1479 and `reserved_up_to` jumps to 1479, silently stranding ID 1478 in an unallocated hole.",
+      "Verdict semantics deviate from AC: `REJECTED` is folded into \"APPROVE WITH ATTENTION\" although the AC enumerates only ACCEPTED/DEFERRED/SCOPE; doc text disagrees with AC too \u2014 pick one and test it as a contract.",
+      "Pending-count logic is computed twice (inside `overall_recommendation` and again as `pending = sum(...)` in `_render_review`); the two can drift and change the `=== N finding(s), M pending ===` footer vs the verdict."
+    ],
+    "MINOR": [
+      "Invalid/unknown disposition statuses are printed verbatim in the Disposition column (e.g. `ACTIONEDD`) while being treated as PENDING \u2014 the table then displays a status that is not in the legend line above it.",
+      "`counts` in `overall_recommendation` silently absorbs unknown severities but never surfaces them; a typoed severity inflates `total` while all severity counts under-report (masked fail-closed).",
+      "Table body rows reuse the raw `sev` string but the verdict path upper-cases it, so lowercase severities render inconsistently in the table vs the counts.",
+      "No test asserts the disposition-count legend/status list or that `gate1_check --json`/exit codes are byte-identical after this change (AC claims these are unchanged but nothing pins them)."
+    ],
+    "NIT": [
+      "Stray extra blank line added before `def _ingest` (three consecutive newlines) \u2014 noise in the diff.",
+      "Tests assert exact bolded verdict substrings; a wording tweak in the recommendation copy will break tests unrelated to behavior (assert on a parsed verdict field instead).",
+      "`REVIEW-GATES-LIFECYCLE.md` says \"accepted/deferred/scope/rejected\" while the AC says \"ACCEPTED/DEFERRED/SCOPE\"; docs and AC should be reconciled."
+    ],
+    "SUMMARY": [
+      "Rendering and fail-closed verdict logic are sound and well unit-tested for `architect_review.py`, but the AC's `gate1_check.py` requirement is unproven, so the change cannot be signed off as complete.",
+      "Top risks: potential duplicate/divergent renderer for gate1_check, a hole in the ID allocation ledger, and verdict semantics (`REJECTED`) drifting from the written acceptance criteria."
+    ]
+  }
+}

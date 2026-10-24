@@ -1,0 +1,32 @@
+{
+  "item": "BI-PF-1479",
+  "sha": "2cac196fe28b",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-10-24T17:40:08.925745+00:00",
+  "findings": {
+    "BLOCKER": [
+      "none"
+    ],
+    "MAJOR": [
+      "AC requires `gate1_check.py` to render the table, yet `gate1_check.py` is absent from `affected_files`/`in_scope`. The design must state the explicit reuse path (import and call the single `_render_review`/shared helper) and prove no second, divergent renderer is created (CL-001 single-writer).",
+      "Recommendation semantics fail open on unknown/typo'd disposition strings: design defines outcomes for PENDING/ACCEPTED/DEFERRED/SCOPE/ACTIONED but not how an unrecognized status (from `_disp_for` or a hand-edited review file) is classified. Unspecified handling must default to pending -> NOT READY (CL-006 integrity), and this path must be tested.",
+      "\"APPROVE when all blockers/majors are ACTIONED\" ignores MINOR findings entirely and ignores mixed states (e.g., one BLOCKER ACTIONED + one MAJOR ACCEPTED). Precedence and whether MINOR-pending can coexist with APPROVE is undefined; the tier precedence (worst disposition wins) must be stated explicitly in design and docs."
+    ],
+    "MINOR": [
+      "AC claims `gate1_check --json` and exit codes are \"unchanged\" but the design commits no schema-stability assertion (golden JSON fixture or contract test). Add one so renderer refactors cannot silently break the machine path.",
+      "`overall_recommendation(rev, disp)` signature couples to a specific dispositions container; consider passing an explicit list of (severity, disposition) tuples so the helper is pure, unit-testable, and decoupled from `_disp_for`/parse internals.",
+      "Reversibility is stated but the design omits the design-guardrail checklist answers (authz/tenant/blast-radius N/A declarations, observability). Even for tooling, record the N/A rationale in the design to satisfy CL-008."
+    ],
+    "NIT": [
+      "No log/metric emission when the computed recommendation is NOT READY; a single structured log line would help diagnose gate failures in CI without scraping stdout.",
+      "Long finding cells widen the table; consider a max-width truncation with a pointer to the full text in the JSON path (data loss avoided since --json remains authoritative)."
+    ],
+    "SUMMARY": [
+      "Solid, well-scoped, reversible renderer change in allowed tooling Python; language rule and rollback are satisfied.",
+      "Top risks: AC/scope mismatch on `gate1_check.py` reuse, and undefined fail-closed behavior for unknown dispositions \u2014 both can invalidate CL-006 gate integrity if left implicit.",
+      "Verdict: APPROVE WITH ATTENTION contingent on resolving the two MAJORs before Gate 1.5 sign-off."
+    ]
+  }
+}
