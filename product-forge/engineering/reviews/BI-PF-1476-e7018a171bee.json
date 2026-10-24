@@ -1,0 +1,33 @@
+{
+  "item": "BI-PF-1476",
+  "sha": "e7018a171bee",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-24T16:35:33.722130+00:00",
+  "findings": {
+    "BLOCKER": [
+      "AC requires `target.related_item=BI-PF-1476`; the diff adds a `related_items` array instead, and no gate/AC check covers it \u2014 acceptance criterion objectively unmet.",
+      "`re`/`copy` are used by new logic (`re.findall`, `copy.deepcopy`) but no import changes appear in the diff; if absent at module scope the gate hard-fails at import time."
+    ],
+    "MAJOR": [
+      "Registry `description` changed but no regenerated STORE-DATAFLOW/docs artifact is in the diff; AC requires docs-fresh to pass post-regeneration \u2014 freshness unproven.",
+      "`--retained-audit` and `retained_audit()` ship new unrequested surface, are not exercised by the self-test, and always exit 0 \u2014 dead/unchecked code path in the gate script.",
+      "Pinned parity lives in a hardcoded `FORMALLY_RETAINED` map separate from `retained_problems`' generic rule; two sources of truth for \"which stores are formally retained\" will drift as more stores are audited."
+    ],
+    "MINOR": [
+      "ADR index jumps ADR-0006 \u2192 ADR-0009 with no 0007/0008 rows; confirm intentional, since anchor/link and index completeness checks may flag gaps.",
+      "`ADR_DOC` path is hardcoded; `--registry <alternate>` runs still validate against the production ADR file, weakening isolated test runs.",
+      "Generic rule fires only when `decision_ref` is present, so a retained store with a reason but no ref passes silently \u2014 `retained_audit` surfaces it but nothing fails on it.",
+      "`retained_reason` embeds a full prose summary that duplicates ADR-0009 content in JSON \u2014 drift risk; keep it a one-line pointer."
+    ],
+    "NIT": [
+      "Self-test output lost its scenario count (\"3 negative scenarios\" \u2192 free-form label), reducing observability of coverage regressions.",
+      "`--apply` interaction with the pinned `migration_status=retained` tuple is untested; an apply run that recomputes it would break the parity check."
+    ],
+    "SUMMARY": [
+      "Solid fail-closed gate design with in-memory negative self-tests and a properly scoped ADR with an explicit supersede trigger, but the item does not meet AC as written (`related_item` vs `related_items`) and docs-fresh regeneration is not demonstrated.",
+      "Top risks: unverified AC field, possible missing imports in the gate script, and dual sources of truth for the formally-retained list."
+    ]
+  }
+}
