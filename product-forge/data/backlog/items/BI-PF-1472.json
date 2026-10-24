@@ -1,0 +1,312 @@
+{
+  "id": "BI-PF-1472",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "process",
+  "external_id": "BI-PF-BRANCH-ITEM-GUARD",
+  "label": "PF Backlog 643",
+  "title": "Guard: commit branch must match the item id in the message",
+  "body": "",
+  "source": "generic",
+  "status": "new",
+  "priority": "P2",
+  "moscow": "Should",
+  "value": 3,
+  "effort": 1,
+  "risk": 1,
+  "deps": [
+    "BI-PF-1186",
+    "BI-PF-1261"
+  ],
+  "links": {},
+  "decisions": [
+    {
+      "at": "2026-10-24T19:37:13.155271",
+      "decision": "APPROVE",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)"
+    },
+    {
+      "at": "2026-10-24T14:09:39.275525+00:00",
+      "by": "hil:user",
+      "decision": "APPROVE_WITH_ATTENTION",
+      "gate": 2,
+      "findings_sha": "7007700e4f0f",
+      "findings_digest": "cfdd7f7a77c4",
+      "seq": 2,
+      "note": "Branch/item guard approved.",
+      "hil_confirmed": true
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "Guard: commit branch must match the item id in the message",
+    "what_adds": "Guard: commit branch must match the item id in the message",
+    "why": "Guard: commit branch must match the item id in the message",
+    "who_feels": "Product Forge maintainers and consumers.",
+    "source": "derived"
+  },
+  "objective": "Prevent cross-item branch contamination with a commit-msg hook and a precheck detector.",
+  "acceptance_criteria": [
+    "A commit-msg hook rejects a commit when the branch encodes an item id and the message references a different id (or none); merge/revert commits are skipped.",
+    "A precheck gate branch-item re-checks HEAD against the current branch so contamination is caught before merge; wired into precheck fast and ci-cd-gates.",
+    "Branches without an item id (develop, release) only warn; the guard never blocks merges/syncs.",
+    "Unit tests cover match, mismatch, missing id and merge skip."
+  ],
+  "in_scope": [
+    "Guard: commit branch must match the item id in the message"
+  ],
+  "out_of_scope": [
+    "Not specified."
+  ],
+  "affected_components": [
+    "Not specified."
+  ],
+  "affected_files": [
+    "scripts/dev/branch_item_check.py",
+    "scripts/dev/install_hooks.py",
+    "scripts/dev/precheck.py",
+    "config/ci-cd-gates.json",
+    "test-framework/tests/test_branch_item_check.py"
+  ],
+  "approach": "Guard: commit branch must match the item id in the message",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [
+        "BI-PF-1471 Gate 0"
+      ],
+      "existing_path": [
+        "scripts/dev/branch_guard.py",
+        "scripts/dev/install_hooks.py"
+      ],
+      "assumptions": [
+        "branch names encode the item id"
+      ],
+      "divergences": [
+        "no message/branch cross-check today"
+      ],
+      "open_questions": []
+    },
+    "impact_review": [
+      {
+        "claim": "Commit-msg hook can read the message",
+        "verdict": "aligned",
+        "evidence": "git commit-msg hook contract",
+        "recommendation": "add hook"
+      },
+      {
+        "claim": "Precheck can detect HEAD/branch mismatch",
+        "verdict": "aligned",
+        "evidence": "git log -1 + branch name",
+        "recommendation": "add gate"
+      },
+      {
+        "claim": "API surface unchanged",
+        "verdict": "aligned",
+        "evidence": "tooling only",
+        "recommendation": "needs_api=false"
+      },
+      {
+        "claim": "AC coverage",
+        "verdict": "aligned",
+        "evidence": "4 ACs",
+        "recommendation": "proceed"
+      }
+    ],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Objective achieved: Guard: commit branch must match the item id in the message"
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending",
+    "Design guardrails applied (BI-PF-1472): sig:90b7b8f6bbbb67b0 (20 lines)"
+  ],
+  "owner": "unassigned",
+  "requester": "generic",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1252",
+  "parent": "BI-PF-1252",
+  "revision": 3,
+  "priority_rank": 200,
+  "priority_class": "P2",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "COMPLETE",
+    "analyzed_at": "2026-10-24T19:37:12.946817",
+    "analyzed_by": "system",
+    "revision_analyzed": 3,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing guardrail infrastructure (core/guardrails.py or core/run_guard.py). Add a commit-message/branch-consistency check to the pre-commit hook: parse commit message for item IDs (regex: [A-Z]{2}-[A-Z]+-\\d+), extract current branch name, block if an item ID is present in the message but no matching ID appears in the branch name. Configure the new check in config/guardrail-policy.json with an enable/disable flag and optional exemptions list.",
+    "existing_components": [],
+    "existing_apis": [],
+    "existing_modules": [],
+    "dependency_findings": [
+      "RELATED: BI-PF-1186 (commit hygiene guard) — shares commit-guard infrastructure, no hard block either way",
+      "RELATED: BI-PF-1261 (assignment lease) — branch naming reflects item ownership; no hard dependency",
+      "REQUIRES: Pre-commit hook infrastructure must be active in the target repo (assumed existing)"
+    ],
+    "conflict_findings": [
+      "BI-PF-1186 touches the same guardrail module (core/guardrails.py); coordinate to avoid merge conflicts on the shared pre-commit pipeline",
+      "No other concurrent tasks identified that conflict on the same file"
+    ],
+    "duplication_findings": [
+      "BI-PF-1186 is adjacent (commit hygiene for mixed bookkeeping files) but is a different check—no duplication, both compose in the same guardrail layer",
+      "No existing branch/message matching logic found in candidate code"
+    ],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "This is a targeted commit-hygiene check that extends the existing guardrail layer already used by BI-PF-1186. Reuse-first: extend core/guardrails.py and config/guardrail-policy.json with a new branch↔message consistency rule. Low-risk, reversible, config-gated.",
+    "assumptions": [
+      "Pre-commit hook infrastructure and guardrail-policy.json already exist and are active in the target repository",
+      "Branch names conventionally contain the item ID (e.g. feature/BI-PF-1472, fix/bi-pf-1472)",
+      "Guardrail check is additive and does not require changes to the commit message format"
+    ],
+    "risks": [
+      "Legitimate squash-merges or cherry-picks may have item IDs in messages that don't match the branch — need exemption path",
+      "Multiple item IDs in one commit message — should the guard require ALL or ANY to match the branch",
+      "Branch naming conventions may vary across contributors; overly strict check causes friction"
+    ],
+    "evidence": [
+      "Candidate code includes core/guardrails.py and core/run_guard.py as existing guard points",
+      "config/guardrail-policy.json is the canonical configuration surface for guardrail checks",
+      "BI-PF-1186 establishes the pattern of adding commit-hygiene checks to the same guard layer"
+    ],
+    "confidence": "high",
+    "missing_info": [
+      "Should the check be enabled by default or require explicit opt-in via guardrail-policy.json?",
+      "What is the canonical branch naming convention to validate against (feature/BI-PF-XXXX, bugfix/..., bare BI-PF-XXXX)?",
+      "Should cherry-picks, rebases, and merge commits be exempt from the check?",
+      "If multiple item IDs appear in a message, should the guard require ANY match or ALL match the branch?"
+    ],
+    "depth": "deep",
+    "mode": "ai",
+    "context_review": {
+      "ok": null,
+      "source": "llm-unparseable",
+      "implementable": null,
+      "missing": [],
+      "reason": "reviewer returned no JSON"
+    },
+    "decision_request": {
+      "needed": false,
+      "reasons": [],
+      "ask": ""
+    },
+    "arch_fingerprint": "722ed8b6b4f4e8e2"
+  },
+  "dependencies": [
+    {
+      "task_id": "BI-PF-1186",
+      "type": "RELATED",
+      "required_state": "committed"
+    },
+    {
+      "task_id": "BI-PF-1261",
+      "type": "RELATED",
+      "required_state": "any"
+    }
+  ],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-24T19:37:13.040424"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-24T19:36:08.744249",
+  "updated_at": "2026-10-24T19:39:39.347268",
+  "score": 3.0,
+  "_note": "readiness computed",
+  "api_impact": {
+    "needs_api": false,
+    "routes": [],
+    "consumers": [],
+    "reason": "git hook + precheck tooling"
+  },
+  "review_dispositions": {
+    "diff": {
+      "sig:6c86423b288cffd4": {
+        "status": "ACCEPTED",
+        "note": "Accepted/deferred; HIL approved the guard."
+      },
+      "sig:d1ff3c244abb609d": {
+        "status": "ACCEPTED",
+        "note": "Accepted/deferred; HIL approved the guard."
+      },
+      "sig:219a707ab8712c6c": {
+        "status": "ACCEPTED",
+        "note": "Accepted/deferred; HIL approved the guard."
+      },
+      "sig:30260c9c2b8b9aac": {
+        "status": "ACCEPTED",
+        "note": "Accepted/deferred; HIL approved the guard."
+      },
+      "sig:5bb52c5b9481b719": {
+        "status": "ACCEPTED",
+        "note": "Accepted/deferred; HIL approved the guard."
+      },
+      "sig:88ff28e430fc3948": {
+        "status": "ACCEPTED",
+        "note": "Accepted/deferred; HIL approved the guard."
+      },
+      "sig:f96da8ac8e401fe8": {
+        "status": "ACCEPTED",
+        "note": "Accepted/deferred; HIL approved the guard."
+      },
+      "sig:78fa8dea5a63a009": {
+        "status": "ACCEPTED",
+        "note": "Accepted/deferred; HIL approved the guard."
+      },
+      "sig:7afbad4ea53e97f2": {
+        "status": "ACCEPTED",
+        "note": "Accepted/deferred; HIL approved the guard."
+      },
+      "sig:1367166d9e599612": {
+        "status": "ACCEPTED",
+        "note": "Accepted/deferred; HIL approved the guard."
+      },
+      "sig:33a2a17d4a35b4ce": {
+        "status": "ACCEPTED",
+        "note": "Accepted/deferred; HIL approved the guard."
+      },
+      "sig:12660fc5374e27be": {
+        "status": "ACCEPTED",
+        "note": "Accepted/deferred; HIL approved the guard."
+      },
+      "sig:6b39e7997bcf582f": {
+        "status": "ACCEPTED",
+        "note": "Accepted/deferred; HIL approved the guard."
+      },
+      "sig:5e8212e70983068d": {
+        "status": "ACCEPTED",
+        "note": "Accepted/deferred; HIL approved the guard."
+      }
+    }
+  }
+}
