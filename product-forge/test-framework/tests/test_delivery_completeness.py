@@ -49,3 +49,50 @@ def test_baseline_shape():
 def test_audit_returns_lists():
     remaining, bad = d.audit()
     assert isinstance(remaining, list) and isinstance(bad, list)
+
+
+def test_load_resolves_repo_root_relative_paths(tmp_path, monkeypatch):
+    item = tmp_path / "product-forge" / "data" / "backlog" / "items" / "BI-TEST-X.json"
+    item.parent.mkdir(parents=True)
+    item.write_text('{"id": "BI-TEST-X", "status": "completed"}', encoding="utf-8")
+    monkeypatch.setattr(d, "_repo_root", lambda: str(tmp_path))
+    got = d._load("product-forge/data/backlog/items/BI-TEST-X.json")
+    assert got.get("id") == "BI-TEST-X"
+
+
+def test_load_skips_deleted_and_rejects_escape(tmp_path, monkeypatch):
+    monkeypatch.setattr(d, "_repo_root", lambda: str(tmp_path))
+    assert d._load("product-forge/data/backlog/items/BI-TEST-MISSING.json") == {}
+    assert d._load("../../BI-TEST-OUTSIDE.json") == {}
+
+
+def test_load_fails_closed_on_malformed_item(tmp_path, monkeypatch):
+    item = tmp_path / "product-forge" / "data" / "backlog" / "items" / "BI-TEST-BAD.json"
+    item.parent.mkdir(parents=True)
+    item.write_text("{not json", encoding="utf-8")
+    monkeypatch.setattr(d, "_repo_root", lambda: str(tmp_path))
+    try:
+        d._load("product-forge/data/backlog/items/BI-TEST-BAD.json")
+    except RuntimeError as e:
+        assert "BI-TEST-BAD.json" in str(e)
+    else:
+        raise AssertionError("malformed item must fail closed")
+
+
+def test_transitions_uses_repo_root(tmp_path, monkeypatch):
+    rel = "product-forge/data/backlog/items/BI-TEST-X.json"
+    item = tmp_path / rel
+    item.parent.mkdir(parents=True)
+    item.write_text('{"id": "BI-TEST-X", "status": "completed"}', encoding="utf-8")
+
+    def fake_git(*args):
+        if args and args[0] == "diff":
+            return rel
+        if args and args[0] == "show":
+            return '{"id": "BI-TEST-X", "status": "in_progress"}'
+        return ""
+
+    monkeypatch.setattr(d, "_repo_root", lambda: str(tmp_path))
+    monkeypatch.setattr(d, "_git", fake_git)
+    got = d.transitions("base-sha")
+    assert [x["id"] for x in got] == ["BI-TEST-X"]

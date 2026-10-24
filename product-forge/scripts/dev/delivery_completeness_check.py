@@ -87,20 +87,53 @@ def transition_problems(item: dict) -> list[str]:
 
 
 def _git(*args: str) -> str:
-    r = subprocess.run(["git", *args], cwd=str(ROOT), capture_output=True, text=True)
+    r = subprocess.run(["git", *args], cwd=str(ROOT), capture_output=True, text=True, timeout=20)
     return (r.stdout or "").strip()
+
+
+def _repo_root() -> str:
+    """Git top-level (the workspace root is an ancestor of product-forge in this layout)."""
+    try:
+        r = subprocess.run(["git", "rev-parse", "--show-toplevel"], cwd=str(ROOT),
+                           capture_output=True, text=True, timeout=20)
+    except (OSError, subprocess.SubprocessError) as e:
+        raise RuntimeError(f"delivery-completeness: git rev-parse failed: {e}") from e
+    out = (r.stdout or "").strip()
+    if r.returncode != 0 or not out:
+        raise RuntimeError(f"delivery-completeness: not in a git repo (rev-parse rc={r.returncode})")
+    return out
+
+
+def _load(rel_repo: str) -> dict:
+    """Read a changed item from the git repo root, not from product-forge/ROOT.
+
+    Deleted paths are skipped ({}); unreadable/malformed items fail closed with the path in the error.
+    """
+    root = Path(_repo_root()).resolve()
+    p = (root / rel_repo).resolve()
+    try:
+        p.relative_to(root)
+    except ValueError:
+        return {}
+    try:
+        return json.loads(p.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return {}
+    except (OSError, json.JSONDecodeError) as e:
+        raise RuntimeError(f"delivery-completeness: cannot read changed item {rel_repo}: {e}") from e
 
 
 def transitions(base: str = "") -> list[dict]:
     base = base or _git("merge-base", "develop", "HEAD") or "origin/develop"
     out = []
+    skipped = 0
     for rel in _git("diff", "--name-only", f"{base}..HEAD").splitlines():
         rel = rel.replace("\\", "/")
         if "/data/backlog/items/" not in rel or not rel.endswith(".json"):
             continue
-        try:
-            cur = json.loads((ROOT / rel).read_text(encoding="utf-8"))
-        except Exception:
+        cur = _load(rel)
+        if not cur:
+            skipped += 1
             continue
         if str(cur.get("status") or "").lower() not in DONE:
             continue
@@ -111,6 +144,8 @@ def transitions(base: str = "") -> list[dict]:
             prev = {}
         if str(prev.get("status") or "").lower() not in DONE:
             out.append(cur)
+    if skipped:
+        print(f"delivery-completeness: skipped {skipped} deleted path(s) in the diff", file=sys.stderr)
     return out
 
 
