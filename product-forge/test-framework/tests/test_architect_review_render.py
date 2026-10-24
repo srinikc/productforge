@@ -100,3 +100,25 @@ def test_gate1_check_json_shape_is_unchanged(monkeypatch, capsys):
     assert rc == 0
     assert {"ok", "item", "total", "pending", "blocking_pending", "review_sha", "model",
             "parsed_ok"} <= set(payload)
+
+
+def test_unparsable_review_is_not_ready():
+    view = _view("MAJOR", "x", "ACTIONED")
+    view["review"]["parsed_ok"] = False
+    out = ar.render_gate_view(view, "design")
+    assert "**Overall architect recommendation: NOT READY**" in out
+    assert "unparsable/missing" in out
+
+
+def test_empty_parsed_review_is_approve():
+    view = {"review": {"model": "m", "sha": "abc", "parsed_ok": True,
+                       "findings": {s: [] for s in ar.SEVERITIES}}, "dispositions": {},
+            "total": 0, "pending": 0, "blocking": []}
+    out = ar.render_gate_view(view, "design")
+    assert "**Overall architect recommendation: APPROVE**" in out
+    assert "=== 0 finding(s), 0 pending ===" in out
+
+
+def test_backslash_and_pipe_are_escaped():
+    out = ar.render_gate_view(_view("MINOR", "a \\| b", "ACTIONED"), "design")
+    assert "a \\\\\\| b" in out

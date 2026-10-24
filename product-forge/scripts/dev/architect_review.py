@@ -425,12 +425,21 @@ def render_gate_view(view: dict, mode: str) -> str:
     return _render_review(view["review"], view["dispositions"], mode)
 
 
-def overall_recommendation(rows: list[tuple[str, str]]) -> tuple[str, str]:
+def _norm_status(status) -> str:
+    st = str(status or "PENDING").upper()
+    return st if st in DISPOSITION_STATUSES else "PENDING"
+
+
+def _is_resolved_status(status) -> bool:
+    return _norm_status(status) not in ("PENDING",)
+
+
+def overall_recommendation(rows: list[tuple[str, str]], parsed_ok: bool = True) -> tuple[str, str]:
     """Pure overall verdict from (severity, disposition-status) rows (worst wins).
 
-    Unknown/missing statuses are PENDING (fail closed). A pending BLOCKER/MAJOR is NOT READY; a resolved
-    BLOCKER/MAJOR that was accepted/deferred/scope/rejected is APPROVE WITH ATTENTION; otherwise APPROVE.
-    Pending MINOR/NIT are advisory and do not block (they are counted).
+    Fail closed: unparsable evidence or a pending BLOCKER/MAJOR is NOT READY. A resolved BLOCKER/MAJOR that
+    was accepted/deferred/scope/rejected is APPROVE WITH ATTENTION; otherwise APPROVE. Unknown statuses are
+    normalized to PENDING. Pending MINOR/NIT are advisory and do not block (they are counted).
     """
     counts = {s: 0 for s in SEVERITIES}
     dispo: dict[str, int] = {}
@@ -439,11 +448,10 @@ def overall_recommendation(rows: list[tuple[str, str]]) -> tuple[str, str]:
     for sev, status in rows:
         sev = str(sev or "").upper()
         counts[sev] = counts.get(sev, 0) + 1
-        st = str(status or "PENDING").upper()
+        st = _norm_status(status)
         dispo[st] = dispo.get(st, 0) + 1
-        resolved = st in DISPOSITION_STATUSES and st != "PENDING"
         if sev in ("BLOCKER", "MAJOR"):
-            if not resolved:
+            if not _is_resolved_status(st):
                 blocking += 1
             elif st in ("ACCEPTED", "DEFERRED", "SCOPE", "REJECTED"):
                 attention += 1
@@ -451,6 +459,8 @@ def overall_recommendation(rows: list[tuple[str, str]]) -> tuple[str, str]:
     counts_txt = (f"Findings: {total} (BLOCKER {counts.get('BLOCKER', 0)} / MAJOR {counts.get('MAJOR', 0)} / "
                   f"MINOR {counts.get('MINOR', 0)} / NIT {counts.get('NIT', 0)}); dispositions: "
                   + (", ".join(f"{k.lower()} {v}" for k, v in sorted(dispo.items())) or "none"))
+    if not parsed_ok:
+        return "NOT READY", f"{counts_txt}; review evidence is unparsable/missing"
     if blocking:
         return "NOT READY", f"{counts_txt}; {blocking} blocking finding(s) pending"
     if attention:
@@ -460,14 +470,13 @@ def overall_recommendation(rows: list[tuple[str, str]]) -> tuple[str, str]:
 
 
 def _pending_count(rows: list[tuple[str, str]]) -> int:
-    """ONE pending predicate shared by the verdict and the footer (unknown status = pending)."""
-    return sum(1 for _, st in rows
-               if not (str(st or "PENDING").upper() in DISPOSITION_STATUSES
-                       and str(st or "PENDING").upper() != "PENDING"))
+    """ONE pending predicate shared by the verdict and the footer."""
+    return sum(1 for _, st in rows if not _is_resolved_status(st))
 
 
 def _cell(text) -> str:
-    return str(text or "").replace("|", "\\|").replace("\r", " ").replace("\n", " ").strip()
+    return (str(text or "").replace("\\", "\\\\").replace("|", "\\|")
+            .replace("\r", " ").replace("\n", " ").strip())
 
 
 def _render_review(rev: dict, disp: dict, mode: str) -> str:
@@ -477,10 +486,10 @@ def _render_review(rev: dict, disp: dict, mode: str) -> str:
     rows: list[tuple[str, str, str, str]] = []
     for n, (sev, text) in enumerate(iter_findings(f), 1):
         d = _disp_for(disp, n, text)
-        st = (d.get("status") or "PENDING").upper()
+        st = _norm_status(d.get("status"))
         rows.append((sev, st, text, d.get("note") or "(no response yet)"))
     pairs = [(r[0], r[1]) for r in rows]
-    verdict, counts = overall_recommendation(pairs)
+    verdict, counts = overall_recommendation(pairs, parsed_ok=bool(rev.get("parsed_ok", True)))
     pending = _pending_count(pairs)
     lines = [f"Gate {gate} - Findings & Dispositions (model={rev.get('model', '?')} sha={rev.get('sha', '?')})",
              f"**Overall architect recommendation: {verdict}**",
@@ -490,8 +499,7 @@ def _render_review(rev: dict, disp: dict, mode: str) -> str:
              "| # | Severity | Finding | Disposition | Response / resolution |",
              "|---|---|---|---|---|"]
     for n, (sev, st, text, note) in enumerate(rows, 1):
-        display = st if st in DISPOSITION_STATUSES else "PENDING"
-        lines.append(f"| {n} | {sev} | {_cell(text)} | {display} | {_cell(note)} |")
+        lines.append(f"| {n} | {sev} | {_cell(text)} | {st} | {_cell(note)} |")
     lines.append("")
     lines.append("--- SUMMARY (review) ---")
     lines += [f"  {x}" for x in f.get("SUMMARY", [])]
