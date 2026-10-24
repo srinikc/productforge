@@ -28,6 +28,12 @@
       "decision": "APPROVE",
       "by": "system",
       "note": "auto-approved on add (BI-PF-1282)"
+    },
+    {
+      "at": "2026-10-24T15:44:34+00:00",
+      "decision": "AMEND",
+      "by": "agent",
+      "note": "Gate 1.5 sha 56ded4e61ef1: AC2 ref corrected to artifacts, backfill_status added, artifact id derivation pinned, cross-tenant test added, CLI secrets via env only, gate0 fix split."
     }
   ],
   "follow_up": {},
@@ -38,27 +44,30 @@
     "success": "Registry flips to migrated after parity.",
     "source": "authored"
   },
-  "objective": "Ingest the 11 non-legacy intake-raw/builds stores into the EDP object store and artifact metadata (tenant-scoped, checksum-verified, idempotent) and flip their store-registry targets to object-store/exists/migrated; the legacy-dashboard product_forge_context.json stays with its frozen owner.",
+  "objective": "Ingest the 11 non-legacy intake-raw/builds stores into the EDP object store and artifact metadata (tenant-scoped, checksum-verified, idempotent) and move their store-registry targets to the existing artifact substrate with an honest backfill_status; the legacy-dashboard product_forge_context.json stays planned.",
   "acceptance_criteria": [
-    "A Go ingestion service and CLI compute sha256 for each intake/builds file, write the bytes to the object store under a content-addressed key, and register a tenant-scoped stored_objects row plus an artifacts row; re-running on unchanged input creates no additional rows.",
-    "config/store-registry.json marks exactly the 11 non-legacy intake/builds entries (conversations, ideas, requirements, decisions, change_packages, implementation_plans, discovery-panel, items.jsonl, intake-files, build-info, version) as object-store/exists with migration_status migrated, while the legacy-dashboard product_forge_context.json remains pending.",
-    "Tests prove idempotent re-ingest (same artifact id and stable row counts), checksum verification against the object store, and that changed payload bytes produce a new immutable content-addressed object while the prior object stays readable."
+    "A Go ingestion service and CLI compute sha256 for each intake/builds file, write the bytes to the object store under a content-addressed key, and register a tenant-scoped stored_objects row plus an artifacts row; re-running unchanged input reuses the same artifact id and creates no additional rows.",
+    "store-registry targets for exactly the 11 non-legacy intake/builds entries (conversations, ideas, requirements, decisions, change_packages, implementation_plans, discovery-panel, items.jsonl, intake-files, build-info, version) move from object-store/planned to object-store/exists with ref=artifacts, owner_item=BI-PF-1475 and migration_status=migrated; each target also records backfill_status=pending plus the pfingest command, and the legacy-dashboard product_forge_context.json stays planned.",
+    "Tests prove: idempotent re-ingest (stable artifact id and row counts); checksum verification against the object store; a changed payload yields a NEW artifact id/revision while the prior object stays readable; and a second tenant cannot read the first tenant's artifact (RLS non-leakage).",
+    "pfingest --verify exits non-zero and names each store when the source file checksum, the artifacts checksum, or the object-store Head checksum disagree, and its JSON report uses the pinned schema pf.intake-ingest/1 with per-file status (written|skipped|drift|failed) and run_id."
   ],
   "in_scope": [
-    "go/intakeingest service + tests (idempotent ingest, checksum verification, changed-payload revision)",
+    "go/intakeingest service + tests (idempotent ingest, changed-payload revision, checksum verification, cross-tenant non-leakage)",
     "go/intakeingest/cmd/pfingest operator CLI",
-    "config/store-registry.json: flip the 11 non-legacy intake/builds targets",
-    "docs/STORE-DATAFLOW.md regeneration and item evidence"
+    "config/store-registry.json: flip the 11 targets with backfill_status + ingest_writer",
+    "docs/STORE-DATAFLOW.md regeneration and item evidence",
+    "scripts/dev/gate0_check.py repo-root path fix (separate commit)"
   ],
   "out_of_scope": [
     "Legacy-dashboard product_forge_context.json (owner pipeline_dashboard/api/router.py; frozen legacy).",
-    "Moving file producers off files (per-domain cutover) and scheduling a production backfill.",
-    "Live/staging data ingestion itself; the CLI command is documented for ops."
+    "Running the production backfill or moving file producers off files (per-domain cutover); the exact pfingest command is recorded per target.",
+    "Schema changes, GC of orphaned objects (reported for objreconcile), and live/staging ingestion in CI."
   ],
   "affected_components": [
     "EDP data plane (Go)",
     "store registry",
-    "derived store docs"
+    "derived store docs",
+    "gate tooling"
   ],
   "affected_files": [
     "go/intakeingest/ingest.go",
@@ -69,29 +78,33 @@
     "docs/STORE-DATAFLOW.md",
     "scripts/dev/gate0_check.py"
   ],
-  "approach": "Add a Go ingestion service (go/intakeingest) over the existing datastore.ObjectStore + RelationalStore ports. For each source file it computes sha256, writes bytes under intake|builds/<sha256> with Immutable=true, then upserts stored_objects (ON CONFLICT DO NOTHING) and artifacts (deterministic id, ON CONFLICT DO NOTHING) inside one RLS-bound transaction. A thin cmd/pfingest wires DSN/object-root/tenant and prints a JSON report; --verify re-checks Head checksums. Registry targets for the 11 stores flip to artifacts/exists/migrated and the derived STORE-DATAFLOW doc is regenerated. Also fixes scripts/dev/gate0_check.py to resolve backlog items from the git repo root (same pattern as gate1_transition_check); the gate previously read product-forge/... twice and silently reported zero transitions when product-forge is a subdirectory of the git root.",
+  "approach": "Add a Go ingestion service (go/intakeingest) over the existing datastore.ObjectStore + RelationalStore ports. For each source file it computes sha256, writes bytes under intake/<sha256> or builds/<sha256> with Immutable=true, then upserts stored_objects (ON CONFLICT DO NOTHING) and artifacts (id=sha256(tenant|bucket|logical_name|checksum)[:32], ON CONFLICT DO NOTHING, revision=next per tenant+name) inside one RLS-bound transaction. A thin cmd/pfingest wires PF_RUNTIME_DSN/PF_OBJECT_ROOT/tenant, prints the pinned pf.intake-ingest/1 JSON report, enforces a per-file size cap, and --verify re-reads the source, compares source/artifacts/Head checksums, and exits non-zero on drift. The 11 registry targets move to artifacts/exists/migrated with owner_item BI-PF-1475, ingest_writer go/intakeingest and backfill_status pending (historical parity is an explicit ops run, never silently claimed); STORE-DATAFLOW is regenerated.",
   "review": {
     "reconciliation": {
       "prior_decisions": [
-        "BI-PF-1408 Slice A/B/C: every store classified, mapped to a target, and relationship-checked; 12 intake/builds stores remain pending.",
+        "BI-PF-1408 Slice A/B/C: every store classified, mapped to a target, and relationship-checked; 12 intake/builds stores remain pending. Slice C flips planned->exists once the target substrate and owner item exist.",
         "BI-PF-1307/EDP-15: artifacts metadata lives in Postgres (artifacts) and bytes live in the object store keyed by checksum (stored_objects).",
         "EDP single-storage standard (BI-PF-1417): no new store/table; reuse the existing artifact substrate.",
-        "Legacy dashboard is frozen and not architecture authority; product_forge_context.json stays with its legacy owner."
+        "Legacy dashboard is frozen and not architecture authority; product_forge_context.json stays with its legacy owner.",
+        "Gate 1.5 review (sha 56ded4e61ef1) requires registry sequencing, artifact-id semantics, module reuse, cross-tenant tests, observability and ownership to be explicit."
       ],
       "existing_path": [
         "go/artifacts/artifacts.go:39 Register writes stored_objects + artifacts in one transaction (tenant-scoped).",
         "go/objstore/objstore.go:109 Put is atomic, content-addressed, and supports Immutable writes.",
         "go/datastore/datastore.go:151 ObjectStore + 164 ArtifactService are the provider-neutral ports.",
         "go/store/tenancy.go BindTenant sets app.tenant_id so RLS applies to every write.",
-        "scripts/dev/store_registry_relationships.py:74 OBJECT_META constrains object-store exists targets to artifacts/stored_objects."
+        "scripts/dev/store_registry_relationships.py:74 OBJECT_META constrains object-store exists targets to artifacts/stored_objects.",
+        "go/artifacts/go.mod + go/edpdata/go.mod show the per-directory module + replace => ../<module> pattern for a new Go module."
       ],
       "assumptions": [
         "The 11 in scope are the 12 currently pending intake/builds entries minus the legacy-dashboard product_forge_context.json (Gate 1 approved).",
-        "The operator supplies the tenant id; ingestion is an admin/ops action, not a public API.",
-        "The logical artifact name is the bucket-relative source path; content addressing makes re-ingest idempotent."
+        "The operator supplies the tenant id at the CLI boundary; ingestion is an admin/ops action, not a public API.",
+        "The logical artifact name is the bucket-relative source path; content addressing makes re-ingest idempotent.",
+        "Registry 'exists' means the target substrate + single writer exist; historical-data parity is tracked separately by backfill_status, so the registry never claims data that was not ingested."
       ],
       "divergences": [
-        "The stale derived affected_files suggested scripts/dev/ingest_intake.py; the language rule requires new shipped logic in Go, so the ingestion path is go/intakeingest + cmd/pfingest (Gate 1 approved)."
+        "The stale derived affected_files suggested scripts/dev/ingest_intake.py; the language rule requires new shipped logic in Go, so the ingestion path is go/intakeingest + cmd/pfingest (Gate 1 approved).",
+        "AC2 wording was corrected after Gate 1.5: ref is the OBJECT_META target artifacts (not the logical bucket name), and each target carries backfill_status so exists does not over-claim historical parity."
       ],
       "open_questions": []
     },
@@ -99,41 +112,60 @@
       {
         "claim": "API CHECK",
         "verdict": "aligned",
-        "evidence": "No HTTP surface: an operator CLI (pfingest) runs with an explicit tenant; no route, no client-supplied tenant.",
+        "evidence": "No HTTP surface: an operator CLI (pfingest) runs with an explicit tenant from the operator; DSN/root come from env, never argv. No route, no client-supplied tenant.",
         "recommendation": "needs_api=false"
       },
       {
         "claim": "AC coverage",
         "verdict": "aligned",
         "evidence": [
-          "A Go ingestion service and CLI compute sha256 for each intake/builds file, write the bytes to the object store under a content-addressed key, and register a tenant-scoped stored_objects row plus an artifacts row; re-running on unchanged input creates no additional rows.",
-          "config/store-registry.json marks exactly the 11 non-legacy intake/builds entries (conversations, ideas, requirements, decisions, change_packages, implementation_plans, discovery-panel, items.jsonl, intake-files, build-info, version) as object-store/exists with migration_status migrated, while the legacy-dashboard product_forge_context.json remains pending.",
-          "Tests prove idempotent re-ingest (same artifact id and stable row counts), checksum verification against the object store, and that changed payload bytes produce a new immutable content-addressed object while the prior object stays readable."
+          "A Go ingestion service and CLI compute sha256 for each intake/builds file, write the bytes to the object store under a content-addressed key, and register a tenant-scoped stored_objects row plus an artifacts row; re-running unchanged input reuses the same artifact id and creates no additional rows.",
+          "store-registry targets for exactly the 11 non-legacy intake/builds entries (conversations, ideas, requirements, decisions, change_packages, implementation_plans, discovery-panel, items.jsonl, intake-files, build-info, version) move from object-store/planned to object-store/exists with ref=artifacts, owner_item=BI-PF-1475 and migration_status=migrated; each target also records backfill_status=pending plus the pfingest command, and the legacy-dashboard product_forge_context.json stays planned.",
+          "Tests prove: idempotent re-ingest (stable artifact id and row counts); checksum verification against the object store; a changed payload yields a NEW artifact id/revision while the prior object stays readable; and a second tenant cannot read the first tenant's artifact (RLS non-leakage).",
+          "pfingest --verify exits non-zero and names each store when the source file checksum, the artifacts checksum, or the object-store Head checksum disagree, and its JSON report uses the pinned schema pf.intake-ingest/1 with per-file status (written|skipped|drift|failed) and run_id."
         ],
         "recommendation": "approve"
       },
       {
         "claim": "language",
         "verdict": "aligned",
-        "evidence": "New ingestion logic and tests are Go (go/intakeingest); registry/docs changes are declarative JSON/Markdown.",
+        "evidence": "New ingestion logic and tests are Go (go/intakeingest); registry/docs changes are declarative JSON/Markdown; the gate0 path fix is tooling Python.",
         "recommendation": "Go"
       },
       {
         "claim": "reuse / no duplicate store",
         "verdict": "aligned",
-        "evidence": "Reuses artifacts + stored_objects (BI-PF-1307), objstore, datastore ports and store.BindTenant; no new table or store.",
+        "evidence": "Reuses artifacts + stored_objects (BI-PF-1307), objstore, datastore ports and store.BindTenant; no new table or store. go/intakeingest/go.mod requires productforge/datastore, objstore and store via replace => ../<module>, matching artifacts/go.mod.",
         "recommendation": "approve"
       },
       {
         "claim": "tenant isolation",
         "verdict": "aligned",
-        "evidence": "Writes run through store.BindTenant (RLS app.tenant_id); artifacts/stored_objects carry tenant_id; no cross-tenant reads.",
+        "evidence": "Writes run through store.BindTenant (RLS app.tenant_id); artifacts/stored_objects carry tenant_id; the integration test ingests as tenant A and asserts tenant B sees nothing.",
         "recommendation": "approve"
       },
       {
         "claim": "integrity / idempotency",
         "verdict": "aligned",
-        "evidence": "Writes are content-addressed and immutable; stored_objects uses ON CONFLICT DO NOTHING; artifacts uses a deterministic id with ON CONFLICT DO NOTHING; a failed metadata write is retried safely.",
+        "evidence": "Object keys are content-addressed and immutable; stored_objects uses ON CONFLICT DO NOTHING; artifact id = sha256(tenant|bucket|logical_name|checksum)[:32], so unchanged input maps to the same id (DO NOTHING) while changed bytes map to a new id + next revision and leave the old object readable.",
+        "recommendation": "approve"
+      },
+      {
+        "claim": "ownership / single writer",
+        "verdict": "aligned",
+        "evidence": "Source-file owners (conversation_models, build_manager, version_manager, discovery_panel, intake_channels, intake_files) keep the files; go/intakeingest is the single writer of the derived object/artifacts copies under prefixes intake/ and builds/, recorded on each registry target as ingest_writer.",
+        "recommendation": "approve"
+      },
+      {
+        "claim": "observability",
+        "verdict": "aligned",
+        "evidence": "Pinned JSON report pf.intake-ingest/1 with run_id, per-file written|skipped|drift|failed, counts, and a per-store log line; --verify exits non-zero on any mismatch; orphaned content-addressed objects are reported for objreconcile.",
+        "recommendation": "approve"
+      },
+      {
+        "claim": "blast radius / recovery",
+        "verdict": "aligned",
+        "evidence": "No schema change; per-file --max-bytes cap (default 256MiB) fails closed; metadata failure leaves a harmless content-addressed object that a retry reuses; rollback is a revert.",
         "recommendation": "approve"
       }
     ],
@@ -141,18 +173,20 @@
     "at": ""
   },
   "verification": [
-    "Objective achieved: intake-builds stores: ingest into DB metadata + object store (EDP-24 gap)"
+    "Gate 1.5 architect review (mimo-v2.6-flash): {'BLOCKER': 2, 'MAJOR': 6, 'MINOR': 5, 'NIT': 3}"
   ],
   "risks": [
-    "Object write succeeds but metadata write fails: mitigated by content-addressed immutable objects and idempotent retry (no duplicate rows).",
-    "Tenant misconfiguration could mix intake data: mitigated by requiring an explicit tenant and RLS via store.BindTenant.",
-    "Large intake files: mitigated by a configurable size cap that fails closed instead of truncating."
+    "Object write succeeds but metadata write fails: mitigated by content-addressed immutable objects, idempotent retry (no duplicate rows), and orphan reporting for objreconcile.",
+    "Tenant misconfiguration could mix intake data: mitigated by a required explicit tenant, RLS via store.BindTenant, and a fail-able cross-tenant test.",
+    "Large intake files: mitigated by a per-file --max-bytes cap (default 256MiB) that fails closed instead of truncating.",
+    "Registry over-claiming historical data: mitigated by backfill_status=pending on every flipped target plus pfingest --verify parity."
   ],
   "rollback": "Revert the commit; content-addressed objects are safe to leave in place and no schema change is made.",
   "evidence": [
     "pending",
     "Design guardrails applied (BI-PF-1475): sig:1227ed0e0e60aa6b (16 lines)",
-    "Design pre-check (BI-PF-1475): answered 10 checklist item(s) before Gate 1.5"
+    "Design pre-check (BI-PF-1475): answered 10 checklist item(s) before Gate 1.5",
+    "Gate 1.5 architect review - model=mimo-v2.6-flash sha=56ded4e61ef1\nBLOCKER:\n  - Registry flips to exists/migrated in this commit while live ingestion is explicitly out of scope: shipped state asserts 11 stores have objects/rows that will not exist until ops later runs `pfingest`, so `pfingest --verify` and any existence check contradict `store-registry.json` on day one. Design must sequence: ingest + verify first, flip registry only on proof of existence.\n  - Artifact revision semantics are unresolved: \"deterministic id + ON CONFLICT DO NOTHING\" cannot both satisfy \"same artifact id on unchanged input\" and \"changed payload produces a new object while prior stays readable\" unless the id derivation (path vs path+sha) is stated; if path-derived, `DO NOTHING` permanently pins the artifacts row to the old checksum.\nMAJOR:\n  - AC conformance mismatch: acceptance criteria require the 11 entries marked \"object-store/exists with migration_status migrated\"; the approach flips them to \"artifacts/exists/migrated\". Repeated AC-wording drift class — reconcile explicitly before Gate 1.5.\n  - `go/intakeingest/go.mod` as a new module over \"existing datastore.ObjectStore + RelationalStore ports\": state where those ports live; if they are in the repo's root Go module this forces duplication (reuse violation) or a `replace` directive (version drift across modules).\n  - Tenant/RLS isolation is claimed (BindTenant, RLS-bound tx) but no test is listed for cross-tenant non-leakage; a claimed security control without a fail-able test is unproven (checklist 9, 6).\n  - Observability is a printed JSON report only: no per-store structured success/failure log, no run record, no metric distinguishing written vs skipped vs failed, so a half-failed 11-store run cannot be diagnosed or later proven ingested (checklist 10).\n  - CL-001 ownership not stated: who else writes `stored_objects`/`artifacts`, and is this writer registered as single-writer for intake|builds keys? No route-by-kind/ownership disposition present.\n  - CL-006 not addressed: this Gate-1 context does not embed the latest Gate 1.5 findings + dispositions, which `scripts/dev/gate1_check.py` enforces as a precondition for approval.\nMINOR:\n  - DSN passed via `cmd/pfingest` wiring risks credential exposure in argv/shell history; specify env-var/secret-file intake.\n  - \"Configurable size cap\" appears in risks but not in the design: no config key, default, or scope (per-file vs total) defined, and no fail-closed evidence test listed.\n  - `--verify` comparison basis unstated: Head checksum vs freshly re-read local file, and behaviour when the source file changed after ingest.\n  - `gate0_check.py` git-root fix is a real correctness fix but bundles an unrelated tooling concern with the ingestion change; split for reviewability and independent rollback.\n  - No GC/retention story for orphaned content-addressed objects when object write succeeds and metadata write fails (risk acknowledged but unmanaged).\nNIT:\n  - Pipe delimiter in `intake|builds/<sha256>` object keys: confirm it is safe/documented across the object store and any path-based tooling.\n  - JSON report schema is not pinned/versioned; ops automation parsing it will break silently on field changes.\n  - Deterministic artifact id derivation should be recorded in an ADR/store-registry comment so future writers compute identical ids.\nSUMMARY:\n  - Solid foundations: Go-first logic, content-addressed immutability, RLS-bound transactions, and idempotent upserts are the right shape, and rollback is clean (no schema change).\n  - Top risks: registry claims \"exists/migrated\" before any ingestion actually runs (integrity), and artifact-id/`DO NOTHING` revision semantics are underspecified against AC 3.\n  - Secondary gaps: separate Go module reuse strategy, missing cross-tenant test, print-only observability, and unembedded CL-006/CL-001 process evidence.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present"
   ],
   "owner": "agent",
   "requester": "generic",
@@ -270,14 +304,14 @@
     "usage": {}
   },
   "created_at": "2026-10-24T20:52:47.175530",
-  "updated_at": "2026-10-24T21:12:36.750062",
+  "updated_at": "2026-10-24T21:15:42.184341",
   "score": 0.75,
   "_note": "readiness computed",
   "api_impact": {
     "needs_api": false,
     "routes": [],
     "consumers": [],
-    "reason": "Operator-only CLI ingestion; no HTTP surface and the tenant is supplied server-side."
+    "reason": "Operator-only CLI ingestion; DSN/object root from env, tenant supplied server-side; no HTTP surface."
   },
   "language_rule": "Go for new shipped ingestion logic (go/intakeingest); Go tests; JSON/Markdown are declarative."
 }
