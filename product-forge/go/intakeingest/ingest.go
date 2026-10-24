@@ -16,6 +16,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"path"
 	"regexp"
 	"sort"
 	"strings"
@@ -169,6 +170,13 @@ func Checksum(b []byte) string {
 	return hex.EncodeToString(sum[:])
 }
 
+func artifactType(bucket string) string {
+	if bucket == BucketBuilds {
+		return "build"
+	}
+	return "intake-raw"
+}
+
 // ContentTypeFor keeps per-store MIME fidelity when the caller does not override it.
 func ContentTypeFor(name, override string) string {
 	if strings.TrimSpace(override) != "" && override != "application/octet-stream" {
@@ -228,7 +236,7 @@ func (s *Service) read(r io.Reader) ([]byte, error) {
 func (s *Service) Ingest(ctx context.Context, tenant, bucket, name string, r io.Reader,
 	contentType string, dryRun bool) (FileResult, error) {
 	start := time.Now()
-	res := FileResult{Store: bucket + "/" + name, Bucket: bucket, Name: name}
+	res := FileResult{Store: path.Base(name), Bucket: bucket, Name: name}
 	finish := func(err error) (FileResult, error) {
 		res.DurationMS = time.Since(start).Milliseconds()
 		if err != nil {
@@ -285,7 +293,7 @@ func (s *Service) Ingest(ctx context.Context, tenant, bucket, name string, r io.
 // Verify checks the current source against the latest stored revision and the object store.
 func (s *Service) Verify(ctx context.Context, tenant, bucket, name string, r io.Reader) (FileResult, error) {
 	start := time.Now()
-	res := FileResult{Store: bucket + "/" + name, Bucket: bucket, Name: name}
+	res := FileResult{Store: path.Base(name), Bucket: bucket, Name: name}
 	finish := func(err error) (FileResult, error) {
 		res.DurationMS = time.Since(start).Milliseconds()
 		if err != nil {
@@ -482,9 +490,9 @@ func (s *Service) register(ctx context.Context, tenant, bucket, name, id, sum st
 			n, err := tx.Exec(ctx,
 				`INSERT INTO artifacts
 				   (id, tenant_id, stage, artifact_type, name, revision, object_version, checksum, content_type, size)
-				 VALUES ($1,$2,$3,$3,$4,$5,$6,$7,$8,$9)
+				 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
 				 ON CONFLICT (id) DO NOTHING`,
-				id, tenant, bucket, logicalName, next, sum, sum, contentType, size)
+				id, tenant, bucket, artifactType(bucket), logicalName, next, sum, sum, contentType, size)
 			if err != nil {
 				return err
 			}

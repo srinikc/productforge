@@ -155,7 +155,7 @@ func TestReportGolden(t *testing.T) {
 	rep := Report{
 		Schema: Schema, RunID: "00000000-0000-4000-8000-000000000000", Mode: "ingest",
 		Tenant: "t1", StartedAt: started, DurationMS: 12,
-		Files: []FileResult{{Store: "intake/a.json", Bucket: "intake", Name: "a.json", Status: Written,
+		Files: []FileResult{{Store: "a.json", Bucket: "intake", Name: "a.json", Status: Written,
 			ArtifactID: "abc", Revision: 0, Checksum: "def", Bytes: 3, DurationMS: 1}},
 		Counts: map[string]int{"planned": 0, "written": 1, "skipped-unchanged": 0, "drift": 0, "failed": 0},
 	}
@@ -173,7 +173,7 @@ func TestReportGolden(t *testing.T) {
   "duration_ms": 12,
   "files": [
     {
-      "store": "intake/a.json",
+      "store": "a.json",
       "bucket": "intake",
       "name": "a.json",
       "status": "written",
@@ -290,14 +290,14 @@ func TestServiceIntegration(t *testing.T) {
 	if err != nil || v.Status != SkippedUnchanged {
 		t.Fatalf("verify current: %+v err=%v", v, err)
 	}
-	if v.Store != "intake/"+name || v.Bucket != "intake" {
+	if v.Store != name || v.Bucket != "intake" {
 		t.Fatalf("verify must name the store entry, got store=%q bucket=%q", v.Store, v.Bucket)
 	}
 	v, err = svcA.Verify(ctx, tenantA, "intake", name, bytes.NewReader(original))
 	if err != nil || v.Status != Drift {
 		t.Fatalf("verify stale source must drift: %+v err=%v", v, err)
 	}
-	if v.Store != "intake/"+name {
+	if v.Store != name {
 		t.Fatalf("drift result must name the store entry, got %q", v.Store)
 	}
 
