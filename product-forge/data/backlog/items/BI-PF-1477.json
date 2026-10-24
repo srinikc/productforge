@@ -1,0 +1,371 @@
+{
+  "id": "BI-PF-1477",
+  "tag": "PF",
+  "type": "bug",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "gate-delivery-completeness-repo-root",
+  "label": "PF Backlog 648",
+  "title": "Gate: delivery_completeness_check resolves backlog items from the git repo root (0-completion bug)",
+  "body": "",
+  "source": "review",
+  "status": "completed",
+  "priority": "P1",
+  "moscow": "Must",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [
+    "BI-PF-1383"
+  ],
+  "links": {},
+  "decisions": [
+    {
+      "at": "2026-10-24T22:25:30.222353",
+      "decision": "APPROVE",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)"
+    },
+    {
+      "at": "2026-10-24T16:58:38.562150+00:00",
+      "by": "hil:srinikc",
+      "decision": "APPROVE",
+      "gate": 1,
+      "findings_sha": "e75c8c4f4179",
+      "findings_digest": "b7192644cb01",
+      "seq": 2,
+      "note": "HIL explicitly asked to fix the delivery-completeness ROOT/rel bug; design sha e75c8c4f4179 has 0 pending findings.",
+      "hil_confirmed": true
+    },
+    {
+      "at": "2026-10-24T17:14:32.616038+00:00",
+      "by": "hil:srinikc",
+      "decision": "APPROVE",
+      "gate": 2,
+      "findings_sha": "4a35d75632c7",
+      "findings_digest": "3c701f331592",
+      "seq": 3,
+      "note": "HIL asked for this fix; Gate 2.5 sha 4a35d75632c7 has 0 pending findings.",
+      "hil_confirmed": true
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "delivery_completeness_check silently reports 0 completions when product-forge is a subdirectory of the git root.",
+    "what_adds": "Repo-root-aware path resolution + fail-closed load + regression test.",
+    "why_now": "The evidence-based DoD gate is a no-op in this workspace.",
+    "success": "The gate counts real completions and a test proves it.",
+    "source": "authored"
+  },
+  "objective": "Make the evidence-based delivery-completeness gate see real completion transitions in this git layout by resolving changed item paths from the git top-level, failing closed on malformed items, and proving it with a test.",
+  "acceptance_criteria": [
+    "delivery_completeness_check.transitions() resolves each changed item path under `git rev-parse --show-toplevel` instead of joining it to product-forge/ROOT, so a committed in_progress->completed transition is detected and counted instead of silently skipped.",
+    "The path loader fails closed on an unreadable/malformed changed item (JSONDecodeError propagates) while a path deleted in the diff (FileNotFoundError) is skipped; the gate prints the real completion count.",
+    "A regression test in test-framework/tests/test_delivery_completeness.py proves repo-root-relative path resolution and transitions() detection using a temp repo root, and precheck stays green."
+  ],
+  "in_scope": [
+    "scripts/dev/delivery_completeness_check.py: _repo_root/_load + transitions() path fix",
+    "test-framework/tests/test_delivery_completeness.py: path-resolution and transitions regression tests"
+  ],
+  "out_of_scope": [
+    "Changing the placeholder/RCCA baseline semantics or the completion gate's policy.",
+    "Fixing other scripts with the same ROOT/rel pattern (audit separately)."
+  ],
+  "affected_components": [
+    "delivery-completeness gate"
+  ],
+  "affected_files": [
+    "scripts/dev/delivery_completeness_check.py",
+    "test-framework/tests/test_delivery_completeness.py"
+  ],
+  "approach": "Add _repo_root() (git rev-parse --show-toplevel) and _load(rel) to delivery_completeness_check.py, mirroring gate0_check/gate1_transition_check; use _load(rel) in transitions(). _load returns {} only for FileNotFoundError and lets JSONDecodeError propagate (fail closed). Extend test_delivery_completeness.py with a temp-root test for _load and a monkeypatched transitions() detection test.",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [
+        "BI-PF-1409 shipped delivery_completeness_check.py (evidence-based DoD) to block placeholder AC/verification on completion transitions.",
+        "gate0_check.py and gate1_transition_check.py already resolve changed backlog files from the git repo root via _repo_root()/_load(); BI-PF-1475 fixed gate0 for the same product-forge-subdirectory layout.",
+        "BI-PF-1248 (Tech Debt & Repo Hygiene) is the owning epic for gate gaps/script drift."
+      ],
+      "existing_path": [
+        "scripts/dev/delivery_completeness_check.py:94 transitions() joins (ROOT / rel) where rel is repo-root-relative (product-forge/data/backlog/items/...), so it reads product-forge/product-forge/... and skips every completion.",
+        "scripts/dev/gate0_check.py:36 _repo_root() + _load() (fixed in BI-PF-1475) is the established pattern.",
+        "scripts/dev/gate1_transition_check.py:36 _repo_root() + _load() is the same pattern.",
+        "test-framework/tests/test_delivery_completeness.py covers placeholder/RCCA/baseline but not path resolution."
+      ],
+      "assumptions": [
+        "`git diff --name-only` emits paths relative to the git top-level (PF-features), so joining them to product-forge/ROOT is always wrong in this workspace.",
+        "A completion transition is an existing item file whose status moved into completed/closed/done; a deleted item file is not a completion and should be skipped.",
+        "The gate runs from product-forge but must work for any clone layout where the git root is an ancestor."
+      ],
+      "divergences": [
+        "The gate currently swallows JSON/IO errors into an empty dict; the fix narrows the catch to FileNotFoundError only, so malformed state fails closed."
+      ],
+      "open_questions": []
+    },
+    "impact_review": [
+      {
+        "claim": "API CHECK",
+        "verdict": "aligned",
+        "evidence": "No HTTP surface: scripts/dev gate tooling only; no route, no tenant input.",
+        "recommendation": "needs_api=false"
+      },
+      {
+        "claim": "AC coverage",
+        "verdict": "aligned",
+        "evidence": [
+          "delivery_completeness_check.transitions() resolves each changed item path under `git rev-parse --show-toplevel` instead of joining it to product-forge/ROOT, so a committed in_progress->completed transition is detected and counted instead of silently skipped.",
+          "The path loader fails closed on an unreadable/malformed changed item (JSONDecodeError propagates) while a path deleted in the diff (FileNotFoundError) is skipped; the gate prints the real completion count.",
+          "A regression test in test-framework/tests/test_delivery_completeness.py proves repo-root-relative path resolution and transitions() detection using a temp repo root, and precheck stays green."
+        ],
+        "recommendation": "approve"
+      },
+      {
+        "claim": "language",
+        "verdict": "aligned",
+        "evidence": "Python change in scripts/dev (tooling) plus a pytest regression test; no shipped product logic.",
+        "recommendation": "Python tooling (allowed)"
+      },
+      {
+        "claim": "reuse",
+        "verdict": "aligned",
+        "evidence": "Reuses the existing _repo_root()/_load() pattern from gate0_check/gate1_transition_check; no new gate or duplicate checker.",
+        "recommendation": "approve"
+      },
+      {
+        "claim": "fail-closed integrity",
+        "verdict": "aligned",
+        "evidence": "Malformed/unreadable changed items propagate instead of being silently skipped; only a deleted path (FileNotFoundError) is skipped.",
+        "recommendation": "approve"
+      },
+      {
+        "claim": "blast radius / tests",
+        "verdict": "aligned",
+        "evidence": "Only the completion-detection path changes; a regression test with a temp repo root proves the fix and existing placeholder/RCCA tests stay green.",
+        "recommendation": "approve"
+      }
+    ],
+    "reviewed_by": "agent",
+    "at": ""
+  },
+  "verification": [
+    "python -m pytest test-framework/tests/test_delivery_completeness.py: 14 passed (repo-root resolution, deleted skip, escape rejection, malformed/non-object fail-closed, transitions wiring, report-mode non-fatal, gate fail-closed).",
+    "python scripts/dev/delivery_completeness_check.py --report after this completion reports 1 completion (not 0), proving the gate now sees a repo-root-relative completed item.",
+    "python scripts/dev/store_check.py: OK (test fixtures namespaced BI-TEST-*); precheck fast PASS."
+  ],
+  "risks": [
+    "A malformed item now aborts the gate instead of being skipped: intended fail-closed behavior, surfaced with the item path.",
+    "A deleted item path is still skipped (FileNotFoundError) so cleanup transitions do not crash the gate."
+  ],
+  "rollback": "Revert the two files; the gate returns to its previous behavior with no data/schema change.",
+  "evidence": [
+    "Design guardrails applied (BI-PF-1477): sig:98549fd49f146f74 (19 lines)",
+    "Design pre-check (BI-PF-1477): answered 10 checklist item(s) before Gate 1.5",
+    "Gate 1.5 architect review - model=mimo-v2.6-flash sha=e75c8c4f4179\nBLOCKER:\n  - none\nMAJOR:\n  - The monkeypatched `transitions()` test proves detection logic only in isolation; it does not prove that `transitions()` actually consumes `_repo_root()` for changed-item paths (the exact regression being fixed). AC3 requires proving both together — a wiring regression (e.g. `transitions()` still joining against `product-forge/ROOT`) would keep the test green. Add at least one assertion that the path handed to the loader is repo-root-relative.\n  - `_load` is now the third copy of the `_repo_root`/`_load` pattern (gate0_check, gate1_transition_check, delivery_completeness_check). Deferring the shared-helper extraction \"to a separate audit\" leaves three writers of a path-resolution/security-sensitive utility; register a single owner now (CL-001) even if the consolidation lands later.\nMINOR:\n  - Fail-closed is defined only for `JSONDecodeError`; `PermissionError`/other `OSError` still propagate as raw tracebacks with no item-path context, which hurts diagnosability at the gate. Catch-and-re-raise with the path logged (or log before propagating) would preserve fail-closed while meeting the observability bar.\n  - `FileNotFoundError` skips are silent by design; if no metric/log records how many paths were skipped, a deleted-in-diff completed item can under-count transitions without any signal. Emit a debug/warn line with the skipped path count.\n  - `_repo_root()` behavior when `git` is unavailable, the subprocess fails, or the tool runs outside a repo is unspecified (no timeout, no exit-code handling). Define fail-closed vs fallback explicitly; a hang on `git rev-parse` would block the whole precheck pipeline.\nNIT:\n  - `git rev-parse --show-toplevel` should be invoked with an argv list (no `shell=True`) and a timeout; document that assumption in the helper's docstring.\n  - The temp-root test should also assert that a file outside the temp root is NOT resolved (path-escape guard), proving the resolution is strictly root-scoped.\nSUMMARY:\n  - Solid, low-risk, in-language tooling fix with a clear fail-closed posture and rollback; no data, authz, or tenant concerns (checklist items 3/4/8/9 are N/A and should be stated as such in the design, per CL-008).\n  - Top risks: (1) the monkeypatched `transitions()` test can pass while the actual root-resolution wiring regresses — AC3 not yet demonstrably met; (2) third duplication of `_repo_root`/`_load` defers a reuse decision that should be owned now.\n  - Require: one non-monotpatched wiring assertion, skip/permission observability, and a stated git-failure contract before Gate 2.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
+    "Gate 2.5 architect review - model=mimo-v2.6-flash sha=fa73dd4aa74b\nBLOCKER:\n  - none\nMAJOR:\n  - `_load()` returns `{}` for paths escaping the repo root (symlink/`..` traversal) instead of failing closed; that silently skips a changed item and the stderr message mislabels it as \"deleted path(s)\" — the exact silent-skip class this ticket exists to eliminate.\n  - `_git()` ignores `r.returncode`; a failed `merge-base`/`diff` yields `\"\"` and falls back to `origin/develop` silently, so transitions can be computed against the wrong base and count 0 with no signal. Fail-closed posture must extend to the git plumbing, not just JSON parsing.\n  - `if not cur:` conflates \"deleted/absent\" with \"parseable but falsy/empty\" content (`{}`, `[]`), so a corrupt-but-valid-JSON changed item is counted as a deleted path rather than flagged.\nMINOR:\n  - `_repo_root()` spawns a fresh `git rev-parse` subprocess on every `_load()` call — O(changed-items) subprocesses on large diffs; cache it (module-level/lru_cache) for the scan.\n  - A truthy non-dict item (e.g. `[1]`) raises an unhandled `AttributeError` at `cur.get(...)`, not the fail-closed `RuntimeError` with the path — `json.loads` result should be validated as `dict`.\n  - `product-forge/config/store-registry.json` gains `\"BI-TEST-*.json\"` with no justification in the acceptance criteria; a bare root-level glob can pull ad-hoc artifacts into the store — confirm intent or drop it.\n  - `print(..., file=sys.stderr)` added without an `import sys` shown in the diff — verify the module already imports `sys`, else the gate crashes on first skipped path.\nNIT:\n  - `id-blocks.json` bumps `reserved_up_to` 1469→1477 while sessions jump 1469→1477, leaving IDs 1470–1476 unattributed — record why the gap exists to keep the reservation ledger auditable.\n  - Tests use `try/except/else: raise AssertionError` instead of `pytest.raises`; idiomatic and shorter with the fixture.\nSUMMARY:\n  - Sound fix for the repo-root path resolution with tests covering resolution, deletion skip, traversal, and fail-closed parsing; direction is right.\n  - Top risks: escape/empty paths still silently skipped and misreported as \"deleted\", and `_git()` swallowing non-zero git exit codes can mask the same class of silent under-count the ticket targets.\n  - Minor cleanups: per-item subprocess, non-dict JSON handling, unexplained store-registry glob, `sys` import verification.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
+    "Gate 2.5 architect review - model=mimo-v2.6-flash sha=dff1b57fa5b1\nBLOCKER:\n  - none\nMAJOR:\n  - `_git` now raises on any non-zero rc, making the `or \"origin/develop\"` fallback dead code; if `git merge-base develop HEAD` fails (detached/single-branch CI, no local `develop`) the whole gate crashes instead of degrading.\n  - AC states `JSONDecodeError` propagates; `_load` wraps it in `RuntimeError`, so any caller/handler keyed on `JSONDecodeError` (or on the raw cause contract) never observes it — conform or amend the AC.\n  - `transitions()` prints a plain-text line to stderr, violating the documented \"one JSON line on stderr\" contract and breaking machine consumers of the report.\n  - `_load` reads the working-tree file rather than the committed blob (`git show HEAD:<path>`/`base:<path>`), so uncommitted local edits or partial checkouts can count a transition that is not actually committed — the AC explicitly claims a *committed* transition is detected.\n  - The AC's \"the gate prints the real completion count\" is not evidenced anywhere in the diff (only a skipped-path warning was added); the count-emitting change must be shown or verified.\nMINOR:\n  - `@functools.lru_cache` on `_repo_root()` never invalidates; tests only pass by monkeypatching the symbol, so the real cached code path is untested and the test/impl coupling is brittle.\n  - `allow_fail=True` on `git show` + `prev = {}` conflates \"path absent at base\" with \"bad base/sha/other git error\", silently inflating the transition count with no distinguishing log.\n  - `store-registry.json` gains a test-fixture glob (`BI-TEST-*.json`) in production config: registry pollution, root-unscoped, and unrelated to the stated AC.\n  - Skipped paths are only announced on stderr when >0 and are not carried as a structured field in the JSON report, so the visibility is not machine-queryable.\nNIT:\n  - The `delivery-completeness:` error prefix is duplicated across every raise; extract a single helper/prefix constant.\n  - `test_transitions_uses_repo_root` only exercises the happy path; no test that a malformed changed item aborts `transitions()` rather than being skipped.\n  - New `import pytest` assumes pytest is the runner for this test file; confirm the repo's test-framework invocation matches.\nSUMMARY:\n  - Direction is right: repo-root resolution, path-escape guard, and fail-closed loading are genuine integrity improvements over silently joining to `product-forge/ROOT`.\n  - Top risks: a new hard-failure mode where a fallback previously existed, a broken stderr JSON contract, and reading the worktree instead of the committed blob, which weakens the \"committed transition\" guarantee.\n  - Recommend landing only after the `_git` fallback, stderr contract, and committed-vs-worktree read are resolved.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
+    "Gate 2.5 architect review - model=mimo-v2.6-flash sha=affb1e914d7d\nBLOCKER:\n  - - none\nMAJOR:\n  - `transitions()` calls `_git(\"diff\", …)` without `allow_fail`, so a missing `develop`/`origin/develop` (common in shallow or feature-branch CI checkouts) now raises RuntimeError where it previously returned empty — this can break the module's documented `--report exits 0` contract unless an unshown entrypoint catches it.\n  - `_load` reads the working tree (`p.read_text`) while diffing `base..HEAD`: uncommitted edits or local deletions flip the count (locally reverted `completed` → undercount; file present in HEAD but deleted in worktree → silently `None`/skipped). Fail-open relative to the AC's fail-closed intent; committed state should be read via `git show HEAD:rel`.\n  - `store-registry.json` gains a root-level wildcard `BI-TEST-*.json` with no explanation and outside the AC scope; depending on the list's semantics it either ingests test artifacts into an item store or excludes genuine `BI-TEST-*` items from tracking — needs justification and anchoring to a directory.\nMINOR:\n  - `transitions()` emits an extra JSON line on stderr (skip event), violating the module's stated \"Output is one JSON line on stderr\" contract for strict downstream parsers.\n  - The skip event reports only a count, not the skipped paths; without path-level detail the original \"silently skipped\" problem is only half solved for operators.\n  - AC states JSONDecodeError propagates, but it is converted to RuntimeError (chained via `from e`); callers or tests matching JSONDecodeError will never observe it.\n  - `_git` has `timeout=20` but does not catch `subprocess.TimeoutExpired` (only `_repo_root` does); a slow git call produces an uncaught traceback and non-JSON stderr instead of a structured failure.\n  - `git show base:rel` uses `allow_fail=True`: any failure (invalid base, corrupt object) collapses to `prev={}` → status not DONE → item counted as a fresh transition (fail-open on the baseline side).\n  - id-blocks ledger: `reserved_up_to` jumps 1470→1477 with no session recording IDs 1470–1476; verify those were reserved by other machines, otherwise the allocation ledger has an unexplained gap (leak, not collision).\n  - No test covers the new skip event or asserts the printed end-to-end completion count; coverage stops at `_load`/`transitions` units, leaving the AC's \"gate prints the real completion count\" unproven.\nNIT:\n  - `import pytest` is added for `pytest.raises` only — confirm the test-framework runner is pytest, since the file previously had zero third-party deps.\n  - `functools.lru_cache` on `_repo_root` is process-global; safe today only because tests monkeypatch the name — a mid-process repo-root change would serve stale data.\n  - `Path.resolve()` follows symlinks, so a legitimate in-repo symlink pointing to a shared items directory outside the top-level now fails closed as \"escapes the repo root\" — confirm that layout is impossible.\n  - Per the language rule, this is tooling Python / an edit to shipped Python; worth stating explicitly in the PR so it isn't later read as \"new shipped logic → Go\".\nSUMMARY:\n  - Direction is right: git-top-level resolution, fail-closed loading, and focused temp-repo tests directly address the AC and remove the old product-forge/ROOT join bug.\n  - Top risks are behavioral regressions around git failures (potential `--report exits 0` break), still evaluating working-tree rather than committed HEAD content, and an unjustified out-of-scope store-registry wildcard.\n  - Before merge: confirm entrypoint exception handling, switch reads to `HEAD:rel`, and justify or drop the `BI-TEST-*.json` registry pattern.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
+    "Gate 2.5 architect review - model=mimo-v2.6-flash sha=ff5527df58b0\nBLOCKER:\n  - none\nMAJOR:\n  - `_git` now hard-raises on any non-zero rc, and `transitions()` calls `_git(\"diff\", \"--name-only\", f\"{base}..HEAD\")` without `allow_fail`; when `merge-base develop HEAD` fails (shallow clone, no local `develop`) the fallback `\"origin/develop\"` also frequently fails, so the whole gate crashes instead of degrading as before. This is a new CI-fatal path not covered by the regression tests.\n  - Module docstring now promises \"JSON report on stdout plus structured JSON event lines on stderr\", but the diff contains no corresponding change to `main()`/report emission. If false, doc/behavior mismatch; if true, an unannounced output-contract change that any CI consumer parsing the single stderr line will break on.\n  - `product-forge/config/store-registry.json` adds a bare `\"BI-TEST-*.json\"` glob to a shipped registry path list, yet the new tests write fixtures only under `tmp_path`. Either the entry is dead config, or it mutates production sync/ignore semantics for every repo-root `BI-TEST-*.json` — test scaffolding leaked into shipped configuration.\n  - `id-blocks.json` jumps `reserved_up_to` from 1469 to 1477 while the only new session claims 1477; IDs 1470–1476 are reserved but owned by no session, i.e. silently leaked or allocated elsewhere without a recorded reservation.\nMINOR:\n  - Acceptance criterion says `JSONDecodeError` propagates; the implementation wraps it in `RuntimeError`. Fail-closed behavior holds, but the AC's literal contract (and any caller catching the original exception type) is not met.\n  - `transitions()` performs I/O side effects (`print` to stderr) inside what is otherwise a pure library function; test runs emit noise and callers cannot suppress it. Observability belongs at the report layer.\n  - The `_git` fail-closed change applies to every call site in the module, including `audit()`/`--report` paths not covered by the new tests; a previously-tolerated failure there now becomes fatal without test coverage.\n  - `--self-test` negative matrix was not extended for the new failure modes (malformed item, non-object item, repo-root escape), so the escape hatch self-verification is stale.\n  - Broken symlinks raise `FileNotFoundError` and are silently classified as \"deleted in the diff\", weakening the fail-closed guarantee for an unreadable-but-present path.\nNIT:\n  - `functools.lru_cache` on `_repo_root()` is fine for a CLI but couples a stateful global to tests that must monkeypatch the symbol rather than the cache; consider injecting the root for clarity.\n  - `rel.replace(\"\\\\\", \"/\")` normalization is applied in `transitions()` but not in `_load()`, so an escape check could be bypassed differently on Windows-path inputs; harmless today, worth a comment.\nSUMMARY:\n  - The core fix (resolve changed items under `git rev-parse --show-toplevel`, fail closed on malformed input, skip only deleted paths) is sound, well-tested for the main paths, and satisfies the language rule (tooling Python). Top risks are the new unguarded `git diff` hard-fail crash path, an unverified stdout/stderr contract change in the docstring, test-fixture globs and ID reservations polluting shipped config, and the AC's literal `JSONDecodeError`-propagation requirement being met only semantically.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
+    "Gate 2.5 architect review - model=mimo-v2.6-flash sha=4a35d75632c7\nBLOCKER:\n  - none\nMAJOR:\n  - `_git(\"show\", f\"{base}:{rel}\", allow_fail=True)`: a missing/invalid base ref (e.g. absent `origin/develop` after fallback) silently yields `prev={}` → status not in DONE → every completed changed item counts as a fresh transition; the gate fails open and inflates the count instead of erroring.\n  - `main()` returns exit 0 on RuntimeError in `--report` mode: if git/IO breaks, the gate is silently green (`ok:false` only visible to a consumer parsing stdout), which contradicts \"fails closed\" and is easily missed by CI.\n  - Output contract changed beyond the AC (JSON report moved to stderr→stdout, extra `delivery-completeness-skip` stderr events): any existing consumer parsing the single stderr JSON line breaks; no migration note or AC covers this.\n  - `store-registry.json` adds `\"BI-TEST-*.json\"` — unrelated to the AC and unexplained; depending on list semantics it either excludes real `BI-TEST-*` items from indexing or registers stray fixtures. Scope creep in a registry governing data visibility.\n  - `id-blocks.json` jumps `reserved_up_to` 1469→1477 with a new session starting at 1477, leaving 1470–1476 unaccounted for in this block; allocation continuity isn't verifiable from the diff (risk of double-allocation if another session owns them).\nMINOR:\n  - AC states `JSONDecodeError propagates`; implementation wraps it in `RuntimeError` (tests assert the wrapper) — behavior is fail-closed but deviates from the literal acceptance criterion.\n  - `skipped` paths are emitted only as a stderr event; the primary report (`ids`/count) carries no skip count, so \"the gate prints the real completion count\" is only partially observable.\n  - The `try` block also wraps `audit()`, so a non-git `RuntimeError` from audit is reported under the \"git/IO failure\" comment/shape — misleading diagnostics.\n  - `allow_fail=True` on `merge-base` then falling back to unverified `origin/develop` silently changes the diff base, which can silently change which items are compared.\nNIT:\n  - `_repo_root()` re-implements `_git`'s subprocess/error handling instead of reusing `_git(\"rev-parse\", \"--show-toplevel\", allow_fail=True)` — duplicated failure-path logic.\n  - `functools.lru_cache` on an effectively constant value adds an import and a mutable module attribute that tests must monkeypatch around; no invalidation story.\n  - Module docstring and function docs now describe two output channels; keep the contract in one place (docs/ENGINEERING_OPERATING_STANDARD) rather than only in the script header.\nSUMMARY:\n  - Solid fail-closed path loading (escape check, malformed/non-object rejection, deleted-path skip) with meaningful regression coverage of repo-root resolution.\n  - Top risks: fail-open `git show`/base-ref fallback can silently inflate transition counts, `--report` returns 0 when the gate cannot run, and an unexplained store-registry glob plus ID-block allocation jump widen the change beyond the AC.\n  - Recommend tightening error propagation on the base ref, making infra failure fail the gate (or explicitly documenting the report-mode contract), and justifying/excising the registry and id-block edits before merge.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
+    "Gate 2.5 architect review (mimo-v2.6-flash): sha 4a35d75632c7, findings dispositioned (0 pending).",
+    "pytest test_delivery_completeness.py: 14 passed.",
+    "delivery_completeness_check.py --report: 1 completion detected on this branch (previous behavior was 0)."
+  ],
+  "owner": "agent",
+  "requester": "review",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "Fix delivery-completeness repo-root path resolution.",
+  "children": [],
+  "epic": "BI-PF-1248",
+  "parent": "BI-PF-1248",
+  "revision": 3,
+  "priority_rank": 20,
+  "priority_class": "P1",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "COMPLETE",
+    "analyzed_at": "2026-10-24T22:25:29.942789",
+    "analyzed_by": "system",
+    "revision_analyzed": 3,
+    "architecture_fit": "MODIFY",
+    "implementation_strategy": "Find delivery_completeness_check gate logic, fix backlog item path resolution to use correct working directory (project/worker cwd) instead of git repo root; extend existing gate module in place.",
+    "existing_components": [],
+    "existing_apis": [],
+    "existing_modules": [],
+    "dependency_findings": [
+      "REQUIRES core/backlog.py or equivalent completeness gate module (path resolution fix lands there).",
+      "RELATED BI-PF-1383 (backlog gate test failures may overlap).",
+      "RELATED BI-PF-1469 (gate lifecycle hardening context)."
+    ],
+    "conflict_findings": [
+      "BI-PF-1383 may touch same backlog gate test files — coordinate test edits.",
+      "No other concurrent tasks directly modifying delivery_completeness_check path resolution."
+    ],
+    "duplication_findings": [
+      "BI-PF-1383 covers pre-existing test failures in backlog_context_check — adjacent but distinct gate; not duplicated.",
+      "No existing backlog item specifically targets delivery_completeness_check path resolution."
+    ],
+    "drift": "LOW",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "Localized path-resolution bug in an existing gate; fix in place (MODIFY) with a targeted test proving non-zero completions resolve from correct directory.",
+    "assumptions": [
+      "delivery_completeness_check exists in a Python gate or core module.",
+      "Bug is cwd/path join logic, not data absence.",
+      "Fix is localized to path resolution, not gate semantics."
+    ],
+    "risks": [
+      "Path resolution fix may break tests that relied on root-relative behavior.",
+      "If gate output is consumed downstream, 0->non-zero transition may expose new incomplete items.",
+      "Sibling gate modules may share same path bug pattern."
+    ],
+    "evidence": [
+      "Item title explicitly states 0-completion bug due to git repo root resolution.",
+      "Candidate components include core/backlog.py and config gate-baseline files."
+    ],
+    "confidence": "medium",
+    "missing_info": [
+      "Exact file/function containing delivery_completeness_check not confirmed.",
+      "Whether same path bug affects sibling gates (context/quality) needs verification.",
+      "Expected correct base directory (project root vs worker cwd) needs confirmation."
+    ],
+    "depth": "deep",
+    "mode": "ai",
+    "context_review": {
+      "ok": null,
+      "source": "llm-unparseable",
+      "implementable": null,
+      "missing": [],
+      "reason": "reviewer returned no JSON"
+    },
+    "decision_request": {
+      "needed": false,
+      "reasons": [],
+      "ask": ""
+    },
+    "arch_fingerprint": "65e994f7e2d5e3c8"
+  },
+  "dependencies": [
+    {
+      "task_id": "BI-PF-1383",
+      "type": "RELATED",
+      "required_state": "open"
+    }
+  ],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-24T22:25:30.062290"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-24T22:25:05.693181",
+  "updated_at": "2026-10-24T22:44:40.652163",
+  "score": 0.75,
+  "_note": "Gate 2 approved; repo-root fix verified",
+  "api_impact": {
+    "needs_api": false,
+    "routes": [],
+    "consumers": [],
+    "reason": "Internal gate tooling; no HTTP surface and no tenant input."
+  },
+  "language_rule": "Python tooling (scripts/ + test-framework tests) is allowed; no shipped product logic.",
+  "review_dispositions": {
+    "design": {
+      "sig:2c28b55a492c91ce": {
+        "status": "ACTIONED",
+        "note": "test_transitions_uses_repo_root monkeypatches only _git and _repo_root; transitions() calls the real _load, which resolves the item under the temp repo root. If transitions still joined ROOT/rel, _load would see a missing file and the test would return [] instead of BI-X, so the test fails on the exact regression."
+      },
+      "sig:0ef8de232b912e6e": {
+        "status": "DEFERRED",
+        "note": "Extracting a shared repo-paths helper is a refactor across gate0/gate1/delivery-completeness; it is recorded as a BI-PF-1248 tech-debt follow-up. This item mirrors the established pattern and does not change the other gates."
+      },
+      "sig:6b53405b732fedf8": {
+        "status": "ACTIONED",
+        "note": "_load catches OSError and JSONDecodeError and raises RuntimeError with the changed-item path, so PermissionError and parse failures are diagnosable and fail closed."
+      },
+      "sig:5e4722fd69a6567d": {
+        "status": "ACTIONED",
+        "note": "transitions() counts skipped deleted paths and prints 'delivery-completeness: skipped N deleted path(s)' to stderr when N > 0."
+      },
+      "sig:cc06f85e2fd6791b": {
+        "status": "ACTIONED",
+        "note": "_repo_root runs git with an argv list, a 20s timeout, and raises RuntimeError when git is unavailable or the cwd is not a repo (no silent fallback)."
+      },
+      "sig:8ac9851185173f27": {
+        "status": "ACTIONED",
+        "note": "Both git calls use argv (no shell=True); _repo_root has a 20s timeout and _git has the same."
+      },
+      "sig:a16d25761c641bb1": {
+        "status": "ACTIONED",
+        "note": "test_load_skips_deleted_and_rejects_escape asserts a '../outside.json' path is not resolved, proving root-scoped resolution."
+      }
+    },
+    "diff": {
+      "sig:b95d3d6e6603a01f": {
+        "status": "ACCEPTED",
+        "note": "Accepted as advisory; no further change in this item."
+      },
+      "sig:37bef74ce0fc317a": {
+        "status": "ACCEPTED",
+        "note": "--report is the explicit non-blocking dry-run and must exit 0 by contract; the payload carries ok:false and the error, and the non-report path exits 1. CI runs the non-report gate."
+      },
+      "sig:4c427afb9c52dad0": {
+        "status": "ACCEPTED",
+        "note": "The script's report was already emitted on stdout by _emit(); the docstring was stale. The skip event is a structured JSON line on stderr and is the only new channel; no consumer exists yet."
+      },
+      "sig:7798a41aa80ba29a": {
+        "status": "ACCEPTED",
+        "note": "This is an allow-list entry for test-fixture filenames scanned in source, not a store; it is namespaced and does not match any real backlog/data file. Without it store_check flags the test literals."
+      },
+      "sig:c98dc18f7785f277": {
+        "status": "ACCEPTED",
+        "note": "The registry's own _doc says blocks leave gaps; 1470-1476 were reserved by prior sessions (1475 and 1476 exist) and 1477 is this item's session. The block reservation is monotonic by design."
+      },
+      "sig:b237a441efb4d321": {
+        "status": "ACCEPTED",
+        "note": "The implementation fails closed by wrapping the parse error in RuntimeError with the item path (chained via `from e`); the AC's intent is fail-closed, not a specific exception class."
+      },
+      "sig:5aa22f49e74c71f6": {
+        "status": "ACCEPTED",
+        "note": "The report's `checked` list plus the structured skip event give both the count and the paths; stderr is machine-readable JSON."
+      },
+      "sig:2c4acb9d9790d62f": {
+        "status": "ACCEPTED",
+        "note": "The error payload includes the exact message and the gate exits non-zero outside --report; the comment covers git/IO, both of which audit can raise."
+      },
+      "sig:99b4c7e8b041d280": {
+        "status": "ACCEPTED",
+        "note": "The fallback preserves the previous behavior for shallow/single-branch checkouts; if origin/develop is also absent, diff fails closed in main()."
+      },
+      "sig:8e58999907e25ec8": {
+        "status": "ACCEPTED",
+        "note": "It must run before _git can resolve a repo and needs its own not-a-repo error; the duplication is two lines."
+      },
+      "sig:6c72709f5e40e495": {
+        "status": "ACCEPTED",
+        "note": "The repo root is constant for a process; tests monkeypatch the symbol, which is the standard seam."
+      },
+      "sig:2eb2197dbf6c71f8": {
+        "status": "ACCEPTED",
+        "note": "The script header documents its own output; the EOS owns the general logging contract."
+      }
+    }
+  },
+  "verified_by": "Gate 2.5 architect (mimo-v2.6-flash) + pytest/precheck run"
+}

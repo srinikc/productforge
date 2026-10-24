@@ -13,11 +13,13 @@ Audit (report-only, bounded): completed items still carrying placeholder DoD are
 config/delivery-completeness-baseline.json (owner + expiry + reason). An expired/unknown baseline fails.
 Escape hatch: PF_ALLOW_PLACEHOLDER_DOD=1 downgrades transition failures to warnings (audited in output).
 
-Output is one JSON line on stderr; --report exits 0; --self-test runs the negative matrix.
+Output is a JSON report on stdout plus structured JSON event lines on stderr; --report exits 0; --self-test
+runs the negative matrix.
 """
 from __future__ import annotations
 
 import argparse
+import functools
 import json
 import os
 import re
@@ -86,31 +88,78 @@ def transition_problems(item: dict) -> list[str]:
     return bad
 
 
-def _git(*args: str) -> str:
-    r = subprocess.run(["git", *args], cwd=str(ROOT), capture_output=True, text=True)
+def _git(*args: str, allow_fail: bool = False) -> str:
+    try:
+        r = subprocess.run(["git", *args], cwd=str(ROOT), capture_output=True, text=True, timeout=20)
+    except (OSError, subprocess.SubprocessError) as e:
+        raise RuntimeError(f"delivery-completeness: git {' '.join(args)} failed: {e}") from e
+    if r.returncode != 0 and not allow_fail:
+        raise RuntimeError(f"delivery-completeness: git {' '.join(args)} failed (rc={r.returncode}): "
+                           f"{(r.stderr or '').strip()}")
     return (r.stdout or "").strip()
 
 
+@functools.lru_cache(maxsize=1)
+def _repo_root() -> str:
+    """Git top-level (the workspace root is an ancestor of product-forge in this layout)."""
+    try:
+        r = subprocess.run(["git", "rev-parse", "--show-toplevel"], cwd=str(ROOT),
+                           capture_output=True, text=True, timeout=20)
+    except (OSError, subprocess.SubprocessError) as e:
+        raise RuntimeError(f"delivery-completeness: git rev-parse failed: {e}") from e
+    out = (r.stdout or "").strip()
+    if r.returncode != 0 or not out:
+        raise RuntimeError(f"delivery-completeness: not in a git repo (rev-parse rc={r.returncode})")
+    return out
+
+
+def _load(rel_repo: str) -> dict | None:
+    """Read a changed item from the git repo root, not from product-forge/ROOT.
+
+    Returns None only for a path absent from the tree (deleted in the diff). A path escaping the repo root,
+    an unreadable file, malformed JSON or a non-object item fails closed with the path in the error.
+    """
+    root = Path(_repo_root()).resolve()
+    p = (root / rel_repo).resolve()
+    try:
+        p.relative_to(root)
+    except ValueError as e:
+        raise RuntimeError(f"delivery-completeness: changed item escapes the repo root: {rel_repo}") from e
+    try:
+        data = json.loads(p.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return None
+    except (OSError, json.JSONDecodeError) as e:
+        raise RuntimeError(f"delivery-completeness: cannot read changed item {rel_repo}: {e}") from e
+    if not isinstance(data, dict):
+        raise RuntimeError(f"delivery-completeness: changed item is not a JSON object: {rel_repo}")
+    return data
+
+
 def transitions(base: str = "") -> list[dict]:
-    base = base or _git("merge-base", "develop", "HEAD") or "origin/develop"
+    base = base or _git("merge-base", "develop", "HEAD", allow_fail=True) or "origin/develop"
     out = []
+    skipped: list[str] = []
     for rel in _git("diff", "--name-only", f"{base}..HEAD").splitlines():
         rel = rel.replace("\\", "/")
         if "/data/backlog/items/" not in rel or not rel.endswith(".json"):
             continue
-        try:
-            cur = json.loads((ROOT / rel).read_text(encoding="utf-8"))
-        except Exception:
+        cur = _load(rel)
+        if cur is None:
+            skipped.append(rel)
             continue
         if str(cur.get("status") or "").lower() not in DONE:
             continue
-        prev_raw = _git("show", f"{base}:{rel}")
+        prev_raw = _git("show", f"{base}:{rel}", allow_fail=True)
         try:
             prev = json.loads(prev_raw) if prev_raw else {}
         except Exception:
             prev = {}
         if str(prev.get("status") or "").lower() not in DONE:
             out.append(cur)
+    if skipped:
+        print(json.dumps({"event": "delivery-completeness-skip", "count": len(skipped),
+                          "paths": sorted(skipped)}), file=sys.stderr)
     return out
 
 
@@ -193,12 +242,18 @@ def main(argv: list[str] | None = None) -> int:
     problems: list[str] = []
     warnings: list[str] = []
     ids: list[str] = []
-    for it in transitions(a.base):
-        iid = str(it.get("id"))
-        ids.append(iid)
-        for p in transition_problems(it):
-            (warnings if os.environ.get("PF_ALLOW_PLACEHOLDER_DOD") == "1" else problems).append(f"{iid}: {p}")
-    remaining, base_bad = audit()
+    try:
+        for it in transitions(a.base):
+            iid = str(it.get("id"))
+            ids.append(iid)
+            for p in transition_problems(it):
+                (warnings if os.environ.get("PF_ALLOW_PLACEHOLDER_DOD") == "1" else problems).append(f"{iid}: {p}")
+        remaining, base_bad = audit()
+    except RuntimeError as e:  # git/IO failure: fail closed, but keep --report non-fatal
+        print(json.dumps({"ok": False, "checked": ids, "problems": [str(e)], "warnings": warnings,
+                          "error": str(e)}))
+        print(f"delivery-completeness: {'REPORT' if a.report else 'FAIL'} - {e}")
+        return 0 if a.report else 1
     problems += [f"baseline: {b}" for b in base_bad]
     if remaining:
         warnings.append(f"{len(remaining)} completed item(s) still carry placeholder DoD (baseline/audit)")

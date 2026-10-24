@@ -1,0 +1,36 @@
+{
+  "item": "BI-PF-1477",
+  "sha": "4a35d75632c7",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-24T17:13:23.088133+00:00",
+  "findings": {
+    "BLOCKER": [
+      "none"
+    ],
+    "MAJOR": [
+      "`_git(\"show\", f\"{base}:{rel}\", allow_fail=True)`: a missing/invalid base ref (e.g. absent `origin/develop` after fallback) silently yields `prev={}` \u2192 status not in DONE \u2192 every completed changed item counts as a fresh transition; the gate fails open and inflates the count instead of erroring.",
+      "`main()` returns exit 0 on RuntimeError in `--report` mode: if git/IO breaks, the gate is silently green (`ok:false` only visible to a consumer parsing stdout), which contradicts \"fails closed\" and is easily missed by CI.",
+      "Output contract changed beyond the AC (JSON report moved to stderr\u2192stdout, extra `delivery-completeness-skip` stderr events): any existing consumer parsing the single stderr JSON line breaks; no migration note or AC covers this.",
+      "`store-registry.json` adds `\"BI-TEST-*.json\"` \u2014 unrelated to the AC and unexplained; depending on list semantics it either excludes real `BI-TEST-*` items from indexing or registers stray fixtures. Scope creep in a registry governing data visibility.",
+      "`id-blocks.json` jumps `reserved_up_to` 1469\u21921477 with a new session starting at 1477, leaving 1470\u20131476 unaccounted for in this block; allocation continuity isn't verifiable from the diff (risk of double-allocation if another session owns them)."
+    ],
+    "MINOR": [
+      "AC states `JSONDecodeError propagates`; implementation wraps it in `RuntimeError` (tests assert the wrapper) \u2014 behavior is fail-closed but deviates from the literal acceptance criterion.",
+      "`skipped` paths are emitted only as a stderr event; the primary report (`ids`/count) carries no skip count, so \"the gate prints the real completion count\" is only partially observable.",
+      "The `try` block also wraps `audit()`, so a non-git `RuntimeError` from audit is reported under the \"git/IO failure\" comment/shape \u2014 misleading diagnostics.",
+      "`allow_fail=True` on `merge-base` then falling back to unverified `origin/develop` silently changes the diff base, which can silently change which items are compared."
+    ],
+    "NIT": [
+      "`_repo_root()` re-implements `_git`'s subprocess/error handling instead of reusing `_git(\"rev-parse\", \"--show-toplevel\", allow_fail=True)` \u2014 duplicated failure-path logic.",
+      "`functools.lru_cache` on an effectively constant value adds an import and a mutable module attribute that tests must monkeypatch around; no invalidation story.",
+      "Module docstring and function docs now describe two output channels; keep the contract in one place (docs/ENGINEERING_OPERATING_STANDARD) rather than only in the script header."
+    ],
+    "SUMMARY": [
+      "Solid fail-closed path loading (escape check, malformed/non-object rejection, deleted-path skip) with meaningful regression coverage of repo-root resolution.",
+      "Top risks: fail-open `git show`/base-ref fallback can silently inflate transition counts, `--report` returns 0 when the gate cannot run, and an unexplained store-registry glob plus ID-block allocation jump widen the change beyond the AC.",
+      "Recommend tightening error propagation on the base ref, making infra failure fail the gate (or explicitly documenting the report-mode contract), and justifying/excising the registry and id-block edits before merge."
+    ]
+  }
+}
