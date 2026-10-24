@@ -105,6 +105,12 @@ future-proofing, reuse/no-duplication, "the right thing") before precheck/PR.
 - **Presented as part of the HIL gate it informs (binding):** a review is not a standalone artifact — the
   **Gate 1.5 findings + recommendation are stated inside the Gate 1 review**, and the **Gate 2.5 findings +
   recommendation inside the Gate 2 review**, so the human decision always sees them.
+- **Decision table + overall recommendation (BI-PF-1479):** `architect_review.py gate --gate 1|2` and
+  `gate1_check.py` render every finding as one table (`# | severity | finding | disposition | response`)
+  above a computed **overall architect recommendation** - `NOT READY` (blocker/major pending),
+  `APPROVE WITH ATTENTION` (all blockers/majors dispositioned but some accepted/deferred/scope/rejected) or
+  `APPROVE` (all blockers/majors actioned) - with severity/disposition counts. It is advisory input; the HIL
+  still decides. The machine path (`gate1_check --json`) and exit codes are unchanged.
 - **The model run is NOT inside `precheck`** (network/model calls) — run it separately as the **Gate-2.5 step**
   and commit the evidence (`engineering/reviews/<item>-<sha>.json`). Record usage/cost/time.
 - **ENFORCED as a hard rule** (BI-PF-1428): `precheck` fast runs `scripts/dev/architect_review_check.py`
