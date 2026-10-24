@@ -13,6 +13,7 @@ import (
 	"os"
 	"sort"
 	"strings"
+	"sync"
 
 	"productforge/datastore"
 )
@@ -81,23 +82,63 @@ func Scan(ctx context.Context, store datastore.ObjectStore, prefix string, manif
 		want[e.Key] = e
 	}
 	rep.Expected = len(want)
+	// Head only entries whose digest is needed and missing from List; bounded concurrency (8).
+	type headResult struct {
+		key  string
+		info datastore.ObjectInfo
+		err  error
+	}
+	var need []string
+	for _, e := range want {
+		info, ok := actual[e.Key]
+		if ok && e.Checksum != "" && info.Checksum == "" {
+			need = append(need, e.Key)
+		}
+	}
+	heads := make(map[string]datastore.ObjectInfo, len(need))
+	if len(need) > 0 {
+		workers := 8
+		if len(need) < workers {
+			workers = len(need)
+		}
+		jobs := make(chan string)
+		out := make(chan headResult, len(need))
+		var wg sync.WaitGroup
+		for i := 0; i < workers; i++ {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				for key := range jobs {
+					info, err := store.Head(ctx, key)
+					out <- headResult{key: key, info: info, err: err}
+				}
+			}()
+		}
+		go func() {
+			for _, key := range need {
+				jobs <- key
+			}
+			close(jobs)
+			wg.Wait()
+			close(out)
+		}()
+		for r := range out {
+			if r.err != nil && !notFound(r.err) {
+				return rep, r.err // fail closed: transient/permission errors are not drift
+			}
+			if r.err == nil {
+				heads[r.key] = r.info
+			}
+		}
+	}
 	for _, e := range want {
 		info, ok := actual[e.Key]
 		if !ok {
 			rep.Missing = append(rep.Missing, e.Key)
 			continue
 		}
-		// Use List's ObjectInfo; Head only when the manifest needs a digest List did not provide.
-		if e.Checksum != "" && info.Checksum == "" {
-			head, err := store.Head(ctx, e.Key)
-			if err != nil {
-				if notFound(err) {
-					rep.Missing = append(rep.Missing, e.Key)
-					continue
-				}
-				return rep, err // fail closed: transient/permission errors are not drift
-			}
-			info = head
+		if h, ok := heads[e.Key]; ok {
+			info = h
 		}
 		if info.Size != e.Size {
 			rep.SizeMismatch = append(rep.SizeMismatch, e.Key)
@@ -111,8 +152,12 @@ func Scan(ctx context.Context, store datastore.ObjectStore, prefix string, manif
 			}
 		}
 	}
+	invalid := make(map[string]bool, len(rep.Invalid))
+	for _, k := range rep.Invalid {
+		invalid[k] = true
+	}
 	for k := range actual {
-		if _, ok := want[k]; !ok {
+		if _, ok := want[k]; !ok && !invalid[k] {
 			rep.Orphaned = append(rep.Orphaned, k)
 		}
 	}

@@ -38,6 +38,9 @@ type Config struct {
 	Region    string
 	UseSSL    bool
 	Ensure    bool // create the bucket if absent
+	// RequireObjectLock makes New fail when the bucket cannot honour object lock (fail at startup, not at
+	// retention time). Callers that never lock can leave it false.
+	RequireObjectLock bool
 }
 
 // S3Store is the S3-compatible ObjectStore adapter.
@@ -76,6 +79,14 @@ func New(ctx context.Context, cfg Config) (*S3Store, error) {
 	}
 	s.probeLock(ctx)
 	s.probeVersioning(ctx)
+	if cfg.RequireObjectLock {
+		s.lockMu.Lock()
+		lock := s.objectLock
+		s.lockMu.Unlock()
+		if !lock {
+			return nil, &datastore.UnsupportedError{Provider: "s3", Capability: "object-lock"}
+		}
+	}
 	return s, nil
 }
 
@@ -248,7 +259,10 @@ func (s *S3Store) Capabilities() datastore.Capabilities {
 	s.lockMu.Lock()
 	lock := s.objectLock
 	s.lockMu.Unlock()
-	return datastore.Capabilities{SignedURLs: true, ObjectVersioning: true, ObjectLock: lock, MultipartUpload: true}
+	s.lockMu.Lock()
+	versioned := s.versioned
+	s.lockMu.Unlock()
+	return datastore.Capabilities{SignedURLs: true, ObjectVersioning: versioned, ObjectLock: lock, MultipartUpload: true}
 }
 
 // retentionFor maps PutOptions to object-lock headers. GOVERNANCE is the default; COMPLIANCE must be named

@@ -167,7 +167,7 @@ func (s *LocalStore) Put(ctx context.Context, key string, r io.Reader, size int6
 	if opts.Immutable {
 		m, _, merr := s.readMeta(key)
 		switch {
-		case merr == nil && m.Checksum != "" && m.Checksum != sum:
+		case merr == nil && (m.Checksum == "" || m.Checksum != sum):
 			_ = os.Remove(tmp.Name())
 			return datastore.ObjectInfo{}, datastore.ErrImmutable
 		case merr != nil && !errors.Is(merr, os.ErrNotExist):

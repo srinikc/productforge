@@ -74,6 +74,9 @@ func deny(ctx context.Context, reason string) {
 	tenant, _ := TenantFrom(ctx)
 	key := tenant + "|" + reason
 	stats.Lock()
+	if _, ok := stats.byReason[key]; !ok && len(stats.byReason) >= 2000 {
+		key = "_overflow|" + reason // bounded cardinality
+	}
 	stats.byReason[key]++
 	n := stats.byReason[key]
 	stats.Unlock()
