@@ -1,0 +1,39 @@
+{
+  "item": "BI-PF-1472",
+  "sha": "7007700e4f0f",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-24T14:09:37.708104+00:00",
+  "findings": {
+    "BLOCKER": [
+      "none"
+    ],
+    "MAJOR": [
+      "CI detachment neuters the gate: `--head` derives the branch via `rev-parse --abbrev-ref HEAD`; on a PR/merge-ref checkout that yields `HEAD`, so `branch_id` is empty \u2192 the \"blocking\" ci-cd-gates entry always warns-and-passes in CI, giving false assurance at exactly the merge boundary the ticket targets.",
+      "`\"branch-item\": \"structure\"` was added to `_GROUP_OF`, but the diff never shows a `structure` group declared in precheck's gate-group registry; if absent this raises KeyError and breaks the entire precheck fast tier.",
+      "`_git` discards stderr and ignores return codes; any git failure (shallow clone, no commits, detached worktree) yields empty branch/message \u2192 silently warn-and-pass. The guard should fail closed or explicitly distinguish \"no branch\" from \"git error\".",
+      "Bypass by construction: the merge/revert skip is a first-line `startswith(\"Merge \"/\"Revert \")` sniff with no parent-count check, so any commit prefixed `Merge ` evades the guard; use `git rev-list --parents -n 1 HEAD` (or `--no-merges` semantics) instead of message heuristics.",
+      "No documentation update to docs/ENGINEERING_OPERATING_STANDARD.md or docs/ARCHITECTURE-DECISIONS.md for a new enforced, blocking dev-workflow gate \u2014 the operating contract and the rationale (EDP-16 contamination) live only in a docstring."
+    ],
+    "MINOR": [
+      "`--head` validates only the single last commit; a branch with N contaminated earlier commits passes as long as HEAD is clean \u2014 the \"before merge\" re-check is weaker than its name implies.",
+      "Normalization treats `BI-1308` and `BI-PF-1308` as distinct ids; a message using the short form fails against a `BI-PF-*` branch (and vice versa), producing false blocks.",
+      "The \"no branch id\" path prints `OK (...)` rather than `WARN`, muddying observability for the develop/release warn-only requirement; exit code is right, semantics are unlabeled.",
+      "Message ids are scanned across the whole body, so a stale `Refs: BI-PF-XXXX` footer lets a mismatched commit through; restricting to subject + explicit trailer would tighten integrity.",
+      "Tests cover only `check()`; no coverage of `--message-file`/`--head` paths, revert skip (criteria mention revert), or the installed hook, and the `sys.path.insert` import hack diverges from any shared test harness convention.",
+      "New shipped-ish logic in Python is defensible as tooling, but the ticket's spirit (\"guards that gate delivery\") may drift into shipped domain logic; a Go port decision should be recorded, not implied."
+    ],
+    "NIT": [
+      "`_COMMITMSG` invokes bare `python`; if sibling hooks use `python3` or a venv interpreter this hook silently no-ops or errors on machines where `python` is absent.",
+      "The commit-msg hook has no `--amend`/`--allow-empty` tolerance note and no exec bit/permissions handling visible; verify `_install` preserves mode 0755.",
+      "Hook hardcodes the `product-forge/` layout prefix and exits 0 if missing \u2014 fine, but a comment tying it to the monorepo root contract would prevent a silent future no-op."
+    ],
+    "SUMMARY": [
+      "Solid, well-scoped guard with correct warn-vs-block semantics for id-less branches and a clean shared `check()` core reused by both hook and precheck.",
+      "Top risks: the gate is effectively inert in CI due to detached-HEAD branch detection, git failures fail open, and the merge/revert skip is spoofable via message prefix.",
+      "Secondary: possible undefined `structure` gate group crashing precheck fast, and the new enforced gate is undocumented in the operating standard.",
+      "Verdict: right idea and right layering; needs hardening (parent-count merge detection, fail-closed git handling, CI branch checkout, docs) before it can be trusted as a blocking integrity control."
+    ]
+  }
+}

@@ -29,6 +29,14 @@ except ImportError:
 _REPO = subprocess.run(["git", "rev-parse", "--show-toplevel"],
                        cwd=_ROOT, capture_output=True, text=True).stdout.strip() or _ROOT
 
+_COMMITMSG = """#!/bin/sh
+# Product Forge branch/item guard (BI-PF-1472): the commit message must reference the branch's item.
+set -e
+PF="product-forge"
+[ -d "$PF/scripts/dev" ] || exit 0
+python "$PF/scripts/dev/branch_item_check.py" --message-file "$1"
+"""
+
 _HOOK = """#!/bin/sh
 # Product Forge author-time guard (installed by scripts/dev/install_hooks.py).
 # Cheap changed-file checks only; the merge-time gate is scripts/dev/precheck.py.
@@ -122,6 +130,7 @@ def ensure_merge_drivers(repo: str) -> bool:
 def main() -> int:
     print(f"installed pre-commit hook -> {_install('pre-commit', _HOOK)}")
     print(f"installed pre-push hook -> {_install('pre-push', _PREPUSH)}")
+    print(f"installed commit-msg hook -> {_install('commit-msg', _COMMITMSG)}")
     # BI-PF-1176 / BI-PF-1290 / BI-PF-1384: register the pf-derived merge driver. Use a path RELATIVE to the
     # repo root so it resolves from ANY worktree/clone (an absolute path baked into a since-removed worktree
     # left the shared git config pointing at a dead file -> derived merges silently stopped auto-resolving).
