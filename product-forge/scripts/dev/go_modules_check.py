@@ -73,7 +73,8 @@ def _changed_modules(modules: list) -> list:
         if name in hit:
             continue
         try:
-            mod = open(os.path.join(_GO_DIR, name, "go.mod"), encoding="utf-8").read()
+            with open(os.path.join(_GO_DIR, name, "go.mod"), encoding="utf-8") as fh:
+                mod = fh.read()
         except OSError:
             continue
         if any(f"../{h}" in mod for h in hit):
