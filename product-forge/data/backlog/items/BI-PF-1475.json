@@ -10,7 +10,7 @@
   "title": "intake-builds stores: ingest into DB metadata + object store (EDP-24 gap)",
   "body": "",
   "source": "generic",
-  "status": "new",
+  "status": "in_progress",
   "priority": "P1",
   "moscow": "Must",
   "value": 3,
@@ -38,41 +38,59 @@
     "success": "Registry flips to migrated after parity.",
     "source": "authored"
   },
-  "objective": "Close the 11 pending intake/builds stores from BI-PF-1408.",
+  "objective": "Ingest the 11 non-legacy intake-raw/builds stores into the EDP object store and artifact metadata (tenant-scoped, checksum-verified, idempotent) and flip their store-registry targets to object-store/exists/migrated; the legacy-dashboard product_forge_context.json stays with its frozen owner.",
   "acceptance_criteria": [
-    "intake-raw and builds files are ingested with checksums into the object store and registered as artifacts/stored_objects with tenant scope.",
-    "store-registry flips the 11 intake/builds entries from planned to exists after parity.",
-    "Tests prove idempotent re-ingest and checksum verification."
+    "A Go ingestion service and CLI compute sha256 for each intake/builds file, write the bytes to the object store under a content-addressed key, and register a tenant-scoped stored_objects row plus an artifacts row; re-running on unchanged input creates no additional rows.",
+    "config/store-registry.json marks exactly the 11 non-legacy intake/builds entries (conversations, ideas, requirements, decisions, change_packages, implementation_plans, discovery-panel, items.jsonl, intake-files, build-info, version) as object-store/exists with migration_status migrated, while the legacy-dashboard product_forge_context.json remains pending.",
+    "Tests prove idempotent re-ingest (same artifact id and stable row counts), checksum verification against the object store, and that changed payload bytes produce a new immutable content-addressed object while the prior object stays readable."
   ],
   "in_scope": [
-    "intake-builds stores: ingest into DB metadata + object store (EDP-24 gap)"
+    "go/intakeingest service + tests (idempotent ingest, checksum verification, changed-payload revision)",
+    "go/intakeingest/cmd/pfingest operator CLI",
+    "config/store-registry.json: flip the 11 non-legacy intake/builds targets",
+    "docs/STORE-DATAFLOW.md regeneration and item evidence"
   ],
   "out_of_scope": [
-    "Not specified."
+    "Legacy-dashboard product_forge_context.json (owner pipeline_dashboard/api/router.py; frozen legacy).",
+    "Moving file producers off files (per-domain cutover) and scheduling a production backfill.",
+    "Live/staging data ingestion itself; the CLI command is documented for ops."
   ],
   "affected_components": [
-    "Not specified."
+    "EDP data plane (Go)",
+    "store registry",
+    "derived store docs"
   ],
   "affected_files": [
-    "go/edpdata",
-    "scripts/dev/ingest_intake.py",
-    "config/store-registry.json"
+    "go/intakeingest/ingest.go",
+    "go/intakeingest/ingest_test.go",
+    "go/intakeingest/go.mod",
+    "go/intakeingest/cmd/pfingest/main.go",
+    "config/store-registry.json",
+    "docs/STORE-DATAFLOW.md"
   ],
-  "approach": "intake-builds stores: ingest into DB metadata + object store (EDP-24 gap)",
+  "approach": "Add a Go ingestion service (go/intakeingest) over the existing datastore.ObjectStore + RelationalStore ports. For each source file it computes sha256, writes bytes under intake|builds/<sha256> with Immutable=true, then upserts stored_objects (ON CONFLICT DO NOTHING) and artifacts (deterministic id, ON CONFLICT DO NOTHING) inside one RLS-bound transaction. A thin cmd/pfingest wires DSN/object-root/tenant and prints a JSON report; --verify re-checks Head checksums. Registry targets for the 11 stores flip to artifacts/exists/migrated and the derived STORE-DATAFLOW doc is regenerated.",
   "review": {
     "reconciliation": {
       "prior_decisions": [
-        "BI-PF-1408 discovery slices A/B/C"
+        "BI-PF-1408 Slice A/B/C: every store classified, mapped to a target, and relationship-checked; 12 intake/builds stores remain pending.",
+        "BI-PF-1307/EDP-15: artifacts metadata lives in Postgres (artifacts) and bytes live in the object store keyed by checksum (stored_objects).",
+        "EDP single-storage standard (BI-PF-1417): no new store/table; reuse the existing artifact substrate.",
+        "Legacy dashboard is frozen and not architecture authority; product_forge_context.json stays with its legacy owner."
       ],
       "existing_path": [
-        "go/edpdata artifacts/objects",
-        "config/store-registry.json"
+        "go/artifacts/artifacts.go:39 Register writes stored_objects + artifacts in one transaction (tenant-scoped).",
+        "go/objstore/objstore.go:109 Put is atomic, content-addressed, and supports Immutable writes.",
+        "go/datastore/datastore.go:151 ObjectStore + 164 ArtifactService are the provider-neutral ports.",
+        "go/store/tenancy.go BindTenant sets app.tenant_id so RLS applies to every write.",
+        "scripts/dev/store_registry_relationships.py:74 OBJECT_META constrains object-store exists targets to artifacts/stored_objects."
       ],
       "assumptions": [
-        "intake/builds payloads belong in the object store with metadata rows"
+        "The 11 in scope are the 12 currently pending intake/builds entries minus the legacy-dashboard product_forge_context.json (Gate 1 approved).",
+        "The operator supplies the tenant id; ingestion is an admin/ops action, not a public API.",
+        "The logical artifact name is the bucket-relative source path; content addressing makes re-ingest idempotent."
       ],
       "divergences": [
-        "no ingestion path yet"
+        "The stale derived affected_files suggested scripts/dev/ingest_intake.py; the language rule requires new shipped logic in Go, so the ingestion path is go/intakeingest + cmd/pfingest (Gate 1 approved)."
       ],
       "open_questions": []
     },
@@ -80,36 +98,56 @@
       {
         "claim": "API CHECK",
         "verdict": "aligned",
-        "evidence": "no HTTP surface planned",
+        "evidence": "No HTTP surface: an operator CLI (pfingest) runs with an explicit tenant; no route, no client-supplied tenant.",
         "recommendation": "needs_api=false"
       },
       {
         "claim": "AC coverage",
         "verdict": "aligned",
         "evidence": [
-          "intake-raw and builds files are ingested with checksums into the object store and registered as artifacts/stored_objects with tenant scope.",
-          "store-registry flips the 11 intake/builds entries from planned to exists after parity.",
-          "Tests prove idempotent re-ingest and checksum verification."
+          "A Go ingestion service and CLI compute sha256 for each intake/builds file, write the bytes to the object store under a content-addressed key, and register a tenant-scoped stored_objects row plus an artifacts row; re-running on unchanged input creates no additional rows.",
+          "config/store-registry.json marks exactly the 11 non-legacy intake/builds entries (conversations, ideas, requirements, decisions, change_packages, implementation_plans, discovery-panel, items.jsonl, intake-files, build-info, version) as object-store/exists with migration_status migrated, while the legacy-dashboard product_forge_context.json remains pending.",
+          "Tests prove idempotent re-ingest (same artifact id and stable row counts), checksum verification against the object store, and that changed payload bytes produce a new immutable content-addressed object while the prior object stays readable."
         ],
         "recommendation": "approve"
       },
       {
         "claim": "language",
         "verdict": "aligned",
-        "evidence": "Go for new logic",
+        "evidence": "New ingestion logic and tests are Go (go/intakeingest); registry/docs changes are declarative JSON/Markdown.",
         "recommendation": "Go"
+      },
+      {
+        "claim": "reuse / no duplicate store",
+        "verdict": "aligned",
+        "evidence": "Reuses artifacts + stored_objects (BI-PF-1307), objstore, datastore ports and store.BindTenant; no new table or store.",
+        "recommendation": "approve"
+      },
+      {
+        "claim": "tenant isolation",
+        "verdict": "aligned",
+        "evidence": "Writes run through store.BindTenant (RLS app.tenant_id); artifacts/stored_objects carry tenant_id; no cross-tenant reads.",
+        "recommendation": "approve"
+      },
+      {
+        "claim": "integrity / idempotency",
+        "verdict": "aligned",
+        "evidence": "Writes are content-addressed and immutable; stored_objects uses ON CONFLICT DO NOTHING; artifacts uses a deterministic id with ON CONFLICT DO NOTHING; a failed metadata write is retried safely.",
+        "recommendation": "approve"
       }
     ],
-    "reviewed_by": "derived",
+    "reviewed_by": "agent",
     "at": ""
   },
   "verification": [
     "Objective achieved: intake-builds stores: ingest into DB metadata + object store (EDP-24 gap)"
   ],
   "risks": [
-    "Not specified."
+    "Object write succeeds but metadata write fails: mitigated by content-addressed immutable objects and idempotent retry (no duplicate rows).",
+    "Tenant misconfiguration could mix intake data: mitigated by requiring an explicit tenant and RLS via store.BindTenant.",
+    "Large intake files: mitigated by a configurable size cap that fails closed instead of truncating."
   ],
-  "rollback": "Revert the change.",
+  "rollback": "Revert the commit; content-addressed objects are safe to leave in place and no schema change is made.",
   "evidence": [
     "pending",
     "Design guardrails applied (BI-PF-1475): sig:1227ed0e0e60aa6b (16 lines)"
@@ -230,13 +268,14 @@
     "usage": {}
   },
   "created_at": "2026-10-24T20:52:47.175530",
-  "updated_at": "2026-10-24T21:01:59.083335",
+  "updated_at": "2026-10-24T21:11:34.793710",
   "score": 0.75,
   "_note": "readiness computed",
   "api_impact": {
     "needs_api": false,
     "routes": [],
     "consumers": [],
-    "reason": "ingestion/service-side only"
-  }
+    "reason": "Operator-only CLI ingestion; no HTTP surface and the tenant is supplied server-side."
+  },
+  "language_rule": "Go for new shipped ingestion logic (go/intakeingest); Go tests; JSON/Markdown are declarative."
 }

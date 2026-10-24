@@ -1,6 +1,6 @@
 # Backlog Summary
 
-> GENERATED 2026-10-24T21:02:35 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-24T21:11:44 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
@@ -8,10 +8,10 @@
 - **Open:** 135  |  **Closed:** 584
 - `blocked`: 1
 - `executing`: 3
-- `in_progress`: 1
-- `new`: 130
+- `in_progress`: 2
+- `new`: 129
 
-### new, by category (130)
+### new, by category (129)
 **API / reports / HIL / misc** (15)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
@@ -57,7 +57,7 @@
 | BI-PF-1406 | Must | feature | API-first retrofit: add api-impact write endpoint + record api_impact decisions across open items + build missing API surfaces | API-first retrofit: add api-impact write endpoint + record api_impact decisions across open items + build miss... |
 | BI-PF-1444 | Should | feature | Accessibility engine + fail-closed gate + templates | WCAG 2.2 AA becomes a real fail-closed ship gate. |
 
-**Knowledge / KB** (7)
+**Knowledge / KB** (6)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0208 | Must | feature | Backend: sensor/IoT capability pack + ingest adapters (MQTT/serial/BLE/Modbus/CAN) + time-series/anomaly models | A `sensor` capability pack that, only when the idea needs it, enables device ingest, a time-series store, fore... |
@@ -66,7 +66,6 @@
 | BI-PF-1436 | Should | epic | Design System & UI/UX Knowledge (framework-agnostic) | Merge the UIUX/ corpus and the OpenCode skills into a PF-owned framework-agnostic knowledge+skills base, and l... |
 | BI-PF-1438 | Should | feature | UIUX knowledge ingestion (guidelines, design-systems, samples) | Distill UIUX/ into PF guidelines + reference baselines the existing loader already injects. |
 | BI-PF-1443 | Should | feature | Agent skill & knowledge-layer bindings | Bind the 8 skills + ui-ux/design-systems layers to the right agents. |
-| BI-PF-1475 | Must | feature | intake-builds stores: ingest into DB metadata + object store (EDP-24 gap) | Close the 11 pending intake/builds stores from BI-PF-1408. |
 
 **Licensing / tenancy** (5)
 | ID | MoSCoW | Type | Title | Objective |
