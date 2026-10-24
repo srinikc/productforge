@@ -13,7 +13,8 @@ Audit (report-only, bounded): completed items still carrying placeholder DoD are
 config/delivery-completeness-baseline.json (owner + expiry + reason). An expired/unknown baseline fails.
 Escape hatch: PF_ALLOW_PLACEHOLDER_DOD=1 downgrades transition failures to warnings (audited in output).
 
-Output is one JSON line on stderr; --report exits 0; --self-test runs the negative matrix.
+Output is a JSON report on stdout plus structured JSON event lines on stderr; --report exits 0; --self-test
+runs the negative matrix.
 """
 from __future__ import annotations
 
@@ -88,7 +89,10 @@ def transition_problems(item: dict) -> list[str]:
 
 
 def _git(*args: str, allow_fail: bool = False) -> str:
-    r = subprocess.run(["git", *args], cwd=str(ROOT), capture_output=True, text=True, timeout=20)
+    try:
+        r = subprocess.run(["git", *args], cwd=str(ROOT), capture_output=True, text=True, timeout=20)
+    except (OSError, subprocess.SubprocessError) as e:
+        raise RuntimeError(f"delivery-completeness: git {' '.join(args)} failed: {e}") from e
     if r.returncode != 0 and not allow_fail:
         raise RuntimeError(f"delivery-completeness: git {' '.join(args)} failed (rc={r.returncode}): "
                            f"{(r.stderr or '').strip()}")
@@ -135,14 +139,14 @@ def _load(rel_repo: str) -> dict | None:
 def transitions(base: str = "") -> list[dict]:
     base = base or _git("merge-base", "develop", "HEAD", allow_fail=True) or "origin/develop"
     out = []
-    skipped = 0
+    skipped: list[str] = []
     for rel in _git("diff", "--name-only", f"{base}..HEAD").splitlines():
         rel = rel.replace("\\", "/")
         if "/data/backlog/items/" not in rel or not rel.endswith(".json"):
             continue
         cur = _load(rel)
         if cur is None:
-            skipped += 1
+            skipped.append(rel)
             continue
         if str(cur.get("status") or "").lower() not in DONE:
             continue
@@ -154,7 +158,8 @@ def transitions(base: str = "") -> list[dict]:
         if str(prev.get("status") or "").lower() not in DONE:
             out.append(cur)
     if skipped:
-        print(json.dumps({"event": "delivery-completeness-skip", "count": skipped}), file=sys.stderr)
+        print(json.dumps({"event": "delivery-completeness-skip", "count": len(skipped),
+                          "paths": sorted(skipped)}), file=sys.stderr)
     return out
 
 
