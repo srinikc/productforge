@@ -29,6 +29,15 @@ def _git(*args: str) -> str:
     return (r.stdout or "").strip()
 
 
+def _repo_root() -> str:
+    return _git("rev-parse", "--show-toplevel") or str(ROOT)
+
+
+def _load(rel_repo: str) -> dict:
+    # Fail closed: a changed item that cannot be read/parsed aborts Gate 0 instead of silently skipping it.
+    return json.loads(Path(_repo_root(), rel_repo).read_text(encoding="utf-8"))
+
+
 def transitions(base: str = "") -> list[dict]:
     base = base or _git("merge-base", "develop", "HEAD") or "origin/develop"
     out = []
@@ -36,10 +45,7 @@ def transitions(base: str = "") -> list[dict]:
         rel = rel.replace("\\", "/")
         if "/data/backlog/items/" not in rel or not rel.endswith(".json"):
             continue
-        try:
-            cur = json.loads((ROOT / rel).read_text(encoding="utf-8"))
-        except Exception:
-            continue
+        cur = _load(rel)
         if str(cur.get("status") or "") != "in_progress":
             continue
         try:

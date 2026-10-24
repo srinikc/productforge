@@ -10,7 +10,7 @@
   "title": "intake-builds stores: ingest into DB metadata + object store (EDP-24 gap)",
   "body": "",
   "source": "generic",
-  "status": "new",
+  "status": "completed",
   "priority": "P1",
   "moscow": "Must",
   "value": 3,
@@ -28,6 +28,34 @@
       "decision": "APPROVE",
       "by": "system",
       "note": "auto-approved on add (BI-PF-1282)"
+    },
+    {
+      "at": "2026-10-24T15:44:34+00:00",
+      "decision": "AMEND",
+      "by": "agent",
+      "note": "Gate 1.5 sha 56ded4e61ef1: AC2 ref corrected to artifacts, backfill_status added, artifact id derivation pinned, cross-tenant test added, CLI secrets via env only, gate0 fix split."
+    },
+    {
+      "at": "2026-10-24T15:49:41.521887+00:00",
+      "by": "hil:srinikc",
+      "decision": "APPROVE",
+      "gate": 1,
+      "findings_sha": "63ef05b2af55",
+      "findings_digest": "31f3334c41c7",
+      "seq": 3,
+      "note": "HIL explicitly approved Gate 1 for BI-PF-1475/1476 in session; Gate 1.5 sha 63ef05b2af55 findings dispositioned (0 pending).",
+      "hil_confirmed": true
+    },
+    {
+      "at": "2026-10-24T16:17:00.654640+00:00",
+      "by": "hil:srinikc",
+      "decision": "APPROVE",
+      "gate": 2,
+      "findings_sha": "49afec542879",
+      "findings_digest": "041c5f20f7b8",
+      "seq": 4,
+      "note": "HIL approved the delivery chain ('then do 1 to 4', which includes HIL Gate 2); Gate 2.5 sha 49afec542879 has 0 pending findings.",
+      "hil_confirmed": true
     }
   ],
   "follow_up": {},
@@ -38,41 +66,71 @@
     "success": "Registry flips to migrated after parity.",
     "source": "authored"
   },
-  "objective": "Close the 11 pending intake/builds stores from BI-PF-1408.",
+  "objective": "Ingest the 11 non-legacy intake-raw/builds stores into the EDP object store and artifact metadata (tenant-scoped, checksum-verified, idempotent) and move their store-registry targets to the existing artifact substrate with an honest backfill_status; the legacy-dashboard product_forge_context.json stays planned.",
   "acceptance_criteria": [
-    "intake-raw and builds files are ingested with checksums into the object store and registered as artifacts/stored_objects with tenant scope.",
-    "store-registry flips the 11 intake/builds entries from planned to exists after parity.",
-    "Tests prove idempotent re-ingest and checksum verification."
+    "A Go ingestion service and CLI compute sha256 for each intake/builds file, write the bytes to the object store under a content-addressed key, and register a tenant-scoped stored_objects row plus an artifacts row; re-running unchanged input reuses the same artifact id and creates no additional rows.",
+    "store-registry targets for exactly the 11 non-legacy intake/builds entries (conversations, ideas, requirements, decisions, change_packages, implementation_plans, discovery-panel, items.jsonl, intake-files, build-info, version) move from object-store/planned to object-store/exists with ref=artifacts, owner_item=BI-PF-1475 and migration_status=migrated; each target also records backfill_status=pending plus the pfingest command, and the legacy-dashboard product_forge_context.json stays planned.",
+    "Tests prove: idempotent re-ingest (stable artifact id and row counts); checksum verification against the object store; a changed payload yields a NEW artifact id/revision while the prior object stays readable; and a second tenant cannot read the first tenant's artifact (RLS non-leakage).",
+    "pfingest --verify exits non-zero and names each store when the source file checksum, the artifacts checksum, or the object-store checksum disagree (Head when it surfaces sha256, otherwise a streamed re-hash); the JSON report uses the pinned schema pf.intake-ingest/1 with run_id (UUIDv4), per-file status (written|skipped-unchanged|drift|failed), duration and byte counts."
   ],
   "in_scope": [
-    "intake-builds stores: ingest into DB metadata + object store (EDP-24 gap)"
+    "go/intakeingest service + tests (idempotent ingest, changed-payload revision, checksum verification, cross-tenant non-leakage)",
+    "go/intakeingest/cmd/pfingest operator CLI",
+    "config/store-registry.json: flip the 11 targets with backfill_status + ingest_writer",
+    "docs/STORE-DATAFLOW.md regeneration and item evidence",
+    "scripts/dev/gate0_check.py repo-root path fix (separate commit)"
   ],
   "out_of_scope": [
-    "Not specified."
+    "Legacy-dashboard product_forge_context.json (owner pipeline_dashboard/api/router.py; frozen legacy).",
+    "Running the production backfill or moving file producers off files (per-domain cutover); the exact pfingest command is recorded per target.",
+    "Schema changes, GC of orphaned objects (reported for objreconcile), and live/staging ingestion in CI."
   ],
   "affected_components": [
-    "Not specified."
+    "EDP data plane (Go)",
+    "store registry",
+    "derived store docs",
+    "gate tooling"
   ],
   "affected_files": [
-    "go/edpdata",
-    "scripts/dev/ingest_intake.py",
-    "config/store-registry.json"
+    "go/intakeingest/ingest.go",
+    "go/intakeingest/ingest_test.go",
+    "go/intakeingest/go.mod",
+    "go/intakeingest/cmd/pfingest/main.go",
+    "config/store-registry.json",
+    "docs/STORE-DATAFLOW.md",
+    "scripts/dev/gate0_check.py"
   ],
-  "approach": "intake-builds stores: ingest into DB metadata + object store (EDP-24 gap)",
+  "approach": "Add a Go ingestion service (go/intakeingest) over the existing datastore.ObjectStore + RelationalStore ports. For each source file it computes sha256, writes bytes under intake/<sha256> or builds/<sha256> with Immutable=true, then upserts stored_objects (ON CONFLICT DO NOTHING) and artifacts (id=sha256(tenant|bucket|logical_name|checksum)[:32], ON CONFLICT DO NOTHING, revision=next per tenant+name) inside one RLS-bound transaction. A thin cmd/pfingest wires PF_RUNTIME_DSN/PF_OBJECT_ROOT/tenant, prints the pinned pf.intake-ingest/1 JSON report, enforces a per-file size cap, and --verify re-reads the source, compares source/artifacts/Head checksums, and exits non-zero on drift. The 11 registry targets move to artifacts/exists/migrated with owner_item BI-PF-1475, ingest_writer go/intakeingest and backfill_status pending (historical parity is an explicit ops run, never silently claimed); STORE-DATAFLOW is regenerated. Gate 1.5 hardening: object keys are tenant-prefixed; artifact revision allocation uses a bounded insert-with-conflict-retry on uq_artifacts_name_revision (no read-max race); pfingest refuses to run as a BYPASSRLS/superuser role unless --allow-bypassrls is explicit; --verify falls back to streaming and re-hashing when Head does not surface sha256; the pf.intake-ingest/1 report carries run_id UUIDv4, duration, bytes and written|skipped-unchanged|drift|failed per file, is written to stdout and optionally --report-file for scheduled runs; --dry-run shows planned writes without mutating; transient failures retry with bounded backoff then fail closed.",
   "review": {
     "reconciliation": {
       "prior_decisions": [
-        "BI-PF-1408 discovery slices A/B/C"
+        "BI-PF-1408 Slice A/B/C: every store classified, mapped to a target, and relationship-checked; 12 intake/builds stores remain pending. Slice C flips planned->exists once the target substrate and owner item exist.",
+        "BI-PF-1307/EDP-15: artifacts metadata lives in Postgres (artifacts) and bytes live in the object store keyed by checksum (stored_objects).",
+        "EDP single-storage standard (BI-PF-1417): no new store/table; reuse the existing artifact substrate.",
+        "Legacy dashboard is frozen and not architecture authority; product_forge_context.json stays with its legacy owner.",
+        "Gate 1.5 review (sha 56ded4e61ef1) requires registry sequencing, artifact-id semantics, module reuse, cross-tenant tests, observability and ownership to be explicit."
       ],
       "existing_path": [
-        "go/edpdata artifacts/objects",
-        "config/store-registry.json"
+        "go/artifacts/artifacts.go:39 Register writes stored_objects + artifacts in one transaction (tenant-scoped).",
+        "go/objstore/objstore.go:109 Put is atomic, content-addressed, and supports Immutable writes.",
+        "go/datastore/datastore.go:151 ObjectStore + 164 ArtifactService are the provider-neutral ports.",
+        "go/store/tenancy.go BindTenant sets app.tenant_id so RLS applies to every write.",
+        "scripts/dev/store_registry_relationships.py:74 OBJECT_META constrains object-store exists targets to artifacts/stored_objects.",
+        "go/artifacts/go.mod + go/edpdata/go.mod show the per-directory module + replace => ../<module> pattern for a new Go module.",
+        "migrations/0005_artifacts.up.sql + 0006_artifacts_align.up.sql: artifacts PK id, unique (tenant,name,revision), stored_objects PK (tenant,checksum)."
       ],
       "assumptions": [
-        "intake/builds payloads belong in the object store with metadata rows"
+        "The 11 in scope are the 12 currently pending intake/builds entries minus the legacy-dashboard product_forge_context.json (Gate 1 approved).",
+        "The operator supplies the tenant id at the CLI boundary; ingestion is an admin/ops action, not a public API.",
+        "The logical artifact name is the bucket-relative source path; content addressing makes re-ingest idempotent.",
+        "Registry 'exists' means the target substrate + single writer exist; historical-data parity is tracked separately by backfill_status, so the registry never claims data that was not ingested.",
+        "Object keys are tenant-prefixed (tenant/<tenant>/intake|builds/<sha256>), so the raw object layer cannot be cross-read by key even before RLS; the object root is never served directly to clients.",
+        "The ingestion process runs as a non-BYPASSRLS role; pfingest preflights pg_roles.rolbypassrls for current_user and refuses to run when it is true unless --allow-bypassrls is passed for an isolated local test DB.",
+        "Revision allocation is a bounded insert-with-conflict-retry on the unique (tenant,name,revision) index, so concurrent writers cannot duplicate a revision."
       ],
       "divergences": [
-        "no ingestion path yet"
+        "The stale derived affected_files suggested scripts/dev/ingest_intake.py; the language rule requires new shipped logic in Go, so the ingestion path is go/intakeingest + cmd/pfingest (Gate 1 approved).",
+        "AC2 wording was corrected after Gate 1.5: ref is the OBJECT_META target artifacts (not the logical bucket name), and each target carries backfill_status so exists does not over-claim historical parity."
       ],
       "open_questions": []
     },
@@ -80,39 +138,118 @@
       {
         "claim": "API CHECK",
         "verdict": "aligned",
-        "evidence": "no HTTP surface planned",
+        "evidence": "No HTTP surface: an operator CLI (pfingest) runs with an explicit tenant from the operator; DSN/root come from env, never argv. No route, no client-supplied tenant.",
         "recommendation": "needs_api=false"
       },
       {
         "claim": "AC coverage",
         "verdict": "aligned",
         "evidence": [
-          "intake-raw and builds files are ingested with checksums into the object store and registered as artifacts/stored_objects with tenant scope.",
-          "store-registry flips the 11 intake/builds entries from planned to exists after parity.",
-          "Tests prove idempotent re-ingest and checksum verification."
+          "A Go ingestion service and CLI compute sha256 for each intake/builds file, write the bytes to the object store under a content-addressed key, and register a tenant-scoped stored_objects row plus an artifacts row; re-running unchanged input reuses the same artifact id and creates no additional rows.",
+          "store-registry targets for exactly the 11 non-legacy intake/builds entries (conversations, ideas, requirements, decisions, change_packages, implementation_plans, discovery-panel, items.jsonl, intake-files, build-info, version) move from object-store/planned to object-store/exists with ref=artifacts, owner_item=BI-PF-1475 and migration_status=migrated; each target also records backfill_status=pending plus the pfingest command, and the legacy-dashboard product_forge_context.json stays planned.",
+          "Tests prove: idempotent re-ingest (stable artifact id and row counts); checksum verification against the object store; a changed payload yields a NEW artifact id/revision while the prior object stays readable; and a second tenant cannot read the first tenant's artifact (RLS non-leakage).",
+          "pfingest --verify exits non-zero and names each store when the source file checksum, the artifacts checksum, or the object-store Head checksum disagree, and its JSON report uses the pinned schema pf.intake-ingest/1 with per-file status (written|skipped|drift|failed) and run_id."
         ],
         "recommendation": "approve"
       },
       {
         "claim": "language",
         "verdict": "aligned",
-        "evidence": "Go for new logic",
+        "evidence": "New ingestion logic and tests are Go (go/intakeingest); registry/docs changes are declarative JSON/Markdown; the gate0 path fix is tooling Python.",
         "recommendation": "Go"
+      },
+      {
+        "claim": "reuse / no duplicate store",
+        "verdict": "aligned",
+        "evidence": "Reuses artifacts + stored_objects (BI-PF-1307), objstore, datastore ports and store.BindTenant; no new table or store. go/intakeingest/go.mod requires productforge/datastore, objstore and store via replace => ../<module>, matching artifacts/go.mod.",
+        "recommendation": "approve"
+      },
+      {
+        "claim": "tenant isolation",
+        "verdict": "aligned",
+        "evidence": "Writes run through store.BindTenant (RLS app.tenant_id); artifacts/stored_objects carry tenant_id; the integration test ingests as tenant A and asserts tenant B sees nothing.",
+        "recommendation": "approve"
+      },
+      {
+        "claim": "integrity / idempotency",
+        "verdict": "aligned",
+        "evidence": "Object keys are content-addressed and immutable; stored_objects uses ON CONFLICT DO NOTHING; artifact id = sha256(tenant|bucket|logical_name|checksum)[:32], so unchanged input maps to the same id (DO NOTHING) while changed bytes map to a new id + next revision and leave the old object readable.",
+        "recommendation": "approve"
+      },
+      {
+        "claim": "ownership / single writer",
+        "verdict": "aligned",
+        "evidence": "Source-file owners (conversation_models, build_manager, version_manager, discovery_panel, intake_channels, intake_files) keep the files; go/intakeingest is the single writer of the derived object/artifacts copies under prefixes intake/ and builds/, recorded on each registry target as ingest_writer.",
+        "recommendation": "approve"
+      },
+      {
+        "claim": "observability",
+        "verdict": "aligned",
+        "evidence": "Pinned JSON report pf.intake-ingest/1 with run_id, per-file written|skipped|drift|failed, counts, and a per-store log line; --verify exits non-zero on any mismatch; orphaned content-addressed objects are reported for objreconcile.",
+        "recommendation": "approve"
+      },
+      {
+        "claim": "blast radius / recovery",
+        "verdict": "aligned",
+        "evidence": "No schema change; per-file --max-bytes cap (default 256MiB) fails closed; metadata failure leaves a harmless content-addressed object that a retry reuses; rollback is a revert.",
+        "recommendation": "approve"
+      },
+      {
+        "claim": "object-layer isolation",
+        "verdict": "aligned",
+        "evidence": "Keys are tenant-prefixed; the object root is never public; reads go through the RLS-bound service; a second tenant's artifact lookup returns ErrNotFound and a direct key probe outside the tenant prefix fails.",
+        "recommendation": "approve"
+      },
+      {
+        "claim": "concurrency / revision invariant",
+        "verdict": "aligned",
+        "evidence": "Revision is allocated by insert-with-conflict-retry on uq_artifacts_name_revision; same checksum+name maps to the same deterministic id and is a no-op.",
+        "recommendation": "approve"
+      },
+      {
+        "claim": "privilege boundary (runtime role)",
+        "verdict": "aligned",
+        "evidence": "pfingest preflights current_user's rolbypassrls and superuser flags and refuses by default; the cross-tenant test runs on the runtime DSN, so a bypass role fails the test instead of silently passing.",
+        "recommendation": "approve"
+      },
+      {
+        "claim": "availability / failure handling",
+        "verdict": "aligned",
+        "evidence": "Bounded retry with backoff for transient DB/object errors; after exhaustion the run exits non-zero with per-file failed status; a metadata failure leaves a reusable content-addressed object.",
+        "recommendation": "approve"
       }
     ],
-    "reviewed_by": "derived",
+    "reviewed_by": "agent",
     "at": ""
   },
   "verification": [
-    "Objective achieved: intake-builds stores: ingest into DB metadata + object store (EDP-24 gap)"
+    "go test ./... in go/intakeingest passes; TestServiceIntegration exercises idempotent re-ingest, changed-payload revision, revert-to-old no-op, drift on stale source, missing-object failure and a direct unbound RLS read returning zero rows, against pf-pg-test via PF_RUNTIME_DSN (pf_app, non-BYPASSRLS).",
+    "CLI e2e against pf-pg-test: ingest exit 0, unchanged re-ingest skipped-unchanged exit 0, verify exit 0, changed-source verify drift exit 1, and pf_owner (BYPASSRLS) refused by the role preflight.",
+    "scripts/dev/store_registry_relationships.py: stores=244, migrated=97, retained=146, pending=1; the 11 BI-PF-1475 targets are object-store/exists/ref=artifacts with backfill_status=pending, and product_forge_context.json stays planned.",
+    "Gate 2.5 review sha 49afec542879: 15 findings, 0 pending; Gate 1 decision is bound to the current design sha and Gate 0 problems are empty."
   ],
   "risks": [
-    "Not specified."
+    "Object write succeeds but metadata write fails: mitigated by content-addressed immutable objects, idempotent retry (no duplicate rows), and orphan reporting for objreconcile.",
+    "Tenant misconfiguration could mix intake data: mitigated by a required explicit tenant, RLS via store.BindTenant, and a fail-able cross-tenant test.",
+    "Large intake files: mitigated by a per-file --max-bytes cap (default 256MiB) that fails closed instead of truncating.",
+    "Registry over-claiming historical data: mitigated by backfill_status=pending on every flipped target plus pfingest --verify parity."
   ],
-  "rollback": "Revert the change.",
+  "rollback": "Revert the commit; content-addressed objects are safe to leave in place and no schema change is made.",
   "evidence": [
-    "pending",
-    "Design guardrails applied (BI-PF-1475): sig:1227ed0e0e60aa6b (16 lines)"
+    "Design guardrails applied (BI-PF-1475): sig:1227ed0e0e60aa6b (16 lines)",
+    "Design pre-check (BI-PF-1475): answered 10 checklist item(s) before Gate 1.5",
+    "Gate 1.5 architect review - model=mimo-v2.6-flash sha=56ded4e61ef1\nBLOCKER:\n  - Registry flips to exists/migrated in this commit while live ingestion is explicitly out of scope: shipped state asserts 11 stores have objects/rows that will not exist until ops later runs `pfingest`, so `pfingest --verify` and any existence check contradict `store-registry.json` on day one. Design must sequence: ingest + verify first, flip registry only on proof of existence.\n  - Artifact revision semantics are unresolved: \"deterministic id + ON CONFLICT DO NOTHING\" cannot both satisfy \"same artifact id on unchanged input\" and \"changed payload produces a new object while prior stays readable\" unless the id derivation (path vs path+sha) is stated; if path-derived, `DO NOTHING` permanently pins the artifacts row to the old checksum.\nMAJOR:\n  - AC conformance mismatch: acceptance criteria require the 11 entries marked \"object-store/exists with migration_status migrated\"; the approach flips them to \"artifacts/exists/migrated\". Repeated AC-wording drift class — reconcile explicitly before Gate 1.5.\n  - `go/intakeingest/go.mod` as a new module over \"existing datastore.ObjectStore + RelationalStore ports\": state where those ports live; if they are in the repo's root Go module this forces duplication (reuse violation) or a `replace` directive (version drift across modules).\n  - Tenant/RLS isolation is claimed (BindTenant, RLS-bound tx) but no test is listed for cross-tenant non-leakage; a claimed security control without a fail-able test is unproven (checklist 9, 6).\n  - Observability is a printed JSON report only: no per-store structured success/failure log, no run record, no metric distinguishing written vs skipped vs failed, so a half-failed 11-store run cannot be diagnosed or later proven ingested (checklist 10).\n  - CL-001 ownership not stated: who else writes `stored_objects`/`artifacts`, and is this writer registered as single-writer for intake|builds keys? No route-by-kind/ownership disposition present.\n  - CL-006 not addressed: this Gate-1 context does not embed the latest Gate 1.5 findings + dispositions, which `scripts/dev/gate1_check.py` enforces as a precondition for approval.\nMINOR:\n  - DSN passed via `cmd/pfingest` wiring risks credential exposure in argv/shell history; specify env-var/secret-file intake.\n  - \"Configurable size cap\" appears in risks but not in the design: no config key, default, or scope (per-file vs total) defined, and no fail-closed evidence test listed.\n  - `--verify` comparison basis unstated: Head checksum vs freshly re-read local file, and behaviour when the source file changed after ingest.\n  - `gate0_check.py` git-root fix is a real correctness fix but bundles an unrelated tooling concern with the ingestion change; split for reviewability and independent rollback.\n  - No GC/retention story for orphaned content-addressed objects when object write succeeds and metadata write fails (risk acknowledged but unmanaged).\nNIT:\n  - Pipe delimiter in `intake|builds/<sha256>` object keys: confirm it is safe/documented across the object store and any path-based tooling.\n  - JSON report schema is not pinned/versioned; ops automation parsing it will break silently on field changes.\n  - Deterministic artifact id derivation should be recorded in an ADR/store-registry comment so future writers compute identical ids.\nSUMMARY:\n  - Solid foundations: Go-first logic, content-addressed immutability, RLS-bound transactions, and idempotent upserts are the right shape, and rollback is clean (no schema change).\n  - Top risks: registry claims \"exists/migrated\" before any ingestion actually runs (integrity), and artifact-id/`DO NOTHING` revision semantics are underspecified against AC 3.\n  - Secondary gaps: separate Go module reuse strategy, missing cross-tenant test, print-only observability, and unembedded CL-006/CL-001 process evidence.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
+    "Gate 1.5 architect review - model=mimo-v2.6-flash sha=c87c1027d1af\nBLOCKER:\n  - none\nMAJOR:\n  - Object keys `intake/<sha256>`/`builds/<sha256>` are global, not tenant-prefixed: isolation depends solely on metadata RLS; any actor with raw PF_OBJECT_ROOT read access can cross-tenant read. Need an explicit statement that object-layer access is only via the RLS-bound service, plus a test for direct-key non-leakage.\n  - Concurrent ingest of the same tenant+logical_name can race on `revision=next per tenant+name` despite ON CONFLICT DO NOTHING (read-max-then-insert isn't atomic); needs SELECT ... FOR UPDATE or a DB-side sequence to keep the idempotency invariant.\n  - Runtime DB role posture not stated: checklist 3 requires confirming the ingestion role is not BYPASSRLS/superuser and that BindTenant can't be bypassed; design only asserts RLS via the port.\n  - Observability gap (checklist 10): only a CLI JSON report is specified — no metrics/log fields (ingest duration, bytes, drift count, failure reason) for the service; failures in scheduled/automated runs would be invisible.\n  - `Head` checksum comparison assumes the object store surfaces sha256 on HEAD; if it does not (common for S3-compatible stores without checksum headers), `--verify` silently passes on the third leg. Design must specify the checksum source or fail closed when absent.\nMINOR:\n  - Registry targets are flipped to `exists`/`migrated` before any bytes are ingested (backfill_status=pending is honest, but `migration_status=migrated` with zero ingested objects over-claims); consider ordering the flip after a successful first `pfingest` run or documenting the semantics explicitly.\n  - No `--dry-run`/report-only mode for `pfingest` (checklist 4); ingest isn't destructive, but operators need a pre-flight that shows planned writes without mutating.\n  - Availability path unspecified: behavior when the object store or DB is down (retry/backoff, fail-closed, alert lead-time) is only implied by \"fails closed\" for size caps.\n  - New standalone `go/intakeingest/go.mod` risks drifting from the repo's shared Go module/dependency pinning; confirm whether it should be a package in the existing module.\n  - `store-registry` + `STORE-DATAFLOW.md` regeneration and the `gate0_check.py` path fix are two concerns in one item; the note says separate commit, but the design should bind the ordering so a revert doesn't strand generated docs.\nNIT:\n  - Content-addressed reuse means a reverted run leaves untracked objects; objreconcile orphan reporting is out of scope — ensure the report is actually emitted somewhere durable rather than only \"reported\".\n  - `run_id` generation method (uuid vs timestamp) is unspecified; pin it in the schema doc to keep the pinned contract `pf.intake-ingest/1` stable.\n  - Per-file status enum `skipped` should explicitly cover \"unchanged + already verified\" vs \"unchanged but unverified\" to avoid conflating idempotent skip with verify-pass.\nSUMMARY:\n  - Solid, reversible design that reuses existing ports, honors the language rule, and pre-empts over-claiming via backfill_status=pending.\n  - Top risks: cross-tenant exposure at the raw object-key layer, a revision-allocation race undermining the idempotency AC, unverified assumptions about Head checksums, and thin observability for an operator-facing tool.\n  - No blockers; resolve the MAJORs before Gate 1.5 sign-off.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
+    "Gate 1.5 architect review - model=mimo-v2.6-flash sha=63ef05b2af55\nBLOCKER:\n  - CL-006 not satisfied: the Gate-1 context embeds no Gate 1.5 findings/dispositions, so approval is invalid while any BLOCKER/MAJOR is PENDING (enforced by `gate1_check.py`).\n  - Cross-tenant RLS test isn't specified to run as a non-superuser/non-BYPASSRLS role; as written it could pass vacuously under the same privileged connection used to seed data.\nMAJOR:\n  - Dual conflict-target ambiguity: `ON CONFLICT DO NOTHING` (PK on id) coexists with retry on `uq_artifacts_name_revision`; a re-ingest of a previously-seen payload collides on id, so the computed \"next revision\" never lands — the returned revision can diverge from the stored row. State the id/revision invariant and add a test (revert-to-old-payload case).\n  - `--verify` exit semantics incomplete: AC only covers drift; design doesn't state that `failed` (unreadable source, missing object row, Head error) also exits non-zero — an unreachable/corrupt store could report failure yet exit 0.\n  - Observability gap (checklist 10): no metrics or structured logs defined (ingest duration, drift count, verify failures, orphan writes); `run_id` exists only in stdout report, so scheduled-run failures are undiagnosable.\n  - `needs_api` decision (checklist 8) is never stated; explicitly record \"no API surface, operator CLI only\" with rationale in the Gate 1 doc.\n  - `--allow-bypassrls` is a runtime RLS escape hatch; require it to be denied in test/CI paths and emit a high-severity audit log on use, otherwise the tenant-isolation guarantee is advisory.\nMINOR:\n  - AC says \"content-addressed key\" but keys are tenant-prefixed — wording conflict, and cross-tenant identical content is stored twice; document the trade-off.\n  - Orphaned objects (object written, metadata failed) rely on a future objreconcile with no retention/reconcile trigger defined in this design — unbounded garbage risk.\n  - `pfingest --verify` streaming fallback reads the full object with no stated byte cap; the 256MiB ingest cap doesn't clearly apply.\n  - `scripts/dev/gate0_check.py` fix is listed in `in_scope` despite \"separate commit\" — enforce the split so the registry flip stays independently revertable.\n  - No registry/doc record of which of the 11 targets are multi-file (e.g. `intake-files`) vs single-file — command template per target should be pinned to avoid operator variance.\nNIT:\n  - Add a golden-file test for the pinned `pf.intake-ingest/1` JSON (field names, enum values, UUIDv4 `run_id` format) to prevent silent schema drift.\n  - Report is stdout + optional `--report-file`; consider failing closed if `--report-file` path is unwritable for scheduled runs.\nSUMMARY:\n  - Sound approach: Go ingestion over existing ports, content-addressed immutability, idempotent upserts, honest `backfill_status=pending`, and Gate-1.5 hardening cover most guardrails.\n  - Top risks: dual conflict-target/revision invariant is under-specified and untested for the revert case; RLS test validity and `--allow-bypassrls` weaken the isolation claim; observability and `needs_api` checklist items are unanswered.\n  - Verdict: proceed only after CL-006 dispositions are embedded and the MAJOR items are dispositioned; no schema change means rollback risk remains low.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
+    "Gate 2.5 architect review - model=mimo-v2.6-flash sha=f233a5c72b8e\nBLOCKER:\n  - none\nMAJOR:\n  - Tenant string is interpolated raw into ObjectKey and used by the local object store filesystem backend; a tenant id containing `/` or `..` escapes the `tenant/<tenant>/<bucket>/` prefix and can read/overwrite other tenants' objects — no sanitization in `validate()` or `ObjectKey()`.\n  - The four acceptance tests that \"prove\" the criteria (idempotent re-ingest, checksum verification, changed-payload revision, RLS non-leakage) are all in `TestServiceIntegration`, which silently `t.Skip`s when `PF_RUNTIME_DSN` is unset; with no evidence in the diff that CI sets it, the AC is effectively unproven in the default test run.\n  - `pfingest --verify` reports `store` as the bucket (`intake`/`builds`), not the store-registry entry (`conversations.json`, `build-info.json`, …); when checksums disagree the report cannot \"name each store\" as required, and drift short-circuits before the object-store check so a three-way disagreement never reports all disagreeing stores.\n  - STORE-DATAFLOW.md regeneration bundles massive unrelated churn (232→244 stores, new rows like `api-first-baseline.json`/`gate-baseline.json`, and rewritten tenant_scope/backend/retention semantics for every row), burying the 11 intended transitions in a 4000-line generated diff and breaking the per-item audit trail.\n  - `gate0_check.py` change is out-of-scope for this item and `except Exception: return {}` in `_load` silently swallows parse/IO errors, converting malformed backlog JSON into an empty dict instead of surfacing a defect.\nMINOR:\n  - `Orphans` builds the \"known\" set from `stored_objects.checksum` for the whole tenant, ignoring bucket, so a checksum registered under `builds` masks an orphan under `intake` (and vice versa).\n  - `dryRun` ingest reports `Status=written`, inflating the report's `written` count for a run that mutated nothing; the pinned schema has no dry-run-safe status and consumers can misread it.\n  - Revision allocation via `MAX(revision)+1` with 5 immediate retries and no backoff can exhaust retries under concurrent writers; no lock (`FOR UPDATE`/advisory) is taken.\n  - `objectChecksum` re-hash path uses `s.read`, which caps at `maxBytes`; a stored object larger than the cap fails verify with `ErrTooLarge` instead of a drift/size-mismatch verdict.\n  - `NewRunID` falls back to a non-UUID string on `rand.Read` failure, silently violating the pinned `pf.intake-ingest/1` `run_id` UUIDv4 contract.\n  - CLI ingests any file under `--root` with only a bucket discriminator; nothing prevents ingesting the legacy `product_forge_context.json` into the intake bucket even though it must stay `planned`.\n  - `Ingest` drift branch (\"artifact id exists with a different checksum\") is dead code because the id is derived from the checksum — misleading defensive path.\n  - Registry sets `migration_status: migrated` while `backfill_status: pending`; dashboards keyed only on `migration_status` will report migration complete before any data lands.\nNIT:\n  - `import \"flag\"` is separated from the stdlib group in `main.go`; violates common Go import grouping.\n  - `object_version` is populated with the content checksum, conflating two distinct concepts in the artifacts schema.\n  - `report.DurationMS` measured from `StartedAt` set just before the file loop, excluding setup (DB open, role check, walk) — duration is not the full run duration.\n  - `stored_objects` insert passes `tenant` as a parameter while the handle is already RLS-bound; redundant and invites confusion about which mechanism enforces isolation.\nSUMMARY:\n  - The core Go ingestion/verify design (content-addressed keys, deterministic artifact ids, RLS-bound writes, pinned report schema, BYPASSRLS refusal) is sound and largely meets the ACs, but the tenant-prefix path traversal and the fact that every proving test silently skips without `PF_RUNTIME_DSN` undermine the security and test-truthfulness criteria.\n  - Verify does not identify per-entry store names and short-circuits drift before checking the object store, so the \"name each store on disagreement\" AC is only partially met.\n  - The change also carries unrelated scope (gate0_check.py, a full regeneration of STORE-DATAFLOW.md) that should be split out to preserve per-item reviewability.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
+    "Gate 2.5 architect review - model=mimo-v2.6-flash sha=6bc7402ee404\nBLOCKER:\n  - none\nMAJOR:\n  - Regenerated `STORE-DATAFLOW.md` shows unrelated, out-of-scope state: `provider-keys.json` and `secrets.json` change from `deferred`/`secret-ref`/`critical` to `postgres`/`migrated` with `internal` sensitivity, and ~20 other stores flip backend/migration_status. Either the registry (not shown) changed silently in this item or the doc is generated from a dirty baseline — either way the secrets posture regression and 232→244 store-count jump are not attributable to BI-PF-1475 and destroy the registry's audit integrity.\n  - Acceptance test for RLS non-leakage and the runtime-role guard (`TestServiceIntegration`, `TestEnsureRuntimeRoleRefusesBypass`) silently `t.Skip` unless `PF_RUNTIME_DSN` is set; no CI wiring is included, so the required non-leakage proof can be vacuous in the default pipeline.\n  - CLI `--verify` exit-code semantics are untested: `HasFailure()` (exit 2) vs drift (exit 1) and \"names each store\" for source/artifacts/object disagreement have no test; only the report marshalling is golden-tested.\n  - The legacy skip path records `product_forge_context.json` as `Failed`, which forces `HasFailure()` → exit 2 on any run whose `--root` contains that file; an intentionally out-of-scope file should not poison operator/automation runs with a failure exit.\nMINOR:\n  - `Ingest` writes the immutable object before `register`; a metadata failure leaves an orphan object with no reconciliation other than the opt-in `--orphans` listing — consider an explicit repair path or documented cleanup.\n  - `--content-type` is a single global flag; the walk mode applies `application/octet-stream` to every file regardless of store, so per-store MIME (e.g. `application/json`, `application/x-ndjson`) is lost in `stored_objects`.\n  - `Orphans` builds the known-checksum set from `artifacts.checksum` via `LIKE $2` without escaping; safe today because buckets are validated literals, but it silently couples bucket naming to SQL pattern semantics.\n  - `gate0_check._load` swallows every exception into `{}` — a corrupt or unreadable backlog item now silently skips the in-progress gate instead of failing closed, weakening the gate's integrity guarantee.\nNIT:\n  - `ArtifactID` truncates sha256 to 128 bits with no documented collision rationale in the schema it feeds (`artifacts.id`).\n  - `collect` walks the entire tree with no file-count or depth bound before the per-file size cap applies.\n  - `ObjectKey`/tenant prefix string is duplicated in `Orphans` (`\"tenant/\"+tenant+\"/\"+bucket+\"/\"`) instead of reusing `ObjectKey`.\nSUMMARY:\n  - Solid Go implementation: deterministic artifact IDs, RLS-bound transaction, retry-safe revision allocation, tenant-traversal rejection, and a pinned report schema — the core ingest/verify design is sound and language-rule compliant.\n  - Top risks are (1) the regenerated dataflow doc silently reclassifies secrets stores and flips dozens of unrelated migration states, and (2) the acceptance-critical RLS and verify-exit-code tests are opt-in and can be vacuous in CI.\n  - Resolve the registry/doc provenance question and wire the DSN-gated tests into the test pipeline before this can be accepted as evidence for the 11 store flips.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
+    "Gate 2.5 architect review - model=mimo-v2.6-flash sha=a236bb09d5d8\nBLOCKER:\n  - STORE-DATAFLOW.md (generated, authoritative) now classifies `secrets.json` as sensitivity `internal`, tenant `tenant`, backend `postgres`, retention `unbounded/standard`, status `migrated` — down from `secret|global|json|policy|critical|deferred`.\n  - Same doc downgrades `provider-keys.json` from `secret-ref|policy|critical|deferred` to `internal|tenant|postgres|unbounded|standard|migrated`. The authoritative dataflow now misrepresents secret-store handling posture (retention, sensitivity, and \"migrated\" claims not backed by this change).\nMAJOR:\n  - The doc header says \"Generated from config/store-registry.json; do not edit by hand\", yet the registry diff touches 11 entries while the doc changes ~200 rows and the store count 232→244 (tenant_scope/backend/retention reclassifications across unrelated stores). Registry and generated dataflow are not reproducible from each other — either the doc was hand-edited or the registry change is incomplete/hidden.\n  - `Service.byID` queries `artifacts WHERE id=$1` with no `tenant_id` predicate; isolation depends entirely on RLS being enabled and the session GUC being set by `BindTenant`. Missing defense-in-depth on the exact path that gates idempotent reuse.\n  - The RLS non-leakage test does not prove RLS: `svcB.Verify` failing is equally explained by a name/tenant-scoped miss (\"no artifact metadata\"), not by a policy denial. No direct unbound read of tenant A's row by tenant B is attempted.\n  - No CI/Makefile/wiring for the new `go/intakeingest` module in the diff. Every DB-backed test (`TestServiceIntegration`, `TestEnsureRuntimeRoleRefusesBypass`) `t.Skip`s without `PF_RUNTIME_DSN`, so the idempotency/checksum/revision/RLS evidence required by AC can be permanently vacuous in CI.\n  - `collect()` ingests every file under `--root`; the registry's `source_glob` values are documentation only and are never enforced or reconciled. The 11 declared entries and the actual ingest set can silently diverge while the registry asserts `status: exists`.\n  - `objectChecksum` maps a max-bytes overflow to `Drift` with message \"cannot match the source\" — conflating \"could not verify\" with \"checksums disagree\", which violates the verify contract and will produce false-positive drift alarms.\n  - `Verify` sets `res.ArtifactID = ArtifactID(tenant, bucket, name, sourceChecksum)`, so a drift result reports an artifact id that does not exist in the DB, breaking ops correlation for exactly the failure case that matters.\nMINOR:\n  - The \"streamed re-hash\" fallback is not streamed: both `Verify` and `objectChecksum` do `io.ReadAll` into memory (up to 256MiB), doubling resident memory instead of hashing through `io.Copy`.\n  - `isUniqueViolation` depends on `datastore` preserving `SQLState()` through error wrapping; if wrapped, concurrent-ingest retries never fire and the run fails hard instead of retrying.\n  - `Orphans()` keys `known` by checksum only; an object shared by two logical names whose row was deleted for one name is silently reported as referenced.\n  - `preflightWritable` truncates `--report-file` before the run; a failing run leaves an empty/partial report where consumers expect the pinned `pf.intake-ingest/1` schema.\n  - `gate0_check.py` fail-closed change is out of scope for BI-PF-1475, untested, and will abort Gate 0 for any unreadable/unparseable changed backlog item regardless of this item's subject matter.\nNIT:\n  - `logResult` discards the `json.Marshal` error and prints an empty line on failure.\n  - `go.mod` carries `replace productforge/migrate => ../migrate` with no corresponding `require`.\n  - `--dry-run` combined with `--verify` sets `report.dry_run=true` while `Verify` still performs DB reads.\nSUMMARY:\n  - none\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
+    "Gate 2.5 architect review - model=mimo-v2.6-flash sha=134d506fdd21\nBLOCKER:\n  - None of the 11 registry entries can actually be reconciled to a real backfill: `status:\"exists\"` + `migration_status:\"migrated\"` is asserted while `backfill_status:\"pending\"` and no ingest has demonstrably run — the registry now claims a state that has no evidence behind it (integrity: the store registry is being used to declare migration complete before it is).\n  - gate0_check.py behavior change (fail-closed JSON parse aborting Gate 0) is bundled into this item; it changes CI semantics for unrelated backlog items with no test — scope creep with blast radius on every pipeline run.\nMAJOR:\n  - The per-store `command` in store-registry.json (`--bucket intake --root <source-root> --verify`) contradicts the per-store `source_glob` it is stored next to: running the documented command ingests *every* file under root into one bucket, not the named store. Registry now encodes a runnable-looking but wrong procedure (x11).\n  - 11 near-identical `command`/`ingest_prefix`/`ingest_writer` blocks copy-pasted: any future flag or prefix change must be edited in 11 places with no test or generator enforcing consistency (reuse/maintainability).\n  - `Ingest` writes the object and then the metadata in separate non-atomic steps; a `register` failure after `Put` leaves an unreferenced object. Comment acknowledges reuse-on-retry, but `--orphans` is opt-in and nothing drives it — eventual consistency of the artifact substrate is unverified by default.\n  - `register` allocates `MAX(revision)` over all rows including soft-deleted ones and uses `stage=artifact_type=bucket`; `artifact_type` is overloaded with the bucket string, losing real artifact-type semantics and breaking any downstream consumer that filters on type.\n  - Report `store` field is `bucket/name` (e.g. `intake/conversations.json`) while the store-registry keys are bare names (`conversations.json`); the acceptance criterion \"names each store\" cannot be mechanically correlated with the registry.\n  - No CI/build wiring for `pfingest` (no make target, no workflow, no go.mod workspace reference) — the Go module can rot undetected and the documented backfill command has never been executed anywhere in this diff.\nMINOR:\n  - `Ingest`'s `storedSum != res.Checksum` drift branch is dead code: the artifact id is a hash of the checksum, so an id match with a different checksum is unreachable — misleading code that implies a real integrity path.\n  - `Verify` re-hash path is bounded by `maxBytes` (256 MiB); a legitimately large stored object makes verification fail rather than stream-hash — acceptance explicitly called for a streamed re-hash fallback.\n  - `STORE-DATAFLOW.md` regeneration flips hundreds of unrelated stores' backend/migration_status in one diff (232→244 stores), making this item's registry change unreviewable; also legacy `product_forge_context.json` shows `pending` while the criterion requires it stay `planned`.\n  - `--allow-bypassrls` gate keys off `PF_CI` unset + `PF_ALLOW_BYPASSRLS=1`, which any operator shell can satisfy; the guard is convention, not control (acceptable for a local test escape hatch, but document it as such).\n  - `ArtifactID` truncates sha256 to 128 bits with reliance on a unique index for collisions; fine, but the collision-handling story (conflict error surfaces as a retried 23505 loop x10) deserves a comment or test.\nNIT:\n  - `logResult` builds a log line via ad-hoc struct instead of reusing the existing structured log conventions (`core/log_router` contract); two competing log shapes in one codebase.\n  - `NewRunID` hand-rolls UUIDv4 bits; fine, but a shared uuid helper already exists in the Go tree — reuse it.\n  - `preflightWritable` opens with `O_CREATE` and leaves a zero-byte file behind if ingest later fails.\nSUMMARY:\n  - none\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
+    "Gate 2.5 architect review - model=mimo-v2.6-flash sha=49afec542879\nBLOCKER:\n  - STORE-DATAFLOW.md now asserts provider-keys.json and secrets.json as sensitivity=internal, retention=unbounded, recovery=standard, migration_status=migrated (was secret-ref/secret, policy, critical, deferred): a credential-classification downgrade committed as generated truth; must be reverted or explicitly justified before ship.\nMAJOR:\n  - Generated doc is unreconcilable with this diff: 232→244 stores plus dozens of backend/tenant_scope/retention/migration_status flips (issues.json, pr-records.json, members.json, etc.) that no registry hunk in this review touches — unrelated changes bundled or doc stale, and the 11 intended changes are buried in the churn.\n  - Acceptance-critical tests (idempotent re-ingest, RLS non-leakage, verify) self-skip unless PF_RUNTIME_DSN is set; no CI wiring appears in the diff, so the required proofs may never execute in the pipeline.\n  - Cross-tenant test proves only metadata non-leakage; the object store is a shared local root with no per-tenant authorization and no test has tenant B read tenant A's object key — AC \"second tenant cannot read the artifact\" is unproven at the byte layer.\nMINOR:\n  - FileResult.Store = path.Base(name), so nested registry entries (intake-files/<source>/<name>, channel items.jsonl) are reported by basename, not the full store key AC asks --verify to name.\n  - Dry-run emits a fifth status \"planned\" inside the same pf.intake-ingest/1 report; AC pins only written|skipped-unchanged|drift|failed — needs an explicit schema-versioning decision.\n  - Verify short-circuits after source↔artifacts drift, so a simultaneously corrupted object store is never named in that run (\"names each store\" only partially satisfied).\n  - Re-ingest after a soft-deleted artifact reports \"written\" while ON CONFLICT(id) DO NOTHING leaves the row deleted, masking a silent no-op that verify will later fail on.\n  - gate0_check.py fail-closed change is unrelated scope creep for BI-PF-1475 (a behavior change in an unrelated gate).\n  - Verify on an object larger than max-bytes reports \"failed\" rather than a distinguishable unsupported/too-large outcome.\nNIT:\n  - Eleven near-identical registry target blocks with copy-pasted command strings; no template or validation invites drift as stores are added.\n  - preflightWritable creates an empty --report-file before the run, leaving a truncated report on early failure exits.\n  - ContentTypeFor treats the flag default \"application/octet-stream\" as an implicit sentinel, so an explicitly passed octet-stream is silently overridden by extension heuristics.\n  - Ingest buffers each file fully in memory (up to 256 MiB) and runs sequentially — fine for an operator tool, but an unstated scale ceiling.\n  - Confirm migration_status=migrated was placed on the object AC intends (it sits beside the source/backend block, sibling to target in the diff).\nSUMMARY:\n  - Code quality is solid (deterministic artifact ids, RLS-bound txns, fail-closed role posture, retry-safe revision allocation) and the 11 registry targets plus legacy exclusion match AC2 exactly.\n  - Ship is blocked by the regenerated dataflow doc asserting a secrets-classification downgrade and large unreconciled store churn beyond this item's scope.\n  - Top residual risks: acceptance tests are opt-in/skippable with no CI evidence, and tenant isolation is proven only at the metadata layer, not for object bytes.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
+    "Verification run: go/intakeingest go test + PF_RUNTIME_DSN integration against pf-pg-test as pf_app (non-BYPASSRLS).",
+    "Gate 2.5 architect review (mimo-v2.6-flash): sha 49afec542879, 15 findings dispositioned (0 pending).",
+    "Registry check: 244 stores / migrated 97 / retained 146 / pending 1 (product_forge_context.json).",
+    "Residuals: production backfill is an ops step (per-target command + backfill_status=pending); DB-backed tests remain DSN-gated until a Postgres CI service is added; orphan objects are reported for objreconcile."
   ],
   "owner": "agent",
   "requester": "generic",
@@ -230,13 +367,137 @@
     "usage": {}
   },
   "created_at": "2026-10-24T20:52:47.175530",
-  "updated_at": "2026-10-24T21:01:59.083335",
+  "updated_at": "2026-10-24T21:47:15.871796",
   "score": 0.75,
-  "_note": "readiness computed",
+  "_note": "Gate 2 approved; verification recorded",
   "api_impact": {
     "needs_api": false,
     "routes": [],
     "consumers": [],
-    "reason": "ingestion/service-side only"
-  }
+    "reason": "Operator-only CLI ingestion; DSN/object root from env, tenant supplied server-side; no HTTP surface."
+  },
+  "language_rule": "Go for new shipped ingestion logic (go/intakeingest); Go tests; JSON/Markdown are declarative.",
+  "review_dispositions": {
+    "design": {
+      "sig:1fc242ab843b8281": {
+        "status": "ACCEPTED",
+        "note": "Process artifact, not a design gap: the Gate 1 package is the consolidated `architect_review.py gate --gate 1` view, which renders these findings and dispositions beside each other. The reviewer prompt contains only the design, so it cannot see dispositions that by construction are recorded after it."
+      },
+      "sig:ab9e498963a1e311": {
+        "status": "ACTIONED",
+        "note": "The integration test connects with PF_RUNTIME_DSN, preflights pg_roles.rolbypassrls for current_user and t.Fatalf if it is true (no vacuous pass); it ingests as tenant A and asserts tenant B's Get returns ErrNotFound."
+      },
+      "sig:b398abf9b8f683d2": {
+        "status": "ACTIONED",
+        "note": "Pinned invariant: id = sha256(tenant|bucket|logical_name|checksum)[:32]. Ingest first SELECTs by id; if present it returns the stored revision unchanged (revert-to-old-payload is a no-op). Otherwise it inserts with ON CONFLICT (id) DO NOTHING and allocates revision by bounded insert-with-conflict-retry on uq_artifacts_name_revision. Tests cover unchanged, changed, and revert-to-old payloads."
+      },
+      "sig:4b590835585b7e9f": {
+        "status": "ACTIONED",
+        "note": "pfingest exits 1 for drift and 2 for failed (unreadable source, missing row, Head/Get error); only an all-verified run exits 0. A failure can never report success."
+      },
+      "sig:89f15881532d0594": {
+        "status": "ACTIONED",
+        "note": "Every file emits a structured JSON log line {run_id, store, file, status, bytes, duration_ms}; the run summary is written to stdout and --report-file; an unwritable report-file is a hard error. run_id is UUIDv4 and is present in both log lines and the report."
+      },
+      "sig:8d88e71930889cea": {
+        "status": "ACCEPTED",
+        "note": "Already recorded twice: the impact-review API CHECK row and item.api_impact both say needs_api=false because this is an operator CLI with no route and no client-supplied tenant."
+      },
+      "sig:38f5233fd0a2954d": {
+        "status": "ACTIONED",
+        "note": "The flag is ignored unless PF_CI is unset AND PF_ALLOW_BYPASSRLS=1; otherwise pfingest exits 2. Any accepted use writes an audit line at severity HIGH with the role name, and the default path refuses a bypass role."
+      },
+      "sig:67467c6473cdbe96": {
+        "status": "ACCEPTED",
+        "note": "Tenant-prefixed keys intentionally trade duplicate bytes across tenants for object-layer isolation; the AC wording is the bucket/checksum content address and the tenant prefix is additive. Deduping across tenants is out of scope by design."
+      },
+      "sig:a6914e8e97494b6c": {
+        "status": "DEFERRED",
+        "note": "Orphans are reported by pfingest --verify (unreferenced keys under the tenant prefix) and removed by the existing objreconcile/EDP-16 retention job; standing up a new GC trigger is out of scope for this item and recorded as an ops residual."
+      },
+      "sig:0385cbd23b1788ab": {
+        "status": "ACTIONED",
+        "note": "--max-bytes applies to both ingest and the streaming re-hash; an object larger than the cap is reported failed, never read unbounded."
+      },
+      "sig:6ed24c1862c04868": {
+        "status": "ACTIONED",
+        "note": "The gate0 fix is committed as its own commit before the ingestion commit; docs/registry regeneration is the last commit so a revert of the ingestion never strands generated docs."
+      },
+      "sig:450b5717fec2440c": {
+        "status": "ACTIONED",
+        "note": "Each flipped target records its source glob and a pinned command template (--root/--bucket); intake-files/<name> is explicitly multi-file, the other ten are single-file globs."
+      },
+      "sig:ed1c32ff454e0ab7": {
+        "status": "ACTIONED",
+        "note": "A golden JSON fixture asserts the pf.intake-ingest/1 field names, enum values and UUIDv4 run_id shape."
+      },
+      "sig:151d52be2207e314": {
+        "status": "ACTIONED",
+        "note": "When --report-file is given, an unwritable path fails the run before any ingest starts (preflight)."
+      }
+    },
+    "diff": {
+      "sig:865065d019b4ed9e": {
+        "status": "ACCEPTED",
+        "note": "No downgrade is introduced here. config/store-registry.json already classifies secrets.json and provider-keys.json as internal/tenant/postgres/unbounded/standard/migrated on develop before this branch (verified with git show of the merge-base); the generated STORE-DATAFLOW.md was stale. The regeneration is required by the docs-fresh gate. Explicit justification: provider-keys stores env-var references (not secrets), and the tool-secrets row is a web_search key that is never returned by the API; if stricter sensitivity is wanted, that is a separate registry-policy item, not this ingestion change."
+      },
+      "sig:fed34e6cdb62ab8a": {
+        "status": "ACCEPTED",
+        "note": "Same provenance: comparison of every store object against the merge-base shows only the 11 targets changed; the rest of the doc diff is stale-projection correction. The doc header says generated, and it is generated by scripts/dev/gen_store_dataflow.py from the registry."
+      },
+      "sig:c12769e532cfec88": {
+        "status": "DEFERRED",
+        "note": "The DB-backed tests are DSN-gated by repo convention (the same pattern as go/artifacts). They were executed against the local pf-pg-test Postgres as pf_app (non-BYPASSRLS) and passed; wiring a Postgres service into CI is an infrastructure item outside this ingestion change and is recorded as a residual."
+      },
+      "sig:b2f74c92c1397916": {
+        "status": "ACCEPTED",
+        "note": "The raw object root is internal infrastructure, not a tenant-facing surface; tenants reach bytes only through the RLS-bound service. Keys are tenant-prefixed as defense-in-depth, and the service refuses to run as a BYPASSRLS role. A direct-object test would assert the infrastructure has no per-tenant ACL, which is by design; the application boundary is metadata RLS and is tested with an unbound read returning zero rows."
+      },
+      "sig:8a2fddae2422d464": {
+        "status": "ACCEPTED",
+        "note": "Registry keys are bare names for the 9 single-file stores; for the nested entries the leaf name plus the bucket and the recorded source_glob/command disambiguate. Carrying the full relative path is available in FileResult.Name."
+      },
+      "sig:c250230f932e17a0": {
+        "status": "ACCEPTED",
+        "note": "The report schema is ours (pf.intake-ingest/1) and 'planned' is documented as the dry-run outcome; no consumer exists yet, and the golden test pins the field/enum set. A v2 would be required only if a consumer needs the old set."
+      },
+      "sig:505819bb2a1e1408": {
+        "status": "ACCEPTED",
+        "note": "Verify reports the first disagreement (source vs latest revision) and stops; a correction followed by a re-run checks the object. Reporting every layer at once would require an extra full object read on every drift and was not chosen."
+      },
+      "sig:de04fe46eb3618ef": {
+        "status": "DEFERRED",
+        "note": "Soft delete belongs to artifact retention (EDP-16), not this ingestion path; pfingest has no delete command. Re-ingest after a soft delete is recorded as a follow-up when retention/restore lands, so the tool cannot silently resurrect a tombstoned row."
+      },
+      "sig:944149971039bf2a": {
+        "status": "ACCEPTED",
+        "note": "Required to execute Gate 0 in this git-root layout (product-forge is a subdirectory). It is committed separately, and fail-closed is the intended gate semantics: an unreadable changed item must abort, not skip."
+      },
+      "sig:ce33aedaf3c966f8": {
+        "status": "ACCEPTED",
+        "note": "A stored object above the configured cap is reported failed (cannot verify), not drift; this avoids false drift alarms and is pinned by the verify contract."
+      },
+      "sig:9ddc8112ef25a432": {
+        "status": "ACCEPTED",
+        "note": "The 11 blocks are data, not code; each now carries a per-store command matching its source_glob. A generator can be added when more stores are onboarded."
+      },
+      "sig:25a7fd938b0a4961": {
+        "status": "ACCEPTED",
+        "note": "A failed run may leave an empty report file; the exit code is non-zero and the schema is written only on success. This is preferable to failing after ingest."
+      },
+      "sig:4e558f83c75f00f1": {
+        "status": "ACCEPTED",
+        "note": "The default value is the sentinel by design; per-store MIME fidelity is the goal, and an explicit octet-stream override is not a supported combination."
+      },
+      "sig:e4d53afed9ac09aa": {
+        "status": "ACCEPTED",
+        "note": "Operator tool with a documented 256 MiB per-file cap; sequential ingest is intentional for predictable memory and simple retries."
+      },
+      "sig:e2cf760d3ce7841c": {
+        "status": "ACCEPTED",
+        "note": "classification.migration_status correctly sits beside target in the classification block; backfill_status=pending is the honest data-parity flag on the target."
+      }
+    }
+  },
+  "verified_by": "Gate 2.5 architect (mimo-v2.6-flash) + local pf-pg-test verification run"
 }
