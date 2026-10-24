@@ -1,0 +1,34 @@
+{
+  "item": "BI-PF-1476",
+  "sha": "2bb3ee82b0a5",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-10-24T16:26:29.630643+00:00",
+  "findings": {
+    "BLOCKER": [
+      "AC3 requires a repeatable, fail-able check, but no test/check artifact appears in in_scope or affected_files (only registry + two docs), so the AC is not implementable as scoped.",
+      "No path, owner, or gate hook is declared for the check (script location, how it runs, which CI/gate invokes it); an unregistered check will be orphaned (CL-001)."
+    ],
+    "MAJOR": [
+      "The durability check as described validates field *presence* on \"the registry entry\" without pinning it by target path/id; deleting the entire design-systems.json entry would satisfy both the relationship gate and this check. Assert the entry exists and that kind=file/status=retained/backend=file/migration_status=retained/retained_reason non-empty/decision_ref=ADR-0007 are all true.",
+      "target.decision_ref=BI-PF-1476 couples durable rationale to a work-item ID that loses meaning after closure; the stable, long-lived reference is ADR-0007 (keep BI-PF-1476 as a secondary `related_items`/ledger citation if needed).",
+      "ADR-0007 is phrased as \"until BI-PF-1439 lands\", which makes the retention provisional with no defined revisit trigger; state the explicit condition under which this ADR is superseded and who re-opens it, or the decision silently rots.",
+      "The design does not state whether store-registry has a schema/validator that accepts new `retained_reason`/`decision_ref` fields; if the relationship gate validates against a strict schema, this change silently breaks it \u2014 schema/validator update must be in scope."
+    ],
+    "MINOR": [
+      "Do not add a second checker alongside existing gates; extend the store-registry relationship gate (single writer for that invariant) rather than duplicating validation logic.",
+      "Guardrail checklist coverage is implicit, not answered: tests/rollback (fail-able check location), invariants (exact assertion set), and route-by-kind (script owner) are unspecified; availability/RLS/API are correctly N/A for a docs+config change \u2014 say so explicitly in the ADR.",
+      "docs/STORE-DATAFLOW.md is in affected_files but absent from in_scope/AC; declare the intended edit to prevent scope drift at review."
+    ],
+    "NIT": [
+      "Rollback note is accurate (revert registry annotation + ADR-0007, no schema/data change) but could name the exact gate that must be re-run post-revert to prove restored parity.",
+      "Consider that \"retained\" status semantics may need a short glossary line in the registry header so future contributors distinguish retained-by-decision from retained-by-pending-migration."
+    ],
+    "SUMMARY": [
+      "Sound intent: keeping global product metadata out of the tenant-scoped tool_settings table is the right call, and the ADR + registry-annotation approach is low-risk and reversible.",
+      "Top risks: the durability check is required by an AC but is unscoped and unregistered (BLOCKER), and as described it verifies field presence rather than the pinned entry's full retained-state, so entry deletion or a schema-breaking field add would pass review.",
+      "Recommend: scope the check into the existing relationship gate, assert the complete invariant set against a path-pinned entry, and reference ADR-0007 (not the ticket ID) as the durable decision_ref."
+    ]
+  }
+}

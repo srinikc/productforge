@@ -75,6 +75,76 @@ OBJECT_META = {"artifacts", "stored_objects"}
 KINDS = {"table", "file", "derived", "object-store", "view"}
 STATUSES = {"exists", "planned", "retained"}
 RESERVED_COLS = {"primary", "foreign", "constraint", "unique", "check", "exclude", "like"}
+ADR_DOC = ROOT / "docs" / "ARCHITECTURE-DECISIONS.md"
+# Stores whose retention is a FORMAL decision (not just a default): they must carry a durable reason and a
+# decision_ref that resolves to an ADR index row AND section. Add to this set as the other retained config
+# stores are audited; the generic rule below also enforces every retained target that opts in with decision_ref.
+FORMALLY_RETAINED = {
+    "config/design-systems.json": "ADR-0009",
+}
+
+
+def adr_ids(text: str) -> set[str]:
+    """ADR ids that have BOTH an index row ([ADR-NNNN]) and a section (# ADR-NNNN: ...)."""
+    index = set(re.findall(r"\[ADR-(\d{4})\]", text or ""))
+    sections = set(re.findall(r"^#\s+ADR-(\d{4}):", text or "", re.M))
+    return {f"ADR-{i}" for i in index & sections}
+
+
+def retained_problems(reg: dict, adr_text: str) -> list[str]:
+    """Fail-closed retained-store invariants (BI-PF-1476).
+
+    Generic rule: a retained target that opts in with decision_ref must carry a retained_reason and the ref
+    must resolve to a real ADR. Pinned rule: FORMALLY_RETAINED entries must exist with the exact retained
+    tuple, so deleting the entry or flipping it cannot silently pass.
+    """
+    bad: list[str] = []
+    ids = adr_ids(adr_text)
+    stores = reg.get("stores") or {}
+    for name, v in stores.items():
+        tgt = (v or {}).get("target") or {}
+        if str(tgt.get("status")) != "retained":
+            continue
+        ref = str(tgt.get("decision_ref") or "")
+        if ref:
+            if not str(tgt.get("retained_reason") or "").strip():
+                bad.append(f"{name}: retained target has decision_ref {ref} but no retained_reason")
+            if ref not in ids:
+                bad.append(f"{name}: decision_ref {ref} does not resolve to an ADR index row + section")
+    for name, ref in FORMALLY_RETAINED.items():
+        entry = stores.get(name)
+        if not isinstance(entry, dict):
+            bad.append(f"{name}: formally retained store is missing from the registry")
+            continue
+        tgt = entry.get("target") or {}
+        cls = entry.get("classification") or {}
+        want = {"kind": "file", "status": "retained"}
+        for k, val in want.items():
+            if str(tgt.get(k)) != val:
+                bad.append(f"{name}: target.{k}={tgt.get(k)!r}, expected {val!r}")
+        if str(entry.get("kind")) != "config":
+            bad.append(f"{name}: kind={entry.get('kind')!r}, expected 'config'")
+        if str(cls.get("backend")) != "file":
+            bad.append(f"{name}: backend={cls.get('backend')!r}, expected 'file'")
+        if str(cls.get("migration_status")) != "retained":
+            bad.append(f"{name}: migration_status={cls.get('migration_status')!r}, expected 'retained'")
+        if str(tgt.get("decision_ref")) != ref:
+            bad.append(f"{name}: decision_ref={tgt.get('decision_ref')!r}, expected {ref!r}")
+        if not str(tgt.get("retained_reason") or "").strip():
+            bad.append(f"{name}: formally retained store has no retained_reason")
+    return bad
+
+
+def retained_audit(reg: dict) -> list[dict]:
+    """Machine-readable inventory of retained stores still missing a formal decision (future audit input)."""
+    out = []
+    for name, v in (reg.get("stores") or {}).items():
+        tgt = (v or {}).get("target") or {}
+        if str(tgt.get("status")) == "retained" and not str(tgt.get("decision_ref") or "").strip():
+            out.append({"store": name, "owner": (v or {}).get("owner") or "",
+                        "kind": (v or {}).get("kind") or ""})
+    return sorted(out, key=lambda r: r["store"])
+
 
 
 def _sql_files() -> list[Path]:
@@ -259,6 +329,12 @@ def check(reg: dict, tables: set[str], table_cols: dict[str, set[str]], triggers
     for t in REQUIRED_TRIGGERS:
         if t not in triggers:
             bad.append(f"required trigger missing from migrations: {t}")
+    try:
+        adr_text = ADR_DOC.read_text(encoding="utf-8")
+    except Exception as e:  # fail closed: the decision register must be readable
+        bad.append(f"ADR document unreadable: {e}")
+    else:
+        bad += retained_problems(reg, adr_text)
     return bad
 
 
@@ -287,6 +363,11 @@ def _report(reg: dict, bad: list[str], verbose: bool) -> int:
 
 def _self_test(reg: dict, tables, cols, triggers) -> int:
     failures = []
+    # ADR referential integrity is BOTH an index row and a section; each half alone must not resolve.
+    index_only = "| [ADR-0099](#adr-0099-x) | x | Accepted | 2026-01-01 |"
+    both = index_only + "\n# ADR-0099: x\n"
+    if adr_ids(index_only) or not adr_ids(both):
+        failures.append("ADR index/section matching is not enforced")
     table_store = next((n for n, v in (reg.get("stores") or {}).items()
                         if (v.get("target") or {}).get("kind") == "table"), None)
     if table_store is None:
@@ -305,11 +386,36 @@ def _self_test(reg: dict, tables, cols, triggers) -> int:
     first["classification"]["migration_status"] = "nonsense"
     if not check(bad_status, tables, cols, triggers):
         failures.append("status drift was not detected")
+    # Retained-decision invariants (BI-PF-1476). All mutations are in-memory copies; the live registry is
+    # never written by the self-test.
+    for name in FORMALLY_RETAINED:
+        if name not in (reg.get("stores") or {}):
+            continue
+        del_missing = copy.deepcopy(reg)
+        del_missing["stores"].pop(name, None)
+        if not check(del_missing, tables, cols, triggers):
+            failures.append(f"deleting formally retained {name} was not detected")
+        blank_reason = copy.deepcopy(reg)
+        blank_reason["stores"][name]["target"]["retained_reason"] = ""
+        if not check(blank_reason, tables, cols, triggers):
+            failures.append(f"blank retained_reason on {name} was not detected")
+        flipped = copy.deepcopy(reg)
+        flipped["stores"][name]["target"]["status"] = "planned"
+        if not check(flipped, tables, cols, triggers):
+            failures.append(f"flipping {name} to planned was not detected")
+        no_ref = copy.deepcopy(reg)
+        no_ref["stores"][name]["target"].pop("decision_ref", None)
+        if not check(no_ref, tables, cols, triggers):
+            failures.append(f"removing decision_ref from {name} was not detected")
+        bad_ref = copy.deepcopy(reg)
+        bad_ref["stores"][name]["target"]["decision_ref"] = "ADR-9999"
+        if not check(bad_ref, tables, cols, triggers):
+            failures.append(f"unresolvable decision_ref on {name} was not detected")
     if failures:
         for f in failures:
             print("self-test: FAIL - " + f)
         return 1
-    print("store-relationships: self-test OK (3 negative scenarios)")
+    print("store-relationships: self-test OK (status/target/retained-decision negatives)")
     return _report(reg, check(reg, tables, cols, triggers), False)
 
 
@@ -318,11 +424,16 @@ def main(argv=None) -> int:
     ap.add_argument("--apply", action="store_true", help="write relationships + migration_status")
     ap.add_argument("--self-test", action="store_true", help="run the gate plus negative tests")
     ap.add_argument("--verbose", action="store_true", help="print every problem")
+    ap.add_argument("--retained-audit", action="store_true",
+                    help="print retained stores that still lack a formal decision_ref (JSON)")
     ap.add_argument("--registry", default=str(REG))
     a = ap.parse_args(argv)
     path = Path(a.registry)
     reg = json.loads(path.read_text(encoding="utf-8"))
     tables, cols, triggers = _schema()
+    if a.retained_audit:
+        print(json.dumps(retained_audit(reg), indent=2))
+        return 0
     if a.apply:
         reg = apply(reg, tables, cols)
         path.write_text(json.dumps(reg, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")

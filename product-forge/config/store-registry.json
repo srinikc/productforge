@@ -1,6 +1,6 @@
 {
   "$schema": "store-registry-v1",
-  "description": "Authoritative data stores for Product Forge. One truth per concern, one writer per file. Enforced by scripts/dev/wired_audit.py (store_audit).",
+  "description": "Authoritative data stores for Product Forge. One truth per concern, one writer per file. Enforced by scripts/dev/wired_audit.py (store_audit). A retained target may be retained BY DECISION (carries target.decision_ref + retained_reason, e.g. a global catalog that must not live in tenant-scoped settings) or retained BY DEFAULT/pending migration (no decision_ref yet); only the former is a settled storage decision.",
   "classification_defaults": {
     "sensitivity": "internal",
     "tenant_scope": "auto",
@@ -5077,7 +5077,12 @@
         "kind": "file",
         "status": "retained",
         "ref": "",
-        "owner_item": ""
+        "owner_item": "BI-PF-1439",
+        "retained_reason": "Summary pointer: ADR-0009 is the authoritative decision. Global, read-only design-system catalog (product types/style/stack/palette/dials/components/a11y); it is not tenant data, so it does not belong in the tenant-scoped tool_settings table. It stays file-backed until the BI-PF-1439 Go writer (go/pfcore/design_system.go) lands.",
+        "decision_ref": "ADR-0009",
+        "related_items": [
+          "BI-PF-1476"
+        ]
       }
     },
     "gate-baseline.json": {
