@@ -90,6 +90,42 @@ func TestDryRunIsPlanned(t *testing.T) {
 	}
 }
 
+func TestExitCode(t *testing.T) {
+	clean := NewReport("x", "ingest", "t", false)
+	clean.Add(FileResult{Status: Written})
+	if got := ExitCode(clean); got != 0 {
+		t.Fatalf("clean run: want 0, got %d", got)
+	}
+	drift := NewReport("x", "verify", "t", false)
+	drift.Add(FileResult{Status: Drift})
+	if got := ExitCode(drift); got != 1 {
+		t.Fatalf("drift: want 1, got %d", got)
+	}
+	failed := NewReport("x", "verify", "t", false)
+	failed.Add(FileResult{Status: Failed})
+	if got := ExitCode(failed); got != 2 {
+		t.Fatalf("failed: want 2, got %d", got)
+	}
+}
+
+func TestContentTypeFor(t *testing.T) {
+	cases := map[string]string{
+		"conversations.json":   "application/json",
+		"items.jsonl":          "application/x-ndjson",
+		"discovery-panel.json": "application/json",
+		"notes.md":             "text/markdown",
+		"blob.bin":             "application/octet-stream",
+	}
+	for name, want := range cases {
+		if got := ContentTypeFor(name, ""); got != want {
+			t.Fatalf("%s: want %s, got %s", name, want, got)
+		}
+	}
+	if got := ContentTypeFor("notes.md", "text/csv"); got != "text/csv" {
+		t.Fatalf("explicit override must win, got %s", got)
+	}
+}
+
 func TestEnsureRuntimeRoleRefusesBypass(t *testing.T) {
 	dsn := os.Getenv("PF_RUNTIME_DSN")
 	if dsn == "" {
@@ -235,9 +271,15 @@ func TestServiceIntegration(t *testing.T) {
 	if err != nil || v.Status != SkippedUnchanged {
 		t.Fatalf("verify current: %+v err=%v", v, err)
 	}
+	if v.Store != "intake/"+name || v.Bucket != "intake" {
+		t.Fatalf("verify must name the store entry, got store=%q bucket=%q", v.Store, v.Bucket)
+	}
 	v, err = svcA.Verify(ctx, tenantA, "intake", name, bytes.NewReader(original))
 	if err != nil || v.Status != Drift {
 		t.Fatalf("verify stale source must drift: %+v err=%v", v, err)
+	}
+	if v.Store != "intake/"+name {
+		t.Fatalf("drift result must name the store entry, got %q", v.Store)
 	}
 
 	// Tenant B cannot see tenant A's metadata (RLS), even with the same content.

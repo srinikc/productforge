@@ -41,6 +41,9 @@ func collect(root, name string) ([]string, error) {
 		if filepath.IsAbs(rel) || rel == ".." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
 			return nil, fmt.Errorf("intakeingest: --name must stay under --root")
 		}
+		if strings.EqualFold(filepath.Base(rel), "product_forge_context.json") {
+			return nil, fmt.Errorf("intakeingest: legacy dashboard store is out of scope (stays planned under BI-PF-1292)")
+		}
 		return []string{filepath.ToSlash(rel)}, nil
 	}
 	var out []string
@@ -55,7 +58,12 @@ func collect(root, name string) ([]string, error) {
 		if err != nil {
 			return err
 		}
-		out = append(out, filepath.ToSlash(rel))
+		slash := filepath.ToSlash(rel)
+		if strings.EqualFold(filepath.Base(slash), "product_forge_context.json") {
+			fmt.Fprintf(os.Stderr, "pfingest: skipping legacy store %s (out of scope)\n", slash)
+			return nil
+		}
+		out = append(out, slash)
 		return nil
 	})
 	if err != nil {
@@ -160,14 +168,6 @@ func run() int {
 	report := intakeingest.NewReport(runID, mode, tenant, dryRun)
 	report.StartedAt = runStart.UTC()
 	for _, rel := range files {
-		if strings.EqualFold(filepath.Base(rel), "product_forge_context.json") {
-			r := intakeingest.FileResult{Store: bucket + "/" + rel, Bucket: bucket, Name: rel,
-				Status: intakeingest.Failed,
-				Error:  "legacy dashboard store is out of scope (stays planned under BI-PF-1292)"}
-			report.Add(r)
-			logResult(r, runID)
-			continue
-		}
 		f, err := os.Open(filepath.Join(root, filepath.FromSlash(rel)))
 		if err != nil {
 			r := intakeingest.FileResult{Store: bucket + "/" + rel, Bucket: bucket, Name: rel,
@@ -209,13 +209,7 @@ func run() int {
 			return fail("cannot write --report-file: %v", err)
 		}
 	}
-	if report.HasFailure() {
-		return 2
-	}
-	if !report.OK() {
-		return 1
-	}
-	return 0
+	return intakeingest.ExitCode(report)
 }
 
 func main() { os.Exit(run()) }

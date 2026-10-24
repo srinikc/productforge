@@ -34,10 +34,8 @@ def _repo_root() -> str:
 
 
 def _load(rel_repo: str) -> dict:
-    try:
-        return json.loads(Path(_repo_root(), rel_repo).read_text(encoding="utf-8"))
-    except Exception:
-        return {}
+    # Fail closed: a changed item that cannot be read/parsed aborts Gate 0 instead of silently skipping it.
+    return json.loads(Path(_repo_root(), rel_repo).read_text(encoding="utf-8"))
 
 
 def transitions(base: str = "") -> list[dict]:

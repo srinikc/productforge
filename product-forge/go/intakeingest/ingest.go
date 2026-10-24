@@ -120,6 +120,17 @@ func (r *Report) OK() bool { return r.Counts[string(Drift)] == 0 && r.Counts[str
 // HasFailure reports whether any file failed (exit 2) vs drifted (exit 1).
 func (r *Report) HasFailure() bool { return r.Counts[string(Failed)] > 0 }
 
+// ExitCode maps a report to the CLI contract: 2 failed, 1 drift, 0 clean.
+func ExitCode(r Report) int {
+	if r.HasFailure() {
+		return 2
+	}
+	if !r.OK() {
+		return 1
+	}
+	return 0
+}
+
 // Service ingests files over the provider-neutral datastore ports.
 type Service struct {
 	db       datastore.RelationalStore
@@ -144,7 +155,9 @@ func ObjectKey(tenant, bucket, checksum string) string {
 }
 
 // ArtifactID is deterministic over (tenant, bucket, logical name, checksum). Unchanged input therefore maps
-// to the same row; changed bytes map to a new row (and the next revision).
+// to the same row; changed bytes map to a new row (and the next revision). The 128-bit truncation keeps the
+// id readable; uniqueness is also enforced by (tenant, name, revision), so a truncation collision would be a
+// conflict error rather than silent data loss.
 func ArtifactID(tenant, bucket, name, checksum string) string {
 	sum := sha256.Sum256([]byte(tenant + "|" + bucket + "|" + name + "|" + checksum))
 	return hex.EncodeToString(sum[:])[:32]
@@ -154,6 +167,31 @@ func ArtifactID(tenant, bucket, name, checksum string) string {
 func Checksum(b []byte) string {
 	sum := sha256.Sum256(b)
 	return hex.EncodeToString(sum[:])
+}
+
+// ContentTypeFor keeps per-store MIME fidelity when the caller does not override it.
+func ContentTypeFor(name, override string) string {
+	if strings.TrimSpace(override) != "" && override != "application/octet-stream" {
+		return override
+	}
+	ext := ""
+	if i := strings.LastIndex(name, "."); i >= 0 {
+		ext = strings.ToLower(name[i+1:])
+	}
+	switch ext {
+	case "json":
+		return "application/json"
+	case "jsonl", "ndjson":
+		return "application/x-ndjson"
+	case "md", "markdown":
+		return "text/markdown"
+	case "txt", "log":
+		return "text/plain"
+	case "yaml", "yml":
+		return "application/yaml"
+	default:
+		return "application/octet-stream"
+	}
 }
 
 func validate(tenant, bucket, name string) error {
@@ -229,10 +267,7 @@ func (s *Service) Ingest(ctx context.Context, tenant, bucket, name string, r io.
 		return finish(nil)
 	}
 
-	ct := contentType
-	if ct == "" {
-		ct = "application/octet-stream"
-	}
+	ct := ContentTypeFor(name, contentType)
 	if _, err := s.objects.Put(ctx, ObjectKey(tenant, bucket, res.Checksum), bytes.NewReader(body),
 		int64(len(body)), datastore.PutOptions{ContentType: ct, Immutable: true}); err != nil {
 		return finish(err)
@@ -309,7 +344,7 @@ func (s *Service) Orphans(ctx context.Context, tenant, bucket string) ([]string,
 	if bucket != BucketIntake && bucket != BucketBuilds {
 		return nil, ErrBadBucket
 	}
-	infos, err := s.objects.List(ctx, "tenant/"+tenant+"/"+bucket+"/")
+	infos, err := s.objects.List(ctx, ObjectKey(tenant, bucket, ""))
 	if err != nil {
 		return nil, err
 	}
