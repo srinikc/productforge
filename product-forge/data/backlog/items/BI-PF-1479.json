@@ -1,0 +1,265 @@
+{
+  "id": "BI-PF-1479",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "gate-review-decision-table",
+  "label": "PF Backlog 649",
+  "title": "Review gates: render Gate 1.5/2.5 findings as one decision table + overall architect recommendation",
+  "body": "",
+  "source": "review",
+  "status": "in_progress",
+  "priority": "P2",
+  "moscow": "Should",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [
+    "BI-PF-1430",
+    "BI-PF-1427",
+    "BI-PF-1471"
+  ],
+  "links": {},
+  "decisions": [
+    {
+      "at": "2026-10-24T23:08:19.691392",
+      "decision": "APPROVE",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)"
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "Gate 1.5/2.5 output is a flat list; the HIL must manually build the decision table and overall recommendation.",
+    "what_adds": "One table + computed overall recommendation in the shared gate renderer, for both 1.5 and 2.5.",
+    "why_now": "The HIL wants a complete, consistent picture at each review gate.",
+    "success": "Both gates print the table/recommendation; tests cover it; exit codes unchanged.",
+    "source": "authored"
+  },
+  "objective": "Render Gate 1.5/2.5 findings as one decision-ready table with severity, finding, disposition and response, plus a computed overall enterprise-architect recommendation, in the shared renderer used by both gates.",
+  "acceptance_criteria": [
+    "`architect_review.py gate --gate 1|2` and `gate1_check.py` render every finding as a markdown table row with #, severity, finding, disposition status and response/resolution for both design (Gate 1.5) and diff (Gate 2.5) reviews.",
+    "A computed overall recommendation is printed above the table: NOT READY when a BLOCKER/MAJOR is pending, APPROVE WITH ATTENTION when all blockers/majors are dispositioned but some are ACCEPTED/DEFERRED/SCOPE, and APPROVE when all blockers/majors are ACTIONED, with severity/disposition counts.",
+    "Unit tests prove the table header/rows, pipe/newline escaping, the three recommendation outcomes and both 1.5/2.5 headers; the existing disposition matching, gate1_check --json and gate exit codes are unchanged."
+  ],
+  "in_scope": [
+    "scripts/dev/architect_review.py renderer + recommendation helper",
+    "test-framework/tests/test_architect_review_render.py",
+    "docs/REVIEW-GATES-LIFECYCLE.md gate-view note"
+  ],
+  "out_of_scope": [
+    "Changing review prompts, evidence schema, disposition matching or gate exit codes.",
+    "Changing the HIL decision/approval rules."
+  ],
+  "affected_components": [
+    "review gate tooling"
+  ],
+  "affected_files": [
+    "scripts/dev/architect_review.py",
+    "test-framework/tests/test_architect_review_render.py",
+    "docs/REVIEW-GATES-LIFECYCLE.md"
+  ],
+  "approach": "Add overall_recommendation(rev, disp) and rewrite _render_review to emit a markdown table (#, severity, finding, disposition, response) with escaped cells, the computed recommendation and counts, then the reviewer SUMMARY and the existing footer. No change to parse_review, _disp_for, gate_view, gate1_check --json or exit codes. Add test-framework/tests/test_architect_review_render.py and a line in docs/REVIEW-GATES-LIFECYCLE.md.",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [
+        "BI-PF-1430 surfaces Gate 1.5/2.5 findings in the Gate 1/2 review; BI-PF-1449 introduced the consolidated renderer (_render_review) and gate_view.",
+        "docs/REVIEW-GATES-LIFECYCLE.md makes the Gate 1.5/2.5 findings + recommendation part of the HIL decision.",
+        "Dispositions are main-thread-owned, keyed by sig/ordinal, and must not change; only the presentation changes."
+      ],
+      "existing_path": [
+        "scripts/dev/architect_review.py:428 _render_review renders a flat [SEV] #n (STATUS)/finding/response list; render_gate_view is the single renderer used by architect_review.py gate and gate1_check.py.",
+        "scripts/dev/gate1_check.py:73 prints render_gate_view; --json emits machine fields (unaffected).",
+        "scripts/dev/architect_review.py:374 pending_blocking computes total/pending/blocking; dispositions matched by _disp_for."
+      ],
+      "assumptions": [
+        "The flat renderer has no machine consumers (gate1_check --json is separate), so a table is a presentation-only change.",
+        "The overall recommendation is advisory text; the binding decision remains the HIL Gate 1/2 with the existing evidence/digest checks.",
+        "Table cells fit a terminal; full finding text is kept (pipes/newlines escaped)."
+      ],
+      "divergences": [
+        "The gate view becomes a markdown table + recommendation instead of the flat list; the footer/exit codes stay."
+      ],
+      "open_questions": []
+    },
+    "impact_review": [
+      {
+        "claim": "API CHECK",
+        "verdict": "aligned",
+        "evidence": "No HTTP surface: CLI/gate tooling only; no route, no tenant input.",
+        "recommendation": "needs_api=false"
+      },
+      {
+        "claim": "AC coverage",
+        "verdict": "aligned",
+        "evidence": [
+          "`architect_review.py gate --gate 1|2` and `gate1_check.py` render every finding as a markdown table row with #, severity, finding, disposition status and response/resolution for both design (Gate 1.5) and diff (Gate 2.5) reviews.",
+          "A computed overall recommendation is printed above the table: NOT READY when a BLOCKER/MAJOR is pending, APPROVE WITH ATTENTION when all blockers/majors are dispositioned but some are ACCEPTED/DEFERRED/SCOPE, and APPROVE when all blockers/majors are ACTIONED, with severity/disposition counts.",
+          "Unit tests prove the table header/rows, pipe/newline escaping, the three recommendation outcomes and both 1.5/2.5 headers; the existing disposition matching, gate1_check --json and gate exit codes are unchanged."
+        ],
+        "recommendation": "approve"
+      },
+      {
+        "claim": "language",
+        "verdict": "aligned",
+        "evidence": "Python tooling in scripts/dev + a pytest test; no shipped product logic.",
+        "recommendation": "Python tooling"
+      },
+      {
+        "claim": "reuse",
+        "verdict": "aligned",
+        "evidence": "Extends the single existing renderer (_render_review) used by both gates; no second renderer, no disposition/matching changes.",
+        "recommendation": "approve"
+      },
+      {
+        "claim": "compatibility",
+        "verdict": "aligned",
+        "evidence": "gate1_check --json and gate exit codes are unchanged; the flat text had no machine consumer.",
+        "recommendation": "approve"
+      },
+      {
+        "claim": "blast radius",
+        "verdict": "aligned",
+        "evidence": "Presentation-only change in two scripts' shared renderer; rollback is a revert.",
+        "recommendation": "approve"
+      }
+    ],
+    "reviewed_by": "agent",
+    "at": ""
+  },
+  "verification": [
+    "Objective achieved: Review gates: render Gate 1.5/2.5 findings as one decision table + overall architect recommendation"
+  ],
+  "risks": [
+    "A text consumer could parse the old flat list: none found (gate1_check --json is the machine path); documented in the item.",
+    "Very long findings widen the table: cells are escaped and the text is kept; terminals wrap."
+  ],
+  "rollback": "Revert the renderer/test/docs commit; evidence/disposition data is unchanged.",
+  "evidence": [
+    "pending",
+    "Design guardrails applied (BI-PF-1479): sig:05853422256f2854 (20 lines)"
+  ],
+  "owner": "agent",
+  "requester": "review",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1248",
+  "parent": "BI-PF-1248",
+  "revision": 3,
+  "priority_rank": 320,
+  "priority_class": "P2",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "COMPLETE",
+    "analyzed_at": "2026-10-24T23:08:19.478105",
+    "analyzed_by": "system",
+    "revision_analyzed": 3,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "REUSE the existing architect-review data path: findings live on the item + gate sheet (BI-PF-1430) and are produced by scripts/dev/architect_review.py (BI-PF-1427). Extend the rendering layer (core/architecture_diagram.py / core/diagram_render.py and the /api/v1/apidocs/render + /api/v1/engineering/gates endpoints) with a findings-table renderer that reads config/architect-review.json and config/architect-review-baseline.json. Compute the overall recommendation as a pure function of dispositions: any PENDING or unresolved BLOCKER/MAJOR => BLOCKED (consistent with CL-006, enforced by scripts/dev/gate1_check.py); MAJOR with disposition accepted-with-fix => CHANGES_REQUIRED; else APPROVE. Keep findings reviewer-owned and dispositions main-thread-owned (CL-002): the renderer is read-only and issues no disposition writes. Language rule: rendering glue and new shipped logic in Go; edits to shipped Python (gate check/report) allowed; renderer templates/config in JSON.",
+    "existing_components": [],
+    "existing_apis": [],
+    "existing_modules": [],
+    "dependency_findings": [
+      "BLOCKS: none; this is presentation-layer and gates nothing downstream",
+      "REQUIRES BI-PF-1430 + BI-PF-1427 data to exist before rendering has real inputs"
+    ],
+    "conflict_findings": [
+      "Render endpoint + gate1_check.py shared with BI-PF-1430; additive-field discipline required"
+    ],
+    "duplication_findings": [
+      "BI-PF-1430 owns storage/surfacing; this item is render-only — no overlap if boundaries held",
+      "BI-PF-1427 owns Gate 2.5 capture; do not re-implement review invocation"
+    ],
+    "drift": "LOW",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "Extends existing render + gate-review components rather than adding new ones; input data is already owned by BI-PF-1430/1427, so this item is a narrow, reversible presentation capability with deterministic, testable recommendation logic aligned to CL-006.",
+    "assumptions": [
+      "Findings + dispositions are already persisted per BI-PF-1430/1427 with stable finding_ids",
+      "Read-only rendering needs no new authz boundary beyond existing gate API authn",
+      "Reviewer-owned findings are not mutated by this item (CL-002)"
+    ],
+    "risks": [
+      "Recommendation logic could diverge from gate1_check.py — mitigate by sharing one pure function/fixture set",
+      "Rendering of very large finding sets could bloat gate sheets — cap rows and link to full list"
+    ],
+    "evidence": [
+      "Candidate modules core/architecture_diagram.py, core/diagram_render.py, core/merge_gate.py already own rendering/gate logic",
+      "CL-006 defines the PENDING-blocker rule enforced by scripts/dev/gate1_check.py",
+      "config/architect-review.json + baseline provide severity/scope configuration to reuse"
+    ],
+    "confidence": "high",
+    "missing_info": [
+      "Desired output format priority (markdown vs HTML vs both) and where the table appears in the review UI/sheet",
+      "Whether recommendation should be persisted/snapshotted at approval time or always computed live"
+    ],
+    "depth": "deep",
+    "mode": "ai",
+    "context_review": {
+      "ok": null,
+      "source": "llm-unparseable",
+      "implementable": null,
+      "missing": [],
+      "reason": "reviewer returned no JSON"
+    },
+    "decision_request": {
+      "needed": false,
+      "reasons": [],
+      "ask": ""
+    },
+    "arch_fingerprint": "6fdf78d4f4614f93"
+  },
+  "dependencies": [
+    {
+      "task_id": "BI-PF-1430",
+      "type": "REQUIRES",
+      "required_state": "findings stored on item + gate sheet"
+    },
+    {
+      "task_id": "BI-PF-1427",
+      "type": "REQUIRES",
+      "required_state": "Gate 2.5 findings captured via architect_review.py"
+    },
+    {
+      "task_id": "BI-PF-1471",
+      "type": "RELATED",
+      "required_state": "Gate 2.5 convergence/scope guard defined"
+    }
+  ],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-24T23:08:19.579507"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-24T23:07:18.812889",
+  "updated_at": "2026-10-24T23:09:28.810797",
+  "score": 0.75,
+  "_note": "readiness computed",
+  "api_impact": {
+    "needs_api": false,
+    "routes": [],
+    "consumers": [],
+    "reason": "CLI gate renderer only; no HTTP surface."
+  },
+  "language_rule": "Python tooling (scripts/ + test-framework) is allowed; no shipped runtime logic."
+}
