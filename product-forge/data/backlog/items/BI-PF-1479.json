@@ -130,7 +130,7 @@
     "at": ""
   },
   "verification": [
-    "Objective achieved: Review gates: render Gate 1.5/2.5 findings as one decision table + overall architect recommendation"
+    "Gate 1.5 architect review (mimo-v2.6-flash): {'BLOCKER': 1, 'MAJOR': 3, 'MINOR': 3, 'NIT': 2}"
   ],
   "risks": [
     "A text consumer could parse the old flat list: none found (gate1_check --json is the machine path); documented in the item.",
@@ -139,7 +139,9 @@
   "rollback": "Revert the renderer/test/docs commit; evidence/disposition data is unchanged.",
   "evidence": [
     "pending",
-    "Design guardrails applied (BI-PF-1479): sig:05853422256f2854 (20 lines)"
+    "Design guardrails applied (BI-PF-1479): sig:05853422256f2854 (20 lines)",
+    "Design pre-check (BI-PF-1479): answered 10 checklist item(s) before Gate 1.5",
+    "Gate 1.5 architect review - model=mimo-v2.6-flash sha=2cac196fe28b\nBLOCKER:\n  - none\nMAJOR:\n  - AC requires `gate1_check.py` to render the table, yet `gate1_check.py` is absent from `affected_files`/`in_scope`. The design must state the explicit reuse path (import and call the single `_render_review`/shared helper) and prove no second, divergent renderer is created (CL-001 single-writer).\n  - Recommendation semantics fail open on unknown/typo'd disposition strings: design defines outcomes for PENDING/ACCEPTED/DEFERRED/SCOPE/ACTIONED but not how an unrecognized status (from `_disp_for` or a hand-edited review file) is classified. Unspecified handling must default to pending -> NOT READY (CL-006 integrity), and this path must be tested.\n  - \"APPROVE when all blockers/majors are ACTIONED\" ignores MINOR findings entirely and ignores mixed states (e.g., one BLOCKER ACTIONED + one MAJOR ACCEPTED). Precedence and whether MINOR-pending can coexist with APPROVE is undefined; the tier precedence (worst disposition wins) must be stated explicitly in design and docs.\nMINOR:\n  - AC claims `gate1_check --json` and exit codes are \"unchanged\" but the design commits no schema-stability assertion (golden JSON fixture or contract test). Add one so renderer refactors cannot silently break the machine path.\n  - `overall_recommendation(rev, disp)` signature couples to a specific dispositions container; consider passing an explicit list of (severity, disposition) tuples so the helper is pure, unit-testable, and decoupled from `_disp_for`/parse internals.\n  - Reversibility is stated but the design omits the design-guardrail checklist answers (authz/tenant/blast-radius N/A declarations, observability). Even for tooling, record the N/A rationale in the design to satisfy CL-008.\nNIT:\n  - No log/metric emission when the computed recommendation is NOT READY; a single structured log line would help diagnose gate failures in CI without scraping stdout.\n  - Long finding cells widen the table; consider a max-width truncation with a pointer to the full text in the JSON path (data loss avoided since --json remains authoritative).\nSUMMARY:\n  - Solid, well-scoped, reversible renderer change in allowed tooling Python; language rule and rollback are satisfied.\n  - Top risks: AC/scope mismatch on `gate1_check.py` reuse, and undefined fail-closed behavior for unknown dispositions — both can invalidate CL-006 gate integrity if left implicit.\n  - Verdict: APPROVE WITH ATTENTION contingent on resolving the two MAJORs before Gate 1.5 sign-off.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present"
   ],
   "owner": "agent",
   "requester": "review",
@@ -252,7 +254,7 @@
     "usage": {}
   },
   "created_at": "2026-10-24T23:07:18.812889",
-  "updated_at": "2026-10-24T23:09:28.810797",
+  "updated_at": "2026-10-24T23:10:38.306866",
   "score": 0.75,
   "_note": "readiness computed",
   "api_impact": {
@@ -261,5 +263,41 @@
     "consumers": [],
     "reason": "CLI gate renderer only; no HTTP surface."
   },
-  "language_rule": "Python tooling (scripts/ + test-framework) is allowed; no shipped runtime logic."
+  "language_rule": "Python tooling (scripts/ + test-framework) is allowed; no shipped runtime logic.",
+  "review_dispositions": {
+    "design": {
+      "sig:6f23b8936fb975a5": {
+        "status": "ACTIONED",
+        "note": "gate1_check.py needs no code change: it already imports architect_review.render_gate_view, so the table appears there automatically. The single-renderer invariant is proven by the new renderer test (both gate headers) and by keeping only _render_review."
+      },
+      "sig:97dfac7efe10c362": {
+        "status": "ACTIONED",
+        "note": "overall_recommendation uses the same _is_resolved predicate as the gate: an unrecognized/missing status is PENDING, so a BLOCKER/MAJOR with an unknown status returns NOT READY. A unit test covers an unknown status."
+      },
+      "sig:ae6fc7369a9830a1": {
+        "status": "ACTIONED",
+        "note": "Explicit precedence (worst wins): any unresolved BLOCKER/MAJOR -> NOT READY; else any MAJOR with ACCEPTED/DEFERRED/SCOPE -> APPROVE WITH ATTENTION; else APPROVE. Pending MINOR/NIT are advisory (shown in counts) and do not block. Tests cover mixed states."
+      },
+      "sig:1cd31621849b7ebc": {
+        "status": "ACCEPTED",
+        "note": "The change is presentation-only and does not touch gate1_check --json or gate_view; the existing gate tests cover the machine path. A golden JSON fixture would duplicate that contract for no behavior change."
+      },
+      "sig:9e8cdf13b9fddad3": {
+        "status": "ACTIONED",
+        "note": "overall_recommendation takes a pure list of (severity, status) tuples derived from the view, so it is unit-testable without parse/_disp internals."
+      },
+      "sig:5014e52bba928ad0": {
+        "status": "ACCEPTED",
+        "note": "N/A stated here: no authz/tenant/API surface; observability is the table + recommendation on stdout (the gate exit code remains the CI signal). No runtime/observability change is needed for a renderer."
+      },
+      "sig:8a359dd900aaf710": {
+        "status": "ACCEPTED",
+        "note": "The recommendation is printed in the gate output; CI diagnoses from the printed table. A separate structured log is not needed and would duplicate stdout."
+      },
+      "sig:79138bb8be43f137": {
+        "status": "ACCEPTED",
+        "note": "Full finding text is kept (escaped) so the HIL sees it; gate1_check --json remains the machine-authoritative path. Truncation would risk hiding a blocker."
+      }
+    }
+  }
 }
