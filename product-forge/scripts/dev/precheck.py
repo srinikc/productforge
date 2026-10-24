@@ -193,6 +193,7 @@ _GATES = [
     ("api-first", ["scripts/dev/api_first_check.py"], "fast", None),
     ("backlog-write", ["scripts/dev/backlog_write_guard.py"], "fast", None),
     # BI-PF-1466: Gate 1 (design approval) machine-enforced at the new->in_progress transition.
+    ("gate0", ["scripts/dev/gate0_check.py"], "fast", ["data/backlog"]),
     ("gate1-transition", ["scripts/dev/gate1_transition_check.py"], "fast",
      ["data/backlog", "engineering/reviews"]),
     # BI-PF-1469: Gate 2 (delivery approval) machine-enforced at -> completed.
@@ -267,7 +268,7 @@ _GROUP_OF = {
     "backlog-reconcile": "backlog", "backlog-context": "backlog", "backlog-dod": "backlog",
     "backlog-verification": "backlog", "backlog-ids": "backlog", "backlog-epic": "backlog",
     "backlog-monotonic": "backlog", "backlog-write": "backlog", "grooming": "backlog",
-    "gate1-transition": "backlog", "gate2-completion": "backlog",
+    "gate0": "backlog", "gate1-transition": "backlog", "gate2-completion": "backlog",
     "staleness": "backlog", "intent-trace": "backlog",
     # quality: pidl / validation / close-loop
     "dogfood-run": "quality", "pidl": "quality", "pidl-gate": "quality", "pidl-synthesis": "quality",
@@ -292,6 +293,26 @@ def _area_touched(area, changed):
     return any(any(a in c for a in area) for c in changed)
 
 
+def _python_impact(changed) -> bool:
+    for c in changed:
+        n = c.replace("\\", "/")
+        if n.startswith("product-forge/"):
+            n = n[len("product-forge/"):]
+        if n.endswith(".py") and (n.startswith("core/") or n.startswith("api/")
+                                  or n.startswith("scripts/") or n.startswith("test-framework/")):
+            return True
+    return False
+
+
+def _smoke_tests() -> list:
+    out = []
+    for t in _test_files():
+        base = os.path.basename(t)
+        if base in _SMOKE:
+            out.append(t)
+    return sorted(out)
+
+
 def _steps(scope_csv: str = ""):
     """Default (fast/bookkeeping) steps. Deep/release gates run via --full/--release (named groups)."""
     changed = _changed_paths()
@@ -308,11 +329,15 @@ def _steps(scope_csv: str = ""):
         if name == "wired-audit":
             cmd_list.append("--fast")  # skip advisory sub-audits in the per-phase tier
         steps.append((name, cmd_list))
-    tests = _scoped_tests(scope_csv)
-    if tests:
-        steps.append(("tests-scoped", [sys.executable, "-m", "pytest", *tests, "-q", "-o", "addopts="]))
+    # Fast tier: only tests affected by the changed AREAS (plus a tiny smoke set); never the full suite.
+    if _python_impact(changed):
+        tests = _scoped_tests(scope_csv) or _smoke_tests()
+        if tests:
+            steps.append(("tests-scoped", [sys.executable, "-m", "pytest", *tests, "-q", "-o", "addopts="]))
+        else:
+            print("[precheck] no affected tests selected; skipping tests (use --full for the full suite)")
     else:
-        steps.append(("pipeline-tests-full", [sys.executable, "-m", "pytest", _TEST_DIR, "-q", "-o", "addopts="]))
+        print("[precheck] no Python changes; skipping Python tests (use --full for the full suite)")
     return steps
 
 
@@ -483,14 +508,43 @@ def main(argv=None) -> int:
           f"gates+scoped tests; --full = all groups; --release = +periodic full-tree sweeps)")
     if not bookkeeping:
         tests = _scoped_tests(scope_csv)
-        print(f"[precheck] changed-scoped tests: {len(tests)} file(s) "
-              f"(use --full for the complete suite)" if tests else
-              "[precheck] no scope match -> running full test suite")
+        print(f"[precheck] changed-scoped tests: {len(tests)} file(s) (use --full for the complete suite)")
     import time as _time
     rc = 0
     timings = []
     t_all = _time.time()
-    for name, cmd in _steps(scope_csv):
+    import concurrent.futures as _cf
+    steps = _steps(scope_csv)
+    # Read-only gates run concurrently; writers (backlog/derived docs, tests) stay serial.
+    parallel_safe = {"staleness", "feature-pr", "validation-engine", "merge-gate", "rate-budget",
+                     "intent-trace", "language-rule", "api-first", "store-registry",
+                     "store-relationships", "delivery-completeness", "docs-fresh", "artifact-map",
+                     "wired-audit", "api-contract", "api-governance", "compliance", "secret-scan"}
+    par = [st for st in steps if st[0] in parallel_safe]
+    ser = [st for st in steps if st[0] not in parallel_safe]
+
+    def _run_one(step):
+        name, cmd = step
+        t0 = _time.time()
+        try:
+            r = subprocess.run(cmd, cwd=_ROOT, capture_output=True, text=True)
+            return name, _time.time() - t0, r.returncode, (r.stdout or "") + (r.stderr or "")
+        except FileNotFoundError as e:
+            return name, _time.time() - t0, 0, f"[SKIP] {name}: {e}"
+
+    if par:
+        with _cf.ThreadPoolExecutor(max_workers=4) as pool:
+            futures = [pool.submit(_run_one, st) for st in par]
+            for f in futures:
+                name, dt, code, out = f.result()
+                print(f"\n=== precheck: {name} ===", flush=True)
+                if out:
+                    print(out.rstrip())
+                timings.append((name, dt, code))
+                if code:
+                    print(f"[FAIL] {name} (exit {code}, {dt:.1f}s)")
+                    rc = 1
+    for name, cmd in ser:
         print(f"\n=== precheck: {name} ===", flush=True)
         t0 = _time.time()
         try:

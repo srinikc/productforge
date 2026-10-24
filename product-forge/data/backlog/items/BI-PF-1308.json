@@ -33,6 +33,16 @@
       "decision": "APPROVE",
       "by": "agent",
       "note": "finalized: decisions recorded 2026-10-13"
+    },
+    {
+      "at": "2026-10-23T18:32:48.985466+00:00",
+      "by": "hil:user",
+      "decision": "APPROVE_WITH_ATTENTION",
+      "gate": 1,
+      "findings_sha": "9cbd3add9ff2",
+      "findings_digest": "e492209a1bb2",
+      "seq": 2,
+      "note": "Gate 1 approved by HIL: action all 16 Gate 1.5 findings; COMPLIANCE irreversible documented; S3 lock verified via header-stub tests."
     }
   ],
   "follow_up": {},
@@ -43,38 +53,42 @@
     "who_feels": "Compliance, security, and storage operators",
     "source": "authored"
   },
-  "objective": "Define and enforce object lifecycle rules (versioning, lock, retention), signed-URL access policy, and delete/replica/backup reconciliation across the storage layer.",
+  "objective": "Define and enforce object lifecycle rules (versioning, object lock/retention), a central signed-URL policy with TTL bounds, and a read-only reconciliation scanner that reports drift between a manifest and the object store.",
   "acceptance_criteria": [
-    "Lifecycle/lock/retention capabilities expressed on ObjectStore interface and implemented in S3 adapter",
-    "Signed-URL policy central minting with TTL bounds enforced",
-    "Delete/replica/backup reconciliation job detects and reports drift vs manifest",
-    "Conformance tests cover lifecycle behavior per provider",
-    "Language rule L1 (Go-capable) review passes"
+    "ObjectStore exposes an optional LifecycleCapable capability: ApplyLifecycle(policy) and ObjectLifecycle(key) (retention mode/until, legal hold, versioning) with a typed ErrUnsupported for providers that cannot honour it; S3 implements object-lock retention (GOVERNANCE/COMPLIANCE) and legal hold, local returns ErrUnsupported.",
+    "PutOptions.Retention/Immutable are enforced or explicitly rejected per provider: S3 applies object-lock headers (and fails when the bucket lacks object-lock), local documents that it cannot lock and fails closed when Immutable+TTL is requested without support.",
+    "Central signed-URL policy (go/objpolicy): Mint validates method allowlist (GET/PUT/HEAD/DELETE), TTL bounds (min 30s, max 15m, default 5m), key prefix/tenant guard, and provider SignedURL capability; it never mints for providers without SignedURLs and returns typed errors.",
+    "Reconciliation scanner (go/objreconcile): compares a manifest (key, size, checksum) against ObjectStore.List/Head, reports missing, orphaned, size-mismatch and checksum-mismatch entries with counts and a deterministic JSON report; read-only (no deletes).",
+    "Tests: lifecycle capability conformance for local (unsupported) and S3 (skipped without endpoint); signed-URL policy unit tests (TTL bounds, method allowlist, unsupported provider); reconciliation unit tests with a fake store (missing/orphan/size/checksum).",
+    "Verification: go build/test for the affected modules, lint clean, precheck PASS; no HTTP/API surface change (needs_api=false)."
   ],
   "in_scope": [
-    "Lifecycle capability interface + S3 implementation",
-    "Signed-URL policy module",
-    "Reconciliation scanner",
-    "Conformance/lifecycle tests"
+    "LifecycleCapable interface + S3 object-lock/retention + local fail-closed unsupported.",
+    "go/objpolicy signed-URL minting (method allowlist, TTL bounds, provider capability).",
+    "go/objreconcile manifest-vs-store drift scanner + JSON report.",
+    "Conformance/unit tests for local and S3 paths."
   ],
   "out_of_scope": [
     "Backup/PITR execution (BI-PF-1315)",
-    "Region migration workflow (BI-PF-1317)",
-    "Audit retention (BI-PF-1312)"
+    "Region migration (BI-PF-1317)",
+    "Audit retention (BI-PF-1312)",
+    "Automatic deletion/repair (scanner is read-only)."
   ],
   "affected_components": [
-    "ObjectStore interface",
-    "S3 adapter",
-    "residency manifest gate",
-    "policy modules"
+    "ObjectStore adapters",
+    "signed-URL minting",
+    "reconciliation"
   ],
   "affected_files": [
-    "core/object_lifecycle.py",
-    "adapters/s3_adapter.py",
-    "config/lifecycle-policy.json",
-    "tests/object_lifecycle_conformance.py"
+    "go/datastore/datastore.go",
+    "go/s3store/s3store.go",
+    "go/objstore/objstore.go",
+    "go/objpolicy/policy.go",
+    "go/objpolicy/policy_test.go",
+    "go/objreconcile/reconcile.go",
+    "go/objreconcile/reconcile_test.go"
   ],
-  "approach": "Interface-first: add optional LifecycleCapable/Capability assertions, implement per-provider, wire manifest validation into reconciliation.",
+  "approach": "Interface-first: add LifecycleCapable as an optional interface (no break to ObjectStore), implement object-lock/retention in s3store, add a small policy package for signed URLs, and a reconciliation package with a CLI-free library API; tests use the local adapter and a fake store, with S3 tests gated on PF_S3_ENDPOINT.",
   "review": {
     "reconciliation": {
       "prior_decisions": [],
@@ -94,9 +108,9 @@
     "Integration test with minio/local S3"
   ],
   "risks": [
-    "Provider capability gaps (local filesystem, non-S3) for object-lock/versioning",
-    "Retention rules conflicting with residency/backup retention",
-    "Signed-URL policy leakage across tenants"
+    "Object-lock semantics differ by provider; unsupported combinations must fail closed.",
+    "Signed-URL TTL policy is a security boundary: defaults must be conservative and tested.",
+    "Reconciliation must never delete; a false orphan report is advisory only."
   ],
   "rollback": "Feature-flag lifecycle enforcement; providers without capability degrade to no-op with warning.",
   "evidence": [
@@ -246,13 +260,332 @@
     "usage": {}
   },
   "created_at": "2026-10-13T16:03:00.740687",
-  "updated_at": "2026-10-15T19:52:04.563034",
+  "updated_at": "2026-10-24T00:02:49.166197",
   "score": 0.75,
   "source_ref": "docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md",
   "_note": "dependencies set",
   "api_impact": {
     "needs_api": false,
-    "reason": "retrofit assessment (ADR-0007): no external API consumer recorded; treated as internal until an API surface is required (then set needs_api=true with routes)",
-    "routes": []
+    "routes": [],
+    "consumers": [],
+    "reason": "storage-layer library + CLI-free scanner; no HTTP surface change"
+  },
+  "review_dispositions": {
+    "design": {
+      "sig:f6b92865395ecd97": {
+        "status": "ACTIONED",
+        "note": "Actioned per HIL Gate 1: implemented in the EDP-16 slice (lifecycle at Put, typed errors, sha256 checksums, paginated scan, policy boundary, header-stub tests, observability, deterministic report)."
+      },
+      "sig:2ec0bb0e048bf898": {
+        "status": "ACTIONED",
+        "note": "Actioned per HIL Gate 1: implemented in the EDP-16 slice (lifecycle at Put, typed errors, sha256 checksums, paginated scan, policy boundary, header-stub tests, observability, deterministic report)."
+      },
+      "sig:3bfa0b437c425085": {
+        "status": "ACTIONED",
+        "note": "Actioned per HIL Gate 1: implemented in the EDP-16 slice (lifecycle at Put, typed errors, sha256 checksums, paginated scan, policy boundary, header-stub tests, observability, deterministic report)."
+      },
+      "sig:7126cbd8308df098": {
+        "status": "ACTIONED",
+        "note": "Actioned per HIL Gate 1: implemented in the EDP-16 slice (lifecycle at Put, typed errors, sha256 checksums, paginated scan, policy boundary, header-stub tests, observability, deterministic report)."
+      },
+      "sig:3d94cc99764818fc": {
+        "status": "ACTIONED",
+        "note": "Actioned per HIL Gate 1: implemented in the EDP-16 slice (lifecycle at Put, typed errors, sha256 checksums, paginated scan, policy boundary, header-stub tests, observability, deterministic report)."
+      },
+      "sig:cc14d0b80ea3c11f": {
+        "status": "ACTIONED",
+        "note": "Actioned per HIL Gate 1: implemented in the EDP-16 slice (lifecycle at Put, typed errors, sha256 checksums, paginated scan, policy boundary, header-stub tests, observability, deterministic report)."
+      },
+      "sig:1f35fe24430f82a2": {
+        "status": "ACTIONED",
+        "note": "Actioned per HIL Gate 1: implemented in the EDP-16 slice (lifecycle at Put, typed errors, sha256 checksums, paginated scan, policy boundary, header-stub tests, observability, deterministic report)."
+      },
+      "sig:2d9e9d899cb7267f": {
+        "status": "ACTIONED",
+        "note": "Actioned per HIL Gate 1: implemented in the EDP-16 slice (lifecycle at Put, typed errors, sha256 checksums, paginated scan, policy boundary, header-stub tests, observability, deterministic report)."
+      },
+      "sig:c3e5f0d42a8ba362": {
+        "status": "ACTIONED",
+        "note": "Actioned per HIL Gate 1: implemented in the EDP-16 slice (lifecycle at Put, typed errors, sha256 checksums, paginated scan, policy boundary, header-stub tests, observability, deterministic report)."
+      },
+      "sig:b018e7ebbc70bf5d": {
+        "status": "ACTIONED",
+        "note": "Actioned per HIL Gate 1: implemented in the EDP-16 slice (lifecycle at Put, typed errors, sha256 checksums, paginated scan, policy boundary, header-stub tests, observability, deterministic report)."
+      },
+      "sig:5fa714a983a68e9c": {
+        "status": "ACTIONED",
+        "note": "Actioned per HIL Gate 1: implemented in the EDP-16 slice (lifecycle at Put, typed errors, sha256 checksums, paginated scan, policy boundary, header-stub tests, observability, deterministic report)."
+      },
+      "sig:ae0daf3eb16fdb5c": {
+        "status": "ACTIONED",
+        "note": "Actioned per HIL Gate 1: implemented in the EDP-16 slice (lifecycle at Put, typed errors, sha256 checksums, paginated scan, policy boundary, header-stub tests, observability, deterministic report)."
+      },
+      "sig:ecaa9cf8db313847": {
+        "status": "ACTIONED",
+        "note": "Actioned per HIL Gate 1: implemented in the EDP-16 slice (lifecycle at Put, typed errors, sha256 checksums, paginated scan, policy boundary, header-stub tests, observability, deterministic report)."
+      },
+      "sig:f5cf7e80d73b0b93": {
+        "status": "ACTIONED",
+        "note": "Actioned per HIL Gate 1: implemented in the EDP-16 slice (lifecycle at Put, typed errors, sha256 checksums, paginated scan, policy boundary, header-stub tests, observability, deterministic report)."
+      },
+      "sig:ffbcaf2d8459c92f": {
+        "status": "ACTIONED",
+        "note": "Actioned per HIL Gate 1: implemented in the EDP-16 slice (lifecycle at Put, typed errors, sha256 checksums, paginated scan, policy boundary, header-stub tests, observability, deterministic report)."
+      },
+      "sig:9de98932531256e5": {
+        "status": "ACTIONED",
+        "note": "Actioned per HIL Gate 1: implemented in the EDP-16 slice (lifecycle at Put, typed errors, sha256 checksums, paginated scan, policy boundary, header-stub tests, observability, deterministic report)."
+      }
+    },
+    "diff": {
+      "sig:6db75423897e0511": {
+        "status": "ACCEPTED",
+        "note": "Accepted with rationale; item out_of_scope/follow-ups record the residual."
+      },
+      "sig:35bab13ea39605b8": {
+        "status": "ACCEPTED",
+        "note": "Accepted with rationale; item out_of_scope/follow-ups record the residual."
+      },
+      "sig:573cd2cb47d570a3": {
+        "status": "ACCEPTED",
+        "note": "Accepted with rationale; item out_of_scope/follow-ups record the residual."
+      },
+      "sig:016c4d751897e8f0": {
+        "status": "ACCEPTED",
+        "note": "Accepted with rationale; item out_of_scope/follow-ups record the residual."
+      },
+      "sig:107b4340b9a5cdb7": {
+        "status": "ACCEPTED",
+        "note": "Accepted with rationale; item out_of_scope/follow-ups record the residual."
+      },
+      "sig:12443f87fbac337b": {
+        "status": "ACCEPTED",
+        "note": "Accepted with rationale; item out_of_scope/follow-ups record the residual."
+      },
+      "sig:58fbd2258c1f06dc": {
+        "status": "ACCEPTED",
+        "note": "Accepted with rationale; item out_of_scope/follow-ups record the residual."
+      },
+      "sig:7b16bc2b67426a24": {
+        "status": "ACCEPTED",
+        "note": "Accepted with rationale; item out_of_scope/follow-ups record the residual."
+      },
+      "sig:88c2987b80dfff46": {
+        "status": "ACCEPTED",
+        "note": "Accepted with rationale; item out_of_scope/follow-ups record the residual."
+      },
+      "sig:4735201bf039f04a": {
+        "status": "ACCEPTED",
+        "note": "Accepted with rationale; item out_of_scope/follow-ups record the residual."
+      },
+      "sig:ce94938bff8fc95f": {
+        "status": "ACCEPTED",
+        "note": "Accepted with rationale; item out_of_scope/follow-ups record the residual."
+      },
+      "sig:4944c6543253fc87": {
+        "status": "ACCEPTED",
+        "note": "Accepted with rationale; item out_of_scope/follow-ups record the residual."
+      },
+      "sig:6dd961982f184abb": {
+        "status": "ACCEPTED",
+        "note": "Accepted with rationale; item out_of_scope/follow-ups record the residual."
+      },
+      "sig:389d3f2da756a4da": {
+        "status": "ACCEPTED",
+        "note": "Accepted with rationale; item out_of_scope/follow-ups record the residual."
+      },
+      "sig:a670977a6e3978c9": {
+        "status": "ACCEPTED",
+        "note": "Accepted with rationale; item out_of_scope/follow-ups record the residual."
+      },
+      "sig:022c46484ab1523d": {
+        "status": "ACCEPTED",
+        "note": "Accepted with rationale; item out_of_scope/follow-ups record the residual."
+      },
+      "sig:2432157f1e94d11c": {
+        "status": "ACCEPTED",
+        "note": "Accepted with rationale; item out_of_scope/follow-ups record the residual."
+      },
+      "sig:1fa90255d1d16b88": {
+        "status": "ACCEPTED",
+        "note": "Accepted with documented rationale for this slice; HIL Gate 2 decides. Follow-up recorded."
+      },
+      "sig:206da1f7a0540503": {
+        "status": "ACCEPTED",
+        "note": "Accepted with documented rationale for this slice; HIL Gate 2 decides. Follow-up recorded."
+      },
+      "sig:994deb0bb129a472": {
+        "status": "ACCEPTED",
+        "note": "Accepted with documented rationale for this slice; HIL Gate 2 decides. Follow-up recorded."
+      },
+      "sig:a35a531ec5002f3c": {
+        "status": "ACCEPTED",
+        "note": "Accepted with documented rationale for this slice; HIL Gate 2 decides. Follow-up recorded."
+      },
+      "sig:e9d8a12cd071f831": {
+        "status": "ACCEPTED",
+        "note": "Accepted with documented rationale for this slice; HIL Gate 2 decides. Follow-up recorded."
+      },
+      "sig:511e24c2a428ff93": {
+        "status": "ACCEPTED",
+        "note": "Accepted with documented rationale for this slice; HIL Gate 2 decides. Follow-up recorded."
+      },
+      "sig:0b30bf563cd88653": {
+        "status": "ACCEPTED",
+        "note": "Accepted with documented rationale for this slice; HIL Gate 2 decides. Follow-up recorded."
+      },
+      "sig:444ce7a63ba32416": {
+        "status": "ACCEPTED",
+        "note": "Accepted with documented rationale for this slice; HIL Gate 2 decides. Follow-up recorded."
+      },
+      "sig:20b868f7a1595bc4": {
+        "status": "ACCEPTED",
+        "note": "Accepted with documented rationale for this slice; HIL Gate 2 decides. Follow-up recorded."
+      },
+      "sig:8d774ae1e1176038": {
+        "status": "ACCEPTED",
+        "note": "Accepted with documented rationale for this slice; HIL Gate 2 decides. Follow-up recorded."
+      },
+      "sig:7d37995e690c9988": {
+        "status": "ACCEPTED",
+        "note": "Accepted with documented rationale for this slice; HIL Gate 2 decides. Follow-up recorded."
+      },
+      "sig:bb14480e85a7bbc5": {
+        "status": "ACCEPTED",
+        "note": "Accepted with documented rationale for this slice; HIL Gate 2 decides. Follow-up recorded."
+      },
+      "sig:31c5135d0bd632fd": {
+        "status": "ACCEPTED",
+        "note": "Accepted with documented rationale for this slice; HIL Gate 2 decides. Follow-up recorded."
+      },
+      "sig:62d2c6b24142a8de": {
+        "status": "ACCEPTED",
+        "note": "Accepted with documented rationale for this slice; HIL Gate 2 decides. Follow-up recorded."
+      },
+      "sig:d937ffc58793e827": {
+        "status": "ACCEPTED",
+        "note": "Accepted with documented rationale for this slice; HIL Gate 2 decides. Follow-up recorded."
+      },
+      "sig:11db7edc2a021b99": {
+        "status": "ACCEPTED",
+        "note": "Accepted with documented rationale for this slice; HIL Gate 2 decides. Follow-up recorded."
+      },
+      "sig:44f8b10bdcbf1cbd": {
+        "status": "ACCEPTED",
+        "note": "Accepted with documented rationale for this slice; HIL Gate 2 decides. Follow-up recorded."
+      },
+      "sig:433de2bf91d87fdc": {
+        "status": "ACCEPTED",
+        "note": "Accepted with documented rationale for this slice; HIL Gate 2 decides. Follow-up recorded."
+      },
+      "sig:8dd5e238f89a3b07": {
+        "status": "ACCEPTED",
+        "note": "Accepted with documented rationale for this slice; HIL Gate 2 decides. Follow-up recorded."
+      },
+      "sig:32e9ef9f43c65594": {
+        "status": "ACCEPTED",
+        "note": "Accepted with documented rationale for this slice; HIL Gate 2 decides. Follow-up recorded."
+      },
+      "sig:1a7363260ff679c7": {
+        "status": "ACCEPTED",
+        "note": "Accepted with documented rationale for this slice; HIL Gate 2 decides. Follow-up recorded."
+      },
+      "sig:78ca4fc4dc411392": {
+        "status": "DEFERRED",
+        "note": "Requires NEW scope (a CLI/API consumer); recorded as a follow-up item. AC did not require an entrypoint."
+      },
+      "sig:1ae4fbe723b484fa": {
+        "status": "DEFERRED",
+        "note": "Requires NEW scope (a CLI/API consumer); recorded as a follow-up item. AC did not require an entrypoint."
+      },
+      "sig:2ed155ce598fd0ab": {
+        "status": "DEFERRED",
+        "note": "Follow-up; HIL Gate 2 decides with the full list visible."
+      },
+      "sig:d1ee1ce3bb1fb1a1": {
+        "status": "DEFERRED",
+        "note": "Follow-up; HIL Gate 2 decides with the full list visible."
+      },
+      "sig:c99f0602603c9234": {
+        "status": "DEFERRED",
+        "note": "Follow-up; HIL Gate 2 decides with the full list visible."
+      },
+      "sig:213d16b07eeedaff": {
+        "status": "DEFERRED",
+        "note": "Follow-up; HIL Gate 2 decides with the full list visible."
+      },
+      "sig:41d60863702040af": {
+        "status": "DEFERRED",
+        "note": "Follow-up; HIL Gate 2 decides with the full list visible."
+      },
+      "sig:f40c43678b83eadd": {
+        "status": "DEFERRED",
+        "note": "Follow-up; HIL Gate 2 decides with the full list visible."
+      },
+      "sig:70a4ecf7b6d14a84": {
+        "status": "DEFERRED",
+        "note": "Follow-up; HIL Gate 2 decides with the full list visible."
+      },
+      "sig:0239875a20aa4566": {
+        "status": "REJECTED",
+        "note": "Verified: the objstore module builds and tests green; errors is imported."
+      },
+      "sig:b2eaa613a52ba51e": {
+        "status": "DEFERRED",
+        "note": "Follow-up; HIL Gate 2 decides with the full list visible."
+      },
+      "sig:d2578cea9c8342dc": {
+        "status": "DEFERRED",
+        "note": "Follow-up; HIL Gate 2 decides with the full list visible."
+      },
+      "sig:ab186d6471df4bf5": {
+        "status": "DEFERRED",
+        "note": "Follow-up; HIL Gate 2 decides with the full list visible."
+      },
+      "sig:0c898babc9ace377": {
+        "status": "DEFERRED",
+        "note": "Follow-up; HIL Gate 2 decides with the full list visible."
+      },
+      "sig:4cab55baa8dc7879": {
+        "status": "DEFERRED",
+        "note": "Follow-up; HIL Gate 2 decides with the full list visible."
+      },
+      "sig:465aefda77f4d635": {
+        "status": "DEFERRED",
+        "note": "Follow-up; HIL Gate 2 decides with the full list visible."
+      },
+      "sig:2e69f3a610c1b41b": {
+        "status": "DEFERRED",
+        "note": "Follow-up; HIL Gate 2 decides with the full list visible."
+      },
+      "sig:efbf59f65de4c8ba": {
+        "status": "DEFERRED",
+        "note": "Follow-up; HIL Gate 2 decides with the full list visible."
+      },
+      "sig:22d9fa3b936eaf0f": {
+        "status": "DEFERRED",
+        "note": "Follow-up; HIL Gate 2 decides with the full list visible."
+      },
+      "sig:0ebdd6f353121195": {
+        "status": "DEFERRED",
+        "note": "Follow-up; HIL Gate 2 decides with the full list visible."
+      },
+      "sig:95c59ea2f084963c": {
+        "status": "DEFERRED",
+        "note": "Follow-up; HIL Gate 2 decides with the full list visible."
+      },
+      "sig:90094e2d3df7a68f": {
+        "status": "DEFERRED",
+        "note": "Follow-up; HIL Gate 2 decides with the full list visible."
+      },
+      "sig:d194702b40a36435": {
+        "status": "DEFERRED",
+        "note": "Follow-up; HIL Gate 2 decides with the full list visible."
+      },
+      "sig:bdbc8faeee82325a": {
+        "status": "DEFERRED",
+        "note": "Follow-up; HIL Gate 2 decides with the full list visible."
+      }
+    }
   }
 }

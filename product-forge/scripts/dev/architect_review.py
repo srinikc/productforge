@@ -33,7 +33,7 @@ EVID = ROOT / "engineering" / "reviews"
 CONFIG = ROOT / "config" / "architect-review.json"
 API = os.environ.get("PF_API_URL", "http://127.0.0.1:8010/api/v1")
 SEVERITIES = ("BLOCKER", "MAJOR", "MINOR", "NIT")
-DISPOSITION_STATUSES = ("PENDING", "ACTIONED", "ACCEPTED", "DEFERRED", "REJECTED")
+DISPOSITION_STATUSES = ("PENDING", "ACTIONED", "ACCEPTED", "DEFERRED", "REJECTED", "SCOPE")
 if str(ROOT / "scripts" / "dev") not in sys.path:
     sys.path.insert(0, str(ROOT / "scripts" / "dev"))
 from gitutil import (  # noqa: E402  (shared UTF-8/fail-closed git policy)
@@ -483,6 +483,7 @@ def main(argv: list[str]) -> int:
     rn.add_argument("--mode", choices=["design", "diff"], default="diff")
     rn.add_argument("--apply", action="store_true")
     rn.add_argument("--model", default=default_model, help="reviewer model id (configurable)")
+    rn.add_argument("--rereview", action="store_true", help="allow a second review for the same item+sha")
     ing = sub.add_parser("ingest")
     ing.add_argument("--item", required=True)
     ing.add_argument("--file", required=True)
@@ -549,6 +550,12 @@ def main(argv: list[str]) -> int:
         n = len([q for q in (_config().get("design_checklist") or []) if str(q).strip()])
         print(f"design pre-check: {n} checklist item(s) included in the review prompt")
     item = _get_item(a.item)
+    sha = design_sha(item) if a.mode == "design" else diff_sha()
+    existing = EVID / f"{a.item}-{sha}.json"
+    if existing.is_file() and not a.rereview:
+        print(f"review already exists for {a.item} sha={sha}: {existing.name}")
+        print("   convergence: re-review only after code changes (or pass --rereview)")
+        return 1
     prompt = _build_prompt(item, a.item, a.mode)
     try:
         out = _llm_call(prompt, a.model)

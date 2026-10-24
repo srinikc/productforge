@@ -43,13 +43,16 @@ def gate2_status(item: dict, eid: str) -> tuple[bool, str]:
 
 
 def record_gate_decision(backlog, scope: str, project: str | None, eid: str, gate: int, decision: str,
-                         by: str, note: str = ""):
+                         by: str, note: str = "", hil_confirmed: bool = False):
     ar, gp = _ar(), _gp()
     item = backlog.get_epic(scope, project, eid) or {}
     if not item:
         return None
     if int(gate) not in (1, 2):
         print(f"[Backlog] refusing gate {gate} decision for {eid}: only gates 1 and 2 exist")
+        return None
+    if not hil_confirmed:
+        print(f"[Backlog] refusing gate {gate} decision for {eid}: requires explicit HIL confirmation")
         return None
     if not str(by).startswith("hil:"):
         print(f"[Backlog] refusing gate {gate} decision for {eid}: by must be hil:<actor>")
@@ -74,5 +77,5 @@ def record_gate_decision(backlog, scope: str, project: str | None, eid: str, gat
     dec = list(item.get("decisions") or [])
     dec.append({"at": datetime.now(timezone.utc).isoformat(), "by": by, "decision": str(decision).upper(),
                 "gate": gate, "findings_sha": sha, "findings_digest": gp.findings_digest(view),
-                "seq": len(dec) + 1, "note": note})
+                "seq": len(dec) + 1, "note": note, "hil_confirmed": True})
     return backlog.update(scope, project, eid, decisions=dec)

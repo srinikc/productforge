@@ -1,0 +1,43 @@
+{
+  "item": "BI-PF-1471",
+  "sha": "088fc5b7f0c5",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-24T11:02:37.548350+00:00",
+  "findings": {
+    "BLOCKER": [
+      "`scripts/dev/gate0_check.py` is created `mode 100644` with no shebang, yet invoked as an executable by both `precheck.py` (`subprocess.run([\"scripts/dev/gate0_check.py\"])`) and `ci-cd-gates.json` \u2192 EACCES/ENOEXEC; precheck catches only `FileNotFoundError`, so the run crashes instead of gating.",
+      "Required AC tests are absent: no tests for gate0 negative/positive, SCOPE resolution, accepted-risk validation, or duplicate-review refusal (only new Go store/policy tests are present) \u2192 \"Tests: ... precheck PASS\" unmet.",
+      "`accepted_risks {owner, until, rationale}` validation demanded by AC is not implemented anywhere in `gate_decide.py`/`gate_decisions.py`.",
+      "AC \"gate_decide ... refuses in CI\" is unimplemented (no CI-environment detection); `--hil-confirmed` is a self-asserted CLI flag, so the human-only control is not enforceable.",
+      "SCOPE handling is only an enum addition (`DISPOSITION_STATUSES += \"SCOPE\"`); there is no approval-path check that SCOPE findings reference a follow-up item nor the \"cannot block approved delivery\" guard.",
+      "AC \"gate-brief renders the same reconciliation/impact table for HIL\" has no corresponding change; `render()` is only used inside `gate0_check.py`."
+    ],
+    "MAJOR": [
+      "`gate0_check.transitions()` swallows JSON/`git show` failures with `continue` (fail-open) and only scans `merge-base develop..HEAD`, so malformed items or uncommitted local status flips bypass Gate 0 \u2014 violates the fail-closed standard.",
+      "`go_modules_check._changed_modules` scoping weakens an existing gate: `git status --porcelain` untracked lines (`?? product-forge/go/...`) are never normalized, so newly added Go files are missed and their module is skipped (gofmt/vet/tests silently not run).",
+      "precheck fast tier now skips Python tests entirely when no `.py` changed and never runs the full suite by default (old `pipeline-tests-full` removed) \u2014 a coverage regression; `_SMOKE`/`_test_files` must exist or `_smoke_tests()` raises NameError.",
+      "`LocalStore.keyLocks` grows one mutex per key forever (unbounded memory in a long-lived process) and is held for the entire streaming `Put`, serializing large uploads per key.",
+      "`objreconcile.Scan` excludes `invalid` manifest keys from orphan detection, so a real store object matching a duplicate/out-of-prefix manifest entry is neither orphaned nor expected \u2192 silently unreported drift.",
+      "Duplicate-review refusal keys only on `EVID/{item}-{sha}.json` and does not cover the `ingest` path, so a second review can still be recorded for the same immutable sha."
+    ],
+    "MINOR": [
+      "`S3Store.Capabilities` takes/releases the same mutex twice; probes are one-shot at `New`, so capabilities can be stale if bucket lock/versioning changes later.",
+      "API/AC row detection uses substring matching (`\"api\" in claims`) \u2014 false positives/negatives on claim wording; no structured claim type.",
+      "New Go packages log via stdlib `log` (objpolicy/objreconcile/s3store) rather than the project's structured logging \u2192 weak observability/alerting hooks.",
+      "No ARCHITECTURE-DECISIONS/ADR entry for the BI-PF-1471 gate governance changes (the only doc addition, EDP-16, belongs to a different item).",
+      "Confirm `gate0_check.py` qualifies as \"tooling Python\" under the language rule, since it encodes new shipped enforcement logic."
+    ],
+    "NIT": [
+      "Stray trailing blank line added at end of `go_modules_check.py`.",
+      "`var errLocalLifecycle error = &datastore.UnsupportedError{...}` \u2014 redundant explicit type.",
+      "`TestScanAbortsOnTransientHeadError` has dead setup (`st`, `_ = st`).",
+      "`S3Store.probeLock` logs a probe failure for every store construction even when object lock is never used (log noise)."
+    ],
+    "SUMMARY": [
+      "Solid Go-side work on lifecycle/signed-URL/reconciliation, but the BI-PF-1471 acceptance criteria are largely unmet: gate0 itself cannot execute as wired, and the HIL-only, CI-refusal, accepted-risk, SCOPE, gate-brief, and required-test items are missing or stub-level.",
+      "Top risks: gates that fail to run (fail-open delivery), human-only decisions enforceable by a flag alone, and a Go test-gate scoping bug that silently skips new modules."
+    ]
+  }
+}

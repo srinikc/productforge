@@ -17,6 +17,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"productforge/datastore"
@@ -35,8 +36,10 @@ var (
 
 // LocalStore is the local-filesystem ObjectStore adapter.
 type LocalStore struct {
-	root    string
-	maxSize int64
+	root     string
+	maxSize  int64
+	mu       sync.Mutex
+	keyLocks map[string]*sync.Mutex
 }
 
 type meta struct {
@@ -114,9 +117,18 @@ func (s *LocalStore) Put(ctx context.Context, key string, r io.Reader, size int6
 	if opts.ServerSideEncryption != "" {
 		return datastore.ObjectInfo{}, fmt.Errorf("objstore: local store cannot honour ServerSideEncryption")
 	}
+	if opts.Retention <= 0 && strings.TrimSpace(opts.RetentionMode) != "" {
+		return datastore.ObjectInfo{}, fmt.Errorf("%w: RetentionMode requires Retention", datastore.ErrInvalidPolicy)
+	}
+	if opts.Retention > 0 {
+		return datastore.ObjectInfo{}, &datastore.UnsupportedError{Provider: "local", Capability: "object-retention"}
+	}
 	if s.maxSize > 0 && size > s.maxSize {
 		return datastore.ObjectInfo{}, ErrTooLarge
 	}
+	keyLock := s.lockFor(key)
+	keyLock.Lock()
+	defer keyLock.Unlock()
 	if err := s.ensureDir(filepath.Dir(full)); err != nil {
 		return datastore.ObjectInfo{}, err
 	}
@@ -152,6 +164,17 @@ func (s *LocalStore) Put(ctx context.Context, key string, r io.Reader, size int6
 		return datastore.ObjectInfo{}, err
 	}
 	sum := hex.EncodeToString(h.Sum(nil))
+	if opts.Immutable {
+		m, _, merr := s.readMeta(key)
+		switch {
+		case merr == nil && (m.Checksum == "" || m.Checksum != sum):
+			_ = os.Remove(tmp.Name())
+			return datastore.ObjectInfo{}, datastore.ErrImmutable
+		case merr != nil && !errors.Is(merr, os.ErrNotExist):
+			_ = os.Remove(tmp.Name())
+			return datastore.ObjectInfo{}, fmt.Errorf("objstore: immutable check: %w", merr)
+		}
+	}
 	if err := os.Rename(tmp.Name(), full); err != nil {
 		return datastore.ObjectInfo{}, err
 	}
@@ -293,4 +316,33 @@ func (s *LocalStore) Capabilities() datastore.Capabilities {
 func info(m meta) datastore.ObjectInfo {
 	return datastore.ObjectInfo{Key: m.Key, Version: m.Version, Checksum: m.Checksum,
 		ContentType: m.ContentType, Size: m.Size}
+}
+
+var errLocalLifecycle error = &datastore.UnsupportedError{Provider: "local", Capability: "object-lock"}
+
+func (s *LocalStore) lockFor(key string) *sync.Mutex {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.keyLocks == nil {
+		s.keyLocks = map[string]*sync.Mutex{}
+	}
+	lk := s.keyLocks[key]
+	if lk == nil {
+		lk = &sync.Mutex{}
+		s.keyLocks[key] = lk
+	}
+	return lk
+}
+
+// Provider identifies the adapter in typed capability errors.
+func (s *LocalStore) Provider() string { return "local" }
+
+// ApplyLifecycle is unsupported: the local filesystem cannot enforce retention or legal hold.
+func (s *LocalStore) ApplyLifecycle(_ context.Context, _, _ string, _ datastore.LifecyclePolicy) error {
+	return errLocalLifecycle
+}
+
+// ObjectLifecycle is unsupported on the local adapter.
+func (s *LocalStore) ObjectLifecycle(_ context.Context, _, _ string) (datastore.LifecycleState, error) {
+	return datastore.LifecycleState{}, errLocalLifecycle
 }

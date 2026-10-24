@@ -9,8 +9,8 @@ import (
 )
 
 func TestCapabilities(t *testing.T) {
-	c := (&S3Store{}).Capabilities()
-	if !c.SignedURLs || !c.ObjectVersioning || !c.MultipartUpload {
+	c := (&S3Store{versioned: true, objectLock: true}).Capabilities()
+	if !c.SignedURLs || !c.ObjectVersioning || !c.ObjectLock || !c.MultipartUpload {
 		t.Fatalf("capabilities = %+v", c)
 	}
 }

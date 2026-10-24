@@ -45,6 +45,43 @@ def _run(bin_path, args, cwd, env):
     return p.returncode, (p.stdout + p.stderr).strip()
 
 
+def _git_changed() -> list:
+    try:
+        base = subprocess.run(["git", "merge-base", "develop", "HEAD"], cwd=str(_ROOT),
+                              capture_output=True, text=True).stdout.strip() or "HEAD"
+        out = subprocess.run(["git", "diff", "--name-only", f"{base}..HEAD"], cwd=str(_ROOT),
+                             capture_output=True, text=True).stdout
+        out += subprocess.run(["git", "status", "--porcelain"], cwd=str(_ROOT),
+                              capture_output=True, text=True).stdout
+        return [ln.replace("\\", "/") for ln in out.splitlines()]
+    except Exception:
+        return []
+
+
+def _changed_modules(modules: list) -> list:
+    """Changed Go modules + modules that replace them. Empty => no Go change."""
+    hit = set()
+    for c in _git_changed():
+        c = c[len("product-forge/"):] if c.startswith("product-forge/") else c
+        if c.startswith("go/") and c.endswith((".go", "go.mod", "go.sum")):
+            hit.add(c.split("/")[1])
+    if not hit:
+        return []
+    if len(hit) >= len(modules):
+        return modules
+    for name in modules:
+        if name in hit:
+            continue
+        try:
+            with open(os.path.join(_GO_DIR, name, "go.mod"), encoding="utf-8") as fh:
+                mod = fh.read()
+        except OSError:
+            continue
+        if any(f"../{h}" in mod for h in hit):
+            hit.add(name)
+    return [m for m in modules if m in hit]
+
+
 def _modules() -> list:
     """Every directory under go/ that holds a go.mod (its own module)."""
     out = []
@@ -104,6 +141,12 @@ def main() -> int:
             print("   -", f)
         return 1
 
+    scoped = _changed_modules(mods)
+    if not scoped:
+        print(f"go-modules: OK ({len(mods)} module(s); no Go changes)")
+        return 0
+    mods = scoped
+
     gofmt = os.path.join(os.path.dirname(go), "gofmt.exe" if os.name == "nt" else "gofmt")
     changed = _changed_files()
     for d in mods:
@@ -137,3 +180,4 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
