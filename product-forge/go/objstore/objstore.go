@@ -36,10 +36,10 @@ var (
 
 // LocalStore is the local-filesystem ObjectStore adapter.
 type LocalStore struct {
-	root     string
-	maxSize  int64
-	mu       sync.Mutex
-	keyLocks map[string]*sync.Mutex
+	root      string
+	maxSize   int64
+	mu        sync.Mutex
+	keyShards [64]sync.Mutex
 }
 
 type meta struct {
@@ -321,17 +321,32 @@ func info(m meta) datastore.ObjectInfo {
 var errLocalLifecycle error = &datastore.UnsupportedError{Provider: "local", Capability: "object-lock"}
 
 func (s *LocalStore) lockFor(key string) *sync.Mutex {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.keyLocks == nil {
-		s.keyLocks = map[string]*sync.Mutex{}
+	var h uint32 = 2166136261
+	for i := 0; i < len(key); i++ {
+		h ^= uint32(key[i])
+		h *= 16777619
 	}
-	lk := s.keyLocks[key]
-	if lk == nil {
-		lk = &sync.Mutex{}
-		s.keyLocks[key] = lk
+	return &s.keyShards[h%uint32(len(s.keyShards))]
+}
+
+// ListPage lists one page after marker (local listings are small; keys are sorted for determinism).
+func (s *LocalStore) ListPage(ctx context.Context, prefix, marker string, limit int) ([]datastore.ObjectInfo, string, error) {
+	all, err := s.List(ctx, prefix)
+	if err != nil {
+		return nil, "", err
 	}
-	return lk
+	sort.Slice(all, func(i, j int) bool { return all[i].Key < all[j].Key })
+	var out []datastore.ObjectInfo
+	for _, o := range all {
+		if marker != "" && o.Key <= marker {
+			continue
+		}
+		out = append(out, o)
+		if limit > 0 && len(out) >= limit {
+			return out, o.Key, nil
+		}
+	}
+	return out, "", nil
 }
 
 // Provider identifies the adapter in typed capability errors.

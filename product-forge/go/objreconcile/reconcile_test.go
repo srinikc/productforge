@@ -3,6 +3,7 @@ package objreconcile
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"strings"
@@ -100,4 +101,57 @@ type headErrStore struct{ fakeStore }
 
 func (h headErrStore) Head(context.Context, string) (datastore.ObjectInfo, error) {
 	return datastore.ObjectInfo{}, errors.New("access denied")
+}
+
+type pageStore struct{ objects []datastore.ObjectInfo }
+
+func (p pageStore) Put(context.Context, string, io.Reader, int64, datastore.PutOptions) (datastore.ObjectInfo, error) {
+	return datastore.ObjectInfo{}, nil
+}
+func (p pageStore) Get(context.Context, string, string) (io.ReadCloser, datastore.ObjectInfo, error) {
+	return nil, datastore.ObjectInfo{}, nil
+}
+func (p pageStore) Head(_ context.Context, key string) (datastore.ObjectInfo, error) {
+	for _, o := range p.objects {
+		if o.Key == key {
+			return o, nil
+		}
+	}
+	return datastore.ObjectInfo{}, os.ErrNotExist
+}
+func (p pageStore) Delete(context.Context, string, string) error { return nil }
+func (p pageStore) List(context.Context, string) ([]datastore.ObjectInfo, error) {
+	return nil, errors.New("List must not be called when PrefixLister is available")
+}
+func (p pageStore) SignedURL(context.Context, string, string, time.Duration) (string, error) {
+	return "", nil
+}
+func (p pageStore) Capabilities() datastore.Capabilities { return datastore.Capabilities{} }
+func (p pageStore) ListPage(_ context.Context, _, marker string, limit int) ([]datastore.ObjectInfo, string, error) {
+	var out []datastore.ObjectInfo
+	for _, o := range p.objects {
+		if marker != "" && o.Key <= marker {
+			continue
+		}
+		out = append(out, o)
+		if len(out) >= limit {
+			return out, o.Key, nil
+		}
+	}
+	return out, "", nil
+}
+
+func TestScanUsesPaginatedListing(t *testing.T) {
+	var objs []datastore.ObjectInfo
+	for i := 0; i < 2500; i++ {
+		key := fmt.Sprintf("p/%04d", i)
+		objs = append(objs, datastore.ObjectInfo{Key: key, Size: 1})
+	}
+	rep, err := Scan(context.Background(), pageStore{objects: objs}, "p/", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rep.Actual != 2500 {
+		t.Fatalf("actual=%d", rep.Actual)
+	}
 }

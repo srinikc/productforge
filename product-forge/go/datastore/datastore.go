@@ -143,6 +143,11 @@ func Lifecycle(store ObjectStore) (LifecycleCapable, bool) {
 	return lc, ok
 }
 
+// PrefixLister is an OPTIONAL paginated listing capability (bounded memory scans).
+type PrefixLister interface {
+	ListPage(ctx context.Context, prefix, marker string, limit int) ([]ObjectInfo, string, error)
+}
+
 type ObjectStore interface {
 	Put(ctx context.Context, key string, r io.Reader, size int64, opts PutOptions) (ObjectInfo, error)
 	Get(ctx context.Context, key, version string) (io.ReadCloser, ObjectInfo, error)

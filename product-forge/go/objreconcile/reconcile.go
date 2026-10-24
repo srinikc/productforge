@@ -57,12 +57,32 @@ func Scan(ctx context.Context, store datastore.ObjectStore, prefix string, manif
 	rep := Report{Schema: Schema, Prefix: prefix, Provided: len(manifest),
 		Invalid: []string{}, Missing: []string{}, Orphaned: []string{},
 		SizeMismatch: []string{}, ChecksumMismatch: []string{}, ChecksumUnverifiable: []string{}}
-	objects, err := store.List(ctx, prefix)
-	if err != nil {
-		return rep, err
-	}
-	if len(objects) > MaxObjects {
-		return rep, fmt.Errorf("objreconcile: %d objects exceed the scan bound (%d)", len(objects), MaxObjects)
+	var objects []datastore.ObjectInfo
+	if pl, ok := store.(datastore.PrefixLister); ok {
+		marker := ""
+		for {
+			page, next, err := pl.ListPage(ctx, prefix, marker, 1000)
+			if err != nil {
+				return rep, err
+			}
+			objects = append(objects, page...)
+			if len(objects) > MaxObjects {
+				return rep, fmt.Errorf("objreconcile: more than %d objects exceed the scan bound", MaxObjects)
+			}
+			if next == "" || len(page) == 0 {
+				break
+			}
+			marker = next
+		}
+	} else {
+		var err error
+		objects, err = store.List(ctx, prefix)
+		if err != nil {
+			return rep, err
+		}
+		if len(objects) > MaxObjects {
+			return rep, fmt.Errorf("objreconcile: %d objects exceed the scan bound (%d)", len(objects), MaxObjects)
+		}
 	}
 	rep.Actual = len(objects)
 	actual := make(map[string]datastore.ObjectInfo, len(objects))
