@@ -1,0 +1,40 @@
+{
+  "item": "BI-PF-1308",
+  "sha": "13edddbb2fdb",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-23T18:59:55.304811+00:00",
+  "findings": {
+    "BLOCKER": [
+      "s3store.ApplyLifecycle applies retention (potentially irreversible COMPLIANCE) *before* validating the rest of the policy: mutual-exclusivity of LegalHold/ReleaseLegalHold and other arg checks happen afterwards, so an invalid request can permanently lock an object and then return an error \u2014 violating the package's own \"one-way door, validate explicitly\" contract. All policy validation must complete before any PutObjectRetention call."
+    ],
+    "MAJOR": [
+      "objreconcile.Scan validates manifest keys with raw `strings.HasPrefix(e.Key, prefix)`; a prefix without a trailing slash (\"p\") accepts \"pabc/x\", so invalid/orphan classification is wrong at tenant boundaries. Normalize prefix and require `prefix + \"/\"` (or exact match) consistently.",
+      "s3store.Capabilities() hardcodes ObjectLock: true regardless of bucket configuration. Capability probing then lies for buckets without object lock (and for S3-compatible backends lacking the API), undermining the fail-closed design; detect or record bucket object-lock config at construction.",
+      "s3store lifecycle_integration_test applies GOVERNANCE retention of 1h then `defer st.Delete(...)`, which the owner cannot perform under governance retention: every run leaks a permanently retention-locked object in the bucket (compliance-governance garbage accumulation). Release retention or use a bypass/teardown path and assert the delete error.",
+      "s3store.Put with Immutable=true but Retention=0 is silently accepted \u2014 Immutable without any lock is a no-op, contradicting \"PutOptions.Retention/Immutable are enforced or explicitly rejected per provider\". Reject Immutable-only, or map it to a documented default retention.",
+      "objreconcile.notFound falls back to substring matching on error text (\"not found\", \"nosuchkey\"), which will misclassify arbitrary wrapped provider errors and turn infrastructure faults into reported \"missing\" drift. Require a typed sentinel from datastore adapters instead of message parsing."
+    ],
+    "MINOR": [
+      "objpolicy.Mint logs only denies via stdlib `log.Printf` with raw key material (potential PII/tenant data in plaintext logs) and never audits successful mints; use structured, redacted audit logging for a privilege-boundary component.",
+      "s3store.ObjectLifecycle calls GetBucketVersioning on every per-object call \u2014 N+1 API calls and added latency when scanning many objects; cache versioning status (it is bucket-scoped).",
+      "objpolicy.cleanPath's `strings.Contains(c, \"..\")` is dead code (path.Clean on a \"/\"+-prefixed input never leaves \"..\"), giving false confidence in the traversal guard; keep the check but test the actual normalized output, and document that caller-supplied prefixes are silently rewritten.",
+      "objpolicy re-exports `ErrUnsupported = datastore.ErrUnsupported` under a second package name; consumers may create wrapping chains that confuse `errors.Is` reporting \u2014 prefer documenting the datastore sentinel directly.",
+      "objreconcile Report relies on slice lengths for counts; for large stores the JSON arrays are unbounded (no pagination/streaming or count fields), which limits operational scalability of the scanner.",
+      "Mint allows the key equal to the tenant prefix itself (k == prefix), minting URLs for the prefix/\"directory\" key; likely unintended \u2014 require a strictly deeper key.",
+      "New go.mod files declare `go 1.21` and use relative `replace` directives; align the Go toolchain version with the rest of the monorepo and confirm the replace convention matches existing modules (objstore, s3store)."
+    ],
+    "NIT": [
+      "Schema constant is `pf.objreconcile/2` in a brand-new package with no v1; start at /1 or document the versioning rationale.",
+      "AllowedMethods() exists solely for docs/tests while the allowlist is unexported and duplicated conceptually in S3/local providers; a single source of truth comment would help.",
+      "LifecyclePolicy.Mode uses magic strings \"GOVERNANCE\"/\"COMPLIANCE\" in the shared datastore package; export typed constants to prevent drift across providers.",
+      "retentionFor rejects Retention < 1 minute with an ad-hoc error rather than a package-level sentinel; typed errors would improve testability."
+    ],
+    "SUMMARY": [
+      "Solid, on-standard work overall: optional capability interface with a fail-closed sentinel, a central signed-URL policy with allowlist/TTL/tenant guards, and a read-only deterministic reconcile scanner with meaningful tests \u2014 all in Go, no API surface change.",
+      "Top risks: the irreversible COMPLIANCE retention applied before full policy validation (blocker), prefix-boundary bug in orphan/invalid classification, hardcoded ObjectLock capability, and the S3 integration test leaking retention-locked objects.",
+      "Recommend fixing the validation-ordering and prefix issues before merge; add typed error sentinels for provider \"not found\" and structured audit logging in the policy boundary."
+    ]
+  }
+}

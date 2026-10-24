@@ -1,0 +1,40 @@
+{
+  "item": "BI-PF-1471",
+  "sha": "cad39b9375d0",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-10-24T06:33:04.708631+00:00",
+  "findings": {
+    "BLOCKER": [
+      "Design metadata incomplete per AGENTS/standards: affected_components, risks, out_of_scope are \"Not specified\" and rollback is only \"Revert the change\" \u2014 insufficient for a gating pipeline change before Gate 1.5.",
+      "Language rule not decided: `core/gate_predicates.py` is shipped (non-tooling) logic but affected_files contain only Python; the design must state why this is tooling/allowed-edit vs new shipped Go logic (guardrail 7).",
+      "Human-only decision is enforced by a self-asserted `--hil-confirmed` flag with no binding to an authenticated human identity; any CI/script can set it. Design must bind the flag to a verifiable non-CI principal (guardrail 3)."
+    ],
+    "MAJOR": [
+      "Fail-open/fail-closed semantics for Gate 0/1/2.5 are undefined: if the check tooling, config, or state store is unavailable, precheck must be explicitly fail-closed (or documented fail-open with alerting); no availability/on-startup defence is described (guardrail 2).",
+      "`--rereview` bypass is not constrained to post-change state; AC requires \"re-review only after code changes\" \u2014 the design must define the immutable-sha/hash invariant and refuse `--rereview` when sha is unchanged (guardrail 5, Gate 2.5 convergence).",
+      "CI-refusal for `gate_decide` is not specified (env detection, exit codes, which CI signals), so the \"refuses in CI\" AC is unverifiable.",
+      "`accepted_risks.until` has no expiry enforcement path (what re-check fails when `until` lapses?), leaving a permanent silent risk acceptance.",
+      "Observability gap: `gate0_check`/`gate-brief` only \"print\" to stdout; no structured exit codes, decision/audit log events, or metrics are specified, so gate failures are not diagnosable at scale (guardrail 10).",
+      "Ownership/reuse (CL-001): predicates may be duplicated between `core/gate_predicates.py` and `scripts/dev/*`; the design must name a single writer/owner for gate-state and the schema of the decision record (reversibility/rollback depends on it)."
+    ],
+    "MINOR": [
+      "Reversibility: reverting the code does not revert decision/review records already written under the new schema; a documented backfill/ignore path for orphaned records is missing (guardrails 1/6).",
+      "SCOPE follow-up items are referenced but not required to exist/be open; dangling or closed follow-ups would silently void the scope guard (referential integrity).",
+      "No tenant/RLS scoping, redaction, or retention statement for stored decisions and review evidence (guardrail 9).",
+      "Gate ordering invariant (0 \u2192 1 \u2192 2 \u2192 2.5) and sha immutability are not stated as tested invariants (guardrail 5).",
+      "Recurring untested paths (`_render_review`/`_item_dispositions` index alignment, missing-item, unknown-status) remain uncovered by the listed tests."
+    ],
+    "NIT": [
+      "\"out_of_scope: Not specified\" should enumerate explicit exclusions (e.g., no changes to Go runtime, no schema migrations) to make scope creep detectable.",
+      "Probe/key uniqueness using wall-clock nanos (recurring) \u2014 negligible but easy to make deterministic.",
+      "Config change in `config/ci-cd-gates.json` deserves a version/schema marker to avoid silent incompatibility on rollback."
+    ],
+    "SUMMARY": [
+      "Verdict: not ready for Gate 1.5 \u2014 the design asserts enforcement but leaves the key guarantees (human identity binding, CI refusal, fail-closed semantics, sha immutability, observability) unspecified.",
+      "Top risks: spoofable `--hil-confirmed` defeats the human-only invariant; unspecified failure mode risks fail-open gating; incomplete design metadata and language-rule disposition block compliance.",
+      "Reusable structure (single predicates module, existing gate-brief) is directionally right; add invariant tests and decision-record ownership before proceeding."
+    ]
+  }
+}

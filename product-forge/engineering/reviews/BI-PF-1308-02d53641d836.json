@@ -1,0 +1,45 @@
+{
+  "item": "BI-PF-1308",
+  "sha": "02d53641d836",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-24T04:57:14.141861+00:00",
+  "findings": {
+    "BLOCKER": [
+      "none"
+    ],
+    "MAJOR": [
+      "S3 Put enforces `Immutable` only when `Retention > 0`; with `Immutable` alone nothing is checked or applied (no object-lock/versioning assertion), so callers believe objects are immutable while they remain replaceable \u2014 fail-open versus EDP-16.",
+      "`retentionFor` accepts `RetentionMode=\"COMPLIANCE\"` on Put with no `ComplianceOptIn`, directly contradicting EDP-16's \"COMPLIANCE is a one-way door requiring explicit opt-in\"; `PutOptions` has no opt-in field, so the irreversible path is reachable implicitly.",
+      "Local immutable check is fail-open: if `readMeta` errors (missing/corrupt meta, pre-existing objects) the key is silently replaced; additionally the mutex is released before meta is written, so two concurrent immutable Puts can both pass the check and last-writer wins.",
+      "`objpolicy.WithTenant` is documented as \"set by the API auth middleware\", but no middleware wiring ships in this diff; `Mint` therefore always returns `ErrTenantCtx` in production \u2014 the signed-URL boundary is unreachable dead code until a follow-up.",
+      "`S3Store.New` probes object-lock *before* `Ensure` creates the bucket, so a freshly created bucket is permanently flagged lock-incapable for Put until an `ApplyLifecycle` re-probe; probe ordering is inverted.",
+      "(cont.) See above five items."
+    ],
+    "MINOR": [
+      "`PartialApplyError` always reports `Applied:\"retention\"` even for legal-hold-only failures where retention was never applied; operators are told the object is locked when it is not.",
+      "`ObjectLifecycle` does not capability-check or map a missing object-lock config to `ErrUnsupported`, so callers get raw provider errors while `ApplyLifecycle` fails typed \u2014 inconsistent fail-closed contract.",
+      "`stat()` maps every `NoSuchKey` to `os.ErrNotExist`, silently changing the error contract for existing Get/Head callers that matched on minio error codes; `NoSuchVersion` is unhandled.",
+      "`LocalStore` takes one global mutex for every Put's rename (not just immutable writes), serializing all writes \u2014 an avoidable throughput ceiling under concurrency.",
+      "`objpolicy` calls `log.Printf` on every denial with no rate limiting or sampling \u2014 trivially exploitable for log flooding under scan/attack traffic.",
+      "`objreconcile.Scan` materializes the entire `List` result in memory with no pagination or bound; bucket-scale manifests will OOM.",
+      "Invalid manifest entries are counted in `Expected` but excluded from `want`, so `Expected` \u2260 matched+missing and report consumers must special-case the arithmetic.",
+      "`objpolicy.Stats()`/`ResetStats()` are process-global mutable state, not exported to a metrics backend and not tenant-scoped; weak observability for an enterprise boundary.",
+      "Local Put rejects `Retention > 0` but silently ignores `RetentionMode` without it, whereas S3 returns `ErrInvalidPolicy` for the same input \u2014 inconsistent validation."
+    ],
+    "NIT": [
+      "`Schema = \"pf.objreconcile/2\"` on a brand-new package; start at `/1` or document the lineage.",
+      "`TestScanAbortsOnTransientHeadError` keeps an unused fixture and `_ = st` \u2014 dead code.",
+      "`UnsupportedError.Provider` derived from `fmt.Sprintf(\"%T\", store)` leaks Go type names into API errors; prefer an explicit `Provider()` on adapters.",
+      "`cleanPath`'s `/../` checks after `path.Clean` are unreachable (Clean already resolves them) \u2014 dead defensive code that implies a threat model it doesn't actually enforce.",
+      "`replace productforge/datastore => ../datastore` in committed go.mod is monorepo-typical but unpinned; add a workspace/lock strategy so module builds are reproducible in CI.",
+      "`ObjectLifecycle` on S3 fetches bucket versioning on every call (extra round trip per object) \u2014 cache or make it optional."
+    ],
+    "SUMMARY": [
+      "Shape and standards compliance are good: capability interface instead of a widened base `ObjectStore`, typed fail-closed errors, deterministic sorted JSON report, read-only reconciler, all new shipped logic in Go per the language rule.",
+      "Top risks: immutability is unenforced/fail-open on both providers (S3 ignores `Immutable` without retention; local overwrites on meta read failure), COMPLIANCE is reachable without the mandated opt-in, and the signed-URL boundary is unreachable until auth-middleware wiring lands.",
+      "Secondary: object-lock probe ordering in `New`, misleading `PartialApplyError` diagnostics, unbounded in-memory reconciliation, and per-denial log flooding."
+    ]
+  }
+}
