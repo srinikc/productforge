@@ -1,0 +1,33 @@
+{
+  "item": "BI-PF-1477",
+  "sha": "fa73dd4aa74b",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-24T17:01:02.082699+00:00",
+  "findings": {
+    "BLOCKER": [
+      "none"
+    ],
+    "MAJOR": [
+      "`_load()` returns `{}` for paths escaping the repo root (symlink/`..` traversal) instead of failing closed; that silently skips a changed item and the stderr message mislabels it as \"deleted path(s)\" \u2014 the exact silent-skip class this ticket exists to eliminate.",
+      "`_git()` ignores `r.returncode`; a failed `merge-base`/`diff` yields `\"\"` and falls back to `origin/develop` silently, so transitions can be computed against the wrong base and count 0 with no signal. Fail-closed posture must extend to the git plumbing, not just JSON parsing.",
+      "`if not cur:` conflates \"deleted/absent\" with \"parseable but falsy/empty\" content (`{}`, `[]`), so a corrupt-but-valid-JSON changed item is counted as a deleted path rather than flagged."
+    ],
+    "MINOR": [
+      "`_repo_root()` spawns a fresh `git rev-parse` subprocess on every `_load()` call \u2014 O(changed-items) subprocesses on large diffs; cache it (module-level/lru_cache) for the scan.",
+      "A truthy non-dict item (e.g. `[1]`) raises an unhandled `AttributeError` at `cur.get(...)`, not the fail-closed `RuntimeError` with the path \u2014 `json.loads` result should be validated as `dict`.",
+      "`product-forge/config/store-registry.json` gains `\"BI-TEST-*.json\"` with no justification in the acceptance criteria; a bare root-level glob can pull ad-hoc artifacts into the store \u2014 confirm intent or drop it.",
+      "`print(..., file=sys.stderr)` added without an `import sys` shown in the diff \u2014 verify the module already imports `sys`, else the gate crashes on first skipped path."
+    ],
+    "NIT": [
+      "`id-blocks.json` bumps `reserved_up_to` 1469\u21921477 while sessions jump 1469\u21921477, leaving IDs 1470\u20131476 unattributed \u2014 record why the gap exists to keep the reservation ledger auditable.",
+      "Tests use `try/except/else: raise AssertionError` instead of `pytest.raises`; idiomatic and shorter with the fixture."
+    ],
+    "SUMMARY": [
+      "Sound fix for the repo-root path resolution with tests covering resolution, deletion skip, traversal, and fail-closed parsing; direction is right.",
+      "Top risks: escape/empty paths still silently skipped and misreported as \"deleted\", and `_git()` swallowing non-zero git exit codes can mask the same class of silent under-count the ticket targets.",
+      "Minor cleanups: per-item subprocess, non-dict JSON handling, unexplained store-registry glob, `sys` import verification."
+    ]
+  }
+}
