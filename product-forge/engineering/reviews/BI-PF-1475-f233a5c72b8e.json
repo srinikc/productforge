@@ -1,0 +1,41 @@
+{
+  "item": "BI-PF-1475",
+  "sha": "f233a5c72b8e",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-24T15:57:15.494569+00:00",
+  "findings": {
+    "BLOCKER": [
+      "none"
+    ],
+    "MAJOR": [
+      "Tenant string is interpolated raw into ObjectKey and used by the local object store filesystem backend; a tenant id containing `/` or `..` escapes the `tenant/<tenant>/<bucket>/` prefix and can read/overwrite other tenants' objects \u2014 no sanitization in `validate()` or `ObjectKey()`.",
+      "The four acceptance tests that \"prove\" the criteria (idempotent re-ingest, checksum verification, changed-payload revision, RLS non-leakage) are all in `TestServiceIntegration`, which silently `t.Skip`s when `PF_RUNTIME_DSN` is unset; with no evidence in the diff that CI sets it, the AC is effectively unproven in the default test run.",
+      "`pfingest --verify` reports `store` as the bucket (`intake`/`builds`), not the store-registry entry (`conversations.json`, `build-info.json`, \u2026); when checksums disagree the report cannot \"name each store\" as required, and drift short-circuits before the object-store check so a three-way disagreement never reports all disagreeing stores.",
+      "STORE-DATAFLOW.md regeneration bundles massive unrelated churn (232\u2192244 stores, new rows like `api-first-baseline.json`/`gate-baseline.json`, and rewritten tenant_scope/backend/retention semantics for every row), burying the 11 intended transitions in a 4000-line generated diff and breaking the per-item audit trail.",
+      "`gate0_check.py` change is out-of-scope for this item and `except Exception: return {}` in `_load` silently swallows parse/IO errors, converting malformed backlog JSON into an empty dict instead of surfacing a defect."
+    ],
+    "MINOR": [
+      "`Orphans` builds the \"known\" set from `stored_objects.checksum` for the whole tenant, ignoring bucket, so a checksum registered under `builds` masks an orphan under `intake` (and vice versa).",
+      "`dryRun` ingest reports `Status=written`, inflating the report's `written` count for a run that mutated nothing; the pinned schema has no dry-run-safe status and consumers can misread it.",
+      "Revision allocation via `MAX(revision)+1` with 5 immediate retries and no backoff can exhaust retries under concurrent writers; no lock (`FOR UPDATE`/advisory) is taken.",
+      "`objectChecksum` re-hash path uses `s.read`, which caps at `maxBytes`; a stored object larger than the cap fails verify with `ErrTooLarge` instead of a drift/size-mismatch verdict.",
+      "`NewRunID` falls back to a non-UUID string on `rand.Read` failure, silently violating the pinned `pf.intake-ingest/1` `run_id` UUIDv4 contract.",
+      "CLI ingests any file under `--root` with only a bucket discriminator; nothing prevents ingesting the legacy `product_forge_context.json` into the intake bucket even though it must stay `planned`.",
+      "`Ingest` drift branch (\"artifact id exists with a different checksum\") is dead code because the id is derived from the checksum \u2014 misleading defensive path.",
+      "Registry sets `migration_status: migrated` while `backfill_status: pending`; dashboards keyed only on `migration_status` will report migration complete before any data lands."
+    ],
+    "NIT": [
+      "`import \"flag\"` is separated from the stdlib group in `main.go`; violates common Go import grouping.",
+      "`object_version` is populated with the content checksum, conflating two distinct concepts in the artifacts schema.",
+      "`report.DurationMS` measured from `StartedAt` set just before the file loop, excluding setup (DB open, role check, walk) \u2014 duration is not the full run duration.",
+      "`stored_objects` insert passes `tenant` as a parameter while the handle is already RLS-bound; redundant and invites confusion about which mechanism enforces isolation."
+    ],
+    "SUMMARY": [
+      "The core Go ingestion/verify design (content-addressed keys, deterministic artifact ids, RLS-bound writes, pinned report schema, BYPASSRLS refusal) is sound and largely meets the ACs, but the tenant-prefix path traversal and the fact that every proving test silently skips without `PF_RUNTIME_DSN` undermine the security and test-truthfulness criteria.",
+      "Verify does not identify per-entry store names and short-circuits drift before checking the object store, so the \"name each store on disagreement\" AC is only partially met.",
+      "The change also carries unrelated scope (gate0_check.py, a full regeneration of STORE-DATAFLOW.md) that should be split out to preserve per-item reviewability."
+    ]
+  }
+}

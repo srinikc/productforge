@@ -1,0 +1,36 @@
+{
+  "item": "BI-PF-1475",
+  "sha": "a236bb09d5d8",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-24T16:07:07.048600+00:00",
+  "findings": {
+    "BLOCKER": [
+      "STORE-DATAFLOW.md (generated, authoritative) now classifies `secrets.json` as sensitivity `internal`, tenant `tenant`, backend `postgres`, retention `unbounded/standard`, status `migrated` \u2014 down from `secret|global|json|policy|critical|deferred`.",
+      "Same doc downgrades `provider-keys.json` from `secret-ref|policy|critical|deferred` to `internal|tenant|postgres|unbounded|standard|migrated`. The authoritative dataflow now misrepresents secret-store handling posture (retention, sensitivity, and \"migrated\" claims not backed by this change)."
+    ],
+    "MAJOR": [
+      "The doc header says \"Generated from config/store-registry.json; do not edit by hand\", yet the registry diff touches 11 entries while the doc changes ~200 rows and the store count 232\u2192244 (tenant_scope/backend/retention reclassifications across unrelated stores). Registry and generated dataflow are not reproducible from each other \u2014 either the doc was hand-edited or the registry change is incomplete/hidden.",
+      "`Service.byID` queries `artifacts WHERE id=$1` with no `tenant_id` predicate; isolation depends entirely on RLS being enabled and the session GUC being set by `BindTenant`. Missing defense-in-depth on the exact path that gates idempotent reuse.",
+      "The RLS non-leakage test does not prove RLS: `svcB.Verify` failing is equally explained by a name/tenant-scoped miss (\"no artifact metadata\"), not by a policy denial. No direct unbound read of tenant A's row by tenant B is attempted.",
+      "No CI/Makefile/wiring for the new `go/intakeingest` module in the diff. Every DB-backed test (`TestServiceIntegration`, `TestEnsureRuntimeRoleRefusesBypass`) `t.Skip`s without `PF_RUNTIME_DSN`, so the idempotency/checksum/revision/RLS evidence required by AC can be permanently vacuous in CI.",
+      "`collect()` ingests every file under `--root`; the registry's `source_glob` values are documentation only and are never enforced or reconciled. The 11 declared entries and the actual ingest set can silently diverge while the registry asserts `status: exists`.",
+      "`objectChecksum` maps a max-bytes overflow to `Drift` with message \"cannot match the source\" \u2014 conflating \"could not verify\" with \"checksums disagree\", which violates the verify contract and will produce false-positive drift alarms.",
+      "`Verify` sets `res.ArtifactID = ArtifactID(tenant, bucket, name, sourceChecksum)`, so a drift result reports an artifact id that does not exist in the DB, breaking ops correlation for exactly the failure case that matters."
+    ],
+    "MINOR": [
+      "The \"streamed re-hash\" fallback is not streamed: both `Verify` and `objectChecksum` do `io.ReadAll` into memory (up to 256MiB), doubling resident memory instead of hashing through `io.Copy`.",
+      "`isUniqueViolation` depends on `datastore` preserving `SQLState()` through error wrapping; if wrapped, concurrent-ingest retries never fire and the run fails hard instead of retrying.",
+      "`Orphans()` keys `known` by checksum only; an object shared by two logical names whose row was deleted for one name is silently reported as referenced.",
+      "`preflightWritable` truncates `--report-file` before the run; a failing run leaves an empty/partial report where consumers expect the pinned `pf.intake-ingest/1` schema.",
+      "`gate0_check.py` fail-closed change is out of scope for BI-PF-1475, untested, and will abort Gate 0 for any unreadable/unparseable changed backlog item regardless of this item's subject matter."
+    ],
+    "NIT": [
+      "`logResult` discards the `json.Marshal` error and prints an empty line on failure.",
+      "`go.mod` carries `replace productforge/migrate => ../migrate` with no corresponding `require`.",
+      "`--dry-run` combined with `--verify` sets `report.dry_run=true` while `Verify` still performs DB reads."
+    ],
+    "SUMMARY": []
+  }
+}
