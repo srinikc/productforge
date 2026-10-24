@@ -24,7 +24,11 @@ func logResult(r intakeingest.FileResult, runID string) {
 		RunID  string                  `json:"run_id"`
 		Result intakeingest.FileResult `json:"result"`
 	}{Level: "INFO", RunID: runID, Result: r}
-	b, _ := json.Marshal(line)
+	b, err := json.Marshal(line)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "{\"level\":\"ERROR\",\"msg\":\"cannot encode log line: %s\"}\n", err)
+		return
+	}
 	fmt.Fprintln(os.Stderr, string(b))
 }
 
@@ -73,7 +77,7 @@ func collect(root, name string) ([]string, error) {
 }
 
 func preflightWritable(path string) error {
-	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o644)
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY, 0o644)
 	if err != nil {
 		return err
 	}
@@ -117,6 +121,9 @@ func run() int {
 		if err := preflightWritable(reportFile); err != nil {
 			return fail("--report-file is not writable: %v", err)
 		}
+	}
+	if verify && dryRun {
+		return fail("--dry-run is only valid with ingest (not --verify)")
 	}
 	if allowBypass && (os.Getenv("PF_CI") != "" || os.Getenv("PF_ALLOW_BYPASSRLS") != "1") {
 		return fail("--allow-bypassrls is denied: set PF_ALLOW_BYPASSRLS=1 and unset PF_CI (local test DB only)")

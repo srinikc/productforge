@@ -253,6 +253,25 @@ func TestServiceIntegration(t *testing.T) {
 		t.Fatalf("unchanged re-ingest must not add a row, got %d", n)
 	}
 
+	// Direct unbound read: no app.tenant_id is set, so RLS must hide every row (not just the service path).
+	unbound := 0
+	if err := st.WithTx(ctx, func(tx datastore.Tx) error {
+		rows, err := tx.Query(ctx, `SELECT count(*) FROM artifacts WHERE tenant_id=$1`, tenantA)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		if rows.Next() {
+			return rows.Scan(&unbound)
+		}
+		return rows.Err()
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if unbound != 0 {
+		t.Fatalf("RLS is not enforced: an unbound read saw %d tenant rows", unbound)
+	}
+
 	r3, err := svcA.Ingest(ctx, tenantA, "intake", name, bytes.NewReader(changed), "application/json", false)
 	if err != nil || r3.Status != Written || r3.ArtifactID == r1.ArtifactID || r3.Revision != 1 {
 		t.Fatalf("changed ingest: %+v err=%v", r3, err)

@@ -252,7 +252,7 @@ func (s *Service) Ingest(ctx context.Context, tenant, bucket, name string, r io.
 		return finish(nil)
 	}
 
-	found, rev, storedSum, err := s.byID(ctx, res.ArtifactID)
+	found, rev, storedSum, err := s.byID(ctx, tenant, res.ArtifactID)
 	if err != nil {
 		return finish(err)
 	}
@@ -304,7 +304,7 @@ func (s *Service) Verify(ctx context.Context, tenant, bucket, name string, r io.
 	res.Bytes = int64(len(body))
 	res.Checksum = Checksum(body)
 
-	found, rev, storedSum, err := s.latest(ctx, tenant, bucket+"/"+name)
+	found, storedID, rev, storedSum, err := s.latest(ctx, tenant, bucket+"/"+name)
 	if err != nil {
 		return finish(err)
 	}
@@ -312,7 +312,7 @@ func (s *Service) Verify(ctx context.Context, tenant, bucket, name string, r io.
 		return finish(errors.New("no artifact metadata for the source name"))
 	}
 	res.Revision = rev
-	res.ArtifactID = ArtifactID(tenant, bucket, name, res.Checksum)
+	res.ArtifactID = storedID
 	if storedSum != res.Checksum {
 		res.Status = Drift
 		res.Error = "source checksum differs from the latest stored revision"
@@ -321,9 +321,7 @@ func (s *Service) Verify(ctx context.Context, tenant, bucket, name string, r io.
 	objSum, err := s.objectChecksum(ctx, ObjectKey(tenant, bucket, res.Checksum))
 	if err != nil {
 		if errors.Is(err, ErrTooLarge) {
-			res.Status = Drift
-			res.Error = "stored object exceeds max-bytes and cannot match the source"
-			return finish(nil)
+			return finish(fmt.Errorf("intakeingest: stored object exceeds max-bytes, cannot verify: %w", err))
 		}
 		return finish(err)
 	}
@@ -379,13 +377,14 @@ func (s *Service) Orphans(ctx context.Context, tenant, bucket string) ([]string,
 	return out, nil
 }
 
-func (s *Service) byID(ctx context.Context, id string) (bool, int64, string, error) {
+func (s *Service) byID(ctx context.Context, tenant, id string) (bool, int64, string, error) {
 	var rev int64
 	var sum string
 	found := false
 	err := s.db.WithTx(ctx, func(tx datastore.Tx) error {
 		rows, err := tx.Query(ctx,
-			`SELECT revision, checksum FROM artifacts WHERE id=$1 AND deleted_at IS NULL`, id)
+			`SELECT revision, checksum FROM artifacts WHERE id=$1 AND tenant_id=$2 AND deleted_at IS NULL`,
+			id, tenant)
 		if err != nil {
 			return err
 		}
@@ -401,13 +400,14 @@ func (s *Service) byID(ctx context.Context, id string) (bool, int64, string, err
 	return found, rev, sum, err
 }
 
-func (s *Service) latest(ctx context.Context, tenant, logicalName string) (bool, int64, string, error) {
+func (s *Service) latest(ctx context.Context, tenant, logicalName string) (bool, string, int64, string, error) {
+	var id string
 	var rev int64
 	var sum string
 	found := false
 	err := s.db.WithTx(ctx, func(tx datastore.Tx) error {
 		rows, err := tx.Query(ctx,
-			`SELECT revision, checksum FROM artifacts
+			`SELECT id, revision, checksum FROM artifacts
 			 WHERE tenant_id=$1 AND name=$2 AND deleted_at IS NULL
 			 ORDER BY revision DESC LIMIT 1`, tenant, logicalName)
 		if err != nil {
@@ -415,14 +415,14 @@ func (s *Service) latest(ctx context.Context, tenant, logicalName string) (bool,
 		}
 		defer rows.Close()
 		if rows.Next() {
-			if err := rows.Scan(&rev, &sum); err != nil {
+			if err := rows.Scan(&id, &rev, &sum); err != nil {
 				return err
 			}
 			found = true
 		}
 		return rows.Err()
 	})
-	return found, rev, sum, err
+	return found, id, rev, sum, err
 }
 
 func (s *Service) objectChecksum(ctx context.Context, key string) (string, error) {
