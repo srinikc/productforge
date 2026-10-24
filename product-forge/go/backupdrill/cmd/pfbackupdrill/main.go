@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/jackc/pgx/v5"
 	"time"
@@ -33,9 +34,9 @@ func storeFromEnv(ctx context.Context) (datastore.ObjectStore, error) {
 
 func main() {
 	var (
-		dsn, command, scratch, tenant, policy, target, reason, prefix string
-		rtoSeconds                                                    float64
-		repair, allowCross                                            bool
+		dsn, command, scratch, tenant, policy, target, reason, prefix, reportDir, require string
+		rtoSeconds, maxAgeHours                                                           float64
+		repair, allowCross                                                                bool
 	)
 	flag.StringVar(&dsn, "dsn", os.Getenv("PF_DB_DSN"), "PostgreSQL DSN")
 	flag.StringVar(&command, "command", "", "pitr|full|tenant|reconcile|region")
@@ -48,6 +49,9 @@ func main() {
 	flag.Float64Var(&rtoSeconds, "rto-seconds", 900, "RTO budget")
 	flag.BoolVar(&repair, "repair", false, "delete metadata rows whose object is missing")
 	flag.BoolVar(&allowCross, "allow-cross-region", false, "allow a cross-region restore with --reason")
+	flag.StringVar(&reportDir, "report-dir", os.Getenv("PF_BACKUP_DRILL_REPORT_DIR"), "persist JSON drill reports here")
+	flag.Float64Var(&maxAgeHours, "max-age-hours", 26, "status: staleness threshold")
+	flag.StringVar(&require, "require", "full,tenant,pitr", "status: required drill commands")
 	flag.Parse()
 	if dsn == "" {
 		fmt.Fprintln(os.Stderr, "pfbackupdrill: --dsn or PF_DB_DSN is required")
@@ -55,6 +59,9 @@ func main() {
 	}
 	ctx := context.Background()
 	out := func(v any, code int) {
+		if _, err := backupdrill.SaveReport(reportDir, command, code == 0, v); err != nil {
+			fmt.Fprintln(os.Stderr, "pfbackupdrill: save report:", err)
+		}
 		b, _ := json.MarshalIndent(v, "", "  ")
 		fmt.Println(string(b))
 		os.Exit(code)
@@ -142,6 +149,17 @@ func main() {
 			code = 1
 		}
 		out(map[string]any{"drift": d, "repaired": repaired}, code)
+	case "status":
+		if reportDir == "" {
+			fmt.Fprintln(os.Stderr, "pfbackupdrill: --report-dir or PF_BACKUP_DRILL_REPORT_DIR is required")
+			os.Exit(2)
+		}
+		cmds := strings.Split(require, ",")
+		if err := backupdrill.CheckFreshness(reportDir, cmds, time.Duration(maxAgeHours*float64(time.Hour))); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		out(map[string]any{"status": "fresh", "required": cmds}, 0)
 	default:
 		fmt.Fprintln(os.Stderr, "pfbackupdrill: --command is required (pitr|full|tenant|reconcile|region)")
 		os.Exit(2)
