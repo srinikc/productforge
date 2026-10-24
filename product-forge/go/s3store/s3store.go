@@ -237,6 +237,23 @@ func (s *S3Store) List(ctx context.Context, prefix string) ([]datastore.ObjectIn
 	return out, nil
 }
 
+// ListPage streams one page of objects after marker (StartAfter) so scans stay memory-bounded.
+func (s *S3Store) ListPage(ctx context.Context, prefix, marker string, limit int) ([]datastore.ObjectInfo, string, error) {
+	var out []datastore.ObjectInfo
+	for o := range s.client.ListObjects(ctx, s.bucket, minio.ListObjectsOptions{
+		Prefix: prefix, Recursive: true, StartAfter: marker,
+	}) {
+		if o.Err != nil {
+			return nil, "", o.Err
+		}
+		out = append(out, s.info(o.Key, o))
+		if limit > 0 && len(out) >= limit {
+			return out, o.Key, nil
+		}
+	}
+	return out, "", nil
+}
+
 func (s *S3Store) SignedURL(ctx context.Context, key, method string, ttl time.Duration) (string, error) {
 	if ttl <= 0 {
 		ttl = 15 * time.Minute

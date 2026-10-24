@@ -1,0 +1,38 @@
+{
+  "item": "BI-PF-1473",
+  "sha": "ccc9bf77160d",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-24T14:19:55.479248+00:00",
+  "findings": {
+    "BLOCKER": [
+      "`Scan` still appends every page into one `objects []datastore.ObjectInfo` slice and then builds a full `map`; pagination gains nothing \u2014 the entire listing is still materialised, directly violating the \"never materialises the full listing\" acceptance criterion (only `MaxObjects` bounds it).",
+      "`LocalStore.ListPage` calls `s.List(ctx, prefix)` and sorts the whole set \u2014 it materialises the full listing on every page request (O(n\u00b7pages) I/O), so the local implementation does not satisfy the memory-bounded contract it claims to implement.",
+      "`objectURL` takes `tenant` from a query parameter and injects it via `objpolicy.WithTenant`, so any admin caller can mint URLs for an arbitrary tenant; the AC requires the *authenticated* tenant context. This is a tenant-boundary bypass waiting to be relied upon.",
+      "No tests were added for the CLI report/exit codes (0/1/2) or for the `/admin/objects/url` route validation, which the AC explicitly requires (\"Tests cover pagination, shard locks, CLI report/exit codes and the URL route validation\"). Shard-lock and pagination tests are present; the other two are missing."
+    ],
+    "MAJOR": [
+      "`objreconcile` library module now depends on `objstore` + `s3store` (pulling minio, crypto, compress etc.) solely for `cmd/objreconcile`. This couples a pure reconciliation library to storage adapters and bloats every consumer's dependency graph; the command should live in its own module.",
+      "`S3Store.ListPage` returns as soon as `limit` is reached without cancelling/draining the minio `ListObjects` channel \u2014 the producer goroutine blocks on send until the context ends (CLI uses `context.Background()`, so it leaks for process lifetime).",
+      "Page size `1000` and the `MaxObjects` bound are magic numbers inline in `Scan`; no named constants, no metrics/logs around pages fetched or bound violations \u2014 poor observability for a drift job that will run long-lived.",
+      "`objectURL` silently ignores invalid/negative `ttl_seconds` and accepts any `method` string (including PUT) without an allowlist; AC cites \"URL route validation\", which is currently neither strict nor tested.",
+      "`objpolicy.Mint` errors are returned verbatim via `err.Error()` as a 400 body \u2014 internal/provider details leak to API clients."
+    ],
+    "MINOR": [
+      "CLI reads the entire manifest with `os.ReadFile` and unmarshals twice into `entries`/`wrapped`; a large manifest re-introduces the unbounded-memory pattern this change is meant to eliminate (stream decode or single-pass shape detection).",
+      "CLI has no signal handling/`context.WithCancel`, so an in-flight S3 scan cannot be gracefully interrupted.",
+      "No compile-time interface assertions (`var _ datastore.PrefixLister = (*LocalStore)(nil)` / `(*S3Store)(nil)`), so a refactor silently drops a store out of the paginated path and falls back to full `List` with no test failing at build time.",
+      "Paginated path lacks tests for `MaxObjects` overrun, `ListPage` error propagation, and `limit`/empty-page termination edge cases.",
+      "`keyShards` FNV shard index has no test asserting bounded lock count under many distinct keys (the AC asks for shard-lock coverage; the existing test only exercises behaviour, not the fixed-pool property)."
+    ],
+    "NIT": [
+      "Error message inconsistency between paginated and legacy paths (\"more than %d objects\" vs \"%d objects exceed the scan bound (%d)\").",
+      "`keyShards` and retained `mu` field naming/formatting drift in `LocalStore`; `sort.Slice` on every local page allocates comparators repeatedly \u2014 `sort.Strings`-style precomputed order would be cheaper.",
+      "`wrapped` struct is allocated per call and could be a package-level type for reuse/clarity."
+    ],
+    "SUMMARY": [
+      "The direction (optional `PrefixLister`, shard-pool locks, real CLI + admin route) is right, but the memory-bounded guarantee is not actually delivered \u2014 pages are still concatenated into a full in-memory slice and `LocalStore.ListPage` just wraps a full `List`. The signed-URL route derives tenant from a caller-supplied query parameter rather than the authenticated context, and the AC-mandated CLI/URL tests are absent. Fix the streaming/bound semantics and tenant sourcing, split the CLI module, then add the missing tests before this ships."
+    ]
+  }
+}

@@ -7,6 +7,7 @@ require (
 	productforge/datastore v0.0.0
 	productforge/edpdata v0.0.0
 	productforge/migrate v0.0.0
+	productforge/objpolicy v0.0.0
 	productforge/objstore v0.0.0
 	productforge/s3store v0.0.0
 	productforge/store v0.0.0
@@ -40,6 +41,8 @@ replace productforge/datastore => ../datastore
 replace productforge/edpdata => ../edpdata
 
 replace productforge/migrate => ../migrate
+
+replace productforge/objpolicy => ../objpolicy
 
 replace productforge/objstore => ../objstore
 

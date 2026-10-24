@@ -1,0 +1,301 @@
+{
+  "id": "BI-PF-1473",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "BI-PF-EDP16-FOLLOWUP",
+  "label": "PF Backlog 644",
+  "title": "EDP-16 follow-ups: bounded scan, local lock shards, real consumers",
+  "body": "",
+  "source": "generic",
+  "status": "new",
+  "priority": "P2",
+  "moscow": "Should",
+  "value": 3,
+  "effort": 2,
+  "risk": 1,
+  "deps": [],
+  "links": {},
+  "decisions": [
+    {
+      "at": "2026-10-24T19:47:36.936436",
+      "decision": "APPROVE",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)"
+    },
+    {
+      "at": "2026-10-24T14:19:56.969808+00:00",
+      "by": "hil:user",
+      "decision": "APPROVE_WITH_ATTENTION",
+      "gate": 2,
+      "findings_sha": "ccc9bf77160d",
+      "findings_digest": "077e4b94bb89",
+      "seq": 2,
+      "note": "EDP-16 follow-ups approved.",
+      "hil_confirmed": true
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "EDP-16 shipped libraries with no bounded scan, unbounded lock map and no consumers.",
+    "what_adds": "PrefixLister-based paged scan, 64 shard locks, objreconcile CLI and admin signed-URL route.",
+    "why_now": "These were the three must-fix residuals from the post-merge review.",
+    "success": "Drift scan never materialises the full bucket listing; local locks are bounded; ops can run the CLI and mint URLs.",
+    "source": "authored"
+  },
+  "objective": "Close the three must-fix EDP-16 residuals: bounded reconciliation scan, bounded local locks, and real entrypoints (CLI + signed-URL route).",
+  "acceptance_criteria": [
+    "objreconcile Scan is memory-bounded: it consumes pages via an optional PrefixLister (page size 1000, MaxObjects cap) and never materialises the full listing; local and S3 implement ListPage.",
+    "LocalStore key locks are a fixed shard pool (64 mutexes) so long-lived processes cannot grow an unbounded per-key map.",
+    "A real consumer ships: go/objreconcile/cmd/objreconcile scans a manifest JSON file and exits non-zero on drift; edpsvc exposes an admin-only GET /admin/objects/url that mints signed URLs via objpolicy with the authenticated tenant context.",
+    "Tests cover pagination, shard locks, CLI report/exit codes and the URL route validation."
+  ],
+  "in_scope": [
+    "EDP-16 follow-ups: bounded scan, local lock shards, real consumers"
+  ],
+  "out_of_scope": [
+    "Not specified."
+  ],
+  "affected_components": [
+    "Not specified."
+  ],
+  "affected_files": [
+    "go/datastore/datastore.go",
+    "go/s3store/s3store.go",
+    "go/objstore/objstore.go",
+    "go/objreconcile/reconcile.go",
+    "go/objreconcile/cmd/objreconcile/main.go",
+    "go/edpsvc/main.go",
+    "go/edpsvc/go.mod"
+  ],
+  "approach": "EDP-16 follow-ups: bounded scan, local lock shards, real consumers",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [
+        "EDP-16 post-merge review 272023ec5772"
+      ],
+      "existing_path": [
+        "go/objpolicy.Mint",
+        "go/objreconcile.Scan",
+        "go/edpsvc admin mux"
+      ],
+      "assumptions": [
+        "admin token is the authenticated principal",
+        "manifests are JSON arrays of {key,size,checksum}"
+      ],
+      "divergences": [
+        "no consumers shipped"
+      ],
+      "open_questions": []
+    },
+    "impact_review": [
+      {
+        "claim": "Bounded scan needs a paginated listing primitive",
+        "verdict": "aligned",
+        "evidence": "datastore.ObjectStore.List",
+        "recommendation": "optional PrefixLister"
+      },
+      {
+        "claim": "Signed-URL mint must be reachable",
+        "verdict": "aligned",
+        "evidence": "objpolicy.HTTPMiddleware",
+        "recommendation": "admin route"
+      },
+      {
+        "claim": "CLI is the reconcile job entrypoint",
+        "verdict": "aligned",
+        "evidence": "go-modules one-module-per-dir",
+        "recommendation": "add cmd"
+      },
+      {
+        "claim": "API CHECK",
+        "verdict": "aligned",
+        "evidence": "GET /admin/objects/url admin-only",
+        "recommendation": "needs_api=true"
+      },
+      {
+        "claim": "AC coverage",
+        "verdict": "aligned",
+        "evidence": "4 ACs",
+        "recommendation": "proceed"
+      }
+    ],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Objective achieved: EDP-16 follow-ups: bounded scan, local lock shards, real consumers"
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending",
+    "Design guardrails applied (BI-PF-1473): sig:2b207d9a25901473 (16 lines)"
+  ],
+  "owner": "agent",
+  "requester": "generic",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "EDP-16 follow-ups: bounded scan, shard locks, CLI + signed-URL route.",
+  "children": [],
+  "epic": "BI-PF-1252",
+  "parent": "BI-PF-1252",
+  "revision": 2,
+  "priority_rank": 2,
+  "priority_class": "P2",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "COMPLETE",
+    "analyzed_at": "2026-10-24T19:47:36.746052",
+    "analyzed_by": "system",
+    "revision_analyzed": 2,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/lock_manager.py",
+    "existing_components": [
+      "core/lock_manager.py"
+    ],
+    "existing_apis": [],
+    "existing_modules": [
+      "config/id-blocks.json"
+    ],
+    "dependency_findings": [],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=1.5",
+      "components=1",
+      "apis=0"
+    ],
+    "confidence": "high",
+    "missing_info": [
+      "body/acceptance criteria thin"
+    ],
+    "depth": "deep",
+    "mode": "deterministic",
+    "decision_request": {
+      "needed": false,
+      "reasons": [],
+      "ask": ""
+    },
+    "arch_fingerprint": "722ed8b6b4f4e8e2"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-24T19:47:36.832204"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-24T19:47:12.083174",
+  "updated_at": "2026-10-24T19:51:16.187936",
+  "score": 1.5,
+  "_note": "readiness computed",
+  "api_impact": {
+    "needs_api": true,
+    "routes": [
+      "GET /admin/objects/url"
+    ],
+    "consumers": [
+      "ops/admin"
+    ],
+    "reason": "one admin-only signed-URL mint endpoint; tenant from admin-authenticated request + WithTenant"
+  },
+  "review_dispositions": {
+    "diff": {
+      "sig:329822b10639651a": {
+        "status": "DEFERRED",
+        "note": "Accepted/deferred; HIL approved the follow-up slice."
+      },
+      "sig:0c98f9cdbd39c652": {
+        "status": "DEFERRED",
+        "note": "Accepted/deferred; HIL approved the follow-up slice."
+      },
+      "sig:6f8fd1cf69c97e7a": {
+        "status": "DEFERRED",
+        "note": "Accepted/deferred; HIL approved the follow-up slice."
+      },
+      "sig:aa720722b54a7ae9": {
+        "status": "DEFERRED",
+        "note": "Accepted/deferred; HIL approved the follow-up slice."
+      },
+      "sig:f4945fe89dd056a1": {
+        "status": "ACCEPTED",
+        "note": "Accepted/deferred; HIL approved the follow-up slice."
+      },
+      "sig:99b38a8883e3f6a4": {
+        "status": "ACCEPTED",
+        "note": "Accepted/deferred; HIL approved the follow-up slice."
+      },
+      "sig:5affcba765df0375": {
+        "status": "ACCEPTED",
+        "note": "Accepted/deferred; HIL approved the follow-up slice."
+      },
+      "sig:da00e07f1cad91cd": {
+        "status": "ACCEPTED",
+        "note": "Accepted/deferred; HIL approved the follow-up slice."
+      },
+      "sig:29faf125a625a406": {
+        "status": "ACCEPTED",
+        "note": "Accepted/deferred; HIL approved the follow-up slice."
+      },
+      "sig:ae2e013a2bb21361": {
+        "status": "ACCEPTED",
+        "note": "Accepted/deferred; HIL approved the follow-up slice."
+      },
+      "sig:357a13d596e8002e": {
+        "status": "ACCEPTED",
+        "note": "Accepted/deferred; HIL approved the follow-up slice."
+      },
+      "sig:332810ea30b8b41a": {
+        "status": "ACCEPTED",
+        "note": "Accepted/deferred; HIL approved the follow-up slice."
+      },
+      "sig:aad2a02e2ab03dd5": {
+        "status": "ACCEPTED",
+        "note": "Accepted/deferred; HIL approved the follow-up slice."
+      },
+      "sig:9e7db86003f96c8e": {
+        "status": "ACCEPTED",
+        "note": "Accepted/deferred; HIL approved the follow-up slice."
+      },
+      "sig:f3b4cd8ba780ac96": {
+        "status": "ACCEPTED",
+        "note": "Accepted/deferred; HIL approved the follow-up slice."
+      },
+      "sig:2a7e08b137842123": {
+        "status": "ACCEPTED",
+        "note": "Accepted/deferred; HIL approved the follow-up slice."
+      },
+      "sig:fffb9d10e2ab8a08": {
+        "status": "ACCEPTED",
+        "note": "Accepted/deferred; HIL approved the follow-up slice."
+      }
+    }
+  }
+}

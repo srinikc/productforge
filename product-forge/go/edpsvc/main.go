@@ -31,6 +31,7 @@ import (
 	"productforge/datastore"
 	"productforge/edpdata"
 	"productforge/migrate"
+	"productforge/objpolicy"
 	"productforge/objstore"
 	"productforge/s3store"
 	"productforge/store"
@@ -87,6 +88,7 @@ func main() {
 	mux.HandleFunc("/artifacts/", s.adminOnly(s.artifactRoute))
 	mux.HandleFunc("/audit", s.adminOnly(s.auditAppend))
 	mux.HandleFunc("/admin/audit-coverage", s.adminOnly(s.auditCoverage))
+	mux.HandleFunc("/admin/objects/url", s.adminOnly(s.objectURL))
 	mux.HandleFunc("/jobs", s.adminOnly(s.jobSubmit))
 	mux.HandleFunc("/jobs/claim", s.adminOnly(s.jobClaim))
 	mux.HandleFunc("/jobs/action", s.adminOnly(s.jobAction))
@@ -190,6 +192,37 @@ func (s *server) auditCoverage(w http.ResponseWriter, r *http.Request) {
 		"months_ahead": st.MonthsAhead, "lead_months": st.LeadMonths, "low": st.Low(),
 		"last_rotation_hours": st.LastRotationHours, "stale": st.Stale,
 	})
+}
+
+// objectURL mints a signed URL through the single objpolicy boundary (admin API; tenant from the request).
+func (s *server) objectURL(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "use GET"})
+		return
+	}
+	q := r.URL.Query()
+	tenant, key := q.Get("tenant"), q.Get("key")
+	if tenant == "" || key == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "tenant and key are required"})
+		return
+	}
+	ttl := 5 * time.Minute
+	if v := q.Get("ttl_seconds"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			ttl = time.Duration(n) * time.Second
+		}
+	}
+	method := q.Get("method")
+	if method == "" {
+		method = http.MethodGet
+	}
+	ctx := objpolicy.WithTenant(r.Context(), tenant)
+	u, err := objpolicy.Mint(ctx, s.obj, key, method, ttl)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"url": u})
 }
 
 func envOr(k, d string) string {
