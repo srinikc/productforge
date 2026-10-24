@@ -1,0 +1,36 @@
+{
+  "item": "BI-PF-1315",
+  "sha": "898c208fcc38",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-24T15:18:08.309459+00:00",
+  "findings": {
+    "BLOCKER": [
+      "none"
+    ],
+    "MAJOR": [
+      "Report persistence failure in `out()` is logged to stderr but the drill still exits 0; `status` will then report the drill stale/missing, silently converting an observability outage into a false DR-page \u2014 persist failure should fail the run (or at minimum be surfaced distinctly).",
+      "`CheckFreshness` returns on the first bad command, so an operator gets a partial picture (e.g. only `full` stale while `tenant`/`pitr` also stale); for an actionable DR readiness gate, aggregate all failures into one report.",
+      "Report files accumulate forever (`<command>-<ts>.json`, unbounded, no retention/pruning); a daily cadence across commands grows the directory indefinitely with no lifecycle policy."
+    ],
+    "MINOR": [
+      "`require` is split on `,` without trimming, so `--require \"full, tenant\"` or trailing commas produce commands like `\" tenant\"` / `\"\"`, yielding confusing `no  report in <dir>` errors; also empty `require` should be rejected explicitly.",
+      "`status` writes its own report via `out()`/`SaveReport` even though it is a meta-check; if `status` is ever added to `require` this becomes self-satisfying freshness.",
+      "`SaveReport` filename uses second-granularity timestamps; two runs in the same second silently overwrite, losing a drill record.",
+      "Default `--max-age-hours=26` and `--require full,tenant,pitr` bake in an operational assumption (daily cadence) that is not documented, validated, or reflected elsewhere in the tool.",
+      "No test for the stale-but-successful-report path, for `LatestReport` ordering across multiple files, or for failed-report short-circuit ordering \u2014 only happy/missing/failed cases are covered.",
+      "The diff does not visibly add/adjust tests or code for the PITR settings parsing, drill verification math, reconcile repair guard, and region routing criteria listed in the acceptance criteria; if those exist only from prior work, coverage should be confirmed and linked in the item."
+    ],
+    "NIT": [
+      "`LatestReport` relies on lexicographic sort of the timestamped filename; correct today, but a comment noting the invariant would prevent a future format change from breaking ordering.",
+      "`out()` ignores the `json.MarshalIndent` error (`b, _ :=`), pre-existing but adjacent to the new code path.",
+      "`time.Duration(maxAgeHours*float64(time.Hour))` is subtly imprecise for fractional hours; fine in practice, but `time.Duration(maxAgeHours * float64(time.Hour))` with validation that maxAgeHours > 0 would be more defensive."
+    ],
+    "SUMMARY": [
+      "Solid addition: per-drill persisted reports plus a `status` freshness gate is the right long-term shape for making DR drills continuously verifiable rather than a one-off exercise, and it stays in Go per the language rule.",
+      "Top risks: persistence failures don't fail the drill (false freshness), freshness checks stop at the first failure, and report files grow unbounded \u2014 all erode the trustworthiness of the DR readiness signal over time.",
+      "Recommend hardening before relying on `status` for alerting, and confirming acceptance-criteria coverage (PITR/drill/reconcile/region tests) is present and traceable."
+    ]
+  }
+}
