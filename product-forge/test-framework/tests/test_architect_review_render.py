@@ -43,7 +43,7 @@ def test_pending_major_is_not_ready():
 def test_unknown_status_is_pending_fail_closed():
     out = ar.render_gate_view(_view("BLOCKER", "typo status", "ACTIONEDD"), "design")
     assert "**Overall architect recommendation: NOT READY**" in out
-    assert "| 1 | BLOCKER | typo status | ACTIONEDD | done |" in out
+    assert "| 1 | BLOCKER | typo status | PENDING | done |" in out
 
 
 def test_pending_minor_does_not_block():
@@ -75,3 +75,28 @@ def test_overall_recommendation_is_pure_and_counts():
     assert verdict == "NOT READY"
     verdict, _ = ar.overall_recommendation([("MAJOR", "ACTIONED"), ("MINOR", "PENDING")])
     assert verdict == "APPROVE"
+
+
+def test_gate1_check_uses_the_shared_renderer(monkeypatch, capsys):
+    import gate1_check
+
+    view = _view("MAJOR", "shared path", "ACTIONED")
+    monkeypatch.setattr(gate1_check, "evaluate", lambda item: view)
+    monkeypatch.setattr(ar, "render_gate_view", lambda v, m: "SHARED-TABLE")
+    rc = gate1_check.main(["--item", "BI-X"])
+    out = capsys.readouterr().out
+    assert rc == 0 and "SHARED-TABLE" in out
+
+
+def test_gate1_check_json_shape_is_unchanged(monkeypatch, capsys):
+    import json
+
+    import gate1_check
+
+    view = _view("MAJOR", "json path", "ACTIONED")
+    monkeypatch.setattr(gate1_check, "evaluate", lambda item: view)
+    rc = gate1_check.main(["--item", "BI-X", "--json"])
+    payload = json.loads(capsys.readouterr().out)
+    assert rc == 0
+    assert {"ok", "item", "total", "pending", "blocking_pending", "review_sha", "model",
+            "parsed_ok"} <= set(payload)

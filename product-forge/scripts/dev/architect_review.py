@@ -459,6 +459,13 @@ def overall_recommendation(rows: list[tuple[str, str]]) -> tuple[str, str]:
     return "APPROVE", f"{counts_txt}; all blockers/majors actioned"
 
 
+def _pending_count(rows: list[tuple[str, str]]) -> int:
+    """ONE pending predicate shared by the verdict and the footer (unknown status = pending)."""
+    return sum(1 for _, st in rows
+               if not (str(st or "PENDING").upper() in DISPOSITION_STATUSES
+                       and str(st or "PENDING").upper() != "PENDING"))
+
+
 def _cell(text) -> str:
     return str(text or "").replace("|", "\\|").replace("\r", " ").replace("\n", " ").strip()
 
@@ -472,8 +479,9 @@ def _render_review(rev: dict, disp: dict, mode: str) -> str:
         d = _disp_for(disp, n, text)
         st = (d.get("status") or "PENDING").upper()
         rows.append((sev, st, text, d.get("note") or "(no response yet)"))
-    verdict, counts = overall_recommendation([(r[0], r[1]) for r in rows])
-    pending = sum(1 for r in rows if not (r[1] in DISPOSITION_STATUSES and r[1] != "PENDING"))
+    pairs = [(r[0], r[1]) for r in rows]
+    verdict, counts = overall_recommendation(pairs)
+    pending = _pending_count(pairs)
     lines = [f"Gate {gate} - Findings & Dispositions (model={rev.get('model', '?')} sha={rev.get('sha', '?')})",
              f"**Overall architect recommendation: {verdict}**",
              counts,
@@ -482,13 +490,13 @@ def _render_review(rev: dict, disp: dict, mode: str) -> str:
              "| # | Severity | Finding | Disposition | Response / resolution |",
              "|---|---|---|---|---|"]
     for n, (sev, st, text, note) in enumerate(rows, 1):
-        lines.append(f"| {n} | {sev} | {_cell(text)} | {st} | {_cell(note)} |")
+        display = st if st in DISPOSITION_STATUSES else "PENDING"
+        lines.append(f"| {n} | {sev} | {_cell(text)} | {display} | {_cell(note)} |")
     lines.append("")
     lines.append("--- SUMMARY (review) ---")
     lines += [f"  {x}" for x in f.get("SUMMARY", [])]
     lines.append(f"=== {len(rows)} finding(s), {pending} pending ===")
     return "\n".join(lines)
-
 
 
 def _ingest(item_id: str, text: str, model: str, apply: bool, mode: str = "diff") -> int:
