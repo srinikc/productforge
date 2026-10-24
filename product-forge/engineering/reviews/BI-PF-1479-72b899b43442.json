@@ -1,0 +1,32 @@
+{
+  "item": "BI-PF-1479",
+  "sha": "72b899b43442",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-24T17:45:50.857335+00:00",
+  "findings": {
+    "BLOCKER": [
+      "Fail-open: `_render_review`/`overall_recommendation` on zero findings (e.g., unparsed model output, `parsed_ok=False`, missing/empty `findings`) returns **APPROVE** with \"all blockers/majors actioned\". The docstring claims \"fail closed\", yet a completely absent review renders a green verdict; `parsed_ok` in the view is ignored by the renderer. This must fail closed (NOT READY) or the gate must hard-stop before render."
+    ],
+    "MAJOR": [
+      "`_pending_count`'s docstring claims it is the \"ONE pending predicate shared by the verdict and the footer\", but `overall_recommendation` recomputes `resolved = st in DISPOSITION_STATUSES and st != \"PENDING\"` inline \u2014 two copies of the predicate that can drift; use the shared helper in both paths.",
+      "Verdict counts use the raw status key (`dispo[st]`) while the table normalizes unknown statuses to `PENDING`, so an unknown status like \"ACTIONEDD\" prints `actionedd 1` in the counts line while the row and verdict say PENDING/NOT READY \u2014 contradictory, audit-unfriendly output."
+    ],
+    "MINOR": [
+      "`_cell` escapes `|` but not backslashes: a finding containing `\\|` or `\\\\|` renders broken/ambiguous markdown; escape `\\` first.",
+      "id-blocks.json: `reserved_up_to` jumps to 1479 while the previous session ends at 1477 (`next: 1478`) and the new session starts at 1479 \u2014 ID 1478 is unowned; confirm intentional or it will confuse reservation/audit tooling.",
+      "New test file lives in `test-framework/tests/` with pytest fixtures (`monkeypatch`, `capsys`) and a `sys.path.insert` hack \u2014 confirm the framework/CI actually discovers and runs pytest here, and that importing `scripts/dev` from tests is an sanctioned pattern per AGENTS.md.",
+      "`test_gate1_check_uses_the_shared_renderer` monkeypatches `ar.render_gate_view`, which only works if the (unchanged) `gate1_check.py` calls through the module attribute rather than `from architect_review import render_gate_view`; verify against the actual file since its diff is not shown."
+    ],
+    "NIT": [
+      "\"REJECTED\" is treated as APPROVE WITH ATTENTION and documented, but the acceptance criteria only lists ACCEPTED/DEFERRED/SCOPE \u2014 align wording or cite the criteria amendment.",
+      "Counts-line disposition ordering is `sorted()` on raw keys, so normalization and ordering can diverge again if statuses are renamed; derive counts from the normalized display value instead."
+    ],
+    "SUMMARY": [
+      "Solid direction: pure verdict function, shared renderer for both gates, escaping, and tests for the three outcomes and 1.5/2.5 headers; AC on table shape, recommendation above table, `--json`/exit-code stability appears met.",
+      "Top risks: (1) fail-open APPROVE on empty/unparsed reviews \u2014 must be fixed before merge; (2) duplicated pending-predicate and raw-vs-normalized status handling undermine the \"one source of truth\" claim; (3) verify test discovery/CI wiring and the ID reservation gap at 1478.",
+      "Verdict: NOT READY pending the fail-open fix; the MAJORs should land in the same change to avoid immediate follow-up churn."
+    ]
+  }
+}
