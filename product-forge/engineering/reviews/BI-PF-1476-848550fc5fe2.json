@@ -1,0 +1,32 @@
+{
+  "item": "BI-PF-1476",
+  "sha": "848550fc5fe2",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-24T16:39:53.038988+00:00",
+  "findings": {
+    "BLOCKER": [
+      "none"
+    ],
+    "MAJOR": [
+      "Index rows for ADR-0007 and ADR-0008 are added with anchors (`#adr-0007-...`, `#adr-0008-...`) but no corresponding `# ADR-NNNN:` sections appear in the diff (ADR-0009 is appended directly after ADR-0006). Dead links in the decision register, and under this gate's own \"index AND section\" rule those ADRs can never resolve as a valid `decision_ref`.",
+      "AC requires \"docs-fresh passes after STORE-DATAFLOW regeneration\", but the diff contains no regenerated dataflow/inventory artifacts even though the registry `description` and the design-systems entry (owner_item, reason, decision_ref, related_item) changed. Verify `gen_store_dataflow.py --check` and docs-fresh are green in CI, not just locally."
+    ],
+    "MINOR": [
+      "The generic supersede check is a bare substring (`\"supersede\" not in section.lower()`), so any prose mention of the word anywhere in the ADR body satisfies it; a heading-scoped or structured field would be a durable invariant.",
+      "Self-test silently skips the supersede negative when the ADR doc is unreadable (`adr_text = \"\"` \u2192 `if adr_text and ...` never records a failure); the gate fails closed in `check()`, but the self-test under-reports.",
+      "New code uses `re` and `copy`; the diff shows no import addition \u2014 confirm both are already imported in the module (precheck/self-test would crash otherwise).",
+      "ADR-0009 \"Related\" lists both `BI-PF-1439` and `BI-PF-0439`; looks like a transposed duplicate id \u2014 fix or justify, since these ids feed traceability."
+    ],
+    "NIT": [
+      "`retained_audit()` and the `--retained-audit` flag are non-gating dead surface area beyond the AC; wire into a scheduled audit or drop until needed.",
+      "Self-test assertion for `retained_audit` is only an `isinstance(..., list)` check \u2014 trivially true; either strengthen or remove.",
+      "Pinned `FORMALLY_RETAINED` hard-codes the ADR id in Python; consider deriving expected ref from the registry itself to avoid a two-place edit per new formal retention."
+    ],
+    "SUMMARY": [
+      "Solid, fail-closed design: generic opt-in rule plus pinned parity, in-memory-only negative self-tests, and ADR referential integrity (index row + section) all match the AC and the \"single writer for registry invariants\" standard.",
+      "Top risks: the ADR index now cites ADR-0007/0008 sections that don't exist in the diff (dead anchors, unresolvable refs), and the required STORE-DATAFLOW regeneration/docs-fresh proof is absent from the change set."
+    ]
+  }
+}

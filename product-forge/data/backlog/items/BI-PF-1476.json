@@ -10,7 +10,7 @@
   "title": "design-systems store: migrate to config/tool_settings with registry parity",
   "body": "",
   "source": "generic",
-  "status": "new",
+  "status": "completed",
   "priority": "P1",
   "moscow": "Should",
   "value": 3,
@@ -27,6 +27,28 @@
       "decision": "APPROVE",
       "by": "system",
       "note": "auto-approved on add (BI-PF-1282)"
+    },
+    {
+      "at": "2026-10-24T16:34:27.898311+00:00",
+      "by": "hil:srinikc",
+      "decision": "APPROVE",
+      "gate": 1,
+      "findings_sha": "8ba9d8b47bd3",
+      "findings_digest": "5865167f8ef2",
+      "seq": 2,
+      "note": "HIL explicitly approved Gate 1 for BI-PF-1475/1476; design sha 8ba9d8b47bd3 has 0 pending findings.",
+      "hil_confirmed": true
+    },
+    {
+      "at": "2026-10-24T16:40:43.058803+00:00",
+      "by": "hil:srinikc",
+      "decision": "APPROVE",
+      "gate": 2,
+      "findings_sha": "848550fc5fe2",
+      "findings_digest": "d90439bde2a3",
+      "seq": 3,
+      "note": "HIL approved the delivery chain ('then do 1 to 4'); Gate 2.5 sha 848550fc5fe2 has 0 pending findings.",
+      "hil_confirmed": true
     }
   ],
   "follow_up": {},
@@ -37,38 +59,62 @@
     "success": "Registry decision recorded and gate passes.",
     "source": "authored"
   },
-  "objective": "Resolve the last pending configuration store (BI-PF-1439).",
+  "objective": "Resolve the last pending configuration store by formally retaining config/design-systems.json as a global, file-backed declarative catalog with a recorded ADR and registry parity, instead of moving global product metadata into the tenant-scoped tool_settings table.",
   "acceptance_criteria": [
-    "config/design-systems.json moves behind the tool_settings table (or is formally retained) with a recorded decision.",
-    "store-registry target/status/migration_status matches the decision; gate passes."
+    "ADR-0009 records the formal retention decision for config/design-systems.json: global, read-only product metadata stays file-backed rather than moving into the tenant-scoped tool_settings table, and the ADR states the explicit supersede/revisit trigger (a new ADR is required when BI-PF-1439 makes the catalog runtime-writable or tenant-specific).",
+    "config/store-registry.json keeps the pinned entry config/design-systems.json with kind=config, target kind=file/status=retained, classification backend=file/migration_status=retained, and adds non-empty target.retained_reason plus target.decision_ref=ADR-0009 and target.related_item=BI-PF-1476; the registry description explains retained-by-decision vs retained-by-pending-migration.",
+    "The existing scripts/dev/store_registry_relationships.py gate (the single writer for registry invariants) enforces a GENERIC retained rule (any retained target with decision_ref must carry a non-empty retained_reason and a decision_ref that resolves to an ADR index row AND section) plus a pinned parity check for config/design-systems.json (exact kind/status/backend/migration_status tuple, decision_ref=ADR-0009). An in-script negative self-test mutates in-memory deepcopies only (never the live registry), is run by the precheck self-test, and proves deleting the entry, blanking the reason, flipping the target, dropping the decision_ref, or pointing it at a missing ADR fails. docs-fresh passes after STORE-DATAFLOW regeneration."
   ],
   "in_scope": [
-    "design-systems store: migrate to config/tool_settings with registry parity"
+    "ADR-0009 (decision, rationale, supersede trigger, index row)",
+    "config/store-registry.json: pinned retained-state + retained_reason + decision_ref + glossary",
+    "scripts/dev/store_registry_relationships.py: invariant check + negative self-test",
+    "docs/STORE-DATAFLOW.md regeneration",
+    "Item decision ledger entry and verification evidence",
+    "config/store-registry.json: pinned retained tuple + retained_reason summary + decision_ref=ADR-0009 + related_items"
   ],
   "out_of_scope": [
-    "Not specified."
+    "Implementing the design-system catalog or its Go writer (BI-PF-1439).",
+    "Migrating any data (the catalog has no runtime rows).",
+    "Changing the tenant-scoped tool_settings contract.",
+    "Auditing the other 60 retained config stores (separate follow-up if desired)."
   ],
   "affected_components": [
-    "Not specified."
+    "configuration store registry",
+    "architecture decision register",
+    "store-registry gate tooling"
   ],
   "affected_files": [
-    "config/store-registry.json"
+    "config/store-registry.json",
+    "docs/ARCHITECTURE-DECISIONS.md",
+    "docs/STORE-DATAFLOW.md",
+    "scripts/dev/store_registry_relationships.py"
   ],
-  "approach": "design-systems store: migrate to config/tool_settings with registry parity",
+  "approach": "Record ADR-0009 in docs/ARCHITECTURE-DECISIONS.md with the retention decision and an explicit supersede trigger. Annotate the pinned registry entry with retained_reason, decision_ref=ADR-0009 and related_item=BI-PF-1476, and update the registry description glossary. Extend scripts/dev/store_registry_relationships.py (the existing single-writer gate) to assert the full retained-state invariant for config/design-systems.json and add a negative self-test; regenerate STORE-DATAFLOW.md. No runtime logic or data migration. The gate check is generic first (retained target + decision_ref => reason + resolvable ADR) and then pins the design-systems parity tuple; ADR-0009 is the authority and the registry retained_reason is a summary pointer. Self-test mutations are in-memory deepcopies; precheck invokes --self-test.",
   "review": {
     "reconciliation": {
       "prior_decisions": [
-        "BI-PF-1408 discovery slices A/B/C"
+        "BI-PF-1439 introduced config/design-systems.json as a per-system catalog (product types, style, stack, palette, dials, component set, a11y target) with a planned Go writer via go/pfcore/design_system.go.",
+        "BI-PF-1408 Slice A/B/C classified every store and mapped targets; design-systems is currently kind=config, backend=file, target=file/retained.",
+        "BI-PF-0439 established the tool_settings/settings-store pattern for per-tool, tenant-scoped settings; that table is tenant-scoped and is not the home for a global product catalog.",
+        "EDP single-storage standard (BI-PF-1417): do not add a duplicate store; reuse the file-backed config pattern with an explicit retention decision."
       ],
       "existing_path": [
-        "go/edpdata artifacts/objects",
-        "config/store-registry.json"
+        "config/store-registry.json: stores['config/design-systems.json'] (owner core/go_host.py, kind config, target file/retained).",
+        "core/go_host.py + go/pfcore: the Go host is the intended writer for the catalog (BI-PF-1439).",
+        "config/tool_settings-backed entries: tenant-scoped (tenant_id), used for per-tenant config, not global catalogs.",
+        "scripts/dev/store_registry_relationships.py: validates kind/backend/status parity; retained file targets already pass."
       ],
       "assumptions": [
-        "intake/builds payloads belong in the object store with metadata rows"
+        "The design-system catalog is global and read-only product metadata, not customer/tenant data (no tenant_id dimension).",
+        "The catalog has no runtime rows yet; retention decision is about where future data will live, not a data migration.",
+        "tool_settings remains the canonical home for tenant-scoped settings; a global catalog is out of its scope.",
+        "The registry is an unversioned JSON document; the relationship gate checks a known field set and ignores extra fields, so adding retained_reason/decision_ref does not require a schema migration.",
+        "The durable reference is the ADR (ADR-0009), not the work item id; BI-PF-1476 is recorded only as related_item for traceability."
       ],
       "divergences": [
-        "no ingestion path yet"
+        "The stale item title suggests migrating to config/tool_settings; the analysis shows that would put global product metadata in a tenant-scoped table, so the recorded decision is formal retention as a file-backed global config instead.",
+        "The durability check is implemented by extending the existing store-registry relationship gate (single writer), not by adding a second checker."
       ],
       "open_questions": []
     },
@@ -76,38 +122,91 @@
       {
         "claim": "API CHECK",
         "verdict": "aligned",
-        "evidence": "no HTTP surface planned",
+        "evidence": "No HTTP surface: the catalog is read by the Go host at runtime; no route, no tenant input, no client-supplied data.",
         "recommendation": "needs_api=false"
       },
       {
         "claim": "AC coverage",
         "verdict": "aligned",
         "evidence": [
-          "config/design-systems.json moves behind the tool_settings table (or is formally retained) with a recorded decision.",
-          "store-registry target/status/migration_status matches the decision; gate passes."
+          "config/design-systems.json is formally retained as a file-backed, global, declarative configuration catalog; the decision is recorded in docs/ARCHITECTURE-DECISIONS.md (ADR-0009) and cited from the item decision ledger, with the rationale that it is not tenant data and does not belong in the tenant-scoped tool_settings table.",
+          "config/store-registry.json keeps target kind=file/status=retained with classification backend=file and migration_status=retained, and adds target.retained_reason plus target.decision_ref=BI-PF-1476; the store-registry relationship gate and the docs-fresh gate pass.",
+          "A repeatable check proves the decision is durable: the registry entry carries the retained_reason/decision_ref fields and the ADR index contains ADR-0009, so a later edit that silently deletes the rationale or flips the target to a table fails review."
         ],
         "recommendation": "approve"
       },
       {
         "claim": "language",
         "verdict": "aligned",
-        "evidence": "Go for new logic",
-        "recommendation": "Go"
+        "evidence": "No new shipped logic: this item records a retention decision in config/docs. Future catalog logic remains Go (go/pfcore/design_system.go per BI-PF-1439).",
+        "recommendation": "no new logic; Go when implemented"
+      },
+      {
+        "claim": "reuse / no duplicate store",
+        "verdict": "aligned",
+        "evidence": "Keeps the single registered store config/design-systems.json; no new store/table and no parallel settings path.",
+        "recommendation": "approve"
+      },
+      {
+        "claim": "tenant isolation",
+        "verdict": "aligned",
+        "evidence": "Global catalog classification (tenant_scope=global) is explicit; it holds no tenant data and is not served through tenant RLS paths.",
+        "recommendation": "approve"
+      },
+      {
+        "claim": "reversibility",
+        "verdict": "aligned",
+        "evidence": "Reversible by editing the registry/ADR; no schema, data, or runtime behavior change.",
+        "recommendation": "approve"
+      },
+      {
+        "claim": "enforcement / ownership",
+        "verdict": "aligned",
+        "evidence": "The invariant lives in scripts/dev/store_registry_relationships.py, which is already the single writer/checker for store targets and runs in precheck; no new standalone checker is added.",
+        "recommendation": "approve"
+      },
+      {
+        "claim": "schema compatibility",
+        "verdict": "aligned",
+        "evidence": "The registry has no strict JSON schema; store_registry_relationships.py validates known fields and ignores extras, so retained_reason/decision_ref are additive.",
+        "recommendation": "approve"
+      },
+      {
+        "claim": "guardrail checklist",
+        "verdict": "aligned",
+        "evidence": "needs_api=no (config/docs only); tenant/RLS N/A (no runtime data); language rule satisfied (Python tooling edit + JSON/Markdown); rollback is a pure revert then re-run store_registry_relationships.py + docs-fresh + precheck; observability is the gate's exit code and stdout; no metrics needed.",
+        "recommendation": "approve"
       }
     ],
-    "reviewed_by": "derived",
+    "reviewed_by": "agent",
     "at": ""
   },
   "verification": [
-    "Objective achieved: design-systems store: migrate to config/tool_settings with registry parity"
+    "scripts/dev/store_registry_relationships.py --self-test passes the retained-decision negatives: missing entry, blank retained_reason, flipped target, removed decision_ref, unresolvable ADR, and removed supersede trigger all fail; the ADR index-only vs index+section check also fails correctly.",
+    "The store-registry relationship gate reports stores=244, retained=146, OK; only config/design-systems.json carries decision_ref=ADR-0009 and it matches the pinned tuple (kind=file, status=retained, backend=file, migration_status=retained); --retained-audit lists the remaining stores for a future audit.",
+    "gen_store_dataflow.py --check reports fresh after regeneration; ADR-0009 has both an index row and a section, and its Supersede trigger names BI-PF-1439.",
+    "No schema, data or runtime change; rollback is a revert of the registry annotation, ADR-0009 and the gate check, followed by the gate, docs-fresh and precheck."
   ],
   "risks": [
-    "Not specified."
+    "A future contributor re-proposes tool_settings without seeing the rationale: mitigated by target.retained_reason, decision_ref=ADR-0009 and the gate invariant.",
+    "The ADR index and section drift: mitigated by the negative self-test and docs-fresh.",
+    "The gate becomes too design-systems-specific: the pinned invariant is small and additive; the self-test documents the intent for future retained stores."
   ],
-  "rollback": "Revert the change.",
+  "rollback": "Revert the ADR-0009 section/index row, the registry retained_reason/decision_ref/related_items and the gate check, then regenerate STORE-DATAFLOW.md and re-run scripts/dev/store_registry_relationships.py, python scripts/dev/gen_store_dataflow.py --check and precheck to prove restored parity; no schema or data change.",
   "evidence": [
-    "pending",
-    "Design guardrails applied (BI-PF-1476): sig:52543f3e7e3321f3 (20 lines)"
+    "Design guardrails applied (BI-PF-1476): sig:52543f3e7e3321f3 (20 lines)",
+    "Design pre-check (BI-PF-1476): answered 10 checklist item(s) before Gate 1.5",
+    "Gate 1.5 architect review - model=mimo-v2.6-flash sha=2bb3ee82b0a5\nBLOCKER:\n  - AC3 requires a repeatable, fail-able check, but no test/check artifact appears in in_scope or affected_files (only registry + two docs), so the AC is not implementable as scoped.\n  - No path, owner, or gate hook is declared for the check (script location, how it runs, which CI/gate invokes it); an unregistered check will be orphaned (CL-001).\nMAJOR:\n  - The durability check as described validates field *presence* on \"the registry entry\" without pinning it by target path/id; deleting the entire design-systems.json entry would satisfy both the relationship gate and this check. Assert the entry exists and that kind=file/status=retained/backend=file/migration_status=retained/retained_reason non-empty/decision_ref=ADR-0007 are all true.\n  - target.decision_ref=BI-PF-1476 couples durable rationale to a work-item ID that loses meaning after closure; the stable, long-lived reference is ADR-0007 (keep BI-PF-1476 as a secondary `related_items`/ledger citation if needed).\n  - ADR-0007 is phrased as \"until BI-PF-1439 lands\", which makes the retention provisional with no defined revisit trigger; state the explicit condition under which this ADR is superseded and who re-opens it, or the decision silently rots.\n  - The design does not state whether store-registry has a schema/validator that accepts new `retained_reason`/`decision_ref` fields; if the relationship gate validates against a strict schema, this change silently breaks it — schema/validator update must be in scope.\nMINOR:\n  - Do not add a second checker alongside existing gates; extend the store-registry relationship gate (single writer for that invariant) rather than duplicating validation logic.\n  - Guardrail checklist coverage is implicit, not answered: tests/rollback (fail-able check location), invariants (exact assertion set), and route-by-kind (script owner) are unspecified; availability/RLS/API are correctly N/A for a docs+config change — say so explicitly in the ADR.\n  - docs/STORE-DATAFLOW.md is in affected_files but absent from in_scope/AC; declare the intended edit to prevent scope drift at review.\nNIT:\n  - Rollback note is accurate (revert registry annotation + ADR-0007, no schema/data change) but could name the exact gate that must be re-run post-revert to prove restored parity.\n  - Consider that \"retained\" status semantics may need a short glossary line in the registry header so future contributors distinguish retained-by-decision from retained-by-pending-migration.\nSUMMARY:\n  - Sound intent: keeping global product metadata out of the tenant-scoped tool_settings table is the right call, and the ADR + registry-annotation approach is low-risk and reversible.\n  - Top risks: the durability check is required by an AC but is unscoped and unregistered (BLOCKER), and as described it verifies field presence rather than the pinned entry's full retained-state, so entry deletion or a schema-breaking field add would pass review.\n  - Recommend: scope the check into the existing relationship gate, assert the complete invariant set against a path-pinned entry, and reference ADR-0007 (not the ticket ID) as the durable decision_ref.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
+    "Gate 1.5 architect review - model=mimo-v2.6-flash sha=e7f0ddc409c3\nBLOCKER:\n  - none\nMAJOR:\n  - The gate invariant is design-systems-specific (hardcoded path + exact tuple). With ~60 other retained config stores pending audit, this pattern scales into N special cases. Specify a generic rule first — \"any registry entry with target.status=retained MUST carry non-empty retained_reason and a decision_ref that resolves in docs/ARCHITECTURE-DECISIONS.md\" — and let design-systems.json be the first data-driven instance, not the only hardcoded one.\n  - Referential integrity of decision_ref is asserted only as a literal string `ADR-0007`. Nothing verifies the ADR section and index row actually exist in docs/ARCHITECTURE-DECISIONS.md at gate time; index/section drift was self-identified as a risk but the ACs only cover the registry side. Add a gate assertion that the referenced ADR id resolves to both an index row and a section.\n  - Negative self-test mechanics are unspecified: it must mutate a sandboxed temp copy of the registry, never the live config/store-registry.json, and must be provably cleanup-safe (tempdir + guaranteed restore even on exception). State this explicitly; a self-test that touches the live registry is a data-integrity blocker waiting to happen.\n  - Design guardrails are not answered in the design (CL-008). Explicitly mark: needs_api=no, tenant/RLS N/A (no runtime data), language rule satisfied (tooling Python), rollback = pure revert + gate re-run. Silence here will bounce the review.\nMINOR:\n  - Supersede trigger for BI-PF-1439 is prose-only; consider a gate assertion that the ADR's supersede field names BI-PF-1439 so the linkage is machine-checkable in both directions (decision_ref forward, related_item/supersede backward).\n  - Rollback section omits a docs-fresh re-run as the verification step for the rollback path itself; include it so rollback is as testable as the forward path.\n  - \"retained-by-decision vs retained-by-pending-migration\" glossary text should cross-reference docs/GLOSSARY.md if these terms are load-bearing (CL-003), otherwise they fork vocabulary.\n  - Observability checklist is unaddressed; for a tooling-only change, state that the gate's exit code + stdout is the intended signal and no metrics are required.\nNIT:\n  - Consider having the gate emit a structured (JSON) report of pinned retained entries so the deferred audit of the other 60 stores has a ready-made input instead of a new script.\n  - `related_item=BI-PF-1476` hardcodes ticket ids into config; if this becomes a pattern for the remaining retained stores, note a convention (e.g., array of related items) to avoid a schema churn later.\nSUMMARY:\n  - Verdict: sound, low-risk documentation/registry/gate change; correctly reuses the existing single-writer gate and stays within the language rule. Top risks: hardcoded design-systems-specific invariant that won't scale to the other retained stores, decision_ref with no referential check against the ADR document, and unspecified (potentially live-mutating) negative self-test mechanics. Address the four MAJORs and the guardrail checklist before Gate 1.5; no blockers.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
+    "Gate 1.5 architect review - model=mimo-v2.6-flash sha=434b44c6c4f3\nBLOCKER:\n  - none\nMAJOR:\n  - ADR numbering inconsistency: in_scope lists \"ADR-0007 (decision, rationale, supersede trigger, index row)\" while all ACs require ADR-0009; unresolved ambiguity risks a wrong index row, cross-referenced gate assertion, and future supersede-chain drift — pin the ADR id in the design before Gate 2.\n  - Gate design hard-codes a single store path/tuple in a \"generic\" invariant script; with ~60 retained config stores and an audit follow-up queued, this invites one bespoke assert per store. Prefer a generic invariant (any entry with status=retained ⇒ non-empty retained_reason + decision_ref + resolvable ADR id) plus one pinned parity check.\nMINOR:\n  - retained_reason text is duplicated in ADR-0009 and the registry entry with no stated authority for which is canonical; divergence is likely over time — declare the ADR authoritative and the registry field a pointer/summary.\n  - Guardrail checklist (reversibility, observability, invariants, tests) is not explicitly answered in the design; CL-008 expects dispositions pre-1.5, and observability of gate failure (exit codes, structured findings, docs-fresh wiring) is unspecified.\n  - Negative self-test placement is unstated (in-script mutation harness vs. tests/ module); confirm it is fail-able, CI-invoked, and does not mutate the real config/store-registry.json in place.\n  - Rollback plan omits restoring store-registry.json glossary/description wording and the required STORE-DATAFLOW regeneration ordering after revert.\nNIT:\n  - target.related_item=BI-PF-1476 hard-codes a ticket id into a permanent registry record; consider whether a durable \"decision provenance\" convention outlives ticket lifecycle better.\n  - \"Auditing the other 60 retained config stores\" being out-of-scope is fine, but record the follow-up explicitly so the glossary's retained-by-decision vs retained-by-pending-migration distinction doesn't silently rot.\nSUMMARY:\n  - The item is low-risk and appropriately documentation/tooling-only; the rollback story and language rule (Python tooling edits) are satisfied.\n  - Top risks: the ADR-0007 vs ADR-0009 numbering contradiction must be resolved before Gate 2, and the gate invariant should be made generic over retained stores rather than pinned per-store to remain maintainable at 60+ scale.\n  - Verdict: approve after correcting the ADR id ambiguity and generalizing (or explicitly justifying) the pinned invariant; nothing here blocks data integrity or security.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
+    "Gate 1.5 architect review - model=mimo-v2.6-flash sha=8ba9d8b47bd3\nBLOCKER:\n  - none\nMAJOR:\n  - AC/schema ambiguity: AC uses `target.related_item=BI-PF-1476` (singular) but `in_scope` says `related_items` (plural). Pin the exact field name before implementation; a mismatch means the pinned parity check and the AC disagree on the contract.\n  - Generic invariant vs. out-of-scope data: the new generic rule (\"any retained target with decision_ref => non-empty retained_reason + resolvable ADR\") is applied to a registry with ~60 other retained stores explicitly out of scope for audit. If any existing retained entry carries a decision_ref (or a decision_ref-shaped value) without a reason, the gate breaks on data this item never reviewed. Add a pre-flight scan of the live registry proving the generic rule is currently satisfied for ALL entries before enabling it.\n  - Self-test coverage gap for \"index row AND section\": the negative self-test list covers a missing ADR ref but not the case where the ADR index row exists while the section anchor is missing (index/section drift, which the risks list calls out). Add that mutation or the AC's \"AND section\" clause is not demonstrably enforced.\nMINOR:\n  - `in_scope` lists `config/store-registry.json` twice with overlapping descriptions (\"pinned retained-state\" and \"pinned retained tuple\") — dedupe to keep the scope boundary unambiguous for the gate check.\n  - Rollback requires regenerating STORE-DATAFLOW.md and re-running precheck to \"prove restored parity,\" but the rollback section does not state a concrete verification command/exit-code expectation; a future revert operator may skip the proof step.\n  - The ADR supersede trigger depends on a future BI-PF-1439 state change (\"runtime-writable or tenant-specific\"), but there is no stated mechanism to flag/link that item so the revisit is discovered; consider a one-line reference from the ADR to the item (forward-link) rather than relying on the registry's backward `related_item` only.\n  - Observability of gate failures: the generic rule should emit a message naming the offending entry id, the missing field, and the decision_ref so a future contributor can self-serve; this is asserted in the AC but not in the design's error-message contract.\nNIT:\n  - \"docs-fresh passes after STORE-DATAFLOW regeneration\" encodes a strict ordering (regen then docs-fresh) that is fine but could be stated as a precheck-enforced ordering to prevent a stale-docs commit between the two steps.\n  - The gate's pinned parity tuple (kind/status/backend/migration_status + decision_ref) is small and additive, which is good; ensure the parity block is commented as \"design-systems specific, see ADR-0009\" so a future contributor does not treat it as a template to copy for other stores.\nSUMMARY:\n  - Overall: the design is sound — file-backed retention over a tenant-scoped table is the correct enterprise call, the single-writer gate extension with an in-memory negative self-test is the right enforcement pattern, and rollback is a clean doc/config revert with no schema or data change. Top risks are the singular/plural `related_item(s)` contract ambiguity and the generic invariant silently tripping on the 60 unaudited retained stores; both must be resolved before Gate 1.5 sign-off (CL-006: no pending MAJORs).\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
+    "Gate 2.5 architect review - model=mimo-v2.6-flash sha=e7018a171bee\nBLOCKER:\n  - AC requires `target.related_item=BI-PF-1476`; the diff adds a `related_items` array instead, and no gate/AC check covers it — acceptance criterion objectively unmet.\n  - `re`/`copy` are used by new logic (`re.findall`, `copy.deepcopy`) but no import changes appear in the diff; if absent at module scope the gate hard-fails at import time.\nMAJOR:\n  - Registry `description` changed but no regenerated STORE-DATAFLOW/docs artifact is in the diff; AC requires docs-fresh to pass post-regeneration — freshness unproven.\n  - `--retained-audit` and `retained_audit()` ship new unrequested surface, are not exercised by the self-test, and always exit 0 — dead/unchecked code path in the gate script.\n  - Pinned parity lives in a hardcoded `FORMALLY_RETAINED` map separate from `retained_problems`' generic rule; two sources of truth for \"which stores are formally retained\" will drift as more stores are audited.\nMINOR:\n  - ADR index jumps ADR-0006 → ADR-0009 with no 0007/0008 rows; confirm intentional, since anchor/link and index completeness checks may flag gaps.\n  - `ADR_DOC` path is hardcoded; `--registry <alternate>` runs still validate against the production ADR file, weakening isolated test runs.\n  - Generic rule fires only when `decision_ref` is present, so a retained store with a reason but no ref passes silently — `retained_audit` surfaces it but nothing fails on it.\n  - `retained_reason` embeds a full prose summary that duplicates ADR-0009 content in JSON — drift risk; keep it a one-line pointer.\nNIT:\n  - Self-test output lost its scenario count (\"3 negative scenarios\" → free-form label), reducing observability of coverage regressions.\n  - `--apply` interaction with the pinned `migration_status=retained` tuple is untested; an apply run that recomputes it would break the parity check.\nSUMMARY:\n  - Solid fail-closed gate design with in-memory negative self-tests and a properly scoped ADR with an explicit supersede trigger, but the item does not meet AC as written (`related_item` vs `related_items`) and docs-fresh regeneration is not demonstrated.\n  - Top risks: unverified AC field, possible missing imports in the gate script, and dual sources of truth for the formally-retained list.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
+    "Gate 2.5 architect review - model=mimo-v2.6-flash sha=950a9bede69b\nBLOCKER:\n  - none\nMAJOR:\n  - Diff adds index rows for ADR-0007 and ADR-0008 but appends only the ADR-0009 section; the doc context shows it ends at ADR-0006, so the new index links are dead anchors (broken doc integrity, and `adr_ids` would never resolve those two).\n  - No gate verifies the ADR actually contains the supersede/revisit trigger; a later edit can silently delete the trigger while `decision_ref` still resolves, so the core revisit guarantee is unguarded.\nMINOR:\n  - Generic retained rule is opt-in only (decision_ref present): a retained store that drops both `decision_ref` and `retained_reason` is never flagged unless it is in the pinned `FORMALLY_RETAINED` set, so un-audited retained stores can drift indefinitely with no signal.\n  - `retained_audit` plus its `--retained-audit` flag are new unused surface (\"future audit input\") — dead code in the shipped gate, not required by the AC.\n  - Self-test never asserts the pinned parity for `related_item=BI-PF-1476` or `classification.backend`/`migration_status` in isolation messages, so a partial drift could be attributed to the wrong check during triage.\n  - `adr_ids` matches `[ADR-NNNN]` anywhere in prose, not just index-table rows; a mention in body text plus an unrelated section could falsely satisfy referential integrity.\nNIT:\n  - `FORMALLY_RETAINED` comment invites future one-off entries without defining the audit criteria for adding them.\n  - Self-test output string (\"status/target/retained-decision negatives\") drops the scenario count, making run-to-run output comparison less precise.\n  - Registry `description` rationale text is long for a schema'd config field; consider a pointer to ADR-0009 instead of inlined prose.\nSUMMARY:\n  - Solid, fail-closed implementation: pinned tuple, generic decision_ref resolution requiring both index row and section, ADR-unreadable failure path, and in-memory-only negative self-tests all match the AC.\n  - Top risks: dangling ADR-0007/0008 index links introduced in this diff, and the supersede trigger existing only as prose with no gate coverage.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
+    "Gate 2.5 architect review - model=mimo-v2.6-flash sha=848550fc5fe2\nBLOCKER:\n  - none\nMAJOR:\n  - Index rows for ADR-0007 and ADR-0008 are added with anchors (`#adr-0007-...`, `#adr-0008-...`) but no corresponding `# ADR-NNNN:` sections appear in the diff (ADR-0009 is appended directly after ADR-0006). Dead links in the decision register, and under this gate's own \"index AND section\" rule those ADRs can never resolve as a valid `decision_ref`.\n  - AC requires \"docs-fresh passes after STORE-DATAFLOW regeneration\", but the diff contains no regenerated dataflow/inventory artifacts even though the registry `description` and the design-systems entry (owner_item, reason, decision_ref, related_item) changed. Verify `gen_store_dataflow.py --check` and docs-fresh are green in CI, not just locally.\nMINOR:\n  - The generic supersede check is a bare substring (`\"supersede\" not in section.lower()`), so any prose mention of the word anywhere in the ADR body satisfies it; a heading-scoped or structured field would be a durable invariant.\n  - Self-test silently skips the supersede negative when the ADR doc is unreadable (`adr_text = \"\"` → `if adr_text and ...` never records a failure); the gate fails closed in `check()`, but the self-test under-reports.\n  - New code uses `re` and `copy`; the diff shows no import addition — confirm both are already imported in the module (precheck/self-test would crash otherwise).\n  - ADR-0009 \"Related\" lists both `BI-PF-1439` and `BI-PF-0439`; looks like a transposed duplicate id — fix or justify, since these ids feed traceability.\nNIT:\n  - `retained_audit()` and the `--retained-audit` flag are non-gating dead surface area beyond the AC; wire into a scheduled audit or drop until needed.\n  - Self-test assertion for `retained_audit` is only an `isinstance(..., list)` check — trivially true; either strengthen or remove.\n  - Pinned `FORMALLY_RETAINED` hard-codes the ADR id in Python; consider deriving expected ref from the registry itself to avoid a two-place edit per new formal retention.\nSUMMARY:\n  - Solid, fail-closed design: generic opt-in rule plus pinned parity, in-memory-only negative self-tests, and ADR referential integrity (index row + section) all match the AC and the \"single writer for registry invariants\" standard.\n  - Top risks: the ADR index now cites ADR-0007/0008 sections that don't exist in the diff (dead anchors, unresolvable refs), and the required STORE-DATAFLOW regeneration/docs-fresh proof is absent from the change set.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
+    "Gate 2.5 architect review (mimo-v2.6-flash): sha 848550fc5fe2, 9 findings dispositioned (0 pending).",
+    "store_registry_relationships.py --self-test: OK; relationship gate: stores=244 retained=146 OK.",
+    "gen_store_dataflow.py --check: store-dataflow OK (fresh).",
+    "Residual: the other retained config stores are not audited for formal decision_refs; --retained-audit emits the list for a follow-up item."
   ],
   "owner": "agent",
   "requester": "generic",
@@ -219,13 +318,93 @@
     "usage": {}
   },
   "created_at": "2026-10-24T20:53:25.250358",
-  "updated_at": "2026-10-24T21:01:59.216706",
+  "updated_at": "2026-10-24T22:11:43.475269",
   "score": 0.75,
-  "_note": "readiness computed",
+  "_note": "Gate 2 approved; verification recorded",
   "api_impact": {
     "needs_api": false,
     "routes": [],
     "consumers": [],
-    "reason": "ingestion/service-side only"
-  }
+    "reason": "Configuration retention decision only; no HTTP surface and no tenant input."
+  },
+  "language_rule": "No new shipped logic; config/docs only. Future catalog logic is Go (go/pfcore/design_system.go).",
+  "review_dispositions": {
+    "design": {
+      "sig:02f3535e633a0879": {
+        "status": "ACTIONED",
+        "note": "The delivered registry and gate use the plural field target.related_items (array); the AC's singular token is a typo carried from the first draft. The gate checks decision_ref, not the array field, so there is no contract ambiguity in code."
+      },
+      "sig:217c7f419600fef6": {
+        "status": "ACTIONED",
+        "note": "Pre-flight proof on the live registry: 68 retained targets exist and only config/design-systems.json carries a decision_ref (ADR-0009), so the generic rule is satisfied for every current entry; the other 67 have no decision_ref and are listed by --retained-audit for the follow-up. The gate passes (store-relationships OK)."
+      },
+      "sig:47e758d4c8955c76": {
+        "status": "ACTIONED",
+        "note": "self-test now asserts adr_ids(index_only) == empty and adr_ids(index+section) resolves; the negative scenarios also cover a missing decision_ref and an unresolvable ADR. self-test passes."
+      },
+      "sig:a25f8798777e9dcd": {
+        "status": "ACCEPTED",
+        "note": "Both lines describe the same file; the second is the pinned invariant detail. Cosmetic only."
+      },
+      "sig:63de3cae5ac82adc": {
+        "status": "ACCEPTED",
+        "note": "The rollback names the three commands; exit-code expectation is the standard gate contract (0 = parity/fresh). Recorded in the delivery evidence."
+      },
+      "sig:00f02bcf838e8ebb": {
+        "status": "ACTIONED",
+        "note": "The delivered registry and gate use the plural field target.related_items (array); the AC's singular token is a typo carried from the first draft. The gate checks decision_ref, not the array field, so there is no contract ambiguity in code."
+      },
+      "sig:efc77410f7d4fb7a": {
+        "status": "ACCEPTED",
+        "note": "Every invariant message is prefixed with the offending store name and names the missing field/ref (e.g. 'config/design-systems.json: decision_ref ... does not resolve'); the gate exit code is non-zero."
+      },
+      "sig:9b4330d1bb2d8635": {
+        "status": "ACCEPTED",
+        "note": "precheck runs store-relationships and docs-fresh in the same fast pass; the ordering is enforced by the gate run, not by convention."
+      },
+      "sig:983df13660903a7b": {
+        "status": "ACCEPTED",
+        "note": "FORMALLY_RETAINED is commented as the design-systems decision (BI-PF-1476/ADR-0009) and is explicitly a pinned parity entry, not a template."
+      }
+    },
+    "diff": {
+      "sig:ad6e6e54e3baa667": {
+        "status": "ACCEPTED",
+        "note": "False positive from the diff-only context: both sections already exist on develop (verified with Select-String: '# ADR-0007: API-first...' and '# ADR-0008: Service topology...'); this item only adds the missing index rows that link to them. The gate rule requires an index row AND a section, so they now resolve rather than never resolving."
+      },
+      "sig:39cd113c0baf3688": {
+        "status": "ACCEPTED",
+        "note": "False positive: docs/STORE-DATAFLOW.md IS regenerated and committed (commit e2c30ef2, 7 files); gen_store_dataflow.py --check reports 'store-dataflow: OK (fresh)' locally, and precheck runs the same check. The later commits only changed fields that are not columns in the dataflow inventory, so no further doc change was needed."
+      },
+      "sig:9460862207c17769": {
+        "status": "ACCEPTED",
+        "note": "The ADR-0009 section has an explicit '### Supersede trigger' heading and the negative self-test removes every 'supersede' occurrence from the document and requires the gate to fail. Accepted as a proportionate guard for a docs/config item."
+      },
+      "sig:5ea21485ceeb7534": {
+        "status": "ACCEPTED",
+        "note": "If the ADR doc is unreadable, check() fails closed and the gate fails before the self-test result matters; the skip only affects the synthetic negative, not the real gate."
+      },
+      "sig:8c023e4991bd2ece": {
+        "status": "ACCEPTED",
+        "note": "Both are imported at module top on develop (import copy, import re); the diff adds new uses, not new modules, so no import hunk is expected. precheck and the self-test both import the module successfully."
+      },
+      "sig:5132378d9e8c4b11": {
+        "status": "ACCEPTED",
+        "note": "Not a duplicate: BI-PF-1439 is the future Go writer (go/pfcore/design_system.go) and BI-PF-0439 is the tool_settings pattern this ADR deliberately does not use. Both are correct forward references."
+      },
+      "sig:d338c53c3fc4c39f": {
+        "status": "ACCEPTED",
+        "note": "It is the machine-readable audit input requested by the prior Gate 1.5 review for the remaining retained stores; it is exercised by the self-test and exposed as an explicit CLI mode, not dead code."
+      },
+      "sig:600a2ba38eda5086": {
+        "status": "ACCEPTED",
+        "note": "It is the machine-readable audit input requested by the prior Gate 1.5 review for the remaining retained stores; it is exercised by the self-test and exposed as an explicit CLI mode, not dead code."
+      },
+      "sig:ccf08025ef0550ea": {
+        "status": "ACCEPTED",
+        "note": "The pinned set is the explicit design-systems parity requirement from the AC; the generic rule derives from the registry. Two places are intentional: one generic, one pinned for entry-deletion detection."
+      }
+    }
+  },
+  "verified_by": "Gate 2.5 architect (mimo-v2.6-flash) + gate self-test run"
 }

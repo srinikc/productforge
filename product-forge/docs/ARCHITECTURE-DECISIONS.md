@@ -18,6 +18,9 @@ ADR. Individual ADRs may later be split into `docs/adr/NNNN-*.md` (the index her
 | [ADR-0004](#adr-0004-feature--epic--children-backlog-model) | Feature ↔ Epic ↔ children (backlog model) | Accepted | 2026-10-08 |
 | [ADR-0005](#adr-0005-eventing--alerting-ssot-go-first-bus-python-thin-client) | Eventing & Alerting SSOT: Go-first event bus; Python thin client | Accepted | 2026-10-12 |
 | [ADR-0006](#adr-0006-enterprise-data-plane-postgresql-system-of-record-object-store-tenant-isolation-residency) | Enterprise Data Plane (PostgreSQL system of record, object store, tenant isolation, residency) | Accepted | 2026-10-13 |
+| [ADR-0007](#adr-0007-api-first---every-capability-is-a-secured-api-surface) | API-first - every capability is a secured API surface | Accepted | 2026-10-24 |
+| [ADR-0008](#adr-0008-service-topology---go-backed-capabilities-are-exposed-by-go-services) | Service topology - Go-backed capabilities are exposed by Go services | Accepted | 2026-10-24 |
+| [ADR-0009](#adr-0009-formal-retention-of-global-config-stores-design-systems) | Formal retention of global config stores (design-systems) | Accepted | 2026-10-24 |
 
 ## Template
 ```markdown
@@ -482,3 +485,48 @@ restores the names and is gated on archives/holds plus an audited reason.
   ETags), deterministic versioned report; it never deletes or repairs.
 - **Ownership/modules**: each new package is its own module per the one-module-per-directory rule; the
   `go-modules` gate discovers and tests all modules.
+
+# ADR-0009: Formal retention of global config stores (design-systems)
+
+**Status:** Accepted
+**Date:** 2026-10-24   **Deciders:** architecture + HIL   **Related:** BI-PF-1476, BI-PF-1439, BI-PF-0439
+
+## Context and Problem Statement
+`config/design-systems.json` is registered as a configuration store but had no recorded decision about where
+its data lives. The stale title suggested moving it behind `tool_settings`. The catalog holds global,
+read-only product metadata (product types, style, stack, palette, radius/type/motion dials, component set,
+a11y target); `tool_settings` is tenant-scoped (`tenant_id`), so storing a global catalog there would mix a
+global concern into a tenant partition and force duplicate rows per tenant.
+
+## Decision Drivers
+- One truth per concern; one writer per file (CL-001).
+- Global product metadata is not tenant data and must not be tenant-scoped.
+- Reversibility and no data migration for a store with no runtime rows.
+- Durable rationale that survives the closing of the work item.
+
+## Considered Options
+1. **Move into `tool_settings`** - rejected: tenant-scoped table, wrong ownership and needless duplication.
+2. **Formal retention as a file-backed global catalog** - chosen: matches the existing config pattern and
+   stays swappable when the Go writer lands.
+3. **Retain by default with no rationale** - rejected: the next contributor would re-propose the migration.
+
+## Decision Outcome
+**Chosen option:** "Formal retention as a file-backed global catalog" because the data is global, read-only,
+and not tenant-scoped.
+
+### Consequences
+**Positive:** no schema/data change; the owner remains `core/go_host.py` with the planned Go writer
+`go/pfcore/design_system.go` (BI-PF-1439); the registry carries a durable reason.
+**Negative:** the catalog remains file-backed, so a future multi-writer or tenant-specific requirement needs
+a new ADR. **Risks:** a contributor edits the registry without reading the ADR; mitigated by the gate check.
+
+### Confirmation
+- `python scripts/dev/store_registry_relationships.py` asserts the pinned retained tuple, non-empty
+  `retained_reason`, and a `decision_ref` that resolves to this ADR's index row and section.
+- `python scripts/dev/gen_store_dataflow.py --check` proves the generated inventory is fresh.
+- `python scripts/dev/precheck.py` passes with no schema or data change.
+
+### Supersede trigger
+A new ADR is required if BI-PF-1439 makes the catalog runtime-writable, if the catalog becomes
+tenant-specific, or if a second writer needs shared tenant settings. Re-open via a new backlog item that
+supersedes this ADR; do not silently flip the registry target.
