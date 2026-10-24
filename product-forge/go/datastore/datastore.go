@@ -59,9 +59,10 @@ type PutOptions struct {
 	// keep versions (S3). It is NOT a retention lock: set Retention/RetentionMode for object lock.
 	Immutable bool
 	Retention time.Duration
-	// RetentionMode is GOVERNANCE (default) or COMPLIANCE. COMPLIANCE requires Immutable=true and cannot
-	// be shortened or removed once applied.
-	RetentionMode string
+	// RetentionMode is GOVERNANCE (default) or COMPLIANCE. COMPLIANCE requires Immutable=true,
+	// ComplianceOptIn=true and cannot be shortened or removed once applied.
+	RetentionMode   string
+	ComplianceOptIn bool
 	// ServerSideEncryption requests provider-managed encryption (e.g. "aws:kms"); adapters that cannot
 	// honour it MUST reject the write rather than silently store plaintext.
 	ServerSideEncryption string

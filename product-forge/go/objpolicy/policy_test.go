@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"io"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -52,7 +54,7 @@ func TestMintRejectsOutOfScopeKey(t *testing.T) {
 	if _, err := Mint(ctxFor("tenant-a"), stubStore{signed: true}, "tenant-a", "GET", time.Minute); !errors.Is(err, ErrTenantScope) {
 		t.Fatalf("tenant root must be rejected, got %v", err)
 	}
-	if Stats()["TENANT_SCOPE"] != 2 {
+	if Stats()["tenant-a|TENANT_SCOPE"] != 2 {
 		t.Fatalf("denial counter = %v", Stats())
 	}
 }
@@ -75,7 +77,7 @@ func TestMintRejectsMethodAndTTL(t *testing.T) {
 	if _, err := Mint(ctxFor("t"), stubStore{signed: true}, "t/x", "GET", time.Hour); !errors.Is(err, ErrTTL) {
 		t.Fatalf("want ErrTTL high, got %v", err)
 	}
-	if Stats()["METHOD"] != 1 || Stats()["TTL"] != 2 {
+	if Stats()["t|METHOD"] != 1 || Stats()["t|TTL"] != 2 {
 		t.Fatalf("denial counters = %v", Stats())
 	}
 }
@@ -91,5 +93,31 @@ func TestMintRejectsTraversal(t *testing.T) {
 	ResetStats()
 	if _, err := Mint(ctxFor("tenant-a"), stubStore{signed: true}, "tenant-a/../tenant-b/x", "GET", time.Minute); !errors.Is(err, ErrTenantScope) {
 		t.Fatalf("want ErrTenantScope for traversal, got %v", err)
+	}
+}
+
+func TestHTTPMiddlewareAttachesTenant(t *testing.T) {
+	resolve := func(r *http.Request) (string, error) {
+		if r.Header.Get("X-Test-Tenant") == "" {
+			return "", errors.New("no tenant")
+		}
+		return r.Header.Get("X-Test-Tenant"), nil
+	}
+	var got string
+	h := HTTPMiddleware(resolve, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		got, _ = TenantFrom(r.Context())
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.Header.Set("X-Test-Tenant", "tenant-a")
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, req)
+	if rr.Code != http.StatusNoContent || got != "tenant-a" {
+		t.Fatalf("middleware: code=%d tenant=%q", rr.Code, got)
+	}
+	unauth := httptest.NewRecorder()
+	h.ServeHTTP(unauth, httptest.NewRequest(http.MethodGet, "/", nil))
+	if unauth.Code != http.StatusUnauthorized {
+		t.Fatalf("unauthenticated request code=%d", unauth.Code)
 	}
 }

@@ -472,8 +472,12 @@ restores the names and is gated on archives/holds plus an audited reason.
 - **Local filesystem** cannot lock: retention/lifecycle return `UnsupportedError`; `Immutable` rejects replacing
   an existing object with different content (`ErrImmutable`).
 - **Signed URLs have ONE minting boundary** (`go/objpolicy.Mint`): method allowlist, TTL bounds (30s..15m,
-  default 5m), and the tenant taken from the authenticated context (`objpolicy.WithTenant`) - never a caller
-  argument. Denials are counted (`objpolicy.Stats()`) and logged with a reason code.
+  default 5m), and the tenant taken from the authenticated context (`objpolicy.WithTenant`, wired by
+  `objpolicy.HTTPMiddleware` with a credential-validating resolver) - never a caller argument. Denials are
+  counted per tenant+reason (`objpolicy.Stats()`) with bounded logging.
+- **Immutable semantics**: local rejects replacing different content; S3 requires bucket versioning for
+  `Immutable` without retention (`UnsupportedError` otherwise). Retention at Put defaults to GOVERNANCE;
+  COMPLIANCE requires `ComplianceOptIn=true`.
 - **Reconciliation is read-only** (`go/objreconcile`): manifest vs `List`/`Head`, sha256 comparisons (never
   ETags), deterministic versioned report; it never deletes or repairs.
 - **Ownership/modules**: each new package is its own module per the one-module-per-directory rule; the

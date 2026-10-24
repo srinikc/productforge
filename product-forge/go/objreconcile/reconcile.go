@@ -8,6 +8,7 @@ import (
 	"context"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"log"
 	"os"
 	"sort"
@@ -16,7 +17,10 @@ import (
 	"productforge/datastore"
 )
 
-const Schema = "pf.objreconcile/2"
+const Schema = "pf.objreconcile/1"
+
+// MaxObjects bounds a single scan (fail closed rather than OOM on bucket-scale listings).
+const MaxObjects = 100000
 
 // Entry is one expected object.
 type Entry struct {
@@ -29,7 +33,8 @@ type Entry struct {
 type Report struct {
 	Schema               string   `json:"schema"`
 	Prefix               string   `json:"prefix"`
-	Expected             int      `json:"expected"`
+	Provided             int      `json:"provided"`
+	Expected             int      `json:"expected"` // valid entries after invalid/duplicate filtering
 	Actual               int      `json:"actual"`
 	Invalid              []string `json:"invalid"` // out-of-prefix/duplicate manifest entries
 	Missing              []string `json:"missing"`
@@ -48,12 +53,15 @@ func (r Report) Clean() bool {
 // Scan lists the store under prefix and compares every expected key via Head (authoritative fields).
 func Scan(ctx context.Context, store datastore.ObjectStore, prefix string, manifest []Entry) (Report, error) {
 	prefix = normalizePrefix(prefix)
-	rep := Report{Schema: Schema, Prefix: prefix, Expected: len(manifest),
+	rep := Report{Schema: Schema, Prefix: prefix, Provided: len(manifest),
 		Invalid: []string{}, Missing: []string{}, Orphaned: []string{},
 		SizeMismatch: []string{}, ChecksumMismatch: []string{}, ChecksumUnverifiable: []string{}}
 	objects, err := store.List(ctx, prefix)
 	if err != nil {
 		return rep, err
+	}
+	if len(objects) > MaxObjects {
+		return rep, fmt.Errorf("objreconcile: %d objects exceed the scan bound (%d)", len(objects), MaxObjects)
 	}
 	rep.Actual = len(objects)
 	actual := make(map[string]datastore.ObjectInfo, len(objects))
@@ -72,6 +80,7 @@ func Scan(ctx context.Context, store datastore.ObjectStore, prefix string, manif
 		}
 		want[e.Key] = e
 	}
+	rep.Expected = len(want)
 	for _, e := range want {
 		info, ok := actual[e.Key]
 		if !ok {

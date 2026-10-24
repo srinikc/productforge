@@ -46,6 +46,7 @@ type S3Store struct {
 	bucket     string
 	lockMu     sync.Mutex
 	objectLock bool // probed: bucket-level object-lock configuration
+	versioned  bool // probed: bucket-level versioning
 }
 
 // New creates the adapter and (optionally) ensures the bucket exists.
@@ -61,12 +62,7 @@ func New(ctx context.Context, cfg Config) (*S3Store, error) {
 	if err != nil {
 		return nil, err
 	}
-	s := &S3Store{client: cl, bucket: cfg.Bucket}
-	if _, _, _, _, lerr := cl.GetObjectLockConfig(ctx, cfg.Bucket); lerr == nil {
-		s.objectLock = true
-	} else {
-		log.Printf("s3store: object-lock probe failed for bucket %q (lifecycle disabled): %v", cfg.Bucket, lerr)
-	}
+	s := &S3Store{client: cl, bucket: cfg.Bucket, versioned: true} // probe after an optional bucket create
 	if cfg.Ensure {
 		ok, err := cl.BucketExists(ctx, cfg.Bucket)
 		if err != nil {
@@ -78,6 +74,8 @@ func New(ctx context.Context, cfg Config) (*S3Store, error) {
 			}
 		}
 	}
+	s.probeLock(ctx)
+	s.probeVersioning(ctx)
 	return s, nil
 }
 
@@ -105,6 +103,14 @@ func (s *S3Store) Put(ctx context.Context, key string, r io.Reader, size int64, 
 		ct = "application/octet-stream"
 	}
 	putOpts := minio.PutObjectOptions{ContentType: ct}
+	if opts.Retention <= 0 && opts.Immutable {
+		s.lockMu.Lock()
+		versioned := s.versioned
+		s.lockMu.Unlock()
+		if !versioned {
+			return datastore.ObjectInfo{}, &datastore.UnsupportedError{Provider: "s3", Capability: "immutable-without-versioning"}
+		}
+	}
 	if mode, until, lerr := retentionFor(opts); lerr != nil {
 		return datastore.ObjectInfo{}, lerr
 	} else if mode != "" {
@@ -163,7 +169,8 @@ func (s *S3Store) Put(ctx context.Context, key string, r io.Reader, size int64, 
 func (s *S3Store) stat(ctx context.Context, key, version string) (minio.ObjectInfo, error) {
 	st, err := s.client.StatObject(ctx, s.bucket, key, minio.StatObjectOptions{VersionID: version})
 	if err != nil {
-		if minio.ToErrorResponse(err).Code == "NoSuchKey" {
+		code := minio.ToErrorResponse(err).Code
+		if code == "NoSuchKey" || code == "NoSuchVersion" {
 			return minio.ObjectInfo{}, os.ErrNotExist
 		}
 		return minio.ObjectInfo{}, err
@@ -264,6 +271,9 @@ func retentionFor(opts datastore.PutOptions) (minio.RetentionMode, time.Time, er
 	case "", "GOVERNANCE":
 		return minio.Governance, time.Now().Add(opts.Retention), nil
 	case "COMPLIANCE":
+		if !opts.ComplianceOptIn {
+			return "", time.Time{}, fmt.Errorf("%w: COMPLIANCE requires ComplianceOptIn=true", datastore.ErrInvalidPolicy)
+		}
 		return minio.Compliance, time.Now().Add(opts.Retention), nil
 	default:
 		return "", time.Time{}, fmt.Errorf("%w: unknown retention mode %q", datastore.ErrInvalidPolicy, opts.RetentionMode)
@@ -304,12 +314,11 @@ func (s *S3Store) ApplyLifecycle(ctx context.Context, key, version string, polic
 	lock := s.objectLock
 	s.lockMu.Unlock()
 	if !lock {
-		// Re-probe once: New() may have seen a transient failure.
-		if _, _, _, _, lerr := s.client.GetObjectLockConfig(ctx, s.bucket); lerr == nil {
-			s.lockMu.Lock()
-			s.objectLock = true
-			s.lockMu.Unlock()
-		} else {
+		s.probeLock(ctx)
+		s.lockMu.Lock()
+		lock = s.objectLock
+		s.lockMu.Unlock()
+		if !lock {
 			return &datastore.UnsupportedError{Provider: "s3", Capability: "object-lock"}
 		}
 	}
@@ -326,7 +335,10 @@ func (s *S3Store) ApplyLifecycle(ctx context.Context, key, version string, polic
 		if err := s.client.PutObjectLegalHold(ctx, s.bucket, key, minio.PutObjectLegalHoldOptions{
 			Status: &status, VersionID: version,
 		}); err != nil {
-			return &datastore.PartialApplyError{Applied: "retention", Err: fmt.Errorf("legal hold: %w", err)}
+			if mode != "" {
+				return &datastore.PartialApplyError{Applied: "retention", Err: fmt.Errorf("legal hold: %w", err)}
+			}
+			return fmt.Errorf("s3store: apply legal hold: %w", err)
 		}
 	}
 	return nil
@@ -343,6 +355,12 @@ func legalHoldStatus(policy datastore.LifecyclePolicy) minio.LegalHoldStatus {
 // ObjectLifecycle returns the effective retention/legal-hold state.
 func (s *S3Store) ObjectLifecycle(ctx context.Context, key, version string) (datastore.LifecycleState, error) {
 	var st datastore.LifecycleState
+	s.lockMu.Lock()
+	lock := s.objectLock
+	s.lockMu.Unlock()
+	if !lock {
+		return st, &datastore.UnsupportedError{Provider: "s3", Capability: "object-lock"}
+	}
 	mode, until, err := s.client.GetObjectRetention(ctx, s.bucket, key, version)
 	if err != nil {
 		return st, fmt.Errorf("s3store: get retention: %w", err)
@@ -360,8 +378,33 @@ func (s *S3Store) ObjectLifecycle(ctx context.Context, key, version string) (dat
 	if hold != nil && *hold == minio.LegalHoldEnabled {
 		st.LegalHold = true
 	}
-	if ver, err := s.client.GetBucketVersioning(ctx, s.bucket); err == nil {
-		st.Versioning = strings.EqualFold(string(ver.Status), "Enabled")
-	}
+	s.lockMu.Lock()
+	st.Versioning = s.versioned
+	s.lockMu.Unlock()
 	return st, nil
 }
+
+func (s *S3Store) probeLock(ctx context.Context) {
+	if _, _, _, _, err := s.client.GetObjectLockConfig(ctx, s.bucket); err != nil {
+		log.Printf("s3store: object-lock probe failed for bucket %q: %v", s.bucket, err)
+		return
+	}
+	s.lockMu.Lock()
+	s.objectLock = true
+	s.lockMu.Unlock()
+}
+
+func (s *S3Store) probeVersioning(ctx context.Context) {
+	ver, err := s.client.GetBucketVersioning(ctx, s.bucket)
+	s.lockMu.Lock()
+	defer s.lockMu.Unlock()
+	if err != nil {
+		s.versioned = false
+		log.Printf("s3store: versioning probe failed for bucket %q: %v", s.bucket, err)
+		return
+	}
+	s.versioned = strings.EqualFold(string(ver.Status), "Enabled")
+}
+
+// Provider identifies the adapter in typed capability errors.
+func (s *S3Store) Provider() string { return "s3" }

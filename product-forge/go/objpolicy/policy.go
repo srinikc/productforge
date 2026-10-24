@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net/http"
 	"path"
 	"sort"
 	"strings"
@@ -69,11 +70,17 @@ var stats struct {
 
 func init() { stats.byReason = map[string]int{} }
 
-func deny(reason string) {
+func deny(ctx context.Context, reason string) {
+	tenant, _ := TenantFrom(ctx)
+	key := tenant + "|" + reason
 	stats.Lock()
-	stats.byReason[reason]++
+	stats.byReason[key]++
+	n := stats.byReason[key]
 	stats.Unlock()
-	log.Printf("objpolicy: deny reason=%s", reason)
+	// Bounded logging: first 5 per tenant/reason, then every 100 to prevent log flooding.
+	if n <= 5 || n%100 == 0 {
+		log.Printf("objpolicy: deny tenant=%q reason=%s count=%d", tenant, reason, n)
+	}
 }
 
 // Stats returns a copy of denial counts by reason.
@@ -98,38 +105,61 @@ func ResetStats() {
 func Mint(ctx context.Context, store datastore.ObjectStore, key, method string, ttl time.Duration) (string, error) {
 	tenant, ok := TenantFrom(ctx)
 	if !ok {
-		deny("TENANT_CONTEXT")
+		deny(ctx, "TENANT_CONTEXT")
 		return "", ErrTenantCtx
 	}
 	m := strings.ToUpper(strings.TrimSpace(method))
 	if !allowedMethods[m] {
-		deny("METHOD")
+		deny(ctx, "METHOD")
 		return "", fmt.Errorf("%w: %q", ErrMethod, method)
 	}
 	if ttl == 0 {
 		ttl = DefaultTTL
 	}
 	if ttl < MinTTL || ttl > MaxTTL {
-		deny("TTL")
+		deny(ctx, "TTL")
 		return "", fmt.Errorf("%w: %s (min %s, max %s)", ErrTTL, ttl, MinTTL, MaxTTL)
 	}
 	prefix, k := cleanPath(tenant), cleanPath(key)
 	if prefix == "" || !strings.HasPrefix(k, prefix+"/") {
-		deny("TENANT_SCOPE")
+		deny(ctx, "TENANT_SCOPE")
 		return "", fmt.Errorf("%w: %q not under %q", ErrTenantScope, key, tenant)
 	}
 	if !store.Capabilities().SignedURLs {
-		deny("UNSUPPORTED")
-		return "", &datastore.UnsupportedError{Provider: fmt.Sprintf("%T", store), Capability: "signed-url"}
+		deny(ctx, "UNSUPPORTED")
+		provider := "provider"
+		if p, ok := store.(interface{ Provider() string }); ok {
+			provider = p.Provider()
+		}
+		return "", &datastore.UnsupportedError{Provider: provider, Capability: "signed-url"}
 	}
 	return store.SignedURL(ctx, k, m, ttl)
 }
 
-// cleanPath normalizes a key/prefix and refuses traversal (".." / absolute escapes).
+// cleanPath normalizes a key/prefix and refuses traversal (".." segments / absolute escapes).
 func cleanPath(p string) string {
-	c := path.Clean("/" + strings.TrimSpace(p))
-	if c == "/" || c == "/.." || strings.HasPrefix(c, "/../") || strings.Contains(c, "/../") {
+	raw := "/" + strings.TrimSpace(p)
+	for _, seg := range strings.Split(raw, "/") {
+		if seg == ".." {
+			return ""
+		}
+	}
+	c := path.Clean(raw)
+	if c == "/" {
 		return ""
 	}
 	return strings.TrimPrefix(c, "/")
+}
+
+// HTTPMiddleware attaches the authenticated tenant to the request context. resolve MUST validate the
+// caller's credentials; it returns the tenant or an error (401). This is the only supported wiring.
+func HTTPMiddleware(resolve func(*http.Request) (string, error), next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		tenant, err := resolve(r)
+		if err != nil || strings.TrimSpace(tenant) == "" {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+		next.ServeHTTP(w, r.WithContext(WithTenant(r.Context(), tenant)))
+	})
 }
