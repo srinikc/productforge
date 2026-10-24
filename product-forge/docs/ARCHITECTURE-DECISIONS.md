@@ -18,6 +18,8 @@ ADR. Individual ADRs may later be split into `docs/adr/NNNN-*.md` (the index her
 | [ADR-0004](#adr-0004-feature--epic--children-backlog-model) | Feature ↔ Epic ↔ children (backlog model) | Accepted | 2026-10-08 |
 | [ADR-0005](#adr-0005-eventing--alerting-ssot-go-first-bus-python-thin-client) | Eventing & Alerting SSOT: Go-first event bus; Python thin client | Accepted | 2026-10-12 |
 | [ADR-0006](#adr-0006-enterprise-data-plane-postgresql-system-of-record-object-store-tenant-isolation-residency) | Enterprise Data Plane (PostgreSQL system of record, object store, tenant isolation, residency) | Accepted | 2026-10-13 |
+| [ADR-0007](#adr-0007-api-first---every-capability-is-a-secured-api-surface) | API-first - every capability is a secured API surface | Accepted | 2026-10-24 |
+| [ADR-0008](#adr-0008-service-topology---go-backed-capabilities-are-exposed-by-go-services) | Service topology - Go-backed capabilities are exposed by Go services | Accepted | 2026-10-24 |
 | [ADR-0009](#adr-0009-formal-retention-of-global-config-stores-design-systems) | Formal retention of global config stores (design-systems) | Accepted | 2026-10-24 |
 
 ## Template

@@ -368,6 +368,11 @@ def _self_test(reg: dict, tables, cols, triggers) -> int:
     both = index_only + "\n# ADR-0099: x\n"
     if adr_ids(index_only) or not adr_ids(both):
         failures.append("ADR index/section matching is not enforced")
+    if not isinstance(retained_audit(reg), list):
+        failures.append("retained_audit did not return a list")
+    applied = apply(copy.deepcopy(reg), tables, cols)
+    if check(applied, tables, cols, triggers):
+        failures.append("apply() broke the registry invariants")
     table_store = next((n for n, v in (reg.get("stores") or {}).items()
                         if (v.get("target") or {}).get("kind") == "table"), None)
     if table_store is None:
