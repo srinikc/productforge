@@ -104,3 +104,18 @@ def test_transitions_uses_repo_root(tmp_path, monkeypatch):
     monkeypatch.setattr(d, "_git", fake_git)
     got = d.transitions("base-sha")
     assert [x["id"] for x in got] == ["BI-TEST-X"]
+
+
+def test_transitions_fails_closed_on_malformed_item(tmp_path, monkeypatch):
+    rel = "product-forge/data/backlog/items/BI-TEST-BAD.json"
+    item = tmp_path / rel
+    item.parent.mkdir(parents=True)
+    item.write_text("{not json", encoding="utf-8")
+
+    def fake_git(*args, **kwargs):
+        return rel if args and args[0] == "diff" else ""
+
+    monkeypatch.setattr(d, "_repo_root", lambda: str(tmp_path))
+    monkeypatch.setattr(d, "_git", fake_git)
+    with pytest.raises(RuntimeError, match="BI-TEST-BAD.json"):
+        d.transitions("base-sha")

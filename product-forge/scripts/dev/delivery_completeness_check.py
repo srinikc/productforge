@@ -133,7 +133,7 @@ def _load(rel_repo: str) -> dict | None:
 
 
 def transitions(base: str = "") -> list[dict]:
-    base = base or _git("merge-base", "develop", "HEAD") or "origin/develop"
+    base = base or _git("merge-base", "develop", "HEAD", allow_fail=True) or "origin/develop"
     out = []
     skipped = 0
     for rel in _git("diff", "--name-only", f"{base}..HEAD").splitlines():
@@ -154,7 +154,7 @@ def transitions(base: str = "") -> list[dict]:
         if str(prev.get("status") or "").lower() not in DONE:
             out.append(cur)
     if skipped:
-        print(f"delivery-completeness: skipped {skipped} deleted/absent path(s) in the diff", file=sys.stderr)
+        print(json.dumps({"event": "delivery-completeness-skip", "count": skipped}), file=sys.stderr)
     return out
 
 
