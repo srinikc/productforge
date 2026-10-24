@@ -1,0 +1,45 @@
+{
+  "item": "BI-PF-1315",
+  "sha": "a9d5fd331b7f",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-24T15:02:23.215105+00:00",
+  "findings": {
+    "BLOCKER": [
+      "config/residency-policy.json begins with a UTF-8 BOM; Go's json.Unmarshal rejects it, so LoadRegionPolicy always errors and the region-aware restore guard (AC) cannot run as shipped.",
+      "FullRestore/TenantRestore strip the password from the DSN (dsnEnv) but pass PGPASSWORD only to pg_restore; psql and pg_dump run via run()/CommandContext with no Env, so drill commands fail authentication unless the cluster uses trust auth.",
+      "AC unmet: the full drill never verifies schema_migrations, performs row counts only (no per-table checksums), and DrillReport records no archive age (RPO).",
+      "AC test coverage unmet: no tests for drill verification math (RTO/isolation/checksum) and none for the reconcile repair guard; only PITR parsing, region routing, Classify, and scratch guard are tested."
+    ],
+    "MAJOR": [
+      "Classify filters object keys by --prefix but not metadata rows, so with a prefix every out-of-prefix ref is reported Missing and --repair will DELETE those artifact/memory rows (data-loss path).",
+      "dsnEnv password extraction uses the first '@' in the authority; a password containing '@' silently falls back to embedding the secret in psql/pg_dump argv (visible via process listing).",
+      "Region guard fails open for unmapped tenants: shipped policy has empty \"cells\" with default \"local\", so any unknown tenant is treated as home=local and a matching target bypasses residency, contradicting the registry's \"fail closed when absent\" contract.",
+      "The --allow-cross-region reason is accepted but never persisted or audited; no audit trail for a data-residency override.",
+      "Archiver age is reported but never evaluated against any threshold: a stalled archiver (failed_count=0, last_archived weeks ago) still yields OK=true, so the readiness check is not actionable for RPO.",
+      "TenantRestore never drops the scratch database on success or failure (no defer cleanup), unlike FullRestore; scratch DBs accumulate in the target cluster.",
+      "Isolation check uses `tenant_id <> $1`, which excludes NULL tenant_id rows, so cross-tenant/NULL leakage in scratch is undetected.",
+      "Full drill materializes the entire pg_dump in memory via .Output(); this does not scale to production-sized databases."
+    ],
+    "MINOR": [
+      "Default --scratch value \"pf_backup_drill\" never satisfies GuardScratch's required \"pf_scratch_\" prefix, so the default invocation always fails.",
+      "--region-policy default path \"config/residency-policy.json\" is CWD-relative; the binary breaks when run outside the repo root.",
+      "TenantRestore ignores --rto-seconds (records elapsed time but no budget comparison), unlike FullRestore.",
+      "pg_stat_archiver query error is discarded (`_ =`), so archiver stats can silently be absent from the report.",
+      "REVIEW-GATES-LIFECYCLE.md new \"Binding order\" paragraph contains mojibake arrows (\"? Gate 1.5\"), corrupting the documented gate sequence.",
+      "Process-gate changes (gate0_check relaxation, gate2_completion_check hard-gating, go_modules_check logic) are bundled into a feature item, mixing delivery process changes with product code in one reviewable diff."
+    ],
+    "NIT": [
+      "go.mod import block mixes stdlib \"time\" with third-party imports; goimports grouping convention not followed.",
+      "Classify keys the rows map by ref only, collapsing duplicate object_ref values across artifacts/memory.",
+      "--repair flag help says \"delete metadata rows whose object is missing\" while the AC/registry call these \"orphaned METADATA rows\" \u2014 terminology drift between spec and tool.",
+      "DrillReport.Elapsed serializes as raw nanoseconds while RTOSeconds duplicates it in the JSON output."
+    ],
+    "SUMMARY": [
+      "Solid structure (Go package, guarded destructive ops, explicit exit codes), but the item does not meet its ACs: no schema_migrations/checksum/RPO recording, missing drill/repair tests, and the shipped residency policy is unparseable (BOM), so the region guard cannot run.",
+      "Top risks: a --prefix + --repair combination can delete valid metadata rows, auth handling likely breaks the drills in real environments, and residency defaults fail open for unmapped tenants.",
+      "Recommend blocking merge until AC deltas, the BOM/DSN env issues, and the Classify prefix/repair data-loss path are resolved."
+    ]
+  }
+}

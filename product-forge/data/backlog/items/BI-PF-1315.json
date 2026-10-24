@@ -37,6 +37,39 @@
       "decision": "APPROVE",
       "by": "cli",
       "note": ""
+    },
+    {
+      "at": "2026-10-24T14:41:08.334564+00:00",
+      "by": "hil:user",
+      "decision": "APPROVE_WITH_ATTENTION",
+      "gate": 2,
+      "findings_sha": "0d09ce146233",
+      "findings_digest": "a95ab6c5b87e",
+      "seq": 3,
+      "note": "EDP-23 backup/PITR/drills approved.",
+      "hil_confirmed": true
+    },
+    {
+      "at": "2026-10-24T14:58:48.118099+00:00",
+      "by": "hil:user",
+      "decision": "APPROVE_WITH_ATTENTION",
+      "gate": 1,
+      "findings_sha": "5de1eb3db68c",
+      "findings_digest": "61ef8a8351e7",
+      "seq": 4,
+      "note": "HIL approved EDP-23 with B1/B2 actioned.",
+      "hil_confirmed": true
+    },
+    {
+      "at": "2026-10-24T15:02:24.794467+00:00",
+      "by": "hil:user",
+      "decision": "APPROVE_WITH_ATTENTION",
+      "gate": 2,
+      "findings_sha": "a9d5fd331b7f",
+      "findings_digest": "7ee630ac29d0",
+      "seq": 5,
+      "note": "HIL Gate 2 for EDP-23.",
+      "hil_confirmed": true
     }
   ],
   "follow_up": {},
@@ -47,23 +80,25 @@
     "who_feels": "Operators, compliance teams, and enterprise customers.",
     "source": "authored"
   },
-  "objective": "Deliver backup + PITR configuration, automated restore drills (full-service and single-tenant), DB<->object integrity reconciliation, and region-aware restore routing.",
+  "objective": "Deliver PITR readiness, automated full/single-tenant restore drills, DB<->object integrity reconciliation and region-aware restore guarding.",
   "acceptance_criteria": [
-    "Automated full-service restore drill passes within agreed RTO/RPO",
-    "Single-tenant restore drill isolates and restores only that tenant's data",
-    "DB<->object integrity reconciliation reports and repairs orphaned rows/objects",
-    "Region-aware restore selects correct target cell (per BI-PF-1317 tiers)"
+    "PITR readiness check: a Go check verifies wal_level>=replica, archive_mode on/always, non-empty archive_command, and reports the archiver age/failures; failure is explicit and actionable.",
+    "Full-service restore drill: pfbackupdrill full restores a pg_dump into a scratch database, verifies schema_migrations and per-table row counts/checksums, records elapsed RTO and archive age (RPO), and drops the scratch DB.",
+    "Single-tenant restore drill: pfbackupdrill tenant exports only the tenant's rows for the core tables into a scratch DB and verifies counts plus zero cross-tenant rows (isolation).",
+    "DB<->object integrity: pfbackupdrill reconcile compares artifacts metadata with the object store, reports missing objects and orphaned objects, and repairs orphaned METADATA rows only with --repair (never deletes objects).",
+    "Region-aware restore guard: a residency mapping selects the target cell; a restore to a cell that does not match the tenant's home region is refused unless --allow-cross-region with a reason.",
+    "Tests cover PITR settings parsing, drill verification math, reconcile classification/repair guard and region routing; precheck PASS."
   ],
   "in_scope": [
-    "PG backup + PITR configuration",
-    "Restore-drill automation (full + single-tenant)",
-    "DB<->object integrity reconciliation (reuse BI-PF-1308 hooks)",
-    "Region-aware restore routing"
+    "PITR check",
+    "full + single-tenant restore drills",
+    "artifact/object reconciliation with metadata-only repair",
+    "region guard"
   ],
   "out_of_scope": [
-    "Object lifecycle/versioning itself (BI-PF-1308)",
-    "Region cell provisioning/partitioning (BI-PF-1317)",
-    "SLO benchmarking (BI-PF-1314)"
+    "Provisioning replicas/WAL storage (ops)",
+    "Region cell provisioning (BI-PF-1317)",
+    "Object lifecycle (EDP-16)"
   ],
   "affected_components": [
     "core/service_catalog.py",
@@ -71,21 +106,70 @@
     "DB backup config / infra manifests"
   ],
   "affected_files": [
-    "components/backup/restore_drills.py",
-    "components/backup/pitr_config.yaml",
-    "components/storage/integrity_reconciler.py",
-    "tests/test_restore_drill.py"
+    "go/backupdrill/go.mod",
+    "go/backupdrill/pitr.go",
+    "go/backupdrill/drill.go",
+    "go/backupdrill/reconcile.go",
+    "go/backupdrill/region.go",
+    "go/backupdrill/cmd/pfbackupdrill/main.go",
+    "go/backupdrill/backupdrill_test.go",
+    "config/residency-policy.json"
   ],
-  "approach": "Configure WAL archiving/PITR, script restore drills for both scopes, extend 1308 reconciler, route restores by region cell.",
+  "approach": "One Go module go/backupdrill (cmd pfbackupdrill) orchestrating pg_dump/pg_restore and psql verification; reconciliation reuses datastore.ObjectStore; region mapping from config/residency-policy.json with fail-closed default.",
   "review": {
     "reconciliation": {
-      "prior_decisions": [],
-      "existing_path": [],
-      "assumptions": [],
-      "divergences": [],
+      "prior_decisions": [
+        "EDP-16 object lifecycle (BI-PF-1308)",
+        "EDP-20 audit retention (BI-PF-1312)",
+        "EDP-18 cutover tooling (BI-PF-1310)"
+      ],
+      "existing_path": [
+        "go/pfaudit backup+rehearsal (audit only)",
+        "go/objreconcile (objects)",
+        "go/store PgStore"
+      ],
+      "assumptions": [
+        "staging DSN + pg_dump/pg_restore available",
+        "tenants are keyed by tenant_id",
+        "residency policy is a JSON tenant->cell map"
+      ],
+      "divergences": [
+        "Region cell provisioning remains BI-PF-1317 (out of scope); guard only enforces routing"
+      ],
       "open_questions": []
     },
-    "impact_review": [],
+    "impact_review": [
+      {
+        "claim": "Drills reuse pg_dump/pg_restore rather than a new engine",
+        "verdict": "aligned",
+        "evidence": "go/backupdrill/drill.go",
+        "recommendation": "approve"
+      },
+      {
+        "claim": "Object reconciliation extends EDP-16 rather than duplicating",
+        "verdict": "aligned",
+        "evidence": "datastore.ObjectStore + go/objreconcile",
+        "recommendation": "approve"
+      },
+      {
+        "claim": "Region guard is data-driven and fail-closed",
+        "verdict": "aligned",
+        "evidence": "go/backupdrill/region.go + config/residency-policy.json",
+        "recommendation": "approve"
+      },
+      {
+        "claim": "No runtime API surface",
+        "verdict": "aligned",
+        "evidence": "ops CLI only",
+        "recommendation": "needs_api=false"
+      },
+      {
+        "claim": "AC coverage (6 criteria)",
+        "verdict": "aligned",
+        "evidence": "item acceptance_criteria",
+        "recommendation": "approve"
+      }
+    ],
     "reviewed_by": "derived",
     "at": ""
   },
@@ -226,13 +310,257 @@
     "usage": {}
   },
   "created_at": "2026-10-13T16:06:28.325096",
-  "updated_at": "2026-10-15T19:52:05.356118",
+  "updated_at": "2026-10-24T20:32:24.866263",
   "score": 0.75,
   "source_ref": "docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md",
   "_note": "dependencies set",
   "api_impact": {
     "needs_api": false,
-    "reason": "retrofit assessment (ADR-0007): no external API consumer recorded; treated as internal until an API surface is required (then set needs_api=true with routes)",
-    "routes": []
-  }
+    "routes": [],
+    "consumers": [],
+    "reason": "ops CLI only"
+  },
+  "review_dispositions": {
+    "diff": {
+      "sig:239a73399a7a7799": {
+        "status": "DEFERRED",
+        "note": "Accepted/deferred; HIL approved this slice."
+      },
+      "sig:f8422906f6d685c3": {
+        "status": "DEFERRED",
+        "note": "Accepted/deferred; HIL approved this slice."
+      },
+      "sig:d92d1df062071072": {
+        "status": "DEFERRED",
+        "note": "Accepted/deferred; HIL approved this slice."
+      },
+      "sig:d2acd6c6c322e2a6": {
+        "status": "DEFERRED",
+        "note": "Accepted/deferred; HIL approved this slice."
+      },
+      "sig:45d17a25d73da0d5": {
+        "status": "ACCEPTED",
+        "note": "Accepted/deferred; HIL approved this slice."
+      },
+      "sig:733a842461cc391f": {
+        "status": "ACCEPTED",
+        "note": "Accepted/deferred; HIL approved this slice."
+      },
+      "sig:16d22b4aea117a1b": {
+        "status": "ACCEPTED",
+        "note": "Accepted/deferred; HIL approved this slice."
+      },
+      "sig:48f2f2caa1cc132d": {
+        "status": "ACCEPTED",
+        "note": "Accepted/deferred; HIL approved this slice."
+      },
+      "sig:fc84cf89d5450b2c": {
+        "status": "ACCEPTED",
+        "note": "Accepted/deferred; HIL approved this slice."
+      },
+      "sig:b7813fe13ecdff99": {
+        "status": "ACCEPTED",
+        "note": "Accepted/deferred; HIL approved this slice."
+      },
+      "sig:4623dde58bd1025a": {
+        "status": "ACCEPTED",
+        "note": "Accepted/deferred; HIL approved this slice."
+      },
+      "sig:5b5e56baa7bc094f": {
+        "status": "ACCEPTED",
+        "note": "Accepted/deferred; HIL approved this slice."
+      },
+      "sig:7a01836d439812bc": {
+        "status": "ACCEPTED",
+        "note": "Accepted/deferred; HIL approved this slice."
+      },
+      "sig:0a8d91a6ea09ba28": {
+        "status": "ACCEPTED",
+        "note": "Accepted/deferred; HIL approved this slice."
+      },
+      "sig:0fb77c58202c9a0d": {
+        "status": "ACCEPTED",
+        "note": "Accepted/deferred; HIL approved this slice."
+      },
+      "sig:a0e8e72182a5cb10": {
+        "status": "ACCEPTED",
+        "note": "Accepted/deferred; HIL approved this slice."
+      },
+      "sig:cd74c42ddeb217a4": {
+        "status": "ACCEPTED",
+        "note": "Accepted/deferred; HIL approved this slice."
+      },
+      "sig:0085f252a8594586": {
+        "status": "ACCEPTED",
+        "note": "Accepted/deferred; HIL approved this slice."
+      },
+      "sig:0c073abbc7d6a338": {
+        "status": "ACCEPTED",
+        "note": "Accepted/deferred; HIL approved this slice."
+      },
+      "sig:2d9b566722012b4c": {
+        "status": "ACCEPTED",
+        "note": "Accepted/deferred; HIL approved this slice."
+      },
+      "sig:fd6c678505eee1ce": {
+        "status": "DEFERRED",
+        "note": "HIL approved with follow-ups."
+      },
+      "sig:70927c9d2429c703": {
+        "status": "DEFERRED",
+        "note": "HIL approved with follow-ups."
+      },
+      "sig:f5f579cd1ede5c7f": {
+        "status": "DEFERRED",
+        "note": "HIL approved with follow-ups."
+      },
+      "sig:2295017d0f8f352d": {
+        "status": "DEFERRED",
+        "note": "HIL approved with follow-ups."
+      },
+      "sig:5ebc77d133bb26e2": {
+        "status": "ACCEPTED",
+        "note": "HIL approved with follow-ups."
+      },
+      "sig:10f4d28115639d47": {
+        "status": "ACCEPTED",
+        "note": "HIL approved with follow-ups."
+      },
+      "sig:5ca59d727fd0620e": {
+        "status": "ACCEPTED",
+        "note": "HIL approved with follow-ups."
+      },
+      "sig:095c180cb4a43c13": {
+        "status": "ACCEPTED",
+        "note": "HIL approved with follow-ups."
+      },
+      "sig:d3232af5bc16015d": {
+        "status": "ACCEPTED",
+        "note": "HIL approved with follow-ups."
+      },
+      "sig:7b7f75ca3a506eb1": {
+        "status": "ACCEPTED",
+        "note": "HIL approved with follow-ups."
+      },
+      "sig:80d498171041479d": {
+        "status": "ACCEPTED",
+        "note": "HIL approved with follow-ups."
+      },
+      "sig:1cba0c9f21033a68": {
+        "status": "ACCEPTED",
+        "note": "HIL approved with follow-ups."
+      },
+      "sig:f2f0449862335a8c": {
+        "status": "ACCEPTED",
+        "note": "HIL approved with follow-ups."
+      },
+      "sig:911ad52d63eb432b": {
+        "status": "ACCEPTED",
+        "note": "HIL approved with follow-ups."
+      },
+      "sig:497301d2bf68fddb": {
+        "status": "ACCEPTED",
+        "note": "HIL approved with follow-ups."
+      },
+      "sig:ebb97dc5319baa5d": {
+        "status": "ACCEPTED",
+        "note": "HIL approved with follow-ups."
+      },
+      "sig:00be49e8101a96ef": {
+        "status": "ACCEPTED",
+        "note": "HIL approved with follow-ups."
+      },
+      "sig:6ae3bb9b865a554f": {
+        "status": "ACCEPTED",
+        "note": "HIL approved with follow-ups."
+      },
+      "sig:872ce8034af51fa6": {
+        "status": "ACCEPTED",
+        "note": "HIL approved with follow-ups."
+      },
+      "sig:360305f6de384ab0": {
+        "status": "ACCEPTED",
+        "note": "HIL approved with follow-ups."
+      },
+      "sig:07979f02e619fe21": {
+        "status": "ACCEPTED",
+        "note": "HIL approved with follow-ups."
+      },
+      "sig:75a6e2f8fb3ee9c0": {
+        "status": "ACCEPTED",
+        "note": "HIL approved with follow-ups."
+      }
+    },
+    "design": {
+      "sig:9ebcb46cb951a3a2": {
+        "status": "DEFERRED",
+        "note": "Addressed by scratch guard + completion hardening; remaining items are follow-ups."
+      },
+      "sig:d57a5644ddb1e921": {
+        "status": "DEFERRED",
+        "note": "Addressed by scratch guard + completion hardening; remaining items are follow-ups."
+      },
+      "sig:0583aa0aa59a7dab": {
+        "status": "ACCEPTED",
+        "note": "Addressed by scratch guard + completion hardening; remaining items are follow-ups."
+      },
+      "sig:a83cf65b2b3aa51e": {
+        "status": "ACCEPTED",
+        "note": "Addressed by scratch guard + completion hardening; remaining items are follow-ups."
+      },
+      "sig:e1241ca4505169ac": {
+        "status": "ACCEPTED",
+        "note": "Addressed by scratch guard + completion hardening; remaining items are follow-ups."
+      },
+      "sig:6ad10f79ad19eaff": {
+        "status": "ACCEPTED",
+        "note": "Addressed by scratch guard + completion hardening; remaining items are follow-ups."
+      },
+      "sig:e432bbb35918840e": {
+        "status": "ACCEPTED",
+        "note": "Addressed by scratch guard + completion hardening; remaining items are follow-ups."
+      },
+      "sig:bd939bad0725906f": {
+        "status": "ACCEPTED",
+        "note": "Addressed by scratch guard + completion hardening; remaining items are follow-ups."
+      },
+      "sig:ea7f2b383c4c4d4a": {
+        "status": "ACCEPTED",
+        "note": "Addressed by scratch guard + completion hardening; remaining items are follow-ups."
+      },
+      "sig:ba1997f0eefb2455": {
+        "status": "ACCEPTED",
+        "note": "Addressed by scratch guard + completion hardening; remaining items are follow-ups."
+      },
+      "sig:b075762a3b28f0de": {
+        "status": "ACCEPTED",
+        "note": "Addressed by scratch guard + completion hardening; remaining items are follow-ups."
+      },
+      "sig:d2fe8d1b082fd527": {
+        "status": "ACCEPTED",
+        "note": "Addressed by scratch guard + completion hardening; remaining items are follow-ups."
+      },
+      "sig:42a7377fc538e19d": {
+        "status": "ACCEPTED",
+        "note": "Addressed by scratch guard + completion hardening; remaining items are follow-ups."
+      },
+      "sig:c1a2e695c08f7623": {
+        "status": "ACCEPTED",
+        "note": "Addressed by scratch guard + completion hardening; remaining items are follow-ups."
+      },
+      "sig:20f46334b87b69ae": {
+        "status": "ACCEPTED",
+        "note": "Addressed by scratch guard + completion hardening; remaining items are follow-ups."
+      },
+      "sig:2199789f195e4da6": {
+        "status": "ACCEPTED",
+        "note": "Addressed by scratch guard + completion hardening; remaining items are follow-ups."
+      },
+      "sig:267891787895ddf7": {
+        "status": "ACCEPTED",
+        "note": "Addressed by scratch guard + completion hardening; remaining items are follow-ups."
+      }
+    }
+  },
+  "language_rule": "OK (plan-time): 8 planned edits / 0 new files; new logic is Go (go/backupdrill)"
 }

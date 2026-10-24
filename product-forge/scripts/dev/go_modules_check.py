@@ -75,7 +75,7 @@ def _git_changed() -> list:
                               capture_output=True, text=True).stdout.strip() or "HEAD"
         diff = subprocess.run(["git", "diff", "--name-only", f"{base}..HEAD"], cwd=str(_ROOT),
                               capture_output=True, text=True).stdout
-        status = subprocess.run(["git", "status", "--porcelain"], cwd=str(_ROOT),
+        status = subprocess.run(["git", "status", "--porcelain", "-uall"], cwd=str(_ROOT),
                                 capture_output=True, text=True).stdout
         return _normalize_paths(diff, status)
     except Exception:
@@ -91,9 +91,10 @@ def _changed_modules(modules: list) -> list:
             hit.add(c.split("/")[1])
     if not hit:
         return []
-    if len(hit) >= len(modules):
+    names = [os.path.basename(m.rstrip("/\\")) for m in modules]
+    if hit.issubset(set(names)) and len(hit) >= len(names):
         return modules
-    for name in modules:
+    for name in names:
         if name in hit:
             continue
         try:
@@ -103,7 +104,7 @@ def _changed_modules(modules: list) -> list:
             continue
         if any(f"../{h}" in mod for h in hit):
             hit.add(name)
-    return [m for m in modules if m in hit]
+    return [m for m in modules if os.path.basename(m.rstrip("/\\")) in hit]
 
 
 def _modules() -> list:
