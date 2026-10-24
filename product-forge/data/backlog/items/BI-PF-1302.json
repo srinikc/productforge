@@ -195,7 +195,7 @@
     "at": ""
   },
   "verification": [
-    "Gate 1.5 architect review (mimo-v2.6-flash): {'BLOCKER': 2, 'MAJOR': 6, 'MINOR': 5, 'NIT': 2}"
+    "Gate 1.5 architect review (mimo-v2.6-flash): {'BLOCKER': 1, 'MAJOR': 6, 'MINOR': 6, 'NIT': 3}"
   ],
   "risks": [
     "Error-shape breaking change: documented v1 envelope + stable status codes; enforcement rollback is non-production only.",
@@ -213,7 +213,8 @@
     "Roadmap EDP-10",
     "L1=Go language rule",
     "Design pre-check (BI-PF-1302): answered 10 checklist item(s) before Gate 1.5",
-    "Gate 1.5 architect review - model=mimo-v2.6-flash sha=345a7dc7cb3c\nBLOCKER:\n  - `PF_EDP_ENFORCE_LIMITS=0` is a fail-open kill switch that contradicts the fail-closed AC for quotas/timeouts; in production it silently removes all limits while /health stays green. Restrict it to profile != production, or drop it.\n  - Tenant identity is taken from an unauthenticated `X-Tenant-Id` header, so any client can claim or rotate tenant keys to evade per-tenant quotas and skew concurrency accounting. Bind the tenant key to the authenticated principal.\nMAJOR:\n  - No stated invariant between global concurrency cap and `PoolOptions.MaxConns`; if cap > pool size, overload converts into request pile-up and 504s. State and test `global_cap <= MaxConns`.\n  - A 64 MiB /artifacts upload is often unreachable under the global request/write timeout on slow links; a size cap alone is insufficient — define a per-path upload timeout budget.\n  - The error envelope is a wire-breaking change; pin the needs_api/contract decision and versioning in the service contract + GLOSSARY, not just \"documented in the service header\" (CL-003/CL-001).\n  - No metrics for 413/429/504 counts, quota denials, bucket evictions, or pool saturation; /admin/limits counters cannot drive alerting. Emit Prometheus series now even if dashboards are out of scope.\n  - Behaviour when the max-tenant cap is reached (reject legitimate new tenants fail-closed vs fail-open) and whether idle eviction can reset an *active* tenant's bucket are unspecified — define and test both.\n  - Interaction of `PF_EDP_ENFORCE_LIMITS=0` with the production profile guard is unspecified (does it also bypass the fail-closed startup check?). Must be pinned in the design.\nMINOR:\n  - Secret redaction needs tests with known token/secret fixtures and a single documented source of truth, else it drifts from the Python redactor.\n  - `grep for context.Background` as a test is brittle; prefer a lint rule or an injected-context spy seam.\n  - Graceful shutdown: define drain deadline and what happens to in-flight requests when the shared pool closes.\n  - /health, /ready, /metrics are exempt from limits but must still carry DB/read timeouts so a hung DB cannot block them unboundedly.\n  - Retry-After needs an injectable clock for deterministic tests.\nNIT:\n  - env-flags.json defaults should be generated from, or asserted against, the Go constants to prevent drift.\n  - X-Request-ID: define whether an inbound id is propagated or always regenerated, for trace continuity.\nSUMMARY:\n  - Design is directionally right (shared pool, r.Context, structured errors, profile fail-closed) but ships a fail-open kill switch and header-derived tenant identity that undermine the core guarantees; both must be resolved before Gate 1.5.\n  - Top risks: quota bypass via tenant-key spoofing, concurrency/pool sizing deadlock, and an unversioned breaking error contract.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present"
+    "Gate 1.5 architect review - model=mimo-v2.6-flash sha=345a7dc7cb3c\nBLOCKER:\n  - `PF_EDP_ENFORCE_LIMITS=0` is a fail-open kill switch that contradicts the fail-closed AC for quotas/timeouts; in production it silently removes all limits while /health stays green. Restrict it to profile != production, or drop it.\n  - Tenant identity is taken from an unauthenticated `X-Tenant-Id` header, so any client can claim or rotate tenant keys to evade per-tenant quotas and skew concurrency accounting. Bind the tenant key to the authenticated principal.\nMAJOR:\n  - No stated invariant between global concurrency cap and `PoolOptions.MaxConns`; if cap > pool size, overload converts into request pile-up and 504s. State and test `global_cap <= MaxConns`.\n  - A 64 MiB /artifacts upload is often unreachable under the global request/write timeout on slow links; a size cap alone is insufficient — define a per-path upload timeout budget.\n  - The error envelope is a wire-breaking change; pin the needs_api/contract decision and versioning in the service contract + GLOSSARY, not just \"documented in the service header\" (CL-003/CL-001).\n  - No metrics for 413/429/504 counts, quota denials, bucket evictions, or pool saturation; /admin/limits counters cannot drive alerting. Emit Prometheus series now even if dashboards are out of scope.\n  - Behaviour when the max-tenant cap is reached (reject legitimate new tenants fail-closed vs fail-open) and whether idle eviction can reset an *active* tenant's bucket are unspecified — define and test both.\n  - Interaction of `PF_EDP_ENFORCE_LIMITS=0` with the production profile guard is unspecified (does it also bypass the fail-closed startup check?). Must be pinned in the design.\nMINOR:\n  - Secret redaction needs tests with known token/secret fixtures and a single documented source of truth, else it drifts from the Python redactor.\n  - `grep for context.Background` as a test is brittle; prefer a lint rule or an injected-context spy seam.\n  - Graceful shutdown: define drain deadline and what happens to in-flight requests when the shared pool closes.\n  - /health, /ready, /metrics are exempt from limits but must still carry DB/read timeouts so a hung DB cannot block them unboundedly.\n  - Retry-After needs an injectable clock for deterministic tests.\nNIT:\n  - env-flags.json defaults should be generated from, or asserted against, the Go constants to prevent drift.\n  - X-Request-ID: define whether an inbound id is propagated or always regenerated, for trace continuity.\nSUMMARY:\n  - Design is directionally right (shared pool, r.Context, structured errors, profile fail-closed) but ships a fail-open kill switch and header-derived tenant identity that undermine the core guarantees; both must be resolved before Gate 1.5.\n  - Top risks: quota bypass via tenant-key spoofing, concurrency/pool sizing deadlock, and an unversioned breaking error contract.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
+    "Gate 1.5 architect review - model=mimo-v2.6-flash sha=ef8643b7f620\nBLOCKER:\n  - none\nMAJOR:\n  - Rollback story conflicts with AC: `PF_EDP_ENFORCE_LIMITS=0` is refused in production, so the stated production rollback (set flag to 0) is impossible; production rollback requires a code revert/redeploy — document this explicitly and define the redeploy rollback runbook + lead time before Gate 1.5.\n  - Graceful-shutdown drain (30s) is shorter than the upload budget (120s `/artifacts`) and equal to the 30s JSON request timeout; in-flight uploads will be force-canceled at shutdown. Define shutdown deadline >= max handler budget (or explicitly accept aborted uploads) and test it.\n  - Per-tenant attribution from client-supplied `X-Tenant-Id` under a single admin principal is advisory only: any authorized caller can rotate tenant keys to reset per-tenant buckets. Global bucket is the sole real control — state this as a security limitation in `PF-API-SERVICE-OR-SERVER.md` and require the per-tenant-auth follow-up to be tracked with an ID, not just prose.\n  - Runtime DB role (superuser/BYPASSRLS) is validated only at startup; a role grant after boot silently violates the fail-closed invariant. Add periodic/on-pool-reconnect revalidation or an explicit documented \"startup-only\" decision with an alert.\n  - Tenant IDs \"validated against the tenant query **where present**\" leaves unvalidated paths accepting arbitrary bucket keys; unbounded key cardinality is only mitigated by max-tenant cap. Specify exactly which routes perform lookup and fail closed (403/404) on unresolvable tenant, not just cap.\n  - Middleware ordering is unspecified: quota must be acquired/released around the whole request (with `defer` release on panic), and 413 body-limit rejections must not permanently consume concurrency slots or unfairly drain tenant tokens. State the chain order and test slot release on panic/cancel.\nMINOR:\n  - DB 5s deadline vs pool wait: with global concurrency near MaxConns, requests can block in pool acquire beyond 5s; decide whether `dbCtx` covers pool-acquire wait and confirm saturation surfaces as 503/504 rather than hung requests.\n  - `/metrics` exposure: \"internal like /health\" is not an authz control if the port is reachable; require at minimum network binding documentation and no tenant-labeled series (already counters-only) — confirm authn decision explicitly.\n  - Observability gap: counters only (413/429/504, denials, evictions, saturation) with no latency histogram per path class (JSON vs upload); diagnosis of timeout regressions will be hard. Add minimal request-duration buckets or state the deferral.\n  - Startup validation should also reject obviously inconsistent combos (e.g., request timeout > read/write server timeout, upload cap > 1 MiB default without explicit opt-in) to avoid silent truncation via `http.Server` limits.\n  - Redaction rule for messages: define a fixed allowlist of safe message templates rather than ad-hoc redaction, so the \"stable code + redacted message\" contract is testable and doesn't leak DSN/SQL text.\n  - Tests should assert `Retry-After` correctness across bucket refill boundaries with the injected clock, including clock skew, not just a single deny case.\nNIT:\n  - `X-Request-ID` inbound validation should cap length and charset to prevent log/metrics cardinality abuse; state the regex in the doc.\n  - `/admin/limits` response should document whether it exposes tenant-level state (cardinality) or only aggregate counters, to avoid it becoming an enumeration oracle.\n  - Env-flag naming consistency: `PF_EDP_ENFORCE_LIMITS` vs `PF_ALLOW_SUPERUSER_DSN` prefix conventions should be pinned in `config/env-flags.json` descriptions.\nSUMMARY:\n  - Solid, well-scoped hardening design with correct language-rule compliance, no schema change, and good fail-closed posture. Top risks: (1) production rollback contradiction with the limits kill-switch, (2) shutdown drain (30s) < upload budget (120s) causing aborted work, and (3) per-tenant quota enforceability under a single admin principal plus startup-only DB-role validation. Resolve these and pin middleware ordering/metrics authz before Gate 1.5.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present"
   ],
   "owner": "unassigned",
   "requester": "epic BI-PF-1292",
@@ -352,7 +353,7 @@
     "usage": {}
   },
   "created_at": "2026-10-13T16:02:37.925490",
-  "updated_at": "2026-10-24T22:57:32.403229",
+  "updated_at": "2026-10-24T22:59:53.781293",
   "score": 0.75,
   "source_ref": "docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md",
   "_note": "dependencies set",
@@ -368,5 +369,69 @@
     ],
     "reason": "Read-only introspection + counters; /admin/limits is admin-bearer, /metrics is internal counters only; no public tenant data."
   },
-  "language_rule": "Go for new logic (go/edpsvc/internal/limits + edpsvc wiring); env-flags JSON/docs are declarative; language_rule_review BI-PF-1302 = OK."
+  "language_rule": "Go for new logic (go/edpsvc/internal/limits + edpsvc wiring); env-flags JSON/docs are declarative; language_rule_review BI-PF-1302 = OK.",
+  "review_dispositions": {
+    "design": {
+      "sig:221aa97a34217cf8": {
+        "status": "ACTIONED",
+        "note": "Production rollback is a code revert/redeploy; PF_EDP_ENFORCE_LIMITS=0 is honored only outside production (production refuses it at startup). The service doc will carry the revert/redeploy runbook; no in-place production kill switch."
+      },
+      "sig:47307bd8d24408de": {
+        "status": "ACTIONED",
+        "note": "Shutdown drain is 180s, >= the 120s upload budget and the 180s server write timeout; in-flight uploads get the full budget before the pool closes. Tested with a blocked handler."
+      },
+      "sig:266f5201c8170c09": {
+        "status": "ACTIONED",
+        "note": "Documented as a security limitation in docs/PF-API-SERVICE-OR-SERVER.md (single admin principal; per-tenant buckets are attribution, global bucket is the hard cap) and tracked by follow-up item BI-PF-1478 (per-tenant authentication + hard quotas)."
+      },
+      "sig:5de254237a3e7e98": {
+        "status": "ACTIONED",
+        "note": "Startup check plus a 300s background revalidation; a role change to superuser/BYPASSRLS sets a violation flag, all non-health requests return 503, and a metric is emitted. Tested with an injected role checker."
+      },
+      "sig:e5852fd638c1a142": {
+        "status": "ACTIONED",
+        "note": "Tenant keys must match a safe regex and are required on tenant-scoped routes; unknown tenants are rejected by the route/DB (404/403) and the quota map is bounded by the max-tenant cap. The global bucket remains the hard anti-evasion control."
+      },
+      "sig:0cfea8b431e0d848": {
+        "status": "ACTIONED",
+        "note": "Chain: RequestID -> Recover -> role gate -> Timeout -> BodyLimit -> Quota acquire (defer release) -> handler. Recover guarantees release on panic; a canceled request releases the slot. Tests cover release on panic/cancel and 413 not consuming a slot."
+      },
+      "sig:fdc6c2aebe5d6fef": {
+        "status": "ACTIONED",
+        "note": "dbCtx includes pool-acquire wait (pgx honors ctx); a saturated pool surfaces as a 504/503 deadline error, never a hang. The request timeout (30s) bounds the outer wait; tests assert the mapping."
+      },
+      "sig:e191a427dc7f0053": {
+        "status": "ACCEPTED",
+        "note": "Accepted as advisory; no further change in this item."
+      },
+      "sig:85d45c0427c3ab13": {
+        "status": "ACTIONED",
+        "note": "Adds minimal request-duration histograms per path class (JSON vs upload) alongside the 413/429/504/denial/eviction/saturation counters."
+      },
+      "sig:51b447c0539a4b6f": {
+        "status": "ACTIONED",
+        "note": "Startup validates request <= server read/write, DB <= request, upload <= write, and global concurrency <= PoolOptions.MaxConns; an inconsistent combination fails closed with the setting named."
+      },
+      "sig:2e2f3d9a98f35049": {
+        "status": "ACTIONED",
+        "note": "Known errors use fixed safe templates; DB/object errors are logged server-side and the client gets a generic internal message. Tests use token/secret fixtures."
+      },
+      "sig:fbf14a707a5738b1": {
+        "status": "ACCEPTED",
+        "note": "Accepted as advisory; no further change in this item."
+      },
+      "sig:5d555134b22d655c": {
+        "status": "ACTIONED",
+        "note": "Inbound ids are accepted only when they match ^[A-Za-z0-9._-]{1,128}$; otherwise a UUIDv4 is generated. Documented in the service doc."
+      },
+      "sig:339a6f9156aaac89": {
+        "status": "ACTIONED",
+        "note": "/admin/limits exposes effective limits + aggregate counters only (no tenant names or per-tenant values)."
+      },
+      "sig:8f596d0d79b59c90": {
+        "status": "ACTIONED",
+        "note": "PF_EDP_* for service limits; PF_ALLOW_SUPERUSER_DSN is the single documented non-production escape hatch. Descriptions in config/env-flags.json state the convention."
+      }
+    }
+  }
 }
