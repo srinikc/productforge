@@ -1,0 +1,35 @@
+{
+  "item": "BI-PF-1479",
+  "sha": "a65c33f3c59e",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-24T17:47:36.180742+00:00",
+  "findings": {
+    "BLOCKER": [
+      "none"
+    ],
+    "MAJOR": [
+      "Diff contains no changes to `gate1_check.py`, yet AC requires it to render the table; only a monkeypatched delegation test exists \u2014 verify it already calls `render_gate_view` and emits the table + recommendation in real output.",
+      "Fail-open vs. stated fail-closed: `parsed_ok` defaults to `True` (`rev.get(\"parsed_ok\", True)` and `overall_recommendation(..., parsed_ok=True)`), so evidence lacking the key renders APPROVE despite the doc's \"unparsable evidence \u2192 NOT READY\" claim.",
+      "Two resolution predicates now coexist (`_is_resolved(d)` and `_is_resolved_status`/`_norm_status`); they can diverge on future statuses (e.g. REJECTED/SCOPE handling), violating the single-source/no-duplication standard."
+    ],
+    "MINOR": [
+      "`id-blocks.json` skips ID 1478 (previous session ends 1477/next 1478, new session starts 1479) while `reserved_up_to` jumps to 1479 \u2014 confirm 1478 wasn't a lost concurrent allocation.",
+      "AC defines attention as ACCEPTED/DEFERRED/SCOPE only, but implementation/doc also route REJECTED to APPROVE WITH ATTENTION; a rejected-as-invalid finding arguably warrants APPROVE \u2014 confirm intent.",
+      "Unknown severities are neither shown in the counts line nor evaluated for blocking (only BLOCKER/MAJOR checked), so a new severity would be silently invisible in the verdict text.",
+      "Empty/missing findings with `parsed_ok=True` yields APPROVE; ensure `evaluate` always marks absent evidence `parsed_ok=False`, otherwise zero-evidence review approves itself."
+    ],
+    "NIT": [
+      "`_cell` replaces `\\r` and `\\n` separately, producing a double space for CRLF text.",
+      "Legend line `status: PENDING | ACTIONED | ...` contains raw pipes outside a table row; harmless in terminals but inconsistent with the escaping rule if the output is parsed as markdown.",
+      "Test file does a `sys.path.insert(0, ROOT/\"scripts\"/\"dev\")` hack instead of a shared conftest; will duplicate across future renderer tests.",
+      "`test_gate1_check_uses_the_shared_renderer` only asserts delegation via monkeypatch, not that real gate1_check output contains the table header/rows."
+    ],
+    "SUMMARY": [
+      "Solid work overall: shared pure verdict function, proper pipe/newline escaping, all three recommendation outcomes and both Gate 1.5/2.5 headers are unit-tested, and JSON/exit-code paths are kept intact.",
+      "Top risks: unverified `gate1_check.py` table rendering (no diff shown), fail-open `parsed_ok` default contradicting the documented fail-closed rule, and duplicated resolution predicates that can drift.",
+      "Secondary: ID-block gap at 1478 needs confirmation and REJECTED disposition semantics should be pinned down in AC/docs."
+    ]
+  }
+}
