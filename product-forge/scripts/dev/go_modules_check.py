@@ -45,15 +45,39 @@ def _run(bin_path, args, cwd, env):
     return p.returncode, (p.stdout + p.stderr).strip()
 
 
+def _normalize_paths(diff_out: str, status_out: str) -> list:
+    """Repo-relative paths from diff + porcelain status (strip XY columns, renames, product-forge/)."""
+    out = []
+    for ln in (diff_out or "").splitlines():
+        p = ln.strip().strip('"')
+        if p:
+            out.append(p)
+    for ln in (status_out or "").splitlines():
+        if len(ln) < 4:
+            continue
+        p = ln[3:].strip().strip('"')
+        if " -> " in p:
+            p = p.split(" -> ", 1)[1]
+        if p:
+            out.append(p)
+    norm = []
+    for p in out:
+        p = p.replace("\\", "/")
+        if p.startswith("product-forge/"):
+            p = p[len("product-forge/"):]
+        norm.append(p)
+    return norm
+
+
 def _git_changed() -> list:
     try:
-        base = subprocess.run(["git", "merge-base", "develop", "HEAD"], cwd=str(_ROOT),
+        base = subprocess.run(["git", "merge-base", "origin/develop", "HEAD"], cwd=str(_ROOT),
                               capture_output=True, text=True).stdout.strip() or "HEAD"
-        out = subprocess.run(["git", "diff", "--name-only", f"{base}..HEAD"], cwd=str(_ROOT),
-                             capture_output=True, text=True).stdout
-        out += subprocess.run(["git", "status", "--porcelain"], cwd=str(_ROOT),
+        diff = subprocess.run(["git", "diff", "--name-only", f"{base}..HEAD"], cwd=str(_ROOT),
                               capture_output=True, text=True).stdout
-        return [ln.replace("\\", "/") for ln in out.splitlines()]
+        status = subprocess.run(["git", "status", "--porcelain"], cwd=str(_ROOT),
+                                capture_output=True, text=True).stdout
+        return _normalize_paths(diff, status)
     except Exception:
         return []
 
@@ -141,11 +165,12 @@ def main() -> int:
             print("   -", f)
         return 1
 
-    scoped = _changed_modules(mods)
+    scoped = mods if "--all" in sys.argv[1:] else _changed_modules(mods)
     if not scoped:
         print(f"go-modules: OK ({len(mods)} module(s); no Go changes)")
         return 0
     mods = scoped
+    print("go-modules: scoped modules: " + ", ".join(os.path.basename(m) for m in mods))
 
     gofmt = os.path.join(os.path.dirname(go), "gofmt.exe" if os.name == "nt" else "gofmt")
     changed = _changed_files()

@@ -1,17 +1,17 @@
 # Backlog Summary
 
-> GENERATED 2026-10-24T19:53:23 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-24T19:58:23 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 134  |  **Closed:** 582
+- **Open:** 135  |  **Closed:** 582
 - `blocked`: 1
 - `executing`: 3
 - `in_progress`: 1
-- `new`: 129
+- `new`: 130
 
-### new, by category (129)
+### new, by category (130)
 **API / reports / HIL / misc** (15)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
@@ -31,10 +31,11 @@
 | BI-PF-1382 | Must | bug | Backlog API: POST /backlog/items returns empty resource_id (created id not surfaced) | Backlog API: POST /backlog/items returns empty resource_id (created id not surfaced) |
 | BI-PF-1441 | Should | feature | Dynamic design-direction stage + HIL suggest gate | At the start of design, PF suggests ranked directions and the operator confirms one. |
 
-**Bug fixes** (1)
+**Bug fixes** (2)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-PF-1332 | Should | bug | Develop red: test pollution committed into data/learnings.json breaks test_global_render_unchanged (scratch loop-learning marker 0270) | Restore develop green: purge test pollution from data/learnings.json + prevent test writes to the real learnin... |
+| BI-PF-1474 | Should | bug | Fix go-modules scoping path parsing (BI-PF-1474) | Go-modules scoping skipped Go changes because git status porcelain prefixes were not stripped. |
 
 **Discovery / HIL / prompts** (8)
 | ID | MoSCoW | Type | Title | Objective |
@@ -371,5 +372,5 @@
 ---
 
 ## Totals
-- backend: 134 open / 582 closed
+- backend: 135 open / 582 closed
 - dashboard: 146 open / 3 closed

@@ -1,0 +1,31 @@
+{
+  "item": "BI-PF-1474",
+  "sha": "f56f7775ab26",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-24T14:28:20.086142+00:00",
+  "findings": {
+    "BLOCKER": [
+      "Acceptance criterion 3 unmet: tests cover only `_normalize_paths`; no test exercises `_changed_modules`/scoped detection or the `--all` escape hatch (missing-test blocker per standards).",
+      "`_git_changed` now silently strips `product-forge/` for *all* consumers; diff does not show `_changed_modules`/`_changed_files`, so it is unverified that every caller expects normalized paths \u2014 any caller comparing against repo-relative paths will silently under-scope checks (integrity risk)."
+    ],
+    "MAJOR": [
+      "`merge-base origin/develop HEAD` silently falls back to `\"HEAD\"` when the remote ref is absent/stale, and the blanket `except Exception: return []` hides failures \u2014 a stale or missing ref yields zero changed files, skipping module checks with no observability.",
+      "Porcelain rename handling is fragile: `ln[3:]` + `\" -> \"` split mishandles quoted paths (`\"go/a b.go\" -> \"go/c d.go\"`) and filenames containing ` -> `; correct side must be parsed and unquoted individually.",
+      "Diff output lines are not stripped of the `product-forge/` prefix consistency check before status merge is deduplicated \u2014 no dedup at all; the same file from diff+status produces duplicate entries, inflating module scoping lists."
+    ],
+    "MINOR": [
+      "`--all` parsed via `\"--all\" in sys.argv[1:]` bypasses any arg validation; undocumented in usage/help, and `--all` combined with other flags has no guard.",
+      "`_normalize_paths` returns a flat list with duplicates and no ordering guarantee; consumers doing membership tests are fine but any set/count logic would be wrong.",
+      "`git status --porcelain` unmerged (`UU`, `AA`) states are treated as normal paths; conflict states should probably be surfaced rather than silently scoped."
+    ],
+    "NIT": [
+      "Test asserts membership only; no negative assertions (e.g., non-`go/` paths excluded, no duplicates, backslash normalization).",
+      "Test imports a private `_normalize_paths` directly; a public helper or contract-level test would survive refactors better."
+    ],
+    "SUMMARY": [
+      "Solid direction: porcelain normalization and `--all` escape hatch address real scoping gaps, and the normalization is extracted testably. Top risks: the required scoped-detection test is missing, the `product-forge/` strip silently rewrites the `_git_changed` contract for unseen consumers, and silent `origin/develop`\u2192`HEAD` fallback can mask under-scoped CI runs with no logging."
+    ]
+  }
+}
