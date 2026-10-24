@@ -39,3 +39,13 @@ func TestClassify(t *testing.T) {
 		t.Fatalf("drift = %+v", d)
 	}
 }
+
+func TestGuardScratch(t *testing.T) {
+	if err := GuardScratch("prod"); err == nil {
+		t.Fatal("non-prefixed scratch allowed")
+	}
+	t.Setenv("PF_ALLOW_DESTRUCTIVE_DRILL", "1")
+	if err := GuardScratch("pf_scratch_x"); err != nil {
+		t.Fatalf("valid scratch rejected: %v", err)
+	}
+}

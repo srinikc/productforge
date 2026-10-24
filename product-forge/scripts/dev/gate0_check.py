@@ -55,7 +55,9 @@ def problems(item: dict) -> list[str]:
     bad: list[str] = []
     rec = ((item.get("review") or {}).get("reconciliation") or {})
     for k in REC_KEYS:
-        if not rec.get(k):
+        if k not in rec:
+            bad.append(f"reconciliation.{k} is missing")
+        elif k != "open_questions" and not rec.get(k):
             bad.append(f"reconciliation.{k} is empty")
     rows = ((item.get("review") or {}).get("impact_review") or [])
     if not rows:

@@ -64,8 +64,22 @@ func run(ctx context.Context, stdin []byte, name string, args ...string) error {
 	return nil
 }
 
+// GuardScratch refuses anything that does not look like a disposable drill database.
+func GuardScratch(name string) error {
+	if !strings.HasPrefix(name, "pf_scratch_") {
+		return fmt.Errorf("backupdrill: scratch database %q must start with pf_scratch_", name)
+	}
+	if os.Getenv("PF_ALLOW_DESTRUCTIVE_DRILL") != "1" {
+		return fmt.Errorf("backupdrill: set PF_ALLOW_DESTRUCTIVE_DRILL=1 to run a destructive drill")
+	}
+	return nil
+}
+
 // FullRestore dumps the database into a scratch DB, verifies table counts, and drops the scratch.
 func FullRestore(ctx context.Context, dsn, scratch string, rtoBudget time.Duration) (DrillReport, error) {
+	if err := GuardScratch(scratch); err != nil {
+		return DrillReport{}, err
+	}
 	start := time.Now()
 	rep := DrillReport{Scope: "full", Scratch: scratch, RTOOK: true, IsolationOK: true}
 	safe, env := dsnEnv(dsn)
@@ -151,6 +165,9 @@ func pgIdent(s string) string { return `"` + strings.ReplaceAll(s, `"`, `""`) + 
 
 // TenantRestore restores only one tenant's rows into a scratch DB and proves isolation.
 func TenantRestore(ctx context.Context, dsn, tenant, scratch string) (DrillReport, error) {
+	if err := GuardScratch(scratch); err != nil {
+		return DrillReport{}, err
+	}
 	start := time.Now()
 	rep := DrillReport{Scope: "tenant", Scratch: scratch, RTOOK: true}
 	safe, _ := dsnEnv(dsn)

@@ -91,3 +91,18 @@ def test_bookkeeping_tier_runs_delivery_gates():
     src = (ROOT / "scripts" / "dev" / "precheck.py").read_text(encoding="utf-8")
     assert "gate2-completion" in src and "delivery-completeness" in src
     assert 'must = ("compile", "docs-fresh", "gate2-completion", "delivery-completeness")' in src
+
+
+def test_gate0_allows_empty_open_questions():
+    import sys
+    from pathlib import Path
+    root = Path(__file__).resolve().parents[2]
+    sys.path.insert(0, str(root / "scripts" / "dev"))
+    import gate0_check as g0
+    item = {"id": "BI-T", "review": {"reconciliation": {"prior_decisions": ["x"], "existing_path": ["y"],
+            "assumptions": ["z"], "divergences": ["d"], "open_questions": []},
+            "impact_review": [{"claim": "API CHECK", "verdict": "aligned", "evidence": "e", "recommendation": "r"},
+                              {"claim": "AC", "verdict": "aligned", "evidence": "e", "recommendation": "r"},
+                              {"claim": "language", "verdict": "aligned", "evidence": "e", "recommendation": "r"}]},
+            "api_impact": {"needs_api": False, "reason": "none"}}
+    assert g0.problems(item) == []

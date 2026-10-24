@@ -151,3 +151,5 @@ Reviews are a learning input, not a one-off artifact:
 ## One line
 **Gate 1.5 (design review) → Gate 1 (HIL design approval) → implement → Gate 2.5 (delivery review) → Gate 2
 (HIL delivery approval) → precheck fast → PR/CI → merge gate → closure guard → delivery → DoD.**
+
+**Binding order (hard).** Gate 0 (reconciliation + impact table + language + API) ? Gate 1.5 design review ? HIL Gate 1 ? implement ? Gate 2.5 diff review ? HIL Gate 2 ? precheck ? merge. Completion is also gated: an item cannot reach `completed` without Gate 0 artifacts, current design evidence and a Gate 1 decision, even if it never transitioned through `in_progress`.

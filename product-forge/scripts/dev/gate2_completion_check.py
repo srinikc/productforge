@@ -23,6 +23,7 @@ for p in (ROOT, ROOT / "scripts" / "dev"):
         sys.path.insert(0, str(p))
 
 import architect_review as ar  # noqa: E402
+import gate0_check as g0  # noqa: E402
 import gate_predicates as gp  # noqa: E402
 
 _MARK = "/data/backlog/items/"
@@ -76,6 +77,25 @@ def check(ids: list[str]) -> list[tuple[str, str]]:
     docs_only = _docs_only()
     for iid in ids:
         item = ar._get_item(iid)
+        # Gate 0 + Gate 1.5/Gate 1 are hard requirements for completion too (no bypass by staying `new`).
+        g0_problems = g0.problems(item)
+        if g0_problems:
+            problems.append((iid, "GATE0_INCOMPLETE: " + "; ".join(g0_problems)))
+            continue
+        dview = ar.gate_view(iid, "design")
+        if dview is None:
+            problems.append((iid, "NO_DESIGN_EVIDENCE"))
+            continue
+        if not dview.get("parsed_ok", True):
+            problems.append((iid, "UNPARSABLE_DESIGN"))
+            continue
+        if dview.get("blocking"):
+            problems.append((iid, "PENDING_DESIGN_FINDINGS"))
+            continue
+        ok1, why1 = gp.approval(item, 1, ar.design_sha(item), dview)
+        if not ok1:
+            problems.append((iid, "GATE1_" + why1))
+            continue
         # Validate against the delivery evidence named by the newest Gate 2 decision; this works for
         # data-only and mixed PRs alike (the decision is bound to the reviewed delivery diff).
         view = None
