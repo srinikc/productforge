@@ -39,30 +39,35 @@
   },
   "objective": "Resolve the last pending configuration store by formally retaining config/design-systems.json as a global, file-backed declarative catalog with a recorded ADR and registry parity, instead of moving global product metadata into the tenant-scoped tool_settings table.",
   "acceptance_criteria": [
-    "config/design-systems.json is formally retained as a file-backed, global, declarative configuration catalog; the decision is recorded in docs/ARCHITECTURE-DECISIONS.md (ADR-0007) and cited from the item decision ledger, with the rationale that it is not tenant data and does not belong in the tenant-scoped tool_settings table.",
-    "config/store-registry.json keeps target kind=file/status=retained with classification backend=file and migration_status=retained, and adds target.retained_reason plus target.decision_ref=BI-PF-1476; the store-registry relationship gate and the docs-fresh gate pass.",
-    "A repeatable check proves the decision is durable: the registry entry carries the retained_reason/decision_ref fields and the ADR index contains ADR-0007, so a later edit that silently deletes the rationale or flips the target to a table fails review."
+    "ADR-0007 records the formal retention decision for config/design-systems.json: global, read-only product metadata stays file-backed rather than moving into the tenant-scoped tool_settings table, and the ADR states the explicit supersede/revisit trigger (a new ADR is required when BI-PF-1439 makes the catalog runtime-writable or tenant-specific).",
+    "config/store-registry.json keeps the pinned entry config/design-systems.json with kind=config, target kind=file/status=retained, classification backend=file/migration_status=retained, and adds non-empty target.retained_reason plus target.decision_ref=ADR-0007 and target.related_item=BI-PF-1476; the registry description explains retained-by-decision vs retained-by-pending-migration.",
+    "The existing scripts/dev/store_registry_relationships.py gate (the single writer for registry invariants) validates the pinned design-systems entry: it must exist, match the exact kind/status/backend/migration_status tuple, carry a non-empty retained_reason and decision_ref=ADR-0007; a negative self-test proves deleting the entry, blanking the reason, flipping the target, or dropping the decision_ref fails the gate. docs-fresh passes after STORE-DATAFLOW regeneration."
   ],
   "in_scope": [
-    "ADR-0007 (formal retention decision + index row)",
-    "config/store-registry.json target.retained_reason + decision_ref for config/design-systems.json",
+    "ADR-0007 (decision, rationale, supersede trigger, index row)",
+    "config/store-registry.json: pinned retained-state + retained_reason + decision_ref + glossary",
+    "scripts/dev/store_registry_relationships.py: invariant check + negative self-test",
+    "docs/STORE-DATAFLOW.md regeneration",
     "Item decision ledger entry and verification evidence"
   ],
   "out_of_scope": [
     "Implementing the design-system catalog or its Go writer (BI-PF-1439).",
     "Migrating any data (the catalog has no runtime rows).",
-    "Changing the tenant-scoped tool_settings contract."
+    "Changing the tenant-scoped tool_settings contract.",
+    "Auditing the other 60 retained config stores (separate follow-up if desired)."
   ],
   "affected_components": [
     "configuration store registry",
-    "architecture decision register"
+    "architecture decision register",
+    "store-registry gate tooling"
   ],
   "affected_files": [
     "config/store-registry.json",
     "docs/ARCHITECTURE-DECISIONS.md",
-    "docs/STORE-DATAFLOW.md"
+    "docs/STORE-DATAFLOW.md",
+    "scripts/dev/store_registry_relationships.py"
   ],
-  "approach": "Record ADR-0007 in docs/ARCHITECTURE-DECISIONS.md: design-system catalogs are global, read-only product metadata, so they stay file-backed until the BI-PF-1439 Go writer (go/pfcore/design_system.go) lands; tool_settings stays the home for tenant-scoped settings. Annotate the store-registry target with retained_reason and decision_ref=BI-PF-1476 so the rationale is durable, then run the store-registry relationship and docs-fresh gates. No runtime logic or data migration.",
+  "approach": "Record ADR-0007 in docs/ARCHITECTURE-DECISIONS.md with the retention decision and an explicit supersede trigger. Annotate the pinned registry entry with retained_reason, decision_ref=ADR-0007 and related_item=BI-PF-1476, and update the registry description glossary. Extend scripts/dev/store_registry_relationships.py (the existing single-writer gate) to assert the full retained-state invariant for config/design-systems.json and add a negative self-test; regenerate STORE-DATAFLOW.md. No runtime logic or data migration.",
   "review": {
     "reconciliation": {
       "prior_decisions": [
@@ -80,10 +85,13 @@
       "assumptions": [
         "The design-system catalog is global and read-only product metadata, not customer/tenant data (no tenant_id dimension).",
         "The catalog has no runtime rows yet; retention decision is about where future data will live, not a data migration.",
-        "tool_settings remains the canonical home for tenant-scoped settings; a global catalog is out of its scope."
+        "tool_settings remains the canonical home for tenant-scoped settings; a global catalog is out of its scope.",
+        "The registry is an unversioned JSON document; the relationship gate checks a known field set and ignores extra fields, so adding retained_reason/decision_ref does not require a schema migration.",
+        "The durable reference is the ADR (ADR-0007), not the work item id; BI-PF-1476 is recorded only as related_item for traceability."
       ],
       "divergences": [
-        "The stale item title suggests migrating to config/tool_settings; the analysis shows that would put global product metadata in a tenant-scoped table, so the recorded decision is formal retention as a file-backed global config instead."
+        "The stale item title suggests migrating to config/tool_settings; the analysis shows that would put global product metadata in a tenant-scoped table, so the recorded decision is formal retention as a file-backed global config instead.",
+        "The durability check is implemented by extending the existing store-registry relationship gate (single writer), not by adding a second checker."
       ],
       "open_questions": []
     },
@@ -127,22 +135,37 @@
         "verdict": "aligned",
         "evidence": "Reversible by editing the registry/ADR; no schema, data, or runtime behavior change.",
         "recommendation": "approve"
+      },
+      {
+        "claim": "enforcement / ownership",
+        "verdict": "aligned",
+        "evidence": "The invariant lives in scripts/dev/store_registry_relationships.py, which is already the single writer/checker for store targets and runs in precheck; no new standalone checker is added.",
+        "recommendation": "approve"
+      },
+      {
+        "claim": "schema compatibility",
+        "verdict": "aligned",
+        "evidence": "The registry has no strict JSON schema; store_registry_relationships.py validates known fields and ignores extras, so retained_reason/decision_ref are additive.",
+        "recommendation": "approve"
       }
     ],
     "reviewed_by": "agent",
     "at": ""
   },
   "verification": [
-    "Objective achieved: design-systems store: migrate to config/tool_settings with registry parity"
+    "Gate 1.5 architect review (mimo-v2.6-flash): {'BLOCKER': 2, 'MAJOR': 4, 'MINOR': 3, 'NIT': 2}"
   ],
   "risks": [
-    "A future contributor re-proposes tool_settings without seeing the rationale: mitigated by target.retained_reason and ADR-0007 being cited from the registry.",
-    "The ADR index and section drift: mitigated by the item's verification check and docs-fresh."
+    "A future contributor re-proposes tool_settings without seeing the rationale: mitigated by target.retained_reason, decision_ref=ADR-0007 and the gate invariant.",
+    "The ADR index and section drift: mitigated by the negative self-test and docs-fresh.",
+    "The gate becomes too design-systems-specific: the pinned invariant is small and additive; the self-test documents the intent for future retained stores."
   ],
-  "rollback": "Revert the registry annotation and ADR-0007; no schema or data change.",
+  "rollback": "Revert the registry annotation, ADR-0007 and the gate check, then re-run scripts/dev/store_registry_relationships.py and precheck to prove restored parity; no schema or data change.",
   "evidence": [
     "pending",
-    "Design guardrails applied (BI-PF-1476): sig:52543f3e7e3321f3 (20 lines)"
+    "Design guardrails applied (BI-PF-1476): sig:52543f3e7e3321f3 (20 lines)",
+    "Design pre-check (BI-PF-1476): answered 10 checklist item(s) before Gate 1.5",
+    "Gate 1.5 architect review - model=mimo-v2.6-flash sha=2bb3ee82b0a5\nBLOCKER:\n  - AC3 requires a repeatable, fail-able check, but no test/check artifact appears in in_scope or affected_files (only registry + two docs), so the AC is not implementable as scoped.\n  - No path, owner, or gate hook is declared for the check (script location, how it runs, which CI/gate invokes it); an unregistered check will be orphaned (CL-001).\nMAJOR:\n  - The durability check as described validates field *presence* on \"the registry entry\" without pinning it by target path/id; deleting the entire design-systems.json entry would satisfy both the relationship gate and this check. Assert the entry exists and that kind=file/status=retained/backend=file/migration_status=retained/retained_reason non-empty/decision_ref=ADR-0007 are all true.\n  - target.decision_ref=BI-PF-1476 couples durable rationale to a work-item ID that loses meaning after closure; the stable, long-lived reference is ADR-0007 (keep BI-PF-1476 as a secondary `related_items`/ledger citation if needed).\n  - ADR-0007 is phrased as \"until BI-PF-1439 lands\", which makes the retention provisional with no defined revisit trigger; state the explicit condition under which this ADR is superseded and who re-opens it, or the decision silently rots.\n  - The design does not state whether store-registry has a schema/validator that accepts new `retained_reason`/`decision_ref` fields; if the relationship gate validates against a strict schema, this change silently breaks it — schema/validator update must be in scope.\nMINOR:\n  - Do not add a second checker alongside existing gates; extend the store-registry relationship gate (single writer for that invariant) rather than duplicating validation logic.\n  - Guardrail checklist coverage is implicit, not answered: tests/rollback (fail-able check location), invariants (exact assertion set), and route-by-kind (script owner) are unspecified; availability/RLS/API are correctly N/A for a docs+config change — say so explicitly in the ADR.\n  - docs/STORE-DATAFLOW.md is in affected_files but absent from in_scope/AC; declare the intended edit to prevent scope drift at review.\nNIT:\n  - Rollback note is accurate (revert registry annotation + ADR-0007, no schema/data change) but could name the exact gate that must be re-run post-revert to prove restored parity.\n  - Consider that \"retained\" status semantics may need a short glossary line in the registry header so future contributors distinguish retained-by-decision from retained-by-pending-migration.\nSUMMARY:\n  - Sound intent: keeping global product metadata out of the tenant-scoped tool_settings table is the right call, and the ADR + registry-annotation approach is low-risk and reversible.\n  - Top risks: the durability check is required by an AC but is unscoped and unregistered (BLOCKER), and as described it verifies field presence rather than the pinned entry's full retained-state, so entry deletion or a schema-breaking field add would pass review.\n  - Recommend: scope the check into the existing relationship gate, assert the complete invariant set against a path-pinned entry, and reference ADR-0007 (not the ticket ID) as the durable decision_ref.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present"
   ],
   "owner": "agent",
   "requester": "generic",
@@ -254,7 +277,7 @@
     "usage": {}
   },
   "created_at": "2026-10-24T20:53:25.250358",
-  "updated_at": "2026-10-24T21:55:21.921122",
+  "updated_at": "2026-10-24T21:56:56.562505",
   "score": 0.75,
   "_note": "readiness computed",
   "api_impact": {
