@@ -1,0 +1,43 @@
+{
+  "item": "BI-PF-1308",
+  "sha": "272023ec5772",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-24T13:45:30.349117+00:00",
+  "findings": {
+    "BLOCKER": [
+      "Acceptance criterion \"delete/replica/backup reconciliation job\" is unmet: only a library `objreconcile.Scan` exists \u2014 no job entrypoint, scheduler, CLI, or call site anywhere in the diff, so drift is never actually detected/reported in production.",
+      "The signed-URL tenant boundary is spoofable: `objpolicy.WithTenant` is exported and applied via plain context value, so any downstream handler/middleware can overwrite the \"authenticated\" tenant after `HTTPMiddleware` and Mint will honor it; the ADR claim \"never a caller argument\" is not enforced by the type system.",
+      "Signed-URL minting allows mutating methods (`PUT`, `DELETE`) with up to 15-minute TTL; a leaked/pasted URL is a scoped write/delete primitive with no per-tenant rate limit or revocation path \u2014 fail-closed posture is inconsistent with the rest of the design."
+    ],
+    "MAJOR": [
+      "`objreconcile.MaxObjects` does not actually prevent OOM: `store.List` already materializes the full listing into a slice before the bound check, so the stated \"fail closed rather than OOM on bucket-scale listings\" guarantee is false; pagination/streaming is required.",
+      "No shared provider conformance suite: S3 has an ad-hoc integration test and local has ad-hoc unit tests, but there is no parameterized conformance harness run per provider, so lifecycle semantics can silently diverge between adapters (reuse + criterion coverage gap).",
+      "`HTTPMiddleware` has zero wiring into the actual API server and no end-to-end test proving Mint is only reachable behind auth; the privilege boundary exists only in unit tests with a stub resolver.",
+      "`LocalStore.lockFor` map grows unbounded per key and is never evicted: long-lived processes with many distinct keys leak memory and mutexes; also only protects within a single process (multi-writer/TOCTOU across processes is unaddressed and undocumented).",
+      "S3 `Immutable` without retention relies on a startup-time versioning probe that can go stale (bucket config changed later) and silently weakens the immutability guarantee; revalidation or a documented operational control is needed."
+    ],
+    "MINOR": [
+      "`S3Store.Capabilities` acquires `lockMu` twice separately, yielding a non-atomic snapshot of `objectLock`/`versioned`; use one critical section.",
+      "`ObjectLifecycle` does not lazily re-probe lock config the way `ApplyLifecycle` does, so a valid bucket reports `ErrUnsupported` until process restart \u2014 inconsistent capability discovery.",
+      "`probeLock` logs a failure line on every `ApplyLifecycle` retry against a lock-less bucket (unbounded log growth under a retry loop).",
+      "`objreconcile.Scan` returns a partially-filled `Report` alongside an error on transient `Head` failure; callers that ignore the error get an incomplete report presented as authoritative.",
+      "Drift report has no run identity (timestamp, duration, store provider, manifest source), which hurts observability/correlation while preserving determinism; emit run metadata outside the deterministic arrays.",
+      "`objpolicy.Stats()` keys include raw tenant IDs; exporting these as metric labels leaks tenant identity and risks unbounded label cardinality in the metrics backend.",
+      "`S3Store.stat`/`Delete` now translate `NoSuchKey` to `os.ErrNotExist`, a behavior change for existing callers of `Get`/`Head`/`Delete` that is not covered by adapter-level tests or noted outside the ADR.",
+      "Retention-at-Put is rejected on `Retention < time.Minute` with `ErrInvalidPolicy` while `objpolicy` TTL bounds are separate constants; consider one shared policy-bounds module to avoid future divergence."
+    ],
+    "NIT": [
+      "`errLocalLifecycle` declared as `var x error = &...` instead of a typed value or `errors.New`-style sentinel; the intermediate interface type adds no value.",
+      "`objreconcile.notFound` is a one-line wrapper around `errors.Is(err, os.ErrNotExist)`; fine today but worth consolidating with the datastore error vocabulary once S3/local mappings firm up.",
+      "`deny()` overflow bucket `_overflow|reason` still keys on tenant-less reason but silently drops tenant attribution; document that overflow counts are global.",
+      "`TestScanAbortsOnTransientHeadError` builds an unused `st` fixture and discards it with `_ = st`; delete the dead setup."
+    ],
+    "SUMMARY": [
+      "Solid foundations: capability-gated lifecycle interface, fail-closed local adapter, central minting with TTL bounds, sha256-based read-only reconciliation, and full Go compliance with L1 \u2014 no language-rule violations.",
+      "Top risks against acceptance: the reconciliation \"job\" does not exist (only a library function), the signed-URL tenant context is spoofable via an exported setter, and mutating signed URLs are permitted \u2014 these must be closed before the item can ship.",
+      "Secondary: no shared per-provider conformance harness, the MaxObjects bound does not bound memory, and the middleware is unwired, leaving the security boundary unproven end-to-end."
+    ]
+  }
+}
