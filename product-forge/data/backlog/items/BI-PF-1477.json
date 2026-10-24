@@ -1,0 +1,255 @@
+{
+  "id": "BI-PF-1477",
+  "tag": "PF",
+  "type": "bug",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "gate-delivery-completeness-repo-root",
+  "label": "PF Backlog 648",
+  "title": "Gate: delivery_completeness_check resolves backlog items from the git repo root (0-completion bug)",
+  "body": "",
+  "source": "review",
+  "status": "in_progress",
+  "priority": "P1",
+  "moscow": "Must",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [
+    "BI-PF-1383"
+  ],
+  "links": {},
+  "decisions": [
+    {
+      "at": "2026-10-24T22:25:30.222353",
+      "decision": "APPROVE",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)"
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "delivery_completeness_check silently reports 0 completions when product-forge is a subdirectory of the git root.",
+    "what_adds": "Repo-root-aware path resolution + fail-closed load + regression test.",
+    "why_now": "The evidence-based DoD gate is a no-op in this workspace.",
+    "success": "The gate counts real completions and a test proves it.",
+    "source": "authored"
+  },
+  "objective": "Make the evidence-based delivery-completeness gate see real completion transitions in this git layout by resolving changed item paths from the git top-level, failing closed on malformed items, and proving it with a test.",
+  "acceptance_criteria": [
+    "delivery_completeness_check.transitions() resolves each changed item path under `git rev-parse --show-toplevel` instead of joining it to product-forge/ROOT, so a committed in_progress->completed transition is detected and counted instead of silently skipped.",
+    "The path loader fails closed on an unreadable/malformed changed item (JSONDecodeError propagates) while a path deleted in the diff (FileNotFoundError) is skipped; the gate prints the real completion count.",
+    "A regression test in test-framework/tests/test_delivery_completeness.py proves repo-root-relative path resolution and transitions() detection using a temp repo root, and precheck stays green."
+  ],
+  "in_scope": [
+    "scripts/dev/delivery_completeness_check.py: _repo_root/_load + transitions() path fix",
+    "test-framework/tests/test_delivery_completeness.py: path-resolution and transitions regression tests"
+  ],
+  "out_of_scope": [
+    "Changing the placeholder/RCCA baseline semantics or the completion gate's policy.",
+    "Fixing other scripts with the same ROOT/rel pattern (audit separately)."
+  ],
+  "affected_components": [
+    "delivery-completeness gate"
+  ],
+  "affected_files": [
+    "scripts/dev/delivery_completeness_check.py",
+    "test-framework/tests/test_delivery_completeness.py"
+  ],
+  "approach": "Add _repo_root() (git rev-parse --show-toplevel) and _load(rel) to delivery_completeness_check.py, mirroring gate0_check/gate1_transition_check; use _load(rel) in transitions(). _load returns {} only for FileNotFoundError and lets JSONDecodeError propagate (fail closed). Extend test_delivery_completeness.py with a temp-root test for _load and a monkeypatched transitions() detection test.",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [
+        "BI-PF-1409 shipped delivery_completeness_check.py (evidence-based DoD) to block placeholder AC/verification on completion transitions.",
+        "gate0_check.py and gate1_transition_check.py already resolve changed backlog files from the git repo root via _repo_root()/_load(); BI-PF-1475 fixed gate0 for the same product-forge-subdirectory layout.",
+        "BI-PF-1248 (Tech Debt & Repo Hygiene) is the owning epic for gate gaps/script drift."
+      ],
+      "existing_path": [
+        "scripts/dev/delivery_completeness_check.py:94 transitions() joins (ROOT / rel) where rel is repo-root-relative (product-forge/data/backlog/items/...), so it reads product-forge/product-forge/... and skips every completion.",
+        "scripts/dev/gate0_check.py:36 _repo_root() + _load() (fixed in BI-PF-1475) is the established pattern.",
+        "scripts/dev/gate1_transition_check.py:36 _repo_root() + _load() is the same pattern.",
+        "test-framework/tests/test_delivery_completeness.py covers placeholder/RCCA/baseline but not path resolution."
+      ],
+      "assumptions": [
+        "`git diff --name-only` emits paths relative to the git top-level (PF-features), so joining them to product-forge/ROOT is always wrong in this workspace.",
+        "A completion transition is an existing item file whose status moved into completed/closed/done; a deleted item file is not a completion and should be skipped.",
+        "The gate runs from product-forge but must work for any clone layout where the git root is an ancestor."
+      ],
+      "divergences": [
+        "The gate currently swallows JSON/IO errors into an empty dict; the fix narrows the catch to FileNotFoundError only, so malformed state fails closed."
+      ],
+      "open_questions": []
+    },
+    "impact_review": [
+      {
+        "claim": "API CHECK",
+        "verdict": "aligned",
+        "evidence": "No HTTP surface: scripts/dev gate tooling only; no route, no tenant input.",
+        "recommendation": "needs_api=false"
+      },
+      {
+        "claim": "AC coverage",
+        "verdict": "aligned",
+        "evidence": [
+          "delivery_completeness_check.transitions() resolves each changed item path under `git rev-parse --show-toplevel` instead of joining it to product-forge/ROOT, so a committed in_progress->completed transition is detected and counted instead of silently skipped.",
+          "The path loader fails closed on an unreadable/malformed changed item (JSONDecodeError propagates) while a path deleted in the diff (FileNotFoundError) is skipped; the gate prints the real completion count.",
+          "A regression test in test-framework/tests/test_delivery_completeness.py proves repo-root-relative path resolution and transitions() detection using a temp repo root, and precheck stays green."
+        ],
+        "recommendation": "approve"
+      },
+      {
+        "claim": "language",
+        "verdict": "aligned",
+        "evidence": "Python change in scripts/dev (tooling) plus a pytest regression test; no shipped product logic.",
+        "recommendation": "Python tooling (allowed)"
+      },
+      {
+        "claim": "reuse",
+        "verdict": "aligned",
+        "evidence": "Reuses the existing _repo_root()/_load() pattern from gate0_check/gate1_transition_check; no new gate or duplicate checker.",
+        "recommendation": "approve"
+      },
+      {
+        "claim": "fail-closed integrity",
+        "verdict": "aligned",
+        "evidence": "Malformed/unreadable changed items propagate instead of being silently skipped; only a deleted path (FileNotFoundError) is skipped.",
+        "recommendation": "approve"
+      },
+      {
+        "claim": "blast radius / tests",
+        "verdict": "aligned",
+        "evidence": "Only the completion-detection path changes; a regression test with a temp repo root proves the fix and existing placeholder/RCCA tests stay green.",
+        "recommendation": "approve"
+      }
+    ],
+    "reviewed_by": "agent",
+    "at": ""
+  },
+  "verification": [
+    "Objective achieved: Gate: delivery_completeness_check resolves backlog items from the git repo root (0-completion bug)"
+  ],
+  "risks": [
+    "A malformed item now aborts the gate instead of being skipped: intended fail-closed behavior, surfaced with the item path.",
+    "A deleted item path is still skipped (FileNotFoundError) so cleanup transitions do not crash the gate."
+  ],
+  "rollback": "Revert the two files; the gate returns to its previous behavior with no data/schema change.",
+  "evidence": [
+    "pending",
+    "Design guardrails applied (BI-PF-1477): sig:98549fd49f146f74 (19 lines)"
+  ],
+  "owner": "agent",
+  "requester": "review",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "Fix delivery-completeness repo-root path resolution.",
+  "children": [],
+  "epic": "BI-PF-1248",
+  "parent": "BI-PF-1248",
+  "revision": 3,
+  "priority_rank": 20,
+  "priority_class": "P1",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "COMPLETE",
+    "analyzed_at": "2026-10-24T22:25:29.942789",
+    "analyzed_by": "system",
+    "revision_analyzed": 3,
+    "architecture_fit": "MODIFY",
+    "implementation_strategy": "Find delivery_completeness_check gate logic, fix backlog item path resolution to use correct working directory (project/worker cwd) instead of git repo root; extend existing gate module in place.",
+    "existing_components": [],
+    "existing_apis": [],
+    "existing_modules": [],
+    "dependency_findings": [
+      "REQUIRES core/backlog.py or equivalent completeness gate module (path resolution fix lands there).",
+      "RELATED BI-PF-1383 (backlog gate test failures may overlap).",
+      "RELATED BI-PF-1469 (gate lifecycle hardening context)."
+    ],
+    "conflict_findings": [
+      "BI-PF-1383 may touch same backlog gate test files — coordinate test edits.",
+      "No other concurrent tasks directly modifying delivery_completeness_check path resolution."
+    ],
+    "duplication_findings": [
+      "BI-PF-1383 covers pre-existing test failures in backlog_context_check — adjacent but distinct gate; not duplicated.",
+      "No existing backlog item specifically targets delivery_completeness_check path resolution."
+    ],
+    "drift": "LOW",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "Localized path-resolution bug in an existing gate; fix in place (MODIFY) with a targeted test proving non-zero completions resolve from correct directory.",
+    "assumptions": [
+      "delivery_completeness_check exists in a Python gate or core module.",
+      "Bug is cwd/path join logic, not data absence.",
+      "Fix is localized to path resolution, not gate semantics."
+    ],
+    "risks": [
+      "Path resolution fix may break tests that relied on root-relative behavior.",
+      "If gate output is consumed downstream, 0->non-zero transition may expose new incomplete items.",
+      "Sibling gate modules may share same path bug pattern."
+    ],
+    "evidence": [
+      "Item title explicitly states 0-completion bug due to git repo root resolution.",
+      "Candidate components include core/backlog.py and config gate-baseline files."
+    ],
+    "confidence": "medium",
+    "missing_info": [
+      "Exact file/function containing delivery_completeness_check not confirmed.",
+      "Whether same path bug affects sibling gates (context/quality) needs verification.",
+      "Expected correct base directory (project root vs worker cwd) needs confirmation."
+    ],
+    "depth": "deep",
+    "mode": "ai",
+    "context_review": {
+      "ok": null,
+      "source": "llm-unparseable",
+      "implementable": null,
+      "missing": [],
+      "reason": "reviewer returned no JSON"
+    },
+    "decision_request": {
+      "needed": false,
+      "reasons": [],
+      "ask": ""
+    },
+    "arch_fingerprint": "65e994f7e2d5e3c8"
+  },
+  "dependencies": [
+    {
+      "task_id": "BI-PF-1383",
+      "type": "RELATED",
+      "required_state": "open"
+    }
+  ],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-24T22:25:30.062290"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-24T22:25:05.693181",
+  "updated_at": "2026-10-24T22:25:54.909730",
+  "score": 0.75,
+  "_note": "readiness computed",
+  "api_impact": {
+    "needs_api": false,
+    "routes": [],
+    "consumers": [],
+    "reason": "Internal gate tooling; no HTTP surface and no tenant input."
+  },
+  "language_rule": "Python tooling (scripts/ + test-framework tests) is allowed; no shipped product logic."
+}
