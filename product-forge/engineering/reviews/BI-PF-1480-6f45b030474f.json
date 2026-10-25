@@ -1,0 +1,35 @@
+{
+  "item": "BI-PF-1480",
+  "sha": "6f45b030474f",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-10-25T06:03:56.924167+00:00",
+  "findings": {
+    "BLOCKER": [
+      "none"
+    ],
+    "MAJOR": [
+      "HIL escape is self-service: \"by hil:*, note >=40 chars citing the review sha\" is a string-format check with no actor allowlist or signature; any author can mint `hil:<self>` and a 40-char note containing the sha to bypass the >4 fail. Define authorized attesters (or require the attestation to land via the main-thread/disposition path, CL-002) and test rejection of a self-minted attestation.",
+      "Gate 1 epoch derivation is underspecified: \"latest Gate 1 decision\" has no stated ordering invariant (commit order vs. author timestamp vs. file mtime) and no handling of rebases/cherry-picks that rewrite Gate 1 commits. State and test the invariant (e.g., by commit SHA reachability from HEAD), or the count is nondeterministic across clones.",
+      "Count scope is not tied to the committed evidence set: counting \"reviews not branch-scoped\" means untracked, stashed, or foreign-branch review files on a developer machine can push a clean item over 4 (or shield it if removed locally before CI). Count only review files present in the base ref / the item's committed evidence and assert the local-vs-CI count match in a test.",
+      "\"Diff review\" identity is undefined: how does churn_check map the diff under review to one item's evidence dir and decide which files are \"diff reviews\" vs. earlier-mode reviews? Without a filename/manifest contract, the count is heuristic; specify the evidence manifest format and test mixed-mode evidence.",
+      "Refusal semantics have a trivial bypass: `--rereview --reason` accepts any non-empty string; nothing binds the reason to the prior review (e.g., cite prior sha / disposition gap). Require the reason to reference the superseded review sha (mirroring the churn attestation rule) and test that a generic reason is rejected.",
+      "Fail-closed exit 2 on missing base ref will false-positive in shallow CI clones (fetch-depth=1, detached refs). Define the fetch depth/ref-resolution precondition in the design and test a shallow-clone scenario, otherwise the precheck becomes flaky infrastructure rather than a guardrail.",
+      "Redaction contract is unspecified (item 9/retention): \"redacted\" has no stated pattern set, order-of-operations vs. the 500-char cap (truncation can split a secret or drop the redaction marker), or retention/expiry for `rereview_reason` stored in evidence. Define the redactor, cap-after-redact, and a retention note; test a reason containing a token-like string."
+    ],
+    "MINOR": [
+      "`churn_verdict` return shape (count/warn/fail + reason codes) is not pinned; consumers (`run --mode diff`, churn_check, precheck) could re-derive booleans, re-creating the duplication this ticket exists to remove. Define and test the verdict contract and assert precheck consumes it rather than re-implementing exit-code mapping.",
+      "Warning vs. failure signaling is print-only; no stable event/metric hook (guardrail 10). Even a single structured log event (`review_churn_warn|fail`, item, count) would keep the gate diagnosable when it blocks a merge at 02:00.",
+      "`--report` exiting 0 regardless of verdict conflates \"ran successfully\" with \"no findings\"; consumers can't distinguish a pass from a scan error. Exit 0 with verdict in JSON is fine, but state it explicitly in docs and test both a warn-level and fail-level `--report` run.",
+      "Rollback story ignores persisted evidence: reverting the tooling commit leaves `rereview_reason` fields and any HIL churn attestations in evidence files; downstream readers of evidence JSON need a tolerance rule for unknown fields (test forward/backward compat).",
+      "The \"warn_after=2, fail_after=4\" semantics (\"2/4 pass, 3 warns, 5 fails\") are boundary-tested but the config loader isn't shown validating `0 <= warn_after < fail_after`; a bad config silently inverts the gate. Add a config-validation test."
+    ],
+    "NIT": [
+      "Cap-before-redact ordering should be documented as redact-then-cap so a 500-char boundary cannot clip mid-marker.",
+      "Sorted-table key should be explicitly \"review file path, then sha\" so the fixture tests don't depend on dict iteration order.",
+      "The recurring [MINOR] about `_render_review`/`_item_dispositions` path coverage applies analogously here: the churn table renderer (missing-item/unknown-status rows) deserves a direct unit test, not just the round-trip test."
+    ],
+    "SUMMARY": []
+  }
+}
