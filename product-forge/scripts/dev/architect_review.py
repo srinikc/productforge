@@ -630,7 +630,7 @@ def churn_verdict(item_id: str, item: dict | None = None, committed: bool = Fals
     epoch = review_epoch(item) if budget.get("scope") == "after_gate1" else ""
     counted = [r for r in reviews if _after_epoch(r["at"], epoch)]
     count = len(counted)
-    latest = max(counted, key=lambda r: r["at"])["sha"] if counted else ""
+    latest = max(counted, key=lambda r: (r["at"], r["path"], r["sha"]))["sha"] if counted else ""
     over = count > budget["fail_after"]
     attested = churn_attested(item, latest, budget)
     return {"item": item_id, "count": count, "warn": count > budget["warn_after"],
