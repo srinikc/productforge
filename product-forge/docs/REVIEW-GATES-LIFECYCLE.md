@@ -186,9 +186,30 @@ Every item carries one append-only trail at `engineering/trails/<ID>.json` (owne
   `set_delivery`/`set_status` (delivery/completion).
 - **Cost:** `config/model-pricing.json` holds OpenCode Go list prices (USD/1M); cost is computed from
   input/cached/output tokens, provider-reported cost wins, and the show prints it in a box-drawn table.
-- **Show:** `python -m core.execution_trail show --item <ID>` renders the ordered stages, the Gate 1.5/2.5
-  decision tables (from the review evidence), the tests table, usage totals (input/output/cached; "not
-  captured" when unavailable) and the final completion/next-item table.
+- **Show (one ordered flow, BI-PF-1483):** `python -m core.execution_trail show --item <ID>` renders, in order:
+  1. the plain-language brief (what it is / what it adds / why now / who / success),
+  2. the Gate 0 reconciliation + impact table,
+  3. the flow checklist with the **current stage**,
+  4. the Gate 1.5 table + current architect recommendation,
+  5. the Gate 1 decision,
+  6. implementation + code review,
+  7. the Gate 2.5 table + recommendation,
+  8. the Gate 2 decision,
+  9. the tests table, 10. usage/cost, 11. the final completion/next-item table, and the disposition key.
+- **View invariants (read-only projection, no writes):**
+  - the stage checklist uses the **latest event per stage** (`_stage_events`; append order under the trail lock,
+    monotonic `seq`); the `Runs` column counts re-runs; the audit history remains in `events()`.
+  - **current stage** = the first `STAGES` entry with no committed event (`planning` for an empty trail,
+    `complete` when all stages exist).
+  - review stages show the **current** recommendation from `engineering/reviews/<ID>-<sha>.json`
+    (`APPROVE` / `APPROVE WITH ATTENTION` / `NOT READY`), not the ingest-time event status; missing evidence is
+    rendered as `not recorded` / `evidence missing`, never as a pass.
+  - owner: `core/execution_trail.py` (the only renderer); dispositions are owned by `core.backlog`
+    (`review_dispositions`) and enforced by `architect_review.py` + `execution_trail_check.py`.
+- **Disposition key:** **ACTIONED** = fixed or committed in this item (Gate 1.5: design/plan updated; Gate 2.5:
+  code/docs changed); **ACCEPTED** = not fixed, risk explicitly accepted with a rationale; **DEFERRED** = not
+  fixed, must cite a follow-up backlog id (completion fails without one); **REJECTED** = finding invalid/not
+  applicable; **SCOPE** = outside this item, note names the owning item/scope.
 - **Guard:** `scripts/dev/execution_trail_check.py` runs as a POST-precheck gate after the tests/precheck
   events are written. It fails a completion when the pre-merge stages are missing/out of order or a DEFERRED
   disposition has no existing follow-up item id. `pr/merge/delivery/completion` are post-merge events.

@@ -67,6 +67,48 @@ def test_show_renders_stages_tests_and_next(tmp_path, monkeypatch):
     assert "BI-PF-2" in out and "7 / abc" in out
 
 
+def test_show_is_one_ordered_flow_with_current_stage(tmp_path, monkeypatch):
+    monkeypatch.setattr(tr, "TRAILS", tmp_path)
+    monkeypatch.setattr(tr, "_item", lambda i: {
+        "id": i, "title": "A title", "status": "in_progress", "epic": "E",
+        "objective": "Ship it",
+        "brief": {"problem": "the problem", "what_adds": "the change",
+                  "why_now": "the reason", "success": "the proof"},
+        "review": {"reconciliation": {"prior_decisions": ["ADR-1"],
+                                      "assumptions": ["assumption A"]},
+                   "impact_review": [{"claim": "API", "verdict": "aligned",
+                                      "evidence": "file:1", "recommendation": "approve"}]},
+        "decisions": [{"gate": 1, "decision": "APPROVE_WITH_ATTENTION", "by": "hil:x", "at": "now",
+                       "note": "design ok"}],
+        "links": {}, "review_dispositions": {}})
+    monkeypatch.setattr(tr, "next_item", lambda i: ("", ""))
+    monkeypatch.setattr(tr, "_review_evidence", lambda i, mode: (f"({mode} table)", "APPROVE"))
+    tr.record("BI-PF-1481", "planning", "pass", "plain language")
+    tr.record("BI-PF-1481", "gate0", "pass", "impact")
+    tr.record("BI-PF-1481", "design_review", "fail", "9 findings")
+    tr.record("BI-PF-1481", "design_review", "pass", "0 pending")
+    out = tr.show("BI-PF-1481")
+    order = ["## 1. Plain language", "## 2. Gate 0", "## 3. Flow", "## 4. Gate 1.5",
+             "## 5. Gate 1", "## 6. Implementation", "## 7. Gate 2.5", "## 8. Gate 2",
+             "## 9. Tests", "## 10. Usage", "## 11. Final completion", "## Disposition key"]
+    assert [out.index(x) for x in order] == sorted(out.index(x) for x in order)
+    assert "**Current stage:** gate1" in out
+    assert "the problem" in out and "ADR-1" in out and "| API" in out
+    assert "APPROVE_WITH_ATTENTION" in out and "**ACTIONED**" in out
+    assert "design_review (APPROVE)" in out
+
+
+def test_current_stage_and_latest_event_wins(tmp_path, monkeypatch):
+    monkeypatch.setattr(tr, "TRAILS", tmp_path)
+    tr.record("BI-PF-1481", "planning", "pass")
+    tr.record("BI-PF-1481", "gate0", "pass")
+    assert tr.current_stage("BI-PF-1481") == "design_review"
+    tr.record("BI-PF-1481", "design_review", "fail")
+    tr.record("BI-PF-1481", "design_review", "pass")
+    assert tr.current_stage("BI-PF-1481") == "gate1"
+    assert tr._stage_events("BI-PF-1481")["design_review"]["status"] == "pass"
+
+
 def test_deferred_requires_follow_up_item(monkeypatch):
     item = {"review_dispositions": {"diff": {"sig:a": {"status": "DEFERRED", "note": "later"}}}}
     assert chk.deferred_problems(item)
