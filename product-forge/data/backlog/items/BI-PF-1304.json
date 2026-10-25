@@ -37,18 +37,19 @@
   ],
   "follow_up": {},
   "brief": {
-    "problem": "No record or enforcement of where generated product data resides",
-    "what_adds": "Residency manifest + build/deploy gate",
-    "why": "Enterprise compliance requires data-class and region guarantees",
-    "who_feels": "Enterprise customers and compliance reviewers",
+    "problem": "No record or enforcement of where generated product data resides; US was proposed as a silent default.",
+    "what_adds": "Explicit home_region (IN template) + residency manifest + fail-closed build/deploy gate with stable codes and warn-first rollout.",
+    "why": "Enterprise compliance requires data-class and region guarantees; India-first deployments must not be silently homed in the US.",
+    "who_feels": "Enterprise customers, compliance reviewers, India-first operators",
+    "success": "A product declares home_region (IN in the template); the gate rejects missing/unknown home, out-of-region backup/KMS/egress, and bad retention with stable codes.",
     "source": "authored"
   },
   "objective": "Emit a per-product residency manifest with data_classes/home_region/allowed_regions/backup/kms/egress/retention and enforce it with a Go build/deploy validator against the counsel-owned residency profiles, blocking by default.",
   "acceptance_criteria": [
-    "core/packaging.build emits a residency section with all six groups populated: data_classes (non-empty), home_region, allowed_regions (non-empty, includes home_region), backup {regions, encrypted, frequency}, kms {provider, region, rotation_days}, egress {allowed_regions, subprocessors}, retention {days, legal_hold}; core.packaging.validate rejects a manifest without a valid residency section.",
-    "A Go module go/residencymanifest (Manifest/Policy/Validate) + cmd/pfresidency validates a manifest against the home-region profile in config/residency-profiles/<home>.json: unknown home -> fail closed; home in allowed_regions; backup/kms/egress regions subset of allowed_regions; retention.days > 0 and <= policy.retention_days when the policy sets one; all six groups present; block/warn mode and JSON report with stable error codes.",
-    "scripts/dev/residency_gate.py is the build/deploy gate: it builds/loads the packaging manifest, invokes the Go validator, and blocks (exit 1) or warns per config/residency-policy.json gate_mode (default block); wired into precheck (packaging area) and documented for the deploy step; --report is non-fatal.",
-    "Tests cover the Go validator (valid, unknown region, home not allowed, backup/kms/egress outside allowed, zero/over retention, missing groups) and the Python manifest/gate (six groups, validate rejects missing, block/warn exit codes); language_rule_review passes; precheck (45+ gates) passes."
+    "core/packaging.build emits a residency section with all six groups populated: data_classes (non-empty), home_region (REQUIRED; no silent default), allowed_regions (non-empty, includes home_region), backup {regions, encrypted=true, frequency}, kms {provider, region, rotation_days>0}, egress {allowed_regions, subprocessors}, retention {days, legal_hold}; core.packaging.validate rejects a manifest with missing/unknown home_region or an invalid residency section.",
+    "A Go module go/residencymanifest (Manifest/Policy/Validate) + cmd/pfresidency validates a manifest against config/residency-profiles/<home>.json: unknown/missing home -> fail closed; home in allowed_regions; backup/kms/egress regions subset of allowed_regions; retention.days > 0 and <= policy.retention_days when set; recognized backup.frequency; all six groups; block/warn mode; JSON report with stable error codes (RESIDENCY_UNKNOWN_HOME, RESIDENCY_HOME_NOT_ALLOWED, RESIDENCY_BACKUP_REGION, RESIDENCY_KMS_REGION, RESIDENCY_EGRESS_REGION, RESIDENCY_RETENTION, RESIDENCY_MISSING_GROUP, RESIDENCY_UNKNOWN_FREQUENCY).",
+    "scripts/dev/residency_gate.py builds/loads the packaging manifest from config/residency-manifest.json (template) or products/<project>/residency-manifest.json (override), invokes the Go validator, and blocks (exit 1) or warns per config/residency-policy.json gate_mode; --report is non-fatal; warn mode prints a one-line stderr summary.",
+    "Tests cover the Go validator (valid, unknown region, missing home, home not allowed, backup/kms/egress outside allowed, zero/over retention, invalid backup/KMS fields, missing groups), the Python manifest/gate (six groups, validate rejects missing, IN template, override precedence, block/warn exit codes, warn stderr), language_rule_review, and precheck (45+ gates)."
   ],
   "in_scope": [
     "core/packaging.py residency section + validation",
@@ -81,7 +82,7 @@
     "test-framework/tests/test_packaging_residency.py",
     "docs/EDP-RESIDENCY-MANIFEST.md"
   ],
-  "approach": "Extend core/packaging.build/validate with an embedded residency section sourced from config/residency-manifest.json + config/residency-profiles/<home>.json. Add go/residencymanifest (Manifest/Policy/Validate + cmd/pfresidency CLI) with fail-closed region/retention/egress checks and block/warn modes. Add scripts/dev/residency_gate.py as the build/deploy gate (builds/loads the manifest, invokes the Go validator, block|warn) and wire it into precheck for packaging changes. Tests: Go validator table tests + Python packaging/gate tests; docs the deploy gate and config knobs.",
+  "approach": "Extend core/packaging.build/validate with an embedded residency section sourced from config/residency-manifest.json (template) or products/<project>/residency-manifest.json (override) + config/residency-profiles/<home>.json. Add go/residencymanifest (Manifest/Policy/Validate + cmd/pfresidency) with fail-closed home/region/backup/KMS/egress/retention checks, stable error codes and block/warn modes. Add docs/RESIDENCY-MANIFEST-GATE.md; tests in Go + test-framework.",
   "review": {
     "reconciliation": {
       "prior_decisions": [
@@ -98,21 +99,19 @@
         "precheck._GATES + config/ci-cd-gates.json; no deploy pipeline script in-repo yet."
       ],
       "assumptions": [
-        "Default home_region is US (us-v1) and is overridable via config/residency-manifest.json; no project config carries a region today.",
+        "home_region is REQUIRED per product; there is no silent US default. The shipped template config/residency-manifest.json uses IN (in-v1).",
         "Default data classes: product_metadata, generated_source, build_evidence (no tenant PII by default).",
-        "Default retention is 365 days; backup daily; KMS provider local/US rotation 90d; egress is empty (no cross-border subprocessors).",
-        "The gate defaults to block; warn is an explicit config mode. The manifest is an embedded residency section in packaging-manifest.json.",
-        "A standalone Go module is used for the gate because go/edpsvc/internal/residency is internal and the gate must run at packaging/deploy without the edpsvc."
+        "Default retention is 365 days; backup daily; KMS provider local/IN rotation 90d; egress empty (no cross-border subprocessors).",
+        "The gate defaults to warn for the first release, then block; warn is audited in the JSON report and a stderr line.",
+        "The manifest is an embedded residency section in packaging-manifest.json; config/residency-manifest.json is the default/template, and products/<project>/residency-manifest.json overrides it.",
+        "A standalone Go module is used for the gate because go/edpsvc/internal/residency is internal and the gate must run at packaging/deploy without edpsvc."
       ],
       "divergences": [
-        "The stale analysis suggested gate/residency_check.go and extending run_manifest.py; the current owner is core/packaging.py and a Go module go/residencymanifest.",
+        "Prior proposal defaulted home_region to US; replaced by explicit-required with an IN template after operator review.",
+        "The stale analysis suggested gate/residency_check.go and extending run_manifest.py; the current owner is core/packaging.py and go/residencymanifest.",
         "A second Go residency type set exists (internal edpsvc vs standalone gate); the gate is deliberately standalone and reuses the policy files, not the internal package."
       ],
-      "open_questions": [
-        "Confirm default home_region=US (us-v1), data classes, retention=365d, backup daily, KMS local/US/90d, egress empty.",
-        "Confirm gate_mode=block by default (warn is opt-in) and that the manifest is embedded in packaging-manifest.json.",
-        "Confirm the standalone Go module go/residencymanifest is acceptable rather than moving the internal edpsvc evaluator."
-      ]
+      "open_questions": []
     },
     "impact_review": [
       {
@@ -124,12 +123,7 @@
       {
         "claim": "AC coverage",
         "verdict": "aligned",
-        "evidence": [
-          "core/packaging.build emits a residency section with all six groups populated: data_classes (non-empty), home_region, allowed_regions (non-empty, includes home_region), backup {regions, encrypted, frequency}, kms {provider, region, rotation_days}, egress {allowed_regions, subprocessors}, retention {days, legal_hold}; core.packaging.validate rejects a manifest without a valid residency section.",
-          "A Go module go/residencymanifest (Manifest/Policy/Validate) + cmd/pfresidency validates a manifest against the home-region profile in config/residency-profiles/<home>.json: unknown home -> fail closed; home in allowed_regions; backup/kms/egress regions subset of allowed_regions; retention.days > 0 and <= policy.retention_days when the policy sets one; all six groups present; block/warn mode and JSON report with stable error codes.",
-          "scripts/dev/residency_gate.py is the build/deploy gate: it builds/loads the packaging manifest, invokes the Go validator, and blocks (exit 1) or warns per config/residency-policy.json gate_mode (default block); wired into precheck (packaging area) and documented for the deploy step; --report is non-fatal.",
-          "Tests cover the Go validator (valid, unknown region, home not allowed, backup/kms/egress outside allowed, zero/over retention, missing groups) and the Python manifest/gate (six groups, validate rejects missing, block/warn exit codes); language_rule_review passes; precheck (45+ gates) passes."
-        ],
+        "evidence": "4 detailed ACs incl. explicit home_region (template IN), stable error codes, backup/KMS rules, manifest override/precedence, warn stderr, neutral doc name, and fail-closed unknown/missing home.",
         "recommendation": "approve"
       },
       {
@@ -170,9 +164,9 @@
     "Gate 1.5 architect review (mimo-v2.6-flash): {'BLOCKER': 1, 'MAJOR': 3, 'MINOR': 4, 'NIT': 2}"
   ],
   "risks": [
-    "Default home region/data classes/retention are product decisions; Gate 1 confirmation is required.",
-    "The standalone Go types duplicate the internal edpsvc residency types; they are gate-specific and policy-file compatible.",
-    "Block-mode gate may stop packaging for a policy violation; warn mode is the explicit opt-in."
+    "home_region is explicit; a product with no manifest now fails closed (intentional). The shipped template uses IN and products can override.",
+    "The standalone Go types duplicate the internal edpsvc residency types; a conformance test + schema_version guard the file contract.",
+    "Warn-first rollout: the first release warns; block follows after products have manifests."
   ],
   "rollback": "Set config/residency-policy.json gate_mode=warn or revert the commit; manifests remain informational.",
   "evidence": [
@@ -315,7 +309,7 @@
     "usage": {}
   },
   "created_at": "2026-10-13T16:02:45.510577",
-  "updated_at": "2026-10-25T14:24:24.086555",
+  "updated_at": "2026-10-25T15:21:16.730416",
   "score": 0.75,
   "source_ref": "docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md",
   "_note": "dependencies set",
@@ -344,27 +338,38 @@
       },
       "sig:5dea71bf7ebc8609": {
         "status": "ACCEPTED",
-        "note": "Accepted as advisory; no further change in this item."
+        "note": "Fleet-level failure-rate aggregation is accepted narrowly: there is no fleet telemetry owner/aggregator in this item, and per-run JSON plus a stderr summary is the audit signal. Alternatives: add a counter file (no consumer) or a metrics endpoint (new API surface). Revisit when fleet monitoring lands; owner: platform observability.",
+        "why_not_fixed": "A fleet metric needs a collector/query owner that does not exist in EDP-12; adding a counter file with no consumer creates dead state. The per-run JSON report is the contract.",
+        "alternatives": [
+          "counter file (no consumer)",
+          "new metrics endpoint (new API surface, out of scope)"
+        ],
+        "revisit_if": "a fleet monitoring/aggregation service exists or compliance asks for fleet-wide failure rates",
+        "owner": "platform-observability"
       },
       "sig:3f9860e5f85bb4d3": {
-        "status": "ACCEPTED",
-        "note": "Accepted as advisory; no further change in this item."
+        "status": "ACTIONED",
+        "note": "Define stable error codes in the Go validator and docs: RESIDENCY_UNKNOWN_HOME, RESIDENCY_HOME_NOT_ALLOWED, RESIDENCY_BACKUP_REGION, RESIDENCY_KMS_REGION, RESIDENCY_EGRESS_REGION, RESIDENCY_RETENTION, RESIDENCY_MISSING_GROUP, RESIDENCY_UNKNOWN_FREQUENCY. Any add/remove is a versioned contract change."
       },
       "sig:a9aa9cfe32496f3c": {
-        "status": "ACCEPTED",
-        "note": "Accepted as advisory; no further change in this item."
+        "status": "ACTIONED",
+        "note": "Validate backup.encrypted=true, a recognized backup.frequency, kms.rotation_days>0, and backup/kms/egress regions ? allowed_regions; tests cover each."
       },
       "sig:08376f897ce49920": {
-        "status": "ACCEPTED",
-        "note": "Accepted as advisory; no further change in this item."
+        "status": "ACTIONED",
+        "note": "config/residency-manifest.json is the default/template; per-product override is products/<project>/residency-manifest.json with override precedence documented. The manifest carries schema_version."
       },
       "sig:9d9149ed390994dd": {
-        "status": "ACCEPTED",
-        "note": "Accepted as advisory; no further change in this item."
+        "status": "ACTIONED",
+        "note": "residency_gate.py emits a one-line stderr summary on failure in warn mode; exit stays 0; the JSON report is unchanged."
       },
       "sig:429912b9650a554a": {
-        "status": "ACCEPTED",
-        "note": "Accepted as advisory; no further change in this item."
+        "status": "ACTIONED",
+        "note": "Doc is docs/RESIDENCY-MANIFEST-GATE.md (neutral, multi-product)."
+      },
+      "sig:140bedbf9c3f6d56": {
+        "status": "REJECTED",
+        "note": "Placeholder 'none' is not a finding; no action."
       }
     }
   }
