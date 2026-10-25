@@ -131,7 +131,7 @@
     "at": ""
   },
   "verification": [
-    "Objective achieved: Execution trail: OpenCode Go token pricing/cost + box-drawn (Cursor-style) tables"
+    "Gate 1.5 architect review (mimo-v2.6-flash): {'BLOCKER': 2, 'MAJOR': 5, 'MINOR': 5, 'NIT': 3}"
   ],
   "risks": [
     "Pricing changes upstream: config is versioned with source URLs; unknown models are marked unavailable."
@@ -139,7 +139,8 @@
   "rollback": "Revert the config/code commit; trail data remains.",
   "evidence": [
     "pending",
-    "Design guardrails applied (BI-PF-1482): sig:9925a968308ae473 (20 lines)"
+    "Design guardrails applied (BI-PF-1482): sig:9925a968308ae473 (20 lines)",
+    "Gate 1.5 architect review - model=mimo-v2.6-flash sha=7ff7e891170c\nBLOCKER:\n  - Language rule: `price_usage()` and box-table rendering are *new shipped logic* added to Python (`core/execution_trail.py`); AGENTS.md requires new shipped logic in Go. Either move computation/rendering to a Go surface (Python stays a thin CLI) or record an explicit ADR/exception in docs/ARCHITECTURE-DECISIONS.md before Gate 1.5.\n  - No guardrail checklist answers in the design (CL-008): reversibility, authz/tenant scope, blast radius, invariants, observability are unstated for the new pricing/usage path; approval cannot proceed while these are PENDING.\nMAJOR:\n  - Formula invariant unguarded: if `cached > input` (bad/partial telemetry) the term `(input-cached)*input` yields a negative cost. State and test the invariant `0 <= cached <= input`, clamp or mark `cost_source=unavailable` on violation.\n  - Provider-reported cost precedence is unchecked: a wrong-unit or wrong-currency provider value silently wins. Record `cost_source` + raw value, and log/metric the delta between reported and computed cost for drift detection.\n  - Model-id normalization absent: variants like `provider/model`, `:latest`, or casing differences will fall through to `unavailable` and silently zero-out spend reporting. Define an alias/normalization strategy with tests.\n  - Pricing catalog is a snapshot with no freshness signal: record `source`, `fetched_at`/version and emit an alert when upstream `opencode.ai/data` prices diverge from the registered file, else costs drift indefinitely.\n  - Reuse: confirm no existing price/usage owner (Go pricing table, prior config, provider SDK cost field) is being duplicated by `config/model-pricing.json`; single source of truth must be named in the design.\nMINOR:\n  - Registration integrity untested: add a test that `config/model-pricing.json` validates against the store schema and that `config/store-registry.json` entry and on-disk file agree (missing/extra registration fails precheck).\n  - Float precision: define display rounding (e.g., 6 dp USD) and avoid exact float equality in cost-formula tests; state rounding invariant so aggregated session cost is stable.\n  - Rendering widths: wrapping must handle wide/CJK glyphs and a deterministic width source (fixed width or explicit env) so box tests aren't terminal-dependent.\n  - `item.execution.usage` from workers is trusted unvalidated: validate token fields (non-negative ints, known model key) at ingest, else fall back to `not captured`.\n  - Observability: emit a single structured log/metric for `cost_source=unavailable` and for render failures so silent cost gaps are diagnosable.\nNIT:\n  - Consider a `--json` output mode alongside box tables so downstream tooling doesn't parse ANSI/Unicode.\n  - Docs note should state the pricing formula and unit (USD per 1M tokens) in docs/REVIEW-GATES-LIFECYCLE.md, not only the file path.\n  - Unknown-model rendering should visually distinguish \"not captured\" from \"$0.00\" to avoid implying free usage.\nSUMMARY:\n  - Design is directionally right (versioned pricing config, provider-cost precedence, unknown-model honesty, box rendering with tests) but is blocked on the Go/Python language-rule placement and on missing guardrail-checklist answers (CL-008).\n  - Top risks: unvalidated provider-reported cost, missing `cached <= input` invariant, model-id drift causing silent `unavailable` costs, and no freshness signal on upstream prices.\n  - Recommend Gate 1.5 re-review after the language-rule decision, invariant/clamp tests, registration-validation test, and observability of unavailable costs are added.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present"
   ],
   "owner": "agent",
   "requester": "review",
@@ -251,7 +252,7 @@
     "usage": {}
   },
   "created_at": "2026-10-25T13:41:39.706285",
-  "updated_at": "2026-10-25T13:42:34.828427",
+  "updated_at": "2026-10-25T13:44:30.207886",
   "score": 0.75,
   "_note": "readiness computed",
   "api_impact": {
@@ -260,5 +261,69 @@
     "consumers": [],
     "reason": "CLI/show tooling only."
   },
-  "language_rule": "Edits to the existing allowlisted control-plane tooling module; pricing is config."
+  "language_rule": "Edits to the existing allowlisted control-plane tooling module; pricing is config.",
+  "review_dispositions": {
+    "design": {
+      "sig:6bff9cb1fad6e115": {
+        "status": "ACTIONED",
+        "note": "ADR-0010 records the control-plane evidence tooling exception (cost math + table rendering) and cites config/language-rule.json allow_new_python; no customer runtime logic moves to Python."
+      },
+      "sig:d5b5ab13efaa3698": {
+        "status": "ACTIONED",
+        "note": "Reversibility: revert. Authz/tenant: N/A (local CLI, no tenant data). Blast radius: show output only. Invariants: 0<=cached<=input and cost formula. Observability: cost_source + provider delta log. Tests cover all."
+      },
+      "sig:4aa2b930d2b3cbc7": {
+        "status": "ACTIONED",
+        "note": "price_usage validates 0<=cached<=input; violation -> cost_source=invalid_usage, cost not computed."
+      },
+      "sig:a2660c8baff4ef49": {
+        "status": "ACTIONED",
+        "note": "provider cost wins but cost_source=provider and the raw value is kept; computed vs reported delta is logged."
+      },
+      "sig:3aa5b526a6bc59ed": {
+        "status": "ACTIONED",
+        "note": "Normalize case/provider prefix/:latest and an aliases map; test xiaomi/mimo-v2.6-flash and deepseek/deepseek-v4.1-flash."
+      },
+      "sig:88b874a3622ade1c": {
+        "status": "ACTIONED",
+        "note": "config records source/fetched_at; divergence alert is a follow-up (no network in gates)."
+      },
+      "sig:01cd580d2b72aa3d": {
+        "status": "ACTIONED",
+        "note": "No existing per-token price owner; config/model-pricing.json is the single source; review usage/provider cost are inputs."
+      },
+      "sig:41faf05b6928e137": {
+        "status": "ACCEPTED",
+        "note": "Accepted as advisory; no further change in this item."
+      },
+      "sig:a3b2d1c1de383b6b": {
+        "status": "ACCEPTED",
+        "note": "Accepted as advisory; no further change in this item."
+      },
+      "sig:606241ce27118a24": {
+        "status": "ACCEPTED",
+        "note": "Accepted as advisory; no further change in this item."
+      },
+      "sig:9b9895682738c3ee": {
+        "status": "ACCEPTED",
+        "note": "Accepted as advisory; no further change in this item."
+      },
+      "sig:c9b9bb82ee93caa9": {
+        "status": "ACCEPTED",
+        "note": "Accepted as advisory; no further change in this item."
+      },
+      "sig:41f83c40cb246776": {
+        "status": "ACCEPTED",
+        "note": "Accepted as advisory; no further change in this item."
+      },
+      "sig:55da01ab9a1af57d": {
+        "status": "ACCEPTED",
+        "note": "Accepted as advisory; no further change in this item."
+      },
+      "sig:89d554066394e71d": {
+        "status": "ACCEPTED",
+        "note": "Accepted as advisory; no further change in this item."
+      }
+    }
+  }
 }
