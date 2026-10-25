@@ -1,6 +1,7 @@
 """Design pack check/render (BI-PF-1484)."""
 import sys
 from pathlib import Path
+from uuid import uuid4
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "scripts" / "dev"))
@@ -68,7 +69,7 @@ def test_evaluate_flags_invalid_and_missing_created_at(monkeypatch):
 
 
 def test_evaluate_validates_config_once(monkeypatch, tmp_path):
-    cfg = tmp_path / f"design_pack_cfg_{1}.json"
+    cfg = tmp_path / f"cfg-{uuid4().hex}.json"
     cfg.write_text('{"enforce_items": []}', encoding="utf-8")
     monkeypatch.setattr(d, "CFG", cfg)
     monkeypatch.setattr(d.backlog, "get_epic", lambda *a, **k: {"id": "BI-PF-9", "status": "new"})

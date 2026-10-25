@@ -51,6 +51,8 @@ def should_enforce(item: dict, cfg: dict) -> bool:
 
 
 def _validate_cfg(cfg: dict) -> str:
+    if not isinstance(cfg, dict):
+        return "config is not an object"
     enforce = cfg.get("enforce_from")
     if not enforce:
         return "enforce_from missing"
@@ -58,6 +60,12 @@ def _validate_cfg(cfg: dict) -> str:
         _parse_date(enforce)
     except ValueError:
         return f"enforce_from invalid: {enforce!r}"
+    if "enforce_items" in cfg and not isinstance(cfg.get("enforce_items"), list):
+        return "enforce_items must be a list"
+    if "required_sections" in cfg and not isinstance(cfg.get("required_sections"), list):
+        return "required_sections must be a list"
+    if "required_contracts" in cfg and not isinstance(cfg.get("required_contracts"), list):
+        return "required_contracts must be a list"
     return ""
 
 
@@ -78,16 +86,18 @@ def _date_problems(item: dict, cfg: dict) -> list[str]:
     return bad
 
 
-def evaluate(item_id: str) -> list[str]:
+def evaluate(item_id: str, item: dict | None = None) -> list[str]:
     """Public Gate 1 entry: fail closed on unknown items/invalid dates."""
-    item = backlog.get_epic("product_forge", None, item_id)
+    if item is None:
+        item = backlog.get_epic("product_forge", None, item_id)
     if not item:
         return [f"item not found: {item_id}"]
     cfg = _cfg()
+    bad = []
     cfg_problem = _validate_cfg(cfg)
     if cfg_problem:
-        return [cfg_problem]
-    bad = _date_problems(item, cfg)
+        bad.append(cfg_problem)
+    bad += _date_problems(item, cfg)
     if bad:
         return bad
     if not should_enforce(item, cfg):
@@ -190,7 +200,7 @@ def main(argv=None) -> int:
         print("design-pack: --item is required unless --all", file=sys.stderr)
         return 2
     item = backlog.get_epic("product_forge", None, a.item) or {}
-    bad = evaluate(a.item)
+    bad = evaluate(a.item, item=item)
     if a.render:
         DESIGN_DIR.mkdir(parents=True, exist_ok=True)
         out = DESIGN_DIR / f"{a.item}.md"
