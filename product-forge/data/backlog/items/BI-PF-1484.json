@@ -41,6 +41,17 @@
         "sig:192f782a1c631db2"
       ],
       "note": "HIL approves the 2 accepted design findings (cost_source/test-kind taxonomy; 2.5 does not certify ACs)."
+    },
+    {
+      "at": "2026-10-25T11:09:34.581932+00:00",
+      "by": "hil:srinikc",
+      "decision": "APPROVE_WITH_ATTENTION",
+      "gate": 1,
+      "findings_sha": "ef9cfb134ad5",
+      "findings_digest": "1cee28c5fcf4",
+      "seq": 3,
+      "note": "Gate 1 embeds Gate 1.5 ef9cfb134ad5: 13 findings, 0 pending, 2 HIL-approved accepted; cap enforced.",
+      "hil_confirmed": true
     }
   ],
   "follow_up": {},
@@ -297,7 +308,7 @@
     "usage": {}
   },
   "created_at": "2026-10-25T14:50:28.634469",
-  "updated_at": "2026-10-25T16:39:26.683794",
+  "updated_at": "2026-10-25T16:40:13.434188",
   "score": 0.75,
   "_note": "Gate 0 design",
   "api_impact": {
@@ -360,5 +371,58 @@
         "note": "Covered by the 1484 design: disposition policy, AC verification, final report, and completion guards."
       }
     }
-  }
+  },
+  "ac_verification": [
+    {
+      "ac": "Disposition policy: ACCEPTED capped at 2 per mode; every ACCEPTED/DEFERRED requires HIL DISPOSITION_APPROVAL; DEFERRED cites existing backlog id; enforced at Gate 1/2/completion.",
+      "result": "PASS",
+      "evidence": [
+        "test-framework/tests/test_disposition_policy.py (4 passed)",
+        "gate1_check refused 3 ACCEPTED then passed 2 with HIL approval"
+      ],
+      "verified_by": "agent + Gate 1",
+      "verified_at": "2026-10-25"
+    },
+    {
+      "ac": "AC verification: item.ac_verification PASS/FAIL/PENDING + evidence; Gate 2 refuses missing/FAIL/PENDING; completion re-checks.",
+      "result": "PASS",
+      "evidence": [
+        "scripts/dev/gate_decisions.py Gate 2 predicate",
+        "test-framework/tests/test_finalize_item.py (2 passed)",
+        "scripts/dev/execution_trail_check.py completion guard"
+      ],
+      "verified_by": "agent",
+      "verified_at": "2026-10-25"
+    },
+    {
+      "ac": "Final report persisted on the item with ACs, tests by kind, totals, tokens/cost, accepted/deferred ids, gate decisions; merge blocked without it.",
+      "result": "PASS",
+      "evidence": [
+        "test-framework/tests/test_finalize_item.py",
+        "scripts/dev/finalize_item.py --item BI-PF-1484"
+      ],
+      "verified_by": "agent",
+      "verified_at": "2026-10-25"
+    },
+    {
+      "ac": "Execution trail show renders AC verification, test results by kind, accepted/deferred, totals and final table; tests cover cap/approval, final report, classification, completion guard.",
+      "result": "PASS",
+      "evidence": [
+        "test-framework/tests/test_execution_trail.py (24 passed)"
+      ],
+      "verified_by": "agent",
+      "verified_at": "2026-10-25"
+    },
+    {
+      "ac": "Docs/state: review-dispositions config + store entry; REVIEW-GATES-LIFECYCLE documents approval, AC and final-report contract; language/store/wired checks pass.",
+      "result": "PASS",
+      "evidence": [
+        "store-check OK",
+        "wired-audit 0 unwired",
+        "language-rule OK"
+      ],
+      "verified_by": "agent",
+      "verified_at": "2026-10-25"
+    }
+  ]
 }
