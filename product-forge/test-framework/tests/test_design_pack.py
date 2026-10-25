@@ -18,7 +18,8 @@ def _item():
                             "performance": ["p"], "test_matrix": [
                                 {"ac": "AC-1", "kind": "unit", "test": "t1"},
                                 {"ac": "AC-2", "kind": "api", "test": "t2"}],
-                            "rollout": "warn", "rollback": "revert", "decisions": ["use design pack"]}}
+                            "rollout": "warn", "rollback": "revert", "decisions": ["use design pack"],
+                            "guardrails": ["reversible"], "learnings": ["prior review class"]}}
 
 
 def test_check_ok():
@@ -38,6 +39,15 @@ def test_render_contains_sections(tmp_path, monkeypatch):
     out.write_text(d.render(_item()), encoding="utf-8")
     s = out.read_text(encoding="utf-8")
     assert "## 3. Logic invariants" in s and "| AC-1" in s and "BI-PF-9999" in s
+
+
+def test_generated_design_md_freshness(tmp_path, monkeypatch):
+    monkeypatch.setattr(d, "DESIGN_DIR", tmp_path)
+    it = _item()
+    (tmp_path / "BI-PF-9999.md").write_text(d.render(it), encoding="utf-8")
+    assert d.fresh(it)
+    (tmp_path / "BI-PF-9999.md").write_text("stale", encoding="utf-8")
+    assert not d.fresh(it)
 
 
 def test_should_enforce_by_item_and_date():

@@ -82,3 +82,13 @@ def test_parse_review_ignores_none_placeholders():
     text = "### BLOCKER\n- none\n### MAJOR\n- real\n### MINOR\n- none\n### NIT\n- none\n### SUMMARY\n- ok\n"
     out = ar.parse_review(text)
     assert out["BLOCKER"] == [] and out["MAJOR"] == ["real"] and out["MINOR"] == []
+
+def test_item_dispositions_missing_item_is_empty(monkeypatch):
+    monkeypatch.setattr(ar, "_get_item", lambda i: (_ for _ in ()).throw(KeyError(i)))
+    assert ar._item_dispositions("BI-PF-X", "diff") == {}
+
+
+def test_review_block_renders_sections():
+    block = ar.review_block({"BLOCKER": ["b"], "MAJOR": [], "MINOR": [], "NIT": [],
+                             "SUMMARY": ["s"]}, "model", "sha", "diff")
+    assert "BLOCKER" in block and "MAJOR" in block and "sha" in block

@@ -150,6 +150,15 @@ def has_review_changes(base: str = "") -> bool:
     return bool(_git_diff(base).strip())
 
 
+def _is_ancestor(base: str, head: str) -> bool:
+    try:
+        r = subprocess.run(["git", "merge-base", "--is-ancestor", base, head], cwd=str(ROOT),
+                           capture_output=True, text=True)
+        return r.returncode == 0
+    except Exception:
+        return False
+
+
 def valid_since(base: str, merge_base: str, reviewed_heads: set) -> bool:
     if not base:
         return True
@@ -908,6 +917,17 @@ def main(argv: list[str]) -> int:
         if not ok:
             print(why)
             return 1
+    try:
+        import review_budget
+        budget_bad = review_budget.problems(item)
+    except Exception as e:
+        print(f"review: review-budget check failed: {e}")
+        return 1
+    if budget_bad:
+        print("review: budget exceeded; fix findings and let HIL decide, or record HIL MATERIAL_CHANGE")
+        for b in budget_bad:
+            print("  - " + b)
+        return 1
     reason = redact_reason(getattr(a, "reason", "")) if a.rereview else ""
     base = a.since
     if a.mode == "diff" and not base and a.rereview:
@@ -921,6 +941,9 @@ def main(argv: list[str]) -> int:
         if not valid_since(base, _merge_base(), _reviewed_heads(a.item, "diff")):
             print(f"review: base {base!r} is not merge-base or a previously reviewed HEAD")
             return 1
+        if not _is_ancestor(base, _git_text(["rev-parse", "HEAD"]).strip()):
+            print(f"review: base {base!r} is not an ancestor of HEAD; falling back to full review")
+            base = ""
     if a.mode == "diff" and not has_review_changes(base):
         print("review: no review-relevant changes since the reviewed base; skipping")
         return 0

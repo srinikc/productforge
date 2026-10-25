@@ -38,9 +38,14 @@ def _json(raw: bytes) -> dict:
     return d if isinstance(d, dict) else {}
 
 
+MAX_BYTES = 20 * 1024 * 1024
+
+
 def problem(rel: str, raw: bytes) -> str:
     if not any(rel.startswith(e) for e in EXCLUDED):
         return ""
+    if len(raw) > MAX_BYTES:
+        return "excluded evidence exceeds 20MB"
     if rel.startswith("engineering/reviews/"):
         if not rel.endswith(".json") or "-" not in Path(rel).stem:
             return "review evidence must be <item>-<sha>.json"
