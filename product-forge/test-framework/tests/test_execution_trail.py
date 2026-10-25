@@ -243,3 +243,14 @@ def test_review_evidence_missing_and_exception_are_explicit(tmp_path, monkeypatc
     monkeypatch.setattr(subprocess, "run", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("boom")))
     table, rec = tr._review_evidence("BI-PF-1481", "design")
     assert "cannot render" in table and rec == ""
+
+def test_test_kind_and_tests_by_kind():
+    evs = [{"tests": [
+        {"command": "pytest test_x.py", "result": "pass", "passed": 2, "failed": 0},
+        {"command": "go test ./...", "result": "pass", "passed": 3, "failed": 0},
+        {"command": "pytest test_conformance.py", "result": "pass", "passed": 4, "failed": 0},
+        {"command": "curl api/health", "result": "pass", "passed": 1, "failed": 0},
+    ]}]
+    by = tr.tests_by_kind(evs)
+    assert by["unit"]["passed"] == 2 and by["go"]["passed"] == 3
+    assert by["logic"]["passed"] == 4 and by["api"]["passed"] == 1

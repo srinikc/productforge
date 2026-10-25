@@ -19,6 +19,7 @@ for p in (ROOT, ROOT / "scripts" / "dev"):
 
 from core import execution_trail as trail  # noqa: E402
 import gate2_completion_check as g2  # noqa: E402
+import disposition_policy as dp  # noqa: E402
 
 FOLLOW_UP = re.compile(r"BI-(?:[A-Za-z0-9]+-)?\d+")
 
@@ -58,7 +59,15 @@ def evaluate(ids: list[str]) -> list[str]:
             problems.append(f"{iid}: missing stages: {', '.join(missing)}")
         for p in trail.order_problems(iid):
             problems.append(f"{iid}: {p}")
+        if str(item.get("status") or "").lower() in ("completed", "closed", "done", "delivered"):
+            acs = item.get("ac_verification") or []
+            bad_ac = [a.get("ac") for a in acs if str(a.get("result") or "").upper() != "PASS"]
+            if not acs or bad_ac:
+                problems.append(f"{iid}: completion without AC verification PASS for all ACs")
+            if not item.get("final_report"):
+                problems.append(f"{iid}: completion without a persisted final_report")
         problems += [f"{iid}: {p}" for p in deferred_problems(item)]
+        problems += [f"{iid}: {p}" for mode in ("design", "diff") for p in dp.problems(item, mode)]
         failures = trail.TRAILS / "_failures.jsonl"
         if failures.is_file():
             for line in failures.read_text(encoding="utf-8", errors="replace").splitlines():

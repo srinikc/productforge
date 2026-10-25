@@ -57,6 +57,16 @@ def record_gate_decision(backlog, scope: str, project: str | None, eid: str, gat
     if not str(by).startswith("hil:"):
         print(f"[Backlog] refusing gate {gate} decision for {eid}: by must be hil:<actor>")
         return None
+    mode = "design" if int(gate) == 1 else "diff"
+    if int(gate) == 2:
+        acs = item.get("ac_verification") or []
+        bad_ac = [a.get("ac") for a in acs if str(a.get("result") or "").upper() != "PASS"]
+        if not acs or bad_ac:
+            print(f"[Backlog] refusing gate 2 decision for {eid}: AC verification incomplete")
+            return None
+    for prob in dp.problems(item, mode, lambda i: backlog.get_epic(scope, project, i)):
+        print(f"[Backlog] refusing gate {gate} decision for {eid}: {prob}")
+        return None
     if str(decision).upper() not in gp.APPROVED:
         print(f"[Backlog] refusing gate {gate} decision for {eid}: only APPROVE/APPROVE_WITH_ATTENTION")
         return None

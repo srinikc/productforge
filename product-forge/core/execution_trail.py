@@ -236,6 +236,39 @@ def price_usage(usage: dict) -> dict:
     return u
 
 
+TEST_KINDS = ("unit", "api", "db", "logic", "go", "other")
+
+
+def test_kind(test: dict) -> str:
+    """Classify a recorded test command (BI-PF-1484)."""
+    cmd = str((test or {}).get("command") or "").lower()
+    if "go test" in cmd or "/go/" in cmd:
+        return "go"
+    if "conformance" in cmd or "contract" in cmd:
+        return "logic"
+    if "postgres" in cmd or " db" in f" {cmd}" or "db_" in cmd:
+        return "db"
+    if "api/" in cmd or "pipeline" in cmd or "testclient" in cmd:
+        return "api"
+    if "pytest" in cmd:
+        return "unit"
+    return "other"
+
+
+def tests_by_kind(evs: list[dict]) -> dict:
+    out = {k: {"rows": [], "passed": 0, "failed": 0, "skipped": 0, "duration_ms": 0} for k in TEST_KINDS}
+    for ev in evs:
+        for t in ev.get("tests") or []:
+            k = test_kind(t)
+            row = out[k]
+            row["rows"].append(t)
+            row["passed"] += int(t.get("passed") or 0)
+            row["failed"] += int(t.get("failed") or 0)
+            row["skipped"] += int(t.get("skipped") or 0)
+            row["duration_ms"] += int(t.get("duration_ms") or 0)
+    return out
+
+
 def _box(headers: list, rows: list, widths: list | None = None) -> str:
     """Cursor-style Unicode box table with wrapped cells."""
     n = len(headers)
@@ -440,6 +473,45 @@ def show(item: str) -> str:
         status = _stage_status(stage, ev, design_rec, diff_rec)
         lines.append(f"- [DONE] {stage} ({status}) - {ev.get('at', '')}")
 
+    acs = it.get("ac_verification") or []
+    lines += ["", "## AC verification"]
+    if acs:
+        lines.append(_box(["AC", "Result", "Evidence", "Verified by"],
+                          [[a.get("ac", ""), a.get("result", ""),
+                            "; ".join(a.get("evidence") or []), a.get("verified_by", "")]
+                           for a in acs], widths=[40, 9, 44, 18]))
+    else:
+        lines.append("Not recorded.")
+
+    tbk = tests_by_kind(evs)
+    lines += ["", "## Test results by kind"]
+    trows = []
+    for k in TEST_KINDS:
+        row = tbk[k]
+        if not row["rows"]:
+            continue
+        for t in row["rows"]:
+            trows.append([k, t.get("command", ""), t.get("result", ""),
+                          t.get("passed", ""), t.get("failed", ""), t.get("skipped", ""),
+                          f"{t.get('duration_ms', 0)} ms"])
+    if trows:
+        lines.append(_box(["Kind", "Command", "Result", "Passed", "Failed", "Skipped", "Duration"],
+                          trows, widths=[7, 38, 8, 7, 7, 8, 10]))
+    else:
+        lines.append("(none recorded)")
+
+    disps = []
+    for mode in ("design", "diff"):
+        for sig, d in ((it.get("review_dispositions") or {}).get(mode) or {}).items():
+            st = str((d or {}).get("status") or "").upper()
+            if st in ("ACCEPTED", "DEFERRED"):
+                disps.append([mode, st, str((d or {}).get("note") or "")])
+    lines += ["", "## Accepted / deferred dispositions"]
+    if disps:
+        lines.append(_box(["Mode", "Status", "Note"], disps, widths=[7, 10, 80]))
+    else:
+        lines.append("(none)")
+
     lines += ["", "## 4. Gate 1.5 - design review",
               f"**Architect recommendation:** {design_rec or 'not recorded'}", "", design_table]
     g1 = _gate_decision(it, 1)
@@ -496,7 +568,11 @@ def show(item: str) -> str:
         ["What shipped", it.get("summary") or it.get("objective") or ""],
         ["Current stage", current],
         ["PR / Merge", f"{delivery.get('pr') or '-'} / {delivery.get('merge_sha') or '-'}"],
+        ["ACs verified", f"{sum(1 for a in acs if str(a.get('result')).upper() == 'PASS')}/{len(acs)}"],
         ["Tests", f"{len(tests)} test row(s)"],
+        ["Tests by kind", " | ".join(f"{k} {v['passed']}/{v['passed'] + v['failed']}"
+                                      for k, v in tbk.items() if v["rows"]) or "none"],
+        ["Final report", "persisted" if it.get("final_report") else "not persisted"],
         ["Total time", f"{total_ms} ms ({total_ms / 1000.0:.1f}s)"],
         ["Tokens in/out/cached", f"{u['input_tokens']} / {u['output_tokens']} / {u['cached_tokens']}"],
         ["Cost (USD)", f"{u['cost_usd']:.6f} (captured={u['captured']} unpriced={u['unpriced']})"],
