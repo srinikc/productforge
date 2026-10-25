@@ -410,7 +410,7 @@
     "usage": {}
   },
   "created_at": "2026-10-25T14:50:28.634469",
-  "updated_at": "2026-10-25T17:27:20.182001",
+  "updated_at": "2026-10-25T17:53:26.956508",
   "score": 0.75,
   "_note": "Reopened: strict disposition policy requires all BLOCKER/MAJOR/MINOR findings fixed",
   "api_impact": {
@@ -924,6 +924,140 @@
         "note": "Delivery approved with attention: 2 accepted + 12 deferred to BI-PF-1485, HIL-approved; ACs pass; final report pending finalize.",
         "hil_confirmed": true
       }
+    ]
+  },
+  "design_pack": {
+    "version": 1,
+    "requirements": [
+      "No ACCEPTED; BLOCKER/MAJOR/MINOR fixed; NIT deferred only with HIL+backlog id",
+      "AC verification PASS before Gate 2/merge",
+      "Persisted final_report with ACs/tests/time/tokens/cost/decisions",
+      "Delta re-review with prior findings",
+      "Design pack + first-pass quality contract"
+    ],
+    "scope": [
+      "Execution trail finalization",
+      "Disposition policy",
+      "AC/merge guards",
+      "Delta review"
+    ],
+    "invariants": [
+      "ACCEPTED is never allowed",
+      "DEFERRED only NIT with existing backlog id + HIL approval",
+      "Completion requires all ACs PASS + final_report",
+      "Review evidence base is merge-base or prior reviewed HEAD of the same item; base != HEAD",
+      "No ACTIONED without test evidence for non-NIT"
+    ],
+    "contracts": {
+      "api": [
+        "No HTTP route; CLI/backlog only"
+      ],
+      "db": [
+        "item.review_dispositions",
+        "item.ac_verification",
+        "item.final_report",
+        "item.decisions"
+      ],
+      "files": [
+        "engineering/design/<ID>.md",
+        "engineering/reviews/<ID>-<sha>.json",
+        "engineering/trails/<ID>.json"
+      ],
+      "config": [
+        "config/review-dispositions.json",
+        "config/design-pack.json"
+      ]
+    },
+    "failure_matrix": [
+      {
+        "case": "ACCEPTED disposition",
+        "expected": "Gate refuses",
+        "code": "ACCEPTED_NOT_ALLOWED"
+      },
+      {
+        "case": "DEFERRED MAJOR",
+        "expected": "Gate refuses",
+        "code": "DEFERRED_SEVERITY"
+      },
+      {
+        "case": "Missing AC verification",
+        "expected": "Gate 2/merge refuses",
+        "code": "AC_VERIFICATION_INCOMPLETE"
+      },
+      {
+        "case": "Missing/stale final report",
+        "expected": "Merge refuses",
+        "code": "FINAL_REPORT_MISSING/STALE"
+      },
+      {
+        "case": "Self-referential delta base",
+        "expected": "Evidence rejected",
+        "code": "DELTA_BASE_INVALID"
+      },
+      {
+        "case": "Cross-item delta base",
+        "expected": "Evidence rejected",
+        "code": "DELTA_BASE_INVALID"
+      },
+      {
+        "case": "Unapproved disposition",
+        "expected": "Gate refuses",
+        "code": "HIL_APPROVAL_MISSING"
+      }
+    ],
+    "dependencies": [
+      "review_sig",
+      "architect_review",
+      "core.backlog",
+      "core.execution_trail",
+      "gate2_completion_check",
+      "precheck"
+    ],
+    "security": [
+      "HIL approvals require by=hil:* and hil_confirmed",
+      "No tenant data in reports"
+    ],
+    "observability": [
+      "execution trail events",
+      "final_report snapshot",
+      "gate refusal stderr"
+    ],
+    "performance": [
+      "Delta review after first pass",
+      "No per-item review glob in hot path where cacheable"
+    ],
+    "rollout": "Apply to new completions; grandfather existing completed items",
+    "rollback": "Revert the commit; item fields inert",
+    "test_matrix": [
+      {
+        "ac": "AC-1",
+        "kind": "unit",
+        "test": "test_disposition_policy.py"
+      },
+      {
+        "ac": "AC-2",
+        "kind": "logic",
+        "test": "test_finalize_item.py + gate2_completion_check"
+      },
+      {
+        "ac": "AC-3",
+        "kind": "unit",
+        "test": "test_finalize_item.py"
+      },
+      {
+        "ac": "AC-4",
+        "kind": "unit",
+        "test": "test_execution_trail.py"
+      },
+      {
+        "ac": "AC-5",
+        "kind": "logic",
+        "test": "store-check + wired-audit + language-rule"
+      }
+    ],
+    "decisions": [
+      "No accepted (HIL 2026-10-25)",
+      "NIT-only deferred with approval"
     ]
   }
 }

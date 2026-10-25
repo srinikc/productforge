@@ -179,7 +179,102 @@
     "usage": {}
   },
   "created_at": "2026-10-25T16:51:37.256014",
-  "updated_at": "2026-10-25T16:51:56.245155",
+  "updated_at": "2026-10-25T17:53:41.364622",
   "score": 0.75,
-  "_note": "readiness computed"
+  "_note": "readiness computed",
+  "design_pack": {
+    "version": 1,
+    "requirements": [
+      "First review full; subsequent reviews delta only",
+      "Prior findings/dispositions in prompt",
+      "Evidence binds reviewed HEAD + base lineage"
+    ],
+    "scope": [
+      "Architect review tooling"
+    ],
+    "invariants": [
+      "Delta base is merge-base or a prior reviewed HEAD for the same item",
+      "base != HEAD",
+      "Evidence path must exist",
+      "Prior context and base use the same latest review"
+    ],
+    "contracts": {
+      "api": [
+        "No HTTP"
+      ],
+      "db": [
+        "engineering/reviews evidence fields base_sha/head_sha"
+      ],
+      "files": [
+        "engineering/reviews/<ID>-<sha>.json"
+      ],
+      "config": [
+        "config/architect-review.json"
+      ]
+    },
+    "failure_matrix": [
+      {
+        "case": "self-referential base",
+        "expected": "reject",
+        "code": "DELTA_BASE_INVALID"
+      },
+      {
+        "case": "cross-item base",
+        "expected": "reject",
+        "code": "DELTA_BASE_INVALID"
+      },
+      {
+        "case": "partial arbitrary since",
+        "expected": "reject",
+        "code": "DELTA_BASE_INVALID"
+      },
+      {
+        "case": "corrupt prior review JSON",
+        "expected": "skip/guarded",
+        "code": "PRIOR_CONTEXT_GUARDED"
+      }
+    ],
+    "dependencies": [
+      "architect_review",
+      "architect_review_check",
+      "review_sig"
+    ],
+    "security": [
+      "Only committed evidence accepted",
+      "No uncommitted diff"
+    ],
+    "observability": [
+      "base_sha/head_sha recorded"
+    ],
+    "performance": [
+      "Delta review reduces prompt size"
+    ],
+    "rollout": "Use on next re-review",
+    "rollback": "Revert; full diff review resumes",
+    "test_matrix": [
+      {
+        "ac": "AC-1",
+        "kind": "unit",
+        "test": "test_architect_review_delta.py"
+      },
+      {
+        "ac": "AC-2",
+        "kind": "unit",
+        "test": "test_architect_review_delta.py"
+      },
+      {
+        "ac": "AC-3",
+        "kind": "unit",
+        "test": "test_architect_review_delta.py"
+      },
+      {
+        "ac": "AC-4",
+        "kind": "logic",
+        "test": "architect_review_check"
+      }
+    ],
+    "decisions": [
+      "Delta after first full review"
+    ]
+  }
 }
