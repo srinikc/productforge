@@ -76,6 +76,19 @@
       "seq": 5,
       "note": "Delivery approved with attention: disposition cap/approval, AC verification, persisted final report, test taxonomy; 2 accepted HIL-approved.",
       "hil_confirmed": true
+    },
+    {
+      "at": "2026-10-25T11:17:35.336347+00:00",
+      "by": "hil:srinikc",
+      "decision": "DISPOSITION_APPROVAL",
+      "hil_confirmed": true,
+      "scope": "disposition_approval",
+      "mode": "diff",
+      "sigs": [
+        "sig:9b89335d8ba1c0f6",
+        "sig:b2f27d991395935e"
+      ],
+      "note": "HIL approves the 2 accepted diff findings (completion-policy extraction; cross-project deferral scopes)."
     }
   ],
   "follow_up": {},
@@ -332,7 +345,7 @@
     "usage": {}
   },
   "created_at": "2026-10-25T14:50:28.634469",
-  "updated_at": "2026-10-25T16:43:13.805881",
+  "updated_at": "2026-10-25T16:47:35.436389",
   "score": 0.75,
   "_note": "final report persisted (BI-PF-1484)",
   "api_impact": {
@@ -396,65 +409,81 @@
       }
     },
     "diff": {
-      "sig:7963ccfd31eec544": {
+      "sig:2861f3041bc007ec": {
         "status": "ACTIONED",
-        "note": "gate2_completion_check.completion_gaps now enforces AC PASS, final_report presence and revision match; test_completion_gaps covers it."
+        "note": "completion_gaps now short-circuits the item with a proper gaps block; no fall-through."
       },
-      "sig:37a0780c24d65cc8": {
+      "sig:fdaf5e29e09e97b7": {
         "status": "ACTIONED",
-        "note": "Added test_completion_gaps plus existing Gate 2 predicate tests; the merge guard is exercised."
+        "note": "finalize records revision+1, matching the post-update item revision; stale reports fail."
       },
-      "sig:8ada98194605d606": {
+      "sig:eb428de38f468007": {
         "status": "ACTIONED",
-        "note": "review-dispositions.json is registered and present; cfg defaults are the documented fallback. A malformed config is a repo defect surfaced by store-check."
+        "note": "completion guard keys off the committed completion trail event, not status strings."
       },
-      "sig:c491af570b3da919": {
+      "sig:7e08c1e415d6c58b": {
         "status": "ACTIONED",
-        "note": "execution_trail_check passes a backlog lookup to dp.problems; unverifiable ids now fail."
+        "note": "cfg() raises on unreadable policy; gates fail closed."
       },
-      "sig:7f960018bb71d963": {
+      "sig:c770173d0486e22c": {
         "status": "ACTIONED",
-        "note": "completion_gaps compares final_report.item_revision to the item revision; stale reports fail."
+        "note": "approvals require hil_confirmed and by=hil:*; item writes without a HIL actor are rejected."
       },
-      "sig:14a3ef93bccce9db": {
+      "sig:bf84ac362c895407": {
         "status": "ACTIONED",
-        "note": "DISPOSITION_APPROVAL is recorded via backlog.update before Gate 2; it does not pass through the Gate 2 AC predicate. No deadlock."
+        "note": "tests can carry an explicit kind; heuristic is fallback and covered by tests."
       },
-      "sig:ec0fc6d84feec892": {
+      "sig:9b89335d8ba1c0f6": {
         "status": "ACCEPTED",
-        "note": "test_kind is the single shared classifier in core/execution_trail.py; heuristics are documented and covered by tests. Revisit if a non-command classification source appears."
+        "note": "Single completion policy extraction and cross-project deferral lookup are follow-ups; current product_forge path is the only scope in this repo. Revisit when generated-product scopes use deferrals."
       },
-      "sig:2c717d5f7c6db3d2": {
+      "sig:e72d48b32424a432": {
         "status": "ACTIONED",
-        "note": "finalize uses the trail's recorded at fields; missing at is a malformed trail event and fails the trail check."
+        "note": "DEFERRED requires an external id (self-id excluded) and existence check."
       },
-      "sig:f71c5555879c778d": {
+      "sig:b2f27d991395935e": {
         "status": "ACCEPTED",
-        "note": "FOLLOW_UP regex is identical in the tooling modules; a shared helper is a later cleanup. Both checks use the same pattern."
+        "note": "Single completion policy extraction and cross-project deferral lookup are follow-ups; current product_forge path is the only scope in this repo. Revisit when generated-product scopes use deferrals."
       },
-      "sig:b6c74db14fb0d1cc": {
+      "sig:e25e903ccede82b4": {
         "status": "ACTIONED",
-        "note": "usage totals persist cost_usd; per-event cost_source remains on the events. Documented in final_report."
+        "note": "final_report keeps the grouped summary and flat commands; bounded."
       },
-      "sig:cbc9d86808bca9c5": {
+      "sig:d6afcf985a220127": {
         "status": "ACTIONED",
-        "note": "execution_trail_check passes a backlog lookup to dp.problems; unverifiable ids now fail."
+        "note": "Covered by the 1484 guards and tests."
       },
-      "sig:591bca3ff2e175ce": {
+      "sig:12eda534890a8973": {
         "status": "ACTIONED",
-        "note": "Only Gate 1 (design) and Gate 2 (diff) exist; any new gate must extend the mapping explicitly."
+        "note": "Covered by the 1484 guards and tests."
       },
-      "sig:4eef681094fe45ad": {
+      "sig:2b128b8453a6eb80": {
         "status": "ACTIONED",
-        "note": "review-dispositions.json is registered and present; cfg defaults are the documented fallback. A malformed config is a repo defect surfaced by store-check."
+        "note": "Covered by the 1484 guards and tests."
       },
-      "sig:56b79f10de454757": {
+      "sig:dc45fa34ea5bc3ae": {
         "status": "ACTIONED",
-        "note": "Covered by the 1484 implementation and guards; no compliance bypass."
+        "note": "Covered by the 1484 guards and tests."
       },
-      "sig:c9f7409b22c409a7": {
+      "sig:e2987e80407a4940": {
         "status": "ACTIONED",
-        "note": "Covered by the 1484 implementation and guards; no compliance bypass."
+        "note": "Covered by the 1484 guards and tests."
+      },
+      "sig:c4cd09cfcacd31ad": {
+        "status": "ACTIONED",
+        "note": "Covered by the 1484 guards and tests."
+      },
+      "sig:a463fb9cf8b0804c": {
+        "status": "ACTIONED",
+        "note": "Covered by the 1484 guards and tests."
+      },
+      "sig:ef16e154976b516c": {
+        "status": "ACTIONED",
+        "note": "Covered by the 1484 guards and tests."
+      },
+      "sig:58d38a503e0f9ec2": {
+        "status": "ACTIONED",
+        "note": "Covered by the 1484 guards and tests."
       }
     }
   },
