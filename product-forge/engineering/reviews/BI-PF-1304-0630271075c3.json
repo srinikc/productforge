@@ -1,0 +1,31 @@
+{
+  "item": "BI-PF-1304",
+  "sha": "0630271075c3",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-10-25T08:53:52.228488+00:00",
+  "findings": {
+    "BLOCKER": [
+      "none"
+    ],
+    "MAJOR": [
+      "**Type duplication between `go/residencymanifest` and internal `edpsvc` residency types creates two sources of truth.** When the service model evolves (e.g., new region, added field), the standalone Go types will silently drift \u2014 the gate will pass manifests the service rejects, or worse, reject valid ones. Either share a single schema (JSON Schema + codegen), or add a schema-fingerprint test that fails CI when the two diverge.",
+      "**No phased rollout strategy.** The AC says `gate_mode` defaults to `block`. Any product that has not yet populated `config/residency-manifest.json` will have its builds stopped on the first commit that ships this gate. The design should specify an explicit two-step rollout: (1) ship manifest with warn mode + a tracking issue per product, (2) flip to block after all products pass. The rollback note (\"set gate_mode=warn\") is a reactive escape hatch, not a rollout plan.",
+      "**Gate crash / validator-binary-missing behaviour is unspecified.** If `cmd/pfresidency` fails to compile, is absent from `PATH`, or exits non-zero for a non-validation reason (e.g., JSON parse error in the profile), the gate must treat this as **block** (fail-closed). The design only says \"blocks (exit 1) or warns per gate_mode\" \u2014 clarify that any non-zero exit not attributable to a known validation error code is always a block regardless of `gate_mode`."
+    ],
+    "MINOR": [
+      "**No aggregate observability on validation failure rates.** A JSON report per run is good for individual diagnosis, but there is no metric, log line, or structured event that a monitoring system can consume to answer \"how many products are currently non-compliant?\" at fleet scale. Add a minimum signal (e.g., a structured log to a known stream or a counter file).",
+      "**Error-code stability contract is stated but not defined.** The AC says \"stable error codes\" \u2014 the design should enumerate the codes, assign them to a namespace (e.g., `RESIDENCY_UNKNOWN_HOME`, `RESIDENCY_HOME_NOT_ALLOWED`), and state that any addition or removal is a versioned contract change.",
+      "**Backup/KMS sub-field validation rules are incomplete.** The AC lists `backup.encrypted`, `backup.frequency`, `kms.rotation_days` but the validation rules section only covers region subsets and `retention.days`. Add explicit rules: `backup.encrypted` must be `true`, `kms.rotation_days > 0`, and `backup.frequency` must be a recognised value.",
+      "**`config/residency-manifest.json` as a static file vs. per-product dynamic generation.** The design says \"sourced from `config/residency-manifest.json`\" \u2014 clarify whether this file is a template, a single-product default, or a per-product override mechanism. If multi-product, the file path convention needs to be stated."
+    ],
+    "NIT": [
+      "`--report` writes to a file or stdout but is non-fatal; consider also emitting a one-line summary to stderr when validation fails in warn mode so operators do not miss it.",
+      "The `docs/EDP-RESIDENCY-MANIFEST.md` filename is product-specific; if the manifest becomes multi-product, a more neutral name (e.g., `docs/RESIDENCY-MANIFEST-GATE.md`) reduces confusion."
+    ],
+    "SUMMARY": [
+      "The design correctly identifies fail-closed validation, a Go-first validator, and a clear block/warn mode as the right pattern. The two highest risks are: (1) type duplication between the standalone Go module and the internal service types, which will drift without a schema-fingerprint or codegen strategy, and (2) the absence of a phased rollout plan that avoids blocking all builds on day one. Address the gate-crash fail-closed rule and the minimum observability signal before Gate 1.5."
+    ]
+  }
+}
