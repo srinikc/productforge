@@ -46,9 +46,9 @@
     "scripts/dev/execution_trail_check.py (precheck fast) fails a completion in the diff when required stages are missing or out of order, or when a DEFERRED finding has no follow-up item; the check is self-tested and wired into precheck + ci-cd-gates."
   ],
   "in_scope": [
-    "core/execution_trail.py + store registration",
+    "scripts/dev/execution_trail.py + store registration",
     "scripts/dev/execution_trail_check.py + precheck/ci-cd-gates wiring",
-    "gate0_check/architect_review/gate_decisions/precheck/core.backlog hooks",
+    "gate0_check/architect_review/gate_decisions/precheck + core.backlog hook",
     "test-framework/tests/test_execution_trail.py",
     "docs/REVIEW-GATES-LIFECYCLE.md execution-trail section"
   ],
@@ -63,7 +63,7 @@
     "precheck"
   ],
   "affected_files": [
-    "core/execution_trail.py",
+    "scripts/dev/execution_trail.py",
     "scripts/dev/execution_trail_check.py",
     "scripts/dev/gate0_check.py",
     "scripts/dev/architect_review.py",
@@ -75,7 +75,7 @@
     "test-framework/tests/test_execution_trail.py",
     "docs/REVIEW-GATES-LIFECYCLE.md"
   ],
-  "approach": "Add core/execution_trail.py (registered store engineering/trails/<ID>.json, append-only events, lock, record/show/finalize/check helpers) and scripts/dev/execution_trail_check.py. Wire gate0_check, architect_review (design/diff + provider usage), gate_decisions (gate1/2), precheck (tests/precheck timings), core.backlog.set_delivery and set_status(completed). show renders the ordered stages, the Gate 1.5/2.5 tables via architect_review.render_gate_view, the tests table, usage totals and the final completion/next-item table. The completion gate requires gate0/design_review/gate1/diff_review/gate2/tests in order and a follow-up item for DEFERRED findings.",
+  "approach": "Add scripts/dev/execution_trail.py (registered store engineering/trails/<ID>.json, append-only events, lock, record/show/finalize/check) and scripts/dev/execution_trail_check.py. Wire gate0_check, architect_review (design/diff + provider usage), gate_decisions (gate1/2), precheck (tests/precheck timings), and core.backlog.set_delivery/set_status via a best-effort hook. show renders the ordered stages, Gate 1.5/2.5 tables via architect_review.render_gate_view, tests, usage totals and the final completion/next-item table. The completion gate requires gate0/design_review/gate1/diff_review/gate2/tests in order and a follow-up item for DEFERRED findings.",
   "review": {
     "reconciliation": {
       "prior_decisions": [
@@ -294,7 +294,7 @@
     "usage": {}
   },
   "created_at": "2026-10-25T12:54:15.623626",
-  "updated_at": "2026-10-25T12:55:28.148208",
+  "updated_at": "2026-10-25T12:56:09.610005",
   "score": 0.75,
   "_note": "readiness computed",
   "api_impact": {
@@ -303,5 +303,5 @@
     "consumers": [],
     "reason": "CLI/gate tooling only; no HTTP surface."
   },
-  "language_rule": "Python control-plane/evidence tooling (core + scripts), not customer runtime; language_rule_review to be cited."
+  "language_rule": "Python tooling (scripts/dev) + a small edit to core.backlog for the hook; no new shipped core module. language_rule_review BI-PF-1481 = allowed after this change."
 }
