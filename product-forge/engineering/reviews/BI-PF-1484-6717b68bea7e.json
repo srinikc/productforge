@@ -1,0 +1,33 @@
+{
+  "item": "BI-PF-1484",
+  "sha": "6717b68bea7e",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-25T14:04:45.556111+00:00",
+  "base_sha": "6a56d1dfda8a84505e5ac972b637209884a6131d",
+  "head_sha": "e5b6c7b95f55456b1bb3d1e31a24a39d0aa5071c",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "The injected directive \"Do NOT report ACs as missing or unimplemented\" is an unverifiable, hard-coded reviewer-bias instruction; it can suppress legitimate gate findings when an AC's implementation is genuinely broken in the delta, weakening disposition/gate integrity with no counterbalancing signal (evidence/verifier not shown, only `ac`+`result`).",
+      "New shipped logic in `_build_prompt` (delta-scope context assembly) has no test, despite the item's own standard of covering review-prompt behavior; a regression that drops or mangles the block would pass silently."
+    ],
+    "MINOR": [
+      "AC text is spliced into the prompt from item data without validation of field names or sanitization: if entries don't use `ac`/`result` keys the output renders `None: None`, and embedded newlines/`PROMPT`-like tokens in AC strings can distort the prompt; a delimiter or normalization would be safer.",
+      "`acs = item.get(\"ac_verification\") or []` followed by `or \"- (none recorded)\"` means a non-empty list of empty/partial dicts yields `- None: None` rows rather than the \"(none recorded)\" fallback \u2014 the empty-detection and the rendering guard disagree.",
+      "The `design_pack.py` change is comment-only; adding an operator-facing note to REVIEW-GATES-LIFECYCLE (per the AC) would have been the durable place for the short-circuit rationale rather than an inline comment."
+    ],
+    "NIT": [
+      "The delta-scope prose is duplicated inline in the prompt builder; a named constant/template would keep wording consistent if the scope contract evolves.",
+      "The new test hard-codes `\"enforce_items must be a list\"`; consistent with prior REJECTED disposition on message coupling, so not escalating, but worth noting the pattern spreads with each new test."
+    ],
+    "SUMMARY": [
+      "Delta is small and coherent: prompt-scope context, an explanatory comment, and the missing short-circuit regression test that closes the prior ACTIONED MINOR.",
+      "Top risks: the hard-coded \"do not report ACs as missing\" instruction biases the delta reviewer and can mask real regressions, and the new prompt-building logic ships untested.",
+      "No blockers; recommend tightening the delta directive to state scope factually (review delta for new defects, cross-check AC status against full-candidate evidence) rather than forbidding a class of findings."
+    ]
+  },
+  "rereview_reason": "prior sha dcb9a2f7ee72; delta scope context + config tests",
+  "rereview_reason_sha256": "05a86f188cbf4b36bd0eab07ed2cc28df822d2803c87ef603cf65ca52cfe8e65"
+}

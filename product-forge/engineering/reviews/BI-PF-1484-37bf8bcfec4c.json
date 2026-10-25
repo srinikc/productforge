@@ -1,0 +1,38 @@
+{
+  "item": "BI-PF-1484",
+  "sha": "37bf8bcfec4c",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-25T12:34:10.653503+00:00",
+  "base_sha": "30ac1c5c4d2ab85dcaf9714718368e1306b01998",
+  "head_sha": "b2bc86b309c1319306631b30697cdb00c6268721",
+  "findings": {
+    "BLOCKER": [
+      "`templates/DESIGN-PACK.md` is committed with a UTF-8 BOM (`\ufeff# Design Pack`), while this diff registers `encoding` as a **blocking** gate covering `.md` files and not skipping `templates/` \u2014 the new gate fails this very diff in precheck/CI.",
+      "`design_pack.render()` reads that template as `utf-8`, so every generated `engineering/design/<ID>.md` inherits the BOM, violating the encoding contract the same diff declares binding in AGENTS.md."
+    ],
+    "MAJOR": [
+      "Review docs promise \"Gate 1 validates the pack for items on/after `enforce_from`\", but nothing wires `design_pack.py` into `precheck._GATES`, `config/ci-cd-gates.json`, or any gate path \u2014 the enforcement contract is documented yet not implemented.",
+      "`design_pack._cfg()` is dead code and `check()` uses hardcoded `REQUIRED`/`CONTRACTS` that omit `security`, `observability`, `performance`, `decisions` \u2014 sections the doc and `config/design-pack.json` narrative declare required; doc/impl/config disagree, and `_cfg()` fails open (`enforce_from: 9999-12-31`) on any read error.",
+      "`encoding_check.changed()` only inspects the committed `merge-base..HEAD` range: an uncommitted working-tree BOM (the exact failure mode AGENTS.md cites) passes precheck; a failed `git merge-base`/`git diff` returns empty output and the blocking gate passes vacuously (fail-open)."
+    ],
+    "MINOR": [
+      "`store-registry.json` `allow` gains `BI-PF-9000-new.json`/`BI-PF-9000-old.json` \u2014 test-fixture filenames hardcoded into a global production registry, despite the test writing to `tmp_path`; config pollution with no stated owner.",
+      "`store-registry` entry `engineering/design/*.md` claims `target.status: \"exists\"` though no such files ship in the diff, risking a registry \"exists\" check failure or encoding false-negative on an unmatched glob.",
+      "`design_pack.check()` appends `failure_matrix missing entries` twice for a missing matrix (loop over `REQUIRED` + explicit re-check); duplicated diagnostics muddy gate output."
+    ],
+    "NIT": [
+      "`design_pack.main()` exits 0 when invoked with neither `--render` nor `--check`; a no-op success path invites misconfigured callers.",
+      "`finalize_item` `sum_stage_ms = max(0, sum(...))` still silently clamps corrupt negative stage durations; `clock_skew` is computed but never surfaced to any consumer/guard.",
+      "`test_architect_review_delta.py` docstring/fixture cites BI-PF-1485 in an item scoped BI-PF-1484, muddying traceability of tests to ACs."
+    ],
+    "SUMMARY": [
+      "Verdict: request changes \u2014 the diff introduces a blocking encoding gate that its own committed template (BOM) fails, and the headline design-pack \"Gate 1\" contract is documented but never wired into any gate.",
+      "Secondary risks: encoding gate is fail-open on uncommitted work and git errors; design-pack required-sections logic diverges from docs/config; registry allow-list polluted with test fixture names.",
+      "Prior dispositioned findings (lineage/ancestry/mode filters, legacy decision fallback, schema v2) appear genuinely addressed with tests."
+    ]
+  },
+  "rereview_reason": "prior sha af093d6df59c; delta ancestry/report fixes",
+  "rereview_reason_sha256": "0d941733bf8a0fe51e845e43ad93271d74d9cce2ba8b52d92ba0096ee4aaa061"
+}

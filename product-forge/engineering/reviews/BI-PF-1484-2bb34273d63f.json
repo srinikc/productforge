@@ -1,0 +1,34 @@
+{
+  "item": "BI-PF-1484",
+  "sha": "2bb34273d63f",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-25T12:52:54.504943+00:00",
+  "base_sha": "ac25b284fd46bfea2817a7d1f741ff1a500a0b75",
+  "head_sha": "c8a576d071c9e5753d1cde7f6968cdd43370e3f9",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "`should_enforce` drops the former fail-closed behavior for items with missing/empty `created_at`: those items now silently fall out of enforcement (returns False) instead of being flagged. The prior review recorded this as ACTIONED, but the new code reopens a fail-open hole for any item lacking `created_at`.",
+      "`duration_ms` plumbing in `architect_review.main` uses `time.time()` with no `import time` added in the diff and no test exercising `main()`/`_ingest(duration_ms=...)`; if `time` is not already imported this is a NameError on the review ingestion path, and either way the new telemetry path is untested.",
+      "`gate1_check.evaluate`/`main` reach into private members of other modules (`ar._get_item`, `dpack._cfg`) and re-implement the config/error-handling wrapper instead of exposing a supported `design_pack.evaluate(item_id)` API; this couples two gates to internal signatures and duplicates the fail-closed exception logic already present in `design_pack.check`."
+    ],
+    "MINOR": [
+      "`should_enforce` compares `created_at` to `enforce_from` by raw lexicographic string comparison; partial or non-ISO values (e.g. `2026-10-2`, timezone-suffixed timestamps, date-only vs datetime) can misclassify without any parse/validation.",
+      "`config/design-pack.json` hardcodes `enforce_items: [\"BI-PF-1484\",\"BI-PF-1485\"]` with no removal policy or documented lifecycle; this allowlist will grow monotonically in shared config and silently re-assert enforcement on already-closed items.",
+      "`gate_metrics` is labeled \"Gate metrics\" but iterates every trail event (implementation, tests, etc.); either filter by gate stage or rename, otherwise the section overstates what is measured.",
+      "`final_rows` in `show` hardcodes the pointer \"see section 10 (per-gate time/tokens/cost)\"; the same diff already renumbers sections, so this cross-reference will silently go stale on the next section insert.",
+      "`finalize_item.build` persists `gate_metrics` alongside `usage`, duplicating token/cost data in the final report with no stated source-of-truth; downstream consumers may reconcile the two and diverge when `price_usage` is applied differently."
+    ],
+    "NIT": [
+      "`gate_metrics` applies `price_usage` per event while `usage_totals` totals separately; a brief comment on why totals and per-gate rows must agree (or a shared aggregation) would prevent drift.",
+      "`PLACEHOLDERS` set ordering/contents differ slightly from the original inline tuples only by centralization; consider unit-testing the constant's behavior directly so future edits to the set are treated as gate-visible."
+    ],
+    "SUMMARY": [
+      "Solid direction: per-gate telemetry, config-driven design-pack enforcement at Gate 1, and the final-report gate-metrics addition are coherent and mostly well-tested. Top risks are the reopened fail-closed hole for missing `created_at`, untested/unverified `duration_ms` plumbing (possible missing `time` import), and gate1's reliance on private cross-module APIs\u2014fix these and the change is shippable."
+    ]
+  },
+  "rereview_reason": "prior sha 8697926bb62f; design-pack enforcement/tests",
+  "rereview_reason_sha256": "268c132d207260c7027bfe81382e48cbb5941411d7aed8a0aafe9d3b698be226"
+}

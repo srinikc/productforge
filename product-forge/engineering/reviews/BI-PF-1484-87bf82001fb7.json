@@ -1,0 +1,35 @@
+{
+  "item": "BI-PF-1484",
+  "sha": "87bf82001fb7",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-25T14:10:34.699035+00:00",
+  "base_sha": "c8d01c64e593a1d183f4a1cc1bc5e1d97521a981",
+  "head_sha": "0916fa9f0c85ed5095f07758ca07b7fc297efd28",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "`git diff --name-only {reviewed_head}..HEAD -- . *ar.EXCLUDE`: `git` pathspecs passed after `--` are **include** filters, not excludes. Unless every `EXCLUDE` entry carries `:(exclude)` magic, this diff evaluates *only* the excluded paths, inverting staleness detection (a change to a non-excluded source file looks \"clean\"). Verify `EXCLUDE` semantics; a wrong pathspec silently weakens Gate 1 review integrity.",
+      "Diff is computed against `HEAD`, not the `head` variable already resolved for the candidate. If the script ever runs against a non-HEAD ref or a stale checkout, staleness is evaluated against the wrong tip \u2014 use `{reviewed_head}..{head}` for consistency with the surrounding `valid_base`/`head` logic.",
+      "`ar._git_text(...)` return code is ignored and an empty string on failure is treated as \"no changes\" \u2192 a corrupt/unknown `reviewed_head` or a git error **fails open**, passing a review that should be considered stale. Staleness checks must be fail-closed (error \u2192 treat as changed).",
+      "The delta introduces a new gate-critical code path with no accompanying test (no change to `test_disposition_policy.py` / gate tests in this diff); the acceptance criteria demand guard coverage, and this condition is unverified."
+    ],
+    "MINOR": [
+      "`if reviewed_head and reviewed_head != head` \u2014 entries with an empty `head_sha` silently bypass the staleness check (fail-open for legacy records); pair the guard with an explicit warning or rejection.",
+      "No observability: when the `continue` fires, nothing records *which* review was stale or which paths changed. A rejected candidate gives operators no trail; emit the changed-path list at debug/warning level.",
+      "Logic duplicates pathspec/diff invocation patterns already present in `valid_base` and likely other scripts; extracting a shared \"changes since sha\" helper would prevent future drift (reuse/maintainability)."
+    ],
+    "NIT": [
+      "`*, *ar.EXCLUDE` relies on positional pathspec ordering; an explicit `--`-separated, commented clause (or `:(exclude)` magic) would make the intent self-documenting for future maintainers.",
+      "Single-line `continue` with no comment leaves the intent (\"review is stale if the tree moved since reviewed head\") implicit; a one-line comment would help reviewers of future deltas."
+    ],
+    "SUMMARY": [
+      "Delta adds a reasonable \"review staleness\" refinement to Gate 1, but its git pathspec semantics are likely inverted (include vs exclude), it fails open on git errors/empty SHAs, and it diffs against `HEAD` instead of the computed head.",
+      "No tests or logging back the new condition, so a silent regression here would degrade review integrity without detection.",
+      "Prior SCOPE-dispositioned findings remain deferred to BI-PF-1485; nothing in this delta resolves or worsens them."
+    ]
+  },
+  "rereview_reason": "prior sha ce50f30150a7; delta evidence across data-only commits",
+  "rereview_reason_sha256": "d05b909946c4a255754c328138afcab4bebd39e07f5fb0f9b7b3a0d8fa7e7362"
+}
