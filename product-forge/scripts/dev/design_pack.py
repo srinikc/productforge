@@ -30,9 +30,24 @@ def _cfg() -> dict:
 def should_enforce(item: dict, cfg: dict) -> bool:
     if str(item.get("id") or "") in (cfg.get("enforce_items") or []):
         return True
-    created = str(item.get("created_at") or "")
-    enforce = str(cfg.get("enforce_from") or "")
-    return bool(created and enforce and created >= enforce)
+    created = str(item.get("created_at") or "")[:10]
+    enforce = str(cfg.get("enforce_from") or "")[:10]
+    if not created or not enforce:
+        return False
+    try:
+        from datetime import date
+        return date.fromisoformat(created) >= date.fromisoformat(enforce)
+    except ValueError:
+        return False
+
+
+def evaluate(item_id: str) -> list[str]:
+    """Public Gate 1 entry: [] when not enforced, else the design-pack problems."""
+    item = backlog.get_epic("product_forge", None, item_id) or {}
+    cfg = _cfg()
+    if not should_enforce(item, cfg):
+        return []
+    return check(item)
 
 
 def check(item: dict) -> list[str]:
@@ -117,6 +132,8 @@ def main(argv=None) -> int:
             return 1
         bad = []
         for item in backlog.list_items("product_forge", None):
+            if str(item.get("status") or "").lower() == "in_progress" and not item.get("created_at"):
+                bad.append(f"{item.get('id')}: created_at missing")
             if should_enforce(item, cfg):
                 for p in check(item):
                     bad.append(f"{item.get('id')}: {p}")

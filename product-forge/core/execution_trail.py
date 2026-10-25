@@ -579,7 +579,7 @@ def show(item: str) -> str:
               _m(g["output_tokens"]), _m(g["cached_tokens"]),
               "-" if g["cost_usd"] is None else f"{g['cost_usd']:.6f}", g["cost_source"]]
              for g in gm]
-    lines += ["", "## 10. Gate metrics", _box(
+    lines += ["", "## 10. Trail metrics (per stage)", _box(
         ["Gate", "At", "Duration", "In", "Out", "Cached", "Cost USD", "Cost source"],
         grows or [["(none)", "-", "-", "-", "-", "-", "-", "-"]],
         widths=[18, 26, 10, 8, 8, 8, 10, 14])]
@@ -608,7 +608,7 @@ def show(item: str) -> str:
         ["Tests by kind", " | ".join(f"{k} {v['passed']}/{v['passed'] + v['failed']}"
                                       for k, v in tbk.items() if v["rows"]) or "none"],
         ["Final report", "persisted" if it.get("final_report") else "not persisted"],
-        ["Gate metrics", "see section 10 (per-gate time/tokens/cost)"],
+        ["Trail metrics", "see the per-stage metrics section"],
         ["Total time", f"{total_ms} ms ({total_ms / 1000.0:.1f}s)"],
         ["Tokens in/out/cached", f"{u['input_tokens']} / {u['output_tokens']} / {u['cached_tokens']}"],
         ["Cost (USD)", f"{u['cost_usd']:.6f} (captured={u['captured']} unpriced={u['unpriced']})"],

@@ -60,13 +60,9 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     try:
-        pack_bad = []
-        cfg = dpack._cfg()
-        item = ar._get_item(a.item)
-        if dpack.should_enforce(item, cfg):
-            pack_bad = dpack.check(item)
+        pack_bad = dpack.evaluate(a.item)
     except Exception as e:
-        pack_bad = [f"design-pack config error ({type(e).__name__}): {e}"]
+        pack_bad = [f"design-pack error ({type(e).__name__}): {e}"]
     if pack_bad:
         if a.json:
             print(json.dumps({"ok": False, "reason": "design_pack", "problems": pack_bad}))
