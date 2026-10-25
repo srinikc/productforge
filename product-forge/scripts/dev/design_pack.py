@@ -158,6 +158,9 @@ def main(argv=None) -> int:
     if a.all:
         try:
             cfg = _cfg()
+            if not cfg.get("enforce_from"):
+                raise RuntimeError("enforce_from missing")
+            _parse_date(cfg.get("enforce_from"))
         except Exception as e:
             print(f"design-pack: FAIL - {e}")
             return 1
