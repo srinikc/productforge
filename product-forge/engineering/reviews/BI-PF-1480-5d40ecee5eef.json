@@ -1,0 +1,37 @@
+{
+  "item": "BI-PF-1480",
+  "sha": "5d40ecee5eef",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-25T06:21:19.454955+00:00",
+  "findings": {
+    "BLOCKER": [
+      "`diff_reviews(committed=True)` raises `RuntimeError(\"review evidence tree is unreadable or empty\")` when `HEAD` has no `engineering/reviews` entries. `evaluate()` turns that into a row error, `main()` returns 2, and the new precheck gate hard-fails every completion on any branch/repo with no committed reviews (first review, shallow CI checkout, history rewrite). Absence of reviews is a legitimate state, not an unreadable tree \u2014 empty must be a zero count, not exit 2."
+    ],
+    "MAJOR": [
+      "`review_churn_check.main()` builds the base as `a.base or env or _git_text([\"merge-base\",\"develop\",\"HEAD\"]) or _git_text([\"merge-base\",\"origin/develop\",\"HEAD\"])`. If `_git_text` raises on non-zero exit (the pattern used elsewhere in this module), the `or` chain aborts at the first call and the documented `origin/develop` fallback is dead code \u2014 every repo without a local `develop` exits 2, contradicting docs/REVIEW-GATES-LIFECYCLE.md.",
+      "`architect_review.main()` calls `review_guard()` \u2192 `churn_verdict()` \u2192 `diff_reviews()` with no exception handling, so a missing/corrupt evidence dir surfaces as a raw traceback (exit 1) on the very first review, instead of the fail-closed message/exit-2 contract stated for the churn path.",
+      "`churn_attested()` accepts `latest_sha in note` as substring matching. Short shas (or a sha that is a substring of another) can satisfy an unrelated attestation, weakening the HIL escape hatch that is the only brake on unbounded re-review; require a token-boundary/full-sha match and reject empty `latest_sha`.",
+      "The `-prev-<ms>` archive naming plus the committed-tree reader means archived and current evidence for the same `sha` both count (asserted by `test_archived_rereview_counts_as_a_run`). A single re-review therefore contributes 2 to `count`, so a real 3-run sequence reads as 4 and trips the fail boundary one re-review early versus the documented \"one diff review per freeze\" budget semantics."
+    ],
+    "MINOR": [
+      "`review_epoch()` takes the *last* Gate 1 entry in array order, not the max `at`; correctness depends on the ledger being strictly append-time-ordered. An out-of-order or replayed entry silently changes the epoch and the counted set.",
+      "`churn_verdict`/`evaluate` reach into privates (`ar._git_text`, `rc.g2.transitions`); a shared internal module or explicit public seams would avoid breakage from unrelated refactors in `architect_review.py`.",
+      "`redact_reason()` calls `review_budget()` (config load + validation) from inside a redaction helper; pass `reason_max_chars` in, or the redaction utility is untestable/unsafe to reuse without a valid config file.",
+      "`reason_flag_error` validation and `review_guard` validation are both surfaced in `main` with duplicated print/return-1 handling; consolidate to one guard entry point so a future mode cannot bypass the reason checks.",
+      "Row-level `except Exception` in `evaluate()` reports count=0/warn_after=0 in the error row, which leaks into `--json` output as plausible-but-false data; emit only `item` + `error` for error rows."
+    ],
+    "NIT": [
+      "The `config/architect-review.json` diff reformats unrelated existing arrays (`blocking_findings`, `skip_globs`) into multi-line form, adding review noise to an otherwise additive change.",
+      "`redact_reason`'s cap is applied after redaction but at a fixed index, so a `[REDACTED...]` marker sitting at position 500 is clipped mid-token \u2014 cap to the last whitespace instead.",
+      "Test file omits blank lines between some consecutive `def`s (`test_bad_budget_config_fails_closed`/`test_reason_flag_requires_rereview`, `test_redact_url_and_pem`/`test_epoch_boundary_is_inclusive`), inconsistent with the repo's style checks.",
+      "Docs encode `warn_after`/`fail_after` values (2/4) in prose while the config is the source of truth; cite the key names only so config drift cannot falsify the doc."
+    ],
+    "SUMMARY": [
+      "Solid single-owner design: thresholds, counting and verdict genuinely live in `architect_review.py` with no duplication, and the boundary/epoch/attestation/redaction tests are real. The committed-tree path, however, conflates \"no reviews yet\" with \"unreadable tree\", making the new precheck gate fail closed (exit 2) on any branch without committed evidence \u2014 that, plus the likely-dead `origin/develop` fallback and the double-count of archived `-prev-` files, means the budget will misfire in exactly the CI environments it is meant to protect. Fix the empty-tree semantics, harden sha citation, and land a graceful error path in `architect_review.main` before this gates completions."
+    ]
+  },
+  "rereview_reason": "supersedes 3ca3570efee5; deterministic latest tie-break",
+  "rereview_reason_sha256": "64c40e80d190ed2d058dd9ac364588222e1ab829aa7ba1b836d7c5aa47f11eec"
+}

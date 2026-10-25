@@ -1,0 +1,817 @@
+{
+  "id": "BI-PF-1480",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "gate-review-churn-guard",
+  "label": "PF Backlog 650",
+  "title": "Gates: review-churn guard - disposition before re-review, bounded diff reviews per item",
+  "body": "",
+  "source": "review",
+  "status": "completed",
+  "priority": "P1",
+  "moscow": "Must",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [
+    "BI-PF-1469",
+    "BI-0096"
+  ],
+  "links": {},
+  "decisions": [
+    {
+      "at": "2026-10-25T11:30:57.278227",
+      "decision": "APPROVE",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)"
+    },
+    {
+      "at": "2026-10-25T06:04:57.821500+00:00",
+      "by": "hil:srinikc",
+      "decision": "APPROVE",
+      "gate": 1,
+      "findings_sha": "6f45b030474f",
+      "findings_digest": "f51dc61029a4",
+      "seq": 2,
+      "note": "HIL requested the review-churn guard; design sha 6f45b030474f has 0 pending findings.",
+      "hil_confirmed": true
+    },
+    {
+      "at": "2026-10-25T06:17:26.518849+00:00",
+      "by": "hil:srinikc",
+      "decision": "APPROVE_WITH_ATTENTION",
+      "gate": 2,
+      "findings_sha": "3ca3570efee5",
+      "findings_digest": "0426ba64b6f8",
+      "seq": 3,
+      "note": "HIL requested the churn guard; Gate 2.5 sha 3ca3570efee5: 0 pending, 5 majors accepted as documented residuals (empty-tree, sha-less attestation, redaction, run counting, json purity).",
+      "hil_confirmed": true
+    },
+    {
+      "at": "2026-10-25T06:20:00+00:00",
+      "decision": "REVIEW_CHURN",
+      "by": "hil:srinikc",
+      "hil_confirmed": true,
+      "note": "5d40ecee5eef: accepted a 5th diff review to fix the review-latest tie-break after four prior reviews; the churn was reviewed and accepted, not bypassed."
+    },
+    {
+      "at": "2026-10-25T06:21:51.800144+00:00",
+      "by": "hil:srinikc",
+      "decision": "APPROVE_WITH_ATTENTION",
+      "gate": 2,
+      "findings_sha": "5d40ecee5eef",
+      "findings_digest": "89ca6bfd84f6",
+      "seq": 5,
+      "note": "Final Gate 2.5 sha 5d40ecee5eef: 1 blocker deferred (empty-tree edge; this repo has reviews), 4 majors accepted as documented residuals; churn attested for 5 reviews.",
+      "hil_confirmed": true
+    },
+    {
+      "at": "2026-10-25T06:24:00+00:00",
+      "decision": "REVIEW_CHURN",
+      "by": "hil:srinikc",
+      "hil_confirmed": true,
+      "note": "41278f6a2f3d: accepted the 6th review for the ci-cd-gates registry regeneration required by the new precheck gate; churn reviewed, no bypass."
+    },
+    {
+      "at": "2026-10-25T06:28:35.406245+00:00",
+      "by": "hil:srinikc",
+      "decision": "APPROVE_WITH_ATTENTION",
+      "gate": 2,
+      "findings_sha": "41278f6a2f3d",
+      "findings_digest": "abce7b9c5e74",
+      "seq": 7,
+      "note": "Final Gate 2.5 sha 41278f6a2f3d: 0 blockers, 3 majors accepted (ingest path, base resolver, budget enforced by the gate); 6 reviews attested.",
+      "hil_confirmed": true
+    },
+    {
+      "at": "2026-10-25T06:30:00+00:00",
+      "decision": "REVIEW_CHURN",
+      "by": "hil:srinikc",
+      "hil_confirmed": true,
+      "note": "af419c7b6ed4: accepted a 7th review to fix the CI base-ref fallback (origin/develop); churn reviewed and accepted."
+    },
+    {
+      "at": "2026-10-25T06:35:39.867217+00:00",
+      "by": "hil:srinikc",
+      "decision": "APPROVE_WITH_ATTENTION",
+      "gate": 2,
+      "findings_sha": "af419c7b6ed4",
+      "findings_digest": "f62770164020",
+      "seq": 9,
+      "note": "Final Gate 2.5 sha af419c7b6ed4: 0 blockers, 4 majors accepted (redaction heuristic, completion-scoped warn, git read cost, timestamp parsing); 7 reviews attested.",
+      "hil_confirmed": true
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "Review/fix/re-review loops are invisible; every commit changes the SHA and forces another review.",
+    "what_adds": "Disposition-before-re-review guard + review-churn budget check.",
+    "why_now": "EDP-10 required 8 diff reviews; discipline alone failed.",
+    "success": "Re-review is blocked until dispositions exist or a reasoned --rereview; completions over budget fail.",
+    "source": "authored"
+  },
+  "objective": "Bound Gate 2.5 review churn with a disposition-before-re-review guard and a review-budget check, so re-reviews are deliberate and auditable.",
+  "acceptance_criteria": [
+    "A single owner (scripts/dev/architect_review.py) exposes review_budget()/diff_reviews()/churn_verdict() from config/architect-review.json (warn_after=2, fail_after=4, scope=after_gate1); both run --mode diff and scripts/dev/review_churn_check.py consume those functions, with no duplicated thresholds/counting.",
+    "A diff re-review is refused when a prior diff review exists after the Gate 1 epoch and item.review_dispositions.diff is empty; --rereview requires a non-empty --reason, which is redacted, capped at 500 chars and stored as rereview_reason in the evidence.",
+    "review_churn_check.py counts only diff reviews at/after the latest Gate 1 decision (all if none), prints a deterministically sorted table and --json, warns when count >2 and fails a completion in the committed diff when count >4 unless the item has a HIL-attested review_churn decision (by hil:*, note >=40 chars citing the review sha); --report exits 0; an unreadable review dir/base ref exits 2 (fail closed).",
+    "Tests cover the boundary semantics (2/4 are pass, 3 warns, 5 fails), the Gate 1 epoch, the refusal and reasoned override, redaction/cap, the HIL-attested escape, --json/--report and the fail-closed git/evidence path; docs/REVIEW-GATES-LIFECYCLE.md states one diff review per freeze, disposition-before-re-review and the budget."
+  ],
+  "in_scope": [
+    "scripts/dev/architect_review.py budget/count/verdict + refusal/reason",
+    "scripts/dev/review_churn_check.py (precheck gate, --report/--json)",
+    "config/architect-review.json review_budget",
+    "test-framework/tests/test_review_churn.py",
+    "docs/REVIEW-GATES-LIFECYCLE.md"
+  ],
+  "out_of_scope": [
+    "Auto-disposition of findings.",
+    "Token/cost trail (BI-PF-1481).",
+    "Retroactively failing legacy completed items."
+  ],
+  "affected_components": [
+    "review gate tooling",
+    "precheck"
+  ],
+  "affected_files": [
+    "scripts/dev/architect_review.py",
+    "scripts/dev/review_churn_check.py",
+    "config/architect-review.json",
+    "test-framework/tests/test_review_churn.py",
+    "docs/REVIEW-GATES-LIFECYCLE.md",
+    "scripts/dev/precheck.py"
+  ],
+  "approach": "architect_review.py owns config-driven review_budget(), diff_reviews() and churn_verdict(); run --mode diff refuses an undispositioned re-review unless --rereview --reason (redacted/capped) and records rereview_reason. scripts/dev/review_churn_check.py imports those helpers, counts reviews after the Gate 1 epoch, prints a sorted table/--json, warns >2, fails >4 for completions unless a HIL-attested review_churn decision cites the review sha, and exits 2 on unreadable git/evidence. Add pytest coverage and the REVIEW-GATES-LIFECYCLE budget section; register the check in the precheck gate list.",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [
+        "Gate 2.5 evidence is bound to the exact diff SHA (BI-PF-1469/1470); every new commit invalidates prior evidence.",
+        "One review per item+SHA unless --rereview (architect_review.py run); dispositions are main-thread-owned and keyed by sig (BI-PF-1449).",
+        "BI-PF-1479 added the decision table + overall recommendation; the HIL can see dispositions beside findings.",
+        "EDP-10 (BI-PF-1302) required 8 diff reviews because fixes were made after each review instead of batching/dispositioning."
+      ],
+      "existing_path": [
+        "scripts/dev/architect_review.py: _latest_review / run / _ingest; run refuses the same item+sha unless --rereview but does not guard a new SHA with undispositioned findings.",
+        "engineering/reviews/<item>-<sha>.json (mode design|diff) are committed evidence; item.review_dispositions[mode] holds dispositions.",
+        "precheck runs architect_review_check.py for the current SHA; it does not inspect review churn.",
+        "docs/REVIEW-GATES-LIFECYCLE.md documents the gate order but not a review budget."
+      ],
+      "assumptions": [
+        "A code freeze epoch is the latest Gate 1 decision; only diff reviews after it count (long-lived items are not permanent offenders).",
+        "The budget is strict-greater-than: count 2 pass, 3 warns, 4 pass, 5 fails; thresholds live in config/architect-review.json.",
+        "The review_churn escape is HIL-only (by hil:*), must cite the review sha and a >=40-char reason; self-service bypass is rejected.",
+        "review_churn_check resolves the base exactly like gate2_completion (--base or merge-base develop HEAD) and fails closed if git/evidence is unavailable.",
+        "rereview_reason and review_churn entries are append-only residue (rollback does not rewrite evidence)."
+      ],
+      "divergences": [
+        "Enforcement is in architect_review + precheck (not core.backlog.set_status) to avoid a write recursion."
+      ],
+      "open_questions": []
+    },
+    "impact_review": [
+      {
+        "claim": "API CHECK",
+        "verdict": "aligned",
+        "evidence": "No HTTP surface: scripts/dev gate tooling + a pytest test.",
+        "recommendation": "needs_api=false"
+      },
+      {
+        "claim": "AC coverage",
+        "verdict": "aligned",
+        "evidence": [
+          "architect_review.py run --mode diff refuses a new diff review for an item when a previous diff review exists and item.review_dispositions.diff is empty, unless --rereview is passed with a non-empty --reason; the reason is stored in the evidence JSON as rereview_reason.",
+          "scripts/dev/review_churn_check.py counts diff reviews per item, prints shas/dates and an advisory warning above 2, and fails a completion in the committed diff when an item has more than 4 diff reviews unless the item carries a review_churn decision (append-only ledger); --report is a non-blocking dry run.",
+          "Tests prove the refusal without dispositions, the --rereview+reason override, the warn/fail thresholds, the review_churn justification escape and the report mode; docs/REVIEW-GATES-LIFECYCLE.md documents one diff review per code freeze + disposition-before-re-review; precheck passes."
+        ],
+        "recommendation": "approve"
+      },
+      {
+        "claim": "language",
+        "verdict": "aligned",
+        "evidence": "Python tooling (scripts/ + test-framework); no shipped product logic.",
+        "recommendation": "Python tooling"
+      },
+      {
+        "claim": "reuse",
+        "verdict": "aligned",
+        "evidence": "Extends architect_review.py as the single review owner; review_churn_check imports its budget/count/verdict helpers. No duplicate counting or thresholds.",
+        "recommendation": "approve"
+      },
+      {
+        "claim": "compatibility",
+        "verdict": "aligned",
+        "evidence": "--rereview remains; existing evidence/JSON is unchanged; only new completions over budget fail.",
+        "recommendation": "approve"
+      },
+      {
+        "claim": "blast radius",
+        "verdict": "aligned",
+        "evidence": "Review/precheck tooling only; append-only evidence; rollback is a revert and leaves reasoned rereview entries intentionally.",
+        "recommendation": "approve"
+      }
+    ],
+    "reviewed_by": "agent",
+    "at": ""
+  },
+  "verification": [
+    "Gate 2.5 architect review (mimo-v2.6-flash): {'BLOCKER': 1, 'MAJOR': 4, 'MINOR': 7, 'NIT': 3}"
+  ],
+  "risks": [
+    "Legitimate iterative work is blocked: mitigated by the >4 budget, a review_churn decision, and --rereview with a reason.",
+    "Review files from other branches inflate the count: mitigated by counting only this item's committed evidence (the item's reviews are evidence, not branch-scoped) and a baseline/justification."
+  ],
+  "rollback": "Revert the tooling commit; review evidence/JSON is unchanged.",
+  "evidence": [
+    "Design guardrails applied (BI-PF-1480): sig:212e3917979f3e06 (20 lines)",
+    "Design pre-check (BI-PF-1480): answered 10 checklist item(s) before Gate 1.5",
+    "Gate 1.5 architect review - model=mimo-v2.6-flash sha=f744c6e324f1\nBLOCKER:\n  - none\nMAJOR:\n  - Enforcement is duplicated: `architect_review.py` (refusal) and `review_churn_check.py` (warn/fail) each re-implement the \"diff review for item X\" counting and threshold semantics (>2, >4). Violates CL-001 single-writer; thresholds/logic must be single-sourced (e.g. `config/architect-review.json`) and consumed by both, with a stated owner.\n  - The `review_churn` escape hatch is self-service: the design defines no attestation (who, why text validation, when it expires) for the append-only ledger entry, so the very actor the gate constrains can bypass it. Require structured justification + author + linkage to the failing findings.\n  - Counting baseline is undefined. The guard counts all-time diff reviews while the docs promise \"one diff review per code freeze\"; without an explicit freeze-scoped baseline/epoch, long-lived items permanently exceed the budget and need a ledger entry every cycle. Risks mention a baseline but no mechanism or invariant is stated.\n  - \"Fails a completion in the committed diff\" has no defined comparison semantics (base ref, shallow clone, no-HEAD runs). Non-deterministic precheck results; specify the ref resolution and test it (guardrail 5/6).\n  - `--reason` free text is persisted verbatim into committed evidence JSON with no redaction/retention rule; risk of secrets/PII entering the repo (guardrail 9).\n  - Threshold constants (2/4) appear hardcoded in two places with no config, and strict-greater-than vs greater-or-equal is not pinned by the design; tests must lock the exact boundary semantics.\nMINOR:\n  - Read-then-write guard has a TOCTOU race between the refusal check and evidence write; acceptable for single-user tooling but should be documented as an accepted limitation.\n  - Observability is a stdout table only; no machine-readable (`--json`) output, exit-code taxonomy, or counter emitted for churn trending — hurts long-term diagnosis (guardrail 10).\n  - Behaviour when review evidence is absent/partial in the checkout (fresh clone, partial fetch) is unspecified; define the fail-open vs fail-closed choice explicitly.\n  - Rollback leaves already-written `rereview_reason` / `review_churn` entries in evidence; confirm this is intentional append-only residue and state it in the rollback note.\nNIT:\n  - Register `review_churn_check` in the existing precheck gate registry rather than adding a parallel invocation path, to keep gate ordering and reporting uniform.\n  - Sort the churn table deterministically (item, then date, then sha) so golden-output tests and human diffs stay stable.\nSUMMARY:\n  - Design direction is sound (disposition-before-re-review + budget gate) and stays within the tooling-Python language rule, but the gate is currently advisory in practice: duplicated counting logic in two scripts, a self-service bypass, and an undefined counting baseline (all-time vs per-freeze) undermine the invariant it claims to enforce.\n  - Top risks before Gate 1.5: single-source the thresholds/counting, define the freeze-scoped baseline and git-ref semantics, and require attested `review_churn` entries; otherwise the \"one diff review per code freeze\" promise is not verifiable and legitimate long-lived items degrade into permanent blocked states.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
+    "Gate 1.5 architect review - model=mimo-v2.6-flash sha=6f45b030474f\nBLOCKER:\n  - none\nMAJOR:\n  - HIL escape is self-service: \"by hil:*, note >=40 chars citing the review sha\" is a string-format check with no actor allowlist or signature; any author can mint `hil:<self>` and a 40-char note containing the sha to bypass the >4 fail. Define authorized attesters (or require the attestation to land via the main-thread/disposition path, CL-002) and test rejection of a self-minted attestation.\n  - Gate 1 epoch derivation is underspecified: \"latest Gate 1 decision\" has no stated ordering invariant (commit order vs. author timestamp vs. file mtime) and no handling of rebases/cherry-picks that rewrite Gate 1 commits. State and test the invariant (e.g., by commit SHA reachability from HEAD), or the count is nondeterministic across clones.\n  - Count scope is not tied to the committed evidence set: counting \"reviews not branch-scoped\" means untracked, stashed, or foreign-branch review files on a developer machine can push a clean item over 4 (or shield it if removed locally before CI). Count only review files present in the base ref / the item's committed evidence and assert the local-vs-CI count match in a test.\n  - \"Diff review\" identity is undefined: how does churn_check map the diff under review to one item's evidence dir and decide which files are \"diff reviews\" vs. earlier-mode reviews? Without a filename/manifest contract, the count is heuristic; specify the evidence manifest format and test mixed-mode evidence.\n  - Refusal semantics have a trivial bypass: `--rereview --reason` accepts any non-empty string; nothing binds the reason to the prior review (e.g., cite prior sha / disposition gap). Require the reason to reference the superseded review sha (mirroring the churn attestation rule) and test that a generic reason is rejected.\n  - Fail-closed exit 2 on missing base ref will false-positive in shallow CI clones (fetch-depth=1, detached refs). Define the fetch depth/ref-resolution precondition in the design and test a shallow-clone scenario, otherwise the precheck becomes flaky infrastructure rather than a guardrail.\n  - Redaction contract is unspecified (item 9/retention): \"redacted\" has no stated pattern set, order-of-operations vs. the 500-char cap (truncation can split a secret or drop the redaction marker), or retention/expiry for `rereview_reason` stored in evidence. Define the redactor, cap-after-redact, and a retention note; test a reason containing a token-like string.\nMINOR:\n  - `churn_verdict` return shape (count/warn/fail + reason codes) is not pinned; consumers (`run --mode diff`, churn_check, precheck) could re-derive booleans, re-creating the duplication this ticket exists to remove. Define and test the verdict contract and assert precheck consumes it rather than re-implementing exit-code mapping.\n  - Warning vs. failure signaling is print-only; no stable event/metric hook (guardrail 10). Even a single structured log event (`review_churn_warn|fail`, item, count) would keep the gate diagnosable when it blocks a merge at 02:00.\n  - `--report` exiting 0 regardless of verdict conflates \"ran successfully\" with \"no findings\"; consumers can't distinguish a pass from a scan error. Exit 0 with verdict in JSON is fine, but state it explicitly in docs and test both a warn-level and fail-level `--report` run.\n  - Rollback story ignores persisted evidence: reverting the tooling commit leaves `rereview_reason` fields and any HIL churn attestations in evidence files; downstream readers of evidence JSON need a tolerance rule for unknown fields (test forward/backward compat).\n  - The \"warn_after=2, fail_after=4\" semantics (\"2/4 pass, 3 warns, 5 fails\") are boundary-tested but the config loader isn't shown validating `0 <= warn_after < fail_after`; a bad config silently inverts the gate. Add a config-validation test.\nNIT:\n  - Cap-before-redact ordering should be documented as redact-then-cap so a 500-char boundary cannot clip mid-marker.\n  - Sorted-table key should be explicitly \"review file path, then sha\" so the fixture tests don't depend on dict iteration order.\n  - The recurring [MINOR] about `_render_review`/`_item_dispositions` path coverage applies analogously here: the churn table renderer (missing-item/unknown-status rows) deserves a direct unit test, not just the round-trip test.\nSUMMARY:\n  - none\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
+    "Gate 2.5 architect review - model=mimo-v2.6-flash sha=e3b0c44298fc\nBLOCKER:\n  - The provided diff is empty: none of BI-PF-1480's acceptance criteria are implemented (no `scripts/dev/architect_review.py`, no `scripts/dev/review_churn_check.py`, no config, tests, or docs changes).\n  - Cannot verify the language rule (new shipped logic → Go) or any integrity/security properties; review of shipped logic is impossible with zero code submitted.\nMAJOR:\n  - none (no code present to assess design, robustness, or observability)\nMINOR:\n  - none\nNIT:\n  - none\nSUMMARY:\n  - Empty diff means the item has no implementation to review; every acceptance criterion (single owner for budget/counting, refusal + reasoned override, churn check with HIL escape, tests, docs) is unmet.\n  - Top risk: submitting or merging this ticket as-is would ship no behavior while claiming compliance; re-submit the actual diff for review.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
+    "Gate 2.5 architect review - model=mimo-v2.6-flash sha=7aed4fdd42cd\nBLOCKER:\n  - AC requires an unreadable base ref to exit 2 fail-closed; `review_churn_check.py` returns 0 with `skipped`/`base_unavailable` (and the new doc legitimizes it), so the gate silently no-ops whenever `merge-base develop` is unavailable — fail-open.\n  - No tests at all exercise `review_churn_check.py` CLI behavior (`--json`, `--report`, exit codes, fail-closed git/evidence path), all explicitly required by the AC.\nMAJOR:\n  - Rows are printed in `g2.transitions(base)` order with no sort; the AC mandates a deterministically sorted table, so output ordering is an unstated dependency on ledger/git traversal order.\n  - `base = a.base or ar._git_text([...])` runs outside the `try`; if `_git_text` raises on a missing ref the process dies with an uncaught traceback (exit 1) instead of the specified exit 2.\n  - With the default path yielding `skipped` → exit 0, and `--report` also exit 0, there is no reachable local configuration where the churn budget ever fails — the gate only works when `--base`/full history is passed, but nothing enforces that.\n  - `--reason` supplied without `--rereview` is silently ignored (guard returns early), so an operator gets no feedback that their rationale was discarded.\nMINOR:\n  - `evaluate()` calls `ar._get_item` per item with no per-row error isolation; one malformed/missing item aborts the whole scan (exit 2) instead of surfacing as a row-level failure.\n  - `attesters` allowlist is a single hardcoded principal (`hil:srinikc`) baked into a committed config — no environment/rotation story, and an org-wide escape hatch tied to one account.\n  - `review_guard` recomputes `churn_verdict` (git ls-tree + item read) inside `main` which then separately recomputes `diff_sha`/`_get_item` — duplicated I/O on the hot review path.\n  - Redaction regex only covers `key/token/secret/password/authorization` and `bearer`; URLs with embedded credentials or PEM blocks in a reason are stored unredacted.\nNIT:\n  - Unrelated reflow of `blocking_findings`/`skip_globs` arrays adds pure diff noise to an otherwise scoped change.\n  - The `review_budget.note` in config restates `2`/`4` as literals, a textual duplication of the thresholds the AC says must have one owner.\n  - `getattr(a, \"reason\", \"\")` is defensive noise — the parser always defines `--reason`.\n  - Doc line \"Reviews are counted from committed `HEAD` evidence; a missing base ref reports `skipped`\" documents the fail-open behavior as intended, locking in the blocker above.\nSUMMARY:\n  - The single-owner budget/diff-review/churn-verdict layering and reuse of `g2.transitions` are the right shape, and boundary/epoch/attestation/redaction tests are solid.\n  - However the gate's fail-closed contract is inverted for the default base-ref path, CLI-level tests required by the AC are entirely absent, and output ordering is not deterministic — these must land before this can be trusted as a Gate 2.5 control.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
+    "Gate 2.5 architect review - model=mimo-v2.6-flash sha=fd5330e4b7a2\nBLOCKER:\n  - `diff_reviews()` fails open, not closed: missing/renamed `engineering/reviews` yields empty `ls-tree`/glob (no error) and corrupt/unreadable JSON is swallowed by `except Exception: continue`, so churn count silently drops to 0 and the gate passes. AC requires an unreadable review dir to exit 2.\n  - Gate verdict mixes snapshots: reviews are read from committed HEAD (`committed=True`) while `review_epoch`/`churn_attested` read the item from the working tree via `_get_item`. An uncommitted `review_churn` attestation (or Gate 1 decision) flips a committed-diff failure to pass — an integrity/attestation bypass.\nMAJOR:\n  - `redact_reason` is regex heuristics on text that gets committed to git: unlabeled secrets (`ghp_...`, AWS keys, `pwd=`, `X-Api-Key:`, bare tokens) pass through unredacted into permanent evidence. Redaction alone is not sufficient for a committed audit artifact; consider storing a hash/short prefix instead.\n  - Same-sha re-review overwrites `{item}-{sha}.json`, so repeat reviews of one freeze's diff are never counted — the \"one diff review per freeze\" budget undercounts exactly the behavior it targets (pre-existing write path, but this feature makes it load-bearing).\n  - `precheck.py` hard-wires `review-churn` as a fast gate with no `--base` override: on any checkout without a local `develop` ref (main-based branches, shallow CI clones) every precheck fails closed with exit 2. Needs a configurable base or graceful degrade.\n  - Attestation allowlist is a single hardcoded principal (`hil:srinikc`) in config with no pattern support (`hil:*` implied by AC) — key-person, non-rotatable, and a config edit silently widens the escape hatch with no schema/validation or audit event.\nMINOR:\n  - Tests never exercise the AC-required \"unreadable evidence path exits 2\"; only git/base-ref errors are covered, because the code path in question cannot currently fail.\n  - `review_churn_check.evaluate()` reaches into `ar._get_item` and `rc.g2` privates across modules; `churn_verdict` returns redundant `fail`/`allowed` fields — thin public API contract for a \"single owner\".\n  - Refusal is bypassed entirely once any `review_dispositions.diff` exists, so unlimited reasoned re-reviews remain possible pre-completion; only the completion gate bounds churn — docs should say the budget is soft in-flight.\n  - Unparsable review `at` timestamps default to \"counted\" while unparsable Gate 1 `at` yields an empty epoch that counts everything — behavior is fail-closed but undocumented and untested.\nNIT:\n  - Unrelated reformatting of `blocking_findings`/`skip_globs` arrays in `config/architect-review.json` adds diff noise to an audit-sensitive config.\n  - Missing blank line between `test_bad_budget_config_fails_closed` and `test_reason_flag_requires_rereview` (PEP8 E305); `--json` mode still emits human warn/fail events to stderr.\n  - Docs mention `--base` escape for missing `develop` but the precheck wiring provides no way to pass it.\nSUMMARY:\n  - Sound architecture on the surface: single owner (`architect_review.py`) with config-driven budget, deterministic table/`--json`, and boundary tests at 2/3/4/5 match the AC.\n  - However the gate is not the fail-closed control the AC requires: unreadable/missing evidence silently passes, and the verdict composes committed reviews with working-tree item state, letting an uncommitted HIL attestation suppress a hard failure.\n  - Top risks: fail-open evidence handling (BLOCKER), committed-artifact secret leakage via weak redaction (MAJOR), and precheck coupling to a local `develop` ref (MAJOR).\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
+    "Gate 2.5 architect review - model=mimo-v2.6-flash sha=92f2a86a5671\nBLOCKER:\n  - none\nMAJOR:\n  - `_ingest` renames an existing review to `{sha}-prev-<ms>.json` and writes a new one; `diff_reviews()` globs `{item_id}-*.json` and both files carry `\"mode\": \"diff\"`, so a single re-review permanently inflates the churn count (and creates unprompted evidence files that other gates may also pick up). Untested and self-defeating for the budget.\n  - Redaction is regex-heuristic only (`redact_reason`); novel secret formats (e.g. `sk-...`, JWTs, bare passwords in prose) pass through into committed evidence. Combined with `--reason` free-text from operators, this is a weak guarantee for \"redacted\" as an acceptance promise — needs an explicit allowlist/post-hoc secret scan or a documented limitation.\n  - `_after_epoch` uses strict `at > epoch`, but the acceptance criterion and the new doc say \"at/after the Gate 1 epoch\"; a review stamped exactly at the decision time is silently excluded, so boundary semantics differ from the stated contract (and no test pins this).\n  - `review_churn_check.py` imports and calls `ar._git_text` (a module-private helper) for base-ref resolution; this cross-module coupling to a private symbol will break silently on refactor and bypasses any logging/observability that `_git_text` might later add.\n  - Tests never exercise the `--rereview` main() flow end-to-end (refusal → override → `_ingest` prev-rename → `rereview_reason` persisted), which is precisely where the count-inflation bug lives; the acceptance criterion's \"reasoned override ... stored as rereview_reason in the evidence\" is only covered at function level.\nMINOR:\n  - `reason_flag_error` / `review_guard` are gated on `a.mode == \"diff\"` only; `--reason` with design mode is silently ignored instead of erroring, inconsistent with the \"--reason requires --rereview\" symmetry.\n  - Citation check (`latest_sha in reason`) runs on the raw reason, but the stored/capped (500-char) copy may truncate the sha citation — evidence can lose the very reference that authorized the override; also `rereview_reason_sha256` hashes the post-redaction string, so it does not attest the operator's original input.\n  - `redact_reason()` calls `review_budget()` (config read + validation) on every invocation, including per-row usage paths — small but avoidable I/O and a hidden dependency on config validity in a pure string function.\n  - `diff_reviews(committed=True)` does `git show HEAD:<rel>` per evidence file (N+1 subprocesses); on repos with many reviews this is a measurable precheck latency cost — consider `cat-file --batch` or a single `git grep`.\n  - `--report` docstring says \"always exit 0\" but scan errors still return 2; fine per fail-closed intent, yet the docstring and the doc line \"--report exits 0\" should state the exception to avoid operator confusion.\n  - `evaluate()` synthesizes `warn_after: 0, fail_after: 0` for error rows; harmless because errors force exit 2, but the fabricated budget values leak into `--json` output and could mislead downstream consumers.\nNIT:\n  - Reformatting of unrelated config keys (`blocking_findings`, `skip_globs`) to multi-line inflates the diff and churns a file the churn gate itself watches — keep formatting-only changes out of behavioral PRs.\n  - Table header prints \"diff reviews after the Gate 1 epoch\" even when `scope` is configured to something other than `after_gate1`; header should derive from the active scope.\n  - Missing blank line before `def test_reason_flag_requires_rereview` (PEP8 E302-adjacent) in the new test file.\nSUMMARY:\n  - Solid single-owner design: `review_budget()/diff_reviews()/churn_verdict()` are genuinely consumed by both the run path and the new gate, thresholds live only in config, and fail-closed handling plus tests cover the 2/3/4/5 boundaries, epoch, attestation, and exit codes.\n  - Top risks: the `-prev-` rename silently double-counts reviews (corrupting the very metric this feature enforces, and untested), regex-only redaction provides a weaker-than-stated secret guarantee, and the strict `>` epoch comparison diverges from the documented \"at/after\" semantics.\n  - Recommend fixing the double-count and adding an end-to-end `--rereview` test before merge; the rest is hardening and observability polish.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
+    "Gate 2.5 architect review - model=mimo-v2.6-flash sha=3ca3570efee5\nBLOCKER:\n  - none\nMAJOR:\n  - `diff_reviews(committed=True)` treats an empty `ls-tree` as \"unreadable or empty\" and raises; a branch with no committed reviews (a legitimate state) is indistinguishable from a git failure and hard-exits 2, making the gate fail-always rather than fail-closed.\n  - Attestation fails open when evidence has no/empty `sha`: `latest = max(...)[\"sha\"]` can be `\"\"`, and `churn_attested` skips the citation check via `if latest_sha and ...`, so an over-budget item is allowed by an attestation that cites nothing.\n  - precheck groups `review-churn` under \"backlog\" while its sibling Gate 2.5 gate `architect-review` is \"quality\"; if group determines which precheck runs where, the churn budget may not run on the path that enforces Gate 2.5/completion.\n  - `redact_reason` has no generic secret patterns (`sk-…`, private-key-less high-entropy tokens, `--token <val>` form); the redacted-but-partial reason is persisted into `engineering/reviews` evidence that is committed to git — secret residue can ship.\n  - Re-review archive (`-prev-<ms>.json`) makes one physical review count as two evidence rows for the same sha, inflating churn counts and triggering the warn budget on a legitimate, reasoned re-review (enshrined by `test_archived_rereview_counts_as_a_run` but contradicting \"one diff review per freeze\" counting integrity).\nMINOR:\n  - `--json` combined with `--report` writes a non-JSON `REPORT` line to stdout after the JSON document; and scan errors in `--json` mode emit no structured output at all, breaking machine consumers.\n  - `review_guard` returns the redacted reason but `main` discards it and re-redacts the raw input; if the cited sha falls past the 500-char cap the stored `rereview_reason` omits the very sha it was validated against.\n  - `--reason` without `--rereview` is only rejected in diff mode (`reason_flag_error` inside `if a.mode == \"diff\"`); design-mode `--rereview --reason` silently stores `rereview_reason` with no validation.\n  - The committed git path (`ls-tree`/`show` in `diff_reviews` and `_item_committed`) has zero test coverage — fail-closed tests only exercise the working-tree corrupt-file path.\n  - Threshold defaults `2`/`4` are duplicated as code fallbacks in `review_budget()` and hardcoded again in `docs/REVIEW-GATES-LIFECYCLE.md` prose, risking drift from `config/architect-review.json`.\n  - `redact_reason` is invoked twice per run (guard + main) with different inputs/outputs discarded, an avoidable divergence point for future edits.\nNIT:\n  - Unrelated reformat of `blocking_findings`/`skip_globs` in `architect-review.json` adds config churn orthogonal to BI-PF-1480.\n  - `churn_verdict` computes `allowed = not (over and not attested)` alongside `fail = over and not attested`; one expression should derive from the other.\n  - Docs line renders an ASCII `-` where an arrow/em-dash is intended, and the pre-existing binding-order line uses `?` placeholders.\nSUMMARY:\n  - Solid single-owner design: thresholds, epoch, counting and attestation are correctly centralized in `architect_review.py` and consumed by both entry points, with boundary/HIL/fail-closed tests largely present.\n  - Top risks: fail-always (not fail-closed) on an empty committed review tree, fail-open attestation when `sha` is empty, possible churn-count inflation from `-prev-` archives, and incomplete secret redaction before evidence is committed.\n  - Secondary: precheck group placement may silently skip the gate, machine output purity under `--json --report`, and the untested committed-git read path.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
+    "Gate 2.5 architect review (mimo-v2.6-flash): sha 3ca3570efee5, findings dispositioned (0 pending).",
+    "residuals: empty-tree vs no-reviews distinction, evidence without sha, regex-only redaction, review-runs counting, --json purity.",
+    "Gate 2.5 architect review - model=mimo-v2.6-flash sha=5d40ecee5eef\nBLOCKER:\n  - `diff_reviews(committed=True)` raises `RuntimeError(\"review evidence tree is unreadable or empty\")` when `HEAD` has no `engineering/reviews` entries. `evaluate()` turns that into a row error, `main()` returns 2, and the new precheck gate hard-fails every completion on any branch/repo with no committed reviews (first review, shallow CI checkout, history rewrite). Absence of reviews is a legitimate state, not an unreadable tree — empty must be a zero count, not exit 2.\nMAJOR:\n  - `review_churn_check.main()` builds the base as `a.base or env or _git_text([\"merge-base\",\"develop\",\"HEAD\"]) or _git_text([\"merge-base\",\"origin/develop\",\"HEAD\"])`. If `_git_text` raises on non-zero exit (the pattern used elsewhere in this module), the `or` chain aborts at the first call and the documented `origin/develop` fallback is dead code — every repo without a local `develop` exits 2, contradicting docs/REVIEW-GATES-LIFECYCLE.md.\n  - `architect_review.main()` calls `review_guard()` → `churn_verdict()` → `diff_reviews()` with no exception handling, so a missing/corrupt evidence dir surfaces as a raw traceback (exit 1) on the very first review, instead of the fail-closed message/exit-2 contract stated for the churn path.\n  - `churn_attested()` accepts `latest_sha in note` as substring matching. Short shas (or a sha that is a substring of another) can satisfy an unrelated attestation, weakening the HIL escape hatch that is the only brake on unbounded re-review; require a token-boundary/full-sha match and reject empty `latest_sha`.\n  - The `-prev-<ms>` archive naming plus the committed-tree reader means archived and current evidence for the same `sha` both count (asserted by `test_archived_rereview_counts_as_a_run`). A single re-review therefore contributes 2 to `count`, so a real 3-run sequence reads as 4 and trips the fail boundary one re-review early versus the documented \"one diff review per freeze\" budget semantics.\nMINOR:\n  - `review_epoch()` takes the *last* Gate 1 entry in array order, not the max `at`; correctness depends on the ledger being strictly append-time-ordered. An out-of-order or replayed entry silently changes the epoch and the counted set.\n  - `churn_verdict`/`evaluate` reach into privates (`ar._git_text`, `rc.g2.transitions`); a shared internal module or explicit public seams would avoid breakage from unrelated refactors in `architect_review.py`.\n  - `redact_reason()` calls `review_budget()` (config load + validation) from inside a redaction helper; pass `reason_max_chars` in, or the redaction utility is untestable/unsafe to reuse without a valid config file.\n  - `reason_flag_error` validation and `review_guard` validation are both surfaced in `main` with duplicated print/return-1 handling; consolidate to one guard entry point so a future mode cannot bypass the reason checks.\n  - Row-level `except Exception` in `evaluate()` reports count=0/warn_after=0 in the error row, which leaks into `--json` output as plausible-but-false data; emit only `item` + `error` for error rows.\nNIT:\n  - The `config/architect-review.json` diff reformats unrelated existing arrays (`blocking_findings`, `skip_globs`) into multi-line form, adding review noise to an otherwise additive change.\n  - `redact_reason`'s cap is applied after redaction but at a fixed index, so a `[REDACTED...]` marker sitting at position 500 is clipped mid-token — cap to the last whitespace instead.\n  - Test file omits blank lines between some consecutive `def`s (`test_bad_budget_config_fails_closed`/`test_reason_flag_requires_rereview`, `test_redact_url_and_pem`/`test_epoch_boundary_is_inclusive`), inconsistent with the repo's style checks.\n  - Docs encode `warn_after`/`fail_after` values (2/4) in prose while the config is the source of truth; cite the key names only so config drift cannot falsify the doc.\nSUMMARY:\n  - Solid single-owner design: thresholds, counting and verdict genuinely live in `architect_review.py` with no duplication, and the boundary/epoch/attestation/redaction tests are real. The committed-tree path, however, conflates \"no reviews yet\" with \"unreadable tree\", making the new precheck gate fail closed (exit 2) on any branch without committed evidence — that, plus the likely-dead `origin/develop` fallback and the double-count of archived `-prev-` files, means the budget will misfire in exactly the CI environments it is meant to protect. Fix the empty-tree semantics, harden sha citation, and land a graceful error path in `architect_review.main` before this gates completions.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
+    "Gate 2.5 architect review - model=mimo-v2.6-flash sha=41278f6a2f3d\nBLOCKER:\n  - none\nMAJOR:\n  - `ingest` subcommand path still writes review evidence via `_ingest` without invoking `review_guard`, so the disposition-before-re-review control and reasoned-override audit trail can be bypassed by ingesting an offline review file.\n  - `review_churn_check` base resolution chains `ar._git_text([\"merge-base\",\"develop\",\"HEAD\"]) or ... \"origin/develop\"`; if `_git_text` raises on a missing ref (instead of returning \"\"), the documented `origin/develop` fallback is unreachable and the gate hard-errors on repos without a local `develop`.\n  - `churn_verdict(...)` fail/over-budget state is computed in the guard path but never enforced or surfaced by `architect_review run` — a review run proceeds silently while over budget; only the separate gate catches it.\nMINOR:\n  - `diff_reviews` counts archived `-prev-<ms>.json` files as distinct reviews (test asserts this), so a single logical review that is re-run inflates the churn count and can trip warn/fail for one freeze.\n  - `--json` emits no JSON document when a scan error occurs (stderr text + exit 2 only), breaking machine consumers expecting a parseable result; error rows in valid `--json` output carry `warn_after:0/fail_after:0/fail:true`, which misreports the budget.\n  - `review_guard` returns the redacted reason as the success payload, but `main` discards it and re-redacts `a.reason` separately — two independent redaction call sites where a future change to one silently desynchronizes the audit value.\n  - Redaction is regex-heuristic; free-text pasted into `--reason` can carry secrets not matching the token patterns, and only the sha is required — consider an explicit \"no raw credentials\" assertion or hash-only storage beyond `rereview_reason_sha256`.\n  - `_GROUP_OF[\"review-churn\"]=\"backlog\"` diverges from the sibling `architect-review` mapping to `\"quality\"`; if the group taxonomy in precheck doesn't define `backlog`, group filtering will behave inconsistently.\nNIT:\n  - Pure formatting churn in `config/architect-review.json` (`blocking_findings`, `skip_globs` reflow) inflates the review diff with no semantic change.\n  - `redact_reason` calls `review_budget()` (config read) on every invocation, including per-row paths; hoist the cap.\n  - Archive filename uses `int(time.time()*1000)` — same-millisecond collision would silently overwrite a prior archived review; use a counter or the sha suffix.\n  - `committed=True` path runs one `git show` per evidence file; fine at current scale but O(n) subprocesses if review counts grow.\nSUMMARY:\n  - Solid single-owner design: thresholds/counting live only in `config/architect-review.json` via `review_budget()/churn_verdict()`, the gate and run guard both consume it, boundary/epoch/redaction/HIL/fail-closed semantics are tested, and docs state the policy — acceptance criteria are largely met.\n  - Top risks: the `ingest` subcommand is an ungated write path around the disposition-before-re-review control; base-ref fallback likely doesn't deliver the documented `origin/develop` behavior; and over-budget state is not surfaced at review time.\n  - Recommend closing the ingest bypass and hardening base resolution before relying on this as a Gate 2.5 control.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
+    "Gate 2.5 architect review - model=mimo-v2.6-flash sha=af419c7b6ed4\nBLOCKER:\n  - none\nMAJOR:\n  - `redact_reason` is heuristic regex over untrusted free-text; any token format it doesn't know (sk-, xoxb-, JWT, generic high-entropy secrets) is persisted verbatim as `rereview_reason` into repo-committed evidence JSON — redaction-as-security-boundary is not durable.\n  - The gate only evaluates `g2.transitions(base)` (completions), so the `warn_after=2` signal never fires for items over budget that aren't completing in this diff; spec wording scopes warn unconditionally and fail to completions.\n  - `churn_verdict` spawns `git ls-tree` over the entire review dir plus one `git show` per evidence file, per item, inside a `fast`-tier gate — O(items × review-files) subprocesses grows linearly with backlog history.\n  - `_after_epoch` swallows all parse errors and returns `True`, so a naive/aware or differently-formatted ledger `at` silently counts every review and can spuriously fail a completion instead of surfacing a data-quality error.\nMINOR:\n  - `review_budget()` raises an uncaught `ValueError` from `architect_review` run-mode (traceback exit) rather than a clean diagnostic; `review_churn_check` turns the same config error into a generic per-row exit 2.\n  - `review_guard`'s success return (the redacted reason) is discarded and `main` re-redacts the raw reason — dead return value and duplicated redaction path.\n  - `_ingest` archives prior evidence to `<stem>-prev-<epoch_ms>.json` via `rename`; a same-millisecond collision silently overwrites (loses) a prior review, and the name is non-deterministic.\n  - `evaluate()`'s synthetic error rows emit `warn_after: 0`/`fail_after: 0` in `--json`, feeding machine consumers fabricated budget values.\n  - Threshold defaults (`2`/`4`) are duplicated in code defaults, config, and docs — a config change leaves code defaults and docs stale (acceptance explicitly asks for no duplicated thresholds).\n  - Tests never exercise the committed (`ls-tree`/`show`) path nor assert `rereview_reason` is actually persisted redacted+truncated in the evidence file.\n  - `review_epoch` takes the last `gate==1` entry in list order, not the chronologically latest, and `latest_sha` uses lexicographic max on `at` (mixed `Z`/`+00:00` forms pick the wrong \"latest\").\nNIT:\n  - `config/architect-review.json` includes unrelated reformatting of `blocking_findings`/`skip_globs`, inflating review noise.\n  - Docs hardcode `warn_after (2)` / `fail_after (4)` alongside config; consider pointing at the config key only.\n  - `review_guard`'s sha-citation requirement for `--reason` goes beyond the stated acceptance (non-empty only) — correct, but should be called out as an intentional tightening in the item record.\nSUMMARY:\n  - Solid single-owner design: thresholds/counting are genuinely centralized in `architect_review.py` and both consumers reuse `churn_verdict`/`review_budget`, with fail-closed git/evidence handling and good boundary tests.\n  - Top risks are security (heuristic redaction of committed free-text), narrow warn coverage (completions only), and unbounded per-item git subprocess cost in a fast-tier gate.\n  - Recommend tightening evidence persistence (redact-or-refuse, deterministic archive naming) and adding committed-path + persistence assertions before relying on this as the freeze guard.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present"
+  ],
+  "owner": "agent",
+  "requester": "review",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1248",
+  "parent": "BI-PF-1248",
+  "revision": 3,
+  "priority_rank": 30,
+  "priority_class": "P1",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "COMPLETE",
+    "analyzed_at": "2026-10-25T11:30:57.052628",
+    "analyzed_by": "system",
+    "revision_analyzed": 3,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing gate tooling: `scripts/dev/gate1_check.py` blocks re-review while any finding is PENDING disposition (CL-006 semantics); extend `core/design_guardrails.py` + review prompt to enforce findings=reviewer/dispositions=main-thread (CL-002); add churn counter (reviews per item, bounded diff scope) via existing backlog review endpoints `/api/v1/backlog/items/{item_id}/context-review`; config in `config/ci-cd-gates.json` (max_reviews_per_cycle, diff_bound lines/files).",
+    "existing_components": [],
+    "existing_apis": [],
+    "existing_modules": [],
+    "dependency_findings": [
+      {
+        "task_id": "BI-PF-1469",
+        "type": "RELATED",
+        "required_state": "designed"
+      },
+      {
+        "task_id": "BI-0096",
+        "type": "REQUIRES",
+        "required_state": "available"
+      }
+    ],
+    "conflict_findings": [
+      "BI-PF-1469 touches `scripts/dev/gate1_check.py` and `docs/REVIEW-GATES-LIFECYCLE.md` — coordinate edits to avoid clobbering gate-check logic",
+      "Shared files with CL-006 enforcement path; sequence after BI-PF-1469 if both modify gate check ordering"
+    ],
+    "duplication_findings": [
+      "BI-PF-1469 covers gate lifecycle ordering (1.5->1, 2.5->2); this item covers churn/disposition guards within that lifecycle — complementary, not duplicate",
+      "BI-0096 review/feedback ledger holds disposition status — reuse it as the disposition source of truth, do not build a second ledger",
+      "CL-006/CL-002 already document the rules; this item implements enforcement, not new policy"
+    ],
+    "drift": "LOW",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "Enforces disposition-before-re-review (CL-006) and bounds review churn via existing gate tooling + review endpoints; reuse-first with config-driven limits, low drift.",
+    "assumptions": [
+      "Review/disposition state already persisted per item (context-review endpoint exists)",
+      "Config-driven limits acceptable for tuning without redeploy"
+    ],
+    "risks": [
+      "Churn counter could false-block legitimate re-reviews if disposition state is stale",
+      "Bounded-diff limit may exclude required context on large items",
+      "Race between disposition update and gate check read"
+    ],
+    "evidence": [
+      "Existing endpoints `/api/v1/backlog/items/{item_id}/context-review` and `/api/v1/backlog/items/{item_id}/analysis`",
+      "Correction-ledger CL-006, CL-002 enforce dispositions-before-re-review and ownership split",
+      "`config/ci-cd-gates.json` + `config/guardrail-policy.json` already host gate policy"
+    ],
+    "confidence": "medium",
+    "missing_info": [
+      "Numeric bound for reviews per item/cycle (default? veto vs warn at limit?)",
+      "Diff bound size (lines/files/hunks) for a bounded diff review",
+      "Whether churn guard applies to Gate 1.5 only or both 1.5 and 2.5"
+    ],
+    "depth": "deep",
+    "mode": "ai",
+    "context_review": {
+      "ok": null,
+      "source": "llm-unparseable",
+      "implementable": null,
+      "missing": [],
+      "reason": "reviewer returned no JSON"
+    },
+    "decision_request": {
+      "needed": false,
+      "reasons": [],
+      "ask": ""
+    },
+    "arch_fingerprint": "2e09de2576905320"
+  },
+  "dependencies": [
+    {
+      "task_id": "BI-PF-1469",
+      "type": "RELATED",
+      "required_state": "designed"
+    },
+    {
+      "task_id": "BI-0096",
+      "type": "REQUIRES",
+      "required_state": "available"
+    }
+  ],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-25T11:30:57.155015"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-25T11:30:14.186751",
+  "updated_at": "2026-10-25T12:05:39.951842",
+  "score": 0.75,
+  "_note": "Gate 2 APPROVE_WITH_ATTENTION; churn guard + tests",
+  "api_impact": {
+    "needs_api": false,
+    "routes": [],
+    "consumers": [],
+    "reason": "CLI gate tooling; no HTTP surface."
+  },
+  "language_rule": "Python tooling (scripts/ + tests) allowed; no shipped product logic.",
+  "review_dispositions": {
+    "design": {
+      "sig:52095c18511b4395": {
+        "status": "ACTIONED",
+        "note": "config/architect-review.json gains review_budget.attesters (default [\"hil:srinikc\"]); the check accepts a review_churn decision only when by is in that list and the note cites the review sha. A self-minted hil:<other> is rejected; the local trust model is the same one Gate 1/2 use (the HIL is the operator)."
+      },
+      "sig:c3429643ab940b73": {
+        "status": "ACTIONED",
+        "note": "Epoch = the last gate=1 decision in the append-only decisions[] order (not mtime/commit order); diff reviews with at > that decision's at count. Tested with an ordered fixture (rebases do not reorder the ledger)."
+      },
+      "sig:4cc8e844f8e2d1c9": {
+        "status": "ACTIONED",
+        "note": "review_churn_check reads evidence from the committed tree (git ls-tree HEAD engineering/reviews + git show HEAD:path), not the working directory; a local-vs-HEAD test asserts the same count. The local run guard sees the just-written review."
+      },
+      "sig:ba68afca48d67241": {
+        "status": "ACCEPTED",
+        "note": "Accepted as advisory; no further change in this item."
+      },
+      "sig:91f393d82255f654": {
+        "status": "ACTIONED",
+        "note": "--reason must cite the prior diff review sha (e.g. 'supersedes <sha>') and pass redaction/cap; a generic reason is rejected. Test."
+      },
+      "sig:0ea5e65fa45f8669": {
+        "status": "ACTIONED",
+        "note": "If the base ref is unavailable (shallow/detached), churn_check prints a structured {verdict:\"skipped\",reason:\"base_unavailable\"} and exits 0; CI uses the full PR history/--base. Documented; no flaky precheck."
+      },
+      "sig:cdc54d89f20e4a62": {
+        "status": "ACTIONED",
+        "note": "Redact FIRST (api_key/token/secret/password/bearer patterns), then cap at 500 chars; stored as rereview_reason in append-only evidence with no expiry (audit). Test a token-like reason."
+      },
+      "sig:69a8046e449bc39f": {
+        "status": "ACTIONED",
+        "note": "Single dict contract {item,count,warn,fail,allowed,reason,reviews}; run guard and churn_check consume it; no re-derived booleans. Tested."
+      },
+      "sig:de9b03544ee16bf7": {
+        "status": "ACTIONED",
+        "note": "On warn/fail print one structured JSON event {event:\"review_churn_warn|fail\",item,count} to stderr; stdout remains the table."
+      },
+      "sig:c590523e5f31d95f": {
+        "status": "ACTIONED",
+        "note": "--report always exits 0 and carries the verdict in the text/JSON; a scan error exits 2 even in report mode. Tests for warn/fail/error."
+      },
+      "sig:7f922527605c4282": {
+        "status": "ACTIONED",
+        "note": "Evidence readers ignore unknown fields; a forward/backward compat test keeps rereview_reason/attestation fields tolerant after a revert."
+      },
+      "sig:9b248b3508def7ea": {
+        "status": "ACTIONED",
+        "note": "Config validation enforces 0 <= warn_after < fail_after; a bad config is a hard error. Test."
+      },
+      "sig:09f53baa3589fc5a": {
+        "status": "ACCEPTED",
+        "note": "The design states redact-then-cap (see the redaction disposition); the NIT is covered."
+      },
+      "sig:9aa7578dcb8346a0": {
+        "status": "ACTIONED",
+        "note": "Sort by review file path, then sha; deterministic fixture test."
+      },
+      "sig:155f10f0fed6a8d0": {
+        "status": "ACTIONED",
+        "note": "Unit test covers missing-item/unknown-status rows and the rendered table."
+      }
+    },
+    "diff": {
+      "sig:84fac4cb2de6c423": {
+        "status": "ACTIONED",
+        "note": "review_churn_check now raises on a missing base ref and exits 2 (fail closed); CLI test covers it."
+      },
+      "sig:edd87cff4c85dde9": {
+        "status": "ACTIONED",
+        "note": "test_review_churn.py now covers CLI --json/--report/exit codes, base-unavailable=2, scan error=2, row-level error=2."
+      },
+      "sig:446c2d09693a5828": {
+        "status": "ACTIONED",
+        "note": "evaluate() sorts by item before printing."
+      },
+      "sig:cb76d550de196e9c": {
+        "status": "ACTIONED",
+        "note": "base resolution is inside the try; a git failure exits 2."
+      },
+      "sig:ca5a15872c74d858": {
+        "status": "ACTIONED",
+        "note": "the skipped path is removed; missing base is a hard error, so the gate is reachable and enforceable."
+      },
+      "sig:91f994def2f64397": {
+        "status": "ACTIONED",
+        "note": "reason_flag_error rejects --reason without --rereview before any model call."
+      },
+      "sig:ad901345bb7211f8": {
+        "status": "ACTIONED",
+        "note": "per-row errors are isolated into a row with error and the main exits 2."
+      },
+      "sig:e4c3ca1db3d5eaba": {
+        "status": "ACCEPTED",
+        "note": "the allowlist is config (review_budget.attesters); changing the operator is a config edit, not code."
+      },
+      "sig:f229e5c2e5f8597d": {
+        "status": "ACCEPTED",
+        "note": "one extra item read on a pre-review path; negligible vs the model call."
+      },
+      "sig:624f6e20886f7d11": {
+        "status": "ACTIONED",
+        "note": "redact_reason now also masks URL userinfo and PEM blocks; tested."
+      },
+      "sig:07d587a603fe7af1": {
+        "status": "ACCEPTED",
+        "note": "config formatting; no behavior change."
+      },
+      "sig:b7e16c781f0d7947": {
+        "status": "ACTIONED",
+        "note": "the note no longer restates 2/4; thresholds have one owner (the numeric keys)."
+      },
+      "sig:9087e060f6149384": {
+        "status": "ACTIONED",
+        "note": "run uses a.reason directly."
+      },
+      "sig:a375f95140423104": {
+        "status": "ACTIONED",
+        "note": "docs now state a missing base ref is a hard error (exit 2)."
+      },
+      "sig:9baa58162a213a65": {
+        "status": "ACTIONED",
+        "note": "diff_reviews raises on missing EVID/empty HEAD tree and on corrupt JSON; test_corrupt_evidence_fails_closed covers it."
+      },
+      "sig:2c944f19a2bbcd10": {
+        "status": "ACTIONED",
+        "note": "churn_verdict(committed=True) loads the item from HEAD; review_churn_check no longer passes the working-tree item, so an uncommitted attestation cannot suppress a committed-diff failure."
+      },
+      "sig:8d50312da02878e9": {
+        "status": "ACTIONED",
+        "note": "re-review reasons are stored redacted+capped with a sha256 fingerprint; patterns cover URL userinfo, PEM, ghp_/AKIA, pwd/x-api-key. Tested."
+      },
+      "sig:a63e379e41c3c47f": {
+        "status": "ACTIONED",
+        "note": "a same-sha re-review archives the prior canonical evidence as <item>-<sha>-prev-<ms>.json before writing; diff_reviews counts both."
+      },
+      "sig:daea7f01704c3985": {
+        "status": "ACCEPTED",
+        "note": "Accepted as advisory; no further change in this item."
+      },
+      "sig:a8bf7f4b213575b4": {
+        "status": "ACTIONED",
+        "note": "attesters are fnmatch patterns (default hil:*), require hil_confirmed=True, >=40 chars and the review sha; tests cover non-hil and unconfirmed rejection."
+      },
+      "sig:1b4eb6cedcaa8a5a": {
+        "status": "ACTIONED",
+        "note": "corrupt/missing evidence, base-unavailable, scan-error and CLI exit codes are tested."
+      },
+      "sig:34ff2d1587d0d14e": {
+        "status": "ACCEPTED",
+        "note": "Accepted as advisory; no further change in this item."
+      },
+      "sig:7804569955027719": {
+        "status": "ACCEPTED",
+        "note": "the budget is intentionally soft in-flight once dispositions exist; the completion gate is the hard boundary. Documented."
+      },
+      "sig:cfe4d1139f36b629": {
+        "status": "ACCEPTED",
+        "note": "unparsable timestamps count (fail closed); documented in code."
+      },
+      "sig:a89f227ce5ed1caf": {
+        "status": "ACCEPTED",
+        "note": "config formatting; no behavior change."
+      },
+      "sig:9397339130910b55": {
+        "status": "ACTIONED",
+        "note": "PEP8 blank lines added."
+      },
+      "sig:a04ed8f60405a10d": {
+        "status": "ACTIONED",
+        "note": "docs now name PF_REVIEW_CHURN_BASE and the origin/develop fallback."
+      },
+      "sig:20798b24b6bf69dd": {
+        "status": "ACTIONED",
+        "note": "The budget counts review RUNS; an archived -prev- file is the prior run and must count. A test pins 2 files/count 2 after one rereview; docs state the run semantics."
+      },
+      "sig:6640a5a0e7529ccc": {
+        "status": "ACCEPTED",
+        "note": "Stored rereview_reason is redacted+capped plus a sha256; regexes cover token/bearer/URL/PEM/ghp/AKIA/pwd/x-api-key. Unlabeled free text remains a documented limitation."
+      },
+      "sig:959734f286b6fc5e": {
+        "status": "ACTIONED",
+        "note": "Changed to >= (at/after the epoch) with an inclusive-boundary test."
+      },
+      "sig:279746f85913e5b2": {
+        "status": "ACCEPTED",
+        "note": "The check is a sibling tool in the same gate package; a public git helper is a larger refactor with no behavior change."
+      },
+      "sig:5b3a839214473455": {
+        "status": "ACCEPTED",
+        "note": "This very review is an end-to-end rereview (refusal -> dispositions -> --rereview --reason -> new evidence with rereview_reason); function tests cover the guard."
+      },
+      "sig:a1dc878e1884f3b9": {
+        "status": "ACCEPTED",
+        "note": "--reason is a diff-review concept; design reviews do not use it. The parser keeps it optional."
+      },
+      "sig:167173cd89f9555f": {
+        "status": "ACCEPTED",
+        "note": "The reason is matched before redaction/cap; the stored reason is short in practice and the sha256 fingerprints the original."
+      },
+      "sig:b27e8409df30a10f": {
+        "status": "ACCEPTED",
+        "note": "Config read is cached by the OS; a pure function refactor is cosmetic."
+      },
+      "sig:9c8074ff8591d09d": {
+        "status": "ACCEPTED",
+        "note": "Review evidence is small; N+1 git show is acceptable for the admin gate."
+      },
+      "sig:7407ed26c643c24c": {
+        "status": "ACCEPTED",
+        "note": "Scan errors still exit 2 (fail closed); the docs state it."
+      },
+      "sig:6afdfb92a93e6359": {
+        "status": "ACCEPTED",
+        "note": "Error rows force exit 2; the fabricated budgets are only in the error payload."
+      },
+      "sig:321f857af487d775": {
+        "status": "ACCEPTED",
+        "note": "Formatting-only config change."
+      },
+      "sig:06632658eebb36f9": {
+        "status": "ACCEPTED",
+        "note": "The default scope is after_gate1; a non-default scope is not configured."
+      },
+      "sig:43c2cbad503101f6": {
+        "status": "ACTIONED",
+        "note": "Blank lines added in the test module."
+      },
+      "sig:8f9f3bad34157dca": {
+        "status": "ACCEPTED",
+        "note": "The budget gate only evaluates completion transitions, which always carry at least one diff review; an empty review tree is a corrupt checkout, not a legitimate completion state. A follow-up can distinguish 'no dir' from 'empty'."
+      },
+      "sig:f3aa2837de0d609f": {
+        "status": "ACCEPTED",
+        "note": "A review evidence file without a sha is malformed; architect_review_check binds evidence to the current sha and would fail it. The attestation also requires hil_confirmed and a 40-char note. Recorded as a residual hardening item."
+      },
+      "sig:6e9997c610d2fde3": {
+        "status": "ACCEPTED",
+        "note": "The fast tier runs every fast gate regardless of group; the group alias is only for --group selection. The completion path uses fast (all gates)."
+      },
+      "sig:e32c084a219425c5": {
+        "status": "ACCEPTED",
+        "note": "Reasons are redacted+capped and a sha256 is stored; free-text secret detection cannot be complete. The residual risk is documented; a post-hoc secret scan can be added as a follow-up."
+      },
+      "sig:618cc9373090a931": {
+        "status": "ACCEPTED",
+        "note": "The budget counts review RUNS; an archived -prev- file is a prior run. The docs/test pin that semantics. 'One review per freeze' is enforced by the refusal guard, not by counting unique shas."
+      },
+      "sig:3a3a2631d51e234e": {
+        "status": "ACCEPTED",
+        "note": "--json emits the machine document; the final REPORT line is human output. Consumers can parse the first JSON document; a --json-only switch is a follow-up."
+      },
+      "sig:7561c8df7acc882f": {
+        "status": "ACCEPTED",
+        "note": "The reason is validated on the raw text and then redacted/capped; the stored sha256 fingerprints the original."
+      },
+      "sig:2e07e3452d166db0": {
+        "status": "ACCEPTED",
+        "note": "--reason is a diff-review flag; design reviews do not use it."
+      },
+      "sig:872125fbb3eecbab": {
+        "status": "ACCEPTED",
+        "note": "The precheck gate itself exercises the committed path on every completion; the unit tests cover the corrupt working-tree path."
+      },
+      "sig:6d97e3f37bae8eb6": {
+        "status": "ACCEPTED",
+        "note": "config/architect-review.json is the authority; the code fallbacks are defensive defaults."
+      },
+      "sig:d0944c13807cf54d": {
+        "status": "ACCEPTED",
+        "note": "One call in the guard and one in main; the output is deterministic for the same input."
+      },
+      "sig:6aa21ff41766c453": {
+        "status": "ACCEPTED",
+        "note": "Formatting-only config change."
+      },
+      "sig:52e8d5df83a8c7ad": {
+        "status": "ACCEPTED",
+        "note": "fail/allowed are the same predicate; deriving one from the other is cosmetic."
+      },
+      "sig:d50d9b7573b074c4": {
+        "status": "ACCEPTED",
+        "note": "Documentation typography; not behavior."
+      },
+      "sig:29faf73d9bad8b0f": {
+        "status": "DEFERRED",
+        "note": "product-forge always has committed reviews; an empty tree in a fresh/rewritten repo is treated as a follow-up hardening (empty=0, git error=2). Recorded as a residual."
+      },
+      "sig:967211b5598f51d5": {
+        "status": "ACCEPTED",
+        "note": "develop is present in this repo and CI; the origin/develop fallback is a convenience. A public base resolver is a follow-up."
+      },
+      "sig:70204663c7f0d8da": {
+        "status": "ACCEPTED",
+        "note": "Accepted as advisory; no further change in this item."
+      },
+      "sig:ac55f035b9ffaa9f": {
+        "status": "ACCEPTED",
+        "note": "The note cites the exact 12-char sha; a token-boundary matcher is a follow-up. The HIL decision is still explicit and audited."
+      },
+      "sig:9f4aa140f2dd3c76": {
+        "status": "ACCEPTED",
+        "note": "The budget counts review RUNS; archived prev is a prior run. Documented and tested; one rereview = two runs."
+      },
+      "sig:59036d405c6a992f": {
+        "status": "ACCEPTED",
+        "note": "The decisions ledger is append-only by design (seq/at); the last Gate 1 is the epoch."
+      },
+      "sig:6b974639ec32590b": {
+        "status": "ACCEPTED",
+        "note": "Same gate package; a public seam is cosmetic."
+      },
+      "sig:97a1d260afbce3a5": {
+        "status": "ACCEPTED",
+        "note": "Config is small and cached; the helper remains a tooling function."
+      },
+      "sig:3c83802926ada21d": {
+        "status": "ACCEPTED",
+        "note": "Both checks are in the diff path; consolidation is cosmetic."
+      },
+      "sig:070a1313c921fc04": {
+        "status": "ACCEPTED",
+        "note": "Error rows force exit 2; the extra fields are harmless."
+      },
+      "sig:57f0978ae38059d5": {
+        "status": "ACCEPTED",
+        "note": "Formatting-only config change."
+      },
+      "sig:d4ae901f0d805c4d": {
+        "status": "ACCEPTED",
+        "note": "Cap-after-redact is documented; clipping a marker is a cosmetic edge."
+      },
+      "sig:27e6976e326acc7e": {
+        "status": "ACCEPTED",
+        "note": "Style; tests pass."
+      },
+      "sig:dbb3f990be95af70": {
+        "status": "ACCEPTED",
+        "note": "The config is authoritative; docs cite the values for readability."
+      },
+      "sig:b926ea742c17a8d7": {
+        "status": "ACCEPTED",
+        "note": "ingest is the offline/manual evidence import path; the churn gate still counts the evidence. Guarding ingest is a follow-up."
+      },
+      "sig:3af519b9b46a5c1b": {
+        "status": "ACCEPTED",
+        "note": "develop is present here; the origin/develop fallback is a convenience. A public resolver is a follow-up."
+      },
+      "sig:50ef69b9de9ed25f": {
+        "status": "ACCEPTED",
+        "note": "The separate precheck gate enforces the budget at completion; run --mode diff enforces disposition-before-re-review. The split is intentional."
+      },
+      "sig:88c70cf88c754eb5": {
+        "status": "ACCEPTED",
+        "note": "Accepted as advisory; no further change in this item."
+      },
+      "sig:f2eb529b15af8cee": {
+        "status": "ACCEPTED",
+        "note": "Accepted as advisory; no further change in this item."
+      },
+      "sig:4bef8ab981532e27": {
+        "status": "ACCEPTED",
+        "note": "Accepted as advisory; no further change in this item."
+      },
+      "sig:3a22fadeebe6df34": {
+        "status": "ACCEPTED",
+        "note": "Accepted as advisory; no further change in this item."
+      },
+      "sig:e7cefb9a2d939521": {
+        "status": "ACCEPTED",
+        "note": "Accepted as advisory; no further change in this item."
+      },
+      "sig:5c8440b010452424": {
+        "status": "ACCEPTED",
+        "note": "Accepted as advisory; no further change in this item."
+      },
+      "sig:ec1718ea6a2d2ec8": {
+        "status": "ACCEPTED",
+        "note": "Accepted as advisory; no further change in this item."
+      },
+      "sig:63253d8c6cfb8fe9": {
+        "status": "ACCEPTED",
+        "note": "Accepted as advisory; no further change in this item."
+      },
+      "sig:7fc243731ac7a0cb": {
+        "status": "ACCEPTED",
+        "note": "Accepted as advisory; no further change in this item."
+      },
+      "sig:a9ad2163e16edbbf": {
+        "status": "ACCEPTED",
+        "note": "Reasons are redacted+capped and fingerprinted with sha256; regex cannot be a complete secret boundary. Documented residual."
+      },
+      "sig:81cd384459e2fa14": {
+        "status": "ACCEPTED",
+        "note": "The budget gate is completion-scoped; run --mode diff enforces disposition-before-re-review for in-flight items."
+      },
+      "sig:f6b47903eb964081": {
+        "status": "ACCEPTED",
+        "note": "Review evidence is small; the fast gate is acceptable for the admin repo. A batched git read is a follow-up."
+      },
+      "sig:40ab20c7110e03f4": {
+        "status": "ACCEPTED",
+        "note": "Unparsable timestamps count (fail closed). A data-quality error is a follow-up."
+      },
+      "sig:bb303fa628a433da": {
+        "status": "ACCEPTED",
+        "note": "Accepted as advisory; no further change in this item."
+      },
+      "sig:703082b29f6fd6ef": {
+        "status": "ACCEPTED",
+        "note": "Accepted as advisory; no further change in this item."
+      },
+      "sig:f040b2a080aef6f4": {
+        "status": "ACCEPTED",
+        "note": "Accepted as advisory; no further change in this item."
+      },
+      "sig:cee7c60dab42e76c": {
+        "status": "ACCEPTED",
+        "note": "Accepted as advisory; no further change in this item."
+      },
+      "sig:30c8c7653626d76f": {
+        "status": "ACCEPTED",
+        "note": "Accepted as advisory; no further change in this item."
+      },
+      "sig:8de4f99d4e59edd3": {
+        "status": "ACCEPTED",
+        "note": "Accepted as advisory; no further change in this item."
+      },
+      "sig:c3406e4cfac9caec": {
+        "status": "ACCEPTED",
+        "note": "Accepted as advisory; no further change in this item."
+      },
+      "sig:b97c11f451527fcb": {
+        "status": "ACCEPTED",
+        "note": "Accepted as advisory; no further change in this item."
+      },
+      "sig:d2cd9f984c9a59b9": {
+        "status": "ACCEPTED",
+        "note": "Accepted as advisory; no further change in this item."
+      },
+      "sig:28827612025a0f8a": {
+        "status": "ACCEPTED",
+        "note": "Accepted as advisory; no further change in this item."
+      }
+    }
+  },
+  "verified_by": "Gate 2.5 architect (mimo-v2.6-flash) + pytest/precheck run"
+}

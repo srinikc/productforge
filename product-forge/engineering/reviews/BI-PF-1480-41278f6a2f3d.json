@@ -1,0 +1,38 @@
+{
+  "item": "BI-PF-1480",
+  "sha": "41278f6a2f3d",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-25T06:28:09.254634+00:00",
+  "findings": {
+    "BLOCKER": [
+      "none"
+    ],
+    "MAJOR": [
+      "`ingest` subcommand path still writes review evidence via `_ingest` without invoking `review_guard`, so the disposition-before-re-review control and reasoned-override audit trail can be bypassed by ingesting an offline review file.",
+      "`review_churn_check` base resolution chains `ar._git_text([\"merge-base\",\"develop\",\"HEAD\"]) or ... \"origin/develop\"`; if `_git_text` raises on a missing ref (instead of returning \"\"), the documented `origin/develop` fallback is unreachable and the gate hard-errors on repos without a local `develop`.",
+      "`churn_verdict(...)` fail/over-budget state is computed in the guard path but never enforced or surfaced by `architect_review run` \u2014 a review run proceeds silently while over budget; only the separate gate catches it."
+    ],
+    "MINOR": [
+      "`diff_reviews` counts archived `-prev-<ms>.json` files as distinct reviews (test asserts this), so a single logical review that is re-run inflates the churn count and can trip warn/fail for one freeze.",
+      "`--json` emits no JSON document when a scan error occurs (stderr text + exit 2 only), breaking machine consumers expecting a parseable result; error rows in valid `--json` output carry `warn_after:0/fail_after:0/fail:true`, which misreports the budget.",
+      "`review_guard` returns the redacted reason as the success payload, but `main` discards it and re-redacts `a.reason` separately \u2014 two independent redaction call sites where a future change to one silently desynchronizes the audit value.",
+      "Redaction is regex-heuristic; free-text pasted into `--reason` can carry secrets not matching the token patterns, and only the sha is required \u2014 consider an explicit \"no raw credentials\" assertion or hash-only storage beyond `rereview_reason_sha256`.",
+      "`_GROUP_OF[\"review-churn\"]=\"backlog\"` diverges from the sibling `architect-review` mapping to `\"quality\"`; if the group taxonomy in precheck doesn't define `backlog`, group filtering will behave inconsistently."
+    ],
+    "NIT": [
+      "Pure formatting churn in `config/architect-review.json` (`blocking_findings`, `skip_globs` reflow) inflates the review diff with no semantic change.",
+      "`redact_reason` calls `review_budget()` (config read) on every invocation, including per-row paths; hoist the cap.",
+      "Archive filename uses `int(time.time()*1000)` \u2014 same-millisecond collision would silently overwrite a prior archived review; use a counter or the sha suffix.",
+      "`committed=True` path runs one `git show` per evidence file; fine at current scale but O(n) subprocesses if review counts grow."
+    ],
+    "SUMMARY": [
+      "Solid single-owner design: thresholds/counting live only in `config/architect-review.json` via `review_budget()/churn_verdict()`, the gate and run guard both consume it, boundary/epoch/redaction/HIL/fail-closed semantics are tested, and docs state the policy \u2014 acceptance criteria are largely met.",
+      "Top risks: the `ingest` subcommand is an ungated write path around the disposition-before-re-review control; base-ref fallback likely doesn't deliver the documented `origin/develop` behavior; and over-budget state is not surfaced at review time.",
+      "Recommend closing the ingest bypass and hardening base resolution before relying on this as a Gate 2.5 control."
+    ]
+  },
+  "rereview_reason": "supersedes 5d40ecee5eef; ci-cd-gates registry regeneration",
+  "rereview_reason_sha256": "b517dd08468a3f6e167b663ffa5474ca83eca55e437f58dd7fb717ec3cb4294f"
+}

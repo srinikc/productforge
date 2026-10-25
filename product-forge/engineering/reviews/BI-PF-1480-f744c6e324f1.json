@@ -1,0 +1,35 @@
+{
+  "item": "BI-PF-1480",
+  "sha": "f744c6e324f1",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-10-25T06:02:22.081147+00:00",
+  "findings": {
+    "BLOCKER": [
+      "none"
+    ],
+    "MAJOR": [
+      "Enforcement is duplicated: `architect_review.py` (refusal) and `review_churn_check.py` (warn/fail) each re-implement the \"diff review for item X\" counting and threshold semantics (>2, >4). Violates CL-001 single-writer; thresholds/logic must be single-sourced (e.g. `config/architect-review.json`) and consumed by both, with a stated owner.",
+      "The `review_churn` escape hatch is self-service: the design defines no attestation (who, why text validation, when it expires) for the append-only ledger entry, so the very actor the gate constrains can bypass it. Require structured justification + author + linkage to the failing findings.",
+      "Counting baseline is undefined. The guard counts all-time diff reviews while the docs promise \"one diff review per code freeze\"; without an explicit freeze-scoped baseline/epoch, long-lived items permanently exceed the budget and need a ledger entry every cycle. Risks mention a baseline but no mechanism or invariant is stated.",
+      "\"Fails a completion in the committed diff\" has no defined comparison semantics (base ref, shallow clone, no-HEAD runs). Non-deterministic precheck results; specify the ref resolution and test it (guardrail 5/6).",
+      "`--reason` free text is persisted verbatim into committed evidence JSON with no redaction/retention rule; risk of secrets/PII entering the repo (guardrail 9).",
+      "Threshold constants (2/4) appear hardcoded in two places with no config, and strict-greater-than vs greater-or-equal is not pinned by the design; tests must lock the exact boundary semantics."
+    ],
+    "MINOR": [
+      "Read-then-write guard has a TOCTOU race between the refusal check and evidence write; acceptable for single-user tooling but should be documented as an accepted limitation.",
+      "Observability is a stdout table only; no machine-readable (`--json`) output, exit-code taxonomy, or counter emitted for churn trending \u2014 hurts long-term diagnosis (guardrail 10).",
+      "Behaviour when review evidence is absent/partial in the checkout (fresh clone, partial fetch) is unspecified; define the fail-open vs fail-closed choice explicitly.",
+      "Rollback leaves already-written `rereview_reason` / `review_churn` entries in evidence; confirm this is intentional append-only residue and state it in the rollback note."
+    ],
+    "NIT": [
+      "Register `review_churn_check` in the existing precheck gate registry rather than adding a parallel invocation path, to keep gate ordering and reporting uniform.",
+      "Sort the churn table deterministically (item, then date, then sha) so golden-output tests and human diffs stay stable."
+    ],
+    "SUMMARY": [
+      "Design direction is sound (disposition-before-re-review + budget gate) and stays within the tooling-Python language rule, but the gate is currently advisory in practice: duplicated counting logic in two scripts, a self-service bypass, and an undefined counting baseline (all-time vs per-freeze) undermine the invariant it claims to enforce.",
+      "Top risks before Gate 1.5: single-source the thresholds/counting, define the freeze-scoped baseline and git-ref semantics, and require attested `review_churn` entries; otherwise the \"one diff review per code freeze\" promise is not verifiable and legitimate long-lived items degrade into permanent blocked states."
+    ]
+  }
+}

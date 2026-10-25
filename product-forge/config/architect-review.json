@@ -27,14 +27,32 @@
     "google/gemini-2.5-flash",
     "anthropic/claude-sonnet"
   ],
-  "blocking_findings": ["BLOCKER"],
+  "blocking_findings": [
+    "BLOCKER"
+  ],
   "size_gate": {
     "min_changed_lines": 1,
-    "skip_globs": ["docs/**", "**/docs/**", "**/*.md", "config/**", "**/config/**"]
+    "skip_globs": [
+      "docs/**",
+      "**/docs/**",
+      "**/*.md",
+      "config/**",
+      "**/config/**"
+    ]
   },
   "evidence_dir": "engineering/reviews",
   "override": "Per run: --model <id> or env PF_ARCHITECT_REVIEW_MODEL (takes precedence over this file).",
   "max_tokens": 24000,
   "attempts": 3,
-  "request_timeout": 600
+  "request_timeout": 600,
+  "review_budget": {
+    "warn_after": 2,
+    "fail_after": 4,
+    "scope": "after_gate1",
+    "attesters": [
+      "hil:*"
+    ],
+    "reason_max_chars": 500,
+    "note": "Gate 2.5 review budget: warn above warn_after, fail a completion above fail_after since the Gate 1 epoch unless a HIL-attested review_churn decision cites the latest review sha."
+  }
 }

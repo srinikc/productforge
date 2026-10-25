@@ -1,0 +1,40 @@
+{
+  "item": "BI-PF-1480",
+  "sha": "af419c7b6ed4",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-25T06:35:14.933576+00:00",
+  "findings": {
+    "BLOCKER": [
+      "none"
+    ],
+    "MAJOR": [
+      "`redact_reason` is heuristic regex over untrusted free-text; any token format it doesn't know (sk-, xoxb-, JWT, generic high-entropy secrets) is persisted verbatim as `rereview_reason` into repo-committed evidence JSON \u2014 redaction-as-security-boundary is not durable.",
+      "The gate only evaluates `g2.transitions(base)` (completions), so the `warn_after=2` signal never fires for items over budget that aren't completing in this diff; spec wording scopes warn unconditionally and fail to completions.",
+      "`churn_verdict` spawns `git ls-tree` over the entire review dir plus one `git show` per evidence file, per item, inside a `fast`-tier gate \u2014 O(items \u00d7 review-files) subprocesses grows linearly with backlog history.",
+      "`_after_epoch` swallows all parse errors and returns `True`, so a naive/aware or differently-formatted ledger `at` silently counts every review and can spuriously fail a completion instead of surfacing a data-quality error."
+    ],
+    "MINOR": [
+      "`review_budget()` raises an uncaught `ValueError` from `architect_review` run-mode (traceback exit) rather than a clean diagnostic; `review_churn_check` turns the same config error into a generic per-row exit 2.",
+      "`review_guard`'s success return (the redacted reason) is discarded and `main` re-redacts the raw reason \u2014 dead return value and duplicated redaction path.",
+      "`_ingest` archives prior evidence to `<stem>-prev-<epoch_ms>.json` via `rename`; a same-millisecond collision silently overwrites (loses) a prior review, and the name is non-deterministic.",
+      "`evaluate()`'s synthetic error rows emit `warn_after: 0`/`fail_after: 0` in `--json`, feeding machine consumers fabricated budget values.",
+      "Threshold defaults (`2`/`4`) are duplicated in code defaults, config, and docs \u2014 a config change leaves code defaults and docs stale (acceptance explicitly asks for no duplicated thresholds).",
+      "Tests never exercise the committed (`ls-tree`/`show`) path nor assert `rereview_reason` is actually persisted redacted+truncated in the evidence file.",
+      "`review_epoch` takes the last `gate==1` entry in list order, not the chronologically latest, and `latest_sha` uses lexicographic max on `at` (mixed `Z`/`+00:00` forms pick the wrong \"latest\")."
+    ],
+    "NIT": [
+      "`config/architect-review.json` includes unrelated reformatting of `blocking_findings`/`skip_globs`, inflating review noise.",
+      "Docs hardcode `warn_after (2)` / `fail_after (4)` alongside config; consider pointing at the config key only.",
+      "`review_guard`'s sha-citation requirement for `--reason` goes beyond the stated acceptance (non-empty only) \u2014 correct, but should be called out as an intentional tightening in the item record."
+    ],
+    "SUMMARY": [
+      "Solid single-owner design: thresholds/counting are genuinely centralized in `architect_review.py` and both consumers reuse `churn_verdict`/`review_budget`, with fail-closed git/evidence handling and good boundary tests.",
+      "Top risks are security (heuristic redaction of committed free-text), narrow warn coverage (completions only), and unbounded per-item git subprocess cost in a fast-tier gate.",
+      "Recommend tightening evidence persistence (redact-or-refuse, deterministic archive naming) and adding committed-path + persistence assertions before relying on this as the freeze guard."
+    ]
+  },
+  "rereview_reason": "supersedes 41278f6a2f3d; origin/develop base fallback",
+  "rereview_reason_sha256": "e91d8cecd234400994c049faa87e30048df91d912efb59b919f9f775114ec16c"
+}

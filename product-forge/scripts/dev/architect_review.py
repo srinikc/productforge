@@ -16,6 +16,7 @@ to the item context. Exit 1 when a BLOCKER is present (objectively verifiable on
 from __future__ import annotations
 
 import argparse
+import fnmatch
 import hashlib
 import json
 import os
@@ -507,16 +508,182 @@ def _render_review(rev: dict, disp: dict, mode: str) -> str:
     return "\n".join(lines)
 
 
-def _ingest(item_id: str, text: str, model: str, apply: bool, mode: str = "diff") -> int:
+
+def review_budget() -> dict:
+    cfg = _config().get("review_budget") or {}
+    warn = int(cfg.get("warn_after", 2))
+    fail = int(cfg.get("fail_after", 4))
+    if warn < 0 or fail <= warn:
+        raise ValueError(f"review_budget: require 0 <= warn_after < fail_after (got {warn}, {fail})")
+    return {"warn_after": warn, "fail_after": fail,
+            "attesters": [str(x) for x in (cfg.get("attesters") or []) if str(x).strip()],
+            "reason_max_chars": int(cfg.get("reason_max_chars", 500)),
+            "scope": str(cfg.get("scope", "after_gate1"))}
+
+
+def diff_reviews(item_id: str, committed: bool = False) -> list[dict]:
+    """Diff-mode review evidence for an item (working tree or the committed HEAD tree)."""
+    out: list[dict] = []
+    if committed:
+        tree = _git_text(["ls-tree", "-r", "--name-only", "HEAD", "--", "engineering/reviews"])
+        if not tree.strip():
+            raise RuntimeError("review evidence tree is unreadable or empty")
+        for rel in tree.splitlines():
+            base = Path(rel).name
+            if not (base.startswith(item_id + "-") and base.endswith(".json")):
+                continue
+            raw = _git_text(["show", f"HEAD:{rel}"])
+            if not raw:
+                raise RuntimeError(f"cannot read committed review evidence {rel}")
+            try:
+                data = json.loads(raw)
+            except Exception as e:
+                raise RuntimeError(f"corrupt review evidence {rel}: {e}") from e
+            if data.get("mode") == "diff":
+                out.append({"path": rel, "sha": str(data.get("sha") or ""),
+                            "at": str(data.get("at") or ""), "review": data})
+    else:
+        if not EVID.exists():
+            raise RuntimeError(f"review evidence directory is missing: {EVID}")
+        for fp in EVID.glob(f"{item_id}-*.json"):
+            try:
+                data = json.loads(fp.read_text(encoding="utf-8"))
+            except Exception as e:
+                raise RuntimeError(f"corrupt review evidence {fp.name}: {e}") from e
+            if data.get("mode") == "diff":
+                out.append({"path": fp.name, "sha": str(data.get("sha") or ""),
+                            "at": str(data.get("at") or ""), "review": data})
+    out.sort(key=lambda r: (r["path"], r["sha"]))
+    return out
+
+
+def review_epoch(item: dict) -> str:
+    """The latest Gate 1 decision in the append-only ledger order (not mtime)."""
+    epoch = ""
+    for d in (item.get("decisions") or []):
+        try:
+            g = int(d.get("gate") or 0)
+        except Exception:
+            g = 0
+        if g == 1:
+            epoch = str(d.get("at") or "")
+    return epoch
+
+
+def _after_epoch(at: str, epoch: str) -> bool:
+    if not epoch:
+        return True
+    try:
+        a = datetime.fromisoformat(str(at).replace("Z", "+00:00"))
+        e = datetime.fromisoformat(epoch.replace("Z", "+00:00"))
+        return a >= e
+    except Exception:
+        return True  # unparsable -> count (fail closed)
+
+
+def redact_reason(s: str) -> str:
+    """Redact token-like values, THEN cap (so a cap never clips a redaction marker)."""
+    t = str(s or "")
+    t = re.sub(r"(?i)\b(api[_-]?key|token|secret|password|authorization)\b\s*[:=]\s*\S+",
+               r"\1=[REDACTED]", t)
+    t = re.sub(r"(?i)\b(bearer)\s+\S+", r"\1 [REDACTED]", t)
+    t = re.sub(r"(?i)(https?://)[^/\s:@]+:[^/\s@]+@", r"\1[REDACTED]@", t)
+    t = re.sub(r"-----BEGIN [^-]+-----.*?-----END [^-]+-----", "[REDACTED-PEM]", t, flags=re.S)
+    t = re.sub(r"(?i)\b(ghp_[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{16})\b", "[REDACTED-KEY]", t)
+    t = re.sub(r"(?i)\b(pwd|x-api-key)\s*[:=]\s*\S+", r"\1=[REDACTED]", t)
+    return t[:review_budget()["reason_max_chars"]]
+
+
+def churn_attested(item: dict, latest_sha: str, budget: dict) -> bool:
+    attesters = [str(x) for x in (budget.get("attesters") or [])]
+    for d in reversed(item.get("decisions") or []):
+        if str(d.get("decision") or "").upper() != "REVIEW_CHURN":
+            continue
+        if d.get("hil_confirmed") is not True:
+            continue
+        by = str(d.get("by") or "")
+        note = str(d.get("note") or "")
+        if not any(fnmatch.fnmatch(by, pat) for pat in attesters):
+            continue
+        if len(note.strip()) < 40:
+            continue
+        if latest_sha and latest_sha not in note:
+            continue
+        return True
+    return False
+
+
+def _item_committed(item_id: str) -> dict:
+    rel = f"data/backlog/items/{item_id}.json"
+    raw = _git_text(["show", f"HEAD:{rel}"])
+    if not raw:
+        raise RuntimeError(f"item {item_id} is not present in HEAD")
+    return json.loads(raw)
+
+
+def churn_verdict(item_id: str, item: dict | None = None, committed: bool = False) -> dict:
+    """Single-source churn verdict consumed by the run guard and review_churn_check."""
+    if item is None:
+        item = _item_committed(item_id) if committed else _get_item(item_id)
+    budget = review_budget()
+    reviews = diff_reviews(item_id, committed=committed)
+    epoch = review_epoch(item) if budget.get("scope") == "after_gate1" else ""
+    counted = [r for r in reviews if _after_epoch(r["at"], epoch)]
+    count = len(counted)
+    latest = max(counted, key=lambda r: (r["at"], r["path"], r["sha"]))["sha"] if counted else ""
+    over = count > budget["fail_after"]
+    attested = churn_attested(item, latest, budget)
+    return {"item": item_id, "count": count, "warn": count > budget["warn_after"],
+            "fail": over and not attested, "allowed": not (over and not attested),
+            "attested": attested, "warn_after": budget["warn_after"],
+            "fail_after": budget["fail_after"], "epoch": epoch, "latest_sha": latest,
+            "reviews": [{"path": r["path"], "sha": r["sha"], "at": r["at"]} for r in counted]}
+
+
+def reason_flag_error(rereview: bool, reason: str) -> str:
+    if str(reason or "").strip() and not rereview:
+        return "--reason requires --rereview"
+    return ""
+
+
+def review_guard(item_id: str, item: dict, rereview: bool, reason: str) -> tuple[bool, str]:
+    """Refuse an undispositioned re-review; a reasoned override must cite the prior sha."""
+    verdict = churn_verdict(item_id, item)
+    if not verdict["reviews"]:
+        return True, ""
+    disp = ((item.get("review_dispositions") or {}).get("diff") or {})
+    if not disp and not rereview:
+        return False, ("review-churn: a prior diff review has no dispositions; disposition it before "
+                       "re-review (or pass --rereview --reason citing the prior sha)")
+    if rereview:
+        r = str(reason or "").strip()
+        if not r:
+            return False, "--rereview requires a non-empty --reason"
+        latest = verdict["latest_sha"]
+        if latest and latest not in r:
+            return False, f"--reason must cite the prior review sha {latest}"
+        return True, redact_reason(r)
+    return True, ""
+
+
+def _ingest(item_id: str, text: str, model: str, apply: bool, mode: str = "diff",
+            rereview_reason: str = "") -> int:
     findings = parse_review(text)
     # BI-PF-1465: fail closed - evidence that did not parse must never look like a clean review.
     parsed_ok = bool(re.search(r"^\s*#{2,4}\s*(BLOCKER|MAJOR|MINOR|NIT|SUMMARY)\s*$", text, re.I | re.M))
     sha = design_sha(_get_item(item_id)) if mode == "design" else diff_sha()
     EVID.mkdir(parents=True, exist_ok=True)
     out = EVID / f"{item_id}-{sha}.json"
-    out.write_text(json.dumps({"item": item_id, "sha": sha, "model": model, "mode": mode,
-                               "parsed_ok": parsed_ok, "at": datetime.now(timezone.utc).isoformat(),
-                               "findings": findings}, indent=2), encoding="utf-8")
+    if rereview_reason and out.is_file():
+        prev = out.with_name(f"{out.stem}-prev-{int(time.time() * 1000)}.json")
+        out.rename(prev)
+    payload = {"item": item_id, "sha": sha, "model": model, "mode": mode,
+               "parsed_ok": parsed_ok, "at": datetime.now(timezone.utc).isoformat(),
+               "findings": findings}
+    if rereview_reason:
+        payload["rereview_reason"] = rereview_reason
+        payload["rereview_reason_sha256"] = hashlib.sha256(rereview_reason.encode("utf-8")).hexdigest()
+    out.write_text(json.dumps(payload, indent=2), encoding="utf-8")
     counts = {s: len(findings[s]) for s in SEVERITIES}
     print(f"review captured: {out} {counts}")
     blockers = findings["BLOCKER"]
@@ -545,6 +712,7 @@ def main(argv: list[str]) -> int:
     rn.add_argument("--apply", action="store_true")
     rn.add_argument("--model", default=default_model, help="reviewer model id (configurable)")
     rn.add_argument("--rereview", action="store_true", help="allow a second review for the same item+sha")
+    rn.add_argument("--reason", default="", help="required with --rereview; cite the prior review sha")
     ing = sub.add_parser("ingest")
     ing.add_argument("--item", required=True)
     ing.add_argument("--file", required=True)
@@ -611,6 +779,16 @@ def main(argv: list[str]) -> int:
         n = len([q for q in (_config().get("design_checklist") or []) if str(q).strip()])
         print(f"design pre-check: {n} checklist item(s) included in the review prompt")
     item = _get_item(a.item)
+    if a.mode == "diff":
+        rerr = reason_flag_error(a.rereview, a.reason)
+        if rerr:
+            print(rerr)
+            return 1
+        ok, why = review_guard(a.item, item, a.rereview, a.reason)
+        if not ok:
+            print(why)
+            return 1
+    reason = redact_reason(getattr(a, "reason", "")) if a.rereview else ""
     sha = design_sha(item) if a.mode == "design" else diff_sha()
     existing = EVID / f"{a.item}-{sha}.json"
     if existing.is_file() and not a.rereview:
@@ -626,7 +804,7 @@ def main(argv: list[str]) -> int:
     if not out.strip():
         print("review call returned empty content")
         return 2
-    return _ingest(a.item, out, a.model, a.apply, a.mode)
+    return _ingest(a.item, out, a.model, a.apply, a.mode, rereview_reason=reason)
 
 
 if __name__ == "__main__":
