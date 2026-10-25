@@ -10,7 +10,7 @@
   "title": "Execution finalization: HIL-approved accepted/deferred, AC verification, persisted final report, test taxonomy",
   "body": "",
   "source": "review",
-  "status": "new",
+  "status": "in_progress",
   "priority": "P1",
   "moscow": "Should",
   "value": 3,
@@ -81,15 +81,82 @@
   "approach": "Execution flow view hardening: pre-merge blocked set, review-sha integrity, no-review cache, review markers",
   "review": {
     "reconciliation": {
-      "prior_decisions": [],
-      "existing_path": [],
-      "assumptions": [],
-      "divergences": [],
+      "prior_decisions": [
+        "BI-PF-1481 execution trail",
+        "BI-PF-1483 ordered flow view",
+        "BI-PF-1480 review churn guard",
+        "AGENTS Gate 1/2 + AC verification rule"
+      ],
+      "existing_path": [
+        "core/execution_trail.py show",
+        "scripts/dev/gate1_check.py",
+        "scripts/dev/gate_decisions.py",
+        "scripts/dev/execution_trail_check.py",
+        "data/backlog/items/<ID>.json"
+      ],
+      "assumptions": [
+        "Disposition approvals are HIL-owned decisions on the item",
+        "AC verification is Gate 2; 2.5 only flags gaps",
+        "final_report is persisted by the backlog owner via backlog.update",
+        "tests are classified by command/path"
+      ],
+      "divergences": [
+        "BI-PF-1483 flow view did not enforce accepted/deferred approval or AC verification; this item adds it."
+      ],
       "open_questions": []
     },
-    "impact_review": [],
-    "reviewed_by": "derived",
-    "at": ""
+    "impact_review": [
+      {
+        "claim": "API CHECK",
+        "verdict": "aligned",
+        "evidence": "No HTTP route; CLI/backlog update only. needs_api=false.",
+        "recommendation": "approve"
+      },
+      {
+        "claim": "AC coverage",
+        "verdict": "aligned",
+        "evidence": "ACs cover cap/approval, AC verification, final report, show/test taxonomy, docs.",
+        "recommendation": "approve"
+      },
+      {
+        "claim": "Language rule",
+        "verdict": "aligned",
+        "evidence": "Edits to allowlisted core/execution_trail.py; new scripts/dev tooling.",
+        "recommendation": "approve"
+      },
+      {
+        "claim": "Reuse / one owner",
+        "verdict": "aligned",
+        "evidence": "Extends execution trail/backlog; no new store except config/review-dispositions.json.",
+        "recommendation": "approve"
+      },
+      {
+        "claim": "Data / tenant",
+        "verdict": "aligned",
+        "evidence": "Item/trail metadata only; no tenant data.",
+        "recommendation": "approve"
+      },
+      {
+        "claim": "Gate semantics",
+        "verdict": "aligned",
+        "evidence": "AC verification at Gate 2; accepted/deferred HIL approval; completion guard.",
+        "recommendation": "approve"
+      },
+      {
+        "claim": "Blast radius / rollback",
+        "verdict": "aligned",
+        "evidence": "CLI/completion gates; revert restores prior behavior; no migration.",
+        "recommendation": "approve"
+      },
+      {
+        "claim": "Docs",
+        "verdict": "aligned",
+        "evidence": "REVIEW-GATES-LIFECYCLE updated.",
+        "recommendation": "approve"
+      }
+    ],
+    "reviewed_by": "agent",
+    "at": "2026-10-25T00:00:00"
   },
   "verification": [
     "Objective achieved: Execution flow view hardening: pre-merge blocked set, review-sha integrity, no-review cache, review markers"
@@ -217,9 +284,9 @@
     "usage": {}
   },
   "created_at": "2026-10-25T14:50:28.634469",
-  "updated_at": "2026-10-25T16:27:15.970663",
+  "updated_at": "2026-10-25T16:37:07.824704",
   "score": 0.75,
-  "_note": "readiness computed",
+  "_note": "Gate 0 design",
   "api_impact": {
     "needs_api": false,
     "reason": "CLI/backlog finalization only; no HTTP route."
