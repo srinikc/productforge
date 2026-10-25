@@ -7,6 +7,7 @@ the tests/precheck events) so it never races its own evidence.
 from __future__ import annotations
 
 import argparse
+import json
 import re
 import sys
 from pathlib import Path
@@ -58,6 +59,15 @@ def evaluate(ids: list[str]) -> list[str]:
         for p in trail.order_problems(iid):
             problems.append(f"{iid}: {p}")
         problems += [f"{iid}: {p}" for p in deferred_problems(item)]
+        failures = trail.TRAILS / "_failures.jsonl"
+        if failures.is_file():
+            for line in failures.read_text(encoding="utf-8", errors="replace").splitlines():
+                try:
+                    ev = json.loads(line)
+                except Exception:
+                    continue
+                if ev.get("item") == iid:
+                    problems.append(f"{iid}: trail write failure at {ev.get('stage')}: {ev.get('error')}")
     return problems
 
 

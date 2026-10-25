@@ -1054,6 +1054,11 @@ def set_status(scope: str, project: str | None, eid: str, status: str, note: str
             trail.record(eid, "completion", "pass", summary=note or "completed",
                          refs={"status": status})
         except Exception as e:
+            try:
+                from core import execution_trail as _t
+                _t.write_failure("completion", e, eid)
+            except Exception:
+                pass
             print(f"[Backlog] WARNING execution trail completion write failed: {e}")
     return res
 
@@ -1246,6 +1251,11 @@ def set_delivery(scope: str, project: str | None, eid: str, *, branch: str = "",
         trail.record(eid, "delivery", "pass", summary=f"PR {pr or '-'} merged {merge_sha or '-'}",
                      refs={"branch": branch, "merge_sha": merge_sha, "pr": pr, "pr_url": pr_url})
     except Exception as e:
+        try:
+            from core import execution_trail as _t
+            _t.write_failure("delivery", e, eid)
+        except Exception:
+            pass
         print(f"[Backlog] WARNING execution trail delivery write failed: {e}")
     return res
 

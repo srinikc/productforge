@@ -23,7 +23,7 @@ SCHEMA = "pf.execution-trail/1"
 STAGES = ("planning", "gate0", "design_review", "gate1", "implementation", "code_review",
           "diff_review", "gate2", "tests", "precheck", "pr", "merge", "delivery", "completion")
 REQUIRED_AT_COMPLETION = ("planning", "gate0", "design_review", "gate1", "implementation",
-                          "code_review", "diff_review", "gate2", "tests", "precheck")
+                          "code_review", "diff_review", "gate2", "tests", "precheck", "completion")
 MAX_EVENTS = 5000
 MAX_SUMMARY = 2000
 FAILURES = TRAILS / "_failures.jsonl"
@@ -57,6 +57,12 @@ def _lock(path: Path, timeout: float = 10.0):
             os.close(fd)
             return lock
         except FileExistsError:
+            try:
+                if time.time() - lock.stat().st_mtime > 60:
+                    lock.unlink(missing_ok=True)
+                    continue
+            except OSError:
+                pass
             if time.time() > deadline:
                 raise TimeoutError(f"execution trail lock timeout: {lock}")
             time.sleep(0.05)

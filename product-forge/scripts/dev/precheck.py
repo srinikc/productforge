@@ -493,7 +493,11 @@ def _record_trail(timings, total, rc, tier):
                          refs={"total_seconds": round(total, 1)})
     except Exception as e:
         import json
-        trail.write_failure("precheck", e)
+        try:
+            from core import execution_trail as _trail
+            _trail.write_failure("precheck", e)
+        except Exception:
+            pass
         print(json.dumps({"event": "execution_trail_write_failed", "stage": "precheck", "error": str(e)}), file=sys.stderr)
 
 
