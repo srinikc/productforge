@@ -1,0 +1,39 @@
+{
+  "item": "BI-PF-1483",
+  "sha": "cabf4e2957f8",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-10-25T09:25:58.145502+00:00",
+  "findings": {
+    "BLOCKER": [
+      "none"
+    ],
+    "MAJOR": [
+      "Dual source of truth: stage checklist derives from latest trail event while review rows show \"current architect recommendation\" from another store; if those diverge, the flow silently contradicts itself \u2014 define precedence and a consistency rule explicitly.",
+      "\"Latest event per stage\" dedupe needs a stated ordering key (monotonic sequence vs timestamp); append-only stores with equal/backwards timestamps would break the invariant silently \u2014 state and test the ordering key.",
+      "DEFERRED \"must cite a follow-up backlog id\" is stated as a display rule only; nothing enforces it at ingest or disposition time \u2014 a malformed DEFERRED will render a non-compliant flow instead of failing the gate.",
+      "Hardcoded section order in `show` becomes an unmaintainable contract; define a section registry/list so tests assert order from the same source rather than duplicating the order string.",
+      "Disposition key (ACTIONED/ACCEPTED/DEFERRED/REJECTED/SCOPE) is a second copy of the enum living in rendering; point it at the canonical definitions in `docs/REVIEW-GATES-LIFECYCLE.md` or the enum owner to prevent drift.",
+      "No observability for the read path: a broken section (exception mid-render) yields partial output with no marker; at minimum emit a per-section render status so HIL can tell \"missing evidence\" from \"renderer failed\"."
+    ],
+    "MINOR": [
+      "Recurring finding unaddressed: `_render_review`/`_item_dispositions` (or new flow-projection helpers) still risk no direct coverage for index alignment, missing item, unknown status paths; add unit tests for those private paths.",
+      "\"Renders missing evidence explicitly\" needs a canonical placeholder vocabulary (e.g. 'not recorded' vs 'evidence missing'); without it, partial-item tests will encode arbitrary strings that churn.",
+      "Long unpaginated terminal output is accepted as a trade-off but is the primary UX for HIL; at least cap table cell widths deterministically so diffs of rendered output are stable.",
+      "Affected docs (`REVIEW-GATES-LIFECYCLE.md`) should state the flow-view contract (section order, status derivation) so future writers don't break the HIL expectations silently.",
+      "Guardrail checklist answers are not reflected in the design text (reversibility is only in rollback field; no statement of authz/tenant scope, though read-only CLI is low risk \u2014 state it explicitly)."
+    ],
+    "NIT": [
+      "Reuse check: confirm the checklist/status derivation logic does not re-implement what `design_guardrails`/gate checkers already compute; if duplicated, extract to the owner.",
+      "Consider a `--json`-free `--section` filter later to mitigate output size without adding an API surface; out of scope now, note it in docs."
+    ],
+    "SUMMARY": [
+      "Solid, well-bounded read-only change with clean rollback and no state mutation; the language rule is satisfied (edit to shipped Python, not new logic in Python).",
+      "Top risks: divergence between event-derived status and review-derived recommendations, an unstated ordering invariant for \"latest event per stage\", and DEFERRED backlog-id enforcement existing only as prose.",
+      "Tests cover the stated AC paths but should directly target the projection helpers (recurring MINOR) and the ordering/dedupe invariant before Gate 1.5 approval."
+    ]
+  },
+  "rereview_reason": "prior design sha aa58dc6960ff; design fields updated after review (scope/files/assumptions)",
+  "rereview_reason_sha256": "1b7266545f0df408d6b83fb7e7371943fe4004347b29161e2ce4c813b69009d0"
+}

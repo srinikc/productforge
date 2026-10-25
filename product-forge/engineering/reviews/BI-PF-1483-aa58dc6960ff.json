@@ -1,0 +1,37 @@
+{
+  "item": "BI-PF-1483",
+  "sha": "aa58dc6960ff",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-10-25T09:11:09.437598+00:00",
+  "findings": {
+    "BLOCKER": [
+      "Design omits `affected_components`/`affected_files` (\"Not specified\"), so CL-001 route-by-ownership and single-writer/reuse (does `core/execution_trail.py` already own rendering used by trail/check?) cannot be verified; a second flow renderer would duplicate shipped logic.",
+      "`out_of_scope` is \"Not specified\" \u2014 no boundary means scope creep into gate tooling is unbounded and rollback (\"revert the commit\") is not verifiable against a known file set."
+    ],
+    "MAJOR": [
+      "Disposition key semantics (ACTIONED/ACCEPTED/DEFERRED/REJECTED/SCOPE) and the DEFERRED-requires-backlog-id invariant are not stated as data invariants with a single authoritative owner; if enforced only at render time, invalid data persists and slips through CL-006 Gate 1 checks.",
+      "\"Latest event per stage\" dedupe needs an explicit ordering invariant (monotonic sequence/timestamp + tie-break, re-run identity). Not stated or listed among tested invariants (guardrail 5).",
+      "Review-stage override to current recommendation implies reading reviewer-owned evidence (findings) and main-thread dispositions separately (CL-002); design does not state where each is read from or how a stale/uncommitted recommendation is represented (risks mention it but no defined state, e.g. MISSING/STALE marker with evidence path).",
+      "\"Current stage\" derivation is undefined for partially-ordered/skipped stages and for items with no events (empty case is tested but the derivation rule itself is not specified) \u2014 high regression risk.",
+      "No observability requirement (guardrail 10): `show` should log/metric on missing evidence, unparsable events, unknown disposition, and section-render failures; absent from design and risks.",
+      "Rollback is \"revert the commit\" with no mention that the trail store/events are append-only and unaffected \u2014 should state explicitly that the change is read-only rendering with no destructive step and no migration (guardrail 1, 4)."
+    ],
+    "MINOR": [
+      "Large terminal output risk acknowledged but \"bounded tables\" is undefined; needs explicit truncation/paging contract per section (e.g. tests, findings, impact table) to keep the single-flow view usable.",
+      "No statement that the new flow view is read-only and performs no writes to trail/check state, avoiding dual-writer ambiguity with existing trail/check tooling.",
+      "Guardrail checklist items (authz/RLS/tenant isolation, API surface) are answered with silence rather than \"not applicable (read-only CLI over local trail)\" \u2014 must be answered explicitly pre-Gate-1.5 per CL-008.",
+      "Language rule compliance not stated: confirm `core/execution_trail.py` is shipped Python whose edit is permitted, and that any new helper logic stays there rather than spawning parallel tooling Python."
+    ],
+    "NIT": [
+      "AC acceptance wording \"existing trail/check tests still pass; precheck passes\" could be pinned to the exact precheck command in the design to remove ambiguity at Gate 2.5.",
+      "Consider an `--json`/machine-readable twin of `show` in a later item so the HIL flow view is not the only consumption path (avoid a future second renderer)."
+    ],
+    "SUMMARY": [
+      "Verdict: concept is right (one ordered, plain-language trail reduces HIL assembly cost) but the design is Gate-0 quality, not Gate-1 ready: missing scope boundary, affected files/owner, and stated invariants.",
+      "Top risks: duplicate rendering vs existing trail/check owners (CL-001), unvalidated disposition/DEFERRED data invariant escaping CL-006, and undefined current-stage/dedupe ordering rules.",
+      "Required before approval: name files+owner, state ordering/disposition invariants and their tests, define MISSING/STALE evidence representation, add observability, and answer the guardrail checklist explicitly."
+    ]
+  }
+}
