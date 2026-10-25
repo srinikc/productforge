@@ -50,7 +50,7 @@
     "A Go module go/residencymanifest (Manifest/Policy/Validate) + cmd/pfresidency validates a manifest against config/residency-profiles/<home>.json: unknown/missing home -> fail closed; home in allowed_regions; backup/kms/egress regions subset of allowed_regions; retention.days > 0 and <= policy.retention_days when set; recognized backup.frequency; all six groups; block/warn mode; JSON report with stable error codes (RESIDENCY_UNKNOWN_HOME, RESIDENCY_HOME_NOT_ALLOWED, RESIDENCY_BACKUP_REGION, RESIDENCY_KMS_REGION, RESIDENCY_EGRESS_REGION, RESIDENCY_RETENTION, RESIDENCY_MISSING_GROUP, RESIDENCY_UNKNOWN_FREQUENCY).",
     "scripts/dev/residency_gate.py builds/loads the packaging manifest from config/residency-manifest.json (template) or products/<project>/residency-manifest.json (override), invokes the Go validator, and blocks (exit 1) or warns per config/residency-policy.json gate_mode; --report is non-fatal; warn mode prints a one-line stderr summary.",
     "Tests cover the Go validator (valid, unknown region, missing home, home not allowed, backup/kms/egress outside allowed, zero/over retention, invalid backup/KMS fields, missing groups), the Python manifest/gate (six groups, validate rejects missing, IN template, override precedence, block/warn exit codes, warn stderr), language_rule_review, and precheck (45+ gates).",
-    "5. Cross-language conformance + ownership: one fixture set (valid + every RESIDENCY_* error) yields identical pass/block results from core.packaging.validate and cmd/pfresidency; schema_version is required and unknown -> fail; config/residency-profiles/** is registered in config/store-registry.json with a single owner/change path; tests load every shipped profile."
+    "5. Policy bounds + conformance + ownership: the profile is authoritative (manifest allowed_regions/home/backup/kms/egress ? profile.allowed_regions); one fixture set (valid + every RESIDENCY_* error incl. schema/invalid-field/toolchain) yields identical pass/block from core.packaging.validate and cmd/pfresidency; config/residency-policy.json, config/residency-manifest.json and config/residency-profiles/** are registered with owners; warn mode only downgrades policy violations, never execution failures; a structured event is appended to engineering/residency-gate.jsonl."
   ],
   "in_scope": [
     "Residency manifest section in packaging-manifest.json (explicit home_region; IN template).",
@@ -305,7 +305,7 @@
     "usage": {}
   },
   "created_at": "2026-10-13T16:02:45.510577",
-  "updated_at": "2026-10-25T15:22:41.140476",
+  "updated_at": "2026-10-25T15:24:27.536128",
   "score": 0.75,
   "source_ref": "docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md",
   "_note": "dependencies set",
@@ -405,6 +405,53 @@
       "sig:22841b527d8f335f": {
         "status": "ACTIONED",
         "note": "Profile resolution: PF_RESIDENCY_PROFILES env overrides config/residency-profiles/ (repo-relative default); the gate CLI takes --profiles; tests run from a temp cwd."
+      },
+      "sig:44250ca91be807b7": {
+        "status": "ACTIONED",
+        "note": "The profile is authoritative: manifest allowed_regions must be a subset of profile.allowed_regions; home must be in profile.allowed_regions; backup/kms/egress must be subsets of profile.allowed_regions. A manifest self-asserted region cannot widen the policy. Tests cover widening attempts."
+      },
+      "sig:3d450708cca7957c": {
+        "status": "ACCEPTED",
+        "note": "The standalone go/residencymanifest package is the FILE contract; go/edpsvc/internal/residency is service-internal and cannot be imported by a standalone gate without exporting it. Extracting a shared package is a larger refactor of shipped service code, out of scope for EDP-12. Conformance fixtures (valid + every error code) + schema_version guard behavior. Revisit if the internal types change or the contract grows.",
+        "why_not_fixed": "Refactoring the internal edpsvc types to a shared public package is a service-wide change with merge risk; the gate must not depend on the service. The file contract is the shared boundary.",
+        "alternatives": [
+          "export internal types (service refactor, out of scope)",
+          "share JSON Schema + codegen (larger follow-up)"
+        ],
+        "revisit_if": "the internal residency types change or a third consumer needs the same types",
+        "owner": "edp-platform"
+      },
+      "sig:86375821992757f8": {
+        "status": "ACTIONED",
+        "note": "Validator/toolchain/profile failures are distinct: RESIDENCY_VALIDATOR_UNAVAILABLE, RESIDENCY_PROFILE_UNREADABLE, RESIDENCY_POLICY_UNREADABLE; these always block regardless of gate_mode. gate_mode=warn only downgrades policy violations, never execution failures."
+      },
+      "sig:614f7248253bdc36": {
+        "status": "ACTIONED",
+        "note": "Register config/residency-policy.json and config/residency-manifest.json in config/store-registry.json with single owners; warn->block is a recorded decision; edits to policy/template require the decision ledger."
+      },
+      "sig:5db2aa0218367b10": {
+        "status": "ACTIONED",
+        "note": "Emit a structured event per run to engineering/residency-gate.jsonl (item/home/gate_mode/errors/exit) plus the JSON report; dashboards can consume it without a new service. No external metrics collector is added."
+      },
+      "sig:a104f7e433ec7069": {
+        "status": "ACTIONED",
+        "note": "Add RESIDENCY_SCHEMA_VERSION and RESIDENCY_INVALID_FIELD to the frozen code set; conformance fixtures cover both."
+      },
+      "sig:2fa1fb0a823c2acd": {
+        "status": "ACTIONED",
+        "note": "config/residency-manifest.json is explicitly the IN template/example; build uses the product manifest (products/<project>/residency-manifest.json) and never silently inherits the template after warn. Missing home fails closed."
+      },
+      "sig:44e8f3f012008e15": {
+        "status": "ACTIONED",
+        "note": "Authority: the Go validator is the build/deploy authority; core.packaging.validate is the fast pre-build check with the same rules. RESIDENCY-MANIFEST-GATE.md states precedence and that drift is a conformance-test failure."
+      },
+      "sig:6116d95ad3f47784": {
+        "status": "ACTIONED",
+        "note": "State explicitly: no authz/tenant/API surface (local CLI/config); API CHECK needs_api=false; tenant data is not read. Documented in the design and gate docs."
+      },
+      "sig:4bbe84b02bc127fa": {
+        "status": "ACTIONED",
+        "note": "residency_gate.py calls core.packaging.load/build to resolve template vs product manifest; no second precedence implementation."
       }
     }
   }
