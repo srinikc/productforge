@@ -33,11 +33,14 @@ def _evidence(item_id: str, mode: str) -> list[dict]:
     return out
 
 
-def _material_ok(item: dict, mode: str) -> bool:
+def _material_ok(item: dict, mode: str, rows: list[dict]) -> bool:
+    latest = max((str(d.get("at") or "") for d in rows), default="")
     for d in item.get("decisions") or []:
         if str(d.get("decision") or "").upper() != "MATERIAL_CHANGE":
             continue
-        if d.get("hil_confirmed") is True and str(d.get("mode") or "") == mode:
+        if d.get("hil_confirmed") is not True or str(d.get("mode") or "") != mode:
+            continue
+        if str(d.get("at") or "") >= latest:
             return True
     return False
 
@@ -53,7 +56,7 @@ def problems(item: dict) -> list[str]:
     for mode in ("design", "diff"):
         rows = [d for d in _evidence(iid, mode)
                 if str(d.get("at") or "") >= cutoff and d.get("parsed_ok", True)]
-        if len(rows) >= max_n and not (c.get("allow_hil_material_change") and _material_ok(item, mode)):
+        if len(rows) >= max_n and not (c.get("allow_hil_material_change") and _material_ok(item, mode, rows)):
             bad.append(f"{mode}: {len(rows)} reviews (budget {max_n}); material change needs HIL MATERIAL_CHANGE")
     return bad
 

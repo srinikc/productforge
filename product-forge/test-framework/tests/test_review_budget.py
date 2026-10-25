@@ -23,5 +23,6 @@ def test_budget_and_material_change(tmp_path, monkeypatch):
     monkeypatch.setattr(rb, "CFG", cfg)
     item = {"id": "BI-PF-9000", "decisions": []}
     assert rb.problems(item)
-    item["decisions"] = [{"decision": "MATERIAL_CHANGE", "hil_confirmed": True, "mode": "diff"}]
+    item["decisions"] = [{"decision": "MATERIAL_CHANGE", "hil_confirmed": True, "mode": "diff",
+                          "at": "2026-10-25T02:00:00+00:00"}]
     assert rb.problems(item) == []

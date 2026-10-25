@@ -67,6 +67,10 @@ def problem(rel: str, raw: bytes) -> str:
         text = raw.decode("utf-8-sig")
         if not text.startswith("# Design Pack"):
             return "design file is not generated (missing header)"
+        if "```" in text:
+            return "design file contains fenced code (not generated design text)"
+        if "## 1. Requirements" not in text or "## 3. Logic invariants" not in text:
+            return "design file missing required generated sections"
         return ""
     if rel.startswith("data/backlog/"):
         if rel.endswith(".jsonl"):
@@ -85,6 +89,8 @@ def problem(rel: str, raw: bytes) -> str:
         d = _json(raw)
         return "" if isinstance(d.get("shas"), list) else "baseline schema invalid"
     if rel in ("docs/BACKLOG-SUMMARY.md", "docs/documentation-index.html"):
+        if b"\x00" in raw[:1024]:
+            return "derived doc contains binary content"
         return ""
     return "unclassified excluded file"
 

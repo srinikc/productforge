@@ -117,7 +117,9 @@ def main() -> int:
                            if x.get("mode") == "diff" and x.get("head_sha") and str(x.get("head_sha")) != head}
             if valid_base(base, head, prior_heads, mb):
                 reviewed_head = str(d.get("head_sha") or "")
-                if reviewed_head and reviewed_head != head:
+                if not reviewed_head or not ar._is_ancestor(reviewed_head, head):
+                    continue
+                if reviewed_head != head:
                     since = ar._git_text(["diff", "--name-only", f"{reviewed_head}..HEAD", "--", ".", *ar.EXCLUDE])
                     if since.strip():
                         continue
