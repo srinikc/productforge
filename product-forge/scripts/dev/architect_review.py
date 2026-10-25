@@ -178,6 +178,8 @@ def parse_review(text: str) -> dict:
     return out
 
 
+_LAST_USAGE: dict = {}
+
 ARCHITECT_SYSTEM = (
     "You are a Principal Enterprise System Architect performing an independent review. Judge from an "
     "enterprise, long-term lens (integrity, adaptability, scalability, security, observability, "
@@ -252,6 +254,15 @@ def _llm_call(prompt: str, model: str) -> str:
         # Never treat chain-of-thought as the review: empty content stays fail-closed.
         content = (msg.get("content") or "").strip()
         if content:
+            try:
+                u = data.get("usage") or {}
+                _LAST_USAGE.clear()
+                _LAST_USAGE.update({"input_tokens": int(u.get("prompt_tokens") or 0),
+                                    "output_tokens": int(u.get("completion_tokens") or 0),
+                                    "cached_tokens": int((u.get("prompt_tokens_details") or {}).get("cached_tokens") or 0),
+                                    "model": model})
+            except Exception:
+                pass
             return content
         last_err = RuntimeError("review call returned empty content")
         print(f"architect-review: attempt {attempt} returned empty content; retrying", file=sys.stderr)
@@ -695,6 +706,21 @@ def _ingest(item_id: str, text: str, model: str, apply: bool, mode: str = "diff"
         _post_context(item_id, {"evidence": ev,
                                 "verification": [f"Gate {gate} architect review ({model}): {counts}"]})
         print(f"Gate {gate} findings stored on item (evidence + verification)")
+    try:
+        from core import execution_trail as trail
+        stage = "design_review" if mode == "design" else "diff_review"
+        counts = {s: len(findings[s]) for s in SEVERITIES}
+        trail.record(item_id, stage, "fail" if blockers else "pass",
+                     summary=f"{stage}: {counts}",
+                     refs={"review_sha": sha, "model": model, "evidence": out.name},
+                     usage=dict(_LAST_USAGE))
+    except Exception as e:
+        try:
+            from core import execution_trail as _t
+            _t.write_failure("review", e, item_id)
+        except Exception:
+            pass
+        print(json.dumps({"event": "execution_trail_write_failed", "stage": "review", "error": str(e)}), file=sys.stderr)
     return 1 if blockers else 0
 
 
@@ -721,6 +747,7 @@ def main(argv: list[str]) -> int:
     g = sub.add_parser("gate")
     g.add_argument("--item", required=True)
     g.add_argument("--gate", choices=["1", "2"], required=True)
+    g.add_argument("--sha", default="", help="use a specific review evidence sha (trail/history)")
     ck = sub.add_parser("checklist")
     ck.add_argument("--item", required=True)
     ck.add_argument("--record", action="store_true", help="append the completed checklist to item evidence")
@@ -760,7 +787,7 @@ def main(argv: list[str]) -> int:
         mode = "design" if a.gate == "1" else "diff"
         gate = "1.5" if mode == "design" else "2.5"
         print(f"=== GATE {a.gate} REVIEW - {a.item} (informed by Gate {gate}) ===")
-        view = gate_view(a.item, mode)
+        view = gate_view_sha(a.item, mode, a.sha) if a.sha else gate_view(a.item, mode)
         if not view:
             print(f"(no Gate {gate} evidence - run: python scripts/dev/architect_review.py run "
                   f"--item {a.item} --mode {mode})")

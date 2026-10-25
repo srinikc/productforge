@@ -1,0 +1,302 @@
+"""Backlog execution trail (BI-PF-1481).
+
+One append-only, registered store per item: engineering/trails/<ID>.json. The gate tools write the stages
+automatically; `show` renders the ordered trail + the Gate 1.5/2.5 tables, tests, usage and the final table.
+
+Stages (in order): planning, gate0, design_review, gate1, implementation, code_review, diff_review, gate2,
+tests, precheck, pr, merge, delivery, completion.
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import re
+import sys
+import time
+from datetime import datetime, timezone
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+TRAILS = ROOT / "engineering" / "trails"
+SCHEMA = "pf.execution-trail/1"
+STAGES = ("planning", "gate0", "design_review", "gate1", "implementation", "code_review",
+          "diff_review", "gate2", "tests", "precheck", "pr", "merge", "delivery", "completion")
+REQUIRED_AT_COMPLETION = ("planning", "gate0", "design_review", "gate1", "implementation",
+                          "code_review", "diff_review", "gate2", "tests", "precheck", "completion")
+MAX_EVENTS = 5000
+MAX_SUMMARY = 2000
+FAILURES = TRAILS / "_failures.jsonl"
+_SECRET = re.compile(r"(?i)\b(api[_-]?key|token|secret|password|authorization)\b\s*[:=]\s*\S+")
+_BEARER = re.compile(r"(?i)\b(bearer)\s+\S+")
+
+
+def _now() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+def _redact(s) -> str:
+    t = str(s or "")
+    t = _SECRET.sub(r"\1=[REDACTED]", t)
+    t = _BEARER.sub(r"\1 [REDACTED]", t)
+    return t[:MAX_SUMMARY]
+
+
+def _path(item: str) -> Path:
+    if not re.match(r"^BI-[A-Za-z0-9]+-\d+$", item or ""):
+        raise ValueError(f"invalid item id {item!r}")
+    return TRAILS / f"{item}.json"
+
+
+def _lock(path: Path, timeout: float = 10.0):
+    lock = path.with_suffix(".lock")
+    deadline = time.time() + timeout
+    while True:
+        try:
+            fd = os.open(str(lock), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            os.close(fd)
+            return lock
+        except FileExistsError:
+            try:
+                if time.time() - lock.stat().st_mtime > 60:
+                    lock.unlink(missing_ok=True)
+                    continue
+            except OSError:
+                pass
+            if time.time() > deadline:
+                raise TimeoutError(f"execution trail lock timeout: {lock}")
+            time.sleep(0.05)
+
+
+def _load(item: str) -> dict:
+    p = _path(item)
+    if not p.is_file():
+        return {"schema": SCHEMA, "item": item, "updated_at": _now(), "events": []}
+    data = json.loads(p.read_text(encoding="utf-8"))
+    if data.get("schema") != SCHEMA:
+        raise ValueError(f"unsupported trail schema {data.get('schema')!r}")
+    return data
+
+
+def _write(item: str, data: dict) -> None:
+    p = _path(item)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    data["updated_at"] = _now()
+    tmp = p.with_suffix(".tmp")
+    tmp.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    os.replace(tmp, p)
+
+
+def write_failure(stage: str, error: Exception, item: str = "") -> None:
+    """Durable alert sink for a trail write failure (the failing trail cannot record its own failure)."""
+    try:
+        TRAILS.mkdir(parents=True, exist_ok=True)
+        lock = _lock(FAILURES)
+        try:
+            with open(FAILURES, "a", encoding="utf-8") as f:
+                f.write(json.dumps({"at": _now(), "item": item, "stage": stage,
+                                    "error": _redact(str(error))}) + "\n")
+        finally:
+            try:
+                lock.unlink()
+            except FileNotFoundError:
+                pass
+    except Exception:
+        pass
+
+
+def record(item: str, stage: str, status: str = "pass", summary: str = "", refs: dict | None = None,
+           tests: list | None = None, usage: dict | None = None, actor: str = "tool",
+           duration_ms: int = 0) -> dict:
+    """Append one event (append-only, monotonically sequenced). Raises on an invalid item/stage."""
+    if stage not in STAGES:
+        raise ValueError(f"unknown trail stage {stage!r}")
+    p = _path(item)
+    TRAILS.mkdir(parents=True, exist_ok=True)
+    lock = _lock(p)
+    try:
+        data = _load(item)
+        events = data.setdefault("events", [])
+        if len(events) >= MAX_EVENTS:
+            raise RuntimeError(f"execution trail exceeds {MAX_EVENTS} events")
+        ev = {"seq": (events[-1]["seq"] + 1 if events else 1), "at": _now(), "stage": stage,
+              "actor": _redact(actor), "status": str(status or "pass"),
+              "summary": _redact(summary), "refs": refs or {}, "tests": tests or [],
+              "usage": usage or {}, "duration_ms": int(duration_ms or 0)}
+        events.append(ev)
+        _write(item, data)
+        return ev
+    finally:
+        try:
+            lock.unlink()
+        except FileNotFoundError:
+            pass
+
+
+def events(item: str) -> list[dict]:
+    return list(_load(item).get("events") or [])
+
+
+def _stage_events(item: str) -> dict[str, dict]:
+    out: dict[str, dict] = {}
+    for ev in events(item):
+        out[ev["stage"]] = ev
+    return out
+
+
+def missing_stages(item: str, required=REQUIRED_AT_COMPLETION) -> list[str]:
+    have = _stage_events(item)
+    return [s for s in required if s not in have]
+
+
+def order_problems(item: str) -> list[str]:
+    """Critical review/decision ordering: design before Gate 1, diff before Gate 2."""
+    have = _stage_events(item)
+    bad = []
+    for first, second in (("design_review", "gate1"), ("diff_review", "gate2")):
+        if first in have and second in have and have[first]["seq"] > have[second]["seq"]:
+            bad.append(f"{first} must be recorded before {second}")
+    return bad
+
+
+def _item(item: str) -> dict:
+    from core import backlog
+    it = backlog.get_epic("product_forge", None, item)
+    if not it:
+        raise KeyError(f"backlog item {item} not found")
+    return it
+
+
+def next_item(item: str) -> tuple[str, str]:
+    it = _item(item)
+    epic = str(it.get("epic") or "")
+    from core import backlog
+    open_items = [x for x in backlog.list_items("product_forge", None) if x.get("id") != item
+                  and str(x.get("status") or "").lower() not in ("completed", "closed", "done")]
+    rows = [x for x in open_items if not epic or x.get("epic") == epic]
+    rows.sort(key=lambda x: (x.get("priority_rank") or 999, -(x.get("score") or 0), x.get("id", "")))
+    if not rows:
+        return "", ""
+    return str(rows[0].get("id") or ""), str(rows[0].get("title") or "")
+
+
+def usage_totals(evs: list[dict]) -> dict:
+    total = {"input_tokens": 0, "output_tokens": 0, "cached_tokens": 0, "cost_usd": 0.0,
+             "captured": 0, "not_captured": 0}
+    for ev in evs:
+        u = ev.get("usage") or {}
+        if not u:
+            continue
+        if u.get("not_captured"):
+            total["not_captured"] += 1
+            continue
+        total["captured"] += 1
+        total["input_tokens"] += int(u.get("input_tokens") or 0)
+        total["output_tokens"] += int(u.get("output_tokens") or 0)
+        total["cached_tokens"] += int(u.get("cached_tokens") or 0)
+        total["cost_usd"] += float(u.get("cost_usd") or 0)
+    return total
+
+
+def _review_table(item: str, mode: str) -> str:
+    stage = "design_review" if mode == "design" else "diff_review"
+    ev = _stage_events(item).get(stage)
+    if not ev:
+        return f"({stage}: no evidence)"
+    sha = str((ev.get("refs") or {}).get("review_sha") or "")
+    try:
+        import subprocess
+        gate = "1" if mode == "design" else "2"
+        cmd = [sys.executable, str(ROOT / "scripts" / "dev" / "architect_review.py"),
+               "gate", "--item", item, "--gate", gate]
+        if sha:
+            cmd += ["--sha", sha]
+        r = subprocess.run(cmd,
+                           capture_output=True, text=True, timeout=60)
+        out = (r.stdout or "").strip()
+        return out or f"({stage}: evidence missing)"
+    except Exception as e:
+        return f"({stage}: cannot render: {e})"
+
+
+def show(item: str) -> str:
+    it = _item(item)
+    evs = events(item)
+    have = _stage_events(item)
+    lines = [f"# Execution trail - {item}", f"**Title:** {it.get('title')}",
+             f"**Status:** {it.get('status')}  **Epic:** {it.get('epic')}", "",
+             "| # | Stage | Status | At | Duration | Summary |", "|---|---|---|---|---|---|"]
+    rank = {stage: i for i, stage in enumerate(STAGES)}
+    for ev in sorted(evs, key=lambda e: (rank.get(e["stage"], 99), e["seq"])):
+        lines.append(f"| {ev['seq']} | {ev['stage']} | {ev['status']} | {ev['at']} | "
+                     f"{ev.get('duration_ms', 0)} ms | {str(ev.get('summary') or '')[:160]} |")
+    if not evs:
+        lines.append("| - | (no events yet) | - | - | - | - |")
+    lines += ["", "## Gate 1.5 (design)", _review_table(item, "design"), "",
+              "## Gate 2.5 (delivery)", _review_table(item, "diff"), ""]
+    tests = [t for ev in evs for t in (ev.get("tests") or [])]
+    lines += ["## Tests", "| Command | Result | Duration | Passed | Failed | Skipped |", "|---|---|---|---|---|---|"]
+    for t in tests:
+        lines.append(f"| {t.get('command','')} | {t.get('result','')} | {t.get('duration_ms',0)} ms | "
+                     f"{t.get('passed','')} | {t.get('failed','')} | {t.get('skipped','')} |")
+    if not tests:
+        lines.append("| (none recorded) | - | - | - | - | - |")
+    u = usage_totals(evs)
+    lines += ["", "## Usage", f"input={u['input_tokens']} output={u['output_tokens']} "
+              f"cached={u['cached_tokens']} cost_usd={u['cost_usd']:.4f} "
+              f"captured={u['captured']} not_captured={u['not_captured']}"]
+    delivery = (it.get("links") or {}).get("delivery") or {}
+    total_ms = 0
+    if evs:
+        try:
+            start = datetime.fromisoformat(evs[0]["at"].replace("Z", "+00:00"))
+            end = datetime.fromisoformat(evs[-1]["at"].replace("Z", "+00:00"))
+            total_ms = int((end - start).total_seconds() * 1000)
+        except Exception:
+            total_ms = sum(int(e.get("duration_ms") or 0) for e in evs)
+    nid, ntitle = next_item(item)
+    lines += ["", "## Final completion", "| Item | What it was | What shipped | PR | Merge | Tests | Total time | Tokens (in/out/cached) | Cost | Next |",
+              "|---|---|---|---|---|---|---|---|---|---|",
+              f"| {item} | {str(it.get('title') or '')[:80]} | {str(it.get('summary') or it.get('objective') or '')[:80]} | "
+              f"{delivery.get('pr') or '-'} | {delivery.get('merge_sha') or '-'} | {len(tests)} test row(s) | "
+              f"{total_ms} ms | {u['input_tokens']}/{u['output_tokens']}/{u['cached_tokens']} | "
+              f"{u['cost_usd']:.4f} | {nid or '-'} {ntitle[:50]} |"]
+    missing = missing_stages(item)
+    lines += ["", f"**Required-at-completion missing:** {', '.join(missing) if missing else 'none'}"]
+    return "\n".join(lines)
+
+
+def main(argv: list[str] | None = None) -> int:
+    ap = argparse.ArgumentParser(description="Backlog execution trail")
+    sub = ap.add_subparsers(dest="cmd", required=True)
+    sh = sub.add_parser("show")
+    sh.add_argument("--item", required=True)
+    rec = sub.add_parser("record")
+    rec.add_argument("--item", required=True)
+    rec.add_argument("--stage", required=True, choices=STAGES)
+    rec.add_argument("--status", default="pass")
+    rec.add_argument("--summary", default="")
+    rec.add_argument("--actor", default="tool")
+    rec.add_argument("--refs", default="{}", help="JSON object")
+    rec.add_argument("--tests", default="[]", help="JSON array")
+    rec.add_argument("--usage", default="{}", help="JSON object")
+    a = ap.parse_args(argv)
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+    if a.cmd == "show":
+        print(show(a.item))
+        return 0
+    try:
+        refs, tests, usage = json.loads(a.refs), json.loads(a.tests), json.loads(a.usage)
+    except Exception as e:
+        print(f"execution-trail: invalid JSON: {e}", file=sys.stderr)
+        return 2
+    record(a.item, a.stage, a.status, a.summary, refs, tests, usage, a.actor)
+    print(f"execution-trail: recorded {a.stage} for {a.item}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -231,6 +231,7 @@ _GATES = [
     # evidence file (deterministic/offline check; the review itself is run separately, see docs/REVIEW-GATES-LIFECYCLE.md).
     ("architect-review", ["scripts/dev/architect_review_check.py"], "fast", None),
     ("review-churn", ["scripts/dev/review_churn_check.py"], "fast", ["data/backlog"]),
+    ("execution-trail", ["scripts/dev/execution_trail_check.py"], "post", ["data/backlog"]),
     ("dogfood", ["scripts/dev/dogfood_check.py"], "deep", None),
     ("dogfood-replay", ["scripts/dev/dogfood_replay_check.py"], "deep", None),
     ("dogfood-schedule", ["scripts/dev/dogfood_schedule_check.py"], "deep", None),
@@ -275,7 +276,7 @@ _GROUP_OF = {
     # quality: pidl / validation / close-loop
     "dogfood-run": "quality", "pidl": "quality", "pidl-gate": "quality", "pidl-synthesis": "quality",
     "pidl-trace": "quality", "validation-engine": "quality", "feature-pr": "quality", "merge-gate": "quality",
-    "architect-review": "quality", "review-churn": "backlog", "rate-budget": "quality",
+    "architect-review": "quality", "review-churn": "backlog", "execution-trail": "backlog", "rate-budget": "quality",
     # deep tier (merge/CI heavy) + release tier (periodic)
     "dogfood": "deep", "dogfood-replay": "deep", "dogfood-schedule": "deep", "repo-setup": "deep",
     "docs-fresh-strict": "deep", "release": "deep", "final-audit": "deep", "backlog-e2e": "deep",
@@ -458,6 +459,48 @@ def _run_groups(keys) -> int:
     return rc
 
 
+
+def _record_trail(timings, total, rc, tier):
+    try:
+        import json
+        import re
+        from core import execution_trail as trail
+        import gate2_completion_check as g2
+        base = g2._git("merge-base", "develop", "HEAD")
+        ids = g2.transitions(base) if base else []
+        if not ids:
+            branch = g2._git("branch", "--show-current")
+            m = re.search(r"bi-pf-(\d+)", branch or "", re.I)
+            if m:
+                ids = [f"BI-PF-{m.group(1)}"]
+        if not ids:
+            return
+        commits = g2._git("log", "--oneline", f"{base}..HEAD").splitlines() if base else []
+        tests = [{"command": n, "result": "pass" if c == 0 else "fail", "duration_ms": int(d * 1000)}
+                 for n, d, c in timings if n in ("tests-scoped", "go-modules")]
+        code = [{"command": n, "result": "pass" if c == 0 else "fail", "duration_ms": int(d * 1000)}
+                for n, d, c in timings if n in ("lint", "review-static", "compile", "pycompat", "changed-tests")]
+        for iid in ids:
+            have = {e["stage"] for e in trail.events(iid)}
+            if "implementation" not in have and commits:
+                trail.record(iid, "implementation", "pass", summary=f"{len(commits)} commit(s) since base",
+                             refs={"commits": commits[:20]})
+            trail.record(iid, "code_review", "pass" if all(t["result"] == "pass" for t in code) else "fail",
+                         tests=code)
+            trail.record(iid, "tests", "pass" if all(t["result"] == "pass" for t in tests) else "fail", tests=tests)
+            trail.record(iid, "precheck", "pass" if rc == 0 else "fail",
+                         summary=f"tier={tier}, gates={len(timings)}",
+                         refs={"total_seconds": round(total, 1)})
+    except Exception as e:
+        import json
+        try:
+            from core import execution_trail as _trail
+            _trail.write_failure("precheck", e)
+        except Exception:
+            pass
+        print(json.dumps({"event": "execution_trail_write_failed", "stage": "precheck", "error": str(e)}), file=sys.stderr)
+
+
 def main(argv=None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
     if "--list-groups" in argv:
@@ -560,6 +603,21 @@ def main(argv=None) -> int:
             print(f"[FAIL] {name} (exit {r.returncode}, {dt:.1f}s)")
             rc = 1
     total = _time.time() - t_all
+    _record_trail(timings, total, rc, tier)
+    # Post gate: the trail check must run AFTER the runner writes tests/precheck trail events.
+    _t0 = _time.time()
+    _r = subprocess.run([sys.executable, "scripts/dev/execution_trail_check.py"], cwd=_ROOT,
+                        capture_output=True, text=True)
+    _dt = _time.time() - _t0
+    print(f"\n=== precheck: execution-trail ===")
+    if (_r.stdout or "").strip():
+        print((_r.stdout or "").rstrip())
+    if (_r.stderr or "").strip():
+        print((_r.stderr or "").rstrip())
+    timings.append(("execution-trail", _dt, _r.returncode))
+    if _r.returncode:
+        print(f"[FAIL] execution-trail (exit {_r.returncode}, {_dt:.1f}s)")
+        rc = 1
     print(f"\nprecheck: {'PASS' if rc == 0 else 'FAIL'} (tier={tier}, {total:.1f}s, {len(timings)} gates)")
     slow = sorted(timings, key=lambda x: -x[1])[:5]
     print("[precheck] slowest: " + ", ".join(f"{n}={d:.1f}s" for n, d, _ in slow))

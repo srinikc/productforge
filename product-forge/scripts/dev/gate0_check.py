@@ -119,6 +119,26 @@ def main(argv: list[str] | None = None) -> int:
     if a.report:
         print(f"gate0: REPORT {len(items)} transition(s), {len(problems_all)} problem(s)")
         return 0
+    for it in items:
+        if a.report:
+            continue
+        try:
+            from core import execution_trail as trail
+            brief = it.get("brief") or {}
+            rows = len(((it.get("review") or {}).get("impact_review") or []))
+            bad = problems(it)
+            trail.record(str(it.get("id")), "planning", "pass",
+                         summary=f"{brief.get('problem') or it.get('objective') or ''} -> {brief.get('what_adds') or ''}")
+            trail.record(str(it.get("id")), "gate0", "fail" if bad else "pass",
+                         summary=f"reconciliation + impact table ({rows} rows), AC {len(it.get('acceptance_criteria') or [])}",
+                         refs={"problems": bad})
+        except Exception as e:
+            try:
+                from core import execution_trail as _t
+                _t.write_failure("gate0", e, str(it.get("id")))
+            except Exception:
+                pass
+            print(f"gate0: WARNING execution trail write failed: {e}", file=sys.stderr)
     if problems_all:
         print(f"gate0: FAIL ({len(problems_all)} problem(s))")
         for p in problems_all:

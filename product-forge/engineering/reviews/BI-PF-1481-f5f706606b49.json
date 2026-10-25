@@ -1,0 +1,49 @@
+{
+  "item": "BI-PF-1481",
+  "sha": "f5f706606b49",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-25T08:00:46.053643+00:00",
+  "findings": {
+    "BLOCKER": [
+      "`core/execution_trail.py` is a new, 302-line substantive module in the shipped root `core/`; it lands only because this same diff amends the reviewed `language-rule.json` exemption list (`allow_new_python`) \u2014 a governance change smuggled into a feature diff, against the A6 Go-baseline rule.",
+      "The AC-mandated structure is absent: no `scripts/dev/execution_trail.py` thin adapter exists; all logic (store, CLI, rendering, subprocess orchestration) lives in the shipped-root module, so it is not the \"thin adapter\" the AC requires.",
+      "`gate_decisions.py` records stage `f\"gate{gate}\"`; the decisions it records are the Gate 1.5/2.5 decisions, yielding `gate1.5`/`gate2.5`, which are not in `STAGES` \u2014 `record()` raises, the error is swallowed into `_failures.jsonl`, gate1/gate2 never land, and the new blocking gate can never pass."
+    ],
+    "MAJOR": [
+      "`REQUIRED_AT_COMPLETION` includes `completion`, but the check runs POST-precheck; the event only exists if status was set via `core.backlog.set_status`. Any completion via direct JSON edit, rollup, dashboard, or migration permanently fails the blocking gate \u2014 the AC only requires pre-merge stages here.",
+      "`_record_trail` computes `tests`/`code_review` status via `all(...)` over a possibly empty list: a run with no test gates records \"tests: pass\" with zero rows, fabricating evidence that satisfies the completion requirement.",
+      "Failures recorded without an item id (precheck path: `write_failure(\"precheck\", e)`) are never matched by `evaluate` (`ev.get(\"item\") == iid`), so \"the completion gate fails\" does not hold; backlog/gate0/gate_decisions also emit plain-text warnings instead of the required structured `execution_trail_write_failed` event.",
+      "`_failures.jsonl` entries are permanent and unbounded: no acknowledgement/resolution path exists, so one transient lock timeout blocks an item's completion forever.",
+      "`order_problems` validates only two pairs (design_review<gate1, diff_review<gate2); the AC's broader \"out of order\" enforcement is largely unimplemented, and `_stage_events` last-wins on duplicate stages can mask or fabricate ordering.",
+      "`execution-trail` is registered in precheck `_GATES` (tier \"post\") AND manually re-run in `main()` after `_record_trail`; if \"post\" tier gates execute in the normal loop, the check runs before tests/precheck events exist (spurious failures) and runs twice."
+    ],
+    "MINOR": [
+      "The import+record+swallow+warn boilerplate is duplicated verbatim across 5 call sites (backlog.py \u00d72, gate0_check, gate_decisions, architect_review, precheck) instead of one helper in the trail module.",
+      "Trail item regex `^BI-[A-Za-z0-9]+-\\d+$` rejects bare `BI-123` ids accepted by backlog `_BARE_BI_RE`; those completions silently degrade to write failures.",
+      "`_record_trail` derives ids from the branch name and `record()` never validates the item exists, creating junk trail files for nonexistent items.",
+      "`_record_trail` uses `g2._git(\"merge-base\", \"develop\", \"HEAD\")` with no `origin/develop` fallback (unlike the check it feeds), silently skipping trail events on fresh clones.",
+      "`show`'s usage line always prints numeric totals; the AC's \"'not captured' when unavailable\" rendering is reduced to a counter, so a fully uncaptured trail shows `0` rather than \"not captured\".",
+      "store-registry adds `trails/<ID>.json` (AC says `<ITEM>`) and only `_failures.jsonl` to the allow list; confirm `engineering/trails/*.json` files are covered or governance checks will flag real trail files.",
+      "`refs` (raw `git log --oneline` commit lines) and `tests[].command` are stored unredacted while only summary/actor/error pass through `_redact`.",
+      "`record_gate_decision` always records status \"pass\" regardless of the decision (HOLD/BLOCK included), misrepresenting the gate outcome in the trail.",
+      "No test exercises `evaluate`/`main` end-to-end (missing completion stage, failure-sink matching, ordering); only unit helpers are covered."
+    ],
+    "NIT": [
+      "`_LAST_USAGE` is a module global; a review rendered from cached evidence or a retried call can attribute a prior call's usage to the wrong item/stage.",
+      "`_review_table` re-derives the Gate 1.5/2.5 tables by shelling out to `architect_review.py` (60s timeout) rather than rendering stored evidence, making `show` slow and non-deterministic.",
+      "`evaluate` re-reads the whole `_failures.jsonl` once per item (O(items\u00d7failures)).",
+      "The lock is stolen after a fixed 60s mtime with no owner/PID check; a slow writer can lose its append or duplicate a seq.",
+      "`language-rule.json` is fully reformatted in the same diff as the semantic exemption change, obscuring the governance edit in review."
+    ],
+    "SUMMARY": [
+      "The trail store and `show` CLI are a sound evidence design, but the diff ships substantive new Python in the shipped `core/` root by self-amending the language-rule exemption and omits the AC's thin-adapter split.",
+      "The completion gate as written likely fails every completion: gate1/gate2 are recorded under invalid `gate1.5`/`gate2.5` names, and the `completion` event is required at a pre-merge gate.",
+      "Integrity gaps remain: empty test runs recorded as \"tests: pass\", permanent unresolvable failure-sink entries, item-less failures never failing the gate, and only two ordering rules enforced.",
+      "Top risks: governance bypass of the Go baseline, a blocking CI gate that cannot pass, and fabricated or absent evidence satisfying the gate."
+    ]
+  },
+  "rereview_reason": "supersedes d3067222ee09; CI base fallback",
+  "rereview_reason_sha256": "abb8e58732b9766292f55417c2125eb57795caf3ffd86c03f570f725d0ca593d"
+}

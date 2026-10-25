@@ -1047,7 +1047,20 @@ def set_status(scope: str, project: str | None, eid: str, status: str, note: str
                 return it
     # Gate 2 is enforced at the precheck/CI boundary (gate2_completion_check) for every completion
     # transition: the control-plane write path stays usable for library callers and epic rollups.
-    return update(scope, project, eid, status=status, _note=note)
+    res = update(scope, project, eid, status=status, _note=note)
+    if str(status).lower() in {"completed", "closed", "done"}:
+        try:
+            from core import execution_trail as trail
+            trail.record(eid, "completion", "pass", summary=note or "completed",
+                         refs={"status": status})
+        except Exception as e:
+            try:
+                from core import execution_trail as _t
+                _t.write_failure("completion", e, eid)
+            except Exception:
+                pass
+            print(f"[Backlog] WARNING execution trail completion write failed: {e}")
+    return res
 
 
 _BARE_BI_RE = re.compile(r"^BI-(?:[A-Za-z0-9]+-)?\d+$")
@@ -1231,8 +1244,20 @@ def set_delivery(scope: str, project: str | None, eid: str, *, branch: str = "",
                 # BI-PF-1423: surface the recorded usage/time with the delivery provenance.
                 "usage": (item.get("execution") or {}).get("usage") or {},
                 "duration_seconds": int((item.get("execution") or {}).get("duration_seconds") or 0)}
-    return update(scope, project, eid, links=_merge_links(item.get("links"), delivery=delivery),
-                  _note="delivery recorded")
+    res = update(scope, project, eid, links=_merge_links(item.get("links"), delivery=delivery),
+                 _note="delivery recorded")
+    try:
+        from core import execution_trail as trail
+        trail.record(eid, "delivery", "pass", summary=f"PR {pr or '-'} merged {merge_sha or '-'}",
+                     refs={"branch": branch, "merge_sha": merge_sha, "pr": pr, "pr_url": pr_url})
+    except Exception as e:
+        try:
+            from core import execution_trail as _t
+            _t.write_failure("delivery", e, eid)
+        except Exception:
+            pass
+        print(f"[Backlog] WARNING execution trail delivery write failed: {e}")
+    return res
 
 
 def set_execution_order(scope: str, project: str | None, epic_id: str, order: list) -> dict | None:

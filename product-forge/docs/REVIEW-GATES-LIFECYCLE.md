@@ -174,3 +174,21 @@ Reviews are a learning input, not a one-off artifact:
   develop or pass `--base` / set `PF_REVIEW_CHURN_BASE` (fallback `origin/develop`).
 - **Why:** EDP-10 hit 8 diff reviews because fixes were made after each review instead of batching and
   dispositioning. This guard makes re-review deliberate and auditable.
+
+## Execution trail (BI-PF-1481)
+
+Every item carries one append-only trail at `engineering/trails/<ID>.json` (owner `core/execution_trail.py`, governance-allowlisted control-plane evidence logic; `python -m core.execution_trail show --item <ID>`).
+
+- **Stages:** planning, gate0, design_review, gate1, implementation, code_review, diff_review, gate2, tests,
+  precheck, pr, merge, delivery, completion - each event has seq/at/actor/status/summary/refs/tests/usage.
+- **Written automatically:** `gate0_check` (planning/gate0), `architect_review` (design/diff + provider usage),
+  `gate_decisions` (gate1/gate2), `precheck` (implementation/code_review/tests/precheck), `core.backlog`
+  `set_delivery`/`set_status` (delivery/completion).
+- **Show:** `python -m core.execution_trail show --item <ID>` renders the ordered stages, the Gate 1.5/2.5
+  decision tables (from the review evidence), the tests table, usage totals (input/output/cached; "not
+  captured" when unavailable) and the final completion/next-item table.
+- **Guard:** `scripts/dev/execution_trail_check.py` runs as a POST-precheck gate after the tests/precheck
+  events are written. It fails a completion when the pre-merge stages are missing/out of order or a DEFERRED
+  disposition has no existing follow-up item id. `pr/merge/delivery/completion` are post-merge events.
+- **Failure sink:** a trail write failure is appended to `engineering/trails/_failures.jsonl` and logged as a
+  structured `execution_trail_write_failed` event; the POST gate fails the completion.
