@@ -1,0 +1,277 @@
+{
+  "id": "BI-PF-1480",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "gate-review-churn-guard",
+  "label": "PF Backlog 650",
+  "title": "Gates: review-churn guard - disposition before re-review, bounded diff reviews per item",
+  "body": "",
+  "source": "review",
+  "status": "in_progress",
+  "priority": "P1",
+  "moscow": "Must",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [
+    "BI-PF-1469",
+    "BI-0096"
+  ],
+  "links": {},
+  "decisions": [
+    {
+      "at": "2026-10-25T11:30:57.278227",
+      "decision": "APPROVE",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)"
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "Review/fix/re-review loops are invisible; every commit changes the SHA and forces another review.",
+    "what_adds": "Disposition-before-re-review guard + review-churn budget check.",
+    "why_now": "EDP-10 required 8 diff reviews; discipline alone failed.",
+    "success": "Re-review is blocked until dispositions exist or a reasoned --rereview; completions over budget fail.",
+    "source": "authored"
+  },
+  "objective": "Bound Gate 2.5 review churn with a disposition-before-re-review guard and a review-budget check, so re-reviews are deliberate and auditable.",
+  "acceptance_criteria": [
+    "architect_review.py run --mode diff refuses a new diff review for an item when a previous diff review exists and item.review_dispositions.diff is empty, unless --rereview is passed with a non-empty --reason; the reason is stored in the evidence JSON as rereview_reason.",
+    "scripts/dev/review_churn_check.py counts diff reviews per item, prints shas/dates and an advisory warning above 2, and fails a completion in the committed diff when an item has more than 4 diff reviews unless the item carries a review_churn decision (append-only ledger); --report is a non-blocking dry run.",
+    "Tests prove the refusal without dispositions, the --rereview+reason override, the warn/fail thresholds, the review_churn justification escape and the report mode; docs/REVIEW-GATES-LIFECYCLE.md documents one diff review per code freeze + disposition-before-re-review; precheck passes."
+  ],
+  "in_scope": [
+    "scripts/dev/architect_review.py review-budget guard",
+    "scripts/dev/review_churn_check.py",
+    "test-framework/tests/test_review_churn.py",
+    "docs/REVIEW-GATES-LIFECYCLE.md"
+  ],
+  "out_of_scope": [
+    "Auto-disposition of findings.",
+    "Token/cost trail (BI-PF-1481).",
+    "Retroactively failing legacy completed items."
+  ],
+  "affected_components": [
+    "review gate tooling",
+    "precheck"
+  ],
+  "affected_files": [
+    "scripts/dev/architect_review.py",
+    "scripts/dev/review_churn_check.py",
+    "test-framework/tests/test_review_churn.py",
+    "docs/REVIEW-GATES-LIFECYCLE.md"
+  ],
+  "approach": "architect_review.py: before a diff run, count existing diff reviews for the item; if any exist and item.review_dispositions.diff is empty, refuse unless --rereview --reason is given; store rereview_reason in the evidence. Add scripts/dev/review_churn_check.py (precheck gate): group engineering/reviews/*-*.json by item/mode, print a table, warn >2, fail >4 for an item completing in the diff unless a review_churn decision exists; --report non-blocking; self-test. Add pytest coverage and a REVIEW-GATES-LIFECYCLE section.",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [
+        "Gate 2.5 evidence is bound to the exact diff SHA (BI-PF-1469/1470); every new commit invalidates prior evidence.",
+        "One review per item+SHA unless --rereview (architect_review.py run); dispositions are main-thread-owned and keyed by sig (BI-PF-1449).",
+        "BI-PF-1479 added the decision table + overall recommendation; the HIL can see dispositions beside findings.",
+        "EDP-10 (BI-PF-1302) required 8 diff reviews because fixes were made after each review instead of batching/dispositioning."
+      ],
+      "existing_path": [
+        "scripts/dev/architect_review.py: _latest_review / run / _ingest; run refuses the same item+sha unless --rereview but does not guard a new SHA with undispositioned findings.",
+        "engineering/reviews/<item>-<sha>.json (mode design|diff) are committed evidence; item.review_dispositions[mode] holds dispositions.",
+        "precheck runs architect_review_check.py for the current SHA; it does not inspect review churn.",
+        "docs/REVIEW-GATES-LIFECYCLE.md documents the gate order but not a review budget."
+      ],
+      "assumptions": [
+        "A diff review is the unit of churn; design reviews are not counted (the design is amended less often).",
+        "The budget is >2 advisory, >4 blocking at completion; a review_churn decision is the explicit HIL justification.",
+        "Only items completing in the committed diff are enforced, so legacy completed items are not retroactively blocked.",
+        "review dispositions exist before a re-review is allowed; --rereview with a reason is the audited escape hatch for a genuine blocker fix."
+      ],
+      "divergences": [
+        "Enforcement sits in the review tool + precheck, not in core.backlog.set_status, to avoid a write recursion (the trail/backlog is the source of dispositions)."
+      ],
+      "open_questions": []
+    },
+    "impact_review": [
+      {
+        "claim": "API CHECK",
+        "verdict": "aligned",
+        "evidence": "No HTTP surface: scripts/dev gate tooling + a pytest test.",
+        "recommendation": "needs_api=false"
+      },
+      {
+        "claim": "AC coverage",
+        "verdict": "aligned",
+        "evidence": [
+          "architect_review.py run --mode diff refuses a new diff review for an item when a previous diff review exists and item.review_dispositions.diff is empty, unless --rereview is passed with a non-empty --reason; the reason is stored in the evidence JSON as rereview_reason.",
+          "scripts/dev/review_churn_check.py counts diff reviews per item, prints shas/dates and an advisory warning above 2, and fails a completion in the committed diff when an item has more than 4 diff reviews unless the item carries a review_churn decision (append-only ledger); --report is a non-blocking dry run.",
+          "Tests prove the refusal without dispositions, the --rereview+reason override, the warn/fail thresholds, the review_churn justification escape and the report mode; docs/REVIEW-GATES-LIFECYCLE.md documents one diff review per code freeze + disposition-before-re-review; precheck passes."
+        ],
+        "recommendation": "approve"
+      },
+      {
+        "claim": "language",
+        "verdict": "aligned",
+        "evidence": "Python tooling (scripts/ + test-framework); no shipped product logic.",
+        "recommendation": "Python tooling"
+      },
+      {
+        "claim": "reuse",
+        "verdict": "aligned",
+        "evidence": "Extends architect_review.py (one review path) and adds one precheck gate; no second reviewer/renderer.",
+        "recommendation": "approve"
+      },
+      {
+        "claim": "compatibility",
+        "verdict": "aligned",
+        "evidence": "--rereview remains; existing evidence/JSON is unchanged; only new completions over budget fail.",
+        "recommendation": "approve"
+      },
+      {
+        "claim": "blast radius",
+        "verdict": "aligned",
+        "evidence": "Review/precheck tooling only; rollback is a revert; no data/schema change.",
+        "recommendation": "approve"
+      }
+    ],
+    "reviewed_by": "agent",
+    "at": ""
+  },
+  "verification": [
+    "Objective achieved: Gates: review-churn guard - disposition before re-review, bounded diff reviews per item"
+  ],
+  "risks": [
+    "Legitimate iterative work is blocked: mitigated by the >4 budget, a review_churn decision, and --rereview with a reason.",
+    "Review files from other branches inflate the count: mitigated by counting only this item's committed evidence (the item's reviews are evidence, not branch-scoped) and a baseline/justification."
+  ],
+  "rollback": "Revert the tooling commit; review evidence/JSON is unchanged.",
+  "evidence": [
+    "pending",
+    "Design guardrails applied (BI-PF-1480): sig:212e3917979f3e06 (20 lines)"
+  ],
+  "owner": "agent",
+  "requester": "review",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1248",
+  "parent": "BI-PF-1248",
+  "revision": 3,
+  "priority_rank": 30,
+  "priority_class": "P1",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "COMPLETE",
+    "analyzed_at": "2026-10-25T11:30:57.052628",
+    "analyzed_by": "system",
+    "revision_analyzed": 3,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing gate tooling: `scripts/dev/gate1_check.py` blocks re-review while any finding is PENDING disposition (CL-006 semantics); extend `core/design_guardrails.py` + review prompt to enforce findings=reviewer/dispositions=main-thread (CL-002); add churn counter (reviews per item, bounded diff scope) via existing backlog review endpoints `/api/v1/backlog/items/{item_id}/context-review`; config in `config/ci-cd-gates.json` (max_reviews_per_cycle, diff_bound lines/files).",
+    "existing_components": [],
+    "existing_apis": [],
+    "existing_modules": [],
+    "dependency_findings": [
+      {
+        "task_id": "BI-PF-1469",
+        "type": "RELATED",
+        "required_state": "designed"
+      },
+      {
+        "task_id": "BI-0096",
+        "type": "REQUIRES",
+        "required_state": "available"
+      }
+    ],
+    "conflict_findings": [
+      "BI-PF-1469 touches `scripts/dev/gate1_check.py` and `docs/REVIEW-GATES-LIFECYCLE.md` — coordinate edits to avoid clobbering gate-check logic",
+      "Shared files with CL-006 enforcement path; sequence after BI-PF-1469 if both modify gate check ordering"
+    ],
+    "duplication_findings": [
+      "BI-PF-1469 covers gate lifecycle ordering (1.5->1, 2.5->2); this item covers churn/disposition guards within that lifecycle — complementary, not duplicate",
+      "BI-0096 review/feedback ledger holds disposition status — reuse it as the disposition source of truth, do not build a second ledger",
+      "CL-006/CL-002 already document the rules; this item implements enforcement, not new policy"
+    ],
+    "drift": "LOW",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "Enforces disposition-before-re-review (CL-006) and bounds review churn via existing gate tooling + review endpoints; reuse-first with config-driven limits, low drift.",
+    "assumptions": [
+      "Review/disposition state already persisted per item (context-review endpoint exists)",
+      "Config-driven limits acceptable for tuning without redeploy"
+    ],
+    "risks": [
+      "Churn counter could false-block legitimate re-reviews if disposition state is stale",
+      "Bounded-diff limit may exclude required context on large items",
+      "Race between disposition update and gate check read"
+    ],
+    "evidence": [
+      "Existing endpoints `/api/v1/backlog/items/{item_id}/context-review` and `/api/v1/backlog/items/{item_id}/analysis`",
+      "Correction-ledger CL-006, CL-002 enforce dispositions-before-re-review and ownership split",
+      "`config/ci-cd-gates.json` + `config/guardrail-policy.json` already host gate policy"
+    ],
+    "confidence": "medium",
+    "missing_info": [
+      "Numeric bound for reviews per item/cycle (default? veto vs warn at limit?)",
+      "Diff bound size (lines/files/hunks) for a bounded diff review",
+      "Whether churn guard applies to Gate 1.5 only or both 1.5 and 2.5"
+    ],
+    "depth": "deep",
+    "mode": "ai",
+    "context_review": {
+      "ok": null,
+      "source": "llm-unparseable",
+      "implementable": null,
+      "missing": [],
+      "reason": "reviewer returned no JSON"
+    },
+    "decision_request": {
+      "needed": false,
+      "reasons": [],
+      "ask": ""
+    },
+    "arch_fingerprint": "2e09de2576905320"
+  },
+  "dependencies": [
+    {
+      "task_id": "BI-PF-1469",
+      "type": "RELATED",
+      "required_state": "designed"
+    },
+    {
+      "task_id": "BI-0096",
+      "type": "REQUIRES",
+      "required_state": "available"
+    }
+  ],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-25T11:30:57.155015"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-25T11:30:14.186751",
+  "updated_at": "2026-10-25T11:31:21.812588",
+  "score": 0.75,
+  "_note": "readiness computed",
+  "api_impact": {
+    "needs_api": false,
+    "routes": [],
+    "consumers": [],
+    "reason": "CLI gate tooling; no HTTP surface."
+  },
+  "language_rule": "Python tooling (scripts/ + tests) allowed; no shipped product logic."
+}
