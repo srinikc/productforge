@@ -7,7 +7,7 @@
   "origin": "review",
   "external_id": "execution-flow-view-hardening",
   "label": "PF Backlog 654",
-  "title": "Execution flow view hardening: pre-merge blocked set, review-sha integrity, no-review cache, review markers",
+  "title": "Execution finalization: HIL-approved accepted/deferred, AC verification, persisted final report, test taxonomy",
   "body": "",
   "source": "review",
   "status": "new",
@@ -32,30 +32,51 @@
   ],
   "follow_up": {},
   "brief": {
-    "problem": "BI-PF-1483 flow-view review found edge-case/hardening gaps after the flow view shipped.",
-    "what_adds": "Pre-merge blocked set, review-sha integrity, cached/no-review path, explicit markers, whitelist, stronger tests.",
-    "why_now": "Keep the HIL view authoritative and cheap as the audit surface.",
-    "success": "Flow view cannot misreport a post-merge failure as a block or a stale/unattributed review as current.",
+    "problem": "Accepted/deferred dispositions were not HIL-approved, ACs were not verified at Gate 2, and final results (tests/time/tokens/cost) were only terminal output.",
+    "what_adds": "HIL-approved disposition policy, AC verification gate, persisted final_report on the item, and test-result taxonomy.",
+    "why_now": "The backlog item must be the durable record of what shipped, what was accepted/deferred, and the evidence.",
+    "success": "An item cannot complete or merge without <=2 HIL-approved accepted per mode, all ACs PASS, and a persisted final report.",
     "source": "authored"
   },
-  "objective": "Harden the BI-PF-1483 flow view after its Gate 2.5 review: restrict blocked detection to pre-merge gates, require the review sha for the current recommendation, add a cached/--no-review path, and make review/missing markers explicit.",
+  "objective": "Make the execution trail's final update durable and reviewable: cap ACCEPTED, require HIL approval for every ACCEPTED/DEFERRED, verify every AC before Gate 2/merge, classify/list test results by kind, and persist the final report (ACs, tests, time, tokens, cost, dispositions) on the backlog item.",
   "acceptance_criteria": [
-    "current_stage blocks only on REQUIRED_AT_COMPLETION pre-merge stages; post-merge fail events are shown but never reported as a block.",
-    "A review recommendation is rendered only when the trail event carries review_sha; missing sha renders an explicit 'review sha missing' state and no recommendation.",
-    "show supports a cached recommendation lookup and/or --no-review escape hatch; a review stage with NOT READY is marked [BLOCKED], and a closed item with missing stages marks them [MISSING].",
-    "Recommendation parsing is whitelisted to APPROVE / APPROVE WITH ATTENTION / NOT READY; disposition-key rendering is tested for ACCEPTED/DEFERRED/REJECTED/SCOPE and DEFERRED cites an existing follow-up id."
+    "Disposition policy: ACCEPTED is capped at 2 per review mode (design, diff); every ACCEPTED and DEFERRED requires a HIL DISPOSITION_APPROVAL (hil_confirmed, mode, finding sigs); DEFERRED cites an existing backlog id. Enforced at Gate 1, Gate 2 and completion.",
+    "AC verification: item.ac_verification records each AC with PASS/FAIL/PENDING + evidence + verifier; Gate 2 refuses if any AC is missing/FAIL/PENDING; completion re-checks. 2.5 may flag AC gaps but does not certify.",
+    "Final report: scripts/dev/finalize_item.py persists item.final_report with ACs, test results by kind (unit/api/db/logic/go/other, command/result/counts/duration), total time, input/output/cached tokens, cost + cost_source, accepted/deferred with ids, and gate decisions; completion/merge is blocked without it.",
+    "Execution trail show renders AC verification, test results by kind, accepted/deferred dispositions, totals and a final table; tests cover disposition cap/approval, final-report build/persist, test classification, and completion guards.",
+    "Docs/state: config/review-dispositions.json + store-registry entry; REVIEW-GATES-LIFECYCLE documents the approval, AC and final-report contract; language-rule/store/wired checks pass."
   ],
   "in_scope": [
-    "Execution flow view hardening: pre-merge blocked set, review-sha integrity, no-review cache, review markers"
+    "Disposition cap + HIL approval",
+    "AC verification gate",
+    "Persisted final_report",
+    "Test taxonomy/results",
+    "Completion/merge guards"
   ],
   "out_of_scope": [
-    "Not specified."
+    "No API/UI surface",
+    "No automatic model review caching changes"
   ],
   "affected_components": [
-    "Not specified."
+    "core/execution_trail.py (show)",
+    "scripts/dev/disposition_policy.py",
+    "scripts/dev/finalize_item.py",
+    "gate1/gate2/completion checks",
+    "config/review-dispositions.json"
   ],
   "affected_files": [
-    "Not specified."
+    "core/execution_trail.py",
+    "scripts/dev/disposition_policy.py",
+    "scripts/dev/finalize_item.py",
+    "scripts/dev/gate1_check.py",
+    "scripts/dev/gate_decisions.py",
+    "scripts/dev/execution_trail_check.py",
+    "config/review-dispositions.json",
+    "config/store-registry.json",
+    "test-framework/tests/test_disposition_policy.py",
+    "test-framework/tests/test_finalize_item.py",
+    "test-framework/tests/test_execution_trail.py",
+    "docs/REVIEW-GATES-LIFECYCLE.md"
   ],
   "approach": "Execution flow view hardening: pre-merge blocked set, review-sha integrity, no-review cache, review markers",
   "review": {
@@ -74,9 +95,9 @@
     "Objective achieved: Execution flow view hardening: pre-merge blocked set, review-sha integrity, no-review cache, review markers"
   ],
   "risks": [
-    "Not specified."
+    "Existing completed items without ac_verification/final_report will need backfill or grandfathering; the completion guard is forward-looking for items completing in the diff."
   ],
-  "rollback": "Revert the change.",
+  "rollback": "Revert the commit; the prior trail show/completion behavior returns. No data migration.",
   "evidence": [
     "pending",
     "Design guardrails applied (BI-PF-1484): sig:eebe280a1f7587d8 (20 lines)"
@@ -90,12 +111,12 @@
   "children": [],
   "epic": "BI-PF-1248",
   "parent": "BI-PF-1248",
-  "revision": 3,
+  "revision": 4,
   "priority_rank": 40,
   "priority_class": "P1",
   "analyze_mode": "on_entry",
   "analysis": {
-    "status": "COMPLETE",
+    "status": "STALE",
     "analyzed_at": "2026-10-25T14:51:23.501266",
     "analyzed_by": "system",
     "revision_analyzed": 3,
@@ -196,12 +217,12 @@
     "usage": {}
   },
   "created_at": "2026-10-25T14:50:28.634469",
-  "updated_at": "2026-10-25T14:55:27.567456",
+  "updated_at": "2026-10-25T16:27:15.970663",
   "score": 0.75,
   "_note": "readiness computed",
   "api_impact": {
     "needs_api": false,
-    "reason": "Hardening of a read-only CLI flow view; no HTTP route."
+    "reason": "CLI/backlog finalization only; no HTTP route."
   },
-  "language_rule": "Edits to existing allowlisted core/execution_trail.py; tests/docs only."
+  "language_rule": "Edits to allowlisted core/execution_trail.py; new tooling scripts under scripts/dev; no new shipped Python module."
 }

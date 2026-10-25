@@ -1,6 +1,6 @@
 # Backlog Summary
 
-> GENERATED 2026-10-25T15:11:58 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-25T16:27:18 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
@@ -12,7 +12,7 @@
 - `new`: 129
 
 ### new, by category (129)
-**API / reports / HIL / misc** (15)
+**API / reports / HIL / misc** (16)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-PF-0332 | Should | chore | API-5 deferred hardening: rate limiting + request/upload limits + tenant-isolation expansion + event streaming | API-5 deferred hardening: rate limiting + request/upload limits + tenant-isolation expansion + event streaming |
@@ -30,6 +30,7 @@
 | BI-PF-1331 | Should | bug | pre-commit lint_check crashes in git worktrees (WinError 206 long path) - blocks commits | Make the pre-commit lint_check work from a git worktree (no WinError 206 long-path crash). |
 | BI-PF-1382 | Must | bug | Backlog API: POST /backlog/items returns empty resource_id (created id not surfaced) | Backlog API: POST /backlog/items returns empty resource_id (created id not surfaced) |
 | BI-PF-1441 | Should | feature | Dynamic design-direction stage + HIL suggest gate | At the start of design, PF suggests ranked directions and the operator confirms one. |
+| BI-PF-1484 | Should | hardening | Execution finalization: HIL-approved accepted/deferred, AC verification, persisted final report, test taxonomy | Make the execution trail's final update durable and reviewable: cap ACCEPTED, require HIL approval for every A... |
 
 **Bug fixes** (1)
 | ID | MoSCoW | Type | Title | Objective |
@@ -76,7 +77,7 @@
 | BI-PF-1415 | Should | defect | RCCA: config/derived stores classified by kind heuristic (not reviewed) - 78 project/tenant-scoped stores likely belong in DB (views/tables) | RCCA: config/derived stores classified by kind heuristic (not reviewed) - 78 project/tenant-scoped stores like... |
 | BI-PF-1478 | Must | feature | EDP: per-tenant authentication + hard per-tenant quota isolation for the data-plane service | Give go/edpsvc a real per-tenant principal so per-tenant quotas/concurrency are bound to the authenticated ten... |
 
-**Specs / cache / context / artifacts** (11)
+**Specs / cache / context / artifacts** (10)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0206 | Should | tech-debt | Backend: model downloader + local cache + license-acceptance gate + models.lock (open-weights) | One owner module that downloads only the weights a project's capability pack needs, into a gitignored local ca... |
@@ -89,7 +90,6 @@
 | BI-PF-1385 | Must | bug | Backlog API: no deterministic endpoint to author item context fields (objective/acceptance_criteria/affected_files/approach) | Backlog API: no deterministic endpoint to author item context fields (objective/acceptance_criteria/affected_f... |
 | BI-PF-1392 | Should | task | Enforce per-feature FR/US caps + max_lines in the Go artifact engine (scaled by the profile) and reconcile the three section sources | Per-feature FR/US caps + max_lines enforced NUMERICALLY (scaled by profile); sections have ONE source. |
 | BI-PF-1425 | Should | feature | Migrate orchestrator cache + evidence/summarizer (and remaining audit logic) from Python to Go (Go-first alignment) | Migrate orchestrator cache + evidence/summarizer (and remaining audit logic) from Python to Go (Go-first align... |
-| BI-PF-1484 | Should | hardening | Execution flow view hardening: pre-merge blocked set, review-sha integrity, no-review cache, review markers | Harden the BI-PF-1483 flow view after its Gate 2.5 review: restrict blocked detection to pre-merge gates, requ... |
 
 **Wiring / tech-debt / API** (78)
 | ID | MoSCoW | Type | Title | Objective |
