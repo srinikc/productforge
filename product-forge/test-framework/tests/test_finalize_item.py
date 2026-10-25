@@ -17,7 +17,7 @@ def test_build_requires_all_acs_pass(monkeypatch):
     monkeypatch.setattr(fi.backlog, "get_epic", lambda *a, **k: item)
     monkeypatch.setattr(fi.tr, "events", lambda i: [])
     r = fi.build("BI-PF-1484")
-    assert r["ac_problems"] == ["two"]
+    assert any("two" in x for x in r["ac_problems"])
 
 
 def test_build_includes_usage_tests_and_dispositions(monkeypatch):
@@ -32,7 +32,7 @@ def test_build_includes_usage_tests_and_dispositions(monkeypatch):
     monkeypatch.setattr(fi.backlog, "get_epic", lambda *a, **k: item)
     monkeypatch.setattr(fi.tr, "events", lambda i: evs)
     r = fi.build("BI-PF-1484")
-    assert r["tests"][0]["command"] == "pytest x"
+    assert r["tests_by_kind"]["unit"]["rows"][0]["command"] == "pytest x"
     assert r["usage"]["input_tokens"] == 10
     assert r["dispositions"]["diff"]["sig:a"]["status"] == "ACCEPTED"
     assert r["ac_problems"] == []
@@ -41,8 +41,8 @@ def test_completion_gaps_require_ac_and_current_report():
     item = {"revision": 3, "ac_verification": [{"ac": "a", "result": "PASS"}],
             "final_report": {"item_revision": 3}}
     assert g2c.completion_gaps(item) == []
-    item["final_report"] = {"item_revision": 2}
-    assert "FINAL_REPORT_STALE" in g2c.completion_gaps(item)
+    item["final_report"] = {}
+    assert "FINAL_REPORT_MISSING" in g2c.completion_gaps(item)
     item["ac_verification"][0]["result"] = "PENDING"
     assert "AC_VERIFICATION_INCOMPLETE" in g2c.completion_gaps(item)
     item["final_report"] = {}

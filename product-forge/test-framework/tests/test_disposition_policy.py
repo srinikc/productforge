@@ -34,3 +34,8 @@ def test_nit_deferred_needs_id_and_approval():
     it["review_dispositions"]["diff"]["a"]["note"] = "later BI-PF-1485"
     it["decisions"] = [_approval(["a"])]
     assert dp.problems(it, "diff", lambda i: {"id": i}) == []
+
+def test_deferred_cannot_cite_its_own_item():
+    it = _item({"a": {"status": "DEFERRED", "severity": "NIT", "note": "later BI-PF-1484"}})
+    it["decisions"] = [_approval(["a"])]
+    assert any("without an external backlog id" in p for p in dp.problems(it, "diff", lambda i: {"id": i}))

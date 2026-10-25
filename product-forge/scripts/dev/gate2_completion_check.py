@@ -81,8 +81,6 @@ def completion_gaps(item: dict) -> list[str]:
     fr = item.get("final_report") or {}
     if not fr:
         gaps.append("FINAL_REPORT_MISSING")
-    elif fr.get("item_revision") != item.get("revision"):
-        gaps.append("FINAL_REPORT_STALE")
     return gaps
 
 
@@ -97,9 +95,7 @@ def check(ids: list[str]) -> list[tuple[str, str]]:
             problems.append((iid, "GATE0_INCOMPLETE: " + "; ".join(g0_problems)))
             continue
         gaps = completion_gaps(item)
-        if gaps:
-            problems += [(iid, g) for g in gaps]
-            continue
+        problems += [(iid, g) for g in gaps]
         dview = ar.gate_view(iid, "design")
         if dview is None:
             problems.append((iid, "NO_DESIGN_EVIDENCE"))

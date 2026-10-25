@@ -19,15 +19,14 @@ for p in (str(ROOT), str(ROOT / "scripts" / "dev")):
 
 from core import backlog, execution_trail as tr  # noqa: E402
 import disposition_policy as dp  # noqa: E402
+import ac_policy  # noqa: E402
 
 
 def build(item_id: str) -> dict:
     it = backlog.get_epic("product_forge", None, item_id) or {}
     evs = tr.events(item_id)
     acs = it.get("ac_verification") or []
-    bad_ac = [a.get("ac") for a in acs if str(a.get("result")).upper() != "PASS"]
-    if len(acs) < len(it.get("acceptance_criteria") or []):
-        bad_ac.append(f"only {len(acs)} of {len(it.get('acceptance_criteria') or [])} ACs recorded")
+    bad_ac = ac_policy.problems(it)
     bad = dp.problems(it, "design", lambda i: backlog.get_epic("product_forge", None, i))
     bad += dp.problems(it, "diff", lambda i: backlog.get_epic("product_forge", None, i))
     tests = [t for e in evs for t in (e.get("tests") or [])]
@@ -36,7 +35,7 @@ def build(item_id: str) -> dict:
     end = evs[-1]["at"] if evs else ""
     return {"schema": "pf.final-report/1", "item": item_id, "generated_at": datetime.now(timezone.utc).isoformat(),
             "item_revision": int(it.get("revision") or 0) + 1, "current_stage": tr.current_stage(item_id, it.get("status") or ""),
-            "acs": acs, "ac_problems": bad_ac, "tests": tests, "tests_by_kind": tr.tests_by_kind(evs),
+            "acs": acs, "ac_problems": bad_ac, "tests_by_kind": tr.tests_by_kind(evs),
             "usage": u, "started_at": start, "finished_at": end,
             "disposition_problems": bad,
             "dispositions": {m: {k: v for k, v in ((it.get("review_dispositions") or {}).get(m) or {}).items()

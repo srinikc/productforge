@@ -17,6 +17,7 @@ for p in (ROOT, ROOT / "scripts" / "dev"):
     if str(p) not in sys.path:
         sys.path.insert(0, str(p))
 
+from core import backlog as _backlog
 from core import execution_trail as trail  # noqa: E402
 import gate2_completion_check as g2  # noqa: E402
 import disposition_policy as dp  # noqa: E402
@@ -62,7 +63,6 @@ def evaluate(ids: list[str]) -> list[str]:
         if "completion" in {e.get("stage") for e in trail.events(iid)}:
             problems += [f"{iid}: {g}" for g in g2.completion_gaps(item)]
         problems += [f"{iid}: {p}" for p in deferred_problems(item)]
-        from core import backlog as _backlog
         problems += [f"{iid}: {p}" for mode in ("design", "diff")
                      for p in dp.problems(item, mode, lambda i: _backlog.get_epic("product_forge", None, i))]
         failures = trail.TRAILS / "_failures.jsonl"
