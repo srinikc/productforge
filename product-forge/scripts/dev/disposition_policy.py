@@ -74,7 +74,8 @@ def problems(item: dict, mode: str, backlog_get=None) -> list[str]:
     if accepted:
         bad.append(f"{mode}: ACCEPTED is not allowed; fix the finding instead ({', '.join(accepted[:4])})")
     for k in deferred:
-        severity = str((rows.get(k) or {}).get("severity") or sev.get(k) or "MAJOR").upper()
+        key = k if str(k).startswith("sig:") else "sig:" + str(k).split(":")[-1]
+        severity = str((rows.get(k) or {}).get("severity") or sev.get(key) or sev.get(k) or "MAJOR").upper()
         if severity not in [str(x).upper() for x in (c.get("deferred_severities") or [])]:
             bad.append(f"{mode}/{k}: {severity} cannot be DEFERRED; fix it")
     needs = deferred if c.get("require_hil_approval_for_deferred") else []

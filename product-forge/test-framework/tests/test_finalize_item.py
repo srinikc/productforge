@@ -38,8 +38,9 @@ def test_build_includes_usage_tests_and_dispositions(monkeypatch):
     assert r["ac_problems"] == []
 
 def test_completion_gaps_require_ac_and_current_report():
-    item = {"revision": 3, "ac_verification": [{"ac": "a", "result": "PASS"}],
-            "final_report": {"item_revision": 3}}
+    item = {"id": "BI-PF-1484", "revision": 3, "ac_verification": [{"ac": "a", "result": "PASS"}],
+            "review_dispositions": {}, "final_report": {"item_revision": 3}}
+    item["final_report"]["ac_hash"] = g2c._ac_hash(item)
     assert g2c.completion_gaps(item) == []
     item["final_report"] = {}
     assert "FINAL_REPORT_MISSING" in g2c.completion_gaps(item)

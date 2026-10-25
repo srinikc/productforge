@@ -62,11 +62,11 @@ def record_gate_decision(backlog, scope: str, project: str | None, eid: str, gat
     if not str(by).startswith("hil:"):
         print(f"[Backlog] refusing gate {gate} decision for {eid}: by must be hil:<actor>")
         return None
-    if str(gate) not in ("1", "2"):
-        print(f"[Backlog] refusing gate {gate} decision for {eid}: only gates 1 and 2 exist")
+    if str(gate) not in ("1", "1.5", "2", "2.5"):
+        print(f"[Backlog] refusing gate {gate} decision for {eid}: unknown gate")
         return None
-    mode = "design" if str(gate) == "1" else "diff"
-    modes = [mode] if str(gate) == "1" else ["design", "diff"]
+    mode = "design" if str(gate) in ("1", "1.5") else "diff"
+    modes = [mode] if str(gate) in ("1", "1.5") else ["design", "diff"]
     if str(gate) == "2":
         import ac_policy
         bad_ac = ac_policy.problems(item)
