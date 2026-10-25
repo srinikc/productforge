@@ -27,6 +27,17 @@
       "decision": "APPROVE",
       "by": "system",
       "note": "auto-approved on add (BI-PF-1282)"
+    },
+    {
+      "at": "2026-10-25T09:12:29.238090+00:00",
+      "by": "hil:srinikc",
+      "decision": "APPROVE_WITH_ATTENTION",
+      "gate": 1,
+      "findings_sha": "cabf4e2957f8",
+      "findings_digest": "7caa4d221f3f",
+      "seq": 2,
+      "note": "HIL instruction: continue (flow-view wiring). Design approved with attention: fleet observability accepted as out of scope; flow view is read-only CLI.",
+      "hil_confirmed": true
     }
   ],
   "follow_up": {},
@@ -47,15 +58,22 @@
     "Execution trail: one ordered flow view (plain language, Gate 0, stage checklist, 1.5/2.5 tables, decisions, tests, final)"
   ],
   "out_of_scope": [
-    "Not specified."
+    "No HTTP API/UI/JSON mode.",
+    "No new trail/store/writer or gate changes.",
+    "No migration; append-only history is unchanged.",
+    "No fleet metrics (accepted as a CLI trade-off)."
   ],
   "affected_components": [
-    "Not specified."
+    "core/execution_trail.py (show / flow projection)",
+    "test-framework/tests/test_execution_trail.py",
+    "docs/REVIEW-GATES-LIFECYCLE.md"
   ],
   "affected_files": [
-    "Not specified."
+    "core/execution_trail.py",
+    "test-framework/tests/test_execution_trail.py",
+    "docs/REVIEW-GATES-LIFECYCLE.md"
   ],
-  "approach": "Execution trail: one ordered flow view (plain language, Gate 0, stage checklist, 1.5/2.5 tables, decisions, tests, final)",
+  "approach": "Extend core/execution_trail.py:show into one ordered read-only flow: brief, Gate 0 reconciliation/impact, current-stage checklist, Gate 1.5/2.5 tables + current recommendation, Gate 1/2 decisions, implementation/code review, tests, usage, final, disposition key. Derive status from the latest event per stage; render missing evidence explicitly.",
   "review": {
     "reconciliation": {
       "prior_decisions": [
@@ -140,10 +158,10 @@
     "Objective achieved: Execution trail: one ordered flow view (plain language, Gate 0, stage checklist, 1.5/2.5 tables, decisions, tests, final)"
   ],
   "risks": [
-    "Flow view could become stale if review evidence is not committed; mitigated by showing the evidence path/recommendation and the missing-stage line.",
-    "Large terminal output; mitigated by section order and bounded tables."
+    "Flow view can be stale if review evidence is not committed; it then shows 'not recorded'/'evidence missing' rather than a pass.",
+    "Large terminal output; tables wrap and are sectioned, but there is no pager (accepted)."
   ],
-  "rollback": "Revert the commit; show returns to the previous stage table.",
+  "rollback": "Revert the commit; show returns to the previous stage table. The append-only trail and all other state are untouched.",
   "evidence": [
     "pending",
     "Design guardrails applied (BI-PF-1483): sig:be08e018af1643e7 (20 lines)"
@@ -259,12 +277,72 @@
     "usage": {}
   },
   "created_at": "2026-10-25T14:35:25.808300",
-  "updated_at": "2026-10-25T14:39:57.355796",
+  "updated_at": "2026-10-25T14:42:29.349335",
   "score": 0.75,
   "_note": "design + Gate 0",
   "api_impact": {
     "needs_api": false,
     "reason": "Read-only CLI flow view; no HTTP route or runtime API change."
   },
-  "language_rule": "Python edits to existing allowlisted core/execution_trail.py; tests only (Go not required)."
+  "language_rule": "Edits to existing allowlisted core/execution_trail.py (ADR-0010); tests + docs only. No new shipped Python module.",
+  "review_dispositions": {
+    "design": {
+      "sig:1c6a0f2ed1fcb5d1": {
+        "status": "ACTIONED",
+        "note": "Design names the owner and files: core/execution_trail.py:show is the only renderer; tests + docs. No second flow renderer. affected_files/affected_components/out_of_scope set on the item."
+      },
+      "sig:830f9524bc13eb7d": {
+        "status": "ACTIONED",
+        "note": "Boundary set: no HTTP API/UI/JSON mode, no new store or writer, no gate/tooling changes and no migration; only the existing show output changes."
+      },
+      "sig:27d299834de098cf": {
+        "status": "ACTIONED",
+        "note": "Disposition data is owned by core.backlog.review_dispositions; statuses are validated by architect_review.py; DEFERRED-requires-follow-up is enforced by execution_trail_check.py; the flow view only renders the key. Documented."
+      },
+      "sig:05a54b15376ce245": {
+        "status": "ACTIONED",
+        "note": "Latest = last event in append order under the trail lock; seq is monotonic. show shows the latest per stage and a Runs count; test_current_stage_and_latest_event_wins covers re-runs."
+      },
+      "sig:a6e7c3f52134bee9": {
+        "status": "ACTIONED",
+        "note": "The review JSON is read by the sha in the design_review event refs; missing/unreadable evidence renders 'not recorded'/'evidence missing', never a pass; the recommendation is parsed from architect_review.py gate. Documented."
+      },
+      "sig:24623ce928e5e98f": {
+        "status": "ACTIONED",
+        "note": "current_stage = first STAGES entry with no committed event; empty -> planning; all -> complete. Covered by tests; skipped stages remain the current stage."
+      },
+      "sig:0162bdebd113f695": {
+        "status": "ACCEPTED",
+        "note": "Read-only CLI; no metric/log sink. Missing evidence is explicit in the output and write failures hit the trail failure sink. Fleet observability is out of scope for this item."
+      },
+      "sig:616d671de70a76da": {
+        "status": "ACTIONED",
+        "note": "Pure read-model over the append-only trail; revert changes rendering only; no migration, no writes, no destructive step."
+      },
+      "sig:df45e9ff5580a254": {
+        "status": "ACCEPTED",
+        "note": "Cells wrap at 44 chars and tables are sectioned; no pager. Accepted as a CLI usability trade-off."
+      },
+      "sig:fb2f0d24a37895dc": {
+        "status": "ACTIONED",
+        "note": "show performs no writes to the trail or check state; all writes stay with the existing owners (gate tools/backlog/precheck)."
+      },
+      "sig:d07c603b4adff2a9": {
+        "status": "ACTIONED",
+        "note": "Authz/RLS/tenant/API are not applicable to a local read-only CLI; the API CHECK row records needs_api=false. Documented in the design."
+      },
+      "sig:90712a0edf59ef03": {
+        "status": "ACTIONED",
+        "note": "core/execution_trail.py is allowlisted control-plane Python (ADR-0010); this is an edit, not new shipped Python. Tests only elsewhere."
+      },
+      "sig:660045ed2892e94a": {
+        "status": "ACTIONED",
+        "note": "Exact command pinned: python scripts/dev/precheck.py; Gate 2 verification will cite it."
+      },
+      "sig:4e41ff9f5a953d19": {
+        "status": "ACCEPTED",
+        "note": "A machine-readable --json twin is a later item; no second renderer is added now."
+      }
+    }
+  }
 }
