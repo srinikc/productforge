@@ -92,6 +92,7 @@ implementation=library). One shared instance per service per environment; sessio
 - **Pool:** one shared bounded pgx pool (10 connections by default); `PF_EDP_GLOBAL_CONCURRENCY` must be <= the pool max or startup fails.
 - **Config:** `PF_EDP_*` env flags are registered in `config/env-flags.json`; `PF_PROFILE=dev|production`; `PF_ALLOW_SUPERUSER_DSN=1` is a non-production escape hatch only.
 - **Error contract (v1):** `{"version":"1","error":{"code","message","category","retryable","request_id"}}` plus `X-Request-ID`; 413/429/504 are stable codes.
-- **Routes:** `GET /admin/limits` (admin bearer: effective limits + aggregate counters/pool/role), `GET /metrics` (Prometheus counters/histograms; internal), `GET /ready` (DB ping).
+- **Routes:** `GET /admin/limits` (admin bearer: effective limits + aggregate counters/pool/role), `GET /metrics` (admin bearer: Prometheus counters/histograms; send the admin token), `GET /ready` (DB ping).
 - **Production:** `PF_PROFILE=production` refuses `PF_DEV`/`API_ALLOW_ANON`/`PF_ALLOW_ANON`, a missing/weak `PF_ADMIN_TOKEN`, and a superuser/BYPASSRLS runtime DSN. Migrations are a deploy step (`scripts/dev/db_migrate.py`); `/admin/migrations/*` is dev/ops-only. `PF_EDP_ENFORCE_LIMITS=0` is refused in production.
-- **Rollback:** production is code revert/redeploy; non-production may set `PF_EDP_ENFORCE_LIMITS=0` (structured errors and the profile guard stay on).
+"- **Rollback:** production is code revert/redeploy; non-production may set `PF_EDP_ENFORCE_LIMITS=0` (structured errors and the profile guard stay on). Graceful shutdown drains for 180s (>= the 120s upload budget) before closing the shared pool.
+- **Rollout note:** point `PF_DB_DSN` at a non-superuser role (`pf_app`/`pf_runtime`) before upgrading; a local dev run that still uses `pf_owner` can set `PF_ALLOW_SUPERUSER_DSN=1` (non-production only) or use the separate deploy-step migration runner. Production refuses the escape hatch.

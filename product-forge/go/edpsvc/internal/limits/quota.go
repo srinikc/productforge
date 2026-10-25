@@ -82,7 +82,12 @@ func (q *Quota) tenantBucket(tenant string, now time.Time) *bucket {
 		return b
 	}
 	if len(q.tenants) >= q.cfg.MaxTenantBuckets {
+		scanned := 0
 		for name, b := range q.tenants {
+			if scanned >= 64 { // bounded work per admission (no 10k sweep under the lock)
+				break
+			}
+			scanned++
 			if q.active[name] > 0 {
 				continue
 			}

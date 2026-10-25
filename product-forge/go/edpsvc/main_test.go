@@ -34,7 +34,9 @@ func TestHealthAndMetrics(t *testing.T) {
 	}
 	s.metrics.Inc("edp_test_total")
 	rr = httptest.NewRecorder()
-	h.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/metrics", nil))
+	mreq := httptest.NewRequest(http.MethodGet, "/metrics", nil)
+	mreq.Header.Set("Authorization", "Bearer test-token")
+	h.ServeHTTP(rr, mreq)
 	if rr.Code != http.StatusOK || !strings.Contains(rr.Body.String(), "edp_") {
 		t.Fatalf("metrics %d %q", rr.Code, rr.Body.String())
 	}

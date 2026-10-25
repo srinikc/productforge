@@ -108,14 +108,26 @@ func integer(v string, def int64) (int64, error) {
 	return n, nil
 }
 
-func boolean(v string, def bool) bool {
+func boolean(v string, def bool) (bool, error) {
 	switch strings.ToLower(strings.TrimSpace(v)) {
 	case "1", "true", "yes", "on":
-		return true
+		return true, nil
 	case "0", "false", "no", "off":
+		return false, nil
+	case "":
+		return def, nil
+	default:
+		return false, fmt.Errorf("invalid boolean %q", v)
+	}
+}
+
+// flagEnabled treats any value other than an explicit off as enabled (fail closed for production auth flags).
+func flagEnabled(v string) bool {
+	switch strings.ToLower(strings.TrimSpace(v)) {
+	case "", "0", "false", "no", "off":
 		return false
 	default:
-		return def
+		return true
 	}
 }
 
@@ -128,8 +140,15 @@ func Load(getenv Getenv) (Config, error) {
 	if p := strings.ToLower(strings.TrimSpace(getenv("PF_PROFILE"))); p != "" {
 		c.Profile = p
 	}
-	c.Enforce = boolean(getenv("PF_EDP_ENFORCE_LIMITS"), true)
-	c.AllowSuperuserDSN = boolean(getenv("PF_ALLOW_SUPERUSER_DSN"), false)
+	var berr error
+	c.Enforce, berr = boolean(getenv("PF_EDP_ENFORCE_LIMITS"), true)
+	if berr != nil {
+		return Config{}, fmt.Errorf("PF_EDP_ENFORCE_LIMITS: %w", berr)
+	}
+	c.AllowSuperuserDSN, berr = boolean(getenv("PF_ALLOW_SUPERUSER_DSN"), false)
+	if berr != nil {
+		return Config{}, fmt.Errorf("PF_ALLOW_SUPERUSER_DSN: %w", berr)
+	}
 
 	var err error
 	setDur := func(env string, dst *time.Duration) {
@@ -239,6 +258,9 @@ func (c Config) Validate() error {
 	if c.TenantRPM < 1 || c.GlobalRPM < 1 || c.MaxTenantBuckets < 1 || c.BucketIdleTTL <= 0 {
 		return fmt.Errorf("RPM, max tenant buckets and idle TTL must be > 0")
 	}
+	if c.GlobalRPM < c.TenantRPM {
+		return fmt.Errorf("PF_EDP_GLOBAL_RPM (%d) must be >= PF_EDP_TENANT_RPM (%d)", c.GlobalRPM, c.TenantRPM)
+	}
 	if c.RoleRecheckInterval < 0 {
 		return fmt.Errorf("PF_EDP_ROLE_RECHECK must be >= 0")
 	}
@@ -255,7 +277,7 @@ func ValidateProfile(c Config, getenv Getenv) error {
 		return nil
 	}
 	for _, name := range []string{"PF_DEV", "API_ALLOW_ANON", "PF_ALLOW_ANON"} {
-		if boolean(getenv(name), false) {
+		if flagEnabled(getenv(name)) {
 			return fmt.Errorf("production profile refuses development auth: %s is enabled", name)
 		}
 	}

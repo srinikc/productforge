@@ -152,10 +152,10 @@ func main() {
 	shutCtx, cancel := context.WithTimeout(context.Background(), drain)
 	defer cancel()
 	if err := srv.Shutdown(shutCtx); err != nil {
-		log.Printf("edpsvc shutdown: %v (leaving the pool open for in-flight work)", err)
-	} else {
-		st.Close()
+		log.Printf("edpsvc shutdown: %v; force-closing the listener", err)
+		_ = srv.Close()
 	}
+	st.Close()
 }
 
 func (s *server) buildMux() *http.ServeMux {
@@ -164,7 +164,7 @@ func (s *server) buildMux() *http.ServeMux {
 		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 	})
 	mux.HandleFunc("/ready", s.ready)
-	mux.HandleFunc("/metrics", s.metricsHandler)
+	mux.HandleFunc("/metrics", s.adminOnly(s.metricsHandler))
 	mux.HandleFunc("/admin/migrations/status", s.adminOnly(s.migrationsStatus))
 	mux.HandleFunc("/admin/migrations/up", s.adminOnly(s.migrationsUp))
 	mux.HandleFunc("/admin/migrations/down", s.adminOnly(s.migrationsDown))

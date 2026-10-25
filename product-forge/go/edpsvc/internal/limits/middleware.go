@@ -61,6 +61,9 @@ func (w *fallbackWriter) Flush() {
 	}
 }
 
+// Unwrap exposes the underlying writer to http.ResponseController.
+func (w *fallbackWriter) Unwrap() http.ResponseWriter { return w.ResponseWriter }
+
 // peekJSONTenant reads a bounded JSON body to attribute a POST to the tenant it targets, then restores it.
 func peekJSONTenant(r *http.Request) (string, error) {
 	ct := strings.ToLower(r.Header.Get("Content-Type"))
@@ -125,6 +128,9 @@ func (w *statusWriter) Flush() {
 		f.Flush()
 	}
 }
+
+// Unwrap exposes the underlying writer to http.ResponseController.
+func (w *statusWriter) Unwrap() http.ResponseWriter { return w.ResponseWriter }
 
 func requestIDMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -219,20 +225,16 @@ func quotaMiddleware(next http.Handler, q *Quota) http.Handler {
 			WriteError(w, r, http.StatusBadRequest, "X-Tenant-Id does not match the tenant query parameter")
 			return
 		}
-		bodyTenant, err := peekJSONTenant(r)
-		if err != nil {
-			WriteHandlerError(w, r, err)
-			return
-		}
-		if header != "" && bodyTenant != "" && header != bodyTenant {
-			WriteError(w, r, http.StatusBadRequest, "X-Tenant-Id does not match the body tenant")
-			return
-		}
 		tenant := header
 		if tenant == "" {
 			tenant = query
 		}
 		if tenant == "" {
+			bodyTenant, err := peekJSONTenant(r)
+			if err != nil {
+				WriteHandlerError(w, r, err)
+				return
+			}
 			tenant = bodyTenant
 		}
 		if tenant != "" && !ValidTenant(tenant) {

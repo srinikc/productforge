@@ -59,7 +59,6 @@ func TestWriteHandlerErrorMapping(t *testing.T) {
 		{&http.MaxBytesError{Limit: 1}, http.StatusRequestEntityTooLarge},
 		{context.DeadlineExceeded, http.StatusGatewayTimeout},
 		{context.Canceled, http.StatusGatewayTimeout},
-		{context.Canceled, http.StatusGatewayTimeout},
 	}
 	for _, tc := range cases {
 		rr := httptest.NewRecorder()

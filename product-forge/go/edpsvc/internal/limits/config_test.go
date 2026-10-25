@@ -93,3 +93,18 @@ func TestValidateProfileProduction(t *testing.T) {
 		t.Fatalf("dev profile must accept anon: %v", err)
 	}
 }
+
+func TestStrictBooleanAndGlobalRPM(t *testing.T) {
+	if _, err := Load(env(map[string]string{"PF_EDP_ENFORCE_LIMITS": "maybe"})); err == nil {
+		t.Fatal("an unknown enforcement flag must fail closed")
+	}
+	if _, err := Load(env(map[string]string{"PF_EDP_GLOBAL_RPM": "100", "PF_EDP_TENANT_RPM": "600"})); err == nil {
+		t.Fatal("global RPM below tenant RPM must be rejected")
+	}
+	c := DefaultConfig()
+	c.Profile = ProfileProduction
+	if err := ValidateProfile(c, env(map[string]string{"PF_ADMIN_TOKEN": strings.Repeat("a", 32),
+		"API_ALLOW_ANON": "maybe"})); err == nil {
+		t.Fatalf("an unknown dev-auth flag value must fail closed in production")
+	}
+}
