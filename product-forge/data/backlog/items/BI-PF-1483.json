@@ -38,6 +38,17 @@
       "seq": 2,
       "note": "HIL instruction: continue (flow-view wiring). Design approved with attention: fleet observability accepted as out of scope; flow view is read-only CLI.",
       "hil_confirmed": true
+    },
+    {
+      "at": "2026-10-25T09:26:25.189170+00:00",
+      "by": "hil:srinikc",
+      "decision": "APPROVE_WITH_ATTENTION",
+      "gate": 1,
+      "findings_sha": "cabf4e2957f8",
+      "findings_digest": "0a4950c606be",
+      "seq": 3,
+      "note": "HIL continue. Design re-review bound to current design; remaining hardening deferred to BI-PF-1484.",
+      "hil_confirmed": true
     }
   ],
   "follow_up": {},
@@ -277,7 +288,7 @@
     "usage": {}
   },
   "created_at": "2026-10-25T14:35:25.808300",
-  "updated_at": "2026-10-25T14:56:19.062319",
+  "updated_at": "2026-10-25T14:57:54.300417",
   "score": 0.75,
   "_note": "design + Gate 0",
   "api_impact": {
@@ -341,65 +352,57 @@
       }
     },
     "diff": {
-      "sig:eab48512c2997401": {
-        "status": "ACTIONED",
-        "note": "Verified: `import sys` is module-scope (line 15); the subprocess-exception test exercises the stderr path and passes."
-      },
-      "sig:66deddfbcb6c08d4": {
+      "sig:45e624e910049d67": {
         "status": "DEFERRED",
-        "note": "Follow-up BI-PF-1484: restrict blocked detection to REQUIRED_AT_COMPLETION pre-merge stages only."
+        "note": "Follow-up BI-PF-1484: read the structured review JSON + dispositions directly instead of regex-scraping the rendered gate table."
       },
-      "sig:3b71ff40fc68ca40": {
+      "sig:3dfdb91e719a34de": {
         "status": "DEFERRED",
-        "note": "Follow-up BI-PF-1484: require review_sha and render 'review sha missing' with no recommendation when absent."
+        "note": "Follow-up BI-PF-1484: cache the recommendation per (item, mode, sha) and add a --no-review escape hatch."
       },
-      "sig:54136382be427cd9": {
-        "status": "ACTIONED",
-        "note": "core/execution_trail.py is allowlisted control-plane Python (ADR-0010); language_rule_check: OK (0 new shipped Python violations)."
-      },
-      "sig:d1291536254e0a81": {
+      "sig:99f77a6a2c145b64": {
         "status": "DEFERRED",
-        "note": "Follow-up BI-PF-1484: add cached recommendation lookup and a --no-review escape hatch; 20s bound stays."
+        "note": "Follow-up BI-PF-1484: restore an explicit per-run history surface (or a --history section) alongside latest-per-stage; the raw events remain in the store."
       },
-      "sig:4b6bd08cab0ee6b6": {
+      "sig:f5e7fcaa2ab5309d": {
         "status": "DEFERRED",
-        "note": "Follow-up BI-PF-1484: mark a NOT READY review stage explicitly instead of [DONE]."
+        "note": "Follow-up BI-PF-1484: restrict blocked detection to REQUIRED_AT_COMPLETION pre-merge stages; post-merge failures are shown but not blocking."
       },
-      "sig:f1f2cbcb53cc0000": {
-        "status": "DEFERRED",
-        "note": "Follow-up BI-PF-1484: mark missing stages [MISSING] for a closed item and surface the count."
-      },
-      "sig:21f2d83a91c676f1": {
-        "status": "DEFERRED",
-        "note": "Follow-up BI-PF-1484: whitelist recommendations to APPROVE / APPROVE WITH ATTENTION / NOT READY."
-      },
-      "sig:ba1e251de9e90da0": {
+      "sig:22a79b094776e725": {
         "status": "ACCEPTED",
-        "note": "The key is rendered once from the code and documented; docs/code drift is a docs-fresh concern, accepted."
+        "note": "20s bound is deliberate for a CLI; a timeout renders an explicit cannot-render state. Large evidence is rare."
       },
-      "sig:b44f205f150434e7": {
-        "status": "DEFERRED",
-        "note": "Follow-up BI-PF-1484: render-level tests for ACCEPTED/DEFERRED/REJECTED/SCOPE and the DEFERRED follow-up rule."
-      },
-      "sig:f6943df27e35b431": {
-        "status": "ACTIONED",
-        "note": "No in-repo caller of _review_table (grep); the wrapper was removed."
-      },
-      "sig:bd83799eac6caea6": {
+      "sig:65787ecd1971ff9d": {
         "status": "ACCEPTED",
-        "note": "_box wraps the status at 14 chars; intentional compact table layout."
+        "note": "Status literals live in one module and the lifecycle doc; drift is covered by docs-fresh. Accepted."
       },
-      "sig:f41f3d2500097861": {
+      "sig:241b4fc9ef1b61b3": {
+        "status": "DEFERRED",
+        "note": "Follow-up BI-PF-1484: structured logging/counter for render degradation; stderr is the current signal."
+      },
+      "sig:9f1fc97c94fda63c": {
         "status": "ACCEPTED",
         "note": "Current stage appears in header, checklist and final table intentionally; one derived value."
       },
-      "sig:afd47550f02cd2ee": {
+      "sig:b516fae3609f0f55": {
         "status": "DEFERRED",
-        "note": "Follow-up BI-PF-1484: sort dict keys in _flow_rows for stable output."
+        "note": "Follow-up BI-PF-1484: end-to-end test for the diff recommendation and Runs count (current ordering test stubs _review_evidence)."
       },
-      "sig:1c8dc3a6d1d2b427": {
+      "sig:6c0f77ea237c6cf3": {
         "status": "DEFERRED",
-        "note": "Follow-up BI-PF-1484: mark missing stages [MISSING] on a complete item so the checklist does not look blank."
+        "note": "Follow-up BI-PF-1484: whitelist recommendations to the three documented values; the current parser is permissive."
+      },
+      "sig:206bb92c5b1d1aad": {
+        "status": "ACTIONED",
+        "note": "Verified config/id-blocks.json claims 1483 and 1484 (reserved_up_to=1484); both items exist."
+      },
+      "sig:9ada9aa7b599f8b5": {
+        "status": "ACCEPTED",
+        "note": "Dict insertion order is stable on the supported Python; _flow_rows preserves it."
+      },
+      "sig:79c99e93a346a157": {
+        "status": "DEFERRED",
+        "note": "Follow-up BI-PF-1484: do not report complete for a closed item with missing required stages; mark [MISSING]."
       }
     }
   }
