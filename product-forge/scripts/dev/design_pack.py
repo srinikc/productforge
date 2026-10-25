@@ -27,17 +27,27 @@ def _cfg() -> dict:
         raise RuntimeError(f"cannot read design-pack config: {e}")
 
 
+def _parse_date(value) -> date | None:
+    v = str(value or "")
+    if not v:
+        return None
+    try:
+        return datetime.fromisoformat(v).date()
+    except ValueError:
+        return date.fromisoformat(v)
+
+
 def should_enforce(item: dict, cfg: dict) -> bool:
     if str(item.get("id") or "") in (cfg.get("enforce_items") or []):
         return True
-    created = str(item.get("created_at") or "")[:10]
-    enforce = str(cfg.get("enforce_from") or "")[:10]
-    if not created or not enforce:
-        return False
     try:
-        return date.fromisoformat(created) >= date.fromisoformat(enforce)
+        created = _parse_date(item.get("created_at"))
+        enforce = _parse_date(cfg.get("enforce_from"))
     except ValueError:
         return False
+    if not created or not enforce:
+        return False
+    return created >= enforce
 
 
 def _date_problems(item: dict, cfg: dict) -> list[str]:
@@ -51,8 +61,7 @@ def _date_problems(item: dict, cfg: dict) -> list[str]:
     for label, value in (("created_at", created), ("enforce_from", enforce)):
         if value:
             try:
-                from datetime import date
-                date.fromisoformat(value[:10])
+                _parse_date(value)
             except ValueError:
                 bad.append(f"{label} invalid: {value!r}")
     return bad

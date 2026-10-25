@@ -61,3 +61,5 @@ def test_evaluate_flags_invalid_and_missing_created_at(monkeypatch):
     assert any("created_at invalid" in p for p in d.evaluate("BI-PF-9999"))
     item["created_at"] = ""
     assert "created_at missing" in d.evaluate("BI-PF-9999")
+    item["created_at"] = "2026-10-05T25"
+    assert any("created_at invalid" in p for p in d.evaluate("BI-PF-9999"))
