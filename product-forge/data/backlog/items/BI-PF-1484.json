@@ -466,7 +466,7 @@
     "usage": {}
   },
   "created_at": "2026-10-25T14:50:28.634469",
-  "updated_at": "2026-10-25T23:34:33.354235",
+  "updated_at": "2026-10-25T23:40:50.817244",
   "score": 0.75,
   "_note": "final report persisted (BI-PF-1484)",
   "api_impact": {
@@ -1877,7 +1877,7 @@
       {
         "ac": "AC-4",
         "kind": "unit",
-        "test": "test_execution_trail.py"
+        "test": "test_execution_trail.py (show render/dispositions)"
       },
       {
         "ac": "AC-5",
@@ -1888,6 +1888,25 @@
     "decisions": [
       "No accepted (HIL 2026-10-25)",
       "NIT-only deferred with approval"
-    ]
+    ],
+    "guardrails": [
+      "1 Reversibility: revert commits; item fields inert; no migration.",
+      "2 Availability: CLI/gates only; no runtime path.",
+      "3 Authz/RLS: no tenant data; tooling reads item/trail; N/A.",
+      "4 Blast radius: packaging/gates; no runtime API/DB changes.",
+      "5 Invariants: no ACCEPTED; NIT-only DEFERRED with HIL; AC PASS + final report required.",
+      "6 Tests/rollback: disposition/finalize/trail tests; rollback by revert.",
+      "7 Language rule: core/execution_trail.py allowlisted (ADR-0010); scripts/dev tooling.",
+      "8 API: needs_api=false; no route.",
+      "9 Tenant isolation: N/A; no tenant rows.",
+      "10 Reuse/observability: one backlog writer; one disposition policy; trail/final report."
+    ],
+    "verifier_role": "AC verification must be recorded by a verifier distinct from the implementer role; HIL/agent evidence includes command/result. The gate checks result/evidence presence; independent verification is the HIL Gate 2 review.",
+    "hil_binding": "DISPOSITION_APPROVAL decisions include hil_confirmed, by=hil:*, mode, finding sigs and timestamp. They are item-ledger records; the reviewer tool never writes them. Tamper evidence is the append-only item decision ledger + HIL review.",
+    "grandfather": "Completion guards apply to items completing after the enforcement revision; existing completed items are exempt. The discriminator is the item completion timestamp vs the enforcement revision, not age alone.",
+    "report_staleness": "final_report stores ac_hash over acs+dispositions; completion_gaps recomputes and fails FINAL_REPORT_STALE on mismatch. Tests mutate ACs/dispositions to prove invalidation.",
+    "cost_source": "Provider-reported cost wins; otherwise computed from model pricing (input/cached/output). No source -> unavailable. Totals reconcile to per-gate rows.",
+    "single_writer": "core.backlog owns item.ac_verification/final_report/review_dispositions writes; finalize_item calls backlog.update; gates are read-only. No gate writes these fields.",
+    "language_rule": "New gating logic lives in scripts/dev tooling; the only shipped edit is allowlisted core/execution_trail.py (ADR-0010). language_rule_check passes."
   }
 }
