@@ -13,8 +13,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-for p in (ROOT, ROOT / "scripts" / "dev"):
-    if str(p) not in sys.path:
+for p in (str(ROOT), str(ROOT / "scripts" / "dev")):
+    if p not in sys.path:
         sys.path.insert(0, p)
 
 from core import backlog, execution_trail as tr  # noqa: E402
