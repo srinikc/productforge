@@ -10,7 +10,7 @@
   "title": "EDP-12: Generated-product residency manifest (data_classes/home_region/allowed_regions/backup/kms/egress/retention) + build/deploy gate",
   "body": "Part of EPIC BI-PF-1292. Source: docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md. Phase item (see epic). Language rule L1 = Go; must pass scripts/dev/language_rule_review.py.",
   "source": "review",
-  "status": "new",
+  "status": "in_progress",
   "priority": "P1",
   "moscow": "Must",
   "value": 3,
@@ -43,52 +43,138 @@
     "who_feels": "Enterprise customers and compliance reviewers",
     "source": "authored"
   },
-  "objective": "Generate a per-product residency manifest (data_classes, home_region, allowed_regions, backup, kms, egress, retention) and enforce it via a build/deploy gate in Go (language rule L1).",
+  "objective": "Emit a per-product residency manifest with data_classes/home_region/allowed_regions/backup/kms/egress/retention and enforce it with a Go build/deploy validator against the counsel-owned residency profiles, blocking by default.",
   "acceptance_criteria": [
-    "Packaging build emits residency manifest with all six field groups populated",
-    "Deploy gate fails (or warns per config) when manifest violates allowed_regions/retention policy",
-    "scripts/dev/language_rule_review.py passes for all Go code"
+    "core/packaging.build emits a residency section with all six groups populated: data_classes (non-empty), home_region, allowed_regions (non-empty, includes home_region), backup {regions, encrypted, frequency}, kms {provider, region, rotation_days}, egress {allowed_regions, subprocessors}, retention {days, legal_hold}; core.packaging.validate rejects a manifest without a valid residency section.",
+    "A Go module go/residencymanifest (Manifest/Policy/Validate) + cmd/pfresidency validates a manifest against the home-region profile in config/residency-profiles/<home>.json: unknown home -> fail closed; home in allowed_regions; backup/kms/egress regions subset of allowed_regions; retention.days > 0 and <= policy.retention_days when the policy sets one; all six groups present; block/warn mode and JSON report with stable error codes.",
+    "scripts/dev/residency_gate.py is the build/deploy gate: it builds/loads the packaging manifest, invokes the Go validator, and blocks (exit 1) or warns per config/residency-policy.json gate_mode (default block); wired into precheck (packaging area) and documented for the deploy step; --report is non-fatal.",
+    "Tests cover the Go validator (valid, unknown region, home not allowed, backup/kms/egress outside allowed, zero/over retention, missing groups) and the Python manifest/gate (six groups, validate rejects missing, block/warn exit codes); language_rule_review passes; precheck (45+ gates) passes."
   ],
   "in_scope": [
-    "Residency manifest schema + generation",
-    "Go build/deploy gate check"
+    "core/packaging.py residency section + validation",
+    "config/residency-manifest.json + gate_mode in config/residency-policy.json",
+    "go/residencymanifest (Manifest/Policy/Validate) + cmd/pfresidency",
+    "scripts/dev/residency_gate.py + precheck/ci-cd-gates wiring",
+    "tests + docs"
   ],
   "out_of_scope": [
-    "Provider adapter implementation (BI-PF-1306)",
-    "Lifecycle enforcement runtime (BI-PF-1308)"
+    "Provider adapter region/KMS capabilities (BI-PF-1306).",
+    "Runtime lifecycle enforcement (BI-PF-1308).",
+    "A new API route (the existing /packaging/manifest exposes it)."
   ],
   "affected_components": [
-    "core/qa_manifest.py",
-    "core/run_manifest.py",
-    "core/build_manager.py"
+    "packaging manifest/build",
+    "residency Go validator",
+    "precheck/deploy gate"
   ],
   "affected_files": [
-    "core/qa_manifest.py",
-    "core/run_manifest.py",
-    "config/file-manifest.json",
-    "gate/residency_check.go"
+    "core/packaging.py",
+    "config/residency-manifest.json",
+    "config/residency-policy.json",
+    "go/residencymanifest/go.mod",
+    "go/residencymanifest/manifest.go",
+    "go/residencymanifest/manifest_test.go",
+    "go/residencymanifest/cmd/pfresidency/main.go",
+    "scripts/dev/residency_gate.py",
+    "scripts/dev/precheck.py",
+    "config/ci-cd-gates.json",
+    "test-framework/tests/test_packaging_residency.py",
+    "docs/EDP-RESIDENCY-MANIFEST.md"
   ],
-  "approach": "Extend existing manifest builders, add Go validation step to packaging build.",
+  "approach": "Extend core/packaging.build/validate with an embedded residency section sourced from config/residency-manifest.json + config/residency-profiles/<home>.json. Add go/residencymanifest (Manifest/Policy/Validate + cmd/pfresidency CLI) with fail-closed region/retention/egress checks and block/warn modes. Add scripts/dev/residency_gate.py as the build/deploy gate (builds/loads the manifest, invokes the Go validator, block|warn) and wire it into precheck for packaging changes. Tests: Go validator table tests + Python packaging/gate tests; docs the deploy gate and config knobs.",
   "review": {
     "reconciliation": {
-      "prior_decisions": [],
-      "existing_path": [],
-      "assumptions": [],
-      "divergences": [],
-      "open_questions": []
+      "prior_decisions": [
+        "EDP-05/BI-PF-1297: config/residency-profiles/*.json are the counsel-owned, versioned policies; config/residency-policy.json is the region-cell registry/default (local).",
+        "EDP-11/BI-PF-1303: RegionCell attestations + PolicyEvaluator decide cross-border transfers; the registry owns policies, the evaluator owns decisions (fail-closed).",
+        "EDP-16/BI-PF-1308: retention/lifecycle and object reconciliation; the residency manifest's retention/backup fields must align with it, not duplicate enforcement.",
+        "EDP-02/BI-PF-1294 + packaging: core/packaging.py owns packaging-manifest.json; extend it, do not create a second manifest store.",
+        "Language rule: new shipped logic -> Go; editing shipped Python is allowed."
+      ],
+      "existing_path": [
+        "core/packaging.py: build/validate/write/load -> packaging-manifest.json (single writer).",
+        "config/residency-profiles/in-v1.json (IN, restricted, allowed IN) and us-v1.json (US, conditioned, allowed US); config/residency-policy.json {cells:{},default:local}.",
+        "go/edpsvc/internal/residency: Policy/PolicyEvaluator/RegionCell/RegionResolver; internal, not importable by a standalone gate.",
+        "precheck._GATES + config/ci-cd-gates.json; no deploy pipeline script in-repo yet."
+      ],
+      "assumptions": [
+        "Default home_region is US (us-v1) and is overridable via config/residency-manifest.json; no project config carries a region today.",
+        "Default data classes: product_metadata, generated_source, build_evidence (no tenant PII by default).",
+        "Default retention is 365 days; backup daily; KMS provider local/US rotation 90d; egress is empty (no cross-border subprocessors).",
+        "The gate defaults to block; warn is an explicit config mode. The manifest is an embedded residency section in packaging-manifest.json.",
+        "A standalone Go module is used for the gate because go/edpsvc/internal/residency is internal and the gate must run at packaging/deploy without the edpsvc."
+      ],
+      "divergences": [
+        "The stale analysis suggested gate/residency_check.go and extending run_manifest.py; the current owner is core/packaging.py and a Go module go/residencymanifest.",
+        "A second Go residency type set exists (internal edpsvc vs standalone gate); the gate is deliberately standalone and reuses the policy files, not the internal package."
+      ],
+      "open_questions": [
+        "Confirm default home_region=US (us-v1), data classes, retention=365d, backup daily, KMS local/US/90d, egress empty.",
+        "Confirm gate_mode=block by default (warn is opt-in) and that the manifest is embedded in packaging-manifest.json.",
+        "Confirm the standalone Go module go/residencymanifest is acceptable rather than moving the internal edpsvc evaluator."
+      ]
     },
-    "impact_review": [],
-    "reviewed_by": "derived",
+    "impact_review": [
+      {
+        "claim": "API CHECK",
+        "verdict": "aligned",
+        "evidence": "No new HTTP surface: the existing GET /packaging/manifest exposes the embedded residency section; a build/deploy CLI validates it.",
+        "recommendation": "needs_api=false"
+      },
+      {
+        "claim": "AC coverage",
+        "verdict": "aligned",
+        "evidence": [
+          "core/packaging.build emits a residency section with all six groups populated: data_classes (non-empty), home_region, allowed_regions (non-empty, includes home_region), backup {regions, encrypted, frequency}, kms {provider, region, rotation_days}, egress {allowed_regions, subprocessors}, retention {days, legal_hold}; core.packaging.validate rejects a manifest without a valid residency section.",
+          "A Go module go/residencymanifest (Manifest/Policy/Validate) + cmd/pfresidency validates a manifest against the home-region profile in config/residency-profiles/<home>.json: unknown home -> fail closed; home in allowed_regions; backup/kms/egress regions subset of allowed_regions; retention.days > 0 and <= policy.retention_days when the policy sets one; all six groups present; block/warn mode and JSON report with stable error codes.",
+          "scripts/dev/residency_gate.py is the build/deploy gate: it builds/loads the packaging manifest, invokes the Go validator, and blocks (exit 1) or warns per config/residency-policy.json gate_mode (default block); wired into precheck (packaging area) and documented for the deploy step; --report is non-fatal.",
+          "Tests cover the Go validator (valid, unknown region, home not allowed, backup/kms/egress outside allowed, zero/over retention, missing groups) and the Python manifest/gate (six groups, validate rejects missing, block/warn exit codes); language_rule_review passes; precheck (45+ gates) passes."
+        ],
+        "recommendation": "approve"
+      },
+      {
+        "claim": "language",
+        "verdict": "aligned",
+        "evidence": "New validator/CLI in Go (go/residencymanifest); Python edits to core/packaging.py + a tooling gate script; language_rule_review BI-PF-1304 = OK.",
+        "recommendation": "Go"
+      },
+      {
+        "claim": "reuse",
+        "verdict": "aligned",
+        "evidence": "Reuses config/residency-profiles policies and core/packaging.py's manifest instead of a new store; the internal evaluator is not imported (internal).",
+        "recommendation": "approve"
+      },
+      {
+        "claim": "tenant/data isolation",
+        "verdict": "aligned",
+        "evidence": "Manifest is product-level metadata (no tenant rows); allowed/backup/kms/egress regions are validated against the home policy; no cross-border egress by default.",
+        "recommendation": "approve"
+      },
+      {
+        "claim": "alignment with EDP-16",
+        "verdict": "aligned",
+        "evidence": "Retention/backup are declared and checked for policy bounds; enforcement remains EDP-16/lifecycle.",
+        "recommendation": "approve"
+      },
+      {
+        "claim": "blast radius",
+        "verdict": "aligned",
+        "evidence": "Packaging build/validate + a precheck gate; block is configurable to warn; rollback is a revert; no schema/data change.",
+        "recommendation": "approve"
+      }
+    ],
+    "reviewed_by": "agent",
     "at": ""
   },
   "verification": [
     "Build emits manifest; gate blocks bad fixture; language rule review passes"
   ],
   "risks": [
-    "Go gate must satisfy language rule L1 review",
-    "Region/KMS field values depend on provider adapters (BI-PF-1306)"
+    "Default home region/data classes/retention are product decisions; Gate 1 confirmation is required.",
+    "The standalone Go types duplicate the internal edpsvc residency types; they are gate-specific and policy-file compatible.",
+    "Block-mode gate may stop packaging for a policy violation; warn mode is the explicit opt-in."
   ],
-  "rollback": "Disable gate via config flag; manifests remain informational.",
+  "rollback": "Set config/residency-policy.json gate_mode=warn or revert the commit; manifests remain informational.",
   "evidence": [
     "Existing manifest APIs /api/v1/packaging/manifest and /api/v1/evidence/manifest/{run_id}"
   ],
@@ -228,13 +314,17 @@
     "usage": {}
   },
   "created_at": "2026-10-13T16:02:45.510577",
-  "updated_at": "2026-10-15T19:52:04.191769",
+  "updated_at": "2026-10-25T14:21:25.451981",
   "score": 0.75,
   "source_ref": "docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md",
   "_note": "dependencies set",
   "api_impact": {
     "needs_api": false,
-    "reason": "retrofit assessment (ADR-0007): no external API consumer recorded; treated as internal until an API surface is required (then set needs_api=true with routes)",
-    "routes": []
-  }
+    "routes": [],
+    "consumers": [
+      "GET /packaging/manifest (existing)"
+    ],
+    "reason": "The residency section is part of the existing packaging manifest; the gate is a CLI/deploy step."
+  },
+  "language_rule": "Go for the validator/CLI (go/residencymanifest); edits to core/packaging.py + scripts/dev tooling are allowed; language_rule_review BI-PF-1304 = OK."
 }
