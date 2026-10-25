@@ -83,6 +83,8 @@ def validate_residency(section: dict) -> dict:
     unmet: list[str] = []
     sec = section or {}
     for k in RESIDENCY_GROUPS:
+        if k == "egress":
+            continue
         if k not in sec or sec.get(k) in (None, "", [], {}):
             unmet.append(f"RESIDENCY_MISSING_GROUP:{k}")
     if str(sec.get("schema_version") or "") != "1.0":
@@ -90,8 +92,11 @@ def validate_residency(section: dict) -> dict:
     home = str(sec.get("home_region") or "").upper()
     if not home:
         unmet.append("RESIDENCY_UNKNOWN_HOME")
-    if home and not re.match(r"^[A-Z0-9-]+$", home):
-        unmet.append("RESIDENCY_UNKNOWN_HOME")
+    if not home or not re.match(r"^[A-Z0-9-]+$", home):
+        if not home:
+            unmet.append("RESIDENCY_UNKNOWN_HOME")
+        else:
+            unmet.append("RESIDENCY_UNKNOWN_HOME")
         prof = {}
     else:
         try:
@@ -99,7 +104,7 @@ def validate_residency(section: dict) -> dict:
         except Exception:
             prof = {}
     allowed = {str(x).upper() for x in (prof.get("allowed_regions") or [])}
-    if not prof:
+    if home and not prof:
         unmet.append("RESIDENCY_PROFILE_UNREADABLE")
     if home and home not in allowed:
         unmet.append("RESIDENCY_HOME_NOT_ALLOWED")

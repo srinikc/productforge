@@ -1,0 +1,24 @@
+﻿{
+  "base": {
+    "schema_version": "1.0",
+    "data_classes": ["product_metadata"],
+    "home_region": "IN",
+    "allowed_regions": ["IN"],
+    "backup": {"regions": ["IN"], "encrypted": true, "frequency": "daily"},
+    "kms": {"provider": "local", "region": "IN", "rotation_days": 90},
+    "egress": {"allowed_regions": [], "subprocessors": []},
+    "retention": {"days": 365, "legal_hold": false}
+  },
+  "cases": [
+    {"name": "valid", "valid": true},
+    {"name": "unknown_home", "patch": {"home_region": "XX"}, "valid": false},
+    {"name": "region_widening", "patch": {"allowed_regions": ["IN", "US"]}, "valid": false},
+    {"name": "missing_data_classes", "patch": {"data_classes": []}, "valid": false},
+    {"name": "schema_version", "patch": {"schema_version": "2.0"}, "valid": false},
+    {"name": "backup_unencrypted", "patch": {"backup": {"regions": ["IN"], "encrypted": false, "frequency": "daily"}}, "valid": false},
+    {"name": "kms_rotation", "patch": {"kms": {"provider": "local", "region": "IN", "rotation_days": 0}}, "valid": false},
+    {"name": "unknown_frequency", "patch": {"backup": {"regions": ["IN"], "encrypted": true, "frequency": "sometimes"}}, "valid": false},
+    {"name": "retention_zero", "patch": {"retention": {"days": 0, "legal_hold": false}}, "valid": false},
+    {"name": "egress_outside", "patch": {"egress": {"allowed_regions": ["US"], "subprocessors": []}}, "valid": false}
+  ]
+}

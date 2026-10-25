@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 
 	"productforge/residencymanifest"
 )
@@ -26,8 +27,14 @@ func main() {
 	}
 	p, err := residencymanifest.LoadProfile(*profileDir, m.HomeRegion)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(2)
+		code := "RESIDENCY_PROFILE_UNREADABLE"
+		if strings.Contains(err.Error(), "RESIDENCY_UNKNOWN_HOME") {
+			code = "RESIDENCY_UNKNOWN_HOME"
+		}
+		b, _ := json.Marshal(map[string]any{"ok": false, "mode": *mode, "home_region": m.HomeRegion,
+			"report_version": 1, "errors": []string{code}})
+		fmt.Println(string(b))
+		os.Exit(1)
 	}
 	errs := residencymanifest.Validate(m, p)
 	out := map[string]any{"ok": len(errs) == 0, "mode": *mode, "home_region": m.HomeRegion,

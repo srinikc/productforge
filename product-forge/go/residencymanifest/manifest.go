@@ -1,6 +1,7 @@
 package residencymanifest
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -62,6 +63,7 @@ func LoadManifest(path string) (Manifest, error) {
 	if err != nil {
 		return m, fmt.Errorf("RESIDENCY_MANIFEST_UNREADABLE: %w", err)
 	}
+	b = bytes.TrimPrefix(b, []byte{0xEF, 0xBB, 0xBF})
 	if err := json.Unmarshal(b, &m); err != nil {
 		return m, fmt.Errorf("RESIDENCY_MANIFEST_INVALID: %w", err)
 	}
@@ -83,6 +85,7 @@ func LoadProfile(dir, home string) (Profile, error) {
 	if err != nil {
 		return p, fmt.Errorf("RESIDENCY_PROFILE_UNREADABLE: %w", err)
 	}
+	b = bytes.TrimPrefix(b, []byte{0xEF, 0xBB, 0xBF})
 	if err := json.Unmarshal(b, &p); err != nil {
 		return p, fmt.Errorf("RESIDENCY_PROFILE_UNREADABLE: %w", err)
 	}

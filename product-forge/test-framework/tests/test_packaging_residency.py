@@ -84,3 +84,11 @@ def test_gate_block_and_warn_exit_codes(tmp_path):
     cmd[cmd.index("block")] = "warn"
     r = subprocess.run(cmd, capture_output=True, text=True, timeout=180, env=env)
     assert r.returncode == 0 and "WARN" in r.stderr
+
+def test_product_override_precedence(tmp_path, monkeypatch):
+    monkeypatch.setattr(packaging, "PRODUCTS_DIR", tmp_path)
+    d = tmp_path / "proj"
+    d.mkdir()
+    man = {"home_region": "IN"}
+    (d / "residency-manifest.json").write_text(json.dumps(man), encoding="utf-8")
+    assert packaging.residency_path("product_forge", "proj") == str(d / "residency-manifest.json")

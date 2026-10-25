@@ -30,8 +30,9 @@ def _policy() -> dict:
         with open(POLICY, encoding="utf-8-sig") as f:
             d = json.load(f)
         return d if isinstance(d, dict) else {}
-    except Exception:
-        return {}
+    except Exception as e:
+        print(f"residency: BLOCK policy unreadable: {e}", file=sys.stderr)
+        return {"gate_mode": "block", "_error": "RESIDENCY_POLICY_UNREADABLE"}
 
 
 def _event(rec: dict) -> None:
@@ -39,11 +40,11 @@ def _event(rec: dict) -> None:
         ROOT.joinpath("engineering").mkdir(parents=True, exist_ok=True)
         EVENT.write_text(json.dumps(rec, indent=2) + "\n", encoding="utf-8")
         if JSONL.exists() and JSONL.stat().st_size > MAX_JSONL:
+            JSONL.with_suffix(".jsonl.3").unlink(missing_ok=True)
             for i in (2, 1):
                 old, new = JSONL.with_suffix(f".jsonl.{i}"), JSONL.with_suffix(f".jsonl.{i + 1}")
                 if old.exists():
                     os.replace(old, new)
-            JSONL.with_suffix(".jsonl.3").unlink(missing_ok=True)
             os.replace(JSONL, JSONL.with_suffix(".jsonl.1"))
         with open(JSONL, "a", encoding="utf-8") as f:
             f.write(json.dumps(rec) + "\n")
@@ -66,30 +67,33 @@ def main(argv: list[str] | None = None) -> int:
     policy = _policy()
     mode = a.mode or str(policy.get("gate_mode") or "warn")
     expires = str(policy.get("gate_mode_expires") or "")
+    mode_original = mode
     if mode == "warn" and expires:
         try:
             from datetime import date
             if date.fromisoformat(expires) < date.today():
                 mode = "block"
         except ValueError:
-            pass
+            mode = "block"
     rec = {"at": datetime.now(timezone.utc).isoformat(), "scope": a.scope, "project": a.project,
-           "manifest": str(manifest), "gate_mode": mode, "report_version": 1}
+           "manifest": str(manifest), "gate_mode": mode, "gate_mode_original": mode_original,
+           "report_version": 1, "gate_mode_escalated": mode != mode_original}
     try:
         try:
             with open(manifest, encoding="utf-8-sig") as f:
                 py = {"validation": packaging.validate_residency(json.load(f))}
         except Exception as e:
-            py = {"validation": {"valid": False, "unmet": [f"RESIDENCY_MANIFEST_UNREADABLE:{e}"]}}
+            py = {"validation": {"valid": False, "unmet": ["RESIDENCY_MANIFEST_UNREADABLE"]}}
         gomod = ROOT / "go" / "residencymanifest"
         cmd = ["go", "run", "./cmd/pfresidency", "--manifest", str(manifest),
                "--profiles", profiles, "--mode", mode, "--report"]
         r = subprocess.run(cmd, cwd=str(gomod), capture_output=True, text=True, timeout=120)
     except Exception as e:
         rec.update({"ok": False, "execution_error": str(e), "errors": ["RESIDENCY_VALIDATOR_UNAVAILABLE"]})
+        _report(rec, a.report)
         _event(rec)
         print(f"residency: BLOCK validator unavailable: {e}", file=sys.stderr)
-        return 0 if a.report else 2
+        return 2
     out = (r.stdout or "").strip().splitlines()
     try:
         go = json.loads(out[-1]) if out else {}
@@ -101,7 +105,7 @@ def main(argv: list[str] | None = None) -> int:
         _report(rec, a.report)
         _event(rec)
         print(f"residency: BLOCK validator returned no JSON: {r.stderr.strip()}", file=sys.stderr)
-        return 0 if a.report else 2
+        return 2
     py_valid = bool((py.get("validation") or {}).get("valid"))
     go_valid = bool(go.get("ok"))
     parity = py_valid == go_valid
@@ -112,7 +116,7 @@ def main(argv: list[str] | None = None) -> int:
     _event(rec)
     if r.returncode == 2 or not parity:
         print(f"residency: BLOCK execution/parity failure: {errors or r.stderr.strip()}", file=sys.stderr)
-        return 0 if a.report else 2
+        return 2
     if not go_valid:
         hard = {"RESIDENCY_UNKNOWN_HOME", "RESIDENCY_PROFILE_UNREADABLE", "RESIDENCY_SCHEMA_VERSION"}
         if mode == "warn" and not (set(errors) & hard):
@@ -125,7 +129,7 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def _report(rec: dict, force: bool) -> None:
-    if force or not rec.get("ok"):
+    if force:
         print(json.dumps(rec, indent=2))
 
 
