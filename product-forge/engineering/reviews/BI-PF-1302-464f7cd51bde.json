@@ -1,0 +1,41 @@
+{
+  "item": "BI-PF-1302",
+  "sha": "464f7cd51bde",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-25T04:58:14.105784+00:00",
+  "findings": {
+    "BLOCKER": [
+      "main.go calls `store.OpenWithPool(...)`, `store.PoolOptions` and `(*PgStore).Stats()`, but this change set contains no `product-forge/go/store` edits; if those APIs are not already shipped, the build and `go test ./...` fail and the AC is unmet \u2014 include the store-side change or prove it pre-exists."
+    ],
+    "MAJOR": [
+      "Shutdown drains for `max(30s, WriteTimeout)` = 180s, not the AC's 30s; docs \u00a710 and the acceptance criteria now disagree on the drain budget (who may SIGKILL when, when the pool closes).",
+      "`auditCoverage` is the only handler whose context-setup line is untouched; if it still derives from `context.Background()`, client disconnect/deadline does not cancel its coverage DB read (AC: every handler uses r.Context()/dbCtx).",
+      "Quota slots are acquired before the body is read and Go body reads are not context-aware; an unauthenticated slow-body client (quota runs before auth) can pin all 10 global slots for up to ReadTimeout (180s), turning the anti-evasion control into an availability surface.",
+      "Effective defaults now exist in three unsynchronised places (`config/env-flags.json`, `limits.DefaultConfig()`, docs \u00a710) with no test asserting they agree \u2014 drift silently ships wrong production limits."
+    ],
+    "MINOR": [
+      "`/artifacts/` (download) is not classified as upload: it gets the 30s JSON timeout (large artifact downloads can 504) and is metered under `class=\"json\"`, skewing the 413/429/504-per-class metrics.",
+      "`/metrics` is blocked by the role gate, so counters/pool saturation become unobservable exactly when the service fails closed.",
+      "`/metrics` exposes histograms, contradicting the AC's \"counters only\"; docs describe histograms instead \u2014 AC vs shipped contract diverge.",
+      "`Metrics.Write` holds the registry mutex across the client write; a slow admin scraper stalls every request-path `Inc`.",
+      "`refill()` re-anchors `last` backwards on a backwards clock, so the next forward call mints tokens for the rewound interval (over-admission after an NTP step).",
+      "Tenant eviction scans at most 64 map entries per admission; when those are active/recent, requests get 429 `tenant_cap` even though evictable buckets exist beyond the scan window.",
+      "`s.fail` collapses all 4xx to `safeStatusMessage`, so specific messages such as `errTenant` (\"tenant query parameter is required\") reach clients as \"invalid request\".",
+      "`config/env-flags.json` is wholly re-indented (168\u2192490 lines) in this change: ~40 real new flags are buried in pure churn and formatting-tool conflicts become likely.",
+      "Per-request upload buffering (up to 64 MiB in `ParseMultipartForm` plus a full `io.ReadAll` copy) \u00d7 global concurrency 10 \u2248 1.3 GiB transient; pre-existing pattern, now codified as the supported limit."
+    ],
+    "NIT": [
+      "`failures` in `RoleGuard.RecheckLoop` is incremented/reset but never read by any decision or metric.",
+      "`server.dsn` and `withStore`'s unused `ctx` parameter are dead after the shared-pool change.",
+      "Weak-token list only matches the whole token, so a \u226524-char variant of a known weak value passes (length is effectively the only production gate).",
+      "`fallbackWriter` re-enters `WriteError` for 404/405 (second encode whose body is discarded) \u2014 correct today, fragile for future middleware."
+    ],
+    "SUMMARY": [
+      "Solid, well-tested guardrail package: envelopes, quotas with injected clock, fail-closed profile/role checks and shared-pool usage are largely in line with the AC.",
+      "Top risks: an unresolved dependency on store-side APIs not present in this diff, AC drift on the shutdown drain and metrics contract, and a quota slot held during non-cancellable body reads.",
+      "Recommend resolving the store question, reconciling AC/docs/implementation defaults, and adding a drift test before merge."
+    ]
+  }
+}

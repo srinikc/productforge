@@ -1,0 +1,40 @@
+{
+  "item": "BI-PF-1302",
+  "sha": "8f35729011ec",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-25T05:36:18.603399+00:00",
+  "findings": {
+    "BLOCKER": [
+      "`auditCoverage` still derives its context from `context.Background()` (that hunk is untouched; only `readCoverage` call site changed), so client cancellation/deadline never reaches the DB read \u2014 a direct miss of the \"every handler uses r.Context()/dbCtx\" acceptance criterion.",
+      "`withStore` now ignores its `context.Context` parameter (`_ context.Context`) and handlers rely on closures capturing `ctx`; any future caller passing only the ctx (as the old signature implied) silently gets no cancellation \u2014 the safety rail that motivated the AC is removed rather than enforced."
+    ],
+    "MAJOR": [
+      "`store.BindTenant(s.st, tenant)` now shares one pooled handle across tenants. If `BindTenant` sets tenant via session-level state (GUC/`SET`) rather than per-query, this is a cross-tenant data-leak. This must be verified against `store` before merge; the diff gives no evidence it is per-query.",
+      "`AcquireTenant` consumes the tenant rate token *before* acquiring the global semaphore; a global-concurrency denial returns without refunding the tenant token, so one noisy tenant's saturation permanently burns other tenants' rate budget (double-charge, unfair 429s).",
+      "`RoleGuard.Fail()` on any transient DB error (network blip, failover) closes the gate for up to `PF_EDP_ROLE_RECHECK` (5m) with no fast retry/backoff \u2014 a single ping failure turns into a 5-minute full outage of every non-exempt route.",
+      "`/ready` only pings the DB and ignores `RoleGuard.OK()`; while the role gate 503s all traffic, readiness stays green, so orchestrators/load balancers keep routing into a dead service.",
+      "Tenant attribution diverges from the tenant actually mutated: quota keys on `X-Tenant-Id`/`?tenant`, but `/audit`, `/jobs/*`, `/memory/*`, `/backlog/*` trust the body's `Tenant` field with no `ValidTenant` check and no cross-check against the attributed tenant \u2014 per-tenant attribution is evadable and unvalidated tenant strings reach SQL paths.",
+      "`main_test.go` exercises `buildMux()` bare or with a partial chain; production wiring is `Chain(EnvelopeFallback(mux), ..., s.authorize)`. The 404/405-fallback + auth + quota interaction that ships is never tested end-to-end in the service package."
+    ],
+    "MINOR": [
+      "`s.fail` collapses every 4xx to `safeStatusMessage`, so callers that pass meaningful errors (e.g. `errTenant` \"tenant query parameter is required\") return \"invalid request\" \u2014 diagnosability regression for clients.",
+      "`/metrics` emits duration histograms although the AC specifies \"counters only\"; the doc was amended to match the code rather than the AC.",
+      "`peekJSONTenant` replaces the `http.MaxBytesReader`-wrapped body with a plain `io.NopCloser`, dropping MaxBytesReader's connection-abort behavior (size is still bounded by the earlier read).",
+      "`TestEnvFlagDefaultsMatch` calls `t.Skip` when `config/env-flags.json` is unreachable \u2014 the registry/code default drift guard can silently no-op in CI.",
+      "`recoverMiddleware` logs panics with method/path but no request id, breaking correlation of 500s with `X-Request-ID`.",
+      "The diff re-indents all ~160 pre-existing lines of `config/env-flags.json`, burying the ~40 new flags in churn and defeating meaningful review of the registry.",
+      "Error envelope carries a top-level `\"version\"` field beyond the AC's literal `{\"error\":{...}}` schema; documented, but it is now a permanent compatibility commitment."
+    ],
+    "NIT": [
+      "`Quota.Acquire` (single-call convenience) is dead code; the middleware uses the split `AcquireGlobal`/`AcquireTenant` path.",
+      "`RecheckLoop` hardcodes a 10s check timeout instead of reusing `cfg.DBTimeout`.",
+      "`log.Fatalf` inside the `ListenAndServe` goroutine bypasses graceful drain and `st.Close()`.",
+      "`statusWriter`/`fallbackWriter` implement `Flush`/`Unwrap` but not `http.Hijacker`/`Pusher`; fine today, worth a comment."
+    ],
+    "SUMMARY": [
+      "Solid, well-tested guardrail package: strict env parsing, fail-closed profile/role checks, injectable-clock quota tests, and env-flags/code default parity check are above bar. Top risks before merge: the unchanged `context.Background()` in `auditCoverage` (AC miss), unverified shared-pool `BindTenant` tenant semantics (potential cross-tenant leak), tenant tokens burned on global-concurrency denial, and a role-gate that can wedge production for 5 minutes while `/ready` stays green."
+    ]
+  }
+}

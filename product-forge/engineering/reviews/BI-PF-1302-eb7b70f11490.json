@@ -1,0 +1,40 @@
+{
+  "item": "BI-PF-1302",
+  "sha": "eb7b70f11490",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-25T05:28:27.617662+00:00",
+  "findings": {
+    "BLOCKER": [
+      "`Chain` orders auth/role-gate OUTSIDE quota (executes auth \u2192 roleGate \u2192 timeout \u2192 bodyLimit \u2192 quota), so 401/403/503 responses never touch the global token bucket or concurrency semaphores; `TestAuthMiddlewareRunsBeforeQuota` asserts this. AC states \"the global bucket always applies and is the hard anti-evasion control\", yet unauthenticated brute-force/flood traffic (the exact evasion vector) is entirely uncounted.",
+      "Same ordering means oversized-body 413 rejections and role-gate 503 storms also bypass the global bucket, so the advertised 413/429/504 quota counters under-report the attack traffic the quotas exist to bound.",
+      "`artifactGet`/`artifactContent` call `svc.Get(r.Context(), id)` / `FetchContent(r.Context(), id)` directly instead of `s.dbCtx(r)`, so DB/object reads on those paths are bounded by the 30s request timeout, not the configured 5s DB timeout (AC: DB 5s bound on every handler)."
+    ],
+    "MAJOR": [
+      "`GET /metrics` is wrapped in `adminOnly` (docs: \"admin bearer ... send the admin token\"), making it un-scrapeable by a standard Prometheus job without distributing the admin secret, and it exposes histograms/gauges where AC requires \"/metrics (counters only)\".",
+      "Graceful drain is `max(WriteTimeout, 30s)` = 180s, not the AC's explicit \"drains in-flight work on graceful shutdown (30s)\"; the docs silently rewrite the requirement instead of flagging the divergence.",
+      "`RoleGuard.RecheckLoop` latches closed on ANY recheck error, including transient DB blips, forcing 503 on all data-plane routes for up to `PF_EDP_ROLE_RECHECK` (5m); violation vs. transient failure are conflated.",
+      "`config/env-flags.json` is wholesale re-indented (490-line diff) in the same change as the real flag additions \u2014 high merge-conflict cost and obscured review of the 40+ new entries in a shared, cross-team registry."
+    ],
+    "MINOR": [
+      "`EnvelopeFallback` intercepts every 404/405, replacing handler-specific messages (\"artifact not found\" \u2192 \"not found\") and discarding body writes; specificity is lost even when the handler produced a correct envelope.",
+      "`s.fail` replaces all 4xx messages with `safeStatusMessage`, degrading diagnostics AC never asked to genericize (e.g. `errTenant`'s \"tenant query parameter is required\" becomes \"invalid request\").",
+      "`TestEnvFlagDefaultsMatch` does `t.Skip` when `config/env-flags.json` is unreachable, so registry/code drift can pass vacuously in CI.",
+      "Tenant-cap eviction scans at most 64 random map entries per admission; if those are active, new tenants get 429 despite evictable idle buckets existing elsewhere.",
+      "`/artifacts` still fully buffers each upload (`io.ReadAll`) in memory \u2014 up to 64 MiB \u00d7 10 global concurrency.",
+      "AC lists \"pool saturation\" among /metrics counters, but only `edp_db_pool_*` gauges are emitted; no saturation/denial counter exists.",
+      "Auth is enforced twice per request (`authMiddleware` + `adminOnly`) \u2014 redundant constant-time compares and two divergent auth paths to maintain."
+    ],
+    "NIT": [
+      "Envelope adds a `version` field beyond AC's literal `{\"error\":{...}}` shape (documented, but the AC text was not updated).",
+      "`boolean`/`flagEnabled` and `adminOnly`/`authorize` are small parallel implementations of the same parsing/auth concepts.",
+      "Metrics gauges are mutated at scrape time inside the shared registry rather than sampled by a collector."
+    ],
+    "SUMMARY": [
+      "Solid, well-tested Go implementation of the guardrails (config validation, envelope, injected-clock quota, shared pool, role fail-closed), but the middleware ordering defeats the AC's \"global bucket always applies\" anti-evasion guarantee for unauthenticated traffic \u2014 the single most important control in this item.",
+      "Top risks: quota bypass on auth/role-gate 401/503 paths, /metrics behind an admin token with a counters-only AC violation, 30s-vs-180s shutdown divergence, and DB reads on artifact GET paths not bounded by the 5s DB timeout.",
+      "Recommend re-ordering quota outside auth (or double-counting at both layers) and reconciling the AC with the documented deviations before merge."
+    ]
+  }
+}
