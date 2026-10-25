@@ -563,7 +563,9 @@ func (s *server) artifactGet(w http.ResponseWriter, r *http.Request, id string) 
 		s.bad(w, r, http.StatusBadRequest, err.Error())
 		return
 	}
-	a, err := svc.Get(r.Context(), id)
+	ctx, cancel := s.dbCtx(r)
+	defer cancel()
+	a, err := svc.Get(ctx, id)
 	if err != nil {
 		s.bad(w, r, http.StatusNotFound, "artifact not found")
 		return
@@ -979,8 +981,12 @@ func (s *server) ready(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) metricsHandler(w http.ResponseWriter, r *http.Request) {
-	for k, v := range s.poolStats() {
+	st := s.poolStats()
+	for k, v := range st {
 		s.metrics.Set("edp_db_pool_"+k, int(v))
+	}
+	if mx := st["max"]; mx > 0 {
+		s.metrics.Set("edp_db_pool_saturation_pct", int(100*st["acquired"]/mx))
 	}
 	s.metrics.Set("edp_quota_tenant_buckets", s.quota.TenantBuckets())
 	w.Header().Set("Content-Type", "text/plain; version=0.0.4")

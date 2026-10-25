@@ -113,47 +113,48 @@ func (q *Quota) tenantBucket(tenant string, now time.Time) *bucket {
 	return b
 }
 
-// Acquire admits a request for tenant (empty = global only). On success the returned release func MUST be
-// called (defer) to free the concurrency slots.
-func (q *Quota) Acquire(tenant string) (Decision, func()) {
+// AcquireGlobal consumes one global token before authentication, so unauthenticated floods are bounded by
+// the global cap (the hard anti-evasion control).
+func (q *Quota) AcquireGlobal() Decision {
+	now := q.now()
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	ok, wait := q.take(&q.global, float64(q.cfg.GlobalRPM), float64(q.cfg.GlobalRPM)/60.0, now)
+	if !ok {
+		if q.metrics != nil {
+			q.metrics.Inc("edp_quota_denials_total", "scope", "global")
+		}
+		return Decision{Allowed: false, RetryAfter: wait, Scope: "global"}
+	}
+	return Decision{Allowed: true}
+}
+
+// AcquireTenant consumes one tenant token and the global+tenant concurrency slots for an AUTHENTICATED
+// request. The global rate token is already held (AcquireGlobal), so it is not consumed again.
+func (q *Quota) AcquireTenant(tenant string) (Decision, func()) {
 	now := q.now()
 	q.mu.Lock()
 	defer q.mu.Unlock()
 
-	if ok, wait := q.take(&q.global, float64(q.cfg.GlobalRPM), float64(q.cfg.GlobalRPM)/60.0, now); !ok {
-		if q.metrics != nil {
-			q.metrics.Inc("edp_quota_denials_total", "scope", "global")
-		}
-		return Decision{Allowed: false, RetryAfter: wait, Scope: "global"}, func() {}
-	}
 	var tb *bucket
 	if tenant != "" {
 		tb = q.tenantBucket(tenant, now)
 		if tb == nil {
-			q.refund(&q.global, float64(q.cfg.GlobalRPM))
 			if q.metrics != nil {
 				q.metrics.Inc("edp_quota_denials_total", "scope", "tenant_cap")
 			}
 			return Decision{Allowed: false, RetryAfter: time.Second, Scope: "tenant_cap"}, func() {}
 		}
-	}
-	if tb != nil {
 		if ok, wait := q.take(tb, float64(q.cfg.TenantRPM), float64(q.cfg.TenantRPM)/60.0, now); !ok {
-			q.refund(&q.global, float64(q.cfg.GlobalRPM))
 			if q.metrics != nil {
 				q.metrics.Inc("edp_quota_denials_total", "scope", "tenant")
 			}
 			return Decision{Allowed: false, RetryAfter: wait, Scope: "tenant"}, func() {}
 		}
 	}
-
 	select {
 	case q.gSem <- struct{}{}:
 	default:
-		q.refund(&q.global, float64(q.cfg.GlobalRPM))
-		if tb != nil {
-			q.refund(tb, float64(q.cfg.TenantRPM))
-		}
 		if q.metrics != nil {
 			q.metrics.Inc("edp_quota_denials_total", "scope", "global_concurrency")
 		}
@@ -166,15 +167,11 @@ func (q *Quota) Acquire(tenant string) (Decision, func()) {
 		case tSem <- struct{}{}:
 		default:
 			<-q.gSem
-			q.refund(&q.global, float64(q.cfg.GlobalRPM))
-			q.refund(tb, float64(q.cfg.TenantRPM))
 			if q.metrics != nil {
 				q.metrics.Inc("edp_quota_denials_total", "scope", "tenant_concurrency")
 			}
 			return Decision{Allowed: false, RetryAfter: time.Second, Scope: "tenant_concurrency"}, func() {}
 		}
-	}
-	if tb != nil {
 		q.active[tenant]++
 	}
 	var once sync.Once
@@ -195,6 +192,16 @@ func (q *Quota) Acquire(tenant string) (Decision, func()) {
 		q.metrics.Inc("edp_quota_allowed_total")
 	}
 	return Decision{Allowed: true}, release
+}
+
+// Acquire is the single-call convenience (global then tenant); the global token is not refunded when the
+// tenant cap denies, so cycling tenants cannot bypass the global bucket.
+func (q *Quota) Acquire(tenant string) (Decision, func()) {
+	d := q.AcquireGlobal()
+	if !d.Allowed {
+		return d, func() {}
+	}
+	return q.AcquireTenant(tenant)
 }
 
 // TenantBuckets reports the current bucket count (admin/limits).

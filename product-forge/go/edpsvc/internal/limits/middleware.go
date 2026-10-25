@@ -98,13 +98,16 @@ func Chain(next http.Handler, cfg Config, q *Quota, m *Metrics, roleOK func() bo
 	auth ...func(http.ResponseWriter, *http.Request) bool) http.Handler {
 	h := next
 	if cfg.Enforce {
-		h = quotaMiddleware(h, q)
+		h = tenantQuotaMiddleware(h, q)
 		h = bodyLimitMiddleware(h, cfg)
 		h = timeoutMiddleware(h, cfg)
 	}
 	h = roleGateMiddleware(h, roleOK)
 	if len(auth) > 0 && auth[0] != nil {
 		h = authMiddleware(h, auth[0])
+	}
+	if cfg.Enforce {
+		h = globalQuotaMiddleware(h, q)
 	}
 	h = recoverMiddleware(h)
 	h = instrumentMiddleware(h, m)
@@ -240,7 +243,32 @@ func bodyLimitMiddleware(next http.Handler, cfg Config) http.Handler {
 	})
 }
 
-func quotaMiddleware(next http.Handler, q *Quota) http.Handler {
+func globalQuotaMiddleware(next http.Handler, q *Quota) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if isExempt(r.URL.Path) || q == nil {
+			next.ServeHTTP(w, r)
+			return
+		}
+		d := q.AcquireGlobal()
+		if !d.Allowed {
+			writeQuotaDenied(w, r, d)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+func writeQuotaDenied(w http.ResponseWriter, r *http.Request, d Decision) {
+	secs := int(math.Ceil(d.RetryAfter.Seconds()))
+	if secs < 1 {
+		secs = 1
+	}
+	w.Header().Set("Retry-After", strconv.Itoa(secs))
+	WriteErrorCode(w, r, http.StatusTooManyRequests, "RATE_LIMITED",
+		"request quota exceeded ("+d.Scope+")", "rate_limit", true)
+}
+
+func tenantQuotaMiddleware(next http.Handler, q *Quota) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if isExempt(r.URL.Path) || q == nil {
 			next.ServeHTTP(w, r)
@@ -272,15 +300,9 @@ func quotaMiddleware(next http.Handler, q *Quota) http.Handler {
 			WriteError(w, r, http.StatusBadRequest, "invalid tenant")
 			return
 		}
-		d, release := q.Acquire(tenant)
+		d, release := q.AcquireTenant(tenant)
 		if !d.Allowed {
-			secs := int(math.Ceil(d.RetryAfter.Seconds()))
-			if secs < 1 {
-				secs = 1
-			}
-			w.Header().Set("Retry-After", strconv.Itoa(secs))
-			WriteErrorCode(w, r, http.StatusTooManyRequests, "RATE_LIMITED",
-				"request quota exceeded ("+d.Scope+")", "rate_limit", true)
+			writeQuotaDenied(w, r, d)
 			return
 		}
 		defer release()

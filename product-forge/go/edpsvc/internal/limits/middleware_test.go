@@ -242,7 +242,7 @@ func TestQuotaAttributesJSONBodyTenant(t *testing.T) {
 	}
 }
 
-func TestAuthMiddlewareRunsBeforeQuota(t *testing.T) {
+func TestAuthMiddlewareReturns401(t *testing.T) {
 	cfg := DefaultConfig()
 	auth := func(w http.ResponseWriter, r *http.Request) bool {
 		WriteError(w, r, http.StatusUnauthorized, "no token")
@@ -253,5 +253,25 @@ func TestAuthMiddlewareRunsBeforeQuota(t *testing.T) {
 	h.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/admin/limits", nil))
 	if rr.Code != http.StatusUnauthorized {
 		t.Fatalf("want 401 before quota, got %d", rr.Code)
+	}
+}
+
+func TestUnauthenticated401ConsumesGlobalQuota(t *testing.T) {
+	cfg := DefaultConfig()
+	cfg.GlobalRPM = 1
+	cfg.TenantRPM = 100
+	auth := func(w http.ResponseWriter, r *http.Request) bool {
+		WriteError(w, r, http.StatusUnauthorized, "no token")
+		return false
+	}
+	h := Chain(okHandler(), cfg, NewQuota(cfg, func() time.Time { return time.Unix(1, 0) }, NewMetrics()),
+		NewMetrics(), nil, auth)
+	if rr := httptest.NewRecorder(); func() int { h.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/admin/x", nil)); return rr.Code }() != http.StatusUnauthorized {
+		t.Fatalf("first want 401")
+	}
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/admin/x", nil))
+	if rr.Code != http.StatusTooManyRequests {
+		t.Fatalf("second want 429 from the pre-auth global bucket, got %d", rr.Code)
 	}
 }
