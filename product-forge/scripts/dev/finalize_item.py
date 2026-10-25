@@ -33,7 +33,7 @@ def build(item_id: str) -> dict:
     start = evs[0]["at"] if evs else ""
     end = evs[-1]["at"] if evs else ""
     return {"schema": "pf.final-report/1", "item": item_id, "generated_at": datetime.now(timezone.utc).isoformat(),
-            "item_revision": it.get("revision"), "current_stage": tr.current_stage(item_id, it.get("status") or ""),
+            "item_revision": int(it.get("revision") or 0) + 1, "current_stage": tr.current_stage(item_id, it.get("status") or ""),
             "acs": acs, "ac_problems": bad_ac, "tests": tests, "tests_by_kind": tr.tests_by_kind(evs),
             "usage": u, "started_at": start, "finished_at": end,
             "disposition_problems": bad,

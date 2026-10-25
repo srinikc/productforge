@@ -241,6 +241,9 @@ TEST_KINDS = ("unit", "api", "db", "logic", "go", "other")
 
 def test_kind(test: dict) -> str:
     """Classify a recorded test command (BI-PF-1484)."""
+    explicit = str((test or {}).get("kind") or "").lower()
+    if explicit in TEST_KINDS:
+        return explicit
     cmd = str((test or {}).get("command") or "").lower()
     if "go test" in cmd or "/go/" in cmd:
         return "go"

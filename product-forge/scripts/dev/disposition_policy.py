@@ -15,10 +15,8 @@ STATUSES = ("ACCEPTED", "DEFERRED")
 def cfg() -> dict:
     try:
         return json.loads(CFG.read_text(encoding="utf-8-sig"))
-    except Exception:
-        return {"max_accepted_per_mode": 2, "require_hil_approval_for_accepted": True,
-                "require_hil_approval_for_deferred": True,
-                "approval_decision": "DISPOSITION_APPROVAL", "approval_scope": "disposition_approval"}
+    except Exception as e:
+        raise RuntimeError(f"cannot read review-dispositions config: {e}")
 
 
 def _rows(item: dict, mode: str) -> dict:
@@ -31,7 +29,7 @@ def _approvals(item: dict, mode: str) -> list[dict]:
     for d in item.get("decisions") or []:
         if str(d.get("decision") or "").upper() != str(c["approval_decision"]).upper():
             continue
-        if d.get("hil_confirmed") is not True:
+        if d.get("hil_confirmed") is not True or not str(d.get("by") or "").startswith("hil:"):
             continue
         if str(d.get("scope") or "") != c["approval_scope"]:
             continue
@@ -66,15 +64,15 @@ def problems(item: dict, mode: str, backlog_get=None) -> list[str]:
         bad.append(f"{mode}: {len(missing)} ACCEPTED/DEFERRED without HIL DISPOSITION_APPROVAL ({', '.join(missing[:4])})")
     for k in deferred:
         note = str((rows.get(k) or {}).get("note") or "")
-        m = FOLLOW_UP.search(note)
-        if not m:
-            bad.append(f"{mode}/{k}: DEFERRED without backlog id")
+        found = [m.group(0) for m in FOLLOW_UP.finditer(note) if m.group(0) != item.get("id")]
+        if not found:
+            bad.append(f"{mode}/{k}: DEFERRED without an external backlog id")
         elif backlog_get:
             try:
-                if not backlog_get(m.group(0)):
-                    bad.append(f"{mode}/{k}: follow-up {m.group(0)} does not exist")
+                if not backlog_get(found[0]):
+                    bad.append(f"{mode}/{k}: follow-up {found[0]} does not exist")
             except Exception as e:
-                bad.append(f"{mode}/{k}: cannot verify follow-up {m.group(0)}: {e}")
+                bad.append(f"{mode}/{k}: cannot verify follow-up {found[0]}: {e}")
     return bad
 
 

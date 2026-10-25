@@ -59,7 +59,7 @@ def evaluate(ids: list[str]) -> list[str]:
             problems.append(f"{iid}: missing stages: {', '.join(missing)}")
         for p in trail.order_problems(iid):
             problems.append(f"{iid}: {p}")
-        if str(item.get("status") or "").lower() in ("completed", "closed", "done", "delivered"):
+        if "completion" in {e.get("stage") for e in trail.events(iid)}:
             acs = item.get("ac_verification") or []
             bad_ac = [a.get("ac") for a in acs if str(a.get("result") or "").upper() != "PASS"]
             if not acs or bad_ac:
