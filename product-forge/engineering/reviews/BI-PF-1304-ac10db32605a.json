@@ -1,0 +1,37 @@
+{
+  "item": "BI-PF-1304",
+  "sha": "ac10db32605a",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-10-25T10:02:00.288470+00:00",
+  "findings": {
+    "BLOCKER": [
+      "Duplicate compliance logic: core.packaging.validate (Python) and cmd/pfresidency (Go) must implement identical residency rules; two writers of one policy WILL drift (CL-001 single-writer). Go validator must be the sole authority; Python gate should shell out to it, not re-implement.",
+      "CL-006 unmet: design presents no embedded Gate 1.5 findings/dispositions; approval is invalid while any BLOCKER/MAJOR is PENDING per gate1_check.py."
+    ],
+    "MAJOR": [
+      "Path traversal: home_region from an untrusted manifest is interpolated into config/residency-profiles/<home>.json. Resolve against an allowlisted enumeration of the profiles directory; reject any home not matching ^[a-z0-9-]+$ before filesystem access.",
+      "gate_mode in mutable config/residency-policy.json lets any writer downgrade a compliance control to warn with no review gate. Pin the flip block via CODEOWNERS + a dated expiry/ticket reference; warn must not be the steady state.",
+      "engineering/residency-gate.json/.jsonl in the repo tree makes every build dirty the working tree and creates merge hotspots. Emit gate events to a build artifact/log sink; if committed, define rotation, retention bound, and single-writer append semantics (no concurrent writers).",
+      "Tenant isolation unaddressed: residency is product-global; multi-tenant products with per-tenant home-region obligations have no representation. State explicitly that tenant-scoped residency is out of scope and tracked, or model it.",
+      "Toolchain-down behaviour unspecified: if the Go binary/toolchain is unavailable in CI, is the gate fail-open or fail-closed? Require fail-closed (execution failure never downgraded by warn), matching AC 5."
+    ],
+    "MINOR": [
+      "Error-code coverage gap: no distinct codes for backup.encrypted=false, kms.rotation_days<=0, missing/empty egress.subprocessors; these collapse into \"schema/invalid-field\", weakening observability and the \"identical pass/block\" conformance claim.",
+      "The \"duplicated Go types (edpsvc internal vs go/residencymanifest)\" risk relies on a schema_version guard + conformance test only; no single generated/owned schema. Add a JSON Schema as the third, authoritative contract.",
+      "Rollback says \"revert the commit\" but does not address committed engineering/residency-gate.jsonl state or products already created under warn mode; define cleanup/normalisation.",
+      "Alert lead-time absent: warn-first means residency violations can ship for a release with no alert. Require a metric/alert on warn-mode hits so degradation is visible before block mode."
+    ],
+    "NIT": [
+      "Retention of the structured event (rotation, max size, PII/redaction) not stated for a compliance artifact.",
+      "docs/RESIDENCY-MANIFEST-GUARD doc name consistency: ensure the doc filename matches AC references exactly to avoid a second residency doc.",
+      "store-registry.json registration good (CL-001); confirm residency-policy.json gate_mode changes also emit an auditable event."
+    ],
+    "SUMMARY": [
+      "Solid shape overall: explicit fail-closed home_region, counsel-owned profiles, stable error codes, warn-first rollout, and ownership registration are the right moves. Blocking issues are structural: duplicate Python/Go implementations of one policy (drift + language-rule tension), unguarded Gate 1.5 dispositions, and a filesystem path built from untrusted manifest input. Resolve those before Gate 1.5; observability sink and gate_mode integrity are the top follow-ups."
+    ]
+  },
+  "rereview_reason": "prior design sha c62d9e5ac577; affected_files updated after review; design now frozen",
+  "rereview_reason_sha256": "33a3b0df4942d3dd49b05e16227193cadfb98722dcc8595834f67a2e3441f8d2"
+}

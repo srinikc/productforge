@@ -1,0 +1,41 @@
+{
+  "item": "BI-PF-1304",
+  "sha": "d0e5736bef19",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-25T10:07:50.270993+00:00",
+  "findings": {
+    "BLOCKER": [
+      "`scripts/dev/residency_gate.py` returns `0 if a.report else <code>` on every failure path (validator unavailable, parity failure, and even `BLOCK <n> violation(s)`), and CI (`config/ci-cd-gates.json`) + `scripts/dev/precheck.py` both invoke it with `--report`. The registered gate is therefore a no-op: nothing can ever exit 1 or 2 in CI, violating \"warn only downgrades policy violations, never execution failures\" and making `blocking: true` fictitious.",
+      "Go CLI unknown-home/unreadable-profile exits 2 (execution failure), which the gate then converts to exit 0 under `--report`; the acceptance requirement that \"unknown/missing home always blocks\" cannot hold in any CI path.",
+      "When Go stdout is non-JSON (crash/toolchain drift), `go={}` is tolerated (`parity = ... or not go`), so an execution failure is silently reclassified as a policy violation and downgraded to warn/exit 0."
+    ],
+    "MAJOR": [
+      "Go `Validate` only emits `RESIDENCY_MISSING_GROUP:data_classes`; missing `home_region`, `allowed_regions`, `backup`, `kms`, `egress`, `retention` produce other codes or nothing (e.g. empty `kms` \u2192 only `RESIDENCY_KMS_ROTATION`). Acceptance requires all six groups covered by `RESIDENCY_MISSING_GROUP`, and Python/Go error sets diverge, weakening the \"identical from both validators\" conformance requirement (only booleans are compared).",
+      "Error-code conformance is not tested: no fixture set exercises every `RESIDENCY_*` code (schema/invalid-field/toolchain/profile) through both `core.packaging.validate` and `cmd/pfresidency`; no test asserts block exit 1, warn exit 0, or the warn-mode one-line stderr summary for the Python gate. `test_gate_report_is_non_fatal` only proves `--report` returns 0, i.e. it tests the broken behavior.",
+      "`config/residency-profiles/in-v1.json` and `us-v1.json` are load-bearing dependencies of both validators but are not introduced in this diff; the store-registry claims `status: exists` with empty `ref`/`owner_item`, so the shipped template (`home_region: IN`) may fail-closed against a missing profile in a fresh checkout.",
+      "`RESIDENCY_HOME_NOT_ALLOWED` is overloaded to also mean `allowed_regions` widening/subset violation in both implementations; consumers cannot distinguish \"home not permitted\" from \"region expansion\", and the code appears twice for a single root cause.",
+      "`RESIDENCY_INVALID_FIELD:<field>` is documented as a frozen code but never emitted anywhere (docs/implementation drift on a \"frozen contract\")."
+    ],
+    "MINOR": [
+      "Python region extraction `g.get(\"regions\") or ([g.get(\"region\")] ...) or g.get(\"allowed_regions\") or []` silently falls back to `allowed_regions` for `backup`/`kms`, masking malformed input instead of raising a field error.",
+      "`kms.provider` is never validated non-empty in either validator despite being a required field in the acceptance criteria and schema example.",
+      "JSONL rotation loops `for i in (2,1)` shifting to `.jsonl.3` that is never pruned: unbounded file count over time, contradicting \"5MB rotation, 3 files\".",
+      "New store-registry evidence/config entries use `retention: unbounded` for run-history files; should be bounded to match the rotation story.",
+      "Gate invokes `go run` (full compile) on every fast-tier run with a 120s timeout; a prebuilt `pfresidency` binary would keep the fast tier genuinely fast.",
+      "Gate/tests write `engineering/residency-gate.json(l)` as a side effect of test runs, polluting the evidence trail with non-production runs."
+    ],
+    "NIT": [
+      "`LoadManifest` reads the whole file before the 64KB size check; check size via `os.Stat` first.",
+      "Missing second blank line before `def test_path_traversal_home_rejected` (PEP8 E302).",
+      "Go module path `productforge/residencymanifest` should match the repo's existing module naming convention (verify against sibling `go/*` modules).",
+      "`residency-policy.json` `gate_mode_expires: 2027-01-31` has no enforcing check; the rollout lever depends on someone remembering."
+    ],
+    "SUMMARY": [
+      "The core artifacts (Go validator, Python parity, gate, template, docs, ownership registration) are directionally right and language-rule compliant, but the gate as wired is a no-op: `--report` downgrades every failure\u2014including validator/toolchain crashes and violations\u2014to exit 0 in both CI and precheck, which defeats the entire purpose of the item.",
+      "Secondary risks: incomplete `RESIDENCY_MISSING_GROUP` coverage in Go, untested block/warn exit semantics and warn stderr, missing profile fixtures in the diff, and a frozen-but-unemitted `RESIDENCY_INVALID_FIELD` code.",
+      "Recommend fixing the exit-code contract first, then adding the per-error-code parity fixtures that prove both validators agree before flipping `gate_mode` to block."
+    ]
+  }
+}

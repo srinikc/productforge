@@ -1,0 +1,42 @@
+{
+  "item": "BI-PF-1304",
+  "sha": "447aa695d95b",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-25T10:18:23.399719+00:00",
+  "findings": {
+    "BLOCKER": [
+      "Unreadable/corrupt `config/residency-policy.json` silently defaults `gate_mode` to warn (`_policy()` returns `{}` \u2192 `\"warn\"`), and a malformed `gate_mode_expires` keeps warn \u2014 a compliance gate must fail closed; this contradicts the shipped doc (\"unreadable policy always blocks\").",
+      "Go `Validate` has no missing-group check for `egress` (only 5 of 6 groups), so an empty/missing egress group passes the Go authority while Python fails it \u2192 parity mismatch \u2192 gate exit 2, an \"execution failure\" warn mode cannot downgrade. Violates AC2 and the warn-never-downgrades-failures rule.",
+      "AC5's required single conformance fixture set (valid + every RESIDENCY_* code incl. schema/invalid-field/toolchain/profile, yielding identical pass/block from `core.packaging.validate` and `cmd/pfresidency`) is absent; the existing Python/Go divergences are therefore untested and unverified."
+    ],
+    "MAJOR": [
+      "Go CLI never emits `RESIDENCY_UNKNOWN_HOME`/`RESIDENCY_PROFILE_UNREADABLE` as report codes \u2014 it exits 2 pre-validation, so the gate maps unknown home to `RESIDENCY_VALIDATOR_UNAVAILABLE` (exit 2). The gate's `hard` set references codes the Go path can never return; unknown home is a policy violation, not a tool failure.",
+      "`--report` returns exit 0 even on execution failures (`return 0 if a.report else 2`), masking validator-unavailable/toolchain breakage \u2014 violates \"warn/report downgrades policy violations only, never execution failures\".",
+      "Dual validators already diverge: Python strips `utf-8-sig`, Go `json.Unmarshal` fails on a BOM (this repo demonstrably has BOM'd configs) \u2192 gate exit 2; parity compares only booleans, so code-set drift is invisible. This duplication is a long-term maintenance hazard.",
+      "Override precedence (`products/<project>/residency-manifest.json`) is untested; no test exercises `residency_path` override or a per-project build with an override present.",
+      "Python appends unstable text into a frozen-code contract (`RESIDENCY_MANIFEST_UNREADABLE:<exception>`, raw exception strings) \u2014 codes leak paths and break the versioned error-code contract."
+    ],
+    "MINOR": [
+      "JSONL rotation moves `.jsonl.2`\u2192`.3` then unconditionally deletes `.3`, so only 2 rotated files survive; the \"5MB x3\" registry claim and the loop body are wrong.",
+      "First exception path writes the event but never prints the report even with `--report`, unlike the second path \u2014 inconsistent observability.",
+      "`_report` dumps full JSON to stdout on any failure even without `--report`, noisying normal CI logs.",
+      "The event record lacks expiry/downgrade metadata (no record that warn was escalated by `gate_mode_expires`), weakening auditability.",
+      "`config/residency-policy.json` ownership assigned to `go/backupdrill/region.go` (a source file) is a weak ownership model for a compliance lever; `residency-gate.json` declares 90-day rotated retention but is never rotated.",
+      "Gate invokes `go run` (compile) on every fast-tier run; a prebuilt binary is cheaper for a fast gate."
+    ],
+    "NIT": [
+      "`residency_path` ignores its `scope` argument \u2014 dead parameter.",
+      "`id-blocks.json` session-reservation bump rides along unrelated to BI-PF-1304.",
+      "Empty home in Python loads `-v1.json` and adds `RESIDENCY_PROFILE_UNREADABLE` noise beside `RESIDENCY_UNKNOWN_HOME`."
+    ],
+    "SUMMARY": [
+      "Shape is right (template + override, profile bounds, Go authority, bounded events, warn-first), but the gate fails open on unreadable policy and on `--report` masking execution failures.",
+      "The Go and Python validators already diverge on egress group, BOM, and unknown-home semantics, and the required single conformance fixture set proving pass/block parity is missing \u2014 parity today is unverifiable.",
+      "Ship only after: fail-closed policy read, egress missing-group in Go, unknown-home emitted as a code (not exit 2), and one shared fixture set driving both validators."
+    ]
+  },
+  "rereview_reason": "prior sha d0e5736bef19; blockers and majors fixed (blocking gate, group coverage, non-JSON fail-closed)",
+  "rereview_reason_sha256": "b4479e89d3aff10cb091b14068656cb9358992cd7a78e03b7142e8850b9d0952"
+}
