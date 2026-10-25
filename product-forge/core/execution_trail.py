@@ -309,7 +309,7 @@ def _review_evidence(item: str, mode: str) -> tuple[str, str]:
                "gate", "--item", item, "--gate", gate]
         if sha:
             cmd += ["--sha", sha]
-        r = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=20)
         out = (r.stdout or "").strip()
         if not out:
             return f"({stage}: evidence missing)", ""
