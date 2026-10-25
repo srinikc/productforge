@@ -60,6 +60,25 @@
       "seq": 4,
       "note": "Delivery approved with attention: read-only flow view; tests 23 passed; precheck 45 gates PASS; remaining hardening (structured review reader, cache, history section, pre-merge blocked set) deferred to BI-PF-1484.",
       "hil_confirmed": true
+    },
+    {
+      "at": "2026-10-25T09:38:50.966385+00:00",
+      "by": "hil:srinikc",
+      "decision": "REVIEW_CHURN",
+      "hil_confirmed": true,
+      "scope": "review_churn",
+      "note": "HIL continue: 5 diff reviews (last 998070ec69d7) are caused by state/evidence commits and deferred hardening; blockers are deferred to BI-PF-1484 with Gate 2 attention."
+    },
+    {
+      "at": "2026-10-25T09:38:52.709399+00:00",
+      "by": "hil:srinikc",
+      "decision": "APPROVE_WITH_ATTENTION",
+      "gate": 2,
+      "findings_sha": "998070ec69d7",
+      "findings_digest": "b42522ff66d1",
+      "seq": 6,
+      "note": "Current-sha Gate 2. Blockers deferred to BI-PF-1484; HIL churn attestation recorded.",
+      "hil_confirmed": true
     }
   ],
   "follow_up": {},
@@ -299,9 +318,9 @@
     "usage": {}
   },
   "created_at": "2026-10-25T14:35:25.808300",
-  "updated_at": "2026-10-25T15:03:09.377942",
+  "updated_at": "2026-10-25T15:08:53.404832",
   "score": 0.75,
-  "_note": "Flow view delivered; hardening deferred to BI-PF-1484",
+  "_note": "Flow view delivered; blockers/hardening deferred to BI-PF-1484",
   "api_impact": {
     "needs_api": false,
     "reason": "Read-only CLI flow view; no HTTP route or runtime API change."
@@ -363,57 +382,53 @@
       }
     },
     "diff": {
-      "sig:45e624e910049d67": {
+      "sig:1d8cfcdcaf47eac3": {
         "status": "DEFERRED",
-        "note": "Follow-up BI-PF-1484: read the structured review JSON + dispositions directly instead of regex-scraping the rendered gate table."
+        "note": "Follow-up BI-PF-1484: mark a stage [BLOCKED] (not [DONE]) when its latest non-review event is fail/error/blocked. Delivery accepts the display gap for this item."
       },
-      "sig:3dfdb91e719a34de": {
+      "sig:c03297bbba7480a6": {
         "status": "DEFERRED",
-        "note": "Follow-up BI-PF-1484: cache the recommendation per (item, mode, sha) and add a --no-review escape hatch."
+        "note": "Follow-up BI-PF-1484: mark a review stage [BLOCKED] when the current recommendation is NOT READY; do not advance current past it."
       },
-      "sig:99f77a6a2c145b64": {
+      "sig:73c9a281a2cb820b": {
         "status": "DEFERRED",
-        "note": "Follow-up BI-PF-1484: restore an explicit per-run history surface (or a --history section) alongside latest-per-stage; the raw events remain in the store."
+        "note": "Follow-up BI-PF-1484: whitelist recommendation parsing to APPROVE / APPROVE WITH ATTENTION / NOT READY."
       },
-      "sig:f5e7fcaa2ab5309d": {
+      "sig:c69837d1a603cc7c": {
         "status": "DEFERRED",
-        "note": "Follow-up BI-PF-1484: restrict blocked detection to REQUIRED_AT_COMPLETION pre-merge stages; post-merge failures are shown but not blocking."
+        "note": "Follow-up BI-PF-1484: return a typed current-stage result and never report complete for a closed item with missing required stages."
       },
-      "sig:22a79b094776e725": {
+      "sig:2f4eb41241e3c792": {
+        "status": "DEFERRED",
+        "note": "Follow-up BI-PF-1484: read structured review evidence + cache instead of two subprocess renders per show."
+      },
+      "sig:177ce08205e97646": {
         "status": "ACCEPTED",
-        "note": "20s bound is deliberate for a CLI; a timeout renders an explicit cannot-render state. Large evidence is rare."
+        "note": "20s bound is deliberate; a timeout is shown explicitly. Accepted for a CLI."
       },
-      "sig:65787ecd1971ff9d": {
+      "sig:febc87f01c3377de": {
         "status": "ACCEPTED",
-        "note": "Status literals live in one module and the lifecycle doc; drift is covered by docs-fresh. Accepted."
+        "note": "show is called with a backlog id; _item fails closed for unknown ids. Accepted."
       },
-      "sig:241b4fc9ef1b61b3": {
-        "status": "DEFERRED",
-        "note": "Follow-up BI-PF-1484: structured logging/counter for render degradation; stderr is the current signal."
-      },
-      "sig:9f1fc97c94fda63c": {
+      "sig:de2404f16aef2ae3": {
         "status": "ACCEPTED",
-        "note": "Current stage appears in header, checklist and final table intentionally; one derived value."
+        "note": "id-blocks state is required to reserve 1483/1484; committed separately. Accepted."
       },
-      "sig:b516fae3609f0f55": {
-        "status": "DEFERRED",
-        "note": "Follow-up BI-PF-1484: end-to-end test for the diff recommendation and Runs count (current ordering test stubs _review_evidence)."
-      },
-      "sig:6c0f77ea237c6cf3": {
-        "status": "DEFERRED",
-        "note": "Follow-up BI-PF-1484: whitelist recommendations to the three documented values; the current parser is permissive."
-      },
-      "sig:206bb92c5b1d1aad": {
-        "status": "ACTIONED",
-        "note": "Verified config/id-blocks.json claims 1483 and 1484 (reserved_up_to=1484); both items exist."
-      },
-      "sig:9ada9aa7b599f8b5": {
+      "sig:ef5dfecbf7dc8d9c": {
         "status": "ACCEPTED",
-        "note": "Dict insertion order is stable on the supported Python; _flow_rows preserves it."
+        "note": "Literals are local to the module and documented; drift is covered by docs-fresh. Accepted."
       },
-      "sig:79c99e93a346a157": {
+      "sig:2237b3f819dcaedd": {
+        "status": "ACCEPTED",
+        "note": "Section numbers are stable and tested; renumbering is a deliberate change. Accepted."
+      },
+      "sig:fc6205696ea23721": {
         "status": "DEFERRED",
-        "note": "Follow-up BI-PF-1484: do not report complete for a closed item with missing required stages; mark [MISSING]."
+        "note": "Follow-up BI-PF-1484: anchor the recommendation regex and reject trailing prose."
+      },
+      "sig:78b7c8094a5b3509": {
+        "status": "ACCEPTED",
+        "note": "Legacy rows are appended once; the runs default is 1 for a present event. Accepted."
       }
     }
   }
