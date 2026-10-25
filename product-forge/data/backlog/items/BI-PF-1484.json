@@ -308,9 +308,9 @@
     "usage": {}
   },
   "created_at": "2026-10-25T14:50:28.634469",
-  "updated_at": "2026-10-25T16:40:13.434188",
+  "updated_at": "2026-10-25T16:40:26.299710",
   "score": 0.75,
-  "_note": "Gate 0 design",
+  "_note": "final report persisted (BI-PF-1484)",
   "api_impact": {
     "needs_api": false,
     "reason": "CLI/backlog finalization only; no HTTP route."
@@ -424,5 +424,168 @@
       "verified_by": "agent",
       "verified_at": "2026-10-25"
     }
-  ]
+  ],
+  "final_report": {
+    "schema": "pf.final-report/1",
+    "item": "BI-PF-1484",
+    "generated_at": "2026-10-25T11:10:26.193502+00:00",
+    "item_revision": 4,
+    "current_stage": "implementation",
+    "acs": [
+      {
+        "ac": "Disposition policy: ACCEPTED capped at 2 per mode; every ACCEPTED/DEFERRED requires HIL DISPOSITION_APPROVAL; DEFERRED cites existing backlog id; enforced at Gate 1/2/completion.",
+        "result": "PASS",
+        "evidence": [
+          "test-framework/tests/test_disposition_policy.py (4 passed)",
+          "gate1_check refused 3 ACCEPTED then passed 2 with HIL approval"
+        ],
+        "verified_by": "agent + Gate 1",
+        "verified_at": "2026-10-25"
+      },
+      {
+        "ac": "AC verification: item.ac_verification PASS/FAIL/PENDING + evidence; Gate 2 refuses missing/FAIL/PENDING; completion re-checks.",
+        "result": "PASS",
+        "evidence": [
+          "scripts/dev/gate_decisions.py Gate 2 predicate",
+          "test-framework/tests/test_finalize_item.py (2 passed)",
+          "scripts/dev/execution_trail_check.py completion guard"
+        ],
+        "verified_by": "agent",
+        "verified_at": "2026-10-25"
+      },
+      {
+        "ac": "Final report persisted on the item with ACs, tests by kind, totals, tokens/cost, accepted/deferred ids, gate decisions; merge blocked without it.",
+        "result": "PASS",
+        "evidence": [
+          "test-framework/tests/test_finalize_item.py",
+          "scripts/dev/finalize_item.py --item BI-PF-1484"
+        ],
+        "verified_by": "agent",
+        "verified_at": "2026-10-25"
+      },
+      {
+        "ac": "Execution trail show renders AC verification, test results by kind, accepted/deferred, totals and final table; tests cover cap/approval, final report, classification, completion guard.",
+        "result": "PASS",
+        "evidence": [
+          "test-framework/tests/test_execution_trail.py (24 passed)"
+        ],
+        "verified_by": "agent",
+        "verified_at": "2026-10-25"
+      },
+      {
+        "ac": "Docs/state: review-dispositions config + store entry; REVIEW-GATES-LIFECYCLE documents approval, AC and final-report contract; language/store/wired checks pass.",
+        "result": "PASS",
+        "evidence": [
+          "store-check OK",
+          "wired-audit 0 unwired",
+          "language-rule OK"
+        ],
+        "verified_by": "agent",
+        "verified_at": "2026-10-25"
+      }
+    ],
+    "ac_problems": [],
+    "tests": [],
+    "tests_by_kind": {
+      "unit": {
+        "rows": [],
+        "passed": 0,
+        "failed": 0,
+        "skipped": 0,
+        "duration_ms": 0
+      },
+      "api": {
+        "rows": [],
+        "passed": 0,
+        "failed": 0,
+        "skipped": 0,
+        "duration_ms": 0
+      },
+      "db": {
+        "rows": [],
+        "passed": 0,
+        "failed": 0,
+        "skipped": 0,
+        "duration_ms": 0
+      },
+      "logic": {
+        "rows": [],
+        "passed": 0,
+        "failed": 0,
+        "skipped": 0,
+        "duration_ms": 0
+      },
+      "go": {
+        "rows": [],
+        "passed": 0,
+        "failed": 0,
+        "skipped": 0,
+        "duration_ms": 0
+      },
+      "other": {
+        "rows": [],
+        "passed": 0,
+        "failed": 0,
+        "skipped": 0,
+        "duration_ms": 0
+      }
+    },
+    "usage": {
+      "input_tokens": 2252,
+      "output_tokens": 1448,
+      "cached_tokens": 0,
+      "cost_usd": 0.0,
+      "captured": 1,
+      "not_captured": 0,
+      "unpriced": 0
+    },
+    "started_at": "2026-10-25T11:07:13.568104+00:00",
+    "finished_at": "2026-10-25T11:09:34.738907+00:00",
+    "disposition_problems": [],
+    "dispositions": {
+      "design": {
+        "sig:499f14987ae14026": {
+          "status": "ACCEPTED",
+          "note": "cost_source values are enumerated in core.execution_trail; test-kind 'other' is intentional; per-kind sums are derived from the same rows. Accepted."
+        },
+        "sig:192f782a1c631db2": {
+          "status": "ACCEPTED",
+          "note": "Gate refusals print explicit reasons to stdout/stderr; metrics are out of scope. Accepted."
+        }
+      },
+      "diff": {}
+    },
+    "gate_decisions": [
+      {
+        "at": "2026-10-25T14:51:23.747412",
+        "decision": "APPROVE",
+        "by": "system",
+        "note": "auto-approved on add (BI-PF-1282)"
+      },
+      {
+        "at": "2026-10-25T11:09:26.595763+00:00",
+        "by": "hil:srinikc",
+        "decision": "DISPOSITION_APPROVAL",
+        "hil_confirmed": true,
+        "scope": "disposition_approval",
+        "mode": "design",
+        "sigs": [
+          "sig:499f14987ae14026",
+          "sig:192f782a1c631db2"
+        ],
+        "note": "HIL approves the 2 accepted design findings (cost_source/test-kind taxonomy; 2.5 does not certify ACs)."
+      },
+      {
+        "at": "2026-10-25T11:09:34.581932+00:00",
+        "by": "hil:srinikc",
+        "decision": "APPROVE_WITH_ATTENTION",
+        "gate": 1,
+        "findings_sha": "ef9cfb134ad5",
+        "findings_digest": "1cee28c5fcf4",
+        "seq": 3,
+        "note": "Gate 1 embeds Gate 1.5 ef9cfb134ad5: 13 findings, 0 pending, 2 HIL-approved accepted; cap enforced.",
+        "hil_confirmed": true
+      }
+    ]
+  }
 }
