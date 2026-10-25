@@ -39,13 +39,15 @@
   },
   "objective": "Bound Gate 2.5 review churn with a disposition-before-re-review guard and a review-budget check, so re-reviews are deliberate and auditable.",
   "acceptance_criteria": [
-    "architect_review.py run --mode diff refuses a new diff review for an item when a previous diff review exists and item.review_dispositions.diff is empty, unless --rereview is passed with a non-empty --reason; the reason is stored in the evidence JSON as rereview_reason.",
-    "scripts/dev/review_churn_check.py counts diff reviews per item, prints shas/dates and an advisory warning above 2, and fails a completion in the committed diff when an item has more than 4 diff reviews unless the item carries a review_churn decision (append-only ledger); --report is a non-blocking dry run.",
-    "Tests prove the refusal without dispositions, the --rereview+reason override, the warn/fail thresholds, the review_churn justification escape and the report mode; docs/REVIEW-GATES-LIFECYCLE.md documents one diff review per code freeze + disposition-before-re-review; precheck passes."
+    "A single owner (scripts/dev/architect_review.py) exposes review_budget()/diff_reviews()/churn_verdict() from config/architect-review.json (warn_after=2, fail_after=4, scope=after_gate1); both run --mode diff and scripts/dev/review_churn_check.py consume those functions, with no duplicated thresholds/counting.",
+    "A diff re-review is refused when a prior diff review exists after the Gate 1 epoch and item.review_dispositions.diff is empty; --rereview requires a non-empty --reason, which is redacted, capped at 500 chars and stored as rereview_reason in the evidence.",
+    "review_churn_check.py counts only diff reviews at/after the latest Gate 1 decision (all if none), prints a deterministically sorted table and --json, warns when count >2 and fails a completion in the committed diff when count >4 unless the item has a HIL-attested review_churn decision (by hil:*, note >=40 chars citing the review sha); --report exits 0; an unreadable review dir/base ref exits 2 (fail closed).",
+    "Tests cover the boundary semantics (2/4 are pass, 3 warns, 5 fails), the Gate 1 epoch, the refusal and reasoned override, redaction/cap, the HIL-attested escape, --json/--report and the fail-closed git/evidence path; docs/REVIEW-GATES-LIFECYCLE.md states one diff review per freeze, disposition-before-re-review and the budget."
   ],
   "in_scope": [
-    "scripts/dev/architect_review.py review-budget guard",
-    "scripts/dev/review_churn_check.py",
+    "scripts/dev/architect_review.py budget/count/verdict + refusal/reason",
+    "scripts/dev/review_churn_check.py (precheck gate, --report/--json)",
+    "config/architect-review.json review_budget",
     "test-framework/tests/test_review_churn.py",
     "docs/REVIEW-GATES-LIFECYCLE.md"
   ],
@@ -61,10 +63,12 @@
   "affected_files": [
     "scripts/dev/architect_review.py",
     "scripts/dev/review_churn_check.py",
+    "config/architect-review.json",
     "test-framework/tests/test_review_churn.py",
-    "docs/REVIEW-GATES-LIFECYCLE.md"
+    "docs/REVIEW-GATES-LIFECYCLE.md",
+    "scripts/dev/precheck.py"
   ],
-  "approach": "architect_review.py: before a diff run, count existing diff reviews for the item; if any exist and item.review_dispositions.diff is empty, refuse unless --rereview --reason is given; store rereview_reason in the evidence. Add scripts/dev/review_churn_check.py (precheck gate): group engineering/reviews/*-*.json by item/mode, print a table, warn >2, fail >4 for an item completing in the diff unless a review_churn decision exists; --report non-blocking; self-test. Add pytest coverage and a REVIEW-GATES-LIFECYCLE section.",
+  "approach": "architect_review.py owns config-driven review_budget(), diff_reviews() and churn_verdict(); run --mode diff refuses an undispositioned re-review unless --rereview --reason (redacted/capped) and records rereview_reason. scripts/dev/review_churn_check.py imports those helpers, counts reviews after the Gate 1 epoch, prints a sorted table/--json, warns >2, fails >4 for completions unless a HIL-attested review_churn decision cites the review sha, and exits 2 on unreadable git/evidence. Add pytest coverage and the REVIEW-GATES-LIFECYCLE budget section; register the check in the precheck gate list.",
   "review": {
     "reconciliation": {
       "prior_decisions": [
@@ -80,13 +84,14 @@
         "docs/REVIEW-GATES-LIFECYCLE.md documents the gate order but not a review budget."
       ],
       "assumptions": [
-        "A diff review is the unit of churn; design reviews are not counted (the design is amended less often).",
-        "The budget is >2 advisory, >4 blocking at completion; a review_churn decision is the explicit HIL justification.",
-        "Only items completing in the committed diff are enforced, so legacy completed items are not retroactively blocked.",
-        "review dispositions exist before a re-review is allowed; --rereview with a reason is the audited escape hatch for a genuine blocker fix."
+        "A code freeze epoch is the latest Gate 1 decision; only diff reviews after it count (long-lived items are not permanent offenders).",
+        "The budget is strict-greater-than: count 2 pass, 3 warns, 4 pass, 5 fails; thresholds live in config/architect-review.json.",
+        "The review_churn escape is HIL-only (by hil:*), must cite the review sha and a >=40-char reason; self-service bypass is rejected.",
+        "review_churn_check resolves the base exactly like gate2_completion (--base or merge-base develop HEAD) and fails closed if git/evidence is unavailable.",
+        "rereview_reason and review_churn entries are append-only residue (rollback does not rewrite evidence)."
       ],
       "divergences": [
-        "Enforcement sits in the review tool + precheck, not in core.backlog.set_status, to avoid a write recursion (the trail/backlog is the source of dispositions)."
+        "Enforcement is in architect_review + precheck (not core.backlog.set_status) to avoid a write recursion."
       ],
       "open_questions": []
     },
@@ -116,7 +121,7 @@
       {
         "claim": "reuse",
         "verdict": "aligned",
-        "evidence": "Extends architect_review.py (one review path) and adds one precheck gate; no second reviewer/renderer.",
+        "evidence": "Extends architect_review.py as the single review owner; review_churn_check imports its budget/count/verdict helpers. No duplicate counting or thresholds.",
         "recommendation": "approve"
       },
       {
@@ -128,7 +133,7 @@
       {
         "claim": "blast radius",
         "verdict": "aligned",
-        "evidence": "Review/precheck tooling only; rollback is a revert; no data/schema change.",
+        "evidence": "Review/precheck tooling only; append-only evidence; rollback is a revert and leaves reasoned rereview entries intentionally.",
         "recommendation": "approve"
       }
     ],
@@ -136,7 +141,7 @@
     "at": ""
   },
   "verification": [
-    "Objective achieved: Gates: review-churn guard - disposition before re-review, bounded diff reviews per item"
+    "Gate 1.5 architect review (mimo-v2.6-flash): {'BLOCKER': 1, 'MAJOR': 6, 'MINOR': 4, 'NIT': 2}"
   ],
   "risks": [
     "Legitimate iterative work is blocked: mitigated by the >4 budget, a review_churn decision, and --rereview with a reason.",
@@ -145,7 +150,9 @@
   "rollback": "Revert the tooling commit; review evidence/JSON is unchanged.",
   "evidence": [
     "pending",
-    "Design guardrails applied (BI-PF-1480): sig:212e3917979f3e06 (20 lines)"
+    "Design guardrails applied (BI-PF-1480): sig:212e3917979f3e06 (20 lines)",
+    "Design pre-check (BI-PF-1480): answered 10 checklist item(s) before Gate 1.5",
+    "Gate 1.5 architect review - model=mimo-v2.6-flash sha=f744c6e324f1\nBLOCKER:\n  - none\nMAJOR:\n  - Enforcement is duplicated: `architect_review.py` (refusal) and `review_churn_check.py` (warn/fail) each re-implement the \"diff review for item X\" counting and threshold semantics (>2, >4). Violates CL-001 single-writer; thresholds/logic must be single-sourced (e.g. `config/architect-review.json`) and consumed by both, with a stated owner.\n  - The `review_churn` escape hatch is self-service: the design defines no attestation (who, why text validation, when it expires) for the append-only ledger entry, so the very actor the gate constrains can bypass it. Require structured justification + author + linkage to the failing findings.\n  - Counting baseline is undefined. The guard counts all-time diff reviews while the docs promise \"one diff review per code freeze\"; without an explicit freeze-scoped baseline/epoch, long-lived items permanently exceed the budget and need a ledger entry every cycle. Risks mention a baseline but no mechanism or invariant is stated.\n  - \"Fails a completion in the committed diff\" has no defined comparison semantics (base ref, shallow clone, no-HEAD runs). Non-deterministic precheck results; specify the ref resolution and test it (guardrail 5/6).\n  - `--reason` free text is persisted verbatim into committed evidence JSON with no redaction/retention rule; risk of secrets/PII entering the repo (guardrail 9).\n  - Threshold constants (2/4) appear hardcoded in two places with no config, and strict-greater-than vs greater-or-equal is not pinned by the design; tests must lock the exact boundary semantics.\nMINOR:\n  - Read-then-write guard has a TOCTOU race between the refusal check and evidence write; acceptable for single-user tooling but should be documented as an accepted limitation.\n  - Observability is a stdout table only; no machine-readable (`--json`) output, exit-code taxonomy, or counter emitted for churn trending — hurts long-term diagnosis (guardrail 10).\n  - Behaviour when review evidence is absent/partial in the checkout (fresh clone, partial fetch) is unspecified; define the fail-open vs fail-closed choice explicitly.\n  - Rollback leaves already-written `rereview_reason` / `review_churn` entries in evidence; confirm this is intentional append-only residue and state it in the rollback note.\nNIT:\n  - Register `review_churn_check` in the existing precheck gate registry rather than adding a parallel invocation path, to keep gate ordering and reporting uniform.\n  - Sort the churn table deterministically (item, then date, then sha) so golden-output tests and human diffs stay stable.\nSUMMARY:\n  - Design direction is sound (disposition-before-re-review + budget gate) and stays within the tooling-Python language rule, but the gate is currently advisory in practice: duplicated counting logic in two scripts, a self-service bypass, and an undefined counting baseline (all-time vs per-freeze) undermine the invariant it claims to enforce.\n  - Top risks before Gate 1.5: single-source the thresholds/counting, define the freeze-scoped baseline and git-ref semantics, and require attested `review_churn` entries; otherwise the \"one diff review per code freeze\" promise is not verifiable and legitimate long-lived items degrade into permanent blocked states.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present"
   ],
   "owner": "agent",
   "requester": "review",
@@ -264,7 +271,7 @@
     "usage": {}
   },
   "created_at": "2026-10-25T11:30:14.186751",
-  "updated_at": "2026-10-25T11:31:21.812588",
+  "updated_at": "2026-10-25T11:33:02.725017",
   "score": 0.75,
   "_note": "readiness computed",
   "api_impact": {
