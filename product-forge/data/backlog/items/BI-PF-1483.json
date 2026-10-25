@@ -277,7 +277,7 @@
     "usage": {}
   },
   "created_at": "2026-10-25T14:35:25.808300",
-  "updated_at": "2026-10-25T14:52:18.786989",
+  "updated_at": "2026-10-25T14:56:19.062319",
   "score": 0.75,
   "_note": "design + Gate 0",
   "api_impact": {
@@ -287,61 +287,57 @@
   "language_rule": "Edits to existing allowlisted core/execution_trail.py (ADR-0010); tests + docs only. No new shipped Python module.",
   "review_dispositions": {
     "design": {
-      "sig:1c6a0f2ed1fcb5d1": {
+      "sig:77c29d2b7bbefb00": {
         "status": "ACTIONED",
-        "note": "Design names the owner and files: core/execution_trail.py:show is the only renderer; tests + docs. No second flow renderer. affected_files/affected_components/out_of_scope set on the item."
+        "note": "Precedence: review stages take the current recommendation from the same design_review/diff_review evidence; the stage table and checklist both call `_stage_status`, so they cannot disagree. Non-review stages use the event status. Documented."
       },
-      "sig:830f9524bc13eb7d": {
+      "sig:3df4d04e23e3157d": {
         "status": "ACTIONED",
-        "note": "Boundary set: no HTTP API/UI/JSON mode, no new store or writer, no gate/tooling changes and no migration; only the existing show output changes."
+        "note": "Ordering key is append order under the trail lock; `seq` is monotonic; latest = last event for the stage. Documented and covered by test_current_stage_and_latest_event_wins."
       },
-      "sig:27d299834de098cf": {
+      "sig:c8a2b11b4f8df89c": {
         "status": "ACTIONED",
-        "note": "Disposition data is owned by core.backlog.review_dispositions; statuses are validated by architect_review.py; DEFERRED-requires-follow-up is enforced by execution_trail_check.py; the flow view only renders the key. Documented."
+        "note": "DEFERRED enforcement is owned by execution_trail_check.py (completion fails unless the note cites an existing BI-PF id); architect_review surfaces it; show only renders the key. Documented."
       },
-      "sig:05a54b15376ce245": {
-        "status": "ACTIONED",
-        "note": "Latest = last event in append order under the trail lock; seq is monotonic. show shows the latest per stage and a Runs count; test_current_stage_and_latest_event_wins covers re-runs."
+      "sig:58cda3c3636d394d": {
+        "status": "DEFERRED",
+        "note": "Follow-up BI-PF-1484: extract a section registry so the order has one source; the current order is covered by a single test list."
       },
-      "sig:a6e7c3f52134bee9": {
-        "status": "ACTIONED",
-        "note": "The review JSON is read by the sha in the design_review event refs; missing/unreadable evidence renders 'not recorded'/'evidence missing', never a pass; the recommendation is parsed from architect_review.py gate. Documented."
-      },
-      "sig:24623ce928e5e98f": {
-        "status": "ACTIONED",
-        "note": "current_stage = first STAGES entry with no committed event; empty -> planning; all -> complete. Covered by tests; skipped stages remain the current stage."
-      },
-      "sig:0162bdebd113f695": {
+      "sig:6eed104e10a101b1": {
         "status": "ACCEPTED",
-        "note": "Read-only CLI; no metric/log sink. Missing evidence is explicit in the output and write failures hit the trail failure sink. Fleet observability is out of scope for this item."
+        "note": "The key is rendered from the code and documented; the canonical definitions live in docs/REVIEW-GATES-LIFECYCLE.md. Accepted as a docs/rendering pair."
       },
-      "sig:616d671de70a76da": {
+      "sig:255ab308787b34ef": {
+        "status": "DEFERRED",
+        "note": "Follow-up BI-PF-1484: per-section render status for partial/failed sections; current failures are visible in the section text (cannot render/evidence missing)."
+      },
+      "sig:930fd51e35586ccb": {
+        "status": "DEFERRED",
+        "note": "Follow-up BI-PF-1484: add unit tests for private projection paths (item missing, unknown status, dict/list normalization)."
+      },
+      "sig:3af1ee41b6f3d9a5": {
         "status": "ACTIONED",
-        "note": "Pure read-model over the append-only trail; revert changes rendering only; no migration, no writes, no destructive step."
+        "note": "Placeholder vocabulary is fixed in the code/docs: 'not recorded', 'evidence missing', 'reviewed (recommendation unavailable)', 'no evidence'."
       },
-      "sig:df45e9ff5580a254": {
+      "sig:daec52dcc5992347": {
         "status": "ACCEPTED",
-        "note": "Cells wrap at 44 chars and tables are sectioned; no pager. Accepted as a CLI usability trade-off."
+        "note": "Cells wrap at 44 chars deterministically; no pager. Accepted for the CLI."
       },
-      "sig:fb2f0d24a37895dc": {
+      "sig:efc7ae01b0e07309": {
         "status": "ACTIONED",
-        "note": "show performs no writes to the trail or check state; all writes stay with the existing owners (gate tools/backlog/precheck)."
+        "note": "docs/REVIEW-GATES-LIFECYCLE.md states the section order, status derivation, current-stage rule and disposition key."
       },
-      "sig:d07c603b4adff2a9": {
+      "sig:d4d63191f55d86e6": {
         "status": "ACTIONED",
-        "note": "Authz/RLS/tenant/API are not applicable to a local read-only CLI; the API CHECK row records needs_api=false. Documented in the design."
+        "note": "Design states read-only local CLI, no API/tenant/authz surface; API CHECK row records needs_api=false. Rollback is field-level."
       },
-      "sig:90712a0edf59ef03": {
+      "sig:851d17711e178199": {
         "status": "ACTIONED",
-        "note": "core/execution_trail.py is allowlisted control-plane Python (ADR-0010); this is an edit, not new shipped Python. Tests only elsewhere."
+        "note": "Reuses _stage_events, _stage_status, architect_review gate output and _box; no gate-checker logic is duplicated."
       },
-      "sig:660045ed2892e94a": {
-        "status": "ACTIONED",
-        "note": "Exact command pinned: python scripts/dev/precheck.py; Gate 2 verification will cite it."
-      },
-      "sig:4e41ff9f5a953d19": {
-        "status": "ACCEPTED",
-        "note": "A machine-readable --json twin is a later item; no second renderer is added now."
+      "sig:3d4dbe71deb857fa": {
+        "status": "DEFERRED",
+        "note": "Follow-up BI-PF-1484: optional --section filter; noted as out of scope for this item."
       }
     },
     "diff": {
