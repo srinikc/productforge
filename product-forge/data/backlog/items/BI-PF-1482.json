@@ -1,0 +1,264 @@
+{
+  "id": "BI-PF-1482",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "execution-trail-cost-table",
+  "label": "PF Backlog 652",
+  "title": "Execution trail: OpenCode Go token pricing/cost + box-drawn (Cursor-style) tables",
+  "body": "",
+  "source": "review",
+  "status": "in_progress",
+  "priority": "P2",
+  "moscow": "Should",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [
+    "BI-PF-1241",
+    "BI-PF-1481"
+  ],
+  "links": {},
+  "decisions": [
+    {
+      "at": "2026-10-25T13:42:12.536070",
+      "decision": "APPROVE",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)"
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "Trail usage shows cost 0 because no OpenCode Go pricing is wired and tables are raw markdown.",
+    "what_adds": "A pricing config + cost calculation and Cursor-style box tables in the trail show.",
+    "why_now": "HIL needs real cost and a readable completion table per item.",
+    "success": "Cost reflects OpenCode Go list prices; the trail renders as proper tables.",
+    "source": "authored"
+  },
+  "objective": "Compute review/session cost from OpenCode Go list prices and render the execution-trail stages/tests/final completion as box-drawn tables.",
+  "acceptance_criteria": [
+    "config/model-pricing.json (registered; source=opencode.ai/data, unit=USD per 1M tokens) maps the review/session models (mimo-v2.6-flash: input 0.14/output 0.28/cached 0.0028; deepseek-v4.1-flash: 0.07/0.30/0.0015; deepseek-v4-flash: 0.30/1.20/0.0060) and the trail computes cost = (input-cached)*input + cached*cached_input + output*output per 1M, preferring provider-reported cost when present.",
+    "python -m core.execution_trail show --item <ID> renders the stage, test and final completion tables as box-drawn (Cursor-style) tables with wrapped cells; usage shows input/output/cached/cost and 'not captured' when a source is absent.",
+    "Tests cover the cost formula, unknown-model cost_source=unavailable, provider-reported cost precedence, box table rendering/wrapping, and the existing trail/check behavior; precheck (including the execution-trail completion gate) passes."
+  ],
+  "in_scope": [
+    "config/model-pricing.json + store registration",
+    "core/execution_trail.py pricing + box tables",
+    "tests",
+    "docs note"
+  ],
+  "out_of_scope": [
+    "Fabricating session token counts.",
+    "Changing the gate order or pricing for models not in the catalog."
+  ],
+  "affected_components": [
+    "execution trail show/cost"
+  ],
+  "affected_files": [
+    "core/execution_trail.py",
+    "config/model-pricing.json",
+    "config/store-registry.json",
+    "test-framework/tests/test_execution_trail.py",
+    "docs/REVIEW-GATES-LIFECYCLE.md"
+  ],
+  "approach": "Add config/model-pricing.json (opencode.ai/data list prices, USD/1M) and registry entry; add price_usage()/box table rendering to core/execution_trail.py; record provider cost when supplied else compute (input-cached)*input + cached*cached_input + output*output; show wraps cells in Unicode box tables; completion can attach item.execution.usage if a worker recorded it. Add tests for cost/unknown/provider-cost/box wrapping.",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [
+        "BI-PF-1481 execution trail + show CLI",
+        "OpenCode Data list prices (opencode.ai/data) are the pricing authority"
+      ],
+      "existing_path": [
+        "core/execution_trail.py show/usage_totals/record",
+        "engineering/trails/<ID>.json",
+        "config/model-pricing.json (new)"
+      ],
+      "assumptions": [
+        "Cost uses (input-cached)*input + cached*cached_input + output*output per 1M; provider cost wins when present.",
+        "Review usage captures model+input+output+cached; session usage is recorded only if the harness/worker writes item.execution.usage.",
+        "Tables are rendered with Unicode box drawing and wrapped cells; no external table dependency."
+      ],
+      "divergences": [
+        "A new pricing config store is added (registered) instead of hardcoding prices in code."
+      ],
+      "open_questions": []
+    },
+    "impact_review": [
+      {
+        "claim": "API CHECK",
+        "verdict": "aligned",
+        "evidence": "No HTTP surface; CLI/show only.",
+        "recommendation": "needs_api=false"
+      },
+      {
+        "claim": "AC coverage",
+        "verdict": "aligned",
+        "evidence": [
+          "config/model-pricing.json (registered; source=opencode.ai/data, unit=USD per 1M tokens) maps the review/session models (mimo-v2.6-flash: input 0.14/output 0.28/cached 0.0028; deepseek-v4.1-flash: 0.07/0.30/0.0015; deepseek-v4-flash: 0.30/1.20/0.0060) and the trail computes cost = (input-cached)*input + cached*cached_input + output*output per 1M, preferring provider-reported cost when present.",
+          "python -m core.execution_trail show --item <ID> renders the stage, test and final completion tables as box-drawn (Cursor-style) tables with wrapped cells; usage shows input/output/cached/cost and 'not captured' when a source is absent.",
+          "Tests cover the cost formula, unknown-model cost_source=unavailable, provider-reported cost precedence, box table rendering/wrapping, and the existing trail/check behavior; precheck (including the execution-trail completion gate) passes."
+        ],
+        "recommendation": "approve"
+      },
+      {
+        "claim": "language",
+        "verdict": "aligned",
+        "evidence": "Edits to the existing allowlisted control-plane tooling module; pricing is config.",
+        "recommendation": "Python tooling"
+      },
+      {
+        "claim": "reuse",
+        "verdict": "aligned",
+        "evidence": "Extends execution_trail show/usage; no new engine.",
+        "recommendation": "approve"
+      },
+      {
+        "claim": "cost honesty",
+        "verdict": "aligned",
+        "evidence": "Provider cost wins; unknown models -> cost_source=unavailable; no fabrication.",
+        "recommendation": "approve"
+      },
+      {
+        "claim": "blast radius",
+        "verdict": "aligned",
+        "evidence": "Show output + usage fields; rollback is a revert; trail data remains.",
+        "recommendation": "approve"
+      }
+    ],
+    "reviewed_by": "agent",
+    "at": ""
+  },
+  "verification": [
+    "Objective achieved: Execution trail: OpenCode Go token pricing/cost + box-drawn (Cursor-style) tables"
+  ],
+  "risks": [
+    "Pricing changes upstream: config is versioned with source URLs; unknown models are marked unavailable."
+  ],
+  "rollback": "Revert the config/code commit; trail data remains.",
+  "evidence": [
+    "pending",
+    "Design guardrails applied (BI-PF-1482): sig:9925a968308ae473 (20 lines)"
+  ],
+  "owner": "agent",
+  "requester": "review",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1248",
+  "parent": "BI-PF-1248",
+  "revision": 3,
+  "priority_rank": 40,
+  "priority_class": "P2",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "COMPLETE",
+    "analyzed_at": "2026-10-25T13:42:12.304916",
+    "analyzed_by": "system",
+    "revision_analyzed": 3,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Add OpenCode model pricing entries to the Go cost/pricing module (new Go source next to existing cost owner); reuse core/cost_model.py + /api/v1/runs/time-cost for rollup; render Cursor-style box-drawn tables via a shared Go table formatter used by CLI/report output.",
+    "existing_components": [],
+    "existing_apis": [],
+    "existing_modules": [],
+    "dependency_findings": [
+      "RELATED BI-PF-1241 (usage capture) required_state=done for cost numbers to be real",
+      "RELATED BI-PF-1481 (stage ledger + cost report) required_state=in_progress for table surface"
+    ],
+    "conflict_findings": [
+      "Potential overlap with BI-PF-1481 report rendering — coordinate the table format owner",
+      "Concurrent edits to Go pricing table if another item adds models"
+    ],
+    "duplication_findings": [
+      "BI-PF-1241 already covers per-item usage rollup — do not rebuild capture/rollup",
+      "core/cost_kpi.py already owns KPI aggregation; extend, do not duplicate",
+      "Check existing table-rendering helpers before adding a formatter"
+    ],
+    "drift": "LOW",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "Reuse the existing cost owners and rollup API; only the OpenCode price mapping and a shared box-table renderer are new, written in Go per language rule.",
+    "assumptions": [
+      "OpenCode exposes token counts per model consistent with existing usage capture",
+      "Prices sourced from a single authoritative price table",
+      "No schema change needed (prices are config/code, reversible by revert)"
+    ],
+    "risks": [
+      "Stale/incorrect OpenCode prices produce wrong cost figures silently",
+      "Table renderer could break non-UTF8/CI log output",
+      "Price list duplication between Go and Python paths"
+    ],
+    "evidence": [
+      "core/cost_model.py, core/cost_kpi.py exist as cost owners",
+      "/api/v1/runs/time-cost already aggregates time+cost",
+      "BI-PF-1241 defines execution.usage shape"
+    ],
+    "confidence": "medium",
+    "missing_info": [
+      "OpenCode pricing source of truth (vendor price list vs configured table)",
+      "Where box-drawn tables are surfaced (CLI report, API, both)",
+      "Owner for the shared table-format contract vs BI-PF-1481"
+    ],
+    "depth": "deep",
+    "mode": "ai",
+    "context_review": {
+      "ok": null,
+      "source": "llm-unparseable",
+      "implementable": null,
+      "missing": [],
+      "reason": "reviewer returned no JSON"
+    },
+    "decision_request": {
+      "needed": false,
+      "reasons": [],
+      "ask": ""
+    },
+    "arch_fingerprint": "d4a42187d9790849"
+  },
+  "dependencies": [
+    {
+      "task_id": "BI-PF-1241",
+      "type": "REQUIRES",
+      "required_state": "done"
+    },
+    {
+      "task_id": "BI-PF-1481",
+      "type": "RELATED",
+      "required_state": "in_progress"
+    }
+  ],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-25T13:42:12.400821"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-25T13:41:39.706285",
+  "updated_at": "2026-10-25T13:42:34.828427",
+  "score": 0.75,
+  "_note": "readiness computed",
+  "api_impact": {
+    "needs_api": false,
+    "routes": [],
+    "consumers": [],
+    "reason": "CLI/show tooling only."
+  },
+  "language_rule": "Edits to the existing allowlisted control-plane tooling module; pricing is config."
+}
