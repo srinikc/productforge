@@ -37,3 +37,14 @@ def test_render_contains_sections(tmp_path, monkeypatch):
     out.write_text(d.render(_item()), encoding="utf-8")
     s = out.read_text(encoding="utf-8")
     assert "## 3. Logic invariants" in s and "| AC-1" in s and "BI-PF-9999" in s
+
+
+def test_should_enforce_by_item_and_date():
+    cfg = {"enforce_from": "2026-10-26", "enforce_items": ["BI-PF-1484"]}
+    assert d.should_enforce({"id": "BI-PF-1484", "created_at": "2026-10-01"}, cfg)
+    assert d.should_enforce({"id": "BI-PF-9", "created_at": "2026-10-27"}, cfg)
+    assert not d.should_enforce({"id": "BI-PF-9", "created_at": "2026-10-01"}, cfg)
+
+
+def test_all_with_item_is_rejected():
+    assert d.main(["--all", "--item", "BI-PF-9999", "--check"]) == 2

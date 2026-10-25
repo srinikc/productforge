@@ -27,6 +27,14 @@ def _cfg() -> dict:
         raise RuntimeError(f"cannot read design-pack config: {e}")
 
 
+def should_enforce(item: dict, cfg: dict) -> bool:
+    if str(item.get("id") or "") in (cfg.get("enforce_items") or []):
+        return True
+    created = str(item.get("created_at") or "")
+    enforce = str(cfg.get("enforce_from") or "")
+    return bool(created and enforce and created >= enforce)
+
+
 def check(item: dict) -> list[str]:
     bad = []
     pack = item.get("design_pack") or {}
@@ -37,7 +45,7 @@ def check(item: dict) -> list[str]:
         required = tuple(cfg.get("required_sections") or REQUIRED)
         contracts_req = tuple(cfg.get("required_contracts") or CONTRACTS)
     except Exception as e:
-        return [str(e)]
+        return [f"design-pack config error ({type(e).__name__}): {e}"]
     for k in required:
         if not pack.get(k):
             bad.append(f"design_pack.{k} missing")
@@ -103,20 +111,13 @@ def main(argv=None) -> int:
         return 2
     if a.all:
         try:
-            enforce = str(_cfg().get("enforce_from") or "")
+            cfg = _cfg()
         except Exception as e:
             print(f"design-pack: FAIL - {e}")
             return 1
-        if not enforce:
-            print("design-pack: FAIL - enforce_from missing")
-            return 1
         bad = []
         for item in backlog.list_items("product_forge", None):
-            created = str(item.get("created_at") or "")
-            if not created:
-                bad.append(f"{item.get('id')}: created_at missing")
-                continue
-            if created >= enforce:
+            if should_enforce(item, cfg):
                 for p in check(item):
                     bad.append(f"{item.get('id')}: {p}")
         print("design-pack: " + ("OK" if not bad else "FAIL"))

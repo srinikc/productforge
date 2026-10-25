@@ -35,6 +35,7 @@ CONFIG = ROOT / "config" / "architect-review.json"
 API = os.environ.get("PF_API_URL", "http://127.0.0.1:8010/api/v1")
 SEVERITIES = ("BLOCKER", "MAJOR", "MINOR", "NIT")
 DISPOSITION_STATUSES = ("PENDING", "ACTIONED", "ACCEPTED", "DEFERRED", "REJECTED", "SCOPE")
+PLACEHOLDERS = {"none", "- none", "-", ""}
 if str(ROOT / "scripts" / "dev") not in sys.path:
     sys.path.insert(0, str(ROOT / "scripts" / "dev"))
 from gitutil import (  # noqa: E402  (shared UTF-8/fail-closed git policy)
@@ -192,7 +193,7 @@ def parse_review(text: str) -> dict:
             continue
         if cur and re.match(r"^\s*[-*]\s+", line):
             item = re.sub(r"^\s*[-*]\s+", "", line).strip()
-            if item.lower() not in ("none", "- none", "-", ""):
+            if item.lower() not in PLACEHOLDERS:
                 out[cur].append(item)
     return out
 
@@ -430,7 +431,7 @@ def iter_findings(findings: dict):
     """
     for sev in SEVERITIES:
         for text in (findings or {}).get(sev, []) or []:
-            if str(text).strip().lower() in ("none", "- none", "", "-"):
+            if str(text).strip().lower() in PLACEHOLDERS:
                 continue
             yield sev, text
 
