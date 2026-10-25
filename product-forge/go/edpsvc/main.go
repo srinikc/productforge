@@ -341,7 +341,9 @@ func (s *server) adminOnly(fn http.HandlerFunc) http.HandlerFunc {
 		if strings.HasPrefix(auth, "Bearer ") {
 			token = strings.TrimSpace(strings.TrimPrefix(auth, "Bearer "))
 		}
-		if subtle.ConstantTimeCompare([]byte(token), []byte(s.admin)) != 1 {
+		th := sha256.Sum256([]byte(token))
+		ah := sha256.Sum256([]byte(s.admin))
+		if subtle.ConstantTimeCompare(th[:], ah[:]) != 1 {
 			limits.WriteError(w, r, http.StatusUnauthorized, "admin authorization required")
 			return
 		}
@@ -547,7 +549,7 @@ func (s *server) artifactSvc(r *http.Request) (*artifacts.Service, error) {
 func (s *server) artifactGet(w http.ResponseWriter, r *http.Request, id string) {
 	svc, err := s.artifactSvc(r)
 	if err != nil {
-		s.fail(w, r, http.StatusBadRequest, err)
+		s.bad(w, r, http.StatusBadRequest, err.Error())
 		return
 	}
 	a, err := svc.Get(r.Context(), id)
@@ -561,7 +563,7 @@ func (s *server) artifactGet(w http.ResponseWriter, r *http.Request, id string) 
 func (s *server) artifactContent(w http.ResponseWriter, r *http.Request, id string) {
 	svc, err := s.artifactSvc(r)
 	if err != nil {
-		s.fail(w, r, http.StatusBadRequest, err)
+		s.bad(w, r, http.StatusBadRequest, err.Error())
 		return
 	}
 	rc, err := svc.FetchContent(r.Context(), id)
@@ -928,7 +930,31 @@ func (s *server) fail(w http.ResponseWriter, r *http.Request, status int, err er
 		limits.WriteError(w, r, status, "internal error")
 		return
 	}
-	limits.WriteError(w, r, status, err.Error())
+	// 4xx: never echo storage/client error text (JSON fragments, object keys, SQL); use a fixed message.
+	limits.WriteError(w, r, status, safeStatusMessage(status))
+}
+
+func safeStatusMessage(status int) string {
+	switch status {
+	case http.StatusBadRequest:
+		return "invalid request"
+	case http.StatusUnauthorized:
+		return "unauthenticated"
+	case http.StatusForbidden:
+		return "forbidden"
+	case http.StatusNotFound:
+		return "not found"
+	case http.StatusMethodNotAllowed:
+		return "method not allowed"
+	case http.StatusConflict:
+		return "conflict"
+	case http.StatusRequestEntityTooLarge:
+		return "payload too large"
+	case http.StatusTooManyRequests:
+		return "rate limited"
+	default:
+		return "request failed"
+	}
 }
 
 func (s *server) ready(w http.ResponseWriter, r *http.Request) {

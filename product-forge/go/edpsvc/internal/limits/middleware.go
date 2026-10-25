@@ -21,6 +21,10 @@ func ValidTenant(t string) bool { return tenantRE.MatchString(t) }
 
 func isUpload(path string) bool { return path == "/artifacts" }
 
+func isMigration(path string) bool {
+	return path == "/admin/migrations/up" || path == "/admin/migrations/down"
+}
+
 // EnvelopeFallback rewrites ServeMux's plain-text 404/405 responses into the v1 JSON envelope, so every
 // response on the surface is structured.
 func EnvelopeFallback(next http.Handler) http.Handler {
@@ -132,6 +136,9 @@ func (w *statusWriter) Flush() {
 // Unwrap exposes the underlying writer to http.ResponseController.
 func (w *statusWriter) Unwrap() http.ResponseWriter { return w.ResponseWriter }
 
+// Written reports whether a status/body was already sent (panic recovery must not double-write).
+func (w *statusWriter) Written() bool { return w.wrote }
+
 func requestIDMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		id := strings.TrimSpace(r.Header.Get("X-Request-ID"))
@@ -161,6 +168,9 @@ func recoverMiddleware(next http.Handler) http.Handler {
 		defer func() {
 			if rec := recover(); rec != nil {
 				log.Printf("edpsvc: panic on %s %s: %v", r.Method, r.URL.Path, rec)
+				if ww, ok := w.(interface{ Written() bool }); ok && ww.Written() {
+					return
+				}
 				WriteError(w, r, http.StatusInternalServerError, "internal error")
 			}
 		}()
@@ -170,7 +180,9 @@ func recoverMiddleware(next http.Handler) http.Handler {
 
 func roleGateMiddleware(next http.Handler, roleOK func() bool) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if isExempt(r.URL.Path) || roleOK == nil || roleOK() {
+		// Health/readiness stay reachable so a failed role check can be diagnosed; /metrics still requires
+		// the admin token and is NOT exempt from the role gate.
+		if r.URL.Path == "/health" || r.URL.Path == "/ready" || roleOK == nil || roleOK() {
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -183,6 +195,8 @@ func timeoutMiddleware(next http.Handler, cfg Config) http.Handler {
 		d := cfg.RequestTimeout
 		if isUpload(r.URL.Path) {
 			d = cfg.UploadTimeout
+		} else if isMigration(r.URL.Path) {
+			d = cfg.MigrationTimeout
 		}
 		ctx, cancel := context.WithTimeout(r.Context(), d)
 		defer cancel()

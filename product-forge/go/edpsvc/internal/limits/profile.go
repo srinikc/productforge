@@ -111,9 +111,7 @@ func (g *RoleGuard) RecheckLoop(ctx context.Context, db datastore.RelationalStor
 			cancel()
 			if err != nil {
 				failures++
-				if failures >= 2 {
-					g.Fail()
-				}
+				g.Fail()
 				if onViolation != nil {
 					onViolation(err)
 				}
