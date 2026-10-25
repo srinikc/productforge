@@ -37,7 +37,7 @@ policy maximum; `days` must still be > 0.
 `python scripts/dev/residency_gate.py [--scope ...] [--project ...] [--mode warn|block] [--report]`
 
 - `gate_mode` in `config/residency-policy.json` defaults to **warn** for the first release; flip to **block** after
-  products are warn-clean. The policy carries `gate_mode_ticket`/`gate_mode_expires`; a flip is a recorded decision.
+  products are warn-clean. The policy carries `gate_mode_ticket`/`gate_mode_expires`; an expired warn mode is treated as block.
 - Unknown/missing home, unreadable profile/policy and validator/toolchain failures **always block**, even in warn.
 - `--report` is non-fatal and prints the JSON report.
 - Each run writes `engineering/residency-gate.json` (last run) and a bounded `engineering/residency-gate.jsonl`
@@ -47,7 +47,8 @@ policy maximum; `days` must still be > 0.
 
 `RESIDENCY_UNKNOWN_HOME`, `RESIDENCY_HOME_NOT_ALLOWED`, `RESIDENCY_BACKUP_REGION`, `RESIDENCY_KMS_REGION`,
 `RESIDENCY_EGRESS_REGION`, `RESIDENCY_RETENTION`, `RESIDENCY_MISSING_GROUP:<group>`, `RESIDENCY_UNKNOWN_FREQUENCY`,
-`RESIDENCY_BACKUP_UNENCRYPTED`, `RESIDENCY_KMS_ROTATION`, `RESIDENCY_INVALID_FIELD:<field>`, `RESIDENCY_SCHEMA_VERSION`, `RESIDENCY_PROFILE_UNREADABLE`,
+`RESIDENCY_REGION_NOT_ALLOWED`, `RESIDENCY_BACKUP_UNENCRYPTED`, `RESIDENCY_KMS_ROTATION`,
+`RESIDENCY_INVALID_FIELD:<field>` (e.g. `kms.provider`), `RESIDENCY_SCHEMA_VERSION`, `RESIDENCY_PROFILE_UNREADABLE`,
 `RESIDENCY_VALIDATOR_UNAVAILABLE`, `RESIDENCY_MANIFEST_UNREADABLE`, `RESIDENCY_MANIFEST_INVALID`.
 Adding/removing a code is a versioned contract change.
 

@@ -104,19 +104,24 @@ def validate_residency(section: dict) -> dict:
     if home and home not in allowed:
         unmet.append("RESIDENCY_HOME_NOT_ALLOWED")
     sec_allowed = {str(x).upper() for x in (sec.get("allowed_regions") or [])}
-    if not sec_allowed or home not in sec_allowed or not sec_allowed <= allowed:
+    if not sec_allowed or home not in sec_allowed:
         unmet.append("RESIDENCY_HOME_NOT_ALLOWED")
-    for group in ("backup", "kms", "egress"):
-        g = sec.get(group) or {}
-        regions = g.get("regions") or ([g.get("region")] if g.get("region") else []) or g.get("allowed_regions") or []
-        if not set(str(x).upper() for x in regions) <= allowed:
-            unmet.append(f"RESIDENCY_{group.upper()}_REGION")
+    if not sec_allowed <= allowed:
+        unmet.append("RESIDENCY_REGION_NOT_ALLOWED")
     b = sec.get("backup") or {}
+    k = sec.get("kms") or {}
+    e = sec.get("egress") or {}
+    for code, regions in (("BACKUP", b.get("regions") or []),
+                          ("KMS", [k.get("region")] if k.get("region") else []),
+                          ("EGRESS", e.get("allowed_regions") or [])):
+        if not set(str(x).upper() for x in regions) <= allowed:
+            unmet.append(f"RESIDENCY_{code}_REGION")
+    if not str(k.get("provider") or "").strip():
+        unmet.append("RESIDENCY_INVALID_FIELD:kms.provider")
     if b.get("encrypted") is not True:
         unmet.append("RESIDENCY_BACKUP_UNENCRYPTED")
     if b.get("frequency") not in FREQUENCIES:
         unmet.append("RESIDENCY_UNKNOWN_FREQUENCY")
-    k = sec.get("kms") or {}
     try:
         if int(k.get("rotation_days") or 0) <= 0:
             unmet.append("RESIDENCY_KMS_ROTATION")

@@ -45,8 +45,8 @@ func TestMissingHome(t *testing.T) {
 func TestRegionWideningRejected(t *testing.T) {
 	m, p := base()
 	m.AllowedRegions = []string{"IN", "US"}
-	if errs := Validate(m, p); !has(errs, "RESIDENCY_HOME_NOT_ALLOWED") {
-		t.Fatalf("want HOME_NOT_ALLOWED, got %v", errs)
+	if errs := Validate(m, p); !has(errs, "RESIDENCY_REGION_NOT_ALLOWED") {
+		t.Fatalf("want REGION_NOT_ALLOWED, got %v", errs)
 	}
 }
 
@@ -95,5 +95,31 @@ func TestPathTraversalRejected(t *testing.T) {
 	_, err := LoadProfile("config/residency-profiles", "../in")
 	if err == nil {
 		t.Fatal("want traversal rejected")
+	}
+}
+
+func TestMissingGroups(t *testing.T) {
+	m, p := base()
+	m.DataClasses = nil
+	m.HomeRegion = ""
+	m.AllowedRegions = nil
+	m.Backup = Backup{}
+	m.KMS = KMS{}
+	m.Retention = Retention{}
+	errs := Validate(m, p)
+	for _, c := range []string{"RESIDENCY_MISSING_GROUP:data_classes", "RESIDENCY_MISSING_GROUP:home_region",
+		"RESIDENCY_MISSING_GROUP:allowed_regions", "RESIDENCY_MISSING_GROUP:backup",
+		"RESIDENCY_MISSING_GROUP:kms", "RESIDENCY_MISSING_GROUP:retention"} {
+		if !has(errs, c) {
+			t.Fatalf("missing %s in %v", c, errs)
+		}
+	}
+}
+
+func TestKMSProvider(t *testing.T) {
+	m, p := base()
+	m.KMS.Provider = ""
+	if errs := Validate(m, p); !has(errs, "RESIDENCY_INVALID_FIELD:kms.provider") {
+		t.Fatalf("want provider field error, got %v", errs)
 	}
 }

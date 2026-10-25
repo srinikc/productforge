@@ -20,8 +20,8 @@ for p in (ROOT, ROOT / "scripts" / "dev"):
         sys.path.insert(0, str(p))
 
 POLICY = ROOT / "config" / "residency-policy.json"
-EVENT = ROOT / "engineering" / "residency-gate.json"
-JSONL = ROOT / "engineering" / "residency-gate.jsonl"
+EVENT = Path(os.environ.get("PF_RESIDENCY_EVENT") or (ROOT / "engineering" / "residency-gate.json"))
+JSONL = Path(os.environ.get("PF_RESIDENCY_JSONL") or (ROOT / "engineering" / "residency-gate.jsonl"))
 MAX_JSONL = 5 * 1024 * 1024
 
 
@@ -43,6 +43,7 @@ def _event(rec: dict) -> None:
                 old, new = JSONL.with_suffix(f".jsonl.{i}"), JSONL.with_suffix(f".jsonl.{i + 1}")
                 if old.exists():
                     os.replace(old, new)
+            JSONL.with_suffix(".jsonl.3").unlink(missing_ok=True)
             os.replace(JSONL, JSONL.with_suffix(".jsonl.1"))
         with open(JSONL, "a", encoding="utf-8") as f:
             f.write(json.dumps(rec) + "\n")
@@ -64,10 +65,22 @@ def main(argv: list[str] | None = None) -> int:
     profiles = a.profiles or str(packaging.residency_profiles_dir())
     policy = _policy()
     mode = a.mode or str(policy.get("gate_mode") or "warn")
+    expires = str(policy.get("gate_mode_expires") or "")
+    if mode == "warn" and expires:
+        try:
+            from datetime import date
+            if date.fromisoformat(expires) < date.today():
+                mode = "block"
+        except ValueError:
+            pass
     rec = {"at": datetime.now(timezone.utc).isoformat(), "scope": a.scope, "project": a.project,
            "manifest": str(manifest), "gate_mode": mode, "report_version": 1}
     try:
-        py = packaging.residency_section(a.scope, a.project)
+        try:
+            with open(manifest, encoding="utf-8-sig") as f:
+                py = {"validation": packaging.validate_residency(json.load(f))}
+        except Exception as e:
+            py = {"validation": {"valid": False, "unmet": [f"RESIDENCY_MANIFEST_UNREADABLE:{e}"]}}
         gomod = ROOT / "go" / "residencymanifest"
         cmd = ["go", "run", "./cmd/pfresidency", "--manifest", str(manifest),
                "--profiles", profiles, "--mode", mode, "--report"]
@@ -82,9 +95,16 @@ def main(argv: list[str] | None = None) -> int:
         go = json.loads(out[-1]) if out else {}
     except Exception:
         go = {}
+    if not isinstance(go, dict) or "ok" not in go:
+        rec.update({"ok": False, "execution_error": "validator returned no JSON",
+                    "errors": ["RESIDENCY_VALIDATOR_UNAVAILABLE"]})
+        _report(rec, a.report)
+        _event(rec)
+        print(f"residency: BLOCK validator returned no JSON: {r.stderr.strip()}", file=sys.stderr)
+        return 0 if a.report else 2
     py_valid = bool((py.get("validation") or {}).get("valid"))
     go_valid = bool(go.get("ok"))
-    parity = py_valid == go_valid or not go
+    parity = py_valid == go_valid
     errors = list(go.get("errors") or (py.get("validation") or {}).get("unmet") or [])
     rec.update({"ok": go_valid and parity, "go": go, "python_valid": py_valid,
                 "parity": parity, "errors": errors, "exit": r.returncode})

@@ -53,12 +53,14 @@ type Profile struct {
 
 func LoadManifest(path string) (Manifest, error) {
 	var m Manifest
+	if st, err := os.Stat(path); err != nil {
+		return m, fmt.Errorf("RESIDENCY_MANIFEST_UNREADABLE: %w", err)
+	} else if st.Size() > 64*1024 {
+		return m, errors.New("RESIDENCY_MANIFEST_TOO_LARGE")
+	}
 	b, err := os.ReadFile(path)
 	if err != nil {
 		return m, fmt.Errorf("RESIDENCY_MANIFEST_UNREADABLE: %w", err)
-	}
-	if len(b) > 64*1024 {
-		return m, errors.New("RESIDENCY_MANIFEST_TOO_LARGE")
 	}
 	if err := json.Unmarshal(b, &m); err != nil {
 		return m, fmt.Errorf("RESIDENCY_MANIFEST_INVALID: %w", err)
@@ -72,12 +74,14 @@ func LoadProfile(dir, home string) (Profile, error) {
 		return p, errors.New("RESIDENCY_UNKNOWN_HOME")
 	}
 	path := fmt.Sprintf("%s/%s-v1.json", strings.TrimRight(dir, "/\\"), strings.ToLower(home))
+	if st, err := os.Stat(path); err != nil {
+		return p, fmt.Errorf("RESIDENCY_PROFILE_UNREADABLE: %w", err)
+	} else if st.Size() > 64*1024 {
+		return p, errors.New("RESIDENCY_PROFILE_TOO_LARGE")
+	}
 	b, err := os.ReadFile(path)
 	if err != nil {
 		return p, fmt.Errorf("RESIDENCY_PROFILE_UNREADABLE: %w", err)
-	}
-	if len(b) > 64*1024 {
-		return p, errors.New("RESIDENCY_PROFILE_TOO_LARGE")
 	}
 	if err := json.Unmarshal(b, &p); err != nil {
 		return p, fmt.Errorf("RESIDENCY_PROFILE_UNREADABLE: %w", err)
@@ -112,6 +116,21 @@ func Validate(m Manifest, p Profile) []string {
 	if len(m.DataClasses) == 0 {
 		add("RESIDENCY_MISSING_GROUP:data_classes")
 	}
+	if strings.TrimSpace(m.HomeRegion) == "" {
+		add("RESIDENCY_MISSING_GROUP:home_region")
+	}
+	if len(m.AllowedRegions) == 0 {
+		add("RESIDENCY_MISSING_GROUP:allowed_regions")
+	}
+	if len(m.Backup.Regions) == 0 && !m.Backup.Encrypted && m.Backup.Frequency == "" {
+		add("RESIDENCY_MISSING_GROUP:backup")
+	}
+	if m.KMS.Provider == "" && m.KMS.Region == "" && m.KMS.RotationDays == 0 {
+		add("RESIDENCY_MISSING_GROUP:kms")
+	}
+	if m.Retention.Days == 0 && !m.Retention.LegalHold {
+		add("RESIDENCY_MISSING_GROUP:retention")
+	}
 	home := strings.ToUpper(strings.TrimSpace(m.HomeRegion))
 	if home == "" {
 		add("RESIDENCY_UNKNOWN_HOME")
@@ -123,8 +142,10 @@ func Validate(m Manifest, p Profile) []string {
 	if home != "" && !allowed[home] {
 		add("RESIDENCY_HOME_NOT_ALLOWED")
 	}
-	if len(m.AllowedRegions) == 0 || !upperSet(m.AllowedRegions)[home] || !subset(m.AllowedRegions, allowed) {
+	if len(m.AllowedRegions) == 0 || !upperSet(m.AllowedRegions)[home] {
 		add("RESIDENCY_HOME_NOT_ALLOWED")
+	} else if !subset(m.AllowedRegions, allowed) {
+		add("RESIDENCY_REGION_NOT_ALLOWED")
 	}
 	if !subset(m.Backup.Regions, allowed) {
 		add("RESIDENCY_BACKUP_REGION")
@@ -140,6 +161,9 @@ func Validate(m Manifest, p Profile) []string {
 	}
 	if !Frequencies[strings.ToLower(m.Backup.Frequency)] {
 		add("RESIDENCY_UNKNOWN_FREQUENCY")
+	}
+	if m.KMS.Provider == "" {
+		add("RESIDENCY_INVALID_FIELD:kms.provider")
 	}
 	if m.KMS.RotationDays <= 0 {
 		add("RESIDENCY_KMS_ROTATION")

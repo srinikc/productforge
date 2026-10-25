@@ -33,7 +33,7 @@ def test_profile_bounds_reject_region_widening():
     sec["allowed_regions"] = ["IN", "US"]
     v = packaging.validate_residency(sec)
     assert v["valid"] is False
-    assert "RESIDENCY_HOME_NOT_ALLOWED" in v["unmet"]
+    assert "RESIDENCY_REGION_NOT_ALLOWED" in v["unmet"]
 
 
 def test_invalid_backup_kms_retention():
@@ -68,3 +68,19 @@ def test_path_traversal_home_rejected():
     v = packaging.validate_residency(sec)
     assert v["valid"] is False
     assert "RESIDENCY_UNKNOWN_HOME" in v["unmet"]
+
+def test_gate_block_and_warn_exit_codes(tmp_path):
+    import os
+    man = json.loads((ROOT / "config" / "residency-manifest.json").read_text(encoding="utf-8"))
+    man["backup"]["regions"] = ["US"]
+    path = tmp_path / "residency_manifest_scratch.json"
+    path.write_text(json.dumps(man), encoding="utf-8")
+    env = dict(os.environ, PF_RESIDENCY_EVENT=str(tmp_path / "residency_gate_scratch.json"),
+               PF_RESIDENCY_JSONL=str(tmp_path / "residency_gate_scratch.jsonl"))
+    cmd = [sys.executable, str(ROOT / "scripts" / "dev" / "residency_gate.py"),
+           "--manifest", str(path), "--mode", "block"]
+    r = subprocess.run(cmd, capture_output=True, text=True, timeout=180, env=env)
+    assert r.returncode == 1, r.stdout + r.stderr
+    cmd[cmd.index("block")] = "warn"
+    r = subprocess.run(cmd, capture_output=True, text=True, timeout=180, env=env)
+    assert r.returncode == 0 and "WARN" in r.stderr
