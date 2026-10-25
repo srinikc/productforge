@@ -159,3 +159,18 @@ Reviews are a learning input, not a one-off artifact:
 (HIL delivery approval) → precheck fast → PR/CI → merge gate → closure guard → delivery → DoD.**
 
 **Binding order (hard).** Gate 0 (reconciliation + impact table + language + API) ? Gate 1.5 design review ? HIL Gate 1 ? implement ? Gate 2.5 diff review ? HIL Gate 2 ? precheck ? merge. Completion is also gated: an item cannot reach `completed` without Gate 0 artifacts, current design evidence and a Gate 1 decision, even if it never transitioned through `in_progress`.
+
+## Review budget (BI-PF-1480)
+
+- **One diff review per code freeze.** The Gate 1 decision is the epoch; only diff reviews after it count.
+- **Disposition before re-review.** A second diff review for an item is refused while the prior diff review has
+  no dispositions. `--rereview --reason` is the audited override: the reason must cite the prior review sha,
+  is redacted, capped, and stored as `rereview_reason` in the evidence.
+- **Budget.** `config/architect-review.json` `review_budget` sets `warn_after` (2) and `fail_after` (4):
+  count > warn prints a structured `review_churn_warn`; count > fail fails a completion in the diff unless the
+  item carries a HIL-attested `review_churn` decision (attester allowlist, >=40-char note citing the review sha).
+- **Gate.** `scripts/dev/review_churn_check.py` is a fast precheck gate; `--report`/`--json` are the
+  non-blocking/machine modes. Reviews are counted from committed `HEAD` evidence; a missing base ref reports
+  `skipped` (CI uses full history/`--base`).
+- **Why:** EDP-10 hit 8 diff reviews because fixes were made after each review instead of batching and
+  dispositioning. This guard makes re-review deliberate and auditable.
