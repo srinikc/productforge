@@ -1,0 +1,48 @@
+{
+  "item": "BI-PF-1485",
+  "sha": "03012deaa7a7",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-25T16:19:19.643129+00:00",
+  "base_sha": "",
+  "head_sha": "d1aa259903958d0cf4f6fef7c84d3f1cf4ddbcf1",
+  "findings": {
+    "BLOCKER": [
+      "Prior BLOCKER disposition is false: `evaluate()` still runs `_date_problems(item, cfg)` and returns those errors BEFORE `should_enforce`; `--all` (precheck/CI gate) iterates every backlog item, so one legacy in-progress item with missing/malformed `created_at` fails the gate for every contributor. The claimed reorder is not in the diff.",
+      "Prior BLOCKER disposition is false for the same reason (`--all` blast radius is unchanged); `design_pack.main(--all)` aggregates `evaluate()` for all items with no enforcement short-circuit, so the gate's blast radius is the whole backlog, not `enforce_items`.",
+      "`--since` is added only to the `review` subparser (`rn.add_argument`) while the `emit` path reads `a.since`; if `emit` is a distinct parser this raises `AttributeError` and breaks prompt emission. Disposition \"covered by the batch fixes\" is not supported by the diff."
+    ],
+    "MAJOR": [
+      "AC/design conflict: delta re-review (the headline feature) is effectively unreachable for all future items \u2014 `review_budget.problems` blocks at `len(rows) >= max_reviews_per_mode` (1) unless a HIL `MATERIAL_CHANGE` decision exists, so the new re-review path only works for the two grandfathered items. Re-review and one-review-per-item are not reconciled in the design.",
+      "Silent skip loses auditability: `review` exits 0 on `has_review_changes(base)==False` with no evidence file, no trail event, and no record of the base that produced the empty delta; `architect_review_check` then relies on a heuristic fallback over unrelated evidence to pass.",
+      "The excluded-path trust boundary is a header string: `excluded_content_check.problem()` accepts any `engineering/design/*.md` starting with `# Design Pack`, any `.jsonl` line that parses, and `docs/BACKLOG-SUMMARY.md`/`documentation-index.html` unconditionally \u2014 arbitrary code/content can hide under an excluded path while the gate reports OK. Fail-closed is claimed but not achieved.",
+      "Duplicated, divergent git logic persists (prior MAJOR disposition false): `_is_ancestor` is copy-pasted in `architect_review.py` and `architect_review_check.py`, three separate `changed()` implementations exist, and `encoding_check.changed()` hardcodes `merge-base origin/develop HEAD` while `architect_review._merge_base()` honors an override \u2014 the two gates can disagree on the change set.",
+      "`architect_review_check` fallback reaches into module-private state (`ar._git_text`, `ar.EXCLUDE`, `ar._merge_base`) and re-implements delta validation divergently from `architect_review.valid_since` \u2014 high drift risk in a security-adjacent gate."
+    ],
+    "MINOR": [
+      "Prior MINOR dispositions are false and unchanged: `ingest` still calls `_ingest(...)` without `base` (persists `base_sha: \"\"`, so externally ingested evidence is not base-bound as the AC requires); `_prior_context` still calls `_meta` repeatedly per file (O(n\u00b2) reads); `grandfather: [\"BI-PF-1484\",\"BI-PF-1485\"]` still exempts both items shipping the control; `enforce_items` still lists only `BI-PF-1485`, so the design-pack item itself is never validated; `design_pack --item --render` still writes MD for unknown items and returns 0 without `--check`.",
+      "`check()` still uses `cfg.get(\"required_sections\") or REQUIRED` / `or CONTRACTS`, silently masking a truncated/empty config instead of failing closed (prior NIT disposition false), and `REQUIRED`/`CONTRACTS` duplicate `config/design-pack.json`.",
+      "AC gap: no test asserts the generator's BOM-safe template read (`utf-8-sig`) or that a BOM'd `templates/DESIGN-PACK.md` renders correctly \u2014 encoding BOM coverage exists only for `encoding_check.problems`.",
+      "`encoding_check.CODE_EXT` omits `.txt`, `.sql`, `.proto`, `.env`, `.gitattributes` and extensionless files (e.g. `Makefile`), while the AC says \"changed source/config/docs\".",
+      "Budget compares an ISO timestamp to a bare date cutoff lexically and counts the default-config `REVIEWS` path even when a test/runtime override applies; correct today only by ISO-string coincidence.",
+      "Gate wiring is duplicated across `precheck._GATES` and `config/ci-cd-gates.json`; the four new entries must be kept in sync by hand.",
+      "`store-registry.json` registers a wildcard path `engineering/design/*.md` with `\"status\": \"exists\"` and `owner_item: BI-PF-1484` while the enforcing item is BI-PF-1485 \u2014 registry semantics for globs are unvalidated.",
+      "No test covers `review_budget.main`, the `architect_review_check` evidence-fallback path, or the empty-delta skip interacting with the check \u2014 the highest-risk new logic is the least tested."
+    ],
+    "NIT": [
+      "`render()` still uses an ordered `.replace()` chain (injection/double-substitution risk) \u2014 prior NIT disposition false.",
+      "`test_encoding_check.test_binary_file_is_skipped` still uses opaque `f\"{0}.json\"` naming \u2014 prior NIT disposition false.",
+      "`check()` still accepts both `AC-1` and bare `1` test-matrix keys, an undocumented dual convention \u2014 prior NIT disposition false.",
+      "`_DESIGN_KEYS` and the inline keys tuple in `_design_body` remain duplicated.",
+      "`encoding_check` `suffix not in BINARY_EXT` is dead code (`BINARY_EXT` \u2229 `CODE_EXT` = \u2205)."
+    ],
+    "SUMMARY": [
+      "Several prior dispositions marked ACTIONED are not supported by this diff (date-before-enforce ordering, `--since` on emit, duplicated git helpers, ingest base, grandfather/enforce lists, render/template NITs) \u2014 the review's own integrity guarantee is failing.",
+      "The delta-re-review feature and the one-review-per-mode budget are in direct design conflict; the excluded-path gate's \"fail-closed\" claim rests on weak content sniffing.",
+      "Ship-blocking until `evaluate()` ordering is truly fixed (blast radius on every precheck run), the emit path is made safe, and evidence/trail records the base for skipped reviews."
+    ]
+  },
+  "rereview_reason": "prior sha 2ba9304a129c; batch blockers fixed",
+  "rereview_reason_sha256": "9768da44299bbe7c6fedd68cf64b21420b84717b9ba12f59361d99491dc1ad6d"
+}
