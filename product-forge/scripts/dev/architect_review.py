@@ -128,19 +128,36 @@ def _merge_base() -> str:
     return mb or "origin/develop"
 
 
-def _git_diff() -> str:
-    # Committed diff only (merge-base..HEAD): stable across precheck's own writing gates and equal to the CI PR
-    # diff. The developer commits the change, runs the review (evidence committed next), then pushes.
-    return _git_text(["diff", "--no-color", f"{_merge_base()}..HEAD", "--", ".", *EXCLUDE])
+def _git_diff(base: str = "") -> str:
+    """Committed diff. First review: merge-base..HEAD. Re-review: prior review sha..HEAD (delta)."""
+    start = base or _merge_base()
+    return _git_text(["diff", "--no-color", f"{start}..HEAD", "--", ".", *EXCLUDE])
 
 
-def changed_files() -> list:
-    out = _git_text(["diff", "--name-only", f"{_merge_base()}..HEAD", "--", ".", *EXCLUDE])
+def changed_files(base: str = "") -> list:
+    start = base or _merge_base()
+    out = _git_text(["diff", "--name-only", f"{start}..HEAD", "--", ".", *EXCLUDE])
     return [ln.strip() for ln in out.splitlines() if ln.strip()]
 
 
-def diff_sha() -> str:
-    return hashlib.sha256(_git_diff().encode("utf-8")).hexdigest()[:12]
+def diff_sha(base: str = "") -> str:
+    return hashlib.sha256(_git_diff(base).encode("utf-8")).hexdigest()[:12]
+
+
+def _latest_review_sha(item_id: str, mode: str) -> str:
+    """Latest committed review sha for an item+mode (used as the delta base)."""
+    best = ("", "")
+    for p in (ROOT / "engineering" / "reviews").glob(f"{item_id}-*.json"):
+        try:
+            d = json.loads(p.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        if str(d.get("mode") or "") != mode:
+            continue
+        at = str(d.get("at") or "")
+        if at >= best[0]:
+            best = (at, str(d.get("sha") or ""))
+    return best[1]
 
 
 _DESIGN_KEYS = ("objective", "approach", "in_scope", "out_of_scope", "acceptance_criteria",
@@ -274,11 +291,37 @@ def _llm_call(prompt: str, model: str) -> str:
     raise last_err or RuntimeError("review call failed")
 
 
-def _build_prompt(item: dict, item_id: str, mode: str) -> str:
+def _prior_context(item: dict, item_id: str, mode: str) -> str:
+    """Prior review findings + dispositions, so a re-review only reports new/unresolved items."""
+    rows = ((item.get("review_dispositions") or {}).get(mode) or {})
+    files = sorted((ROOT / "engineering" / "reviews").glob(f"{item_id}-*.json"),
+                   key=lambda p: p.stat().st_mtime) if (ROOT / "engineering" / "reviews").is_dir() else []
+    if not files:
+        return ""
+    try:
+        d = json.loads(files[-1].read_text(encoding="utf-8"))
+    except Exception:
+        return ""
+    from review_sig import digest
+    lines = ["Prior review (do NOT repeat these unless the disposition is wrong; report only new findings):"]
+    for sev in ("BLOCKER", "MAJOR", "MINOR", "NIT"):
+        for text in (d.get("findings") or {}).get(sev) or []:
+            if str(text).strip().lower() == "none":
+                continue
+            disp = rows.get("sig:" + digest(text)) or {}
+            lines.append(f"- {sev}: {str(text)[:300]} | disposition={disp.get('status', 'PENDING')} | {str(disp.get('note') or '')[:180]}")
+    return "\n".join(lines)
+
+
+def _build_prompt(item: dict, item_id: str, mode: str, base: str = "") -> str:
     ac = "\n".join(f"- {c}" for c in (item.get("acceptance_criteria") or [])) or "- (none)"
-    body = _design_body(item) if mode == "design" else "Diff:\n```diff\n" + _git_diff()[:180000] + "\n```"
+    body = _design_body(item) if mode == "design" else "Diff:\n```diff\n" + _git_diff(base)[:180000] + "\n```"
     prompt = PROMPT.format(target=("design" if mode == "design" else "implementation diff"),
                            item=item_id, ac=ac, body=body)
+    if mode == "diff":
+        prior = _prior_context(item, item_id, mode)
+        if prior:
+            prompt += "\n\n" + prior
     if mode == "design":
         try:
             from design_guardrails import (
@@ -681,11 +724,11 @@ def review_guard(item_id: str, item: dict, rereview: bool, reason: str) -> tuple
 
 
 def _ingest(item_id: str, text: str, model: str, apply: bool, mode: str = "diff",
-            rereview_reason: str = "") -> int:
+            rereview_reason: str = "", base: str = "") -> int:
     findings = parse_review(text)
     # BI-PF-1465: fail closed - evidence that did not parse must never look like a clean review.
     parsed_ok = bool(re.search(r"^\s*#{2,4}\s*(BLOCKER|MAJOR|MINOR|NIT|SUMMARY)\s*$", text, re.I | re.M))
-    sha = design_sha(_get_item(item_id)) if mode == "design" else diff_sha()
+    sha = design_sha(_get_item(item_id)) if mode == "design" else diff_sha(base)
     EVID.mkdir(parents=True, exist_ok=True)
     out = EVID / f"{item_id}-{sha}.json"
     if rereview_reason and out.is_file():
@@ -693,6 +736,7 @@ def _ingest(item_id: str, text: str, model: str, apply: bool, mode: str = "diff"
         out.rename(prev)
     payload = {"item": item_id, "sha": sha, "model": model, "mode": mode,
                "parsed_ok": parsed_ok, "at": datetime.now(timezone.utc).isoformat(),
+               "base_sha": base, "head_sha": _git_text(["rev-parse", "HEAD"]).strip(),
                "findings": findings}
     if rereview_reason:
         payload["rereview_reason"] = rereview_reason
@@ -742,6 +786,7 @@ def main(argv: list[str]) -> int:
     rn.add_argument("--model", default=default_model, help="reviewer model id (configurable)")
     rn.add_argument("--rereview", action="store_true", help="allow a second review for the same item+sha")
     rn.add_argument("--reason", default="", help="required with --rereview; cite the prior review sha")
+    rn.add_argument("--since", default="", help="review only this sha..HEAD (default: prior review sha on re-review)")
     ing = sub.add_parser("ingest")
     ing.add_argument("--item", required=True)
     ing.add_argument("--file", required=True)
@@ -782,7 +827,7 @@ def main(argv: list[str]) -> int:
     if a.cmd == "emit":
         item = _get_item(a.item)
         print(f"Reviewer model: {a.model}\n")
-        print(_build_prompt(item, a.item, a.mode))
+        print(_build_prompt(item, a.item, a.mode, a.since))
         return 0
     if a.cmd == "ingest":
         return _ingest(a.item, Path(a.file).read_text(encoding="utf-8"), a.model, a.apply)
@@ -819,13 +864,16 @@ def main(argv: list[str]) -> int:
             print(why)
             return 1
     reason = redact_reason(getattr(a, "reason", "")) if a.rereview else ""
-    sha = design_sha(item) if a.mode == "design" else diff_sha()
+    base = a.since
+    if a.mode == "diff" and not base and a.rereview:
+        base = _latest_review_sha(a.item, "diff")
+    sha = design_sha(item) if a.mode == "design" else diff_sha(base)
     existing = EVID / f"{a.item}-{sha}.json"
     if existing.is_file() and not a.rereview:
         print(f"review already exists for {a.item} sha={sha}: {existing.name}")
         print("   convergence: re-review only after code changes (or pass --rereview)")
         return 1
-    prompt = _build_prompt(item, a.item, a.mode)
+    prompt = _build_prompt(item, a.item, a.mode, base)
     try:
         out = _llm_call(prompt, a.model)
     except Exception as e:
@@ -834,7 +882,7 @@ def main(argv: list[str]) -> int:
     if not out.strip():
         print("review call returned empty content")
         return 2
-    return _ingest(a.item, out, a.model, a.apply, a.mode, rereview_reason=reason)
+    return _ingest(a.item, out, a.model, a.apply, a.mode, rereview_reason=reason, base=base)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,41 @@
+{
+  "item": "BI-PF-1484",
+  "sha": "6e74990a104b",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-25T11:18:53.810326+00:00",
+  "findings": {
+    "BLOCKER": [
+      "Language-rule violation: `core/execution_trail.py` adds new shipped logic (`TEST_KINDS`, `test_kind`, `tests_by_kind`) in Python; the rule requires new shipped logic in Go, yet AC claims language-rule checks pass.",
+      "`gate2_completion_check.check()` semantics silently changed: `continue` moved inside the new `if gaps:` block, so `GATE0_INCOMPLETE` no longer short-circuits and gap-present ids skip all remaining gate diagnostics (masking other problems).",
+      "No producer for `DISPOSITION_APPROVAL` decisions appears in the diff, while `record_gate_decision` explicitly refuses anything except APPROVE/APPROVE_WITH_ATTENTION; if no other path exists, ACCEPTED/DEFERRED approvals can never be recorded and the whole policy is unsatisfiable."
+    ],
+    "MAJOR": [
+      "`finalize_item.build()` hardcodes `item_revision = revision + 1` and Gate 2 requires exact match; any extra revision bump during `backlog.update` (or any later edit, e.g. a gate decision recorded after finalize) makes the report permanently stale \u2014 an undocumented ordering/feedback-loop hazard with no regeneration guidance.",
+      "AC completeness is only \"list non-empty\": nothing cross-checks `ac_verification` against the item's authoritative AC list, so all-but-one-AC recorded still passes Gate 2/completion despite the \"any AC is missing\" AC.",
+      "Enforcement drift: `execution_trail_check` checks only final_report *presence* + ACs, while `completion_gaps` also checks `FINAL_REPORT_STALE`; two different notions of \"complete\" can disagree between CI and merge gate.",
+      "Duplicated deferred-follow-up logic (`FOLLOW_UP` regex, external-id + existence checks) in both `disposition_policy.py` and `execution_trail_check.py` \u2014 divergence risk on the same policy rule.",
+      "No test covers the actual persistence path (`backlog.update` with `final_report`), `record_gate_decision` refusals, or Gate 2 refusal \u2014 AC demands tests for final-report persist and completion guards.",
+      "Confirm `usage_totals` output actually carries `cost_source` and extracted deferred backlog `id`s; the AC requires both explicitly and the diff never adds/verifies them."
+    ],
+    "MINOR": [
+      "`test_kind` classification is precedence-brittle heuristic (`\"conformance\"` \u2192 logic wins over db/api; `\"db_\"`/`\" db\"` substring matches) \u2014 a single command string can flip category over time.",
+      "`from core import backlog as _backlog` is imported inside the per-item loop in `execution_trail_check.evaluate`.",
+      "Disposition policy in `record_gate_decision` is applied to `mode = \"design\" if gate == 1 else \"diff\"`, silently mapping gate 1.5/completion to \"diff\" without documenting the mapping.",
+      "`review-dispositions.json` booleans are re-read per call with no schema/validation and defaults duplicated in code (`STATUSES`, cap parsing).",
+      "AC says Gate 2 \"refuses\" on bad ACs, but refusal lives in `record_gate_decision` only; a direct `check()` run reports `AC_VERIFICATION_INCOMPLETE` without blocking the decision path if that path is bypassed."
+    ],
+    "NIT": [
+      "Unrelated `config/id-blocks.json` session allocation hunk bundled into this change.",
+      "Inconsistent `str(x or \"\").upper()` vs `str(x).upper()` result parsing across `finalize_item`, `gate_decisions`, and `execution_trail_check`.",
+      "Show's \"Tests by kind\" ratio omits skipped counts while the table includes them."
+    ],
+    "SUMMARY": [
+      "Solid structure (config-driven policy, persisted report, show rendering, guard tests), but a language-rule violation on new Python shipped logic and the re-indented `continue` in the Gate 2 completion check are merge-blocking.",
+      "Biggest long-term risks: unsatisfiable/incomplete DISPOSITION_APPROVAL production path, revision-coupled staleness feedback loop, and divergent completeness checks between CI and the merge gate."
+    ]
+  },
+  "rereview_reason": "prior sha 661fb64d15ab; gate/report/HIL fixes committed",
+  "rereview_reason_sha256": "7c44df2442d5d74cf18854e9070a752dc4d3cf164c239e19a4a2b624bf473f38"
+}

@@ -67,6 +67,16 @@ def main() -> int:
         print(f"architect-review: OK (baseline sha {sha})")
         return 0
     hits = list(EVID.glob(f"*-{sha}.json")) if EVID.is_dir() else []
+    if not hits and EVID.is_dir():
+        head = ar._git_text(["rev-parse", "HEAD"]).strip()
+        for p in EVID.glob("*.json"):
+            try:
+                d = json.loads(p.read_text(encoding="utf-8"))
+            except Exception:
+                continue
+            if d.get("mode") == "diff" and str(d.get("head_sha") or "") == head and d.get("base_sha"):
+                hits = [p]
+                break
     if hits:
         print(f"architect-review: OK (evidence {hits[0].name})")
         return 0

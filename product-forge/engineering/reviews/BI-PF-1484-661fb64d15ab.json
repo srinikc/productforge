@@ -1,0 +1,44 @@
+{
+  "item": "BI-PF-1484",
+  "sha": "661fb64d15ab",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-25T11:16:38.521727+00:00",
+  "findings": {
+    "BLOCKER": [
+      "`gate2_completion_check.check`: the diff re-indents control flow so the pre-existing `continue` (12-space indent) now lands inside the new `for gap in completion_gaps(item):` loop. Gate-0-incomplete items no longer short-circuit and now fall through to `ar.gate_view`/design checks; the `continue` no longer does what it did. Unintended behavior regression in a merge-blocking gate.",
+      "`FINAL_REPORT_STALE` is likely unsatisfiable: `finalize_item.build` records `item_revision = it.get(\"revision\")` from *before* `backlog.update(...)`. If update increments revision (typical), the persisted report is stale the moment it is written, permanently blocking merge. If update does not increment, the staleness check is vacuous. Either way the invariant is broken; no test covers the persist path against this.",
+      "`execution_trail_check.evaluate`: completion guard only fires when `status` is in (\"completed\",\"closed\",\"done\",\"delivered\"), but the AC/final-report re-check is required \"at completion\" \u2014 an item merged via a path that sets status differently (e.g. \"merged\"/\"delivered\" ordering, or status updated before the check runs) bypasses it. Gate is status-string-coupled with no enum source of truth."
+    ],
+    "MAJOR": [
+      "`disposition_policy.cfg()` silently fail-opens: any exception reading `config/review-dispositions.json` returns hardcoded defaults with no log, metric, or error. A corrupt/renamed config downgrades or silently rewrites policy enforcement with zero observability.",
+      "HIL approval validation is spoofable: `_approvals` accepts any in-item dict with `decision`, `hil_confirmed: true`, `scope`, `mode`, `sigs`. It never verifies the decision came from a `hil:` actor, resides in the append-only trail, or post-dates the disposition. A single item-field write bypasses the entire HIL control.",
+      "`test_kind` is substring-heuristic classification (`\"pipeline\" in cmd` \u2192 api, `\" db\" in cmd` \u2192 db, `/go/` path match). Misclassification is silent and unauditable; kind should be captured explicitly at record time, with the heuristic as fallback only.",
+      "Completion/AC logic is duplicated across `gate2_completion_check.completion_gaps`, `execution_trail_check.evaluate`, `gate_decisions.record_gate_decision`, and `finalize_item.build` (each with its own `bad_ac` comprehension). Divergence will silently weaken the strongest gate; consolidate behind one authority.",
+      "`FOLLOW_UP` regex duplicated in `disposition_policy.py`, `execution_trail_check.py` \u2014 drift risk on id format; also the first regex match in a note may be the item's own id, satisfying \"DEFERRED cites a backlog id\" with a self-reference.",
+      "Follow-up existence check hardcodes `product_forge` project (`backlog.get_epic(\"product_forge\", ...)`) in three call sites; cross-project deferrals (API/other-scope ids) will always report \"does not exist\"."
+    ],
+    "MINOR": [
+      "`finalize_item.build` embeds both `tests` (flat list) and `tests_by_kind` (same rows again) \u2014 report payload duplication; bloats the persisted item on every finalization.",
+      "`finalize_item` persist path is untested (`test_finalize_item` covers only `build` + `completion_gaps`); the AC's \"final-report build/**persist**\" coverage gap is real.",
+      "No test covers `show()` rendering of the new AC/tests-by-kind/disposition sections; the ZeroDivision-class rendering failure mode is unguarded by tests.",
+      "`finalize_item` `gate_decisions` filter includes `REVIEW_CHURN` alongside approvals \u2014 muddies \"gate decisions\" semantics in the durable report.",
+      "`execution_trail_check` calls `backlog.get_epic` per follow-up per mode per item (and imports inside the loop) \u2014 O(items\u00d7modes\u00d7deferrals) store reads on every check run.",
+      "`record_gate_decision` Gate-2 AC check duplicates finalize's AC check but with slightly different `str(a.get(\"result\"))` vs `str(a.get(\"result\") or \"\")` coercion \u2014 cosmetic divergence today, drift vector tomorrow.",
+      "`id-blocks.json` change is unrelated churn in this diff; reservation-state commits belong in the allocator's own change, not a policy PR."
+    ],
+    "NIT": [
+      "Config keys `approval_decision`/`approval_scope` duplicated verbatim between `review-dispositions.json` and the hardcoded fallback dict \u2014 a third copy will inevitably appear.",
+      "`tbk` variable name; several over-long f-string lines in `show()`.",
+      "`execution_trail_check` deferred-problem output and `dp.problems` output can double-report the same deferred-without-id finding for one item."
+    ],
+    "SUMMARY": [
+      "Solid acceptance-criteria surface (config, policy module, finalize script, show sections, docs, tests) but the enforcement core is unreliable: a control-flow regression in the Gate-2 checker, a self-defeating final-report staleness invariant, and a status-string-coupled completion guard.",
+      "The HIL approval control is validated against spoofable item fields rather than the append-only trail, and the policy config fails open silently \u2014 both undermine the integrity the ACs exist to guarantee.",
+      "Consolidate AC/completion logic behind a single authority, fix the Gate-2 indentation regression, resolve the revision semantics, and add persist-path and trail-provenance tests before this can be relied on as a merge gate."
+    ]
+  },
+  "rereview_reason": "prior sha 6052b62a5e8f; merge/final-report guard fixes committed",
+  "rereview_reason_sha256": "82be999afaea8265a75e75f9ba1a1b6409870433d184714d3c0dd2ee0c708084"
+}
