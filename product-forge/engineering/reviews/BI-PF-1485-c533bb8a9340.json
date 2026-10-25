@@ -1,0 +1,38 @@
+{
+  "item": "BI-PF-1485",
+  "sha": "c533bb8a9340",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-10-25T14:30:12.228119+00:00",
+  "base_sha": "",
+  "head_sha": "9fa3470f138a04871bc017e6d0bccff94daff144",
+  "findings": {
+    "BLOCKER": [
+      "Design does not answer the DESIGN GUARDRAILS checklist (reversibility, authz/RLS, blast radius, invariants, rollback, observability); Gate 1.5 approval is invalid while these are unaddressed (CL-006/CL-008).",
+      "Gate 1 context fields `out_of_scope`, `affected_components`, `affected_files`, `risks` are all \"Not specified\" \u2014 no scope boundary or risk register, so delta review and encoding-gate blast radius cannot be bounded."
+    ],
+    "MAJOR": [
+      "Encoding gate scope (\"changed source/config/docs\", working-tree/untracked files) is undefined relative to the review base/head binding \u2014 unclear which commit/tree is authoritative, risking false pass/fail and non-reproducible evidence.",
+      "No statement of how prior findings/dispositions are stored, keyed, and invalidated across rebases; without a stable base/head binding, delta reviews can silently drop or resurrect findings.",
+      "Design-pack enforced items (failure matrix, test matrix, rollout/rollback, decisions) have no defined schema/owner or failure mode when an item is missing \u2014 validation behaviour unspecified.",
+      "Language rule not explicitly addressed: which components of design-pack generation, encoding gate, and re-review delta logic are new shipped logic (must be Go) vs tooling (Python allowed).",
+      "No observability plan for the new gates (metrics/log lines on gate failure, which surface, who is alerted) \u2014 failures may be silent.",
+      "Rollback is only \"Revert the change\" with no migration-interrupted/recovery path for any persisted design-pack or last_reviewed_HEAD state (guardrail 6)."
+    ],
+    "MINOR": [
+      "Recurring gaps unaddressed in this design: `_render_review`/`_item_dispositions` lack path-level tests (index alignment, missing item, unknown status).",
+      "Redaction coverage limited to query params; encoding/gate evidence may include headers or path fragments.",
+      "Double `resp.Body.Close()` noted but not scheduled for cleanup in scope."
+    ],
+    "NIT": [
+      "Probe-key uniqueness via wall-clock nanos \u2014 negligible but worth an injectable clock for test determinism.",
+      "`in_scope` duplicates `approach` verbatim; consider distinct statements for auditability."
+    ],
+    "SUMMARY": [
+      "Verdict: design is not ready for Gate 1 \u2014 guardrail checklist unanswered and required Gate 1 metadata missing.",
+      "Top risks: undefined delta-review base/head binding, unspecified language-rule split, silent gate failures with no observability, and rollback limited to a revert.",
+      "Address BLOCKER/MAJOR items and pre-empt recurring test/redaction findings before proceeding."
+    ]
+  }
+}

@@ -177,6 +177,8 @@ _GATES = [
     ("worker", ["scripts/dev/worker_check.py"], "fast", ["core/worker"]),
     ("reservations", ["scripts/dev/reservations_check.py"], "fast", ["reservations", "shared-paths"]),
     ("packaging", ["scripts/dev/packaging_check.py"], "fast", ["packaging"]),
+    ("encoding", ["scripts/dev/encoding_check.py"], "fast", None),
+    ("design-pack", ["scripts/dev/design_pack.py", "--all", "--check"], "fast", None),
     ("tool-catalog", ["scripts/dev/tool_catalog_check.py"], "fast", None),
     ("dependency-catalog", ["scripts/dev/dependency_catalog_check.py"], "fast", None),
     ("language-rule", ["scripts/dev/language_rule_check.py"], "fast", None),
