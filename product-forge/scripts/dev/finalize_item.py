@@ -56,6 +56,7 @@ def build(item_id: str) -> dict:
             "sum_stage_ms": sum_stage_ms, "clock_skew": clock_skew, "item": item_id, "generated_at": datetime.now(timezone.utc).isoformat(),
             "item_revision": it.get("revision"), "current_stage": tr.current_stage(item_id, it.get("status") or ""),
             "acs": acs, "ac_problems": bad_ac, "tests_by_kind": tr.tests_by_kind(evs),
+            "gate_metrics": tr.gate_metrics(evs),
             "usage": u, "started_at": start, "finished_at": end,
             "disposition_problems": bad,
             "dispositions": {m: {k: v for k, v in ((it.get("review_dispositions") or {}).get(m) or {}).items()

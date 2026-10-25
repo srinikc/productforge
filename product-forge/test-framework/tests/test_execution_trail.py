@@ -90,7 +90,8 @@ def test_show_is_one_ordered_flow_with_current_stage(tmp_path, monkeypatch):
     out = tr.show("BI-PF-1481")
     order = ["## 1. Plain language", "## 2. Gate 0", "## 3. Flow", "## 4. Gate 1.5",
              "## 5. Gate 1", "## 6. Implementation", "## 7. Gate 2.5", "## 8. Gate 2",
-             "## 9. Tests", "## 10. Usage", "## 11. Final completion", "## Disposition key"]
+             "## 9. Tests", "## 10. Gate metrics", "## 11. Usage", "## 12. Final completion",
+             "## Disposition key"]
     assert [out.index(x) for x in order] == sorted(out.index(x) for x in order)
     assert "**Current stage:** gate1" in out
     assert "the problem" in out and "ADR-1" in out and "| API" in out

@@ -730,7 +730,7 @@ def review_guard(item_id: str, item: dict, rereview: bool, reason: str) -> tuple
 
 
 def _ingest(item_id: str, text: str, model: str, apply: bool, mode: str = "diff",
-            rereview_reason: str = "", base: str = "") -> int:
+            rereview_reason: str = "", base: str = "", duration_ms: int = 0) -> int:
     findings = parse_review(text)
     # BI-PF-1465: fail closed - evidence that did not parse must never look like a clean review.
     parsed_ok = bool(re.search(r"^\s*#{2,4}\s*(BLOCKER|MAJOR|MINOR|NIT|SUMMARY)\s*$", text, re.I | re.M))
@@ -766,7 +766,7 @@ def _ingest(item_id: str, text: str, model: str, apply: bool, mode: str = "diff"
         trail.record(item_id, stage, "fail" if blockers else "pass",
                      summary=f"{stage}: {counts}",
                      refs={"review_sha": sha, "model": model, "evidence": out.name},
-                     usage=dict(_LAST_USAGE))
+                     usage=dict(_LAST_USAGE), duration_ms=duration_ms)
     except Exception as e:
         try:
             from core import execution_trail as _t
@@ -884,6 +884,7 @@ def main(argv: list[str]) -> int:
         print(f"review already exists for {a.item} sha={sha}: {existing.name}")
         print("   convergence: re-review only after code changes (or pass --rereview)")
         return 1
+    started = time.time()
     prompt = _build_prompt(item, a.item, a.mode, base)
     try:
         out = _llm_call(prompt, a.model)
@@ -893,7 +894,9 @@ def main(argv: list[str]) -> int:
     if not out.strip():
         print("review call returned empty content")
         return 2
-    return _ingest(a.item, out, a.model, a.apply, a.mode, rereview_reason=reason, base=base)
+    duration_ms = int((time.time() - started) * 1000)
+    return _ingest(a.item, out, a.model, a.apply, a.mode, rereview_reason=reason,
+                   base=base, duration_ms=duration_ms)
 
 
 if __name__ == "__main__":

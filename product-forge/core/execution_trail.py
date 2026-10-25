@@ -302,6 +302,26 @@ def _box(headers: list, rows: list, widths: list | None = None) -> str:
     return "\n".join(out)
 
 
+def gate_metrics(evs: list[dict]) -> list[dict]:
+    """Per-gate timing + token/cost rows (BI-PF-1484)."""
+    rows = []
+    for ev in evs:
+        u = dict(ev.get("usage") or {})
+        if u and not u.get("not_captured"):
+            u = price_usage(u)
+        rows.append({
+            "stage": ev.get("stage", ""),
+            "at": ev.get("at", ""),
+            "duration_ms": int(ev.get("duration_ms") or 0),
+            "input_tokens": int(u.get("input_tokens") or 0),
+            "output_tokens": int(u.get("output_tokens") or 0),
+            "cached_tokens": int(u.get("cached_tokens") or 0),
+            "cost_usd": u.get("cost_usd"),
+            "cost_source": u.get("cost_source") or ("not_captured" if u.get("not_captured") else "n/a"),
+        })
+    return rows
+
+
 def usage_totals(evs: list[dict]) -> dict:
     total = {"input_tokens": 0, "output_tokens": 0, "cached_tokens": 0, "cost_usd": 0.0,
              "captured": 0, "not_captured": 0, "unpriced": 0}
@@ -551,8 +571,17 @@ def show(item: str) -> str:
     lines += ["", "## 9. Tests", _box(["Command", "Result", "Duration", "Passed", "Failed", "Skipped"],
                                        test_rows, widths=[36, 8, 10, 7, 7, 8])]
 
+    gm = gate_metrics(evs)
+    grows = [[g["stage"], g["at"], f"{g['duration_ms']} ms", g["input_tokens"],
+              g["output_tokens"], g["cached_tokens"],
+              "-" if g["cost_usd"] is None else f"{g['cost_usd']:.6f}", g["cost_source"]]
+             for g in gm]
+    lines += ["", "## 10. Gate metrics", _box(
+        ["Gate", "At", "Duration", "In", "Out", "Cached", "Cost USD", "Cost source"],
+        grows or [["(none)", "-", "-", "-", "-", "-", "-", "-"]],
+        widths=[18, 26, 10, 8, 8, 8, 10, 14])]
     u = usage_totals(evs)
-    lines += ["", "## 10. Usage", f"input={u['input_tokens']} output={u['output_tokens']} "
+    lines += ["", "## 11. Usage", f"input={u['input_tokens']} output={u['output_tokens']} "
               f"cached={u['cached_tokens']} cost_usd={u['cost_usd']:.6f} "
               f"captured={u['captured']} not_captured={u['not_captured']} unpriced={u['unpriced']}"]
     delivery = (it.get("links") or {}).get("delivery") or {}
@@ -576,12 +605,13 @@ def show(item: str) -> str:
         ["Tests by kind", " | ".join(f"{k} {v['passed']}/{v['passed'] + v['failed']}"
                                       for k, v in tbk.items() if v["rows"]) or "none"],
         ["Final report", "persisted" if it.get("final_report") else "not persisted"],
+        ["Gate metrics", "see section 10 (per-gate time/tokens/cost)"],
         ["Total time", f"{total_ms} ms ({total_ms / 1000.0:.1f}s)"],
         ["Tokens in/out/cached", f"{u['input_tokens']} / {u['output_tokens']} / {u['cached_tokens']}"],
         ["Cost (USD)", f"{u['cost_usd']:.6f} (captured={u['captured']} unpriced={u['unpriced']})"],
         ["Next", f"{nid or '-'} {ntitle}"],
     ]
-    lines += ["", "## 11. Final completion", _box(["Field", "Value"], final_rows, widths=[20, 72])]
+    lines += ["", "## 12. Final completion", _box(["Field", "Value"], final_rows, widths=[20, 72])]
     lines += ["", "## Disposition key",
               "- **ACTIONED** - fixed or committed in this item (Gate 1.5: design/plan updated; Gate 2.5: code/docs changed).",
               "- **ACCEPTED** - not fixed; the risk is explicitly accepted with a rationale (no follow-up unless a backlog id is named).",
