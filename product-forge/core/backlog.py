@@ -1051,8 +1051,9 @@ def set_status(scope: str, project: str | None, eid: str, status: str, note: str
     if str(status).lower() in {"completed", "closed", "done"}:
         try:
             from core import execution_trail as trail
+            exec_usage = ((res or {}).get("execution") or {}).get("usage") or {}
             trail.record(eid, "completion", "pass", summary=note or "completed",
-                         refs={"status": status})
+                         refs={"status": status}, usage=exec_usage)
         except Exception as e:
             try:
                 from core import execution_trail as _t
