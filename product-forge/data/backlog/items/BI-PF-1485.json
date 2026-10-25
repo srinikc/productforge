@@ -240,7 +240,7 @@
     "usage": {}
   },
   "created_at": "2026-10-25T16:51:37.256014",
-  "updated_at": "2026-10-25T20:43:25.638919",
+  "updated_at": "2026-10-25T21:27:12.771809",
   "score": 0.75,
   "_note": "Gate 0 design",
   "design_pack": {
@@ -352,22 +352,22 @@
       {
         "ac": "AC-1",
         "kind": "unit",
-        "test": "test_architect_review_delta.py (valid_since, empty delta, prior mode)"
+        "test": "test_architect_review_delta.py"
       },
       {
         "ac": "AC-2",
         "kind": "unit",
-        "test": "test_design_pack.py (check/render/config/evaluate)"
+        "test": "test_design_pack.py"
       },
       {
         "ac": "AC-3",
         "kind": "unit",
-        "test": "test_encoding_check.py (BOM/working tree)"
+        "test": "test_encoding_check.py"
       },
       {
         "ac": "AC-4",
         "kind": "logic",
-        "test": "design-pack + encoding + store + precheck; review/gate render covered by existing gate tests"
+        "test": "test_excluded_content_check.py + design-pack/encoding/store/precheck"
       }
     ],
     "rollout": "Use on the next re-review; T1 applies to 1484/1485 only.",
@@ -390,7 +390,7 @@
       "10 Reuse/observability: reuse one reviewer, one disposition owner; stderr/exit + trail evidence."
     ],
     "evidence_compat": "Old evidence files remain readable; new base_sha/head_sha are optional for old records. Prior context filters mode and uses the latest reviewed head; no migration required.",
-    "empty_delta_rule": "Review-relevant diff = committed base..HEAD excluding engineering/**, data/backlog/**, config/id-blocks.json, architect-review baseline and derived docs. If this diff is empty, no model call is made and the previous reviewed head stays as the delta base.",
+    "empty_delta_rule": "Review-relevant diff = base..HEAD excluding generated/evidence paths, BUT only after excluded_content_check verifies each excluded file matches its schema/header (review JSON, trail schema, design header, backlog JSON/JSONL, id-blocks/baseline). Any unclassified or malformed excluded file fails the gate and is not trusted.",
     "redaction": "Evidence stores item/model/sha/base/head/findings/rereview reason hash; secrets are never read into evidence; reason text is redacted.",
     "affected_files": [
       "scripts/dev/architect_review.py",
@@ -404,9 +404,18 @@
       "AGENTS.md",
       "test-framework/tests/test_architect_review_delta.py",
       "test-framework/tests/test_design_pack.py",
-      "test-framework/tests/test_encoding_check.py"
+      "test-framework/tests/test_encoding_check.py",
+      "scripts/dev/excluded_content_check.py",
+      "test-framework/tests/test_excluded_content_check.py"
     ],
-    "notes": "CL-006 Gate1 embeds 1.5 findings; CL-008 guardrails above; CL-009 learnings injection remains in design_guardrails (not changed here)."
+    "notes": "CL-006 Gate1 embeds 1.5 findings; CL-008 guardrails above; CL-009 learnings injection remains in design_guardrails (not changed here).",
+    "exclusions": "Excluded paths are content-class verified, not trusted by path. engineering/** is generated design/evidence; data/backlog/** is derived backlog JSON/JSONL; id-blocks/baseline are state. Code or malformed content there fails.",
+    "concurrency": "Single writer per working tree (AGENTS IS-PF-0036); evidence files are unique per candidate key; there is no shared last_reviewed_head pointer. Concurrent sessions are forbidden.",
+    "learnings": [
+      "LLM review false positives: use evidence/verification + HIL",
+      "Evidence must bind base/head and ignore data-only commits",
+      "One 1.5/2.5 per candidate; no re-review loop"
+    ]
   },
   "api_impact": {
     "needs_api": false,
