@@ -191,7 +191,9 @@ def parse_review(text: str) -> dict:
             cur = m.group(1).upper()
             continue
         if cur and re.match(r"^\s*[-*]\s+", line):
-            out[cur].append(re.sub(r"^\s*[-*]\s+", "", line).strip())
+            item = re.sub(r"^\s*[-*]\s+", "", line).strip()
+            if item.lower() not in ("none", "-", ""):
+                out[cur].append(item)
     return out
 
 

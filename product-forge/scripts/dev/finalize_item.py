@@ -52,12 +52,8 @@ def build(item_id: str) -> dict:
             "dispositions": {m: {k: v for k, v in ((it.get("review_dispositions") or {}).get(m) or {}).items()
                                  if str((v or {}).get("status") or "").upper() in ("ACCEPTED", "DEFERRED")}
                              for m in ("design", "diff")},
-            "gate_decisions": [d for d in (it.get("decisions") or [])
-                               if str(d.get("decision") or "").upper() in ("APPROVE", "APPROVE_WITH_ATTENTION",
-                                                                           "DISPOSITION_APPROVAL", "REVIEW_CHURN")],
-            "other_decisions": [d for d in (it.get("decisions") or [])
-                                if str(d.get("decision") or "").upper() not in ("APPROVE", "APPROVE_WITH_ATTENTION",
-                                                                                "DISPOSITION_APPROVAL", "REVIEW_CHURN")]}
+            "gate_decisions": [d for d in (it.get("decisions") or []) if d.get("gate")],
+            "other_decisions": [d for d in (it.get("decisions") or []) if not d.get("gate")]}
 
 
 def main(argv: list[str] | None = None) -> int:

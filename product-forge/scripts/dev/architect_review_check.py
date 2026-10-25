@@ -78,20 +78,21 @@ def main() -> int:
                 continue
             evs.append((p, d))
         evs.sort(key=lambda pd: str(pd[1].get("at") or ""))
-        latest_head = ""
-        for _, d in evs:
-            if d.get("mode") == "diff" and d.get("head_sha"):
-                latest_head = str(d["head_sha"])
-        valid_bases = {mb, latest_head}
+        by_item = {}
+        for p, d in evs:
+            by_item.setdefault(str(d.get("item") or ""), []).append(d)
         for path, d in reversed(evs):
             if d.get("mode") != "diff" or str(d.get("head_sha") or "") != head:
                 continue
             base = str(d.get("base_sha") or "")
-            if not base or base not in valid_bases:
+            if not base or base == head:
                 continue
-            if path.is_file():
-                hits = [path]
-                break
+            prior_heads = {str(x.get("head_sha") or "") for x in by_item.get(str(d.get("item") or ""), [])
+                           if x.get("head_sha") and str(x.get("head_sha")) != head}
+            if base == mb or base in prior_heads:
+                if path.is_file():
+                    hits = [path]
+                    break
     if hits:
         print(f"architect-review: OK (evidence {hits[0].name})")
         return 0
