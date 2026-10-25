@@ -50,7 +50,7 @@
     "A Go module go/residencymanifest (Manifest/Policy/Validate) + cmd/pfresidency validates a manifest against config/residency-profiles/<home>.json: unknown/missing home -> fail closed; home in allowed_regions; backup/kms/egress regions subset of allowed_regions; retention.days > 0 and <= policy.retention_days when set; recognized backup.frequency; all six groups; block/warn mode; JSON report with stable error codes (RESIDENCY_UNKNOWN_HOME, RESIDENCY_HOME_NOT_ALLOWED, RESIDENCY_BACKUP_REGION, RESIDENCY_KMS_REGION, RESIDENCY_EGRESS_REGION, RESIDENCY_RETENTION, RESIDENCY_MISSING_GROUP, RESIDENCY_UNKNOWN_FREQUENCY).",
     "scripts/dev/residency_gate.py builds/loads the packaging manifest from config/residency-manifest.json (template) or products/<project>/residency-manifest.json (override), invokes the Go validator, and blocks (exit 1) or warns per config/residency-policy.json gate_mode; --report is non-fatal; warn mode prints a one-line stderr summary.",
     "Tests cover the Go validator (valid, unknown region, missing home, home not allowed, backup/kms/egress outside allowed, zero/over retention, invalid backup/KMS fields, missing groups), the Python manifest/gate (six groups, validate rejects missing, IN template, override precedence, block/warn exit codes, warn stderr), language_rule_review, and precheck (45+ gates).",
-    "5. Policy bounds + conformance + ownership: the profile is authoritative (manifest allowed_regions/home/backup/kms/egress ? profile.allowed_regions); one fixture set (valid + every RESIDENCY_* error incl. schema/invalid-field/toolchain) yields identical pass/block from core.packaging.validate and cmd/pfresidency; config/residency-policy.json, config/residency-manifest.json and config/residency-profiles/** are registered with owners; warn mode only downgrades policy violations, never execution failures; a structured event is appended to engineering/residency-gate.jsonl."
+    "5. Policy bounds + conformance + ownership: the profile is authoritative (manifest allowed_regions/home/backup/kms/egress ? profile.allowed_regions); one fixture set (valid + every RESIDENCY_* error incl. schema/invalid-field/toolchain/profile) yields identical pass/block from core.packaging.validate and cmd/pfresidency; config/residency-policy.json, config/residency-manifest.json and config/residency-profiles/** are registered with owners; warn only downgrades policy violations, never execution failures; a bounded structured event is written to engineering/residency-gate.json/.jsonl with report_version=1."
   ],
   "in_scope": [
     "Residency manifest section in packaging-manifest.json (explicit home_region; IN template).",
@@ -76,7 +76,9 @@
     "config/residency-profiles/*.json",
     "config/store-registry.json",
     "test-framework/tests/test_packaging_residency.py",
-    "docs/RESIDENCY-MANIFEST-GATE.md"
+    "docs/RESIDENCY-MANIFEST-GATE.md",
+    "engineering/residency-gate.json",
+    "engineering/residency-gate.jsonl"
   ],
   "approach": "Extend core/packaging.build/validate with an embedded residency section sourced from config/residency-manifest.json (template) or products/<project>/residency-manifest.json (override) + config/residency-profiles/<home>.json. Add go/residencymanifest (Manifest/Policy/Validate + cmd/pfresidency) with fail-closed home/region/backup/KMS/egress/retention checks, stable error codes and block/warn modes. Add docs/RESIDENCY-MANIFEST-GATE.md; tests in Go + test-framework.",
   "review": {
@@ -305,7 +307,7 @@
     "usage": {}
   },
   "created_at": "2026-10-13T16:02:45.510577",
-  "updated_at": "2026-10-25T15:24:27.536128",
+  "updated_at": "2026-10-25T15:25:30.679294",
   "score": 0.75,
   "source_ref": "docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md",
   "_note": "dependencies set",
@@ -452,6 +454,84 @@
       "sig:4bbe84b02bc127fa": {
         "status": "ACTIONED",
         "note": "residency_gate.py calls core.packaging.load/build to resolve template vs product manifest; no second precedence implementation."
+      },
+      "sig:c9623e699276f53d": {
+        "status": "ACTIONED",
+        "note": "Gate 1 note will embed the Gate 1.5 sha c62d9e5ac577 and the disposition summary (0 pending; 2 accepted with rationale)."
+      },
+      "sig:566dbbe28f5424d5": {
+        "status": "ACCEPTED",
+        "note": "Single-source Go types are accepted narrowly: the internal edpsvc types are service-private and exporting them is a service-wide refactor; the standalone package is the FILE contract. Conformance fixtures + schema_version guard behavior. Revisit if internal types change or a third consumer appears.",
+        "why_not_fixed": "A shared public package is a service refactor with merge/risk cost; the gate must not depend on the service.",
+        "alternatives": [
+          "export internal types",
+          "JSON Schema + codegen"
+        ],
+        "revisit_if": "internal residency types change or a third consumer needs them",
+        "owner": "edp-platform"
+      },
+      "sig:12e853830b159b47": {
+        "status": "ACTIONED",
+        "note": "Go validator is authoritative for build/deploy; core.packaging.validate is a shape/home pre-check with the same invariants and a conformance test. Docs state precedence."
+      },
+      "sig:c702b53daabbb16a": {
+        "status": "ACTIONED",
+        "note": "Gate events use engineering/residency-gate.json (last run) plus a bounded JSONL append (5MB rotation, 3 files, atomic lock)."
+      },
+      "sig:3751c297b436f602": {
+        "status": "ACTIONED",
+        "note": "Warn-mode runs print/record a product-visible summary and precheck shows the warn; the rollout note requires a product to be warn-clean before the block flip."
+      },
+      "sig:481bb024324e5404": {
+        "status": "ACTIONED",
+        "note": "Report carries report_version=1; error codes are a frozen set; additions are a versioned contract change."
+      },
+      "sig:99fbe968c4c95bcf": {
+        "status": "ACTIONED",
+        "note": "Allowed backup.frequency values are exactly hourly, daily, weekly, monthly; unknown -> RESIDENCY_UNKNOWN_FREQUENCY."
+      },
+      "sig:80ab6f51c026b642": {
+        "status": "ACTIONED",
+        "note": "legal_hold is boolean; false requires days>0 and <= policy bound; true requires days>0 and is exempt from the max bound (legal preservation); documented and tested."
+      },
+      "sig:cf3357d2cf7769f0": {
+        "status": "ACTIONED",
+        "note": "Profiles are size-bounded (64KB) and schema-checked; malformed/unreadable -> RESIDENCY_PROFILE_UNREADABLE, always block."
+      },
+      "sig:a778ef879698a2ea": {
+        "status": "ACCEPTED",
+        "note": "Fleet metrics beyond the structured report/JSONL are accepted narrowly: no metrics collector/owner in EDP-12. The JSONL counters can be scraped later. Revisit when monitoring lands; owner: platform observability.",
+        "why_not_fixed": "No fleet metrics owner/collector exists in this item; the structured event is the signal.",
+        "alternatives": [
+          "new metrics endpoint (out of scope)",
+          "counter file (no consumer)"
+        ],
+        "revisit_if": "a monitoring service exists or rollout readiness needs dashboards",
+        "owner": "platform-observability"
+      },
+      "sig:f493ef08a986b59e": {
+        "status": "ACTIONED",
+        "note": "Rollback: manifests are regenerated on the next build; cached packaging-manifest.json artifacts must be rebuilt; the gate reads the current file, not a cache. Documented."
+      },
+      "sig:2a84bbbac7718005": {
+        "status": "ACTIONED",
+        "note": "core.packaging.validate enforces allowed_regions includes home_region and profile bounds, matching the Go path; conformance fixture covers it."
+      },
+      "sig:ea6bee7e91066925": {
+        "status": "ACTIONED",
+        "note": "Guardrail 5: invariants are tested (home subset, region subsets, retention bounds, ordering). Guardrail 9: the report contains product id/home/regions only, no tenant data; no authz/API surface."
+      },
+      "sig:8b6e1555c8e6acda": {
+        "status": "ACTIONED",
+        "note": "store-registry owner is the counsel role (residency policy) with core.packaging as the single writer for the manifest/policy files; docs state the change path."
+      },
+      "sig:93c8c90354d3528e": {
+        "status": "ACTIONED",
+        "note": "affected_files adds engineering/residency-gate.json/.jsonl and the docs cross-link."
+      },
+      "sig:8b7db2d4190e166a": {
+        "status": "ACTIONED",
+        "note": "IN is the India-first template/example, marked template:true; counsel can change it; products must provide an explicit manifest after warn."
       }
     }
   }
