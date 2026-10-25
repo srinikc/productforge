@@ -78,4 +78,14 @@ def record_gate_decision(backlog, scope: str, project: str | None, eid: str, gat
     dec.append({"at": datetime.now(timezone.utc).isoformat(), "by": by, "decision": str(decision).upper(),
                 "gate": gate, "findings_sha": sha, "findings_digest": gp.findings_digest(view),
                 "seq": len(dec) + 1, "note": note, "hil_confirmed": True})
-    return backlog.update(scope, project, eid, decisions=dec)
+    res = backlog.update(scope, project, eid, decisions=dec)
+    try:
+        from core import execution_trail as trail
+        trail.record(eid, f"gate{gate}", "pass",
+                     summary=f"Gate {gate} {str(decision).upper()} by {by}",
+                     refs={"findings_sha": dec[-1].get("findings_sha"), "findings_digest": dec[-1].get("findings_digest")},
+                     actor=str(by))
+    except Exception as e:
+        trail.write_failure(f"gate{gate}", e, eid)
+        print(f"[Gates] WARNING execution trail write failed: {e}")
+    return res
