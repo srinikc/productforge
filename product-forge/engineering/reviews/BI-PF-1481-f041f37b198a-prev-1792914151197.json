@@ -1,0 +1,43 @@
+{
+  "item": "BI-PF-1481",
+  "sha": "f041f37b198a",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-25T07:39:13.578725+00:00",
+  "findings": {
+    "BLOCKER": [
+      "No `scripts/dev/execution_trail.py` exists; `core/execution_trail.py` is the full 296-line implementation, not the AC-specified thin adapter \u2014 this required editing the reviewed `language-rule.json` governance config to exempt new shipped Python, violating A6/ADR-0007 (\"new shipped logic -> Go\", root changes are a governance change).",
+      "The completion gate never inspects `engineering/trails/_failures.jsonl` nor fails on a structured `execution_trail_write_failed` event; AC \"a trail write failure ... the completion gate fails\" is unimplemented.",
+      "`core/backlog.py` `set_status`/`set_delivery` swallow trail failures with a plain `print` warning (no structured event, no failure sink), so a lost `completion`/`delivery` record is silently accepted \u2014 `completion` is not in `REQUIRED_AT_COMPLETION`, so the gate cannot catch it."
+    ],
+    "MAJOR": [
+      "`order_problems` validates only `design_review<gate1` and `diff_review<gate2`; AC requires all pre-merge stages missing **or out of order** \u2014 e.g. `tests` before `implementation` or `precheck` before `tests` passes the gate.",
+      "Broken error paths: `gate0_check.py` calls `execution_trail.write_failure(...)` but only `trail` is imported \u2192 `NameError` escapes the handler and crashes the gate; `precheck._record_trail`'s `except` references `trail` which may be unimported if the import itself failed \u2192 same masking.",
+      "No stale-lock recovery: a crash between `_lock` and `unlink` leaves a permanent `.lock`; every subsequent write for that item times out after 10s \u2014 a self-inflicted permanent write DoS with no owner or cleanup.",
+      "Non-idempotent appends: `gate0_check` re-records `planning`/`gate0` and `precheck` re-records `code_review`/`tests`/`precheck` on every run \u2192 unbounded growth toward `MAX_EVENTS` and last-wins `_stage_events` masking earlier failures; `planning` is always recorded `\"pass\"` regardless of gate0 problems.",
+      "`execution_trail_check` runs twice in precheck (via `_GATES` tier `\"post\"` and the explicit post-runner invocation) \u2014 the `_GATES` copy can execute before the runner writes `tests`/`precheck`, defeating the stated ordering guarantee.",
+      "Brittle private coupling: the check imports `gate2_completion_check` internals (`g2.ar._get_item`, `g2._git`, `g2.transitions`) and `architect_review.py` shells out a 60s subprocess from `show`; either upstream refactor silently breaks the gate/CLI."
+    ],
+    "MINOR": [
+      "`usage_totals` skips events with empty `usage` instead of counting them as `not_captured`, so AC \"'not captured' when unavailable\" under-reports; `cost_usd` is never populated by any writer, so cost columns are always 0.",
+      "`_LAST_USAGE` is a module-global in `architect_review.py`: concurrent or sequential reviews in one process misattribute token usage to the wrong stage/evidence.",
+      "Only `summary`/`actor` are redacted; `refs` and `tests` pass through unredacted (e.g. commit lists, branch names, commands with env values).",
+      "`--sha` path calls `gate_view_sha(...)`, which is not introduced in this diff \u2014 verify it exists, else `NameError` on the documented history-render path.",
+      "`gate_decisions` records stage `f\"gate{gate}\"` \u2014 verify `gate` is always `\"1\"`/`\"2\"`; any `\"1.5\"`/`\"2.5\"` value raises and drops the decision from the trail.",
+      "`ci-cd-gates.json` gate `area: [\"data/backlog\"]` does not cover `engineering/trails/**`, so trail-only changes may not trigger the gate.",
+      "Store `allow` entry `\"_failures.jsonl\"` is a bare glob matching any path in the repo, not just `engineering/trails/_failures.jsonl`.",
+      "Self-test gaps: no test for the full-ordering rule, for `evaluate()`/`main()`, or for the write-failure\u2192gate-fails path (the headline AC behavior)."
+    ],
+    "NIT": [
+      "`language-rule.json` was fully reformatted from compact to expanded arrays, burying the one real change in a large governance-config diff.",
+      "Dead `if a.report: continue` in `gate0_check` (the loop is after `return` on `a.report`); duplicate `import json` inside `precheck._record_trail`'s `except`; duplicate `from core import backlog` in `next_item`.",
+      "`docs/REVIEW-GATES-LIFECYCLE.md` names `scripts/dev/execution_trail.py` as owner and `gate_decisions`/`precheck` writers that don't match the code (`gate_decide`, `implementation/code_review` attributed to precheck only)."
+    ],
+    "SUMMARY": [
+      "Solid foundations (append-only store, atomic `os.replace`, per-item lock, secret redaction, tests, gate wiring), but the item does not meet its AC: the required thin-adapter split is inverted into new shipped Python plus a governance-config exemption, and the mandated write-failure\u2192completion-gate-fails behavior is entirely absent.",
+      "The ordering check is only a partial implementation of \"out of order\", and several failure paths crash with `NameError` instead of emitting the structured event.",
+      "Top risks: silent trail loss at completion/delivery, non-idempotent unbounded growth, permanent lockout after a crash, and language-rule baseline erosion."
+    ]
+  }
+}

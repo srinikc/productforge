@@ -1,0 +1,42 @@
+{
+  "item": "BI-PF-1481",
+  "sha": "f041f37b198a",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-25T07:42:31.197619+00:00",
+  "findings": {
+    "BLOCKER": [
+      "gate0_check.py: the except handler calls `execution_trail.write_failure(...)`, but only the `trail` alias is bound inside the try \u2192 NameError crashes gate0 on any trail-write failure instead of degrading gracefully.",
+      "No `scripts/dev/execution_trail.py` exists although AC + docs/REVIEW-GATES-LIFECYCLE.md name it as owner; all 296 lines of logic (CLI, locking, rendering) live in `core/execution_trail.py`, inverting the required \"thin adapter\" architecture.",
+      "Stale-lock hazard: `_lock` uses O_EXCL with no pid/mtime reclaim; one crashed writer leaves `.lock` forever, so every subsequent write times out and permanently blocks the item's trail/completion gate."
+    ],
+    "MAJOR": [
+      "Failure path violates AC: `backlog.set_status`/`set_delivery` swallow trail failures with a plain `print` (no structured `execution_trail_write_failed`, no `_failures.jsonl` sink); `precheck._record_trail`'s handler calls `trail.write_failure` when the import itself may be what failed \u2192 NameError in the handler.",
+      "`order_problems()` validates only design_review<gate1 and diff_review<gate2; AC requires ALL pre-merge stages be checked for order (planning\u2192gate0\u2192...\u2192precheck), so out-of-order tests/precheck/implementation pass the gate.",
+      "`set_status`/`set_delivery` record `completion`/`delivery` even when the underlying `update()` returns None/fails \u2014 trail can assert a completion that never happened (integrity).",
+      "`precheck._record_trail` records stage `tests` as \"pass\" when the tests list is empty (`all([])` is True), satisfying the required `tests` stage with zero tests; it also re-appends code_review/tests/precheck events on every run (unbounded append growth).",
+      "New shipped logic (296 lines, file locking, CLI, subprocess rendering) lands in the `core/` shipped root via an `allow_new_python` governance edit rather than Go or a genuinely thin adapter \u2014 bypasses the language-rule intent the config itself flags as a governance change."
+    ],
+    "MINOR": [
+      "`_path` regex requires a middle segment (`BI-XX-123`) while backlog's `_BARE_BI_RE` allows `BI-123`; valid bare ids would raise and fail the completion gate.",
+      "`show()` sorts by stage rank, not `seq`, so duplicate stage events are rendered out of sequence vs the AC's \"ordered trail\".",
+      "Usage section never renders the literal \"not captured\" when no usage was captured (AC), only a `not_captured=0` counter.",
+      "`gate_decisions` records `f\"gate{gate}\"`; any non-integer gate value (e.g. \"1.5\") is an unknown stage \u2192 guaranteed write failure.",
+      "Duplicate wiring: `execution-trail` is in precheck `_GATES` (tier \"post\") and also run unconditionally after the gate loop \u2192 double execution or a dead entry.",
+      "`refs` dicts are persisted unredacted (redaction covers only `summary`/`actor`).",
+      "`execution_trail_check` couples to private APIs `g2.ar._get_item` and `g2._git`; brittle across refactors."
+    ],
+    "NIT": [
+      "`print(f\"\\n=== precheck: execution-trail ===\")` unnecessary f-string; unused `import json` inside `_record_trail`'s try.",
+      "gate0: `if a.report: continue` is dead code (the report path returns earlier).",
+      "store-registry key `trails/<ID>.json` vs AC path `engineering/trails/<ITEM>.json` naming inconsistency."
+    ],
+    "SUMMARY": [
+      "Solid shape overall (append-only store, redaction, tests, gate wiring), but the error-handling paths are broken (NameError in two failure handlers, silent prints instead of the AC-mandated structured event), the ordering check is materially weaker than the AC requires, and the module placement contradicts the documented thin-adapter/language-rule contract.",
+      "Top risks: a trail-write failure crashing gates instead of reporting it, stale locks permanently blocking completions, and `tests`/`completion` stages being satisfiable without real evidence."
+    ]
+  },
+  "rereview_reason": "supersedes f041f37b198a; failure sink, completion required, stale lock, idempotent gate0",
+  "rereview_reason_sha256": "9f5ff5c0caf5f179f099d388b4949e8ccc596da6539e7c7e6dc2aa2e6056f955"
+}

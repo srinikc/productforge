@@ -1,0 +1,46 @@
+{
+  "item": "BI-PF-1481",
+  "sha": "d3067222ee09",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-25T07:49:37.637294+00:00",
+  "findings": {
+    "BLOCKER": [
+      "No `scripts/dev/execution_trail.py` exists; `core/execution_trail.py` ships the full 302-line implementation (store, locking, rendering, CLI), not the AC-specified \"thin adapter\" \u2014 the language-rule exemption was granted for an adapter that isn't in the diff.",
+      "`order_problems()` enforces only 2 pairs (design_review<gate1, diff_review<gate2); AC requires failing any pre-merge stage missing **or out of order** \u2014 planning\u2192gate0\u2192implementation\u2192code_review\u2192tests\u2192precheck chain order is never verified."
+    ],
+    "MAJOR": [
+      "`trails/_failures.jsonl` is append-only with no clear/age/remediation: one transient write failure permanently blocks that item's completion forever; `evaluate()` also re-reads the whole unbounded file per item.",
+      "Lock staleness threshold (60s) exceeds acquire timeout (10s): a crashed writer makes every subsequent `record()` time out for \u226560s, generating failure-sink entries that then block completion.",
+      "`REQUIRED_AT_COMPLETION` includes `completion`, but the AC's pre-merge list excludes it \u2014 precheck fails any item not yet passed through `set_status(completed)`, forcing an awkward status-before-precheck order.",
+      "`gate0_check` and `precheck._record_trail` append planning/gate0/code_review/tests/precheck on every run with no dedup \u2014 trails grow unboundedly until `MAX_EVENTS` RuntimeError, which itself routes to the failure sink and blocks the item.",
+      "`execution-trail` is registered in precheck `_GATES` (tier \"post\") **and** executed manually after `_record_trail` \u2014 double execution, and the `_GATES` copy can run before tests/precheck events exist, yielding false FAILs.",
+      "`_record_trail` records `tests`/`code_review` as \"pass\" with empty rows when no matching gate ran (`all([]) == True`) \u2014 fabricated pass evidence.",
+      "No writer ever sets `not_captured`: `architect_review` records zero-token \"captured\" usage when the provider omits usage, so AC's \"'not captured' when unavailable\" is never produced.",
+      "The try/except/`write_failure`/warn boilerplate is duplicated across 6 call sites (backlog\u00d72, gate0, gate_decisions, architect_review, precheck) with no shared `record_safe()` \u2014 drift and inconsistent failure handling are inevitable."
+    ],
+    "MINOR": [
+      "`_record_trail`'s loop-level failure calls `write_failure(\"precheck\", e)` with empty item id, so `evaluate()`'s `ev.get(\"item\") == iid` can never match \u2014 precheck-stage write failures do not fail completion as AC requires.",
+      "`gate_decisions` always records `status=\"pass\"` regardless of decision \u2014 a REJECT/DEFER decision shows as passing trail evidence.",
+      "Redaction covers only `summary`/`actor`; `refs` and `tests` are persisted unredacted.",
+      "`_LAST_USAGE` is a module-global: a failed/empty retry can attribute a previous review's tokens to the wrong item.",
+      "Last-occurrence stage comparison means a re-run design/diff review after gate1/gate2 falsely fails the order check.",
+      "`_path` regex rejects bare `BI-123` ids that backlog accepts \u2192 `record` raises \u2192 failure sink \u2192 completion blocked.",
+      "`write_failure` swallows all errors silently; failure events are mixed plain-print vs JSON-structured across tools \u2014 weak observability.",
+      "`show()` shells out to `architect_review.py gate` (60s timeout) instead of rendering stored evidence; `evaluate()`/`main()` have no direct test despite \"the check is self-tested\"."
+    ],
+    "NIT": [
+      "`language-rule.json` is fully reformatted (array expansion) alongside a one-entry governance change, obscuring the actual diff under review.",
+      "Dead `if a.report: continue` in `gate0_check` after report already returned; duplicate `import json` in `_record_trail`'s except; duplicate `from core import backlog` import in `next_item`.",
+      "`record` CLI exposes no `--duration`, so every event's `duration_ms` is 0 outside embedded test rows."
+    ],
+    "SUMMARY": [
+      "Structure deviates from AC (no thin adapter / no `scripts/dev/execution_trail.py`) and order enforcement is only partial \u2014 both objective acceptance gaps.",
+      "The evidence store's failure sink and lock design create self-perpetuating blocks: transient errors become permanent, unremovable completion failures.",
+      "Repeated per-run appends and duplicated failure-handling boilerplate will degrade maintainability and evidence integrity as adoption grows; fix dedup, single execution of the gate, and a shared write helper before relying on this as audit evidence."
+    ]
+  },
+  "rereview_reason": "supersedes f0fc386e2b99; safe failure imports, docs owner",
+  "rereview_reason_sha256": "1194b6cdd44fd5be7c3ee41cc8383d5a20c5c60054301c34f57a50967bcc168e"
+}
