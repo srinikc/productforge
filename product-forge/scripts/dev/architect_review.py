@@ -16,6 +16,7 @@ to the item context. Exit 1 when a BLOCKER is present (objectively verifiable on
 from __future__ import annotations
 
 import argparse
+import fnmatch
 import hashlib
 import json
 import os
@@ -524,24 +525,31 @@ def diff_reviews(item_id: str, committed: bool = False) -> list[dict]:
     """Diff-mode review evidence for an item (working tree or the committed HEAD tree)."""
     out: list[dict] = []
     if committed:
-        rels = _git_text(["ls-tree", "-r", "--name-only", "HEAD", "--", "engineering/reviews"]).splitlines()
-        for rel in rels:
+        tree = _git_text(["ls-tree", "-r", "--name-only", "HEAD", "--", "engineering/reviews"])
+        if not tree.strip():
+            raise RuntimeError("review evidence tree is unreadable or empty")
+        for rel in tree.splitlines():
             base = Path(rel).name
             if not (base.startswith(item_id + "-") and base.endswith(".json")):
                 continue
+            raw = _git_text(["show", f"HEAD:{rel}"])
+            if not raw:
+                raise RuntimeError(f"cannot read committed review evidence {rel}")
             try:
-                data = json.loads(_git_text(["show", f"HEAD:{rel}"]))
-            except Exception:
-                continue
+                data = json.loads(raw)
+            except Exception as e:
+                raise RuntimeError(f"corrupt review evidence {rel}: {e}") from e
             if data.get("mode") == "diff":
                 out.append({"path": rel, "sha": str(data.get("sha") or ""),
                             "at": str(data.get("at") or ""), "review": data})
     else:
+        if not EVID.exists():
+            raise RuntimeError(f"review evidence directory is missing: {EVID}")
         for fp in EVID.glob(f"{item_id}-*.json"):
             try:
                 data = json.loads(fp.read_text(encoding="utf-8"))
-            except Exception:
-                continue
+            except Exception as e:
+                raise RuntimeError(f"corrupt review evidence {fp.name}: {e}") from e
             if data.get("mode") == "diff":
                 out.append({"path": fp.name, "sha": str(data.get("sha") or ""),
                             "at": str(data.get("at") or ""), "review": data})
@@ -581,17 +589,21 @@ def redact_reason(s: str) -> str:
     t = re.sub(r"(?i)\b(bearer)\s+\S+", r"\1 [REDACTED]", t)
     t = re.sub(r"(?i)(https?://)[^/\s:@]+:[^/\s@]+@", r"\1[REDACTED]@", t)
     t = re.sub(r"-----BEGIN [^-]+-----.*?-----END [^-]+-----", "[REDACTED-PEM]", t, flags=re.S)
+    t = re.sub(r"(?i)\b(ghp_[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{16})\b", "[REDACTED-KEY]", t)
+    t = re.sub(r"(?i)\b(pwd|x-api-key)\s*[:=]\s*\S+", r"\1=[REDACTED]", t)
     return t[:review_budget()["reason_max_chars"]]
 
 
 def churn_attested(item: dict, latest_sha: str, budget: dict) -> bool:
-    attesters = set(budget.get("attesters") or [])
+    attesters = [str(x) for x in (budget.get("attesters") or [])]
     for d in reversed(item.get("decisions") or []):
         if str(d.get("decision") or "").upper() != "REVIEW_CHURN":
             continue
+        if d.get("hil_confirmed") is not True:
+            continue
         by = str(d.get("by") or "")
         note = str(d.get("note") or "")
-        if by not in attesters:
+        if not any(fnmatch.fnmatch(by, pat) for pat in attesters):
             continue
         if len(note.strip()) < 40:
             continue
@@ -601,9 +613,18 @@ def churn_attested(item: dict, latest_sha: str, budget: dict) -> bool:
     return False
 
 
+def _item_committed(item_id: str) -> dict:
+    rel = f"data/backlog/items/{item_id}.json"
+    raw = _git_text(["show", f"HEAD:{rel}"])
+    if not raw:
+        raise RuntimeError(f"item {item_id} is not present in HEAD")
+    return json.loads(raw)
+
+
 def churn_verdict(item_id: str, item: dict | None = None, committed: bool = False) -> dict:
     """Single-source churn verdict consumed by the run guard and review_churn_check."""
-    item = item or _get_item(item_id)
+    if item is None:
+        item = _item_committed(item_id) if committed else _get_item(item_id)
     budget = review_budget()
     reviews = diff_reviews(item_id, committed=committed)
     epoch = review_epoch(item) if budget.get("scope") == "after_gate1" else ""
@@ -653,11 +674,15 @@ def _ingest(item_id: str, text: str, model: str, apply: bool, mode: str = "diff"
     sha = design_sha(_get_item(item_id)) if mode == "design" else diff_sha()
     EVID.mkdir(parents=True, exist_ok=True)
     out = EVID / f"{item_id}-{sha}.json"
+    if rereview_reason and out.is_file():
+        prev = out.with_name(f"{out.stem}-prev-{int(time.time() * 1000)}.json")
+        out.rename(prev)
     payload = {"item": item_id, "sha": sha, "model": model, "mode": mode,
                "parsed_ok": parsed_ok, "at": datetime.now(timezone.utc).isoformat(),
                "findings": findings}
     if rereview_reason:
         payload["rereview_reason"] = rereview_reason
+        payload["rereview_reason_sha256"] = hashlib.sha256(rereview_reason.encode("utf-8")).hexdigest()
     out.write_text(json.dumps(payload, indent=2), encoding="utf-8")
     counts = {s: len(findings[s]) for s in SEVERITIES}
     print(f"review captured: {out} {counts}")

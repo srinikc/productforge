@@ -46,7 +46,7 @@ def test_gate1_epoch_excludes_earlier_reviews(monkeypatch):
 def test_hil_attestation_allows_over_budget(monkeypatch):
     item = _item([
         {"gate": 1, "at": "2026-01-01T00:00:00+00:00"},
-        {"decision": "REVIEW_CHURN", "by": "hil:srinikc",
+        {"decision": "REVIEW_CHURN", "by": "hil:srinikc", "hil_confirmed": True,
          "note": "Accepted extra reviews for the blocker rework; supersedes s4 with a recorded reason."},
     ])
     monkeypatch.setattr(ar, "diff_reviews", lambda *a, **k: _reviews(5))
@@ -56,9 +56,11 @@ def test_hil_attestation_allows_over_budget(monkeypatch):
 
 def test_attestation_requires_allowlist_and_sha(monkeypatch):
     monkeypatch.setattr(ar, "diff_reviews", lambda *a, **k: _reviews(5))
-    for by, note in [("hil:other", "x" * 40 + " s4"), ("hil:srinikc", "no sha here " + "x" * 40)]:
+    for by, note, confirmed in [("agent:self", "x" * 40 + " s4", True),
+                                ("hil:srinikc", "no sha here " + "x" * 40, True),
+                                ("hil:srinikc", "x" * 40 + " s4", False)]:
         item = _item([{"gate": 1, "at": "2026-01-01T00:00:00+00:00"},
-                      {"decision": "REVIEW_CHURN", "by": by, "note": note}])
+                      {"decision": "REVIEW_CHURN", "by": by, "note": note, "hil_confirmed": confirmed}])
         assert ar.churn_verdict("BI-TEST", item)["fail"], (by, note)
 
 
@@ -111,6 +113,13 @@ def test_cli_exit_codes_json_and_report(monkeypatch, capsys):
     monkeypatch.setattr(ar, "_git_text", lambda args: "base")
     monkeypatch.setattr(rc.g2, "transitions", lambda base: (_ for _ in ()).throw(RuntimeError("git boom")))
     assert rc.main([]) == 2
+
+
+def test_corrupt_evidence_fails_closed(tmp_path, monkeypatch):
+    monkeypatch.setattr(ar, "EVID", tmp_path)
+    (tmp_path / "BI-TEST-bad.json").write_text("{not json", encoding="utf-8")
+    with pytest.raises(RuntimeError):
+        ar.diff_reviews("BI-TEST")
 
 
 def test_redact_url_and_pem():

@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -29,8 +30,7 @@ def evaluate(ids: list[str]) -> list[dict]:
     rows = []
     for iid in ids:
         try:
-            item = ar._get_item(iid)
-            rows.append(ar.churn_verdict(iid, item, committed=True))
+            rows.append(ar.churn_verdict(iid, committed=True))
         except Exception as e:  # row-level isolation; main turns any error into exit 2
             rows.append({"item": iid, "count": 0, "warn": False, "fail": True, "allowed": False,
                          "attested": False, "warn_after": 0, "fail_after": 0, "latest_sha": "",
@@ -51,7 +51,9 @@ def main(argv: list[str] | None = None) -> int:
         pass
 
     try:
-        base = a.base or ar._git_text(["merge-base", "develop", "HEAD"])
+        base = (a.base or os.environ.get("PF_REVIEW_CHURN_BASE", "")
+                or ar._git_text(["merge-base", "develop", "HEAD"])
+                or ar._git_text(["merge-base", "origin/develop", "HEAD"]))
         if not base:
             raise RuntimeError("base ref unavailable; fetch develop or pass --base")
         rows = evaluate(g2.transitions(base))

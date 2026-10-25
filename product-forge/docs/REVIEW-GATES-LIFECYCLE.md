@@ -168,9 +168,9 @@ Reviews are a learning input, not a one-off artifact:
   is redacted, capped, and stored as `rereview_reason` in the evidence.
 - **Budget.** `config/architect-review.json` `review_budget` sets `warn_after` (2) and `fail_after` (4):
   count > warn prints a structured `review_churn_warn`; count > fail fails a completion in the diff unless the
-  item carries a HIL-attested `review_churn` decision (attester allowlist, >=40-char note citing the review sha).
+  item carries a HIL-attested `review_churn` decision (fnmatch attester allowlist, `hil_confirmed`, >=40-char note citing the review sha).
 - **Gate.** `scripts/dev/review_churn_check.py` is a fast precheck gate; `--report`/`--json` are the
   non-blocking/machine modes. Reviews are counted from committed `HEAD` evidence; a missing base ref is a hard error (exit 2) - fetch
-  develop or pass `--base`.
+  develop or pass `--base` / set `PF_REVIEW_CHURN_BASE` (fallback `origin/develop`).
 - **Why:** EDP-10 hit 8 diff reviews because fixes were made after each review instead of batching and
   dispositioning. This guard makes re-review deliberate and auditable.
