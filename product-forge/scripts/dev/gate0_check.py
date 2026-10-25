@@ -133,7 +133,11 @@ def main(argv: list[str] | None = None) -> int:
                          summary=f"reconciliation + impact table ({rows} rows), AC {len(it.get('acceptance_criteria') or [])}",
                          refs={"problems": bad})
         except Exception as e:
-            trail.write_failure("gate0", e, str(it.get("id")))
+            try:
+                from core import execution_trail as _t
+                _t.write_failure("gate0", e, str(it.get("id")))
+            except Exception:
+                pass
             print(f"gate0: WARNING execution trail write failed: {e}", file=sys.stderr)
     if problems_all:
         print(f"gate0: FAIL ({len(problems_all)} problem(s))")

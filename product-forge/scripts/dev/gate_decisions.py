@@ -86,6 +86,10 @@ def record_gate_decision(backlog, scope: str, project: str | None, eid: str, gat
                      refs={"findings_sha": dec[-1].get("findings_sha"), "findings_digest": dec[-1].get("findings_digest")},
                      actor=str(by))
     except Exception as e:
-        trail.write_failure(f"gate{gate}", e, eid)
+        try:
+            from core import execution_trail as _t
+            _t.write_failure(f"gate{gate}", e, eid)
+        except Exception:
+            pass
         print(f"[Gates] WARNING execution trail write failed: {e}")
     return res

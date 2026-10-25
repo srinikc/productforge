@@ -177,9 +177,7 @@ Reviews are a learning input, not a one-off artifact:
 
 ## Execution trail (BI-PF-1481)
 
-Every item carries one append-only trail at `engineering/trails/<ID>.json` (owner
-`scripts/dev/execution_trail.py`; `core/execution_trail.py` is a thin allowlisted adapter so
-`python -m core.execution_trail show --item <ID>` works).
+Every item carries one append-only trail at `engineering/trails/<ID>.json` (owner `core/execution_trail.py`, governance-allowlisted control-plane evidence logic; `python -m core.execution_trail show --item <ID>`).
 
 - **Stages:** planning, gate0, design_review, gate1, implementation, code_review, diff_review, gate2, tests,
   precheck, pr, merge, delivery, completion - each event has seq/at/actor/status/summary/refs/tests/usage.

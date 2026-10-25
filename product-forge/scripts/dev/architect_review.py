@@ -715,8 +715,12 @@ def _ingest(item_id: str, text: str, model: str, apply: bool, mode: str = "diff"
                      refs={"review_sha": sha, "model": model, "evidence": out.name},
                      usage=dict(_LAST_USAGE))
     except Exception as e:
-        trail.write_failure(stage, e, item_id)
-        print(json.dumps({"event": "execution_trail_write_failed", "stage": stage, "error": str(e)}), file=sys.stderr)
+        try:
+            from core import execution_trail as _t
+            _t.write_failure("review", e, item_id)
+        except Exception:
+            pass
+        print(json.dumps({"event": "execution_trail_write_failed", "stage": "review", "error": str(e)}), file=sys.stderr)
     return 1 if blockers else 0
 
 
