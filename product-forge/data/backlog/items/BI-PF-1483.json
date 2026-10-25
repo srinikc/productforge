@@ -277,7 +277,7 @@
     "usage": {}
   },
   "created_at": "2026-10-25T14:35:25.808300",
-  "updated_at": "2026-10-25T14:42:29.349335",
+  "updated_at": "2026-10-25T14:46:09.805343",
   "score": 0.75,
   "_note": "design + Gate 0",
   "api_impact": {
@@ -342,6 +342,56 @@
       "sig:4e41ff9f5a953d19": {
         "status": "ACCEPTED",
         "note": "A machine-readable --json twin is a later item; no second renderer is added now."
+      }
+    },
+    "diff": {
+      "sig:c6579cc3b7804826": {
+        "status": "ACTIONED",
+        "note": "Confirmed `re` is imported at the top of core/execution_trail.py (line 14). Added parse-level tests that execute the regex; a NameError now fails the suite."
+      },
+      "sig:e25f543b1270e0c8": {
+        "status": "ACTIONED",
+        "note": "Added `_parse_recommendation` with realistic Gate output, hyphen and slash variants; also `_review_evidence` is exercised by the flow test via the parser."
+      },
+      "sig:3baf2d4f53d3c4f2": {
+        "status": "ACTIONED",
+        "note": "Added empty-trail/partial-item show test (planning, no events, not recorded) and a completed-item current-stage test."
+      },
+      "sig:ea86b9c5e77b59bc": {
+        "status": "ACTIONED",
+        "note": "`current_stage(item, status)` uses the item status: closed/completed -> complete; in_progress -> first missing stage. Flow checklist and final table use the same value."
+      },
+      "sig:78d164093fec9361": {
+        "status": "ACTIONED",
+        "note": "`_stage_status` returns 'reviewed (recommendation unavailable)' for a review stage with no parsed recommendation; it never falls back to the ingest-time pass. Test added."
+      },
+      "sig:7d298778e168d1ca": {
+        "status": "ACTIONED",
+        "note": "Docs now state that show re-executes architect_review.py gate (which reads the review evidence by sha); the subprocess latency is accepted for a CLI."
+      },
+      "sig:8257a787c94898f1": {
+        "status": "ACTIONED",
+        "note": "Factored `_stage_status`; the stage table and flow checklist call the same helper."
+      },
+      "sig:420cb7dce709a335": {
+        "status": "ACTIONED",
+        "note": "`_parse_recommendation` accepts hyphen/slash separators, normalizes whitespace, and is tested."
+      },
+      "sig:6d011a99e718aa01": {
+        "status": "ACCEPTED",
+        "note": "`_box` wraps cells at the column width; the status wraps to two lines, never truncates. Accepted as a CLI layout trade-off."
+      },
+      "sig:4a7df4fb944fcc9c": {
+        "status": "ACCEPTED",
+        "note": "`_review_table` is kept as a compatibility wrapper for external callers; it is one line and adds no behavior."
+      },
+      "sig:75523d07245ded8e": {
+        "status": "ACTIONED",
+        "note": "Renamed to `_flow_rows` and `_gate_decision`."
+      },
+      "sig:6ee7bd299a7e44c1": {
+        "status": "ACCEPTED",
+        "note": "Current stage is intentionally shown in the header, checklist and final table, all from one derived value; accepted."
       }
     }
   }
