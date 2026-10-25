@@ -1,0 +1,39 @@
+{
+  "item": "BI-PF-1302",
+  "sha": "31262631dd48",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-24T18:20:02.407900+00:00",
+  "findings": {
+    "BLOCKER": [
+      "Unknown paths fall through to net/http's default plain-text 404 (no `mux.HandleFunc(\"/\", ...)`/NotFoundHandler, and ServeMux's own 405 is unwrapped), so not \"every error path\" returns the v1 envelope required by AC.",
+      "Per-tenant quota keys only off `X-Tenant-Id`/`?tenant`; routes whose targeted tenant lives in the JSON body (POST /audit, /jobs, /memory, /backlog) are never attributed to that tenant, so per-tenant rate/concurrency caps don't apply to the tenant actually targeted."
+    ],
+    "MAJOR": [
+      "`MigrationTimeout` (10m) exceeds server Read/WriteTimeout (180s) and `Validate()` never cross-checks it: a long DDL migration is killed by `http.Server.WriteTimeout` mid-flight, leaving the client with a reset and the DB work orphaned.",
+      "AC requires an httptest **mux** 504 test; only a custom-handler 504 test exists (`TestTimeoutWrites504`), so the mux-level deadline path is unproven.",
+      "`/metrics` has no pool-saturation signal (only `/admin/limits`), and 413/429/504 are merely label values in `edp_http_requests_total`; AC asks for explicit counters, and histograms contradict \"counters only\".",
+      "`s.fail` passes `err.Error()` through for status<500, and storage failures are mapped to 400/404 (e.g. `artifactGet` returns 404 + raw message for any `svc.Get` error) \u2192 internal/DB details reach clients.",
+      "\"no active-bucket reset\" unproven: eviction keys off last token-take only, so a tenant holding concurrency slots across a 120s upload or 10m migration (idle TTL 10m) can have its bucket+semaphore evicted and reset; no test asserts active buckets survive.",
+      "`metrics.go` hand-rolls a Prometheus renderer under a mutex on every scrape; if the repo already exposes metrics elsewhere this is duplicated infrastructure and a contention/scrape-cost liability."
+    ],
+    "MINOR": [
+      "Graceful drain is `max(WriteTimeout,30s)` = 180s by default, not the specified 30s; worse, `st.Close()` runs even when `srv.Shutdown` timed out with handlers still in flight.",
+      "`/ready` uses a hardcoded 2s ping instead of the configurable `DBTimeout` (AC: exempt routes are \"still DB-timeout bounded\").",
+      "`weakTokens` entries are all <24 chars, so the weak-token check is unreachable after the 24-char minimum; a 24-char concatenation of a default token passes.",
+      "Role-guard/shared-pool integration tests skip without `PF_RUNTIME_DSN`, so the AC's DB-gated guard is unverified in default CI.",
+      "Whole-file reformat of `config/env-flags.json` destroys blame and risks unrelated golden/diff tests; `Config.AdminTok` is dead; `statusCodes` is a mutable package map."
+    ],
+    "NIT": [
+      "Redaction is regex-only; safer posture is to never echo raw `err.Error()` for storage-derived 4xx.",
+      "Package doc claims `limits` is a leaf depending only on a datastore port, but `profile.go`/tests pull in `productforge/datastore` and `productforge/store` \u2014 state the dependency honestly.",
+      "`statusWriter` implements only `Flush`, not `Hijacker`/`Pusher`/`io.ReaderFrom` \u2014 fine today, a trap for future streaming endpoints."
+    ],
+    "SUMMARY": [
+      "Solid structural work: single shared pool, structured envelope, fail-closed profile/role checks, injected-clock quota tests, and per-handler DB deadlines all land as intended.",
+      "Ship-blockers are contract gaps, not plumbing: default 404/405 bypass the v1 envelope, and per-tenant quota ignores body-declared tenants, weakening the tenant attribution AC.",
+      "Top residual risks: migration vs write-timeout mismatch cutting DDL, internal error text leaking on 4xx paths, and `/metrics` missing the pool-saturation/counter signals ops will need."
+    ]
+  }
+}

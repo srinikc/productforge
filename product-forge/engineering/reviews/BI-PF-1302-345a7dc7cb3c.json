@@ -1,0 +1,37 @@
+{
+  "item": "BI-PF-1302",
+  "sha": "345a7dc7cb3c",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-10-24T17:26:30.226927+00:00",
+  "findings": {
+    "BLOCKER": [
+      "`PF_EDP_ENFORCE_LIMITS=0` is a fail-open kill switch that contradicts the fail-closed AC for quotas/timeouts; in production it silently removes all limits while /health stays green. Restrict it to profile != production, or drop it.",
+      "Tenant identity is taken from an unauthenticated `X-Tenant-Id` header, so any client can claim or rotate tenant keys to evade per-tenant quotas and skew concurrency accounting. Bind the tenant key to the authenticated principal."
+    ],
+    "MAJOR": [
+      "No stated invariant between global concurrency cap and `PoolOptions.MaxConns`; if cap > pool size, overload converts into request pile-up and 504s. State and test `global_cap <= MaxConns`.",
+      "A 64 MiB /artifacts upload is often unreachable under the global request/write timeout on slow links; a size cap alone is insufficient \u2014 define a per-path upload timeout budget.",
+      "The error envelope is a wire-breaking change; pin the needs_api/contract decision and versioning in the service contract + GLOSSARY, not just \"documented in the service header\" (CL-003/CL-001).",
+      "No metrics for 413/429/504 counts, quota denials, bucket evictions, or pool saturation; /admin/limits counters cannot drive alerting. Emit Prometheus series now even if dashboards are out of scope.",
+      "Behaviour when the max-tenant cap is reached (reject legitimate new tenants fail-closed vs fail-open) and whether idle eviction can reset an *active* tenant's bucket are unspecified \u2014 define and test both.",
+      "Interaction of `PF_EDP_ENFORCE_LIMITS=0` with the production profile guard is unspecified (does it also bypass the fail-closed startup check?). Must be pinned in the design."
+    ],
+    "MINOR": [
+      "Secret redaction needs tests with known token/secret fixtures and a single documented source of truth, else it drifts from the Python redactor.",
+      "`grep for context.Background` as a test is brittle; prefer a lint rule or an injected-context spy seam.",
+      "Graceful shutdown: define drain deadline and what happens to in-flight requests when the shared pool closes.",
+      "/health, /ready, /metrics are exempt from limits but must still carry DB/read timeouts so a hung DB cannot block them unboundedly.",
+      "Retry-After needs an injectable clock for deterministic tests."
+    ],
+    "NIT": [
+      "env-flags.json defaults should be generated from, or asserted against, the Go constants to prevent drift.",
+      "X-Request-ID: define whether an inbound id is propagated or always regenerated, for trace continuity."
+    ],
+    "SUMMARY": [
+      "Design is directionally right (shared pool, r.Context, structured errors, profile fail-closed) but ships a fail-open kill switch and header-derived tenant identity that undermine the core guarantees; both must be resolved before Gate 1.5.",
+      "Top risks: quota bypass via tenant-key spoofing, concurrency/pool sizing deadlock, and an unversioned breaking error contract."
+    ]
+  }
+}

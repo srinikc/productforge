@@ -1,168 +1,490 @@
 {
   "_doc": "Central env-flag registry. Owner: core/env_flags.py. Declare every PIPELINE_*/MODEL_* switch (default, purpose, owner) so behaviour is discoverable.",
   "flags": {
-   "PF_ID_ALLOC": {
-    "default": "on",
-    "purpose": "backlog id allocation mode: strict(default - require the shared git-CAS authority, fail closed, never self-reserve) | on(soft: CAS->API->local block) | off(legacy max+1)",
-    "owner": "core/id_allocator.py"
-   },
-   "PF_ID_ALLOC_REMOTE": {
-    "default": "off",
-    "purpose": "use the shared git-remote CAS authority (refs/heads/pf-id-counter) to reserve id blocks",
-    "owner": "core/id_allocator.py"
-   },
-   "PF_ID_ALLOC_API": {
-    "default": "on",
-    "purpose": "allow the PF API id-reserve authority path (fallback when the git remote is unavailable)",
-    "owner": "core/id_allocator.py"
-   },
-   "PF_DB_DSN": {
-    "default": "",
-    "purpose": "Product Forge system-of-record PostgreSQL DSN (EDP-17). Empty = DB-backed features disabled. Credentials come from this env var only (never committed).",
-    "owner": "go/store + scripts/dev/db_bootstrap.py"
-   },
-   "PF_LEASE_REMOTE": {
-    "default": "strict",
-    "purpose": "assignment-lease authority mode: strict(default - require the shared git-CAS authority refs/heads/pf-leases, fail closed) | on(soft: allow offline, single-session) | off(disabled, local only)",
-    "owner": "core/job_manager.py"
-   },
-   "PF_LEASE_REMOTE_REF": {
-    "default": "refs/heads/pf-leases",
-    "purpose": "git ref holding the shared assignment-lease map (CAS)",
-    "owner": "core/job_manager.py"
-   },
-   "PF_ID_REMOTE_REF": {
-    "default": "refs/heads/pf-id-counter",
-    "purpose": "git ref holding the shared backlog id counter (CAS)",
-    "owner": "core/id_allocator.py"
-   },
-   "PF_ID_BLOCK_SIZE": {
-    "default": "1",
-    "purpose": "ids reserved per CAS block: 1(default) = one sequential id per request (no gaps); raise for bulk creation",
-    "owner": "core/id_allocator.py"
-   },
-   "PF_ID_BLOCK_BASE": {
-    "default": "0",
-    "purpose": "offline base offset for a session's local id blocks",
-    "owner": "core/id_allocator.py"
-   },
-   "PF_API_TOKEN": {
-    "default": "",
-    "purpose": "Bearer token required by the canonical api/ surface (BI-PF-1325). Canonical auth env; API_TOKEN is a deprecated back-compat alias (fail-closed when unset unless API_ALLOW_ANON=1)",
-    "owner": "api/auth.py"
-   },
-   "API_TOKEN": {
-    "default": "",
-    "purpose": "DEPRECATED (BI-PF-1325) back-compat alias for PF_API_TOKEN; prefer PF_API_TOKEN",
-    "owner": "api/auth.py"
-   },
-   "API_ALLOW_ANON": {
-    "default": "0",
-    "purpose": "dev-only: allow unauthenticated access to the api/ surface when no token is set",
-    "owner": "api/auth.py"
-   },
-   "PIPELINE_LLM_REPLAY": {
-    "default": "off",
-    "purpose": "TEST-only deterministic LLM replay (BI-PF-0459): off(default) | record(persist raw responses) | replay(serve cassettes; fail-closed on miss)",
-    "owner": "core/orchestrator/llm_client.py"
-   },
-   "PIPELINE_PRIORITY_AGING_HOURS": {
-    "default": "24",
-    "purpose": "Scheduler fairness (P12b): hours of waiting that grant one priority level of aging (bounded to 3); 0 disables aging",
-    "owner": "core/scheduler.py"
-   },
-   "PIPELINE_RATE_BUDGET": {
-    "default": "1",
-    "purpose": "P12a provider rate budgeting: 1(default, on) = pace within provider_limits (best-effort, never blocks/aborts); 0 = disabled",
-    "owner": "core/orchestrator/llm_client.py"
-   },
-   "PIPELINE_RATE_MAX_WAIT_SECONDS": {
-    "default": "30",
-    "purpose": "P12a: cap (seconds) on a single pacing sleep, so pacing can never stall an agent",
-    "owner": "core/orchestrator/llm_client.py"
-   },
-   "PF_WEB_SEARCH_BACKEND": {
-    "default": "none",
-    "purpose": "web_search tool backend (BI-PF-0438): none(default,disabled) | whoogle | searxng | duckduckgo_html | brave | tavily",
-    "owner": "core/tool_registry.py"
-   },
-   "PF_WEB_SEARCH_URL": {
-    "default": "",
-    "purpose": "self-host search base URL for whoogle/searxng (BI-PF-0438)",
-    "owner": "core/tool_registry.py"
-   },
-   "PF_WEB_SEARCH_KEY": {
-    "default": "",
-    "purpose": "cloud search key for brave/tavily (BI-PF-0438; or use BRAVE_SEARCH_API_KEY / TAVILY_API_KEY)",
-    "owner": "core/tool_registry.py"
-   },
-   "PIDL_GATE_MODE": {
-    "default": "advisory",
-    "purpose": "PIDL-3 worker-result gate mode: advisory (record the decision only) | enforce (hold non-AUTO_PROCEED closes for review/approval)",
-    "owner": "core/pidl.py"
-   },
-   "PF_AUTO_PUSH": {
-    "default": "0",
-    "purpose": "git sync (Stage 2a): auto-push after a controlled merge / after a worker commits on its feature branch. 0 = off (explicit `sync`/push only)",
-    "owner": "core/vcs.py"
-   },
-   "API_PORT": {
-    "default": "8000",
-    "purpose": "port for the canonical api/ uvicorn server",
-    "owner": "api/app.py"
-   },
-   "API_ALLOW_ORIGINS": {
-    "default": "*",
-    "purpose": "CORS allow-origins for the canonical api/ surface",
-    "owner": "api/app.py"
-   },
-   "A2A_ENABLE_EXPOSE": {
-    "default": "0",
-    "purpose": "expose our agents over A2A (message/send server surface)",
-    "owner": "core/a2a.py"
-   },
-   "A2A_ENABLE_CONSUME": {
-    "default": "0",
-    "purpose": "allow delegating to remote A2A agents (whitelisted only)",
-    "owner": "core/a2a.py"
-   },
-    "PIPELINE_INTERACTIVE": {"default": "", "purpose": "force interactive prompts on/off", "owner": "core/interactive.py"},
-    "PIPELINE_PANEL_MODEL": {"default": "mimo-v2.6-flash", "purpose": "model for the 360 discovery panel", "owner": "core/pipeline_executor.py"},
-    "PIPELINE_REANALYZE": {"default": "0", "purpose": "re-analyze panel recommendations on rerun", "owner": "core/pipeline_executor.py"},
-    "PIPELINE_PANEL_ONE_BY_ONE": {"default": "0", "purpose": "legacy per-question discovery ask", "owner": "core/pipeline_executor.py"},
-    "PIPELINE_PROMPT_TIMEOUT": {"default": "3600", "purpose": "max seconds to wait for a human prompt", "owner": "core/pipeline_executor.py"},
-    "PIPELINE_ALLOW_UNGUARDED": {"default": "0", "purpose": "override the run-lock bypass guard", "owner": "core/pipeline_executor.py"},
-    "PIPELINE_VERBOSE": {"default": "0", "purpose": "emit verbose per-call/loop logs ([LLM], heartbeats); off = concise", "owner": "core/env_flags.py"},
-    "PIPELINE_SECTION_CONTEXT_CHARS": {"default": "4000", "purpose": "cap on the assembled upstream context per section call (0 = unlimited)", "owner": "core/context_discipline.py"},
-    "PIPELINE_CAPABILITY_STEER": {"default": "0", "purpose": "apply the per-agent capability vector to each LLM request (reasoning/min-output); off = unchanged", "owner": "core/orchestrator/llm_client.py"},
-    "INSTANCE_TENANT": {"default": "", "purpose": "tenant a tenant-instance dashboard is bound to (tenant-scoped authz, fail-closed)", "owner": "core/tenancy.py"},
-    "PIPELINE_AUTO_ESCALATE": {"default": "0", "purpose": "auto-route a failed gate's retry to the stronger tier (model-tier ladder); off = recommendation only", "owner": "core/escalation.py"},
-    "PIPELINE_STRUCTURED_OUTPUT": {"default": "0", "purpose": "sectioned agents emit compact JSON per section, rendered deterministically (BI-0224); off = prose", "owner": "core/orchestrator/agent_runner.py"},
-    "MODEL_GATE_REJECT_UNKNOWN": {"default": "1", "purpose": "fail closed when a capability-critical agent's model fit is UNKNOWN (0 = warn only)", "owner": "core/model_gate.py"},
-    "MODEL_FIT_TIMEOUT": {"default": "300", "purpose": "model-fit preflight wait", "owner": "core/pipeline_executor.py"},
-    "PIPELINE_PREFER_KIND": {"default": "", "purpose": "prefer a provider kind (direct|aggregator|self-host) when ordering LLM candidates; empty = tier order", "owner": "core/provider_kinds.py"},
-    "PIPELINE_GENERATORS": {"default": "0", "purpose": "enable media generation via generator adapters (BI-0188); off = detection/selection only", "owner": "core/generator_adapters.py"},
-    "PIPELINE_GENERATOR_MAX_SECONDS": {"default": "600", "purpose": "max wait for an async generator job (video/music/3d)", "owner": "core/generator_adapters.py"},
-    "PIPELINE_GENERATOR_POLL_SECONDS": {"default": "5", "purpose": "poll interval for async generator jobs", "owner": "core/generator_adapters.py"},
-    "PIPELINE_FEASIBILITY_STRICT": {"default": "0", "purpose": "treat a build-host 'conditional' feasibility verdict as blocking (0 = advisory)", "owner": "core/feasibility.py"},
-    "PIPELINE_FEASIBILITY_GPU_OVERRIDE": {"default": "", "purpose": "override detected GPU VRAM (GB) for feasibility when nvidia-smi is unavailable", "owner": "core/feasibility.py"},
-    "PIPELINE_MODEL_STRATEGY": {"default": "warn", "purpose": "two-phase model/capability strategy gate mode: off|warn|apply (apply writes per-agent overrides) (BI-0192)", "owner": "core/model_strategy.py"},
-    "PIPELINE_MODEL_STRATEGY_GATE_B": {"default": "1", "purpose": "run Gate B (post-architect refinement) of the model strategy (0 = Gate A only)", "owner": "core/model_strategy.py"},
-    "PIPELINE_MEDIA_CONTEXT": {"default": "summary", "purpose": "media->agent input mode: off|summary|native (native attaches media parts when the model accepts the modality)", "owner": "core/media_context.py"},
-    "PIPELINE_MEDIA_SUMMARY_CHARS": {"default": "2000", "purpose": "cap on the media summary injected into a prompt", "owner": "core/media_context.py"},
-    "PIPELINE_MEDIA_BUDGET_TOKENS": {"default": "6000", "purpose": "per-call media token budget; over => drop least-priority parts (summary fallback) (BI-PF-0288)", "owner": "core/media_context.py"},
-    "PIPELINE_MEDIA_QA": {"default": "warn", "purpose": "media QA mode at validate: off|warn|block (BI-0191)", "owner": "core/media_qa.py"},
-    "PIPELINE_MEDIA_QA_TOLERANCE": {"default": "0.5", "purpose": "media QA tolerance (sync/loudness band) (BI-0191)", "owner": "core/media_qa.py"},
-    "PIPELINE_LEARNING_AUTO_APPROVE": {"default": "0", "purpose": "auto-approve learning candidates ONLY when confidence>=threshold AND scope=area (0 = always require approval) (BI-PF-0293)", "owner": "core/learning_synth.py"},
-    "PIPELINE_LEARNING_MIN_CONFIDENCE": {"default": "0.8", "purpose": "confidence threshold for the opt-in auto-approve path (BI-PF-0293)", "owner": "core/learning_synth.py"},
-    "PIPELINE_MEMORY_READBACK": {"default": "0", "purpose": "inject a bounded PRIOR RUN NOTES block from this project's memory into agent prompts (BI-PF-0294)", "owner": "core/orchestrator/agent_runner.py"},
-    "PIPELINE_MEMORY_CHARS": {"default": "1200", "purpose": "cap on the memory read-back block injected into a prompt (BI-PF-0294)", "owner": "core/orchestrator/agent_runner.py"},
-    "WORKER_INTEGRATION_ENABLED": {"default": "1", "purpose": "runtime switch for the optional external-worker layer (registry/adapters/work-pull). 0 = disabled (PF runs unchanged; 503 on worker routes). Build-time exclude is BI-PF-0383.", "owner": "core/worker_registry.py"},
-    "PF_LEASE_SECONDS": {"default": "3600", "purpose": "worker assignment lease duration (seconds)", "owner": "core/job_manager.py"},
-    "PF_LEASE_RECOVERY": {"default": "REQUIRE_REVIEW", "purpose": "policy when a worker lease expires: RESUME|RETRY|REASSIGN|MARK_FAILED|REQUIRE_REVIEW", "owner": "core/job_manager.py"},
-    "PF_WORKER_STALE_SECONDS": {"default": "90", "purpose": "heartbeat age (s) after which a worker is STALE", "owner": "core/worker_registry.py"},
-    "PF_GROOMING_AI": {"default": "", "purpose": "grooming AI switch (empty=default; 0 disables AI grooming)", "owner": "core/grooming.py"},
-    "WORKER_AUTO_DISPATCH": {"default": "0", "purpose": "automatic dispatch: assign eligible backlog items to available workers without a manual pull (0 = manual only)", "owner": "core/dispatcher.py"},
-    "WORKER_DISPATCH_POLL_SECONDS": {"default": "5", "purpose": "poll interval for the optional dispatch loop", "owner": "core/dispatcher.py"}
+    "PF_ID_ALLOC": {
+      "default": "on",
+      "purpose": "backlog id allocation mode: strict(default - require the shared git-CAS authority, fail closed, never self-reserve) | on(soft: CAS->API->local block) | off(legacy max+1)",
+      "owner": "core/id_allocator.py"
+    },
+    "PF_ID_ALLOC_REMOTE": {
+      "default": "off",
+      "purpose": "use the shared git-remote CAS authority (refs/heads/pf-id-counter) to reserve id blocks",
+      "owner": "core/id_allocator.py"
+    },
+    "PF_ID_ALLOC_API": {
+      "default": "on",
+      "purpose": "allow the PF API id-reserve authority path (fallback when the git remote is unavailable)",
+      "owner": "core/id_allocator.py"
+    },
+    "PF_DB_DSN": {
+      "default": "",
+      "purpose": "Product Forge system-of-record PostgreSQL DSN (EDP-17). Empty = DB-backed features disabled. Credentials come from this env var only (never committed).",
+      "owner": "go/store + scripts/dev/db_bootstrap.py"
+    },
+    "PF_LEASE_REMOTE": {
+      "default": "strict",
+      "purpose": "assignment-lease authority mode: strict(default - require the shared git-CAS authority refs/heads/pf-leases, fail closed) | on(soft: allow offline, single-session) | off(disabled, local only)",
+      "owner": "core/job_manager.py"
+    },
+    "PF_LEASE_REMOTE_REF": {
+      "default": "refs/heads/pf-leases",
+      "purpose": "git ref holding the shared assignment-lease map (CAS)",
+      "owner": "core/job_manager.py"
+    },
+    "PF_ID_REMOTE_REF": {
+      "default": "refs/heads/pf-id-counter",
+      "purpose": "git ref holding the shared backlog id counter (CAS)",
+      "owner": "core/id_allocator.py"
+    },
+    "PF_ID_BLOCK_SIZE": {
+      "default": "1",
+      "purpose": "ids reserved per CAS block: 1(default) = one sequential id per request (no gaps); raise for bulk creation",
+      "owner": "core/id_allocator.py"
+    },
+    "PF_ID_BLOCK_BASE": {
+      "default": "0",
+      "purpose": "offline base offset for a session's local id blocks",
+      "owner": "core/id_allocator.py"
+    },
+    "PF_API_TOKEN": {
+      "default": "",
+      "purpose": "Bearer token required by the canonical api/ surface (BI-PF-1325). Canonical auth env; API_TOKEN is a deprecated back-compat alias (fail-closed when unset unless API_ALLOW_ANON=1)",
+      "owner": "api/auth.py"
+    },
+    "API_TOKEN": {
+      "default": "",
+      "purpose": "DEPRECATED (BI-PF-1325) back-compat alias for PF_API_TOKEN; prefer PF_API_TOKEN",
+      "owner": "api/auth.py"
+    },
+    "API_ALLOW_ANON": {
+      "default": "0",
+      "purpose": "dev-only: allow unauthenticated access to the api/ surface when no token is set",
+      "owner": "api/auth.py"
+    },
+    "PIPELINE_LLM_REPLAY": {
+      "default": "off",
+      "purpose": "TEST-only deterministic LLM replay (BI-PF-0459): off(default) | record(persist raw responses) | replay(serve cassettes; fail-closed on miss)",
+      "owner": "core/orchestrator/llm_client.py"
+    },
+    "PIPELINE_PRIORITY_AGING_HOURS": {
+      "default": "24",
+      "purpose": "Scheduler fairness (P12b): hours of waiting that grant one priority level of aging (bounded to 3); 0 disables aging",
+      "owner": "core/scheduler.py"
+    },
+    "PIPELINE_RATE_BUDGET": {
+      "default": "1",
+      "purpose": "P12a provider rate budgeting: 1(default, on) = pace within provider_limits (best-effort, never blocks/aborts); 0 = disabled",
+      "owner": "core/orchestrator/llm_client.py"
+    },
+    "PIPELINE_RATE_MAX_WAIT_SECONDS": {
+      "default": "30",
+      "purpose": "P12a: cap (seconds) on a single pacing sleep, so pacing can never stall an agent",
+      "owner": "core/orchestrator/llm_client.py"
+    },
+    "PF_WEB_SEARCH_BACKEND": {
+      "default": "none",
+      "purpose": "web_search tool backend (BI-PF-0438): none(default,disabled) | whoogle | searxng | duckduckgo_html | brave | tavily",
+      "owner": "core/tool_registry.py"
+    },
+    "PF_WEB_SEARCH_URL": {
+      "default": "",
+      "purpose": "self-host search base URL for whoogle/searxng (BI-PF-0438)",
+      "owner": "core/tool_registry.py"
+    },
+    "PF_WEB_SEARCH_KEY": {
+      "default": "",
+      "purpose": "cloud search key for brave/tavily (BI-PF-0438; or use BRAVE_SEARCH_API_KEY / TAVILY_API_KEY)",
+      "owner": "core/tool_registry.py"
+    },
+    "PIDL_GATE_MODE": {
+      "default": "advisory",
+      "purpose": "PIDL-3 worker-result gate mode: advisory (record the decision only) | enforce (hold non-AUTO_PROCEED closes for review/approval)",
+      "owner": "core/pidl.py"
+    },
+    "PF_AUTO_PUSH": {
+      "default": "0",
+      "purpose": "git sync (Stage 2a): auto-push after a controlled merge / after a worker commits on its feature branch. 0 = off (explicit `sync`/push only)",
+      "owner": "core/vcs.py"
+    },
+    "API_PORT": {
+      "default": "8000",
+      "purpose": "port for the canonical api/ uvicorn server",
+      "owner": "api/app.py"
+    },
+    "API_ALLOW_ORIGINS": {
+      "default": "*",
+      "purpose": "CORS allow-origins for the canonical api/ surface",
+      "owner": "api/app.py"
+    },
+    "A2A_ENABLE_EXPOSE": {
+      "default": "0",
+      "purpose": "expose our agents over A2A (message/send server surface)",
+      "owner": "core/a2a.py"
+    },
+    "A2A_ENABLE_CONSUME": {
+      "default": "0",
+      "purpose": "allow delegating to remote A2A agents (whitelisted only)",
+      "owner": "core/a2a.py"
+    },
+    "PIPELINE_INTERACTIVE": {
+      "default": "",
+      "purpose": "force interactive prompts on/off",
+      "owner": "core/interactive.py"
+    },
+    "PIPELINE_PANEL_MODEL": {
+      "default": "mimo-v2.6-flash",
+      "purpose": "model for the 360 discovery panel",
+      "owner": "core/pipeline_executor.py"
+    },
+    "PIPELINE_REANALYZE": {
+      "default": "0",
+      "purpose": "re-analyze panel recommendations on rerun",
+      "owner": "core/pipeline_executor.py"
+    },
+    "PIPELINE_PANEL_ONE_BY_ONE": {
+      "default": "0",
+      "purpose": "legacy per-question discovery ask",
+      "owner": "core/pipeline_executor.py"
+    },
+    "PIPELINE_PROMPT_TIMEOUT": {
+      "default": "3600",
+      "purpose": "max seconds to wait for a human prompt",
+      "owner": "core/pipeline_executor.py"
+    },
+    "PIPELINE_ALLOW_UNGUARDED": {
+      "default": "0",
+      "purpose": "override the run-lock bypass guard",
+      "owner": "core/pipeline_executor.py"
+    },
+    "PIPELINE_VERBOSE": {
+      "default": "0",
+      "purpose": "emit verbose per-call/loop logs ([LLM], heartbeats); off = concise",
+      "owner": "core/env_flags.py"
+    },
+    "PIPELINE_SECTION_CONTEXT_CHARS": {
+      "default": "4000",
+      "purpose": "cap on the assembled upstream context per section call (0 = unlimited)",
+      "owner": "core/context_discipline.py"
+    },
+    "PIPELINE_CAPABILITY_STEER": {
+      "default": "0",
+      "purpose": "apply the per-agent capability vector to each LLM request (reasoning/min-output); off = unchanged",
+      "owner": "core/orchestrator/llm_client.py"
+    },
+    "INSTANCE_TENANT": {
+      "default": "",
+      "purpose": "tenant a tenant-instance dashboard is bound to (tenant-scoped authz, fail-closed)",
+      "owner": "core/tenancy.py"
+    },
+    "PIPELINE_AUTO_ESCALATE": {
+      "default": "0",
+      "purpose": "auto-route a failed gate's retry to the stronger tier (model-tier ladder); off = recommendation only",
+      "owner": "core/escalation.py"
+    },
+    "PIPELINE_STRUCTURED_OUTPUT": {
+      "default": "0",
+      "purpose": "sectioned agents emit compact JSON per section, rendered deterministically (BI-0224); off = prose",
+      "owner": "core/orchestrator/agent_runner.py"
+    },
+    "MODEL_GATE_REJECT_UNKNOWN": {
+      "default": "1",
+      "purpose": "fail closed when a capability-critical agent's model fit is UNKNOWN (0 = warn only)",
+      "owner": "core/model_gate.py"
+    },
+    "MODEL_FIT_TIMEOUT": {
+      "default": "300",
+      "purpose": "model-fit preflight wait",
+      "owner": "core/pipeline_executor.py"
+    },
+    "PIPELINE_PREFER_KIND": {
+      "default": "",
+      "purpose": "prefer a provider kind (direct|aggregator|self-host) when ordering LLM candidates; empty = tier order",
+      "owner": "core/provider_kinds.py"
+    },
+    "PIPELINE_GENERATORS": {
+      "default": "0",
+      "purpose": "enable media generation via generator adapters (BI-0188); off = detection/selection only",
+      "owner": "core/generator_adapters.py"
+    },
+    "PIPELINE_GENERATOR_MAX_SECONDS": {
+      "default": "600",
+      "purpose": "max wait for an async generator job (video/music/3d)",
+      "owner": "core/generator_adapters.py"
+    },
+    "PIPELINE_GENERATOR_POLL_SECONDS": {
+      "default": "5",
+      "purpose": "poll interval for async generator jobs",
+      "owner": "core/generator_adapters.py"
+    },
+    "PIPELINE_FEASIBILITY_STRICT": {
+      "default": "0",
+      "purpose": "treat a build-host 'conditional' feasibility verdict as blocking (0 = advisory)",
+      "owner": "core/feasibility.py"
+    },
+    "PIPELINE_FEASIBILITY_GPU_OVERRIDE": {
+      "default": "",
+      "purpose": "override detected GPU VRAM (GB) for feasibility when nvidia-smi is unavailable",
+      "owner": "core/feasibility.py"
+    },
+    "PIPELINE_MODEL_STRATEGY": {
+      "default": "warn",
+      "purpose": "two-phase model/capability strategy gate mode: off|warn|apply (apply writes per-agent overrides) (BI-0192)",
+      "owner": "core/model_strategy.py"
+    },
+    "PIPELINE_MODEL_STRATEGY_GATE_B": {
+      "default": "1",
+      "purpose": "run Gate B (post-architect refinement) of the model strategy (0 = Gate A only)",
+      "owner": "core/model_strategy.py"
+    },
+    "PIPELINE_MEDIA_CONTEXT": {
+      "default": "summary",
+      "purpose": "media->agent input mode: off|summary|native (native attaches media parts when the model accepts the modality)",
+      "owner": "core/media_context.py"
+    },
+    "PIPELINE_MEDIA_SUMMARY_CHARS": {
+      "default": "2000",
+      "purpose": "cap on the media summary injected into a prompt",
+      "owner": "core/media_context.py"
+    },
+    "PIPELINE_MEDIA_BUDGET_TOKENS": {
+      "default": "6000",
+      "purpose": "per-call media token budget; over => drop least-priority parts (summary fallback) (BI-PF-0288)",
+      "owner": "core/media_context.py"
+    },
+    "PIPELINE_MEDIA_QA": {
+      "default": "warn",
+      "purpose": "media QA mode at validate: off|warn|block (BI-0191)",
+      "owner": "core/media_qa.py"
+    },
+    "PIPELINE_MEDIA_QA_TOLERANCE": {
+      "default": "0.5",
+      "purpose": "media QA tolerance (sync/loudness band) (BI-0191)",
+      "owner": "core/media_qa.py"
+    },
+    "PIPELINE_LEARNING_AUTO_APPROVE": {
+      "default": "0",
+      "purpose": "auto-approve learning candidates ONLY when confidence>=threshold AND scope=area (0 = always require approval) (BI-PF-0293)",
+      "owner": "core/learning_synth.py"
+    },
+    "PIPELINE_LEARNING_MIN_CONFIDENCE": {
+      "default": "0.8",
+      "purpose": "confidence threshold for the opt-in auto-approve path (BI-PF-0293)",
+      "owner": "core/learning_synth.py"
+    },
+    "PIPELINE_MEMORY_READBACK": {
+      "default": "0",
+      "purpose": "inject a bounded PRIOR RUN NOTES block from this project's memory into agent prompts (BI-PF-0294)",
+      "owner": "core/orchestrator/agent_runner.py"
+    },
+    "PIPELINE_MEMORY_CHARS": {
+      "default": "1200",
+      "purpose": "cap on the memory read-back block injected into a prompt (BI-PF-0294)",
+      "owner": "core/orchestrator/agent_runner.py"
+    },
+    "WORKER_INTEGRATION_ENABLED": {
+      "default": "1",
+      "purpose": "runtime switch for the optional external-worker layer (registry/adapters/work-pull). 0 = disabled (PF runs unchanged; 503 on worker routes). Build-time exclude is BI-PF-0383.",
+      "owner": "core/worker_registry.py"
+    },
+    "PF_LEASE_SECONDS": {
+      "default": "3600",
+      "purpose": "worker assignment lease duration (seconds)",
+      "owner": "core/job_manager.py"
+    },
+    "PF_LEASE_RECOVERY": {
+      "default": "REQUIRE_REVIEW",
+      "purpose": "policy when a worker lease expires: RESUME|RETRY|REASSIGN|MARK_FAILED|REQUIRE_REVIEW",
+      "owner": "core/job_manager.py"
+    },
+    "PF_WORKER_STALE_SECONDS": {
+      "default": "90",
+      "purpose": "heartbeat age (s) after which a worker is STALE",
+      "owner": "core/worker_registry.py"
+    },
+    "PF_GROOMING_AI": {
+      "default": "",
+      "purpose": "grooming AI switch (empty=default; 0 disables AI grooming)",
+      "owner": "core/grooming.py"
+    },
+    "WORKER_AUTO_DISPATCH": {
+      "default": "0",
+      "purpose": "automatic dispatch: assign eligible backlog items to available workers without a manual pull (0 = manual only)",
+      "owner": "core/dispatcher.py"
+    },
+    "WORKER_DISPATCH_POLL_SECONDS": {
+      "default": "5",
+      "purpose": "poll interval for the optional dispatch loop",
+      "owner": "core/dispatcher.py"
+    },
+    "PF_PROFILE": {
+      "default": "dev",
+      "purpose": "edpsvc profile: dev|production. production refuses dev/anon auth, a weak admin token and a superuser runtime DSN.",
+      "owner": "go/edpsvc"
+    },
+    "PF_ADMIN_TOKEN": {
+      "default": "",
+      "purpose": "Bearer token for edpsvc /admin/* (production requires >=24 chars and not a default value).",
+      "owner": "go/edpsvc"
+    },
+    "PF_EDP_ENFORCE_LIMITS": {
+      "default": "1",
+      "purpose": "Enable timeouts/body/quotas (0 is allowed only outside production; production refuses it).",
+      "owner": "go/edpsvc/internal/limits"
+    },
+    "PF_EDP_REQUEST_TIMEOUT": {
+      "default": "30s",
+      "purpose": "Per-request JSON handler timeout.",
+      "owner": "go/edpsvc/internal/limits"
+    },
+    "PF_EDP_DB_TIMEOUT": {
+      "default": "5s",
+      "purpose": "DB operation timeout (must be <= request timeout).",
+      "owner": "go/edpsvc/internal/limits"
+    },
+    "PF_EDP_UPLOAD_TIMEOUT": {
+      "default": "120s",
+      "purpose": "Per-request upload timeout for /artifacts.",
+      "owner": "go/edpsvc/internal/limits"
+    },
+    "PF_EDP_READ_HEADER_TIMEOUT": {
+      "default": "5s",
+      "purpose": "http.Server ReadHeaderTimeout.",
+      "owner": "go/edpsvc/internal/limits"
+    },
+    "PF_EDP_READ_TIMEOUT": {
+      "default": "180s",
+      "purpose": "http.Server ReadTimeout (>= upload timeout).",
+      "owner": "go/edpsvc/internal/limits"
+    },
+    "PF_EDP_WRITE_TIMEOUT": {
+      "default": "180s",
+      "purpose": "http.Server WriteTimeout (>= upload timeout).",
+      "owner": "go/edpsvc/internal/limits"
+    },
+    "PF_EDP_IDLE_TIMEOUT": {
+      "default": "120s",
+      "purpose": "http.Server IdleTimeout.",
+      "owner": "go/edpsvc/internal/limits"
+    },
+    "PF_EDP_MAX_HEADER_BYTES": {
+      "default": "1048576",
+      "purpose": "Max request header bytes.",
+      "owner": "go/edpsvc/internal/limits"
+    },
+    "PF_EDP_MAX_BODY_BYTES": {
+      "default": "1048576",
+      "purpose": "Default JSON body cap.",
+      "owner": "go/edpsvc/internal/limits"
+    },
+    "PF_EDP_MAX_UPLOAD_BYTES": {
+      "default": "67108864",
+      "purpose": "Max /artifacts upload bytes.",
+      "owner": "go/edpsvc/internal/limits"
+    },
+    "PF_EDP_POOL_MAX_CONNS": {
+      "default": "10",
+      "purpose": "Shared pgx pool max connections.",
+      "owner": "go/edpsvc/internal/limits"
+    },
+    "PF_EDP_POOL_MIN_CONNS": {
+      "default": "1",
+      "purpose": "Shared pgx pool min connections.",
+      "owner": "go/edpsvc/internal/limits"
+    },
+    "PF_EDP_POOL_CONNECT_TIMEOUT": {
+      "default": "10s",
+      "purpose": "Pool connect timeout.",
+      "owner": "go/edpsvc/internal/limits"
+    },
+    "PF_EDP_POOL_CONN_LIFETIME": {
+      "default": "1h",
+      "purpose": "Pool max connection lifetime.",
+      "owner": "go/edpsvc/internal/limits"
+    },
+    "PF_EDP_POOL_CONN_IDLE": {
+      "default": "30m",
+      "purpose": "Pool max idle time.",
+      "owner": "go/edpsvc/internal/limits"
+    },
+    "PF_EDP_POOL_HEALTH_PERIOD": {
+      "default": "1m",
+      "purpose": "Pool health-check period.",
+      "owner": "go/edpsvc/internal/limits"
+    },
+    "PF_EDP_TENANT_RPM": {
+      "default": "600",
+      "purpose": "Per-tenant requests/minute (burst = one minute's rate).",
+      "owner": "go/edpsvc/internal/limits"
+    },
+    "PF_EDP_GLOBAL_RPM": {
+      "default": "6000",
+      "purpose": "Global requests/minute.",
+      "owner": "go/edpsvc/internal/limits"
+    },
+    "PF_EDP_TENANT_CONCURRENCY": {
+      "default": "5",
+      "purpose": "Per-tenant concurrent requests.",
+      "owner": "go/edpsvc/internal/limits"
+    },
+    "PF_EDP_GLOBAL_CONCURRENCY": {
+      "default": "10",
+      "purpose": "Global concurrent requests (must be <= pool max).",
+      "owner": "go/edpsvc/internal/limits"
+    },
+    "PF_EDP_MAX_TENANT_BUCKETS": {
+      "default": "10000",
+      "purpose": "Max in-process tenant quota buckets (idle eviction + fail-closed cap).",
+      "owner": "go/edpsvc/internal/limits"
+    },
+    "PF_EDP_BUCKET_IDLE_TTL": {
+      "default": "10m",
+      "purpose": "Idle tenant bucket eviction TTL.",
+      "owner": "go/edpsvc/internal/limits"
+    },
+    "PF_EDP_ROLE_RECHECK": {
+      "default": "5m",
+      "purpose": "Runtime DB role revalidation interval (0 disables).",
+      "owner": "go/edpsvc/internal/limits"
+    },
+    "PF_ALLOW_SUPERUSER_DSN": {
+      "default": "0",
+      "purpose": "Non-production escape hatch for a superuser runtime DSN (refused in production).",
+      "owner": "go/edpsvc/internal/limits"
+    },
+    "PF_DEV": {
+      "default": "0",
+      "purpose": "Development-only flag; production profile refuses it when enabled.",
+      "owner": "api/auth.py + go/edpsvc"
+    },
+    "PF_ALLOW_ANON": {
+      "default": "0",
+      "purpose": "Anonymized-access alias; production profile refuses it when enabled.",
+      "owner": "go/edpsvc/internal/limits"
+    },
+    "PF_EDP_MIGRATION_TIMEOUT": {
+      "default": "150s",
+      "purpose": "Long DDL timeout for /admin/migrations/up|down.",
+      "owner": "go/edpsvc/internal/limits"
+    },
+    "PF_EDP_ADDR": {
+      "default": "127.0.0.1:8030",
+      "purpose": "edpsvc listen address.",
+      "owner": "go/edpsvc"
+    },
+    "PF_MIGRATIONS_DIR": {
+      "default": "",
+      "purpose": "Migrations directory (default: nearest migrations up from cwd).",
+      "owner": "go/edpsvc"
+    },
+    "PF_OBJECT_BACKEND": {
+      "default": "local",
+      "purpose": "Object-store backend: local|s3.",
+      "owner": "go/edpsvc"
+    },
+    "PF_MEMORY_PRINCIPAL": {
+      "default": "admin",
+      "purpose": "Server-side memory ACL principal for the admin API.",
+      "owner": "go/edpsvc"
+    }
   }
 }

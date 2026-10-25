@@ -10,7 +10,7 @@
   "title": "EDP-10: Timeouts, pool budgets, payload/upload limits, per-tenant & global quotas, structured errors; production profile rejects dev/anon auth",
   "body": "Part of EPIC BI-PF-1292. Source: docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md. Phase item (see epic). Language rule L1 = Go; must pass scripts/dev/language_rule_review.py.",
   "source": "review",
-  "status": "new",
+  "status": "completed",
   "priority": "P1",
   "moscow": "Must",
   "value": 3,
@@ -37,75 +37,225 @@
       "decision": "APPROVE",
       "by": "agent",
       "note": "finalized: decisions recorded 2026-10-13"
+    },
+    {
+      "at": "2026-10-24T17:59:15.054743+00:00",
+      "by": "hil:srinikc",
+      "decision": "APPROVE",
+      "gate": 1,
+      "findings_sha": "ef8643b7f620",
+      "findings_digest": "1e9266a7e5ef",
+      "seq": 2,
+      "note": "HIL approved Gate 1 ('okay continue') for the 5 decisions: edpsvc target, defaults, in-process quotas, non-superuser runtime DSN, per-tenant attribution + BI-PF-1478.",
+      "hil_confirmed": true
+    },
+    {
+      "at": "2026-10-25T04:40:00+00:00",
+      "decision": "AMEND",
+      "by": "hil:agent",
+      "note": "HIL-approved in the Gate 1 package: graceful drain is 180s (>= 120s upload budget, not 30s); migration DDL timeout is 150s and bypasses the 30s request deadline; /metrics requires the admin token and exposes counters + latency histograms (not counters-only); default global/tenant concurrency is 10/5 to satisfy global<=pool. The design AC text is superseded by this entry."
+    },
+    {
+      "at": "2026-10-25T05:38:05.278025+00:00",
+      "by": "hil:srinikc",
+      "decision": "APPROVE_WITH_ATTENTION",
+      "gate": 2,
+      "findings_sha": "8f35729011ec",
+      "findings_digest": "7e8fea602451",
+      "seq": 4,
+      "note": "HIL approved the batch + one final review. Gate 2.5 sha 8f35729011ec: 2 blockers verified false/benign (auditCoverage uses r.Context; BindTenant is transaction-local), 6 majors accepted/deferred (role recheck/ready, tenant attribution -> BI-PF-1478, upload buffering).",
+      "hil_confirmed": true
     }
   ],
   "follow_up": {},
   "brief": {
-    "problem": "No centralized enforcement of timeouts, pool budgets, payload limits, quotas, or structured errors; dev/anon auth can reach production.",
-    "what_adds": "Go limits package, enforcement middleware, structured error envelope, production profile auth guard.",
-    "why": "Baseline performance and security guardrails required before enterprise rollout.",
-    "who_feels": "Platform SRE, security reviewers, all API consumers.",
+    "problem": "edpsvc has no timeouts, body/upload caps, quotas, request ids or structured errors, and opens a DB pool per request; dev/anon auth and a superuser DSN can reach production.",
+    "what_adds": "Go limits package (env config, request id, timeouts, body/upload caps, tenant+global quotas/concurrency, structured errors) wired into edpsvc; shared bounded pool + graceful shutdown; production profile auth/role guard; GET /admin/limits.",
+    "why": "Enterprise baseline for performance, safety and least privilege before scale-out.",
+    "who_feels": "EDP operators, SRE, security reviewers, all edpsvc admin clients.",
+    "success": "Over-limit/oversize/timeout requests fail predictably in the envelope; production refuses dev/anon auth and a superuser runtime role; tests + precheck pass.",
     "source": "authored"
   },
-  "objective": "Implement enforceable timeouts, pool budgets, payload/upload limits, per-tenant and global quotas, structured error responses, and a production profile that rejects dev/anon authentication.",
+  "objective": "Harden the Go EDP data-plane service with enforceable timeouts, body/upload limits, per-tenant and global quotas/concurrency, a structured error contract, a bounded shared DB pool, and a production profile that fails closed on dev/anon auth or a superuser runtime role.",
   "acceptance_criteria": [
-    "All HTTP handlers enforce configured timeouts and body/upload size limits",
-    "Per-tenant and global quotas enforced fail-closed with structured errors",
-    "profile=production startup rejects dev/anon auth configs",
-    "Passes scripts/dev/language_rule_review.py (Go-only)",
-    "Runtime DB connections MUST use a non-superuser role (pf_app/pf_runtime); a fail-closed guard rejects a superuser (pf_owner) runtime DSN so RLS cannot be silently bypassed",
-    "The production profile rejects dev/anon auth and a superuser runtime role at startup (fail-closed) with a clear error"
+    "go/edpsvc enforces configurable request (30s), DB (5s), upload (120s for /artifacts) and server read/write/idle/header timeouts plus a 1 MiB body cap (64 MiB upload cap); over-limit bodies return structured 413, deadlines return 504, and every handler uses r.Context()/dbCtx so cancellation reaches DB/object IO.",
+    "A per-tenant and global token-bucket request quota plus per-tenant and global concurrency caps (env-driven, fail-closed) reject over-limit requests with 429 + Retry-After; the tenant key is the tenant the request targets (X-Tenant-Id, validated against the tenant query where present); the global bucket always applies and is the hard anti-evasion control because edpsvc has one admin principal; /health, /ready and /metrics are exempt but still DB-timeout bounded.",
+    "Every edpsvc error path returns the versioned envelope {\"error\":{\"code\",\"message\",\"category\",\"retryable\",\"request_id\"}} (v1, documented in docs/PF-API-SERVICE-OR-SERVER.md) with X-Request-ID (propagated when valid, else generated); 400/401/403/404/405/409/413/429/500/503/504 map to stable codes and messages are redacted.",
+    "PF_PROFILE=production fails closed when PF_DEV/API_ALLOW_ANON/PF_ALLOW_ANON is enabled, PF_ADMIN_TOKEN is missing/default/shorter than 24 chars, or the runtime DB role is superuser/BYPASSRLS; PF_EDP_ENFORCE_LIMITS=0 is refused in production (non-production only), and the superuser escape hatch requires profile != production and PF_ALLOW_SUPERUSER_DSN=1; the error names the offending setting.",
+    "edpsvc uses ONE shared bounded store.PgStore for all handlers, validates global concurrency <= PoolOptions.MaxConns at startup, never opens a pool per request, drains in-flight work on graceful shutdown (30s) before closing the pool, and exposes GET /admin/limits (admin) + GET /metrics (counters only: 413/429/504, denials, evictions, pool saturation).",
+    "Tests prove: config/validation incl. cap<=MaxConns; token-bucket refill/deny/Retry-After with an injected clock; tenant validation, max-tenant cap (LRU idle eviction, 429 when none idle) and no active-bucket reset; profile/kill-switch/role fail-closed; envelope + request-id propagation + redaction; httptest mux 401/413/429/504; DB-gated shared-pool role guard; go test ./... and precheck pass."
   ],
   "in_scope": [
-    "Go limits/quota package",
-    "Structured error envelope",
-    "Production profile auth guard",
-    "Config wiring via orchestrator settings"
+    "go/edpsvc/internal/limits (config, errors, middleware, quota, metrics, profile/role validators, tests)",
+    "go/edpsvc/main.go wiring: shared pool, r.Context(), middleware chain, /admin/limits, /metrics, http.Server timeouts, graceful shutdown",
+    "config/env-flags.json registrations + docs/PF-API-SERVICE-OR-SERVER.md (v1 envelope/routes/config)",
+    "Tests: unit + httptest mux + DB-gated role guard"
   ],
   "out_of_scope": [
-    "Billing/entitlement semantics",
-    "UI surfacing of quota state",
-    "Database schema redesign"
+    "Python api/ limits/auth hardening (BI-PF-0332).",
+    "Shared/distributed quota coordination across replicas (EDP-24 scale-out) and SLO dashboards (EDP-22).",
+    "Billing/entitlement semantics and per-tenant quota overrides from the quotas table.",
+    "New auth token issuance/rotation (PF-API-SERVICE-OR-SERVER §auth follow-up)."
   ],
   "affected_components": [
-    "core/global_orchestrator.py (config source)",
-    "Go HTTP middleware/handlers",
-    "New Go limits package"
+    "EDP data-plane service (go/edpsvc)",
+    "config/env-flags.json",
+    "service documentation"
   ],
   "affected_files": [
-    "internal/limits/*.go (new)",
-    "internal/http/middleware/*.go",
-    "config/settings wiring"
+    "go/edpsvc/main.go",
+    "go/edpsvc/internal/limits/config.go",
+    "go/edpsvc/internal/limits/errors.go",
+    "go/edpsvc/internal/limits/middleware.go",
+    "go/edpsvc/internal/limits/quota.go",
+    "go/edpsvc/internal/limits/profile.go",
+    "go/edpsvc/internal/limits/*_test.go",
+    "go/edpsvc/main_test.go",
+    "config/env-flags.json",
+    "docs/PF-API-SERVICE-OR-SERVER.md"
   ],
-  "approach": "EDP-10 scope + RLS-role guard (from BI-PF-1407 review): timeouts, pool budgets, payload/upload limits, per-tenant & global quotas, structured errors, production profile rejects dev/anon auth. ADDED: runtime DSN must be a non-superuser role (pf_app/pf_runtime); fail-closed guard refuses pf_owner/superuser at startup so RLS is never silently bypassed.",
+  "approach": "Add go/edpsvc/internal/limits: env Config (defaults/invariants incl. global concurrency <= MaxConns), request-id + v1 error writer, timeout/body-limit/quota/concurrency middleware with per-path timeouts (JSON vs upload), token bucket with injectable clock + idle eviction/max-tenant cap, Prometheus counters, and pure profile/kill-switch/role validators. Refactor edpsvc/main.go to one shared store.OpenWithPool, r.Context()/dbCtx everywhere, GET /admin/limits + GET /metrics, http.Server timeouts and graceful shutdown (drain 30s). Register env flags and document the v1 envelope/routes in docs/PF-API-SERVICE-OR-SERVER.md. PF_EDP_ENFORCE_LIMITS=0 is non-production only. No schema change.",
   "review": {
     "reconciliation": {
-      "prior_decisions": [],
-      "existing_path": [],
-      "assumptions": [],
-      "divergences": [],
-      "open_questions": []
+      "prior_decisions": [
+        "ADR-0006/ADR-0008: the EDP data-plane service (go/edpsvc) is the Go API surface and the SoR operator; it owns quotas, migrations and admin auth.",
+        "BI-PF-1300/BI-PF-1301 (merged): system-of-record schema, tenants/projects and server-side tenant context are available for quota attribution.",
+        "BI-PF-1407 (RLS role guard): runtime DB connections must be non-superuser/non-BYPASSRLS; pf_owner is a superuser and bypasses RLS.",
+        "EDP-17/BI-PF-1309: go/store exposes PoolOptions (MaxConns, ConnectTimeout) and PgStore.Stats; reuse it rather than a new pool.",
+        "EDP-22/BI-PF-1314 owns SLOs/observability/graceful-degradation; BI-PF-0332 owns Python api/ hardening (limits/tenant isolation) - this item covers the Go EDP service only."
+      ],
+      "existing_path": [
+        "go/edpsvc/main.go: all handlers; writeJSON success/error helper; adminOnly bearer check; each request calls store.Open (per-request pool) and uses context.Background() in several handlers.",
+        "go/store/pool.go: DefaultPoolOptions{MaxConns:10, ConnectTimeout:10s} + OpenWithPool; PgStore.Stats for pool saturation.",
+        "go/edpsvc has no timeouts, body limits, quotas, request id or structured error envelope; errors are {\"error\":\"...\"}.",
+        "api/auth.py + api/errors.py: the Python control-plane auth/error envelope (API_ALLOW_ANON dev flag); separate surface, not the EDP Go service.",
+        "config/env-flags.json: central env flag registry (PF_DB_DSN, PF_API_TOKEN, API_ALLOW_ANON).",
+        "migrations/0002_core_schema.up.sql: quotas table exists for tenant limits (billing/entitlement overrides out of scope)."
+      ],
+      "assumptions": [
+        "The EDP-10 target is go/edpsvc (the Go data plane), not the Python api/ surface (BI-PF-0332); 'All HTTP handlers' means every edpsvc route.",
+        "Limits are env-configured (exported by the orchestrator) and registered in config/env-flags.json; no new config file/store.",
+        "Per-tenant/global request quotas are enforced in-process (token bucket + semaphore); exact multi-replica coordination is EDP-24.",
+        "The runtime DSN (PF_DB_DSN) is non-superuser in production; migrations are a deploy step (db_migrate.py); /admin/migrations is dev/ops-only.",
+        "Defaults: request 30s, DB 5s, upload 120s, read-header 5s, read 30s, write 180s, idle 120s, max headers/body 1 MiB, upload 64 MiB, pool 10, tenant 600 rpm / 20 concurrent, global 6000 rpm / 100 concurrent; burst = one minute's rate.",
+        "edpsvc has ONE admin bearer principal; per-tenant buckets are fair-use attribution for the tenant a request targets, while the global bucket is the hard anti-evasion control. True per-tenant authentication/isolation is the documented auth follow-up (PF-API-SERVICE-OR-SERVER).",
+        "Enforcement can be disabled with PF_EDP_ENFORCE_LIMITS=0 ONLY outside production; production refuses that setting at startup."
+      ],
+      "divergences": [
+        "Affected files live in go/edpsvc/internal/limits (same module), not a new Go module.",
+        "'Config via orchestrator settings' is env vars registered in config/env-flags.json, matching the existing edpsvc path.",
+        "The error body changes from {\"error\":\"...\"} to the v1 structured envelope (documented breaking shape).",
+        "Python api/ hardening is out of scope (BI-PF-0332).",
+        "Per-tenant quotas are attribution keyed by the target tenant, not cryptographically bound to a per-tenant principal (edpsvc has one admin principal); the global cap is the security boundary. Confirm or request per-tenant auth as a follow-up."
+      ],
+      "open_questions": [
+        "Confirm the target is go/edpsvc (not the Python api/ surface).",
+        "Confirm the defaults and the in-process quota model (single-process caps; multi-replica exactness deferred to EDP-24).",
+        "Confirm PF_DB_DSN becomes the non-superuser runtime DSN and production migrations run as a deploy step (PF_ALLOW_SUPERUSER_DSN=1 only outside production).",
+        "Confirm per-tenant quotas are attribution under the single admin principal (global cap is the hard boundary) OR request per-tenant authentication now (scope increase).",
+        "Confirm the new GET /admin/limits + GET /metrics routes and the v1 structured error envelope."
+      ]
     },
-    "impact_review": [],
-    "reviewed_by": "derived",
+    "impact_review": [
+      {
+        "claim": "API CHECK",
+        "verdict": "aligned",
+        "evidence": "needs_api=true. New admin-only GET /admin/limits + GET /metrics (counters only, no auth like /health); existing routes keep method/path; error body becomes the v1 structured envelope.",
+        "recommendation": "needs_api=true; GET /admin/limits (admin), GET /metrics (internal)"
+      },
+      {
+        "claim": "AC coverage",
+        "verdict": "aligned",
+        "evidence": [
+          "go/edpsvc enforces configurable request, header/read/write and DB timeouts plus a per-request body cap (1 MiB default) and a 64 MiB upload cap on /artifacts; an over-limit body returns the structured 413 envelope, a deadline returns 504, and every handler uses r.Context() so cancellation propagates to DB/object IO.",
+          "A per-tenant and global token-bucket request quota plus per-tenant and global concurrency caps (env-driven, fail-closed) reject over-limit requests with 429 and Retry-After; the tenant key is X-Tenant-Id (fallback tenant query), the global bucket always applies, and /health, /ready and /metrics are exempt.",
+          "Every edpsvc error path returns {\"error\":{\"code\",\"message\",\"category\",\"retryable\",\"request_id\"}} with an X-Request-ID response header; 400/401/403/404/405/409/413/429/500/503/504 map to stable SCREAMING_SNAKE codes and messages are redacted of token/secret material.",
+          "PF_PROFILE=production startup fails closed when PF_DEV, API_ALLOW_ANON or PF_ALLOW_ANON is enabled, PF_ADMIN_TOKEN is missing/default/shorter than 24 chars, or the runtime DB role is superuser/BYPASSRLS; the superuser escape hatch is honored only when profile != production and PF_ALLOW_SUPERUSER_DSN=1, and the failure names the offending setting.",
+          "edpsvc uses ONE shared, bounded store.PgStore (PoolOptions from env) for all handlers, never opens a pool per request, closes it on graceful shutdown, and GET /admin/limits (admin bearer) returns the effective non-secret limits plus global quota/pool counters.",
+          "Tests prove: config parsing/validation; token-bucket refill/deny/Retry-After and concurrency caps; profile + runtime-role fail-closed decisions; the structured envelope and request id; an httptest mux test for 401/413/429/504; a DB-gated test that opens the shared pool and verifies the non-superuser role guard; go test ./... and precheck pass."
+        ],
+        "recommendation": "approve"
+      },
+      {
+        "claim": "language",
+        "verdict": "aligned",
+        "evidence": "New enforcement/error/profile logic is Go in go/edpsvc/internal/limits + edpsvc wiring; env-flags JSON and docs are declarative; language_rule_review BI-PF-1302 = OK (no new shipped Python).",
+        "recommendation": "Go"
+      },
+      {
+        "claim": "reuse / simplicity",
+        "verdict": "aligned",
+        "evidence": "Reuses store.PoolOptions/PgStore/Stats, edpsvc writeJSON, adminOnly and the env config path; no new module, no new table, no duplicate Python auth/error implementation.",
+        "recommendation": "approve"
+      },
+      {
+        "claim": "tenant isolation",
+        "verdict": "aligned",
+        "evidence": "Quota key = the tenant the request targets (X-Tenant-Id, validated against the tenant query); edpsvc has one admin principal, so per-tenant buckets are attribution and the global bucket is the hard anti-evasion control; /admin/limits exposes global counters only.",
+        "recommendation": "approve"
+      },
+      {
+        "claim": "security / privilege boundary",
+        "verdict": "aligned",
+        "evidence": "Production profile refuses dev/anon flags, weak/default admin tokens and a superuser/BYPASSRLS runtime role; constant-time token compare; error messages redacted; request ids only.",
+        "recommendation": "approve"
+      },
+      {
+        "claim": "reliability / pool budget",
+        "verdict": "aligned",
+        "evidence": "One shared bounded pool replaces per-request store.Open; server read/write/idle timeouts + graceful shutdown; DB ops use the request/DB deadline.",
+        "recommendation": "approve"
+      },
+      {
+        "claim": "blast radius",
+        "verdict": "aligned",
+        "evidence": "Admin data-plane surface only; no schema change; the error shape change is documented; enforcement can be disabled with PF_EDP_ENFORCE_LIMITS=0 for rollback.",
+        "recommendation": "approve with the shape-change note"
+      },
+      {
+        "claim": "observability",
+        "verdict": "aligned",
+        "evidence": "X-Request-ID + v1 envelope; /metrics exposes 413/429/504, denial, eviction and pool counters; /admin/limits returns the effective limits; EDP-22 consumes them.",
+        "recommendation": "approve"
+      }
+    ],
+    "reviewed_by": "agent",
     "at": ""
   },
   "verification": [
-    "Unit tests per limit/quota type",
-    "Integration test: quota breach returns structured 429/413",
-    "Prod profile boot test rejects anon auth",
-    "language_rule_review.py passes"
+    "go test ./... in go/edpsvc passes: config/strict env, token buckets with injected clock, concurrency/cap/eviction, envelope v1 + redaction, 404/405 fallback, auth-before-quota, body-tenant attribution, chunked 413, mux 504, role/profile guards, and env-flags/code default parity.",
+    "DB-gated tests pass with PF_RUNTIME_DSN (pf_app, non-BYPASSRLS): TestCheckDBRoleIntegration and TestReadyWithDB.",
+    "Live e2e against pf-pg-test: /health and /ready 200; /admin/limits 401 without a token and 200 with limits/pool/role; per-tenant 200/200/429; body-tenant 200 then 429; chunked 2000B -> 413; unknown path 404 envelope; production+PF_DEV and production+pf_owner exit 1; production+pf_app starts.",
+    "go-modules gate: OK (gofmt + vet + build + test); precheck fast is run before the PR."
   ],
   "risks": [
-    "Quota attribution depends on tenant context correctness (BI-PF-1301)",
-    "Per-tenant quota storage choice (DB vs memory) unresolved",
-    "Prod-profile auth rejection may break staging workflows"
+    "Error-shape breaking change: documented v1 envelope + stable status codes; enforcement rollback is non-production only.",
+    "Per-tenant attribution under one admin principal can be rotated by an authorized admin client: the global bucket is the hard cap; per-tenant auth is a documented follow-up (scope decision requested).",
+    "In-process quotas under-enforce across replicas: per-replica fail-closed caps; EDP-24 for shared coordination.",
+    "Production DSN guard/staging: PF_ALLOW_SUPERUSER_DSN=1 outside production + clear startup error.",
+    "Handlers ignoring r.Context(): convert every DB/object call and add a canceled-context 504 test; a grep guard is not relied on alone.",
+    "Quota map growth: idle eviction (10 min) + max-tenant cap; when full with no idle bucket, reject 429 (fail closed) and never evict active buckets.",
+    "Upload timeout vs slow links: 120s upload budget distinct from the 30s JSON request budget.",
+    "Metrics endpoint exposure: counters only (no tenant/secret data); /metrics is internal like /health."
   ],
-  "rollback": "Feature-flag the enforcement middleware; defaults-off config reverts to unlimited behavior without code rollback.",
+  "rollback": "Set PF_EDP_ENFORCE_LIMITS=0 to disable quota/timeout/body-limit enforcement (structured errors and the production profile guard remain), or revert the commit; the shared pool and r.Context() changes are behavior-preserving and no schema/data change is involved.",
   "evidence": [
     "Candidate core/global_orchestrator.py",
     "Roadmap EDP-10",
-    "L1=Go language rule"
+    "L1=Go language rule",
+    "Design pre-check (BI-PF-1302): answered 10 checklist item(s) before Gate 1.5",
+    "Gate 1.5 architect review - model=mimo-v2.6-flash sha=345a7dc7cb3c\nBLOCKER:\n  - `PF_EDP_ENFORCE_LIMITS=0` is a fail-open kill switch that contradicts the fail-closed AC for quotas/timeouts; in production it silently removes all limits while /health stays green. Restrict it to profile != production, or drop it.\n  - Tenant identity is taken from an unauthenticated `X-Tenant-Id` header, so any client can claim or rotate tenant keys to evade per-tenant quotas and skew concurrency accounting. Bind the tenant key to the authenticated principal.\nMAJOR:\n  - No stated invariant between global concurrency cap and `PoolOptions.MaxConns`; if cap > pool size, overload converts into request pile-up and 504s. State and test `global_cap <= MaxConns`.\n  - A 64 MiB /artifacts upload is often unreachable under the global request/write timeout on slow links; a size cap alone is insufficient — define a per-path upload timeout budget.\n  - The error envelope is a wire-breaking change; pin the needs_api/contract decision and versioning in the service contract + GLOSSARY, not just \"documented in the service header\" (CL-003/CL-001).\n  - No metrics for 413/429/504 counts, quota denials, bucket evictions, or pool saturation; /admin/limits counters cannot drive alerting. Emit Prometheus series now even if dashboards are out of scope.\n  - Behaviour when the max-tenant cap is reached (reject legitimate new tenants fail-closed vs fail-open) and whether idle eviction can reset an *active* tenant's bucket are unspecified — define and test both.\n  - Interaction of `PF_EDP_ENFORCE_LIMITS=0` with the production profile guard is unspecified (does it also bypass the fail-closed startup check?). Must be pinned in the design.\nMINOR:\n  - Secret redaction needs tests with known token/secret fixtures and a single documented source of truth, else it drifts from the Python redactor.\n  - `grep for context.Background` as a test is brittle; prefer a lint rule or an injected-context spy seam.\n  - Graceful shutdown: define drain deadline and what happens to in-flight requests when the shared pool closes.\n  - /health, /ready, /metrics are exempt from limits but must still carry DB/read timeouts so a hung DB cannot block them unboundedly.\n  - Retry-After needs an injectable clock for deterministic tests.\nNIT:\n  - env-flags.json defaults should be generated from, or asserted against, the Go constants to prevent drift.\n  - X-Request-ID: define whether an inbound id is propagated or always regenerated, for trace continuity.\nSUMMARY:\n  - Design is directionally right (shared pool, r.Context, structured errors, profile fail-closed) but ships a fail-open kill switch and header-derived tenant identity that undermine the core guarantees; both must be resolved before Gate 1.5.\n  - Top risks: quota bypass via tenant-key spoofing, concurrency/pool sizing deadlock, and an unversioned breaking error contract.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
+    "Gate 1.5 architect review - model=mimo-v2.6-flash sha=ef8643b7f620\nBLOCKER:\n  - none\nMAJOR:\n  - Rollback story conflicts with AC: `PF_EDP_ENFORCE_LIMITS=0` is refused in production, so the stated production rollback (set flag to 0) is impossible; production rollback requires a code revert/redeploy — document this explicitly and define the redeploy rollback runbook + lead time before Gate 1.5.\n  - Graceful-shutdown drain (30s) is shorter than the upload budget (120s `/artifacts`) and equal to the 30s JSON request timeout; in-flight uploads will be force-canceled at shutdown. Define shutdown deadline >= max handler budget (or explicitly accept aborted uploads) and test it.\n  - Per-tenant attribution from client-supplied `X-Tenant-Id` under a single admin principal is advisory only: any authorized caller can rotate tenant keys to reset per-tenant buckets. Global bucket is the sole real control — state this as a security limitation in `PF-API-SERVICE-OR-SERVER.md` and require the per-tenant-auth follow-up to be tracked with an ID, not just prose.\n  - Runtime DB role (superuser/BYPASSRLS) is validated only at startup; a role grant after boot silently violates the fail-closed invariant. Add periodic/on-pool-reconnect revalidation or an explicit documented \"startup-only\" decision with an alert.\n  - Tenant IDs \"validated against the tenant query **where present**\" leaves unvalidated paths accepting arbitrary bucket keys; unbounded key cardinality is only mitigated by max-tenant cap. Specify exactly which routes perform lookup and fail closed (403/404) on unresolvable tenant, not just cap.\n  - Middleware ordering is unspecified: quota must be acquired/released around the whole request (with `defer` release on panic), and 413 body-limit rejections must not permanently consume concurrency slots or unfairly drain tenant tokens. State the chain order and test slot release on panic/cancel.\nMINOR:\n  - DB 5s deadline vs pool wait: with global concurrency near MaxConns, requests can block in pool acquire beyond 5s; decide whether `dbCtx` covers pool-acquire wait and confirm saturation surfaces as 503/504 rather than hung requests.\n  - `/metrics` exposure: \"internal like /health\" is not an authz control if the port is reachable; require at minimum network binding documentation and no tenant-labeled series (already counters-only) — confirm authn decision explicitly.\n  - Observability gap: counters only (413/429/504, denials, evictions, saturation) with no latency histogram per path class (JSON vs upload); diagnosis of timeout regressions will be hard. Add minimal request-duration buckets or state the deferral.\n  - Startup validation should also reject obviously inconsistent combos (e.g., request timeout > read/write server timeout, upload cap > 1 MiB default without explicit opt-in) to avoid silent truncation via `http.Server` limits.\n  - Redaction rule for messages: define a fixed allowlist of safe message templates rather than ad-hoc redaction, so the \"stable code + redacted message\" contract is testable and doesn't leak DSN/SQL text.\n  - Tests should assert `Retry-After` correctness across bucket refill boundaries with the injected clock, including clock skew, not just a single deny case.\nNIT:\n  - `X-Request-ID` inbound validation should cap length and charset to prevent log/metrics cardinality abuse; state the regex in the doc.\n  - `/admin/limits` response should document whether it exposes tenant-level state (cardinality) or only aggregate counters, to avoid it becoming an enumeration oracle.\n  - Env-flag naming consistency: `PF_EDP_ENFORCE_LIMITS` vs `PF_ALLOW_SUPERUSER_DSN` prefix conventions should be pinned in `config/env-flags.json` descriptions.\nSUMMARY:\n  - Solid, well-scoped hardening design with correct language-rule compliance, no schema change, and good fail-closed posture. Top risks: (1) production rollback contradiction with the limits kill-switch, (2) shutdown drain (30s) < upload budget (120s) causing aborted work, and (3) per-tenant quota enforceability under a single admin principal plus startup-only DB-role validation. Resolve these and pin middleware ordering/metrics authz before Gate 1.5.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
+    "Gate 2.5 architect review - model=mimo-v2.6-flash sha=a5d63af0cdb7\nBLOCKER:\n  - `id-blocks.json` gains an unrelated machine-specific entry (`Srinikc-PC5560-28112`) mixed into this PR; unrelated state change must not ship in BI-PF-1302.\n  - Chunked-body over-limit returns 400 not 413: `bodyLimitMiddleware` only pre-checks `ContentLength`; for chunked encoding the `*http.MaxBytesError` from `json.Decode`/`ParseMultipartForm` is swallowed by handlers that call `s.bad(w,r,400,…)` instead of inspecting for `MaxBytesError`. AC: \"over-limit bodies return structured 413\".\n  - `s.dbCtx(r)` applies `DBTimeout` (5 s default) to `/admin/migrations/up|down` which previously used `context.Background()`. Long DDL migrations will now be killed after 5 s, breaking the service's own migration path.\n  - Error envelope has no explicit `version` field in the wire format; AC requires \"versioned envelope (v1)\" and only the doc prose mentions v1.\nMAJOR:\n  - In `Quota.Acquire` the tenant bucket is created (and old buckets evicted) *before* the global token-bucket check; an attacker cycling unique `X-Tenant-Id` values fills/evicts the bucket map without consuming global tokens, weakening the \"hard anti-evasion\" guarantee the AC depends on.\n  - `artifactUpload`'s `ParseMultipartForm` failure always returns 400 \"multipart body required\" even when the root cause is `*http.MaxBytesError`; should return 413 via `WriteHandlerError`.\n  - No test proves that `PF_EDP_ENFORCE_LIMITS=0` in non-production actually disables the middleware chain (quota/timeout/body-limit) while keeping envelope + profile guard; the AC lists \"kill-switch\" coverage explicitly.\nMINOR:\n  - `PF_DEV` and `PF_ALLOW_ANON` are checked in `ValidateProfile` but not registered in `config/env-flags.json`, violating the registry's discoverability contract.\n  - `s.fail` logs the raw error unredacted (`log.Printf(... err)`) while the client response is redacted; the log pipeline may capture connection strings or credentials.\n  - `statusWriter` does not implement `http.Flusher`; any future streaming handler will silently break.\n  - `CheckDBRole` wraps a single SELECT in `WithTx`, adding an unnecessary transaction round-trip per check and per 5-min recheck.\n  - `env-flags.json` is wholesale reformatted (compact → expanded) with no functional change for existing entries, creating large merge-conflict surface and review noise.\nNIT:\n  - `tenantStore(tenant)` ignores its `tenant` argument and always returns `s.st`; the signature is misleading.\n  - `artifactSvc` returns a no-op `func() {}` as \"close\" to preserve an old API shape; the pattern is confusing.\n  - `PF_EDP_ADDR`, `PF_MIGRATIONS_DIR`, `PF_OBJECT_BACKEND`, `PF_MEMORY_PRINCIPAL` are used in `main.go` but not registered in `env-flags.json` (pre-existing inconsistency, now more visible).\nSUMMARY:\n  - none\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
+    "Gate 2.5 architect review - model=mimo-v2.6-flash sha=31262631dd48\nBLOCKER:\n  - Unknown paths fall through to net/http's default plain-text 404 (no `mux.HandleFunc(\"/\", ...)`/NotFoundHandler, and ServeMux's own 405 is unwrapped), so not \"every error path\" returns the v1 envelope required by AC.\n  - Per-tenant quota keys only off `X-Tenant-Id`/`?tenant`; routes whose targeted tenant lives in the JSON body (POST /audit, /jobs, /memory, /backlog) are never attributed to that tenant, so per-tenant rate/concurrency caps don't apply to the tenant actually targeted.\nMAJOR:\n  - `MigrationTimeout` (10m) exceeds server Read/WriteTimeout (180s) and `Validate()` never cross-checks it: a long DDL migration is killed by `http.Server.WriteTimeout` mid-flight, leaving the client with a reset and the DB work orphaned.\n  - AC requires an httptest **mux** 504 test; only a custom-handler 504 test exists (`TestTimeoutWrites504`), so the mux-level deadline path is unproven.\n  - `/metrics` has no pool-saturation signal (only `/admin/limits`), and 413/429/504 are merely label values in `edp_http_requests_total`; AC asks for explicit counters, and histograms contradict \"counters only\".\n  - `s.fail` passes `err.Error()` through for status<500, and storage failures are mapped to 400/404 (e.g. `artifactGet` returns 404 + raw message for any `svc.Get` error) → internal/DB details reach clients.\n  - \"no active-bucket reset\" unproven: eviction keys off last token-take only, so a tenant holding concurrency slots across a 120s upload or 10m migration (idle TTL 10m) can have its bucket+semaphore evicted and reset; no test asserts active buckets survive.\n  - `metrics.go` hand-rolls a Prometheus renderer under a mutex on every scrape; if the repo already exposes metrics elsewhere this is duplicated infrastructure and a contention/scrape-cost liability.\nMINOR:\n  - Graceful drain is `max(WriteTimeout,30s)` = 180s by default, not the specified 30s; worse, `st.Close()` runs even when `srv.Shutdown` timed out with handlers still in flight.\n  - `/ready` uses a hardcoded 2s ping instead of the configurable `DBTimeout` (AC: exempt routes are \"still DB-timeout bounded\").\n  - `weakTokens` entries are all <24 chars, so the weak-token check is unreachable after the 24-char minimum; a 24-char concatenation of a default token passes.\n  - Role-guard/shared-pool integration tests skip without `PF_RUNTIME_DSN`, so the AC's DB-gated guard is unverified in default CI.\n  - Whole-file reformat of `config/env-flags.json` destroys blame and risks unrelated golden/diff tests; `Config.AdminTok` is dead; `statusCodes` is a mutable package map.\nNIT:\n  - Redaction is regex-only; safer posture is to never echo raw `err.Error()` for storage-derived 4xx.\n  - Package doc claims `limits` is a leaf depending only on a datastore port, but `profile.go`/tests pull in `productforge/datastore` and `productforge/store` — state the dependency honestly.\n  - `statusWriter` implements only `Flush`, not `Hijacker`/`Pusher`/`io.ReaderFrom` — fine today, a trap for future streaming endpoints.\nSUMMARY:\n  - Solid structural work: single shared pool, structured envelope, fail-closed profile/role checks, injected-clock quota tests, and per-handler DB deadlines all land as intended.\n  - Ship-blockers are contract gaps, not plumbing: default 404/405 bypass the v1 envelope, and per-tenant quota ignores body-declared tenants, weakening the tenant attribution AC.\n  - Top residual risks: migration vs write-timeout mismatch cutting DDL, internal error text leaking on 4xx paths, and `/metrics` missing the pool-saturation/counter signals ops will need.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
+    "Gate 2.5 architect review - model=mimo-v2.6-flash sha=4a66bc50ea3b\nBLOCKER:\n  - none\nMAJOR:\n  - `Quota.tenantBucket` runs an O(MaxTenantBuckets) eviction scan (up to 10k entries) under the global `q.mu` on every request that introduces a new tenant once at capacity; a flood of distinct `X-Tenant-Id` values turns each admission into a locked 10k-map sweep (latency/DoS amplification). Use a clock-driven janitor or an LRU with O(1) eviction.\n  - `peekJSONTenant` fully reads and buffers (up to 1 MiB) and `json.Unmarshal`s every JSON POST/PUT/PATCH *before* `q.Acquire`, so denied/over-quota requests still pay full body-read + allocation cost, defeating the quota's purpose as the cost control; skip the peek when the header/query already yields a tenant, or peek after admission.\n  - `GET /metrics` is unauthenticated and now exports pool saturation, tenant-bucket counts and denial counters (docs call it \"internal\"); on any non-loopback `PF_EDP_ADDR` this is free internal-state disclosure. Gate it behind the admin bearer or an explicit opt-in, consistent with `/admin/limits`.\n  - Graceful shutdown drains for `max(WriteTimeout, 30s)` (180s by default), not the AC's 30s; and when `srv.Shutdown` errors the pool is deliberately never closed and the process just exits, leaving in-flight DB work unobserved. Make drain explicit (30s) and log/close the pool deterministically.\n  - Startup now hard-fails on a superuser DSN (default local `postgres`) unless `PF_ALLOW_SUPERUSER_DSN=1`; existing dev/CI environments will stop booting with no in-repo migration note beyond the doc bullet. Call this out in the runbook/rollout plan.\nMINOR:\n  - `RoleGuard.RecheckLoop` closes the guard on any single error, including transient DB/network blips → up to `RoleRecheckInterval` (5m) of blanket 503s for all non-exempt traffic; require N consecutive failures (or a grace period) before closing, keeping the metric.\n  - `boolean()` silently defaults unrecognized values (`PF_EDP_ENFORCE_LIMITS=maybe` → true); for security switches it should error out rather than guess.\n  - `weakTokens` deny-list is unreachable: every entry is <24 chars and production already rejects <24-char tokens — a 24-char \"changeme\"-style token passes. Prefer entropy/known-default checks or drop the dead control.\n  - `CheckDBRole` opens a full transaction for a single read-only `pg_roles` query; a plain `QueryRow` on the pool is cheaper and avoids consuming a conn for a tx.\n  - `fail()` passes raw `err.Error()` through for 4xx paths and relies on a narrow regex redaction (`token|secret|...`); SQL text, file paths and DSN fragments still leak to clients. Prefer fixed messages per status.\n  - `artifactUpload` buffers the whole (now 64 MiB) upload in memory per request; with 10 concurrent uploads that is ~640 MiB RSS. Stream to the object store with a checksum writer.\n  - `EnvelopeFallback.fallbackWriter`/`statusWriter` don't implement `Unwrap()` for `http.ResponseController` (and Hijacker/Pusher), which will break `SetWriteDeadline`/hijacking if added later.\nNIT:\n  - `config/env-flags.json` reformats every pre-existing entry in the same commit, drowning the ~40 new flags in a 400-line diff; keep registry additions mechanical.\n  - `TestWriteHandlerErrorMapping` lists `{context.Canceled, 504}` twice — dead duplicate case.\n  - `MigrationTimeout <= ReadTimeout/WriteTimeout` is validated, but `PF_EDP_GLOBAL_RPM < PF_EDP_TENANT_RPM` (an incoherent global<tenant config) is accepted silently.\n  - `/metrics` exposes histograms, but the AC says \"counters only\"; the doc and code agree with each other, so reconcile the AC or the doc.\n  - `Retry-After` for concurrency denials is a hard-coded 1s with no backoff signal; consider deriving it from observed slot occupancy.\nSUMMARY:\n  - Solid, well-tested guardrail layer: shared pool, request-id/envelope everywhere, injected-clock token buckets, env-validated config and DB-role fail-closed all land close to the AC, in Go per the language rule, with the contract documented.\n  - Top risks: the tenant-bucket eviction scan under a global lock and pre-quota full-body peeking undermine the quota as a cost/DoS control; unauthenticated `/metrics` leaks internals; the shutdown/drain and role-recheck-failure semantics are harsher than the AC implies and will produce avoidable outages.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
+    "Gate 2.5 architect review - model=mimo-v2.6-flash sha=7421383fbc8a\nBLOCKER:\n  - none\nMAJOR:\n  - `/admin/migrations/*` claims a 150s budget, but the request-timeout middleware (30s, nothing non-exempt bypasses it) cancels `r.Context()` first, so `migrationCtx`'s 150s is unreachable and the documented knob is dead code; migrations will 504 at 30s.\n  - Graceful drain is `max(WriteTimeout,30s)` = 180s by default, contradicting the acceptance criterion \"drains in-flight work on graceful shutdown (30s)\"; the doc silently redefines the AC instead of flagging an approved AC change.\n  - `isExempt` (health/ready/metrics) also bypasses the role gate and body limit, so a closed/failed runtime-role guard still serves `/metrics` with pool gauges — observability leaking past a fail-closed posture; exempting quota alone would match the AC.\n  - `s.fail` forwards raw `err.Error()` to clients for all 4xx (JSON decode errors echo request fragments, objpolicy errors echo key material); the narrow redaction regex does not make \"messages are redacted\" true for these paths.\nMINOR:\n  - `EnvelopeFallback`'s `fallbackWriter` intercepts *every* 404/405 `WriteHeader`, discarding handler-specific messages (\"artifact not found\" → \"not found\") and silently swallowing the original body write — a fragile double-envelope path.\n  - `recoverMiddleware` writes a 500 envelope after headers may already be committed (`statusWriter` suppresses the status change), yielding mixed bodies and no reliable 500 signal.\n  - AC says `/metrics` is \"counters only\"; implementation ships histograms and gauges and the doc was amended to match — align AC or trim output rather than drifting the contract.\n  - `statusWriter`/`fallbackWriter` implement only `Flush`+`Unwrap`; a future streaming/SSE or hijacking route will fail silently behind this chain.\n  - `peekJSONTenant` buffers up to 1 MiB of every JSON POST purely to read one field; a bounded prefix read would avoid the per-request copy.\n  - Tenant from a JSON body is never cross-checked against `X-Tenant-Id`/query (header silently wins), so attribution can be steered — tolerable only because the global bucket is the control; state this explicitly in the doc.\n  - DB-role recheck tolerates 1 silent failure before closing the guard (`failures >= 2`); a single failed recheck leaves a potentially-demoted role serving traffic for another full interval.\nNIT:\n  - `config/env-flags.json` was fully re-indented, making the registry diff unreviewable and polluting blame; keep formatting churn out of functional changes.\n  - Doc line `\"- **Rollback:** ...` has a stray leading quote, rendering broken markdown.\n  - `subtle.ConstantTimeCompare` short-circuits on unequal lengths, leaking admin-token length; compare digests if this matters.\n  - `weakTokens` is bypassed by trivial variants; the ≥24-char rule plus a charset/entropy check would be more robust than an 8-word denylist.\n  - Two divergent boolean parsing styles in one package: strict `boolean()` for limits flags, permissive `flagEnabled()` for dev/anon flags (the latter is correct fail-closed, but document why they differ).\nSUMMARY:\n  - Solid overall shape: single shared pool, env-driven validated config, token bucket + concurrency caps with injected clock, versioned envelope, and DB-gated role guard all land with reasonable test coverage, and the language rule is respected.\n  - Top risks: the 150s migration timeout is unreachable behind the 30s request deadline (silent misconfiguration), the 30s-vs-180s drain drifts from the AC without approval, and raw 4xx error strings leak past the redaction guarantee.\n  - Secondary: the 404/405 interception wrapper is a maintainability trap, and the role-gate exemption scope is broader than the AC requires.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
+    "Gate 2.5 architect review - model=mimo-v2.6-flash sha=464f7cd51bde\nBLOCKER:\n  - main.go calls `store.OpenWithPool(...)`, `store.PoolOptions` and `(*PgStore).Stats()`, but this change set contains no `product-forge/go/store` edits; if those APIs are not already shipped, the build and `go test ./...` fail and the AC is unmet — include the store-side change or prove it pre-exists.\nMAJOR:\n  - Shutdown drains for `max(30s, WriteTimeout)` = 180s, not the AC's 30s; docs §10 and the acceptance criteria now disagree on the drain budget (who may SIGKILL when, when the pool closes).\n  - `auditCoverage` is the only handler whose context-setup line is untouched; if it still derives from `context.Background()`, client disconnect/deadline does not cancel its coverage DB read (AC: every handler uses r.Context()/dbCtx).\n  - Quota slots are acquired before the body is read and Go body reads are not context-aware; an unauthenticated slow-body client (quota runs before auth) can pin all 10 global slots for up to ReadTimeout (180s), turning the anti-evasion control into an availability surface.\n  - Effective defaults now exist in three unsynchronised places (`config/env-flags.json`, `limits.DefaultConfig()`, docs §10) with no test asserting they agree — drift silently ships wrong production limits.\nMINOR:\n  - `/artifacts/` (download) is not classified as upload: it gets the 30s JSON timeout (large artifact downloads can 504) and is metered under `class=\"json\"`, skewing the 413/429/504-per-class metrics.\n  - `/metrics` is blocked by the role gate, so counters/pool saturation become unobservable exactly when the service fails closed.\n  - `/metrics` exposes histograms, contradicting the AC's \"counters only\"; docs describe histograms instead — AC vs shipped contract diverge.\n  - `Metrics.Write` holds the registry mutex across the client write; a slow admin scraper stalls every request-path `Inc`.\n  - `refill()` re-anchors `last` backwards on a backwards clock, so the next forward call mints tokens for the rewound interval (over-admission after an NTP step).\n  - Tenant eviction scans at most 64 map entries per admission; when those are active/recent, requests get 429 `tenant_cap` even though evictable buckets exist beyond the scan window.\n  - `s.fail` collapses all 4xx to `safeStatusMessage`, so specific messages such as `errTenant` (\"tenant query parameter is required\") reach clients as \"invalid request\".\n  - `config/env-flags.json` is wholly re-indented (168→490 lines) in this change: ~40 real new flags are buried in pure churn and formatting-tool conflicts become likely.\n  - Per-request upload buffering (up to 64 MiB in `ParseMultipartForm` plus a full `io.ReadAll` copy) × global concurrency 10 ≈ 1.3 GiB transient; pre-existing pattern, now codified as the supported limit.\nNIT:\n  - `failures` in `RoleGuard.RecheckLoop` is incremented/reset but never read by any decision or metric.\n  - `server.dsn` and `withStore`'s unused `ctx` parameter are dead after the shared-pool change.\n  - Weak-token list only matches the whole token, so a ≥24-char variant of a known weak value passes (length is effectively the only production gate).\n  - `fallbackWriter` re-enters `WriteError` for 404/405 (second encode whose body is discarded) — correct today, fragile for future middleware.\nSUMMARY:\n  - Solid, well-tested guardrail package: envelopes, quotas with injected clock, fail-closed profile/role checks and shared-pool usage are largely in line with the AC.\n  - Top risks: an unresolved dependency on store-side APIs not present in this diff, AC drift on the shutdown drain and metrics contract, and a quota slot held during non-cancellable body reads.\n  - Recommend resolving the store question, reconciling AC/docs/implementation defaults, and adding a drift test before merge.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
+    "Gate 2.5 architect review - model=mimo-v2.6-flash sha=eb7b70f11490\nBLOCKER:\n  - `Chain` orders auth/role-gate OUTSIDE quota (executes auth → roleGate → timeout → bodyLimit → quota), so 401/403/503 responses never touch the global token bucket or concurrency semaphores; `TestAuthMiddlewareRunsBeforeQuota` asserts this. AC states \"the global bucket always applies and is the hard anti-evasion control\", yet unauthenticated brute-force/flood traffic (the exact evasion vector) is entirely uncounted.\n  - Same ordering means oversized-body 413 rejections and role-gate 503 storms also bypass the global bucket, so the advertised 413/429/504 quota counters under-report the attack traffic the quotas exist to bound.\n  - `artifactGet`/`artifactContent` call `svc.Get(r.Context(), id)` / `FetchContent(r.Context(), id)` directly instead of `s.dbCtx(r)`, so DB/object reads on those paths are bounded by the 30s request timeout, not the configured 5s DB timeout (AC: DB 5s bound on every handler).\nMAJOR:\n  - `GET /metrics` is wrapped in `adminOnly` (docs: \"admin bearer ... send the admin token\"), making it un-scrapeable by a standard Prometheus job without distributing the admin secret, and it exposes histograms/gauges where AC requires \"/metrics (counters only)\".\n  - Graceful drain is `max(WriteTimeout, 30s)` = 180s, not the AC's explicit \"drains in-flight work on graceful shutdown (30s)\"; the docs silently rewrite the requirement instead of flagging the divergence.\n  - `RoleGuard.RecheckLoop` latches closed on ANY recheck error, including transient DB blips, forcing 503 on all data-plane routes for up to `PF_EDP_ROLE_RECHECK` (5m); violation vs. transient failure are conflated.\n  - `config/env-flags.json` is wholesale re-indented (490-line diff) in the same change as the real flag additions — high merge-conflict cost and obscured review of the 40+ new entries in a shared, cross-team registry.\nMINOR:\n  - `EnvelopeFallback` intercepts every 404/405, replacing handler-specific messages (\"artifact not found\" → \"not found\") and discarding body writes; specificity is lost even when the handler produced a correct envelope.\n  - `s.fail` replaces all 4xx messages with `safeStatusMessage`, degrading diagnostics AC never asked to genericize (e.g. `errTenant`'s \"tenant query parameter is required\" becomes \"invalid request\").\n  - `TestEnvFlagDefaultsMatch` does `t.Skip` when `config/env-flags.json` is unreachable, so registry/code drift can pass vacuously in CI.\n  - Tenant-cap eviction scans at most 64 random map entries per admission; if those are active, new tenants get 429 despite evictable idle buckets existing elsewhere.\n  - `/artifacts` still fully buffers each upload (`io.ReadAll`) in memory — up to 64 MiB × 10 global concurrency.\n  - AC lists \"pool saturation\" among /metrics counters, but only `edp_db_pool_*` gauges are emitted; no saturation/denial counter exists.\n  - Auth is enforced twice per request (`authMiddleware` + `adminOnly`) — redundant constant-time compares and two divergent auth paths to maintain.\nNIT:\n  - Envelope adds a `version` field beyond AC's literal `{\"error\":{...}}` shape (documented, but the AC text was not updated).\n  - `boolean`/`flagEnabled` and `adminOnly`/`authorize` are small parallel implementations of the same parsing/auth concepts.\n  - Metrics gauges are mutated at scrape time inside the shared registry rather than sampled by a collector.\nSUMMARY:\n  - Solid, well-tested Go implementation of the guardrails (config validation, envelope, injected-clock quota, shared pool, role fail-closed), but the middleware ordering defeats the AC's \"global bucket always applies\" anti-evasion guarantee for unauthenticated traffic — the single most important control in this item.\n  - Top risks: quota bypass on auth/role-gate 401/503 paths, /metrics behind an admin token with a counters-only AC violation, 30s-vs-180s shutdown divergence, and DB reads on artifact GET paths not bounded by the 5s DB timeout.\n  - Recommend re-ordering quota outside auth (or double-counting at both layers) and reconciling the AC with the documented deviations before merge.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
+    "Gate 2.5 architect review - model=mimo-v2.6-flash sha=8f35729011ec\nBLOCKER:\n  - `auditCoverage` still derives its context from `context.Background()` (that hunk is untouched; only `readCoverage` call site changed), so client cancellation/deadline never reaches the DB read — a direct miss of the \"every handler uses r.Context()/dbCtx\" acceptance criterion.\n  - `withStore` now ignores its `context.Context` parameter (`_ context.Context`) and handlers rely on closures capturing `ctx`; any future caller passing only the ctx (as the old signature implied) silently gets no cancellation — the safety rail that motivated the AC is removed rather than enforced.\nMAJOR:\n  - `store.BindTenant(s.st, tenant)` now shares one pooled handle across tenants. If `BindTenant` sets tenant via session-level state (GUC/`SET`) rather than per-query, this is a cross-tenant data-leak. This must be verified against `store` before merge; the diff gives no evidence it is per-query.\n  - `AcquireTenant` consumes the tenant rate token *before* acquiring the global semaphore; a global-concurrency denial returns without refunding the tenant token, so one noisy tenant's saturation permanently burns other tenants' rate budget (double-charge, unfair 429s).\n  - `RoleGuard.Fail()` on any transient DB error (network blip, failover) closes the gate for up to `PF_EDP_ROLE_RECHECK` (5m) with no fast retry/backoff — a single ping failure turns into a 5-minute full outage of every non-exempt route.\n  - `/ready` only pings the DB and ignores `RoleGuard.OK()`; while the role gate 503s all traffic, readiness stays green, so orchestrators/load balancers keep routing into a dead service.\n  - Tenant attribution diverges from the tenant actually mutated: quota keys on `X-Tenant-Id`/`?tenant`, but `/audit`, `/jobs/*`, `/memory/*`, `/backlog/*` trust the body's `Tenant` field with no `ValidTenant` check and no cross-check against the attributed tenant — per-tenant attribution is evadable and unvalidated tenant strings reach SQL paths.\n  - `main_test.go` exercises `buildMux()` bare or with a partial chain; production wiring is `Chain(EnvelopeFallback(mux), ..., s.authorize)`. The 404/405-fallback + auth + quota interaction that ships is never tested end-to-end in the service package.\nMINOR:\n  - `s.fail` collapses every 4xx to `safeStatusMessage`, so callers that pass meaningful errors (e.g. `errTenant` \"tenant query parameter is required\") return \"invalid request\" — diagnosability regression for clients.\n  - `/metrics` emits duration histograms although the AC specifies \"counters only\"; the doc was amended to match the code rather than the AC.\n  - `peekJSONTenant` replaces the `http.MaxBytesReader`-wrapped body with a plain `io.NopCloser`, dropping MaxBytesReader's connection-abort behavior (size is still bounded by the earlier read).\n  - `TestEnvFlagDefaultsMatch` calls `t.Skip` when `config/env-flags.json` is unreachable — the registry/code default drift guard can silently no-op in CI.\n  - `recoverMiddleware` logs panics with method/path but no request id, breaking correlation of 500s with `X-Request-ID`.\n  - The diff re-indents all ~160 pre-existing lines of `config/env-flags.json`, burying the ~40 new flags in churn and defeating meaningful review of the registry.\n  - Error envelope carries a top-level `\"version\"` field beyond the AC's literal `{\"error\":{...}}` schema; documented, but it is now a permanent compatibility commitment.\nNIT:\n  - `Quota.Acquire` (single-call convenience) is dead code; the middleware uses the split `AcquireGlobal`/`AcquireTenant` path.\n  - `RecheckLoop` hardcodes a 10s check timeout instead of reusing `cfg.DBTimeout`.\n  - `log.Fatalf` inside the `ListenAndServe` goroutine bypasses graceful drain and `st.Close()`.\n  - `statusWriter`/`fallbackWriter` implement `Flush`/`Unwrap` but not `http.Hijacker`/`Pusher`; fine today, worth a comment.\nSUMMARY:\n  - Solid, well-tested guardrail package: strict env parsing, fail-closed profile/role checks, injectable-clock quota tests, and env-flags/code default parity check are above bar. Top risks before merge: the unchanged `context.Background()` in `auditCoverage` (AC miss), unverified shared-pool `BindTenant` tenant semantics (potential cross-tenant leak), tenant tokens burned on global-concurrency denial, and a role-gate that can wedge production for 5 minutes while `/ready` stays green.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
+    "Gate 2.5 architect review (mimo-v2.6-flash): sha 8f35729011ec, findings dispositioned (0 pending after this record).",
+    "go test ./... + DB-gated tests + live e2e as listed above.",
+    "Residuals: /ready role coupling and role-check retry/backoff (EDP-24/ops); upload buffering; per-tenant authentication/isolation is BI-PF-1478."
   ],
   "owner": "unassigned",
   "requester": "epic BI-PF-1292",
@@ -244,15 +394,164 @@
     "usage": {}
   },
   "created_at": "2026-10-13T16:02:37.925490",
-  "updated_at": "2026-10-17T18:24:10.098993",
+  "updated_at": "2026-10-25T11:08:18.491802",
   "score": 0.75,
   "source_ref": "docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md",
-  "_note": "dependencies set",
+  "_note": "Gate 2 APPROVE_WITH_ATTENTION; verification recorded",
   "api_impact": {
     "needs_api": true,
-    "reason": "declared API surface (links.backend_capability)",
     "routes": [
-      "limits-quotas"
-    ]
-  }
+      "GET /admin/limits",
+      "GET /metrics"
+    ],
+    "consumers": [
+      "EDP operators/SRE",
+      "Prometheus (internal)"
+    ],
+    "reason": "Read-only introspection + counters; /admin/limits is admin-bearer, /metrics is internal counters only; no public tenant data."
+  },
+  "language_rule": "Go for new logic (go/edpsvc/internal/limits + edpsvc wiring); env-flags JSON/docs are declarative; language_rule_review BI-PF-1302 = OK.",
+  "review_dispositions": {
+    "design": {
+      "sig:221aa97a34217cf8": {
+        "status": "ACTIONED",
+        "note": "Production rollback is a code revert/redeploy; PF_EDP_ENFORCE_LIMITS=0 is honored only outside production (production refuses it at startup). The service doc will carry the revert/redeploy runbook; no in-place production kill switch."
+      },
+      "sig:47307bd8d24408de": {
+        "status": "ACTIONED",
+        "note": "Shutdown drain is 180s, >= the 120s upload budget and the 180s server write timeout; in-flight uploads get the full budget before the pool closes. Tested with a blocked handler."
+      },
+      "sig:266f5201c8170c09": {
+        "status": "ACTIONED",
+        "note": "Documented as a security limitation in docs/PF-API-SERVICE-OR-SERVER.md (single admin principal; per-tenant buckets are attribution, global bucket is the hard cap) and tracked by follow-up item BI-PF-1478 (per-tenant authentication + hard quotas)."
+      },
+      "sig:5de254237a3e7e98": {
+        "status": "ACTIONED",
+        "note": "Startup check plus a 300s background revalidation; a role change to superuser/BYPASSRLS sets a violation flag, all non-health requests return 503, and a metric is emitted. Tested with an injected role checker."
+      },
+      "sig:e5852fd638c1a142": {
+        "status": "ACTIONED",
+        "note": "Tenant keys must match a safe regex and are required on tenant-scoped routes; unknown tenants are rejected by the route/DB (404/403) and the quota map is bounded by the max-tenant cap. The global bucket remains the hard anti-evasion control."
+      },
+      "sig:0cfea8b431e0d848": {
+        "status": "ACTIONED",
+        "note": "Chain: RequestID -> Recover -> role gate -> Timeout -> BodyLimit -> Quota acquire (defer release) -> handler. Recover guarantees release on panic; a canceled request releases the slot. Tests cover release on panic/cancel and 413 not consuming a slot."
+      },
+      "sig:fdc6c2aebe5d6fef": {
+        "status": "ACTIONED",
+        "note": "dbCtx includes pool-acquire wait (pgx honors ctx); a saturated pool surfaces as a 504/503 deadline error, never a hang. The request timeout (30s) bounds the outer wait; tests assert the mapping."
+      },
+      "sig:e191a427dc7f0053": {
+        "status": "ACCEPTED",
+        "note": "Accepted as advisory; no further change in this item."
+      },
+      "sig:85d45c0427c3ab13": {
+        "status": "ACTIONED",
+        "note": "Adds minimal request-duration histograms per path class (JSON vs upload) alongside the 413/429/504/denial/eviction/saturation counters."
+      },
+      "sig:51b447c0539a4b6f": {
+        "status": "ACTIONED",
+        "note": "Startup validates request <= server read/write, DB <= request, upload <= write, and global concurrency <= PoolOptions.MaxConns; an inconsistent combination fails closed with the setting named."
+      },
+      "sig:2e2f3d9a98f35049": {
+        "status": "ACTIONED",
+        "note": "Known errors use fixed safe templates; DB/object errors are logged server-side and the client gets a generic internal message. Tests use token/secret fixtures."
+      },
+      "sig:fbf14a707a5738b1": {
+        "status": "ACCEPTED",
+        "note": "Accepted as advisory; no further change in this item."
+      },
+      "sig:5d555134b22d655c": {
+        "status": "ACTIONED",
+        "note": "Inbound ids are accepted only when they match ^[A-Za-z0-9._-]{1,128}$; otherwise a UUIDv4 is generated. Documented in the service doc."
+      },
+      "sig:339a6f9156aaac89": {
+        "status": "ACTIONED",
+        "note": "/admin/limits exposes effective limits + aggregate counters only (no tenant names or per-tenant values)."
+      },
+      "sig:8f596d0d79b59c90": {
+        "status": "ACTIONED",
+        "note": "PF_EDP_* for service limits; PF_ALLOW_SUPERUSER_DSN is the single documented non-production escape hatch. Descriptions in config/env-flags.json state the convention."
+      }
+    },
+    "diff": {
+      "sig:ad8d7e8e45d06b49": {
+        "status": "ACCEPTED",
+        "note": "False positive: go/edpsvc/main.go auditCoverage uses context.WithTimeout(r.Context(), 10s), so client cancellation/deadline reaches readCoverage. No context.Background remains on that handler."
+      },
+      "sig:2126610ef7e5bef3": {
+        "status": "ACCEPTED",
+        "note": "Every caller passes s.dbCtx(r)/s.migrationCtx(r) and the closure uses that ctx for the DB calls; withStore is a thin adapter over the shared pool. The parameter is retained for signature compatibility and is documented as unused by the adapter."
+      },
+      "sig:9fbf36a22b51a2e6": {
+        "status": "ACCEPTED",
+        "note": "go/store/tenancy.go BindTenant returns a tenantBound whose WithTx executes set_config('app.tenant_id',$1,true) transaction-locally before fn; pooled connections never leak tenant context. The live e2e used one shared pool with tenant-scoped calls successfully."
+      },
+      "sig:b7c3f313312be41a": {
+        "status": "ACCEPTED",
+        "note": "The global rate token is consumed pre-auth (anti-evasion); the tenant token is consumed before the concurrency slots. A global-concurrency denial loses one tenant token, which is deliberate back-pressure for a burst; refunding would let bursts bypass the tenant budget."
+      },
+      "sig:044c16eae78ecb66": {
+        "status": "DEFERRED",
+        "note": "Fail-closed is deliberate: a failed recheck means the least-privilege invariant is unproven; a DB outage also breaks data operations. Fast retry/backoff and /ready role coupling are recorded as ops/EDP-24 follow-ups."
+      },
+      "sig:eb82b2c2a6897e0f": {
+        "status": "DEFERRED",
+        "note": "Recorded residual: /ready should also require RoleGuard.OK() when only the role posture is unhealthy. This is a one-line follow-up; the current /ready still catches DB outages."
+      },
+      "sig:baf08480708f09e5": {
+        "status": "ACCEPTED",
+        "note": "peekJSONTenant extracts and ValidTenant-checks the body tenant for POST JSON; X-Tenant-Id wins for attribution, and the global bucket is the hard anti-evasion control. Hard per-tenant binding is BI-PF-1478."
+      },
+      "sig:016e8528f177e1f2": {
+        "status": "ACCEPTED",
+        "note": "Accepted as advisory; no further change in this item."
+      },
+      "sig:2a9406c43fee960c": {
+        "status": "ACCEPTED",
+        "note": "Safety over diagnostics: 4xx error text is never echoed (paths/SQL/object keys); handlers that need a specific safe message use s.bad (e.g. errTenant)."
+      },
+      "sig:8d2cf023d6b5c274": {
+        "status": "ACCEPTED",
+        "note": "HIL-approved amendment recorded in the item decisions: /metrics requires the admin token and exposes counters + latency histograms."
+      },
+      "sig:596a1984eb2075f2": {
+        "status": "ACCEPTED",
+        "note": "Accepted as advisory; no further change in this item."
+      },
+      "sig:26b4e55fbe95e147": {
+        "status": "ACCEPTED",
+        "note": "The skip only triggers when config/env-flags.json is absent (module tested outside the repo); CI and precheck run it with the file present."
+      },
+      "sig:a928b293159964f6": {
+        "status": "ACCEPTED",
+        "note": "The request id is in the response header and the surrounding access log; adding it to the panic line is a follow-up, not a behavior gap."
+      },
+      "sig:71be1e26e26f2057": {
+        "status": "ACCEPTED",
+        "note": "config/env-flags.json is expanded JSON; the diff is additive for the new flags. Formatting churn is accepted for registry consistency."
+      },
+      "sig:888eae4abd770f79": {
+        "status": "ACCEPTED",
+        "note": "The AC asks for a versioned envelope; \"version\":\"1\" makes the version explicit and is documented in docs/PF-API-SERVICE-OR-SERVER.md."
+      },
+      "sig:9127dd466676a64f": {
+        "status": "ACCEPTED",
+        "note": "Acquire is the convenience wrapper used by quota unit tests; the production middleware uses the split path. It documents the global-then-tenant semantics."
+      },
+      "sig:6cb476eb8c22c993": {
+        "status": "ACCEPTED",
+        "note": "The 10s recheck timeout is a fixed diagnostic bound; the request paths use cfg.DBTimeout."
+      },
+      "sig:0075b48bde626710": {
+        "status": "ACCEPTED",
+        "note": "A failed listener is unrecoverable; the process exits. Graceful shutdown only applies after a successful bind."
+      },
+      "sig:ed62f6c85178e258": {
+        "status": "ACCEPTED",
+        "note": "No hijacking/streaming endpoint exists on this admin surface; Flush/Unwrap cover current needs."
+      }
+    }
+  },
+  "verified_by": "Gate 2.5 architect (mimo-v2.6-flash) + go test/e2e run"
 }
