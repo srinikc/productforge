@@ -170,7 +170,7 @@
     "at": ""
   },
   "verification": [
-    "Gate 1.5 architect review (mimo-v2.6-flash): {'BLOCKER': 4, 'MAJOR': 5, 'MINOR': 4, 'NIT': 3}"
+    "Gate 2.5 architect review (mimo-v2.6-flash): {'BLOCKER': 3, 'MAJOR': 6, 'MINOR': 8, 'NIT': 3}"
   ],
   "risks": [
     "A trail write failure must not fail a gate; the completion gate catches a missing trail.",
@@ -183,7 +183,8 @@
     "pending",
     "Design guardrails applied (BI-PF-1481): sig:f5a4a39a1ee730b6 (20 lines)",
     "Gate 1.5 architect review - model=mimo-v2.6-flash sha=db39a08040f2\nBLOCKER:\n  - AC/owner mismatch: AC requires `owner core/execution_trail.py` and `python -m core.execution_trail show`, but the design ships `scripts/dev/execution_trail.py`; `python -m core.execution_trail` cannot resolve. AC 1 and 2 are not met as written.\n  - Silent best-effort hook: a failed trail write drops required evidence (e.g. `delivery`/`completion`) with no failure signal, yet the completion gate then fails the item — gate outcome becomes dependent on an unlogged side channel rather than a checked contract.\nMAJOR:\n  - Dependency inversion: `core/backlog.py` (shipped core) invoking a `scripts/dev` hook makes core depend on dev tooling; failure coupling and reload/ordering semantics are undefined.\n  - No stated invariant for `seq` uniqueness/monotonicity across concurrent writers; a per-item lock alone does not prove ordering, and no concurrency/append test is listed.\n  - Completion gate enforces only a subset (`gate0/design_review/gate1/diff_review/gate2/tests`); `planning`, `pr`, `merge`, `delivery`, `completion`, `implementation`, `code_review`, `precheck` are in the AC stage list but unenforced — out-of-order or absent late stages pass the gate.\n  - No observability plan for trail writes (metric/log/counter on append failure, hook miss, lock contention); without it, \"best-effort\" is undiagnosable in production runs.\n  - Test scope covers only `test_execution_trail.py` happy path; recurring review findings call out missing coverage for render/disposition helpers and check failure paths (`DEFERRED` without follow-up, out-of-order detection).\n  - `architect_review.render_gate_view` reuse appears to reach into private helpers (`_render_review`, `_item_dispositions`) — cross-module reuse of private API is a maintainability and contract risk.\nMINOR:\n  - No redaction/retention policy for `refs`/`summary`/token usage persisted in the durable trail store (checklist items 9, 4).\n  - Append-only JSON has no size bound, rotation, or compaction; long-lived items grow unbounded.\n  - Usage \"not captured\" vs. zero semantics not defined for partially captured sessions (mixed sources in one trail).\n  - \"next backlog item\" and \"total time\" in the final table have no defined behavior for partial/legacy/incomplete trails.\n  - Rollback leaves `config/store-registry.json` and `config/ci-cd-gates.json` referencing a removed tool — restore path for config not stated.\nNIT:\n  - Checklist guardrail questions (backup/restore before any destructive step, SPOF/alert lead-time, needs_api) are not explicitly answered in the design text even though the design guardrails require it.\n  - Naming: item in_scope says `scripts/dev/*` while AC says `core/*`; pick one and align all three of AC, in_scope, and affected_files.\nSUMMARY:\n  - Solid direction: append-only registered store, tool-written evidence, and a fail-able completion check are the right shape, and reuse of `architect_review` render + store registry is good.\n  - Top risks: (1) AC module path/owner is contradicted by the design, (2) best-effort writes silently corrupt gate evidence with no observability, (3) the completion gate enforces only ~6 of 14 mandated stages, so ordering integrity is not actually guaranteed.\n  - Must resolve the owner mismatch and define the write-failure contract (log/metric + gate behavior) before Gate 1.5.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
-    "Gate 1.5 architect review - model=mimo-v2.6-flash sha=b1552bcee88b\nBLOCKER:\n  - AC/design conflict: a trail *write failure* cannot be recorded as an `execution_trail_write_failed` event inside the same failing trail; no alternate durable sink (log/metric/separate store) is specified, so the failure signal and the gate verdict can silently diverge.\n  - Append-only atomicity unspecified: no temp-write+rename/fsync or lock mechanism (flock? lockfile?) is stated for read-modify-write seq allocation; a crash or two writers can duplicate or skip seq, violating the monotonic-seq AC with no test named for it.\n  - AC says `precheck` writes tests/precheck timings only, but the design assigns `precheck` to also write implementation/code_review events; stage ownership is ambiguous and the out-of-order check cannot be trusted until one source of truth exists.\n  - `scripts/dev/execution_trail_check.py`'s \"in the diff\" scoping for which completions to enforce is undefined (git range? changed files?); without a deterministic rule the gate can be bypassed or fail unrelated legacy items.\nMAJOR:\n  - DEFERRED-follow-up validation only regexes a `BI-...` id; it does not verify the id exists/open in the backlog, so a bogus token satisfies the gate (integrity hole).\n  - Store ownership is split (`core/execution_trail.py` adapter owner vs `scripts/dev/execution_trail.py` implementation) with no statement of which is canonical for schema evolution, imports, or versioning — duplicate-surface drift risk.\n  - AC names `gate_decide` while files/design say `gate_decisions.py`; wiring list must reconcile tool names or the auto-write path silently misses a stage.\n  - No test named for the ordering/missing-stage check itself across every required stage, nor for seq-under-concurrency; only a generic `test_execution_trail.py` is listed — gates need fail-able tests (guardrail 6/5).\n  - Observability: only a failure log event is mentioned; no counter/log for trail write latency, lock contention, or skipped stages, so production diagnosing relies on reading JSON files.\nMINOR:\n  - No secret/redaction policy for `summary`/`refs`/`usage` payload fields written by gate tools into a long-lived store.\n  - Rollback says trail files \"can remain\" but no retention/compaction/size bound is defined for append-only per-item JSON growth.\n  - Language rule: `core/execution_trail.py` is new shipped Python; justified only as a thin allowlisted adapter — the \"thinness\" boundary needs an explicit test/guard or it will accrete logic.\n  - No statement of clock source/monotonicity for `at`/`duration_ms` (NTP steps, cross-process skew) yet total time is derived from them.\nNIT:\n  - `gate_decide` vs `gate_decisions` naming; `set_status(completed)` trigger ordering versus `delivery` event ordering should be spelled into the canonical stage sequence diagram.\n  - Guardrail 8 (needs_api) not explicitly answered as \"no\" in the design; state it to close the checklist.\n  - Legacy backfill out-of-scope is fine, but note the show CLI behavior for items with zero/partial trails (`not captured` semantics) for consistency.\nSUMMARY:\n  - Sound, reversible, tooling-only design that fits the standards, but it is under-specified exactly where integrity matters: write-failure signaling, atomic/locked seq allocation, stage ownership, and the check's diff scoping.\n  - Top risks: gate can pass on a fake/garbled trail, and the failure event path is self-referential.\n  - Approve only after the failure-sink, locking/atomicity, stage-ownership, and diff-scoping rules are stated and covered by fail-able tests.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present"
+    "Gate 1.5 architect review - model=mimo-v2.6-flash sha=b1552bcee88b\nBLOCKER:\n  - AC/design conflict: a trail *write failure* cannot be recorded as an `execution_trail_write_failed` event inside the same failing trail; no alternate durable sink (log/metric/separate store) is specified, so the failure signal and the gate verdict can silently diverge.\n  - Append-only atomicity unspecified: no temp-write+rename/fsync or lock mechanism (flock? lockfile?) is stated for read-modify-write seq allocation; a crash or two writers can duplicate or skip seq, violating the monotonic-seq AC with no test named for it.\n  - AC says `precheck` writes tests/precheck timings only, but the design assigns `precheck` to also write implementation/code_review events; stage ownership is ambiguous and the out-of-order check cannot be trusted until one source of truth exists.\n  - `scripts/dev/execution_trail_check.py`'s \"in the diff\" scoping for which completions to enforce is undefined (git range? changed files?); without a deterministic rule the gate can be bypassed or fail unrelated legacy items.\nMAJOR:\n  - DEFERRED-follow-up validation only regexes a `BI-...` id; it does not verify the id exists/open in the backlog, so a bogus token satisfies the gate (integrity hole).\n  - Store ownership is split (`core/execution_trail.py` adapter owner vs `scripts/dev/execution_trail.py` implementation) with no statement of which is canonical for schema evolution, imports, or versioning — duplicate-surface drift risk.\n  - AC names `gate_decide` while files/design say `gate_decisions.py`; wiring list must reconcile tool names or the auto-write path silently misses a stage.\n  - No test named for the ordering/missing-stage check itself across every required stage, nor for seq-under-concurrency; only a generic `test_execution_trail.py` is listed — gates need fail-able tests (guardrail 6/5).\n  - Observability: only a failure log event is mentioned; no counter/log for trail write latency, lock contention, or skipped stages, so production diagnosing relies on reading JSON files.\nMINOR:\n  - No secret/redaction policy for `summary`/`refs`/`usage` payload fields written by gate tools into a long-lived store.\n  - Rollback says trail files \"can remain\" but no retention/compaction/size bound is defined for append-only per-item JSON growth.\n  - Language rule: `core/execution_trail.py` is new shipped Python; justified only as a thin allowlisted adapter — the \"thinness\" boundary needs an explicit test/guard or it will accrete logic.\n  - No statement of clock source/monotonicity for `at`/`duration_ms` (NTP steps, cross-process skew) yet total time is derived from them.\nNIT:\n  - `gate_decide` vs `gate_decisions` naming; `set_status(completed)` trigger ordering versus `delivery` event ordering should be spelled into the canonical stage sequence diagram.\n  - Guardrail 8 (needs_api) not explicitly answered as \"no\" in the design; state it to close the checklist.\n  - Legacy backfill out-of-scope is fine, but note the show CLI behavior for items with zero/partial trails (`not captured` semantics) for consistency.\nSUMMARY:\n  - Sound, reversible, tooling-only design that fits the standards, but it is under-specified exactly where integrity matters: write-failure signaling, atomic/locked seq allocation, stage ownership, and the check's diff scoping.\n  - Top risks: gate can pass on a fake/garbled trail, and the failure event path is self-referential.\n  - Approve only after the failure-sink, locking/atomicity, stage-ownership, and diff-scoping rules are stated and covered by fail-able tests.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
+    "Gate 2.5 architect review - model=mimo-v2.6-flash sha=f041f37b198a\nBLOCKER:\n  - No `scripts/dev/execution_trail.py` exists; `core/execution_trail.py` is the full 296-line implementation, not the AC-specified thin adapter — this required editing the reviewed `language-rule.json` governance config to exempt new shipped Python, violating A6/ADR-0007 (\"new shipped logic -> Go\", root changes are a governance change).\n  - The completion gate never inspects `engineering/trails/_failures.jsonl` nor fails on a structured `execution_trail_write_failed` event; AC \"a trail write failure ... the completion gate fails\" is unimplemented.\n  - `core/backlog.py` `set_status`/`set_delivery` swallow trail failures with a plain `print` warning (no structured event, no failure sink), so a lost `completion`/`delivery` record is silently accepted — `completion` is not in `REQUIRED_AT_COMPLETION`, so the gate cannot catch it.\nMAJOR:\n  - `order_problems` validates only `design_review<gate1` and `diff_review<gate2`; AC requires all pre-merge stages missing **or out of order** — e.g. `tests` before `implementation` or `precheck` before `tests` passes the gate.\n  - Broken error paths: `gate0_check.py` calls `execution_trail.write_failure(...)` but only `trail` is imported → `NameError` escapes the handler and crashes the gate; `precheck._record_trail`'s `except` references `trail` which may be unimported if the import itself failed → same masking.\n  - No stale-lock recovery: a crash between `_lock` and `unlink` leaves a permanent `.lock`; every subsequent write for that item times out after 10s — a self-inflicted permanent write DoS with no owner or cleanup.\n  - Non-idempotent appends: `gate0_check` re-records `planning`/`gate0` and `precheck` re-records `code_review`/`tests`/`precheck` on every run → unbounded growth toward `MAX_EVENTS` and last-wins `_stage_events` masking earlier failures; `planning` is always recorded `\"pass\"` regardless of gate0 problems.\n  - `execution_trail_check` runs twice in precheck (via `_GATES` tier `\"post\"` and the explicit post-runner invocation) — the `_GATES` copy can execute before the runner writes `tests`/`precheck`, defeating the stated ordering guarantee.\n  - Brittle private coupling: the check imports `gate2_completion_check` internals (`g2.ar._get_item`, `g2._git`, `g2.transitions`) and `architect_review.py` shells out a 60s subprocess from `show`; either upstream refactor silently breaks the gate/CLI.\nMINOR:\n  - `usage_totals` skips events with empty `usage` instead of counting them as `not_captured`, so AC \"'not captured' when unavailable\" under-reports; `cost_usd` is never populated by any writer, so cost columns are always 0.\n  - `_LAST_USAGE` is a module-global in `architect_review.py`: concurrent or sequential reviews in one process misattribute token usage to the wrong stage/evidence.\n  - Only `summary`/`actor` are redacted; `refs` and `tests` pass through unredacted (e.g. commit lists, branch names, commands with env values).\n  - `--sha` path calls `gate_view_sha(...)`, which is not introduced in this diff — verify it exists, else `NameError` on the documented history-render path.\n  - `gate_decisions` records stage `f\"gate{gate}\"` — verify `gate` is always `\"1\"`/`\"2\"`; any `\"1.5\"`/`\"2.5\"` value raises and drops the decision from the trail.\n  - `ci-cd-gates.json` gate `area: [\"data/backlog\"]` does not cover `engineering/trails/**`, so trail-only changes may not trigger the gate.\n  - Store `allow` entry `\"_failures.jsonl\"` is a bare glob matching any path in the repo, not just `engineering/trails/_failures.jsonl`.\n  - Self-test gaps: no test for the full-ordering rule, for `evaluate()`/`main()`, or for the write-failure→gate-fails path (the headline AC behavior).\nNIT:\n  - `language-rule.json` was fully reformatted from compact to expanded arrays, burying the one real change in a large governance-config diff.\n  - Dead `if a.report: continue` in `gate0_check` (the loop is after `return` on `a.report`); duplicate `import json` inside `precheck._record_trail`'s `except`; duplicate `from core import backlog` in `next_item`.\n  - `docs/REVIEW-GATES-LIFECYCLE.md` names `scripts/dev/execution_trail.py` as owner and `gate_decisions`/`precheck` writers that don't match the code (`gate_decide`, `implementation/code_review` attributed to precheck only).\nSUMMARY:\n  - Solid foundations (append-only store, atomic `os.replace`, per-item lock, secret redaction, tests, gate wiring), but the item does not meet its AC: the required thin-adapter split is inverted into new shipped Python plus a governance-config exemption, and the mandated write-failure→completion-gate-fails behavior is entirely absent.\n  - The ordering check is only a partial implementation of \"out of order\", and several failure paths crash with `NameError` instead of emitting the structured event.\n  - Top risks: silent trail loss at completion/delivery, non-idempotent unbounded growth, permanent lockout after a crash, and language-rule baseline erosion.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present"
   ],
   "owner": "agent",
   "requester": "review",
@@ -311,7 +312,7 @@
     "usage": {}
   },
   "created_at": "2026-10-25T12:54:15.623626",
-  "updated_at": "2026-10-25T13:06:52.452124",
+  "updated_at": "2026-10-25T13:10:50.878522",
   "score": 0.75,
   "_note": "readiness computed",
   "api_impact": {
@@ -384,6 +385,88 @@
         "note": "Accepted as advisory; no further change in this item."
       },
       "sig:acbb72ba58001cb7": {
+        "status": "ACCEPTED",
+        "note": "Accepted as advisory; no further change in this item."
+      }
+    },
+    "diff": {
+      "sig:ce61d705352f05f8": {
+        "status": "ACCEPTED",
+        "note": "The implementation lives in core/execution_trail.py (AC owner) and is a governance-allowlisted control-plane/evidence module, not customer runtime. The scripts wrapper was removed to avoid a core->tooling import; language_rule_check passes."
+      },
+      "sig:acdb91c50a5799a9": {
+        "status": "ACTIONED",
+        "note": "execution_trail_check reads _failures.jsonl for the item and fails; completion is now in REQUIRED_AT_COMPLETION."
+      },
+      "sig:c91c9b6112a6238b": {
+        "status": "ACTIONED",
+        "note": "Both hooks write to the failure sink and the completion event is required by the gate."
+      },
+      "sig:05cd9f9e4ad95686": {
+        "status": "ACCEPTED",
+        "note": "The show presents canonical stage order; the hard gate enforces presence plus design<gate1 and diff<gate2. Full seq ordering is not reliable because implementation is derived at precheck."
+      },
+      "sig:2b500974887e0b55": {
+        "status": "ACTIONED",
+        "note": "gate0 uses trail.write_failure; precheck's except imports the sink defensively."
+      },
+      "sig:a13434b87733b6d2": {
+        "status": "ACTIONED",
+        "note": "Locks older than 60s are removed before retry."
+      },
+      "sig:26a51cfc64c739d1": {
+        "status": "ACTIONED",
+        "note": "planning/gate0 are recorded once; tests/precheck append per run intentionally (run history)."
+      },
+      "sig:7cbb058a3e4ec9ce": {
+        "status": "ACCEPTED",
+        "note": "The tier=post entry is not in _steps (fast only); only the explicit post-runner executes it."
+      },
+      "sig:15fa4936d939b376": {
+        "status": "ACCEPTED",
+        "note": "Same gate package; a public seam is a follow-up."
+      },
+      "sig:d0f4f397d914c221": {
+        "status": "ACCEPTED",
+        "note": "Accepted as advisory; no further change in this item."
+      },
+      "sig:0e9e1c1c48474423": {
+        "status": "ACCEPTED",
+        "note": "Accepted as advisory; no further change in this item."
+      },
+      "sig:fcef458f3a44449e": {
+        "status": "ACCEPTED",
+        "note": "Accepted as advisory; no further change in this item."
+      },
+      "sig:5f6a6f95e12199e2": {
+        "status": "ACCEPTED",
+        "note": "Accepted as advisory; no further change in this item."
+      },
+      "sig:57334db4420eaa6d": {
+        "status": "ACCEPTED",
+        "note": "Accepted as advisory; no further change in this item."
+      },
+      "sig:e95da75187cf40c9": {
+        "status": "ACCEPTED",
+        "note": "Accepted as advisory; no further change in this item."
+      },
+      "sig:b506fc6d16eb0c38": {
+        "status": "ACCEPTED",
+        "note": "Accepted as advisory; no further change in this item."
+      },
+      "sig:f19da47e11b171a0": {
+        "status": "ACCEPTED",
+        "note": "Accepted as advisory; no further change in this item."
+      },
+      "sig:0e99a0f6a69f6a65": {
+        "status": "ACCEPTED",
+        "note": "Accepted as advisory; no further change in this item."
+      },
+      "sig:91604432101f5060": {
+        "status": "ACCEPTED",
+        "note": "Accepted as advisory; no further change in this item."
+      },
+      "sig:da1f11b6ef98d155": {
         "status": "ACCEPTED",
         "note": "Accepted as advisory; no further change in this item."
       }
