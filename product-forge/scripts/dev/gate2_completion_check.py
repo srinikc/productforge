@@ -95,6 +95,7 @@ def check(ids: list[str]) -> list[tuple[str, str]]:
         g0_problems = g0.problems(item)
         if g0_problems:
             problems.append((iid, "GATE0_INCOMPLETE: " + "; ".join(g0_problems)))
+            continue
         gaps = completion_gaps(item)
         if gaps:
             problems += [(iid, g) for g in gaps]

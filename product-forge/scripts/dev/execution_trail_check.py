@@ -60,12 +60,7 @@ def evaluate(ids: list[str]) -> list[str]:
         for p in trail.order_problems(iid):
             problems.append(f"{iid}: {p}")
         if "completion" in {e.get("stage") for e in trail.events(iid)}:
-            acs = item.get("ac_verification") or []
-            bad_ac = [a.get("ac") for a in acs if str(a.get("result") or "").upper() != "PASS"]
-            if not acs or bad_ac:
-                problems.append(f"{iid}: completion without AC verification PASS for all ACs")
-            if not item.get("final_report"):
-                problems.append(f"{iid}: completion without a persisted final_report")
+            problems += [f"{iid}: {g}" for g in g2.completion_gaps(item)]
         problems += [f"{iid}: {p}" for p in deferred_problems(item)]
         from core import backlog as _backlog
         problems += [f"{iid}: {p}" for mode in ("design", "diff")

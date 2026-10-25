@@ -26,6 +26,8 @@ def build(item_id: str) -> dict:
     evs = tr.events(item_id)
     acs = it.get("ac_verification") or []
     bad_ac = [a.get("ac") for a in acs if str(a.get("result")).upper() != "PASS"]
+    if len(acs) < len(it.get("acceptance_criteria") or []):
+        bad_ac.append(f"only {len(acs)} of {len(it.get('acceptance_criteria') or [])} ACs recorded")
     bad = dp.problems(it, "design", lambda i: backlog.get_epic("product_forge", None, i))
     bad += dp.problems(it, "diff", lambda i: backlog.get_epic("product_forge", None, i))
     tests = [t for e in evs for t in (e.get("tests") or [])]
