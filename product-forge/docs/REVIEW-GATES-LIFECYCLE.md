@@ -226,10 +226,10 @@ Every item carries one append-only trail at `engineering/trails/<ID>.json` (owne
 - **AC verification is a Gate 2 requirement.** An item carries `ac_verification[]` (AC text, `result` PASS/FAIL/PENDING,
   evidence, verifier). Gate 2 refuses if any AC is missing/FAIL/PENDING; completion re-checks. 2.5 may flag missing AC
   evidence but does not certify ACs.
-- **Accepted/deferred need HIL approval.** Every `ACCEPTED` or `DEFERRED` disposition needs a `DISPOSITION_APPROVAL`
-  decision (`hil_confirmed: true`, scope `disposition_approval`, mode design|diff, list of finding sigs). ACCEPTED is
-  capped at **2 per mode**; DEFERRED needs an existing backlog id. Enforced by `disposition_policy.py` at Gate 1,
-  Gate 2 and completion.
+- **No ACCEPTED; DEFERRED only for NIT.** BLOCKER/MAJOR/MINOR findings must be ACTIONED. `ACCEPTED` is rejected.
+  A NIT may be `DEFERRED` only with an existing backlog id and a HIL `DISPOSITION_APPROVAL` decision
+  (`hil_confirmed: true`, `by: hil:*`, scope `disposition_approval`, mode design|diff, finding sigs). Enforced by
+  `disposition_policy.py` at Gate 1, Gate 2 and completion.
 - **Final report is persisted on the item.** `python scripts/dev/finalize_item.py --item <ID>` writes
   `item.final_report`: AC verification, test results by kind (unit/api/db/logic/go/other with commands/results/
   counts/durations), total time, tokens/cost, accepted/deferred with backlog ids, gate decisions. Merge is blocked

@@ -10,6 +10,25 @@ ROOT = Path(__file__).resolve().parents[2]
 CFG = ROOT / "config" / "review-dispositions.json"
 FOLLOW_UP = re.compile(r"BI-(?:[A-Za-z0-9]+-)?\d+")
 STATUSES = ("ACCEPTED", "DEFERRED")
+REVIEWS = ROOT / "engineering" / "reviews"
+
+
+def _severity_map(item: dict) -> dict:
+    """Map finding signature -> severity from committed review evidence."""
+    from review_sig import digest
+    out = {}
+    iid = str(item.get("id") or "")
+    for p in REVIEWS.glob(f"{iid}-*.json") if iid else []:
+        try:
+            d = json.loads(p.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        for sev in ("BLOCKER", "MAJOR", "MINOR", "NIT"):
+            for text in (d.get("findings") or {}).get(sev) or []:
+                if str(text).strip().lower() == "none":
+                    continue
+                out["sig:" + digest(text)] = sev
+    return out
 
 
 def cfg() -> dict:
@@ -50,18 +69,19 @@ def problems(item: dict, mode: str, backlog_get=None) -> list[str]:
     rows = _rows(item, mode)
     accepted = [k for k, v in rows.items() if str((v or {}).get("status") or "").upper() == "ACCEPTED"]
     deferred = [k for k, v in rows.items() if str((v or {}).get("status") or "").upper() == "DEFERRED"]
+    sev = _severity_map(item)
     bad = []
-    if len(accepted) > int(c["max_accepted_per_mode"]):
-        bad.append(f"{mode}: {len(accepted)} ACCEPTED exceeds cap {c['max_accepted_per_mode']}")
-    needs = []
-    if accepted and c.get("require_hil_approval_for_accepted"):
-        needs += accepted
-    if deferred and c.get("require_hil_approval_for_deferred"):
-        needs += deferred
+    if accepted:
+        bad.append(f"{mode}: ACCEPTED is not allowed; fix the finding instead ({', '.join(accepted[:4])})")
+    for k in deferred:
+        severity = str((rows.get(k) or {}).get("severity") or sev.get(k) or "MAJOR").upper()
+        if severity not in [str(x).upper() for x in (c.get("deferred_severities") or [])]:
+            bad.append(f"{mode}/{k}: {severity} cannot be DEFERRED; fix it")
+    needs = deferred if c.get("require_hil_approval_for_deferred") else []
     approved = _approved_sigs(item, mode)
     missing = [k for k in needs if k not in approved]
     if missing:
-        bad.append(f"{mode}: {len(missing)} ACCEPTED/DEFERRED without HIL DISPOSITION_APPROVAL ({', '.join(missing[:4])})")
+        bad.append(f"{mode}: {len(missing)} DEFERRED without HIL DISPOSITION_APPROVAL ({', '.join(missing[:4])})")
     for k in deferred:
         note = str((rows.get(k) or {}).get("note") or "")
         found = [m.group(0) for m in FOLLOW_UP.finditer(note) if m.group(0) != item.get("id")]
