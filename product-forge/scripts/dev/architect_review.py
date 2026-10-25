@@ -192,7 +192,7 @@ def parse_review(text: str) -> dict:
             continue
         if cur and re.match(r"^\s*[-*]\s+", line):
             item = re.sub(r"^\s*[-*]\s+", "", line).strip()
-            if item.lower() not in ("none", "-", ""):
+            if item.lower() not in ("none", "- none", "-", ""):
                 out[cur].append(item)
     return out
 
@@ -430,7 +430,7 @@ def iter_findings(findings: dict):
     """
     for sev in SEVERITIES:
         for text in (findings or {}).get(sev, []) or []:
-            if str(text).strip().lower() in ("none", "", "-"):
+            if str(text).strip().lower() in ("none", "- none", "", "-"):
                 continue
             yield sev, text
 

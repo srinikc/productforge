@@ -32,11 +32,17 @@ def check(item: dict) -> list[str]:
     pack = item.get("design_pack") or {}
     if not pack:
         return ["design_pack missing"]
-    for k in REQUIRED:
+    try:
+        cfg = _cfg()
+        required = tuple(cfg.get("required_sections") or REQUIRED)
+        contracts_req = tuple(cfg.get("required_contracts") or CONTRACTS)
+    except Exception as e:
+        return [str(e)]
+    for k in required:
         if not pack.get(k):
             bad.append(f"design_pack.{k} missing")
     contracts = pack.get("contracts") or {}
-    for k in CONTRACTS:
+    for k in contracts_req:
         if k not in contracts:
             bad.append(f"design_pack.contracts.{k} missing")
     acs = item.get("acceptance_criteria") or []
@@ -92,11 +98,25 @@ def main(argv=None) -> int:
     if not a.render and not a.check:
         print("design-pack: choose --render and/or --check", file=sys.stderr)
         return 2
+    if a.all and (a.item or a.render):
+        print("design-pack: --all cannot be combined with --item/--render", file=sys.stderr)
+        return 2
     if a.all:
-        enforce = str(_cfg().get("enforce_from") or "9999-12-31")
+        try:
+            enforce = str(_cfg().get("enforce_from") or "")
+        except Exception as e:
+            print(f"design-pack: FAIL - {e}")
+            return 1
+        if not enforce:
+            print("design-pack: FAIL - enforce_from missing")
+            return 1
         bad = []
         for item in backlog.list_items("product_forge", None):
-            if str(item.get("created_at") or "") >= enforce:
+            created = str(item.get("created_at") or "")
+            if not created:
+                bad.append(f"{item.get('id')}: created_at missing")
+                continue
+            if created >= enforce:
                 for p in check(item):
                     bad.append(f"{item.get('id')}: {p}")
         print("design-pack: " + ("OK" if not bad else "FAIL"))
