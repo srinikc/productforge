@@ -118,12 +118,15 @@ def main(argv: list[str] | None = None) -> int:
         print(f"residency: BLOCK execution/parity failure: {errors or r.stderr.strip()}", file=sys.stderr)
         return 2
     if not go_valid:
-        hard = {"RESIDENCY_UNKNOWN_HOME", "RESIDENCY_PROFILE_UNREADABLE", "RESIDENCY_SCHEMA_VERSION"}
-        if mode == "warn" and not (set(errors) & hard):
+        hard_prefix = ("RESIDENCY_UNKNOWN_HOME", "RESIDENCY_PROFILE_UNREADABLE", "RESIDENCY_SCHEMA_VERSION",
+                       "RESIDENCY_MISSING_GROUP", "RESIDENCY_INVALID_FIELD", "RESIDENCY_BACKUP_UNENCRYPTED",
+                       "RESIDENCY_KMS_ROTATION", "RESIDENCY_UNKNOWN_FREQUENCY")
+        hard = any(str(e).startswith(hard_prefix) for e in errors)
+        if mode == "warn" and not hard:
             print(f"residency: WARN {len(errors)} violation(s): {errors}", file=sys.stderr)
-            return 0 if a.report else 0
+            return 0
         print(f"residency: BLOCK {len(errors)} violation(s): {errors}", file=sys.stderr)
-        return 0 if a.report else 1
+        return 1
     print("residency: OK")
     return 0
 

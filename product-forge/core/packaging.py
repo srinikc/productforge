@@ -84,34 +84,31 @@ def validate_residency(section: dict) -> dict:
     sec = section or {}
     for k in RESIDENCY_GROUPS:
         if k == "egress":
+            if "egress" not in sec:
+                unmet.append("RESIDENCY_MISSING_GROUP:egress")
             continue
         if k not in sec or sec.get(k) in (None, "", [], {}):
             unmet.append(f"RESIDENCY_MISSING_GROUP:{k}")
     if str(sec.get("schema_version") or "") != "1.0":
         unmet.append("RESIDENCY_SCHEMA_VERSION")
     home = str(sec.get("home_region") or "").upper()
-    if not home:
-        unmet.append("RESIDENCY_UNKNOWN_HOME")
+    prof = {}
     if not home or not re.match(r"^[A-Z0-9-]+$", home):
-        if not home:
-            unmet.append("RESIDENCY_UNKNOWN_HOME")
-        else:
-            unmet.append("RESIDENCY_UNKNOWN_HOME")
-        prof = {}
+        unmet.append("RESIDENCY_UNKNOWN_HOME")
     else:
         try:
             prof = _load_json(os.path.join(residency_profiles_dir(), f"{home.lower()}-v1.json"))
         except Exception:
             prof = {}
     allowed = {str(x).upper() for x in (prof.get("allowed_regions") or [])}
-    if home and not prof:
+    if home and (not prof.get("id") or not prof.get("allowed_regions")):
         unmet.append("RESIDENCY_PROFILE_UNREADABLE")
     if home and home not in allowed:
         unmet.append("RESIDENCY_HOME_NOT_ALLOWED")
     sec_allowed = {str(x).upper() for x in (sec.get("allowed_regions") or [])}
     if not sec_allowed or home not in sec_allowed:
         unmet.append("RESIDENCY_HOME_NOT_ALLOWED")
-    if not sec_allowed <= allowed:
+    if prof.get("allowed_regions") and not sec_allowed <= allowed:
         unmet.append("RESIDENCY_REGION_NOT_ALLOWED")
     b = sec.get("backup") or {}
     k = sec.get("kms") or {}
@@ -148,6 +145,8 @@ def residency_section(scope: str = "product_forge", project: str = "") -> dict:
         sec = _load_json(residency_path(scope, project))
     except Exception:
         return {"error": "RESIDENCY_MANIFEST_UNREADABLE"}
+    sec.pop("notes", None)
+    sec.pop("template", None)
     sec["validation"] = validate_residency(sec)
     return sec
 
@@ -219,6 +218,8 @@ def build(scope: str = "product_forge", project: str = "", edition: str = "commu
         out["upgrade_rollback"] = {"error": type(e).__name__}
 
     out["residency"] = residency_section(scope, project)
+    if (out["residency"].get("validation") or {}).get("valid") is not True:
+        out["ok"] = False
     out["distinctions"]["source"] = {"source_dir": d}
     out["distinctions"]["configuration"] = {"edition": ed["id"], "tier": ed["tier"]}
     return out

@@ -17,6 +17,8 @@ def test_python_and_go_reach_the_same_verdict(tmp_path):
     for case in data["cases"]:
         man = copy.deepcopy(data["base"])
         man.update(copy.deepcopy(case.get("patch") or {}))
+        for key in case.get("delete") or []:
+            man.pop(key, None)
         p = tmp_path / f"{case['name']}.json"
         p.write_text(json.dumps(man), encoding="utf-8")
         py = packaging.validate_residency(man)

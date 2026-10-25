@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 )
@@ -42,7 +43,7 @@ type Manifest struct {
 	AllowedRegions []string  `json:"allowed_regions"`
 	Backup         Backup    `json:"backup"`
 	KMS            KMS       `json:"kms"`
-	Egress         Egress    `json:"egress"`
+	Egress         *Egress   `json:"egress"`
 	Retention      Retention `json:"retention"`
 }
 type Profile struct {
@@ -75,7 +76,7 @@ func LoadProfile(dir, home string) (Profile, error) {
 	if strings.TrimSpace(home) == "" || !homeRE.MatchString(home) {
 		return p, errors.New("RESIDENCY_UNKNOWN_HOME")
 	}
-	path := fmt.Sprintf("%s/%s-v1.json", strings.TrimRight(dir, "/\\"), strings.ToLower(home))
+	path := filepath.Join(dir, strings.ToLower(home)+"-v1.json")
 	if st, err := os.Stat(path); err != nil {
 		return p, fmt.Errorf("RESIDENCY_PROFILE_UNREADABLE: %w", err)
 	} else if st.Size() > 64*1024 {
@@ -156,7 +157,9 @@ func Validate(m Manifest, p Profile) []string {
 	if m.KMS.Region != "" && !allowed[strings.ToUpper(strings.TrimSpace(m.KMS.Region))] {
 		add("RESIDENCY_KMS_REGION")
 	}
-	if !subset(m.Egress.AllowedRegions, allowed) {
+	if m.Egress == nil {
+		add("RESIDENCY_MISSING_GROUP:egress")
+	} else if !subset(m.Egress.AllowedRegions, allowed) {
 		add("RESIDENCY_EGRESS_REGION")
 	}
 	if !m.Backup.Encrypted {

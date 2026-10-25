@@ -5,7 +5,7 @@ import "testing"
 func base() (Manifest, Profile) {
 	m := Manifest{SchemaVersion: "1.0", DataClasses: []string{"product_metadata"}, HomeRegion: "IN",
 		AllowedRegions: []string{"IN"}, Backup: Backup{Regions: []string{"IN"}, Encrypted: true, Frequency: "daily"},
-		KMS: KMS{Provider: "local", Region: "IN", RotationDays: 90}, Retention: Retention{Days: 365}}
+		KMS: KMS{Provider: "local", Region: "IN", RotationDays: 90}, Egress: &Egress{}, Retention: Retention{Days: 365}}
 	p := Profile{ID: "in-v1", Region: "IN", AllowedRegions: []string{"IN"}, RetentionDays: 730}
 	return m, p
 }
@@ -54,7 +54,7 @@ func TestBackupAndKMS(t *testing.T) {
 	m, p := base()
 	m.Backup.Regions = []string{"US"}
 	m.KMS.Region = "US"
-	m.Egress.AllowedRegions = []string{"US"}
+	m.Egress = &Egress{AllowedRegions: []string{"US"}}
 	m.Backup.Encrypted = false
 	m.Backup.Frequency = "sometimes"
 	m.KMS.RotationDays = 0

@@ -39,7 +39,7 @@ policy maximum; `days` must still be > 0.
 - `gate_mode` in `config/residency-policy.json` defaults to **warn** for the first release; flip to **block** after
   products are warn-clean. The policy carries `gate_mode_ticket`/`gate_mode_expires`; an expired warn mode is treated as block.
 - Unknown/missing home, unreadable profile/policy and validator/toolchain failures **always block**, even in warn.
-- `--report` is non-fatal and prints the JSON report.
+- `--report` prints the JSON report; it never changes the exit code (policy block=1, execution failure=2).
 - Each run writes `engineering/residency-gate.json` (last run) and a bounded `engineering/residency-gate.jsonl`
   (5 MB rotation, 3 files). The report carries `report_version: 1`.
 
