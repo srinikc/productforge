@@ -113,6 +113,11 @@ def main() -> int:
             prior_heads = {str(x.get("head_sha") or "") for x in by_item.get(iid, [])
                            if x.get("mode") == "diff" and x.get("head_sha") and str(x.get("head_sha")) != head}
             if valid_base(base, head, prior_heads, mb):
+                reviewed_head = str(d.get("head_sha") or "")
+                if reviewed_head and reviewed_head != head:
+                    since = ar._git_text(["diff", "--name-only", f"{reviewed_head}..HEAD", "--", ".", *ar.EXCLUDE])
+                    if since.strip():
+                        continue
                 if path.is_file():
                     hits = [path]
                     break
