@@ -33,6 +33,17 @@
       "decision": "APPROVE",
       "by": "agent",
       "note": "finalized: decisions recorded 2026-10-13"
+    },
+    {
+      "at": "2026-10-25T09:55:35.641980+00:00",
+      "by": "hil:srinikc",
+      "decision": "APPROVE_WITH_ATTENTION",
+      "gate": 1,
+      "findings_sha": "ac10db32605a",
+      "findings_digest": "fe710267fa0f",
+      "seq": 2,
+      "note": "Gate 1 embeds Gate 1.5 sha c62d9e5ac577: 16 findings, 0 pending (2 accepted: shared Go types, fleet metrics; both with why/revisit). Explicit home_region, IN template, warn-first, profile bounds.",
+      "hil_confirmed": true
     }
   ],
   "follow_up": {},
@@ -307,7 +318,7 @@
     "usage": {}
   },
   "created_at": "2026-10-13T16:02:45.510577",
-  "updated_at": "2026-10-25T15:25:30.679294",
+  "updated_at": "2026-10-25T15:32:47.322837",
   "score": 0.75,
   "source_ref": "docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md",
   "_note": "dependencies set",
@@ -532,6 +543,88 @@
       "sig:8b7db2d4190e166a": {
         "status": "ACTIONED",
         "note": "IN is the India-first template/example, marked template:true; counsel can change it; products must provide an explicit manifest after warn."
+      },
+      "sig:bd8fcdddd140894b": {
+        "status": "ACCEPTED",
+        "note": "Python/Go duplicate policy logic is accepted narrowly: Go (cmd/pfresidency) is the build/deploy authority; core.packaging.validate is a fast shape/home pre-check for emitters. Conformance fixtures catch drift; the gate never passes a manifest Go blocks. Revisit when the policy contract grows or a schema/codegen path lands.",
+        "why_not_fixed": "Making Python shell out to Go on every build would add a toolchain dependency to packaging; removing Python policy checks would weaken emitter feedback. The Go gate remains the authority.",
+        "alternatives": [
+          "Python shells out to Go (build-time toolchain dependency)",
+          "single JSON Schema + codegen (larger follow-up)"
+        ],
+        "revisit_if": "the policy contract grows or a third consumer appears",
+        "owner": "edp-platform"
+      },
+      "sig:4c87beb107fd4eef": {
+        "status": "ACTIONED",
+        "note": "Gate 1 note embeds Gate 1.5 sha ac10db32605a and the disposition summary (0 pending; 4 accepted/scoped with rationale)."
+      },
+      "sig:54b1f408d93a873f": {
+        "status": "ACTIONED",
+        "note": "Reject home_region not matching ^[a-z0-9-]+$ before filesystem access in both Go and Python; test path traversal (../) is rejected."
+      },
+      "sig:54dc501cf5ddc7e0": {
+        "status": "ACTIONED",
+        "note": "config/residency-policy.json carries gate_mode_expires + gate_mode_ticket; the warn->block flip is a recorded decision; no steady-state warn. Documented and audited in the gate event."
+      },
+      "sig:82f94266c26de66e": {
+        "status": "ACCEPTED",
+        "note": "Gate events are build evidence: engineering/residency-gate.json (last run) + bounded JSONL (5MB, 3 files). They are intentionally shared; rotation prevents unbounded growth. Revisit if merge conflicts appear.",
+        "why_not_fixed": "The event is the audit artifact the design requires; moving it to an uncommitted build dir loses the evidence.",
+        "alternatives": [
+          "uncommitted build artifact (loses audit)",
+          "external log sink (no owner)"
+        ],
+        "revisit_if": "merge conflicts or size become a problem",
+        "owner": "platform-observability"
+      },
+      "sig:b3526436a19bb219": {
+        "status": "SCOPE",
+        "note": "Tenant-scoped residency is out of scope for EDP-12 (product-global manifest). Owned by EDP-11/BI-PF-1303 (region cells) and the per-tenant auth/hard isolation follow-up BI-PF-1478."
+      },
+      "sig:52b12d6818e806b4": {
+        "status": "ACTIONED",
+        "note": "Toolchain/validator failure exits 2 and always blocks, even in warn; unknown/missing home and unreadable profile also hard-block."
+      },
+      "sig:a8644f53f523b650": {
+        "status": "ACTIONED",
+        "note": "Add RESIDENCY_BACKUP_UNENCRYPTED, RESIDENCY_KMS_ROTATION, RESIDENCY_EGRESS_SUBPROCESSOR to the frozen code set; tests cover each."
+      },
+      "sig:7ddc1eec8ed5fcf5": {
+        "status": "ACCEPTED",
+        "note": "A third JSON Schema contract is deferred: schema_version + cross-language conformance fixtures are the current guard. Revisit if a codegen/third consumer lands.",
+        "why_not_fixed": "Adding a schema now is duplicate contract surface; the conformance fixtures cover the file contract.",
+        "alternatives": [
+          "JSON Schema + codegen"
+        ],
+        "revisit_if": "a third consumer or codegen path lands",
+        "owner": "edp-platform"
+      },
+      "sig:fb384a559a10312b": {
+        "status": "ACTIONED",
+        "note": "Rollback docs cover committed gate events (retain as evidence), warn-created products (re-run the gate after flip), and cached packaging-manifest rebuild."
+      },
+      "sig:7a176d3ec40d390c": {
+        "status": "ACCEPTED",
+        "note": "Warn-mode visibility is the stderr summary + gate event; a fleet alert is out of scope without a monitoring owner. Revisit when fleet monitoring lands.",
+        "why_not_fixed": "No alerting owner/collector in EDP-12.",
+        "alternatives": [
+          "external alerting (no owner)"
+        ],
+        "revisit_if": "fleet monitoring lands",
+        "owner": "platform-observability"
+      },
+      "sig:e922a74d5f38844f": {
+        "status": "ACTIONED",
+        "note": "Event retention documented: last-run JSON + 5MB rotation/3 JSONL files; no tenant data; product id/home/regions only."
+      },
+      "sig:43a3701eb6267331": {
+        "status": "ACTIONED",
+        "note": "Single doc name: docs/RESIDENCY-MANIFEST-GATE.md; AC and affected_files reference it exactly."
+      },
+      "sig:82c20e7cedd5c073": {
+        "status": "ACTIONED",
+        "note": "gate_mode changes emit a gate event with gate_mode + ticket; the policy entry is a recorded decision."
       }
     }
   }
