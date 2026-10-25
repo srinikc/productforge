@@ -29,8 +29,9 @@ def _git(*args: str) -> str:
 
 def changed(base: str = "") -> list[str]:
     start = base or _git("merge-base", "origin/develop", "HEAD")
-    return [x.strip().replace("\\", "/") for x in _git("diff", "--name-only", f"{start}..HEAD").splitlines()
-            if x.strip()]
+    names = {x.strip().replace("\\", "/") for x in _git("diff", "--name-only", f"{start}..HEAD").splitlines() if x.strip()}
+    names.update(x.strip().replace("\\", "/") for x in _git("ls-files", "--others", "--exclude-standard").splitlines() if x.strip())
+    return sorted(names)
 
 
 def _json(raw: bytes) -> dict:

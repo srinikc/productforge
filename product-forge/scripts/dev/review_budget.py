@@ -51,8 +51,9 @@ def problems(item: dict) -> list[str]:
     max_n = int(c.get("max_reviews_per_mode") or 1)
     bad = []
     for mode in ("design", "diff"):
-        rows = [d for d in _evidence(iid, mode) if str(d.get("at") or "") >= cutoff]
-        if len(rows) > max_n and not (c.get("allow_hil_material_change") and _material_ok(item, mode)):
+        rows = [d for d in _evidence(iid, mode)
+                if str(d.get("at") or "") >= cutoff and d.get("parsed_ok", True)]
+        if len(rows) >= max_n and not (c.get("allow_hil_material_change") and _material_ok(item, mode)):
             bad.append(f"{mode}: {len(rows)} reviews (budget {max_n}); material change needs HIL MATERIAL_CHANGE")
     return bad
 
