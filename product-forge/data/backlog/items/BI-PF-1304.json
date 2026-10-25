@@ -329,7 +329,7 @@
     "usage": {}
   },
   "created_at": "2026-10-13T16:02:45.510577",
-  "updated_at": "2026-10-25T15:55:57.147648",
+  "updated_at": "2026-10-25T15:59:52.538649",
   "score": 0.75,
   "source_ref": "docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md",
   "_note": "dependencies set",
@@ -639,69 +639,73 @@
       }
     },
     "diff": {
-      "sig:20e536a3d0e096ab": {
+      "sig:a0d4df7c2fb0c146": {
         "status": "ACTIONED",
-        "note": "--report now only prints JSON; it never changes the exit code. Block=1, execution=2, warn=0."
+        "note": "Python now requires int for rotation/days and treats egress:null as missing; Go keeps JSON strictness."
       },
-      "sig:963a2008eda033e9": {
+      "sig:372ea08f82968cfe": {
         "status": "ACTIONED",
-        "note": "Egress presence is explicit: Go uses *Egress (nil -> RESIDENCY_MISSING_GROUP:egress); Python checks the key."
+        "note": "Parity divergence no longer hard-exits: Go is authoritative; a parity warning is printed and warn/block follows the Go verdict."
       },
-      "sig:2fa38461a9c48403": {
+      "sig:03e6c5da0e22e5eb": {
         "status": "ACTIONED",
-        "note": "Fixtures add missing home, missing egress, backup/kms region, invalid provider, profile unreadable; Python/Go verdicts match."
+        "note": "build() no longer sets ok=false for a residency policy violation; it records residency_warning and the gate decides warn/block."
       },
-      "sig:45e3a2ef6de1b4d4": {
-        "status": "ACTIONED",
-        "note": "Empty home emits RESIDENCY_UNKNOWN_HOME once; the duplicate branch is removed."
-      },
-      "sig:c6411b6b4f16408d": {
-        "status": "ACTIONED",
-        "note": "Python now treats a profile without id/allowed_regions as RESIDENCY_PROFILE_UNREADABLE, matching Go."
-      },
-      "sig:cef568ed585bdb5b": {
-        "status": "ACTIONED",
-        "note": "REGION_NOT_ALLOWED is only emitted when a valid profile exists; no spurious error on unreadable profiles."
-      },
-      "sig:dc87b9c45af041a6": {
-        "status": "ACTIONED",
-        "note": "Hard-block prefixes now cover missing-group, invalid-field, schema, encrypted, rotation and frequency; warn only downgrades region/retention."
-      },
-      "sig:16d00ab5ef9d3fd7": {
-        "status": "ACTIONED",
-        "note": "build() now sets ok=False when the residency section is invalid, so validation/consumers fail loudly."
-      },
-      "sig:50824a935e2901b8": {
+      "sig:c8ce5f28dc886569": {
         "status": "ACCEPTED",
-        "note": "go run is ~0.5s and keeps the gate self-contained; a prebuilt binary/toolchain pin is a later optimization."
+        "note": "Conformance exercises validate_residency (the shared Python rule function); toolchain unavailability is covered by gate exit-2 tests. Why not fixed: a full packaging.validate fixture tests composition, not residency rules. Revisit if packaging.validate starts applying different rules. Owner edp-platform."
       },
-      "sig:f2ac55a435db3083": {
-        "status": "ACTIONED",
-        "note": "Dead `return 0 if a.report else 0` removed."
-      },
-      "sig:753e831de893ebc9": {
-        "status": "ACTIONED",
-        "note": "Template-only notes/template fields are stripped from the emitted residency section."
-      },
-      "sig:ef877e5d06c6bab7": {
-        "status": "ACTIONED",
-        "note": "products/*/residency-manifest.json registered with owner core/packaging."
-      },
-      "sig:7e30aae674419f46": {
+      "sig:0d1407cdd5349cd8": {
         "status": "ACCEPTED",
-        "note": "id-blocks churn is required for the BI-PF-1484 follow-up allocation; committed separately."
+        "note": "Python rule engine is allowlisted and kept as a fast emitter pre-check; Go is deploy authority. Why not fixed: removing it weakens emitter feedback; shelling out adds a build toolchain dependency. Revisit if the contract grows or codegen lands. Owner edp-platform."
       },
-      "sig:a5a7e83410854493": {
+      "sig:22b2241c50bd1e94": {
+        "status": "ACCEPTED",
+        "note": "Gate events are the audit artifact, bounded at 5MB; tests redirect to tmp. Why not fixed: an uncommitted build dir loses audit evidence and there is no external sink owner. Revisit if merge conflicts/size grow. Owner platform-observability."
+      },
+      "sig:2d841a9bcda2bcb8": {
         "status": "ACTIONED",
-        "note": "filepath.Join is used for profile paths."
+        "note": "Python null/key presence and Go zero-value checks now agree on egress; strict ints remove type drift."
       },
-      "sig:b0cb0164e56687ea": {
+      "sig:9bb4558b2f1ef6cc": {
         "status": "ACCEPTED",
-        "note": "Go CLI default profiles path is cwd-relative; the Python gate passes an absolute path. CLI users run from the module root."
+        "note": "scope is retained for API symmetry; the manifest source is recorded in the gate event. Accepted."
       },
-      "sig:41f927d9ec314f75": {
+      "sig:594d8e6c27af4d9c": {
         "status": "ACCEPTED",
-        "note": "Scratch names are allowlisted only for the store scanner; tests write to tmp_path."
+        "note": "PF_RESIDENCY_PROFILES is an explicit operator override; the gate passes the same absolute dir to both validators. Accepted."
+      },
+      "sig:9fed94229c028923": {
+        "status": "ACCEPTED",
+        "note": "language_rule_review and precheck are evidenced in the item/trail; tests are in the diff. Accepted."
+      },
+      "sig:f2f2ca9be2fb5155": {
+        "status": "ACCEPTED",
+        "note": "data_classes/subprocessors are arrays of strings; deep content validation is a policy-profile concern. Accepted."
+      },
+      "sig:c3661a4879922ffb": {
+        "status": "ACTIONED",
+        "note": "profiles owner is now core/packaging.py (resolvable), with counsel ownership documented in the concern."
+      },
+      "sig:61869ae8c11d99eb": {
+        "status": "ACCEPTED",
+        "note": "go run is ~0.5s; prebuilt binary is a later optimization."
+      },
+      "sig:3952231461792587": {
+        "status": "ACTIONED",
+        "note": "Removed BOM / added trailing newline; docs now say bounded rotation (no file-count claim)."
+      },
+      "sig:73ed941056320826": {
+        "status": "ACTIONED",
+        "note": "Docs/registry no longer claim 3 files; rotation is bounded."
+      },
+      "sig:e2b7c28dfb253f01": {
+        "status": "ACCEPTED",
+        "note": "Scratch allowlist entries are scanner-only; tests write to tmp_path."
+      },
+      "sig:e2a4deaf74ae113b": {
+        "status": "ACTIONED",
+        "note": "Normalized test file spacing/newlines."
       }
     }
   }
