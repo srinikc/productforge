@@ -167,7 +167,7 @@
     "at": ""
   },
   "verification": [
-    "Build emits manifest; gate blocks bad fixture; language rule review passes"
+    "Gate 1.5 architect review (mimo-v2.6-flash): {'BLOCKER': 1, 'MAJOR': 3, 'MINOR': 4, 'NIT': 2}"
   ],
   "risks": [
     "Default home region/data classes/retention are product decisions; Gate 1 confirmation is required.",
@@ -176,7 +176,8 @@
   ],
   "rollback": "Set config/residency-policy.json gate_mode=warn or revert the commit; manifests remain informational.",
   "evidence": [
-    "Existing manifest APIs /api/v1/packaging/manifest and /api/v1/evidence/manifest/{run_id}"
+    "Existing manifest APIs /api/v1/packaging/manifest and /api/v1/evidence/manifest/{run_id}",
+    "Gate 1.5 architect review - model=mimo-v2.6-flash sha=0630271075c3\nBLOCKER:\n  - none\nMAJOR:\n  - **Type duplication between `go/residencymanifest` and internal `edpsvc` residency types creates two sources of truth.** When the service model evolves (e.g., new region, added field), the standalone Go types will silently drift — the gate will pass manifests the service rejects, or worse, reject valid ones. Either share a single schema (JSON Schema + codegen), or add a schema-fingerprint test that fails CI when the two diverge.\n  - **No phased rollout strategy.** The AC says `gate_mode` defaults to `block`. Any product that has not yet populated `config/residency-manifest.json` will have its builds stopped on the first commit that ships this gate. The design should specify an explicit two-step rollout: (1) ship manifest with warn mode + a tracking issue per product, (2) flip to block after all products pass. The rollback note (\"set gate_mode=warn\") is a reactive escape hatch, not a rollout plan.\n  - **Gate crash / validator-binary-missing behaviour is unspecified.** If `cmd/pfresidency` fails to compile, is absent from `PATH`, or exits non-zero for a non-validation reason (e.g., JSON parse error in the profile), the gate must treat this as **block** (fail-closed). The design only says \"blocks (exit 1) or warns per gate_mode\" — clarify that any non-zero exit not attributable to a known validation error code is always a block regardless of `gate_mode`.\nMINOR:\n  - **No aggregate observability on validation failure rates.** A JSON report per run is good for individual diagnosis, but there is no metric, log line, or structured event that a monitoring system can consume to answer \"how many products are currently non-compliant?\" at fleet scale. Add a minimum signal (e.g., a structured log to a known stream or a counter file).\n  - **Error-code stability contract is stated but not defined.** The AC says \"stable error codes\" — the design should enumerate the codes, assign them to a namespace (e.g., `RESIDENCY_UNKNOWN_HOME`, `RESIDENCY_HOME_NOT_ALLOWED`), and state that any addition or removal is a versioned contract change.\n  - **Backup/KMS sub-field validation rules are incomplete.** The AC lists `backup.encrypted`, `backup.frequency`, `kms.rotation_days` but the validation rules section only covers region subsets and `retention.days`. Add explicit rules: `backup.encrypted` must be `true`, `kms.rotation_days > 0`, and `backup.frequency` must be a recognised value.\n  - **`config/residency-manifest.json` as a static file vs. per-product dynamic generation.** The design says \"sourced from `config/residency-manifest.json`\" — clarify whether this file is a template, a single-product default, or a per-product override mechanism. If multi-product, the file path convention needs to be stated.\nNIT:\n  - `--report` writes to a file or stdout but is non-fatal; consider also emitting a one-line summary to stderr when validation fails in warn mode so operators do not miss it.\n  - The `docs/EDP-RESIDENCY-MANIFEST.md` filename is product-specific; if the manifest becomes multi-product, a more neutral name (e.g., `docs/RESIDENCY-MANIFEST-GATE.md`) reduces confusion.\nSUMMARY:\n  - The design correctly identifies fail-closed validation, a Go-first validator, and a clear block/warn mode as the right pattern. The two highest risks are: (1) type duplication between the standalone Go module and the internal service types, which will drift without a schema-fingerprint or codegen strategy, and (2) the absence of a phased rollout plan that avoids blocking all builds on day one. Address the gate-crash fail-closed rule and the minimum observability signal before Gate 1.5.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present"
   ],
   "owner": "TBD",
   "requester": "authored",
@@ -314,7 +315,7 @@
     "usage": {}
   },
   "created_at": "2026-10-13T16:02:45.510577",
-  "updated_at": "2026-10-25T14:21:25.451981",
+  "updated_at": "2026-10-25T14:24:24.086555",
   "score": 0.75,
   "source_ref": "docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md",
   "_note": "dependencies set",
@@ -326,5 +327,45 @@
     ],
     "reason": "The residency section is part of the existing packaging manifest; the gate is a CLI/deploy step."
   },
-  "language_rule": "Go for the validator/CLI (go/residencymanifest); edits to core/packaging.py + scripts/dev tooling are allowed; language_rule_review BI-PF-1304 = OK."
+  "language_rule": "Go for the validator/CLI (go/residencymanifest); edits to core/packaging.py + scripts/dev tooling are allowed; language_rule_review BI-PF-1304 = OK.",
+  "review_dispositions": {
+    "design": {
+      "sig:e79a5ab397824da8": {
+        "status": "ACTIONED",
+        "note": "The standalone types are the manifest/policy FILE contract; add a conformance test loading the shipped config/residency-profiles and asserting the gate accepts them, plus a schema_version on the manifest. A shared go/residency module is a follow-up if the contract grows."
+      },
+      "sig:749f9b2e6b3a6e74": {
+        "status": "ACTIONED",
+        "note": "core.packaging.build always populates the residency section from config/residency-manifest.json (no product ships an empty section). Ship gate_mode=warn for the first release with a rollout note, then flip to block; warn is audited in the gate report."
+      },
+      "sig:869d5138e15e4b10": {
+        "status": "ACTIONED",
+        "note": "scripts/dev/residency_gate.py treats validator compile/PATH/parse/exit-2 as a failure: block by default, warn only when gate_mode=warn; it never silently passes."
+      },
+      "sig:5dea71bf7ebc8609": {
+        "status": "ACCEPTED",
+        "note": "Accepted as advisory; no further change in this item."
+      },
+      "sig:3f9860e5f85bb4d3": {
+        "status": "ACCEPTED",
+        "note": "Accepted as advisory; no further change in this item."
+      },
+      "sig:a9aa9cfe32496f3c": {
+        "status": "ACCEPTED",
+        "note": "Accepted as advisory; no further change in this item."
+      },
+      "sig:08376f897ce49920": {
+        "status": "ACCEPTED",
+        "note": "Accepted as advisory; no further change in this item."
+      },
+      "sig:9d9149ed390994dd": {
+        "status": "ACCEPTED",
+        "note": "Accepted as advisory; no further change in this item."
+      },
+      "sig:429912b9650a554a": {
+        "status": "ACCEPTED",
+        "note": "Accepted as advisory; no further change in this item."
+      }
+    }
+  }
 }
