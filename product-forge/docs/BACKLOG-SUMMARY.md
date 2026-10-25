@@ -1,18 +1,18 @@
 # Backlog Summary
 
-> GENERATED 2026-10-25T22:07:51 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-25T23:31:24 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 134  |  **Closed:** 594
+- **Open:** 134  |  **Closed:** 595
 - `blocked`: 1
 - `executing`: 3
 - `in_progress`: 1
 - `new`: 129
 
 ### new, by category (129)
-**API / reports / HIL / misc** (16)
+**API / reports / HIL / misc** (15)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-PF-0332 | Should | chore | API-5 deferred hardening: rate limiting + request/upload limits + tenant-isolation expansion + event streaming | API-5 deferred hardening: rate limiting + request/upload limits + tenant-isolation expansion + event streaming |
@@ -30,14 +30,13 @@
 | BI-PF-1331 | Should | bug | pre-commit lint_check crashes in git worktrees (WinError 206 long path) - blocks commits | Make the pre-commit lint_check work from a git worktree (no WinError 206 long-path crash). |
 | BI-PF-1382 | Must | bug | Backlog API: POST /backlog/items returns empty resource_id (created id not surfaced) | Backlog API: POST /backlog/items returns empty resource_id (created id not surfaced) |
 | BI-PF-1441 | Should | feature | Dynamic design-direction stage + HIL suggest gate | At the start of design, PF suggests ranked directions and the operator confirms one. |
-| BI-PF-1485 | Must | hardening | Execution finalization hardening: review-loop guards and AC/report edge cases | Harden the BI-PF-1484 finalization after its Gate 2.5 reviews: completion/report edge cases, cross-project def... |
 
 **Bug fixes** (1)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-PF-1332 | Should | bug | Develop red: test pollution committed into data/learnings.json breaks test_global_render_unchanged (scratch loop-learning marker 0270) | Restore develop green: purge test pollution from data/learnings.json + prevent test writes to the real learnin... |
 
-**Discovery / HIL / prompts** (7)
+**Discovery / HIL / prompts** (8)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0218 | Should | feature | Backend: AI-era operations layer (evals + prompt/model/agent versioning + feedback loop + model-quality observability) | Add the AI-era lifecycle layer so the Product tab can show AI quality + the loop that keeps it good. |
@@ -47,6 +46,7 @@
 | BI-PF-1236 | Should | change | Worker ops: worker charter (binding guidelines) + runtime prompt fix (no agent merge) + model pin | - workergrid/instructions.md: full worker charter (14 binding guidelines; manual-by-default, auto mode). - wor... |
 | BI-PF-1242 | Should | feature | In-session manual/auto worker mode + /wg watch monitoring + 14-guidelines approval gates | - In-session manual worker mode (/wg work manual, default): 1. Claims assignment atomically from PF via /assig... |
 | BI-PF-1442 | Should | feature | Skill/guideline prompt injection (SKILLS: block) | Agents receive applicable skills through PF's own prompt builder. |
+| BI-PF-1486 | Should | hardening | Review tooling hardening: derived-doc content, material approval ordering, coverage edge cases | Harden review tooling after BI-PF-1484 post-merge findings: derived-doc content validation, per-breach materia... |
 
 **Dynamic pipeline / agents** (5)
 | ID | MoSCoW | Type | Title | Objective |
@@ -371,5 +371,5 @@
 ---
 
 ## Totals
-- backend: 134 open / 594 closed
+- backend: 134 open / 595 closed
 - dashboard: 146 open / 3 closed
