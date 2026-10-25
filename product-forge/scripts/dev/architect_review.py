@@ -145,7 +145,7 @@ def diff_sha(base: str = "") -> str:
 
 
 def _latest_review_sha(item_id: str, mode: str) -> str:
-    """Latest committed review sha for an item+mode (used as the delta base)."""
+    """Latest reviewed git HEAD for an item+mode (used as the delta base)."""
     best = ("", "")
     for p in (ROOT / "engineering" / "reviews").glob(f"{item_id}-*.json"):
         try:
@@ -156,7 +156,7 @@ def _latest_review_sha(item_id: str, mode: str) -> str:
             continue
         at = str(d.get("at") or "")
         if at >= best[0]:
-            best = (at, str(d.get("sha") or ""))
+            best = (at, str(d.get("head_sha") or ""))
     return best[1]
 
 
@@ -295,7 +295,9 @@ def _prior_context(item: dict, item_id: str, mode: str) -> str:
     """Prior review findings + dispositions, so a re-review only reports new/unresolved items."""
     rows = ((item.get("review_dispositions") or {}).get(mode) or {})
     files = sorted((ROOT / "engineering" / "reviews").glob(f"{item_id}-*.json"),
-                   key=lambda p: p.stat().st_mtime) if (ROOT / "engineering" / "reviews").is_dir() else []
+                   key=lambda p: str(json.loads(p.read_text(encoding="utf-8")).get("at") or ""))
+    if False:
+        files = []
     if not files:
         return ""
     try:
@@ -867,6 +869,11 @@ def main(argv: list[str]) -> int:
     base = a.since
     if a.mode == "diff" and not base and a.rereview:
         base = _latest_review_sha(a.item, "diff")
+    if base:
+        try:
+            _git_text(["cat-file", "-e", f"{base}^{{commit}}"])
+        except Exception:
+            base = ""
     sha = design_sha(item) if a.mode == "design" else diff_sha(base)
     existing = EVID / f"{a.item}-{sha}.json"
     if existing.is_file() and not a.rereview:

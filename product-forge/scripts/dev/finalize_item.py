@@ -36,7 +36,14 @@ def build(item_id: str) -> dict:
     import hashlib
     ac_hash = hashlib.sha256(json.dumps({"acs": acs, "dispositions": it.get("review_dispositions") or {}},
                                         sort_keys=True, separators=(",", ":")).encode()).hexdigest()[:16]
-    return {"schema": "pf.final-report/1", "ac_hash": ac_hash, "item": item_id, "generated_at": datetime.now(timezone.utc).isoformat(),
+    total_ms = 0
+    try:
+        from datetime import datetime as _dt
+        total_ms = int((_dt.fromisoformat(evs[-1]["at"].replace("Z", "+00:00"))
+                        - _dt.fromisoformat(evs[0]["at"].replace("Z", "+00:00"))).total_seconds() * 1000) if evs else 0
+    except Exception:
+        total_ms = sum(int(e.get("duration_ms") or 0) for e in evs)
+    return {"schema": "pf.final-report/1", "ac_hash": ac_hash, "total_time_ms": total_ms, "item": item_id, "generated_at": datetime.now(timezone.utc).isoformat(),
             "item_revision": it.get("revision"), "current_stage": tr.current_stage(item_id, it.get("status") or ""),
             "acs": acs, "ac_problems": bad_ac, "tests_by_kind": tr.tests_by_kind(evs),
             "usage": u, "started_at": start, "finished_at": end,
@@ -44,9 +51,7 @@ def build(item_id: str) -> dict:
             "dispositions": {m: {k: v for k, v in ((it.get("review_dispositions") or {}).get(m) or {}).items()
                                  if str((v or {}).get("status") or "").upper() in ("ACCEPTED", "DEFERRED")}
                              for m in ("design", "diff")},
-            "gate_decisions": [d for d in (it.get("decisions") or [])
-                               if str(d.get("decision") or "").upper() in ("APPROVE", "APPROVE_WITH_ATTENTION",
-                                                                           "DISPOSITION_APPROVAL", "REVIEW_CHURN")]}
+            "gate_decisions": list(it.get("decisions") or [])}
 
 
 def main(argv: list[str] | None = None) -> int:
