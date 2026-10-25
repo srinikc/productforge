@@ -182,6 +182,7 @@ def test_parse_recommendation_realistic_and_formats():
     assert tr._parse_recommendation(out) == "APPROVE"
     assert tr._parse_recommendation("Overall architect recommendation: APPROVE-WITH-ATTENTION") == "APPROVE WITH ATTENTION"
     assert tr._parse_recommendation("Overall architect recommendation: APPROVE / WITH ATTENTION") == "APPROVE WITH ATTENTION"
+    assert tr._parse_recommendation("Overall architect recommendation: NOT READY") == "NOT READY"
     assert tr._parse_recommendation("no recommendation here") == ""
 
 
@@ -210,3 +211,35 @@ def test_review_stage_never_falls_back_to_ingest_pass():
     assert tr._stage_status("design_review", ev, "", "") == "reviewed (recommendation unavailable)"
     assert tr._stage_status("design_review", ev, "APPROVE", "") == "APPROVE"
     assert tr._stage_status("gate0", ev, "", "") == "fail"
+
+
+def test_current_stage_blocks_on_failing_gate(tmp_path, monkeypatch):
+    monkeypatch.setattr(tr, "TRAILS", tmp_path)
+    tr.record("BI-PF-1481", "planning", "pass")
+    tr.record("BI-PF-1481", "gate0", "fail")
+    assert tr.current_stage("BI-PF-1481", status="in_progress") == "blocked at gate0"
+
+
+def test_show_keeps_legacy_unknown_stage_events(tmp_path, monkeypatch):
+    monkeypatch.setattr(tr, "TRAILS", tmp_path)
+    monkeypatch.setattr(tr, "_item", lambda i: {"id": i, "title": "Legacy", "status": "in_progress",
+                                                "epic": "E", "links": {}, "review_dispositions": {}})
+    monkeypatch.setattr(tr, "next_item", lambda i: ("", ""))
+    tr.record("BI-PF-1481", "planning", "pass")
+    data = tr._load("BI-PF-1481")
+    data["events"].append({"seq": 2, "at": tr._now(), "stage": "legacy_stage", "actor": "tool",
+                           "status": "pass", "summary": "old event", "refs": {}, "tests": [],
+                           "usage": {}, "duration_ms": 0})
+    tr._write("BI-PF-1481", data)
+    out = tr.show("BI-PF-1481")
+    assert "legacy_stage" in out
+
+
+def test_review_evidence_missing_and_exception_are_explicit(tmp_path, monkeypatch):
+    monkeypatch.setattr(tr, "TRAILS", tmp_path)
+    assert tr._review_evidence("BI-PF-1481", "design")[0].endswith("no evidence)")
+    tr.record("BI-PF-1481", "design_review", "pass", refs={"review_sha": "abc"})
+    import subprocess
+    monkeypatch.setattr(subprocess, "run", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("boom")))
+    table, rec = tr._review_evidence("BI-PF-1481", "design")
+    assert "cannot render" in table and rec == ""

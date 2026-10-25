@@ -198,9 +198,11 @@ Every item carries one append-only trail at `engineering/trails/<ID>.json` (owne
   9. the tests table, 10. usage/cost, 11. the final completion/next-item table, and the disposition key.
 - **View invariants (read-only projection, no writes):**
   - the stage checklist uses the **latest event per stage** (`_stage_events`; append order under the trail lock,
-    monotonic `seq`); the `Runs` column counts re-runs; the audit history remains in `events()`.
-  - **current stage** = the first `STAGES` entry with no committed event while the item is `in_progress`
-    (`planning` for an empty trail; `complete` when all stages exist or the item is closed).
+    monotonic `seq`); the stage table's `Runs` column counts re-runs; the audit history remains in `events()`
+    and unknown/legacy stage rows are still shown at the end of the table.
+  - **current stage** = `blocked at <stage>` when a committed pre-merge gate (not a review) is `fail`/`error`;
+    otherwise the first `STAGES` entry with no committed event while the item is `in_progress` (`planning` for an
+    empty trail; `complete` when all stages exist or the item is closed).
   - review stages show the **current** recommendation (`APPROVE` / `APPROVE WITH ATTENTION` / `NOT READY`),
     not the ingest-time event status. `show` re-executes `architect_review.py gate`, which reads
     `engineering/reviews/<ID>-<sha>.json` (sha from the review event refs); this keeps one evidence reader.

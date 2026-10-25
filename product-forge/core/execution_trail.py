@@ -30,6 +30,7 @@ REQUIRED_AT_COMPLETION = ("planning", "gate0", "design_review", "gate1", "implem
                           "code_review", "diff_review", "gate2", "tests", "precheck", "completion")
 MAX_EVENTS = 5000
 MAX_SUMMARY = 2000
+CLOSED_STATUSES = ("completed", "closed", "done", "delivered")
 FAILURES = TRAILS / "_failures.jsonl"
 _SECRET = re.compile(r"(?i)\b(api[_-]?key|token|secret|password|authorization)\b\s*[:=]\s*\S+")
 _BEARER = re.compile(r"(?i)\b(bearer)\s+\S+")
@@ -314,22 +315,23 @@ def _review_evidence(item: str, mode: str) -> tuple[str, str]:
             return f"({stage}: evidence missing)", ""
         return out, _parse_recommendation(out)
     except Exception as e:
+        print(f"execution-trail: cannot render {stage} for {item}: {e}", file=sys.stderr)
         return f"({stage}: cannot render: {e})", ""
 
 
-def _review_table(item: str, mode: str) -> str:
-    """Compatibility wrapper for callers that only need the rendered table."""
-    return _review_evidence(item, mode)[0]
-
-
 def current_stage(item: str, status: str = "") -> str:
-    """First missing STAGES entry while in progress; 'complete' once all exist or the item is closed."""
+    """'blocked at <stage>' for a failing pre-merge gate; else first missing stage while in progress."""
     have = _stage_events(item)
+    review = {"design_review", "diff_review"}
+    for stage in STAGES:
+        ev = have.get(stage)
+        if ev and stage not in review and str(ev.get("status") or "").lower() in ("fail", "error", "blocked"):
+            return f"blocked at {stage}"
     missing = [stage for stage in STAGES if stage not in have]
     if not missing:
         return "complete"
     status = str(status or "").lower()
-    if status in ("completed", "closed", "done", "delivered"):
+    if status in CLOSED_STATUSES:
         return "complete"
     return missing[0]
 
@@ -340,7 +342,7 @@ def _stage_status(stage: str, ev: dict, design_rec: str, diff_rec: str) -> str:
         return design_rec or "reviewed (recommendation unavailable)"
     if stage == "diff_review":
         return diff_rec or "reviewed (recommendation unavailable)"
-    return str(ev.get("status") or "pass")
+    return str(ev.get("status") or "unknown")
 
 
 def _flow_rows(value) -> list[str]:
@@ -384,7 +386,9 @@ def show(item: str) -> str:
     for ev in evs:
         runs[ev["stage"]] = runs.get(ev["stage"], 0) + 1
     stage_rows = []
-    for stage in STAGES:
+    known = set(STAGES)
+    extra = [s for s in have if s not in known]
+    for stage in list(STAGES) + sorted(extra):
         ev = have.get(stage)
         if not ev:
             continue
@@ -426,10 +430,11 @@ def show(item: str) -> str:
                            widths=[34, 12, 34, 30])]
 
     lines += ["", "## 3. Flow - where we are", f"**Current stage:** {current}", ""]
+    blocked = current.split("blocked at ", 1)[1] if current.startswith("blocked at ") else ""
     for stage in STAGES:
         ev = have.get(stage)
         if not ev:
-            mark = "[CURRENT]" if stage == current else "[PENDING]"
+            mark = "[BLOCKED]" if stage == blocked else ("[CURRENT]" if stage == current else "[PENDING]")
             lines.append(f"- {mark} {stage}")
             continue
         status = _stage_status(stage, ev, design_rec, diff_rec)
