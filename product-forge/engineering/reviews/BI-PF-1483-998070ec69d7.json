@@ -1,0 +1,37 @@
+{
+  "item": "BI-PF-1483",
+  "sha": "998070ec69d7",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-25T09:37:59.073777+00:00",
+  "findings": {
+    "BLOCKER": [
+      "Flow checklist marks a stage `[DONE]` whenever it has any event, including a latest status of `fail`; the `[BLOCKED]` branch is unreachable because `blocked` is only ever a stage that *has* a failing event, yet the `if not ev:` guard skips it. A failed `gate0`/`tests` renders \"[DONE] gate0 (fail)\" and `current_stage` says \"blocked at gate0\" \u2014 the checklist contradicts the header and hides the stop.",
+      "Same bug for reviews: a design/diff review left at `fail`/NOT READY shows \"[DONE] design_review (NOT READY)\" and current stage jumps to `gate1`, presenting an unresolved NOT READY as finished. Tests only cover the fail-then-pass path, so this is untested and uncaught."
+    ],
+    "MAJOR": [
+      "`_parse_recommendation` accepts any uppercase run as the recommendation instead of validating against the canonical set (APPROVE / APPROVE WITH ATTENTION / NOT READY). A line like \"Overall architect recommendation: APPROVE - 3 ITEMS NEED ATTENTION\" normalizes to a bogus \"recommendation\" that the checklist then displays as authoritative status.",
+      "`current_stage` returns three different string shapes (\"gate1\", \"blocked at gate0\", \"complete\") from one function; callers (checklist, final table, future consumers) must string-match. Also, any closed-status item with missing pre-merge stages reports \"complete\", masking incomplete work.",
+      "`show` now runs two synchronous subprocesses (20s each) on every invocation for a read-only view; the render path is coupled to scraping CLI prose from `architect_review.py` rather than a structured evidence API. Any refactor of the review renderer silently degrades `show` to \"evidence missing\"."
+    ],
+    "MINOR": [
+      "Timeout cut from 60s to 20s with no rationale; a slow evidence render now yields a misleading \"(evidence missing)\" instead of the real table.",
+      "`--item` value is passed straight into a subprocess argv; an item id beginning with \"-\" is argument injection into `architect_review.py`.",
+      "`id-blocks.json` allocator bookkeeping (two scopes, `reserved_up_to` 1073\u21921186 with unaccounted gaps) is bundled into a feature PR \u2014 mixed concerns and noisy history for a single-writer file.",
+      "`CLOSED_STATUSES` and the review-stage set are inline string literals; they will drift from `core.backlog`/`architect_review` vocabularies without a shared constant."
+    ],
+    "NIT": [
+      "Section numbers (\"## 1.\" \u2026 \"## 11.\") are hard-coded in headings, docs, and test assertions; renumbering breaks three places.",
+      "Recommendation regex char class `[A-Z][A-Z0-9 _/-]*` should be anchored to end-of-line to avoid capturing trailing uppercase prose.",
+      "`runs.get(stage, 1)` default and the unused `known`/`extra` handling are subtle; a legacy-stage event that is also the latest could double-display logic paths."
+    ],
+    "SUMMARY": [
+      "Solid structure: sections in AC order, disposition key, review-recommendation-not-ingest-status, re-run dedupe, empty/partial item coverage, and docs invariants are all present and well tested \u2014 but the headline AC (\"flow checklist with the current stage\") is broken for the failure path.",
+      "Top risk: the checklist reports failed and NOT-READY stages as [DONE] with an unreachable [BLOCKED] marker; fix the mark logic and add fail-path tests before merge.",
+      "Second risk: unvalidated regex scraping of the review CLI as the source of truth for recommendations; validate against the canonical enum and prefer structured evidence over subprocess text."
+    ]
+  },
+  "rereview_reason": "prior diff sha c6dafc085b50; config/id-blocks state commit changed the sha; code content unchanged",
+  "rereview_reason_sha256": "8c3989927fb542f4923b03412ab444c523e1d636f54d3228b37d294d8a89dddc"
+}
