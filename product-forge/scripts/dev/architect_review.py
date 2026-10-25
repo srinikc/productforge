@@ -326,6 +326,14 @@ def _build_prompt(item: dict, item_id: str, mode: str, base: str = "") -> str:
     prompt = PROMPT.format(target=("design" if mode == "design" else "implementation diff"),
                            item=item_id, ac=ac, body=body)
     if mode == "diff":
+        if base:
+            acs = item.get("ac_verification") or []
+            ac_txt = "\n".join(f"- {a.get('ac')}: {a.get('result')}" for a in acs) or "- (none recorded)"
+            prompt += ("\n\nDELTA REVIEW SCOPE: this diff is only the changes since the previously reviewed HEAD. "
+                       "The full candidate at HEAD already contains the implementation and AC evidence shown below. "
+                       "Do NOT report ACs as missing or unimplemented just because they are absent from this delta. "
+                       "Review only these delta changes for new defects/regressions and whether prior findings are resolved."
+                       "\n\nAC verification (full candidate):\n" + ac_txt)
         prior = _prior_context(item, item_id, mode)
         if prior:
             prompt += "\n\n" + prior

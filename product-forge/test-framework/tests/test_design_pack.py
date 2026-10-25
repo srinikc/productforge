@@ -81,6 +81,16 @@ def test_parse_date_accepts_date_and_datetime():
     assert d._parse_date("2026-10-05T10:20:30").isoformat() == "2026-10-05"
 
 
+def test_evaluate_short_circuits_dates_on_bad_config(monkeypatch, tmp_path):
+    cfg = tmp_path / f"cfg-{uuid4().hex}.json"
+    cfg.write_text('{"enforce_from":"2026-10-26","enforce_items":1}', encoding="utf-8")
+    monkeypatch.setattr(d, "CFG", cfg)
+    item = {"id": "BI-PF-9", "status": "in_progress", "created_at": "bad-date"}
+    monkeypatch.setattr(d.backlog, "get_epic", lambda *a, **k: item)
+    out = d.evaluate("BI-PF-9")
+    assert out == ["enforce_items must be a list"]
+
+
 def test_validate_cfg_shapes():
     base = {"enforce_from": "2026-10-26"}
     assert d._validate_cfg({**base, "enforce_items": 1}) == "enforce_items must be a list"

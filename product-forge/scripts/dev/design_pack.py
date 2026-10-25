@@ -95,6 +95,8 @@ def evaluate(item_id: str, item: dict | None = None) -> list[str]:
     cfg = _cfg()
     cfg_problem = _validate_cfg(cfg)
     if cfg_problem:
+        # Config defects short-circuit item date checks by design: a malformed config
+        # cannot be trusted to classify dates, and fixing it first avoids misleading output.
         return [cfg_problem]
     bad = _date_problems(item, cfg)
     if bad:
