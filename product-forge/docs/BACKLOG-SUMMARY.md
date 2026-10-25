@@ -1,17 +1,17 @@
 # Backlog Summary
 
-> GENERATED 2026-10-25T15:33:25 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-25T15:20:36 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 134  |  **Closed:** 593
+- **Open:** 133  |  **Closed:** 592
 - `blocked`: 1
 - `executing`: 3
 - `in_progress`: 2
-- `new`: 128
+- `new`: 127
 
-### new, by category (128)
+### new, by category (127)
 **API / reports / HIL / misc** (15)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
@@ -76,7 +76,7 @@
 | BI-PF-1415 | Should | defect | RCCA: config/derived stores classified by kind heuristic (not reviewed) - 78 project/tenant-scoped stores likely belong in DB (views/tables) | RCCA: config/derived stores classified by kind heuristic (not reviewed) - 78 project/tenant-scoped stores like... |
 | BI-PF-1478 | Must | feature | EDP: per-tenant authentication + hard per-tenant quota isolation for the data-plane service | Give go/edpsvc a real per-tenant principal so per-tenant quotas/concurrency are bound to the authenticated ten... |
 
-**Specs / cache / context / artifacts** (11)
+**Specs / cache / context / artifacts** (10)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0206 | Should | tech-debt | Backend: model downloader + local cache + license-acceptance gate + models.lock (open-weights) | One owner module that downloads only the weights a project's capability pack needs, into a gitignored local ca... |
@@ -89,7 +89,6 @@
 | BI-PF-1385 | Must | bug | Backlog API: no deterministic endpoint to author item context fields (objective/acceptance_criteria/affected_files/approach) | Backlog API: no deterministic endpoint to author item context fields (objective/acceptance_criteria/affected_f... |
 | BI-PF-1392 | Should | task | Enforce per-feature FR/US caps + max_lines in the Go artifact engine (scaled by the profile) and reconcile the three section sources | Per-feature FR/US caps + max_lines enforced NUMERICALLY (scaled by profile); sections have ONE source. |
 | BI-PF-1425 | Should | feature | Migrate orchestrator cache + evidence/summarizer (and remaining audit logic) from Python to Go (Go-first alignment) | Migrate orchestrator cache + evidence/summarizer (and remaining audit logic) from Python to Go (Go-first align... |
-| BI-PF-1484 | Should | hardening | Execution flow view hardening: pre-merge blocked set, review-sha integrity, no-review cache, review markers | Harden the BI-PF-1483 flow view after its Gate 2.5 review: restrict blocked detection to pre-merge gates, requ... |
 
 **Wiring / tech-debt / API** (77)
 | ID | MoSCoW | Type | Title | Objective |
@@ -370,5 +369,5 @@
 ---
 
 ## Totals
-- backend: 134 open / 593 closed
+- backend: 133 open / 592 closed
 - dashboard: 146 open / 3 closed
