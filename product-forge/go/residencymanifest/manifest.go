@@ -151,10 +151,10 @@ func Validate(m Manifest, p Profile) []string {
 	} else if !subset(m.AllowedRegions, allowed) {
 		add("RESIDENCY_REGION_NOT_ALLOWED")
 	}
-	if !subset(m.Backup.Regions, allowed) {
+	if len(m.Backup.Regions) == 0 || !subset(m.Backup.Regions, allowed) {
 		add("RESIDENCY_BACKUP_REGION")
 	}
-	if m.KMS.Region != "" && !allowed[strings.ToUpper(strings.TrimSpace(m.KMS.Region))] {
+	if !allowed[strings.ToUpper(strings.TrimSpace(m.KMS.Region))] {
 		add("RESIDENCY_KMS_REGION")
 	}
 	if m.Egress == nil {

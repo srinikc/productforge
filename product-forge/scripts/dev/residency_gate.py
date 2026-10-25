@@ -35,7 +35,7 @@ def _policy() -> dict:
         return {"gate_mode": "block", "_error": "RESIDENCY_POLICY_UNREADABLE"}
 
 
-def _event(rec: dict) -> None:
+def _event(rec: dict) -> bool:
     try:
         ROOT.joinpath("engineering").mkdir(parents=True, exist_ok=True)
         EVENT.write_text(json.dumps(rec, indent=2) + "\n", encoding="utf-8")
@@ -48,8 +48,10 @@ def _event(rec: dict) -> None:
             os.replace(JSONL, JSONL.with_suffix(".jsonl.1"))
         with open(JSONL, "a", encoding="utf-8") as f:
             f.write(json.dumps(rec) + "\n")
+        return True
     except Exception as e:
         print(f"residency: WARN cannot write event: {e}", file=sys.stderr)
+        return False
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -65,6 +67,9 @@ def main(argv: list[str] | None = None) -> int:
     manifest = a.manifest or packaging.residency_path(a.scope, a.project)
     profiles = a.profiles or str(packaging.residency_profiles_dir())
     policy = _policy()
+    if policy.get("_error"):
+        print("residency: BLOCK policy unreadable", file=sys.stderr)
+        return 2
     mode = a.mode or str(policy.get("gate_mode") or "warn")
     expires = str(policy.get("gate_mode_expires") or "")
     mode_original = mode
@@ -91,7 +96,9 @@ def main(argv: list[str] | None = None) -> int:
     except Exception as e:
         rec.update({"ok": False, "execution_error": str(e), "errors": ["RESIDENCY_VALIDATOR_UNAVAILABLE"]})
         _report(rec, a.report)
-        _event(rec)
+        if not _event(rec):
+            print("residency: BLOCK cannot write evidence event", file=sys.stderr)
+            return 2
         print(f"residency: BLOCK validator unavailable: {e}", file=sys.stderr)
         return 2
     out = (r.stdout or "").strip().splitlines()
@@ -118,7 +125,8 @@ def main(argv: list[str] | None = None) -> int:
         print(f"residency: BLOCK execution failure: {errors or r.stderr.strip()}", file=sys.stderr)
         return 2
     if not parity:
-        print(f"residency: WARN Python/Go verdict divergence; Go is authoritative: {errors}", file=sys.stderr)
+        print(f"residency: BLOCK Python/Go verdict divergence: {errors}", file=sys.stderr)
+        return 2
     if not go_valid:
         hard_prefix = ("RESIDENCY_UNKNOWN_HOME", "RESIDENCY_PROFILE_UNREADABLE", "RESIDENCY_SCHEMA_VERSION",
                        "RESIDENCY_MISSING_GROUP", "RESIDENCY_INVALID_FIELD", "RESIDENCY_BACKUP_UNENCRYPTED",

@@ -56,9 +56,12 @@ def test_unknown_home_fails_closed():
     assert "RESIDENCY_PROFILE_UNREADABLE" in v["unmet"]
 
 
-def test_gate_report_is_non_fatal():
+def test_gate_report_is_non_fatal(tmp_path):
+    import os
+    env = dict(os.environ, PF_RESIDENCY_EVENT=str(tmp_path / "residency_gate_scratch.json"),
+               PF_RESIDENCY_JSONL=str(tmp_path / "residency_gate_scratch.jsonl"))
     r = subprocess.run([sys.executable, str(ROOT / "scripts" / "dev" / "residency_gate.py"), "--report"],
-                       capture_output=True, text=True, timeout=180)
+                       capture_output=True, text=True, timeout=180, env=env)
     assert r.returncode == 0
     assert "report_version" in (r.stdout or "")
 

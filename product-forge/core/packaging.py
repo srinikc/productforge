@@ -69,6 +69,8 @@ def residency_path(scope: str = "product_forge", project: str = "") -> str:
 
 
 def _load_json(path: str) -> dict:
+    if os.path.getsize(path) > 64 * 1024:
+        raise ValueError("residency file exceeds 64KB")
     with open(path, encoding="utf-8-sig") as f:
         d = json.load(f)
     return d if isinstance(d, dict) else {}
@@ -113,6 +115,10 @@ def validate_residency(section: dict) -> dict:
     b = sec.get("backup") or {}
     k = sec.get("kms") or {}
     e = sec.get("egress") or {}
+    if not b.get("regions"):
+        unmet.append("RESIDENCY_BACKUP_REGION")
+    if not str(k.get("region") or "").strip():
+        unmet.append("RESIDENCY_KMS_REGION")
     for code, regions in (("BACKUP", b.get("regions") or []),
                           ("KMS", [k.get("region")] if k.get("region") else []),
                           ("EGRESS", e.get("allowed_regions") or [])):
