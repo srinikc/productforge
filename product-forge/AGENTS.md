@@ -73,6 +73,21 @@ Both must pass (0 unwired, 0 naming violations). The same audit runs in CI and i
   run it automatically. The derived backlog files (history / indexes / counters + the generated docs)
   auto-resolve via the `merge=pf-derived` driver; a **source** conflict aborts cleanly and is resolved by hand.
 
+## Tool usage (binding — BI-PF-1484)
+
+Use the efficient, traceable path:
+
+1. **Existing source/config/test/doc** → `Read` then `Edit` (exact match). Do not blind-overwrite.
+2. **New source/config/test/doc** → `Write`.
+3. **Generated artifacts** (design packs, docs index, derived backlog) → run the **generator**; never hand-edit.
+4. **Shell writes** (`Set-Content`, `write_text`, here-strings) are allowed only for bulk/generated output or
+   when the explicit tool cannot handle the file. Never for `go.mod`, code, config, or tests.
+5. After any shell write: run `git diff --stat`, `python scripts/dev/encoding_check.py`, and the targeted test.
+6. `python scripts/dev/encoding_check.py` fails changed files with a UTF-8 BOM/invalid UTF-8; it is in precheck.
+
+Why: explicit tools are visible, guarded (read-first/exact-match), encoding-safe, and cheaper than re-sending a
+whole file; shell `Set-Content` on PowerShell 5.1 adds a BOM and has already broken `go.mod`.
+
 ## Review & communication standard (binding)
 
 Applies to EVERY review, Gate (**Gate 1** = approve the plan before coding; **Gate 2** = approve delivery),
