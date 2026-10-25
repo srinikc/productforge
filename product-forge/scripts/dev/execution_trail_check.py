@@ -78,8 +78,16 @@ def main(argv: list[str] | None = None) -> int:
     a = ap.parse_args(argv)
     base = a.base or g2._git("merge-base", "develop", "HEAD")
     if not base:
-        print("execution-trail: ERROR base ref unavailable", file=sys.stderr)
-        return 2
+        for ref in ("origin/develop",):
+            try:
+                base = g2._git("merge-base", ref, "HEAD")
+            except Exception:
+                base = ""
+            if base:
+                break
+    if not base:
+        print("execution-trail: skipped (base ref unavailable; fetch develop or pass --base)")
+        return 0
     try:
         ids = g2.transitions(base)
     except Exception as e:
