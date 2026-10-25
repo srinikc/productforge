@@ -579,6 +579,8 @@ def redact_reason(s: str) -> str:
     t = re.sub(r"(?i)\b(api[_-]?key|token|secret|password|authorization)\b\s*[:=]\s*\S+",
                r"\1=[REDACTED]", t)
     t = re.sub(r"(?i)\b(bearer)\s+\S+", r"\1 [REDACTED]", t)
+    t = re.sub(r"(?i)(https?://)[^/\s:@]+:[^/\s@]+@", r"\1[REDACTED]@", t)
+    t = re.sub(r"-----BEGIN [^-]+-----.*?-----END [^-]+-----", "[REDACTED-PEM]", t, flags=re.S)
     return t[:review_budget()["reason_max_chars"]]
 
 
@@ -615,6 +617,12 @@ def churn_verdict(item_id: str, item: dict | None = None, committed: bool = Fals
             "attested": attested, "warn_after": budget["warn_after"],
             "fail_after": budget["fail_after"], "epoch": epoch, "latest_sha": latest,
             "reviews": [{"path": r["path"], "sha": r["sha"], "at": r["at"]} for r in counted]}
+
+
+def reason_flag_error(rereview: bool, reason: str) -> str:
+    if str(reason or "").strip() and not rereview:
+        return "--reason requires --rereview"
+    return ""
 
 
 def review_guard(item_id: str, item: dict, rereview: bool, reason: str) -> tuple[bool, str]:
@@ -747,7 +755,11 @@ def main(argv: list[str]) -> int:
         print(f"design pre-check: {n} checklist item(s) included in the review prompt")
     item = _get_item(a.item)
     if a.mode == "diff":
-        ok, why = review_guard(a.item, item, a.rereview, getattr(a, "reason", ""))
+        rerr = reason_flag_error(a.rereview, a.reason)
+        if rerr:
+            print(rerr)
+            return 1
+        ok, why = review_guard(a.item, item, a.rereview, a.reason)
         if not ok:
             print(why)
             return 1

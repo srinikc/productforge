@@ -9,6 +9,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "scripts" / "dev"))
 
 import architect_review as ar  # noqa: E402
+import review_churn_check as rc  # noqa: E402
 
 
 def _item(decisions=None, disp=None):
@@ -83,3 +84,36 @@ def test_bad_budget_config_fails_closed(monkeypatch):
     monkeypatch.setattr(ar, "_config", lambda: {"review_budget": {"warn_after": 4, "fail_after": 2}})
     with pytest.raises(ValueError):
         ar.review_budget()
+
+def test_reason_flag_requires_rereview():
+    assert ar.reason_flag_error(False, "why") == "--reason requires --rereview"
+    assert ar.reason_flag_error(True, "why") == ""
+    assert ar.reason_flag_error(False, "") == ""
+
+
+def test_cli_exit_codes_json_and_report(monkeypatch, capsys):
+    monkeypatch.setattr(ar, "_git_text", lambda args: "base-sha")
+    monkeypatch.setattr(rc.g2, "transitions", lambda base: ["BI-X"])
+    row = {"item": "BI-X", "count": 5, "warn": True, "fail": True, "allowed": False,
+           "attested": False, "warn_after": 2, "fail_after": 4, "latest_sha": "s4",
+           "epoch": "2026-01-01", "reviews": []}
+    monkeypatch.setattr(rc, "evaluate", lambda ids: [row])
+    assert rc.main(["--report"]) == 0
+    assert rc.main([]) == 1
+    capsys.readouterr()
+    assert rc.main(["--json"]) == 1
+    out = capsys.readouterr().out
+    assert '"ok": false' in out and '"item": "BI-X"' in out
+
+    monkeypatch.setattr(ar, "_git_text", lambda args: "")
+    assert rc.main([]) == 2
+
+    monkeypatch.setattr(ar, "_git_text", lambda args: "base")
+    monkeypatch.setattr(rc.g2, "transitions", lambda base: (_ for _ in ()).throw(RuntimeError("git boom")))
+    assert rc.main([]) == 2
+
+
+def test_redact_url_and_pem():
+    assert "user:pass" not in ar.redact_reason("see https://user:pass@host/x")
+    pem = "-----BEGIN KEY-----\nsecret\n-----END KEY-----"
+    assert "secret" not in ar.redact_reason(pem)

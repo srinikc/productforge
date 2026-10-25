@@ -28,9 +28,14 @@ import gate2_completion_check as g2  # noqa: E402
 def evaluate(ids: list[str]) -> list[dict]:
     rows = []
     for iid in ids:
-        item = ar._get_item(iid)
-        rows.append(ar.churn_verdict(iid, item, committed=True))
-    return rows
+        try:
+            item = ar._get_item(iid)
+            rows.append(ar.churn_verdict(iid, item, committed=True))
+        except Exception as e:  # row-level isolation; main turns any error into exit 2
+            rows.append({"item": iid, "count": 0, "warn": False, "fail": True, "allowed": False,
+                         "attested": False, "warn_after": 0, "fail_after": 0, "latest_sha": "",
+                         "epoch": "", "reviews": [], "error": str(e)})
+    return sorted(rows, key=lambda r: r.get("item", ""))
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -45,15 +50,18 @@ def main(argv: list[str] | None = None) -> int:
     except Exception:
         pass
 
-    base = a.base or ar._git_text(["merge-base", "develop", "HEAD"])
-    if not base:
-        payload = {"verdict": "skipped", "reason": "base_unavailable", "rows": []}
-        print(json.dumps(payload) if a.json else "review-churn: skipped (base ref unavailable)")
-        return 0
     try:
+        base = a.base or ar._git_text(["merge-base", "develop", "HEAD"])
+        if not base:
+            raise RuntimeError("base ref unavailable; fetch develop or pass --base")
         rows = evaluate(g2.transitions(base))
     except Exception as e:  # fail closed on unreadable evidence/git
         print(f"review-churn: ERROR {e}", file=sys.stderr)
+        return 2
+    errors = [r for r in rows if r.get("error")]
+    if errors:
+        for r in errors:
+            print(f"review-churn: ERROR {r['item']}: {r['error']}", file=sys.stderr)
         return 2
 
     fails = [r for r in rows if r["fail"]]
