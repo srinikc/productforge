@@ -93,11 +93,10 @@ def evaluate(item_id: str, item: dict | None = None) -> list[str]:
     if not item:
         return [f"item not found: {item_id}"]
     cfg = _cfg()
-    bad = []
     cfg_problem = _validate_cfg(cfg)
     if cfg_problem:
-        bad.append(cfg_problem)
-    bad += _date_problems(item, cfg)
+        return [cfg_problem]
+    bad = _date_problems(item, cfg)
     if bad:
         return bad
     if not should_enforce(item, cfg):

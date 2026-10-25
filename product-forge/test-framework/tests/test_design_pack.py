@@ -79,3 +79,11 @@ def test_evaluate_validates_config_once(monkeypatch, tmp_path):
 def test_parse_date_accepts_date_and_datetime():
     assert d._parse_date("2026-10-05").isoformat() == "2026-10-05"
     assert d._parse_date("2026-10-05T10:20:30").isoformat() == "2026-10-05"
+
+
+def test_validate_cfg_shapes():
+    base = {"enforce_from": "2026-10-26"}
+    assert d._validate_cfg({**base, "enforce_items": 1}) == "enforce_items must be a list"
+    assert d._validate_cfg({**base, "required_sections": "x"}) == "required_sections must be a list"
+    assert d._validate_cfg({**base, "required_contracts": "x"}) == "required_contracts must be a list"
+    assert d._validate_cfg(base) == ""
