@@ -1,4 +1,4 @@
-﻿# Design Pack — {{ITEM}}
+# Design Pack — {{ITEM}}
 
 - **Item:** {{ITEM}}
 - **Title:** {{TITLE}}

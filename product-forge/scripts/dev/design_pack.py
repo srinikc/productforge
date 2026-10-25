@@ -16,7 +16,8 @@ from core import backlog  # noqa: E402
 DESIGN_DIR = ROOT / "engineering" / "design"
 CFG = ROOT / "config" / "design-pack.json"
 REQUIRED = ("requirements", "invariants", "contracts", "failure_matrix", "dependencies",
-            "security", "observability", "performance", "test_matrix", "rollout", "rollback", "decisions")
+            "security", "observability", "performance", "test_matrix", "rollout", "rollback",
+            "decisions", "guardrails", "learnings")
 CONTRACTS = ("api", "db", "files", "config")
 
 
@@ -167,14 +168,26 @@ def render(item: dict) -> str:
               .replace("{{DECISIONS}}", _join(pack.get("decisions"))))
 
 
+def _norm(text: str) -> str:
+    return "\n".join(line for line in text.splitlines() if not line.startswith("- **Generated:**"))
+
+
+def fresh(item: dict) -> bool:
+    p = DESIGN_DIR / f"{item.get('id')}.md"
+    if not p.is_file():
+        return False
+    return _norm(p.read_text(encoding="utf-8")) == _norm(render(item))
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description="Design pack check/render")
     ap.add_argument("--item", default="")
     ap.add_argument("--all", action="store_true", help="check items created on/after enforce_from")
     ap.add_argument("--render", action="store_true")
     ap.add_argument("--check", action="store_true")
+    ap.add_argument("--fresh", action="store_true", help="generated MD must match item.design_pack")
     a = ap.parse_args(argv)
-    if not a.render and not a.check:
+    if not a.render and not a.check and not a.fresh:
         print("design-pack: choose --render and/or --check", file=sys.stderr)
         return 2
     if a.all and (a.item or a.render):
@@ -193,6 +206,8 @@ def main(argv=None) -> int:
         for item in backlog.list_items("product_forge", None):
             for p in evaluate(str(item.get("id") or "")):
                 bad.append(f"{item.get('id')}: {p}")
+            if a.fresh and should_enforce(item, cfg) and not fresh(item):
+                bad.append(f"{item.get('id')}: generated design MD is stale")
         print("design-pack: " + ("OK" if not bad else "FAIL"))
         for x in bad:
             print("  - " + x)
@@ -207,6 +222,9 @@ def main(argv=None) -> int:
         out = DESIGN_DIR / f"{a.item}.md"
         out.write_text(render(item), encoding="utf-8")
         print(f"design-pack: wrote {out}")
+    if a.fresh and not fresh(item):
+        print(f"design-pack: STALE {DESIGN_DIR / (a.item + '.md')}", file=sys.stderr)
+        return 1
     if a.check:
         print("design-pack: " + ("OK" if not bad else "FAIL"))
         for x in bad:

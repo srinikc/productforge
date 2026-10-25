@@ -16,3 +16,8 @@ def test_bom_and_invalid_utf8_are_rejected(tmp_path, monkeypatch):
     assert any("bad.py" in x and "BOM" in x for x in bad)
     assert any("latin.py" in x and "UTF-8" in x for x in bad)
     assert not any("good.py" in x for x in bad)
+
+def test_binary_file_is_skipped(tmp_path, monkeypatch):
+    monkeypatch.setattr(ec, "ROOT", tmp_path)
+    (tmp_path / f"{0}.json").write_bytes(b"\x00\x01\x02")
+    assert ec.problems([f"{0}.json"]) == []

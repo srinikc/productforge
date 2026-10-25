@@ -76,6 +76,9 @@ def main() -> int:
         if not is_applicable(files, skip):
             print(f"architect-review: OK (skip - no code/schema/security change; {len(files)} file(s))")
             return 0
+        if not ar.has_review_changes():
+            print("architect-review: OK (skip - no review-relevant changes)")
+            return 0
         sha = ar.diff_sha()
     except (RuntimeError, OSError, subprocess.TimeoutExpired) as e:
         print(f"architect-review: FAIL - cannot compute the change set (fail-closed): {e}")
@@ -102,7 +105,7 @@ def main() -> int:
             if iid:
                 by_item.setdefault(iid, []).append(d)
         for path, d in reversed(evs):
-            if d.get("mode") != "diff" or str(d.get("head_sha") or "") != head:
+            if d.get("mode") != "diff":
                 continue
             base = str(d.get("base_sha") or "")
             if not base or base == head:

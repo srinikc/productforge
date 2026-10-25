@@ -12,6 +12,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 CODE_EXT = {".py", ".go", ".mod", ".sum", ".json", ".toml", ".yaml", ".yml", ".md", ".sh", ".ps1"}
+BINARY_EXT = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".ico", ".woff", ".woff2", ".ttf", ".zip", ".gz",
+              ".pdf", ".sqlite", ".db", ".bin", ".exe", ".dll"}
 SKIP = ("engineering/reviews/", "engineering/trails/", "products/", "test-framework/tests/fixtures/")
 
 
@@ -34,7 +36,8 @@ def changed(base: str = "") -> list[str]:
     for p in sorted(names):
         if not p or any(s in p for s in SKIP):
             continue
-        if Path(p).suffix.lower() in CODE_EXT:
+        suffix = Path(p).suffix.lower()
+        if suffix in CODE_EXT and suffix not in BINARY_EXT:
             out.append(p)
     return out
 
@@ -53,6 +56,8 @@ def problems(files: list[str]) -> list[str]:
         if raw.startswith(b"\xef\xbb\xbf"):
             bad.append(f"{rel}: UTF-8 BOM (use Write/Edit, not PowerShell Set-Content)")
             continue
+        if b"\x00" in raw[:1024]:
+            continue  # binary asset, not text
         try:
             raw.decode("utf-8")
         except UnicodeDecodeError as e:
