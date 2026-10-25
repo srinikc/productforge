@@ -1,0 +1,39 @@
+{
+  "item": "BI-PF-1482",
+  "sha": "896a5a13e7c5",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-25T08:30:02.614222+00:00",
+  "findings": {
+    "BLOCKER": [
+      "none"
+    ],
+    "MAJOR": [
+      "`record()` now calls `price_usage()` inline in the event dict; unguarded `int()`/`float()` coercion on provider-supplied token/cost fields raises on malformed values (e.g. `\"10.5\"`, `\"1,000\"`, non-numeric cost) and aborts the append-only trail write. Needs safe coercion or a try/except fallback to `cost_source=invalid_usage`/`unavailable`.",
+      "The language-rule `allow` exception for `core/execution_trail.py` is granted by the same change that exercises it; the ADR documents it, but this weakens the fail-closed intent of the Go-first rule \u2014 the exception should be approved/recorded independently of the change that consumes it, not self-granted inline.",
+      "`textwrap.wrap(..., replace_whitespace=False)` preserves embedded `\\n`/`\\t` in summaries and test commands, which will break box borders and column alignment in `show` output (evidence rendering integrity). Sanitize or normalize whitespace before wrapping."
+    ],
+    "MINOR": [
+      "`test_show_renders_stages_tests_and_next` was weakened from structural assertions to substring checks (`\"gate0\" in out`); a regression back to Markdown tables or broken wrapping would still pass. Same for `test_box_table_wraps_long_cells` (`out.count(\"|\") > 4`).",
+      "`_PRICING_CACHE` is process-global with no reload/TTL/invalidation; long-lived gate processes keep stale prices indefinitely. The ADR acknowledges drift but ships no refresh or staleness signal (`fetched_at` is never surfaced in `show` or warnings).",
+      "`usage_totals` re-prices every historical event on each `show` while `record` already prices at write time \u2014 redundant double computation and mixed-vintage pricing for pre-existing trail files, with no indication of which pricing vintage produced a number.",
+      "`price_usage` overwrites `u[\"model\"]` with the normalized name, destroying the original provider model string in the stored evidence (provenance loss); it is also only set on the priced path, not on provider/unavailable paths \u2014 inconsistent mutation.",
+      "Invalid-usage detection runs after the unknown-model check, so malformed usage for an unrecognized model is reported as `unavailable` rather than `invalid_usage`, masking the data-quality signal.",
+      "Validation order means provider-reported cost bypasses the `cached > input` sanity check entirely; fine per precedence, but should be an explicit documented decision, not incidental."
+    ],
+    "NIT": [
+      "`_box` computes `top`, `sep`, `bot` as three identical strings; Cursor-style tables normally distinguish the header separator \u2014 dead triplication.",
+      "Widths use `len()` (character count), not display width; CJK/wide characters in summaries will misalign columns.",
+      "`model-pricing.json` `allow` entry is a bare `model-pricing.json` glob that matches any path suffix; a scoped path is more precise for the registry invariant.",
+      "Provider cost key probing (`cost`/`total_cost`/`cost_usd`) in `architect_review` is implicit magic; document the expected provider schema."
+    ],
+    "SUMMARY": [
+      "Solid change overall: pricing catalog is registered with source/provenance, cost precedence is correct, and the Python exception is durably justified via ADR-0010 with the `edit_growth` allowlist loading bug properly fixed in `change_policy`.",
+      "Top risks: unguarded numeric coercion can break trail writes on malformed provider usage (append-only evidence loss), box rendering breaks on embedded whitespace, and the show-rendering tests were weakened below what the acceptance criteria imply.",
+      "The language-rule exception being self-granted in-change and the absence of any pricing staleness handling are the principal long-term governance/maintainability concerns."
+    ]
+  },
+  "rereview_reason": "supersedes 32b7bda5731b; language-rule edit_growth policy merge",
+  "rereview_reason_sha256": "ee7cd84d28c080d2a7002a8b22115056d01d871c2848e1aad2dfb68dbbc01855"
+}
