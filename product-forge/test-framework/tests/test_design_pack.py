@@ -48,3 +48,16 @@ def test_should_enforce_by_item_and_date():
 
 def test_all_with_item_is_rejected():
     assert d.main(["--all", "--item", "BI-PF-9999", "--check"]) == 2
+
+
+def test_evaluate_unknown_item_fails_closed(monkeypatch):
+    monkeypatch.setattr(d.backlog, "get_epic", lambda *a, **k: None)
+    assert d.evaluate("BI-PF-NOPE") == ["item not found: BI-PF-NOPE"]
+
+
+def test_evaluate_flags_invalid_and_missing_created_at(monkeypatch):
+    item = {"id": "BI-PF-9999", "status": "in_progress", "created_at": "2026/10/05"}
+    monkeypatch.setattr(d.backlog, "get_epic", lambda *a, **k: item)
+    assert any("created_at invalid" in p for p in d.evaluate("BI-PF-9999"))
+    item["created_at"] = ""
+    assert "created_at missing" in d.evaluate("BI-PF-9999")

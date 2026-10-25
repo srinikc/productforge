@@ -4,7 +4,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -35,16 +35,38 @@ def should_enforce(item: dict, cfg: dict) -> bool:
     if not created or not enforce:
         return False
     try:
-        from datetime import date
         return date.fromisoformat(created) >= date.fromisoformat(enforce)
     except ValueError:
         return False
 
 
+def _date_problems(item: dict, cfg: dict) -> list[str]:
+    bad = []
+    created = str(item.get("created_at") or "")
+    enforce = str(cfg.get("enforce_from") or "")
+    if not enforce:
+        bad.append("enforce_from missing")
+    if str(item.get("status") or "").lower() == "in_progress" and not created:
+        bad.append("created_at missing")
+    for label, value in (("created_at", created), ("enforce_from", enforce)):
+        if value:
+            try:
+                from datetime import date
+                date.fromisoformat(value[:10])
+            except ValueError:
+                bad.append(f"{label} invalid: {value!r}")
+    return bad
+
+
 def evaluate(item_id: str) -> list[str]:
-    """Public Gate 1 entry: [] when not enforced, else the design-pack problems."""
-    item = backlog.get_epic("product_forge", None, item_id) or {}
+    """Public Gate 1 entry: fail closed on unknown items/invalid dates."""
+    item = backlog.get_epic("product_forge", None, item_id)
+    if not item:
+        return [f"item not found: {item_id}"]
     cfg = _cfg()
+    bad = _date_problems(item, cfg)
+    if bad:
+        return bad
     if not should_enforce(item, cfg):
         return []
     return check(item)
@@ -132,11 +154,8 @@ def main(argv=None) -> int:
             return 1
         bad = []
         for item in backlog.list_items("product_forge", None):
-            if str(item.get("status") or "").lower() == "in_progress" and not item.get("created_at"):
-                bad.append(f"{item.get('id')}: created_at missing")
-            if should_enforce(item, cfg):
-                for p in check(item):
-                    bad.append(f"{item.get('id')}: {p}")
+            for p in evaluate(str(item.get("id") or "")):
+                bad.append(f"{item.get('id')}: {p}")
         print("design-pack: " + ("OK" if not bad else "FAIL"))
         for x in bad:
             print("  - " + x)
