@@ -21,6 +21,7 @@ ADR. Individual ADRs may later be split into `docs/adr/NNNN-*.md` (the index her
 | [ADR-0007](#adr-0007-api-first---every-capability-is-a-secured-api-surface) | API-first - every capability is a secured API surface | Accepted | 2026-10-24 |
 | [ADR-0008](#adr-0008-service-topology---go-backed-capabilities-are-exposed-by-go-services) | Service topology - Go-backed capabilities are exposed by Go services | Accepted | 2026-10-24 |
 | [ADR-0009](#adr-0009-formal-retention-of-global-config-stores-design-systems) | Formal retention of global config stores (design-systems) | Accepted | 2026-10-24 |
+| [ADR-0010](#adr-0010-control-plane-evidence-tooling-exception-execution-trailcost) | Control-plane evidence tooling exception (execution trail/cost) | Accepted | 2026-10-25 |
 
 ## Template
 ```markdown
@@ -530,3 +531,31 @@ a new ADR. **Risks:** a contributor edits the registry without reading the ADR; 
 A new ADR is required if BI-PF-1439 makes the catalog runtime-writable, if the catalog becomes
 tenant-specific, or if a second writer needs shared tenant settings. Re-open via a new backlog item that
 supersedes this ADR; do not silently flip the registry target.
+
+# ADR-0010: Control-plane evidence tooling exception (execution trail/cost)
+
+**Status:** Accepted
+**Date:** 2026-10-25   **Deciders:** architecture + HIL   **Related:** BI-PF-1481, BI-PF-1482, BI-PF-1479
+
+## Context and Problem Statement
+The backlog execution trail, its pricing/cost calculation and its terminal table rendering are control-plane
+evidence tooling. They live in `core/execution_trail.py` and are allowlisted in `config/language-rule.json`
+(`allow_new_python`). The language rule otherwise requires new shipped/sensitive logic to be Go.
+
+## Decision Drivers
+- No customer runtime data or request path is involved (local CLI/gate tooling; `needs_api=false`).
+- The trail is evidence produced by Python gate tools; moving the show/pricing across a Python<->Go bridge
+  would add complexity without a runtime benefit.
+- The HIL explicitly requested the ordered trail, OpenCode Go cost and Cursor-style tables.
+
+## Decision Outcome
+**Chosen option:** Keep the execution-trail/pricing/rendering logic in the allowlisted control-plane Python
+module. The allowlist entry is the recorded governance exception; this ADR is the durable rationale.
+
+### Consequences
+**Positive:** one evidence owner, no bridge, simple gate integration. **Negative:** the tooling remains
+Python. **Risks:** pricing drift (source/fetched_at are recorded; upstream divergence alerts are a follow-up).
+
+### Confirmation
+`python scripts/dev/language_rule_check.py` passes with the allowlist; the trail tests and
+`execution_trail_check` cover the behavior.

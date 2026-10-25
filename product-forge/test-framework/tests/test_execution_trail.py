@@ -63,9 +63,8 @@ def test_show_renders_stages_tests_and_next(tmp_path, monkeypatch):
     tr.record("BI-PF-1481", "gate0", "pass", "impact", tests=[{"command": "pytest x", "result": "pass",
                                                                "duration_ms": 5, "passed": 1}])
     out = tr.show("BI-PF-1481")
-    assert "| 1 | gate0 | pass |" in out
-    assert "| pytest x | pass |" in out
-    assert "BI-PF-2" in out and "| 7 | abc |" in out
+    assert "gate0" in out and "pytest x" in out and "| Field" in out
+    assert "BI-PF-2" in out and "7 / abc" in out
 
 
 def test_deferred_requires_follow_up_item(monkeypatch):
@@ -100,3 +99,35 @@ def test_deferred_followup_must_exist(monkeypatch):
     assert chk.deferred_problems(item)
     monkeypatch.setattr(bl, "get_epic", lambda *a, **k: {"id": "BI-PF-9999", "status": "new"})
     assert chk.deferred_problems(item) == []
+
+def test_price_usage_mimo():
+    u = tr.price_usage({"model": "mimo-v2.6-flash", "input_tokens": 1000, "output_tokens": 500,
+                        "cached_tokens": 200})
+    assert u["cost_source"] == "opencode-data"
+    assert u["cost_usd"] == 0.000253
+
+
+def test_price_unknown_and_invalid():
+    u = tr.price_usage({"model": "unknown-model", "input_tokens": 10, "output_tokens": 1})
+    assert u["cost_source"] == "unavailable" and "cost_usd" not in u
+    u = tr.price_usage({"model": "mimo-v2.6-flash", "input_tokens": 10, "output_tokens": 1,
+                        "cached_tokens": 20})
+    assert u["cost_source"] == "invalid_usage" and "cost_usd" not in u
+
+
+def test_provider_cost_wins():
+    u = tr.price_usage({"model": "mimo-v2.6-flash", "input_tokens": 1000, "output_tokens": 500,
+                        "cached_tokens": 200, "provider_cost_usd": 0.5})
+    assert u["cost_source"] == "provider" and u["cost_usd"] == 0.5
+
+
+def test_normalize_model_aliases():
+    assert tr.normalize_model("xiaomi/mimo-v2.6-flash:latest") == "mimo-v2.6-flash"
+    assert tr.normalize_model("deepseek/deepseek-v4.1-flash") == "deepseek-v4.1-flash"
+    assert tr.normalize_model("MIMO-V2.6-FLASH") == "mimo-v2.6-flash"
+
+
+def test_box_table_wraps_long_cells():
+    out = tr._box(["A", "B"], [["short", "x" * 100]], widths=[8, 20])
+    assert out.startswith("+") and out.rstrip().endswith("+")
+    assert out.count("|") > 4

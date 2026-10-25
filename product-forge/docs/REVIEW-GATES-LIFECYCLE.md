@@ -184,6 +184,8 @@ Every item carries one append-only trail at `engineering/trails/<ID>.json` (owne
 - **Written automatically:** `gate0_check` (planning/gate0), `architect_review` (design/diff + provider usage),
   `gate_decisions` (gate1/gate2), `precheck` (implementation/code_review/tests/precheck), `core.backlog`
   `set_delivery`/`set_status` (delivery/completion).
+- **Cost:** `config/model-pricing.json` holds OpenCode Go list prices (USD/1M); cost is computed from
+  input/cached/output tokens, provider-reported cost wins, and the show prints it in a box-drawn table.
 - **Show:** `python -m core.execution_trail show --item <ID>` renders the ordered stages, the Gate 1.5/2.5
   decision tables (from the review evidence), the tests table, usage totals (input/output/cached; "not
   captured" when unavailable) and the final completion/next-item table.

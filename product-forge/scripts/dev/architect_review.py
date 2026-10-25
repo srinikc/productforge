@@ -261,6 +261,9 @@ def _llm_call(prompt: str, model: str) -> str:
                                     "output_tokens": int(u.get("completion_tokens") or 0),
                                     "cached_tokens": int((u.get("prompt_tokens_details") or {}).get("cached_tokens") or 0),
                                     "model": model})
+                prov = u.get("cost", u.get("total_cost", u.get("cost_usd")))
+                if prov is not None:
+                    _LAST_USAGE["provider_cost_usd"] = float(prov)
             except Exception:
                 pass
             return content

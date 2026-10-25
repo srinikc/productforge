@@ -13,6 +13,7 @@ import json
 import os
 import re
 import sys
+import textwrap
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -20,6 +21,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 TRAILS = ROOT / "engineering" / "trails"
 SCHEMA = "pf.execution-trail/1"
+PRICING = ROOT / "config" / "model-pricing.json"
 STAGES = ("planning", "gate0", "design_review", "gate1", "implementation", "code_review",
           "diff_review", "gate2", "tests", "precheck", "pr", "merge", "delivery", "completion")
 REQUIRED_AT_COMPLETION = ("planning", "gate0", "design_review", "gate1", "implementation",
@@ -122,7 +124,7 @@ def record(item: str, stage: str, status: str = "pass", summary: str = "", refs:
         ev = {"seq": (events[-1]["seq"] + 1 if events else 1), "at": _now(), "stage": stage,
               "actor": _redact(actor), "status": str(status or "pass"),
               "summary": _redact(summary), "refs": refs or {}, "tests": tests or [],
-              "usage": usage or {}, "duration_ms": int(duration_ms or 0)}
+              "usage": price_usage(usage or {}), "duration_ms": int(duration_ms or 0)}
         events.append(ev)
         _write(item, data)
         return ev
@@ -180,9 +182,90 @@ def next_item(item: str) -> tuple[str, str]:
     return str(rows[0].get("id") or ""), str(rows[0].get("title") or "")
 
 
+
+_PRICING_CACHE: dict | None = None
+
+
+def _pricing() -> dict:
+    global _PRICING_CACHE
+    if _PRICING_CACHE is None:
+        try:
+            _PRICING_CACHE = json.loads(PRICING.read_text(encoding="utf-8"))
+        except Exception:
+            _PRICING_CACHE = {"models": {}, "aliases": {}}
+    return _PRICING_CACHE
+
+
+def normalize_model(model: str) -> str:
+    s = str(model or "").strip().lower().split(":")[0]
+    s = s.rsplit("/", 1)[-1]
+    aliases = _pricing().get("aliases") or {}
+    return str(aliases.get(str(model or "").strip().lower()) or aliases.get(s) or s)
+
+
+def price_usage(usage: dict) -> dict:
+    """Add cost_usd/cost_source. Provider cost wins; unknown/invalid usage is explicitly unavailable."""
+    u = dict(usage or {})
+    if not u or u.get("not_captured"):
+        return u
+    model = normalize_model(u.get("model") or "")
+    inp = int(u.get("input_tokens") or 0)
+    out = int(u.get("output_tokens") or 0)
+    cached = int(u.get("cached_tokens") or 0)
+    prov = u.get("provider_cost_usd")
+    if prov is not None:
+        u["cost_usd"] = round(float(prov), 6)
+        u["cost_source"] = "provider"
+        return u
+    p = (_pricing().get("models") or {}).get(model)
+    if not p:
+        u["cost_source"] = "unavailable"
+        return u
+    if inp < 0 or out < 0 or cached < 0 or cached > inp:
+        u["cost_source"] = "invalid_usage"
+        return u
+    computed = ((inp - cached) * float(p.get("input") or 0)
+                + cached * float(p.get("cached_input") or 0)
+                + out * float(p.get("output") or 0)) / 1_000_000.0
+    u["cost_usd"] = round(computed, 6)
+    u["cost_source"] = "opencode-data"
+    u["model"] = model
+    return u
+
+
+def _box(headers: list, rows: list, widths: list | None = None) -> str:
+    """Cursor-style Unicode box table with wrapped cells."""
+    n = len(headers)
+    cells = [[str(c) if c is not None else "" for c in r] for r in rows]
+    if widths is None:
+        widths = []
+        for i in range(n):
+            w = max([len(str(headers[i]))] + [len(c[i]) for c in cells if i < len(c)])
+            widths.append(min(max(w, 4), 44))
+
+    def wrap(c, w):
+        return textwrap.wrap(str(c), width=w, break_long_words=True, replace_whitespace=False) or [""]
+
+    top = "+" + "+".join("-" * (w + 2) for w in widths) + "+"
+    sep = "+" + "+".join("-" * (w + 2) for w in widths) + "+"
+    bot = "+" + "+".join("-" * (w + 2) for w in widths) + "+"
+
+    def line(vals):
+        return "|" + "|".join(" " + str(vals[i]).ljust(widths[i]) + " " for i in range(n)) + "|"
+
+    out = [top, line(headers), sep]
+    for r in cells:
+        wr = [wrap(r[i] if i < len(r) else "", widths[i]) for i in range(n)]
+        h = max(len(x) for x in wr)
+        for j in range(h):
+            out.append(line([wr[i][j] if j < len(wr[i]) else "" for i in range(n)]))
+    out.append(bot)
+    return "\n".join(out)
+
+
 def usage_totals(evs: list[dict]) -> dict:
     total = {"input_tokens": 0, "output_tokens": 0, "cached_tokens": 0, "cost_usd": 0.0,
-             "captured": 0, "not_captured": 0}
+             "captured": 0, "not_captured": 0, "unpriced": 0}
     for ev in evs:
         u = ev.get("usage") or {}
         if not u:
@@ -190,11 +273,14 @@ def usage_totals(evs: list[dict]) -> dict:
         if u.get("not_captured"):
             total["not_captured"] += 1
             continue
+        u = price_usage(u)
         total["captured"] += 1
         total["input_tokens"] += int(u.get("input_tokens") or 0)
         total["output_tokens"] += int(u.get("output_tokens") or 0)
         total["cached_tokens"] += int(u.get("cached_tokens") or 0)
         total["cost_usd"] += float(u.get("cost_usd") or 0)
+        if u.get("cost_usd") is None:
+            total["unpriced"] += 1
     return total
 
 
@@ -224,27 +310,28 @@ def show(item: str) -> str:
     evs = events(item)
     have = _stage_events(item)
     lines = [f"# Execution trail - {item}", f"**Title:** {it.get('title')}",
-             f"**Status:** {it.get('status')}  **Epic:** {it.get('epic')}", "",
-             "| # | Stage | Status | At | Duration | Summary |", "|---|---|---|---|---|---|"]
+             f"**Status:** {it.get('status')}  **Epic:** {it.get('epic')}", ""]
     rank = {stage: i for i, stage in enumerate(STAGES)}
-    for ev in sorted(evs, key=lambda e: (rank.get(e["stage"], 99), e["seq"])):
-        lines.append(f"| {ev['seq']} | {ev['stage']} | {ev['status']} | {ev['at']} | "
-                     f"{ev.get('duration_ms', 0)} ms | {str(ev.get('summary') or '')[:160]} |")
-    if not evs:
-        lines.append("| - | (no events yet) | - | - | - | - |")
+    stage_rows = [[ev['seq'], ev['stage'], ev['status'], ev['at'],
+                   f"{ev.get('duration_ms', 0)} ms", str(ev.get('summary') or '')]
+                  for ev in sorted(evs, key=lambda e: (rank.get(e["stage"], 99), e["seq"]))]
+    if not stage_rows:
+        stage_rows = [["-", "(no events yet)", "-", "-", "-", "-"]]
+    lines.append(_box(["#", "Stage", "Status", "At", "Duration", "Summary"], stage_rows,
+                      widths=[4, 15, 9, 28, 10, 44]))
     lines += ["", "## Gate 1.5 (design)", _review_table(item, "design"), "",
               "## Gate 2.5 (delivery)", _review_table(item, "diff"), ""]
     tests = [t for ev in evs for t in (ev.get("tests") or [])]
-    lines += ["## Tests", "| Command | Result | Duration | Passed | Failed | Skipped |", "|---|---|---|---|---|---|"]
-    for t in tests:
-        lines.append(f"| {t.get('command','')} | {t.get('result','')} | {t.get('duration_ms',0)} ms | "
-                     f"{t.get('passed','')} | {t.get('failed','')} | {t.get('skipped','')} |")
-    if not tests:
-        lines.append("| (none recorded) | - | - | - | - | - |")
+    test_rows = [[t.get('command', ''), t.get('result', ''), f"{t.get('duration_ms', 0)} ms",
+                  t.get('passed', ''), t.get('failed', ''), t.get('skipped', '')] for t in tests]
+    if not test_rows:
+        test_rows = [["(none recorded)", "-", "-", "-", "-", "-"]]
+    lines += ["## Tests", _box(["Command", "Result", "Duration", "Passed", "Failed", "Skipped"],
+                               test_rows, widths=[36, 8, 10, 7, 7, 8])]
     u = usage_totals(evs)
     lines += ["", "## Usage", f"input={u['input_tokens']} output={u['output_tokens']} "
-              f"cached={u['cached_tokens']} cost_usd={u['cost_usd']:.4f} "
-              f"captured={u['captured']} not_captured={u['not_captured']}"]
+              f"cached={u['cached_tokens']} cost_usd={u['cost_usd']:.6f} "
+              f"captured={u['captured']} not_captured={u['not_captured']} unpriced={u['unpriced']}"]
     delivery = (it.get("links") or {}).get("delivery") or {}
     total_ms = 0
     if evs:
@@ -255,12 +342,18 @@ def show(item: str) -> str:
         except Exception:
             total_ms = sum(int(e.get("duration_ms") or 0) for e in evs)
     nid, ntitle = next_item(item)
-    lines += ["", "## Final completion", "| Item | What it was | What shipped | PR | Merge | Tests | Total time | Tokens (in/out/cached) | Cost | Next |",
-              "|---|---|---|---|---|---|---|---|---|---|",
-              f"| {item} | {str(it.get('title') or '')[:80]} | {str(it.get('summary') or it.get('objective') or '')[:80]} | "
-              f"{delivery.get('pr') or '-'} | {delivery.get('merge_sha') or '-'} | {len(tests)} test row(s) | "
-              f"{total_ms} ms | {u['input_tokens']}/{u['output_tokens']}/{u['cached_tokens']} | "
-              f"{u['cost_usd']:.4f} | {nid or '-'} {ntitle[:50]} |"]
+    final_rows = [
+        ["Item", item],
+        ["What it was", it.get("title") or ""],
+        ["What shipped", it.get("summary") or it.get("objective") or ""],
+        ["PR / Merge", f"{delivery.get('pr') or '-'} / {delivery.get('merge_sha') or '-'}"],
+        ["Tests", f"{len(tests)} test row(s)"],
+        ["Total time", f"{total_ms} ms ({total_ms / 1000.0:.1f}s)"],
+        ["Tokens in/out/cached", f"{u['input_tokens']} / {u['output_tokens']} / {u['cached_tokens']}"],
+        ["Cost (USD)", f"{u['cost_usd']:.6f} (captured={u['captured']} unpriced={u['unpriced']})"],
+        ["Next", f"{nid or '-'} {ntitle}"],
+    ]
+    lines += ["", "## Final completion", _box(["Field", "Value"], final_rows, widths=[20, 72])]
     missing = missing_stages(item)
     lines += ["", f"**Required-at-completion missing:** {', '.join(missing) if missing else 'none'}"]
     return "\n".join(lines)
