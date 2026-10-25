@@ -329,7 +329,7 @@
     "usage": {}
   },
   "created_at": "2026-10-13T16:02:45.510577",
-  "updated_at": "2026-10-25T15:50:13.982680",
+  "updated_at": "2026-10-25T15:55:57.147648",
   "score": 0.75,
   "source_ref": "docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md",
   "_note": "dependencies set",
@@ -639,73 +639,69 @@
       }
     },
     "diff": {
-      "sig:1c377b7717d73499": {
+      "sig:20e536a3d0e096ab": {
         "status": "ACTIONED",
-        "note": "_policy() now returns gate_mode=block on unreadable policy; malformed/expired gate_mode_expires escalates warn to block."
+        "note": "--report now only prints JSON; it never changes the exit code. Block=1, execution=2, warn=0."
       },
-      "sig:9bb7ad120e2aea2c": {
+      "sig:963a2008eda033e9": {
         "status": "ACTIONED",
-        "note": "Python no longer flags empty egress as missing; Go and Python both accept an explicit empty egress group, so parity holds."
+        "note": "Egress presence is explicit: Go uses *Egress (nil -> RESIDENCY_MISSING_GROUP:egress); Python checks the key."
       },
-      "sig:56dab64d18276036": {
+      "sig:2fa38461a9c48403": {
         "status": "ACTIONED",
-        "note": "Added test-framework/tests/test_residency_conformance.py + fixtures/residency_conformance.json: one case set (valid, unknown home, widening, missing group, schema, encrypted, rotation, frequency, retention, egress) runs through Python and Go with identical verdicts."
+        "note": "Fixtures add missing home, missing egress, backup/kms region, invalid provider, profile unreadable; Python/Go verdicts match."
       },
-      "sig:2ef23500515cec2e": {
+      "sig:45e3a2ef6de1b4d4": {
         "status": "ACTIONED",
-        "note": "Go CLI now emits RESIDENCY_UNKNOWN_HOME as a policy result (exit 1 JSON), not a tool failure; profile-unreadable stays exit 2."
+        "note": "Empty home emits RESIDENCY_UNKNOWN_HOME once; the duplicate branch is removed."
       },
-      "sig:df0e590ed0859f3a": {
+      "sig:c6411b6b4f16408d": {
         "status": "ACTIONED",
-        "note": "--report no longer downgrades execution failures: validator-unavailable/exit-2 paths always return 2; only policy violations are 0 in report mode."
+        "note": "Python now treats a profile without id/allowed_regions as RESIDENCY_PROFILE_UNREADABLE, matching Go."
       },
-      "sig:93de71a12c4bbff5": {
+      "sig:cef568ed585bdb5b": {
         "status": "ACTIONED",
-        "note": "Go strips a UTF-8 BOM before unmarshal; Python uses utf-8-sig; parity tests include BOM fixtures."
+        "note": "REGION_NOT_ALLOWED is only emitted when a valid profile exists; no spurious error on unreadable profiles."
       },
-      "sig:a905bd8058037b4a": {
+      "sig:dc87b9c45af041a6": {
         "status": "ACTIONED",
-        "note": "Added product override precedence test: products/<project>/residency-manifest.json wins over the template."
+        "note": "Hard-block prefixes now cover missing-group, invalid-field, schema, encrypted, rotation and frequency; warn only downgrades region/retention."
       },
-      "sig:c4a0325be6535121": {
+      "sig:16d00ab5ef9d3fd7": {
         "status": "ACTIONED",
-        "note": "Python manifest load failure uses the stable RESIDENCY_MANIFEST_UNREADABLE code (no exception text)."
+        "note": "build() now sets ok=False when the residency section is invalid, so validation/consumers fail loudly."
       },
-      "sig:e880a55a79ffae54": {
-        "status": "ACTIONED",
-        "note": "JSONL rotation prunes .3 before shifting, keeping base + .1 + .2 (3 files)."
-      },
-      "sig:b66974643bf94b0a": {
-        "status": "ACTIONED",
-        "note": "The first validator-unavailable path now calls _report when --report is set."
-      },
-      "sig:92579477045fcaf2": {
-        "status": "ACTIONED",
-        "note": "_report only prints JSON when --report is explicitly set; normal CI stays quiet."
-      },
-      "sig:b765111912de4ac5": {
-        "status": "ACTIONED",
-        "note": "Event records gate_mode_original + gate_mode_escalated for audit."
-      },
-      "sig:5ee41553b76ea321": {
+      "sig:50824a935e2901b8": {
         "status": "ACCEPTED",
-        "note": "Policy ownership stays with the existing region-cell owner + counsel profiles; gate events are bounded/rotated. A dedicated compliance-owner split is a later governance change."
+        "note": "go run is ~0.5s and keeps the gate self-contained; a prebuilt binary/toolchain pin is a later optimization."
       },
-      "sig:53f3cb792aad00bf": {
-        "status": "ACCEPTED",
-        "note": "go run is ~0.5s and keeps the gate self-contained; prebuilt binary is a later optimization."
-      },
-      "sig:03dd433e05b7aecb": {
-        "status": "ACCEPTED",
-        "note": "residency_path keeps scope for API symmetry; the path is product/project based. Accepted."
-      },
-      "sig:598bacc777537685": {
-        "status": "ACCEPTED",
-        "note": "id-blocks reservation is required to allocate the follow-up id; committed separately."
-      },
-      "sig:e1b60547897e28bc": {
+      "sig:f2ac55a435db3083": {
         "status": "ACTIONED",
-        "note": "Empty home no longer triggers the profile-unreadable noise; only RESIDENCY_UNKNOWN_HOME."
+        "note": "Dead `return 0 if a.report else 0` removed."
+      },
+      "sig:753e831de893ebc9": {
+        "status": "ACTIONED",
+        "note": "Template-only notes/template fields are stripped from the emitted residency section."
+      },
+      "sig:ef877e5d06c6bab7": {
+        "status": "ACTIONED",
+        "note": "products/*/residency-manifest.json registered with owner core/packaging."
+      },
+      "sig:7e30aae674419f46": {
+        "status": "ACCEPTED",
+        "note": "id-blocks churn is required for the BI-PF-1484 follow-up allocation; committed separately."
+      },
+      "sig:a5a7e83410854493": {
+        "status": "ACTIONED",
+        "note": "filepath.Join is used for profile paths."
+      },
+      "sig:b0cb0164e56687ea": {
+        "status": "ACCEPTED",
+        "note": "Go CLI default profiles path is cwd-relative; the Python gate passes an absolute path. CLI users run from the module root."
+      },
+      "sig:41f927d9ec314f75": {
+        "status": "ACCEPTED",
+        "note": "Scratch names are allowlisted only for the store scanner; tests write to tmp_path."
       }
     }
   }
