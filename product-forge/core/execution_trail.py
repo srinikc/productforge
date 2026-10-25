@@ -1,7 +1,9 @@
-"""Backlog execution trail (BI-PF-1481).
+"""Backlog execution trail (BI-PF-1481, flow view BI-PF-1483).
 
 One append-only, registered store per item: engineering/trails/<ID>.json. The gate tools write the stages
-automatically; `show` renders the ordered trail + the Gate 1.5/2.5 tables, tests, usage and the final table.
+automatically; `show` renders one ordered flow: plain-language brief, Gate 0 reconciliation + impact,
+a stage checklist with the current stage, the Gate 1.5/2.5 tables + recommendations, the Gate 1/2 decisions,
+implementation/code review, tests, usage, the final table and the disposition key.
 
 Stages (in order): planning, gate0, design_review, gate1, implementation, code_review, diff_review, gate2,
 tests, precheck, pr, merge, delivery, completion.
@@ -28,6 +30,7 @@ REQUIRED_AT_COMPLETION = ("planning", "gate0", "design_review", "gate1", "implem
                           "code_review", "diff_review", "gate2", "tests", "precheck", "completion")
 MAX_EVENTS = 5000
 MAX_SUMMARY = 2000
+CLOSED_STATUSES = ("completed", "closed", "done", "delivered")
 FAILURES = TRAILS / "_failures.jsonl"
 _SECRET = re.compile(r"(?i)\b(api[_-]?key|token|secret|password|authorization)\b\s*[:=]\s*\S+")
 _BEARER = re.compile(r"(?i)\b(bearer)\s+\S+")
@@ -284,11 +287,20 @@ def usage_totals(evs: list[dict]) -> dict:
     return total
 
 
-def _review_table(item: str, mode: str) -> str:
+def _parse_recommendation(out: str) -> str:
+    """Parse the architect recommendation; normalize separators, return '' when absent."""
+    m = re.search(r"Overall architect recommendation:\s*\**\s*([A-Z][A-Z0-9 _/-]*)", str(out or ""))
+    if not m:
+        return ""
+    return re.sub(r"\s+", " ", re.sub(r"[-/]+", " ", m.group(1))).strip()
+
+
+def _review_evidence(item: str, mode: str) -> tuple[str, str]:
+    """Return (rendered Gate 1.5/2.5 table, current architect recommendation)."""
     stage = "design_review" if mode == "design" else "diff_review"
     ev = _stage_events(item).get(stage)
     if not ev:
-        return f"({stage}: no evidence)"
+        return f"({stage}: no evidence)", ""
     sha = str((ev.get("refs") or {}).get("review_sha") or "")
     try:
         import subprocess
@@ -297,39 +309,175 @@ def _review_table(item: str, mode: str) -> str:
                "gate", "--item", item, "--gate", gate]
         if sha:
             cmd += ["--sha", sha]
-        r = subprocess.run(cmd,
-                           capture_output=True, text=True, timeout=60)
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=20)
         out = (r.stdout or "").strip()
-        return out or f"({stage}: evidence missing)"
+        if not out:
+            return f"({stage}: evidence missing)", ""
+        return out, _parse_recommendation(out)
     except Exception as e:
-        return f"({stage}: cannot render: {e})"
+        print(f"execution-trail: cannot render {stage} for {item}: {e}", file=sys.stderr)
+        return f"({stage}: cannot render: {e})", ""
+
+
+def current_stage(item: str, status: str = "") -> str:
+    """'blocked at <stage>' for a failing pre-merge gate; else first missing stage while in progress."""
+    have = _stage_events(item)
+    review = {"design_review", "diff_review"}
+    for stage in STAGES:
+        ev = have.get(stage)
+        if ev and stage not in review and str(ev.get("status") or "").lower() in ("fail", "error", "blocked"):
+            return f"blocked at {stage}"
+    missing = [stage for stage in STAGES if stage not in have]
+    if not missing:
+        return "complete"
+    status = str(status or "").lower()
+    if status in CLOSED_STATUSES:
+        return "complete"
+    return missing[0]
+
+
+def _stage_status(stage: str, ev: dict, design_rec: str, diff_rec: str) -> str:
+    """Review stages show the current recommendation; never fall back to an ingest-time pass."""
+    if stage == "design_review":
+        return design_rec or "reviewed (recommendation unavailable)"
+    if stage == "diff_review":
+        return diff_rec or "reviewed (recommendation unavailable)"
+    return str(ev.get("status") or "unknown")
+
+
+def _flow_rows(value) -> list[str]:
+    if value is None or value == "":
+        return []
+    if isinstance(value, str):
+        return [value]
+    if isinstance(value, dict):
+        return ["; ".join(f"{k}: {value[k]}" for k in value)]
+    if isinstance(value, (list, tuple)):
+        out = []
+        for row in value:
+            if isinstance(row, dict):
+                out.append("; ".join(f"{k}: {row[k]}" for k in row))
+            else:
+                out.append(str(row))
+        return out
+    return [str(value)]
+
+
+def _gate_decision(item: dict, gate: int) -> dict:
+    for d in item.get("decisions") or []:
+        if str((d or {}).get("gate") or "") == str(gate):
+            return d
+    return {}
 
 
 def show(item: str) -> str:
     it = _item(item)
     evs = events(item)
     have = _stage_events(item)
+    current = current_stage(item, it.get("status") or "")
+    design_table, design_rec = _review_evidence(item, "design")
+    diff_table, diff_rec = _review_evidence(item, "diff")
+    brief = it.get("brief") or {}
     lines = [f"# Execution trail - {item}", f"**Title:** {it.get('title')}",
-             f"**Status:** {it.get('status')}  **Epic:** {it.get('epic')}", ""]
-    rank = {stage: i for i, stage in enumerate(STAGES)}
-    stage_rows = [[ev['seq'], ev['stage'], ev['status'], ev['at'],
-                   f"{ev.get('duration_ms', 0)} ms", str(ev.get('summary') or '')]
-                  for ev in sorted(evs, key=lambda e: (rank.get(e["stage"], 99), e["seq"]))]
+             f"**Status:** {it.get('status')}  **Epic:** {it.get('epic')}",
+             f"**Current stage:** {current}", ""]
+
+    runs: dict[str, int] = {}
+    for ev in evs:
+        runs[ev["stage"]] = runs.get(ev["stage"], 0) + 1
+    stage_rows = []
+    known = set(STAGES)
+    extra = [s for s in have if s not in known]
+    for stage in list(STAGES) + sorted(extra):
+        ev = have.get(stage)
+        if not ev:
+            continue
+        status = _stage_status(stage, ev, design_rec, diff_rec)
+        stage_rows.append([ev["seq"], stage, status, ev["at"], f"{ev.get('duration_ms', 0)} ms",
+                           f"{runs.get(stage, 1)}", str(ev.get("summary") or "")])
     if not stage_rows:
-        stage_rows = [["-", "(no events yet)", "-", "-", "-", "-"]]
-    lines.append(_box(["#", "Stage", "Status", "At", "Duration", "Summary"], stage_rows,
-                      widths=[4, 15, 9, 28, 10, 44]))
-    lines += ["", "## Gate 1.5 (design)", _review_table(item, "design"), "",
-              "## Gate 2.5 (delivery)", _review_table(item, "diff"), ""]
+        stage_rows = [["-", "(no events yet)", "-", "-", "-", "-", "-"]]
+    lines.append(_box(["#", "Stage", "Status", "At", "Duration", "Runs", "Summary"], stage_rows,
+                      widths=[4, 15, 14, 28, 10, 5, 44]))
+
+    lines += ["", "## 1. Plain language"]
+    for label, key in (("What it is", "problem"), ("What it adds", "what_adds"),
+                       ("Why now", "why_now"), ("Who", "who"), ("Success", "success")):
+        if brief.get(key):
+            lines.append(f"**{label}:** {brief.get(key)}")
+    if not any(brief.get(k) for k in ("problem", "what_adds", "why_now", "who", "success")):
+        lines.append(f"**What it is:** {it.get('objective') or it.get('title') or ''}")
+
+    rev = it.get("review") or {}
+    recon = rev.get("reconciliation") or {}
+    lines += ["", "## 2. Gate 0 - reconciliation and impact"]
+    for label, key in (("PRIOR DECISIONS", "prior_decisions"), ("EXISTING PATH", "existing_path"),
+                       ("ASSUMPTIONS", "assumptions"), ("DIVERGENCES", "divergences"),
+                       ("OPEN QUESTIONS", "open_questions")):
+        rows = _flow_rows(recon.get(key))
+        lines.append(f"**{label}:**" + (" none" if not rows else ""))
+        lines += [f"- {r}" for r in rows]
+    impact = rev.get("impact_review") or []
+    if impact:
+        irows = []
+        for row in impact:
+            if isinstance(row, dict):
+                irows.append([row.get("claim", ""), row.get("verdict", ""),
+                              row.get("evidence", ""), row.get("recommendation", "")])
+            else:
+                irows.append([str(row), "", "", ""])
+        lines += ["", _box(["Claim", "Verdict", "Evidence", "Recommendation"], irows,
+                           widths=[34, 12, 34, 30])]
+
+    lines += ["", "## 3. Flow - where we are", f"**Current stage:** {current}", ""]
+    blocked = current.split("blocked at ", 1)[1] if current.startswith("blocked at ") else ""
+    for stage in STAGES:
+        ev = have.get(stage)
+        if not ev:
+            mark = "[BLOCKED]" if stage == blocked else ("[CURRENT]" if stage == current else "[PENDING]")
+            lines.append(f"- {mark} {stage}")
+            continue
+        status = _stage_status(stage, ev, design_rec, diff_rec)
+        lines.append(f"- [DONE] {stage} ({status}) - {ev.get('at', '')}")
+
+    lines += ["", "## 4. Gate 1.5 - design review",
+              f"**Architect recommendation:** {design_rec or 'not recorded'}", "", design_table]
+    g1 = _gate_decision(it, 1)
+    lines += ["", "## 5. Gate 1 - design decision"]
+    if g1:
+        lines += [f"**Decision:** {g1.get('decision')} | **By:** {g1.get('by')} | **At:** {g1.get('at')}"]
+        if g1.get("note"):
+            lines.append(f"**Note:** {g1.get('note')}")
+    else:
+        lines.append("Not recorded.")
+
+    lines += ["", "## 6. Implementation and code review"]
+    for stage in ("implementation", "code_review"):
+        ev = have.get(stage)
+        lines.append(f"- **{stage}:** " + (f"{ev.get('status')} - {ev.get('summary')}"
+                                           if ev else "not recorded"))
+
+    lines += ["", "## 7. Gate 2.5 - delivery review",
+              f"**Architect recommendation:** {diff_rec or 'not recorded'}", "", diff_table]
+    g2 = _gate_decision(it, 2)
+    lines += ["", "## 8. Gate 2 - delivery decision"]
+    if g2:
+        lines += [f"**Decision:** {g2.get('decision')} | **By:** {g2.get('by')} | **At:** {g2.get('at')}"]
+        if g2.get("note"):
+            lines.append(f"**Note:** {g2.get('note')}")
+    else:
+        lines.append("Not recorded.")
+
     tests = [t for ev in evs for t in (ev.get("tests") or [])]
     test_rows = [[t.get('command', ''), t.get('result', ''), f"{t.get('duration_ms', 0)} ms",
                   t.get('passed', ''), t.get('failed', ''), t.get('skipped', '')] for t in tests]
     if not test_rows:
         test_rows = [["(none recorded)", "-", "-", "-", "-", "-"]]
-    lines += ["## Tests", _box(["Command", "Result", "Duration", "Passed", "Failed", "Skipped"],
-                               test_rows, widths=[36, 8, 10, 7, 7, 8])]
+    lines += ["", "## 9. Tests", _box(["Command", "Result", "Duration", "Passed", "Failed", "Skipped"],
+                                       test_rows, widths=[36, 8, 10, 7, 7, 8])]
+
     u = usage_totals(evs)
-    lines += ["", "## Usage", f"input={u['input_tokens']} output={u['output_tokens']} "
+    lines += ["", "## 10. Usage", f"input={u['input_tokens']} output={u['output_tokens']} "
               f"cached={u['cached_tokens']} cost_usd={u['cost_usd']:.6f} "
               f"captured={u['captured']} not_captured={u['not_captured']} unpriced={u['unpriced']}"]
     delivery = (it.get("links") or {}).get("delivery") or {}
@@ -346,6 +494,7 @@ def show(item: str) -> str:
         ["Item", item],
         ["What it was", it.get("title") or ""],
         ["What shipped", it.get("summary") or it.get("objective") or ""],
+        ["Current stage", current],
         ["PR / Merge", f"{delivery.get('pr') or '-'} / {delivery.get('merge_sha') or '-'}"],
         ["Tests", f"{len(tests)} test row(s)"],
         ["Total time", f"{total_ms} ms ({total_ms / 1000.0:.1f}s)"],
@@ -353,7 +502,13 @@ def show(item: str) -> str:
         ["Cost (USD)", f"{u['cost_usd']:.6f} (captured={u['captured']} unpriced={u['unpriced']})"],
         ["Next", f"{nid or '-'} {ntitle}"],
     ]
-    lines += ["", "## Final completion", _box(["Field", "Value"], final_rows, widths=[20, 72])]
+    lines += ["", "## 11. Final completion", _box(["Field", "Value"], final_rows, widths=[20, 72])]
+    lines += ["", "## Disposition key",
+              "- **ACTIONED** - fixed or committed in this item (Gate 1.5: design/plan updated; Gate 2.5: code/docs changed).",
+              "- **ACCEPTED** - not fixed; the risk is explicitly accepted with a rationale (no follow-up unless a backlog id is named).",
+              "- **DEFERRED** - not fixed; must cite a follow-up backlog id (BI-PF-...); completion fails without one.",
+              "- **REJECTED** - finding is invalid or not applicable; no change.",
+              "- **SCOPE** - outside this item; the note must name the owning item/scope."]
     missing = missing_stages(item)
     lines += ["", f"**Required-at-completion missing:** {', '.join(missing) if missing else 'none'}"]
     return "\n".join(lines)

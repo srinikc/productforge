@@ -1,0 +1,435 @@
+{
+  "id": "BI-PF-1483",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "execution-trail-flow-view",
+  "label": "PF Backlog 653",
+  "title": "Execution trail: one ordered flow view (plain language, Gate 0, stage checklist, 1.5/2.5 tables, decisions, tests, final)",
+  "body": "",
+  "source": "review",
+  "status": "completed",
+  "priority": "P1",
+  "moscow": "Must",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [
+    "BI-PF-1481",
+    "BI-PF-0413"
+  ],
+  "links": {},
+  "decisions": [
+    {
+      "at": "2026-10-25T14:35:49.777594",
+      "decision": "APPROVE",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)"
+    },
+    {
+      "at": "2026-10-25T09:12:29.238090+00:00",
+      "by": "hil:srinikc",
+      "decision": "APPROVE_WITH_ATTENTION",
+      "gate": 1,
+      "findings_sha": "cabf4e2957f8",
+      "findings_digest": "7caa4d221f3f",
+      "seq": 2,
+      "note": "HIL instruction: continue (flow-view wiring). Design approved with attention: fleet observability accepted as out of scope; flow view is read-only CLI.",
+      "hil_confirmed": true
+    },
+    {
+      "at": "2026-10-25T09:26:25.189170+00:00",
+      "by": "hil:srinikc",
+      "decision": "APPROVE_WITH_ATTENTION",
+      "gate": 1,
+      "findings_sha": "cabf4e2957f8",
+      "findings_digest": "0a4950c606be",
+      "seq": 3,
+      "note": "HIL continue. Design re-review bound to current design; remaining hardening deferred to BI-PF-1484.",
+      "hil_confirmed": true
+    },
+    {
+      "at": "2026-10-25T09:32:53.322251+00:00",
+      "by": "hil:srinikc",
+      "decision": "APPROVE_WITH_ATTENTION",
+      "gate": 2,
+      "findings_sha": "c6dafc085b50",
+      "findings_digest": "364c5877a4af",
+      "seq": 4,
+      "note": "Delivery approved with attention: read-only flow view; tests 23 passed; precheck 45 gates PASS; remaining hardening (structured review reader, cache, history section, pre-merge blocked set) deferred to BI-PF-1484.",
+      "hil_confirmed": true
+    },
+    {
+      "at": "2026-10-25T09:38:50.966385+00:00",
+      "by": "hil:srinikc",
+      "decision": "REVIEW_CHURN",
+      "hil_confirmed": true,
+      "scope": "review_churn",
+      "note": "HIL continue: 5 diff reviews (last 998070ec69d7) are caused by state/evidence commits and deferred hardening; blockers are deferred to BI-PF-1484 with Gate 2 attention."
+    },
+    {
+      "at": "2026-10-25T09:38:52.709399+00:00",
+      "by": "hil:srinikc",
+      "decision": "APPROVE_WITH_ATTENTION",
+      "gate": 2,
+      "findings_sha": "998070ec69d7",
+      "findings_digest": "b42522ff66d1",
+      "seq": 6,
+      "note": "Current-sha Gate 2. Blockers deferred to BI-PF-1484; HIL churn attestation recorded.",
+      "hil_confirmed": true
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "Gates are wired but the flow is scattered; the HIL sees file edits and stage rows, not the item story or where it is.",
+    "what_adds": "One ordered flow view from plain language -> Gate 0 -> checks -> 1.5/2.5 tables -> decisions -> tests -> final.",
+    "why_now": "The HIL cannot follow the process without manually running several tools.",
+    "success": "One command shows the whole item story and current stage, with disposition semantics.",
+    "source": "authored"
+  },
+  "objective": "Make the execution trail show one ordered end-to-end flow per item so the HIL can see what an item is, why it exists, every gate/review/decision, where it is now, and the final result without piecing together scripts.",
+  "acceptance_criteria": [
+    "python -m core.execution_trail show --item <ID> renders one ordered flow: plain-language brief (problem/what/why/who/success), Gate 0 reconciliation + impact table, a flow checklist with the current stage, Gate 1.5 table + recommendation, Gate 1 decision, implementation/code-review summary, Gate 2.5 table + recommendation, Gate 2 decision, tests, usage/cost and the final completion/next-item table.",
+    "Stage status uses the latest event per stage (re-run duplicates are not shown in the checklist), review stages show the current architect recommendation (APPROVE / APPROVE WITH ATTENTION / NOT READY) instead of the ingest-time event status, and a disposition key explains ACTIONED/ACCEPTED/DEFERRED/REJECTED/SCOPE (DEFERRED must cite a follow-up backlog id).",
+    "Tests cover section order, current-stage derivation, re-run dedupe, review recommendation display, the disposition key and partial/empty items; existing trail/check tests still pass; precheck passes."
+  ],
+  "in_scope": [
+    "Execution trail: one ordered flow view (plain language, Gate 0, stage checklist, 1.5/2.5 tables, decisions, tests, final)"
+  ],
+  "out_of_scope": [
+    "No HTTP API/UI/JSON mode.",
+    "No new trail/store/writer or gate changes.",
+    "No migration; append-only history is unchanged.",
+    "No fleet metrics (accepted as a CLI trade-off)."
+  ],
+  "affected_components": [
+    "core/execution_trail.py (show / flow projection)",
+    "test-framework/tests/test_execution_trail.py",
+    "docs/REVIEW-GATES-LIFECYCLE.md"
+  ],
+  "affected_files": [
+    "core/execution_trail.py",
+    "test-framework/tests/test_execution_trail.py",
+    "docs/REVIEW-GATES-LIFECYCLE.md"
+  ],
+  "approach": "Extend core/execution_trail.py:show into one ordered read-only flow: brief, Gate 0 reconciliation/impact, current-stage checklist, Gate 1.5/2.5 tables + current recommendation, Gate 1/2 decisions, implementation/code review, tests, usage, final, disposition key. Derive status from the latest event per stage; render missing evidence explicitly.",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [
+        "BI-PF-1481 delivered the append-only execution trail + show/tests/usage/final (merge 98bea1db).",
+        "BI-PF-1482 added provider pricing + ASCII box tables (merge 7a8bb67c).",
+        "ADR-0010 allowlists core/execution_trail.py as control-plane evidence tooling (edits allowed).",
+        "AGENTS review standard: Gate 1.5/2.5 findings are stated in the HIL gate; explain in plain language."
+      ],
+      "existing_path": [
+        "core/execution_trail.py:show renders header, stage table, Gate 1.5/2.5 tables, tests, usage, final (file:308).",
+        "core/execution_trail.py:_stage_events keeps the latest event per stage (file:142); events() keeps history (file:138).",
+        "core/execution_trail.py:_review_table renders architect_review.py gate output (file:287).",
+        "Item fields: brief, review.reconciliation, review.impact_review, decisions, links.delivery.",
+        "scripts/dev/architect_review.py gate prints the recommendation + findings table."
+      ],
+      "assumptions": [
+        "The flow view is a read-only projection over the existing trail + backlog item; no new store.",
+        "No HTTP API change; the CLI is the owner surface for this view.",
+        "Review status is derived from the current evidence/dispositions, not the ingest-time event status.",
+        "Current stage is the first required STAGES entry with no committed event.",
+        "Disposition semantics: ACTIONED=fixed/committed now; ACCEPTED=risk accepted, not fixed; DEFERRED=not fixed + backlog id; REJECTED=invalid; SCOPE=another owner."
+      ],
+      "divergences": [
+        "None: extends the existing BI-PF-1481 viewer; no duplicate trail writer or store."
+      ],
+      "open_questions": []
+    },
+    "impact_review": [
+      {
+        "claim": "API CHECK",
+        "verdict": "aligned",
+        "evidence": "No HTTP route change; core/execution_trail.py CLI show only; existing API untouched. needs_api=false.",
+        "recommendation": "Keep CLI-only; no authn/authz surface."
+      },
+      {
+        "claim": "AC (acceptance criteria)",
+        "verdict": "aligned",
+        "evidence": "3 detailed ACs on BI-PF-1483: ordered flow sections, latest-event/current-stage semantics + disposition key, tests/precheck.",
+        "recommendation": "Approve; verify each AC at Gate 2."
+      },
+      {
+        "claim": "Language rule",
+        "verdict": "aligned",
+        "evidence": "Edits to existing allowlisted core/execution_trail.py + tests; no new shipped Python module. ADR-0010 + language-rule allowlist.",
+        "recommendation": "Approve; run language_rule_check."
+      },
+      {
+        "claim": "Reuse / one owner",
+        "verdict": "aligned",
+        "evidence": "Extends core/execution_trail.py:show; reuses _stage_events, _review_table, _box, usage_totals; no new store/engine.",
+        "recommendation": "Approve; no store-registry change."
+      },
+      {
+        "claim": "Data / tenant",
+        "verdict": "aligned",
+        "evidence": "Reads the item JSON + engineering/trails/<ID>.json only; no tenant rows, no writes beyond the trail.",
+        "recommendation": "Approve."
+      },
+      {
+        "claim": "Gate semantics",
+        "verdict": "aligned",
+        "evidence": "Uses latest per stage; review recommendation from architect_review.py gate; DEFERRED requires a backlog id (execution_trail_check.py).",
+        "recommendation": "Approve."
+      },
+      {
+        "claim": "Blast radius / rollback",
+        "verdict": "aligned",
+        "evidence": "CLI output only; precheck/tests; revert the commit restores the previous show.",
+        "recommendation": "Approve."
+      },
+      {
+        "claim": "Docs",
+        "verdict": "new-path",
+        "evidence": "docs/REVIEW-GATES-LIFECYCLE.md gains the flow-view + disposition key; no runtime dependency.",
+        "recommendation": "Approve docs update."
+      }
+    ],
+    "reviewed_by": "agent",
+    "at": "2026-10-25T14:45:00"
+  },
+  "verification": [
+    "Objective achieved: Execution trail: one ordered flow view (plain language, Gate 0, stage checklist, 1.5/2.5 tables, decisions, tests, final)"
+  ],
+  "risks": [
+    "Flow view can be stale if review evidence is not committed; it then shows 'not recorded'/'evidence missing' rather than a pass.",
+    "Large terminal output; tables wrap and are sectioned, but there is no pager (accepted)."
+  ],
+  "rollback": "Revert the commit; show returns to the previous stage table. The append-only trail and all other state are untouched.",
+  "evidence": [
+    "pending",
+    "Design guardrails applied (BI-PF-1483): sig:be08e018af1643e7 (20 lines)"
+  ],
+  "owner": "agent",
+  "requester": "review",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1248",
+  "parent": "BI-PF-1248",
+  "revision": 3,
+  "priority_rank": 30,
+  "priority_class": "P1",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "COMPLETE",
+    "analyzed_at": "2026-10-25T14:35:49.547418",
+    "analyzed_by": "system",
+    "revision_analyzed": 3,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend core/execution_trail.py + /api/v1/backlog/items/{id}/execution to render one ordered flow view: Gate 0 -> stage checklist -> 1.5/2.5 tables -> decisions -> tests -> final; reuse engineering_flow.py stages and gate config; Go for new logic if shipped, else extend existing Python modules/API.",
+    "existing_components": [],
+    "existing_apis": [],
+    "existing_modules": [],
+    "dependency_findings": [
+      "BI-PF-1481 RELATED (ledger data feeds flow view)",
+      "REQUIRES execution trail data populated by engineering_flow stages",
+      "REQUIRES gate findings from architect-review tables"
+    ],
+    "conflict_findings": [
+      "BI-PF-1481 may touch execution trail API concurrently",
+      "design_guardrails.py touched by CL-009 enforcement work"
+    ],
+    "duplication_findings": [
+      "BI-PF-1481 covers ordered stage ledger + tests/usage/cost report; narrow overlap with flow view",
+      "Reuse core/audit_trail.py rather than new trail writer",
+      "/api/v1/engineering/stages already lists stage order"
+    ],
+    "drift": "LOW",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "Reuse-first: one ordered read-model over existing trail/gate/stage data; extend current module and endpoint instead of building new components.",
+    "assumptions": [
+      "Trail data already persisted by existing stages",
+      "Flow view is read-only projection",
+      "Single-tenant or tenant-scoped via existing RLS"
+    ],
+    "risks": [
+      "Overlap with BI-PF-1481 could duplicate ledger rendering",
+      "Missing gate 1.5/2.5 rows if findings not yet recorded",
+      "Single API endpoint becoming a monolith"
+    ],
+    "evidence": [
+      "core/execution_trail.py exists",
+      "/api/v1/backlog/items/{id}/execution exists",
+      "config/engineering-flow.json defines stage order"
+    ],
+    "confidence": "medium",
+    "missing_info": [
+      "Whether flow view is API-only or also UI",
+      "Priority relative to BI-PF-1481",
+      "Final section content definition"
+    ],
+    "depth": "deep",
+    "mode": "ai",
+    "context_review": {
+      "ok": null,
+      "source": "llm-unparseable",
+      "implementable": null,
+      "missing": [],
+      "reason": "reviewer returned no JSON"
+    },
+    "decision_request": {
+      "needed": false,
+      "reasons": [],
+      "ask": ""
+    },
+    "arch_fingerprint": "7a99e22b0bdc17c6"
+  },
+  "dependencies": [
+    {
+      "task_id": "BI-PF-1481",
+      "type": "RELATED",
+      "required_state": "defined"
+    },
+    {
+      "task_id": "BI-PF-0413",
+      "type": "RELATED",
+      "required_state": "executing"
+    }
+  ],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-25T14:35:49.648585"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-25T14:35:25.808300",
+  "updated_at": "2026-10-25T15:08:53.404832",
+  "score": 0.75,
+  "_note": "Flow view delivered; blockers/hardening deferred to BI-PF-1484",
+  "api_impact": {
+    "needs_api": false,
+    "reason": "Read-only CLI flow view; no HTTP route or runtime API change."
+  },
+  "language_rule": "Edits to existing allowlisted core/execution_trail.py (ADR-0010); tests + docs only. No new shipped Python module.",
+  "review_dispositions": {
+    "design": {
+      "sig:77c29d2b7bbefb00": {
+        "status": "ACTIONED",
+        "note": "Precedence: review stages take the current recommendation from the same design_review/diff_review evidence; the stage table and checklist both call `_stage_status`, so they cannot disagree. Non-review stages use the event status. Documented."
+      },
+      "sig:3df4d04e23e3157d": {
+        "status": "ACTIONED",
+        "note": "Ordering key is append order under the trail lock; `seq` is monotonic; latest = last event for the stage. Documented and covered by test_current_stage_and_latest_event_wins."
+      },
+      "sig:c8a2b11b4f8df89c": {
+        "status": "ACTIONED",
+        "note": "DEFERRED enforcement is owned by execution_trail_check.py (completion fails unless the note cites an existing BI-PF id); architect_review surfaces it; show only renders the key. Documented."
+      },
+      "sig:58cda3c3636d394d": {
+        "status": "DEFERRED",
+        "note": "Follow-up BI-PF-1484: extract a section registry so the order has one source; the current order is covered by a single test list."
+      },
+      "sig:6eed104e10a101b1": {
+        "status": "ACCEPTED",
+        "note": "The key is rendered from the code and documented; the canonical definitions live in docs/REVIEW-GATES-LIFECYCLE.md. Accepted as a docs/rendering pair."
+      },
+      "sig:255ab308787b34ef": {
+        "status": "DEFERRED",
+        "note": "Follow-up BI-PF-1484: per-section render status for partial/failed sections; current failures are visible in the section text (cannot render/evidence missing)."
+      },
+      "sig:930fd51e35586ccb": {
+        "status": "DEFERRED",
+        "note": "Follow-up BI-PF-1484: add unit tests for private projection paths (item missing, unknown status, dict/list normalization)."
+      },
+      "sig:3af1ee41b6f3d9a5": {
+        "status": "ACTIONED",
+        "note": "Placeholder vocabulary is fixed in the code/docs: 'not recorded', 'evidence missing', 'reviewed (recommendation unavailable)', 'no evidence'."
+      },
+      "sig:daec52dcc5992347": {
+        "status": "ACCEPTED",
+        "note": "Cells wrap at 44 chars deterministically; no pager. Accepted for the CLI."
+      },
+      "sig:efc7ae01b0e07309": {
+        "status": "ACTIONED",
+        "note": "docs/REVIEW-GATES-LIFECYCLE.md states the section order, status derivation, current-stage rule and disposition key."
+      },
+      "sig:d4d63191f55d86e6": {
+        "status": "ACTIONED",
+        "note": "Design states read-only local CLI, no API/tenant/authz surface; API CHECK row records needs_api=false. Rollback is field-level."
+      },
+      "sig:851d17711e178199": {
+        "status": "ACTIONED",
+        "note": "Reuses _stage_events, _stage_status, architect_review gate output and _box; no gate-checker logic is duplicated."
+      },
+      "sig:3d4dbe71deb857fa": {
+        "status": "DEFERRED",
+        "note": "Follow-up BI-PF-1484: optional --section filter; noted as out of scope for this item."
+      }
+    },
+    "diff": {
+      "sig:1d8cfcdcaf47eac3": {
+        "status": "DEFERRED",
+        "note": "Follow-up BI-PF-1484: mark a stage [BLOCKED] (not [DONE]) when its latest non-review event is fail/error/blocked. Delivery accepts the display gap for this item."
+      },
+      "sig:c03297bbba7480a6": {
+        "status": "DEFERRED",
+        "note": "Follow-up BI-PF-1484: mark a review stage [BLOCKED] when the current recommendation is NOT READY; do not advance current past it."
+      },
+      "sig:73c9a281a2cb820b": {
+        "status": "DEFERRED",
+        "note": "Follow-up BI-PF-1484: whitelist recommendation parsing to APPROVE / APPROVE WITH ATTENTION / NOT READY."
+      },
+      "sig:c69837d1a603cc7c": {
+        "status": "DEFERRED",
+        "note": "Follow-up BI-PF-1484: return a typed current-stage result and never report complete for a closed item with missing required stages."
+      },
+      "sig:2f4eb41241e3c792": {
+        "status": "DEFERRED",
+        "note": "Follow-up BI-PF-1484: read structured review evidence + cache instead of two subprocess renders per show."
+      },
+      "sig:177ce08205e97646": {
+        "status": "ACCEPTED",
+        "note": "20s bound is deliberate; a timeout is shown explicitly. Accepted for a CLI."
+      },
+      "sig:febc87f01c3377de": {
+        "status": "ACCEPTED",
+        "note": "show is called with a backlog id; _item fails closed for unknown ids. Accepted."
+      },
+      "sig:de2404f16aef2ae3": {
+        "status": "ACCEPTED",
+        "note": "id-blocks state is required to reserve 1483/1484; committed separately. Accepted."
+      },
+      "sig:ef5dfecbf7dc8d9c": {
+        "status": "ACCEPTED",
+        "note": "Literals are local to the module and documented; drift is covered by docs-fresh. Accepted."
+      },
+      "sig:2237b3f819dcaedd": {
+        "status": "ACCEPTED",
+        "note": "Section numbers are stable and tested; renumbering is a deliberate change. Accepted."
+      },
+      "sig:fc6205696ea23721": {
+        "status": "DEFERRED",
+        "note": "Follow-up BI-PF-1484: anchor the recommendation regex and reject trailing prose."
+      },
+      "sig:78b7c8094a5b3509": {
+        "status": "ACCEPTED",
+        "note": "Legacy rows are appended once; the runs default is 1 for a present event. Accepted."
+      }
+    }
+  }
+}

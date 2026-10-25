@@ -1,0 +1,37 @@
+{
+  "item": "BI-PF-1483",
+  "sha": "c6dafc085b50",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-25T09:27:29.508852+00:00",
+  "findings": {
+    "BLOCKER": [
+      "none"
+    ],
+    "MAJOR": [
+      "Recommendation is recovered by regex-scraping the rendered human table (`_parse_recommendation` over subprocess stdout). This re-encodes the gate renderer's format in the trail module, contradicting the \"one evidence reader\" invariant the doc claims; any wording change in `architect_review.py` silently yields \"recommendation unavailable\". Read the structured `engineering/reviews/<ID>-<sha>.json` instead.",
+      "Every `show` now spawns two subprocess gate renders (design + diff) with no cache; render latency is now coupled to gate tooling and, on timeout/exception, the trail silently degrades to \"(cannot render)\". Coupling a read-only projection to live subprocess execution is a scalability and availability risk for a frequently-run command.",
+      "Re-run/audit history is no longer rendered: the old per-event table (seq, per-run status/duration/summary) is replaced by latest-per-stage plus a `Runs` count. Observability/auditability regression \u2014 the trail store is append-only but `show` no longer surfaces the history it was created to expose (docs only assert it \"remains in events()\").",
+      "`current_stage` marks any stage with fail/error/blocked as \"blocked at <stage>\", including post-merge stages (pr/merge/delivery/completion) \u2014 contradicting the documented rule (\"a committed pre-merge gate\") and mislabelling completed-then-failed post-merge steps as blocking."
+    ],
+    "MINOR": [
+      "Timeout silently reduced 60s\u219220s with no rationale; combined with the new subprocess-per-show design this is a truncation risk on large review evidence.",
+      "Status vocabulary literals (\"reviewed (recommendation unavailable)\", \"APPROVE WITH ATTENTION\", CLOSED_STATUSES) are duplicated across `execution_trail.py`, the lifecycle doc, and tests with no shared constants \u2014 drift will break the documented invariants.",
+      "Failures are `print(..., file=sys.stderr)` from a library function; no structured logging/counter, so render degradation is unobservable in automation.",
+      "`current_stage` is emitted twice (header and \u00a73) and again in the final table; inconsistent rendering surface for one value.",
+      "Tests patch `_review_evidence` in the ordering test, so the recommendation-display path for Gate 2.5 (diff) and the `Runs` re-run count are never asserted end-to-end.",
+      "`_parse_recommendation`'s greedy `[A-Z][A-Z0-9 _/-]*` will swallow trailing qualifier words (e.g. \"APPROVE PENDING 2 FINDINGS\") into the \"recommendation\", silently expanding the accepted status set beyond the three documented values."
+    ],
+    "NIT": [
+      "`id-blocks.json` bumps `reserved_up_to` to 1484 and adds two sessions (1483, 1484); reservation for an unrelated session ID rides along in this item's diff \u2014 verify both are actually claimed.",
+      "`_flow_rows` and `_box` iterate dict keys by index rather than `.items()`; readable but fragile under future key reordering.",
+      "`current_stage` derives \"complete\" from a status string alone even when required stages are missing \u2014 a stale/wrong status yields a false \"complete\" in the final table."
+    ],
+    "SUMMARY": [
+      "Solid acceptance-criteria coverage (section order, current-stage, dedupe, disposition key, empty/partial items) and good doc/test pairing, but the architecture moved the wrong way: a read-only projection now shells out twice per render and recovers structured state by regex-scraping a human table, while per-event audit history was dropped from the output. Fix the evidence-reading path (structured JSON, cached) and restore or explicitly surface re-run history before shipping; also reconcile `current_stage` with the documented pre-merge-only blocking rule."
+    ]
+  },
+  "rereview_reason": "prior diff sha 9a737a469beb; current sha after follow-up item/config commits; all prior findings dispositioned",
+  "rereview_reason_sha256": "3fca00145fb363c858666b752341685c7df188cb74908e0459bb5e24e9fd6404"
+}

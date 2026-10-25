@@ -1,0 +1,207 @@
+{
+  "id": "BI-PF-1484",
+  "tag": "PF",
+  "type": "hardening",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "execution-flow-view-hardening",
+  "label": "PF Backlog 654",
+  "title": "Execution flow view hardening: pre-merge blocked set, review-sha integrity, no-review cache, review markers",
+  "body": "",
+  "source": "review",
+  "status": "new",
+  "priority": "P1",
+  "moscow": "Should",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [
+    "BI-PF-0421",
+    "BI-PF-0413",
+    "BI-PF-1240"
+  ],
+  "links": {},
+  "decisions": [
+    {
+      "at": "2026-10-25T14:51:23.747412",
+      "decision": "APPROVE",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)"
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "BI-PF-1483 flow-view review found edge-case/hardening gaps after the flow view shipped.",
+    "what_adds": "Pre-merge blocked set, review-sha integrity, cached/no-review path, explicit markers, whitelist, stronger tests.",
+    "why_now": "Keep the HIL view authoritative and cheap as the audit surface.",
+    "success": "Flow view cannot misreport a post-merge failure as a block or a stale/unattributed review as current.",
+    "source": "authored"
+  },
+  "objective": "Harden the BI-PF-1483 flow view after its Gate 2.5 review: restrict blocked detection to pre-merge gates, require the review sha for the current recommendation, add a cached/--no-review path, and make review/missing markers explicit.",
+  "acceptance_criteria": [
+    "current_stage blocks only on REQUIRED_AT_COMPLETION pre-merge stages; post-merge fail events are shown but never reported as a block.",
+    "A review recommendation is rendered only when the trail event carries review_sha; missing sha renders an explicit 'review sha missing' state and no recommendation.",
+    "show supports a cached recommendation lookup and/or --no-review escape hatch; a review stage with NOT READY is marked [BLOCKED], and a closed item with missing stages marks them [MISSING].",
+    "Recommendation parsing is whitelisted to APPROVE / APPROVE WITH ATTENTION / NOT READY; disposition-key rendering is tested for ACCEPTED/DEFERRED/REJECTED/SCOPE and DEFERRED cites an existing follow-up id."
+  ],
+  "in_scope": [
+    "Execution flow view hardening: pre-merge blocked set, review-sha integrity, no-review cache, review markers"
+  ],
+  "out_of_scope": [
+    "Not specified."
+  ],
+  "affected_components": [
+    "Not specified."
+  ],
+  "affected_files": [
+    "Not specified."
+  ],
+  "approach": "Execution flow view hardening: pre-merge blocked set, review-sha integrity, no-review cache, review markers",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [],
+      "existing_path": [],
+      "assumptions": [],
+      "divergences": [],
+      "open_questions": []
+    },
+    "impact_review": [],
+    "reviewed_by": "derived",
+    "at": ""
+  },
+  "verification": [
+    "Objective achieved: Execution flow view hardening: pre-merge blocked set, review-sha integrity, no-review cache, review markers"
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending",
+    "Design guardrails applied (BI-PF-1484): sig:eebe280a1f7587d8 (20 lines)"
+  ],
+  "owner": "agent",
+  "requester": "review",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1248",
+  "parent": "BI-PF-1248",
+  "revision": 3,
+  "priority_rank": 40,
+  "priority_class": "P1",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "COMPLETE",
+    "analyzed_at": "2026-10-25T14:51:23.501266",
+    "analyzed_by": "system",
+    "revision_analyzed": 3,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend core/engineering_flow.py + core/context_review.py/cross_review.py: (1) pre-merge blocked-set check (open blockers, unresolved findings, sha mismatch) gating merge/push; (2) record review sha and verify worktree sha integrity before execution write-back; (3) cache no-review decisions per (item, sha, scope) to skip redundant provider calls; (4) add review markers on the execution trail for audit. Wire into /execution API response; config via config/engineering-flow.json.",
+    "existing_components": [],
+    "existing_apis": [],
+    "existing_modules": [],
+    "dependency_findings": [
+      "REQUIRES core/engineering_flow.py execution flow present (it is)",
+      "RELATED BI-PF-0421 (optimistic delivery lane) required_state=merged to avoid double verify",
+      "RELATED BI-PF-1240 stuck recovery for marker cleanup on orphan reaps"
+    ],
+    "conflict_findings": [
+      "BI-PF-0421 touches merge/re-verify path in same module: serialize or rebase on top",
+      "BI-PF-0413 touches worker write-back; coordinate marker emission point"
+    ],
+    "duplication_findings": [
+      "BI-PF-0421 overlaps on rebase->fast re-verify->merge lane: reuse its verify hook, do not duplicate",
+      "BI-PF-0413 worker write-back path is the consumer; do not re-implement claim/exec"
+    ],
+    "drift": "LOW",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "Pure hardening of existing flow modules: EXTEND/MODIFY rather than new components; reuse execution trail for markers, existing review modules for sha integrity and cache. Conflicts limited to BI-PF-0421 merge lane, resolvable by ordering.",
+    "assumptions": [
+      "Review results are already persisted per sha in context/cross review modules",
+      "engineering-flow.json is the single config owner for flow gates",
+      "Provider call is the default review path; cache only short-circuits identical (item,sha,scope)"
+    ],
+    "risks": [
+      "sha mismatch false positives block valid merges if rebase occurred silently",
+      "no-review cache keying too broadly could skip a needed review after scope change",
+      "merge of blocked-set logic with optimistic lane ordering conflicts"
+    ],
+    "evidence": [
+      "Candidate components core/engineering_flow.py, context_review.py, cross_review.py, execution_trail.py exist",
+      "API /api/v1/backlog/items/{item_id}/execution exists",
+      "Config config/engineering-flow.json exists"
+    ],
+    "confidence": "medium",
+    "missing_info": [
+      "Which merge paths are authoritative (optimistic lane vs serialized) for blocked-set enforcement",
+      "Cache TTL/invalidation policy for no-review entries",
+      "Whether sha-integrity failure should block, warn, or auto-rebase"
+    ],
+    "depth": "deep",
+    "mode": "ai",
+    "context_review": {
+      "ok": null,
+      "source": "llm-unparseable",
+      "implementable": null,
+      "missing": [],
+      "reason": "reviewer returned no JSON"
+    },
+    "decision_request": {
+      "needed": false,
+      "reasons": [],
+      "ask": ""
+    },
+    "arch_fingerprint": "7a99e22b0bdc17c6"
+  },
+  "dependencies": [
+    {
+      "task_id": "BI-PF-0421",
+      "type": "RELATED",
+      "required_state": "merged"
+    },
+    {
+      "task_id": "BI-PF-0413",
+      "type": "RELATED",
+      "required_state": "any"
+    },
+    {
+      "task_id": "BI-PF-1240",
+      "type": "RELATED",
+      "required_state": "any"
+    }
+  ],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-25T14:51:23.611865"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-25T14:50:28.634469",
+  "updated_at": "2026-10-25T14:55:27.567456",
+  "score": 0.75,
+  "_note": "readiness computed",
+  "api_impact": {
+    "needs_api": false,
+    "reason": "Hardening of a read-only CLI flow view; no HTTP route."
+  },
+  "language_rule": "Edits to existing allowlisted core/execution_trail.py; tests/docs only."
+}

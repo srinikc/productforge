@@ -1,0 +1,39 @@
+{
+  "item": "BI-PF-1483",
+  "sha": "9a737a469beb",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-25T09:19:40.968864+00:00",
+  "findings": {
+    "BLOCKER": [
+      "none"
+    ],
+    "MAJOR": [
+      "`print(..., file=sys.stderr)` added in `_review_evidence` but the diff adds no `import sys` (and `subprocess` is only imported inside the `try`). If `sys` isn't already module-scope, the failure path raises `NameError` and crashes `show` \u2014 please verify.",
+      "`current_stage` blocks on any non-review stage, but docs claim \"committed pre-merge gate\". A failing `tests`/`precheck`/`pr`/`merge`/`delivery`/`completion` event yields \"blocked at <stage>\", misreporting post-merge noise as a block. Restrict to pre-merge set or fix the invariant doc.",
+      "`_review_evidence` without `review_sha` runs `architect_review gate` with no `--sha`, so the rendered \"current recommendation\" may come from a different review sha than the recorded event \u2014 an integrity mismatch in the exact field the AC says must be authoritative.",
+      "New function `current_stage` is new shipped product-forge logic in Python. Under the stated language rule (\"new shipped logic -> Go\"), this needs an explicit ruling; \"edits to shipped Python\" does not clearly cover a new public helper.",
+      "Every `show` now runs up to two subprocesses (2\u00d720s timeout) synchronously. Read-path latency up to ~40s with no caching or `--no-review` escape hatch; the 60\u219220s cut also risks transient \"cannot render\" under load."
+    ],
+    "MINOR": [
+      "Checklist marks review stages `[DONE]` even when the rendered recommendation is `NOT READY` \u2014 \"done\" and \"not ready\" coexist in the same flow, which is confusing for the exact case the AC cares about.",
+      "`current_stage` returns `complete` for any closed status even when `REQUIRED_AT_COMPLETION` stages are missing, masking incomplete closure (the missing list is rendered far below, easily missed).",
+      "`_parse_recommendation` accepts any all-caps tail; a foreign value (\"CHANGES REQUESTED\", \"REJECT\") is displayed unvalidated despite the documented APPROVE / APPROVE WITH ATTENTION / NOT READY contract. Add a whitelist check.",
+      "Disposition key is duplicated in code output and docs; drift risk. Consider rendering the key from one constant shared with `execution_trail_check`/`core.backlog`.",
+      "Tests only assert the ACTIONED line of the disposition key; ACCEPTED/REJECTED/SCOPE and the DEFERRED-must-cite-backlog-id rule are untested at the render level.",
+      "`_review_table` was removed/renamed; no diff updates to any caller (`execution_trail_check.py`, scripts). Confirm nothing else imported it."
+    ],
+    "NIT": [
+      "Status column width 14 forces \"reviewed (recommendation unavailable)\" to wrap into a tall unreadable cell; consider a short code + legend.",
+      "`current` is printed twice (header and section 3) and once more in the final table; one authoritative placement would read cleaner.",
+      "`_flow_rows` dict rendering relies on insertion order; sorting keys would make output stable across producers.",
+      "A \"complete\" item with missing stages renders all `[PENDING]` with no `[CURRENT]` marker, so the checklist looks blank-ended."
+    ],
+    "SUMMARY": [
+      "Solid direction: single ordered flow, latest-event-per-stage with a Runs audit column, review stages sourced from live recommendations instead of ingest-time statuses, and good negative-path tests. Top risks are the unverified `sys` import (crash in the error path), the \"current stage\" blocked-set diverging from its documented invariant, an unsourced recommendation when `review_sha` is absent, subprocess cost on every read, and a possible language-rule conflict for the new Python helper."
+    ]
+  },
+  "rereview_reason": "prior review sha edcbbea5380a; all 11 findings dispositioned/actioned",
+  "rereview_reason_sha256": "20e9f4c52cf162dcfc7df1c119b7334db37603f34f9c54b5bf10716ab65cecf1"
+}
