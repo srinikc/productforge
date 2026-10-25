@@ -113,6 +113,7 @@ def _get_item(item: str) -> dict:
 EXCLUDE = [
     ":(exclude,glob)**/engineering/**",
     ":(exclude,glob)**/config/architect-review-baseline.json",
+    ":(exclude,glob)**/config/id-blocks.json",
     ":(exclude,glob)**/data/backlog/**",
     ":(exclude,glob)**/docs/BACKLOG-SUMMARY.md",
     ":(exclude,glob)**/docs/documentation-index.html",
