@@ -1,0 +1,307 @@
+{
+  "id": "BI-PF-1481",
+  "tag": "PF",
+  "type": "feature",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "backlog-execution-trail",
+  "label": "PF Backlog 651",
+  "title": "Backlog execution trail: ordered stage ledger + tests/usage/cost report + completion guard",
+  "body": "",
+  "source": "review",
+  "status": "in_progress",
+  "priority": "P1",
+  "moscow": "Must",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [
+    "BI-PF-1241",
+    "BI-0001",
+    "BI-0162"
+  ],
+  "links": {},
+  "decisions": [
+    {
+      "at": "2026-10-25T12:54:57.921774",
+      "decision": "APPROVE",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)"
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "Backlog execution is ad hoc: no single ordered trail of gates/tests/decisions/PR/usage/cost per item.",
+    "what_adds": "A registered append-only execution-trail store, a show/finalize CLI, automatic writes from the gate tools, and a completion gate.",
+    "why_now": "EDP-10/1480 showed the process is only as good as the visible trail; every session/LLM must follow it.",
+    "success": "Every completion has an ordered trail with tests/results/time/PR/usage and a final next-item table; missing stages fail precheck.",
+    "source": "authored"
+  },
+  "objective": "Give every backlog item one ordered, append-only execution trail from Gate 0 to completion, written automatically by the gate tools, with a show CLI (gates, tests, usage, final table, next item) and a completion gate that fails missing/out-of-order stages.",
+  "acceptance_criteria": [
+    "A registered store engineering/trails/<ITEM>.json (owner core/execution_trail.py) records append-only events {seq, at, stage, actor, status, summary, refs, tests, usage, duration_ms} for planning, gate0, design_review, gate1, implementation, code_review, diff_review, gate2, tests, precheck, pr, merge, delivery, completion.",
+    "python -m core.execution_trail show --item <ID> renders the ordered trail, the Gate 1.5/2.5 decision tables + recommendations (from the review evidence), the tests table (command/result/duration), usage totals (input/output/cached tokens; 'not captured' when unavailable), and the final completion table with PR/merge, total time, next backlog item.",
+    "The gate tools write the trail automatically: gate0_check, architect_review (design/diff + provider usage), gate_decide, precheck (tests/precheck timings), core.backlog.set_delivery and set_status(completed); no manual record is needed for a normal item.",
+    "scripts/dev/execution_trail_check.py (precheck fast) fails a completion in the diff when required stages are missing or out of order, or when a DEFERRED finding has no follow-up item; the check is self-tested and wired into precheck + ci-cd-gates."
+  ],
+  "in_scope": [
+    "core/execution_trail.py + store registration",
+    "scripts/dev/execution_trail_check.py + precheck/ci-cd-gates wiring",
+    "gate0_check/architect_review/gate_decisions/precheck/core.backlog hooks",
+    "test-framework/tests/test_execution_trail.py",
+    "docs/REVIEW-GATES-LIFECYCLE.md execution-trail section"
+  ],
+  "out_of_scope": [
+    "Fabricating coding-session token counts/cost (only captured sources are recorded).",
+    "Retroactively backfilling every legacy item (completion gate applies to items in the diff).",
+    "Changing the gate order or review framework."
+  ],
+  "affected_components": [
+    "backlog execution trail store",
+    "gate tooling",
+    "precheck"
+  ],
+  "affected_files": [
+    "core/execution_trail.py",
+    "scripts/dev/execution_trail_check.py",
+    "scripts/dev/gate0_check.py",
+    "scripts/dev/architect_review.py",
+    "scripts/dev/gate_decisions.py",
+    "scripts/dev/precheck.py",
+    "core/backlog.py",
+    "config/store-registry.json",
+    "config/ci-cd-gates.json",
+    "test-framework/tests/test_execution_trail.py",
+    "docs/REVIEW-GATES-LIFECYCLE.md"
+  ],
+  "approach": "Add core/execution_trail.py (registered store engineering/trails/<ID>.json, append-only events, lock, record/show/finalize/check helpers) and scripts/dev/execution_trail_check.py. Wire gate0_check, architect_review (design/diff + provider usage), gate_decisions (gate1/2), precheck (tests/precheck timings), core.backlog.set_delivery and set_status(completed). show renders the ordered stages, the Gate 1.5/2.5 tables via architect_review.render_gate_view, the tests table, usage totals and the final completion/next-item table. The completion gate requires gate0/design_review/gate1/diff_review/gate2/tests in order and a follow-up item for DEFERRED findings.",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [
+        "Gate 0/1.5/1/2.5/2 are binding (docs/REVIEW-GATES-LIFECYCLE.md); evidence is per SHA; review churn is bounded (BI-PF-1480).",
+        "Backlog is the work SSOT and is written only through core.backlog (API); evidence attaches to the owner store and references item_id.",
+        "Precheck fast runs scoped tests/gates; --full/CI adds the wide set. Timings are printed but not persisted per item.",
+        "core.audit_trail.py / core.backlog.py set the precedent for Python control-plane/evidence tooling (not customer runtime)."
+      ],
+      "existing_path": [
+        "core/backlog.py: set_status/set_delivery/update; item decisions/evidence/verification/delivery; execution.usage from workers.",
+        "scripts/dev/gate0_check.py, architect_review.py, gate_decide.py/gate_decisions.py, precheck.py, gate2_completion_check.py, review_churn_check.py.",
+        "engineering/reviews/<item>-<sha>.json (Gate 1.5/2.5 evidence); data/backlog/items/<id>.json.",
+        "config/store-registry.json (owners/kind) and precheck._GATES + config/ci-cd-gates.json."
+      ],
+      "assumptions": [
+        "A trail is a per-item append-only JSON store; stages are recorded by the tools, not hand-written.",
+        "Completion (status completed) is the enforcement point for the pre-merge stages; merge/delivery/completion events are appended after the PR/merge.",
+        "Provider usage (input/output/cached tokens) is available from the review API response; coding-session tokens are only available if the harness/worker writes item.execution.usage, otherwise shown as 'not captured'.",
+        "DEFERRED dispositions must name a follow-up item id in their note; the completion gate checks it when present."
+      ],
+      "divergences": [
+        "The trail is a new evidence store (not a backlog field) to keep the item lean and the history append-only; it references item_id.",
+        "The trail is written by the gate tools (automatic) and checked at completion (fail closed), rather than relying on manual summaries."
+      ],
+      "open_questions": []
+    },
+    "impact_review": [
+      {
+        "claim": "API CHECK",
+        "verdict": "aligned",
+        "evidence": "No HTTP surface: core CLI + gate tooling; no route/tenant input.",
+        "recommendation": "needs_api=false"
+      },
+      {
+        "claim": "AC coverage",
+        "verdict": "aligned",
+        "evidence": [
+          "A registered store engineering/trails/<ITEM>.json (owner core/execution_trail.py) records append-only events {seq, at, stage, actor, status, summary, refs, tests, usage, duration_ms} for planning, gate0, design_review, gate1, implementation, code_review, diff_review, gate2, tests, precheck, pr, merge, delivery, completion.",
+          "python -m core.execution_trail show --item <ID> renders the ordered trail, the Gate 1.5/2.5 decision tables + recommendations (from the review evidence), the tests table (command/result/duration), usage totals (input/output/cached tokens; 'not captured' when unavailable), and the final completion table with PR/merge, total time, next backlog item.",
+          "The gate tools write the trail automatically: gate0_check, architect_review (design/diff + provider usage), gate_decide, precheck (tests/precheck timings), core.backlog.set_delivery and set_status(completed); no manual record is needed for a normal item.",
+          "scripts/dev/execution_trail_check.py (precheck fast) fails a completion in the diff when required stages are missing or out of order, or when a DEFERRED finding has no follow-up item; the check is self-tested and wired into precheck + ci-cd-gates."
+        ],
+        "recommendation": "approve"
+      },
+      {
+        "claim": "language",
+        "verdict": "aligned",
+        "evidence": "Python control-plane/evidence tooling (core/execution_trail.py + scripts/dev), not customer runtime; language_rule_review will be run.",
+        "recommendation": "Python tooling"
+      },
+      {
+        "claim": "reuse",
+        "verdict": "aligned",
+        "evidence": "Extends the existing gate tools (gate0, architect_review, gate_decide, precheck, backlog) and reuses the evidence/decisions stores; no second backlog or review engine.",
+        "recommendation": "approve"
+      },
+      {
+        "claim": "guardrail",
+        "verdict": "aligned",
+        "evidence": "execution_trail_check in precheck fails a completion with missing/out-of-order stages or an unlinked DEFERRED; legacy items are not in the diff.",
+        "recommendation": "approve"
+      },
+      {
+        "claim": "cost/token honesty",
+        "verdict": "aligned",
+        "evidence": "Review usage is captured; session usage is shown as not captured unless item.execution.usage exists. No fabricated cost.",
+        "recommendation": "approve"
+      },
+      {
+        "claim": "blast radius",
+        "verdict": "aligned",
+        "evidence": "Trail writes are best-effort in the tools; the completion gate is the enforcement. Rollback is a revert; trail files are append-only evidence.",
+        "recommendation": "approve"
+      }
+    ],
+    "reviewed_by": "agent",
+    "at": ""
+  },
+  "verification": [
+    "Objective achieved: Backlog execution trail: ordered stage ledger + tests/usage/cost report + completion guard"
+  ],
+  "risks": [
+    "A trail write failure must not fail a gate; the completion gate catches a missing trail.",
+    "Concurrent sessions: the trail uses a per-item lock and append-only events.",
+    "Legacy items have no trail; the gate only enforces completions in the diff.",
+    "Session token/cost may be unavailable; the report says so instead of guessing."
+  ],
+  "rollback": "Revert the tooling/config commit; trail files are append-only evidence and can remain.",
+  "evidence": [
+    "pending",
+    "Design guardrails applied (BI-PF-1481): sig:f5a4a39a1ee730b6 (20 lines)"
+  ],
+  "owner": "agent",
+  "requester": "review",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1248",
+  "parent": "BI-PF-1248",
+  "revision": 3,
+  "priority_rank": 40,
+  "priority_class": "P1",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "COMPLETE",
+    "analyzed_at": "2026-10-25T12:54:57.691811",
+    "analyzed_by": "system",
+    "revision_analyzed": 3,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend core/audit_trail.py + core/agent_ledger.py with an ordered stage-ledger append path (monotonic seq per run); add report build on core/cost_kpi.py + artifacts API /api/v1/artifacts/{stage_id}/{agent}; completion guard via guardrail-policy.json checks before /api/v1/backlog/{id} close.",
+    "existing_components": [],
+    "existing_apis": [],
+    "existing_modules": [],
+    "dependency_findings": [
+      {
+        "task_id": "BI-PF-1241",
+        "type": "REQUIRES",
+        "required_state": "delivered"
+      },
+      {
+        "task_id": "BI-0001",
+        "type": "RELATED",
+        "required_state": "any"
+      },
+      {
+        "task_id": "BI-0162",
+        "type": "RELATED",
+        "required_state": "any"
+      }
+    ],
+    "conflict_findings": [
+      "BI-0001 ledger unification may edit core/agent_ledger.py concurrently"
+    ],
+    "duplication_findings": [
+      "BI-PF-1241 owns execution.usage rollup — reuse, do not re-capture tokens",
+      "BI-0001 unifying ledgers — stage ledger must be core-owned, not a new ledger"
+    ],
+    "drift": "LOW",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "Reuse-first: ordering + trail lives in existing audit/agent ledgers; cost report reuses cost_kpi/usage rollup; completion guard reuses guardrail-policy — no new component needed.",
+    "assumptions": [
+      "single-writer append per run into stage ledger",
+      "usage numbers sourced from BI-PF-1241 execution.usage",
+      "close-guard enforced via existing guardrail-policy config, not a new service"
+    ],
+    "risks": [
+      "duplicate/conflicting ledger writers if BI-0001 lands concurrently",
+      "ordering invariant break under concurrent stage appends",
+      "guard could block legitimate closes (false positive)"
+    ],
+    "evidence": [
+      "core/audit_trail.py, core/agent_ledger.py, core/cost_kpi.py present",
+      "/api/v1/artifacts/{stage_id}/{agent}, /api/v1/backlog endpoints exist",
+      "config/guardrail-policy.json, config/backlog-dod-baseline.json exist"
+    ],
+    "confidence": "medium",
+    "missing_info": [
+      "which stage set/order is authoritative (canonical stage taxonomy)",
+      "whether report is per-run, per-backlog-item, or both",
+      "retention/redaction policy for cost figures"
+    ],
+    "depth": "deep",
+    "mode": "ai",
+    "context_review": {
+      "ok": null,
+      "source": "llm-unparseable",
+      "implementable": null,
+      "missing": [],
+      "reason": "reviewer returned no JSON"
+    },
+    "decision_request": {
+      "needed": false,
+      "reasons": [],
+      "ask": ""
+    },
+    "arch_fingerprint": "2e09de2576905320"
+  },
+  "dependencies": [
+    {
+      "task_id": "BI-PF-1241",
+      "type": "REQUIRES",
+      "required_state": "delivered"
+    },
+    {
+      "task_id": "BI-0001",
+      "type": "RELATED",
+      "required_state": "any"
+    },
+    {
+      "task_id": "BI-0162",
+      "type": "RELATED",
+      "required_state": "any"
+    }
+  ],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-25T12:54:57.788237"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-25T12:54:15.623626",
+  "updated_at": "2026-10-25T12:55:28.148208",
+  "score": 0.75,
+  "_note": "readiness computed",
+  "api_impact": {
+    "needs_api": false,
+    "routes": [],
+    "consumers": [],
+    "reason": "CLI/gate tooling only; no HTTP surface."
+  },
+  "language_rule": "Python control-plane/evidence tooling (core + scripts), not customer runtime; language_rule_review to be cited."
+}
