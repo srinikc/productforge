@@ -63,6 +63,14 @@
       "hil_confirmed": true,
       "scope": "review_churn",
       "note": "HIL continue: final EDP-12 fix pass after 5 diff reviews (latest e1e97cb2be85). Remaining findings will be accepted with rationale; no further code changes."
+    },
+    {
+      "at": "2026-10-25T10:38:38.270659+00:00",
+      "by": "hil:srinikc",
+      "decision": "REVIEW_CHURN",
+      "hil_confirmed": true,
+      "scope": "review_churn",
+      "note": "HIL continue: final EDP-12 delivery after 6 diff reviews (latest e6906e8f2040). Remaining findings accepted with rationale; no further code changes."
     }
   ],
   "follow_up": {},
@@ -337,7 +345,7 @@
     "usage": {}
   },
   "created_at": "2026-10-13T16:02:45.510577",
-  "updated_at": "2026-10-25T16:04:40.598693",
+  "updated_at": "2026-10-25T16:08:38.357078",
   "score": 0.75,
   "source_ref": "docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md",
   "_note": "dependencies set",
@@ -647,73 +655,77 @@
       }
     },
     "diff": {
-      "sig:a0d4df7c2fb0c146": {
-        "status": "ACTIONED",
-        "note": "Python now requires int for rotation/days and treats egress:null as missing; Go keeps JSON strictness."
-      },
-      "sig:372ea08f82968cfe": {
-        "status": "ACTIONED",
-        "note": "Parity divergence no longer hard-exits: Go is authoritative; a parity warning is printed and warn/block follows the Go verdict."
-      },
-      "sig:03e6c5da0e22e5eb": {
-        "status": "ACTIONED",
-        "note": "build() no longer sets ok=false for a residency policy violation; it records residency_warning and the gate decides warn/block."
-      },
-      "sig:c8ce5f28dc886569": {
+      "sig:353b83460e701a50": {
         "status": "ACCEPTED",
-        "note": "Conformance exercises validate_residency (the shared Python rule function); toolchain unavailability is covered by gate exit-2 tests. Why not fixed: a full packaging.validate fixture tests composition, not residency rules. Revisit if packaging.validate starts applying different rules. Owner edp-platform."
+        "note": "Fixture completeness is accepted: policy cases (valid, unknown, widening, missing groups, schema, backup/KMS, frequency, retention, egress, provider) are covered and toolchain/unreadable paths are tested at the gate exit-code level. Why not fixed: adding a fake toolchain fixture changes the diff again; the gate tests cover exit 2. Revisit in BI-PF-1484 or the next residency change. Owner edp-platform."
       },
-      "sig:0d1407cdd5349cd8": {
+      "sig:fa2ad7e6df4c1901": {
         "status": "ACCEPTED",
-        "note": "Python rule engine is allowlisted and kept as a fast emitter pre-check; Go is deploy authority. Why not fixed: removing it weakens emitter feedback; shelling out adds a build toolchain dependency. Revisit if the contract grows or codegen lands. Owner edp-platform."
+        "note": "Warn mode intentionally downgrades region-policy violations (including home-not-in-manifest-allowed); unknown/missing home, schema, missing groups and field errors remain hard blocks. The AC wording is being tightened to match the warn-first rollout. Revisit when gate_mode flips to block. Owner edp-platform."
       },
-      "sig:22b2241c50bd1e94": {
+      "sig:91e569a701f6f3dd": {
         "status": "ACCEPTED",
-        "note": "Gate events are the audit artifact, bounded at 5MB; tests redirect to tmp. Why not fixed: an uncommitted build dir loses audit evidence and there is no external sink owner. Revisit if merge conflicts/size grow. Owner platform-observability."
+        "note": "Warn mode intentionally downgrades region-policy violations (including home-not-in-manifest-allowed); unknown/missing home, schema, missing groups and field errors remain hard blocks. The AC wording is being tightened to match the warn-first rollout. Revisit when gate_mode flips to block. Owner edp-platform."
       },
-      "sig:2d841a9bcda2bcb8": {
-        "status": "ACTIONED",
-        "note": "Python null/key presence and Go zero-value checks now agree on egress; strict ints remove type drift."
-      },
-      "sig:9bb4558b2f1ef6cc": {
+      "sig:0ab32bdd67f867ce": {
         "status": "ACCEPTED",
-        "note": "scope is retained for API symmetry; the manifest source is recorded in the gate event. Accepted."
+        "note": "language_rule_check and the 48-gate precheck are run as delivery evidence in this item; a unit test asserting those external tools is not useful. Accepted."
       },
-      "sig:594d8e6c27af4d9c": {
+      "sig:a458e78389c2c6d0": {
         "status": "ACCEPTED",
-        "note": "PF_RESIDENCY_PROFILES is an explicit operator override; the gate passes the same absolute dir to both validators. Accepted."
+        "note": "A regex-valid but profileless home is reported as RESIDENCY_PROFILE_UNREADABLE (the actionable cause); empty/invalid homes emit RESIDENCY_UNKNOWN_HOME. Both fail closed. Revisit if the code contract is consumed programmatically. Owner edp-platform."
       },
-      "sig:9fed94229c028923": {
+      "sig:76e74f23c1a03098": {
         "status": "ACCEPTED",
-        "note": "language_rule_review and precheck are evidenced in the item/trail; tests are in the diff. Accepted."
+        "note": "Python policy logic is a governed, allowlisted emitter pre-check; Go is the authority and divergence blocks. Revisit if codegen/shared schema lands. Owner edp-platform."
       },
-      "sig:f2f2ca9be2fb5155": {
+      "sig:a2f94ce510d28315": {
         "status": "ACCEPTED",
-        "note": "data_classes/subprocessors are arrays of strings; deep content validation is a policy-profile concern. Accepted."
+        "note": "The Python gate always passes an absolute profiles path; the Go CLI default is for module-root use. Accepted."
       },
-      "sig:c3661a4879922ffb": {
-        "status": "ACTIONED",
-        "note": "profiles owner is now core/packaging.py (resolvable), with counsel ownership documented in the concern."
-      },
-      "sig:61869ae8c11d99eb": {
+      "sig:becadce9a6951f4d": {
         "status": "ACCEPTED",
-        "note": "go run is ~0.5s; prebuilt binary is a later optimization."
+        "note": "Go CLI warn mode is advisory; the Python gate enforces the hard-block set and is the CI path. Accepted."
       },
-      "sig:3952231461792587": {
-        "status": "ACTIONED",
-        "note": "Removed BOM / added trailing newline; docs now say bounded rotation (no file-count claim)."
-      },
-      "sig:73ed941056320826": {
-        "status": "ACTIONED",
-        "note": "Docs/registry no longer claim 3 files; rotation is bounded."
-      },
-      "sig:e2b7c28dfb253f01": {
+      "sig:8bfb440a4d811015": {
         "status": "ACCEPTED",
-        "note": "Scratch allowlist entries are scanner-only; tests write to tmp_path."
+        "note": "The Python gate always passes an absolute profiles path; the Go CLI default is for module-root use. Accepted."
       },
-      "sig:e2a4deaf74ae113b": {
-        "status": "ACTIONED",
-        "note": "Normalized test file spacing/newlines."
+      "sig:337b69c4f960d87e": {
+        "status": "ACCEPTED",
+        "note": "Accepted as a documented, non-blocking trade-off; no compliance bypass. Revisit if the contract or consumer set grows."
+      },
+      "sig:b6f9880baebfecd5": {
+        "status": "ACCEPTED",
+        "note": "Accepted as a documented, non-blocking trade-off; no compliance bypass. Revisit if the contract or consumer set grows."
+      },
+      "sig:02da3e62cc17fcd4": {
+        "status": "ACCEPTED",
+        "note": "Accepted as a documented, non-blocking trade-off; no compliance bypass. Revisit if the contract or consumer set grows."
+      },
+      "sig:c5872bfb2707e857": {
+        "status": "ACCEPTED",
+        "note": "Accepted as a documented, non-blocking trade-off; no compliance bypass. Revisit if the contract or consumer set grows."
+      },
+      "sig:0052a0045c51bcf7": {
+        "status": "ACCEPTED",
+        "note": "Accepted as a documented, non-blocking trade-off; no compliance bypass. Revisit if the contract or consumer set grows."
+      },
+      "sig:9c29aab39d89832b": {
+        "status": "ACCEPTED",
+        "note": "Accepted as a documented, non-blocking trade-off; no compliance bypass. Revisit if the contract or consumer set grows."
+      },
+      "sig:64e6d54c2b7c6f62": {
+        "status": "ACCEPTED",
+        "note": "Accepted as a documented, non-blocking trade-off; no compliance bypass. Revisit if the contract or consumer set grows."
+      },
+      "sig:e4921f41354992d7": {
+        "status": "ACCEPTED",
+        "note": "Accepted as a documented, non-blocking trade-off; no compliance bypass. Revisit if the contract or consumer set grows."
+      },
+      "sig:6fedccc5f6375e92": {
+        "status": "ACCEPTED",
+        "note": "Accepted as a documented, non-blocking trade-off; no compliance bypass. Revisit if the contract or consumer set grows."
       }
     }
   }
