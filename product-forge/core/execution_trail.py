@@ -307,15 +307,16 @@ def gate_metrics(evs: list[dict]) -> list[dict]:
     rows = []
     for ev in evs:
         u = dict(ev.get("usage") or {})
+        has_usage = bool(u)
         if u and not u.get("not_captured"):
             u = price_usage(u)
         rows.append({
             "stage": ev.get("stage", ""),
             "at": ev.get("at", ""),
             "duration_ms": int(ev.get("duration_ms") or 0),
-            "input_tokens": int(u.get("input_tokens") or 0),
-            "output_tokens": int(u.get("output_tokens") or 0),
-            "cached_tokens": int(u.get("cached_tokens") or 0),
+            "input_tokens": int(u.get("input_tokens") or 0) if has_usage else None,
+            "output_tokens": int(u.get("output_tokens") or 0) if has_usage else None,
+            "cached_tokens": int(u.get("cached_tokens") or 0) if has_usage else None,
             "cost_usd": u.get("cost_usd"),
             "cost_source": u.get("cost_source") or ("not_captured" if u.get("not_captured") else "n/a"),
         })
@@ -572,8 +573,10 @@ def show(item: str) -> str:
                                        test_rows, widths=[36, 8, 10, 7, 7, 8])]
 
     gm = gate_metrics(evs)
-    grows = [[g["stage"], g["at"], f"{g['duration_ms']} ms", g["input_tokens"],
-              g["output_tokens"], g["cached_tokens"],
+    def _m(v):
+        return "-" if v is None else str(v)
+    grows = [[g["stage"], g["at"], f"{g['duration_ms']} ms", _m(g["input_tokens"]),
+              _m(g["output_tokens"]), _m(g["cached_tokens"]),
               "-" if g["cost_usd"] is None else f"{g['cost_usd']:.6f}", g["cost_source"]]
              for g in gm]
     lines += ["", "## 10. Gate metrics", _box(
