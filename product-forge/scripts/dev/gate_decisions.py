@@ -23,6 +23,11 @@ def _ar():
     return architect_review
 
 
+def _dp():
+    import disposition_policy
+    return disposition_policy
+
+
 def _gp():
     import gate_predicates
     return gate_predicates
@@ -64,7 +69,7 @@ def record_gate_decision(backlog, scope: str, project: str | None, eid: str, gat
         if not acs or bad_ac:
             print(f"[Backlog] refusing gate 2 decision for {eid}: AC verification incomplete")
             return None
-    for prob in dp.problems(item, mode, lambda i: backlog.get_epic(scope, project, i)):
+    for prob in _dp().problems(item, mode, lambda i: backlog.get_epic(scope, project, i)):
         print(f"[Backlog] refusing gate {gate} decision for {eid}: {prob}")
         return None
     if str(decision).upper() not in gp.APPROVED:
