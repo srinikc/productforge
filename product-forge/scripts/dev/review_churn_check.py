@@ -51,9 +51,15 @@ def main(argv: list[str] | None = None) -> int:
         pass
 
     try:
-        base = (a.base or os.environ.get("PF_REVIEW_CHURN_BASE", "")
-                or ar._git_text(["merge-base", "develop", "HEAD"])
-                or ar._git_text(["merge-base", "origin/develop", "HEAD"]))
+        base = a.base or os.environ.get("PF_REVIEW_CHURN_BASE", "")
+        if not base:
+            for ref in ("develop", "origin/develop"):
+                try:
+                    base = ar._git_text(["merge-base", ref, "HEAD"])
+                except Exception:
+                    base = ""
+                if base:
+                    break
         if not base:
             raise RuntimeError("base ref unavailable; fetch develop or pass --base")
         rows = evaluate(g2.transitions(base))
