@@ -1,0 +1,35 @@
+{
+  "item": "BI-PF-1483",
+  "sha": "b1fc2a280654",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-25T09:14:41.601510+00:00",
+  "findings": {
+    "BLOCKER": [
+      "`re.search` is used in `_review_evidence` but the diff adds no `import re` hunk; the broad `except Exception` would swallow the NameError and silently return an empty recommendation forever (tests monkeypatch `_review_evidence`, so nothing catches it). Verify `re` is already imported in this module \u2014 if not, this is a runtime-degraded feature."
+    ],
+    "MAJOR": [
+      "Review-recommendation extraction regex has zero test coverage: the only new test that asserts `APPROVE` mocks out `_review_evidence` entirely, so the parsing logic (and any future `gate` output format drift) is untested \u2014 AC \"tests cover review recommendation display\" is satisfied only against a stub.",
+      "No explicit test for partial/empty items in the diff (AC requirement). Empty-trail and mid-flow rendering paths (`(no events yet)`, `not recorded`, fallback brief) rely on pre-existing tests only.",
+      "`current_stage` is purely \"first missing STAGES entry\" and ignores item status and skipped/non-applicable stages (e.g., docs-only item skipping `design_review`, or a `delivered` item missing an optional stage) \u2014 the flow will forever show `[CURRENT]` on a stage that will never be recorded, contradicting the final table's status.",
+      "Behavioral invariant contradiction: when no recommendation is parsed, the checklist falls back to the ingest-time event status (`pass`), while the new docs explicitly promise missing evidence is \"never rendered as a pass\"."
+    ],
+    "MINOR": [
+      "Docs claim the recommendation comes from reading `engineering/reviews/<ID>-<sha>.json`; the code actually re-executes `core.architect_review gate` via subprocess (60s timeout \u00d72 per `show`) \u2014 doc/code divergence and added I/O latency per render.",
+      "Review-stage status override block is duplicated in the stage table and the flow checklist; will drift (e.g., when fallback behavior is fixed) unless factored.",
+      "Recommendation values are parsed non-strictly (`[A-Z ]+?`); any future value with a hyphen/slash (e.g., `APPROVE-WITH-ATTENTION`) silently degrades to empty instead of surfacing a format-drift warning.",
+      "Checklist `Status` column width is 14 but `APPROVE WITH ATTENTION` is 22 chars; verify `_box` truncation behavior \u2014 the \"current architect recommendation\" may render clipped in the main table."
+    ],
+    "NIT": [
+      "`_review_table` is now an unused in-module wrapper; keep only if external callers/tests need it, otherwise it is dead surface area.",
+      "`_as_rows` / `_decision` are generic module-level names in a domain-specific file; prefix or scope them to avoid collision as the module grows.",
+      "`**Current stage:**` is rendered three times (header, section 3, final table) \u2014 acceptable, but pick one canonical location to avoid future divergence."
+    ],
+    "SUMMARY": [
+      "Solid structural delivery of the ordered flow, dedupe via latest-event-per-stage, and the disposition key, with docs updated in step \u2014 directionally right as a read-only projection.",
+      "Top risks: the unverified `re` import masked by a blanket exception (recommendation feature can silently no-op), untested recommendation parsing, and `current_stage` misreporting on items with skipped or optional stages.",
+      "Recommend verifying `import re`, adding a parse-level test with realistic `gate` output, and reconciling the \"never a pass\" invariant and docs' evidence-source description before merge."
+    ]
+  }
+}
