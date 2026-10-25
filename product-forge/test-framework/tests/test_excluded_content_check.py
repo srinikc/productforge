@@ -29,3 +29,11 @@ def test_design_header_and_hidden_code(tmp_path, monkeypatch):
     assert ec.problems([f"engineering/design/{item}.md"]) == []
     p.write_text("def hidden():\n    pass\n", encoding="utf-8")
     assert ec.problems([f"engineering/design/{item}.md"])
+
+def test_derived_docs_reject_injected_script(tmp_path, monkeypatch):
+    monkeypatch.setattr(ec, "ROOT", tmp_path)
+    d = tmp_path / "docs"; d.mkdir()
+    (d / "BACKLOG-SUMMARY.md").write_text("# Backlog Summary\n", encoding="utf-8")
+    assert ec.problems(["docs/BACKLOG-SUMMARY.md"]) == []
+    (d / "documentation-index.html").write_text("<!DOCTYPE html><html><script>alert(1)</script></html>", encoding="utf-8")
+    assert ec.problems(["docs/documentation-index.html"])
