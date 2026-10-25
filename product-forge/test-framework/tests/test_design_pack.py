@@ -63,3 +63,18 @@ def test_evaluate_flags_invalid_and_missing_created_at(monkeypatch):
     assert "created_at missing" in d.evaluate("BI-PF-9999")
     item["created_at"] = "2026-10-05T25"
     assert any("created_at invalid" in p for p in d.evaluate("BI-PF-9999"))
+    item["created_at"] = "2026-10-05 "
+    assert any("created_at invalid" in p for p in d.evaluate("BI-PF-9999"))
+
+
+def test_evaluate_validates_config_once(monkeypatch, tmp_path):
+    cfg = tmp_path / f"design_pack_cfg_{1}.json"
+    cfg.write_text('{"enforce_items": []}', encoding="utf-8")
+    monkeypatch.setattr(d, "CFG", cfg)
+    monkeypatch.setattr(d.backlog, "get_epic", lambda *a, **k: {"id": "BI-PF-9", "status": "new"})
+    assert "enforce_from missing" in d.evaluate("BI-PF-9")
+
+
+def test_parse_date_accepts_date_and_datetime():
+    assert d._parse_date("2026-10-05").isoformat() == "2026-10-05"
+    assert d._parse_date("2026-10-05T10:20:30").isoformat() == "2026-10-05"

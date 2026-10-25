@@ -50,6 +50,17 @@ def should_enforce(item: dict, cfg: dict) -> bool:
     return created >= enforce
 
 
+def _validate_cfg(cfg: dict) -> str:
+    enforce = cfg.get("enforce_from")
+    if not enforce:
+        return "enforce_from missing"
+    try:
+        _parse_date(enforce)
+    except ValueError:
+        return f"enforce_from invalid: {enforce!r}"
+    return ""
+
+
 def _date_problems(item: dict, cfg: dict) -> list[str]:
     bad = []
     created = str(item.get("created_at") or "")
@@ -73,6 +84,9 @@ def evaluate(item_id: str) -> list[str]:
     if not item:
         return [f"item not found: {item_id}"]
     cfg = _cfg()
+    cfg_problem = _validate_cfg(cfg)
+    if cfg_problem:
+        return [cfg_problem]
     bad = _date_problems(item, cfg)
     if bad:
         return bad
@@ -176,7 +190,7 @@ def main(argv=None) -> int:
         print("design-pack: --item is required unless --all", file=sys.stderr)
         return 2
     item = backlog.get_epic("product_forge", None, a.item) or {}
-    bad = check(item)
+    bad = evaluate(a.item)
     if a.render:
         DESIGN_DIR.mkdir(parents=True, exist_ok=True)
         out = DESIGN_DIR / f"{a.item}.md"
