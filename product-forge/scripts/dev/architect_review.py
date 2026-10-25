@@ -294,10 +294,12 @@ def _llm_call(prompt: str, model: str) -> str:
 def _prior_context(item: dict, item_id: str, mode: str) -> str:
     """Prior review findings + dispositions, so a re-review only reports new/unresolved items."""
     rows = ((item.get("review_dispositions") or {}).get(mode) or {})
-    files = sorted((ROOT / "engineering" / "reviews").glob(f"{item_id}-*.json"),
-                   key=lambda p: str(json.loads(p.read_text(encoding="utf-8")).get("at") or ""))
-    if False:
-        files = []
+    def _at(p):
+        try:
+            return str(json.loads(p.read_text(encoding="utf-8")).get("at") or "")
+        except Exception:
+            return ""
+    files = sorted((ROOT / "engineering" / "reviews").glob(f"{item_id}-*.json"), key=_at)
     if not files:
         return ""
     try:

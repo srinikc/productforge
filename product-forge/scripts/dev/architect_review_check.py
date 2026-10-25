@@ -70,24 +70,28 @@ def main() -> int:
     if not hits and EVID.is_dir():
         head = ar._git_text(["rev-parse", "HEAD"]).strip()
         mb = ar._merge_base()
-        valid_bases = {mb}
         evs = []
         for p in EVID.glob("*.json"):
             try:
                 d = json.loads(p.read_text(encoding="utf-8"))
             except Exception:
                 continue
-            evs.append(d)
+            evs.append((p, d))
+        evs.sort(key=lambda pd: str(pd[1].get("at") or ""))
+        latest_head = ""
+        for _, d in evs:
             if d.get("mode") == "diff" and d.get("head_sha"):
-                valid_bases.add(str(d["head_sha"]))
-        for d in evs:
+                latest_head = str(d["head_sha"])
+        valid_bases = {mb, latest_head}
+        for path, d in reversed(evs):
             if d.get("mode") != "diff" or str(d.get("head_sha") or "") != head:
                 continue
             base = str(d.get("base_sha") or "")
-            if not base or (base not in valid_bases and base != mb):
+            if not base or base not in valid_bases:
                 continue
-            hits = [EVID / f"{d.get('item')}-{d.get('sha')}.json"]
-            break
+            if path.is_file():
+                hits = [path]
+                break
     if hits:
         print(f"architect-review: OK (evidence {hits[0].name})")
         return 0
