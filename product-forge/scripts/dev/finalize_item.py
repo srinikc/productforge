@@ -37,14 +37,23 @@ def build(item_id: str) -> dict:
     ac_hash = hashlib.sha256(json.dumps({"acs": acs, "dispositions": it.get("review_dispositions") or {}},
                                         sort_keys=True, separators=(",", ":")).encode()).hexdigest()[:16]
     total_ms = 0
+    sum_stage_ms = max(0, sum(int(e.get("duration_ms") or 0) for e in evs))
+    clock_skew = False
     try:
         ordered = sorted(evs, key=lambda e: str(e.get("at") or ""))
         from datetime import datetime as _dt
-        total_ms = max(0, int((_dt.fromisoformat(ordered[-1]["at"].replace("Z", "+00:00"))
-                               - _dt.fromisoformat(ordered[0]["at"].replace("Z", "+00:00"))).total_seconds() * 1000)) if ordered else 0
+        raw = int((_dt.fromisoformat(ordered[-1]["at"].replace("Z", "+00:00"))
+                   - _dt.fromisoformat(ordered[0]["at"].replace("Z", "+00:00"))).total_seconds() * 1000) if ordered else 0
+        clock_skew = raw < 0
+        total_ms = max(0, raw)
     except Exception:
-        total_ms = max(0, sum(int(e.get("duration_ms") or 0) for e in evs))
-    return {"schema": "pf.final-report/1", "ac_hash": ac_hash, "total_time_ms": total_ms, "item": item_id, "generated_at": datetime.now(timezone.utc).isoformat(),
+        total_ms = sum_stage_ms
+    legacy_gate = {"APPROVE", "APPROVE_WITH_ATTENTION", "DISPOSITION_APPROVAL", "REVIEW_CHURN"}
+    gate_decisions = [d for d in (it.get("decisions") or [])
+                      if d.get("gate") or str(d.get("decision") or "").upper() in legacy_gate]
+    other_decisions = [d for d in (it.get("decisions") or []) if d not in gate_decisions]
+    return {"schema": "pf.final-report/2", "ac_hash": ac_hash, "total_time_ms": total_ms,
+            "sum_stage_ms": sum_stage_ms, "clock_skew": clock_skew, "item": item_id, "generated_at": datetime.now(timezone.utc).isoformat(),
             "item_revision": it.get("revision"), "current_stage": tr.current_stage(item_id, it.get("status") or ""),
             "acs": acs, "ac_problems": bad_ac, "tests_by_kind": tr.tests_by_kind(evs),
             "usage": u, "started_at": start, "finished_at": end,
@@ -52,8 +61,8 @@ def build(item_id: str) -> dict:
             "dispositions": {m: {k: v for k, v in ((it.get("review_dispositions") or {}).get(m) or {}).items()
                                  if str((v or {}).get("status") or "").upper() in ("ACCEPTED", "DEFERRED")}
                              for m in ("design", "diff")},
-            "gate_decisions": [d for d in (it.get("decisions") or []) if d.get("gate")],
-            "other_decisions": [d for d in (it.get("decisions") or []) if not d.get("gate")]}
+            "gate_decisions": gate_decisions,
+            "other_decisions": other_decisions}
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -65,7 +74,7 @@ def main(argv: list[str] | None = None) -> int:
     if r["ac_problems"] or r["disposition_problems"] or not r["acs"]:
         print("finalize: FAIL")
         for x in r["ac_problems"]:
-            print(f"  - AC not PASS: {x}")
+            print(f"  - AC problem: {x}")
         for x in r["disposition_problems"]:
             print(f"  - {x}")
         if not r["acs"]:

@@ -48,3 +48,16 @@ def test_completion_gaps_require_ac_and_current_report():
     assert "AC_VERIFICATION_INCOMPLETE" in g2c.completion_gaps(item)
     item["final_report"] = {}
     assert "FINAL_REPORT_MISSING" in g2c.completion_gaps(item)
+
+def test_final_report_v2_classifies_legacy_and_other_decisions(monkeypatch):
+    item = {"id": "BI-PF-1484", "revision": 1, "status": "in_progress",
+            "ac_verification": [{"ac": "a", "result": "PASS"}], "review_dispositions": {},
+            "decisions": [{"decision": "APPROVE", "by": "hil:test"},
+                          {"decision": "NOTE", "by": "agent"}]}
+    monkeypatch.setattr(fi.backlog, "get_epic", lambda *a, **k: item)
+    monkeypatch.setattr(fi.tr, "events", lambda i: [{"stage": "tests", "at": "2026-01-01T00:00:00+00:00",
+                                                      "tests": [], "usage": {}, "duration_ms": 5}])
+    r = fi.build("BI-PF-1484")
+    assert r["schema"] == "pf.final-report/2"
+    assert r["total_time_ms"] == 0 and r["sum_stage_ms"] == 5
+    assert len(r["gate_decisions"]) == 1 and len(r["other_decisions"]) == 1
