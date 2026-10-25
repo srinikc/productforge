@@ -286,6 +286,14 @@ def usage_totals(evs: list[dict]) -> dict:
     return total
 
 
+def _parse_recommendation(out: str) -> str:
+    """Parse the architect recommendation; normalize separators, return '' when absent."""
+    m = re.search(r"Overall architect recommendation:\s*\**\s*([A-Z][A-Z0-9 _/-]*)", str(out or ""))
+    if not m:
+        return ""
+    return re.sub(r"\s+", " ", re.sub(r"[-/]+", " ", m.group(1))).strip()
+
+
 def _review_evidence(item: str, mode: str) -> tuple[str, str]:
     """Return (rendered Gate 1.5/2.5 table, current architect recommendation)."""
     stage = "design_review" if mode == "design" else "diff_review"
@@ -304,26 +312,38 @@ def _review_evidence(item: str, mode: str) -> tuple[str, str]:
         out = (r.stdout or "").strip()
         if not out:
             return f"({stage}: evidence missing)", ""
-        m = re.search(r"Overall architect recommendation:\s*\**\s*([A-Z ]+?)\s*\**\s*$", out, re.M)
-        return out, (m.group(1).strip() if m else "")
+        return out, _parse_recommendation(out)
     except Exception as e:
         return f"({stage}: cannot render: {e})", ""
 
 
 def _review_table(item: str, mode: str) -> str:
+    """Compatibility wrapper for callers that only need the rendered table."""
     return _review_evidence(item, mode)[0]
 
 
-def current_stage(item: str) -> str:
-    """The first required stage with no committed event, or 'complete'."""
+def current_stage(item: str, status: str = "") -> str:
+    """First missing STAGES entry while in progress; 'complete' once all exist or the item is closed."""
     have = _stage_events(item)
-    for stage in STAGES:
-        if stage not in have:
-            return stage
-    return "complete"
+    missing = [stage for stage in STAGES if stage not in have]
+    if not missing:
+        return "complete"
+    status = str(status or "").lower()
+    if status in ("completed", "closed", "done", "delivered"):
+        return "complete"
+    return missing[0]
 
 
-def _as_rows(value) -> list[str]:
+def _stage_status(stage: str, ev: dict, design_rec: str, diff_rec: str) -> str:
+    """Review stages show the current recommendation; never fall back to an ingest-time pass."""
+    if stage == "design_review":
+        return design_rec or "reviewed (recommendation unavailable)"
+    if stage == "diff_review":
+        return diff_rec or "reviewed (recommendation unavailable)"
+    return str(ev.get("status") or "pass")
+
+
+def _flow_rows(value) -> list[str]:
     if value is None or value == "":
         return []
     if isinstance(value, str):
@@ -341,7 +361,7 @@ def _as_rows(value) -> list[str]:
     return [str(value)]
 
 
-def _decision(item: dict, gate: int) -> dict:
+def _gate_decision(item: dict, gate: int) -> dict:
     for d in item.get("decisions") or []:
         if str((d or {}).get("gate") or "") == str(gate):
             return d
@@ -352,7 +372,7 @@ def show(item: str) -> str:
     it = _item(item)
     evs = events(item)
     have = _stage_events(item)
-    current = current_stage(item)
+    current = current_stage(item, it.get("status") or "")
     design_table, design_rec = _review_evidence(item, "design")
     diff_table, diff_rec = _review_evidence(item, "diff")
     brief = it.get("brief") or {}
@@ -368,11 +388,7 @@ def show(item: str) -> str:
         ev = have.get(stage)
         if not ev:
             continue
-        status = ev["status"]
-        if stage == "design_review" and design_rec:
-            status = design_rec
-        elif stage == "diff_review" and diff_rec:
-            status = diff_rec
+        status = _stage_status(stage, ev, design_rec, diff_rec)
         stage_rows.append([ev["seq"], stage, status, ev["at"], f"{ev.get('duration_ms', 0)} ms",
                            f"{runs.get(stage, 1)}", str(ev.get("summary") or "")])
     if not stage_rows:
@@ -394,7 +410,7 @@ def show(item: str) -> str:
     for label, key in (("PRIOR DECISIONS", "prior_decisions"), ("EXISTING PATH", "existing_path"),
                        ("ASSUMPTIONS", "assumptions"), ("DIVERGENCES", "divergences"),
                        ("OPEN QUESTIONS", "open_questions")):
-        rows = _as_rows(recon.get(key))
+        rows = _flow_rows(recon.get(key))
         lines.append(f"**{label}:**" + (" none" if not rows else ""))
         lines += [f"- {r}" for r in rows]
     impact = rev.get("impact_review") or []
@@ -416,16 +432,12 @@ def show(item: str) -> str:
             mark = "[CURRENT]" if stage == current else "[PENDING]"
             lines.append(f"- {mark} {stage}")
             continue
-        status = ev.get("status") or "pass"
-        if stage == "design_review" and design_rec:
-            status = design_rec
-        elif stage == "diff_review" and diff_rec:
-            status = diff_rec
+        status = _stage_status(stage, ev, design_rec, diff_rec)
         lines.append(f"- [DONE] {stage} ({status}) - {ev.get('at', '')}")
 
     lines += ["", "## 4. Gate 1.5 - design review",
               f"**Architect recommendation:** {design_rec or 'not recorded'}", "", design_table]
-    g1 = _decision(it, 1)
+    g1 = _gate_decision(it, 1)
     lines += ["", "## 5. Gate 1 - design decision"]
     if g1:
         lines += [f"**Decision:** {g1.get('decision')} | **By:** {g1.get('by')} | **At:** {g1.get('at')}"]
@@ -442,7 +454,7 @@ def show(item: str) -> str:
 
     lines += ["", "## 7. Gate 2.5 - delivery review",
               f"**Architect recommendation:** {diff_rec or 'not recorded'}", "", diff_table]
-    g2 = _decision(it, 2)
+    g2 = _gate_decision(it, 2)
     lines += ["", "## 8. Gate 2 - delivery decision"]
     if g2:
         lines += [f"**Decision:** {g2.get('decision')} | **By:** {g2.get('by')} | **At:** {g2.get('at')}"]

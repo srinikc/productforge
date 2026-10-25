@@ -173,3 +173,40 @@ def test_box_table_wraps_long_cells():
     out = tr._box(["A", "B"], [["short", "x" * 100]], widths=[8, 20])
     assert out.startswith("+") and out.rstrip().endswith("+")
     assert out.count("|") > 4
+
+
+def test_parse_recommendation_realistic_and_formats():
+    out = ("Gate 1.5 - Findings & Dispositions (model=mimo-v2.6-flash sha=abc)\n"
+           "**Overall architect recommendation: APPROVE**\n"
+           "Findings: 9 (BLOCKER 0 / MAJOR 3)\n")
+    assert tr._parse_recommendation(out) == "APPROVE"
+    assert tr._parse_recommendation("Overall architect recommendation: APPROVE-WITH-ATTENTION") == "APPROVE WITH ATTENTION"
+    assert tr._parse_recommendation("Overall architect recommendation: APPROVE / WITH ATTENTION") == "APPROVE WITH ATTENTION"
+    assert tr._parse_recommendation("no recommendation here") == ""
+
+
+def test_show_empty_item_has_explicit_missing_states(tmp_path, monkeypatch):
+    monkeypatch.setattr(tr, "TRAILS", tmp_path)
+    monkeypatch.setattr(tr, "_item", lambda i: {"id": i, "title": "Empty", "status": "new", "epic": "E",
+                                                "objective": "Nothing yet", "links": {},
+                                                "review_dispositions": {}})
+    monkeypatch.setattr(tr, "next_item", lambda i: ("", ""))
+    out = tr.show("BI-PF-1481")
+    assert "**Current stage:** planning" in out
+    assert "(no events yet)" in out
+    assert "Not recorded." in out
+    assert "reviewed (recommendation unavailable)" not in out
+
+
+def test_current_stage_completed_item_is_complete(tmp_path, monkeypatch):
+    monkeypatch.setattr(tr, "TRAILS", tmp_path)
+    tr.record("BI-PF-1481", "planning", "pass")
+    assert tr.current_stage("BI-PF-1481", status="completed") == "complete"
+    assert tr.current_stage("BI-PF-1481", status="in_progress") == "gate0"
+
+
+def test_review_stage_never_falls_back_to_ingest_pass():
+    ev = {"status": "fail"}
+    assert tr._stage_status("design_review", ev, "", "") == "reviewed (recommendation unavailable)"
+    assert tr._stage_status("design_review", ev, "APPROVE", "") == "APPROVE"
+    assert tr._stage_status("gate0", ev, "", "") == "fail"

@@ -199,11 +199,13 @@ Every item carries one append-only trail at `engineering/trails/<ID>.json` (owne
 - **View invariants (read-only projection, no writes):**
   - the stage checklist uses the **latest event per stage** (`_stage_events`; append order under the trail lock,
     monotonic `seq`); the `Runs` column counts re-runs; the audit history remains in `events()`.
-  - **current stage** = the first `STAGES` entry with no committed event (`planning` for an empty trail,
-    `complete` when all stages exist).
-  - review stages show the **current** recommendation from `engineering/reviews/<ID>-<sha>.json`
-    (`APPROVE` / `APPROVE WITH ATTENTION` / `NOT READY`), not the ingest-time event status; missing evidence is
-    rendered as `not recorded` / `evidence missing`, never as a pass.
+  - **current stage** = the first `STAGES` entry with no committed event while the item is `in_progress`
+    (`planning` for an empty trail; `complete` when all stages exist or the item is closed).
+  - review stages show the **current** recommendation (`APPROVE` / `APPROVE WITH ATTENTION` / `NOT READY`),
+    not the ingest-time event status. `show` re-executes `architect_review.py gate`, which reads
+    `engineering/reviews/<ID>-<sha>.json` (sha from the review event refs); this keeps one evidence reader.
+    Missing/unreadable evidence renders `not recorded` / `evidence missing`; evidence with no parseable
+    recommendation renders `reviewed (recommendation unavailable)` - never a pass.
   - owner: `core/execution_trail.py` (the only renderer); dispositions are owned by `core.backlog`
     (`review_dispositions`) and enforced by `architect_review.py` + `execution_trail_check.py`.
 - **Disposition key:** **ACTIONED** = fixed or committed in this item (Gate 1.5: design/plan updated; Gate 2.5:
