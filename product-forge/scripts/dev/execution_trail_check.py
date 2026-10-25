@@ -67,7 +67,9 @@ def evaluate(ids: list[str]) -> list[str]:
             if not item.get("final_report"):
                 problems.append(f"{iid}: completion without a persisted final_report")
         problems += [f"{iid}: {p}" for p in deferred_problems(item)]
-        problems += [f"{iid}: {p}" for mode in ("design", "diff") for p in dp.problems(item, mode)]
+        from core import backlog as _backlog
+        problems += [f"{iid}: {p}" for mode in ("design", "diff")
+                     for p in dp.problems(item, mode, lambda i: _backlog.get_epic("product_forge", None, i))]
         failures = trail.TRAILS / "_failures.jsonl"
         if failures.is_file():
             for line in failures.read_text(encoding="utf-8", errors="replace").splitlines():

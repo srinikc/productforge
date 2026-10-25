@@ -6,6 +6,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "scripts" / "dev"))
 sys.path.insert(0, str(ROOT))
 import finalize_item as fi  # noqa: E402
+import gate2_completion_check as g2c  # noqa: E402
 
 
 def test_build_requires_all_acs_pass(monkeypatch):
@@ -35,3 +36,14 @@ def test_build_includes_usage_tests_and_dispositions(monkeypatch):
     assert r["usage"]["input_tokens"] == 10
     assert r["dispositions"]["diff"]["sig:a"]["status"] == "ACCEPTED"
     assert r["ac_problems"] == []
+
+def test_completion_gaps_require_ac_and_current_report():
+    item = {"revision": 3, "ac_verification": [{"ac": "a", "result": "PASS"}],
+            "final_report": {"item_revision": 3}}
+    assert g2c.completion_gaps(item) == []
+    item["final_report"] = {"item_revision": 2}
+    assert "FINAL_REPORT_STALE" in g2c.completion_gaps(item)
+    item["ac_verification"][0]["result"] = "PENDING"
+    assert "AC_VERIFICATION_INCOMPLETE" in g2c.completion_gaps(item)
+    item["final_report"] = {}
+    assert "FINAL_REPORT_MISSING" in g2c.completion_gaps(item)

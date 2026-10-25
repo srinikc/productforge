@@ -73,8 +73,8 @@ def problems(item: dict, mode: str, backlog_get=None) -> list[str]:
             try:
                 if not backlog_get(m.group(0)):
                     bad.append(f"{mode}/{k}: follow-up {m.group(0)} does not exist")
-            except Exception:
-                pass
+            except Exception as e:
+                bad.append(f"{mode}/{k}: cannot verify follow-up {m.group(0)}: {e}")
     return bad
 
 

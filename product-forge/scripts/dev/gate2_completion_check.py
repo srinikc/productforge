@@ -72,6 +72,20 @@ def _docs_only() -> bool:
     return gp.is_docs_only(ar.changed_files(), skip)
 
 
+def completion_gaps(item: dict) -> list[str]:
+    """AC + persisted final report must be complete and current at merge."""
+    gaps = []
+    acs = item.get("ac_verification") or []
+    if not acs or any(str(a.get("result") or "").upper() != "PASS" for a in acs):
+        gaps.append("AC_VERIFICATION_INCOMPLETE")
+    fr = item.get("final_report") or {}
+    if not fr:
+        gaps.append("FINAL_REPORT_MISSING")
+    elif fr.get("item_revision") != item.get("revision"):
+        gaps.append("FINAL_REPORT_STALE")
+    return gaps
+
+
 def check(ids: list[str]) -> list[tuple[str, str]]:
     problems: list[tuple[str, str]] = []
     docs_only = _docs_only()
@@ -81,6 +95,8 @@ def check(ids: list[str]) -> list[tuple[str, str]]:
         g0_problems = g0.problems(item)
         if g0_problems:
             problems.append((iid, "GATE0_INCOMPLETE: " + "; ".join(g0_problems)))
+        for gap in completion_gaps(item):
+            problems.append((iid, gap))
             continue
         dview = ar.gate_view(iid, "design")
         if dview is None:
