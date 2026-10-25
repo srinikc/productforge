@@ -44,19 +44,18 @@
     "success": "A product declares home_region (IN in the template); the gate rejects missing/unknown home, out-of-region backup/KMS/egress, and bad retention with stable codes.",
     "source": "authored"
   },
-  "objective": "Emit a per-product residency manifest with data_classes/home_region/allowed_regions/backup/kms/egress/retention and enforce it with a Go build/deploy validator against the counsel-owned residency profiles, blocking by default.",
+  "objective": "Emit a per-product residency manifest (explicit home_region; IN template) with data_classes/allowed_regions/backup/kms/egress/retention and enforce it with a Go build/deploy validator against counsel-owned profiles: warn for the first release, then block; unknown/missing home always blocks.",
   "acceptance_criteria": [
     "core/packaging.build emits a residency section with all six groups populated: data_classes (non-empty), home_region (REQUIRED; no silent default), allowed_regions (non-empty, includes home_region), backup {regions, encrypted=true, frequency}, kms {provider, region, rotation_days>0}, egress {allowed_regions, subprocessors}, retention {days, legal_hold}; core.packaging.validate rejects a manifest with missing/unknown home_region or an invalid residency section.",
     "A Go module go/residencymanifest (Manifest/Policy/Validate) + cmd/pfresidency validates a manifest against config/residency-profiles/<home>.json: unknown/missing home -> fail closed; home in allowed_regions; backup/kms/egress regions subset of allowed_regions; retention.days > 0 and <= policy.retention_days when set; recognized backup.frequency; all six groups; block/warn mode; JSON report with stable error codes (RESIDENCY_UNKNOWN_HOME, RESIDENCY_HOME_NOT_ALLOWED, RESIDENCY_BACKUP_REGION, RESIDENCY_KMS_REGION, RESIDENCY_EGRESS_REGION, RESIDENCY_RETENTION, RESIDENCY_MISSING_GROUP, RESIDENCY_UNKNOWN_FREQUENCY).",
     "scripts/dev/residency_gate.py builds/loads the packaging manifest from config/residency-manifest.json (template) or products/<project>/residency-manifest.json (override), invokes the Go validator, and blocks (exit 1) or warns per config/residency-policy.json gate_mode; --report is non-fatal; warn mode prints a one-line stderr summary.",
-    "Tests cover the Go validator (valid, unknown region, missing home, home not allowed, backup/kms/egress outside allowed, zero/over retention, invalid backup/KMS fields, missing groups), the Python manifest/gate (six groups, validate rejects missing, IN template, override precedence, block/warn exit codes, warn stderr), language_rule_review, and precheck (45+ gates)."
+    "Tests cover the Go validator (valid, unknown region, missing home, home not allowed, backup/kms/egress outside allowed, zero/over retention, invalid backup/KMS fields, missing groups), the Python manifest/gate (six groups, validate rejects missing, IN template, override precedence, block/warn exit codes, warn stderr), language_rule_review, and precheck (45+ gates).",
+    "5. Cross-language conformance + ownership: one fixture set (valid + every RESIDENCY_* error) yields identical pass/block results from core.packaging.validate and cmd/pfresidency; schema_version is required and unknown -> fail; config/residency-profiles/** is registered in config/store-registry.json with a single owner/change path; tests load every shipped profile."
   ],
   "in_scope": [
-    "core/packaging.py residency section + validation",
-    "config/residency-manifest.json + gate_mode in config/residency-policy.json",
-    "go/residencymanifest (Manifest/Policy/Validate) + cmd/pfresidency",
-    "scripts/dev/residency_gate.py + precheck/ci-cd-gates wiring",
-    "tests + docs"
+    "Residency manifest section in packaging-manifest.json (explicit home_region; IN template).",
+    "Standalone Go validator + CLI, stable codes, warn-first then block.",
+    "Build/deploy gate + precheck wiring; conformance tests; profile ownership registration."
   ],
   "out_of_scope": [
     "Provider adapter region/KMS capabilities (BI-PF-1306).",
@@ -70,17 +69,14 @@
   ],
   "affected_files": [
     "core/packaging.py",
+    "go/residencymanifest/{go.mod,manifest.go,manifest_test.go,cmd/pfresidency/main.go}",
+    "scripts/dev/residency_gate.py",
     "config/residency-manifest.json",
     "config/residency-policy.json",
-    "go/residencymanifest/go.mod",
-    "go/residencymanifest/manifest.go",
-    "go/residencymanifest/manifest_test.go",
-    "go/residencymanifest/cmd/pfresidency/main.go",
-    "scripts/dev/residency_gate.py",
-    "scripts/dev/precheck.py",
-    "config/ci-cd-gates.json",
+    "config/residency-profiles/*.json",
+    "config/store-registry.json",
     "test-framework/tests/test_packaging_residency.py",
-    "docs/EDP-RESIDENCY-MANIFEST.md"
+    "docs/RESIDENCY-MANIFEST-GATE.md"
   ],
   "approach": "Extend core/packaging.build/validate with an embedded residency section sourced from config/residency-manifest.json (template) or products/<project>/residency-manifest.json (override) + config/residency-profiles/<home>.json. Add go/residencymanifest (Manifest/Policy/Validate + cmd/pfresidency) with fail-closed home/region/backup/KMS/egress/retention checks, stable error codes and block/warn modes. Add docs/RESIDENCY-MANIFEST-GATE.md; tests in Go + test-framework.",
   "review": {
@@ -309,7 +305,7 @@
     "usage": {}
   },
   "created_at": "2026-10-13T16:02:45.510577",
-  "updated_at": "2026-10-25T15:21:16.730416",
+  "updated_at": "2026-10-25T15:22:41.140476",
   "score": 0.75,
   "source_ref": "docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md",
   "_note": "dependencies set",
@@ -370,6 +366,45 @@
       "sig:140bedbf9c3f6d56": {
         "status": "REJECTED",
         "note": "Placeholder 'none' is not a finding; no action."
+      },
+      "sig:a27c78ffd28334da": {
+        "status": "ACTIONED",
+        "note": "Add a cross-language conformance AC/test: one fixture set (valid + each error code) is run through core.packaging.validate and cmd/pfresidency with identical pass/block results; schema_version is required on the manifest."
+      },
+      "sig:00ed736c3c3f6324": {
+        "status": "ACTIONED",
+        "note": "config/residency-profiles/** is registered in config/store-registry.json with a single owner/change path (counsel-reviewed policy files; edits require a recorded decision). Add a test that every profile in the directory loads and validates."
+      },
+      "sig:5e575340dded572d": {
+        "status": "ACTIONED",
+        "note": "Pin config/residency-policy.json gate_mode=warn for the first release (objective reworded to warn-first, then block); unknown/missing home always blocks regardless of gate_mode. Add the block flip to the rollout note."
+      },
+      "sig:f281ed6a62c9bea8": {
+        "status": "ACCEPTED",
+        "note": "Fleet metrics are accepted narrowly: no metrics collector/owner in EDP-12; the JSON report + stderr line are the audit signal. Alternatives: counter file (no consumer), metrics endpoint (new API). Revisit when monitoring lands; owner: platform observability.",
+        "why_not_fixed": "No fleet telemetry owner/aggregator exists in this item; a counter with no consumer is dead state.",
+        "alternatives": [
+          "counter file (no consumer)",
+          "new metrics endpoint (out of scope)"
+        ],
+        "revisit_if": "a fleet monitoring service exists or compliance asks for fleet failure-rate trends",
+        "owner": "platform-observability"
+      },
+      "sig:3c13b1b1caf4c274": {
+        "status": "ACTIONED",
+        "note": "Use docs/RESIDENCY-MANIFEST-GATE.md everywhere; affected_files updated. The old product-specific name is removed."
+      },
+      "sig:cff9f4130f3d3df5": {
+        "status": "ACTIONED",
+        "note": "schema_version is a required manifest field and an explicit AC; the conformance test asserts Python and Go accept the same schema version and reject an unknown one."
+      },
+      "sig:915b1b273edafd6a": {
+        "status": "ACTIONED",
+        "note": "Enumerate backup.frequency values: hourly, daily, weekly, monthly; unknown -> RESIDENCY_UNKNOWN_FREQUENCY."
+      },
+      "sig:22841b527d8f335f": {
+        "status": "ACTIONED",
+        "note": "Profile resolution: PF_RESIDENCY_PROFILES env overrides config/residency-profiles/ (repo-relative default); the gate CLI takes --profiles; tests run from a temp cwd."
       }
     }
   }
