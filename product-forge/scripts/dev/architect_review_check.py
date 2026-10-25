@@ -102,7 +102,7 @@ def main() -> int:
             if iid:
                 by_item.setdefault(iid, []).append(d)
         for path, d in reversed(evs):
-            if d.get("mode") != "diff" or str(d.get("head_sha") or "") != head:
+            if d.get("mode") != "diff":
                 continue
             base = str(d.get("base_sha") or "")
             if not base or base == head:
