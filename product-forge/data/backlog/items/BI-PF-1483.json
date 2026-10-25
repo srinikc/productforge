@@ -277,7 +277,7 @@
     "usage": {}
   },
   "created_at": "2026-10-25T14:35:25.808300",
-  "updated_at": "2026-10-25T14:46:09.805343",
+  "updated_at": "2026-10-25T14:48:31.186561",
   "score": 0.75,
   "_note": "design + Gate 0",
   "api_impact": {
@@ -345,53 +345,49 @@
       }
     },
     "diff": {
-      "sig:c6579cc3b7804826": {
+      "sig:48f535190778bf80": {
         "status": "ACTIONED",
-        "note": "Confirmed `re` is imported at the top of core/execution_trail.py (line 14). Added parse-level tests that execute the regex; a NameError now fails the suite."
+        "note": "Timeout reduced from 60s to 20s; a failure prints a stderr diagnostic and renders 'cannot render' in the table. The reuse of architect_review.py gate is intentional: one evidence reader. Accepted residual coupling for a CLI."
       },
-      "sig:e25f543b1270e0c8": {
+      "sig:90807f9acdaf51d8": {
         "status": "ACTIONED",
-        "note": "Added `_parse_recommendation` with realistic Gate output, hyphen and slash variants; also `_review_evidence` is exercised by the flow test via the parser."
+        "note": "The stage table now appends unknown/legacy stage events after the canonical STAGES rows; test_show_keeps_legacy_unknown_stage_events covers it."
       },
-      "sig:3baf2d4f53d3c4f2": {
+      "sig:4e3e9fbc5dd440c9": {
         "status": "ACTIONED",
-        "note": "Added empty-trail/partial-item show test (planning, no events, not recorded) and a completed-item current-stage test."
+        "note": "current_stage returns 'blocked at <stage>' when a committed pre-merge gate (not a review) is fail/error; the checklist marks [BLOCKED]. test_current_stage_blocks_on_failing_gate covers it."
       },
-      "sig:ea86b9c5e77b59bc": {
+      "sig:f02b09220395b6f4": {
         "status": "ACTIONED",
-        "note": "`current_stage(item, status)` uses the item status: closed/completed -> complete; in_progress -> first missing stage. Flow checklist and final table use the same value."
+        "note": "_parse_recommendation has a NOT READY test plus hyphen/slash variants; the contract is the project's own gate output."
       },
-      "sig:78d164093fec9361": {
-        "status": "ACTIONED",
-        "note": "`_stage_status` returns 'reviewed (recommendation unavailable)' for a review stage with no parsed recommendation; it never falls back to the ingest-time pass. Test added."
-      },
-      "sig:7d298778e168d1ca": {
-        "status": "ACTIONED",
-        "note": "Docs now state that show re-executes architect_review.py gate (which reads the review evidence by sha); the subprocess latency is accepted for a CLI."
-      },
-      "sig:8257a787c94898f1": {
-        "status": "ACTIONED",
-        "note": "Factored `_stage_status`; the stage table and flow checklist call the same helper."
-      },
-      "sig:420cb7dce709a335": {
-        "status": "ACTIONED",
-        "note": "`_parse_recommendation` accepts hyphen/slash separators, normalizes whitespace, and is tested."
-      },
-      "sig:6d011a99e718aa01": {
+      "sig:3ac8424c5d5b1746": {
         "status": "ACCEPTED",
-        "note": "`_box` wraps cells at the column width; the status wraps to two lines, never truncates. Accepted as a CLI layout trade-off."
+        "note": "Header/checklist/final repeat the current stage intentionally for orientation; all derive from one value."
       },
-      "sig:4a7df4fb944fcc9c": {
-        "status": "ACCEPTED",
-        "note": "`_review_table` is kept as a compatibility wrapper for external callers; it is one line and adds no behavior."
-      },
-      "sig:75523d07245ded8e": {
+      "sig:6feca9dd0ed7908c": {
         "status": "ACTIONED",
-        "note": "Renamed to `_flow_rows` and `_gate_decision`."
+        "note": "_stage_status now returns 'unknown' when a non-review event has no status, never a defaulted pass."
       },
-      "sig:6ee7bd299a7e44c1": {
+      "sig:285cc6d3f00c2aa3": {
+        "status": "ACTIONED",
+        "note": "CLOSED_STATUSES is a module constant reused by current_stage; no inline synonyms."
+      },
+      "sig:4a131c099b8c455a": {
+        "status": "ACTIONED",
+        "note": "test_review_evidence_missing_and_exception_are_explicit covers the no-evidence and subprocess-exception branches."
+      },
+      "sig:154d571392b44461": {
         "status": "ACCEPTED",
-        "note": "Current stage is intentionally shown in the header, checklist and final table, all from one derived value; accepted."
+        "note": "Section ordinals are stable in the test list; extracting an ordered section constant is a later cleanup."
+      },
+      "sig:45ff033f2949016f": {
+        "status": "ACTIONED",
+        "note": "Docs now explain the Runs column and unknown/legacy rows."
+      },
+      "sig:94c97d366719259e": {
+        "status": "ACTIONED",
+        "note": "Removed the unused _review_table wrapper."
       }
     }
   }
