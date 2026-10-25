@@ -1,0 +1,38 @@
+{
+  "item": "BI-PF-1484",
+  "sha": "6052b62a5e8f",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-25T11:12:04.023716+00:00",
+  "findings": {
+    "BLOCKER": [
+      "No change to `gate2_completion_check.py` or any merge gate; the final_report/AC completion guard lives only in `execution_trail_check.evaluate()` with no evidence in the diff that completion or merge invokes it \u2014 AC \"completion/merge is blocked without it\" is not demonstrably enforced.",
+      "No test exercises the completion guard (AC/final_report refusal) or the Gate 2 AC refusal in `record_gate_decision`, both of which the AC explicitly requires tests for."
+    ],
+    "MAJOR": [
+      "`disposition_policy.cfg()` catches all exceptions and silently substitutes hardcoded defaults: a missing/corrupt `review-dispositions.json` degrades policy (cap/approval toggles) with zero observability and duplicates the config values, guaranteeing drift.",
+      "`execution_trail_check` calls `dp.problems(item, mode)` without `backlog_get`, and `problems()` swallows `backlog_get` exceptions with `pass` \u2014 \"DEFERRED cites an *existing* backlog id\" is not actually enforced by the wire-in check.",
+      "`final_report` records `item_revision` but nothing invalidates or re-derives it when the item changes afterwards; completion only tests presence, so a stale report from an earlier revision satisfies the guard.",
+      "`record_gate_decision` rejects Gate 2 until all ACs PASS, yet `DISPOSITION_APPROVAL` appears to flow through the same function; if approvals are recorded at gate 2 this creates an ordering deadlock (approval needed before ACs pass, ACs blocked until approval exists) \u2014 verify the recording path.",
+      "`test_kind()` classification is heuristic string matching (`\"api/\"`, `\"pipeline\"`, `\" db\"`, `\"db_\"`) with silent misclassification risk feeding both the final report and the show totals; no single shared classifier exists if another site classifies tests."
+    ],
+    "MINOR": [
+      "`finalize_item.build()` uses `evs[0][\"at\"]`/`evs[-1][\"at\"]` \u2014 KeyError on any event lacking `at`, and assumes the trail is chronologically ordered for start/finish.",
+      "The `FOLLOW_UP` regex is duplicated in `disposition_policy.py`, `execution_trail_check.py`, and `deferred_problems` \u2014 drift will silently weaken deferred-id validation.",
+      "Final report persists raw `usage` totals; the AC requires `cost + cost_source` \u2014 confirm `usage_totals` actually carries `cost_source`, otherwise the persisted report is incomplete by contract.",
+      "`show()`'s dispositions table omits the backlog id for DEFERRED rows, so the trail view can't show the cited follow-up.",
+      "Mode is derived as `design if gate == 1 else \"diff\"`; any future/non-1 gate (1.5, 3) silently validates against the wrong mode's dispositions."
+    ],
+    "NIT": [
+      "`cfg()` re-reads the config file on every `problems()`/`_approvals()` call (several times per check) \u2014 negligible now, but inconsistent with loading once.",
+      "`test_finalize_item` only covers `build()`; the persist path (`main()` with `backlog.update`) and `--report` mode are untested.",
+      "In `record_gate_decision`, disposition/AC problems are reported before the decision-value validity check, so a malformed decision gets a misleading policy error first."
+    ],
+    "SUMMARY": [
+      "Solid shape overall: policy is config-driven, enforcement is spread across gate recording, checks, and finalize, and docs/store/tests accompany the change.",
+      "Top risks: the completion/merge enforcement for `final_report` and the required completion-guard tests are not evidenced in the diff; silent config/backlog-id fallbacks and revision-stale final reports weaken integrity.",
+      "Recommend proving the wiring (which command runs on completion/merge) and adding the missing guard tests before acceptance."
+    ]
+  }
+}
