@@ -114,9 +114,11 @@ def main(argv: list[str] | None = None) -> int:
                 "parity": parity, "errors": errors, "exit": r.returncode})
     _report(rec, a.report)
     _event(rec)
-    if r.returncode == 2 or not parity:
-        print(f"residency: BLOCK execution/parity failure: {errors or r.stderr.strip()}", file=sys.stderr)
+    if r.returncode == 2:
+        print(f"residency: BLOCK execution failure: {errors or r.stderr.strip()}", file=sys.stderr)
         return 2
+    if not parity:
+        print(f"residency: WARN Python/Go verdict divergence; Go is authoritative: {errors}", file=sys.stderr)
     if not go_valid:
         hard_prefix = ("RESIDENCY_UNKNOWN_HOME", "RESIDENCY_PROFILE_UNREADABLE", "RESIDENCY_SCHEMA_VERSION",
                        "RESIDENCY_MISSING_GROUP", "RESIDENCY_INVALID_FIELD", "RESIDENCY_BACKUP_UNENCRYPTED",

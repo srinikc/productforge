@@ -1,4 +1,4 @@
-﻿"""Cross-language residency conformance (BI-PF-1304 AC5)."""
+"""Cross-language residency conformance (BI-PF-1304 AC5)."""
 import copy
 import json
 import subprocess

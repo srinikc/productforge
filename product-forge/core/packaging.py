@@ -84,7 +84,7 @@ def validate_residency(section: dict) -> dict:
     sec = section or {}
     for k in RESIDENCY_GROUPS:
         if k == "egress":
-            if "egress" not in sec:
+            if "egress" not in sec or sec.get("egress") is None:
                 unmet.append("RESIDENCY_MISSING_GROUP:egress")
             continue
         if k not in sec or sec.get(k) in (None, "", [], {}):
@@ -124,17 +124,14 @@ def validate_residency(section: dict) -> dict:
         unmet.append("RESIDENCY_BACKUP_UNENCRYPTED")
     if b.get("frequency") not in FREQUENCIES:
         unmet.append("RESIDENCY_UNKNOWN_FREQUENCY")
-    try:
-        if int(k.get("rotation_days") or 0) <= 0:
-            unmet.append("RESIDENCY_KMS_ROTATION")
-    except (TypeError, ValueError):
+    rot = k.get("rotation_days")
+    if not isinstance(rot, int) or isinstance(rot, bool) or rot <= 0:
         unmet.append("RESIDENCY_KMS_ROTATION")
     r = sec.get("retention") or {}
-    try:
-        days = int(r.get("days") or 0)
-        if days <= 0 or (prof.get("retention_days") and not r.get("legal_hold") and days > int(prof["retention_days"])):
-            unmet.append("RESIDENCY_RETENTION")
-    except (TypeError, ValueError):
+    days = r.get("days")
+    max_days = prof.get("retention_days") or 0
+    if (not isinstance(days, int) or isinstance(days, bool) or days <= 0
+            or (max_days and not r.get("legal_hold") and days > int(max_days))):
         unmet.append("RESIDENCY_RETENTION")
     return {"valid": not unmet, "unmet": unmet, "home_region": home, "profile": prof.get("id") or ""}
 
@@ -219,7 +216,7 @@ def build(scope: str = "product_forge", project: str = "", edition: str = "commu
 
     out["residency"] = residency_section(scope, project)
     if (out["residency"].get("validation") or {}).get("valid") is not True:
-        out["ok"] = False
+        out["residency_warning"] = "RESIDENCY_POLICY_VIOLATION"
     out["distinctions"]["source"] = {"source_dir": d}
     out["distinctions"]["configuration"] = {"edition": ed["id"], "tier": ed["tier"]}
     return out

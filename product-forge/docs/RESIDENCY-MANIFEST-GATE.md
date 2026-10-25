@@ -41,7 +41,7 @@ policy maximum; `days` must still be > 0.
 - Unknown/missing home, unreadable profile/policy and validator/toolchain failures **always block**, even in warn.
 - `--report` prints the JSON report; it never changes the exit code (policy block=1, execution failure=2).
 - Each run writes `engineering/residency-gate.json` (last run) and a bounded `engineering/residency-gate.jsonl`
-  (5 MB rotation, 3 files). The report carries `report_version: 1`.
+  (5 MB rotation, bounded). The report carries `report_version: 1`.
 
 ## Error codes (frozen)
 
