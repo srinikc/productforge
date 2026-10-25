@@ -328,10 +328,13 @@ def _build_prompt(item: dict, item_id: str, mode: str, base: str = "") -> str:
     if mode == "diff":
         if base:
             acs = item.get("ac_verification") or []
-            ac_txt = "\n".join(f"- {a.get('ac')}: {a.get('result')}" for a in acs) or "- (none recorded)"
+            ac_txt = "\n".join(
+                f"- {a.get('ac')}: {a.get('result')}; evidence={'; '.join(a.get('evidence') or [])}"
+                for a in acs) or "- (none recorded)"
             prompt += ("\n\nDELTA REVIEW SCOPE: this diff is only the changes since the previously reviewed HEAD. "
                        "The full candidate at HEAD already contains the implementation and AC evidence shown below. "
-                       "Do NOT report ACs as missing or unimplemented just because they are absent from this delta. "
+                       "Do NOT report an AC as missing solely because it is absent from this delta. "
+                       "Report an AC problem only if the delta breaks it or removes its evidence; cite the AC and the delta hunk. "
                        "Review only these delta changes for new defects/regressions and whether prior findings are resolved."
                        "\n\nAC verification (full candidate):\n" + ac_txt)
         prior = _prior_context(item, item_id, mode)

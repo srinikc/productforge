@@ -42,6 +42,15 @@ def test_valid_base_requires_ancestry(monkeypatch):
     monkeypatch.setattr(arc, "_is_ancestor", lambda b, h: False)
     assert not arc.valid_base("aaa", "head", {"aaa"}, "mb")
 
+def test_build_prompt_delta_scope_includes_ac_evidence(monkeypatch):
+    monkeypatch.setattr(ar, "_git_diff", lambda base="": "delta-diff")
+    monkeypatch.setattr(ar, "_prior_context", lambda item, iid, mode: "")
+    item = {"id": "BI-PF-9000", "acceptance_criteria": ["a"],
+            "ac_verification": [{"ac": "a", "result": "PASS", "evidence": ["t1"]}]}
+    p = ar._build_prompt(item, "BI-PF-9000", "diff", "abc")
+    assert "DELTA REVIEW SCOPE" in p and "evidence=t1" in p and "cite the AC" in p
+
+
 def test_parse_review_ignores_none_placeholders():
     text = "### BLOCKER\n- none\n### MAJOR\n- real\n### MINOR\n- none\n### NIT\n- none\n### SUMMARY\n- ok\n"
     out = ar.parse_review(text)
