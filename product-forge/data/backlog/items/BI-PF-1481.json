@@ -28,6 +28,17 @@
       "decision": "APPROVE",
       "by": "system",
       "note": "auto-approved on add (BI-PF-1282)"
+    },
+    {
+      "at": "2026-10-25T07:36:52.343387+00:00",
+      "by": "hil:srinikc",
+      "decision": "APPROVE_WITH_ATTENTION",
+      "gate": 1,
+      "findings_sha": "b1552bcee88b",
+      "findings_digest": "a1ecb2b00898",
+      "seq": 2,
+      "note": "HIL requested the execution trail; design sha b1552bcee88b: 4 blockers actioned (failure sink, atomic lock, stage ownership, diff scoping), 5 majors actioned; 0 pending.",
+      "hil_confirmed": true
     }
   ],
   "follow_up": {},
@@ -40,10 +51,10 @@
   },
   "objective": "Give every backlog item one ordered, append-only execution trail from Gate 0 to completion, written automatically by the gate tools, with a show CLI (gates, tests, usage, final table, next item) and a completion gate that fails missing/out-of-order stages.",
   "acceptance_criteria": [
-    "A registered store engineering/trails/<ITEM>.json (owner core/execution_trail.py) records append-only events {seq, at, stage, actor, status, summary, refs, tests, usage, duration_ms} for planning, gate0, design_review, gate1, implementation, code_review, diff_review, gate2, tests, precheck, pr, merge, delivery, completion.",
+    "A registered store engineering/trails/<ITEM>.json (owner core/execution_trail.py, a thin adapter to scripts/dev/execution_trail.py) records append-only events {seq, at, stage, actor, status, summary, refs, tests, usage, duration_ms} for planning, gate0, design_review, gate1, implementation, code_review, diff_review, gate2, tests, precheck, pr, merge, delivery, completion; seq is monotonic under a per-item lock.",
     "python -m core.execution_trail show --item <ID> renders the ordered trail, the Gate 1.5/2.5 decision tables + recommendations (from the review evidence), the tests table (command/result/duration), usage totals (input/output/cached tokens; 'not captured' when unavailable), and the final completion table with PR/merge, total time, next backlog item.",
     "The gate tools write the trail automatically: gate0_check, architect_review (design/diff + provider usage), gate_decide, precheck (tests/precheck timings), core.backlog.set_delivery and set_status(completed); no manual record is needed for a normal item.",
-    "scripts/dev/execution_trail_check.py (precheck fast) fails a completion in the diff when required stages are missing or out of order, or when a DEFERRED finding has no follow-up item; the check is self-tested and wired into precheck + ci-cd-gates."
+    "scripts/dev/execution_trail_check.py runs as a POST-precheck gate (after tests/precheck events are written) and fails a completion in the diff when the pre-merge stages planning/gate0/design_review/gate1/implementation/code_review/diff_review/gate2/tests/precheck are missing or out of order, or when a DEFERRED finding has no follow-up BI-... id; pr/merge/delivery/completion are post-merge and shown when present. A trail write failure emits a structured execution_trail_write_failed event and the completion gate fails; the check is self-tested and wired into precheck + ci-cd-gates."
   ],
   "in_scope": [
     "scripts/dev/execution_trail.py + store registration",
@@ -75,7 +86,7 @@
     "test-framework/tests/test_execution_trail.py",
     "docs/REVIEW-GATES-LIFECYCLE.md"
   ],
-  "approach": "Add scripts/dev/execution_trail.py (registered store engineering/trails/<ID>.json, append-only events, lock, record/show/finalize/check) and scripts/dev/execution_trail_check.py. Wire gate0_check, architect_review (design/diff + provider usage), gate_decisions (gate1/2), precheck (tests/precheck timings), and core.backlog.set_delivery/set_status via a best-effort hook. show renders the ordered stages, Gate 1.5/2.5 tables via architect_review.render_gate_view, tests, usage totals and the final completion/next-item table. The completion gate requires gate0/design_review/gate1/diff_review/gate2/tests in order and a follow-up item for DEFERRED findings.",
+  "approach": "Add scripts/dev/execution_trail.py + a thin core/execution_trail.py adapter (allowlisted) and scripts/dev/execution_trail_check.py. Wire gate0_check (planning/gate0), architect_review (design/diff + provider usage), gate_decisions (gate1/2), precheck (implementation/code_review/tests/precheck, POST gate), core.backlog.set_delivery/set_status (delivery/completion). The show CLI renders stages, Gate 1.5/2.5 tables, tests, usage and the final/next table. Write failures are logged (execution_trail_write_failed) and the POST completion gate fails missing/out-of-order stages or DEFERRED without a follow-up id.",
   "review": {
     "reconciliation": {
       "prior_decisions": [
@@ -94,11 +105,15 @@
         "A trail is a per-item append-only JSON store; stages are recorded by the tools, not hand-written.",
         "Completion (status completed) is the enforcement point for the pre-merge stages; merge/delivery/completion events are appended after the PR/merge.",
         "Provider usage (input/output/cached tokens) is available from the review API response; coding-session tokens are only available if the harness/worker writes item.execution.usage, otherwise shown as 'not captured'.",
-        "DEFERRED dispositions must name a follow-up item id in their note; the completion gate checks it when present."
+        "DEFERRED dispositions must name a follow-up item id in their note; the completion gate checks it when present.",
+        "core/execution_trail.py is a thin adapter to the tooling implementation (allowlisted in config/language-rule.json); python -m core.execution_trail works.",
+        "The completion gate enforces the pre-merge stages because the item is marked completed before the PR/merge; pr/merge/delivery/completion events are appended after merge and shown when present.",
+        "Trail write failures are logged as structured events; the POST-precheck completion gate is the fail-closed enforcement."
       ],
       "divergences": [
         "The trail is a new evidence store (not a backlog field) to keep the item lean and the history append-only; it references item_id.",
-        "The trail is written by the gate tools (automatic) and checked at completion (fail closed), rather than relying on manual summaries."
+        "The trail is written by the gate tools (automatic) and checked at completion (fail closed), rather than relying on manual summaries.",
+        "The completion gate runs as a POST gate so it sees the tests/precheck events written by the same precheck run."
       ],
       "open_questions": []
     },
@@ -135,7 +150,7 @@
       {
         "claim": "guardrail",
         "verdict": "aligned",
-        "evidence": "execution_trail_check in precheck fails a completion with missing/out-of-order stages or an unlinked DEFERRED; legacy items are not in the diff.",
+        "evidence": "POST-precheck execution_trail_check: pre-merge stages in order + DEFERRED follow-up ids; a write failure is logged and the gate fails.",
         "recommendation": "approve"
       },
       {
@@ -155,7 +170,7 @@
     "at": ""
   },
   "verification": [
-    "Objective achieved: Backlog execution trail: ordered stage ledger + tests/usage/cost report + completion guard"
+    "Gate 1.5 architect review (mimo-v2.6-flash): {'BLOCKER': 4, 'MAJOR': 5, 'MINOR': 4, 'NIT': 3}"
   ],
   "risks": [
     "A trail write failure must not fail a gate; the completion gate catches a missing trail.",
@@ -166,7 +181,9 @@
   "rollback": "Revert the tooling/config commit; trail files are append-only evidence and can remain.",
   "evidence": [
     "pending",
-    "Design guardrails applied (BI-PF-1481): sig:f5a4a39a1ee730b6 (20 lines)"
+    "Design guardrails applied (BI-PF-1481): sig:f5a4a39a1ee730b6 (20 lines)",
+    "Gate 1.5 architect review - model=mimo-v2.6-flash sha=db39a08040f2\nBLOCKER:\n  - AC/owner mismatch: AC requires `owner core/execution_trail.py` and `python -m core.execution_trail show`, but the design ships `scripts/dev/execution_trail.py`; `python -m core.execution_trail` cannot resolve. AC 1 and 2 are not met as written.\n  - Silent best-effort hook: a failed trail write drops required evidence (e.g. `delivery`/`completion`) with no failure signal, yet the completion gate then fails the item — gate outcome becomes dependent on an unlogged side channel rather than a checked contract.\nMAJOR:\n  - Dependency inversion: `core/backlog.py` (shipped core) invoking a `scripts/dev` hook makes core depend on dev tooling; failure coupling and reload/ordering semantics are undefined.\n  - No stated invariant for `seq` uniqueness/monotonicity across concurrent writers; a per-item lock alone does not prove ordering, and no concurrency/append test is listed.\n  - Completion gate enforces only a subset (`gate0/design_review/gate1/diff_review/gate2/tests`); `planning`, `pr`, `merge`, `delivery`, `completion`, `implementation`, `code_review`, `precheck` are in the AC stage list but unenforced — out-of-order or absent late stages pass the gate.\n  - No observability plan for trail writes (metric/log/counter on append failure, hook miss, lock contention); without it, \"best-effort\" is undiagnosable in production runs.\n  - Test scope covers only `test_execution_trail.py` happy path; recurring review findings call out missing coverage for render/disposition helpers and check failure paths (`DEFERRED` without follow-up, out-of-order detection).\n  - `architect_review.render_gate_view` reuse appears to reach into private helpers (`_render_review`, `_item_dispositions`) — cross-module reuse of private API is a maintainability and contract risk.\nMINOR:\n  - No redaction/retention policy for `refs`/`summary`/token usage persisted in the durable trail store (checklist items 9, 4).\n  - Append-only JSON has no size bound, rotation, or compaction; long-lived items grow unbounded.\n  - Usage \"not captured\" vs. zero semantics not defined for partially captured sessions (mixed sources in one trail).\n  - \"next backlog item\" and \"total time\" in the final table have no defined behavior for partial/legacy/incomplete trails.\n  - Rollback leaves `config/store-registry.json` and `config/ci-cd-gates.json` referencing a removed tool — restore path for config not stated.\nNIT:\n  - Checklist guardrail questions (backup/restore before any destructive step, SPOF/alert lead-time, needs_api) are not explicitly answered in the design text even though the design guardrails require it.\n  - Naming: item in_scope says `scripts/dev/*` while AC says `core/*`; pick one and align all three of AC, in_scope, and affected_files.\nSUMMARY:\n  - Solid direction: append-only registered store, tool-written evidence, and a fail-able completion check are the right shape, and reuse of `architect_review` render + store registry is good.\n  - Top risks: (1) AC module path/owner is contradicted by the design, (2) best-effort writes silently corrupt gate evidence with no observability, (3) the completion gate enforces only ~6 of 14 mandated stages, so ordering integrity is not actually guaranteed.\n  - Must resolve the owner mismatch and define the write-failure contract (log/metric + gate behavior) before Gate 1.5.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
+    "Gate 1.5 architect review - model=mimo-v2.6-flash sha=b1552bcee88b\nBLOCKER:\n  - AC/design conflict: a trail *write failure* cannot be recorded as an `execution_trail_write_failed` event inside the same failing trail; no alternate durable sink (log/metric/separate store) is specified, so the failure signal and the gate verdict can silently diverge.\n  - Append-only atomicity unspecified: no temp-write+rename/fsync or lock mechanism (flock? lockfile?) is stated for read-modify-write seq allocation; a crash or two writers can duplicate or skip seq, violating the monotonic-seq AC with no test named for it.\n  - AC says `precheck` writes tests/precheck timings only, but the design assigns `precheck` to also write implementation/code_review events; stage ownership is ambiguous and the out-of-order check cannot be trusted until one source of truth exists.\n  - `scripts/dev/execution_trail_check.py`'s \"in the diff\" scoping for which completions to enforce is undefined (git range? changed files?); without a deterministic rule the gate can be bypassed or fail unrelated legacy items.\nMAJOR:\n  - DEFERRED-follow-up validation only regexes a `BI-...` id; it does not verify the id exists/open in the backlog, so a bogus token satisfies the gate (integrity hole).\n  - Store ownership is split (`core/execution_trail.py` adapter owner vs `scripts/dev/execution_trail.py` implementation) with no statement of which is canonical for schema evolution, imports, or versioning — duplicate-surface drift risk.\n  - AC names `gate_decide` while files/design say `gate_decisions.py`; wiring list must reconcile tool names or the auto-write path silently misses a stage.\n  - No test named for the ordering/missing-stage check itself across every required stage, nor for seq-under-concurrency; only a generic `test_execution_trail.py` is listed — gates need fail-able tests (guardrail 6/5).\n  - Observability: only a failure log event is mentioned; no counter/log for trail write latency, lock contention, or skipped stages, so production diagnosing relies on reading JSON files.\nMINOR:\n  - No secret/redaction policy for `summary`/`refs`/`usage` payload fields written by gate tools into a long-lived store.\n  - Rollback says trail files \"can remain\" but no retention/compaction/size bound is defined for append-only per-item JSON growth.\n  - Language rule: `core/execution_trail.py` is new shipped Python; justified only as a thin allowlisted adapter — the \"thinness\" boundary needs an explicit test/guard or it will accrete logic.\n  - No statement of clock source/monotonicity for `at`/`duration_ms` (NTP steps, cross-process skew) yet total time is derived from them.\nNIT:\n  - `gate_decide` vs `gate_decisions` naming; `set_status(completed)` trigger ordering versus `delivery` event ordering should be spelled into the canonical stage sequence diagram.\n  - Guardrail 8 (needs_api) not explicitly answered as \"no\" in the design; state it to close the checklist.\n  - Legacy backfill out-of-scope is fine, but note the show CLI behavior for items with zero/partial trails (`not captured` semantics) for consistency.\nSUMMARY:\n  - Sound, reversible, tooling-only design that fits the standards, but it is under-specified exactly where integrity matters: write-failure signaling, atomic/locked seq allocation, stage ownership, and the check's diff scoping.\n  - Top risks: gate can pass on a fake/garbled trail, and the failure event path is self-referential.\n  - Approve only after the failure-sink, locking/atomicity, stage-ownership, and diff-scoping rules are stated and covered by fail-able tests.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present"
   ],
   "owner": "agent",
   "requester": "review",
@@ -294,7 +311,7 @@
     "usage": {}
   },
   "created_at": "2026-10-25T12:54:15.623626",
-  "updated_at": "2026-10-25T12:56:09.610005",
+  "updated_at": "2026-10-25T13:06:52.452124",
   "score": 0.75,
   "_note": "readiness computed",
   "api_impact": {
@@ -303,5 +320,73 @@
     "consumers": [],
     "reason": "CLI/gate tooling only; no HTTP surface."
   },
-  "language_rule": "Python tooling (scripts/dev) + a small edit to core.backlog for the hook; no new shipped core module. language_rule_review BI-PF-1481 = allowed after this change."
+  "language_rule": "Python tooling (scripts/dev) + a small edit to core.backlog for the hook; no new shipped core module. language_rule_review BI-PF-1481 = allowed after this change.",
+  "review_dispositions": {
+    "design": {
+      "sig:eb38f20ec27b6b75": {
+        "status": "ACTIONED",
+        "note": "execution_trail.write_failure appends engineering/trails/_failures.jsonl and the hooks log a structured execution_trail_write_failed event; the POST gate then fails the completion."
+      },
+      "sig:d9491acfb0447c63": {
+        "status": "ACTIONED",
+        "note": "_write uses temp+os.replace; _lock uses O_EXCL with timeout; a 10-thread test asserts seq 1..10."
+      },
+      "sig:c19b9f697f606c32": {
+        "status": "ACTIONED",
+        "note": "Ownership is explicit: gate0=planning/gate0, architect=design/diff, gate_decisions=gate1/2, precheck=implementation/code_review/tests/precheck, backlog=delivery/completion."
+      },
+      "sig:9959344e760c2446": {
+        "status": "ACTIONED",
+        "note": "The check uses gate2_completion_check.transitions(base) with base=--base or merge-base develop HEAD; only completions in the committed diff are enforced."
+      },
+      "sig:49ec7f8f0ffa8d97": {
+        "status": "ACTIONED",
+        "note": "The check resolves the cited BI-... via core.backlog.get_epic and fails if it does not exist; test covers it."
+      },
+      "sig:dcaeeffedc7a721d": {
+        "status": "ACTIONED",
+        "note": "scripts/dev/execution_trail.py is canonical; core/execution_trail.py is a thin allowlisted adapter; the item/doc state this."
+      },
+      "sig:371dd210be921fce": {
+        "status": "ACTIONED",
+        "note": "gate_decide calls gate_decisions.record_gate_decision, which writes the trail; both names are the same path."
+      },
+      "sig:609f48c3a6601a63": {
+        "status": "ACTIONED",
+        "note": "9 tests cover seq/concurrency, missing/order, DEFERRED existence, show, usage, redaction."
+      },
+      "sig:0c2c9d0d74716392": {
+        "status": "ACCEPTED",
+        "note": "Failure sink + JSON log are implemented; latency/lock-contention counters are a follow-up (no runtime metrics registry for tooling)."
+      },
+      "sig:939a5975d2cb1e76": {
+        "status": "ACCEPTED",
+        "note": "Accepted as advisory; no further change in this item."
+      },
+      "sig:91b04377477776fa": {
+        "status": "ACCEPTED",
+        "note": "Accepted as advisory; no further change in this item."
+      },
+      "sig:4a82b2aedb431d1a": {
+        "status": "ACCEPTED",
+        "note": "Accepted as advisory; no further change in this item."
+      },
+      "sig:4492335dfdbb3550": {
+        "status": "ACCEPTED",
+        "note": "Accepted as advisory; no further change in this item."
+      },
+      "sig:7843f23e3ca1b9b4": {
+        "status": "ACCEPTED",
+        "note": "Accepted as advisory; no further change in this item."
+      },
+      "sig:40f9aae8cfb32994": {
+        "status": "ACCEPTED",
+        "note": "Accepted as advisory; no further change in this item."
+      },
+      "sig:acbb72ba58001cb7": {
+        "status": "ACCEPTED",
+        "note": "Accepted as advisory; no further change in this item."
+      }
+    }
+  }
 }
