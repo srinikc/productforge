@@ -1,0 +1,326 @@
+{
+  "id": "BI-PF-1485",
+  "tag": "PF",
+  "type": "hardening",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "execution-finalization-hardening",
+  "label": "PF Backlog 655",
+  "title": "Review tooling: delta-only re-reviews, prior findings, design pack + encoding gates",
+  "body": "",
+  "source": "review",
+  "status": "in_progress",
+  "priority": "P1",
+  "moscow": "Must",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [],
+  "links": {},
+  "decisions": [
+    {
+      "at": "2026-10-25T16:51:55.873111",
+      "decision": "APPROVE",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)"
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "1484 finalization still has edge-case hardening after multiple 2.5 reviews.",
+    "what_adds": "Follow-up hardening for completion/report invariants, approval ergonomics and scope.",
+    "why_now": "Track the residual work without blocking the finalization delivery.",
+    "success": "Residual findings closed or accepted with evidence.",
+    "source": "authored"
+  },
+  "objective": "Make re-reviews review only the delta since the last reviewed HEAD, with prior findings/dispositions and full-candidate AC context; add the per-item design pack and encoding gate without 1484 finalization code.",
+  "acceptance_criteria": [
+    "Re-reviews diff last_reviewed_HEAD..HEAD, include prior findings/dispositions and full-candidate AC evidence, and bind evidence to base/head; a data-only commit does not invalidate the review.",
+    "Design pack: item.design_pack + generated engineering/design/<ID>.md; Gate 1 and precheck validate enforced items (requirements, invariants, contracts, failure matrix, dependencies, security, observability, performance, test matrix, rollout/rollback, decisions).",
+    "Encoding gate: changed source/config/docs must be UTF-8 without BOM, including working-tree/untracked files; generator reads templates BOM-safely.",
+    "Tests cover delta base/prior context, design-pack check/render/config, and encoding BOM; precheck passes; store/registry/doc updates included."
+  ],
+  "in_scope": [
+    "Execution finalization hardening: review-loop guards and AC/report edge cases"
+  ],
+  "out_of_scope": [
+    "Not specified."
+  ],
+  "affected_components": [
+    "Not specified."
+  ],
+  "affected_files": [
+    "Not specified."
+  ],
+  "approach": "Execution finalization hardening: review-loop guards and AC/report edge cases",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [
+        "BI-PF-1483 flow view; BI-PF-1484 finalization frozen and scoped",
+        "ADR-0010 control-plane evidence tooling"
+      ],
+      "existing_path": [
+        "scripts/dev/architect_review.py full-diff review",
+        "scripts/dev/gate1_check.py",
+        "scripts/dev/precheck.py",
+        "templates/DESIGN-PACK.md"
+      ],
+      "assumptions": [
+        "Delta review assumes fixes committed before review",
+        "Design pack source is item.design_pack; MD is generated",
+        "Encoding gate reads committed+working tree"
+      ],
+      "divergences": [
+        "Prior re-review reviewed the full cumulative diff; this changes to delta+prior context."
+      ],
+      "open_questions": []
+    },
+    "impact_review": [
+      {
+        "claim": "API CHECK",
+        "verdict": "aligned",
+        "evidence": "CLI/tooling only; no HTTP. needs_api=false.",
+        "recommendation": "approve"
+      },
+      {
+        "claim": "AC coverage",
+        "verdict": "aligned",
+        "evidence": "4 ACs cover delta, design pack, encoding, tests.",
+        "recommendation": "approve"
+      },
+      {
+        "claim": "Language rule",
+        "verdict": "aligned",
+        "evidence": "scripts/dev tooling; no new shipped Python.",
+        "recommendation": "approve"
+      },
+      {
+        "claim": "Reuse",
+        "verdict": "aligned",
+        "evidence": "Extends existing review/gate tools; no second reviewer.",
+        "recommendation": "approve"
+      },
+      {
+        "claim": "Blast radius",
+        "verdict": "aligned",
+        "evidence": "Review/gate tooling; revert restores full-diff reviews.",
+        "recommendation": "approve"
+      }
+    ],
+    "reviewed_by": "agent",
+    "at": "2026-10-25T00:00:00"
+  },
+  "verification": [
+    "Objective achieved: Execution finalization hardening: review-loop guards and AC/report edge cases"
+  ],
+  "risks": [
+    "Not specified."
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending",
+    "Design guardrails applied (BI-PF-1485): sig:2a5a30f639aab2c9 (20 lines)"
+  ],
+  "owner": "agent",
+  "requester": "review",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1248",
+  "parent": "BI-PF-1248",
+  "revision": 3,
+  "priority_rank": 2,
+  "priority_class": "P1",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "STALE",
+    "analyzed_at": "2026-10-25T16:51:55.632654",
+    "analyzed_by": "system",
+    "revision_analyzed": 2,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing finalization path on core/execution_contract.py, core/execution_trail.py and the /api/v1/backlog/items/{item_id}/execution endpoint: add review-loop guards (pending Gate 1.5 disposition block, CL-006), accepted/deferred verification checks, AC edge-case enumeration and report persistence fallback; reuse core/agent_ledger.py and knowledge_registry for audit.",
+    "existing_components": [],
+    "existing_apis": [],
+    "existing_modules": [],
+    "dependency_findings": [
+      {
+        "task_id": "BI-PF-1484",
+        "type": "REQUIRES",
+        "required_state": "in_progress"
+      },
+      {
+        "task_id": "BI-0162",
+        "type": "RELATED",
+        "required_state": "any"
+      }
+    ],
+    "conflict_findings": [
+      "BI-PF-1484 edits the same finalization files; serialize after it lands",
+      "CL-001: confirm single writer for execution endpoint before editing"
+    ],
+    "duplication_findings": [
+      "BI-PF-1484 owns the core finalization flow; this item only hardens edge cases, no parallel implementation",
+      "BI-0162 covers close-on-verify attachment, not covered here (RELATED only)"
+    ],
+    "drift": "LOW",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "Hardening only touches guards and edge cases on an already-built finalization path; EXTEND reuses contract/trail/ledger rather than new components.",
+    "assumptions": [
+      "Review disposition state is queryable before finalization",
+      "Existing endpoint already enforces tenant-scoped authz"
+    ],
+    "risks": [
+      "Duplicate guard logic vs BI-PF-1484 causing drift",
+      "Report persistence edge cases may mask real failures"
+    ],
+    "evidence": [
+      "Existing endpoint /api/v1/backlog/items/{item_id}/execution",
+      "core/execution_contract.py + core/execution_trail.py already track finalization state"
+    ],
+    "confidence": "medium",
+    "missing_info": [
+      "Exact edge cases considered AC/report failures (list human-curated)",
+      "Whether BI-PF-1484 has landed to edit safely"
+    ],
+    "depth": "deep",
+    "mode": "ai",
+    "context_review": {
+      "ok": null,
+      "source": "llm-unparseable",
+      "implementable": null,
+      "missing": [],
+      "reason": "reviewer returned no JSON"
+    },
+    "decision_request": {
+      "needed": false,
+      "reasons": [],
+      "ask": ""
+    },
+    "arch_fingerprint": "4e9265e0dd00eefb"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-25T16:51:55.745468"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-25T16:51:37.256014",
+  "updated_at": "2026-10-25T19:59:23.267304",
+  "score": 0.75,
+  "_note": "Gate 0 design",
+  "design_pack": {
+    "version": 1,
+    "requirements": [
+      "Delta re-reviews only",
+      "Prior findings/AC context",
+      "Design pack gate",
+      "Encoding gate"
+    ],
+    "scope": [
+      "Architect review tooling"
+    ],
+    "invariants": [
+      "Delta base is merge-base or a prior reviewed HEAD for the same item",
+      "base != HEAD",
+      "Evidence path must exist",
+      "Prior context and base use the same latest review"
+    ],
+    "contracts": {
+      "api": [
+        "No HTTP"
+      ],
+      "db": [
+        "engineering/reviews evidence fields base_sha/head_sha"
+      ],
+      "files": [
+        "engineering/reviews/<ID>-<sha>.json"
+      ],
+      "config": [
+        "config/architect-review.json"
+      ]
+    },
+    "failure_matrix": [
+      {
+        "case": "self-referential base",
+        "expected": "reject",
+        "code": "DELTA_BASE_INVALID"
+      },
+      {
+        "case": "cross-item base",
+        "expected": "reject",
+        "code": "DELTA_BASE_INVALID"
+      },
+      {
+        "case": "partial arbitrary since",
+        "expected": "reject",
+        "code": "DELTA_BASE_INVALID"
+      },
+      {
+        "case": "corrupt prior review JSON",
+        "expected": "skip/guarded",
+        "code": "PRIOR_CONTEXT_GUARDED"
+      }
+    ],
+    "dependencies": [
+      "architect_review",
+      "architect_review_check",
+      "review_sig"
+    ],
+    "security": [
+      "Only committed evidence accepted",
+      "No uncommitted diff"
+    ],
+    "observability": [
+      "base_sha/head_sha recorded"
+    ],
+    "performance": [
+      "Delta review reduces prompt size"
+    ],
+    "rollout": "Use on next re-review",
+    "rollback": "Revert to full-diff review",
+    "test_matrix": [
+      {
+        "ac": "AC-1",
+        "kind": "unit",
+        "test": "test_architect_review_delta.py"
+      },
+      {
+        "ac": "AC-2",
+        "kind": "unit",
+        "test": "test_design_pack.py"
+      },
+      {
+        "ac": "AC-3",
+        "kind": "unit",
+        "test": "test_encoding_check.py"
+      },
+      {
+        "ac": "AC-4",
+        "kind": "logic",
+        "test": "design-pack/encoding/store/precheck"
+      }
+    ],
+    "decisions": [
+      "Delta after first full review"
+    ]
+  }
+}
