@@ -61,7 +61,7 @@ def _lock(path: Path, timeout: float = 10.0):
             fd = os.open(str(lock), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
             os.close(fd)
             return lock
-        except FileExistsError:
+        except (FileExistsError, PermissionError):
             try:
                 if time.time() - lock.stat().st_mtime > 60:
                     lock.unlink(missing_ok=True)
