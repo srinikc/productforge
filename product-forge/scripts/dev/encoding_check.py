@@ -17,14 +17,21 @@ SKIP = ("engineering/reviews/", "engineering/trails/", "products/", "test-framew
 
 def _git(*args: str) -> str:
     r = subprocess.run(["git", *args], cwd=str(ROOT), capture_output=True, text=True)
+    if r.returncode != 0:
+        raise RuntimeError(f"git {' '.join(args)} failed: {(r.stderr or '').strip()}")
     return (r.stdout or "").strip()
 
 
 def changed(base: str = "") -> list[str]:
-    start = base or _git("merge-base", "origin/develop", "HEAD") or "origin/develop"
+    start = base or _git("merge-base", "origin/develop", "HEAD")
+    names = set()
+    for rng in (f"{start}..HEAD", "HEAD"):
+        for line in _git("diff", "--name-only", rng).splitlines():
+            names.add(line.strip().replace("\\", "/"))
+    for line in _git("ls-files", "--others", "--exclude-standard").splitlines():
+        names.add(line.strip().replace("\\", "/"))
     out = []
-    for line in _git("diff", "--name-only", f"{start}..HEAD").splitlines():
-        p = line.strip().replace("\\", "/")
+    for p in sorted(names):
         if not p or any(s in p for s in SKIP):
             continue
         if Path(p).suffix.lower() in CODE_EXT:
@@ -58,7 +65,11 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--base", default="")
     ap.add_argument("--report", action="store_true")
     a = ap.parse_args(argv)
-    bad = problems(changed(a.base))
+    try:
+        bad = problems(changed(a.base))
+    except Exception as e:
+        print(f"encoding: FAIL - cannot compute changed files: {e}")
+        return 1
     print("encoding: " + ("OK" if not bad else "FAIL"))
     for x in bad:
         print("  - " + x)

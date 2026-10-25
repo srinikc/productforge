@@ -15,15 +15,16 @@ from core import backlog  # noqa: E402
 
 DESIGN_DIR = ROOT / "engineering" / "design"
 CFG = ROOT / "config" / "design-pack.json"
-REQUIRED = ("requirements", "invariants", "contracts", "failure_matrix", "dependencies", "test_matrix", "rollout", "rollback")
+REQUIRED = ("requirements", "invariants", "contracts", "failure_matrix", "dependencies",
+            "security", "observability", "performance", "test_matrix", "rollout", "rollback", "decisions")
 CONTRACTS = ("api", "db", "files", "config")
 
 
 def _cfg() -> dict:
     try:
         return json.loads(CFG.read_text(encoding="utf-8-sig"))
-    except Exception:
-        return {"enforce_from": "9999-12-31"}
+    except Exception as e:
+        raise RuntimeError(f"cannot read design-pack config: {e}")
 
 
 def check(item: dict) -> list[str]:
@@ -44,8 +45,6 @@ def check(item: dict) -> list[str]:
     for i, _ in enumerate(acs, 1):
         if f"AC-{i}" not in covered and str(i) not in covered:
             bad.append(f"test_matrix missing AC-{i}")
-    if not pack.get("failure_matrix"):
-        bad.append("failure_matrix missing entries")
     return bad
 
 
@@ -60,7 +59,7 @@ def render(item: dict) -> str:
     contracts = pack.get("contracts") or {}
     failures = pack.get("failure_matrix") or []
     tests = pack.get("test_matrix") or []
-    tpl = (ROOT / "templates" / "DESIGN-PACK.md").read_text(encoding="utf-8")
+    tpl = (ROOT / "templates" / "DESIGN-PACK.md").read_text(encoding="utf-8-sig")
     return (tpl.replace("{{ITEM}}", str(item.get("id") or ""))
               .replace("{{TITLE}}", str(item.get("title") or ""))
               .replace("{{VERSION}}", str(pack.get("version") or 1))
@@ -85,10 +84,28 @@ def render(item: dict) -> str:
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description="Design pack check/render")
-    ap.add_argument("--item", required=True)
+    ap.add_argument("--item", default="")
+    ap.add_argument("--all", action="store_true", help="check items created on/after enforce_from")
     ap.add_argument("--render", action="store_true")
     ap.add_argument("--check", action="store_true")
     a = ap.parse_args(argv)
+    if not a.render and not a.check:
+        print("design-pack: choose --render and/or --check", file=sys.stderr)
+        return 2
+    if a.all:
+        enforce = str(_cfg().get("enforce_from") or "9999-12-31")
+        bad = []
+        for item in backlog.list_items("product_forge", None):
+            if str(item.get("created_at") or "") >= enforce:
+                for p in check(item):
+                    bad.append(f"{item.get('id')}: {p}")
+        print("design-pack: " + ("OK" if not bad else "FAIL"))
+        for x in bad:
+            print("  - " + x)
+        return 1 if bad else 0
+    if not a.item:
+        print("design-pack: --item is required unless --all", file=sys.stderr)
+        return 2
     item = backlog.get_epic("product_forge", None, a.item) or {}
     bad = check(item)
     if a.render:

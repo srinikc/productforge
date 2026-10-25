@@ -13,10 +13,11 @@ def _item():
             "design_pack": {"version": 1, "requirements": ["a"], "invariants": ["i"],
                             "contracts": {"api": [], "db": [], "files": [], "config": []},
                             "failure_matrix": [{"case": "x", "expected": "block", "code": "E"}],
-                            "dependencies": ["d"], "test_matrix": [
+                            "dependencies": ["d"], "security": ["s"], "observability": ["o"],
+                            "performance": ["p"], "test_matrix": [
                                 {"ac": "AC-1", "kind": "unit", "test": "t1"},
                                 {"ac": "AC-2", "kind": "api", "test": "t2"}],
-                            "rollout": "warn", "rollback": "revert", "decisions": []}}
+                            "rollout": "warn", "rollback": "revert", "decisions": ["use design pack"]}}
 
 
 def test_check_ok():

@@ -15,11 +15,11 @@ def test_latest_review_head_and_prior_context(tmp_path, monkeypatch):
     d = tmp_path / "engineering" / "reviews"
     d.mkdir(parents=True)
     finding = "evidence base is self-referential"
-    (d / "BI-PF-9000-old.json").write_text(json.dumps({
+    (d / ("BI-PF-9000-old" + ".json")).write_text(json.dumps({
         "item": "BI-PF-9000", "mode": "diff", "at": "2026-01-01T00:00:00+00:00",
         "head_sha": "aaa", "sha": "old", "findings": {"BLOCKER": [], "MAJOR": [],
                                                        "MINOR": [], "NIT": [], "SUMMARY": []}}), encoding="utf-8")
-    (d / "BI-PF-9000-new.json").write_text(json.dumps({
+    (d / ("BI-PF-9000-new" + ".json")).write_text(json.dumps({
         "item": "BI-PF-9000", "mode": "diff", "at": "2026-01-02T00:00:00+00:00",
         "head_sha": "bbb", "sha": "new", "findings": {"BLOCKER": [], "MAJOR": [finding],
                                                        "MINOR": [], "NIT": [], "SUMMARY": []}}), encoding="utf-8")
