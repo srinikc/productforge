@@ -240,7 +240,7 @@
     "usage": {}
   },
   "created_at": "2026-10-25T16:51:37.256014",
-  "updated_at": "2026-10-25T20:29:56.463710",
+  "updated_at": "2026-10-25T20:43:25.638919",
   "score": 0.75,
   "_note": "Gate 0 design",
   "design_pack": {
@@ -352,22 +352,22 @@
       {
         "ac": "AC-1",
         "kind": "unit",
-        "test": "test_architect_review_delta.py"
+        "test": "test_architect_review_delta.py (valid_since, empty delta, prior mode)"
       },
       {
         "ac": "AC-2",
         "kind": "unit",
-        "test": "test_design_pack.py"
+        "test": "test_design_pack.py (check/render/config/evaluate)"
       },
       {
         "ac": "AC-3",
         "kind": "unit",
-        "test": "test_encoding_check.py"
+        "test": "test_encoding_check.py (BOM/working tree)"
       },
       {
         "ac": "AC-4",
         "kind": "logic",
-        "test": "design-pack + encoding + store + precheck"
+        "test": "design-pack + encoding + store + precheck; review/gate render covered by existing gate tests"
       }
     ],
     "rollout": "Use on the next re-review; T1 applies to 1484/1485 only.",
@@ -376,7 +376,37 @@
       "Delta after first full review",
       "Reviewer findings are advisory; HIL owns approval",
       "T1 = design+tests+automation, no HIL/architect review"
-    ]
+    ],
+    "guardrails": [
+      "1 Reversibility: revert commits; full-diff review resumes; no data migration; generated MDs deletable.",
+      "2 Availability: tooling only; review provider failure fails closed; gates remain offline for verification.",
+      "3 Authz boundary: no runtime authz/RLS; local CLI reading repo; reviewer provider key from env/key file.",
+      "4 Blast radius: only review/gate tooling; no runtime path; T2/T3 unaffected.",
+      "5 Invariants: candidate key, delta base, empty-diff rule, evidence binding, disposition ownership.",
+      "6 Tests/rollback: tests for delta/base/prior/design-pack/encoding; rollback by revert.",
+      "7 Language rule: scripts/dev tooling; no new shipped Python.",
+      "8 API decision: needs_api=false; CLI/gates only.",
+      "9 Tenant isolation: N/A; no tenant data read/written.",
+      "10 Reuse/observability: reuse one reviewer, one disposition owner; stderr/exit + trail evidence."
+    ],
+    "evidence_compat": "Old evidence files remain readable; new base_sha/head_sha are optional for old records. Prior context filters mode and uses the latest reviewed head; no migration required.",
+    "empty_delta_rule": "Review-relevant diff = committed base..HEAD excluding engineering/**, data/backlog/**, config/id-blocks.json, architect-review baseline and derived docs. If this diff is empty, no model call is made and the previous reviewed head stays as the delta base.",
+    "redaction": "Evidence stores item/model/sha/base/head/findings/rereview reason hash; secrets are never read into evidence; reason text is redacted.",
+    "affected_files": [
+      "scripts/dev/architect_review.py",
+      "scripts/dev/architect_review_check.py",
+      "scripts/dev/design_pack.py",
+      "scripts/dev/encoding_check.py",
+      "scripts/dev/gate1_check.py",
+      "scripts/dev/precheck.py",
+      "templates/DESIGN-PACK.md",
+      "config/design-pack.json",
+      "AGENTS.md",
+      "test-framework/tests/test_architect_review_delta.py",
+      "test-framework/tests/test_design_pack.py",
+      "test-framework/tests/test_encoding_check.py"
+    ],
+    "notes": "CL-006 Gate1 embeds 1.5 findings; CL-008 guardrails above; CL-009 learnings injection remains in design_guardrails (not changed here)."
   },
   "api_impact": {
     "needs_api": false,
