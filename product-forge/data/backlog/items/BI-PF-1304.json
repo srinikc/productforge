@@ -329,7 +329,7 @@
     "usage": {}
   },
   "created_at": "2026-10-13T16:02:45.510577",
-  "updated_at": "2026-10-25T15:46:19.594599",
+  "updated_at": "2026-10-25T15:50:13.982680",
   "score": 0.75,
   "source_ref": "docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md",
   "_note": "dependencies set",
@@ -639,77 +639,73 @@
       }
     },
     "diff": {
-      "sig:efb7ed7dd540b29c": {
+      "sig:1c377b7717d73499": {
         "status": "ACTIONED",
-        "note": "precheck now runs residency_gate.py without --report, so block (1) and execution failure (2) exit non-zero; --report remains the explicit non-fatal manual mode."
+        "note": "_policy() now returns gate_mode=block on unreadable policy; malformed/expired gate_mode_expires escalates warn to block."
       },
-      "sig:fddde89bc8b16daa": {
+      "sig:9bb7ad120e2aea2c": {
         "status": "ACTIONED",
-        "note": "With no --report in CI, unknown/missing home exits 2/1 and blocks; the hard-block set covers unknown home/profile/schema even if warn is requested."
+        "note": "Python no longer flags empty egress as missing; Go and Python both accept an explicit empty egress group, so parity holds."
       },
-      "sig:e903d42d563477af": {
+      "sig:56dab64d18276036": {
         "status": "ACTIONED",
-        "note": "Validator output with no JSON is now an execution failure (exit 2), never parity-true; warn cannot downgrade it."
+        "note": "Added test-framework/tests/test_residency_conformance.py + fixtures/residency_conformance.json: one case set (valid, unknown home, widening, missing group, schema, encrypted, rotation, frequency, retention, egress) runs through Python and Go with identical verdicts."
       },
-      "sig:f323e6a28900ef7d": {
+      "sig:2ef23500515cec2e": {
         "status": "ACTIONED",
-        "note": "Go now emits RESIDENCY_MISSING_GROUP for data_classes, home_region, allowed_regions, backup, kms, retention; tests cover them."
+        "note": "Go CLI now emits RESIDENCY_UNKNOWN_HOME as a policy result (exit 1 JSON), not a tool failure; profile-unreadable stays exit 2."
       },
-      "sig:4134d8f449075250": {
+      "sig:df0e590ed0859f3a": {
         "status": "ACTIONED",
-        "note": "Added block/warn exit-code tests and Go missing-group/provider tests; the Python gate test exercises block=1, warn=0 + stderr."
+        "note": "--report no longer downgrades execution failures: validator-unavailable/exit-2 paths always return 2; only policy violations are 0 in report mode."
       },
-      "sig:0a58a26ba0a12425": {
+      "sig:93de71a12c4bbff5": {
         "status": "ACTIONED",
-        "note": "Profiles exist on develop (EDP-05); store-registry refs/owner_item now point to BI-PF-1297 and status exists. Tests run against them."
+        "note": "Go strips a UTF-8 BOM before unmarshal; Python uses utf-8-sig; parity tests include BOM fixtures."
       },
-      "sig:e6616628e58c025c": {
+      "sig:a905bd8058037b4a": {
         "status": "ACTIONED",
-        "note": "Region widening now emits RESIDENCY_REGION_NOT_ALLOWED; home-in-allowed stays RESIDENCY_HOME_NOT_ALLOWED."
+        "note": "Added product override precedence test: products/<project>/residency-manifest.json wins over the template."
       },
-      "sig:d0697dba64699711": {
+      "sig:c4a0325be6535121": {
         "status": "ACTIONED",
-        "note": "RESIDENCY_INVALID_FIELD:kms.provider is emitted when provider is empty; docs list it."
+        "note": "Python manifest load failure uses the stable RESIDENCY_MANIFEST_UNREADABLE code (no exception text)."
       },
-      "sig:0fac594e1b239d21": {
+      "sig:e880a55a79ffae54": {
         "status": "ACTIONED",
-        "note": "Region extraction is explicit per group (backup.regions, kms.region, egress.allowed_regions); no fallback masking."
+        "note": "JSONL rotation prunes .3 before shifting, keeping base + .1 + .2 (3 files)."
       },
-      "sig:e052e6939cc9e871": {
+      "sig:b66974643bf94b0a": {
         "status": "ACTIONED",
-        "note": "KMS provider non-empty is validated in Python and Go."
+        "note": "The first validator-unavailable path now calls _report when --report is set."
       },
-      "sig:a0f3a4c427913ab9": {
+      "sig:92579477045fcaf2": {
         "status": "ACTIONED",
-        "note": "JSONL rotation prunes .3 before shifting; bounded to 3 files."
+        "note": "_report only prints JSON when --report is explicitly set; normal CI stays quiet."
       },
-      "sig:8d1fa8708172bd25": {
+      "sig:b765111912de4ac5": {
         "status": "ACTIONED",
-        "note": "Gate event stores use a 90-day hot/rotated retention classification."
+        "note": "Event records gate_mode_original + gate_mode_escalated for audit."
       },
-      "sig:bf4460c7ba089912": {
+      "sig:5ee41553b76ea321": {
         "status": "ACCEPTED",
-        "note": "go run compile is ~0.5s here and keeps the gate self-contained; a prebuilt binary is a later optimization. Revisit if fast-tier time grows."
+        "note": "Policy ownership stays with the existing region-cell owner + counsel profiles; gate events are bounded/rotated. A dedicated compliance-owner split is a later governance change."
       },
-      "sig:95057d74cf774b0c": {
-        "status": "ACTIONED",
-        "note": "Tests redirect PF_RESIDENCY_EVENT/PF_RESIDENCY_JSONL to tmp_path; no repo pollution."
+      "sig:53f3cb792aad00bf": {
+        "status": "ACCEPTED",
+        "note": "go run is ~0.5s and keeps the gate self-contained; prebuilt binary is a later optimization."
       },
-      "sig:cd76c8068ca59675": {
-        "status": "ACTIONED",
-        "note": "LoadManifest/LoadProfile stat the file before reading; 64KB bound."
+      "sig:03dd433e05b7aecb": {
+        "status": "ACCEPTED",
+        "note": "residency_path keeps scope for API symmetry; the path is product/project based. Accepted."
       },
-      "sig:a54e26d2aab7ecf7": {
-        "status": "ACTIONED",
-        "note": "PEP8 blank lines fixed (gofmt/Python test formatting)."
+      "sig:598bacc777537685": {
+        "status": "ACCEPTED",
+        "note": "id-blocks reservation is required to allocate the follow-up id; committed separately."
       },
-      "sig:339d2d9a658cf9ca": {
+      "sig:e1b60547897e28bc": {
         "status": "ACTIONED",
-        "note": "Module path productforge/residencymanifest matches sibling go/* modules."
-      },
-      "sig:bd6a32fae1b04f6b": {
-        "status": "ACTIONED",
-        "note": "gate_mode_expires is enforced: an expired warn mode is treated as block."
+        "note": "Empty home no longer triggers the profile-unreadable noise; only RESIDENCY_UNKNOWN_HOME."
       }
     }
   }
