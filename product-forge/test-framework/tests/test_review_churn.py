@@ -126,3 +126,17 @@ def test_redact_url_and_pem():
     assert "user:pass" not in ar.redact_reason("see https://user:pass@host/x")
     pem = "-----BEGIN KEY-----\nsecret\n-----END KEY-----"
     assert "secret" not in ar.redact_reason(pem)
+
+def test_epoch_boundary_is_inclusive(monkeypatch):
+    item = _item([{"gate": 1, "at": "2026-01-02T00:00:00+00:00"}])
+    monkeypatch.setattr(ar, "diff_reviews", lambda *a, **k: [
+        {"path": "BI-TEST-X.json", "sha": "x", "at": "2026-01-02T00:00:00+00:00"}])
+    assert ar.churn_verdict("BI-TEST", item)["count"] == 1
+
+
+def test_archived_rereview_counts_as_a_run(tmp_path, monkeypatch):
+    monkeypatch.setattr(ar, "EVID", tmp_path)
+    for name in ("BI-TEST-abc.json", "BI-TEST-abc-prev-1.json"):
+        (tmp_path / name).write_text(json.dumps({"mode": "diff", "sha": "abc",
+                                                 "at": "2026-01-02T00:00:00+00:00"}))
+    assert len(ar.diff_reviews("BI-TEST")) == 2
