@@ -1,6 +1,9 @@
 package limits
 
 import (
+	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -106,5 +109,57 @@ func TestStrictBooleanAndGlobalRPM(t *testing.T) {
 	if err := ValidateProfile(c, env(map[string]string{"PF_ADMIN_TOKEN": strings.Repeat("a", 32),
 		"API_ALLOW_ANON": "maybe"})); err == nil {
 		t.Fatalf("an unknown dev-auth flag value must fail closed in production")
+	}
+}
+
+func TestEnvFlagDefaultsMatch(t *testing.T) {
+	path := filepath.Join("..", "..", "..", "..", "config", "env-flags.json")
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Skip("config/env-flags.json not available from the test working directory")
+	}
+	var doc struct {
+		Flags map[string]struct {
+			Default string `json:"default"`
+		} `json:"flags"`
+	}
+	if err := json.Unmarshal(raw, &doc); err != nil {
+		t.Fatal(err)
+	}
+	c := DefaultConfig()
+	want := map[string]string{
+		"PF_PROFILE": c.Profile, "PF_EDP_ENFORCE_LIMITS": "1",
+		"PF_EDP_REQUEST_TIMEOUT": c.RequestTimeout.String(), "PF_EDP_DB_TIMEOUT": c.DBTimeout.String(),
+		"PF_EDP_UPLOAD_TIMEOUT": c.UploadTimeout.String(), "PF_EDP_MIGRATION_TIMEOUT": c.MigrationTimeout.String(),
+		"PF_EDP_READ_HEADER_TIMEOUT": c.ReadHeaderTimeout.String(), "PF_EDP_READ_TIMEOUT": c.ReadTimeout.String(),
+		"PF_EDP_WRITE_TIMEOUT": c.WriteTimeout.String(), "PF_EDP_IDLE_TIMEOUT": c.IdleTimeout.String(),
+		"PF_EDP_MAX_HEADER_BYTES": "1048576", "PF_EDP_MAX_BODY_BYTES": "1048576",
+		"PF_EDP_MAX_UPLOAD_BYTES": "67108864", "PF_EDP_POOL_MAX_CONNS": "10", "PF_EDP_POOL_MIN_CONNS": "1",
+		"PF_EDP_POOL_CONNECT_TIMEOUT": "10s", "PF_EDP_POOL_CONN_LIFETIME": "1h0m0s",
+		"PF_EDP_POOL_CONN_IDLE": "30m0s", "PF_EDP_POOL_HEALTH_PERIOD": "1m0s",
+		"PF_EDP_TENANT_RPM": "600", "PF_EDP_GLOBAL_RPM": "6000", "PF_EDP_TENANT_CONCURRENCY": "5",
+		"PF_EDP_GLOBAL_CONCURRENCY": "10", "PF_EDP_MAX_TENANT_BUCKETS": "10000",
+		"PF_EDP_BUCKET_IDLE_TTL": "10m0s", "PF_EDP_ROLE_RECHECK": "5m0s", "PF_ALLOW_SUPERUSER_DSN": "0",
+	}
+	for name, def := range want {
+		got, ok := doc.Flags[name]
+		if !ok {
+			t.Fatalf("%s missing from config/env-flags.json", name)
+		}
+		isDur := strings.HasPrefix(name, "PF_EDP_") &&
+			!strings.Contains(name, "BYTES") && !strings.Contains(name, "RPM") &&
+			!strings.Contains(name, "CONNS") && !strings.Contains(name, "CONCURRENCY") &&
+			!strings.Contains(name, "BUCKETS") && name != "PF_EDP_ENFORCE_LIMITS"
+		if isDur {
+			gd, err1 := time.ParseDuration(got.Default)
+			cd, err2 := time.ParseDuration(def)
+			if err1 != nil || err2 != nil || gd != cd {
+				t.Fatalf("%s default %q != code default %q", name, got.Default, def)
+			}
+			continue
+		}
+		if got.Default != def {
+			t.Fatalf("%s default %q != code default %q", name, got.Default, def)
+		}
 	}
 }

@@ -50,8 +50,7 @@ func NewQuota(cfg Config, clock Clock, m *Metrics) *Quota {
 
 func refill(b *bucket, capacity, perSecond float64, now time.Time) {
 	elapsed := now.Sub(b.last).Seconds()
-	if elapsed <= 0 { // clock skew/backwards: never mint tokens, just re-anchor
-		b.last = now
+	if elapsed <= 0 { // clock skew/backwards: never mint tokens and keep the anchor (no over-admission)
 		return
 	}
 	b.tokens = math.Min(capacity, b.tokens+elapsed*perSecond)

@@ -241,3 +241,17 @@ func TestQuotaAttributesJSONBodyTenant(t *testing.T) {
 		t.Fatalf("second want 429 from the body tenant, got %d", code)
 	}
 }
+
+func TestAuthMiddlewareRunsBeforeQuota(t *testing.T) {
+	cfg := DefaultConfig()
+	auth := func(w http.ResponseWriter, r *http.Request) bool {
+		WriteError(w, r, http.StatusUnauthorized, "no token")
+		return false
+	}
+	h := Chain(okHandler(), cfg, NewQuota(cfg, nil, NewMetrics()), NewMetrics(), nil, auth)
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/admin/limits", nil))
+	if rr.Code != http.StatusUnauthorized {
+		t.Fatalf("want 401 before quota, got %d", rr.Code)
+	}
+}

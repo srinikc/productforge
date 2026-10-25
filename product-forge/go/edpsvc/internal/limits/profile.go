@@ -100,7 +100,6 @@ func (g *RoleGuard) RecheckLoop(ctx context.Context, db datastore.RelationalStor
 	}
 	t := time.NewTicker(every)
 	defer t.Stop()
-	failures := 0
 	for {
 		select {
 		case <-ctx.Done():
@@ -110,14 +109,12 @@ func (g *RoleGuard) RecheckLoop(ctx context.Context, db datastore.RelationalStor
 			r, err := CheckDBRole(checkCtx, db, allowSuperuser)
 			cancel()
 			if err != nil {
-				failures++
 				g.Fail()
 				if onViolation != nil {
 					onViolation(err)
 				}
 				continue
 			}
-			failures = 0
 			g.Set(r)
 		}
 	}

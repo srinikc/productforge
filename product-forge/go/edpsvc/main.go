@@ -42,7 +42,6 @@ import (
 )
 
 type server struct {
-	dsn     string
 	admin   string
 	migDir  string
 	obj     datastore.ObjectStore
@@ -108,7 +107,7 @@ func main() {
 	}
 	m := limits.NewMetrics()
 	q := limits.NewQuota(cfg, nil, m)
-	s := &server{dsn: dsn, admin: admin, migDir: envOr("PF_MIGRATIONS_DIR", findMigrations()),
+	s := &server{admin: admin, migDir: envOr("PF_MIGRATIONS_DIR", findMigrations()),
 		cfg: cfg, st: st, quota: q, metrics: m, role: guard}
 	obj, err := buildObjectStore()
 	if err != nil {
@@ -124,7 +123,7 @@ func main() {
 	})
 	// AC: surface coverage non-fatally at startup (a stale/low rotation must not stop the service).
 	s.checkAuditCoverage()
-	handler := limits.Chain(limits.EnvelopeFallback(s.buildMux()), cfg, q, m, guard.OK)
+	handler := limits.Chain(limits.EnvelopeFallback(s.buildMux()), cfg, q, m, guard.OK, s.authorize)
 	addr := envOr("PF_EDP_ADDR", "127.0.0.1:8030")
 	srv := &http.Server{
 		Addr:              addr,
@@ -334,16 +333,28 @@ func findMigrations() string {
 	}
 }
 
+func (s *server) authorized(r *http.Request) bool {
+	auth := r.Header.Get("Authorization")
+	token := ""
+	if strings.HasPrefix(auth, "Bearer ") {
+		token = strings.TrimSpace(strings.TrimPrefix(auth, "Bearer "))
+	}
+	th := sha256.Sum256([]byte(token))
+	ah := sha256.Sum256([]byte(s.admin))
+	return subtle.ConstantTimeCompare(th[:], ah[:]) == 1
+}
+
+func (s *server) authorize(w http.ResponseWriter, r *http.Request) bool {
+	if !s.authorized(r) {
+		limits.WriteError(w, r, http.StatusUnauthorized, "admin authorization required")
+		return false
+	}
+	return true
+}
+
 func (s *server) adminOnly(fn http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		auth := r.Header.Get("Authorization")
-		token := ""
-		if strings.HasPrefix(auth, "Bearer ") {
-			token = strings.TrimSpace(strings.TrimPrefix(auth, "Bearer "))
-		}
-		th := sha256.Sum256([]byte(token))
-		ah := sha256.Sum256([]byte(s.admin))
-		if subtle.ConstantTimeCompare(th[:], ah[:]) != 1 {
+		if !s.authorized(r) {
 			limits.WriteError(w, r, http.StatusUnauthorized, "admin authorization required")
 			return
 		}
@@ -351,7 +362,7 @@ func (s *server) adminOnly(fn http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
-func (s *server) withStore(ctx context.Context, fn func(*store.PgStore) (any, error)) (any, error) {
+func (s *server) withStore(_ context.Context, fn func(*store.PgStore) (any, error)) (any, error) {
 	return fn(s.st)
 }
 

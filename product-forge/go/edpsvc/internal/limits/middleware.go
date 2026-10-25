@@ -19,7 +19,9 @@ var tenantRE = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$`)
 // ValidTenant reports whether a tenant key is a safe, bounded label.
 func ValidTenant(t string) bool { return tenantRE.MatchString(t) }
 
-func isUpload(path string) bool { return path == "/artifacts" }
+func isUpload(path string) bool {
+	return path == "/artifacts" || strings.HasPrefix(path, "/artifacts/")
+}
 
 func isMigration(path string) bool {
 	return path == "/admin/migrations/up" || path == "/admin/migrations/down"
@@ -92,7 +94,8 @@ func isExempt(path string) bool {
 
 // Chain composes the guardrail middleware. Order (outer to inner):
 // RequestID -> Instrument -> Recover -> RoleGate -> Timeout -> BodyLimit -> Quota -> handler.
-func Chain(next http.Handler, cfg Config, q *Quota, m *Metrics, roleOK func() bool) http.Handler {
+func Chain(next http.Handler, cfg Config, q *Quota, m *Metrics, roleOK func() bool,
+	auth ...func(http.ResponseWriter, *http.Request) bool) http.Handler {
 	h := next
 	if cfg.Enforce {
 		h = quotaMiddleware(h, q)
@@ -100,6 +103,9 @@ func Chain(next http.Handler, cfg Config, q *Quota, m *Metrics, roleOK func() bo
 		h = timeoutMiddleware(h, cfg)
 	}
 	h = roleGateMiddleware(h, roleOK)
+	if len(auth) > 0 && auth[0] != nil {
+		h = authMiddleware(h, auth[0])
+	}
 	h = recoverMiddleware(h)
 	h = instrumentMiddleware(h, m)
 	return requestIDMiddleware(h)
@@ -178,11 +184,22 @@ func recoverMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+func authMiddleware(next http.Handler, auth func(http.ResponseWriter, *http.Request) bool) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/health" || r.URL.Path == "/ready" {
+			next.ServeHTTP(w, r)
+			return
+		}
+		if !auth(w, r) {
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
 func roleGateMiddleware(next http.Handler, roleOK func() bool) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Health/readiness stay reachable so a failed role check can be diagnosed; /metrics still requires
-		// the admin token and is NOT exempt from the role gate.
-		if r.URL.Path == "/health" || r.URL.Path == "/ready" || roleOK == nil || roleOK() {
+		if isExempt(r.URL.Path) || roleOK == nil || roleOK() {
 			next.ServeHTTP(w, r)
 			return
 		}
