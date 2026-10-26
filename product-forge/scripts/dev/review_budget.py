@@ -34,13 +34,22 @@ def _evidence(item_id: str, mode: str) -> list[dict]:
 
 
 def _material_ok(item: dict, mode: str, rows: list[dict]) -> bool:
+    c = config()
     latest = max((str(d.get("at") or "") for d in rows), default="")
+    cutoff = str(c.get("material_cutoff") or "")
+    expiry = str(c.get("material_expiry") or "")
+    created = str(item.get("created_at") or "")
+    now = __import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat()
     for d in item.get("decisions") or []:
         if str(d.get("decision") or "").upper() != "MATERIAL_CHANGE":
             continue
         if d.get("hil_confirmed") is not True or str(d.get("mode") or "") != mode:
             continue
-        if str(d.get("at") or "") >= latest:
+        at = str(d.get("at") or "")
+        if at and at >= latest:
+            return True
+        if (not at and created and cutoff and created < cutoff
+                and (not expiry or now <= expiry)):
             return True
     return False
 
@@ -57,7 +66,8 @@ def problems(item: dict) -> list[str]:
         rows = [d for d in _evidence(iid, mode)
                 if str(d.get("at") or "") >= cutoff and d.get("parsed_ok", True)]
         if len(rows) >= max_n and not (c.get("allow_hil_material_change") and _material_ok(item, mode, rows)):
-            bad.append(f"{mode}: {len(rows)} reviews (budget {max_n}); material change needs HIL MATERIAL_CHANGE")
+            code = "MATERIAL_APPROVAL_EXPIRED" if (c.get("material_expiry") and str(c.get("material_expiry")) < __import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat()) else "MATERIAL_APPROVAL_ORDER"
+            bad.append(f"{mode}: {len(rows)} reviews (budget {max_n}); {code}: material change needs HIL MATERIAL_CHANGE")
     return bad
 
 
