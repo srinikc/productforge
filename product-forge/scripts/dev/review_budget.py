@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -33,23 +34,24 @@ def _evidence(item_id: str, mode: str) -> list[dict]:
     return out
 
 
+def _dt(value) -> datetime | None:
+    try:
+        return datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except Exception:
+        return None
+
+
 def _material_ok(item: dict, mode: str, rows: list[dict]) -> bool:
-    c = config()
-    latest = max((str(d.get("at") or "") for d in rows), default="")
-    cutoff = str(c.get("material_cutoff") or "")
-    expiry = str(c.get("material_expiry") or "")
-    created = str(item.get("created_at") or "")
-    now = __import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat()
+    latest = max((_dt(d.get("at")) for d in rows if _dt(d.get("at"))), default=None)
+    if latest is None:
+        return False
     for d in item.get("decisions") or []:
         if str(d.get("decision") or "").upper() != "MATERIAL_CHANGE":
             continue
         if d.get("hil_confirmed") is not True or str(d.get("mode") or "") != mode:
             continue
-        at = str(d.get("at") or "")
-        if at and at >= latest:
-            return True
-        if (not at and created and cutoff and created < cutoff
-                and (not expiry or now <= expiry)):
+        at = _dt(d.get("at"))
+        if at is not None and at >= latest:
             return True
     return False
 
@@ -65,12 +67,15 @@ def problems(item: dict, only_mode: str = "") -> list[str]:
     for mode in ("design", "diff"):
         if only_mode and mode != only_mode:
             continue
-        if mode == "design" and any(int(d.get("gate") or 0) == 1 for d in (item.get("decisions") or [])):
-            continue  # design is frozen after Gate 1
+        if (mode == "design" and c.get("freeze_design_after_gate1", True)
+                and any(int(d.get("gate") or 0) == 1 for d in (item.get("decisions") or []))):
+            continue
         rows = [d for d in _evidence(iid, mode)
                 if str(d.get("at") or "") >= cutoff and d.get("parsed_ok", True)]
         if len(rows) >= max_n and not (c.get("allow_hil_material_change") and _material_ok(item, mode, rows)):
-            code = "MATERIAL_APPROVAL_EXPIRED" if (c.get("material_expiry") and str(c.get("material_expiry")) < __import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat()) else "MATERIAL_APPROVAL_ORDER"
+            expiry = _dt(c.get("material_expiry"))
+            code = ("MATERIAL_APPROVAL_EXPIRED" if expiry and datetime.now(timezone.utc) > expiry
+                    else "MATERIAL_APPROVAL_ORDER")
             bad.append(f"{mode}: {len(rows)} reviews (budget {max_n}); {code}: material change needs HIL MATERIAL_CHANGE")
     return bad
 
