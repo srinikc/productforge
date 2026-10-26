@@ -1,0 +1,32 @@
+{
+  "item": "BI-PF-1304",
+  "sha": "b403079a15ef",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-26T08:56:08.300680+00:00",
+  "base_sha": "bc95d4c20b8d14b02ed64e0d872b6ca4d2ec6ee0",
+  "head_sha": "7c3eed2456c71b1de66cbc25c220703c1b0134f4",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "finalize_item.py now feeds only `tr.latest_tests(evs)` into the final report (both the `tests` list and `tests_by_kind`); if test events are emitted incrementally per stage rather than as cumulative snapshots, results from earlier events are silently dropped from `pf.final-report/2`, losing AC evidence \u2014 the new test fixture itself shows two events with disjoint commands, implying incremental emission.",
+      "gate_package.py applies the same last-event-only filter, so the gate report can omit tests executed at earlier gates with no delta-side verification that events are cumulative; this converts the prior `tests_by_kind` dedup finding into report-level data loss rather than removing it.",
+      "`tests_by_kind` reverted to summing every occurrence; any caller (existing or future) that still passes all events will now double-count retried/repeated runs \u2014 the delta does not audit other call sites for this semantic flip."
+    ],
+    "MINOR": [
+      "No test coverage accompanies the caller changes in finalize_item.py / gate_package.py; only the `execution_trail` helper is tested, so the report-level behavior change (what the final/gate reports actually contain) is unmeasured.",
+      "`finalize_item.build` passes a synthetic event wrapper `tr.latest_tests(evs)` re-wrapped as `[{\"tests\": tests}]` to reach `tests_by_kind`, coupling the two helpers through a fabricated event shape."
+    ],
+    "NIT": [
+      "`latest_tests` docstring says \"last-write-wins\" but the function is last-event-wins; naming/comment should match the semantics to avoid confusing it with the removed per-command dedup."
+    ],
+    "SUMMARY": [
+      "The delta resolves the prior `tests_by_kind` dedup MAJOR, the redundant `order` MINOR, the coverage MINOR, and the naming NIT, and the residency blockers appear addressed per the AC evidence for the full candidate.",
+      "Top residual risk: last-event-only filtering in finalize/gate reports may discard earlier test evidence (data integrity for reports/AC audits), and the caller-level behavior is untested.",
+      "Confirm events are cumulative snapshots (or adjust the filter) and add report-level assertions before merging."
+    ]
+  },
+  "rereview_reason": "prior sha d78837a642cf; latest tests event + test",
+  "rereview_reason_sha256": "47bc07e6f95450386957c40922561f68292bb19f77e87480dc4e655225c63979"
+}
