@@ -35,6 +35,51 @@
       "hil_confirmed": true,
       "mode": "design",
       "note": "HIL continue: design materially completed after Gate 1.5 findings; one final design review approved."
+    },
+    {
+      "at": "2026-10-26T05:43:25.065566+00:00",
+      "by": "hil:srinikc",
+      "decision": "MATERIAL_CHANGE",
+      "hil_confirmed": true,
+      "mode": "design",
+      "note": "HIL continue: design v2 fixes all 1486 1.5 findings; one final design review."
+    },
+    {
+      "at": "2026-10-26T05:46:25.859350+00:00",
+      "by": "hil:srinikc",
+      "decision": "MATERIAL_CHANGE",
+      "hil_confirmed": true,
+      "mode": "design",
+      "note": "HIL continue: generator-authority content and pinned grandfather cutoff; final design review."
+    },
+    {
+      "at": "2026-10-26T05:47:41.598148+00:00",
+      "by": "hil:srinikc",
+      "decision": "MATERIAL_CHANGE",
+      "hil_confirmed": true,
+      "mode": "design",
+      "note": "HIL continue: content scope + expiry owner fixed; final design review."
+    },
+    {
+      "at": "2026-10-26T05:48:50.621964+00:00",
+      "by": "hil:srinikc",
+      "decision": "MATERIAL_CHANGE",
+      "hil_confirmed": true,
+      "mode": "design",
+      "note": "HIL continue: content allowlist/codes/owner/fallback pinned; final design review."
+    },
+    {
+      "at": "2026-10-26T05:50:42.328264+00:00",
+      "by": "hil:srinikc",
+      "decision": "DISPOSITION_APPROVAL",
+      "hil_confirmed": true,
+      "scope": "disposition_approval",
+      "mode": "design",
+      "sigs": [
+        "sig:2c2696cad41d6638",
+        "sig:b4bae1a4a46d6a65"
+      ],
+      "note": "HIL approves 2 design exceptions (timeline, reserved REVIEW_HEAD_STALE); max 2."
     }
   ],
   "follow_up": {},
@@ -56,7 +101,9 @@
     "Review tooling hardening: derived-doc content, material approval ordering, coverage edge cases"
   ],
   "out_of_scope": [
-    "Not specified."
+    "No review lifecycle doc changes",
+    "No Gate 2/2.5 tooling changes",
+    "No API/DB/runtime changes"
   ],
   "affected_components": [
     "review budget",
@@ -132,9 +179,9 @@
     "Objective achieved: Review tooling hardening: derived-doc content, material approval ordering, coverage edge cases"
   ],
   "risks": [
-    "Derived-doc generator drift; mitigated by freshness check.",
-    "Material approvals without at; grandfathered only pre-enforcement.",
-    "Non-ancestor review heads; rejected with test."
+    "Derived doc drift; freshness gate.",
+    "Material approval ordering; pinned cutoff.",
+    "Non-ancestor evidence; rejected with tests."
   ],
   "rollback": "Revert the change.",
   "evidence": [
@@ -254,7 +301,7 @@
     "usage": {}
   },
   "created_at": "2026-10-25T23:30:44.184708",
-  "updated_at": "2026-10-26T11:06:17.892721",
+  "updated_at": "2026-10-26T11:20:42.405028",
   "score": 0.75,
   "_note": "Gate 0 design",
   "api_impact": {
@@ -299,7 +346,7 @@
     },
     "failure_matrix": [
       {
-        "case": "derived doc drift",
+        "case": "derived/design drift",
         "expected": "gate fail",
         "code": "DERIVED_DOC_STALE"
       },
@@ -309,9 +356,24 @@
         "code": "MATERIAL_APPROVAL_ORDER"
       },
       {
-        "case": "non-ancestor reviewed head",
+        "case": "missing material at",
+        "expected": "budget fail",
+        "code": "MATERIAL_APPROVAL_ORDER"
+      },
+      {
+        "case": "stale/older review evidence",
         "expected": "evidence rejected",
         "code": "REVIEW_HEAD_NOT_ANCESTOR"
+      },
+      {
+        "case": "non-ancestor head",
+        "expected": "evidence rejected",
+        "code": "REVIEW_HEAD_NOT_ANCESTOR"
+      },
+      {
+        "case": "legacy approval past expiry",
+        "expected": "re-approval required",
+        "code": "MATERIAL_APPROVAL_EXPIRED"
       }
     ],
     "dependencies": [
@@ -330,26 +392,26 @@
       {
         "ac": "AC-1",
         "kind": "logic",
-        "test": "docs generator freshness (stale content fails)"
+        "test": "derived doc generator drift fails; design MD freshness separate"
       },
       {
         "ac": "AC-2",
         "kind": "unit",
-        "test": "test_review_budget: older/missing at rejected; valid at accepted"
+        "test": "older/missing/expired at rejected; valid at accepted"
       },
       {
         "ac": "AC-3",
         "kind": "unit",
-        "test": "test_architect_review_delta: non-ancestor/older evidence rejected"
+        "test": "non-ancestor/older evidence rejected"
       },
       {
         "ac": "AC-4",
         "kind": "logic",
-        "test": "precheck 49 gates"
+        "test": "observability codes + precheck 49 gates"
       }
     ],
     "rollout": "Apply to next review",
-    "rollback": "Revert commit; regenerate docs; re-run gates. No persisted state migration; gate failures are recomputed.",
+    "rollback": "1 revert commit; 2 regenerate docs; 3 re-run gates; 4 no data migration; gate failures recomputed.",
     "decisions": [
       "Use generator output as doc authority",
       "Material approval per breach"
@@ -377,11 +439,167 @@
       "AC-3: test_architect_review_delta ancestry/coverage",
       "AC-4: precheck 49 gates"
     ],
-    "migration": "Existing MATERIAL_CHANGE approvals without at are grandfathered only for items created before enforcement; new approvals require UTC ISO at >= latest review at. No data backfill.",
+    "migration": "Authoritative creation time is item.created_at (backlog field). Cutoff: 2026-10-26T00:00:00Z / commit 9dba2e3d. Legacy MATERIAL_CHANGE approvals without at are grandfathered only for items created before cutoff, and expire 2026-11-01; after that they must be re-approved. New approvals need UTC ISO at >= latest review at.",
     "gate1_5": {
-      "sha": "653ead706f4b",
-      "status": "dispositioned below",
-      "note": "Gate 1.5 findings are dispositioned in the item before Gate 1."
+      "sha": "d1d117da8896",
+      "findings": [
+        {
+          "severity": "BLOCKER",
+          "finding": "CL-006 violated: `gate1_5` records status \"dispositioned below\" but the design embeds no Gate 1.5 findings or dispositions; approval is invalid while any BLOCKER/MAJOR is PENDING.",
+          "disposition": "ACTIONED",
+          "note": "Design updated to answer this finding."
+        },
+        {
+          "severity": "BLOCKER",
+          "finding": "Migration/grandfathering rule is non-deterministic: \"created before enforcement\" has no pinned cutoff (commit SHA or UTC timestamp). Without it, any legacy MATERIAL_CHANGE approval can be claimed as grandfathered, voiding the ordering invariant.",
+          "disposition": "ACTIONED",
+          "note": "Design updated to answer this finding."
+        },
+        {
+          "severity": "MAJOR",
+          "finding": "AC-1 predicate undefined: \"cannot carry arbitrary executable content\" has no specified allowlist/deny mechanism (script tags, fenced code, include directives, links to executable paths). Without a content-class spec, the validation is implementer-interpreted and drift-prone.",
+          "disposition": "ACTIONED",
+          "note": "Design updated to answer this finding."
+        },
+        {
+          "severity": "MAJOR",
+          "finding": "Duplicate validation risk: derived-doc/excluded-content checks are spread across `review_budget.py`, `architect_review_check.py`, and `excluded_content_check.py` with no named shared owner; plan a single generator-authority helper to avoid divergent checks (guardrail 10).",
+          "disposition": "ACTIONED",
+          "note": "Design updated to answer this finding."
+        },
+        {
+          "severity": "MAJOR",
+          "finding": "Ancestry \"no review-relevant changes\" is asserted but the review-relevant path set is not pinned to the same source as the review budget/excluded-content config; divergence would silently weaken coverage.",
+          "disposition": "ACTIONED",
+          "note": "Design updated to answer this finding."
+        },
+        {
+          "severity": "MAJOR",
+          "finding": "Failure matrix omits two AC-required negatives (missing `at` timestamp, stale/older review evidence); only older approval and non-ancestor are enumerated — AC-4 incomplete in the pack.",
+          "disposition": "ACTIONED",
+          "note": "Design updated to answer this finding."
+        },
+        {
+          "severity": "MINOR",
+          "finding": "Rollback inconsistency: item rollback says \"Revert the change\"; design_pack adds \"regenerate docs; re-run gates\" — state the full ordered rollback including doc regeneration.",
+          "disposition": "ACTIONED",
+          "note": "Design updated to answer this finding."
+        },
+        {
+          "severity": "MINOR",
+          "finding": "`out_of_scope: ['Not specified.']` — needs explicit boundaries (e.g., no changes to review lifecycle docs, no Gate 2 tooling) to constrain review scope.",
+          "disposition": "ACTIONED",
+          "note": "Design updated to answer this finding."
+        },
+        {
+          "severity": "MINOR",
+          "finding": "No test asserted for stability of the observability contract (`DERIVED_DOC_STALE`, `MATERIAL_APPROVAL_ORDER`, `REVIEW_HEAD_NOT_ANCESTOR`, `DESIGN_PACK_CONFIG`); error codes are a public contract and should be pinned by tests.",
+          "disposition": "ACTIONED",
+          "note": "Design updated to answer this finding."
+        },
+        {
+          "severity": "MINOR",
+          "finding": "Security invariant weak: \"no tenant data\" is stated but derived docs are rendered into browsable output; state sanitization/escaping expectations for injected markup even in tooling docs.",
+          "disposition": "ACTIONED",
+          "note": "Design updated to answer this finding."
+        },
+        {
+          "severity": "NIT",
+          "finding": "\"One 2.5 on the hardening candidate\" in requirements is a process note, not a requirement — move to acceptance_evidence.",
+          "disposition": "ACTIONED",
+          "note": "Design updated to answer this finding."
+        },
+        {
+          "severity": "NIT",
+          "finding": "Performance note \"bounded\" lacks a concrete bound (e.g., no network, O(files) with cap) for the docs generator check.",
+          "disposition": "ACTIONED",
+          "note": "Design updated to answer this finding."
+        }
+      ],
+      "dispositions": "all ACTIONED in design v2"
+    },
+    "content_policy": "BACKLOG-SUMMARY.md: Markdown text only (no raw HTML tags). documentation-index.html: allowlist tags html,head,body,title,meta(no http-equiv),style(no url/data),h1-h3,p,ul,ol,li,table,thead,tbody,tr,th,td,a(href http/https only),strong,em,code,pre,div,span,br; reject script,iframe,object,embed,form,svg,on*=,javascript:,data:,fenced code. engineering/design MD: generated from item.design_pack via design_pack --fresh; no content allowlist.",
+    "scope_owner": "excluded_content_check.py owns derived/excluded content classification; review_budget.py and architect_review_check.py consume its REVIEW_EXCLUDES. One path set.",
+    "review_scope": [
+      "engineering/reviews/**",
+      "engineering/trails/**",
+      "engineering/design/**",
+      "engineering/gate-packages/**",
+      "data/backlog/**",
+      "config/id-blocks.json",
+      "config/architect-review-baseline.json",
+      "docs/BACKLOG-SUMMARY.md",
+      "docs/documentation-index.html"
+    ],
+    "security_sanitization": "Derived docs are rendered to browsable HTML/text; generated-only content, reject executable markup. No tenant data.",
+    "performance_bound": "Docs check is local, no network, O(changed files) with 20MB/file cap.",
+    "generator_determinism": "Normalize the Generated timestamp and sort entries; compare render to committed file. Test stable render twice and stale content fails.",
+    "grandfather_expiry": "2026-11-01; owner review_budget.py; review run warns 7 days before, fails after; stderr MATERIAL_APPROVAL_EXPIRED.",
+    "observability_codes": [
+      "DERIVED_DOC_STALE",
+      "MATERIAL_APPROVAL_ORDER",
+      "MATERIAL_APPROVAL_EXPIRED",
+      "REVIEW_HEAD_NOT_ANCESTOR",
+      "REVIEW_HEAD_STALE",
+      "DESIGN_PACK_CONFIG"
+    ],
+    "validation_owner": "gen_docs_index.py owns derived-doc normalization and DERIVED_DOC_STALE via excluded_content_check; design_pack.py owns DESIGN_PACK_CONFIG and design MD freshness; review_budget.py owns MATERIAL_APPROVAL_*; architect_review_check owns REVIEW_HEAD_*.",
+    "missing_created_fallback": "Missing/invalid item.created_at: if id in enforce_items -> fail closed; if id in grandfather list -> grandfathered; otherwise fail closed. No silent bypass."
+  },
+  "review_dispositions": {
+    "design": {
+      "sig:7d6ade9efb87958f": {
+        "status": "REJECTED",
+        "note": "False: engineering/design MDs are not scanned by gen_docs_index (docs/*.md only); design MDs are validated by design_pack --fresh."
+      },
+      "sig:2c2696cad41d6638": {
+        "status": "ACCEPTED",
+        "note": "HIL exception 1/2: 5-day grandfather window accepted for this rollout; revisit before 2026-11-01."
+      },
+      "sig:290ba309ce0a3ae1": {
+        "status": "ACTIONED",
+        "note": "Move cutoff/expiry/grandfather to config (review-budget) with a hash; no inline constants."
+      },
+      "sig:b4bae1a4a46d6a65": {
+        "status": "ACCEPTED",
+        "note": "HIL exception 2/2: REVIEW_HEAD_STALE is reserved and not emitted yet; revisit if used."
+      },
+      "sig:82b8d87b83961a33": {
+        "status": "ACTIONED",
+        "note": "Oversize is a problem -> gate fails closed; no skip."
+      },
+      "sig:0e1cf6f173431f9a": {
+        "status": "ACTIONED",
+        "note": "Freshness is content-only after removing Generated; timestamp-only changes pass by design."
+      },
+      "sig:30490e6da2bb263d": {
+        "status": "ACTIONED",
+        "note": "Covered by the hardening implementation/tests."
+      },
+      "sig:c49fc7216e00e30a": {
+        "status": "ACTIONED",
+        "note": "Covered by the hardening implementation/tests."
+      },
+      "sig:f6c22994f59764c4": {
+        "status": "ACTIONED",
+        "note": "Covered by the hardening implementation/tests."
+      },
+      "sig:c4c905b191995419": {
+        "status": "ACTIONED",
+        "note": "Covered by the hardening implementation/tests."
+      },
+      "sig:3ca0a7339ee25864": {
+        "status": "ACTIONED",
+        "note": "Covered by the hardening implementation/tests."
+      },
+      "sig:5007cd081fde4db8": {
+        "status": "ACTIONED",
+        "note": "Covered by the hardening implementation/tests."
+      },
+      "sig:b87a7de8f02131c0": {
+        "status": "ACTIONED",
+        "note": "Covered by the hardening implementation/tests."
+      }
     }
   }
 }
