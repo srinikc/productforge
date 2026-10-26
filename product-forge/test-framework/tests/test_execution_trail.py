@@ -255,3 +255,16 @@ def test_test_kind_and_tests_by_kind():
     by = tr.tests_by_kind(evs)
     assert by["unit"]["passed"] == 2 and by["go"]["passed"] == 3
     assert by["logic"]["passed"] == 4 and by["api"]["passed"] == 1
+
+
+def test_latest_tests_keeps_earlier_commands_and_newest_rerun():
+    evs = [{"tests": [{"command": "old", "passed": 1},
+                      {"command": "unit", "kind": "unit", "passed": 2}]},
+           {"tests": [{"command": "unit", "kind": "unit", "passed": 12},
+                      {"command": "go", "kind": "go", "passed": 3}]}]
+    latest = tr.latest_tests(evs)
+    assert [(t["command"], t["passed"]) for t in latest] == [("old", 1), ("unit", 12), ("go", 3)]
+    kinds = tr.tests_by_kind_tests(latest)
+    assert kinds["unit"]["passed"] == 12
+    assert kinds["other"]["passed"] == 1
+    assert kinds["go"]["passed"] == 3

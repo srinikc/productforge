@@ -46,7 +46,7 @@ def render(item_id: str, gate: int) -> str:
         if not item.get("ac_verification"):
             lines.append("- not recorded")
         lines += ["", "## Tests"]
-        tests = [t for e in tr.events(item_id) for t in (e.get("tests") or [])]
+        tests = tr.latest_tests(tr.events(item_id))
         for t in tests:
             lines.append(f"- {t.get('command')}: {t.get('result')} "
                          f"({t.get('passed')} passed / {t.get('failed')} failed)")
