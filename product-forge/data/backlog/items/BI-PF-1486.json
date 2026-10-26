@@ -27,6 +27,14 @@
       "decision": "APPROVE",
       "by": "system",
       "note": "auto-approved on add (BI-PF-1282)"
+    },
+    {
+      "at": "2026-10-26T05:36:17.812725+00:00",
+      "by": "hil:srinikc",
+      "decision": "MATERIAL_CHANGE",
+      "hil_confirmed": true,
+      "mode": "design",
+      "note": "HIL continue: design materially completed after Gate 1.5 findings; one final design review approved."
     }
   ],
   "follow_up": {},
@@ -42,7 +50,7 @@
     "Derived docs (BACKLOG-SUMMARY, documentation-index) are validated against generator output/content and cannot carry arbitrary executable content.",
     "MATERIAL_CHANGE approvals require an at timestamp after the reviews they excuse, with a migration/back-compat rule; negative test covers older approval.",
     "architect_review_check coverage proves reviewed_head is an ancestor and that no review-relevant changes occurred; tests cover stale/older evidence.",
-    "One 2.5 on the hardening candidate; precheck passes."
+    "Precheck passes; tests cover derived-doc drift, older material approval, non-ancestor reviewed head and missing timestamp negative cases."
   ],
   "in_scope": [
     "Review tooling hardening: derived-doc content, material approval ordering, coverage edge cases"
@@ -51,10 +59,17 @@
     "Not specified."
   ],
   "affected_components": [
-    "Not specified."
+    "review budget",
+    "architect review evidence check",
+    "derived docs generator validation"
   ],
   "affected_files": [
-    "Not specified."
+    "scripts/dev/review_budget.py",
+    "scripts/dev/architect_review_check.py",
+    "scripts/dev/excluded_content_check.py",
+    "test-framework/tests/test_review_budget.py",
+    "test-framework/tests/test_architect_review_delta.py",
+    "test-framework/tests/test_excluded_content_check.py"
   ],
   "approach": "Review tooling hardening: derived-doc content, material approval ordering, coverage edge cases",
   "review": {
@@ -117,7 +132,9 @@
     "Objective achieved: Review tooling hardening: derived-doc content, material approval ordering, coverage edge cases"
   ],
   "risks": [
-    "Not specified."
+    "Derived-doc generator drift; mitigated by freshness check.",
+    "Material approvals without at; grandfathered only pre-enforcement.",
+    "Non-ancestor review heads; rejected with test."
   ],
   "rollback": "Revert the change.",
   "evidence": [
@@ -237,7 +254,7 @@
     "usage": {}
   },
   "created_at": "2026-10-25T23:30:44.184708",
-  "updated_at": "2026-10-26T11:04:32.417172",
+  "updated_at": "2026-10-26T11:06:17.892721",
   "score": 0.75,
   "_note": "Gate 0 design",
   "api_impact": {
@@ -259,9 +276,10 @@
       "Review coverage ancestry tests"
     ],
     "invariants": [
-      "BACKLOG-SUMMARY/documentation-index must match generator output, not just header",
-      "MATERIAL_CHANGE approval must post-date the reviews it excuses",
-      "Reviewed HEAD must be an ancestor; no review-relevant changes since"
+      "Derived docs must match generator output; header-only is insufficient.",
+      "MATERIAL_CHANGE at must be UTC ISO and >= the latest review at; missing/older does not waive.",
+      "Reviewed HEAD must be an ancestor; no review-relevant changes since.",
+      "Excluded paths are content-class verified."
     ],
     "contracts": {
       "api": [
@@ -304,9 +322,7 @@
     "security": [
       "Tooling only; no tenant data"
     ],
-    "observability": [
-      "Gate stderr/exit"
-    ],
+    "observability": "Each failure prints its code: DERIVED_DOC_STALE, MATERIAL_APPROVAL_ORDER, REVIEW_HEAD_NOT_ANCESTOR, DESIGN_PACK_CONFIG. No silent pass.",
     "performance": [
       "Docs generator check bounded"
     ],
@@ -314,26 +330,26 @@
       {
         "ac": "AC-1",
         "kind": "logic",
-        "test": "docs generator freshness"
+        "test": "docs generator freshness (stale content fails)"
       },
       {
         "ac": "AC-2",
         "kind": "unit",
-        "test": "test_review_budget.py"
+        "test": "test_review_budget: older/missing at rejected; valid at accepted"
       },
       {
         "ac": "AC-3",
         "kind": "unit",
-        "test": "test_architect_review_delta.py"
+        "test": "test_architect_review_delta: non-ancestor/older evidence rejected"
       },
       {
         "ac": "AC-4",
         "kind": "logic",
-        "test": "precheck"
+        "test": "precheck 49 gates"
       }
     ],
     "rollout": "Apply to next review",
-    "rollback": "Revert; prior gates unchanged",
+    "rollback": "Revert commit; regenerate docs; re-run gates. No persisted state migration; gate failures are recomputed.",
     "decisions": [
       "Use generator output as doc authority",
       "Material approval per breach"
@@ -354,6 +370,18 @@
       "LLM reviews need bounded rounds",
       "Excluded paths content-class verified",
       "Review evidence must bind reviewed head"
-    ]
+    ],
+    "acceptance_evidence": [
+      "AC-1: docs generator freshness test/gate",
+      "AC-2: test_review_budget older/at-less approval",
+      "AC-3: test_architect_review_delta ancestry/coverage",
+      "AC-4: precheck 49 gates"
+    ],
+    "migration": "Existing MATERIAL_CHANGE approvals without at are grandfathered only for items created before enforcement; new approvals require UTC ISO at >= latest review at. No data backfill.",
+    "gate1_5": {
+      "sha": "653ead706f4b",
+      "status": "dispositioned below",
+      "note": "Gate 1.5 findings are dispositioned in the item before Gate 1."
+    }
   }
 }
