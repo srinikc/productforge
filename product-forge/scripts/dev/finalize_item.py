@@ -29,7 +29,7 @@ def build(item_id: str) -> dict:
     bad_ac = ac_policy.problems(it)
     bad = dp.problems(it, "design", lambda i: backlog.get_epic("product_forge", None, i))
     bad += dp.problems(it, "diff", lambda i: backlog.get_epic("product_forge", None, i))
-    tests = [t for e in evs for t in (e.get("tests") or [])]
+    tests = tr.latest_tests(evs)
     u = tr.usage_totals(evs)
     start = evs[0]["at"] if evs else ""
     end = evs[-1]["at"] if evs else ""
@@ -55,7 +55,7 @@ def build(item_id: str) -> dict:
     return {"schema": "pf.final-report/2", "ac_hash": ac_hash, "total_time_ms": total_ms,
             "sum_stage_ms": sum_stage_ms, "clock_skew": clock_skew, "item": item_id, "generated_at": datetime.now(timezone.utc).isoformat(),
             "item_revision": it.get("revision"), "current_stage": tr.current_stage(item_id, it.get("status") or ""),
-            "acs": acs, "ac_problems": bad_ac, "tests_by_kind": tr.tests_by_kind(evs),
+            "acs": acs, "ac_problems": bad_ac, "tests_by_kind": tr.tests_by_kind([{"tests": tests}]),
             "gate_metrics": tr.gate_metrics(evs),
             "usage": u, "started_at": start, "finished_at": end,
             "disposition_problems": bad,

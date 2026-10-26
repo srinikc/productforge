@@ -255,3 +255,12 @@ def test_test_kind_and_tests_by_kind():
     by = tr.tests_by_kind(evs)
     assert by["unit"]["passed"] == 2 and by["go"]["passed"] == 3
     assert by["logic"]["passed"] == 4 and by["api"]["passed"] == 1
+
+
+def test_latest_tests_uses_only_the_last_tests_event():
+    evs = [{"tests": [{"command": "old", "passed": 1}]},
+           {"tests": [{"command": "residency-tests", "kind": "unit", "passed": 12}]}]
+    assert tr.latest_tests(evs) == [{"command": "residency-tests", "kind": "unit", "passed": 12}]
+    kinds = tr.tests_by_kind([{"tests": tr.latest_tests(evs)}])
+    assert kinds["unit"]["passed"] == 12
+    assert kinds["other"]["passed"] == 0

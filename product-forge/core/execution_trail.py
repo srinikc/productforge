@@ -260,24 +260,24 @@ def test_kind(test: dict) -> str:
 
 def tests_by_kind(evs: list[dict]) -> dict:
     out = {k: {"rows": [], "passed": 0, "failed": 0, "skipped": 0, "duration_ms": 0} for k in TEST_KINDS}
-    latest: dict[str, dict] = {}
-    order: list[str] = []
     for ev in evs:
         for t in ev.get("tests") or []:
-            cmd = str(t.get("command") or "")
-            if cmd not in latest:
-                order.append(cmd)
-            latest[cmd] = t
-    for cmd in order:
-        t = latest[cmd]
-        k = test_kind(t)
-        row = out[k]
-        row["rows"].append(t)
-        row["passed"] += int(t.get("passed") or 0)
-        row["failed"] += int(t.get("failed") or 0)
-        row["skipped"] += int(t.get("skipped") or 0)
-        row["duration_ms"] += int(t.get("duration_ms") or 0)
+            k = test_kind(t)
+            row = out[k]
+            row["rows"].append(t)
+            row["passed"] += int(t.get("passed") or 0)
+            row["failed"] += int(t.get("failed") or 0)
+            row["skipped"] += int(t.get("skipped") or 0)
+            row["duration_ms"] += int(t.get("duration_ms") or 0)
     return out
+
+
+def latest_tests(evs: list[dict]) -> list[dict]:
+    """Return the tests from the most recent tests event (last-write-wins)."""
+    for ev in reversed(evs or []):
+        if ev.get("tests"):
+            return list(ev.get("tests") or [])
+    return []
 
 
 def _box(headers: list, rows: list, widths: list | None = None) -> str:
