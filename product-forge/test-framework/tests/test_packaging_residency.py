@@ -53,7 +53,7 @@ def test_unknown_home_fails_closed():
     sec["home_region"] = "XX"
     v = packaging.validate_residency(sec)
     assert v["valid"] is False
-    assert "RESIDENCY_PROFILE_UNREADABLE" in v["unmet"]
+    assert "RESIDENCY_UNKNOWN_HOME" in v["unmet"]
 
 
 def test_gate_report_is_non_fatal(tmp_path):
@@ -95,3 +95,22 @@ def test_product_override_precedence(tmp_path, monkeypatch):
     man = {"home_region": "IN"}
     (d / "residency-manifest.json").write_text(json.dumps(man), encoding="utf-8")
     assert packaging.residency_path("product_forge", "proj") == str(d / "residency-manifest.json")
+
+
+def test_gate_invalid_manifest_fails_closed(tmp_path):
+    import os
+    tag = "invalid"
+    path = tmp_path / f"residency_manifest_{tag}_{1}.json"
+    path.write_text("{not json", encoding="utf-8")
+    env = dict(os.environ, PF_RESIDENCY_EVENT=str(tmp_path / "residency_gate_scratch.json"),
+               PF_RESIDENCY_JSONL=str(tmp_path / "residency_gate_scratch.jsonl"))
+    r = subprocess.run([sys.executable, str(ROOT / "scripts" / "dev" / "residency_gate.py"),
+                        "--manifest", str(path), "--mode", "block"], capture_output=True, text=True,
+                       timeout=180, env=env)
+    assert r.returncode != 0
+
+
+def test_language_and_precheck_wiring():
+    cfg = json.loads((ROOT / "config" / "language-rule.json").read_text(encoding="utf-8-sig"))
+    assert "core/packaging.py" in ((cfg.get("edit_growth") or {}).get("allow") or [])
+    assert "residency_gate.py" in (ROOT / "scripts" / "dev" / "precheck.py").read_text(encoding="utf-8")

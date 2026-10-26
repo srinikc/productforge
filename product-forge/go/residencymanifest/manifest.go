@@ -84,6 +84,9 @@ func LoadProfile(dir, home string) (Profile, error) {
 	}
 	b, err := os.ReadFile(path)
 	if err != nil {
+		if os.IsNotExist(err) {
+			return p, errors.New("RESIDENCY_UNKNOWN_HOME")
+		}
 		return p, fmt.Errorf("RESIDENCY_PROFILE_UNREADABLE: %w", err)
 	}
 	b = bytes.TrimPrefix(b, []byte{0xEF, 0xBB, 0xBF})

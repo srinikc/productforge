@@ -103,7 +103,9 @@ def validate_residency(section: dict) -> dict:
         except Exception:
             prof = {}
     allowed = {str(x).upper() for x in (prof.get("allowed_regions") or [])}
-    if home and (not prof.get("id") or not prof.get("allowed_regions")):
+    if home and not prof:
+        unmet.append("RESIDENCY_UNKNOWN_HOME")
+    elif home and (not prof.get("id") or not prof.get("allowed_regions")):
         unmet.append("RESIDENCY_PROFILE_UNREADABLE")
     if home and home not in allowed:
         unmet.append("RESIDENCY_HOME_NOT_ALLOWED")
@@ -128,7 +130,7 @@ def validate_residency(section: dict) -> dict:
         unmet.append("RESIDENCY_INVALID_FIELD:kms.provider")
     if b.get("encrypted") is not True:
         unmet.append("RESIDENCY_BACKUP_UNENCRYPTED")
-    if b.get("frequency") not in FREQUENCIES:
+    if str(b.get("frequency") or "").lower() not in FREQUENCIES:
         unmet.append("RESIDENCY_UNKNOWN_FREQUENCY")
     rot = k.get("rotation_days")
     if not isinstance(rot, int) or isinstance(rot, bool) or rot <= 0:

@@ -47,8 +47,21 @@ func main() {
 		return
 	}
 	if *mode == "warn" {
-		fmt.Fprintf(os.Stderr, "residency: WARN %d violation(s): %v\n", len(errs), errs)
-		os.Exit(0)
+		hard := false
+		for _, e := range errs {
+			for _, p := range []string{"RESIDENCY_UNKNOWN_HOME", "RESIDENCY_PROFILE_UNREADABLE", "RESIDENCY_SCHEMA_VERSION",
+				"RESIDENCY_MISSING_GROUP", "RESIDENCY_INVALID_FIELD", "RESIDENCY_BACKUP_UNENCRYPTED", "RESIDENCY_KMS_ROTATION",
+				"RESIDENCY_UNKNOWN_FREQUENCY", "RESIDENCY_HOME_NOT_ALLOWED", "RESIDENCY_REGION_NOT_ALLOWED",
+				"RESIDENCY_BACKUP_REGION", "RESIDENCY_KMS_REGION", "RESIDENCY_EGRESS_REGION", "RESIDENCY_RETENTION"} {
+				if strings.HasPrefix(e, p) {
+					hard = true
+				}
+			}
+		}
+		if !hard {
+			fmt.Fprintf(os.Stderr, "residency: WARN %d violation(s): %v\n", len(errs), errs)
+			os.Exit(0)
+		}
 	}
 	os.Exit(1)
 }
