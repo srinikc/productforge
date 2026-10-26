@@ -54,7 +54,7 @@ def _material_ok(item: dict, mode: str, rows: list[dict]) -> bool:
     return False
 
 
-def problems(item: dict) -> list[str]:
+def problems(item: dict, only_mode: str = "") -> list[str]:
     c = config()
     iid = str(item.get("id") or "")
     if iid in (c.get("grandfather") or []):
@@ -63,6 +63,10 @@ def problems(item: dict) -> list[str]:
     max_n = int(c.get("max_reviews_per_mode") or 1)
     bad = []
     for mode in ("design", "diff"):
+        if only_mode and mode != only_mode:
+            continue
+        if mode == "design" and any(int(d.get("gate") or 0) == 1 for d in (item.get("decisions") or [])):
+            continue  # design is frozen after Gate 1
         rows = [d for d in _evidence(iid, mode)
                 if str(d.get("at") or "") >= cutoff and d.get("parsed_ok", True)]
         if len(rows) >= max_n and not (c.get("allow_hil_material_change") and _material_ok(item, mode, rows)):
