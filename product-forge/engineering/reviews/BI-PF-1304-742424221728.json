@@ -1,0 +1,41 @@
+{
+  "item": "BI-PF-1304",
+  "sha": "742424221728",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-26T08:10:59.651312+00:00",
+  "base_sha": "",
+  "head_sha": "8662624504d0298f4b25f82c07490cd8853ca0e4",
+  "findings": {
+    "BLOCKER": [
+      "AC5 fixture set still lacks the toolchain (`RESIDENCY_VALIDATOR_UNAVAILABLE`), `RESIDENCY_MANIFEST_INVALID`/`UNREADABLE`, and over-policy retention cases; `residency_conformance.json` is unchanged, so disposition=ACTIONED is not reflected in this diff.",
+      "AC4 still ships no `language_rule_review` or precheck (45+ gates) assertion; the language-rule exemption for `core/packaging.py` and the new precheck/ci-cd gate remain unverified."
+    ],
+    "MAJOR": [
+      "`hard_prefix` still omits `RESIDENCY_HOME_NOT_ALLOWED`, `RESIDENCY_REGION_NOT_ALLOWED`, `RESIDENCY_*_REGION` and `RESIDENCY_RETENTION`; with `gate_mode=warn` until 2027-01-31 a gate declared `blocking:true` exits 0 on those \u2014 disposition wrong.",
+      "`cmd/pfresidency` warn mode still downgrades every `Validate` error to exit 0 while the Python gate hard-blocks a subset: two divergent warn semantics behind one frozen contract.",
+      "Regex-passing but profileless home (\"XX\") still surfaces as `RESIDENCY_PROFILE_UNREADABLE`, and `test_unknown_home_fails_closed` locks it in; `RESIDENCY_UNKNOWN_HOME` only fires for empty/malformed home.",
+      "Python `frequency` check remains case-sensitive while Go lowercases, and bool `rotation_days` is rejected by Python but a Go unmarshal error \u2014 drift is guaranteed without a code-level (not verdict-level) conformance assert.",
+      "The fast-tier blocking gate shells out to `go run` with a 120s timeout on every run; any dev/CI image lacking the Go toolchain turns the entire fast tier into an exit-2 hard failure.",
+      "`core/packaging.py` still duplicates ~50 lines of the Go authority via a language-rule exemption; parity compares only the boolean verdict, so error-code divergence between the two implementations is undetectable."
+    ],
+    "MINOR": [
+      "Unreadable manifest in `build()` yields `{\"error\": ...}` with no `validation`, so `validate()` re-runs shape checks and reports `RESIDENCY_SCHEMA_VERSION`/`MISSING_GROUP` instead of `RESIDENCY_MANIFEST_UNREADABLE` \u2014 misleading codes for a real failure.",
+      "Both validators can emit duplicate codes (Go: `MISSING_GROUP:retention` + `RESIDENCY_RETENTION`; Python: `HOME_NOT_ALLOWED` twice, including when home is empty), polluting frozen-code reports.",
+      "Profile readability is coupled to the decorative `id` field (`not prof.get(\"id\")` \u2192 `RESIDENCY_PROFILE_UNREADABLE`); a counsel profile without `id` fails every build.",
+      "JSONL rotation keeps the active file plus `.1/.2/.3` = 4 files, contradicting the registry/docs \"3 files\" bound.",
+      "`language-rule.json` gains a new top-level `_notes` object; any consumer enumerating config keys as allow-entries will interpret it as one \u2014 needs namespacing or a schema check.",
+      "`store-registry` `allow` still swallows the shipped `residency_conformance.json` fixture and the (now tmp_path-only) scratch names instead of registering owners."
+    ],
+    "NIT": [
+      "`residency_path(scope, ...)` ignores `scope`; `test_gate_report_is_non_fatal` lacks the blank line before the next `def` (PEP8); the Go module still has no `go.work`/build-tooling registration."
+    ],
+    "SUMMARY": [
+      "Verdict: every prior disposition claims ACTIONED, but this diff appears identical to the one already reviewed \u2014 none of the blockers/majors are actually addressed.",
+      "Top risks: a ~12-month warn hole in a declared-blocking gate, dual warn semantics between Go CLI and Python gate, an untested language-rule exemption, and Go-toolchain coupling of the fast gate tier."
+    ]
+  },
+  "rereview_reason": "prior sha e6906e8f2040; post-merge EDP-12 candidate",
+  "rereview_reason_sha256": "e1b3d24cb73eaab6fc19f803bd13a6464c8219cb0bf576b690d9810f9b57c598"
+}

@@ -1,0 +1,36 @@
+{
+  "item": "BI-PF-1304",
+  "sha": "78e0d3b69307",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-26T08:23:50.289885+00:00",
+  "base_sha": "8662624504d0298f4b25f82c07490cd8853ca0e4",
+  "head_sha": "dd9d280ec60f3fca0485186402f69dc57d10ac3b",
+  "findings": {
+    "BLOCKER": [
+      "`cmd/pfresidency` warn mode hard-blocks an enumerated denylist and fail-opens everything else: any `Validate` code absent from the array (notably `RESIDENCY_MANIFEST_INVALID`/`UNREADABLE` and `RESIDENCY_VALIDATOR_UNAVAILABLE`, both named by AC5, plus any future code) sets `hard=false` \u2192 exit 0. This inverts AC5 \"warn never downgrades execution failures\"; the default for unknown codes must be fail-closed (allowlist the downgradable policy codes instead)."
+    ],
+    "MAJOR": [
+      "Because every currently-known code is in the hard array, `--mode warn` reaches exit 0 only when *all* errors are unlisted, so warn \u2248 block for every enumerated policy violation \u2014 voiding AC3's block/warn distinction and the `gate_mode=warn` grace window; both symptoms share the denylist root cause.",
+      "AC4 evidence added here (`test_language_and_precheck_wiring`) only asserts `core/packaging.py` membership in `language-rule.json` and substring `\"residency_gate.py\" in precheck.py`; it never executes `language_rule_review` nor asserts the 45+ gate count, so the prior AC4 blocker is only superficially addressed.",
+      "`test_gate_invalid_manifest_fails_closed` asserts only `returncode != 0`, so it passes on unrelated failures (import/toolchain/timeout) and never checks the expected `RESIDENCY_MANIFEST_*` fail-closed code \u2014 it does not prove AC3 fail-closed behavior."
+    ],
+    "MINOR": [
+      "Python `validate_residency` maps *every* profile-load failure (missing/permission/malformed) to `RESIDENCY_UNKNOWN_HOME`, while Go distinguishes `RESIDENCY_UNKNOWN_HOME` (not-exist) from `RESIDENCY_PROFILE_UNREADABLE` (read error) \u2014 divergent codes for the same unreadable-profile fixture.",
+      "For a missing profile Python also appends `RESIDENCY_HOME_NOT_ALLOWED` (allowed set is empty) alongside `RESIDENCY_UNKNOWN_HOME`, where Go's `LoadProfile` short-circuits to one code \u2014 weakens AC5 code-level parity though pass/block still matches.",
+      "`residency_conformance.json` delta only strips the EOF newline (no new fixture cases), leaving AC5 fixture completeness untouched and breaking POSIX \"ends with newline\" hygiene/lint."
+    ],
+    "NIT": [
+      "Delta calls `strings.HasPrefix` in `main.go` but shows no `strings` import hunk \u2014 confirm the import exists or the package won't compile.",
+      "`f\"residency_manifest_{tag}_{1}.json\"` interpolates a literal `{1}`; drop it."
+    ],
+    "SUMMARY": [
+      "Delta correctly resolves the prior unknown-home mapping, frequency-case drift, and hard-prefix omissions, but the new warn-mode denylist is fail-open on unlisted codes (AC5) and collapses warn into block for all enumerated codes (AC3).",
+      "AC4 evidence remains a superficial wiring check, and the conformance fixture was touched only to remove its trailing newline.",
+      "Top risks: fail-closed regression in warn mode, and parity/fixture gaps that keep AC4/AC5 from being genuinely discharged."
+    ]
+  },
+  "rereview_reason": "prior sha 742424221728; blockers/majors fixed",
+  "rereview_reason_sha256": "3165c9218fa8d9fdba2e2db0996b060ecabad6d08cecc31545b428cf2324f7bc"
+}
