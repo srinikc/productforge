@@ -81,13 +81,22 @@ def problems(item: dict, only_mode: str = "") -> list[str]:
                 and any(int(d.get("gate") or 0) == 1 for d in (item.get("decisions") or []))):
             continue
         cutoff_dt = _dt(cutoff)
+        if cutoff_dt is None:
+            bad.append(f"{mode}: REVIEW_BUDGET_CONFIG invalid/missing enforce_from")
+            continue
         rows = []
         for d in _evidence(iid, mode):
             try:
                 at = _dt(d.get("at"))
             except ValueError:
+                bad.append(f"{mode}: REVIEW_EVIDENCE_INVALID malformed review at")
+                rows.append(d)  # count it so bad evidence cannot shrink the budget
                 continue
-            if at and cutoff_dt and at >= cutoff_dt and d.get("parsed_ok", True):
+            if at is None:
+                bad.append(f"{mode}: REVIEW_EVIDENCE_INVALID missing review at")
+                rows.append(d)
+                continue
+            if at >= cutoff_dt and d.get("parsed_ok", True):
                 rows.append(d)
         if len(rows) >= max_n and not (c.get("allow_hil_material_change") and _material_ok(item, mode, rows)):
             mats = [d for d in (item.get("decisions") or [])
