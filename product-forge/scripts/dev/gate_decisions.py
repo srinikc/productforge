@@ -95,6 +95,10 @@ def record_gate_decision(backlog, scope: str, project: str | None, eid: str, gat
         return None
     sha = ar.design_sha(item) if gate == 1 else str(((view or {}).get("review") or {}).get("sha") or "docs-only")
     try:
+        try:
+            sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        except Exception:
+            pass
         import gate_package
         text = gate_package.render(eid, int(gate))
         print(text)
