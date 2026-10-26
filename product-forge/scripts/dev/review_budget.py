@@ -80,25 +80,30 @@ def problems(item: dict, only_mode: str = "") -> list[str]:
         if (mode == "design" and c.get("freeze_design_after_gate1", True)
                 and any(int(d.get("gate") or 0) == 1 for d in (item.get("decisions") or []))):
             continue
-        cutoff_dt = _dt(cutoff)
+        try:
+            cutoff_dt = _dt(cutoff)
+        except ValueError:
+            bad.append(f"{mode}: REVIEW_BUDGET_CONFIG invalid enforce_from")
+            continue
         if cutoff_dt is None:
-            bad.append(f"{mode}: REVIEW_BUDGET_CONFIG invalid/missing enforce_from")
+            bad.append(f"{mode}: REVIEW_BUDGET_CONFIG missing enforce_from")
             continue
         rows = []
+        invalid = 0
         for d in _evidence(iid, mode):
             try:
                 at = _dt(d.get("at"))
             except ValueError:
                 bad.append(f"{mode}: REVIEW_EVIDENCE_INVALID malformed review at")
-                rows.append(d)  # count it so bad evidence cannot shrink the budget
+                invalid += 1
                 continue
             if at is None:
                 bad.append(f"{mode}: REVIEW_EVIDENCE_INVALID missing review at")
-                rows.append(d)
+                invalid += 1
                 continue
             if at >= cutoff_dt and d.get("parsed_ok", True):
                 rows.append(d)
-        if len(rows) >= max_n and not (c.get("allow_hil_material_change") and _material_ok(item, mode, rows)):
+        if len(rows) + invalid >= max_n and not (c.get("allow_hil_material_change") and _material_ok(item, mode, rows)):
             mats = [d for d in (item.get("decisions") or [])
                     if str(d.get("decision") or "").upper() == "MATERIAL_CHANGE"]
             if not mats:
