@@ -49,13 +49,15 @@ func main() {
 	if *mode == "warn" {
 		hard := false
 		for _, e := range errs {
-			for _, p := range []string{"RESIDENCY_UNKNOWN_HOME", "RESIDENCY_PROFILE_UNREADABLE", "RESIDENCY_SCHEMA_VERSION",
-				"RESIDENCY_MISSING_GROUP", "RESIDENCY_INVALID_FIELD", "RESIDENCY_BACKUP_UNENCRYPTED", "RESIDENCY_KMS_ROTATION",
-				"RESIDENCY_UNKNOWN_FREQUENCY", "RESIDENCY_HOME_NOT_ALLOWED", "RESIDENCY_REGION_NOT_ALLOWED",
+			downgrade := false
+			for _, p := range []string{"RESIDENCY_HOME_NOT_ALLOWED", "RESIDENCY_REGION_NOT_ALLOWED",
 				"RESIDENCY_BACKUP_REGION", "RESIDENCY_KMS_REGION", "RESIDENCY_EGRESS_REGION", "RESIDENCY_RETENTION"} {
 				if strings.HasPrefix(e, p) {
-					hard = true
+					downgrade = true
 				}
+			}
+			if !downgrade {
+				hard = true
 			}
 		}
 		if !hard {

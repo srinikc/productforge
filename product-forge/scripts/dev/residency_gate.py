@@ -128,10 +128,9 @@ def main(argv: list[str] | None = None) -> int:
         print(f"residency: BLOCK Python/Go verdict divergence: {errors}", file=sys.stderr)
         return 2
     if not go_valid:
-        hard_prefix = ("RESIDENCY_UNKNOWN_HOME", "RESIDENCY_PROFILE_UNREADABLE", "RESIDENCY_SCHEMA_VERSION",
-                       "RESIDENCY_MISSING_GROUP", "RESIDENCY_INVALID_FIELD", "RESIDENCY_BACKUP_UNENCRYPTED",
-                       "RESIDENCY_KMS_ROTATION", "RESIDENCY_UNKNOWN_FREQUENCY")
-        hard = any(str(e).startswith(hard_prefix) for e in errors)
+        downgrade = ("RESIDENCY_HOME_NOT_ALLOWED", "RESIDENCY_REGION_NOT_ALLOWED", "RESIDENCY_BACKUP_REGION",
+                    "RESIDENCY_KMS_REGION", "RESIDENCY_EGRESS_REGION", "RESIDENCY_RETENTION")
+        hard = any(not str(e).startswith(downgrade) for e in errors)
         if mode == "warn" and not hard:
             print(f"residency: WARN {len(errors)} violation(s): {errors}", file=sys.stderr)
             return 0

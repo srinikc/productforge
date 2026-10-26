@@ -95,19 +95,22 @@ def validate_residency(section: dict) -> dict:
         unmet.append("RESIDENCY_SCHEMA_VERSION")
     home = str(sec.get("home_region") or "").upper()
     prof = {}
+    profile_path = ""
     if not home or not re.match(r"^[A-Z0-9-]+$", home):
         unmet.append("RESIDENCY_UNKNOWN_HOME")
     else:
-        try:
-            prof = _load_json(os.path.join(residency_profiles_dir(), f"{home.lower()}-v1.json"))
-        except Exception:
-            prof = {}
+        profile_path = os.path.join(residency_profiles_dir(), f"{home.lower()}-v1.json")
+        if not os.path.exists(profile_path):
+            unmet.append("RESIDENCY_UNKNOWN_HOME")
+        else:
+            try:
+                prof = _load_json(profile_path)
+            except Exception:
+                unmet.append("RESIDENCY_PROFILE_UNREADABLE")
     allowed = {str(x).upper() for x in (prof.get("allowed_regions") or [])}
-    if home and not prof:
-        unmet.append("RESIDENCY_UNKNOWN_HOME")
-    elif home and (not prof.get("id") or not prof.get("allowed_regions")):
+    if prof and (not prof.get("id") or not prof.get("allowed_regions")):
         unmet.append("RESIDENCY_PROFILE_UNREADABLE")
-    if home and home not in allowed:
+    if prof and home and home not in allowed:
         unmet.append("RESIDENCY_HOME_NOT_ALLOWED")
     sec_allowed = {str(x).upper() for x in (sec.get("allowed_regions") or [])}
     if not sec_allowed or home not in sec_allowed:

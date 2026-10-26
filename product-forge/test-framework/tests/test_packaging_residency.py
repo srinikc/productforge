@@ -6,6 +6,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / "scripts" / "dev"))
 
 from core import packaging  # noqa: E402
 
@@ -100,7 +101,7 @@ def test_product_override_precedence(tmp_path, monkeypatch):
 def test_gate_invalid_manifest_fails_closed(tmp_path):
     import os
     tag = "invalid"
-    path = tmp_path / f"residency_manifest_{tag}_{1}.json"
+    path = tmp_path / f"residency_manifest_{tag}.json"
     path.write_text("{not json", encoding="utf-8")
     env = dict(os.environ, PF_RESIDENCY_EVENT=str(tmp_path / "residency_gate_scratch.json"),
                PF_RESIDENCY_JSONL=str(tmp_path / "residency_gate_scratch.jsonl"))
@@ -108,9 +109,24 @@ def test_gate_invalid_manifest_fails_closed(tmp_path):
                         "--manifest", str(path), "--mode", "block"], capture_output=True, text=True,
                        timeout=180, env=env)
     assert r.returncode != 0
+    assert "BLOCK" in (r.stderr or "")
 
 
 def test_language_and_precheck_wiring():
     cfg = json.loads((ROOT / "config" / "language-rule.json").read_text(encoding="utf-8-sig"))
     assert "core/packaging.py" in ((cfg.get("edit_growth") or {}).get("allow") or [])
-    assert "residency_gate.py" in (ROOT / "scripts" / "dev" / "precheck.py").read_text(encoding="utf-8")
+    r = subprocess.run([sys.executable, str(ROOT / "scripts" / "dev" / "language_rule_review.py"), "BI-PF-1304"],
+                       capture_output=True, text=True, timeout=120)
+    assert r.returncode == 0, r.stdout + r.stderr
+    import precheck
+    assert len(precheck._GATES) >= 45
+    assert any(g[0] == "residency" for g in precheck._GATES)
+
+
+def test_gate_toolchain_unavailable_is_fail_closed(tmp_path):
+    import os
+    env = dict(os.environ, PATH="", PF_RESIDENCY_EVENT=str(tmp_path / "residency_gate_scratch.json"),
+               PF_RESIDENCY_JSONL=str(tmp_path / "residency_gate_scratch.jsonl"))
+    r = subprocess.run([sys.executable, str(ROOT / "scripts" / "dev" / "residency_gate.py"), "--report"],
+                       capture_output=True, text=True, timeout=120, env=env)
+    assert r.returncode == 2
