@@ -1,0 +1,35 @@
+{
+  "item": "BI-PF-1484",
+  "sha": "32b39e8c40f3",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-25T13:45:27.943993+00:00",
+  "base_sha": "67d5ff7457f03f12013713c0f865acc07a2b1632",
+  "head_sha": "6950e220afe8b69132db966380ec25c5ee3cd373",
+  "findings": {
+    "BLOCKER": [
+      "Fail-open on date parse persists: `_date_problems` validates `value[:10]` while `should_enforce` parses the full string, so a suffixed/non-ISO value (`2026-10-05T25`, `2026-10-05 `) passes the problem check, then `except ValueError: return False` silently skips enforcement in `evaluate()`. Prior MAJOR disposition (ACTIONED) does not hold for the suffix case explicitly called out.",
+      "No test exercises the suffixed/oversized-date path through `evaluate()`, so this gate bypass is unverified by the new tests."
+    ],
+    "MAJOR": [
+      "`_date_problems` runs before `should_enforce`, so a single config-level defect (`enforce_from missing`/invalid) now hard-fails every item at Gate 1 with no scope check or opt-out; the error is repeated once per item in `main()`'s scan instead of validated once at gate scope.",
+      "`should_enforce` and `_date_problems` encode two divergent date-validity contracts (silent `False` vs. reported problem) \u2014 the duplicated parsing logic is the root cause of the blocker above and will drift again."
+    ],
+    "MINOR": [
+      "`_date_problems` messages carry no item id; direct Gate 1/merge-gate callers receive uncontextualized problems (only `main()` prefixes), hurting observability across gate outputs.",
+      "`main()`'s batch scan now re-fetches every item via `evaluate()` \u2192 `get_epic`, adding an N+1 store read over the already-listed records.",
+      "`from datetime import date` remains imported inside the `_date_problems` loop despite the module-level import added in this diff \u2014 dead local shadow."
+    ],
+    "NIT": [
+      "No test covers the `enforce_from missing` branch or main-vs-evaluate parity for the batch scan; empty/missing item id yields `\": item not found: \"` formatting."
+    ],
+    "SUMMARY": [
+      "Prior fail-open fix is only partially delivered: the divergence between sliced validation and full-string parsing leaves a real enforcement bypass at Gate 1/merge, so the ACTIONED disposition on the date-parse MAJOR is wrong.",
+      "Secondary risks: config errors surfaced per-item instead of once, duplicated date logic, and thin test coverage on the new branches.",
+      "Recommend closing the parse divergence behind a single helper with full-string validation and tests before merge."
+    ]
+  },
+  "rereview_reason": "prior sha f0d3b38ac9fc; evaluate fail-closed + tests",
+  "rereview_reason_sha256": "a7c8587626000790f9a6221c8f3f831f067f617c7b2c5f4d2210be155e4f377c"
+}

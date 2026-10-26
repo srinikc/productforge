@@ -1,0 +1,39 @@
+{
+  "item": "BI-PF-1486",
+  "sha": "de09e4cc2a04",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-10-26T05:44:35.513347+00:00",
+  "base_sha": "",
+  "head_sha": "c0ca2bb32e400b6ca3ea918d8b7e65a55a15e372",
+  "findings": {
+    "BLOCKER": [
+      "Migration grandfathering predicate is still non-deterministic: \"items created before cutoff\" does not pin the source of item creation time (backlog file first git commit? ctime? id-block?). This reintroduces the same void-the-invariant loophole CL flagged; without a single authoritative field, any legacy MATERIAL_CHANGE approval can be claimed as grandfathered, defeating AC-2 ordering.",
+      "content_policy is a denylist (`<script`, `javascript:`, `on*=`, `<iframe`, `<object`, fenced code) plus an undefined \"basic HTML\" allowlist. Denylists are bypassable (`<embed>`, `<form action>`, `<svg onload>`, `<meta http-equiv=refresh>`, `data:` hrefs, CSS `url()`), so \"cannot carry arbitrary executable content\" (AC-1) is not actually enforced by spec \u2014 Gate 1.5's request was a closed allowlist, not a longer denylist."
+    ],
+    "MAJOR": [
+      "Generator-authority check has no determinism contract: unless `gen_docs_index` output is pinned as stable (no timestamps, stable ordering, stable serialization), byte-diff validation yields flaky DERIVED_DOC_STALE or encourages reviewers to disable it \u2014 an integrity gate that cries wolf gets bypassed.",
+      "Grandfathering is open-ended (no expiry or one-time migration that rewrites legacy approvals into compliant records); the ordering invariant never becomes universally true.",
+      "review_scope (9 entries) and REVIEW_EXCLUDES/coverage path set are claimed to be \"one path set\" but no single config key or owner file is named in the design; two list literals in different scripts is exactly the divergence risk the previous MAJOR flagged.",
+      "Precheck gate count hard-coded as \"49 gates\" in requirements/test_matrix: adding any future gate breaks the test independent of this change; assert gate-set membership/completeness, not a literal count."
+    ],
+    "MINOR": [
+      "Item-level `rollback: \"Revert the change\"` contradicts design_pack's 4-step rollback (revert, regenerate docs, re-run gates); the item record should carry the full ordered rollback.",
+      "`DESIGN_PACK_CONFIG` is declared in observability but absent from the failure matrix and from the test matrix \u2014 an error code that nothing triggers or tests will silently rot.",
+      "\"Allow basic HTML\" is not enumerated (which tags/attributes), so implementers will diverge on tables/headings vs unsafe constructs; list the permitted tag/attribute set explicitly.",
+      "cutoff \"2026-10-08T00:00:00Z / commit 9dba2e3d\" does not state how the tool resolves/validates the SHA if history is rewritten (shallow clone, rebase); define fallback behavior and its error code."
+    ],
+    "NIT": [
+      "Performance bound \"20MB/file cap\" lacks stated behavior on breach (skip with warning vs gate fail) \u2014 pick fail-closed and note it.",
+      "Guardrails 2/3/4/8/9 are marked N/A for tooling but not stated as N/A in the design; one line of \"not applicable: no scheduler, no authz boundary, no API, no tenant data\" would silence future checklist re-litigation."
+    ],
+    "SUMMARY": [
+      "Design v2 is a clear improvement: single content-class owner, pinned error codes, ancestry negatives, and a bounded local check address the Gate 1.5 findings in spirit.",
+      "Two residuals block acceptance: the grandfathering predicate is still non-deterministic (the exact defect the prior BLOCKER named), and AC-1's executable-content rule is specified as a bypassable denylist rather than a closed allowlist.",
+      "Secondary risks: generator determinism (flaky freshness gate), duplicated review-scope path sets, and a hard-coded precheck gate count that will break on unrelated changes."
+    ]
+  },
+  "rereview_reason": "design v2 fixes all 1.5 findings; HIL material change",
+  "rereview_reason_sha256": "8bef5a7da176abb1a4d5cf2655a1255e8d34f408da999c6ce807000660133d99"
+}

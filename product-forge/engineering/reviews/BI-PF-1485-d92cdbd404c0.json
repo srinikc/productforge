@@ -1,0 +1,42 @@
+{
+  "item": "BI-PF-1485",
+  "sha": "d92cdbd404c0",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-25T16:05:58.775230+00:00",
+  "base_sha": "",
+  "head_sha": "dd503060fb65368f0dd960732bfd7740e6c127f4",
+  "findings": {
+    "BLOCKER": [
+      "`templates/DESIGN-PACK.md` is committed with a UTF-8 BOM (first bytes `EF BB BF`), so the new `encoding_check.py` gate added in this same diff fails precheck/CI on this change; violates the AC \"changed source/config/docs must be UTF-8 without BOM\".",
+      "Delta review evidence is keyed to `head_sha == HEAD` in `architect_review_check` fallback, while delta evidence files are named by `diff_sha(base)` (never the full-diff sha). Any later commit \u2014 including committing the review evidence itself, or a data-only backlog commit \u2014 makes HEAD differ and invalidates the review, contradicting AC \"a data-only commit does not invalidate the review\" and the documented commit-then-review workflow; re-running is then blocked by `review_budget`.",
+      "`item.design_pack` and the generated `engineering/design/<ID>.md` are absent from the diff, yet AC requires them and `store-registry.json` declares `engineering/design/*.md` with `\"status\": \"exists\"` \u2014 registry asserts artifacts that are not delivered."
+    ],
+    "MAJOR": [
+      "`excluded-content` gate is registered in `precheck.py` but omitted from `config/ci-cd-gates.json`, so CI never enforces the fail-closed guard against hidden code in excluded paths.",
+      "CI `design-pack` gate runs `--all --check` without `--fresh` while precheck includes `--fresh`; stale generated design MD passes CI but fails local precheck (divergent enforcement).",
+      "`--since` is registered only on the review subparser (`rn.add_argument(\"--since\")`), but `emit` reads `a.since`; if `emit` is a separate subparser this raises AttributeError and breaks the emit path.",
+      "`design_pack.evaluate` applies `_date_problems` to every item (not only enforced ones): any in-progress legacy item lacking `created_at` makes `design-pack --all --check` fail for all contributors \u2014 unbounded blast radius.",
+      "`_is_ancestor`, `changed()`/`_git()` and base-validation logic are duplicated (and divergent: `ar.valid_since` vs `arc.valid_base`) across `architect_review.py`, `architect_review_check.py`, `encoding_check.py`, `excluded_content_check.py` \u2014 no shared git/encoding helper module; drift risk."
+    ],
+    "MINOR": [
+      "`architect_review.ingest` subcommand never passes `--base`, so externally ingested evidence writes `base_sha: \"\"` \u2014 evidence not bound to base as the AC requires.",
+      "`review_budget.problems` counts `parsed_ok: false`/failed reviews against the budget and compares ISO datetimes to a bare date string lexicographically; a failed run permanently consumes a review slot.",
+      "`grandfather: [\"BI-PF-1484\", \"BI-PF-1485\"]` exempts the very items shipping this control, so the budget gate is unenforced where it is first needed.",
+      "`_latest_review_sha`, `_reviewed_heads`, `_prior_context` each glob and re-read every review JSON (with `_meta` called multiple times per file) \u2014 O(n\u00b2) reads on every review; add a single loader.",
+      "`excluded_content_check.changed()` omits untracked/working-tree files while `encoding_check` includes them \u2014 an untracked file in `engineering/design/` bypasses the excluded-content schema check.",
+      "`emit --since` accepts an arbitrary sha with no `cat-file`/ancestry validation (validation exists only in the `review` path), producing a prompt over an unverified range."
+    ],
+    "NIT": [
+      "`render()` uses an ordered chain of `.replace()` calls; a section value containing another `{{TOKEN}}` would be substituted late \u2014 consider a single-pass templating pass.",
+      "`test_encoding_check.test_binary_file_is_skipped` uses `f\"{0}.json\"` (renders `0.json`) \u2014 opaque naming with no explanatory comment.",
+      "`design_pack.check` accepts test-matrix keys as either `AC-1` or bare `1`, an undocumented dual convention that will confuse pack authors."
+    ],
+    "SUMMARY": [
+      "Solid direction: delta-bound review evidence, prior-finding dispositions, encoding/excluded-path guards and a declarative design-pack contract are the right enterprise controls, with good fail-closed instincts and test coverage.",
+      "However the change is not shippable as-is: the new template itself violates the new BOM gate, delta evidence is invalidated by any subsequent commit (breaking the stated AC and workflow), and required design-pack artifacts/registry claims are missing.",
+      "Top risks: CI/precheck gate divergence (`--fresh`, `excluded-content` not in CI), duplicated git helpers drifting apart, and a review budget that is both off-by-one and self-exempted."
+    ]
+  }
+}

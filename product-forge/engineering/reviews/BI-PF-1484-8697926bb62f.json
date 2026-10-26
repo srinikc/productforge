@@ -1,0 +1,30 @@
+{
+  "item": "BI-PF-1484",
+  "sha": "8697926bb62f",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-25T12:44:14.579617+00:00",
+  "base_sha": "b56118f5fca3050f8abafab4b46b51bb723a7692",
+  "head_sha": "ac25b284fd46bfea2817a7d1f741ff1a500a0b75",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "The config-driven gate changes (required_sections/contracts fallback, fail-closed missing `enforce_from`, `--all`/`--item`/`--render` conflict, missing `created_at` flagging) ship with no tests in this diff; the only new test covers placeholder parsing. Gate logic that can silently weaken or hard-fail Gate 1 is untested, so regressions go unnoticed.",
+      "Design-pack config now adds four new required sections, but the diff contains no render/template support or per-item fixture evidence for them; config declares requirements the tooling in this change does not demonstrably produce, risking a gate that fails items for output no path can generate."
+    ],
+    "MINOR": [
+      "`design_pack.check()` collapses every `_cfg()` exception into `[str(e)]`, swallowing unrelated bugs (e.g. TypeError/KeyError) and surfacing raw exception text as a user-facing gate problem with no error class or context.",
+      "`parse_review`'s `\"- none\"` filter literal is unreachable: the preceding regex strips the `- ` prefix, so the value is already `\"none\"`. The guard reads as coverage it does not provide."
+    ],
+    "NIT": [
+      "Fixture filenames changed to `f\"BI-PF-9000-{1}.json\"` / `{2}` \u2014 encoding intent (\"old\"/\"new\") as numeric format specs is as opaque as the string concatenation it replaced; a semantic suffix or comment would restore clarity.",
+      "`parse_review` and `iter_findings` each carry their own hand-maintained placeholder vocabulary (`\"none\"`, `\"- none\"`, `\"-\"`, `\"\"`); a single shared constant would prevent the two filters drifting."
+    ],
+    "SUMMARY": [
+      "Change is small and process-focused: fail-closed config handling and flag validation are genuine improvements over the prior fail-open behavior, but the gate logic added here is largely untested and the new required sections lack tooling evidence. Top risks: untested enforcement paths regressing silently, and exception text leaking through `check()` as gate output instead of structured diagnostics."
+    ]
+  },
+  "rereview_reason": "prior sha 02f601063ff3; actual committed fixes delta",
+  "rereview_reason_sha256": "65febcfb7f47d4060e4934467ee3a5a0c78e41117f31ba9b40cf12c411d259ab"
+}

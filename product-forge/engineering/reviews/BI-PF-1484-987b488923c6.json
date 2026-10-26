@@ -1,0 +1,38 @@
+{
+  "item": "BI-PF-1484",
+  "sha": "987b488923c6",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-25T17:34:26.314121+00:00",
+  "base_sha": "a1e3d624010f60ea17e59c159247ccf8501f09e7",
+  "head_sha": "02a542f51066bce97b5c0a72708a49f6140f65f4",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "architect_review_check.py: removing `str(d.get(\"head_sha\")) != head` from the coverage loop means a diff review recorded at an older HEAD can now satisfy the check for a newer HEAD; unless the (unchanged) base-ancestry logic below rigorously proves `reviewed_head..HEAD` is fully covered, this is a stale-review gate bypass with no test asserting the new coverage semantics.",
+      "AC text vs HEAD evidence contradiction: the AC (and this delta's store-registry concern, now \"no ACCEPTED; NIT-only DEFERRED\") forbids ACCEPTED, but the recorded AC verification for BI-PF-1484 states \"ACCEPTED capped at 2 per mode\" and evidence \"passed 2 with HIL approval\", yet is marked PASS. Either the policy permits ACCEPTED (AC violated) or the AC verification is not actually checking the AC \u2014 Gate 2 certified a self-contradicting record.",
+      "excluded_content_check.py: `engineering/design/*.md` validation is header-only (`startswith(\"# Design Pack\")`), so arbitrary content \u2014 including fenced code or embedded instructions \u2014 passes as long as the first line matches; `docs/BACKLOG-SUMMARY.md` and `docs/documentation-index.html` are accepted with zero content checks. A blocking anti-concealment gate that a one-line prefix defeats is not fail-closed as its docstring claims.",
+      "review_budget.py `_material_ok`: one historical `MATERIAL_CHANGE` + `hil_confirmed` decision permanently waives the budget for that mode (no ordering vs the over-budget reviews, no expiry, no re-approval per breach), so the cap is enforce-once-then-open; the approval must be required per breach and post-date the reviews it excuses."
+    ],
+    "MINOR": [
+      "core/execution_trail.py: swallowing `PermissionError` on `O_CREAT|O_EXCL` treats a permission failure as lock contention, then potentially `unlink`s a lock owned by another principal \u2014 masks real permission problems and weakens cross-user lock integrity.",
+      "review-budget.json `grandfather: [\"BI-PF-1484\",\"BI-PF-1485\"]` self-exempts the very items shipping the control; grandfathering should be date/scope based, not a hardcoded list of the implementing items.",
+      "design_pack.py: in single-item mode `--fresh` without a resolvable `item` hits `if a.fresh and not fresh(item)` where `item` may be undefined (NameError); also `_norm` only strips `- **Generated:**`, so any other template/timestamp change makes `--fresh` flaky across machines.",
+      "review_budget.py `main`: an item id not found by `backlog.get_epic` yields `{}` \u2192 `problems({})` \u2192 no evidence rows \u2192 silent pass; unknown/stale ids bypass the budget instead of failing closed.",
+      "encoding_check.py: `BINARY_EXT \u2229 CODE_EXT = \u2205`, so `and suffix not in BINARY_EXT` is dead; the real skip is the NUL-in-first-1KB heuristic, which also lets any UTF-8 text file containing a NUL evade encoding validation entirely."
+    ],
+    "NIT": [
+      "architect_review.py `_reviewed_heads` and review_budget `_evidence` re-read and re-parse every review JSON per item/mode call; cache per run if review counts grow.",
+      "architect_review.py delta prompt now embeds the full changed-file list on every re-review; cap or filter it (excluded paths, generated docs) to bound prompt growth.",
+      "test_encoding_check.py writes `f\"{0}.json\"` (evaluates to `\"0.json\"`); use a named filename for readability."
+    ],
+    "SUMMARY": [
+      "Solid direction: mode-filtered prior context, base-ancestry validation, design-pack freshness and new budget/excluded-content gates with tests are real improvements.",
+      "Top risks: weakened review-freshness check in architect_review_check.py, an AC-verification record that contradicts the \"ACCEPTED is not allowed\" AC yet passes Gate 2, a bypassable excluded-content gate, and a one-shot MATERIAL_CHANGE waiver that voids the review budget after the first approval.",
+      "Recommend: restore or prove the head-coverage semantics with a test, reconcile the ACCEPTED policy vs AC evidence, harden excluded-content validation, and scope MATERIAL_CHANGE approvals per breach before merge."
+    ]
+  },
+  "rereview_reason": "prior review sha 9226b9fa4511; post-merge 1484 candidate",
+  "rereview_reason_sha256": "bfe67d93b157846cc52afd839875f0ea9dc74c5ec9cd52369f4b0ec95852ce47"
+}

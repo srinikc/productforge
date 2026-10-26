@@ -1,0 +1,1127 @@
+{
+  "id": "BI-PF-1485",
+  "tag": "PF",
+  "type": "hardening",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "review",
+  "external_id": "execution-finalization-hardening",
+  "label": "PF Backlog 655",
+  "title": "Review tooling: delta-only re-reviews, prior findings, design pack + encoding gates",
+  "body": "",
+  "source": "review",
+  "status": "completed",
+  "priority": "P1",
+  "moscow": "Must",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [],
+  "links": {
+    "delivery": {
+      "branch": "feat/bi-pf-1485-review-tooling",
+      "merge_sha": "7f6f76ecca06d78ab684f177502098bcb5ad43ac",
+      "commits": [],
+      "pr": "309",
+      "pr_url": "https://github.com/srinikc/productforge/pull/309",
+      "at": "2026-10-25T22:05:58.659141",
+      "note": "",
+      "usage": {},
+      "duration_seconds": 0
+    }
+  },
+  "decisions": [
+    {
+      "at": "2026-10-25T16:51:55.873111",
+      "decision": "APPROVE",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)"
+    },
+    {
+      "at": "2026-10-25T16:02:00.781425+00:00",
+      "by": "hil:srinikc",
+      "decision": "APPROVE_WITH_ATTENTION",
+      "gate": 1,
+      "findings_sha": "1c885b3c3a42",
+      "findings_digest": "30128ea4066c",
+      "seq": 2,
+      "note": "1485 design approved; one 1.5, findings dispositioned; no design re-review.",
+      "hil_confirmed": true
+    },
+    {
+      "at": "2026-10-25T16:24:11.479480+00:00",
+      "by": "hil:srinikc",
+      "decision": "APPROVE_WITH_ATTENTION",
+      "gate": 2,
+      "findings_sha": "22a124643d78",
+      "findings_digest": "57053d6abf37",
+      "seq": 3,
+      "note": "1485 delivery: 0 blockers/majors; 1 minor rejected with proof (import consumed by _is_ancestor).",
+      "hil_confirmed": true
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "1484 finalization still has edge-case hardening after multiple 2.5 reviews.",
+    "what_adds": "Follow-up hardening for completion/report invariants, approval ergonomics and scope.",
+    "why_now": "Track the residual work without blocking the finalization delivery.",
+    "success": "Residual findings closed or accepted with evidence.",
+    "source": "authored"
+  },
+  "objective": "Make re-reviews review only the delta since the last reviewed HEAD, with prior findings/dispositions and full-candidate AC context; add the per-item design pack and encoding gate without 1484 finalization code.",
+  "acceptance_criteria": [
+    "Re-reviews diff last_reviewed_HEAD..HEAD, include prior findings/dispositions and full-candidate AC evidence, and bind evidence to base/head; a data-only commit does not invalidate the review.",
+    "Design pack: item.design_pack + generated engineering/design/<ID>.md; Gate 1 and precheck validate enforced items (requirements, invariants, contracts, failure matrix, dependencies, security, observability, performance, test matrix, rollout/rollback, decisions).",
+    "Encoding gate: changed source/config/docs must be UTF-8 without BOM, including working-tree/untracked files; generator reads templates BOM-safely.",
+    "Tests cover delta base/prior context, design-pack check/render/config, and encoding BOM; precheck passes; store/registry/doc updates included."
+  ],
+  "in_scope": [
+    "Execution finalization hardening: review-loop guards and AC/report edge cases"
+  ],
+  "out_of_scope": [
+    "No 1484 finalization code",
+    "No HTTP/API or UI",
+    "No model/provider changes"
+  ],
+  "affected_components": [
+    "architect_review delta logic",
+    "design pack generator/validator",
+    "encoding gate",
+    "precheck/gate1 wiring"
+  ],
+  "affected_files": [
+    "scripts/dev/architect_review.py",
+    "scripts/dev/architect_review_check.py",
+    "scripts/dev/design_pack.py",
+    "scripts/dev/encoding_check.py",
+    "scripts/dev/gate1_check.py",
+    "scripts/dev/precheck.py",
+    "templates/DESIGN-PACK.md",
+    "config/design-pack.json",
+    "AGENTS.md",
+    "test-framework/tests/test_*"
+  ],
+  "approach": "Execution finalization hardening: review-loop guards and AC/report edge cases",
+  "review": {
+    "reconciliation": {
+      "prior_decisions": [
+        "BI-PF-1483 flow view; BI-PF-1484 finalization frozen and scoped",
+        "ADR-0010 control-plane evidence tooling"
+      ],
+      "existing_path": [
+        "scripts/dev/architect_review.py full-diff review",
+        "scripts/dev/gate1_check.py",
+        "scripts/dev/precheck.py",
+        "templates/DESIGN-PACK.md"
+      ],
+      "assumptions": [
+        "Delta review assumes fixes committed before review",
+        "Design pack source is item.design_pack; MD is generated",
+        "Encoding gate reads committed+working tree"
+      ],
+      "divergences": [
+        "Prior re-review reviewed the full cumulative diff; this changes to delta+prior context."
+      ],
+      "open_questions": []
+    },
+    "impact_review": [
+      {
+        "claim": "API CHECK",
+        "verdict": "aligned",
+        "evidence": "CLI/tooling only; no HTTP. needs_api=false.",
+        "recommendation": "approve"
+      },
+      {
+        "claim": "AC coverage",
+        "verdict": "aligned",
+        "evidence": "4 ACs cover delta, design pack, encoding, tests.",
+        "recommendation": "approve"
+      },
+      {
+        "claim": "Language rule",
+        "verdict": "aligned",
+        "evidence": "scripts/dev tooling; no new shipped Python.",
+        "recommendation": "approve"
+      },
+      {
+        "claim": "Reuse",
+        "verdict": "aligned",
+        "evidence": "Extends existing review/gate tools; no second reviewer.",
+        "recommendation": "approve"
+      },
+      {
+        "claim": "Blast radius",
+        "verdict": "aligned",
+        "evidence": "Review/gate tooling; revert restores full-diff reviews.",
+        "recommendation": "approve"
+      }
+    ],
+    "reviewed_by": "agent",
+    "at": "2026-10-25T00:00:00"
+  },
+  "verification": [
+    "Objective achieved: Execution finalization hardening: review-loop guards and AC/report edge cases"
+  ],
+  "risks": [
+    "Delta review may miss interactions with unchanged code; mitigated by full-candidate AC context and first full review",
+    "Design-pack gate applies only enforced items; migration is explicit",
+    "Encoding gate false positives on generated files; generators write BOM-free UTF-8"
+  ],
+  "rollback": "Revert the commit; full-diff review and prior gates resume; no persisted state migration.",
+  "evidence": [
+    "pending",
+    "Design guardrails applied (BI-PF-1485): sig:2a5a30f639aab2c9 (20 lines)"
+  ],
+  "owner": "agent",
+  "requester": "review",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1248",
+  "parent": "BI-PF-1248",
+  "revision": 4,
+  "priority_rank": 2,
+  "priority_class": "P1",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "STALE",
+    "analyzed_at": "2026-10-25T16:51:55.632654",
+    "analyzed_by": "system",
+    "revision_analyzed": 2,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing finalization path on core/execution_contract.py, core/execution_trail.py and the /api/v1/backlog/items/{item_id}/execution endpoint: add review-loop guards (pending Gate 1.5 disposition block, CL-006), accepted/deferred verification checks, AC edge-case enumeration and report persistence fallback; reuse core/agent_ledger.py and knowledge_registry for audit.",
+    "existing_components": [],
+    "existing_apis": [],
+    "existing_modules": [],
+    "dependency_findings": [
+      {
+        "task_id": "BI-PF-1484",
+        "type": "REQUIRES",
+        "required_state": "in_progress"
+      },
+      {
+        "task_id": "BI-0162",
+        "type": "RELATED",
+        "required_state": "any"
+      }
+    ],
+    "conflict_findings": [
+      "BI-PF-1484 edits the same finalization files; serialize after it lands",
+      "CL-001: confirm single writer for execution endpoint before editing"
+    ],
+    "duplication_findings": [
+      "BI-PF-1484 owns the core finalization flow; this item only hardens edge cases, no parallel implementation",
+      "BI-0162 covers close-on-verify attachment, not covered here (RELATED only)"
+    ],
+    "drift": "LOW",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "Hardening only touches guards and edge cases on an already-built finalization path; EXTEND reuses contract/trail/ledger rather than new components.",
+    "assumptions": [
+      "Review disposition state is queryable before finalization",
+      "Existing endpoint already enforces tenant-scoped authz"
+    ],
+    "risks": [
+      "Duplicate guard logic vs BI-PF-1484 causing drift",
+      "Report persistence edge cases may mask real failures"
+    ],
+    "evidence": [
+      "Existing endpoint /api/v1/backlog/items/{item_id}/execution",
+      "core/execution_contract.py + core/execution_trail.py already track finalization state"
+    ],
+    "confidence": "medium",
+    "missing_info": [
+      "Exact edge cases considered AC/report failures (list human-curated)",
+      "Whether BI-PF-1484 has landed to edit safely"
+    ],
+    "depth": "deep",
+    "mode": "ai",
+    "context_review": {
+      "ok": null,
+      "source": "llm-unparseable",
+      "implementable": null,
+      "missing": [],
+      "reason": "reviewer returned no JSON"
+    },
+    "decision_request": {
+      "needed": false,
+      "reasons": [],
+      "ask": ""
+    },
+    "arch_fingerprint": "4e9265e0dd00eefb"
+  },
+  "dependencies": [],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-25T16:51:55.745468"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-10-25T16:51:37.256014",
+  "updated_at": "2026-10-26T13:29:17.816161",
+  "score": 0.75,
+  "_note": "final report persisted (BI-PF-1484)",
+  "design_pack": {
+    "version": 2,
+    "requirements": [
+      "Re-reviews diff last_reviewed_HEAD..HEAD, include prior findings/dispositions and full-candidate AC evidence, and bind evidence to base/head; a data-only commit does not invalidate the review.",
+      "Design pack: item.design_pack + generated engineering/design/<ID>.md; Gate 1 and precheck validate enforced items (requirements, invariants, contracts, failure matrix, dependencies, security, observability, performance, test matrix, rollout/rollback, decisions).",
+      "Encoding gate: changed source/config/docs must be UTF-8 without BOM, including working-tree/untracked files; generator reads templates BOM-safely.",
+      "Tests cover delta base/prior context, design-pack check/render/config, and encoding BOM; precheck passes; store/registry/doc updates included."
+    ],
+    "scope": [
+      "Delta-only re-reviews",
+      "Prior findings/AC context",
+      "Design pack generator/check",
+      "Encoding BOM gate",
+      "Risk-tier gate selection"
+    ],
+    "invariants": [
+      "Review candidate key = (item_id, mode, base_commit, head_commit, diff_sha); evidence file is <item>-<diff_sha>.json; collisions resolve by latest at.",
+      "First review is full merge-base..HEAD; subsequent review is last_reviewed_head..HEAD with prior findings/dispositions and full-candidate AC evidence.",
+      "Evidence stores base_sha, head_sha, diff_sha; a data-only/derived commit after the reviewed head is accepted only if the review-relevant diff is empty.",
+      "Reviewer never writes dispositions; core.backlog owns review_dispositions; HIL owns DISPOSITION_APPROVAL.",
+      "Design pack is required for enforced items (T1+) and validated by both Gate 1 and precheck.",
+      "Encoding change-set = committed base..HEAD + index + worktree + untracked; deleted files are skipped; derived/state paths excluded.",
+      "Risk tier: T0/T1 no architect/HIL gates; T2/T3 require 1.5/1/2.5/2. T1 still requires design pack, tests, code review, precheck.",
+      "All gate failures exit non-zero with an explicit reason; no silent pass."
+    ],
+    "contracts": {
+      "api": [
+        "No HTTP surface; CLI/gates only"
+      ],
+      "db": [
+        "No DB writes; item.design_pack, item.risk_tier, engineering/reviews evidence"
+      ],
+      "files": [
+        "engineering/design/<ID>.md (generated)",
+        "engineering/reviews/<ID>-<sha>.json",
+        "config/risk-tiers.json",
+        "config/design-pack.json"
+      ],
+      "config": [
+        "risk_tier on item",
+        "enforce_items/enforce_from",
+        "required_sections/contracts"
+      ]
+    },
+    "failure_matrix": [
+      {
+        "case": "unknown review item",
+        "expected": "fail closed",
+        "code": "ITEM_NOT_FOUND"
+      },
+      {
+        "case": "invalid base/head",
+        "expected": "reject evidence",
+        "code": "DELTA_BASE_INVALID"
+      },
+      {
+        "case": "data-only commit after reviewed head",
+        "expected": "accept if review diff empty",
+        "code": "DELTA_NO_CODE_CHANGE"
+      },
+      {
+        "case": "missing design pack for enforced item",
+        "expected": "Gate 1/precheck fail",
+        "code": "DESIGN_PACK_MISSING"
+      },
+      {
+        "case": "malformed design-pack config",
+        "expected": "fail closed with class/context",
+        "code": "DESIGN_PACK_CONFIG"
+      },
+      {
+        "case": "BOM/untracked source",
+        "expected": "encoding gate fail",
+        "code": "ENCODING_BOM"
+      },
+      {
+        "case": "T2/T3 without architect/HIL evidence",
+        "expected": "gate fail",
+        "code": "TIER_GATE_MISSING"
+      }
+    ],
+    "dependencies": [
+      "architect_review/review_sig",
+      "core.backlog",
+      "gate1_check",
+      "precheck",
+      "gate2_completion_check",
+      "risk_tier"
+    ],
+    "security": [
+      "Tooling only; no tenant data",
+      "Reviewer provider is the only external call; secrets from env/key files",
+      "No authz/RLS surface; explicit N/A"
+    ],
+    "observability": [
+      "Gate stderr/exit codes",
+      "execution trail base/head/usage",
+      "final report gate metrics",
+      "no silent failure"
+    ],
+    "performance": [
+      "Delta prompt bounded to delta",
+      "Design pack check path-scoped",
+      "Encoding scans changed files only"
+    ],
+    "test_matrix": [
+      {
+        "ac": "AC-1",
+        "kind": "unit",
+        "test": "test_architect_review_delta.py"
+      },
+      {
+        "ac": "AC-2",
+        "kind": "unit",
+        "test": "test_design_pack.py"
+      },
+      {
+        "ac": "AC-3",
+        "kind": "unit",
+        "test": "test_encoding_check.py"
+      },
+      {
+        "ac": "AC-4",
+        "kind": "logic",
+        "test": "test_excluded_content_check.py + design-pack/encoding/store/precheck"
+      }
+    ],
+    "rollout": "Use on the next re-review; T1 applies to 1484/1485 only.",
+    "rollback": "Revert commits; full-diff review resumes; generated design MDs deleted; no migration.",
+    "decisions": [
+      "Delta after first full review",
+      "Reviewer findings are advisory; HIL owns approval",
+      "T1 = design+tests+automation, no HIL/architect review"
+    ],
+    "guardrails": [
+      "1 Reversibility: revert commits; full-diff review resumes; no data migration; generated MDs deletable.",
+      "2 Availability: tooling only; review provider failure fails closed; gates remain offline for verification.",
+      "3 Authz boundary: no runtime authz/RLS; local CLI reading repo; reviewer provider key from env/key file.",
+      "4 Blast radius: only review/gate tooling; no runtime path; T2/T3 unaffected.",
+      "5 Invariants: candidate key, delta base, empty-diff rule, evidence binding, disposition ownership.",
+      "6 Tests/rollback: tests for delta/base/prior/design-pack/encoding; rollback by revert.",
+      "7 Language rule: scripts/dev tooling; no new shipped Python.",
+      "8 API decision: needs_api=false; CLI/gates only.",
+      "9 Tenant isolation: N/A; no tenant data read/written.",
+      "10 Reuse/observability: reuse one reviewer, one disposition owner; stderr/exit + trail evidence."
+    ],
+    "evidence_compat": "Old evidence files remain readable; new base_sha/head_sha are optional for old records. Prior context filters mode and uses the latest reviewed head; no migration required.",
+    "empty_delta_rule": "Review-relevant diff = base..HEAD excluding generated/evidence paths, BUT only after excluded_content_check verifies each excluded file matches its schema/header (review JSON, trail schema, design header, backlog JSON/JSONL, id-blocks/baseline). Any unclassified or malformed excluded file fails the gate and is not trusted.",
+    "redaction": "Evidence stores item/model/sha/base/head/findings/rereview reason hash; secrets are never read into evidence; reason text is redacted.",
+    "affected_files": [
+      "scripts/dev/architect_review.py",
+      "scripts/dev/architect_review_check.py",
+      "scripts/dev/design_pack.py",
+      "scripts/dev/encoding_check.py",
+      "scripts/dev/gate1_check.py",
+      "scripts/dev/precheck.py",
+      "templates/DESIGN-PACK.md",
+      "config/design-pack.json",
+      "AGENTS.md",
+      "test-framework/tests/test_architect_review_delta.py",
+      "test-framework/tests/test_design_pack.py",
+      "test-framework/tests/test_encoding_check.py",
+      "scripts/dev/excluded_content_check.py",
+      "test-framework/tests/test_excluded_content_check.py"
+    ],
+    "notes": "CL-006 Gate1 embeds 1.5 findings; CL-008 guardrails above; CL-009 learnings injection remains in design_guardrails (not changed here).",
+    "exclusions": "Excluded paths are content-class verified, not trusted by path. engineering/** is generated design/evidence; data/backlog/** is derived backlog JSON/JSONL; id-blocks/baseline are state. Code or malformed content there fails.",
+    "concurrency": "Single writer per working tree (AGENTS IS-PF-0036); evidence files are unique per candidate key; there is no shared last_reviewed_head pointer. Concurrent sessions are forbidden.",
+    "learnings": [
+      "LLM review false positives: use evidence/verification + HIL",
+      "Evidence must bind base/head and ignore data-only commits",
+      "One 1.5/2.5 per candidate; no re-review loop"
+    ]
+  },
+  "api_impact": {
+    "needs_api": false,
+    "reason": "Review/gate CLI tooling; no HTTP route."
+  },
+  "language_rule": "scripts/dev tooling only; no new shipped Python.",
+  "security": [
+    "Tooling only; no tenant data; review provider is the only external call; secrets stay in env/key files"
+  ],
+  "observability": [
+    "Explicit gate stderr/exit codes; trail records base/head/review usage; no silent failure"
+  ],
+  "performance": [
+    "Delta prompt bounded to delta; design-pack scan is small; encoding scans changed files only"
+  ],
+  "risk_tier": "T1",
+  "review_dispositions": {
+    "design": {
+      "sig:53da4c58d2afe094": {
+        "status": "ACTIONED",
+        "note": "Addressed in code/tests: delta base fallback, excluded-content schema/size verification, generated design freshness."
+      },
+      "sig:350782104a9b5a34": {
+        "status": "ACTIONED",
+        "note": "Addressed in code/tests: delta base fallback, excluded-content schema/size verification, generated design freshness."
+      },
+      "sig:37fce51de9636890": {
+        "status": "REJECTED",
+        "note": "Rejected: single working tree/session is enforced by AGENTS IS-PF-0036 and CI runners are isolated; no shared pointer exists."
+      },
+      "sig:316cd2360aedc782": {
+        "status": "ACTIONED",
+        "note": "Addressed in code/tests: delta base fallback, excluded-content schema/size verification, generated design freshness."
+      },
+      "sig:f5c5d243c14e0a42": {
+        "status": "ACTIONED",
+        "note": "Addressed in code/tests: delta base fallback, excluded-content schema/size verification, generated design freshness."
+      },
+      "sig:04d1a51ca860f254": {
+        "status": "ACTIONED",
+        "note": "Addressed in code/tests: delta base fallback, excluded-content schema/size verification, generated design freshness."
+      },
+      "sig:b1863f13493e271f": {
+        "status": "ACTIONED",
+        "note": "Addressed in code/tests: delta base fallback, excluded-content schema/size verification, generated design freshness."
+      },
+      "sig:3115388b3f4fede7": {
+        "status": "ACTIONED",
+        "note": "Addressed in code/tests: delta base fallback, excluded-content schema/size verification, generated design freshness."
+      },
+      "sig:738085867e9fa5a1": {
+        "status": "ACTIONED",
+        "note": "Addressed in code/tests: delta base fallback, excluded-content schema/size verification, generated design freshness."
+      },
+      "sig:6f418465a6fc9e41": {
+        "status": "ACTIONED",
+        "note": "Addressed in code/tests: delta base fallback, excluded-content schema/size verification, generated design freshness."
+      },
+      "sig:720987b755f719ae": {
+        "status": "ACTIONED",
+        "note": "Addressed in code/tests: delta base fallback, excluded-content schema/size verification, generated design freshness."
+      }
+    },
+    "diff": {
+      "sig:7fe97968a402cbd5": {
+        "status": "REJECTED",
+        "note": "False: the import is consumed by _is_ancestor() in the same file at HEAD; the delta only shows the import hunk. Tests pass."
+      }
+    }
+  },
+  "ac_verification": [
+    {
+      "ac": "AC-1 delta-only re-reviews with prior findings/AC context",
+      "result": "PASS",
+      "evidence": [
+        "test_architect_review_delta.py"
+      ],
+      "verified_by": "agent",
+      "verified_at": "2026-10-25"
+    },
+    {
+      "ac": "AC-2 design pack + generated MD + Gate1/precheck enforcement",
+      "result": "PASS",
+      "evidence": [
+        "test_design_pack.py"
+      ],
+      "verified_by": "agent",
+      "verified_at": "2026-10-25"
+    },
+    {
+      "ac": "AC-3 encoding gate (BOM/working tree/untracked)",
+      "result": "PASS",
+      "evidence": [
+        "test_encoding_check.py"
+      ],
+      "verified_by": "agent",
+      "verified_at": "2026-10-25"
+    },
+    {
+      "ac": "AC-4 tests/precheck pass",
+      "result": "PASS",
+      "evidence": [
+        "23 focused tests",
+        "precheck 49 gates"
+      ],
+      "verified_by": "agent",
+      "verified_at": "2026-10-25"
+    }
+  ],
+  "final_report": {
+    "schema": "pf.final-report/2",
+    "ac_hash": "fdf6e8b5bee4da34",
+    "total_time_ms": 62988294,
+    "sum_stage_ms": 932523,
+    "clock_skew": false,
+    "item": "BI-PF-1485",
+    "generated_at": "2026-10-26T07:59:17.735779+00:00",
+    "item_revision": 4,
+    "current_stage": "complete",
+    "acs": [
+      {
+        "ac": "AC-1 delta-only re-reviews with prior findings/AC context",
+        "result": "PASS",
+        "evidence": [
+          "test_architect_review_delta.py"
+        ],
+        "verified_by": "agent",
+        "verified_at": "2026-10-25"
+      },
+      {
+        "ac": "AC-2 design pack + generated MD + Gate1/precheck enforcement",
+        "result": "PASS",
+        "evidence": [
+          "test_design_pack.py"
+        ],
+        "verified_by": "agent",
+        "verified_at": "2026-10-25"
+      },
+      {
+        "ac": "AC-3 encoding gate (BOM/working tree/untracked)",
+        "result": "PASS",
+        "evidence": [
+          "test_encoding_check.py"
+        ],
+        "verified_by": "agent",
+        "verified_at": "2026-10-25"
+      },
+      {
+        "ac": "AC-4 tests/precheck pass",
+        "result": "PASS",
+        "evidence": [
+          "23 focused tests",
+          "precheck 49 gates"
+        ],
+        "verified_by": "agent",
+        "verified_at": "2026-10-25"
+      }
+    ],
+    "ac_problems": [],
+    "tests_by_kind": {
+      "unit": {
+        "rows": [],
+        "passed": 0,
+        "failed": 0,
+        "skipped": 0,
+        "duration_ms": 0
+      },
+      "api": {
+        "rows": [],
+        "passed": 0,
+        "failed": 0,
+        "skipped": 0,
+        "duration_ms": 0
+      },
+      "db": {
+        "rows": [],
+        "passed": 0,
+        "failed": 0,
+        "skipped": 0,
+        "duration_ms": 0
+      },
+      "logic": {
+        "rows": [
+          {
+            "command": "pytest test_architect_review_delta.py test_design_pack.py test_encoding_check.py",
+            "passed": 23,
+            "failed": 0,
+            "skipped": 0,
+            "duration_ms": 360,
+            "result": "pass",
+            "kind": "logic"
+          }
+        ],
+        "passed": 23,
+        "failed": 0,
+        "skipped": 0,
+        "duration_ms": 360
+      },
+      "go": {
+        "rows": [],
+        "passed": 0,
+        "failed": 0,
+        "skipped": 0,
+        "duration_ms": 0
+      },
+      "other": {
+        "rows": [
+          {
+            "command": "compile",
+            "result": "pass",
+            "duration_ms": 311
+          },
+          {
+            "command": "pycompat",
+            "result": "pass",
+            "duration_ms": 759
+          },
+          {
+            "command": "lint",
+            "result": "pass",
+            "duration_ms": 2905
+          },
+          {
+            "command": "changed-tests",
+            "result": "pass",
+            "duration_ms": 239
+          },
+          {
+            "command": "review-static",
+            "result": "pass",
+            "duration_ms": 200
+          },
+          {
+            "command": "tests-scoped",
+            "result": "pass",
+            "duration_ms": 4965
+          },
+          {
+            "command": "compile",
+            "result": "pass",
+            "duration_ms": 291
+          },
+          {
+            "command": "pycompat",
+            "result": "pass",
+            "duration_ms": 829
+          },
+          {
+            "command": "lint",
+            "result": "pass",
+            "duration_ms": 2853
+          },
+          {
+            "command": "changed-tests",
+            "result": "pass",
+            "duration_ms": 219
+          },
+          {
+            "command": "review-static",
+            "result": "pass",
+            "duration_ms": 201
+          },
+          {
+            "command": "tests-scoped",
+            "result": "pass",
+            "duration_ms": 3435
+          },
+          {
+            "command": "compile",
+            "result": "pass",
+            "duration_ms": 299
+          },
+          {
+            "command": "pycompat",
+            "result": "pass",
+            "duration_ms": 780
+          },
+          {
+            "command": "lint",
+            "result": "pass",
+            "duration_ms": 2864
+          },
+          {
+            "command": "changed-tests",
+            "result": "pass",
+            "duration_ms": 211
+          },
+          {
+            "command": "review-static",
+            "result": "pass",
+            "duration_ms": 202
+          },
+          {
+            "command": "tests-scoped",
+            "result": "pass",
+            "duration_ms": 3410
+          }
+        ],
+        "passed": 0,
+        "failed": 0,
+        "skipped": 0,
+        "duration_ms": 24973
+      }
+    },
+    "gate_metrics": [
+      {
+        "stage": "planning",
+        "at": "2026-10-25T14:29:28.395454+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "gate0",
+        "at": "2026-10-25T14:29:28.405058+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "planning",
+        "at": "2026-10-25T14:29:43.836825+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "gate0",
+        "at": "2026-10-25T14:29:43.844761+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "design_review",
+        "at": "2026-10-25T14:30:12.273297+00:00",
+        "duration_ms": 18779,
+        "input_tokens": 1770,
+        "output_tokens": 630,
+        "cached_tokens": 0,
+        "cost_usd": 0.0,
+        "cost_source": "provider"
+      },
+      {
+        "stage": "design_review",
+        "at": "2026-10-25T14:51:03.469803+00:00",
+        "duration_ms": 19445,
+        "input_tokens": 1943,
+        "output_tokens": 787,
+        "cached_tokens": 0,
+        "cost_usd": 0.0,
+        "cost_source": "provider"
+      },
+      {
+        "stage": "design_review",
+        "at": "2026-10-25T15:07:45.668896+00:00",
+        "duration_ms": 22344,
+        "input_tokens": 1943,
+        "output_tokens": 1328,
+        "cached_tokens": 0,
+        "cost_usd": 0.0,
+        "cost_source": "provider"
+      },
+      {
+        "stage": "design_review",
+        "at": "2026-10-25T15:13:03.885100+00:00",
+        "duration_ms": 35197,
+        "input_tokens": 3027,
+        "output_tokens": 1557,
+        "cached_tokens": 512,
+        "cost_usd": 0.0,
+        "cost_source": "provider"
+      },
+      {
+        "stage": "design_review",
+        "at": "2026-10-25T15:14:52.785973+00:00",
+        "duration_ms": 80571,
+        "input_tokens": 3549,
+        "output_tokens": 1763,
+        "cached_tokens": 1024,
+        "cost_usd": 0.0,
+        "cost_source": "provider"
+      },
+      {
+        "stage": "design_review",
+        "at": "2026-10-25T15:17:21.946655+00:00",
+        "duration_ms": 86915,
+        "input_tokens": 3630,
+        "output_tokens": 2783,
+        "cached_tokens": 1024,
+        "cost_usd": 0.0,
+        "cost_source": "provider"
+      },
+      {
+        "stage": "design_review",
+        "at": "2026-10-25T15:52:43.667223+00:00",
+        "duration_ms": 74753,
+        "input_tokens": 3679,
+        "output_tokens": 2802,
+        "cached_tokens": 2048,
+        "cost_usd": 0.0,
+        "cost_source": "provider"
+      },
+      {
+        "stage": "design_review",
+        "at": "2026-10-25T15:59:09.205561+00:00",
+        "duration_ms": 54922,
+        "input_tokens": 3700,
+        "output_tokens": 1755,
+        "cached_tokens": 0,
+        "cost_usd": 0.0,
+        "cost_source": "provider"
+      },
+      {
+        "stage": "gate1",
+        "at": "2026-10-25T16:02:00.925017+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "diff_review",
+        "at": "2026-10-25T16:05:58.809344+00:00",
+        "duration_ms": 211292,
+        "input_tokens": 19098,
+        "output_tokens": 9727,
+        "cached_tokens": 0,
+        "cost_usd": 0.0,
+        "cost_source": "provider"
+      },
+      {
+        "stage": "diff_review",
+        "at": "2026-10-25T16:10:49.904191+00:00",
+        "duration_ms": 196880,
+        "input_tokens": 20591,
+        "output_tokens": 8923,
+        "cached_tokens": 0,
+        "cost_usd": 0.0,
+        "cost_source": "provider"
+      },
+      {
+        "stage": "diff_review",
+        "at": "2026-10-25T16:19:19.677556+00:00",
+        "duration_ms": 120539,
+        "input_tokens": 20579,
+        "output_tokens": 4859,
+        "cached_tokens": 0,
+        "cost_usd": 0.0,
+        "cost_source": "provider"
+      },
+      {
+        "stage": "diff_review",
+        "at": "2026-10-25T16:23:32.203162+00:00",
+        "duration_ms": 10886,
+        "input_tokens": 2245,
+        "output_tokens": 229,
+        "cached_tokens": 0,
+        "cost_usd": 0.0,
+        "cost_source": "provider"
+      },
+      {
+        "stage": "gate2",
+        "at": "2026-10-25T16:24:11.578809+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "planning",
+        "at": "2026-10-25T16:26:02.906043+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "gate0",
+        "at": "2026-10-25T16:26:02.915340+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "implementation",
+        "at": "2026-10-25T16:26:13.523175+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "code_review",
+        "at": "2026-10-25T16:26:13.532929+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "tests",
+        "at": "2026-10-25T16:26:13.545038+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "precheck",
+        "at": "2026-10-25T16:26:13.553150+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "completion",
+        "at": "2026-10-25T16:26:24.475099+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "code_review",
+        "at": "2026-10-25T16:28:33.320220+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "tests",
+        "at": "2026-10-25T16:28:33.329713+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "precheck",
+        "at": "2026-10-25T16:28:33.337512+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "code_review",
+        "at": "2026-10-25T16:30:53.232791+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "tests",
+        "at": "2026-10-25T16:30:53.241050+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "precheck",
+        "at": "2026-10-25T16:30:53.248060+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "tests",
+        "at": "2026-10-26T07:59:16.690115+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      }
+    ],
+    "usage": {
+      "input_tokens": 85754,
+      "output_tokens": 37143,
+      "cached_tokens": 4608,
+      "cost_usd": 0.0,
+      "captured": 12,
+      "not_captured": 0,
+      "unpriced": 0
+    },
+    "started_at": "2026-10-25T14:29:28.395454+00:00",
+    "finished_at": "2026-10-26T07:59:16.690115+00:00",
+    "disposition_problems": [],
+    "dispositions": {
+      "design": {},
+      "diff": {}
+    },
+    "gate_decisions": [
+      {
+        "at": "2026-10-25T16:51:55.873111",
+        "decision": "APPROVE",
+        "by": "system",
+        "note": "auto-approved on add (BI-PF-1282)"
+      },
+      {
+        "at": "2026-10-25T16:02:00.781425+00:00",
+        "by": "hil:srinikc",
+        "decision": "APPROVE_WITH_ATTENTION",
+        "gate": 1,
+        "findings_sha": "1c885b3c3a42",
+        "findings_digest": "30128ea4066c",
+        "seq": 2,
+        "note": "1485 design approved; one 1.5, findings dispositioned; no design re-review.",
+        "hil_confirmed": true
+      },
+      {
+        "at": "2026-10-25T16:24:11.479480+00:00",
+        "by": "hil:srinikc",
+        "decision": "APPROVE_WITH_ATTENTION",
+        "gate": 2,
+        "findings_sha": "22a124643d78",
+        "findings_digest": "57053d6abf37",
+        "seq": 3,
+        "note": "1485 delivery: 0 blockers/majors; 1 minor rejected with proof (import consumed by _is_ancestor).",
+        "hil_confirmed": true
+      }
+    ],
+    "other_decisions": []
+  }
+}

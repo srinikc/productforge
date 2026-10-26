@@ -17,8 +17,10 @@ for p in (ROOT, ROOT / "scripts" / "dev"):
     if str(p) not in sys.path:
         sys.path.insert(0, str(p))
 
+from core import backlog as _backlog
 from core import execution_trail as trail  # noqa: E402
 import gate2_completion_check as g2  # noqa: E402
+import disposition_policy as dp  # noqa: E402
 
 FOLLOW_UP = re.compile(r"BI-(?:[A-Za-z0-9]+-)?\d+")
 
@@ -58,7 +60,11 @@ def evaluate(ids: list[str]) -> list[str]:
             problems.append(f"{iid}: missing stages: {', '.join(missing)}")
         for p in trail.order_problems(iid):
             problems.append(f"{iid}: {p}")
+        if "completion" in {e.get("stage") for e in trail.events(iid)}:
+            problems += [f"{iid}: {g}" for g in g2.completion_gaps(item)]
         problems += [f"{iid}: {p}" for p in deferred_problems(item)]
+        problems += [f"{iid}: {p}" for mode in ("design", "diff")
+                     for p in dp.problems(item, mode, lambda i: _backlog.get_epic("product_forge", None, i))]
         failures = trail.TRAILS / "_failures.jsonl"
         if failures.is_file():
             for line in failures.read_text(encoding="utf-8", errors="replace").splitlines():

@@ -25,6 +25,7 @@ if str(ROOT / "scripts" / "dev") not in sys.path:
     sys.path.insert(0, str(ROOT / "scripts" / "dev"))
 
 import architect_review as ar  # noqa: E402
+import design_pack as dpack  # noqa: E402
 
 
 def evaluate(item_id: str) -> dict | None:
@@ -57,6 +58,19 @@ def main(argv: list[str] | None = None) -> int:
         else:
             print(f"gate1: FAIL - review evidence for {a.item} could not be parsed (indeterminate); re-run the review")
         return 2
+
+    try:
+        pack_bad = dpack.evaluate(a.item)
+    except Exception as e:
+        pack_bad = [f"design-pack error ({type(e).__name__}): {e}"]
+    if pack_bad:
+        if a.json:
+            print(json.dumps({"ok": False, "reason": "design_pack", "problems": pack_bad}))
+        else:
+            print("gate1: FAIL - design pack incomplete")
+            for p in pack_bad:
+                print("  - " + p)
+        return 1
 
     if a.json:
         print(json.dumps({

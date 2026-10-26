@@ -5129,7 +5129,7 @@
       "owner": "go/backupdrill/region.go",
       "kind": "config",
       "scope": "product_forge",
-      "concern": "Region-cell registry/default + residency gate_mode (warn-first, then block); read by region restore and the residency gate",
+      "concern": "Tenant->home region cell mapping used by region-aware restore (fail closed when absent)",
       "visibility": "shared",
       "classification": {
         "sensitivity": "internal",
@@ -5212,11 +5212,11 @@
         "retained_reason": "Declarative pricing catalog with source/fetched_at; read by the trail show; not tenant data."
       }
     },
-    "residency-manifest.json": {
-      "owner": "core/packaging.py",
-      "kind": "config",
-      "scope": "project|product_forge",
-      "concern": "Residency manifest template (explicit home_region; IN) and per-product override (products/<project>/residency-manifest.json); embedded in packaging-manifest.json",
+    "engineering/design/*.md": {
+      "owner": "scripts/dev/design_pack.py",
+      "kind": "evidence",
+      "scope": "product_forge",
+      "concern": "Generated per-item design pack snapshot (requirements, invariants, contracts, failure matrix, dependencies, test matrix, rollout/rollback)",
       "visibility": "shared",
       "classification": {
         "sensitivity": "internal",
@@ -5229,15 +5229,15 @@
       "target": {
         "kind": "file",
         "status": "exists",
-        "ref": "residency-manifest.json",
-        "owner_item": "BI-PF-1304"
+        "ref": "engineering/design/*.md",
+        "owner_item": "BI-PF-1484"
       }
     },
-    "residency-profiles/*.json": {
-      "owner": "core/packaging.py",
+    "design-pack.json": {
+      "owner": "scripts/dev/design_pack.py",
       "kind": "config",
       "scope": "global",
-      "concern": "Counsel-owned residency policy profiles (in-v1, us-v1): allowed regions, cross-border transfer, retention; read by core.packaging and the Go residency gate",
+      "concern": "Design pack enforcement date + required sections/contracts",
       "visibility": "shared",
       "classification": {
         "sensitivity": "internal",
@@ -5250,61 +5250,19 @@
       "target": {
         "kind": "file",
         "status": "exists",
-        "ref": "residency-profiles/*.json",
-        "owner_item": "BI-PF-1297"
+        "ref": "config/design-pack.json",
+        "owner_item": "BI-PF-1484"
       }
     },
-    "residency-gate.json": {
-      "owner": "scripts/dev/residency_gate.py",
-      "kind": "evidence",
-      "scope": "product_forge",
-      "concern": "Last residency gate run (manifest, mode, errors, parity, exit); report_version 1",
-      "visibility": "shared",
-      "classification": {
-        "sensitivity": "internal",
-        "tenant_scope": "global",
-        "backend": "file",
-        "retention": "90 days hot; 5MB rotation",
-        "recovery_tier": "standard",
-        "migration_status": "retained"
-      },
-      "target": {
-        "kind": "file",
-        "status": "exists",
-        "ref": "residency-gate.json",
-        "owner_item": "BI-PF-1304"
-      }
-    },
-    "residency-gate.jsonl": {
-      "owner": "scripts/dev/residency_gate.py",
-      "kind": "evidence",
-      "scope": "product_forge",
-      "concern": "Bounded residency gate run history (5MB rotation, 3 files)",
-      "visibility": "shared",
-      "classification": {
-        "sensitivity": "internal",
-        "tenant_scope": "global",
-        "backend": "file",
-        "retention": "90 days hot; 5MB rotation",
-        "recovery_tier": "standard",
-        "migration_status": "retained"
-      },
-      "target": {
-        "kind": "file",
-        "status": "exists",
-        "ref": "residency-gate.jsonl",
-        "owner_item": "BI-PF-1304"
-      }
-    },
-    "products/*/residency-manifest.json": {
-      "owner": "core/packaging.py",
+    "review-budget.json": {
+      "owner": "scripts/dev/review_budget.py",
       "kind": "config",
-      "scope": "project",
-      "concern": "Per-product residency override (explicit home_region; wins over the IN template)",
-      "visibility": "scope-local",
+      "scope": "global",
+      "concern": "One 1.5/2.5 review per item/mode; HIL MATERIAL_CHANGE exception; grandfather list",
+      "visibility": "shared",
       "classification": {
         "sensitivity": "internal",
-        "tenant_scope": "scope",
+        "tenant_scope": "global",
         "backend": "file",
         "retention": "unbounded",
         "recovery_tier": "standard",
@@ -5313,8 +5271,29 @@
       "target": {
         "kind": "file",
         "status": "exists",
-        "ref": "products/*/residency-manifest.json",
-        "owner_item": "BI-PF-1304"
+        "ref": "config/review-budget.json",
+        "owner_item": "BI-PF-1485"
+      }
+    },
+    "review-dispositions.json": {
+      "owner": "scripts/dev/disposition_policy.py",
+      "kind": "config",
+      "scope": "global",
+      "concern": "Disposition policy: no ACCEPTED; NIT-only DEFERRED with HIL approval",
+      "visibility": "shared",
+      "classification": {
+        "sensitivity": "internal",
+        "tenant_scope": "global",
+        "backend": "file",
+        "retention": "unbounded",
+        "recovery_tier": "standard",
+        "migration_status": "retained"
+      },
+      "target": {
+        "kind": "file",
+        "status": "exists",
+        "ref": "config/review-dispositions.json",
+        "owner_item": "BI-PF-1484"
       }
     }
   },
@@ -5370,11 +5349,8 @@
     "product-forge/archive/**",
     "BI-TEST-*.json",
     "_failures.jsonl",
-    "model-pricing.json",
-    "residency_manifest_scratch.json",
-    "residency_gate_scratch.json",
-    "residency_gate_scratch.jsonl",
-    "residency_conformance.json"
+    "**/gate-packages/*.json",
+    "model-pricing.json"
   ],
   "relationships": [
     {

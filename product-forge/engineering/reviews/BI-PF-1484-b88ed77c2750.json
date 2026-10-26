@@ -1,0 +1,33 @@
+{
+  "item": "BI-PF-1484",
+  "sha": "b88ed77c2750",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-25T17:51:18.798871+00:00",
+  "base_sha": "02a542f51066bce97b5c0a72708a49f6140f65f4",
+  "head_sha": "eb9bf863b12fd2ec6cadb2501ac3e894e9d93c16",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "excluded_content_check.py: derived-doc guard is only `b\"\\x00\" in raw[:1024]`; docs/BACKLOG-SUMMARY.md and documentation-index.html still accept arbitrary injected HTML/markdown/links as long as the first 1KB is NUL-free \u2014 prior MAJOR only partially resolved, not disposed as fixed.",
+      "review_budget.py: `_material_ok` now requires `at >= latest`, but the delta updates only the test fixture \u2014 no verification/migration that production HIL MATERIAL_CHANGE decisions carry `at`; existing approvals without `at` (`\"\"`) silently stop waiving the budget and will stall affected items.",
+      "review_budget.py: the new temporal ordering is the control's core property but has no negative test \u2014 nothing asserts an approval older than the latest review is rejected, so the fix can regress without failing CI."
+    ],
+    "MINOR": [
+      "review_budget.py: `str(d.get(\"at\") or \"\") >= latest` is naive lexicographic comparison of timestamps; mixed tz suffixes (`Z` vs `+00:00`) or formats can order incorrectly and wrongly grant/deny a waiver.",
+      "excluded_content_check.py: hardcoded magic strings `\"## 1. Requirements\"` / `\"## 3. Logic invariants\"` duplicate generator template knowledge with no single source of truth; a template evolution fails every design file and blocks all items (fail-closed but brittle).",
+      "architect_review_check.py: delta resolves the prior stale-HEAD MAJOR only if `EXCLUDE`-scoped `git diff` output is trustworthy; `since == \"\"` (git returning empty on error paths post-ancestry) is treated as full coverage \u2014 worth an explicit fail-closed guard.",
+      "test_review_budget.py: fixed future timestamp `\"2026-10-25T02:00:00+00:00\"` will become stale relative to real evidence clocks; derive from now() with an offset instead."
+    ],
+    "NIT": [
+      "architect_review_check.py: cross-module call to private `ar._is_ancestor` / `ar._git_text` tightens script coupling; expose a small public helper if this pattern spreads.",
+      "test_excluded_content_check.py: replacing the em dash with `-` in the fixture weakens the original test's implicit coverage that non-ASCII title separators pass `startswith`."
+    ],
+    "SUMMARY": [
+      "Delta meaningfully advances prior MAJORs: ancestry gate on stale reviews, design-file content checks, and per-breach MATERIAL_CHANGE ordering. Main residual risks: derived-doc validation is still content-blind beyond a 1KB NUL heuristic, the new `at` ordering depends on a field not proven present in production decisions (regression/stall risk), and the ordering control ships without a negative test."
+    ]
+  },
+  "rereview_reason": "prior sha 987b488923c6; tooling majors fixed",
+  "rereview_reason_sha256": "b4609126d5d5696fce6b16045656539f94d2f60fb14535699efc3b8ba657b9e0"
+}

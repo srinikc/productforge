@@ -23,6 +23,11 @@ def _ar():
     return architect_review
 
 
+def _dp():
+    import disposition_policy
+    return disposition_policy
+
+
 def _gp():
     import gate_predicates
     return gate_predicates
@@ -57,6 +62,21 @@ def record_gate_decision(backlog, scope: str, project: str | None, eid: str, gat
     if not str(by).startswith("hil:"):
         print(f"[Backlog] refusing gate {gate} decision for {eid}: by must be hil:<actor>")
         return None
+    if str(gate) not in ("1", "1.5", "2", "2.5"):
+        print(f"[Backlog] refusing gate {gate} decision for {eid}: unknown gate")
+        return None
+    mode = "design" if str(gate) in ("1", "1.5") else "diff"
+    modes = [mode] if str(gate) in ("1", "1.5") else ["design", "diff"]
+    if str(gate) == "2":
+        import ac_policy
+        bad_ac = ac_policy.problems(item)
+        if bad_ac:
+            print(f"[Backlog] refusing gate 2 decision for {eid}: {'; '.join(bad_ac)}")
+            return None
+    for m in modes:
+        for prob in _dp().problems(item, m, lambda i: backlog.get_epic(scope, project, i)):
+            print(f"[Backlog] refusing gate {gate} decision for {eid}: {prob}")
+            return None
     if str(decision).upper() not in gp.APPROVED:
         print(f"[Backlog] refusing gate {gate} decision for {eid}: only APPROVE/APPROVE_WITH_ATTENTION")
         return None
@@ -74,6 +94,14 @@ def record_gate_decision(backlog, scope: str, project: str | None, eid: str, gat
         print(f"[Backlog] refusing gate {gate} decision for {eid}: findings are pending/unparsable")
         return None
     sha = ar.design_sha(item) if gate == 1 else str(((view or {}).get("review") or {}).get("sha") or "docs-only")
+    try:
+        import gate_package
+        text = gate_package.render(eid, int(gate))
+        print(text)
+        gate_package.persist(eid, int(gate), text)
+    except Exception as e:
+        print(f"[Backlog] refusing gate {gate} decision for {eid}: cannot render gate package: {e}")
+        return None
     dec = list(item.get("decisions") or [])
     dec.append({"at": datetime.now(timezone.utc).isoformat(), "by": by, "decision": str(decision).upper(),
                 "gate": gate, "findings_sha": sha, "findings_digest": gp.findings_digest(view),

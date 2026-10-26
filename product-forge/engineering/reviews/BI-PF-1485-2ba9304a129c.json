@@ -1,0 +1,43 @@
+{
+  "item": "BI-PF-1485",
+  "sha": "2ba9304a129c",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-25T16:10:49.870621+00:00",
+  "base_sha": "",
+  "head_sha": "c3aad6fdd42bcabc289ae76917b10322d1d133de",
+  "findings": {
+    "BLOCKER": [
+      "All 16 prior dispositions share one boilerplate note (\"Fixed in code/config\u2026\") yet several findings are byte-identical in this diff: `evaluate` still runs `_date_problems` pre-`should_enforce`, `ingest` still omits `base`, git helpers still duplicated, `excluded_content_check.changed()` still omits untracked files, budget still counts `parsed_ok:false`. Non-responsive dispositions invalidate the AC requirement to carry accurate prior-finding dispositions.",
+      "Prior MAJOR \"design-pack --all blast radius\" dispositioned ACTIONED but unchanged: `evaluate()` returns `_date_problems(item, cfg)` for every item before `should_enforce`, so one legacy in-progress item with missing/malformed `created_at` fails precheck/CI for all contributors."
+    ],
+    "MAJOR": [
+      "Review-budget off-by-one: `problems()` blocks only when `len(rows) > max_n`, so with `max_reviews_per_mode: 1` a second review runs while `rows==1`; the gate permits double the configured budget (grandfather further weakens it).",
+      "`has_review_changes(base)==False` returns 0 without writing evidence, but `architect_review_check` still requires an evidence file (glob or fallback) \u2014 a data-only/no-code branch makes `review` pass while the check fails (or accepts unrelated stale evidence).",
+      "`--since` is still registered only on the review subparser (`rn.add_argument`) while `emit` reads `a.since`; disposition claims fixed, but if `emit` is a separate parser this raises AttributeError and breaks the emit path \u2014 and emit still performs no base/ancestry validation.",
+      "Duplicated, divergent git logic persists across `architect_review.py`, `architect_review_check.py`, `encoding_check.py`, `excluded_content_check.py` (`_is_ancestor` x2, three `changed()` variants); `encoding_check` hardcodes `origin/develop` while `architect_review._merge_base()` honors an override \u2014 gates can evaluate different file sets."
+    ],
+    "MINOR": [
+      "`ingest` subcommand still calls `_ingest(...)` without `base`, persisting `base_sha: \"\"` \u2014 externally ingested evidence is not bound to a base as the AC requires (disposition claims fixed).",
+      "`excluded_content_check.changed()` still covers only committed `start..HEAD`, so untracked/working-tree files under `engineering/design/` or `data/backlog/` bypass the fail-closed schema gate while `encoding_check` includes them.",
+      "Budget `_evidence()` still counts `parsed_ok:false`/failed reviews against the slot and compares ISO datetimes to a bare date string; a failed run permanently consumes a review allowance.",
+      "`_latest_review_sha`, `_reviewed_heads`, `_prior_context` still each glob and re-read every review JSON (`_meta` called repeatedly per file) \u2014 O(n\u00b2) I/O per review, unchanged from prior finding.",
+      "`grandfather: [\"BI-PF-1484\",\"BI-PF-1485\"]` still exempts both items shipping the control, so the budget gate is unenforced exactly where first needed.",
+      "`enforce_items` lists only `BI-PF-1485`; verify `BI-PF-1484` (the design-pack item, likely created before `enforce_from: 2026-10-26`) is enforced or intentionally exempt.",
+      "`design_pack --item --render` writes `engineering/design/<ID>.md` for unknown/invalid items and returns 0 unless `--check` is also passed, emitting evidence for nonexistent items."
+    ],
+    "NIT": [
+      "`render()` still uses an ordered chain of `.replace()`; a value containing `{{TOKEN}}` is substituted late \u2014 single-pass templating is safer (unchanged).",
+      "`test_encoding_check.test_binary_file_is_skipped` still uses opaque `f\"{0}.json\"` naming with no comment (unchanged).",
+      "`design_pack.check` still accepts both `AC-1` and bare `1` test-matrix keys, an undocumented dual convention (unchanged).",
+      "`REQUIRED`/`CONTRACTS` constants duplicate `config/design-pack.json`, and `cfg.get(...) or REQUIRED` silently masks a truncated config instead of failing closed."
+    ],
+    "SUMMARY": [
+      "Solid gating breadth (encoding, design-pack, budget, excluded-content in both precheck and CI) and meaningful delta-review plumbing, but the review-evidence layer is undermined by boilerplate dispositions that do not match the diff, an off-by-one budget, a no-change skip path that records no evidence, and a still-fragile `emit --since` path.",
+      "Top risks: precheck/CI blocked by any legacy item's `created_at`, review budget permitting 2x the configured reviews, and divergence between four hand-rolled git helpers."
+    ]
+  },
+  "rereview_reason": "prior sha d92cdbd404c0; final 2.5 after blockers",
+  "rereview_reason_sha256": "710fc939b453b04148e645b6f85026e939c9a56ae55e34a64dfa67ca6357fc78"
+}

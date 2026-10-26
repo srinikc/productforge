@@ -1,0 +1,39 @@
+{
+  "item": "BI-PF-1485",
+  "sha": "82aff31dd1ab",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-10-25T15:14:52.747120+00:00",
+  "base_sha": "",
+  "head_sha": "4a1960d499c5d0a3956d2555fc3b30bb860d6924",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "Empty-delta rule excludes `engineering/**` and \"derived docs\" categorically; any review-relevant content placed under those paths (e.g., hand-edited decisions under engineering/) silently skips re-review with no model call. Exclusions must be content-class-based (generated/design-render only), not path-prefix-based.",
+      "DELTA_NO_CODE_CHANGE outcome is underspecified: design says \"no model call, previous reviewed head stays as delta base,\" but does not state whether evidence is written, whether head tracking advances, or what the gate exit/report shows. Ambiguity here risks evidence-boundary drift and un-auditable \"accepted without review\" states.",
+      "Test matrix AC-4 relies on \"existing gate tests\" for review/gate render, but the recurring ledger explicitly flags that `_render_review`/`_item_dispositions` have no coverage (index alignment, missing-item, unknown-status). The design repeats a known gap instead of adding the missing tests.",
+      "Encoding gate applies UTF-8 validation to all changed files including worktree/untracked with no binary/asset exemption; image/font/archive assets will false-positive. \"Generated files BOM-free\" mitigation does not cover third-party or binary files.",
+      "Concurrency/multi-instance safety of `last_reviewed_head` update is not addressed: two concurrent re-reviews on the same item can race the advance; \"collisions resolve by latest at\" uses wall-clock (recurring nit), which is not a safe ordering guarantee under clock skew."
+    ],
+    "MINOR": [
+      "First-review merge-base..HEAD assumes a resolvable merge base; shallow clones / orphan branches will fail without a defined fallback (fail closed vs. full-HEAD review).",
+      "Evidence redaction stores a \"reason hash\" but the contract does not specify retention/expiry of the `<item>-<diff_sha>.json` evidence set; unbounded accumulation of review artifacts will bloat the repo over time.",
+      "Hard-coded file exclusions (`config/id-blocks.json`, \"architect-review baseline\") in the empty-delta rule are brittle; move to a declarative exclusion list in `config/` for adaptability.",
+      "AC-4 test kind \"logic\" is undefined in the test matrix vocabulary (unit/integration/e2e); ambiguous whether it executes in CI or is a manual review checklist.",
+      "Design-pack `enforce_from` migration is stated as \"explicit\" but no rollout test asserts that pre-enforcement items pass Gate 1 unchanged (regression risk when the date boundary is crossed)."
+    ],
+    "NIT": [
+      "Wall-clock nanosecond probe-key uniqueness persists as a recurring nit; a monotonically-incremented counter or sha-based key removes it permanently.",
+      "Observability relies solely on stderr/exit codes and trail JSON; for a long-lived review toolchain, a lightweight structured log line (item, mode, base, head, outcome) would ease retroactive analysis without new infrastructure.",
+      "`DELTA_NO_CODE_CHANGE` sits in the failure matrix though it is an accept path; consider renaming to an outcome/status namespace to avoid confusion in gate dashboards."
+    ],
+    "SUMMARY": [
+      "Solid, well-scoped design: delta review semantics, design-pack enforcement, and encoding gate are the right things, with sound guardrail coverage (fail-closed, disposition ownership, revert-based rollback).",
+      "Top risks: over-broad empty-delta exclusions that can silently skip reviews, undefined evidence/state handling for data-only commits, and a test plan that restates known coverage gaps as covered.",
+      "Recommend tightening delta-exclusion classification, specifying the no-change evidence contract, and adding the missing render/disposition tests before Gate 1.5."
+    ]
+  },
+  "rereview_reason": "guardrails/evidence/empty-delta/redaction added",
+  "rereview_reason_sha256": "b569ce6431942b8af9aaa4cc64430d4dd1721cc7422be9627b50b8d166192456"
+}

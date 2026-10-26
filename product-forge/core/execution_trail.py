@@ -61,7 +61,7 @@ def _lock(path: Path, timeout: float = 10.0):
             fd = os.open(str(lock), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
             os.close(fd)
             return lock
-        except FileExistsError:
+        except (FileExistsError, PermissionError):
             try:
                 if time.time() - lock.stat().st_mtime > 60:
                     lock.unlink(missing_ok=True)
@@ -236,6 +236,42 @@ def price_usage(usage: dict) -> dict:
     return u
 
 
+TEST_KINDS = ("unit", "api", "db", "logic", "go", "other")
+
+
+def test_kind(test: dict) -> str:
+    """Classify a recorded test command (BI-PF-1484)."""
+    explicit = str((test or {}).get("kind") or "").lower()
+    if explicit in TEST_KINDS:
+        return explicit
+    cmd = str((test or {}).get("command") or "").lower()
+    if "go test" in cmd or "/go/" in cmd:
+        return "go"
+    if "conformance" in cmd or "contract" in cmd:
+        return "logic"
+    if "postgres" in cmd or " db" in f" {cmd}" or "db_" in cmd:
+        return "db"
+    if "api/" in cmd or "pipeline" in cmd or "testclient" in cmd:
+        return "api"
+    if "pytest" in cmd:
+        return "unit"
+    return "other"
+
+
+def tests_by_kind(evs: list[dict]) -> dict:
+    out = {k: {"rows": [], "passed": 0, "failed": 0, "skipped": 0, "duration_ms": 0} for k in TEST_KINDS}
+    for ev in evs:
+        for t in ev.get("tests") or []:
+            k = test_kind(t)
+            row = out[k]
+            row["rows"].append(t)
+            row["passed"] += int(t.get("passed") or 0)
+            row["failed"] += int(t.get("failed") or 0)
+            row["skipped"] += int(t.get("skipped") or 0)
+            row["duration_ms"] += int(t.get("duration_ms") or 0)
+    return out
+
+
 def _box(headers: list, rows: list, widths: list | None = None) -> str:
     """Cursor-style Unicode box table with wrapped cells."""
     n = len(headers)
@@ -264,6 +300,27 @@ def _box(headers: list, rows: list, widths: list | None = None) -> str:
             out.append(line([wr[i][j] if j < len(wr[i]) else "" for i in range(n)]))
     out.append(bot)
     return "\n".join(out)
+
+
+def gate_metrics(evs: list[dict]) -> list[dict]:
+    """Per-gate timing + token/cost rows (BI-PF-1484)."""
+    rows = []
+    for ev in evs:
+        u = dict(ev.get("usage") or {})
+        has_usage = bool(u)
+        if u and not u.get("not_captured"):
+            u = price_usage(u)
+        rows.append({
+            "stage": ev.get("stage", ""),
+            "at": ev.get("at", ""),
+            "duration_ms": int(ev.get("duration_ms") or 0),
+            "input_tokens": int(u.get("input_tokens") or 0) if has_usage else None,
+            "output_tokens": int(u.get("output_tokens") or 0) if has_usage else None,
+            "cached_tokens": int(u.get("cached_tokens") or 0) if has_usage else None,
+            "cost_usd": u.get("cost_usd"),
+            "cost_source": u.get("cost_source") or ("not_captured" if u.get("not_captured") else "n/a"),
+        })
+    return rows
 
 
 def usage_totals(evs: list[dict]) -> dict:
@@ -440,6 +497,45 @@ def show(item: str) -> str:
         status = _stage_status(stage, ev, design_rec, diff_rec)
         lines.append(f"- [DONE] {stage} ({status}) - {ev.get('at', '')}")
 
+    acs = it.get("ac_verification") or []
+    lines += ["", "## AC verification"]
+    if acs:
+        lines.append(_box(["AC", "Result", "Evidence", "Verified by"],
+                          [[a.get("ac", ""), a.get("result", ""),
+                            "; ".join(a.get("evidence") or []), a.get("verified_by", "")]
+                           for a in acs], widths=[40, 9, 44, 18]))
+    else:
+        lines.append("Not recorded.")
+
+    tbk = tests_by_kind(evs)
+    lines += ["", "## Test results by kind"]
+    trows = []
+    for k in TEST_KINDS:
+        row = tbk[k]
+        if not row["rows"]:
+            continue
+        for t in row["rows"]:
+            trows.append([k, t.get("command", ""), t.get("result", ""),
+                          t.get("passed", ""), t.get("failed", ""), t.get("skipped", ""),
+                          f"{t.get('duration_ms', 0)} ms"])
+    if trows:
+        lines.append(_box(["Kind", "Command", "Result", "Passed", "Failed", "Skipped", "Duration"],
+                          trows, widths=[7, 38, 8, 7, 7, 8, 10]))
+    else:
+        lines.append("(none recorded)")
+
+    disps = []
+    for mode in ("design", "diff"):
+        for sig, d in ((it.get("review_dispositions") or {}).get(mode) or {}).items():
+            st = str((d or {}).get("status") or "").upper()
+            if st in ("ACCEPTED", "DEFERRED"):
+                disps.append([mode, st, str((d or {}).get("note") or "")])
+    lines += ["", "## Accepted / deferred dispositions"]
+    if disps:
+        lines.append(_box(["Mode", "Status", "Note"], disps, widths=[7, 10, 80]))
+    else:
+        lines.append("(none)")
+
     lines += ["", "## 4. Gate 1.5 - design review",
               f"**Architect recommendation:** {design_rec or 'not recorded'}", "", design_table]
     g1 = _gate_decision(it, 1)
@@ -476,8 +572,19 @@ def show(item: str) -> str:
     lines += ["", "## 9. Tests", _box(["Command", "Result", "Duration", "Passed", "Failed", "Skipped"],
                                        test_rows, widths=[36, 8, 10, 7, 7, 8])]
 
+    gm = gate_metrics(evs)
+    def _m(v):
+        return "-" if v is None else str(v)
+    grows = [[g["stage"], g["at"], f"{g['duration_ms']} ms", _m(g["input_tokens"]),
+              _m(g["output_tokens"]), _m(g["cached_tokens"]),
+              "-" if g["cost_usd"] is None else f"{g['cost_usd']:.6f}", g["cost_source"]]
+             for g in gm]
+    lines += ["", "## 10. Trail metrics (per stage)", _box(
+        ["Gate", "At", "Duration", "In", "Out", "Cached", "Cost USD", "Cost source"],
+        grows or [["(none)", "-", "-", "-", "-", "-", "-", "-"]],
+        widths=[18, 26, 10, 8, 8, 8, 10, 14])]
     u = usage_totals(evs)
-    lines += ["", "## 10. Usage", f"input={u['input_tokens']} output={u['output_tokens']} "
+    lines += ["", "## 11. Usage", f"input={u['input_tokens']} output={u['output_tokens']} "
               f"cached={u['cached_tokens']} cost_usd={u['cost_usd']:.6f} "
               f"captured={u['captured']} not_captured={u['not_captured']} unpriced={u['unpriced']}"]
     delivery = (it.get("links") or {}).get("delivery") or {}
@@ -496,13 +603,18 @@ def show(item: str) -> str:
         ["What shipped", it.get("summary") or it.get("objective") or ""],
         ["Current stage", current],
         ["PR / Merge", f"{delivery.get('pr') or '-'} / {delivery.get('merge_sha') or '-'}"],
+        ["ACs verified", f"{sum(1 for a in acs if str(a.get('result')).upper() == 'PASS')}/{len(acs)}"],
         ["Tests", f"{len(tests)} test row(s)"],
+        ["Tests by kind", " | ".join(f"{k} {v['passed']}/{v['passed'] + v['failed']}"
+                                      for k, v in tbk.items() if v["rows"]) or "none"],
+        ["Final report", "persisted" if it.get("final_report") else "not persisted"],
+        ["Trail metrics", "see the per-stage metrics section"],
         ["Total time", f"{total_ms} ms ({total_ms / 1000.0:.1f}s)"],
         ["Tokens in/out/cached", f"{u['input_tokens']} / {u['output_tokens']} / {u['cached_tokens']}"],
         ["Cost (USD)", f"{u['cost_usd']:.6f} (captured={u['captured']} unpriced={u['unpriced']})"],
         ["Next", f"{nid or '-'} {ntitle}"],
     ]
-    lines += ["", "## 11. Final completion", _box(["Field", "Value"], final_rows, widths=[20, 72])]
+    lines += ["", "## 12. Final completion", _box(["Field", "Value"], final_rows, widths=[20, 72])]
     lines += ["", "## Disposition key",
               "- **ACTIONED** - fixed or committed in this item (Gate 1.5: design/plan updated; Gate 2.5: code/docs changed).",
               "- **ACCEPTED** - not fixed; the risk is explicitly accepted with a rationale (no follow-up unless a backlog id is named).",
