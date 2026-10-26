@@ -94,6 +94,14 @@ def record_gate_decision(backlog, scope: str, project: str | None, eid: str, gat
         print(f"[Backlog] refusing gate {gate} decision for {eid}: findings are pending/unparsable")
         return None
     sha = ar.design_sha(item) if gate == 1 else str(((view or {}).get("review") or {}).get("sha") or "docs-only")
+    try:
+        import gate_package
+        text = gate_package.render(eid, int(gate))
+        print(text)
+        gate_package.persist(eid, int(gate), text)
+    except Exception as e:
+        print(f"[Backlog] refusing gate {gate} decision for {eid}: cannot render gate package: {e}")
+        return None
     dec = list(item.get("decisions") or [])
     dec.append({"at": datetime.now(timezone.utc).isoformat(), "by": by, "decision": str(decision).upper(),
                 "gate": gate, "findings_sha": sha, "findings_digest": gp.findings_digest(view),
