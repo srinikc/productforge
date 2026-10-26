@@ -1,0 +1,32 @@
+{
+  "item": "BI-PF-1486",
+  "sha": "22bb8ae22e89",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-26T07:32:26.144999+00:00",
+  "base_sha": "057cebd119fa46c12f18a94e2327866b91dec07b",
+  "head_sha": "25db7f721a58dccb9a9b852afc7a0b10e83de74b",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "`cutoff_dt = _dt(cutoff)` is still the only unwrapped `_dt` call site: the delta adds a `None` guard but no `try/except ValueError`, so a malformed (non-empty, unparseable) `enforce_from` still raises out of `problems()` and crashes the gate \u2014 prior MAJOR on this line is NOT resolved by this hunk.",
+      "Corrupt evidence is now pushed into `rows` (`rows.append(d)` after `bad.append(...)`), breaking the invariant that `rows` are valid in-budget reviews; `_material_ok(item, mode, rows)` now receives entries with missing/garbage `at`, so the material-approval shortcut is evaluated against known-invalid timestamps.",
+      "Treating a missing `enforce_from` as a hard `REVIEW_BUDGET_CONFIG` error is a silent contract change: configs that previously omitted it (gate simply inactive) now fail precheck for every mode, with no migration/back-compat note in `REVIEW-GATES-LIFECYCLE.md` (neither file touched by this delta)."
+    ],
+    "MINOR": [
+      "The two new negative branches (missing `enforce_from`, missing/malformed evidence `at`) ship with no accompanying test change in this delta; `test_review_budget.py` is untouched, so coverage for the new fail-closed paths is unproven.",
+      "Repeated identical `REVIEW_EVIDENCE_INVALID` messages are appended per evidence row with no dedupe/limit, so a single corrupted evidence file can flood the diagnostic list and obscure distinct failures."
+    ],
+    "NIT": [
+      "Inline rationale comment (`# count it so bad evidence cannot shrink the budget`) states policy better kept in `REVIEW-GATES-LIFECYCLE.md` next to the budget semantics."
+    ],
+    "SUMMARY": [
+      "Delta directionally resolves both prior BLOCKERs (fail-open on missing cutoff and on malformed `at`) and the observability MAJOR by reporting instead of silently dropping, but it trades them for a stricter-but-untested contract change and still leaves the malformed-`cutoff` crash MAJOR open.",
+      "Top risks: unguarded `_dt(cutoff)` raising out of `problems()`; invalid evidence admitted into `rows` and thus into `_material_ok`; new error paths shipped without test or docs updates.",
+      "Recommend: wrap the cutoff parse, decide a single policy for invalid evidence (report *or* count, not both), and add tests/docs for the new hard-failure contract before merge."
+    ]
+  },
+  "rereview_reason": "prior sha 7c9acc32ac2a; fail-closed budget fixed",
+  "rereview_reason_sha256": "ede6bfe0c057e48800bd430b8f4b3c73bd224b4e6fd432ad78a8edad396df4e2"
+}

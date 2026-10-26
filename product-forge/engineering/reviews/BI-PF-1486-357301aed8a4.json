@@ -1,0 +1,34 @@
+{
+  "item": "BI-PF-1486",
+  "sha": "357301aed8a4",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-26T07:27:12.847155+00:00",
+  "base_sha": "18586ac6eaf50b1d3007573dc7727c8cf9f5c317",
+  "head_sha": "a7613a4ef97ec16cd14693355ac3ae7e08c086c9",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "`_dt` silently swallows all exceptions (`except Exception`) and returns `None`, indistinguishable from \"absent\"; a malformed `at` now makes the approval fail closed with no diagnostic distinguishing corruption from absence \u2014 observability gap in a gate path.",
+      "`problems()` still selects `MATERIAL_APPROVAL_ORDER` when there is simply no MATERIAL_CHANGE approval at all; the delta fixed parsing but not the wrong error code (prior finding unresolved).",
+      "Evidence rows are still filtered with a raw string compare `str(d.get(\"at\")) >= cutoff` while `_material_ok` compares parsed datetimes \u2014 mixed-format `Z` vs `+00:00` inputs can be excluded from `rows` yet the approval ordering uses datetime semantics; the two filters can disagree.",
+      "Prior MAJOR on `disposition_policy` scope creep, `record_gate_decision` render coupling, and `pf.review-budget/2` version gating are untouched by this delta and remain unresolved."
+    ],
+    "MINOR": [
+      "`_dt(d.get(\"at\"))` is evaluated twice per row in the `max(...)` generator; harmless but wasteful and less readable than a single filtered pass.",
+      "`MATERIAL_APPROVAL_EXPIRED`/`ORDER` codes are still computed only in the failure message string, not emitted as structured telemetry; prior telemetry finding unresolved.",
+      "`freeze_design_after_gate1` defaulting to `True` in code means deleting the config key re-enables the skip with no version gate or log line."
+    ],
+    "NIT": [
+      "The inserted test has a double blank line before `test_older_material_approval_is_rejected`; PEP8 wants two, this has three.",
+      "New test asserts only `assert rb.problems(item)` without checking the expected code (`MATERIAL_APPROVAL_ORDER`), so a wrong-code regression would pass."
+    ],
+    "SUMMARY": [
+      "Delta correctly resolves the prior BLOCKER on the unbounded no-`at` back-compat loophole and the string-comparison MAJOR by parsing to aware datetimes, plus adds the missing-at negative test and removes the `__import__` hack.",
+      "However, the wrong error-code MAJOR, mixed string/datetime filter inconsistency, and all disposition_policy / gate_decision / schema-version MAJOR findings remain unaddressed; AC1 (derived docs) and AC3 (reviewed_head ancestry) remain entirely absent from this candidate."
+    ]
+  },
+  "rereview_reason": "prior review sha 9d455b87b652; material fix HIL approved",
+  "rereview_reason_sha256": "cf67ceb5c2c8d9fbd9f3d62401b668f8df11e0981943b268ed56abc8dd0dd80f"
+}

@@ -920,7 +920,7 @@ def main(argv: list[str]) -> int:
             return 1
     try:
         import review_budget
-        budget_bad = review_budget.problems(item)
+        budget_bad = review_budget.problems(item, a.mode)
     except Exception as e:
         print(f"review: review-budget check failed: {e}")
         return 1

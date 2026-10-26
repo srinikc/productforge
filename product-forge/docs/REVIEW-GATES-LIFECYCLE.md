@@ -226,8 +226,9 @@ Every item carries one append-only trail at `engineering/trails/<ID>.json` (owne
 - **AC verification is a Gate 2 requirement.** An item carries `ac_verification[]` (AC text, `result` PASS/FAIL/PENDING,
   evidence, verifier). Gate 2 refuses if any AC is missing/FAIL/PENDING; completion re-checks. 2.5 may flag missing AC
   evidence but does not certify ACs.
-- **No ACCEPTED; DEFERRED only for NIT.** BLOCKER/MAJOR/MINOR findings must be ACTIONED. `ACCEPTED` is rejected.
-  A NIT may be `DEFERRED` only with an existing backlog id and a HIL `DISPOSITION_APPROVAL` decision
+- **Fix everything except at most 2 HIL-approved exceptions per mode.** BLOCKER findings must always be ACTIONED.
+  MAJOR/MINOR may be ACCEPTED/DEFERRED only as a HIL-approved exception (max 2 per mode), with a rationale and,
+  for DEFERRED, an existing backlog id. HIL approval is a `DISPOSITION_APPROVAL` decision
   (`hil_confirmed: true`, `by: hil:*`, scope `disposition_approval`, mode design|diff, finding sigs). Enforced by
   `disposition_policy.py` at Gate 1, Gate 2 and completion.
 - **Final report is persisted on the item.** `python scripts/dev/finalize_item.py --item <ID>` writes
@@ -249,4 +250,4 @@ Every item carries one append-only trail at `engineering/trails/<ID>.json` (owne
 - **First-pass contract:** design all invariants/failure modes before code; test-first for guards; self-review;
   run targeted tests + precheck; freeze; one delta review. 2.5 is a safety net, not the first test.
 - **ACTIONED evidence:** non-NIT fixes must record the failing scenario + test/check command + result.
-- **No ACCEPTED.** DEFERRED only NIT with HIL approval + existing backlog id.
+- **At most 2 HIL-approved exceptions per mode.** BLOCKERs are always fixed; DEFERRED needs an existing backlog id.

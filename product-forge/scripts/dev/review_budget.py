@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -33,19 +34,39 @@ def _evidence(item_id: str, mode: str) -> list[dict]:
     return out
 
 
+def _dt(value) -> datetime | None:
+    if not value:
+        return None
+    dt = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+
+
 def _material_ok(item: dict, mode: str, rows: list[dict]) -> bool:
-    latest = max((str(d.get("at") or "") for d in rows), default="")
+    latest = max((_dt(d.get("at")) for d in rows if _dt(d.get("at"))), default=None)
+    if latest is None:
+        return False
     for d in item.get("decisions") or []:
         if str(d.get("decision") or "").upper() != "MATERIAL_CHANGE":
             continue
         if d.get("hil_confirmed") is not True or str(d.get("mode") or "") != mode:
             continue
-        if str(d.get("at") or "") >= latest:
+        try:
+            at = _dt(d.get("at"))
+        except ValueError:
+            continue
+        if at is not None and at >= latest:
             return True
     return False
 
 
-def problems(item: dict) -> list[str]:
+def _dt_safe(value):
+    try:
+        return _dt(value)
+    except ValueError:
+        return None
+
+
+def problems(item: dict, only_mode: str = "") -> list[str]:
     c = config()
     iid = str(item.get("id") or "")
     if iid in (c.get("grandfather") or []):
@@ -54,10 +75,49 @@ def problems(item: dict) -> list[str]:
     max_n = int(c.get("max_reviews_per_mode") or 1)
     bad = []
     for mode in ("design", "diff"):
-        rows = [d for d in _evidence(iid, mode)
-                if str(d.get("at") or "") >= cutoff and d.get("parsed_ok", True)]
-        if len(rows) >= max_n and not (c.get("allow_hil_material_change") and _material_ok(item, mode, rows)):
-            bad.append(f"{mode}: {len(rows)} reviews (budget {max_n}); material change needs HIL MATERIAL_CHANGE")
+        if only_mode and mode != only_mode:
+            continue
+        if (mode == "design" and c.get("freeze_design_after_gate1", True)
+                and any(int(d.get("gate") or 0) == 1 for d in (item.get("decisions") or []))):
+            continue
+        if (mode == "diff" and c.get("freeze_diff_after_gate2", True)
+                and any(int(d.get("gate") or 0) == 2 for d in (item.get("decisions") or []))):
+            continue
+        try:
+            cutoff_dt = _dt(cutoff)
+        except ValueError:
+            bad.append(f"{mode}: REVIEW_BUDGET_CONFIG invalid enforce_from")
+            continue
+        if cutoff_dt is None:
+            bad.append(f"{mode}: REVIEW_BUDGET_CONFIG missing enforce_from")
+            continue
+        rows = []
+        invalid = 0
+        for d in _evidence(iid, mode):
+            try:
+                at = _dt(d.get("at"))
+            except ValueError:
+                bad.append(f"{mode}: REVIEW_EVIDENCE_INVALID malformed review at")
+                invalid += 1
+                continue
+            if at is None:
+                bad.append(f"{mode}: REVIEW_EVIDENCE_INVALID missing review at")
+                invalid += 1
+                continue
+            if at >= cutoff_dt and d.get("parsed_ok", True):
+                rows.append(d)
+        if len(rows) + invalid >= max_n and not (c.get("allow_hil_material_change") and _material_ok(item, mode, rows)):
+            mats = [d for d in (item.get("decisions") or [])
+                    if str(d.get("decision") or "").upper() == "MATERIAL_CHANGE"]
+            if not mats:
+                code = "MATERIAL_APPROVAL_MISSING"
+            elif any(str(d.get("at") or "") and _dt_safe(d.get("at")) is None for d in mats):
+                code = "MATERIAL_APPROVAL_INVALID"
+            else:
+                expiry = _dt(c.get("material_expiry"))
+                code = ("MATERIAL_APPROVAL_EXPIRED" if expiry and datetime.now(timezone.utc) > expiry
+                        else "MATERIAL_APPROVAL_ORDER")
+            bad.append(f"{mode}: {len(rows)} reviews (budget {max_n}); {code}: material change needs HIL MATERIAL_CHANGE")
     return bad
 
 
