@@ -1,0 +1,39 @@
+{
+  "item": "BI-PF-1486",
+  "sha": "bc086bf24e08",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-10-26T05:49:59.230155+00:00",
+  "base_sha": "",
+  "head_sha": "f797740f5257eb1a304d914642c4f278ddb32a36",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "AC-1 allowlist exempts `engineering/design/**` MD (\"no content allowlist\"), yet design MD is part of `review_scope` and gets indexed/rendered by `gen_docs_index`; if index rendering converts that MD to HTML, executable markup re-enters derived docs through the exemption \u2014 the chain-of-trust from `design_pack --fresh` output into browsable docs must be explicitly closed.",
+      "Grandfathering timeline is incoherent: cutoff is 2026-10-26 but expiry is 2026-11-01 (5-day window) while `grandfather_expiry` also mandates \"warn 7 days before expiry\" \u2014 the warning window starts before grandfathering even applies, and there is no lead-time before enforcement begins.",
+      "Grandfather list and the hard-coded expiry/`9dba2e3d` cutoff are not pinned to a named config source (`config/architect-review-baseline.json` or similar) with a hash; inline code constants make the back-compat rule change-by-commit and unreviewable.",
+      "`REVIEW_HEAD_STALE` is listed in `observability_codes` but no invariant defines staleness (review older than N days? older than latest push to review_scope paths?); an error code with no spec is implementer-interpreted.",
+      "\"20MB/file cap\" has no specified behavior on breach (fail closed vs skip) \u2014 silent skip would let oversized derived/excluded content evade validation, violating the fail-closed posture of `missing_created_fallback`."
+    ],
+    "MINOR": [
+      "Timestamp normalization for the Generated header means a docs commit with only a newer timestamp passes the freshness gate; state explicitly that content-only comparison is the freshness definition (or that timestamp-only staleness is accepted).",
+      "\"UTC ISO\" parsing tolerance is unspecified (`fromisoformat` accepts offsets/naive forms); pin strictness (e.g., require `Z` or explicit offset, reject naive) in an invariant and test.",
+      "Rollback step 2 \"regenerate docs\" should be ordered after revert verification and include the assertion that post-revert gate run reproduces the pre-change docs hash; current order is implied, not verified.",
+      "`DESIGN_PACK_CONFIG` ownership in `design_pack.py` splits the stderr error-code contract across three scripts; a single shared error-code module (or a test importing all three) is needed so the codes stay a one-source contract.",
+      "Guardrail checklist items 2 (availability/SPOF) and 3/9 (authz/tenant) are answered only via \"tooling only / no tenant data\" strings; state explicitly \"N/A \u2014 local developer-time CLI, no scheduler, no DB role, no RLS surface\" to close CL-008/CL-003 cleanly."
+    ],
+    "NIT": [
+      "`performance_bound` \"O(changed files)\" conflicts with a full-repo freshness check for committed docs; say \"O(docs output) bounded, no network\" or the bound will be misread during implementation.",
+      "`missing_created_fallback` \"grandfathered\" path inherits from the grandfather list rather than an explicit allowlist entry for that item id; naming it as an explicit per-item entry would remove the second implicit source.",
+      "`observability_codes` list and `failure_matrix` codes should be cross-referenced in one place (matrix as the source of truth) so the two cannot drift."
+    ],
+    "SUMMARY": [
+      "Design v2/v3 correctly answers the Gate 1.5 BLOCKERs (CL-006 embedded findings/dispositions, pinned cutoff) and names validation owners, but three gaps remain: the design-MD content-allowlist exemption can bypass AC-1 through index rendering, the grandfather window (5 days) contradicts the 7-day warning contract, and the grandfather list/cutoff/expiry are not pinned to a reviewed config source.",
+      "`REVIEW_HEAD_STALE` and the oversize-file behavior are unspecified, leaving two fail-open risks in a gate whose stated posture is fail-closed.",
+      "Verdict: approve after MAJOR dispositions are ACTIONED in a design v3 with the timeline and config-pinning corrected; no blockers to a reversible, tooling-only rollout."
+    ]
+  },
+  "rereview_reason": "content allowlist/codes/owner/fallback; HIL material",
+  "rereview_reason_sha256": "0c44f541c910b61858377928aa0420e0180616fc1000577f616afdfcd7511c5d"
+}

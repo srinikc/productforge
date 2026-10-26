@@ -1,0 +1,37 @@
+{
+  "item": "BI-PF-1486",
+  "sha": "587b5a44aad0",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-10-26T05:48:24.128251+00:00",
+  "base_sha": "",
+  "head_sha": "f797740f5257eb1a304d914642c4f278ddb32a36",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "AC-1 content rule still unspecified: content_policy only says \"reject executable markup\" with no enumerated class spec (script/iframe tags, fenced code, include directives, links to executable paths) for BACKLOG-SUMMARY.md vs documentation-index.html; the Gate-1.5 MAJOR was dispositioned ACTIONED but no allowlist/deny mechanism appears in the pack.",
+      "Observability contract omits codes used elsewhere in the pack: `MATERIAL_APPROVAL_EXPIRED` (grandfather_expiry) and `DESIGN_PACK_CONFIG` (failure matrix) are absent from the observability code list, and `stale/older evidence` reuses `REVIEW_HEAD_NOT_ANCESTOR`, collapsing two distinct failure causes into one code.",
+      "Generator-validation owner unnamed: `scope_owner` assigns content classification to `excluded_content_check.py`, but which component emits `DERIVED_DOC_STALE` and owns normalization is unstated, reopening the duplicate/divergent-validation risk CL raised.",
+      "Grandfathering depends on `item.created_at` with no stated fallback when the field is missing/invalid; fail-open would void the ordering invariant, fail-closed could strand a valid legacy approval \u2014 behavior must be pinned."
+    ],
+    "MINOR": [
+      "Rollback is ordered in design_pack but the item-level `rollback` still says only \"Revert the change\"; the docs-regeneration step and how to restore committed `docs/*` if regeneration fails is not defined (guardrail 1 backup/restore unanswered).",
+      "`DESIGN_PACK_CONFIG` appears in observability and as a separate `design_pack --fresh` path but not in the failure matrix; the relationship between design-MD freshness and derived-doc generator freshness is implicit.",
+      "Guardrail 2 (availability/SoPF, on-startup defence) and guardrail 8 (`needs_api` decision) are not explicitly answered, only implied by \"tooling only / no HTTP\"; the checklist requires an explicit statement.",
+      "`generator_determinism` normalization scope (which timestamp fields, whether byte- or line-normalized) is vague; over-normalization could mask real drift."
+    ],
+    "NIT": [
+      "`performance_bound` cites a 20MB/file cap but no aggregate cap or explicit \"no subprocess/shell\" statement for the generator comparison.",
+      "`grandfather_expiry` warning lead-time (7 days) is hardcoded rather than derived from the pinned cutoff constant.",
+      "Cutoff commit `9dba2e3d` is a short SHA; pin the full SHA for determinism on re-verify."
+    ],
+    "SUMMARY": [
+      "Verdict: sound direction with single-source scope ownership and pinned migration cutoff; approve after closing the AC-1 content-class spec, observability code completeness, and named owner for derived-doc validation.",
+      "Top risks: implementer-interpreted \"executable markup\" rule, overloaded/omitted failure codes weakening the observability contract, and non-deterministic grandfathering when `created_at` is absent.",
+      "Language rule satisfied (scripts/dev tooling in Python); no API/DB/tenant surface introduced."
+    ]
+  },
+  "rereview_reason": "content scope + expiry owner fixed; HIL material",
+  "rereview_reason_sha256": "50030e2c89f8db58428442e2f845910976c87147476de7260e1e216481792111"
+}
