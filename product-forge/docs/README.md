@@ -162,6 +162,7 @@
 | [`RCCA_productForge.md`](RCCA_productForge.md) | Analysis (current) | 100% | Root-cause + corrective/preventive guidelines for the audit/issues gaps | — | — |
 | [`RE-RUN-IMPACT-ANALYSIS.md`](RE-RUN-IMPACT-ANALYSIS.md) | Implemented | 100% | Rerun / impact invalidation model | — | — |
 | [`REL-0-PACKAGING.md`](REL-0-PACKAGING.md) | Design | 100% | REL-0 packaging: edition package manifest (community/enterprise/saas/on-prem/oem) from bom/licensing/deploy/release owners | — | — |
+| [`RESIDENCY-MANIFEST-GATE.md`](RESIDENCY-MANIFEST-GATE.md) | SSOT | 100% | Residency manifest + build/deploy gate: explicit home_region (IN template), profile bounds, Go validator, warn-first, stable error codes (BI-PF-1304) | — | — |
 | [`REVIEW-FOCUS.md`](REVIEW-FOCUS.md) | SSOT | 100% | Generated production-risk review checklist for the code-review agent (BI-PF-1066) | — | — |
 | [`REVIEW-GATES-LIFECYCLE.md`](REVIEW-GATES-LIFECYCLE.md) | SSOT | 100% | Binding backlog item lifecycle gates Gate1 -> Gate1.5 -> Gate2 -> Gate2.5 (second-model architect review) -> precheck -> merge -> closure -> DoD | — | — |
 | [`REVIEW-MODEL.md`](REVIEW-MODEL.md) | Implemented | 100% | Review model: LLM vs non-LLM, per-iteration, PR gate (BI-PF-1070) | — | — |

@@ -1,0 +1,30 @@
+{
+  "item": "BI-PF-1304",
+  "sha": "9a9b645bb535",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-10-25T09:52:14.585529+00:00",
+  "findings": {
+    "BLOCKER": [
+      "none"
+    ],
+    "MAJOR": [
+      "**Validation logic duplication without cross-language conformance test**: `core/packaging.py` and `go/residencymanifest` both validate the same residency section with independent rule implementations. A change to one silently drifts from the other. The design mentions a \"conformance test + schema_version guard\" under risks but does not make it an explicit acceptance criterion or in_scope deliverable. Without it, a packaging manifest that passes Python validation may fail the Go gate (or vice versa), causing CI instability or, worse, allowing invalid residency through one path.",
+      "**Residency profiles lack ownership registration / change-control**: `config/residency-profiles/<home>.json` files are described as \"counsel-owned,\" but no single-writer boundary, registration mechanism, or change-approval path is defined (route-by-kind/ownership per CL-001). Uncontrolled edits to a profile silently change enforcement semantics for every product with that home region. The design guardrail \"who owns this? single writer? register it\" is unaddressed.",
+      "**Default gate mode contradicts the objective**: The objective says \"blocking by default,\" but the risks state \"Warn-first rollout: the first release warns; block follows.\" The default value of `gate_mode` in `config/residency-policy.json` is not specified, and the acceptance criteria do not pin it. This ambiguity means the shipped default could be warn-mode, weakening the fail-closed posture the AC explicitly demands for unknown/missing home."
+    ],
+    "MINOR": [
+      "**No observability / metrics for gate decisions**: The design provides a JSON report and a one-line stderr summary but emits no metric (e.g., `residency_gate_pass_total`, `residency_gate_block_total`, per-home-region label) or structured log event. Enterprise operations cannot alert on gate health or trend drift over time.",
+      "**Document filename inconsistency**: The approach references `docs/RESIDENCY-MANIFEST-GATE.md`; `affected_files` lists `docs/EDP-RESIDENCY-MANIFEST.md`. One of the two is stale \u2014 resolve before implementation to avoid orphan documentation.",
+      "**`schema_version` is mentioned only under risks, not as an acceptance criterion or in_scope item**: The schema-evolution guard on the Go\u2194file contract should be an explicit, testable requirement rather than an implicit implementation detail."
+    ],
+    "NIT": [
+      "**Backup `frequency` recognized values are not enumerated in the AC**: \"Recognized backup.frequency\" is asserted, but the AC does not list the allowed enum (e.g., daily, weekly, hourly). This leaves the validator's behavior ambiguous and makes the test matrix incomplete.",
+      "**Profile directory resolution is unspecified**: The design does not state how `config/residency-profiles/` is discovered at runtime (relative path, environment variable, flag). A hardcoded relative path is fragile in CI containers with different working directories."
+    ],
+    "SUMMARY": [
+      "Overall, the design is structurally sound: fail-closed posture, stable error codes, block/warn modes, and comprehensive test coverage align with the acceptance criteria and the language-rule standard. The top risks are (1) duplicated validation logic in Python and Go without a cross-language conformance test guaranteeing semantic parity, (2) counsel-owned residency profiles lacking an ownership/change-control boundary, and (3) an ambiguous default gate mode that could ship as warn rather than block, undermining the fail-closed intent. Recommend adding an explicit conformance-test AC, a profile ownership/registration entry, and a pinned default `gate_mode` value before proceeding to Gate 1.5."
+    ]
+  }
+}

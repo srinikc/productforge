@@ -15,6 +15,7 @@ Output is a single derived manifest (``packaging-manifest.json``; owner = this m
 """
 import json
 import os
+import re
 from datetime import datetime
 from typing import Any
 
@@ -34,6 +35,10 @@ DISTINCTIONS = ("source", "build", "artifact", "package", "license", "entitlemen
                 "configuration", "deployment_target", "runtime_policy")
 
 MANIFEST = "packaging-manifest.json"
+RESIDENCY_DEFAULT = os.path.join(str(ROOT), "config", "residency-manifest.json")
+PROFILE_DIR = os.path.join(str(ROOT), "config", "residency-profiles")
+RESIDENCY_GROUPS = ("data_classes", "home_region", "allowed_regions", "backup", "kms", "egress", "retention")
+FREQUENCIES = ("hourly", "daily", "weekly", "monthly")
 
 
 def _scope_dir(scope: str, project: str) -> str:
@@ -52,6 +57,106 @@ def _resolve_edition(edition: str) -> dict[str, Any] | None:
     if e in EDITIONS:
         return dict(EDITIONS[e], id=e)
     return None
+
+
+def residency_path(scope: str = "product_forge", project: str = "") -> str:
+    """Product override first, then the shipped IN template (explicit, never silent)."""
+    if project:
+        p = os.path.join(str(PRODUCTS_DIR), project, "residency-manifest.json")
+        if os.path.exists(p):
+            return p
+    return RESIDENCY_DEFAULT
+
+
+def _load_json(path: str) -> dict:
+    if os.path.getsize(path) > 64 * 1024:
+        raise ValueError("residency file exceeds 64KB")
+    with open(path, encoding="utf-8-sig") as f:
+        d = json.load(f)
+    return d if isinstance(d, dict) else {}
+
+
+def residency_profiles_dir() -> str:
+    return os.environ.get("PF_RESIDENCY_PROFILES") or PROFILE_DIR
+
+
+def validate_residency(section: dict) -> dict:
+    """Profile-bounded, fail-closed residency validation (Go is the deploy authority)."""
+    unmet: list[str] = []
+    sec = section or {}
+    for k in RESIDENCY_GROUPS:
+        if k == "egress":
+            if "egress" not in sec or sec.get("egress") is None:
+                unmet.append("RESIDENCY_MISSING_GROUP:egress")
+            continue
+        if k not in sec or sec.get(k) in (None, "", [], {}):
+            unmet.append(f"RESIDENCY_MISSING_GROUP:{k}")
+    if str(sec.get("schema_version") or "") != "1.0":
+        unmet.append("RESIDENCY_SCHEMA_VERSION")
+    home = str(sec.get("home_region") or "").upper()
+    prof = {}
+    profile_path = ""
+    if not home or not re.match(r"^[A-Z0-9-]+$", home):
+        unmet.append("RESIDENCY_UNKNOWN_HOME")
+    else:
+        profile_path = os.path.join(residency_profiles_dir(), f"{home.lower()}-v1.json")
+        if not os.path.exists(profile_path):
+            unmet.append("RESIDENCY_UNKNOWN_HOME")
+        else:
+            try:
+                prof = _load_json(profile_path)
+            except Exception:
+                unmet.append("RESIDENCY_PROFILE_UNREADABLE")
+    allowed = {str(x).upper() for x in (prof.get("allowed_regions") or [])}
+    if prof and (not prof.get("id") or not prof.get("allowed_regions")):
+        unmet.append("RESIDENCY_PROFILE_UNREADABLE")
+    if prof and home and home not in allowed:
+        unmet.append("RESIDENCY_HOME_NOT_ALLOWED")
+    sec_allowed = {str(x).upper() for x in (sec.get("allowed_regions") or [])}
+    if not sec_allowed or home not in sec_allowed:
+        unmet.append("RESIDENCY_HOME_NOT_ALLOWED")
+    if prof.get("allowed_regions") and not sec_allowed <= allowed:
+        unmet.append("RESIDENCY_REGION_NOT_ALLOWED")
+    b = sec.get("backup") or {}
+    k = sec.get("kms") or {}
+    e = sec.get("egress") or {}
+    if not b.get("regions"):
+        unmet.append("RESIDENCY_BACKUP_REGION")
+    if not str(k.get("region") or "").strip():
+        unmet.append("RESIDENCY_KMS_REGION")
+    for code, regions in (("BACKUP", b.get("regions") or []),
+                          ("KMS", [k.get("region")] if k.get("region") else []),
+                          ("EGRESS", e.get("allowed_regions") or [])):
+        if not set(str(x).upper() for x in regions) <= allowed:
+            unmet.append(f"RESIDENCY_{code}_REGION")
+    if not str(k.get("provider") or "").strip():
+        unmet.append("RESIDENCY_INVALID_FIELD:kms.provider")
+    if b.get("encrypted") is not True:
+        unmet.append("RESIDENCY_BACKUP_UNENCRYPTED")
+    if str(b.get("frequency") or "").lower() not in FREQUENCIES:
+        unmet.append("RESIDENCY_UNKNOWN_FREQUENCY")
+    rot = k.get("rotation_days")
+    if not isinstance(rot, int) or isinstance(rot, bool) or rot <= 0:
+        unmet.append("RESIDENCY_KMS_ROTATION")
+    r = sec.get("retention") or {}
+    days = r.get("days")
+    max_days = prof.get("retention_days") or 0
+    if (not isinstance(days, int) or isinstance(days, bool) or days <= 0
+            or (max_days and not r.get("legal_hold") and days > int(max_days))):
+        unmet.append("RESIDENCY_RETENTION")
+    return {"valid": not unmet, "unmet": unmet, "home_region": home, "profile": prof.get("id") or ""}
+
+
+def residency_section(scope: str = "product_forge", project: str = "") -> dict:
+    """Load the manifest and attach the profile-bounded validation result."""
+    try:
+        sec = _load_json(residency_path(scope, project))
+    except Exception:
+        return {"error": "RESIDENCY_MANIFEST_UNREADABLE"}
+    sec.pop("notes", None)
+    sec.pop("template", None)
+    sec["validation"] = validate_residency(sec)
+    return sec
 
 
 def build(scope: str = "product_forge", project: str = "", edition: str = "community") -> dict[str, Any]:
@@ -120,6 +225,9 @@ def build(scope: str = "product_forge", project: str = "", edition: str = "commu
     except Exception as e:
         out["upgrade_rollback"] = {"error": type(e).__name__}
 
+    out["residency"] = residency_section(scope, project)
+    if (out["residency"].get("validation") or {}).get("valid") is not True:
+        out["residency_warning"] = "RESIDENCY_POLICY_VIOLATION"
     out["distinctions"]["source"] = {"source_dir": d}
     out["distinctions"]["configuration"] = {"edition": ed["id"], "tier": ed["tier"]}
     return out
@@ -137,6 +245,9 @@ def validate(manifest: dict[str, Any]) -> dict[str, Any]:
     # edition-specific entitlement must exist
     if not (manifest.get("entitlement") or {}).get("tier"):
         unmet.append("entitlement:tier")
+    rv = validate_residency(manifest.get("residency") or {})
+    if not rv["valid"]:
+        unmet.extend(f"residency:{e}" for e in rv["unmet"])
     return {"valid": not unmet, "unmet": unmet, "edition": manifest.get("edition"),
             "evaluated_at": datetime.now().isoformat()}
 

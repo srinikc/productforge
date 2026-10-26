@@ -1,0 +1,35 @@
+{
+  "item": "BI-PF-1304",
+  "sha": "ea4b3daf15ef",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-10-25T09:53:53.796961+00:00",
+  "findings": {
+    "BLOCKER": [
+      "Residency enforcement is bypassable by configuration: backup/kms/egress are only checked as subsets of the manifest's own self-asserted `allowed_regions`, and the profile is consulted only for home recognition + retention_days. A product can add any region to its manifest `allowed_regions` and pass. The profile must also bound `allowed_regions` (policy-owned allow-list, \u2286 profile regions) \u2014 otherwise the gate enforces internal consistency, not residency."
+    ],
+    "MAJOR": [
+      "Duplicate Go type/validation definitions (existing `edpsvc` residency types vs new `go/residencymanifest` types) will drift; conformance fixtures validate files, not type-level drift. Extract/reuse one shared Go package consumed by both, per the reuse guardrail and CL-001 (\"single writer? register it\").",
+      "Validator execution failure semantics are unspecified: missing Go toolchain, unreadable/malformed `config/residency-profiles/<home>.json`, or unreadable `residency-policy.json` must fail closed with a distinct code \u2014 distinct from `gate_mode=warn`. As designed, a broken toolchain can silently pass deploys.",
+      "`config/residency-policy.json` (the `gate_mode` rollback/bypass lever) and the `residency-manifest.json` template are not registered in `config/store-registry.json` with a single owner/change path \u2014 only profiles are. One unreviewed edit flips block\u2192warn; register both and require the warn\u2192block transition to be a tracked decision.",
+      "Observability is thin: a one-line stderr summary and a JSON report are not queryable. Emit a structured metric/event keyed by error code (and by product) so warn-mode accumulation and the block transition are visible to dashboards/alerts before customers notice."
+    ],
+    "MINOR": [
+      "No stable code is reserved for `schema_version` failures or invalid backup/KMS field shapes, yet AC5 requires identical cross-language pass/block outcomes for those cases. Add `RESIDENCY_SCHEMA_VERSION` (and invalid-field codes) to the frozen set now \u2014 retrofitting stable codes later is a breaking change.",
+      "The IN template hardcodes `home_region: IN`; a product operating elsewhere silently inherits a wrong home until it overrides. After the warn window, make the template home empty (fail-closed) or require explicit per-product acknowledgement.",
+      "Python `core.packaging.validate` and Go `cmd/pfresidency` are two writers of residency rules; the design does not name which is authoritative for build vs deploy. State the precedence/authority in `RESIDENCY-MANIFEST-GATE.md` to prevent divergence in fixes.",
+      "Design guardrail answers for checklist items 3/8/9 (authz, API surface, tenant isolation) are implicitly N/A but unstated; `core/design_guardrails.py` (CL-008) expects explicit dispositions at design time."
+    ],
+    "NIT": [
+      "`scripts/dev/residency_gate.py` re-implements the template-vs-override manifest resolution that `core/packaging.build` already performs; call the existing loader instead of a second precedence implementation."
+    ],
+    "SUMMARY": [
+      "Sound fail-closed intent, warn-first rollout, stable error codes, and cross-language conformance plan; language rule respected (Go shipped logic, Python tooling).",
+      "Top risks: (1) self-asserted `allowed_regions` makes the compliance gate bypassable by a config edit, (2) unspecified failure semantics when the validator itself breaks, (3) the gate_mode bypass lever lacks ownership registration.",
+      "Consolidate the duplicate Go residency types into one shared package and add a metric per error code before Gate 1.5."
+    ]
+  },
+  "rereview_reason": "prior design sha 9a9b645bb535; AC/dispositions updated for conformance, ownership, gate mode",
+  "rereview_reason_sha256": "6740912f0d6947ad84bb1fac1d106f963251199e55eaf0c5edf9be200d3a8806"
+}

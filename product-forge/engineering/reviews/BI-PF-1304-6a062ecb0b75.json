@@ -1,0 +1,31 @@
+{
+  "item": "BI-PF-1304",
+  "sha": "6a062ecb0b75",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-26T08:33:08.626482+00:00",
+  "base_sha": "dd9d280ec60f3fca0485186402f69dc57d10ac3b",
+  "head_sha": "3cc2a8ae43c2997ad373cfe25a6b0d4de65a992f",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "The warn-mode downgrade allowlist is duplicated as a hardcoded string array in both `cmd/pfresidency/main.go` and `scripts/dev/residency_gate.py` with no shared source of truth; drift between the two will silently break the divergence guarantee and AC5's \"warn only downgrades policy violations\" invariant.",
+      "`test_gate_invalid_manifest_fails_closed` still only asserts `returncode != 0` and `\"BLOCK\" in stderr` \u2014 it does not verify the specific `RESIDENCY_MANIFEST_*` fail-closed code the AC names, so an unrelated failure path (e.g. a timeout or different block reason) would satisfy it."
+    ],
+    "MINOR": [
+      "`RESIDENCY_RETENTION` is now unconditionally downgraded in warn mode, but the code covers both a structural violation (`retention.days <= 0`) and a policy overage (`> policy.retention_days`); warn should only downgrade the latter, per AC5's \"warn only downgrades policy violations, never execution failures.\"",
+      "In `core/packaging.py`, when a profile loads but lacks `allowed_regions`, both `RESIDENCY_PROFILE_UNREADABLE` and `RESIDENCY_HOME_NOT_ALLOWED` are appended; Go's `LoadProfile` may short-circuit to one code \u2014 residual code-parity risk for that fixture."
+    ],
+    "NIT": [
+      "`test_language_and_precheck_wiring` reaches into the private `precheck._GATES` internal; a public accessor or a smoke invocation of precheck would be less brittle against refactors.",
+      "The prior NIT about the literal `{1}` in the temp filename is resolved; the prior NIT about the `strings` import is not re-shown in the delta but is likely satisfied by a pre-existing import since the previous code already called `strings.HasPrefix`."
+    ],
+    "SUMMARY": [
+      "The delta correctly resolves the prior fail-open warn-mode blocker (denylist \u2192 downgrade allowlist, now covering both Go and Python) and upgrades AC4 evidence to actually invoke `language_rule_review` and assert the 45+ gate count; the `PATH=\"\"` fail-closed test is a good addition.",
+      "Top residual risks: the two hand-synchronized downgrade lists will drift over time, and the fail-closed test still lacks a code-level assertion tying the exit to the documented `RESIDENCY_MANIFEST_*` path."
+    ]
+  },
+  "rereview_reason": "prior sha 78e0d3b69307; fail-closed warn/profile parity",
+  "rereview_reason_sha256": "ce2c4f7b2b29b5f16af206e8f8c226d9c0b2a7882ad13b307b8000d00584750a"
+}

@@ -69,6 +69,7 @@ TOP = {
     "EDP-STORE-STATUS-AND-CONCURRENCY.md": ("SSOT", "Store status matrix (file|view|table, migrated?) + concurrency, RAG, intake, generated-product data homes (BI-PF-1292)", 100),
     "PRECHECK-GROUPS.md": ("Tooling", "Precheck split into sequential named groups (--group 1..5) + test sharding design (BI-PF-1419)", 100),
     "REVIEW-GATES-LIFECYCLE.md": ("SSOT", "Binding backlog item lifecycle gates Gate1 -> Gate1.5 -> Gate2 -> Gate2.5 (second-model architect review) -> precheck -> merge -> closure -> DoD", 100),
+    "RESIDENCY-MANIFEST-GATE.md": ("SSOT", "Residency manifest + build/deploy gate: explicit home_region (IN template), profile bounds, Go validator, warn-first, stable error codes (BI-PF-1304)", 100),
     "PF-API-SERVICE-OR-SERVER.md": ("SSOT", "PF Server/Service topology: many services serve API + operate PF; ownership by domain not language; language rule is Go-forward not a port; caller classes x transport; one instance per service per environment; interim: no PF token for internal", 100),
     "MODEL-ASSISTED-ENGINEERING.md": ("SSOT", "Process guardrails for model-assisted engineering: LLM failure modes/drift, don't-trust-the-model, sub-agent cost+optimization, train-vs-structure (runtime LLM guardrails are separate)", 100),
     "RAG-PROCESS-MEMORY.md": ("SSOT", "RAG + process memory: index decisions/learning/corrections with metadata + supersession, retrieve/inject at task start and gates; durable vs working memory", 100),
