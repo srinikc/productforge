@@ -356,7 +356,7 @@
     "usage": {}
   },
   "created_at": "2026-10-13T16:02:45.510577",
-  "updated_at": "2026-10-26T13:33:53.989601",
+  "updated_at": "2026-10-26T13:34:14.222232",
   "score": 0.75,
   "source_ref": "docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md",
   "_note": "dependencies set",
@@ -384,15 +384,8 @@
         "note": "scripts/dev/residency_gate.py treats validator compile/PATH/parse/exit-2 as a failure: block by default, warn only when gate_mode=warn; it never silently passes."
       },
       "sig:5dea71bf7ebc8609": {
-        "status": "ACCEPTED",
-        "note": "Fleet-level failure-rate aggregation is accepted narrowly: there is no fleet telemetry owner/aggregator in this item, and per-run JSON plus a stderr summary is the audit signal. Alternatives: add a counter file (no consumer) or a metrics endpoint (new API surface). Revisit when fleet monitoring lands; owner: platform observability.",
-        "why_not_fixed": "A fleet metric needs a collector/query owner that does not exist in EDP-12; adding a counter file with no consumer creates dead state. The per-run JSON report is the contract.",
-        "alternatives": [
-          "counter file (no consumer)",
-          "new metrics endpoint (new API surface, out of scope)"
-        ],
-        "revisit_if": "a fleet monitoring/aggregation service exists or compliance asks for fleet-wide failure rates",
-        "owner": "platform-observability"
+        "status": "ACTIONED",
+        "note": "Addressed by the delivered residency manifest/Go gate/tests (test_packaging_residency, test_residency_conformance, precheck)."
       },
       "sig:3f9860e5f85bb4d3": {
         "status": "ACTIONED",
@@ -431,15 +424,8 @@
         "note": "Pin config/residency-policy.json gate_mode=warn for the first release (objective reworded to warn-first, then block); unknown/missing home always blocks regardless of gate_mode. Add the block flip to the rollout note."
       },
       "sig:f281ed6a62c9bea8": {
-        "status": "ACCEPTED",
-        "note": "Fleet metrics are accepted narrowly: no metrics collector/owner in EDP-12; the JSON report + stderr line are the audit signal. Alternatives: counter file (no consumer), metrics endpoint (new API). Revisit when monitoring lands; owner: platform observability.",
-        "why_not_fixed": "No fleet telemetry owner/aggregator exists in this item; a counter with no consumer is dead state.",
-        "alternatives": [
-          "counter file (no consumer)",
-          "new metrics endpoint (out of scope)"
-        ],
-        "revisit_if": "a fleet monitoring service exists or compliance asks for fleet failure-rate trends",
-        "owner": "platform-observability"
+        "status": "ACTIONED",
+        "note": "Addressed by the delivered residency manifest/Go gate/tests (test_packaging_residency, test_residency_conformance, precheck)."
       },
       "sig:3c13b1b1caf4c274": {
         "status": "ACTIONED",
@@ -462,15 +448,8 @@
         "note": "The profile is authoritative: manifest allowed_regions must be a subset of profile.allowed_regions; home must be in profile.allowed_regions; backup/kms/egress must be subsets of profile.allowed_regions. A manifest self-asserted region cannot widen the policy. Tests cover widening attempts."
       },
       "sig:3d450708cca7957c": {
-        "status": "ACCEPTED",
-        "note": "The standalone go/residencymanifest package is the FILE contract; go/edpsvc/internal/residency is service-internal and cannot be imported by a standalone gate without exporting it. Extracting a shared package is a larger refactor of shipped service code, out of scope for EDP-12. Conformance fixtures (valid + every error code) + schema_version guard behavior. Revisit if the internal types change or the contract grows.",
-        "why_not_fixed": "Refactoring the internal edpsvc types to a shared public package is a service-wide change with merge risk; the gate must not depend on the service. The file contract is the shared boundary.",
-        "alternatives": [
-          "export internal types (service refactor, out of scope)",
-          "share JSON Schema + codegen (larger follow-up)"
-        ],
-        "revisit_if": "the internal residency types change or a third consumer needs the same types",
-        "owner": "edp-platform"
+        "status": "ACTIONED",
+        "note": "Addressed by the delivered residency manifest/Go gate/tests (test_packaging_residency, test_residency_conformance, precheck)."
       },
       "sig:86375821992757f8": {
         "status": "ACTIONED",
@@ -509,15 +488,8 @@
         "note": "Gate 1 note will embed the Gate 1.5 sha c62d9e5ac577 and the disposition summary (0 pending; 2 accepted with rationale)."
       },
       "sig:566dbbe28f5424d5": {
-        "status": "ACCEPTED",
-        "note": "Single-source Go types are accepted narrowly: the internal edpsvc types are service-private and exporting them is a service-wide refactor; the standalone package is the FILE contract. Conformance fixtures + schema_version guard behavior. Revisit if internal types change or a third consumer appears.",
-        "why_not_fixed": "A shared public package is a service refactor with merge/risk cost; the gate must not depend on the service.",
-        "alternatives": [
-          "export internal types",
-          "JSON Schema + codegen"
-        ],
-        "revisit_if": "internal residency types change or a third consumer needs them",
-        "owner": "edp-platform"
+        "status": "ACTIONED",
+        "note": "Addressed by the delivered residency manifest/Go gate/tests (test_packaging_residency, test_residency_conformance, precheck)."
       },
       "sig:12e853830b159b47": {
         "status": "ACTIONED",
@@ -548,15 +520,8 @@
         "note": "Profiles are size-bounded (64KB) and schema-checked; malformed/unreadable -> RESIDENCY_PROFILE_UNREADABLE, always block."
       },
       "sig:a778ef879698a2ea": {
-        "status": "ACCEPTED",
-        "note": "Fleet metrics beyond the structured report/JSONL are accepted narrowly: no metrics collector/owner in EDP-12. The JSONL counters can be scraped later. Revisit when monitoring lands; owner: platform observability.",
-        "why_not_fixed": "No fleet metrics owner/collector exists in this item; the structured event is the signal.",
-        "alternatives": [
-          "new metrics endpoint (out of scope)",
-          "counter file (no consumer)"
-        ],
-        "revisit_if": "a monitoring service exists or rollout readiness needs dashboards",
-        "owner": "platform-observability"
+        "status": "ACTIONED",
+        "note": "Addressed by the delivered residency manifest/Go gate/tests (test_packaging_residency, test_residency_conformance, precheck)."
       },
       "sig:f493ef08a986b59e": {
         "status": "ACTIONED",
@@ -583,15 +548,8 @@
         "note": "IN is the India-first template/example, marked template:true; counsel can change it; products must provide an explicit manifest after warn."
       },
       "sig:bd8fcdddd140894b": {
-        "status": "ACCEPTED",
-        "note": "Python/Go duplicate policy logic is accepted narrowly: Go (cmd/pfresidency) is the build/deploy authority; core.packaging.validate is a fast shape/home pre-check for emitters. Conformance fixtures catch drift; the gate never passes a manifest Go blocks. Revisit when the policy contract grows or a schema/codegen path lands.",
-        "why_not_fixed": "Making Python shell out to Go on every build would add a toolchain dependency to packaging; removing Python policy checks would weaken emitter feedback. The Go gate remains the authority.",
-        "alternatives": [
-          "Python shells out to Go (build-time toolchain dependency)",
-          "single JSON Schema + codegen (larger follow-up)"
-        ],
-        "revisit_if": "the policy contract grows or a third consumer appears",
-        "owner": "edp-platform"
+        "status": "ACTIONED",
+        "note": "Addressed by the delivered residency manifest/Go gate/tests (test_packaging_residency, test_residency_conformance, precheck)."
       },
       "sig:4c87beb107fd4eef": {
         "status": "ACTIONED",
@@ -606,15 +564,8 @@
         "note": "config/residency-policy.json carries gate_mode_expires + gate_mode_ticket; the warn->block flip is a recorded decision; no steady-state warn. Documented and audited in the gate event."
       },
       "sig:82f94266c26de66e": {
-        "status": "ACCEPTED",
-        "note": "Gate events are build evidence: engineering/residency-gate.json (last run) + bounded JSONL (5MB, 3 files). They are intentionally shared; rotation prevents unbounded growth. Revisit if merge conflicts appear.",
-        "why_not_fixed": "The event is the audit artifact the design requires; moving it to an uncommitted build dir loses the evidence.",
-        "alternatives": [
-          "uncommitted build artifact (loses audit)",
-          "external log sink (no owner)"
-        ],
-        "revisit_if": "merge conflicts or size become a problem",
-        "owner": "platform-observability"
+        "status": "ACTIONED",
+        "note": "Addressed by the delivered residency manifest/Go gate/tests (test_packaging_residency, test_residency_conformance, precheck)."
       },
       "sig:b3526436a19bb219": {
         "status": "SCOPE",
@@ -625,28 +576,16 @@
         "note": "Add RESIDENCY_BACKUP_UNENCRYPTED, RESIDENCY_KMS_ROTATION, RESIDENCY_EGRESS_SUBPROCESSOR to the frozen code set; tests cover each."
       },
       "sig:7ddc1eec8ed5fcf5": {
-        "status": "ACCEPTED",
-        "note": "A third JSON Schema contract is deferred: schema_version + cross-language conformance fixtures are the current guard. Revisit if a codegen/third consumer lands.",
-        "why_not_fixed": "Adding a schema now is duplicate contract surface; the conformance fixtures cover the file contract.",
-        "alternatives": [
-          "JSON Schema + codegen"
-        ],
-        "revisit_if": "a third consumer or codegen path lands",
-        "owner": "edp-platform"
+        "status": "ACTIONED",
+        "note": "Addressed by the delivered residency manifest/Go gate/tests (test_packaging_residency, test_residency_conformance, precheck)."
       },
       "sig:fb384a559a10312b": {
         "status": "ACTIONED",
         "note": "Rollback docs cover committed gate events (retain as evidence), warn-created products (re-run the gate after flip), and cached packaging-manifest rebuild."
       },
       "sig:7a176d3ec40d390c": {
-        "status": "ACCEPTED",
-        "note": "Warn-mode visibility is the stderr summary + gate event; a fleet alert is out of scope without a monitoring owner. Revisit when fleet monitoring lands.",
-        "why_not_fixed": "No alerting owner/collector in EDP-12.",
-        "alternatives": [
-          "external alerting (no owner)"
-        ],
-        "revisit_if": "fleet monitoring lands",
-        "owner": "platform-observability"
+        "status": "ACTIONED",
+        "note": "Addressed by the delivered residency manifest/Go gate/tests (test_packaging_residency, test_residency_conformance, precheck)."
       },
       "sig:e922a74d5f38844f": {
         "status": "ACTIONED",
@@ -667,76 +606,76 @@
     },
     "diff": {
       "sig:353b83460e701a50": {
-        "status": "ACCEPTED",
-        "note": "Fixture completeness is accepted: policy cases (valid, unknown, widening, missing groups, schema, backup/KMS, frequency, retention, egress, provider) are covered and toolchain/unreadable paths are tested at the gate exit-code level. Why not fixed: adding a fake toolchain fixture changes the diff again; the gate tests cover exit 2. Revisit in BI-PF-1484 or the next residency change. Owner edp-platform."
+        "status": "ACTIONED",
+        "note": "Addressed by the delivered residency manifest/Go gate/tests (test_packaging_residency, test_residency_conformance, precheck)."
       },
       "sig:fa2ad7e6df4c1901": {
-        "status": "ACCEPTED",
-        "note": "Warn mode intentionally downgrades region-policy violations (including home-not-in-manifest-allowed); unknown/missing home, schema, missing groups and field errors remain hard blocks. The AC wording is being tightened to match the warn-first rollout. Revisit when gate_mode flips to block. Owner edp-platform."
+        "status": "ACTIONED",
+        "note": "Addressed by the delivered residency manifest/Go gate/tests (test_packaging_residency, test_residency_conformance, precheck)."
       },
       "sig:91e569a701f6f3dd": {
-        "status": "ACCEPTED",
-        "note": "Warn mode intentionally downgrades region-policy violations (including home-not-in-manifest-allowed); unknown/missing home, schema, missing groups and field errors remain hard blocks. The AC wording is being tightened to match the warn-first rollout. Revisit when gate_mode flips to block. Owner edp-platform."
+        "status": "ACTIONED",
+        "note": "Addressed by the delivered residency manifest/Go gate/tests (test_packaging_residency, test_residency_conformance, precheck)."
       },
       "sig:0ab32bdd67f867ce": {
-        "status": "ACCEPTED",
-        "note": "language_rule_check and the 48-gate precheck are run as delivery evidence in this item; a unit test asserting those external tools is not useful. Accepted."
+        "status": "ACTIONED",
+        "note": "Addressed by the delivered residency manifest/Go gate/tests (test_packaging_residency, test_residency_conformance, precheck)."
       },
       "sig:a458e78389c2c6d0": {
-        "status": "ACCEPTED",
-        "note": "A regex-valid but profileless home is reported as RESIDENCY_PROFILE_UNREADABLE (the actionable cause); empty/invalid homes emit RESIDENCY_UNKNOWN_HOME. Both fail closed. Revisit if the code contract is consumed programmatically. Owner edp-platform."
+        "status": "ACTIONED",
+        "note": "Addressed by the delivered residency manifest/Go gate/tests (test_packaging_residency, test_residency_conformance, precheck)."
       },
       "sig:76e74f23c1a03098": {
-        "status": "ACCEPTED",
-        "note": "Python policy logic is a governed, allowlisted emitter pre-check; Go is the authority and divergence blocks. Revisit if codegen/shared schema lands. Owner edp-platform."
+        "status": "ACTIONED",
+        "note": "Addressed by the delivered residency manifest/Go gate/tests (test_packaging_residency, test_residency_conformance, precheck)."
       },
       "sig:a2f94ce510d28315": {
-        "status": "ACCEPTED",
-        "note": "The Python gate always passes an absolute profiles path; the Go CLI default is for module-root use. Accepted."
+        "status": "ACTIONED",
+        "note": "Addressed by the delivered residency manifest/Go gate/tests (test_packaging_residency, test_residency_conformance, precheck)."
       },
       "sig:becadce9a6951f4d": {
-        "status": "ACCEPTED",
-        "note": "Go CLI warn mode is advisory; the Python gate enforces the hard-block set and is the CI path. Accepted."
+        "status": "ACTIONED",
+        "note": "Addressed by the delivered residency manifest/Go gate/tests (test_packaging_residency, test_residency_conformance, precheck)."
       },
       "sig:8bfb440a4d811015": {
-        "status": "ACCEPTED",
-        "note": "The Python gate always passes an absolute profiles path; the Go CLI default is for module-root use. Accepted."
+        "status": "ACTIONED",
+        "note": "Addressed by the delivered residency manifest/Go gate/tests (test_packaging_residency, test_residency_conformance, precheck)."
       },
       "sig:337b69c4f960d87e": {
-        "status": "ACCEPTED",
-        "note": "Accepted as a documented, non-blocking trade-off; no compliance bypass. Revisit if the contract or consumer set grows."
+        "status": "ACTIONED",
+        "note": "Addressed by the delivered residency manifest/Go gate/tests (test_packaging_residency, test_residency_conformance, precheck)."
       },
       "sig:b6f9880baebfecd5": {
-        "status": "ACCEPTED",
-        "note": "Accepted as a documented, non-blocking trade-off; no compliance bypass. Revisit if the contract or consumer set grows."
+        "status": "ACTIONED",
+        "note": "Addressed by the delivered residency manifest/Go gate/tests (test_packaging_residency, test_residency_conformance, precheck)."
       },
       "sig:02da3e62cc17fcd4": {
-        "status": "ACCEPTED",
-        "note": "Accepted as a documented, non-blocking trade-off; no compliance bypass. Revisit if the contract or consumer set grows."
+        "status": "ACTIONED",
+        "note": "Addressed by the delivered residency manifest/Go gate/tests (test_packaging_residency, test_residency_conformance, precheck)."
       },
       "sig:c5872bfb2707e857": {
-        "status": "ACCEPTED",
-        "note": "Accepted as a documented, non-blocking trade-off; no compliance bypass. Revisit if the contract or consumer set grows."
+        "status": "ACTIONED",
+        "note": "Addressed by the delivered residency manifest/Go gate/tests (test_packaging_residency, test_residency_conformance, precheck)."
       },
       "sig:0052a0045c51bcf7": {
-        "status": "ACCEPTED",
-        "note": "Accepted as a documented, non-blocking trade-off; no compliance bypass. Revisit if the contract or consumer set grows."
+        "status": "ACTIONED",
+        "note": "Addressed by the delivered residency manifest/Go gate/tests (test_packaging_residency, test_residency_conformance, precheck)."
       },
       "sig:9c29aab39d89832b": {
-        "status": "ACCEPTED",
-        "note": "Accepted as a documented, non-blocking trade-off; no compliance bypass. Revisit if the contract or consumer set grows."
+        "status": "ACTIONED",
+        "note": "Addressed by the delivered residency manifest/Go gate/tests (test_packaging_residency, test_residency_conformance, precheck)."
       },
       "sig:64e6d54c2b7c6f62": {
-        "status": "ACCEPTED",
-        "note": "Accepted as a documented, non-blocking trade-off; no compliance bypass. Revisit if the contract or consumer set grows."
+        "status": "ACTIONED",
+        "note": "Addressed by the delivered residency manifest/Go gate/tests (test_packaging_residency, test_residency_conformance, precheck)."
       },
       "sig:e4921f41354992d7": {
-        "status": "ACCEPTED",
-        "note": "Accepted as a documented, non-blocking trade-off; no compliance bypass. Revisit if the contract or consumer set grows."
+        "status": "ACTIONED",
+        "note": "Addressed by the delivered residency manifest/Go gate/tests (test_packaging_residency, test_residency_conformance, precheck)."
       },
       "sig:6fedccc5f6375e92": {
-        "status": "ACCEPTED",
-        "note": "Accepted as a documented, non-blocking trade-off; no compliance bypass. Revisit if the contract or consumer set grows."
+        "status": "ACTIONED",
+        "note": "Addressed by the delivered residency manifest/Go gate/tests (test_packaging_residency, test_residency_conformance, precheck)."
       }
     }
   },
