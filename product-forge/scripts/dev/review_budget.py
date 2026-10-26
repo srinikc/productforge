@@ -35,10 +35,10 @@ def _evidence(item_id: str, mode: str) -> list[dict]:
 
 
 def _dt(value) -> datetime | None:
-    try:
-        return datetime.fromisoformat(str(value).replace("Z", "+00:00"))
-    except Exception:
+    if not value:
         return None
+    dt = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
 
 
 def _material_ok(item: dict, mode: str, rows: list[dict]) -> bool:
@@ -50,10 +50,20 @@ def _material_ok(item: dict, mode: str, rows: list[dict]) -> bool:
             continue
         if d.get("hil_confirmed") is not True or str(d.get("mode") or "") != mode:
             continue
-        at = _dt(d.get("at"))
+        try:
+            at = _dt(d.get("at"))
+        except ValueError:
+            continue
         if at is not None and at >= latest:
             return True
     return False
+
+
+def _dt_safe(value):
+    try:
+        return _dt(value)
+    except ValueError:
+        return None
 
 
 def problems(item: dict, only_mode: str = "") -> list[str]:
@@ -70,12 +80,26 @@ def problems(item: dict, only_mode: str = "") -> list[str]:
         if (mode == "design" and c.get("freeze_design_after_gate1", True)
                 and any(int(d.get("gate") or 0) == 1 for d in (item.get("decisions") or []))):
             continue
-        rows = [d for d in _evidence(iid, mode)
-                if str(d.get("at") or "") >= cutoff and d.get("parsed_ok", True)]
+        cutoff_dt = _dt(cutoff)
+        rows = []
+        for d in _evidence(iid, mode):
+            try:
+                at = _dt(d.get("at"))
+            except ValueError:
+                continue
+            if at and cutoff_dt and at >= cutoff_dt and d.get("parsed_ok", True):
+                rows.append(d)
         if len(rows) >= max_n and not (c.get("allow_hil_material_change") and _material_ok(item, mode, rows)):
-            expiry = _dt(c.get("material_expiry"))
-            code = ("MATERIAL_APPROVAL_EXPIRED" if expiry and datetime.now(timezone.utc) > expiry
-                    else "MATERIAL_APPROVAL_ORDER")
+            mats = [d for d in (item.get("decisions") or [])
+                    if str(d.get("decision") or "").upper() == "MATERIAL_CHANGE"]
+            if not mats:
+                code = "MATERIAL_APPROVAL_MISSING"
+            elif any(str(d.get("at") or "") and _dt_safe(d.get("at")) is None for d in mats):
+                code = "MATERIAL_APPROVAL_INVALID"
+            else:
+                expiry = _dt(c.get("material_expiry"))
+                code = ("MATERIAL_APPROVAL_EXPIRED" if expiry and datetime.now(timezone.utc) > expiry
+                        else "MATERIAL_APPROVAL_ORDER")
             bad.append(f"{mode}: {len(rows)} reviews (budget {max_n}); {code}: material change needs HIL MATERIAL_CHANGE")
     return bad
 
