@@ -71,18 +71,22 @@ def problems(item: dict, mode: str, backlog_get=None) -> list[str]:
     deferred = [k for k, v in rows.items() if str((v or {}).get("status") or "").upper() == "DEFERRED"]
     sev = _severity_map(item)
     bad = []
-    if accepted:
-        bad.append(f"{mode}: ACCEPTED is not allowed; fix the finding instead ({', '.join(accepted[:4])})")
-    for k in deferred:
+    exceptions = accepted + deferred
+    max_exc = int(c.get("max_exceptions_per_mode") or 2)
+    if len(exceptions) > max_exc:
+        bad.append(f"{mode}: {len(exceptions)} HIL exceptions exceeds max {max_exc}")
+    for k in exceptions:
         key = k if str(k).startswith("sig:") else "sig:" + str(k).split(":")[-1]
         severity = str(sev.get(key) or sev.get(k) or (rows.get(k) or {}).get("severity") or "MAJOR").upper()
-        if severity not in [str(x).upper() for x in (c.get("deferred_severities") or [])]:
-            bad.append(f"{mode}/{k}: {severity} cannot be DEFERRED; fix it")
-    needs = deferred if c.get("require_hil_approval_for_deferred") else []
+        if severity == "BLOCKER":
+            bad.append(f"{mode}/{k}: BLOCKER cannot be ACCEPTED/DEFERRED; fix it")
+        if k in accepted and not c.get("accepted_allowed", True):
+            bad.append(f"{mode}/{k}: ACCEPTED is not allowed")
+    needs = exceptions if c.get("require_hil_approval_for_exceptions", True) else []
     approved = _approved_sigs(item, mode)
     missing = [k for k in needs if k not in approved]
     if missing:
-        bad.append(f"{mode}: {len(missing)} DEFERRED without HIL DISPOSITION_APPROVAL ({', '.join(missing[:4])})")
+        bad.append(f"{mode}: {len(missing)} ACCEPTED/DEFERRED without HIL DISPOSITION_APPROVAL ({', '.join(missing[:4])})")
     for k in deferred:
         note = str((rows.get(k) or {}).get("note") or "")
         found = [m.group(0) for m in FOLLOW_UP.finditer(note) if m.group(0) != item.get("id")]
