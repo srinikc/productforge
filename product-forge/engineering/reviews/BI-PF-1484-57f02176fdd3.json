@@ -1,0 +1,38 @@
+{
+  "item": "BI-PF-1484",
+  "sha": "57f02176fdd3",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-25T11:52:00.418667+00:00",
+  "base_sha": "",
+  "head_sha": "426289ce5a2f29598045c6925da72fca080f02f2",
+  "findings": {
+    "BLOCKER": [
+      "AC contract contradicted: AC caps ACCEPTED at 2 per review mode, but `disposition_policy.problems` rejects every ACCEPTED, `config/review-dispositions.json` has no cap field, and docs/tests codify rejection \u2014 the shipped policy cannot satisfy the stated acceptance criterion."
+    ],
+    "MAJOR": [
+      "`disposition_policy.problems` trusts a self-declared `severity` in the disposition row before the evidence-derived map (`rows.get(k).get(\"severity\") or sev.get(...) or \"MAJOR\"`): a writer can label any finding \"NIT\" to bypass the severity gate, while genuinely unknown severities default to MAJOR and wrongly block legitimate deferrals.",
+      "`_ac_hash` (duplicated in `finalize_item.build` and `gate2_completion_check._ac_hash`) covers only `acs` + `dispositions`; test results, usage/cost and gate decisions can change after finalize without triggering `FINAL_REPORT_STALE`, and `item_revision` is never compared \u2014 merge accepts a materially stale report.",
+      "`architect_review_check` fallback accepts any diff evidence with `head_sha == HEAD` and a truthy `base_sha`, so a partial `--since` review that excluded files satisfies the gate even though part of the merge-base diff was never reviewed.",
+      "`record_gate_decision`'s new code references `item` and `backlog.get_epic(scope, project, ...)` without them appearing in the hunk \u2014 if `item` is not bound earlier in the function this is a NameError on every gate decision; the gate whitelist also still hard-refuses any gate outside {1,1.5,2,2.5}. Verify before merge.",
+      "`finalize_item.build` emits `started_at`/`finished_at` and a `usage` blob but no explicit total-time field, and its `gate_decisions` allow-list (APPROVE/APPROVE_WITH_ATTENTION/DISPOSITION_APPROVAL/REVIEW_CHURN) silently drops any other decision kind \u2014 AC requires total time and gate decisions in the report."
+    ],
+    "MINOR": [
+      "`_prior_context` selects the latest review by file mtime while `_latest_review_sha` selects by the `at` field; prompt context and the diff base can therefore come from different reviews on the same item.",
+      "Persisted `final_report.item_revision` is captured before `backlog.update`, so it is permanently one revision behind the item it lives on \u2014 the field asserts a currency it can never have.",
+      "`trail.show`'s summary row renders ACs as `PASS/total` only, hiding whether the remainder are FAIL or PENDING in the top-level table."
+    ],
+    "NIT": [
+      "`approval_decision`/`approval_scope` defaults are re-declared as literals in `disposition_decide.py` and `disposition_policy.py`; the config file is not the single source despite owning those keys.",
+      "`finalize_item.build` and `gate2_completion_check._ac_hash` import `hashlib`/`json` mid-function instead of at module top."
+    ],
+    "SUMMARY": [
+      "Solid structural progress: disposition policy, AC gate, final-report persistence and trail rendering are wired end-to-end with tests, and prior sys.path/gate-whitelist/completion-enforcement blockers are addressed.",
+      "Top risks: the ACCEPTED policy directly contradicts the AC, disposition severity is self-declarable (integrity bypass), and final-report freshness is guarded only by a narrow hash \u2014 stale reports can merge.",
+      "Must-verify before merge: `item` binding and gate whitelist in `record_gate_decision`, and partial-diff review coverage in the `head_sha` fallback."
+    ]
+  },
+  "rereview_reason": "prior sha 30c80f0b444c; baseline review for delta capture",
+  "rereview_reason_sha256": "3742916ea90488b8c26d52d1641d0c9388b9dc29977441285b1fa595f2fae340"
+}

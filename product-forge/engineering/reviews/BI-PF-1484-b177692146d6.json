@@ -1,0 +1,35 @@
+{
+  "item": "BI-PF-1484",
+  "sha": "b177692146d6",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-25T18:00:23.138434+00:00",
+  "base_sha": "eb9bf863b12fd2ec6cadb2501ac3e894e9d93c16",
+  "head_sha": "13720cbdf8fa19858cd5e7fc273f1cf2304b4b03",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "excluded_content_check.py (`documentation-index.html` branch): the guard is still a bypassable substring heuristic. Rejecting only `<script` and `javascript:` misses `<img src=x onerror=\u2026>`, `<svg onload=\u2026>`, `<iframe>/<object>/<embed>`, and `data:text/html` hrefs, which execute in browsers without any `<script>` tag. The `BACKLOG-SUMMARY.md` branch only checks `lstrip().startswith(\"# Backlog\")`, so arbitrary injected markdown/links past line 1 are still accepted. The prior MAJOR (derived-doc guard accepts arbitrary injected content) is only partially resolved by this delta, and its disposition (PENDING) is not fixed by it.",
+      "Derived-doc integrity relies on hand-written denylists instead of a single source of truth (e.g., regenerate-from-canonical or an allowlist hash of expected shape). Each new bypass class requires another string in this file; under an enterprise long-term lens the control will silently erode as generators evolve.",
+      "none additional"
+    ],
+    "MINOR": [
+      "excluded_content_check.py (`BACKLOG-SUMMARY.md` branch): `raw.decode(\"utf-8-sig\")` runs before the binary/NUL check over the full file; non-UTF-8 bytes raise `UnicodeDecodeError`, crashing the checker with a traceback instead of returning a clean problem string. Fail-closed in practice, but non-deterministic failure surface for a gate.",
+      "Delta test coverage only exercises one injection shape (a literal `<script>` tag) and the happy path; the new \"missing generated header\" rejection path, the NUL/binary path, and the event-handler bypass classes are untested, so the guard's incompleteness is invisible to CI.",
+      "The doctype/header expectations are now hardcoded in `excluded_content_check.py` with no link to the generator that emits these files \u2014 same brittleness class as the previously reported design-header MINOR, now extended to two more templates."
+    ],
+    "NIT": [
+      "test_review_budget.py `test_older_material_approval_is_rejected` reuses fixed future dates (`2026-10-25`/`2026-10-24`) in both `enforce_from` and `at`; consistent with the fixture-staleness concern already raised, but this delta adds one more instance rather than deriving offsets from `now()`.",
+      "The new derived-doc test's fixture uses `# Backlog Summary`, which happens to satisfy `startswith(\"# Backlog\")`; a reader may not realize the check is only a 9-character prefix match \u2014 an inline comment or an intentionally weaker fixture (`# Backlog garbage <links\u2026>`) would document the guard's true tolerance."
+    ],
+    "SUMMARY": [
+      "The delta resolves the prior MAJOR on the missing negative test for material-approval temporal ordering (`test_older_material_approval_is_rejected` is a proper rejection case), and the BACKLOG/documentation-index checks are a real step up from NUL-only.",
+      "However, the excluded-content MAJOR is only partially resolved: substring denylists for HTML remain trivially bypassed via event handlers/embeds, and the leading-header check for markdown accepts arbitrary injected content after line 1 \u2014 neither is disposed as fixed.",
+      "The review_budget `at`-migration MAJOR and the lexicographic timestamp MINOR are untouched by this delta (out of scope here, but still open at PENDING).",
+      "Top risks: derived-doc tampering via non-`<script>` payloads; checker crash on non-UTF-8 derived docs; denylist/template drift as generators evolve."
+    ]
+  },
+  "rereview_reason": "prior sha b88ed77c2750; docs/material checks fixed",
+  "rereview_reason_sha256": "fe014c9c22cdc324cbf475d1cc234649b421cfc05866c5b9188cf3950aba1038"
+}

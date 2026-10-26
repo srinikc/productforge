@@ -219,3 +219,34 @@ Every item carries one append-only trail at `engineering/trails/<ID>.json` (owne
   disposition has no existing follow-up item id. `pr/merge/delivery/completion` are post-merge events.
 - **Failure sink:** a trail write failure is appended to `engineering/trails/_failures.jsonl` and logged as a
   structured `execution_trail_write_failed` event; the POST gate fails the completion.
+
+
+## Final report + disposition policy (BI-PF-1484)
+
+- **AC verification is a Gate 2 requirement.** An item carries `ac_verification[]` (AC text, `result` PASS/FAIL/PENDING,
+  evidence, verifier). Gate 2 refuses if any AC is missing/FAIL/PENDING; completion re-checks. 2.5 may flag missing AC
+  evidence but does not certify ACs.
+- **No ACCEPTED; DEFERRED only for NIT.** BLOCKER/MAJOR/MINOR findings must be ACTIONED. `ACCEPTED` is rejected.
+  A NIT may be `DEFERRED` only with an existing backlog id and a HIL `DISPOSITION_APPROVAL` decision
+  (`hil_confirmed: true`, `by: hil:*`, scope `disposition_approval`, mode design|diff, finding sigs). Enforced by
+  `disposition_policy.py` at Gate 1, Gate 2 and completion.
+- **Final report is persisted on the item.** `python scripts/dev/finalize_item.py --item <ID>` writes
+  `item.final_report`: AC verification, test results by kind (unit/api/db/logic/go/other with commands/results/
+  counts/durations), total time, tokens/cost, accepted/deferred with backlog ids, gate decisions. Merge is blocked
+  until ACs are all PASS and the report is persisted.
+- **Show** renders AC verification, test results by kind, accepted/deferred, totals and the final table; the final
+  report snapshot is the durable record on the backlog item.
+
+
+## First-pass quality contract + design pack (BI-PF-1484)
+
+- **Design pack is mandatory for new work.** Canonical source: `item.design_pack`; generated snapshot:
+  `engineering/design/<ID>.md` (owner `scripts/dev/design_pack.py`; do not hand-edit).
+- Required sections: requirements, invariants, contracts (API/DB/files/config), failure matrix, dependencies,
+  security, observability, performance, test matrix (AC -> kind/test), rollout/rollback, decisions.
+- **Gate 1** validates the pack for items created on/after `config/design-pack.json.enforce_from`; every AC must
+  have a test-matrix row. Gate 1.5 reviews the rendered pack; Gate 2 verifies ACs/tests.
+- **First-pass contract:** design all invariants/failure modes before code; test-first for guards; self-review;
+  run targeted tests + precheck; freeze; one delta review. 2.5 is a safety net, not the first test.
+- **ACTIONED evidence:** non-NIT fixes must record the failing scenario + test/check command + result.
+- **No ACCEPTED.** DEFERRED only NIT with HIL approval + existing backlog id.

@@ -23,5 +23,16 @@ def test_budget_and_material_change(tmp_path, monkeypatch):
     monkeypatch.setattr(rb, "CFG", cfg)
     item = {"id": "BI-PF-9000", "decisions": []}
     assert rb.problems(item)
-    item["decisions"] = [{"decision": "MATERIAL_CHANGE", "hil_confirmed": True, "mode": "diff"}]
+    item["decisions"] = [{"decision": "MATERIAL_CHANGE", "hil_confirmed": True, "mode": "diff",
+                          "at": "2026-10-25T02:00:00+00:00"}]
     assert rb.problems(item) == []
+
+def test_older_material_approval_is_rejected(tmp_path, monkeypatch):
+    _setup(tmp_path, monkeypatch, 2)
+    cfg = tmp_path / "budget.json"
+    cfg.write_text(json.dumps({"enforce_from": "2026-10-25", "max_reviews_per_mode": 1,
+                               "allow_hil_material_change": True, "grandfather": []}), encoding="utf-8")
+    monkeypatch.setattr(rb, "CFG", cfg)
+    item = {"id": "BI-PF-9000", "decisions": [{"decision": "MATERIAL_CHANGE", "hil_confirmed": True,
+                                                "mode": "diff", "at": "2026-10-24T00:00:00+00:00"}]}
+    assert rb.problems(item)

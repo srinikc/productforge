@@ -72,6 +72,31 @@ def _docs_only() -> bool:
     return gp.is_docs_only(ar.changed_files(), skip)
 
 
+def completion_gaps(item: dict) -> list[str]:
+    """AC + persisted final report + dispositions must be complete at merge."""
+    gaps = []
+    import disposition_policy as dp
+    for mode in ("design", "diff"):
+        gaps += [f"DISPOSITION: {p}" for p in dp.problems(item, mode, lambda i: ar._get_item(i))]
+    acs = item.get("ac_verification") or []
+    if not acs or any(str(a.get("result") or "").upper() != "PASS" for a in acs):
+        gaps.append("AC_VERIFICATION_INCOMPLETE")
+    fr = item.get("final_report") or {}
+    if not fr:
+        gaps.append("FINAL_REPORT_MISSING")
+    elif fr.get("ac_hash") != _ac_hash(item):
+        gaps.append("FINAL_REPORT_STALE")
+    return gaps
+
+
+def _ac_hash(item: dict) -> str:
+    import hashlib
+    import json
+    payload = {"acs": item.get("ac_verification") or [],
+               "dispositions": item.get("review_dispositions") or {}}
+    return hashlib.sha256(json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()).hexdigest()[:16]
+
+
 def check(ids: list[str]) -> list[tuple[str, str]]:
     problems: list[tuple[str, str]] = []
     docs_only = _docs_only()
@@ -82,6 +107,8 @@ def check(ids: list[str]) -> list[tuple[str, str]]:
         if g0_problems:
             problems.append((iid, "GATE0_INCOMPLETE: " + "; ".join(g0_problems)))
             continue
+        gaps = completion_gaps(item)
+        problems += [(iid, g) for g in gaps]
         dview = ar.gate_view(iid, "design")
         if dview is None:
             problems.append((iid, "NO_DESIGN_EVIDENCE"))

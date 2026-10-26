@@ -1,11 +1,11 @@
 # Backlog Summary
 
-> GENERATED 2026-10-25T22:06:00 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-10-26T10:23:51 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 134  |  **Closed:** 594
+- **Open:** 134  |  **Closed:** 595
 - `blocked`: 1
 - `executing`: 3
 - `in_progress`: 1
@@ -36,7 +36,7 @@
 |---|---|---|---|---|
 | BI-PF-1332 | Should | bug | Develop red: test pollution committed into data/learnings.json breaks test_global_render_unchanged (scratch loop-learning marker 0270) | Restore develop green: purge test pollution from data/learnings.json + prevent test writes to the real learnin... |
 
-**Discovery / HIL / prompts** (7)
+**Discovery / HIL / prompts** (8)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0218 | Should | feature | Backend: AI-era operations layer (evals + prompt/model/agent versioning + feedback loop + model-quality observability) | Add the AI-era lifecycle layer so the Product tab can show AI quality + the loop that keeps it good. |
@@ -46,6 +46,7 @@
 | BI-PF-1236 | Should | change | Worker ops: worker charter (binding guidelines) + runtime prompt fix (no agent merge) + model pin | - workergrid/instructions.md: full worker charter (14 binding guidelines; manual-by-default, auto mode). - wor... |
 | BI-PF-1242 | Should | feature | In-session manual/auto worker mode + /wg watch monitoring + 14-guidelines approval gates | - In-session manual worker mode (/wg work manual, default): 1. Claims assignment atomically from PF via /assig... |
 | BI-PF-1442 | Should | feature | Skill/guideline prompt injection (SKILLS: block) | Agents receive applicable skills through PF's own prompt builder. |
+| BI-PF-1486 | Should | hardening | Review tooling hardening: derived-doc content, material approval ordering, coverage edge cases | Harden review tooling after BI-PF-1484 post-merge findings: derived-doc content validation, per-breach materia... |
 
 **Dynamic pipeline / agents** (5)
 | ID | MoSCoW | Type | Title | Objective |
@@ -76,7 +77,7 @@
 | BI-PF-1415 | Should | defect | RCCA: config/derived stores classified by kind heuristic (not reviewed) - 78 project/tenant-scoped stores likely belong in DB (views/tables) | RCCA: config/derived stores classified by kind heuristic (not reviewed) - 78 project/tenant-scoped stores like... |
 | BI-PF-1478 | Must | feature | EDP: per-tenant authentication + hard per-tenant quota isolation for the data-plane service | Give go/edpsvc a real per-tenant principal so per-tenant quotas/concurrency are bound to the authenticated ten... |
 
-**Specs / cache / context / artifacts** (11)
+**Specs / cache / context / artifacts** (10)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0206 | Should | tech-debt | Backend: model downloader + local cache + license-acceptance gate + models.lock (open-weights) | One owner module that downloads only the weights a project's capability pack needs, into a gitignored local ca... |
@@ -89,7 +90,6 @@
 | BI-PF-1385 | Must | bug | Backlog API: no deterministic endpoint to author item context fields (objective/acceptance_criteria/affected_files/approach) | Backlog API: no deterministic endpoint to author item context fields (objective/acceptance_criteria/affected_f... |
 | BI-PF-1392 | Should | task | Enforce per-feature FR/US caps + max_lines in the Go artifact engine (scaled by the profile) and reconcile the three section sources | Per-feature FR/US caps + max_lines enforced NUMERICALLY (scaled by profile); sections have ONE source. |
 | BI-PF-1425 | Should | feature | Migrate orchestrator cache + evidence/summarizer (and remaining audit logic) from Python to Go (Go-first alignment) | Migrate orchestrator cache + evidence/summarizer (and remaining audit logic) from Python to Go (Go-first align... |
-| BI-PF-1484 | Should | hardening | Execution flow view hardening: pre-merge blocked set, review-sha integrity, no-review cache, review markers | Harden the BI-PF-1483 flow view after its Gate 2.5 review: restrict blocked detection to pre-merge gates, requ... |
 
 **Wiring / tech-debt / API** (78)
 | ID | MoSCoW | Type | Title | Objective |
@@ -371,5 +371,5 @@
 ---
 
 ## Totals
-- backend: 134 open / 594 closed
+- backend: 134 open / 595 closed
 - dashboard: 146 open / 3 closed

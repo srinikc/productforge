@@ -67,6 +67,10 @@ def problem(rel: str, raw: bytes) -> str:
         text = raw.decode("utf-8-sig")
         if not text.startswith("# Design Pack"):
             return "design file is not generated (missing header)"
+        if "```" in text:
+            return "design file contains fenced code (not generated design text)"
+        if "## 1. Requirements" not in text or "## 3. Logic invariants" not in text:
+            return "design file missing required generated sections"
         return ""
     if rel.startswith("data/backlog/"):
         if rel.endswith(".jsonl"):
@@ -84,7 +88,21 @@ def problem(rel: str, raw: bytes) -> str:
     if rel == "config/architect-review-baseline.json":
         d = _json(raw)
         return "" if isinstance(d.get("shas"), list) else "baseline schema invalid"
-    if rel in ("docs/BACKLOG-SUMMARY.md", "docs/documentation-index.html"):
+    if rel == "docs/BACKLOG-SUMMARY.md":
+        text = raw.decode("utf-8-sig")
+        if b"\x00" in raw[:1024]:
+            return "derived doc contains binary content"
+        if not text.lstrip().startswith("# Backlog"):
+            return "BACKLOG-SUMMARY missing generated header"
+        return ""
+    if rel == "docs/documentation-index.html":
+        if b"\x00" in raw[:1024]:
+            return "derived doc contains binary content"
+        text = raw.decode("utf-8-sig").lower()
+        if "<!doctype html" not in text:
+            return "documentation-index missing doctype"
+        if "<script" in text or "javascript:" in text:
+            return "documentation-index contains executable content"
         return ""
     return "unclassified excluded file"
 
