@@ -258,26 +258,38 @@ def test_kind(test: dict) -> str:
     return "other"
 
 
-def tests_by_kind(evs: list[dict]) -> dict:
+def _tests_by_kind(tests: list[dict]) -> dict:
     out = {k: {"rows": [], "passed": 0, "failed": 0, "skipped": 0, "duration_ms": 0} for k in TEST_KINDS}
-    for ev in evs:
-        for t in ev.get("tests") or []:
-            k = test_kind(t)
-            row = out[k]
-            row["rows"].append(t)
-            row["passed"] += int(t.get("passed") or 0)
-            row["failed"] += int(t.get("failed") or 0)
-            row["skipped"] += int(t.get("skipped") or 0)
-            row["duration_ms"] += int(t.get("duration_ms") or 0)
+    for t in tests:
+        k = test_kind(t)
+        row = out[k]
+        row["rows"].append(t)
+        row["passed"] += int(t.get("passed") or 0)
+        row["failed"] += int(t.get("failed") or 0)
+        row["skipped"] += int(t.get("skipped") or 0)
+        row["duration_ms"] += int(t.get("duration_ms") or 0)
     return out
 
 
+def tests_by_kind(evs: list[dict]) -> dict:
+    return _tests_by_kind([t for ev in evs for t in (ev.get("tests") or [])])
+
+
+def tests_by_kind_tests(tests: list[dict]) -> dict:
+    return _tests_by_kind(tests)
+
+
 def latest_tests(evs: list[dict]) -> list[dict]:
-    """Return the tests from the most recent tests event (last-write-wins)."""
-    for ev in reversed(evs or []):
-        if ev.get("tests"):
-            return list(ev.get("tests") or [])
-    return []
+    """Latest result per (command, kind), retaining commands from earlier events."""
+    latest: dict[tuple[str, str], dict] = {}
+    order: list[tuple[str, str]] = []
+    for ev in evs or []:
+        for t in ev.get("tests") or []:
+            key = (str(t.get("command") or ""), test_kind(t))
+            if key not in latest:
+                order.append(key)
+            latest[key] = t
+    return [latest[k] for k in order]
 
 
 def _box(headers: list, rows: list, widths: list | None = None) -> str:

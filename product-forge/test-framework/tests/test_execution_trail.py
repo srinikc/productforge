@@ -257,10 +257,14 @@ def test_test_kind_and_tests_by_kind():
     assert by["logic"]["passed"] == 4 and by["api"]["passed"] == 1
 
 
-def test_latest_tests_uses_only_the_last_tests_event():
-    evs = [{"tests": [{"command": "old", "passed": 1}]},
-           {"tests": [{"command": "residency-tests", "kind": "unit", "passed": 12}]}]
-    assert tr.latest_tests(evs) == [{"command": "residency-tests", "kind": "unit", "passed": 12}]
-    kinds = tr.tests_by_kind([{"tests": tr.latest_tests(evs)}])
+def test_latest_tests_keeps_earlier_commands_and_newest_rerun():
+    evs = [{"tests": [{"command": "old", "passed": 1},
+                      {"command": "unit", "kind": "unit", "passed": 2}]},
+           {"tests": [{"command": "unit", "kind": "unit", "passed": 12},
+                      {"command": "go", "kind": "go", "passed": 3}]}]
+    latest = tr.latest_tests(evs)
+    assert [(t["command"], t["passed"]) for t in latest] == [("old", 1), ("unit", 12), ("go", 3)]
+    kinds = tr.tests_by_kind_tests(latest)
     assert kinds["unit"]["passed"] == 12
-    assert kinds["other"]["passed"] == 0
+    assert kinds["other"]["passed"] == 1
+    assert kinds["go"]["passed"] == 3
