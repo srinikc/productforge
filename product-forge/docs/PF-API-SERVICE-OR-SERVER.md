@@ -5,6 +5,8 @@ The authoritative vocabulary and rules for **what PF exposes and how it is calle
 `docs/API-1-FOUNDATION.md`, `docs/API-0.1-CONTRACT-RECONCILIATION.md`. If this doc and the code disagree,
 the code wins and this doc is corrected.
 
+> **Naming:** the Go EDP data-plane service (`go/edpsvc`) is the shared PF service for DB-backed domains. Its canonical client base URL is `PF_EDP_API_URL`, not `PF_BACKLOG_API`.
+
 ## 1. Vocabulary
 - **PF Server / Service** = the umbrella — the set of services that serve PF's APIs **and** everything else
   needed to operate PF.
@@ -23,6 +25,41 @@ the code wins and this doc is corrected.
 | Later/other | — | eventing/alerting (ADR-0005), worker/scheduler/lease, MCP adapter, future dashboard API | each its own service + surface |
 
 All surfaces apply the **same security model** (authn roles, authz/tenant scope, validation, quotas, audit) — ADR-0008.
+
+## 2.1 Current service responsibilities and client variables
+
+| Service | Client base variable | Local default | Owns / does |
+|---|---|---|---|
+| **EDP data-plane** (`go/edpsvc`) | `PF_EDP_API_URL` | `http://127.0.0.1:8030` | PostgreSQL SoR, backlog rows and global IDs, jobs, leases, audit, memory, migrations |
+| **Python control plane** (`api/`) | `PF_CONTROL_API_URL` | `http://127.0.0.1:8000/api/v1` | Python control/engineering endpoints, grooming, design/gate/context APIs |
+| **Capability service** (`go/capsvc`) | `PF_CAP_ADDR` | `http://127.0.0.1:8020` | Go cross-cutting capabilities; calls the Python control plane |
+
+- **Backlog is not a separate service.** It is an API surface (`/backlog`) owned by the EDP data-plane service for DB-backed writes/IDs.
+- The Python control plane may expose higher-level backlog endpoints, but when DB mode is on it delegates persistence/IDs to the EDP service; it is not a second DB writer.
+- `PF_BACKLOG_API` is a **deprecated alias for `PF_CONTROL_API_URL`** and must not be used as the EDP/DB authority.
+- `capsvc` uses `PF_CONTROL_API_URL` because its doc-ingest capability needs Python control-plane endpoints; it does not call the EDP service directly.
+- EDP auth uses the EDP admin/service token (`PF_ADMIN_TOKEN` today); the Python control plane uses `PF_API_TOKEN`. Do not conflate them; a proper service-token model is pending (BI-PF-1431).
+
+**Backlog DB path:**
+
+```text
+PF-SB/PF-GP worker
+  -> core/backlog.py
+  -> PF_EDP_API_URL (/backlog, /backlog/ids:reserve)
+  -> Go edpdata.BacklogStore
+  -> PostgreSQL backlog_items + global ID authority
+```
+
+**Higher-level control path:**
+
+```text
+capsvc / CLI / adapter
+  -> PF_CONTROL_API_URL
+  -> Python api/
+  -> core/backlog.py
+  -> PF_EDP_API_URL (when DB mode is on)
+  -> PostgreSQL
+```
 
 ## 3. Ownership is by **domain**, not by language
 There is no single "API layer owner". An **API surface is owned by the service that owns its domain**. The
@@ -55,6 +92,17 @@ implemented. Authn stays **on** for the HTTP/external path; `API_ALLOW_ANON` is 
 - **One instance per service per environment** (e.g., one control-plane API, one EDP data-plane service);
   **sessions/agents are clients**, never each their own server.
 - Running a server **per session** fragments locks/state and defeats the single-writer/SoR rule — **not the target model**.
+
+### 6.1 Network exposure
+
+- EDP listens on loopback by default. To accept workers on other systems, bind it to the host's private interface:
+  `PF_EDP_ADDR=0.0.0.0:8030` (or a specific private IP).
+- Workers set `PF_EDP_API_URL=http://<server-private-ip>:8030` (or an internal DNS name).
+- PostgreSQL stays on `127.0.0.1:5432`; workers never connect to the DB.
+- Allow TCP 8030 only from trusted worker networks/VPNs. Do not expose it directly to the public internet.
+- Use TLS at a reverse proxy/load balancer for production. The current admin token is not a substitute for
+  per-tenant/service authentication (BI-PF-1431/BI-PF-1478).
+- `PF_CONTROL_API_URL` similarly points at the Python control plane, not the EDP service.
 
 ## 7. Required-for-operation vs exposure
 - **Data-plane service (Go EDP) is required for PF to operate** — it *is* the SoR and the operations on it.
@@ -93,6 +141,7 @@ implementation=library). One shared instance per service per environment; sessio
 - **Config:** `PF_EDP_*` env flags are registered in `config/env-flags.json`; `PF_PROFILE=dev|production`; `PF_ALLOW_SUPERUSER_DSN=1` is a non-production escape hatch only.
 - **Error contract (v1):** `{"version":"1","error":{"code","message","category","retryable","request_id"}}` plus `X-Request-ID`; 413/429/504 are stable codes.
 - **Routes:** `GET /admin/limits` (admin bearer: effective limits + aggregate counters/pool/role), `GET /metrics` (admin bearer: Prometheus counters/histograms; send the admin token), `GET /ready` (DB ping).
+- **Backlog authority:** `GET /admin/backlog/authority?tenant=<tenant>` (admin bearer). Returns `authority=global`, `next_id`, `reservation_scope=global`, `reservation_count`, `tenant`, `item_scope=tenant`, `item_count`. Missing tenant is 400; missing/incorrect token 401; non-GET 405; DB/migration/row/timeout failure is 503 with `Retry-After: 30` and a fixed safe message. See `docs/BACKLOG-AUTHORITY-RUNBOOK.md`.
 - **Production:** `PF_PROFILE=production` refuses `PF_DEV`/`API_ALLOW_ANON`/`PF_ALLOW_ANON`, a missing/weak `PF_ADMIN_TOKEN`, and a superuser/BYPASSRLS runtime DSN. Migrations are a deploy step (`scripts/dev/db_migrate.py`); `/admin/migrations/*` is dev/ops-only. `PF_EDP_ENFORCE_LIMITS=0` is refused in production.
 - **Rollback:** production is code revert/redeploy; non-production may set `PF_EDP_ENFORCE_LIMITS=0` (structured errors and the profile guard stay on). Graceful shutdown drains for 180s (>= the 120s upload budget) before closing the shared pool.
 - **Rollout note:** point `PF_DB_DSN` at a non-superuser role (`pf_app`/`pf_runtime`) before upgrading; a local dev run that still uses `pf_owner` can set `PF_ALLOW_SUPERUSER_DSN=1` (non-production only) or use the separate deploy-step migration runner. Production refuses the escape hatch.

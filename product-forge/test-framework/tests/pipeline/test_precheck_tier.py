@@ -37,7 +37,7 @@ def test_bookkeeping_only_false_when_empty():
 def test_steps_minimal_for_bookkeeping(monkeypatch):
     monkeypatch.setattr(precheck, "_changed_paths", lambda: list(_BK))
     names = [n for n, _ in precheck._steps(scope_csv="")]
-    assert names == ["compile", "docs-fresh"], names    # minimal tier only
+    assert names == ["compile", "gate2-completion", "delivery-completeness", "docs-fresh"], names
 
 
 def test_steps_full_tier_for_source(monkeypatch):

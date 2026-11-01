@@ -6,6 +6,9 @@
 > **Companion:** `RCCA_productForge.md` (why the gaps happened), `final_required_changes.md` (what to fix).
 > **Rule:** if a proposed action conflicts with this standard, the standard wins unless an explicit, recorded
 > exception is approved.
+> **Canonical companion:** `docs/REVIEW-GATES-LIFECYCLE.md` owns Gate 0/1.5/2.5/1/2. `AGENTS.md` is the
+> binding entrypoint. Agent role contracts are in `docs/AGENT-ROLE-CONTRACTS.md`; runtime-specific prompt
+> adapters are not policy. `docs/WORK-EXECUTION-CONTRACT.md` is the compact per-item execution checklist.
 
 ---
 

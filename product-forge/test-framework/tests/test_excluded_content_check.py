@@ -25,7 +25,7 @@ def test_design_header_and_hidden_code(tmp_path, monkeypatch):
     item = "BI-PF-1"
     p = tmp_path / "engineering" / "design" / f"{item}.md"
     p.parent.mkdir(parents=True)
-    p.write_text(f"# Design Pack - {item}\n## 1. Requirements\n## 3. Logic invariants\n", encoding="utf-8")
+    p.write_text(f"# Design Pack - {item}\n## 2. Requirements / acceptance criteria\n## 4. Logic invariants and state model\n", encoding="utf-8")
     assert ec.problems([f"engineering/design/{item}.md"]) == []
     p.write_text("def hidden():\n    pass\n", encoding="utf-8")
     assert ec.problems([f"engineering/design/{item}.md"])

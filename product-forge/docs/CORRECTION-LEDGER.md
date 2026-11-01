@@ -50,6 +50,13 @@ Ledger entries are an indexed source (`type=correction`) and are **retrieved + i
 | CL-007 | **Default 1.5/2.5 to the direct provider call; use a sub-agent only when investigation is needed; pre-check recurring blocker classes before 1.5** | `config/architect-review.json` (`design_checklist`) + `architect_review.py checklist` |
 | CL-008 | **Inject review learnings at DESIGN/GROOMING time, not only at Gate 1.5; the design must address the guardrails before review** | `core/design_guardrails.py` + grooming prompt hook + design-mode review prompt + `docs/REVIEW-GATES-LIFECYCLE.md` |
 | CL-009 | **Inject the same learnings at CODING time (worker objective + code-agent prompt), filtered to Gate 2.5 findings, so delivery-review classes are not repeated** | `core/design_guardrails.py` (`stage=diff`) + `core/worker.py` + `core/orchestrator/agent_runner.py` |
+| CL-010 | **Design must attach current-run red proof for the real runtime entrypoint; prose is not proof** | design proof/coverage + Gate 1.5 |
+| CL-011 | **Design must prove runtime role posture (NOSUPERUSER/NOBYPASSRLS) and tenant binding** | design contract + role/RLS tests |
+| CL-012 | **Pin DB cancellation/statement_timeout and bound expensive counts** | runtime contract + DB tests |
+| CL-013 | **Pin constant-time token comparison and parameterized tenant binding** | runtime contract + security tests |
+| CL-014 | **Define probe backoff/cooldown, alert ownership, and dependency behavior** | ops rules + runbook |
+| CL-015 | **Pin every AC evidence entry to a candidate SHA; empty SHA is incomplete** | design contract + Gate 2 |
+| CL-016 | **Separate prerequisites from changed files in design scope** | design contract + scope guard |
 
 > **Machine capture:** `scripts/dev/review_learnings.py --propose` emits rows carrying a
 > `<!-- sig:<digest> -->` marker so `--check` sees the recurring finding as captured. Manually-authored

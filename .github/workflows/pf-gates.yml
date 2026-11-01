@@ -1,0 +1,32 @@
+name: pf-gates
+
+on:
+  pull_request:
+  push:
+    branches: [develop]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  precheck:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: product-forge
+    env:
+      PF_BACKLOG_DB: "off"
+      PF_OFFLINE: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25.x"
+          cache-dependency-path: product-forge/go/**/go.sum
+      - name: Full precheck
+        run: python scripts/dev/precheck.py --full

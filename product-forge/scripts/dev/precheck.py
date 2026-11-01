@@ -35,6 +35,10 @@ from gitutil import (  # noqa: E402  (shared UTF-8/fail-closed git policy, BI-PF
     GitError,
     git_text,
 )
+from git_env import sanitize_process_env, worktree_fingerprint  # noqa: E402
+
+# A pre-push hook can export GIT_DIR/GIT_WORK_TREE. Never let tests inherit them.
+sanitize_process_env()
 
 _ROOT = str(_PF_ROOT)
 _TEST_DIR = "test-framework/tests/pipeline"
@@ -205,6 +209,8 @@ _GATES = [
     # BI-PF-1469: Gate 2 (delivery approval) machine-enforced at -> completed.
     ("gate2-completion", ["scripts/dev/gate2_completion_check.py", "--self-test"], "fast",
      ["data/backlog", "engineering/reviews"]),
+    ("delivery-completeness", ["scripts/dev/delivery_completeness_check.py"], "fast",
+     ["data/backlog", "engineering/reviews"]),
     ("grooming", ["scripts/dev/grooming_check.py"], "fast", ["grooming"]),
     ("github", ["scripts/dev/github_check.py"], "fast", ["github"]),
     ("dogfood-run", ["scripts/dev/dogfood_run_check.py"], "fast", ["dogfood", "dogfood_run", "api"]),
@@ -223,6 +229,9 @@ _GATES = [
     ("artifact-map", ["scripts/dev/gen_artifact_map.py", "--check"], "fast", None),
     ("review-focus", ["scripts/dev/gen_review_focus.py", "--check"], "fast", None),
     ("review-static", ["scripts/dev/review_static_check.py"], "fast", None),
+    ("pf-process", ["scripts/dev/pf_process_check.py"], "fast", None),
+    ("framework-ref", ["scripts/dev/framework_ref_check.py"], "fast", None),
+    ("self-review", ["scripts/dev/self_review_check.py", "--strict"], "fast", None),
     ("compliance-register", ["scripts/dev/compliance_register_check.py", "--check"], "fast", None),
     # BI-PF-1296 (EDP-04): data-plane threat register completeness/evidence gate (config/docs change).
     ("data-plane-threats", ["scripts/dev/data_plane_threat_check.py", "--check"], "fast",
@@ -236,7 +245,7 @@ _GATES = [
     # evidence file (deterministic/offline check; the review itself is run separately, see docs/REVIEW-GATES-LIFECYCLE.md).
     ("architect-review", ["scripts/dev/architect_review_check.py"], "fast", None),
     ("review-churn", ["scripts/dev/review_churn_check.py"], "fast", ["data/backlog"]),
-    ("execution-trail", ["scripts/dev/execution_trail_check.py"], "post", ["data/backlog"]),
+    ("execution-trail", ["scripts/dev/execution_trail_check.py"], "fast", ["data/backlog"]),
     ("dogfood", ["scripts/dev/dogfood_check.py"], "deep", None),
     ("dogfood-replay", ["scripts/dev/dogfood_replay_check.py"], "deep", None),
     ("dogfood-schedule", ["scripts/dev/dogfood_schedule_check.py"], "deep", None),
@@ -259,7 +268,9 @@ _GROUP_OF = {
     "compile": "structure", "pycompat": "structure", "ci-cd-gates": "structure", "wired-audit": "structure",
     "store-contract": "structure", "store-registry": "structure", "store-relationships": "structure", "lint": "structure", "changed-tests": "structure",
     "workflow-matrix": "structure", "docs-fresh": "structure", "artifact-map": "structure",
-    "review-focus": "structure", "review-static": "structure",
+    "review-focus": "structure", "review-static": "structure", "pf-process": "structure",
+    "framework-ref": "quality", "self-review": "quality",
+    "residency": "quality", "encoding": "structure", "design-pack": "quality", "review-budget": "quality", "excluded-content": "structure",
     # security: secrets / language rule / compliance / threat register
     "secret-scan": "security", "language-rule": "security", "compliance-register": "security",
     "data-plane-threats": "security",
@@ -277,6 +288,7 @@ _GROUP_OF = {
     "backlog-verification": "backlog", "backlog-ids": "backlog", "backlog-epic": "backlog",
     "backlog-monotonic": "backlog", "backlog-write": "backlog", "grooming": "backlog",
     "branch-item": "structure", "gate0": "backlog", "gate1-transition": "backlog", "gate2-completion": "backlog",
+    "delivery-completeness": "backlog",
     "staleness": "backlog", "intent-trace": "backlog",
     # quality: pidl / validation / close-loop
     "dogfood-run": "quality", "pidl": "quality", "pidl-gate": "quality", "pidl-synthesis": "quality",
@@ -506,7 +518,7 @@ def _record_trail(timings, total, rc, tier):
         print(json.dumps({"event": "execution_trail_write_failed", "stage": "precheck", "error": str(e)}), file=sys.stderr)
 
 
-def main(argv=None) -> int:
+def _main(argv=None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
     if "--list-groups" in argv:
         return _list_groups()
@@ -626,6 +638,18 @@ def main(argv=None) -> int:
     print(f"\nprecheck: {'PASS' if rc == 0 else 'FAIL'} (tier={tier}, {total:.1f}s, {len(timings)} gates)")
     slow = sorted(timings, key=lambda x: -x[1])[:5]
     print("[precheck] slowest: " + ", ".join(f"{n}={d:.1f}s" for n, d, _ in slow))
+    return rc
+
+
+def main(argv=None) -> int:
+    """Run the gates, then fail closed if the active worktree's Git state moved."""
+    before = worktree_fingerprint(_ROOT)
+    rc = _main(argv)
+    after = worktree_fingerprint(_ROOT)
+    if before != after:
+        print("[precheck] FATAL: HEAD, refs, or index changed during precheck; "
+              "refusing to proceed (possible Git environment leak)", file=sys.stderr)
+        return 1
     return rc
 
 

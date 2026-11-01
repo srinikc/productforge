@@ -12,6 +12,7 @@ sys.path.insert(0, str(ROOT / "scripts" / "dev"))
 import architect_review as ar  # noqa: E402
 import architect_review_check as c  # noqa: E402
 import gitutil  # noqa: E402
+from scripts.dev import git_env  # noqa: E402
 
 
 def test_parse_review_sections():
@@ -109,6 +110,7 @@ def test_gate1_check_exit_codes(monkeypatch):
     clean = {"review": {"findings": {}, "model": "m", "sha": "s"}, "dispositions": {},
              "total": 0, "pending": 0, "blocking": []}
     monkeypatch.setattr(g1.ar, "gate_view", lambda item, mode="design": clean)
+    monkeypatch.setattr(g1.dpack, "evaluate", lambda item: [])
     assert g1.main(["--item", "X"]) == 0          # all dispositioned
 
     pending = {"review": {"findings": {"MAJOR": ["m"]}, "model": "m", "sha": "s"},
@@ -139,17 +141,17 @@ def test_git_text_forces_utf8_decoding(monkeypatch):
 
 
 def _init_repo(path: Path) -> None:
-    subprocess.run(["git", "init", "-q"], cwd=path, check=True)
-    subprocess.run(["git", "config", "user.email", "t@local"], cwd=path, check=True)
-    subprocess.run(["git", "config", "user.name", "t"], cwd=path, check=True)
+    git_env.run_git(path, "init", "-q", check=True)
+    git_env.run_git(path, "config", "user.email", "t@local", check=True)
+    git_env.run_git(path, "config", "user.name", "t", check=True)
 
 
 def test_git_text_decodes_real_utf8_bytes(tmp_path, monkeypatch):
     """End-to-end: real git output containing non-cp1252 UTF-8 must decode (fails pre-fix on Windows)."""
     _init_repo(tmp_path)
     (tmp_path / "note.txt").write_text("caf\u00e9 \u2014 \u2192\n", encoding="utf-8")
-    subprocess.run(["git", "add", "note.txt"], cwd=tmp_path, check=True)
-    subprocess.run(["git", "commit", "-q", "-m", "init"], cwd=tmp_path, check=True)
+    git_env.run_git(tmp_path, "add", "note.txt", check=True)
+    git_env.run_git(tmp_path, "commit", "-q", "-m", "init", check=True)
     monkeypatch.setattr(ar, "ROOT", tmp_path)
 
     assert ar._git_text(["show", "HEAD:note.txt"]) == "caf\u00e9 \u2014 \u2192\n"
@@ -179,3 +181,10 @@ def test_check_fails_closed_when_diff_unavailable(monkeypatch):
     monkeypatch.setattr(c.ar, "changed_files", boom)
     assert c.main() == 1
 
+
+def test_diff_prompt_includes_design_contract(monkeypatch):
+    monkeypatch.setattr(ar, "_git_diff", lambda base="": "diff --git a/x b/x")
+    monkeypatch.setattr(ar, "_prior_context", lambda *_a, **_k: "")
+    p = ar._build_prompt({"acceptance_criteria": ["x"], "objective": "runtime objective"}, "ID", "diff")
+    assert "Approved design contract" in p
+    assert "runtime objective" in p

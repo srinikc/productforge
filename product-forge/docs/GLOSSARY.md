@@ -23,8 +23,34 @@ terms must be defined here. Binding with `AGENTS.md` (EOS) and `docs/MODEL-ASSIS
 - **Single writer** — exactly one code path owns writes to a store/concern.
 - **Derived / projection** — generated from the SoR; never hand-edited.
 
+## Workflows & agent layers
+- **PF-SB (Product Forge Self-Build, Plane A)** — humans/AI coding sessions change the Product Forge
+  repository itself. It uses the `product_forge` backlog, PF-SB gates, and `engineering/` evidence.
+  This is the workflow governed by `AGENTS.md`, `docs/REVIEW-GATES-LIFECYCLE.md`, and
+  `docs/AGENT-ROLE-CONTRACTS.md`.
+- **PF-GP (Product Forge Generated Product, Plane B)** — Product Forge's orchestrator, scheduler,
+  pipeline stages, and pipeline agents build a separate product. It uses the generated product's
+  repository, backlog scope, design, tests, and release lifecycle. It is **not** the PF-SB gate flow.
+- **PF backlog item** — work in the `product_forge` scope (`data/backlog/items/BI-PF-*.json`). This is
+  PF-SB work.
+- **Generated-product work item** — work in a generated product's scope (`products/<project>/...`).
+  This is PF-GP work.
+- **Runtime adapter** — OpenCode, Codex, Antigravity, or another runner that invokes models/tools.
+  It supplies execution mechanics only; it owns no backlog, gate, approval, evidence, or completion.
+- **Agent role contract** — the framework-neutral behavior for PF-SB roles
+  (`docs/AGENT-ROLE-CONTRACTS.md`): Gate 0 author, implementer, design reviewer, code reviewer,
+  architect reviewer.
+- **Pipeline agent** — a PF-GP stage agent such as `design`, `architect`, `implement-api`,
+  `implement-db`, `implement-logic`, `implement-ui`, `fix`, `validate`, or `static_verifier`.
+  These are product-generation agents, not PF-SB role contracts.
+- **Agent card** — a runtime-specific adapter file (for example `.opencode/agent/*.md`) or a neutral
+  `agents/*.agent.json` spec. Cards are execution artifacts, not gate policy.
+- **PF-SB gate scope** — Gate 0/1.5/2.5/1/2 apply to PF-SB `product_forge` backlog items. A generated
+  product may have its own gates; do not apply PF-SB gates to PF-GP unless the product explicitly
+  adopts them.
+
 ## Process gates & review
-- **Gate 0** — classification/need-check (implicit in take-up).
+- **Gate 0** — PF-SB reconciliation/impact/language/API/AC checkpoint before design review; not an approval.
 - **Gate 1.5** — independent **design** review, **before** Gate 1.
 - **Gate 1** — HIL **design approval** (reconciliation + IMPACT REVIEW + AC), informed by 1.5. No code before this.
 - **Gate 2.5** — independent **delivery** review, **before** Gate 2.

@@ -83,6 +83,10 @@ def problems(item: dict, only_mode: str = "") -> list[str]:
         if (mode == "diff" and c.get("freeze_diff_after_gate2", True)
                 and any(int(d.get("gate") or 0) == 2 for d in (item.get("decisions") or []))):
             continue
+        if item.get("review_ledger"):
+            import review_ledger
+            bad += review_ledger.problems(item, mode, max_n)
+            continue
         try:
             cutoff_dt = _dt(cutoff)
         except ValueError:
