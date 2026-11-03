@@ -105,7 +105,7 @@ def main(argv: list[str]) -> int:
     dl = sub.add_parser("delta")
     dl.add_argument("--item", required=True)
     dl.add_argument("--apply", action="store_true")
-    dl.add_argument("--api", default=os.environ.get("PF_BACKLOG_API", "http://127.0.0.1:8030"))
+    dl.add_argument("--api", default=os.environ.get("PF_EDP_API_URL", "http://127.0.0.1:8030"))
     a = ap.parse_args(argv)
 
     src = build_source(a.source, a.db, a.usage_file)
