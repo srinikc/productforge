@@ -1,0 +1,41 @@
+{
+  "item": "BI-PF-1485",
+  "sha": "e50b1897772f",
+  "model": "deepseek-v4.1-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-03T09:34:17.892408+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "37ed322e1ad52025fdde6d294d4017c9b70d9039",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "Reviewer runner now mutates the backlog: `architect_review._ingest` calls `review_ledger.record` \u2192 `backlog.update`, contradicting the newly added rule \"reviewers\u2026 must not edit\u2026 backlog\u2026 worker/orchestrator persists evidence\" and CL-002 (reviewer-only tool).",
+      "The documented \"one full + one delta re-review\" is unachievable at Gate 2: `review_ledger.problems` defaults to `max_reviews=1` in Gate1/Gate2 checks, and `gate2_completion_check` rejects any latest diff evidence with `review_scope==\"delta\"` (`DELTA_ONLY_REVIEW`), so the delta re-review that is AC-1's whole purpose can never satisfy completion.",
+      "`pf_process_check` hard-requires `.github/workflows/pf-gates.yml`, which is declared in `affected_files` but absent from this diff; if it is not present the blocking `pf-process` gate fails and AC-4 (\"precheck passes\") is not demonstrated.",
+      "`architect_review._build_prompt` raises the full-candidate diff cap from 180k to 500k chars, contradicting the \"lowest cost/latency\" default runner and risking mid-diff truncation/context overflow; no test asserts the bound."
+    ],
+    "MINOR": [
+      "`test-framework/tests/conftest.py` autouse fixture forces `PF_BACKLOG_DB=off` for every test, which can silently mask pre-existing DB-mode regressions unless each test explicitly re-enables it.",
+      "`design_contract_check._test_exists`/`_evidence_exists` treat any `go test\u2026`/`pytest\u2026` command string and any `://` URL as valid evidence, so coverage can be \"satisfied\" with nonexistent commands/files.",
+      "`framework_ref_check`/`self_review_check` run `git merge-base origin/develop HEAD` with no error handling; a clone/CI without `origin/develop` raises an uncaught RuntimeError from a blocking gate instead of a clean fail-closed message.",
+      "The placeholder scan in `design_contract_check` runs over every design_pack string (\"tbd/todo/unspecified/not specified/placeholder\"), so legitimate prose (e.g., a stop_condition \"if a value is unspecified, stop\") fails the contract.",
+      "`architect_review` diff-mode `design_guardrails` render is wrapped in `except Exception: pass`, silently swallowing failures and contradicting the \"no silent failure\" invariant/observability goal.",
+      "`control_runner` allows arbitrary trailing flags after an allowed prefix (e.g., `go test \u2026 -exec <cmd>`), giving the allowlist a command-execution surface; its allowed prefixes also diverge from `guideline-compliance.json` (adds `bash`/`sh`).",
+      "`review_ledger._material_ok` compares ISO `at` timestamps as raw strings, so mixed timezone offsets can mis-order `MATERIAL_CHANGE` against the latest review.",
+      "`control_gate.current_sha` and `controls()` are duplicated verbatim in `control_runner` (and both re-hash the worktree); no single owner for the candidate-key rule."
+    ],
+    "NIT": [
+      "`gate2_completion_check` uses a `for/else` plus a `ledger_bad=[]` sentinel to break out of the per-mode loop; a plain loop with append would not need the sentinel.",
+      "`self_review_check.changed_lines` only scans committed `merge-base..HEAD`, so worktree/untracked placeholders bypass it (inconsistent with the encoding gate that explicitly covers worktree/untracked).",
+      "`framework_ref_check` bans the literal token `dashboard` in any added line under `core`/`api`/`adapters`/`go`, which will false-positive on legitimate config keys or comments."
+    ],
+    "SUMMARY": [
+      "Scope is tooling/docs/config only (no runtime DB/RLS surface, language rule respected), but the review-loop controls are internally contradictory and self-defeating.",
+      "Top risk: the new delta re-review path (AC-1) cannot reach Gate 2 \u2014 ledger budget=1 plus `DELTA_ONLY_REVIEW` blocks the second diff review, and the reviewer runner writes backlog in violation of its own stated write boundary.",
+      "Second risk: blocking gates depend on files/config not present in the candidate (`.github/workflows/pf-gates.yml`, referenced runbooks), so \"precheck passes\" (AC-4) is unproven.",
+      "Recommend reconciling the re-review budget/scope rules with REVIEW-TRIAGE-POLICY, moving backlog persistence out of the reviewer runner, and adding a test for the prompt size cap before Gate 2."
+    ]
+  }
+}

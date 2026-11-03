@@ -51,6 +51,18 @@ def should_enforce(item: dict, cfg: dict) -> bool:
     return created >= enforce
 
 
+def runtime_should_enforce(item: dict, cfg: dict) -> bool:
+    """Runtime-proof contract is enforced only for items created on/after its date."""
+    try:
+        created = _parse_date(item.get("created_at"))
+        enforce = _parse_date(cfg.get("runtime_enforce_from"))
+    except ValueError:
+        return False
+    if not created or not enforce:
+        return False
+    return created >= enforce
+
+
 def _validate_cfg(cfg: dict) -> str:
     if not isinstance(cfg, dict):
         return "config is not an object"
@@ -67,6 +79,13 @@ def _validate_cfg(cfg: dict) -> str:
         return "required_sections must be a list"
     if "required_contracts" in cfg and not isinstance(cfg.get("required_contracts"), list):
         return "required_contracts must be a list"
+    if "runtime_enforce_from" in cfg:
+        try:
+            _parse_date(cfg.get("runtime_enforce_from"))
+        except ValueError:
+            return f"runtime_enforce_from invalid: {cfg.get('runtime_enforce_from')!r}"
+    if "runtime_required_sections" in cfg and not isinstance(cfg.get("runtime_required_sections"), list):
+        return "runtime_required_sections must be a list"
     return ""
 
 
@@ -131,6 +150,30 @@ def check(item: dict) -> list[str]:
     for i, _ in enumerate(acs, 1):
         if f"AC-{i}" not in covered and str(i) not in covered:
             bad.append(f"test_matrix missing AC-{i}")
+
+    if runtime_should_enforce(item, cfg):
+        for k in tuple(cfg.get("runtime_required_sections") or ()):
+            if not pack.get(k):
+                bad.append(f"design_pack.{k} missing (runtime contract)")
+        rc = pack.get("runtime_contract")
+        if not isinstance(rc, dict):
+            bad.append("design_pack.runtime_contract must be an object")
+        else:
+            for k in ("trigger", "entrypoint", "call_sites", "adapter", "contract",
+                      "failure_behavior", "observable_result"):
+                if not rc.get(k):
+                    bad.append(f"design_pack.runtime_contract.{k} missing")
+        proof = pack.get("proof_plan")
+        if not isinstance(proof, dict):
+            bad.append("design_pack.proof_plan must be an object")
+        else:
+            for k in ("failing_test", "red_evidence", "green_evidence"):
+                if not proof.get(k):
+                    bad.append(f"design_pack.proof_plan.{k} missing")
+        if not pack.get("ac_evidence"):
+            bad.append("design_pack.ac_evidence missing (runtime contract)")
+        if not pack.get("stop_conditions"):
+            bad.append("design_pack.stop_conditions missing (runtime contract)")
     return bad
 
 
@@ -140,11 +183,19 @@ def _join(v):
     return str(v or "- none")
 
 
+def _join_mapping(v):
+    if isinstance(v, dict):
+        return "\n".join(f"- **{k}**: {_join(x)}" for k, x in v.items()) or "- none"
+    return _join(v)
+
+
 def render(item: dict) -> str:
     pack = item.get("design_pack") or {}
     contracts = pack.get("contracts") or {}
     failures = pack.get("failure_matrix") or []
     tests = pack.get("test_matrix") or []
+    rc = pack.get("runtime_contract") or {}
+    proof = pack.get("proof_plan") or {}
     tpl = (ROOT / "templates" / "DESIGN-PACK.md").read_text(encoding="utf-8-sig")
     return (tpl.replace("{{ITEM}}", str(item.get("id") or ""))
               .replace("{{TITLE}}", str(item.get("title") or ""))
@@ -152,8 +203,11 @@ def render(item: dict) -> str:
               .replace("{{STATUS}}", str(item.get("status") or ""))
               .replace("{{REVIEW_SHA}}", str(pack.get("review_sha") or ""))
               .replace("{{GENERATED_AT}}", datetime.now(timezone.utc).isoformat())
+              .replace("{{STANDARDS}}", _join(pack.get("standards")))
+              .replace("{{CODE_GUIDELINES}}", _join(pack.get("code_guidelines")))
               .replace("{{REQUIREMENTS}}", _join(item.get("acceptance_criteria") or pack.get("requirements")))
               .replace("{{SCOPE}}", _join(pack.get("scope")))
+              .replace("{{NON_GOALS}}", _join(pack.get("non_goals")))
               .replace("{{INVARIANTS}}", _join(pack.get("invariants")))
               .replace("{{API}}", _join(contracts.get("api")))
               .replace("{{DB}}", _join(contracts.get("db")))
@@ -165,7 +219,17 @@ def render(item: dict) -> str:
               .replace("{{PERFORMANCE}}", _join(pack.get("performance")))
               .replace("{{ROLLOUT}}", _join(pack.get("rollout")) + "\n" + _join(pack.get("rollback")))
               .replace("{{TESTS}}", "\n".join(f"| {t.get('ac','')} | {t.get('kind','')} | {t.get('test','')} |" for t in tests) or "| - | - | - |")
-              .replace("{{DECISIONS}}", _join(pack.get("decisions"))))
+              .replace("{{DECISIONS}}", _join(pack.get("decisions")))
+              .replace("{{RUNTIME_TRIGGER}}", _join(rc.get("trigger")))
+              .replace("{{RUNTIME_ENTRYPOINT}}", _join(rc.get("entrypoint")))
+              .replace("{{RUNTIME_CALL_SITES}}", _join(rc.get("call_sites")))
+              .replace("{{RUNTIME_ADAPTER}}", _join(rc.get("adapter")))
+              .replace("{{RUNTIME_CONTRACT}}", _join(rc.get("contract")))
+              .replace("{{RUNTIME_FAILURE}}", _join(rc.get("failure_behavior")))
+              .replace("{{RUNTIME_RESULT}}", _join(rc.get("observable_result")))
+              .replace("{{PROOF_PLAN}}", _join_mapping(proof))
+              .replace("{{AC_EVIDENCE}}", _join_mapping(pack.get("ac_evidence")))
+              .replace("{{STOP_CONDITIONS}}", _join(pack.get("stop_conditions"))))
 
 
 def _norm(text: str) -> str:

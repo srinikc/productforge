@@ -1,0 +1,44 @@
+{
+  "item": "BI-PF-1485",
+  "sha": "a87a31dfba7a",
+  "model": "deepseek-v4.1-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-03T12:41:05.624947+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "35a2a6bcea2a660ff96de4177fc97f5ba1cf1a0f",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "`design_contract_check.enforced()` returns True whenever `item.design_pack` is present, ignoring `enforce_from`; because gate1/gate2 now call it, every in-flight legacy item that already has a pack is retroactively forced to satisfy `controls`, `guideline_coverage`, `review_scope`, `coverage` and hard-fails Gate 1/2 \u2014 contradicting the stated \"migration is explicit\" risk mitigation.",
+      "`architect_review._build_prompt` (diff mode) unconditionally concatenates `_design_body(item)` outside any try/except (unlike the guardrails block); a missing/unreadable `engineering/design/<ID>.md` aborts prompt construction, so Gate 2.5 cannot run at all for any item lacking a generated design file.",
+      "`design_contract_check._test_exists` returns True for any string starting with `go test`/`python -m pytest`/`pytest ` and `_evidence_exists` returns True for any string containing `://`, so a design can satisfy the \"real failing test / evidence\" contract with a nonexistent command or an arbitrary URL.",
+      "`config/ci-cd-gates.json` and `precheck.py` register `scripts/dev/delivery_completeness_check.py`, which is neither added in this candidate nor listed in `pf_process_check.FILES`; the new blocking gate has no existence/import self-check, so a missing or broken script fails precheck for every run with no framework-level diagnosis."
+    ],
+    "MINOR": [
+      "`architect_review._build_prompt` raises the diff body cap 180k\u2192500k chars with no token/cost bound; a large candidate now yields one very large provider call, removing the previous prompt-size guardrail silently.",
+      "The diff-mode guardrails injection is wrapped in `except Exception: pass`, so a broken `design_guardrails` module silently drops CL-009 delivery-learnings injection with no stderr event, unlike other fail-closed paths in the same function.",
+      "`test-framework/tests/conftest.py` sets `PF_BACKLOG_DB=off` autouse for the whole suite; DB-path behaviour is now default-off globally, so regressions that only appear in DB mode can pass green unless a test explicitly opts in.",
+      "`worktree_fingerprint` hashes only HEAD, symbolic-ref, `refs/heads` and `ls-files -s` (index); a test that rewrites a tracked file's content without staging is undetected, contrary to its \"abort when a test mutates the worktree\" docstring.",
+      "`framework_ref_check` regex-matches raw added lines under `core/`, `api/`, `adapters/`, `go/`, so neutral comments/docstrings naming `opencode`/`dashboard` (e.g. \"not coupled to OpenCode\") fail the blocking gate; comments are indistinguishable from imports.",
+      "`self_review_check.changed_lines` scans only `merge-base..HEAD`, so uncommitted worktree placeholders/TODOs pass the blocking `--strict` precheck, while the encoding gate deliberately covers worktree/untracked files \u2014 inconsistent change-set definitions.",
+      "`control_runner` writes control output as `engineering/trails/<item>-<ctl>.txt` by default, mixing non-JSON artifacts into the trail directory that other checks enumerate and schema-validate as trail JSON.",
+      "`config/store-registry.json` adds `config/*.yml` to the blanket pattern list; every future YAML config is excluded from registry enforcement, weakening the store-registry gate for the exact class of files this item is adding (`pf-gates.yml`).",
+      "`control_gate`/`control_runner` validate `check` prefixes by raw `startswith` on the string while `control_runner` executes via `shlex.split`, so a check like `go testfoo` passes the gate but is rejected at execution (or vice versa for quoting) \u2014 two parsers for one contract."
+    ],
+    "NIT": [
+      "`design_contract_check._placeholder` is defined but never called (`problems` uses `_token_in` directly), leaving dead duplicate logic in a fail-closed validator.",
+      "`gate2_completion_check` reuses `ledger_bad` across a `for/else` and a post-loop `if`, which reads as an intentional fallthrough; a reader cannot tell whether the empty-list `else` branch is load-bearing.",
+      "`biis_tier_check --apply` persists a generic `tier_reasons` string that discards the matched pattern, so an applied tier cannot later be audited against the surface that produced it.",
+      "`review_ledger.record` returns silently when a duplicate `review_sha` is seen, so callers cannot distinguish \"recorded\" from \"no-op\", and the `_ingest` failure path cannot report it.",
+      "`config/control-matrix.json` and `config/guideline-compliance.json` each restate `allowed_check_prefixes` (nearly identical lists) with no single source, so allowed-command policy can drift between the two gates."
+    ],
+    "SUMMARY": [
+      "Direction is right (delta re-review, design pack, encoding gate, ownership/controls) and the docs/config scaffolding is thorough, but enforcement activation is not date-gated in practice and will retroactively block in-flight items.",
+      "Highest risk: `design_contract_check.enforced()` turning on for any item with a `design_pack`, and the unguarded `_design_body` read that can break Gate 2.5 outright.",
+      "Evidence integrity is weakened by permissive `_test_exists`/`_evidence_exists`, and the new `delivery-completeness` blocking gate is registered without a framework self-check.",
+      "Change-set definitions (review delta, self-review, control SHA, encoding) now diverge four ways; converge them on one helper before shipping."
+    ]
+  }
+}

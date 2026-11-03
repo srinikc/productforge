@@ -23,6 +23,7 @@ for p in (ROOT, ROOT / "scripts" / "dev"):
 
 import architect_review as ar  # noqa: E402
 from gate1_check import evaluate  # noqa: E402  (ONE predicate, no duplication)
+import design_pack as dpack  # noqa: E402
 import gate_predicates as gp  # noqa: E402
 
 _MARK = "/data/backlog/items/"
@@ -103,6 +104,47 @@ def check(ids: list[str]) -> list[tuple[str, str]]:
             continue
         if state in {"EXPIRED", "UNKNOWN"}:
             problems.append((iid, f"BASELINE_{state}"))
+            continue
+        pack_bad = dpack.evaluate(iid)
+        if pack_bad:
+            problems.append((iid, "DESIGN_PACK: " + "; ".join(pack_bad)))
+            continue
+        try:
+            import design_contract_check as dcc
+            import ownership_check as own
+            item = ar._get_item(iid)
+            contract_bad = dcc.problems(iid, item)
+            if contract_bad:
+                problems.append((iid, "DESIGN_CONTRACT: " + "; ".join(contract_bad)))
+                continue
+            ownership_bad = own.problems(iid, item)
+            import design_completeness_check as dcomplete
+            completeness_bad = dcomplete.problems(iid, item)
+            import control_gate
+            import biis_tier_check
+            import biis_completeness_check
+            tier_bad = biis_tier_check.problems(item)
+            biis_bad = biis_completeness_check.problems(item)
+            if tier_bad or biis_bad:
+                problems.append((iid, "BIIS: " + "; ".join(tier_bad + biis_bad)))
+                continue
+            control_bad = control_gate.problems(iid, "design", item)
+            if control_bad:
+                problems.append((iid, "CONTROL: " + "; ".join(control_bad)))
+                continue
+            if completeness_bad:
+                problems.append((iid, "DESIGN_COMPLETENESS: " + "; ".join(completeness_bad)))
+                continue
+            if ownership_bad:
+                problems.append((iid, "OWNERSHIP: " + "; ".join(ownership_bad)))
+                continue
+            import review_ledger
+            ledger_bad = review_ledger.problems(item, "design")
+            if ledger_bad:
+                problems.append((iid, "REVIEW_LEDGER: " + "; ".join(ledger_bad)))
+                continue
+        except Exception as e:
+            problems.append((iid, f"CONTRACT_CHECK_ERROR: {e}"))
             continue
         view = evaluate(iid)
         if view is None:

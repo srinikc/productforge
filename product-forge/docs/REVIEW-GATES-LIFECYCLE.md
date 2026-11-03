@@ -1,7 +1,27 @@
 # Review Gates — Backlog Item Lifecycle (SSOT)
 
-The authoritative gate chain for taking a backlog item from **take-up → merge → close**. Binding with
+**Scope: PF-SB / Plane A** — Product Forge's own `product_forge` backlog items. This is not the
+generated-product pipeline (PF-GP / Plane B); see `docs/E2E-WORKFLOW.md`.
+
+The authoritative gate chain for taking a PF-SB backlog item from **take-up → merge → close**. Binding with
 `AGENTS.md` (EOS). If this doc and a tool disagree, the tool wins and the doc is corrected.
+
+## Canonical roles and evidence
+
+- **Gate 0 owner:** the worker/design author, before design approval. It produces the
+  reconciliation, impact table, language/API checks, and AC in the item/design/trail. Gate 0 is
+  not a review approval.
+- **Gate 1.5 reviewer:** `docs/AGENT-ROLE-CONTRACTS.md` → Architect reviewer. Read-only design review.
+- **Gate 2.5 reviewer:** `docs/AGENT-ROLE-CONTRACTS.md` → Architect reviewer. Read-only full-candidate review.
+- **Compatibility roles:** runtime adapters may expose design-review or code-review aliases; they are
+  read-only and must not create a second review process.
+- **Review evidence:** `engineering/reviews/<ITEM-ID>-<design-sha>.json` for Gate 1.5 and
+  `engineering/reviews/<ITEM-ID>-<diff-sha>.json` for Gate 2.5.
+- **Reviewer write boundary:** reviewers may return findings, but must not edit source, tests,
+  design, backlog, approvals, or gate state. The worker/orchestrator persists evidence.
+- **Runtime mapping:** `docs/AGENT-RUNTIME-ADAPTERS.md`; an OpenCode/Codex/Antigravity adapter may
+  change how the role is invoked, never the gate.
+- **Retired artifact:** `docs/review.md` is not a gate and must never be used as approval.
 
 ## Lifecycle (in order)
 
@@ -9,9 +29,17 @@ The authoritative gate chain for taking a backlog item from **take-up → merge 
 **Gate 1.5 (design review) → Gate 1 (HIL design approval)**, and **Gate 2.5 (delivery review) → Gate 2 (HIL
 delivery approval)**. HIL always sees the reviewer's findings + recommendation as an input to the decision.
 
+0. **Gate 0 — Reconciliation and impact contract (worker-authored, no HIL approval).**
+   Produce the RECONCILIATION block (PRIOR DECISIONS / EXISTING PATH / ASSUMPTIONS / DIVERGENCES /
+   OPEN QUESTIONS) and IMPACT REVIEW (LANGUAGE, API, AC). Record it on the item/design/trail and run
+   `scripts/dev/gate0_check.py`. Do not design or implement while any row is unresolved.
+
 1. **Gate 1.5 — Architect DESIGN review (independent; fresh context; configurable model).**
-   Reviews the **design / reconciliation block** *before* HIL approval (see §Gate 2.5 rules). Recommended for
-   large/security/schema work. Its findings + recommendation are presented to HIL.
+   Reviews the **design / reconciliation block and the relevant code call sites** *before* HIL approval
+   (see §Gate 2.5 rules). It verifies the runtime entrypoint, exact call-site map, production adapter,
+   failure behavior, failing proof test, and per-AC evidence path. **Required for every PF-SB backlog
+   item** (deeper scrutiny still applies to large/security/schema work). Its findings + recommendation
+   are presented to HIL.
    **Default runner = direct provider call** (`architect_review.py run` — one LLM call, no tools, lowest
    cost/latency); the sub-agent `launch_command` is **opt-in** for investigation-heavy reviews (BI-PF-1449).
    Run the **design pre-check checklist** first: `architect_review.py checklist --item <ID>`.
@@ -34,7 +62,8 @@ delivery approval)**. HIL always sees the reviewer's findings + recommendation a
    **context/brief** (`backlog-context`), **epic** (`backlog-epic`), **ids / monotonic / reconcile / write-guard**.
 
 4. **Gate 2.5 — Architect DELIVERY review (independent sub-agent).** *Runs before Gate 2; see §Gate 2.5.*
-   Findings + recommendation are presented to HIL.
+   Reviews the **full candidate**, not only the latest phase or changed lines. Findings + recommendation
+   are presented to HIL.
 
 5. **Gate 2 — Delivery review (HIL), informed by Gate 2.5.**
    Self/peer review of the diff + **AC verified independently** (verifier ≠ implementer) + linked evidence.
@@ -61,7 +90,7 @@ delivery approval)**. HIL always sees the reviewer's findings + recommendation a
 
 ## Hard gates for every item (BI-PF-1469)
 
-All four gates are enforced for every backlog item (no silent grandfathering):
+All four gates are enforced for every PF-SB backlog item (no silent grandfathering):
 
 1. **Gate 1.5**: `gate1_transition_check.py` inspects items moving `new -> in_progress` in the committed diff and
    requires committed design evidence for the **current design sha** (`architect_review.design_sha`, a canonical
@@ -92,9 +121,9 @@ future-proofing, reuse/no-duplication, "the right thing") before precheck/PR.
 - **Fresh context, separate invocation** — a **separately-launched review sub-agent** (its own context + role),
   not the implementer's context.
 - **Configurable model, provider-agnostic** — the reviewer model is set in `config/architect-review.json`
-  (default `mimo-v2.6-flash`), overridable per run via `--model` / `PF_ARCHITECT_REVIEW_MODEL`. **Any** model
-  works (opencode-go/mimo, google/gemini-2.5-flash, anthropic/claude, …). **Nothing is coupled to OpenCode or
-  Mimo**; never hard-code one model for all reviews (a different model is *not* a different person).
+  (default `mimo-v2.6-flash`), overridable per run via `--model` / `PF_ARCHITECT_REVIEW_MODEL`. **Any**
+  configured model/provider works. **Nothing is coupled to a specific runtime or model vendor**; never
+  hard-code one model for all reviews (a different model is *not* a different person).
 - **Inputs:** item + AC + the diff + relevant ADRs / `AGENTS.md` / standards.
 - **Output:** structured findings `{BLOCKER | MAJOR | MINOR | NIT}` + a short summary + evidence file
   `engineering/reviews/<item>-<sha>.json`; append the summary to the item context.
@@ -184,7 +213,7 @@ Every item carries one append-only trail at `engineering/trails/<ID>.json` (owne
 - **Written automatically:** `gate0_check` (planning/gate0), `architect_review` (design/diff + provider usage),
   `gate_decisions` (gate1/gate2), `precheck` (implementation/code_review/tests/precheck), `core.backlog`
   `set_delivery`/`set_status` (delivery/completion).
-- **Cost:** `config/model-pricing.json` holds OpenCode Go list prices (USD/1M); cost is computed from
+- **Cost:** `config/model-pricing.json` holds configured provider list prices (USD/1M); cost is computed from
   input/cached/output tokens, provider-reported cost wins, and the show prints it in a box-drawn table.
 - **Show (one ordered flow, BI-PF-1483):** `python -m core.execution_trail show --item <ID>` renders, in order:
   1. the plain-language brief (what it is / what it adds / why now / who / success),

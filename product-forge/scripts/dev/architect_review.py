@@ -118,6 +118,7 @@ EXCLUDE = [
     ":(exclude,glob)**/data/backlog/**",
     ":(exclude,glob)**/docs/BACKLOG-SUMMARY.md",
     ":(exclude,glob)**/docs/documentation-index.html",
+    ":(exclude,glob)**/docs/README.md",
 ]
 
 
@@ -149,6 +150,16 @@ def diff_sha(base: str = "") -> str:
 
 def has_review_changes(base: str = "") -> bool:
     return bool(_git_diff(base).strip())
+
+
+def review_is_current(item_id: str, mode: str = "diff") -> bool:
+    """True when the latest review covers all review-relevant changes.
+
+    A data-only commit after a review does not invalidate it: EXCLUDE removes backlog/derived
+    evidence from the diff, so the delta stays empty and the prior evidence remains current.
+    """
+    base = _latest_review_sha(item_id, mode)
+    return bool(base) and not has_review_changes(base)
 
 
 def _is_ancestor(base: str, head: str) -> bool:
@@ -357,9 +368,15 @@ def _prior_context(item: dict, item_id: str, mode: str) -> str:
 
 def _build_prompt(item: dict, item_id: str, mode: str, base: str = "") -> str:
     ac = "\n".join(f"- {c}" for c in (item.get("acceptance_criteria") or [])) or "- (none)"
-    body = _design_body(item) if mode == "design" else "Diff:\n```diff\n" + _git_diff(base)[:180000] + "\n```"
+    body = _design_body(item) if mode == "design" else "Diff:\n```diff\n" + _git_diff(base)[:500000] + "\n```"
     prompt = PROMPT.format(target=("design" if mode == "design" else "implementation diff"),
                            item=item_id, ac=ac, body=body)
+    scope = (item.get("review_scope") or (item.get("design_pack") or {}).get("review_scope") or {})
+    scope_txt = json.dumps(scope, ensure_ascii=False, sort_keys=True) if scope else "{}"
+    prompt += ("\n\nReview scope (binding): " + scope_txt +
+               "\nReport only findings against the approved AC/design, declared files, and standards. "
+               "Prefix unrelated or pre-existing findings with `[OUT_OF_SCOPE]`; do not turn them into blockers. "
+               "Do not propose unrelated refactors.")
     if mode == "diff":
         if base:
             acs = item.get("ac_verification") or []
@@ -374,15 +391,21 @@ def _build_prompt(item: dict, item_id: str, mode: str, base: str = "") -> str:
                        "\n\nFull candidate changed files (context; do not re-review unchanged code):\n"
                        + "\n".join(f"- {f}" for f in changed_files())
                        + "\n\nAC verification (full candidate):\n" + ac_txt)
+        prompt += "\n\nApproved design contract (the implementation must match it):\n" + _design_body(item)
         prior = _prior_context(item, item_id, mode)
         if prior:
             prompt += "\n\n" + prior
+        try:
+            from design_guardrails import render as _render_guardrails
+            prompt += "\n\n" + _render_guardrails(item, item_id, stage="diff")
+        except Exception:
+            pass
     if mode == "design":
         try:
             from design_guardrails import (
                 render as _render_guardrails,  # BI-PF-1467: design-time learnings
             )
-            prompt += "\n\n" + _render_guardrails(item, item_id)
+            prompt += "\n\n" + _render_guardrails(item, item_id, stage="design")
         except Exception:
             cl = [str(q) for q in (_config().get("design_checklist") or []) if str(q).strip()]
             if cl:
@@ -791,6 +814,7 @@ def _ingest(item_id: str, text: str, model: str, apply: bool, mode: str = "diff"
         out.rename(prev)
     payload = {"item": item_id, "sha": sha, "model": model, "mode": mode,
                "parsed_ok": parsed_ok, "at": datetime.now(timezone.utc).isoformat(),
+               "review_scope": "delta" if base else "full_candidate",
                "base_sha": base, "head_sha": _git_text(["rev-parse", "HEAD"]).strip(),
                "findings": findings}
     if rereview_reason:
@@ -823,6 +847,16 @@ def _ingest(item_id: str, text: str, model: str, apply: bool, mode: str = "diff"
         except Exception:
             pass
         print(json.dumps({"event": "execution_trail_write_failed", "stage": "review", "error": str(e)}), file=sys.stderr)
+    try:
+        import review_ledger
+        review_ledger.record(item_id, {
+            "mode": mode, "candidate_sha": _git_text(["rev-parse", "HEAD"]).strip(),
+            "review_sha": sha, "model": model, "at": payload["at"],
+            "findings": findings, "evidence": out.name,
+        })
+    except Exception as e:
+        print(json.dumps({"event": "review_ledger_write_failed", "mode": mode, "error": str(e)}), file=sys.stderr)
+        return 2
     return 1 if blockers else 0
 
 
@@ -918,6 +952,17 @@ def main(argv: list[str]) -> int:
         if not ok:
             print(why)
             return 1
+        if a.rereview and not a.since:
+            print("review: --rereview requires --since <prior reviewed head> (delta-only re-review)")
+            return 1
+        if a.rereview:
+            import fix_evidence_check
+            fix_bad = fix_evidence_check.problems(item)
+            if fix_bad:
+                print("review: fix evidence missing/invalid; refuse re-review")
+                for x in fix_bad:
+                    print("  - " + x)
+                return 1
     try:
         import review_budget
         budget_bad = review_budget.problems(item, a.mode)

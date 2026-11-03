@@ -38,6 +38,8 @@
 |---|---|---|---|---|---|
 | [`A2A-DESIGN.md`](A2A-DESIGN.md) | Design | 100% | A2A interop: agnostic, contract-based, pipeline-tracked agent delegation (BI-0197) | — | — |
 | [`ADDING-TO-PRODUCT-FORGE.md`](ADDING-TO-PRODUCT-FORGE.md) | Implemented | 100% | Recipes/checklists to add anything | — | — |
+| [`AGENT-ROLE-CONTRACTS.md`](AGENT-ROLE-CONTRACTS.md) | Implemented | 100% | Binding role contracts for workflow agents and reviewers | — | — |
+| [`AGENT-RUNTIME-ADAPTERS.md`](AGENT-RUNTIME-ADAPTERS.md) | Implemented | 100% | Agent runtime adapter contract and isolation rules | — | — |
 | [`AGENT_CONTRACT_STANDARD.md`](AGENT_CONTRACT_STANDARD.md) | Implemented | 100% | AgentSpec / agent-card contract standard | — | — |
 | [`AGNOSTIC-CARDS-DESIGN.md`](AGNOSTIC-CARDS-DESIGN.md) | Design | 100% | Framework-agnostic agent card resolver, no .opencode default (BI-0201) | — | — |
 | [`AGUI-DESIGN.md`](AGUI-DESIGN.md) | Design | 100% | AG-UI typed event stream (BI-0198) | — | — |
@@ -55,6 +57,7 @@
 | [`BACKLOG-AND-INTAKE.md`](BACKLOG-AND-INTAKE.md) | Implemented | 100% | Backlog + intake design | — | — |
 | [`BACKLOG-DOC-INGEST.md`](BACKLOG-DOC-INGEST.md) | Tooling | 100% | Doc-driven backlog ingest: project a plan/.md/.pdf doc onto an epic + children via the API (dry-run default) (BI-PF-1396) | — | — |
 | [`BACKLOG-SUMMARY.md`](BACKLOG-SUMMARY.md) | Generated | 100% | Regenerable backlog summary | — | — |
+| [`BIIS-LEARNING.md`](BIIS-LEARNING.md) | Implemented | 100% | BIIS tiering, review-loop learning, and convergence rules | — | — |
 | [`BOM-DESIGN.md`](BOM-DESIGN.md) | Design | 100% | Product BOM/footprint at packaging design (BI-0217) | — | — |
 | [`BRANCHING-GIT-WORKFLOW.md`](BRANCHING-GIT-WORKFLOW.md) | Implemented | 100% | Branch/worktree/merge/push workflow reference: PF, generated products, intake + worker paths (BI-PF-0431) | — | — |
 | [`CAPABILITY-PACKS-DESIGN.md`](CAPABILITY-PACKS-DESIGN.md) | Design | 100% | Capability-pack registry + discovery->enablement (BI-0189) | — | — |
@@ -64,9 +67,11 @@
 | [`CONSTITUTION.md`](CONSTITUTION.md) | Implemented | 100% | Constitution: governance + non-negotiables | — | — |
 | [`CORRECTION-LEDGER.md`](CORRECTION-LEDGER.md) | SSOT | 100% | Every HIL correction becomes a durable rule + an enforcement point; schema, enforcement, RAG feed, seed entries | — | — |
 | [`DASHBOARD-E2E-DESIGN.md`](DASHBOARD-E2E-DESIGN.md) | Design | 70% | Dashboard E2E design (front-end not built yet) | **Front-end MVP not built: every dashboard screen/view described here (backend-first).** | ProductForge-Dashboard BI-0001–0149 (epic BI-0043) |
+| [`DESIGN-QUALITY-RCCA.md`](DESIGN-QUALITY-RCCA.md) | Implemented | 100% | Design-quality RCCA rules and review evidence requirements | — | — |
 | [`DEVOPS-WORKFLOW-ANALYSIS.md`](DEVOPS-WORKFLOW-ANALYSIS.md) | Design | 70% | DevOps / PR-CI workflow analysis | **Not wired: PR branch -> pre-check gates (syntax/audit/lint/tests/secrets) -> review workflow.** | BI-0205 |
 | [`DOGFOOD-E2E-DESIGN.md`](DOGFOOD-E2E-DESIGN.md) | Design | 60% | DOGFOOD end-to-end design (deterministic LLM replay seam, BI-PF-0459) | — | — |
 | [`Diagram-Generation-Spec.md`](Diagram-Generation-Spec.md) | Implemented | 100% | Diagram generation spec (mermaid/drawio/svg) | — | — |
+| [`E2E-WORKFLOW.md`](E2E-WORKFLOW.md) | Implemented | 100% | End-to-end PF-SB workflow from intake through delivery | — | — |
 | [`EDP-17-SCHEMA.md`](EDP-17-SCHEMA.md) | Design | 100% | Canonical schema domain + relationship model for EDP-17 (BI-PF-1309): entities, FKs, ownership, extensibility contract | — | — |
 | [`EDP-DATA-PLANE-THREAT-MODEL.md`](EDP-DATA-PLANE-THREAT-MODEL.md) | SSOT | 100% | Generated data-plane threat model + register matrix: 6 categories -> source/sink/control/owner/evidence (BI-PF-1296 / EDP-04) | — | — |
 | [`EDP-EXECUTION-ORDER.md`](EDP-EXECUTION-ORDER.md) | SSOT | 100% | Authoritative wave-by-wave EDP execution order + dependencies (schema-first); mirrors the backlog epic BI-PF-1292 (BI-PF-1388) | — | — |
@@ -119,6 +124,7 @@
 | [`PF-API-SERVICE-OR-SERVER.md`](PF-API-SERVICE-OR-SERVER.md) | SSOT | 100% | PF Server/Service topology: many services serve API + operate PF; ownership by domain not language; language rule is Go-forward not a port; caller classes x transport; one instance per service per environment; interim: no PF token for internal | — | — |
 | [`PF-BASELINE.md`](PF-BASELINE.md) | Implemented | 100% | PF baseline freeze: develop SHA, test/gate baseline, doc reconciliation, frozen decisions (A0/BI-PF-0392) | — | — |
 | [`PF-Backlog-SSOT-Scheduler-Pluggable-Workers-updated.md`](PF-Backlog-SSOT-Scheduler-Pluggable-Workers-updated.md) | Design | 0% | Backlog SSOT + pluggable worker scheduler architecture (source doc; epic BI-PF-0360) | — | — |
+| [`PF-DESIGN-DELIVERY-CONTRACT.md`](PF-DESIGN-DELIVERY-CONTRACT.md) | Implemented | 100% | Design and delivery contract for PF work items | — | — |
 | [`PF-TARGET-ARCHITECTURE-AND-IP-PLAN.md`](PF-TARGET-ARCHITECTURE-AND-IP-PLAN.md) | Design | 10% | Consolidated target-architecture + IP-protection plan for the PF platform (phases A0-A7/B1-B7; BI-PF-0386/0387/0388) | — | — |
 | [`PFSSOT-P0-REUSE-MAP.md`](PFSSOT-P0-REUSE-MAP.md) | Design | 100% | PFSSOT P0 reuse map: existing owners for backlog SSOT + scheduler + workers (Phase 0 gate) | — | — |
 | [`PFSSOT-P1-BACKLOG-FIELDS.md`](PFSSOT-P1-BACKLOG-FIELDS.md) | Design | 100% | PFSSOT P1 backlog fields: analysis/revision/priority_rank/structured deps/execution (extend backlog.py) | — | — |
@@ -163,9 +169,11 @@
 | [`RE-RUN-IMPACT-ANALYSIS.md`](RE-RUN-IMPACT-ANALYSIS.md) | Implemented | 100% | Rerun / impact invalidation model | — | — |
 | [`REL-0-PACKAGING.md`](REL-0-PACKAGING.md) | Design | 100% | REL-0 packaging: edition package manifest (community/enterprise/saas/on-prem/oem) from bom/licensing/deploy/release owners | — | — |
 | [`RESIDENCY-MANIFEST-GATE.md`](RESIDENCY-MANIFEST-GATE.md) | SSOT | 100% | Residency manifest + build/deploy gate: explicit home_region (IN template), profile bounds, Go validator, warn-first, stable error codes (BI-PF-1304) | — | — |
+| [`REVIEW-ATTRIBUTION.md`](REVIEW-ATTRIBUTION.md) | Implemented | 100% | Review finding attribution and loop-stop policy | — | — |
 | [`REVIEW-FOCUS.md`](REVIEW-FOCUS.md) | SSOT | 100% | Generated production-risk review checklist for the code-review agent (BI-PF-1066) | — | — |
 | [`REVIEW-GATES-LIFECYCLE.md`](REVIEW-GATES-LIFECYCLE.md) | SSOT | 100% | Binding backlog item lifecycle gates Gate1 -> Gate1.5 -> Gate2 -> Gate2.5 (second-model architect review) -> precheck -> merge -> closure -> DoD | — | — |
 | [`REVIEW-MODEL.md`](REVIEW-MODEL.md) | Implemented | 100% | Review model: LLM vs non-LLM, per-iteration, PR gate (BI-PF-1070) | — | — |
+| [`REVIEW-TRIAGE-POLICY.md`](REVIEW-TRIAGE-POLICY.md) | Implemented | 100% | Review severity, scope, delta-only, and fix-evidence policy | — | — |
 | [`ROLE-PROMPT-STANDARD.md`](ROLE-PROMPT-STANDARD.md) | Implemented | 100% | Standard for agent role-prompts + advisory audit (BI-0228) | — | — |
 | [`SCHEMA-GUIDE.md`](SCHEMA-GUIDE.md) | Implemented | 100% | Data + schema reference (validators) | — | — |
 | [`SCOPED-LEARNINGS-DESIGN.md`](SCOPED-LEARNINGS-DESIGN.md) | Design | 100% | Scoped learnings + memory read-back (BI-PF-0294) | — | — |
@@ -181,6 +189,7 @@
 | [`UIUX-DESIGN-SYSTEM-INCLUSION-DESIGN.md`](UIUX-DESIGN-SYSTEM-INCLUSION-DESIGN.md) | Design | 0% | Framework-agnostic UI/UX + design-system inclusion: knowledge, skills, catalog, tokens, direction, a11y, design QA (epic BI-PF-1436) | — | — |
 | [`UNWIRED-MODULES-TRIAGE.md`](UNWIRED-MODULES-TRIAGE.md) | Adopted (reference) | 90% | Deprecated/legacy module triage | Triage applied; retired modules removed. | — |
 | [`VENDORED-TOOLS.md`](VENDORED-TOOLS.md) | Design | 100% | Neutral vendored tools location (drawio), no .opencode coupling (BI-0202) | — | — |
+| [`WORK-EXECUTION-CONTRACT.md`](WORK-EXECUTION-CONTRACT.md) | Implemented | 100% | Compact per-item execution contract | — | — |
 | [`WORKER-NEW-ARCHITECTURE.md`](WORKER-NEW-ARCHITECTURE.md) | Design | 0% | Worker fleet redesign (PARKED, after EDP-17): state + coordination substrate, control plane (schedule/assign/coordinate/observe/deliver), data plane (isolated execution) | — | — |
 | [`WORKER-SCHEDULER-OPERATIONS.md`](WORKER-SCHEDULER-OPERATIONS.md) | Implemented | 100% | Worker/scheduler ops: register, manual pull (/pf work), auto-dispatch, eligibility, lease/recovery | — | — |
 | [`WORKER-TIMING-TOKENS.md`](WORKER-TIMING-TOKENS.md) | Design | 100% | Worker timing (active vs human-wait) + token/cost accounting on existing owners (no new store) | — | — |
@@ -228,7 +237,7 @@
 |---|---|---|---|
 | `archive/` (23) | Implemented then superseded | see files | SUPERSEDED docs - implemented then replaced; history only (see %; % is a curated adoption estimate) |
 | `compact/` (1) | Runtime | 100% | Compact summaries produced by the pipeline |
-| `guidelines/` (61) | Implemented | 100% | Knowledge/guidelines used by the knowledge router |
+| `guidelines/` (62) | Implemented | 100% | Knowledge/guidelines used by the knowledge router |
 | `knowledge/` (2) | Generated | 100% | Compiled knowledge (knowledge-compiler output) |
 | `plans/` (11) | Adopted (historical) | see files | Roadmaps/plans - historical; most items were adopted (see %; % is a curated adoption estimate) |
 | `research/` (15) | Adopted (reference) | see files | External research/notes - patterns adopted into Product Forge (see %; % is a curated adoption estimate) |
@@ -330,6 +339,7 @@
 | [`guidelines/business/social-network.md`](guidelines/business/social-network.md) | Implemented | 100% | Social Network | no | — |
 | [`guidelines/caching/strategies.md`](guidelines/caching/strategies.md) | Implemented | 100% | Caching Engineering Standards | no | — |
 | [`guidelines/cloud/aws.md`](guidelines/cloud/aws.md) | Implemented | 100% | Cloud Engineering Standards | no | — |
+| [`guidelines/coding/go/pf-go.md`](guidelines/coding/go/pf-go.md) | Implemented | 100% | PF-SB Go Coding Guidelines | no | — |
 | [`guidelines/coding/go/style-guide.md`](guidelines/coding/go/style-guide.md) | Implemented | 100% | Go Engineering Standards | no | — |
 | [`guidelines/coding/python/style-guide.md`](guidelines/coding/python/style-guide.md) | Implemented | 100% | Python Coding Standards | no | — |
 | [`guidelines/coding/typescript/style-guide.md`](guidelines/coding/typescript/style-guide.md) | Implemented | 100% | TypeScript & React Coding Standards | no | — |

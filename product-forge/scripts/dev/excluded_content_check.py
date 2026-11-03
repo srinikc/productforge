@@ -69,7 +69,9 @@ def problem(rel: str, raw: bytes) -> str:
             return "design file is not generated (missing header)"
         if "```" in text:
             return "design file contains fenced code (not generated design text)"
-        if "## 1. Requirements" not in text or "## 3. Logic invariants" not in text:
+        if not any(h in text for h in ("## 1. Requirements", "## 2. Requirements")):
+            return "design file missing required generated sections"
+        if not any(h in text for h in ("## 3. Logic invariants", "## 4. Logic invariants")):
             return "design file missing required generated sections"
         return ""
     if rel.startswith("data/backlog/"):

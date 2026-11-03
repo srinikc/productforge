@@ -21,3 +21,18 @@ def test_binary_file_is_skipped(tmp_path, monkeypatch):
     monkeypatch.setattr(ec, "ROOT", tmp_path)
     (tmp_path / f"{0}.json").write_bytes(b"\x00\x01\x02")
     assert ec.problems([f"{0}.json"]) == []
+
+def test_changed_covers_committed_worktree_and_untracked(monkeypatch):
+    def fake(*args):
+        if args[:2] == ("merge-base", "origin/develop"):
+            return "BASE"
+        if args[0] == "diff" and "BASE..HEAD" in args:
+            return "tracked.py\n"
+        if args[0] == "diff" and args[-1] == "HEAD":
+            return "unstaged.py\n"
+        if args[0] == "ls-files":
+            return "untracked.py\n"
+        return ""
+
+    monkeypatch.setattr(ec, "_git", fake)
+    assert set(ec.changed()) == {"tracked.py", "unstaged.py", "untracked.py"}

@@ -60,6 +60,18 @@ def _baseline_shas() -> set:
         return set()
 
 
+def is_full_candidate(evidence: dict) -> bool:
+    """Legacy evidence without the field is treated as full; explicit delta is never Gate 2.5."""
+    return str(evidence.get("review_scope") or "full_candidate") != "delta"
+
+
+def is_full_evidence_path(path: Path) -> bool:
+    try:
+        return is_full_candidate(json.loads(path.read_text(encoding="utf-8")))
+    except Exception:
+        return False
+
+
 def is_applicable(files: list, skip_globs: list) -> bool:
     """Any file NOT matching a skip glob makes the change review-required (defaults: docs/config-only)."""
     for f in files:
@@ -88,6 +100,7 @@ def main() -> int:
         print(f"architect-review: OK (baseline sha {sha})")
         return 0
     hits = list(EVID.glob(f"*-{sha}.json")) if EVID.is_dir() else []
+    hits = [p for p in hits if is_full_evidence_path(p)]
     if not hits and EVID.is_dir():
         head = ar._git_text(["rev-parse", "HEAD"]).strip()
         mb = ar._merge_base()
@@ -105,7 +118,7 @@ def main() -> int:
             if iid:
                 by_item.setdefault(iid, []).append(d)
         for path, d in reversed(evs):
-            if d.get("mode") != "diff":
+            if d.get("mode") != "diff" or not is_full_candidate(d):
                 continue
             base = str(d.get("base_sha") or "")
             if not base or base == head:

@@ -22,8 +22,53 @@ def _item():
                             "guardrails": ["reversible"], "learnings": ["prior review class"]}}
 
 
+def _runtime_item():
+    it = _item()
+    it["created_at"] = "2026-10-27"
+    it["design_pack"].update({
+        "scope": ["runtime capability"],
+        "non_goals": ["no unrelated generation changes"],
+        "runtime_contract": {
+            "trigger": "POST /api/x",
+            "entrypoint": "api/routers/x.py::handler",
+            "call_sites": ["handler -> service -> adapter"],
+            "adapter": "ProductionAdapter",
+            "contract": "input/output/auth/timeout",
+            "failure_behavior": "fail closed",
+            "observable_result": "persisted row",
+        },
+        "proof_plan": {
+            "failing_test": "tests/e2e/test_x_runtime.py::test_missing_wiring",
+            "red_evidence": "fails on baseline",
+            "green_evidence": "passes after wiring",
+        },
+        "ac_evidence": [{"ac": "AC-1", "evidence": "reports/x" + ".json", "sha": "candidate"}],
+        "stop_conditions": ["missing call site", "missing evidence"],
+    })
+    return it
+
+
 def test_check_ok():
     assert d.check(_item()) == []
+
+
+def test_runtime_contract_ok_and_missing_fields():
+    it = _runtime_item()
+    assert d.check(it) == []
+    del it["design_pack"]["runtime_contract"]["entrypoint"]
+    assert any("runtime_contract.entrypoint" in x for x in d.check(it))
+    it = _runtime_item()
+    del it["design_pack"]["proof_plan"]["red_evidence"]
+    assert any("proof_plan.red_evidence" in x for x in d.check(it))
+    it = _runtime_item()
+    it["design_pack"]["stop_conditions"] = []
+    assert any("stop_conditions" in x for x in d.check(it))
+
+
+def test_runtime_enforcement_date():
+    cfg = {"runtime_enforce_from": "2026-10-27"}
+    assert d.runtime_should_enforce({"created_at": "2026-10-27"}, cfg)
+    assert not d.runtime_should_enforce({"created_at": "2026-10-26"}, cfg)
 
 
 def test_missing_pack_and_ac_mapping():
@@ -38,7 +83,7 @@ def test_render_contains_sections(tmp_path, monkeypatch):
     out = tmp_path / "BI-PF-9999.md"
     out.write_text(d.render(_item()), encoding="utf-8")
     s = out.read_text(encoding="utf-8")
-    assert "## 3. Logic invariants" in s and "| AC-1" in s and "BI-PF-9999" in s
+    assert "## 4. Logic invariants" in s and "| AC-1" in s and "BI-PF-9999" in s
 
 
 def test_generated_design_md_freshness(tmp_path, monkeypatch):

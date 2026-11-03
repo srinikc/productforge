@@ -1,0 +1,52 @@
+{
+  "item": "BI-PF-1485",
+  "sha": "f7f33bd2a38e",
+  "model": "deepseek-v4.1-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-03T07:30:22.194666+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "5653467fc5ec5f96fd4bb2ac5425f3e6cd5a92bc",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "Contradictory re-review policy: `config/design-contract.json` + `review_ledger.problems(max=1)` require an HIL `MATERIAL_CHANGE` for a second diff review, while `REVIEW-TRIAGE-POLICY.md`/`WORK-EXECUTION-CONTRACT.md` describe a free one-pass delta re-review; `gate2_completion_check` enforces the stricter rule, so following the documented triage flow blocks delivery.",
+      "`architect_review_check` drops delta-mode evidence (`is_full_evidence_path`) *before* the freshness fallback, so a candidate whose only current evidence is a `--since` re-review has no accepted evidence; AC-1's delta loop cannot close the fast gate.",
+      "`_ingest` sets `review_scope` from the presence of `base`, not from whether prior reviews exist: a first full review invoked with `--since <merge-base>` is recorded as `delta` and fails Gate 2 with `DELTA_ONLY_REVIEW`.",
+      "New blocking gates depend on artifacts absent from this diff: `scripts/dev/delivery_completeness_check.py` (added to `ci-cd-gates.json` and `precheck`) and `.github/workflows/pf-gates.yml` (required by `pf_process_check`) \u2014 either every precheck/CI run fails closed, or the dependency is unverified.",
+      "Design/implementation divergence: the invariant and scope promise risk-tier gate selection (`T0/T1` no gates, `T2/T3` full, `config/risk-tiers.json`, `item.risk_tier`), but only BIIS tiers `1/2/3` + `item.tier` exist and no tier\u2192gate mapping is implemented anywhere.",
+      "No rollout/backfill for `review_ledger`: `REVIEW_LEDGER_MISSING` is enforced from the cutover date for every contract-enforced item, while `--backfill` is a manual command not wired into precheck/CI or the item's rollout plan \u2014 all in-flight items will fail Gate 1/2 on the cutover date.",
+      "AC-3 (encoding gate incl. working-tree/untracked) is unproven: the diff adds only `test_changed_covers_committed_worktree_and_untracked`, which monkeypatches `encoding_check.changed`; `scripts/dev/encoding_check.py` is neither changed nor in the declared affected files, so the gate behavior that AC-3 requires is asserted, not demonstrated."
+    ],
+    "MINOR": [
+      "`current_sha()` and `controls()` are duplicated verbatim in `control_gate.py` and `control_runner.py`; two copies of the evidence-binding hash will drift and break Gate 2 evidence matching.",
+      "`current_sha()` hashes only `git diff --binary HEAD` (tracked, non-untracked); PASS evidence stays valid after new untracked files are added, contradicting this item's own untracked-coverage requirement.",
+      "`control_runner` records `phase` values `pre/post/fix` but `control_gate` never reads `phase`, so pre-implementation evidence satisfies the `implementation` phase check.",
+      "Tier detection is substring matching over title/objective/in_scope (`\"auth\"` matches \"author/authority\"; `\"ui/\"`,`\"ops/\"` rarely match), producing systematic false tier-3/2 escalation and boilerplate `tier_reasons`.",
+      "Scope discipline is prompt-only: the prompt asks for `[OUT_OF_SCOPE]` prefixes but no parser filters them, so a prefixed BLOCKER/MAJOR still blocks in `gate_view`.",
+      "`design_contract_check` treats any `://` string as existing evidence and any `go test`/`pytest` string as an existing test, so coverage/evidence requirements are trivially bypassable.",
+      "`test-framework/tests/conftest.py` sets `PF_BACKLOG_DB=off` autouse for the entire suite \u2014 an unrelated global test-env override that hides DB-path regressions.",
+      "Prompt sizing is unbounded: diff cap raised to 500k chars and the full design body + prior context + guardrails are appended with no token budget, so large items overflow context or silently truncate.",
+      "`precheck.worktree_fingerprint` covers HEAD/heads/index but not worktree content or non-head refs; any gate that legitimately touches the index/HEAD aborts the whole run, and content mutations are missed.",
+      "`config/*.yml` added to the store-registry exclusion list: future YAML configs silently escape registry coverage.",
+      "`docs/BIIS-LEARNING.md` commits a machine-specific path (`C:\\Users\\ADMIN\\...\\pf-probe`) and probe artifacts, contradicting the framework-neutral claims.",
+      "Three independent cutover dates (`2026-10-26`, `2026-10-27`, `2026-11-02`) across `design-pack.json`, `design-contract.json`, `biis-tiers.json` with no single migration record.",
+      "`allowed_check_prefixes` is duplicated in `control-matrix.json` and `guideline-compliance.json` with different values (`bash `/`sh ` present in one only)."
+    ],
+    "NIT": [
+      "`pf_process_check` constructs the workflow name as `\"pf-gates\" + \".yml\"`; obfuscated literals in a validator hurt readability.",
+      "`biis_completeness_check.problems` re-reads and re-parses the config inside a per-dimension loop.",
+      "Four different \"SHA\" notions (`review_sha`, `head_sha`, `diff_sha`, `current_sha`) are used interchangeably in code and docs; name them distinctly.",
+      "`self_review_check` excludes `scripts/dev/` and tests, so its token ban is near-vacuous for this repository.",
+      "`_ingest` returns exit code `2` after the evidence file is already written and renamed, leaving partial state with an undocumented code.",
+      "`docs/README.md`/`gen_docs_index.py` mark new docs \"Implemented 100%\" though some describe unimplemented enforcement (risk tiers, runbooks)."
+    ],
+    "SUMMARY": [
+      "The core delta/design-pack/encoding machinery is reasonable and mostly well-tested, but the diff is far larger than the item's stated single capability: ~20 new gate scripts, 10+ configs, CI rewiring, and a governance rewrite in one item \u2014 which violates the framework's own \"one capability per item, split on >2 majors\" rule.",
+      "Highest risk: the review-loop logic is internally inconsistent (`review_scope` derivation, delta-evidence filtering, and the budget rule in three places), so AC-1's re-review path will either fail closed incorrectly or require an exception every time.",
+      "Second risk: fail-closed gates now depend on files not present in the diff, and a hard ledger cutover with no backfill will block all in-flight items on the cutover date.",
+      "AC-3 is asserted rather than demonstrated; AC-2 is met by `design_pack.check/render` plus the new contract checks."
+    ]
+  }
+}

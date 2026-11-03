@@ -23,6 +23,7 @@ for p in (ROOT, ROOT / "scripts" / "dev"):
         sys.path.insert(0, str(p))
 
 import architect_review as ar  # noqa: E402
+import design_pack as dpack  # noqa: E402
 import gate0_check as g0  # noqa: E402
 import gate_predicates as gp  # noqa: E402
 
@@ -109,6 +110,67 @@ def check(ids: list[str]) -> list[tuple[str, str]]:
             continue
         gaps = completion_gaps(item)
         problems += [(iid, g) for g in gaps]
+        pack_bad = dpack.evaluate(iid)
+        if pack_bad:
+            problems.append((iid, "DESIGN_PACK: " + "; ".join(pack_bad)))
+            continue
+        try:
+            import design_contract_check as dcc
+            import ownership_check as own
+            contract_bad = dcc.problems(iid)
+            if contract_bad:
+                problems.append((iid, "DESIGN_CONTRACT: " + "; ".join(contract_bad)))
+                continue
+            ownership_bad = own.problems(iid, item)
+            if ownership_bad:
+                problems.append((iid, "OWNERSHIP: " + "; ".join(ownership_bad)))
+                continue
+            import design_completeness_check as dcomplete
+            completeness_bad = dcomplete.problems(iid, item)
+            import control_gate
+            import biis_tier_check
+            import biis_completeness_check
+            tier_bad = biis_tier_check.problems(item)
+            biis_bad = biis_completeness_check.problems(item)
+            if tier_bad or biis_bad:
+                problems.append((iid, "BIIS: " + "; ".join(tier_bad + biis_bad)))
+                continue
+            control_bad = control_gate.problems(iid, "implementation", item)
+            if control_bad:
+                problems.append((iid, "CONTROL: " + "; ".join(control_bad)))
+                continue
+            if completeness_bad:
+                problems.append((iid, "DESIGN_COMPLETENESS: " + "; ".join(completeness_bad)))
+                continue
+            import review_ledger
+            import fix_evidence_check
+            if len(review_ledger.entries(item, "diff")) > 1:
+                fix_bad = fix_evidence_check.problems(item)
+                if fix_bad:
+                    problems.append((iid, "FIX_EVIDENCE: " + "; ".join(fix_bad)))
+                    continue
+            import review_attribution_check
+            attribution_bad = review_attribution_check.problems(item)
+            if attribution_bad:
+                problems.append((iid, "REVIEW_ATTRIBUTION: " + "; ".join(attribution_bad)))
+                continue
+            for mode in ("design", "diff"):
+                ledger_bad = review_ledger.problems(item, mode)
+                if ledger_bad:
+                    problems.append((iid, "REVIEW_LEDGER: " + "; ".join(ledger_bad)))
+                    break
+            else:
+                ledger_bad = []
+            if ledger_bad:
+                continue
+            import rcca_link_check
+            rcca_bad = rcca_link_check.problems(item)
+            if rcca_bad:
+                problems.append((iid, "RCCA: " + "; ".join(rcca_bad)))
+                continue
+        except Exception as e:
+            problems.append((iid, f"CONTRACT_CHECK_ERROR: {e}"))
+            continue
         dview = ar.gate_view(iid, "design")
         if dview is None:
             problems.append((iid, "NO_DESIGN_EVIDENCE"))
@@ -146,6 +208,9 @@ def check(ids: list[str]) -> list[tuple[str, str]]:
             continue
         if view is not None and view.get("blocking"):
             problems.append((iid, "PENDING_DIFF_FINDINGS"))
+            continue
+        if view is not None and str(((view.get("review") or {}).get("review_scope")) or "full_candidate") == "delta":
+            problems.append((iid, "DELTA_ONLY_REVIEW"))
             continue
         sha = ((view or {}).get("review") or {}).get("sha") if view else "docs-only"
         # Evidence freshness for the CURRENT code change is enforced by architect_review_check; a

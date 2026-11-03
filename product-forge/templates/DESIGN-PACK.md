@@ -7,16 +7,25 @@
 - **Gate 1.5 review SHA:** {{REVIEW_SHA}}
 - **Generated:** {{GENERATED_AT}}
 
-## 1. Requirements / acceptance criteria
+## 1. Standards applied
+{{STANDARDS}}
+
+### Coding guidelines applied
+{{CODE_GUIDELINES}}
+
+## 2. Requirements / acceptance criteria
 {{REQUIREMENTS}}
 
-## 2. Scope and non-goals
+## 3. Scope and non-goals
+### In scope
 {{SCOPE}}
+### Non-goals
+{{NON_GOALS}}
 
-## 3. Logic invariants and state model
+## 4. Logic invariants and state model
 {{INVARIANTS}}
 
-## 4. Contracts
+## 5. Contracts
 ### API
 {{API}}
 ### Database / persistence
@@ -24,30 +33,53 @@
 ### Files / stores / config
 {{FILES}}
 
-## 5. Failure matrix
+## 6. Failure matrix
 | Case | Expected behavior | Error code |
 |---|---|---|
 {{FAILURES}}
 
-## 6. Dependencies and failure modes
+## 7. Dependencies and failure modes
 {{DEPENDENCIES}}
 
-## 7. Security, authz, tenant isolation
+## 8. Security, authz, tenant isolation
 {{SECURITY}}
 
-## 8. Observability
+## 9. Observability
 {{OBSERVABILITY}}
 
-## 9. Performance and scale
+## 10. Performance and scale
 {{PERFORMANCE}}
 
-## 10. Compatibility, migration, rollout, rollback
+## 11. Compatibility, migration, rollout, rollback
 {{ROLLOUT}}
 
-## 11. Test matrix
+## 12. Test matrix
 | AC | Kind | Test / command |
 |---|---|---|
 {{TESTS}}
 
-## 12. Decisions and amendments
+## 13. Decisions and amendments
 {{DECISIONS}}
+
+## 14. Runtime contract
+
+| Field | Required value |
+|---|---|
+| Trigger | {{RUNTIME_TRIGGER}} |
+| Exact production entrypoint | {{RUNTIME_ENTRYPOINT}} |
+| Exact call-site chain | {{RUNTIME_CALL_SITES}} |
+| Production adapter | {{RUNTIME_ADAPTER}} |
+| Contract (inputs/outputs/state/auth/timeout) | {{RUNTIME_CONTRACT}} |
+| Failure behavior | {{RUNTIME_FAILURE}} |
+| Observable result | {{RUNTIME_RESULT}} |
+
+## 15. Failing proof plan
+{{PROOF_PLAN}}
+
+## 16. Acceptance evidence
+| AC | Evidence | Candidate SHA |
+|---|---|---|
+{{AC_EVIDENCE}}
+
+## 17. Stop conditions
+{{STOP_CONDITIONS}}
