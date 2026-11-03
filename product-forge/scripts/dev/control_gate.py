@@ -19,15 +19,23 @@ CFG = ROOT / "config" / "control-matrix.json"
 
 
 def current_sha() -> str:
-    head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=str(ROOT), capture_output=True,
-                          text=True, encoding="utf-8", errors="replace").stdout.strip()
+    """Stable review-relevant candidate SHA: base + committed diff, never HEAD/evidence.
+
+    Committing control evidence must not invalidate the evidence it records.
+    """
+    mb = subprocess.run(["git", "merge-base", "origin/develop", "HEAD"], cwd=str(ROOT),
+                        capture_output=True, text=True, encoding="utf-8",
+                        errors="replace")
+    if mb.returncode != 0 or not (mb.stdout or "").strip():
+        raise RuntimeError(f"cannot resolve origin/develop for control evidence: {(mb.stderr or '').strip()}")
+    base = mb.stdout.strip()
     diff = subprocess.run(
-        ["git", "diff", "--binary", "HEAD", "--", ".", ":(exclude)data/backlog/**",
-         ":(exclude)dashboard/**", ":(exclude)engineering/trails/**",
-         ":(exclude)engineering/evidence/**"],
+        ["git", "diff", "--binary", f"{base}..HEAD", "--", ".",
+         ":(exclude)data/backlog/**", ":(exclude)dashboard/**",
+         ":(exclude)engineering/trails/**", ":(exclude)engineering/evidence/**"],
         cwd=str(ROOT), capture_output=True,
     ).stdout
-    return f"{head}-{hashlib.sha256(diff).hexdigest()[:12]}"
+    return f"{base}-{hashlib.sha256(diff).hexdigest()[:12]}"
 
 
 def controls(item: dict) -> list[dict]:

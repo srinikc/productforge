@@ -337,7 +337,7 @@
     "usage": {}
   },
   "created_at": "2026-10-25T16:51:37.256014",
-  "updated_at": "2026-11-03T12:10:32.289664",
+  "updated_at": "2026-11-03T19:56:22.662082",
   "score": 0.75,
   "_note": "final report persisted (BI-PF-1484)",
   "design_pack": {
@@ -1339,5 +1339,39 @@
       "test-framework/tests/test_fix_evidence.py",
       "test-framework/tests/test_pf_design_contract.py"
     ]
-  }
+  },
+  "review_ledger": [
+    {
+      "mode": "diff",
+      "candidate_sha": "5396da751ce3c37f9c351a49d50db9d8340e0b99",
+      "review_sha": "98f314495f44",
+      "model": "deepseek-v4.1-flash",
+      "at": "2026-11-03T14:26:22.429626+00:00",
+      "findings": {
+        "BLOCKER": [
+          "`merge-base origin/develop HEAD` is invoked without `check`/stderr handling and silently falls back to `HEAD^` on missing ref, shallow/detached/fork clone, or git error; this violates the design invariant “all gate failures exit non-zero with an explicit reason; no silent pass” and can bind control evidence to an unintended base.",
+          "The fallback also makes evidence-commit stability path-dependent: where `origin/develop` is absent, the test scenario would compute `HEAD^..HEAD` after the evidence commit, producing a different key and invalidating the review it records."
+        ],
+        "MAJOR": [
+          "`current_sha()` now returns `base-diffhash` and drops `head_sha`; two distinct HEAD commits with the same review-relevant diff collide, so evidence cannot bind base/head per AC1 and a prior PASS can be reused across different heads.",
+          "The candidate key depends on mutable `origin/develop`; a fetch or another developer advancing that ref changes the SHA without any candidate code change, invalidating existing evidence and making results non-reproducible across clones/CI.",
+          "The new test only exercises the successful `merge-base` path and only `control_runner`; it does not cover missing `origin/develop`, unrelated histories, `HEAD^` fallback, control_gate parity, or the fail-closed behavior required by the gate."
+        ],
+        "MINOR": [
+          "`current_sha()` is duplicated verbatim in `control_gate.py` and `control_runner.py`; the test covers only the runner, so the gate copy can silently drift from the tested behavior.",
+          "The docstring says “never HEAD” but the function’s identity is now base-plus-diff, not head-bound; this weakens auditability of which commit produced the evidence.",
+          "`git merge-base` and `git diff` still run without repository-isolation/config controls, so ambient git config (textconv, external diff, replace refs) can alter the hash in one environment but not another."
+        ],
+        "NIT": [
+          "`subprocess.run` for `merge-base` captures text but does not set `check=True`; a missing git binary or permission failure becomes an empty-string fallback rather than a diagnosable gate failure."
+        ],
+        "SUMMARY": [
+          "The change improves the stated goal only on the happy path where `origin/develop` exists and is stable; it introduces a silent wrong-base fallback that is unacceptable for control evidence.",
+          "Candidate identity now omits the head SHA and depends on a mutable remote ref, so the AC1 base/head binding claim is not met and prior evidence can be misapplied across heads.",
+          "Prior pending MAJORs remain; this diff adds new gate-integrity and reproducibility risks rather than closing AC1."
+        ]
+      },
+      "evidence": "BI-PF-1485-98f314495f44.json"
+    }
+  ]
 }

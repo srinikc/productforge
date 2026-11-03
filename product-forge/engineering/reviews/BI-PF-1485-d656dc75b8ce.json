@@ -1,0 +1,32 @@
+{
+  "item": "BI-PF-1485",
+  "sha": "d656dc75b8ce",
+  "model": "deepseek-v4.1-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-03T14:27:42.801589+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "1c3171eea351d7ab97e0a5ee3b781c42599c6a95",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "`current_sha()` now hashes only committed `base..HEAD`; uncommitted tracked edits and untracked files are invisible, so a dirty candidate can reuse a prior clean PASS SHA. This regresses the old `git diff HEAD` behavior and violates AC1\u2019s candidate binding.",
+      "Base is resolved from ambient `origin/develop` with no fetch/freshness/fallback. Shallow CI checkouts, detached PR refs, stale remote refs, or non-develop branches either hard-fail or compute a wrong base, inflating the delta and binding evidence to an incorrect base.",
+      "Returning `<base>-<diffhash>` removes `HEAD` from the candidate identifier; different heads with the same base and review-relevant diff now collapse to the same SHA. If this string keys evidence, AC1\u2019s base/head binding and auditability are lost."
+    ],
+    "MINOR": [
+      "`control_gate.py` and `control_runner.py` now contain identical copies of `current_sha()`; the fix was duplicated instead of shared, guaranteeing future drift.",
+      "The new `test-framework/tests/pipeline/test_control_evidence_sha.py` is outside the approved design `affected_files`/review scope and test matrix, so the traceability evidence is incomplete.",
+      "The new test covers only `engineering/evidence/**` exclusion; no test covers data-only commits under `data/backlog/**`/`dashboard/**`/`engineering/trails/**`, missing `origin/develop`, or dirty-worktree behavior required by AC1."
+    ],
+    "NIT": [
+      "The docstring says \u201cnever HEAD/evidence\u201d while the command explicitly uses `HEAD`; this is misleading for maintainers."
+    ],
+    "SUMMARY": [
+      "The delta-SHA direction is reasonable, but the implementation is not enterprise-safe: candidate identity ignores dirty/untracked state, base resolution is ambient and brittle, and `HEAD` is dropped from the returned SHA.",
+      "The new test validates only the happy path and is outside the declared test matrix.",
+      "Duplicated SHA logic across two gates increases long-term drift risk."
+    ]
+  }
+}
