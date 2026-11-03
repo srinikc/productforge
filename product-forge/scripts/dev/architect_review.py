@@ -118,6 +118,7 @@ EXCLUDE = [
     ":(exclude,glob)**/data/backlog/**",
     ":(exclude,glob)**/docs/BACKLOG-SUMMARY.md",
     ":(exclude,glob)**/docs/documentation-index.html",
+    ":(exclude,glob)**/docs/README.md",
 ]
 
 

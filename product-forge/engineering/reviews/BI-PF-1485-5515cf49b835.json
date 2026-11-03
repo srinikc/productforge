@@ -1,0 +1,47 @@
+{
+  "item": "BI-PF-1485",
+  "sha": "5515cf49b835",
+  "model": "deepseek-v4.1-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-03T12:29:34.496626+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "9dec2e051b38c84eb363e786e9d482205649afda",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "Scope violation: the candidate edits shipped `core/vcs.py` and `core/delivery.py`, neither of which appears in the item `affected_files`/`review_scope.files` (or the binding review scope), so shipped Python is changed outside the approved, reviewable surface.",
+      "`config/coding-guidelines.json` cites `docs/guidelines/coding/go/style-guide.md`, `python/style-guide.md`, `typescript/style-guide.md`, `database/postgresql.md`, `api/rest.md`, `backend/fastapi.md`, `testing/standards.md`; only `go/pf-go.md` is added, so `design_contract_check` (\"coding guideline missing\") will block every Go/Py/SQL/API item at Gate 1.",
+      "`config/ownership.json` defines owners only for `go/`, `migrations/`, `scripts/dev/`, `test-framework/`, `docs/`, `ops/`, `config/`, `templates/`, `.github/`, `AGENTS.md`; `core/`, `api/`, `adapters/`, `engineering/`, `data/` are unmapped, so `ownership_check` fails (\"no owner for file\") for any such item \u2014 including this one's own `core/` edits.",
+      "AC-3 has no implementation delta: the diff adds only a test for `encoding_check.changed()` covering worktree/untracked and the generator already read the template with `utf-8-sig`; `scripts/dev/encoding_check.py` is untouched (and absent from the binding review scope), so the \"including working-tree/untracked files\" behavior is not introduced or provably changed by this candidate.",
+      "`biis_tier_check.computed_tier` substring-matches `tier3/tier2` patterns against free text (title, objective, in_scope): \"authority\" matches \"auth\", \"ui/\" matches prose, so tier \u2014 which silently selects gate depth \u2014 is derived from wording rather than paths, and cannot be audited or defended."
+    ],
+    "MINOR": [
+      "AC-1's stated mechanism `review_is_current()` is defined and unit-tested but called by no gate or runner; \"a data-only commit does not invalidate the review\" rests entirely on the `EXCLUDE` glob list, with no assertion that EXCLUDE and the delta base agree.",
+      "`ownership_check.problems` requires the route owner to own *all* affected files, so an item that changes a route plus any shared config/docs file fails Gate 1 for a correct design.",
+      "`review_attribution_check.problems` demands `origin_class` for every non-PENDING diff disposition once 2+ reviews exist, including first-review findings, contradicting `docs/REVIEW-ATTRIBUTION.md` (\"every finding after the first full review\").",
+      "Enforcement-date/duplication: `config/biis-tiers.json` `universal_dimensions` restates `config/design-completeness.json` `required_dimensions` verbatim, and enforce logic is re-implemented four times (`design_contract.enforced`, `design_pack.should_enforce`/`runtime_should_enforce`, `biis_tier.enforced`, `biis_completeness.enforced`) \u2014 no single owner, guaranteed drift.",
+      "`_GIT_ENV_DENY`/`_git_env()` are copied verbatim into `core/vcs.py` and `core/delivery.py` while `scripts/dev/git_env.py` is introduced as the central policy; three deny lists, no shared source.",
+      "`scripts/dev/precheck.py` calls `sanitize_process_env()` at import time, so merely importing precheck (including from tests) mutates the host process Git environment; this belongs in `main()`.",
+      "`architect_review._ingest` returns `2` after the evidence and trail writes when the ledger write fails, masking the `1` blocker exit code and leaving evidence on disk with no ledger entry; a retry then accumulates duplicate evidence files for the same candidate.",
+      "`control_gate.current_sha` / `control_runner.current_sha` hash `git diff --binary HEAD` only, so untracked files are excluded from the candidate key \u2014 control PASS evidence can be bound to a SHA that omits new files, inconsistent with the encoding gate's explicit untracked coverage.",
+      "`docs/BIIS-LEARNING.md` commits an absolute local path (`C:\\Users\\ADMIN\\AppData\\Local\\Temp\\opencode\\pf-probe`) and cites probe artifacts (`DESIGN-v3.md`, `BIIS-SAMPLE.md`, `go-test-v3.txt`) that are not in the repo, so its \"measured\" evidence is not reproducible.",
+      "Two glossaries now diverge: `config/glossary.json` and `docs/GLOSSARY.md` define overlapping terms (`runtime proof`, `MATERIAL_CHANGE`, gates/planes) with no cross-check in `pf_process_check`.",
+      "CL-010..CL-016 were added only to `docs/CORRECTION-LEDGER.md`; `config/correction-ledger.json` (the machine record that `docs/PF-DESIGN-DELIVERY-CONTRACT.md` \u00a76 and CL-008/CL-009 injection rely on) is not updated, so these corrections will not be injected at design/coding time.",
+      "`review_ledger._backfill` rewrites item ledgers from every `engineering/reviews/*.json`, has no `--dry-run`, and swallows per-file exceptions, so partial backfills report success."
+    ],
+    "NIT": [
+      "`test_encoding_check.py`'s new test is separated by a single blank line (E302) and its fake `_git(*args)` only works if `changed()` never passes keyword arguments.",
+      "`self_review_check.changed_lines` returns line number `0` for every finding, so the gate output cannot locate the offending line.",
+      "`biis_completeness_check.problems` re-reads `config/biis-tiers.json` inside the per-dimension loop and inside `enforced()` on each call.",
+      "`gate2_completion_check` mixes lookups (`dcc.problems(iid)` re-fetches while `own.problems(iid, item)` passes the item), so two inconsistent item snapshots can be validated in one run.",
+      "`config/design-contract.json` hard-codes `max_acs_per_item: 5` while the contract prose only says \"one runtime capability per item\"; the two constraints are not the same and the number is undocumented."
+    ],
+    "SUMMARY": [
+      "Direction is right (delta re-review, design pack, encoding coverage, review/fix evidence, Git env isolation) and the test surface is broad, but the change is much wider than the item contract and several new blocking gates are wired against configs that reference files/paths the diff does not provide.",
+      "Top risks: (1) `coding-guidelines.json` and `ownership.json` reference missing guideline files and unmapped trees, so correct items fail Gate 1/Gate 2 for the wrong reason; (2) shipped `core/` code was changed outside the declared affected files, and AC-3's gate behavior is asserted by test only; (3) BIIS tiering derived from prose substrings decides gate depth non-deterministically.",
+      "Prior MAJORs (reviewer writing the backlog, delta review rejected at Gate 2, missing `pf-gates.yml`, 500k prompt cap) remain PENDING and still gate approval; disposition them before merge."
+    ]
+  }
+}

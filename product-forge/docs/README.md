@@ -237,7 +237,7 @@
 |---|---|---|---|
 | `archive/` (23) | Implemented then superseded | see files | SUPERSEDED docs - implemented then replaced; history only (see %; % is a curated adoption estimate) |
 | `compact/` (1) | Runtime | 100% | Compact summaries produced by the pipeline |
-| `guidelines/` (61) | Implemented | 100% | Knowledge/guidelines used by the knowledge router |
+| `guidelines/` (62) | Implemented | 100% | Knowledge/guidelines used by the knowledge router |
 | `knowledge/` (2) | Generated | 100% | Compiled knowledge (knowledge-compiler output) |
 | `plans/` (11) | Adopted (historical) | see files | Roadmaps/plans - historical; most items were adopted (see %; % is a curated adoption estimate) |
 | `research/` (15) | Adopted (reference) | see files | External research/notes - patterns adopted into Product Forge (see %; % is a curated adoption estimate) |
@@ -339,6 +339,7 @@
 | [`guidelines/business/social-network.md`](guidelines/business/social-network.md) | Implemented | 100% | Social Network | no | — |
 | [`guidelines/caching/strategies.md`](guidelines/caching/strategies.md) | Implemented | 100% | Caching Engineering Standards | no | — |
 | [`guidelines/cloud/aws.md`](guidelines/cloud/aws.md) | Implemented | 100% | Cloud Engineering Standards | no | — |
+| [`guidelines/coding/go/pf-go.md`](guidelines/coding/go/pf-go.md) | Implemented | 100% | PF-SB Go Coding Guidelines | no | — |
 | [`guidelines/coding/go/style-guide.md`](guidelines/coding/go/style-guide.md) | Implemented | 100% | Go Engineering Standards | no | — |
 | [`guidelines/coding/python/style-guide.md`](guidelines/coding/python/style-guide.md) | Implemented | 100% | Python Coding Standards | no | — |
 | [`guidelines/coding/typescript/style-guide.md`](guidelines/coding/typescript/style-guide.md) | Implemented | 100% | TypeScript & React Coding Standards | no | — |

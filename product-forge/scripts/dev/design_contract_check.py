@@ -41,11 +41,17 @@ def _date(v) -> date | None:
 
 
 def enforced(item: dict, cfg: dict) -> bool:
-    if item.get("design_pack", {}).get("contract_version"):
+    if item.get("design_pack"):
         return True
     created = _date(item.get("created_at"))
     start = _date(cfg.get("enforce_from"))
-    return bool(created and start and created >= start)
+    # A present-but-invalid date is a typo: fail closed. An absent date on a legacy
+    # item without a design pack is outside this contract.
+    if str(item.get("created_at") or "").strip() and not created:
+        return True
+    if not created or not start:
+        return False
+    return created >= start
 
 
 def _iter_strings(value):
