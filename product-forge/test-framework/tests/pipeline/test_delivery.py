@@ -35,6 +35,8 @@ def _bare(tmp: Path) -> Path:
 def _repo(proj_dir: Path, origin: Path = None) -> Path:
     proj_dir.mkdir(parents=True, exist_ok=True)
     _git(proj_dir, "init", "-q")
+    _git(proj_dir, "config", "user.email", "t@t")
+    _git(proj_dir, "config", "user.name", "t")
     _git(proj_dir, "checkout", "-q", "-b", "develop")
     (proj_dir / "a.txt").write_text("base\n", encoding="utf-8")
     _git(proj_dir, "add", "a.txt")

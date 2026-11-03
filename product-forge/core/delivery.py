@@ -120,7 +120,8 @@ def _land(v, repo: str, item_id: str, target: str, branch: str, pr: dict, title:
     try:
         m = _git_in(wt["path"], "merge", "--no-ff", branch, "-m", f"merge {item_id}: {title or ''}")
         if m.returncode != 0:
-            return {"ok": False, "reason": "integrate merge conflict"}
+            detail = ((m.stderr or "") + (m.stdout or "")).strip()[:300]
+            return {"ok": False, "reason": f"integrate merge conflict: {detail}"}
         # BI-PF-1254: run the gate on the PF code root (the product-forge/ subtree in a framework
         # repo), not the repo root, so repo-level layouts don't spuriously fail wired_audit.
         code_root = wt["path"]
