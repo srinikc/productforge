@@ -1,0 +1,44 @@
+{
+  "item": "BI-PF-1485",
+  "sha": "375ecccd78c5",
+  "model": "deepseek-v4.1-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-03T09:19:01.262617+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "d7bd602221e08a0ab73bcfccb96b51f057edb769",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "`design_pack.render` passes `ac_evidence` (a list of `{ac,evidence,sha}` dicts) through `_join`, so section 16 of every generated `engineering/design/<ID>.md` renders as a Python repr inside a markdown table; no test asserts the rendered AC-evidence rows.",
+      "`design_contract_check.enforced()` returns True for *any* item that merely has a `design_pack`, ignoring `enforce_from`; combined with the new controls/ledger/completeness requirements this retroactively blocks every pre-existing designed item at Gate 1/2, contradicting `config/design-contract.json` and the doc's \"created on/after\" rule.",
+      "Control evidence binding is unreproducible: `control_gate.current_sha`/`control_runner.current_sha` hash `git diff --binary HEAD` (worktree), so evidence recorded before a commit never matches the committed candidate, and a clean CI/precheck checkout at a different HEAD can never satisfy the `implementation` phase check.",
+      "`templates/DESIGN-PACK.md` is renumbered (sections 1\u201317) with no regeneration/backfill of existing `engineering/design/*.md`; `excluded_content_check` accepting both \"## 1.\" and \"## 2.\" numbering hides the drift instead of forcing regeneration.",
+      "AC-1's rule is not wired: `architect_review.review_is_current()` is added but never called by `architect_review_check`, `gate2_completion_check`, or precheck \u2014 only its own unit test exercises it, so \"a data-only commit does not invalidate the review\" has no runtime enforcement change.",
+      "`scripts/dev/gen_docs_index.py` registers `BACKLOG-AUTHORITY-RUNBOOK.md` and `BACKLOG-DB-SSOT.md`, and `docs/PF-API-SERVICE-OR-SERVER.md` links the runbook, but neither file is present in this candidate (1484 scope); this creates dangling index entries/doc links and likely fails `docs-fresh --check`.",
+      "`self-review --strict` is made a blocking gate on a `\\b(TODO|FIXME|XXX|placeholder|stub|not implemented)\\b` regex over shipped code; legitimate strings (e.g. 501 \"not implemented\" handlers, redaction placeholders) will block unrelated items with no waiver path."
+    ],
+    "MINOR": [
+      "`framework_ref_check` and `self_review_check` still call `subprocess.run([\"git\", ...])` directly instead of `git_env.run_git`, so the two new gates remain exposed to the ambient `GIT_DIR`/`GIT_WORK_TREE` leak this item fixes elsewhere.",
+      "`biis_tier_check.enforced` and `biis_completeness_check.enforced` duplicate each other (and disagree with `design_contract_check.enforced`) and re-read/re-parse the config on every call, including inside per-dimension loops.",
+      "`architect_review._ingest` stores `evidence: out.name` (basename) in the ledger while all other artifacts use repo-relative paths, making ledger entries unresolvable from the item.",
+      "`control_runner` appends control evidence on every run with no pruning or supersede, so `control_evidence` grows unbounded inside the backlog item JSON.",
+      "`ownership_check` requires the route owner to own *every* affected file, so any item touching `docs/`, `scripts/dev/`, or `test-framework/` alongside a route always fails with no exemption list.",
+      "`design_contract_check` requires a non-empty `review_scope.exclude`, forcing pure in-scope items to invent filler, and hard-caps `max_acs_per_item: 5` / `max_runtime_capabilities: 1` with no configured waiver.",
+      "`git_env.worktree_fingerprint` hardcodes repo-specific refs (`refs/heads/pf-id-counter`, `refs/heads/pf-leases`) in a module documented as generic Git-environment policy.",
+      "`precheck.main` calls `worktree_fingerprint` outside any try/except; a git failure (locked index, missing repo) surfaces as a traceback rather than a clean fail-closed gate message."
+    ],
+    "NIT": [
+      "`self_review_check.changed_lines` returns a hardcoded line number `0`, so findings cannot be located.",
+      "`precheck._GROUP_OF` assigns `framework-ref`/`self-review` to `quality` but `pf-process` to `structure` although all three are fast framework checks; group selection is inconsistent.",
+      "`test_precheck_tier` now asserts `gate2-completion` in the \"minimal tier only\" case while the comment still describes a minimal tier."
+    ],
+    "SUMMARY": [
+      "Scope is tooling/docs/config and mostly coherent, but the candidate adds several blocking gates whose upstream artifacts (checks, docs, risk-tier mapping, ledger backfill) are not in this diff.",
+      "Highest new risks: retroactive enforcement via `design_contract.enforced()`, unreproducible control-evidence hashing, and a template renumbering with no regeneration path.",
+      "Generated design output for AC evidence is malformed, and two of the new gates bypass the `git_env` isolation they rely on.",
+      "Verdict: not approvable at Gate 2 until the enforcement cutovers, evidence binding, and generated-artifact regressions are closed."
+    ]
+  }
+}
