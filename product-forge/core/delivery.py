@@ -26,6 +26,11 @@ import time
 from core.paths import PRODUCTS_DIR, ROOT
 
 _LOCK_TTL = 900  # seconds
+_GIT_ENV_DENY = ("GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_COMMON_DIR", "GIT_CEILING_DIRECTORIES")
+
+
+def _git_env() -> dict:
+    return {k: v for k, v in os.environ.items() if k not in _GIT_ENV_DENY}
 
 
 def repo_dir(scope: str, project: str | None) -> str:
@@ -66,7 +71,7 @@ def _block(scope: str, project: str | None, item_id: str, reason: str) -> dict:
 
 
 def _git_in(cwd: str, *args: str):
-    return subprocess.run(["git", *args], cwd=cwd, capture_output=True, text=True, timeout=300)
+    return subprocess.run(["git", *args], cwd=cwd, capture_output=True, text=True, timeout=300, env=_git_env())
 
 
 def _gh() -> str:

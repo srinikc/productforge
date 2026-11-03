@@ -18,6 +18,12 @@ import subprocess
 from datetime import datetime
 from typing import Any
 
+_GIT_ENV_DENY = ("GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_COMMON_DIR", "GIT_CEILING_DIRECTORIES")
+
+
+def _git_env() -> dict:
+    return {k: v for k, v in os.environ.items() if k not in _GIT_ENV_DENY}
+
 
 class VCSManager:
     def __init__(self, project_dir: str, config: dict | None = None):
@@ -98,7 +104,7 @@ class VCSManager:
     def _git(self, args: list[str], check: bool = False) -> dict[str, Any]:
         try:
             r = subprocess.run(["git", *args], cwd=self.project_dir, capture_output=True,
-                               text=True, timeout=120)
+                               text=True, timeout=120, env=_git_env())
             out = (r.stdout or "").strip()
             err = (r.stderr or "").strip()
             if check and r.returncode != 0:
