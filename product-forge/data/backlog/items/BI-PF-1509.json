@@ -385,7 +385,7 @@
   },
   "blocked_by": [],
   "created_at": "2026-10-28T11:13:41.472610",
-  "updated_at": "2026-11-03T13:59:46.289874",
+  "updated_at": "2026-11-03T18:54:33.310706",
   "design_pack": {
     "audit": [
       "Authority success/failure logs principal=admin and source=request/startup (no secrets)",
@@ -1757,6 +1757,41 @@
         ]
       },
       "evidence": "BI-PF-1509-30fe34ce43c9.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "0ca103d38829e366ab6b5e9da4d0f3772a30a992",
+      "review_sha": "c52e5639c3e2",
+      "model": "deepseek-v4.1-flash",
+      "at": "2026-11-03T13:24:33.056985+00:00",
+      "findings": {
+        "BLOCKER": [
+          "`go/edpsvc/main_test.go` uses `strings.Contains` in `TestBacklogAuthorityFailsClosed` but the import block adds only `fmt`/`edpdata`; `go test ./...` fails to compile, invalidating AC-1/AC-4 evidence."
+        ],
+        "MAJOR": [
+          "Diff adds `migrations/0016_backlog_db_authority.{up,down}.sql` outside `review_scope.files`/approved `affected_files`; unreviewed DDL seeds global 1508, creates authority tables, and grants runtime DML.",
+          "`core/backlog.py::delete` still calls `_write_indexes(scope, project, op, cl)` after `_delete_item_from_db`; DB mode therefore still writes local backlog index files and mutates the in-memory bucket, breaking DB-only authority.",
+          "`core/id_allocator._reserve_db` ignores the `session` argument and appends a fresh `uuid4` to `reservation_id` per call; caller retries of `reserve_shared` mint new blocks instead of replaying the same reservation.",
+          "`BacklogStore.Put` cross-tenant rejection relies on `ON CONFLICT ... WHERE backlog_items.tenant_id = EXCLUDED.tenant_id`; under FORCE RLS the conflicting row may be invisible, surfacing a unique-violation/500 instead of `ErrTenantConflict`/409; only a DSN-gated test covers it."
+        ],
+        "MINOR": [
+          "`_reserve_db` returns `None` on any HTTP/non-2xx failure after one retry and logs no reason; 401, 400, timeout, and 503 are indistinguishable for triage.",
+          "`_delete_item_from_db` interpolates `iid` and `tenant` directly into the URL without `urllib.parse.quote`; IDs/tenants containing `#`, `?`, or spaces will target the wrong resource.",
+          "`Authority` schema probe checks tables, counter, GUC, RLS, and migrations but not the `backlog_items.tenant_id` column; a missing 0017 alignment is reported as `db_unavailable` rather than `migration_missing`.",
+          "`pf_sb_scope_guard.py` computes `git diff`/untracked paths before reading the baseline; if `--baseline` lives inside the repo and is untracked, the guard reports its own baseline file as a disallowed change."
+        ],
+        "NIT": [
+          "`ErrAuthorityUnavailable` is defined but never used; only the wrapped `ErrAuthoritySchema`/`ErrAuthorityRow` sentinels are consumed.",
+          "`TestBacklogAuthorityWithDB` asserts `next_id` and item count but not `reservation_count`, leaving the counter read unverified at the HTTP contract.",
+          "`backlogReserve` logs `reason_code=invalid_request` without the `principal=admin source=request` fields used by the authority endpoint."
+        ],
+        "SUMMARY": [
+          "Not mergeable: the added Go test file does not compile (missing `strings` import), so the claimed AC evidence cannot run.",
+          "Main risks: unreviewed 0016 schema step, DB mode still touching local index files, and Python reservation idempotency not tied to the caller session.",
+          "Cross-tenant `Put` behavior under FORCE RLS needs a real/DB test before relying on 409 mapping."
+        ]
+      },
+      "evidence": "BI-PF-1509-c52e5639c3e2.json"
     }
   ],
   "affected_files": [
