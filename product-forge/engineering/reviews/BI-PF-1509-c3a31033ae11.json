@@ -1,0 +1,43 @@
+{
+  "item": "BI-PF-1509",
+  "sha": "c3a31033ae11",
+  "model": "deepseek-v4.1-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-03T08:38:44.960164+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "d59aac032852b0fb9871ca22cdb0b25b2f16f2be",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "`Authority` migration check compares `schema_migrations.version IN (16,18,19,20) HAVING count(*)=4`; if `version` is text (e.g. `'0018'`) or the table is absent, the query errors and every GET returns 503, making AC-2 unreachable. Confirm column type, and map \"table missing\" to `migration_missing` rather than `db_unavailable`.",
+      "AC-5 red\u2192green E2E proof rests on `TestBacklogAuthorityWithDB` / `TestBacklogAuthorityFailsClosed`, which `t.Skip` unless `PF_RUNTIME_DSN` is set; default CI never executes the 200 path or the DB-outage 503 path. `engineering/trails/BI-PF-1509-red.txt` and `-rls-role.txt` cited in `ac_evidence` are not in this candidate.",
+      "`_db_for(scope)` ignores its argument: with `PF_BACKLOG_DB=on`, every scope (PF-SB and PF-GP) switches to DB-only save/delete and local item files are no longer written or removed \u2014 a storage-authority change beyond the declared non-goal \"no PF-GP workflow changes\", and outside `review_scope.files`.",
+      "Docs and code disagree on the DB-mode default (`docs/BACKLOG-DB-SSOT.md` and the `_backlog_db_mode` docstring say \"on\"; `config/env-flags.json` and the code default to \"off\") \u2014 operators will misread which store is authoritative.",
+      "`backlogAuthority` sets `edp_backlog_authority_startup_ok=0` on any 503 and never restores it on success, contradicting the runbook claim that \"a single admin probe 503 is not paged\" (the `startup_ok == 0 for 10m` rule is armed from the request path).",
+      "Index DDL on `backlog_items` (0018 `CREATE INDEX \u2026 INCLUDE (id)`) takes ACCESS EXCLUSIVE on the SoR table during deploy and will abort under `lock_timeout=5s`; 0020 then drops and recreates the same index, doubling the DDL window on a hot table.",
+      "[OUT_OF_SCOPE] The candidate bundles a large framework/tooling change set (config/*.json, design/gate checkers, precheck, docs) outside `review_scope`; not assessed here, but it dilutes the full-candidate review and the item boundary."
+    ],
+    "MINOR": [
+      "No non-DB test exercises the HTTP 503 path, and no unit/integration coverage exists for the `timeout` reason code, although the design's coverage and failure matrix claim it.",
+      "`test_backlog_migrations.py` only greps for `lock_timeout` and absence of `DELETE/TRUNCATE`; it never applies up/down, so trigger and counter behaviour is unproven.",
+      "Duplicate DB-mode detection: `core/backlog.py::_db_for`/`_backlog_db_mode` vs `core/id_allocator.py::_db_enabled`, plus `api/routers/backlog.py` reaching into the private `_db_enabled` \u2014 one owner is expected (reuse rule).",
+      "`reserve_ids` lets `reserve_shared`'s `RuntimeError` escape as a generic 500 instead of a structured envelope/503, diverging from the Go endpoints' failure contract.",
+      "`backlogReserve` maps generic DB errors to 503 without `Retry-After`, inconsistent with the authority endpoint's documented 503 + `Retry-After: 30`.",
+      "`tenant` query param is echoed into the JSON response and bound into `set_config` with no length/charset validation.",
+      "Error log emits `limits.Redact(err.Error())`; Postgres errors can carry statement/parameter text (tenant), so confirm redaction covers parameters, not only URLs."
+    ],
+    "NIT": [
+      "`startup_ok` actually means \"last authority check ok\"; rename or add a separate gauge so request-path failures don't reuse the startup signal.",
+      "`HAVING count(*)=4` breaks if `schema_migrations` ever holds duplicate rows for a version; prefer an `EXISTS \u2026 WHERE version IN (\u2026) GROUP BY` set check.",
+      "`ProductForgeBacklogAuthorityErrors` (`increase >= 3`) and `ProductForgeBacklogAuthorityErrorRate` (`rate > 0.05`) are near-duplicates; one alert is enough."
+    ],
+    "SUMMARY": [
+      "Route, auth-before-method ordering, tenant guard, fixed 503 body, and fail-closed authority read are correctly implemented and covered by mux-level tests for AC-1/AC-3.",
+      "Largest risks: the migration-version predicate may make AC-2 permanently 503 depending on `schema_migrations` typing; the AC-2/AC-4 runtime proofs skip silently without `PF_RUNTIME_DSN`.",
+      "The DB-SSOT cutover bundled into `core/backlog.py`/`core/id_allocator.py` exceeds this item's declared scope/non-goals and its default-on documentation contradicts the code.",
+      "Observability semantics (startup gauge mutated by request failures) and the SoR index DDL need tightening before production rollout."
+    ]
+  }
+}

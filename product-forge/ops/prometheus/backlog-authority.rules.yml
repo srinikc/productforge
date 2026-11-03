@@ -1,0 +1,43 @@
+groups:
+  - name: product-forge-backlog-authority
+    rules:
+      - alert: ProductForgeBacklogAuthorityUnavailable
+        expr: edp_backlog_authority_startup_ok == 0
+        for: 10m
+        labels:
+          severity: page
+          owner: platform-oncall
+          service: edpsvc
+        annotations:
+          summary: "EDP backlog authority is unavailable"
+          runbook: "docs/BACKLOG-AUTHORITY-RUNBOOK.md"
+      - alert: ProductForgeBacklogAuthorityErrors
+        expr: increase(edp_backlog_authority_errors_total[10m]) >= 3
+        for: 10m
+        labels:
+          severity: page
+          owner: platform-oncall
+          service: edpsvc
+        annotations:
+          summary: "EDP backlog authority is returning repeated 503s"
+          runbook: "docs/BACKLOG-AUTHORITY-RUNBOOK.md"
+      - alert: ProductForgeBacklogAuthorityErrorRate
+        expr: rate(edp_backlog_authority_errors_total[10m]) > 0.05
+        for: 5m
+        labels:
+          severity: page
+          owner: platform-oncall
+          service: edpsvc
+        annotations:
+          summary: "EDP backlog authority error rate is elevated"
+          runbook: "docs/BACKLOG-AUTHORITY-RUNBOOK.md"
+      - alert: ProductForgeBacklogAuthorityStale
+        expr: absent(edp_backlog_authority_success_timestamp_seconds) or time() - edp_backlog_authority_success_timestamp_seconds > 600
+        for: 5m
+        labels:
+          severity: page
+          owner: platform-oncall
+          service: edpsvc
+        annotations:
+          summary: "EDP backlog authority snapshot is stale"
+          runbook: "docs/BACKLOG-AUTHORITY-RUNBOOK.md"

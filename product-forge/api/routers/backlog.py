@@ -173,8 +173,12 @@ def reserve_ids(body: dict[str, Any], request: Request, ctx: dict[str, Any] = De
     """BI-PF-0462: the id-allocation authority - mint a contiguous id block for the calling session."""
     from core import id_allocator
     s, p = _scope_project(request, str(body.get("scope") or "product_forge"), str(body.get("project") or ""))
-    blk = id_allocator.reserve(s, p, size=int(body.get("size") or 0),
-                               session=str(body.get("session") or ""))
+    if id_allocator._db_enabled(s):
+        blk = id_allocator.reserve_shared(s, p, size=int(body.get("size") or 0),
+                                          session=str(body.get("session") or ""))
+    else:
+        blk = id_allocator.reserve(s, p, size=int(body.get("size") or 0),
+                                   session=str(body.get("session") or ""))
     return from_request(request, blk, resource="backlog")
 
 

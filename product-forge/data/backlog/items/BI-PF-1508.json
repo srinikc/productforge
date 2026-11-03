@@ -1,0 +1,961 @@
+{
+  "id": "BI-PF-1508",
+  "due": "",
+  "tag": "PF",
+  "body": "Add an admin-only readiness endpoint on the EDP data-plane service that proves the shared backlog authority is reachable and reports the current global ID allocation state. This is a PF-SB pilot item; it does not change PF-GP agent workflows.\n\nThe endpoint is a real runtime path: edpsvc HTTP entrypoint -> edpdata.BacklogStore -> PostgreSQL global allocation + backlog_items. It must fail closed when the DB authority is unavailable and must never use local/Git ID fallback.\n",
+  "deps": [],
+  "epic": "BI-PF-1243",
+  "risk": 2,
+  "type": "feature",
+  "_note": "Superseded by BI-PF-1509: 1508 has 5 design reviews vs budget 1, no material diff approval, and no coverage/standards under the new contract.",
+  "brief": {
+    "why": "Makes the shared DB authority observable before workers depend on it.",
+    "source": "authored",
+    "problem": "Operators and workers cannot inspect the authoritative DB backlog/ID state through the EDP service.",
+    "what_adds": "Admin-only GET /backlog/authority readiness endpoint with DB allocation/item counts.",
+    "who_feels": "PF-SB/PF-GP operators and workers diagnosing backlog authority failures."
+  },
+  "label": "PF Backlog 657",
+  "links": {
+    "source_ref": "docs/BACKLOG-DB-SSOT.md",
+    "owner_files": [
+      "go/edpsvc/main.go",
+      "go/edpdata/backlog.go"
+    ]
+  },
+  "owner": "agent",
+  "risks": [
+    "Counter drift is prevented by DB triggers for insert/delete; direct counter edits are out of contract",
+    "Migration 0018 locks reservations briefly; lock_timeout fails fast",
+    "Production startup fails closed on authority failure"
+  ],
+  "scope": "product_forge",
+  "score": 1.12,
+  "title": "PF-SB pilot: EDP backlog authority readiness endpoint",
+  "value": 3,
+  "effort": 2,
+  "moscow": "Should",
+  "origin": "review",
+  "parent": "BI-PF-1243",
+  "review": {
+    "at": "",
+    "reviewed_by": "worker",
+    "impact_review": [
+      {
+        "claim": "API CHECK",
+        "verdict": "aligned",
+        "evidence": "exact /admin/backlog/authority route; no collision with /backlog/{id}; reservation/item scope labels",
+        "recommendation": "Register with adminOnly"
+      },
+      {
+        "claim": "RLS CHECK",
+        "verdict": "aligned",
+        "evidence": "item_count uses BindTenant; no cross-tenant aggregate; no storage field",
+        "recommendation": "Keep tenant required"
+      },
+      {
+        "claim": "AC CHECK",
+        "verdict": "aligned",
+        "evidence": "auth, DB, missing tenant, 405, fail-closed, counter, and scope-guard tests",
+        "recommendation": "Implement after Gate 1"
+      },
+      {
+        "claim": "LANGUAGE CHECK",
+        "verdict": "aligned",
+        "evidence": "new shipped path is Go in edpsvc/edpdata; guard script is test tooling",
+        "recommendation": "No shipped Python product logic"
+      },
+      {
+        "claim": "MIGRATION CHECK",
+        "verdict": "aligned",
+        "evidence": "0018 adds/backfills reservation_count; down drops it; no item data rewrite",
+        "recommendation": "Apply before route rollout"
+      }
+    ],
+    "reconciliation": {
+      "assumptions": [
+        "The endpoint is an admin diagnostic, so tenant must be explicit",
+        "backlog_items is FORCE RLS; allocation/reservation tables are global",
+        "PF_DB_DSN points to pf_app/pf_runtime in production"
+      ],
+      "divergences": [
+        "none"
+      ],
+      "existing_path": [
+        "go/edpsvc/main.go: buildMux registers /backlog, /backlog/ids:reserve, /backlog/ catch-all",
+        "go/edpdata/backlog.go: BacklogStore over datastore.RelationalStore",
+        "go/store/tenancy.go: BindTenant sets app.tenant_id transaction-locally",
+        "migrations/0016_backlog_db_authority and 0017_backlog_tenant_alignment"
+      ],
+      "open_questions": [],
+      "prior_decisions": [
+        "Use EDP/edpsvc as the shared DB authority",
+        "PF_BACKLOG_API is not the service name",
+        "pf_app is the RLS-enforced runtime role"
+      ]
+    }
+  },
+  "source": "review",
+  "status": "blocked",
+  "project": "",
+  "summary": "PF-SB pilot: DB backlog authority readiness and observability.",
+  "unlocks": [],
+  "analysis": {
+    "mode": "deterministic",
+    "depth": "deep",
+    "drift": "NONE",
+    "risks": [],
+    "status": "COMPLETE",
+    "evidence": [
+      "similar=4",
+      "score=1.12",
+      "components=4",
+      "apis=8"
+    ],
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "confidence": "high",
+    "analyzed_at": "2026-10-27T20:30:28.437684",
+    "analyzed_by": "system",
+    "assumptions": [],
+    "missing_info": [],
+    "existing_apis": [
+      "/api/v1/audit/readiness",
+      "/api/v1/backlog",
+      "/api/v1/backlog/epics/{epic_id}/order",
+      "/api/v1/backlog/epics/{epic_id}/status",
+      "/api/v1/backlog/groom",
+      "/api/v1/backlog/groom/approve",
+      "/api/v1/backlog/grooming/guidelines",
+      "/api/v1/backlog/grooming/stranded"
+    ],
+    "arch_fingerprint": "241ef9f14efc8ac5",
+    "architecture_fit": "EXTEND",
+    "decision_request": {
+      "ask": "",
+      "needed": false,
+      "reasons": []
+    },
+    "existing_modules": [
+      "config/backlog-dod-baseline.json",
+      "config/backlog-verification-baseline.json",
+      "config/data-plane-threats.json"
+    ],
+    "rewrite_required": false,
+    "conflict_findings": [],
+    "revision_analyzed": 2,
+    "dependency_findings": [],
+    "existing_components": [
+      "core/agent_readiness.py",
+      "core/backlog.py",
+      "core/backlog_link.py",
+      "core/service_catalog.py"
+    ],
+    "duplication_findings": [],
+    "new_component_required": false,
+    "implementation_strategy": "Extend existing components/APIs: core/agent_readiness.py, core/backlog.py, core/backlog_link.py, core/service_catalog.py"
+  },
+  "approach": "PF-SB pilot: EDP backlog authority readiness endpoint",
+  "children": [],
+  "evidence": [
+    "design: engineering/design/BI-PF-1508.md"
+  ],
+  "in_scope": [
+    "Add GET /admin/backlog/authority?tenant=<tenant> to edpsvc's real mux",
+    "Add BacklogStore.Authority and a DB-trigger-maintained reservation counter (migration 0018)",
+    "Read global next_id/reservation_count plus tenant-scoped item_count under forced RLS",
+    "Return 401/400/405/503 as specified; explicit missing-row/migration checks",
+    "Add startup authority check, Prometheus alert rule/runbook, HTTP tests, counter tests, and scope guard test"
+  ],
+  "priority": "P2",
+  "revision": 2,
+  "rollback": "Remove route/startup check/method; migration 0018 down drops triggers/function/column; no item data change.",
+  "approvals": [],
+  "decisions": [
+    {
+      "at": "2026-10-27T20:30:28.687532",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)",
+      "decision": "APPROVE"
+    },
+    {
+      "at": "2026-10-27T15:14:04.185805+00:00",
+      "by": "hil:user",
+      "seq": 2,
+      "gate": 0,
+      "mode": "design",
+      "note": "HIL approved material design change to rerun Gate 1.5 after redesign.",
+      "decision": "MATERIAL_CHANGE",
+      "hil_confirmed": true
+    },
+    {
+      "at": "2026-10-27T15:22:44.992836+00:00",
+      "by": "hil:user",
+      "seq": 3,
+      "gate": 0,
+      "mode": "design",
+      "note": "HIL directed all Gate 1.5 findings including minors to be fixed; material design revision v3.",
+      "decision": "MATERIAL_CHANGE",
+      "hil_confirmed": true
+    },
+    {
+      "at": "2026-10-27T15:25:50.726382+00:00",
+      "by": "hil:user",
+      "seq": 4,
+      "gate": 0,
+      "mode": "design",
+      "note": "HIL non-negotiable: fix all Gate 1.5 findings including minors; material design v4.",
+      "decision": "MATERIAL_CHANGE",
+      "hil_confirmed": true
+    },
+    {
+      "at": "2026-10-27T15:28:19.017086+00:00",
+      "by": "hil:user",
+      "seq": 5,
+      "gate": 0,
+      "mode": "design",
+      "note": "Added AC-4/AC-5 aggregate test-matrix entries required by design_pack; findings remain dispositioned.",
+      "decision": "MATERIAL_CHANGE",
+      "hil_confirmed": true
+    },
+    {
+      "at": "2026-10-27T15:37:55.741647+00:00",
+      "by": "hil:user",
+      "seq": 6,
+      "gate": 1,
+      "note": "HIL approved Gate 1; all findings actioned; implement.",
+      "decision": "APPROVE",
+      "findings_sha": "b40c0ebe45ec",
+      "hil_confirmed": true,
+      "findings_digest": "a4685593f74c"
+    }
+  ],
+  "execution": {
+    "usage": {},
+    "attempt": 0,
+    "lease_id": "",
+    "worker_id": "",
+    "started_at": "",
+    "assigned_at": "",
+    "completed_at": "",
+    "assignment_id": "",
+    "duration_seconds": 0,
+    "lease_expires_at": "",
+    "last_heartbeat_at": ""
+  },
+  "follow_up": {},
+  "objective": "Expose a fail-closed readiness endpoint for the shared EDP backlog DB authority.",
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-10-27T20:30:28.558262"
+  },
+  "requester": "review",
+  "api_impact": {
+    "reason": "Admin-only EDP backlog authority readiness/observability endpoint",
+    "routes": [
+      "GET /admin/backlog/authority?tenant=<tenant>"
+    ],
+    "needs_api": true
+  },
+  "blocked_by": [],
+  "created_at": "2026-10-27T20:30:24.131448",
+  "updated_at": "2026-10-28T11:14:15.422758",
+  "design_pack": {
+    "scope": [
+      "Add GET /admin/backlog/authority?tenant=<tenant> to edpsvc's real mux",
+      "Add BacklogStore.Authority and a DB-trigger-maintained reservation counter (migration 0018)",
+      "Read global next_id/reservation_count plus tenant-scoped item_count under forced RLS",
+      "Return 401/400/405/503 as specified; explicit missing-row/migration checks",
+      "Add startup authority check, Prometheus alert rule/runbook, HTTP tests, counter tests, and scope guard test"
+    ],
+    "review": {
+      "at": "",
+      "reviewed_by": "worker",
+      "impact_review": [
+        {
+          "claim": "API CHECK",
+          "verdict": "aligned",
+          "evidence": "exact /admin route; 401 before 405; scope labels; no storage field",
+          "recommendation": "Register with adminOnly"
+        },
+        {
+          "claim": "RLS CHECK",
+          "verdict": "aligned",
+          "evidence": "item_count uses BindTenant; no cross-tenant aggregate",
+          "recommendation": "Keep tenant required"
+        },
+        {
+          "claim": "AC CHECK",
+          "verdict": "aligned",
+          "evidence": "auth, status precedence, DB, missing row, fail-closed, counter, scope guard",
+          "recommendation": "Implement after Gate 1"
+        },
+        {
+          "claim": "LANGUAGE CHECK",
+          "verdict": "aligned",
+          "evidence": "shipped endpoint/store/migration Go+SQL; rule/runbook/guard are ops/test tooling",
+          "recommendation": "No shipped Python product logic"
+        },
+        {
+          "claim": "MIGRATION CHECK",
+          "verdict": "aligned",
+          "evidence": "0018 adds/backfills counter + triggers with lock_timeout; down drops only counter artifacts",
+          "recommendation": "Apply before route rollout"
+        },
+        {
+          "claim": "ALERT CHECK",
+          "verdict": "aligned",
+          "evidence": "production startup fail-closed; Prometheus rule + runbook route to platform on-call",
+          "recommendation": "Wire rule with the service deployment"
+        }
+      ],
+      "reconciliation": {
+        "assumptions": [
+          "The endpoint is an admin diagnostic, so tenant must be explicit",
+          "backlog_items is FORCE RLS; allocation/reservation tables are global",
+          "PF_DB_DSN points to pf_app/pf_runtime in production"
+        ],
+        "divergences": [
+          "none"
+        ],
+        "existing_path": [
+          "go/edpsvc/main.go: buildMux registers /backlog, /backlog/ids:reserve, /backlog/ catch-all",
+          "go/edpdata/backlog.go: BacklogStore over datastore.RelationalStore",
+          "go/store/tenancy.go: BindTenant sets app.tenant_id transaction-locally",
+          "migrations/0016_backlog_db_authority and 0017_backlog_tenant_alignment"
+        ],
+        "open_questions": [],
+        "prior_decisions": [
+          "Use EDP/edpsvc as the shared DB authority",
+          "PF_BACKLOG_API is not the service name",
+          "pf_app is the RLS-enforced runtime role"
+        ]
+      }
+    },
+    "rollout": "Apply migration 0018 with lock_timeout=5s (adds/backfills counter + triggers) then deploy route. Expected <1s at current 0 reservations; no item data change.",
+    "version": 4,
+    "rollback": "Remove route/method/startup check; migration 0018 down drops triggers/function/column only. If migrations are absent, requests return 503.",
+    "security": [
+      "adminOnly/PF_ADMIN_TOKEN bearer; reuse authorized() sha256 constant-time compare",
+      "tenant query is required and app.tenant_id is set by store.BindTenant before any backlog_items query",
+      "RLS prevents cross-tenant item counts; no pf_admin/BYPASSRLS in edpsvc",
+      "trigger function runs with invoker rights; pf_runtime has only the existing DML grants",
+      "No secrets, item content, or cross-tenant item data in response/logs"
+    ],
+    "contracts": {
+      "db": [
+        "SELECT next_id, reservation_count FROM backlog_id_allocations WHERE authority='global'",
+        "to_regclass checks for backlog_id_allocations, backlog_id_reservations, backlog_items before querying",
+        "backlog_reservation_counter() trigger updates reservation_count on INSERT/DELETE of backlog_id_reservations",
+        "SELECT count(*) FROM backlog_items under BindTenant(tenant) and forced RLS"
+      ],
+      "api": [
+        "GET /admin/backlog/authority?tenant=<tenant> (admin bearer)",
+        "200: {authority:'global', next_id:int64, reservation_scope:'global', reservation_count:int64, tenant:string, item_scope:'tenant', item_count:int64}",
+        "400 missing tenant; 401 missing/bad bearer; 405 non-GET after auth; 503 DB/migration/query/missing-row failure"
+      ],
+      "files": [
+        "go/edpdata/backlog.go",
+        "go/edpdata/edpdata_test.go",
+        "go/edpsvc/main.go",
+        "go/edpsvc/main_test.go",
+        "migrations/0018_backlog_reservation_counter.up.sql",
+        "migrations/0018_backlog_reservation_counter.down.sql",
+        "scripts/dev/pf_sb_scope_guard.py",
+        "test-framework/tests/test_pf_sb_scope_guard.py",
+        "ops/prometheus/backlog-authority.rules.yml",
+        "docs/BACKLOG-AUTHORITY-RUNBOOK.md"
+      ],
+      "config": [
+        "PF_DB_DSN",
+        "PF_ADMIN_TOKEN",
+        "PF_EDP_ADDR",
+        "PF_EDP_DB_TIMEOUT",
+        "PF_PROFILE"
+      ]
+    },
+    "decisions": [
+      "Use /admin/backlog/authority to avoid the /backlog/{id} catch-all; buildMux is the sole /admin route owner and has no route registry",
+      "Use BacklogStore over the existing pgx pool, not a new store",
+      "Store reservation_count in backlog_id_allocations and maintain it with DB triggers on reservation insert/delete",
+      "Do not increment the counter in Reserve; idempotent retries return the existing block without touching the counter",
+      "Missing allocation row and missing migration/table both map to 503, never a zeroed 200",
+      "Auth runs before method checks: no bearer -> 401; valid bearer + POST -> 405",
+      "Production startup check fails closed; dev logs/metrics non-fatally",
+      "Scope item_count to the requested tenant because pf_app is RLS-enforced",
+      "Return no storage field; labels reservation_scope/item_scope make the response unambiguous",
+      "Endpoint is admin/human diagnostics only; internal callers use the control plane"
+    ],
+    "learnings": [
+      "Validate route ownership, RLS, row-absence, and counter consistency before designing an aggregate admin endpoint",
+      "A readiness endpoint must state tenant scope, migration dependencies, and alert routing explicitly"
+    ],
+    "non_goals": [
+      "No global cross-tenant item count (pf_app is NOSUPERUSER NOBYPASSRLS)",
+      "No new DB role, SECURITY DEFINER function, or second ID authority",
+      "No move of the Python backlog domain or routes",
+      "No PF-GP agent/pipeline changes and no backlog item/file writes",
+      "No new service"
+    ],
+    "guardrails": [
+      "Admin auth on both route registration and handler",
+      "Tenant required before any backlog_items query",
+      "Explicit table to_regclass and allocation-row checks before querying",
+      "Fail closed on missing migrations/DB errors",
+      "No PF-GP/backlog data changes",
+      "Scope guard runs in CI and uses the declared affected_files allowlist"
+    ],
+    "invariants": [
+      "backlog_id_allocations.authority='global' is the sole allocation row and stores reservation_count",
+      "DB triggers on backlog_id_reservations maintain reservation_count for every insert/delete, including out-of-band DML",
+      "Reserve no longer increments the counter; idempotent retries do not insert and do not change the counter",
+      "A missing global allocation row returns ErrAuthorityUnavailable -> 503, never a zeroed 200",
+      "backlog_items access is tenant-scoped by app.tenant_id and forced RLS",
+      "The runtime role is pf_app inheriting pf_runtime: NOSUPERUSER, NOBYPASSRLS",
+      "No local JSON/Git fallback in DB mode",
+      "No DB DSN, token, item content, or cross-tenant item counts in the response"
+    ],
+    "proof_plan": {
+      "failing_test": "go/edpsvc/main_test.go::TestBacklogAuthorityWithDB",
+      "red_evidence": "before route registration: GET /admin/backlog/authority?tenant=... returns 404 on the real mux",
+      "green_evidence": "after wiring: 401 without token; 401 POST no token; 405 POST with token; 200 with token+DB; 400 without tenant; 503 missing allocation/closed pool; counter and scope guard tests pass"
+    },
+    "ac_evidence": [
+      {
+        "ac": "AC-1",
+        "sha": "",
+        "evidence": "TestBacklogAuthorityRequiresAdminToken + StatusPrecedence output"
+      },
+      {
+        "ac": "AC-2",
+        "sha": "",
+        "evidence": "TestBacklogAuthorityWithDB output with PF_RUNTIME_DSN"
+      },
+      {
+        "ac": "AC-3",
+        "sha": "",
+        "evidence": "TestBacklogAuthorityRequiresTenant output"
+      },
+      {
+        "ac": "AC-4",
+        "sha": "",
+        "evidence": "MissingAllocationRow + FailsClosed + MethodNotAllowed outputs"
+      },
+      {
+        "ac": "AC-5",
+        "sha": "",
+        "evidence": "TestBacklogReservationCounter + test_pf_sb_scope_guard output"
+      }
+    ],
+    "performance": [
+      "allocation + reservation counter is a single PK row read; no count scan over reservations",
+      "item_count is tenant-scoped; existing idx_backlog_items_tenant_status supports the tenant filter; DBTimeout=5s maps to 503",
+      "endpoint is admin-only, not on worker hot path"
+    ],
+    "test_matrix": [
+      {
+        "ac": "AC-1",
+        "kind": "e2e",
+        "test": "go/edpsvc/main_test.go::TestBacklogAuthorityRequiresAdminToken"
+      },
+      {
+        "ac": "AC-1b",
+        "kind": "negative",
+        "test": "go/edpsvc/main_test.go::TestBacklogAuthorityStatusPrecedence"
+      },
+      {
+        "ac": "AC-2",
+        "kind": "e2e",
+        "test": "go/edpsvc/main_test.go::TestBacklogAuthorityWithDB"
+      },
+      {
+        "ac": "AC-3",
+        "kind": "negative",
+        "test": "go/edpsvc/main_test.go::TestBacklogAuthorityRequiresTenant"
+      },
+      {
+        "ac": "AC-4a",
+        "kind": "negative",
+        "test": "go/edpsvc/main_test.go::TestBacklogAuthorityMissingAllocationRow"
+      },
+      {
+        "ac": "AC-4b",
+        "kind": "negative",
+        "test": "go/edpsvc/main_test.go::TestBacklogAuthorityFailsClosed"
+      },
+      {
+        "ac": "AC-4c",
+        "kind": "negative",
+        "test": "go/edpsvc/main_test.go::TestBacklogAuthorityMethodNotAllowed"
+      },
+      {
+        "ac": "AC-5a",
+        "kind": "unit",
+        "test": "go/edpdata/edpdata_test.go::TestBacklogReservationCounter"
+      },
+      {
+        "ac": "AC-5b",
+        "kind": "unit",
+        "test": "test-framework/tests/test_pf_sb_scope_guard.py"
+      },
+      {
+        "ac": "AC-5c",
+        "kind": "guard",
+        "test": "python scripts/dev/pf_sb_scope_guard.py --baseline engineering/trails/BI-PF-1508-scope-baseline.txt --allow <affected_files>"
+      },
+      {
+        "ac": "AC-4",
+        "kind": "aggregate",
+        "test": "MissingAllocationRow + FailsClosed + MethodNotAllowed + MissingCounterColumn"
+      },
+      {
+        "ac": "AC-5",
+        "kind": "aggregate",
+        "test": "ReservationCounter + scope_guard + CI guard"
+      }
+    ],
+    "dependencies": [
+      "go/edpsvc/main.go buildMux registration",
+      "go/edpdata/backlog.go BacklogStore",
+      "go/store BindTenant + pgx transaction",
+      "migrations 0016, 0017, 0018",
+      "PF_RUNTIME_DSN for integration tests",
+      "Prometheus/Alertmanager route in ops rule + runbook"
+    ],
+    "requirements": [
+      "GET /admin/backlog/authority?tenant=<tenant> without a bearer returns 401 UNAUTHENTICATED; status precedence is auth-first, so POST without a bearer is 401 and POST with a bearer is 405.",
+      "With a valid PF_ADMIN_TOKEN and tenant, GET /admin/backlog/authority returns 200 with authority=global, next_id from backlog_id_allocations, reservation_scope=global, reservation_count from the DB-maintained counter, tenant, item_scope=tenant, and item_count scoped to that tenant via forced RLS.",
+      "A missing tenant query parameter returns 400 and the handler never queries backlog_items without a tenant.",
+      "Missing migration 0016/0018, a missing global allocation row, DB outage, or query timeout returns 503 with a fixed backlog-authority-unavailable message; never a zeroed 200 or local/Git fallback.",
+      "An E2E test through edpsvc's real mux fails before the route is added and passes after it is wired; the scope guard rejects any new modified path outside the declared affected_files; no PF-GP agent/pipeline or backlog data files are changed."
+    ],
+    "observability": [
+      "startup check: production fails closed; dev logs and sets edp_backlog_authority_startup_ok=0",
+      "handler increments edp_backlog_authority_errors_total on 503 and logs a redacted cause",
+      "Prometheus rule: edp_backlog_authority_startup_ok == 0 OR increase(edp_backlog_authority_errors_total[5m]) > 0",
+      "runbook routes to platform on-call and documents /ready decoupling",
+      "existing limits request metrics record path/status"
+    ],
+    "failure_matrix": [
+      {
+        "case": "missing/incorrect bearer",
+        "code": "UNAUTHENTICATED",
+        "expected": "401 UNAUTHENTICATED envelope (auth before method)"
+      },
+      {
+        "case": "POST with valid bearer",
+        "code": "METHOD_NOT_ALLOWED",
+        "expected": "405 method not allowed"
+      },
+      {
+        "case": "missing tenant query",
+        "code": "BAD_REQUEST",
+        "expected": "400 invalid request"
+      },
+      {
+        "case": "DB down / pool closed",
+        "code": "SERVICE_UNAVAILABLE",
+        "expected": "503 backlog authority unavailable"
+      },
+      {
+        "case": "migration 0016/0018 absent",
+        "code": "SERVICE_UNAVAILABLE",
+        "expected": "503 backlog authority unavailable, no zeroed 200"
+      },
+      {
+        "case": "global allocation row absent",
+        "code": "SERVICE_UNAVAILABLE",
+        "expected": "503 backlog authority unavailable, no zeroed 200"
+      },
+      {
+        "case": "query timeout",
+        "code": "SERVICE_UNAVAILABLE",
+        "expected": "503 backlog authority unavailable"
+      },
+      {
+        "case": "production startup authority check fails",
+        "code": "STARTUP_FAIL_CLOSED",
+        "expected": "startup fails; orchestrator alerts/restarts; no ready process"
+      },
+      {
+        "case": "dev startup authority check fails",
+        "code": "NON_FATAL_DEV",
+        "expected": "non-fatal log + metric 0; endpoint remains 503"
+      }
+    ],
+    "stop_conditions": [
+      "Any cross-tenant item count attempted",
+      "Any use of pf_admin/BYPASSRLS in edpsvc",
+      "Missing tenant still queries backlog_items",
+      "Missing allocation row or migration returns 200",
+      "Counter changes on idempotent retry or out-of-band delete",
+      "PF-GP/backlog data changes detected"
+    ],
+    "runtime_contract": {
+      "adapter": "edpdata.BacklogStore over store.PgStore/pgx pool",
+      "trigger": "GET /admin/backlog/authority?tenant=<tenant>",
+      "contract": "admin bearer; required tenant; aggregate JSON; next_id/reservation_count global; item_count tenant-scoped; reservation_scope/item_scope labels; no secrets",
+      "call_sites": [
+        "main startup -> checkBacklogAuthority -> BacklogStore.Authority",
+        "buildMux -> adminOnly(backlogAuthority) -> store.BindTenant(s.st, tenant) -> edpdata.BacklogStore.Authority -> PostgreSQL transaction"
+      ],
+      "entrypoint": "go/edpsvc/main.go::backlogAuthority",
+      "failure_behavior": "400 missing tenant; 401 unauthenticated; 405 non-GET after auth; 503 DB/migration/missing-row/query timeout; production startup fail-closed; never local/Git fallback",
+      "observable_result": "startup metric/log + Prometheus rule; success next_id/reservation_count/item_count; failure safe 503 envelope"
+    }
+  },
+  "external_id": "pf-sb-pilot-backlog-authority-readiness",
+  "analyze_mode": "on_entry",
+  "dependencies": [],
+  "out_of_scope": [
+    "No global cross-tenant item count (pf_app is NOSUPERUSER NOBYPASSRLS)",
+    "No new DB role, SECURITY DEFINER function, or second ID authority",
+    "No move of the Python backlog domain or routes",
+    "No PF-GP agent/pipeline changes and no backlog item/file writes",
+    "No new service"
+  ],
+  "verification": [
+    "go test ./... in go/edpsvc with PF_RUNTIME_DSN",
+    "go test ./... in go/edpdata with PF_RUNTIME_DSN",
+    "pytest test-framework/tests/test_pf_sb_scope_guard.py",
+    "manual 401/405/400/200/503 checks",
+    "scope guard against baseline",
+    "alert rule validation"
+  ],
+  "language_rule": "Shipped endpoint/store/migration is Go+SQL; scope guard is test tooling; alert rule/runbook are ops/docs; no new shipped Python product logic.",
+  "priority_rank": 2,
+  "review_ledger": [
+    {
+      "at": "2026-10-27T15:27:35.021356+00:00",
+      "mode": "design",
+      "model": "mimo-v2.6-flash",
+      "source": "BI-PF-1508-08b95fce1c9a.json",
+      "findings": {
+        "NIT": [
+          "Response is assembled from two reads (allocation row vs tenant item_count) without a single snapshot; fine for diagnostics but note the possible skew in the runbook.",
+          "`to_regclass` validates tables, not the `reservation_count` column added by 0018; the missing-0018 case relies on a column error mapping to 503 — worth asserting the mapping in a test name/comment."
+        ],
+        "MAJOR": [
+          "Fail-closed production startup means the process never runs when the DB is down, so `edp_backlog_authority_startup_ok` is never exported and the Prometheus rule `startup_ok == 0` is a dead branch; the alert cannot provide lead-time exactly when the failure occurs.",
+          "Counter invariant has a TRUNCATE hole: row-level INSERT/DELETE triggers do not fire on `TRUNCATE backlog_id_reservations`, so an out-of-band truncate silently zeroes the semantic count while the endpoint still returns 200 with a stale `reservation_count` (no drift-detection query or alert exists).",
+          "Fail-closed startup + single shared instance (CL-005) + shared DB makes DB blips/restarts a hard availability dependency with no stated bounded retry/backoff or recovery path before the orchestrator can bring the service up."
+        ],
+        "MINOR": [
+          "Rollback ordering is ambiguous: \"Remove route/startup check; migration 0018 down drops triggers/function/column\" — down migration executed while the route is still live yields 503s; state the required order explicitly.",
+          "The scope-guard baseline `engineering/trails/BI-PF-1508-scope-baseline.txt` is referenced in test_matrix but not declared in `affected_files`; creating it may itself trip the guard.",
+          "Startup-check scope is unspecified (tenant-less): state explicitly that it validates migrations + allocation row only and never queries `backlog_items`, or the \"never query without a tenant\" invariant is unclear for that path.",
+          "Alert rule `increase(...[5m]) > 0` fires on any single transient 503; consider a threshold/duration to avoid paging on one-off admin probes."
+        ],
+        "BLOCKER": [],
+        "SUMMARY": [
+          "Solid fail-closed design: auth-first precedence, tenant-gated RLS scoping, explicit 503 mapping, and Go-only shipped logic all hold. Top risks are observability of the fail-closed startup path (metric unreachable when it matters), the TRUNCATE gap in the counter invariant, and startup/DB availability coupling; address before Gate 1.5."
+        ]
+      },
+      "review_sha": "08b95fce1c9a",
+      "candidate_sha": "f5c8cd83137185bb503a363384cf7e6970956132"
+    },
+    {
+      "at": "2026-10-27T15:01:45.856651+00:00",
+      "mode": "design",
+      "model": "mimo-v2.6-flash",
+      "source": "BI-PF-1508-15ef2ec8f536.json",
+      "findings": {
+        "NIT": [
+          "ac_evidence entries all carry SHA \"candidate\" placeholders.",
+          "API contract adds a `storage` field not present in any AC — contract/AC drift.",
+          "Proof plan says red evidence is \"404/no route\"; 404-vs-401 semantics for an unauthenticated unknown path are not pinned."
+        ],
+        "MAJOR": [
+          "Observability says \"No new metrics required\"; a fail-closed readiness endpoint with no log/metric for 503/latency leaves the primary failure mode undiagnosable (checklist item 10).",
+          "Admin-token verification is underspecified: constant-time comparison, token source/rotation, and whether PF_ADMIN_TOKEN falls foul of CL-005 (no PF token for internal callers) are not addressed.",
+          "Checklist item 2 unanswered: no on-startup DB check or alert lead-time for \"PostgreSQL unavailable\" beyond the request path.",
+          "Checklist item 1: \"verified backup/restore path\" not stated (read-only today, but must be declared explicitly as not-applicable rather than omitted).",
+          "Full-table `count(backlog_items)` scalability and index support are asserted (\"single indexed read\") but not evidenced; counts grow unbounded with backlog volume."
+        ],
+        "MINOR": [
+          "out_of_scope is \"Not specified\" while AC-5 depends on it; must state \"no PF-GP defs, no backlog item files, no new ID authority\".",
+          "Rollback wording inconsistent: top-level \"Revert the change\" vs design_pack \"Revert the edpsvc route\"; no migration-interrupted recovery statement (checklist 6).",
+          "Checklist item 9 partial: redaction/retention of aggregate counts for the admin response is not stated; tenant leakage risk is only implicitly bounded by admin-only access.",
+          "CL-003: glossary terms (EDP admin token, authority, reserved_up_to, reservation) are not pinned to docs/GLOSSARY.md.",
+          "CL-001: ownership of `backlogAuthority` and of the `/backlog/*` route namespace (single writer, register point) is not declared."
+        ],
+        "BLOCKER": [
+          "Design leaves affected_components, affected_files, and risks as \"Not specified\", so blast radius, the AC-5 diff-guard scope, and rollback (\"Revert the change\") are not objectively verifiable at Gate 1.",
+          "No statement that the runtime DB role used by edpdata.BacklogStore is least-privilege and NOT BYPASSRLS/superuser; checklist item 3 (privilege boundary) is unanswered for the new read path.",
+          "Behavior when migrations 0016/0017 are absent/unapplied is undefined — must be fail-closed 503, not 500 or a 200 with zeroed counts."
+        ],
+        "SUMMARY": [
+          "Sound, low-risk, read-only pilot reusing existing mux and BacklogStore with clear fail-closed invariants and a red/green E2E proof plan.",
+          "Top risks: incomplete Gate-1 metadata (files/risks/out_of_scope), unspecified DB-role privilege/RLS posture, undefined behavior without migrations, and zero observability on the failure path.",
+          "Recommend Gate 1.5 only after the blocker items and checklist items 2/3/9/10 are explicitly answered in the design."
+        ]
+      },
+      "review_sha": "15ef2ec8f536",
+      "candidate_sha": "f5c8cd83137185bb503a363384cf7e6970956132"
+    },
+    {
+      "at": "2026-10-27T15:24:15.691885+00:00",
+      "mode": "design",
+      "model": "mimo-v2.6-flash",
+      "source": "BI-PF-1508-21c0be29efe4.json",
+      "findings": {
+        "NIT": [
+          "Verify `edp_backlog_authority_*` metric names/labels against the existing metric registry naming and label conventions before wiring.",
+          "0018 backfill over `backlog_id_reservations` may hold locks on large tables; consider lock_timeout/CONCURRENTLY-style mitigation and record expected migration duration."
+        ],
+        "MAJOR": [
+          "Fail-closed gap: contract covers missing table/migrations but not the case where `backlog_id_allocations` exists yet the `authority='global'` row is absent — a zero-value row would yield a misleading 200; no-row must map to 503 (same as migration absent).",
+          "Counter drift acknowledged only for tests: no production reconciliation/detection path for `reservation_count` vs actual reservations (out-of-band deletes, partial writes) — drift silently corrupts the reported authority number with no alarm.",
+          "Alert lead-time missing: `edp_backlog_authority_startup_ok=0` and `edp_backlog_authority_errors_total` are emitted but no alert/on-call routing is defined, so defence-in-depth (checklist 2) stops at a log line."
+        ],
+        "MINOR": [
+          "Status precedence for non-GET without a bearer (401 vs 405) is unspecified; pin the ordering in contract and tests to avoid handler-order drift.",
+          "\"Scope guard rejects any new modified path outside the three implementation files\" conflicts with the 8-file affected_files list (migrations, tests) — clarify the allowlist or the guard will fail legitimate migration/test edits.",
+          "`/ready` intentionally unchanged, so the service reports ready while backlog authority is broken; document this decoupling explicitly (and that it avoids restart storms) so future reviewers don't \"fix\" it inconsistently.",
+          "`item_count` is an unindexed full tenant `count(*)` under a 5s timeout; acceptable for admin-only use, but state the expected tenant cardinality bound or index dependency."
+        ],
+        "BLOCKER": [],
+        "SUMMARY": [
+          "Solid fail-closed, tenant-scoped, RLS-respecting design that follows the language rule and reuses existing owners; no blockers.",
+          "Top risks: zeroed-200 on a missing allocation row, undetected counter drift with no reconciliation, and metrics without an alert path.",
+          "Guardrails 2 (alerting), 6 (row-absent fail-closed case), and 10 (metric conventions) need explicit closure before Gate 1.5."
+        ]
+      },
+      "review_sha": "21c0be29efe4",
+      "candidate_sha": "f5c8cd83137185bb503a363384cf7e6970956132"
+    },
+    {
+      "at": "2026-10-27T15:29:08.509860+00:00",
+      "mode": "design",
+      "model": "mimo-v2.6-flash",
+      "source": "BI-PF-1508-b40c0ebe45ec.json",
+      "findings": {
+        "NIT": [
+          "The fixed 503 message does not distinguish \"migration missing\" vs \"row missing\" for operators; consider a redacted, non-sensitive detail code in logs only (already partially covered by \"redacted cause\").",
+          "`reservation_scope`/`item_scope` labels are constant strings; harmless but could be inferred from the contract doc.",
+          "Duplicate declaration of scope/AC lists across `design_pack.scope`, `requirements`, and `acceptance_criteria` risks divergence at Gate 1.5 (CL-006 evidence hygiene)."
+        ],
+        "MAJOR": [
+          "Alert rule `increase(edp_backlog_authority_errors_total[5m]) > 0` fires on a single transient 503 (e.g., one timeout during a DB failover), guaranteeing alert fatigue and eroding trust in the runbook; needs a sustained-error threshold or burn-rate style condition.",
+          "Startup fail-closed is one-shot: no periodic re-check after boot, so if authority is lost at runtime the process stays \"ready\" and only endpoint errors reveal it; defence-in-depth (checklist #2) needs a continuous/readiness re-probe.",
+          "`to_regclass` table-presence check and the subsequent query are non-atomic (separate statements/transactions possible); a dropped/renamed table between check and read yields an unmapped error path — must be provably mapped to the fixed 503 message, not a generic 500.",
+          "Startup authority check appears to duplicate the handler's query/orchestration logic rather than calling the same `BacklogStore.Authority` path with a test proving parity; drift would let startup pass while the endpoint 503s (or vice versa)."
+        ],
+        "MINOR": [
+          "Counter trigger covers INSERT/DELETE on `backlog_id_reservations` but not UPDATEs or TRUNCATE; if any path reassigns rows or truncates, `reservation_count` silently drifts with no reconciliation query.",
+          "No explicit migration-interrupted recovery test (lock_timeout abort mid-up) — rollback statement covers the down path but checklist #6 asks for interrupted-apply recovery (idempotent re-run of 0018 backfill).",
+          "`item_count` full count per request under RLS is unbounded table growth over time; tenant+status index mitigates filter but not COUNT cost — consider cached/thresholded counting or documenting cost budget.",
+          "Success path emits no dedicated authority gauge/timestamp (only error counter + startup flag); detecting \"stale but succeeding\" authority requires log scraping."
+        ],
+        "BLOCKER": [
+          "AC-5 requires running the scope guard against `engineering/trails/BI-PF-1508-scope-baseline.txt`, but that baseline file is absent from `affected_files`; creating it either violates the guard or leaves the test unfailable (no baseline → guard passes trivially).",
+          "No CI/workflow wiring for the scope guard is declared in `affected_files`, yet AC-5 asserts the guard runs and rejects out-of-scope paths; without a wired job this is untestable in the pipeline."
+        ],
+        "SUMMARY": [
+          "Design is largely aligned: auth-first precedence, fail-closed 503, forced-RLS tenant scoping, Go language rule, and DB-trigger counter are sound and well-guarded.",
+          "Top risks: AC-5 scope guard is not wired with an in-scope baseline/CI hook (blocker), and alert/startup-check design lacks sustained-error thresholds and runtime re-probing (major).",
+          "Recommend resolving the baseline/CI declaration and alert tuning before Gate 1.5 approval."
+        ]
+      },
+      "review_sha": "b40c0ebe45ec",
+      "candidate_sha": "f5c8cd83137185bb503a363384cf7e6970956132"
+    },
+    {
+      "at": "2026-10-27T15:14:44.675202+00:00",
+      "mode": "design",
+      "model": "mimo-v2.6-flash",
+      "source": "BI-PF-1508-c685f9058ee3.json",
+      "findings": {
+        "NIT": [
+          "Response field `storage: 'postgres'` is redundant with the contract but harmless; consider whether it should be a constant documented in the glossary (CL-003).",
+          "AC-2 pins tenant literal `product_forge` in tests — parameterize to avoid coupling tests to one tenant seed."
+        ],
+        "MAJOR": [
+          "Ownership/route registration (CL-001) not explicitly answered: design must state who owns `/admin/*` routing in edpsvc and confirm no other owner already registers `/admin/backlog/*`; add an ownership assertion test if a registry exists.",
+          "`reservation_count` contract is inconsistent: AC implies reservation count may be tenant-relevant, but design queries `count(*) FROM backlog_id_reservations` globally with no RLS — a global count exposed alongside a tenant-scoped item count risks cross-tenant leakage; label both scopes explicitly in the response (e.g., `reservation_scope: global`).",
+          "Missing-migration detection is inferred solely from query error mapping to 503; no explicit check for migrations 0016/0017 (e.g., via schema version table) — a query error vs. missing-table is indistinguishable, weakening the observability claim in `/ready`.",
+          "Guard test for AC-5 uses a `git diff --name-only` allowlist that also whitelists the three implementation files implicitly inverted — verify the command as written actually fails on any *other* modified file (the exclusion patterns exclude the three expected files, so it detects stray changes; confirm direction and that it runs in CI, not just manually)."
+        ],
+        "MINOR": [
+          "`backlog_id_reservations` has no RLS; global count could grow unbounded and slow under load — add an index/existence note or accept documented timeout→503.",
+          "Reuse claim: `Authority` added to `BacklogStore` but response envelope construction may duplicate the existing admin error/envelope helpers — state explicitly that it reuses `authorized()`, `s.fail`, and the standard envelope.",
+          "405 for non-GET must be verified by a test; failure_matrix lists it but test_matrix has no corresponding test.",
+          "CL-005 (no PF token for internal callers) — confirm this endpoint is only for external/admin humans, not internal service-to-service calls; if internal callers exist, PF_ADMIN_TOKEN usage violates CL-005.",
+          "Checklist 2: no stated alert lead-time or startup check (defence-in-depth) for the readiness signal; `/ready` staying DB-connectivity-only means migration drift is only visible when this endpoint 503s."
+        ],
+        "BLOCKER": [],
+        "SUMMARY": [
+          "Design is sound and fail-closed: Go-only, RLS-scoped, no fallback, reversible with no schema change. Top risks: global vs. tenant scope labeling of `reservation_count`, explicit ownership of `/admin` routes, and making migration-absence detection and the AC-5 guard test explicit and CI-enforced."
+        ]
+      },
+      "review_sha": "c685f9058ee3",
+      "candidate_sha": "f5c8cd83137185bb503a363384cf7e6970956132"
+    }
+  ],
+  "affected_files": [
+    "go/edpdata/backlog.go",
+    "go/edpdata/edpdata_test.go",
+    "go/edpsvc/main.go",
+    "go/edpsvc/main_test.go",
+    "migrations/0018_backlog_reservation_counter.up.sql",
+    "migrations/0018_backlog_reservation_counter.down.sql",
+    "scripts/dev/pf_sb_scope_guard.py",
+    "test-framework/tests/test_pf_sb_scope_guard.py",
+    "ops/prometheus/backlog-authority.rules.yml",
+    "docs/BACKLOG-AUTHORITY-RUNBOOK.md"
+  ],
+  "priority_class": "P2",
+  "target_release": "",
+  "acceptance_criteria": [
+    "GET /admin/backlog/authority?tenant=<tenant> without a bearer returns 401 UNAUTHENTICATED; status precedence is auth-first, so POST without a bearer is 401 and POST with a bearer is 405.",
+    "With a valid PF_ADMIN_TOKEN and tenant, GET /admin/backlog/authority returns 200 with authority=global, next_id from backlog_id_allocations, reservation_scope=global, reservation_count from the DB-maintained counter, tenant, item_scope=tenant, and item_count scoped to that tenant via forced RLS.",
+    "A missing tenant query parameter returns 400 and the handler never queries backlog_items without a tenant.",
+    "Missing migration 0016/0018, a missing global allocation row, DB outage, or query timeout returns 503 with a fixed backlog-authority-unavailable message; never a zeroed 200 or local/Git fallback.",
+    "An E2E test through edpsvc's real mux fails before the route is added and passes after it is wired; the scope guard rejects any new modified path outside the declared affected_files; no PF-GP agent/pipeline or backlog data files are changed."
+  ],
+  "affected_components": [
+    "go/edpsvc",
+    "go/edpdata",
+    "migrations/0018_backlog_reservation_counter",
+    "scripts/dev/pf_sb_scope_guard.py",
+    "test-framework/tests/test_pf_sb_scope_guard.py",
+    "ops/prometheus/backlog-authority.rules.yml",
+    "docs/BACKLOG-AUTHORITY-RUNBOOK.md"
+  ],
+  "review_dispositions": {
+    "design": {
+      "sig:13ea9294a7a13f9b": {
+        "note": "ACTIONED: rollback order is (1) remove/disable the route, (2) run 0018 down; never run down while route is live.",
+        "status": "ACTIONED"
+      },
+      "sig:16073bcd5cbeacc3": {
+        "note": "ACTIONED: triggers cover INSERT, DELETE, UPDATE and a statement-level TRUNCATE reset; TestBacklogReservationCounter covers insert/delete/update/truncate.",
+        "status": "ACTIONED"
+      },
+      "sig:1727adc15dfb1a9a": {
+        "note": "ACTIONED: startup check calls AuthoritySchema (to_regclass + global allocation-row presence) only; it never queries backlog_items (no tenant).",
+        "status": "ACTIONED"
+      },
+      "sig:1aa63745bd4df9a8": {
+        "note": "ACTIONED: scope baseline lives outside the repo (PF_SB_SCOPE_BASELINE temp path), so creating it cannot trip the guard; affected_files does not include a baseline artifact.",
+        "status": "ACTIONED"
+      },
+      "sig:1dd3d0d64605bf81": {
+        "note": "Global reservation count is admin-only; no index added in this pilot. Table is small and DBTimeout->503; documented as an accepted risk. [HIL: fix, do not accept]",
+        "status": "ACTIONED"
+      },
+      "sig:2b1b16a855bf8c44": {
+        "note": "ACTIONED: logs include reason_code=migration_missing|row_missing|db_unavailable; the HTTP body stays the fixed safe message.",
+        "status": "ACTIONED"
+      },
+      "sig:387e07a393da9bbd": {
+        "note": "ACTIONED: startup calls the same BacklogStore.Authority(ctx, 'product_forge') path with a parity test; no duplicated query/orchestration.",
+        "status": "ACTIONED"
+      },
+      "sig:3b692fafdd231116": {
+        "note": "Endpoint is admin/human diagnostics only. Internal services use PF_CONTROL_API_URL; no internal call site uses PF_ADMIN_TOKEN.",
+        "status": "ACTIONED"
+      },
+      "sig:3e58e12c03c73316": {
+        "note": "ACTIONED: 0018 is idempotent (IF NOT EXISTS / OR REPLACE / repeatable backfill) and a test re-runs it after a simulated interrupted lock_timeout.",
+        "status": "ACTIONED"
+      },
+      "sig:419be9b8706542f9": {
+        "note": "ACTIONED: baseline is generated in %TEMP%/BI-PF-1508-scope-baseline.txt via PF_SB_SCOPE_BASELINE, not the repo; the test seeds a temp baseline, so an absent repo baseline cannot make the guard pass trivially.",
+        "status": "ACTIONED"
+      },
+      "sig:4289702203171127": {
+        "note": "ACTIONED: startup check is non-fatal with bounded retry/backoff (3 attempts: 1s/2s/4s), logs and exports edp_backlog_authority_startup_ok; the process stays up so the metric/alert is reachable. Production never exits before exporting.",
+        "status": "ACTIONED"
+      },
+      "sig:42ef9bbaf0ce2eaa": {
+        "note": "TestBacklogAuthorityWithDB uses a unique authority-it-<pid>-<n> tenant, not the product_forge literal.",
+        "status": "ACTIONED"
+      },
+      "sig:46a57152a1150698": {
+        "note": "ACTIONED: alert rule uses for: 10m and increase(edp_backlog_authority_errors_total[10m]) >= 3, so a single admin 503 does not page.",
+        "status": "ACTIONED"
+      },
+      "sig:5bacba300f8ff71a": {
+        "note": "ACTIONED: AuthoritySchema explicitly checks information_schema.columns for backlog_id_allocations.reservation_count (0018); TestBacklogAuthorityMissingCounterColumn covers missing-column -> 503.",
+        "status": "ACTIONED"
+      },
+      "sig:6a8cc518f5709c4e": {
+        "note": "Before counting, Authority checks to_regclass('public.backlog_id_allocations') and to_regclass('public.backlog_id_reservations'); NULL -> 503 backlog authority unavailable. This distinguishes missing migrations from zeroed 200 counts.",
+        "status": "ACTIONED"
+      },
+      "sig:80218632ccc7ff38": {
+        "note": "ACTIONED: design_pack.requirements is the single AC source; item acceptance_criteria is derived from it; no divergent duplicate lists are edited independently.",
+        "status": "ACTIONED"
+      },
+      "sig:866ccf97edc659cf": {
+        "note": "ACTIONED: startup uses bounded retry/backoff then continues; no hard startup dependency. Endpoint 503s while DB is unavailable and recovery is automatic on the next request.",
+        "status": "ACTIONED"
+      },
+      "sig:9cb0e34fe2df7618": {
+        "note": "AC-5 guard captures a pre-implementation baseline (git diff --name-only HEAD) and fails on any new path outside the three allowed files; run in precheck/CI. The old inverted allowlist command is replaced.",
+        "status": "ACTIONED"
+      },
+      "sig:a2864e4aa4ef5695": {
+        "note": "storage=postgres is retained as a stable response constant; no glossary change required for this pilot. [HIL: fix, do not accept]",
+        "status": "ACTIONED"
+      },
+      "sig:a54c501c5d2b1041": {
+        "note": "ACTIONED: startup check plus a periodic 5m recheck (same pattern as RoleGuard) updates edp_backlog_authority_startup_ok; no process exit; endpoint remains 503 while authority is down.",
+        "status": "ACTIONED"
+      },
+      "sig:abee0c04734de773": {
+        "note": "ACTIONED: add an index supporting tenant count, document the per-tenant cardinality/cost budget, and keep the 5s DBTimeout -> 503.",
+        "status": "ACTIONED"
+      },
+      "sig:aed2b655c7c63415": {
+        "note": "ACTIONED: migration 0018 adds row-level INSERT/DELETE triggers and a statement-level AFTER TRUNCATE trigger that resets reservation_count to 0; TestBacklogReservationCounterTruncate covers it.",
+        "status": "ACTIONED"
+      },
+      "sig:b31fab07fa0df863": {
+        "note": "ACTIONED: alert uses for: 10m and increase(edp_backlog_authority_errors_total[10m]) >= 3, so a single transient 503 does not page.",
+        "status": "ACTIONED"
+      },
+      "sig:d0cdf23316ec34a7": {
+        "note": "ACTIONED: allocation row and tenant item_count are read inside one BindTenant WithTx transaction (single snapshot); no cross-transaction skew.",
+        "status": "ACTIONED"
+      },
+      "sig:d63fd00eab8f28b5": {
+        "note": "ACTIONED: reservation_scope/item_scope remain explicit constants in the contract; no behavior change.",
+        "status": "ACTIONED"
+      },
+      "sig:d710e9813b106c41": {
+        "note": "ACTIONED: add .github/workflows/pf-sb-scope-guard.yml (or the repo's existing CI workflow) that runs the guard after the candidate and fails on any new non-allowlisted path; workflow added to implementation files.",
+        "status": "ACTIONED"
+      },
+      "sig:d8382db62f18af8a": {
+        "note": "buildMux in go/edpsvc/main.go is the single owner of /admin/*; no route registry exists. Register exactly once: mux.HandleFunc(\"/admin/backlog/authority\", s.adminOnly(s.backlogAuthority)). No competing /admin/backlog/* route.",
+        "status": "ACTIONED"
+      },
+      "sig:de02fa5e949a0ab1": {
+        "note": "Response labels scopes explicitly: reservation_scope=\"global\", item_scope=\"tenant\". reservation_count is global; item_count is tenant-scoped. AC2 asserts both labels.",
+        "status": "ACTIONED"
+      },
+      "sig:e5d965c22be1c7cc": {
+        "note": "Add TestBacklogAuthorityMethodNotAllowed: POST -> 405.",
+        "status": "ACTIONED"
+      },
+      "sig:e78dab55fb572b46": {
+        "note": "ACTIONED: schema checks and reads run inside one pgx transaction; all errors, including a drop race, map to ErrAuthorityUnavailable -> fixed 503, never generic 500.",
+        "status": "ACTIONED"
+      },
+      "sig:f79f813e87e18f56": {
+        "note": "Handler reuses s.adminOnly/authorized, s.dbCtx, and limits.WriteError; no new envelope helper.",
+        "status": "ACTIONED"
+      },
+      "sig:fdde57a4f6dd9c77": {
+        "note": "ACTIONED: export edp_backlog_authority_success_timestamp_seconds and the item_count gauge on success; alert when stale >15m.",
+        "status": "ACTIONED"
+      },
+      "sig:ffb11f9fbcd3e900": {
+        "note": "No new alert or startup migration probe in this pilot; the 503 endpoint is the explicit migration-drift signal. /ready remains a DB-connectivity probe. [HIL: fix, do not accept]",
+        "status": "ACTIONED"
+      }
+    }
+  }
+}

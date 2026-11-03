@@ -1,0 +1,38 @@
+{
+  "item": "BI-PF-1509",
+  "sha": "8570c2cb9ad6",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-28T07:52:20.739360+00:00",
+  "base_sha": "",
+  "head_sha": "24eead8c5f824e05a17be2ea0e5a4142063f5142",
+  "findings": {
+    "BLOCKER": [
+      "`go/edpsvc/main_test.go` uses `strings.Contains` in `TestBacklogAuthorityFailsClosed` but the import block only adds `fmt` \u2014 `strings` is not imported, so the test package fails to compile. Build gate will break CI."
+    ],
+    "MAJOR": [
+      "New `ops/prometheus/prometheus.yml` is a whole standalone scrape/rule config with a hardcoded target `edpsvc:8030` and an admin-token file; there is no evidence it composes with an existing Prometheus/alerting deployment. If a monitoring stack already exists, this either conflicts or silently never loads; if it is the stack, `/metrics` is now gated on admin credentials, coupling monitoring liveness to secret rotation.",
+      "`backlogAuthorityLoop` reuses `s.cfg.RoleRecheckInterval` for the backlog-authority cadence. Role/authority config semantics are unrelated; a role-tuning change will silently alter authority SLA and the 300s staleness alert threshold.",
+      "0019 \"hardening\" only handles downward drift and is incomplete: an UPDATE-miss caused by a missing `authority='global'` row is reported as \"delete with zero counter\" (misleading runbook signal), upward drift (missed INSERT trigger / manual inserts) is never detected or repaired, and `reservation_count` is still a derived value with no reconciliation path other than re-running 0018.",
+      "`Reserve` holds `FOR UPDATE` on the global allocation row but sets no `statement_timeout` (unlike `Authority`); a slow reservation query serializes the entire ID allocation path for all callers \u2014 a single-tenant hotspot by design with no backpressure metric."
+    ],
+    "MINOR": [
+      "`Authority` hardcodes `SET LOCAL statement_timeout = '5s'` instead of honoring `PF_EDP_DB_TIMEOUT`; the runbook documents it as if configurable.",
+      "`authorityReasonCode` classifies `context.Canceled` as `timeout`, which will mislead triage when the caller disconnects rather than the DB being slow.",
+      "`s.metrics.Set(\"edp_backlog_id_next_id\", int(a.NextID))` introduces an undocumented metric (not in the runbook or alert file) and truncates int64 on 32-bit builds.",
+      "In `Reserve`'s idempotent-hit path, the code returns without checking `rows.Err()` before/after the early success return, unlike the other query paths.",
+      "`/admin/backlog/authority` logs the full snapshot at Info on every probe; with a periodic probe this is unbounded log volume \u2014 prefer debug or log only on state change.",
+      "Scope-guard script and its test docstrings reference `BI-PF-1508` while the item under review is `BI-PF-1509` \u2014 traceability mismatch with the standards' trail requirements.",
+      "`idx_backlog_items_tenant_count ... INCLUDE (id)` carries every ID into the index; for a `count(*)` support index this roughly doubles index width for no benefit."
+    ],
+    "NIT": [
+      "`authorityGlobal`, `itemScopeTenant`, `reservationScopeGlobal` constants exist in Go but the SQL literals still embed `'global'` directly; the constants only serve JSON echo values.",
+      "`MaxReservationSize` is enforced only in the store layer; the handler returns a generic \"invalid reservation request\" without distinguishing size overflow, which weakens client diagnostics.",
+      "`backlogReserve` and the reservation lifecycle emit no metrics (calls, conflicts, exhaustion) despite the runbook requiring alerting on repeated failures."
+    ],
+    "SUMMARY": [
+      "Solid fail-closed posture for authority reads, DB-owned idempotent ID reservations, and tenant-conflict hardening in `Put`, with reasonable test coverage. The immediate blocker is a missing `strings` import that breaks the test build. Top risks: the Prometheus config looks orphaned from any real monitoring stack and gates `/metrics` on admin creds, the authority recheck silently piggybacks on role config, and the 0018/0019 counter remains a drift-prone derived value with only partial drift detection."
+    ]
+  }
+}

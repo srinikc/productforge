@@ -1,0 +1,34 @@
+{
+  "item": "BI-PF-1508",
+  "sha": "21c0be29efe4",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-10-27T15:24:15.691885+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "f5c8cd83137185bb503a363384cf7e6970956132",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "Fail-closed gap: contract covers missing table/migrations but not the case where `backlog_id_allocations` exists yet the `authority='global'` row is absent \u2014 a zero-value row would yield a misleading 200; no-row must map to 503 (same as migration absent).",
+      "Counter drift acknowledged only for tests: no production reconciliation/detection path for `reservation_count` vs actual reservations (out-of-band deletes, partial writes) \u2014 drift silently corrupts the reported authority number with no alarm.",
+      "Alert lead-time missing: `edp_backlog_authority_startup_ok=0` and `edp_backlog_authority_errors_total` are emitted but no alert/on-call routing is defined, so defence-in-depth (checklist 2) stops at a log line."
+    ],
+    "MINOR": [
+      "Status precedence for non-GET without a bearer (401 vs 405) is unspecified; pin the ordering in contract and tests to avoid handler-order drift.",
+      "\"Scope guard rejects any new modified path outside the three implementation files\" conflicts with the 8-file affected_files list (migrations, tests) \u2014 clarify the allowlist or the guard will fail legitimate migration/test edits.",
+      "`/ready` intentionally unchanged, so the service reports ready while backlog authority is broken; document this decoupling explicitly (and that it avoids restart storms) so future reviewers don't \"fix\" it inconsistently.",
+      "`item_count` is an unindexed full tenant `count(*)` under a 5s timeout; acceptable for admin-only use, but state the expected tenant cardinality bound or index dependency."
+    ],
+    "NIT": [
+      "Verify `edp_backlog_authority_*` metric names/labels against the existing metric registry naming and label conventions before wiring.",
+      "0018 backfill over `backlog_id_reservations` may hold locks on large tables; consider lock_timeout/CONCURRENTLY-style mitigation and record expected migration duration."
+    ],
+    "SUMMARY": [
+      "Solid fail-closed, tenant-scoped, RLS-respecting design that follows the language rule and reuses existing owners; no blockers.",
+      "Top risks: zeroed-200 on a missing allocation row, undetected counter drift with no reconciliation, and metrics without an alert path.",
+      "Guardrails 2 (alerting), 6 (row-absent fail-closed case), and 10 (metric conventions) need explicit closure before Gate 1.5."
+    ]
+  }
+}

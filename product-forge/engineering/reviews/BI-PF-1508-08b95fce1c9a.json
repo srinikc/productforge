@@ -1,0 +1,32 @@
+{
+  "item": "BI-PF-1508",
+  "sha": "08b95fce1c9a",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-10-27T15:27:35.021356+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "f5c8cd83137185bb503a363384cf7e6970956132",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "Fail-closed production startup means the process never runs when the DB is down, so `edp_backlog_authority_startup_ok` is never exported and the Prometheus rule `startup_ok == 0` is a dead branch; the alert cannot provide lead-time exactly when the failure occurs.",
+      "Counter invariant has a TRUNCATE hole: row-level INSERT/DELETE triggers do not fire on `TRUNCATE backlog_id_reservations`, so an out-of-band truncate silently zeroes the semantic count while the endpoint still returns 200 with a stale `reservation_count` (no drift-detection query or alert exists).",
+      "Fail-closed startup + single shared instance (CL-005) + shared DB makes DB blips/restarts a hard availability dependency with no stated bounded retry/backoff or recovery path before the orchestrator can bring the service up."
+    ],
+    "MINOR": [
+      "Rollback ordering is ambiguous: \"Remove route/startup check; migration 0018 down drops triggers/function/column\" \u2014 down migration executed while the route is still live yields 503s; state the required order explicitly.",
+      "The scope-guard baseline `engineering/trails/BI-PF-1508-scope-baseline.txt` is referenced in test_matrix but not declared in `affected_files`; creating it may itself trip the guard.",
+      "Startup-check scope is unspecified (tenant-less): state explicitly that it validates migrations + allocation row only and never queries `backlog_items`, or the \"never query without a tenant\" invariant is unclear for that path.",
+      "Alert rule `increase(...[5m]) > 0` fires on any single transient 503; consider a threshold/duration to avoid paging on one-off admin probes."
+    ],
+    "NIT": [
+      "Response is assembled from two reads (allocation row vs tenant item_count) without a single snapshot; fine for diagnostics but note the possible skew in the runbook.",
+      "`to_regclass` validates tables, not the `reservation_count` column added by 0018; the missing-0018 case relies on a column error mapping to 503 \u2014 worth asserting the mapping in a test name/comment."
+    ],
+    "SUMMARY": [
+      "Solid fail-closed design: auth-first precedence, tenant-gated RLS scoping, explicit 503 mapping, and Go-only shipped logic all hold. Top risks are observability of the fail-closed startup path (metric unreachable when it matters), the TRUNCATE gap in the counter invariant, and startup/DB availability coupling; address before Gate 1.5."
+    ]
+  }
+}

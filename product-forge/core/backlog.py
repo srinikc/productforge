@@ -173,9 +173,9 @@ def _load_all_from_db(scope: str, project: str | None):
     import urllib.request as _ureq
 
     tenant = str(project or scope or "product_forge")
-    api = str(os.environ.get("PF_BACKLOG_API", "http://127.0.0.1:8030")).rstrip("/")
+    api = str(os.environ.get("PF_EDP_API_URL", "http://127.0.0.1:8030")).rstrip("/")
     req = _ureq.Request(f"{api}/backlog?tenant={tenant}&limit=100000", method="GET")
-    req.add_header("Authorization", f"Bearer {os.environ.get('PF_API_TOKEN', '')}")
+    req.add_header("Authorization", f"Bearer {os.environ.get('PF_EDP_TOKEN') or os.environ.get('PF_ADMIN_TOKEN', '')}")
     with _ureq.urlopen(req, timeout=30) as r:
         payload = _json.loads(r.read().decode("utf-8"))
     op: list[dict] = []
@@ -195,7 +195,7 @@ def _load_all(scope: str, project: str | None):
     not-yet-migrated scope still works (see `migrate_scope`). In `PF_BACKLOG_DB=on` the DB is the
     source of truth for reads.
     """
-    if _backlog_db_mode() == "on":
+    if _db_for(scope):
         return _load_all_from_db(scope, project)
     d, of, cf, _h, _c = _paths(scope, project)
     idir = _items_dir(d)
@@ -230,12 +230,22 @@ def _load_all(scope: str, project: str | None):
 
 
 def _backlog_db_mode() -> str:
-    """BI-PF-1399: files->DB cutover mode. off (default) | dual (write-through, best-effort) | on (DB truth)."""
-    return str(os.environ.get("PF_BACKLOG_DB", "off")).strip().lower()
+    """BI-PF-1399: files->DB cutover mode. on is the default for PF-SB/PF-GP; tests may override."""
+    try:
+        from core import env_flags
+        value = env_flags.get("PF_BACKLOG_DB", "off")
+    except Exception:
+        value = os.environ.get("PF_BACKLOG_DB", "off")
+    return str(value or "off").strip().lower()
+
+
+def _db_for(scope: str | None) -> bool:
+    """DB SSOT is shared by PF-SB and PF-GP; the scope/project only selects the item partition."""
+    return _backlog_db_mode() == "on"
 
 
 def _mirror_item_to_db(item: dict) -> None:
-    """BI-PF-1399 Phase 1 (dual-write): mirror a saved item to the Go backlog SoR over HTTP (Option B).
+    """BI-PF-1399: write a saved item to the Go backlog SoR over HTTP (DB mode on = authoritative).
 
     Thin client only - the DB logic lives in the Go service (edpsvc /backlog); language rule respected.
     In 'dual' the call is best-effort (files stay the source of truth); in 'on' failure propagates.
@@ -252,20 +262,35 @@ def _mirror_item_to_db(item: dict) -> None:
     if not iid:
         return
     tenant = str(item.get("project") or item.get("scope") or "product_forge")
-    api = str(os.environ.get("PF_BACKLOG_API", "http://127.0.0.1:8030")).rstrip("/")
+    api = str(os.environ.get("PF_EDP_API_URL", "http://127.0.0.1:8030")).rstrip("/")
     body = _json.dumps({"ID": iid, "Tenant": tenant, "Type": str(item.get("type") or "feature"),
                         "Status": str(item.get("status") or "new"), "Title": str(item.get("title") or ""),
-                        "Body": str(item.get("body") or ""), "Data": item}).encode("utf-8")
+                        "Body": str(item.get("body") or ""), "Scope": str(item.get("scope") or "product_forge"),
+                        "Project": str(item.get("project") or ""), "Data": item}).encode("utf-8")
     req = _ureq.Request(f"{api}/backlog?tenant={tenant}", data=body, method="POST")
     req.add_header("Content-Type", "application/json")
-    req.add_header("Authorization", f"Bearer {os.environ.get('PF_API_TOKEN', '')}")
+    req.add_header("Authorization", f"Bearer {os.environ.get('PF_EDP_TOKEN') or os.environ.get('PF_ADMIN_TOKEN', '')}")
+    if mode == "on":
+        # DB SoR: propagate every failure; never acknowledge a lost authoritative write.
+        with _ureq.urlopen(req, timeout=5):
+            pass
+        return
     try:
         with _ureq.urlopen(req, timeout=5):
             pass
     except Exception as e:  # noqa: BLE001
-        if mode == "on":
-            raise
-        _logging.getLogger(__name__).warning("backlog dual-write skipped (%s): %s", iid, e)
+        _logging.getLogger(__name__).warning("backlog best-effort DB write skipped (%s): %s", iid, e)
+
+
+def _delete_item_from_db(iid: str, tenant: str) -> None:
+    """Delete through the Go DB writer (DB SoR mode only)."""
+    import urllib.request as _ureq
+
+    api = str(os.environ.get("PF_EDP_API_URL", "http://127.0.0.1:8030")).rstrip("/")
+    req = _ureq.Request(f"{api}/backlog/{iid}?tenant={tenant}", method="DELETE")
+    req.add_header("Authorization", f"Bearer {os.environ.get('PF_EDP_TOKEN') or os.environ.get('PF_ADMIN_TOKEN', '')}")
+    with _ureq.urlopen(req, timeout=5):
+        pass
 
 
 def _fetch_item_from_db(iid: str, tenant: str) -> dict:
@@ -273,9 +298,9 @@ def _fetch_item_from_db(iid: str, tenant: str) -> dict:
     import json as _json
     import urllib.request as _ureq
 
-    api = str(os.environ.get("PF_BACKLOG_API", "http://127.0.0.1:8030")).rstrip("/")
+    api = str(os.environ.get("PF_EDP_API_URL", "http://127.0.0.1:8030")).rstrip("/")
     req = _ureq.Request(f"{api}/backlog/{iid}?tenant={tenant}", method="GET")
-    req.add_header("Authorization", f"Bearer {os.environ.get('PF_API_TOKEN', '')}")
+    req.add_header("Authorization", f"Bearer {os.environ.get('PF_EDP_TOKEN') or os.environ.get('PF_ADMIN_TOKEN', '')}")
     with _ureq.urlopen(req, timeout=5) as r:
         return _json.loads(r.read().decode("utf-8"))
 
@@ -307,9 +332,14 @@ def _save_item(d: str, item: dict) -> None:
     iid = str(item.get("id") or "")
     if not iid:
         return
-    _wj(os.path.join(_items_dir(d), f"{iid}.json"), item)
     mode = _backlog_db_mode()
-    _mirror_item_to_db(item)
+    if _db_for(str(item.get("scope") or "")):
+        # DB SoR: the Go writer is the only item writer. Never write authoritative file state.
+        _mirror_item_to_db(item)
+        return
+    _wj(os.path.join(_items_dir(d), f"{iid}.json"), item)
+    if mode in ("dual", "shadow"):
+        _mirror_item_to_db(item)
     if mode == "shadow":
         _shadow_compare(item)
 
@@ -1658,10 +1688,13 @@ def delete(scope: str, project: str | None, eid: str) -> dict | None:
             return None
         parent = str(target.get("epic") or target.get("parent") or "")
         bucket.remove(target)
-        for p in (os.path.join(_items_dir(d), f"{eid}.json"),
-                  os.path.join(d, "history", f"{eid}.jsonl")):
-            with contextlib.suppress(Exception):
-                os.remove(p)
+        if _db_for(scope):
+            _delete_item_from_db(eid, str(project or scope or "product_forge"))
+        else:
+            for p in (os.path.join(_items_dir(d), f"{eid}.json"),
+                      os.path.join(d, "history", f"{eid}.jsonl")):
+                with contextlib.suppress(Exception):
+                    os.remove(p)
         _write_indexes(scope, project, op, cl)
     finally:
         _unlock(lp)

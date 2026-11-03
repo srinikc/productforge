@@ -1,0 +1,29 @@
+{
+  "item": "BI-PF-1509",
+  "sha": "d5048bd87ff8",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-10-28T08:17:04.082286+00:00",
+  "base_sha": "",
+  "head_sha": "7819e048dabec8ce586adf6adaf231004402a26b",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "Migrations 0018 and 0020 both create/drop `idx_backlog_items_tenant_count` in sequence; 0018 builds it with `INCLUDE(id)` only for 0020 to immediately replace it without. Index churn on a potentially large table causes unnecessary lock time and WAL volume; consolidate into one migration.",
+      "Migration 0019's counter trigger \"hardening\" replaces 0018's single-statement `GREATEST(reservation_count - 1, 0)` with a two-step UPDATE + conditional reset + `RAISE WARNING`. This is strictly less efficient (two statements in the drift path) and the warning surfaces only in DB server logs that no alert or runbook step reads. The hardening adds complexity without operational value.",
+      "The 0018 trigger fires `AFTER INSERT OR UPDATE OR DELETE` but the function is a no-op for UPDATE (just `RETURN NEW`). Every UPDATE to `backlog_id_reservations` pays trigger-dispatch cost for nothing; scope the trigger to INSERT OR DELETE only."
+    ],
+    "MINOR": [
+      "`backlogAuthority` handler on 503 increments `edp_backlog_authority_errors_total` but does not set `edp_backlog_authority_startup_ok` to 0; the gauge only reflects the periodic recheck path. A persistent endpoint-only failure (e.g., tenant-specific RLS misconfiguration) would not flip the gauge, leaving the stale-check alert as the only signal.",
+      "`Authority` hardcodes `SET LOCAL statement_timeout = '5s'` while the handler wraps in `context.WithTimeout(r.Context(), s.cfg.DBTimeout)`. If `DBTimeout < 5s` the context fires first and the statement_timeout is dead code; if `> 5s` the hardcoded 5s silently overrides config. Derive from config or document the divergence."
+    ],
+    "NIT": [
+      "`backlogReserve` success response returns only `{\"start\": ..., \"end\": ...}` and does not echo the reservation_id, making client-side idempotency confirmation and log correlation slightly harder.",
+      "`MaxReservationSize = 1_000_000` with no cumulative or rate guard means a single admin token holder can exhaust the ID space with a handful of requests; consider a daily-quota or remaining-space alarm."
+    ],
+    "SUMMARY": [
+      "Solid fail-closed design with proper 401/400/405/503 semantics, real-mux E2E coverage, and cross-tenant Put protection now tested. Top risks: unnecessary index churn across 0018\u21920020, a counter-trigger \"hardening\" (0019) that adds cost without actionable signal, and a trigger scope that fires on UPDATE despite being a no-op. Consolidate migrations and either remove 0019 or wire its warning into an observable path before shipping."
+    ]
+  }
+}
