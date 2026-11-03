@@ -1,7 +1,7 @@
 ---
 description: Summary creator agent. Creates comprehensive summaries, executive briefs, and key takeaways from analyzed content.
 mode: subagent
-model: opencode-go/mimo-v2.5
+model: opencode-go/mimo-v2.6-flash
 agent_id: summary-creator
 version: 1.0.0
 spec_version: "1.0"

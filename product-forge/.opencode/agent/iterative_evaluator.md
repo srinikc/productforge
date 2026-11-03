@@ -1,7 +1,7 @@
 ---
 description: "Iterative evaluation with reflection loops and self-improvement".
 mode: subagent
-model: opencode-go/mimo-v2.5
+model: opencode-go/mimo-v2.6-flash
 agent_id: iterative_evaluator
 version: 1.0.0
 spec_version: "1.0"
@@ -42,7 +42,7 @@ permission:
 ## 5. WORKFLOW
 1. Read only the listed inputs.
 2. Create real files with `write_file` (use `run_command` to run tests/build).
-3. Do NOT explore with `list_dir`/`read_file`/`ls` — write first.
+3. Inspect the relevant inputs and existing workspace before writing; never blind-overwrite.
 4. Return a short final summary.
 
 ## 6. ARTIFACTS

@@ -1,7 +1,7 @@
 ---
 description: Media analyst agent. Understands ingested media (image/audio/video) via vision/ASR and produces a structured media analysis for downstream design and generation.
 mode: subagent
-model: opencode-go/mimo-v2.5
+model: opencode-go/mimo-v2.6-flash
 agent_id: media-analyst
 version: 1.0.0
 spec_version: "1.0"
@@ -75,7 +75,7 @@ generation stages.
 | Version | 1.0 |
 | Spec Version | agent-contract/1.0 |
 | Mode | subagent |
-| Model | opencode-go/mimo-v2.5 |
+| Model | opencode-go/mimo-v2.6-flash |
 
 ## 1. ROLE
 

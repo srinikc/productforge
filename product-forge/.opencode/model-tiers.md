@@ -14,7 +14,7 @@ The `/models` command supports switching between different model tier configurat
 
 | Agent file | model | Context | Use Case |
 |---|---|---|---|
-| ideation | opencode-go/mimo-v2.5 | 200K | Best reasoning for capturing full product plan |
+| ideation | opencode-go/mimo-v2.6-flash | 200K | Best reasoning for capturing full product plan |
 | design | opencode-go/minimax-m3 | 200K | Strong multimodal for design extraction |
 | architect | opencode-go/qwen3.7-max | 200K | Deepest architecture reasoning |
 | review | opencode-go/qwen3.7-plus | 200K | Strong critique and analysis |
@@ -34,12 +34,12 @@ The `/models` command supports switching between different model tier configurat
 | Agent file | model | Context | Use Case |
 |---|---|---|---|
 | ideation | opencode-go/hy3 | 190K | Efficient reasoning, lower cost |
-| design | opencode-go/mimo-v2.5 | 200K | Strong design extraction |
+| design | opencode-go/mimo-v2.6-flash | 200K | Strong design extraction |
 | architect | opencode-go/qwen3.7-plus | 200K | Good architecture reasoning |
 | review | opencode-go/minimax-m3 | 200K | Efficient critique |
 | implement | opencode-go/deepseek-v4-flash | 200K | Fast coding, acceptable quality |
 | code-review | opencode-go/deepseek-v4-flash | 200K | Fast review |
-| validate | opencode-go/mimo-v2.5 | 200K | Fast test execution |
+| validate | opencode-go/mimo-v2.6-flash | 200K | Fast test execution |
 | fix | opencode-go/deepseek-v4-flash | 200K | Quick bug fixes |
 
 ---
@@ -52,13 +52,13 @@ The `/models` command supports switching between different model tier configurat
 
 | Stage Range | Agent | Model | Rationale |
 |---|---|---|---|
-| 0-3 (Ideation, Design, Architect, Review) | ideation | opencode-go/mimo-v2.5 | Premium for creative work |
+| 0-3 (Ideation, Design, Architect, Review) | ideation | opencode-go/mimo-v2.6-flash | Premium for creative work |
 | 0-3 | design | opencode-go/minimax-m3 | Premium for design |
 | 0-3 | architect | opencode-go/qwen3.7-max | Premium for architecture |
 | 0-3 | review | opencode-go/qwen3.7-plus | Premium for review |
 | 4-7 (Implement, Code-Review, Validate, Fix) | implement | opencode-go/deepseek-v4-flash | Budget for execution |
 | 4-7 | code-review | opencode-go/deepseek-v4-flash | Budget for review |
-| 4-7 | validate | opencode-go/mimo-v2.5 | Balanced for testing |
+| 4-7 | validate | opencode-go/mimo-v2.6-flash | Balanced for testing |
 | 4-7 | fix | opencode-go/deepseek-v4-flash | Budget for fixes |
 
 ---
@@ -134,14 +134,14 @@ The `/models` command supports switching between different model tier configurat
 
 | Agent file | model | Context | Use Case |
 |---|---|---|---|
-| ideation | opencode-go/mimo-v2.5 | 200K | Good reasoning for learning |
-| design | opencode-go/mimo-v2.5 | 200K | Sufficient for design learning |
+| ideation | opencode-go/mimo-v2.6-flash | 200K | Good reasoning for learning |
+| design | opencode-go/mimo-v2.6-flash | 200K | Sufficient for design learning |
 | architect | opencode-go/qwen3.7-plus | 200K | Good architecture understanding |
 | review | opencode-go/minimax-m3 | 200K | Adequate for learning review |
-| implement | opencode-go/mimo-v2.5 | 200K | Learning to code with guidance |
-| code-review | opencode-go/mimo-v2.5 | 200K | Learning review patterns |
-| validate | opencode-go/mimo-v2.5 | 200K | Understanding testing |
-| fix | opencode-go/mimo-v2.5 | 200K | Learning debugging |
+| implement | opencode-go/mimo-v2.6-flash | 200K | Learning to code with guidance |
+| code-review | opencode-go/mimo-v2.6-flash | 200K | Learning review patterns |
+| validate | opencode-go/mimo-v2.6-flash | 200K | Understanding testing |
+| fix | opencode-go/mimo-v2.6-flash | 200K | Learning debugging |
 
 ---
 
@@ -166,7 +166,7 @@ Model tiers can be overridden per project in `products/<project>/pipeline.json`:
 {
   "model_tier": "hybrid",
   "agents": {
-    "ideation": { "model": "opencode-go/mimo-v2.5" },
+    "ideation": { "model": "opencode-go/mimo-v2.6-flash" },
     "design": { "model": "opencode-go/minimax-m3" }
   }
 }

@@ -1,7 +1,7 @@
 ---
 description: maintenance agent
 mode: subagent
-model: opencode-go/mimo-v2.5
+model: opencode-go/mimo-v2.6-flash
 agent_id: maintenance
 version: 1.0.0
 spec_version: "1.0"

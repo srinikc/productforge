@@ -1,7 +1,7 @@
 ---
 description: Theme analyzer agent. Identifies themes, patterns, connections, and underlying structures in content.
 mode: subagent
-model: opencode-go/mimo-v2.5
+model: opencode-go/mimo-v2.6-flash
 agent_id: theme-analyzer
 version: 1.0.0
 spec_version: "1.0"

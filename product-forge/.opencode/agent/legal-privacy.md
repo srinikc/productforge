@@ -1,7 +1,7 @@
 ---
 description: Legal & privacy counsel. Owns ToS, privacy policy, DPA, licensing, IP and compliance posture.
 mode: primary
-model: opencode-go/mimo-v2.5
+model: opencode-go/mimo-v2.6-flash
 agent_id: legal-privacy
 version: 1.0.0
 spec_version: "1.0"
@@ -44,7 +44,7 @@ Legal & privacy counsel. Owns ToS, privacy policy, DPA, licensing, IP and compli
 ## 5. WORKFLOW
 1. Read only the listed inputs.
 2. Create real files with `write_file` (use `run_command` to run tests/build).
-3. Do NOT explore with `list_dir`/`read_file`/`ls` — write first.
+3. Inspect the relevant inputs and existing workspace before writing; never blind-overwrite.
 4. Return a short final summary.
 
 ## 6. ARTIFACTS
@@ -71,7 +71,7 @@ Legal & privacy counsel. Owns ToS, privacy policy, DPA, licensing, IP and compli
 ---
 description: Legal & privacy counsel. Owns ToS, privacy policy, DPA, licensing, IP and compliance posture.
 mode: primary
-model: opencode-go/mimo-v2.5
+model: opencode-go/mimo-v2.6-flash
 agent_id: legal-privacy
 version: 1.0.0
 spec_version: "1.0"

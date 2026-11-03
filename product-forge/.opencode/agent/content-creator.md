@@ -1,7 +1,7 @@
 ---
 description: Content creator agent. Creates high-quality content in various formats (articles, posts, scripts, stories).
 mode: subagent
-model: opencode-go/mimo-v2.5
+model: opencode-go/mimo-v2.6-flash
 agent_id: content-creator
 version: 1.0.0
 spec_version: "1.0"

@@ -1,7 +1,7 @@
 ---
 description: Media generator agent. Drives generator models (image/video/audio/3d) through the generator adapters for the project's enabled capability packs, recording produced assets.
 mode: subagent
-model: opencode-go/mimo-v2.5
+model: opencode-go/mimo-v2.6-flash
 agent_id: media-generator
 version: 1.0.0
 spec_version: "1.0"
@@ -75,7 +75,7 @@ asset store.
 | Version | 1.0 |
 | Spec Version | agent-contract/1.0 |
 | Mode | subagent |
-| Model | opencode-go/mimo-v2.5 |
+| Model | opencode-go/mimo-v2.6-flash |
 
 ## 1. ROLE
 

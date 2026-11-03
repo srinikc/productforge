@@ -1,7 +1,7 @@
 ---
 description: Strategist agent. Develops strategies, creates plans, and provides strategic guidance for complex initiatives.
 mode: subagent
-model: opencode-go/mimo-v2.5
+model: opencode-go/mimo-v2.6-flash
 agent_id: strategist
 version: 1.0.0
 spec_version: "1.0"
