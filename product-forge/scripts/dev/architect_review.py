@@ -510,9 +510,9 @@ def iter_findings(findings: dict):
 def pending_blocking(findings: dict, dispositions: dict):
     """Return (total, pending, blocking) for a review.
 
-    ``blocking`` lists (n, severity, text) for BLOCKER/MAJOR findings that have no non-PENDING
-    disposition. A finding is matched by its content-hash key (``sig:<digest>``) first, then by
-    ordinal for legacy records. Pending MINOR/NIT never block (BI-PF-1449).
+    ``blocking`` lists (n, severity, text) for BLOCKER/MAJOR/MINOR findings that have no
+    non-PENDING disposition. A finding is matched by its content-hash key (``sig:<digest>``)
+    first, then by ordinal for legacy records. Pending NIT does not block.
     """
     total = pending = 0
     blocking = []
@@ -520,7 +520,7 @@ def pending_blocking(findings: dict, dispositions: dict):
         total += 1
         if not _is_resolved(_disp_for(dispositions, n, text)):
             pending += 1
-            if sev in ("BLOCKER", "MAJOR"):
+            if sev in ("BLOCKER", "MAJOR", "MINOR"):
                 blocking.append((n, sev, text))
     return total, pending, blocking
 
@@ -761,7 +761,8 @@ def churn_verdict(item_id: str, item: dict | None = None, committed: bool = Fals
     if item is None:
         item = _item_committed(item_id) if committed else _get_item(item_id)
     budget = review_budget()
-    reviews = diff_reviews(item_id, committed=committed)
+    reviews = [r for r in diff_reviews(item_id, committed=committed)
+               if str(((r.get("review") or {}).get("review_scope")) or "full_candidate") != "delta"]
     epoch = review_epoch(item) if budget.get("scope") == "after_gate1" else ""
     counted = [r for r in reviews if _after_epoch(r["at"], epoch)]
     count = len(counted)
@@ -814,7 +815,7 @@ def _ingest(item_id: str, text: str, model: str, apply: bool, mode: str = "diff"
         out.rename(prev)
     payload = {"item": item_id, "sha": sha, "model": model, "mode": mode,
                "parsed_ok": parsed_ok, "at": datetime.now(timezone.utc).isoformat(),
-               "review_scope": "delta" if base else "full_candidate",
+               "review_scope": ("delta" if base and base != _merge_base() else "full_candidate"),
                "base_sha": base, "head_sha": _git_text(["rev-parse", "HEAD"]).strip(),
                "findings": findings}
     if rereview_reason:
@@ -852,6 +853,8 @@ def _ingest(item_id: str, text: str, model: str, apply: bool, mode: str = "diff"
         review_ledger.record(item_id, {
             "mode": mode, "candidate_sha": _git_text(["rev-parse", "HEAD"]).strip(),
             "review_sha": sha, "model": model, "at": payload["at"],
+            "review_scope": payload["review_scope"],
+            "base_sha": payload["base_sha"], "head_sha": payload["head_sha"],
             "findings": findings, "evidence": out.name,
         })
     except Exception as e:

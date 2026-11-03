@@ -71,6 +71,15 @@ def problems(item: dict, mode: str, backlog_get=None) -> list[str]:
     deferred = [k for k, v in rows.items() if str((v or {}).get("status") or "").upper() == "DEFERRED"]
     sev = _severity_map(item)
     bad = []
+    # B/M/m must be fixed. Only NIT may use an exception (and even then it needs HIL approval).
+    for k, row in rows.items():
+        status = str((row or {}).get("status") or "").upper()
+        if status not in ("ACCEPTED", "DEFERRED", "SCOPE", "REJECTED"):
+            continue
+        key = k if str(k).startswith("sig:") else "sig:" + str(k).split(":")[-1]
+        severity = str(sev.get(key) or sev.get(k) or (row or {}).get("severity") or "MAJOR").upper()
+        if severity in ("BLOCKER", "MAJOR", "MINOR"):
+            bad.append(f"{mode}/{k}: {severity} must be fixed; {status} is not allowed")
     exceptions = accepted + deferred
     max_exc = int(c.get("max_exceptions_per_mode") or 2)
     if len(exceptions) > max_exc:

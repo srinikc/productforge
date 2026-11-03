@@ -16,10 +16,16 @@ def _approval(sigs):
             "scope": "disposition_approval", "mode": "diff", "sigs": sigs}
 
 
-def test_two_accepted_with_approval_pass():
+def test_minor_and_major_cannot_be_accepted():
     it = _item({"a": {"status": "ACCEPTED", "severity": "MINOR", "note": "x"},
                 "b": {"status": "ACCEPTED", "severity": "MAJOR", "note": "y"}})
     it["decisions"] = [_approval(["a", "b"])]
+    assert any("must be fixed" in p for p in dp.problems(it, "diff"))
+
+
+def test_nit_can_be_accepted_with_approval():
+    it = _item({"a": {"status": "ACCEPTED", "severity": "NIT", "note": "x"}})
+    it["decisions"] = [_approval(["a"])]
     assert dp.problems(it, "diff") == []
 
 
@@ -41,7 +47,7 @@ def test_blocker_cannot_be_exception():
 
 
 def test_deferred_needs_id_and_approval():
-    it = _item({"a": {"status": "DEFERRED", "severity": "MAJOR", "note": "later"}})
+    it = _item({"a": {"status": "DEFERRED", "severity": "NIT", "note": "later"}})
     assert dp.problems(it, "diff")
     it["review_dispositions"]["diff"]["a"]["note"] = "later BI-PF-1485"
     it["decisions"] = [_approval(["a"])]

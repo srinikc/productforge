@@ -118,27 +118,38 @@ def main() -> int:
             if iid:
                 by_item.setdefault(iid, []).append(d)
         for path, d in reversed(evs):
-            if d.get("mode") != "diff" or not is_full_candidate(d):
-                continue
-            base = str(d.get("base_sha") or "")
-            if not base or base == head:
+            if d.get("mode") != "diff":
                 continue
             iid = str(d.get("item") or "")
             if not iid:
                 continue
+            scope = str(d.get("review_scope") or "full_candidate")
+            base = str(d.get("base_sha") or "")
+            reviewed_head = str(d.get("head_sha") or "")
             prior_heads = {str(x.get("head_sha") or "") for x in by_item.get(iid, [])
                            if x.get("mode") == "diff" and x.get("head_sha") and str(x.get("head_sha")) != head}
-            if valid_base(base, head, prior_heads, mb):
-                reviewed_head = str(d.get("head_sha") or "")
-                if not reviewed_head or not ar._is_ancestor(reviewed_head, head):
+            if scope == "delta":
+                fulls = [x for x in by_item.get(iid, [])
+                         if x.get("mode") == "diff" and str(x.get("review_scope") or "full_candidate") != "delta"]
+                if not fulls or not base or base == head:
                     continue
-                if reviewed_head != head:
-                    since = ar._git_text(["diff", "--name-only", f"{reviewed_head}..HEAD", "--", ".", *ar.EXCLUDE])
-                    if since.strip():
-                        continue
-                if path.is_file():
-                    hits = [path]
-                    break
+                # A true delta must start from an already reviewed head, not the merge base.
+                if base not in prior_heads:
+                    continue
+            else:
+                if not is_full_candidate(d) or not base or base == head:
+                    continue
+                if not valid_base(base, head, prior_heads, mb):
+                    continue
+            if not reviewed_head or not ar._is_ancestor(reviewed_head, head):
+                continue
+            if reviewed_head != head:
+                since = ar._git_text(["diff", "--name-only", f"{reviewed_head}..HEAD", "--", ".", *ar.EXCLUDE])
+                if since.strip():
+                    continue
+            if path.is_file():
+                hits = [path]
+                break
     if hits:
         print(f"architect-review: OK (evidence {hits[0].name})")
         return 0

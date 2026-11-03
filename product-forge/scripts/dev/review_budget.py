@@ -1,4 +1,4 @@
-"""One 1.5 + one 2.5 per item/mode (BI-PF-1485), unless HIL approves a material change."""
+"""One full 1.5 + one full 2.5 per item/mode; delta fix reviews do not consume the budget."""
 from __future__ import annotations
 
 import argparse
@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[2]
 CFG = ROOT / "config" / "review-budget.json"
 REVIEWS = ROOT / "engineering" / "reviews"
 for p in (str(ROOT), str(ROOT / "scripts" / "dev")):
-    if p not in sys.path:
+    if str(p) not in sys.path:
         sys.path.insert(0, p)
 
 
@@ -41,6 +41,10 @@ def _dt(value) -> datetime | None:
     return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
 
 
+def _is_full(d: dict) -> bool:
+    return str(d.get("review_scope") or "full_candidate") != "delta"
+
+
 def _material_ok(item: dict, mode: str, rows: list[dict]) -> bool:
     latest = max((_dt(d.get("at")) for d in rows if _dt(d.get("at"))), default=None)
     if latest is None:
@@ -59,33 +63,21 @@ def _material_ok(item: dict, mode: str, rows: list[dict]) -> bool:
     return False
 
 
-def _dt_safe(value):
-    try:
-        return _dt(value)
-    except ValueError:
-        return None
-
-
 def problems(item: dict, only_mode: str = "") -> list[str]:
     c = config()
     iid = str(item.get("id") or "")
     if iid in (c.get("grandfather") or []):
         return []
     cutoff = str(c.get("enforce_from") or "")
-    max_n = int(c.get("max_reviews_per_mode") or 1)
+    max_n = int(c.get("max_full_reviews_per_mode") or c.get("max_reviews_per_mode") or 1)
     bad = []
     for mode in ("design", "diff"):
         if only_mode and mode != only_mode:
             continue
-        if (mode == "design" and c.get("freeze_design_after_gate1", True)
-                and any(int(d.get("gate") or 0) == 1 for d in (item.get("decisions") or []))):
-            continue
-        if (mode == "diff" and c.get("freeze_diff_after_gate2", True)
-                and any(int(d.get("gate") or 0) == 2 for d in (item.get("decisions") or []))):
-            continue
         if item.get("review_ledger"):
             import review_ledger
             bad += review_ledger.problems(item, mode, max_n)
+            bad += review_ledger.chain_problems(item, mode) if mode == "diff" else []
             continue
         try:
             cutoff_dt = _dt(cutoff)
@@ -98,6 +90,8 @@ def problems(item: dict, only_mode: str = "") -> list[str]:
         rows = []
         invalid = 0
         for d in _evidence(iid, mode):
+            if not _is_full(d):
+                continue
             try:
                 at = _dt(d.get("at"))
             except ValueError:
@@ -110,18 +104,11 @@ def problems(item: dict, only_mode: str = "") -> list[str]:
                 continue
             if at >= cutoff_dt and d.get("parsed_ok", True):
                 rows.append(d)
-        if len(rows) + invalid >= max_n and not (c.get("allow_hil_material_change") and _material_ok(item, mode, rows)):
-            mats = [d for d in (item.get("decisions") or [])
-                    if str(d.get("decision") or "").upper() == "MATERIAL_CHANGE"]
-            if not mats:
-                code = "MATERIAL_APPROVAL_MISSING"
-            elif any(str(d.get("at") or "") and _dt_safe(d.get("at")) is None for d in mats):
-                code = "MATERIAL_APPROVAL_INVALID"
-            else:
-                expiry = _dt(c.get("material_expiry"))
-                code = ("MATERIAL_APPROVAL_EXPIRED" if expiry and datetime.now(timezone.utc) > expiry
-                        else "MATERIAL_APPROVAL_ORDER")
-            bad.append(f"{mode}: {len(rows)} reviews (budget {max_n}); {code}: material change needs HIL MATERIAL_CHANGE")
+        if len(rows) + invalid > max_n and not (c.get("allow_hil_material_change") and _material_ok(item, mode, rows)):
+            bad.append(
+                f"{mode}: {len(rows)} full reviews (budget {max_n}); "
+                "MATERIAL_APPROVAL_MISSING: material change needs HIL MATERIAL_CHANGE"
+            )
     return bad
 
 

@@ -49,11 +49,11 @@ owns executable design requirements.
 
 - Freeze the exact candidate SHA before Gate 2.5.
 - Review only the approved design, AC, and `review_scope`.
-- BLOCKER/MAJOR in scope: fix or explicit HIL decision.
-- MINOR/NIT: disposition; do not force a rewrite.
-- OUT_OF_SCOPE/pre-existing: backlog follow-up.
-- False positive/stale: close with evidence.
-- One remediation pass maximum; no automatic re-review loop.
+- BLOCKER/MAJOR/MINOR: fix; ACCEPTED/DEFERRED/SCOPE/REJECTED are not valid dispositions.
+- NIT: fix or record an evidence-backed exception.
+- OUT_OF_SCOPE/pre-existing: fix or invalidate with evidence; do not hide it behind SCOPE.
+- False positive/stale: close with concrete code/test/evidence.
+- One remediation pass maximum; delta reviews verify fixes and do not consume the full-review budget.
 
 ## 6. Gate order
 

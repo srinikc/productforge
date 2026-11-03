@@ -210,8 +210,10 @@ def check(ids: list[str]) -> list[tuple[str, str]]:
             problems.append((iid, "PENDING_DIFF_FINDINGS"))
             continue
         if view is not None and str(((view.get("review") or {}).get("review_scope")) or "full_candidate") == "delta":
-            problems.append((iid, "DELTA_ONLY_REVIEW"))
-            continue
+            chain_bad = review_ledger.chain_problems(item, "diff")
+            if chain_bad:
+                problems.append((iid, "REVIEW_CHAIN: " + "; ".join(chain_bad)))
+                continue
         sha = ((view or {}).get("review") or {}).get("sha") if view else "docs-only"
         # Evidence freshness for the CURRENT code change is enforced by architect_review_check; a
         # completion may legitimately ride in a PR that also touches other files.

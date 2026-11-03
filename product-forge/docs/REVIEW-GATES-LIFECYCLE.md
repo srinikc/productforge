@@ -52,8 +52,8 @@ delivery approval)**. HIL always sees the reviewer's findings + recommendation a
 
    **Gate 1 is only valid with the consolidated view:** produce it with
    `python scripts/dev/architect_review.py gate --item <ID> --gate 1` and enforce it with
-   `python scripts/dev/gate1_check.py --item <ID>` (exits non-zero while any BLOCKER/MAJOR is PENDING). Include
-   both in the approval package. Pending MINOR/NIT do not block but must be recorded. Dispositions may be keyed
+   `python scripts/dev/gate1_check.py --item <ID>` (exits non-zero while any BLOCKER/MAJOR/MINOR is PENDING). Include
+   both in the approval package. Pending MINOR blocks; pending NIT is recorded but does not block. Dispositions may be keyed
    by a stable `sig:<digest>` (preferred — survives re-review reordering) or by ordinal (legacy). **No code
    before approval.**
 
@@ -94,7 +94,7 @@ All four gates are enforced for every PF-SB backlog item (no silent grandfatheri
 
 1. **Gate 1.5**: `gate1_transition_check.py` inspects items moving `new -> in_progress` in the committed diff and
    requires committed design evidence for the **current design sha** (`architect_review.design_sha`, a canonical
-   hash of the design fields), parseable and with zero PENDING BLOCKER/MAJOR.
+   hash of the design fields), parseable and with zero PENDING BLOCKER/MAJOR/MINOR.
 2. **Gate 1**: a decision `{gate:1, decision:APPROVE|APPROVE_WITH_ATTENTION, by:"hil:<actor>",
    findings_sha:<design sha>, findings_digest:<digest of dispositions>}`. A new design changes the sha and
    invalidates the approval.
@@ -127,19 +127,19 @@ future-proofing, reuse/no-duplication, "the right thing") before precheck/PR.
 - **Inputs:** item + AC + the diff + relevant ADRs / `AGENTS.md` / standards.
 - **Output:** structured findings `{BLOCKER | MAJOR | MINOR | NIT}` + a short summary + evidence file
   `engineering/reviews/<item>-<sha>.json`; append the summary to the item context.
-- **Advisory vs blocking:** only **objectively verifiable** classes may hard-block (secret/PII leak,
-  data-loss, missing migration/test, language-rule violation, RLS bypass). **MAJOR/MINOR/NIT are advisory** →
-  **HIL decides**. Never make subjective LLM output a flaky CI blocker.
+- **Finding policy:** BLOCKER/MAJOR/MINOR must be fixed; NIT may be fixed or evidence-backed exception.
+  Review findings are not accepted/deferred/scoped away. The HIL decides the design/implementation, not
+  whether B/M/m stay unresolved.
 - **Size gate:** run on **code / schema / security** changes; skip trivial docs/config-only change sets.
 - **Presented as part of the HIL gate it informs (binding):** a review is not a standalone artifact — the
   **Gate 1.5 findings + recommendation are stated inside the Gate 1 review**, and the **Gate 2.5 findings +
   recommendation inside the Gate 2 review**, so the human decision always sees them.
 - **Decision table + overall recommendation (BI-PF-1479):** `architect_review.py gate --gate 1|2` and
   `gate1_check.py` render every finding as one table (`# | severity | finding | disposition | response`)
-  above a computed **overall architect recommendation** - `NOT READY` (blocker/major pending),
-  `APPROVE WITH ATTENTION` (all blockers/majors dispositioned but some accepted/deferred/scope/rejected) or
-  `APPROVE` (all blockers/majors actioned) - with severity/disposition counts. It is advisory input; the HIL
-  still decides. The machine path (`gate1_check --json`) and exit codes are unchanged.
+  above a computed **overall architect recommendation** - `NOT READY` (any B/M/m pending),
+  `APPROVE WITH ATTENTION` (all B/M/m fixed; NIT exceptions remain) or `APPROVE` (all fixed) - with
+  severity/disposition counts. HIL still owns the gate decision; the machine path (`gate1_check --json`)
+  and exit codes remain authoritative for open B/M/m.
 - **The model run is NOT inside `precheck`** (network/model calls) — run it separately as the **Gate-2.5 step**
   and commit the evidence (`engineering/reviews/<item>-<sha>.json`). Record usage/cost/time.
 - **ENFORCED as a hard rule** (BI-PF-1428): `precheck` fast runs `scripts/dev/architect_review_check.py`
@@ -170,10 +170,10 @@ Reviews are a learning input, not a one-off artifact:
 - **One source, no repetition:** both phases read `core/design_guardrails.py` (checklist + ledger + recurrence
   report), rules are relevance-ranked and capped, and recurring findings are deduped by `sig:<digest>`.
 - **Gate 1 transition enforcement (BI-PF-1466):** `scripts/dev/gate1_transition_check.py` is a precheck gate
-  that blocks `new → in_progress` for a reviewed item while any BLOCKER/MAJOR is PENDING (items without a
+  that blocks `new → in_progress` for a reviewed item while any BLOCKER/MAJOR/MINOR is PENDING (items without a
   design review are grandfathered).
 - **Design pre-check** (`architect_review.py checklist --item <ID>`) remains the generic checklist.
-- **Gate 1 check** (`scripts/dev/gate1_check.py`) blocks Gate 1 while BLOCKER/MAJOR are PENDING, and treats
+- **Gate 1 check** (`scripts/dev/gate1_check.py`) blocks Gate 1 while BLOCKER/MAJOR/MINOR are PENDING, and treats
   unparsable evidence as indeterminate (BI-PF-1465).
 - **Findings → durable rules** (`scripts/dev/review_learnings.py`): recurring findings not captured in
   `docs/CORRECTION-LEDGER.md` are flagged (`--check`) and emitted as ledger rows (`--propose`), each carrying a
@@ -189,20 +189,18 @@ Reviews are a learning input, not a one-off artifact:
 
 **Binding order (hard).** Gate 0 (reconciliation + impact table + language + API) ? Gate 1.5 design review ? HIL Gate 1 ? implement ? Gate 2.5 diff review ? HIL Gate 2 ? precheck ? merge. Completion is also gated: an item cannot reach `completed` without Gate 0 artifacts, current design evidence and a Gate 1 decision, even if it never transitioned through `in_progress`.
 
-## Review budget (BI-PF-1480)
+## Review budget (BI-PF-1480 / BI-PF-1485)
 
-- **One diff review per code freeze.** The Gate 1 decision is the epoch; only diff reviews after it count.
-- **Disposition before re-review.** A second diff review for an item is refused while the prior diff review has
-  no dispositions. `--rereview --reason` is the audited override: the reason must cite the prior review sha,
-  is redacted, capped, and stored as `rereview_reason` in the evidence.
-- **Budget.** `config/architect-review.json` `review_budget` sets `warn_after` (2) and `fail_after` (4):
-  count > warn prints a structured `review_churn_warn`; count > fail fails a completion in the diff unless the
-  item carries a HIL-attested `review_churn` decision (fnmatch attester allowlist, `hil_confirmed`, >=40-char note citing the review sha).
-- **Gate.** `scripts/dev/review_churn_check.py` is a fast precheck gate; `--report`/`--json` are the
-  non-blocking/machine modes. Reviews are counted from committed `HEAD` evidence; a missing base ref is a hard error (exit 2) - fetch
-  develop or pass `--base` / set `PF_REVIEW_CHURN_BASE` (fallback `origin/develop`).
-- **Why:** EDP-10 hit 8 diff reviews because fixes were made after each review instead of batching and
-  dispositioning. This guard makes re-review deliberate and auditable.
+- **One full 1.5 design review + one full 2.5 diff review per item/mode.** `config/review-budget.json` sets
+  `max_full_reviews_per_mode: 1`.
+- **Delta reviews are not full reviews.** `--rereview --since <prior-reviewed-head>` is used only for fix
+  verification and is excluded from the full-review budget.
+- **No silent extra full review.** A second full review requires a HIL `MATERIAL_CHANGE` decision.
+- **Chain validation.** A delta review must have a `base_sha` equal to a previously reviewed head and a
+  `head_sha` that covers the current candidate. The review ledger stores `review_scope`, `base_sha`, and
+  `head_sha`; `architect_review_check` accepts a valid full + delta chain.
+- **No stale approval window.** Material approval is event-bound, not tied to an expired global date.
+- **Why:** the budget prevents full re-review churn while allowing bounded delta fixes.
 
 ## Execution trail (BI-PF-1481)
 
@@ -239,10 +237,10 @@ Every item carries one append-only trail at `engineering/trails/<ID>.json` (owne
     recommendation renders `reviewed (recommendation unavailable)` - never a pass.
   - owner: `core/execution_trail.py` (the only renderer); dispositions are owned by `core.backlog`
     (`review_dispositions`) and enforced by `architect_review.py` + `execution_trail_check.py`.
-- **Disposition key:** **ACTIONED** = fixed or committed in this item (Gate 1.5: design/plan updated; Gate 2.5:
-  code/docs changed); **ACCEPTED** = not fixed, risk explicitly accepted with a rationale; **DEFERRED** = not
-  fixed, must cite a follow-up backlog id (completion fails without one); **REJECTED** = finding invalid/not
-  applicable; **SCOPE** = outside this item, note names the owning item/scope.
+- **Disposition key:** **ACTIONED/FIXED** = fixed in this item (Gate 1.5: design updated; Gate 2.5:
+  code/docs/tests updated). BLOCKER, MAJOR, and MINOR must be ACTIONED/FIXED or proven invalid with
+  evidence. `ACCEPTED`, `DEFERRED`, `SCOPE`, and `REJECTED` are not valid for B/M/m. NIT may use an
+  evidence-backed exception.
 - **Guard:** `scripts/dev/execution_trail_check.py` runs as a POST-precheck gate after the tests/precheck
   events are written. It fails a completion when the pre-merge stages are missing/out of order or a DEFERRED
   disposition has no existing follow-up item id. `pr/merge/delivery/completion` are post-merge events.
@@ -255,11 +253,9 @@ Every item carries one append-only trail at `engineering/trails/<ID>.json` (owne
 - **AC verification is a Gate 2 requirement.** An item carries `ac_verification[]` (AC text, `result` PASS/FAIL/PENDING,
   evidence, verifier). Gate 2 refuses if any AC is missing/FAIL/PENDING; completion re-checks. 2.5 may flag missing AC
   evidence but does not certify ACs.
-- **Fix everything except at most 2 HIL-approved exceptions per mode.** BLOCKER findings must always be ACTIONED.
-  MAJOR/MINOR may be ACCEPTED/DEFERRED only as a HIL-approved exception (max 2 per mode), with a rationale and,
-  for DEFERRED, an existing backlog id. HIL approval is a `DISPOSITION_APPROVAL` decision
-  (`hil_confirmed: true`, `by: hil:*`, scope `disposition_approval`, mode design|diff, finding sigs). Enforced by
-  `disposition_policy.py` at Gate 1, Gate 2 and completion.
+- **Fix every BLOCKER, MAJOR, and MINOR.** Only NIT may use an evidence-backed exception. `ACCEPTED`,
+  `DEFERRED`, `SCOPE`, and `REJECTED` are not valid for B/M/m. `disposition_policy.py` enforces this at
+  Gate 1, Gate 2, and completion. A false positive must be invalidated with code/test/evidence, not accepted.
 - **Final report is persisted on the item.** `python scripts/dev/finalize_item.py --item <ID>` writes
   `item.final_report`: AC verification, test results by kind (unit/api/db/logic/go/other with commands/results/
   counts/durations), total time, tokens/cost, accepted/deferred with backlog ids, gate decisions. Merge is blocked
@@ -279,4 +275,4 @@ Every item carries one append-only trail at `engineering/trails/<ID>.json` (owne
 - **First-pass contract:** design all invariants/failure modes before code; test-first for guards; self-review;
   run targeted tests + precheck; freeze; one delta review. 2.5 is a safety net, not the first test.
 - **ACTIONED evidence:** non-NIT fixes must record the failing scenario + test/check command + result.
-- **At most 2 HIL-approved exceptions per mode.** BLOCKERs are always fixed; DEFERRED needs an existing backlog id.
+- **Fix all BLOCKER/MAJOR/MINOR.** Only NIT may use an evidence-backed exception; no B/M/m acceptance/deferral/scope.

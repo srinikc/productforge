@@ -15,10 +15,10 @@ def _setup(tmp_path, monkeypatch, n=2):
             "item": "BI-PF-9000", "mode": "diff", "at": "2026-10-25T01:00:00+00:00", "sha": str(i)}), encoding="utf-8")
 
 
-def test_budget_and_material_change(tmp_path, monkeypatch):
+def test_full_budget_and_material_change(tmp_path, monkeypatch):
     _setup(tmp_path, monkeypatch, 2)
     cfg = tmp_path / "budget.json"
-    cfg.write_text(json.dumps({"enforce_from": "2026-10-25", "max_reviews_per_mode": 1,
+    cfg.write_text(json.dumps({"enforce_from": "2026-10-25", "max_full_reviews_per_mode": 1,
                                "allow_hil_material_change": True, "grandfather": []}), encoding="utf-8")
     monkeypatch.setattr(rb, "CFG", cfg)
     item = {"id": "BI-PF-9000", "decisions": []}
@@ -30,7 +30,7 @@ def test_budget_and_material_change(tmp_path, monkeypatch):
 def test_material_approval_without_at_is_rejected(tmp_path, monkeypatch):
     _setup(tmp_path, monkeypatch, 2)
     cfg = tmp_path / "budget.json"
-    cfg.write_text(json.dumps({"enforce_from": "2026-10-25", "max_reviews_per_mode": 1,
+    cfg.write_text(json.dumps({"enforce_from": "2026-10-25", "max_full_reviews_per_mode": 1,
                                "allow_hil_material_change": True, "grandfather": []}), encoding="utf-8")
     monkeypatch.setattr(rb, "CFG", cfg)
     item = {"id": "BI-PF-9000", "decisions": [{"decision": "MATERIAL_CHANGE",
@@ -41,9 +41,22 @@ def test_material_approval_without_at_is_rejected(tmp_path, monkeypatch):
 def test_older_material_approval_is_rejected(tmp_path, monkeypatch):
     _setup(tmp_path, monkeypatch, 2)
     cfg = tmp_path / "budget.json"
-    cfg.write_text(json.dumps({"enforce_from": "2026-10-25", "max_reviews_per_mode": 1,
+    cfg.write_text(json.dumps({"enforce_from": "2026-10-25", "max_full_reviews_per_mode": 1,
                                "allow_hil_material_change": True, "grandfather": []}), encoding="utf-8")
     monkeypatch.setattr(rb, "CFG", cfg)
     item = {"id": "BI-PF-9000", "decisions": [{"decision": "MATERIAL_CHANGE", "hil_confirmed": True,
                                                 "mode": "diff", "at": "2026-10-24T00:00:00+00:00"}]}
     assert rb.problems(item)
+
+def test_delta_reviews_do_not_consume_full_budget(tmp_path, monkeypatch):
+    _setup(tmp_path, monkeypatch, 1)
+    for n, at, base, head in (("1", "02", "full", "d1"), ("2", "03", "d1", "d2")):
+        p = tmp_path / f"BI-PF-9000-delta{n}.json"
+        p.write_text(json.dumps({
+            "item": "BI-PF-9000", "mode": "diff", "at": f"2026-10-25T{at}:00:00+00:00",
+            "sha": head, "review_scope": "delta", "base_sha": base, "head_sha": head}), encoding="utf-8")
+    cfg = tmp_path / "budget.json"
+    cfg.write_text(json.dumps({"enforce_from": "2026-10-25", "max_full_reviews_per_mode": 1,
+                               "allow_hil_material_change": True, "grandfather": []}), encoding="utf-8")
+    monkeypatch.setattr(rb, "CFG", cfg)
+    assert rb.problems({"id": "BI-PF-9000", "decisions": []}) == []

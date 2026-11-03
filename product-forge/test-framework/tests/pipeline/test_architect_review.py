@@ -43,18 +43,18 @@ def test_iter_findings_canonical_order():
     ]
 
 
-def test_pending_blocking_only_blocks_blocker_and_major():
+def test_pending_blocking_blocks_blocker_major_and_minor():
     f = {"BLOCKER": ["b"], "MAJOR": ["j"], "MINOR": ["m"], "NIT": ["n"]}
-    # all pending -> the two high severities block; total/pending count all
     total, pending, blocking = ar.pending_blocking(f, {})
     assert (total, pending) == (4, 4)
-    assert [s for _, s, _ in blocking] == ["BLOCKER", "MAJOR"]
+    assert [s for _, s, _ in blocking] == ["BLOCKER", "MAJOR", "MINOR"]
 
     disp = {"1": {"status": "actioned"}, "2": {"status": "deferred"}, "3": {"status": "PENDING"}}
     total, pending, blocking = ar.pending_blocking(f, disp)
-    assert (total, pending, blocking) == (4, 2, [])
-    # a pending MINOR/NIT never blocks
-    assert blocking == []
+    assert (total, pending) == (4, 2)
+    assert [s for _, s, _ in blocking] == ["MINOR"]
+    # a pending NIT never blocks
+    assert all(s != "NIT" for _, s, _ in blocking)
 
 
 def test_none_placeholder_is_not_a_finding():
