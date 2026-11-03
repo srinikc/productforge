@@ -1,7 +1,7 @@
 ---
 description: Asset librarian agent. Indexes, deduplicates, and manages project media assets, tracking provenance, license, and lifecycle across the asset store.
 mode: subagent
-model: opencode-go/mimo-v2.5
+model: opencode-go/mimo-v2.6-flash
 agent_id: asset-librarian
 version: 1.0.0
 spec_version: "1.0"
@@ -75,7 +75,7 @@ assets exist and where they came from.
 | Version | 1.0 |
 | Spec Version | agent-contract/1.0 |
 | Mode | subagent |
-| Model | opencode-go/mimo-v2.5 |
+| Model | opencode-go/mimo-v2.6-flash |
 
 ## 1. ROLE
 

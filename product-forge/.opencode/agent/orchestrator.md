@@ -1,7 +1,7 @@
 ---
 description: Global Orchestrator. Manages pipeline flow, invokes agents, handles human-in-the-loop.
 mode: primary
-model: opencode-go/mimo-v2.5
+model: opencode-go/mimo-v2.6-flash
 agent_id: orchestrator
 version: 1.0.0
 spec_version: "1.0"

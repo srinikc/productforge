@@ -6,6 +6,16 @@ Rules for every agent and contributor working in this repository.
 - This product is **Product Forge**. The token `factory` must never be stored or surfaced
   (legacy read-compat shims are allowlisted in the audit only).
 
+## Two delivery planes
+- **Plane A:** an AI coding session builds Product Forge itself. The runtime (OpenCode, Codex,
+  Antigravity, etc.) is an optional adapter.
+- **Plane B:** Product Forge builds another product using its own agents, backlog, scheduler, and gates.
+
+This `AGENTS.md` governs **PF-SB / Plane A** and the Product Forge repository. PF-GP / Plane B
+(generated products) uses the generated product's own AGENTS/backlog and pipeline rules. Both planes
+use the same principles, but they have separate backlog scopes and repositories. See
+`docs/E2E-WORKFLOW.md`.
+
 ## Structure (binding)
 Read and follow `docs/STRUCTURE-CONTRACT.md` + `config/store-registry.json`.
 **Before adding anything (feature, module, store, config, agent, skill, stage, API, test, report): follow
@@ -15,6 +25,33 @@ Route every addition by kind:
 - work (feature/bug/idea/change) → **backlog item** (`core/backlog.py`), never a new file
 - detail/evidence → attach to the owner store and reference `item_id`
 - new concern → register in `config/store-registry.json` with a single writer
+
+## Canonical documents (SSOT)
+These are the single sources of truth. If an agent prompt or a generated/legacy document conflicts,
+the canonical document wins and the prompt/document is corrected.
+
+- **Gate process:** `docs/REVIEW-GATES-LIFECYCLE.md` (Gate 0, Gate 1.5, Gate 2.5, Gate 1/2).
+- **Agent role contracts:** `docs/AGENT-ROLE-CONTRACTS.md`.
+- **End-to-end workflow:** `docs/E2E-WORKFLOW.md` (Product Forge self-build vs generated products).
+- **Runtime adapters:** `docs/AGENT-RUNTIME-ADAPTERS.md` (OpenCode/Codex/Antigravity are optional adapters).
+- **Engineering behavior/tests/evidence:** `docs/ENGINEERING_OPERATING_STANDARD.md` (EOS).
+- **Compact work execution rules:** `docs/WORK-EXECUTION-CONTRACT.md`.
+- **Design/runtime-proof standard:** `docs/DESIGN-QUALITY-RCCA.md`.
+- **Design template/schema:** `templates/DESIGN-PACK.md` + `config/design-pack.json`.
+- **Per-item design:** `engineering/design/<ITEM-ID>.md`.
+- **Per-item review evidence:** `engineering/reviews/<ITEM-ID>-<sha>.json`.
+- **Per-item execution trail:** `engineering/trails/<ITEM-ID>.json`.
+
+Agent prompts are runtime-specific adapters, not policy. For Product Forge gates, the canonical
+role contracts are in `docs/AGENT-ROLE-CONTRACTS.md`; the canonical reviewer is its Architect
+reviewer section. Runtime adapters may map a role to a local file, model, or permission set, but
+must not define a second process. Legacy generated prompt inventories and backup/standard prompt
+trees are not authority.
+
+Reviewers never edit source, tests, design, backlog items, approvals, or gate state. They return
+findings; the worker/orchestrator writes item-bound evidence. Implementers are the only writers of
+implementation files, and only after Gate 1 approval. `docs/review.md` is retired and is never an
+approval artifact.
 
 ## Standards (binding)
 Follow **`docs/ENGINEERING_OPERATING_STANDARD.md` (EOS)** for every change: feature branch (never commit to
@@ -117,6 +154,10 @@ Applies to EVERY review, Gate (**Gate 1** = approve the plan before coding; **Ga
 the Gate 1 (design) review**, and the **Gate 2.5 findings + recommendation are part of the Gate 2 (delivery)
 review** — HIL must decide with them visible (never a separate, easily-skipped artifact).
 
+**Gate 0 precedes design review:** the worker/design author records the reconciliation, impact table,
+language/API checks, and AC in the item/design/trail and runs `scripts/dev/gate0_check.py`. Gate 0
+is not an approval.
+
 **Reviews precede HIL at each stage (the review informs the human decision):**
 **Gate 1.5 (design review)** → Gate 1 (design/HIL approval, *informed by 1.5*) → implement →
 **Gate 2.5 (second-model Architect delivery review** — fresh context, configurable model default `mimo-v2.6-flash`/
@@ -159,8 +200,8 @@ Before implementing **any** new design, flow, review recommendation, or external
 2. Check it against the governing plan
    (`docs/PRODUCT_FORGE_MASTER_API_FIRST_ENGINEERING_FACTORY_E2E_EXECUTION_PLAN-updated.md`), the canonical
    owners (`config/store-registry.json`), the authoritative API surface (`api/`), and the fixed decisions
-   (one writer per concern; no duplicate engines/stores; legacy dashboard frozen; OpenCode is an adapter, not a
-   dependency; the two independent entry paths).
+   (one writer per concern; no duplicate engines/stores; legacy dashboard frozen; client runtimes are adapters,
+   not dependencies; the two independent entry paths).
 3. Produce an **IMPACT REVIEW** table:
    `claim | verdict (aligned | violates | new-path | derails | stale) | evidence (file:line) | recommendation`.
    The table **MUST** include an **`API CHECK`** row (mirroring the language-rule row): `needs_api` (true/false) +

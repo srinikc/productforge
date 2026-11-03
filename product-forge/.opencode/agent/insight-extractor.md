@@ -1,7 +1,7 @@
 ---
 description: Insight extractor agent. Extracts key insights, quotes, ideas, and actionable items from content.
 mode: subagent
-model: opencode-go/mimo-v2.5
+model: opencode-go/mimo-v2.6-flash
 agent_id: insight-extractor
 version: 1.0.0
 spec_version: "1.0"

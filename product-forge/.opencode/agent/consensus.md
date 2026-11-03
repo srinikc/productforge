@@ -1,7 +1,7 @@
 ---
 description: Consensus agent. Handles multi-agent voting, weighted decision-making, and conflict resolution for collaborative decisions.
 mode: subagent
-model: opencode-go/mimo-v2.5
+model: opencode-go/mimo-v2.6-flash
 agent_id: consensus
 version: 1.0.0
 spec_version: "1.0"

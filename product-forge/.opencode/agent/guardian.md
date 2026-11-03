@@ -1,7 +1,7 @@
 ---
 description: Guardian agent. Protects systems, enforces policies, and ensures security and compliance across operations.
 mode: subagent
-model: opencode-go/mimo-v2.5
+model: opencode-go/mimo-v2.6-flash
 agent_id: guardian
 version: 1.0.0
 spec_version: "1.0"

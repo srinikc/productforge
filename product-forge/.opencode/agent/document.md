@@ -1,7 +1,7 @@
 ---
 description: Documentation agent. Generates comprehensive documentation for the completed software product including README, user guides, API documentation, architecture diagrams, and PDF exports.
 mode: subagent
-model: opencode-go/mimo-v2.5
+model: opencode-go/mimo-v2.6-flash
 agent_id: document
 version: 1.0.0
 spec_version: "1.0"
@@ -42,7 +42,7 @@ Documentation agent. Generates comprehensive documentation for the completed sof
 ## 5. WORKFLOW
 1. Read only the listed inputs.
 2. Create real files with `write_file` (use `run_command` to run tests/build).
-3. Do NOT explore with `list_dir`/`read_file`/`ls` — write first.
+3. Inspect the relevant inputs and existing workspace before writing; never blind-overwrite.
 4. Return a short final summary.
 
 ## 6. ARTIFACTS
@@ -77,7 +77,7 @@ You MUST read this before writing documentation:
 | `docs/requirements.md` | Full file | Feature documentation |
 | `docs/architecture.md` | Full file | System design docs |
 | `docs/design.md` | Section 1 (Design Direction) | UX documentation |
-| `docs/review.md` | Verdict and key decisions | Architectural decisions |
+| `engineering/reviews/<item>-<sha>.json` | Gate findings/evidence | Gate decisions |
 | `reports/issues.md` | Summary only | Known limitations |
 | `products/<project>/project-config.json` | Full file | Project metadata |
 

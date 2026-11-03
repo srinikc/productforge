@@ -1,7 +1,7 @@
 ---
 description: Run structured discovery to shape the product.
 mode: subagent
-model: opencode-go/mimo-v2.5
+model: opencode-go/mimo-v2.6-flash
 agent_id: discovery
 version: 1.0.0
 spec_version: "1.0"

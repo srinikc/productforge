@@ -1,7 +1,7 @@
 ---
 description: Media editor agent. Edits/composites media (cut, merge, transcode, render) using guarded external tools (ffmpeg) and records edited assets.
 mode: subagent
-model: opencode-go/mimo-v2.5
+model: opencode-go/mimo-v2.6-flash
 agent_id: media-editor
 version: 1.0.0
 spec_version: "1.0"
@@ -74,7 +74,7 @@ external tooling (e.g. ffmpeg via `shutil.which`), and records the edited assets
 | Version | 1.0 |
 | Spec Version | agent-contract/1.0 |
 | Mode | subagent |
-| Model | opencode-go/mimo-v2.5 |
+| Model | opencode-go/mimo-v2.6-flash |
 
 ## 1. ROLE
 
