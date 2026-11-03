@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -10,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"productforge/edpdata"
 	"productforge/edpsvc/internal/limits"
 	"productforge/store"
 )
@@ -137,5 +139,156 @@ func TestMuxLevelTimeoutReturns504(t *testing.T) {
 	h.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/slow", nil))
 	if rr.Code != http.StatusGatewayTimeout {
 		t.Fatalf("want 504, got %d", rr.Code)
+	}
+}
+
+func TestAuthorityReasonCodes(t *testing.T) {
+	for _, tc := range []struct {
+		err  error
+		want string
+	}{
+		{context.DeadlineExceeded, "timeout"},
+		{context.Canceled, "canceled"},
+		{edpdata.ErrAuthoritySchema, "migration_missing"},
+		{edpdata.ErrAuthorityRow, "row_missing"},
+	} {
+		if got := authorityReasonCode(tc.err); got != tc.want {
+			t.Fatalf("authorityReasonCode(%v)=%q want %q", tc.err, got, tc.want)
+		}
+	}
+}
+
+func TestBacklogAuthorityRequiresAdminToken(t *testing.T) {
+	s := testServer(t)
+	rr := httptest.NewRecorder()
+	s.buildMux().ServeHTTP(rr, httptest.NewRequest(http.MethodGet,
+		"/admin/backlog/authority?tenant=product_forge", nil))
+	if rr.Code != http.StatusUnauthorized {
+		t.Fatalf("want 401, got %d %q", rr.Code, rr.Body.String())
+	}
+	var env limits.ErrorEnvelope
+	if err := json.Unmarshal(rr.Body.Bytes(), &env); err != nil || env.Error.Code != "UNAUTHENTICATED" {
+		t.Fatalf("envelope %q err=%v", rr.Body.String(), err)
+	}
+}
+
+func TestBacklogAuthorityStatusPrecedence(t *testing.T) {
+	s := testServer(t)
+	h := s.buildMux()
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, httptest.NewRequest(http.MethodPost, "/admin/backlog/authority?tenant=x", nil))
+	if rr.Code != http.StatusUnauthorized {
+		t.Fatalf("POST without bearer: want 401, got %d", rr.Code)
+	}
+	rr = httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/admin/backlog/authority?tenant=x", nil)
+	req.Header.Set("Authorization", "Bearer test-token")
+	h.ServeHTTP(rr, req)
+	if rr.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("POST with bearer: want 405, got %d %q", rr.Code, rr.Body.String())
+	}
+}
+
+func TestBacklogAuthorityRequiresTenant(t *testing.T) {
+	s := testServer(t)
+	rr := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/admin/backlog/authority", nil)
+	req.Header.Set("Authorization", "Bearer test-token")
+	s.buildMux().ServeHTTP(rr, req)
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("want 400, got %d %q", rr.Code, rr.Body.String())
+	}
+}
+
+func TestBacklogAuthorityAuthBeforeMethodThroughChain(t *testing.T) {
+	s := testServer(t)
+	h := limits.Chain(s.buildMux(), s.cfg, s.quota, s.metrics, s.role.OK, s.authorize)
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, httptest.NewRequest(http.MethodPost, "/admin/backlog/authority?tenant=x", nil))
+	if rr.Code != http.StatusUnauthorized {
+		t.Fatalf("POST without bearer through chain: want 401, got %d", rr.Code)
+	}
+	rr = httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/admin/backlog/authority?tenant=x", nil)
+	req.Header.Set("Authorization", "Bearer test-token")
+	h.ServeHTTP(rr, req)
+	if rr.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("POST with bearer through chain: want 405, got %d %q", rr.Code, rr.Body.String())
+	}
+}
+
+func TestBacklogAuthorityWithDB(t *testing.T) {
+	dsn := os.Getenv("PF_RUNTIME_DSN")
+	if dsn == "" {
+		t.Skip("set PF_RUNTIME_DSN to run the backlog authority DB test")
+	}
+	st, err := store.Open(context.Background(), dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	tenant := fmt.Sprintf("authority-it-%d", time.Now().UnixNano())
+	bl := edpdata.NewBacklog(store.BindTenant(st, tenant))
+	itemID := "BL-" + tenant
+	if _, err := bl.Put(context.Background(), edpdata.BacklogItem{ID: itemID, TenantID: tenant, Title: "authority test"}); err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = bl.Delete(context.Background(), itemID) }()
+	otherTenant := tenant + "-other"
+	otherBl := edpdata.NewBacklog(store.BindTenant(st, otherTenant))
+	otherID := "BL-" + otherTenant
+	if _, err := otherBl.Put(context.Background(), edpdata.BacklogItem{ID: otherID, TenantID: otherTenant, Title: "other tenant"}); err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = otherBl.Delete(context.Background(), otherID) }()
+
+	s := testServer(t)
+	s.st = st
+	rr := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/admin/backlog/authority?tenant="+tenant, nil)
+	req.Header.Set("Authorization", "Bearer test-token")
+	s.buildMux().ServeHTTP(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("want 200, got %d %q", rr.Code, rr.Body.String())
+	}
+	var body struct {
+		Authority        string `json:"authority"`
+		NextID           int64  `json:"next_id"`
+		ReservationScope string `json:"reservation_scope"`
+		ReservationCount int64  `json:"reservation_count"`
+		Tenant           string `json:"tenant"`
+		ItemScope        string `json:"item_scope"`
+		ItemCount        int64  `json:"item_count"`
+	}
+	if err := json.Unmarshal(rr.Body.Bytes(), &body); err != nil {
+		t.Fatal(err)
+	}
+	if body.Authority != "global" || body.ReservationScope != "global" || body.ItemScope != "tenant" ||
+		body.Tenant != tenant || body.NextID <= 0 || body.ItemCount != 1 {
+		t.Fatalf("unexpected authority body: %+v", body)
+	}
+}
+
+func TestBacklogAuthorityFailsClosed(t *testing.T) {
+	dsn := os.Getenv("PF_RUNTIME_DSN")
+	if dsn == "" {
+		t.Skip("set PF_RUNTIME_DSN to run the closed-pool authority test")
+	}
+	st, err := store.Open(context.Background(), dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	st.Close()
+	s := testServer(t)
+	s.st = st
+	rr := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/admin/backlog/authority?tenant=product_forge", nil)
+	req.Header.Set("Authorization", "Bearer test-token")
+	s.buildMux().ServeHTTP(rr, req)
+	if rr.Code != http.StatusServiceUnavailable {
+		t.Fatalf("want 503, got %d %q", rr.Code, rr.Body.String())
+	}
+	if !strings.Contains(rr.Body.String(), "backlog authority unavailable") {
+		t.Fatalf("want fixed 503 message, got %q", rr.Body.String())
 	}
 }

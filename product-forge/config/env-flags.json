@@ -16,6 +16,31 @@
       "purpose": "allow the PF API id-reserve authority path (fallback when the git remote is unavailable)",
       "owner": "core/id_allocator.py"
     },
+    "PF_BACKLOG_DB": {
+      "default": "off",
+      "purpose": "backlog storage authority: on = PostgreSQL/edpsvc is the single item writer and ID authority (PF-SB); off = legacy file/Git path. DB unavailability fails closed when on.",
+      "owner": "core/backlog.py + go/edpdata/backlog.go"
+    },
+    "PF_EDP_API_URL": {
+      "default": "http://127.0.0.1:8030",
+      "purpose": "canonical EDP data-plane service base URL (backlog, jobs, leases, audit, memory); not a backlog-specific service",
+      "owner": "core/backlog.py + core/id_allocator.py + edpsvc clients"
+    },
+    "PF_EDP_TOKEN": {
+      "default": "",
+      "purpose": "EDP data-plane bearer token (falls back to PF_ADMIN_TOKEN); distinct from the control-plane PF_API_TOKEN",
+      "owner": "core/backlog.py + core/id_allocator.py + edpsvc clients"
+    },
+    "PF_CONTROL_API_URL": {
+      "default": "http://127.0.0.1:8000/api/v1",
+      "purpose": "Python control-plane API base used by capsvc; separate from the EDP data-plane/backlog DB authority",
+      "owner": "go/capsvc + scripts/dev/run_capsvc.py"
+    },
+    "PF_BACKLOG_API": {
+      "default": "http://127.0.0.1:8000/api/v1",
+      "purpose": "DEPRECATED alias for PF_CONTROL_API_URL; do not use for the EDP/backlog DB authority",
+      "owner": "go/capsvc compatibility"
+    },
     "PF_DB_DSN": {
       "default": "",
       "purpose": "Product Forge system-of-record PostgreSQL DSN (EDP-17). Empty = DB-backed features disabled. Credentials come from this env var only (never committed).",

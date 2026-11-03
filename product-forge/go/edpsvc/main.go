@@ -27,6 +27,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -41,15 +42,23 @@ import (
 	"productforge/store"
 )
 
+const (
+	backlogAuthorityRecheck = 5 * time.Minute
+	authorityGlobal         = "global"
+	itemScopeTenant         = "tenant"
+	reservationScopeGlobal  = "global"
+)
+
 type server struct {
-	admin   string
-	migDir  string
-	obj     datastore.ObjectStore
-	cfg     limits.Config
-	st      *store.PgStore
-	quota   *limits.Quota
-	metrics *limits.Metrics
-	role    *limits.RoleGuard
+	admin       string
+	migDir      string
+	obj         datastore.ObjectStore
+	cfg         limits.Config
+	st          *store.PgStore
+	quota       *limits.Quota
+	metrics     *limits.Metrics
+	role        *limits.RoleGuard
+	authorityMu sync.Mutex
 }
 
 // buildObjectStore selects the object-store adapter (EDP-13 local / EDP-14 S3) by PF_OBJECT_BACKEND.
@@ -123,6 +132,9 @@ func main() {
 	})
 	// AC: surface coverage non-fatally at startup (a stale/low rotation must not stop the service).
 	s.checkAuditCoverage()
+	s.metrics.Set("edp_backlog_authority_startup_ok", 0)
+	go s.checkBacklogAuthority(recheckCtx)
+	go s.backlogAuthorityLoop(recheckCtx)
 	handler := limits.Chain(limits.EnvelopeFallback(s.buildMux()), cfg, q, m, guard.OK, s.authorize)
 	addr := envOr("PF_EDP_ADDR", "127.0.0.1:8030")
 	srv := &http.Server{
@@ -168,6 +180,7 @@ func (s *server) buildMux() *http.ServeMux {
 	mux.HandleFunc("/admin/migrations/up", s.adminOnly(s.migrationsUp))
 	mux.HandleFunc("/admin/migrations/down", s.adminOnly(s.migrationsDown))
 	mux.HandleFunc("/admin/schema-check", s.adminOnly(s.schemaCheck))
+	mux.HandleFunc("/admin/backlog/authority", s.adminOnly(s.backlogAuthority))
 	mux.HandleFunc("/admin/object-store/capabilities", s.adminOnly(s.objectStoreCapabilities))
 	mux.HandleFunc("/admin/object-store/conform", s.adminOnly(s.objectStoreConform))
 	mux.HandleFunc("/admin/limits", s.adminOnly(s.adminLimits))
@@ -182,6 +195,7 @@ func (s *server) buildMux() *http.ServeMux {
 	mux.HandleFunc("/memory", s.adminOnly(s.memoryHandle))
 	mux.HandleFunc("/memory/", s.adminOnly(s.memoryByID))
 	mux.HandleFunc("/backlog", s.adminOnly(s.backlogHandle))
+	mux.HandleFunc("/backlog/ids:reserve", s.adminOnly(s.backlogReserve))
 	mux.HandleFunc("/backlog/", s.adminOnly(s.backlogByID))
 	return mux
 }
@@ -260,6 +274,64 @@ func (s *server) checkAuditCoverage() {
 	}
 	if st.Stale {
 		log.Printf("WARNING audit rotation stale: last_rotation_hours=%.1f", st.LastRotationHours)
+	}
+}
+
+func (s *server) checkBacklogAuthority(parent context.Context) {
+	s.authorityMu.Lock()
+	defer s.authorityMu.Unlock()
+	var err error
+	for attempt := 0; attempt < 3; attempt++ {
+		ctx, cancel := context.WithTimeout(parent, s.cfg.DBTimeout)
+		_, err = edpdata.NewBacklog(store.BindTenant(s.st, "product_forge")).Authority(ctx)
+		cancel()
+		if err == nil {
+			s.metrics.Set("edp_backlog_authority_startup_ok", 1)
+			s.metrics.Set("edp_backlog_authority_success_timestamp_seconds", int(time.Now().Unix()))
+			return
+		}
+		if attempt < 2 {
+			select {
+			case <-parent.Done():
+				return
+			case <-time.After(time.Duration(1<<attempt) * time.Second):
+			}
+		}
+	}
+	s.metrics.Set("edp_backlog_authority_startup_ok", 0)
+	s.metrics.Inc("edp_backlog_authority_errors_total", "reason", authorityReasonCode(err))
+	log.Printf("backlog authority principal=admin source=startup %v (non-fatal, reason_code=%s)",
+		limits.Redact(err.Error()), authorityReasonCode(err))
+}
+
+func (s *server) backlogAuthorityLoop(ctx context.Context) {
+	t := time.NewTicker(backlogAuthorityRecheck)
+	defer t.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.C:
+			s.checkBacklogAuthority(ctx)
+		}
+	}
+}
+
+func authorityReasonCode(err error) string {
+	switch {
+	case errors.Is(err, edpdata.ErrAuthoritySchema):
+		return "migration_missing"
+	case errors.Is(err, edpdata.ErrAuthorityRow):
+		return "row_missing"
+	case errors.Is(err, context.Canceled):
+		return "canceled"
+	case errors.Is(err, context.DeadlineExceeded), errors.Is(err, os.ErrDeadlineExceeded):
+		return "timeout"
+	default:
+		if strings.Contains(strings.ToLower(err.Error()), "timeout") || strings.Contains(err.Error(), "57014") {
+			return "timeout"
+		}
+		return "db_unavailable"
 	}
 }
 
@@ -848,8 +920,8 @@ func (s *server) backlogHandle(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodPost:
 		var b struct {
-			ID, Tenant, Type, Status, Title, Body string
-			Data                                  json.RawMessage
+			ID, Tenant, Scope, Project, Type, Status, Title, Body string
+			Data                                                  json.RawMessage
 		}
 		if err := json.NewDecoder(r.Body).Decode(&b); err != nil {
 			s.fail(w, r, http.StatusBadRequest, err)
@@ -859,8 +931,12 @@ func (s *server) backlogHandle(w http.ResponseWriter, r *http.Request) {
 			s.bad(w, r, http.StatusBadRequest, "id and tenant are required")
 			return
 		}
-		it, err := bl.Put(ctx, edpdata.BacklogItem{ID: b.ID, TenantID: b.Tenant, Type: b.Type,
-			Status: b.Status, Title: b.Title, Body: b.Body, Data: b.Data})
+		it, err := bl.Put(ctx, edpdata.BacklogItem{ID: b.ID, TenantID: b.Tenant, Scope: b.Scope,
+			ProjectID: b.Project, Type: b.Type, Status: b.Status, Title: b.Title, Body: b.Body, Data: b.Data})
+		if errors.Is(err, edpdata.ErrTenantConflict) {
+			s.bad(w, r, http.StatusConflict, "backlog id conflicts with another tenant")
+			return
+		}
 		if err != nil {
 			s.fail(w, r, http.StatusInternalServerError, err)
 			return
@@ -882,6 +958,54 @@ func (s *server) backlogHandle(w http.ResponseWriter, r *http.Request) {
 	default:
 		s.bad(w, r, http.StatusMethodNotAllowed, "use GET or POST")
 	}
+}
+
+func (s *server) backlogReserve(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		s.bad(w, r, http.StatusMethodNotAllowed, "use POST")
+		return
+	}
+	ctx, cancel := s.dbCtx(r)
+	defer cancel()
+	var b struct {
+		Scope, Project, ReservationID string
+		Size                          int
+	}
+	if err := json.NewDecoder(r.Body).Decode(&b); err != nil {
+		s.fail(w, r, http.StatusBadRequest, err)
+		return
+	}
+	if b.ReservationID == "" || b.Size <= 0 {
+		s.bad(w, r, http.StatusBadRequest, "reservation_id and positive size are required")
+		return
+	}
+	// The allocation/reservation tables are global (no RLS); this admin-only endpoint intentionally
+	// does not bind a tenant.
+	blk, err := edpdata.NewBacklog(s.st).Reserve(ctx, b.Scope, b.Project, b.ReservationID, b.Size)
+	if errors.Is(err, edpdata.ErrReservationInvalid) {
+		log.Printf("backlog reserve: reason_code=invalid_request")
+		s.bad(w, r, http.StatusBadRequest, "invalid reservation request")
+		return
+	}
+	if errors.Is(err, edpdata.ErrReservationConflict) {
+		s.metrics.Inc("edp_backlog_reservation_conflicts_total")
+		log.Printf("backlog reserve: reason_code=conflict")
+		s.bad(w, r, http.StatusConflict, "reservation id already has a different block")
+		return
+	}
+	if errors.Is(err, edpdata.ErrReservationExhausted) {
+		s.metrics.Inc("edp_backlog_reservation_exhausted_total")
+		log.Printf("backlog reserve: reason_code=exhausted")
+		s.bad(w, r, http.StatusConflict, "backlog id space exhausted")
+		return
+	}
+	if err != nil {
+		log.Printf("backlog reserve: reason_code=db_error %s", limits.Redact(err.Error()))
+		s.bad(w, r, http.StatusServiceUnavailable, "backlog reservation unavailable")
+		return
+	}
+	s.metrics.Inc("edp_backlog_reservation_requests_total")
+	writeJSON(w, http.StatusOK, map[string]any{"start": blk.Start, "end": blk.End})
 }
 
 func (s *server) backlogByID(w http.ResponseWriter, r *http.Request) {
@@ -909,6 +1033,40 @@ func (s *server) backlogByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, it)
+}
+
+func (s *server) backlogAuthority(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		s.bad(w, r, http.StatusMethodNotAllowed, "use GET")
+		return
+	}
+	tenant := r.URL.Query().Get("tenant")
+	if tenant == "" {
+		s.bad(w, r, http.StatusBadRequest, "tenant is required")
+		return
+	}
+	ctx, cancel := s.dbCtx(r)
+	defer cancel()
+	a, err := edpdata.NewBacklog(store.BindTenant(s.st, tenant)).Authority(ctx)
+	if err != nil {
+		s.metrics.Inc("edp_backlog_authority_errors_total", "reason", authorityReasonCode(err))
+		s.metrics.Set("edp_backlog_authority_startup_ok", 0)
+		log.Printf("backlog authority principal=admin source=request %s reason_code=%s",
+			limits.Redact(err.Error()), authorityReasonCode(err))
+		w.Header().Set("Retry-After", "30")
+		s.bad(w, r, http.StatusServiceUnavailable, "backlog authority unavailable")
+		return
+	}
+	s.metrics.Set("edp_backlog_authority_success_timestamp_seconds", int(time.Now().Unix()))
+	writeJSON(w, http.StatusOK, map[string]any{
+		"authority":         authorityGlobal,
+		"next_id":           a.NextID,
+		"reservation_scope": reservationScopeGlobal,
+		"reservation_count": a.ReservationCount,
+		"tenant":            tenant,
+		"item_scope":        itemScopeTenant,
+		"item_count":        a.ItemCount,
+	})
 }
 
 func (s *server) dbCtx(r *http.Request) (context.Context, context.CancelFunc) {

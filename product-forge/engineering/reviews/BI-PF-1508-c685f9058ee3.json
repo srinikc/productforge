@@ -1,0 +1,34 @@
+{
+  "item": "BI-PF-1508",
+  "sha": "c685f9058ee3",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-10-27T15:14:44.675202+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "f5c8cd83137185bb503a363384cf7e6970956132",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "Ownership/route registration (CL-001) not explicitly answered: design must state who owns `/admin/*` routing in edpsvc and confirm no other owner already registers `/admin/backlog/*`; add an ownership assertion test if a registry exists.",
+      "`reservation_count` contract is inconsistent: AC implies reservation count may be tenant-relevant, but design queries `count(*) FROM backlog_id_reservations` globally with no RLS \u2014 a global count exposed alongside a tenant-scoped item count risks cross-tenant leakage; label both scopes explicitly in the response (e.g., `reservation_scope: global`).",
+      "Missing-migration detection is inferred solely from query error mapping to 503; no explicit check for migrations 0016/0017 (e.g., via schema version table) \u2014 a query error vs. missing-table is indistinguishable, weakening the observability claim in `/ready`.",
+      "Guard test for AC-5 uses a `git diff --name-only` allowlist that also whitelists the three implementation files implicitly inverted \u2014 verify the command as written actually fails on any *other* modified file (the exclusion patterns exclude the three expected files, so it detects stray changes; confirm direction and that it runs in CI, not just manually)."
+    ],
+    "MINOR": [
+      "`backlog_id_reservations` has no RLS; global count could grow unbounded and slow under load \u2014 add an index/existence note or accept documented timeout\u2192503.",
+      "Reuse claim: `Authority` added to `BacklogStore` but response envelope construction may duplicate the existing admin error/envelope helpers \u2014 state explicitly that it reuses `authorized()`, `s.fail`, and the standard envelope.",
+      "405 for non-GET must be verified by a test; failure_matrix lists it but test_matrix has no corresponding test.",
+      "CL-005 (no PF token for internal callers) \u2014 confirm this endpoint is only for external/admin humans, not internal service-to-service calls; if internal callers exist, PF_ADMIN_TOKEN usage violates CL-005.",
+      "Checklist 2: no stated alert lead-time or startup check (defence-in-depth) for the readiness signal; `/ready` staying DB-connectivity-only means migration drift is only visible when this endpoint 503s."
+    ],
+    "NIT": [
+      "Response field `storage: 'postgres'` is redundant with the contract but harmless; consider whether it should be a constant documented in the glossary (CL-003).",
+      "AC-2 pins tenant literal `product_forge` in tests \u2014 parameterize to avoid coupling tests to one tenant seed."
+    ],
+    "SUMMARY": [
+      "Design is sound and fail-closed: Go-only, RLS-scoped, no fallback, reversible with no schema change. Top risks: global vs. tenant scope labeling of `reservation_count`, explicit ownership of `/admin` routes, and making migration-absence detection and the AC-5 guard test explicit and CI-enforced."
+    ]
+  }
+}

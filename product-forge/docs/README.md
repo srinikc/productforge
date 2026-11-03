@@ -55,6 +55,8 @@
 | [`Agent-LLM-PromptHandling.md`](Agent-LLM-PromptHandling.md) | Design | 60% | Agent/LLM prompt handling | **Pending: capability vectors per agent, capability-aware request builder, structured-output-first render.** | BI-0221–BI-0224, BI-0228 |
 | [`Agent_llm_process.md`](Agent_llm_process.md) | Review (pending) | 0% | Agent<->LLM process analysis + recommendations | **Findings not yet implemented: per-call capability steering, reasoning on/off, and verbose loop/tool-call logging.** | BI-0221–BI-0229 |
 | [`BACKLOG-AND-INTAKE.md`](BACKLOG-AND-INTAKE.md) | Implemented | 100% | Backlog + intake design | — | — |
+| [`BACKLOG-AUTHORITY-RUNBOOK.md`](BACKLOG-AUTHORITY-RUNBOOK.md) | Implemented | 100% | EDP backlog authority endpoint operation, triage, and rollback | — | — |
+| [`BACKLOG-DB-SSOT.md`](BACKLOG-DB-SSOT.md) | Implemented | 100% | Backlog DB system-of-record cutover and fallback rules | — | — |
 | [`BACKLOG-DOC-INGEST.md`](BACKLOG-DOC-INGEST.md) | Tooling | 100% | Doc-driven backlog ingest: project a plan/.md/.pdf doc onto an epic + children via the API (dry-run default) (BI-PF-1396) | — | — |
 | [`BACKLOG-SUMMARY.md`](BACKLOG-SUMMARY.md) | Generated | 100% | Regenerable backlog summary | — | — |
 | [`BIIS-LEARNING.md`](BIIS-LEARNING.md) | Implemented | 100% | BIIS tiering, review-loop learning, and convergence rules | — | — |
