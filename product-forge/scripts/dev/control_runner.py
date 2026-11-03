@@ -50,6 +50,7 @@ def run(item_id: str, phase: str, only: str = "") -> int:
     evidence = list(it.get("control_evidence") or [])
     start = len(evidence)
     bad = 0
+    sha = current_sha()
     for c in rows:
         check = str(c.get("check") or "")
         cwd = (ROOT / str(c.get("cwd") or ".")).resolve()
@@ -85,6 +86,8 @@ def run(item_id: str, phase: str, only: str = "") -> int:
             print(f"control-runner: FAIL - evidence escapes repo for {c.get('id')}: {evrel}", file=sys.stderr)
             bad += 1
             continue
+        if out.exists():
+            out = out.with_name(f"{out.stem}-{sha[:12]}{out.suffix}")
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text((r.stdout or "") + ("\n" + r.stderr if r.stderr else ""), encoding="utf-8")
         result = "PASS" if r.returncode == 0 else "FAIL"
@@ -95,7 +98,6 @@ def run(item_id: str, phase: str, only: str = "") -> int:
         print(f"control-runner: {c.get('id')} {result}")
         if result != "PASS":
             bad += 1
-    sha = current_sha()
     for e in evidence[start:]:
         e["sha"] = sha
     backlog.update("product_forge", None, item_id, control_evidence=evidence)
