@@ -92,3 +92,9 @@
 - Any AC/contract/test/control change must update the matching design rows and evidence in the same delta.
 - Evidence records `base_sha`, `head_sha`, `design_sha`, changed fields, and `review_scope: delta`.
 - Design deltas do not consume the full-review budget; HIL decides after the agreed delta pass.
+
+## 19. Base + inferred design areas
+
+Every area is either fully specified or explicitly `N/A` with a reason. Blank sections are invalid.
+
+{{DESIGN_AREAS}}

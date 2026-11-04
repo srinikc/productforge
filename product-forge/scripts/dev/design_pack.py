@@ -126,6 +126,37 @@ def evaluate(item_id: str, item: dict | None = None) -> list[str]:
     return check(item)
 
 
+def _areas_enforced(item: dict, cfg: dict) -> bool:
+    start = _parse_date(cfg.get("areas_enforce_from"))
+    created = _parse_date(item.get("created_at"))
+    return bool(start and created and created >= start)
+
+
+def _area_problems(areas) -> list[str]:
+    bad = []
+    if not isinstance(areas, list) or not areas:
+        return ["design_pack.design_areas missing"]
+    allowed = {"APPLICABLE", "N/A"}
+    for i, a in enumerate(areas, 1):
+        if not isinstance(a, dict):
+            bad.append(f"design_areas[{i}] must be an object")
+            continue
+        area = str(a.get("area") or "").strip()
+        status = str(a.get("status") or "").strip().upper()
+        reason = str(a.get("reason") or "").strip()
+        if not area:
+            bad.append(f"design_areas[{i}].area missing")
+        if status not in allowed:
+            bad.append(f"design_areas[{i}].status must be APPLICABLE or N/A")
+        if not reason:
+            bad.append(f"design_areas[{i}].reason missing (N/A and APPLICABLE both require a reason)")
+        if status == "APPLICABLE" and not (a.get("sections") or []):
+            bad.append(f"design_areas[{i}].sections missing")
+        if status == "APPLICABLE" and not (a.get("evidence") or []):
+            bad.append(f"design_areas[{i}].evidence missing")
+    return bad
+
+
 def check(item: dict) -> list[str]:
     bad = []
     pack = item.get("design_pack") or {}
@@ -140,6 +171,10 @@ def check(item: dict) -> list[str]:
     for k in required:
         if not pack.get(k):
             bad.append(f"design_pack.{k} missing")
+    if pack.get("design_areas") is not None:
+        bad += _area_problems(pack.get("design_areas"))
+    elif _areas_enforced(item, cfg):
+        bad.append("design_pack.design_areas missing (base + inferred areas required)")
     contracts = pack.get("contracts") or {}
     for k in contracts_req:
         if k not in contracts:
@@ -189,6 +224,20 @@ def _join_mapping(v):
     return _join(v)
 
 
+def _areas(areas) -> str:
+    if not isinstance(areas, list) or not areas:
+        return "- none declared"
+    lines = []
+    for a in areas:
+        if not isinstance(a, dict):
+            lines.append(f"- invalid area row: {a!r}")
+            continue
+        lines.append(f"- **{a.get('area') or '?'}** ? {a.get('status') or '?'}: {a.get('reason') or ''}"
+                     f" | sections: {', '.join(a.get('sections') or []) or '-'}"
+                     f" | evidence: {', '.join(a.get('evidence') or []) or '-'}")
+    return "\n".join(lines)
+
+
 def render(item: dict) -> str:
     pack = item.get("design_pack") or {}
     contracts = pack.get("contracts") or {}
@@ -229,7 +278,8 @@ def render(item: dict) -> str:
               .replace("{{RUNTIME_RESULT}}", _join(rc.get("observable_result")))
               .replace("{{PROOF_PLAN}}", _join_mapping(proof))
               .replace("{{AC_EVIDENCE}}", _join_mapping(pack.get("ac_evidence")))
-              .replace("{{STOP_CONDITIONS}}", _join(pack.get("stop_conditions"))))
+              .replace("{{STOP_CONDITIONS}}", _join(pack.get("stop_conditions")))
+              .replace("{{DESIGN_AREAS}}", _areas(pack.get("design_areas"))))
 
 
 def _norm(text: str) -> str:

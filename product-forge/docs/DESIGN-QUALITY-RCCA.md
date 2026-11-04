@@ -124,6 +124,21 @@ Every design pack must answer these before it is Gate-1 ready:
 | Tooling scope | Tooling-only files are marked as such and excluded from runtime AC claims. |
 | Per-store evidence | AC proof names per-store evidence; prose is not proof. |
 
+### 4.8 Base + inferred area completeness
+
+The design spec is **base + inferred areas**, not a fixed template and not a blank form.
+
+- Base areas are always required: security, tenant/RLS, observability, rollback, evidence.
+- Inferred areas come from the work item: DB, API, UI, business workflow, customer journey, industry domain, voice/multimodal, storage, DR, virtualization, etc.
+- Every area in `design_pack.design_areas` must be:
+  - `APPLICABLE` with filled sections and evidence, or
+  - `N/A` with a concrete reason and no hidden requirement.
+- Blank, placeholder, or unexplained `N/A` is invalid.
+- The LLM must expand the design to its full scope; it may not simply mark areas `N/A` to finish.
+- Multi-area items merge all inferred areas; conflicts fail closed.
+- Unknown/ambiguous areas are recorded as open questions and require HIL confirmation.
+- The rendered design pack lists every area and its status/reason/sections/evidence.
+
 ## 5. Prevention checklist (Gate 0/1/1.5)
 
 Before approving a design:
