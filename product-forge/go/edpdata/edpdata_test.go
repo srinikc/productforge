@@ -254,6 +254,13 @@ func (f *fakeStore) Query(context.Context, string, ...any) (datastore.Rows, erro
 	return &fakeRows{data: rows}, nil
 }
 
+func TestBacklogWithTimeoutUsesConfiguredDuration(t *testing.T) {
+	b := NewBacklog(nil).WithTimeout(2 * time.Second)
+	if b.timeout != 2*time.Second {
+		t.Fatalf("timeout=%s", b.timeout)
+	}
+}
+
 func TestBacklogAuthorityMissingRowFailsClosed(t *testing.T) {
 	f := &fakeStore{queries: [][][]any{
 		{{"alloc", "reservations", "items", true, "tenant", true, true}},

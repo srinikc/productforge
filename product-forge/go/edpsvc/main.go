@@ -283,7 +283,7 @@ func (s *server) checkBacklogAuthority(parent context.Context) {
 	var err error
 	for attempt := 0; attempt < 3; attempt++ {
 		ctx, cancel := context.WithTimeout(parent, s.cfg.DBTimeout)
-		_, err = edpdata.NewBacklog(store.BindTenant(s.st, "product_forge")).Authority(ctx)
+		_, err = edpdata.NewBacklog(store.BindTenant(s.st, "product_forge")).WithTimeout(s.cfg.DBTimeout).Authority(ctx)
 		cancel()
 		if err == nil {
 			s.metrics.Set("edp_backlog_authority_startup_ok", 1)
@@ -960,6 +960,10 @@ func (s *server) backlogHandle(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func reservationResponse(id string, blk edpdata.IDBlock) map[string]any {
+	return map[string]any{"reservation_id": id, "start": blk.Start, "end": blk.End}
+}
+
 func (s *server) backlogReserve(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		s.bad(w, r, http.StatusMethodNotAllowed, "use POST")
@@ -981,7 +985,7 @@ func (s *server) backlogReserve(w http.ResponseWriter, r *http.Request) {
 	}
 	// The allocation/reservation tables are global (no RLS); this admin-only endpoint intentionally
 	// does not bind a tenant.
-	blk, err := edpdata.NewBacklog(s.st).Reserve(ctx, b.Scope, b.Project, b.ReservationID, b.Size)
+	blk, err := edpdata.NewBacklog(s.st).WithTimeout(s.cfg.DBTimeout).Reserve(ctx, b.Scope, b.Project, b.ReservationID, b.Size)
 	if errors.Is(err, edpdata.ErrReservationInvalid) {
 		log.Printf("backlog reserve: reason_code=invalid_request")
 		s.bad(w, r, http.StatusBadRequest, "invalid reservation request")
@@ -1005,7 +1009,7 @@ func (s *server) backlogReserve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.metrics.Inc("edp_backlog_reservation_requests_total")
-	writeJSON(w, http.StatusOK, map[string]any{"start": blk.Start, "end": blk.End})
+	writeJSON(w, http.StatusOK, reservationResponse(b.ReservationID, blk))
 }
 
 func (s *server) backlogByID(w http.ResponseWriter, r *http.Request) {
@@ -1047,7 +1051,7 @@ func (s *server) backlogAuthority(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx, cancel := s.dbCtx(r)
 	defer cancel()
-	a, err := edpdata.NewBacklog(store.BindTenant(s.st, tenant)).Authority(ctx)
+	a, err := edpdata.NewBacklog(store.BindTenant(s.st, tenant)).WithTimeout(s.cfg.DBTimeout).Authority(ctx)
 	if err != nil {
 		s.metrics.Inc("edp_backlog_authority_errors_total", "reason", authorityReasonCode(err))
 		s.metrics.Set("edp_backlog_authority_startup_ok", 0)

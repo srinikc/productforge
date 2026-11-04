@@ -158,6 +158,13 @@ func TestAuthorityReasonCodes(t *testing.T) {
 	}
 }
 
+func TestReservationResponseEchoesID(t *testing.T) {
+	got := reservationResponse("res-1", edpdata.IDBlock{Start: 10, End: 12})
+	if got["reservation_id"] != "res-1" || got["start"] != int64(10) || got["end"] != int64(12) {
+		t.Fatalf("unexpected response: %#v", got)
+	}
+}
+
 func TestBacklogAuthorityRequiresAdminToken(t *testing.T) {
 	s := testServer(t)
 	rr := httptest.NewRecorder()
