@@ -150,7 +150,7 @@
   },
   "blocked_by": [],
   "created_at": "2026-10-28T13:50:57.492888",
-  "updated_at": "2026-11-04T13:25:25.421443",
+  "updated_at": "2026-11-04T13:26:38.594521",
   "design_pack": {
     "scope": [
       "Work required for: Backlog authority follow-up: runtime diagnostics and quotas"
@@ -631,6 +631,35 @@
         ]
       },
       "evidence": "BI-PF-1511-dfc0cf6da0b5.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "590716acda26325d4bb178f5339103c4d651ee62",
+      "review_sha": "279f01b30225",
+      "model": "deepseek-v4.1-flash",
+      "at": "2026-11-04T07:56:38.329148+00:00",
+      "review_scope": "delta",
+      "base_sha": "423684c1746534d66dabf90a76aeb6c6febdfa36",
+      "head_sha": "590716acda26325d4bb178f5339103c4d651ee62",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [],
+        "MINOR": [
+          "Delta removes `tls_error` from the allowlist but only changes one emitter; there is no assertion that no other code path (metric wiring, other `authorityReasonCode` branches) still returns the literal `tls_error`, so the bounded-reason guarantee is now unverified for the removed value.",
+          "`{fmt.Errorf(\"x509: legacy string\"), \"db_unavailable\"}` still passes only through loose substring matching of `\"x509:\"`; the prior \"anchor/typed-only\" correction is not actually pinned by the delta's test evidence.",
+          "Collapsing certificate/CA/hostname failures into `db_unavailable` removes triage signal: alert rules and dashboards (including `ops/prometheus/backlog-authority.rules.yml` in this change set) can no longer route cert-expiry/CA-rotation to the identity/owner path, raising MTTR; confirm rule/docs coverage reflects the unified reason."
+        ],
+        "NIT": [
+          "The declared AC-1 evidence is `TestAuthorityFailureMetricUsesBoundedReasons`, but the delta edits `TestAuthorityReasonCodesAreBounded`; naming drift makes evidence traceability harder than necessary.",
+          "The typed-x509 and wrapped-x509 cases now assert the same reason; a short comment grouping them as \"TLS errors unify to db_unavailable\" would make the intent explicit for future editors."
+        ],
+        "SUMMARY": [
+          "Delta is a clean, reversible tightening: bounded reason set shrinks, typed/wrapped x509 unify to `db_unavailable`, and precedence against statement-timeout (`57014`) is explicitly pinned — prior findings appear resolved.",
+          "Remaining risks are observability/evidence-level, not correctness: no proof that `tls_error` is fully retired from all emitters, no pinned assertion on marker anchoring, and lost cert-vs-DB-outage discrimination in alerting.",
+          "No data/tenant/RLS, secret, or language-rule concerns introduced by this delta."
+        ]
+      },
+      "evidence": "BI-PF-1511-279f01b30225.json"
     }
   ],
   "review_dispositions": {
@@ -999,6 +1028,31 @@
         "status": "ACTIONED",
         "severity": "NIT",
         "note": "Fixed in current HEAD; tls_error reason, typed coverage, x509 fallback boundary."
+      },
+      "sig:2c22fe0a347f7b73": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "note": "Fixed in current HEAD; TLS errors unify to db_unavailable; wrapped/precedence cases pinned."
+      },
+      "sig:b18cbfe099f1d79b": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "note": "Fixed in current HEAD; TLS errors unify to db_unavailable; wrapped/precedence cases pinned."
+      },
+      "sig:a747de61ed490eb2": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "note": "Fixed in current HEAD; TLS errors unify to db_unavailable; wrapped/precedence cases pinned."
+      },
+      "sig:55544eff237f3e69": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "note": "Fixed in current HEAD; TLS errors unify to db_unavailable; wrapped/precedence cases pinned."
+      },
+      "sig:bd6c56f8a78f51f7": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "note": "Fixed in current HEAD; TLS errors unify to db_unavailable; wrapped/precedence cases pinned."
       }
     }
   }
