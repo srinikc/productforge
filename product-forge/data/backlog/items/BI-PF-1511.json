@@ -64,14 +64,33 @@
         "verdict": "aligned",
         "evidence": "go/edpsvc/main_test.go::TestBacklogReserveEchoesIDWithDB",
         "recommendation": "keep echo limited to reservation_id/start/end"
+      },
+      {
+        "claim": "AC CHECK: four acceptance criteria map to authority metrics, config timeout, reservation echo, and exhaustion alarm.",
+        "verdict": "aligned",
+        "evidence": "design_pack.coverage AC-1..AC-4",
+        "recommendation": "verified at Gate 2"
       }
     ],
     "reconciliation": {
-      "assumptions": [],
-      "divergences": [],
-      "existing_path": [],
-      "open_questions": [],
-      "prior_decisions": []
+      "prior_decisions": [
+        "BI-PF-1509 established the admin authority endpoint, reservation counter, and migrations 0018-0020."
+      ],
+      "existing_path": [
+        "go/edpsvc/main.go::backlogAuthority",
+        "go/edpsvc/main.go::backlogReserve",
+        "go/edpdata/backlog.go::Authority",
+        "go/edpdata/backlog.go::Reserve"
+      ],
+      "assumptions": [
+        "Migrations 0018-0020 are applied.",
+        "Runtime role pf_app is NOSUPERUSER and NOBYPASSRLS.",
+        "PF_EDP_DB_TIMEOUT is positive and <= request timeout."
+      ],
+      "divergences": [
+        "1511 adds diagnostics/quotas and response metadata only; no schema change."
+      ],
+      "open_questions": []
     }
   },
   "source": "review",
@@ -199,9 +218,8 @@
   },
   "requester": "review",
   "api_impact": {
-    "reason": "Runtime diagnostics/quotas follow-up; no new API surface until separately designed.",
-    "routes": [],
-    "needs_api": false
+    "needs_api": true,
+    "reason": "Admin authority/reservation responses and metrics are extended additively; no new route."
   },
   "blocked_by": [],
   "created_at": "2026-10-28T13:50:57.492888",
@@ -2372,5 +2390,6 @@
       }
     ],
     "other_decisions": []
-  }
+  },
+  "language_rule": "Go shipped logic only; no new shipped Python."
 }
