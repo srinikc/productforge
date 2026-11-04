@@ -376,15 +376,15 @@ func authorityReasonCode(err error) string {
 		if errors.As(err, &unknownCA) || errors.As(err, &hostnameErr) || errors.As(err, &certInvalid) {
 			return "db_unavailable"
 		}
-		lower := strings.ToLower(err.Error())
-		if strings.Contains(err.Error(), "57014") || strings.Contains(lower, "statement timeout") {
+		message := strings.ToLower(err.Error())
+		if strings.Contains(err.Error(), "57014") || strings.Contains(message, "statement timeout") {
 			return "timeout"
 		}
-		if x509StringMarker.MatchString(lower) {
+		if x509StringMarker.MatchString(message) {
 			return "db_unavailable"
 		}
 		for _, marker := range dbUnavailableMarkers {
-			if strings.Contains(lower, marker) {
+			if strings.Contains(message, marker) {
 				return "db_unavailable"
 			}
 		}
