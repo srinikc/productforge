@@ -69,18 +69,22 @@ type server struct {
 	authorityMu    sync.Mutex
 }
 
+func (s *server) newBacklog(db datastore.RelationalStore) backlogStore {
+	return edpdata.NewBacklog(db).WithTimeout(s.cfg.DBTimeout)
+}
+
 func (s *server) authorityBacklog(tenant string) backlogStore {
 	if s.backlogFactory != nil {
 		return s.backlogFactory(tenant, false)
 	}
-	return edpdata.NewBacklog(store.BindTenant(s.st, tenant)).WithTimeout(s.cfg.DBTimeout)
+	return s.newBacklog(store.BindTenant(s.st, tenant))
 }
 
 func (s *server) reserveBacklog() backlogStore {
 	if s.backlogFactory != nil {
 		return s.backlogFactory("", true)
 	}
-	return edpdata.NewBacklog(s.st).WithTimeout(s.cfg.DBTimeout)
+	return s.newBacklog(s.st)
 }
 
 // buildObjectStore selects the object-store adapter (EDP-13 local / EDP-14 S3) by PF_OBJECT_BACKEND.
@@ -361,7 +365,7 @@ func authorityReasonCode(err error) string {
 			}
 			return "db_unavailable"
 		}
-		for _, marker := range []string{"conn closed", "closed pool", "unexpected eof", "connection refused", "tls", "password authentication"} {
+		for _, marker := range []string{"conn closed", "closed pool", "unexpected eof", "connection refused", "tls handshake", "password authentication failed"} {
 			if strings.Contains(lower, marker) {
 				return "db_unavailable"
 			}

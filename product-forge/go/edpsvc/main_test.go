@@ -191,7 +191,7 @@ func TestAuthorityFailureMetricUsesBoundedReasons(t *testing.T) {
 	}
 	var metrics strings.Builder
 	s.metrics.Write(&metrics)
-	if !strings.Contains(metrics.String(), `edp_backlog_authority_errors_total{reason="internal_error"}`) ||
+	if !strings.Contains(metrics.String(), `edp_backlog_authority_errors_total{reason="internal_error"} 1`) ||
 		!strings.Contains(metrics.String(), "edp_backlog_authority_last_request_ok 0") {
 		t.Fatalf("authority failure metrics missing: %s", metrics.String())
 	}
@@ -399,7 +399,12 @@ func hasTenantKey(v any) bool {
 
 func TestReservationExhaustedFailsClosedWithAlarm(t *testing.T) {
 	s := testServer(t)
-	s.backlogFactory = func(string, bool) backlogStore { return fakeBacklog{reserveErr: edpdata.ErrReservationExhausted} }
+	s.backlogFactory = func(tenant string, reserve bool) backlogStore {
+		if tenant != "" || !reserve {
+			t.Fatalf("reserve seam called with tenant=%q reserve=%v", tenant, reserve)
+		}
+		return fakeBacklog{reserveErr: edpdata.ErrReservationExhausted}
+	}
 	rr := httptest.NewRecorder()
 	body := `{"scope":"product_forge","project":"","reservation_id":"res-x","size":2}`
 	req := httptest.NewRequest(http.MethodPost, "/backlog/ids:reserve", strings.NewReader(body))
