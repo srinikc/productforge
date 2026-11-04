@@ -150,7 +150,7 @@
   },
   "blocked_by": [],
   "created_at": "2026-10-28T13:50:57.492888",
-  "updated_at": "2026-11-04T13:42:08.869157",
+  "updated_at": "2026-11-04T13:43:33.799311",
   "design_pack": {
     "scope": [
       "Work required for: Backlog authority follow-up: runtime diagnostics and quotas"
@@ -811,6 +811,32 @@
         ]
       },
       "evidence": "BI-PF-1511-92983276b6aa.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "b97926709886e83786f3f7f27db8016394742d39",
+      "review_sha": "a133e338244c",
+      "model": "deepseek-v4.1-flash",
+      "at": "2026-11-04T08:13:33.534730+00:00",
+      "review_scope": "delta",
+      "base_sha": "3ae2e92569a56f3d6ef13709a9d0b2cbf1d6b81e",
+      "head_sha": "b97926709886e83786f3f7f27db8016394742d39",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [],
+        "MINOR": [
+          "`TestAuthorityFailureMetricUsesBoundedReasons` duplicates the allowed reason allowlist locally instead of reusing a production/exported constant, so any future bounded reason addition requires lockstep test edits and can drift from the real gauge contract.",
+          "The bounded-label loop never asserts that at least one `edp_backlog_authority_errors_total{reason=\"...\"}` line was emitted; if the metric name/label changed or emission regressed, the cardinality assertion would pass vacuously."
+        ],
+        "NIT": [
+          "Removing the old `strings.Contains(err.Error(), \"57014\")` fallback means a non-`*pgconn.PgError` wrapper that only preserves SQLSTATE text and lacks the \"statement timeout\" marker will now classify as `db_unavailable` rather than `timeout`; acceptable if all authority DB errors stay structured, but worth pinning with a wrapped-error case."
+        ],
+        "SUMMARY": [
+          "Delta is directionally correct: pgx is promoted to a direct dependency, reason classification now uses structured `pgconn.PgError`, and cardinality assertions were added. Prior MAJOR/MINOR/NIT findings appear actioned.",
+          "Remaining gaps are test-quality/maintainability issues around duplicated allowlist and vacuous label assertions, not runtime correctness or AC regressions in this delta."
+        ]
+      },
+      "evidence": "BI-PF-1511-a133e338244c.json"
     }
   ],
   "review_dispositions": {
@@ -1324,6 +1350,26 @@
         "status": "ACTIONED",
         "severity": "BLOCKER",
         "note": "Fixed in current HEAD; lowercase normalization is now explicit in the diff."
+      },
+      "sig:73ec443d9847ee31": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "note": "Fixed in current HEAD; structured pgconn classification and bounded-label assertion."
+      },
+      "sig:7195714d64b97f22": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "note": "Fixed in current HEAD; structured pgconn classification and bounded-label assertion."
+      },
+      "sig:14b2a400582553f1": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "note": "Fixed in current HEAD; structured pgconn classification and bounded-label assertion."
+      },
+      "sig:84bb056271128bd0": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "note": "Fixed in current HEAD; structured pgconn classification and bounded-label assertion."
       }
     }
   }

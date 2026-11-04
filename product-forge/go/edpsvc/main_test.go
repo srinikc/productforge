@@ -173,6 +173,7 @@ func TestAuthorityReasonCodesAreBounded(t *testing.T) {
 		{edpdata.ErrAuthorityRow, "row_missing"},
 		{&net.OpError{Op: "dial", Net: "tcp", Err: errors.New("refused")}, "db_unavailable"},
 		{&pgconn.PgError{Code: "57014"}, "timeout"},
+		{fmt.Errorf("wrapped: %w", &pgconn.PgError{Code: "57014"}), "timeout"},
 		{&pgconn.PgError{Code: "28P01"}, "db_unavailable"},
 		{fmt.Errorf("tls handshake failed"), "db_unavailable"},
 		{x509.UnknownAuthorityError{}, "db_unavailable"},
@@ -205,7 +206,6 @@ func TestAuthorityReasonCodesAreBounded(t *testing.T) {
 }
 
 func TestAuthorityFailureMetricUsesBoundedReasons(t *testing.T) {
-	allowed := map[string]bool{"timeout": true, "canceled": true, "migration_missing": true, "row_missing": true, "db_unavailable": true, "internal_error": true}
 	s := testServer(t)
 	s.backlogFactory = func(string, bool) backlogStore { return fakeBacklog{authErr: errors.New("boom")} }
 	rr := httptest.NewRecorder()
@@ -235,13 +235,18 @@ func TestAuthorityFailureMetricUsesBoundedReasons(t *testing.T) {
 	if !strings.Contains(metrics.String(), "edp_backlog_authority_last_request_ok 1") {
 		t.Fatalf("authority gauge did not recover: %s", metrics.String())
 	}
+	labels := 0
 	for _, line := range strings.Split(metrics.String(), "\n") {
 		if i := strings.Index(line, `edp_backlog_authority_errors_total{reason="`); i == 0 {
+			labels++
 			reason := strings.Split(strings.TrimPrefix(line, `edp_backlog_authority_errors_total{reason="`), `"`)[0]
-			if !allowed[reason] {
+			if !authorityReasonBounded(reason) {
 				t.Fatalf("unbounded authority reason label %q", reason)
 			}
 		}
+	}
+	if labels == 0 {
+		t.Fatalf("authority failure metric was not emitted: %s", metrics.String())
 	}
 }
 

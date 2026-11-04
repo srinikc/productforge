@@ -347,6 +347,13 @@ func (s *server) backlogAuthorityLoop(ctx context.Context) {
 	}
 }
 
+var authorityReasons = map[string]bool{
+	"timeout": true, "canceled": true, "migration_missing": true,
+	"row_missing": true, "db_unavailable": true, "internal_error": true,
+}
+
+func authorityReasonBounded(reason string) bool { return authorityReasons[reason] }
+
 var dbUnavailableMarkers = [...]string{
 	"conn closed", "closed pool", "unexpected eof", "connection refused",
 	"tls handshake", "password authentication failed", "pg_hba",
