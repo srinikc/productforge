@@ -150,7 +150,7 @@
   },
   "blocked_by": [],
   "created_at": "2026-10-28T13:50:57.492888",
-  "updated_at": "2026-11-01T18:37:05.319849",
+  "updated_at": "2026-11-04T13:07:29.951844",
   "design_pack": {
     "scope": [
       "Work required for: Backlog authority follow-up: runtime diagnostics and quotas"
@@ -303,5 +303,47 @@
   ],
   "affected_components": [
     "Not specified."
+  ],
+  "review_ledger": [
+    {
+      "mode": "diff",
+      "candidate_sha": "5805bc27f4e1e3c3e711e4aae37329eccf78d549",
+      "review_sha": "bcf24d8ebd3b",
+      "model": "deepseek-v4.1-flash",
+      "at": "2026-11-04T07:37:29.712650+00:00",
+      "review_scope": "full_candidate",
+      "base_sha": "",
+      "head_sha": "5805bc27f4e1e3c3e711e4aae37329eccf78d549",
+      "findings": {
+        "BLOCKER": [
+          "AC-4 not implemented: the new alert `ProductForgeBacklogIDSpaceExhausted` reads `edp_backlog_reservation_exhausted_total`, but nothing in the diff increments that metric — the alert can never fire.",
+          "AC-4: no exhaustion path exists — `Reserve`/`backlogReserve` add no quota check, no fixed safe reason code, and no `TestAuthorityIDSpaceExhaustionFailsClosed`; a zeroed success remains possible.",
+          "AC-2 evidence missing: the design-mandated `TestAuthorityTimeoutComesFromConfig` is absent; `TestBacklogWithTimeoutUsesConfiguredDuration` only asserts the struct field and never proves the timeout reaches `set_config('statement_timeout', ...)` or is sourced from config (no failing-then-passing red evidence, CL-010)."
+        ],
+        "MAJOR": [
+          "AC-1 has no test: `TestAuthorityFailureMetricUsesBoundedReasons` is not in the diff; the failure gauge/reason path is unchanged, so boundedness is unproven.",
+          "`WithTimeout` mutates the receiver and returns the same pointer; safe only because callers construct fresh stores — a reused `BacklogStore` shared across goroutines becomes a data race.",
+          "`WithTimeout` silently ignores `d <= 0`, converting misconfiguration into a hidden default instead of a startup failure.",
+          "No observability on the exhaustion/id-space path (no log line, no metric) despite the paging alert depending on it.",
+          "Statement timeout is set from `DBTimeout` while the caller already wraps the same value in `context.WithTimeout`; no assertion that the SQL-level timeout fires before ctx cancellation in the reserve path."
+        ],
+        "MINOR": [
+          "`TestReservationResponseEchoesID` tests the helper in isolation, not the HTTP handler contract (status/code/tenant leakage), so AC-3 is only weakly covered.",
+          "`reservationResponse` echoes whatever `b.ReservationID` holds, including empty/unvalidated values; retry-correlation semantics rely on upstream validation not asserted here.",
+          "Test-name/evidence drift between design contract and delivered tests (AC-2, AC-3) undermines traceability."
+        ],
+        "NIT": [
+          "`defaultStatementTimeout` duplicates the config-derived value with no single source of truth.",
+          "`fmt.Sprintf(\"%dms\", ms)` string-building in a SQL path could be a typed duration/int parameter."
+        ],
+        "SUMMARY": [
+          "The change partially satisfies AC-2 and AC-3 but leaves AC-1 and AC-4 substantively unmet; the shipped Prometheus alert is dead because its metric is never emitted.",
+          "Highest risk: a paging alert that silently never fires plus continued zeroed-success on ID-space exhaustion — false operational assurance.",
+          "Second risk: the timeout is now configurable but not proven by the required regression tests, and the mutating `WithTimeout` builder is a latent concurrency hazard.",
+          "Recommend blocking merge until exhaustion metric+reason+test land and the config-driven timeout test asserts the emitted statement, not just a field."
+        ]
+      },
+      "evidence": "BI-PF-1511-bcf24d8ebd3b.json"
+    }
   ]
 }

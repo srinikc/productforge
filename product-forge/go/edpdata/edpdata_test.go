@@ -3,6 +3,8 @@ package edpdata
 import (
 	"context"
 	"errors"
+	"fmt"
+	"math"
 	"os"
 	"testing"
 	"time"
@@ -231,7 +233,10 @@ func (r *fakeRows) Err() error   { return nil }
 func (r *fakeRows) Close() error { return nil }
 
 type fakeTx struct{ store *fakeStore }
-type fakeStore struct{ queries [][][]any }
+type fakeStore struct {
+	queries [][][]any
+	execs   [][]any
+}
 
 func (f *fakeStore) Ping(context.Context) error           { return nil }
 func (f *fakeStore) Capabilities() datastore.Capabilities { return datastore.Capabilities{} }
@@ -239,7 +244,10 @@ func (f *fakeStore) WithTx(_ context.Context, fn func(datastore.Tx) error) error
 	return fn(&fakeTx{store: f})
 }
 func (f *fakeStore) Exec(context.Context, string, ...any) (int64, error) { return 1, nil }
-func (t *fakeTx) Exec(context.Context, string, ...any) (int64, error)    { return 1, nil }
+func (t *fakeTx) Exec(_ context.Context, _ string, args ...any) (int64, error) {
+	t.store.execs = append(t.store.execs, args)
+	return 1, nil
+}
 func (t *fakeTx) Query(ctx context.Context, sql string, args ...any) (datastore.Rows, error) {
 	return t.store.Query(ctx, sql, args...)
 }
@@ -254,10 +262,19 @@ func (f *fakeStore) Query(context.Context, string, ...any) (datastore.Rows, erro
 	return &fakeRows{data: rows}, nil
 }
 
-func TestBacklogWithTimeoutUsesConfiguredDuration(t *testing.T) {
-	b := NewBacklog(nil).WithTimeout(2 * time.Second)
-	if b.timeout != 2*time.Second {
-		t.Fatalf("timeout=%s", b.timeout)
+func TestAuthorityTimeoutComesFromConfig(t *testing.T) {
+	f := &fakeStore{}
+	_, _ = NewBacklog(f).WithTimeout(2345 * time.Millisecond).Authority(context.Background())
+	if len(f.execs) == 0 || len(f.execs[0]) == 0 || fmt.Sprint(f.execs[0][0]) != "2345ms" {
+		t.Fatalf("statement timeout not applied from config: %#v", f.execs)
+	}
+}
+
+func TestAuthorityIDSpaceExhaustionFailsClosed(t *testing.T) {
+	f := &fakeStore{queries: [][][]any{{{int64(math.MaxInt64)}}}}
+	_, err := NewBacklog(f).Reserve(context.Background(), "product_forge", "", "res-exhausted", 2)
+	if !errors.Is(err, ErrReservationExhausted) {
+		t.Fatalf("want ErrReservationExhausted, got %v", err)
 	}
 }
 

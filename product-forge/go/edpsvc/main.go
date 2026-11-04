@@ -964,6 +964,12 @@ func reservationResponse(id string, blk edpdata.IDBlock) map[string]any {
 	return map[string]any{"reservation_id": id, "start": blk.Start, "end": blk.End}
 }
 
+func (s *server) reservationExhausted(w http.ResponseWriter, r *http.Request) {
+	s.metrics.Inc("edp_backlog_reservation_exhausted_total")
+	log.Printf("backlog reserve: reason_code=exhausted")
+	s.bad(w, r, http.StatusConflict, "backlog id space exhausted")
+}
+
 func (s *server) backlogReserve(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		s.bad(w, r, http.StatusMethodNotAllowed, "use POST")
@@ -998,9 +1004,7 @@ func (s *server) backlogReserve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if errors.Is(err, edpdata.ErrReservationExhausted) {
-		s.metrics.Inc("edp_backlog_reservation_exhausted_total")
-		log.Printf("backlog reserve: reason_code=exhausted")
-		s.bad(w, r, http.StatusConflict, "backlog id space exhausted")
+		s.reservationExhausted(w, r)
 		return
 	}
 	if err != nil {

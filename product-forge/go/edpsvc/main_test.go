@@ -142,7 +142,8 @@ func TestMuxLevelTimeoutReturns504(t *testing.T) {
 	}
 }
 
-func TestAuthorityReasonCodes(t *testing.T) {
+func TestAuthorityFailureMetricUsesBoundedReasons(t *testing.T) {
+	allowed := map[string]bool{"timeout": true, "canceled": true, "migration_missing": true, "row_missing": true, "db_unavailable": true}
 	for _, tc := range []struct {
 		err  error
 		want string
@@ -151,14 +152,16 @@ func TestAuthorityReasonCodes(t *testing.T) {
 		{context.Canceled, "canceled"},
 		{edpdata.ErrAuthoritySchema, "migration_missing"},
 		{edpdata.ErrAuthorityRow, "row_missing"},
+		{fmt.Errorf("connection refused"), "db_unavailable"},
 	} {
-		if got := authorityReasonCode(tc.err); got != tc.want {
+		got := authorityReasonCode(tc.err)
+		if got != tc.want || !allowed[got] {
 			t.Fatalf("authorityReasonCode(%v)=%q want %q", tc.err, got, tc.want)
 		}
 	}
 }
 
-func TestReservationResponseEchoesID(t *testing.T) {
+func TestAuthorityResponseEchoesReservationID(t *testing.T) {
 	got := reservationResponse("res-1", edpdata.IDBlock{Start: 10, End: 12})
 	if got["reservation_id"] != "res-1" || got["start"] != int64(10) || got["end"] != int64(12) {
 		t.Fatalf("unexpected response: %#v", got)
