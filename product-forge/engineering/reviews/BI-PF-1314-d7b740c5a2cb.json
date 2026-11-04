@@ -1,0 +1,43 @@
+{
+  "item": "BI-PF-1314",
+  "sha": "d7b740c5a2cb",
+  "model": "deepseek-v4.1-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-04T14:06:19.646942+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "99aac187982a5263dc3e0557a0a3fffc1d8fad75",
+  "findings": {
+    "BLOCKER": [
+      "AC-4 quota enforcement is not designed: no quota hook in `affected_files`, `call_sites`, or test matrix; `limits/quota.go` is only cited as evidence and remains out of scope, so \u201cquota enforcement \u2026 demonstrated per store\u201d cannot pass.",
+      "AC-1 can pass without per-store baselines: `--allow-skip` records skipped evidence but no gate/test rejects it, and the test matrix is only `go test ./...` with no repeat-run/variance or baseline-artifact validation."
+    ],
+    "MAJOR": [
+      "AC-3/AC-4 review scope omits `go/edpsvc/internal/observe/metrics.go` and `go/edpsvc/internal/degrade/policy.go`, the declared entrypoints for store metrics and degradation; the binding review cannot verify those ACs.",
+      "AC-3 test matrix covers only `test_edp_slo_config.py`; `metrics_test.go` exists but store metric emission from `observe/metrics.go` is not part of AC-3 evidence.",
+      "AC-2 production EXPLAIN sampling relies on operator-run `scripts/dev/db_explain_capture.py`; no deployment path, persistent sampling switch, audit sink, access-control enforcement, or retention control is designed beyond assertions.",
+      "Benchmark tenant safety is underspecified: no synthetic tenant/fixture or RLS session context is defined, so a NOSUPERUSER/NOBYPASSRLS role with no tenant parameters may produce empty/error benchmarks or rely on unforced RLS.",
+      "SLO thresholds exist in both `config/edp-slo.json` and `ops/prometheus/edp-slo.rules.yml`; no single-source generation/contract is stated, so config/rule drift is likely."
+    ],
+    "MINOR": [
+      "`edp_quota_denials_total{scope,store}` leaves `scope` undefined; if not allowlisted it is a high-cardinality label risk.",
+      "Failure matrix `BENCH_DSN_MISSING` wording/exit semantics are contradictory for `--allow-skip`; define whether skipped evidence is non-success.",
+      "Baseline and EXPLAIN artifact retention/access control are asserted but not specified in scoped files.",
+      "\u201cSix store groups\u201d vs DB/object/cache/queue mapping is unspecified; baseline artifact naming is not tied to a declared store enum.",
+      "No on-startup validation/compatibility check for `config/edp-slo.json` and `config/edp-degradation.json`; invalid config fails at runtime."
+    ],
+    "NIT": [
+      "Metric naming mixes `edp_store_latency_ms_bucket` with `edp_bench_p95_ms`; ensure histogram/summary conventions are consistent.",
+      "`run_timestamp` in benchmark metrics may undermine baseline equality unless excluded from comparisons.",
+      "Docs are the only evidence for multiple ACs; add machine-checkable evidence references."
+    ],
+    "SUMMARY": [
+      "Design is directionally sound: additive, read-only, bounded degradation, and no public API.",
+      "Gate-1 cannot approve AC-1/AC-4 as written; quota enforcement and repeatability/baseline evidence are materially missing.",
+      "Top risks: prod EXPLAIN sampling controls, metrics/degradation outside verifiable scope, and config/rule drift."
+    ]
+  },
+  "rereview_reason": "Material design update addressing all 17 Gate 1.5 findings",
+  "rereview_reason_sha256": "3eebd26546def7bc580b68398226b1ebe319b5dc1bf97485d998e8496eebf5e9"
+}

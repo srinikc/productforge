@@ -95,7 +95,15 @@
     "config/edp-degradation.json",
     "ops/prometheus/edp-slo.rules.yml",
     "ops/grafana/edp-slo-dashboard.json",
-    "docs/EDP-22-BENCHMARKS-SLOS.md"
+    "docs/EDP-22-BENCHMARKS-SLOS.md",
+    "go/edpsvc/internal/explain/capture.go",
+    "go/edpsvc/internal/explain/capture_test.go",
+    "go/edpsvc/cmd/explain/main.go",
+    "scripts/dev/gen_edp_slo.py",
+    "test-framework/tests/test_edp_degrade_config.py",
+    "config/edp-slo.schema.json",
+    "config/edp-degradation.schema.json",
+    "engineering/benchmarks/BI-PF-1314/README.md"
   ],
   "approach": "Define workload scenarios, capture EXPLAIN baselines, wire metrics, add quota checks and store-specific degradation switches.",
   "review": {
@@ -302,7 +310,7 @@
     "usage": {}
   },
   "created_at": "2026-10-13T16:06:24.101326",
-  "updated_at": "2026-11-04T19:32:02.280645",
+  "updated_at": "2026-11-04T19:36:19.940624",
   "score": 0.75,
   "source_ref": "docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md",
   "_note": "dependencies set",
@@ -354,7 +362,9 @@
       "Missing DSN fails closed unless --allow-skip records per-store skipped evidence.",
       "EXPLAIN ANALYZE is production-sampled at <=0.05, read-only, allowlisted, timed out, rolled back, and redacted.",
       "Degradation is bounded by max_duration, auto-expires, emits alerts, and never returns a zeroed success.",
-      "SLO thresholds come from a measured baseline with explicit variance tolerance."
+      "SLO thresholds come from a measured baseline with explicit variance tolerance.",
+      "Config is single-source: config/edp-slo.json generates rules/dashboard; config/edp-degradation.json is schema-validated.",
+      "Benchmark runs set app.tenant_id to a synthetic t-bench tenant and assert non-empty RLS-scoped reads."
     ],
     "contracts": {
       "api": [
@@ -382,13 +392,21 @@
         "config/edp-degradation.json",
         "ops/prometheus/edp-slo.rules.yml",
         "ops/grafana/edp-slo-dashboard.json",
-        "docs/EDP-22-BENCHMARKS-SLOS.md"
+        "docs/EDP-22-BENCHMARKS-SLOS.md",
+        "go/edpsvc/internal/explain/capture.go",
+        "go/edpsvc/internal/explain/capture_test.go",
+        "go/edpsvc/cmd/explain/main.go",
+        "scripts/dev/gen_edp_slo.py",
+        "test-framework/tests/test_edp_degrade_config.py",
+        "config/edp-slo.schema.json",
+        "config/edp-degradation.schema.json",
+        "engineering/benchmarks/BI-PF-1314/README.md"
       ],
       "config": [
         "config/edp-slo.json",
+        "config/edp-slo.schema.json",
         "config/edp-degradation.json",
-        "ops/prometheus/edp-slo.rules.yml",
-        "ops/grafana/edp-slo-dashboard.json"
+        "config/edp-degradation.schema.json"
       ]
     },
     "failure_matrix": [
@@ -398,9 +416,14 @@
         "code": "SLO_REGRESSION"
       },
       {
-        "case": "missing DSN without skip",
-        "expected": "non-zero exit with skipped-store evidence when allowed",
+        "case": "missing DSN without explicit skip",
+        "expected": "non-zero exit",
         "code": "BENCH_DSN_MISSING"
+      },
+      {
+        "case": "skipped store without evidence",
+        "expected": "non-success skipped evidence",
+        "code": "BENCH_STORE_SKIPPED"
       },
       {
         "case": "prod EXPLAIN sample >0.05",
@@ -416,6 +439,11 @@
         "case": "degradation expired",
         "expected": "fail closed",
         "code": "DEGRADED_EXPIRED"
+      },
+      {
+        "case": "invalid config schema",
+        "expected": "startup refuse",
+        "code": "CONFIG_INVALID"
       }
     ],
     "dependencies": [
@@ -428,11 +456,12 @@
       "Bench/EXPLAIN DSN must be a read-only role (pf_readonly) with no superuser/bypassrls.",
       "Benchmark labels exclude tenant IDs, DSNs, and secrets.",
       "EXPLAIN uses static allowlisted SQL with no bound tenant parameters; output is redacted and access-controlled.",
-      "Degradation/config changes are operator-only; no public API."
+      "Degradation/config changes are operator-only; no public API.",
+      "Explain runs are recorded in an audit log with actor, statement label, sample decision, and artifact path; artifacts are access-controlled and retained per config."
     ],
     "observability": [
       "Benchmark metrics: edp_bench_p50_ms, p95, p99, errors, run_timestamp, with bounded group/scenario labels.",
-      "Store metrics: edp_store_requests_total, edp_store_errors_total, edp_store_latency_ms_bucket, edp_store_degraded with bounded store label.",
+      "SLO rules are generated from config/edp-slo.json by scripts/dev/gen_edp_slo.py; Grafana rules are generated from the same source.",
       "Quota metrics: edp_quota_allowed_total, edp_quota_denials_total{scope,store}.",
       "SLO rules include for-duration, freshness, latency regression, error rate, and degradation expiry alerts."
     ],
@@ -462,17 +491,17 @@
       "EDP-06 deferred the Sink intentionally; EDP-22 supplies it."
     ],
     "open_questions": [
-      "Deployment-specific SLO overrides are applied after the first measured baseline; no thresholds are invented before measurement.",
-      "Prometheus scrape/evaluation intervals are deployment-owned; defaults documented."
+      "Deployment-specific SLO overrides are schema-validated and applied only after a measured baseline; no thresholds are invented before measurement."
     ],
     "coverage": [
       {
         "ac": "AC-1",
         "tests": [
-          "go test ./..."
+          "go test ./...",
+          "go test -run TestBenchmarkRepeatability ./..."
         ],
         "adapter": "bench CLI + versioned baseline artifact + SLO sink",
-        "contract": "six store groups produce versioned baselines under engineering/benchmarks/BI-PF-1314/<env>/; metadata includes git sha, host, ops, concurrency, duration, seed; missing DSN fails unless --allow-skip; labels bounded",
+        "contract": "six store groups mapped to explicit store enum; versioned baseline artifacts include git sha, host, ops, concurrency, duration, seed, variance tolerance; --allow-skip records non-success skipped evidence and must be gated by test; labels bounded",
         "evidence": [
           "docs/EDP-22-BENCHMARKS-SLOS.md"
         ],
@@ -489,17 +518,18 @@
       {
         "ac": "AC-2",
         "tests": [
-          "python -m pytest test-framework/tests/test_db_explain_capture.py -q"
+          "python -m pytest test-framework/tests/test_db_explain_capture.py -q",
+          "go test ./..."
         ],
-        "adapter": "psycopg read-only EXPLAIN capture",
-        "contract": "static allowlist, read-only transaction, statement_timeout, rollback, production sample <=0.05, redaction and retention",
+        "adapter": "explain capture policy + psycopg read-only capture",
+        "contract": "static allowlist, read-only transaction, statement_timeout, rollback, production sample <=0.05, persistent operator switch, audit log, redaction, retention and access control",
         "evidence": [
           "docs/EDP-22-BENCHMARKS-SLOS.md"
         ],
         "call_sites": [
-          "operator -> db_explain_capture.py -> rollback transaction"
+          "operator -> cmd/explain -> explain.Capture -> rollback transaction + audit sink"
         ],
-        "entrypoint": "scripts/dev/db_explain_capture.py",
+        "entrypoint": "go/edpsvc/cmd/explain/main.go",
         "failure_cases": [
           "prod unsampled -> refuse",
           "unsafe statement -> refuse",
@@ -510,10 +540,11 @@
       {
         "ac": "AC-3",
         "tests": [
-          "python -m pytest test-framework/tests/test_edp_slo_config.py -q"
+          "python -m pytest test-framework/tests/test_edp_slo_config.py -q",
+          "go test ./..."
         ],
         "adapter": "Prometheus/Grafana + store metrics instrumentation",
-        "contract": "alerts/dashboard cover DB/object/cache/queue with owner, for-duration, freshness, error/latency, and degradation expiry; rules validated",
+        "contract": "SLO rules generated from config/edp-slo.json; alerts/dashboard cover DB/object/cache/queue with owner, for-duration, freshness, error/latency, degradation expiry; store metrics emission tested",
         "evidence": [
           "docs/EDP-22-BENCHMARKS-SLOS.md"
         ],
@@ -531,16 +562,17 @@
       {
         "ac": "AC-4",
         "tests": [
-          "go test ./..."
+          "go test ./...",
+          "python -m pytest test-framework/tests/test_edp_degrade_config.py -q"
         ],
         "adapter": "degrade policy + limits + store adapters",
-        "contract": "per-store switch has bounded max duration, auto-expiry, allowed/denied metrics, fixed degraded error, and alert routing",
+        "contract": "quota hook and per-store switch share bounded policy: query quota, max_duration<=15m, auto-expiry, allowed/denied metrics with bounded scope/store labels, fixed degraded error, alert routing",
         "evidence": [
           "docs/EDP-22-BENCHMARKS-SLOS.md",
           "go/edpsvc/internal/limits/quota.go"
         ],
         "call_sites": [
-          "store adapter -> degrade.Policy -> bounded error + metrics"
+          "store adapter -> limits.Quota + degrade.Policy -> bounded error + metrics"
         ],
         "entrypoint": "go/edpsvc/internal/degrade/policy.go",
         "failure_cases": [
@@ -610,12 +642,30 @@
         "go/edpsvc/internal/bench/harness.go",
         "go/edpsvc/internal/bench/slo.go",
         "go/edpsvc/internal/bench/prometheus.go",
+        "go/edpsvc/internal/bench/slo_test.go",
+        "go/edpsvc/internal/bench/prometheus_test.go",
         "go/edpsvc/cmd/bench/main.go",
+        "go/edpsvc/cmd/bench/main_test.go",
+        "go/edpsvc/internal/observe/metrics.go",
+        "go/edpsvc/internal/observe/metrics_test.go",
+        "go/edpsvc/internal/degrade/policy.go",
+        "go/edpsvc/internal/degrade/policy_test.go",
         "scripts/dev/db_explain_capture.py",
+        "test-framework/tests/test_db_explain_capture.py",
+        "test-framework/tests/test_edp_slo_config.py",
         "config/edp-slo.json",
+        "config/edp-degradation.json",
         "ops/prometheus/edp-slo.rules.yml",
         "ops/grafana/edp-slo-dashboard.json",
-        "docs/EDP-22-BENCHMARKS-SLOS.md"
+        "docs/EDP-22-BENCHMARKS-SLOS.md",
+        "go/edpsvc/internal/explain/capture.go",
+        "go/edpsvc/internal/explain/capture_test.go",
+        "go/edpsvc/cmd/explain/main.go",
+        "scripts/dev/gen_edp_slo.py",
+        "test-framework/tests/test_edp_degrade_config.py",
+        "config/edp-slo.schema.json",
+        "config/edp-degradation.schema.json",
+        "engineering/benchmarks/BI-PF-1314/README.md"
       ],
       "ac_ids": [
         "AC-1",
@@ -633,11 +683,15 @@
       "components": [
         "go/edpsvc/internal/bench",
         "go/edpsvc/cmd/bench",
+        "go/edpsvc/internal/observe",
+        "go/edpsvc/internal/degrade",
         "scripts/dev",
         "ops/prometheus",
         "ops/grafana",
         "config",
-        "docs"
+        "docs",
+        "go/edpsvc/internal/explain",
+        "scripts/dev/gen_edp_slo.py"
       ]
     },
     "controls": [
@@ -680,6 +734,26 @@
         "failure_behavior": "block",
         "owner": "edpsvc",
         "cwd": "go/edpsvc"
+      },
+      {
+        "id": "CTL-QUOTA",
+        "dimension": "quotas",
+        "applies_to": "go/edpsvc/internal/limits/quota.go",
+        "check": "go test ./...",
+        "evidence": "docs/EDP-22-BENCHMARKS-SLOS.md",
+        "failure_behavior": "block",
+        "owner": "edpsvc",
+        "cwd": "go/edpsvc"
+      },
+      {
+        "id": "CTL-CONFIG-SCHEMA",
+        "dimension": "compatibility",
+        "applies_to": "config/edp-slo.schema.json",
+        "check": "python -m pytest test-framework/tests/test_edp_slo_config.py -q",
+        "evidence": "docs/EDP-22-BENCHMARKS-SLOS.md",
+        "failure_behavior": "block",
+        "owner": "ops",
+        "cwd": "."
       }
     ],
     "guideline_coverage": [
@@ -827,6 +901,47 @@
         ]
       },
       "evidence": "BI-PF-1314-2e18a4d28fff.json"
+    },
+    {
+      "mode": "design",
+      "candidate_sha": "99aac187982a5263dc3e0557a0a3fffc1d8fad75",
+      "review_sha": "d7b740c5a2cb",
+      "model": "deepseek-v4.1-flash",
+      "at": "2026-11-04T14:06:19.646942+00:00",
+      "review_scope": "full_candidate",
+      "base_sha": "",
+      "head_sha": "99aac187982a5263dc3e0557a0a3fffc1d8fad75",
+      "findings": {
+        "BLOCKER": [
+          "AC-4 quota enforcement is not designed: no quota hook in `affected_files`, `call_sites`, or test matrix; `limits/quota.go` is only cited as evidence and remains out of scope, so “quota enforcement … demonstrated per store” cannot pass.",
+          "AC-1 can pass without per-store baselines: `--allow-skip` records skipped evidence but no gate/test rejects it, and the test matrix is only `go test ./...` with no repeat-run/variance or baseline-artifact validation."
+        ],
+        "MAJOR": [
+          "AC-3/AC-4 review scope omits `go/edpsvc/internal/observe/metrics.go` and `go/edpsvc/internal/degrade/policy.go`, the declared entrypoints for store metrics and degradation; the binding review cannot verify those ACs.",
+          "AC-3 test matrix covers only `test_edp_slo_config.py`; `metrics_test.go` exists but store metric emission from `observe/metrics.go` is not part of AC-3 evidence.",
+          "AC-2 production EXPLAIN sampling relies on operator-run `scripts/dev/db_explain_capture.py`; no deployment path, persistent sampling switch, audit sink, access-control enforcement, or retention control is designed beyond assertions.",
+          "Benchmark tenant safety is underspecified: no synthetic tenant/fixture or RLS session context is defined, so a NOSUPERUSER/NOBYPASSRLS role with no tenant parameters may produce empty/error benchmarks or rely on unforced RLS.",
+          "SLO thresholds exist in both `config/edp-slo.json` and `ops/prometheus/edp-slo.rules.yml`; no single-source generation/contract is stated, so config/rule drift is likely."
+        ],
+        "MINOR": [
+          "`edp_quota_denials_total{scope,store}` leaves `scope` undefined; if not allowlisted it is a high-cardinality label risk.",
+          "Failure matrix `BENCH_DSN_MISSING` wording/exit semantics are contradictory for `--allow-skip`; define whether skipped evidence is non-success.",
+          "Baseline and EXPLAIN artifact retention/access control are asserted but not specified in scoped files.",
+          "“Six store groups” vs DB/object/cache/queue mapping is unspecified; baseline artifact naming is not tied to a declared store enum.",
+          "No on-startup validation/compatibility check for `config/edp-slo.json` and `config/edp-degradation.json`; invalid config fails at runtime."
+        ],
+        "NIT": [
+          "Metric naming mixes `edp_store_latency_ms_bucket` with `edp_bench_p95_ms`; ensure histogram/summary conventions are consistent.",
+          "`run_timestamp` in benchmark metrics may undermine baseline equality unless excluded from comparisons.",
+          "Docs are the only evidence for multiple ACs; add machine-checkable evidence references."
+        ],
+        "SUMMARY": [
+          "Design is directionally sound: additive, read-only, bounded degradation, and no public API.",
+          "Gate-1 cannot approve AC-1/AC-4 as written; quota enforcement and repeatability/baseline evidence are materially missing.",
+          "Top risks: prod EXPLAIN sampling controls, metrics/degradation outside verifiable scope, and config/rule drift."
+        ]
+      },
+      "evidence": "BI-PF-1314-d7b740c5a2cb.json"
     }
   ],
   "review_dispositions": {
@@ -932,6 +1047,96 @@
         "severity": "NIT",
         "origin_class": "DESIGN_GAP",
         "note": "Design updated: per-store metrics/degradation, read-only redacted EXPLAIN, measured baselines and bounded expiry; evidence: engineering/design/BI-PF-1314.md, docs/EDP-22-BENCHMARKS-SLOS.md."
+      },
+      "sig:1807c39fdca9fd53": {
+        "status": "ACTIONED",
+        "severity": "BLOCKER",
+        "origin_class": "DESIGN_GAP",
+        "note": "Design updated; evidence: engineering/design/BI-PF-1314.md, docs/EDP-22-BENCHMARKS-SLOS.md."
+      },
+      "sig:3a45a9e09aef01b1": {
+        "status": "ACTIONED",
+        "severity": "BLOCKER",
+        "origin_class": "DESIGN_GAP",
+        "note": "Design updated; evidence: engineering/design/BI-PF-1314.md, docs/EDP-22-BENCHMARKS-SLOS.md."
+      },
+      "sig:9d61c603c5ee67fa": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Design updated; evidence: engineering/design/BI-PF-1314.md, docs/EDP-22-BENCHMARKS-SLOS.md."
+      },
+      "sig:48f6e8c231361de8": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Design updated; evidence: engineering/design/BI-PF-1314.md, docs/EDP-22-BENCHMARKS-SLOS.md."
+      },
+      "sig:ab3f1f10d503c357": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Design updated; evidence: engineering/design/BI-PF-1314.md, docs/EDP-22-BENCHMARKS-SLOS.md."
+      },
+      "sig:8652ded11c75f55b": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Design updated; evidence: engineering/design/BI-PF-1314.md, docs/EDP-22-BENCHMARKS-SLOS.md."
+      },
+      "sig:94592ce0f5979eb2": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Design updated; evidence: engineering/design/BI-PF-1314.md, docs/EDP-22-BENCHMARKS-SLOS.md."
+      },
+      "sig:4f224a1ee67d67ef": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Design updated; evidence: engineering/design/BI-PF-1314.md, docs/EDP-22-BENCHMARKS-SLOS.md."
+      },
+      "sig:483a176be3d1ae2f": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Design updated; evidence: engineering/design/BI-PF-1314.md, docs/EDP-22-BENCHMARKS-SLOS.md."
+      },
+      "sig:ac4d09d7eec5f70e": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Design updated; evidence: engineering/design/BI-PF-1314.md, docs/EDP-22-BENCHMARKS-SLOS.md."
+      },
+      "sig:38737b7ddae0fd38": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Design updated; evidence: engineering/design/BI-PF-1314.md, docs/EDP-22-BENCHMARKS-SLOS.md."
+      },
+      "sig:cc66351c0705c388": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Design updated; evidence: engineering/design/BI-PF-1314.md, docs/EDP-22-BENCHMARKS-SLOS.md."
+      },
+      "sig:d77a04853d559cd1": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "origin_class": "DESIGN_GAP",
+        "note": "Design updated; evidence: engineering/design/BI-PF-1314.md, docs/EDP-22-BENCHMARKS-SLOS.md."
+      },
+      "sig:84490a214136c744": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "origin_class": "DESIGN_GAP",
+        "note": "Design updated; evidence: engineering/design/BI-PF-1314.md, docs/EDP-22-BENCHMARKS-SLOS.md."
+      },
+      "sig:01509cf2918441eb": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "origin_class": "DESIGN_GAP",
+        "note": "Design updated; evidence: engineering/design/BI-PF-1314.md, docs/EDP-22-BENCHMARKS-SLOS.md."
       }
     }
   }
