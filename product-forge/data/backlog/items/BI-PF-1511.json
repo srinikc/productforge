@@ -150,7 +150,7 @@
   },
   "blocked_by": [],
   "created_at": "2026-10-28T13:50:57.492888",
-  "updated_at": "2026-11-04T13:22:13.778086",
+  "updated_at": "2026-11-04T13:23:09.778096",
   "design_pack": {
     "scope": [
       "Work required for: Backlog authority follow-up: runtime diagnostics and quotas"
@@ -548,6 +548,32 @@
         ]
       },
       "evidence": "BI-PF-1511-b3e3302424d8.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "b52991e7a501da9440890baf9d50446b615f0bb0",
+      "review_sha": "5135e21236a6",
+      "model": "deepseek-v4.1-flash",
+      "at": "2026-11-04T07:53:09.513320+00:00",
+      "review_scope": "delta",
+      "base_sha": "9eaf56cc9483837849eea91e2626719750fe0fd0",
+      "head_sha": "b52991e7a501da9440890baf9d50446b615f0bb0",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [],
+        "MINOR": [
+          "`dbUnavailableMarkers` now classifies any error containing `certificate` or `x509` as `db_unavailable`; non-connectivity failures such as certificate config/rotation errors would be mislabeled and can skew authority failure alarms.",
+          "The added marker cases are positive-only; no negative table case locks the broadened `certificate`/`x509` boundary, so future over-matching remains unguarded."
+        ],
+        "NIT": [
+          "`dbUnavailableMarkers` is a mutable package-level slice; an immutable array or read-only accessor would better signal the classification table is not runtime-mutable."
+        ],
+        "SUMMARY": [
+          "Delta resolves the prior marker/timeout/metric-exactness gaps and keeps authority reasons bounded; no AC-breaking regression is evident in the delta.",
+          "Main residual risk is over-broad substring classification (`certificate`, `x509`) reducing diagnostic precision and potentially causing false `db_unavailable` signals."
+        ]
+      },
+      "evidence": "BI-PF-1511-5135e21236a6.json"
     }
   ],
   "review_dispositions": {
@@ -851,6 +877,36 @@
         "status": "ACTIONED",
         "severity": "NIT",
         "note": "Fixed in current HEAD; narrow reason markers, shared constructor, reserve factory asserted."
+      },
+      "sig:00057783422d3a32": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "note": "Fixed in current HEAD; marker table and reserve timeout evidence added."
+      },
+      "sig:ffcd05f7bcb44c4d": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "note": "Fixed in current HEAD; marker table and reserve timeout evidence added."
+      },
+      "sig:35207110f2f84b9f": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "note": "Fixed in current HEAD; marker table and reserve timeout evidence added."
+      },
+      "sig:3805c7737f203940": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "note": "Fixed in current HEAD; marker table and reserve timeout evidence added."
+      },
+      "sig:d053cf201e9ed817": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "note": "Fixed in current HEAD; marker table and reserve timeout evidence added."
+      },
+      "sig:2c9af590fab5bdcd": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "note": "Fixed in current HEAD; marker table and reserve timeout evidence added."
       }
     }
   }

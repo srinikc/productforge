@@ -15,6 +15,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"crypto/subtle"
+	"crypto/x509"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -343,9 +344,9 @@ func (s *server) backlogAuthorityLoop(ctx context.Context) {
 	}
 }
 
-var dbUnavailableMarkers = []string{
+var dbUnavailableMarkers = [...]string{
 	"conn closed", "closed pool", "unexpected eof", "connection refused",
-	"tls handshake", "password authentication failed", "x509", "certificate", "pg_hba",
+	"tls handshake", "password authentication failed", "pg_hba",
 }
 
 func authorityReasonCode(err error) string {
@@ -368,6 +369,12 @@ func authorityReasonCode(err error) string {
 			if netErr.Timeout() {
 				return "timeout"
 			}
+			return "db_unavailable"
+		}
+		var unknownCA x509.UnknownAuthorityError
+		var hostnameErr x509.HostnameError
+		var certInvalid x509.CertificateInvalidError
+		if errors.As(err, &unknownCA) || errors.As(err, &hostnameErr) || errors.As(err, &certInvalid) {
 			return "db_unavailable"
 		}
 		for _, marker := range dbUnavailableMarkers {

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/x509"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -171,7 +172,8 @@ func TestAuthorityReasonCodesAreBounded(t *testing.T) {
 		{&net.OpError{Op: "dial", Net: "tcp", Err: errors.New("refused")}, "db_unavailable"},
 		{fmt.Errorf("SQLSTATE 57014"), "timeout"},
 		{fmt.Errorf("tls handshake failed"), "db_unavailable"},
-		{fmt.Errorf("x509: certificate signed by unknown authority"), "db_unavailable"},
+		{x509.UnknownAuthorityError{}, "db_unavailable"},
+		{fmt.Errorf("certificate rotation pending"), "internal_error"},
 		{fmt.Errorf("no pg_hba.conf entry"), "db_unavailable"},
 		{fmt.Errorf("unexpected failure"), "internal_error"},
 	} {
