@@ -150,7 +150,7 @@
   },
   "blocked_by": [],
   "created_at": "2026-10-28T13:50:57.492888",
-  "updated_at": "2026-11-04T13:44:21.257712",
+  "updated_at": "2026-11-04T13:45:22.309021",
   "design_pack": {
     "scope": [
       "Work required for: Backlog authority follow-up: runtime diagnostics and quotas"
@@ -867,6 +867,33 @@
         ]
       },
       "evidence": "BI-PF-1511-e3edda92bf43.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "f9ef9de10d4e251a88531ab6403e0809adf4ad98",
+      "review_sha": "c79259a41f4a",
+      "model": "deepseek-v4.1-flash",
+      "at": "2026-11-04T08:15:22.055334+00:00",
+      "review_scope": "delta",
+      "base_sha": "29c6b9d270c1483c158383c36856d4cba4b9fcb9",
+      "head_sha": "f9ef9de10d4e251a88531ab6403e0809adf4ad98",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [],
+        "MINOR": [
+          "Disposition for prior MINOR is not fully supported by this delta: `authorityReasonBounded` remains a second hardcoded allowlist in `edpsvc`, so a new `edpdata` reason is silently rewritten to `internal_error` and AC-1 can misclassify new endpoint failures.",
+          "Disposition for prior NIT is not fully supported: the new sanitizer rewrites unbounded reasons without a dedicated counter or explicit log field, so allowlist drift is not observable to operators."
+        ],
+        "NIT": [
+          "The delta’s test addition covers double-wrapped classification only; it does not directly exercise the new emit-time sanitizer branch where an unbounded reason becomes `internal_error`."
+        ],
+        "SUMMARY": [
+          "Delta correctly replaces the mutable reason map with an immutable switch and adds double-wrap regression coverage.",
+          "Residual risk is duplicate reason ownership and silent downgrade to `internal_error`, which can hide new failure classes from metrics.",
+          "No data-loss, security, or blocking regression observed in this delta."
+        ]
+      },
+      "evidence": "BI-PF-1511-c79259a41f4a.json"
     }
   ],
   "review_dispositions": {
@@ -1415,6 +1442,51 @@
         "status": "ACTIONED",
         "severity": "NIT",
         "note": "Fixed in current HEAD; shared allowlist, emission count, wrapped pgconn case."
+      },
+      "sig:b2fe7647b6ef95fc": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "note": "Fixed in current HEAD; emit-time sanitizer, immutable switch, double-wrap test."
+      },
+      "sig:48db6d96db3adbea": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "note": "Fixed in current HEAD; emit-time sanitizer, immutable switch, double-wrap test."
+      },
+      "sig:47f259045d703100": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "note": "Fixed in current HEAD; emit-time sanitizer, immutable switch, double-wrap test."
+      },
+      "sig:ec938fadc6d3b373": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "note": "Fixed in current HEAD; emit-time sanitizer, immutable switch, double-wrap test."
+      },
+      "sig:5dbd10dd80b20c06": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "note": "Fixed in current HEAD; emit-time sanitizer, immutable switch, double-wrap test."
+      },
+      "sig:3200b55d4eb96ea2": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "note": "Fixed in current HEAD; emit-time sanitizer, immutable switch, double-wrap test."
+      },
+      "sig:bf4b055f98f59594": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "note": "Accepted as bounded sanitizer behavior; no blocking impact. Follow-up only if a new reason is added."
+      },
+      "sig:9b28319b6f1d7a33": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "note": "Accepted as bounded sanitizer behavior; no blocking impact. Follow-up only if a new reason is added."
+      },
+      "sig:d1f4e275161eabbf": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "note": "Accepted as bounded sanitizer behavior; no blocking impact. Follow-up only if a new reason is added."
       }
     }
   }
