@@ -346,7 +346,7 @@ func (s *server) backlogAuthorityLoop(ctx context.Context) {
 
 var dbUnavailableMarkers = [...]string{
 	"conn closed", "closed pool", "unexpected eof", "connection refused",
-	"tls handshake", "password authentication failed", "pg_hba",
+	"tls handshake", "password authentication failed", "pg_hba", "x509:",
 }
 
 func authorityReasonCode(err error) string {
@@ -360,10 +360,6 @@ func authorityReasonCode(err error) string {
 	case errors.Is(err, context.DeadlineExceeded), errors.Is(err, os.ErrDeadlineExceeded):
 		return "timeout"
 	default:
-		lower := strings.ToLower(err.Error())
-		if strings.Contains(err.Error(), "57014") || strings.Contains(lower, "statement timeout") {
-			return "timeout"
-		}
 		var netErr net.Error
 		if errors.As(err, &netErr) {
 			if netErr.Timeout() {
@@ -375,7 +371,11 @@ func authorityReasonCode(err error) string {
 		var hostnameErr x509.HostnameError
 		var certInvalid x509.CertificateInvalidError
 		if errors.As(err, &unknownCA) || errors.As(err, &hostnameErr) || errors.As(err, &certInvalid) {
-			return "db_unavailable"
+			return "tls_error"
+		}
+		lower := strings.ToLower(err.Error())
+		if strings.Contains(err.Error(), "57014") || strings.Contains(lower, "statement timeout") {
+			return "timeout"
 		}
 		for _, marker := range dbUnavailableMarkers {
 			if strings.Contains(lower, marker) {

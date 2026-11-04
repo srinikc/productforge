@@ -150,7 +150,7 @@
   },
   "blocked_by": [],
   "created_at": "2026-10-28T13:50:57.492888",
-  "updated_at": "2026-11-04T13:23:09.778096",
+  "updated_at": "2026-11-04T13:24:08.420933",
   "design_pack": {
     "scope": [
       "Work required for: Backlog authority follow-up: runtime diagnostics and quotas"
@@ -574,6 +574,33 @@
         ]
       },
       "evidence": "BI-PF-1511-5135e21236a6.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "4a797a04226741ef0d6d11c8a996cf4cb9c40099",
+      "review_sha": "fa6fa355fb83",
+      "model": "deepseek-v4.1-flash",
+      "at": "2026-11-04T07:54:08.156685+00:00",
+      "review_scope": "delta",
+      "base_sha": "b52991e7a501da9440890baf9d50446b615f0bb0",
+      "head_sha": "4a797a04226741ef0d6d11c8a996cf4cb9c40099",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [],
+        "MINOR": [
+          "New `x509.HostnameError` and `x509.CertificateInvalidError` branches are not exercised by tests; only `x509.UnknownAuthorityError` is covered, leaving two new classifiers unguarded against regression.",
+          "Typed `HostnameError`/`CertificateInvalidError` still map certificate configuration/rotation failures such as hostname mismatch or expired cert to `db_unavailable`, so the authority failure gauge can conflate TLS misconfiguration with a true DB endpoint outage.",
+          "Removing the `x509`/`certificate` string markers means plain-string TLS/certificate errors that do not wrap typed x509 errors now fall through to `internal_error`; no boundary test covers that fallback, reducing diagnostic fidelity for non-Go/proxy error paths."
+        ],
+        "NIT": [
+          "The negative case only pins `\"certificate rotation pending\"`; add coverage for other removed marker forms such as bare `\"x509\"` to lock the narrowed classification boundary."
+        ],
+        "SUMMARY": [
+          "The delta resolves the prior broad string-matching issue by switching to typed x509 classification and adds a negative boundary case.",
+          "No blockers found; residual risk is semantic misclassification of TLS configuration failures and incomplete test coverage for the newly added error types and string-fallback behavior."
+        ]
+      },
+      "evidence": "BI-PF-1511-fa6fa355fb83.json"
     }
   ],
   "review_dispositions": {
@@ -907,6 +934,21 @@
         "status": "ACTIONED",
         "severity": "NIT",
         "note": "Fixed in current HEAD; marker table and reserve timeout evidence added."
+      },
+      "sig:a6a2b5e93a9c7845": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "note": "Fixed in current HEAD; x509 typed classification and negative boundary case."
+      },
+      "sig:c4b1016acae4a048": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "note": "Fixed in current HEAD; x509 typed classification and negative boundary case."
+      },
+      "sig:498f74c9c24c0467": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "note": "Fixed in current HEAD; x509 typed classification and negative boundary case."
       }
     }
   }
