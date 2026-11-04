@@ -343,6 +343,11 @@ func (s *server) backlogAuthorityLoop(ctx context.Context) {
 	}
 }
 
+var dbUnavailableMarkers = []string{
+	"conn closed", "closed pool", "unexpected eof", "connection refused",
+	"tls handshake", "password authentication failed", "x509", "certificate", "pg_hba",
+}
+
 func authorityReasonCode(err error) string {
 	switch {
 	case errors.Is(err, edpdata.ErrAuthoritySchema):
@@ -365,7 +370,7 @@ func authorityReasonCode(err error) string {
 			}
 			return "db_unavailable"
 		}
-		for _, marker := range []string{"conn closed", "closed pool", "unexpected eof", "connection refused", "tls handshake", "password authentication failed"} {
+		for _, marker := range dbUnavailableMarkers {
 			if strings.Contains(lower, marker) {
 				return "db_unavailable"
 			}

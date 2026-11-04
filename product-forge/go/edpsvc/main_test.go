@@ -170,6 +170,9 @@ func TestAuthorityReasonCodesAreBounded(t *testing.T) {
 		{edpdata.ErrAuthorityRow, "row_missing"},
 		{&net.OpError{Op: "dial", Net: "tcp", Err: errors.New("refused")}, "db_unavailable"},
 		{fmt.Errorf("SQLSTATE 57014"), "timeout"},
+		{fmt.Errorf("tls handshake failed"), "db_unavailable"},
+		{fmt.Errorf("x509: certificate signed by unknown authority"), "db_unavailable"},
+		{fmt.Errorf("no pg_hba.conf entry"), "db_unavailable"},
 		{fmt.Errorf("unexpected failure"), "internal_error"},
 	} {
 		got := authorityReasonCode(tc.err)
@@ -191,7 +194,8 @@ func TestAuthorityFailureMetricUsesBoundedReasons(t *testing.T) {
 	}
 	var metrics strings.Builder
 	s.metrics.Write(&metrics)
-	if !strings.Contains(metrics.String(), `edp_backlog_authority_errors_total{reason="internal_error"} 1`) ||
+	if !strings.Contains(metrics.String(), `edp_backlog_authority_errors_total{reason="internal_error"} 1
+`) ||
 		!strings.Contains(metrics.String(), "edp_backlog_authority_last_request_ok 0") {
 		t.Fatalf("authority failure metrics missing: %s", metrics.String())
 	}
@@ -225,6 +229,9 @@ func TestAuthorityTimeoutComesFromConfig(t *testing.T) {
 	b := s.authorityBacklog("config-test")
 	if cfg.DBTimeout != 2345*time.Millisecond || b.StatementTimeout() != cfg.DBTimeout {
 		t.Fatalf("cfg.DBTimeout=%s store.timeout=%s", cfg.DBTimeout, b.StatementTimeout())
+	}
+	if got := s.reserveBacklog().StatementTimeout(); got != cfg.DBTimeout {
+		t.Fatalf("reserve timeout=%s want %s", got, cfg.DBTimeout)
 	}
 }
 
