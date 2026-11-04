@@ -61,6 +61,9 @@ func (s *BacklogStore) WithTimeout(d time.Duration) *BacklogStore {
 	return s
 }
 
+// StatementTimeout reports the transaction-local timeout currently configured for the store.
+func (s *BacklogStore) StatementTimeout() time.Duration { return s.timeout }
+
 func (s *BacklogStore) setStatementTimeout(ctx context.Context, tx datastore.Tx) error {
 	ms := s.timeout.Milliseconds()
 	if ms <= 0 {

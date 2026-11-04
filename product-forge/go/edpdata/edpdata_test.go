@@ -243,7 +243,10 @@ func (f *fakeStore) Capabilities() datastore.Capabilities { return datastore.Cap
 func (f *fakeStore) WithTx(_ context.Context, fn func(datastore.Tx) error) error {
 	return fn(&fakeTx{store: f})
 }
-func (f *fakeStore) Exec(context.Context, string, ...any) (int64, error) { return 1, nil }
+func (f *fakeStore) Exec(_ context.Context, _ string, args ...any) (int64, error) {
+	f.execs = append(f.execs, args)
+	return 1, nil
+}
 func (t *fakeTx) Exec(_ context.Context, _ string, args ...any) (int64, error) {
 	t.store.execs = append(t.store.execs, args)
 	return 1, nil
@@ -262,12 +265,18 @@ func (f *fakeStore) Query(context.Context, string, ...any) (datastore.Rows, erro
 	return &fakeRows{data: rows}, nil
 }
 
-func TestAuthorityTimeoutComesFromConfig(t *testing.T) {
+func TestBacklogTimeoutPropagatesToStatementTimeout(t *testing.T) {
 	f := &fakeStore{}
-	_, _ = NewBacklog(f).WithTimeout(2345 * time.Millisecond).Authority(context.Background())
-	if len(f.execs) == 0 || len(f.execs[0]) == 0 || fmt.Sprint(f.execs[0][0]) != "2345ms" {
-		t.Fatalf("statement timeout not applied from config: %#v", f.execs)
+	_, err := NewBacklog(f).WithTimeout(2345 * time.Millisecond).Authority(context.Background())
+	if !errors.Is(err, ErrAuthoritySchema) {
+		t.Fatalf("want schema failure after timeout probe, got %v", err)
 	}
+	for _, args := range f.execs {
+		if len(args) > 0 && fmt.Sprint(args[0]) == "2345ms" {
+			return
+		}
+	}
+	t.Fatalf("statement timeout not applied from config: %#v", f.execs)
 }
 
 func TestAuthorityIDSpaceExhaustionFailsClosed(t *testing.T) {

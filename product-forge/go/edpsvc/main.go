@@ -328,10 +328,16 @@ func authorityReasonCode(err error) string {
 	case errors.Is(err, context.DeadlineExceeded), errors.Is(err, os.ErrDeadlineExceeded):
 		return "timeout"
 	default:
-		if strings.Contains(strings.ToLower(err.Error()), "timeout") || strings.Contains(err.Error(), "57014") {
+		lower := strings.ToLower(err.Error())
+		if strings.Contains(lower, "timeout") || strings.Contains(err.Error(), "57014") {
 			return "timeout"
 		}
-		return "db_unavailable"
+		for _, marker := range []string{"connection", "refused", "closed", "database", "db"} {
+			if strings.Contains(lower, marker) {
+				return "db_unavailable"
+			}
+		}
+		return "internal_error"
 	}
 }
 
@@ -978,8 +984,10 @@ func (s *server) backlogReserve(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := s.dbCtx(r)
 	defer cancel()
 	var b struct {
-		Scope, Project, ReservationID string
-		Size                          int
+		Scope         string `json:"scope"`
+		Project       string `json:"project"`
+		ReservationID string `json:"reservation_id"`
+		Size          int    `json:"size"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&b); err != nil {
 		s.fail(w, r, http.StatusBadRequest, err)
