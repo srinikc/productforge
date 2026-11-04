@@ -160,7 +160,7 @@ func TestMuxLevelTimeoutReturns504(t *testing.T) {
 }
 
 func TestAuthorityReasonCodesAreBounded(t *testing.T) {
-	allowed := map[string]bool{"timeout": true, "canceled": true, "migration_missing": true, "row_missing": true, "db_unavailable": true, "internal_error": true, "tls_error": true}
+	allowed := map[string]bool{"timeout": true, "canceled": true, "migration_missing": true, "row_missing": true, "db_unavailable": true, "internal_error": true}
 	for _, tc := range []struct {
 		err  error
 		want string
@@ -172,10 +172,12 @@ func TestAuthorityReasonCodesAreBounded(t *testing.T) {
 		{&net.OpError{Op: "dial", Net: "tcp", Err: errors.New("refused")}, "db_unavailable"},
 		{fmt.Errorf("SQLSTATE 57014"), "timeout"},
 		{fmt.Errorf("tls handshake failed"), "db_unavailable"},
-		{x509.UnknownAuthorityError{}, "tls_error"},
-		{x509.HostnameError{Certificate: &x509.Certificate{}, Host: "db"}, "tls_error"},
-		{x509.CertificateInvalidError{Cert: &x509.Certificate{}}, "tls_error"},
+		{x509.UnknownAuthorityError{}, "db_unavailable"},
+		{x509.HostnameError{Certificate: &x509.Certificate{}, Host: "db"}, "db_unavailable"},
+		{fmt.Errorf("wrapped: %w", x509.UnknownAuthorityError{}), "db_unavailable"},
+		{x509.CertificateInvalidError{Cert: &x509.Certificate{}}, "db_unavailable"},
 		{fmt.Errorf("x509: legacy string"), "db_unavailable"},
+		{fmt.Errorf("x509: statement timeout 57014"), "timeout"},
 		{fmt.Errorf("certificate rotation pending"), "internal_error"},
 		{fmt.Errorf("x509"), "internal_error"},
 		{fmt.Errorf("no pg_hba.conf entry"), "db_unavailable"},

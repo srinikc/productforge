@@ -150,7 +150,7 @@
   },
   "blocked_by": [],
   "created_at": "2026-10-28T13:50:57.492888",
-  "updated_at": "2026-11-04T13:24:08.420933",
+  "updated_at": "2026-11-04T13:25:25.421443",
   "design_pack": {
     "scope": [
       "Work required for: Backlog authority follow-up: runtime diagnostics and quotas"
@@ -601,6 +601,36 @@
         ]
       },
       "evidence": "BI-PF-1511-fa6fa355fb83.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "423684c1746534d66dabf90a76aeb6c6febdfa36",
+      "review_sha": "dfc0cf6da0b5",
+      "model": "deepseek-v4.1-flash",
+      "at": "2026-11-04T07:55:25.160966+00:00",
+      "review_scope": "delta",
+      "base_sha": "4a797a04226741ef0d6d11c8a996cf4cb9c40099",
+      "head_sha": "423684c1746534d66dabf90a76aeb6c6febdfa36",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [
+          "TLS classification is now split by error form: typed x509 errors → `tls_error`, but plain-string `x509:` errors → `db_unavailable` via `dbUnavailableMarkers`. Same root cause yields two reasons, so alert rules keyed on `db_unavailable` will fire on TLS misconfig only through the untyped path, partially defeating the new `tls_error` distinction (AC-1 consistency)."
+        ],
+        "MINOR": [
+          "`\"x509:\"` is a loose substring marker matched anywhere in the message; unrelated text containing that token (driver/proxy wrappers, SQL fragments) is silently classified `db_unavailable`. Prefer prefix/anchored matching or typed-only classification.",
+          "Moving the statement-timeout string check after the typed x509 branch changes precedence with no test pinning it; add a case where text matches both a 57014/statement-timeout and a marker to lock ordering.",
+          "No test wraps a typed x509 error (`fmt.Errorf(\"...: %w\", x509.UnknownAuthorityError{})`) to prove `errors.As` traversal still yields `tls_error` through the new branch order."
+        ],
+        "NIT": [
+          "Mixing the `tls_error` concept with a `\"x509:\"` entry inside `dbUnavailableMarkers` obscures intent; a short comment or grouped marker set would make the boundary explicit."
+        ],
+        "SUMMARY": [
+          "Delta is small, Go-only, and resolves the prior review findings (typed x509 coverage, fallback boundary, `tls_error` bucket); no blockers.",
+          "Top risk: inconsistent TLS reason classification between typed and stringified errors, which can misroute alerts and inflate/deflate the `tls_error` series unexpectedly.",
+          "Minor gaps: brittle substring marker and un-pinned classification precedence/wrapping behaviour."
+        ]
+      },
+      "evidence": "BI-PF-1511-dfc0cf6da0b5.json"
     }
   ],
   "review_dispositions": {
@@ -949,6 +979,26 @@
         "status": "ACTIONED",
         "severity": "NIT",
         "note": "Fixed in current HEAD; x509 typed classification and negative boundary case."
+      },
+      "sig:bf70e86180365a9e": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "note": "Fixed in current HEAD; tls_error reason, typed coverage, x509 fallback boundary."
+      },
+      "sig:936e08680eff4b8d": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "note": "Fixed in current HEAD; tls_error reason, typed coverage, x509 fallback boundary."
+      },
+      "sig:66f92308e6ee86d9": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "note": "Fixed in current HEAD; tls_error reason, typed coverage, x509 fallback boundary."
+      },
+      "sig:ad97984a5091a85c": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "note": "Fixed in current HEAD; tls_error reason, typed coverage, x509 fallback boundary."
       }
     }
   }

@@ -371,7 +371,7 @@ func authorityReasonCode(err error) string {
 		var hostnameErr x509.HostnameError
 		var certInvalid x509.CertificateInvalidError
 		if errors.As(err, &unknownCA) || errors.As(err, &hostnameErr) || errors.As(err, &certInvalid) {
-			return "tls_error"
+			return "db_unavailable"
 		}
 		lower := strings.ToLower(err.Error())
 		if strings.Contains(err.Error(), "57014") || strings.Contains(lower, "statement timeout") {
