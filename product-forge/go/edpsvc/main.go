@@ -347,12 +347,13 @@ func (s *server) backlogAuthorityLoop(ctx context.Context) {
 	}
 }
 
-var authorityReasons = map[string]bool{
-	"timeout": true, "canceled": true, "migration_missing": true,
-	"row_missing": true, "db_unavailable": true, "internal_error": true,
+func authorityReasonBounded(reason string) bool {
+	switch reason {
+	case "timeout", "canceled", "migration_missing", "row_missing", "db_unavailable", "internal_error":
+		return true
+	}
+	return false
 }
-
-func authorityReasonBounded(reason string) bool { return authorityReasons[reason] }
 
 var dbUnavailableMarkers = [...]string{
 	"conn closed", "closed pool", "unexpected eof", "connection refused",
@@ -1132,11 +1133,15 @@ func (s *server) backlogAuthority(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 	a, err := s.authorityBacklog(tenant).Authority(ctx)
 	if err != nil {
-		s.metrics.Inc("edp_backlog_authority_errors_total", "reason", authorityReasonCode(err))
+		reason := authorityReasonCode(err)
+		if !authorityReasonBounded(reason) {
+			reason = "internal_error"
+		}
+		s.metrics.Inc("edp_backlog_authority_errors_total", "reason", reason)
 		s.metrics.Set("edp_backlog_authority_startup_ok", 0)
 		s.metrics.Set("edp_backlog_authority_last_request_ok", 0)
 		log.Printf("backlog authority principal=admin source=request %s reason_code=%s",
-			limits.Redact(err.Error()), authorityReasonCode(err))
+			limits.Redact(err.Error()), reason)
 		w.Header().Set("Retry-After", "30")
 		s.bad(w, r, http.StatusServiceUnavailable, "backlog authority unavailable")
 		return

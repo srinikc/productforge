@@ -174,6 +174,7 @@ func TestAuthorityReasonCodesAreBounded(t *testing.T) {
 		{&net.OpError{Op: "dial", Net: "tcp", Err: errors.New("refused")}, "db_unavailable"},
 		{&pgconn.PgError{Code: "57014"}, "timeout"},
 		{fmt.Errorf("wrapped: %w", &pgconn.PgError{Code: "57014"}), "timeout"},
+		{fmt.Errorf("outer: %w", fmt.Errorf("inner: %w", &pgconn.PgError{Code: "57014"})), "timeout"},
 		{&pgconn.PgError{Code: "28P01"}, "db_unavailable"},
 		{fmt.Errorf("tls handshake failed"), "db_unavailable"},
 		{x509.UnknownAuthorityError{}, "db_unavailable"},
