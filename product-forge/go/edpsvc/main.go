@@ -350,7 +350,7 @@ var dbUnavailableMarkers = [...]string{
 	"tls handshake", "password authentication failed", "pg_hba",
 }
 
-var x509StringMarker = regexp.MustCompile(`(^|[\s:])x509:`)
+var x509StringMarker = regexp.MustCompile(`(^|[^a-zA-Z0-9_.-])x509:`)
 
 func authorityReasonCode(err error) string {
 	switch {

@@ -150,7 +150,7 @@
   },
   "blocked_by": [],
   "created_at": "2026-10-28T13:50:57.492888",
-  "updated_at": "2026-11-04T13:29:03.619652",
+  "updated_at": "2026-11-04T13:29:54.392898",
   "design_pack": {
     "scope": [
       "Work required for: Backlog authority follow-up: runtime diagnostics and quotas"
@@ -688,6 +688,39 @@
         ]
       },
       "evidence": "BI-PF-1511-b27d8838253f.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "d6a1c7f75d130286dfe26f0ae8ad6a3df646c895",
+      "review_sha": "54bf703bc072",
+      "model": "deepseek-v4.1-flash",
+      "at": "2026-11-04T07:59:54.134403+00:00",
+      "review_scope": "delta",
+      "base_sha": "39a8612753902d2a0c799aa3168ae61cf330d272",
+      "head_sha": "d6a1c7f75d130286dfe26f0ae8ad6a3df646c895",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [
+          "main.go regex change `(^|[^a-z0-9])x509:` → `(^|[\\s:])x509:` narrows matching so punctuation-wrapped cert errors (e.g. `(x509:`, `[x509:`, `\"x509:`, `- x509:`) now fall through to `internal_error` instead of `db_unavailable`; common `fmt.Errorf`/join wrapping styles regress classification (AC-1 correctness, not cardinality).",
+          "This contradicts the runbook line edited in the same delta (\"TLS/certificate failures are reported as `db_unavailable`\"), so the documented triage query and the classifier can now disagree; no test pins punctuation-wrapped forms."
+        ],
+        "MINOR": [
+          "main_test.go adds `x509: leading` and `not_x509:` cases but no `\"(x509: ...)\"`/`\"[x509: ...]\"` case, so the narrowing itself is untested in both directions.",
+          "Deleting the `tls_error` source grep leaves AC-1 without an evident runtime assertion for the retired reason in this hunk; ensure the gauge assertion compares the full bounded reason label set (extra label = failure), otherwise a reintroduced `tls_error` passes silently.",
+          "Verify `os` import in main_test.go is still used after removing the only `os.ReadFile` in that test, otherwise the package will not compile.",
+          "Two classification mechanisms coexist (`dbUnavailableMarkers` substring list and `x509StringMarker` regex) with different boundary semantics for the same input; consolidate or document the precedence so a failure cannot be classified by whichever check happens to run."
+        ],
+        "NIT": [
+          "`\\s` inside `[\\s:]` also accepts tab/newline/CR, which is desirable for joined errors but worth a one-line comment since the boundary rule is non-obvious.",
+          "Runbook query guidance lists `x509`/`certificate`/`tls handshake`/`pg_hba`; add the `internal_error`-with-x509 case so operators notice the misclassification gap above."
+        ],
+        "SUMMARY": [
+          "Delta is small and the AC-negative test for `not_x509:` is a good addition; prior MINOR/NIT items are partially addressed.",
+          "Main risk: the boundary tightening trades one false-positive class for a real false-negative class (wrapped cert errors no longer `db_unavailable`), which weakens the operator triage contract this item exists to harden.",
+          "Secondary risk: AC-1 evidence for the retired `tls_error` reason now depends on a runtime reason-set assertion that is not visible in the delta."
+        ]
+      },
+      "evidence": "BI-PF-1511-54bf703bc072.json"
     }
   ],
   "review_dispositions": {
@@ -1106,6 +1139,26 @@
         "status": "ACTIONED",
         "severity": "NIT",
         "note": "Fixed in current HEAD; anchored x509, retired tls_error assertion, runbook note."
+      },
+      "sig:5cc28c5ae34b5a83": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "note": "Fixed in current HEAD; leading x509 coverage, regex boundary, runbook query."
+      },
+      "sig:7450ee46eb92978d": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "note": "Fixed in current HEAD; leading x509 coverage, regex boundary, runbook query."
+      },
+      "sig:7cb2033824b5fce1": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "note": "Fixed in current HEAD; leading x509 coverage, regex boundary, runbook query."
+      },
+      "sig:c7fd74e8dc58f8cf": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "note": "Fixed in current HEAD; leading x509 coverage, regex boundary, runbook query."
       }
     }
   }
