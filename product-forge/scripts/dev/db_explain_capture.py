@@ -1,0 +1,80 @@
+"""EDP-22 sampled EXPLAIN(ANALYZE,BUFFERS) capture.
+
+Production is sampling-only: sample rate is capped at 0.05 and rate/concurrency limits are enforced by the
+caller. Every statement is allowlisted, read-only, timed out, rolled back, and redacted before output.
+"""
+from __future__ import annotations
+
+import argparse
+import os
+import random
+import re
+import sys
+
+ALLOWED = {
+    "backlog_items": "SELECT id, tenant_id, status FROM backlog_items WHERE tenant_id = 't' ORDER BY id LIMIT 50",
+    "projects": "SELECT id, tenant_id, slug FROM projects WHERE tenant_id = 't' ORDER BY slug LIMIT 50",
+    "runs": "SELECT id, tenant_id, status FROM runs WHERE tenant_id = 't' AND status = 'running' LIMIT 50",
+    "jobs": "SELECT id, tenant_id, status FROM jobs WHERE tenant_id = 't' AND status = 'queued' LIMIT 50",
+    "audit": "SELECT id, tenant_id, event_type FROM audit WHERE tenant_id = 't' ORDER BY id DESC LIMIT 50",
+}
+MAX_PROD_SAMPLE = 0.05
+MAX_PER_MINUTE = 60
+
+
+def validate(env: str, sample_rate: float, per_minute: int) -> str:
+    if sample_rate < 0 or sample_rate > 1:
+        return "sample rate must be between 0 and 1"
+    if env.strip().lower() == "production" and sample_rate > MAX_PROD_SAMPLE:
+        return f"production sample rate must be <= {MAX_PROD_SAMPLE}"
+    if per_minute < 1 or per_minute > MAX_PER_MINUTE:
+        return f"per-minute cap must be between 1 and {MAX_PER_MINUTE}"
+    return ""
+
+
+def redact(plan: str) -> str:
+    plan = re.sub(r"'[^']*'", "'?'", plan)
+    plan = re.sub(r"\b\d{4,}\b", "?", plan)
+    return plan
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(description="Sampled read-only EXPLAIN capture")
+    ap.add_argument("--dsn", default=os.environ.get("PF_EXPLAIN_DSN", ""))
+    ap.add_argument("--query", choices=sorted(ALLOWED), required=True)
+    ap.add_argument("--env", default=os.environ.get("PF_ENV", "dev"))
+    ap.add_argument("--sample-rate", type=float, default=0.0)
+    ap.add_argument("--per-minute", type=int, default=60)
+    ap.add_argument("--out", default="")
+    a = ap.parse_args()
+    bad = validate(a.env, a.sample_rate, a.per_minute)
+    if bad:
+        print(f"explain: REFUSE - {bad}", file=sys.stderr)
+        return 2
+    if a.sample_rate == 0 or random.random() > a.sample_rate:
+        print("explain: skipped (sampling)")
+        return 0
+    if not a.dsn:
+        print("explain: PF_EXPLAIN_DSN is required", file=sys.stderr)
+        return 2
+    import psycopg
+
+    out = []
+    with psycopg.connect(a.dsn) as conn:
+        with conn.cursor() as cur:
+            cur.execute("BEGIN READ ONLY")
+            cur.execute("SET LOCAL statement_timeout = '5s'")
+            cur.execute("EXPLAIN (ANALYZE, BUFFERS) " + ALLOWED[a.query])
+            out = [redact(str(r[0])) for r in cur.fetchall()]
+        conn.rollback()
+    text = "\n".join(out) + "\n"
+    if a.out:
+        with open(a.out, "w", encoding="utf-8") as f:
+            f.write(text)
+    else:
+        sys.stdout.write(text)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

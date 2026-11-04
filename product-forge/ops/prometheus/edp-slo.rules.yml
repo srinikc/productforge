@@ -1,0 +1,53 @@
+groups:
+  - name: product-forge-edp-slo
+    rules:
+      - alert: ProductForgeBenchmarkStale
+        expr: time() - edp_bench_last_run_unixtime > 86400
+        for: 30m
+        labels:
+          severity: ticket
+          owner: platform-oncall
+          service: edpsvc
+        annotations:
+          summary: "EDP benchmark baseline is stale"
+          runbook: "docs/EDP-22-RUNBOOK.md"
+      - alert: ProductForgeBenchmarkLatencyRegression
+        expr: max by (group, scenario) (edp_bench_p95_ms) > 500
+        for: 10m
+        labels:
+          severity: ticket
+          owner: platform-oncall
+          service: edpsvc
+        annotations:
+          summary: "EDP benchmark p95 exceeded the default budget"
+          runbook: "docs/EDP-22-RUNBOOK.md"
+      - alert: ProductForgeStoreErrors
+        expr: sum by (store) (rate(edp_store_requests_total{outcome="error"}[10m])) > 0.05
+        for: 10m
+        labels:
+          severity: page
+          owner: platform-oncall
+          service: edpsvc
+        annotations:
+          summary: "EDP store error rate elevated"
+          runbook: "docs/EDP-22-RUNBOOK.md"
+      - alert: ProductForgeStoreDegraded
+        expr: max by (store) (edp_store_degraded) > 0
+        for: 1m
+        labels:
+          severity: page
+          owner: platform-oncall
+          service: edpsvc
+        annotations:
+          summary: "EDP store is in degraded mode"
+          runbook: "docs/EDP-22-RUNBOOK.md"
+      - alert: ProductForgeQuotaDenied
+        expr: sum by (store, scope) (rate(edp_quota_denials_total[10m])) > 0.1
+        for: 10m
+        labels:
+          severity: ticket
+          owner: platform-oncall
+          service: edpsvc
+        annotations:
+          summary: "EDP quota denials elevated"
+          runbook: "docs/EDP-22-RUNBOOK.md"
