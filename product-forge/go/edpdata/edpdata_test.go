@@ -266,10 +266,13 @@ func (f *fakeStore) Query(context.Context, string, ...any) (datastore.Rows, erro
 }
 
 func TestBacklogTimeoutPropagatesToStatementTimeout(t *testing.T) {
-	f := &fakeStore{}
-	_, err := NewBacklog(f).WithTimeout(2345 * time.Millisecond).Authority(context.Background())
-	if !errors.Is(err, ErrAuthoritySchema) {
-		t.Fatalf("want schema failure after timeout probe, got %v", err)
+	f := &fakeStore{queries: [][][]any{
+		{{"alloc", "reservations", "items", true, "tenant", true, true}},
+		{{int64(100), int64(0)}},
+		{{int64(2)}},
+	}}
+	if _, err := NewBacklog(f).WithTimeout(2345 * time.Millisecond).Authority(context.Background()); err != nil {
+		t.Fatalf("authority failed: %v", err)
 	}
 	for _, args := range f.execs {
 		if len(args) > 0 && fmt.Sprint(args[0]) == "2345ms" {

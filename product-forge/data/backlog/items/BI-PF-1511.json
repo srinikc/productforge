@@ -150,7 +150,7 @@
   },
   "blocked_by": [],
   "created_at": "2026-10-28T13:50:57.492888",
-  "updated_at": "2026-11-04T13:11:04.826688",
+  "updated_at": "2026-11-04T13:15:32.631434",
   "design_pack": {
     "scope": [
       "Work required for: Backlog authority follow-up: runtime diagnostics and quotas"
@@ -379,6 +379,42 @@
         ]
       },
       "evidence": "BI-PF-1511-b496cd5ffe48.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "357813d7199dda8009cddf8463671ce14ea571da",
+      "review_sha": "da0982de5e0f",
+      "model": "deepseek-v4.1-flash",
+      "at": "2026-11-04T07:45:32.376024+00:00",
+      "review_scope": "delta",
+      "base_sha": "19a9dc6f90a3cfad44f0125d62618f04ef978997",
+      "head_sha": "357813d7199dda8009cddf8463671ce14ea571da",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [
+          "AC-4: `TestReservationExhaustedFailsClosedWithAlarm` invokes `s.reservationExhausted` directly; it never exercises `backlogReserve` with an `ErrIDSpaceExhausted` result, so the endpoint could fail to raise the alarm or return a zeroed success while the test passes.",
+          "AC-1: the new endpoint metric assertion lives in `TestBacklogAuthorityFailsClosed`, which skips unless `PF_RUNTIME_DSN` is set; non-gated evidence still only calls `authorityReasonCode`, so standard CI does not prove the gauge reflects endpoint failures."
+        ],
+        "MINOR": [
+          "AC-1 evidence asserts `edp_backlog_authority_errors_total` (counter) while the AC says gauge; confirm intended metric semantics or update the contract.",
+          "AC-2: `TestAuthorityTimeoutComesFromConfig` manually applies `cfg.DBTimeout` via `NewBacklog(nil).WithTimeout(...)`; it does not prove `edpsvc` wires the configured timeout into the authority store.",
+          "AC-3: `TestBacklogReserveEchoesIDWithDB` only checks for an exact `tenant` key; a response leaking `tenant_id` or nested tenant fields would pass.",
+          "`authorityReasonCode`'s new substring markers, especially `\"db\"`, classify errors by message text; driver/message changes can silently reclassify failures and weaken diagnostics.",
+          "Design `ac_evidence`/`test_matrix` still cite the old AC-1/AC-4 tests and do not reference the new endpoint/alarm tests, so traceability is out of sync."
+        ],
+        "NIT": [
+          "`TestBacklogTimeoutPropagatesToStatementTimeout` couples the timeout regression to `ErrAuthoritySchema`; unrelated schema-detection changes can break a timeout test.",
+          "`StatementTimeout` is an exported test-only accessor on the production store; consider an unexported/test helper to avoid widening the package API.",
+          "`TestBacklogReserveEchoesIDWithDB` uses wall-clock nano IDs and leaves reservations in the shared runtime DB; repeated runs accumulate test data."
+        ],
+        "SUMMARY": [
+          "The delta resolves several prior test gaps and correctly adds JSON tags so `reservation_id` is decoded.",
+          "The main residual risk is AC-4 endpoint wiring: the new alarm test bypasses `backlogReserve`.",
+          "AC-1 endpoint metric evidence is DB-gated, and the new `authorityReasonCode` substring heuristic is brittle.",
+          "AC-2/AC-3 tests prove pieces but not full service wiring or broad tenant-leak absence."
+        ]
+      },
+      "evidence": "BI-PF-1511-da0982de5e0f.json"
     }
   ],
   "review_dispositions": {
@@ -447,6 +483,56 @@
         "status": "ACTIONED",
         "severity": "NIT",
         "note": "Fixed in 19a9dc6f; see current diff review."
+      },
+      "sig:6b6a84de7fd79249": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "note": "Fixed in 6e0a2a0; endpoint and config tests added."
+      },
+      "sig:6883cafb972e3478": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "note": "Fixed in 6e0a2a0; endpoint and config tests added."
+      },
+      "sig:9fd9df481c2adf68": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "note": "Fixed in 6e0a2a0; endpoint and config tests added."
+      },
+      "sig:fbe9e44399799836": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "note": "Fixed in 6e0a2a0; endpoint and config tests added."
+      },
+      "sig:0cb068865196fd12": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "note": "Fixed in 6e0a2a0; endpoint and config tests added."
+      },
+      "sig:7666f4919c2e5506": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "note": "Fixed in 6e0a2a0; endpoint and config tests added."
+      },
+      "sig:92e628e05ecd6462": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "note": "Fixed in 6e0a2a0; endpoint and config tests added."
+      },
+      "sig:8e719d7593c28253": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "note": "Fixed in 6e0a2a0; endpoint and config tests added."
+      },
+      "sig:7a31eaa1f786da79": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "note": "Fixed in 6e0a2a0; endpoint and config tests added."
+      },
+      "sig:4782c7d5e568889e": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "note": "Fixed in 6e0a2a0; endpoint and config tests added."
       }
     }
   }

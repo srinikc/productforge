@@ -49,16 +49,37 @@ const (
 	reservationScopeGlobal  = "global"
 )
 
+type backlogStore interface {
+	Authority(context.Context) (edpdata.Authority, error)
+	Reserve(context.Context, string, string, string, int) (edpdata.IDBlock, error)
+	StatementTimeout() time.Duration
+}
+
 type server struct {
-	admin       string
-	migDir      string
-	obj         datastore.ObjectStore
-	cfg         limits.Config
-	st          *store.PgStore
-	quota       *limits.Quota
-	metrics     *limits.Metrics
-	role        *limits.RoleGuard
-	authorityMu sync.Mutex
+	admin          string
+	migDir         string
+	obj            datastore.ObjectStore
+	cfg            limits.Config
+	st             *store.PgStore
+	quota          *limits.Quota
+	metrics        *limits.Metrics
+	role           *limits.RoleGuard
+	backlogFactory func(tenant string) backlogStore
+	authorityMu    sync.Mutex
+}
+
+func (s *server) backlogForTenant(tenant string) backlogStore {
+	if s.backlogFactory != nil {
+		return s.backlogFactory(tenant)
+	}
+	return edpdata.NewBacklog(store.BindTenant(s.st, tenant)).WithTimeout(s.cfg.DBTimeout)
+}
+
+func (s *server) reserveBacklog() backlogStore {
+	if s.backlogFactory != nil {
+		return s.backlogFactory("")
+	}
+	return edpdata.NewBacklog(s.st).WithTimeout(s.cfg.DBTimeout)
 }
 
 // buildObjectStore selects the object-store adapter (EDP-13 local / EDP-14 S3) by PF_OBJECT_BACKEND.
@@ -332,7 +353,7 @@ func authorityReasonCode(err error) string {
 		if strings.Contains(lower, "timeout") || strings.Contains(err.Error(), "57014") {
 			return "timeout"
 		}
-		for _, marker := range []string{"connection", "refused", "closed", "database", "db"} {
+		for _, marker := range []string{"connection", "refused", "closed", "driver"} {
 			if strings.Contains(lower, marker) {
 				return "db_unavailable"
 			}
@@ -999,7 +1020,7 @@ func (s *server) backlogReserve(w http.ResponseWriter, r *http.Request) {
 	}
 	// The allocation/reservation tables are global (no RLS); this admin-only endpoint intentionally
 	// does not bind a tenant.
-	blk, err := edpdata.NewBacklog(s.st).WithTimeout(s.cfg.DBTimeout).Reserve(ctx, b.Scope, b.Project, b.ReservationID, b.Size)
+	blk, err := s.reserveBacklog().Reserve(ctx, b.Scope, b.Project, b.ReservationID, b.Size)
 	if errors.Is(err, edpdata.ErrReservationInvalid) {
 		log.Printf("backlog reserve: reason_code=invalid_request")
 		s.bad(w, r, http.StatusBadRequest, "invalid reservation request")
@@ -1063,16 +1084,18 @@ func (s *server) backlogAuthority(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx, cancel := s.dbCtx(r)
 	defer cancel()
-	a, err := edpdata.NewBacklog(store.BindTenant(s.st, tenant)).WithTimeout(s.cfg.DBTimeout).Authority(ctx)
+	a, err := s.backlogForTenant(tenant).Authority(ctx)
 	if err != nil {
 		s.metrics.Inc("edp_backlog_authority_errors_total", "reason", authorityReasonCode(err))
 		s.metrics.Set("edp_backlog_authority_startup_ok", 0)
+		s.metrics.Set("edp_backlog_authority_endpoint_ok", 0)
 		log.Printf("backlog authority principal=admin source=request %s reason_code=%s",
 			limits.Redact(err.Error()), authorityReasonCode(err))
 		w.Header().Set("Retry-After", "30")
 		s.bad(w, r, http.StatusServiceUnavailable, "backlog authority unavailable")
 		return
 	}
+	s.metrics.Set("edp_backlog_authority_endpoint_ok", 1)
 	s.metrics.Set("edp_backlog_authority_success_timestamp_seconds", int(time.Now().Unix()))
 	writeJSON(w, http.StatusOK, map[string]any{
 		"authority":         authorityGlobal,

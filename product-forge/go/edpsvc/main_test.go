@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -15,6 +16,20 @@ import (
 	"productforge/edpsvc/internal/limits"
 	"productforge/store"
 )
+
+type fakeBacklog struct {
+	authErr    error
+	reserveErr error
+	timeout    time.Duration
+}
+
+func (f fakeBacklog) Authority(context.Context) (edpdata.Authority, error) {
+	return edpdata.Authority{}, f.authErr
+}
+func (f fakeBacklog) Reserve(context.Context, string, string, string, int) (edpdata.IDBlock, error) {
+	return edpdata.IDBlock{}, f.reserveErr
+}
+func (f fakeBacklog) StatementTimeout() time.Duration { return f.timeout }
 
 func testServer(t *testing.T) *server {
 	t.Helper()
@@ -142,7 +157,7 @@ func TestMuxLevelTimeoutReturns504(t *testing.T) {
 	}
 }
 
-func TestAuthorityFailureMetricUsesBoundedReasons(t *testing.T) {
+func TestAuthorityReasonCodesAreBounded(t *testing.T) {
 	allowed := map[string]bool{"timeout": true, "canceled": true, "migration_missing": true, "row_missing": true, "db_unavailable": true, "internal_error": true}
 	for _, tc := range []struct {
 		err  error
@@ -162,6 +177,24 @@ func TestAuthorityFailureMetricUsesBoundedReasons(t *testing.T) {
 	}
 }
 
+func TestAuthorityFailureMetricUsesBoundedReasons(t *testing.T) {
+	s := testServer(t)
+	s.backlogFactory = func(string) backlogStore { return fakeBacklog{authErr: errors.New("boom")} }
+	rr := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/admin/backlog/authority?tenant=x", nil)
+	req.Header.Set("Authorization", "Bearer test-token")
+	s.buildMux().ServeHTTP(rr, req)
+	if rr.Code != http.StatusServiceUnavailable {
+		t.Fatalf("want 503, got %d %q", rr.Code, rr.Body.String())
+	}
+	var metrics strings.Builder
+	s.metrics.Write(&metrics)
+	if !strings.Contains(metrics.String(), `edp_backlog_authority_errors_total{reason="internal_error"} 1`) ||
+		!strings.Contains(metrics.String(), "edp_backlog_authority_endpoint_ok 0") {
+		t.Fatalf("authority failure metrics missing: %s", metrics.String())
+	}
+}
+
 func TestAuthorityTimeoutComesFromConfig(t *testing.T) {
 	cfg, err := limits.Load(func(k string) string {
 		if k == "PF_EDP_DB_TIMEOUT" {
@@ -172,7 +205,9 @@ func TestAuthorityTimeoutComesFromConfig(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	b := edpdata.NewBacklog(nil).WithTimeout(cfg.DBTimeout)
+	s := testServer(t)
+	s.cfg.DBTimeout = cfg.DBTimeout
+	b := s.backlogForTenant("config-test")
 	if cfg.DBTimeout != 2345*time.Millisecond || b.StatementTimeout() != cfg.DBTimeout {
 		t.Fatalf("cfg.DBTimeout=%s store.timeout=%s", cfg.DBTimeout, b.StatementTimeout())
 	}
@@ -324,15 +359,21 @@ func TestBacklogReserveEchoesIDWithDB(t *testing.T) {
 	if got["reservation_id"] != rid || got["start"] == nil || got["end"] == nil {
 		t.Fatalf("unexpected reservation response: %#v", got)
 	}
-	if _, leaked := got["tenant"]; leaked {
-		t.Fatalf("reservation response leaked tenant: %#v", got)
+	for k := range got {
+		if strings.Contains(strings.ToLower(k), "tenant") {
+			t.Fatalf("reservation response leaked tenant field %q: %#v", k, got)
+		}
 	}
 }
 
 func TestReservationExhaustedFailsClosedWithAlarm(t *testing.T) {
 	s := testServer(t)
+	s.backlogFactory = func(string) backlogStore { return fakeBacklog{reserveErr: edpdata.ErrReservationExhausted} }
 	rr := httptest.NewRecorder()
-	s.reservationExhausted(rr, httptest.NewRequest(http.MethodPost, "/backlog/ids:reserve", nil))
+	body := `{"scope":"product_forge","project":"","reservation_id":"res-x","size":2}`
+	req := httptest.NewRequest(http.MethodPost, "/backlog/ids:reserve", strings.NewReader(body))
+	req.Header.Set("Authorization", "Bearer test-token")
+	s.buildMux().ServeHTTP(rr, req)
 	if rr.Code != http.StatusConflict || !strings.Contains(rr.Body.String(), "backlog id space exhausted") {
 		t.Fatalf("want fixed 409, got %d %q", rr.Code, rr.Body.String())
 	}
