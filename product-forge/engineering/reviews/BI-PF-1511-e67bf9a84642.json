@@ -1,0 +1,31 @@
+{
+  "item": "BI-PF-1511",
+  "sha": "e67bf9a84642",
+  "model": "deepseek-v4.1-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-04T08:00:47.811877+00:00",
+  "review_scope": "delta",
+  "base_sha": "d6a1c7f75d130286dfe26f0ae8ad6a3df646c895",
+  "head_sha": "ec59f9941c9cda9eb106f7747da7d7c91e6cc04c",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "none (prior MAJOR on regex narrowing and runbook divergence is resolved by this delta: `(`/`[`/`-`-prefixed forms now classify as `db_unavailable`, and the boundary excludes `_ . -` prefixes as the runbook implies)."
+    ],
+    "MINOR": [
+      "The new boundary class `[^a-zA-Z0-9_.-]` accepts *any* non-alphanumeric separator, so `foo/x509:`, `foo=x509:`, `foo\"x509:`, `foo:x509:` now map to `db_unavailable` where they previously were `internal_error`; only `(`, `[`, space and `-` are pinned in tests, so the broadened acceptance set is untested in the positive direction for most separators (AC-1 classifier surface).",
+      "No negative test for the widened class: e.g. an embedded token in unrelated error text preceded by punctuation (e.g. `result/x509: ...` from a non-cert source) is now classified `db_unavailable`, which can mask genuine `internal_error` signals; add at least one adversarial case documenting this trade-off.",
+      "Negation is ASCII-only: a Unicode letter preceding the token (e.g. `\u00e9x509:`) is treated as a boundary and maps to `db_unavailable` despite being part of a word; low risk but worth a one-line rationale or explicit test."
+    ],
+    "NIT": [
+      "Case sensitivity is unchanged (`X509:` uppercase still yields `internal_error`); since the regex is being reworked in this delta, add a comment or case so the intended case posture is documented rather than incidental.",
+      "Add a one-line comment on the boundary class rationale (why `.`/`_`/`-` are treated as word-continuations) \u2014 the rule is non-obvious and future edits are likely."
+    ],
+    "SUMMARY": [
+      "Delta is tightly scoped, correct in intent, and fixes the prior wrapped-x509 misclassification while preserving the bounded reason set; no integrity, security, tenant, migration or language-rule issues.",
+      "Residual risk is limited to classifier false-positives from the intentionally broad separator class, which is currently only partially pinned by tests.",
+      "Recommend merge after adding one or two boundary tests/comments; no blockers."
+    ]
+  }
+}
