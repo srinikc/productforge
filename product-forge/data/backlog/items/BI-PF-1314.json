@@ -38,6 +38,14 @@
       "decision": "APPROVE",
       "by": "cli",
       "note": ""
+    },
+    {
+      "at": "2026-11-04T14:16:26.549589+00:00",
+      "by": "hil:user",
+      "decision": "MATERIAL_CHANGE",
+      "mode": "design",
+      "hil_confirmed": true,
+      "note": "HIL approved a third independent design review to verify fixes for the 15 Gate 1.5 findings."
     }
   ],
   "follow_up": {},
@@ -74,7 +82,10 @@
     "ops/prometheus",
     "ops/grafana",
     "config",
-    "docs"
+    "docs",
+    "go/edpsvc/internal/explain",
+    "go/edpsvc/cmd/explain",
+    "go/edpsvc/internal/limits"
   ],
   "affected_files": [
     "go/edpsvc/internal/bench/harness.go",
@@ -103,7 +114,12 @@
     "test-framework/tests/test_edp_degrade_config.py",
     "config/edp-slo.schema.json",
     "config/edp-degradation.schema.json",
-    "engineering/benchmarks/BI-PF-1314/README.md"
+    "engineering/benchmarks/BI-PF-1314/README.md",
+    "go/edpsvc/internal/limits/quota.go",
+    "scripts/dev/validate_edp_slo.py",
+    "test-framework/tests/test_validate_edp_slo.py",
+    "docs/EDP-22-RUNBOOK.md",
+    "go/edpsvc/internal/bench/baseline.go"
   ],
   "approach": "Define workload scenarios, capture EXPLAIN baselines, wire metrics, add quota checks and store-specific degradation switches.",
   "review": {
@@ -310,7 +326,7 @@
     "usage": {}
   },
   "created_at": "2026-10-13T16:06:24.101326",
-  "updated_at": "2026-11-04T19:36:19.940624",
+  "updated_at": "2026-11-04T19:48:42.107799",
   "score": 0.75,
   "source_ref": "docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md",
   "_note": "dependencies set",
@@ -346,10 +362,10 @@
       "Quota enforcement and degradation switches demonstrated per store"
     ],
     "scope": [
-      "Slice 1: benchmark CLI, versioned baseline artifacts, Prometheus SLO sink, SLO config/rules/dashboard.",
-      "Slice 2: EXPLAIN(ANALYZE,BUFFERS) sampling capture with read-only role, allowlist, timeout, rollback, and redaction.",
-      "Slice 3: per-store metrics + quota/degradation policy with bounded expiry and alerts.",
-      "Slice 4: measured baselines and evidence for DB/object/cache/queue."
+      "Slice 1: benchmark CLI + repeatability protocol + versioned baseline artifact schema.",
+      "Slice 2: EXPLAIN(ANALYZE,BUFFERS) capture with read-only role, allowlist, timeout, rollback, redaction, retention, audit, rate/load caps.",
+      "Slice 3: per-store metrics + quota enforcement + bounded degradation with persistent expiry.",
+      "Slice 4: generate SLO rules/dashboard from measured baselines and validate with promtool/Grafana schema checks."
     ],
     "non_goals": [
       "No read replicas, partitioning, or region cells (EDP-24).",
@@ -357,14 +373,12 @@
       "No production EXPLAIN sampling without an explicit switch."
     ],
     "invariants": [
-      "Benchmarks are deterministic, versioned, and tenant-safe; labels never include tenant IDs.",
-      "Benchmarks use PF_BENCH_DSN with a NOSUPERUSER/NOBYPASSRLS read-only role.",
-      "Missing DSN fails closed unless --allow-skip records per-store skipped evidence.",
-      "EXPLAIN ANALYZE is production-sampled at <=0.05, read-only, allowlisted, timed out, rolled back, and redacted.",
-      "Degradation is bounded by max_duration, auto-expires, emits alerts, and never returns a zeroed success.",
-      "SLO thresholds come from a measured baseline with explicit variance tolerance.",
-      "Config is single-source: config/edp-slo.json generates rules/dashboard; config/edp-degradation.json is schema-validated.",
-      "Benchmark runs set app.tenant_id to a synthetic t-bench tenant and assert non-empty RLS-scoped reads."
+      "Benchmark labels never include tenant IDs; run timestamp is an unlabeled gauge, not a label.",
+      "Benchmarks use PF_BENCH_DSN with pf_readonly (NOSUPERUSER/NOBYPASSRLS), synthetic t-bench tenant, and deterministic cleanup.",
+      "Missing DSN fails closed unless --allow-skip records BENCH_STORE_SKIPPED as non-success.",
+      "EXPLAIN runs are read-only, allowlisted, timed out, rolled back, redacted, audited, retained, and capped by both probability and per-minute/concurrency budgets.",
+      "Degradation requires owner, reason, expires_at, max_duration<=15m; expiry is reloaded and enforced; renewals are alerted and bounded.",
+      "SLO rules/dashboard are generated only after measured baselines; config references baseline IDs and validation checks drift."
     ],
     "contracts": {
       "api": [
@@ -400,7 +414,12 @@
         "test-framework/tests/test_edp_degrade_config.py",
         "config/edp-slo.schema.json",
         "config/edp-degradation.schema.json",
-        "engineering/benchmarks/BI-PF-1314/README.md"
+        "engineering/benchmarks/BI-PF-1314/README.md",
+        "go/edpsvc/internal/limits/quota.go",
+        "scripts/dev/validate_edp_slo.py",
+        "test-framework/tests/test_validate_edp_slo.py",
+        "docs/EDP-22-RUNBOOK.md",
+        "go/edpsvc/internal/bench/baseline.go"
       ],
       "config": [
         "config/edp-slo.json",
@@ -412,36 +431,41 @@
     "failure_matrix": [
       {
         "case": "benchmark regression",
-        "expected": "non-zero exit and SLO alert",
+        "expected": "non-zero exit and alert",
         "code": "SLO_REGRESSION"
       },
       {
-        "case": "missing DSN without explicit skip",
+        "case": "missing DSN",
         "expected": "non-zero exit",
         "code": "BENCH_DSN_MISSING"
       },
       {
-        "case": "skipped store without evidence",
+        "case": "skipped store",
         "expected": "non-success skipped evidence",
         "code": "BENCH_STORE_SKIPPED"
       },
       {
-        "case": "prod EXPLAIN sample >0.05",
+        "case": "prod sample >0.05",
         "expected": "refuse",
         "code": "EXPLAIN_SAMPLE_CAP"
       },
       {
-        "case": "unsafe EXPLAIN statement",
+        "case": "rate/concurrency cap",
+        "expected": "refuse",
+        "code": "EXPLAIN_RATE_CAP"
+      },
+      {
+        "case": "unsafe statement",
         "expected": "refuse",
         "code": "EXPLAIN_NOT_ALLOWED"
       },
       {
-        "case": "degradation expired",
-        "expected": "fail closed",
+        "case": "degradation expired/renewed too often",
+        "expected": "fail closed + alert",
         "code": "DEGRADED_EXPIRED"
       },
       {
-        "case": "invalid config schema",
+        "case": "invalid config",
         "expected": "startup refuse",
         "code": "CONFIG_INVALID"
       }
@@ -457,18 +481,18 @@
       "Benchmark labels exclude tenant IDs, DSNs, and secrets.",
       "EXPLAIN uses static allowlisted SQL with no bound tenant parameters; output is redacted and access-controlled.",
       "Degradation/config changes are operator-only; no public API.",
-      "Explain runs are recorded in an audit log with actor, statement label, sample decision, and artifact path; artifacts are access-controlled and retained per config."
+      "Explain runs are recorded in an audit log with actor, statement label, sample decision, and artifact path; artifacts are access-controlled and retained per config.",
+      "EXPLAIN artifacts are written to access-controlled retention paths with owner/expiry metadata."
     ],
     "observability": [
-      "Benchmark metrics: edp_bench_p50_ms, p95, p99, errors, run_timestamp, with bounded group/scenario labels.",
-      "SLO rules are generated from config/edp-slo.json by scripts/dev/gen_edp_slo.py; Grafana rules are generated from the same source.",
+      "Benchmark metrics: edp_bench_p50_ms/p95/p99/errors by bounded group/scenario; last run is edp_bench_last_run_unixtime (no labels).",
+      "Store metrics: edp_store_requests_total, errors, latency histogram, degraded gauge by bounded store label.",
       "Quota metrics: edp_quota_allowed_total, edp_quota_denials_total{scope,store}.",
-      "SLO rules include for-duration, freshness, latency regression, error rate, and degradation expiry alerts."
+      "SLO rules and dashboard are generated from config/edp-slo.json and validated for drift/schema."
     ],
     "performance": [
-      "Benchmark ops and concurrency are explicit CLI flags.",
-      "EXPLAIN sampling is capped and statement_timeout bounded.",
-      "No unbounded scans; baselines capture ops, concurrency, dataset size, host class, and duration."
+      "Benchmarks declare warmup, iteration count, concurrency, deterministic seed, outlier policy, and host class.",
+      "EXPLAIN has sample probability <=0.05 plus max_per_minute and max_concurrent load-shed caps."
     ],
     "rollout": [
       "Benchmark scheduling and EXPLAIN sampling default off.",
@@ -491,7 +515,8 @@
       "EDP-06 deferred the Sink intentionally; EDP-22 supplies it."
     ],
     "open_questions": [
-      "Deployment-specific SLO overrides are schema-validated and applied only after a measured baseline; no thresholds are invented before measurement."
+      "Deployment-specific SLO overrides are allowed only after a measured baseline and must reference the baseline ID.",
+      "Prometheus/Grafana intervals are deployment-owned; generation validates both."
     ],
     "coverage": [
       {
@@ -501,7 +526,7 @@
           "go test -run TestBenchmarkRepeatability ./..."
         ],
         "adapter": "bench CLI + versioned baseline artifact + SLO sink",
-        "contract": "six store groups mapped to explicit store enum; versioned baseline artifacts include git sha, host, ops, concurrency, duration, seed, variance tolerance; --allow-skip records non-success skipped evidence and must be gated by test; labels bounded",
+        "contract": "six groups map to stores db/object/cache/queue; deterministic t-bench fixture, warmup, iterations, outlier policy; versioned artifact path per store; --allow-skip is non-success and tested",
         "evidence": [
           "docs/EDP-22-BENCHMARKS-SLOS.md"
         ],
@@ -518,13 +543,14 @@
       {
         "ac": "AC-2",
         "tests": [
-          "python -m pytest test-framework/tests/test_db_explain_capture.py -q",
-          "go test ./..."
+          "go test ./...",
+          "python -m pytest test-framework/tests/test_db_explain_capture.py -q"
         ],
         "adapter": "explain capture policy + psycopg read-only capture",
-        "contract": "static allowlist, read-only transaction, statement_timeout, rollback, production sample <=0.05, persistent operator switch, audit log, redaction, retention and access control",
+        "contract": "cmd/explain -> explain.Capture; read-only rollback tx, allowlist, timeout, redaction, audit, retention, sample<=0.05 and rate/concurrency caps",
         "evidence": [
-          "docs/EDP-22-BENCHMARKS-SLOS.md"
+          "docs/EDP-22-BENCHMARKS-SLOS.md",
+          "docs/EDP-22-RUNBOOK.md"
         ],
         "call_sites": [
           "operator -> cmd/explain -> explain.Capture -> rollback transaction + audit sink"
@@ -541,10 +567,11 @@
         "ac": "AC-3",
         "tests": [
           "python -m pytest test-framework/tests/test_edp_slo_config.py -q",
+          "python -m pytest test-framework/tests/test_validate_edp_slo.py -q",
           "go test ./..."
         ],
         "adapter": "Prometheus/Grafana + store metrics instrumentation",
-        "contract": "SLO rules generated from config/edp-slo.json; alerts/dashboard cover DB/object/cache/queue with owner, for-duration, freshness, error/latency, degradation expiry; store metrics emission tested",
+        "contract": "SLO rules/dashboard generated after measured baselines from config IDs; promtool/Grafana schema and drift validation",
         "evidence": [
           "docs/EDP-22-BENCHMARKS-SLOS.md"
         ],
@@ -566,7 +593,7 @@
           "python -m pytest test-framework/tests/test_edp_degrade_config.py -q"
         ],
         "adapter": "degrade policy + limits + store adapters",
-        "contract": "quota hook and per-store switch share bounded policy: query quota, max_duration<=15m, auto-expiry, allowed/denied metrics with bounded scope/store labels, fixed degraded error, alert routing",
+        "contract": "quota hook in limits/quota.go plus per-store degrade policy: bounded scope/store labels, persistent expires_at, max_duration<=15m, renewal alert, fixed degraded error",
         "evidence": [
           "docs/EDP-22-BENCHMARKS-SLOS.md",
           "go/edpsvc/internal/limits/quota.go"
@@ -592,7 +619,7 @@
       {
         "ac": "AC-2",
         "kind": "unit/contract",
-        "test": "python -m pytest test-framework/tests/test_db_explain_capture.py -q"
+        "test": "go test ./..."
       },
       {
         "ac": "AC-3",
@@ -612,7 +639,7 @@
       },
       "AC-2": {
         "sha": "candidate",
-        "evidence": "python -m pytest test-framework/tests/test_db_explain_capture.py -q"
+        "evidence": "go test ./..."
       },
       "AC-3": {
         "sha": "candidate",
@@ -665,7 +692,12 @@
         "test-framework/tests/test_edp_degrade_config.py",
         "config/edp-slo.schema.json",
         "config/edp-degradation.schema.json",
-        "engineering/benchmarks/BI-PF-1314/README.md"
+        "engineering/benchmarks/BI-PF-1314/README.md",
+        "go/edpsvc/internal/limits/quota.go",
+        "scripts/dev/validate_edp_slo.py",
+        "test-framework/tests/test_validate_edp_slo.py",
+        "docs/EDP-22-RUNBOOK.md",
+        "go/edpsvc/internal/bench/baseline.go"
       ],
       "ac_ids": [
         "AC-1",
@@ -678,7 +710,8 @@
         "unrelated stores"
       ],
       "evidence": [
-        "docs/EDP-22-BENCHMARKS-SLOS.md"
+        "docs/EDP-22-BENCHMARKS-SLOS.md",
+        "docs/EDP-22-RUNBOOK.md"
       ],
       "components": [
         "go/edpsvc/internal/bench",
@@ -691,7 +724,8 @@
         "config",
         "docs",
         "go/edpsvc/internal/explain",
-        "scripts/dev/gen_edp_slo.py"
+        "go/edpsvc/cmd/explain",
+        "go/edpsvc/internal/limits"
       ]
     },
     "controls": [
@@ -708,12 +742,12 @@
       {
         "id": "CTL-EXPLAIN-SAMPLING",
         "dimension": "audit",
-        "applies_to": "scripts/dev/db_explain_capture.py",
-        "check": "python -m pytest test-framework/tests/test_db_explain_capture.py -q",
-        "evidence": "docs/EDP-22-BENCHMARKS-SLOS.md",
+        "applies_to": "go/edpsvc/cmd/explain/main.go",
+        "check": "go test ./...",
+        "evidence": "docs/EDP-22-RUNBOOK.md",
         "failure_behavior": "block",
-        "owner": "ops",
-        "cwd": "."
+        "owner": "edpsvc",
+        "cwd": "go/edpsvc"
       },
       {
         "id": "CTL-STORE-METRICS",
@@ -750,6 +784,16 @@
         "dimension": "compatibility",
         "applies_to": "config/edp-slo.schema.json",
         "check": "python -m pytest test-framework/tests/test_edp_slo_config.py -q",
+        "evidence": "docs/EDP-22-BENCHMARKS-SLOS.md",
+        "failure_behavior": "block",
+        "owner": "ops",
+        "cwd": "."
+      },
+      {
+        "id": "CTL-SLO-GEN",
+        "dimension": "compatibility",
+        "applies_to": "scripts/dev/validate_edp_slo.py",
+        "check": "python -m pytest test-framework/tests/test_validate_edp_slo.py -q",
         "evidence": "docs/EDP-22-BENCHMARKS-SLOS.md",
         "failure_behavior": "block",
         "owner": "ops",
@@ -804,18 +848,21 @@
       "Baseline compare is deterministic for a fixed seed; EXPLAIN is read-only."
     ],
     "data_model": [
-      "No new database schema; benchmark artifacts are versioned files/objects; EXPLAIN captures are retained artifacts with access control."
+      "No DB schema change. Baseline artifacts: engineering/benchmarks/BI-PF-1314/<store>/<env>/<git-sha>.json with version, seed, warmup, ops, concurrency, host, duration, variance."
     ],
     "deployment_rollout": [
-      "Benchmark schedule and EXPLAIN sampling default off; operators enable with config and runbook.",
-      "Degradation requires owner, reason, max_duration<=15m, and auto-expiry; alert on start/expiry."
+      "Benchmark scheduling/EXPLAIN sampling default off; enable with config + runbook.",
+      "Degradation is operator-owned, persistent, and auto-expires; SLO generation runs after baseline capture."
     ],
     "failure_taxonomy": [
       "SLO_REGRESSION",
       "BENCH_DSN_MISSING",
+      "BENCH_STORE_SKIPPED",
       "EXPLAIN_SAMPLE_CAP",
+      "EXPLAIN_RATE_CAP",
       "EXPLAIN_NOT_ALLOWED",
       "DEGRADED_EXPIRED",
+      "CONFIG_INVALID",
       "STORE_UNAVAILABLE"
     ],
     "ownership": [
@@ -942,6 +989,47 @@
         ]
       },
       "evidence": "BI-PF-1314-d7b740c5a2cb.json"
+    },
+    {
+      "mode": "design",
+      "candidate_sha": "5bc4c552cfad1273072de5c7c1f3cc2a33a1bcda",
+      "review_sha": "ddf6e36036d0",
+      "model": "deepseek-v4.1-flash",
+      "at": "2026-11-04T14:18:41.851223+00:00",
+      "review_scope": "full_candidate",
+      "base_sha": "",
+      "head_sha": "5bc4c552cfad1273072de5c7c1f3cc2a33a1bcda",
+      "findings": {
+        "BLOCKER": [
+          "AC-4 quota enforcement is not designed: `go/edpsvc/internal/limits/quota.go` is cited as evidence/control target but is absent from affected_files/review_scope, with no quota config, enforcement point, persistence/consistency model, or per-store behavioral test.",
+          "AC-2 control mapping is wrong: runtime entrypoint is Go `cmd/explain`/`explain.Capture`, but CTL-EXPLAIN-SAMPLING and AC-2 evidence/check target `scripts/dev/db_explain_capture.py`; sampling cap, allowlist, rollback, and redaction are not tied to the actual runtime path."
+        ],
+        "MAJOR": [
+          "SLO rules/dashboard are delivered in Slice 1 while measured baselines arrive in Slice 4, contradicting the invariant that thresholds come from measured baselines; no baseline-to-config linkage or validation prevents aspirational SLOs.",
+          "Generated Prometheus rules and Grafana dashboard lack `promtool`/Grafana schema validation and drift checks in the test matrix, so the single-source config invariant is not enforced.",
+          "Degradation auto-expiry persistence and renewal limits are undefined; file-based config may not expire without reload, and repeated renewals can mask failures despite `max_duration<=15m`.",
+          "EXPLAIN sampling is probability-capped only; no global/per-query rate limit or load-shed budget means 0.05 sampling can still overload production at high QPS.",
+          "Benchmark repeatability protocol is underspecified: no warmup, iteration count, outlier policy, or deterministic dataset provisioning; “six store groups” is also not mapped to the AC’s DB/object/cache/queue stores.",
+          "AC-1 recorded baselines have no defined artifact schema/path per store; only `engineering/benchmarks/BI-PF-1314/README.md` is listed, so baseline evidence cannot be reviewed."
+        ],
+        "MINOR": [
+          "`run_timestamp` is listed among benchmark metrics; if emitted as a label it violates the bounded-cardinality/no-high-cardinality-label invariant.",
+          "`failure_taxonomy` omits `BENCH_STORE_SKIPPED` and `CONFIG_INVALID`, which appear in the failure matrix.",
+          "Scope/component lists omit `go/edpsvc/internal/explain` and `cmd/explain` despite being declared files and AC-2 entrypoints.",
+          "EXPLAIN artifact retention, access-control, and redaction details are asserted but not concretely specified or tested.",
+          "Synthetic `t-bench` tenant provisioning/cleanup is not defined, so RLS-scoped non-empty-read assertions may be non-deterministic."
+        ],
+        "NIT": [
+          "Only `docs/EDP-22-BENCHMARKS-SLOS.md` is listed as evidence; no operator runbook link for enabling sampling/degradation is declared.",
+          "`runtime_capability: false` on AC-2/AC-3/AC-4 coverage is unexplained and conflicts with “tooling available/demonstrated” acceptance language."
+        ],
+        "SUMMARY": [
+          "Design direction is sound, but Gate-1 readiness is blocked by quota-enforcement and EXPLAIN control gaps.",
+          "Top risks: SLO thresholds not grounded in measured baselines, generated artifacts not validated, and degradation expiry/renewal semantics undefined.",
+          "Baseline artifact definition and per-store behavioral evidence need to be explicit before approval."
+        ]
+      },
+      "evidence": "BI-PF-1314-ddf6e36036d0.json"
     }
   ],
   "review_dispositions": {
@@ -1137,6 +1225,96 @@
         "severity": "NIT",
         "origin_class": "DESIGN_GAP",
         "note": "Design updated; evidence: engineering/design/BI-PF-1314.md, docs/EDP-22-BENCHMARKS-SLOS.md."
+      },
+      "sig:7faab0ceccb31ad4": {
+        "status": "ACTIONED",
+        "severity": "BLOCKER",
+        "origin_class": "DESIGN_GAP",
+        "note": "Design updated with explicit scope, controls, retention, rate caps, baseline schema, and validation; evidence: engineering/design/BI-PF-1314.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:afe9f1f68a8e46f7": {
+        "status": "ACTIONED",
+        "severity": "BLOCKER",
+        "origin_class": "DESIGN_GAP",
+        "note": "Design updated with explicit scope, controls, retention, rate caps, baseline schema, and validation; evidence: engineering/design/BI-PF-1314.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:8b815879558d0ebd": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Design updated with explicit scope, controls, retention, rate caps, baseline schema, and validation; evidence: engineering/design/BI-PF-1314.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:3add633a662f5e29": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Design updated with explicit scope, controls, retention, rate caps, baseline schema, and validation; evidence: engineering/design/BI-PF-1314.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:ff824e60d06858ee": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Design updated with explicit scope, controls, retention, rate caps, baseline schema, and validation; evidence: engineering/design/BI-PF-1314.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:52ded2f44678aef3": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Design updated with explicit scope, controls, retention, rate caps, baseline schema, and validation; evidence: engineering/design/BI-PF-1314.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:21c080b0fe612772": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Design updated with explicit scope, controls, retention, rate caps, baseline schema, and validation; evidence: engineering/design/BI-PF-1314.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:9d4789e5cfdb1b44": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Design updated with explicit scope, controls, retention, rate caps, baseline schema, and validation; evidence: engineering/design/BI-PF-1314.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:d53488b07209a09a": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Design updated with explicit scope, controls, retention, rate caps, baseline schema, and validation; evidence: engineering/design/BI-PF-1314.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:1a694935c72aa896": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Design updated with explicit scope, controls, retention, rate caps, baseline schema, and validation; evidence: engineering/design/BI-PF-1314.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:969e30f72448cb3e": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Design updated with explicit scope, controls, retention, rate caps, baseline schema, and validation; evidence: engineering/design/BI-PF-1314.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:969e8f58fd593a11": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Design updated with explicit scope, controls, retention, rate caps, baseline schema, and validation; evidence: engineering/design/BI-PF-1314.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:18dca7f5d9b17fa6": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Design updated with explicit scope, controls, retention, rate caps, baseline schema, and validation; evidence: engineering/design/BI-PF-1314.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:59f3530b70fa0970": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "origin_class": "DESIGN_GAP",
+        "note": "Design updated with explicit scope, controls, retention, rate caps, baseline schema, and validation; evidence: engineering/design/BI-PF-1314.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:f6262f8fd7dd17a7": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "origin_class": "DESIGN_GAP",
+        "note": "Design updated with explicit scope, controls, retention, rate caps, baseline schema, and validation; evidence: engineering/design/BI-PF-1314.md, docs/EDP-22-RUNBOOK.md."
       }
     }
   }

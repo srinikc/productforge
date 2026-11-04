@@ -1,0 +1,43 @@
+{
+  "item": "BI-PF-1314",
+  "sha": "ddf6e36036d0",
+  "model": "deepseek-v4.1-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-04T14:18:41.851223+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "5bc4c552cfad1273072de5c7c1f3cc2a33a1bcda",
+  "findings": {
+    "BLOCKER": [
+      "AC-4 quota enforcement is not designed: `go/edpsvc/internal/limits/quota.go` is cited as evidence/control target but is absent from affected_files/review_scope, with no quota config, enforcement point, persistence/consistency model, or per-store behavioral test.",
+      "AC-2 control mapping is wrong: runtime entrypoint is Go `cmd/explain`/`explain.Capture`, but CTL-EXPLAIN-SAMPLING and AC-2 evidence/check target `scripts/dev/db_explain_capture.py`; sampling cap, allowlist, rollback, and redaction are not tied to the actual runtime path."
+    ],
+    "MAJOR": [
+      "SLO rules/dashboard are delivered in Slice 1 while measured baselines arrive in Slice 4, contradicting the invariant that thresholds come from measured baselines; no baseline-to-config linkage or validation prevents aspirational SLOs.",
+      "Generated Prometheus rules and Grafana dashboard lack `promtool`/Grafana schema validation and drift checks in the test matrix, so the single-source config invariant is not enforced.",
+      "Degradation auto-expiry persistence and renewal limits are undefined; file-based config may not expire without reload, and repeated renewals can mask failures despite `max_duration<=15m`.",
+      "EXPLAIN sampling is probability-capped only; no global/per-query rate limit or load-shed budget means 0.05 sampling can still overload production at high QPS.",
+      "Benchmark repeatability protocol is underspecified: no warmup, iteration count, outlier policy, or deterministic dataset provisioning; \u201csix store groups\u201d is also not mapped to the AC\u2019s DB/object/cache/queue stores.",
+      "AC-1 recorded baselines have no defined artifact schema/path per store; only `engineering/benchmarks/BI-PF-1314/README.md` is listed, so baseline evidence cannot be reviewed."
+    ],
+    "MINOR": [
+      "`run_timestamp` is listed among benchmark metrics; if emitted as a label it violates the bounded-cardinality/no-high-cardinality-label invariant.",
+      "`failure_taxonomy` omits `BENCH_STORE_SKIPPED` and `CONFIG_INVALID`, which appear in the failure matrix.",
+      "Scope/component lists omit `go/edpsvc/internal/explain` and `cmd/explain` despite being declared files and AC-2 entrypoints.",
+      "EXPLAIN artifact retention, access-control, and redaction details are asserted but not concretely specified or tested.",
+      "Synthetic `t-bench` tenant provisioning/cleanup is not defined, so RLS-scoped non-empty-read assertions may be non-deterministic."
+    ],
+    "NIT": [
+      "Only `docs/EDP-22-BENCHMARKS-SLOS.md` is listed as evidence; no operator runbook link for enabling sampling/degradation is declared.",
+      "`runtime_capability: false` on AC-2/AC-3/AC-4 coverage is unexplained and conflicts with \u201ctooling available/demonstrated\u201d acceptance language."
+    ],
+    "SUMMARY": [
+      "Design direction is sound, but Gate-1 readiness is blocked by quota-enforcement and EXPLAIN control gaps.",
+      "Top risks: SLO thresholds not grounded in measured baselines, generated artifacts not validated, and degradation expiry/renewal semantics undefined.",
+      "Baseline artifact definition and per-store behavioral evidence need to be explicit before approval."
+    ]
+  },
+  "rereview_reason": "HIL approved third design review to verify fixes for 15 findings",
+  "rereview_reason_sha256": "f1a7065bcdc36493a51d3a61c04188b8b44a61db1e657e142f516fd270a2cb80"
+}
