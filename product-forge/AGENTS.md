@@ -31,6 +31,7 @@ These are the single sources of truth. If an agent prompt or a generated/legacy 
 the canonical document wins and the prompt/document is corrected.
 
 - **Gate process:** `docs/REVIEW-GATES-LIFECYCLE.md` (Gate 0, Gate 1.5, Gate 2.5, Gate 1/2).
+- **Design delta review:** scoped to changed design fields only; full design is context, not re-review target. See `docs/REVIEW-GATES-LIFECYCLE.md#design-delta-reviews-fix-verification-only`.
 - **Agent role contracts:** `docs/AGENT-ROLE-CONTRACTS.md`.
 - **End-to-end workflow:** `docs/E2E-WORKFLOW.md` (Product Forge self-build vs generated products).
 - **Runtime adapters:** `docs/AGENT-RUNTIME-ADAPTERS.md` (OpenCode/Codex/Antigravity are optional adapters).

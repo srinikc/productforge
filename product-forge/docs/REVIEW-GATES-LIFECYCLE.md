@@ -57,6 +57,32 @@ delivery approval)**. HIL always sees the reviewer's findings + recommendation a
    by a stable `sig:<digest>` (preferred — survives re-review reordering) or by ordinal (legacy). **No code
    before approval.**
 
+### Design delta reviews (fix verification only)
+
+A design delta review is the **only** re-review allowed for fixes to an already reviewed design. It is not a
+full design review with a different base.
+
+- **Scope is binding.** Review only the changed design fields: requirements/AC, `design_pack` sections
+  (`scope`, `contracts`, `coverage`, `test_matrix`, `runtime_contract`, `proof_plan`, controls), `affected_files`,
+  `affected_components`, `review_scope`, risks, and reconciliation/impact rows.
+- **Full design is context only.** The reviewer may read the full design to understand the change, but must not
+  re-review unchanged sections or open new findings outside the delta.
+- **Prior findings first.** Verify each prior disposition. Do not reopen a finding without new evidence.
+- **Cross-cutting regressions are in scope** only if the delta breaks an existing AC, security/RLS, data,
+  performance, observability, rollout, or rollback contract.
+- **No scope drift.** Unrelated or pre-existing issues must be tagged `[OUT_OF_SCOPE]` and cannot be blockers.
+- **Traceability.** Any AC/contract/test/control change must update the matching coverage row, test matrix,
+  proof plan, and evidence in the same delta.
+- **Deterministic diff.** Compare normalized design fields (`design_sha`/JSON), not Markdown formatting,
+  timestamps, or generated evidence.
+- **Evidence.** Record `base_sha`, `head_sha`, `design_sha`, changed design fields, prior findings checked,
+  and `review_scope: delta` in the review JSON.
+- **No-op skip.** If no design-relevant field changed, skip and reuse the prior review evidence.
+- **Budget.** Design deltas do not consume the one-full-design-review budget.
+- **Stop rule.** After the agreed delta pass, HIL decides. Do not start another full review automatically.
+- **Tooling requirement.** The delta prompt must include only the changed design fields plus prior unresolved
+  findings; it must not silently send the full design as the review target.
+
 3. **Implement on a feature branch** (never `develop`). Backlog writes are **API-only**; integrity gates apply
    at write time: **AC required** at create (`POST /items` → 400), **api_impact** (`api-first`),
    **context/brief** (`backlog-context`), **epic** (`backlog-epic`), **ids / monotonic / reconcile / write-guard**.
@@ -194,7 +220,8 @@ Reviews are a learning input, not a one-off artifact:
 - **One full 1.5 design review + one full 2.5 diff review per item/mode.** `config/review-budget.json` sets
   `max_full_reviews_per_mode: 1`.
 - **Delta reviews are not full reviews.** `--rereview --since <prior-reviewed-head>` is used only for fix
-  verification and is excluded from the full-review budget.
+  verification and is excluded from the full-review budget. Design deltas use the changed-design-field scope
+  above; diff deltas use the changed-hunk scope.
 - **No silent extra full review.** A second full review requires a HIL `MATERIAL_CHANGE` decision.
 - **Chain validation.** A delta review must have a `base_sha` equal to a previously reviewed head and a
   `head_sha` that covers the current candidate. The review ledger stores `review_scope`, `base_sha`, and

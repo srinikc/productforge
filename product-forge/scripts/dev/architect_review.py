@@ -987,7 +987,7 @@ def main(argv: list[str]) -> int:
         except Exception:
             print(f"review: invalid --since/base {base!r}")
             return 1
-        if not valid_since(base, _merge_base(), _reviewed_heads(a.item, "diff")):
+        if not valid_since(base, _merge_base(), _reviewed_heads(a.item, a.mode)):
             print(f"review: base {base!r} is not merge-base or a previously reviewed HEAD")
             return 1
         if not _is_ancestor(base, _git_text(["rev-parse", "HEAD"]).strip()):

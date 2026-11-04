@@ -83,3 +83,12 @@
 
 ## 17. Stop conditions
 {{STOP_CONDITIONS}}
+
+## 18. Design delta review contract
+
+- Delta reviews assess **only changed design fields**; the full design is context.
+- Prior findings are verified first and not reopened without new evidence.
+- New findings outside the delta must be tagged `[OUT_OF_SCOPE]`.
+- Any AC/contract/test/control change must update the matching design rows and evidence in the same delta.
+- Evidence records `base_sha`, `head_sha`, `design_sha`, changed fields, and `review_scope: delta`.
+- Design deltas do not consume the full-review budget; HIL decides after the agreed delta pass.

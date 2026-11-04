@@ -1,0 +1,45 @@
+{
+  "item": "BI-PF-1314",
+  "sha": "345e8af02559",
+  "model": "deepseek-v4.1-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-04T14:24:13.426350+00:00",
+  "review_scope": "delta",
+  "base_sha": "5bc4c552cfad1273072de5c7c1f3cc2a33a1bcda",
+  "head_sha": "e110da26862dcbe60c9dc3dfef9072033c5f85b7",
+  "findings": {
+    "BLOCKER": [
+      "AC-2/AC-3/AC-4 coverage declares `runtime_capability: False` and only unit/config tests; no runtime evidence for sampling-only prod EXPLAIN, live SLO dashboards/alerts, or per-store quota/degradation.",
+      "Per-store enforcement is not wired in declared scope: no DB/object/cache/queue adapter files or concrete call sites are listed, so metrics/quota/degradation cannot be demonstrated at store boundaries.",
+      "AC-4 has no per-store quota config/schema or quota integration test; `limits/quota.go` and degrade config alone cannot satisfy \"quota enforcement ... per store.\""
+    ],
+    "MAJOR": [
+      "`edp_bench_last_run_unixtime` is unlabeled, so stale/failed benchmark runs cannot be alerted per store/scenario; add bounded freshness metric and dead-man alert.",
+      "AC-1 lacks quantitative repeatability/regression criteria (variance/tolerance, confidence, host drift); \"repeatable\" is not objectively testable.",
+      "The design claims promtool/Grafana schema validation, but test/control matrix only runs pytest `validate_edp_slo.py`; add promtool and dashboard schema checks in CI.",
+      "Two EXPLAIN capture paths are declared (Go `explain.Capture` and Python `scripts/dev/db_explain_capture.py`) with no ownership boundary; a prod-usable Python path bypasses Go sampling/redaction/audit.",
+      "Static allowlisted EXPLAIN SQL with no tenant parameters may not exercise RLS/tenant-specific plan shapes; tuning baselines are unrepresentative for tenant-scoped stores.",
+      "SLO/dashboard generation only after measured baselines leaves no bootstrap/dead-man alert while baselines or generator are missing/failing.",
+      "Operator-only SLO/degradation/quota config changes lack versioning/audit/approval; only runtime degradation events are audited."
+    ],
+    "MINOR": [
+      "Baseline artifacts need checksum/provenance and immutability policy; path keyed by ticket ID and git SHA is mutable/audit-weak.",
+      "`edp_quota_denials_total{scope,store}` leaves `scope` unbounded/undefined; define a bounded label set.",
+      "Alert rules/dashboard lack declared severity, routing/ownership, and runbook URLs for operator response.",
+      "`--allow-skip` is correctly non-success, but CI/release evidence must forbid it explicitly or skipped stores can leak into AC-1 proof.",
+      "EXPLAIN audit/retention/access-control settings are described but no schema/test validates them."
+    ],
+    "NIT": [
+      "Baseline path `engineering/benchmarks/BI-PF-1314/...` couples artifacts to one work item; use stable benchmark/version keys.",
+      "`edp_bench_last_run_unixtime` singular naming conflicts with per-store benchmark reality.",
+      "`scripts/dev/architect_review.py` appears in affected_files but not review scope; mark tooling-only or remove from item scope."
+    ],
+    "SUMMARY": [
+      "Design is strong on read-only EXPLAIN, bounded sampling, rollback, and fail-closed degradation, but not Gate-1 ready.",
+      "Top blockers are missing runtime acceptance evidence, absent per-store adapter wiring, and no per-store quota configuration/test.",
+      "Observability freshness and generated-rule validation need correction before quotas/degradation can be trusted in production.",
+      "Resolve BLOCKER/MAJOR items and attach dispositions under CL-006 before approval."
+    ]
+  }
+}
