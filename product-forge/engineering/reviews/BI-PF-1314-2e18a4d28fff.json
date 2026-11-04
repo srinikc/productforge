@@ -1,0 +1,43 @@
+{
+  "item": "BI-PF-1314",
+  "sha": "2e18a4d28fff",
+  "model": "deepseek-v4.1-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-04T14:02:02.026724+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "77a41ec87e474a46ab47040d91f74fca33312cc8",
+  "findings": {
+    "BLOCKER": [
+      "AC-3 is not designed: open question on whether object/cache/queue expose counters means per-store SLO dashboards/alerts cannot be shown to exist; no adapter instrumentation files are in scope.",
+      "AC-4 is not designed: quota enforcement and per-store degradation switches reference `go/edpsvc/internal/limits` but no affected file, config schema, or test defines quotas/switch behavior per store.",
+      "DB access for benchmark and EXPLAIN capture has no least-privilege/read-only role or RLS enforcement; \u201ctenant-safe\u201d invariant lacks a boundary control and risks admin/RLS-bypass DSNs."
+    ],
+    "MAJOR": [
+      "AC-1 lacks baseline artifact definition: no storage location, versioning, environment fingerprint, variance tolerance, or retention for recorded baselines, so repeatability is not verifiable.",
+      "AC-1 failure case \u201cmissing DSN -> skipped scenarios\u201d can produce a green run without per-store coverage; it should fail closed or record explicit skipped-store evidence.",
+      "AC-2 prod enforcement is underspecified: no environment detection and no hard production cap preventing `sample_rate=1.0`; sampling-only policy can be bypassed by config.",
+      "AC-2 `EXPLAIN ANALYZE` executes statements; no read-only transaction, statement allowlist, statement timeout, or rollback guard is defined.",
+      "AC-2 redaction of parameters/tenant data is declared but has no mechanism or test evidence; captured plans can leak literals/tenant data.",
+      "AC-3 validation is weak: Python config tests do not prove Prometheus rule semantics, alert lead time, or Grafana dashboard/schema validity; scrape/eval intervals remain open.",
+      "AC-4 \u201cbounded\u201d degradation is not quantified: no max duration, auto-expiry, quota-denied metric, or alert-routing handoff is defined.",
+      "SLO thresholds are not tied to measured baselines; open deployment overrides and aspirational values risk alert noise or missed regressions."
+    ],
+    "MINOR": [
+      "Benchmark reconstruction metadata is incomplete: concurrency, dataset seed/size, host class, and run duration should be recorded with baselines.",
+      "Mixing SLO policy and runtime quota/degradation policy in `config/edp-slo.json` blurs ownership and rollback boundaries.",
+      "Captured EXPLAIN artifacts need explicit retention and access-control policy beyond \u201credacted\u201d.",
+      "Quota enforcement observability lacks clear denied/allowed counters and bounded store labels."
+    ],
+    "NIT": [
+      "`scripts/dev/db_explain_capture.py` is acceptable as tooling, but its prod guardrails should be documented alongside ops runbooks.",
+      "Single evidence doc `docs/EDP-22-BENCHMARKS-SLOS.md` should index baseline artifacts, rule files, dashboards, and per-store proof."
+    ],
+    "SUMMARY": [
+      "Design is directionally sound on bounded labels, fail-closed regression, and default-off rollout, but AC-3 and AC-4 are not yet demonstrable.",
+      "Top risks: missing per-store SLO/counter coverage, undefined quota/degradation implementation evidence, and insufficient DB privilege/RLS and EXPLAIN redaction controls.",
+      "AC-1/AC-2 need stronger repeatability, environment, sampling, and read-only execution contracts before Gate 1.5."
+    ]
+  }
+}
