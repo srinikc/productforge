@@ -150,7 +150,7 @@
   },
   "blocked_by": [],
   "created_at": "2026-10-28T13:50:57.492888",
-  "updated_at": "2026-11-04T13:30:48.073739",
+  "updated_at": "2026-11-04T13:42:08.869157",
   "design_pack": {
     "scope": [
       "Work required for: Backlog authority follow-up: runtime diagnostics and quotas"
@@ -758,6 +758,59 @@
         ]
       },
       "evidence": "BI-PF-1511-e67bf9a84642.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "d31d66e23bbb12c8cbd9efd7a68eb3e95cdec934",
+      "review_sha": "c0e74547e190",
+      "model": "deepseek-v4.1-flash",
+      "at": "2026-11-04T08:11:37.638429+00:00",
+      "review_scope": "delta",
+      "base_sha": "ec59f9941c9cda9eb106f7747da7d7c91e6cc04c",
+      "head_sha": "d31d66e23bbb12c8cbd9efd7a68eb3e95cdec934",
+      "findings": {
+        "BLOCKER": [
+          "The delta adds `{fmt.Errorf(\"X509: uppercase\"), \"db_unavailable\"}` with no production change in this delta to make the reason classifier case-insensitive; prior review recorded uppercase `X509:` still mapped to `internal_error`, so this is a failing/contradictory regression test."
+        ],
+        "MAJOR": [],
+        "MINOR": [],
+        "NIT": [],
+        "SUMMARY": [
+          "Delta is test-only and adds separator/uppercase coverage.",
+          "Separator cases are consistent with the widened boundary class, but the uppercase expectation is unsupported by the diff.",
+          "Resolve the uppercase test/implementation mismatch before merge; no other new delta findings."
+        ]
+      },
+      "evidence": "BI-PF-1511-c0e74547e190.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "3ae2e92569a56f3d6ef13709a9d0b2cbf1d6b81e",
+      "review_sha": "92983276b6aa",
+      "model": "deepseek-v4.1-flash",
+      "at": "2026-11-04T08:12:08.597964+00:00",
+      "review_scope": "delta",
+      "base_sha": "ec59f9941c9cda9eb106f7747da7d7c91e6cc04c",
+      "head_sha": "3ae2e92569a56f3d6ef13709a9d0b2cbf1d6b81e",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [
+          "`authorityReasonCode` now relies on string-marker matching alone to distinguish exhaustion/timeout/schema failure; the delta hardens matching for `x509:` but adds no structured `errors.As`/SQLSTATE-based classification, so reason codes remain sensitive to driver message wording changes (AC-1 bounded-reason integrity at risk over time)."
+        ],
+        "MINOR": [
+          "The new test cases (`result/x509:`, `result=x509:`, `X509: uppercase`) assert classification only via the bounded-reason helper; no test asserts the resulting gauge label set stays bounded/low-cardinality, leaving the AC-1 cardinality guarantee unpinned by the delta.",
+          "Adding broader `x509` substring matching risks classifying unrelated errors containing that token as `db_unavailable`, masking genuine `internal_error` conditions and weakening failure diagnosis."
+        ],
+        "NIT": [
+          "Consider naming the marker table/constant so future marker additions are reviewed in one place rather than inline regex/substring checks."
+        ],
+        "SUMMARY": [
+          "Delta is a small, safe hardening of reason-code normalization; prior uppercase-`X509` blocker appears resolved via explicit lowercasing.",
+          "Residual risk: classification remains message-string dependent (brittle across driver/version changes) and the low-cardinality gauge guarantee is not directly asserted.",
+          "No new data-loss, security, or tenant-isolation defects introduced in this delta."
+        ]
+      },
+      "evidence": "BI-PF-1511-92983276b6aa.json"
     }
   ],
   "review_dispositions": {
@@ -1266,6 +1319,11 @@
         "status": "ACTIONED",
         "severity": "NIT",
         "note": "Fixed in current HEAD; separator and uppercase cases pinned."
+      },
+      "sig:a21e65d8168236a9": {
+        "status": "ACTIONED",
+        "severity": "BLOCKER",
+        "note": "Fixed in current HEAD; lowercase normalization is now explicit in the diff."
       }
     }
   }

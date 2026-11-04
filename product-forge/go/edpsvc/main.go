@@ -34,6 +34,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgconn"
+
 	"productforge/artifacts"
 	"productforge/datastore"
 	"productforge/edpdata"
@@ -376,8 +378,15 @@ func authorityReasonCode(err error) string {
 		if errors.As(err, &unknownCA) || errors.As(err, &hostnameErr) || errors.As(err, &certInvalid) {
 			return "db_unavailable"
 		}
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+			if pgErr.Code == "57014" {
+				return "timeout"
+			}
+			return "db_unavailable"
+		}
 		message := strings.ToLower(err.Error())
-		if strings.Contains(err.Error(), "57014") || strings.Contains(message, "statement timeout") {
+		if strings.Contains(message, "statement timeout") {
 			return "timeout"
 		}
 		if x509StringMarker.MatchString(message) {
