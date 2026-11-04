@@ -177,6 +177,8 @@ func TestAuthorityReasonCodesAreBounded(t *testing.T) {
 		{fmt.Errorf("wrapped: %w", x509.UnknownAuthorityError{}), "db_unavailable"},
 		{x509.CertificateInvalidError{Cert: &x509.Certificate{}}, "db_unavailable"},
 		{fmt.Errorf("prefix x509: legacy string"), "db_unavailable"},
+		{fmt.Errorf("x509: leading string"), "db_unavailable"},
+		{fmt.Errorf("not_x509: marker"), "internal_error"},
 		{fmt.Errorf("notx509: marker"), "internal_error"},
 		{fmt.Errorf("x509: statement timeout 57014"), "timeout"},
 		{fmt.Errorf("certificate rotation pending"), "internal_error"},
@@ -220,13 +222,6 @@ func TestAuthorityFailureMetricUsesBoundedReasons(t *testing.T) {
 	s.metrics.Write(&metrics)
 	if !strings.Contains(metrics.String(), "edp_backlog_authority_last_request_ok 1") {
 		t.Fatalf("authority gauge did not recover: %s", metrics.String())
-	}
-	src, err := os.ReadFile("main.go")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if strings.Contains(string(src), `"tls_error"`) {
-		t.Fatal("retired tls_error reason is still emitted")
 	}
 }
 

@@ -23,7 +23,7 @@ probe loop during a DB outage.
 
 ## Triage
 
-TLS/certificate failures are reported as `db_unavailable`; use the error log to distinguish identity/CA issues from endpoint outages.
+TLS/certificate failures are reported as `db_unavailable`; use the error log to distinguish identity/CA issues from endpoint outages: search `backlog authority` lines for `x509`, `certificate`, `tls handshake`, or `pg_hba`.
 
 1. Call the endpoint with the EDP admin token and a known tenant.
 2. If 503, check the edpsvc log for `principal=`, `source=`, request correlation id, and `reason_code=`. It is one of:

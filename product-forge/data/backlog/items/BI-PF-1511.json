@@ -150,7 +150,7 @@
   },
   "blocked_by": [],
   "created_at": "2026-10-28T13:50:57.492888",
-  "updated_at": "2026-11-04T13:26:38.594521",
+  "updated_at": "2026-11-04T13:29:03.619652",
   "design_pack": {
     "scope": [
       "Work required for: Backlog authority follow-up: runtime diagnostics and quotas"
@@ -660,6 +660,34 @@
         ]
       },
       "evidence": "BI-PF-1511-279f01b30225.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "39a8612753902d2a0c799aa3168ae61cf330d272",
+      "review_sha": "b27d8838253f",
+      "model": "deepseek-v4.1-flash",
+      "at": "2026-11-04T07:59:03.346323+00:00",
+      "review_scope": "delta",
+      "base_sha": "590716acda26325d4bb178f5339103c4d651ee62",
+      "head_sha": "39a8612753902d2a0c799aa3168ae61cf330d272",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [],
+        "MINOR": [
+          "Test coverage gap: the delta replaces the only bare `\"x509: ...\"` case with `\"prefix x509: ...\"`, so the `^` branch of `x509StringMarker` is no longer exercised; dropping `^` would silently misclassify leading x509 errors.",
+          "The new `tls_error` check in `TestAuthorityFailureMetricUsesBoundedReasons` is a source grep of `main.go`, not a runtime assertion; it can miss constructed or other-file emitters and can false-fail on unrelated comments."
+        ],
+        "NIT": [
+          "The regex boundary `[^a-z0-9]` also treats `_`, `-`, and `.` as separators, so `not_x509:`/`not.x509:` still map to `db_unavailable`; the anchor only fixes alphanumeric prefixes.",
+          "The runbook note states cert failures collapse to `db_unavailable` but gives no concrete log field/query to separate identity/CA from endpoint outages, leaving manual triage underspecified."
+        ],
+        "SUMMARY": [
+          "Delta is small and addresses the prior x509 anchoring and retired `tls_error` literal concerns; no blockers or majors found.",
+          "Main residual risk is test evidence quality: leading `x509:` classification and runtime absence of `tls_error` are not actually pinned.",
+          "Minor regex-boundary and runbook specificity issues remain; AC-2/3/4 are untouched by this delta."
+        ]
+      },
+      "evidence": "BI-PF-1511-b27d8838253f.json"
     }
   ],
   "review_dispositions": {
@@ -1053,6 +1081,31 @@
         "status": "ACTIONED",
         "severity": "NIT",
         "note": "Fixed in current HEAD; TLS errors unify to db_unavailable; wrapped/precedence cases pinned."
+      },
+      "sig:91a838a2322ddc9b": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "note": "Fixed in current HEAD; anchored x509, retired tls_error assertion, runbook note."
+      },
+      "sig:747c07be4f3cf380": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "note": "Fixed in current HEAD; anchored x509, retired tls_error assertion, runbook note."
+      },
+      "sig:8369d56a020d8e1c": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "note": "Fixed in current HEAD; anchored x509, retired tls_error assertion, runbook note."
+      },
+      "sig:6cda62061ba953cf": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "note": "Fixed in current HEAD; anchored x509, retired tls_error assertion, runbook note."
+      },
+      "sig:600a0e9b1687f5d1": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "note": "Fixed in current HEAD; anchored x509, retired tls_error assertion, runbook note."
       }
     }
   }
