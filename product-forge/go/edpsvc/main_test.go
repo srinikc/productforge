@@ -169,6 +169,7 @@ func TestAuthorityReasonCodesAreBounded(t *testing.T) {
 		{edpdata.ErrAuthoritySchema, "migration_missing"},
 		{edpdata.ErrAuthorityRow, "row_missing"},
 		{&net.OpError{Op: "dial", Net: "tcp", Err: errors.New("refused")}, "db_unavailable"},
+		{fmt.Errorf("SQLSTATE 57014"), "timeout"},
 		{fmt.Errorf("unexpected failure"), "internal_error"},
 	} {
 		got := authorityReasonCode(tc.err)
@@ -190,9 +191,22 @@ func TestAuthorityFailureMetricUsesBoundedReasons(t *testing.T) {
 	}
 	var metrics strings.Builder
 	s.metrics.Write(&metrics)
-	if !strings.Contains(metrics.String(), `edp_backlog_authority_errors_total{reason="internal_error"} 1`) ||
+	if !strings.Contains(metrics.String(), `edp_backlog_authority_errors_total{reason="internal_error"}`) ||
 		!strings.Contains(metrics.String(), "edp_backlog_authority_last_request_ok 0") {
 		t.Fatalf("authority failure metrics missing: %s", metrics.String())
+	}
+	s.backlogFactory = func(string, bool) backlogStore { return fakeBacklog{} }
+	rr = httptest.NewRecorder()
+	req = httptest.NewRequest(http.MethodGet, "/admin/backlog/authority?tenant=x", nil)
+	req.Header.Set("Authorization", "Bearer test-token")
+	s.buildMux().ServeHTTP(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("want recovery 200, got %d %q", rr.Code, rr.Body.String())
+	}
+	metrics.Reset()
+	s.metrics.Write(&metrics)
+	if !strings.Contains(metrics.String(), "edp_backlog_authority_last_request_ok 1") {
+		t.Fatalf("authority gauge did not recover: %s", metrics.String())
 	}
 }
 
@@ -208,7 +222,7 @@ func TestAuthorityTimeoutComesFromConfig(t *testing.T) {
 	}
 	s := testServer(t)
 	s.cfg.DBTimeout = cfg.DBTimeout
-	b := s.backlogFor("config-test", false)
+	b := s.authorityBacklog("config-test")
 	if cfg.DBTimeout != 2345*time.Millisecond || b.StatementTimeout() != cfg.DBTimeout {
 		t.Fatalf("cfg.DBTimeout=%s store.timeout=%s", cfg.DBTimeout, b.StatementTimeout())
 	}
@@ -403,8 +417,9 @@ func TestReservationExhaustedFailsClosedWithAlarm(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(rules), "edp_backlog_reservation_exhausted_total") {
-		t.Fatal("exhaustion metric is not wired to an alert rule")
+	if !strings.Contains(string(rules), "alert: ProductForgeBacklogIDSpaceExhausted") ||
+		!strings.Contains(string(rules), "expr: increase(edp_backlog_reservation_exhausted_total[10m]) > 0") {
+		t.Fatal("exhaustion metric is not wired to the expected alert rule")
 	}
 }
 
