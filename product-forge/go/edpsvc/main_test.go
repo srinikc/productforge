@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -167,7 +168,7 @@ func TestAuthorityReasonCodesAreBounded(t *testing.T) {
 		{context.Canceled, "canceled"},
 		{edpdata.ErrAuthoritySchema, "migration_missing"},
 		{edpdata.ErrAuthorityRow, "row_missing"},
-		{fmt.Errorf("connection refused"), "db_unavailable"},
+		{&net.OpError{Op: "dial", Net: "tcp", Err: errors.New("refused")}, "db_unavailable"},
 		{fmt.Errorf("unexpected failure"), "internal_error"},
 	} {
 		got := authorityReasonCode(tc.err)
@@ -179,7 +180,7 @@ func TestAuthorityReasonCodesAreBounded(t *testing.T) {
 
 func TestAuthorityFailureMetricUsesBoundedReasons(t *testing.T) {
 	s := testServer(t)
-	s.backlogFactory = func(string) backlogStore { return fakeBacklog{authErr: errors.New("boom")} }
+	s.backlogFactory = func(string, bool) backlogStore { return fakeBacklog{authErr: errors.New("boom")} }
 	rr := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/admin/backlog/authority?tenant=x", nil)
 	req.Header.Set("Authorization", "Bearer test-token")
@@ -190,7 +191,7 @@ func TestAuthorityFailureMetricUsesBoundedReasons(t *testing.T) {
 	var metrics strings.Builder
 	s.metrics.Write(&metrics)
 	if !strings.Contains(metrics.String(), `edp_backlog_authority_errors_total{reason="internal_error"} 1`) ||
-		!strings.Contains(metrics.String(), "edp_backlog_authority_endpoint_ok 0") {
+		!strings.Contains(metrics.String(), "edp_backlog_authority_last_request_ok 0") {
 		t.Fatalf("authority failure metrics missing: %s", metrics.String())
 	}
 }
@@ -207,7 +208,7 @@ func TestAuthorityTimeoutComesFromConfig(t *testing.T) {
 	}
 	s := testServer(t)
 	s.cfg.DBTimeout = cfg.DBTimeout
-	b := s.backlogForTenant("config-test")
+	b := s.backlogFor("config-test", false)
 	if cfg.DBTimeout != 2345*time.Millisecond || b.StatementTimeout() != cfg.DBTimeout {
 		t.Fatalf("cfg.DBTimeout=%s store.timeout=%s", cfg.DBTimeout, b.StatementTimeout())
 	}
@@ -359,16 +360,32 @@ func TestBacklogReserveEchoesIDWithDB(t *testing.T) {
 	if got["reservation_id"] != rid || got["start"] == nil || got["end"] == nil {
 		t.Fatalf("unexpected reservation response: %#v", got)
 	}
-	for k := range got {
-		if strings.Contains(strings.ToLower(k), "tenant") {
-			t.Fatalf("reservation response leaked tenant field %q: %#v", k, got)
+	if hasTenantKey(got) {
+		t.Fatalf("reservation response leaked tenant data: %#v", got)
+	}
+}
+
+func hasTenantKey(v any) bool {
+	switch x := v.(type) {
+	case map[string]any:
+		for k, child := range x {
+			if strings.Contains(strings.ToLower(k), "tenant") || hasTenantKey(child) {
+				return true
+			}
+		}
+	case []any:
+		for _, child := range x {
+			if hasTenantKey(child) {
+				return true
+			}
 		}
 	}
+	return false
 }
 
 func TestReservationExhaustedFailsClosedWithAlarm(t *testing.T) {
 	s := testServer(t)
-	s.backlogFactory = func(string) backlogStore { return fakeBacklog{reserveErr: edpdata.ErrReservationExhausted} }
+	s.backlogFactory = func(string, bool) backlogStore { return fakeBacklog{reserveErr: edpdata.ErrReservationExhausted} }
 	rr := httptest.NewRecorder()
 	body := `{"scope":"product_forge","project":"","reservation_id":"res-x","size":2}`
 	req := httptest.NewRequest(http.MethodPost, "/backlog/ids:reserve", strings.NewReader(body))
@@ -381,6 +398,13 @@ func TestReservationExhaustedFailsClosedWithAlarm(t *testing.T) {
 	s.metrics.Write(&metrics)
 	if !strings.Contains(metrics.String(), "edp_backlog_reservation_exhausted_total 1") {
 		t.Fatalf("exhaustion alarm metric missing: %s", metrics.String())
+	}
+	rules, err := os.ReadFile("../../ops/prometheus/backlog-authority.rules.yml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(rules), "edp_backlog_reservation_exhausted_total") {
+		t.Fatal("exhaustion metric is not wired to an alert rule")
 	}
 }
 

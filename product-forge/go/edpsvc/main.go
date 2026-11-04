@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -64,22 +65,18 @@ type server struct {
 	quota          *limits.Quota
 	metrics        *limits.Metrics
 	role           *limits.RoleGuard
-	backlogFactory func(tenant string) backlogStore
+	backlogFactory func(tenant string, reserve bool) backlogStore
 	authorityMu    sync.Mutex
 }
 
-func (s *server) backlogForTenant(tenant string) backlogStore {
+func (s *server) backlogFor(tenant string, reserve bool) backlogStore {
 	if s.backlogFactory != nil {
-		return s.backlogFactory(tenant)
+		return s.backlogFactory(tenant, reserve)
+	}
+	if reserve {
+		return edpdata.NewBacklog(s.st).WithTimeout(s.cfg.DBTimeout)
 	}
 	return edpdata.NewBacklog(store.BindTenant(s.st, tenant)).WithTimeout(s.cfg.DBTimeout)
-}
-
-func (s *server) reserveBacklog() backlogStore {
-	if s.backlogFactory != nil {
-		return s.backlogFactory("")
-	}
-	return edpdata.NewBacklog(s.st).WithTimeout(s.cfg.DBTimeout)
 }
 
 // buildObjectStore selects the object-store adapter (EDP-13 local / EDP-14 S3) by PF_OBJECT_BACKEND.
@@ -308,6 +305,7 @@ func (s *server) checkBacklogAuthority(parent context.Context) {
 		cancel()
 		if err == nil {
 			s.metrics.Set("edp_backlog_authority_startup_ok", 1)
+			s.metrics.Set("edp_backlog_authority_last_request_ok", 1)
 			s.metrics.Set("edp_backlog_authority_success_timestamp_seconds", int(time.Now().Unix()))
 			return
 		}
@@ -320,6 +318,7 @@ func (s *server) checkBacklogAuthority(parent context.Context) {
 		}
 	}
 	s.metrics.Set("edp_backlog_authority_startup_ok", 0)
+	s.metrics.Set("edp_backlog_authority_last_request_ok", 0)
 	s.metrics.Inc("edp_backlog_authority_errors_total", "reason", authorityReasonCode(err))
 	log.Printf("backlog authority principal=admin source=startup %v (non-fatal, reason_code=%s)",
 		limits.Redact(err.Error()), authorityReasonCode(err))
@@ -349,14 +348,9 @@ func authorityReasonCode(err error) string {
 	case errors.Is(err, context.DeadlineExceeded), errors.Is(err, os.ErrDeadlineExceeded):
 		return "timeout"
 	default:
-		lower := strings.ToLower(err.Error())
-		if strings.Contains(lower, "timeout") || strings.Contains(err.Error(), "57014") {
-			return "timeout"
-		}
-		for _, marker := range []string{"connection", "refused", "closed", "driver"} {
-			if strings.Contains(lower, marker) {
-				return "db_unavailable"
-			}
+		var netErr net.Error
+		if errors.As(err, &netErr) || strings.Contains(strings.ToLower(err.Error()), "closed pool") {
+			return "db_unavailable"
 		}
 		return "internal_error"
 	}
@@ -1020,7 +1014,7 @@ func (s *server) backlogReserve(w http.ResponseWriter, r *http.Request) {
 	}
 	// The allocation/reservation tables are global (no RLS); this admin-only endpoint intentionally
 	// does not bind a tenant.
-	blk, err := s.reserveBacklog().Reserve(ctx, b.Scope, b.Project, b.ReservationID, b.Size)
+	blk, err := s.backlogFor("", true).Reserve(ctx, b.Scope, b.Project, b.ReservationID, b.Size)
 	if errors.Is(err, edpdata.ErrReservationInvalid) {
 		log.Printf("backlog reserve: reason_code=invalid_request")
 		s.bad(w, r, http.StatusBadRequest, "invalid reservation request")
@@ -1084,18 +1078,18 @@ func (s *server) backlogAuthority(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx, cancel := s.dbCtx(r)
 	defer cancel()
-	a, err := s.backlogForTenant(tenant).Authority(ctx)
+	a, err := s.backlogFor(tenant, false).Authority(ctx)
 	if err != nil {
 		s.metrics.Inc("edp_backlog_authority_errors_total", "reason", authorityReasonCode(err))
 		s.metrics.Set("edp_backlog_authority_startup_ok", 0)
-		s.metrics.Set("edp_backlog_authority_endpoint_ok", 0)
+		s.metrics.Set("edp_backlog_authority_last_request_ok", 0)
 		log.Printf("backlog authority principal=admin source=request %s reason_code=%s",
 			limits.Redact(err.Error()), authorityReasonCode(err))
 		w.Header().Set("Retry-After", "30")
 		s.bad(w, r, http.StatusServiceUnavailable, "backlog authority unavailable")
 		return
 	}
-	s.metrics.Set("edp_backlog_authority_endpoint_ok", 1)
+	s.metrics.Set("edp_backlog_authority_last_request_ok", 1)
 	s.metrics.Set("edp_backlog_authority_success_timestamp_seconds", int(time.Now().Unix()))
 	writeJSON(w, http.StatusOK, map[string]any{
 		"authority":         authorityGlobal,
