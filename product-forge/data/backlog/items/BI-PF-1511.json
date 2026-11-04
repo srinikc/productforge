@@ -7,7 +7,7 @@
   "epic": "BI-PF-1243",
   "risk": 2,
   "type": "task",
-  "_note": "readiness computed",
+  "_note": "final report persisted (BI-PF-1484)",
   "brief": {
     "why": "Improves triage and protects ID space.",
     "source": "authored",
@@ -19,7 +19,9 @@
   "links": {},
   "owner": "agent",
   "risks": [
-    "Not specified."
+    "Bounded reason labels can drift if new error classes are added without updating the allowlist.",
+    "ID-space exhaustion must remain fail-closed and observable.",
+    "Reservation responses must never expose tenant data."
   ],
   "scope": "product_forge",
   "score": 0.75,
@@ -32,7 +34,38 @@
   "review": {
     "at": "",
     "reviewed_by": "derived",
-    "impact_review": [],
+    "impact_review": [
+      {
+        "claim": "API CHECK: admin authority and reservation routes unchanged; reservation response is additive.",
+        "verdict": "aligned",
+        "evidence": "go/edpsvc/main.go::backlogAuthority/backlogReserve",
+        "recommendation": "keep admin-only auth"
+      },
+      {
+        "claim": "LANGUAGE CHECK: shipped changes are Go only.",
+        "verdict": "aligned",
+        "evidence": "go/edpsvc and go/edpdata",
+        "recommendation": "no shipped Python"
+      },
+      {
+        "claim": "DATA CHECK: no schema change; existing allocation/reservation tables reused.",
+        "verdict": "aligned",
+        "evidence": "go/edpdata/backlog.go::Reserve/Authority",
+        "recommendation": "no migration"
+      },
+      {
+        "claim": "OBSERVABILITY CHECK: bounded reasons, request gauge, exhaustion alert.",
+        "verdict": "aligned",
+        "evidence": "ops/prometheus/backlog-authority.rules.yml",
+        "recommendation": "alert on exhaustion counter"
+      },
+      {
+        "claim": "TENANT CHECK: authority binds tenant; reservation is admin-only and returns no tenant data.",
+        "verdict": "aligned",
+        "evidence": "go/edpsvc/main_test.go::TestBacklogReserveEchoesIDWithDB",
+        "recommendation": "keep echo limited to reservation_id/start/end"
+      }
+    ],
     "reconciliation": {
       "assumptions": [],
       "divergences": [],
@@ -42,7 +75,7 @@
     }
   },
   "source": "review",
-  "status": "new",
+  "status": "completed",
   "project": "",
   "summary": "Follow-up debt from BI-PF-1509 Gate 2.5.",
   "unlocks": [],
@@ -120,6 +153,28 @@
       "by": "system",
       "note": "auto-approved on add (BI-PF-1282)",
       "decision": "APPROVE"
+    },
+    {
+      "at": "2026-11-04T13:03:20.984515+00:00",
+      "by": "hil:user",
+      "decision": "APPROVE",
+      "gate": 1,
+      "findings_sha": "2826476af7e2",
+      "findings_digest": "95dd5590ebfb",
+      "seq": 2,
+      "note": "HIL approved Gate 1 for 1511 closure after design evidence, RLS proof, and dispositions.",
+      "hil_confirmed": true
+    },
+    {
+      "at": "2026-11-04T13:08:23.975815+00:00",
+      "by": "hil:user",
+      "decision": "APPROVE",
+      "gate": 2,
+      "findings_sha": "e67bf9a84642",
+      "findings_digest": "ca857eed480d",
+      "seq": 3,
+      "note": "HIL approved Gate 2 for 1511 after code merge, CI, AC evidence, and final review.",
+      "hil_confirmed": true
     }
   ],
   "execution": {
@@ -150,7 +205,7 @@
   },
   "blocked_by": [],
   "created_at": "2026-10-28T13:50:57.492888",
-  "updated_at": "2026-11-04T13:45:22.309021",
+  "updated_at": "2026-11-04T18:38:25.023110",
   "design_pack": {
     "scope": [
       "Work required for: Backlog authority follow-up: runtime diagnostics and quotas"
@@ -158,7 +213,7 @@
     "rollout": [
       "Implement behind the existing authority surface; verify before merge"
     ],
-    "version": 1,
+    "version": 2,
     "rollback": [
       "Revert the follow-up change; 1509 behavior remains intact"
     ],
@@ -205,9 +260,9 @@
       "All changes remain idempotent and fail closed on missing schema"
     ],
     "proof_plan": {
-      "failing_test": "go/edpsvc/main_test.go::TestAuthorityFailureMetricUsesBoundedReasons",
-      "red_evidence": "Metric/echo/quotas assertions fail on the candidate before implementation.",
-      "green_evidence": "All four authority follow-up assertions pass on the candidate."
+      "failing_test": "go/edpsvc/main_test.go::TestAuthorityTimeoutComesFromConfig; go/edpsvc/main_test.go::TestReservationExhaustedFailsClosedWithAlarm",
+      "red_evidence": "engineering/evidence/BI-PF-1511/AC2-RED.txt; engineering/evidence/BI-PF-1511/AC4-RED.txt",
+      "green_evidence": "engineering/evidence/BI-PF-1511/CTL-AUTHORITY.txt; engineering/evidence/BI-PF-1511/CTL-RESERVATION-DB.txt"
     },
     "ac_evidence": {
       "AC-1": {
@@ -215,16 +270,18 @@
         "evidence": "go/edpsvc/main_test.go::TestAuthorityFailureMetricUsesBoundedReasons"
       },
       "AC-2": {
-        "sha": "candidate",
-        "evidence": "go/edpsvc/main_test.go::TestAuthorityTimeoutComesFromConfig"
+        "sha": "50214ac706eb7ec789dedf05ebeedc06358b4c64",
+        "evidence": "go/edpsvc/main_test.go::TestAuthorityTimeoutComesFromConfig",
+        "red_evidence": "engineering/evidence/BI-PF-1511/AC2-RED.txt"
       },
       "AC-3": {
         "sha": "candidate",
         "evidence": "go/edpsvc/main_test.go::TestAuthorityResponseEchoesReservationID"
       },
       "AC-4": {
-        "sha": "candidate",
-        "evidence": "go/edpdata/edpdata_test.go::TestAuthorityIDSpaceExhaustionFailsClosed; go/edpsvc/main_test.go::TestReservationExhaustedFailsClosedWithAlarm"
+        "sha": "50214ac706eb7ec789dedf05ebeedc06358b4c64",
+        "evidence": "go/edpdata/edpdata_test.go::TestAuthorityIDSpaceExhaustionFailsClosed; go/edpsvc/main_test.go::TestReservationExhaustedFailsClosedWithAlarm",
+        "red_evidence": "engineering/evidence/BI-PF-1511/AC4-RED.txt"
       }
     },
     "performance": [
@@ -262,7 +319,7 @@
       "ID-space exhaustion raises a quota/alarm signal and returns a fixed safe reason instead of a zeroed success."
     ],
     "observability": [
-      "Low-cardinality result/reason diagnostics; no high-cardinality labels"
+      "Bounded reasons enforced by authorityReasonBounded; request gauge; exhaustion counter and ProductForgeBacklogIDSpaceExhausted alert; rule expression covered by a Go test."
     ],
     "failure_matrix": [
       {
@@ -284,7 +341,248 @@
       "entrypoint": "go/edpsvc/main.go::backlogAuthority",
       "failure_behavior": "fail closed; never return a zeroed success",
       "observable_result": "operators can distinguish exhaustion, timeout, and schema failure"
-    }
+    },
+    "standards": [
+      "AGENTS.md",
+      "docs/ENGINEERING_OPERATING_STANDARD.md",
+      "docs/REVIEW-GATES-LIFECYCLE.md",
+      "docs/DESIGN-QUALITY-RCCA.md",
+      "docs/WORK-EXECUTION-CONTRACT.md"
+    ],
+    "code_guidelines": [
+      "docs/guidelines/coding/go/pf-go.md",
+      "docs/guidelines/coding/go/style-guide.md",
+      "docs/guidelines/testing/standards.md"
+    ],
+    "review_scope": {
+      "files": [
+        "go/edpsvc/main.go",
+        "go/edpsvc/main_test.go",
+        "go/edpsvc/go.mod",
+        "go/edpdata/backlog.go",
+        "go/edpdata/edpdata_test.go",
+        "ops/prometheus/backlog-authority.rules.yml",
+        "docs/BACKLOG-AUTHORITY-RUNBOOK.md"
+      ],
+      "ac_ids": [
+        "AC-1",
+        "AC-2",
+        "AC-3",
+        "AC-4"
+      ],
+      "exclude": [
+        "pre-existing 1509 authority behavior",
+        "unrelated backlog data"
+      ],
+      "evidence": [
+        "engineering/evidence/BI-PF-1511/CTL-AUTHORITY.txt",
+        "engineering/evidence/BI-PF-1511/CTL-DATA.txt",
+        "engineering/evidence/BI-PF-1511/CTL-RESERVATION-DB.txt"
+      ],
+      "components": [
+        "go/edpsvc",
+        "go/edpdata",
+        "ops/prometheus",
+        "docs"
+      ]
+    },
+    "coverage": [
+      {
+        "ac": "AC-1",
+        "tests": [
+          "go/edpsvc/main_test.go::TestAuthorityFailureMetricUsesBoundedReasons"
+        ],
+        "adapter": "edpsvc metrics registry",
+        "contract": "authority failures increment a reason counter using authorityReasonBounded, set last_request_ok=0, and recover to 1 on success; labels are a shared bounded allowlist.",
+        "evidence": [
+          "go/edpsvc/main_test.go",
+          "engineering/evidence/BI-PF-1511/CTL-AUTHORITY.txt"
+        ],
+        "call_sites": [
+          "buildMux -> adminOnly(backlogAuthority) -> metrics"
+        ],
+        "entrypoint": "go/edpsvc/main.go",
+        "failure_cases": [
+          "unexpected error -> internal_error",
+          "timeout -> timeout",
+          "DB unavailable -> db_unavailable"
+        ]
+      },
+      {
+        "ac": "AC-2",
+        "tests": [
+          "go/edpsvc/main_test.go::TestAuthorityTimeoutComesFromConfig",
+          "go/edpdata/edpdata_test.go::TestBacklogTimeoutPropagatesToStatementTimeout"
+        ],
+        "adapter": "limits.Config -> BacklogStore.WithTimeout -> set_config(statement_timeout)",
+        "contract": "PF_EDP_DB_TIMEOUT is positive and <= request timeout; default 5s; startup loads and validates config; transaction-local set_config applies it.",
+        "evidence": [
+          "go/edpsvc/main_test.go",
+          "go/edpdata/edpdata_test.go",
+          "engineering/evidence/BI-PF-1511/CTL-AUTHORITY.txt",
+          "engineering/evidence/BI-PF-1511/AC2-RED.txt"
+        ],
+        "call_sites": [
+          "main -> limits.Load -> server.cfg.DBTimeout -> authorityBacklog/reserveBacklog -> setStatementTimeout"
+        ],
+        "entrypoint": "go/edpsvc/main.go",
+        "failure_cases": [
+          "invalid timeout rejected by config",
+          "timeout returns fixed 503"
+        ]
+      },
+      {
+        "ac": "AC-3",
+        "tests": [
+          "go/edpsvc/main_test.go::TestAuthorityResponseEchoesReservationID",
+          "go/edpsvc/main_test.go::TestBacklogReserveEchoesIDWithDB"
+        ],
+        "adapter": "edpsvc JSON response",
+        "contract": "reservation responses include reservation_id,start,end and no tenant fields",
+        "evidence": [
+          "go/edpsvc/main_test.go",
+          "engineering/evidence/BI-PF-1511/CTL-RESERVATION-DB.txt"
+        ],
+        "call_sites": [
+          "buildMux -> adminOnly(backlogReserve) -> reservationResponse"
+        ],
+        "entrypoint": "go/edpsvc/main.go",
+        "failure_cases": [
+          "invalid request -> 400",
+          "conflict -> 409"
+        ]
+      },
+      {
+        "ac": "AC-4",
+        "tests": [
+          "go/edpdata/edpdata_test.go::TestAuthorityIDSpaceExhaustionFailsClosed",
+          "go/edpsvc/main_test.go::TestReservationExhaustedFailsClosedWithAlarm"
+        ],
+        "adapter": "edpdata.Reserve + edpsvc metrics/alert",
+        "contract": "exhaustion returns 409 with fixed body \"backlog id space exhausted\", increments edp_backlog_reservation_exhausted_total, and the alert rule consumes that counter.",
+        "evidence": [
+          "go/edpdata/edpdata_test.go",
+          "go/edpsvc/main_test.go",
+          "engineering/evidence/BI-PF-1511/CTL-RESERVATION-DB.txt",
+          "engineering/evidence/BI-PF-1511/AC4-RED.txt"
+        ],
+        "call_sites": [
+          "backlogReserve -> Reserve -> ErrReservationExhausted -> reservationExhausted"
+        ],
+        "entrypoint": "go/edpsvc/main.go",
+        "failure_cases": [
+          "next_id overflow -> fixed 409",
+          "no zeroed success"
+        ]
+      }
+    ],
+    "guideline_coverage": [
+      {
+        "guideline": "docs/guidelines/coding/go/pf-go.md",
+        "applies_to": "go/edpsvc/main.go",
+        "evidence": "go/edpsvc/main_test.go",
+        "check": "go test ./..."
+      },
+      {
+        "guideline": "docs/guidelines/coding/go/style-guide.md",
+        "applies_to": "go/edpdata/backlog.go",
+        "evidence": "go/edpdata/edpdata_test.go",
+        "check": "go test ./..."
+      },
+      {
+        "guideline": "docs/guidelines/testing/standards.md",
+        "applies_to": "go/edpsvc/main_test.go",
+        "evidence": "engineering/evidence/BI-PF-1511/CTL-AUTHORITY.txt",
+        "check": "go test ./..."
+      }
+    ],
+    "controls": [
+      {
+        "id": "CTL-AUTHORITY-METRICS",
+        "dimension": "observability",
+        "applies_to": "go/edpsvc/main.go",
+        "check": "go test ./...",
+        "evidence": "engineering/evidence/BI-PF-1511/CTL-AUTHORITY.txt",
+        "failure_behavior": "block",
+        "owner": "edpsvc",
+        "cwd": "go/edpsvc"
+      },
+      {
+        "id": "CTL-DATA-TIMEOUT",
+        "dimension": "performance_capacity",
+        "applies_to": "go/edpdata/backlog.go",
+        "check": "go test ./...",
+        "evidence": "engineering/evidence/BI-PF-1511/CTL-DATA.txt",
+        "failure_behavior": "block",
+        "owner": "edpdata",
+        "cwd": "go/edpdata"
+      },
+      {
+        "id": "CTL-RESERVATION-QUOTA",
+        "dimension": "quotas",
+        "applies_to": "go/edpsvc/main.go",
+        "check": "go test -run TestBacklogReserveEchoesIDWithDB ./...",
+        "evidence": "engineering/evidence/BI-PF-1511/CTL-RESERVATION-DB.txt",
+        "failure_behavior": "block",
+        "owner": "edpsvc",
+        "cwd": "go/edpsvc"
+      },
+      {
+        "id": "CTL-TENANT-ECHO",
+        "dimension": "rls_tenant",
+        "applies_to": "go/edpsvc/main_test.go",
+        "check": "go test -run TestBacklogReserveEchoesIDWithDB ./...",
+        "evidence": "engineering/evidence/BI-PF-1511/CTL-RESERVATION-DB.txt",
+        "failure_behavior": "block",
+        "owner": "edpsvc",
+        "cwd": "go/edpsvc"
+      }
+    ],
+    "api_contract": [
+      "Admin-only GET /admin/backlog/authority and POST /backlog/ids:reserve remain unchanged except additive reservation_id echo."
+    ],
+    "audit": [
+      "No audit schema change; authority errors log redacted text plus fixed reason_code."
+    ],
+    "backup_restore": [
+      "No data-model change; existing PostgreSQL backup/restore covers the reused authority tables."
+    ],
+    "compatibility": [
+      "Reservation response addition is backward compatible; metrics use existing bounded reason labels."
+    ],
+    "concurrency_idempotency": [
+      "Reservation remains idempotent by reservation_id under the allocation-row lock."
+    ],
+    "data_model": [
+      "Reuses backlog_id_allocations and backlog_id_reservations; no migration or schema change."
+    ],
+    "deployment_rollout": [
+      "Startup validates PF_EDP_DB_TIMEOUT and runs the authority preflight; deploy with migrations 0018-0020 already applied."
+    ],
+    "failure_taxonomy": [
+      "timeout, canceled, migration_missing, row_missing, db_unavailable, internal_error; exhaustion returns fixed 409."
+    ],
+    "ownership": [
+      "go/edpsvc owns routes/metrics; go/edpdata owns authority/reservation persistence."
+    ],
+    "performance_capacity": [
+      "statement_timeout comes from PF_EDP_DB_TIMEOUT; no unbounded scans or new tables."
+    ],
+    "prerequisites": [
+      "BI-PF-1509 authority endpoint and migrations 0018-0020 are merged/applied."
+    ],
+    "quotas": [
+      "ID-space exhaustion increments edp_backlog_reservation_exhausted_total and triggers ProductForgeBacklogIDSpaceExhausted."
+    ],
+    "rls_tenant": [
+      "Authority binds tenant before item count; runtime role pf_app is NOSUPERUSER/NOBYPASSRLS; reservation is admin-only global and returns no tenant fields."
+    ],
+    "rollback_recovery": [
+      "Revert code; no schema rollback needed because 1511 adds no migration."
+    ],
+    "security_model": [
+      "Admin bearer required; logs redact errors; reservation responses expose only reservation_id/start/end; runtime pf_app is NOSUPERUSER/NOBYPASSRLS."
+    ]
   },
   "external_id": "pf-sb-followup-authority-runtime",
   "analyze_mode": "on_entry",
@@ -297,7 +595,13 @@
   ],
   "priority_rank": 2,
   "affected_files": [
-    "Not specified."
+    "go/edpsvc/main.go",
+    "go/edpsvc/main_test.go",
+    "go/edpsvc/go.mod",
+    "go/edpdata/backlog.go",
+    "go/edpdata/edpdata_test.go",
+    "ops/prometheus/backlog-authority.rules.yml",
+    "docs/BACKLOG-AUTHORITY-RUNBOOK.md"
   ],
   "priority_class": "P2",
   "target_release": "",
@@ -308,7 +612,10 @@
     "ID-space exhaustion raises a quota/alarm signal and returns a fixed safe reason instead of a zeroed success."
   ],
   "affected_components": [
-    "Not specified."
+    "go/edpsvc",
+    "go/edpdata",
+    "ops/prometheus",
+    "docs"
   ],
   "review_ledger": [
     {
@@ -894,6 +1201,43 @@
         ]
       },
       "evidence": "BI-PF-1511-c79259a41f4a.json"
+    },
+    {
+      "mode": "design",
+      "candidate_sha": "50214ac706eb7ec789dedf05ebeedc06358b4c64",
+      "review_sha": "80a5bc535aaf",
+      "model": "deepseek-v4.1-flash",
+      "at": "2026-11-04T12:52:27.767656+00:00",
+      "review_scope": "full_candidate",
+      "base_sha": "",
+      "head_sha": "50214ac706eb7ec789dedf05ebeedc06358b4c64",
+      "findings": {
+        "BLOCKER": [
+          "CL-010 unmet: proof plan names only AC-1 as the failing test; no current-run red proof is attached for AC-2 timeout or AC-4 exhaustion at the real runtime entrypoint, so AC-2's failing-then-passing requirement is not demonstrated.",
+          "CL-011 unmet: design asserts tenant binding but provides no proof/test that runtime DB roles are `NOSUPERUSER`/`NOBYPASSRLS`; RLS posture remains prose only.",
+          "AC-4 gap: design specifies fixed 409 plus counter/alarm, but no fixed safe reason code/body is defined or asserted; the acceptance criterion for a safe exhaustion reason is not demonstrably covered."
+        ],
+        "MAJOR": [
+          "`ops/prometheus/backlog-authority.rules.yml` has no promtool validation, alert threshold/`for` duration, or control evidence; the AC-4 alarm path is unproven.",
+          "`PF_EDP_DB_TIMEOUT` wiring is described, but the design lacks an explicit default/range/missing-config contract and startup preflight, so misconfiguration may surface only at request time.",
+          "AC-1 bounded-reason enforcement lacks a single shared allowlist/table tying metric labels, logs, and alert rules together; reason-label drift remains a live risk.",
+          "No on-startup schema/role preflight is defined despite `migration_missing`/`row_missing` being fail-closed taxonomy entries."
+        ],
+        "MINOR": [
+          "`go/edpsvc/go.mod` is listed as affected without dependency rationale; verify no unintended module change.",
+          "Runbook update is planned but has no acceptance check that operators can use the new reason codes and exhaustion alert.",
+          "Coverage uses mixed reservation-echo test names (`TestAuthorityResponseEchoesReservationID` vs `TestBacklogReserveEchoesIDWithDB`), reducing traceability."
+        ],
+        "NIT": [
+          "AC-1 says \"failure gauge\" while coverage describes a reason counter plus `last_request_ok` gauge; align metric naming across design, tests, and docs.",
+          "The proof/evidence entries use `candidate` placeholders and test names rather than attached artifacts; make evidence capture explicit."
+        ],
+        "SUMMARY": [
+          "Direction is sound and scoped, but the design is not Gate-1.5 ready: red proof, runtime RLS role proof, and the AC-4 safe-reason contract are incomplete.",
+          "Top risks are unverified fail-closed exhaustion behavior, unproven RLS posture, and an alert rule that may not fire or route correctly."
+        ]
+      },
+      "evidence": "BI-PF-1511-80a5bc535aaf.json"
     }
   ],
   "review_dispositions": {
@@ -901,593 +1245,1132 @@
       "sig:049e9cc0a0e37714": {
         "status": "ACTIONED",
         "severity": "BLOCKER",
-        "note": "Fixed in 19a9dc6f; see current diff review."
+        "note": "Fixed in 19a9dc6f; see current diff review. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:099de65c498aaba9": {
         "status": "ACTIONED",
         "severity": "BLOCKER",
-        "note": "Fixed in 19a9dc6f; see current diff review."
+        "note": "Fixed in 19a9dc6f; see current diff review. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:eed88ce5e9905309": {
         "status": "ACTIONED",
         "severity": "BLOCKER",
-        "note": "Fixed in 19a9dc6f; see current diff review."
+        "note": "Fixed in 19a9dc6f; see current diff review. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:b337c0788e15fae5": {
         "status": "ACTIONED",
         "severity": "MAJOR",
-        "note": "Fixed in 19a9dc6f; see current diff review."
+        "note": "Fixed in 19a9dc6f; see current diff review. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:6790d7c12312c700": {
         "status": "ACTIONED",
         "severity": "MAJOR",
-        "note": "Fixed in 19a9dc6f; see current diff review."
+        "note": "Fixed in 19a9dc6f; see current diff review. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:2e71cb2d15662cce": {
         "status": "ACTIONED",
         "severity": "MAJOR",
-        "note": "Fixed in 19a9dc6f; see current diff review."
+        "note": "Fixed in 19a9dc6f; see current diff review. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:28d30c2f118fa845": {
         "status": "ACTIONED",
         "severity": "MAJOR",
-        "note": "Fixed in 19a9dc6f; see current diff review."
+        "note": "Fixed in 19a9dc6f; see current diff review. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:55c182593759df5d": {
         "status": "ACTIONED",
         "severity": "MAJOR",
-        "note": "Fixed in 19a9dc6f; see current diff review."
+        "note": "Fixed in 19a9dc6f; see current diff review. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:db54f76207e20db3": {
         "status": "ACTIONED",
         "severity": "MINOR",
-        "note": "Fixed in 19a9dc6f; see current diff review."
+        "note": "Fixed in 19a9dc6f; see current diff review. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:9a6315755331fd6d": {
         "status": "ACTIONED",
         "severity": "MINOR",
-        "note": "Fixed in 19a9dc6f; see current diff review."
+        "note": "Fixed in 19a9dc6f; see current diff review. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:f5f40e8fd6c763ec": {
         "status": "ACTIONED",
         "severity": "MINOR",
-        "note": "Fixed in 19a9dc6f; see current diff review."
+        "note": "Fixed in 19a9dc6f; see current diff review. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:7cb75afbc6b29ef3": {
         "status": "ACTIONED",
         "severity": "NIT",
-        "note": "Fixed in 19a9dc6f; see current diff review."
+        "note": "Fixed in 19a9dc6f; see current diff review. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:c5adcae2ee5651dd": {
         "status": "ACTIONED",
         "severity": "NIT",
-        "note": "Fixed in 19a9dc6f; see current diff review."
+        "note": "Fixed in 19a9dc6f; see current diff review. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:6b6a84de7fd79249": {
         "status": "ACTIONED",
         "severity": "MAJOR",
-        "note": "Fixed in 6e0a2a0; endpoint and config tests added."
+        "note": "Fixed in 6e0a2a0; endpoint and config tests added. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:6883cafb972e3478": {
         "status": "ACTIONED",
         "severity": "MAJOR",
-        "note": "Fixed in 6e0a2a0; endpoint and config tests added."
+        "note": "Fixed in 6e0a2a0; endpoint and config tests added. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:9fd9df481c2adf68": {
         "status": "ACTIONED",
         "severity": "MAJOR",
-        "note": "Fixed in 6e0a2a0; endpoint and config tests added."
+        "note": "Fixed in 6e0a2a0; endpoint and config tests added. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:fbe9e44399799836": {
         "status": "ACTIONED",
         "severity": "MINOR",
-        "note": "Fixed in 6e0a2a0; endpoint and config tests added."
+        "note": "Fixed in 6e0a2a0; endpoint and config tests added. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:0cb068865196fd12": {
         "status": "ACTIONED",
         "severity": "MINOR",
-        "note": "Fixed in 6e0a2a0; endpoint and config tests added."
+        "note": "Fixed in 6e0a2a0; endpoint and config tests added. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:7666f4919c2e5506": {
         "status": "ACTIONED",
         "severity": "MINOR",
-        "note": "Fixed in 6e0a2a0; endpoint and config tests added."
+        "note": "Fixed in 6e0a2a0; endpoint and config tests added. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:92e628e05ecd6462": {
         "status": "ACTIONED",
         "severity": "MINOR",
-        "note": "Fixed in 6e0a2a0; endpoint and config tests added."
+        "note": "Fixed in 6e0a2a0; endpoint and config tests added. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:8e719d7593c28253": {
         "status": "ACTIONED",
         "severity": "NIT",
-        "note": "Fixed in 6e0a2a0; endpoint and config tests added."
+        "note": "Fixed in 6e0a2a0; endpoint and config tests added. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:7a31eaa1f786da79": {
         "status": "ACTIONED",
         "severity": "NIT",
-        "note": "Fixed in 6e0a2a0; endpoint and config tests added."
+        "note": "Fixed in 6e0a2a0; endpoint and config tests added. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:4782c7d5e568889e": {
         "status": "ACTIONED",
         "severity": "NIT",
-        "note": "Fixed in 6e0a2a0; endpoint and config tests added."
+        "note": "Fixed in 6e0a2a0; endpoint and config tests added. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:b0eb6c80bd9884a5": {
         "status": "ACTIONED",
         "severity": "MAJOR",
-        "note": "Fixed in 30b41eb4; service factory, endpoint alarm test, and gauge added."
+        "note": "Fixed in 30b41eb4; service factory, endpoint alarm test, and gauge added. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:945dc6286bd579f7": {
         "status": "ACTIONED",
         "severity": "MAJOR",
-        "note": "Fixed in 30b41eb4; service factory, endpoint alarm test, and gauge added."
+        "note": "Fixed in 30b41eb4; service factory, endpoint alarm test, and gauge added. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:1d614ada21bdb206": {
         "status": "ACTIONED",
         "severity": "MINOR",
-        "note": "Fixed in 30b41eb4; service factory, endpoint alarm test, and gauge added."
+        "note": "Fixed in 30b41eb4; service factory, endpoint alarm test, and gauge added. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:028eceb3e069ce58": {
         "status": "ACTIONED",
         "severity": "MINOR",
-        "note": "Fixed in 30b41eb4; service factory, endpoint alarm test, and gauge added."
+        "note": "Fixed in 30b41eb4; service factory, endpoint alarm test, and gauge added. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:1405fc9bf2ec52b3": {
         "status": "ACTIONED",
         "severity": "MINOR",
-        "note": "Fixed in 30b41eb4; service factory, endpoint alarm test, and gauge added."
+        "note": "Fixed in 30b41eb4; service factory, endpoint alarm test, and gauge added. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:b8bb674af2ec123f": {
         "status": "ACTIONED",
         "severity": "MINOR",
-        "note": "Fixed in 30b41eb4; service factory, endpoint alarm test, and gauge added."
+        "note": "Fixed in 30b41eb4; service factory, endpoint alarm test, and gauge added. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:3d4b89ba70c7a989": {
         "status": "ACTIONED",
         "severity": "MINOR",
-        "note": "Fixed in 30b41eb4; service factory, endpoint alarm test, and gauge added."
+        "note": "Fixed in 30b41eb4; service factory, endpoint alarm test, and gauge added. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:34490c7c16524b77": {
         "status": "ACTIONED",
         "severity": "NIT",
-        "note": "Fixed in 30b41eb4; service factory, endpoint alarm test, and gauge added."
+        "note": "Fixed in 30b41eb4; service factory, endpoint alarm test, and gauge added. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:56c2c37f511597ac": {
         "status": "ACTIONED",
         "severity": "NIT",
-        "note": "Fixed in 30b41eb4; service factory, endpoint alarm test, and gauge added."
+        "note": "Fixed in 30b41eb4; service factory, endpoint alarm test, and gauge added. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:98e33d0b8dd02812": {
         "status": "ACTIONED",
         "severity": "NIT",
-        "note": "Fixed in 30b41eb4; service factory, endpoint alarm test, and gauge added."
+        "note": "Fixed in 30b41eb4; service factory, endpoint alarm test, and gauge added. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:2298920e70cc1bec": {
         "status": "ACTIONED",
         "severity": "MAJOR",
-        "note": "Fixed in current HEAD; gauge rename/reset, endpoint alarm rule evidence, recursive tenant leak check."
+        "note": "Fixed in current HEAD; gauge rename/reset, endpoint alarm rule evidence, recursive tenant leak check. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:3f69e83f8eee0794": {
         "status": "ACTIONED",
         "severity": "MAJOR",
-        "note": "Fixed in current HEAD; gauge rename/reset, endpoint alarm rule evidence, recursive tenant leak check."
+        "note": "Fixed in current HEAD; gauge rename/reset, endpoint alarm rule evidence, recursive tenant leak check. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:bcecaebab9c8adfe": {
         "status": "ACTIONED",
         "severity": "MAJOR",
-        "note": "Fixed in current HEAD; gauge rename/reset, endpoint alarm rule evidence, recursive tenant leak check."
+        "note": "Fixed in current HEAD; gauge rename/reset, endpoint alarm rule evidence, recursive tenant leak check. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:0b24c0d2edc10eef": {
         "status": "ACTIONED",
         "severity": "MINOR",
-        "note": "Fixed in current HEAD; gauge rename/reset, endpoint alarm rule evidence, recursive tenant leak check."
+        "note": "Fixed in current HEAD; gauge rename/reset, endpoint alarm rule evidence, recursive tenant leak check. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:b4391cb880d56b1a": {
         "status": "ACTIONED",
         "severity": "MINOR",
-        "note": "Fixed in current HEAD; gauge rename/reset, endpoint alarm rule evidence, recursive tenant leak check."
+        "note": "Fixed in current HEAD; gauge rename/reset, endpoint alarm rule evidence, recursive tenant leak check. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:3ba615af3f260af7": {
         "status": "ACTIONED",
         "severity": "MINOR",
-        "note": "Fixed in current HEAD; gauge rename/reset, endpoint alarm rule evidence, recursive tenant leak check."
+        "note": "Fixed in current HEAD; gauge rename/reset, endpoint alarm rule evidence, recursive tenant leak check. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:e0ba89ad968ce02c": {
         "status": "ACTIONED",
         "severity": "MINOR",
-        "note": "Fixed in current HEAD; gauge rename/reset, endpoint alarm rule evidence, recursive tenant leak check."
+        "note": "Fixed in current HEAD; gauge rename/reset, endpoint alarm rule evidence, recursive tenant leak check. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:5a4dc2a7dd8f7bf2": {
         "status": "ACTIONED",
         "severity": "MINOR",
-        "note": "Fixed in current HEAD; gauge rename/reset, endpoint alarm rule evidence, recursive tenant leak check."
+        "note": "Fixed in current HEAD; gauge rename/reset, endpoint alarm rule evidence, recursive tenant leak check. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:fb76ac6a085dc390": {
         "status": "ACTIONED",
         "severity": "MINOR",
-        "note": "Fixed in current HEAD; gauge rename/reset, endpoint alarm rule evidence, recursive tenant leak check."
+        "note": "Fixed in current HEAD; gauge rename/reset, endpoint alarm rule evidence, recursive tenant leak check. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:d2cb57ddcbf56fae": {
         "status": "ACTIONED",
         "severity": "NIT",
-        "note": "Fixed in current HEAD; gauge rename/reset, endpoint alarm rule evidence, recursive tenant leak check."
+        "note": "Fixed in current HEAD; gauge rename/reset, endpoint alarm rule evidence, recursive tenant leak check. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:33c22de6a5e3a8e0": {
         "status": "ACTIONED",
         "severity": "NIT",
-        "note": "Fixed in current HEAD; gauge rename/reset, endpoint alarm rule evidence, recursive tenant leak check."
+        "note": "Fixed in current HEAD; gauge rename/reset, endpoint alarm rule evidence, recursive tenant leak check. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:db0bef0909c8d3d8": {
         "status": "ACTIONED",
         "severity": "NIT",
-        "note": "Fixed in current HEAD; gauge rename/reset, endpoint alarm rule evidence, recursive tenant leak check."
+        "note": "Fixed in current HEAD; gauge rename/reset, endpoint alarm rule evidence, recursive tenant leak check. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:8f6a0c268103eb23": {
         "status": "ACTIONED",
         "severity": "MAJOR",
-        "note": "Fixed in current HEAD; timeout precedence, request-only gauge, and recovery/alarm assertions."
+        "note": "Fixed in current HEAD; timeout precedence, request-only gauge, and recovery/alarm assertions. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:a7f486311d34921b": {
         "status": "ACTIONED",
         "severity": "MAJOR",
-        "note": "Fixed in current HEAD; timeout precedence, request-only gauge, and recovery/alarm assertions."
+        "note": "Fixed in current HEAD; timeout precedence, request-only gauge, and recovery/alarm assertions. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:cb9e3b818de6136f": {
         "status": "ACTIONED",
         "severity": "MAJOR",
-        "note": "Fixed in current HEAD; timeout precedence, request-only gauge, and recovery/alarm assertions."
+        "note": "Fixed in current HEAD; timeout precedence, request-only gauge, and recovery/alarm assertions. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:ae9f1e5c6720c13d": {
         "status": "ACTIONED",
         "severity": "MINOR",
-        "note": "Fixed in current HEAD; timeout precedence, request-only gauge, and recovery/alarm assertions."
+        "note": "Fixed in current HEAD; timeout precedence, request-only gauge, and recovery/alarm assertions. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:5d15acd0aa5d10ce": {
         "status": "ACTIONED",
         "severity": "MINOR",
-        "note": "Fixed in current HEAD; timeout precedence, request-only gauge, and recovery/alarm assertions."
+        "note": "Fixed in current HEAD; timeout precedence, request-only gauge, and recovery/alarm assertions. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:50181aee5f3bbb8e": {
         "status": "ACTIONED",
         "severity": "MINOR",
-        "note": "Fixed in current HEAD; timeout precedence, request-only gauge, and recovery/alarm assertions."
+        "note": "Fixed in current HEAD; timeout precedence, request-only gauge, and recovery/alarm assertions. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:2ea3ea280ad47b87": {
         "status": "ACTIONED",
         "severity": "MINOR",
-        "note": "Fixed in current HEAD; timeout precedence, request-only gauge, and recovery/alarm assertions."
+        "note": "Fixed in current HEAD; timeout precedence, request-only gauge, and recovery/alarm assertions. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:d6558d526a98c673": {
         "status": "ACTIONED",
         "severity": "NIT",
-        "note": "Fixed in current HEAD; timeout precedence, request-only gauge, and recovery/alarm assertions."
+        "note": "Fixed in current HEAD; timeout precedence, request-only gauge, and recovery/alarm assertions. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:bc386147b13ea3ec": {
         "status": "ACTIONED",
         "severity": "NIT",
-        "note": "Fixed in current HEAD; timeout precedence, request-only gauge, and recovery/alarm assertions."
+        "note": "Fixed in current HEAD; timeout precedence, request-only gauge, and recovery/alarm assertions. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:8cd87e5bcc4c334d": {
         "status": "ACTIONED",
         "severity": "MAJOR",
-        "note": "Fixed in current HEAD; narrow reason markers, shared constructor, reserve factory asserted."
+        "note": "Fixed in current HEAD; narrow reason markers, shared constructor, reserve factory asserted. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:886e31194be4274d": {
         "status": "ACTIONED",
         "severity": "MINOR",
-        "note": "Fixed in current HEAD; narrow reason markers, shared constructor, reserve factory asserted."
+        "note": "Fixed in current HEAD; narrow reason markers, shared constructor, reserve factory asserted. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:16aa03f25b7f3660": {
         "status": "ACTIONED",
         "severity": "MINOR",
-        "note": "Fixed in current HEAD; narrow reason markers, shared constructor, reserve factory asserted."
+        "note": "Fixed in current HEAD; narrow reason markers, shared constructor, reserve factory asserted. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:26c6054cf33f1cc0": {
         "status": "ACTIONED",
         "severity": "MINOR",
-        "note": "Fixed in current HEAD; narrow reason markers, shared constructor, reserve factory asserted."
+        "note": "Fixed in current HEAD; narrow reason markers, shared constructor, reserve factory asserted. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:00d1ed4117ded2a5": {
         "status": "ACTIONED",
         "severity": "NIT",
-        "note": "Fixed in current HEAD; narrow reason markers, shared constructor, reserve factory asserted."
+        "note": "Fixed in current HEAD; narrow reason markers, shared constructor, reserve factory asserted. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:1b36dd84d0bff34b": {
         "status": "ACTIONED",
         "severity": "NIT",
-        "note": "Fixed in current HEAD; narrow reason markers, shared constructor, reserve factory asserted."
+        "note": "Fixed in current HEAD; narrow reason markers, shared constructor, reserve factory asserted. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:00057783422d3a32": {
         "status": "ACTIONED",
         "severity": "MAJOR",
-        "note": "Fixed in current HEAD; marker table and reserve timeout evidence added."
+        "note": "Fixed in current HEAD; marker table and reserve timeout evidence added. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:ffcd05f7bcb44c4d": {
         "status": "ACTIONED",
         "severity": "MINOR",
-        "note": "Fixed in current HEAD; marker table and reserve timeout evidence added."
+        "note": "Fixed in current HEAD; marker table and reserve timeout evidence added. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:35207110f2f84b9f": {
         "status": "ACTIONED",
         "severity": "MINOR",
-        "note": "Fixed in current HEAD; marker table and reserve timeout evidence added."
+        "note": "Fixed in current HEAD; marker table and reserve timeout evidence added. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:3805c7737f203940": {
         "status": "ACTIONED",
         "severity": "MINOR",
-        "note": "Fixed in current HEAD; marker table and reserve timeout evidence added."
+        "note": "Fixed in current HEAD; marker table and reserve timeout evidence added. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:d053cf201e9ed817": {
         "status": "ACTIONED",
         "severity": "NIT",
-        "note": "Fixed in current HEAD; marker table and reserve timeout evidence added."
+        "note": "Fixed in current HEAD; marker table and reserve timeout evidence added. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:2c9af590fab5bdcd": {
         "status": "ACTIONED",
         "severity": "NIT",
-        "note": "Fixed in current HEAD; marker table and reserve timeout evidence added."
+        "note": "Fixed in current HEAD; marker table and reserve timeout evidence added. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:a6a2b5e93a9c7845": {
         "status": "ACTIONED",
         "severity": "MINOR",
-        "note": "Fixed in current HEAD; x509 typed classification and negative boundary case."
+        "note": "Fixed in current HEAD; x509 typed classification and negative boundary case. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:c4b1016acae4a048": {
         "status": "ACTIONED",
         "severity": "MINOR",
-        "note": "Fixed in current HEAD; x509 typed classification and negative boundary case."
+        "note": "Fixed in current HEAD; x509 typed classification and negative boundary case. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:498f74c9c24c0467": {
         "status": "ACTIONED",
         "severity": "NIT",
-        "note": "Fixed in current HEAD; x509 typed classification and negative boundary case."
+        "note": "Fixed in current HEAD; x509 typed classification and negative boundary case. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:bf70e86180365a9e": {
         "status": "ACTIONED",
         "severity": "MINOR",
-        "note": "Fixed in current HEAD; tls_error reason, typed coverage, x509 fallback boundary."
+        "note": "Fixed in current HEAD; tls_error reason, typed coverage, x509 fallback boundary. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:936e08680eff4b8d": {
         "status": "ACTIONED",
         "severity": "MINOR",
-        "note": "Fixed in current HEAD; tls_error reason, typed coverage, x509 fallback boundary."
+        "note": "Fixed in current HEAD; tls_error reason, typed coverage, x509 fallback boundary. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:66f92308e6ee86d9": {
         "status": "ACTIONED",
         "severity": "MINOR",
-        "note": "Fixed in current HEAD; tls_error reason, typed coverage, x509 fallback boundary."
+        "note": "Fixed in current HEAD; tls_error reason, typed coverage, x509 fallback boundary. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:ad97984a5091a85c": {
         "status": "ACTIONED",
         "severity": "NIT",
-        "note": "Fixed in current HEAD; tls_error reason, typed coverage, x509 fallback boundary."
+        "note": "Fixed in current HEAD; tls_error reason, typed coverage, x509 fallback boundary. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:2c22fe0a347f7b73": {
         "status": "ACTIONED",
         "severity": "MAJOR",
-        "note": "Fixed in current HEAD; TLS errors unify to db_unavailable; wrapped/precedence cases pinned."
+        "note": "Fixed in current HEAD; TLS errors unify to db_unavailable; wrapped/precedence cases pinned. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:b18cbfe099f1d79b": {
         "status": "ACTIONED",
         "severity": "MINOR",
-        "note": "Fixed in current HEAD; TLS errors unify to db_unavailable; wrapped/precedence cases pinned."
+        "note": "Fixed in current HEAD; TLS errors unify to db_unavailable; wrapped/precedence cases pinned. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:a747de61ed490eb2": {
         "status": "ACTIONED",
         "severity": "MINOR",
-        "note": "Fixed in current HEAD; TLS errors unify to db_unavailable; wrapped/precedence cases pinned."
+        "note": "Fixed in current HEAD; TLS errors unify to db_unavailable; wrapped/precedence cases pinned. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:55544eff237f3e69": {
         "status": "ACTIONED",
         "severity": "MINOR",
-        "note": "Fixed in current HEAD; TLS errors unify to db_unavailable; wrapped/precedence cases pinned."
+        "note": "Fixed in current HEAD; TLS errors unify to db_unavailable; wrapped/precedence cases pinned. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:bd6c56f8a78f51f7": {
         "status": "ACTIONED",
         "severity": "NIT",
-        "note": "Fixed in current HEAD; TLS errors unify to db_unavailable; wrapped/precedence cases pinned."
+        "note": "Fixed in current HEAD; TLS errors unify to db_unavailable; wrapped/precedence cases pinned. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:91a838a2322ddc9b": {
         "status": "ACTIONED",
         "severity": "MINOR",
-        "note": "Fixed in current HEAD; anchored x509, retired tls_error assertion, runbook note."
+        "note": "Fixed in current HEAD; anchored x509, retired tls_error assertion, runbook note. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:747c07be4f3cf380": {
         "status": "ACTIONED",
         "severity": "MINOR",
-        "note": "Fixed in current HEAD; anchored x509, retired tls_error assertion, runbook note."
+        "note": "Fixed in current HEAD; anchored x509, retired tls_error assertion, runbook note. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:8369d56a020d8e1c": {
         "status": "ACTIONED",
         "severity": "MINOR",
-        "note": "Fixed in current HEAD; anchored x509, retired tls_error assertion, runbook note."
+        "note": "Fixed in current HEAD; anchored x509, retired tls_error assertion, runbook note. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:6cda62061ba953cf": {
         "status": "ACTIONED",
         "severity": "NIT",
-        "note": "Fixed in current HEAD; anchored x509, retired tls_error assertion, runbook note."
+        "note": "Fixed in current HEAD; anchored x509, retired tls_error assertion, runbook note. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:600a0e9b1687f5d1": {
         "status": "ACTIONED",
         "severity": "NIT",
-        "note": "Fixed in current HEAD; anchored x509, retired tls_error assertion, runbook note."
+        "note": "Fixed in current HEAD; anchored x509, retired tls_error assertion, runbook note. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:5cc28c5ae34b5a83": {
         "status": "ACTIONED",
         "severity": "MINOR",
-        "note": "Fixed in current HEAD; leading x509 coverage, regex boundary, runbook query."
+        "note": "Fixed in current HEAD; leading x509 coverage, regex boundary, runbook query. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:7450ee46eb92978d": {
         "status": "ACTIONED",
         "severity": "MINOR",
-        "note": "Fixed in current HEAD; leading x509 coverage, regex boundary, runbook query."
+        "note": "Fixed in current HEAD; leading x509 coverage, regex boundary, runbook query. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:7cb2033824b5fce1": {
         "status": "ACTIONED",
         "severity": "NIT",
-        "note": "Fixed in current HEAD; leading x509 coverage, regex boundary, runbook query."
+        "note": "Fixed in current HEAD; leading x509 coverage, regex boundary, runbook query. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:c7fd74e8dc58f8cf": {
         "status": "ACTIONED",
         "severity": "NIT",
-        "note": "Fixed in current HEAD; leading x509 coverage, regex boundary, runbook query."
+        "note": "Fixed in current HEAD; leading x509 coverage, regex boundary, runbook query. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:e476fd75eb59bd52": {
         "status": "ACTIONED",
         "severity": "MAJOR",
-        "note": "Fixed in current HEAD; wrapped x509 forms covered, boundary excludes ._- prefixes."
+        "note": "Fixed in current HEAD; wrapped x509 forms covered, boundary excludes ._- prefixes. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:2bd79fa4209f6253": {
         "status": "ACTIONED",
         "severity": "MAJOR",
-        "note": "Fixed in current HEAD; wrapped x509 forms covered, boundary excludes ._- prefixes."
+        "note": "Fixed in current HEAD; wrapped x509 forms covered, boundary excludes ._- prefixes. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:07ab39869baae304": {
         "status": "ACTIONED",
         "severity": "MINOR",
-        "note": "Fixed in current HEAD; wrapped x509 forms covered, boundary excludes ._- prefixes."
+        "note": "Fixed in current HEAD; wrapped x509 forms covered, boundary excludes ._- prefixes. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:29f7fd84a48f4b9d": {
         "status": "ACTIONED",
         "severity": "MINOR",
-        "note": "Fixed in current HEAD; wrapped x509 forms covered, boundary excludes ._- prefixes."
+        "note": "Fixed in current HEAD; wrapped x509 forms covered, boundary excludes ._- prefixes. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:f78d5e3fbc8a58c8": {
         "status": "ACTIONED",
         "severity": "MINOR",
-        "note": "Fixed in current HEAD; wrapped x509 forms covered, boundary excludes ._- prefixes."
+        "note": "Fixed in current HEAD; wrapped x509 forms covered, boundary excludes ._- prefixes. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:f9c158645c4ff09e": {
         "status": "ACTIONED",
         "severity": "MINOR",
-        "note": "Fixed in current HEAD; wrapped x509 forms covered, boundary excludes ._- prefixes."
+        "note": "Fixed in current HEAD; wrapped x509 forms covered, boundary excludes ._- prefixes. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:89bb58029be4778f": {
         "status": "ACTIONED",
         "severity": "NIT",
-        "note": "Fixed in current HEAD; wrapped x509 forms covered, boundary excludes ._- prefixes."
+        "note": "Fixed in current HEAD; wrapped x509 forms covered, boundary excludes ._- prefixes. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:54b1c93ba2508963": {
         "status": "ACTIONED",
         "severity": "NIT",
-        "note": "Fixed in current HEAD; wrapped x509 forms covered, boundary excludes ._- prefixes."
+        "note": "Fixed in current HEAD; wrapped x509 forms covered, boundary excludes ._- prefixes. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:1c0ec73013734a88": {
         "status": "ACTIONED",
         "severity": "MAJOR",
-        "note": "No action: reviewer explicitly recorded no major finding; separator/case tests added separately."
+        "note": "No action: reviewer explicitly recorded no major finding; separator/case tests added separately. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:93dd3cfc8204d5ce": {
         "status": "ACTIONED",
         "severity": "MINOR",
-        "note": "Fixed in current HEAD; separator and uppercase cases pinned."
+        "note": "Fixed in current HEAD; separator and uppercase cases pinned. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:f61a6b75d6828c74": {
         "status": "ACTIONED",
         "severity": "MINOR",
-        "note": "Fixed in current HEAD; separator and uppercase cases pinned."
+        "note": "Fixed in current HEAD; separator and uppercase cases pinned. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:d8164bd5b11395bc": {
         "status": "ACTIONED",
         "severity": "MINOR",
-        "note": "Fixed in current HEAD; separator and uppercase cases pinned."
+        "note": "Fixed in current HEAD; separator and uppercase cases pinned. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:1720a0d915a93505": {
         "status": "ACTIONED",
         "severity": "NIT",
-        "note": "Fixed in current HEAD; separator and uppercase cases pinned."
+        "note": "Fixed in current HEAD; separator and uppercase cases pinned. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:46954fdcad1ba799": {
         "status": "ACTIONED",
         "severity": "NIT",
-        "note": "Fixed in current HEAD; separator and uppercase cases pinned."
+        "note": "Fixed in current HEAD; separator and uppercase cases pinned. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:a21e65d8168236a9": {
         "status": "ACTIONED",
         "severity": "BLOCKER",
-        "note": "Fixed in current HEAD; lowercase normalization is now explicit in the diff."
+        "note": "Fixed in current HEAD; lowercase normalization is now explicit in the diff. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:73ec443d9847ee31": {
         "status": "ACTIONED",
         "severity": "MAJOR",
-        "note": "Fixed in current HEAD; structured pgconn classification and bounded-label assertion."
+        "note": "Fixed in current HEAD; structured pgconn classification and bounded-label assertion. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:7195714d64b97f22": {
         "status": "ACTIONED",
         "severity": "MINOR",
-        "note": "Fixed in current HEAD; structured pgconn classification and bounded-label assertion."
+        "note": "Fixed in current HEAD; structured pgconn classification and bounded-label assertion. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:14b2a400582553f1": {
         "status": "ACTIONED",
         "severity": "MINOR",
-        "note": "Fixed in current HEAD; structured pgconn classification and bounded-label assertion."
+        "note": "Fixed in current HEAD; structured pgconn classification and bounded-label assertion. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:84bb056271128bd0": {
         "status": "ACTIONED",
         "severity": "NIT",
-        "note": "Fixed in current HEAD; structured pgconn classification and bounded-label assertion."
+        "note": "Fixed in current HEAD; structured pgconn classification and bounded-label assertion. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:c0981d8af0777002": {
         "status": "ACTIONED",
         "severity": "MINOR",
-        "note": "Fixed in current HEAD; shared allowlist, emission count, wrapped pgconn case."
+        "note": "Fixed in current HEAD; shared allowlist, emission count, wrapped pgconn case. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:32b53faac3a90e77": {
         "status": "ACTIONED",
         "severity": "MINOR",
-        "note": "Fixed in current HEAD; shared allowlist, emission count, wrapped pgconn case."
+        "note": "Fixed in current HEAD; shared allowlist, emission count, wrapped pgconn case. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:8d13b37655e93747": {
         "status": "ACTIONED",
         "severity": "NIT",
-        "note": "Fixed in current HEAD; shared allowlist, emission count, wrapped pgconn case."
+        "note": "Fixed in current HEAD; shared allowlist, emission count, wrapped pgconn case. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:b2fe7647b6ef95fc": {
         "status": "ACTIONED",
         "severity": "MINOR",
-        "note": "Fixed in current HEAD; emit-time sanitizer, immutable switch, double-wrap test."
+        "note": "Fixed in current HEAD; emit-time sanitizer, immutable switch, double-wrap test. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:48db6d96db3adbea": {
         "status": "ACTIONED",
         "severity": "MINOR",
-        "note": "Fixed in current HEAD; emit-time sanitizer, immutable switch, double-wrap test."
+        "note": "Fixed in current HEAD; emit-time sanitizer, immutable switch, double-wrap test. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:47f259045d703100": {
         "status": "ACTIONED",
         "severity": "MINOR",
-        "note": "Fixed in current HEAD; emit-time sanitizer, immutable switch, double-wrap test."
+        "note": "Fixed in current HEAD; emit-time sanitizer, immutable switch, double-wrap test. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:ec938fadc6d3b373": {
         "status": "ACTIONED",
         "severity": "NIT",
-        "note": "Fixed in current HEAD; emit-time sanitizer, immutable switch, double-wrap test."
+        "note": "Fixed in current HEAD; emit-time sanitizer, immutable switch, double-wrap test. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:5dbd10dd80b20c06": {
         "status": "ACTIONED",
         "severity": "NIT",
-        "note": "Fixed in current HEAD; emit-time sanitizer, immutable switch, double-wrap test."
+        "note": "Fixed in current HEAD; emit-time sanitizer, immutable switch, double-wrap test. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:3200b55d4eb96ea2": {
         "status": "ACTIONED",
         "severity": "NIT",
-        "note": "Fixed in current HEAD; emit-time sanitizer, immutable switch, double-wrap test."
+        "note": "Fixed in current HEAD; emit-time sanitizer, immutable switch, double-wrap test. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:bf4b055f98f59594": {
         "status": "ACTIONED",
         "severity": "MINOR",
-        "note": "Accepted as bounded sanitizer behavior; no blocking impact. Follow-up only if a new reason is added."
+        "note": "Accepted as bounded sanitizer behavior; no blocking impact. Follow-up only if a new reason is added. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:9b28319b6f1d7a33": {
         "status": "ACTIONED",
         "severity": "MINOR",
-        "note": "Accepted as bounded sanitizer behavior; no blocking impact. Follow-up only if a new reason is added."
+        "note": "Accepted as bounded sanitizer behavior; no blocking impact. Follow-up only if a new reason is added. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
       },
       "sig:d1f4e275161eabbf": {
         "status": "ACTIONED",
         "severity": "NIT",
-        "note": "Accepted as bounded sanitizer behavior; no blocking impact. Follow-up only if a new reason is added."
+        "note": "Accepted as bounded sanitizer behavior; no blocking impact. Follow-up only if a new reason is added. evidence: go/edpsvc/main_test.go, go/edpdata/edpdata_test.go."
+      }
+    },
+    "design": {
+      "sig:c5ad598acf629a30": {
+        "status": "ACTIONED",
+        "severity": "BLOCKER",
+        "note": "Fixed in design pack/evidence; see engineering/evidence/BI-PF-1511/ and design_pack coverage."
+      },
+      "sig:50339de978c34a03": {
+        "status": "ACTIONED",
+        "severity": "BLOCKER",
+        "note": "Fixed in design pack/evidence; see engineering/evidence/BI-PF-1511/ and design_pack coverage."
+      },
+      "sig:efc055674497b268": {
+        "status": "ACTIONED",
+        "severity": "BLOCKER",
+        "note": "Fixed in design pack/evidence; see engineering/evidence/BI-PF-1511/ and design_pack coverage."
+      },
+      "sig:e160d8a5b3335e96": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "note": "Fixed in design pack/evidence; see engineering/evidence/BI-PF-1511/ and design_pack coverage."
+      },
+      "sig:87986ebfe584e84b": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "note": "Fixed in design pack/evidence; see engineering/evidence/BI-PF-1511/ and design_pack coverage."
+      },
+      "sig:85a74a9ca0af5da6": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "note": "Fixed in design pack/evidence; see engineering/evidence/BI-PF-1511/ and design_pack coverage."
+      },
+      "sig:fa8bfd05ad06c319": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "note": "Fixed in design pack/evidence; see engineering/evidence/BI-PF-1511/ and design_pack coverage."
+      },
+      "sig:1815427afc3c1243": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "note": "Fixed in design pack/evidence; see engineering/evidence/BI-PF-1511/ and design_pack coverage."
+      },
+      "sig:7dee8763c7aecbf5": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "note": "Fixed in design pack/evidence; see engineering/evidence/BI-PF-1511/ and design_pack coverage."
+      },
+      "sig:cc85d0b1f3d3828b": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "note": "Fixed in design pack/evidence; see engineering/evidence/BI-PF-1511/ and design_pack coverage."
+      },
+      "sig:9e53c537db411022": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "note": "Fixed in design pack/evidence; see engineering/evidence/BI-PF-1511/ and design_pack coverage."
+      },
+      "sig:635cb12090d22f71": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "note": "Fixed in design pack/evidence; see engineering/evidence/BI-PF-1511/ and design_pack coverage."
       }
     }
+  },
+  "controls": [
+    {
+      "id": "CTL-AUTHORITY-METRICS",
+      "dimension": "observability",
+      "applies_to": "go/edpsvc/main.go",
+      "check": "go test ./...",
+      "evidence": "engineering/evidence/BI-PF-1511/CTL-AUTHORITY.txt",
+      "failure_behavior": "block",
+      "owner": "edpsvc",
+      "cwd": "go/edpsvc"
+    },
+    {
+      "id": "CTL-DATA-TIMEOUT",
+      "dimension": "performance_capacity",
+      "applies_to": "go/edpdata/backlog.go",
+      "check": "go test ./...",
+      "evidence": "engineering/evidence/BI-PF-1511/CTL-DATA.txt",
+      "failure_behavior": "block",
+      "owner": "edpdata",
+      "cwd": "go/edpdata"
+    },
+    {
+      "id": "CTL-RESERVATION-QUOTA",
+      "dimension": "quotas",
+      "applies_to": "go/edpsvc/main.go",
+      "check": "go test -run TestBacklogReserveEchoesIDWithDB ./...",
+      "evidence": "engineering/evidence/BI-PF-1511/CTL-RESERVATION-DB.txt",
+      "failure_behavior": "block",
+      "owner": "edpsvc",
+      "cwd": "go/edpsvc"
+    },
+    {
+      "id": "CTL-TENANT-ECHO",
+      "dimension": "rls_tenant",
+      "applies_to": "go/edpsvc/main_test.go",
+      "check": "go test -run TestBacklogReserveEchoesIDWithDB ./...",
+      "evidence": "engineering/evidence/BI-PF-1511/CTL-RESERVATION-DB.txt",
+      "failure_behavior": "block",
+      "owner": "edpsvc",
+      "cwd": "go/edpsvc"
+    }
+  ],
+  "control_evidence": [
+    {
+      "control_id": "CTL-AUTHORITY-METRICS",
+      "sha": "50214ac706eb7ec789dedf05ebeedc06358b4c64-e3b0c44298fc",
+      "result": "PASS",
+      "evidence": "engineering/evidence/BI-PF-1511/CTL-AUTHORITY.txt"
+    },
+    {
+      "control_id": "CTL-DATA-TIMEOUT",
+      "sha": "50214ac706eb7ec789dedf05ebeedc06358b4c64-e3b0c44298fc",
+      "result": "PASS",
+      "evidence": "engineering/evidence/BI-PF-1511/CTL-DATA.txt"
+    },
+    {
+      "control_id": "CTL-RESERVATION-QUOTA",
+      "sha": "50214ac706eb7ec789dedf05ebeedc06358b4c64-e3b0c44298fc",
+      "result": "PASS",
+      "evidence": "engineering/evidence/BI-PF-1511/CTL-RESERVATION-DB.txt"
+    },
+    {
+      "control_id": "CTL-TENANT-ECHO",
+      "sha": "50214ac706eb7ec789dedf05ebeedc06358b4c64-e3b0c44298fc",
+      "result": "PASS",
+      "evidence": "engineering/evidence/BI-PF-1511/CTL-RESERVATION-DB.txt"
+    }
+  ],
+  "ac_verification": [
+    {
+      "ac": "AC-1",
+      "sha": "50214ac706eb7ec789dedf05ebeedc06358b4c64",
+      "result": "PASS",
+      "evidence": [
+        "go/edpsvc/main_test.go",
+        "engineering/evidence/BI-PF-1511/CTL-AUTHORITY.txt"
+      ]
+    },
+    {
+      "ac": "AC-2",
+      "sha": "50214ac706eb7ec789dedf05ebeedc06358b4c64",
+      "result": "PASS",
+      "evidence": [
+        "go/edpsvc/main_test.go",
+        "go/edpdata/edpdata_test.go",
+        "engineering/evidence/BI-PF-1511/CTL-AUTHORITY.txt"
+      ]
+    },
+    {
+      "ac": "AC-3",
+      "sha": "50214ac706eb7ec789dedf05ebeedc06358b4c64",
+      "result": "PASS",
+      "evidence": [
+        "go/edpsvc/main_test.go",
+        "engineering/evidence/BI-PF-1511/CTL-RESERVATION-DB.txt"
+      ]
+    },
+    {
+      "ac": "AC-4",
+      "sha": "50214ac706eb7ec789dedf05ebeedc06358b4c64",
+      "result": "PASS",
+      "evidence": [
+        "go/edpdata/edpdata_test.go",
+        "go/edpsvc/main_test.go",
+        "engineering/evidence/BI-PF-1511/CTL-RESERVATION-DB.txt"
+      ]
+    }
+  ],
+  "tier": 3,
+  "tier_reasons": [
+    "computed from affected surface: tier 3"
+  ],
+  "final_report": {
+    "schema": "pf.final-report/2",
+    "ac_hash": "efc2b9329e1aa3d9",
+    "total_time_ms": 19854337,
+    "sum_stage_ms": 670691,
+    "clock_skew": false,
+    "item": "BI-PF-1511",
+    "generated_at": "2026-11-04T13:08:24.941330+00:00",
+    "item_revision": 2,
+    "current_stage": "complete",
+    "acs": [
+      {
+        "ac": "AC-1",
+        "sha": "50214ac706eb7ec789dedf05ebeedc06358b4c64",
+        "result": "PASS",
+        "evidence": [
+          "go/edpsvc/main_test.go",
+          "engineering/evidence/BI-PF-1511/CTL-AUTHORITY.txt"
+        ]
+      },
+      {
+        "ac": "AC-2",
+        "sha": "50214ac706eb7ec789dedf05ebeedc06358b4c64",
+        "result": "PASS",
+        "evidence": [
+          "go/edpsvc/main_test.go",
+          "go/edpdata/edpdata_test.go",
+          "engineering/evidence/BI-PF-1511/CTL-AUTHORITY.txt"
+        ]
+      },
+      {
+        "ac": "AC-3",
+        "sha": "50214ac706eb7ec789dedf05ebeedc06358b4c64",
+        "result": "PASS",
+        "evidence": [
+          "go/edpsvc/main_test.go",
+          "engineering/evidence/BI-PF-1511/CTL-RESERVATION-DB.txt"
+        ]
+      },
+      {
+        "ac": "AC-4",
+        "sha": "50214ac706eb7ec789dedf05ebeedc06358b4c64",
+        "result": "PASS",
+        "evidence": [
+          "go/edpdata/edpdata_test.go",
+          "go/edpsvc/main_test.go",
+          "engineering/evidence/BI-PF-1511/CTL-RESERVATION-DB.txt"
+        ]
+      }
+    ],
+    "ac_problems": [],
+    "tests_by_kind": {
+      "unit": {
+        "rows": [],
+        "passed": 0,
+        "failed": 0,
+        "skipped": 0,
+        "duration_ms": 0
+      },
+      "api": {
+        "rows": [],
+        "passed": 0,
+        "failed": 0,
+        "skipped": 0,
+        "duration_ms": 0
+      },
+      "db": {
+        "rows": [],
+        "passed": 0,
+        "failed": 0,
+        "skipped": 0,
+        "duration_ms": 0
+      },
+      "logic": {
+        "rows": [],
+        "passed": 0,
+        "failed": 0,
+        "skipped": 0,
+        "duration_ms": 0
+      },
+      "go": {
+        "rows": [],
+        "passed": 0,
+        "failed": 0,
+        "skipped": 0,
+        "duration_ms": 0
+      },
+      "other": {
+        "rows": [],
+        "passed": 0,
+        "failed": 0,
+        "skipped": 0,
+        "duration_ms": 0
+      }
+    },
+    "gate_metrics": [
+      {
+        "stage": "diff_review",
+        "at": "2026-11-04T07:37:29.742367+00:00",
+        "duration_ms": 15184,
+        "input_tokens": 4845,
+        "output_tokens": 2399,
+        "cached_tokens": 0,
+        "cost_usd": 0.0,
+        "cost_source": "provider"
+      },
+      {
+        "stage": "diff_review",
+        "at": "2026-11-04T07:41:04.629920+00:00",
+        "duration_ms": 19677,
+        "input_tokens": 5135,
+        "output_tokens": 3156,
+        "cached_tokens": 0,
+        "cost_usd": 0.0,
+        "cost_source": "provider"
+      },
+      {
+        "stage": "diff_review",
+        "at": "2026-11-04T07:45:32.436036+00:00",
+        "duration_ms": 86547,
+        "input_tokens": 5985,
+        "output_tokens": 15164,
+        "cached_tokens": 0,
+        "cost_usd": 0.0,
+        "cost_source": "provider"
+      },
+      {
+        "stage": "diff_review",
+        "at": "2026-11-04T07:48:01.380398+00:00",
+        "duration_ms": 73926,
+        "input_tokens": 6143,
+        "output_tokens": 6736,
+        "cached_tokens": 0,
+        "cost_usd": 0.0,
+        "cost_source": "provider"
+      },
+      {
+        "stage": "diff_review",
+        "at": "2026-11-04T07:50:09.166145+00:00",
+        "duration_ms": 61473,
+        "input_tokens": 6332,
+        "output_tokens": 5386,
+        "cached_tokens": 256,
+        "cost_usd": 0.0,
+        "cost_source": "provider"
+      },
+      {
+        "stage": "diff_review",
+        "at": "2026-11-04T07:51:24.428759+00:00",
+        "duration_ms": 6419,
+        "input_tokens": 5432,
+        "output_tokens": 576,
+        "cached_tokens": 0,
+        "cost_usd": 0.0,
+        "cost_source": "provider"
+      },
+      {
+        "stage": "diff_review",
+        "at": "2026-11-04T07:52:13.576160+00:00",
+        "duration_ms": 16924,
+        "input_tokens": 4101,
+        "output_tokens": 2266,
+        "cached_tokens": 0,
+        "cost_usd": 0.0,
+        "cost_source": "provider"
+      },
+      {
+        "stage": "diff_review",
+        "at": "2026-11-04T07:53:09.573762+00:00",
+        "duration_ms": 24108,
+        "input_tokens": 3987,
+        "output_tokens": 2819,
+        "cached_tokens": 0,
+        "cost_usd": 0.0,
+        "cost_source": "provider"
+      },
+      {
+        "stage": "diff_review",
+        "at": "2026-11-04T07:54:08.216901+00:00",
+        "duration_ms": 27849,
+        "input_tokens": 3538,
+        "output_tokens": 4017,
+        "cached_tokens": 0,
+        "cost_usd": 0.0,
+        "cost_source": "provider"
+      },
+      {
+        "stage": "diff_review",
+        "at": "2026-11-04T07:55:25.219637+00:00",
+        "duration_ms": 27732,
+        "input_tokens": 3915,
+        "output_tokens": 2006,
+        "cached_tokens": 384,
+        "cost_usd": 0.0,
+        "cost_source": "provider"
+      },
+      {
+        "stage": "diff_review",
+        "at": "2026-11-04T07:56:38.393578+00:00",
+        "duration_ms": 21281,
+        "input_tokens": 3835,
+        "output_tokens": 2093,
+        "cached_tokens": 0,
+        "cost_usd": 0.0,
+        "cost_source": "provider"
+      },
+      {
+        "stage": "diff_review",
+        "at": "2026-11-04T07:59:03.413541+00:00",
+        "duration_ms": 113273,
+        "input_tokens": 4104,
+        "output_tokens": 15091,
+        "cached_tokens": 0,
+        "cost_usd": 0.0,
+        "cost_source": "provider"
+      },
+      {
+        "stage": "diff_review",
+        "at": "2026-11-04T07:59:54.193514+00:00",
+        "duration_ms": 16870,
+        "input_tokens": 3808,
+        "output_tokens": 2431,
+        "cached_tokens": 0,
+        "cost_usd": 0.0,
+        "cost_source": "provider"
+      },
+      {
+        "stage": "diff_review",
+        "at": "2026-11-04T08:00:47.872136+00:00",
+        "duration_ms": 19726,
+        "input_tokens": 3797,
+        "output_tokens": 2652,
+        "cached_tokens": 0,
+        "cost_usd": 0.0,
+        "cost_source": "provider"
+      },
+      {
+        "stage": "diff_review",
+        "at": "2026-11-04T08:11:37.703737+00:00",
+        "duration_ms": 23145,
+        "input_tokens": 3517,
+        "output_tokens": 3089,
+        "cached_tokens": 0,
+        "cost_usd": 0.0,
+        "cost_source": "provider"
+      },
+      {
+        "stage": "diff_review",
+        "at": "2026-11-04T08:12:08.661883+00:00",
+        "duration_ms": 8596,
+        "input_tokens": 3404,
+        "output_tokens": 297,
+        "cached_tokens": 384,
+        "cost_usd": 0.0,
+        "cost_source": "provider"
+      },
+      {
+        "stage": "diff_review",
+        "at": "2026-11-04T08:13:33.597311+00:00",
+        "duration_ms": 13461,
+        "input_tokens": 4420,
+        "output_tokens": 1711,
+        "cached_tokens": 0,
+        "cost_usd": 0.0,
+        "cost_source": "provider"
+      },
+      {
+        "stage": "diff_review",
+        "at": "2026-11-04T08:14:21.061522+00:00",
+        "duration_ms": 13209,
+        "input_tokens": 3921,
+        "output_tokens": 1317,
+        "cached_tokens": 0,
+        "cost_usd": 0.0,
+        "cost_source": "provider"
+      },
+      {
+        "stage": "diff_review",
+        "at": "2026-11-04T08:15:22.117622+00:00",
+        "duration_ms": 32090,
+        "input_tokens": 4082,
+        "output_tokens": 4697,
+        "cached_tokens": 0,
+        "cost_usd": 0.0,
+        "cost_source": "provider"
+      },
+      {
+        "stage": "design_review",
+        "at": "2026-11-04T12:52:27.799222+00:00",
+        "duration_ms": 49201,
+        "input_tokens": 4777,
+        "output_tokens": 3910,
+        "cached_tokens": 0,
+        "cost_usd": 0.0,
+        "cost_source": "provider"
+      },
+      {
+        "stage": "gate1",
+        "at": "2026-11-04T13:03:21.087771+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "gate2",
+        "at": "2026-11-04T13:08:24.079389+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      }
+    ],
+    "usage": {
+      "input_tokens": 89078,
+      "output_tokens": 81813,
+      "cached_tokens": 1024,
+      "cost_usd": 0.0,
+      "captured": 20,
+      "not_captured": 0,
+      "unpriced": 0
+    },
+    "started_at": "2026-11-04T07:37:29.742367+00:00",
+    "finished_at": "2026-11-04T13:08:24.079389+00:00",
+    "disposition_problems": [],
+    "dispositions": {
+      "design": {},
+      "diff": {}
+    },
+    "gate_decisions": [
+      {
+        "at": "2026-10-28T13:51:37.655567",
+        "by": "system",
+        "note": "auto-approved on add (BI-PF-1282)",
+        "decision": "APPROVE"
+      },
+      {
+        "at": "2026-11-04T13:03:20.984515+00:00",
+        "by": "hil:user",
+        "decision": "APPROVE",
+        "gate": 1,
+        "findings_sha": "2826476af7e2",
+        "findings_digest": "95dd5590ebfb",
+        "seq": 2,
+        "note": "HIL approved Gate 1 for 1511 closure after design evidence, RLS proof, and dispositions.",
+        "hil_confirmed": true
+      },
+      {
+        "at": "2026-11-04T13:08:23.975815+00:00",
+        "by": "hil:user",
+        "decision": "APPROVE",
+        "gate": 2,
+        "findings_sha": "e67bf9a84642",
+        "findings_digest": "ca857eed480d",
+        "seq": 3,
+        "note": "HIL approved Gate 2 for 1511 after code merge, CI, AC evidence, and final review.",
+        "hil_confirmed": true
+      }
+    ],
+    "other_decisions": []
   }
 }
