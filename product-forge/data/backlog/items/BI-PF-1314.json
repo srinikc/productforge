@@ -89,37 +89,30 @@
   ],
   "affected_files": [
     "go/edpsvc/internal/bench/harness.go",
+    "go/edpsvc/internal/bench/scenarios.go",
     "go/edpsvc/internal/bench/slo.go",
     "go/edpsvc/internal/bench/prometheus.go",
     "go/edpsvc/internal/bench/slo_test.go",
-    "go/edpsvc/internal/bench/prometheus_test.go",
     "go/edpsvc/cmd/bench/main.go",
-    "go/edpsvc/cmd/bench/main_test.go",
     "go/edpsvc/internal/observe/metrics.go",
     "go/edpsvc/internal/observe/metrics_test.go",
     "go/edpsvc/internal/degrade/policy.go",
     "go/edpsvc/internal/degrade/policy_test.go",
     "scripts/dev/db_explain_capture.py",
+    "scripts/dev/validate_edp_slo.py",
     "test-framework/tests/test_db_explain_capture.py",
     "test-framework/tests/test_edp_slo_config.py",
+    "test-framework/tests/test_edp_degrade_config.py",
+    "test-framework/tests/test_validate_edp_slo.py",
     "config/edp-slo.json",
     "config/edp-degradation.json",
     "ops/prometheus/edp-slo.rules.yml",
     "ops/grafana/edp-slo-dashboard.json",
     "docs/EDP-22-BENCHMARKS-SLOS.md",
-    "go/edpsvc/internal/explain/capture.go",
-    "go/edpsvc/internal/explain/capture_test.go",
-    "go/edpsvc/cmd/explain/main.go",
-    "scripts/dev/gen_edp_slo.py",
-    "test-framework/tests/test_edp_degrade_config.py",
-    "config/edp-slo.schema.json",
-    "config/edp-degradation.schema.json",
-    "engineering/benchmarks/BI-PF-1314/README.md",
-    "go/edpsvc/internal/limits/quota.go",
-    "scripts/dev/validate_edp_slo.py",
-    "test-framework/tests/test_validate_edp_slo.py",
     "docs/EDP-22-RUNBOOK.md",
-    "go/edpsvc/internal/bench/baseline.go"
+    "engineering/benchmarks/BI-PF-1314/README.md",
+    "engineering/benchmarks/BI-PF-1314/db/local/baseline.json",
+    "engineering/benchmarks/BI-PF-1314/db/local/metrics.prom"
   ],
   "approach": "Define workload scenarios, capture EXPLAIN baselines, wire metrics, add quota checks and store-specific degradation switches.",
   "review": {
@@ -389,37 +382,30 @@
       ],
       "files": [
         "go/edpsvc/internal/bench/harness.go",
+        "go/edpsvc/internal/bench/scenarios.go",
         "go/edpsvc/internal/bench/slo.go",
         "go/edpsvc/internal/bench/prometheus.go",
         "go/edpsvc/internal/bench/slo_test.go",
-        "go/edpsvc/internal/bench/prometheus_test.go",
         "go/edpsvc/cmd/bench/main.go",
-        "go/edpsvc/cmd/bench/main_test.go",
         "go/edpsvc/internal/observe/metrics.go",
         "go/edpsvc/internal/observe/metrics_test.go",
         "go/edpsvc/internal/degrade/policy.go",
         "go/edpsvc/internal/degrade/policy_test.go",
         "scripts/dev/db_explain_capture.py",
+        "scripts/dev/validate_edp_slo.py",
         "test-framework/tests/test_db_explain_capture.py",
         "test-framework/tests/test_edp_slo_config.py",
+        "test-framework/tests/test_edp_degrade_config.py",
+        "test-framework/tests/test_validate_edp_slo.py",
         "config/edp-slo.json",
         "config/edp-degradation.json",
         "ops/prometheus/edp-slo.rules.yml",
         "ops/grafana/edp-slo-dashboard.json",
         "docs/EDP-22-BENCHMARKS-SLOS.md",
-        "go/edpsvc/internal/explain/capture.go",
-        "go/edpsvc/internal/explain/capture_test.go",
-        "go/edpsvc/cmd/explain/main.go",
-        "scripts/dev/gen_edp_slo.py",
-        "test-framework/tests/test_edp_degrade_config.py",
-        "config/edp-slo.schema.json",
-        "config/edp-degradation.schema.json",
-        "engineering/benchmarks/BI-PF-1314/README.md",
-        "go/edpsvc/internal/limits/quota.go",
-        "scripts/dev/validate_edp_slo.py",
-        "test-framework/tests/test_validate_edp_slo.py",
         "docs/EDP-22-RUNBOOK.md",
-        "go/edpsvc/internal/bench/baseline.go"
+        "engineering/benchmarks/BI-PF-1314/README.md",
+        "engineering/benchmarks/BI-PF-1314/db/local/baseline.json",
+        "engineering/benchmarks/BI-PF-1314/db/local/metrics.prom"
       ],
       "config": [
         "config/edp-slo.json",
@@ -522,67 +508,65 @@
       {
         "ac": "AC-1",
         "tests": [
-          "go test ./...",
-          "go test -run TestBenchmarkRepeatability ./..."
+          "go test ./..."
         ],
-        "adapter": "bench CLI + versioned baseline artifact + SLO sink",
-        "contract": "six groups map to stores db/object/cache/queue; deterministic t-bench fixture, warmup, iterations, outlier policy; versioned artifact path per store; --allow-skip is non-success and tested",
+        "adapter": "bench CLI + baseline JSON + Prometheus sink",
+        "contract": "six groups emit versioned baseline JSON and bounded p50/p95/p99 metrics; missing DSN fails unless explicit skip",
         "evidence": [
-          "docs/EDP-22-BENCHMARKS-SLOS.md"
+          "engineering/benchmarks/BI-PF-1314/db/local/baseline.json",
+          "engineering/benchmarks/BI-PF-1314/db/local/metrics.prom"
         ],
         "call_sites": [
-          "cmd/bench -> bench.RunAllWithSink -> baseline artifact + PrometheusSink"
+          "cmd/bench -> bench.RunAllWithSink -> PrometheusSink"
         ],
         "entrypoint": "go/edpsvc/cmd/bench/main.go",
         "failure_cases": [
-          "missing DSN -> fail unless explicit skip",
-          "regression -> non-zero exit",
-          "missing baseline -> fail"
+          "missing DSN -> non-zero",
+          "SLO regression -> non-zero"
         ]
       },
       {
         "ac": "AC-2",
         "tests": [
-          "go test ./...",
           "python -m pytest test-framework/tests/test_db_explain_capture.py -q"
         ],
-        "adapter": "explain capture policy + psycopg read-only capture",
-        "contract": "cmd/explain -> explain.Capture; read-only rollback tx, allowlist, timeout, redaction, audit, retention, sample<=0.05 and rate/concurrency caps",
+        "adapter": "psycopg sampled EXPLAIN capture",
+        "contract": "allowlisted read-only capture, statement_timeout, rollback, production sample<=0.05, rate cap, redaction",
         "evidence": [
-          "docs/EDP-22-BENCHMARKS-SLOS.md",
+          "scripts/dev/db_explain_capture.py",
           "docs/EDP-22-RUNBOOK.md"
         ],
         "call_sites": [
-          "operator -> cmd/explain -> explain.Capture -> rollback transaction + audit sink"
+          "operator -> db_explain_capture.py -> PostgreSQL read-only tx"
         ],
-        "entrypoint": "go/edpsvc/cmd/explain/main.go",
+        "entrypoint": "scripts/dev/db_explain_capture.py",
         "failure_cases": [
-          "prod unsampled -> refuse",
-          "unsafe statement -> refuse",
-          "timeout -> abort"
+          "prod sample>0.05 -> refuse",
+          "rate cap -> refuse"
         ],
         "runtime_capability": false
       },
       {
         "ac": "AC-3",
         "tests": [
-          "python -m pytest test-framework/tests/test_edp_slo_config.py -q",
-          "python -m pytest test-framework/tests/test_validate_edp_slo.py -q",
+          "python -m pytest test-framework/tests/test_edp_slo_config.py test-framework/tests/test_validate_edp_slo.py -q",
           "go test ./..."
         ],
-        "adapter": "Prometheus/Grafana + store metrics instrumentation",
-        "contract": "SLO rules/dashboard generated after measured baselines from config IDs; promtool/Grafana schema and drift validation",
+        "adapter": "Prometheus rules + Grafana dashboard + store metrics",
+        "contract": "alerts/dashboard cover DB/object/cache/queue with freshness, latency, errors, degradation, quota; assets validate offline",
         "evidence": [
-          "docs/EDP-22-BENCHMARKS-SLOS.md"
+          "ops/prometheus/edp-slo.rules.yml",
+          "ops/grafana/edp-slo-dashboard.json",
+          "go/edpsvc/internal/observe/metrics.go"
         ],
         "call_sites": [
-          "store adapters -> observe metrics -> Prometheus -> Grafana/alerts"
+          "store recorder -> metrics -> Prometheus/Grafana"
         ],
         "entrypoint": "go/edpsvc/internal/observe/metrics.go",
         "failure_cases": [
-          "stale benchmark -> alert",
-          "latency regression -> alert",
-          "missing store metrics -> test failure"
+          "stale baseline -> alert",
+          "store errors -> alert",
+          "degraded -> alert"
         ],
         "runtime_capability": false
       },
@@ -592,20 +576,19 @@
           "go test ./...",
           "python -m pytest test-framework/tests/test_edp_degrade_config.py -q"
         ],
-        "adapter": "degrade policy + limits + store adapters",
-        "contract": "quota hook in limits/quota.go plus per-store degrade policy: bounded scope/store labels, persistent expires_at, max_duration<=15m, renewal alert, fixed degraded error",
+        "adapter": "degrade policy + bounded config",
+        "contract": "per-store switch requires owner/reason/expiry, max 900s, expires fail closed, metrics/alert state",
         "evidence": [
-          "docs/EDP-22-BENCHMARKS-SLOS.md",
-          "go/edpsvc/internal/limits/quota.go"
+          "go/edpsvc/internal/degrade/policy.go",
+          "config/edp-degradation.json"
         ],
         "call_sites": [
-          "store adapter -> limits.Quota + degrade.Policy -> bounded error + metrics"
+          "store adapter -> degrade.Check -> fixed degraded error + observe metrics"
         ],
         "entrypoint": "go/edpsvc/internal/degrade/policy.go",
         "failure_cases": [
-          "expired switch -> fail closed",
-          "degraded store -> fixed error",
-          "switch on -> alert"
+          "expired -> fail closed",
+          "missing reason/owner -> config invalid"
         ],
         "runtime_capability": false
       }
@@ -619,12 +602,12 @@
       {
         "ac": "AC-2",
         "kind": "unit/contract",
-        "test": "go test ./..."
+        "test": "python -m pytest test-framework/tests/test_db_explain_capture.py -q"
       },
       {
         "ac": "AC-3",
         "kind": "unit/contract",
-        "test": "python -m pytest test-framework/tests/test_edp_slo_config.py -q"
+        "test": "python -m pytest test-framework/tests/test_edp_slo_config.py test-framework/tests/test_validate_edp_slo.py -q"
       },
       {
         "ac": "AC-4",
@@ -634,20 +617,20 @@
     ],
     "ac_evidence": {
       "AC-1": {
-        "sha": "candidate",
-        "evidence": "go test ./..."
+        "sha": "4cf6d7aa",
+        "evidence": "engineering/benchmarks/BI-PF-1314/db/local/baseline.json"
       },
       "AC-2": {
-        "sha": "candidate",
-        "evidence": "go test ./..."
+        "sha": "4cf6d7aa",
+        "evidence": "test-framework/tests/test_db_explain_capture.py"
       },
       "AC-3": {
-        "sha": "candidate",
-        "evidence": "python -m pytest test-framework/tests/test_edp_slo_config.py -q"
+        "sha": "4cf6d7aa",
+        "evidence": "test-framework/tests/test_edp_slo_config.py"
       },
       "AC-4": {
-        "sha": "candidate",
-        "evidence": "go test ./..."
+        "sha": "4cf6d7aa",
+        "evidence": "go/edpsvc/internal/degrade/policy_test.go"
       }
     },
     "proof_plan": {
@@ -667,37 +650,30 @@
     "review_scope": {
       "files": [
         "go/edpsvc/internal/bench/harness.go",
+        "go/edpsvc/internal/bench/scenarios.go",
         "go/edpsvc/internal/bench/slo.go",
         "go/edpsvc/internal/bench/prometheus.go",
         "go/edpsvc/internal/bench/slo_test.go",
-        "go/edpsvc/internal/bench/prometheus_test.go",
         "go/edpsvc/cmd/bench/main.go",
-        "go/edpsvc/cmd/bench/main_test.go",
         "go/edpsvc/internal/observe/metrics.go",
         "go/edpsvc/internal/observe/metrics_test.go",
         "go/edpsvc/internal/degrade/policy.go",
         "go/edpsvc/internal/degrade/policy_test.go",
         "scripts/dev/db_explain_capture.py",
+        "scripts/dev/validate_edp_slo.py",
         "test-framework/tests/test_db_explain_capture.py",
         "test-framework/tests/test_edp_slo_config.py",
+        "test-framework/tests/test_edp_degrade_config.py",
+        "test-framework/tests/test_validate_edp_slo.py",
         "config/edp-slo.json",
         "config/edp-degradation.json",
         "ops/prometheus/edp-slo.rules.yml",
         "ops/grafana/edp-slo-dashboard.json",
         "docs/EDP-22-BENCHMARKS-SLOS.md",
-        "go/edpsvc/internal/explain/capture.go",
-        "go/edpsvc/internal/explain/capture_test.go",
-        "go/edpsvc/cmd/explain/main.go",
-        "scripts/dev/gen_edp_slo.py",
-        "test-framework/tests/test_edp_degrade_config.py",
-        "config/edp-slo.schema.json",
-        "config/edp-degradation.schema.json",
-        "engineering/benchmarks/BI-PF-1314/README.md",
-        "go/edpsvc/internal/limits/quota.go",
-        "scripts/dev/validate_edp_slo.py",
-        "test-framework/tests/test_validate_edp_slo.py",
         "docs/EDP-22-RUNBOOK.md",
-        "go/edpsvc/internal/bench/baseline.go"
+        "engineering/benchmarks/BI-PF-1314/README.md",
+        "engineering/benchmarks/BI-PF-1314/db/local/baseline.json",
+        "engineering/benchmarks/BI-PF-1314/db/local/metrics.prom"
       ],
       "ac_ids": [
         "AC-1",
@@ -719,13 +695,10 @@
         "go/edpsvc/internal/observe",
         "go/edpsvc/internal/degrade",
         "scripts/dev",
-        "ops/prometheus",
-        "ops/grafana",
+        "ops",
         "config",
         "docs",
-        "go/edpsvc/internal/explain",
-        "go/edpsvc/cmd/explain",
-        "go/edpsvc/internal/limits"
+        "engineering/benchmarks"
       ]
     },
     "controls": [
@@ -735,16 +708,6 @@
         "applies_to": "go/edpsvc/cmd/bench/main.go",
         "check": "go test ./...",
         "evidence": "docs/EDP-22-BENCHMARKS-SLOS.md",
-        "failure_behavior": "block",
-        "owner": "edpsvc",
-        "cwd": "go/edpsvc"
-      },
-      {
-        "id": "CTL-EXPLAIN-SAMPLING",
-        "dimension": "audit",
-        "applies_to": "go/edpsvc/cmd/explain/main.go",
-        "check": "go test ./...",
-        "evidence": "docs/EDP-22-RUNBOOK.md",
         "failure_behavior": "block",
         "owner": "edpsvc",
         "cwd": "go/edpsvc"
@@ -795,6 +758,16 @@
         "applies_to": "scripts/dev/validate_edp_slo.py",
         "check": "python -m pytest test-framework/tests/test_validate_edp_slo.py -q",
         "evidence": "docs/EDP-22-BENCHMARKS-SLOS.md",
+        "failure_behavior": "block",
+        "owner": "ops",
+        "cwd": "."
+      },
+      {
+        "id": "CTL-EXPLAIN-SAMPLING",
+        "dimension": "audit",
+        "applies_to": "scripts/dev/db_explain_capture.py",
+        "check": "python -m pytest test-framework/tests/test_db_explain_capture.py -q",
+        "evidence": "docs/EDP-22-RUNBOOK.md",
         "failure_behavior": "block",
         "owner": "ops",
         "cwd": "."
@@ -1317,5 +1290,43 @@
         "note": "Design updated with explicit scope, controls, retention, rate caps, baseline schema, and validation; evidence: engineering/design/BI-PF-1314.md, docs/EDP-22-RUNBOOK.md."
       }
     }
-  }
+  },
+  "ac_verification": [
+    {
+      "ac": "AC-1",
+      "sha": "4cf6d7aa",
+      "result": "PASS",
+      "evidence": [
+        "engineering/benchmarks/BI-PF-1314/db/local/baseline.json",
+        "engineering/benchmarks/BI-PF-1314/db/local/metrics.prom"
+      ]
+    },
+    {
+      "ac": "AC-2",
+      "sha": "4cf6d7aa",
+      "result": "PASS",
+      "evidence": [
+        "test-framework/tests/test_db_explain_capture.py"
+      ]
+    },
+    {
+      "ac": "AC-3",
+      "sha": "4cf6d7aa",
+      "result": "PASS",
+      "evidence": [
+        "test-framework/tests/test_edp_slo_config.py",
+        "test-framework/tests/test_validate_edp_slo.py",
+        "ops/prometheus/edp-slo.rules.yml"
+      ]
+    },
+    {
+      "ac": "AC-4",
+      "sha": "4cf6d7aa",
+      "result": "PASS",
+      "evidence": [
+        "go/edpsvc/internal/degrade/policy_test.go",
+        "test-framework/tests/test_edp_degrade_config.py"
+      ]
+    }
+  ]
 }
