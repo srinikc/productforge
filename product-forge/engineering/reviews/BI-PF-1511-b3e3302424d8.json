@@ -1,0 +1,31 @@
+{
+  "item": "BI-PF-1511",
+  "sha": "b3e3302424d8",
+  "model": "deepseek-v4.1-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-04T07:52:13.506646+00:00",
+  "review_scope": "delta",
+  "base_sha": "8998ccd8b1719258b895dff00f168c6aeff10ddd",
+  "head_sha": "9eaf56cc9483837849eea91e2626719750fe0fd0",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "The tightened marker list now under-matches common connectivity failures (e.g. `tls: failed to verify certificate: x509: ...`, `dial tcp ...: i/o timeout`, `no pg_hba.conf entry`), which fall through to `internal_error`; if the `backlog-authority.rules.yml` alarm routes on `db_unavailable`, availability incidents are silently mis-routed (alarm lead-time regression). Confirm the rule keys on the aggregate series or add `x509`/`certificate` markers."
+    ],
+    "MINOR": [
+      "`TestAuthorityFailureMetricUsesBoundedReasons` asserts `...reason=\"internal_error\"} 1` via `strings.Contains`, which also matches `} 10`, `} 12`, `} 137`; the \"exact value\" check is still non-exact \u2014 assert `\"} 1\\n\"` or parse the text exposition.",
+      "Narrowing `\"tls\"` -> `\"tls handshake\"` and `\"password authentication\"` -> `\"password authentication failed\"` silently changes classification of previously-tagged errors; no table-driven test locks the allow/deny boundary of the marker list, so future drift (over- or under-matching) is unguarded.",
+      "`newBacklog` centralises construction but the timeout default (`s.cfg.DBTimeout`) still has no assertion that the reserve path inherits the same configured timeout; only the authority path is covered by `TestAuthorityTimeoutComesFromConfig` per the AC matrix."
+    ],
+    "NIT": [
+      "`t.Fatalf` is invoked from inside the `backlogFactory` closure; safe today only because the handler runs on the test goroutine \u2014 `t.Errorf` + a returned sentinel error would survive any future async/concurrent seam.",
+      "Marker list is an inline literal in `authorityReasonCode`; a package-level `var dbUnavailableMarkers` would make the classification boundary reviewable and reusable by tests."
+    ],
+    "SUMMARY": [
+      "Delta correctly resolves the prior over-broad marker MAJOR, the duplicated constructor MINOR, and the missing reserve-seam assertion; all prior findings appear ACTIONED.",
+      "Residual risks: reason-marker under-matching can hide real availability failures from reason-scoped alarms, and the \"exact value\" metric assertion is still substring-based (matches 10/12/137).",
+      "No AC evidence removed by this delta; no language-rule, tenant-isolation, or schema concerns introduced."
+    ]
+  }
+}

@@ -150,7 +150,7 @@
   },
   "blocked_by": [],
   "created_at": "2026-10-28T13:50:57.492888",
-  "updated_at": "2026-11-01T18:37:05.319849",
+  "updated_at": "2026-11-04T13:45:22.309021",
   "design_pack": {
     "scope": [
       "Work required for: Backlog authority follow-up: runtime diagnostics and quotas"
@@ -174,7 +174,13 @@
       ],
       "files": [
         "go/edpsvc/",
-        "go/edpdata/"
+        "go/edpdata/",
+        "go/edpsvc/main.go",
+        "go/edpsvc/main_test.go",
+        "go/edpdata/backlog.go",
+        "go/edpdata/edpdata_test.go",
+        "ops/prometheus/backlog-authority.rules.yml",
+        "docs/BACKLOG-AUTHORITY-RUNBOOK.md"
       ],
       "config": [
         "config/control-matrix.json",
@@ -218,7 +224,7 @@
       },
       "AC-4": {
         "sha": "candidate",
-        "evidence": "go/edpdata/edpdata_test.go::TestAuthorityIDSpaceExhaustionFailsClosed"
+        "evidence": "go/edpdata/edpdata_test.go::TestAuthorityIDSpaceExhaustionFailsClosed; go/edpsvc/main_test.go::TestReservationExhaustedFailsClosedWithAlarm"
       }
     },
     "performance": [
@@ -243,7 +249,7 @@
       {
         "ac": "AC-4",
         "kind": "unit/contract",
-        "test": "go/edpdata/edpdata_test.go::TestAuthorityIDSpaceExhaustionFailsClosed"
+        "test": "go/edpdata/edpdata_test.go::TestAuthorityIDSpaceExhaustionFailsClosed; go/edpsvc/main_test.go::TestReservationExhaustedFailsClosedWithAlarm"
       }
     ],
     "dependencies": [
@@ -303,5 +309,1185 @@
   ],
   "affected_components": [
     "Not specified."
-  ]
+  ],
+  "review_ledger": [
+    {
+      "mode": "diff",
+      "candidate_sha": "5805bc27f4e1e3c3e711e4aae37329eccf78d549",
+      "review_sha": "bcf24d8ebd3b",
+      "model": "deepseek-v4.1-flash",
+      "at": "2026-11-04T07:37:29.712650+00:00",
+      "review_scope": "full_candidate",
+      "base_sha": "",
+      "head_sha": "5805bc27f4e1e3c3e711e4aae37329eccf78d549",
+      "findings": {
+        "BLOCKER": [
+          "AC-4 not implemented: the new alert `ProductForgeBacklogIDSpaceExhausted` reads `edp_backlog_reservation_exhausted_total`, but nothing in the diff increments that metric — the alert can never fire.",
+          "AC-4: no exhaustion path exists — `Reserve`/`backlogReserve` add no quota check, no fixed safe reason code, and no `TestAuthorityIDSpaceExhaustionFailsClosed`; a zeroed success remains possible.",
+          "AC-2 evidence missing: the design-mandated `TestAuthorityTimeoutComesFromConfig` is absent; `TestBacklogWithTimeoutUsesConfiguredDuration` only asserts the struct field and never proves the timeout reaches `set_config('statement_timeout', ...)` or is sourced from config (no failing-then-passing red evidence, CL-010)."
+        ],
+        "MAJOR": [
+          "AC-1 has no test: `TestAuthorityFailureMetricUsesBoundedReasons` is not in the diff; the failure gauge/reason path is unchanged, so boundedness is unproven.",
+          "`WithTimeout` mutates the receiver and returns the same pointer; safe only because callers construct fresh stores — a reused `BacklogStore` shared across goroutines becomes a data race.",
+          "`WithTimeout` silently ignores `d <= 0`, converting misconfiguration into a hidden default instead of a startup failure.",
+          "No observability on the exhaustion/id-space path (no log line, no metric) despite the paging alert depending on it.",
+          "Statement timeout is set from `DBTimeout` while the caller already wraps the same value in `context.WithTimeout`; no assertion that the SQL-level timeout fires before ctx cancellation in the reserve path."
+        ],
+        "MINOR": [
+          "`TestReservationResponseEchoesID` tests the helper in isolation, not the HTTP handler contract (status/code/tenant leakage), so AC-3 is only weakly covered.",
+          "`reservationResponse` echoes whatever `b.ReservationID` holds, including empty/unvalidated values; retry-correlation semantics rely on upstream validation not asserted here.",
+          "Test-name/evidence drift between design contract and delivered tests (AC-2, AC-3) undermines traceability."
+        ],
+        "NIT": [
+          "`defaultStatementTimeout` duplicates the config-derived value with no single source of truth.",
+          "`fmt.Sprintf(\"%dms\", ms)` string-building in a SQL path could be a typed duration/int parameter."
+        ],
+        "SUMMARY": [
+          "The change partially satisfies AC-2 and AC-3 but leaves AC-1 and AC-4 substantively unmet; the shipped Prometheus alert is dead because its metric is never emitted.",
+          "Highest risk: a paging alert that silently never fires plus continued zeroed-success on ID-space exhaustion — false operational assurance.",
+          "Second risk: the timeout is now configurable but not proven by the required regression tests, and the mutating `WithTimeout` builder is a latent concurrency hazard.",
+          "Recommend blocking merge until exhaustion metric+reason+test land and the config-driven timeout test asserts the emitted statement, not just a field."
+        ]
+      },
+      "evidence": "BI-PF-1511-bcf24d8ebd3b.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "19a9dc6f90a3cfad44f0125d62618f04ef978997",
+      "review_sha": "b496cd5ffe48",
+      "model": "deepseek-v4.1-flash",
+      "at": "2026-11-04T07:41:04.570221+00:00",
+      "review_scope": "delta",
+      "base_sha": "5805bc27f4e1e3c3e711e4aae37329eccf78d549",
+      "head_sha": "19a9dc6f90a3cfad44f0125d62618f04ef978997",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [
+          "AC-1: `TestAuthorityFailureMetricUsesBoundedReasons` only exercises the pure `authorityReasonCode` map; nothing asserts the authority failure gauge/metric actually increments on an endpoint failure, so \"gauge reflects endpoint failures\" remains unproven (prior disposition overstated).",
+          "AC-2: `TestAuthorityTimeoutComesFromConfig` hardcodes `2345 * time.Millisecond` and calls `WithTimeout` directly; it proves propagation to `set_config` but not that the value is derived from configuration (no config loader/env path exercised).",
+          "AC-4: `TestAuthorityIDSpaceExhaustionFailsClosed` only asserts the `edpdata` sentinel; no test asserts the service returns a fixed safe reason with a non-2xx status and that `edp_backlog_reservation_exhausted_total` (the alarm input) is incremented on the exhaustion path."
+        ],
+        "MINOR": [
+          "AC-3: only the test name changed; `TestAuthorityResponseEchoesReservationID` still tests the helper in isolation with no HTTP-level assertion on status/code/absence of tenant fields.",
+          "`authorityReasonCode` catch-all maps any unrecognized error (e.g. code bug, wrapped deadline) to `db_unavailable`; the new test case locks in that conflation, weakening diagnosis separation.",
+          "`fakeStore.Exec` still discards args while `fakeTx.Exec` records them; the divergent fakes can silently hide a missing statement timeout on non-transactional paths.",
+          "Design `ac_evidence`/`test_matrix` cite `go/edpsvc/main_test.go::TestAuthorityTimeoutComesFromConfig`, but the test now lives in `go/edpdata/edpdata_test.go` — evidence path drift breaks traceability."
+        ],
+        "NIT": [
+          "Timeout assertion relies on `execs[0][0]` ordering and `fmt.Sprint(...)==\"2345ms\"`, so it is brittle to arg order and duration formatting changes.",
+          "The Authority call's error is discarded (`_`); the test could pass while Authority still returns a failure after the exec.",
+          "Exhaustion test assumes the first `Query` returns the counter row; multi-query Reserve implementations would silently break it."
+        ],
+        "SUMMARY": [
+          "Delta cleanly centralizes exhaustion handling (single metric/log/response helper, no behavior change) and adds real regression coverage for timeout propagation and fail-closed exhaustion.",
+          "Remaining gaps are evidentiary: AC-1 gauge increment, AC-2 config derivation, AC-4 service-level safe reason + alarm metric are still only partially proven.",
+          "No integrity, security, or language-rule blockers found; test fakes and evidence-path drift should be tightened before claiming the ACs closed."
+        ]
+      },
+      "evidence": "BI-PF-1511-b496cd5ffe48.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "357813d7199dda8009cddf8463671ce14ea571da",
+      "review_sha": "da0982de5e0f",
+      "model": "deepseek-v4.1-flash",
+      "at": "2026-11-04T07:45:32.376024+00:00",
+      "review_scope": "delta",
+      "base_sha": "19a9dc6f90a3cfad44f0125d62618f04ef978997",
+      "head_sha": "357813d7199dda8009cddf8463671ce14ea571da",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [
+          "AC-4: `TestReservationExhaustedFailsClosedWithAlarm` invokes `s.reservationExhausted` directly; it never exercises `backlogReserve` with an `ErrIDSpaceExhausted` result, so the endpoint could fail to raise the alarm or return a zeroed success while the test passes.",
+          "AC-1: the new endpoint metric assertion lives in `TestBacklogAuthorityFailsClosed`, which skips unless `PF_RUNTIME_DSN` is set; non-gated evidence still only calls `authorityReasonCode`, so standard CI does not prove the gauge reflects endpoint failures."
+        ],
+        "MINOR": [
+          "AC-1 evidence asserts `edp_backlog_authority_errors_total` (counter) while the AC says gauge; confirm intended metric semantics or update the contract.",
+          "AC-2: `TestAuthorityTimeoutComesFromConfig` manually applies `cfg.DBTimeout` via `NewBacklog(nil).WithTimeout(...)`; it does not prove `edpsvc` wires the configured timeout into the authority store.",
+          "AC-3: `TestBacklogReserveEchoesIDWithDB` only checks for an exact `tenant` key; a response leaking `tenant_id` or nested tenant fields would pass.",
+          "`authorityReasonCode`'s new substring markers, especially `\"db\"`, classify errors by message text; driver/message changes can silently reclassify failures and weaken diagnostics.",
+          "Design `ac_evidence`/`test_matrix` still cite the old AC-1/AC-4 tests and do not reference the new endpoint/alarm tests, so traceability is out of sync."
+        ],
+        "NIT": [
+          "`TestBacklogTimeoutPropagatesToStatementTimeout` couples the timeout regression to `ErrAuthoritySchema`; unrelated schema-detection changes can break a timeout test.",
+          "`StatementTimeout` is an exported test-only accessor on the production store; consider an unexported/test helper to avoid widening the package API.",
+          "`TestBacklogReserveEchoesIDWithDB` uses wall-clock nano IDs and leaves reservations in the shared runtime DB; repeated runs accumulate test data."
+        ],
+        "SUMMARY": [
+          "The delta resolves several prior test gaps and correctly adds JSON tags so `reservation_id` is decoded.",
+          "The main residual risk is AC-4 endpoint wiring: the new alarm test bypasses `backlogReserve`.",
+          "AC-1 endpoint metric evidence is DB-gated, and the new `authorityReasonCode` substring heuristic is brittle.",
+          "AC-2/AC-3 tests prove pieces but not full service wiring or broad tenant-leak absence."
+        ]
+      },
+      "evidence": "BI-PF-1511-da0982de5e0f.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "30b41eb48443d368db580bf9d6179f7e0293b66c",
+      "review_sha": "3825e0e25a1e",
+      "model": "deepseek-v4.1-flash",
+      "at": "2026-11-04T07:48:01.317356+00:00",
+      "review_scope": "delta",
+      "base_sha": "357813d7199dda8009cddf8463671ce14ea571da",
+      "head_sha": "30b41eb48443d368db580bf9d6179f7e0293b66c",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [
+          "AC-4/delta `main_test.go::TestReservationExhaustedFailsClosedWithAlarm`: it asserts only the 409 body, not that the quota/alarm signal was raised; the \"raises a quota/alarm signal\" half of AC-4 remains unproven at the endpoint (prior disposition only partly actioned).",
+          "`edp_backlog_authority_endpoint_ok` is a latch updated only on request: it starts/returns 0 before any success and stays 0 indefinitely after one failure on this operator-only endpoint, so an `endpoint_ok == 0` rule alerts on deploy and never clears until a manual call succeeds.",
+          "Same gauge is set to 0 for non-availability reasons (`migration_missing`, `row_missing`), conflating configuration/schema faults with endpoint availability; alerting cannot distinguish without duplicating the bounded reason label."
+        ],
+        "MINOR": [
+          "`authorityReasonCode` drops `\"database\"`/`\"db\"` while adding the broad `\"driver\"`: `unknown driver ...` now reports `db_unavailable` (masks config bugs) and `cannot connect to database` falls to `internal_error`; still message-substring classification, only partially addressing the prior MINOR.",
+          "`reserveBacklog` calls the `func(tenant string)` factory with `\"\"` while `backlogForTenant` passes a real tenant; the seam's contract is inconsistent and a future factory that binds by tenant would silently reserve unbound.",
+          "AC-3/delta `TestBacklogReserveEchoesIDWithDB` scans only top-level keys for `tenant`; a nested map/array field (`meta.tenant_id`) would still leak and pass.",
+          "`TestAuthorityFailureMetricUsesBoundedReasons` asserts an exact counter value of `1`, which is flaky if `limits.Metrics` is shared across servers/tests rather than per-`testServer`.",
+          "`TestAuthorityTimeoutComesFromConfig` now exercises `store.BindTenant(s.st, ...)` with a nil `s.st`; it silently depends on `BindTenant` tolerating nil and still does not prove tenant binding reaches the query (CL-011).",
+          "`backlogForTenant`/`reserveBacklog` duplicate the `NewBacklog(...).WithTimeout(s.cfg.DBTimeout)` construction and factory branch; centralise to keep construction semantics in one place."
+        ],
+        "NIT": [
+          "`Test...WithAlarm` name implies an alarm assertion that the test does not make; rename or add the alarm metric/quota assertion.",
+          "`TestBacklogTimeoutPropagatesToStatementTimeout`'s positional 3-result `queries` fixture is brittle to any change in authority query order/count.",
+          "`StatementTimeout()` is carried on the production `backlogStore` interface solely for the config test; a test-local accessor would avoid widening the seam."
+        ],
+        "SUMMARY": [
+          "Delta closes the prior endpoint/factory gaps for AC-1 and AC-2 and improves AC-3's tenant-leak check; no data-loss, secret or RLS regressions found.",
+          "Remaining risks: AC-4's alarm signal is still unasserted at the endpoint, and the new `endpoint_ok` gauge is a last-request latch that can produce persistent false alerts.",
+          "Reason-code classification remains string-based and was arguably weakened by the `db`→`driver` marker swap."
+        ]
+      },
+      "evidence": "BI-PF-1511-3825e0e25a1e.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "47ab983e49795c94f4b6ac029cf6c84cf8755152",
+      "review_sha": "51cf2a0d3319",
+      "model": "deepseek-v4.1-flash",
+      "at": "2026-11-04T07:50:09.100299+00:00",
+      "review_scope": "delta",
+      "base_sha": "30b41eb48443d368db580bf9d6179f7e0293b66c",
+      "head_sha": "47ab983e49795c94f4b6ac029cf6c84cf8755152",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [
+          "`authorityReasonCode` default branch removes the `\"57014\"`/`\"timeout\"` string fallbacks: a Postgres statement timeout (`*pgconn.PgError` SQLSTATE 57014, not a `net.Error`) now reports `internal_error`, dropping the timeout diagnostic that CL-012 and AC-1 depend on. Add explicit 57014 mapping + test.",
+          "`errors.As(err, &netErr)` precedes any `Timeout()` check, so a non-deadline net timeout (custom dialer) is reported `db_unavailable`; order/guard on `netErr.Timeout()` to keep `timeout` distinct from `db_unavailable`.",
+          "`checkBacklogAuthority` now writes `edp_backlog_authority_last_request_ok`: a transient DB blip at boot pins the \"last request\" gauge to 0 with no request made, so a `== 0` alert fires on deploy and clears only after a manual operator call — same false-alarm shape the prior MAJOR asked to remove."
+        ],
+        "MINOR": [
+          "`backlogFor(tenant string, reserve bool)` silently discards `tenant` when `reserve` is true: a future caller passing a real tenant gets an unbound (no-RLS) store — the exact seam hazard this refactor closed for the factory. Prefer two named constructors.",
+          "Dropping the `\"connection\"`/`\"refused\"`/`\"closed\"`/`\"driver\"` markers narrows `db_unavailable`: pgconn \"conn closed\"/unexpected EOF, TLS and auth errors now surface as `internal_error`, under-reporting availability in the bounded reason set.",
+          "AC-1 evidence only proves the `last_request_ok == 0` case; no test asserts the gauge returns to 1 on a subsequent success, nor that the startup write does not leak into request semantics.",
+          "The new rules-file assertion is a substring check only (could match a comment) and no equivalent assertion covers the `endpoint_ok` → `last_request_ok` rename, so a stale rule name would silently never fire."
+        ],
+        "NIT": [
+          "Reading `../../ops/prometheus/backlog-authority.rules.yml` by relative path couples a unit test to repo layout; breaks under alternate working dirs or packaging.",
+          "`hasTenantKey` treats any key containing \"tenant\" as a leak and inspects keys only, not values — over-broad false positives, blind to `{\"owner\": \"tenant-a\"}`."
+        ],
+        "SUMMARY": [
+          "Net improvement: factory seam unified, gauge renamed with startup/request parity, recursive tenant-leak check, and alarm-rule evidence added.",
+          "Top risks: the reason-code rewrite regresses timeout classification (PG 57014 and net timeouts), and the shared request/startup gauge can page on deploy.",
+          "Recommend fixing reason precedence/57014 mapping and separating startup vs request gauges before merge; remaining items are coverage polish."
+        ]
+      },
+      "evidence": "BI-PF-1511-51cf2a0d3319.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "8998ccd8b1719258b895dff00f168c6aeff10ddd",
+      "review_sha": "d9358205e417",
+      "model": "deepseek-v4.1-flash",
+      "at": "2026-11-04T07:51:24.366159+00:00",
+      "review_scope": "delta",
+      "base_sha": "47ab983e49795c94f4b6ac029cf6c84cf8755152",
+      "head_sha": "8998ccd8b1719258b895dff00f168c6aeff10ddd",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [
+          "`authorityReasonCode` now classifies any error whose lowercased message contains `\"tls\"` or `\"password authentication\"` as `db_unavailable`; substring `\"tls\"` also matches unrelated words (e.g. \"defaults\", \"results\") — over-broad classification risks mislabeling genuine internal errors as availability failures and skewing the bounded reason diagnostics."
+        ],
+        "MINOR": [
+          "`backlogReserve` changed to `s.reserveBacklog()` which calls `s.backlogFactory(\"\", true)`; the empty tenant is now hard-coded inside the new helper rather than at the call site, removing the documented \"admin-only, no tenant binding\" context from the seam — a future factory caller may assume tenant scoping, so add a doc comment on `reserveBacklog` making the deliberate unbound store explicit.",
+          "`authorityBacklog`/`reserveBacklog` duplicate the `edpdata.NewBacklog(...).WithTimeout(s.cfg.DBTimeout)` construction; the timeout wiring is now expressed twice, so a future change to the default timeout/backlog constructor must be kept in sync in both helpers.",
+          "New test `TestAuthorityFailureMetricUsesBoundedReasons` mutates `s.backlogFactory` after the initial failure assertion and asserts recovery — good, but no test asserts that `reserveBacklog`'s unbound factory path (`tenant=\"\"`) is exercised, leaving the reserve seam untested for the tenant-binding invariant."
+        ],
+        "NIT": [
+          "The `57014`/`statement timeout` fallback is checked before `errors.As(err, &netErr)`; ordering is fine today but unreachable for `*pgconn.PgError` users — consider a dedicated `errors.As(&pgErr)` branch for clarity and to avoid string matching on `\"57014\"`.",
+          "`TestAuthorityFailureMetricUsesBoundedReasons` uses `strings.Contains(..., \"edp_backlog_authority_errors_total{reason=\\\"internal_error\\\"}\")` without the value; the earlier exact-value assertion was relaxed, weakening the metric-shape check."
+        ],
+        "SUMMARY": [
+          "Delta resolves prior MAJORs (timeout precedence, request-only gauge, recovery assertion, textual markers) and cleanly splits `backlogFor` into `authorityBacklog`/`reserveBacklog`.",
+          "Main residual risk is the over-broad `\"tls\"` substring marker in `authorityReasonCode`, which can misclassify non-availability errors and pollute diagnostics; tighten the marker set.",
+          "Minor reuse/duplication between the two backlog helpers and an untested reserve seam are worth addressing but not blocking."
+        ]
+      },
+      "evidence": "BI-PF-1511-d9358205e417.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "9eaf56cc9483837849eea91e2626719750fe0fd0",
+      "review_sha": "b3e3302424d8",
+      "model": "deepseek-v4.1-flash",
+      "at": "2026-11-04T07:52:13.506646+00:00",
+      "review_scope": "delta",
+      "base_sha": "8998ccd8b1719258b895dff00f168c6aeff10ddd",
+      "head_sha": "9eaf56cc9483837849eea91e2626719750fe0fd0",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [
+          "The tightened marker list now under-matches common connectivity failures (e.g. `tls: failed to verify certificate: x509: ...`, `dial tcp ...: i/o timeout`, `no pg_hba.conf entry`), which fall through to `internal_error`; if the `backlog-authority.rules.yml` alarm routes on `db_unavailable`, availability incidents are silently mis-routed (alarm lead-time regression). Confirm the rule keys on the aggregate series or add `x509`/`certificate` markers."
+        ],
+        "MINOR": [
+          "`TestAuthorityFailureMetricUsesBoundedReasons` asserts `...reason=\"internal_error\"} 1` via `strings.Contains`, which also matches `} 10`, `} 12`, `} 137`; the \"exact value\" check is still non-exact — assert `\"} 1\\n\"` or parse the text exposition.",
+          "Narrowing `\"tls\"` -> `\"tls handshake\"` and `\"password authentication\"` -> `\"password authentication failed\"` silently changes classification of previously-tagged errors; no table-driven test locks the allow/deny boundary of the marker list, so future drift (over- or under-matching) is unguarded.",
+          "`newBacklog` centralises construction but the timeout default (`s.cfg.DBTimeout`) still has no assertion that the reserve path inherits the same configured timeout; only the authority path is covered by `TestAuthorityTimeoutComesFromConfig` per the AC matrix."
+        ],
+        "NIT": [
+          "`t.Fatalf` is invoked from inside the `backlogFactory` closure; safe today only because the handler runs on the test goroutine — `t.Errorf` + a returned sentinel error would survive any future async/concurrent seam.",
+          "Marker list is an inline literal in `authorityReasonCode`; a package-level `var dbUnavailableMarkers` would make the classification boundary reviewable and reusable by tests."
+        ],
+        "SUMMARY": [
+          "Delta correctly resolves the prior over-broad marker MAJOR, the duplicated constructor MINOR, and the missing reserve-seam assertion; all prior findings appear ACTIONED.",
+          "Residual risks: reason-marker under-matching can hide real availability failures from reason-scoped alarms, and the \"exact value\" metric assertion is still substring-based (matches 10/12/137).",
+          "No AC evidence removed by this delta; no language-rule, tenant-isolation, or schema concerns introduced."
+        ]
+      },
+      "evidence": "BI-PF-1511-b3e3302424d8.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "b52991e7a501da9440890baf9d50446b615f0bb0",
+      "review_sha": "5135e21236a6",
+      "model": "deepseek-v4.1-flash",
+      "at": "2026-11-04T07:53:09.513320+00:00",
+      "review_scope": "delta",
+      "base_sha": "9eaf56cc9483837849eea91e2626719750fe0fd0",
+      "head_sha": "b52991e7a501da9440890baf9d50446b615f0bb0",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [],
+        "MINOR": [
+          "`dbUnavailableMarkers` now classifies any error containing `certificate` or `x509` as `db_unavailable`; non-connectivity failures such as certificate config/rotation errors would be mislabeled and can skew authority failure alarms.",
+          "The added marker cases are positive-only; no negative table case locks the broadened `certificate`/`x509` boundary, so future over-matching remains unguarded."
+        ],
+        "NIT": [
+          "`dbUnavailableMarkers` is a mutable package-level slice; an immutable array or read-only accessor would better signal the classification table is not runtime-mutable."
+        ],
+        "SUMMARY": [
+          "Delta resolves the prior marker/timeout/metric-exactness gaps and keeps authority reasons bounded; no AC-breaking regression is evident in the delta.",
+          "Main residual risk is over-broad substring classification (`certificate`, `x509`) reducing diagnostic precision and potentially causing false `db_unavailable` signals."
+        ]
+      },
+      "evidence": "BI-PF-1511-5135e21236a6.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "4a797a04226741ef0d6d11c8a996cf4cb9c40099",
+      "review_sha": "fa6fa355fb83",
+      "model": "deepseek-v4.1-flash",
+      "at": "2026-11-04T07:54:08.156685+00:00",
+      "review_scope": "delta",
+      "base_sha": "b52991e7a501da9440890baf9d50446b615f0bb0",
+      "head_sha": "4a797a04226741ef0d6d11c8a996cf4cb9c40099",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [],
+        "MINOR": [
+          "New `x509.HostnameError` and `x509.CertificateInvalidError` branches are not exercised by tests; only `x509.UnknownAuthorityError` is covered, leaving two new classifiers unguarded against regression.",
+          "Typed `HostnameError`/`CertificateInvalidError` still map certificate configuration/rotation failures such as hostname mismatch or expired cert to `db_unavailable`, so the authority failure gauge can conflate TLS misconfiguration with a true DB endpoint outage.",
+          "Removing the `x509`/`certificate` string markers means plain-string TLS/certificate errors that do not wrap typed x509 errors now fall through to `internal_error`; no boundary test covers that fallback, reducing diagnostic fidelity for non-Go/proxy error paths."
+        ],
+        "NIT": [
+          "The negative case only pins `\"certificate rotation pending\"`; add coverage for other removed marker forms such as bare `\"x509\"` to lock the narrowed classification boundary."
+        ],
+        "SUMMARY": [
+          "The delta resolves the prior broad string-matching issue by switching to typed x509 classification and adds a negative boundary case.",
+          "No blockers found; residual risk is semantic misclassification of TLS configuration failures and incomplete test coverage for the newly added error types and string-fallback behavior."
+        ]
+      },
+      "evidence": "BI-PF-1511-fa6fa355fb83.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "423684c1746534d66dabf90a76aeb6c6febdfa36",
+      "review_sha": "dfc0cf6da0b5",
+      "model": "deepseek-v4.1-flash",
+      "at": "2026-11-04T07:55:25.160966+00:00",
+      "review_scope": "delta",
+      "base_sha": "4a797a04226741ef0d6d11c8a996cf4cb9c40099",
+      "head_sha": "423684c1746534d66dabf90a76aeb6c6febdfa36",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [
+          "TLS classification is now split by error form: typed x509 errors → `tls_error`, but plain-string `x509:` errors → `db_unavailable` via `dbUnavailableMarkers`. Same root cause yields two reasons, so alert rules keyed on `db_unavailable` will fire on TLS misconfig only through the untyped path, partially defeating the new `tls_error` distinction (AC-1 consistency)."
+        ],
+        "MINOR": [
+          "`\"x509:\"` is a loose substring marker matched anywhere in the message; unrelated text containing that token (driver/proxy wrappers, SQL fragments) is silently classified `db_unavailable`. Prefer prefix/anchored matching or typed-only classification.",
+          "Moving the statement-timeout string check after the typed x509 branch changes precedence with no test pinning it; add a case where text matches both a 57014/statement-timeout and a marker to lock ordering.",
+          "No test wraps a typed x509 error (`fmt.Errorf(\"...: %w\", x509.UnknownAuthorityError{})`) to prove `errors.As` traversal still yields `tls_error` through the new branch order."
+        ],
+        "NIT": [
+          "Mixing the `tls_error` concept with a `\"x509:\"` entry inside `dbUnavailableMarkers` obscures intent; a short comment or grouped marker set would make the boundary explicit."
+        ],
+        "SUMMARY": [
+          "Delta is small, Go-only, and resolves the prior review findings (typed x509 coverage, fallback boundary, `tls_error` bucket); no blockers.",
+          "Top risk: inconsistent TLS reason classification between typed and stringified errors, which can misroute alerts and inflate/deflate the `tls_error` series unexpectedly.",
+          "Minor gaps: brittle substring marker and un-pinned classification precedence/wrapping behaviour."
+        ]
+      },
+      "evidence": "BI-PF-1511-dfc0cf6da0b5.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "590716acda26325d4bb178f5339103c4d651ee62",
+      "review_sha": "279f01b30225",
+      "model": "deepseek-v4.1-flash",
+      "at": "2026-11-04T07:56:38.329148+00:00",
+      "review_scope": "delta",
+      "base_sha": "423684c1746534d66dabf90a76aeb6c6febdfa36",
+      "head_sha": "590716acda26325d4bb178f5339103c4d651ee62",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [],
+        "MINOR": [
+          "Delta removes `tls_error` from the allowlist but only changes one emitter; there is no assertion that no other code path (metric wiring, other `authorityReasonCode` branches) still returns the literal `tls_error`, so the bounded-reason guarantee is now unverified for the removed value.",
+          "`{fmt.Errorf(\"x509: legacy string\"), \"db_unavailable\"}` still passes only through loose substring matching of `\"x509:\"`; the prior \"anchor/typed-only\" correction is not actually pinned by the delta's test evidence.",
+          "Collapsing certificate/CA/hostname failures into `db_unavailable` removes triage signal: alert rules and dashboards (including `ops/prometheus/backlog-authority.rules.yml` in this change set) can no longer route cert-expiry/CA-rotation to the identity/owner path, raising MTTR; confirm rule/docs coverage reflects the unified reason."
+        ],
+        "NIT": [
+          "The declared AC-1 evidence is `TestAuthorityFailureMetricUsesBoundedReasons`, but the delta edits `TestAuthorityReasonCodesAreBounded`; naming drift makes evidence traceability harder than necessary.",
+          "The typed-x509 and wrapped-x509 cases now assert the same reason; a short comment grouping them as \"TLS errors unify to db_unavailable\" would make the intent explicit for future editors."
+        ],
+        "SUMMARY": [
+          "Delta is a clean, reversible tightening: bounded reason set shrinks, typed/wrapped x509 unify to `db_unavailable`, and precedence against statement-timeout (`57014`) is explicitly pinned — prior findings appear resolved.",
+          "Remaining risks are observability/evidence-level, not correctness: no proof that `tls_error` is fully retired from all emitters, no pinned assertion on marker anchoring, and lost cert-vs-DB-outage discrimination in alerting.",
+          "No data/tenant/RLS, secret, or language-rule concerns introduced by this delta."
+        ]
+      },
+      "evidence": "BI-PF-1511-279f01b30225.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "39a8612753902d2a0c799aa3168ae61cf330d272",
+      "review_sha": "b27d8838253f",
+      "model": "deepseek-v4.1-flash",
+      "at": "2026-11-04T07:59:03.346323+00:00",
+      "review_scope": "delta",
+      "base_sha": "590716acda26325d4bb178f5339103c4d651ee62",
+      "head_sha": "39a8612753902d2a0c799aa3168ae61cf330d272",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [],
+        "MINOR": [
+          "Test coverage gap: the delta replaces the only bare `\"x509: ...\"` case with `\"prefix x509: ...\"`, so the `^` branch of `x509StringMarker` is no longer exercised; dropping `^` would silently misclassify leading x509 errors.",
+          "The new `tls_error` check in `TestAuthorityFailureMetricUsesBoundedReasons` is a source grep of `main.go`, not a runtime assertion; it can miss constructed or other-file emitters and can false-fail on unrelated comments."
+        ],
+        "NIT": [
+          "The regex boundary `[^a-z0-9]` also treats `_`, `-`, and `.` as separators, so `not_x509:`/`not.x509:` still map to `db_unavailable`; the anchor only fixes alphanumeric prefixes.",
+          "The runbook note states cert failures collapse to `db_unavailable` but gives no concrete log field/query to separate identity/CA from endpoint outages, leaving manual triage underspecified."
+        ],
+        "SUMMARY": [
+          "Delta is small and addresses the prior x509 anchoring and retired `tls_error` literal concerns; no blockers or majors found.",
+          "Main residual risk is test evidence quality: leading `x509:` classification and runtime absence of `tls_error` are not actually pinned.",
+          "Minor regex-boundary and runbook specificity issues remain; AC-2/3/4 are untouched by this delta."
+        ]
+      },
+      "evidence": "BI-PF-1511-b27d8838253f.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "d6a1c7f75d130286dfe26f0ae8ad6a3df646c895",
+      "review_sha": "54bf703bc072",
+      "model": "deepseek-v4.1-flash",
+      "at": "2026-11-04T07:59:54.134403+00:00",
+      "review_scope": "delta",
+      "base_sha": "39a8612753902d2a0c799aa3168ae61cf330d272",
+      "head_sha": "d6a1c7f75d130286dfe26f0ae8ad6a3df646c895",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [
+          "main.go regex change `(^|[^a-z0-9])x509:` → `(^|[\\s:])x509:` narrows matching so punctuation-wrapped cert errors (e.g. `(x509:`, `[x509:`, `\"x509:`, `- x509:`) now fall through to `internal_error` instead of `db_unavailable`; common `fmt.Errorf`/join wrapping styles regress classification (AC-1 correctness, not cardinality).",
+          "This contradicts the runbook line edited in the same delta (\"TLS/certificate failures are reported as `db_unavailable`\"), so the documented triage query and the classifier can now disagree; no test pins punctuation-wrapped forms."
+        ],
+        "MINOR": [
+          "main_test.go adds `x509: leading` and `not_x509:` cases but no `\"(x509: ...)\"`/`\"[x509: ...]\"` case, so the narrowing itself is untested in both directions.",
+          "Deleting the `tls_error` source grep leaves AC-1 without an evident runtime assertion for the retired reason in this hunk; ensure the gauge assertion compares the full bounded reason label set (extra label = failure), otherwise a reintroduced `tls_error` passes silently.",
+          "Verify `os` import in main_test.go is still used after removing the only `os.ReadFile` in that test, otherwise the package will not compile.",
+          "Two classification mechanisms coexist (`dbUnavailableMarkers` substring list and `x509StringMarker` regex) with different boundary semantics for the same input; consolidate or document the precedence so a failure cannot be classified by whichever check happens to run."
+        ],
+        "NIT": [
+          "`\\s` inside `[\\s:]` also accepts tab/newline/CR, which is desirable for joined errors but worth a one-line comment since the boundary rule is non-obvious.",
+          "Runbook query guidance lists `x509`/`certificate`/`tls handshake`/`pg_hba`; add the `internal_error`-with-x509 case so operators notice the misclassification gap above."
+        ],
+        "SUMMARY": [
+          "Delta is small and the AC-negative test for `not_x509:` is a good addition; prior MINOR/NIT items are partially addressed.",
+          "Main risk: the boundary tightening trades one false-positive class for a real false-negative class (wrapped cert errors no longer `db_unavailable`), which weakens the operator triage contract this item exists to harden.",
+          "Secondary risk: AC-1 evidence for the retired `tls_error` reason now depends on a runtime reason-set assertion that is not visible in the delta."
+        ]
+      },
+      "evidence": "BI-PF-1511-54bf703bc072.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "ec59f9941c9cda9eb106f7747da7d7c91e6cc04c",
+      "review_sha": "e67bf9a84642",
+      "model": "deepseek-v4.1-flash",
+      "at": "2026-11-04T08:00:47.811877+00:00",
+      "review_scope": "delta",
+      "base_sha": "d6a1c7f75d130286dfe26f0ae8ad6a3df646c895",
+      "head_sha": "ec59f9941c9cda9eb106f7747da7d7c91e6cc04c",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [
+          "none (prior MAJOR on regex narrowing and runbook divergence is resolved by this delta: `(`/`[`/`-`-prefixed forms now classify as `db_unavailable`, and the boundary excludes `_ . -` prefixes as the runbook implies)."
+        ],
+        "MINOR": [
+          "The new boundary class `[^a-zA-Z0-9_.-]` accepts *any* non-alphanumeric separator, so `foo/x509:`, `foo=x509:`, `foo\"x509:`, `foo:x509:` now map to `db_unavailable` where they previously were `internal_error`; only `(`, `[`, space and `-` are pinned in tests, so the broadened acceptance set is untested in the positive direction for most separators (AC-1 classifier surface).",
+          "No negative test for the widened class: e.g. an embedded token in unrelated error text preceded by punctuation (e.g. `result/x509: ...` from a non-cert source) is now classified `db_unavailable`, which can mask genuine `internal_error` signals; add at least one adversarial case documenting this trade-off.",
+          "Negation is ASCII-only: a Unicode letter preceding the token (e.g. `éx509:`) is treated as a boundary and maps to `db_unavailable` despite being part of a word; low risk but worth a one-line rationale or explicit test."
+        ],
+        "NIT": [
+          "Case sensitivity is unchanged (`X509:` uppercase still yields `internal_error`); since the regex is being reworked in this delta, add a comment or case so the intended case posture is documented rather than incidental.",
+          "Add a one-line comment on the boundary class rationale (why `.`/`_`/`-` are treated as word-continuations) — the rule is non-obvious and future edits are likely."
+        ],
+        "SUMMARY": [
+          "Delta is tightly scoped, correct in intent, and fixes the prior wrapped-x509 misclassification while preserving the bounded reason set; no integrity, security, tenant, migration or language-rule issues.",
+          "Residual risk is limited to classifier false-positives from the intentionally broad separator class, which is currently only partially pinned by tests.",
+          "Recommend merge after adding one or two boundary tests/comments; no blockers."
+        ]
+      },
+      "evidence": "BI-PF-1511-e67bf9a84642.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "d31d66e23bbb12c8cbd9efd7a68eb3e95cdec934",
+      "review_sha": "c0e74547e190",
+      "model": "deepseek-v4.1-flash",
+      "at": "2026-11-04T08:11:37.638429+00:00",
+      "review_scope": "delta",
+      "base_sha": "ec59f9941c9cda9eb106f7747da7d7c91e6cc04c",
+      "head_sha": "d31d66e23bbb12c8cbd9efd7a68eb3e95cdec934",
+      "findings": {
+        "BLOCKER": [
+          "The delta adds `{fmt.Errorf(\"X509: uppercase\"), \"db_unavailable\"}` with no production change in this delta to make the reason classifier case-insensitive; prior review recorded uppercase `X509:` still mapped to `internal_error`, so this is a failing/contradictory regression test."
+        ],
+        "MAJOR": [],
+        "MINOR": [],
+        "NIT": [],
+        "SUMMARY": [
+          "Delta is test-only and adds separator/uppercase coverage.",
+          "Separator cases are consistent with the widened boundary class, but the uppercase expectation is unsupported by the diff.",
+          "Resolve the uppercase test/implementation mismatch before merge; no other new delta findings."
+        ]
+      },
+      "evidence": "BI-PF-1511-c0e74547e190.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "3ae2e92569a56f3d6ef13709a9d0b2cbf1d6b81e",
+      "review_sha": "92983276b6aa",
+      "model": "deepseek-v4.1-flash",
+      "at": "2026-11-04T08:12:08.597964+00:00",
+      "review_scope": "delta",
+      "base_sha": "ec59f9941c9cda9eb106f7747da7d7c91e6cc04c",
+      "head_sha": "3ae2e92569a56f3d6ef13709a9d0b2cbf1d6b81e",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [
+          "`authorityReasonCode` now relies on string-marker matching alone to distinguish exhaustion/timeout/schema failure; the delta hardens matching for `x509:` but adds no structured `errors.As`/SQLSTATE-based classification, so reason codes remain sensitive to driver message wording changes (AC-1 bounded-reason integrity at risk over time)."
+        ],
+        "MINOR": [
+          "The new test cases (`result/x509:`, `result=x509:`, `X509: uppercase`) assert classification only via the bounded-reason helper; no test asserts the resulting gauge label set stays bounded/low-cardinality, leaving the AC-1 cardinality guarantee unpinned by the delta.",
+          "Adding broader `x509` substring matching risks classifying unrelated errors containing that token as `db_unavailable`, masking genuine `internal_error` conditions and weakening failure diagnosis."
+        ],
+        "NIT": [
+          "Consider naming the marker table/constant so future marker additions are reviewed in one place rather than inline regex/substring checks."
+        ],
+        "SUMMARY": [
+          "Delta is a small, safe hardening of reason-code normalization; prior uppercase-`X509` blocker appears resolved via explicit lowercasing.",
+          "Residual risk: classification remains message-string dependent (brittle across driver/version changes) and the low-cardinality gauge guarantee is not directly asserted.",
+          "No new data-loss, security, or tenant-isolation defects introduced in this delta."
+        ]
+      },
+      "evidence": "BI-PF-1511-92983276b6aa.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "b97926709886e83786f3f7f27db8016394742d39",
+      "review_sha": "a133e338244c",
+      "model": "deepseek-v4.1-flash",
+      "at": "2026-11-04T08:13:33.534730+00:00",
+      "review_scope": "delta",
+      "base_sha": "3ae2e92569a56f3d6ef13709a9d0b2cbf1d6b81e",
+      "head_sha": "b97926709886e83786f3f7f27db8016394742d39",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [],
+        "MINOR": [
+          "`TestAuthorityFailureMetricUsesBoundedReasons` duplicates the allowed reason allowlist locally instead of reusing a production/exported constant, so any future bounded reason addition requires lockstep test edits and can drift from the real gauge contract.",
+          "The bounded-label loop never asserts that at least one `edp_backlog_authority_errors_total{reason=\"...\"}` line was emitted; if the metric name/label changed or emission regressed, the cardinality assertion would pass vacuously."
+        ],
+        "NIT": [
+          "Removing the old `strings.Contains(err.Error(), \"57014\")` fallback means a non-`*pgconn.PgError` wrapper that only preserves SQLSTATE text and lacks the \"statement timeout\" marker will now classify as `db_unavailable` rather than `timeout`; acceptable if all authority DB errors stay structured, but worth pinning with a wrapped-error case."
+        ],
+        "SUMMARY": [
+          "Delta is directionally correct: pgx is promoted to a direct dependency, reason classification now uses structured `pgconn.PgError`, and cardinality assertions were added. Prior MAJOR/MINOR/NIT findings appear actioned.",
+          "Remaining gaps are test-quality/maintainability issues around duplicated allowlist and vacuous label assertions, not runtime correctness or AC regressions in this delta."
+        ]
+      },
+      "evidence": "BI-PF-1511-a133e338244c.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "29c6b9d270c1483c158383c36856d4cba4b9fcb9",
+      "review_sha": "e3edda92bf43",
+      "model": "deepseek-v4.1-flash",
+      "at": "2026-11-04T08:14:21.000503+00:00",
+      "review_scope": "delta",
+      "base_sha": "b97926709886e83786f3f7f27db8016394742d39",
+      "head_sha": "29c6b9d270c1483c158383c36856d4cba4b9fcb9",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [],
+        "MINOR": [
+          "Delta only demonstrates `authorityReasonBounded` usage in tests; the metric emission path in `backlogAuthority` is not shown to route reasons through the allowlist, so AC-1's \"only bounded reasons\" is enforced by assertion rather than by a fail-closed sanitizer at emit time — confirm production emits a fixed fallback (e.g. `internal_error`) for unbounded reasons.",
+          "Bounded reason set now lives as a second definition in `edpsvc` while the reason codes originate in `edpdata`; without a single exported source of truth the producer/consumer lists can drift and silently drop a legitimately new reason at the gauge.",
+          "`authorityReasons` is a mutable package-level `var`; any future `init`/test mutation changes runtime label policy globally. Prefer an immutable `switch`/`map` returned by an unexported accessor."
+        ],
+        "NIT": [
+          "Only a single-level `%w` wrap of `*pgconn.PgError{57014}` is added; a doubly wrapped chain or an `errors.As`-only wrapper is still untested, so the structured-timeout assumption remains partially proven.",
+          "The new emission-count guard asserts at least one reason line exists but not that the failure classified as the expected `internal_error`; asserting the exact reason would catch misclassification regressions that the allowlist check still passes.",
+          "Dropped/unbounded reasons (if sanitized) have no counter, so operators cannot see that a label was rewritten — a small observability gap for diagnosing new error classes."
+        ],
+        "SUMMARY": [
+          "Delta is narrow and resolves the prior three findings as claimed: shared allowlist, non-vacuous emission assertion, and wrapped pgconn coverage.",
+          "Remaining risks are about enforcement placement (test-time allowlist vs emit-time sanitization) and duplicated reason definitions across `edpdata`/`edpsvc`, not correctness of the delta.",
+          "No blockers or majors introduced; approve with the allowlist-wiring and single-source-of-truth items tracked as follow-ups."
+        ]
+      },
+      "evidence": "BI-PF-1511-e3edda92bf43.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "f9ef9de10d4e251a88531ab6403e0809adf4ad98",
+      "review_sha": "c79259a41f4a",
+      "model": "deepseek-v4.1-flash",
+      "at": "2026-11-04T08:15:22.055334+00:00",
+      "review_scope": "delta",
+      "base_sha": "29c6b9d270c1483c158383c36856d4cba4b9fcb9",
+      "head_sha": "f9ef9de10d4e251a88531ab6403e0809adf4ad98",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [],
+        "MINOR": [
+          "Disposition for prior MINOR is not fully supported by this delta: `authorityReasonBounded` remains a second hardcoded allowlist in `edpsvc`, so a new `edpdata` reason is silently rewritten to `internal_error` and AC-1 can misclassify new endpoint failures.",
+          "Disposition for prior NIT is not fully supported: the new sanitizer rewrites unbounded reasons without a dedicated counter or explicit log field, so allowlist drift is not observable to operators."
+        ],
+        "NIT": [
+          "The delta’s test addition covers double-wrapped classification only; it does not directly exercise the new emit-time sanitizer branch where an unbounded reason becomes `internal_error`."
+        ],
+        "SUMMARY": [
+          "Delta correctly replaces the mutable reason map with an immutable switch and adds double-wrap regression coverage.",
+          "Residual risk is duplicate reason ownership and silent downgrade to `internal_error`, which can hide new failure classes from metrics.",
+          "No data-loss, security, or blocking regression observed in this delta."
+        ]
+      },
+      "evidence": "BI-PF-1511-c79259a41f4a.json"
+    }
+  ],
+  "review_dispositions": {
+    "diff": {
+      "sig:049e9cc0a0e37714": {
+        "status": "ACTIONED",
+        "severity": "BLOCKER",
+        "note": "Fixed in 19a9dc6f; see current diff review."
+      },
+      "sig:099de65c498aaba9": {
+        "status": "ACTIONED",
+        "severity": "BLOCKER",
+        "note": "Fixed in 19a9dc6f; see current diff review."
+      },
+      "sig:eed88ce5e9905309": {
+        "status": "ACTIONED",
+        "severity": "BLOCKER",
+        "note": "Fixed in 19a9dc6f; see current diff review."
+      },
+      "sig:b337c0788e15fae5": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "note": "Fixed in 19a9dc6f; see current diff review."
+      },
+      "sig:6790d7c12312c700": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "note": "Fixed in 19a9dc6f; see current diff review."
+      },
+      "sig:2e71cb2d15662cce": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "note": "Fixed in 19a9dc6f; see current diff review."
+      },
+      "sig:28d30c2f118fa845": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "note": "Fixed in 19a9dc6f; see current diff review."
+      },
+      "sig:55c182593759df5d": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "note": "Fixed in 19a9dc6f; see current diff review."
+      },
+      "sig:db54f76207e20db3": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "note": "Fixed in 19a9dc6f; see current diff review."
+      },
+      "sig:9a6315755331fd6d": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "note": "Fixed in 19a9dc6f; see current diff review."
+      },
+      "sig:f5f40e8fd6c763ec": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "note": "Fixed in 19a9dc6f; see current diff review."
+      },
+      "sig:7cb75afbc6b29ef3": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "note": "Fixed in 19a9dc6f; see current diff review."
+      },
+      "sig:c5adcae2ee5651dd": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "note": "Fixed in 19a9dc6f; see current diff review."
+      },
+      "sig:6b6a84de7fd79249": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "note": "Fixed in 6e0a2a0; endpoint and config tests added."
+      },
+      "sig:6883cafb972e3478": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "note": "Fixed in 6e0a2a0; endpoint and config tests added."
+      },
+      "sig:9fd9df481c2adf68": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "note": "Fixed in 6e0a2a0; endpoint and config tests added."
+      },
+      "sig:fbe9e44399799836": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "note": "Fixed in 6e0a2a0; endpoint and config tests added."
+      },
+      "sig:0cb068865196fd12": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "note": "Fixed in 6e0a2a0; endpoint and config tests added."
+      },
+      "sig:7666f4919c2e5506": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "note": "Fixed in 6e0a2a0; endpoint and config tests added."
+      },
+      "sig:92e628e05ecd6462": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "note": "Fixed in 6e0a2a0; endpoint and config tests added."
+      },
+      "sig:8e719d7593c28253": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "note": "Fixed in 6e0a2a0; endpoint and config tests added."
+      },
+      "sig:7a31eaa1f786da79": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "note": "Fixed in 6e0a2a0; endpoint and config tests added."
+      },
+      "sig:4782c7d5e568889e": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "note": "Fixed in 6e0a2a0; endpoint and config tests added."
+      },
+      "sig:b0eb6c80bd9884a5": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "note": "Fixed in 30b41eb4; service factory, endpoint alarm test, and gauge added."
+      },
+      "sig:945dc6286bd579f7": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "note": "Fixed in 30b41eb4; service factory, endpoint alarm test, and gauge added."
+      },
+      "sig:1d614ada21bdb206": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "note": "Fixed in 30b41eb4; service factory, endpoint alarm test, and gauge added."
+      },
+      "sig:028eceb3e069ce58": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "note": "Fixed in 30b41eb4; service factory, endpoint alarm test, and gauge added."
+      },
+      "sig:1405fc9bf2ec52b3": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "note": "Fixed in 30b41eb4; service factory, endpoint alarm test, and gauge added."
+      },
+      "sig:b8bb674af2ec123f": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "note": "Fixed in 30b41eb4; service factory, endpoint alarm test, and gauge added."
+      },
+      "sig:3d4b89ba70c7a989": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "note": "Fixed in 30b41eb4; service factory, endpoint alarm test, and gauge added."
+      },
+      "sig:34490c7c16524b77": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "note": "Fixed in 30b41eb4; service factory, endpoint alarm test, and gauge added."
+      },
+      "sig:56c2c37f511597ac": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "note": "Fixed in 30b41eb4; service factory, endpoint alarm test, and gauge added."
+      },
+      "sig:98e33d0b8dd02812": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "note": "Fixed in 30b41eb4; service factory, endpoint alarm test, and gauge added."
+      },
+      "sig:2298920e70cc1bec": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "note": "Fixed in current HEAD; gauge rename/reset, endpoint alarm rule evidence, recursive tenant leak check."
+      },
+      "sig:3f69e83f8eee0794": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "note": "Fixed in current HEAD; gauge rename/reset, endpoint alarm rule evidence, recursive tenant leak check."
+      },
+      "sig:bcecaebab9c8adfe": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "note": "Fixed in current HEAD; gauge rename/reset, endpoint alarm rule evidence, recursive tenant leak check."
+      },
+      "sig:0b24c0d2edc10eef": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "note": "Fixed in current HEAD; gauge rename/reset, endpoint alarm rule evidence, recursive tenant leak check."
+      },
+      "sig:b4391cb880d56b1a": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "note": "Fixed in current HEAD; gauge rename/reset, endpoint alarm rule evidence, recursive tenant leak check."
+      },
+      "sig:3ba615af3f260af7": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "note": "Fixed in current HEAD; gauge rename/reset, endpoint alarm rule evidence, recursive tenant leak check."
+      },
+      "sig:e0ba89ad968ce02c": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "note": "Fixed in current HEAD; gauge rename/reset, endpoint alarm rule evidence, recursive tenant leak check."
+      },
+      "sig:5a4dc2a7dd8f7bf2": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "note": "Fixed in current HEAD; gauge rename/reset, endpoint alarm rule evidence, recursive tenant leak check."
+      },
+      "sig:fb76ac6a085dc390": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "note": "Fixed in current HEAD; gauge rename/reset, endpoint alarm rule evidence, recursive tenant leak check."
+      },
+      "sig:d2cb57ddcbf56fae": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "note": "Fixed in current HEAD; gauge rename/reset, endpoint alarm rule evidence, recursive tenant leak check."
+      },
+      "sig:33c22de6a5e3a8e0": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "note": "Fixed in current HEAD; gauge rename/reset, endpoint alarm rule evidence, recursive tenant leak check."
+      },
+      "sig:db0bef0909c8d3d8": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "note": "Fixed in current HEAD; gauge rename/reset, endpoint alarm rule evidence, recursive tenant leak check."
+      },
+      "sig:8f6a0c268103eb23": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "note": "Fixed in current HEAD; timeout precedence, request-only gauge, and recovery/alarm assertions."
+      },
+      "sig:a7f486311d34921b": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "note": "Fixed in current HEAD; timeout precedence, request-only gauge, and recovery/alarm assertions."
+      },
+      "sig:cb9e3b818de6136f": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "note": "Fixed in current HEAD; timeout precedence, request-only gauge, and recovery/alarm assertions."
+      },
+      "sig:ae9f1e5c6720c13d": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "note": "Fixed in current HEAD; timeout precedence, request-only gauge, and recovery/alarm assertions."
+      },
+      "sig:5d15acd0aa5d10ce": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "note": "Fixed in current HEAD; timeout precedence, request-only gauge, and recovery/alarm assertions."
+      },
+      "sig:50181aee5f3bbb8e": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "note": "Fixed in current HEAD; timeout precedence, request-only gauge, and recovery/alarm assertions."
+      },
+      "sig:2ea3ea280ad47b87": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "note": "Fixed in current HEAD; timeout precedence, request-only gauge, and recovery/alarm assertions."
+      },
+      "sig:d6558d526a98c673": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "note": "Fixed in current HEAD; timeout precedence, request-only gauge, and recovery/alarm assertions."
+      },
+      "sig:bc386147b13ea3ec": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "note": "Fixed in current HEAD; timeout precedence, request-only gauge, and recovery/alarm assertions."
+      },
+      "sig:8cd87e5bcc4c334d": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "note": "Fixed in current HEAD; narrow reason markers, shared constructor, reserve factory asserted."
+      },
+      "sig:886e31194be4274d": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "note": "Fixed in current HEAD; narrow reason markers, shared constructor, reserve factory asserted."
+      },
+      "sig:16aa03f25b7f3660": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "note": "Fixed in current HEAD; narrow reason markers, shared constructor, reserve factory asserted."
+      },
+      "sig:26c6054cf33f1cc0": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "note": "Fixed in current HEAD; narrow reason markers, shared constructor, reserve factory asserted."
+      },
+      "sig:00d1ed4117ded2a5": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "note": "Fixed in current HEAD; narrow reason markers, shared constructor, reserve factory asserted."
+      },
+      "sig:1b36dd84d0bff34b": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "note": "Fixed in current HEAD; narrow reason markers, shared constructor, reserve factory asserted."
+      },
+      "sig:00057783422d3a32": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "note": "Fixed in current HEAD; marker table and reserve timeout evidence added."
+      },
+      "sig:ffcd05f7bcb44c4d": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "note": "Fixed in current HEAD; marker table and reserve timeout evidence added."
+      },
+      "sig:35207110f2f84b9f": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "note": "Fixed in current HEAD; marker table and reserve timeout evidence added."
+      },
+      "sig:3805c7737f203940": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "note": "Fixed in current HEAD; marker table and reserve timeout evidence added."
+      },
+      "sig:d053cf201e9ed817": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "note": "Fixed in current HEAD; marker table and reserve timeout evidence added."
+      },
+      "sig:2c9af590fab5bdcd": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "note": "Fixed in current HEAD; marker table and reserve timeout evidence added."
+      },
+      "sig:a6a2b5e93a9c7845": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "note": "Fixed in current HEAD; x509 typed classification and negative boundary case."
+      },
+      "sig:c4b1016acae4a048": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "note": "Fixed in current HEAD; x509 typed classification and negative boundary case."
+      },
+      "sig:498f74c9c24c0467": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "note": "Fixed in current HEAD; x509 typed classification and negative boundary case."
+      },
+      "sig:bf70e86180365a9e": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "note": "Fixed in current HEAD; tls_error reason, typed coverage, x509 fallback boundary."
+      },
+      "sig:936e08680eff4b8d": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "note": "Fixed in current HEAD; tls_error reason, typed coverage, x509 fallback boundary."
+      },
+      "sig:66f92308e6ee86d9": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "note": "Fixed in current HEAD; tls_error reason, typed coverage, x509 fallback boundary."
+      },
+      "sig:ad97984a5091a85c": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "note": "Fixed in current HEAD; tls_error reason, typed coverage, x509 fallback boundary."
+      },
+      "sig:2c22fe0a347f7b73": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "note": "Fixed in current HEAD; TLS errors unify to db_unavailable; wrapped/precedence cases pinned."
+      },
+      "sig:b18cbfe099f1d79b": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "note": "Fixed in current HEAD; TLS errors unify to db_unavailable; wrapped/precedence cases pinned."
+      },
+      "sig:a747de61ed490eb2": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "note": "Fixed in current HEAD; TLS errors unify to db_unavailable; wrapped/precedence cases pinned."
+      },
+      "sig:55544eff237f3e69": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "note": "Fixed in current HEAD; TLS errors unify to db_unavailable; wrapped/precedence cases pinned."
+      },
+      "sig:bd6c56f8a78f51f7": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "note": "Fixed in current HEAD; TLS errors unify to db_unavailable; wrapped/precedence cases pinned."
+      },
+      "sig:91a838a2322ddc9b": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "note": "Fixed in current HEAD; anchored x509, retired tls_error assertion, runbook note."
+      },
+      "sig:747c07be4f3cf380": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "note": "Fixed in current HEAD; anchored x509, retired tls_error assertion, runbook note."
+      },
+      "sig:8369d56a020d8e1c": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "note": "Fixed in current HEAD; anchored x509, retired tls_error assertion, runbook note."
+      },
+      "sig:6cda62061ba953cf": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "note": "Fixed in current HEAD; anchored x509, retired tls_error assertion, runbook note."
+      },
+      "sig:600a0e9b1687f5d1": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "note": "Fixed in current HEAD; anchored x509, retired tls_error assertion, runbook note."
+      },
+      "sig:5cc28c5ae34b5a83": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "note": "Fixed in current HEAD; leading x509 coverage, regex boundary, runbook query."
+      },
+      "sig:7450ee46eb92978d": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "note": "Fixed in current HEAD; leading x509 coverage, regex boundary, runbook query."
+      },
+      "sig:7cb2033824b5fce1": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "note": "Fixed in current HEAD; leading x509 coverage, regex boundary, runbook query."
+      },
+      "sig:c7fd74e8dc58f8cf": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "note": "Fixed in current HEAD; leading x509 coverage, regex boundary, runbook query."
+      },
+      "sig:e476fd75eb59bd52": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "note": "Fixed in current HEAD; wrapped x509 forms covered, boundary excludes ._- prefixes."
+      },
+      "sig:2bd79fa4209f6253": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "note": "Fixed in current HEAD; wrapped x509 forms covered, boundary excludes ._- prefixes."
+      },
+      "sig:07ab39869baae304": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "note": "Fixed in current HEAD; wrapped x509 forms covered, boundary excludes ._- prefixes."
+      },
+      "sig:29f7fd84a48f4b9d": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "note": "Fixed in current HEAD; wrapped x509 forms covered, boundary excludes ._- prefixes."
+      },
+      "sig:f78d5e3fbc8a58c8": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "note": "Fixed in current HEAD; wrapped x509 forms covered, boundary excludes ._- prefixes."
+      },
+      "sig:f9c158645c4ff09e": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "note": "Fixed in current HEAD; wrapped x509 forms covered, boundary excludes ._- prefixes."
+      },
+      "sig:89bb58029be4778f": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "note": "Fixed in current HEAD; wrapped x509 forms covered, boundary excludes ._- prefixes."
+      },
+      "sig:54b1c93ba2508963": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "note": "Fixed in current HEAD; wrapped x509 forms covered, boundary excludes ._- prefixes."
+      },
+      "sig:1c0ec73013734a88": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "note": "No action: reviewer explicitly recorded no major finding; separator/case tests added separately."
+      },
+      "sig:93dd3cfc8204d5ce": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "note": "Fixed in current HEAD; separator and uppercase cases pinned."
+      },
+      "sig:f61a6b75d6828c74": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "note": "Fixed in current HEAD; separator and uppercase cases pinned."
+      },
+      "sig:d8164bd5b11395bc": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "note": "Fixed in current HEAD; separator and uppercase cases pinned."
+      },
+      "sig:1720a0d915a93505": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "note": "Fixed in current HEAD; separator and uppercase cases pinned."
+      },
+      "sig:46954fdcad1ba799": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "note": "Fixed in current HEAD; separator and uppercase cases pinned."
+      },
+      "sig:a21e65d8168236a9": {
+        "status": "ACTIONED",
+        "severity": "BLOCKER",
+        "note": "Fixed in current HEAD; lowercase normalization is now explicit in the diff."
+      },
+      "sig:73ec443d9847ee31": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "note": "Fixed in current HEAD; structured pgconn classification and bounded-label assertion."
+      },
+      "sig:7195714d64b97f22": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "note": "Fixed in current HEAD; structured pgconn classification and bounded-label assertion."
+      },
+      "sig:14b2a400582553f1": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "note": "Fixed in current HEAD; structured pgconn classification and bounded-label assertion."
+      },
+      "sig:84bb056271128bd0": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "note": "Fixed in current HEAD; structured pgconn classification and bounded-label assertion."
+      },
+      "sig:c0981d8af0777002": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "note": "Fixed in current HEAD; shared allowlist, emission count, wrapped pgconn case."
+      },
+      "sig:32b53faac3a90e77": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "note": "Fixed in current HEAD; shared allowlist, emission count, wrapped pgconn case."
+      },
+      "sig:8d13b37655e93747": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "note": "Fixed in current HEAD; shared allowlist, emission count, wrapped pgconn case."
+      },
+      "sig:b2fe7647b6ef95fc": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "note": "Fixed in current HEAD; emit-time sanitizer, immutable switch, double-wrap test."
+      },
+      "sig:48db6d96db3adbea": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "note": "Fixed in current HEAD; emit-time sanitizer, immutable switch, double-wrap test."
+      },
+      "sig:47f259045d703100": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "note": "Fixed in current HEAD; emit-time sanitizer, immutable switch, double-wrap test."
+      },
+      "sig:ec938fadc6d3b373": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "note": "Fixed in current HEAD; emit-time sanitizer, immutable switch, double-wrap test."
+      },
+      "sig:5dbd10dd80b20c06": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "note": "Fixed in current HEAD; emit-time sanitizer, immutable switch, double-wrap test."
+      },
+      "sig:3200b55d4eb96ea2": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "note": "Fixed in current HEAD; emit-time sanitizer, immutable switch, double-wrap test."
+      },
+      "sig:bf4b055f98f59594": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "note": "Accepted as bounded sanitizer behavior; no blocking impact. Follow-up only if a new reason is added."
+      },
+      "sig:9b28319b6f1d7a33": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "note": "Accepted as bounded sanitizer behavior; no blocking impact. Follow-up only if a new reason is added."
+      },
+      "sig:d1f4e275161eabbf": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "note": "Accepted as bounded sanitizer behavior; no blocking impact. Follow-up only if a new reason is added."
+      }
+    }
+  }
 }

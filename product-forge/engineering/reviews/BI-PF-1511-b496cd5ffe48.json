@@ -1,0 +1,35 @@
+{
+  "item": "BI-PF-1511",
+  "sha": "b496cd5ffe48",
+  "model": "deepseek-v4.1-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-04T07:41:04.570221+00:00",
+  "review_scope": "delta",
+  "base_sha": "5805bc27f4e1e3c3e711e4aae37329eccf78d549",
+  "head_sha": "19a9dc6f90a3cfad44f0125d62618f04ef978997",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "AC-1: `TestAuthorityFailureMetricUsesBoundedReasons` only exercises the pure `authorityReasonCode` map; nothing asserts the authority failure gauge/metric actually increments on an endpoint failure, so \"gauge reflects endpoint failures\" remains unproven (prior disposition overstated).",
+      "AC-2: `TestAuthorityTimeoutComesFromConfig` hardcodes `2345 * time.Millisecond` and calls `WithTimeout` directly; it proves propagation to `set_config` but not that the value is derived from configuration (no config loader/env path exercised).",
+      "AC-4: `TestAuthorityIDSpaceExhaustionFailsClosed` only asserts the `edpdata` sentinel; no test asserts the service returns a fixed safe reason with a non-2xx status and that `edp_backlog_reservation_exhausted_total` (the alarm input) is incremented on the exhaustion path."
+    ],
+    "MINOR": [
+      "AC-3: only the test name changed; `TestAuthorityResponseEchoesReservationID` still tests the helper in isolation with no HTTP-level assertion on status/code/absence of tenant fields.",
+      "`authorityReasonCode` catch-all maps any unrecognized error (e.g. code bug, wrapped deadline) to `db_unavailable`; the new test case locks in that conflation, weakening diagnosis separation.",
+      "`fakeStore.Exec` still discards args while `fakeTx.Exec` records them; the divergent fakes can silently hide a missing statement timeout on non-transactional paths.",
+      "Design `ac_evidence`/`test_matrix` cite `go/edpsvc/main_test.go::TestAuthorityTimeoutComesFromConfig`, but the test now lives in `go/edpdata/edpdata_test.go` \u2014 evidence path drift breaks traceability."
+    ],
+    "NIT": [
+      "Timeout assertion relies on `execs[0][0]` ordering and `fmt.Sprint(...)==\"2345ms\"`, so it is brittle to arg order and duration formatting changes.",
+      "The Authority call's error is discarded (`_`); the test could pass while Authority still returns a failure after the exec.",
+      "Exhaustion test assumes the first `Query` returns the counter row; multi-query Reserve implementations would silently break it."
+    ],
+    "SUMMARY": [
+      "Delta cleanly centralizes exhaustion handling (single metric/log/response helper, no behavior change) and adds real regression coverage for timeout propagation and fail-closed exhaustion.",
+      "Remaining gaps are evidentiary: AC-1 gauge increment, AC-2 config derivation, AC-4 service-level safe reason + alarm metric are still only partially proven.",
+      "No integrity, security, or language-rule blockers found; test fakes and evidence-path drift should be tightened before claiming the ACs closed."
+    ]
+  }
+}

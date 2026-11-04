@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"time"
 
 	"productforge/datastore"
 )
@@ -40,10 +41,37 @@ var (
 const MaxReservationSize = 1_000_000
 
 // BacklogStore is a Postgres repository over backlog_items (tenant-scoped; RLS enforced by the caller).
-type BacklogStore struct{ db datastore.RelationalStore }
+type BacklogStore struct {
+	db      datastore.RelationalStore
+	timeout time.Duration
+}
+
+const defaultStatementTimeout = 5 * time.Second
 
 // NewBacklog returns a BacklogStore over db.
-func NewBacklog(db datastore.RelationalStore) *BacklogStore { return &BacklogStore{db: db} }
+func NewBacklog(db datastore.RelationalStore) *BacklogStore {
+	return &BacklogStore{db: db, timeout: defaultStatementTimeout}
+}
+
+// WithTimeout applies the service DB timeout to transaction-local statement timeouts.
+func (s *BacklogStore) WithTimeout(d time.Duration) *BacklogStore {
+	if d > 0 {
+		s.timeout = d
+	}
+	return s
+}
+
+// StatementTimeout reports the transaction-local timeout currently configured for the store.
+func (s *BacklogStore) StatementTimeout() time.Duration { return s.timeout }
+
+func (s *BacklogStore) setStatementTimeout(ctx context.Context, tx datastore.Tx) error {
+	ms := s.timeout.Milliseconds()
+	if ms <= 0 {
+		ms = defaultStatementTimeout.Milliseconds()
+	}
+	_, err := tx.Exec(ctx, "SELECT set_config('statement_timeout', $1, true)", fmt.Sprintf("%dms", ms))
+	return err
+}
 
 // Authority is the readiness snapshot read by the admin backlog-authority endpoint.
 // NextID and ReservationCount are global; ItemCount is scoped to the bound tenant.
@@ -59,7 +87,7 @@ func (s *BacklogStore) Authority(ctx context.Context) (Authority, error) {
 	var out Authority
 	err := s.db.WithTx(ctx, func(tx datastore.Tx) error {
 		// Bound server-side work independently of the caller's context.
-		if _, err := tx.Exec(ctx, `SET LOCAL statement_timeout = '5s'`); err != nil {
+		if err := s.setStatementTimeout(ctx, tx); err != nil {
 			return err
 		}
 		rows, err := tx.Query(ctx, `SELECT
@@ -206,7 +234,7 @@ func (s *BacklogStore) Reserve(ctx context.Context, scope, projectID, reservatio
 	}
 	var out IDBlock
 	err := s.db.WithTx(ctx, func(tx datastore.Tx) error {
-		if _, err := tx.Exec(ctx, `SET LOCAL statement_timeout = '5s'`); err != nil {
+		if err := s.setStatementTimeout(ctx, tx); err != nil {
 			return err
 		}
 		// Hold the allocation row first so concurrent retries serialize before the idempotency check.

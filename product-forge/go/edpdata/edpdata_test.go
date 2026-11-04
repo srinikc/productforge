@@ -3,6 +3,8 @@ package edpdata
 import (
 	"context"
 	"errors"
+	"fmt"
+	"math"
 	"os"
 	"testing"
 	"time"
@@ -231,15 +233,24 @@ func (r *fakeRows) Err() error   { return nil }
 func (r *fakeRows) Close() error { return nil }
 
 type fakeTx struct{ store *fakeStore }
-type fakeStore struct{ queries [][][]any }
+type fakeStore struct {
+	queries [][][]any
+	execs   [][]any
+}
 
 func (f *fakeStore) Ping(context.Context) error           { return nil }
 func (f *fakeStore) Capabilities() datastore.Capabilities { return datastore.Capabilities{} }
 func (f *fakeStore) WithTx(_ context.Context, fn func(datastore.Tx) error) error {
 	return fn(&fakeTx{store: f})
 }
-func (f *fakeStore) Exec(context.Context, string, ...any) (int64, error) { return 1, nil }
-func (t *fakeTx) Exec(context.Context, string, ...any) (int64, error)    { return 1, nil }
+func (f *fakeStore) Exec(_ context.Context, _ string, args ...any) (int64, error) {
+	f.execs = append(f.execs, args)
+	return 1, nil
+}
+func (t *fakeTx) Exec(_ context.Context, _ string, args ...any) (int64, error) {
+	t.store.execs = append(t.store.execs, args)
+	return 1, nil
+}
 func (t *fakeTx) Query(ctx context.Context, sql string, args ...any) (datastore.Rows, error) {
 	return t.store.Query(ctx, sql, args...)
 }
@@ -252,6 +263,31 @@ func (f *fakeStore) Query(context.Context, string, ...any) (datastore.Rows, erro
 	rows := f.queries[0]
 	f.queries = f.queries[1:]
 	return &fakeRows{data: rows}, nil
+}
+
+func TestBacklogTimeoutPropagatesToStatementTimeout(t *testing.T) {
+	f := &fakeStore{queries: [][][]any{
+		{{"alloc", "reservations", "items", true, "tenant", true, true}},
+		{{int64(100), int64(0)}},
+		{{int64(2)}},
+	}}
+	if _, err := NewBacklog(f).WithTimeout(2345 * time.Millisecond).Authority(context.Background()); err != nil {
+		t.Fatalf("authority failed: %v", err)
+	}
+	for _, args := range f.execs {
+		if len(args) > 0 && fmt.Sprint(args[0]) == "2345ms" {
+			return
+		}
+	}
+	t.Fatalf("statement timeout not applied from config: %#v", f.execs)
+}
+
+func TestAuthorityIDSpaceExhaustionFailsClosed(t *testing.T) {
+	f := &fakeStore{queries: [][][]any{{{int64(math.MaxInt64)}}}}
+	_, err := NewBacklog(f).Reserve(context.Background(), "product_forge", "", "res-exhausted", 2)
+	if !errors.Is(err, ErrReservationExhausted) {
+		t.Fatalf("want ErrReservationExhausted, got %v", err)
+	}
 }
 
 func TestBacklogAuthorityMissingRowFailsClosed(t *testing.T) {

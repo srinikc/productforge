@@ -2,8 +2,11 @@ package main
 
 import (
 	"context"
+	"crypto/x509"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -11,10 +14,26 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgconn"
+
 	"productforge/edpdata"
 	"productforge/edpsvc/internal/limits"
 	"productforge/store"
 )
+
+type fakeBacklog struct {
+	authErr    error
+	reserveErr error
+	timeout    time.Duration
+}
+
+func (f fakeBacklog) Authority(context.Context) (edpdata.Authority, error) {
+	return edpdata.Authority{}, f.authErr
+}
+func (f fakeBacklog) Reserve(context.Context, string, string, string, int) (edpdata.IDBlock, error) {
+	return edpdata.IDBlock{}, f.reserveErr
+}
+func (f fakeBacklog) StatementTimeout() time.Duration { return f.timeout }
 
 func testServer(t *testing.T) *server {
 	t.Helper()
@@ -142,7 +161,8 @@ func TestMuxLevelTimeoutReturns504(t *testing.T) {
 	}
 }
 
-func TestAuthorityReasonCodes(t *testing.T) {
+func TestAuthorityReasonCodesAreBounded(t *testing.T) {
+	allowed := map[string]bool{"timeout": true, "canceled": true, "migration_missing": true, "row_missing": true, "db_unavailable": true, "internal_error": true}
 	for _, tc := range []struct {
 		err  error
 		want string
@@ -151,10 +171,111 @@ func TestAuthorityReasonCodes(t *testing.T) {
 		{context.Canceled, "canceled"},
 		{edpdata.ErrAuthoritySchema, "migration_missing"},
 		{edpdata.ErrAuthorityRow, "row_missing"},
+		{&net.OpError{Op: "dial", Net: "tcp", Err: errors.New("refused")}, "db_unavailable"},
+		{&pgconn.PgError{Code: "57014"}, "timeout"},
+		{fmt.Errorf("wrapped: %w", &pgconn.PgError{Code: "57014"}), "timeout"},
+		{fmt.Errorf("outer: %w", fmt.Errorf("inner: %w", &pgconn.PgError{Code: "57014"})), "timeout"},
+		{&pgconn.PgError{Code: "28P01"}, "db_unavailable"},
+		{fmt.Errorf("tls handshake failed"), "db_unavailable"},
+		{x509.UnknownAuthorityError{}, "db_unavailable"},
+		{x509.HostnameError{Certificate: &x509.Certificate{}, Host: "db"}, "db_unavailable"},
+		{fmt.Errorf("wrapped: %w", x509.UnknownAuthorityError{}), "db_unavailable"},
+		{x509.CertificateInvalidError{Cert: &x509.Certificate{}}, "db_unavailable"},
+		{fmt.Errorf("prefix x509: legacy string"), "db_unavailable"},
+		{fmt.Errorf("x509: leading string"), "db_unavailable"},
+		{fmt.Errorf("(x509: wrapped)"), "db_unavailable"},
+		{fmt.Errorf("[x509: wrapped]"), "db_unavailable"},
+		{fmt.Errorf("- x509: wrapped"), "db_unavailable"},
+		{fmt.Errorf("result/x509: wrapped"), "db_unavailable"},
+		{fmt.Errorf("result=x509: wrapped"), "db_unavailable"},
+		{fmt.Errorf("X509: uppercase"), "db_unavailable"},
+		{fmt.Errorf("not_x509: marker"), "internal_error"},
+		{fmt.Errorf("not.x509: marker"), "internal_error"},
+		{fmt.Errorf("not-x509: marker"), "internal_error"},
+		{fmt.Errorf("notx509: marker"), "internal_error"},
+		{fmt.Errorf("x509: statement timeout 57014"), "timeout"},
+		{fmt.Errorf("certificate rotation pending"), "internal_error"},
+		{fmt.Errorf("x509"), "internal_error"},
+		{fmt.Errorf("no pg_hba.conf entry"), "db_unavailable"},
+		{fmt.Errorf("unexpected failure"), "internal_error"},
 	} {
-		if got := authorityReasonCode(tc.err); got != tc.want {
+		got := authorityReasonCode(tc.err)
+		if got != tc.want || !allowed[got] {
 			t.Fatalf("authorityReasonCode(%v)=%q want %q", tc.err, got, tc.want)
 		}
+	}
+}
+
+func TestAuthorityFailureMetricUsesBoundedReasons(t *testing.T) {
+	s := testServer(t)
+	s.backlogFactory = func(string, bool) backlogStore { return fakeBacklog{authErr: errors.New("boom")} }
+	rr := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/admin/backlog/authority?tenant=x", nil)
+	req.Header.Set("Authorization", "Bearer test-token")
+	s.buildMux().ServeHTTP(rr, req)
+	if rr.Code != http.StatusServiceUnavailable {
+		t.Fatalf("want 503, got %d %q", rr.Code, rr.Body.String())
+	}
+	var metrics strings.Builder
+	s.metrics.Write(&metrics)
+	if !strings.Contains(metrics.String(), `edp_backlog_authority_errors_total{reason="internal_error"} 1
+`) ||
+		!strings.Contains(metrics.String(), "edp_backlog_authority_last_request_ok 0") {
+		t.Fatalf("authority failure metrics missing: %s", metrics.String())
+	}
+	s.backlogFactory = func(string, bool) backlogStore { return fakeBacklog{} }
+	rr = httptest.NewRecorder()
+	req = httptest.NewRequest(http.MethodGet, "/admin/backlog/authority?tenant=x", nil)
+	req.Header.Set("Authorization", "Bearer test-token")
+	s.buildMux().ServeHTTP(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("want recovery 200, got %d %q", rr.Code, rr.Body.String())
+	}
+	metrics.Reset()
+	s.metrics.Write(&metrics)
+	if !strings.Contains(metrics.String(), "edp_backlog_authority_last_request_ok 1") {
+		t.Fatalf("authority gauge did not recover: %s", metrics.String())
+	}
+	labels := 0
+	for _, line := range strings.Split(metrics.String(), "\n") {
+		if i := strings.Index(line, `edp_backlog_authority_errors_total{reason="`); i == 0 {
+			labels++
+			reason := strings.Split(strings.TrimPrefix(line, `edp_backlog_authority_errors_total{reason="`), `"`)[0]
+			if !authorityReasonBounded(reason) {
+				t.Fatalf("unbounded authority reason label %q", reason)
+			}
+		}
+	}
+	if labels == 0 {
+		t.Fatalf("authority failure metric was not emitted: %s", metrics.String())
+	}
+}
+
+func TestAuthorityTimeoutComesFromConfig(t *testing.T) {
+	cfg, err := limits.Load(func(k string) string {
+		if k == "PF_EDP_DB_TIMEOUT" {
+			return "2345ms"
+		}
+		return ""
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := testServer(t)
+	s.cfg.DBTimeout = cfg.DBTimeout
+	b := s.authorityBacklog("config-test")
+	if cfg.DBTimeout != 2345*time.Millisecond || b.StatementTimeout() != cfg.DBTimeout {
+		t.Fatalf("cfg.DBTimeout=%s store.timeout=%s", cfg.DBTimeout, b.StatementTimeout())
+	}
+	if got := s.reserveBacklog().StatementTimeout(); got != cfg.DBTimeout {
+		t.Fatalf("reserve timeout=%s want %s", got, cfg.DBTimeout)
+	}
+}
+
+func TestAuthorityResponseEchoesReservationID(t *testing.T) {
+	got := reservationResponse("res-1", edpdata.IDBlock{Start: 10, End: 12})
+	if got["reservation_id"] != "res-1" || got["start"] != int64(10) || got["end"] != int64(12) {
+		t.Fatalf("unexpected response: %#v", got)
 	}
 }
 
@@ -269,6 +390,88 @@ func TestBacklogAuthorityWithDB(t *testing.T) {
 	}
 }
 
+func TestBacklogReserveEchoesIDWithDB(t *testing.T) {
+	dsn := os.Getenv("PF_RUNTIME_DSN")
+	if dsn == "" {
+		t.Skip("set PF_RUNTIME_DSN to run the reservation echo DB test")
+	}
+	st, err := store.Open(context.Background(), dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	s := testServer(t)
+	s.st = st
+	rid := fmt.Sprintf("res-echo-%d", time.Now().UnixNano())
+	body := fmt.Sprintf(`{"scope":"product_forge","project":"","reservation_id":%q,"size":2}`, rid)
+	rr := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/backlog/ids:reserve", strings.NewReader(body))
+	req.Header.Set("Authorization", "Bearer test-token")
+	s.buildMux().ServeHTTP(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("want 200, got %d %q", rr.Code, rr.Body.String())
+	}
+	var got map[string]any
+	if err := json.Unmarshal(rr.Body.Bytes(), &got); err != nil {
+		t.Fatal(err)
+	}
+	if got["reservation_id"] != rid || got["start"] == nil || got["end"] == nil {
+		t.Fatalf("unexpected reservation response: %#v", got)
+	}
+	if hasTenantKey(got) {
+		t.Fatalf("reservation response leaked tenant data: %#v", got)
+	}
+}
+
+func hasTenantKey(v any) bool {
+	switch x := v.(type) {
+	case map[string]any:
+		for k, child := range x {
+			if strings.Contains(strings.ToLower(k), "tenant") || hasTenantKey(child) {
+				return true
+			}
+		}
+	case []any:
+		for _, child := range x {
+			if hasTenantKey(child) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func TestReservationExhaustedFailsClosedWithAlarm(t *testing.T) {
+	s := testServer(t)
+	s.backlogFactory = func(tenant string, reserve bool) backlogStore {
+		if tenant != "" || !reserve {
+			t.Fatalf("reserve seam called with tenant=%q reserve=%v", tenant, reserve)
+		}
+		return fakeBacklog{reserveErr: edpdata.ErrReservationExhausted}
+	}
+	rr := httptest.NewRecorder()
+	body := `{"scope":"product_forge","project":"","reservation_id":"res-x","size":2}`
+	req := httptest.NewRequest(http.MethodPost, "/backlog/ids:reserve", strings.NewReader(body))
+	req.Header.Set("Authorization", "Bearer test-token")
+	s.buildMux().ServeHTTP(rr, req)
+	if rr.Code != http.StatusConflict || !strings.Contains(rr.Body.String(), "backlog id space exhausted") {
+		t.Fatalf("want fixed 409, got %d %q", rr.Code, rr.Body.String())
+	}
+	var metrics strings.Builder
+	s.metrics.Write(&metrics)
+	if !strings.Contains(metrics.String(), "edp_backlog_reservation_exhausted_total 1") {
+		t.Fatalf("exhaustion alarm metric missing: %s", metrics.String())
+	}
+	rules, err := os.ReadFile("../../ops/prometheus/backlog-authority.rules.yml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(rules), "alert: ProductForgeBacklogIDSpaceExhausted") ||
+		!strings.Contains(string(rules), "expr: increase(edp_backlog_reservation_exhausted_total[10m]) > 0") {
+		t.Fatal("exhaustion metric is not wired to the expected alert rule")
+	}
+}
+
 func TestBacklogAuthorityFailsClosed(t *testing.T) {
 	dsn := os.Getenv("PF_RUNTIME_DSN")
 	if dsn == "" {
@@ -290,5 +493,10 @@ func TestBacklogAuthorityFailsClosed(t *testing.T) {
 	}
 	if !strings.Contains(rr.Body.String(), "backlog authority unavailable") {
 		t.Fatalf("want fixed 503 message, got %q", rr.Body.String())
+	}
+	var metrics strings.Builder
+	s.metrics.Write(&metrics)
+	if !strings.Contains(metrics.String(), `edp_backlog_authority_errors_total{reason="db_unavailable"} 1`) {
+		t.Fatalf("authority failure metric missing: %s", metrics.String())
 	}
 }
