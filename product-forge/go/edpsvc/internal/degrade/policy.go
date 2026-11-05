@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"sync"
 	"time"
 )
 
@@ -52,6 +53,64 @@ func Load(path string) (Config, error) {
 		}
 	}
 	return c, nil
+}
+
+// Checker is the shared degradation check contract.
+type Checker interface {
+	Check(store string, now time.Time) error
+}
+
+// Policy reloads the config when the file changes and counts renewals per store.
+type Policy struct {
+	mu       sync.Mutex
+	path     string
+	cfg      Config
+	mod      time.Time
+	renewals map[string]int
+}
+
+func NewPolicy(path string) (*Policy, error) {
+	c, err := Load(path)
+	if err != nil {
+		return nil, err
+	}
+	st, _ := os.Stat(path)
+	p := &Policy{path: path, cfg: c, renewals: map[string]int{}}
+	if st != nil {
+		p.mod = st.ModTime()
+	}
+	return p, nil
+}
+
+func (p *Policy) reload() {
+	st, err := os.Stat(p.path)
+	if err != nil || !st.ModTime().After(p.mod) {
+		return
+	}
+	c, err := Load(p.path)
+	if err != nil {
+		return
+	}
+	for store, old := range p.cfg.Stores {
+		if nr, ok := c.Stores[store]; ok && old.Enabled && nr.Enabled && nr.ExpiresAt.After(old.ExpiresAt) {
+			p.renewals[store]++
+		}
+	}
+	p.cfg = c
+	p.mod = st.ModTime()
+}
+
+func (p *Policy) Check(store string, now time.Time) error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.reload()
+	return p.cfg.Check(store, now)
+}
+
+func (p *Policy) RenewalCount(store string) int {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.renewals[store]
 }
 
 // Check returns ErrDegraded while a valid switch is active, or ErrDegradedExpired for a stale switch.

@@ -15,7 +15,7 @@ var ErrQuota = errors.New("store quota denied")
 // Guard applies degradation and quota policy at a store boundary and records bounded metrics.
 type Guard struct {
 	Quota   *limits.Quota
-	Degrade degrade.Config
+	Degrade degrade.Checker
 	Metrics observe.Recorder
 	Meter   *limits.Metrics
 	Now     func() time.Time

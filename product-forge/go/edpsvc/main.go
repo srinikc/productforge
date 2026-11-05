@@ -177,11 +177,12 @@ func main() {
 	q := limits.NewQuota(cfg, nil, m)
 	s := &server{admin: admin, migDir: envOr("PF_MIGRATIONS_DIR", findMigrations()),
 		cfg: cfg, st: st, quota: q, metrics: m, role: guard, cacheStore: cache.New()}
-	dcfg, derr := degrade.Load(envOr("PF_EDP_DEGRADATION_CONFIG", "config/edp-degradation.json"))
+	dcfg, derr := degrade.NewPolicy(envOr("PF_EDP_DEGRADATION_CONFIG", "config/edp-degradation.json"))
+	var dcheck degrade.Checker = dcfg
 	if derr != nil {
-		dcfg = degrade.Config{Version: 1, MaxDurationSeconds: 900, Stores: map[string]degrade.Rule{}}
+		dcheck = degrade.Config{Version: 1, MaxDurationSeconds: 900, Stores: map[string]degrade.Rule{}}
 	}
-	s.guard = &storeguard.Guard{Quota: q, Degrade: dcfg, Metrics: observe.Recorder{M: m}, Meter: m}
+	s.guard = &storeguard.Guard{Quota: q, Degrade: dcheck, Metrics: observe.Recorder{M: m}, Meter: m}
 	obj, err := buildObjectStore()
 	if err != nil {
 		st.Close()
