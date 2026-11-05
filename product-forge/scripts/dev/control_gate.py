@@ -32,7 +32,8 @@ def current_sha() -> str:
     diff = subprocess.run(
         ["git", "diff", "--binary", f"{base}..HEAD", "--", ".",
          ":(exclude)data/backlog/**", ":(exclude)dashboard/**",
-         ":(exclude)engineering/trails/**", ":(exclude)engineering/evidence/**"],
+         ":(exclude)engineering/trails/**", ":(exclude)engineering/evidence/**",
+         ":(exclude)docs/**", ":(exclude)docs/**"],
         cwd=str(ROOT), capture_output=True,
     ).stdout
     return f"{base}-{hashlib.sha256(diff).hexdigest()[:12]}"
