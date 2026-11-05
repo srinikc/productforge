@@ -15,14 +15,23 @@ type Recorder struct {
 	M *limits.Metrics
 }
 
+var outcomes = map[string]struct{}{
+	"ok": {}, "error": {}, "degraded": {}, "denied": {},
+}
+
 func allowed(store string) bool {
 	_, ok := stores[store]
 	return ok
 }
 
+func allowedOutcome(outcome string) bool {
+	_, ok := outcomes[outcome]
+	return ok
+}
+
 // Request records one store operation outcome and latency.
 func (r Recorder) Request(store, outcome string, d time.Duration) {
-	if r.M == nil || !allowed(store) {
+	if r.M == nil || !allowed(store) || !allowedOutcome(outcome) {
 		return
 	}
 	r.M.Inc("edp_store_requests_total", "store", store, "outcome", outcome)

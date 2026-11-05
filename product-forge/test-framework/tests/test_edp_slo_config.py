@@ -7,6 +7,7 @@ ROOT = Path(__file__).resolve().parents[2]
 def test_slo_config_has_bounded_groups_and_positive_limits():
     cfg = json.loads((ROOT / "config/edp-slo.json").read_text(encoding="utf-8"))
     assert cfg["version"] >= 1
+    assert cfg.get("baseline_id") and cfg.get("baseline_sha")
     assert cfg["defaults"]["p95_ms"] > 0
     assert cfg["defaults"]["p99_ms"] >= cfg["defaults"]["p95_ms"]
     allowed = {"db", "object", "artifact", "memory", "job", "project", "run", "cache", "queue"}

@@ -21,7 +21,7 @@ PF_BENCH_DSN=postgres://... go run ./cmd/bench   -ops 20 -out ../../engineering/
 ```
 
 - Missing DSN fails unless `-allow-skip` is explicit.
-- `edp_bench_p50_ms`, `edp_bench_p95_ms`, `edp_bench_p99_ms`, `edp_bench_errors_total` use bounded
+- `edp_bench_p50_ms`, `edp_bench_p95_ms`, `edp_bench_p99_ms`, `edp_bench_scenario_errors` use bounded
   `group`/`scenario` labels.
 - `edp_bench_last_run_unixtime` is unlabeled freshness.
 - SLO budgets live in `config/edp-slo.json`; `-enforce` exits non-zero on violations.

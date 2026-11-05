@@ -46,6 +46,17 @@
       "mode": "design",
       "hil_confirmed": true,
       "note": "HIL approved a third independent design review to verify fixes for the 15 Gate 1.5 findings."
+    },
+    {
+      "at": "2026-11-05T05:52:12.087308+00:00",
+      "by": "hil:user",
+      "decision": "APPROVE",
+      "gate": 1,
+      "findings_sha": "cb04eccda0f5",
+      "findings_digest": "d14f3e178f53",
+      "seq": 4,
+      "note": "HIL approved EDP-22 Gate 1 after design review and implementation evidence.",
+      "hil_confirmed": true
     }
   ],
   "follow_up": {},
@@ -319,7 +330,7 @@
     "usage": {}
   },
   "created_at": "2026-10-13T16:06:24.101326",
-  "updated_at": "2026-11-04T19:48:42.107799",
+  "updated_at": "2026-11-05T11:23:29.330582",
   "score": 0.75,
   "source_ref": "docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md",
   "_note": "dependencies set",
@@ -1003,6 +1014,56 @@
         ]
       },
       "evidence": "BI-PF-1314-ddf6e36036d0.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "ac18202080ef89107e73ea0be57c93c9ae4fa211",
+      "review_sha": "13f8a92ccb58",
+      "model": "deepseek-v4.1-flash",
+      "at": "2026-11-05T05:53:28.933278+00:00",
+      "review_scope": "full_candidate",
+      "base_sha": "",
+      "head_sha": "ac18202080ef89107e73ea0be57c93c9ae4fa211",
+      "findings": {
+        "BLOCKER": [
+          "AC-4 quota enforcement is entirely absent: no `internal/limits/quota.go`, no call sites, and nothing emits `edp_quota_allowed_total`/`edp_quota_denials_total` yet the alert `ProductForgeQuotaDenied` and dashboard panel 5 query them — AC-4 cannot be satisfied and the alert can never fire.",
+          "AC-1 baseline evidence declared in the contract (`engineering/benchmarks/BI-PF-1314/README.md`, `db/local/baseline.json`, `db/local/metrics.prom`) is not in the diff, and `config/edp-slo.json` contains thresholds with no baseline ID reference — violates the \"SLO thresholds are set from measured baselines, not invented targets\" invariant.",
+          "Store metrics and degradation are dead code: `observe.Recorder` and `degrade.Check` have no store-adapter call sites in the diff, so AC-3/AC-4 (\"demonstrated per store\") and the runtime contract `store adapter -> degrade.Check -> fixed degraded error + observe metrics` are unproven."
+        ],
+        "MAJOR": [
+          "`bench.Compare` ignores `MaxError` when a result has an error (`if r.Err != \"\" { violation; continue }`), and `MaxError==0` is treated as \"unset\" in the group override — `max_errors` config is effectively dead.",
+          "`edp_store_latency_ms` is emitted as a last-value gauge via `Set`, not the histogram the observability contract requires; p95/p99 store SLOs are therefore impossible from this metric.",
+          "`edp_bench_errors_total` is written as 0/1 per run from a file sink — non-monotonic value under a `_total` counter name, so any `rate()`/`increase()` over it is wrong.",
+          "`observe.Recorder.Request` passes the caller-supplied `outcome` string straight into a label with no allowlist; only `store` is bounded, so cardinality/leak risk remains.",
+          "`ProductForgeBenchmarkLatencyRegression` hardcodes `> 500` while `config/edp-slo.json` sets db to 250 — rules are hand-written, not generated/validated for drift against config as Slice 4 requires.",
+          "`db_explain_capture.py` validates but never enforces `--per-minute` or any concurrency cap; the design invariant requires both probability and per-minute/concurrency budgets.",
+          "No audit record (actor, statement label, sample decision, artifact path) is produced for EXPLAIN runs, and `--out` writes to an arbitrary path with no retention/access-control enforcement — violates the audit/security contract.",
+          "Production cap is client-asserted: `--env` defaults to `PF_ENV`/`dev`, so a mis-set env allows `--sample-rate 0.1` against production; no separate explicit prod-enable switch as the non-goal requires.",
+          "`expires_at` renewal tracking/\"renewals are alerted and bounded\" is not implemented; `Config` is loaded once with no reload path, so operators cannot force-expire without a redeploy.",
+          "`config/edp-slo.schema.json` and `config/edp-degradation.schema.json` (contract + CTL-CONFIG-SCHEMA) are missing; `validate_edp_slo.py` only asserts alert names/panel presence, which is a tautological no-drift check.",
+          "`[OUT_OF_SCOPE]` `scripts/dev/review_ledger.py` now returns `[]` when no delta entries exist, silently disabling the `FULL_REVIEW_MISSING` gate for delta items (review-tooling behavior change, CL-002 territory)."
+        ],
+        "MINOR": [
+          "`config/edp-degradation.json` has `\"stores\": {}` — no per-store switch demonstrated and the test loop is vacuous.",
+          "Bench scenario semantics silently changed (`kind 'note'→'semantic'`, `acl_scope 'team'→'project'`) with no rationale; this alters what is measured and is close to the out-of-scope \"data-model changes of the stores\" line.",
+          "Freshness alert `time() - edp_bench_last_run_unixtime > 86400` never fires when the metric is absent; needs an `absent()` companion for a never-run suite.",
+          "`cmd/bench` default `-baseline config/edp-slo.json` is cwd-relative while the documented invocation runs from `go/edpsvc`; only the doc example's explicit path saves it.",
+          "No `Load` validation test for `expires_at` exceeding `max_duration_seconds` or for `max_errors` handling; `slo_test` only exercises `Compare` happy paths.",
+          "EXPLAIN redaction is regex-only (quoted literals, 4+ digit numbers); UUIDs/emails/timestamps outside quotes and `tenant_id` column values in plan output are not covered.",
+          "`max_errors` sentinel ambiguity and lack of `p50` budget in config mean partial budget semantics are undocumented."
+        ],
+        "NIT": [
+          "`psycopg` is imported lazily with no pinned dependency/requirements entry for the tooling path.",
+          "`PrometheusSink` overwrites the sink file per run; there is no rotation or run-id comment header for traceability.",
+          "`validate_edp_slo.py` hardcodes `REQUIRED_GROUPS` including `artifact` while bench `scenarios()` groups are not cross-checked against config."
+        ],
+        "SUMMARY": [
+          "Direction is right: bounded labels, fail-closed degradation errors, sampled EXPLAIN guard, and offline asset validation are solid foundations.",
+          "Not mergeable as-is: quota enforcement is missing entirely (AC-4), baseline evidence artifacts and baseline-ID linkage are absent (AC-1), and neither metrics nor degradation is wired into store adapters, so AC-3/AC-4 are only unit-tested, not demonstrated.",
+          "Observability contract mismatches (gauge latency, non-monotonic `_total`, hand-written rule thresholds) will let SLO drift go undetected; fix before the EDP-24 evidence gate relies on these baselines."
+        ]
+      },
+      "evidence": "BI-PF-1314-13f8a92ccb58.json"
     }
   ],
   "review_dispositions": {

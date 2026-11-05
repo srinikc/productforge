@@ -16,6 +16,7 @@ func TestRecorderBoundedStores(t *testing.T) {
 		r.Degraded(s, true)
 	}
 	r.Request("tenant-a", "ok", time.Millisecond)
+	r.Request("db", "tenant-a", time.Millisecond)
 	var b strings.Builder
 	m.Write(&b)
 	out := b.String()

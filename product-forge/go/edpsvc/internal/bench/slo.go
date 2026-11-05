@@ -61,12 +61,12 @@ func Compare(rep Report, c SLOConfig) []Violation {
 			if g.P99Ms > 0 {
 				limit.P99Ms = g.P99Ms
 			}
-			if g.MaxError != 0 {
-				limit.MaxError = g.MaxError
-			}
+			limit.MaxError = g.MaxError
 		}
 		if r.Err != "" {
-			out = append(out, Violation{Group: r.Group, Scenario: r.Scenario, Metric: "errors", Actual: 1, Limit: float64(limit.MaxError)})
+			if limit.MaxError <= 0 {
+				out = append(out, Violation{Group: r.Group, Scenario: r.Scenario, Metric: "errors", Actual: 1, Limit: float64(limit.MaxError)})
+			}
 			continue
 		}
 		if r.P95Ms > limit.P95Ms {

@@ -32,7 +32,7 @@ func (s PrometheusSink) Publish(_ context.Context, rep Report) error {
 		if r.Err != "" {
 			errs = 1
 		}
-		if _, err := fmt.Fprintf(s.W, "edp_bench_errors_total{%s} %d\n", labels, errs); err != nil {
+		if _, err := fmt.Fprintf(s.W, "edp_bench_scenario_errors{%s} %d\n", labels, errs); err != nil {
 			return err
 		}
 	}
