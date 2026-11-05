@@ -678,6 +678,8 @@ func (s *server) objectStoreConform(w http.ResponseWriter, r *http.Request) {
 
 var errTenant = errors.New("tenant query parameter is required")
 
+var errBadJobAction = errors.New("bad job action")
+
 func (s *server) artifactUpload(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseMultipartForm(s.cfg.MaxUploadBytes); err != nil {
 		s.fail(w, r, http.StatusBadRequest, err)
@@ -828,8 +830,16 @@ func (s *server) jobSubmit(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, http.StatusInternalServerError, err)
 		return
 	}
-	j, err := edpdata.NewJobs(store.BindTenant(st, b.Tenant)).Submit(ctx, datastore.Job{
-		ID: b.ID, TenantID: b.Tenant, Kind: b.Kind, Priority: b.Priority, IdempotencyKey: b.IdempotencyKey})
+	var j datastore.Job
+	err = s.storeGuard("queue", b.Tenant, func() error {
+		var e error
+		j, e = edpdata.NewJobs(store.BindTenant(st, b.Tenant)).Submit(ctx, datastore.Job{
+			ID: b.ID, TenantID: b.Tenant, Kind: b.Kind, Priority: b.Priority, IdempotencyKey: b.IdempotencyKey})
+		return e
+	})
+	if s.storeGuardError(w, r, err) {
+		return
+	}
 	if err != nil {
 		s.fail(w, r, http.StatusInternalServerError, err)
 		return
@@ -860,7 +870,16 @@ func (s *server) jobClaim(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, http.StatusInternalServerError, err)
 		return
 	}
-	j, ok, err := edpdata.NewJobs(store.BindTenant(st, b.Tenant)).Claim(ctx, b.Worker, time.Duration(b.TTLSeconds)*time.Second)
+	var j datastore.Job
+	var ok bool
+	err = s.storeGuard("queue", b.Tenant, func() error {
+		var e error
+		j, ok, e = edpdata.NewJobs(store.BindTenant(st, b.Tenant)).Claim(ctx, b.Worker, time.Duration(b.TTLSeconds)*time.Second)
+		return e
+	})
+	if s.storeGuardError(w, r, err) {
+		return
+	}
 	if err != nil {
 		s.fail(w, r, http.StatusInternalServerError, err)
 		return
@@ -888,17 +907,25 @@ func (s *server) jobAction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	jobs := edpdata.NewJobs(store.BindTenant(st, b.Tenant))
-	switch b.Action {
-	case "complete":
-		err = jobs.Complete(ctx, b.ID, b.Lease)
-	case "fail":
-		err = jobs.Fail(ctx, b.ID, b.Lease, b.Reason)
-	case "release":
-		err = jobs.Release(ctx, b.ID, b.Lease)
-	case "heartbeat":
-		err = jobs.Heartbeat(ctx, b.ID, b.Lease)
-	default:
+	err = s.storeGuard("queue", b.Tenant, func() error {
+		switch b.Action {
+		case "complete":
+			return jobs.Complete(ctx, b.ID, b.Lease)
+		case "fail":
+			return jobs.Fail(ctx, b.ID, b.Lease, b.Reason)
+		case "release":
+			return jobs.Release(ctx, b.ID, b.Lease)
+		case "heartbeat":
+			return jobs.Heartbeat(ctx, b.ID, b.Lease)
+		default:
+			return errBadJobAction
+		}
+	})
+	if errors.Is(err, errBadJobAction) {
 		s.bad(w, r, http.StatusBadRequest, "action must be complete|fail|release|heartbeat")
+		return
+	}
+	if s.storeGuardError(w, r, err) {
 		return
 	}
 	if err != nil {
