@@ -39,7 +39,7 @@ func (r Recorder) Request(store, outcome string, d time.Duration) {
 	if ms < 0 {
 		ms = 0
 	}
-	r.M.Set("edp_store_latency_ms{store=\""+store+"\"}", int(ms))
+	r.M.ObserveHistogram("edp_store_latency_seconds", []string{"store", store}, d)
 }
 
 // Degraded records the current degradation state for a store.
