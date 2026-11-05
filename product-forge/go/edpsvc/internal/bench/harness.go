@@ -26,6 +26,7 @@ type Result struct {
 	P50Ms    float64 `json:"p50_ms"`
 	P95Ms    float64 `json:"p95_ms"`
 	P99Ms    float64 `json:"p99_ms"`
+	Errors   int     `json:"errors"`
 	Err      string  `json:"err,omitempty"`
 }
 
@@ -49,6 +50,7 @@ func Measure(group, name string, ops int, fn func(i int) error) Result {
 		t0 := time.Now()
 		if err := fn(i); err != nil {
 			r.Err = err.Error()
+			r.Errors++
 			break
 		}
 		lat = append(lat, time.Since(t0))

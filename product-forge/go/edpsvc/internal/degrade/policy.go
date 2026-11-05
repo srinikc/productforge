@@ -104,6 +104,9 @@ func (p *Policy) Check(store string, now time.Time) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.reload()
+	if p.renewals[store] > 3 {
+		return ErrDegradedExpired
+	}
 	return p.cfg.Check(store, now)
 }
 

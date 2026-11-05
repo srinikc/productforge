@@ -37,6 +37,12 @@ func (s *Store) Get(_ context.Context, key string) ([]byte, bool, error) {
 func (s *Store) Set(_ context.Context, key string, val []byte, ttl time.Duration) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if len(s.data) >= 10000 {
+		for k := range s.data {
+			delete(s.data, k)
+			break
+		}
+	}
 	var exp time.Time
 	if ttl > 0 {
 		exp = s.now().Add(ttl)

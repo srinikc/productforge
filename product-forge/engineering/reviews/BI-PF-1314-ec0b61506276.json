@@ -1,0 +1,43 @@
+{
+  "item": "BI-PF-1314",
+  "sha": "ec0b61506276",
+  "model": "deepseek-v4.1-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-05T08:54:17.987771+00:00",
+  "review_scope": "delta",
+  "base_sha": "ac18202080ef89107e73ea0be57c93c9ae4fa211",
+  "head_sha": "268cf64cd02d3cc81319e53f7f0d0f743c4e14f2",
+  "findings": {
+    "BLOCKER": [
+      "`go/edpsvc/internal/observe/metrics.go`: after replacing `edp_store_latency_ms` with `ObserveHistogram`, the local `ms` and its negative clamp are left unused; Go rejects unused locals, so `go test ./...` cannot build.",
+      "`go/edpsvc/main.go` `cacheHandle`: `tenant` is required but never namespaces the key; `/admin/cache` GET/PUT/DELETE can read or overwrite another tenant\u2019s cached bytes, bypassing tenant isolation."
+    ],
+    "MAJOR": [
+      "`main.go`: any error from `degrade.NewPolicy` \u2014 including invalid `config/edp-degradation.json` \u2014 is swallowed and replaced by an empty policy instead of startup refusal, violating `CONFIG_INVALID` and fail-closed behavior.",
+      "`degrade/policy.go`: the new renewal counter is only returned by unused `RenewalCount`; no metric/alert/bound is emitted, so degradation can be renewed indefinitely without detection.",
+      "`cache/memory.go` + `main.go`: the store has no capacity/eviction bound and the handler always calls `Set` with `ttl=0`; the admin cache can grow without limit and never expires.",
+      "`bench/slo.go`: for `MaxError > 0`, any scenario with `Err != \"\"` is accepted, so a positive `max_errors` disables all error violations rather than bounding counts.",
+      "`scripts/dev/db_explain_capture.py`: `--state`/`--audit` are optional, the rate check is non-atomic, and there is no concurrency cap; the required per-minute/concurrency/audit guarantees remain bypassable.",
+      "`main.go` object store: quota is only reached via `/admin/object-store/conform` with `tenant=\"\"`, so `Quota` is skipped for object store and real object operations remain unguarded."
+    ],
+    "MINOR": [
+      "`db_explain_capture.py`: `rate_ok` consumes a slot even when sampling later skips the run, causing false `REFUSE` under normal sampled-out traffic.",
+      "`degrade/policy.go`: `Policy.Check` takes a global mutex and `os.Stat`s the config on every store operation, serializing hot-path calls and adding filesystem I/O.",
+      "`storeguard/guard.go`: `Do` checks only `g == nil`, not `g.Degrade`; a zero-value `Guard` panics instead of failing safe.",
+      "`validate_edp_slo.py`: sibling `import gen_edp_slo` inside `problems()` depends on `sys.path`; imported-module/pytest execution can fail with `ModuleNotFoundError`.",
+      "`validate_edp_slo.py`: alert presence is checked by substring, not exact rule/alert name, so a summary or comment can satisfy the check."
+    ],
+    "NIT": [
+      "`db_explain_capture.py`: state/audit file opens are not context-managed; state writes are not atomic.",
+      "`audit` records are append-only with no rotation/fsync/retention enforcement in the tool.",
+      "`gen_edp_slo.py` hardcodes non-benchmark alerts while `validate_edp_slo.py` separately hardcodes required names; generation and validation can drift in the non-generated portion."
+    ],
+    "SUMMARY": [
+      "The delta fixes several prior gaps (generated SLO rules, store guard wiring, histogram metrics, baseline references) but introduces a build blocker and a tenant-isolation bug in the new admin cache.",
+      "Remaining enterprise risks: silent degradation-config fallback, unbounded cache, incomplete `max_errors` semantics, and EXPLAIN controls that remain optional/non-atomic.",
+      "AC-4 per-store quota is not demonstrated for object store; the only object guard path skips quota with an empty tenant.",
+      "Blockers must be fixed before merge; majors should be fixed or explicitly accepted with runbook controls."
+    ]
+  }
+}

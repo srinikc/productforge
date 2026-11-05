@@ -177,9 +177,14 @@ func main() {
 	q := limits.NewQuota(cfg, nil, m)
 	s := &server{admin: admin, migDir: envOr("PF_MIGRATIONS_DIR", findMigrations()),
 		cfg: cfg, st: st, quota: q, metrics: m, role: guard, cacheStore: cache.New()}
-	dcfg, derr := degrade.NewPolicy(envOr("PF_EDP_DEGRADATION_CONFIG", "config/edp-degradation.json"))
+	dcfgPath := envOr("PF_EDP_DEGRADATION_CONFIG", "config/edp-degradation.json")
+	dcfg, derr := degrade.NewPolicy(dcfgPath)
 	var dcheck degrade.Checker = dcfg
 	if derr != nil {
+		if os.Getenv("PF_EDP_DEGRADATION_CONFIG") != "" {
+			st.Close()
+			log.Fatalf("degradation config: %v", derr)
+		}
 		dcheck = degrade.Config{Version: 1, MaxDurationSeconds: 900, Stores: map[string]degrade.Rule{}}
 	}
 	s.guard = &storeguard.Guard{Quota: q, Degrade: dcheck, Metrics: observe.Recorder{M: m}, Meter: m}
@@ -668,6 +673,7 @@ func (s *server) cacheHandle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ctx := r.Context()
+	key = tenant + ":" + key
 	switch r.Method {
 	case http.MethodGet:
 		var val []byte
@@ -696,7 +702,7 @@ func (s *server) cacheHandle(w http.ResponseWriter, r *http.Request) {
 			s.fail(w, r, http.StatusBadRequest, err)
 			return
 		}
-		err = s.storeGuard("cache", tenant, func() error { return s.cacheStore.Set(ctx, key, body, 0) })
+		err = s.storeGuard("cache", tenant, func() error { return s.cacheStore.Set(ctx, key, body, 5*time.Minute) })
 		if s.storeGuardError(w, r, err) {
 			return
 		}
@@ -725,8 +731,13 @@ func (s *server) objectStoreCapabilities(w http.ResponseWriter, r *http.Request)
 }
 
 func (s *server) objectStoreConform(w http.ResponseWriter, r *http.Request) {
+	tenant := r.URL.Query().Get("tenant")
+	if tenant == "" {
+		s.bad(w, r, http.StatusBadRequest, "tenant is required")
+		return
+	}
 	var errs []error
-	if err := s.storeGuard("object", "", func() error { errs = datastore.ConformObjectStore(r.Context(), s.obj); return nil }); err != nil {
+	if err := s.storeGuard("object", tenant, func() error { errs = datastore.ConformObjectStore(r.Context(), s.obj); return nil }); err != nil {
 		if s.storeGuardError(w, r, err) {
 			return
 		}

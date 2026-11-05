@@ -84,14 +84,17 @@ def main() -> int:
         print(f"explain: REFUSE - {bad}", file=sys.stderr)
         return 2
     now = datetime.now(timezone.utc)
-    if not rate_ok(a.state, a.per_minute, now):
-        print("explain: REFUSE - per-minute cap reached", file=sys.stderr)
+    if a.sample_rate > 0 and (not a.state or not a.audit):
+        print("explain: REFUSE - sampled capture requires --state and --audit", file=sys.stderr)
         return 2
     if a.sample_rate == 0 or random.random() > a.sample_rate:
         print("explain: skipped (sampling)")
         audit(a.audit, {"at": now.isoformat(), "actor": os.environ.get("PF_ACTOR", ""), "query": a.query,
                         "decision": "skipped", "env": a.env})
         return 0
+    if not rate_ok(a.state, a.per_minute, now):
+        print("explain: REFUSE - per-minute cap reached", file=sys.stderr)
+        return 2
     if not a.dsn:
         print("explain: PF_EXPLAIN_DSN is required", file=sys.stderr)
         return 2

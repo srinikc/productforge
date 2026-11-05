@@ -35,10 +35,6 @@ func (r Recorder) Request(store, outcome string, d time.Duration) {
 		return
 	}
 	r.M.Inc("edp_store_requests_total", "store", store, "outcome", outcome)
-	ms := d.Milliseconds()
-	if ms < 0 {
-		ms = 0
-	}
 	r.M.ObserveHistogram("edp_store_latency_seconds", []string{"store", store}, d)
 }
 
