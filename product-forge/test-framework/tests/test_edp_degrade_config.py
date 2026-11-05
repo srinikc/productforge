@@ -8,6 +8,7 @@ def test_degradation_config_is_bounded():
     cfg = json.loads((ROOT / "config/edp-degradation.json").read_text(encoding="utf-8"))
     assert cfg["version"] >= 1
     assert 0 < cfg["max_duration_seconds"] <= 900
+    assert cfg["renewal_limit"] >= 1 and cfg["renewal_window_seconds"] >= 60
     allowed = {"db", "object", "cache", "queue"}
     assert set(cfg["stores"]) <= allowed
     for store, rule in cfg["stores"].items():

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"productforge/edpsvc/internal/limits"
 	"sync"
 	"time"
 )
@@ -12,6 +13,7 @@ import (
 var (
 	ErrDegraded        = errors.New("store degraded")
 	ErrDegradedExpired = errors.New("store degradation expired")
+	ErrRenewalExceeded = errors.New("store degradation renewal exceeded")
 )
 
 // Rule is one bounded per-store degradation switch.
@@ -24,9 +26,11 @@ type Rule struct {
 
 // Config is the operator-owned degradation document.
 type Config struct {
-	Version            int             `json:"version"`
-	MaxDurationSeconds int             `json:"max_duration_seconds"`
-	Stores             map[string]Rule `json:"stores"`
+	Version              int             `json:"version"`
+	MaxDurationSeconds   int             `json:"max_duration_seconds"`
+	RenewalLimit         int             `json:"renewal_limit"`
+	RenewalWindowSeconds int             `json:"renewal_window_seconds"`
+	Stores               map[string]Rule `json:"stores"`
 }
 
 // Load reads and validates degradation configuration.
@@ -39,7 +43,8 @@ func Load(path string) (Config, error) {
 	if err := json.Unmarshal(raw, &c); err != nil {
 		return c, err
 	}
-	if c.Version < 1 || c.MaxDurationSeconds <= 0 || c.MaxDurationSeconds > 900 {
+	if c.Version < 1 || c.MaxDurationSeconds <= 0 || c.MaxDurationSeconds > 900 ||
+		c.RenewalLimit < 1 || c.RenewalWindowSeconds < 60 {
 		return c, fmt.Errorf("degrade: invalid config")
 	}
 	for store, r := range c.Stores {
@@ -66,7 +71,9 @@ type Policy struct {
 	path     string
 	cfg      Config
 	mod      time.Time
-	renewals map[string]int
+	renewals map[string][]time.Time
+	resets   map[string]int
+	Metrics  *limits.Metrics
 }
 
 func NewPolicy(path string) (*Policy, error) {
@@ -75,7 +82,7 @@ func NewPolicy(path string) (*Policy, error) {
 		return nil, err
 	}
 	st, _ := os.Stat(path)
-	p := &Policy{path: path, cfg: c, renewals: map[string]int{}}
+	p := &Policy{path: path, cfg: c, renewals: map[string][]time.Time{}, resets: map[string]int{}}
 	if st != nil {
 		p.mod = st.ModTime()
 	}
@@ -91,14 +98,31 @@ func (p *Policy) reload() {
 	if err != nil {
 		return
 	}
+	now := time.Now()
 	for store, old := range p.cfg.Stores {
 		nr, ok := c.Stores[store]
 		if !ok || !nr.Enabled {
-			delete(p.renewals, store)
+			if len(p.renewals[store]) > 0 {
+				delete(p.renewals, store)
+				p.resets[store]++
+				if p.Metrics != nil {
+					p.Metrics.Inc("edp_store_degradation_resets_total", "store", store)
+				}
+			}
 			continue
 		}
 		if old.Enabled && nr.Enabled && nr.ExpiresAt.After(old.ExpiresAt) {
-			p.renewals[store]++
+			cutoff := now.Add(-time.Duration(c.RenewalWindowSeconds) * time.Second)
+			kept := p.renewals[store][:0]
+			for _, at := range p.renewals[store] {
+				if at.After(cutoff) {
+					kept = append(kept, at)
+				}
+			}
+			p.renewals[store] = append(kept, now)
+			if p.Metrics != nil {
+				p.Metrics.Inc("edp_store_degradation_renewals_total", "store", store)
+			}
 		}
 	}
 	p.cfg = c
@@ -109,8 +133,8 @@ func (p *Policy) Check(store string, now time.Time) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.reload()
-	if p.renewals[store] > 3 {
-		return ErrDegradedExpired
+	if len(p.renewals[store]) > p.cfg.RenewalLimit {
+		return ErrRenewalExceeded
 	}
 	return p.cfg.Check(store, now)
 }
@@ -118,7 +142,7 @@ func (p *Policy) Check(store string, now time.Time) error {
 func (p *Policy) RenewalCount(store string) int {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	return p.renewals[store]
+	return len(p.renewals[store])
 }
 
 // Check returns ErrDegraded while a valid switch is active, or ErrDegradedExpired for a stale switch.

@@ -22,3 +22,12 @@ func TestCheckActiveAndExpired(t *testing.T) {
 		t.Fatalf("unexpected: %v", err)
 	}
 }
+
+func TestPolicyRenewalLimitFailsClosed(t *testing.T) {
+	p := &Policy{cfg: Config{Version: 1, MaxDurationSeconds: 900, RenewalLimit: 1, RenewalWindowSeconds: 60,
+		Stores: map[string]Rule{"db": {Enabled: true, Reason: "x", Owner: "ops", ExpiresAt: time.Now().Add(time.Minute)}}},
+		renewals: map[string][]time.Time{"db": {time.Now(), time.Now()}}, resets: map[string]int{}}
+	if err := p.Check("db", time.Now()); !errors.Is(err, ErrRenewalExceeded) {
+		t.Fatalf("want renewal exceeded, got %v", err)
+	}
+}

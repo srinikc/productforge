@@ -133,6 +133,10 @@ func (s *server) storeGuardError(w http.ResponseWriter, r *http.Request, err err
 		s.bad(w, r, http.StatusServiceUnavailable, "store temporarily degraded")
 		return true
 	}
+	if errors.Is(err, degrade.ErrRenewalExceeded) {
+		s.bad(w, r, http.StatusServiceUnavailable, "store degradation renewal exceeded")
+		return true
+	}
 	return false
 }
 
@@ -180,6 +184,9 @@ func main() {
 	dcfgPath := envOr("PF_EDP_DEGRADATION_CONFIG", "config/edp-degradation.json")
 	dcfg, derr := degrade.NewPolicy(dcfgPath)
 	var dcheck degrade.Checker = dcfg
+	if dcfg != nil {
+		dcfg.Metrics = m
+	}
 	if derr != nil {
 		st.Close()
 		log.Fatalf("degradation config: %v", derr)
