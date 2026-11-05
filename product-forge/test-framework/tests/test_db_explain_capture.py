@@ -31,5 +31,5 @@ def test_rate_cap_and_audit(tmp_path):
     assert mod.rate_ok(str(state), 1, now) is True
     assert mod.rate_ok(str(state), 1, now) is False
     audit = tmp_path / "audit.jsonl"
-    mod.audit(str(audit), {"query": "backlog_items", "decision": "captured"})
+    mod.audit(str(audit), {"statement_label": "backlog_items", "decision": "captured"})
     assert "captured" in audit.read_text(encoding="utf-8")

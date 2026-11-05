@@ -89,11 +89,11 @@ def main() -> int:
         return 2
     if a.sample_rate == 0 or random.random() > a.sample_rate:
         print("explain: skipped (sampling)")
-        audit(a.audit, {"at": now.isoformat(), "actor": os.environ.get("PF_ACTOR", ""), "query": a.query,
+        audit(a.audit, {"at": now.isoformat(), "actor": os.environ.get("PF_ACTOR", ""), "statement_label": a.query,
                         "decision": "skipped", "env": a.env})
         return 0
     if not rate_ok(a.state, a.per_minute, now):
-        audit(a.audit, {"at": now.isoformat(), "actor": os.environ.get("PF_ACTOR", ""), "query": a.query,
+        audit(a.audit, {"at": now.isoformat(), "actor": os.environ.get("PF_ACTOR", ""), "statement_label": a.query,
                         "decision": "refused_rate_cap", "env": a.env})
         print("explain: REFUSE - per-minute cap reached", file=sys.stderr)
         return 2
@@ -116,7 +116,7 @@ def main() -> int:
             f.write(text)
     else:
         sys.stdout.write(text)
-    audit(a.audit, {"at": now.isoformat(), "actor": os.environ.get("PF_ACTOR", ""), "query": a.query,
+    audit(a.audit, {"at": now.isoformat(), "actor": os.environ.get("PF_ACTOR", ""), "statement_label": a.query,
                     "decision": "captured", "env": a.env, "artifact": a.out})
     return 0
 

@@ -332,7 +332,7 @@
     "usage": {}
   },
   "created_at": "2026-10-13T16:06:24.101326",
-  "updated_at": "2026-11-05T14:54:39.276595",
+  "updated_at": "2026-11-05T15:03:39.114112",
   "score": 0.75,
   "source_ref": "docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md",
   "_note": "dependencies set",
@@ -1144,6 +1144,39 @@
         ]
       },
       "evidence": "BI-PF-1314-14b0efa0485d.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "4e86eed3eff15334e775a8932fe35582d7c5e42b",
+      "review_sha": "bf32496f7503",
+      "model": "deepseek-v4.1-flash",
+      "at": "2026-11-05T09:33:38.798267+00:00",
+      "review_scope": "delta",
+      "base_sha": "60bcd70e611f55f21dec07fff61eb0ac95dec724",
+      "head_sha": "4e86eed3eff15334e775a8932fe35582d7c5e42b",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [
+          "**AC-4 / `go/edpsvc/internal/degrade/policy.go`**: the delta *deletes* the renewal bound entirely instead of bounding it with reset+alert; design invariant \"renewals are alerted and bounded\" and failure-matrix `degradation expired/renewed too often -> fail closed + alert (DEGRADED_EXPIRED)` are now unenforced, and `p.renewals` becomes write-only dead state.",
+          "**AC-2 / `scripts/dev/db_explain_capture.py`**: the new rate-cap audit record persists the raw `query` text rather than an approved statement label; this contradicts the design's \"audit log with actor, **statement label**, sample decision\" and redaction/retention model, and re-introduces sensitive SQL text into long-lived logs that the redacted artifact path deliberately avoids."
+        ],
+        "MINOR": [
+          "**AC-1 / `go/edpsvc/internal/bench/harness.go`**: with `continue`, latency samples exclude failed ops while `Ops` counts attempts, so p50/p95/p99 are computed on a smaller denominator than reported; a store failing all ops now runs to completion with an empty sample set, risking a passing baseline/SLO from zero samples (no delta test covers this path).",
+          "**AC-4 / `go/edpsvc/main.go`**: config failure is now a bare `log.Fatalf`; there is no `CONFIG_INVALID` code/metric/alert distinction, so operators cannot separate misconfiguration from other fatal starts, and \"switches default off\" no longer permits starting without a valid degradation file (dev/local flows need a documented escape).",
+          "**`scripts/dev/db_explain_capture.py`**: `refused_rate_cap` is written before DSN/allowlist validation, so an unrunnable invocation still produces a decision record; the `decision` field becomes ambiguous for forensics (rate refusal vs config-invalid), and repeated refusals amplify audit volume.",
+          "**[OUT_OF_SCOPE]** `go/edpsvc/internal/cache/memory.go`: the TTL sweep is a full 10k-entry scan under the write mutex on every insert-at-capacity (write latency spikes), expired entries are otherwise never reclaimed below capacity, and a live entry is still evicted at random (the prior NIT is not actually resolved by this hunk)."
+        ],
+        "NIT": [
+          "**`go/edpsvc/internal/bench/harness_test.go`**: the updated assertion (`Errors != 1 || Ops != 9`) no longer pins \"first error message retained over later, different errors\"; only the single-error case is exercised.",
+          "**`go/edpsvc/internal/bench/harness.go`**: errors after the first are only counted, never summarised (no error class/aggregate), making SLO regression triage harder than necessary."
+        ],
+        "SUMMARY": [
+          "Delta correctly resolves the earlier startup-guard and `Measure` fail-fast defects, and adds the missing rate-refusal audit; no new blockers.",
+          "Top risks: the degradation renewal invariant was removed rather than bounded (AC-4 regression), and the EXPLAIN audit now stores raw SQL instead of a statement label (AC-2 redaction drift).",
+          "Secondary: benchmark latency/SLO denominators diverge from attempt counts (AC-1 repeatability), and fail-closed startup lacks an observable `CONFIG_INVALID` signal."
+        ]
+      },
+      "evidence": "BI-PF-1314-bf32496f7503.json"
     }
   ],
   "review_dispositions": {

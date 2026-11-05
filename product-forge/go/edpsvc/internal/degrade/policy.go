@@ -92,7 +92,12 @@ func (p *Policy) reload() {
 		return
 	}
 	for store, old := range p.cfg.Stores {
-		if nr, ok := c.Stores[store]; ok && old.Enabled && nr.Enabled && nr.ExpiresAt.After(old.ExpiresAt) {
+		nr, ok := c.Stores[store]
+		if !ok || !nr.Enabled {
+			delete(p.renewals, store)
+			continue
+		}
+		if old.Enabled && nr.Enabled && nr.ExpiresAt.After(old.ExpiresAt) {
 			p.renewals[store]++
 		}
 	}
@@ -104,6 +109,9 @@ func (p *Policy) Check(store string, now time.Time) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.reload()
+	if p.renewals[store] > 3 {
+		return ErrDegradedExpired
+	}
 	return p.cfg.Check(store, now)
 }
 
