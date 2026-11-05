@@ -63,6 +63,8 @@ TOP = {
     "EDP-DATA-PLANE-THREAT-MODEL.md": ("SSOT", "Generated data-plane threat model + register matrix: 6 categories -> source/sink/control/owner/evidence (BI-PF-1296 / EDP-04)", 100),
     "merge-drift-conflict-github.md": ("Design", "Merge/drift/conflict plan: root cause, stopgaps, and the EDP execution order that removes them (BI-PF-1292)", 100),
     "EDP-EXECUTION-ORDER.md": ("SSOT", "Authoritative wave-by-wave EDP execution order + dependencies (schema-first); mirrors the backlog epic BI-PF-1292 (BI-PF-1388)", 100),
+    "EDP-22-BENCHMARKS-SLOS.md": ("Design", "EDP-22 benchmark/SLO/EXPLAIN/quota/degradation design and evidence (BI-PF-1314)", 100),
+    "EDP-22-RUNBOOK.md": ("Tooling", "EDP-22 operator runbook for benchmarks, EXPLAIN, degradation, and SLO assets", 100),
     "EDP-17-SCHEMA.md": ("Design", "Canonical schema domain + relationship model for EDP-17 (BI-PF-1309): entities, FKs, ownership, extensibility contract", 100),
     "EDP-STORAGE-ADAPTERS.md": ("SSOT", "EDP ports & adapters: every store is a port with swappable adapters (Postgres/S3/local/NFS/...); conformance-tested (BI-PF-1309/1305)", 100),
     "EDP-SAAS-PERSISTENCE-AND-DEPLOYMENT.md": ("SSOT", "PF persistence + SaaS deployment: what lives in DB vs object store vs files, how to configure/swap DB and storage, deploy workflow, SaaS gaps (BI-PF-1292)", 100),
