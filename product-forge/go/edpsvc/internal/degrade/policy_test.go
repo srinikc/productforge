@@ -41,7 +41,7 @@ func TestPolicyWindowPrunesWithoutConfigReload(t *testing.T) {
 		t.Fatalf("want renewal exceeded, got %v", err)
 	}
 	p.renewals["db"] = []time.Time{now.Add(-2 * time.Minute)}
-	if err := p.Check("db", now); err != nil {
-		t.Fatalf("stale renewal should prune: %v", err)
+	if err := p.Check("db", now); !errors.Is(err, ErrDegraded) {
+		t.Fatalf("stale renewal should prune to active-degraded, got %v", err)
 	}
 }
