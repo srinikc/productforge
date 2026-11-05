@@ -384,7 +384,7 @@
     "usage": {}
   },
   "created_at": "2026-10-13T16:06:24.101326",
-  "updated_at": "2026-11-05T16:50:17.798739",
+  "updated_at": "2026-11-05T16:57:34.463859",
   "score": 0.75,
   "source_ref": "docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md",
   "_note": "final report persisted (BI-PF-1484)",
@@ -1404,6 +1404,32 @@
         ]
       },
       "evidence": "BI-PF-1314-4d3aeade24b7.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "e60fefbd25c4b36d233363052e0049e44f69acf5",
+      "review_sha": "10602e3d10d6",
+      "model": "deepseek-v4.1-flash",
+      "at": "2026-11-05T11:27:24.966071+00:00",
+      "review_scope": "delta",
+      "base_sha": "2b01226d9d536b422ab15f4177b03f862ac3cc62",
+      "head_sha": "e60fefbd25c4b36d233363052e0049e44f69acf5",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [
+          "Delta expands `current_sha` exclusions to `config/**` and `engineering/**`, so AC-1 benchmark baselines and AC-3/AC-4 SLO/degradation config can change without changing the gate SHA; approvals/evidence can drift undetected."
+        ],
+        "MINOR": [
+          "Broad `data/**` exclusion replaces the prior narrow `data/backlog/**`; non-backlog data fixtures/artifacts now bypass the gate hash without documented rationale.",
+          "No regression test added for `control_gate.current_sha` pathspec behavior, so future exclusion widening cannot fail in CI."
+        ],
+        "NIT": [],
+        "SUMMARY": [
+          "Delta is a gate-hash pathspec broadening. The prior docs-only issue is resolved, but new `config/**` and `engineering/**` exclusions extend the drift blind spot to AC-1/AC-3/AC-4 evidence and config.",
+          "Narrow exclusions to explicit non-shipped paths, or ensure config/evidence changes invalidate approvals."
+        ]
+      },
+      "evidence": "BI-PF-1314-10602e3d10d6.json"
     }
   ],
   "review_dispositions": {
@@ -2213,6 +2239,24 @@
         "severity": "NIT",
         "origin_class": "IMPLEMENTATION_GAP",
         "note": "Accepted under HIL option 1; docs/config evidence in current HEAD. evidence: docs/EDP-22-BENCHMARKS-SLOS.md, docs/EDP-22-RUNBOOK.md."
+      },
+      "sig:285d2f3a3644abd6": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Accepted under HIL option 1; evidence: scripts/dev/control_gate.py, engineering/design/BI-PF-1314.md."
+      },
+      "sig:29bc0f00bbc590a7": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Accepted under HIL option 1; evidence: scripts/dev/control_gate.py, engineering/design/BI-PF-1314.md."
+      },
+      "sig:81dcae1e34cacacb": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Accepted under HIL option 1; evidence: scripts/dev/control_gate.py, engineering/design/BI-PF-1314.md."
       }
     }
   },
@@ -2256,12 +2300,12 @@
   ],
   "final_report": {
     "schema": "pf.final-report/2",
-    "ac_hash": "ce0d1d35fc9a1927",
-    "total_time_ms": 76366282,
-    "sum_stage_ms": 1134079,
+    "ac_hash": "ad042dc43b3eace8",
+    "total_time_ms": 77122985,
+    "sum_stage_ms": 1146986,
     "clock_skew": false,
     "item": "BI-PF-1314",
-    "generated_at": "2026-11-05T11:19:58.136681+00:00",
+    "generated_at": "2026-11-05T11:27:34.361009+00:00",
     "item_revision": 8,
     "current_stage": "complete",
     "acs": [
@@ -2667,19 +2711,39 @@
         "cached_tokens": 0,
         "cost_usd": 0.0,
         "cost_source": "provider"
+      },
+      {
+        "stage": "gate2",
+        "at": "2026-11-05T11:20:17.823434+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "diff_review",
+        "at": "2026-11-05T11:27:25.043427+00:00",
+        "duration_ms": 12907,
+        "input_tokens": 9211,
+        "output_tokens": 1582,
+        "cached_tokens": 0,
+        "cost_usd": 0.0,
+        "cost_source": "provider"
       }
     ],
     "usage": {
-      "input_tokens": 181283,
-      "output_tokens": 87846,
+      "input_tokens": 190494,
+      "output_tokens": 89428,
       "cached_tokens": 0,
       "cost_usd": 0.0,
-      "captured": 12,
+      "captured": 13,
       "not_captured": 0,
       "unpriced": 0
     },
     "started_at": "2026-11-04T14:02:02.057716+00:00",
-    "finished_at": "2026-11-05T11:14:48.340381+00:00",
+    "finished_at": "2026-11-05T11:27:25.043427+00:00",
     "disposition_problems": [],
     "dispositions": {
       "design": {},
@@ -2740,6 +2804,17 @@
         "findings_digest": "e0550003799f",
         "seq": 8,
         "note": "HIL option 1: accept documented residual review risk and approve EDP-22 Gate 2.",
+        "hil_confirmed": true
+      },
+      {
+        "at": "2026-11-05T11:20:17.706242+00:00",
+        "by": "hil:user",
+        "decision": "APPROVE",
+        "gate": 2,
+        "findings_sha": "4d3aeade24b7",
+        "findings_digest": "af51c984d0ac",
+        "seq": 9,
+        "note": "HIL option 1: accept documented residual risk and approve EDP-22 closure.",
         "hil_confirmed": true
       }
     ],
