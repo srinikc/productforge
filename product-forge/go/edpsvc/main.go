@@ -39,7 +39,10 @@ import (
 	"productforge/artifacts"
 	"productforge/datastore"
 	"productforge/edpdata"
+	"productforge/edpsvc/internal/degrade"
 	"productforge/edpsvc/internal/limits"
+	"productforge/edpsvc/internal/observe"
+	"productforge/edpsvc/internal/storeguard"
 	"productforge/migrate"
 	"productforge/objpolicy"
 	"productforge/objstore"
@@ -70,6 +73,7 @@ type server struct {
 	metrics        *limits.Metrics
 	role           *limits.RoleGuard
 	backlogFactory func(tenant string, reserve bool) backlogStore
+	guard          *storeguard.Guard
 	authorityMu    sync.Mutex
 }
 
@@ -105,6 +109,29 @@ func buildObjectStore() (datastore.ObjectStore, error) {
 		})
 	}
 	return objstore.NewLocalStore(envOr("PF_OBJECT_ROOT", "data/local/objects"), 0)
+}
+
+func (s *server) storeGuard(store, tenant string, fn func() error) error {
+	if s.guard == nil {
+		return fn()
+	}
+	return s.guard.Do(store, tenant, fn)
+}
+
+func (s *server) storeGuardError(w http.ResponseWriter, r *http.Request, err error) bool {
+	if err == nil {
+		return false
+	}
+	if errors.Is(err, storeguard.ErrQuota) {
+		w.Header().Set("Retry-After", "1")
+		s.bad(w, r, http.StatusTooManyRequests, "store quota exceeded")
+		return true
+	}
+	if errors.Is(err, degrade.ErrDegraded) || errors.Is(err, degrade.ErrDegradedExpired) {
+		s.bad(w, r, http.StatusServiceUnavailable, "store temporarily degraded")
+		return true
+	}
+	return false
 }
 
 func main() {
@@ -148,6 +175,11 @@ func main() {
 	q := limits.NewQuota(cfg, nil, m)
 	s := &server{admin: admin, migDir: envOr("PF_MIGRATIONS_DIR", findMigrations()),
 		cfg: cfg, st: st, quota: q, metrics: m, role: guard}
+	dcfg, derr := degrade.Load(envOr("PF_EDP_DEGRADATION_CONFIG", "config/edp-degradation.json"))
+	if derr != nil {
+		dcfg = degrade.Config{Version: 1, MaxDurationSeconds: 900, Stores: map[string]degrade.Rule{}}
+	}
+	s.guard = &storeguard.Guard{Quota: q, Degrade: dcfg, Metrics: observe.Recorder{M: m}, Meter: m}
 	obj, err := buildObjectStore()
 	if err != nil {
 		st.Close()
@@ -625,7 +657,14 @@ func (s *server) objectStoreCapabilities(w http.ResponseWriter, r *http.Request)
 }
 
 func (s *server) objectStoreConform(w http.ResponseWriter, r *http.Request) {
-	errs := datastore.ConformObjectStore(r.Context(), s.obj)
+	var errs []error
+	if err := s.storeGuard("object", "", func() error { errs = datastore.ConformObjectStore(r.Context(), s.obj); return nil }); err != nil {
+		if s.storeGuardError(w, r, err) {
+			return
+		}
+		s.fail(w, r, http.StatusServiceUnavailable, err)
+		return
+	}
 	msgs := make([]string, 0, len(errs))
 	for _, e := range errs {
 		msgs = append(msgs, e.Error())
@@ -1067,7 +1106,15 @@ func (s *server) backlogReserve(w http.ResponseWriter, r *http.Request) {
 	}
 	// The allocation/reservation tables are global (no RLS); this admin-only endpoint intentionally
 	// does not bind a tenant.
-	blk, err := s.reserveBacklog().Reserve(ctx, b.Scope, b.Project, b.ReservationID, b.Size)
+	var blk edpdata.IDBlock
+	err := s.storeGuard("db", "", func() error {
+		var e error
+		blk, e = s.reserveBacklog().Reserve(ctx, b.Scope, b.Project, b.ReservationID, b.Size)
+		return e
+	})
+	if s.storeGuardError(w, r, err) {
+		return
+	}
 	if errors.Is(err, edpdata.ErrReservationInvalid) {
 		log.Printf("backlog reserve: reason_code=invalid_request")
 		s.bad(w, r, http.StatusBadRequest, "invalid reservation request")
@@ -1104,15 +1151,26 @@ func (s *server) backlogByID(w http.ResponseWriter, r *http.Request) {
 	}
 	bl := edpdata.NewBacklog(store.BindTenant(st, tenant))
 	if r.Method == http.MethodDelete {
-		if err := bl.Delete(ctx, id); err != nil {
+		if err := s.storeGuard("db", tenant, func() error { return bl.Delete(ctx, id) }); err != nil {
+			if s.storeGuardError(w, r, err) {
+				return
+			}
 			s.fail(w, r, http.StatusNotFound, err)
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 		return
 	}
-	it, err := bl.Get(ctx, id)
+	var it edpdata.BacklogItem
+	err = s.storeGuard("db", tenant, func() error {
+		var e error
+		it, e = bl.Get(ctx, id)
+		return e
+	})
 	if err != nil {
+		if s.storeGuardError(w, r, err) {
+			return
+		}
 		s.fail(w, r, http.StatusNotFound, err)
 		return
 	}
