@@ -9,7 +9,6 @@ ROOT = Path(__file__).resolve().parents[2]
 REQUIRED_GROUPS = {"db", "artifact", "memory", "job", "project", "run"}
 REQUIRED_ALERTS = {
     "ProductForgeBenchmarkStale",
-    "ProductForgeBenchmarkLatencyRegression",
     "ProductForgeStoreErrors",
     "ProductForgeStoreDegraded",
     "ProductForgeQuotaDenied",
@@ -35,8 +34,13 @@ def problems() -> list[str]:
         bad.append(f"rules missing: {e}")
         rules = ""
     for alert in REQUIRED_ALERTS:
-        if f"alert: {alert}" not in rules:
+        if alert not in rules:
             bad.append(f"missing alert: {alert}")
+    if "ProductForgeBenchmarkP95" not in rules:
+        bad.append("missing per-group benchmark P95 alerts")
+    import gen_edp_slo
+    if gen_edp_slo.render() != rules:
+        bad.append("SLO rules are stale; run python scripts/dev/gen_edp_slo.py")
     try:
         dash = json.loads((ROOT / "ops/grafana/edp-slo-dashboard.json").read_text(encoding="utf-8"))
         if not dash.get("panels"):
