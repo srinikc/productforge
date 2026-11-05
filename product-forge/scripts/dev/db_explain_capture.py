@@ -93,6 +93,8 @@ def main() -> int:
                         "decision": "skipped", "env": a.env})
         return 0
     if not rate_ok(a.state, a.per_minute, now):
+        audit(a.audit, {"at": now.isoformat(), "actor": os.environ.get("PF_ACTOR", ""), "query": a.query,
+                        "decision": "refused_rate_cap", "env": a.env})
         print("explain: REFUSE - per-minute cap reached", file=sys.stderr)
         return 2
     if not a.dsn:

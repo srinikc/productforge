@@ -29,7 +29,7 @@ func TestMeasureRecordsFirstError(t *testing.T) {
 		}
 		return nil
 	})
-	if r.Err == "" || r.Ops != 3 {
+	if r.Err == "" || r.Errors != 1 || r.Ops != 9 {
 		t.Fatalf("first error not recorded: %+v", r)
 	}
 }

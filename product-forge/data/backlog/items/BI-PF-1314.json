@@ -332,7 +332,7 @@
     "usage": {}
   },
   "created_at": "2026-10-13T16:06:24.101326",
-  "updated_at": "2026-11-05T14:24:18.301566",
+  "updated_at": "2026-11-05T14:54:39.276595",
   "score": 0.75,
   "source_ref": "docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md",
   "_note": "dependencies set",
@@ -1111,6 +1111,39 @@
         ]
       },
       "evidence": "BI-PF-1314-ec0b61506276.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "60bcd70e611f55f21dec07fff61eb0ac95dec724",
+      "review_sha": "14b0efa0485d",
+      "model": "deepseek-v4.1-flash",
+      "at": "2026-11-05T09:24:38.946467+00:00",
+      "review_scope": "delta",
+      "base_sha": "268cf64cd02d3cc81319e53f7f0d0f743c4e14f2",
+      "head_sha": "60bcd70e611f55f21dec07fff61eb0ac95dec724",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [
+          "`main.go` degradation startup guard: only refuses when `PF_EDP_DEGRADATION_CONFIG` is set; an invalid/malformed default `config/edp-degradation.json` still falls back to an empty policy, silently disabling AC-4 fail-closed `CONFIG_INVALID` behavior.",
+          "`degrade/policy.go`: hardcoded `p.renewals[store] > 3` makes `Check` return `ErrDegradedExpired` for every operation once a store has accumulated renewals, with no reset/alert in the hunk; healthy or removed rules cannot recover without process restart.",
+          "`bench/harness.go` + `bench/slo.go`: `Measure` breaks on the first error, so `Errors` is effectively 0/1; any `max_errors >= 2` can never be exceeded, silently disabling the error SLO bound the delta intends to enforce.",
+          "`cache/memory.go`: eviction triggers on `len >= 10000` by deleting a random live entry, including when `Set` is only updating an existing key; capacity is hardcoded and untracked by an eviction metric, so one tenant's writes can churn/evict other tenants without visibility."
+        ],
+        "MINOR": [
+          "`cache/memory.go` / `main.go`: tenant namespacing is implemented only at the handler (`tenant + \":\" + key`); the cache store API remains tenant-unaware, so any future direct caller can bypass isolation.",
+          "`db_explain_capture.py`: a sampled-in request refused by `rate_ok` is returned without an audit record, so the audit log does not capture the sample/refusal decision.",
+          "`main.go` object conform now requires `tenant`; no delta update to callers/runbook, so existing operator scripts invoking the admin endpoint without `tenant` will break."
+        ],
+        "NIT": [
+          "`cache/memory.go`: random map-range eviction is non-deterministic and ignores TTL/expiry, which can make cache/bench behavior less repeatable.",
+          "`db_explain_capture.py`: the new state/audit requirement applies only when `sample_rate > 0`; the skip path still calls `audit(None)` if audit is absent."
+        ],
+        "SUMMARY": [
+          "Delta resolves the prior build/unused-local and handler tenant-prefix issues, but several fixes are incomplete at the boundaries.",
+          "Top risks: default degradation config can still be silently swallowed; renewal cap can permanently fail-closed without recovery; benchmark error counts cannot enforce `max_errors>1`; cache eviction can cause cross-tenant churn without metrics."
+        ]
+      },
+      "evidence": "BI-PF-1314-14b0efa0485d.json"
     }
   ],
   "review_dispositions": {

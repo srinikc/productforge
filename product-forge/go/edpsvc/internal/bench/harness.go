@@ -49,9 +49,11 @@ func Measure(group, name string, ops int, fn func(i int) error) Result {
 	for i := 0; i < ops; i++ {
 		t0 := time.Now()
 		if err := fn(i); err != nil {
-			r.Err = err.Error()
+			if r.Err == "" {
+				r.Err = err.Error()
+			}
 			r.Errors++
-			break
+			continue
 		}
 		lat = append(lat, time.Since(t0))
 	}

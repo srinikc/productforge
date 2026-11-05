@@ -181,11 +181,8 @@ func main() {
 	dcfg, derr := degrade.NewPolicy(dcfgPath)
 	var dcheck degrade.Checker = dcfg
 	if derr != nil {
-		if os.Getenv("PF_EDP_DEGRADATION_CONFIG") != "" {
-			st.Close()
-			log.Fatalf("degradation config: %v", derr)
-		}
-		dcheck = degrade.Config{Version: 1, MaxDurationSeconds: 900, Stores: map[string]degrade.Rule{}}
+		st.Close()
+		log.Fatalf("degradation config: %v", derr)
 	}
 	s.guard = &storeguard.Guard{Quota: q, Degrade: dcheck, Metrics: observe.Recorder{M: m}, Meter: m}
 	obj, err := buildObjectStore()
