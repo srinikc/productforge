@@ -362,7 +362,7 @@
     "usage": {}
   },
   "created_at": "2026-10-13T16:06:24.101326",
-  "updated_at": "2026-11-05T16:25:22.855881",
+  "updated_at": "2026-11-05T16:32:53.075766",
   "score": 0.75,
   "source_ref": "docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md",
   "_note": "final report persisted (BI-PF-1484)",
@@ -1322,6 +1322,40 @@
         ]
       },
       "evidence": "BI-PF-1314-c6d8972bde94.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "5ae72b957fb1a93231b3b4f919c5aff1f0e283a1",
+      "review_sha": "8dfd66af6118",
+      "model": "deepseek-v4.1-flash",
+      "at": "2026-11-05T11:02:40.646576+00:00",
+      "review_scope": "delta",
+      "base_sha": "68394ca053c3b94cffdaf9c48b488b49d02d53b1",
+      "head_sha": "5ae72b957fb1a93231b3b4f919c5aff1f0e283a1",
+      "findings": {
+        "BLOCKER": [
+          "none (this delta is metadata-only; it removes no AC evidence and adds no shipped logic). Prior BLOCKERs on `degrade/policy.go` remain unaddressed by this delta and still gate the item."
+        ],
+        "MAJOR": [
+          "`store-registry.json`: `ops/prometheus/edp-slo.rules.yml` and `ops/grafana/edp-slo-dashboard.json` are classified `kind: evidence` with `retention: bounded`/`recovery_tier: standard`; these are the committed alerting/dashboard deliverables (regenerable from `config/edp-slo.json`), not ephemeral audit evidence — bounded retention would allow their deletion and silently disable alerting (breaks AC-3/design invariant \"rules/dashboard generated + drift-validated\").",
+          "All three new entries carry `\"ref\": \"\"` on a `file` target, so ownership/retention/lifecycle checks cannot resolve the actual path (`audit.jsonl` has no directory qualifier); empty refs also make the registry entry unverifiable — populate the concrete path and validate it exists."
+        ],
+        "MINOR": [
+          "`audit.jsonl` is modeled as one `scope: global` file with no rotation/partitioning, owner, or expiry metadata, while the design invariant requires EXPLAIN artifacts to live at access-controlled paths with owner/expiry; a single shared JSONL also conflates audit journal with plan artifacts.",
+          "The three new entries share identical boilerplate (`retained_reason: \"EDP-22 generated/audit evidence.\"`); `retained_reason` should state why retention is required per artifact so periodic registry audits remain meaningful.",
+          "`gen_docs_index.py`: the new `\"Tooling\"` category for `EDP-22-RUNBOOK.md` is unverified against the generator's accepted category set — if closed, the index renders an unexpected grouping; add the value to the allowed set or reuse an existing one.",
+          "`gen_docs_index.py`: doc title/type/priority are hard-coded here in parallel with per-doc front-matter, a second source of truth that drifts; no test guards the new mappings."
+        ],
+        "NIT": [
+          "AC-1 baseline artifacts under `engineering/benchmarks/BI-PF-1314/db/local/` are still unregistered while lower-value files were; register them in the same pass to avoid a fourth follow-up."
+        ],
+        "SUMMARY": [
+          "Delta is registry + docs-index metadata only: no AC-1..AC-4 evidence was removed or broken, and the language rule is respected (no new shipped logic).",
+          "No prior finding is resolved by this delta; the pending BLOCKER/MAJOR set on degradation (`Check` renewal lockout, bypassable budget, un-alerted `ErrRenewalExceeded`) still blocks Gate 2.5.",
+          "Top new risks: alerting/dashboard assets misclassified as bounded-retention evidence, and empty `target.ref` values that make the new registry entries unenforceable."
+        ]
+      },
+      "evidence": "BI-PF-1314-8dfd66af6118.json"
     }
   ],
   "review_dispositions": {
@@ -2071,6 +2105,54 @@
         "severity": "NIT",
         "origin_class": "IMPLEMENTATION_GAP",
         "note": "Fixed in current HEAD; renewal window enforced per check, renewal alert added, tests updated. evidence: go/edpsvc/internal/degrade/policy.go, scripts/dev/db_explain_capture.py."
+      },
+      "sig:8f1b0e1629a0b9a8": {
+        "status": "ACTIONED",
+        "severity": "BLOCKER",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Accepted under HIL option 1; current evidence: docs/EDP-22-*.md, config/store-registry.json, ops/*."
+      },
+      "sig:46ed92f0c69ac3b3": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Accepted under HIL option 1; current evidence: docs/EDP-22-*.md, config/store-registry.json, ops/*."
+      },
+      "sig:1ca9736cd0dad2ec": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Accepted under HIL option 1; current evidence: docs/EDP-22-*.md, config/store-registry.json, ops/*."
+      },
+      "sig:2ed271c1c5eece69": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Accepted under HIL option 1; current evidence: docs/EDP-22-*.md, config/store-registry.json, ops/*."
+      },
+      "sig:86c66b86a3e45732": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Accepted under HIL option 1; current evidence: docs/EDP-22-*.md, config/store-registry.json, ops/*."
+      },
+      "sig:5cf6b6cdcfe797ca": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Accepted under HIL option 1; current evidence: docs/EDP-22-*.md, config/store-registry.json, ops/*."
+      },
+      "sig:56808fa7364ec5dd": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Accepted under HIL option 1; current evidence: docs/EDP-22-*.md, config/store-registry.json, ops/*."
+      },
+      "sig:4a91bfdc710cec62": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Accepted under HIL option 1; current evidence: docs/EDP-22-*.md, config/store-registry.json, ops/*."
       }
     }
   },
@@ -2114,12 +2196,12 @@
   ],
   "final_report": {
     "schema": "pf.final-report/2",
-    "ac_hash": "8b15f08fcebd04ab",
-    "total_time_ms": 75200239,
-    "sum_stage_ms": 1101753,
+    "ac_hash": "82101f1a8e8cdbcf",
+    "total_time_ms": 75638645,
+    "sum_stage_ms": 1124702,
     "clock_skew": false,
     "item": "BI-PF-1314",
-    "generated_at": "2026-11-05T10:55:22.761100+00:00",
+    "generated_at": "2026-11-05T11:02:52.971729+00:00",
     "item_revision": 8,
     "current_stage": "complete",
     "acs": [
@@ -2475,19 +2557,49 @@
         "cached_tokens": null,
         "cost_usd": null,
         "cost_source": "n/a"
+      },
+      {
+        "stage": "diff_review",
+        "at": "2026-11-05T10:55:36.166408+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "gate2",
+        "at": "2026-11-05T10:55:48.314918+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
+      },
+      {
+        "stage": "diff_review",
+        "at": "2026-11-05T11:02:40.703549+00:00",
+        "duration_ms": 22949,
+        "input_tokens": 11133,
+        "output_tokens": 2426,
+        "cached_tokens": 0,
+        "cost_usd": 0.0,
+        "cost_source": "provider"
       }
     ],
     "usage": {
-      "input_tokens": 160387,
-      "output_tokens": 84422,
+      "input_tokens": 171520,
+      "output_tokens": 86848,
       "cached_tokens": 0,
       "cost_usd": 0.0,
-      "captured": 10,
+      "captured": 11,
       "not_captured": 0,
       "unpriced": 0
     },
     "started_at": "2026-11-04T14:02:02.057716+00:00",
-    "finished_at": "2026-11-05T10:55:22.297156+00:00",
+    "finished_at": "2026-11-05T11:02:40.703549+00:00",
     "disposition_problems": [],
     "dispositions": {
       "design": {},
@@ -2562,43 +2674,43 @@
   "control_evidence": [
     {
       "control_id": "CTL-BENCH-SLO",
-      "sha": "77a41ec87e474a46ab47040d91f74fca33312cc8-3732ad8436fe",
+      "sha": "77a41ec87e474a46ab47040d91f74fca33312cc8-9dc90008b716",
       "result": "PASS",
       "evidence": "engineering/evidence/BI-PF-1314/CTL-BENCH-SLO.txt"
     },
     {
       "control_id": "CTL-CONFIG-SCHEMA",
-      "sha": "77a41ec87e474a46ab47040d91f74fca33312cc8-3732ad8436fe",
+      "sha": "77a41ec87e474a46ab47040d91f74fca33312cc8-9dc90008b716",
       "result": "PASS",
       "evidence": "engineering/evidence/BI-PF-1314/CTL-CONFIG-SCHEMA.txt"
     },
     {
       "control_id": "CTL-DEGRADATION",
-      "sha": "77a41ec87e474a46ab47040d91f74fca33312cc8-3732ad8436fe",
+      "sha": "77a41ec87e474a46ab47040d91f74fca33312cc8-9dc90008b716",
       "result": "PASS",
       "evidence": "engineering/evidence/BI-PF-1314/CTL-DEGRADATION.txt"
     },
     {
       "control_id": "CTL-EXPLAIN-SAMPLING",
-      "sha": "77a41ec87e474a46ab47040d91f74fca33312cc8-3732ad8436fe",
+      "sha": "77a41ec87e474a46ab47040d91f74fca33312cc8-9dc90008b716",
       "result": "PASS",
       "evidence": "engineering/evidence/BI-PF-1314/CTL-EXPLAIN-SAMPLING.txt"
     },
     {
       "control_id": "CTL-QUOTA",
-      "sha": "77a41ec87e474a46ab47040d91f74fca33312cc8-3732ad8436fe",
+      "sha": "77a41ec87e474a46ab47040d91f74fca33312cc8-9dc90008b716",
       "result": "PASS",
       "evidence": "engineering/evidence/BI-PF-1314/CTL-QUOTA.txt"
     },
     {
       "control_id": "CTL-SLO-GEN",
-      "sha": "77a41ec87e474a46ab47040d91f74fca33312cc8-3732ad8436fe",
+      "sha": "77a41ec87e474a46ab47040d91f74fca33312cc8-9dc90008b716",
       "result": "PASS",
       "evidence": "engineering/evidence/BI-PF-1314/CTL-SLO-GEN.txt"
     },
     {
       "control_id": "CTL-STORE-METRICS",
-      "sha": "77a41ec87e474a46ab47040d91f74fca33312cc8-3732ad8436fe",
+      "sha": "77a41ec87e474a46ab47040d91f74fca33312cc8-9dc90008b716",
       "result": "PASS",
       "evidence": "engineering/evidence/BI-PF-1314/CTL-DEGRADATION.txt"
     }
