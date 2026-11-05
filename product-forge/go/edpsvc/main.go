@@ -39,6 +39,7 @@ import (
 	"productforge/artifacts"
 	"productforge/datastore"
 	"productforge/edpdata"
+	"productforge/edpsvc/internal/cache"
 	"productforge/edpsvc/internal/degrade"
 	"productforge/edpsvc/internal/limits"
 	"productforge/edpsvc/internal/observe"
@@ -74,6 +75,7 @@ type server struct {
 	role           *limits.RoleGuard
 	backlogFactory func(tenant string, reserve bool) backlogStore
 	guard          *storeguard.Guard
+	cacheStore     *cache.Store
 	authorityMu    sync.Mutex
 }
 
@@ -174,7 +176,7 @@ func main() {
 	m := limits.NewMetrics()
 	q := limits.NewQuota(cfg, nil, m)
 	s := &server{admin: admin, migDir: envOr("PF_MIGRATIONS_DIR", findMigrations()),
-		cfg: cfg, st: st, quota: q, metrics: m, role: guard}
+		cfg: cfg, st: st, quota: q, metrics: m, role: guard, cacheStore: cache.New()}
 	dcfg, derr := degrade.Load(envOr("PF_EDP_DEGRADATION_CONFIG", "config/edp-degradation.json"))
 	if derr != nil {
 		dcfg = degrade.Config{Version: 1, MaxDurationSeconds: 900, Stores: map[string]degrade.Rule{}}
@@ -245,6 +247,7 @@ func (s *server) buildMux() *http.ServeMux {
 	mux.HandleFunc("/admin/backlog/authority", s.adminOnly(s.backlogAuthority))
 	mux.HandleFunc("/admin/object-store/capabilities", s.adminOnly(s.objectStoreCapabilities))
 	mux.HandleFunc("/admin/object-store/conform", s.adminOnly(s.objectStoreConform))
+	mux.HandleFunc("/admin/cache", s.adminOnly(s.cacheHandle))
 	mux.HandleFunc("/admin/limits", s.adminOnly(s.adminLimits))
 	mux.HandleFunc("/artifacts", s.adminOnly(s.artifactUpload))
 	mux.HandleFunc("/artifacts/", s.adminOnly(s.artifactRoute))
@@ -650,6 +653,70 @@ func (s *server) schemaCheck(w http.ResponseWriter, r *http.Request) {
 		code = http.StatusConflict
 	}
 	writeJSON(w, code, out)
+}
+
+func (s *server) cacheHandle(w http.ResponseWriter, r *http.Request) {
+	tenant := r.URL.Query().Get("tenant")
+	key := r.URL.Query().Get("key")
+	if tenant == "" || key == "" {
+		s.bad(w, r, http.StatusBadRequest, "tenant and key are required")
+		return
+	}
+	if s.cacheStore == nil {
+		s.bad(w, r, http.StatusServiceUnavailable, "cache unavailable")
+		return
+	}
+	ctx := r.Context()
+	switch r.Method {
+	case http.MethodGet:
+		var val []byte
+		var ok bool
+		err := s.storeGuard("cache", tenant, func() error {
+			var e error
+			val, ok, e = s.cacheStore.Get(ctx, key)
+			return e
+		})
+		if s.storeGuardError(w, r, err) {
+			return
+		}
+		if err != nil {
+			s.fail(w, r, http.StatusServiceUnavailable, err)
+			return
+		}
+		if !ok {
+			s.bad(w, r, http.StatusNotFound, "cache miss")
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(val)
+	case http.MethodPut, http.MethodPost:
+		body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, s.cfg.MaxBodyBytes))
+		if err != nil {
+			s.fail(w, r, http.StatusBadRequest, err)
+			return
+		}
+		err = s.storeGuard("cache", tenant, func() error { return s.cacheStore.Set(ctx, key, body, 0) })
+		if s.storeGuardError(w, r, err) {
+			return
+		}
+		if err != nil {
+			s.fail(w, r, http.StatusServiceUnavailable, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+	case http.MethodDelete:
+		err := s.storeGuard("cache", tenant, func() error { return s.cacheStore.Delete(ctx, key) })
+		if s.storeGuardError(w, r, err) {
+			return
+		}
+		if err != nil {
+			s.fail(w, r, http.StatusServiceUnavailable, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+	default:
+		s.bad(w, r, http.StatusMethodNotAllowed, "use GET, PUT/POST, or DELETE")
+	}
 }
 
 func (s *server) objectStoreCapabilities(w http.ResponseWriter, r *http.Request) {
