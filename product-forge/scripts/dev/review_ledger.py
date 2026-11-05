@@ -77,12 +77,15 @@ def _material_ok(item: dict, mode: str) -> bool:
 
 def chain_problems(item: dict, mode: str = "diff") -> list[str]:
     """A delta review must be anchored to a prior full review (or prior delta)."""
+    deltas = delta_entries(item, mode)
+    if not deltas:
+        return []
     full = full_entries(item, mode)
     if not full:
         return [f"{mode}: FULL_REVIEW_MISSING"]
     reviewed = {str(e.get("head_sha") or "") for e in full if e.get("head_sha")}
     bad = []
-    for e in delta_entries(item, mode):
+    for e in deltas:
         base = str(e.get("base_sha") or "")
         head = str(e.get("head_sha") or "")
         if not base or not head:
