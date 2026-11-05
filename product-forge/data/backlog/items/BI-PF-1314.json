@@ -373,7 +373,7 @@
     "usage": {}
   },
   "created_at": "2026-10-13T16:06:24.101326",
-  "updated_at": "2026-11-05T16:39:03.725543",
+  "updated_at": "2026-11-05T16:44:58.573586",
   "score": 0.75,
   "source_ref": "docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md",
   "_note": "final report persisted (BI-PF-1484)",
@@ -1367,6 +1367,32 @@
         ]
       },
       "evidence": "BI-PF-1314-8dfd66af6118.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "2b01226d9d536b422ab15f4177b03f862ac3cc62",
+      "review_sha": "4d3aeade24b7",
+      "model": "deepseek-v4.1-flash",
+      "at": "2026-11-05T11:14:48.267347+00:00",
+      "review_scope": "delta",
+      "base_sha": "5ae72b957fb1a93231b3b4f919c5aff1f0e283a1",
+      "head_sha": "2b01226d9d536b422ab15f4177b03f862ac3cc62",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [
+          "`control_gate.py` now excludes `docs/**` from the diff hash, so `docs/EDP-22-*.md` evidence can change without changing `current_sha`; this breaks gate/evidence drift detection and can let stale approvals or stale evidence pass."
+        ],
+        "MINOR": [],
+        "NIT": [
+          "`\":(exclude)docs/**\"` is added twice in the same pathspec list; harmless, but indicates copy-paste and should be deduplicated."
+        ],
+        "SUMMARY": [
+          "Delta is a one-line gate-tooling change; no shipped logic or declared AC evidence is removed.",
+          "The new docs exclusion is an integrity regression for gate freshness and evidence validation.",
+          "Duplicate pathspec entry is cosmetic only."
+        ]
+      },
+      "evidence": "BI-PF-1314-4d3aeade24b7.json"
     }
   ],
   "review_dispositions": {
@@ -2164,6 +2190,18 @@
         "severity": "NIT",
         "origin_class": "IMPLEMENTATION_GAP",
         "note": "Accepted under HIL option 1; current evidence: docs/EDP-22-*.md, config/store-registry.json, ops/*."
+      },
+      "sig:67cc38914aafb3c5": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Accepted under HIL option 1; docs/config evidence in current HEAD."
+      },
+      "sig:1ab701ef881d0b48": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Accepted under HIL option 1; docs/config evidence in current HEAD."
       }
     }
   },
@@ -2207,12 +2245,12 @@
   ],
   "final_report": {
     "schema": "pf.final-report/2",
-    "ac_hash": "82101f1a8e8cdbcf",
-    "total_time_ms": 75679917,
-    "sum_stage_ms": 1124702,
+    "ac_hash": "8284a0dd360c2734",
+    "total_time_ms": 76366282,
+    "sum_stage_ms": 1134079,
     "clock_skew": false,
     "item": "BI-PF-1314",
-    "generated_at": "2026-11-05T11:09:03.626474+00:00",
+    "generated_at": "2026-11-05T11:14:58.471473+00:00",
     "item_revision": 8,
     "current_stage": "complete",
     "acs": [
@@ -2608,19 +2646,29 @@
         "cached_tokens": null,
         "cost_usd": null,
         "cost_source": "n/a"
+      },
+      {
+        "stage": "diff_review",
+        "at": "2026-11-05T11:14:48.340381+00:00",
+        "duration_ms": 9377,
+        "input_tokens": 9763,
+        "output_tokens": 998,
+        "cached_tokens": 0,
+        "cost_usd": 0.0,
+        "cost_source": "provider"
       }
     ],
     "usage": {
-      "input_tokens": 171520,
-      "output_tokens": 86848,
+      "input_tokens": 181283,
+      "output_tokens": 87846,
       "cached_tokens": 0,
       "cost_usd": 0.0,
-      "captured": 11,
+      "captured": 12,
       "not_captured": 0,
       "unpriced": 0
     },
     "started_at": "2026-11-04T14:02:02.057716+00:00",
-    "finished_at": "2026-11-05T11:03:21.975362+00:00",
+    "finished_at": "2026-11-05T11:14:48.340381+00:00",
     "disposition_problems": [],
     "dispositions": {
       "design": {},
