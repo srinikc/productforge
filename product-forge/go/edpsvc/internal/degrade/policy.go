@@ -72,7 +72,6 @@ type Policy struct {
 	cfg      Config
 	mod      time.Time
 	renewals map[string][]time.Time
-	resets   map[string]int
 	Metrics  *limits.Metrics
 }
 
@@ -82,7 +81,7 @@ func NewPolicy(path string) (*Policy, error) {
 		return nil, err
 	}
 	st, _ := os.Stat(path)
-	p := &Policy{path: path, cfg: c, renewals: map[string][]time.Time{}, resets: map[string]int{}}
+	p := &Policy{path: path, cfg: c, renewals: map[string][]time.Time{}}
 	if st != nil {
 		p.mod = st.ModTime()
 	}
@@ -102,13 +101,6 @@ func (p *Policy) reload() {
 	for store, old := range p.cfg.Stores {
 		nr, ok := c.Stores[store]
 		if !ok || !nr.Enabled {
-			if len(p.renewals[store]) > 0 {
-				delete(p.renewals, store)
-				p.resets[store]++
-				if p.Metrics != nil {
-					p.Metrics.Inc("edp_store_degradation_resets_total", "store", store)
-				}
-			}
 			continue
 		}
 		if old.Enabled && nr.Enabled && nr.ExpiresAt.After(old.ExpiresAt) {
@@ -133,7 +125,15 @@ func (p *Policy) Check(store string, now time.Time) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.reload()
-	if len(p.renewals[store]) > p.cfg.RenewalLimit {
+	cutoff := now.Add(-time.Duration(p.cfg.RenewalWindowSeconds) * time.Second)
+	kept := make([]time.Time, 0, len(p.renewals[store]))
+	for _, at := range p.renewals[store] {
+		if at.After(cutoff) {
+			kept = append(kept, at)
+		}
+	}
+	p.renewals[store] = kept
+	if len(kept) > p.cfg.RenewalLimit {
 		return ErrRenewalExceeded
 	}
 	return p.cfg.Check(store, now)

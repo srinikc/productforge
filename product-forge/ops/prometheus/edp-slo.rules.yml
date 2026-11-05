@@ -151,6 +151,16 @@ groups:
         annotations:
           summary: "EDP store is in degraded mode"
           runbook: "docs/EDP-22-RUNBOOK.md"
+      - alert: ProductForgeDegradationRenewals
+        expr: increase(edp_store_degradation_renewals_total[15m]) > 0
+        for: 1m
+        labels:
+          severity: ticket
+          owner: platform-oncall
+          service: edpsvc
+        annotations:
+          summary: "EDP degradation switch is being renewed"
+          runbook: "docs/EDP-22-RUNBOOK.md"
       - alert: ProductForgeQuotaDenied
         expr: sum by (store, scope) (rate(edp_quota_denials_total[10m])) > 0.1
         for: 10m

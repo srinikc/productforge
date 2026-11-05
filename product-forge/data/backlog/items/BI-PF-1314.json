@@ -332,7 +332,7 @@
     "usage": {}
   },
   "created_at": "2026-10-13T16:06:24.101326",
-  "updated_at": "2026-11-05T15:05:00.978823",
+  "updated_at": "2026-11-05T15:12:45.837234",
   "score": 0.75,
   "source_ref": "docs/Product_Forge_Enterprise_Performance_Security_DB_Storage_Roadmap.md",
   "_note": "dependencies set",
@@ -1211,6 +1211,43 @@
         ]
       },
       "evidence": "BI-PF-1314-bb913cb20574.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "90c19405fcb79dda1af1aec226860ca6dad5d961",
+      "review_sha": "269e14304e70",
+      "model": "deepseek-v4.1-flash",
+      "at": "2026-11-05T09:42:45.545620+00:00",
+      "review_scope": "delta",
+      "base_sha": "14f6e19d90901e9881fbd30e80c4ab7e71a3cd0d",
+      "head_sha": "90c19405fcb79dda1af1aec226860ca6dad5d961",
+      "findings": {
+        "BLOCKER": [
+          "AC-4 / `degrade/policy.go`: window pruning runs only inside the \"expiry extended\" branch of `reload()`, while `Check` compares raw `len(p.renewals[store])`; once renewals exceed `RenewalLimit` and no further config edit occurs, the store stays fail-closed indefinitely (no time-based recovery), so the advertised time-windowed bound does not actually apply at read time.",
+          "Recovery from that state exists only via process restart or switch off/on (which wipes the ledger), i.e. the fail-closed state has no bounded expiry — violates the availability guardrail and the \"renewals are bounded\" invariant."
+        ],
+        "MAJOR": [
+          "AC-4 `ACTIONED` disposition not evidenced: the `!ok || !nr.Enabled` branch still does `delete(p.renewals, store)`, so the renewal bound remains bypassable by toggling a switch; the new `resets` counter merely records it and is never read.",
+          "AC-4 observability: new `edp_store_degradation_renewals_total` / `..._resets_total` metrics have no matching rule/alert in this delta (`ops/prometheus` unchanged), so failure-matrix \"DEGRADED_EXPIRED -> fail closed + alert\" is still alert-less.",
+          "Tests: `TestPolicyRenewalLimitFailsClosed` only seeds a pre-filled ledger; no fail-able test covers window pruning/expiry (would have caught the lockout above), the reset path, or that stale entries outside the window are ignored."
+        ],
+        "MINOR": [
+          "`main.go` now returns 503 with \"store degradation renewal exceeded\", leaking operator degradation/renewal state to external callers; keep the body generic and surface detail only in logs/metrics.",
+          "`resets map[string]int` is write-only dead state (no reader, no alert); either remove it or expose the count through a metric that is actually alerted.",
+          "`RenewalCount` semantics silently changed (cumulative → windowed) and `renewal_limit` / `renewal_window_seconds` were added without runbook/docs updates in this delta, so operator-facing docs drift from behavior.",
+          "`degrade` now imports `internal/limits` for counters and exposes an exported mutable `Metrics` field assigned after construction outside the mutex; prefer a constructor/injected sink to avoid coupling and race-prone state."
+        ],
+        "NIT": [
+          "`kept := p.renewals[store][:0]` reuses the map value's backing array before `append`, so retained entries alias the stored slice; correct today but opaque and easy to break.",
+          "`test_db_explain_capture` asserts the literal `\"SELECT\"` is absent, but `audit()` is still called with no query/plan, so the redaction path is never exercised and the negative assertion is brittle/vacuous."
+        ],
+        "SUMMARY": [
+          "The delta adds configurable renewal window/limit, a distinct error, and counters as claimed, but the window is not enforced on the read path: a store can lock out permanently past the limit.",
+          "Reset-on-toggle still defeats the bound (only a dead counter added), and the new renewal/reset metrics are not wired to any alert rule.",
+          "Tests pin only the pre-seeded over-limit case, leaving the new windowing and reset logic unverified; overall AC-4 is functional but not safely bounded/observable in production."
+        ]
+      },
+      "evidence": "BI-PF-1314-269e14304e70.json"
     }
   ],
   "review_dispositions": {

@@ -134,7 +134,7 @@ func (s *server) storeGuardError(w http.ResponseWriter, r *http.Request, err err
 		return true
 	}
 	if errors.Is(err, degrade.ErrRenewalExceeded) {
-		s.bad(w, r, http.StatusServiceUnavailable, "store degradation renewal exceeded")
+		s.bad(w, r, http.StatusServiceUnavailable, "store unavailable")
 		return true
 	}
 	return false

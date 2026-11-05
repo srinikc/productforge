@@ -26,8 +26,22 @@ func TestCheckActiveAndExpired(t *testing.T) {
 func TestPolicyRenewalLimitFailsClosed(t *testing.T) {
 	p := &Policy{cfg: Config{Version: 1, MaxDurationSeconds: 900, RenewalLimit: 1, RenewalWindowSeconds: 60,
 		Stores: map[string]Rule{"db": {Enabled: true, Reason: "x", Owner: "ops", ExpiresAt: time.Now().Add(time.Minute)}}},
-		renewals: map[string][]time.Time{"db": {time.Now(), time.Now()}}, resets: map[string]int{}}
+		renewals: map[string][]time.Time{"db": {time.Now(), time.Now()}}}
 	if err := p.Check("db", time.Now()); !errors.Is(err, ErrRenewalExceeded) {
 		t.Fatalf("want renewal exceeded, got %v", err)
+	}
+}
+
+func TestPolicyWindowPrunesWithoutConfigReload(t *testing.T) {
+	now := time.Now()
+	p := &Policy{cfg: Config{Version: 1, MaxDurationSeconds: 900, RenewalLimit: 1, RenewalWindowSeconds: 60,
+		Stores: map[string]Rule{"db": {Enabled: true, Reason: "x", Owner: "ops", ExpiresAt: now.Add(time.Minute)}}},
+		renewals: map[string][]time.Time{"db": {now.Add(-30 * time.Second), now}}}
+	if err := p.Check("db", now); !errors.Is(err, ErrRenewalExceeded) {
+		t.Fatalf("want renewal exceeded, got %v", err)
+	}
+	p.renewals["db"] = []time.Time{now.Add(-2 * time.Minute)}
+	if err := p.Check("db", now); err != nil {
+		t.Fatalf("stale renewal should prune: %v", err)
 	}
 }
