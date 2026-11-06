@@ -4,6 +4,9 @@ SET statement_timeout = '60s';
 -- 0021: allow legacy duplicate backlog IDs across tenants while preserving global new-ID allocation.
 DO $$
 BEGIN
+  IF EXISTS (SELECT 1 FROM backlog_items WHERE tenant_id IS NULL) THEN
+    RAISE EXCEPTION '0021 blocked: backlog_items rows have NULL tenant_id';
+  END IF;
   IF EXISTS (SELECT 1 FROM traceability WHERE tenant_id IS NULL) THEN
     RAISE EXCEPTION '0021 blocked: traceability rows have NULL tenant_id';
   END IF;

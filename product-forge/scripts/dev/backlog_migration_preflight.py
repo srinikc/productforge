@@ -29,6 +29,8 @@ def main() -> int:
         dup_ids = cur.fetchone()[0]
         cur.execute("SELECT pg_size_pretty(pg_total_relation_size('backlog_items'))")
         size = cur.fetchone()[0]
+        cur.execute("SELECT count(*) FROM backlog_items WHERE tenant_id IS NULL")
+        null_items = cur.fetchone()[0]
         cur.execute("SELECT count(*) FROM traceability WHERE tenant_id IS NULL")
         null_trace = cur.fetchone()[0]
         cur.execute("SELECT count(*) FROM traceability t LEFT JOIN backlog_items b ON b.id=t.item_id AND b.tenant_id=t.tenant_id WHERE b.id IS NULL")
@@ -45,11 +47,14 @@ def main() -> int:
         indexes = [r[0] for r in cur.fetchall()]
         print(f"preflight: rows={rows} legacy_duplicate_ids={dup_ids} size={size} waiting_locks={waiting}")
         print(f"preflight: fks={[r[0] for r in fks]} uniques={uniques} triggers={triggers} indexes={indexes}")
-        print(f"preflight: traceability_null_tenant={null_trace} traceability_orphan_tenant_rows={orphan_trace}")
+        print(f"preflight: backlog_items_null_tenant={null_items} traceability_null_tenant={null_trace} traceability_orphan_tenant_rows={orphan_trace}")
         unknown_fks = [r[0] for r in fks if r[0] != "fk_traceability_item"]
         unknown_uniques = [u for u in uniques if u != "backlog_items_pkey"]
         if waiting:
             print("preflight: BLOCKED by waiting locks", file=sys.stderr)
+            return 1
+        if null_items:
+            print("preflight: BLOCKED backlog_items rows lack tenant_id", file=sys.stderr)
             return 1
         if null_trace or orphan_trace:
             print("preflight: BLOCKED legacy traceability rows lack tenant attribution; backfill tenant_id and re-run", file=sys.stderr)

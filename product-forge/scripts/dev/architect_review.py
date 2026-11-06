@@ -137,7 +137,10 @@ def _merge_base() -> str:
 def _git_diff(base: str = "") -> str:
     """Committed diff. First review: merge-base..HEAD. Re-review: prior review sha..HEAD (delta)."""
     start = base or _merge_base()
-    return _git_text(["diff", "--no-color", f"{start}..HEAD", "--", ".", *EXCLUDE])
+    paths = [".", *EXCLUDE]
+    if (ROOT.parent / ".github" / "workflows").is_dir():
+        paths.append("../.github/workflows")
+    return _git_text(["diff", "--no-color", f"{start}..HEAD", "--", *paths])
 
 
 def changed_files(base: str = "") -> list:

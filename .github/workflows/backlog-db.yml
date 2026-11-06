@@ -109,8 +109,14 @@ jobs:
           python scripts/dev/backlog_db_backfill.py
           python scripts/dev/backlog_db_parity.py --tenant product_forge
           python scripts/dev/backlog_db_export.py --tenant product_forge --dry-run
+          python - <<'PY'
+          import json, os, urllib.request
+          body=json.dumps({"ID":"BI-DASH-CI-1","Tenant":"ProductForge-Dashboard","Type":"feature","Status":"new","Title":"CI parity seed","Scope":"project","Project":"ProductForge-Dashboard","Data":{"id":"BI-DASH-CI-1","type":"feature","title":"CI parity seed","status":"new","scope":"project","project":"ProductForge-Dashboard"}}).encode()
+          req=urllib.request.Request(os.environ["PF_EDP_API_URL"].rstrip("/")+"/backlog?tenant=ProductForge-Dashboard",data=body,method="POST",headers={"Content-Type":"application/json","Authorization":"Bearer "+os.environ["PF_EDP_TOKEN"]})
+          urllib.request.urlopen(req,timeout=10).read()
+          PY
           mkdir -p /tmp/pf-gp
-          python scripts/dev/backlog_db_export.py --tenant ProductForge-Dashboard --out-dir /tmp/pf-gp
+          python scripts/dev/backlog_db_export.py --tenant ProductForge-Dashboard --out-dir /tmp/pf-gp --allow-external-out
           python scripts/dev/backlog_db_parity.py --tenant ProductForge-Dashboard --source-dir /tmp/pf-gp
       - name: T1 performance gate
         run: python scripts/dev/backlog_db_bench.py --tenant product_forge --iterations 20
