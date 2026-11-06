@@ -1,0 +1,100 @@
+name: backlog-db
+
+on:
+  pull_request:
+    paths:
+      - "product-forge/core/backlog.py"
+      - "product-forge/core/id_allocator.py"
+      - "product-forge/go/edpdata/**"
+      - "product-forge/migrations/**"
+      - "product-forge/scripts/dev/backlog_db_*.py"
+      - "product-forge/config/env-flags.json"
+      - "product-forge/test-framework/tests/pipeline/test_backlog_db_cutover.py"
+  push:
+    branches: [develop]
+    paths:
+      - "product-forge/core/backlog.py"
+      - "product-forge/core/id_allocator.py"
+      - "product-forge/go/edpdata/**"
+      - "product-forge/migrations/**"
+      - "product-forge/scripts/dev/backlog_db_*.py"
+  workflow_dispatch:
+
+jobs:
+  backlog-db:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: pf_owner
+          POSTGRES_PASSWORD: pf_owner
+          POSTGRES_DB: productforge
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U pf_owner -d productforge"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    defaults:
+      run:
+        working-directory: product-forge
+    env:
+      PGPASSWORD: pf_owner
+      PF_DB_DSN: postgres://pf_owner:pf_owner@127.0.0.1:5432/productforge?sslmode=disable
+      PF_RUNTIME_DSN: postgres://pf_app:pf_app@127.0.0.1:5432/productforge?sslmode=disable
+      PF_EDP_API_URL: http://127.0.0.1:8030
+      PF_EDP_TOKEN: test-token
+      PF_ADMIN_TOKEN: test-token
+      PF_EDP_ADDR: 127.0.0.1:8030
+      PF_EDP_DEGRADATION_CONFIG: ../../config/edp-degradation.json
+      PF_MIGRATIONS_DIR: ../../migrations
+      PF_BACKLOG_DB: "off"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25.x"
+          cache-dependency-path: product-forge/go/**/go.sum
+      - name: Install tools
+        run: |
+          pip install pytest pytest-asyncio psycopg[binary]
+          sudo apt-get update && sudo apt-get install -y postgresql-client
+      - name: Apply migrations
+        run: |
+          for f in migrations/*.up.sql; do
+            echo "applying $f"
+            psql -h 127.0.0.1 -U pf_owner -d productforge -v ON_ERROR_STOP=1 -f "$f"
+          done
+          psql -h 127.0.0.1 -U pf_owner -d productforge -v ON_ERROR_STOP=1 <<'SQL'
+          ALTER ROLE pf_app PASSWORD 'pf_app';
+          INSERT INTO schema_migrations(version,name,applied_at) VALUES
+            (16,'backlog_db_authority',now()),
+            (18,'backlog_reservation_counter',now()),
+            (19,'backlog_reservation_counter_hardening',now()),
+            (20,'backlog_authority_index_cleanup',now()),
+            (21,'backlog_scoped_uniqueness',now())
+          ON CONFLICT (version) DO NOTHING;
+          SQL
+      - name: Start edpsvc
+        run: |
+          cd go/edpsvc
+          nohup go run . > /tmp/edpsvc.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8030/health >/dev/null 2>&1; then exit 0; fi
+            sleep 2
+          done
+          cat /tmp/edpsvc.log
+          exit 1
+      - name: Backfill and parity
+        run: |
+          python scripts/dev/backlog_db_backfill.py
+          python scripts/dev/backlog_db_parity.py --tenant product_forge
+      - name: DB-mode, fail-closed, and rollback tests
+        run: |
+          python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py test-framework/tests/test_backlog_migrations.py -q

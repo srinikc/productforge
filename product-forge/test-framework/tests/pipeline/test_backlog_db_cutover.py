@@ -138,3 +138,11 @@ def test_rollback_off_restores_file_mode(monkeypatch):
     monkeypatch.setenv("PF_BACKLOG_DB", "off")
     assert backlog._backlog_db_mode() == "off"
     assert backlog._db_for("product_forge") is False
+
+
+def test_rollback_off_writes_authoritative_file(monkeypatch):
+    calls = []
+    monkeypatch.setenv("PF_BACKLOG_DB", "off")
+    monkeypatch.setattr(backlog, "_wj", lambda path, value: calls.append((path, value)))
+    backlog._save_item("ignored", {"id": "BI-PF-2", "scope": "product_forge", "title": "x"})
+    assert calls, "off mode did not write the file path"

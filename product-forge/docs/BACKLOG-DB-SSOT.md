@@ -69,9 +69,16 @@ PF_API_TOKEN=<token accepted by edpsvc>
 
 ## Rollback
 
-- Set `PF_BACKLOG_DB=off` and restart affected processes.
-- Do not delete the DB tables; they are the basis for a later retry.
-- Do not re-enable Git ID allocation for new items without an explicit decision.
+1. Take a verified backup/snapshot of `backlog_items`, `backlog_id_allocations`, `backlog_id_reservations`, and `traceability` before any schema change.
+2. Set `PF_BACKLOG_DB=off` and restart affected processes.
+3. Verify file-mode reads/writes and ID allocation still work.
+4. Do not delete the DB tables; they are the basis for a later retry.
+5. Migration 0021 down refuses to run while legacy cross-tenant duplicate IDs exist; restore from the verified backup instead of forcing the down migration.
+6. Do not re-enable Git ID allocation for new items without an explicit decision.
+
+## Generated products
+
+PF-GP uses the same DB/ID authority. Generated-product source files may live outside this repository; when they are absent, parity is verified only for tenants with local file sources. DB-only legacy tenants are preserved and are not deleted by backfill/parity.
 
 ## Agent workflow boundary
 

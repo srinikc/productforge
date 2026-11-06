@@ -193,6 +193,23 @@ func (s *BacklogStore) Put(ctx context.Context, it BacklogItem) (BacklogItem, er
 	}
 	data := orEmpty(it.Data)
 	err := s.db.WithTx(ctx, func(tx datastore.Tx) error {
+		rows, err := tx.Query(ctx, `SELECT current_setting('app.tenant_id', true)`)
+		if err != nil {
+			return err
+		}
+		var bound string
+		if rows.Next() {
+			if err := rows.Scan(&bound); err != nil {
+				rows.Close()
+				return err
+			}
+		}
+		if err := rows.Close(); err != nil {
+			return err
+		}
+		if bound == "" || bound != it.TenantID {
+			return ErrTenantConflict
+		}
 		n, err := tx.Exec(ctx,
 			`INSERT INTO backlog_items (id, tenant_id, scope, project_id, type, status, title, body, data, revision)
 			 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10)
