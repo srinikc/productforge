@@ -180,6 +180,7 @@
 | [`REVIEW-MODEL.md`](REVIEW-MODEL.md) | Implemented | 100% | Review model: LLM vs non-LLM, per-iteration, PR gate (BI-PF-1070) | — | — |
 | [`REVIEW-TRIAGE-POLICY.md`](REVIEW-TRIAGE-POLICY.md) | Implemented | 100% | Review severity, scope, delta-only, and fix-evidence policy | — | — |
 | [`ROLE-PROMPT-STANDARD.md`](ROLE-PROMPT-STANDARD.md) | Implemented | 100% | Standard for agent role-prompts + advisory audit (BI-0228) | — | — |
+| [`SCALABILITY-SSOT.md`](SCALABILITY-SSOT.md) | SSOT | 100% | PF capacity tiers T1-T4, SLO targets, scale-out/in triggers, execution order, and backlog tracking | — | — |
 | [`SCHEMA-GUIDE.md`](SCHEMA-GUIDE.md) | Implemented | 100% | Data + schema reference (validators) | — | — |
 | [`SCOPED-LEARNINGS-DESIGN.md`](SCOPED-LEARNINGS-DESIGN.md) | Design | 100% | Scoped learnings + memory read-back (BI-PF-0294) | — | — |
 | [`SECTION-D-OBSERVABILITY-DESIGN.md`](SECTION-D-OBSERVABILITY-DESIGN.md) | Design | 30% | Section D observability design + plan (BI-PF-0244) | — | — |
