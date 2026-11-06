@@ -58,6 +58,9 @@ def main() -> int:
         print("backfill: PF_BACKLOG_DB=on is required", file=sys.stderr)
         return 2
     conn = None
+    if not a.dry_run and not os.environ.get("PF_DB_DSN"):
+        print("backfill: PF_DB_DSN is required for ownership checks", file=sys.stderr)
+        return 2
     if os.environ.get("PF_DB_DSN"):
         import psycopg
         conn = psycopg.connect(os.environ["PF_DB_DSN"])

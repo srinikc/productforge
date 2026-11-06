@@ -1,0 +1,46 @@
+{
+  "item": "BI-PF-1531",
+  "sha": "43934716abcc",
+  "model": "deepseek-v4.1-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-06T18:44:20.653569+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "5fa79371c7ec5fad48239e027ebfd2c812a65b37",
+  "findings": {
+    "BLOCKER": [
+      "Write/read authority resolves differently for unattributed items: `_save_item` uses `item.get(\"project\") or item.get(\"scope\") or \"product_forge\"` (DB write, no file), while `_load_all` uses `str(project or scope or \"\")` (file authority) \u2014 such an item is written to a tenant partition nothing reads, i.e. silent loss/misattribution.",
+      "`backlog_db_backfill.py` cross-tenant ownership check runs only when `PF_DB_DSN` is set; with 0021's `ON CONFLICT (tenant_id,id)` a foreign `id` no longer raises `ErrTenantConflict`, so a misattributed file silently inserts a duplicate global ID under a second tenant."
+    ],
+    "MAJOR": [
+      "0021 replaces the only DB-enforced global-ID invariant with `(tenant_id,id)`; \"new IDs remain globally unique\" now rests solely on allocator convention \u2014 no constraint, partial unique index, or guard test detects a new duplicate.",
+      "`dual`/`shadow` return `False` from `_db_for`, so DB reads *and* DB ID reservation are disabled in those modes; flipping to a documented migration mode silently re-enables Git ID allocation, contradicting \"no Git/local fallback\".",
+      "`backlog_db_export.py` writes raw `data` without stamping/validating tenant and never refreshes the file index/ledger; after rollback to `off`, exported product files default to `product_forge` and pruned IDs persist in the index.",
+      "Tenant enforcement was added in the shared store (`Get/List/Put/Delete`) but only `backlogHandle`/`backlogByID` were updated; other `BacklogStore` consumers (jobs, traceability, audit) are not shown binding tenant and will surface as 500/503.",
+      "`_load_all_from_db` has no bounded retry/backoff or circuit breaker: a single transient blip fails every backlog read closed, and no metric gives alert lead-time on authority unavailability.",
+      "`requireTenant` relies on `app.tenant_id` being transaction-local; nothing in the diff enforces or asserts local scoping, so a session-scoped GUC on a pooled connection would leak the previous tenant instead of failing closed.",
+      "`delete()` mutates the in-memory/file bucket before `_delete_item_from_db`; a DB failure leaves projection and DB divergent with no compensation or retry path."
+    ],
+    "MINOR": [
+      "Read path hardcodes `limit=100000`; beyond that, reads silently truncate with no error or truncation indicator.",
+      "`backlog_db_parity.py` exits 1 with `BACKLOG_DB_PARITY_EMPTY` for tenants with no local sources, contradicting `BACKLOG-DB-SSOT.md`'s statement that DB-only generated-product tenants are preserved/skipped.",
+      "`enforce_from: 2026-11-07` (future date) makes the three new mandatory precheck gates inert for every current item, producing a green gate that proves nothing.",
+      "`store-registry.json` registers only the two new config JSONs; new templates, `docs/SPEC-CHAIN.md`, `engineering/specs/`, and new scripts are unregistered.",
+      "`functional_spec.py` and `spec_pack.py` duplicate `_cfg`, `_date`, `_join`, `should_enforce`, and `SPEC_DIR` \u2014 two copies of the same enforcement policy.",
+      "0021 applies `statement_timeout='60s'` to a non-concurrent PK rebuild; the preflight measures table size but nothing adapts the plan, so the migration will abort and retry blindly on a large table.",
+      "`.env.example` is self-inconsistent (scopes active, mode commented) and omits the \"unlisted scopes stay file-authoritative\" behavior documented elsewhere."
+    ],
+    "NIT": [
+      "`requireTenant` never checks `rows.Err()`, so a query failure after `Next()` is treated as an empty tenant rather than an error.",
+      "Scope matching is case-sensitive: a `productforge-dashboard`-style variant silently drops to file mode with only a one-time warning.",
+      "`spec_pack.problems` returns early on missing header fields before validating rows, so a single header typo hides all row-level failures in one pass."
+    ],
+    "SUMMARY": [
+      "Direction is right (default-on, scoped allowlist, fail-closed, preflight/parity/export), but two authority-resolution defects break the core invariant: unattributed items and misattributed backfill rows can land in a partition nobody reads or duplicates the global ID.",
+      "Scoped uniqueness is now enforced only by convention; combined with `dual`/`shadow` disabling DB ID reservation, the \"no Git fallback / globally unique new IDs\" guarantee is asserted rather than implemented.",
+      "Rollback path is still the weakest link: export neither stamps tenant nor refreshes the index, so `off` can surface stale/misattributed projections.",
+      "Observability and retry behavior on the DB read path remain thin for an authority that is now the default."
+    ]
+  }
+}
