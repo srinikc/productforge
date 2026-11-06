@@ -112,13 +112,15 @@ def _get_item(item: str) -> dict:
 # (committed evidence, the baseline, the derived backlog projections that --apply itself writes). The SAME
 # exclusions are used by scripts/dev/architect_review_check.py.
 EXCLUDE = [
-    ":(exclude,glob)**/engineering/**",
+    ":(exclude,glob)**/engineering/reviews/**",
+    ":(exclude,glob)**/engineering/trails/**",
+    ":(exclude,glob)**/engineering/learnings/**",
+    ":(exclude,glob)**/data/backlog/open.json",
+    ":(exclude,glob)**/data/backlog/closed.json",
+    ":(exclude,glob)**/data/backlog/history/**",
     ":(exclude,glob)**/config/architect-review-baseline.json",
     ":(exclude,glob)**/config/id-blocks.json",
-    ":(exclude,glob)**/data/backlog/**",
     ":(exclude,glob)**/docs/BACKLOG-SUMMARY.md",
-    ":(exclude,glob)**/docs/documentation-index.html",
-    ":(exclude,glob)**/docs/README.md",
 ]
 
 

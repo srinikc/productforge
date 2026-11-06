@@ -104,7 +104,7 @@ func (s *BacklogStore) Authority(ctx context.Context) (Authority, error) {
 			        JOIN pg_policies p ON p.tablename=c.relname AND p.schemaname='public'
 			        WHERE c.relname='backlog_items' AND c.relrowsecurity AND c.relforcerowsecurity
 			          AND p.policyname='tenant_isolation'),
-			EXISTS (SELECT 1 FROM schema_migrations WHERE version IN (16,18,19,20,21) HAVING count(*)=5)`)
+			EXISTS (SELECT 1 FROM schema_migrations WHERE version IN (16,18,19,20,21,23) HAVING count(*)=6)`)
 		if err != nil {
 			return err
 		}

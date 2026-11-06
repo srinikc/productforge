@@ -30,12 +30,19 @@ def main() -> int:
     ap.add_argument("--prune", action="store_true", help="delete projections not present in DB")
     ap.add_argument("--allow-empty-prune", action="store_true", help="dangerous: allow prune with zero DB rows")
     ap.add_argument("--confirm-prune", action="store_true", help="required to delete projections")
+    ap.add_argument("--allow-external-out", action="store_true", help="allow out-dir outside the repo")
     a = ap.parse_args()
     dsn = os.environ.get("PF_DB_DSN")
     if not dsn:
         print("PF_DB_DSN required", file=sys.stderr)
         return 2
     out = Path(a.out_dir) if a.out_dir else target_dir(a.tenant)
+    if a.out_dir and not a.allow_external_out:
+        try:
+            out.resolve().relative_to(ROOT.resolve())
+        except ValueError:
+            print("export: out-dir outside repo requires --allow-external-out", file=sys.stderr)
+            return 2
     import psycopg
     with psycopg.connect(dsn) as c, c.cursor() as cur:
         cur.execute("SELECT id, data FROM backlog_items WHERE tenant_id=%s ORDER BY id", (a.tenant,))

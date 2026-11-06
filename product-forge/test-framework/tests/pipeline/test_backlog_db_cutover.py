@@ -247,7 +247,7 @@ def test_export_write_skip_overwrite(monkeypatch, tmp_path):
     import importlib.util
     spec = importlib.util.spec_from_file_location("exp", root / "scripts" / "dev" / "backlog_db_export.py")
     m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
-    monkeypatch.setattr(sys, "argv", ["x", "--tenant", "product_forge", "--out-dir", str(tmp_path)])
+    monkeypatch.setattr(sys, "argv", ["x", "--tenant", "product_forge", "--out-dir", str(tmp_path), "--allow-external-out"])
     assert m.main() == 0
     assert (tmp_path / ("BI-PF-" + "1" + _J)).is_file()
     assert m.main() == 0  # skipped existing

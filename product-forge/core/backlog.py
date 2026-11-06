@@ -273,7 +273,7 @@ def _backlog_db_scopes() -> set[str]:
     except Exception:
         value = os.environ.get("PF_BACKLOG_DB_SCOPES", "")
     scopes = {_scope_key(s.strip()) for s in str(value or "").split(",") if s.strip()}
-    if not scopes and _backlog_db_mode() == "on":
+    if not scopes and _backlog_db_mode() in ("on", "dual", "shadow"):
         raise RuntimeError("BACKLOG_DB_SCOPES_EMPTY: PF_BACKLOG_DB=on requires an explicit non-empty allowlist")
     return scopes
 
