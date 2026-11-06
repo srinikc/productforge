@@ -1281,6 +1281,10 @@ func (s *server) backlogByID(w http.ResponseWriter, r *http.Request) {
 		if s.storeGuardError(w, r, err) {
 			return
 		}
+		if errors.Is(err, edpdata.ErrTenantContext) {
+			s.bad(w, r, http.StatusServiceUnavailable, "tenant context unavailable")
+			return
+		}
 		s.fail(w, r, http.StatusNotFound, err)
 		return
 	}

@@ -24,6 +24,14 @@
       "decision": "APPROVE",
       "by": "system",
       "note": "auto-approved on add (BI-PF-1282)"
+    },
+    {
+      "at": "2026-11-06T13:13:41.497593+00:00",
+      "by": "hil:user",
+      "decision": "MATERIAL_CHANGE",
+      "mode": "diff",
+      "hil_confirmed": true,
+      "note": "HIL directed completing DB-default cutover steps; approve final delivery re-review."
     }
   ],
   "follow_up": {},
@@ -189,7 +197,7 @@
     "usage": {}
   },
   "created_at": "2026-11-06T14:50:10.299482",
-  "updated_at": "2026-11-06T16:39:11.909461",
+  "updated_at": "2026-11-06T18:44:01.227426",
   "score": 0.5,
   "_note": "readiness computed",
   "api_impact": {
@@ -506,6 +514,54 @@
         ]
       },
       "evidence": "BI-PF-1531-9d06b5db9be1.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "a775bc9d047a14a8caad5d91c4ca1b4413294044",
+      "review_sha": "24757dba55ac",
+      "model": "deepseek-v4.1-flash",
+      "at": "2026-11-06T13:14:00.949406+00:00",
+      "review_scope": "full_candidate",
+      "base_sha": "",
+      "head_sha": "a775bc9d047a14a8caad5d91c4ca1b4413294044",
+      "findings": {
+        "BLOCKER": [
+          "AC-2 unmet: the diff still contains no CI wiring (`.github/workflows/backlog-db.yml`, `structure.yml`, `full-sweep.yml`), so no DB-mode integration job runs with `PF_BACKLOG_DB=on`; prior ACTIONED disposition for this is not supported by the code shown.",
+          "`0021_backlog_scoped_uniqueness.up.sql` takes ACCESS EXCLUSIVE on `backlog_items` and rebuilds the PK with only a 5s `lock_timeout`; no maintenance-window/backup-manifest gate, and if the FK re-add fails the table is left without a PK or with `traceability` FK dropped — a non-transactional partial-failure path on the shared SoR.",
+          "Tenant scoping is now split-brained and can fail-open: `Put` validates the GUC against `it.TenantID`, but `Get`/`Delete` compare `tenant_id = current_setting('app.tenant_id', true)` with no NULL guard — a missing GUC yields NULL, not an error, so deletes silently affect zero rows and reads report \"not found\" instead of failing closed."
+        ],
+        "MAJOR": [
+          "`Put`'s GUC pre-check runs inside the same tx it guards but `current_setting(..., true)` is session-scoped; under connection pooling a stale/leaked `app.tenant_id` can make the check pass for the wrong tenant — the check needs to be the session-setter's contract, not a read-then-trust.",
+          "`ErrTenantConflict` is returned without any log/metric; the design's observability requirement (\"readiness/errors expose backlog DB state\") is unmet for this new failure class.",
+          "`_backlog_db_mode()` treats any non-`on` value (including `dual`, typos) as not-DB while `id_allocator._db_enabled()` and `_db_for()` are separate implementations; three parsers of one flag is the drift class this item exists to remove.",
+          "Empty `PF_BACKLOG_DB=` now resolves to `on` in all three parsers (falsy → `\"on\"`), so an accidentally blanked env var silently promotes storage authority to DB.",
+          "Fail-closed only wraps `_load_all_from_db`; other DB paths (mirror in `on`, reserve, delete) still surface raw `URLError`/exception, so the documented `BACKLOG_DB_UNAVAILABLE` code is not a uniform contract.",
+          "Parity evidence (AC-3) still cannot cover PF-GP: `backlog_db_parity.py` globs only `ROOT/data/backlog/items` while backfill also scans `products/*/data/backlog/items`, so generated-product parity is unproducible and unproven.",
+          "`test_scoped_uniqueness_migration_contract` asserts substrings only — no test proves duplicate-ID acceptance, `ON CONFLICT (tenant_id,id)` upsert, FK re-point, or the down-migration refusal against a real schema.",
+          "`0021.down.sql` also silently drops `traceability` rows' FK guard: the `RAISE EXCEPTION` covers duplicates but not the case where `traceability` rows reference a removed `(tenant_id,item_id)` pairing, so down can still fail mid-statement.",
+          "`backlog_db_backfill.py` writes via private `_mirror_item_to_db` and inherits its whitelist with no read-back parity check, so a \"successful\" run is not evidence; AC-3 parity is asserted, not measured.",
+          "`precheck.py` sets a process-wide `setdefault` env; `setdefault` means an operator shell with `on` still runs gates in DB mode, so the \"file-mode\" containment is best-effort, not enforced.",
+          "No test asserts the `Put` tenant-conflict path (`ErrTenantConflict`) or the GUC-missing path for `Get`/`Delete`; guardrail 5 invariants are stated in the migration but not exercised."
+        ],
+        "MINOR": [
+          "`_load_all_from_db` logs the exception but not the tenant-scoped operation or API host; diagnostics for on-mode outages are thin.",
+          "`backlog_db_parity.py` uses a raw `PF_DB_DSN` connection that bypasses RLS; privilege level still undocumented.",
+          "Backfill throttle is a magic `time.sleep(0.12)` with no `--limit` or resume marker; long runs are unbounded.",
+          "`item_tenant()` derives tenant from `project → scope → product_forge` with no validation against stored `tenant_id`; parity can pass for the wrong reason.",
+          "Docstring in backfill still says \"upserts by item id\" while the key is now `(tenant_id, id)`."
+        ],
+        "NIT": [
+          "`Authority()` hard-codes `IN (16,18,19,20,21) HAVING count(*)=5`; every future migration edits this line.",
+          "Imported `_uerr`/`_logging` inline inside the function rather than module scope.",
+          "`test_rollback_off_restores_file_mode` asserts flag resolution only; the off-mode write test is separate and does not prove the Git path."
+        ],
+        "SUMMARY": [
+          "Default flip, fail-closed wrapper, scoped-uniqueness migration, docs, and partial test coverage are directionally aligned with the ACs; the flag-default and rollback-doc halves look met.",
+          "Highest residual risks: AC-2 CI job is still absent from the diff, migration 0021 has a non-transactional partial-failure window on the shared SoR with no software-gated backup, and tenant scoping is enforced by three inconsistent flag/GUC readers that can silently no-op rather than fail closed.",
+          "Recommend blocking merge until the DB-mode workflow lands, 0021 is wrapped in a single transaction with a documented pre-migration snapshot gate, and `Get`/`Delete`/`Put` share one explicit tenant-context contract that errors (not returns empty) on a missing GUC."
+        ]
+      },
+      "evidence": "BI-PF-1531-24757dba55ac.json"
     }
   ],
   "review_dispositions": {
@@ -605,6 +661,174 @@
         "severity": "NIT",
         "origin_class": "IMPLEMENTATION_GAP",
         "note": "Fixed in current HEAD: scoped key migration, backfill, parity clean, fail-closed/rollback tests."
+      },
+      "sig:0bba85388d0955b5": {
+        "status": "ACTIONED",
+        "severity": "BLOCKER",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Addressed in current HEAD: design contract, scoped key/parity, migration tests, DB-mode CI, fail-closed/rollback."
+      },
+      "sig:0a435175d0ec79dd": {
+        "status": "ACTIONED",
+        "severity": "BLOCKER",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Addressed in current HEAD: design contract, scoped key/parity, migration tests, DB-mode CI, fail-closed/rollback."
+      },
+      "sig:b10f33c93d94351a": {
+        "status": "ACTIONED",
+        "severity": "BLOCKER",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Addressed in current HEAD: design contract, scoped key/parity, migration tests, DB-mode CI, fail-closed/rollback."
+      },
+      "sig:db5fb55e1ee4c3f2": {
+        "status": "ACTIONED",
+        "severity": "BLOCKER",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Addressed in current HEAD: design contract, scoped key/parity, migration tests, DB-mode CI, fail-closed/rollback."
+      },
+      "sig:3357d98f3626f245": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Addressed in current HEAD: design contract, scoped key/parity, migration tests, DB-mode CI, fail-closed/rollback."
+      },
+      "sig:ee131e0857544b04": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Addressed in current HEAD: design contract, scoped key/parity, migration tests, DB-mode CI, fail-closed/rollback."
+      },
+      "sig:2e6a191ce63f11e8": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Addressed in current HEAD: design contract, scoped key/parity, migration tests, DB-mode CI, fail-closed/rollback."
+      },
+      "sig:91b28a882c4c4145": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Addressed in current HEAD: design contract, scoped key/parity, migration tests, DB-mode CI, fail-closed/rollback."
+      },
+      "sig:2d14df7e0ad9fae5": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Addressed in current HEAD: design contract, scoped key/parity, migration tests, DB-mode CI, fail-closed/rollback."
+      },
+      "sig:b888767749c0a5e6": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Addressed in current HEAD: design contract, scoped key/parity, migration tests, DB-mode CI, fail-closed/rollback."
+      },
+      "sig:fa42d0dad7cc08d1": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Addressed in current HEAD: design contract, scoped key/parity, migration tests, DB-mode CI, fail-closed/rollback."
+      },
+      "sig:50ec495b52798fd0": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Addressed in current HEAD: design contract, scoped key/parity, migration tests, DB-mode CI, fail-closed/rollback."
+      },
+      "sig:62eda899fbb608e2": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Addressed in current HEAD: design contract, scoped key/parity, migration tests, DB-mode CI, fail-closed/rollback."
+      },
+      "sig:d03da0c06cf8c97a": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Addressed in current HEAD: design contract, scoped key/parity, migration tests, DB-mode CI, fail-closed/rollback."
+      },
+      "sig:82cb8e5c4391f2bd": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Addressed in current HEAD: design contract, scoped key/parity, migration tests, DB-mode CI, fail-closed/rollback."
+      },
+      "sig:7a870244b671c9d6": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Addressed in current HEAD: design contract, scoped key/parity, migration tests, DB-mode CI, fail-closed/rollback."
+      },
+      "sig:e00f31518d511c06": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Addressed in current HEAD: design contract, scoped key/parity, migration tests, DB-mode CI, fail-closed/rollback."
+      },
+      "sig:a1c21d8662554186": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Addressed in current HEAD: design contract, scoped key/parity, migration tests, DB-mode CI, fail-closed/rollback."
+      },
+      "sig:b2437de69b9e85ce": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Addressed in current HEAD: design contract, scoped key/parity, migration tests, DB-mode CI, fail-closed/rollback."
+      },
+      "sig:cf7bddba5bfe84ee": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Addressed in current HEAD: design contract, scoped key/parity, migration tests, DB-mode CI, fail-closed/rollback."
+      },
+      "sig:84a2435a8405b176": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Addressed in current HEAD: design contract, scoped key/parity, migration tests, DB-mode CI, fail-closed/rollback."
+      },
+      "sig:441f9bf61c8d89c8": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Addressed in current HEAD: design contract, scoped key/parity, migration tests, DB-mode CI, fail-closed/rollback."
+      },
+      "sig:e1133edbd1aff6c0": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Addressed in current HEAD: design contract, scoped key/parity, migration tests, DB-mode CI, fail-closed/rollback."
+      },
+      "sig:c00db67da34cc409": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Addressed in current HEAD: design contract, scoped key/parity, migration tests, DB-mode CI, fail-closed/rollback."
+      },
+      "sig:23819691c77c0340": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Addressed in current HEAD: design contract, scoped key/parity, migration tests, DB-mode CI, fail-closed/rollback."
+      },
+      "sig:47f6d5042f71a1fc": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Addressed in current HEAD: design contract, scoped key/parity, migration tests, DB-mode CI, fail-closed/rollback."
+      },
+      "sig:9d52af780e55d608": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Addressed in current HEAD: design contract, scoped key/parity, migration tests, DB-mode CI, fail-closed/rollback."
+      },
+      "sig:7c9d52e45f40afc7": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Addressed in current HEAD: design contract, scoped key/parity, migration tests, DB-mode CI, fail-closed/rollback."
       }
     }
   }

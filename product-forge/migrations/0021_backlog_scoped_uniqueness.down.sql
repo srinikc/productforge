@@ -1,3 +1,4 @@
+BEGIN;
 SET lock_timeout = '5s';
 DO $$
 BEGIN
@@ -10,3 +11,5 @@ ALTER TABLE backlog_items DROP CONSTRAINT IF EXISTS backlog_items_pkey;
 ALTER TABLE backlog_items ADD CONSTRAINT backlog_items_pkey PRIMARY KEY (id);
 ALTER TABLE traceability ADD CONSTRAINT fk_traceability_item
   FOREIGN KEY (item_id) REFERENCES backlog_items(id) ON DELETE CASCADE;
+
+COMMIT;
