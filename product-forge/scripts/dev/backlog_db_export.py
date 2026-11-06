@@ -28,6 +28,7 @@ def main() -> int:
     ap.add_argument("--overwrite", action="store_true")
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--prune", action="store_true", help="delete projections not present in DB")
+    ap.add_argument("--allow-empty-prune", action="store_true", help="dangerous: allow prune with zero DB rows")
     a = ap.parse_args()
     dsn = os.environ.get("PF_DB_DSN")
     if not dsn:
@@ -41,6 +42,9 @@ def main() -> int:
     if a.dry_run:
         print(f"export: dry-run tenant={a.tenant} rows={len(rows)} out={out}")
         return 0
+    if a.prune and not rows and not a.allow_empty_prune:
+        print("export: refusing --prune with zero DB rows (use --allow-empty-prune only after verification)", file=sys.stderr)
+        return 2
     out.mkdir(parents=True, exist_ok=True)
     written = skipped = pruned = 0
     db_ids = {str(r[0]) for r in rows}

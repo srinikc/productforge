@@ -44,10 +44,16 @@ def main() -> int:
         return 2
     fitems = file_items(a.tenant, a.source_dir)
     fids = set(fitems)
+    if not fids and not os.environ.get("PF_PARITY_ALLOW_EMPTY"):
+        print(f"BACKLOG_DB_PARITY_EMPTY: no file sources for tenant {a.tenant}", file=sys.stderr)
+        return 1
     import psycopg
     with psycopg.connect(dsn) as c, c.cursor() as cur:
         cur.execute("SELECT id, data FROM backlog_items WHERE tenant_id=%s", (a.tenant,))
         drows = {r[0]: r[1] for r in cur.fetchall()}
+    if not drows and not os.environ.get("PF_PARITY_ALLOW_EMPTY"):
+        print(f"BACKLOG_DB_PARITY_EMPTY: no DB rows for tenant {a.tenant}", file=sys.stderr)
+        return 1
     missing = sorted(fids - set(drows))
     extra = sorted(set(drows) - fids)
     def canon(x):

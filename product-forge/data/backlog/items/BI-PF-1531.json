@@ -112,6 +112,14 @@
       "mode": "diff",
       "hil_confirmed": true,
       "note": "HIL-approved evidence refresh for CI SHA 6803825863d4."
+    },
+    {
+      "at": "2026-11-06T18:13:53.807753+00:00",
+      "by": "hil:user",
+      "decision": "MATERIAL_CHANGE",
+      "mode": "diff",
+      "hil_confirmed": true,
+      "note": "HIL requested implementation of the functional/spec-pack chain and current-SHA evidence."
     }
   ],
   "follow_up": {},
@@ -349,7 +357,7 @@
     "usage": {}
   },
   "created_at": "2026-11-06T14:50:10.299482",
-  "updated_at": "2026-11-06T20:51:59.216972",
+  "updated_at": "2026-11-06T23:47:57.613130",
   "score": 0.5,
   "_note": "readiness computed",
   "api_impact": {
@@ -1594,6 +1602,47 @@
         ]
       },
       "evidence": "BI-PF-1531-6803825863d4.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "7adef882a5cb11a1ed1bea344e7d83d3a20dde11",
+      "review_sha": "36bfe073626f",
+      "model": "deepseek-v4.1-flash",
+      "at": "2026-11-06T18:17:57.353648+00:00",
+      "review_scope": "full_candidate",
+      "base_sha": "",
+      "head_sha": "7adef882a5cb11a1ed1bea344e7d83d3a20dde11",
+      "findings": {
+        "BLOCKER": [
+          "`backlog_db_export.py --prune` deletes every projection when the DB query returns zero rows (wrong DSN, tenant typo, or RLS-bound role with no `app.tenant_id`), destroying the very files rollback depends on.",
+          "Add a hard guard: refuse to prune on `rows == 0`, require an explicit confirmation flag, and validate/prune only after a full successful read."
+        ],
+        "MAJOR": [
+          "`backlog_db_parity.py` reports \"OK -> safe to set on\" on 0 files/0 rows (tenant typo or RLS-blocked read), producing false-green AC-3 evidence; it should fail when both sides are empty or when the tenant is not in `PF_BACKLOG_DB_SCOPES`.",
+          "`Get`/`List`/`Delete` trust only `current_setting('app.tenant_id')` and never cross-check the requested tenant (unlike `Put`); a session-scoped GUC leak on a pooled connection yields cross-tenant reads that RLS also permits. Compare the bound tenant with the requested tenant or assert transaction-local binding.",
+          "0021 is one-way in practice: `down` refuses once legacy cross-tenant duplicates exist, the new binary requires 0021 at `Authority()`, and the old binary's `ON CONFLICT (id)` is invalid — so only the flag can be rolled back. Document this as forward-fix-only or provide a compatible write path.",
+          "`_load_all_from_db` hardcodes `limit=100000` with no pagination and 0022 adds no `(tenant_id, created_at DESC)` index behind `List ... ORDER BY created_at DESC`; silent truncation and p95 SLO risk grow with tenant size.",
+          "Precheck forcing `PF_BACKLOG_DB=off` makes the new `functional-spec`/`spec-pack`/`conformance` gates evaluate derived, possibly stale file projections rather than DB authority, with no freshness/parity precondition — frozen-SHA gate results can be wrong."
+        ],
+        "MINOR": [
+          "`delete()` omits the `\"product_forge\"` default used by `_save_item` (`str(project or scope or \"\")`), so an item with neither field is saved to the DB tenant but deleted via the file path, leaving orphan DB rows.",
+          "`go/edpsvc` maps `ErrTenantContext` to 503, which `_load_all_from_db` collapses into `BACKLOG_DB_UNAVAILABLE`; a tenant-context misconfiguration is indistinguishable from an outage in logs and alerts.",
+          "`backlog_migration_preflight.py` checks `contype='u'` (excludes the pkey, so `unknown_uniques` can never fire), only prints `pg_indexes`, and accepts any existing `PF_BACKUP_ARTIFACT` file without size/recency validation.",
+          "`backlog_db_backfill.py --tenant` bypasses the `_db_for` allowlist check, so a non-allowlisted tenant fails per item via `store_item_to_db` instead of being skipped cleanly.",
+          "Enforcement dates disagree: `config/functional-spec.json` and `config/spec-pack.json` use `2026-11-07` while `docs/SPEC-CHAIN.md` binds items from `2026-11-06`."
+        ],
+        "NIT": [
+          "`_has_placeholder` is a raw substring scan over \"todo\"/\"tbd\"/\"unspecified\", so it both misses \"T.B.D.\" and false-positives on ordinary prose; use word-boundary matching on enforced fields.",
+          "`functional_spec.fresh()`/`spec_pack.fresh()` compare only `split(\"\\n\", 2)[-1]`, so drift in the title/version header is never detected.",
+          "`gate1_check` passes `{}` when the item is not found and every `problems({})` returns `[]`, so a missing item silently passes the new spec-chain gates."
+        ],
+        "SUMMARY": [
+          "Direction is correct (default-on with scoped allowlist, tenant-scoped Go access, ordered migrations), but the rollback path is unsafe: export/prune can wipe the file projections it is meant to reconstruct, and parity can green-light an empty comparison.",
+          "Tenant isolation rests entirely on the transaction-local GUC for read/delete; add a requested-tenant cross-check before calling AC-4 satisfied.",
+          "Schema/binary rollback is effectively one-way once legacy duplicates exist; state that explicitly and back it with a test, and add the missing `(tenant_id, created_at)` index plus pagination for `List`."
+        ]
+      },
+      "evidence": "BI-PF-1531-36bfe073626f.json"
     }
   ],
   "review_dispositions": {
