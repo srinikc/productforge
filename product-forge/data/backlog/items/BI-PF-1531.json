@@ -80,6 +80,22 @@
       "mode": "diff",
       "hil_confirmed": true,
       "note": "HIL-approved continuation after closing all findings; final control and gate evidence updated."
+    },
+    {
+      "at": "2026-11-06T14:59:51.820914+00:00",
+      "by": "hil:user",
+      "decision": "MATERIAL_CHANGE",
+      "mode": "design",
+      "hil_confirmed": true,
+      "note": "HIL-approved final evidence run after CI audit fixes."
+    },
+    {
+      "at": "2026-11-06T14:59:51.820929+00:00",
+      "by": "hil:user",
+      "decision": "MATERIAL_CHANGE",
+      "mode": "diff",
+      "hil_confirmed": true,
+      "note": "HIL-approved final evidence run after CI audit fixes."
     }
   ],
   "follow_up": {},
@@ -317,7 +333,7 @@
     "usage": {}
   },
   "created_at": "2026-11-06T14:50:10.299482",
-  "updated_at": "2026-11-06T20:27:18.433637",
+  "updated_at": "2026-11-06T20:35:04.584092",
   "score": 0.5,
   "_note": "readiness computed",
   "api_impact": {
@@ -1459,6 +1475,55 @@
         ]
       },
       "evidence": "BI-PF-1531-2dce641046d1.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "0c98ae817d0cd8c1b0f00f402ab3ff8f996d3ceb",
+      "review_sha": "9dcf11a685af",
+      "model": "deepseek-v4.1-flash",
+      "at": "2026-11-06T15:05:04.316435+00:00",
+      "review_scope": "full_candidate",
+      "base_sha": "",
+      "head_sha": "0c98ae817d0cd8c1b0f00f402ab3ff8f996d3ceb",
+      "findings": {
+        "BLOCKER": [
+          "`test_traceability_tenant_index_migration` asserts `CREATE INDEX CONCURRENTLY IF NOT EXISTS ...` / `DROP INDEX CONCURRENTLY IF EXISTS ...`, but `0022_traceability_tenant_index.{up,down}.sql` ship plain `CREATE INDEX` / `DROP INDEX` — the shipped test fails red on this diff.",
+          "The asserted contract is also unimplementable as written: 0022 wraps statements in `BEGIN/COMMIT`, and `CONCURRENTLY` cannot run inside a transaction block, so either the test or the migration transaction control must change before merge."
+        ],
+        "MAJOR": [
+          "Read/write tenant key derivation diverges: `_save_item` keys on `item[\"project\"] or item[\"scope\"]`, while `_load_all`/`delete` key on the `project or scope` arguments; an item nested under `product_forge` but carrying `project=ProductForge-Dashboard` is written to one DB tenant and read from another, silently vanishing from listings.",
+          "`ErrTenantContext` is raised for both \"GUC missing\" and \"bound != it.TenantID\" and mapped to 503 uniformly: a cross-tenant write attempt becomes an availability error, hiding an authz breach and misrouting alerts.",
+          "Observability contract (`edp_backlog_authority_errors_total` with reason labels, asserted by tests) is not satisfied for the new path — no metric increment or assertion accompanies the new 503 mapping.",
+          "Go tenant enforcement is tested only for `List`; no test covers `Put`/`Get`/`Delete` rejecting missing or mismatched tenant, nor the handler 503 mapping, though the runtime contract names list/get/put/delete/ledger.",
+          "`docs/BACKLOG-DB-SSOT.md` deletes the `## Rollback` heading, folding its numbered steps into the Activate list, then adds a second `## Rollback / reconcile` with materially different steps (quiesce+export+parity vs \"set off and restart\") — an operator can follow the lossy path and drop DB-mode writes.",
+          "`backlog_db_export.py --prune` unlinks every `*.json` whose stem is not a DB id, with no ID-prefix filter and no separate confirmation: a wrong `--out-dir` deletes unrelated projections."
+        ],
+        "MINOR": [
+          "`backlog_migration_preflight.py` accepts any existing file as `PF_BACKUP_ARTIFACT`; nothing verifies the artifact actually contains backlog tables/restore evidence (guardrail 1).",
+          "`backlog_db_backfill.py` skips unlisted tenants and exits 0, and parity filters by the same tenant derivation, so a wrong allowlist produces self-consistent \"parity OK\" without GP coverage; evidence should enumerate tenants compared.",
+          "`backlog_db_export.py` writes `data` verbatim without asserting `data.project/scope == --tenant`, so misattributed rows land in another tenant's projection directory.",
+          "`dual`/`shadow` handling is untested after `_db_for` returns False for them; only `_mirror_item_to_db` is exercised directly, so a broken dual write branch in `_save_item` would pass CI.",
+          "AC-5 rollback is unit-tested only against a mocked `psycopg`; there is no rehearsal evidence that export→parity→`off` reconstructs identical file state.",
+          "`precheck.py` silently replaces an operator's explicit `PF_BACKLOG_DB=on` with `off`; a mis-set env never surfaces, and only a stderr note records the override.",
+          "DB failures surface as `RuntimeError` matched by message text (`\"BACKLOG_DB_UNAVAILABLE\"`) in tests; a typed code/enum shared with the Go error taxonomy would survive rewording.",
+          "`[PRIOR-DISPOSITION]` the \"no statement_timeout\" MAJOR is factually inaccurate: both 0021 files set `SET statement_timeout='60s'`; the residual risk is a 60s *abort* during FK re-validation, not an unbounded lock hold."
+        ],
+        "NIT": [
+          "`Put`'s doc comment still says \"idempotent on id\" although the conflict target is now `(tenant_id, id)`.",
+          "`List` binds `tenant_id=$3` with arguments `(status, limit, bound)`; the out-of-order placeholder invites off-by-one edits.",
+          "`test_backlog_db_workflow.py` resolves `WF` via nested `next(...)` with a `ROOT.parent` fallback that will assert on a fabricated path with an unhelpful message.",
+          "`_DB_VALID_MODES` still lists `dual`/`shadow` with no deprecation marker; the migration-only status lives only in prose.",
+          "`store_item_to_db` introduces a second public Python write entrypoint used solely by dev tooling; keeping it tooling-side avoids parallel write surfaces.",
+          "Several new tests re-implement `spec_from_file_location` module loaders instead of a shared fixture."
+        ],
+        "SUMMARY": [
+          "Direction is right: default-on with an explicit per-scope allowlist, scoped PK/FK, preflight/backup discipline, and fail-closed read path are sound.",
+          "Ship-blocking: the 0022 migration and its own test disagree (non-concurrent SQL vs `CONCURRENTLY` assertions, plus incompatible `BEGIN/COMMIT`), so CI cannot be green as delivered.",
+          "Highest residual risk is tenant-key drift between read and write paths, which can silently split authority across tenants while every parity/fail-closed test stays green.",
+          "Secondary risks: cross-tenant attempts masked as 503s, missing metrics for the new failure mode, and contradictory rollback documentation that could cost DB-mode writes."
+        ]
+      },
+      "evidence": "BI-PF-1531-9dcf11a685af.json"
     }
   ],
   "review_dispositions": {
@@ -2064,7 +2129,7 @@
   "control_evidence": [
     {
       "control_id": "CTL-BACKLOG-DB-DEFAULT",
-      "sha": "273ddadde52a183c1360e24b6f2bd5ad5413bbca-f72f7bfc6292",
+      "sha": "273ddadde52a183c1360e24b6f2bd5ad5413bbca-3f5427dd4d12",
       "result": "PASS",
       "evidence": "engineering/evidence/BI-PF-1531/current-sha-control.txt"
     }
