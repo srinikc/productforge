@@ -232,6 +232,22 @@
       "mode": "diff",
       "hil_confirmed": true,
       "note": "HIL directed completion; final evidence."
+    },
+    {
+      "at": "2026-11-06T19:04:53.854276+00:00",
+      "by": "hil:user",
+      "decision": "MATERIAL_CHANGE",
+      "mode": "design",
+      "hil_confirmed": true,
+      "note": "HIL directed completion; final evidence refresh."
+    },
+    {
+      "at": "2026-11-06T19:04:53.854293+00:00",
+      "by": "hil:user",
+      "decision": "MATERIAL_CHANGE",
+      "mode": "diff",
+      "hil_confirmed": true,
+      "note": "HIL directed completion; final evidence refresh."
     }
   ],
   "follow_up": {},
@@ -471,7 +487,7 @@
     "usage": {}
   },
   "created_at": "2026-11-06T14:50:10.299482",
-  "updated_at": "2026-11-07T00:33:20.756163",
+  "updated_at": "2026-11-07T00:36:35.802068",
   "score": 0.5,
   "_note": "readiness computed",
   "api_impact": {
@@ -2069,6 +2085,53 @@
         ]
       },
       "evidence": "BI-PF-1531-b324227a893a.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "ec4944626ade6f013310940cc842dbfe0b2709b4",
+      "review_sha": "e52ccabdd49a",
+      "model": "deepseek-v4.1-flash",
+      "at": "2026-11-06T19:06:35.555379+00:00",
+      "review_scope": "full_candidate",
+      "base_sha": "",
+      "head_sha": "ec4944626ade6f013310940cc842dbfe0b2709b4",
+      "findings": {
+        "BLOCKER": [
+          "`product-forge/conftest.py` assigns `os.environ[\"PF_BACKLOG_DB\"] = \"off\"` at import for the whole suite, overriding `backlog-db.yml`'s `PF_BACKLOG_DB: \"on\"`: the DB-mode job actually runs file mode, so AC-2's \"a DB-mode integration job runs with on\" is not delivered (and the file is not in `affected_files`).",
+          "`0023_backlog_global_id_guard` exempts legacy rows on both sides: the partial unique index and the trigger both filter `legacy_duplicate=false`, so a new row may reuse an `id` held by a `legacy_duplicate=true` row in another tenant — \"no new duplicate is accepted\" is not enforced at the DB."
+        ],
+        "MAJOR": [
+          "Authority default diverges: `_db_for`/`store_item_to_db` default missing `project`/`scope` to `\"product_forge\"` (DB), but `db_authority_enabled` used by `id_allocator` defaults to `\"\"` (not allowlisted) — an unattributed call gets DB items and Git ID allocation, violating \"one allowlist key\" and \"no Git fallback\".",
+          "`delete()` resolves authority via `str(project or scope or \"\")` while `_save_item`/`store_item_to_db` default to `\"product_forge\"`; an item with neither field is written to the DB tenant but deleted through the file path, leaving orphan DB rows.",
+          "`backlog_db_export.py` unlinks prunable projections *before* writing replacements; an interrupted rollback export leaves the file authority incomplete exactly when it is the recovery source — prune after successful writes.",
+          "`go/edpdata.requireTenant` scans `current_setting('app.tenant_id', true)` into a `string`; a genuinely unset GUC returns NULL → scan error (500), not `ErrTenantContext` (503) as FR-4 declares.",
+          "`0023` runs `UPDATE backlog_items` plus a non-concurrent `CREATE UNIQUE INDEX` on the shared table in one transaction, with no preflight/backup gate (unlike 0021) and only `statement_timeout='60s'`.",
+          "No test covers `BACKLOG_DB_SCOPES_EMPTY` (FR-1 edge case / config contract) nor the delete-path fail-closed behaviour in `on` mode, despite FR-1/FR-4 acceptance text.",
+          "`[OUT_OF_SCOPE]` `architect_review.py` narrows `EXCLUDE` so `engineering/**` (except reviews/trails/learnings) and `data/backlog/**` (except open/closed/history) now enter every review diff — design packs, evidence and item JSON inflate and contaminate all future reviews."
+        ],
+        "MINOR": [
+          "AC-1/AC-4/AC-5 evidence `db-mode-tests.txt` and `failclosed-rollback-tests.txt` are committed as binary, so the cited test output is not reviewable.",
+          "`engineering/evidence/BI-PF-1531/authority-db-test.txt` records `ok productforge/edpsvc (cached)` — a cached Go run is not evidence of a fresh migration+DB run.",
+          "`backlog_db_backfill.py` docstring still advertises `PF_API_TOKEN` while the code requires `PF_EDP_TOKEN`/`PF_ADMIN_TOKEN` — the exact docs/code drift this item exists to remove.",
+          "`docs/BACKLOG-DB-SSOT.md` leaves an orphaned 1..6 list under **Activate** after the `## Rollback` heading removal, duplicating and contradicting `## Rollback / reconcile`.",
+          "Fail-closed taxonomy is not uniform: only `_load_all_from_db` maps transport failures to `BACKLOG_DB_UNAVAILABLE`; on-mode write/delete paths surface raw `urllib` errors despite the design's `failure_behavior` claim.",
+          "`0022` runs `CREATE INDEX CONCURRENTLY` under `statement_timeout='60s'` with no sizing/retry note; on a large `traceability` it aborts and the deploy retries blindly.",
+          "`docs/PF-DESIGN-DELIVERY-CONTRACT.md` and `functional_spec.open_questions` contain `?` mojibake where `→`/`—` belong; the encoding gate does not flag them."
+        ],
+        "NIT": [
+          "Tests obfuscate literals (`\".\" + \"json\"`, `\"fac\" + \"tory\"`, `\"backlog-\" + \"db\" + _Y`) to dodge content gates, hiding intent from readers.",
+          "`config/store-registry.json` adds `functional-spec.json`/`spec-pack.json` to an ignore-style list, which will mask future drift in those files.",
+          "`backlog_db_export.py` injects `project` into `data` after id validation for non-`product_forge` tenants, so the written file differs from the DB row parity later compares.",
+          "`docs/GLOSSARY.md` appends `PF_BACKLOG_DB` after the document's closing \"One line\" statement."
+        ],
+        "SUMMARY": [
+          "Direction is right and much of the cutover is genuinely implemented (scoped allowlist, tenant-bound Go store, preflight, export/prune guards, fail-closed reads), but two integrity blockers remain: the DB-mode CI job is neutralised by the new root conftest, and 0023 does not enforce global-ID uniqueness for new rows.",
+          "Highest residual risk: item vs ID authority resolve different defaults, so the \"single allowlist, no Git fallback\" invariant can silently split.",
+          "Secondary risks: rollback export can destroy the file authority before rewriting it, tenant context is a 500 rather than the declared 503 when the GUC is truly unset, and 0023 deploys without the 0021-style preflight/backup discipline.",
+          "Not approvable as-is."
+        ]
+      },
+      "evidence": "BI-PF-1531-e52ccabdd49a.json"
     }
   ],
   "review_dispositions": {
@@ -2674,7 +2737,7 @@
   "control_evidence": [
     {
       "control_id": "CTL-BACKLOG-DB-DEFAULT",
-      "sha": "273ddadde52a183c1360e24b6f2bd5ad5413bbca-d52376d68576",
+      "sha": "273ddadde52a183c1360e24b6f2bd5ad5413bbca-0d9df8a75ab2",
       "result": "PASS",
       "evidence": "engineering/evidence/BI-PF-1531/current-sha-control.txt"
     }
