@@ -20,7 +20,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
-from core import backlog, backlog_scope  # noqa: E402
+from core import backlog  # noqa: E402
 
 
 def tenant_for_item(it: dict, path: Path) -> str:
@@ -78,7 +78,7 @@ def main() -> int:
             if a.tenant:
                 if tenant != a.tenant:
                     continue
-            elif not backlog_scope.enabled(tenant):
+            elif not backlog._db_for(tenant):
                 print(f"backfill: skip unlisted tenant {tenant} ({f})", file=sys.stderr)
                 continue
         except ValueError as e:

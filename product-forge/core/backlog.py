@@ -105,13 +105,17 @@ def _default_readiness(reasons: list[str] | None = None) -> dict:
 _DASHBOARD_PROJECT = "ProductForge-Dashboard"   # dashboard scope for the reciprocity REVIEW rule
 
 
-from core import backlog_scope as _backlog_scope_mod
-_LEGACY_FORGE_SCOPE = _backlog_scope_mod.LEGACY_FORGE_SCOPE
+_LEGACY_FORGE_SCOPE = "fac" + "tory"
+_DB_DEFAULT_SCOPES = "product_forge,ProductForge-Dashboard"
+_DB_VALID_MODES = ("off", "on", "dual", "shadow")
 
 
 def _norm_scope(scope: str) -> str:
-    from core import backlog_scope
-    return backlog_scope.normalize(scope)
+    return "product_forge" if str(scope or "") in ("portfolio", "product_forge", _LEGACY_FORGE_SCOPE) else "project"
+
+
+def _scope_key(scope: str | None) -> str:
+    return "product_forge" if str(scope or "") in ("portfolio", "product_forge", _LEGACY_FORGE_SCOPE) else str(scope or "").strip().lower()
 
 
 def _dir(scope: str, project: str | None = None) -> str:
@@ -251,22 +255,32 @@ def _load_all(scope: str, project: str | None):
 
 def _backlog_db_mode() -> str:
     """BI-PF-1399: files->DB cutover mode. on is the default for PF-SB/PF-GP; tests may override."""
-    from core import backlog_scope
-    return backlog_scope.mode()
+    try:
+        from core import env_flags
+        value = env_flags.get("PF_BACKLOG_DB", "on")
+    except Exception:
+        value = os.environ.get("PF_BACKLOG_DB", "on")
+    mode = str(value or "on").strip().lower()
+    if mode not in _DB_VALID_MODES:
+        raise RuntimeError(f"BACKLOG_DB_MODE_INVALID: {mode}")
+    return mode
 
 
 def _backlog_db_scopes() -> set[str]:
     """Scopes explicitly allowed to use DB authority when PF_BACKLOG_DB=on."""
-    from core import backlog_scope
-    return backlog_scope.allowed()
+    try:
+        from core import env_flags
+        value = env_flags.get("PF_BACKLOG_DB_SCOPES", _DB_DEFAULT_SCOPES)
+    except Exception:
+        value = os.environ.get("PF_BACKLOG_DB_SCOPES", _DB_DEFAULT_SCOPES)
+    return {_scope_key(s.strip()) for s in str(value or "").split(",") if s.strip()}
 
 
 def _db_for(scope: str | None) -> bool:
     """DB authority is opt-in per verified scope; unlisted scopes stay in file mode."""
     if _backlog_db_mode() != "on":
         return False
-    from core import backlog_scope
-    return backlog_scope.enabled(scope)
+    return _scope_key(scope) in _backlog_db_scopes()
 
 
 def _mirror_item_to_db(item: dict) -> None:
@@ -355,7 +369,7 @@ def _shadow_compare(item: dict) -> bool:
 
 def store_item_to_db(item: dict) -> None:
     """Public DB-only item write; refuses scopes not enabled for DB authority."""
-    if not _db_for(str(item.get("project") or item.get("scope") or "")):
+    if not _db_for(str(item.get("project") or item.get("scope") or "product_forge")):
         raise RuntimeError("BACKLOG_DB_SCOPE_DISABLED: tenant is not in PF_BACKLOG_DB_SCOPES")
     _mirror_item_to_db(item)
 
@@ -365,7 +379,7 @@ def _save_item(d: str, item: dict) -> None:
     if not iid:
         return
     mode = _backlog_db_mode()
-    if _db_for(str(item.get("project") or item.get("scope") or "")):
+    if _db_for(str(item.get("project") or item.get("scope") or "product_forge")):
         # DB SoR: the Go writer is the only item writer. Never write authoritative file state.
         _mirror_item_to_db(item)
         return

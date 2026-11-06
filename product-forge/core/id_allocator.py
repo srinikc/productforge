@@ -306,10 +306,8 @@ def reserve(scope: str, project: str | None = None, size: int = 0, session: str 
 
 
 def _db_enabled(scope: str | None = None, project: str | None = None) -> bool:
-    from core import backlog_scope
-    if backlog_scope.mode() != "on":
-        return False
-    return backlog_scope.enabled(str(project or scope or ""))
+    from core import backlog
+    return backlog._db_for(str(project or scope or ""))
 
 
 def _reserve_db(scope: str, project: str | None, size: int) -> dict | None:
