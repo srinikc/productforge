@@ -52,7 +52,20 @@
     "Not specified."
   ],
   "affected_files": [
-    "Not specified."
+    "Not specified.",
+    "core/backlog.py",
+    "core/id_allocator.py",
+    "config/env-flags.json",
+    "scripts/dev/precheck.py",
+    "scripts/dev/backlog_db_backfill.py",
+    "scripts/dev/backlog_db_parity.py",
+    "go/edpdata/backlog.go",
+    "migrations/0021_backlog_scoped_uniqueness.up.sql",
+    "migrations/0021_backlog_scoped_uniqueness.down.sql",
+    "test-framework/tests/pipeline/test_backlog_db_cutover.py",
+    ".github/workflows/structure.yml",
+    ".github/workflows/full-sweep.yml",
+    "docs/BACKLOG-DB-SSOT.md"
   ],
   "approach": "EDP: make PostgreSQL backlog authority the default for PF-SB and PF-GP scopes",
   "review": {
@@ -215,7 +228,16 @@
         "core/backlog.py",
         "core/id_allocator.py",
         "scripts/dev/backlog_db_parity.py",
-        ".github/workflows/"
+        ".github/workflows/",
+        "scripts/dev/precheck.py",
+        "scripts/dev/backlog_db_backfill.py",
+        "go/edpdata/backlog.go",
+        "migrations/0021_backlog_scoped_uniqueness.up.sql",
+        "migrations/0021_backlog_scoped_uniqueness.down.sql",
+        "test-framework/tests/pipeline/test_backlog_db_cutover.py",
+        ".github/workflows/structure.yml",
+        ".github/workflows/full-sweep.yml",
+        "docs/BACKLOG-DB-SSOT.md"
       ],
       "config": [
         "config/env-flags.json"
@@ -280,7 +302,8 @@
       "Set PF_BACKLOG_DB=off and restart; retain DB tables."
     ],
     "decisions": [
-      "DB is the default authority for PF-SB and PF-GP."
+      "Legacy cross-scope duplicates use scoped uniqueness; new IDs stay globally unique.",
+      "PF-SB parity is clean for tenant product_forge; legacy PF-GP rows are preserved."
     ],
     "guardrails": [
       "No silent fallback.",

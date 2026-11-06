@@ -102,7 +102,7 @@ func (s *BacklogStore) Authority(ctx context.Context) (Authority, error) {
 			        JOIN pg_policies p ON p.tablename=c.relname AND p.schemaname='public'
 			        WHERE c.relname='backlog_items' AND c.relrowsecurity AND c.relforcerowsecurity
 			          AND p.policyname='tenant_isolation'),
-			EXISTS (SELECT 1 FROM schema_migrations WHERE version IN (16,18,19,20) HAVING count(*)=4)`)
+			EXISTS (SELECT 1 FROM schema_migrations WHERE version IN (16,18,19,20,21) HAVING count(*)=5)`)
 		if err != nil {
 			return err
 		}
@@ -196,7 +196,7 @@ func (s *BacklogStore) Put(ctx context.Context, it BacklogItem) (BacklogItem, er
 		n, err := tx.Exec(ctx,
 			`INSERT INTO backlog_items (id, tenant_id, scope, project_id, type, status, title, body, data, revision)
 			 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10)
-			 ON CONFLICT (id) DO UPDATE SET
+			 ON CONFLICT (tenant_id, id) DO UPDATE SET
 			   scope=EXCLUDED.scope, project_id=EXCLUDED.project_id,
 			   type=EXCLUDED.type, status=EXCLUDED.status,
 			   title=EXCLUDED.title, body=EXCLUDED.body, data=EXCLUDED.data,
@@ -310,7 +310,7 @@ func (s *BacklogStore) Get(ctx context.Context, id string) (BacklogItem, error) 
 	var found bool
 	err := s.db.WithTx(ctx, func(tx datastore.Tx) error {
 		rows, err := tx.Query(ctx,
-			`SELECT id, tenant_id, scope, COALESCE(project_id, ''), type, status, title, body, data, revision FROM backlog_items WHERE id=$1`, id)
+			`SELECT id, tenant_id, scope, COALESCE(project_id, ''), type, status, title, body, data, revision FROM backlog_items WHERE id=$1 AND tenant_id = current_setting('app.tenant_id', true)`, id)
 		if err != nil {
 			return err
 		}
@@ -362,7 +362,7 @@ func (s *BacklogStore) List(ctx context.Context, status string, limit int) ([]Ba
 func (s *BacklogStore) Delete(ctx context.Context, id string) error {
 	var affected int64
 	err := s.db.WithTx(ctx, func(tx datastore.Tx) error {
-		n, err := tx.Exec(ctx, `DELETE FROM backlog_items WHERE id=$1`, id)
+		n, err := tx.Exec(ctx, `DELETE FROM backlog_items WHERE id=$1 AND tenant_id = current_setting('app.tenant_id', true)`, id)
 		affected = n
 		return err
 	})

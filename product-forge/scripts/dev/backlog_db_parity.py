@@ -10,40 +10,44 @@ from __future__ import annotations
 import json
 import os
 import sys
+import argparse
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 ITEMS = ROOT / "data" / "backlog" / "items"
 
 
-def file_items() -> dict[str, dict]:
+def item_tenant(d: dict) -> str:
+    return str(d.get("project") or d.get("scope") or "product_forge")
+
+
+def file_items(tenant: str) -> dict[str, dict]:
     out = {}
     for f in ITEMS.glob("*.json"):
         d = json.loads(f.read_text(encoding="utf-8"))
-        if d.get("id"):
+        if d.get("id") and item_tenant(d) == tenant:
             out[d["id"]] = d
     return out
 
 
-def file_ids() -> set[str]:
-    return set(file_items().keys())
-
-
 def main() -> int:
+    ap = argparse.ArgumentParser(description="Scoped backlog file/DB parity")
+    ap.add_argument("--tenant", default="product_forge")
+    a = ap.parse_args()
     dsn = os.environ.get("PF_DB_DSN")
     if not dsn:
         print("PF_DB_DSN required", file=sys.stderr)
         return 2
-    fitems = file_items()
+    fitems = file_items(a.tenant)
     fids = set(fitems)
     import psycopg
     with psycopg.connect(dsn) as c, c.cursor() as cur:
-        cur.execute("SELECT id, data FROM backlog_items")
+        cur.execute("SELECT id, data FROM backlog_items WHERE tenant_id=%s", (a.tenant,))
         drows = {r[0]: r[1] for r in cur.fetchall()}
     missing = sorted(fids - set(drows))
     extra = sorted(set(drows) - fids)
     mism = [i for i in sorted(fids & set(drows)) if drows[i] != fitems[i]]
-    print(f"backlog parity: files={len(fids)} db={len(drows)} missing_in_db={len(missing)} "
+    print(f"backlog parity[{a.tenant}]: files={len(fids)} db={len(drows)} missing_in_db={len(missing)} "
           f"extra_in_db={len(extra)} data_mismatch={len(mism)}")
     if missing or extra or mism:
         for i in missing[:10]:

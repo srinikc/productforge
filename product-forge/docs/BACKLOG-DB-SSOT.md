@@ -15,7 +15,7 @@ share the same PostgreSQL backlog store, the same Go writer, and one global ID a
 
 ## Migration
 
-Apply migration `0016_backlog_db_authority` with the normal explicit deploy migration step.
+Apply migrations through `0021_backlog_scoped_uniqueness` with the normal explicit deploy migration step. Migration 0021 allows legacy duplicate IDs across tenants while new IDs remain globally unique.
 
 It creates:
 
@@ -36,7 +36,14 @@ python scripts/dev/backlog_db_backfill.py
 ```
 
 The backfill scans PF-SB and generated-product item files. It is idempotent because
-`BacklogStore.Put` upserts by item id.
+`BacklogStore.Put` upserts by `(tenant_id, id)`.
+
+Verify parity per tenant:
+
+```bash
+PF_DB_DSN=... python scripts/dev/backlog_db_parity.py --tenant product_forge
+```
+
 
 ## Activate
 
