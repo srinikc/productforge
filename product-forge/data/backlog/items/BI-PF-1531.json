@@ -152,6 +152,22 @@
       "mode": "diff",
       "hil_confirmed": true,
       "note": "HIL requested separate BI-PF-1532 spec-chain item and final evidence."
+    },
+    {
+      "at": "2026-11-06T18:30:59.928563+00:00",
+      "by": "hil:user",
+      "decision": "MATERIAL_CHANGE",
+      "mode": "design",
+      "hil_confirmed": true,
+      "note": "HIL-requested split and final spec-chain completion."
+    },
+    {
+      "at": "2026-11-06T18:30:59.928582+00:00",
+      "by": "hil:user",
+      "decision": "MATERIAL_CHANGE",
+      "mode": "diff",
+      "hil_confirmed": true,
+      "note": "HIL-requested split and final spec-chain completion."
     }
   ],
   "follow_up": {},
@@ -389,7 +405,7 @@
     "usage": {}
   },
   "created_at": "2026-11-06T14:50:10.299482",
-  "updated_at": "2026-11-07T00:00:04.223781",
+  "updated_at": "2026-11-07T00:03:31.806351",
   "score": 0.5,
   "_note": "readiness computed",
   "api_impact": {
@@ -1761,6 +1777,61 @@
         ]
       },
       "evidence": "BI-PF-1531-8df77151764d.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "5ef551ef6abb2d9788140757a3b29c139bc2a257",
+      "review_sha": "b7bbce3fd98c",
+      "model": "deepseek-v4.1-flash",
+      "at": "2026-11-06T18:33:31.533459+00:00",
+      "review_scope": "full_candidate",
+      "base_sha": "",
+      "head_sha": "5ef551ef6abb2d9788140757a3b29c139bc2a257",
+      "findings": {
+        "BLOCKER": [
+          "`backlog_db_export.py --prune` deletes every projection file whose id is not in the DB; the only guard is \"zero DB rows\", not verified parity/backup confirmation, so a partial backfill (or an unlisted/skipped tenant) followed by the documented rollback command destroys the authoritative file backlog (data loss).",
+          "Export writes projections with plain `write_text` (no temp+rename/fsync); a crash mid-rollback leaves truncated JSON in the file authority the system falls back to.",
+          "AC-2 isolation is incomplete: no repo-wide pytest pin (conftest/pytest.ini) is added, only 3-4 tests set `PF_BACKLOG_DB=off` explicitly; every untouched test that touches backlog now defaults to `on`, calls edpsvc and fails closed — and the asserted `.github/workflows/*`/evidence files are not in this diff."
+        ],
+        "MAJOR": [
+          "`ErrTenantContext` covers both missing and *mismatched* tenant, and edpsvc maps it to 503 everywhere; a mismatch is a permanent client/authz error (400/403) — 503 marks it retryable and masks potential cross-tenant attempts.",
+          "Design and `BACKLOG-DB-SSOT.md` claim `edp_backlog_authority_*` metrics and \"tests assert metrics\", but no Go metric is added and no test asserts it — observability AC is asserted, not implemented.",
+          "`spec_pack._exists` hard-fails on evidence paths (`engineering/evidence/BI-PF-1531/*`, parity/bench/rollback files) that this diff does not add; gate1/precheck will block unless those artifacts are committed, so the AC-3/AC-5 evidence claims are currently unsupported.",
+          "`core/id_allocator.py` now calls the private `backlog._db_for` — inverted coupling and a second copy of authority resolution; `\"PF_BACKLOG_DB=on is required\"` no longer describes the real gate (scope allowlist), misleading operators on fail-closed paths.",
+          "`_db_for` rebuilds config/allowlist on every call (twice via `_backlog_db_scopes` → `_backlog_db_mode`), per item in list/save/delete paths; no reuse, no caching of an immutable config decision.",
+          "`conformance_check` only checks that `coverage[].evidence`/`traceability.evidence` are non-empty strings (no existence/SHA check), unlike `spec_pack`; FR→evidence conformance can be satisfied with fabricated paths.",
+          "`precheck.main` hard-sets `PF_BACKLOG_DB=off` in-process, duplicating the workflow-level pin and making any on-mode exercise through precheck impossible; this env stomp silently applies to all gates/subprocesses.",
+          "Destructive prune is not bounded by a report/dry-run diff: `--dry-run` returns before computing written/pruned sets, so operators cannot preview deletions before running `--overwrite --prune`."
+        ],
+        "MINOR": [
+          "`functional_spec.fresh()`/`spec_pack.fresh()` compare only text after the first two lines, so header drift (`FUNCTIONAL_SHA`, version, status) is never reported stale — the frozen-SHA freshness gate is weak.",
+          "`_date()` (duplicated in `functional_spec` and `spec_pack`) re-raises on malformed `created_at`, crashing `--all` instead of reporting a per-item problem.",
+          "0021 preflight/guard check `traceability.tenant_id` NULLs but not `backlog_items.tenant_id` NULLs, which the composite PK add would reject mid-migration.",
+          "`backlog_db_backfill.py` docstring still instructs `PF_API_TOKEN` while the code requires `PF_EDP_TOKEN`/`PF_ADMIN_TOKEN` — env doc drift (AC-1 consistency).",
+          "`docs/BACKLOG-DB-SSOT.md` now has two rollback sections, an orphaned numbered list under `## Rollback`, and duplicated generated-product sections — doc inconsistency for AC-1.",
+          "`docs/PF-DESIGN-DELIVERY-CONTRACT.md` new spec-chain line renders arrows as `?` (mojibake); re-run the encoding gate on this file.",
+          "`_DB_WARNED_SCOPES` is unbounded, process-global mutable state without a lock, and warns only once per process — poor operational diagnosability for repeated unlisted-scope traffic.",
+          "`_load_all_from_db` assumes the payload is an object; a list/scalar response raises `AttributeError` outside the `BACKLOG_DB_*` error taxonomy.",
+          "`spec_pack._exists` accepts absolute and `../` paths, so artifact/evidence validation can point outside the repository.",
+          "Tests obfuscate literals (`\".\" + \"json\"`, `\".\" + \"yml\"`, `\"fac\" + \"tory\"`) to dodge content gates; this hides intent and undermines the excluded-content/encoding checks.",
+          "Gate 0.5 + spec-chain enforcement + three new mandatory precheck gates are bundled into a storage-authority item, raising blast radius on all future items (scope creep).",
+          "`design_pack.ac_evidence` uses sha `HEAD` rather than a frozen SHA, contradicting the contract's \"evidence bound to the frozen SHA\".",
+          "Rollback is tested only at unit level with a fake `psycopg`; no test/job exercises export → parity → `off` against a real DB, so AC-5's end-to-end claim is unproven.",
+          "`backlog_db_bench.py` derives p95 from ~20 samples with no warm/cold separation, so the 50 ms SLO evidence is statistically weak."
+        ],
+        "NIT": [
+          "`core/backlog.py` `_norm_scope` and `_scope_key` overlap in intent; readers must diff two near-identical predicates.",
+          "Go `List` mixes `$3` (bound) with `$1/$2`, an easy-to-break parameter ordering.",
+          "`functional_spec.main`/`spec_pack.main` return 1 with no diagnostic when neither `--check`, `--render` nor `--fresh` is supplied."
+        ],
+        "SUMMARY": [
+          "Direction is right: mode default flip, per-scope allowlist, tenant-scoped Go reads/writes, composite-key migration, and parity/export tooling all map to the ACs.",
+          "Two blockers: destructive `--prune` export without parity/backup gating (file-authority data loss) and incomplete file-mode isolation after the default flip.",
+          "Observability is documented but not implemented, and the evidence artifacts the new gates existence-check are absent from the diff — both must be closed before Gate 2.5.",
+          "Open prior MAJORs (PF-GP scope default, cross-tenant backfill overwrite) remain unresolved and compound the prune risk."
+        ]
+      },
+      "evidence": "BI-PF-1531-b7bbce3fd98c.json"
     }
   ],
   "review_dispositions": {
@@ -2366,7 +2437,7 @@
   "control_evidence": [
     {
       "control_id": "CTL-BACKLOG-DB-DEFAULT",
-      "sha": "273ddadde52a183c1360e24b6f2bd5ad5413bbca-89147536320f",
+      "sha": "273ddadde52a183c1360e24b6f2bd5ad5413bbca-4540460a2f2b",
       "result": "PASS",
       "evidence": "engineering/evidence/BI-PF-1531/current-sha-control.txt"
     }
