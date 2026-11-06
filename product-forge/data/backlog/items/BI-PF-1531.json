@@ -277,7 +277,9 @@
     "core/backlog.py",
     ".env.example",
     "../.github/workflows/structure.yml",
-    "../.github/workflows/full-sweep.yml"
+    "../.github/workflows/full-sweep.yml",
+    "migrations/0023_backlog_global_id_guard.up.sql",
+    "migrations/0023_backlog_global_id_guard.down.sql"
   ],
   "approach": "EDP: make PostgreSQL backlog authority the default for PF-SB and PF-GP scopes",
   "review": {
@@ -489,7 +491,8 @@
         "Existing edpsvc backlog API."
       ],
       "db": [
-        "Migration 0021 changes the backlog_items primary key to (tenant_id,id) and re-points traceability FK."
+        "Migration 0021 changes the backlog_items primary key to (tenant_id,id) and re-points traceability FK.",
+        "migrations/0023_backlog_global_id_guard.up.sql adds legacy_duplicate, partial unique index, and global-ID trigger; down reverses it."
       ],
       "files": [
         "config/env-flags.json",
@@ -508,7 +511,9 @@
         "docs/BACKLOG-DB-SSOT.md",
         "test-framework/tests/test_backlog_migrations.py",
         ".github/workflows/backlog-db.yml",
-        "scripts/dev/backlog_migration_preflight.py"
+        "scripts/dev/backlog_migration_preflight.py",
+        "migrations/0023_backlog_global_id_guard.up.sql",
+        "migrations/0023_backlog_global_id_guard.down.sql"
       ],
       "config": [
         "config/env-flags.json"
@@ -866,7 +871,7 @@
     ],
     "deployment_rollout": [
       "Verify backup artifact, run preflight, stop old writers.",
-      "Apply 0021 (in-SQL NULL/orphan guard), then optional 0022 index, then start new binary.",
+      "Apply 0021 (in-SQL NULL/orphan guard), then 0022 index, then 0023 global-ID guard, then start new binary.",
       "Backfill only allowlisted tenants via public store_item_to_db; parity; enable on.",
       "Rollback: quiesce writers, export, parity, off, restart."
     ],
@@ -2995,7 +3000,8 @@
       "Backfill upserts by (tenant_id,id)",
       "Delete is tenant-scoped",
       "Export with --prune removes projections absent from DB",
-      "Legacy duplicate IDs are preserved per tenant"
+      "Legacy duplicate IDs are preserved per tenant",
+      "0023 marks legacy duplicates and enforces new global-ID uniqueness for non-legacy rows."
     ],
     "compatibility": [
       "Existing /backlog routes unchanged",
