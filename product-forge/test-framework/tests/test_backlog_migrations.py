@@ -38,3 +38,13 @@ def test_traceability_tenant_index_migration():
     down = (MIGS / f"{name}.down.sql").read_text(encoding="utf-8")
     assert "CREATE INDEX IF NOT EXISTS idx_traceability_tenant_item" in up
     assert "DROP INDEX IF EXISTS idx_traceability_tenant_item" in down
+
+
+def test_global_id_guard_migration():
+    name = "0023_backlog_global_id_guard"
+    up = (MIGS / f"{name}.up.sql").read_text(encoding="utf-8")
+    down = (MIGS / f"{name}.down.sql").read_text(encoding="utf-8")
+    assert "legacy_duplicate" in up
+    assert "uq_backlog_items_new_global_id" in up
+    assert "backlog_global_id_guard" in up
+    assert "lock_timeout" in up and "lock_timeout" in down

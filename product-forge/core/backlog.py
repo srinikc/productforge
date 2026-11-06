@@ -296,8 +296,10 @@ def _db_for(scope: str | None) -> bool:
 
 
 def db_authority_enabled(scope: str | None, project: str | None = None) -> bool:
-    """Public resolver used by ID allocation and tooling."""
-    return _db_for(str(project or scope or ""))
+    """Public resolver used by ID allocation and tooling (on/dual/shadow keep DB IDs)."""
+    if _backlog_db_mode() not in ("on", "dual", "shadow"):
+        return False
+    return _scope_key(str(project or scope or "")) in _backlog_db_scopes()
 
 
 def _mirror_item_to_db(item: dict) -> None:
@@ -1758,7 +1760,7 @@ def delete(scope: str, project: str | None, eid: str) -> dict | None:
                       os.path.join(d, "history", f"{eid}.jsonl")):
                 with contextlib.suppress(Exception):
                     os.remove(p)
-        _write_indexes(scope, project, op, cl)
+            _write_indexes(scope, project, op, cl)
     finally:
         _unlock(lp)
     if parent:

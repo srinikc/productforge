@@ -69,6 +69,9 @@ def main() -> int:
             pass
     out.mkdir(parents=True, exist_ok=True)
     written = skipped = pruned = 0
+    for _iid, _data in rows:
+        if a.tenant != "product_forge" and isinstance(_data, dict):
+            _data.setdefault("project", a.tenant)
     for p in prunable:
         p.unlink()
         pruned += 1
@@ -85,6 +88,17 @@ def main() -> int:
             _os.fsync(f.fileno())
         tmp.replace(p)
         written += 1
+    if out.resolve() == target_dir(a.tenant).resolve():
+        try:
+            from core import backlog
+            op, cl = [], []
+            for _iid, _data in rows:
+                (cl if backlog._normalize_status(_data.get("status", "new")) in backlog._CLOSED else op).append(_data)
+            backlog._write_indexes("product_forge" if a.tenant == "product_forge" else "project",
+                                   None if a.tenant == "product_forge" else a.tenant, op, cl)
+        except Exception as e:
+            print(f"export: index refresh failed: {e}", file=sys.stderr)
+            return 1
     print(f"export: tenant={a.tenant} rows={len(rows)} written={written} skipped={skipped} pruned={pruned} out={out}")
     return 0
 
