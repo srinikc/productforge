@@ -366,6 +366,48 @@ def _prior_context(item: dict, item_id: str, mode: str) -> str:
     return "\n".join(lines)
 
 
+def design_delta_fields(item: dict, previous: dict) -> dict:
+    """Changed design fields vs a prior item version. design_pack is diffed per section."""
+    changed = []
+    delta = {}
+    for key in (*_DESIGN_KEYS, "review"):
+        if item.get(key) == previous.get(key):
+            continue
+        changed.append(key)
+        if key == "design_pack":
+            cur = item.get(key) or {}
+            old = previous.get(key) or {}
+            sections = {}
+            for section in sorted(set(cur) | set(old)):
+                if cur.get(section) != old.get(section):
+                    sections[section] = cur.get(section)
+            delta[key] = sections
+        else:
+            delta[key] = item.get(key)
+    return {"changed_fields": changed, "delta": delta}
+
+
+def _item_at(base: str, item_id: str) -> dict:
+    """Load the item JSON at a prior commit; empty when unavailable (caller fails closed)."""
+    try:
+        import subprocess
+        repo = Path(_git_text(["rev-parse", "--show-toplevel"]).strip())
+        path = (ROOT / "data" / "backlog" / "items" / f"{item_id}.json").resolve()
+        rel = path.relative_to(repo.resolve()).as_posix()
+        raw = _git_text(["show", f"{base}:{rel}"])
+        data = json.loads(raw)
+        return data if isinstance(data, dict) else {}
+    except Exception:
+        return {}
+
+
+def _design_delta(item: dict, item_id: str, base: str) -> dict | None:
+    previous = _item_at(base, item_id)
+    if not previous:
+        return None
+    return design_delta_fields(item, previous)
+
+
 def _build_prompt(item: dict, item_id: str, mode: str, base: str = "") -> str:
     ac = "\n".join(f"- {c}" for c in (item.get("acceptance_criteria") or [])) or "- (none)"
     body = _design_body(item) if mode == "design" else "Diff:\n```diff\n" + _git_diff(base)[:500000] + "\n```"
@@ -401,6 +443,25 @@ def _build_prompt(item: dict, item_id: str, mode: str, base: str = "") -> str:
         except Exception:
             pass
     if mode == "design":
+        if base:
+            delta = _design_delta(item, item_id, base)
+            if delta is None:
+                prompt += ("\n\nDELTA DESIGN REVIEW SCOPE: the previous design could not be loaded. "
+                           "Review only the prior findings and their dispositions; do not open new findings "
+                           "outside a changed AC/contract/test/control/evidence field.")
+            else:
+                prompt += ("\n\nDELTA DESIGN REVIEW SCOPE: review only the changed design fields below. "
+                           "The full design above is context, not the review target. Do not re-review unchanged "
+                           "sections or open new findings outside these fields. Prior findings must be verified "
+                           "first and not reopened without new evidence. Tag unrelated issues `[OUT_OF_SCOPE]`; "
+                           "they cannot be blockers. Any AC/contract/test/control change must update the matching "
+                           "design rows and evidence in the same delta."
+                           "\n\nChanged design fields (authoritative delta):\n```json\n"
+                           + json.dumps(delta, ensure_ascii=False, sort_keys=True, indent=2)
+                           + "\n```")
+        prior = _prior_context(item, item_id, mode)
+        if prior:
+            prompt += "\n\n" + prior
         try:
             from design_guardrails import (
                 render as _render_guardrails,  # BI-PF-1467: design-time learnings
@@ -987,7 +1048,7 @@ def main(argv: list[str]) -> int:
         except Exception:
             print(f"review: invalid --since/base {base!r}")
             return 1
-        if not valid_since(base, _merge_base(), _reviewed_heads(a.item, "diff")):
+        if not valid_since(base, _merge_base(), _reviewed_heads(a.item, a.mode)):
             print(f"review: base {base!r} is not merge-base or a previously reviewed HEAD")
             return 1
         if not _is_ancestor(base, _git_text(["rev-parse", "HEAD"]).strip()):
