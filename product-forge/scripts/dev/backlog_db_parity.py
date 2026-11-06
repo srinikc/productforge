@@ -21,9 +21,11 @@ def item_tenant(d: dict) -> str:
     return str(d.get("project") or d.get("scope") or "product_forge")
 
 
-def file_items(tenant: str) -> dict[str, dict]:
+def file_items(tenant: str, source_dir: str = "") -> dict[str, dict]:
     out = {}
-    paths = list(ITEMS.glob("*.json")) + list((ROOT / "products").glob("*/data/backlog/items/*.json"))
+    base = Path(source_dir) if source_dir else None
+    paths = (list(base.glob("*.json")) if base else
+             list(ITEMS.glob("*.json")) + list((ROOT / "products").glob("*/data/backlog/items/*.json")))
     for f in paths:
         d = json.loads(f.read_text(encoding="utf-8"))
         if d.get("id") and item_tenant(d) == tenant:
@@ -34,12 +36,13 @@ def file_items(tenant: str) -> dict[str, dict]:
 def main() -> int:
     ap = argparse.ArgumentParser(description="Scoped backlog file/DB parity")
     ap.add_argument("--tenant", default="product_forge")
+    ap.add_argument("--source-dir", default="")
     a = ap.parse_args()
     dsn = os.environ.get("PF_DB_DSN")
     if not dsn:
         print("PF_DB_DSN required", file=sys.stderr)
         return 2
-    fitems = file_items(a.tenant)
+    fitems = file_items(a.tenant, a.source_dir)
     fids = set(fitems)
     import psycopg
     with psycopg.connect(dsn) as c, c.cursor() as cur:

@@ -103,7 +103,7 @@ func (s *BacklogStore) Authority(ctx context.Context) (Authority, error) {
 			        JOIN pg_policies p ON p.tablename=c.relname AND p.schemaname='public'
 			        WHERE c.relname='backlog_items' AND c.relrowsecurity AND c.relforcerowsecurity
 			          AND p.policyname='tenant_isolation'),
-			EXISTS (SELECT 1 FROM schema_migrations WHERE version IN (16,18,19,20,21) HAVING count(*)=5)`)
+			EXISTS (SELECT 1 FROM schema_migrations WHERE version IN (16,18,19,20,21,22) HAVING count(*)=6)`)
 		if err != nil {
 			return err
 		}
@@ -220,7 +220,7 @@ func (s *BacklogStore) Put(ctx context.Context, it BacklogItem) (BacklogItem, er
 			return err
 		}
 		if bound != it.TenantID {
-			return ErrTenantConflict
+			return ErrTenantContext
 		}
 		n, err := tx.Exec(ctx,
 			`INSERT INTO backlog_items (id, tenant_id, scope, project_id, type, status, title, body, data, revision)
@@ -338,11 +338,12 @@ func (s *BacklogStore) Get(ctx context.Context, id string) (BacklogItem, error) 
 	var it BacklogItem
 	var found bool
 	err := s.db.WithTx(ctx, func(tx datastore.Tx) error {
-		if _, err := requireTenant(ctx, tx); err != nil {
+		bound, err := requireTenant(ctx, tx)
+		if err != nil {
 			return err
 		}
 		rows, err := tx.Query(ctx,
-			`SELECT id, tenant_id, scope, COALESCE(project_id, ''), type, status, title, body, data, revision FROM backlog_items WHERE id=$1 AND tenant_id = current_setting('app.tenant_id', true)`, id)
+			`SELECT id, tenant_id, scope, COALESCE(project_id, ''), type, status, title, body, data, revision FROM backlog_items WHERE id=$1 AND tenant_id=$2`, id, bound)
 		if err != nil {
 			return err
 		}
@@ -371,12 +372,13 @@ func (s *BacklogStore) List(ctx context.Context, status string, limit int) ([]Ba
 	}
 	var out []BacklogItem
 	err := s.db.WithTx(ctx, func(tx datastore.Tx) error {
-		if _, err := requireTenant(ctx, tx); err != nil {
+		bound, err := requireTenant(ctx, tx)
+		if err != nil {
 			return err
 		}
 		rows, err := tx.Query(ctx,
 			`SELECT id, tenant_id, scope, COALESCE(project_id, ''), type, status, title, body, data, revision FROM backlog_items
-			 WHERE tenant_id = current_setting('app.tenant_id', true) AND ($1 = '' OR status = $1) ORDER BY created_at DESC LIMIT $2`, status, limit)
+			 WHERE tenant_id=$3 AND ($1 = '' OR status = $1) ORDER BY created_at DESC LIMIT $2`, status, limit, bound)
 		if err != nil {
 			return err
 		}
@@ -397,10 +399,11 @@ func (s *BacklogStore) List(ctx context.Context, status string, limit int) ([]Ba
 func (s *BacklogStore) Delete(ctx context.Context, id string) error {
 	var affected int64
 	err := s.db.WithTx(ctx, func(tx datastore.Tx) error {
-		if _, err := requireTenant(ctx, tx); err != nil {
+		bound, err := requireTenant(ctx, tx)
+		if err != nil {
 			return err
 		}
-		n, err := tx.Exec(ctx, `DELETE FROM backlog_items WHERE id=$1 AND tenant_id = current_setting('app.tenant_id', true)`, id)
+		n, err := tx.Exec(ctx, `DELETE FROM backlog_items WHERE id=$1 AND tenant_id=$2`, id, bound)
 		affected = n
 		return err
 	})

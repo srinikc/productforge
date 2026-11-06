@@ -72,7 +72,8 @@ jobs:
             echo "applying $f"
             psql -h 127.0.0.1 -U pf_owner -d productforge -v ON_ERROR_STOP=1 -f "$f"
           done
-          PF_BACKUP_CONFIRMED=1 python scripts/dev/backlog_migration_preflight.py
+          : > /tmp/pre-0021.backup
+          PF_BACKUP_CONFIRMED=1 PF_BACKUP_ARTIFACT=/tmp/pre-0021.backup python scripts/dev/backlog_migration_preflight.py
           psql -h 127.0.0.1 -U pf_owner -d productforge -v ON_ERROR_STOP=1 -f migrations/0021_backlog_scoped_uniqueness.up.sql
           psql -h 127.0.0.1 -U pf_owner -d productforge -v ON_ERROR_STOP=1 -f migrations/0022_traceability_tenant_index.up.sql
           psql -h 127.0.0.1 -U pf_owner -d productforge -v ON_ERROR_STOP=1 <<'SQL'
@@ -106,6 +107,9 @@ jobs:
           python scripts/dev/backlog_db_backfill.py
           python scripts/dev/backlog_db_parity.py --tenant product_forge
           python scripts/dev/backlog_db_export.py --tenant product_forge --dry-run
+          mkdir -p /tmp/pf-gp
+          python scripts/dev/backlog_db_export.py --tenant ProductForge-Dashboard --out-dir /tmp/pf-gp
+          python scripts/dev/backlog_db_parity.py --tenant ProductForge-Dashboard --source-dir /tmp/pf-gp
       - name: DB-mode, fail-closed, and rollback tests
         run: |
           python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py test-framework/tests/test_backlog_migrations.py -q

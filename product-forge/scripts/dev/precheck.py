@@ -644,7 +644,7 @@ def _main(argv=None) -> int:
 def main(argv=None) -> int:
     """Run the gates, then fail closed if the active worktree's Git state moved."""
     # Repo-only precheck reads file projections; DB-mode is exercised by its own integration job.
-    os.environ.setdefault("PF_BACKLOG_DB", "off")
+    os.environ["PF_BACKLOG_DB"] = "off"
     before = worktree_fingerprint(_ROOT)
     rc = _main(argv)
     after = worktree_fingerprint(_ROOT)

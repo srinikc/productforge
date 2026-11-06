@@ -14,6 +14,8 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 def target_dir(tenant: str) -> Path:
+    if not tenant or tenant in (".", "..") or any(x in tenant for x in ("/", "\\", ":")):
+        raise ValueError(f"invalid tenant path: {tenant!r}")
     if tenant == "product_forge":
         return ROOT / "data" / "backlog" / "items"
     return ROOT / "products" / tenant / "data" / "backlog" / "items"

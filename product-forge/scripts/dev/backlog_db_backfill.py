@@ -14,12 +14,13 @@ import json
 import os
 import sys
 import time
+import urllib.error
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
-from core import backlog  # noqa: E402
+from core import backlog, backlog_scope  # noqa: E402
 
 
 def tenant_for_item(it: dict, path: Path) -> str:
@@ -45,6 +46,7 @@ def main() -> int:
     ap = argparse.ArgumentParser(description="Backfill backlog files into PostgreSQL")
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--tenant", default="", help="only backfill this tenant")
+    ap.add_argument("--rate", type=float, default=float(os.environ.get("PF_BACKLOG_DB_BACKFILL_RPS", "8")))
     a = ap.parse_args()
     if not os.environ.get("PF_EDP_API_URL"):
         print("PF_EDP_API_URL is required", file=sys.stderr)
@@ -68,10 +70,16 @@ def main() -> int:
             fail += 1
             continue
         if not isinstance(it, dict) or not it.get("id"):
+            print(f"backfill: invalid item file {f}", file=sys.stderr)
+            fail += 1
             continue
         try:
             tenant = tenant_for_item(it, f)
-            if a.tenant and tenant != a.tenant:
+            if a.tenant:
+                if tenant != a.tenant:
+                    continue
+            elif not backlog_scope.enabled(tenant):
+                print(f"backfill: skip unlisted tenant {tenant} ({f})", file=sys.stderr)
                 continue
         except ValueError as e:
             print(f"backfill: {e}", file=sys.stderr)
@@ -82,9 +90,16 @@ def main() -> int:
             ok += 1
             continue
         try:
-            backlog._mirror_item_to_db(it)
+            try:
+                backlog._mirror_item_to_db(it)
+            except urllib.error.HTTPError as e:
+                if e.code != 429:
+                    raise
+                retry = float(e.headers.get("Retry-After") or 1)
+                time.sleep(retry)
+                backlog._mirror_item_to_db(it)
             ok += 1
-            time.sleep(0.12)
+            time.sleep(1.0 / max(a.rate, 0.1))
         except Exception as e:
             print(f"backfill: {it['id']} failed: {e}", file=sys.stderr)
             fail += 1

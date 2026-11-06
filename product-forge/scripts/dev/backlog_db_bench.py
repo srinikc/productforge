@@ -36,12 +36,15 @@ def main() -> int:
         if i >= 2:
             db.append(ms)
     sql_ms: list[float] = []
+    point_api: list[float] = []
+    one_id = ""
     dsn = os.environ.get("PF_DB_DSN")
     if dsn:
         import psycopg
         with psycopg.connect(dsn) as c, c.cursor() as cur:
             cur.execute("SELECT id FROM backlog_items WHERE tenant_id=%s ORDER BY id LIMIT 1", (a.tenant,))
             one = cur.fetchone()[0]
+            one_id = one
             point_ms: list[float] = []
             for _ in range(a.iterations):
                 t = time.perf_counter()
@@ -53,11 +56,22 @@ def main() -> int:
                 cur.execute("SELECT id, data FROM backlog_items WHERE tenant_id=%s", (a.tenant,))
                 cur.fetchall()
                 sql_ms.append((time.perf_counter() - t) * 1000)
+    if one_id:
+        purl = f"{api}/backlog/{one_id}?tenant={a.tenant}"
+        for _ in range(a.iterations):
+            req = urllib.request.Request(purl, headers={"Authorization": f"Bearer {token}"})
+            t = time.perf_counter()
+            with urllib.request.urlopen(req, timeout=30) as r:
+                r.read()
+            point_api.append((time.perf_counter() - t) * 1000)
+    files = list((ROOT / "data" / "backlog" / "items").glob("*.json")) + list((ROOT / "products").glob("*/data/backlog/items/*.json"))
     file_ms: list[float] = []
     for _ in range(a.iterations):
         t = time.perf_counter()
-        for f in (ROOT / "data" / "backlog" / "items").glob("*.json"):
-            json.loads(f.read_text(encoding="utf-8"))
+        for f in files:
+            d = json.loads(f.read_text(encoding="utf-8"))
+            if str(d.get("project") or d.get("scope") or "product_forge") != a.tenant:
+                continue
         file_ms.append((time.perf_counter() - t) * 1000)
     out = {
         "tenant": a.tenant,
@@ -69,9 +83,10 @@ def main() -> int:
         "file_p95_ms": round(pct(file_ms, 0.95), 2),
         "sql_p95_ms": round(pct(sql_ms, 0.95), 2) if sql_ms else None,
         "point_sql_p95_ms": round(pct(point_ms, 0.95), 2) if sql_ms else None,
+        "point_api_p95_ms": round(pct(point_api, 0.95), 2) if point_api else None,
         "t1_db_read_p95_ms": 50,
         "api_vs_file_ratio": round(pct(db, 0.95) / max(pct(file_ms, 0.95), 0.01), 2),
-        "db_read_pass": bool(sql_ms) and pct(point_ms, 0.95) <= 50,
+        "db_read_pass": bool(point_api) and pct(point_api, 0.95) <= 50,
         "no_regression_pass": pct(db, 0.95) <= max(pct(file_ms, 0.95) * 1.25, 150),
     }
     text = json.dumps(out, indent=2)

@@ -318,8 +318,8 @@ def _db_enabled(scope: str | None = None) -> bool:
         raise RuntimeError(f"BACKLOG_DB_MODE_INVALID: {mode}")
     if mode != "on":
         return False
-    allowed = {x.strip().lower() for x in str(scopes or "").split(",") if x.strip()}
-    return str(scope or "").strip().lower() in allowed
+    from core import backlog_scope
+    return backlog_scope.enabled(scope)
 
 
 def _reserve_db(scope: str, project: str | None, size: int) -> dict | None:

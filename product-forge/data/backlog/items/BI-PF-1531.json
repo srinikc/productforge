@@ -40,6 +40,14 @@
       "mode": "diff",
       "hil_confirmed": true,
       "note": "HIL directed completing DB-default cutover and final gates."
+    },
+    {
+      "at": "2026-11-06T14:22:13.767759+00:00",
+      "by": "hil:user",
+      "decision": "MATERIAL_CHANGE",
+      "mode": "diff",
+      "hil_confirmed": true,
+      "note": "HIL approved final Gate 2.5 review after all 19 findings were fixed/dispositioned."
     }
   ],
   "follow_up": {},
@@ -97,7 +105,11 @@
     "engineering/evidence/BI-PF-1531/backlog-db.workflow.yml",
     "engineering/evidence/BI-PF-1531/bench-t1.json",
     "go/edpdata/edpdata_test.go",
-    "docs/GLOSSARY.md"
+    "docs/GLOSSARY.md",
+    "core/backlog_scope.py",
+    ".env.example",
+    "../.github/workflows/structure.yml",
+    "../.github/workflows/full-sweep.yml"
   ],
   "approach": "EDP: make PostgreSQL backlog authority the default for PF-SB and PF-GP scopes",
   "review": {
@@ -273,7 +285,7 @@
     "usage": {}
   },
   "created_at": "2026-11-06T14:50:10.299482",
-  "updated_at": "2026-11-06T19:38:14.583078",
+  "updated_at": "2026-11-06T19:54:10.692437",
   "score": 0.5,
   "_note": "readiness computed",
   "api_impact": {
@@ -356,7 +368,7 @@
       "edpsvc exposes edp_backlog_authority_startup_ok, edp_backlog_authority_success_timestamp_seconds, and edp_backlog_authority_errors_total; BACKLOG_DB_* failures are logged with tenant and reason code."
     ],
     "performance": [
-      "No regression: DB API p95 <= max(file p95*1.25,150 ms); T1 point-read SQL p95 <=50 ms; include requireTenant round-trip in the boundary.",
+      "No regression: DB API p95 <= max(file p95*1.25,150 ms); point API/SQL p95 <=50 ms; benchmark includes tenant boundary and all file sources.",
       "Evidence: engineering/evidence/BI-PF-1531/bench-t1.json"
     ],
     "test_matrix": [
@@ -409,6 +421,16 @@
         "ac": "AC-1",
         "kind": "go-tenant",
         "test": "cd go/edpdata && go test ./..."
+      },
+      {
+        "ac": "AC-1",
+        "kind": "scope-consistency",
+        "test": "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q"
+      },
+      {
+        "ac": "AC-5",
+        "kind": "export-write",
+        "test": "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q"
       }
     ],
     "rollout": [
@@ -448,9 +470,9 @@
       ],
       "adapter": "core/backlog.py -> Go edpsvc /backlog -> PostgreSQL",
       "contract": [
-        "PF_BACKLOG_DB=on enables DB authority only for listed scopes; unlisted scopes stay file mode.",
-        "PF_BACKLOG_DB=off keeps file authority.",
-        "PF_EDP_API_URL/PF_ADMIN_TOKEN required when on."
+        "PF_BACKLOG_DB=on enables DB authority only for normalized scopes in PF_BACKLOG_DB_SCOPES; both items and IDs use core/backlog_scope.py.",
+        "Unlisted scopes stay file mode; invalid modes raise BACKLOG_DB_MODE_INVALID.",
+        "On-mode reads use a 2s tenant cache invalidated on writes/deletes."
       ],
       "failure_behavior": [
         "BACKLOG_DB_UNAVAILABLE for transport/DB failure; BACKLOG_DB_AUTH for 401/403; BACKLOG_DB_INVALID_RESPONSE for malformed JSON; ledger, list, get, put, and delete all map missing tenant context to 503."
@@ -564,7 +586,11 @@
         "engineering/evidence/BI-PF-1531/backlog-db.workflow.yml",
         "engineering/evidence/BI-PF-1531/bench-t1.json",
         "go/edpdata/edpdata_test.go",
-        "docs/GLOSSARY.md"
+        "docs/GLOSSARY.md",
+        "core/backlog_scope.py",
+        ".env.example",
+        "../.github/workflows/structure.yml",
+        "../.github/workflows/full-sweep.yml"
       ],
       "ac_ids": [
         "AC-1",
@@ -588,7 +614,8 @@
         "engineering/evidence/BI-PF-1531/parity.txt",
         "engineering/evidence/BI-PF-1531/failclosed-rollback-tests.txt",
         "engineering/evidence/BI-PF-1531/bench-t1.json",
-        "engineering/evidence/BI-PF-1531/backlog-db.workflow.yml"
+        "engineering/evidence/BI-PF-1531/backlog-db.workflow.yml",
+        "engineering/evidence/BI-PF-1531/current-sha-control.txt"
       ]
     },
     "rls_tenant": [
@@ -596,8 +623,8 @@
       "PF-SB and PF-GP rows remain tenant-partitioned."
     ],
     "rollback_recovery": [
-      "Run scripts/dev/backlog_db_export.py --tenant <scope> --dry-run, then --overwrite, and run parity before switching off.",
-      "Keep DB tables and the verified backup; restore from backup if 0021 down is refused.",
+      "Stop/quiesce writers, run backlog_db_export.py --tenant <scope> --dry-run then --overwrite, run parity, set PF_BACKLOG_DB=off, then restart writers.",
+      "Keep DB tables and verified backup; restore if 0021 down is refused.",
       "Never drop backlog tables as part of rollback."
     ],
     "security_model": [
@@ -873,6 +900,44 @@
         "entrypoint": "go/edpdata/backlog.go",
         "failure_cases": [
           "missing tenant"
+        ],
+        "runtime_capability": false
+      },
+      {
+        "ac": "AC-1",
+        "tests": [
+          "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q"
+        ],
+        "adapter": "scope resolver",
+        "contract": "one normalizer for items and IDs",
+        "evidence": [
+          "engineering/evidence/BI-PF-1531/current-sha-control.txt"
+        ],
+        "call_sites": [
+          "core/backlog_scope.py"
+        ],
+        "entrypoint": "core/backlog_scope.py",
+        "failure_cases": [
+          "unlisted scope"
+        ],
+        "runtime_capability": false
+      },
+      {
+        "ac": "AC-5",
+        "tests": [
+          "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q"
+        ],
+        "adapter": "export",
+        "contract": "write/skip/overwrite and traversal guard",
+        "evidence": [
+          "engineering/evidence/BI-PF-1531/failclosed-rollback-tests.txt"
+        ],
+        "call_sites": [
+          "backlog_db_export.py"
+        ],
+        "entrypoint": "scripts/dev/backlog_db_export.py",
+        "failure_cases": [
+          "invalid tenant path"
         ],
         "runtime_capability": false
       }
@@ -1175,6 +1240,51 @@
         ]
       },
       "evidence": "BI-PF-1531-ceb4295d28a8.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "276310bbc4e306077a3ddc7941d11990fdcf5c29",
+      "review_sha": "31d886b65bb7",
+      "model": "deepseek-v4.1-flash",
+      "at": "2026-11-06T14:24:10.432959+00:00",
+      "review_scope": "full_candidate",
+      "base_sha": "",
+      "head_sha": "276310bbc4e306077a3ddc7941d11990fdcf5c29",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [
+          "`PF_BACKLOG_DB_SCOPES` is the operative safety gate but is unregistered in `config/env-flags.json` (no default/purpose/owner) and absent from `.env.example`; AC-1 requires config/docs consistency and env-flags.json is the declared flag registry.",
+          "Scope allowlist is duplicated with divergent normalization: `core/backlog.py` compares via `_norm_scope`, `core/id_allocator.py` via `strip().lower()`, each hardcoding its own `\"product_forge,ProductForge-Dashboard\"` default — a scope can be DB-authoritative for items but file-authoritative for IDs, silently splitting ID authority.",
+          "Diff shows no pinning of `PF_BACKLOG_DB=off` in `structure.yml`/`full-sweep.yml` (both in scope, unchanged); with the default now on, existing file-mode suites reaching backlog code will attempt the HTTP path with a 30s timeout.",
+          "`_load_all_from_db` fetches the entire backlog in one `limit=100000` request with no pagination or caching on every read entrypoint; payload, memory and latency grow with tenant item count, undermining the p95 no-regression requirement.",
+          "`backlog_db_bench.py` times only `SELECT data ... WHERE tenant_id=%s AND id=%s` for the T1 figure, omitting the `requireTenant` round-trip the design mandates \"in the boundary\"; it also compares DB (all tenants) against root-only file items, so the evidence does not back the AC-1 performance claim.",
+          "AC-3 GP parity is unproven in CI: the pinned workflow contract asserts only `backlog_db_parity.py --tenant product_forge`; no diff line shows a parity run for the generated-product tenant (`ProductForge-Dashboard`).",
+          "`backlog_db_backfill.py` ignores `PF_BACKLOG_DB_SCOPES`: it forces mode on and walks every tenant on disk, so it either writes DB rows for tenants still file-authoritative, or (if the mirror honours `_db_for`) reports `ok=N` while writing nothing — untested in both directions."
+        ],
+        "MINOR": [
+          "`_load_all_from_db` maps every `HTTPError` (including 500/503) to `BACKLOG_DB_AUTH`, so genuine outages and tenant-context 503s are misfiled as auth failures.",
+          "`Put` returns `ErrTenantConflict` when `app.tenant_id != it.TenantID`, surfacing as 409 \"conflicts with another tenant\" — wrong reason code/status for a context mismatch against the declared taxonomy (`TENANT_CONTEXT_MISSING`, 503).",
+          "`precheck.py` uses `os.environ.setdefault(\"PF_BACKLOG_DB\",\"off\")`, which is a no-op once an operator exports the now-default `on`, so precheck silently leaves file mode.",
+          "`Authority()` requires migrations 16,18,19,20,21 but not 22; a DB migrated only through 0021 passes the startup gate with the traceability index missing, so cascaded deletes table-scan.",
+          "No test asserts that on-mode does *not* write file projections; only the off-mode file write is covered, so the \"no file-authoritative writes in on mode\" guardrail is unverified.",
+          "`backlog_db_export.py` write/skip/overwrite logic is untested (only `target_dir`), and AC-5 evidence exercises `--dry-run` only.",
+          "`requireTenant`'s returned tenant is discarded in `Get`/`List`/`Delete`, forcing a second `current_setting` evaluation and an extra round-trip per call; `rows.Err()` is never checked.",
+          "Rollback docs order export → parity → `off` with no quiesce/drain step, so writes between export and the flag flip are lost from the file projection."
+        ],
+        "NIT": [
+          "`time.sleep(0.12)` is a hardcoded throttle, not the tenant/global RPM backpressure the design claims; no 429 handling or resume marker.",
+          "`backlog_db_export.py target_dir()` interpolates the CLI tenant into a filesystem path with no traversal guard.",
+          "`PF_BACKUP_CONFIRMED=1` is self-attestation with no binding to an actual verified backup artifact or timestamp.",
+          "`backlog_db_backfill.py` silently skips files lacking an `id` without counting them as failures."
+        ],
+        "SUMMARY": [
+          "Direction is correct and the prior blockers (workflow mirror, product parity scan, List tenant guard) are genuinely addressed; the cutover logic, fail-closed mapping and migration pair are coherent.",
+          "Remaining risks are concentrated in configuration as code: the new scope allowlist is registered nowhere, resolved twice with different normalization, and not proven against CI file-mode suites.",
+          "Performance evidence does not measure the boundary it claims, and backfill/parity for the generated-product tenant is asserted rather than demonstrated.",
+          "Overall: not releasable as-is; the scope-allowlist single-source and CI off-pinning items should be closed before flipping the default."
+        ]
+      },
+      "evidence": "BI-PF-1531-31d886b65bb7.json"
     }
   ],
   "review_dispositions": {
@@ -1292,6 +1402,120 @@
         "severity": "NIT",
         "origin_class": "IMPLEMENTATION_GAP",
         "note": "backlog_db_backfill.py logs when it forces PF_BACKLOG_DB=on."
+      },
+      "sig:822c50768dbe95b6": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Registered PF_BACKLOG_DB_SCOPES in config/env-flags.json and .env.example."
+      },
+      "sig:d4052bf2ab1d1161": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Added core/backlog_scope.py; both core/backlog.py and core/id_allocator.py use it, tested by test_id_allocator_scope_gate."
+      },
+      "sig:026164062605fe08": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "structure.yml and full-sweep.yml now assert PF_BACKLOG_DB=off in CI, visible in the diff."
+      },
+      "sig:6e1bf202aa5e3c69": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Added 2s tenant cache with write/delete invalidation in core/backlog.py; full-list latency remains in benchmark evidence."
+      },
+      "sig:65f43889e0d75588": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "backlog_db_bench.py now measures point API p95 including tenant boundary and compares against all file sources; bench-t1.json."
+      },
+      "sig:88148e4ec86714f1": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "backlog-db workflow now exports ProductForge-Dashboard and runs parity with --source-dir, mirrored in engineering/evidence/BI-PF-1531/backlog-db.workflow.yml."
+      },
+      "sig:1d545e78f7f03b27": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "backfill.py enforces PF_BACKLOG_DB_SCOPES and --tenant before writing, and logs skipped unlisted tenants."
+      },
+      "sig:f327d9ac4b96373b": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "HTTPError mapping now separates 401/403 AUTH, 500/503 UNAVAILABLE, and other HTTP errors in core/backlog.py."
+      },
+      "sig:4c2f1dee7e365ea0": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Put tenant mismatch now returns ErrTenantContext, mapped to 503 in go/edpsvc/main.go."
+      },
+      "sig:fbbf4cf371d89a9e": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "precheck.py now forces PF_BACKLOG_DB=off instead of setdefault."
+      },
+      "sig:2fc83014b9980ece": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Authority() now requires migration 22 and count=6 in go/edpdata/backlog.go."
+      },
+      "sig:8c92dbdea3b7e4b0": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Added test_on_mode_never_writes_file in test-framework/tests/pipeline/test_backlog_db_cutover.py."
+      },
+      "sig:0a4ff172d8ecb9f2": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Added test_export_write_skip_overwrite covering write and skip behavior in test-framework/tests/pipeline/test_backlog_db_cutover.py."
+      },
+      "sig:546d6afd44b80216": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Get/List/Delete now use the tenant returned by requireTenant and query tenant_id directly in go/edpdata/backlog.go."
+      },
+      "sig:2c1f95501357e48d": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Added quiesce/drain before export and parity in docs/BACKLOG-DB-SSOT.md and engineering/design/BI-PF-1531.md."
+      },
+      "sig:cc2fbfefea241efe": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "backfill.py uses PF_BACKLOG_DB_BACKFILL_RPS and handles 429 Retry-After."
+      },
+      "sig:c2f1d80f2f5ee72c": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "backlog_db_export.py rejects path traversal in target_dir."
+      },
+      "sig:43ef963f3de468ec": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "preflight requires PF_BACKUP_ARTIFACT to exist and the workflow creates one in .github/workflows/backlog-db.yml."
+      },
+      "sig:f82ae1e188cb2e53": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "backfill.py counts files lacking id as failures."
       }
     },
     "design": {

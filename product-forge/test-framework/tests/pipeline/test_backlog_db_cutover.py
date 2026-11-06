@@ -210,3 +210,40 @@ def test_id_allocator_db_failure_never_falls_back(monkeypatch):
     monkeypatch.setattr(id_allocator, "_reserve_db", lambda *a, **k: None)
     with pytest.raises(RuntimeError, match="refusing a Git/local id fallback"):
         id_allocator._mint("product_forge", None, 0, 0)
+
+
+def test_on_mode_never_writes_file(monkeypatch, tmp_path):
+    from core import backlog
+    monkeypatch.setenv("PF_BACKLOG_DB", "on")
+    monkeypatch.setenv("PF_BACKLOG_DB_SCOPES", "product_forge")
+    calls = []
+    monkeypatch.setattr(backlog, "_mirror_item_to_db", lambda item: calls.append(item["id"]))
+    backlog._save_item(str(tmp_path), {"id": "BI-PF-700", "scope": "product_forge"})
+    assert calls == ["BI-PF-700"]
+    assert not (tmp_path / "items" / "BI-PF-700.json").exists()
+
+
+def test_export_write_skip_overwrite(monkeypatch, tmp_path):
+    import sys, types
+    from pathlib import Path as P
+    class Cur:
+        def execute(self, *a, **k): pass
+        def fetchall(self): return [("BI-PF-1", {"id": "BI-PF-1", "title": "x"})]
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+    class Conn:
+        def cursor(self): return Cur()
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def commit(self): pass
+    fake = types.SimpleNamespace(connect=lambda dsn: Conn())
+    monkeypatch.setitem(sys.modules, "psycopg", fake)
+    monkeypatch.setenv("PF_DB_DSN", "x")
+    root = P(__file__).resolve().parents[3]
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("exp", root / "scripts" / "dev" / "backlog_db_export.py")
+    m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+    monkeypatch.setattr(sys, "argv", ["x", "--tenant", "product_forge", "--out-dir", str(tmp_path)])
+    assert m.main() == 0
+    assert (tmp_path / "BI-PF-1.json").is_file()
+    assert m.main() == 0  # skipped existing

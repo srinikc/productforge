@@ -17,6 +17,10 @@ def main() -> int:
     if os.environ.get("PF_BACKUP_CONFIRMED") != "1":
         print("PF_BACKUP_CONFIRMED=1 is required before migration 0021", file=sys.stderr)
         return 2
+    artifact = os.environ.get("PF_BACKUP_ARTIFACT", "")
+    if not artifact or not os.path.isfile(artifact):
+        print("PF_BACKUP_ARTIFACT must name an existing verified backup artifact", file=sys.stderr)
+        return 2
     import psycopg
     with psycopg.connect(dsn) as c, c.cursor() as cur:
         cur.execute("SELECT count(*) FROM backlog_items")
