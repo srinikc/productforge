@@ -89,7 +89,8 @@
     ".github/workflows/full-sweep.yml",
     "docs/BACKLOG-DB-SSOT.md",
     "test-framework/tests/test_backlog_migrations.py",
-    ".github/workflows/backlog-db.yml"
+    ".github/workflows/backlog-db.yml",
+    "scripts/dev/backlog_migration_preflight.py"
   ],
   "approach": "EDP: make PostgreSQL backlog authority the default for PF-SB and PF-GP scopes",
   "review": {
@@ -290,8 +291,8 @@
     "invariants": [
       "On requires DB/edpsvc; no fallback.",
       "File projections remain derived.",
-      "New IDs remain globally unique via the allocator.",
-      "Legacy cross-tenant ID duplicates are preserved by scoped storage uniqueness."
+      "New IDs are globally unique via the allocator.",
+      "Legacy duplicate IDs are preserved only as tenant-scoped historical rows; no new duplicate is accepted."
     ],
     "contracts": {
       "api": [
@@ -316,7 +317,8 @@
         ".github/workflows/full-sweep.yml",
         "docs/BACKLOG-DB-SSOT.md",
         "test-framework/tests/test_backlog_migrations.py",
-        ".github/workflows/backlog-db.yml"
+        ".github/workflows/backlog-db.yml",
+        "scripts/dev/backlog_migration_preflight.py"
       ],
       "config": [
         "config/env-flags.json"
@@ -381,8 +383,9 @@
       "Set PF_BACKLOG_DB=off and restart; retain DB tables."
     ],
     "decisions": [
-      "Legacy cross-scope duplicate IDs are preserved with scoped uniqueness; new IDs remain globally unique.",
-      "Schema change is explicitly approved by this design revision."
+      "Legacy cross-scope duplicate IDs are preserved by scoped uniqueness; new IDs remain globally unique.",
+      "Schema change is explicitly approved by this design revision.",
+      "Before 0021, take a verified backup; abort on lock/preflight failure; restore from backup if the down migration is refused."
     ],
     "guardrails": [
       "No silent fallback.",
@@ -408,23 +411,23 @@
     "ac_evidence": {
       "AC-1": {
         "sha": "candidate",
-        "evidence": "docs/BACKLOG-DB-SSOT.md"
+        "evidence": "engineering/evidence/BI-PF-1531/failclosed-rollback-tests.txt"
       },
       "AC-2": {
         "sha": "candidate",
-        "evidence": "docs/BACKLOG-DB-SSOT.md"
+        "evidence": "../.github/workflows/backlog-db.yml"
       },
       "AC-3": {
         "sha": "candidate",
-        "evidence": "docs/BACKLOG-DB-SSOT.md"
+        "evidence": "engineering/evidence/BI-PF-1531/parity.txt"
       },
       "AC-4": {
         "sha": "candidate",
-        "evidence": "docs/BACKLOG-DB-SSOT.md"
+        "evidence": "engineering/evidence/BI-PF-1531/failclosed-rollback-tests.txt"
       },
       "AC-5": {
         "sha": "candidate",
-        "evidence": "docs/BACKLOG-DB-SSOT.md"
+        "evidence": "engineering/evidence/BI-PF-1531/failclosed-rollback-tests.txt"
       }
     },
     "stop_conditions": [
@@ -519,7 +522,8 @@
       ],
       "evidence": [
         "engineering/evidence/BI-PF-1531/parity.txt",
-        "engineering/evidence/BI-PF-1531/failclosed-rollback-tests.txt"
+        "engineering/evidence/BI-PF-1531/failclosed-rollback-tests.txt",
+        "../.github/workflows/backlog-db.yml"
       ]
     },
     "rls_tenant": [
@@ -527,8 +531,9 @@
       "PF-SB and PF-GP rows remain tenant-partitioned."
     ],
     "rollback_recovery": [
-      "Set PF_BACKLOG_DB=off and restart; keep DB tables.",
-      "Restore from backup if 0021 down is refused due legacy duplicates."
+      "Set PF_BACKLOG_DB=off only after exporting/reconciling DB-only rows back to files.",
+      "Keep DB tables and backup; restore from backup if 0021 down is refused.",
+      "Never delete backlog tables as part of rollback."
     ],
     "security_model": [
       "Admin bearer for edpsvc; no tenant data in parity/evidence; read-only benchmark roles."
@@ -595,7 +600,11 @@
       "backlog_items PK (tenant_id,id); traceability FK (tenant_id,item_id); legacy duplicates allowed per tenant; new IDs global."
     ],
     "deployment_rollout": [
-      "Apply 0021 with backup, then backfill, parity, then flip default on; rollback to off remains available."
+      "Take a verified backlog-table backup.",
+      "Run backlog_migration_preflight.py with backup confirmation.",
+      "Apply 0021 in a maintenance window with lock_timeout and abort on failure.",
+      "Backfill PF-SB; run per-tenant parity; then enable DB default.",
+      "If rollback is required, set PF_BACKLOG_DB=off and run the DB?file reconcile/export path before resuming file writes."
     ],
     "failure_taxonomy": [
       "BACKLOG_DB_UNAVAILABLE",

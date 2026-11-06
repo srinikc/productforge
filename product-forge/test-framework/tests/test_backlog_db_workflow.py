@@ -14,3 +14,5 @@ def test_backlog_db_workflow_contract():
     assert "test_backlog_migrations.py" in text
     assert "PF_BACKLOG_DB" in text
     assert "ALTER ROLE pf_app PASSWORD" in text
+    assert "backlog_migration_preflight.py" in text
+    assert "PF_BACKUP_CONFIRMED=1" in text
