@@ -57,6 +57,11 @@ def main() -> int:
     if str(os.environ.get("PF_BACKLOG_DB", "on")).strip().lower() != "on":
         print("backfill: PF_BACKLOG_DB=on is required", file=sys.stderr)
         return 2
+    conn = None
+    if os.environ.get("PF_DB_DSN"):
+        import psycopg
+        conn = psycopg.connect(os.environ["PF_DB_DSN"])
+        conn.autocommit = True
     files = candidates()
     if not files:
         print("backfill: no item files found")
@@ -75,6 +80,14 @@ def main() -> int:
             continue
         try:
             tenant = tenant_for_item(it, f)
+            if conn:
+                with conn.cursor() as cur:
+                    cur.execute("SELECT tenant_id FROM backlog_items WHERE id=%s AND tenant_id<>%s LIMIT 1", (it["id"], tenant))
+                    row = cur.fetchone()
+                if row:
+                    print(f"backfill: OWNERSHIP_CONFLICT {it['id']} belongs to tenant {row[0]!r}, not {tenant!r}", file=sys.stderr)
+                    fail += 1
+                    continue
             if a.tenant:
                 if tenant != a.tenant:
                     continue
@@ -104,6 +117,8 @@ def main() -> int:
             fail += 1
         finally:
             time.sleep(1.0 / max(a.rate, 0.1))
+    if conn:
+        conn.close()
     print(f"backfill: {'dry-run ' if a.dry_run else ''}ok={ok} failed={fail}")
     return 1 if fail else 0
 

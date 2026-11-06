@@ -1,6 +1,6 @@
 # Spec Chain (PF-SB)
 
-Binding order for backlog items created on/after `2026-11-06`:
+Binding order for backlog items created on/after `2026-11-07`:
 
 1. **Gate 0 — readiness**: item, reconciliation, impact table, language/API/AC decisions.
 2. **Gate 0.5 — functional freeze**: `functional_spec` + `engineering/specs/<ID>.md`.

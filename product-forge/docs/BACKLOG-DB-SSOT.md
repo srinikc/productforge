@@ -106,3 +106,7 @@ PF_DB_DSN="$PF_RUNTIME_DSN" PF_BACKUP_CONFIRMED=1 python scripts/dev/backlog_mig
 4. Keep the backup until the fleet is fully on the new binary and parity is green.
 
 `dual` and `shadow` are migration-only modes; unknown values raise `BACKLOG_DB_MODE_INVALID`. `BACKLOG_DB_UNAVAILABLE` is logged with tenant and the Go service exports `edp_backlog_authority_*` metrics.
+
+## Generated-product tenants
+
+`PF_BACKLOG_DB_SCOPES` defaults to `product_forge` and `ProductForge-Dashboard`. Every additional PF-GP tenant must be added explicitly after parity is proven. An unlisted scope logs `BACKLOG_DB_SCOPE_UNLISTED` and stays file-authoritative; it is never silently promoted.

@@ -136,6 +136,22 @@
       "mode": "diff",
       "hil_confirmed": true,
       "note": "HIL-requested spec-chain implementation; final evidence refresh."
+    },
+    {
+      "at": "2026-11-06T18:25:30.289359+00:00",
+      "by": "hil:user",
+      "decision": "MATERIAL_CHANGE",
+      "mode": "design",
+      "hil_confirmed": true,
+      "note": "HIL requested separate BI-PF-1532 spec-chain item and final evidence."
+    },
+    {
+      "at": "2026-11-06T18:25:30.289375+00:00",
+      "by": "hil:user",
+      "decision": "MATERIAL_CHANGE",
+      "mode": "diff",
+      "hil_confirmed": true,
+      "note": "HIL requested separate BI-PF-1532 spec-chain item and final evidence."
     }
   ],
   "follow_up": {},
@@ -373,7 +389,7 @@
     "usage": {}
   },
   "created_at": "2026-11-06T14:50:10.299482",
-  "updated_at": "2026-11-06T23:50:04.436531",
+  "updated_at": "2026-11-07T00:00:04.223781",
   "score": 0.5,
   "_note": "readiness computed",
   "api_impact": {
@@ -1706,6 +1722,45 @@
         ]
       },
       "evidence": "BI-PF-1531-eff247c4be8a.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "31f9588661a21a79be97cd92163849bfb3a535b4",
+      "review_sha": "8df77151764d",
+      "model": "deepseek-v4.1-flash",
+      "at": "2026-11-06T18:30:03.962326+00:00",
+      "review_scope": "full_candidate",
+      "base_sha": "",
+      "head_sha": "31f9588661a21a79be97cd92163849bfb3a535b4",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [
+          "`PF_BACKLOG_DB_SCOPES` default omits generated-product tenants; AC-3/PF-GP parity only covers `ProductForge-Dashboard`, so other PF-GP scopes silently remain file-authoritative — matches the still-open silent-split finding.",
+          "`backlog_db_backfill.py`/`backlog_db_parity.py`/`backlog_db_export.py` derive tenant from `project`/`scope` but 0021 preserves legacy cross-tenant duplicates; no guard proves a file item's id does not already exist in DB under a different tenant before upsert, so backfill can overwrite another tenant's row (tenant-attribution check only inspects file path, not DB ownership)."
+        ],
+        "MINOR": [
+          "`.env.example` ships `PF_BACKLOG_DB=on` commented out but documents `PF_BACKLOG_DB_SCOPES` without the `ProductForge-Dashboard` generated-product entry that AC-3 requires; env doc drifts from `env-flags.json`.",
+          "[OUT_OF_SCOPE] `backlog_migration_preflight.py` requires `PF_BACKUP_ARTIFACT` to be a local file path; it does not verify the backup is of the same DB/snapshot, so `PF_BACKUP_CONFIRMED=1` is self-attested.",
+          "`0021` guard `confrelid='backlog_items'::regclass` will also match FKs created later by 0022-era tooling; the \"unknown FK\" block is order-sensitive and undocumented for future migrations.",
+          "`functional-spec.json`/`spec-pack.json` set `enforce_from: 2026-11-07` but `SPEC-CHAIN.md` says `2026-11-06`; the enforced date boundary is inconsistent between config and docs (AC-1 doc consistency).",
+          "`gate1_check.py` swallows all spec-chain exceptions into a single message, so a genuine `functional_spec` bug and a missing item are reported identically — poor diagnosability.",
+          "`backlog_db_parity.py` canonicalizes float→int but not int→float/timestamp string normalization; DB JSONB round-trip of timestamps will still show spurious `data_mismatch` across tenants."
+        ],
+        "NIT": [
+          "`core/backlog.py` imports `logging`/`urllib.error` locally inside functions while module-level imports exist elsewhere; inconsistent import placement.",
+          "`test_backlog_db_workflow.py` asserts `pgvector/pgvector:pg16` and other exact strings from a YAML mirror, duplicating the workflow file as a test oracle.",
+          "`store_item_to_db` name differs from `_mirror_item_to_db` used elsewhere; the two are near-synonyms for a reader.",
+          "`backlog_db_bench.py` `--out` writes unconditionally without parent-dir creation.",
+          "`docs/SPEC-CHAIN.md` uses `—`/`→` in ways the `encoding` gate should re-verify after the `PF-DESIGN-DELIVERY-CONTRACT.md` corruption."
+        ],
+        "SUMMARY": [
+          "The diff advances BI-PF-1531 materially: default-on, scoped allowlist, fail-closed DB reads, scoped backfill/parity/export scripts, 0021/0022 migrations, and rollback docs.",
+          "AC-3 (PF-GP backfill + parity evidence) and AC-1 (doc/config consistency) are not yet fully demonstrable: PF-GP scopes beyond `ProductForge-Dashboard` are absent from the allowlist, and the date/doc/scopes drift remains.",
+          "The prior PENDING findings (import-time spec chain, empty `--prune` blocker, scope normalizer divergence, precheck isolation, spec-chain scope coverage) remain unresolved in this diff and should be closed before merge.",
+          "New top risk: backfill can overwrite a same-id item owned by a different tenant; add a per-id tenant-ownership check in backfill (and 0021 up) to protect cross-tenant integrity."
+        ]
+      },
+      "evidence": "BI-PF-1531-8df77151764d.json"
     }
   ],
   "review_dispositions": {
@@ -2311,7 +2366,7 @@
   "control_evidence": [
     {
       "control_id": "CTL-BACKLOG-DB-DEFAULT",
-      "sha": "273ddadde52a183c1360e24b6f2bd5ad5413bbca-32847605cd49",
+      "sha": "273ddadde52a183c1360e24b6f2bd5ad5413bbca-89147536320f",
       "result": "PASS",
       "evidence": "engineering/evidence/BI-PF-1531/current-sha-control.txt"
     }

@@ -68,13 +68,12 @@ def main(argv: list[str] | None = None) -> int:
     except Exception as e:
         pack_bad = [f"design-pack error ({type(e).__name__}): {e}"]
     pack_bad = list(pack_bad or [])
-    try:
-        item = backlog.get_epic("product_forge", None, a.item) or {}
-        pack_bad += functional_spec.problems(item)
-        pack_bad += spec_pack.problems(item)
-        pack_bad += conformance_check.problems(item)
-    except Exception as e:
-        pack_bad.append(f"spec-chain error ({type(e).__name__}): {e}")
+    item = backlog.get_epic("product_forge", None, a.item) or {}
+    for label, mod in (("functional_spec", functional_spec), ("spec_pack", spec_pack), ("conformance", conformance_check)):
+        try:
+            pack_bad += mod.problems(item)
+        except Exception as e:
+            pack_bad.append(f"{label} error ({type(e).__name__}): {e}")
     if pack_bad:
         if a.json:
             print(json.dumps({"ok": False, "reason": "design_pack_or_spec_chain", "problems": pack_bad}))
