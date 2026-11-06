@@ -73,6 +73,11 @@ jobs:
           done
           psql -h 127.0.0.1 -U pf_owner -d productforge -v ON_ERROR_STOP=1 <<'SQL'
           ALTER ROLE pf_app PASSWORD 'pf_app';
+          CREATE TABLE IF NOT EXISTS schema_migrations (
+            version BIGINT PRIMARY KEY,
+            name TEXT NOT NULL,
+            applied_at TIMESTAMPTZ NOT NULL DEFAULT now()
+          );
           INSERT INTO schema_migrations(version,name,applied_at) VALUES
             (16,'backlog_db_authority',now()),
             (18,'backlog_reservation_counter',now()),

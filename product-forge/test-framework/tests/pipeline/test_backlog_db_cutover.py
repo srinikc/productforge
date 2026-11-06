@@ -28,7 +28,7 @@ def test_mirror_skips_without_id(monkeypatch):
 
 def test_mirror_dual_is_best_effort(monkeypatch):
     monkeypatch.setenv("PF_BACKLOG_DB", "dual")
-    monkeypatch.setenv("PF_BACKLOG_API", "http://127.0.0.1:1")  # unreachable
+    monkeypatch.setenv("PF_EDP_API_URL", "http://127.0.0.1:1")  # unreachable
     # best-effort: swallows the failure (files remain the source of truth)
     backlog._mirror_item_to_db({"id": "BI-PF-0000", "title": "x", "type": "feature", "status": "new"})
 
@@ -37,7 +37,7 @@ def test_mirror_sends_full_item_as_data(monkeypatch):
     import json as _j
 
     monkeypatch.setenv("PF_BACKLOG_DB", "dual")
-    monkeypatch.setenv("PF_BACKLOG_API", "http://127.0.0.1:1")
+    monkeypatch.setenv("PF_EDP_API_URL", "http://127.0.0.1:1")
     captured = {}
 
     class _R:
@@ -92,7 +92,7 @@ def test_load_all_on_mode_reads_db(monkeypatch):
     import json as _j
 
     monkeypatch.setenv("PF_BACKLOG_DB", "on")
-    monkeypatch.setenv("PF_BACKLOG_API", "http://127.0.0.1:1")
+    monkeypatch.setenv("PF_EDP_API_URL", "http://127.0.0.1:1")
     items = [{"ID": "BI-PF-1", "Data": {"id": "BI-PF-1", "status": "new"}},
              {"ID": "BI-PF-2", "Data": {"id": "BI-PF-2", "status": "completed"}}]
 
@@ -115,7 +115,7 @@ def test_load_all_on_mode_reads_db(monkeypatch):
 
 def test_mirror_on_propagates_failure(monkeypatch):
     monkeypatch.setenv("PF_BACKLOG_DB", "on")
-    monkeypatch.setenv("PF_BACKLOG_API", "http://127.0.0.1:1")
+    monkeypatch.setenv("PF_EDP_API_URL", "http://127.0.0.1:1")
     with pytest.raises(Exception):
         backlog._mirror_item_to_db({"id": "BI-PF-0000", "title": "x", "type": "feature", "status": "new"})
 
