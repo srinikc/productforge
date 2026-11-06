@@ -1,0 +1,74 @@
+"""Backfill file backlog items into the PostgreSQL backlog authority.
+
+Scans PF-SB item files and generated-product item files and POSTs each full item through the Go
+edpsvc /backlog writer. Idempotent because BacklogStore.Put upserts by item id.
+
+Usage:
+  PF_EDP_API_URL=http://127.0.0.1:8030 PF_API_TOKEN=... python scripts/dev/backlog_db_backfill.py --dry-run
+  PF_EDP_API_URL=http://127.0.0.1:8030 PF_API_TOKEN=... python scripts/dev/backlog_db_backfill.py
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import sys
+import time
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT))
+
+from core import backlog  # noqa: E402
+
+
+def candidates() -> list[Path]:
+    out = []
+    out.extend(sorted((ROOT / "data" / "backlog" / "items").glob("*.json")))
+    for p in sorted((ROOT / "products").glob("*/data/backlog/items/*.json")):
+        out.append(p)
+    return out
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(description="Backfill backlog files into PostgreSQL")
+    ap.add_argument("--dry-run", action="store_true")
+    a = ap.parse_args()
+    if not os.environ.get("PF_EDP_API_URL"):
+        print("PF_EDP_API_URL is required", file=sys.stderr)
+        return 2
+    if not (os.environ.get("PF_EDP_TOKEN") or os.environ.get("PF_ADMIN_TOKEN")):
+        print("PF_EDP_TOKEN or PF_ADMIN_TOKEN is required", file=sys.stderr)
+        return 2
+    os.environ["PF_BACKLOG_DB"] = "on"
+    files = candidates()
+    if not files:
+        print("backfill: no item files found")
+        return 0
+    ok = fail = 0
+    for f in files:
+        try:
+            it = json.loads(f.read_text(encoding="utf-8"))
+        except Exception as e:
+            print(f"backfill: cannot read {f}: {e}", file=sys.stderr)
+            fail += 1
+            continue
+        if not isinstance(it, dict) or not it.get("id"):
+            continue
+        if a.dry_run:
+            print(f"would backfill {it['id']} ({it.get('scope') or 'product_forge'})")
+            ok += 1
+            continue
+        try:
+            backlog._mirror_item_to_db(it)
+            ok += 1
+            time.sleep(0.12)
+        except Exception as e:
+            print(f"backfill: {it['id']} failed: {e}", file=sys.stderr)
+            fail += 1
+    print(f"backfill: {'dry-run ' if a.dry_run else ''}ok={ok} failed={fail}")
+    return 1 if fail else 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
