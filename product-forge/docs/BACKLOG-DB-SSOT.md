@@ -67,8 +67,6 @@ PF_API_TOKEN=<token accepted by edpsvc>
 5. Creating an item writes only to PostgreSQL; no new authoritative `items/*.json` is created.
 6. `PF_BACKLOG_DB=on` with the DB unavailable fails closed; no Git/local fallback.
 
-## Rollback
-
 1. Take a verified backup/snapshot of `backlog_items`, `backlog_id_allocations`, `backlog_id_reservations`, and `traceability` before any schema change.
 2. Set `PF_BACKLOG_DB=off` and restart affected processes.
 3. Verify file-mode reads/writes and ID allocation still work.

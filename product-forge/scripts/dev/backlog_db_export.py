@@ -43,6 +43,9 @@ def main() -> int:
     out.mkdir(parents=True, exist_ok=True)
     written = skipped = 0
     for iid, data in rows:
+        if not isinstance(data, dict) or str(data.get("id") or "") != str(iid):
+            print(f"export: id mismatch row={iid} data_id={data.get('id') if isinstance(data, dict) else '?'}", file=sys.stderr)
+            return 1
         p = out / f"{iid}.json"
         if p.exists() and not a.overwrite:
             skipped += 1

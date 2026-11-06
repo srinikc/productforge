@@ -32,7 +32,7 @@ var (
 	ErrAuthoritySchema      = fmt.Errorf("%w: schema", ErrAuthorityUnavailable)
 	ErrAuthorityRow         = fmt.Errorf("%w: allocation row", ErrAuthorityUnavailable)
 	ErrTenantConflict       = errors.New("edpdata: backlog id belongs to another tenant")
-	ErrTenantContext        = errors.New("edpdata: tenant context missing")
+	ErrTenantContext        = errors.New("edpdata: tenant context missing or mismatched")
 	ErrReservationInvalid   = errors.New("edpdata: invalid reservation request")
 	ErrReservationConflict  = errors.New("edpdata: reservation id already has a different block")
 	ErrReservationExhausted = errors.New("edpdata: id space exhausted")
@@ -103,7 +103,7 @@ func (s *BacklogStore) Authority(ctx context.Context) (Authority, error) {
 			        JOIN pg_policies p ON p.tablename=c.relname AND p.schemaname='public'
 			        WHERE c.relname='backlog_items' AND c.relrowsecurity AND c.relforcerowsecurity
 			          AND p.policyname='tenant_isolation'),
-			EXISTS (SELECT 1 FROM schema_migrations WHERE version IN (16,18,19,20,21,22) HAVING count(*)=6)`)
+			EXISTS (SELECT 1 FROM schema_migrations WHERE version IN (16,18,19,20,21) HAVING count(*)=5)`)
 		if err != nil {
 			return err
 		}

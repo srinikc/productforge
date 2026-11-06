@@ -43,7 +43,10 @@ def main() -> int:
         import psycopg
         with psycopg.connect(dsn) as c, c.cursor() as cur:
             cur.execute("SELECT id FROM backlog_items WHERE tenant_id=%s ORDER BY id LIMIT 1", (a.tenant,))
-            one = cur.fetchone()[0]
+            row = cur.fetchone()
+            if not row:
+                raise SystemExit(f"bench: no backlog rows for tenant {a.tenant}")
+            one = row[0]
             one_id = one
             point_ms: list[float] = []
             for _ in range(a.iterations):

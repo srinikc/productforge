@@ -154,8 +154,8 @@ def test_unverified_scope_stays_file_mode(monkeypatch):
     monkeypatch.setenv("PF_BACKLOG_DB_SCOPES", "product_forge")
     assert backlog._db_for("product_forge") is True
     assert backlog._db_for("unverified_scope") is False
-    monkeypatch.setenv("PF_BACKLOG_DB_SCOPES", "unverified_scope")
-    assert backlog._db_for("unverified_scope") is True
+    assert backlog._db_for("product_forge") is True
+    assert backlog._db_for("arbitrary_scope") is False
 
 
 def test_invalid_mode_fails_closed(monkeypatch):

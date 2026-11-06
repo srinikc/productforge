@@ -306,19 +306,9 @@ def reserve(scope: str, project: str | None = None, size: int = 0, session: str 
 
 
 def _db_enabled(scope: str | None = None) -> bool:
-    try:
-        from core import env_flags
-        value = env_flags.get("PF_BACKLOG_DB", "on")
-        scopes = env_flags.get("PF_BACKLOG_DB_SCOPES", "product_forge,ProductForge-Dashboard")
-    except Exception:
-        value = os.environ.get("PF_BACKLOG_DB", "on")
-        scopes = os.environ.get("PF_BACKLOG_DB_SCOPES", "product_forge,ProductForge-Dashboard")
-    mode = str(value or "on").strip().lower()
-    if mode not in ("off", "on", "dual", "shadow"):
-        raise RuntimeError(f"BACKLOG_DB_MODE_INVALID: {mode}")
-    if mode != "on":
-        return False
     from core import backlog_scope
+    if backlog_scope.mode() != "on":
+        return False
     return backlog_scope.enabled(scope)
 
 

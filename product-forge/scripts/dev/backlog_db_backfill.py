@@ -54,9 +54,9 @@ def main() -> int:
     if not (os.environ.get("PF_EDP_TOKEN") or os.environ.get("PF_ADMIN_TOKEN")):
         print("PF_EDP_TOKEN or PF_ADMIN_TOKEN is required", file=sys.stderr)
         return 2
-    if str(os.environ.get("PF_BACKLOG_DB", "")).strip().lower() == "off":
-        print("backfill: forcing PF_BACKLOG_DB=on for DB writes", file=sys.stderr)
-    os.environ["PF_BACKLOG_DB"] = "on"
+    if str(os.environ.get("PF_BACKLOG_DB", "on")).strip().lower() != "on":
+        print("backfill: PF_BACKLOG_DB=on is required", file=sys.stderr)
+        return 2
     files = candidates()
     if not files:
         print("backfill: no item files found")
@@ -91,13 +91,13 @@ def main() -> int:
             continue
         try:
             try:
-                backlog._mirror_item_to_db(it)
+                backlog.store_item_to_db(it)
             except urllib.error.HTTPError as e:
                 if e.code != 429:
                     raise
                 retry = float(e.headers.get("Retry-After") or 1)
                 time.sleep(retry)
-                backlog._mirror_item_to_db(it)
+                backlog.store_item_to_db(it)
             ok += 1
             time.sleep(1.0 / max(a.rate, 0.1))
         except Exception as e:

@@ -105,16 +105,8 @@ def _default_readiness(reasons: list[str] | None = None) -> dict:
 _DASHBOARD_PROJECT = "ProductForge-Dashboard"   # dashboard scope for the reciprocity REVIEW rule
 
 
-_LEGACY_FORGE_SCOPE = "fac" "tory"   # legacy scope alias found in early stored data
-_DB_LIST_CACHE: dict[str, tuple[float, tuple[list[dict], list[dict]]]] = {}
-_DB_LIST_CACHE_TTL = 2.0
-
-
-def _clear_db_cache(tenant: str = "") -> None:
-    if tenant:
-        _DB_LIST_CACHE.pop(tenant, None)
-    else:
-        _DB_LIST_CACHE.clear()
+from core import backlog_scope as _backlog_scope_mod
+_LEGACY_FORGE_SCOPE = _backlog_scope_mod.LEGACY_FORGE_SCOPE
 
 
 def _norm_scope(scope: str) -> str:
@@ -184,13 +176,7 @@ def _load_all_from_db(scope: str, project: str | None):
     import urllib.error as _uerr
     import urllib.request as _ureq
 
-    import copy
-    import time
     tenant = str(project or scope or "product_forge")
-    now = time.monotonic()
-    hit = _DB_LIST_CACHE.get(tenant)
-    if hit and now - hit[0] <= _DB_LIST_CACHE_TTL:
-        return copy.deepcopy(hit[1])
     api = str(os.environ.get("PF_EDP_API_URL", "http://127.0.0.1:8030")).rstrip("/")
     req = _ureq.Request(f"{api}/backlog?tenant={tenant}&limit=100000", method="GET")
     req.add_header("Authorization", f"Bearer {os.environ.get('PF_EDP_TOKEN') or os.environ.get('PF_ADMIN_TOKEN', '')}")
@@ -198,7 +184,12 @@ def _load_all_from_db(scope: str, project: str | None):
         with _ureq.urlopen(req, timeout=30) as r:
             payload = _json.loads(r.read().decode("utf-8"))
     except _uerr.HTTPError as e:
-        code = "BACKLOG_DB_AUTH" if e.code in (401, 403) else ("BACKLOG_DB_UNAVAILABLE" if e.code in (500, 503) else "BACKLOG_DB_HTTP_ERROR")
+        if e.code in (401, 403):
+            code = "BACKLOG_DB_AUTH"
+        elif e.code in (500, 503):
+            code = "BACKLOG_DB_UNAVAILABLE"
+        else:
+            code = "BACKLOG_DB_HTTP_ERROR"
         _logging.getLogger(__name__).error("%s tenant=%s status=%s", code, tenant, e.code)
         raise RuntimeError(f"{code}: status={e.code}") from e
     except (_uerr.URLError, OSError) as e:
@@ -214,8 +205,7 @@ def _load_all_from_db(scope: str, project: str | None):
         if not (isinstance(data, dict) and data.get("id")):
             continue
         (cl if _normalize_status(data.get("status", "new")) in _CLOSED else op).append(data)
-    _DB_LIST_CACHE[tenant] = (now, (op, cl))
-    return copy.deepcopy((op, cl))
+    return op, cl
 
 
 def _load_all(scope: str, project: str | None):
@@ -261,33 +251,22 @@ def _load_all(scope: str, project: str | None):
 
 def _backlog_db_mode() -> str:
     """BI-PF-1399: files->DB cutover mode. on is the default for PF-SB/PF-GP; tests may override."""
-    try:
-        from core import env_flags
-        value = env_flags.get("PF_BACKLOG_DB", "on")
-    except Exception:
-        value = os.environ.get("PF_BACKLOG_DB", "on")
-    mode = str(value or "on").strip().lower()
-    if mode not in ("off", "on", "dual", "shadow"):
-        raise RuntimeError(f"BACKLOG_DB_MODE_INVALID: {mode}")
-    return mode
+    from core import backlog_scope
+    return backlog_scope.mode()
 
 
 def _backlog_db_scopes() -> set[str]:
     """Scopes explicitly allowed to use DB authority when PF_BACKLOG_DB=on."""
-    try:
-        from core import env_flags
-        value = env_flags.get("PF_BACKLOG_DB_SCOPES", "product_forge,ProductForge-Dashboard")
-    except Exception:
-        value = os.environ.get("PF_BACKLOG_DB_SCOPES", "product_forge,ProductForge-Dashboard")
     from core import backlog_scope
-    return {backlog_scope.normalize(s.strip()) for s in str(value or "").split(",") if s.strip()}
+    return backlog_scope.allowed()
 
 
 def _db_for(scope: str | None) -> bool:
     """DB authority is opt-in per verified scope; unlisted scopes stay in file mode."""
     if _backlog_db_mode() != "on":
         return False
-    return _norm_scope(str(scope or "")) in _backlog_db_scopes()
+    from core import backlog_scope
+    return backlog_scope.enabled(scope)
 
 
 def _mirror_item_to_db(item: dict) -> None:
@@ -320,7 +299,6 @@ def _mirror_item_to_db(item: dict) -> None:
         # DB SoR: propagate every failure; never acknowledge a lost authoritative write.
         with _ureq.urlopen(req, timeout=5):
             pass
-        _clear_db_cache(tenant)
         return
     try:
         with _ureq.urlopen(req, timeout=5):
@@ -331,7 +309,6 @@ def _mirror_item_to_db(item: dict) -> None:
 
 def _delete_item_from_db(iid: str, tenant: str) -> None:
     """Delete through the Go DB writer (DB SoR mode only)."""
-    _clear_db_cache(tenant)
     import urllib.request as _ureq
 
     api = str(os.environ.get("PF_EDP_API_URL", "http://127.0.0.1:8030")).rstrip("/")
@@ -374,6 +351,13 @@ def _shadow_compare(item: dict) -> bool:
         _logging.getLogger(__name__).warning("shadow-read DRIFT: %s (file != DB)", iid)
         return False
     return True
+
+
+def store_item_to_db(item: dict) -> None:
+    """Public DB-only item write; refuses scopes not enabled for DB authority."""
+    if not _db_for(str(item.get("scope") or item.get("project") or "")):
+        raise RuntimeError("BACKLOG_DB_SCOPE_DISABLED: tenant is not in PF_BACKLOG_DB_SCOPES")
+    _mirror_item_to_db(item)
 
 
 def _save_item(d: str, item: dict) -> None:
