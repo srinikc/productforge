@@ -19,17 +19,24 @@ type histogram struct {
 	count  int64
 }
 
+type namedHistogram struct {
+	name   string
+	labels string
+	h      histogram
+}
+
 // Metrics is a tiny dependency-free Prometheus exposition (counters, gauges, request-duration histograms).
 type Metrics struct {
 	mu       sync.Mutex
 	counters map[string]float64
 	gauges   map[string]float64
 	hists    map[string]*histogram
+	named    map[string]*namedHistogram
 }
 
 // NewMetrics returns an empty registry.
 func NewMetrics() *Metrics {
-	return &Metrics{counters: map[string]float64{}, gauges: map[string]float64{}, hists: map[string]*histogram{}}
+	return &Metrics{counters: map[string]float64{}, gauges: map[string]float64{}, hists: map[string]*histogram{}, named: map[string]*namedHistogram{}}
 }
 
 func labelKey(name string, labels ...string) string {
@@ -96,6 +103,30 @@ func (m *Metrics) Observe(class string, status int, d time.Duration) {
 	}
 }
 
+// ObserveHistogram records a named duration histogram with bounded labels.
+func (m *Metrics) ObserveHistogram(name string, labels []string, d time.Duration) {
+	if m == nil {
+		return
+	}
+	key := labelKey(name, labels...)
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	nh := m.named[key]
+	if nh == nil {
+		nh = &namedHistogram{name: name, labels: labelKey("", labels...)}
+		nh.h.counts = make([]int64, len(histBuckets))
+		m.named[key] = nh
+	}
+	sec := d.Seconds()
+	nh.h.count++
+	nh.h.sum += sec
+	for i, b := range histBuckets {
+		if sec <= b {
+			nh.h.counts[i]++
+		}
+	}
+}
+
 // Write emits the Prometheus text exposition (deterministic order).
 func (m *Metrics) Write(w io.Writer) {
 	if m == nil {
@@ -134,5 +165,26 @@ func (m *Metrics) Write(w io.Writer) {
 		fmt.Fprintf(w, "edp_http_request_duration_seconds_count{class=%q} %d\n", class, h.count)
 		fmt.Fprintf(w, "edp_http_request_duration_seconds_sum{class=%q} %s\n",
 			class, strconv.FormatFloat(h.sum, 'f', -1, 64))
+	}
+	nkeys := make([]string, 0, len(m.named))
+	for k := range m.named {
+		nkeys = append(nkeys, k)
+	}
+	sort.Strings(nkeys)
+	for _, k := range nkeys {
+		nh := m.named[k]
+		labels := strings.TrimPrefix(nh.labels, "{")
+		labels = strings.TrimSuffix(labels, "}")
+		sep := ""
+		if labels != "" {
+			sep = ","
+		}
+		for i, b := range histBuckets {
+			fmt.Fprintf(w, "%s_bucket{%s%sle=%q} %d\n", nh.name, labels, sep,
+				strconv.FormatFloat(b, 'f', -1, 64), nh.h.counts[i])
+		}
+		fmt.Fprintf(w, "%s_bucket{%s%sle=\"+Inf\"} %d\n", nh.name, labels, sep, nh.h.count)
+		fmt.Fprintf(w, "%s_count{%s} %d\n", nh.name, labels, nh.h.count)
+		fmt.Fprintf(w, "%s_sum{%s} %s\n", nh.name, labels, strconv.FormatFloat(nh.h.sum, 'f', -1, 64))
 	}
 }

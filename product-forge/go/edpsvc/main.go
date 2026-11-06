@@ -39,7 +39,11 @@ import (
 	"productforge/artifacts"
 	"productforge/datastore"
 	"productforge/edpdata"
+	"productforge/edpsvc/internal/cache"
+	"productforge/edpsvc/internal/degrade"
 	"productforge/edpsvc/internal/limits"
+	"productforge/edpsvc/internal/observe"
+	"productforge/edpsvc/internal/storeguard"
 	"productforge/migrate"
 	"productforge/objpolicy"
 	"productforge/objstore"
@@ -70,6 +74,8 @@ type server struct {
 	metrics        *limits.Metrics
 	role           *limits.RoleGuard
 	backlogFactory func(tenant string, reserve bool) backlogStore
+	guard          *storeguard.Guard
+	cacheStore     *cache.Store
 	authorityMu    sync.Mutex
 }
 
@@ -105,6 +111,33 @@ func buildObjectStore() (datastore.ObjectStore, error) {
 		})
 	}
 	return objstore.NewLocalStore(envOr("PF_OBJECT_ROOT", "data/local/objects"), 0)
+}
+
+func (s *server) storeGuard(store, tenant string, fn func() error) error {
+	if s.guard == nil {
+		return fn()
+	}
+	return s.guard.Do(store, tenant, fn)
+}
+
+func (s *server) storeGuardError(w http.ResponseWriter, r *http.Request, err error) bool {
+	if err == nil {
+		return false
+	}
+	if errors.Is(err, storeguard.ErrQuota) {
+		w.Header().Set("Retry-After", "1")
+		s.bad(w, r, http.StatusTooManyRequests, "store quota exceeded")
+		return true
+	}
+	if errors.Is(err, degrade.ErrDegraded) || errors.Is(err, degrade.ErrDegradedExpired) {
+		s.bad(w, r, http.StatusServiceUnavailable, "store temporarily degraded")
+		return true
+	}
+	if errors.Is(err, degrade.ErrRenewalExceeded) {
+		s.bad(w, r, http.StatusServiceUnavailable, "store unavailable")
+		return true
+	}
+	return false
 }
 
 func main() {
@@ -147,7 +180,18 @@ func main() {
 	m := limits.NewMetrics()
 	q := limits.NewQuota(cfg, nil, m)
 	s := &server{admin: admin, migDir: envOr("PF_MIGRATIONS_DIR", findMigrations()),
-		cfg: cfg, st: st, quota: q, metrics: m, role: guard}
+		cfg: cfg, st: st, quota: q, metrics: m, role: guard, cacheStore: cache.New()}
+	dcfgPath := envOr("PF_EDP_DEGRADATION_CONFIG", "config/edp-degradation.json")
+	dcfg, derr := degrade.NewPolicy(dcfgPath)
+	var dcheck degrade.Checker = dcfg
+	if dcfg != nil {
+		dcfg.Metrics = m
+	}
+	if derr != nil {
+		st.Close()
+		log.Fatalf("degradation config: %v", derr)
+	}
+	s.guard = &storeguard.Guard{Quota: q, Degrade: dcheck, Metrics: observe.Recorder{M: m}, Meter: m}
 	obj, err := buildObjectStore()
 	if err != nil {
 		st.Close()
@@ -213,6 +257,7 @@ func (s *server) buildMux() *http.ServeMux {
 	mux.HandleFunc("/admin/backlog/authority", s.adminOnly(s.backlogAuthority))
 	mux.HandleFunc("/admin/object-store/capabilities", s.adminOnly(s.objectStoreCapabilities))
 	mux.HandleFunc("/admin/object-store/conform", s.adminOnly(s.objectStoreConform))
+	mux.HandleFunc("/admin/cache", s.adminOnly(s.cacheHandle))
 	mux.HandleFunc("/admin/limits", s.adminOnly(s.adminLimits))
 	mux.HandleFunc("/artifacts", s.adminOnly(s.artifactUpload))
 	mux.HandleFunc("/artifacts/", s.adminOnly(s.artifactRoute))
@@ -620,12 +665,89 @@ func (s *server) schemaCheck(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, code, out)
 }
 
+func (s *server) cacheHandle(w http.ResponseWriter, r *http.Request) {
+	tenant := r.URL.Query().Get("tenant")
+	key := r.URL.Query().Get("key")
+	if tenant == "" || key == "" {
+		s.bad(w, r, http.StatusBadRequest, "tenant and key are required")
+		return
+	}
+	if s.cacheStore == nil {
+		s.bad(w, r, http.StatusServiceUnavailable, "cache unavailable")
+		return
+	}
+	ctx := r.Context()
+	key = tenant + ":" + key
+	switch r.Method {
+	case http.MethodGet:
+		var val []byte
+		var ok bool
+		err := s.storeGuard("cache", tenant, func() error {
+			var e error
+			val, ok, e = s.cacheStore.Get(ctx, key)
+			return e
+		})
+		if s.storeGuardError(w, r, err) {
+			return
+		}
+		if err != nil {
+			s.fail(w, r, http.StatusServiceUnavailable, err)
+			return
+		}
+		if !ok {
+			s.bad(w, r, http.StatusNotFound, "cache miss")
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(val)
+	case http.MethodPut, http.MethodPost:
+		body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, s.cfg.MaxBodyBytes))
+		if err != nil {
+			s.fail(w, r, http.StatusBadRequest, err)
+			return
+		}
+		err = s.storeGuard("cache", tenant, func() error { return s.cacheStore.Set(ctx, key, body, 5*time.Minute) })
+		if s.storeGuardError(w, r, err) {
+			return
+		}
+		if err != nil {
+			s.fail(w, r, http.StatusServiceUnavailable, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+	case http.MethodDelete:
+		err := s.storeGuard("cache", tenant, func() error { return s.cacheStore.Delete(ctx, key) })
+		if s.storeGuardError(w, r, err) {
+			return
+		}
+		if err != nil {
+			s.fail(w, r, http.StatusServiceUnavailable, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+	default:
+		s.bad(w, r, http.StatusMethodNotAllowed, "use GET, PUT/POST, or DELETE")
+	}
+}
+
 func (s *server) objectStoreCapabilities(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, s.obj.Capabilities())
 }
 
 func (s *server) objectStoreConform(w http.ResponseWriter, r *http.Request) {
-	errs := datastore.ConformObjectStore(r.Context(), s.obj)
+	tenant := r.URL.Query().Get("tenant")
+	if tenant == "" {
+		s.bad(w, r, http.StatusBadRequest, "tenant is required")
+		return
+	}
+	var errs []error
+	if err := s.storeGuard("object", tenant, func() error { errs = datastore.ConformObjectStore(r.Context(), s.obj); return nil }); err != nil {
+		if s.storeGuardError(w, r, err) {
+			return
+		}
+		s.fail(w, r, http.StatusServiceUnavailable, err)
+		return
+	}
 	msgs := make([]string, 0, len(errs))
 	for _, e := range errs {
 		msgs = append(msgs, e.Error())
@@ -638,6 +760,8 @@ func (s *server) objectStoreConform(w http.ResponseWriter, r *http.Request) {
 }
 
 var errTenant = errors.New("tenant query parameter is required")
+
+var errBadJobAction = errors.New("bad job action")
 
 func (s *server) artifactUpload(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseMultipartForm(s.cfg.MaxUploadBytes); err != nil {
@@ -789,8 +913,16 @@ func (s *server) jobSubmit(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, http.StatusInternalServerError, err)
 		return
 	}
-	j, err := edpdata.NewJobs(store.BindTenant(st, b.Tenant)).Submit(ctx, datastore.Job{
-		ID: b.ID, TenantID: b.Tenant, Kind: b.Kind, Priority: b.Priority, IdempotencyKey: b.IdempotencyKey})
+	var j datastore.Job
+	err = s.storeGuard("queue", b.Tenant, func() error {
+		var e error
+		j, e = edpdata.NewJobs(store.BindTenant(st, b.Tenant)).Submit(ctx, datastore.Job{
+			ID: b.ID, TenantID: b.Tenant, Kind: b.Kind, Priority: b.Priority, IdempotencyKey: b.IdempotencyKey})
+		return e
+	})
+	if s.storeGuardError(w, r, err) {
+		return
+	}
 	if err != nil {
 		s.fail(w, r, http.StatusInternalServerError, err)
 		return
@@ -821,7 +953,16 @@ func (s *server) jobClaim(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, http.StatusInternalServerError, err)
 		return
 	}
-	j, ok, err := edpdata.NewJobs(store.BindTenant(st, b.Tenant)).Claim(ctx, b.Worker, time.Duration(b.TTLSeconds)*time.Second)
+	var j datastore.Job
+	var ok bool
+	err = s.storeGuard("queue", b.Tenant, func() error {
+		var e error
+		j, ok, e = edpdata.NewJobs(store.BindTenant(st, b.Tenant)).Claim(ctx, b.Worker, time.Duration(b.TTLSeconds)*time.Second)
+		return e
+	})
+	if s.storeGuardError(w, r, err) {
+		return
+	}
 	if err != nil {
 		s.fail(w, r, http.StatusInternalServerError, err)
 		return
@@ -849,17 +990,25 @@ func (s *server) jobAction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	jobs := edpdata.NewJobs(store.BindTenant(st, b.Tenant))
-	switch b.Action {
-	case "complete":
-		err = jobs.Complete(ctx, b.ID, b.Lease)
-	case "fail":
-		err = jobs.Fail(ctx, b.ID, b.Lease, b.Reason)
-	case "release":
-		err = jobs.Release(ctx, b.ID, b.Lease)
-	case "heartbeat":
-		err = jobs.Heartbeat(ctx, b.ID, b.Lease)
-	default:
+	err = s.storeGuard("queue", b.Tenant, func() error {
+		switch b.Action {
+		case "complete":
+			return jobs.Complete(ctx, b.ID, b.Lease)
+		case "fail":
+			return jobs.Fail(ctx, b.ID, b.Lease, b.Reason)
+		case "release":
+			return jobs.Release(ctx, b.ID, b.Lease)
+		case "heartbeat":
+			return jobs.Heartbeat(ctx, b.ID, b.Lease)
+		default:
+			return errBadJobAction
+		}
+	})
+	if errors.Is(err, errBadJobAction) {
 		s.bad(w, r, http.StatusBadRequest, "action must be complete|fail|release|heartbeat")
+		return
+	}
+	if s.storeGuardError(w, r, err) {
 		return
 	}
 	if err != nil {
@@ -1067,7 +1216,15 @@ func (s *server) backlogReserve(w http.ResponseWriter, r *http.Request) {
 	}
 	// The allocation/reservation tables are global (no RLS); this admin-only endpoint intentionally
 	// does not bind a tenant.
-	blk, err := s.reserveBacklog().Reserve(ctx, b.Scope, b.Project, b.ReservationID, b.Size)
+	var blk edpdata.IDBlock
+	err := s.storeGuard("db", "", func() error {
+		var e error
+		blk, e = s.reserveBacklog().Reserve(ctx, b.Scope, b.Project, b.ReservationID, b.Size)
+		return e
+	})
+	if s.storeGuardError(w, r, err) {
+		return
+	}
 	if errors.Is(err, edpdata.ErrReservationInvalid) {
 		log.Printf("backlog reserve: reason_code=invalid_request")
 		s.bad(w, r, http.StatusBadRequest, "invalid reservation request")
@@ -1104,15 +1261,26 @@ func (s *server) backlogByID(w http.ResponseWriter, r *http.Request) {
 	}
 	bl := edpdata.NewBacklog(store.BindTenant(st, tenant))
 	if r.Method == http.MethodDelete {
-		if err := bl.Delete(ctx, id); err != nil {
+		if err := s.storeGuard("db", tenant, func() error { return bl.Delete(ctx, id) }); err != nil {
+			if s.storeGuardError(w, r, err) {
+				return
+			}
 			s.fail(w, r, http.StatusNotFound, err)
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 		return
 	}
-	it, err := bl.Get(ctx, id)
+	var it edpdata.BacklogItem
+	err = s.storeGuard("db", tenant, func() error {
+		var e error
+		it, e = bl.Get(ctx, id)
+		return e
+	})
 	if err != nil {
+		if s.storeGuardError(w, r, err) {
+			return
+		}
 		s.fail(w, r, http.StatusNotFound, err)
 		return
 	}

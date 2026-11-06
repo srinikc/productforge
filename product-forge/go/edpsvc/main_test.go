@@ -17,6 +17,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 
 	"productforge/edpdata"
+	"productforge/edpsvc/internal/cache"
 	"productforge/edpsvc/internal/limits"
 	"productforge/store"
 )
@@ -42,7 +43,7 @@ func testServer(t *testing.T) *server {
 	guard := limits.NewRoleGuard()
 	guard.Set(limits.Role{Name: "pf_app"})
 	return &server{admin: "test-token", cfg: cfg, quota: limits.NewQuota(cfg, nil, m),
-		metrics: m, role: guard}
+		metrics: m, role: guard, cacheStore: cache.New()}
 }
 
 func TestHealthAndMetrics(t *testing.T) {

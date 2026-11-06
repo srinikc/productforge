@@ -1,0 +1,26 @@
+{
+  "item": "BI-PF-1314",
+  "sha": "10602e3d10d6",
+  "model": "deepseek-v4.1-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-05T11:27:24.966071+00:00",
+  "review_scope": "delta",
+  "base_sha": "2b01226d9d536b422ab15f4177b03f862ac3cc62",
+  "head_sha": "e60fefbd25c4b36d233363052e0049e44f69acf5",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "Delta expands `current_sha` exclusions to `config/**` and `engineering/**`, so AC-1 benchmark baselines and AC-3/AC-4 SLO/degradation config can change without changing the gate SHA; approvals/evidence can drift undetected."
+    ],
+    "MINOR": [
+      "Broad `data/**` exclusion replaces the prior narrow `data/backlog/**`; non-backlog data fixtures/artifacts now bypass the gate hash without documented rationale.",
+      "No regression test added for `control_gate.current_sha` pathspec behavior, so future exclusion widening cannot fail in CI."
+    ],
+    "NIT": [],
+    "SUMMARY": [
+      "Delta is a gate-hash pathspec broadening. The prior docs-only issue is resolved, but new `config/**` and `engineering/**` exclusions extend the drift blind spot to AC-1/AC-3/AC-4 evidence and config.",
+      "Narrow exclusions to explicit non-shipped paths, or ensure config/evidence changes invalidate approvals."
+    ]
+  }
+}

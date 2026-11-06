@@ -1,0 +1,173 @@
+groups:
+  - name: product-forge-edp-slo
+    rules:
+      - alert: ProductForgeBenchmarkStale
+        expr: absent(edp_bench_last_run_unixtime) or time() - edp_bench_last_run_unixtime > 86400
+        for: 30m
+        labels:
+          severity: ticket
+          owner: platform-oncall
+          service: edpsvc
+        annotations:
+          summary: "EDP benchmark baseline is stale or missing"
+          runbook: "docs/EDP-22-RUNBOOK.md"
+      - alert: ProductForgeBenchmarkP95Artifact
+        expr: max by (scenario) (edp_bench_p95_ms{group="artifact"}) > 300
+        for: 10m
+        labels:
+          severity: ticket
+          owner: platform-oncall
+          service: edpsvc
+        annotations:
+          summary: "EDP artifact benchmark p95 exceeded 300ms"
+          runbook: "docs/EDP-22-RUNBOOK.md"
+      - alert: ProductForgeBenchmarkP99Artifact
+        expr: max by (scenario) (edp_bench_p99_ms{group="artifact"}) > 1200
+        for: 10m
+        labels:
+          severity: ticket
+          owner: platform-oncall
+          service: edpsvc
+        annotations:
+          summary: "EDP artifact benchmark p99 exceeded 1200ms"
+          runbook: "docs/EDP-22-RUNBOOK.md"
+      - alert: ProductForgeBenchmarkP95Db
+        expr: max by (scenario) (edp_bench_p95_ms{group="db"}) > 250
+        for: 10m
+        labels:
+          severity: ticket
+          owner: platform-oncall
+          service: edpsvc
+        annotations:
+          summary: "EDP db benchmark p95 exceeded 250ms"
+          runbook: "docs/EDP-22-RUNBOOK.md"
+      - alert: ProductForgeBenchmarkP99Db
+        expr: max by (scenario) (edp_bench_p99_ms{group="db"}) > 1000
+        for: 10m
+        labels:
+          severity: ticket
+          owner: platform-oncall
+          service: edpsvc
+        annotations:
+          summary: "EDP db benchmark p99 exceeded 1000ms"
+          runbook: "docs/EDP-22-RUNBOOK.md"
+      - alert: ProductForgeBenchmarkP95Job
+        expr: max by (scenario) (edp_bench_p95_ms{group="job"}) > 300
+        for: 10m
+        labels:
+          severity: ticket
+          owner: platform-oncall
+          service: edpsvc
+        annotations:
+          summary: "EDP job benchmark p95 exceeded 300ms"
+          runbook: "docs/EDP-22-RUNBOOK.md"
+      - alert: ProductForgeBenchmarkP99Job
+        expr: max by (scenario) (edp_bench_p99_ms{group="job"}) > 1200
+        for: 10m
+        labels:
+          severity: ticket
+          owner: platform-oncall
+          service: edpsvc
+        annotations:
+          summary: "EDP job benchmark p99 exceeded 1200ms"
+          runbook: "docs/EDP-22-RUNBOOK.md"
+      - alert: ProductForgeBenchmarkP95Memory
+        expr: max by (scenario) (edp_bench_p95_ms{group="memory"}) > 300
+        for: 10m
+        labels:
+          severity: ticket
+          owner: platform-oncall
+          service: edpsvc
+        annotations:
+          summary: "EDP memory benchmark p95 exceeded 300ms"
+          runbook: "docs/EDP-22-RUNBOOK.md"
+      - alert: ProductForgeBenchmarkP99Memory
+        expr: max by (scenario) (edp_bench_p99_ms{group="memory"}) > 1200
+        for: 10m
+        labels:
+          severity: ticket
+          owner: platform-oncall
+          service: edpsvc
+        annotations:
+          summary: "EDP memory benchmark p99 exceeded 1200ms"
+          runbook: "docs/EDP-22-RUNBOOK.md"
+      - alert: ProductForgeBenchmarkP95Project
+        expr: max by (scenario) (edp_bench_p95_ms{group="project"}) > 300
+        for: 10m
+        labels:
+          severity: ticket
+          owner: platform-oncall
+          service: edpsvc
+        annotations:
+          summary: "EDP project benchmark p95 exceeded 300ms"
+          runbook: "docs/EDP-22-RUNBOOK.md"
+      - alert: ProductForgeBenchmarkP99Project
+        expr: max by (scenario) (edp_bench_p99_ms{group="project"}) > 1200
+        for: 10m
+        labels:
+          severity: ticket
+          owner: platform-oncall
+          service: edpsvc
+        annotations:
+          summary: "EDP project benchmark p99 exceeded 1200ms"
+          runbook: "docs/EDP-22-RUNBOOK.md"
+      - alert: ProductForgeBenchmarkP95Run
+        expr: max by (scenario) (edp_bench_p95_ms{group="run"}) > 300
+        for: 10m
+        labels:
+          severity: ticket
+          owner: platform-oncall
+          service: edpsvc
+        annotations:
+          summary: "EDP run benchmark p95 exceeded 300ms"
+          runbook: "docs/EDP-22-RUNBOOK.md"
+      - alert: ProductForgeBenchmarkP99Run
+        expr: max by (scenario) (edp_bench_p99_ms{group="run"}) > 1200
+        for: 10m
+        labels:
+          severity: ticket
+          owner: platform-oncall
+          service: edpsvc
+        annotations:
+          summary: "EDP run benchmark p99 exceeded 1200ms"
+          runbook: "docs/EDP-22-RUNBOOK.md"
+      - alert: ProductForgeStoreErrors
+        expr: sum by (store) (rate(edp_store_requests_total{outcome="error"}[10m])) > 0.05
+        for: 10m
+        labels:
+          severity: page
+          owner: platform-oncall
+          service: edpsvc
+        annotations:
+          summary: "EDP store error rate elevated"
+          runbook: "docs/EDP-22-RUNBOOK.md"
+      - alert: ProductForgeStoreDegraded
+        expr: max by (store) (edp_store_degraded) > 0
+        for: 1m
+        labels:
+          severity: page
+          owner: platform-oncall
+          service: edpsvc
+        annotations:
+          summary: "EDP store is in degraded mode"
+          runbook: "docs/EDP-22-RUNBOOK.md"
+      - alert: ProductForgeDegradationRenewals
+        expr: increase(edp_store_degradation_renewals_total[15m]) > 0
+        for: 1m
+        labels:
+          severity: ticket
+          owner: platform-oncall
+          service: edpsvc
+        annotations:
+          summary: "EDP degradation switch is being renewed"
+          runbook: "docs/EDP-22-RUNBOOK.md"
+      - alert: ProductForgeQuotaDenied
+        expr: sum by (store, scope) (rate(edp_quota_denials_total[10m])) > 0.1
+        for: 10m
+        labels:
+          severity: ticket
+          owner: platform-oncall
+          service: edpsvc
+        annotations:
+          summary: "EDP quota denials elevated"
+          runbook: "docs/EDP-22-RUNBOOK.md"

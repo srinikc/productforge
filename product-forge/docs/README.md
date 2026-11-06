@@ -75,6 +75,8 @@
 | [`Diagram-Generation-Spec.md`](Diagram-Generation-Spec.md) | Implemented | 100% | Diagram generation spec (mermaid/drawio/svg) | — | — |
 | [`E2E-WORKFLOW.md`](E2E-WORKFLOW.md) | Implemented | 100% | End-to-end PF-SB workflow from intake through delivery | — | — |
 | [`EDP-17-SCHEMA.md`](EDP-17-SCHEMA.md) | Design | 100% | Canonical schema domain + relationship model for EDP-17 (BI-PF-1309): entities, FKs, ownership, extensibility contract | — | — |
+| [`EDP-22-BENCHMARKS-SLOS.md`](EDP-22-BENCHMARKS-SLOS.md) | Design | 100% | EDP-22 benchmark/SLO/EXPLAIN/quota/degradation design and evidence (BI-PF-1314) | — | — |
+| [`EDP-22-RUNBOOK.md`](EDP-22-RUNBOOK.md) | Tooling | 100% | EDP-22 operator runbook for benchmarks, EXPLAIN, degradation, and SLO assets | — | — |
 | [`EDP-DATA-PLANE-THREAT-MODEL.md`](EDP-DATA-PLANE-THREAT-MODEL.md) | SSOT | 100% | Generated data-plane threat model + register matrix: 6 categories -> source/sink/control/owner/evidence (BI-PF-1296 / EDP-04) | — | — |
 | [`EDP-EXECUTION-ORDER.md`](EDP-EXECUTION-ORDER.md) | SSOT | 100% | Authoritative wave-by-wave EDP execution order + dependencies (schema-first); mirrors the backlog epic BI-PF-1292 (BI-PF-1388) | — | — |
 | [`EDP-SAAS-PERSISTENCE-AND-DEPLOYMENT.md`](EDP-SAAS-PERSISTENCE-AND-DEPLOYMENT.md) | SSOT | 100% | PF persistence + SaaS deployment: what lives in DB vs object store vs files, how to configure/swap DB and storage, deploy workflow, SaaS gaps (BI-PF-1292) | — | — |
