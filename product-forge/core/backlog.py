@@ -233,10 +233,10 @@ def _backlog_db_mode() -> str:
     """BI-PF-1399: files->DB cutover mode. on is the default for PF-SB/PF-GP; tests may override."""
     try:
         from core import env_flags
-        value = env_flags.get("PF_BACKLOG_DB", "off")
+        value = env_flags.get("PF_BACKLOG_DB", "on")
     except Exception:
-        value = os.environ.get("PF_BACKLOG_DB", "off")
-    return str(value or "off").strip().lower()
+        value = os.environ.get("PF_BACKLOG_DB", "on")
+    return str(value or "on").strip().lower()
 
 
 def _db_for(scope: str | None) -> bool:

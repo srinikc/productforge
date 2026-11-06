@@ -37,6 +37,9 @@ from gitutil import (  # noqa: E402  (shared UTF-8/fail-closed git policy, BI-PF
 )
 from git_env import sanitize_process_env, worktree_fingerprint  # noqa: E402
 
+# Repo-only precheck reads file projections; DB-mode is exercised by its own integration job.
+os.environ.setdefault("PF_BACKLOG_DB", "off")
+
 # A pre-push hook can export GIT_DIR/GIT_WORK_TREE. Never let tests inherit them.
 sanitize_process_env()
 

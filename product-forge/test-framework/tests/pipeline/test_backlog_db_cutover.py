@@ -10,13 +10,13 @@ import pytest  # noqa: E402
 from core import backlog  # noqa: E402
 
 
-def test_mode_defaults_off(monkeypatch):
+def test_mode_defaults_on(monkeypatch):
     monkeypatch.delenv("PF_BACKLOG_DB", raising=False)
-    assert backlog._backlog_db_mode() == "off"
+    assert backlog._backlog_db_mode() == "on"
 
 
 def test_mirror_noop_when_off(monkeypatch):
-    monkeypatch.delenv("PF_BACKLOG_DB", raising=False)
+    monkeypatch.setenv("PF_BACKLOG_DB", "off")
     # No network attempted; must not raise.
     backlog._mirror_item_to_db({"id": "BI-PF-0000", "title": "x"})
 

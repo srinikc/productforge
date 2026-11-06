@@ -1,17 +1,17 @@
 # Backlog Summary
 
-> GENERATED 2026-11-06T14:01:54 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-11-06T14:52:24 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 137  |  **Closed:** 605
+- **Open:** 138  |  **Closed:** 605
 - `blocked`: 2
 - `executing`: 3
 - `in_progress`: 1
-- `new`: 131
+- `new`: 132
 
-### new, by category (131)
+### new, by category (132)
 **API / reports / HIL / misc** (15)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
@@ -89,7 +89,7 @@
 | BI-PF-1392 | Should | task | Enforce per-feature FR/US caps + max_lines in the Go artifact engine (scaled by the profile) and reconcile the three section sources | Per-feature FR/US caps + max_lines enforced NUMERICALLY (scaled by profile); sections have ONE source. |
 | BI-PF-1425 | Should | feature | Migrate orchestrator cache + evidence/summarizer (and remaining audit logic) from Python to Go (Go-first alignment) | Migrate orchestrator cache + evidence/summarizer (and remaining audit logic) from Python to Go (Go-first align... |
 
-**Wiring / tech-debt / API** (82)
+**Wiring / tech-debt / API** (83)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0185 | Should | feature | EPIC: Multi-modal / media orchestration (pluggable capability packs) | Make the pipeline modality-agnostic via PLUGGABLE capability packs, enabled per project when the idea needs th... |
@@ -174,6 +174,7 @@
 | BI-PF-1528 | Should | task | T2: validate business-scale capacity, isolation, and recovery | T2: validate business-scale capacity, isolation, and recovery |
 | BI-PF-1529 | Should | task | T3: enterprise scale-out decision gate (replicas/partitioning/distributed quotas) | T3: enterprise scale-out decision gate (replicas/partitioning/distributed quotas) |
 | BI-PF-1530 | Should | task | T4: dedicated cell and multi-region decision gate | T4: dedicated cell and multi-region decision gate |
+| BI-PF-1531 | Should | task | EDP: make PostgreSQL backlog authority the default for PF-SB and PF-GP scopes | EDP: make PostgreSQL backlog authority the default for PF-SB and PF-GP scopes |
 
 ---
 
@@ -373,5 +374,5 @@
 ---
 
 ## Totals
-- backend: 137 open / 605 closed
+- backend: 138 open / 605 closed
 - dashboard: 146 open / 3 closed

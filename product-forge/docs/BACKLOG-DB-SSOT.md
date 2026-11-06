@@ -40,7 +40,7 @@ The backfill scans PF-SB and generated-product item files. It is idempotent beca
 
 ## Activate
 
-`PF_BACKLOG_DB` defaults to `on` for PF-SB/PF-GP. Keep the shared service and DB available; set it to `off` only for an explicit legacy/offline test. Set for every process that reads/writes backlog:
+`PF_BACKLOG_DB` defaults to `on` for PF-SB/PF-GP. Keep the shared service and DB available; set it to `off` only for explicit legacy/offline tooling (repo precheck/docs projections) or tests. Set it for every process that reads/writes backlog:
 
 ```text
 PF_BACKLOG_DB=on

@@ -308,9 +308,9 @@ def reserve(scope: str, project: str | None = None, size: int = 0, session: str 
 def _db_enabled(scope: str | None = None) -> bool:
     try:
         from core import env_flags
-        value = env_flags.get("PF_BACKLOG_DB", "off")
+        value = env_flags.get("PF_BACKLOG_DB", "on")
     except Exception:
-        value = os.environ.get("PF_BACKLOG_DB", "off")
+        value = os.environ.get("PF_BACKLOG_DB", "on")
     return str(value or "off").strip().lower() == "on"
 
 
