@@ -1160,6 +1160,10 @@ func (s *server) backlogHandle(w http.ResponseWriter, r *http.Request) {
 			s.bad(w, r, http.StatusConflict, "backlog id conflicts with another tenant")
 			return
 		}
+		if errors.Is(err, edpdata.ErrTenantMismatch) {
+			s.bad(w, r, http.StatusForbidden, "tenant context mismatch")
+			return
+		}
 		if errors.Is(err, edpdata.ErrTenantContext) {
 			s.bad(w, r, http.StatusServiceUnavailable, "tenant context unavailable")
 			return

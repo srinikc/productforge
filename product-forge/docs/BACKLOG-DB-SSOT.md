@@ -89,7 +89,7 @@ Export/preflight use `PF_DB_DSN`; use the runtime role where RLS/audit coverage 
 
 ```bash
 PF_DB_DSN="$PF_RUNTIME_DSN" python scripts/dev/backlog_db_export.py --tenant product_forge --dry-run
-PF_DB_DSN="$PF_RUNTIME_DSN" python scripts/dev/backlog_db_export.py --tenant product_forge --overwrite --prune
+PF_DB_DSN="$PF_RUNTIME_DSN" python scripts/dev/backlog_db_export.py --tenant product_forge --overwrite --prune --confirm-prune
 ```
 
 Then run parity and only afterwards switch to file mode. Never drop backlog tables as part of rollback.

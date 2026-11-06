@@ -71,6 +71,12 @@ def problems(item: dict, cfg: dict | None = None) -> list[str]:
         for key in ("design", "test", "evidence"):
             if not row.get(key):
                 bad.append(f"functional traceability {fr} missing {key}")
+        for ev in (row.get("evidence") or []):
+            p = Path(str(ev))
+            if not p.is_absolute():
+                p = ROOT / p
+            if not p.exists():
+                bad.append(f"functional traceability {fr} evidence not found: {ev}")
     for fr in set(tmap) - set(frs):
         bad.append(f"functional traceability references unknown {fr}")
     return bad

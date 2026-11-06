@@ -295,6 +295,11 @@ def _db_for(scope: str | None) -> bool:
     return False
 
 
+def db_authority_enabled(scope: str | None, project: str | None = None) -> bool:
+    """Public resolver used by ID allocation and tooling."""
+    return _db_for(str(project or scope or ""))
+
+
 def _mirror_item_to_db(item: dict) -> None:
     """BI-PF-1399: write a saved item to the Go backlog SoR over HTTP (DB mode on = authoritative).
 

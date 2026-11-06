@@ -648,8 +648,9 @@ def main(argv=None) -> int:
     """Run the gates, then fail closed if the active worktree's Git state moved."""
     # Repo-only precheck reads file projections; DB-mode is exercised by its own integration job.
     _prev_db = os.environ.get("PF_BACKLOG_DB")
-    os.environ["PF_BACKLOG_DB"] = "off"
-    print("precheck: forcing PF_BACKLOG_DB=off for file-mode gates", file=sys.stderr)
+    if os.environ.get("PF_PRECHECK_ALLOW_DB_ON") != "1":
+        os.environ["PF_BACKLOG_DB"] = "off"
+        print("precheck: forcing PF_BACKLOG_DB=off for file-mode gates (PF_PRECHECK_ALLOW_DB_ON=1 to opt out)", file=sys.stderr)
     try:
         before = worktree_fingerprint(_ROOT)
         rc = _main(argv)

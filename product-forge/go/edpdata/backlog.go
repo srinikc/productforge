@@ -32,7 +32,8 @@ var (
 	ErrAuthoritySchema      = fmt.Errorf("%w: schema", ErrAuthorityUnavailable)
 	ErrAuthorityRow         = fmt.Errorf("%w: allocation row", ErrAuthorityUnavailable)
 	ErrTenantConflict       = errors.New("edpdata: backlog id belongs to another tenant")
-	ErrTenantContext        = errors.New("edpdata: tenant context missing or mismatched")
+	ErrTenantContext        = errors.New("edpdata: tenant context missing")
+	ErrTenantMismatch       = errors.New("edpdata: tenant context mismatch")
 	ErrReservationInvalid   = errors.New("edpdata: invalid reservation request")
 	ErrReservationConflict  = errors.New("edpdata: reservation id already has a different block")
 	ErrReservationExhausted = errors.New("edpdata: id space exhausted")
@@ -220,7 +221,7 @@ func (s *BacklogStore) Put(ctx context.Context, it BacklogItem) (BacklogItem, er
 			return err
 		}
 		if bound != it.TenantID {
-			return ErrTenantContext
+			return ErrTenantMismatch
 		}
 		n, err := tx.Exec(ctx,
 			`INSERT INTO backlog_items (id, tenant_id, scope, project_id, type, status, title, body, data, revision)
