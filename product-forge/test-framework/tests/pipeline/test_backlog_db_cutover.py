@@ -118,3 +118,23 @@ def test_mirror_on_propagates_failure(monkeypatch):
     monkeypatch.setenv("PF_BACKLOG_API", "http://127.0.0.1:1")
     with pytest.raises(Exception):
         backlog._mirror_item_to_db({"id": "BI-PF-0000", "title": "x", "type": "feature", "status": "new"})
+
+
+def test_id_allocator_defaults_on(monkeypatch):
+    from core import id_allocator
+    monkeypatch.delenv("PF_BACKLOG_DB", raising=False)
+    assert id_allocator._db_enabled("product_forge") is True
+
+
+def test_on_mode_fails_closed_without_db(monkeypatch):
+    import urllib.error
+    monkeypatch.setenv("PF_BACKLOG_DB", "on")
+    monkeypatch.setenv("PF_EDP_API_URL", "http://127.0.0.1:1")
+    with pytest.raises((urllib.error.URLError, OSError)):
+        backlog.list_open("product_forge", None)
+
+
+def test_rollback_off_restores_file_mode(monkeypatch):
+    monkeypatch.setenv("PF_BACKLOG_DB", "off")
+    assert backlog._backlog_db_mode() == "off"
+    assert backlog._db_for("product_forge") is False

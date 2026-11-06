@@ -311,7 +311,7 @@ def _db_enabled(scope: str | None = None) -> bool:
         value = env_flags.get("PF_BACKLOG_DB", "on")
     except Exception:
         value = os.environ.get("PF_BACKLOG_DB", "on")
-    return str(value or "off").strip().lower() == "on"
+    return str(value or "on").strip().lower() == "on"
 
 
 def _reserve_db(scope: str, project: str | None, size: int) -> dict | None:
