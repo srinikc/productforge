@@ -174,7 +174,7 @@
     "usage": {}
   },
   "created_at": "2026-11-04T20:16:38.304861",
-  "updated_at": "2026-11-04T20:16:44.079520",
+  "updated_at": "2026-11-06T10:16:01.702014",
   "score": 0.75,
   "_note": "readiness computed",
   "design_pack": {
@@ -385,5 +385,48 @@
   "api_impact": {
     "needs_api": false,
     "reason": "Review tooling and design-pack validation only; no product API surface."
-  }
+  },
+  "review_ledger": [
+    {
+      "mode": "diff",
+      "candidate_sha": "8fa701c9fbee1d01aec1573c2c9e8fea6868ed58",
+      "review_sha": "9e044a01a46f",
+      "model": "deepseek-v4.1-flash",
+      "at": "2026-11-06T04:46:01.408096+00:00",
+      "review_scope": "full_candidate",
+      "base_sha": "",
+      "head_sha": "8fa701c9fbee1d01aec1573c2c9e8fea6868ed58",
+      "findings": {
+        "BLOCKER": [
+          "AC-1 base-area completeness is not enforced: `_area_problems` validates only supplied rows and never requires the documented base areas (security, tenant/RLS, observability, rollback, evidence); a pack with one area passes.",
+          "AC-5 is unmet: no test covers `design_pack._area_problems`/`check` area-completeness or the block path; new tests only cover `design_delta_fields` and prompt text.",
+          "AC-4 inference/taxonomy is not implemented: there is no area inference from the work item and no extensible taxonomy wiring; `design_areas` remains manual-only."
+        ],
+        "MAJOR": [
+          "`_area_problems` hardcodes `{\"APPLICABLE\",\"N/A\"}` instead of using `config/design-pack.json.area_statuses`; extending taxonomy will be rejected by the gate, defeating AC-4 and duplicating config.",
+          "`_areas_enforced` fails open: missing/invalid `areas_enforce_from` or missing `created_at` silently disables area enforcement, so blank design packs can pass.",
+          "N/A reasons are only checked for non-empty text; placeholders like `\"N/A\"`/`\"none\"` pass, so AC-2 “unexplained N/A” is not enforced.",
+          "`sections`/`evidence` elements are not validated; `[\"\"]` passes and non-list rows can crash `_areas` during render, so blank/malformed evidence is not blocked.",
+          "Review JSON observability contract is not implemented deterministically: no code records `design_sha`, changed fields, or `review_scope: delta`; this relies on LLM output/prompt text only."
+        ],
+        "MINOR": [
+          "`_area_problems` requires `reason` for APPLICABLE too, which is stricter than AC-1 and can reject otherwise valid packs.",
+          "Delta prompt still embeds the full design body as context; scoping is instruction-only, not structural, and the doc’s “prompt must include only changed fields” is not literally met.",
+          "Prior findings are appended after the delta block; AC-3 says verify prior findings first, but prompt ordering/test coverage does not assert that.",
+          "No test covers `_areas_enforced` cutoff, `_item_at` failure fallback, or out-of-scope tagging behavior."
+        ],
+        "NIT": [
+          "`_areas` renders the status separator as `?` instead of a proper glyph.",
+          "`_item_at` silently swallows all exceptions without logging the fallback path.",
+          "Duplicate area names are not detected."
+        ],
+        "SUMMARY": [
+          "The diff moves docs/config and prompt text in the right direction, but the gate implementation is incomplete: base areas, real inference/taxonomy, and unexplained-N/A rejection are not enforced.",
+          "The largest risk is false confidence: AC-5 tests do not exercise the design-pack gate, so area-completeness can regress unnoticed.",
+          "Observability and extensibility promises are not backed by deterministic code."
+        ]
+      },
+      "evidence": "BI-PF-1522-9e044a01a46f.json"
+    }
+  ]
 }
