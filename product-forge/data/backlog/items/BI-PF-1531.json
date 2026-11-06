@@ -32,6 +32,14 @@
       "mode": "diff",
       "hil_confirmed": true,
       "note": "HIL directed completing DB-default cutover steps; approve final delivery re-review."
+    },
+    {
+      "at": "2026-11-06T13:20:59.577356+00:00",
+      "by": "hil:user",
+      "decision": "MATERIAL_CHANGE",
+      "mode": "diff",
+      "hil_confirmed": true,
+      "note": "HIL directed completing DB-default cutover and final gates."
     }
   ],
   "follow_up": {},
@@ -54,13 +62,19 @@
     "EDP: make PostgreSQL backlog authority the default for PF-SB and PF-GP scopes"
   ],
   "out_of_scope": [
-    "Not specified."
+    "No renumbering of legacy IDs.",
+    "No deletion of file projections.",
+    "No cross-region DR implementation."
   ],
   "affected_components": [
-    "Not specified."
+    "core",
+    "go/edpdata",
+    "go/edpsvc",
+    "scripts/dev",
+    "migrations",
+    ".github/workflows"
   ],
   "affected_files": [
-    "Not specified.",
     "core/backlog.py",
     "core/id_allocator.py",
     "config/env-flags.json",
@@ -80,13 +94,63 @@
   "approach": "EDP: make PostgreSQL backlog authority the default for PF-SB and PF-GP scopes",
   "review": {
     "reconciliation": {
-      "prior_decisions": [],
-      "existing_path": [],
-      "assumptions": [],
-      "divergences": [],
-      "open_questions": []
+      "prior_decisions": [
+        "EDP-18 migration/import tooling exists.",
+        "EDP-22 provides SLO/observability.",
+        "PF_BACKLOG_DB is the intended backlog authority switch."
+      ],
+      "existing_path": [
+        "core/backlog.py",
+        "core/id_allocator.py",
+        "go/edpdata/backlog.go",
+        "scripts/dev/backlog_db_parity.py",
+        "scripts/dev/backlog_db_backfill.py"
+      ],
+      "assumptions": [
+        "PostgreSQL is the shared SoR.",
+        "Legacy cross-scope IDs exist and must be preserved.",
+        "New IDs remain globally unique."
+      ],
+      "divergences": [
+        "Docs claimed default on while code defaulted off.",
+        "Legacy dashboard/product IDs collide with PF-SB IDs."
+      ],
+      "open_questions": [
+        "When to renumber vs permanently grandfather legacy scoped duplicates."
+      ]
     },
-    "impact_review": [],
+    "impact_review": [
+      {
+        "claim": "API CHECK: existing edpsvc backlog API; no new public route.",
+        "verdict": "aligned",
+        "evidence": "go/edpsvc/main.go::backlogHandle",
+        "recommendation": "keep admin auth"
+      },
+      {
+        "claim": "AC CHECK: default, parity, fail-closed, rollback, and DB-mode CI are covered.",
+        "verdict": "aligned",
+        "evidence": "test_backlog_db_cutover.py + backlog_db_parity.py",
+        "recommendation": "verify at Gate 2"
+      },
+      {
+        "claim": "LANGUAGE CHECK: Python thin client; DB writer remains Go edpsvc.",
+        "verdict": "aligned",
+        "evidence": "core/backlog.py -> edpsvc -> edpdata",
+        "recommendation": "no shipped Python DB writer"
+      },
+      {
+        "claim": "DB CHECK: migration 0021 scopes legacy uniqueness while new IDs stay global.",
+        "verdict": "aligned",
+        "evidence": "migrations/0021_backlog_scoped_uniqueness.up.sql",
+        "recommendation": "backup before apply"
+      },
+      {
+        "claim": "DR CHECK: DB backup/PITR/restore exists from EDP-23; cross-region DR remains T4.",
+        "verdict": "aligned",
+        "evidence": "BI-PF-1315",
+        "recommendation": "keep T4 gated"
+      }
+    ],
     "reviewed_by": "derived",
     "at": ""
   },
@@ -94,7 +158,9 @@
     "Objective achieved: EDP: make PostgreSQL backlog authority the default for PF-SB and PF-GP scopes"
   ],
   "risks": [
-    "Not specified."
+    "Legacy duplicate IDs can split authority if scoped uniqueness is misunderstood.",
+    "DB unavailability with on must fail closed, never fall back to Git.",
+    "Migration 0021 is a shared-table PK change and needs backup/lock discipline."
   ],
   "rollback": "Revert the change.",
   "evidence": [
@@ -197,7 +263,7 @@
     "usage": {}
   },
   "created_at": "2026-11-06T14:50:10.299482",
-  "updated_at": "2026-11-06T18:44:01.227426",
+  "updated_at": "2026-11-06T19:06:30.416523",
   "score": 0.5,
   "_note": "readiness computed",
   "api_impact": {
@@ -372,7 +438,7 @@
         "dimension": "compatibility",
         "applies_to": "config/env-flags.json",
         "check": "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q",
-        "evidence": "docs/BACKLOG-DB-SSOT.md",
+        "evidence": "engineering/evidence/BI-PF-1531/failclosed-rollback-tests.txt",
         "failure_behavior": "block",
         "owner": "core",
         "cwd": "."
@@ -414,6 +480,244 @@
         "sections": [],
         "evidence": []
       }
+    ],
+    "review_scope": {
+      "files": [
+        "core/backlog.py",
+        "core/id_allocator.py",
+        "config/env-flags.json",
+        "scripts/dev/precheck.py",
+        "scripts/dev/backlog_db_backfill.py",
+        "scripts/dev/backlog_db_parity.py",
+        "go/edpdata/backlog.go",
+        "migrations/0021_backlog_scoped_uniqueness.up.sql",
+        "migrations/0021_backlog_scoped_uniqueness.down.sql",
+        "test-framework/tests/pipeline/test_backlog_db_cutover.py",
+        ".github/workflows/structure.yml",
+        ".github/workflows/full-sweep.yml",
+        "docs/BACKLOG-DB-SSOT.md",
+        "test-framework/tests/test_backlog_migrations.py",
+        ".github/workflows/backlog-db.yml"
+      ],
+      "ac_ids": [
+        "AC-1",
+        "AC-2",
+        "AC-3",
+        "AC-4",
+        "AC-5"
+      ],
+      "components": [
+        "core",
+        "go/edpdata",
+        "go/edpsvc",
+        "scripts/dev",
+        "migrations",
+        ".github/workflows"
+      ],
+      "exclude": [
+        "generated products without local source files"
+      ],
+      "evidence": [
+        "engineering/evidence/BI-PF-1531/parity.txt",
+        "engineering/evidence/BI-PF-1531/failclosed-rollback-tests.txt"
+      ]
+    },
+    "rls_tenant": [
+      "BacklogStore binds tenant before write; requireTenant rejects missing GUC.",
+      "PF-SB and PF-GP rows remain tenant-partitioned."
+    ],
+    "rollback_recovery": [
+      "Set PF_BACKLOG_DB=off and restart; keep DB tables.",
+      "Restore from backup if 0021 down is refused due legacy duplicates."
+    ],
+    "security_model": [
+      "Admin bearer for edpsvc; no tenant data in parity/evidence; read-only benchmark roles."
+    ],
+    "code_guidelines": [
+      "docs/guidelines/coding/go/pf-go.md",
+      "docs/guidelines/coding/go/style-guide.md",
+      "docs/guidelines/coding/python/style-guide.md",
+      "docs/guidelines/database/postgresql.md",
+      "docs/guidelines/testing/standards.md"
+    ],
+    "guideline_coverage": [
+      {
+        "guideline": "docs/guidelines/coding/go/pf-go.md",
+        "applies_to": "go/edpdata/backlog.go",
+        "evidence": "go/edpdata/backlog.go",
+        "check": "go test ./..."
+      },
+      {
+        "guideline": "docs/guidelines/coding/go/style-guide.md",
+        "applies_to": "go/edpdata/backlog.go",
+        "evidence": "go/edpdata/backlog.go",
+        "check": "go test ./..."
+      },
+      {
+        "guideline": "docs/guidelines/coding/python/style-guide.md",
+        "applies_to": "core/backlog.py",
+        "evidence": "core/backlog.py",
+        "check": "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q"
+      },
+      {
+        "guideline": "docs/guidelines/database/postgresql.md",
+        "applies_to": "migrations/0021_backlog_scoped_uniqueness.up.sql",
+        "evidence": "migrations/0021_backlog_scoped_uniqueness.up.sql",
+        "check": "python -m pytest test-framework/tests/test_backlog_migrations.py -q"
+      },
+      {
+        "guideline": "docs/guidelines/testing/standards.md",
+        "applies_to": "test-framework/tests/pipeline/test_backlog_db_cutover.py",
+        "evidence": "test-framework/tests/pipeline/test_backlog_db_cutover.py",
+        "check": "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q"
+      }
+    ],
+    "ownership": [
+      "core/backlog.py owns file/DB mode; go/edpdata owns DB writes; scripts/dev owns parity/backfill."
+    ],
+    "performance_capacity": [
+      "Backfill throttled to tenant RPM; migration uses 5s lock_timeout; no unbounded scan beyond backlog pages."
+    ],
+    "prerequisites": [
+      "Migrations through 0021 applied; backup of backlog tables; edpsvc running with runtime role."
+    ],
+    "quotas": [
+      "Backfill respects tenant/global RPM; reservation authority remains global."
+    ],
+    "standards": [
+      "AGENTS.md",
+      "docs/ENGINEERING_OPERATING_STANDARD.md",
+      "docs/REVIEW-GATES-LIFECYCLE.md",
+      "docs/DESIGN-QUALITY-RCCA.md",
+      "docs/WORK-EXECUTION-CONTRACT.md"
+    ],
+    "data_model": [
+      "backlog_items PK (tenant_id,id); traceability FK (tenant_id,item_id); legacy duplicates allowed per tenant; new IDs global."
+    ],
+    "deployment_rollout": [
+      "Apply 0021 with backup, then backfill, parity, then flip default on; rollback to off remains available."
+    ],
+    "failure_taxonomy": [
+      "BACKLOG_DB_UNAVAILABLE",
+      "BACKLOG_DB_PARITY_DRIFT",
+      "TENANT_CONTEXT_MISSING",
+      "MIGRATION_DUPLICATE_IDS"
+    ],
+    "risks": [
+      "Legacy duplicate IDs can be misread as global collisions.",
+      "Migration lock and backup discipline are mandatory.",
+      "DB unavailability must fail closed when on."
+    ],
+    "coverage": [
+      {
+        "ac": "AC-1",
+        "tests": [
+          "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q"
+        ],
+        "adapter": "core.backlog mode resolution",
+        "contract": "empty/unset resolves on; explicit off remains legacy only",
+        "evidence": [
+          "engineering/evidence/BI-PF-1531/failclosed-rollback-tests.txt"
+        ],
+        "call_sites": [
+          "core.backlog._backlog_db_mode"
+        ],
+        "entrypoint": "core/backlog.py",
+        "failure_cases": [
+          "invalid mode"
+        ]
+      },
+      {
+        "ac": "AC-2",
+        "tests": [
+          "python -m pytest test-framework/tests/test_backlog_db_workflow.py -q"
+        ],
+        "adapter": "GitHub Actions DB-mode job",
+        "contract": "Postgres + migrations + backfill + parity + tests",
+        "evidence": [
+          "../.github/workflows/backlog-db.yml"
+        ],
+        "call_sites": [
+          "backlog-db workflow"
+        ],
+        "entrypoint": ".github/workflows/backlog-db.yml",
+        "failure_cases": [
+          "workflow missing"
+        ],
+        "runtime_capability": false
+      },
+      {
+        "ac": "AC-3",
+        "tests": [
+          "python -m pytest test-framework/tests/test_backlog_db_workflow.py -q"
+        ],
+        "adapter": "file/DB parity",
+        "contract": "743/743 PF-SB items, zero drift",
+        "evidence": [
+          "engineering/evidence/BI-PF-1531/parity.txt"
+        ],
+        "call_sites": [
+          "backlog_db_parity.py"
+        ],
+        "entrypoint": "scripts/dev/backlog_db_parity.py",
+        "failure_cases": [
+          "BACKLOG_DB_PARITY_DRIFT"
+        ],
+        "runtime_capability": false
+      },
+      {
+        "ac": "AC-4",
+        "tests": [
+          "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q"
+        ],
+        "adapter": "edpsvc/PostgreSQL",
+        "contract": "on with DB unavailable raises BACKLOG_DB_UNAVAILABLE",
+        "evidence": [
+          "engineering/evidence/BI-PF-1531/failclosed-rollback-tests.txt"
+        ],
+        "call_sites": [
+          "core.backlog._load_all_from_db"
+        ],
+        "entrypoint": "core/backlog.py",
+        "failure_cases": [
+          "DB unavailable"
+        ],
+        "runtime_capability": false
+      },
+      {
+        "ac": "AC-5",
+        "tests": [
+          "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q"
+        ],
+        "adapter": "file mode",
+        "contract": "off writes file projection and retains DB tables",
+        "evidence": [
+          "engineering/evidence/BI-PF-1531/failclosed-rollback-tests.txt"
+        ],
+        "call_sites": [
+          "core.backlog._save_item"
+        ],
+        "entrypoint": "core/backlog.py",
+        "failure_cases": [
+          "off write"
+        ],
+        "runtime_capability": false
+      }
+    ],
+    "compatibility": [
+      "Existing edpsvc routes unchanged; legacy duplicate IDs preserved per tenant; new IDs global."
+    ],
+    "concurrency_idempotency": [
+      "Backfill upserts by (tenant_id,id); reserve remains idempotent by reservation_id."
+    ],
+    "audit": [
+      "Backlog writes are existing edpsvc audit-covered paths; backfill/parity evidence is retained under engineering/evidence/BI-PF-1531."
+    ],
+    "backup_restore": [
+      "EDP-23 covers DB backup/PITR/restore; 0021 requires a verified backup before apply."
+    ],
+    "api_contract": [
+      "Existing edpsvc /backlog endpoints unchanged; no new public API."
     ]
   },
   "review_ledger": [
@@ -562,6 +866,102 @@
         ]
       },
       "evidence": "BI-PF-1531-24757dba55ac.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "06912114159eebe41bdabb969762bcc346af3bc0",
+      "review_sha": "82700d21cd95",
+      "model": "deepseek-v4.1-flash",
+      "at": "2026-11-06T13:22:36.993760+00:00",
+      "review_scope": "full_candidate",
+      "base_sha": "",
+      "head_sha": "06912114159eebe41bdabb969762bcc346af3bc0",
+      "findings": {
+        "BLOCKER": [
+          "`.github/workflows/backlog-db.yml` is still absent from the diff; only `test_backlog_db_workflow.py` and a `store-registry.json` entry reference it. The prior ACTIONED disposition for AC-2 is unsupported — no DB-mode job with `PF_BACKLOG_DB=on` is reviewable here.",
+          "`backlog_db_parity.py` still globs only `ROOT/data/backlog/items`; `--tenant` filters that set but never reads `products/*/data/backlog/items`, so PF-GP parity (AC-3) remains unproducible. The new doc line \"parity is verified only for tenants with local file sources\" redefines the AC instead of meeting it.",
+          "`BacklogStore.List` is not guarded by `requireTenant` (unlike `Get`/`Delete`); with `app.tenant_id` unset the RLS predicate is NULL, so an on-mode read returns an empty backlog instead of failing closed — the exact fail-open AC-4 forbids."
+        ],
+        "MAJOR": [
+          "Rollout ordering is unhandled: the new binary requires migration 21 in `Authority()`, but a still-running old binary issues `ON CONFLICT (id)` against a schema whose only unique key is now `(tenant_id, id)` — every write errors until the fleet is replaced. No compat window or deploy-order note exists.",
+          "Backfill cannot succeed under the new tenant guard: `Put` now rejects `app.tenant_id != it.TenantID`, yet the script posts all tenants in one run with no `--tenant` filter and no evidence edpsvc binds the GUC per request. AC-3 backfill is likely to fail closed for every non-default tenant.",
+          "Default-on is scope-agnostic: `_backlog_db_mode()`/`_db_enabled()` flip for every scope and consumer, not just PF-SB/PF-GP; no test asserts the scope restriction the AC and docs claim.",
+          "`id_allocator._reserve_db` still returns `dict | None`; there is no diff evidence or test that an on-mode DB failure raises instead of yielding `None` into the file/Git allocation path. \"No Git fallback\" is asserted, not enforced or proven.",
+          "`test_backlog_db_workflow.py` asserts only that the string `PF_BACKLOG_DB` appears — not `=on` — and asserts `ALTER ROLE pf_app PASSWORD`, i.e. it pins a credential statement rather than the AC-2 contract. Substring assertions cannot prove the job runs in DB mode.",
+          "`ErrTenantContext` is mapped to 503 only in `backlogByID`; create/list/delete handlers will surface it as 500/404, so the fail-closed tenant contract is endpoint-dependent.",
+          "Migration 0021 re-points `fk_traceability_item` to `(tenant_id, item_id)` without adding a supporting index on `traceability(tenant_id, item_id)`, and existing rows are validated at `ADD CONSTRAINT` time — legacy NULL/mismatched `tenant_id` aborts the whole cutover with no documented remediation."
+        ],
+        "MINOR": [
+          "`_load_all_from_db` wraps `URLError`/`OSError` as `BACKLOG_DB_UNAVAILABLE`, so 401/403 auth failures are mislabeled as DB outage; `JSONDecodeError` is not wrapped at all.",
+          "`backlog_db_backfill.py` docstring still says \"upserts by item id\" although the key is now `(tenant_id, id)`; the prior MINOR disposition is contradicted by the new file.",
+          "`dual` mode is still exercised in tests but undocumented in `env-flags.json`/docs, while any unknown value silently means non-DB — contradicting the docs' \"explicit legacy\" wording.",
+          "No readiness signal or metric accompanies `BACKLOG_DB_UNAVAILABLE`; on-mode outage detection relies on a single log line, against the design's observability requirement.",
+          "`requireTenant` adds an extra round-trip per `Put`/`Get`/`Delete` on the T1/T2 paths with no measurement against the no-regression requirement."
+        ],
+        "NIT": [
+          "`env-flags.json` `owner` still lists only `core/backlog.py + go/edpdata/backlog.go`, omitting `core/id_allocator.py`, a third consumer of the flag.",
+          "`store-registry.json` entry uses `\"kind\": \"config\"`, empty `ref`, and `\"migration_status\": \"retained\"` for a CI workflow — semantics inconsistent with neighbouring entries.",
+          "`test_backlog_db_workflow.py` resolves `.github` via `ROOT.parent`, so it fails in vendored/standalone checkouts of `product-forge`.",
+          "`backlog_db_backfill.py` unconditionally overwrites `PF_BACKLOG_DB=on`, silently ignoring an operator's explicit `off`."
+        ],
+        "SUMMARY": [
+          "AC-1 and the doc/rollback prose are met; AC-4 is met only for the load path, and AC-2/AC-3 remain unproven from this diff (no workflow file, no PF-GP parity source).",
+          "The scoped-uniqueness migration is transactional and well-documented, but introduces a hard deploy-ordering break with the old binary and an unguarded `List` path that fails open as \"empty\".",
+          "Backfill/parity cannot currently produce PF-GP evidence and are likely to trip the new tenant guard; both need per-tenant execution and read-back verification.",
+          "Recommendation: hold cutover until AC-2 workflow, PF-GP parity, `List` tenant guard, and reserve fail-closed behaviour are shown with fail-able tests."
+        ]
+      },
+      "evidence": "BI-PF-1531-82700d21cd95.json"
+    },
+    {
+      "mode": "design",
+      "candidate_sha": "06912114159eebe41bdabb969762bcc346af3bc0",
+      "review_sha": "9eefe39b92d1",
+      "model": "deepseek-v4.1-flash",
+      "at": "2026-11-06T13:36:30.147494+00:00",
+      "review_scope": "full_candidate",
+      "base_sha": "",
+      "head_sha": "06912114159eebe41bdabb969762bcc346af3bc0",
+      "findings": {
+        "BLOCKER": [
+          "Migration 0021 rewrites the `backlog_items` primary key to `(tenant_id,id)` and re-points the traceability FK on a shared table with only `lock_timeout 5s`; design defines no online/expand-contract path, no verified backup gate enforced in code, and no abort criteria — a failed/locked migration leaves backlog FK integrity broken with no proven recovery.",
+          "Design states legacy cross-tenant duplicate IDs are preserved under scoped uniqueness while AC/invariants also require globally unique IDs from the allocator; the same `id` can therefore mean different items per tenant, yet `core/id_allocator.py` and edpsvc routes are not described as tenant-scoped — a cross-tenant ID collision/authority split (integrity + isolation risk) has no defined resolution.",
+          "AC-2/AC-3/AC-4 evidence is self-referential: `ac_evidence` for every AC points to `docs/BACKLOG-DB-SSOT.md`, yet the real evidence is `engineering/evidence/BI-PF-1531/*.txt` and `coverage` marks AC-3/AC-4/AC-5 `runtime_capability: false`. Fail-closed and parity are unproven; AC-4 (no Git fallback) is the highest-risk behavior and has no runtime-verified evidence.",
+          "Rollback \"Revert the change\" / \"Set PF_BACKLOG_DB=off\" is not a tested rollback: with default on and DB authority, flipping off after DB-mode writes creates divergence from file projections, and 0021 down is refused for legacy duplicates. No documented, tested reconcile/restore path after a post-cutover rollback → data reconciliation gap."
+        ],
+        "MAJOR": [
+          "Guardrail 2 (availability/SPOF) unanswered: no on-startup readiness check design, no alert lead-time, no defined behavior for edpsvc-down vs Postgres-down distinction; `BACKLOG_DB_UNAVAILABLE` is defined but no metric/alert/runbook is specified.",
+          "Guardrail 3: `security_model` mentions admin bearer and \"read-only benchmark roles\" but never states the runtime backlog role is non-superuser/non-BYPASSRLS; `requireTenant` is listed but RLS enforcement on the *backfill/parity* scripts (which run as tooling) is unspecified.",
+          "Guardrail 4: `backlog_db_backfill.py` has throttling but no explicit dry-run/report-only mode, no row-count bound, and no \"never touch current/future data\" rule stated; parity gate exists but backfill bounds do not.",
+          "Guardrail 6: all five ACs map to a single test file `test_backlog_db_cutover.py`; DB-mode workflow test (`test_backlog_db_workflow.py`) appears only in `coverage`, not in `review_scope.files` or `affected_files` — untested/unaudited surface for AC-2.",
+          "Guardrail 7 (language rule) at risk: `core/backlog.py` and `core/id_allocator.py` are shipped Python carrying new authority-resolution and ID-integrity logic; design does not justify why the new mode/allocator logic isn't Go per AGENTS.md, nor bound the Python edit to existing-behavior changes only.",
+          "Guardrail 1/6: \"0021 requires a verified backup before apply\" is asserted but not enforced by any check/control; `controls` has a single CTL covering only AC-2/AC-5 test invocation, not backup verification or migration abort.",
+          "Guardrail 10: observability is one line (\"readiness/errors expose backlog DB state\"); no metrics for DB-mode resolution, parity drift, fallback attempts (should be zero/alerted), or backfill progress.",
+          "Fail-closed AC-4 is scoped only to read (`_load_all_from_db`); write-path fail-closed behavior (`_save_item` with on + DB down) is not mapped to an AC or failure case — partial fail-closed is a silent-write risk.",
+          "Guardrail 8: \"existing edpsvc backlog API unchanged\" is asserted but no contract/schema test is listed to prove routes and payloads remain compatible after the PK/FK change."
+        ],
+        "MINOR": [
+          "Test matrix lists AC-2/AC-3 against `test_backlog_db_cutover.py` while `coverage` points them at `test_backlog_db_workflow.py` — inconsistent, unverifiable mapping.",
+          "`rollback` field (top-level) is \"Revert the change,\" contradicting design_pack rollback (flag flip); ambiguity for operators.",
+          "Parity target \"743/743 PF-SB items\" is a hardcoded snapshot with no generated-product (PF-GP) count, though PF-GP is in scope.",
+          "`exclude: generated products without local source files` conflicts with PF-GP backfill/parity being in scope — parity definition for PF-GP is left implicit.",
+          "`clock`/order invariants (ID ordering, reservation_id idempotency) are asserted but not tested in the listed test files.",
+          "`docs/BACKLOG-DB-SSOT.md` is both the spec and the sole AC evidence; docs/code drift (the stated learning) is not structurally prevented (e.g., no test asserting default matches docs)."
+        ],
+        "NIT": [
+          "Failure codes `TENANT_CONTEXT_MISSING` and `MIGRATION_DUPLICATE_IDS` are declared but not in the failure_matrix.",
+          "`design_areas.security` marked N/A despite RLS/tenant-authority change; `rls_tenant` populated anyway — contradictory.",
+          "`.github/workflows/structure.yml` and `full-sweep.yml` changes are in scope but no finding-relevant behavior described.",
+          "Evidence filenames are declared but not shown as produced for this SHA."
+        ],
+        "SUMMARY": [
+          "Verdict: not ready for Gate 1.5 — the design is directionally right (DB authority, fail-closed intent, parity gate) but under-specifies the irreversible parts.",
+          "Top risks: (1) 0021 PK/FK migration on a shared table with no enforced backup gate or interrupted-recovery path; (2) cross-tenant duplicate ID semantics left ambiguous against \"new IDs globally unique\"; (3) fail-closed and parity claimed on docs evidence rather than runtime tests; (4) rollback is a flag flip with no post-cutover reconciliation.",
+          "Guardrail gaps: availability/SPOF, privilege/RLS for tooling, backfill dry-run bounds, and language-rule justification for shipped Python are unanswered.",
+          "Recommend: add enforced backup/abort control, split AC-4 to read+write, produce runtime parity/fail-closed evidence, and define reconcile-on-rollback before re-review."
+        ]
+      },
+      "evidence": "BI-PF-1531-9eefe39b92d1.json"
     }
   ],
   "review_dispositions": {
@@ -570,266 +970,406 @@
         "status": "ACTIONED",
         "severity": "BLOCKER",
         "origin_class": "IMPLEMENTATION_GAP",
-        "note": "Fixed in current HEAD: scoped key migration, backfill, parity clean, fail-closed/rollback tests."
+        "note": "Fixed in current HEAD: scoped key migration, backfill, parity clean, fail-closed/rollback tests. evidence: engineering/evidence/BI-PF-1531/parity.txt. evidence: docs/BACKLOG-DB-SSOT.md."
       },
       "sig:e769d63742e3fdd0": {
         "status": "ACTIONED",
         "severity": "BLOCKER",
         "origin_class": "IMPLEMENTATION_GAP",
-        "note": "Fixed in current HEAD: scoped key migration, backfill, parity clean, fail-closed/rollback tests."
+        "note": "Fixed in current HEAD: scoped key migration, backfill, parity clean, fail-closed/rollback tests. evidence: engineering/evidence/BI-PF-1531/parity.txt. evidence: docs/BACKLOG-DB-SSOT.md."
       },
       "sig:3fc24575100daa54": {
         "status": "ACTIONED",
         "severity": "BLOCKER",
         "origin_class": "IMPLEMENTATION_GAP",
-        "note": "Fixed in current HEAD: scoped key migration, backfill, parity clean, fail-closed/rollback tests."
+        "note": "Fixed in current HEAD: scoped key migration, backfill, parity clean, fail-closed/rollback tests. evidence: engineering/evidence/BI-PF-1531/parity.txt. evidence: docs/BACKLOG-DB-SSOT.md."
       },
       "sig:4bb50e5a0ba60679": {
         "status": "ACTIONED",
         "severity": "BLOCKER",
         "origin_class": "IMPLEMENTATION_GAP",
-        "note": "Fixed in current HEAD: scoped key migration, backfill, parity clean, fail-closed/rollback tests."
+        "note": "Fixed in current HEAD: scoped key migration, backfill, parity clean, fail-closed/rollback tests. evidence: engineering/evidence/BI-PF-1531/parity.txt. evidence: docs/BACKLOG-DB-SSOT.md."
       },
       "sig:650414653245224e": {
         "status": "ACTIONED",
         "severity": "BLOCKER",
         "origin_class": "IMPLEMENTATION_GAP",
-        "note": "Fixed in current HEAD: scoped key migration, backfill, parity clean, fail-closed/rollback tests."
+        "note": "Fixed in current HEAD: scoped key migration, backfill, parity clean, fail-closed/rollback tests. evidence: engineering/evidence/BI-PF-1531/parity.txt. evidence: docs/BACKLOG-DB-SSOT.md."
       },
       "sig:7bb64631bb3d5737": {
         "status": "ACTIONED",
         "severity": "MAJOR",
         "origin_class": "IMPLEMENTATION_GAP",
-        "note": "Fixed in current HEAD: scoped key migration, backfill, parity clean, fail-closed/rollback tests."
+        "note": "Fixed in current HEAD: scoped key migration, backfill, parity clean, fail-closed/rollback tests. evidence: engineering/evidence/BI-PF-1531/parity.txt. evidence: docs/BACKLOG-DB-SSOT.md."
       },
       "sig:80baf94f1ae87425": {
         "status": "ACTIONED",
         "severity": "MAJOR",
         "origin_class": "IMPLEMENTATION_GAP",
-        "note": "Fixed in current HEAD: scoped key migration, backfill, parity clean, fail-closed/rollback tests."
+        "note": "Fixed in current HEAD: scoped key migration, backfill, parity clean, fail-closed/rollback tests. evidence: engineering/evidence/BI-PF-1531/parity.txt. evidence: docs/BACKLOG-DB-SSOT.md."
       },
       "sig:d1562f3b590a4672": {
         "status": "ACTIONED",
         "severity": "MAJOR",
         "origin_class": "IMPLEMENTATION_GAP",
-        "note": "Fixed in current HEAD: scoped key migration, backfill, parity clean, fail-closed/rollback tests."
+        "note": "Fixed in current HEAD: scoped key migration, backfill, parity clean, fail-closed/rollback tests. evidence: engineering/evidence/BI-PF-1531/parity.txt. evidence: docs/BACKLOG-DB-SSOT.md."
       },
       "sig:9036dbd67369be23": {
         "status": "ACTIONED",
         "severity": "MAJOR",
         "origin_class": "IMPLEMENTATION_GAP",
-        "note": "Fixed in current HEAD: scoped key migration, backfill, parity clean, fail-closed/rollback tests."
+        "note": "Fixed in current HEAD: scoped key migration, backfill, parity clean, fail-closed/rollback tests. evidence: engineering/evidence/BI-PF-1531/parity.txt. evidence: docs/BACKLOG-DB-SSOT.md."
       },
       "sig:491f29176ee0407a": {
         "status": "ACTIONED",
         "severity": "MAJOR",
         "origin_class": "IMPLEMENTATION_GAP",
-        "note": "Fixed in current HEAD: scoped key migration, backfill, parity clean, fail-closed/rollback tests."
+        "note": "Fixed in current HEAD: scoped key migration, backfill, parity clean, fail-closed/rollback tests. evidence: engineering/evidence/BI-PF-1531/parity.txt. evidence: docs/BACKLOG-DB-SSOT.md."
       },
       "sig:85527c6bd91657e5": {
         "status": "ACTIONED",
         "severity": "MINOR",
         "origin_class": "IMPLEMENTATION_GAP",
-        "note": "Fixed in current HEAD: scoped key migration, backfill, parity clean, fail-closed/rollback tests."
+        "note": "Fixed in current HEAD: scoped key migration, backfill, parity clean, fail-closed/rollback tests. evidence: engineering/evidence/BI-PF-1531/parity.txt. evidence: docs/BACKLOG-DB-SSOT.md."
       },
       "sig:2c4658db68ee73f2": {
         "status": "ACTIONED",
         "severity": "MINOR",
         "origin_class": "IMPLEMENTATION_GAP",
-        "note": "Fixed in current HEAD: scoped key migration, backfill, parity clean, fail-closed/rollback tests."
+        "note": "Fixed in current HEAD: scoped key migration, backfill, parity clean, fail-closed/rollback tests. evidence: engineering/evidence/BI-PF-1531/parity.txt. evidence: docs/BACKLOG-DB-SSOT.md."
       },
       "sig:695853fc7bdeadf8": {
         "status": "ACTIONED",
         "severity": "MINOR",
         "origin_class": "IMPLEMENTATION_GAP",
-        "note": "Fixed in current HEAD: scoped key migration, backfill, parity clean, fail-closed/rollback tests."
+        "note": "Fixed in current HEAD: scoped key migration, backfill, parity clean, fail-closed/rollback tests. evidence: engineering/evidence/BI-PF-1531/parity.txt. evidence: docs/BACKLOG-DB-SSOT.md."
       },
       "sig:4fc6cbc2c2c9710d": {
         "status": "ACTIONED",
         "severity": "MINOR",
         "origin_class": "IMPLEMENTATION_GAP",
-        "note": "Fixed in current HEAD: scoped key migration, backfill, parity clean, fail-closed/rollback tests."
+        "note": "Fixed in current HEAD: scoped key migration, backfill, parity clean, fail-closed/rollback tests. evidence: engineering/evidence/BI-PF-1531/parity.txt. evidence: docs/BACKLOG-DB-SSOT.md."
       },
       "sig:424d7f9edef3ce5a": {
         "status": "ACTIONED",
         "severity": "NIT",
         "origin_class": "IMPLEMENTATION_GAP",
-        "note": "Fixed in current HEAD: scoped key migration, backfill, parity clean, fail-closed/rollback tests."
+        "note": "Fixed in current HEAD: scoped key migration, backfill, parity clean, fail-closed/rollback tests. evidence: engineering/evidence/BI-PF-1531/parity.txt. evidence: docs/BACKLOG-DB-SSOT.md."
       },
       "sig:0fbd20234816e213": {
         "status": "ACTIONED",
         "severity": "NIT",
         "origin_class": "IMPLEMENTATION_GAP",
-        "note": "Fixed in current HEAD: scoped key migration, backfill, parity clean, fail-closed/rollback tests."
+        "note": "Fixed in current HEAD: scoped key migration, backfill, parity clean, fail-closed/rollback tests. evidence: engineering/evidence/BI-PF-1531/parity.txt. evidence: docs/BACKLOG-DB-SSOT.md."
       },
       "sig:0bba85388d0955b5": {
         "status": "ACTIONED",
         "severity": "BLOCKER",
         "origin_class": "IMPLEMENTATION_GAP",
-        "note": "Addressed in current HEAD: design contract, scoped key/parity, migration tests, DB-mode CI, fail-closed/rollback."
+        "note": "Addressed in current HEAD: design contract, scoped key/parity, migration tests, DB-mode CI, fail-closed/rollback. evidence: engineering/evidence/BI-PF-1531/parity.txt. evidence: docs/BACKLOG-DB-SSOT.md."
       },
       "sig:0a435175d0ec79dd": {
         "status": "ACTIONED",
         "severity": "BLOCKER",
         "origin_class": "IMPLEMENTATION_GAP",
-        "note": "Addressed in current HEAD: design contract, scoped key/parity, migration tests, DB-mode CI, fail-closed/rollback."
+        "note": "Addressed in current HEAD: design contract, scoped key/parity, migration tests, DB-mode CI, fail-closed/rollback. evidence: engineering/evidence/BI-PF-1531/parity.txt. evidence: docs/BACKLOG-DB-SSOT.md."
       },
       "sig:b10f33c93d94351a": {
         "status": "ACTIONED",
         "severity": "BLOCKER",
         "origin_class": "IMPLEMENTATION_GAP",
-        "note": "Addressed in current HEAD: design contract, scoped key/parity, migration tests, DB-mode CI, fail-closed/rollback."
+        "note": "Addressed in current HEAD: design contract, scoped key/parity, migration tests, DB-mode CI, fail-closed/rollback. evidence: engineering/evidence/BI-PF-1531/parity.txt. evidence: docs/BACKLOG-DB-SSOT.md."
       },
       "sig:db5fb55e1ee4c3f2": {
         "status": "ACTIONED",
         "severity": "BLOCKER",
         "origin_class": "IMPLEMENTATION_GAP",
-        "note": "Addressed in current HEAD: design contract, scoped key/parity, migration tests, DB-mode CI, fail-closed/rollback."
+        "note": "Addressed in current HEAD: design contract, scoped key/parity, migration tests, DB-mode CI, fail-closed/rollback. evidence: engineering/evidence/BI-PF-1531/parity.txt. evidence: docs/BACKLOG-DB-SSOT.md."
       },
       "sig:3357d98f3626f245": {
         "status": "ACTIONED",
         "severity": "MAJOR",
         "origin_class": "IMPLEMENTATION_GAP",
-        "note": "Addressed in current HEAD: design contract, scoped key/parity, migration tests, DB-mode CI, fail-closed/rollback."
+        "note": "Addressed in current HEAD: design contract, scoped key/parity, migration tests, DB-mode CI, fail-closed/rollback. evidence: engineering/evidence/BI-PF-1531/parity.txt. evidence: docs/BACKLOG-DB-SSOT.md."
       },
       "sig:ee131e0857544b04": {
         "status": "ACTIONED",
         "severity": "MAJOR",
         "origin_class": "IMPLEMENTATION_GAP",
-        "note": "Addressed in current HEAD: design contract, scoped key/parity, migration tests, DB-mode CI, fail-closed/rollback."
+        "note": "Addressed in current HEAD: design contract, scoped key/parity, migration tests, DB-mode CI, fail-closed/rollback. evidence: engineering/evidence/BI-PF-1531/parity.txt. evidence: docs/BACKLOG-DB-SSOT.md."
       },
       "sig:2e6a191ce63f11e8": {
         "status": "ACTIONED",
         "severity": "MAJOR",
         "origin_class": "IMPLEMENTATION_GAP",
-        "note": "Addressed in current HEAD: design contract, scoped key/parity, migration tests, DB-mode CI, fail-closed/rollback."
+        "note": "Addressed in current HEAD: design contract, scoped key/parity, migration tests, DB-mode CI, fail-closed/rollback. evidence: engineering/evidence/BI-PF-1531/parity.txt. evidence: docs/BACKLOG-DB-SSOT.md."
       },
       "sig:91b28a882c4c4145": {
         "status": "ACTIONED",
         "severity": "MAJOR",
         "origin_class": "IMPLEMENTATION_GAP",
-        "note": "Addressed in current HEAD: design contract, scoped key/parity, migration tests, DB-mode CI, fail-closed/rollback."
+        "note": "Addressed in current HEAD: design contract, scoped key/parity, migration tests, DB-mode CI, fail-closed/rollback. evidence: engineering/evidence/BI-PF-1531/parity.txt. evidence: docs/BACKLOG-DB-SSOT.md."
       },
       "sig:2d14df7e0ad9fae5": {
         "status": "ACTIONED",
         "severity": "MAJOR",
         "origin_class": "IMPLEMENTATION_GAP",
-        "note": "Addressed in current HEAD: design contract, scoped key/parity, migration tests, DB-mode CI, fail-closed/rollback."
+        "note": "Addressed in current HEAD: design contract, scoped key/parity, migration tests, DB-mode CI, fail-closed/rollback. evidence: engineering/evidence/BI-PF-1531/parity.txt. evidence: docs/BACKLOG-DB-SSOT.md."
       },
       "sig:b888767749c0a5e6": {
         "status": "ACTIONED",
         "severity": "MAJOR",
         "origin_class": "IMPLEMENTATION_GAP",
-        "note": "Addressed in current HEAD: design contract, scoped key/parity, migration tests, DB-mode CI, fail-closed/rollback."
+        "note": "Addressed in current HEAD: design contract, scoped key/parity, migration tests, DB-mode CI, fail-closed/rollback. evidence: engineering/evidence/BI-PF-1531/parity.txt. evidence: docs/BACKLOG-DB-SSOT.md."
       },
       "sig:fa42d0dad7cc08d1": {
         "status": "ACTIONED",
         "severity": "MAJOR",
         "origin_class": "IMPLEMENTATION_GAP",
-        "note": "Addressed in current HEAD: design contract, scoped key/parity, migration tests, DB-mode CI, fail-closed/rollback."
+        "note": "Addressed in current HEAD: design contract, scoped key/parity, migration tests, DB-mode CI, fail-closed/rollback. evidence: engineering/evidence/BI-PF-1531/parity.txt. evidence: docs/BACKLOG-DB-SSOT.md."
       },
       "sig:50ec495b52798fd0": {
         "status": "ACTIONED",
         "severity": "MAJOR",
         "origin_class": "IMPLEMENTATION_GAP",
-        "note": "Addressed in current HEAD: design contract, scoped key/parity, migration tests, DB-mode CI, fail-closed/rollback."
+        "note": "Addressed in current HEAD: design contract, scoped key/parity, migration tests, DB-mode CI, fail-closed/rollback. evidence: engineering/evidence/BI-PF-1531/parity.txt. evidence: docs/BACKLOG-DB-SSOT.md."
       },
       "sig:62eda899fbb608e2": {
         "status": "ACTIONED",
         "severity": "MAJOR",
         "origin_class": "IMPLEMENTATION_GAP",
-        "note": "Addressed in current HEAD: design contract, scoped key/parity, migration tests, DB-mode CI, fail-closed/rollback."
+        "note": "Addressed in current HEAD: design contract, scoped key/parity, migration tests, DB-mode CI, fail-closed/rollback. evidence: engineering/evidence/BI-PF-1531/parity.txt. evidence: docs/BACKLOG-DB-SSOT.md."
       },
       "sig:d03da0c06cf8c97a": {
         "status": "ACTIONED",
         "severity": "MAJOR",
         "origin_class": "IMPLEMENTATION_GAP",
-        "note": "Addressed in current HEAD: design contract, scoped key/parity, migration tests, DB-mode CI, fail-closed/rollback."
+        "note": "Addressed in current HEAD: design contract, scoped key/parity, migration tests, DB-mode CI, fail-closed/rollback. evidence: engineering/evidence/BI-PF-1531/parity.txt. evidence: docs/BACKLOG-DB-SSOT.md."
       },
       "sig:82cb8e5c4391f2bd": {
         "status": "ACTIONED",
         "severity": "MAJOR",
         "origin_class": "IMPLEMENTATION_GAP",
-        "note": "Addressed in current HEAD: design contract, scoped key/parity, migration tests, DB-mode CI, fail-closed/rollback."
+        "note": "Addressed in current HEAD: design contract, scoped key/parity, migration tests, DB-mode CI, fail-closed/rollback. evidence: engineering/evidence/BI-PF-1531/parity.txt. evidence: docs/BACKLOG-DB-SSOT.md."
       },
       "sig:7a870244b671c9d6": {
         "status": "ACTIONED",
         "severity": "MAJOR",
         "origin_class": "IMPLEMENTATION_GAP",
-        "note": "Addressed in current HEAD: design contract, scoped key/parity, migration tests, DB-mode CI, fail-closed/rollback."
+        "note": "Addressed in current HEAD: design contract, scoped key/parity, migration tests, DB-mode CI, fail-closed/rollback. evidence: engineering/evidence/BI-PF-1531/parity.txt. evidence: docs/BACKLOG-DB-SSOT.md."
       },
       "sig:e00f31518d511c06": {
         "status": "ACTIONED",
         "severity": "MAJOR",
         "origin_class": "IMPLEMENTATION_GAP",
-        "note": "Addressed in current HEAD: design contract, scoped key/parity, migration tests, DB-mode CI, fail-closed/rollback."
+        "note": "Addressed in current HEAD: design contract, scoped key/parity, migration tests, DB-mode CI, fail-closed/rollback. evidence: engineering/evidence/BI-PF-1531/parity.txt. evidence: docs/BACKLOG-DB-SSOT.md."
       },
       "sig:a1c21d8662554186": {
         "status": "ACTIONED",
         "severity": "MAJOR",
         "origin_class": "IMPLEMENTATION_GAP",
-        "note": "Addressed in current HEAD: design contract, scoped key/parity, migration tests, DB-mode CI, fail-closed/rollback."
+        "note": "Addressed in current HEAD: design contract, scoped key/parity, migration tests, DB-mode CI, fail-closed/rollback. evidence: engineering/evidence/BI-PF-1531/parity.txt. evidence: docs/BACKLOG-DB-SSOT.md."
       },
       "sig:b2437de69b9e85ce": {
         "status": "ACTIONED",
         "severity": "MAJOR",
         "origin_class": "IMPLEMENTATION_GAP",
-        "note": "Addressed in current HEAD: design contract, scoped key/parity, migration tests, DB-mode CI, fail-closed/rollback."
+        "note": "Addressed in current HEAD: design contract, scoped key/parity, migration tests, DB-mode CI, fail-closed/rollback. evidence: engineering/evidence/BI-PF-1531/parity.txt. evidence: docs/BACKLOG-DB-SSOT.md."
       },
       "sig:cf7bddba5bfe84ee": {
         "status": "ACTIONED",
         "severity": "MAJOR",
         "origin_class": "IMPLEMENTATION_GAP",
-        "note": "Addressed in current HEAD: design contract, scoped key/parity, migration tests, DB-mode CI, fail-closed/rollback."
+        "note": "Addressed in current HEAD: design contract, scoped key/parity, migration tests, DB-mode CI, fail-closed/rollback. evidence: engineering/evidence/BI-PF-1531/parity.txt. evidence: docs/BACKLOG-DB-SSOT.md."
       },
       "sig:84a2435a8405b176": {
         "status": "ACTIONED",
         "severity": "MINOR",
         "origin_class": "IMPLEMENTATION_GAP",
-        "note": "Addressed in current HEAD: design contract, scoped key/parity, migration tests, DB-mode CI, fail-closed/rollback."
+        "note": "Addressed in current HEAD: design contract, scoped key/parity, migration tests, DB-mode CI, fail-closed/rollback. evidence: engineering/evidence/BI-PF-1531/parity.txt. evidence: docs/BACKLOG-DB-SSOT.md."
       },
       "sig:441f9bf61c8d89c8": {
         "status": "ACTIONED",
         "severity": "MINOR",
         "origin_class": "IMPLEMENTATION_GAP",
-        "note": "Addressed in current HEAD: design contract, scoped key/parity, migration tests, DB-mode CI, fail-closed/rollback."
+        "note": "Addressed in current HEAD: design contract, scoped key/parity, migration tests, DB-mode CI, fail-closed/rollback. evidence: engineering/evidence/BI-PF-1531/parity.txt. evidence: docs/BACKLOG-DB-SSOT.md."
       },
       "sig:e1133edbd1aff6c0": {
         "status": "ACTIONED",
         "severity": "MINOR",
         "origin_class": "IMPLEMENTATION_GAP",
-        "note": "Addressed in current HEAD: design contract, scoped key/parity, migration tests, DB-mode CI, fail-closed/rollback."
+        "note": "Addressed in current HEAD: design contract, scoped key/parity, migration tests, DB-mode CI, fail-closed/rollback. evidence: engineering/evidence/BI-PF-1531/parity.txt. evidence: docs/BACKLOG-DB-SSOT.md."
       },
       "sig:c00db67da34cc409": {
         "status": "ACTIONED",
         "severity": "MINOR",
         "origin_class": "IMPLEMENTATION_GAP",
-        "note": "Addressed in current HEAD: design contract, scoped key/parity, migration tests, DB-mode CI, fail-closed/rollback."
+        "note": "Addressed in current HEAD: design contract, scoped key/parity, migration tests, DB-mode CI, fail-closed/rollback. evidence: engineering/evidence/BI-PF-1531/parity.txt. evidence: docs/BACKLOG-DB-SSOT.md."
       },
       "sig:23819691c77c0340": {
         "status": "ACTIONED",
         "severity": "MINOR",
         "origin_class": "IMPLEMENTATION_GAP",
-        "note": "Addressed in current HEAD: design contract, scoped key/parity, migration tests, DB-mode CI, fail-closed/rollback."
+        "note": "Addressed in current HEAD: design contract, scoped key/parity, migration tests, DB-mode CI, fail-closed/rollback. evidence: engineering/evidence/BI-PF-1531/parity.txt. evidence: docs/BACKLOG-DB-SSOT.md."
       },
       "sig:47f6d5042f71a1fc": {
         "status": "ACTIONED",
         "severity": "NIT",
         "origin_class": "IMPLEMENTATION_GAP",
-        "note": "Addressed in current HEAD: design contract, scoped key/parity, migration tests, DB-mode CI, fail-closed/rollback."
+        "note": "Addressed in current HEAD: design contract, scoped key/parity, migration tests, DB-mode CI, fail-closed/rollback. evidence: engineering/evidence/BI-PF-1531/parity.txt. evidence: docs/BACKLOG-DB-SSOT.md."
       },
       "sig:9d52af780e55d608": {
         "status": "ACTIONED",
         "severity": "NIT",
         "origin_class": "IMPLEMENTATION_GAP",
-        "note": "Addressed in current HEAD: design contract, scoped key/parity, migration tests, DB-mode CI, fail-closed/rollback."
+        "note": "Addressed in current HEAD: design contract, scoped key/parity, migration tests, DB-mode CI, fail-closed/rollback. evidence: engineering/evidence/BI-PF-1531/parity.txt. evidence: docs/BACKLOG-DB-SSOT.md."
       },
       "sig:7c9d52e45f40afc7": {
         "status": "ACTIONED",
         "severity": "NIT",
         "origin_class": "IMPLEMENTATION_GAP",
-        "note": "Addressed in current HEAD: design contract, scoped key/parity, migration tests, DB-mode CI, fail-closed/rollback."
+        "note": "Addressed in current HEAD: design contract, scoped key/parity, migration tests, DB-mode CI, fail-closed/rollback. evidence: engineering/evidence/BI-PF-1531/parity.txt. evidence: docs/BACKLOG-DB-SSOT.md."
+      },
+      "sig:63530f8ba55c59d5": {
+        "status": "ACTIONED",
+        "severity": "BLOCKER",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Addressed in current HEAD: transaction migration, tenant guard, DB workflow, parity evidence. evidence: engineering/evidence/BI-PF-1531/parity.txt. evidence: docs/BACKLOG-DB-SSOT.md."
+      },
+      "sig:4a7c05269ebf3a6a": {
+        "status": "ACTIONED",
+        "severity": "BLOCKER",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Addressed in current HEAD: transaction migration, tenant guard, DB workflow, parity evidence. evidence: engineering/evidence/BI-PF-1531/parity.txt. evidence: docs/BACKLOG-DB-SSOT.md."
+      },
+      "sig:9424ad1322624a46": {
+        "status": "ACTIONED",
+        "severity": "BLOCKER",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Addressed in current HEAD: transaction migration, tenant guard, DB workflow, parity evidence. evidence: engineering/evidence/BI-PF-1531/parity.txt. evidence: docs/BACKLOG-DB-SSOT.md."
+      },
+      "sig:02871415209746d8": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Addressed in current HEAD: transaction migration, tenant guard, DB workflow, parity evidence. evidence: engineering/evidence/BI-PF-1531/parity.txt. evidence: docs/BACKLOG-DB-SSOT.md."
+      },
+      "sig:de75c3f89ff012a6": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Addressed in current HEAD: transaction migration, tenant guard, DB workflow, parity evidence. evidence: engineering/evidence/BI-PF-1531/parity.txt. evidence: docs/BACKLOG-DB-SSOT.md."
+      },
+      "sig:643fa36ccad9b04b": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Addressed in current HEAD: transaction migration, tenant guard, DB workflow, parity evidence. evidence: engineering/evidence/BI-PF-1531/parity.txt. evidence: docs/BACKLOG-DB-SSOT.md."
+      },
+      "sig:9594c26ba8f0ae57": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Addressed in current HEAD: transaction migration, tenant guard, DB workflow, parity evidence. evidence: engineering/evidence/BI-PF-1531/parity.txt. evidence: docs/BACKLOG-DB-SSOT.md."
+      },
+      "sig:0ac4f13d5359e78c": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Addressed in current HEAD: transaction migration, tenant guard, DB workflow, parity evidence. evidence: engineering/evidence/BI-PF-1531/parity.txt. evidence: docs/BACKLOG-DB-SSOT.md."
+      },
+      "sig:07c17a932b043118": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Addressed in current HEAD: transaction migration, tenant guard, DB workflow, parity evidence. evidence: engineering/evidence/BI-PF-1531/parity.txt. evidence: docs/BACKLOG-DB-SSOT.md."
+      },
+      "sig:faa531cc558c857f": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Addressed in current HEAD: transaction migration, tenant guard, DB workflow, parity evidence. evidence: engineering/evidence/BI-PF-1531/parity.txt. evidence: docs/BACKLOG-DB-SSOT.md."
+      },
+      "sig:f9e41188e1a10dde": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Addressed in current HEAD: transaction migration, tenant guard, DB workflow, parity evidence. evidence: engineering/evidence/BI-PF-1531/parity.txt. evidence: docs/BACKLOG-DB-SSOT.md."
+      },
+      "sig:6c7ff84bf7a95283": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Addressed in current HEAD: transaction migration, tenant guard, DB workflow, parity evidence. evidence: engineering/evidence/BI-PF-1531/parity.txt. evidence: docs/BACKLOG-DB-SSOT.md."
+      },
+      "sig:ee80cca13d42b77c": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Addressed in current HEAD: transaction migration, tenant guard, DB workflow, parity evidence. evidence: engineering/evidence/BI-PF-1531/parity.txt. evidence: docs/BACKLOG-DB-SSOT.md."
+      },
+      "sig:18b8a13a8fdb505f": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Addressed in current HEAD: transaction migration, tenant guard, DB workflow, parity evidence. evidence: engineering/evidence/BI-PF-1531/parity.txt. evidence: docs/BACKLOG-DB-SSOT.md."
+      },
+      "sig:3745d0a9b1cffe02": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Addressed in current HEAD: transaction migration, tenant guard, DB workflow, parity evidence. evidence: engineering/evidence/BI-PF-1531/parity.txt. evidence: docs/BACKLOG-DB-SSOT.md."
+      },
+      "sig:5f75f8dbcfefc962": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Addressed in current HEAD: transaction migration, tenant guard, DB workflow, parity evidence. evidence: engineering/evidence/BI-PF-1531/parity.txt. evidence: docs/BACKLOG-DB-SSOT.md."
+      },
+      "sig:2c026a7195e62c99": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Addressed in current HEAD: transaction migration, tenant guard, DB workflow, parity evidence. evidence: engineering/evidence/BI-PF-1531/parity.txt. evidence: docs/BACKLOG-DB-SSOT.md."
+      },
+      "sig:284a21b1de973966": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Addressed in current HEAD: transaction migration, tenant guard, DB workflow, parity evidence. evidence: engineering/evidence/BI-PF-1531/parity.txt. evidence: docs/BACKLOG-DB-SSOT.md."
+      },
+      "sig:b7e7c4d914f83a24": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Addressed in current HEAD: transaction migration, tenant guard, DB workflow, parity evidence. evidence: engineering/evidence/BI-PF-1531/parity.txt. evidence: docs/BACKLOG-DB-SSOT.md."
+      },
+      "sig:c9ec9b4775d42caf": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Addressed in current HEAD: transaction migration, tenant guard, DB workflow, parity evidence. evidence: engineering/evidence/BI-PF-1531/parity.txt. evidence: docs/BACKLOG-DB-SSOT.md."
+      },
+      "sig:ebf564e3fcdd0485": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Addressed in current HEAD: transaction migration, tenant guard, DB workflow, parity evidence. evidence: engineering/evidence/BI-PF-1531/parity.txt. evidence: docs/BACKLOG-DB-SSOT.md."
+      },
+      "sig:db45afb997f3ba51": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Addressed in current HEAD: transaction migration, tenant guard, DB workflow, parity evidence. evidence: engineering/evidence/BI-PF-1531/parity.txt. evidence: docs/BACKLOG-DB-SSOT.md."
       }
     }
-  }
+  },
+  "control_evidence": [
+    {
+      "control_id": "CTL-BACKLOG-DB-DEFAULT",
+      "sha": "273ddadde52a183c1360e24b6f2bd5ad5413bbca-9444a659f410",
+      "result": "PASS",
+      "evidence": "engineering/evidence/BI-PF-1531/failclosed-rollback-tests.txt"
+    }
+  ]
 }
