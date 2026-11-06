@@ -1,17 +1,17 @@
 # Backlog Summary
 
-> GENERATED 2026-11-06T10:38:00 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-11-06T12:08:37 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 136  |  **Closed:** 601
+- **Open:** 132  |  **Closed:** 605
 - `blocked`: 2
 - `executing`: 3
 - `in_progress`: 1
-- `new`: 130
+- `new`: 126
 
-### new, by category (130)
+### new, by category (126)
 **API / reports / HIL / misc** (15)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
@@ -76,7 +76,7 @@
 | BI-PF-1415 | Should | defect | RCCA: config/derived stores classified by kind heuristic (not reviewed) - 78 project/tenant-scoped stores likely belong in DB (views/tables) | RCCA: config/derived stores classified by kind heuristic (not reviewed) - 78 project/tenant-scoped stores like... |
 | BI-PF-1478 | Must | feature | EDP: per-tenant authentication + hard per-tenant quota isolation for the data-plane service | Give go/edpsvc a real per-tenant principal so per-tenant quotas/concurrency are bound to the authenticated ten... |
 
-**Specs / cache / context / artifacts** (10)
+**Specs / cache / context / artifacts** (9)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0206 | Should | tech-debt | Backend: model downloader + local cache + license-acceptance gate + models.lock (open-weights) | One owner module that downloads only the weights a project's capability pack needs, into a gitignored local ca... |
@@ -88,9 +88,8 @@
 | BI-PF-1385 | Must | bug | Backlog API: no deterministic endpoint to author item context fields (objective/acceptance_criteria/affected_files/approach) | Backlog API: no deterministic endpoint to author item context fields (objective/acceptance_criteria/affected_f... |
 | BI-PF-1392 | Should | task | Enforce per-feature FR/US caps + max_lines in the Go artifact engine (scaled by the profile) and reconcile the three section sources | Per-feature FR/US caps + max_lines enforced NUMERICALLY (scaled by profile); sections have ONE source. |
 | BI-PF-1425 | Should | feature | Migrate orchestrator cache + evidence/summarizer (and remaining audit logic) from Python to Go (Go-first alignment) | Migrate orchestrator cache + evidence/summarizer (and remaining audit logic) from Python to Go (Go-first align... |
-| BI-PF-1522 | Should | task | Area-aware design spec inference + design-delta review enforcement | Complete, area-aware design specs with bounded design-delta reviews. |
 
-**Wiring / tech-debt / API** (80)
+**Wiring / tech-debt / API** (77)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0185 | Should | feature | EPIC: Multi-modal / media orchestration (pluggable capability packs) | Make the pipeline modality-agnostic via PLUGGABLE capability packs, enabled per project when the idea needs th... |
@@ -170,9 +169,6 @@
 | BI-PF-1439 | Should | feature | Design-system catalog store + selection engine (Go) | PF can SELECT a ranked design direction from the idea. |
 | BI-PF-1440 | Should | feature | Design-token engine upgrade (3-tier OKLCH, light+dark) | Generate real design tokens from the selected direction. |
 | BI-PF-1445 | Should | feature | design_critic / visual_qa integration (anti-patterns + catalog + aesthetics) | QA validates against the chosen direction, non-negotiables and anti-patterns. |
-| BI-PF-1523 | Should | task | EDP-22a: per-store quota enforcement and degradation wiring | EDP-22a: per-store quota enforcement and degradation wiring |
-| BI-PF-1524 | Should | task | EDP-22b: measured baselines, baseline IDs, and generated SLO assets | EDP-22b: measured baselines, baseline IDs, and generated SLO assets |
-| BI-PF-1525 | Should | task | EDP-22c: store latency histograms, EXPLAIN audit/retention, and degradation expiry | EDP-22c: store latency histograms, EXPLAIN audit/retention, and degradation expiry |
 
 ---
 
@@ -372,5 +368,5 @@
 ---
 
 ## Totals
-- backend: 136 open / 601 closed
+- backend: 132 open / 605 closed
 - dashboard: 146 open / 3 closed
