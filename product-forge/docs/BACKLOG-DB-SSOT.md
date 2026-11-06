@@ -27,11 +27,11 @@ It creates:
 
 ```bash
 PF_EDP_API_URL=http://127.0.0.1:8030 \
-PF_API_TOKEN=... \
+PF_EDP_TOKEN=... \
 python scripts/dev/backlog_db_backfill.py --dry-run
 
 PF_EDP_API_URL=http://127.0.0.1:8030 \
-PF_API_TOKEN=... \
+PF_EDP_TOKEN=... \
 python scripts/dev/backlog_db_backfill.py
 ```
 
@@ -52,7 +52,7 @@ PF_DB_DSN=... python scripts/dev/backlog_db_parity.py --tenant product_forge
 ```text
 PF_BACKLOG_DB=on
 PF_EDP_API_URL=http://127.0.0.1:8030
-PF_API_TOKEN=<token accepted by edpsvc>
+PF_EDP_TOKEN=<token accepted by edpsvc>
 ```
 
 `edpsvc` must be running with the PostgreSQL DSN and migrations applied.

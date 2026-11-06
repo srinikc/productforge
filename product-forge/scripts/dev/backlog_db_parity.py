@@ -1,7 +1,7 @@
 """BI-PF-1399 cutover step: files <-> DB parity for the backlog.
 
 Compares the canonical file backlog (``data/backlog/items/*.json``) against the ``backlog_items`` table.
-Compares full JSON item data (not counts), plus missing/extra ids. Exit 1 on any drift. Prereq: EDP-18 migration applied.
+Compares full JSON item data (not counts), plus missing/extra ids. Exit 1 on any drift. Prereq: migrations 0021/0022 applied.
 
 Usage: PF_DB_DSN=... python scripts/dev/backlog_db_parity.py
 """
@@ -50,7 +50,15 @@ def main() -> int:
         drows = {r[0]: r[1] for r in cur.fetchall()}
     missing = sorted(fids - set(drows))
     extra = sorted(set(drows) - fids)
-    mism = [i for i in sorted(fids & set(drows)) if drows[i] != fitems[i]]
+    def canon(x):
+        if isinstance(x, float) and x.is_integer():
+            return int(x)
+        if isinstance(x, dict):
+            return {k: canon(v) for k, v in x.items()}
+        if isinstance(x, list):
+            return [canon(v) for v in x]
+        return x
+    mism = [i for i in sorted(fids & set(drows)) if canon(drows[i]) != canon(fitems[i])]
     print(f"backlog parity[{a.tenant}]: files={len(fids)} db={len(drows)} missing_in_db={len(missing)} "
           f"extra_in_db={len(extra)} data_mismatch={len(mism)}")
     if missing or extra or mism:
@@ -60,7 +68,7 @@ def main() -> int:
             print(f"   extra_in_db: {i}")
         for i in mism[:10]:
             print(f"   data_mismatch: {i}")
-        print("cutover gate: BLOCKED -> fix drift before setting PF_BACKLOG_DB=on")
+        print("BACKLOG_DB_PARITY_DRIFT: fix drift before setting PF_BACKLOG_DB=on")
         return 1
     print("backlog parity: OK (files == DB, full item data)")
     print("cutover gate: OK -> safe to set PF_BACKLOG_DB=on (BI-PF-1399 Phase 3)")

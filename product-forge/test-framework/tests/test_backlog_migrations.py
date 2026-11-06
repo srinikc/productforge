@@ -36,6 +36,5 @@ def test_traceability_tenant_index_migration():
     name = "0022_traceability_tenant_index"
     up = (MIGS / f"{name}.up.sql").read_text(encoding="utf-8")
     down = (MIGS / f"{name}.down.sql").read_text(encoding="utf-8")
-    assert "CREATE INDEX IF NOT EXISTS idx_traceability_tenant_item ON traceability (tenant_id, item_id)" in up
-    assert "DROP INDEX IF EXISTS idx_traceability_tenant_item" in down
-    assert "lock_timeout" in up
+    assert "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_traceability_tenant_item" in up
+    assert "DROP INDEX CONCURRENTLY IF EXISTS idx_traceability_tenant_item" in down

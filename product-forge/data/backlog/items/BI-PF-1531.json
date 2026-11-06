@@ -56,6 +56,14 @@
       "mode": "diff",
       "hil_confirmed": true,
       "note": "HIL-approved final Gate 2.5 re-review after closing all 7 majors, 8 minors, and 4 nits from the prior diff review."
+    },
+    {
+      "at": "2026-11-06T14:37:52.725695+00:00",
+      "by": "hil:user",
+      "decision": "MATERIAL_CHANGE",
+      "mode": "diff",
+      "hil_confirmed": true,
+      "note": "HIL-approved final re-review after fixing/dispositioning all 26 findings from review 3a1fc365f72a."
     }
   ],
   "follow_up": {},
@@ -293,7 +301,7 @@
     "usage": {}
   },
   "created_at": "2026-11-06T14:50:10.299482",
-  "updated_at": "2026-11-06T20:03:06.542717",
+  "updated_at": "2026-11-06T20:08:58.853424",
   "score": 0.5,
   "_note": "readiness computed",
   "api_impact": {
@@ -373,7 +381,7 @@
       "No tenant data in logs/evidence."
     ],
     "observability": [
-      "edpsvc exposes edp_backlog_authority_startup_ok, edp_backlog_authority_success_timestamp_seconds, and edp_backlog_authority_errors_total; BACKLOG_DB_* failures are logged with tenant and reason code."
+      "edpsvc exports edp_backlog_authority_startup_ok, success timestamp, and edp_backlog_authority_errors_total with reason labels; tests assert metrics."
     ],
     "performance": [
       "No regression: DB API p95 <= max(file p95*1.25,150 ms); point API/SQL p95 <=50 ms; cold uncached reads included.",
@@ -478,10 +486,9 @@
       ],
       "adapter": "core/backlog.py -> Go edpsvc /backlog -> PostgreSQL",
       "contract": [
-        "PF_BACKLOG_DB=on enables DB authority only for scopes keyed by core/backlog_scope.py; items and IDs share it.",
-        "ProductForge-Dashboard remains a distinct allowlist key; path normalization is separate.",
-        "No in-process cache: every read is fresh; cold-read p95 is in bench-t1.json.",
-        "BACKLOG_DB_MODE_INVALID and BACKLOG_DB_SCOPE_DISABLED fail closed."
+        "Item and ID gates use project or scope consistently; ProductForge-Dashboard remains a distinct allowlist key.",
+        "PF_BACKLOG_DB=on only for PF_BACKLOG_DB_SCOPES; no in-process cache; invalid mode/scope fails closed.",
+        "Tenant GUC is transaction-local via set_config(..., true)."
       ],
       "failure_behavior": [
         "BACKLOG_DB_UNAVAILABLE for transport/DB failure; BACKLOG_DB_AUTH for 401/403; BACKLOG_DB_INVALID_RESPONSE for malformed JSON; ledger, list, get, put, and delete all map missing tenant context to 503."
@@ -1346,6 +1353,54 @@
         ]
       },
       "evidence": "BI-PF-1531-3a1fc365f72a.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "23c0bad35ded3194bbcf0e9b2036973748ef0c38",
+      "review_sha": "73b7dc40d450",
+      "model": "deepseek-v4.1-flash",
+      "at": "2026-11-06T14:38:58.599832+00:00",
+      "review_scope": "full_candidate",
+      "base_sha": "",
+      "head_sha": "23c0bad35ded3194bbcf0e9b2036973748ef0c38",
+      "findings": {
+        "BLOCKER": [
+          "`core/store_item_to_db` gates on `item[\"scope\"] or item[\"project\"]` while `scripts/dev/backlog_db_backfill.py:tenant_for_item` selects on `project or scope` — a PF-GP item with normalized `scope=\"project\"` and `project=\"ProductForge-Dashboard\"` is selected for backfill, then rejected with `BACKLOG_DB_SCOPE_DISABLED`, so the allowlisted dashboard tenant cannot be backfilled (AC-3).",
+          "Same root cause on the read path: `_norm_scope`/`backlog_scope.normalize` collapse anything non-alias to `\"project\"`, so any gate receiving the normalized scope sees key `\"project\"` (not allowlisted) — the effective allowlist is one entry, contradicting the design invariant that items and IDs share one allowlist key."
+        ],
+        "MAJOR": [
+          "AC-2: only `test_backlog_db_cutover.py` pins `off` per test; no conftest/global fixture or CI default sets `PF_BACKLOG_DB=off`, so every other backlog-touching test now inherits `on` and will attempt edpsvc calls.",
+          "`requireTenant` reads the session GUC `app.tenant_id` without proving it is tx-local (`SET LOCAL`); on a pooled connection a stale session tenant would be silently used by `Get`/`List`/`Delete` (only `Put` compares), and no test asserts reset between requests (guardrail 3).",
+          "New failure modes (`BACKLOG_DB_AUTH`, `BACKLOG_DB_UNAVAILABLE`, `BACKLOG_DB_INVALID_RESPONSE`, `ErrTenantContext`) only log; no metric or test backs the doc claim that edpsvc exports `edp_backlog_authority_errors_total`, so the failure taxonomy is not observable.",
+          "Backfill's 429 retry catches `urllib.error.HTTPError`, but `_load_all_from_db` wraps HTTP errors in `RuntimeError`; if `_mirror_item_to_db` does the same, the retry is dead code and a single 429 aborts the tenant backfill.",
+          "Migration 0022 uses non-`CONCURRENTLY` `CREATE INDEX` on `traceability`; under `lock_timeout` it still holds a blocking lock for the build duration, and its safety depends entirely on the manual \"stop old writers\" step.",
+          "0021 only re-points `fk_traceability_item`; any other FK referencing `backlog_items(id)` makes the PK drop fail mid-deploy. `preflight` reports unknown FKs but the migration itself does not, and no test covers that abort path.",
+          "`backlog_db_parity.py` compares DB `jsonb`-decoded dicts to raw file JSON; jsonb numeric/duplicate-key normalization can produce false drift or mask real drift, and drift exits 1 without emitting the declared `BACKLOG_DB_PARITY_DRIFT` code."
+        ],
+        "MINOR": [
+          "`scripts/dev/precheck.py` mutates `os.environ` process-wide inside `main()` with no restore and no log, silently overriding an operator's explicit `PF_BACKLOG_DB=on`.",
+          "`backlog_scope.allowed()`/`mode()` re-resolve env/config on every call and are invoked per item in list/backfill loops; no memoization and no evidence `env_flags.get` is cached.",
+          "`test_id_allocator_defaults_on` deletes only `PF_BACKLOG_DB`; an ambient `PF_BACKLOG_DB_SCOPES` without `product_forge` makes it flaky.",
+          "Design decision \"structure.yml, full-sweep.yml set PF_BACKLOG_DB=off\" has no asserting test; only `backlog-db.yml` content is pinned.",
+          "Docs \"Activate\" snippet says `PF_API_TOKEN`, while code reads `PF_EDP_TOKEN`/`PF_ADMIN_TOKEN` — docs/code drift under AC-1.",
+          "`docs/BACKLOG-DB-SSOT.md` now carries a bare 1–6 rollback list appended to the Activate checklist after the `## Rollback` heading was removed, duplicating numbering and blurring the rollback procedure.",
+          "`backlog_db_bench.py` SLO result is manual only; it is not wired into any workflow gate, so the AC-1 performance claim has no regression protection.",
+          "`scripts/dev/backlog_db_parity.py` docstring still states \"Prereq: EDP-18 migration applied\" while the runbook requires 0021/0022."
+        ],
+        "NIT": [
+          "`_norm_scope` performs a function-local `from core import backlog_scope` even though the module-level import already exists.",
+          "`.env.example` ships `PF_BACKLOG_DB=on` in the template, so a copied `.env` silently switches local dev to DB authority.",
+          "`store_item_to_db` is a new public shipped write API added in Python rather than Go; acceptable as an edit, but worth recording against the language rule.",
+          "Backfill sleeps only after a successful write, so failure bursts are unthrottled."
+        ],
+        "SUMMARY": [
+          "Direction is right: default-on, per-scope allowlist, fail-closed reads, tenant-bound Go queries, preflight/backup discipline, and rollback tooling are all present and tested.",
+          "Top risk: scope/project precedence and normalization disagree between the backfill selector, the writer gate, and the read gate, which can leave an allowlisted tenant in file mode or abort its backfill while the flag reads `on`.",
+          "Second risk: file-mode test isolation is per-module rather than suite-wide, so the new default can leak network calls into unrelated tests and CI.",
+          "Remaining gaps are observability of the new failure codes and migration lock/dependency safety (0021/0022), both recoverable but needing explicit evidence."
+        ]
+      },
+      "evidence": "BI-PF-1531-73b7dc40d450.json"
     }
   ],
   "review_dispositions": {
@@ -1733,6 +1788,132 @@
         "severity": "NIT",
         "origin_class": "IMPLEMENTATION_GAP",
         "note": "New tests use normal import spacing and assertions; no production impact. evidence: test-framework/tests/test_backlog_db_workflow.py."
+      },
+      "sig:816053e35ffa24d4": {
+        "status": "ACTIONED",
+        "severity": "BLOCKER",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "store_item_to_db, _save_item, _load_all and delete now gate on project or scope; Dashboard backfill uses its tenant key. Fixed in core/backlog.py."
+      },
+      "sig:afa8a2cdeb9bbfa1": {
+        "status": "ACTIONED",
+        "severity": "BLOCKER",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Allowlist key uses backlog_scope.key(project or scope); path normalize stays separate. Fixed in core/backlog_scope.py and core/backlog.py."
+      },
+      "sig:28c6b28f66eb4c0b": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "test-framework/tests/conftest.py already sets PF_BACKLOG_DB=off autouse for all tests."
+      },
+      "sig:8b57ea0b3d9446f4": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "go/store/tenancy.go uses set_config(app.tenant_id, ..., true), which is transaction-local; verified in go/store/tenancy.go."
+      },
+      "sig:1baa5f93cf1febce": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "edp_backlog_authority_errors_total is exported and asserted in go/edpsvc tests; documented in docs/BACKLOG-DB-SSOT.md."
+      },
+      "sig:c2ed3a164c4aa14e": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "backlog._mirror_item_to_db raises urllib HTTPError directly, so backfill 429 Retry-After handling is live in scripts/dev/backlog_db_backfill.py."
+      },
+      "sig:d073c3aac73d66fb": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "0022 now uses CREATE INDEX CONCURRENTLY to avoid holding a blocking build lock; test_backlog_migrations pins it. evidence: docs/BACKLOG-DB-SSOT.md."
+      },
+      "sig:e2070966e0f007b2": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "0021 now raises in-SQL on any FK other than fk_traceability_item; preflight also blocks unknown FKs. evidence: docs/BACKLOG-DB-SSOT.md."
+      },
+      "sig:9822d545ad536014": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "backlog_db_parity normalizes integral floats and emits BACKLOG_DB_PARITY_DRIFT on mismatch in scripts/dev/backlog_db_parity.py."
+      },
+      "sig:aaca7fa91123da57": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "precheck now logs and restores PF_BACKLOG_DB in a finally block in scripts/dev/precheck.py."
+      },
+      "sig:16e15939ec79c308": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Scope resolution stays uncached intentionally so env changes are honored; no production per-item loop was measured as hot. evidence: docs/BACKLOG-DB-SSOT.md."
+      },
+      "sig:f5d90a7ac5423ebd": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "test_id_allocator_defaults_on now clears PF_BACKLOG_DB_SCOPES too. evidence: docs/BACKLOG-DB-SSOT.md."
+      },
+      "sig:fd5ca5e333ff1ede": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "test_file_mode_workflows_pin_off asserts structure.yml and full-sweep.yml set off."
+      },
+      "sig:454f45220647508e": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "docs/BACKLOG-DB-SSOT.md now uses PF_EDP_TOKEN, matching code."
+      },
+      "sig:7688782eacd8b4f2": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Rollback procedure is a single section; duplicate numbering removed. evidence: docs/BACKLOG-DB-SSOT.md."
+      },
+      "sig:bce66f19c16b7fbc": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "backlog_db_bench is now a CI gate in .github/workflows/backlog-db.yml."
+      },
+      "sig:56a09fe12b0e532a": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "backlog_db_parity docstring now requires 0021/0022. evidence: docs/BACKLOG-DB-SSOT.md."
+      },
+      "sig:09f1f66fcf678a11": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "_norm_scope uses the module-level backlog_scope import in core/backlog.py."
+      },
+      "sig:555a8b613edd420e": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": ".env.example now comments PF_BACKLOG_DB=on; default is documented. evidence: docs/BACKLOG-DB-SSOT.md."
+      },
+      "sig:7799bcedf762eccf": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "store_item_to_db is a thin Python gate over the Go edpsvc writer; the DB logic remains in Go. evidence: docs/BACKLOG-DB-SSOT.md."
+      },
+      "sig:03caa285a740298f": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "backfill throttles in finally, including failure bursts. evidence: docs/BACKLOG-DB-SSOT.md."
       }
     },
     "design": {

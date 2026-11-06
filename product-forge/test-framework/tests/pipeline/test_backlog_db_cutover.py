@@ -123,6 +123,7 @@ def test_mirror_on_propagates_failure(monkeypatch):
 def test_id_allocator_defaults_on(monkeypatch):
     from core import id_allocator
     monkeypatch.delenv("PF_BACKLOG_DB", raising=False)
+    monkeypatch.delenv("PF_BACKLOG_DB_SCOPES", raising=False)
     assert id_allocator._db_enabled("product_forge") is True
 
 
@@ -206,7 +207,7 @@ def test_parity_scans_products(monkeypatch, tmp_path):
 def test_id_allocator_db_failure_never_falls_back(monkeypatch):
     import pytest
     from core import id_allocator
-    monkeypatch.setattr(id_allocator, "_db_enabled", lambda scope=None: True)
+    monkeypatch.setattr(id_allocator, "_db_enabled", lambda scope=None, project=None: True)
     monkeypatch.setattr(id_allocator, "_reserve_db", lambda *a, **k: None)
     with pytest.raises(RuntimeError, match="refusing a Git/local id fallback"):
         id_allocator._mint("product_forge", None, 0, 0)

@@ -1,3 +1,1 @@
-BEGIN;
-DROP INDEX IF EXISTS idx_traceability_tenant_item;
-COMMIT;
+DROP INDEX CONCURRENTLY IF EXISTS idx_traceability_tenant_item;

@@ -36,3 +36,10 @@ def test_workflow_mirror_matches():
     mirror = ROOT / "engineering" / "evidence" / "BI-PF-1531" / "backlog-db.workflow.yml"
     assert mirror.is_file(), mirror
     assert mirror.read_text(encoding="utf-8") == WF.read_text(encoding="utf-8")
+
+
+def test_file_mode_workflows_pin_off():
+    for name in ("structure.yml", "full-sweep.yml"):
+        p = WF.parent / name
+        assert p.is_file()
+        assert 'PF_BACKLOG_DB: "off"' in p.read_text(encoding="utf-8")

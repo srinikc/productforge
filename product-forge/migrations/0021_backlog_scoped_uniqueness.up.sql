@@ -10,6 +10,10 @@ BEGIN
              ON b.id=t.item_id AND b.tenant_id=t.tenant_id WHERE b.id IS NULL) THEN
     RAISE EXCEPTION '0021 blocked: traceability rows lack a tenant-matched backlog item';
   END IF;
+  IF EXISTS (SELECT 1 FROM pg_constraint WHERE confrelid='backlog_items'::regclass
+             AND contype='f' AND conname <> 'fk_traceability_item') THEN
+    RAISE EXCEPTION '0021 blocked: unknown FK references backlog_items';
+  END IF;
 END $$;
 ALTER TABLE traceability DROP CONSTRAINT IF EXISTS fk_traceability_item;
 ALTER TABLE backlog_items DROP CONSTRAINT IF EXISTS backlog_items_pkey;

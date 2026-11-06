@@ -644,15 +644,23 @@ def _main(argv=None) -> int:
 def main(argv=None) -> int:
     """Run the gates, then fail closed if the active worktree's Git state moved."""
     # Repo-only precheck reads file projections; DB-mode is exercised by its own integration job.
+    _prev_db = os.environ.get("PF_BACKLOG_DB")
     os.environ["PF_BACKLOG_DB"] = "off"
-    before = worktree_fingerprint(_ROOT)
-    rc = _main(argv)
-    after = worktree_fingerprint(_ROOT)
-    if before != after:
-        print("[precheck] FATAL: HEAD, refs, or index changed during precheck; "
-              "refusing to proceed (possible Git environment leak)", file=sys.stderr)
-        return 1
-    return rc
+    print("precheck: forcing PF_BACKLOG_DB=off for file-mode gates", file=sys.stderr)
+    try:
+        before = worktree_fingerprint(_ROOT)
+        rc = _main(argv)
+        after = worktree_fingerprint(_ROOT)
+        if before != after:
+            print("[precheck] FATAL: HEAD, refs, or index changed during precheck; "
+                  "refusing to proceed (possible Git environment leak)", file=sys.stderr)
+            return 1
+        return rc
+    finally:
+        if _prev_db is None:
+            os.environ.pop("PF_BACKLOG_DB", None)
+        else:
+            os.environ["PF_BACKLOG_DB"] = _prev_db
 
 
 if __name__ == "__main__":

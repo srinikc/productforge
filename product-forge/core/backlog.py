@@ -215,7 +215,7 @@ def _load_all(scope: str, project: str | None):
     not-yet-migrated scope still works (see `migrate_scope`). In `PF_BACKLOG_DB=on` the DB is the
     source of truth for reads.
     """
-    if _db_for(scope):
+    if _db_for(str(project or scope or "")):
         return _load_all_from_db(scope, project)
     d, of, cf, _h, _c = _paths(scope, project)
     idir = _items_dir(d)
@@ -355,7 +355,7 @@ def _shadow_compare(item: dict) -> bool:
 
 def store_item_to_db(item: dict) -> None:
     """Public DB-only item write; refuses scopes not enabled for DB authority."""
-    if not _db_for(str(item.get("scope") or item.get("project") or "")):
+    if not _db_for(str(item.get("project") or item.get("scope") or "")):
         raise RuntimeError("BACKLOG_DB_SCOPE_DISABLED: tenant is not in PF_BACKLOG_DB_SCOPES")
     _mirror_item_to_db(item)
 
@@ -365,7 +365,7 @@ def _save_item(d: str, item: dict) -> None:
     if not iid:
         return
     mode = _backlog_db_mode()
-    if _db_for(str(item.get("scope") or "")):
+    if _db_for(str(item.get("project") or item.get("scope") or "")):
         # DB SoR: the Go writer is the only item writer. Never write authoritative file state.
         _mirror_item_to_db(item)
         return
@@ -1720,7 +1720,7 @@ def delete(scope: str, project: str | None, eid: str) -> dict | None:
             return None
         parent = str(target.get("epic") or target.get("parent") or "")
         bucket.remove(target)
-        if _db_for(scope):
+        if _db_for(str(project or scope or "")):
             _delete_item_from_db(eid, str(project or scope or "product_forge"))
         else:
             for p in (os.path.join(_items_dir(d), f"{eid}.json"),

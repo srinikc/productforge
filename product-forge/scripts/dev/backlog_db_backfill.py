@@ -99,10 +99,11 @@ def main() -> int:
                 time.sleep(retry)
                 backlog.store_item_to_db(it)
             ok += 1
-            time.sleep(1.0 / max(a.rate, 0.1))
         except Exception as e:
             print(f"backfill: {it['id']} failed: {e}", file=sys.stderr)
             fail += 1
+        finally:
+            time.sleep(1.0 / max(a.rate, 0.1))
     print(f"backfill: {'dry-run ' if a.dry_run else ''}ok={ok} failed={fail}")
     return 1 if fail else 0
 
