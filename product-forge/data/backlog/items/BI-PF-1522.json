@@ -176,5 +176,210 @@
   "created_at": "2026-11-04T20:16:38.304861",
   "updated_at": "2026-11-04T20:16:44.079520",
   "score": 0.75,
-  "_note": "readiness computed"
+  "_note": "readiness computed",
+  "design_pack": {
+    "version": 1,
+    "requirements": [
+      "Design pack records base + inferred design areas; every area is APPLICABLE with sections/evidence or N/A with a reason",
+      "Blank or unexplained N/A design areas fail the design-pack gate",
+      "Design re-reviews review only changed design fields, with prior findings verified first and out-of-scope findings tagged",
+      "Area inference and taxonomy are extensible for arbitrary domains and cross-cutting concerns",
+      "Tests cover area-completeness and design-delta prompt scoping"
+    ],
+    "scope": [
+      "Design-delta review contract",
+      "Area-aware design pack completeness",
+      "Prompt-level changed-field scoping"
+    ],
+    "non_goals": [
+      "No product runtime behavior change.",
+      "No new public API."
+    ],
+    "invariants": [
+      "Design deltas review only changed fields.",
+      "Every design area is APPLICABLE or N/A with a reason.",
+      "Prior findings verified first."
+    ],
+    "contracts": {
+      "api": [
+        "No public API."
+      ],
+      "db": [
+        "No schema change."
+      ],
+      "files": [
+        "scripts/dev/architect_review.py",
+        "scripts/dev/design_pack.py",
+        "templates/DESIGN-PACK.md"
+      ],
+      "config": [
+        "config/design-pack.json"
+      ]
+    },
+    "failure_matrix": [
+      {
+        "case": "missing design area reason",
+        "expected": "design-pack block",
+        "code": "DESIGN_AREA_INVALID"
+      },
+      {
+        "case": "delta base missing",
+        "expected": "fallback to prior findings only",
+        "code": "DELTA_BASE_MISSING"
+      }
+    ],
+    "dependencies": [
+      "BI-PF-1314"
+    ],
+    "security": [
+      "No secrets or tenant data."
+    ],
+    "observability": [
+      "Review JSON records scope, base/head, changed fields."
+    ],
+    "performance": [
+      "No runtime path."
+    ],
+    "test_matrix": [
+      {
+        "ac": "AC-1",
+        "kind": "unit/contract",
+        "test": "python -m pytest test-framework/tests/pipeline/test_architect_review_delta.py -q"
+      },
+      {
+        "ac": "AC-2",
+        "kind": "unit/contract",
+        "test": "python -m pytest test-framework/tests/pipeline/test_architect_review_delta.py -q"
+      },
+      {
+        "ac": "AC-3",
+        "kind": "unit/contract",
+        "test": "python -m pytest test-framework/tests/pipeline/test_architect_review_delta.py -q"
+      },
+      {
+        "ac": "AC-4",
+        "kind": "unit/contract",
+        "test": "python -m pytest test-framework/tests/pipeline/test_architect_review_delta.py -q"
+      },
+      {
+        "ac": "AC-5",
+        "kind": "unit/contract",
+        "test": "python -m pytest test-framework/tests/pipeline/test_architect_review_delta.py -q"
+      }
+    ],
+    "rollout": [
+      "Enable with review tooling; no runtime deployment."
+    ],
+    "rollback": [
+      "Revert tooling/docs changes."
+    ],
+    "decisions": [
+      "Design deltas are scoped to changed design fields."
+    ],
+    "guardrails": [
+      "No full-design re-review for deltas.",
+      "No N/A without reason."
+    ],
+    "learnings": [
+      "Repeated full reviews caused churn; scoped deltas fix it."
+    ],
+    "runtime_contract": {
+      "trigger": "architect review run --mode design --since",
+      "entrypoint": "scripts/dev/architect_review.py",
+      "call_sites": "CLI -> _build_prompt -> design_delta_fields",
+      "adapter": "review tooling",
+      "contract": "changed design fields only",
+      "failure_behavior": "fallback to prior findings only",
+      "observable_result": "review JSON scope"
+    },
+    "proof_plan": {
+      "failing_test": "python -m pytest test-framework/tests/pipeline/test_architect_review_delta.py -q",
+      "red_evidence": "Design delta prompt included full design before fix.",
+      "green_evidence": "Delta prompt contains changed-fields scope and tests pass."
+    },
+    "ac_evidence": {
+      "AC-1": {
+        "sha": "candidate",
+        "evidence": "test-framework/tests/pipeline/test_architect_review_delta.py"
+      },
+      "AC-2": {
+        "sha": "candidate",
+        "evidence": "test-framework/tests/pipeline/test_architect_review_delta.py"
+      },
+      "AC-3": {
+        "sha": "candidate",
+        "evidence": "test-framework/tests/pipeline/test_architect_review_delta.py"
+      },
+      "AC-4": {
+        "sha": "candidate",
+        "evidence": "test-framework/tests/pipeline/test_architect_review_delta.py"
+      },
+      "AC-5": {
+        "sha": "candidate",
+        "evidence": "test-framework/tests/pipeline/test_architect_review_delta.py"
+      }
+    },
+    "stop_conditions": [
+      "scope creep",
+      "unbounded full review",
+      "missing evidence"
+    ],
+    "controls": [
+      {
+        "id": "CTL-DESIGN-DELTA",
+        "dimension": "review_scope",
+        "applies_to": "scripts/dev/architect_review.py",
+        "check": "python -m pytest test-framework/tests/pipeline/test_architect_review_delta.py -q",
+        "evidence": "docs/REVIEW-GATES-LIFECYCLE.md",
+        "failure_behavior": "block",
+        "owner": "framework",
+        "cwd": "."
+      }
+    ],
+    "design_areas": [
+      {
+        "area": "process_tooling",
+        "status": "APPLICABLE",
+        "reason": "Changes review lifecycle, design-pack validation, and prompt scoping.",
+        "sections": [
+          "review_scope",
+          "test_matrix",
+          "controls",
+          "observability"
+        ],
+        "evidence": [
+          "docs/REVIEW-GATES-LIFECYCLE.md",
+          "docs/DESIGN-QUALITY-RCCA.md"
+        ]
+      },
+      {
+        "area": "api",
+        "status": "N/A",
+        "reason": "No product API change.",
+        "sections": [],
+        "evidence": []
+      },
+      {
+        "area": "ui",
+        "status": "N/A",
+        "reason": "No UI change.",
+        "sections": [],
+        "evidence": []
+      },
+      {
+        "area": "database",
+        "status": "N/A",
+        "reason": "No schema or data change.",
+        "sections": [],
+        "evidence": []
+      },
+      {
+        "area": "security",
+        "status": "N/A",
+        "reason": "No auth/tenant/runtime security behavior change; process docs only.",
+        "sections": [],
+        "evidence": []
+      }
+    ]
+  }
 }
