@@ -1,0 +1,37 @@
+{
+  "item": "BI-PF-1526",
+  "sha": "0d42d35d9edf",
+  "model": "deepseek-v4.1-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-06T08:37:18.782798+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "8e36df333c2eee5102927beee21b3190a69f7498",
+  "findings": {
+    "BLOCKER": [
+      "AC-2 unmet: no staging T1/T2 load evidence, restore-drill evidence, benchmark artifacts, capacity report, or HIL acceptance is added; the diff only defines a future plan."
+    ],
+    "MAJOR": [
+      "Declared control `CTL-CAPACITY` / `test_edp_slo_config.py` is not touched or evidenced; no fail-able check enforces `CAPACITY_EVIDENCE_MISSING` or `SCALE_TRIGGER_NOT_MET`, so the SSOT remains advisory.",
+      "Scale triggers are ambiguous: \u201cDB p95 > 50 ms\u201d has no read/write split and sits at/below the T1 write target (100 ms); DB p99 target is undefined.",
+      "SLO table is non-monotonic without rationale: T3 is looser than T2 on API p95/p99, DB read/write, and error rate, which can normalize regressions at enterprise tier.",
+      "Security contract missing: no explicit \u201cno tenant data in capacity reports\u201d or read-only benchmark-role requirement in the evidence plan, though the design requires both."
+    ],
+    "MINOR": [
+      "Section 6 labels all triggers \u201cmeasured\u201d but includes contractual SLA/residency triggers; separate measured vs contractual gating.",
+      "T4 row is entirely \u201cper cell\u201d with no cell-level SLO targets, making T4 acceptance largely non-falsifiable beyond prose.",
+      "Binding SSOT lacks owner/version/date and a HIL approval record despite change control requiring HIL approval.",
+      "Capacity report location, redaction rules, and retention are unspecified."
+    ],
+    "NIT": [
+      "Docs index description says \u201cT1-T4\u201d while the SSOT also defines T0; align wording.",
+      "\u201cT3/T4 are where EDP-24 starts\u201d should explicitly link to trigger conditions and BI-PF-1317/EDP-24 gate."
+    ],
+    "SUMMARY": [
+      "The SSOT is directionally strong and preserves trigger-gated T3/T4 plus PF-SB/PF-GP separation, but it is a plan, not validation.",
+      "Blocker: AC-2 requires measured T1/T2 load and restore evidence; none is present.",
+      "Top risks: advisory-only gates, ambiguous DB triggers, and missing capacity-report redaction/read-only-role guardrails."
+    ]
+  }
+}
