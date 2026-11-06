@@ -27,9 +27,23 @@ def main() -> int:
         size = cur.fetchone()[0]
         cur.execute("SELECT count(*) FROM pg_locks WHERE relation='backlog_items'::regclass AND NOT granted")
         waiting = cur.fetchone()[0]
+        cur.execute("SELECT conname, pg_get_constraintdef(oid) FROM pg_constraint WHERE confrelid='backlog_items'::regclass AND contype='f'")
+        fks = cur.fetchall()
+        cur.execute("SELECT conname FROM pg_constraint WHERE conrelid='backlog_items'::regclass AND contype='u'")
+        uniques = [r[0] for r in cur.fetchall()]
+        cur.execute("SELECT tgname FROM pg_trigger WHERE tgrelid='backlog_items'::regclass AND NOT tgisinternal")
+        triggers = [r[0] for r in cur.fetchall()]
+        cur.execute("SELECT indexname FROM pg_indexes WHERE tablename='backlog_items'")
+        indexes = [r[0] for r in cur.fetchall()]
         print(f"preflight: rows={rows} legacy_duplicate_ids={dup_ids} size={size} waiting_locks={waiting}")
+        print(f"preflight: fks={[r[0] for r in fks]} uniques={uniques} triggers={triggers} indexes={indexes}")
+        unknown_fks = [r[0] for r in fks if r[0] != "fk_traceability_item"]
+        unknown_uniques = [u for u in uniques if u != "backlog_items_pkey"]
         if waiting:
             print("preflight: BLOCKED by waiting locks", file=sys.stderr)
+            return 1
+        if unknown_fks or unknown_uniques or triggers:
+            print(f"preflight: BLOCKED unknown dependencies fks={unknown_fks} uniques={unknown_uniques} triggers={triggers}", file=sys.stderr)
             return 1
     print("preflight: OK (backup confirmed; proceed in maintenance window)")
     return 0

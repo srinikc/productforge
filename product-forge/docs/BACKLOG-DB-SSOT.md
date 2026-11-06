@@ -84,3 +84,18 @@ PF-GP uses the same DB/ID authority. Generated-product source files may live out
 
 The DB cutover changes **storage/writer authority only**. PF-SB and PF-GP agent workflows, stage
 definitions, prompts, and gates remain their existing workflows; they simply share one backlog SSOT.
+
+## Rollback / reconcile
+
+Before setting `PF_BACKLOG_DB=off` after DB-mode writes, export DB authority back to file projections:
+
+```bash
+PF_DB_DSN="$PF_RUNTIME_DSN" python scripts/dev/backlog_db_export.py --tenant product_forge --dry-run
+PF_DB_DSN="$PF_RUNTIME_DSN" python scripts/dev/backlog_db_export.py --tenant product_forge --overwrite
+```
+
+Then run parity and only afterwards switch to file mode. Never drop backlog tables as part of rollback.
+
+```bash
+PF_DB_DSN="$PF_RUNTIME_DSN" PF_BACKUP_CONFIRMED=1 python scripts/dev/backlog_migration_preflight.py
+```

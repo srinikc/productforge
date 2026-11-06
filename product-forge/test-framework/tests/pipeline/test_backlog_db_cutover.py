@@ -146,3 +146,13 @@ def test_rollback_off_writes_authoritative_file(monkeypatch):
     monkeypatch.setattr(backlog, "_wj", lambda path, value: calls.append((path, value)))
     backlog._save_item("ignored", {"id": "BI-PF-2", "scope": "product_forge", "title": "x"})
     assert calls, "off mode did not write the file path"
+
+
+def test_unverified_scope_stays_file_mode(monkeypatch):
+    from core import backlog
+    monkeypatch.setenv("PF_BACKLOG_DB", "on")
+    monkeypatch.setenv("PF_BACKLOG_DB_SCOPES", "product_forge")
+    assert backlog._db_for("product_forge") is True
+    assert backlog._db_for("unverified_scope") is False
+    monkeypatch.setenv("PF_BACKLOG_DB_SCOPES", "unverified_scope")
+    assert backlog._db_for("unverified_scope") is True

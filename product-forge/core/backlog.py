@@ -245,9 +245,21 @@ def _backlog_db_mode() -> str:
     return str(value or "on").strip().lower()
 
 
+def _backlog_db_scopes() -> set[str]:
+    """Scopes explicitly allowed to use DB authority when PF_BACKLOG_DB=on."""
+    try:
+        from core import env_flags
+        value = env_flags.get("PF_BACKLOG_DB_SCOPES", "product_forge,ProductForge-Dashboard")
+    except Exception:
+        value = os.environ.get("PF_BACKLOG_DB_SCOPES", "product_forge,ProductForge-Dashboard")
+    return {_norm_scope(s.strip()) for s in str(value or "").split(",") if s.strip()}
+
+
 def _db_for(scope: str | None) -> bool:
-    """DB SSOT is shared by PF-SB and PF-GP; the scope/project only selects the item partition."""
-    return _backlog_db_mode() == "on"
+    """DB authority is opt-in per verified scope; unlisted scopes stay in file mode."""
+    if _backlog_db_mode() != "on":
+        return False
+    return _norm_scope(str(scope or "")) in _backlog_db_scopes()
 
 
 def _mirror_item_to_db(item: dict) -> None:

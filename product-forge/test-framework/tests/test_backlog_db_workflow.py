@@ -16,3 +16,13 @@ def test_backlog_db_workflow_contract():
     assert "ALTER ROLE pf_app PASSWORD" in text
     assert "backlog_migration_preflight.py" in text
     assert "PF_BACKUP_CONFIRMED=1" in text
+
+
+def test_backlog_db_export_targets():
+    import importlib.util
+    from pathlib import Path as P
+    root = P(__file__).resolve().parents[2]
+    spec = importlib.util.spec_from_file_location("export_mod", root / "scripts" / "dev" / "backlog_db_export.py")
+    m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+    assert m.target_dir("product_forge").as_posix().endswith("product-forge/data/backlog/items")
+    assert "products/ProductForge-Dashboard/data/backlog/items" in m.target_dir("ProductForge-Dashboard").as_posix()

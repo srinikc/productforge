@@ -90,7 +90,8 @@
     "docs/BACKLOG-DB-SSOT.md",
     "test-framework/tests/test_backlog_migrations.py",
     ".github/workflows/backlog-db.yml",
-    "scripts/dev/backlog_migration_preflight.py"
+    "scripts/dev/backlog_migration_preflight.py",
+    "scripts/dev/backlog_db_export.py"
   ],
   "approach": "EDP: make PostgreSQL backlog authority the default for PF-SB and PF-GP scopes",
   "review": {
@@ -264,7 +265,7 @@
     "usage": {}
   },
   "created_at": "2026-11-06T14:50:10.299482",
-  "updated_at": "2026-11-06T19:06:30.416523",
+  "updated_at": "2026-11-06T19:38:14.583078",
   "score": 0.5,
   "_note": "readiness computed",
   "api_impact": {
@@ -289,7 +290,8 @@
       "No deletion of file projections."
     ],
     "invariants": [
-      "On requires DB/edpsvc; no fallback.",
+      "On requires DB/edpsvc; no fallback for scopes listed in PF_BACKLOG_DB_SCOPES.",
+      "Unlisted scopes remain file-authoritative until parity evidence is added.",
       "File projections remain derived.",
       "New IDs are globally unique via the allocator.",
       "Legacy duplicate IDs are preserved only as tenant-scoped historical rows; no new duplicate is accepted."
@@ -395,13 +397,30 @@
       "Docs/code drift caused confusion; evidence must match flags."
     ],
     "runtime_contract": {
-      "trigger": "backlog read/write in PF-SB or PF-GP",
-      "entrypoint": "core/backlog.py",
-      "call_sites": "core.backlog -> edpsvc /backlog -> edpdata.BacklogStore -> PostgreSQL",
-      "adapter": "edpsvc + PostgreSQL",
-      "contract": "on = DB authority; off = explicit legacy only",
-      "failure_behavior": "fail closed when on and DB unavailable",
-      "observable_result": "backlog DB errors/readiness"
+      "trigger": [
+        "PF_BACKLOG_DB=on and scope in PF_BACKLOG_DB_SCOPES"
+      ],
+      "entrypoint": [
+        "core/backlog.py"
+      ],
+      "call_sites": [
+        "_load_all",
+        "_save_item",
+        "delete_item",
+        "_db_for"
+      ],
+      "adapter": "core/backlog.py -> Go edpsvc /backlog -> PostgreSQL",
+      "contract": [
+        "PF_BACKLOG_DB=on enables DB authority only for listed scopes; unlisted scopes stay file mode.",
+        "PF_BACKLOG_DB=off keeps file authority.",
+        "PF_EDP_API_URL/PF_ADMIN_TOKEN required when on."
+      ],
+      "failure_behavior": [
+        "BACKLOG_DB_UNAVAILABLE when DB/edpsvc is unavailable in an enabled scope; no silent Git fallback."
+      ],
+      "observable_result": [
+        "DB rows are authoritative; file projections are derived and only used for off/unlisted scopes."
+      ]
     },
     "proof_plan": {
       "failing_test": "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q",
@@ -531,9 +550,9 @@
       "PF-SB and PF-GP rows remain tenant-partitioned."
     ],
     "rollback_recovery": [
-      "Set PF_BACKLOG_DB=off only after exporting/reconciling DB-only rows back to files.",
-      "Keep DB tables and backup; restore from backup if 0021 down is refused.",
-      "Never delete backlog tables as part of rollback."
+      "Run scripts/dev/backlog_db_export.py --tenant <scope> --dry-run, then --overwrite, and run parity before switching off.",
+      "Keep DB tables and the verified backup; restore from backup if 0021 down is refused.",
+      "Never drop backlog tables as part of rollback."
     ],
     "security_model": [
       "Admin bearer for edpsvc; no tenant data in parity/evidence; read-only benchmark roles."
@@ -601,10 +620,10 @@
     ],
     "deployment_rollout": [
       "Take a verified backlog-table backup.",
-      "Run backlog_migration_preflight.py with backup confirmation.",
-      "Apply 0021 in a maintenance window with lock_timeout and abort on failure.",
-      "Backfill PF-SB; run per-tenant parity; then enable DB default.",
-      "If rollback is required, set PF_BACKLOG_DB=off and run the DB?file reconcile/export path before resuming file writes."
+      "Run backlog_migration_preflight.py: it verifies backup confirmation, reports rows/duplicates/size, inventories FKs, unique constraints, triggers, indexes, and blocks unknown dependencies or waiting locks.",
+      "Apply 0021 in order: drop fk_traceability_item, drop old backlog_items pkey, add composite (tenant_id,id) pkey, add fk_traceability_item on (tenant_id,item_id); existing non-PK indexes are retained and verified.",
+      "Backfill PF-SB; run per-tenant parity; then enable DB default for listed scopes.",
+      "If rollback is required, export/reconcile DB authority to files, run parity, then set PF_BACKLOG_DB=off."
     ],
     "failure_taxonomy": [
       "BACKLOG_DB_UNAVAILABLE",
@@ -971,6 +990,46 @@
         ]
       },
       "evidence": "BI-PF-1531-9eefe39b92d1.json"
+    },
+    {
+      "mode": "design",
+      "candidate_sha": "d3c99eca551ee3897c6858b6268675f56ec52944",
+      "review_sha": "ceb4295d28a8",
+      "model": "deepseek-v4.1-flash",
+      "at": "2026-11-06T14:08:14.290789+00:00",
+      "review_scope": "full_candidate",
+      "base_sha": "",
+      "head_sha": "d3c99eca551ee3897c6858b6268675f56ec52944",
+      "findings": {
+        "BLOCKER": [
+          "Migration 0021 changes the `backlog_items` primary key to `(tenant_id,id)` but names only the traceability FK; there is no inventory/rebuild order for all FKs, indexes, unique constraints, and triggers referencing `backlog_items.id` — a missed dependent object fails migration or leaves invalid references.",
+          "`PF_BACKLOG_DB` default-on is global in `config/env-flags.json`, but backfill/parity cover only PF-SB and PF-GP; no per-scope gating is defined in `core/backlog.py` or the runtime contract, so non-target backlog scopes can become DB-authoritative without parity evidence."
+        ],
+        "MAJOR": [
+          "`backlog_db_backfill.py` writes directly to PostgreSQL, bypassing edpsvc audit/authz; the audit claim covers only “existing edpsvc paths,” leaving backfilled or parity-corrected rows without an audit record.",
+          "Mode-resolution precedence between code default, `config/env-flags.json`, and `PF_BACKLOG_DB` is undefined; `coverage` lists “invalid mode” but no expected failure code or fail-closed behavior, so conflicting/invalid values can select the wrong authority.",
+          "`backup_restore` relies on EDP-23 for PITR/restore, but EDP-23 is absent from `dependencies` and `prerequisites`; preflight cannot verify availability of the backup/restore path it depends on.",
+          "Performance requirement “Cutover must not regress T1/T2 measured paths” has no benchmark, test, or evidence entry in `test_matrix`, `coverage`, or `ac_evidence`.",
+          "File-to-DB backfill tenant attribution is unspecified; `backlog_items` PK/RLS require `tenant_id`, but no mapping or validation from PF-SB/PF-GP file projections to tenant is defined.",
+          "Parity is count-only (“743/743, zero drift”); no compared fields, normalization, ordering, or tolerance are defined, so parity can pass while content differs.",
+          "`structure.yml` and `full-sweep.yml` are in scope, but no enumeration/update of existing file-mode jobs/tests to set `PF_BACKLOG_DB=off` is defined; the default flip can make unrelated CI require DB/edpsvc."
+        ],
+        "MINOR": [
+          "`prerequisites` says “Migrations through 0021 applied” while `deployment_rollout` says “Apply 0021”; operator ordering is contradictory.",
+          "`scripts/dev/backlog_migration_preflight.py` is in `affected_files` but omitted from `review_scope.files`; no test or evidence covers its backup/lock abort logic.",
+          "`test-framework/tests/test_backlog_migrations.py` is in scope but not mapped to any AC, `test_matrix` entry, or evidence; 0021 schema/down assertions are unproven.",
+          "`backlog-db.yml` is not stated as a required PR check or branch-protection gate; AC-2 proves a job exists, not that it blocks merges."
+        ],
+        "NIT": [
+          "`PF_BACKLOG_DB` is not added to `docs/GLOSSARY.md` despite CL-003 requiring terms to be defined before building."
+        ],
+        "SUMMARY": [
+          "The design still has new integrity and scope-control blockers around the PK migration dependency surface and global default-on behavior.",
+          "Backfill audit, mode precedence, backup dependency, performance, tenant attribution, and parity semantics remain underspecified.",
+          "Not ready for Gate 1.5 until these gaps and the prior blockers are resolved with test/evidence mapping."
+        ]
+      },
+      "evidence": "BI-PF-1531-ceb4295d28a8.json"
     }
   ],
   "review_dispositions": {
