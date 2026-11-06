@@ -1,17 +1,17 @@
 # Backlog Summary
 
-> GENERATED 2026-11-06T12:08:37 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-11-06T14:01:40 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 132  |  **Closed:** 605
+- **Open:** 137  |  **Closed:** 605
 - `blocked`: 2
 - `executing`: 3
 - `in_progress`: 1
-- `new`: 126
+- `new`: 131
 
-### new, by category (126)
+### new, by category (131)
 **API / reports / HIL / misc** (15)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
@@ -89,7 +89,7 @@
 | BI-PF-1392 | Should | task | Enforce per-feature FR/US caps + max_lines in the Go artifact engine (scaled by the profile) and reconcile the three section sources | Per-feature FR/US caps + max_lines enforced NUMERICALLY (scaled by profile); sections have ONE source. |
 | BI-PF-1425 | Should | feature | Migrate orchestrator cache + evidence/summarizer (and remaining audit logic) from Python to Go (Go-first alignment) | Migrate orchestrator cache + evidence/summarizer (and remaining audit logic) from Python to Go (Go-first align... |
 
-**Wiring / tech-debt / API** (77)
+**Wiring / tech-debt / API** (82)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0185 | Should | feature | EPIC: Multi-modal / media orchestration (pluggable capability packs) | Make the pipeline modality-agnostic via PLUGGABLE capability packs, enabled per project when the idea needs th... |
@@ -169,6 +169,11 @@
 | BI-PF-1439 | Should | feature | Design-system catalog store + selection engine (Go) | PF can SELECT a ranked design direction from the idea. |
 | BI-PF-1440 | Should | feature | Design-token engine upgrade (3-tier OKLCH, light+dark) | Generate real design tokens from the selected direction. |
 | BI-PF-1445 | Should | feature | design_critic / visual_qa integration (anti-patterns + catalog + aesthetics) | QA validates against the chosen direction, non-negotiables and anti-patterns. |
+| BI-PF-1526 | Should | epic | EPIC: Scalability & Capacity Tiers (T1-T4) - capacity model, load evidence, and scale triggers | EPIC: Scalability & Capacity Tiers (T1-T4) - capacity model, load evidence, and scale triggers |
+| BI-PF-1527 | Should | task | T1: validate team-scale capacity and guardrails | T1: validate team-scale capacity and guardrails |
+| BI-PF-1528 | Should | task | T2: validate business-scale capacity, isolation, and recovery | T2: validate business-scale capacity, isolation, and recovery |
+| BI-PF-1529 | Should | task | T3: enterprise scale-out decision gate (replicas/partitioning/distributed quotas) | T3: enterprise scale-out decision gate (replicas/partitioning/distributed quotas) |
+| BI-PF-1530 | Should | task | T4: dedicated cell and multi-region decision gate | T4: dedicated cell and multi-region decision gate |
 
 ---
 
@@ -368,5 +373,5 @@
 ---
 
 ## Totals
-- backend: 132 open / 605 closed
+- backend: 137 open / 605 closed
 - dashboard: 146 open / 3 closed
