@@ -16,3 +16,15 @@ def test_authority_migrations_do_not_touch_backlog_items_data():
         up = (MIGS / f"{name}.up.sql").read_text(encoding="utf-8")
         assert "DELETE FROM backlog_items" not in up
         assert "TRUNCATE backlog_items" not in up
+
+
+def test_scoped_uniqueness_migration_contract():
+    name = "0021_backlog_scoped_uniqueness"
+    up = (MIGS / f"{name}.up.sql").read_text(encoding="utf-8")
+    down = (MIGS / f"{name}.down.sql").read_text(encoding="utf-8")
+    assert (MIGS / f"{name}.up.sql").is_file() and (MIGS / f"{name}.down.sql").is_file()
+    assert "lock_timeout" in up
+    assert "PRIMARY KEY (tenant_id, id)" in up
+    assert "FOREIGN KEY (tenant_id, item_id) REFERENCES backlog_items(tenant_id, id)" in up
+    assert "DELETE FROM backlog_items" not in up and "TRUNCATE backlog_items" not in up
+    assert "cannot restore global backlog id primary key" in down

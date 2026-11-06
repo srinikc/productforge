@@ -1,3 +1,4 @@
+SET lock_timeout = '5s';
 -- 0021: allow legacy duplicate backlog IDs across tenants while preserving global new-ID allocation.
 ALTER TABLE traceability DROP CONSTRAINT IF EXISTS fk_traceability_item;
 ALTER TABLE backlog_items DROP CONSTRAINT IF EXISTS backlog_items_pkey;

@@ -130,7 +130,7 @@ def test_on_mode_fails_closed_without_db(monkeypatch):
     import urllib.error
     monkeypatch.setenv("PF_BACKLOG_DB", "on")
     monkeypatch.setenv("PF_EDP_API_URL", "http://127.0.0.1:1")
-    with pytest.raises((urllib.error.URLError, OSError)):
+    with pytest.raises(RuntimeError, match="BACKLOG_DB_UNAVAILABLE"):
         backlog.list_open("product_forge", None)
 
 

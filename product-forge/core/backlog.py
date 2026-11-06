@@ -170,14 +170,20 @@ def _index_row(it: dict) -> dict:
 def _load_all_from_db(scope: str, project: str | None):
     """BI-PF-1399 Phase 3 (read-switch): read items from the DB SoR (via the Go edpsvc /backlog)."""
     import json as _json
+    import logging as _logging
+    import urllib.error as _uerr
     import urllib.request as _ureq
 
     tenant = str(project or scope or "product_forge")
     api = str(os.environ.get("PF_EDP_API_URL", "http://127.0.0.1:8030")).rstrip("/")
     req = _ureq.Request(f"{api}/backlog?tenant={tenant}&limit=100000", method="GET")
     req.add_header("Authorization", f"Bearer {os.environ.get('PF_EDP_TOKEN') or os.environ.get('PF_ADMIN_TOKEN', '')}")
-    with _ureq.urlopen(req, timeout=30) as r:
-        payload = _json.loads(r.read().decode("utf-8"))
+    try:
+        with _ureq.urlopen(req, timeout=30) as r:
+            payload = _json.loads(r.read().decode("utf-8"))
+    except (_uerr.URLError, OSError) as e:
+        _logging.getLogger(__name__).error("BACKLOG_DB_UNAVAILABLE tenant=%s: %s", tenant, e)
+        raise RuntimeError(f"BACKLOG_DB_UNAVAILABLE: {e}") from e
     op: list[dict] = []
     cl: list[dict] = []
     for row in (payload.get("items") or []):

@@ -1,3 +1,4 @@
+SET lock_timeout = '5s';
 DO $$
 BEGIN
   IF EXISTS (SELECT 1 FROM backlog_items GROUP BY id HAVING count(*) > 1) THEN
