@@ -99,3 +99,12 @@ Then run parity and only afterwards switch to file mode. Never drop backlog tabl
 ```bash
 PF_DB_DSN="$PF_RUNTIME_DSN" PF_BACKUP_CONFIRMED=1 python scripts/dev/backlog_migration_preflight.py
 ```
+
+## Deploy order and 0021 remediation
+
+1. Stop old backlog writers before applying 0021; an old binary uses `ON CONFLICT (id)`, which is invalid under the new composite key.
+2. Confirm backup, run the preflight, apply 0021, then 0022 (traceability index), then start the new binary.
+3. If preflight reports NULL/mismatched traceability tenant rows, repair `traceability.tenant_id` from the owning item, then rerun. Do not skip the check.
+4. Keep the backup until the fleet is fully on the new binary and parity is green.
+
+`dual` and `shadow` are migration-only modes; unknown values raise `BACKLOG_DB_MODE_INVALID`. `BACKLOG_DB_UNAVAILABLE` is logged with tenant and the Go service exports `edp_backlog_authority_*` metrics.

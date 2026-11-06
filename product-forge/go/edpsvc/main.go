@@ -1160,6 +1160,10 @@ func (s *server) backlogHandle(w http.ResponseWriter, r *http.Request) {
 			s.bad(w, r, http.StatusConflict, "backlog id conflicts with another tenant")
 			return
 		}
+		if errors.Is(err, edpdata.ErrTenantContext) {
+			s.bad(w, r, http.StatusServiceUnavailable, "tenant context unavailable")
+			return
+		}
 		if err != nil {
 			s.fail(w, r, http.StatusInternalServerError, err)
 			return
@@ -1174,6 +1178,10 @@ func (s *server) backlogHandle(w http.ResponseWriter, r *http.Request) {
 		}
 		items, err := bl.List(ctx, q.Get("status"), limit)
 		if err != nil {
+			if errors.Is(err, edpdata.ErrTenantContext) {
+				s.bad(w, r, http.StatusServiceUnavailable, "tenant context unavailable")
+				return
+			}
 			s.fail(w, r, http.StatusInternalServerError, err)
 			return
 		}
@@ -1263,6 +1271,10 @@ func (s *server) backlogByID(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodDelete {
 		if err := s.storeGuard("db", tenant, func() error { return bl.Delete(ctx, id) }); err != nil {
 			if s.storeGuardError(w, r, err) {
+				return
+			}
+			if errors.Is(err, edpdata.ErrTenantContext) {
+				s.bad(w, r, http.StatusServiceUnavailable, "tenant context unavailable")
 				return
 			}
 			s.fail(w, r, http.StatusNotFound, err)

@@ -181,9 +181,15 @@ def _load_all_from_db(scope: str, project: str | None):
     try:
         with _ureq.urlopen(req, timeout=30) as r:
             payload = _json.loads(r.read().decode("utf-8"))
+    except _uerr.HTTPError as e:
+        _logging.getLogger(__name__).error("BACKLOG_DB_AUTH tenant=%s status=%s", tenant, e.code)
+        raise RuntimeError(f"BACKLOG_DB_AUTH: status={e.code}") from e
     except (_uerr.URLError, OSError) as e:
         _logging.getLogger(__name__).error("BACKLOG_DB_UNAVAILABLE tenant=%s: %s", tenant, e)
         raise RuntimeError(f"BACKLOG_DB_UNAVAILABLE: {e}") from e
+    except ValueError as e:
+        _logging.getLogger(__name__).error("BACKLOG_DB_INVALID_RESPONSE tenant=%s: %s", tenant, e)
+        raise RuntimeError(f"BACKLOG_DB_INVALID_RESPONSE: {e}") from e
     op: list[dict] = []
     cl: list[dict] = []
     for row in (payload.get("items") or []):
@@ -242,7 +248,10 @@ def _backlog_db_mode() -> str:
         value = env_flags.get("PF_BACKLOG_DB", "on")
     except Exception:
         value = os.environ.get("PF_BACKLOG_DB", "on")
-    return str(value or "on").strip().lower()
+    mode = str(value or "on").strip().lower()
+    if mode not in ("off", "on", "dual", "shadow"):
+        raise RuntimeError(f"BACKLOG_DB_MODE_INVALID: {mode}")
+    return mode
 
 
 def _backlog_db_scopes() -> set[str]:

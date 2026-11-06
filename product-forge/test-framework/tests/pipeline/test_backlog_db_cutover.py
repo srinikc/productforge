@@ -156,3 +156,57 @@ def test_unverified_scope_stays_file_mode(monkeypatch):
     assert backlog._db_for("unverified_scope") is False
     monkeypatch.setenv("PF_BACKLOG_DB_SCOPES", "unverified_scope")
     assert backlog._db_for("unverified_scope") is True
+
+
+def test_invalid_mode_fails_closed(monkeypatch):
+    import pytest
+    from core import backlog
+    monkeypatch.setenv("PF_BACKLOG_DB", "bogus")
+    with pytest.raises(RuntimeError, match="BACKLOG_DB_MODE_INVALID"):
+        backlog._backlog_db_mode()
+
+
+def test_tenant_attribution_rejects_mismatch():
+    import importlib.util
+    from pathlib import Path as P
+    root = P(__file__).resolve().parents[3]
+    spec = importlib.util.spec_from_file_location("bf", root / "scripts" / "dev" / "backlog_db_backfill.py")
+    m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+    p = P("products") / "ProductA" / "data" / "backlog" / "items" / "BI-PF-1.json"
+    assert m.tenant_for_item({"project": "ProductA"}, p) == "ProductA"
+    try:
+        m.tenant_for_item({"project": "ProductB"}, p)
+    except ValueError as e:
+        assert "tenant attribution mismatch" in str(e)
+    else:
+        raise AssertionError("mismatch accepted")
+
+
+def test_id_allocator_scope_gate(monkeypatch):
+    from core import id_allocator
+    monkeypatch.setenv("PF_BACKLOG_DB", "on")
+    monkeypatch.setenv("PF_BACKLOG_DB_SCOPES", "product_forge")
+    assert id_allocator._db_enabled("product_forge") is True
+    assert id_allocator._db_enabled("unverified") is False
+
+
+def test_parity_scans_products(monkeypatch, tmp_path):
+    import importlib.util, json
+    from pathlib import Path as P
+    root = P(__file__).resolve().parents[3]
+    spec = importlib.util.spec_from_file_location("par", root / "scripts" / "dev" / "backlog_db_parity.py")
+    m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+    (tmp_path / "data" / "backlog" / "items").mkdir(parents=True)
+    (tmp_path / "products" / "X" / "data" / "backlog" / "items").mkdir(parents=True)
+    (tmp_path / "products" / "X" / "data" / "backlog" / "items" / "BI-PF-9.json").write_text(json.dumps({"id":"BI-PF-9","project":"X"}), encoding="utf-8")
+    m.ROOT = tmp_path; m.ITEMS = tmp_path / "data" / "backlog" / "items"
+    assert set(m.file_items("X")) == {"BI-PF-9"}
+
+
+def test_id_allocator_db_failure_never_falls_back(monkeypatch):
+    import pytest
+    from core import id_allocator
+    monkeypatch.setattr(id_allocator, "_db_enabled", lambda scope=None: True)
+    monkeypatch.setattr(id_allocator, "_reserve_db", lambda *a, **k: None)
+    with pytest.raises(RuntimeError, match="refusing a Git/local id fallback"):
+        id_allocator._mint("product_forge", None, 0, 0)

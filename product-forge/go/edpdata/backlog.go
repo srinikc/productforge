@@ -371,9 +371,12 @@ func (s *BacklogStore) List(ctx context.Context, status string, limit int) ([]Ba
 	}
 	var out []BacklogItem
 	err := s.db.WithTx(ctx, func(tx datastore.Tx) error {
+		if _, err := requireTenant(ctx, tx); err != nil {
+			return err
+		}
 		rows, err := tx.Query(ctx,
 			`SELECT id, tenant_id, scope, COALESCE(project_id, ''), type, status, title, body, data, revision FROM backlog_items
-			 WHERE ($1 = '' OR status = $1) ORDER BY created_at DESC LIMIT $2`, status, limit)
+			 WHERE tenant_id = current_setting('app.tenant_id', true) AND ($1 = '' OR status = $1) ORDER BY created_at DESC LIMIT $2`, status, limit)
 		if err != nil {
 			return err
 		}

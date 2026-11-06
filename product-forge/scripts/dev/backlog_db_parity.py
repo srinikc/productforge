@@ -1,7 +1,7 @@
 """BI-PF-1399 cutover step: files <-> DB parity for the backlog.
 
 Compares the canonical file backlog (``data/backlog/items/*.json``) against the ``backlog_items`` table.
-Reports missing/extra ids and a count parity. Exit 1 on any drift. Prereq: EDP-18 migration applied.
+Compares full JSON item data (not counts), plus missing/extra ids. Exit 1 on any drift. Prereq: EDP-18 migration applied.
 
 Usage: PF_DB_DSN=... python scripts/dev/backlog_db_parity.py
 """
@@ -23,7 +23,8 @@ def item_tenant(d: dict) -> str:
 
 def file_items(tenant: str) -> dict[str, dict]:
     out = {}
-    for f in ITEMS.glob("*.json"):
+    paths = list(ITEMS.glob("*.json")) + list((ROOT / "products").glob("*/data/backlog/items/*.json"))
+    for f in paths:
         d = json.loads(f.read_text(encoding="utf-8"))
         if d.get("id") and item_tenant(d) == tenant:
             out[d["id"]] = d

@@ -103,6 +103,9 @@ func TestAuditAndJobs_Integration(t *testing.T) {
 	if gotBL.Scope != "project" || gotBL.ProjectID != "demo-app" {
 		t.Fatalf("scope/project not directly scoped: %+v", gotBL)
 	}
+	if _, err := NewBacklog(store.BindTenant(st, "")).List(ctx, "", 1); !errors.Is(err, ErrTenantContext) {
+		t.Fatalf("List requires tenant context: %v", err)
+	}
 	if items, err := bl.List(ctx, "", 10); err != nil || len(items) == 0 {
 		t.Fatalf("backlog list: n=%d err=%v", len(items), err)
 	}

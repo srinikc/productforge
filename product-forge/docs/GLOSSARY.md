@@ -77,3 +77,5 @@ terms must be defined here. Binding with `AGENTS.md` (EOS) and `docs/MODEL-ASSIS
 
 ## One line
 **If a term can be read two ways, it is defined here first.**
+
+- **PF_BACKLOG_DB**: backlog authority switch: `on` uses PostgreSQL/edpsvc for scopes in `PF_BACKLOG_DB_SCOPES`; `off` uses file projections.

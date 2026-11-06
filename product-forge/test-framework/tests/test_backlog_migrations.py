@@ -28,3 +28,12 @@ def test_scoped_uniqueness_migration_contract():
     assert "FOREIGN KEY (tenant_id, item_id) REFERENCES backlog_items(tenant_id, id)" in up
     assert "DELETE FROM backlog_items" not in up and "TRUNCATE backlog_items" not in up
     assert "cannot restore global backlog id primary key" in down
+
+
+def test_traceability_tenant_index_migration():
+    name = "0022_traceability_tenant_index"
+    up = (MIGS / f"{name}.up.sql").read_text(encoding="utf-8")
+    down = (MIGS / f"{name}.down.sql").read_text(encoding="utf-8")
+    assert "CREATE INDEX IF NOT EXISTS idx_traceability_tenant_item ON traceability (tenant_id, item_id)" in up
+    assert "DROP INDEX IF EXISTS idx_traceability_tenant_item" in down
+    assert "lock_timeout" in up

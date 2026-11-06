@@ -309,9 +309,17 @@ def _db_enabled(scope: str | None = None) -> bool:
     try:
         from core import env_flags
         value = env_flags.get("PF_BACKLOG_DB", "on")
+        scopes = env_flags.get("PF_BACKLOG_DB_SCOPES", "product_forge,ProductForge-Dashboard")
     except Exception:
         value = os.environ.get("PF_BACKLOG_DB", "on")
-    return str(value or "on").strip().lower() == "on"
+        scopes = os.environ.get("PF_BACKLOG_DB_SCOPES", "product_forge,ProductForge-Dashboard")
+    mode = str(value or "on").strip().lower()
+    if mode not in ("off", "on", "dual", "shadow"):
+        raise RuntimeError(f"BACKLOG_DB_MODE_INVALID: {mode}")
+    if mode != "on":
+        return False
+    allowed = {x.strip().lower() for x in str(scopes or "").split(",") if x.strip()}
+    return str(scope or "").strip().lower() in allowed
 
 
 def _reserve_db(scope: str, project: str | None, size: int) -> dict | None:

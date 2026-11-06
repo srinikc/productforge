@@ -1,7 +1,7 @@
 """Backfill file backlog items into the PostgreSQL backlog authority.
 
 Scans PF-SB item files and generated-product item files and POSTs each full item through the Go
-edpsvc /backlog writer. Idempotent because BacklogStore.Put upserts by item id.
+edpsvc /backlog writer. Idempotent because BacklogStore.Put upserts by (tenant_id, id).
 
 Usage:
   PF_EDP_API_URL=http://127.0.0.1:8030 PF_API_TOKEN=... python scripts/dev/backlog_db_backfill.py --dry-run
@@ -22,6 +22,17 @@ sys.path.insert(0, str(ROOT))
 from core import backlog  # noqa: E402
 
 
+def tenant_for_item(it: dict, path: Path) -> str:
+    tenant = str(it.get("project") or it.get("scope") or "product_forge")
+    parts = path.parts
+    if "products" in parts:
+        i = parts.index("products")
+        expected = parts[i + 1] if i + 1 < len(parts) else ""
+        if expected and tenant != expected:
+            raise ValueError(f"tenant attribution mismatch: file={path} tenant={tenant} expected={expected}")
+    return tenant
+
+
 def candidates() -> list[Path]:
     out = []
     out.extend(sorted((ROOT / "data" / "backlog" / "items").glob("*.json")))
@@ -33,6 +44,7 @@ def candidates() -> list[Path]:
 def main() -> int:
     ap = argparse.ArgumentParser(description="Backfill backlog files into PostgreSQL")
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--tenant", default="", help="only backfill this tenant")
     a = ap.parse_args()
     if not os.environ.get("PF_EDP_API_URL"):
         print("PF_EDP_API_URL is required", file=sys.stderr)
@@ -40,6 +52,8 @@ def main() -> int:
     if not (os.environ.get("PF_EDP_TOKEN") or os.environ.get("PF_ADMIN_TOKEN")):
         print("PF_EDP_TOKEN or PF_ADMIN_TOKEN is required", file=sys.stderr)
         return 2
+    if str(os.environ.get("PF_BACKLOG_DB", "")).strip().lower() == "off":
+        print("backfill: forcing PF_BACKLOG_DB=on for DB writes", file=sys.stderr)
     os.environ["PF_BACKLOG_DB"] = "on"
     files = candidates()
     if not files:
@@ -55,8 +69,16 @@ def main() -> int:
             continue
         if not isinstance(it, dict) or not it.get("id"):
             continue
+        try:
+            tenant = tenant_for_item(it, f)
+            if a.tenant and tenant != a.tenant:
+                continue
+        except ValueError as e:
+            print(f"backfill: {e}", file=sys.stderr)
+            fail += 1
+            continue
         if a.dry_run:
-            print(f"would backfill {it['id']} ({it.get('scope') or 'product_forge'})")
+            print(f"would backfill {it['id']} ({tenant})")
             ok += 1
             continue
         try:
