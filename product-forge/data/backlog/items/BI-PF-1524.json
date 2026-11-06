@@ -170,5 +170,136 @@
   "created_at": "2026-11-05T11:25:18.717692",
   "updated_at": "2026-11-05T11:25:23.815988",
   "score": 0.75,
-  "_note": "readiness computed"
+  "_note": "readiness computed",
+  "design_pack": {
+    "version": 1,
+    "requirements": [
+      "Baseline artifact is review-visible and referenced by config baseline_id",
+      "SLO rules/dashboard are generated from config and drift-checked",
+      "Benchmark errors and freshness semantics are monotonic and alertable"
+    ],
+    "scope": [
+      "EDP-22b: measured baselines, baseline IDs, and generated SLO assets"
+    ],
+    "non_goals": [
+      "No implementation outside this slice; EDP-22 parent owns final delivery."
+    ],
+    "invariants": [
+      "Bounded labels only.",
+      "Fail-closed degradation.",
+      "No tenant leakage."
+    ],
+    "contracts": {
+      "api": [
+        "No new public API."
+      ],
+      "db": [
+        "No schema change in this slice record."
+      ],
+      "files": [
+        "go/edpsvc/"
+      ],
+      "config": [
+        "config/edp-slo.json",
+        "config/edp-degradation.json"
+      ]
+    },
+    "failure_matrix": [
+      {
+        "case": "precondition missing",
+        "expected": "block",
+        "code": "BLOCK"
+      }
+    ],
+    "dependencies": [
+      "BI-PF-1314"
+    ],
+    "security": [
+      "No secrets or tenant data in logs/metrics."
+    ],
+    "observability": [
+      "Bounded store/reason labels."
+    ],
+    "performance": [
+      "Benchmark/tooling caps are explicit."
+    ],
+    "test_matrix": [
+      {
+        "ac": "AC-1",
+        "kind": "unit/contract",
+        "test": "go test ./..."
+      },
+      {
+        "ac": "AC-2",
+        "kind": "unit/contract",
+        "test": "go test ./..."
+      },
+      {
+        "ac": "AC-3",
+        "kind": "unit/contract",
+        "test": "go test ./..."
+      }
+    ],
+    "rollout": [
+      "Delivered as part of EDP-22 closure."
+    ],
+    "rollback": [
+      "Revert the slice change; parent evidence retained."
+    ],
+    "decisions": [
+      "Slice tracked under EDP-22."
+    ],
+    "guardrails": [
+      "No high-cardinality labels.",
+      "No silent degradation."
+    ],
+    "learnings": [
+      "EDP-22 was completed; slices remain traceability records."
+    ],
+    "runtime_contract": {
+      "trigger": "operator/runtime action",
+      "entrypoint": "go/edpsvc/main.go",
+      "call_sites": "service handler -> store boundary",
+      "adapter": "edpsvc",
+      "contract": "bounded store operation",
+      "failure_behavior": "fail closed",
+      "observable_result": "metrics/alerts"
+    },
+    "proof_plan": {
+      "failing_test": "go test ./...",
+      "red_evidence": "Slice behavior absent before EDP-22 implementation.",
+      "green_evidence": "Tests pass in EDP-22 PR #339."
+    },
+    "ac_evidence": {
+      "AC-1": {
+        "sha": "c079720a",
+        "evidence": "go test ./..."
+      },
+      "AC-2": {
+        "sha": "c079720a",
+        "evidence": "go test ./..."
+      },
+      "AC-3": {
+        "sha": "c079720a",
+        "evidence": "go test ./..."
+      }
+    },
+    "stop_conditions": [
+      "scope creep",
+      "unbounded labels",
+      "missing evidence"
+    ],
+    "controls": [
+      {
+        "id": "CTL-SLICE",
+        "dimension": "failure_taxonomy",
+        "applies_to": "go/edpsvc/main.go",
+        "check": "go test ./...",
+        "evidence": "docs/EDP-22-RUNBOOK.md",
+        "failure_behavior": "block",
+        "owner": "edpsvc",
+        "cwd": "go/edpsvc"
+      }
+    ]
+  }
 }
