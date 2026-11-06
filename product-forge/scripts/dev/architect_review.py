@@ -194,7 +194,8 @@ def _latest_review_sha(item_id: str, mode: str) -> str:
 
 
 _DESIGN_KEYS = ("objective", "approach", "in_scope", "out_of_scope", "acceptance_criteria",
-                "affected_components", "affected_files", "risks", "rollback", "design_pack")
+                "affected_components", "affected_files", "risks", "rollback", "functional_spec",
+            "spec_pack", "design_pack")
 
 
 def design_sha(item: dict) -> str:
@@ -210,7 +211,8 @@ def design_sha(item: dict) -> str:
 
 def _design_body(item: dict) -> str:
     keys = ("objective", "approach", "in_scope", "out_of_scope", "acceptance_criteria",
-            "affected_components", "affected_files", "risks", "rollback", "design_pack")
+            "affected_components", "affected_files", "risks", "rollback", "functional_spec",
+            "spec_pack", "design_pack")
     return "Design / Gate-1 context:\n" + "\n".join(f"- {k}: {item.get(k)}" for k in keys if item.get(k))
 
 

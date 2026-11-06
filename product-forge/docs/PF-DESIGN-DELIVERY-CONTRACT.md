@@ -3,6 +3,10 @@
 **Status:** mandatory for items created on/after the date in `config/design-contract.json`.
 **Purpose:** replace capability narratives with executable implementation contracts.
 
+## 0. Spec chain
+
+Gate 0 readiness ? Gate 0.5 functional freeze ? design/architect ? conditional spec pack ? conformance ? Gate 1.5 ? Gate 1 ? implement ? Gate 2.5 ? Gate 2. See `docs/SPEC-CHAIN.md`.
+
 ## 1. Design contract
 
 Every item design pack must contain:

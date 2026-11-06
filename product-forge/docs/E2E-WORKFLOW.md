@@ -57,7 +57,10 @@ Idea / defect / change
 [2] Gate 0: reconciliation + impact + language/API checks + AC
         |
         v
-[3] Design pack + architecture/ADR + runtime call-site map
+[2.5] Gate 0.5: functional spec freeze (`engineering/specs/<ID>.md`)
+        |
+        v
+[3] Design pack + architecture/ADR + runtime call-site map + conditional spec pack
         |
         v
 [4] Gate 1.5: independent read-only design review
@@ -90,6 +93,7 @@ Idea / defect / change
 |---|---|---|
 | Intake | Human / agent / system | Backlog item with scope, AC, dependencies |
 | Gate 0 | Worker / design author | Reconciliation, impact table, language/API/AC |
+| Gate 0.5 | Design author | Functional spec + traceability skeleton |
 | Design | Design author | `engineering/design/<ID>.md`, runtime wiring, failure/proof plan |
 | Gate 1.5 | Architect reviewer | Design findings and recommendation |
 | Gate 1 | HIL | Design approval and decisions |

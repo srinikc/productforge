@@ -791,7 +791,8 @@
         "entrypoint": "core/backlog.py",
         "failure_cases": [
           "invalid mode"
-        ]
+        ],
+        "fr": "FR-1"
       },
       {
         "ac": "AC-2",
@@ -810,7 +811,8 @@
         "failure_cases": [
           "workflow missing"
         ],
-        "runtime_capability": false
+        "runtime_capability": false,
+        "fr": "FR-2"
       },
       {
         "ac": "AC-3",
@@ -829,7 +831,8 @@
         "failure_cases": [
           "BACKLOG_DB_PARITY_DRIFT"
         ],
-        "runtime_capability": false
+        "runtime_capability": false,
+        "fr": "FR-3"
       },
       {
         "ac": "AC-4",
@@ -848,7 +851,8 @@
         "failure_cases": [
           "DB unavailable"
         ],
-        "runtime_capability": false
+        "runtime_capability": false,
+        "fr": "FR-4"
       },
       {
         "ac": "AC-5",
@@ -867,7 +871,8 @@
         "failure_cases": [
           "off write"
         ],
-        "runtime_capability": false
+        "runtime_capability": false,
+        "fr": "FR-5"
       },
       {
         "ac": "AC-1",
@@ -886,7 +891,8 @@
         "failure_cases": [
           "down refused on duplicates"
         ],
-        "runtime_capability": false
+        "runtime_capability": false,
+        "fr": "FR-1"
       },
       {
         "ac": "AC-1",
@@ -905,7 +911,8 @@
         "failure_cases": [
           "regression"
         ],
-        "runtime_capability": false
+        "runtime_capability": false,
+        "fr": "FR-1"
       },
       {
         "ac": "AC-5",
@@ -924,7 +931,8 @@
         "failure_cases": [
           "missing DSN"
         ],
-        "runtime_capability": false
+        "runtime_capability": false,
+        "fr": "FR-5"
       },
       {
         "ac": "AC-3",
@@ -943,7 +951,8 @@
         "failure_cases": [
           "drift"
         ],
-        "runtime_capability": false
+        "runtime_capability": false,
+        "fr": "FR-3"
       },
       {
         "ac": "AC-4",
@@ -963,7 +972,8 @@
         "failure_cases": [
           "missing tenant"
         ],
-        "runtime_capability": false
+        "runtime_capability": false,
+        "fr": "FR-4"
       },
       {
         "ac": "AC-1",
@@ -982,7 +992,8 @@
         "failure_cases": [
           "unlisted scope"
         ],
-        "runtime_capability": false
+        "runtime_capability": false,
+        "fr": "FR-1"
       },
       {
         "ac": "AC-5",
@@ -1001,7 +1012,8 @@
         "failure_cases": [
           "invalid tenant path"
         ],
-        "runtime_capability": false
+        "runtime_capability": false,
+        "fr": "FR-5"
       }
     ],
     "compatibility": [
@@ -1018,7 +1030,8 @@
     ],
     "api_contract": [
       "Existing edpsvc /backlog endpoints unchanged; no new public API."
-    ]
+    ],
+    "functional_ref": "engineering/specs/BI-PF-1531.md"
   },
   "review_ledger": [
     {
@@ -2269,5 +2282,550 @@
       "kind": "go-tenant",
       "test": "cd go/edpdata && go test ./..."
     }
-  ]
+  ],
+  "functional_spec": {
+    "version": 1,
+    "status": "APPROVED",
+    "owner": "engineering",
+    "source": "BI-PF-1531 DB authority cutover",
+    "design_ref": "engineering/design/BI-PF-1531.md",
+    "outcome": [
+      "PostgreSQL/edpsvc is the default backlog authority for verified scopes; file projections remain rollback/reconcile artifacts."
+    ],
+    "actors": [
+      "Backlog worker/agent",
+      "edpsvc",
+      "operator/runbook owner",
+      "HIL approver"
+    ],
+    "scope": [
+      "DB authority for PF_BACKLOG_DB_SCOPES",
+      "scoped uniqueness migration",
+      "backfill/parity/export",
+      "fail-closed tenant behavior",
+      "CI DB-mode and file-mode isolation"
+    ],
+    "non_goals": [
+      "No cross-region DR/T4 implementation",
+      "No renumbering of legacy IDs",
+      "No deletion of file projections"
+    ],
+    "assumptions": [
+      "Migrations through 0022 are applied in order",
+      "A verified backup artifact exists before 0021",
+      "edpsvc binds tenant GUC transaction-locally"
+    ],
+    "dependencies": [
+      "BI-PF-1315 EDP-23 backup/PITR",
+      "PostgreSQL 16",
+      "Go edpsvc /backlog",
+      "GitHub Actions"
+    ],
+    "domain": [
+      "tenant: tenant_id partition",
+      "scope: product_forge or project",
+      "mode: on/off/dual/shadow",
+      "FR: functional requirement"
+    ],
+    "requirements": [
+      {
+        "id": "FR-1",
+        "title": "Default mode resolves on with per-scope authority",
+        "priority": "Must",
+        "source": "AC-1",
+        "preconditions": [
+          "Configuration loaded"
+        ],
+        "trigger": "Backlog read/write/delete or ID reservation",
+        "inputs": [
+          "PF_BACKLOG_DB",
+          "PF_BACKLOG_DB_SCOPES",
+          "scope/project"
+        ],
+        "outputs": [
+          "DB authority for allowlisted scope; file authority otherwise"
+        ],
+        "errors": [
+          "BACKLOG_DB_MODE_INVALID",
+          "BACKLOG_DB_SCOPES_EMPTY"
+        ],
+        "auth": "Existing edpsvc admin authorization",
+        "idempotency": "Mode resolution is pure and repeatable",
+        "data_rules": [
+          "Allowlist key uses project or scope",
+          "Case variants are distinct"
+        ],
+        "edge_cases": [
+          "empty allowlist",
+          "invalid mode",
+          "unlisted scope"
+        ],
+        "acceptance": [
+          "Given DB mode on and an allowlisted scope, When backlog is read or written, Then PostgreSQL is authoritative.",
+          "Given an empty allowlist, When mode is on, Then startup/operation fails closed."
+        ],
+        "verification": "test_backlog_db_cutover.py and test_backlog_db_authority.py"
+      },
+      {
+        "id": "FR-2",
+        "title": "DB-mode CI exercises real Postgres path",
+        "priority": "Must",
+        "source": "AC-2",
+        "preconditions": [
+          "Postgres service available"
+        ],
+        "trigger": "Pull request or manual workflow",
+        "inputs": [
+          "migrations",
+          "edpsvc",
+          "backfill files"
+        ],
+        "outputs": [
+          "backlog-db CI job result"
+        ],
+        "errors": [
+          "job failure on migration/backfill/parity/test failure"
+        ],
+        "auth": "GitHub Actions only",
+        "idempotency": "Workflow reruns are safe",
+        "data_rules": [
+          "CI uses a fresh database"
+        ],
+        "edge_cases": [
+          "preflight backup artifact missing",
+          "0022 index failure"
+        ],
+        "acceptance": [
+          "Given the backlog-db workflow, When the job runs, Then it applies 0021/0022, starts edpsvc, backfills, runs parity for both tenants, and runs tests."
+        ],
+        "verification": "test_backlog_db_workflow.py and backlog-db CI"
+      },
+      {
+        "id": "FR-3",
+        "title": "File/DB parity is scoped and content-complete",
+        "priority": "Must",
+        "source": "AC-3",
+        "preconditions": [
+          "Backfill completed"
+        ],
+        "trigger": "Parity command",
+        "inputs": [
+          "tenant",
+          "file item sources",
+          "DB rows"
+        ],
+        "outputs": [
+          "zero missing/extra/mismatched rows"
+        ],
+        "errors": [
+          "BACKLOG_DB_PARITY_DRIFT"
+        ],
+        "auth": "Operator/admin command",
+        "idempotency": "Read-only parity",
+        "data_rules": [
+          "Compare full JSON item data",
+          "Scan products/*/data/backlog/items"
+        ],
+        "edge_cases": [
+          "generated-product tenant",
+          "empty source with DB rows",
+          "numeric normalization"
+        ],
+        "acceptance": [
+          "Given backfilled PF-SB files, When parity runs for product_forge, Then missing/extra/mismatch are zero."
+        ],
+        "verification": "backlog_db_parity.py and test_parity_scans_products"
+      },
+      {
+        "id": "FR-4",
+        "title": "Tenant-less DB operations fail closed",
+        "priority": "Must",
+        "source": "AC-4",
+        "preconditions": [
+          "DB mode on"
+        ],
+        "trigger": "Get/List/Put/Delete call without tenant context",
+        "inputs": [
+          "request tenant",
+          "bound GUC"
+        ],
+        "outputs": [
+          "503 tenant-context failure"
+        ],
+        "errors": [
+          "ErrTenantContext mapped to 503",
+          "BACKLOG_DB_UNAVAILABLE"
+        ],
+        "auth": "Tenant context required",
+        "idempotency": "No write occurs on failure",
+        "data_rules": [
+          "List/Get/Delete use tenant returned by requireTenant"
+        ],
+        "edge_cases": [
+          "missing GUC",
+          "tenant mismatch",
+          "DB unavailable"
+        ],
+        "acceptance": [
+          "Given no tenant context, When any backlog operation runs, Then it fails closed with 503 and no Git fallback."
+        ],
+        "verification": "go/edpdata tests and test_on_mode_never_writes_file"
+      },
+      {
+        "id": "FR-5",
+        "title": "Rollback exports and reconciles DB authority",
+        "priority": "Must",
+        "source": "AC-5",
+        "preconditions": [
+          "Writers quiesced"
+        ],
+        "trigger": "Rollback to file mode",
+        "inputs": [
+          "tenant",
+          "DB rows",
+          "projection dir"
+        ],
+        "outputs": [
+          "file projections match DB, including pruning"
+        ],
+        "errors": [
+          "export id mismatch",
+          "missing DSN"
+        ],
+        "auth": "Operator/admin command",
+        "idempotency": "Overwrite/idempotent export",
+        "data_rules": [
+          "Validate data.id before write",
+          "Prune projections absent from DB when requested"
+        ],
+        "edge_cases": [
+          "deleted DB row",
+          "corrupt row id",
+          "path traversal tenant"
+        ],
+        "acceptance": [
+          "Given DB authority, When operators quiesce writers and run export with prune and parity, Then files match DB before mode off."
+        ],
+        "verification": "backlog_db_export.py and test_export_write_skip_overwrite"
+      }
+    ],
+    "operation_matrix": [
+      {
+        "mode": "on",
+        "operation": "read/list",
+        "scope": "allowlisted",
+        "actor": "worker",
+        "expected": "DB rows authoritative",
+        "error": "BACKLOG_DB_UNAVAILABLE"
+      },
+      {
+        "mode": "on",
+        "operation": "write/delete",
+        "scope": "allowlisted",
+        "actor": "worker",
+        "expected": "edpsvc write/delete; no file write",
+        "error": "BACKLOG_DB_UNAVAILABLE"
+      },
+      {
+        "mode": "on",
+        "operation": "read/write",
+        "scope": "unlisted",
+        "actor": "worker",
+        "expected": "file mode",
+        "error": "none"
+      },
+      {
+        "mode": "off",
+        "operation": "read/write",
+        "scope": "any",
+        "actor": "worker",
+        "expected": "file mode",
+        "error": "none"
+      },
+      {
+        "mode": "on",
+        "operation": "backfill/parity/export",
+        "scope": "allowlisted",
+        "actor": "operator",
+        "expected": "DB sync and evidence",
+        "error": "drift/export error"
+      }
+    ],
+    "config_contract": [
+      {
+        "name": "PF_BACKLOG_DB",
+        "default": "on",
+        "precedence": "env > config/env-flags.json > on",
+        "valid_values": "off,on,dual,shadow",
+        "empty_behavior": "on",
+        "invalid_behavior": "BACKLOG_DB_MODE_INVALID",
+        "startup_validation": "gate1/precheck and operation"
+      },
+      {
+        "name": "PF_BACKLOG_DB_SCOPES",
+        "default": "product_forge,ProductForge-Dashboard",
+        "precedence": "env > config/env-flags.json > default",
+        "valid_values": "comma-separated scope keys",
+        "empty_behavior": "BACKLOG_DB_SCOPES_EMPTY when on",
+        "invalid_behavior": "no match = file authority",
+        "startup_validation": "operation"
+      }
+    ],
+    "nfr": [
+      "DB point-read p95 <= 50 ms (bench-t1.json)",
+      "DB API p95 <= max(file p95*1.25,150 ms)",
+      "Parity zero drift for PF-SB",
+      "No cross-tenant reads without tenant context"
+    ],
+    "data_lifecycle": [
+      "Backfill upserts by (tenant_id,id)",
+      "Delete is tenant-scoped",
+      "Export with --prune removes projections absent from DB",
+      "Legacy duplicate IDs are preserved per tenant"
+    ],
+    "compatibility": [
+      "Existing /backlog routes unchanged",
+      "Old binary must stop before composite PK rollout",
+      "0021/0022 are ordered migrations"
+    ],
+    "rollback": [
+      "Quiesce writers",
+      "Run export --prune",
+      "Run parity",
+      "Set PF_BACKLOG_DB=off",
+      "Restart file-mode writers"
+    ],
+    "observability": [
+      "edp_backlog_authority_* metrics",
+      "BACKLOG_DB_* error codes with tenant/reason",
+      "export/parity command output evidence"
+    ],
+    "traceability": [
+      {
+        "fr": "FR-1",
+        "design": "design_pack.coverage AC-1",
+        "test": "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q",
+        "evidence": [
+          "engineering/evidence/BI-PF-1531/failclosed-rollback-tests.txt"
+        ]
+      },
+      {
+        "fr": "FR-2",
+        "design": "design_pack.coverage AC-2",
+        "test": "python -m pytest test-framework/tests/test_backlog_db_workflow.py -q",
+        "evidence": [
+          "engineering/evidence/BI-PF-1531/backlog-db.workflow.yml"
+        ]
+      },
+      {
+        "fr": "FR-3",
+        "design": "design_pack.coverage AC-3",
+        "test": "python scripts/dev/backlog_db_parity.py --tenant product_forge",
+        "evidence": [
+          "engineering/evidence/BI-PF-1531/parity.txt"
+        ]
+      },
+      {
+        "fr": "FR-4",
+        "design": "design_pack.coverage AC-4",
+        "test": "go test ./...",
+        "evidence": [
+          "engineering/evidence/BI-PF-1531/current-sha-control.txt"
+        ]
+      },
+      {
+        "fr": "FR-5",
+        "design": "design_pack.coverage AC-5",
+        "test": "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q",
+        "evidence": [
+          "engineering/evidence/BI-PF-1531/failclosed-rollback-tests.txt"
+        ]
+      }
+    ],
+    "open_questions": [
+      "None ? remaining review findings are tracked as dispositions, not unresolved behavior."
+    ],
+    "dod": [
+      "Functional spec frozen",
+      "Design coverage maps every FR",
+      "Tests/evidence current SHA",
+      "Gate 1/2 decisions recorded",
+      "Rollback verified"
+    ],
+    "functional_sha": "6ef4c03e7f30"
+  },
+  "spec_pack": {
+    "version": 1,
+    "status": "APPROVED",
+    "functional_ref": "engineering/specs/BI-PF-1531.md",
+    "design_ref": "engineering/design/BI-PF-1531.md",
+    "applicability": [
+      {
+        "spec": "product_design_spec",
+        "status": "N/A",
+        "owner": "engineering",
+        "reason": "No user-facing UI or interaction change; backend/data-path only.",
+        "artifact": "",
+        "sections": [],
+        "evidence": []
+      },
+      {
+        "spec": "api_contract",
+        "status": "N/A",
+        "owner": "engineering",
+        "reason": "No new public API; existing edpsvc /backlog routes and payloads are unchanged.",
+        "artifact": "",
+        "sections": [],
+        "evidence": []
+      },
+      {
+        "spec": "data_contract",
+        "status": "APPLICABLE",
+        "owner": "engineering",
+        "reason": "Adds composite backlog key and traceability index.",
+        "artifact": "engineering/design/BI-PF-1531.md",
+        "sections": [
+          "design_pack.data_model",
+          "design_pack.contracts.db"
+        ],
+        "evidence": [
+          "migrations/0021_backlog_scoped_uniqueness.up.sql",
+          "migrations/0022_traceability_tenant_index.up.sql"
+        ]
+      },
+      {
+        "spec": "config_contract",
+        "status": "APPLICABLE",
+        "owner": "engineering",
+        "reason": "Adds default-on mode and scoped allowlist.",
+        "artifact": "engineering/design/BI-PF-1531.md",
+        "sections": [
+          "design_pack.runtime_contract",
+          "design_pack.contracts.config"
+        ],
+        "evidence": [
+          "config/env-flags.json",
+          ".env.example"
+        ]
+      },
+      {
+        "spec": "nfr_slo",
+        "status": "APPLICABLE",
+        "owner": "engineering",
+        "reason": "Adds performance/no-regression requirements.",
+        "artifact": "engineering/design/BI-PF-1531.md",
+        "sections": [
+          "design_pack.performance",
+          "design_pack.observability"
+        ],
+        "evidence": [
+          "engineering/evidence/BI-PF-1531/bench-t1.json"
+        ]
+      },
+      {
+        "spec": "security_threat_model",
+        "status": "APPLICABLE",
+        "owner": "engineering",
+        "reason": "Tenant/RLS and fail-closed behavior change.",
+        "artifact": "engineering/design/BI-PF-1531.md",
+        "sections": [
+          "design_pack.security_model",
+          "design_pack.rls_tenant"
+        ],
+        "evidence": [
+          "docs/BACKLOG-DB-SSOT.md"
+        ]
+      },
+      {
+        "spec": "migration_backfill",
+        "status": "APPLICABLE",
+        "owner": "engineering",
+        "reason": "Schema expansion, backfill, parity, and preflight are in scope.",
+        "artifact": "engineering/design/BI-PF-1531.md",
+        "sections": [
+          "design_pack.deployment_rollout",
+          "design_pack.rollback_recovery"
+        ],
+        "evidence": [
+          "migrations/0021_backlog_scoped_uniqueness.up.sql",
+          "engineering/evidence/BI-PF-1531/parity.txt"
+        ]
+      },
+      {
+        "spec": "rollback_dr",
+        "status": "APPLICABLE",
+        "owner": "engineering",
+        "reason": "Rollback/export and backup/restore are required.",
+        "artifact": "engineering/design/BI-PF-1531.md",
+        "sections": [
+          "design_pack.rollback_recovery",
+          "design_pack.rollback"
+        ],
+        "evidence": [
+          "engineering/evidence/BI-PF-1531/failclosed-rollback-tests.txt",
+          "docs/BACKLOG-DB-SSOT.md"
+        ]
+      },
+      {
+        "spec": "observability_runbook",
+        "status": "APPLICABLE",
+        "owner": "engineering",
+        "reason": "Authority failures must be observable and documented.",
+        "artifact": "engineering/design/BI-PF-1531.md",
+        "sections": [
+          "design_pack.observability"
+        ],
+        "evidence": [
+          "docs/BACKLOG-DB-SSOT.md"
+        ]
+      },
+      {
+        "spec": "accessibility_i18n",
+        "status": "N/A",
+        "owner": "engineering",
+        "reason": "No user interface or localized content.",
+        "artifact": "",
+        "sections": [],
+        "evidence": []
+      },
+      {
+        "spec": "privacy_compliance",
+        "status": "N/A",
+        "owner": "engineering",
+        "reason": "No new PII, consent, or regulated data; tenant isolation is preserved.",
+        "artifact": "",
+        "sections": [],
+        "evidence": []
+      },
+      {
+        "spec": "implementation_plan",
+        "status": "APPLICABLE",
+        "owner": "engineering",
+        "reason": "Ordered migration/cutover/PR sequence is required.",
+        "artifact": "engineering/design/BI-PF-1531.md",
+        "sections": [
+          "design_pack.deployment_rollout",
+          "design_pack.test_matrix"
+        ],
+        "evidence": [
+          "engineering/evidence/BI-PF-1531/current-sha-control.txt"
+        ]
+      },
+      {
+        "spec": "release_verification",
+        "status": "APPLICABLE",
+        "owner": "engineering",
+        "reason": "CI/parity/rollback verification is required before enablement.",
+        "artifact": "engineering/design/BI-PF-1531.md",
+        "sections": [
+          "design_pack.rollout",
+          "design_pack.test_matrix",
+          "design_pack.ac_evidence"
+        ],
+        "evidence": [
+          "engineering/evidence/BI-PF-1531/current-sha-control.txt"
+        ]
+      }
+    ]
+  }
 }
