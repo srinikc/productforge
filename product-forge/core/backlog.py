@@ -114,7 +114,7 @@ def _norm_scope(scope: str) -> str:
 
 
 def _scope_key(scope: str | None) -> str:
-    return "product_forge" if str(scope or "") in ("portfolio", "product_forge", _LEGACY_FORGE_SCOPE) else str(scope or "").strip().lower()
+    return "product_forge" if str(scope or "") in ("portfolio", "product_forge", _LEGACY_FORGE_SCOPE) else str(scope or "")
 
 
 def _dir(scope: str, project: str | None = None) -> str:
@@ -278,11 +278,21 @@ def _backlog_db_scopes() -> set[str]:
     return scopes
 
 
+_DB_WARNED_SCOPES: set[str] = set()
+
+
 def _db_for(scope: str | None) -> bool:
     """DB authority is opt-in per verified scope; unlisted scopes stay in file mode."""
     if _backlog_db_mode() != "on":
         return False
-    return _scope_key(scope) in _backlog_db_scopes()
+    key = _scope_key(scope)
+    if key in _backlog_db_scopes():
+        return True
+    if key not in _DB_WARNED_SCOPES:
+        _DB_WARNED_SCOPES.add(key)
+        import logging
+        logging.getLogger(__name__).warning("BACKLOG_DB_SCOPE_UNLISTED scope=%r: staying file-authoritative", key)
+    return False
 
 
 def _mirror_item_to_db(item: dict) -> None:

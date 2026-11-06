@@ -33,6 +33,19 @@ def _date(v) -> date | None:
         return date.fromisoformat(s)
 
 
+def iter_items():
+    roots = [ROOT / "data" / "backlog" / "items"]
+    roots += list((ROOT / "products").glob("*/data/backlog/items"))
+    for root in roots:
+        for p in sorted(root.glob("*.json")):
+            try:
+                item = json.loads(p.read_text(encoding="utf-8"))
+            except Exception:
+                continue
+            if isinstance(item, dict) and item.get("id"):
+                yield item
+
+
 def should_enforce(item: dict, cfg: dict) -> bool:
     if str(item.get("id") or "") in (cfg.get("enforce_items") or []):
         return True
@@ -212,7 +225,7 @@ def main(argv=None) -> int:
     cfg = _cfg()
     if a.all:
         bad = []
-        for item in backlog.list_items("product_forge", None):
+        for item in iter_items():
             if should_enforce(item, cfg):
                 bad += [f"{item.get('id')}: {p}" for p in problems(item, cfg)]
                 if a.fresh and not fresh(item):

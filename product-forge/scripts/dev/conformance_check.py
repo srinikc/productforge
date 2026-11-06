@@ -11,6 +11,7 @@ for p in (str(ROOT), str(ROOT / "scripts" / "dev")):
     if p not in sys.path:
         sys.path.insert(0, p)
 from core import backlog  # noqa: E402
+from functional_spec import iter_items  # noqa: E402
 
 CFG = ROOT / "config" / "functional-spec.json"
 
@@ -83,7 +84,7 @@ def main(argv=None) -> int:
     cfg = _cfg()
     if a.all:
         bad = []
-        for item in backlog.list_items("product_forge", None):
+        for item in iter_items():
             bad += [f"{item.get('id')}: {p}" for p in problems(item, cfg)]
         print("conformance: " + ("OK" if not bad else "FAIL"))
         for x in bad:

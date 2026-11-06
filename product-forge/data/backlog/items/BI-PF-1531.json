@@ -120,6 +120,22 @@
       "mode": "diff",
       "hil_confirmed": true,
       "note": "HIL requested implementation of the functional/spec-pack chain and current-SHA evidence."
+    },
+    {
+      "at": "2026-11-06T18:18:40.692321+00:00",
+      "by": "hil:user",
+      "decision": "MATERIAL_CHANGE",
+      "mode": "design",
+      "hil_confirmed": true,
+      "note": "HIL-requested spec-chain implementation; final evidence refresh."
+    },
+    {
+      "at": "2026-11-06T18:18:40.692338+00:00",
+      "by": "hil:user",
+      "decision": "MATERIAL_CHANGE",
+      "mode": "diff",
+      "hil_confirmed": true,
+      "note": "HIL-requested spec-chain implementation; final evidence refresh."
     }
   ],
   "follow_up": {},
@@ -357,7 +373,7 @@
     "usage": {}
   },
   "created_at": "2026-11-06T14:50:10.299482",
-  "updated_at": "2026-11-06T23:47:57.613130",
+  "updated_at": "2026-11-06T23:50:04.436531",
   "score": 0.5,
   "_note": "readiness computed",
   "api_impact": {
@@ -688,6 +704,9 @@
         "engineering/evidence/BI-PF-1531/bench-t1.json",
         "engineering/evidence/BI-PF-1531/backlog-db.workflow.yml",
         "engineering/evidence/BI-PF-1531/current-sha-control.txt"
+      ],
+      "related_items": [
+        "BI-PF-1532"
       ]
     },
     "rls_tenant": [
@@ -1643,6 +1662,50 @@
         ]
       },
       "evidence": "BI-PF-1531-36bfe073626f.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "003f649037663e2ca26af088715781778963f0c6",
+      "review_sha": "eff247c4be8a",
+      "model": "deepseek-v4.1-flash",
+      "at": "2026-11-06T18:20:04.190043+00:00",
+      "review_scope": "full_candidate",
+      "base_sha": "",
+      "head_sha": "003f649037663e2ca26af088715781778963f0c6",
+      "findings": {
+        "BLOCKER": [
+          "none new in this diff; prior PENDING blockers (export `--prune` with zero DB rows) remain unresolved and must be closed before merge."
+        ],
+        "MAJOR": [
+          "Scope creep: `functional_spec.py`, `spec_pack.py`, `conformance_check.py`, `templates/*`, `config/functional-spec.json|spec-pack.json`, `docs/SPEC-CHAIN.md`, `backlog_db_bench.py`, new precheck gates and `architect_review` SHA change are shipped but absent from the approved `affected_files`/review scope, so they ship unreviewed for BI-PF-1531.",
+          "Silent split authority: when `PF_BACKLOG_DB=on`, an unlisted/typo'd scope quietly stays file-authoritative (`_db_for` → False) with no log, metric or startup report; violates the \"no silent fallback\" guardrail and hides undetected drift for newly added generated products.",
+          "Two divergent scope normalizers: `_scope_key` lowercases/strips while `_norm_scope` is exact-match, contradicting frozen FR-1 `data_rules` (\"case variants are distinct\") and making the authority allowlist case-insensitive (`PRODUCT_FORGE`, trailing-space tenants inherit DB authority).",
+          "AC-2 test isolation is incomplete: only `test_backlog_db_authority.py`/`test_backlog_db_cutover.py` were updated; there is no autouse conftest pin (or equivalent) forcing `off` for the rest of the file-mode suite, so tests that never set the flag now inherit default `on` and attempt DB I/O.",
+          "`spec-chain` (`functional_spec.py --all`, `spec_pack.py --all`, `conformance_check.py --all`) iterates only `backlog.list_items(\"product_forge\", None)`, so `ProductForge-Dashboard`/PF-GP items are never enforced and gate1/precheck can go green on unverified scopes."
+        ],
+        "MINOR": [
+          "`_load_all_from_db` wraps only `ValueError`; a valid-but-non-object JSON body makes `payload.get(...)` raise `AttributeError`, escaping the declared `BACKLOG_DB_INVALID_RESPONSE` taxonomy.",
+          "`docs/BACKLOG-DB-SSOT.md`: the `## Rollback` heading was deleted, leaving two consecutive 1..6 numbered lists and an orphaned backup list; the new required `PF_BACKLOG_DB_SCOPES` var is also missing from the Activate block (AC-1 doc consistency).",
+          "`docs/PF-DESIGN-DELIVERY-CONTRACT.md` contains `?` where `→` belongs — encoding corruption that the `encoding` precheck gate apparently does not catch.",
+          "Adding `functional_spec`/`spec_pack` to `architect_review._DESIGN_KEYS` changes `design_sha` for every item, silently invalidating existing Gate 1.5 review SHAs of in-flight items; needs an explicit re-review note.",
+          "AC-4 proof is thin on the Go side: only `List` is tested for missing tenant — `Put` tenant-mismatch rejection and `Get`/`Delete` tenant scoping (the actual cross-tenant guard) have no tests.",
+          "Preflight and 0021's `DO` block check `traceability.tenant_id` NULLs but never `backlog_items.tenant_id IS NOT NULL`; if any row is NULL the composite PK fails after the old pkey has been dropped.",
+          "0021 rebuilds the PK inside one transaction with `statement_timeout=60s`; on a large `backlog_items` this aborts (safely) mid-window, but no sizing/retry guidance exists in the runbook.",
+          "Delete-path fail-closed behaviour (mode `on`, DB down, `delete()`) is not covered by any test."
+        ],
+        "NIT": [
+          "`docs/GLOSSARY.md` adds the `PF_BACKLOG_DB` term after the document's closing \"One line\" statement.",
+          "`backlog_db_bench.py` crashes (`median([])`/`pct([])`) when `--iterations 0` yields empty `file_ms`, and the script has no tests.",
+          "`store_item_to_db` becomes public API on shipped `core.backlog` with a one-line docstring and only tooling-level coverage.",
+          "`test_backlog_db_workflow.py` asserts exact literal YAML strings and resolves workflow files from `ROOT.parent`, so it breaks on formatting changes or a relocated checkout."
+        ],
+        "SUMMARY": [
+          "The core cutover mechanics (default on, scoped allowlist, tenant-scoped PK/FK, export/backfill/parity tooling) are directionally right and the fail-closed path is largely in place.",
+          "Main new risks: an entire spec-chain framework shipping outside the approved design/review scope, silent per-scope file fallback with no observability, and inconsistent scope normalization that deviates from the frozen functional spec.",
+          "Prior PENDING blockers/majors (destructive prune, false-green parity, GUC-only tenant trust, one-way 0021) are still open and gate the merge."
+        ]
+      },
+      "evidence": "BI-PF-1531-eff247c4be8a.json"
     }
   ],
   "review_dispositions": {
@@ -2248,7 +2311,7 @@
   "control_evidence": [
     {
       "control_id": "CTL-BACKLOG-DB-DEFAULT",
-      "sha": "273ddadde52a183c1360e24b6f2bd5ad5413bbca-d5e9c4e5b406",
+      "sha": "273ddadde52a183c1360e24b6f2bd5ad5413bbca-32847605cd49",
       "result": "PASS",
       "evidence": "engineering/evidence/BI-PF-1531/current-sha-control.txt"
     }
@@ -2875,6 +2938,11 @@
           "engineering/evidence/BI-PF-1531/current-sha-control.txt"
         ]
       }
+    ]
+  },
+  "review_scope": {
+    "related_items": [
+      "BI-PF-1532"
     ]
   }
 }
