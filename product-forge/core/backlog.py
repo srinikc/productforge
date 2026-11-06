@@ -106,7 +106,6 @@ _DASHBOARD_PROJECT = "ProductForge-Dashboard"   # dashboard scope for the recipr
 
 
 _LEGACY_FORGE_SCOPE = "fac" + "tory"
-_DB_DEFAULT_SCOPES = "product_forge,ProductForge-Dashboard"
 _DB_VALID_MODES = ("off", "on", "dual", "shadow")
 
 
@@ -270,10 +269,13 @@ def _backlog_db_scopes() -> set[str]:
     """Scopes explicitly allowed to use DB authority when PF_BACKLOG_DB=on."""
     try:
         from core import env_flags
-        value = env_flags.get("PF_BACKLOG_DB_SCOPES", _DB_DEFAULT_SCOPES)
+        value = env_flags.get("PF_BACKLOG_DB_SCOPES", "")
     except Exception:
-        value = os.environ.get("PF_BACKLOG_DB_SCOPES", _DB_DEFAULT_SCOPES)
-    return {_scope_key(s.strip()) for s in str(value or "").split(",") if s.strip()}
+        value = os.environ.get("PF_BACKLOG_DB_SCOPES", "")
+    scopes = {_scope_key(s.strip()) for s in str(value or "").split(",") if s.strip()}
+    if not scopes and _backlog_db_mode() == "on":
+        raise RuntimeError("BACKLOG_DB_SCOPES_EMPTY: PF_BACKLOG_DB=on requires an explicit non-empty allowlist")
+    return scopes
 
 
 def _db_for(scope: str | None) -> bool:

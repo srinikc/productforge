@@ -1,5 +1,6 @@
 BEGIN;
 SET lock_timeout = '5s';
+SET statement_timeout = '60s';
 -- 0021: allow legacy duplicate backlog IDs across tenants while preserving global new-ID allocation.
 DO $$
 BEGIN

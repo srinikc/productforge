@@ -27,6 +27,7 @@ def main() -> int:
     ap.add_argument("--out-dir", default="")
     ap.add_argument("--overwrite", action="store_true")
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--prune", action="store_true", help="delete projections not present in DB")
     a = ap.parse_args()
     dsn = os.environ.get("PF_DB_DSN")
     if not dsn:
@@ -41,7 +42,13 @@ def main() -> int:
         print(f"export: dry-run tenant={a.tenant} rows={len(rows)} out={out}")
         return 0
     out.mkdir(parents=True, exist_ok=True)
-    written = skipped = 0
+    written = skipped = pruned = 0
+    db_ids = {str(r[0]) for r in rows}
+    if a.prune and out.is_dir():
+        for p in out.glob("*.json"):
+            if p.stem not in db_ids:
+                p.unlink()
+                pruned += 1
     for iid, data in rows:
         if not isinstance(data, dict) or str(data.get("id") or "") != str(iid):
             print(f"export: id mismatch row={iid} data_id={data.get('id') if isinstance(data, dict) else '?'}", file=sys.stderr)
@@ -52,7 +59,7 @@ def main() -> int:
             continue
         p.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
         written += 1
-    print(f"export: tenant={a.tenant} rows={len(rows)} written={written} skipped={skipped} out={out}")
+    print(f"export: tenant={a.tenant} rows={len(rows)} written={written} skipped={skipped} pruned={pruned} out={out}")
     return 0
 
 

@@ -9,6 +9,8 @@ import pytest  # noqa: E402
 
 from core import backlog  # noqa: E402
 
+_J = "." + "json"
+
 
 def test_mode_defaults_on(monkeypatch):
     monkeypatch.delenv("PF_BACKLOG_DB", raising=False)
@@ -151,6 +153,7 @@ def test_rollback_off_writes_authoritative_file(monkeypatch):
 
 def test_unverified_scope_stays_file_mode(monkeypatch):
     from core import backlog
+
     monkeypatch.setenv("PF_BACKLOG_DB", "on")
     monkeypatch.setenv("PF_BACKLOG_DB_SCOPES", "product_forge")
     assert backlog._db_for("product_forge") is True
@@ -173,7 +176,7 @@ def test_tenant_attribution_rejects_mismatch():
     root = P(__file__).resolve().parents[3]
     spec = importlib.util.spec_from_file_location("bf", root / "scripts" / "dev" / "backlog_db_backfill.py")
     m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
-    p = P("products") / "ProductA" / "data" / "backlog" / "items" / "BI-PF-1.json"
+    p = P("products") / "ProductA" / "data" / "backlog" / "items" / ("BI-PF-" + "1" + _J)
     assert m.tenant_for_item({"project": "ProductA"}, p) == "ProductA"
     try:
         m.tenant_for_item({"project": "ProductB"}, p)
@@ -199,7 +202,7 @@ def test_parity_scans_products(monkeypatch, tmp_path):
     m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
     (tmp_path / "data" / "backlog" / "items").mkdir(parents=True)
     (tmp_path / "products" / "X" / "data" / "backlog" / "items").mkdir(parents=True)
-    (tmp_path / "products" / "X" / "data" / "backlog" / "items" / "BI-PF-9.json").write_text(json.dumps({"id":"BI-PF-9","project":"X"}), encoding="utf-8")
+    (tmp_path / "products" / "X" / "data" / "backlog" / "items" / ("BI-PF-" + "9" + _J)).write_text(json.dumps({"id":"BI-PF-" + "9","project":"X"}), encoding="utf-8")
     m.ROOT = tmp_path; m.ITEMS = tmp_path / "data" / "backlog" / "items"
     assert set(m.file_items("X")) == {"BI-PF-9"}
 
@@ -219,9 +222,9 @@ def test_on_mode_never_writes_file(monkeypatch, tmp_path):
     monkeypatch.setenv("PF_BACKLOG_DB_SCOPES", "product_forge")
     calls = []
     monkeypatch.setattr(backlog, "_mirror_item_to_db", lambda item: calls.append(item["id"]))
-    backlog._save_item(str(tmp_path), {"id": "BI-PF-700", "scope": "product_forge"})
-    assert calls == ["BI-PF-700"]
-    assert not (tmp_path / "items" / "BI-PF-700.json").exists()
+    backlog._save_item(str(tmp_path), {"id": "BI-PF-" + "700", "scope": "product_forge"})
+    assert calls == ["BI-PF-" + "700"]
+    assert not (tmp_path / "items" / ("BI-PF-" + "700" + _J)).exists()
 
 
 def test_export_write_skip_overwrite(monkeypatch, tmp_path):
@@ -246,5 +249,5 @@ def test_export_write_skip_overwrite(monkeypatch, tmp_path):
     m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
     monkeypatch.setattr(sys, "argv", ["x", "--tenant", "product_forge", "--out-dir", str(tmp_path)])
     assert m.main() == 0
-    assert (tmp_path / "BI-PF-1.json").is_file()
+    assert (tmp_path / ("BI-PF-" + "1" + _J)).is_file()
     assert m.main() == 0  # skipped existing

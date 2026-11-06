@@ -85,11 +85,11 @@ definitions, prompts, and gates remain their existing workflows; they simply sha
 
 ## Rollback / reconcile
 
-Before setting `PF_BACKLOG_DB=off` after DB-mode writes: stop/quiesce backlog writers, export DB authority to file projections, run parity, then flip the flag and restart writers. Writes between export and flip are otherwise lost.
+Export/preflight use `PF_DB_DSN`; use the runtime role where RLS/audit coverage is required. Before setting `PF_BACKLOG_DB=off` after DB-mode writes: stop/quiesce backlog writers, export DB authority to file projections, run parity, then flip the flag and restart writers. Writes between export and flip are otherwise lost.
 
 ```bash
 PF_DB_DSN="$PF_RUNTIME_DSN" python scripts/dev/backlog_db_export.py --tenant product_forge --dry-run
-PF_DB_DSN="$PF_RUNTIME_DSN" python scripts/dev/backlog_db_export.py --tenant product_forge --overwrite
+PF_DB_DSN="$PF_RUNTIME_DSN" python scripts/dev/backlog_db_export.py --tenant product_forge --overwrite --prune
 ```
 
 Then run parity and only afterwards switch to file mode. Never drop backlog tables as part of rollback.
