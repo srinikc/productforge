@@ -296,6 +296,22 @@
       "mode": "diff",
       "hil_confirmed": true,
       "note": "HIL directed completion; final validation."
+    },
+    {
+      "at": "2026-11-07T09:37:05.925398+00:00",
+      "by": "hil:user",
+      "decision": "MATERIAL_CHANGE",
+      "mode": "design",
+      "hil_confirmed": true,
+      "note": "HIL requested stable review-SHA validation."
+    },
+    {
+      "at": "2026-11-07T09:37:05.925415+00:00",
+      "by": "hil:user",
+      "decision": "MATERIAL_CHANGE",
+      "mode": "diff",
+      "hil_confirmed": true,
+      "note": "HIL requested stable review-SHA validation."
     }
   ],
   "follow_up": {},
@@ -535,7 +551,7 @@
     "usage": {}
   },
   "created_at": "2026-11-06T14:50:10.299482",
-  "updated_at": "2026-11-07T12:21:13.289937",
+  "updated_at": "2026-11-07T15:10:54.294768",
   "score": 0.5,
   "_note": "readiness computed",
   "api_impact": {
@@ -2312,6 +2328,47 @@
         ]
       },
       "evidence": "BI-PF-1531-5bce933699bf.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "1f82ef209a3c635ecd7df155ae5e359e22138dbe",
+      "review_sha": "8be68f1f2d16",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-07T09:40:54.049974+00:00",
+      "review_scope": "full_candidate",
+      "base_sha": "",
+      "head_sha": "1f82ef209a3c635ecd7df155ae5e359e22138dbe",
+      "findings": {
+        "BLOCKER": [
+          "AC-3 not met for generated products: CI backfills real `products/*/data/backlog/items` but only runs parity for `product_forge`; GP parity is proven against a fabricated `/tmp/pf-gp-source/BI-DASH-CI-1.json`, and committed `parity.txt` contains a single `product_forge` line. Real PF-GP drift would pass CI green."
+        ],
+        "MAJOR": [
+          "AC-1 \"docs are consistent\": the diff ships zero documentation hunks while the design declares `docs/BACKLOG-DB-SSOT.md` and `docs/GLOSSARY.md` as affected; new contract surface (`PF_BACKLOG_DB_SCOPES`, `on/off/dual/shadow`, `BACKLOG_DB_*` codes, 0021/0022/0023 order) is undocumented (CL-003).",
+          "`architect_review.py` now excludes `**/docs/**` and `**/config/**` from every review diff, so the gate that must verify AC-1 doc/config consistency can no longer observe those changes — review-scope narrowing in an undeclared file.",
+          "FR-4's HTTP contract is untested: new `main.go` branches (`ErrTenantContext`→503, `ErrTenantMismatch`→403) have no edpsvc test, and in `backlogByID` they are checked after `storeGuardError`, which can shadow the 503; only datastore-level `errors.Is` assertions exist.",
+          "No validation that `PF_BACKLOG_DB_SCOPES` matches active scopes: with default-on, a typo'd key or a new `products/<X>` silently runs file + Git-CAS authority (design guardrail \"no silent fallback\"); only a once-per-process warning signals it, and no gate asserts allowlist == active scopes.",
+          "Duplicate shipped helpers: `functional_spec`, `spec_pack`, `conformance_check`, `fix_guard` each re-implement `should_enforce`/`_date`/`_cfg`/`_join`, so a rule change (e.g. enforcement cutoff) must be edited in four places to stay consistent."
+        ],
+        "MINOR": [
+          "`backlog_db_backfill.py` counts skipped unlisted tenants as neither ok nor fail and still exits 0, so the AC-3 backfill coverage gap is invisible in logs and CI.",
+          "`backlog_db_parity.py` success path still prints \"cutover gate: OK -> safe to set PF_BACKLOG_DB=on (BI-PF-1399 Phase 3)\", contradicting the default-on contract operators are being told to follow.",
+          "Tooling depends on private internals (`backlog._db_for`, `_write_indexes`, `_CLOSED`, `_normalize_status`); only `store_item_to_db` was promoted to public, so a private refactor silently breaks the rollback path.",
+          "CI proves migration preflight with an empty `/tmp/pre-0021.backup` plus `PF_BACKUP_CONFIRMED=1`; guardrail 1's refusal paths (missing artifact, backup unconfirmed) have no failing test.",
+          "The \"T1 performance gate\" writes no `--out` artifact, so the bench result that gates SLOs is not archived by the job (only the hand-committed `bench-t1.json` exists).",
+          "`push: branches: [develop]` path filters omit `config/env-flags.json` and `test_backlog_db_cutover.py` present in the `pull_request` block, so allowlist/default changes on develop do not trigger the DB job.",
+          "`reserve_shared`/`_mint` report \"PF_BACKLOG_DB=on is required\" when the actual cause is an unallowlisted scope, misdirecting on-call diagnosis; `dual`/`shadow` modes are shipped but absent from the operation matrix and untested with an allowlist."
+        ],
+        "NIT": [
+          "`_evidence_body` injects up to 16 KB from any absolute path referenced in item JSON into the reviewer prompt; only suffix allowlisting constrains it.",
+          "Evidence `parity.txt` reports 744 files while design coverage states \"743/743 PF-SB items\".",
+          "`fix_guard.py`'s dense one-liner style departs from the declared Python style guide and is unreadable for future maintainers."
+        ],
+        "SUMMARY": [
+          "Solid fail-closed core (mode validation, allowlist, tenant-bound Go store, composite-key migrations), but AC-3's generated-product parity is proven with fabricated data and AC-1's documentation half is absent from the diff.",
+          "Top risks: unproven PF-GP parity, untested 503/403 handler mapping, and silent file-mode authority for any scope missing from the allowlist under default-on."
+        ]
+      },
+      "evidence": "BI-PF-1531-8be68f1f2d16.json"
     }
   ],
   "review_dispositions": {
