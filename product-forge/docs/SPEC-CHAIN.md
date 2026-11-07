@@ -37,6 +37,10 @@ Required rows: product design, API, data, config, NFR/SLO, security threat model
 
 Every BLOCKER/MAJOR fix must add a `fix_impact` row. See `docs/FIX-IMPACT-CONTRACT.md`; enforced by `fix_guard.py`.
 
+## Review SHA boundary
+
+Diff review SHA is based on code/schema/config only. Design/spec/evidence/item changes must not move it. Evidence is injected into the reviewer prompt from the item/ac_evidence/coverage paths; evidence commits do not invalidate the candidate SHA. Design changes use the design SHA.
+
 ## Review charter
 
 - **Gate 1.5** reviews only the functional spec, design pack, conditional applicability, conformance, and standards.

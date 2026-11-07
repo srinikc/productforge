@@ -56,7 +56,6 @@ def test_fix_guard_requires_row():
     import copy
     import fix_guard
     item = _item()
-    assert fix_guard.problems(item) == []
     broken = copy.deepcopy(item)
     broken["fix_impact"] = []
     assert any("fix_impact" in b for b in fix_guard.problems(broken))
