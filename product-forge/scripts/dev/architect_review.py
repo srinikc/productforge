@@ -114,8 +114,6 @@ def _get_item(item: str) -> dict:
 EXCLUDE = [
     ":(exclude,glob)**/engineering/**",
     ":(exclude,glob)**/data/backlog/**",
-    ":(exclude,glob)**/docs/**",
-    ":(exclude,glob)**/config/**",
 ]
 
 

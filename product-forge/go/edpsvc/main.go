@@ -1129,6 +1129,18 @@ func (s *server) memoryByID(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, e)
 }
 
+func (s *server) backlogTenantError(w http.ResponseWriter, r *http.Request, err error) bool {
+	if errors.Is(err, edpdata.ErrTenantMismatch) {
+		s.bad(w, r, http.StatusForbidden, "tenant context mismatch")
+		return true
+	}
+	if errors.Is(err, edpdata.ErrTenantContext) {
+		s.bad(w, r, http.StatusServiceUnavailable, "tenant context unavailable")
+		return true
+	}
+	return false
+}
+
 func (s *server) backlogHandle(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := s.dbCtx(r)
 	defer cancel()
@@ -1160,12 +1172,7 @@ func (s *server) backlogHandle(w http.ResponseWriter, r *http.Request) {
 			s.bad(w, r, http.StatusConflict, "backlog id conflicts with another tenant")
 			return
 		}
-		if errors.Is(err, edpdata.ErrTenantMismatch) {
-			s.bad(w, r, http.StatusForbidden, "tenant context mismatch")
-			return
-		}
-		if errors.Is(err, edpdata.ErrTenantContext) {
-			s.bad(w, r, http.StatusServiceUnavailable, "tenant context unavailable")
+		if s.backlogTenantError(w, r, err) {
 			return
 		}
 		if err != nil {
@@ -1182,8 +1189,7 @@ func (s *server) backlogHandle(w http.ResponseWriter, r *http.Request) {
 		}
 		items, err := bl.List(ctx, q.Get("status"), limit)
 		if err != nil {
-			if errors.Is(err, edpdata.ErrTenantContext) {
-				s.bad(w, r, http.StatusServiceUnavailable, "tenant context unavailable")
+			if s.backlogTenantError(w, r, err) {
 				return
 			}
 			s.fail(w, r, http.StatusInternalServerError, err)
@@ -1277,8 +1283,7 @@ func (s *server) backlogByID(w http.ResponseWriter, r *http.Request) {
 			if s.storeGuardError(w, r, err) {
 				return
 			}
-			if errors.Is(err, edpdata.ErrTenantContext) {
-				s.bad(w, r, http.StatusServiceUnavailable, "tenant context unavailable")
+			if s.backlogTenantError(w, r, err) {
 				return
 			}
 			s.fail(w, r, http.StatusNotFound, err)

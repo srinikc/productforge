@@ -501,3 +501,19 @@ func TestBacklogAuthorityFailsClosed(t *testing.T) {
 		t.Fatalf("authority failure metric missing: %s", metrics.String())
 	}
 }
+
+
+func TestBacklogTenantErrorMapping(t *testing.T) {
+	s := testServer(t)
+	cases := []struct{ err error; code int }{
+		{edpdata.ErrTenantMismatch, http.StatusForbidden},
+		{edpdata.ErrTenantContext, http.StatusServiceUnavailable},
+	}
+	for _, c := range cases {
+		rr := httptest.NewRecorder()
+		if !s.backlogTenantError(rr, httptest.NewRequest(http.MethodGet, "/backlog?tenant=x", nil), c.err) {
+			t.Fatalf("not handled: %v", c.err)
+		}
+		if rr.Code != c.code { t.Fatalf("%v: got %d want %d", c.err, rr.Code, c.code) }
+	}
+}

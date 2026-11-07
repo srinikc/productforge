@@ -21,7 +21,7 @@ def test_backlog_db_workflow_contract():
     assert "0021_backlog_scoped_uniqueness.up.sql" in text
     assert "0022_traceability_tenant_index.up.sql" in text
     assert "ProductForge-Dashboard" in text
-    assert "--source-dir /tmp/pf-gp" in text
+    assert "backlog_db_parity.py --tenant ProductForge-Dashboard" in text
 
 
 def test_backlog_db_export_targets():
