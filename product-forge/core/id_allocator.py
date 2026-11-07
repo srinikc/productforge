@@ -305,13 +305,9 @@ def reserve(scope: str, project: str | None = None, size: int = 0, session: str 
         return {"start": start, "end": end, "session": session, "size": size}
 
 
-def _db_enabled(scope: str | None = None) -> bool:
-    try:
-        from core import env_flags
-        value = env_flags.get("PF_BACKLOG_DB", "off")
-    except Exception:
-        value = os.environ.get("PF_BACKLOG_DB", "off")
-    return str(value or "off").strip().lower() == "on"
+def _db_enabled(scope: str | None = None, project: str | None = None) -> bool:
+    from core import backlog
+    return backlog.db_authority_enabled(scope, project)
 
 
 def _reserve_db(scope: str, project: str | None, size: int) -> dict | None:
@@ -347,7 +343,7 @@ def _reserve_db(scope: str, project: str | None, size: int) -> dict | None:
 def reserve_shared(scope: str, project: str | None = None, size: int = 0,
                    session: str = "") -> dict:
     """API authority: DB-only block reservation; never Git/local fallback."""
-    if not _db_enabled(scope):
+    if not _db_enabled(scope, project):
         raise RuntimeError("PF_BACKLOG_DB=on is required for shared DB id reservation")
     size = size or block_size()
     blk = _reserve_db(scope, project, size)
@@ -363,7 +359,7 @@ def _mint(scope: str, project: str | None, existing_max: int, reserved_up_to: in
     In ``strict`` mode (opt-in) only the git-CAS is allowed; if it fails we RAISE (never self-reserve).
     """
     size = block_size()
-    if _db_enabled(scope):
+    if _db_enabled(scope, project):
         cand = _reserve_db(scope, project, size)
         if not (cand and int(cand["start"]) > int(existing_max)):
             raise RuntimeError("PF_BACKLOG_DB=on: the PostgreSQL backlog authority is unavailable - "

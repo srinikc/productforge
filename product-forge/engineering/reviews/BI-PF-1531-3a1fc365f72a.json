@@ -1,0 +1,54 @@
+{
+  "item": "BI-PF-1531",
+  "sha": "3a1fc365f72a",
+  "model": "deepseek-v4.1-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-06T14:33:06.295460+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "f923ed3e4c8d5f35b0e73546f61ab87b8d111ca7",
+  "findings": {
+    "BLOCKER": [
+      "`core/backlog.py` `_load_all_from_db` cache key is `project or scope or \"product_forge\"` while the DB query filters `tenant=`; under `PF_BACKLOG_DB_SCOPES` a caller for the other allowed scope can be served another tenant's cached items \u2014 cross-tenant read, and inconsistent with the RLS/tenant-isolation invariant (CTL guardrail 9).",
+      "`_delete_item_from_db` calls `_clear_db_cache(tenant)` before the HTTP DELETE succeeds; a failed delete leaves the cache stale-cleared (ok) but `_mirror_item_to_db` clears only after success \u2014 however `_save_item`/`_mirror` in `dual`/`off` paths never clear the cache, so a write via the file/dual path is invisible to on-mode readers for the TTL; acceptable only if on-mode is the sole writer \u2014 must be asserted (see MAJOR)."
+    ],
+    "MAJOR": [
+      "Cache invalidation is incomplete: `_save_item`, `delete_item`, `id_allocator` reservations and `dual`/`shadow` mirror paths do not clear `_DB_LIST_CACHE`; concurrent multi-process writers (any process other than the writer) still see stale data until TTL, so the 2s window silently serves non-authoritative reads without any documented staleness bound.",
+      "Cache is unbounded, per-process, and stores full item payloads (`limit=100000`) \u2014 no size/entry cap or eviction, so a multi-tenant multi-process fleet multiplies memory by tenants \u00d7 item count with no observability (no hit/miss/staleness metric).",
+      "`_load_all_from_db` still issues a single unpaginated `limit=100000` request per tenant on every cache miss; the AC-1 no-regression claim rests on cached reads, so first-read/uncached p95 (cold start, after every write) is not evidenced in bench-t1.json.",
+      "`_backlog_db_scopes()` and `backlog_scope.allowed()` are duplicate implementations of the same allowlist parse (with different env-fallback handling of empty/whitespace-only values) \u2014 `core/backlog.py` should delegate entirely to `backlog_scope`, and an empty `PF_BACKLOG_DB_SCOPES` should not silently yield an empty allowlist that flips all scopes to file mode (fail-closed ambiguity vs. the invariant).",
+      "`backlog_db_backfill.py` calls the private `backlog._mirror_item_to_db` and force-sets `PF_BACKLOG_DB=on` in `os.environ` \u2014 this bypasses `_db_for` scope gating in the writer and couples tooling to a private function; it can write DB rows for tenants not yet verified even though it prints skip messages based on its own allowlist check.",
+      "Migration 0021 up re-points `traceability` FK to `(tenant_id,item_id)` but `preflight` validates orphan/NULL tenant rows while `0021.up.sql` itself has no guard; a run that skips preflight (manual psql) fails only on FK creation after the PK drop \u2014 the destructive PK swap should be guarded in-SQL by the same duplicate/NULL checks.",
+      "Migration 0021 down drops `fk_traceability_item` before adding the single-column PK and re-adds the FK; if the PK add fails, the transaction rolls back \u2014 fine \u2014 but `down` has no `lock_timeout`-safe ordering evidence and no test asserts the FK restore path executes (only string matching in `test_backlog_migrations.py`).",
+      "`requireTenant` returns `ErrTenantContext` for a *mismatch* in `Put`, but `Get`/`List`/`Delete` silently use the bound tenant, so a caller passing a different `tenant` query param than the GUC gets the *GUC's* rows rather than a rejection \u2014 tenant spoofing/confusion not tested at the edpsvc handler layer.",
+      "`go/edpdata` `Authority()` now requires versions `(16,18,19,20,21,22)` with `count(*)=6`; if a deployment legitimately skips 0022 (index-only) the whole service refuses to start \u2014 a hard coupling of an optional index migration to liveness with no documented override.",
+      "AC-2 evidence gap: the workflow-contract test asserts presence of strings in `backlog-db.yml`, not that the DB-mode job actually runs migrations 0021/0022 + parity for both tenants with a real Postgres; string assertions pass on a broken workflow."
+    ],
+    "MINOR": [
+      "`_load_all_from_db` imports `copy`, `time`, `logging`, `urllib.error` inside the function body on every call \u2014 maintainability/style against the Go/Python guidelines; move to module scope.",
+      "`_backlog_db_mode()` and `_db_enabled()` duplicate mode parsing and the `BACKLOG_DB_MODE_INVALID` set; one resolver should own it (reuse rule).",
+      "`dual`/`shadow` are accepted as valid modes but only `on` gates DB reads; `dual` remains write-mirror-only \u2014 behaviour is undocumented in `env-flags.json` purpose string for `PF_BACKLOG_DB_SCOPES`, whose purpose text implies scopes apply only in `on`.",
+      "`test-unverified-scope-stays-file-mode` sets `PF_BACKLOG_DB_SCOPES=unverified_scope` and asserts `_db_for(\"unverified_scope\") is True` \u2014 this documents that any scope can be promoted by env alone with no parity evidence, contradicting the invariant \"unlisted scopes remain file-authoritative until parity evidence is added\" (only unlisted, but promotion has no gate).",
+      "`test_tenant_attribution_rejects_mismatch` and others load scripts via `importlib.util.spec_from_file_location` and mutate module globals (`m.ROOT`, `m.ITEMS`) \u2014 brittle and order-dependent; tooling should be importable packages.",
+      "`test_backlog_db_workflow.py` computes `WF` by probing `ROOT.parent`/`ROOT` with a convoluted `next(...)` \u2014 will fail obscurely if the workflow moves; also asserts an exact byte-for-byte mirror equality that will rot on any formatting change.",
+      "`backlog_db_bench.py` `point_ms` is referenced in the dict comprehension guarded by `sql_ms` but is assigned inside the `if dsn:` block; if `dsn` is set and the `SELECT id ... LIMIT 1` returns no row, `fetchone()[0]` raises `TypeError` with no message \u2014 error path is unhandled for empty tenants.",
+      "`backlog_db_export.py` writes `data` (the JSON payload) verbatim keyed by `id` filename; it never verifies `data[\"id\"] == iid`, so a corrupted row exports an item whose file name and content disagree \u2014 parity then reports drift without a clear cause.",
+      "Rollback docs duplicate \"Rollback\" content twice (## Rollback and ## Rollback / reconcile) with different step counts \u2014 docs consistency for AC-5.",
+      "`.env.example` documents `PF_BACKLOG_DB_SCOPES=product_forge,ProductForge-Dashboard` but `ProductForge-Dashboard` normalizes to `project` via `backlog_scope.normalize`, so the configured second scope is indistinguishable from any arbitrary scope \u2014 the allowlist silently has an effective size of two buckets, not per-product selectivity."
+    ],
+    "NIT": [
+      "`_LEGACY_FORGE_SCOPE = \"fac\" \"factory\"` string-splitting trick remains in `core/backlog.py` while duplicated literally in `backlog_scope.py` \u2014 unexplained obfuscation carried forward.",
+      "`ErrTenantContext` message \"edpdata: tenant context missing\" is reused for *mismatch*; wording will mislead on-call.",
+      "`BACKLOG_DB_HTTP_ERROR` string built with an f-string in a one-liner ternary chain \u2014 low readability.",
+      "`test-framework/tests/test_backlog_db_workflow.py` line length and `;`-joined statements in `test_tenant_attribution_rejects_mismatch`/`test_parity_scans_products` violate the Python style guide used elsewhere."
+    ],
+    "SUMMARY": [
+      "Direction is right and the prior review's items are addressed (scope module, flag registry, HTTP error taxonomy, tenant fail-closed, migration-gated Authority, rollback docs).",
+      "Top risk: cross-tenant cache aliasing plus incomplete/stale cache invalidation undermines the tenant-isolation invariant and the \"DB is sole authority\" claim; needs a tenant-correct cache key and owner-scoped invalidation with hit/miss/staleness metrics.",
+      "Unpaginated full-tenant reads remain the scalability limit; the benchmark evidence covers warm cached reads, not cold/first-read latency.",
+      "Migration 0021 is not self-guarding in SQL; safety depends entirely on operators running preflight, and AC-2's workflow test asserts strings rather than an executed DB-mode run.",
+      "Verdict: not ready to merge until the cache/tenant findings and the 0021 in-SQL guard are resolved; remaining items are cleanup."
+    ]
+  }
+}
