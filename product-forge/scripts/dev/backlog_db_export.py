@@ -51,6 +51,10 @@ def main() -> int:
         if not isinstance(data, dict) or str(data.get("id") or "") != str(iid):
             print(f"export: id mismatch row={iid} data_id={data.get('id') if isinstance(data, dict) else '?'}", file=sys.stderr)
             return 1
+        actual = str(data.get("project") or data.get("scope") or "product_forge")
+        if actual != a.tenant:
+            print(f"export: tenant mismatch row={iid} data_tenant={actual!r} expected={a.tenant!r}", file=sys.stderr)
+            return 1
     db_ids = {str(r[0]) for r in rows}
     prunable = []
     if a.prune and out.is_dir():
@@ -76,9 +80,6 @@ def main() -> int:
             pass
     out.mkdir(parents=True, exist_ok=True)
     written = skipped = pruned = 0
-    for _iid, _data in rows:
-        if a.tenant != "product_forge" and isinstance(_data, dict):
-            _data.setdefault("project", a.tenant)
     for iid, data in rows:
         p = out / f"{iid}.json"
         if p.exists() and not a.overwrite:

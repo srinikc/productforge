@@ -203,7 +203,10 @@ def _load_all_from_db(scope: str, project: str | None):
         raise RuntimeError(f"BACKLOG_DB_INVALID_RESPONSE: {e}") from e
     op: list[dict] = []
     cl: list[dict] = []
-    for row in (payload.get("items") or []):
+    items = payload.get("items") or []
+    if len(items) >= 100000:
+        raise RuntimeError("BACKLOG_DB_TRUNCATED: result reached the 100000 item limit")
+    for row in items:
         data = row.get("Data") if isinstance(row, dict) else None
         if not (isinstance(data, dict) and data.get("id")):
             continue
@@ -1755,11 +1758,11 @@ def delete(scope: str, project: str | None, eid: str) -> dict | None:
         bucket.remove(target)
         if _db_for(str(project or scope or "product_forge")):
             _delete_item_from_db(eid, str(project or scope or "product_forge"))
-        else:
-            for p in (os.path.join(_items_dir(d), f"{eid}.json"),
-                      os.path.join(d, "history", f"{eid}.jsonl")):
-                with contextlib.suppress(Exception):
-                    os.remove(p)
+        for p in (os.path.join(_items_dir(d), f"{eid}.json"),
+                  os.path.join(d, "history", f"{eid}.jsonl")):
+            with contextlib.suppress(Exception):
+                os.remove(p)
+        if not _db_for(str(project or scope or "product_forge")):
             _write_indexes(scope, project, op, cl)
     finally:
         _unlock(lp)

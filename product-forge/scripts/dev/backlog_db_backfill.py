@@ -34,8 +34,10 @@ def tenant_for_item(it: dict, path: Path) -> str:
     return tenant
 
 
-def candidates() -> list[Path]:
+def candidates(source_dir: str = "") -> list[Path]:
     out = []
+    if source_dir:
+        return sorted(Path(source_dir).glob("*.json"))
     out.extend(sorted((ROOT / "data" / "backlog" / "items").glob("*.json")))
     for p in sorted((ROOT / "products").glob("*/data/backlog/items/*.json")):
         out.append(p)
@@ -46,6 +48,7 @@ def main() -> int:
     ap = argparse.ArgumentParser(description="Backfill backlog files into PostgreSQL")
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--tenant", default="", help="only backfill this tenant")
+    ap.add_argument("--source-dir", default="", help="backfill files from this directory")
     ap.add_argument("--rate", type=float, default=float(os.environ.get("PF_BACKLOG_DB_BACKFILL_RPS", "8")))
     a = ap.parse_args()
     if not os.environ.get("PF_EDP_API_URL"):
@@ -65,7 +68,7 @@ def main() -> int:
         import psycopg
         conn = psycopg.connect(os.environ["PF_DB_DSN"])
         conn.autocommit = True
-    files = candidates()
+    files = candidates(a.source_dir)
     if not files:
         print("backfill: no item files found")
         return 0
@@ -85,7 +88,10 @@ def main() -> int:
             tenant = tenant_for_item(it, f)
             if conn:
                 with conn.cursor() as cur:
-                    cur.execute("SELECT tenant_id FROM backlog_items WHERE id=%s AND tenant_id<>%s LIMIT 1", (it["id"], tenant))
+                    cur.execute("""SELECT tenant_id FROM backlog_items o
+                                   WHERE o.id=%s AND o.tenant_id<>%s
+                                     AND NOT EXISTS (SELECT 1 FROM backlog_items s WHERE s.id=%s AND s.tenant_id=%s)
+                                   LIMIT 1""", (it["id"], tenant, it["id"], tenant))
                     row = cur.fetchone()
                 if row:
                     print(f"backfill: OWNERSHIP_CONFLICT {it['id']} belongs to tenant {row[0]!r}, not {tenant!r}", file=sys.stderr)

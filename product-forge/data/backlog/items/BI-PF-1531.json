@@ -3587,6 +3587,143 @@
         "evidence"
       ],
       "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:79109603e57e666e",
+      "finding": "AC-3 generated-product parity is circular: `backlog-db.yml` seeds `ProductForge-Dashboard` directly via `POST /backlog`, exports that tenant from the DB to `/tmp/pf-gp`, then runs `backlog_db_parity.py --source-dir /tmp/pf-gp` against the same export — this compares DB to a copy of DB and proves neither backfill nor file/DB parity for any real PF-GP source.",
+      "severity": "BLOCKER",
+      "origin_class": "FIX_INDUCED",
+      "reproducer": "PF-GP parity was DB?DB circular",
+      "regression_test": "python -m pytest test-framework/tests/test_backlog_db_workflow.py -q",
+      "evidence": "engineering/evidence/BI-PF-1531/backlog-db.workflow.yml",
+      "files": [
+        "../.github/workflows/backlog-db.yml",
+        "scripts/dev/backlog_db_backfill.py",
+        "scripts/dev/backlog_db_parity.py"
+      ],
+      "rollback": "No destructive data change beyond the tested migration/export path; use backup restore for migration failures.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:b248913b5f7ec614",
+      "finding": "Approved observability contract is not implemented: design §9/spec_pack claim `edp_backlog_authority_startup_ok`, success timestamp and `edp_backlog_authority_errors_total` with reason labels \"asserted by tests\", but the Go diff adds no metric code or metric test — an on-mode outage has no alert lead-time (guardrails 2/10).",
+      "severity": "MAJOR",
+      "origin_class": "PRE_EXISTING",
+      "reproducer": "authority metrics claimed but not shown",
+      "regression_test": "go test ./...",
+      "evidence": "engineering/evidence/BI-PF-1531/authority-db-test.txt",
+      "files": [
+        "go/edpsvc/main.go",
+        "go/edpsvc/main_test.go"
+      ],
+      "rollback": "No destructive data change beyond the tested migration/export path; use backup restore for migration failures.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:bf675ebe89e0cebb",
+      "finding": "`backlog_db_export.py` mutates payload after id validation (`_data.setdefault(\"project\", a.tenant)`), so the written projection differs from the DB row it came from; for non-`product_forge` tenants the documented export→parity rollback step can then report `data_mismatch` and block rollback.",
+      "severity": "MAJOR",
+      "origin_class": "FIX_DEFECT",
+      "reproducer": "export mutated project field",
+      "regression_test": "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q",
+      "evidence": "engineering/evidence/BI-PF-1531/current-sha-control.txt",
+      "files": [
+        "scripts/dev/backlog_db_export.py"
+      ],
+      "rollback": "No destructive data change beyond the tested migration/export path; use backup restore for migration failures.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:19dffe0418a88420",
+      "finding": "On-mode `delete()` removes the DB row but leaves `items/<id>.json`, and `_write_indexes` was moved into the off-branch only; projections silently rot, so a later rollback without `--prune` resurrects deleted items and drops DB-only ones.",
+      "severity": "MAJOR",
+      "origin_class": "FIX_INDUCED",
+      "reproducer": "on-mode delete left projections",
+      "regression_test": "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q",
+      "evidence": "engineering/evidence/BI-PF-1531/current-sha-control.txt",
+      "files": [
+        "core/backlog.py"
+      ],
+      "rollback": "No destructive data change beyond the tested migration/export path; use backup restore for migration failures.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:7f47b5984b9bf79d",
+      "finding": "Committed AC-3 evidence is stale for this tree: `parity.txt` and `backfill-dry-run.txt` show 743 items ending at BI-PF-1531, but the same diff adds BI-PF-1532 (744 files), and `ac_evidence` pins sha `HEAD` rather than a frozen SHA.",
+      "severity": "MAJOR",
+      "origin_class": "VERIFICATION_GAP",
+      "reproducer": "AC-3 evidence stale after 1532",
+      "regression_test": "python scripts/dev/backlog_db_parity.py --tenant product_forge",
+      "evidence": "engineering/evidence/BI-PF-1531/parity.txt",
+      "files": [
+        "engineering/evidence/BI-PF-1531/parity.txt",
+        "engineering/evidence/BI-PF-1531/backfill-dry-run.txt"
+      ],
+      "rollback": "No destructive data change beyond the tested migration/export path; use backup restore for migration failures.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:5511a8254aaa68aa",
+      "finding": "`_load_all_from_db` still issues one unpaginated `limit=100000` request per read; past 100k items reads truncate silently, and the NFR benchmark only exercises 743 items so the scalability claim is unproven.",
+      "severity": "MAJOR",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "reproducer": "unpaginated read truncated silently",
+      "regression_test": "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q",
+      "evidence": "engineering/evidence/BI-PF-1531/current-sha-control.txt",
+      "files": [
+        "core/backlog.py"
+      ],
+      "rollback": "No destructive data change beyond the tested migration/export path; use backup restore for migration failures.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:8eccae0adfb91c1b",
+      "finding": "BI-PF-1532 spec-chain tooling ships inside this diff and adds four blocking precheck gates, yet BI-PF-1532's own design pack has an empty `functional_ref` and `standards: none` (it would fail its own gates); enforcement is also date-gated to 2026-11-07, so today's green gates prove nothing.",
+      "severity": "MAJOR",
+      "origin_class": "DESIGN_GAP",
+      "reproducer": "BI-PF-1532 not self-compliant",
+      "regression_test": "python scripts/dev/design_pack.py --item BI-PF-1532 --check",
+      "evidence": "engineering/design/BI-PF-1532.md",
+      "files": [
+        "data/backlog/items/BI-PF-1532.json"
+      ],
+      "rollback": "No destructive data change beyond the tested migration/export path; use backup restore for migration failures.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
     }
   ]
 }
