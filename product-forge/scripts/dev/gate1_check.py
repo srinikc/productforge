@@ -26,6 +26,11 @@ if str(ROOT / "scripts" / "dev") not in sys.path:
 
 import architect_review as ar  # noqa: E402
 import design_pack as dpack  # noqa: E402
+import functional_spec  # noqa: E402
+import spec_pack  # noqa: E402
+import conformance_check  # noqa: E402
+import fix_guard  # noqa: E402
+from core import backlog  # noqa: E402
 
 
 def evaluate(item_id: str) -> dict | None:
@@ -63,11 +68,18 @@ def main(argv: list[str] | None = None) -> int:
         pack_bad = dpack.evaluate(a.item)
     except Exception as e:
         pack_bad = [f"design-pack error ({type(e).__name__}): {e}"]
+    pack_bad = list(pack_bad or [])
+    item = backlog.get_epic("product_forge", None, a.item) or {}
+    for label, mod in (("functional_spec", functional_spec), ("spec_pack", spec_pack), ("conformance", conformance_check), ("fix_guard", fix_guard)):
+        try:
+            pack_bad += mod.problems(item)
+        except Exception as e:
+            pack_bad.append(f"{label} error ({type(e).__name__}): {e}")
     if pack_bad:
         if a.json:
-            print(json.dumps({"ok": False, "reason": "design_pack", "problems": pack_bad}))
+            print(json.dumps({"ok": False, "reason": "design_pack_or_spec_chain", "problems": pack_bad}))
         else:
-            print("gate1: FAIL - design pack incomplete")
+            print("gate1: FAIL - design/spec chain incomplete")
             for p in pack_bad:
                 print("  - " + p)
         return 1

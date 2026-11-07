@@ -113,12 +113,9 @@ def _get_item(item: str) -> dict:
 # exclusions are used by scripts/dev/architect_review_check.py.
 EXCLUDE = [
     ":(exclude,glob)**/engineering/**",
-    ":(exclude,glob)**/config/architect-review-baseline.json",
-    ":(exclude,glob)**/config/id-blocks.json",
     ":(exclude,glob)**/data/backlog/**",
-    ":(exclude,glob)**/docs/BACKLOG-SUMMARY.md",
-    ":(exclude,glob)**/docs/documentation-index.html",
-    ":(exclude,glob)**/docs/README.md",
+    ":(exclude,glob)**/docs/**",
+    ":(exclude,glob)**/config/**",
 ]
 
 
@@ -135,7 +132,10 @@ def _merge_base() -> str:
 def _git_diff(base: str = "") -> str:
     """Committed diff. First review: merge-base..HEAD. Re-review: prior review sha..HEAD (delta)."""
     start = base or _merge_base()
-    return _git_text(["diff", "--no-color", f"{start}..HEAD", "--", ".", *EXCLUDE])
+    paths = [".", *EXCLUDE]
+    if (ROOT.parent / ".github" / "workflows").is_dir():
+        paths.append("../.github/workflows")
+    return _git_text(["diff", "--no-color", f"{start}..HEAD", "--", *paths])
 
 
 def changed_files(base: str = "") -> list:
@@ -194,7 +194,8 @@ def _latest_review_sha(item_id: str, mode: str) -> str:
 
 
 _DESIGN_KEYS = ("objective", "approach", "in_scope", "out_of_scope", "acceptance_criteria",
-                "affected_components", "affected_files", "risks", "rollback", "design_pack")
+                "affected_components", "affected_files", "risks", "rollback", "functional_spec",
+            "spec_pack", "design_pack")
 
 
 def design_sha(item: dict) -> str:
@@ -210,7 +211,8 @@ def design_sha(item: dict) -> str:
 
 def _design_body(item: dict) -> str:
     keys = ("objective", "approach", "in_scope", "out_of_scope", "acceptance_criteria",
-            "affected_components", "affected_files", "risks", "rollback", "design_pack")
+            "affected_components", "affected_files", "risks", "rollback", "functional_spec",
+            "spec_pack", "design_pack")
     return "Design / Gate-1 context:\n" + "\n".join(f"- {k}: {item.get(k)}" for k in keys if item.get(k))
 
 
@@ -408,6 +410,38 @@ def _design_delta(item: dict, item_id: str, base: str) -> dict | None:
     return design_delta_fields(item, previous)
 
 
+def _evidence_body(item: dict) -> str:
+    """Inject bounded evidence contents without letting evidence commits move the diff SHA."""
+    refs = []
+    for ev in (item.get("evidence") or []):
+        refs.append(str(ev))
+    for row in (item.get("ac_evidence") or {}).values():
+        if isinstance(row, dict) and row.get("evidence"):
+            refs.append(str(row["evidence"]))
+    for row in ((item.get("design_pack") or {}).get("coverage") or []):
+        if isinstance(row, dict):
+            refs.extend(str(x) for x in (row.get("evidence") or []))
+    out, seen = [], set()
+    for ref in refs:
+        if ref in seen:
+            continue
+        seen.add(ref)
+        p = Path(ref)
+        if not p.is_absolute():
+            p = ROOT / ref
+        if not p.is_file() or p.suffix.lower() not in (".txt", ".json", ".md", ".yml", ".yaml"):
+            continue
+        try:
+            text = p.read_text(encoding="utf-8", errors="replace")
+        except Exception:
+            continue
+        out.append(f"--- {ref} ---\n{text[:4000]}")
+        if sum(len(x) for x in out) > 16000:
+            break
+    return ("\n\nAcceptance evidence (current; evidence commits do not change the diff SHA):\n```\n"
+            + "\n".join(out) + "\n```") if out else ""
+
+
 def _build_prompt(item: dict, item_id: str, mode: str, base: str = "") -> str:
     ac = "\n".join(f"- {c}" for c in (item.get("acceptance_criteria") or [])) or "- (none)"
     body = _design_body(item) if mode == "design" else "Diff:\n```diff\n" + _git_diff(base)[:500000] + "\n```"
@@ -416,10 +450,13 @@ def _build_prompt(item: dict, item_id: str, mode: str, base: str = "") -> str:
     scope = (item.get("review_scope") or (item.get("design_pack") or {}).get("review_scope") or {})
     scope_txt = json.dumps(scope, ensure_ascii=False, sort_keys=True) if scope else "{}"
     prompt += ("\n\nReview scope (binding): " + scope_txt +
-               "\nReport only findings against the approved AC/design, declared files, and standards. "
+               "\nReport only findings against the approved AC/design, declared files, and standards. Use severity: BLOCKER=AC/security/data-loss; MAJOR=approved contract cannot be met; MINOR/NIT=hardening. Do not report new requirements, speculative refactors, or pre-existing issues as blockers; prefix them [OUT_OF_SCOPE]. Do not re-report unchanged prior findings. "
                "Prefix unrelated or pre-existing findings with `[OUT_OF_SCOPE]`; do not turn them into blockers. "
                "Do not propose unrelated refactors.")
     if mode == "diff":
+        evidence_txt = _evidence_body(item)
+        if evidence_txt:
+            prompt += "\n\n" + evidence_txt
         if base:
             acs = item.get("ac_verification") or []
             ac_txt = "\n".join(

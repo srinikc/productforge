@@ -36,9 +36,10 @@ Owns the pre-design reconciliation. Produces:
 - Impact table with language, API, and acceptance-criteria rows.
 - Runtime entrypoint, exact call-site chain, production adapter, failure behavior, failing proof plan,
   evidence path, non-goals, risks, and rollback.
-- The backlog item and design pack.
+- The backlog item and functional spec draft.
 
-Gate 0 is not an approval. No design or implementation proceeds with an unresolved row.
+Gate 0 is not an approval and does not create the design pack. No design or implementation proceeds
+with an unresolved row. The design pack is created after Gate 0.5 functional freeze.
 
 ## Implementer
 
