@@ -248,6 +248,22 @@
       "mode": "diff",
       "hil_confirmed": true,
       "note": "HIL directed completion; final evidence refresh."
+    },
+    {
+      "at": "2026-11-07T04:21:40.349515+00:00",
+      "by": "hil:user",
+      "decision": "MATERIAL_CHANGE",
+      "mode": "design",
+      "hil_confirmed": true,
+      "note": "HIL directed validation of fix-impact gate."
+    },
+    {
+      "at": "2026-11-07T04:21:40.349551+00:00",
+      "by": "hil:user",
+      "decision": "MATERIAL_CHANGE",
+      "mode": "diff",
+      "hil_confirmed": true,
+      "note": "HIL directed validation of fix-impact gate."
     }
   ],
   "follow_up": {},
@@ -487,7 +503,7 @@
     "usage": {}
   },
   "created_at": "2026-11-06T14:50:10.299482",
-  "updated_at": "2026-11-07T00:36:35.802068",
+  "updated_at": "2026-11-07T10:02:55.365095",
   "score": 0.5,
   "_note": "readiness computed",
   "api_impact": {
@@ -2132,6 +2148,49 @@
         ]
       },
       "evidence": "BI-PF-1531-e52ccabdd49a.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "d5d18165fb63e054631ba1d1e83cef546609c30a",
+      "review_sha": "31c5a78dfdf2",
+      "model": "deepseek-v4.1-flash",
+      "at": "2026-11-07T04:32:54.931038+00:00",
+      "review_scope": "full_candidate",
+      "base_sha": "",
+      "head_sha": "d5d18165fb63e054631ba1d1e83cef546609c30a",
+      "findings": {
+        "BLOCKER": [
+          "AC-3 generated-product parity is circular: `backlog-db.yml` seeds `ProductForge-Dashboard` directly via `POST /backlog`, exports that tenant from the DB to `/tmp/pf-gp`, then runs `backlog_db_parity.py --source-dir /tmp/pf-gp` against the same export — this compares DB to a copy of DB and proves neither backfill nor file/DB parity for any real PF-GP source."
+        ],
+        "MAJOR": [
+          "Approved observability contract is not implemented: design §9/spec_pack claim `edp_backlog_authority_startup_ok`, success timestamp and `edp_backlog_authority_errors_total` with reason labels \"asserted by tests\", but the Go diff adds no metric code or metric test — an on-mode outage has no alert lead-time (guardrails 2/10).",
+          "`backlog_db_export.py` mutates payload after id validation (`_data.setdefault(\"project\", a.tenant)`), so the written projection differs from the DB row it came from; for non-`product_forge` tenants the documented export→parity rollback step can then report `data_mismatch` and block rollback.",
+          "On-mode `delete()` removes the DB row but leaves `items/<id>.json`, and `_write_indexes` was moved into the off-branch only; projections silently rot, so a later rollback without `--prune` resurrects deleted items and drops DB-only ones.",
+          "Committed AC-3 evidence is stale for this tree: `parity.txt` and `backfill-dry-run.txt` show 743 items ending at BI-PF-1531, but the same diff adds BI-PF-1532 (744 files), and `ac_evidence` pins sha `HEAD` rather than a frozen SHA.",
+          "`_load_all_from_db` still issues one unpaginated `limit=100000` request per read; past 100k items reads truncate silently, and the NFR benchmark only exercises 743 items so the scalability claim is unproven.",
+          "BI-PF-1532 spec-chain tooling ships inside this diff and adds four blocking precheck gates, yet BI-PF-1532's own design pack has an empty `functional_ref` and `standards: none` (it would fail its own gates); enforcement is also date-gated to 2026-11-07, so today's green gates prove nothing."
+        ],
+        "MINOR": [
+          "`backlog_db_export.py`'s unlisted-tenant prune guard wraps `from core import backlog` in `except Exception: pass`, silently disabling the protection on any import error while still permitting `--prune`.",
+          "`.github/workflows/backlog-db.yml` `paths` filters omit the workflow file itself and `test-framework/tests/test_backlog_db_workflow.py`, so edits to the DB-mode job or its contract test never trigger it.",
+          "`docs/BACKLOG-DB-SSOT.md` still says \"apply migrations through `0021`\" in the Migration section while the deploy-order section requires 0021/0022/0023 — an operator following the top section misses the global-ID guard that `Authority()` now requires.",
+          "`conftest.py` overrides an explicitly exported `PF_BACKLOG_DB=on` (only `PF_TEST_DB_MODE=1` escapes) with no message, so local DB-mode runs silently become file mode.",
+          "`spec_pack._exists` accepts absolute and `../` paths, so evidence/artifact validation can point outside the repository; `fresh()` in `functional_spec.py`/`spec_pack.py` compares only text after the first two lines, so header drift never marks a spec stale."
+        ],
+        "NIT": [
+          "`_DB_WARNED_SCOPES` is an unbounded, unlocked process-global set; repeated unlisted-scope traffic is invisible after the first warn.",
+          "`_cfg`, `_date`, and `should_enforce` are duplicated across `functional_spec.py`, `spec_pack.py`, and `fix_guard.py` — three copies of the same enforcement policy.",
+          "`backlog_db_bench.py` `pct()` raises on an empty list, so `--iterations 0` crashes instead of failing with a diagnostic.",
+          "Committed evidence files carry a UTF-8 BOM (`+﻿=== RUN`), which the claimed encoding gate does not normalise."
+        ],
+        "SUMMARY": [
+          "Core cutover mechanics (default on, per-scope allowlist, tenant-bound Go store, preflight/backup discipline, export/prune tooling) are directionally correct and several prior majors are closed.",
+          "Ship-blocking: generated-product \"parity evidence\" is tautological — DB exported and compared to itself — so AC-3 is not demonstrated for PF-GP.",
+          "Highest residual risks: missing authority metrics despite the approved observability contract, payload mutation in export breaking the documented rollback parity step, and stale 743-item evidence that no longer matches the tree.",
+          "Recommend: backfill real PF-GP file sources and compare against them, emit/assert the `edp_backlog_authority_*` metrics, and regenerate AC evidence at the frozen SHA before merge."
+        ]
+      },
+      "evidence": "BI-PF-1531-31c5a78dfdf2.json"
     }
   ],
   "review_dispositions": {
@@ -2737,7 +2796,7 @@
   "control_evidence": [
     {
       "control_id": "CTL-BACKLOG-DB-DEFAULT",
-      "sha": "273ddadde52a183c1360e24b6f2bd5ad5413bbca-0d9df8a75ab2",
+      "sha": "273ddadde52a183c1360e24b6f2bd5ad5413bbca-487b309a9cdb",
       "result": "PASS",
       "evidence": "engineering/evidence/BI-PF-1531/current-sha-control.txt"
     }
