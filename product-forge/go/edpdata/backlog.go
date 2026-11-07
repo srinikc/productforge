@@ -181,7 +181,7 @@ func orEmpty(raw json.RawMessage) string {
 
 // Put upserts a backlog item (idempotent on id; material changes bump revision). `Data` is stored verbatim.
 func requireTenant(ctx context.Context, tx datastore.Tx) (string, error) {
-	rows, err := tx.Query(ctx, `SELECT current_setting('app.tenant_id', true)`)
+	rows, err := tx.Query(ctx, `SELECT COALESCE(current_setting('app.tenant_id', true), '')`)
 	if err != nil {
 		return "", err
 	}

@@ -79,9 +79,6 @@ def main() -> int:
     for _iid, _data in rows:
         if a.tenant != "product_forge" and isinstance(_data, dict):
             _data.setdefault("project", a.tenant)
-    for p in prunable:
-        p.unlink()
-        pruned += 1
     for iid, data in rows:
         p = out / f"{iid}.json"
         if p.exists() and not a.overwrite:
@@ -95,6 +92,9 @@ def main() -> int:
             _os.fsync(f.fileno())
         tmp.replace(p)
         written += 1
+    for p in prunable:
+        p.unlink()
+        pruned += 1
     if out.resolve() == target_dir(a.tenant).resolve():
         try:
             from core import backlog

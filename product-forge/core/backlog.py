@@ -299,7 +299,7 @@ def db_authority_enabled(scope: str | None, project: str | None = None) -> bool:
     """Public resolver used by ID allocation and tooling (on/dual/shadow keep DB IDs)."""
     if _backlog_db_mode() not in ("on", "dual", "shadow"):
         return False
-    return _scope_key(str(project or scope or "")) in _backlog_db_scopes()
+    return _scope_key(str(project or scope or "product_forge")) in _backlog_db_scopes()
 
 
 def _mirror_item_to_db(item: dict) -> None:
@@ -1753,7 +1753,7 @@ def delete(scope: str, project: str | None, eid: str) -> dict | None:
             return None
         parent = str(target.get("epic") or target.get("parent") or "")
         bucket.remove(target)
-        if _db_for(str(project or scope or "")):
+        if _db_for(str(project or scope or "product_forge")):
             _delete_item_from_db(eid, str(project or scope or "product_forge"))
         else:
             for p in (os.path.join(_items_dir(d), f"{eid}.json"),

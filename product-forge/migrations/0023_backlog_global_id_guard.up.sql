@@ -10,7 +10,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_backlog_items_new_global_id
 CREATE OR REPLACE FUNCTION backlog_global_id_guard() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
   IF NEW.legacy_duplicate THEN RETURN NEW; END IF;
-  IF EXISTS (SELECT 1 FROM backlog_items WHERE id=NEW.id AND tenant_id<>NEW.tenant_id AND legacy_duplicate=false) THEN
+  IF EXISTS (SELECT 1 FROM backlog_items WHERE id=NEW.id AND tenant_id<>NEW.tenant_id) THEN
     RAISE EXCEPTION 'global backlog id already belongs to another tenant: %', NEW.id;
   END IF;
   RETURN NEW;

@@ -3371,5 +3371,163 @@
     "related_items": [
       "BI-PF-1532"
     ]
-  }
+  },
+  "fix_impact": [
+    {
+      "sig": "sig:e7b250d20910be5d",
+      "finding": "`product-forge/conftest.py` assigns `os.environ[\"PF_BACKLOG_DB\"] = \"off\"` at import for the whole suite, overriding `backlog-db.yml`'s `PF_BACKLOG_DB: \"on\"`: the DB-mode job actually runs file mode, so AC-2's \"a DB-mode integration job runs with on\" is not delivered (and the file is not in `affected_files`).",
+      "severity": "BLOCKER",
+      "origin_class": "FIX_INDUCED",
+      "reproducer": "conftest forced off in DB CI",
+      "regression_test": "python -m pytest test-framework/tests/test_backlog_db_workflow.py -q",
+      "evidence": "engineering/evidence/BI-PF-1531/backlog-db.workflow.yml",
+      "files": [
+        "conftest.py",
+        "../.github/workflows/backlog-db.yml"
+      ],
+      "rollback": "No data rollback needed beyond reverting this fix; migration rollback is covered by the migration down test.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:2260e8a3fc68d42d",
+      "finding": "`0023_backlog_global_id_guard` exempts legacy rows on both sides: the partial unique index and the trigger both filter `legacy_duplicate=false`, so a new row may reuse an `id` held by a `legacy_duplicate=true` row in another tenant — \"no new duplicate is accepted\" is not enforced at the DB.",
+      "severity": "BLOCKER",
+      "origin_class": "FIX_DEFECT",
+      "reproducer": "0023 trigger allowed reuse of legacy ids",
+      "regression_test": "python -m pytest test-framework/tests/test_backlog_migrations.py -q",
+      "evidence": "engineering/evidence/BI-PF-1531/current-sha-control.txt",
+      "files": [
+        "migrations/0023_backlog_global_id_guard.up.sql",
+        "migrations/0023_backlog_global_id_guard.down.sql"
+      ],
+      "rollback": "Migration down test: python -m pytest test-framework/tests/test_backlog_migrations.py -q",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:b75de3c046a03760",
+      "finding": "Authority default diverges: `_db_for`/`store_item_to_db` default missing `project`/`scope` to `\"product_forge\"` (DB), but `db_authority_enabled` used by `id_allocator` defaults to `\"\"` (not allowlisted) — an unattributed call gets DB items and Git ID allocation, violating \"one allowlist key\" and \"no Git fallback\".",
+      "severity": "MAJOR",
+      "origin_class": "FIX_INDUCED",
+      "reproducer": "authority default mismatch for unattributed items",
+      "regression_test": "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q",
+      "evidence": "engineering/evidence/BI-PF-1531/current-sha-control.txt",
+      "files": [
+        "core/backlog.py"
+      ],
+      "rollback": "No data rollback needed beyond reverting this fix; migration rollback is covered by the migration down test.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:b4ac714a48c6ec6c",
+      "finding": "`delete()` resolves authority via `str(project or scope or \"\")` while `_save_item`/`store_item_to_db` default to `\"product_forge\"`; an item with neither field is written to the DB tenant but deleted through the file path, leaving orphan DB rows.",
+      "severity": "MAJOR",
+      "origin_class": "FIX_INDUCED",
+      "reproducer": "delete/save fallback mismatch",
+      "regression_test": "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q",
+      "evidence": "engineering/evidence/BI-PF-1531/current-sha-control.txt",
+      "files": [
+        "core/backlog.py"
+      ],
+      "rollback": "No data rollback needed beyond reverting this fix; migration rollback is covered by the migration down test.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:f2d5dee14a0c3cb6",
+      "finding": "`backlog_db_export.py` unlinks prunable projections *before* writing replacements; an interrupted rollback export leaves the file authority incomplete exactly when it is the recovery source — prune after successful writes.",
+      "severity": "MAJOR",
+      "origin_class": "FIX_INDUCED",
+      "reproducer": "prune before replacement write",
+      "regression_test": "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q",
+      "evidence": "engineering/evidence/BI-PF-1531/current-sha-control.txt",
+      "files": [
+        "scripts/dev/backlog_db_export.py"
+      ],
+      "rollback": "No data rollback needed beyond reverting this fix; migration rollback is covered by the migration down test.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:6149e57f9592e391",
+      "finding": "`go/edpdata.requireTenant` scans `current_setting('app.tenant_id', true)` into a `string`; a genuinely unset GUC returns NULL → scan error (500), not `ErrTenantContext` (503) as FR-4 declares.",
+      "severity": "MAJOR",
+      "origin_class": "PRE_EXISTING",
+      "reproducer": "NULL GUC scan error",
+      "regression_test": "go test ./...",
+      "evidence": "engineering/evidence/BI-PF-1531/current-sha-control.txt",
+      "files": [
+        "go/edpdata/backlog.go",
+        "go/edpdata/edpdata_test.go"
+      ],
+      "rollback": "No data rollback needed beyond reverting this fix; migration rollback is covered by the migration down test.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:f2bf86709c6d63ee",
+      "finding": "`0023` runs `UPDATE backlog_items` plus a non-concurrent `CREATE UNIQUE INDEX` on the shared table in one transaction, with no preflight/backup gate (unlike 0021) and only `statement_timeout='60s'`.",
+      "severity": "MAJOR",
+      "origin_class": "FIX_DEFECT",
+      "reproducer": "0023 lacked preflight/backup gate",
+      "regression_test": "python -m pytest test-framework/tests/test_backlog_migrations.py -q",
+      "evidence": "engineering/evidence/BI-PF-1531/current-sha-control.txt",
+      "files": [
+        "migrations/0023_backlog_global_id_guard.up.sql",
+        "docs/BACKLOG-DB-SSOT.md"
+      ],
+      "rollback": "Migration down test: python -m pytest test-framework/tests/test_backlog_migrations.py -q",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:2db9d775822dae25",
+      "finding": "No test covers `BACKLOG_DB_SCOPES_EMPTY` (FR-1 edge case / config contract) nor the delete-path fail-closed behaviour in `on` mode, despite FR-1/FR-4 acceptance text.",
+      "severity": "MAJOR",
+      "origin_class": "VERIFICATION_GAP",
+      "reproducer": "missing empty-scope and delete fail-closed tests",
+      "regression_test": "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q",
+      "evidence": "engineering/evidence/BI-PF-1531/current-sha-control.txt",
+      "files": [
+        "test-framework/tests/pipeline/test_backlog_db_cutover.py"
+      ],
+      "rollback": "No data rollback needed beyond reverting this fix; migration rollback is covered by the migration down test.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    }
+  ]
 }

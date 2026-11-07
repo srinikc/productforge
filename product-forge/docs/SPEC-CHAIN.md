@@ -33,6 +33,10 @@ Binding order for backlog items created on/after `2026-11-07`:
 
 Required rows: product design, API, data, config, NFR/SLO, security threat model, migration/backfill, rollback/DR, observability/runbook, accessibility/i18n, privacy/compliance, implementation plan, release verification.
 
+## Fix-impact
+
+Every BLOCKER/MAJOR fix must add a `fix_impact` row. See `docs/FIX-IMPACT-CONTRACT.md`; enforced by `fix_guard.py`.
+
 ## Review charter
 
 - **Gate 1.5** reviews only the functional spec, design pack, conditional applicability, conformance, and standards.

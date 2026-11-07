@@ -251,3 +251,24 @@ def test_export_write_skip_overwrite(monkeypatch, tmp_path):
     assert m.main() == 0
     assert (tmp_path / ("BI-PF-" + "1" + _J)).is_file()
     assert m.main() == 0  # skipped existing
+
+
+def test_empty_scope_allowlist_fails_closed(monkeypatch):
+    import pytest
+    from core import backlog
+    monkeypatch.setenv("PF_BACKLOG_DB", "on")
+    monkeypatch.setenv("PF_BACKLOG_DB_SCOPES", "")
+    with pytest.raises(RuntimeError, match="BACKLOG_DB_SCOPES_EMPTY"):
+        backlog._backlog_db_scopes()
+
+
+def test_on_mode_delete_db_failure(monkeypatch, tmp_path):
+    import pytest
+    from core import backlog
+    monkeypatch.setenv("PF_BACKLOG_DB", "on")
+    monkeypatch.setenv("PF_BACKLOG_DB_SCOPES", "product_forge")
+    monkeypatch.setattr(backlog, "_load_all", lambda s, p: ([{"id": "BI-PF-1", "scope": "product_forge", "status": "new"}], []))
+    monkeypatch.setattr(backlog, "_delete_item_from_db", lambda *a: (_ for _ in ()).throw(RuntimeError("db down")))
+    monkeypatch.setattr(backlog, "_write_indexes", lambda *a: (_ for _ in ()).throw(AssertionError("file write")))
+    with pytest.raises(RuntimeError, match="db down"):
+        backlog.delete("product_forge", None, "BI-PF-1")

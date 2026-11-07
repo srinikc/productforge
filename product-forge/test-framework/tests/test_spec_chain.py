@@ -50,3 +50,13 @@ def test_conformance_requires_fr_coverage():
     broken = copy.deepcopy(item)
     broken["design_pack"]["coverage"] = [r for r in broken["design_pack"]["coverage"] if r.get("fr") != "FR-1"]
     assert any("FR-1" in b for b in conformance_check.problems(broken))
+
+
+def test_fix_guard_requires_row():
+    import copy
+    import fix_guard
+    item = _item()
+    assert fix_guard.problems(item) == []
+    broken = copy.deepcopy(item)
+    broken["fix_impact"] = []
+    assert any("fix_impact" in b for b in fix_guard.problems(broken))

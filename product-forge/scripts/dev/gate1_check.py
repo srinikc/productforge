@@ -29,6 +29,7 @@ import design_pack as dpack  # noqa: E402
 import functional_spec  # noqa: E402
 import spec_pack  # noqa: E402
 import conformance_check  # noqa: E402
+import fix_guard  # noqa: E402
 from core import backlog  # noqa: E402
 
 
@@ -69,7 +70,7 @@ def main(argv: list[str] | None = None) -> int:
         pack_bad = [f"design-pack error ({type(e).__name__}): {e}"]
     pack_bad = list(pack_bad or [])
     item = backlog.get_epic("product_forge", None, a.item) or {}
-    for label, mod in (("functional_spec", functional_spec), ("spec_pack", spec_pack), ("conformance", conformance_check)):
+    for label, mod in (("functional_spec", functional_spec), ("spec_pack", spec_pack), ("conformance", conformance_check), ("fix_guard", fix_guard)):
         try:
             pack_bad += mod.problems(item)
         except Exception as e:
