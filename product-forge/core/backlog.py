@@ -113,6 +113,11 @@ def _norm_scope(scope: str) -> str:
     return "product_forge" if str(scope or "") in ("portfolio", "product_forge", _LEGACY_FORGE_SCOPE) else "project"
 
 
+def _db_tenant(scope: str | None, project: str | None = None) -> str:
+    raw = str(project or scope or "product_forge")
+    return "product_forge" if raw in ("portfolio", "product_forge", _LEGACY_FORGE_SCOPE) else raw
+
+
 def _scope_key(scope: str | None) -> str:
     return "product_forge" if str(scope or "") in ("portfolio", "product_forge", _LEGACY_FORGE_SCOPE) else str(scope or "")
 
@@ -179,7 +184,7 @@ def _load_all_from_db(scope: str, project: str | None):
     import urllib.error as _uerr
     import urllib.request as _ureq
 
-    tenant = str(project or scope or "product_forge")
+    tenant = _db_tenant(scope, project)
     api = str(os.environ.get("PF_EDP_API_URL", "http://127.0.0.1:8030")).rstrip("/")
     req = _ureq.Request(f"{api}/backlog?tenant={tenant}&limit=100000", method="GET")
     req.add_header("Authorization", f"Bearer {os.environ.get('PF_EDP_TOKEN') or os.environ.get('PF_ADMIN_TOKEN', '')}")
@@ -322,7 +327,7 @@ def _mirror_item_to_db(item: dict) -> None:
     iid = str(item.get("id") or "")
     if not iid:
         return
-    tenant = str(item.get("project") or item.get("scope") or "product_forge")
+    tenant = _db_tenant(str(item.get("scope") or ""), str(item.get("project") or ""))
     api = str(os.environ.get("PF_EDP_API_URL", "http://127.0.0.1:8030")).rstrip("/")
     body = _json.dumps({"ID": iid, "Tenant": tenant, "Type": str(item.get("type") or "feature"),
                         "Status": str(item.get("status") or "new"), "Title": str(item.get("title") or ""),
@@ -1757,10 +1762,10 @@ def delete(scope: str, project: str | None, eid: str) -> dict | None:
         parent = str(target.get("epic") or target.get("parent") or "")
         bucket.remove(target)
         if _db_for(str(project or scope or "product_forge")):
-            _delete_item_from_db(eid, str(project or scope or "product_forge"))
+            _delete_item_from_db(eid, _db_tenant(scope, project))
         for p in (os.path.join(_items_dir(d), f"{eid}.json"),
                   os.path.join(d, "history", f"{eid}.jsonl")):
-            with contextlib.suppress(Exception):
+            if os.path.exists(p):
                 os.remove(p)
         if not _db_for(str(project or scope or "product_forge")):
             _write_indexes(scope, project, op, cl)

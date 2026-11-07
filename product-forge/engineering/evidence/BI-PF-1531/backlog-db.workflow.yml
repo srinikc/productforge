@@ -78,6 +78,7 @@ jobs:
           psql -h 127.0.0.1 -U pf_owner -d productforge -v ON_ERROR_STOP=1 -f migrations/0021_backlog_scoped_uniqueness.up.sql
           psql -h 127.0.0.1 -U pf_owner -d productforge -v ON_ERROR_STOP=1 -f migrations/0022_traceability_tenant_index.up.sql
           psql -h 127.0.0.1 -U pf_owner -d productforge -v ON_ERROR_STOP=1 -f migrations/0023_backlog_global_id_guard.up.sql
+          psql -h 127.0.0.1 -U pf_owner -d productforge -v ON_ERROR_STOP=1 -c "DO \$\$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_index i JOIN pg_class c ON c.oid=i.indexrelid WHERE c.relname='idx_traceability_tenant_item' AND i.indisvalid) THEN RAISE EXCEPTION 'traceability index invalid'; END IF; END \$\$;"
           psql -h 127.0.0.1 -U pf_owner -d productforge -v ON_ERROR_STOP=1 <<'SQL'
           ALTER ROLE pf_app PASSWORD 'pf_app';
           CREATE TABLE IF NOT EXISTS schema_migrations (
