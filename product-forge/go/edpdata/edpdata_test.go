@@ -103,6 +103,18 @@ func TestAuditAndJobs_Integration(t *testing.T) {
 	if gotBL.Scope != "project" || gotBL.ProjectID != "demo-app" {
 		t.Fatalf("scope/project not directly scoped: %+v", gotBL)
 	}
+	if _, err := NewBacklog(store.BindTenant(st, "")).List(ctx, "", 1); !errors.Is(err, ErrTenantContext) {
+		t.Fatalf("List requires tenant context: %v", err)
+	}
+	if _, err := NewBacklog(store.BindTenant(st, tenant+"-other")).Put(ctx, BacklogItem{ID: bi, TenantID: tenant, Type: "feature", Title: "x"}); !errors.Is(err, ErrTenantMismatch) {
+		t.Fatalf("Put tenant mismatch: %v", err)
+	}
+	if _, err := NewBacklog(store.BindTenant(st, tenant+"-other")).Get(ctx, bi); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("Get tenant scoping: %v", err)
+	}
+	if err := NewBacklog(store.BindTenant(st, tenant+"-other")).Delete(ctx, bi); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("Delete tenant scoping: %v", err)
+	}
 	if items, err := bl.List(ctx, "", 10); err != nil || len(items) == 0 {
 		t.Fatalf("backlog list: n=%d err=%v", len(items), err)
 	}

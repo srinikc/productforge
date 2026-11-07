@@ -19,6 +19,7 @@ jobs:
       # CI has no shared git-CAS authority (id or lease) to push; strict mode fails closed. Use soft mode in CI.
       PF_ID_ALLOC: "on"
       PF_LEASE_REMOTE: "on"
+      PF_BACKLOG_DB: "off"
     defaults:
       run:
         working-directory: product-forge
@@ -45,6 +46,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install pytest pytest-asyncio pytest-cov fastapi uvicorn pydantic ruff
           pip install httpx requests pyyaml jsonschema
+
+      - name: Assert file-mode backlog
+        run: test "$PF_BACKLOG_DB" = "off"
 
       - name: Precheck gates (REQUIRED; fast/targeted tier)
         run: python scripts/dev/precheck.py

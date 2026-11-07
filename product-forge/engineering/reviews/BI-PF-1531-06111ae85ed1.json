@@ -1,0 +1,38 @@
+{
+  "item": "BI-PF-1531",
+  "sha": "06111ae85ed1",
+  "model": "deepseek-v4.1-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-06T18:52:53.540455+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "fbdb40a133860cf61a72abafdfea4d6751db5fc4",
+  "findings": {
+    "BLOCKER": [
+      "AC-2 artifacts are absent from the diff: `.github/workflows/backlog-db.yml`, `engineering/evidence/BI-PF-1531/backlog-db.workflow.yml`, and the `PF_BACKLOG_DB: \"off\"` pins in `structure.yml`/`full-sweep.yml` are asserted by the new tests but never added, so the DB-mode integration job and file-mode pinning do not exist in this change.",
+      "`data/backlog/items/BI-PF-1531.json` (carrying `functional_spec`/`design_pack`/`spec_pack`) and the referenced evidence files (`parity.txt`, `failclosed-rollback-tests.txt`, `bench-t1.json`, `current-sha-control.txt`) are required by enforced `conformance_check`/traceability with file-existence checks, yet none appear in the diff; the chain cannot go green from this change set alone."
+    ],
+    "MAJOR": [
+      "`Authority()` still gates on `version IN (16,18,19,20,21)`, and the runbook deploy order only mentions 0021/0022; migrations 0022 and 0023 (index + global-ID trigger/partial unique index) are neither required nor ordered, so edpsvc reports healthy and rolls out without the guard that enforces new global-ID uniqueness.",
+      "Declared observability (`edp_backlog_authority_startup_ok`, success timestamp, `edp_backlog_authority_errors_total` with reason labels, \"tests assert metrics\") is asserted in the design/spec pack, but the Go diff adds no metrics or metric tests \u2014 no alert lead-time for authority outage (guardrails #2/#10).",
+      "`backlog_db_export.py` `--out-dir` bypasses `target_dir()` tenant validation, so `--prune --confirm-prune` can unlink arbitrary `*.json` outside the backlog tree \u2014 unbounded blast radius on an operator command (guardrail #4).",
+      "`db_authority_enabled` returns `False` (silent file/Git ID path) for `dual`/`shadow` when the allowlist resolves empty; only `on` raises `BACKLOG_DB_SCOPES_EMPTY`, so a migration mode can silently fall back to non-DB ID allocation."
+    ],
+    "MINOR": [
+      "`backlog_db_backfill.py`'s usage/docstring advertises `PF_API_TOKEN`, but the code only accepts `PF_EDP_TOKEN`/`PF_ADMIN_TOKEN`; operators following the doc hit \"token required\" and abort.",
+      "Export's unlisted-tenant prune guard wraps `import core.backlog` in `except Exception: pass`, so an import failure silently disables the guard and still permits pruning an unlisted scope.",
+      "`conftest.py` uses `os.environ.setdefault(\"PF_BACKLOG_DB\",\"off\")`; an externally exported `on/dual/shadow` leaks into the entire session, so \"file-mode tests explicitly set off\" is not actually guaranteed.",
+      "`functional_spec.fresh()`/`spec_pack.fresh()` compare only `split(\"\\n\",2)[-1]`, ignoring the header/title line, so header-only drift never marks a spec stale."
+    ],
+    "NIT": [
+      "`test_backlog_db_workflow.py` module-level `WF` builds the same path three times inside one `next(...)` expression; factor a constant.",
+      "`_backlog_db_scopes()`/`_db_for()` re-invoke `_backlog_db_mode()` on every read/write, doing redundant config lookups per operation."
+    ],
+    "SUMMARY": [
+      "Default-on resolution, scoped allowlist, fail-closed read path, and rollback docs are directionally aligned with the contract, but AC-2 (DB-mode CI job) and the global-ID guard rollout (0023) are not delivered/ordered, so the core safety and verification claims are unproven.",
+      "Absent workflow/evidence artifacts and missing `edp_backlog_authority_*` metrics leave the change without its integration proof or operational observability.",
+      "`--out-dir` export pruning and silent `dual/shadow` fallback widen blast radius and reintroduce a non-DB ID path that contradicts \"no Git fallback.\""
+    ]
+  }
+}

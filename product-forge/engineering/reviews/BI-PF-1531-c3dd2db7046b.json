@@ -1,0 +1,41 @@
+{
+  "item": "BI-PF-1531",
+  "sha": "c3dd2db7046b",
+  "model": "deepseek-v4.1-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-07T04:49:52.153369+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "d474c1c31b93cc09a395b87df2428447adb1237b",
+  "findings": {
+    "BLOCKER": [
+      "Authoritative tenant is derived two different ways: `_db_for`/`db_authority_enabled` resolve the allowlist via `_scope_key` (aliases `portfolio`/`factory` \u2192 `product_forge`), but `_load_all`/`_load_all_from_db`/`_save_item`/`delete`/`_reserve_db` pass the raw `project|scope` as the DB tenant \u2014 a legacy alias item is DB-enabled yet read/written under a tenant nobody lists, i.e. silent item loss with a green read path.",
+      "Parity hides the same defect: `backlog_db_parity.file_items` filters by the raw `project or scope` tenant, so alias/misattributed rows are excluded from both sides and the \"OK -> safe to set on\" gate passes while those items are absent from the authoritative tenant."
+    ],
+    "MAJOR": [
+      "`0022_traceability_tenant_index.up.sql` runs `CREATE INDEX CONCURRENTLY IF NOT EXISTS` under `statement_timeout='60s'`; an aborted build leaves an INVALID index and `IF NOT EXISTS` never rebuilds it \u2014 no `indisvalid` post-check anywhere.",
+      "`go/edpdata.Authority()` now hard-requires migration 23 (`IN (16,18,19,20,21,23) HAVING count(*)=6`) while `functional_spec.assumptions` (\"Migrations through 0022\") and `prerequisites` (\"0021 applied by rollout\") omit 0023 \u2014 an operator following the declared prerequisites gets a service that refuses to start.",
+      "Disposition `sig:28c6b28f66eb4c0b` is marked ACTIONED citing `test-framework/tests/conftest.py`, which does not exist in this tree; the real `product-forge/conftest.py` is import-time, not autouse, and silently overrides an explicit `on`, so AC-2 file-mode isolation is neither implemented nor evidenced as claimed.",
+      "On-mode `delete()` removes the DB row first and then best-effort deletes the projection (`contextlib.suppress`); a suppressed failure leaves an orphan `items/<id>.json` that makes the documented export\u2192parity rollback report drift and block the flip to `off`."
+    ],
+    "MINOR": [
+      "`0023_backlog_global_id_guard.up.sql` runs `UPDATE` + non-concurrent `CREATE UNIQUE INDEX` on the shared table with only the single pre-0021 preflight; the workflow applies it with no 0023-specific backup/lock gate despite the `sig:f2bf86709c6d63ee` ACTIONED disposition.",
+      "`data/backlog/items/BI-PF-1531.json` still carries `evidence: [\"pending\", ...]` and `status: \"new\"` while `control_evidence` reports `PASS` and `functional_spec.status` is `APPROVED`; likewise `deps: []` contradicts `dependencies: [\"BI-PF-1315\"]`.",
+      "`_load_all_from_db` raises `BACKLOG_DB_TRUNCATED` when `len(items) >= 100000`, so a tenant with exactly the limit fails every read rather than paginating or reporting truncation.",
+      "`config/store-registry.json` registers `config/functional-spec.json` / `config/spec-pack.json` alongside `residency_*_scratch` ignore entries, treating governance config as ephemeral and masking future drift in the enforced contracts.",
+      "`scripts/dev/precheck.py` forces `PF_BACKLOG_DB=off` for the whole gate run, so `functional-spec`/`spec-pack`/`conformance` evaluate file projections only and can never reflect the DB-authoritative state they are meant to gate."
+    ],
+    "NIT": [
+      "`functional_spec.open_questions` and `docs/PF-DESIGN-DELIVERY-CONTRACT.md` contain `?` where `\u2192`/`\u2014` belong (mojibake the encoding gate does not flag).",
+      "`_scope_key` and `_norm_scope` express overlapping scope normalization with different semantics; readers must diff two near-identical predicates.",
+      "`scripts/dev/backlog_db_export.py` uses `import os as _os` inside the write loop instead of the module-level import."
+    ],
+    "SUMMARY": [
+      "Core cutover mechanics (default `on`, scoped allowlist, composite-key migration, fail-closed tenant handling, export/backfill/parity) are directionally correct and several prior majors are closed.",
+      "New ship-blocking risk: authority resolution normalizes alias scopes while the DB tenant/query does not, so legacy `factory`/`portfolio` items can be lost from the authoritative tenant with parity reporting green.",
+      "Governance risk: an ACTIONED disposition cites a conftest file that does not exist, and startup/readiness requires 0023 while the declared prerequisites stop at 0021/0022.",
+      "Not approvable as-is; fix the tenant-key derivation (and parity scoping) plus the 0022 index-validity and prerequisite/0023 mismatch before merge."
+    ]
+  }
+}
