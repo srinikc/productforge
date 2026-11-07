@@ -251,6 +251,8 @@ def render(item: dict) -> str:
               .replace("{{VERSION}}", str(pack.get("version") or 1))
               .replace("{{STATUS}}", str(item.get("status") or ""))
               .replace("{{REVIEW_SHA}}", str(pack.get("review_sha") or ""))
+              .replace("{{FUNCTIONAL_REF}}", str(pack.get("functional_ref") or ""))
+              .replace("{{SPEC_PACK_REF}}", f"engineering/specs/{item.get('id')}-spec-pack.md")
               .replace("{{GENERATED_AT}}", datetime.now(timezone.utc).isoformat())
               .replace("{{STANDARDS}}", _join(pack.get("standards")))
               .replace("{{CODE_GUIDELINES}}", _join(pack.get("code_guidelines")))

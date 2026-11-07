@@ -5,6 +5,8 @@
 - **Version:** {{VERSION}}
 - **Status:** {{STATUS}}
 - **Gate 1.5 review SHA:** {{REVIEW_SHA}}
+- **Functional spec:** {{FUNCTIONAL_REF}}
+- **Conditional spec pack:** {{SPEC_PACK_REF}}
 - **Generated:** {{GENERATED_AT}}
 
 ## 1. Standards applied

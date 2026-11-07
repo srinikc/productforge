@@ -184,6 +184,10 @@ _GATES = [
     ("residency", ["scripts/dev/residency_gate.py"], "fast", ["packaging"]),
     ("encoding", ["scripts/dev/encoding_check.py"], "fast", None),
     ("design-pack", ["scripts/dev/design_pack.py", "--all", "--check", "--fresh"], "fast", None),
+    ("functional-spec", ["scripts/dev/functional_spec.py", "--all", "--check", "--fresh"], "fast", None),
+    ("spec-pack", ["scripts/dev/spec_pack.py", "--all", "--check", "--fresh"], "fast", None),
+    ("conformance", ["scripts/dev/conformance_check.py", "--all"], "fast", None),
+    ("fix-guard", ["scripts/dev/fix_guard.py", "--all"], "fast", None),
     ("review-budget", ["scripts/dev/review_budget.py", "--all-changed"], "fast", None),
     ("excluded-content", ["scripts/dev/excluded_content_check.py"], "fast", None),
     ("tool-catalog", ["scripts/dev/tool_catalog_check.py"], "fast", None),
@@ -270,7 +274,7 @@ _GROUP_OF = {
     "workflow-matrix": "structure", "docs-fresh": "structure", "artifact-map": "structure",
     "review-focus": "structure", "review-static": "structure", "pf-process": "structure",
     "framework-ref": "quality", "self-review": "quality",
-    "residency": "quality", "encoding": "structure", "design-pack": "quality", "review-budget": "quality", "excluded-content": "structure",
+    "residency": "quality", "encoding": "structure", "design-pack": "quality", "functional-spec": "quality", "spec-pack": "quality", "conformance": "quality", "fix-guard": "quality", "review-budget": "quality", "excluded-content": "structure",
     # security: secrets / language rule / compliance / threat register
     "secret-scan": "security", "language-rule": "security", "compliance-register": "security",
     "data-plane-threats": "security",
@@ -643,14 +647,25 @@ def _main(argv=None) -> int:
 
 def main(argv=None) -> int:
     """Run the gates, then fail closed if the active worktree's Git state moved."""
-    before = worktree_fingerprint(_ROOT)
-    rc = _main(argv)
-    after = worktree_fingerprint(_ROOT)
-    if before != after:
-        print("[precheck] FATAL: HEAD, refs, or index changed during precheck; "
-              "refusing to proceed (possible Git environment leak)", file=sys.stderr)
-        return 1
-    return rc
+    # Repo-only precheck reads file projections; DB-mode is exercised by its own integration job.
+    _prev_db = os.environ.get("PF_BACKLOG_DB")
+    if os.environ.get("PF_PRECHECK_ALLOW_DB_ON") != "1":
+        os.environ["PF_BACKLOG_DB"] = "off"
+        print("precheck: forcing PF_BACKLOG_DB=off for file-mode gates (PF_PRECHECK_ALLOW_DB_ON=1 to opt out)", file=sys.stderr)
+    try:
+        before = worktree_fingerprint(_ROOT)
+        rc = _main(argv)
+        after = worktree_fingerprint(_ROOT)
+        if before != after:
+            print("[precheck] FATAL: HEAD, refs, or index changed during precheck; "
+                  "refusing to proceed (possible Git environment leak)", file=sys.stderr)
+            return 1
+        return rc
+    finally:
+        if _prev_db is None:
+            os.environ.pop("PF_BACKLOG_DB", None)
+        else:
+            os.environ["PF_BACKLOG_DB"] = _prev_db
 
 
 if __name__ == "__main__":
