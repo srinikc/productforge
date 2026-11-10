@@ -292,3 +292,9 @@ def test_on_mode_delete_preserves_projections(monkeypatch, tmp_path):
     hist = tmp_path / "history" / "BI-PF-1.jsonl"; hist.parent.mkdir(parents=True); hist.write_text("{}", encoding="utf-8")
     backlog.delete("product_forge", None, "BI-PF-1")
     assert proj.exists() and hist.exists()
+
+
+def test_db_tenant_project_priority():
+    from core import backlog
+    assert backlog.db_tenant("product_forge", "ProductForge-Dashboard") == "ProductForge-Dashboard"
+    assert backlog.db_tenant("portfolio", None) == "product_forge"

@@ -583,7 +583,7 @@
     "usage": {}
   },
   "created_at": "2026-11-06T14:50:10.299482",
-  "updated_at": "2026-11-10T15:14:40.270469",
+  "updated_at": "2026-11-10T15:17:24.785366",
   "score": 0.5,
   "_note": "readiness computed",
   "api_impact": {
@@ -2679,6 +2679,36 @@
         ]
       },
       "evidence": "BI-PF-1531-1ad3673e6bf6.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "5309b578bc8ff83040aa4afd81ada6c598943eac",
+      "review_sha": "8d318744fd4c",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-10T09:47:23.535737+00:00",
+      "review_scope": "delta",
+      "base_sha": "a61bd52fba80e126b060c33b18c428c112c40ad1",
+      "head_sha": "5309b578bc8ff83040aa4afd81ada6c598943eac",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [
+          "Delta replaces the explicit project-first rule in `scripts/dev/backlog_db_parity.py` (`d.get(\"project\") or d.get(\"scope\")`) with `db_tenant(d.get(\"scope\"), d.get(\"project\"))`, but adds no test asserting the canonical `_db_tenant` preserves project-over-scope priority when an item carries both fields. AC-3's `parity.txt` is produced by this exact path, so a silent re-resolve changes tenant bucketing and invalidates the parity/backfill evidence without failing the command."
+        ],
+        "MINOR": [
+          "`from core.backlog import db_tenant` imports the env/DB-sensitive core module (whose `PF_BACKLOG_DB` default is now `on`) into a read-only parity tool at import time, coupling file-side parity computation to import-time side effects and DB/edpsvc availability.",
+          "The delta chooses `core.backlog.db_tenant` as the resolver, while `engineering/evidence/BI-PF-1531/current-sha-control.txt` still names `core/backlog_scope.py` as the single scope-resolver owner; code and control evidence now point at different owners.",
+          "No test in the delta asserts `db_tenant` is the sole owner (i.e., that no other copy of the scope/legacy-alias mapping remains), so the SSOT regression the prior MAJOR identified can recur unnoticed."
+        ],
+        "NIT": [
+          "`sys.path.insert(0, str(ROOT))` is unconditional and top-precedence with no guard, so importing the script as a module would silently reorder `sys.path[0]` instead of only running the tool.",
+          "`from core.backlog import db_tenant` is placed after non-import statements (`ROOT = ...`, `sys.path.insert`) rather than the import block (E402), a side effect of the path shim.",
+          "`db_tenant` in `core/backlog.py` is a pure one-line delegation with no docstring pointer to the underlying `_db_tenant` rules (project-vs-scope priority, legacy `factory` alias), leaving the canonical behavior undocumented at its public surface."
+        ],
+        "SUMMARY": [
+          "Overall verdict: the delta correctly retires the duplicated `\"factory\"` literal and routes parity through a single resolver, resolving the prior MAJOR and NIT; no blocker, language rule and default-on config/docs remain consistent. Top risks are verification gaps, not behavior changes: the delegated tenant resolution is unpinned by tests against the old project-first rule (endangering AC-3 evidence integrity), and code now imports `core.backlog` while control evidence still names `core/backlog_scope.py` as owner. Recommend a test fixing project-vs-scope priority plus reconciling the named SSOT owner before Gate 2."
+        ]
+      },
+      "evidence": "BI-PF-1531-8d318744fd4c.json"
     }
   ],
   "review_dispositions": {
@@ -4642,6 +4672,16 @@
       ],
       "result": "PASS",
       "evidence": "engineering/evidence/BI-PF-1531/parity.txt"
+    },
+    {
+      "finding_sig": "sig:0cbcf9c082b70c53",
+      "origin_class": "VERIFICATION_GAP",
+      "regression_test": "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py::test_db_tenant_project_priority -q",
+      "controls_rerun": [
+        "backlog_db_parity"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/evidence/BI-PF-1531/current-sha-control.txt"
     }
   ]
 }
