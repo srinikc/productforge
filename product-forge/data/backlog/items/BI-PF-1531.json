@@ -583,7 +583,7 @@
     "usage": {}
   },
   "created_at": "2026-11-06T14:50:10.299482",
-  "updated_at": "2026-11-10T14:48:04.366876",
+  "updated_at": "2026-11-10T15:12:17.028439",
   "score": 0.5,
   "_note": "readiness computed",
   "api_impact": {
@@ -2620,6 +2620,37 @@
         ]
       },
       "evidence": "BI-PF-1531-830717854b36.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "9fca768559d66b6d23af6cb35c2ea95a5669d3fb",
+      "review_sha": "cc5b54b80aad",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-10T09:42:15.853427+00:00",
+      "review_scope": "delta",
+      "base_sha": "9f568e9df968c10c61fd965475ebcf00faf7d23e",
+      "head_sha": "9fca768559d66b6d23af6cb35c2ea95a5669d3fb",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [
+          "Delta imports the private `_LEGACY_FORGE_SCOPE` from `core/backlog.py`, while current-sha-control.txt names `core/backlog_scope.py` as the single scope-resolver owner; unless this is a documented re-export, the parity tool gains a second SSOT path for tenant normalization (AC-1/AC-3 consistency), and an unexported symbol fails at import, breaking the AC-3/AC-5 parity evidence command."
+        ],
+        "MINOR": [
+          "`import sys as _sys; _sys.path.insert(0, str(ROOT))` prepends the repo root over stdlib/site-packages at import time in shipped tooling — shadowing risk (`types.py`, `email/`, etc.) and import-order fragility; prefer append or a package-relative import.",
+          "`backlog_db_parity.py` (the AC-3 parity and AC-5 rollback evidence tool) now hard-depends on importing the full `core.backlog` module chain; a minimal operator environment (or any import-time side effect in `core/backlog.py`) can fail the evidence command before any DB work — dependency creep in a fail-safe path.",
+          "`item_tenant` semantics now inherit any future edit to the runtime constant with no version/evidence pin, so previously recorded parity evidence can silently change meaning; pin the legacy-alias mapping in `docs/BACKLOG-DB-SSOT.md` alongside the flag."
+        ],
+        "NIT": [
+          "`import sys as _sys` sits mid-file between constant assignments instead of in the top import block; the `_sys` alias adds no value over `sys`.",
+          "Restoring `\"BI-PF-1.json\"` / `\"BI-PF-1.jsonl\"` as plain literals is correct; no further action needed on the test hunks."
+        ],
+        "SUMMARY": [
+          "Delta is narrow and behavior-neutral-to-positive: it removes the previously flagged literal obfuscation (split `\"fac\"+\"tory\"` replaced by a shared constant; concatenated test fixtures reverted to greppable literals), so the prior obfuscation findings look resolved.",
+          "No AC is regressed: `config/env-flags.json` still defaults `PF_BACKLOG_DB` to `on`, and fail-closed/rollback tests are untouched and passing in evidence.",
+          "Top residual risks: the private cross-module import with a disputed SSOT owner (could break the parity evidence tool) and import-time `sys.path` manipulation in a rollback-critical script; both should be confirmed before merge."
+        ]
+      },
+      "evidence": "BI-PF-1531-cc5b54b80aad.json"
     }
   ],
   "review_dispositions": {
@@ -4562,6 +4593,17 @@
       ],
       "result": "PASS",
       "evidence": "engineering/evidence/BI-PF-1531/failclosed-rollback-tests.txt"
+    },
+    {
+      "finding_sig": "sig:493d55e567488da1",
+      "origin_class": "DESIGN_GAP",
+      "regression_test": "python scripts/dev/backlog_db_parity.py --tenant product_forge",
+      "controls_rerun": [
+        "wired_audit",
+        "language-rule"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/evidence/BI-PF-1531/parity.txt"
     }
   ]
 }

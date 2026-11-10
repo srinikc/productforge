@@ -14,9 +14,7 @@ import argparse
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-import sys as _sys
-_sys.path.insert(0, str(ROOT))
-from core.backlog import _LEGACY_FORGE_SCOPE
+_LEGACY_FORGE_SCOPE = "factory"
 ITEMS = ROOT / "data" / "backlog" / "items"
 
 
