@@ -42,7 +42,8 @@ _ALLOW = {
     "scripts/dev/pf_merge_driver.py",
     "scripts/dev/backlog_id_reconcile.py",
     "scripts/dev/migrate_backlog_storage.py",
-    "scripts/dev/backlog_rebuild_projections.py",  # BI-PF-1399 demotion: regenerates DERIVED projections from the DB
+    "scripts/dev/backlog_rebuild_projections.py",
+    "scripts/dev/backlog_db_export.py",  # BI-PF-1531 rollback export uses derived projection helpers  # BI-PF-1399 demotion: regenerates DERIVED projections from the DB
     "scripts/dev/backlog_write_guard.py",  # this gate itself (references the private-writer names)
 }
 # legacy offenders grandfathered at introduction (BI-PF-1327) - advisory, not fatal
