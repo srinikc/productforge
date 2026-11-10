@@ -583,7 +583,7 @@
     "usage": {}
   },
   "created_at": "2026-11-06T14:50:10.299482",
-  "updated_at": "2026-11-10T15:17:24.785366",
+  "updated_at": "2026-11-10T15:25:20.871439",
   "score": 0.5,
   "_note": "readiness computed",
   "api_impact": {
@@ -2709,6 +2709,32 @@
         ]
       },
       "evidence": "BI-PF-1531-8d318744fd4c.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "358280032e3f9721b3091c48dd78a5c7efff64ff",
+      "review_sha": "9d76adf3c64a",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-10T09:55:19.523020+00:00",
+      "review_scope": "delta",
+      "base_sha": "5309b578bc8ff83040aa4afd81ada6c598943eac",
+      "head_sha": "358280032e3f9721b3091c48dd78a5c7efff64ff",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [],
+        "MINOR": [
+          "No delta test drives an item dict through `backlog_db_parity.py`'s `db_tenant(d.get(\"scope\"), d.get(\"project\"))`; the resolver is asserted in isolation, leaving that call-site's field/argument mapping unpinned against future edits."
+        ],
+        "NIT": [
+          "Function-level `from core import backlog` duplicates the module-level `backlog` binding already used by the adjacent test (`backlog.delete(...)`).",
+          "Test name covers only the project-priority assertion; the second assertion pins the legacy `portfolio → product_forge` alias, so an alias regression reports as a priority failure."
+        ],
+        "SUMMARY": [
+          "Delta is a minimal, standards-compliant test addition (Python tests permitted) that resolves the prior MAJOR: project-over-scope priority and the `(scope, project)` argument order are now asserted; no blockers or majors.",
+          "Top residual risk is the unpinned parity call-site mapping (MINOR) plus indirect-only coverage of the legacy alias contract; all other prior findings are untouched by this delta."
+        ]
+      },
+      "evidence": "BI-PF-1531-9d76adf3c64a.json"
     }
   ],
   "review_dispositions": {
@@ -3314,7 +3340,7 @@
   "control_evidence": [
     {
       "control_id": "CTL-BACKLOG-DB-DEFAULT",
-      "sha": "ce18241a39c07d22b1ef67c8d0af04d1140e8db9-42bcb6cf24bd",
+      "sha": "ce18241a39c07d22b1ef67c8d0af04d1140e8db9-5d9d84410463",
       "result": "PASS",
       "evidence": "engineering/evidence/BI-PF-1531/current-sha-control.txt"
     }
