@@ -446,7 +446,7 @@ def _docs_body(item: dict) -> str:
     refs = list(item.get("affected_files") or []) + list(((item.get("review_scope") or {}).get("files")) or [])
     out, seen = [], set()
     for ref in refs:
-        if not str(ref).endswith(".md") or ref in seen:
+        if not str(ref).endswith((".md", ".json", ".yml", ".yaml")) or ref in seen:
             continue
         seen.add(ref)
         p = ROOT / str(ref)
@@ -454,7 +454,7 @@ def _docs_body(item: dict) -> str:
             out.append(f"--- {ref} ---\n{p.read_text(encoding='utf-8', errors='replace')[:5000]}")
         if sum(len(x) for x in out) > 18000:
             break
-    return ("\n\nReferenced docs (current; docs commits do not change the diff SHA):\n```\n" + "\n".join(out) + "\n```") if out else ""
+    return ("\n\nReferenced docs/config (current; docs/config commits do not change the diff SHA):\n```\n" + "\n".join(out) + "\n```") if out else ""
 
 
 def _build_prompt(item: dict, item_id: str, mode: str, base: str = "") -> str:
