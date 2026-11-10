@@ -328,6 +328,22 @@
       "mode": "diff",
       "hil_confirmed": true,
       "note": "Clean split requires one full review; subsequent reviews delta only."
+    },
+    {
+      "at": "2026-11-10T08:12:16.958045+00:00",
+      "by": "hil:user",
+      "decision": "MATERIAL_CHANGE",
+      "mode": "design",
+      "hil_confirmed": true,
+      "note": "HIL directed delta-only fix verification."
+    },
+    {
+      "at": "2026-11-10T08:12:16.958068+00:00",
+      "by": "hil:user",
+      "decision": "MATERIAL_CHANGE",
+      "mode": "diff",
+      "hil_confirmed": true,
+      "note": "HIL directed delta-only fix verification."
     }
   ],
   "follow_up": {},
@@ -567,7 +583,7 @@
     "usage": {}
   },
   "created_at": "2026-11-06T14:50:10.299482",
-  "updated_at": "2026-11-08T00:04:49.114680",
+  "updated_at": "2026-11-10T13:46:43.425584",
   "score": 0.5,
   "_note": "readiness computed",
   "api_impact": {
@@ -2426,6 +2442,37 @@
         ]
       },
       "evidence": "BI-PF-1531-81e8e8c2f8af.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "308ae158250a155f4e1e240b335e2457916f26a6",
+      "review_sha": "f01a80b868c8",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-10T08:16:42.211453+00:00",
+      "review_scope": "delta",
+      "base_sha": "3f0f8357610bc29f2336480feadbf814670f3344",
+      "head_sha": "308ae158250a155f4e1e240b335e2457916f26a6",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [
+          "Added `test_on_mode_delete_db_failure` passes against the pre-delta code: `_delete_item_from_db` raises before the file-removal loop, so `proj.exists()` and the `_write_indexes` assertion hold without the new `else` branch — the delta's core fix is untested and would regress silently.",
+          "No test exercises a *successful* on-mode delete asserting `items/<id>.json` and `history/<id>.jsonl` survive, so the prior blocker's demanded evidence (non-goal \"No deletion of file projections\" / AC-5 rollback baseline) remains unmet in disposition."
+        ],
+        "MINOR": [
+          "`backlog_scope_check.py` gate semantics change (unlisted FAIL→WARN) ships with no test; nothing asserts unknown→exit 1 and unlisted→exit 0, so the AC-3 scope-gate contract can drift unnoticed.",
+          "When `unknown` and `unlisted` are both present, the early `return 1` suppresses the unlisted WARN, hiding file-authoritative scopes exactly during a failure run.",
+          "New runbook step cites `export --prune --confirm-prune`; the `--confirm-prune` flag is not in the design contract or delta — verify it exists in `scripts/dev/backlog_db_export.py` so the documented rollback is executable."
+        ],
+        "NIT": [
+          "\"OK (N configured scope(s))\" reports only allowlist size while unlisted actives exist; a log-scanning operator can read it as full coverage."
+        ],
+        "SUMMARY": [
+          "Delta correctly fixes on-mode projection deletion (else branch) and aligns the scope gate with the approved \"unlisted stays file-authoritative\" invariant; docs add the missing backfill/rollback sequencing, resolving the core prior blockers in code/doc.",
+          "Top risk: the fail-closed test added as coverage is vacuous w.r.t. the fix — add a successful on-mode delete retention assertion before closing the prior blockers.",
+          "No language-rule, security, or contract regressions observed in this delta."
+        ]
+      },
+      "evidence": "BI-PF-1531-f01a80b868c8.json"
     }
   ],
   "review_dispositions": {
@@ -3031,7 +3078,7 @@
   "control_evidence": [
     {
       "control_id": "CTL-BACKLOG-DB-DEFAULT",
-      "sha": "ce18241a39c07d22b1ef67c8d0af04d1140e8db9-72eae6673708",
+      "sha": "ce18241a39c07d22b1ef67c8d0af04d1140e8db9-cf9a8c1ba4c3",
       "result": "PASS",
       "evidence": "engineering/evidence/BI-PF-1531/current-sha-control.txt"
     }
@@ -4191,6 +4238,138 @@
         "evidence"
       ],
       "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:8110e00c68234359",
+      "finding": "Added `test_on_mode_delete_db_failure` passes against the pre-delta code: `_delete_item_from_db` raises before the file-removal loop, so `proj.exists()` and the `_write_indexes` assertion hold without the new `else` branch — the delta's core fix is untested and would regress silently.",
+      "severity": "MAJOR",
+      "origin_class": "VERIFICATION_GAP",
+      "reproducer": "missing projection-survival test",
+      "regression_test": "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py::test_on_mode_delete_preserves_projections -q",
+      "evidence": "engineering/evidence/BI-PF-1531/failclosed-rollback-tests.txt",
+      "files": [
+        "test-framework/tests/pipeline/test_backlog_db_cutover.py"
+      ],
+      "rollback": "No data impact; test-only verification.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:e69bf434552c3800",
+      "finding": "No test exercises a *successful* on-mode delete asserting `items/<id>.json` and `history/<id>.jsonl` survive, so the prior blocker's demanded evidence (non-goal \"No deletion of file projections\" / AC-5 rollback baseline) remains unmet in disposition.",
+      "severity": "MAJOR",
+      "origin_class": "VERIFICATION_GAP",
+      "reproducer": "missing projection-survival test",
+      "regression_test": "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py::test_on_mode_delete_preserves_projections -q",
+      "evidence": "engineering/evidence/BI-PF-1531/failclosed-rollback-tests.txt",
+      "files": [
+        "test-framework/tests/pipeline/test_backlog_db_cutover.py"
+      ],
+      "rollback": "No data impact; test-only verification.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    }
+  ],
+  "fix_evidence": [
+    {
+      "finding_sig": "sig:f0b30f877a115a47",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "regression_test": "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q",
+      "controls_rerun": [
+        "fix_guard",
+        "control_gate",
+        "backlog-scope"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/evidence/BI-PF-1531/failclosed-rollback-tests.txt"
+    },
+    {
+      "finding_sig": "sig:f80e82c69ad5f0bd",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "regression_test": "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q",
+      "controls_rerun": [
+        "fix_guard",
+        "control_gate",
+        "backlog-scope"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/evidence/BI-PF-1531/failclosed-rollback-tests.txt"
+    },
+    {
+      "finding_sig": "sig:89376bd0f1674a50",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "regression_test": "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q",
+      "controls_rerun": [
+        "fix_guard",
+        "control_gate",
+        "backlog-scope"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/evidence/BI-PF-1531/failclosed-rollback-tests.txt"
+    },
+    {
+      "finding_sig": "sig:07dd4ecda469e31a",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "regression_test": "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q",
+      "controls_rerun": [
+        "fix_guard",
+        "control_gate",
+        "backlog-scope"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/evidence/BI-PF-1531/failclosed-rollback-tests.txt"
+    },
+    {
+      "finding_sig": "sig:010002f49cfe8406",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "regression_test": "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q",
+      "controls_rerun": [
+        "fix_guard",
+        "control_gate",
+        "backlog-scope"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/evidence/BI-PF-1531/failclosed-rollback-tests.txt"
+    },
+    {
+      "finding_sig": "sig:87ad3aa2d16edc18",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "regression_test": "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q",
+      "controls_rerun": [
+        "fix_guard",
+        "control_gate",
+        "backlog-scope"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/evidence/BI-PF-1531/failclosed-rollback-tests.txt"
+    },
+    {
+      "finding_sig": "sig:8110e00c68234359",
+      "origin_class": "VERIFICATION_GAP",
+      "regression_test": "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py::test_on_mode_delete_preserves_projections -q",
+      "controls_rerun": [
+        "fix_guard"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/evidence/BI-PF-1531/failclosed-rollback-tests.txt"
+    },
+    {
+      "finding_sig": "sig:e69bf434552c3800",
+      "origin_class": "VERIFICATION_GAP",
+      "regression_test": "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py::test_on_mode_delete_preserves_projections -q",
+      "controls_rerun": [
+        "fix_guard"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/evidence/BI-PF-1531/failclosed-rollback-tests.txt"
     }
   ]
 }
