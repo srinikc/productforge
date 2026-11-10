@@ -110,3 +110,7 @@ PF_DB_DSN="$PF_RUNTIME_DSN" PF_BACKUP_CONFIRMED=1 python scripts/dev/backlog_mig
 ## Generated-product tenants
 
 `PF_BACKLOG_DB_SCOPES` defaults to `product_forge` and `ProductForge-Dashboard`. Every additional PF-GP tenant must be added explicitly after parity is proven. An unlisted scope logs `BACKLOG_DB_SCOPE_UNLISTED` and stays file-authoritative; it is never silently promoted.
+
+## Backfill sequencing
+
+Backfill and parity run with `PF_BACKLOG_DB=on` in a maintenance/integration window because tooling is a DB writer. `dual`/`shadow` are application migration modes, not backfill modes. The operational sequence is: backup -> migrate -> backfill/parity with on -> enable app traffic; rollback uses export --prune --confirm-prune -> parity -> off.

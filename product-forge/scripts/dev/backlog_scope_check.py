@@ -11,9 +11,11 @@ def main():
     active |= {p.name for p in (ROOT/"products").iterdir() if (p/"data"/"backlog"/"items").is_dir()}
     unknown=sorted(allowed-active)
     unlisted=sorted(active-allowed)
-    if unknown or unlisted:
-        print(f"backlog-scope: FAIL unknown={unknown} unlisted={unlisted}")
+    if unknown:
+        print(f"backlog-scope: FAIL unknown configured scope(s)={unknown}")
         return 1
-    print(f"backlog-scope: OK ({len(allowed)} scope(s))")
+    if unlisted:
+        print(f"backlog-scope: WARN active scope(s) stay file-authoritative until added: {unlisted}")
+    print(f"backlog-scope: OK ({len(allowed)} configured scope(s))")
     return 0
 if __name__=="__main__": raise SystemExit(main())

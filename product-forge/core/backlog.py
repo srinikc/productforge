@@ -1763,11 +1763,11 @@ def delete(scope: str, project: str | None, eid: str) -> dict | None:
         bucket.remove(target)
         if _db_for(str(project or scope or "product_forge")):
             _delete_item_from_db(eid, _db_tenant(scope, project))
-        for p in (os.path.join(_items_dir(d), f"{eid}.json"),
-                  os.path.join(d, "history", f"{eid}.jsonl")):
-            if os.path.exists(p):
-                os.remove(p)
-        if not _db_for(str(project or scope or "product_forge")):
+        else:
+            for p in (os.path.join(_items_dir(d), f"{eid}.json"),
+                      os.path.join(d, "history", f"{eid}.jsonl")):
+                if os.path.exists(p):
+                    os.remove(p)
             _write_indexes(scope, project, op, cl)
     finally:
         _unlock(lp)

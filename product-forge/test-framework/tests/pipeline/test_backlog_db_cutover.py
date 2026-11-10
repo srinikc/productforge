@@ -269,6 +269,10 @@ def test_on_mode_delete_db_failure(monkeypatch, tmp_path):
     monkeypatch.setenv("PF_BACKLOG_DB_SCOPES", "product_forge")
     monkeypatch.setattr(backlog, "_load_all", lambda s, p: ([{"id": "BI-PF-1", "scope": "product_forge", "status": "new"}], []))
     monkeypatch.setattr(backlog, "_delete_item_from_db", lambda *a: (_ for _ in ()).throw(RuntimeError("db down")))
+    proj = tmp_path / "items" / "BI-PF-1.json"; proj.parent.mkdir(parents=True); proj.write_text("{}", encoding="utf-8")
+    monkeypatch.setattr(backlog, "_items_dir", lambda *a: str(tmp_path / "items"))
+    monkeypatch.setattr(backlog, "_paths", lambda *a: (str(tmp_path), "", "", "", ""))
     monkeypatch.setattr(backlog, "_write_indexes", lambda *a: (_ for _ in ()).throw(AssertionError("file write")))
     with pytest.raises(RuntimeError, match="db down"):
         backlog.delete("product_forge", None, "BI-PF-1")
+    assert proj.exists()
