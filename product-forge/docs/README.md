@@ -99,6 +99,7 @@
 | [`EVENTING-ALERTING-SSOT-DESIGN.md`](EVENTING-ALERTING-SSOT-DESIGN.md) | Design | 0% | Eventing & Alerting SSOT: Go-first event bus + subscriber/alert transports; Python thin client (BI-PF-1265/1266; ADR-0005) | — | — |
 | [`EXTERNAL-TARGETS-WORKFLOW.md`](EXTERNAL-TARGETS-WORKFLOW.md) | Design | 80% | External delivery targets workflow | **Pending: some external delivery targets + their dashboard selection/UI.** | BI-0044, BI-0071, BI-0121–BI-0123 |
 | [`FEASIBILITY-TRIAGE-DESIGN.md`](FEASIBILITY-TRIAGE-DESIGN.md) | Design | 100% | Two-phase feasibility & capability triage (BI-0214) | — | — |
+| [`FIX-IMPACT-CONTRACT.md`](FIX-IMPACT-CONTRACT.md) | SSOT | 100% | Fix impact contract: reproducer, regression test, evidence, rollback, artifacts, status | — | — |
 | [`FULL-DOGFOOD-AND-FINAL-AUDIT.md`](FULL-DOGFOOD-AND-FINAL-AUDIT.md) | Design | 100% | Full dogfood lifecycle harness + final §42 production-readiness acceptance audit | — | — |
 | [`Failure-Recovery-System.md`](Failure-Recovery-System.md) | Implemented | 100% | Failure / retry / checkpoint recovery | — | — |
 | [`GENERATION-PROPORTIONALITY.md`](GENERATION-PROPORTIONALITY.md) | Design | 0% | Generation proportionality work plan: artifact contract + project profile drive generation (epic BI-PF-1388) | — | — |
@@ -188,6 +189,7 @@
 | [`SECURITY-ARCHITECTURE-CISO.md`](SECURITY-ARCHITECTURE-CISO.md) | SSOT | 100% | CISO security-architecture posture: trust boundaries, controls, risk, framework mapping (BI-PF-1203) | — | — |
 | [`SESSION-RESUME-MASTER-PLAN.md`](SESSION-RESUME-MASTER-PLAN.md) | Analysis (current) | 100% | Session hand-off notes to resume master-plan execution | — | — |
 | [`SHARED-PATH-RESERVATION-DESIGN.md`](SHARED-PATH-RESERVATION-DESIGN.md) | Design | 0% | Shared-path reservation + common-code detection (allowlist + git hotspots) for parallel workers (BI-PF-0357) | — | — |
+| [`SPEC-CHAIN.md`](SPEC-CHAIN.md) | SSOT | 100% | PF-SB spec chain: functional freeze, design, conditional specs, conformance, fix-impact, review scope | — | — |
 | [`STORE-DATAFLOW.md`](STORE-DATAFLOW.md) | Generated | 100% | Generated store data-flow inventory from config/store-registry.json (EDP-02/BI-PF-1294) | — | — |
 | [`STRUCTURE-CONTRACT.md`](STRUCTURE-CONTRACT.md) | Implemented | 100% | Binding repo structure contract (folders + owners) | — | — |
 | [`TESTING-REFERENCE.md`](TESTING-REFERENCE.md) | Implemented | 100% | Testing reference: how to run/write the PF test suites | — | — |

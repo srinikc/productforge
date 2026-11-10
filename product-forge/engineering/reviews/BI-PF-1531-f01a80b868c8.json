@@ -1,0 +1,33 @@
+{
+  "item": "BI-PF-1531",
+  "sha": "f01a80b868c8",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-10T08:16:42.211453+00:00",
+  "review_scope": "delta",
+  "base_sha": "3f0f8357610bc29f2336480feadbf814670f3344",
+  "head_sha": "308ae158250a155f4e1e240b335e2457916f26a6",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "Added `test_on_mode_delete_db_failure` passes against the pre-delta code: `_delete_item_from_db` raises before the file-removal loop, so `proj.exists()` and the `_write_indexes` assertion hold without the new `else` branch \u2014 the delta's core fix is untested and would regress silently.",
+      "No test exercises a *successful* on-mode delete asserting `items/<id>.json` and `history/<id>.jsonl` survive, so the prior blocker's demanded evidence (non-goal \"No deletion of file projections\" / AC-5 rollback baseline) remains unmet in disposition."
+    ],
+    "MINOR": [
+      "`backlog_scope_check.py` gate semantics change (unlisted FAIL\u2192WARN) ships with no test; nothing asserts unknown\u2192exit 1 and unlisted\u2192exit 0, so the AC-3 scope-gate contract can drift unnoticed.",
+      "When `unknown` and `unlisted` are both present, the early `return 1` suppresses the unlisted WARN, hiding file-authoritative scopes exactly during a failure run.",
+      "New runbook step cites `export --prune --confirm-prune`; the `--confirm-prune` flag is not in the design contract or delta \u2014 verify it exists in `scripts/dev/backlog_db_export.py` so the documented rollback is executable."
+    ],
+    "NIT": [
+      "\"OK (N configured scope(s))\" reports only allowlist size while unlisted actives exist; a log-scanning operator can read it as full coverage."
+    ],
+    "SUMMARY": [
+      "Delta correctly fixes on-mode projection deletion (else branch) and aligns the scope gate with the approved \"unlisted stays file-authoritative\" invariant; docs add the missing backfill/rollback sequencing, resolving the core prior blockers in code/doc.",
+      "Top risk: the fail-closed test added as coverage is vacuous w.r.t. the fix \u2014 add a successful on-mode delete retention assertion before closing the prior blockers.",
+      "No language-rule, security, or contract regressions observed in this delta."
+    ]
+  },
+  "rereview_reason": "fix 81e8e8c2f8af blockers/majors",
+  "rereview_reason_sha256": "bb108672845f0058aa092227c1fb9055b5c70eafc3197e64b32d308cb1dbcc81"
+}

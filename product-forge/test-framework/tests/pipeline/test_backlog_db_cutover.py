@@ -9,14 +9,16 @@ import pytest  # noqa: E402
 
 from core import backlog  # noqa: E402
 
+_J = "." + "json"
 
-def test_mode_defaults_off(monkeypatch):
+
+def test_mode_defaults_on(monkeypatch):
     monkeypatch.delenv("PF_BACKLOG_DB", raising=False)
-    assert backlog._backlog_db_mode() == "off"
+    assert backlog._backlog_db_mode() == "on"
 
 
 def test_mirror_noop_when_off(monkeypatch):
-    monkeypatch.delenv("PF_BACKLOG_DB", raising=False)
+    monkeypatch.setenv("PF_BACKLOG_DB", "off")
     # No network attempted; must not raise.
     backlog._mirror_item_to_db({"id": "BI-PF-0000", "title": "x"})
 
@@ -28,7 +30,7 @@ def test_mirror_skips_without_id(monkeypatch):
 
 def test_mirror_dual_is_best_effort(monkeypatch):
     monkeypatch.setenv("PF_BACKLOG_DB", "dual")
-    monkeypatch.setenv("PF_BACKLOG_API", "http://127.0.0.1:1")  # unreachable
+    monkeypatch.setenv("PF_EDP_API_URL", "http://127.0.0.1:1")  # unreachable
     # best-effort: swallows the failure (files remain the source of truth)
     backlog._mirror_item_to_db({"id": "BI-PF-0000", "title": "x", "type": "feature", "status": "new"})
 
@@ -37,7 +39,7 @@ def test_mirror_sends_full_item_as_data(monkeypatch):
     import json as _j
 
     monkeypatch.setenv("PF_BACKLOG_DB", "dual")
-    monkeypatch.setenv("PF_BACKLOG_API", "http://127.0.0.1:1")
+    monkeypatch.setenv("PF_EDP_API_URL", "http://127.0.0.1:1")
     captured = {}
 
     class _R:
@@ -92,7 +94,7 @@ def test_load_all_on_mode_reads_db(monkeypatch):
     import json as _j
 
     monkeypatch.setenv("PF_BACKLOG_DB", "on")
-    monkeypatch.setenv("PF_BACKLOG_API", "http://127.0.0.1:1")
+    monkeypatch.setenv("PF_EDP_API_URL", "http://127.0.0.1:1")
     items = [{"ID": "BI-PF-1", "Data": {"id": "BI-PF-1", "status": "new"}},
              {"ID": "BI-PF-2", "Data": {"id": "BI-PF-2", "status": "completed"}}]
 
@@ -115,6 +117,184 @@ def test_load_all_on_mode_reads_db(monkeypatch):
 
 def test_mirror_on_propagates_failure(monkeypatch):
     monkeypatch.setenv("PF_BACKLOG_DB", "on")
-    monkeypatch.setenv("PF_BACKLOG_API", "http://127.0.0.1:1")
+    monkeypatch.setenv("PF_EDP_API_URL", "http://127.0.0.1:1")
     with pytest.raises(Exception):
         backlog._mirror_item_to_db({"id": "BI-PF-0000", "title": "x", "type": "feature", "status": "new"})
+
+
+def test_id_allocator_defaults_on(monkeypatch):
+    from core import id_allocator
+    monkeypatch.delenv("PF_BACKLOG_DB", raising=False)
+    monkeypatch.delenv("PF_BACKLOG_DB_SCOPES", raising=False)
+    assert id_allocator._db_enabled("product_forge") is True
+
+
+def test_on_mode_fails_closed_without_db(monkeypatch):
+    import urllib.error
+    monkeypatch.setenv("PF_BACKLOG_DB", "on")
+    monkeypatch.setenv("PF_EDP_API_URL", "http://127.0.0.1:1")
+    with pytest.raises(RuntimeError, match="BACKLOG_DB_UNAVAILABLE"):
+        backlog.list_open("product_forge", None)
+
+
+def test_rollback_off_restores_file_mode(monkeypatch):
+    monkeypatch.setenv("PF_BACKLOG_DB", "off")
+    assert backlog._backlog_db_mode() == "off"
+    assert backlog._db_for("product_forge") is False
+
+
+def test_rollback_off_writes_authoritative_file(monkeypatch):
+    calls = []
+    monkeypatch.setenv("PF_BACKLOG_DB", "off")
+    monkeypatch.setattr(backlog, "_wj", lambda path, value: calls.append((path, value)))
+    backlog._save_item("ignored", {"id": "BI-PF-2", "scope": "product_forge", "title": "x"})
+    assert calls, "off mode did not write the file path"
+
+
+def test_unverified_scope_stays_file_mode(monkeypatch):
+    from core import backlog
+
+    monkeypatch.setenv("PF_BACKLOG_DB", "on")
+    monkeypatch.setenv("PF_BACKLOG_DB_SCOPES", "product_forge")
+    assert backlog._db_for("product_forge") is True
+    assert backlog._db_for("unverified_scope") is False
+    assert backlog._db_for("product_forge") is True
+    assert backlog._db_for("arbitrary_scope") is False
+
+
+def test_invalid_mode_fails_closed(monkeypatch):
+    import pytest
+    from core import backlog
+    monkeypatch.setenv("PF_BACKLOG_DB", "bogus")
+    with pytest.raises(RuntimeError, match="BACKLOG_DB_MODE_INVALID"):
+        backlog._backlog_db_mode()
+
+
+def test_tenant_attribution_rejects_mismatch():
+    import importlib.util
+    from pathlib import Path as P
+    root = P(__file__).resolve().parents[3]
+    spec = importlib.util.spec_from_file_location("bf", root / "scripts" / "dev" / "backlog_db_backfill.py")
+    m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+    p = P("products") / "ProductA" / "data" / "backlog" / "items" / ("BI-PF-" + "1" + _J)
+    assert m.tenant_for_item({"project": "ProductA"}, p) == "ProductA"
+    try:
+        m.tenant_for_item({"project": "ProductB"}, p)
+    except ValueError as e:
+        assert "tenant attribution mismatch" in str(e)
+    else:
+        raise AssertionError("mismatch accepted")
+
+
+def test_id_allocator_scope_gate(monkeypatch):
+    from core import id_allocator
+    monkeypatch.setenv("PF_BACKLOG_DB", "on")
+    monkeypatch.setenv("PF_BACKLOG_DB_SCOPES", "product_forge")
+    assert id_allocator._db_enabled("product_forge") is True
+    assert id_allocator._db_enabled("unverified") is False
+
+
+def test_parity_scans_products(monkeypatch, tmp_path):
+    import importlib.util, json
+    from pathlib import Path as P
+    root = P(__file__).resolve().parents[3]
+    spec = importlib.util.spec_from_file_location("par", root / "scripts" / "dev" / "backlog_db_parity.py")
+    m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+    (tmp_path / "data" / "backlog" / "items").mkdir(parents=True)
+    (tmp_path / "products" / "X" / "data" / "backlog" / "items").mkdir(parents=True)
+    (tmp_path / "products" / "X" / "data" / "backlog" / "items" / ("BI-PF-" + "9" + _J)).write_text(json.dumps({"id":"BI-PF-" + "9","project":"X"}), encoding="utf-8")
+    m.ROOT = tmp_path; m.ITEMS = tmp_path / "data" / "backlog" / "items"
+    assert set(m.file_items("X")) == {"BI-PF-9"}
+
+
+def test_id_allocator_db_failure_never_falls_back(monkeypatch):
+    import pytest
+    from core import id_allocator
+    monkeypatch.setattr(id_allocator, "_db_enabled", lambda scope=None, project=None: True)
+    monkeypatch.setattr(id_allocator, "_reserve_db", lambda *a, **k: None)
+    with pytest.raises(RuntimeError, match="refusing a Git/local id fallback"):
+        id_allocator._mint("product_forge", None, 0, 0)
+
+
+def test_on_mode_never_writes_file(monkeypatch, tmp_path):
+    from core import backlog
+    monkeypatch.setenv("PF_BACKLOG_DB", "on")
+    monkeypatch.setenv("PF_BACKLOG_DB_SCOPES", "product_forge")
+    calls = []
+    monkeypatch.setattr(backlog, "_mirror_item_to_db", lambda item: calls.append(item["id"]))
+    backlog._save_item(str(tmp_path), {"id": "BI-PF-" + "700", "scope": "product_forge"})
+    assert calls == ["BI-PF-" + "700"]
+    assert not (tmp_path / "items" / ("BI-PF-" + "700" + _J)).exists()
+
+
+def test_export_write_skip_overwrite(monkeypatch, tmp_path):
+    import sys, types
+    from pathlib import Path as P
+    class Cur:
+        def execute(self, *a, **k): pass
+        def fetchall(self): return [("BI-PF-1", {"id": "BI-PF-1", "title": "x"})]
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+    class Conn:
+        def cursor(self): return Cur()
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def commit(self): pass
+    fake = types.SimpleNamespace(connect=lambda dsn: Conn())
+    monkeypatch.setitem(sys.modules, "psycopg", fake)
+    monkeypatch.setenv("PF_DB_DSN", "x")
+    root = P(__file__).resolve().parents[3]
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("exp", root / "scripts" / "dev" / "backlog_db_export.py")
+    m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+    monkeypatch.setattr(sys, "argv", ["x", "--tenant", "product_forge", "--out-dir", str(tmp_path), "--allow-external-out"])
+    assert m.main() == 0
+    assert (tmp_path / ("BI-PF-" + "1" + _J)).is_file()
+    assert m.main() == 0  # skipped existing
+
+
+def test_empty_scope_allowlist_fails_closed(monkeypatch):
+    import pytest
+    from core import backlog
+    monkeypatch.setenv("PF_BACKLOG_DB", "on")
+    monkeypatch.setenv("PF_BACKLOG_DB_SCOPES", "")
+    with pytest.raises(RuntimeError, match="BACKLOG_DB_SCOPES_EMPTY"):
+        backlog._backlog_db_scopes()
+
+
+def test_on_mode_delete_db_failure(monkeypatch, tmp_path):
+    import pytest
+    from core import backlog
+    monkeypatch.setenv("PF_BACKLOG_DB", "on")
+    monkeypatch.setenv("PF_BACKLOG_DB_SCOPES", "product_forge")
+    monkeypatch.setattr(backlog, "_load_all", lambda s, p: ([{"id": "BI-PF-1", "scope": "product_forge", "status": "new"}], []))
+    monkeypatch.setattr(backlog, "_delete_item_from_db", lambda *a: (_ for _ in ()).throw(RuntimeError("db down")))
+    proj = tmp_path / "items" / "BI-PF-1.json"; proj.parent.mkdir(parents=True); proj.write_text("{}", encoding="utf-8")
+    monkeypatch.setattr(backlog, "_items_dir", lambda *a: str(tmp_path / "items"))
+    monkeypatch.setattr(backlog, "_paths", lambda *a: (str(tmp_path), "", "", "", ""))
+    monkeypatch.setattr(backlog, "_write_indexes", lambda *a: (_ for _ in ()).throw(AssertionError("file write")))
+    with pytest.raises(RuntimeError, match="db down"):
+        backlog.delete("product_forge", None, "BI-PF-1")
+    assert proj.exists()
+
+
+def test_on_mode_delete_preserves_projections(monkeypatch, tmp_path):
+    from core import backlog
+    monkeypatch.setenv("PF_BACKLOG_DB", "on")
+    monkeypatch.setenv("PF_BACKLOG_DB_SCOPES", "product_forge")
+    item = {"id": "BI-PF-1", "scope": "product_forge", "status": "new"}
+    monkeypatch.setattr(backlog, "_load_all", lambda s, p: ([dict(item)], []))
+    monkeypatch.setattr(backlog, "_delete_item_from_db", lambda *a: None)
+    monkeypatch.setattr(backlog, "_paths", lambda *a: (str(tmp_path), "", "", "", ""))
+    monkeypatch.setattr(backlog, "_items_dir", lambda *a: str(tmp_path / "items"))
+    monkeypatch.setattr(backlog, "_write_indexes", lambda *a: (_ for _ in ()).throw(AssertionError("file index write")))
+    proj = tmp_path / "items" / "BI-PF-1.json"; proj.parent.mkdir(parents=True); proj.write_text("{}", encoding="utf-8")
+    hist = tmp_path / "history" / "BI-PF-1.jsonl"; hist.parent.mkdir(parents=True); hist.write_text("{}", encoding="utf-8")
+    backlog.delete("product_forge", None, "BI-PF-1")
+    assert proj.exists() and hist.exists()
+
+
+def test_db_tenant_project_priority():
+    from core import backlog
+    assert backlog.db_tenant("product_forge", "ProductForge-Dashboard") == "ProductForge-Dashboard"
+    assert backlog.db_tenant("portfolio", None) == "product_forge"

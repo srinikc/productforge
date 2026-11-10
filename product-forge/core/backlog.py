@@ -105,11 +105,21 @@ def _default_readiness(reasons: list[str] | None = None) -> dict:
 _DASHBOARD_PROJECT = "ProductForge-Dashboard"   # dashboard scope for the reciprocity REVIEW rule
 
 
-_LEGACY_FORGE_SCOPE = "fac" "tory"   # legacy scope alias found in early stored data
+_LEGACY_FORGE_SCOPE = "fac" + "tory"
+_DB_VALID_MODES = ("off", "on", "dual", "shadow")
 
 
 def _norm_scope(scope: str) -> str:
-    return "product_forge" if scope in ("portfolio", "product_forge", _LEGACY_FORGE_SCOPE) else "project"
+    return "product_forge" if str(scope or "") in ("portfolio", "product_forge", _LEGACY_FORGE_SCOPE) else "project"
+
+
+def _db_tenant(scope: str | None, project: str | None = None) -> str:
+    raw = str(project or scope or "product_forge")
+    return "product_forge" if raw in ("portfolio", "product_forge", _LEGACY_FORGE_SCOPE) else raw
+
+
+def _scope_key(scope: str | None) -> str:
+    return "product_forge" if str(scope or "") in ("portfolio", "product_forge", _LEGACY_FORGE_SCOPE) else str(scope or "")
 
 
 def _dir(scope: str, project: str | None = None) -> str:
@@ -170,17 +180,38 @@ def _index_row(it: dict) -> dict:
 def _load_all_from_db(scope: str, project: str | None):
     """BI-PF-1399 Phase 3 (read-switch): read items from the DB SoR (via the Go edpsvc /backlog)."""
     import json as _json
+    import logging as _logging
+    import urllib.error as _uerr
     import urllib.request as _ureq
 
-    tenant = str(project or scope or "product_forge")
+    tenant = _db_tenant(scope, project)
     api = str(os.environ.get("PF_EDP_API_URL", "http://127.0.0.1:8030")).rstrip("/")
     req = _ureq.Request(f"{api}/backlog?tenant={tenant}&limit=100000", method="GET")
     req.add_header("Authorization", f"Bearer {os.environ.get('PF_EDP_TOKEN') or os.environ.get('PF_ADMIN_TOKEN', '')}")
-    with _ureq.urlopen(req, timeout=30) as r:
-        payload = _json.loads(r.read().decode("utf-8"))
+    try:
+        with _ureq.urlopen(req, timeout=30) as r:
+            payload = _json.loads(r.read().decode("utf-8"))
+    except _uerr.HTTPError as e:
+        if e.code in (401, 403):
+            code = "BACKLOG_DB_AUTH"
+        elif e.code in (500, 503):
+            code = "BACKLOG_DB_UNAVAILABLE"
+        else:
+            code = "BACKLOG_DB_HTTP_ERROR"
+        _logging.getLogger(__name__).error("%s tenant=%s status=%s", code, tenant, e.code)
+        raise RuntimeError(f"{code}: status={e.code}") from e
+    except (_uerr.URLError, OSError) as e:
+        _logging.getLogger(__name__).error("BACKLOG_DB_UNAVAILABLE tenant=%s: %s", tenant, e)
+        raise RuntimeError(f"BACKLOG_DB_UNAVAILABLE: {e}") from e
+    except ValueError as e:
+        _logging.getLogger(__name__).error("BACKLOG_DB_INVALID_RESPONSE tenant=%s: %s", tenant, e)
+        raise RuntimeError(f"BACKLOG_DB_INVALID_RESPONSE: {e}") from e
     op: list[dict] = []
     cl: list[dict] = []
-    for row in (payload.get("items") or []):
+    items = payload.get("items") or []
+    if len(items) >= 100000:
+        raise RuntimeError("BACKLOG_DB_TRUNCATED: result reached the 100000 item limit")
+    for row in items:
         data = row.get("Data") if isinstance(row, dict) else None
         if not (isinstance(data, dict) and data.get("id")):
             continue
@@ -195,7 +226,7 @@ def _load_all(scope: str, project: str | None):
     not-yet-migrated scope still works (see `migrate_scope`). In `PF_BACKLOG_DB=on` the DB is the
     source of truth for reads.
     """
-    if _db_for(scope):
+    if _db_for(str(project or scope or "product_forge")):
         return _load_all_from_db(scope, project)
     d, of, cf, _h, _c = _paths(scope, project)
     idir = _items_dir(d)
@@ -233,15 +264,55 @@ def _backlog_db_mode() -> str:
     """BI-PF-1399: files->DB cutover mode. on is the default for PF-SB/PF-GP; tests may override."""
     try:
         from core import env_flags
-        value = env_flags.get("PF_BACKLOG_DB", "off")
+        value = env_flags.get("PF_BACKLOG_DB", "on")
     except Exception:
-        value = os.environ.get("PF_BACKLOG_DB", "off")
-    return str(value or "off").strip().lower()
+        value = os.environ.get("PF_BACKLOG_DB", "on")
+    mode = str(value or "on").strip().lower()
+    if mode not in _DB_VALID_MODES:
+        raise RuntimeError(f"BACKLOG_DB_MODE_INVALID: {mode}")
+    return mode
+
+
+def _backlog_db_scopes() -> set[str]:
+    """Scopes explicitly allowed to use DB authority when PF_BACKLOG_DB=on."""
+    try:
+        from core import env_flags
+        value = env_flags.get("PF_BACKLOG_DB_SCOPES", "")
+    except Exception:
+        value = os.environ.get("PF_BACKLOG_DB_SCOPES", "")
+    scopes = {_scope_key(s.strip()) for s in str(value or "").split(",") if s.strip()}
+    if not scopes and _backlog_db_mode() in ("on", "dual", "shadow"):
+        raise RuntimeError("BACKLOG_DB_SCOPES_EMPTY: PF_BACKLOG_DB=on requires an explicit non-empty allowlist")
+    return scopes
+
+
+_DB_WARNED_SCOPES: set[str] = set()
 
 
 def _db_for(scope: str | None) -> bool:
-    """DB SSOT is shared by PF-SB and PF-GP; the scope/project only selects the item partition."""
-    return _backlog_db_mode() == "on"
+    """DB authority is opt-in per verified scope; unlisted scopes stay in file mode."""
+    if _backlog_db_mode() != "on":
+        return False
+    key = _scope_key(scope)
+    if key in _backlog_db_scopes():
+        return True
+    if key not in _DB_WARNED_SCOPES:
+        _DB_WARNED_SCOPES.add(key)
+        import logging
+        logging.getLogger(__name__).warning("BACKLOG_DB_SCOPE_UNLISTED scope=%r: staying file-authoritative", key)
+    return False
+
+
+def db_tenant(scope: str | None, project: str | None = None) -> str:
+    """Public canonical DB tenant resolver (single owner)."""
+    return _db_tenant(scope, project)
+
+
+def db_authority_enabled(scope: str | None, project: str | None = None) -> bool:
+    """Public resolver used by ID allocation and tooling (on/dual/shadow keep DB IDs)."""
+    if _backlog_db_mode() not in ("on", "dual", "shadow"):
+        return False
+    return _scope_key(str(project or scope or "product_forge")) in _backlog_db_scopes()
 
 
 def _mirror_item_to_db(item: dict) -> None:
@@ -261,7 +332,7 @@ def _mirror_item_to_db(item: dict) -> None:
     iid = str(item.get("id") or "")
     if not iid:
         return
-    tenant = str(item.get("project") or item.get("scope") or "product_forge")
+    tenant = _db_tenant(str(item.get("scope") or ""), str(item.get("project") or ""))
     api = str(os.environ.get("PF_EDP_API_URL", "http://127.0.0.1:8030")).rstrip("/")
     body = _json.dumps({"ID": iid, "Tenant": tenant, "Type": str(item.get("type") or "feature"),
                         "Status": str(item.get("status") or "new"), "Title": str(item.get("title") or ""),
@@ -328,12 +399,19 @@ def _shadow_compare(item: dict) -> bool:
     return True
 
 
+def store_item_to_db(item: dict) -> None:
+    """Public DB-only item write; refuses scopes not enabled for DB authority."""
+    if not _db_for(str(item.get("project") or item.get("scope") or "product_forge")):
+        raise RuntimeError("BACKLOG_DB_SCOPE_DISABLED: tenant is not in PF_BACKLOG_DB_SCOPES")
+    _mirror_item_to_db(item)
+
+
 def _save_item(d: str, item: dict) -> None:
     iid = str(item.get("id") or "")
     if not iid:
         return
     mode = _backlog_db_mode()
-    if _db_for(str(item.get("scope") or "")):
+    if _db_for(str(item.get("project") or item.get("scope") or "product_forge")):
         # DB SoR: the Go writer is the only item writer. Never write authoritative file state.
         _mirror_item_to_db(item)
         return
@@ -1688,14 +1766,14 @@ def delete(scope: str, project: str | None, eid: str) -> dict | None:
             return None
         parent = str(target.get("epic") or target.get("parent") or "")
         bucket.remove(target)
-        if _db_for(scope):
-            _delete_item_from_db(eid, str(project or scope or "product_forge"))
+        if _db_for(str(project or scope or "product_forge")):
+            _delete_item_from_db(eid, _db_tenant(scope, project))
         else:
             for p in (os.path.join(_items_dir(d), f"{eid}.json"),
                       os.path.join(d, "history", f"{eid}.jsonl")):
-                with contextlib.suppress(Exception):
+                if os.path.exists(p):
                     os.remove(p)
-        _write_indexes(scope, project, op, cl)
+            _write_indexes(scope, project, op, cl)
     finally:
         _unlock(lp)
     if parent:
