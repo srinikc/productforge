@@ -443,13 +443,16 @@ def _evidence_body(item: dict) -> str:
 
 
 def _docs_body(item: dict) -> str:
-    refs = list(item.get("affected_files") or []) + list(((item.get("review_scope") or {}).get("files")) or [])
+    refs = ["config/env-flags.json", "config/functional-spec.json", "config/spec-pack.json", "config/fix-impact.json"]
+    refs += list(item.get("affected_files") or []) + list(((item.get("review_scope") or {}).get("files")) or [])
     out, seen = [], set()
     for ref in refs:
         if not str(ref).endswith((".md", ".json", ".yml", ".yaml")) or ref in seen:
             continue
         seen.add(ref)
-        p = ROOT / str(ref)
+        p = (ROOT / str(ref)).resolve()
+        if ROOT.resolve() not in p.parents:
+            continue
         if p.is_file():
             out.append(f"--- {ref} ---\n{p.read_text(encoding='utf-8', errors='replace')[:5000]}")
         if sum(len(x) for x in out) > 18000:
