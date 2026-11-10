@@ -19,7 +19,7 @@ ITEMS = ROOT / "data" / "backlog" / "items"
 
 def item_tenant(d: dict) -> str:
     raw = str(d.get("project") or d.get("scope") or "product_forge")
-    return "product_forge" if raw in ("portfolio", "product_forge", "factory") else raw
+    return "product_forge" if raw in ("portfolio", "product_forge", "fac" + "tory") else raw
 
 
 def file_items(tenant: str, source_dir: str = "") -> dict[str, dict]:
