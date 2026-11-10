@@ -114,6 +114,8 @@ def _get_item(item: str) -> dict:
 EXCLUDE = [
     ":(exclude,glob)**/engineering/**",
     ":(exclude,glob)**/data/backlog/**",
+    ":(exclude,glob)**/docs/**",
+    ":(exclude,glob)**/config/**",
 ]
 
 
@@ -440,6 +442,21 @@ def _evidence_body(item: dict) -> str:
             + "\n".join(out) + "\n```") if out else ""
 
 
+def _docs_body(item: dict) -> str:
+    refs = list(item.get("affected_files") or []) + list(((item.get("review_scope") or {}).get("files")) or [])
+    out, seen = [], set()
+    for ref in refs:
+        if not str(ref).endswith(".md") or ref in seen:
+            continue
+        seen.add(ref)
+        p = ROOT / str(ref)
+        if p.is_file():
+            out.append(f"--- {ref} ---\n{p.read_text(encoding='utf-8', errors='replace')[:5000]}")
+        if sum(len(x) for x in out) > 18000:
+            break
+    return ("\n\nReferenced docs (current; docs commits do not change the diff SHA):\n```\n" + "\n".join(out) + "\n```") if out else ""
+
+
 def _build_prompt(item: dict, item_id: str, mode: str, base: str = "") -> str:
     ac = "\n".join(f"- {c}" for c in (item.get("acceptance_criteria") or [])) or "- (none)"
     body = _design_body(item) if mode == "design" else "Diff:\n```diff\n" + _git_diff(base)[:500000] + "\n```"
@@ -455,6 +472,9 @@ def _build_prompt(item: dict, item_id: str, mode: str, base: str = "") -> str:
         evidence_txt = _evidence_body(item)
         if evidence_txt:
             prompt += "\n\n" + evidence_txt
+        docs_txt = _docs_body(item)
+        if docs_txt:
+            prompt += "\n\n" + docs_txt
         if base:
             acs = item.get("ac_verification") or []
             ac_txt = "\n".join(
