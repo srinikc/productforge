@@ -583,7 +583,7 @@
     "usage": {}
   },
   "created_at": "2026-11-06T14:50:10.299482",
-  "updated_at": "2026-11-10T14:19:45.900855",
+  "updated_at": "2026-11-10T14:48:04.366876",
   "score": 0.5,
   "_note": "readiness computed",
   "api_impact": {
@@ -2592,6 +2592,34 @@
         ]
       },
       "evidence": "BI-PF-1531-7e3bc18cbd24.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "9f568e9df968c10c61fd965475ebcf00faf7d23e",
+      "review_sha": "830717854b36",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-10T09:18:03.166515+00:00",
+      "review_scope": "delta",
+      "base_sha": "ac27d097f8f9b98f6420f7581689dcce721c04bc",
+      "head_sha": "9f568e9df968c10c61fd965475ebcf00faf7d23e",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [
+          "Delta is behavior-neutral literal obfuscation only: `\"factory\"` → `\"fac\" + \"tory\"` in shipped tooling (`backlog_db_parity.py`) and `\"BI-PF-1.json\"`/`\"BI-PF-1.jsonl\"` → concatenated forms in `test_backlog_db_cutover.py`; splitting literals defeats grep-based review and source scanning with no stated rationale — treat as suspected gate/scanner evasion and require justification or revert.",
+          "The increment advances no BI-PF-1531 AC (AC-1..AC-5) and changes no observable behavior, so this delta alone is unjustified churn against the approved design contract; an unexplained edit to AC-4/AC-5 evidence tests must not ship silently."
+        ],
+        "MINOR": [
+          "The fragmented literals break text search for the `factory` tenant alias and test fixture paths in these files, degrading operator/debug tooling; if a scanner rule motivates the split, record the rule, origin class, and evidence per `config/fix-impact.json` rather than leaving intent implicit."
+        ],
+        "NIT": [
+          "CPython constant-folds these concatenations, so the edits produce identical bytecode while creating conflict surface with any concurrent edits to the same lines — pure source churn with zero behavioral gain."
+        ],
+        "SUMMARY": [
+          "The delta contains no functional change to the DB-authority cutover; it only obfuscates string literals in one tooling script and two fail-closed/rollback tests.",
+          "Top risk: unjustified obfuscation in shipped code and AC evidence tests, which harms maintainability/searchability and may indicate scanner or gate evasion — revert or document with evidence before approval."
+        ]
+      },
+      "evidence": "BI-PF-1531-830717854b36.json"
     }
   ],
   "review_dispositions": {
@@ -4512,6 +4540,28 @@
       ],
       "result": "PASS",
       "evidence": "scripts/dev/architect_review.py"
+    },
+    {
+      "finding_sig": "sig:06dafca996609785",
+      "origin_class": "DESIGN_GAP",
+      "regression_test": "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q",
+      "controls_rerun": [
+        "wired_audit",
+        "language-rule"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/evidence/BI-PF-1531/failclosed-rollback-tests.txt"
+    },
+    {
+      "finding_sig": "sig:70bdb6915e1dea14",
+      "origin_class": "DESIGN_GAP",
+      "regression_test": "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q",
+      "controls_rerun": [
+        "wired_audit",
+        "language-rule"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/evidence/BI-PF-1531/failclosed-rollback-tests.txt"
     }
   ]
 }
