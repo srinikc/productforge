@@ -303,6 +303,11 @@ def _db_for(scope: str | None) -> bool:
     return False
 
 
+def db_tenant(scope: str | None, project: str | None = None) -> str:
+    """Public canonical DB tenant resolver (single owner)."""
+    return _db_tenant(scope, project)
+
+
 def db_authority_enabled(scope: str | None, project: str | None = None) -> bool:
     """Public resolver used by ID allocation and tooling (on/dual/shadow keep DB IDs)."""
     if _backlog_db_mode() not in ("on", "dual", "shadow"):

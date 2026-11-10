@@ -14,13 +14,13 @@ import argparse
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-_LEGACY_FORGE_SCOPE = "factory"
+sys.path.insert(0, str(ROOT))
+from core.backlog import db_tenant
 ITEMS = ROOT / "data" / "backlog" / "items"
 
 
 def item_tenant(d: dict) -> str:
-    raw = str(d.get("project") or d.get("scope") or "product_forge")
-    return "product_forge" if raw in ("portfolio", "product_forge", _LEGACY_FORGE_SCOPE) else raw
+    return db_tenant(d.get("scope"), d.get("project"))
 
 
 def file_items(tenant: str, source_dir: str = "") -> dict[str, dict]:

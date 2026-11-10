@@ -583,7 +583,7 @@
     "usage": {}
   },
   "created_at": "2026-11-06T14:50:10.299482",
-  "updated_at": "2026-11-10T15:12:17.028439",
+  "updated_at": "2026-11-10T15:14:40.270469",
   "score": 0.5,
   "_note": "readiness computed",
   "api_impact": {
@@ -2651,6 +2651,34 @@
         ]
       },
       "evidence": "BI-PF-1531-cc5b54b80aad.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "a61bd52fba80e126b060c33b18c428c112c40ad1",
+      "review_sha": "1ad3673e6bf6",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-10T09:44:39.047014+00:00",
+      "review_scope": "delta",
+      "base_sha": "9fca768559d66b6d23af6cb35c2ea95a5669d3fb",
+      "head_sha": "a61bd52fba80e126b060c33b18c428c112c40ad1",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [
+          "Delta resolves the `core.backlog` private import by hardcoding `_LEGACY_FORGE_SCOPE = \"factory\"` in `scripts/dev/backlog_db_parity.py`, creating a second, unpinned copy of the scope-resolver SSOT; with `core/backlog_scope.py` named as the single owner in current-sha-control.txt and no test asserting equality, AC-1/AC-3 parity evidence can silently normalize the legacy tenant differently than runtime (false drift or false OK)."
+        ],
+        "MINOR": [
+          "`wired_audit.py` adds `_LEGACY_FORGE_SCOPE` to the repo-wide `NAMING_ALLOW` for `core|scripts|dashboard`, disabling naming detection for that token everywhere rather than scoping the exemption to the legacy-shim definition and the parity tool.",
+          "Prior MINOR (pin the legacy-alias mapping in `docs/BACKLOG-DB-SSOT.md`) remains unresolved: the delta moved the coupling from an import to a literal without documenting the alias or its owner, so recorded parity evidence still has no pinned meaning."
+        ],
+        "NIT": [
+          "`\"factory\"` literal in `backlog_db_parity.py` carries no comment pointing to the owning constant/owner file, making the next editor unlikely to notice the two must stay in sync."
+        ],
+        "SUMMARY": [
+          "Net: delta correctly removes the `sys.path` prepend/stdlib-shadowing risk and the heavy `core.backlog` import chain (prior MINOR/NIT resolved), but trades them for an unpinned constant duplication plus a broadened naming allowlist.",
+          "Top risk: legacy-tenant normalization in the AC-3/AC-5 evidence tool can drift from runtime scope resolution with no invariant test or doc pin to catch it."
+        ]
+      },
+      "evidence": "BI-PF-1531-1ad3673e6bf6.json"
     }
   ],
   "review_dispositions": {
@@ -4601,6 +4629,16 @@
       "controls_rerun": [
         "wired_audit",
         "language-rule"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/evidence/BI-PF-1531/parity.txt"
+    },
+    {
+      "finding_sig": "sig:56912a481682ab04",
+      "origin_class": "DESIGN_GAP",
+      "regression_test": "python scripts/dev/backlog_db_parity.py --tenant product_forge",
+      "controls_rerun": [
+        "wired_audit"
       ],
       "result": "PASS",
       "evidence": "engineering/evidence/BI-PF-1531/parity.txt"
