@@ -67,7 +67,9 @@
     "scripts/dev/edp_t1_load.py",
     "test-framework/tests/test_edp_t1_capacity.py",
     "config/edp-slo.json",
-    "engineering/benchmarks/BI-PF-1527/"
+    "engineering/benchmarks/BI-PF-1527/",
+    "scripts/dev/edp_t1_restore_drill.py",
+    "scripts/dev/edp_t1_capacity_report.py"
   ],
   "approach": "T1: validate team-scale capacity and guardrails",
   "review": {
@@ -231,7 +233,7 @@
     "usage": {}
   },
   "created_at": "2026-11-06T13:56:43.509811",
-  "updated_at": "2026-11-11T23:20:49.023108",
+  "updated_at": "2026-11-11T23:24:22.349805",
   "score": 0.75,
   "_note": "readiness computed",
   "api_impact": {
@@ -596,7 +598,9 @@
         "test-framework/tests/test_edp_t1_capacity.py",
         "docs/SCALABILITY-SSOT.md",
         "config/edp-slo.json",
-        "engineering/benchmarks/BI-PF-1527/"
+        "engineering/benchmarks/BI-PF-1527/",
+        "scripts/dev/edp_t1_restore_drill.py",
+        "scripts/dev/edp_t1_capacity_report.py"
       ],
       "ac_ids": [
         "AC-1",
@@ -857,7 +861,7 @@
         "acceptance": [
           "Given T1 staging When AC-3 runs Then evidence is recorded."
         ],
-        "verification": "python -m pytest test-framework/tests/test_edp_t1_capacity.py -q"
+        "verification": "python scripts/dev/edp_t1_restore_drill.py --report engineering/benchmarks/BI-PF-1527/restore-drill.txt"
       },
       {
         "id": "FR-4",
@@ -876,7 +880,7 @@
         "acceptance": [
           "Given T1 staging When AC-4 runs Then evidence is recorded."
         ],
-        "verification": "python -m pytest test-framework/tests/test_edp_t1_capacity.py -q"
+        "verification": "python scripts/dev/edp_t1_capacity_report.py --require-hil engineering/benchmarks/BI-PF-1527/hil-decision.json"
       }
     ],
     "operation_matrix": [
@@ -1007,7 +1011,7 @@
       {
         "fr": "FR-3",
         "design": "design_pack.coverage AC-3",
-        "test": "python -m pytest test-framework/tests/test_edp_t1_capacity.py -q",
+        "test": "python scripts/dev/edp_t1_restore_drill.py --report engineering/benchmarks/BI-PF-1527/restore-drill.txt",
         "evidence": [
           "docs/SCALABILITY-SSOT.md"
         ]
@@ -1015,17 +1019,19 @@
       {
         "fr": "FR-4",
         "design": "design_pack.coverage AC-4",
-        "test": "python -m pytest test-framework/tests/test_edp_t1_capacity.py -q",
+        "test": "python scripts/dev/edp_t1_capacity_report.py --require-hil engineering/benchmarks/BI-PF-1527/hil-decision.json",
         "evidence": [
           "docs/SCALABILITY-SSOT.md"
         ]
       }
     ],
-    "open_questions": [],
+    "open_questions": [
+      "Staging owner is Platform SRE; HIL approves cost envelope before load."
+    ],
     "dod": [
       "T1 report + HIL acceptance"
     ],
-    "functional_sha": "3170c6a7f447"
+    "functional_sha": "ee5f2f428baf"
   },
   "spec_pack": {
     "version": 1,
@@ -1087,7 +1093,7 @@
           "design_pack.performance"
         ],
         "evidence": [
-          "docs/SCALABILITY-SSOT.md"
+          "engineering/benchmarks/BI-PF-1527/README.md"
         ]
       },
       {
@@ -1166,7 +1172,7 @@
           "design_pack.rollout"
         ],
         "evidence": [
-          "docs/SCALABILITY-SSOT.md"
+          "engineering/benchmarks/BI-PF-1527/README.md"
         ]
       },
       {
@@ -1278,6 +1284,39 @@
         ]
       },
       "evidence": "BI-PF-1527-81eca1b9ffc0.json"
+    },
+    {
+      "mode": "design",
+      "candidate_sha": "0a027f583eff88ca17771299aee6cb3405426a5b",
+      "review_sha": "45e8b470cf69",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-11T17:54:22.051159+00:00",
+      "review_scope": "delta",
+      "base_sha": "18cc13b258d5fc72d61123162b0c06c15e23ecf2",
+      "head_sha": "0a027f583eff88ca17771299aee6cb3405426a5b",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [
+          "Delta added `design_pack.test_matrix` drill (AC-3) and HIL (AC-4) tests, but `functional_spec.requirements[FR-3/FR-4].verification` and all `traceability[].test` rows still map only to pytest — matching design rows not updated in the same delta (checklist #6/#8 contract sync).",
+          "`test_matrix` invokes `scripts/dev/edp_t1_restore_drill.py` and `scripts/dev/edp_t1_capacity_report.py`, neither declared in `affected_files` or `review_scope.files` — new test/control entry points outside the approved review scope.",
+          "`spec_pack.release_verification` and `nfr_slo`/`implementation_plan` evidence still cite `docs/SCALABILITY-SSOT.md`/runbooks while AC-3/AC-4 acceptance now hinges on restore-drill and HIL artifacts under `engineering/benchmarks/BI-PF-1527/` — evidence pointers not synchronized with the changed test matrix."
+        ],
+        "MINOR": [
+          "Prior MINOR disposition wrong: `design_pack.coverage.failure_cases` unchanged — still only \"missing profile\"/\"missing evidence\" for all four ACs; no mapped assertion for `TENANT_ISOLATION_FAIL` or `SCALE_TRIGGER_NOT_MET` fail-closed paths.",
+          "Prior MINOR disposition wrong: `ac_evidence` still maps AC-1..AC-4 to one README with identical sha `d9956695`; no distinct per-AC sections/run-ids evidenced in the delta.",
+          "Prior MINOR disposition wrong: `review.reviewed_by` remains `\"worker\"` and COST CHECK verdict remains `\"new-path\"` — independent review and HIL cost-envelope approval not recorded despite the new \"HIL approves cost envelope\" decision.",
+          "`review.reconciliation.divergences` still carries \"No measured T1 capacity report exists\" while `open_questions` cleared to `[]` across all three fields — cost/staging precondition captured only as a decision, closure evidence absent."
+        ],
+        "NIT": [
+          "Prior NIT dispositions wrong: `functional_spec.rollback` still omits \"do not claim T1 until accepted\" and `functional_spec.data_lifecycle` still lacks the `pf-t1-` prefix, dry-run, and seeded-key cleanup bounds stated in `design_pack`.",
+          "`spec_pack.implementation_plan.reason` contains a mojibake placeholder (\"Harness ? load ? report ? HIL\") in an otherwise finalized delta row."
+        ],
+        "SUMMARY": [
+          "Delta correctly fixes the prior release-evidence blocker and nine-key config-contract sync, and adds real drill/HIL mechanisms for AC-3/AC-4 — but leaves FR verification/traceability rows, coverage failure cases, evidence shas, and reviewer independence unsynced, so several prior dispositions are not actually evidenced.",
+          "Top risks: test_matrix depends on undeclared scripts (scope drift), and HIL/cost-envelope approval remains unrecorded while open questions were cleared rather than closed with evidence."
+        ]
+      },
+      "evidence": "BI-PF-1527-45e8b470cf69.json"
     }
   ],
   "review_dispositions": {
@@ -1419,6 +1458,60 @@
         "severity": "NIT",
         "origin_class": "DESIGN_GAP",
         "note": "Fixed in T1 design contract/evidence plan; evidence: engineering/benchmarks/BI-PF-1527/README.md."
+      },
+      "sig:392b75a0be73b6b8": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Synced in T1 design/evidence package; evidence: engineering/benchmarks/BI-PF-1527/README.md."
+      },
+      "sig:b17ca6faab5a7c4c": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Synced in T1 design/evidence package; evidence: engineering/benchmarks/BI-PF-1527/README.md."
+      },
+      "sig:70d02af2bccbc138": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Synced in T1 design/evidence package; evidence: engineering/benchmarks/BI-PF-1527/README.md."
+      },
+      "sig:878c7debfcd539d0": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Synced in T1 design/evidence package; evidence: engineering/benchmarks/BI-PF-1527/README.md."
+      },
+      "sig:35418ee6116a3d09": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Synced in T1 design/evidence package; evidence: engineering/benchmarks/BI-PF-1527/README.md."
+      },
+      "sig:47e4d0d992ab302a": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Synced in T1 design/evidence package; evidence: engineering/benchmarks/BI-PF-1527/README.md."
+      },
+      "sig:deb475197218ae2e": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Synced in T1 design/evidence package; evidence: engineering/benchmarks/BI-PF-1527/README.md."
+      },
+      "sig:c252eb77fc8964e9": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "origin_class": "DESIGN_GAP",
+        "note": "Synced in T1 design/evidence package; evidence: engineering/benchmarks/BI-PF-1527/README.md."
+      },
+      "sig:1a96563a50e3f288": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "origin_class": "DESIGN_GAP",
+        "note": "Synced in T1 design/evidence package; evidence: engineering/benchmarks/BI-PF-1527/README.md."
       }
     }
   },

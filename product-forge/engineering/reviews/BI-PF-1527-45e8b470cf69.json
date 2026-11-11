@@ -1,0 +1,35 @@
+{
+  "item": "BI-PF-1527",
+  "sha": "45e8b470cf69",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-11T17:54:22.051159+00:00",
+  "review_scope": "delta",
+  "base_sha": "18cc13b258d5fc72d61123162b0c06c15e23ecf2",
+  "head_sha": "0a027f583eff88ca17771299aee6cb3405426a5b",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "Delta added `design_pack.test_matrix` drill (AC-3) and HIL (AC-4) tests, but `functional_spec.requirements[FR-3/FR-4].verification` and all `traceability[].test` rows still map only to pytest \u2014 matching design rows not updated in the same delta (checklist #6/#8 contract sync).",
+      "`test_matrix` invokes `scripts/dev/edp_t1_restore_drill.py` and `scripts/dev/edp_t1_capacity_report.py`, neither declared in `affected_files` or `review_scope.files` \u2014 new test/control entry points outside the approved review scope.",
+      "`spec_pack.release_verification` and `nfr_slo`/`implementation_plan` evidence still cite `docs/SCALABILITY-SSOT.md`/runbooks while AC-3/AC-4 acceptance now hinges on restore-drill and HIL artifacts under `engineering/benchmarks/BI-PF-1527/` \u2014 evidence pointers not synchronized with the changed test matrix."
+    ],
+    "MINOR": [
+      "Prior MINOR disposition wrong: `design_pack.coverage.failure_cases` unchanged \u2014 still only \"missing profile\"/\"missing evidence\" for all four ACs; no mapped assertion for `TENANT_ISOLATION_FAIL` or `SCALE_TRIGGER_NOT_MET` fail-closed paths.",
+      "Prior MINOR disposition wrong: `ac_evidence` still maps AC-1..AC-4 to one README with identical sha `d9956695`; no distinct per-AC sections/run-ids evidenced in the delta.",
+      "Prior MINOR disposition wrong: `review.reviewed_by` remains `\"worker\"` and COST CHECK verdict remains `\"new-path\"` \u2014 independent review and HIL cost-envelope approval not recorded despite the new \"HIL approves cost envelope\" decision.",
+      "`review.reconciliation.divergences` still carries \"No measured T1 capacity report exists\" while `open_questions` cleared to `[]` across all three fields \u2014 cost/staging precondition captured only as a decision, closure evidence absent."
+    ],
+    "NIT": [
+      "Prior NIT dispositions wrong: `functional_spec.rollback` still omits \"do not claim T1 until accepted\" and `functional_spec.data_lifecycle` still lacks the `pf-t1-` prefix, dry-run, and seeded-key cleanup bounds stated in `design_pack`.",
+      "`spec_pack.implementation_plan.reason` contains a mojibake placeholder (\"Harness ? load ? report ? HIL\") in an otherwise finalized delta row."
+    ],
+    "SUMMARY": [
+      "Delta correctly fixes the prior release-evidence blocker and nine-key config-contract sync, and adds real drill/HIL mechanisms for AC-3/AC-4 \u2014 but leaves FR verification/traceability rows, coverage failure cases, evidence shas, and reviewer independence unsynced, so several prior dispositions are not actually evidenced.",
+      "Top risks: test_matrix depends on undeclared scripts (scope drift), and HIL/cost-envelope approval remains unrecorded while open questions were cleared rather than closed with evidence."
+    ]
+  },
+  "rereview_reason": "fix 81eca1b9ffc0 findings",
+  "rereview_reason_sha256": "6ebad227b06c7719d0d203f7cb3826b9415492b2049c5790a137715fdce2bf65"
+}
