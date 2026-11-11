@@ -130,6 +130,15 @@ Scale-in requires:
    - quarterly or after major traffic change
    - downshift only with measured headroom and rollback plan
 
+## 7.1 Dependency and execution edges
+
+- `BI-PF-1527` (T1) produces the first capacity report.
+- `BI-PF-1528` (T2) is blocked by T1 and produces the business-scale evidence.
+- `BI-PF-1529` (T3 decision gate) is blocked by T2 only.
+- T3 decides whether to activate `BI-PF-1317` (EDP-24). EDP-24 is **not** a prerequisite for T3.
+- `BI-PF-1530` (T4 decision gate) is blocked by T3.
+- T1/T2 do not require EDP-24. EDP-24 remains trigger-gated until T3 evidence says otherwise.
+
 ## 8. PF-SB T1/T2 immediate plan
 
 1. Define the staging workload fixture: tenants, users, projects, runs, backlog, audit, objects.
