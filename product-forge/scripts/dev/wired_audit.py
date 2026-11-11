@@ -69,7 +69,7 @@ ALLOWLIST = {
 # Naming: "factory" is never stored/surfaced — it is "Product Forge".
 # These tokens are legitimate (stdlib/3rd-party or explicit legacy read-compat shims).
 NAMING_ROOTS = ("core", "scripts", "dashboard")
-NAMING_ALLOW = ("default_factory", "artifactory", "factory_state", "factory_improvement",
+NAMING_ALLOW = ("_LEGACY_FORGE_SCOPE", "default_factory", "artifactory", "factory_state", "factory_improvement",
                 "factory_improvements", "FACTORY_IMPROVEMENT", "factory_supervisor",
                 "factory_constitution", "send-to-factory",
                 # upstream reference doc FILENAMES (quoted verbatim; not our surface)

@@ -32,6 +32,8 @@ var (
 	ErrAuthoritySchema      = fmt.Errorf("%w: schema", ErrAuthorityUnavailable)
 	ErrAuthorityRow         = fmt.Errorf("%w: allocation row", ErrAuthorityUnavailable)
 	ErrTenantConflict       = errors.New("edpdata: backlog id belongs to another tenant")
+	ErrTenantContext        = errors.New("edpdata: tenant context missing")
+	ErrTenantMismatch       = errors.New("edpdata: tenant context mismatch")
 	ErrReservationInvalid   = errors.New("edpdata: invalid reservation request")
 	ErrReservationConflict  = errors.New("edpdata: reservation id already has a different block")
 	ErrReservationExhausted = errors.New("edpdata: id space exhausted")
@@ -102,7 +104,7 @@ func (s *BacklogStore) Authority(ctx context.Context) (Authority, error) {
 			        JOIN pg_policies p ON p.tablename=c.relname AND p.schemaname='public'
 			        WHERE c.relname='backlog_items' AND c.relrowsecurity AND c.relforcerowsecurity
 			          AND p.policyname='tenant_isolation'),
-			EXISTS (SELECT 1 FROM schema_migrations WHERE version IN (16,18,19,20) HAVING count(*)=4)`)
+			EXISTS (SELECT 1 FROM schema_migrations WHERE version IN (16,18,19,20,21,23) HAVING count(*)=6)`)
 		if err != nil {
 			return err
 		}
@@ -178,6 +180,27 @@ func orEmpty(raw json.RawMessage) string {
 }
 
 // Put upserts a backlog item (idempotent on id; material changes bump revision). `Data` is stored verbatim.
+func requireTenant(ctx context.Context, tx datastore.Tx) (string, error) {
+	rows, err := tx.Query(ctx, `SELECT COALESCE(current_setting('app.tenant_id', true), '')`)
+	if err != nil {
+		return "", err
+	}
+	var tenant string
+	if rows.Next() {
+		if err := rows.Scan(&tenant); err != nil {
+			rows.Close()
+			return "", err
+		}
+	}
+	if err := rows.Close(); err != nil {
+		return "", err
+	}
+	if tenant == "" {
+		return "", ErrTenantContext
+	}
+	return tenant, nil
+}
+
 func (s *BacklogStore) Put(ctx context.Context, it BacklogItem) (BacklogItem, error) {
 	if it.ID == "" || it.TenantID == "" {
 		return BacklogItem{}, errors.New("edpdata: backlog id and tenant_id are required")
@@ -193,10 +216,17 @@ func (s *BacklogStore) Put(ctx context.Context, it BacklogItem) (BacklogItem, er
 	}
 	data := orEmpty(it.Data)
 	err := s.db.WithTx(ctx, func(tx datastore.Tx) error {
+		bound, err := requireTenant(ctx, tx)
+		if err != nil {
+			return err
+		}
+		if bound != it.TenantID {
+			return ErrTenantMismatch
+		}
 		n, err := tx.Exec(ctx,
 			`INSERT INTO backlog_items (id, tenant_id, scope, project_id, type, status, title, body, data, revision)
 			 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10)
-			 ON CONFLICT (id) DO UPDATE SET
+			 ON CONFLICT (tenant_id, id) DO UPDATE SET
 			   scope=EXCLUDED.scope, project_id=EXCLUDED.project_id,
 			   type=EXCLUDED.type, status=EXCLUDED.status,
 			   title=EXCLUDED.title, body=EXCLUDED.body, data=EXCLUDED.data,
@@ -309,8 +339,12 @@ func (s *BacklogStore) Get(ctx context.Context, id string) (BacklogItem, error) 
 	var it BacklogItem
 	var found bool
 	err := s.db.WithTx(ctx, func(tx datastore.Tx) error {
+		bound, err := requireTenant(ctx, tx)
+		if err != nil {
+			return err
+		}
 		rows, err := tx.Query(ctx,
-			`SELECT id, tenant_id, scope, COALESCE(project_id, ''), type, status, title, body, data, revision FROM backlog_items WHERE id=$1`, id)
+			`SELECT id, tenant_id, scope, COALESCE(project_id, ''), type, status, title, body, data, revision FROM backlog_items WHERE id=$1 AND tenant_id=$2`, id, bound)
 		if err != nil {
 			return err
 		}
@@ -339,9 +373,13 @@ func (s *BacklogStore) List(ctx context.Context, status string, limit int) ([]Ba
 	}
 	var out []BacklogItem
 	err := s.db.WithTx(ctx, func(tx datastore.Tx) error {
+		bound, err := requireTenant(ctx, tx)
+		if err != nil {
+			return err
+		}
 		rows, err := tx.Query(ctx,
 			`SELECT id, tenant_id, scope, COALESCE(project_id, ''), type, status, title, body, data, revision FROM backlog_items
-			 WHERE ($1 = '' OR status = $1) ORDER BY created_at DESC LIMIT $2`, status, limit)
+			 WHERE tenant_id=$3 AND ($1 = '' OR status = $1) ORDER BY created_at DESC LIMIT $2`, status, limit, bound)
 		if err != nil {
 			return err
 		}
@@ -362,7 +400,11 @@ func (s *BacklogStore) List(ctx context.Context, status string, limit int) ([]Ba
 func (s *BacklogStore) Delete(ctx context.Context, id string) error {
 	var affected int64
 	err := s.db.WithTx(ctx, func(tx datastore.Tx) error {
-		n, err := tx.Exec(ctx, `DELETE FROM backlog_items WHERE id=$1`, id)
+		bound, err := requireTenant(ctx, tx)
+		if err != nil {
+			return err
+		}
+		n, err := tx.Exec(ctx, `DELETE FROM backlog_items WHERE id=$1 AND tenant_id=$2`, id, bound)
 		affected = n
 		return err
 	})

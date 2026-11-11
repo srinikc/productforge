@@ -57,6 +57,8 @@ TOP = {
     "TESTING-REFERENCE.md": ("Implemented", "Testing reference: how to run/write the PF test suites", 100),
     "ARTIFACT-OWNERS.md": ("SSOT", "Generated artifact->owner->consumer map for product docs (BI-PF-0765)", 100),
     "REVIEW-FOCUS.md": ("SSOT", "Generated production-risk review checklist for the code-review agent (BI-PF-1066)", 100),
+    "SPEC-CHAIN.md": ("SSOT", "PF-SB spec chain: functional freeze, design, conditional specs, conformance, fix-impact, review scope", 100),
+    "FIX-IMPACT-CONTRACT.md": ("SSOT", "Fix impact contract: reproducer, regression test, evidence, rollback, artifacts, status", 100),
     "REVIEW-MODEL.md": ("Implemented", "Review model: LLM vs non-LLM, per-iteration, PR gate (BI-PF-1070)", 100),
     "CI-CD-AND-GATES-SSOT.md": ("SSOT", "CI/CD + gates SSOT: triggers, precheck tiers, PR merge gate, delivery, generated-product CI (PF + products)", 100),
     "COMPLIANCE-REGISTER.md": ("SSOT", "Generated compliance register: framework->control->evidence (BI-PF-1206)", 100),

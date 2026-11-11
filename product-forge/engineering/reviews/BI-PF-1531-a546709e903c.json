@@ -1,0 +1,29 @@
+{
+  "item": "BI-PF-1531",
+  "sha": "a546709e903c",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-10T08:18:49.573538+00:00",
+  "review_scope": "delta",
+  "base_sha": "308ae158250a155f4e1e240b335e2457916f26a6",
+  "head_sha": "9d5eac50c87493aa2fd6b642d7c8996a518f0a7a",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [],
+    "MINOR": [
+      "`test_on_mode_delete_preserves_projections` never asserts the DB delete ran (`_delete_item_from_db` is a silent no-op lambda and no call is recorded), so a regression where on-mode delete becomes a total no-op still passes the test.",
+      "Test bypasses the real delete path via five private monkeypatches (`_load_all`, `_delete_item_from_db`, `_paths`, `_items_dir`, `_write_indexes`), so it validates projection survival only against the mocked wiring; it will not catch a fix that removes files via a different helper (e.g. a history-path helper)."
+    ],
+    "NIT": [
+      "The assertion `proj.exists() and hist.exists()` in a single statement yields no failure localization; a future regression removing only history would report a generic boolean failure."
+    ],
+    "SUMMARY": [
+      "Delta correctly resolves the prior PENDING MAJORs: it adds the missing successful on-mode delete test, which fails on pre-delta code (file-removal loop would delete projections) and passes post-delta, evidencing the non-goal \"No deletion of file projections\".",
+      "No blockers; AC coverage, workflow, parity, and rollback evidence are carried by the unchanged full candidate and remain intact.",
+      "Top risk: the new test's heavy internal mocking + missing delete-invocation assertion means it guards projection survival but not that delete still performs its DB authority duty."
+    ]
+  },
+  "rereview_reason": "fix 81e8e8c2f8af blockers/majors",
+  "rereview_reason_sha256": "bb108672845f0058aa092227c1fb9055b5c70eafc3197e64b32d308cb1dbcc81"
+}

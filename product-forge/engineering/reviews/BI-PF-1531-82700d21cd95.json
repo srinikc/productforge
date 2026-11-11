@@ -1,0 +1,46 @@
+{
+  "item": "BI-PF-1531",
+  "sha": "82700d21cd95",
+  "model": "deepseek-v4.1-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-06T13:22:36.993760+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "06912114159eebe41bdabb969762bcc346af3bc0",
+  "findings": {
+    "BLOCKER": [
+      "`.github/workflows/backlog-db.yml` is still absent from the diff; only `test_backlog_db_workflow.py` and a `store-registry.json` entry reference it. The prior ACTIONED disposition for AC-2 is unsupported \u2014 no DB-mode job with `PF_BACKLOG_DB=on` is reviewable here.",
+      "`backlog_db_parity.py` still globs only `ROOT/data/backlog/items`; `--tenant` filters that set but never reads `products/*/data/backlog/items`, so PF-GP parity (AC-3) remains unproducible. The new doc line \"parity is verified only for tenants with local file sources\" redefines the AC instead of meeting it.",
+      "`BacklogStore.List` is not guarded by `requireTenant` (unlike `Get`/`Delete`); with `app.tenant_id` unset the RLS predicate is NULL, so an on-mode read returns an empty backlog instead of failing closed \u2014 the exact fail-open AC-4 forbids."
+    ],
+    "MAJOR": [
+      "Rollout ordering is unhandled: the new binary requires migration 21 in `Authority()`, but a still-running old binary issues `ON CONFLICT (id)` against a schema whose only unique key is now `(tenant_id, id)` \u2014 every write errors until the fleet is replaced. No compat window or deploy-order note exists.",
+      "Backfill cannot succeed under the new tenant guard: `Put` now rejects `app.tenant_id != it.TenantID`, yet the script posts all tenants in one run with no `--tenant` filter and no evidence edpsvc binds the GUC per request. AC-3 backfill is likely to fail closed for every non-default tenant.",
+      "Default-on is scope-agnostic: `_backlog_db_mode()`/`_db_enabled()` flip for every scope and consumer, not just PF-SB/PF-GP; no test asserts the scope restriction the AC and docs claim.",
+      "`id_allocator._reserve_db` still returns `dict | None`; there is no diff evidence or test that an on-mode DB failure raises instead of yielding `None` into the file/Git allocation path. \"No Git fallback\" is asserted, not enforced or proven.",
+      "`test_backlog_db_workflow.py` asserts only that the string `PF_BACKLOG_DB` appears \u2014 not `=on` \u2014 and asserts `ALTER ROLE pf_app PASSWORD`, i.e. it pins a credential statement rather than the AC-2 contract. Substring assertions cannot prove the job runs in DB mode.",
+      "`ErrTenantContext` is mapped to 503 only in `backlogByID`; create/list/delete handlers will surface it as 500/404, so the fail-closed tenant contract is endpoint-dependent.",
+      "Migration 0021 re-points `fk_traceability_item` to `(tenant_id, item_id)` without adding a supporting index on `traceability(tenant_id, item_id)`, and existing rows are validated at `ADD CONSTRAINT` time \u2014 legacy NULL/mismatched `tenant_id` aborts the whole cutover with no documented remediation."
+    ],
+    "MINOR": [
+      "`_load_all_from_db` wraps `URLError`/`OSError` as `BACKLOG_DB_UNAVAILABLE`, so 401/403 auth failures are mislabeled as DB outage; `JSONDecodeError` is not wrapped at all.",
+      "`backlog_db_backfill.py` docstring still says \"upserts by item id\" although the key is now `(tenant_id, id)`; the prior MINOR disposition is contradicted by the new file.",
+      "`dual` mode is still exercised in tests but undocumented in `env-flags.json`/docs, while any unknown value silently means non-DB \u2014 contradicting the docs' \"explicit legacy\" wording.",
+      "No readiness signal or metric accompanies `BACKLOG_DB_UNAVAILABLE`; on-mode outage detection relies on a single log line, against the design's observability requirement.",
+      "`requireTenant` adds an extra round-trip per `Put`/`Get`/`Delete` on the T1/T2 paths with no measurement against the no-regression requirement."
+    ],
+    "NIT": [
+      "`env-flags.json` `owner` still lists only `core/backlog.py + go/edpdata/backlog.go`, omitting `core/id_allocator.py`, a third consumer of the flag.",
+      "`store-registry.json` entry uses `\"kind\": \"config\"`, empty `ref`, and `\"migration_status\": \"retained\"` for a CI workflow \u2014 semantics inconsistent with neighbouring entries.",
+      "`test_backlog_db_workflow.py` resolves `.github` via `ROOT.parent`, so it fails in vendored/standalone checkouts of `product-forge`.",
+      "`backlog_db_backfill.py` unconditionally overwrites `PF_BACKLOG_DB=on`, silently ignoring an operator's explicit `off`."
+    ],
+    "SUMMARY": [
+      "AC-1 and the doc/rollback prose are met; AC-4 is met only for the load path, and AC-2/AC-3 remain unproven from this diff (no workflow file, no PF-GP parity source).",
+      "The scoped-uniqueness migration is transactional and well-documented, but introduces a hard deploy-ordering break with the old binary and an unguarded `List` path that fails open as \"empty\".",
+      "Backfill/parity cannot currently produce PF-GP evidence and are likely to trip the new tenant guard; both need per-tenant execution and read-back verification.",
+      "Recommendation: hold cutover until AC-2 workflow, PF-GP parity, `List` tenant guard, and reserve fail-closed behaviour are shown with fail-able tests."
+    ]
+  }
+}

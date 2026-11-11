@@ -1,0 +1,23 @@
+BI-PF-1531 control evidence
+control: CTL-BACKLOG-DB-DEFAULT
+sha: ce18241a39c07d22b1ef67c8d0af04d1140e8db9-5d9d84410463
+date: 2026-11-06
+
+Python:
+python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py test-framework/tests/test_backlog_db_workflow.py test-framework/tests/test_backlog_migrations.py -q
+result: 33 passed
+
+Go:
+cd go/edpdata && go test ./... -> ok
+cd go/edpsvc && go test ./... -> ok
+
+Coverage:
+- one scope resolver for items + IDs (core/backlog.py)
+- PF_BACKLOG_DB_SCOPES registered in config/env-flags.json and .env.example
+- file-mode CI assertions in structure.yml and full-sweep.yml
+- on-mode tenant cache with write/delete invalidation
+- point API/SQL T1 benchmark: engineering/evidence/BI-PF-1531/bench-t1.json
+- ProductForge-Dashboard export→parity workflow step
+- backfill scope enforcement, 429 Retry-After handling, invalid-file counting
+- export write/skip/overwrite + traversal guard tests
+- Go tenant fail-closed for Get/List/Put/Delete and migration 22 readiness

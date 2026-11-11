@@ -1,0 +1,33 @@
+{
+  "item": "BI-PF-1531",
+  "sha": "36924eced557",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-10T08:48:10.336553+00:00",
+  "review_scope": "delta",
+  "base_sha": "a01b9132e8dbce5583c8a465feb6b4ff3291af7c",
+  "head_sha": "805ecbf9a97312c13ce91e945a88142d42cd58db",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "Delta widens the unvalidated `ROOT / ref` read to `.json/.yml/.yaml`, and `affected_files` already contains `../.github/workflows/structure.yml` and `../.github/workflows/full-sweep.yml`, so the change now demonstrably reads files outside `ROOT` into the review prompt (out-of-repo content, possible secret/token material, prompt-injection surface). This is a new behavior introduced by the delta, not the pre-existing `.md`-only case.",
+      "[Prior MAJOR 1 residual] Config read-back now exists via the extended `_docs_body`, so a `config/env-flags.json` default flip is at least surfaced \u2014 but only when the ref appears in `affected_files`/`review_scope.files`; the excluded diff still contributes nothing, so a config change that omits the ref from those lists remains invisible to both paths."
+    ],
+    "MINOR": [
+      "The new extension tuple (`.json/.yml/.yaml`) is shipped gate logic with no test; prior MINOR on `_docs_body` test coverage remains unaddressed and the delta enlarges the untested branch.",
+      "Prior MAJOR 2 is only half-fixed: the delta rewrites the returned label to \"docs/config\" but leaves the unchanged `EXCLUDE` rationale comment covering only docs, so the config exclusion still has no written justification at the exclusion site.",
+      "`engineering/evidence/BI-PF-1531/parity.txt` and `failclosed-rollback-tests.txt` (the AC-3/AC-4/AC-5 evidence) are still `.txt` and remain excluded from read-back, so primary acceptance evidence is not surfaced alongside the newly included config/CI files."
+    ],
+    "NIT": [
+      "Evidence copies (`engineering/evidence/.../backlog-db.workflow.yml`) and the live `../.github/workflows/backlog-db.yml` are now both eligible for read-back, duplicating identical workflow text in the prompt and inflating token cost.",
+      "Raw `.yml`/`.json` bodies are injected inside a ``` fence with no escaping; a file containing ``` would break the fence and degrade prompt structure."
+    ],
+    "SUMMARY": [
+      "The delta resolves the read-back half of prior MAJOR 1 (config is now re-read) but does not touch the EXCLUDE rationale, leaving prior MAJOR 2 partially open, and it expands the unvalidated path traversal from `.md` to config/CI files \u2014 the one genuinely new defect here.",
+      "Top risks: out-of-`ROOT` file read into the LLM prompt (now triggered by existing `../` refs), and untested growth of gate logic that no test can fail."
+    ]
+  },
+  "rereview_reason": "fix 81e8e8c2f8af blockers/majors",
+  "rereview_reason_sha256": "bb108672845f0058aa092227c1fb9055b5c70eafc3197e64b32d308cb1dbcc81"
+}
