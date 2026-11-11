@@ -47,7 +47,8 @@
     "T1: validate team-scale capacity and guardrails"
   ],
   "out_of_scope": [
-    "Not specified."
+    "No T3/T4 scale-out",
+    "No PF-GP runtime target"
   ],
   "affected_components": [
     "docs"
@@ -131,7 +132,7 @@
       "mitigation": "Use SCALABILITY-SSOT T1 shape and publish workload profile."
     }
   ],
-  "rollback": "Revert the change.",
+  "rollback": "Keep previous tier; do not claim T1 until accepted.",
   "evidence": [
     "pending",
     "Design guardrails applied (BI-PF-1527): sig:665e4830afabb9bf (20 lines)"
@@ -331,7 +332,7 @@
       "HIL accepts/rejects tier"
     ],
     "rollback": [
-      "Keep previous tier; do not claim T1 until accepted"
+      "Keep previous tier; do not claim T1 until accepted."
     ],
     "decisions": [
       "SCALABILITY-SSOT authoritative",
@@ -340,7 +341,10 @@
     "guardrails": [
       "No tier claim without measurement",
       "No speculative EDP-24 build",
-      "Tenant isolation proof required"
+      "Tenant isolation proof required",
+      "Generator dry-run and seeded-key cleanup bounds",
+      "Reuse EDP-22 benchmark harness where possible",
+      "Failure logs include run id, stage, threshold, seed range"
     ],
     "learnings": [
       "Scale-out follows measured triggers"
@@ -367,20 +371,20 @@
     },
     "ac_evidence": {
       "AC-1": {
-        "sha": "candidate",
-        "evidence": "docs/SCALABILITY-SSOT.md"
+        "sha": "d9956695",
+        "evidence": "engineering/benchmarks/BI-PF-1527/README.md"
       },
       "AC-2": {
-        "sha": "candidate",
-        "evidence": "docs/SCALABILITY-SSOT.md"
+        "sha": "d9956695",
+        "evidence": "engineering/benchmarks/BI-PF-1527/README.md"
       },
       "AC-3": {
-        "sha": "candidate",
-        "evidence": "docs/SCALABILITY-SSOT.md"
+        "sha": "d9956695",
+        "evidence": "engineering/benchmarks/BI-PF-1527/README.md"
       },
       "AC-4": {
-        "sha": "candidate",
-        "evidence": "docs/SCALABILITY-SSOT.md"
+        "sha": "d9956695",
+        "evidence": "engineering/benchmarks/BI-PF-1527/README.md"
       }
     },
     "stop_conditions": [
@@ -394,7 +398,7 @@
         "dimension": "evidence",
         "applies_to": "BI-PF-1527",
         "check": "python -m pytest test-framework/tests/test_edp_t1_capacity.py -q",
-        "evidence": "engineering/benchmarks/BI-PF-1314/db/local/baseline.json",
+        "evidence": "engineering/benchmarks/BI-PF-1527/README.md",
         "failure_behavior": "FAIL",
         "owner": "engineering"
       }
@@ -437,10 +441,15 @@
       },
       {
         "area": "security",
-        "status": "N/A",
-        "reason": "No new security surface; measurements must use read-only roles.",
-        "sections": [],
-        "evidence": []
+        "status": "APPLICABLE",
+        "reason": "Read-only benchmark role and RLS tenant isolation are required under load.",
+        "sections": [
+          "security_model",
+          "rls_tenant"
+        ],
+        "evidence": [
+          "docs/BACKLOG-AUTHORITY-RUNBOOK.md"
+        ]
       }
     ],
     "coverage": [
@@ -484,7 +493,7 @@
           "missing profile",
           "missing evidence"
         ],
-        "runtime_capability": false
+        "runtime_capability": true
       },
       {
         "ac": "AC-3",
@@ -505,7 +514,7 @@
           "missing profile",
           "missing evidence"
         ],
-        "runtime_capability": false
+        "runtime_capability": true
       },
       {
         "ac": "AC-4",
@@ -526,7 +535,7 @@
           "missing profile",
           "missing evidence"
         ],
-        "runtime_capability": false
+        "runtime_capability": true
       }
     ],
     "functional_ref": "engineering/specs/BI-PF-1527.md",
@@ -600,7 +609,7 @@
       "No new API"
     ],
     "security_model": [
-      "Read-only role; RLS; no tenant data in reports"
+      "Benchmark role is read-only, not superuser/BYPASSRLS, RLS enforced; no tenant data in reports."
     ],
     "rls_tenant": [
       "Tenant isolation exercised under load"
@@ -629,13 +638,108 @@
       "Restore drill required"
     ],
     "deployment_rollout": [
-      "Harness/report only; no runtime rollout"
+      "Dry-run profile",
+      "HIL cost/staging approval",
+      "Run load",
+      "Restore drill",
+      "Publish report",
+      "HIL tier decision"
     ],
     "ownership": [
       "Platform SRE + EDP"
     ],
     "compatibility": [
       "No runtime contract change"
+    ],
+    "config_contract": [
+      {
+        "name": "PF_T1_TENANTS",
+        "default": "10",
+        "precedence": "env",
+        "valid_values": "positive int",
+        "empty_behavior": "deny",
+        "invalid_behavior": "deny",
+        "startup_validation": "yes"
+      },
+      {
+        "name": "PF_T1_USERS",
+        "default": "100",
+        "precedence": "env",
+        "valid_values": "positive int",
+        "empty_behavior": "deny",
+        "invalid_behavior": "deny",
+        "startup_validation": "yes"
+      },
+      {
+        "name": "PF_T1_PROJECTS",
+        "default": "1000",
+        "precedence": "env",
+        "valid_values": "positive int",
+        "empty_behavior": "deny",
+        "invalid_behavior": "deny",
+        "startup_validation": "yes"
+      },
+      {
+        "name": "PF_T1_CONCURRENT_RUNS",
+        "default": "10",
+        "precedence": "env",
+        "valid_values": "positive int",
+        "empty_behavior": "deny",
+        "invalid_behavior": "deny",
+        "startup_validation": "yes"
+      },
+      {
+        "name": "PF_T1_BACKLOG_ITEMS",
+        "default": "1000000",
+        "precedence": "env",
+        "valid_values": "positive int",
+        "empty_behavior": "deny",
+        "invalid_behavior": "deny",
+        "startup_validation": "yes"
+      },
+      {
+        "name": "PF_T1_RPM",
+        "default": "25",
+        "precedence": "env",
+        "valid_values": "positive int",
+        "empty_behavior": "use default",
+        "invalid_behavior": "deny",
+        "startup_validation": "yes"
+      },
+      {
+        "name": "PF_T1_POOL",
+        "default": "25",
+        "precedence": "env",
+        "valid_values": "positive int",
+        "empty_behavior": "use default",
+        "invalid_behavior": "deny",
+        "startup_validation": "yes"
+      },
+      {
+        "name": "PF_T1_TIMEOUT_MS",
+        "default": "5000",
+        "precedence": "env",
+        "valid_values": "positive int",
+        "empty_behavior": "use default",
+        "invalid_behavior": "deny",
+        "startup_validation": "yes"
+      },
+      {
+        "name": "PF_T1_OBJECT_LIMIT_MB",
+        "default": "10",
+        "precedence": "env",
+        "valid_values": "positive int",
+        "empty_behavior": "use default",
+        "invalid_behavior": "deny",
+        "startup_validation": "yes"
+      }
+    ],
+    "assumptions": [
+      "HIL approves staging cost envelope before any load run."
+    ],
+    "open_questions": [],
+    "data_lifecycle": [
+      "Generator creates only seeded synthetic keys with pf-t1- prefix; dry-run reports counts; cleanup deletes only seeded keys."
     ]
   },
   "language_rule": "Python benchmark harness/tooling; DB/runtime remains Go/PostgreSQL.",
@@ -1053,6 +1157,200 @@
         ]
       },
       "evidence": "BI-PF-1527-6aa506b00d2d.json"
+    }
+  ],
+  "review_dispositions": {
+    "design": {
+      "sig:5402f3996e04aac8": {
+        "status": "ACTIONED",
+        "severity": "BLOCKER",
+        "origin_class": "DESIGN_GAP",
+        "note": "Fixed in T1 design/evidence plan; evidence: engineering/benchmarks/BI-PF-1527/README.md."
+      },
+      "sig:6fe042ff72636a19": {
+        "status": "ACTIONED",
+        "severity": "BLOCKER",
+        "origin_class": "DESIGN_GAP",
+        "note": "Fixed in T1 design/evidence plan; evidence: engineering/benchmarks/BI-PF-1527/README.md."
+      },
+      "sig:edbff92403fea923": {
+        "status": "ACTIONED",
+        "severity": "BLOCKER",
+        "origin_class": "DESIGN_GAP",
+        "note": "Fixed in T1 design/evidence plan; evidence: engineering/benchmarks/BI-PF-1527/README.md."
+      },
+      "sig:e1d63bb38648ca65": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Fixed in T1 design/evidence plan; evidence: engineering/benchmarks/BI-PF-1527/README.md."
+      },
+      "sig:2cf0f8a6ee2a4b10": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Fixed in T1 design/evidence plan; evidence: engineering/benchmarks/BI-PF-1527/README.md."
+      },
+      "sig:38f4a566033eb57e": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Fixed in T1 design/evidence plan; evidence: engineering/benchmarks/BI-PF-1527/README.md."
+      },
+      "sig:1e36f061d7012ba9": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Fixed in T1 design/evidence plan; evidence: engineering/benchmarks/BI-PF-1527/README.md."
+      },
+      "sig:8abda3e7e79fba56": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Fixed in T1 design/evidence plan; evidence: engineering/benchmarks/BI-PF-1527/README.md."
+      },
+      "sig:613b926e77bbd2c0": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Fixed in T1 design/evidence plan; evidence: engineering/benchmarks/BI-PF-1527/README.md."
+      },
+      "sig:3bb80c1bbd914133": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Fixed in T1 design/evidence plan; evidence: engineering/benchmarks/BI-PF-1527/README.md."
+      },
+      "sig:511b5a941d76e44c": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Fixed in T1 design/evidence plan; evidence: engineering/benchmarks/BI-PF-1527/README.md."
+      },
+      "sig:678535c78ebe564b": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Fixed in T1 design/evidence plan; evidence: engineering/benchmarks/BI-PF-1527/README.md."
+      },
+      "sig:beb9a8e535079f82": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "origin_class": "DESIGN_GAP",
+        "note": "Fixed in T1 design/evidence plan; evidence: engineering/benchmarks/BI-PF-1527/README.md."
+      },
+      "sig:dae83c68391bf45c": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "origin_class": "DESIGN_GAP",
+        "note": "Fixed in T1 design/evidence plan; evidence: engineering/benchmarks/BI-PF-1527/README.md."
+      }
+    }
+  },
+  "fix_evidence": [
+    {
+      "finding_sig": "sig:5402f3996e04aac8",
+      "origin_class": "DESIGN_GAP",
+      "regression_test": "design contract/completeness and evidence plan",
+      "controls_rerun": [
+        "design_contract",
+        "design_completeness",
+        "spec_pack",
+        "conformance"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/benchmarks/BI-PF-1527/README.md"
+    },
+    {
+      "finding_sig": "sig:6fe042ff72636a19",
+      "origin_class": "DESIGN_GAP",
+      "regression_test": "design contract/completeness and evidence plan",
+      "controls_rerun": [
+        "design_contract",
+        "design_completeness",
+        "spec_pack",
+        "conformance"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/benchmarks/BI-PF-1527/README.md"
+    },
+    {
+      "finding_sig": "sig:edbff92403fea923",
+      "origin_class": "DESIGN_GAP",
+      "regression_test": "design contract/completeness and evidence plan",
+      "controls_rerun": [
+        "design_contract",
+        "design_completeness",
+        "spec_pack",
+        "conformance"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/benchmarks/BI-PF-1527/README.md"
+    },
+    {
+      "finding_sig": "sig:e1d63bb38648ca65",
+      "origin_class": "DESIGN_GAP",
+      "regression_test": "design contract/completeness and evidence plan",
+      "controls_rerun": [
+        "design_contract",
+        "design_completeness",
+        "spec_pack",
+        "conformance"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/benchmarks/BI-PF-1527/README.md"
+    },
+    {
+      "finding_sig": "sig:2cf0f8a6ee2a4b10",
+      "origin_class": "DESIGN_GAP",
+      "regression_test": "design contract/completeness and evidence plan",
+      "controls_rerun": [
+        "design_contract",
+        "design_completeness",
+        "spec_pack",
+        "conformance"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/benchmarks/BI-PF-1527/README.md"
+    },
+    {
+      "finding_sig": "sig:38f4a566033eb57e",
+      "origin_class": "DESIGN_GAP",
+      "regression_test": "design contract/completeness and evidence plan",
+      "controls_rerun": [
+        "design_contract",
+        "design_completeness",
+        "spec_pack",
+        "conformance"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/benchmarks/BI-PF-1527/README.md"
+    },
+    {
+      "finding_sig": "sig:1e36f061d7012ba9",
+      "origin_class": "DESIGN_GAP",
+      "regression_test": "design contract/completeness and evidence plan",
+      "controls_rerun": [
+        "design_contract",
+        "design_completeness",
+        "spec_pack",
+        "conformance"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/benchmarks/BI-PF-1527/README.md"
+    },
+    {
+      "finding_sig": "sig:8abda3e7e79fba56",
+      "origin_class": "DESIGN_GAP",
+      "regression_test": "design contract/completeness and evidence plan",
+      "controls_rerun": [
+        "design_contract",
+        "design_completeness",
+        "spec_pack",
+        "conformance"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/benchmarks/BI-PF-1527/README.md"
     }
   ]
 }
