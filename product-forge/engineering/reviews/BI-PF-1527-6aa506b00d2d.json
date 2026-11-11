@@ -1,0 +1,40 @@
+{
+  "item": "BI-PF-1527",
+  "sha": "6aa506b00d2d",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-11T16:57:46.217761+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "0d62a57779ee95f98fabbcd1afc6afa4ec3fd58d",
+  "findings": {
+    "BLOCKER": [
+      "AC-1..AC-4 evidence is `docs/SCALABILITY-SSOT.md` (sha \"candidate\"); the SSOT holds targets, not measured p50/p95/p99, RPO/RTO, or HIL-review proof \u2014 AC-4's \"no tier claim without evidence\" cannot be satisfied by the declared evidence.",
+      "`controls.CTL-T1-CAPACITY.evidence` and `spec_pack.release_verification.evidence` both point to `engineering/benchmarks/BI-PF-1314/db/local/baseline.json` (a different item); the gate control would pass on unrelated evidence.",
+      "AC-3 (alert firing + backup/restore drill) and AC-4 (HIL review) are mapped only to `python -m pytest test-framework/tests/test_edp_t1_capacity.py`; no executable path produces restore-drill evidence or verifies HIL acceptance \u2014 declared tests cannot verify these ACs."
+    ],
+    "MAJOR": [
+      "`coverage.runtime_capability` is `False` for AC-2/AC-3/AC-4 while still claiming entrypoint/tests; guardrail-under-load (AC-2) has no declared runtime capability.",
+      "`config_contract` pins only `PF_T1_TENANTS`; users/projects/runs/backlog (100/1k/10/1M) and guardrail knobs (RPM, concurrency, pool, timeouts, object limits) lack pinned keys, precedence, and invalid/empty behavior \u2014 checklist #8 incomplete.",
+      "`design_areas.security: N/A` contradicts `security_threat_model: APPLICABLE` and \"RLS-enabled load\"; no explicit statement that the benchmark role is not BYPASSRLS/superuser-inherited (checklist #3).",
+      "Open question \"Staging owner/budget\" is unresolved while AC-1..4 and the risk mitigation (HIL-approved cost envelope before load) depend on it \u2014 precondition for the capacity decision not closed at Gate 1.",
+      "Blast radius of the generator (1M synthetic rows, per-run destroy) has no stated bounds, dry-run mode, or guarantee that cleanup targets only seeded synthetic keys (checklist #4)."
+    ],
+    "MINOR": [
+      "Top-level `out_of_scope: ['Not specified.']` conflicts with the design's stated non_goals \u2014 inconsistent scope declaration.",
+      "No statement whether `scripts/dev/edp_t1_load.py` reuses the existing EDP-22/`backlog_db_bench.py` harness or duplicates it (checklist #10 reuse).",
+      "The harness's own failure diagnostics (logs/metrics to debug a failed run) are unspecified; only report outputs are listed (checklist #10).",
+      "`TENANT_ISOLATION_FAIL`/`CAPACITY_EVIDENCE_MISSING` are declared in the failure taxonomy but no test asserts their fail-closed behavior."
+    ],
+    "NIT": [
+      "Top-level `rollback: 'Revert the change.'` conflicts with design rollback \"Keep previous tier; do not claim T1 until accepted.\"",
+      "All `ac_evidence.sha` values are `\"candidate\"` \u2014 no digest pinned for any AC."
+    ],
+    "SUMMARY": [
+      "Verdict: not approvable at Gate 1 as-is \u2014 the evidence chain is broken (SSOT doc and a prior item's baseline cited as proof) and AC-3/AC-4 have no executable verification path.",
+      "Top risks: unmeasured tier claim slipping through a control that reads BI-PF-1314 evidence; incomplete config contract for the T1 shape and guardrails; unresolved staging owner/budget precondition.",
+      "Language rule is satisfied (tooling/tests/docs Python); resolve evidence artifacts, security/RLS statements, and blast-radius bounds before Gate 1.5."
+    ]
+  }
+}

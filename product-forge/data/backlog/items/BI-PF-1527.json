@@ -38,10 +38,10 @@
   },
   "objective": "T1: validate team-scale capacity and guardrails",
   "acceptance_criteria": [
-    "T1 staging workload is defined with 10 tenants, 100 users, 1k projects, 10 concurrent runs, and 1M backlog items",
-    "T1 staging workload is defined with 10 tenants, 100 users, 1k projects, 10 concurrent runs, and 1M backlog items",
-    "SLO dashboards/alerts and restore drill evidence",
-    "T1 staging workload is defined with 10 tenants, 100 users, 1k projects, 10 concurrent runs, and 1M backlog items"
+    "T1 staging workload profile is defined and generated: 10 tenants, 100 users, 1k projects, 10 concurrent runs, 1M backlog items",
+    "T1 guardrails are verified under load: RPM, concurrency, connection pool, timeouts, object limits, and tenant isolation",
+    "SLO dashboards/alerts and a backup/restore drill are exercised with recorded evidence",
+    "A capacity report with measured p50/p95/p99, errors, saturation, pool waits, queue depth, RPO/RTO is reviewed by HIL; no tier claim without evidence"
   ],
   "in_scope": [
     "T1: validate team-scale capacity and guardrails"
@@ -53,26 +53,83 @@
     "docs"
   ],
   "affected_files": [
-    "docs/SCALABILITY-SSOT.md"
+    "docs/SCALABILITY-SSOT.md",
+    "scripts/dev/edp_t1_load.py",
+    "test-framework/tests/test_edp_t1_capacity.py",
+    "config/edp-slo.json",
+    "engineering/benchmarks/BI-PF-1527/"
   ],
   "approach": "T1: validate team-scale capacity and guardrails",
   "review": {
+    "at": "2026-11-11T07:00:00+00:00",
+    "reviewed_by": "worker",
     "reconciliation": {
-      "prior_decisions": [],
-      "existing_path": [],
-      "assumptions": [],
-      "divergences": [],
-      "open_questions": []
+      "prior_decisions": [
+        "SCALABILITY-SSOT is authoritative",
+        "EDP-22/23 complete; EDP-24 gated"
+      ],
+      "existing_path": [
+        "docs/SCALABILITY-SSOT.md",
+        "EDP-22 benchmarks/SLOs",
+        "EDP-23 restore drills"
+      ],
+      "assumptions": [
+        "Staging has 1M-item capacity",
+        "Read-only benchmark role available",
+        "HIL owns tier acceptance"
+      ],
+      "divergences": [
+        "No measured T1 capacity report exists"
+      ],
+      "open_questions": [
+        "Staging environment owner/budget"
+      ]
     },
-    "impact_review": [],
-    "reviewed_by": "derived",
-    "at": ""
+    "impact_review": [
+      {
+        "claim": "API CHECK",
+        "verdict": "aligned",
+        "evidence": "No new API",
+        "recommendation": "Tooling only"
+      },
+      {
+        "claim": "AC CHECK",
+        "verdict": "aligned",
+        "evidence": "Four distinct T1 ACs",
+        "recommendation": "Validate with staging evidence"
+      },
+      {
+        "claim": "LANGUAGE CHECK",
+        "verdict": "aligned",
+        "evidence": "Python harness; Go/PostgreSQL runtime",
+        "recommendation": "Keep runtime in Go"
+      },
+      {
+        "claim": "TENANT/RLS CHECK",
+        "verdict": "aligned",
+        "evidence": "Tenant isolation exercised in load",
+        "recommendation": "Read-only role + RLS"
+      },
+      {
+        "claim": "COST CHECK",
+        "verdict": "new-path",
+        "evidence": "Staging capacity/cost not yet measured",
+        "recommendation": "HIL cost envelope"
+      }
+    ]
   },
   "verification": [
     "Objective achieved: T1: validate team-scale capacity and guardrails"
   ],
   "risks": [
-    "Not specified."
+    {
+      "risk": "Staging capacity unavailable or cost exceeds budget",
+      "mitigation": "HIL approves staging/cost envelope before load."
+    },
+    {
+      "risk": "Synthetic load does not represent production",
+      "mitigation": "Use SCALABILITY-SSOT T1 shape and publish workload profile."
+    }
   ],
   "rollback": "Revert the change.",
   "evidence": [
@@ -166,43 +223,47 @@
     "usage": {}
   },
   "created_at": "2026-11-06T13:56:43.509811",
-  "updated_at": "2026-11-06T13:56:48.907713",
+  "updated_at": "2026-11-11T22:27:46.492043",
   "score": 0.75,
   "_note": "readiness computed",
   "api_impact": {
     "needs_api": false,
-    "reason": "Capacity planning and validation tracking; no new product API."
+    "reason": "Capacity validation harness and evidence only; no new public API."
   },
   "design_pack": {
-    "version": 1,
+    "version": 2,
     "requirements": [
-      "T1 staging workload is defined with 10 tenants, 100 users, 1k projects, 10 concurrent runs, and 1M backlog items",
-      "T1 staging workload is defined with 10 tenants, 100 users, 1k projects, 10 concurrent runs, and 1M backlog items",
-      "SLO dashboards/alerts and restore drill evidence",
-      "T1 staging workload is defined with 10 tenants, 100 users, 1k projects, 10 concurrent runs, and 1M backlog items"
+      "T1 staging workload profile is defined and generated: 10 tenants, 100 users, 1k projects, 10 concurrent runs, 1M backlog items",
+      "T1 guardrails are verified under load: RPM, concurrency, connection pool, timeouts, object limits, and tenant isolation",
+      "SLO dashboards/alerts and a backup/restore drill are exercised with recorded evidence",
+      "A capacity report with measured p50/p95/p99, errors, saturation, pool waits, queue depth, RPO/RTO is reviewed by HIL; no tier claim without evidence"
     ],
     "scope": [
-      "Capacity tier validation and gated scale-out planning per docs/SCALABILITY-SSOT.md"
+      "T1 workload generator/profile",
+      "Guardrail load verification",
+      "SLO dashboards/alerts + restore drill",
+      "Capacity report and HIL decision"
     ],
     "non_goals": [
-      "No speculative scale-out without triggers.",
-      "No PF-GP product runtime target inherited from PF-SB."
+      "No speculative T3/T4 scale-out",
+      "No PF-GP runtime target inheritance"
     ],
     "invariants": [
-      "A tier is claimed only with measured staging evidence.",
-      "T3/T4 remain trigger-gated.",
-      "PF-SB and PF-GP targets stay separate."
+      "No tier claim without measured evidence",
+      "T3/T4 remain trigger-gated",
+      "PF-SB and PF-GP targets separate"
     ],
     "contracts": {
       "api": [
-        "No new API in this tracking item."
+        "No new public API."
       ],
       "db": [
-        "Uses existing EDP data plane."
+        "Existing EDP PostgreSQL/object store; read-only benchmark role."
       ],
       "files": [
+        "scripts/dev/edp_t1_load.py",
         "docs/SCALABILITY-SSOT.md",
-        "engineering/benchmarks/"
+        "engineering/benchmarks/BI-PF-1527/"
       ],
       "config": [
         "config/edp-slo.json"
@@ -211,79 +272,98 @@
     "failure_matrix": [
       {
         "case": "missing measured evidence",
-        "expected": "tier claim denied",
+        "expected": "deny tier claim",
         "code": "CAPACITY_EVIDENCE_MISSING"
       },
       {
         "case": "trigger not met",
         "expected": "do not scale out",
         "code": "SCALE_TRIGGER_NOT_MET"
+      },
+      {
+        "case": "tenant isolation leak",
+        "expected": "fail closed",
+        "code": "TENANT_ISOLATION_FAIL"
       }
     ],
     "dependencies": [
-      "BI-PF-1526"
+      "BI-PF-1526",
+      "BI-PF-1314",
+      "BI-PF-1315"
     ],
     "security": [
-      "No tenant data in capacity reports.",
-      "Use read-only benchmark roles."
+      "No tenant data in reports",
+      "Read-only benchmark roles",
+      "RLS-enabled load"
     ],
     "observability": [
-      "Publish p50/p95/p99, errors, saturation, pool waits, queue depth, RPO/RTO."
+      "p50/p95/p99, errors, saturation, pool waits, queue depth, RPO/RTO"
     ],
     "performance": [
-      "Targets are in docs/SCALABILITY-SSOT.md; no invented local capacity claim."
+      "T1 targets from docs/SCALABILITY-SSOT.md; no invented claim"
     ],
     "test_matrix": [
       {
         "ac": "AC-1",
         "kind": "contract",
-        "test": "python -m pytest test-framework/tests/test_edp_slo_config.py -q"
+        "test": "python -m pytest test-framework/tests/test_edp_t1_capacity.py -q"
       },
       {
         "ac": "AC-2",
         "kind": "contract",
-        "test": "python -m pytest test-framework/tests/test_edp_slo_config.py -q"
+        "test": "python -m pytest test-framework/tests/test_edp_t1_capacity.py -q"
       },
       {
         "ac": "AC-3",
         "kind": "contract",
-        "test": "python -m pytest test-framework/tests/test_edp_slo_config.py -q"
+        "test": "python -m pytest test-framework/tests/test_edp_t1_capacity.py -q"
       },
       {
         "ac": "AC-4",
         "kind": "contract",
-        "test": "python -m pytest test-framework/tests/test_edp_slo_config.py -q"
+        "test": "python -m pytest test-framework/tests/test_edp_t1_capacity.py -q"
       }
     ],
     "rollout": [
-      "Complete evidence, HIL capacity review, then accept or reject tier."
+      "Generate T1 workload",
+      "Run guardrail/SLO/restore checks",
+      "Publish report",
+      "HIL accepts/rejects tier"
     ],
     "rollback": [
-      "Keep previous tier and do not claim the new one."
+      "Keep previous tier; do not claim T1 until accepted"
     ],
     "decisions": [
-      "Capacity SSOT is authoritative."
+      "SCALABILITY-SSOT authoritative",
+      "Staging evidence required"
     ],
     "guardrails": [
-      "No tier claim without measurement.",
-      "No speculative EDP-24 build."
+      "No tier claim without measurement",
+      "No speculative EDP-24 build",
+      "Tenant isolation proof required"
     ],
     "learnings": [
-      "Scale-out follows measured triggers, not ambition."
+      "Scale-out follows measured triggers"
     ],
     "runtime_contract": {
-      "trigger": "capacity validation or scale decision",
-      "entrypoint": "docs/SCALABILITY-SSOT.md",
-      "call_sites": "EDP-22 benchmark harness -> capacity report -> HIL",
-      "adapter": "edpsvc/EDP data plane",
-      "contract": "tier evidence and decision",
-      "failure_behavior": "deny unsupported tier claim",
-      "observable_result": "capacity report and HIL decision"
+      "trigger": [
+        "T1 capacity validation"
+      ],
+      "entrypoint": [
+        "scripts/dev/edp_t1_load.py"
+      ],
+      "call_sites": [
+        "EDP-22 benchmark harness -> capacity report -> HIL"
+      ],
+      "adapter": "edpsvc/PostgreSQL staging",
+      "contract": "T1 workload, guardrails, SLO, restore report",
+      "failure_behavior": "deny tier claim",
+      "observable_result": "capacity report + HIL decision"
     },
     "proof_plan": {
-      "failing_test": "python -m pytest test-framework/tests/test_edp_slo_config.py -q",
-      "red_evidence": "No T1/T2 measured capacity report exists.",
-      "green_evidence": "T1/T2 load and restore evidence accepted."
+      "failing_test": "python -m pytest test-framework/tests/test_edp_t1_capacity.py -q",
+      "red_evidence": "No T1 report exists; test fails on missing profile/report",
+      "green_evidence": "T1 load/restore report accepted"
     },
     "ac_evidence": {
       "AC-1": {
@@ -310,14 +390,13 @@
     ],
     "controls": [
       {
-        "id": "CTL-CAPACITY",
-        "dimension": "performance_capacity",
-        "applies_to": "docs/SCALABILITY-SSOT.md",
-        "check": "python -m pytest test-framework/tests/test_edp_slo_config.py -q",
-        "evidence": "docs/SCALABILITY-SSOT.md",
-        "failure_behavior": "block",
-        "owner": "platform",
-        "cwd": "."
+        "id": "CTL-T1-CAPACITY",
+        "dimension": "evidence",
+        "applies_to": "BI-PF-1527",
+        "check": "python -m pytest test-framework/tests/test_edp_t1_capacity.py -q",
+        "evidence": "engineering/benchmarks/BI-PF-1314/db/local/baseline.json",
+        "failure_behavior": "FAIL",
+        "owner": "engineering"
       }
     ],
     "design_areas": [
@@ -363,6 +442,617 @@
         "sections": [],
         "evidence": []
       }
+    ],
+    "coverage": [
+      {
+        "ac": "AC-1",
+        "fr": "FR-1",
+        "tests": [
+          "python -m pytest test-framework/tests/test_edp_t1_capacity.py -q"
+        ],
+        "adapter": "T1 capacity harness",
+        "contract": "AC-1",
+        "evidence": [
+          "docs/SCALABILITY-SSOT.md"
+        ],
+        "call_sites": [
+          "scripts/dev/edp_t1_load.py"
+        ],
+        "entrypoint": "scripts/dev/edp_t1_load.py",
+        "failure_cases": [
+          "missing profile",
+          "missing evidence"
+        ],
+        "runtime_capability": true
+      },
+      {
+        "ac": "AC-2",
+        "fr": "FR-2",
+        "tests": [
+          "python -m pytest test-framework/tests/test_edp_t1_capacity.py -q"
+        ],
+        "adapter": "T1 capacity harness",
+        "contract": "AC-2",
+        "evidence": [
+          "docs/SCALABILITY-SSOT.md"
+        ],
+        "call_sites": [
+          "scripts/dev/edp_t1_load.py"
+        ],
+        "entrypoint": "scripts/dev/edp_t1_load.py",
+        "failure_cases": [
+          "missing profile",
+          "missing evidence"
+        ],
+        "runtime_capability": false
+      },
+      {
+        "ac": "AC-3",
+        "fr": "FR-3",
+        "tests": [
+          "python -m pytest test-framework/tests/test_edp_t1_capacity.py -q"
+        ],
+        "adapter": "T1 capacity harness",
+        "contract": "AC-3",
+        "evidence": [
+          "docs/SCALABILITY-SSOT.md"
+        ],
+        "call_sites": [
+          "scripts/dev/edp_t1_load.py"
+        ],
+        "entrypoint": "scripts/dev/edp_t1_load.py",
+        "failure_cases": [
+          "missing profile",
+          "missing evidence"
+        ],
+        "runtime_capability": false
+      },
+      {
+        "ac": "AC-4",
+        "fr": "FR-4",
+        "tests": [
+          "python -m pytest test-framework/tests/test_edp_t1_capacity.py -q"
+        ],
+        "adapter": "T1 capacity harness",
+        "contract": "AC-4",
+        "evidence": [
+          "docs/SCALABILITY-SSOT.md"
+        ],
+        "call_sites": [
+          "scripts/dev/edp_t1_load.py"
+        ],
+        "entrypoint": "scripts/dev/edp_t1_load.py",
+        "failure_cases": [
+          "missing profile",
+          "missing evidence"
+        ],
+        "runtime_capability": false
+      }
+    ],
+    "functional_ref": "engineering/specs/BI-PF-1527.md",
+    "standards": [
+      "AGENTS.md",
+      "docs/ENGINEERING_OPERATING_STANDARD.md",
+      "docs/REVIEW-GATES-LIFECYCLE.md",
+      "docs/DESIGN-QUALITY-RCCA.md",
+      "docs/WORK-EXECUTION-CONTRACT.md",
+      "docs/SCALABILITY-SSOT.md"
+    ],
+    "code_guidelines": [
+      "docs/guidelines/coding/python/style-guide.md",
+      "docs/guidelines/database/postgresql.md",
+      "docs/guidelines/testing/standards.md"
+    ],
+    "guideline_coverage": [
+      {
+        "guideline": "docs/guidelines/coding/python/style-guide.md",
+        "applies_to": "scripts/dev/edp_t1_load.py",
+        "evidence": "scripts/dev/backlog_db_bench.py",
+        "check": "python -m pytest test-framework/tests/test_edp_t1_capacity.py -q"
+      },
+      {
+        "guideline": "docs/guidelines/database/postgresql.md",
+        "applies_to": "scripts/dev/edp_t1_load.py",
+        "evidence": "config/edp-slo.json",
+        "check": "python -m pytest test-framework/tests/test_edp_t1_capacity.py -q"
+      },
+      {
+        "guideline": "docs/guidelines/testing/standards.md",
+        "applies_to": "scripts/dev/edp_t1_load.py",
+        "evidence": "test-framework/tests/test_edp_slo_config.py",
+        "check": "python -m pytest test-framework/tests/test_edp_t1_capacity.py -q"
+      }
+    ],
+    "review_scope": {
+      "files": [
+        "scripts/dev/edp_t1_load.py",
+        "test-framework/tests/test_edp_t1_capacity.py",
+        "docs/SCALABILITY-SSOT.md",
+        "config/edp-slo.json",
+        "engineering/benchmarks/BI-PF-1527/"
+      ],
+      "ac_ids": [
+        "AC-1",
+        "AC-2",
+        "AC-3",
+        "AC-4"
+      ],
+      "components": [
+        "scripts/dev",
+        "test-framework",
+        "docs",
+        "config",
+        "engineering/benchmarks"
+      ],
+      "exclude": [
+        "runtime API changes",
+        "T3/T4 implementation"
+      ]
+    },
+    "prerequisites": [
+      "Staging environment + read-only DB role",
+      "EDP-22 baseline + EDP-23 restore drill"
+    ],
+    "data_model": [
+      "Tenant/user/project/run/backlog synthetic dataset"
+    ],
+    "api_contract": [
+      "No new API"
+    ],
+    "security_model": [
+      "Read-only role; RLS; no tenant data in reports"
+    ],
+    "rls_tenant": [
+      "Tenant isolation exercised under load"
+    ],
+    "failure_taxonomy": [
+      "CAPACITY_EVIDENCE_MISSING",
+      "SCALE_TRIGGER_NOT_MET",
+      "TENANT_ISOLATION_FAIL"
+    ],
+    "concurrency_idempotency": [
+      "Load generator idempotent seed keys"
+    ],
+    "performance_capacity": [
+      "T1 shape: 10/100/1k/10/1M"
+    ],
+    "audit": [
+      "Capacity report retained as evidence"
+    ],
+    "quotas": [
+      "Verify RPM/concurrency/pool/object limits"
+    ],
+    "rollback_recovery": [
+      "Keep previous tier; EDP-23 restore drill"
+    ],
+    "backup_restore": [
+      "Restore drill required"
+    ],
+    "deployment_rollout": [
+      "Harness/report only; no runtime rollout"
+    ],
+    "ownership": [
+      "Platform SRE + EDP"
+    ],
+    "compatibility": [
+      "No runtime contract change"
     ]
-  }
+  },
+  "language_rule": "Python benchmark harness/tooling; DB/runtime remains Go/PostgreSQL.",
+  "functional_spec": {
+    "version": 1,
+    "status": "PROPOSED",
+    "owner": "engineering",
+    "source": "BI-PF-1527 T1",
+    "design_ref": "engineering/design/BI-PF-1527.md",
+    "outcome": [
+      "Measured T1 capacity decision with no unmeasured tier claim."
+    ],
+    "actors": [
+      "platform SRE",
+      "capacity engineer",
+      "HIL",
+      "operators"
+    ],
+    "scope": [
+      "T1 workload",
+      "guardrails",
+      "SLO/restore",
+      "capacity report"
+    ],
+    "non_goals": [
+      "No T3/T4 build",
+      "No PF-GP target inheritance"
+    ],
+    "assumptions": [
+      "Staging capacity",
+      "Read-only role",
+      "HIL acceptance"
+    ],
+    "dependencies": [
+      "BI-PF-1526",
+      "BI-PF-1314",
+      "BI-PF-1315"
+    ],
+    "domain": [
+      "T1 workload shape",
+      "capacity report",
+      "trigger"
+    ],
+    "requirements": [
+      {
+        "id": "FR-1",
+        "title": "T1 staging workload profile is defined and generated: 10 ten",
+        "priority": "Must",
+        "source": "AC-1",
+        "preconditions": "staging ready",
+        "trigger": "run T1 harness",
+        "inputs": "profile",
+        "outputs": "evidence",
+        "errors": "CAPACITY_EVIDENCE_MISSING",
+        "auth": "read-only role",
+        "idempotency": "seeded idempotent keys",
+        "data_rules": "synthetic tenant data",
+        "edge_cases": "missing capacity",
+        "acceptance": [
+          "Given T1 staging When AC-1 runs Then evidence is recorded."
+        ],
+        "verification": "python -m pytest test-framework/tests/test_edp_t1_capacity.py -q"
+      },
+      {
+        "id": "FR-2",
+        "title": "T1 guardrails are verified under load: RPM, concurrency, con",
+        "priority": "Must",
+        "source": "AC-2",
+        "preconditions": "staging ready",
+        "trigger": "run T1 harness",
+        "inputs": "profile",
+        "outputs": "evidence",
+        "errors": "CAPACITY_EVIDENCE_MISSING",
+        "auth": "read-only role",
+        "idempotency": "seeded idempotent keys",
+        "data_rules": "synthetic tenant data",
+        "edge_cases": "missing capacity",
+        "acceptance": [
+          "Given T1 staging When AC-2 runs Then evidence is recorded."
+        ],
+        "verification": "python -m pytest test-framework/tests/test_edp_t1_capacity.py -q"
+      },
+      {
+        "id": "FR-3",
+        "title": "SLO dashboards/alerts and a backup/restore drill are exercis",
+        "priority": "Must",
+        "source": "AC-3",
+        "preconditions": "staging ready",
+        "trigger": "run T1 harness",
+        "inputs": "profile",
+        "outputs": "evidence",
+        "errors": "CAPACITY_EVIDENCE_MISSING",
+        "auth": "read-only role",
+        "idempotency": "seeded idempotent keys",
+        "data_rules": "synthetic tenant data",
+        "edge_cases": "missing capacity",
+        "acceptance": [
+          "Given T1 staging When AC-3 runs Then evidence is recorded."
+        ],
+        "verification": "python -m pytest test-framework/tests/test_edp_t1_capacity.py -q"
+      },
+      {
+        "id": "FR-4",
+        "title": "A capacity report with measured p50/p95/p99, errors, saturat",
+        "priority": "Must",
+        "source": "AC-4",
+        "preconditions": "staging ready",
+        "trigger": "run T1 harness",
+        "inputs": "profile",
+        "outputs": "evidence",
+        "errors": "CAPACITY_EVIDENCE_MISSING",
+        "auth": "read-only role",
+        "idempotency": "seeded idempotent keys",
+        "data_rules": "synthetic tenant data",
+        "edge_cases": "missing capacity",
+        "acceptance": [
+          "Given T1 staging When AC-4 runs Then evidence is recorded."
+        ],
+        "verification": "python -m pytest test-framework/tests/test_edp_t1_capacity.py -q"
+      }
+    ],
+    "operation_matrix": [
+      {
+        "mode": "validation",
+        "operation": "T1 load",
+        "scope": "staging",
+        "actor": "SRE",
+        "expected": "report",
+        "error": "CAPACITY_EVIDENCE_MISSING"
+      }
+    ],
+    "config_contract": [
+      {
+        "name": "PF_T1_TENANTS",
+        "default": "10",
+        "precedence": "env",
+        "valid_values": "positive int",
+        "empty_behavior": "deny",
+        "invalid_behavior": "deny",
+        "startup_validation": "yes"
+      }
+    ],
+    "nfr": [
+      "T1 SLOs from SCALABILITY-SSOT"
+    ],
+    "data_lifecycle": [
+      "Synthetic dataset created/destroyed per run"
+    ],
+    "compatibility": [
+      "No runtime API change"
+    ],
+    "rollback": [
+      "Keep previous tier"
+    ],
+    "observability": [
+      "p50/p95/p99/errors/saturation/RPO/RTO"
+    ],
+    "traceability": [
+      {
+        "fr": "FR-1",
+        "design": "design_pack.coverage AC-1",
+        "test": "python -m pytest test-framework/tests/test_edp_t1_capacity.py -q",
+        "evidence": [
+          "docs/SCALABILITY-SSOT.md"
+        ]
+      },
+      {
+        "fr": "FR-2",
+        "design": "design_pack.coverage AC-2",
+        "test": "python -m pytest test-framework/tests/test_edp_t1_capacity.py -q",
+        "evidence": [
+          "docs/SCALABILITY-SSOT.md"
+        ]
+      },
+      {
+        "fr": "FR-3",
+        "design": "design_pack.coverage AC-3",
+        "test": "python -m pytest test-framework/tests/test_edp_t1_capacity.py -q",
+        "evidence": [
+          "docs/SCALABILITY-SSOT.md"
+        ]
+      },
+      {
+        "fr": "FR-4",
+        "design": "design_pack.coverage AC-4",
+        "test": "python -m pytest test-framework/tests/test_edp_t1_capacity.py -q",
+        "evidence": [
+          "docs/SCALABILITY-SSOT.md"
+        ]
+      }
+    ],
+    "open_questions": [
+      "Staging owner/budget"
+    ],
+    "dod": [
+      "T1 report + HIL acceptance"
+    ],
+    "functional_sha": "3170c6a7f447"
+  },
+  "spec_pack": {
+    "version": 1,
+    "status": "PROPOSED",
+    "functional_ref": "engineering/specs/BI-PF-1527.md",
+    "design_ref": "engineering/design/BI-PF-1527.md",
+    "applicability": [
+      {
+        "spec": "product_design_spec",
+        "status": "N/A",
+        "owner": "engineering",
+        "reason": "No user-facing UI in capacity validation.",
+        "artifact": "",
+        "sections": [],
+        "evidence": []
+      },
+      {
+        "spec": "api_contract",
+        "status": "N/A",
+        "owner": "engineering",
+        "reason": "No new API.",
+        "artifact": "",
+        "sections": [],
+        "evidence": []
+      },
+      {
+        "spec": "data_contract",
+        "status": "APPLICABLE",
+        "owner": "engineering",
+        "reason": "Synthetic T1 dataset and read-only DB.",
+        "artifact": "engineering/design/BI-PF-1527.md",
+        "sections": [
+          "design_pack.data_model"
+        ],
+        "evidence": [
+          "config/edp-slo.json"
+        ]
+      },
+      {
+        "spec": "config_contract",
+        "status": "APPLICABLE",
+        "owner": "engineering",
+        "reason": "T1 profile and SLO config.",
+        "artifact": "engineering/design/BI-PF-1527.md",
+        "sections": [
+          "design_pack.config_contract"
+        ],
+        "evidence": [
+          "config/edp-slo.json"
+        ]
+      },
+      {
+        "spec": "nfr_slo",
+        "status": "APPLICABLE",
+        "owner": "engineering",
+        "reason": "T1 SLOs.",
+        "artifact": "engineering/design/BI-PF-1527.md",
+        "sections": [
+          "design_pack.performance"
+        ],
+        "evidence": [
+          "docs/SCALABILITY-SSOT.md"
+        ]
+      },
+      {
+        "spec": "security_threat_model",
+        "status": "APPLICABLE",
+        "owner": "engineering",
+        "reason": "Read-only role/RLS.",
+        "artifact": "engineering/design/BI-PF-1527.md",
+        "sections": [
+          "design_pack.security"
+        ],
+        "evidence": [
+          "docs/BACKLOG-AUTHORITY-RUNBOOK.md"
+        ]
+      },
+      {
+        "spec": "migration_backfill",
+        "status": "N/A",
+        "owner": "engineering",
+        "reason": "No schema migration in validation item.",
+        "artifact": "",
+        "sections": [],
+        "evidence": []
+      },
+      {
+        "spec": "rollback_dr",
+        "status": "APPLICABLE",
+        "owner": "engineering",
+        "reason": "Restore drill and tier rollback.",
+        "artifact": "engineering/design/BI-PF-1527.md",
+        "sections": [
+          "design_pack.rollback_recovery"
+        ],
+        "evidence": [
+          "docs/EDP-22-RUNBOOK.md"
+        ]
+      },
+      {
+        "spec": "observability_runbook",
+        "status": "APPLICABLE",
+        "owner": "engineering",
+        "reason": "SLO alerts/runbook.",
+        "artifact": "engineering/design/BI-PF-1527.md",
+        "sections": [
+          "design_pack.observability"
+        ],
+        "evidence": [
+          "ops/prometheus/backlog-authority.rules.yml"
+        ]
+      },
+      {
+        "spec": "accessibility_i18n",
+        "status": "N/A",
+        "owner": "engineering",
+        "reason": "No user-facing localization or accessibility surface.",
+        "artifact": "",
+        "sections": [],
+        "evidence": []
+      },
+      {
+        "spec": "privacy_compliance",
+        "status": "N/A",
+        "owner": "engineering",
+        "reason": "Synthetic data only.",
+        "artifact": "",
+        "sections": [],
+        "evidence": []
+      },
+      {
+        "spec": "implementation_plan",
+        "status": "APPLICABLE",
+        "owner": "engineering",
+        "reason": "Harness ? load ? report ? HIL.",
+        "artifact": "engineering/design/BI-PF-1527.md",
+        "sections": [
+          "design_pack.rollout"
+        ],
+        "evidence": [
+          "docs/SCALABILITY-SSOT.md"
+        ]
+      },
+      {
+        "spec": "release_verification",
+        "status": "APPLICABLE",
+        "owner": "engineering",
+        "reason": "Capacity report + restore evidence.",
+        "artifact": "engineering/design/BI-PF-1527.md",
+        "sections": [
+          "design_pack.test_matrix"
+        ],
+        "evidence": [
+          "engineering/benchmarks/BI-PF-1314/db/local/baseline.json"
+        ]
+      }
+    ]
+  },
+  "fix_impact": [
+    {
+      "sig": "sig:retrofit-1527",
+      "finding": "Base T1 item lacked distinct ACs/spec chain",
+      "severity": "MAJOR",
+      "origin_class": "DESIGN_GAP",
+      "reproducer": "duplicate ACs and missing specs",
+      "regression_test": "python -m pytest test-framework/tests/test_edp_t1_capacity.py -q",
+      "evidence": "docs/SCALABILITY-SSOT.md",
+      "files": [
+        "data/backlog/items/BI-PF-1527.json"
+      ],
+      "rollback": "Design-only.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    }
+  ],
+  "review_ledger": [
+    {
+      "mode": "design",
+      "candidate_sha": "0d62a57779ee95f98fabbcd1afc6afa4ec3fd58d",
+      "review_sha": "6aa506b00d2d",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-11T16:57:46.217761+00:00",
+      "review_scope": "full_candidate",
+      "base_sha": "",
+      "head_sha": "0d62a57779ee95f98fabbcd1afc6afa4ec3fd58d",
+      "findings": {
+        "BLOCKER": [
+          "AC-1..AC-4 evidence is `docs/SCALABILITY-SSOT.md` (sha \"candidate\"); the SSOT holds targets, not measured p50/p95/p99, RPO/RTO, or HIL-review proof — AC-4's \"no tier claim without evidence\" cannot be satisfied by the declared evidence.",
+          "`controls.CTL-T1-CAPACITY.evidence` and `spec_pack.release_verification.evidence` both point to `engineering/benchmarks/BI-PF-1314/db/local/baseline.json` (a different item); the gate control would pass on unrelated evidence.",
+          "AC-3 (alert firing + backup/restore drill) and AC-4 (HIL review) are mapped only to `python -m pytest test-framework/tests/test_edp_t1_capacity.py`; no executable path produces restore-drill evidence or verifies HIL acceptance — declared tests cannot verify these ACs."
+        ],
+        "MAJOR": [
+          "`coverage.runtime_capability` is `False` for AC-2/AC-3/AC-4 while still claiming entrypoint/tests; guardrail-under-load (AC-2) has no declared runtime capability.",
+          "`config_contract` pins only `PF_T1_TENANTS`; users/projects/runs/backlog (100/1k/10/1M) and guardrail knobs (RPM, concurrency, pool, timeouts, object limits) lack pinned keys, precedence, and invalid/empty behavior — checklist #8 incomplete.",
+          "`design_areas.security: N/A` contradicts `security_threat_model: APPLICABLE` and \"RLS-enabled load\"; no explicit statement that the benchmark role is not BYPASSRLS/superuser-inherited (checklist #3).",
+          "Open question \"Staging owner/budget\" is unresolved while AC-1..4 and the risk mitigation (HIL-approved cost envelope before load) depend on it — precondition for the capacity decision not closed at Gate 1.",
+          "Blast radius of the generator (1M synthetic rows, per-run destroy) has no stated bounds, dry-run mode, or guarantee that cleanup targets only seeded synthetic keys (checklist #4)."
+        ],
+        "MINOR": [
+          "Top-level `out_of_scope: ['Not specified.']` conflicts with the design's stated non_goals — inconsistent scope declaration.",
+          "No statement whether `scripts/dev/edp_t1_load.py` reuses the existing EDP-22/`backlog_db_bench.py` harness or duplicates it (checklist #10 reuse).",
+          "The harness's own failure diagnostics (logs/metrics to debug a failed run) are unspecified; only report outputs are listed (checklist #10).",
+          "`TENANT_ISOLATION_FAIL`/`CAPACITY_EVIDENCE_MISSING` are declared in the failure taxonomy but no test asserts their fail-closed behavior."
+        ],
+        "NIT": [
+          "Top-level `rollback: 'Revert the change.'` conflicts with design rollback \"Keep previous tier; do not claim T1 until accepted.\"",
+          "All `ac_evidence.sha` values are `\"candidate\"` — no digest pinned for any AC."
+        ],
+        "SUMMARY": [
+          "Verdict: not approvable at Gate 1 as-is — the evidence chain is broken (SSOT doc and a prior item's baseline cited as proof) and AC-3/AC-4 have no executable verification path.",
+          "Top risks: unmeasured tier claim slipping through a control that reads BI-PF-1314 evidence; incomplete config contract for the T1 shape and guardrails; unresolved staging owner/budget precondition.",
+          "Language rule is satisfied (tooling/tests/docs Python); resolve evidence artifacts, security/RLS statements, and blast-radius bounds before Gate 1.5."
+        ]
+      },
+      "evidence": "BI-PF-1527-6aa506b00d2d.json"
+    }
+  ]
 }
