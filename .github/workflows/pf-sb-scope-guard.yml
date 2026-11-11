@@ -1,0 +1,30 @@
+name: pf-sb-scope-guard
+on:
+  pull_request:
+jobs:
+  scope-guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Guard changed paths
+        working-directory: product-forge
+        run: |
+          python scripts/dev/pf_sb_scope_guard.py --baseline engineering/trails/BI-PF-1508-scope-baseline.txt --base origin/${{ github.base_ref }} \
+            --allow go/edpdata/backlog.go \
+            --allow go/edpdata/edpdata_test.go \
+            --allow go/edpsvc/main.go \
+            --allow go/edpsvc/main_test.go \
+            --allow migrations/0018_backlog_reservation_counter.up.sql \
+            --allow migrations/0018_backlog_reservation_counter.down.sql \
+            --allow scripts/dev/pf_sb_scope_guard.py \
+            --allow test-framework/tests/test_pf_sb_scope_guard.py \
+            --allow ops/prometheus/backlog-authority.rules.yml \
+            --allow docs/BACKLOG-AUTHORITY-RUNBOOK.md \
+            --allow .github/workflows/pf-sb-scope-guard.yml \
+            --allow engineering/trails/BI-PF-1508-scope-baseline.txt \
+            --allow engineering/evidence/BI-PF-1508/red-proof.txt
