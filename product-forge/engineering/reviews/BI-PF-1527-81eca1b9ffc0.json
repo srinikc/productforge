@@ -1,0 +1,35 @@
+{
+  "item": "BI-PF-1527",
+  "sha": "81eca1b9ffc0",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-11T17:50:48.722789+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "0d62a57779ee95f98fabbcd1afc6afa4ec3fd58d",
+  "head_sha": "18cc13b258d5fc72d61123162b0c06c15e23ecf2",
+  "findings": {
+    "BLOCKER": [
+      "`spec_pack.release_verification.evidence` still points to `engineering/benchmarks/BI-PF-1314/db/local/baseline.json` (a different item); only `controls` was repointed to BI-PF-1527 README \u2014 prior BLOCKER-2 disposition is wrong: release verification still passes on unrelated evidence."
+    ],
+    "MAJOR": [
+      "`functional_spec.config_contract` still pins only `PF_T1_TENANTS` while `design_pack.config_contract` pins nine keys; both fields are in this delta but were left out of sync \u2014 prior config-contract MAJOR only half-fixed (checklist #8 contract sync).",
+      "`design_pack.open_questions` cleared to `[]` while `functional_spec.open_questions` and `review.reconciliation.open_questions` still carry \"Staging owner/budget\"; the cost/staging precondition for AC-1..4 was suppressed, not resolved \u2014 prior MAJOR disposition wrong.",
+      "AC-3/AC-4 verification still maps solely to `pytest test-framework/tests/test_edp_t1_capacity.py`; the delta adds an evidence pointer but no mechanism asserting alert firing, drill execution, or HIL sign-off \u2014 prior BLOCKER-3 disposition only partially addressed."
+    ],
+    "MINOR": [
+      "`coverage.failure_cases` lists only \"missing profile\"/\"missing evidence\" for all ACs; `TENANT_ISOLATION_FAIL` and `SCALE_TRIGGER_NOT_MET` fail-closed paths have no mapped assertion \u2014 prior MINOR disposition not evidenced in the delta.",
+      "`ac_evidence` maps AC-1..AC-4 to one README with an identical sha; ensure the artifact records distinct, per-AC sections (profile, guardrails, drill, HIL review) with run ids so each AC is individually auditable.",
+      "`review.reviewed_by: \"worker\"` \u2014 impact review performed by the implementer; independent review/HIL loop not yet recorded, with COST CHECK still \"new-path\"."
+    ],
+    "NIT": [
+      "`functional_spec.rollback` (\"Keep previous tier\") omits the \"do not claim T1 until accepted\" clause present in design_pack/top-level rollback; align wording.",
+      "`functional_spec.data_lifecycle` (\"created/destroyed per run\") lacks the `pf-t1-` prefix, dry-run, and seeded-key cleanup bounds stated in `design_pack.data_lifecycle`; align the two rows."
+    ],
+    "SUMMARY": [
+      "Delta genuinely fixes most prior findings (design_pack config keys, security APPLICABLE + non-BYPASSRLS statement, `runtime_capability: true`, scoped `out_of_scope`, reuse/diagnostics guardrails, pinned sha), but three dispositions are incomplete: BI-PF-1314 evidence survives in `spec_pack.release_verification`, `config_contract` is desynced between functional_spec and design_pack, and the staging cost/owner open question was cleared from design_pack without resolution. Top risks before Gate 1.5: gate control/verification pointing at wrong-item evidence, and an unclosed cost precondition presented as closed."
+    ]
+  },
+  "rereview_reason": "fix 6aa506b00d2d findings",
+  "rereview_reason_sha256": "82afd5ad7b5bf7a4c08e92e3343dfc92b61354d8c53a155cdde52a8132b00766"
+}

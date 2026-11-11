@@ -21,4 +21,4 @@ Every conditional spec is `APPLICABLE` with an artifact/sections/evidence, or `N
 | accessibility_i18n | N/A | engineering | No user-facing localization or accessibility surface. |  |  |  |
 | privacy_compliance | N/A | engineering | Synthetic data only. |  |  |  |
 | implementation_plan | APPLICABLE | engineering | Harness ? load ? report ? HIL. | engineering/design/BI-PF-1527.md | design_pack.rollout | docs/SCALABILITY-SSOT.md |
-| release_verification | APPLICABLE | engineering | Capacity report + restore evidence. | engineering/design/BI-PF-1527.md | design_pack.test_matrix | engineering/benchmarks/BI-PF-1314/db/local/baseline.json |
+| release_verification | APPLICABLE | engineering | Capacity report + restore evidence. | engineering/design/BI-PF-1527.md | design_pack.test_matrix | engineering/benchmarks/BI-PF-1527/README.md |
