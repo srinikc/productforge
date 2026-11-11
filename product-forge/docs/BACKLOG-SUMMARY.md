@@ -1,17 +1,17 @@
 # Backlog Summary
 
-> GENERATED 2026-11-10T14:30:17 by `scripts/dev/gen_backlog_summary.py`.
+> GENERATED 2026-11-11T11:10:46 by `scripts/dev/gen_backlog_summary.py`.
 > Derived file - do not hand-edit. Truth: the backlog stores (core/backlog.py).
 
 ## Pipeline backend (product_forge) (`product_forge`)
 
-- **Open:** 139  |  **Closed:** 605
+- **Open:** 137  |  **Closed:** 607
 - `blocked`: 2
 - `executing`: 3
 - `in_progress`: 1
-- `new`: 133
+- `new`: 131
 
-### new, by category (133)
+### new, by category (131)
 **API / reports / HIL / misc** (15)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
@@ -76,7 +76,7 @@
 | BI-PF-1415 | Should | defect | RCCA: config/derived stores classified by kind heuristic (not reviewed) - 78 project/tenant-scoped stores likely belong in DB (views/tables) | RCCA: config/derived stores classified by kind heuristic (not reviewed) - 78 project/tenant-scoped stores like... |
 | BI-PF-1478 | Must | feature | EDP: per-tenant authentication + hard per-tenant quota isolation for the data-plane service | Give go/edpsvc a real per-tenant principal so per-tenant quotas/concurrency are bound to the authenticated ten... |
 
-**Specs / cache / context / artifacts** (10)
+**Specs / cache / context / artifacts** (9)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0206 | Should | tech-debt | Backend: model downloader + local cache + license-acceptance gate + models.lock (open-weights) | One owner module that downloads only the weights a project's capability pack needs, into a gitignored local ca... |
@@ -88,9 +88,8 @@
 | BI-PF-1385 | Must | bug | Backlog API: no deterministic endpoint to author item context fields (objective/acceptance_criteria/affected_files/approach) | Backlog API: no deterministic endpoint to author item context fields (objective/acceptance_criteria/affected_f... |
 | BI-PF-1392 | Should | task | Enforce per-feature FR/US caps + max_lines in the Go artifact engine (scaled by the profile) and reconcile the three section sources | Per-feature FR/US caps + max_lines enforced NUMERICALLY (scaled by profile); sections have ONE source. |
 | BI-PF-1425 | Should | feature | Migrate orchestrator cache + evidence/summarizer (and remaining audit logic) from Python to Go (Go-first alignment) | Migrate orchestrator cache + evidence/summarizer (and remaining audit logic) from Python to Go (Go-first align... |
-| BI-PF-1532 | Should | task | Functional spec + conditional spec-pack chain | Functional spec + conditional spec-pack chain |
 
-**Wiring / tech-debt / API** (83)
+**Wiring / tech-debt / API** (82)
 | ID | MoSCoW | Type | Title | Objective |
 |---|---|---|---|---|
 | BI-0185 | Should | feature | EPIC: Multi-modal / media orchestration (pluggable capability packs) | Make the pipeline modality-agnostic via PLUGGABLE capability packs, enabled per project when the idea needs th... |
@@ -175,7 +174,6 @@
 | BI-PF-1528 | Should | task | T2: validate business-scale capacity, isolation, and recovery | T2: validate business-scale capacity, isolation, and recovery |
 | BI-PF-1529 | Should | task | T3: enterprise scale-out decision gate (replicas/partitioning/distributed quotas) | T3: enterprise scale-out decision gate (replicas/partitioning/distributed quotas) |
 | BI-PF-1530 | Should | task | T4: dedicated cell and multi-region decision gate | T4: dedicated cell and multi-region decision gate |
-| BI-PF-1531 | Should | task | EDP: make PostgreSQL backlog authority the default for PF-SB and PF-GP scopes | EDP: make PostgreSQL backlog authority the default for PF-SB and PF-GP scopes |
 
 ---
 
@@ -375,5 +373,5 @@
 ---
 
 ## Totals
-- backend: 139 open / 605 closed
+- backend: 137 open / 607 closed
 - dashboard: 146 open / 3 closed
