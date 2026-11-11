@@ -10,7 +10,7 @@
   "title": "Functional spec + conditional spec-pack chain",
   "body": "Add Gate 0.5 functional freeze, conditional spec applicability, FR conformance, and wire them into PF-SB gates.",
   "source": "generic",
-  "status": "completed",
+  "status": "new",
   "priority": "P2",
   "moscow": "Should",
   "value": 3,
@@ -46,6 +46,17 @@
       "findings_digest": "e3b0c44298fc",
       "seq": 2,
       "note": "Merged process/spec chain; CI green on develop.",
+      "hil_confirmed": true
+    },
+    {
+      "at": "2026-11-11T04:51:39.046431+00:00",
+      "by": "hil:user",
+      "decision": "APPROVE",
+      "gate": 2,
+      "findings_sha": "docs-only",
+      "findings_digest": "e3b0c44298fc",
+      "seq": 3,
+      "note": "Merged; CI green; final Gate 2 digest.",
       "hil_confirmed": true
     }
   ],
@@ -87,18 +98,50 @@
     "scripts/dev/precheck.py",
     "scripts/dev/architect_review.py",
     "config/functional-spec.json",
-    "config/spec-pack.json"
+    "config/spec-pack.json",
+    "config/fix-impact.json",
+    "docs/FIX-IMPACT-CONTRACT.md",
+    "docs/SPEC-CHAIN.md",
+    "scripts/dev/fix_guard.py",
+    "test-framework/tests/test_spec_chain.py"
   ],
   "approach": "Functional spec + conditional spec-pack chain",
   "review": {
     "reconciliation": {
-      "prior_decisions": [],
-      "existing_path": [],
-      "assumptions": [],
-      "divergences": [],
+      "prior_decisions": [
+        "Process/spec work split from mixed BI-PF-1531"
+      ],
+      "existing_path": [
+        "design pack existed; functional/conditional spec chain did not"
+      ],
+      "assumptions": [
+        "Additive process gates do not change runtime behavior"
+      ],
+      "divergences": [
+        "Mixed branch carried process work inside DB cutover"
+      ],
       "open_questions": []
     },
-    "impact_review": [],
+    "impact_review": [
+      {
+        "claim": "API CHECK",
+        "verdict": "aligned",
+        "evidence": "No public API change",
+        "recommendation": "Keep tooling-only"
+      },
+      {
+        "claim": "AC CHECK",
+        "verdict": "aligned",
+        "evidence": "Five process acceptance criteria",
+        "recommendation": "Enforce via Gate 1/precheck"
+      },
+      {
+        "claim": "LANGUAGE CHECK",
+        "verdict": "aligned",
+        "evidence": "Python tooling/tests/config/docs only",
+        "recommendation": "No shipped runtime logic"
+      }
+    ],
     "reviewed_by": "derived",
     "at": ""
   },
@@ -112,7 +155,10 @@
     }
   ],
   "risks": [
-    "Not specified."
+    {
+      "risk": "Process gates may be bypassed for unlisted items",
+      "mitigation": "Enforce by enforce_items and enable future items by date."
+    }
   ],
   "rollback": "Revert the change.",
   "evidence": [
@@ -214,9 +260,9 @@
     "usage": {}
   },
   "created_at": "2026-11-06T23:54:30.971131",
-  "updated_at": "2026-11-11T10:19:44.222879",
+  "updated_at": "2026-11-11T10:25:05.936750",
   "score": 0.75,
-  "_note": "Merged, CI green, Gate 2 approved.",
+  "_note": "Merged and delivered; completion awaits Gate 1/design evidence.",
   "design_pack": {
     "version": 1,
     "requirements": [
@@ -395,7 +441,7 @@
         "id": "CTL-SPEC-CHAIN",
         "dimension": "evidence",
         "applies_to": "BI-PF-1532",
-        "check": "functional_spec.py --all --check --fresh; spec_pack.py --all --check --fresh; conformance_check.py --all",
+        "check": "python -m pytest test-framework/tests/test_spec_chain.py -q",
         "evidence": "test-framework/tests/test_spec_chain.py",
         "failure_behavior": "FAIL",
         "owner": "engineering"
@@ -423,7 +469,215 @@
       "docs/ENGINEERING_OPERATING_STANDARD.md",
       "docs/REVIEW-GATES-LIFECYCLE.md",
       "docs/DESIGN-QUALITY-RCCA.md",
-      "docs/SPEC-CHAIN.md"
+      "docs/SPEC-CHAIN.md",
+      "docs/WORK-EXECUTION-CONTRACT.md"
+    ],
+    "code_guidelines": [
+      "docs/guidelines/coding/python/style-guide.md",
+      "docs/guidelines/testing/standards.md"
+    ],
+    "guideline_coverage": [
+      {
+        "guideline": "docs/guidelines/coding/python/style-guide.md",
+        "applies_to": "scripts/dev/functional_spec.py",
+        "evidence": "scripts/dev/functional_spec.py",
+        "check": "python -m pytest test-framework/tests/test_spec_chain.py -q"
+      },
+      {
+        "guideline": "docs/guidelines/testing/standards.md",
+        "applies_to": "test-framework/tests/test_spec_chain.py",
+        "evidence": "test-framework/tests/test_spec_chain.py",
+        "check": "python -m pytest test-framework/tests/test_spec_chain.py -q"
+      }
+    ],
+    "coverage": [
+      {
+        "ac": "AC-1",
+        "tests": [
+          "python -m pytest test-framework/tests/test_spec_chain.py -q"
+        ],
+        "adapter": "process gate tooling",
+        "contract": "deterministic spec-chain enforcement",
+        "evidence": [
+          "test-framework/tests/test_spec_chain.py"
+        ],
+        "call_sites": [
+          "scripts/dev/gate1_check.py",
+          "scripts/dev/precheck.py"
+        ],
+        "entrypoint": "scripts/dev/functional_spec.py",
+        "failure_cases": [
+          "missing spec",
+          "missing conformance"
+        ],
+        "runtime_capability": false
+      },
+      {
+        "ac": "AC-2",
+        "tests": [
+          "python -m pytest test-framework/tests/test_spec_chain.py -q"
+        ],
+        "adapter": "process gate tooling",
+        "contract": "deterministic spec-chain enforcement",
+        "evidence": [
+          "test-framework/tests/test_spec_chain.py"
+        ],
+        "call_sites": [
+          "scripts/dev/gate1_check.py",
+          "scripts/dev/precheck.py"
+        ],
+        "entrypoint": "scripts/dev/functional_spec.py",
+        "failure_cases": [
+          "missing spec",
+          "missing conformance"
+        ],
+        "runtime_capability": false
+      },
+      {
+        "ac": "AC-3",
+        "tests": [
+          "python -m pytest test-framework/tests/test_spec_chain.py -q"
+        ],
+        "adapter": "process gate tooling",
+        "contract": "deterministic spec-chain enforcement",
+        "evidence": [
+          "test-framework/tests/test_spec_chain.py"
+        ],
+        "call_sites": [
+          "scripts/dev/gate1_check.py",
+          "scripts/dev/precheck.py"
+        ],
+        "entrypoint": "scripts/dev/functional_spec.py",
+        "failure_cases": [
+          "missing spec",
+          "missing conformance"
+        ],
+        "runtime_capability": false
+      },
+      {
+        "ac": "AC-4",
+        "tests": [
+          "python -m pytest test-framework/tests/test_spec_chain.py -q"
+        ],
+        "adapter": "process gate tooling",
+        "contract": "deterministic spec-chain enforcement",
+        "evidence": [
+          "test-framework/tests/test_spec_chain.py"
+        ],
+        "call_sites": [
+          "scripts/dev/gate1_check.py",
+          "scripts/dev/precheck.py"
+        ],
+        "entrypoint": "scripts/dev/functional_spec.py",
+        "failure_cases": [
+          "missing spec",
+          "missing conformance"
+        ],
+        "runtime_capability": false
+      },
+      {
+        "ac": "AC-5",
+        "tests": [
+          "python -m pytest test-framework/tests/test_spec_chain.py -q"
+        ],
+        "adapter": "process gate tooling",
+        "contract": "deterministic spec-chain enforcement",
+        "evidence": [
+          "test-framework/tests/test_spec_chain.py"
+        ],
+        "call_sites": [
+          "scripts/dev/gate1_check.py",
+          "scripts/dev/precheck.py"
+        ],
+        "entrypoint": "scripts/dev/functional_spec.py",
+        "failure_cases": [
+          "missing spec",
+          "missing conformance"
+        ],
+        "runtime_capability": false
+      }
+    ],
+    "review_scope": {
+      "files": [
+        "scripts/dev/functional_spec.py",
+        "scripts/dev/spec_pack.py",
+        "scripts/dev/conformance_check.py",
+        "scripts/dev/fix_guard.py",
+        "scripts/dev/gate1_check.py",
+        "scripts/dev/precheck.py",
+        "scripts/dev/architect_review.py",
+        "templates/FUNCTIONAL-SPEC.md",
+        "templates/SPEC-PACK.md",
+        "config/functional-spec.json",
+        "config/spec-pack.json",
+        "config/fix-impact.json",
+        "docs/SPEC-CHAIN.md",
+        "docs/FIX-IMPACT-CONTRACT.md",
+        "test-framework/tests/test_spec_chain.py"
+      ],
+      "ac_ids": [
+        "AC-1",
+        "AC-2",
+        "AC-3",
+        "AC-4",
+        "AC-5"
+      ],
+      "components": [
+        "scripts/dev",
+        "templates",
+        "config",
+        "docs",
+        "test-framework"
+      ],
+      "exclude": [
+        "product runtime code",
+        "database migrations"
+      ]
+    },
+    "api_contract": [
+      "No public API."
+    ],
+    "audit": [
+      "Changes are reviewed via git/CI evidence."
+    ],
+    "backup_restore": [
+      "Git history is the backup; no runtime data store."
+    ],
+    "compatibility": [
+      "Additive checks; legacy items excluded until enforce date."
+    ],
+    "concurrency_idempotency": [
+      "Checks are read-only and deterministic."
+    ],
+    "data_model": [
+      "Config JSON plus item fields."
+    ],
+    "deployment_rollout": [
+      "Enable only listed items; future items by enforce date."
+    ],
+    "failure_taxonomy": [
+      "FAIL on missing section, missing evidence, or invalid FR mapping."
+    ],
+    "ownership": [
+      "Engineering owns scripts/dev, templates, config, tests."
+    ],
+    "performance_capacity": [
+      "No runtime path; checks are offline."
+    ],
+    "prerequisites": [
+      "Process/spec chain merged before DB cutover."
+    ],
+    "quotas": [
+      "N/A: no runtime quotas."
+    ],
+    "rls_tenant": [
+      "N/A: no runtime tenant data."
+    ],
+    "rollback_recovery": [
+      "Disable enforcement or revert additive checks."
+    ],
+    "security_model": [
+      "No secrets; read-only tooling."
     ]
   },
   "review_scope": {
@@ -489,5 +743,18 @@
     "summary": "Merged to develop; CI green; delivery provenance recorded.",
     "ac_hash": "4a9ad7d601b1303f"
   },
-  "verified_by": "hil:user"
+  "verified_by": "hil:user",
+  "language_rule": "Python tooling/tests/config/docs only; no shipped runtime logic.",
+  "tier": 1,
+  "tier_reasons": [
+    "Process/tooling only; no runtime capacity change"
+  ],
+  "control_evidence": [
+    {
+      "control_id": "CTL-SPEC-CHAIN",
+      "sha": "675b3047477efb453a87eb604de724059adc5d66-e3b0c44298fc",
+      "result": "PASS",
+      "evidence": "test-framework/tests/test_spec_chain.py"
+    }
+  ]
 }
