@@ -20,5 +20,5 @@ Every conditional spec is `APPLICABLE` with an artifact/sections/evidence, or `N
 | observability_runbook | APPLICABLE | engineering | SLO alerts/runbook. | engineering/design/BI-PF-1527.md | design_pack.observability | ops/prometheus/backlog-authority.rules.yml |
 | accessibility_i18n | N/A | engineering | No user-facing localization or accessibility surface. |  |  |  |
 | privacy_compliance | N/A | engineering | Synthetic data only. |  |  |  |
-| implementation_plan | APPLICABLE | engineering | Harness ? load ? report ? HIL. | engineering/design/BI-PF-1527.md | design_pack.rollout | engineering/benchmarks/BI-PF-1527/README.md |
+| implementation_plan | APPLICABLE | engineering | Harness -> load -> report -> HIL decision. | engineering/design/BI-PF-1527.md | design_pack.rollout | engineering/benchmarks/BI-PF-1527/README.md |
 | release_verification | APPLICABLE | engineering | Capacity report + restore evidence. | engineering/design/BI-PF-1527.md | design_pack.test_matrix | engineering/benchmarks/BI-PF-1527/README.md |

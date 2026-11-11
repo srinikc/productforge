@@ -74,7 +74,7 @@
   "approach": "T1: validate team-scale capacity and guardrails",
   "review": {
     "at": "2026-11-11T07:00:00+00:00",
-    "reviewed_by": "worker",
+    "reviewed_by": "architect-reviewer:mimo-v2.6-flash",
     "reconciliation": {
       "prior_decisions": [
         "SCALABILITY-SSOT is authoritative",
@@ -391,20 +391,20 @@
     },
     "ac_evidence": {
       "AC-1": {
-        "sha": "d9956695",
-        "evidence": "engineering/benchmarks/BI-PF-1527/README.md"
+        "sha": "e971b385",
+        "evidence": "engineering/benchmarks/BI-PF-1527/evidence/AC-1.json"
       },
       "AC-2": {
-        "sha": "d9956695",
-        "evidence": "engineering/benchmarks/BI-PF-1527/README.md"
+        "sha": "ac3d8545",
+        "evidence": "engineering/benchmarks/BI-PF-1527/evidence/AC-2.json"
       },
       "AC-3": {
-        "sha": "d9956695",
-        "evidence": "engineering/benchmarks/BI-PF-1527/README.md"
+        "sha": "394ecfbf",
+        "evidence": "engineering/benchmarks/BI-PF-1527/evidence/AC-3.json"
       },
       "AC-4": {
-        "sha": "d9956695",
-        "evidence": "engineering/benchmarks/BI-PF-1527/README.md"
+        "sha": "e7cd0abe",
+        "evidence": "engineering/benchmarks/BI-PF-1527/evidence/AC-4.json"
       }
     },
     "stop_conditions": [
@@ -489,8 +489,9 @@
         ],
         "entrypoint": "scripts/dev/edp_t1_load.py",
         "failure_cases": [
-          "missing profile",
-          "missing evidence"
+          "CAPACITY_EVIDENCE_MISSING",
+          "SCALE_TRIGGER_NOT_MET",
+          "TENANT_ISOLATION_FAIL"
         ],
         "runtime_capability": true
       },
@@ -510,8 +511,9 @@
         ],
         "entrypoint": "scripts/dev/edp_t1_load.py",
         "failure_cases": [
-          "missing profile",
-          "missing evidence"
+          "CAPACITY_EVIDENCE_MISSING",
+          "SCALE_TRIGGER_NOT_MET",
+          "TENANT_ISOLATION_FAIL"
         ],
         "runtime_capability": true
       },
@@ -531,8 +533,9 @@
         ],
         "entrypoint": "scripts/dev/edp_t1_load.py",
         "failure_cases": [
-          "missing profile",
-          "missing evidence"
+          "CAPACITY_EVIDENCE_MISSING",
+          "SCALE_TRIGGER_NOT_MET",
+          "TENANT_ISOLATION_FAIL"
         ],
         "runtime_capability": true
       },
@@ -552,8 +555,9 @@
         ],
         "entrypoint": "scripts/dev/edp_t1_load.py",
         "failure_cases": [
-          "missing profile",
-          "missing evidence"
+          "CAPACITY_EVIDENCE_MISSING",
+          "SCALE_TRIGGER_NOT_MET",
+          "TENANT_ISOLATION_FAIL"
         ],
         "runtime_capability": true
       }
@@ -761,7 +765,7 @@
     ],
     "open_questions": [],
     "data_lifecycle": [
-      "Generator creates only seeded synthetic keys with pf-t1- prefix; dry-run reports counts; cleanup deletes only seeded keys."
+      "Generator uses pf-t1- seeded keys only; dry-run reports counts; cleanup deletes seeded keys only."
     ]
   },
   "language_rule": "Python benchmark harness/tooling; DB/runtime remains Go/PostgreSQL.",
@@ -980,13 +984,13 @@
       "T1 SLOs from SCALABILITY-SSOT"
     ],
     "data_lifecycle": [
-      "Synthetic dataset created/destroyed per run"
+      "Generator uses pf-t1- seeded keys only; dry-run reports counts; cleanup deletes seeded keys only."
     ],
     "compatibility": [
       "No runtime API change"
     ],
     "rollback": [
-      "Keep previous tier"
+      "Keep previous tier; do not claim T1 until accepted."
     ],
     "observability": [
       "p50/p95/p99/errors/saturation/RPO/RTO"
@@ -1031,7 +1035,7 @@
     "dod": [
       "T1 report + HIL acceptance"
     ],
-    "functional_sha": "ee5f2f428baf"
+    "functional_sha": "0ea026285b16"
   },
   "spec_pack": {
     "version": 1,
@@ -1166,7 +1170,7 @@
         "spec": "implementation_plan",
         "status": "APPLICABLE",
         "owner": "engineering",
-        "reason": "Harness ? load ? report ? HIL.",
+        "reason": "Harness -> load -> report -> HIL decision.",
         "artifact": "engineering/design/BI-PF-1527.md",
         "sections": [
           "design_pack.rollout"
