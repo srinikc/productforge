@@ -1,0 +1,27 @@
+{
+  "item": "BI-PF-1508",
+  "sha": "a4710df753d5",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-11T14:09:36.566222+00:00",
+  "review_scope": "delta",
+  "base_sha": "c6b38b17c13c9c3ad4bcbc23c4984ef6e9c02eaf",
+  "head_sha": "66fc8a0da5af3feac1bd17100576d9a16e802a52",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [],
+    "MINOR": [
+      "Delta `design_pack` carries only `ac_evidence` and `controls`; if the delta is applied as a replacement rather than a merge, the previously-restored keys (contracts, runtime_contract, test_matrix, invariants, guardrails, failure_matrix, version) are dropped again \u2014 prior MAJOR dispositions would regress. Confirm merge semantics in the delta design/runbook.",
+      "`affected_files` still lists `engineering/trails/BI-PF-1508-scope-baseline.txt` and `engineering/evidence/BI-PF-1508/red-proof.txt`, so the prior CL-016 \"separate evidence from changed files\" disposition is not reflected in the declared scope list; keep them as a distinct evidence list.",
+      "AC-1\u2013AC-4 all share sha `c0723f4c` on the same file; acceptable only if the sha is defined as per-file/per-run \u2014 state that convention so per-AC \"current-run proof\" (CL-010) is not re-flagged at Gate 1.5."
+    ],
+    "NIT": [],
+    "SUMMARY": [
+      "Delta correctly rebinds AC-5 evidence to `test-framework/tests/test_pf_sb_scope_guard.py` and splits shas per evidence file, closing both prior BLOCKERs; `CTL-BACKLOG-SCOPE-GUARD` now exercises the Python guard it claims to fail on, closing the prior control MAJOR.",
+      "Top residual risks: confirm the delta merges rather than replaces `design_pack`, and finish CL-016 separation of evidence artifacts from `affected_files` before Gate 1.5."
+    ]
+  },
+  "rereview_reason": "fix 4dbda4027d78 findings",
+  "rereview_reason_sha256": "890f8e2723901b3174a67d79262e1061ba5bea41416b456a6d50a555d1f3fc17"
+}

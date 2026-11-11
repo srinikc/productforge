@@ -157,7 +157,9 @@
   "approach": "PF-SB pilot: EDP backlog authority readiness endpoint",
   "children": [],
   "evidence": [
-    "design: engineering/design/BI-PF-1508.md"
+    "design: engineering/design/BI-PF-1508.md",
+    "engineering/evidence/BI-PF-1508/red-proof.txt",
+    "engineering/trails/BI-PF-1508-scope-baseline.txt"
   ],
   "in_scope": [
     "Add GET /admin/backlog/authority?tenant=<tenant> to edpsvc's real mux",
@@ -286,7 +288,7 @@
   },
   "blocked_by": [],
   "created_at": "2026-10-27T20:30:24.131448",
-  "updated_at": "2026-11-11T19:37:16.311237",
+  "updated_at": "2026-11-11T19:39:36.850363",
   "design_pack": {
     "scope": [
       "Add GET /admin/backlog/authority?tenant=<tenant> to edpsvc's real mux",
@@ -411,7 +413,10 @@
       "Production startup check fails closed; dev logs/metrics non-fatally",
       "Scope item_count to the requested tenant because pf_app is RLS-enforced",
       "Return no storage field; labels reservation_scope/item_scope make the response unambiguous",
-      "Endpoint is admin/human diagnostics only; internal callers use the control plane"
+      "Endpoint is admin/human diagnostics only; internal callers use the control plane",
+      "Design deltas merge changed fields into the full design pack; they are never replacements.",
+      "ac_evidence.sha is the last commit that changed the cited evidence file (per-file/per-run proof).",
+      "Scope baseline and red-proof artifacts are evidence, not implementation files."
     ],
     "learnings": [
       "Validate route ownership, RLS, row-absence, and counter consistency before designing an aggregate admin endpoint",
@@ -1153,6 +1158,31 @@
         ]
       },
       "evidence": "BI-PF-1508-4dbda4027d78.json"
+    },
+    {
+      "mode": "design",
+      "candidate_sha": "66fc8a0da5af3feac1bd17100576d9a16e802a52",
+      "review_sha": "a4710df753d5",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-11T14:09:36.566222+00:00",
+      "review_scope": "delta",
+      "base_sha": "c6b38b17c13c9c3ad4bcbc23c4984ef6e9c02eaf",
+      "head_sha": "66fc8a0da5af3feac1bd17100576d9a16e802a52",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [],
+        "MINOR": [
+          "Delta `design_pack` carries only `ac_evidence` and `controls`; if the delta is applied as a replacement rather than a merge, the previously-restored keys (contracts, runtime_contract, test_matrix, invariants, guardrails, failure_matrix, version) are dropped again — prior MAJOR dispositions would regress. Confirm merge semantics in the delta design/runbook.",
+          "`affected_files` still lists `engineering/trails/BI-PF-1508-scope-baseline.txt` and `engineering/evidence/BI-PF-1508/red-proof.txt`, so the prior CL-016 \"separate evidence from changed files\" disposition is not reflected in the declared scope list; keep them as a distinct evidence list.",
+          "AC-1–AC-4 all share sha `c0723f4c` on the same file; acceptable only if the sha is defined as per-file/per-run — state that convention so per-AC \"current-run proof\" (CL-010) is not re-flagged at Gate 1.5."
+        ],
+        "NIT": [],
+        "SUMMARY": [
+          "Delta correctly rebinds AC-5 evidence to `test-framework/tests/test_pf_sb_scope_guard.py` and splits shas per evidence file, closing both prior BLOCKERs; `CTL-BACKLOG-SCOPE-GUARD` now exercises the Python guard it claims to fail on, closing the prior control MAJOR.",
+          "Top residual risks: confirm the delta merges rather than replaces `design_pack`, and finish CL-016 separation of evidence artifacts from `affected_files` before Gate 1.5."
+        ]
+      },
+      "evidence": "BI-PF-1508-a4710df753d5.json"
     }
   ],
   "affected_files": [
@@ -1166,9 +1196,7 @@
     "test-framework/tests/test_pf_sb_scope_guard.py",
     "ops/prometheus/backlog-authority.rules.yml",
     "docs/BACKLOG-AUTHORITY-RUNBOOK.md",
-    ".github/workflows/pf-sb-scope-guard.yml",
-    "engineering/trails/BI-PF-1508-scope-baseline.txt",
-    "engineering/evidence/BI-PF-1508/red-proof.txt"
+    ".github/workflows/pf-sb-scope-guard.yml"
   ],
   "priority_class": "P2",
   "target_release": "",
@@ -1423,6 +1451,24 @@
         "severity": "NIT",
         "origin_class": "DESIGN_GAP",
         "note": "Fixed in BI-PF-1508 delta design; evidence: docs/BACKLOG-AUTHORITY-RUNBOOK.md."
+      },
+      "sig:3deb1be6a49f7731": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Fixed in design decisions/evidence separation; evidence: docs/BACKLOG-AUTHORITY-RUNBOOK.md."
+      },
+      "sig:ad08cb4e0eb3381b": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Fixed in design decisions/evidence separation; evidence: docs/BACKLOG-AUTHORITY-RUNBOOK.md."
+      },
+      "sig:841efd5b401ddf04": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Fixed in design decisions/evidence separation; evidence: docs/BACKLOG-AUTHORITY-RUNBOOK.md."
       }
     }
   },
