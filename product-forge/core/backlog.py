@@ -290,17 +290,14 @@ _DB_WARNED_SCOPES: set[str] = set()
 
 
 def _db_for(scope: str | None) -> bool:
-    """DB authority is opt-in per verified scope; unlisted scopes stay in file mode."""
-    if _backlog_db_mode() != "on":
+    """DB authority is explicit; unlisted scopes fail closed in DB-enabled modes."""
+    mode = _backlog_db_mode()
+    if mode == "off":
         return False
     key = _scope_key(scope)
     if key in _backlog_db_scopes():
-        return True
-    if key not in _DB_WARNED_SCOPES:
-        _DB_WARNED_SCOPES.add(key)
-        import logging
-        logging.getLogger(__name__).warning("BACKLOG_DB_SCOPE_UNLISTED scope=%r: staying file-authoritative", key)
-    return False
+        return mode == "on"
+    raise RuntimeError(f"BACKLOG_DB_SCOPE_UNLISTED: scope={key!r} is not in PF_BACKLOG_DB_SCOPES")
 
 
 def db_tenant(scope: str | None, project: str | None = None) -> str:
@@ -310,9 +307,13 @@ def db_tenant(scope: str | None, project: str | None = None) -> str:
 
 def db_authority_enabled(scope: str | None, project: str | None = None) -> bool:
     """Public resolver used by ID allocation and tooling (on/dual/shadow keep DB IDs)."""
-    if _backlog_db_mode() not in ("on", "dual", "shadow"):
+    mode = _backlog_db_mode()
+    if mode not in ("on", "dual", "shadow"):
         return False
-    return _scope_key(str(project or scope or "product_forge")) in _backlog_db_scopes()
+    key = _scope_key(str(project or scope or "product_forge"))
+    if key in _backlog_db_scopes():
+        return True
+    raise RuntimeError(f"BACKLOG_DB_SCOPE_UNLISTED: scope={key!r} is not in PF_BACKLOG_DB_SCOPES")
 
 
 def _mirror_item_to_db(item: dict) -> None:

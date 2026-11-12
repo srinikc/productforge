@@ -151,15 +151,23 @@ def test_rollback_off_writes_authoritative_file(monkeypatch):
     assert calls, "off mode did not write the file path"
 
 
-def test_unverified_scope_stays_file_mode(monkeypatch):
-    from core import backlog
-
+def test_unlisted_scope_fails_closed(monkeypatch):
+    import pytest
+    from core import backlog, id_allocator
     monkeypatch.setenv("PF_BACKLOG_DB", "on")
     monkeypatch.setenv("PF_BACKLOG_DB_SCOPES", "product_forge")
     assert backlog._db_for("product_forge") is True
+    for scope in ("unverified_scope", "arbitrary_scope"):
+        with pytest.raises(RuntimeError, match="BACKLOG_DB_SCOPE_UNLISTED"):
+            backlog._db_for(scope)
+        with pytest.raises(RuntimeError, match="BACKLOG_DB_SCOPE_UNLISTED"):
+            backlog._load_all(scope, None)
+        with pytest.raises(RuntimeError, match="BACKLOG_DB_SCOPE_UNLISTED"):
+            backlog._save_item("ignored", {"id": "BI-PF-1", "scope": scope})
+        with pytest.raises(RuntimeError, match="BACKLOG_DB_SCOPE_UNLISTED"):
+            id_allocator._db_enabled(scope)
+    monkeypatch.setenv("PF_BACKLOG_DB", "off")
     assert backlog._db_for("unverified_scope") is False
-    assert backlog._db_for("product_forge") is True
-    assert backlog._db_for("arbitrary_scope") is False
 
 
 def test_invalid_mode_fails_closed(monkeypatch):
@@ -191,7 +199,12 @@ def test_id_allocator_scope_gate(monkeypatch):
     monkeypatch.setenv("PF_BACKLOG_DB", "on")
     monkeypatch.setenv("PF_BACKLOG_DB_SCOPES", "product_forge")
     assert id_allocator._db_enabled("product_forge") is True
-    assert id_allocator._db_enabled("unverified") is False
+    try:
+        id_allocator._db_enabled("unverified")
+    except RuntimeError as e:
+        assert "BACKLOG_DB_SCOPE_UNLISTED" in str(e)
+    else:
+        raise AssertionError("unlisted scope accepted")
 
 
 def test_parity_scans_products(monkeypatch, tmp_path):
