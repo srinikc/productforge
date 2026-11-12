@@ -89,3 +89,13 @@ def test_fix_guard_requires_row():
     broken = copy.deepcopy(item)
     broken["fix_impact"] = []
     assert any("fix_impact" in b for b in fix_guard.problems(broken))
+
+
+def test_spec_quality_detects_ac_fr_gap(monkeypatch):
+    import spec_quality_check
+    monkeypatch.setattr(spec_quality_check, "enforced", lambda item, cfg: True)
+    item = _item()
+    broken = copy.deepcopy(item)
+    broken["acceptance_criteria"] = ["AC test"]
+    broken["functional_spec"]["requirements"] = []
+    assert any("AC/FR" in b for b in spec_quality_check.problems(broken))

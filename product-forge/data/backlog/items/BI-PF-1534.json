@@ -1,0 +1,1047 @@
+{
+  "id": "BI-PF-1534",
+  "tag": "PF",
+  "type": "task",
+  "scope": "product_forge",
+  "project": "",
+  "origin": "intake",
+  "external_id": "bi-pf-1534-unlisted-scope-failclosed",
+  "label": "PF Backlog 671",
+  "title": "EDP: fail closed for unlisted backlog scopes when DB mode is on",
+  "body": "Prevent silent file fallback for unlisted scopes; require explicit off/legacy mode.",
+  "source": "generic",
+  "status": "new",
+  "priority": "P2",
+  "moscow": "Should",
+  "value": 3,
+  "effort": 3,
+  "risk": 2,
+  "deps": [
+    "BI-PF-1531"
+  ],
+  "links": {},
+  "decisions": [
+    {
+      "at": "2026-11-12T23:03:41.369704",
+      "decision": "APPROVE",
+      "by": "system",
+      "note": "auto-approved on add (BI-PF-1282)"
+    }
+  ],
+  "follow_up": {},
+  "brief": {
+    "problem": "Unlisted scopes silently stay file-authoritative when PF_BACKLOG_DB=on.",
+    "what_adds": "DB mode fail-closed for unlisted scopes; explicit off for legacy file mode.",
+    "why": "Prevents split authority and silent persistence outside DB.",
+    "who_feels": "Operators, data owners, enterprise customers",
+    "source": "authored"
+  },
+  "objective": "EDP: fail closed for unlisted backlog scopes when DB mode is on",
+  "acceptance_criteria": [
+    "On-mode operations for an unlisted scope raise BACKLOG_DB_SCOPE_UNLISTED instead of reading or writing files",
+    "On-mode write/delete/ID allocation for an unlisted scope fail closed with no file/Git fallback",
+    "Explicit off mode keeps file authority for unlisted scopes",
+    "Deterministic tests and runbook cover read/write/delete/ID paths and operator recovery"
+  ],
+  "in_scope": [
+    "EDP: fail closed for unlisted backlog scopes when DB mode is on"
+  ],
+  "out_of_scope": [
+    "Not specified."
+  ],
+  "affected_components": [
+    "Not specified."
+  ],
+  "affected_files": [
+    "Not specified.",
+    "core/backlog.py",
+    "core/id_allocator.py",
+    "config/env-flags.json",
+    "docs/BACKLOG-DB-SSOT.md",
+    "test-framework/tests/pipeline/test_backlog_db_cutover.py"
+  ],
+  "approach": "EDP: fail closed for unlisted backlog scopes when DB mode is on",
+  "review": {
+    "at": "2026-11-11T09:00:00+00:00",
+    "reviewed_by": "worker",
+    "reconciliation": {
+      "prior_decisions": [
+        "BI-PF-1531 DB authority default",
+        "unlisted scopes stay file mode today"
+      ],
+      "existing_path": [
+        "core/backlog._db_for warns and returns false",
+        "core/id_allocator delegates to backlog"
+      ],
+      "assumptions": [
+        "Only explicit PF_BACKLOG_DB=off uses files",
+        "Required scopes remain product_forge and ProductForge-Dashboard"
+      ],
+      "divergences": [
+        "Silent file fallback for unlisted scopes"
+      ],
+      "open_questions": []
+    },
+    "impact_review": [
+      {
+        "claim": "API CHECK",
+        "verdict": "aligned",
+        "evidence": "No API shape change",
+        "recommendation": "Keep runtime guard only"
+      },
+      {
+        "claim": "AC CHECK",
+        "verdict": "aligned",
+        "evidence": "Four fail-closed ACs",
+        "recommendation": "Test all paths"
+      },
+      {
+        "claim": "LANGUAGE CHECK",
+        "verdict": "aligned",
+        "evidence": "Existing Python edits only; no new module",
+        "recommendation": "Keep DB logic in Go"
+      },
+      {
+        "claim": "TENANT/RLS CHECK",
+        "verdict": "aligned",
+        "evidence": "Unlisted tenant fails before DB/file access",
+        "recommendation": "Fail closed"
+      }
+    ]
+  },
+  "verification": [
+    "Objective achieved: EDP: fail closed for unlisted backlog scopes when DB mode is on"
+  ],
+  "risks": [
+    {
+      "risk": "Existing unlisted test/scratch scopes break under DB on",
+      "mitigation": "Run them with explicit PF_BACKLOG_DB=off."
+    },
+    {
+      "risk": "Legacy callers relied on silent file fallback",
+      "mitigation": "Document explicit off and fail with scope key."
+    }
+  ],
+  "rollback": "Revert the change.",
+  "evidence": [
+    "pending",
+    "Design guardrails applied (BI-PF-1534): sig:b6ffb8f08cddbabc (20 lines)"
+  ],
+  "owner": "intake",
+  "requester": "generic",
+  "due": "",
+  "target_release": "",
+  "approvals": [],
+  "summary": "",
+  "children": [],
+  "epic": "BI-PF-1292",
+  "parent": "BI-PF-1292",
+  "revision": 3,
+  "priority_rank": 2,
+  "priority_class": "P2",
+  "analyze_mode": "on_entry",
+  "analysis": {
+    "status": "COMPLETE",
+    "analyzed_at": "2026-11-12T23:03:41.082487",
+    "analyzed_by": "system",
+    "revision_analyzed": 3,
+    "architecture_fit": "EXTEND",
+    "implementation_strategy": "Extend existing components/APIs: core/agent_model_override.py, core/backlog.py, core/backlog_link.py, core/business_models_kb.py",
+    "existing_components": [
+      "core/agent_model_override.py",
+      "core/backlog.py",
+      "core/backlog_link.py",
+      "core/business_models_kb.py",
+      "core/ci_cd_model.py",
+      "core/conversation_models.py",
+      "core/cost_model.py",
+      "core/cost_modeling.py"
+    ],
+    "existing_apis": [
+      "/api/v1/backlog",
+      "/api/v1/backlog/epics/{epic_id}/order",
+      "/api/v1/backlog/epics/{epic_id}/status",
+      "/api/v1/backlog/groom",
+      "/api/v1/backlog/groom/approve",
+      "/api/v1/backlog/grooming/guidelines",
+      "/api/v1/backlog/grooming/stranded",
+      "/api/v1/backlog/ids:reserve"
+    ],
+    "existing_modules": [
+      "config/backlog-dod-baseline.json",
+      "config/backlog-verification-baseline.json",
+      "config/business-models-kb.json",
+      "config/edp-baselines.json",
+      "config/edp-degradation.json",
+      "config/edp-slo.json"
+    ],
+    "dependency_findings": [
+      "depends on BI-PF-1531"
+    ],
+    "conflict_findings": [],
+    "duplication_findings": [],
+    "drift": "NONE",
+    "rewrite_required": false,
+    "new_component_required": false,
+    "rationale": "deterministic deep grooming (codebase-grounded)",
+    "assumptions": [],
+    "risks": [],
+    "evidence": [
+      "similar=4",
+      "score=0.75",
+      "components=8",
+      "apis=8"
+    ],
+    "confidence": "high",
+    "missing_info": [],
+    "depth": "deep",
+    "mode": "deterministic",
+    "decision_request": {
+      "needed": false,
+      "reasons": [],
+      "ask": ""
+    },
+    "arch_fingerprint": "996ecb81702e96a2"
+  },
+  "dependencies": [
+    {
+      "task_id": "BI-PF-1531",
+      "type": "REQUIRES",
+      "required_state": "COMPLETE"
+    }
+  ],
+  "blocked_by": [],
+  "unlocks": [],
+  "readiness": {
+    "ready": true,
+    "reasons": [],
+    "computed_at": "2026-11-12T23:03:41.219688"
+  },
+  "execution": {
+    "worker_id": "",
+    "assignment_id": "",
+    "lease_id": "",
+    "assigned_at": "",
+    "lease_expires_at": "",
+    "attempt": 0,
+    "started_at": "",
+    "completed_at": "",
+    "duration_seconds": 0,
+    "last_heartbeat_at": "",
+    "usage": {}
+  },
+  "created_at": "2026-11-12T23:03:36.490071",
+  "updated_at": "2026-11-12T23:08:51.097781",
+  "score": 0.75,
+  "_note": "readiness computed",
+  "api_impact": {
+    "needs_api": false,
+    "reason": "Runtime guard behavior only; no API shape change."
+  },
+  "language_rule": "Edits to existing shipped Python client only; DB authority remains Go/PostgreSQL.",
+  "tier": 1,
+  "tier_reasons": [
+    "Hardening of existing DB authority contract"
+  ],
+  "design_pack": {
+    "version": 1,
+    "requirements": [
+      "On-mode operations for an unlisted scope raise BACKLOG_DB_SCOPE_UNLISTED instead of reading or writing files",
+      "On-mode write/delete/ID allocation for an unlisted scope fail closed with no file/Git fallback",
+      "Explicit off mode keeps file authority for unlisted scopes",
+      "Deterministic tests and runbook cover read/write/delete/ID paths and operator recovery"
+    ],
+    "scope": [
+      "On-mode unlisted scope guard",
+      "Read/write/delete/ID fail-closed",
+      "Off-mode file behavior",
+      "Tests/docs"
+    ],
+    "non_goals": [
+      "No new persistence store",
+      "No change to allowlisted scopes"
+    ],
+    "invariants": [
+      "On + unlisted never touches files",
+      "Off remains explicit file mode",
+      "Allowed scopes unchanged"
+    ],
+    "contracts": {
+      "api": [
+        "No public API change."
+      ],
+      "db": [
+        "No schema change."
+      ],
+      "files": [
+        "core/backlog.py",
+        "core/id_allocator.py",
+        "test-framework/tests/pipeline/test_backlog_db_cutover.py",
+        "docs/BACKLOG-DB-SSOT.md"
+      ],
+      "config": [
+        "config/env-flags.json"
+      ]
+    },
+    "failure_matrix": [
+      {
+        "case": "on + unlisted read",
+        "expected": "raise",
+        "code": "BACKLOG_DB_SCOPE_UNLISTED"
+      },
+      {
+        "case": "on + unlisted write/delete/ID",
+        "expected": "raise",
+        "code": "BACKLOG_DB_SCOPE_UNLISTED"
+      },
+      {
+        "case": "off + unlisted",
+        "expected": "file mode",
+        "code": "none"
+      }
+    ],
+    "dependencies": [
+      "BI-PF-1531"
+    ],
+    "security": [
+      "No silent fallback",
+      "Tenant scope must be explicit"
+    ],
+    "observability": [
+      "Error code + scope key"
+    ],
+    "performance": [
+      "No hot-path regression for allowlisted scopes"
+    ],
+    "test_matrix": [
+      {
+        "ac": "AC-1",
+        "kind": "unit",
+        "test": "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q"
+      },
+      {
+        "ac": "AC-2",
+        "kind": "unit",
+        "test": "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q"
+      },
+      {
+        "ac": "AC-3",
+        "kind": "unit",
+        "test": "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q"
+      },
+      {
+        "ac": "AC-4",
+        "kind": "unit",
+        "test": "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q"
+      }
+    ],
+    "rollout": [
+      "Deploy guard",
+      "Run tests",
+      "Update runbook"
+    ],
+    "rollback": [
+      "Set PF_BACKLOG_DB=off explicitly for legacy file mode"
+    ],
+    "decisions": [
+      "Unlisted DB-mode scope fails closed"
+    ],
+    "guardrails": [
+      "No file fallback on on-mode",
+      "No data mutation before guard",
+      "Explicit off only"
+    ],
+    "learnings": [
+      "Silent split authority is worse than an explicit failure"
+    ],
+    "runtime_contract": {
+      "trigger": [
+        "DB mode operation for scope"
+      ],
+      "entrypoint": [
+        "core/backlog.py"
+      ],
+      "call_sites": [
+        "_load_all",
+        "_save_item",
+        "delete",
+        "id_allocator"
+      ],
+      "adapter": "edpsvc/PostgreSQL",
+      "contract": "unlisted scope raises BACKLOG_DB_SCOPE_UNLISTED",
+      "failure_behavior": "fail closed; no files",
+      "observable_result": "deterministic error code"
+    },
+    "proof_plan": {
+      "failing_test": "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q",
+      "red_evidence": "test_unlisted_scope_fails_closed_before_fix",
+      "green_evidence": "test_unlisted_scope_fails_closed_after_fix"
+    },
+    "coverage": [
+      {
+        "ac": "AC-1",
+        "fr": "FR-1",
+        "tests": [
+          "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q"
+        ],
+        "adapter": "backlog scope guard",
+        "contract": "AC-1",
+        "evidence": [
+          "test-framework/tests/pipeline/test_backlog_db_cutover.py"
+        ],
+        "call_sites": [
+          "core/backlog.py",
+          "core/id_allocator.py"
+        ],
+        "entrypoint": "core/backlog.py",
+        "failure_cases": [
+          "BACKLOG_DB_SCOPE_UNLISTED"
+        ],
+        "runtime_capability": true
+      },
+      {
+        "ac": "AC-2",
+        "fr": "FR-2",
+        "tests": [
+          "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q"
+        ],
+        "adapter": "backlog scope guard",
+        "contract": "AC-2",
+        "evidence": [
+          "test-framework/tests/pipeline/test_backlog_db_cutover.py"
+        ],
+        "call_sites": [
+          "core/backlog.py",
+          "core/id_allocator.py"
+        ],
+        "entrypoint": "core/backlog.py",
+        "failure_cases": [
+          "BACKLOG_DB_SCOPE_UNLISTED"
+        ],
+        "runtime_capability": true
+      },
+      {
+        "ac": "AC-3",
+        "fr": "FR-3",
+        "tests": [
+          "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q"
+        ],
+        "adapter": "backlog scope guard",
+        "contract": "AC-3",
+        "evidence": [
+          "test-framework/tests/pipeline/test_backlog_db_cutover.py"
+        ],
+        "call_sites": [
+          "core/backlog.py",
+          "core/id_allocator.py"
+        ],
+        "entrypoint": "core/backlog.py",
+        "failure_cases": [
+          "BACKLOG_DB_SCOPE_UNLISTED"
+        ],
+        "runtime_capability": true
+      },
+      {
+        "ac": "AC-4",
+        "fr": "FR-4",
+        "tests": [
+          "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q"
+        ],
+        "adapter": "backlog scope guard",
+        "contract": "AC-4",
+        "evidence": [
+          "test-framework/tests/pipeline/test_backlog_db_cutover.py"
+        ],
+        "call_sites": [
+          "core/backlog.py",
+          "core/id_allocator.py"
+        ],
+        "entrypoint": "core/backlog.py",
+        "failure_cases": [
+          "BACKLOG_DB_SCOPE_UNLISTED"
+        ],
+        "runtime_capability": true
+      }
+    ],
+    "functional_ref": "engineering/specs/BI-PF-1534.md",
+    "standards": [
+      "AGENTS.md",
+      "docs/ENGINEERING_OPERATING_STANDARD.md",
+      "docs/REVIEW-GATES-LIFECYCLE.md",
+      "docs/DESIGN-QUALITY-RCCA.md",
+      "docs/WORK-EXECUTION-CONTRACT.md"
+    ],
+    "code_guidelines": [
+      "docs/guidelines/coding/python/style-guide.md",
+      "docs/guidelines/testing/standards.md"
+    ],
+    "guideline_coverage": [
+      {
+        "guideline": "docs/guidelines/coding/python/style-guide.md",
+        "applies_to": "core/backlog.py",
+        "evidence": "core/backlog.py",
+        "check": "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q"
+      },
+      {
+        "guideline": "docs/guidelines/testing/standards.md",
+        "applies_to": "test-framework/tests/pipeline/test_backlog_db_cutover.py",
+        "evidence": "test-framework/tests/pipeline/test_backlog_db_cutover.py",
+        "check": "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q"
+      }
+    ],
+    "review_scope": {
+      "files": [
+        "core/backlog.py",
+        "core/id_allocator.py",
+        "config/env-flags.json",
+        "docs/BACKLOG-DB-SSOT.md",
+        "test-framework/tests/pipeline/test_backlog_db_cutover.py"
+      ],
+      "ac_ids": [
+        "AC-1",
+        "AC-2",
+        "AC-3",
+        "AC-4"
+      ],
+      "components": [
+        "core",
+        "config",
+        "docs",
+        "test-framework"
+      ],
+      "exclude": [
+        "schema changes",
+        "API changes"
+      ]
+    },
+    "prerequisites": [
+      "BI-PF-1531 complete"
+    ],
+    "data_model": [
+      "No schema change"
+    ],
+    "api_contract": [
+      "No API shape change"
+    ],
+    "security_model": [
+      "Fail closed before file or DB access"
+    ],
+    "rls_tenant": [
+      "Unlisted tenant rejected"
+    ],
+    "failure_taxonomy": [
+      "BACKLOG_DB_SCOPE_UNLISTED"
+    ],
+    "concurrency_idempotency": [
+      "Pure guard; deterministic"
+    ],
+    "performance_capacity": [
+      "Allowlisted hot path unchanged"
+    ],
+    "audit": [
+      "Error code logged with scope"
+    ],
+    "quotas": [
+      "N/A: no runtime quota change"
+    ],
+    "rollback_recovery": [
+      "Explicit PF_BACKLOG_DB=off"
+    ],
+    "backup_restore": [
+      "No data change"
+    ],
+    "deployment_rollout": [
+      "Guard deployed with client"
+    ],
+    "ownership": [
+      "core owner"
+    ],
+    "compatibility": [
+      "Off mode preserved"
+    ],
+    "design_areas": [
+      {
+        "area": "security",
+        "status": "APPLICABLE",
+        "reason": "Fail-closed scope authority is a security/isolation guard.",
+        "sections": [
+          "security_model",
+          "rls_tenant",
+          "failure_taxonomy"
+        ],
+        "evidence": [
+          "core/backlog.py"
+        ]
+      },
+      {
+        "area": "database",
+        "status": "N/A",
+        "reason": "No schema change."
+      },
+      {
+        "area": "api",
+        "status": "N/A",
+        "reason": "No API change."
+      }
+    ],
+    "ac_evidence": {
+      "AC-1": {
+        "sha": "candidate",
+        "evidence": "test-framework/tests/pipeline/test_backlog_db_cutover.py"
+      },
+      "AC-2": {
+        "sha": "candidate",
+        "evidence": "test-framework/tests/pipeline/test_backlog_db_cutover.py"
+      },
+      "AC-3": {
+        "sha": "candidate",
+        "evidence": "test-framework/tests/pipeline/test_backlog_db_cutover.py"
+      },
+      "AC-4": {
+        "sha": "candidate",
+        "evidence": "test-framework/tests/pipeline/test_backlog_db_cutover.py"
+      }
+    },
+    "controls": [
+      {
+        "id": "CTL-UNLISTED-SCOPE-FAILCLOSED",
+        "dimension": "evidence",
+        "applies_to": "BI-PF-1534",
+        "check": "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q",
+        "evidence": "test-framework/tests/pipeline/test_backlog_db_cutover.py",
+        "failure_behavior": "FAIL",
+        "owner": "core"
+      }
+    ],
+    "stop_conditions": [
+      "Any unlisted-scope path reaches file or DB access",
+      "Any allowlisted-scope regression",
+      "Missing tests for read/write/delete/ID"
+    ]
+  },
+  "functional_spec": {
+    "version": 1,
+    "status": "PROPOSED",
+    "owner": "core",
+    "source": "BI-PF-1534",
+    "design_ref": "engineering/design/BI-PF-1534.md",
+    "outcome": [
+      "Unlisted scopes fail closed under DB mode instead of silently writing files."
+    ],
+    "actors": [
+      "operator",
+      "worker",
+      "edpsvc"
+    ],
+    "scope": [
+      "scope guard",
+      "read/write/delete/ID paths",
+      "off-mode compatibility",
+      "tests/docs"
+    ],
+    "non_goals": [
+      "No schema/API change",
+      "No change to allowlisted scopes"
+    ],
+    "assumptions": [
+      "Required scopes are explicit",
+      "Off is explicit legacy mode"
+    ],
+    "dependencies": [
+      "BI-PF-1531"
+    ],
+    "domain": [
+      "scope allowlist",
+      "DB mode",
+      "file fallback"
+    ],
+    "requirements": [
+      {
+        "id": "FR-1",
+        "title": "On-mode operations for an unlisted scope raise BACKLOG_DB_SCOPE_U",
+        "priority": "Must",
+        "source": "AC-1",
+        "preconditions": "DB mode on",
+        "trigger": "backlog operation",
+        "inputs": "scope",
+        "outputs": "guard result",
+        "errors": "BACKLOG_DB_SCOPE_UNLISTED",
+        "auth": "existing",
+        "idempotency": "deterministic",
+        "data_rules": "no file/DB access before guard",
+        "edge_cases": "off mode",
+        "acceptance": [
+          "Given DB on When unlisted AC-1 path runs Then it fails closed."
+        ],
+        "verification": "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q"
+      },
+      {
+        "id": "FR-2",
+        "title": "On-mode write/delete/ID allocation for an unlisted scope fail clo",
+        "priority": "Must",
+        "source": "AC-2",
+        "preconditions": "DB mode on",
+        "trigger": "backlog operation",
+        "inputs": "scope",
+        "outputs": "guard result",
+        "errors": "BACKLOG_DB_SCOPE_UNLISTED",
+        "auth": "existing",
+        "idempotency": "deterministic",
+        "data_rules": "no file/DB access before guard",
+        "edge_cases": "off mode",
+        "acceptance": [
+          "Given DB on When unlisted AC-2 path runs Then it fails closed."
+        ],
+        "verification": "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q"
+      },
+      {
+        "id": "FR-3",
+        "title": "Explicit off mode keeps file authority for unlisted scopes",
+        "priority": "Must",
+        "source": "AC-3",
+        "preconditions": "DB mode on",
+        "trigger": "backlog operation",
+        "inputs": "scope",
+        "outputs": "guard result",
+        "errors": "BACKLOG_DB_SCOPE_UNLISTED",
+        "auth": "existing",
+        "idempotency": "deterministic",
+        "data_rules": "no file/DB access before guard",
+        "edge_cases": "off mode",
+        "acceptance": [
+          "Given DB on When unlisted AC-3 path runs Then it fails closed."
+        ],
+        "verification": "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q"
+      },
+      {
+        "id": "FR-4",
+        "title": "Deterministic tests and runbook cover read/write/delete/ID paths ",
+        "priority": "Must",
+        "source": "AC-4",
+        "preconditions": "DB mode on",
+        "trigger": "backlog operation",
+        "inputs": "scope",
+        "outputs": "guard result",
+        "errors": "BACKLOG_DB_SCOPE_UNLISTED",
+        "auth": "existing",
+        "idempotency": "deterministic",
+        "data_rules": "no file/DB access before guard",
+        "edge_cases": "off mode",
+        "acceptance": [
+          "Given DB on When unlisted AC-4 path runs Then it fails closed."
+        ],
+        "verification": "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q"
+      }
+    ],
+    "operation_matrix": [
+      {
+        "mode": "on",
+        "operation": "unlisted read/write/delete/ID",
+        "scope": "unlisted",
+        "actor": "worker",
+        "expected": "raise",
+        "error": "BACKLOG_DB_SCOPE_UNLISTED"
+      },
+      {
+        "mode": "off",
+        "operation": "unlisted read/write",
+        "scope": "unlisted",
+        "actor": "worker",
+        "expected": "file mode",
+        "error": "none"
+      }
+    ],
+    "config_contract": [
+      {
+        "name": "PF_BACKLOG_DB",
+        "default": "on",
+        "precedence": "env > config",
+        "valid_values": "off,on,dual,shadow",
+        "empty_behavior": "on",
+        "invalid_behavior": "BACKLOG_DB_MODE_INVALID",
+        "startup_validation": "operation"
+      },
+      {
+        "name": "PF_BACKLOG_DB_SCOPES",
+        "default": "product_forge,ProductForge-Dashboard",
+        "precedence": "env > config",
+        "valid_values": "comma list",
+        "empty_behavior": "fail when on",
+        "invalid_behavior": "unlisted fail closed",
+        "startup_validation": "operation"
+      }
+    ],
+    "nfr": [
+      "No hot-path regression for allowed scopes"
+    ],
+    "data_lifecycle": [
+      "No data mutation for unlisted scopes"
+    ],
+    "compatibility": [
+      "Off mode preserved"
+    ],
+    "rollback": [
+      "Use explicit off for legacy file mode"
+    ],
+    "observability": [
+      "Error code includes scope key"
+    ],
+    "traceability": [
+      {
+        "fr": "FR-1",
+        "design": "design_pack.coverage AC-1",
+        "test": "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q",
+        "evidence": [
+          "test-framework/tests/pipeline/test_backlog_db_cutover.py"
+        ]
+      },
+      {
+        "fr": "FR-2",
+        "design": "design_pack.coverage AC-2",
+        "test": "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q",
+        "evidence": [
+          "test-framework/tests/pipeline/test_backlog_db_cutover.py"
+        ]
+      },
+      {
+        "fr": "FR-3",
+        "design": "design_pack.coverage AC-3",
+        "test": "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q",
+        "evidence": [
+          "test-framework/tests/pipeline/test_backlog_db_cutover.py"
+        ]
+      },
+      {
+        "fr": "FR-4",
+        "design": "design_pack.coverage AC-4",
+        "test": "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q",
+        "evidence": [
+          "test-framework/tests/pipeline/test_backlog_db_cutover.py"
+        ]
+      }
+    ],
+    "open_questions": [
+      "None. Scope list remains explicit."
+    ],
+    "dod": [
+      "All paths fail closed",
+      "Tests/docs updated"
+    ],
+    "functional_sha": "91663bc854df"
+  },
+  "spec_pack": {
+    "version": 1,
+    "status": "PROPOSED",
+    "functional_ref": "engineering/specs/BI-PF-1534.md",
+    "design_ref": "engineering/design/BI-PF-1534.md",
+    "applicability": [
+      {
+        "spec": "product_design_spec",
+        "status": "N/A",
+        "owner": "core",
+        "reason": "No UI.",
+        "artifact": "",
+        "sections": [],
+        "evidence": []
+      },
+      {
+        "spec": "api_contract",
+        "status": "N/A",
+        "owner": "core",
+        "reason": "No API change.",
+        "artifact": "",
+        "sections": [],
+        "evidence": []
+      },
+      {
+        "spec": "data_contract",
+        "status": "N/A",
+        "owner": "core",
+        "reason": "No schema change.",
+        "artifact": "",
+        "sections": [],
+        "evidence": []
+      },
+      {
+        "spec": "config_contract",
+        "status": "APPLICABLE",
+        "owner": "core",
+        "reason": "Scope allowlist and DB mode behavior.",
+        "artifact": "engineering/design/BI-PF-1534.md",
+        "sections": [
+          "design_pack.config_contract"
+        ],
+        "evidence": [
+          "config/env-flags.json"
+        ]
+      },
+      {
+        "spec": "nfr_slo",
+        "status": "APPLICABLE",
+        "owner": "core",
+        "reason": "No hot-path regression.",
+        "artifact": "engineering/design/BI-PF-1534.md",
+        "sections": [
+          "design_pack.performance_capacity"
+        ],
+        "evidence": [
+          "docs/BACKLOG-DB-SSOT.md"
+        ]
+      },
+      {
+        "spec": "security_threat_model",
+        "status": "APPLICABLE",
+        "owner": "core",
+        "reason": "Fail-closed isolation guard.",
+        "artifact": "engineering/design/BI-PF-1534.md",
+        "sections": [
+          "design_pack.security_model"
+        ],
+        "evidence": [
+          "core/backlog.py"
+        ]
+      },
+      {
+        "spec": "migration_backfill",
+        "status": "N/A",
+        "owner": "core",
+        "reason": "No migration.",
+        "artifact": "",
+        "sections": [],
+        "evidence": []
+      },
+      {
+        "spec": "rollback_dr",
+        "status": "APPLICABLE",
+        "owner": "core",
+        "reason": "Explicit off rollback.",
+        "artifact": "engineering/design/BI-PF-1534.md",
+        "sections": [
+          "design_pack.rollback_recovery"
+        ],
+        "evidence": [
+          "docs/BACKLOG-DB-SSOT.md"
+        ]
+      },
+      {
+        "spec": "observability_runbook",
+        "status": "APPLICABLE",
+        "owner": "core",
+        "reason": "Error code/runbook.",
+        "artifact": "engineering/design/BI-PF-1534.md",
+        "sections": [
+          "design_pack.observability"
+        ],
+        "evidence": [
+          "docs/BACKLOG-DB-SSOT.md"
+        ]
+      },
+      {
+        "spec": "accessibility_i18n",
+        "status": "N/A",
+        "owner": "core",
+        "reason": "No UI.",
+        "artifact": "",
+        "sections": [],
+        "evidence": []
+      },
+      {
+        "spec": "privacy_compliance",
+        "status": "N/A",
+        "owner": "core",
+        "reason": "No new data.",
+        "artifact": "",
+        "sections": [],
+        "evidence": []
+      },
+      {
+        "spec": "implementation_plan",
+        "status": "APPLICABLE",
+        "owner": "core",
+        "reason": "Guard + tests + docs.",
+        "artifact": "engineering/design/BI-PF-1534.md",
+        "sections": [
+          "design_pack.deployment_rollout"
+        ],
+        "evidence": [
+          "docs/BACKLOG-DB-SSOT.md"
+        ]
+      },
+      {
+        "spec": "release_verification",
+        "status": "APPLICABLE",
+        "owner": "core",
+        "reason": "Tests and runbook.",
+        "artifact": "engineering/design/BI-PF-1534.md",
+        "sections": [
+          "design_pack.test_matrix"
+        ],
+        "evidence": [
+          "test-framework/tests/pipeline/test_backlog_db_cutover.py"
+        ]
+      }
+    ]
+  },
+  "fix_impact": [
+    {
+      "sig": "sig:baseline-1534",
+      "finding": "Initial fail-closed guard implementation",
+      "severity": "MAJOR",
+      "origin_class": "DESIGN_GAP",
+      "reproducer": "unlisted scope returned false and used files",
+      "regression_test": "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q",
+      "evidence": "test-framework/tests/pipeline/test_backlog_db_cutover.py",
+      "files": [
+        "core/backlog.py",
+        "core/id_allocator.py"
+      ],
+      "rollback": "Explicit PF_BACKLOG_DB=off.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    }
+  ],
+  "review_ledger": [
+    {
+      "mode": "design",
+      "candidate_sha": "0d62a57779ee95f98fabbcd1afc6afa4ec3fd58d",
+      "review_sha": "7a8ce143f723",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-12T17:38:50.798628+00:00",
+      "review_scope": "full_candidate",
+      "base_sha": "",
+      "head_sha": "0d62a57779ee95f98fabbcd1afc6afa4ec3fd58d",
+      "findings": {
+        "BLOCKER": [
+          "FR-3 (AC-3) is self-contradictory: preconditions say \"DB mode on\", acceptance says \"Given DB on ... Then it fails closed\", and the FR-3 title/triggers repeat on-mode guard behavior — the approved AC-3 (off mode keeps file authority) is not actually specified or testable as written.",
+          "No distinct evidence/tests exist for AC-4's operator-recovery runbook path; all four ACs point to one pytest command that cannot demonstrate runbook coverage (stop condition \"Missing tests for read/write/delete/ID\" is unproven)."
+        ],
+        "MAJOR": [
+          "`PF_BACKLOG_DB` valid values include `dual` and `shadow`, but the operation_matrix/failure_matrix only define `on` and `off` behavior for unlisted scopes — unlisted-scope semantics under dual/shadow are unspecified, risking a silent file fallback through an undefined mode.",
+          "Design does not address CL-011: no runtime role posture (NOSUPERUSER/NOBYPASSRLS) or tenant-binding proof for the guard, despite `security_threat_model` and `rls_tenant` being marked APPLICABLE.",
+          "Design guardrail checklist items 2 (availability/SPOF: worker/DB down behavior, on-startup check), 4 (blast radius/dry-run), 5 (id/sequence invariants for ID-allocation path) are unanswered in the design pack."
+        ],
+        "MINOR": [
+          "Rollback is inconsistent: item says \"Revert the change\", design says \"Set PF_BACKLOG_DB=off explicitly\" — two different rollback procedures with no precedence stated.",
+          "Config contract `startup_validation` for `PF_BACKLOG_DB` is \"operation\" (lazy) rather than on-startup, weakening CL-014-style defence-in-depth; failure surfaces only at first use.",
+          "Observability is limited to \"error code logged with scope\" — no metric/counter for `BACKLOG_DB_SCOPE_UNLISTED` occurrences, so fail-closed spikes are not alertable.",
+          "`affected_files`/`in_scope` contain \"Not specified.\" placeholders; CL-016 separation of prerequisites (BI-PF-1531) from changed files is not explicit in scope.",
+          "Off-mode operation_matrix covers only read/write for unlisted scopes; delete/ID off-mode behavior is unlisted despite AC-2/AC-4 covering those paths."
+        ],
+        "NIT": [
+          "Error taxonomy defines only `BACKLOG_DB_SCOPE_UNLISTED`; consider whether mode/allowlist misconfiguration (`BACKLOG_DB_MODE_INVALID`) needs an equivalent documented recovery step in the runbook.",
+          "`ac_evidence.sha` values are \"candidate\" rather than pinned SHAs; traceability is weaker than a content-addressed evidence reference."
+        ],
+        "SUMMARY": [
+          "Direction is right (fail closed, no silent fallback, explicit off), but AC-3 is specified inconsistently within FR-3 itself and AC-4's runbook/test evidence is not concretely demonstrated — these must be fixed before Gate 1.5.",
+          "Undefined dual/shadow semantics for unlisted scopes is the top residual risk of reintroducing the silent file fallback this item exists to remove.",
+          "Guardrail gaps (RLS/role posture, startup validation, availability/invariants) and a dual rollback definition need design answers; no schema/API/language-rule violations found in the declared file set."
+        ]
+      },
+      "evidence": "BI-PF-1534-7a8ce143f723.json"
+    }
+  ]
+}

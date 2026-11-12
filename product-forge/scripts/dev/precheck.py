@@ -188,6 +188,7 @@ _GATES = [
     ("spec-pack", ["scripts/dev/spec_pack.py", "--all", "--check", "--fresh"], "fast", None),
     ("conformance", ["scripts/dev/conformance_check.py", "--all"], "fast", None),
     ("fix-guard", ["scripts/dev/fix_guard.py", "--all"], "fast", None),
+    ("spec-quality", ["scripts/dev/spec_quality_check.py", "--all"], "fast", None),
     ("backlog-scope", ["scripts/dev/backlog_scope_check.py"], "fast", None),
     ("review-budget", ["scripts/dev/review_budget.py", "--all-changed"], "fast", None),
     ("excluded-content", ["scripts/dev/excluded_content_check.py"], "fast", None),
@@ -275,7 +276,7 @@ _GROUP_OF = {
     "workflow-matrix": "structure", "docs-fresh": "structure", "artifact-map": "structure",
     "review-focus": "structure", "review-static": "structure", "pf-process": "structure",
     "framework-ref": "quality", "self-review": "quality",
-    "residency": "quality", "encoding": "structure", "design-pack": "quality", "functional-spec": "quality", "spec-pack": "quality", "conformance": "quality", "fix-guard": "quality", "backlog-scope": "quality", "review-budget": "quality", "excluded-content": "structure",
+    "residency": "quality", "encoding": "structure", "design-pack": "quality", "functional-spec": "quality", "spec-pack": "quality", "conformance": "quality", "fix-guard": "quality", "spec-quality": "quality", "backlog-scope": "quality", "review-budget": "quality", "excluded-content": "structure",
     # security: secrets / language rule / compliance / threat register
     "secret-scan": "security", "language-rule": "security", "compliance-register": "security",
     "data-plane-threats": "security",

@@ -41,6 +41,16 @@ Every BLOCKER/MAJOR fix must add a `fix_impact` row. See `docs/FIX-IMPACT-CONTRA
 
 Diff review SHA is based on code/schema/config only. Design/spec/evidence/item changes must not move it. Evidence is injected into the reviewer prompt from the item/ac_evidence/coverage paths; evidence commits do not invalidate the candidate SHA. Design changes use the design SHA.
 
+## Spec quality rules
+
+The authoring prompt and `spec-quality` gate require:
+- every AC maps to exactly one FR with the same mode/preconditions/outcome/failure behavior;
+- all supported modes are defined or N/A with a reason;
+- each AC has a distinct executable test or runbook artifact;
+- security role/RLS posture and tenant binding are explicit;
+- availability/SPOF, blast radius/dry-run, ID invariants, rollback, and operator recovery are answered;
+- no duplicate AC text, contradictions, placeholders, or reused unrelated evidence.
+
 ## Review charter
 
 - **Gate 1.5** reviews only the functional spec, design pack, conditional applicability, conformance, and standards.
