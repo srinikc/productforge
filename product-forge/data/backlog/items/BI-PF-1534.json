@@ -52,7 +52,9 @@
     "No API/schema change"
   ],
   "affected_components": [
-    "Not specified."
+    "core",
+    "docs",
+    "test-framework"
   ],
   "affected_files": [
     "core/backlog.py",
@@ -232,7 +234,7 @@
     "usage": {}
   },
   "created_at": "2026-11-12T23:03:36.490071",
-  "updated_at": "2026-11-12T23:08:51.097781",
+  "updated_at": "2026-11-12T23:19:25.820087",
   "score": 0.75,
   "_note": "readiness computed",
   "api_impact": {
@@ -319,7 +321,7 @@
       "Tenant scope must be explicit"
     ],
     "observability": [
-      "Structured BACKLOG_DB_SCOPE_UNLISTED error with scope key; precheck/test evidence"
+      "Structured BACKLOG_DB_SCOPE_UNLISTED error with scope key; counter backlog_db_scope_unlisted_total; alert on sustained failures."
     ],
     "performance": [
       "No hot-path regression for allowlisted scopes"
@@ -328,22 +330,22 @@
       {
         "ac": "AC-1",
         "kind": "unit",
-        "test": "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q"
+        "test": "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q -k ac1"
       },
       {
         "ac": "AC-2",
         "kind": "unit",
-        "test": "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q"
+        "test": "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q -k ac2"
       },
       {
         "ac": "AC-3",
         "kind": "unit",
-        "test": "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q"
+        "test": "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q -k ac3"
       },
       {
         "ac": "AC-4",
-        "kind": "unit",
-        "test": "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q"
+        "kind": "runbook",
+        "test": "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q -k ac4"
       }
     ],
     "rollout": [
@@ -399,7 +401,7 @@
           "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q"
         ],
         "adapter": "backlog scope guard",
-        "contract": "AC-1",
+        "contract": "Unlisted scope on-mode reads raise BACKLOG_DB_SCOPE_UNLISTED",
         "evidence": [
           "test-framework/tests/pipeline/test_backlog_db_cutover.py"
         ],
@@ -420,7 +422,7 @@
           "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q"
         ],
         "adapter": "backlog scope guard",
-        "contract": "AC-2",
+        "contract": "Unlisted scope on-mode writes, deletes, and ID allocation fail closed",
         "evidence": [
           "test-framework/tests/pipeline/test_backlog_db_cutover.py"
         ],
@@ -441,7 +443,7 @@
           "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q"
         ],
         "adapter": "backlog scope guard",
-        "contract": "AC-3",
+        "contract": "Explicit off mode keeps file authority for unlisted scopes",
         "evidence": [
           "test-framework/tests/pipeline/test_backlog_db_cutover.py"
         ],
@@ -462,7 +464,7 @@
           "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q"
         ],
         "adapter": "backlog scope guard",
-        "contract": "AC-4",
+        "contract": "Tests and runbook cover read/write/delete/ID and operator recovery",
         "evidence": [
           "test-framework/tests/pipeline/test_backlog_db_cutover.py"
         ],
@@ -600,20 +602,20 @@
     ],
     "ac_evidence": {
       "AC-1": {
-        "sha": "69dd9c33",
-        "evidence": "engineering/evidence/BI-PF-1534/operator-recovery.md"
+        "sha": "3e273784",
+        "evidence": "engineering/evidence/BI-PF-1534/AC-1.md"
       },
       "AC-2": {
-        "sha": "69dd9c33",
-        "evidence": "engineering/evidence/BI-PF-1534/operator-recovery.md"
+        "sha": "3e273784",
+        "evidence": "engineering/evidence/BI-PF-1534/AC-2.md"
       },
       "AC-3": {
-        "sha": "69dd9c33",
-        "evidence": "engineering/evidence/BI-PF-1534/operator-recovery.md"
+        "sha": "3e273784",
+        "evidence": "engineering/evidence/BI-PF-1534/AC-3.md"
       },
       "AC-4": {
-        "sha": "69dd9c33",
-        "evidence": "engineering/evidence/BI-PF-1534/operator-recovery.md"
+        "sha": "3e273784",
+        "evidence": "engineering/evidence/BI-PF-1534/AC-4.md"
       }
     },
     "controls": [
@@ -672,7 +674,7 @@
     "requirements": [
       {
         "id": "FR-1",
-        "title": "On-mode operations for an unlisted scope raise BACKLOG_DB_SCOPE_U",
+        "title": "Unlisted scope on-mode reads raise BACKLOG_DB_SCOPE_UNLISTED",
         "priority": "Must",
         "source": "AC-1",
         "preconditions": "DB mode on",
@@ -691,7 +693,7 @@
       },
       {
         "id": "FR-2",
-        "title": "On-mode write/delete/ID allocation for an unlisted scope fail clo",
+        "title": "Unlisted scope on-mode writes, deletes, and ID allocation fail closed",
         "priority": "Must",
         "source": "AC-2",
         "preconditions": "DB mode on",
@@ -729,7 +731,7 @@
       },
       {
         "id": "FR-4",
-        "title": "Deterministic tests and runbook cover read/write/delete/ID paths ",
+        "title": "Tests and runbook cover read/write/delete/ID and operator recovery",
         "priority": "Must",
         "source": "AC-4",
         "preconditions": "DB mode on",
@@ -742,7 +744,7 @@
         "data_rules": "no file/DB access before guard",
         "edge_cases": "off mode",
         "acceptance": [
-          "Given DB on When unlisted AC-4 path runs Then it fails closed."
+          "Given unlisted paths When read/write/delete/ID and operator recovery are exercised Then tests and runbook prove fail-closed behavior."
         ],
         "verification": "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q"
       }
@@ -857,23 +859,23 @@
       "All paths fail closed",
       "Tests/docs updated"
     ],
-    "functional_sha": "e4add4a024d6",
+    "functional_sha": "9e26192e7fc1",
     "ac_evidence": {
       "AC-1": {
-        "sha": "69dd9c33",
-        "evidence": "engineering/evidence/BI-PF-1534/operator-recovery.md"
+        "sha": "3e273784",
+        "evidence": "engineering/evidence/BI-PF-1534/AC-1.md"
       },
       "AC-2": {
-        "sha": "69dd9c33",
-        "evidence": "engineering/evidence/BI-PF-1534/operator-recovery.md"
+        "sha": "3e273784",
+        "evidence": "engineering/evidence/BI-PF-1534/AC-2.md"
       },
       "AC-3": {
-        "sha": "69dd9c33",
-        "evidence": "engineering/evidence/BI-PF-1534/operator-recovery.md"
+        "sha": "3e273784",
+        "evidence": "engineering/evidence/BI-PF-1534/AC-3.md"
       },
       "AC-4": {
-        "sha": "69dd9c33",
-        "evidence": "engineering/evidence/BI-PF-1534/operator-recovery.md"
+        "sha": "3e273784",
+        "evidence": "engineering/evidence/BI-PF-1534/AC-4.md"
       }
     }
   },
@@ -1090,6 +1092,37 @@
         ]
       },
       "evidence": "BI-PF-1534-7a8ce143f723.json"
+    },
+    {
+      "mode": "design",
+      "candidate_sha": "3e273784faf48e45e7f2de37c72aaf6d0f7c5e12",
+      "review_sha": "a3feb5f3953f",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-12T17:49:25.479375+00:00",
+      "review_scope": "full_candidate",
+      "base_sha": "0d62a57779ee95f98fabbcd1afc6afa4ec3fd58d",
+      "head_sha": "3e273784faf48e45e7f2de37c72aaf6d0f7c5e12",
+      "findings": {
+        "BLOCKER": [
+          "Disposition ACTIONED for the AC-4 evidence finding is not reflected in data: `test_matrix` still lists the identical pytest command for AC-1..AC-4 and `ac_evidence` for all four ACs share one sha (`69dd9c33`) and one artifact (`operator-recovery.md`) — guardrail 13 (distinct executable test or runbook artifact per AC) is still unmet, so AC-4 runbook coverage remains unproven."
+        ],
+        "MAJOR": [
+          "FR-4's `acceptance` is still \"Given DB on When unlisted AC-4 path runs Then it fails closed\", which does not match AC-4 (tests and runbook cover read/write/delete/ID paths and operator recovery) — guardrail 11 AC/FR one-to-one correspondence remains unsatisfied (only FR-3 was corrected)."
+        ],
+        "MINOR": [
+          "Disposition for the observability finding is ACTIONED but `design_pack.observability` still contains only \"Structured ... error with scope key; precheck/test evidence\" — no metric/counter or alertability for `BACKLOG_DB_SCOPE_UNLISTED` occurrences was added.",
+          "`affected_components` still reads `[\"Not specified.\"]`; CL-016's separation of prerequisites (BI-PF-1531) from changed components remains only partially actioned (`affected_files` is now populated)."
+        ],
+        "NIT": [
+          "FR-1/FR-2/FR-4 `title` values are truncated mid-string (\"...raise BACKLOG_DB_SCOPE_U\"), weakening traceability readability in the spec pack."
+        ],
+        "SUMMARY": [
+          "Guardrails on mode completeness (dual/shadow), FR-3/off-mode, security posture, rollback, startup validation, and guardrail checklist items are genuinely addressed in this revision.",
+          "The two blockers/majors that remain are evidence and AC/FR traceability: a single shared evidence artifact + single test command still backs all four ACs, and FR-4's outcome text still does not describe AC-4's test/runbook requirement.",
+          "Gate should not pass until AC-4 has a distinct, executable runbook/recovery artifact reference and FR-4's acceptance is rewritten to match AC-4."
+        ]
+      },
+      "evidence": "BI-PF-1534-a3feb5f3953f.json"
     }
   ],
   "review_dispositions": {
@@ -1165,6 +1198,36 @@
         "severity": "NIT",
         "origin_class": "DESIGN_GAP",
         "note": "Fixed in BI-PF-1534 design/spec; evidence: engineering/evidence/BI-PF-1534/operator-recovery.md."
+      },
+      "sig:558ec9fce3786948": {
+        "status": "ACTIONED",
+        "severity": "BLOCKER",
+        "origin_class": "DESIGN_GAP",
+        "note": "Fixed in BI-PF-1534 spec/design/evidence; evidence: engineering/evidence/BI-PF-1534/AC-4.md."
+      },
+      "sig:424a4612293173ed": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Fixed in BI-PF-1534 spec/design/evidence; evidence: engineering/evidence/BI-PF-1534/AC-4.md."
+      },
+      "sig:2519fb13c1376f86": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Fixed in BI-PF-1534 spec/design/evidence; evidence: engineering/evidence/BI-PF-1534/AC-4.md."
+      },
+      "sig:0ba4849d7beea262": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Fixed in BI-PF-1534 spec/design/evidence; evidence: engineering/evidence/BI-PF-1534/AC-4.md."
+      },
+      "sig:b9f1fdfe42daceba": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "origin_class": "DESIGN_GAP",
+        "note": "Fixed in BI-PF-1534 spec/design/evidence; evidence: engineering/evidence/BI-PF-1534/AC-4.md."
       }
     }
   },
@@ -1233,6 +1296,32 @@
       ],
       "result": "PASS",
       "evidence": "engineering/evidence/BI-PF-1534/operator-recovery.md"
+    },
+    {
+      "finding_sig": "sig:558ec9fce3786948",
+      "origin_class": "DESIGN_GAP",
+      "regression_test": "distinct AC evidence + FR-4 acceptance",
+      "controls_rerun": [
+        "design_contract",
+        "design_completeness",
+        "spec_quality",
+        "conformance"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/evidence/BI-PF-1534/AC-4.md"
+    },
+    {
+      "finding_sig": "sig:424a4612293173ed",
+      "origin_class": "DESIGN_GAP",
+      "regression_test": "distinct AC evidence + FR-4 acceptance",
+      "controls_rerun": [
+        "design_contract",
+        "design_completeness",
+        "spec_quality",
+        "conformance"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/evidence/BI-PF-1534/AC-4.md"
     }
   ]
 }
