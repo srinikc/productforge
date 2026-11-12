@@ -62,6 +62,7 @@
   ],
   "affected_components": [
     "core",
+    "config",
     "docs",
     "test-framework"
   ],
@@ -243,7 +244,7 @@
     "usage": {}
   },
   "created_at": "2026-11-12T23:03:36.490071",
-  "updated_at": "2026-11-12T23:19:25.820087",
+  "updated_at": "2026-11-12T23:20:45.669693",
   "score": 0.75,
   "_note": "readiness computed",
   "api_impact": {
@@ -354,7 +355,7 @@
       {
         "ac": "AC-4",
         "kind": "runbook",
-        "test": "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q -k ac4"
+        "test": "engineering/evidence/BI-PF-1534/operator-recovery.md"
       }
     ],
     "rollout": [
@@ -407,18 +408,18 @@
         "ac": "AC-1",
         "fr": "FR-1",
         "tests": [
-          "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q"
+          "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q -k ac1"
         ],
-        "adapter": "backlog scope guard",
+        "adapter": "read guard",
         "contract": "Unlisted scope on-mode reads raise BACKLOG_DB_SCOPE_UNLISTED",
         "evidence": [
-          "test-framework/tests/pipeline/test_backlog_db_cutover.py"
+          "engineering/evidence/BI-PF-1534/AC-1.md"
         ],
         "call_sites": [
           "core/backlog.py",
           "core/id_allocator.py"
         ],
-        "entrypoint": "core/backlog.py",
+        "entrypoint": "core/backlog.py:_load_all",
         "failure_cases": [
           "BACKLOG_DB_SCOPE_UNLISTED"
         ],
@@ -428,64 +429,64 @@
         "ac": "AC-2",
         "fr": "FR-2",
         "tests": [
-          "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q"
+          "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q -k ac2"
         ],
-        "adapter": "backlog scope guard",
+        "adapter": "write/delete/ID guard",
         "contract": "Unlisted scope on-mode writes, deletes, and ID allocation fail closed",
         "evidence": [
-          "test-framework/tests/pipeline/test_backlog_db_cutover.py"
+          "engineering/evidence/BI-PF-1534/AC-2.md"
         ],
         "call_sites": [
           "core/backlog.py",
           "core/id_allocator.py"
         ],
-        "entrypoint": "core/backlog.py",
+        "entrypoint": "core/backlog.py:_save_item/delete; core/id_allocator.py",
         "failure_cases": [
           "BACKLOG_DB_SCOPE_UNLISTED"
         ],
-        "runtime_capability": true
+        "runtime_capability": false
       },
       {
         "ac": "AC-3",
         "fr": "FR-3",
         "tests": [
-          "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q"
+          "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q -k ac3"
         ],
-        "adapter": "backlog scope guard",
+        "adapter": "off-mode file guard",
         "contract": "Explicit off mode keeps file authority for unlisted scopes",
         "evidence": [
-          "test-framework/tests/pipeline/test_backlog_db_cutover.py"
+          "engineering/evidence/BI-PF-1534/AC-3.md"
         ],
         "call_sites": [
           "core/backlog.py",
           "core/id_allocator.py"
         ],
-        "entrypoint": "core/backlog.py",
+        "entrypoint": "core/backlog.py:_backlog_db_mode",
         "failure_cases": [
-          "BACKLOG_DB_SCOPE_UNLISTED"
+          "none"
         ],
-        "runtime_capability": true
+        "runtime_capability": false
       },
       {
         "ac": "AC-4",
         "fr": "FR-4",
         "tests": [
-          "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q"
+          "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q -k ac4"
         ],
-        "adapter": "backlog scope guard",
+        "adapter": "operator recovery runbook",
         "contract": "Tests and runbook cover read/write/delete/ID and operator recovery",
         "evidence": [
-          "test-framework/tests/pipeline/test_backlog_db_cutover.py"
+          "engineering/evidence/BI-PF-1534/AC-4.md"
         ],
         "call_sites": [
           "core/backlog.py",
           "core/id_allocator.py"
         ],
-        "entrypoint": "core/backlog.py",
+        "entrypoint": "engineering/evidence/BI-PF-1534/operator-recovery.md",
         "failure_cases": [
           "BACKLOG_DB_SCOPE_UNLISTED"
         ],
-        "runtime_capability": true
+        "runtime_capability": false
       }
     ],
     "functional_ref": "engineering/specs/BI-PF-1534.md",
@@ -611,19 +612,19 @@
     ],
     "ac_evidence": {
       "AC-1": {
-        "sha": "3e273784",
+        "sha": "584b73de",
         "evidence": "engineering/evidence/BI-PF-1534/AC-1.md"
       },
       "AC-2": {
-        "sha": "3e273784",
+        "sha": "c0eabed9",
         "evidence": "engineering/evidence/BI-PF-1534/AC-2.md"
       },
       "AC-3": {
-        "sha": "3e273784",
+        "sha": "2fbf1e43",
         "evidence": "engineering/evidence/BI-PF-1534/AC-3.md"
       },
       "AC-4": {
-        "sha": "3e273784",
+        "sha": "47cf21da",
         "evidence": "engineering/evidence/BI-PF-1534/AC-4.md"
       }
     },
@@ -868,22 +869,22 @@
       "All paths fail closed",
       "Tests/docs updated"
     ],
-    "functional_sha": "9e26192e7fc1",
+    "functional_sha": "07289ef705c2",
     "ac_evidence": {
       "AC-1": {
-        "sha": "3e273784",
+        "sha": "584b73de",
         "evidence": "engineering/evidence/BI-PF-1534/AC-1.md"
       },
       "AC-2": {
-        "sha": "3e273784",
+        "sha": "c0eabed9",
         "evidence": "engineering/evidence/BI-PF-1534/AC-2.md"
       },
       "AC-3": {
-        "sha": "3e273784",
+        "sha": "2fbf1e43",
         "evidence": "engineering/evidence/BI-PF-1534/AC-3.md"
       },
       "AC-4": {
-        "sha": "3e273784",
+        "sha": "47cf21da",
         "evidence": "engineering/evidence/BI-PF-1534/AC-4.md"
       }
     }
@@ -1132,6 +1133,36 @@
         ]
       },
       "evidence": "BI-PF-1534-a3feb5f3953f.json"
+    },
+    {
+      "mode": "design",
+      "candidate_sha": "a4d579e6cae74afabea3e793664840a18cc0a803",
+      "review_sha": "8c57dd581ec5",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-12T17:50:45.354796+00:00",
+      "review_scope": "delta",
+      "base_sha": "3e273784faf48e45e7f2de37c72aaf6d0f7c5e12",
+      "head_sha": "a4d579e6cae74afabea3e793664840a18cc0a803",
+      "findings": {
+        "BLOCKER": [
+          "`ac_evidence` for AC-1..AC-4 all carry the identical sha `3e273784` while pointing at four different artifacts (`AC-1.md`..`AC-4.md`) — distinct files cannot share one content hash; guardrail 13 (evidence quality/distinct evidence) is not genuinely satisfied, and the prior ACTIONED disposition's fix is not provable from the data."
+        ],
+        "MAJOR": [
+          "`affected_components` in the delta drops `config`, yet the design's own `config_contract` (`PF_BACKLOG_DB_SCOPES`, `config/env-flags.json`) and `affected_files` still include a config change — changed-scope declaration now contradicts the unchanged contract rows in the same design (CL-016 consistency).",
+          "`design_pack.coverage` for AC-3 lists `failure_cases: [\"BACKLOG_DB_SCOPE_UNLISTED\"]` although AC-3/FR-3 expects file authority with `errors: \"none\"` — AC/FR contract mismatch persists in the coverage rows (guardrail 11)."
+        ],
+        "MINOR": [
+          "`test_matrix` AC-4 `kind` is \"runbook\" but the row's `test` is a pytest `-k ac4` invocation, not a runbook execution/evidence step; distinctness between AC-4 runbook proof and the AC-1..AC-3 unit tests rests solely on `-k` filtering.",
+          "`design_pack.coverage` for AC-4 likewise lists a unit-style pytest command as the sole evidence for a \"tests and runbook + operator recovery\" contract."
+        ],
+        "NIT": [
+          "All four coverage rows reuse identical `adapter`, `entrypoint`, and `tests` values, so the rows read as copy-paste and offer no per-AC signal in review."
+        ],
+        "SUMMARY": [
+          "Prior findings are correctly dispositioned (distinct evidence files, FR-4 acceptance, observability counter/alert, populated components, untruncated titles), but the delta reintroduces evidence-integrity risk: one shared sha across four artifacts. Also fix the AC-3 failure_cases mismatch and restore `config` to affected components before Gate 1.5."
+        ]
+      },
+      "evidence": "BI-PF-1534-8c57dd581ec5.json"
     }
   ],
   "review_dispositions": {
@@ -1237,6 +1268,42 @@
         "severity": "NIT",
         "origin_class": "DESIGN_GAP",
         "note": "Fixed in BI-PF-1534 spec/design/evidence; evidence: engineering/evidence/BI-PF-1534/AC-4.md."
+      },
+      "sig:36b545f44360cf00": {
+        "status": "ACTIONED",
+        "severity": "BLOCKER",
+        "origin_class": "DESIGN_GAP",
+        "note": "Fixed in BI-PF-1534 coverage/evidence; evidence: engineering/evidence/BI-PF-1534/AC-4.md."
+      },
+      "sig:da9736b3b8ee05a3": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Fixed in BI-PF-1534 coverage/evidence; evidence: engineering/evidence/BI-PF-1534/AC-4.md."
+      },
+      "sig:fe44f5f3ca5fb0c2": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Fixed in BI-PF-1534 coverage/evidence; evidence: engineering/evidence/BI-PF-1534/AC-4.md."
+      },
+      "sig:61340e4afcc7ba97": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Fixed in BI-PF-1534 coverage/evidence; evidence: engineering/evidence/BI-PF-1534/AC-4.md."
+      },
+      "sig:d1ecdd010541f1d6": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Fixed in BI-PF-1534 coverage/evidence; evidence: engineering/evidence/BI-PF-1534/AC-4.md."
+      },
+      "sig:56ad6d76518c3a59": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "origin_class": "DESIGN_GAP",
+        "note": "Fixed in BI-PF-1534 coverage/evidence; evidence: engineering/evidence/BI-PF-1534/AC-4.md."
       }
     }
   },
@@ -1328,6 +1395,42 @@
         "design_completeness",
         "spec_quality",
         "conformance"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/evidence/BI-PF-1534/AC-4.md"
+    },
+    {
+      "finding_sig": "sig:36b545f44360cf00",
+      "origin_class": "DESIGN_GAP",
+      "regression_test": "distinct evidence hashes and coverage rows",
+      "controls_rerun": [
+        "design_contract",
+        "design_completeness",
+        "spec_quality"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/evidence/BI-PF-1534/AC-4.md"
+    },
+    {
+      "finding_sig": "sig:da9736b3b8ee05a3",
+      "origin_class": "DESIGN_GAP",
+      "regression_test": "distinct evidence hashes and coverage rows",
+      "controls_rerun": [
+        "design_contract",
+        "design_completeness",
+        "spec_quality"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/evidence/BI-PF-1534/AC-4.md"
+    },
+    {
+      "finding_sig": "sig:fe44f5f3ca5fb0c2",
+      "origin_class": "DESIGN_GAP",
+      "regression_test": "distinct evidence hashes and coverage rows",
+      "controls_rerun": [
+        "design_contract",
+        "design_completeness",
+        "spec_quality"
       ],
       "result": "PASS",
       "evidence": "engineering/evidence/BI-PF-1534/AC-4.md"
