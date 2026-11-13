@@ -352,7 +352,6 @@ def test_ac4_operator_recovery_runbook():
         assert token in text
 
 
-
 def test_ac2_unlisted_log(monkeypatch, caplog):
     import pytest
     from core import backlog

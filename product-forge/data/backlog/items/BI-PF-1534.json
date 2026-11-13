@@ -86,7 +86,9 @@
     "core/id_allocator.py",
     "config/env-flags.json",
     "docs/BACKLOG-DB-SSOT.md",
-    "test-framework/tests/pipeline/test_backlog_db_cutover.py"
+    "test-framework/tests/pipeline/test_backlog_db_cutover.py",
+    "api/routers/health.py",
+    "ops/prometheus/backlog-authority.rules.yml"
   ],
   "approach": "EDP: fail closed for unlisted backlog scopes when DB mode is on",
   "review": {
@@ -259,7 +261,7 @@
     "usage": {}
   },
   "created_at": "2026-11-12T23:03:36.490071",
-  "updated_at": "2026-11-13T13:42:40.910780",
+  "updated_at": "2026-11-13T13:46:18.560458",
   "score": 0.75,
   "_note": "readiness computed",
   "api_impact": {
@@ -346,7 +348,7 @@
       "Tenant scope must be explicit"
     ],
     "observability": [
-      "Structured BACKLOG_DB_SCOPE_UNLISTED error log with code and scope. Cross-process metrics/alerting follow-up: BI-PF-1535, owner platform-oncall."
+      "Structured BACKLOG_DB_SCOPE_UNLISTED logs with code/scope; log-based operator detection now. Cross-process metrics/alerting follow-up: BI-PF-1535, owner platform-oncall."
     ],
     "performance": [
       "No hot-path regression for allowlisted scopes"
@@ -537,7 +539,9 @@
         "core/id_allocator.py",
         "config/env-flags.json",
         "docs/BACKLOG-DB-SSOT.md",
-        "test-framework/tests/pipeline/test_backlog_db_cutover.py"
+        "test-framework/tests/pipeline/test_backlog_db_cutover.py",
+        "api/routers/health.py",
+        "ops/prometheus/backlog-authority.rules.yml"
       ],
       "ac_ids": [
         "AC-1",
@@ -1473,6 +1477,34 @@
         ]
       },
       "evidence": "BI-PF-1534-83b1344fcea7.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "f8c93fb7f1647a329a43b9f3c871f2db77d34691",
+      "review_sha": "bf021be0f19b",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-13T08:16:18.268556+00:00",
+      "review_scope": "delta",
+      "base_sha": "8208a79718fce32a44bb8c3cda61a23c1f501423",
+      "head_sha": "f8c93fb7f1647a329a43b9f3c871f2db77d34691",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [],
+        "MINOR": [
+          "Delta deletes the only page-level signal (`ProductForgeBacklogScopeUnlisted`) and its metric with no interim detection path; design defers re-introduction to BI-PF-1535 (platform-oncall) — confirm that ticket exists and the operator runbook documents log-based detection for `BACKLOG_DB_SCOPE_UNLISTED` until then.",
+          "Delta edits `api/routers/health.py` and `ops/prometheus/backlog-authority.rules.yml`, which are outside the declared affected_files scope — coherent consequences of removing `metrics_text()`, but the design scope (CL-016) should be updated to record them and the BI-PF-1535 alert gap.",
+          "Removed public helpers `metrics_text()` / `scope_unlisted_count()` — verify no stale call sites remain outside the delta (precheck/gate scripts) before merge."
+        ],
+        "NIT": [
+          "`test_ac2_unlisted_log` is now preceded by 4 blank lines (context 2 + added 2); pycodestyle E303 would flag this if lint gates run."
+        ],
+        "SUMMARY": [
+          "Delta correctly resolves prior MAJORs: the misleading in-process metric and the tautological `metrics_text()` test are removed, replaced by a fail-able structured-log assertion (`caplog`), matching the approved design observability contract (logs now, metrics/alerting deferred to BI-PF-1535); AC-2 write/delete/ID fail-closed coverage and `-k ac2` evidence remain intact.",
+          "Prior MINORs/NITs are resolved or moot (envelope-less endpoint and absent()-guard findings obsolete with the endpoint/alert deleted; `monkeypatch.setenv` un-chained).",
+          "Residual risk is operational, not functional: between now and BI-PF-1535, repeated unlisted-scope fail-closed events are detectable only via logs; confirm runbook/log-query coverage. No AC regression introduced by the delta."
+        ]
+      },
+      "evidence": "BI-PF-1534-bf021be0f19b.json"
     }
   ],
   "review_dispositions": {
@@ -1922,6 +1954,30 @@
         "severity": "NIT",
         "origin_class": "IMPLEMENTATION_GAP",
         "note": "Fixed via health metrics endpoint/runbook/tests; evidence: api/routers/health.py."
+      },
+      "sig:e4fffb2bfb324881": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "VERIFICATION_GAP",
+        "note": "Verified: BI-PF-1535 exists; runbook log detection documented; no stale helper callers; scope updated."
+      },
+      "sig:d3165edad7bd0617": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "VERIFICATION_GAP",
+        "note": "Verified: BI-PF-1535 exists; runbook log detection documented; no stale helper callers; scope updated."
+      },
+      "sig:3876b4b15c143da0": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "VERIFICATION_GAP",
+        "note": "Verified: BI-PF-1535 exists; runbook log detection documented; no stale helper callers; scope updated."
+      },
+      "sig:345fddcd6cb12912": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "origin_class": "VERIFICATION_GAP",
+        "note": "Verified: BI-PF-1535 exists; runbook log detection documented; no stale helper callers; scope updated."
       }
     }
   },
