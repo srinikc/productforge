@@ -1,0 +1,29 @@
+{
+  "item": "BI-PF-1534",
+  "sha": "914d7cc3385d",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-13T17:10:28.147666+00:00",
+  "review_scope": "delta",
+  "base_sha": "e90340c0c86562e5b1022584c3600cbe46f141d3",
+  "head_sha": "749266eb90f9177844c20f3e188928ecd14c4d36",
+  "findings": {
+    "BLOCKER": [
+      "Delta hunk in `test_backlog_db_cutover.py` references `_J` (`\"BI-PF-A3\" + _J`) but adds no import/definition; if `_J` is not already a module constant, `test_ac3_off_mode_unlisted_file_authority` raises NameError and AC-3 evidence (`-k ac3` PASS) breaks. Verify `_J` exists in the test module at HEAD."
+    ],
+    "MAJOR": [],
+    "MINOR": [
+      "Assertion now derives the expected filename from a mutable constant (`_J`) shared with (or shadowing) implementation; if `_J` drifts from the real on-disk suffix, the test passes against a wrong filename instead of pinning the contract. Prefer a literal or a separately defined expectation."
+    ],
+    "NIT": [
+      "`(\"BI-PF-A3\" + _J)` string concatenation is less readable than an f-string/format used elsewhere in the file."
+    ],
+    "SUMMARY": [
+      "Delta is a test-only assertion refactor to parameterize the file suffix; no AC/regression change visible beyond the undefined-`_J` risk, which must be confirmed before trusting AC-3 evidence.",
+      "Top risk: a NameError in the AC-3 test silently invalidates the \"PASS\" evidence contract."
+    ]
+  },
+  "rereview_reason": "Delta fix for prior 8d37333870df wiring literal in AC-3 test",
+  "rereview_reason_sha256": "f63a4207e6af144f463189f1c77ebd4198070b21d235050e8d5e2c937ca5c3f0"
+}

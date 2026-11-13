@@ -212,7 +212,7 @@
     }
   },
   "verification": [
-    "Gate 2.5 architect review (mimo-v2.6-flash): {'BLOCKER': 0, 'MAJOR': 0, 'MINOR': 0, 'NIT': 2}"
+    "Gate 2.5 architect review (mimo-v2.6-flash): {'BLOCKER': 1, 'MAJOR': 0, 'MINOR': 1, 'NIT': 1}"
   ],
   "risks": [
     {
@@ -230,7 +230,8 @@
     "Design guardrails applied (BI-PF-1534): sig:b6ffb8f08cddbabc (20 lines)",
     "Gate 2.5 architect review - model=mimo-v2.6-flash sha=8d37333870df\nBLOCKER:\n  - none\nMAJOR:\n  - Declared in-scope files `config/env-flags.json` and `docs/BACKLOG-DB-SSOT.md` are untouched: the flag registry still describes `PF_BACKLOG_DB=on` as \"DB for PF_BACKLOG_DB_SCOPES\" with no fail-closed/unlisted-raise semantics, and the SSOT authority section still implies scoped DB vs file selection without the new `BACKLOG_DB_SCOPE_UNLISTED` contract, leaving config/operator docs out of sync with shipped behavior.\nMINOR:\n  - `_raise_unlisted` raises a bare `RuntimeError`; no typed exception exists, so callers and tests must string-match the message — brittle for long-term error handling and observability correlation.\n  - AC-3 (`test_ac3_off_mode_unlisted_file_authority`) exercises only `_save_item`; off-mode read, delete, and ID allocation file authority named in FR-3/operation_matrix are not covered.\n  - `test_ac4_operator_recovery_runbook` locates the evidence file by walking parents and uses `next(...)` (StopIteration if absent); the referenced `engineering/evidence/.../operator-recovery.md` is not in the declared diff/file scope, making the test dependent on an out-of-scope artifact.\n  - Alert `for` windows shortened 10m→5m in `backlog-authority.rules.yml` without a runbook update; `docs/BACKLOG-AUTHORITY-RUNBOOK.md` still describes the 10-minute persistence window, leaving CL-014 alert lead-time documentation stale.\n  - Duplicate coverage: `test_unlisted_scope_fails_closed` overlaps `test_ac1_unlisted_read_fails_closed` / `test_ac2_unlisted_write_delete_id_fails_closed` (same assertions, same scopes pattern) — maintenance cost and divergence risk.\nNIT:\n  - `import logging` inside `_raise_unlisted` instead of module-level import; function lacks a return type annotation (`-> NoReturn`).\n  - `test_id_allocator_scope_gate` uses try/except/AssertionError instead of `pytest.raises` used elsewhere in the same file.\n  - Dense one-line statements with semicolons in new tests (`monkeypatch.setenv(...); monkeypatch.setenv(...)`) diverge from the Python style guide's one-statement-per-line norm.\n  - Prometheus `increase(...[10m]) >= 3` combined with `for: 5m` effectively pages on a 15m horizon; annotate the intended lead time in the rule or runbook.\nSUMMARY:\n  - Fail-closed behavior for unlisted scopes in on/dual/shadow and explicit off-mode file authority are implemented and exercised across read/write/delete/ID paths, matching the approved failure matrix with no file/DB access before the guard.\n  - Top risks: declared config/doc files (`env-flags.json`, `BACKLOG-DB-SSOT.md`) were not updated so the flag contract and SSOT no longer describe shipped semantics; message-based `RuntimeError` matching and thin AC-3/AC-4 coverage weaken long-term verifiability of the guard.\n  - No blocker; approve after syncing config/docs and closing the off-mode and runbook/alert-window documentation gaps.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)",
     "Gate 2.5 architect review - model=mimo-v2.6-flash sha=b687ebc68337\nBLOCKER:\n  - none\nMAJOR:\n  - none\nMINOR:\n  - New `BacklogScopeUnlisted` is never asserted: every test still uses `pytest.raises(RuntimeError, match=...)`, so a regression to a bare `RuntimeError` or message-only string passes; assert the typed class to lock the contract.\n  - Removing `test_unlisted_scope_fails_closed` also dropped the explicit off-mode assertion `backlog._db_for(unlisted) is False`; AC-3 now proves off-mode only indirectly via file I/O and `id_allocator._db_enabled`.\n  - `test_ac4` pins the runbook root with hard-coded `Path(__file__).resolve().parents[3]`; relocating the test file silently shifts the depth and fails AC-4 on path plumbing rather than the behavior under test.\nNIT:\n  - `_raise_unlisted` log payload repeats the code token (`BACKLOG_DB_SCOPE_UNLISTED code=BACKLOG_DB_SCOPE_UNLISTED scope=...`); emit it once via a structured extra while keeping the grep-able token.\n  - `test_ac3` monkeypatches the private `_dir` helper, coupling the test to an internal signature; prefer deriving paths from the public call parameters where feasible.\nSUMMARY:\n  - Delta cleanly resolves the prior typed-exception, duplicate-test, `pytest.raises`, semicolon, `next()`/`StopIteration`, and AC-3 coverage findings; no blockers and no AC regression in this delta.\n  - Residual risk is test-contract depth: the new exception type is unasserted, the off-mode `_db_for` assertion was lost with the deleted duplicate test, and the runbook path depth is brittle.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)",
-    "Gate 2.5 architect review - model=mimo-v2.6-flash sha=e41f4d6fd3e4\nBLOCKER:\n  - none\nMAJOR:\n  - none\nMINOR:\n  - none\nNIT:\n  - `extra={\"code\": ...}` relies on downstream formatters emitting record extras; if a JSON/plain formatter omits extras, the machine-readable code is lost while only the message text retains it. Keep a single grep-able token (current message does) and confirm the production formatter renders `code`.\n  - [OUT_OF_SCOPE] prior NIT remains: `test_ac3` still monkeypatches private `_dir`; unchanged in this delta.\nSUMMARY:\n  - Delta cleanly resolves the four pending findings: typed `BacklogScopeUnlisted` asserted, AC-3 `_db_for(unlisted) is False` restored, AC-4 uses `core.paths.ROOT`, and the duplicated code token moved to structured `extra`.\n  - No new AC regressions, no security/data-loss issues; all four ACs remain PASS with evidence intact.\n  - Residual risk is limited to formatter-dependent visibility of the structured `code` field (NIT).\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)"
+    "Gate 2.5 architect review - model=mimo-v2.6-flash sha=e41f4d6fd3e4\nBLOCKER:\n  - none\nMAJOR:\n  - none\nMINOR:\n  - none\nNIT:\n  - `extra={\"code\": ...}` relies on downstream formatters emitting record extras; if a JSON/plain formatter omits extras, the machine-readable code is lost while only the message text retains it. Keep a single grep-able token (current message does) and confirm the production formatter renders `code`.\n  - [OUT_OF_SCOPE] prior NIT remains: `test_ac3` still monkeypatches private `_dir`; unchanged in this delta.\nSUMMARY:\n  - Delta cleanly resolves the four pending findings: typed `BacklogScopeUnlisted` asserted, AC-3 `_db_for(unlisted) is False` restored, AC-4 uses `core.paths.ROOT`, and the duplicated code token moved to structured `extra`.\n  - No new AC regressions, no security/data-loss issues; all four ACs remain PASS with evidence intact.\n  - Residual risk is limited to formatter-dependent visibility of the structured `code` field (NIT).\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)",
+    "Gate 2.5 architect review - model=mimo-v2.6-flash sha=914d7cc3385d\nBLOCKER:\n  - Delta hunk in `test_backlog_db_cutover.py` references `_J` (`\"BI-PF-A3\" + _J`) but adds no import/definition; if `_J` is not already a module constant, `test_ac3_off_mode_unlisted_file_authority` raises NameError and AC-3 evidence (`-k ac3` PASS) breaks. Verify `_J` exists in the test module at HEAD.\nMAJOR:\n  - none\nMINOR:\n  - Assertion now derives the expected filename from a mutable constant (`_J`) shared with (or shadowing) implementation; if `_J` drifts from the real on-disk suffix, the test passes against a wrong filename instead of pinning the contract. Prefer a literal or a separately defined expectation.\nNIT:\n  - `(\"BI-PF-A3\" + _J)` string concatenation is less readable than an f-string/format used elsewhere in the file.\nSUMMARY:\n  - Delta is a test-only assertion refactor to parameterize the file suffix; no AC/regression change visible beyond the undefined-`_J` risk, which must be confirmed before trusting AC-3 evidence.\n  - Top risk: a NameError in the AC-3 test silently invalidates the \"PASS\" evidence contract.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present"
   ],
   "owner": "intake",
   "requester": "generic",
@@ -336,7 +337,7 @@
     "usage": {}
   },
   "created_at": "2026-11-12T23:03:36.490071",
-  "updated_at": "2026-11-13T22:22:30.812342",
+  "updated_at": "2026-11-13T22:40:29.293276",
   "score": 0.75,
   "_note": "final report persisted (BI-PF-1484)",
   "api_impact": {
@@ -1849,6 +1850,33 @@
         ]
       },
       "evidence": "BI-PF-1534-e41f4d6fd3e4.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "749266eb90f9177844c20f3e188928ecd14c4d36",
+      "review_sha": "914d7cc3385d",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-13T17:10:28.147666+00:00",
+      "review_scope": "delta",
+      "base_sha": "e90340c0c86562e5b1022584c3600cbe46f141d3",
+      "head_sha": "749266eb90f9177844c20f3e188928ecd14c4d36",
+      "findings": {
+        "BLOCKER": [
+          "Delta hunk in `test_backlog_db_cutover.py` references `_J` (`\"BI-PF-A3\" + _J`) but adds no import/definition; if `_J` is not already a module constant, `test_ac3_off_mode_unlisted_file_authority` raises NameError and AC-3 evidence (`-k ac3` PASS) breaks. Verify `_J` exists in the test module at HEAD."
+        ],
+        "MAJOR": [],
+        "MINOR": [
+          "Assertion now derives the expected filename from a mutable constant (`_J`) shared with (or shadowing) implementation; if `_J` drifts from the real on-disk suffix, the test passes against a wrong filename instead of pinning the contract. Prefer a literal or a separately defined expectation."
+        ],
+        "NIT": [
+          "`(\"BI-PF-A3\" + _J)` string concatenation is less readable than an f-string/format used elsewhere in the file."
+        ],
+        "SUMMARY": [
+          "Delta is a test-only assertion refactor to parameterize the file suffix; no AC/regression change visible beyond the undefined-`_J` risk, which must be confirmed before trusting AC-3 evidence.",
+          "Top risk: a NameError in the AC-3 test silently invalidates the \"PASS\" evidence contract."
+        ]
+      },
+      "evidence": "BI-PF-1534-914d7cc3385d.json"
     }
   ],
   "review_dispositions": {
