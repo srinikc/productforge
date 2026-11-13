@@ -1316,6 +1316,68 @@
         "evidence"
       ],
       "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:4050d6a57b626185",
+      "finding": "AC-1 tension: the delta makes the on-mode unlisted path open/write a file (`PF_BACKLOG_METRICS_FILE`) in `_raise_unlisted`, and `test_ac2_unlisted_metric_export` asserts that file write — contradicting AC-1 \"instead of reading or writing files\" and the design invariant \"On + unlisted never touches files\". Reconcile the contract (scope the invariant to backlog-authority files, or derive the counter from the existing structured log) so the shipped behavior and AC text agree.",
+      "severity": "MAJOR",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "reproducer": "delivery review finding",
+      "regression_test": "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q",
+      "evidence": "engineering/evidence/BI-PF-1534/operator-recovery.md",
+      "files": [
+        "core/backlog.py",
+        "test-framework/tests/pipeline/test_backlog_db_cutover.py",
+        "engineering/evidence/BI-PF-1534/operator-recovery.md"
+      ],
+      "rollback": "No data change; fail-closed guard and docs only.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:688a41181dfb304d",
+      "finding": "Textfile counter semantics are not alert-grade: `_DB_UNLISTED_COUNT` is process-local, rewritten with mode `\"w\"` on every raise, so any second worker/instance sharing one path clobbers the value (count goes backwards) and restarts reset it; `increase(backlog_db_scope_unlisted_total[10m]) >= 3` then pages on noise or misses sustained failures. Needs monotonic, process-qualified export (or per-process metric names).",
+      "severity": "MAJOR",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "reproducer": "delivery review finding",
+      "regression_test": "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q",
+      "evidence": "engineering/evidence/BI-PF-1534/operator-recovery.md",
+      "files": [
+        "core/backlog.py",
+        "ops/prometheus/backlog-authority.rules.yml",
+        "engineering/evidence/BI-PF-1534/operator-recovery.md"
+      ],
+      "rollback": "No data change; fail-closed guard and docs only.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:289291cb8f47dc0d",
+      "finding": "Design contract lists `config/env-flags.json` as an affected file, but neither the delta nor the full candidate registers the new `PF_BACKLOG_METRICS_FILE` switch, violating the env-flags registry discoverability standard and the approved design's file list.",
+      "severity": "MAJOR",
+      "origin_class": "VERIFICATION_GAP",
+      "reproducer": "delivery review finding",
+      "regression_test": "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q",
+      "evidence": "config/env-flags.json",
+      "files": [
+        "config/env-flags.json",
+        "core/backlog.py"
+      ],
+      "rollback": "No data change; fail-closed guard and docs only.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
     }
   ],
   "review_ledger": [
@@ -3182,6 +3244,12 @@
     {
       "control_id": "CTL-UNLISTED-SCOPE-FAILCLOSED",
       "sha": "d37bcee85c7e226e59ac48bf65e924b6f69366d4-d2d3c9679845",
+      "result": "PASS",
+      "evidence": "test-framework/tests/pipeline/test_backlog_db_cutover.py"
+    },
+    {
+      "control_id": "CTL-UNLISTED-SCOPE-FAILCLOSED",
+      "sha": "afa7fba1df54cb5de3c2d2d7ea99a743bb1c820c-d2d3c9679845",
       "result": "PASS",
       "evidence": "test-framework/tests/pipeline/test_backlog_db_cutover.py"
     }
