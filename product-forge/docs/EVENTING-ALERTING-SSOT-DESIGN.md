@@ -2,7 +2,7 @@
 
 **Status:** Design — **approval required before implementation**
 **Epic:** BI-PF-1265 (Eventing & Alerting SSOT)
-**Implements:** ADR-0005 (`docs/ARCHITECTURE-DECISIONS.md`)
+**Implements:** ADR-0005 and ADR-0011 (`docs/ARCHITECTURE-DECISIONS.md`)
 **Related:** BI-PF-0387/0388 (Go-first), BI-PF-0390/0393/0394 (A1 contracts + B1 Go core),
 BI-PF-1267 … BI-PF-1276 (children), BI-PF-1277 dogfood epic (first non-UI consumer)
 **Owner:** architecture
@@ -30,48 +30,66 @@ logic is Go (ADR-0001). Existing wired consumers keep working throughout migrati
 
 ## 3. Architecture (target)
 
+**Storage authority:** ADR-0011. PostgreSQL is the event store; object storage holds large payloads; a bus is
+an optional transport, never the source of truth.
+
 ```
-                 producers (Go + Python)
-                          |  emit (canonical envelope + seq)
+                 producers (Go + Python thin client)
+                          |  emit(canonical envelope)
                           v
-        +-------------------------------------------+        SSOT
-        |  Go event core  (single writer store)      |  events.jsonl (append-only, seq/cursor)
-        |  - append + monotonic seq + cursor read    |
+        +-------------------------------------------+
+        |  Go event core (single writer)             |
+        |  - PostgreSQL events + transactional outbox|
+        |  - per-tenant monotonic seq + cursor       |
+        |  - large payload -> ObjectStore + ref/hash |
         +-------------------------------------------+
                           |
-                    Go dispatcher (cursor, at-least-once, event_id dedupe, retry -> DLQ)
+                    Go dispatcher (outbox cursor, at-least-once, event_id dedupe, retry -> DLQ)
                           |
         +-----------------+-------------------+------------------+
         v                 v                   v                  v
    inproc callbacks     SSE (API edge)     webhook (HMAC)     notify / email
    (compat shim)        GET /events/stream  (idempotency)      (reuse existing owners)
                           ^
-                 Go subscriber registry + alert policy (single writer, store-registry)
+                 subscriber registry + alert policy (PostgreSQL, single writer)
                           ^
-                 API (thin Python edge): subscription CRUD + read
+                 API (thin Python edge): subscription CRUD + cursor reads
 
+   Optional transport (later): Kafka/NATS/PubSub consumes the outbox; it is not authority.
+   Compatibility: generated read-only events.jsonl projection/export only; never read as truth.
    Python seam: core/events.py (thin client) <-> core/contracts.py (A1 wire) <-> core/go_host -> go/
 ```
 
 **Language boundary (ADR-0001 / `language_rule_check`):**
-- **Go** (new shipped logic, under `go/`): event core, subscriber registry, dispatcher, transports,
-  alert policy.
-- **Python (edits to existing files only)**: `core/events.py` (thin client), API routes, and the seam
-  call. **No new `.py`** under `core/`, `api/`, `adapters/`.
+- **Go** (new shipped logic, under `go/`): event core, PostgreSQL writes/cursor, object payload handling,
+  subscriber registry, dispatcher, transports, alert policy.
+- **Python (edits to existing files only)**: `core/events.py` (thin client), API routes, and the seam call.
+  **No new `.py`** under `core/`, `api/`, `adapters/`.
 - **Python tooling/tests/docs**: design docs, gates (`scripts/dev`), contract tests
   (`test-framework/tests`).
 
 ## 4. Contracts (extended additively; A1 parity with Go)
-- **Event envelope v2** (owner: `core/events.py`): add monotonic `seq` (keep `event_id`, `event_type`,
+
+- **Event envelope v2** (owner: `core/events.py`): add monotonic `seq` and durable storage fields
+  (`payload_ref`, `payload_sha256`, `size_bytes`, `content_type`) while keeping `event_id`, `event_type`,
   `event_version`, `occurred_at`, `correlation_id`, `causation_id`, `task_id`, `worker_id`, `actor`,
-  `payload`, and the legacy flat fields `ts/type/level/stage/agent/trace_id/span_id`).
-- **subscription**: `{id, types[], filter, transport(inproc|sse|webhook|notify|email), target, auth_ref,
-  enabled, created_by}`.
-- **alert-rule**: `{type/severity -> channels[], throttle_window, escalate}`.
+  `payload`, and the legacy flat fields `ts/type/level/stage/agent/trace_id/span_id`.
+- **PostgreSQL event row:** `(tenant_id, seq)` is the cursor key; `event_id` is globally unique; append-only
+  privileges; RLS by tenant; indexes for `(tenant_id, seq)` and `(tenant_id, event_type, seq)`.
+- **Payload threshold:** inline JSON below the configured limit; larger payloads go to the `ObjectStore`
+  interface (ADR-0006). The DB stores only opaque reference + sha256 + size/content type.
+- **transactional outbox:** event insert and outbox row commit in one transaction. Dispatcher reads the
+  outbox; at-least-once; `event_id` dedupe; retry to DLQ.
+- **subscription**: `{id, tenant_id, types[], filter, transport(inproc|sse|webhook|notify|email), target,
+  auth_ref, enabled, created_by}`; PostgreSQL single writer.
+- **alert-rule**: `{tenant_id, type/severity -> channels[], throttle_window, escalate}`; PostgreSQL single
+  writer.
 - **webhook delivery**: payload = envelope; headers carry `X-PF-Signature` (HMAC over body) and
   `X-PF-Idempotency-Key` (= `event_id`).
-- Python is the schema source of truth (`core/contracts.py`); `go/` mirrors it; parity asserted by a test
-  (pattern: `test-framework/tests/pipeline/test_contracts.py`).
+- Python remains the schema source of truth (`core/contracts.py`); `go/` mirrors it; parity asserted by a
+  test (pattern: `test-framework/tests/pipeline/test_contracts.py`).
+- **Compatibility projection:** `events.jsonl` may be generated read-only from PostgreSQL for legacy readers;
+  it is never authoritative and is never dual-written as a source of truth.
 
 ## 5. Consumer migration matrix (with shims; no parallel copy)
 
@@ -109,7 +127,7 @@ logic is Go (ADR-0001). Existing wired consumers keep working throughout migrati
 **ASSUMPTIONS** (each needs explicit yes/no before implementation)
 - A1. The Go core is the acceptable host for the new bus (persistent process vs on-demand invocation).
 - A2. `core/events.py` may become a thin client while keeping its exact public API.
-- A3. The event store's writer ownership can be cut over to Go without a second writer at any time.
+- A3. The Go event core is the single PostgreSQL writer at cutover; `events.jsonl` is a read-only projection only.
 - A4. SSE is served at the API edge (thin Python read of the stream), not a Go HTTP server.
 - A5. The subscriber registry + alert rules live in their own stores (single writer) registered in
   `config/store-registry.json`.
@@ -126,8 +144,8 @@ logic is Go (ADR-0001). Existing wired consumers keep working throughout migrati
 - Q2 Run model: **standalone Go bus daemon** for dispatch + external delivery; library invocation for
   emit/read.
 - Q3 SSE edge: **API edge** (A4).
-- Q4 Writer ownership: **Python stays writer now; Go becomes writer in a later one-time cutover** (A3).
-- Q5 Python-emit handoff: **Python calls the Go core (seam)**; no dual writer.
+- Q4 Writer ownership: **Go event core is the writer from the first production cutover**; `events.jsonl` is a read-only projection only (ADR-0011).
+- Q5 Python-emit handoff: **Python calls the Go core (seam)**; no dual writer, no file authority.
 
 ## 7. IMPACT REVIEW (mandated)
 
@@ -135,12 +153,15 @@ logic is Go (ADR-0001). Existing wired consumers keep working throughout migrati
 |---|---|---|---|
 | New bus core in Go | aligned | ADR-0001; `go/pfcore/pfcore.go:1-6`; `core/go_host.py` | build under `go/`, invoke via A1 |
 | No new Python in shipped roots | aligned | `config/language-rule.json` (`shipped_roots`) | Python edits existing files only |
-| One event store (no second) | aligned | `core/events.py:1-11`; `event_bus.py:48-62` mirror | keep `events.jsonl`; no new stream |
+| One event store (no second) | aligned | ADR-0011; `core/events.py:1-11`; `event_bus.py:48-62` mirror | PostgreSQL authority; JSONL projection only; no new stream |
 | Single writer per store | aligned | `config/store-registry.json` rules | register registry/alert stores w/ one writer |
 | Contract extension compatible | aligned | `core/events.py:43-74` envelope; `test_api_events.py` | additive `seq`; keep legacy fields |
 | Consumers keep working | aligned | 50 `events` importers; `test_event_ssot.py` | migrate behind shims; no signature change |
 | Reuse redaction + DLQ | aligned | `core/log_router.py:58`; `core/dead_letter_queue.py:42` | reuse both (no new impl) |
 | Cross-process delivery | new-path | pipeline child process vs API | Go daemon or stream tail (Q2/Q4) — **approved?** |
+| Event authority in PostgreSQL | aligned | ADR-0006, ADR-0011 | Go writer; no JSONL authority |
+| Large payloads in object store | aligned | ADR-0006 ObjectStore contract | DB stores ref/hash/size only |
+| Bus as optional transport | aligned | ADR-0011 | outbox first; broker never authority |
 | Go API server rewrite | **violates** | ADR-0001 (existing Python stays) | **do NOT**; Python edge + Go behind seam |
 
 ## 8. Risks & mitigations
@@ -156,11 +177,11 @@ logic is Go (ADR-0001). Existing wired consumers keep working throughout migrati
 ## 9. Delivery plan (phases → backlog; each on its own feature branch, gated)
 1. BI-PF-1266 **this design** (ADR-0005 + this doc) — **approval gate here**.
 2. BI-PF-1267 contracts (+ Go parity).
-3. BI-PF-1268 Go event core (store/emit/seq/cursor).
+3. BI-PF-1268 Go event core (PostgreSQL store/outbox/emit/seq/cursor; object payloads).
 4. BI-PF-1269 subscriber registry + dispatcher (retry→DLQ).
 5. BI-PF-1270 transports (inproc/webhook/notify-email).
 6. BI-PF-1271 alert policy (rules/throttle/escalation).
-7. BI-PF-1272 Python thin-client cutover of `core/events.py`.
+7. BI-PF-1272 Python thin-client cutover of `core/events.py`; JSONL becomes a read-only projection.
 8. BI-PF-1273 migrate existing consumers (shims).
 9. BI-PF-1274 API surface (SSE + subscription CRUD).
 10. BI-PF-1275 bus daemon run model + ops.
@@ -172,7 +193,9 @@ logic is Go (ADR-0001). Existing wired consumers keep working throughout migrati
 - Gates green: `compileall`, `wired_audit`, `single_path_check`, `language_rule_check`, `precheck`.
 - Event/SSOT tests green: `test_event_ssot.py`, `test_api_events.py`, `test_redaction.py`,
   `test_tracing.py`, `test_log_router_retention.py`, `test_run_status_reconcile.py`, `test_section_d.py`.
-- No new `.py` under `core/`, `api/`, `adapters/`; no second event store; legacy transport only retired.
+- No new `.py` under `core/`, `api/`, `adapters/`; PostgreSQL is the only event authority; legacy
+  transport only retired.
+- Large payloads use object storage with sha256 verification; `events.jsonl` is not read as authority.
 - Evidence linked on BI-PF-1266 (design) and each implementing item.
 
 ## 11. Plain-language summary

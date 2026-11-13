@@ -22,6 +22,7 @@ ADR. Individual ADRs may later be split into `docs/adr/NNNN-*.md` (the index her
 | [ADR-0008](#adr-0008-service-topology---go-backed-capabilities-are-exposed-by-go-services) | Service topology - Go-backed capabilities are exposed by Go services | Accepted | 2026-10-24 |
 | [ADR-0009](#adr-0009-formal-retention-of-global-config-stores-design-systems) | Formal retention of global config stores (design-systems) | Accepted | 2026-10-24 |
 | [ADR-0010](#adr-0010-control-plane-evidence-tooling-exception-execution-trailcost) | Control-plane evidence tooling exception (execution trail/cost) | Accepted | 2026-10-25 |
+| [ADR-0011](#adr-0011-event-store-authority-postgresql-object-payloads-bus-as-transport) | Event store authority: PostgreSQL + object payloads; bus is transport | Accepted | 2026-11-13 |
 
 ## Template
 ```markdown
@@ -559,3 +560,68 @@ Python. **Risks:** pricing drift (source/fetched_at are recorded; upstream diver
 ### Confirmation
 `python scripts/dev/language_rule_check.py` passes with the allowlist; the trail tests and
 `execution_trail_check` cover the behavior.
+
+---
+
+# ADR-0011: Event store authority: PostgreSQL + object payloads; bus as transport
+
+**Status:** Accepted
+**Date:** 2026-11-13   **Deciders:** architecture + HIL   **Related:** EPIC BI-PF-1265, BI-PF-1266, BI-PF-1267, BI-PF-1268, ADR-0005, ADR-0006
+
+## Context and Problem Statement
+ADR-0005 established one event/alert capability and a Go-first event core, but left the physical store as
+the append-only `events.jsonl` stream. That stream is a single-writer local file, cannot provide durable
+cross-process cursor semantics, tenant isolation, retention, or large-payload handling. We already accepted
+PostgreSQL as the relational system of record and object storage for bytes (ADR-0006), so keeping events in a
+local JSONL file would be a second competing authority.
+
+## Decision Drivers
+- One authoritative event store; no parallel event authority.
+- Durable monotonic ordering and cursor reads across processes and restarts.
+- Tenant isolation and retention controls consistent with the data plane.
+- Bounded DB rows: large payloads belong in object storage, not PostgreSQL.
+- Bus transports (Kafka/NATS/PubSub/webhooks) are delivery mechanisms, never the source of truth.
+- Go-first for new shipped logic; Python remains a thin client behind the A1 seam.
+
+## Considered Options
+1. **Keep `events.jsonl` as authority** - rejected: local single-writer file, weak cursor/tenancy/retention.
+2. **Make a bus the authority** - rejected: transport durability is not domain truth; adds broker dependency.
+3. **PostgreSQL event store + object payloads + optional bus transport** - chosen.
+4. **PostgreSQL rows with full payloads only** - rejected for large payloads: unbounded row sizes, expensive
+   reads, retention/cost pressure.
+
+## Decision Outcome
+**Chosen option:** PostgreSQL is the authoritative event store. The Go event core owns append and cursor
+reads; Python is a thin client. Large payloads are stored in object storage and referenced from PostgreSQL.
+Kafka/NATS/PubSub/webhook delivery is an optional transport over an outbox, not authority.
+
+### Binding contract
+- **Authority:** PostgreSQL table(s) for events and the transactional outbox. `events.jsonl` is at most a
+  compatibility projection/export and is never read as authority.
+- **Identity/order:** `event_id` is globally unique; each tenant has a monotonic `seq`. Cursor reads use
+  `(tenant_id, seq)` and return exactly the events after the cursor.
+- **Payloads:** inline JSON is allowed up to a configured threshold. Above it, bytes go to object storage;
+  PostgreSQL stores an opaque `payload_ref`, `payload_sha256`, `size_bytes`, and content type. Provider URLs
+  are never identity.
+- **Single writer:** the Go event core writes events/outbox. No Python writer and no dual-writer window.
+- **Transport:** at-least-once delivery from the outbox; `event_id` dedupe; retry to DLQ. A broker, when
+  introduced, carries notifications, not truth.
+- **Compatibility:** existing `core/events.py` public API and readers keep working through a thin client and
+  a generated read-only projection during migration.
+- **Tenancy:** server-resolved tenant context and PostgreSQL RLS on every event/outbox read and write.
+- **Retention:** event metadata and payload objects follow explicit retention policy; object deletion is
+  driven by the store contract, never by provider lifecycle guesses.
+
+### Consequences
+**Positive:** one durable authority; reliable cursors; tenant isolation; bounded rows; transport can evolve
+without changing truth. **Negative:** requires migrations, RLS, object-store wiring, and a Go writer before
+production cutover. **Risks:** dual-writer drift during migration (mitigated by single-writer cutover and
+parity checks); object/DB inconsistency (mitigated by sha256 reconciliation); broker mistaken for authority
+(mitigated by this ADR and contract tests).
+
+### Confirmation
+- An event emitted in one process is readable by cursor in another process after restart.
+- `(tenant_id, seq)` is gap-free per tenant and no cross-tenant row is visible.
+- Large payload round-trips via object reference with sha256 verification; DB row stays bounded.
+- Outbox redelivery is deduped by `event_id` and fail-closed on DLQ exhaustion.
+- No code path reads `events.jsonl` as authority; compatibility exports are labeled read-only.
