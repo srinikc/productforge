@@ -1,0 +1,32 @@
+{
+  "item": "BI-PF-1534",
+  "sha": "8c57dd581ec5",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-12T17:50:45.354796+00:00",
+  "review_scope": "delta",
+  "base_sha": "3e273784faf48e45e7f2de37c72aaf6d0f7c5e12",
+  "head_sha": "a4d579e6cae74afabea3e793664840a18cc0a803",
+  "findings": {
+    "BLOCKER": [
+      "`ac_evidence` for AC-1..AC-4 all carry the identical sha `3e273784` while pointing at four different artifacts (`AC-1.md`..`AC-4.md`) \u2014 distinct files cannot share one content hash; guardrail 13 (evidence quality/distinct evidence) is not genuinely satisfied, and the prior ACTIONED disposition's fix is not provable from the data."
+    ],
+    "MAJOR": [
+      "`affected_components` in the delta drops `config`, yet the design's own `config_contract` (`PF_BACKLOG_DB_SCOPES`, `config/env-flags.json`) and `affected_files` still include a config change \u2014 changed-scope declaration now contradicts the unchanged contract rows in the same design (CL-016 consistency).",
+      "`design_pack.coverage` for AC-3 lists `failure_cases: [\"BACKLOG_DB_SCOPE_UNLISTED\"]` although AC-3/FR-3 expects file authority with `errors: \"none\"` \u2014 AC/FR contract mismatch persists in the coverage rows (guardrail 11)."
+    ],
+    "MINOR": [
+      "`test_matrix` AC-4 `kind` is \"runbook\" but the row's `test` is a pytest `-k ac4` invocation, not a runbook execution/evidence step; distinctness between AC-4 runbook proof and the AC-1..AC-3 unit tests rests solely on `-k` filtering.",
+      "`design_pack.coverage` for AC-4 likewise lists a unit-style pytest command as the sole evidence for a \"tests and runbook + operator recovery\" contract."
+    ],
+    "NIT": [
+      "All four coverage rows reuse identical `adapter`, `entrypoint`, and `tests` values, so the rows read as copy-paste and offer no per-AC signal in review."
+    ],
+    "SUMMARY": [
+      "Prior findings are correctly dispositioned (distinct evidence files, FR-4 acceptance, observability counter/alert, populated components, untruncated titles), but the delta reintroduces evidence-integrity risk: one shared sha across four artifacts. Also fix the AC-3 failure_cases mismatch and restore `config` to affected components before Gate 1.5."
+    ]
+  },
+  "rereview_reason": "fix a3feb5f3953f findings",
+  "rereview_reason_sha256": "1911e56043cf60e37ae317a56880c0bb94f0ce98dee1527f816350ecc8db0e47"
+}

@@ -1,0 +1,30 @@
+{
+  "item": "BI-PF-1534",
+  "sha": "b687ebc68337",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-13T16:46:39.207217+00:00",
+  "review_scope": "delta",
+  "base_sha": "585e5da2c511afbe30fe4a0d2f3643104473b1c6",
+  "head_sha": "5929435f7d547cf05634d54a6d8d06f4419c30df",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [],
+    "MINOR": [
+      "New `BacklogScopeUnlisted` is never asserted: every test still uses `pytest.raises(RuntimeError, match=...)`, so a regression to a bare `RuntimeError` or message-only string passes; assert the typed class to lock the contract.",
+      "Removing `test_unlisted_scope_fails_closed` also dropped the explicit off-mode assertion `backlog._db_for(unlisted) is False`; AC-3 now proves off-mode only indirectly via file I/O and `id_allocator._db_enabled`.",
+      "`test_ac4` pins the runbook root with hard-coded `Path(__file__).resolve().parents[3]`; relocating the test file silently shifts the depth and fails AC-4 on path plumbing rather than the behavior under test."
+    ],
+    "NIT": [
+      "`_raise_unlisted` log payload repeats the code token (`BACKLOG_DB_SCOPE_UNLISTED code=BACKLOG_DB_SCOPE_UNLISTED scope=...`); emit it once via a structured extra while keeping the grep-able token.",
+      "`test_ac3` monkeypatches the private `_dir` helper, coupling the test to an internal signature; prefer deriving paths from the public call parameters where feasible."
+    ],
+    "SUMMARY": [
+      "Delta cleanly resolves the prior typed-exception, duplicate-test, `pytest.raises`, semicolon, `next()`/`StopIteration`, and AC-3 coverage findings; no blockers and no AC regression in this delta.",
+      "Residual risk is test-contract depth: the new exception type is unasserted, the off-mode `_db_for` assertion was lost with the deleted duplicate test, and the runbook path depth is brittle."
+    ]
+  },
+  "rereview_reason": "Delta fix review for prior 8d37333870df minor findings",
+  "rereview_reason_sha256": "b49eb2aea09026e5018b3e4a988b11fa6188eac621350c58f9c0b28d6e3d3d71"
+}

@@ -1,0 +1,33 @@
+{
+  "item": "BI-PF-1534",
+  "sha": "0ebb0a334d2a",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-13T06:09:41.350110+00:00",
+  "review_scope": "delta",
+  "base_sha": "2b16c28d16612f72f478bf2ecce5becb8b2bc048",
+  "head_sha": "8208a79718fce32a44bb8c3cda61a23c1f501423",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "`/metrics/backlog` reads only the API process's in-process `_DB_UNLISTED_COUNT`; unlisted raises in worker/CLI/pipeline processes (or sibling uvicorn workers) are never counted, so `ProductForgeBacklogScopeUnlisted` can stay silent \u2014 the prior \"alert-grade counter\" disposition is only partially ACTIONED.",
+      "`test_ac2_unlisted_metric_export` assertion is tautological: `metrics_text()` always contains the hardcoded `backlog_db_scope_unlisted_total` string, so it passes even if `_raise_unlisted` never increments; no counter value/reset check \u2014 violates the fail-able-test guardrail."
+    ],
+    "MINOR": [
+      "`ProductForgeBacklogScopeUnlisted` still lacks an `absent()`/scrape-coverage guard; the delta only shortened `for: 10m\u21925m`, so the prior disposition is only partially resolved.",
+      "AC-2 evidence (`-k ac2`) still resolves to a metric-export-only test; the delta removed the file assertion but added no write/delete/ID fail-closed assertion (unless another `-k ac2` test covers it).",
+      "`/metrics/backlog` bypasses the `from_request` envelope used by sibling health endpoints and defers `core.backlog` import to scrape time, so a broken core surfaces only as a scrape-time 500, not a startup/readiness failure."
+    ],
+    "NIT": [
+      "Chained `;`-separated `monkeypatch.setenv` one-liner persists in `test_ac2_unlisted_metric_export` despite its ACTIONED disposition.",
+      "Delta retunes unrelated alert `for:` thresholds (AuthorityUnavailable/Errors) alongside the item's alert with no stated rationale."
+    ],
+    "SUMMARY": [
+      "Delta correctly removes the AC-1-violating `PF_BACKLOG_METRICS_FILE` write, the dangling evidence runbook link, and the unregistered env flag \u2014 the core fail-closed ACs are not broken by this delta.",
+      "Top risks: the exported counter is process-local so the page alert may never fire, and the AC-2-tagged test assertion cannot fail."
+    ]
+  },
+  "rereview_reason": "fix d4ac4c8aa7a3 findings",
+  "rereview_reason_sha256": "65cf4cec57ff75e95a4b8b9226b8cef0e8c2f0deebe7feac39fc1aa0edd18401"
+}

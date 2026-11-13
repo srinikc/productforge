@@ -1,0 +1,33 @@
+{
+  "item": "BI-PF-1534",
+  "sha": "a3feb5f3953f",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-12T17:49:25.479375+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "0d62a57779ee95f98fabbcd1afc6afa4ec3fd58d",
+  "head_sha": "3e273784faf48e45e7f2de37c72aaf6d0f7c5e12",
+  "findings": {
+    "BLOCKER": [
+      "Disposition ACTIONED for the AC-4 evidence finding is not reflected in data: `test_matrix` still lists the identical pytest command for AC-1..AC-4 and `ac_evidence` for all four ACs share one sha (`69dd9c33`) and one artifact (`operator-recovery.md`) \u2014 guardrail 13 (distinct executable test or runbook artifact per AC) is still unmet, so AC-4 runbook coverage remains unproven."
+    ],
+    "MAJOR": [
+      "FR-4's `acceptance` is still \"Given DB on When unlisted AC-4 path runs Then it fails closed\", which does not match AC-4 (tests and runbook cover read/write/delete/ID paths and operator recovery) \u2014 guardrail 11 AC/FR one-to-one correspondence remains unsatisfied (only FR-3 was corrected)."
+    ],
+    "MINOR": [
+      "Disposition for the observability finding is ACTIONED but `design_pack.observability` still contains only \"Structured ... error with scope key; precheck/test evidence\" \u2014 no metric/counter or alertability for `BACKLOG_DB_SCOPE_UNLISTED` occurrences was added.",
+      "`affected_components` still reads `[\"Not specified.\"]`; CL-016's separation of prerequisites (BI-PF-1531) from changed components remains only partially actioned (`affected_files` is now populated)."
+    ],
+    "NIT": [
+      "FR-1/FR-2/FR-4 `title` values are truncated mid-string (\"...raise BACKLOG_DB_SCOPE_U\"), weakening traceability readability in the spec pack."
+    ],
+    "SUMMARY": [
+      "Guardrails on mode completeness (dual/shadow), FR-3/off-mode, security posture, rollback, startup validation, and guardrail checklist items are genuinely addressed in this revision.",
+      "The two blockers/majors that remain are evidence and AC/FR traceability: a single shared evidence artifact + single test command still backs all four ACs, and FR-4's outcome text still does not describe AC-4's test/runbook requirement.",
+      "Gate should not pass until AC-4 has a distinct, executable runbook/recovery artifact reference and FR-4's acceptance is rewritten to match AC-4."
+    ]
+  },
+  "rereview_reason": "fix 7a8ce143f723 findings",
+  "rereview_reason_sha256": "e5ff4e91d29d3a981e8592abd728df6ee7985f67b64fd858ed7e7edbabbe6c3e"
+}

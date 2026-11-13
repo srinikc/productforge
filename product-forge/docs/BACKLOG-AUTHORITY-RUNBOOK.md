@@ -13,7 +13,7 @@
 - `edp_backlog_authority_success_timestamp_seconds` - last successful authority snapshot.
 
 A single admin probe 503 is not paged. The error-rate page requires the condition to persist for the
-10-minute alert window; it is not a one-shot probe alert. The rule file is loaded by
+5-minute alert window; it is not a one-shot probe alert. The rule file is loaded by
 `ops/prometheus/prometheus.yml`. `/ready` intentionally remains a DB-connectivity probe: making it
 fail on authority drift would cause restart storms; the startup check, periodic recheck, and the
 admin endpoint are the authority-specific signals.
@@ -49,3 +49,8 @@ TLS/certificate failures are reported as `db_unavailable`; use the error log to 
    skew is due to a concurrent write after the transaction, not a split read.
 8. The tenant item count is admin-only and bounded by the DB timeout; alert on repeated 503s, not a
    single probe.
+
+## Unlisted backlog scopes
+
+Detect via structured `BACKLOG_DB_SCOPE_UNLISTED` logs until cross-process metrics infrastructure exists.
+Recovery: add verified scope to `PF_BACKLOG_DB_SCOPES` or set `PF_BACKLOG_DB=off` explicitly; never allow silent file fallback.
