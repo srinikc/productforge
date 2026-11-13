@@ -1,0 +1,29 @@
+{
+  "item": "BI-PF-1534",
+  "sha": "5086c551950d",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-13T05:33:45.735586+00:00",
+  "review_scope": "delta",
+  "base_sha": "a4d579e6cae74afabea3e793664840a18cc0a803",
+  "head_sha": "05fe4bd58674065133aa40b1123d8e017ae8ffb5",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [],
+    "MINOR": [
+      "`functional_spec.traceability` (changed field) still records AC-4 evidence as only `test-framework/tests/pipeline/test_backlog_db_cutover.py`, while `design_pack.test_matrix`/`coverage` in the same delta point AC-4 at `engineering/evidence/BI-PF-1534/operator-recovery.md`; the traceability rows were not synced with the changed test rows.",
+      "`design_pack.coverage` AC-1 sets `runtime_capability: true` while AC-2 (the primary write/delete/ID fail-closed guard) sets `false`; the flag's semantics are inconsistent across rows for what is the same guard implementation."
+    ],
+    "NIT": [
+      "`functional_spec.traceability` and FR `verification` commands use bare `pytest -q` without the `-k acN` selectors used in `test_matrix`, so the traceability commands do not pinpoint the per-AC test they claim to trace.",
+      "`config_contract` for `PF_BACKLOG_DB_SCOPES` uses `invalid_behavior: \"unlisted fail closed\"` rather than an explicit error code, unlike `PF_BACKLOG_DB`'s `BACKLOG_DB_MODE_INVALID`."
+    ],
+    "SUMMARY": [
+      "Delta resolves all six prior findings: evidence SHAs are now distinct, `config` restored to `affected_components`, AC-3 `failure_cases` corrected to `none`, and AC-4 runbook artifact wired into test_matrix/coverage.",
+      "Residual issues are traceability-row sync and flag semantics; no AC/security/data-loss blockers."
+    ]
+  },
+  "rereview_reason": "fix 8c57dd581ec5 findings",
+  "rereview_reason_sha256": "4ba40ff72b1aa4a6575418060bb8a83feb9ecd4b3358cf991882efbe33c49766"
+}
