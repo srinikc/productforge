@@ -65,6 +65,17 @@
       "seq": 6,
       "note": "Gate 1 re-recorded after reconciling Q4 writer ownership to ADR-0011.",
       "hil_confirmed": true
+    },
+    {
+      "at": "2026-11-13T18:01:20.780236+00:00",
+      "by": "hil:user",
+      "decision": "APPROVE",
+      "gate": 1,
+      "findings_sha": "dd8c390f4c02",
+      "findings_digest": "215ef1cc7701",
+      "seq": 7,
+      "note": "Gate 1 re-recorded after reconciliation alignment with ADR-0011.",
+      "hil_confirmed": true
     }
   ],
   "follow_up": {},
@@ -118,11 +129,11 @@
         "subscriber registry/dispatcher/transports/alert policy/SSE -> MISSING (to build)"
       ],
       "assumptions": [
-        "A1 Go core is the acceptable host for the new bus",
-        "A2 core/events.py may become a thin client keeping its public API",
-        "A3 event-store writer ownership can cut over to Go with no second writer",
-        "A4 SSE served at the API edge (thin Python read), not a Go HTTP server",
-        "A5 subscriber-registry + alert-rule stores registered with single writers",
+        "A1 Go core is the acceptable host for the new event core",
+        "A2 core/events.py becomes a thin client keeping its public API",
+        "A3 the Go event core is the sole PostgreSQL writer at cutover; events.jsonl is a read-only projection",
+        "A4 SSE served at the API edge",
+        "A5 subscriber-registry + alert-rule stores use PostgreSQL single writers",
         "A6 existing consumers accept in-proc shims with identical behavior"
       ],
       "divergences": [
@@ -130,11 +141,11 @@
         "legacy WebSocket transport is not extended (superseded by SSE)"
       ],
       "open_questions": [
-        "Q1 Go packaging: extend go/pfcore vs new go/eventbus -> extend go/pfcore first",
-        "Q2 run model: standalone Go bus daemon for dispatch/external delivery",
-        "Q3 SSE edge: API edge",
-        "Q4 writer ownership: Python now; Go one-time cutover later",
-        "Q5 Python-emit handoff: call the Go core (seam); no dual writer"
+        "Q1 packaging: extend go/pfcore first",
+        "Q2 run model: library invocation for emit/read; dispatcher daemon later",
+        "Q3 SSE edge: API edge reads PostgreSQL cursors",
+        "Q4 writer ownership: Go event core is sole PostgreSQL writer at cutover; events.jsonl is read-only projection",
+        "Q5 Python-emit handoff: core/events.py calls the Go core; no dual writer"
       ]
     },
     "impact_review": [
@@ -291,9 +302,9 @@
     "usage": {}
   },
   "created_at": "2026-10-12T22:53:58.729980",
-  "updated_at": "2026-11-13T23:30:49.623233",
+  "updated_at": "2026-11-13T23:31:20.928333",
   "score": 2.5,
-  "_note": "Reconciliation open questions aligned to ADR-0011 (Q4 Go writer, JSONL projection).",
+  "_note": "Gate package reconciliation aligned to ADR-0011.",
   "api_impact": {
     "needs_api": false,
     "reason": "Design/ADR only; no runtime API change in this item."
