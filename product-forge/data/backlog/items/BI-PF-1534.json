@@ -82,7 +82,8 @@
     "core/id_allocator.py",
     "config/env-flags.json",
     "docs/BACKLOG-DB-SSOT.md",
-    "test-framework/tests/pipeline/test_backlog_db_cutover.py"
+    "test-framework/tests/pipeline/test_backlog_db_cutover.py",
+    "ops/prometheus/backlog-authority.rules.yml"
   ],
   "approach": "EDP: fail closed for unlisted backlog scopes when DB mode is on",
   "review": {
@@ -255,7 +256,7 @@
     "usage": {}
   },
   "created_at": "2026-11-12T23:03:36.490071",
-  "updated_at": "2026-11-13T11:13:32.587136",
+  "updated_at": "2026-11-13T11:17:20.268926",
   "score": 0.75,
   "_note": "readiness computed",
   "api_impact": {
@@ -342,7 +343,9 @@
       "Tenant scope must be explicit"
     ],
     "observability": [
-      "Structured BACKLOG_DB_SCOPE_UNLISTED error with scope key; counter backlog_db_scope_unlisted_total; alert on sustained failures."
+      "backlog_db_scope_unlisted_total textfile counter via PF_BACKLOG_METRICS_FILE",
+      "ProductForgeBacklogScopeUnlisted sustained-failure alert",
+      "structured error log with metric/scope"
     ],
     "performance": [
       "No hot-path regression for allowlisted scopes"
@@ -532,7 +535,8 @@
         "core/id_allocator.py",
         "config/env-flags.json",
         "docs/BACKLOG-DB-SSOT.md",
-        "test-framework/tests/pipeline/test_backlog_db_cutover.py"
+        "test-framework/tests/pipeline/test_backlog_db_cutover.py",
+        "ops/prometheus/backlog-authority.rules.yml"
       ],
       "ac_ids": [
         "AC-1",
@@ -1305,6 +1309,35 @@
         ]
       },
       "evidence": "BI-PF-1534-0bf4e80659ed.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "ad656c7db0b6c8d444122c8371185244c3db62d8",
+      "review_sha": "bf581f7e0d23",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-13T05:47:19.990627+00:00",
+      "review_scope": "delta",
+      "base_sha": "9cbb89294453717e2036762309fab3c358cad26d",
+      "head_sha": "ad656c7db0b6c8d444122c8371185244c3db62d8",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [
+          "Observability disposition not substantiated by the delta: the hunk only appends `metric=backlog_db_scope_unlisted_total` to a `logging.error` format string in `_raise_unlisted`; no exported counter, scrape config, or sustained-failure alert appears in the delta or shown evidence, so `design_pack.observability` (counter + alert lead-time) remains unmet despite the ACTIONED disposition."
+        ],
+        "MINOR": [
+          "`test_ac4_operator_recovery_runbook` now accepts the runbook at any ancestor directory (first match walking up from the test file), including paths outside the repo root; the fix for the prior path BLOCKER over-corrects by dropping path pinning, so a stale copy above the repo can satisfy AC-4."
+        ],
+        "NIT": [
+          "Bare `next(...)` raises `StopIteration` when the runbook is absent, producing an obscure pytest error instead of an explicit assertion message.",
+          "`- read:`/`- id:` tokens now couple AC-4 to exact markdown list formatting (numbered lists, bold headings, or `PF_BACKLOG_DB = off` spacing break the test); the `pf_backlog_db=off` token is unchanged in this delta though its whitespace NIT was dispositioned ACTIONED."
+        ],
+        "SUMMARY": [
+          "Delta correctly fixes the AC-4 path BLOCKER, tightens AC-2 to an exact counter delta (`== before + 1`), and hardens AC-4 tokens against stub runbooks; prior path and token-triviality findings are resolved.",
+          "Top residual risks: observability contract (exported metric + alert) still not evidenced, runbook lookup unpinned to repo root, and token matching brittle to benign runbook reformatting.",
+          "No blockers; AC-1/AC-3 paths are untouched by the delta and remain intact."
+        ]
+      },
+      "evidence": "BI-PF-1534-bf581f7e0d23.json"
     }
   ],
   "review_dispositions": {
@@ -1640,6 +1673,30 @@
         "severity": "NIT",
         "origin_class": "IMPLEMENTATION_GAP",
         "note": "Fixed in test/runbook/metric; evidence: engineering/evidence/BI-PF-1534/operator-recovery.md."
+      },
+      "sig:eea3a97c32d37ea6": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed in metric/test/runbook; evidence: engineering/evidence/BI-PF-1534/operator-recovery.md."
+      },
+      "sig:d5f01cbf109c640d": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed in metric/test/runbook; evidence: engineering/evidence/BI-PF-1534/operator-recovery.md."
+      },
+      "sig:a57f62825bae3aac": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed in metric/test/runbook; evidence: engineering/evidence/BI-PF-1534/operator-recovery.md."
+      },
+      "sig:3a0d4bc98a923801": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed in metric/test/runbook; evidence: engineering/evidence/BI-PF-1534/operator-recovery.md."
       }
     }
   },
@@ -1913,6 +1970,17 @@
       "regression_test": "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q",
       "controls_rerun": [
         "tests"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/evidence/BI-PF-1534/operator-recovery.md"
+    },
+    {
+      "finding_sig": "sig:eea3a97c32d37ea6",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "regression_test": "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q",
+      "controls_rerun": [
+        "tests",
+        "spec_quality"
       ],
       "result": "PASS",
       "evidence": "engineering/evidence/BI-PF-1534/operator-recovery.md"

@@ -352,3 +352,13 @@ def test_ac4_operator_recovery_runbook():
     text=p.read_text(encoding="utf-8").lower()
     for token in ("- read:", "- write:", "- delete:", "- id:", "pf_backlog_db=off", "pf_backlog_db_scopes"):
         assert token in text
+
+
+def test_ac2_unlisted_metric_export(monkeypatch, tmp_path):
+    import pytest
+    from core import backlog
+    metrics=tmp_path/"backlog.prom"
+    monkeypatch.setenv("PF_BACKLOG_DB","on"); monkeypatch.setenv("PF_BACKLOG_DB_SCOPES","product_forge"); monkeypatch.setenv("PF_BACKLOG_METRICS_FILE",str(metrics))
+    with pytest.raises(RuntimeError, match="BACKLOG_DB_SCOPE_UNLISTED"):
+        backlog._db_for("unlisted_metric")
+    assert "backlog_db_scope_unlisted_total" in metrics.read_text(encoding="utf-8")

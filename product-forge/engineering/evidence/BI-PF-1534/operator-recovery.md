@@ -15,3 +15,5 @@ path-specific recovery:
 - id: fix allowlist or set off; do not fall back to git/local ids.
 
 test: python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q
+
+Metric: backlog_db_scope_unlisted_total via PF_BACKLOG_METRICS_FILE; alert ProductForgeBacklogScopeUnlisted.

@@ -298,6 +298,15 @@ def _raise_unlisted(key: str):
     _DB_UNLISTED_COUNT += 1
     import logging
     logging.getLogger(__name__).error("BACKLOG_DB_SCOPE_UNLISTED code=BACKLOG_DB_SCOPE_UNLISTED metric=backlog_db_scope_unlisted_total scope=%s", key)
+    metrics_file = os.environ.get("PF_BACKLOG_METRICS_FILE", "")
+    if metrics_file:
+        try:
+            with open(metrics_file, "w", encoding="utf-8") as mf:
+                mf.write("# HELP backlog_db_scope_unlisted_total Unlisted DB-authority scope attempts.\n")
+                mf.write("# TYPE backlog_db_scope_unlisted_total counter\n")
+                mf.write(f"backlog_db_scope_unlisted_total {_DB_UNLISTED_COUNT}\n")
+        except Exception:
+            pass
     raise RuntimeError(f"BACKLOG_DB_SCOPE_UNLISTED: scope={key!r} is not in PF_BACKLOG_DB_SCOPES")
 
 
