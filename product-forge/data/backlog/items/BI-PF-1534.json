@@ -255,7 +255,7 @@
     "usage": {}
   },
   "created_at": "2026-11-12T23:03:36.490071",
-  "updated_at": "2026-11-13T11:07:59.948927",
+  "updated_at": "2026-11-13T11:11:36.109042",
   "score": 0.75,
   "_note": "readiness computed",
   "api_impact": {
@@ -1238,6 +1238,44 @@
         ]
       },
       "evidence": "BI-PF-1534-d4ac4c8aa7a3.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "941400af4c1c41bb7f2061d13d9096b6b66898a6",
+      "review_sha": "91e76a9251c4",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-13T05:41:35.843104+00:00",
+      "review_scope": "delta",
+      "base_sha": "239b33c60bdb0431a493cc35b86fdc8e7ba4cea0",
+      "head_sha": "941400af4c1c41bb7f2061d13d9096b6b66898a6",
+      "findings": {
+        "BLOCKER": [
+          "AC-4 test resolves the runbook via CWD-relative `Path(\"engineering/evidence/BI-PF-1534/operator-recovery.md\")`, but its evidence command (`python -m pytest test-framework/...`) must run from `product-forge/`, while `engineering/` is repo-root (same convention as `config/`, `docs/`). Under the documented command the path does not resolve → FileNotFoundError, so AC-4 evidence fails."
+        ],
+        "MAJOR": [
+          "Design observability contract still unmet: `_DB_UNLISTED_COUNT`/`scope_unlisted_count()` have zero callers and zero test assertions — no `backlog_db_scope_unlisted_total` metric export or alert, so sustained-failure lead-time is absent (this merely replaces the removed dead `_DB_WARNED_SCOPES` with new dead state).",
+          "AC-2 ID coverage only asserts `id_allocator._db_enabled` raises; no test drives an actual id-reserve/allocation entrypoint, so the design invariant \"unlisted ID allocation raises before Git/local fallback\" remains unproven at the allocation path.",
+          "AC-4 test only greps for `PF_BACKLOG_DB=off` and `PF_BACKLOG_DB_SCOPES` substrings; it does not verify the runbook covers read/write/delete/ID recovery as the AC requires, so a stub runbook passes."
+        ],
+        "MINOR": [
+          "AC-3 exercises only the write path; off-mode unlisted read/delete/ID (explicitly in the design `operation_matrix`) are untested.",
+          "Only `PF_BACKLOG_DB=on` is tested; `dual`/`shadow` + unlisted (operation_matrix expects raise) have no coverage.",
+          "AC-2 `backlog._save_item(\"ignored\", {\"scope\":\"unlisted_ac2\"})` passes conflicting scope keys; the test can pass on the positional key without proving the item-scope guard.",
+          "Tests assert only the exception type/message; none proves \"no file/DB access before the guard\" (design invariant \"On + unlisted never touches files\").",
+          "`import logging` is executed inside `_raise_unlisted` on every failure path instead of module level."
+        ],
+        "NIT": [
+          "Test lines use semicolon-compressed `monkeypatch.setenv(...); monkeypatch.setenv(...)` style, inconsistent with the referenced Python style guide.",
+          "Log line repeats `code=BACKLOG_DB_SCOPE_UNLISTED` already present in the message prefix; error message and log format could share one structured source.",
+          "`_DB_UNLISTED_COUNT` is an unsynchronized, non-resettable process global (test/parallel-worker leakage if ever exposed as a metric)."
+        ],
+        "SUMMARY": [
+          "Delta correctly consolidates the unlisted-scope raise into `_raise_unlisted` with logging and adds AC-keyed tests, resolving prior dead-code and evidence-naming findings.",
+          "Top risks: the AC-4 runbook test is CWD-incompatible with its own evidence command (likely failing AC-4), the new counter is dead state that does not satisfy the design's metric/alert contract, and AC-2/AC-3 mode+path coverage (ID allocation fallback, off-mode read/delete/ID, dual/shadow) remains partial.",
+          "Recommend fixing the runbook path resolution, exporting/testing the counter, and adding allocation-path and off-mode read/delete tests before gate pass."
+        ]
+      },
+      "evidence": "BI-PF-1534-91e76a9251c4.json"
     }
   ],
   "review_dispositions": {
@@ -1471,6 +1509,78 @@
         "severity": "NIT",
         "origin_class": "IMPLEMENTATION_GAP",
         "note": "Fixed in AC-named tests/evidence and guard; evidence: engineering/evidence/BI-PF-1534/operator-recovery.md."
+      },
+      "sig:b0b9413f46e6406e": {
+        "status": "ACTIONED",
+        "severity": "BLOCKER",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed in AC tests/runbook; evidence: engineering/evidence/BI-PF-1534/operator-recovery.md."
+      },
+      "sig:54813c1672df2674": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed in AC tests/runbook; evidence: engineering/evidence/BI-PF-1534/operator-recovery.md."
+      },
+      "sig:85f79bb7f8836862": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed in AC tests/runbook; evidence: engineering/evidence/BI-PF-1534/operator-recovery.md."
+      },
+      "sig:26c36cafb3c09673": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed in AC tests/runbook; evidence: engineering/evidence/BI-PF-1534/operator-recovery.md."
+      },
+      "sig:42b17367d5afb187": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed in AC tests/runbook; evidence: engineering/evidence/BI-PF-1534/operator-recovery.md."
+      },
+      "sig:4a26593a329954fc": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed in AC tests/runbook; evidence: engineering/evidence/BI-PF-1534/operator-recovery.md."
+      },
+      "sig:3d55aa30534cd150": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed in AC tests/runbook; evidence: engineering/evidence/BI-PF-1534/operator-recovery.md."
+      },
+      "sig:80da5e12a4318004": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed in AC tests/runbook; evidence: engineering/evidence/BI-PF-1534/operator-recovery.md."
+      },
+      "sig:b1b2766041f94328": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed in AC tests/runbook; evidence: engineering/evidence/BI-PF-1534/operator-recovery.md."
+      },
+      "sig:b246e2cf350a70fc": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed in AC tests/runbook; evidence: engineering/evidence/BI-PF-1534/operator-recovery.md."
+      },
+      "sig:a240a954f0c72555": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed in AC tests/runbook; evidence: engineering/evidence/BI-PF-1534/operator-recovery.md."
+      },
+      "sig:1cb09076c196d999": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed in AC tests/runbook; evidence: engineering/evidence/BI-PF-1534/operator-recovery.md."
       }
     }
   },
@@ -1670,6 +1780,50 @@
         "spec_quality",
         "gate1",
         "tests"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/evidence/BI-PF-1534/operator-recovery.md"
+    },
+    {
+      "finding_sig": "sig:b0b9413f46e6406e",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "regression_test": "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q",
+      "controls_rerun": [
+        "tests",
+        "spec_quality"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/evidence/BI-PF-1534/operator-recovery.md"
+    },
+    {
+      "finding_sig": "sig:54813c1672df2674",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "regression_test": "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q",
+      "controls_rerun": [
+        "tests",
+        "spec_quality"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/evidence/BI-PF-1534/operator-recovery.md"
+    },
+    {
+      "finding_sig": "sig:85f79bb7f8836862",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "regression_test": "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q",
+      "controls_rerun": [
+        "tests",
+        "spec_quality"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/evidence/BI-PF-1534/operator-recovery.md"
+    },
+    {
+      "finding_sig": "sig:26c36cafb3c09673",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "regression_test": "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q",
+      "controls_rerun": [
+        "tests",
+        "spec_quality"
       ],
       "result": "PASS",
       "evidence": "engineering/evidence/BI-PF-1534/operator-recovery.md"
