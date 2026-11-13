@@ -259,7 +259,7 @@
     "usage": {}
   },
   "created_at": "2026-11-12T23:03:36.490071",
-  "updated_at": "2026-11-13T13:41:06.926960",
+  "updated_at": "2026-11-13T13:42:40.910780",
   "score": 0.75,
   "_note": "readiness computed",
   "api_impact": {
@@ -346,7 +346,7 @@
       "Tenant scope must be explicit"
     ],
     "observability": [
-      "Structured BACKLOG_DB_SCOPE_UNLISTED error log with code and scope. Cross-process metrics/alerting is deferred to a follow-up item."
+      "Structured BACKLOG_DB_SCOPE_UNLISTED error log with code and scope. Cross-process metrics/alerting follow-up: BI-PF-1535, owner platform-oncall."
     ],
     "performance": [
       "No hot-path regression for allowlisted scopes"
@@ -494,14 +494,15 @@
           "engineering/evidence/BI-PF-1534/AC-4.md"
         ],
         "call_sites": [
-          "core/backlog.py",
-          "core/id_allocator.py"
+          "engineering/evidence/BI-PF-1534/operator-recovery.md"
         ],
-        "entrypoint": "core/backlog.py",
+        "entrypoint": "engineering/evidence/BI-PF-1534/operator-recovery.md",
         "failure_cases": [
           "BACKLOG_DB_SCOPE_UNLISTED"
         ],
-        "runtime_capability": false
+        "runtime_capability": false,
+        "authority": "operator-recovery.md",
+        "note": "pytest -k ac4 is supporting evidence; runbook is AC-4 authority"
       }
     ],
     "functional_ref": "engineering/specs/BI-PF-1534.md",
@@ -514,9 +515,7 @@
     ],
     "code_guidelines": [
       "docs/guidelines/coding/python/style-guide.md",
-      "docs/guidelines/testing/standards.md",
-      "docs/guidelines/backend/fastapi.md",
-      "docs/guidelines/api/rest.md"
+      "docs/guidelines/testing/standards.md"
     ],
     "guideline_coverage": [
       {
@@ -875,7 +874,7 @@
         "design": "design_pack.coverage AC-4",
         "test": "runbook: engineering/evidence/BI-PF-1534/operator-recovery.md",
         "evidence": [
-          "test-framework/tests/pipeline/test_backlog_db_cutover.py"
+          "engineering/evidence/BI-PF-1534/operator-recovery.md"
         ]
       }
     ],
@@ -886,7 +885,7 @@
       "All paths fail closed",
       "Tests/docs updated"
     ],
-    "functional_sha": "54288f433164",
+    "functional_sha": "6648bf95e323",
     "ac_evidence": {
       "AC-1": {
         "sha": "584b73de",
@@ -1073,6 +1072,46 @@
         "core/id_allocator.py"
       ],
       "rollback": "Explicit PF_BACKLOG_DB=off.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:2eb6bd17aa56049e",
+      "finding": "`/metrics/backlog` reads only the API process's in-process `_DB_UNLISTED_COUNT`; unlisted raises in worker/CLI/pipeline processes (or sibling uvicorn workers) are never counted, so `ProductForgeBacklogScopeUnlisted` can stay silent — the prior \"alert-grade counter\" disposition is only partially ACTIONED.",
+      "severity": "MAJOR",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "reproducer": "delivery review finding",
+      "regression_test": "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q",
+      "evidence": "engineering/evidence/BI-PF-1534/operator-recovery.md",
+      "files": [
+        "core/backlog.py",
+        "test-framework/tests/pipeline/test_backlog_db_cutover.py"
+      ],
+      "rollback": "No data change; guard is additive.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:2814c26f3c278f1f",
+      "finding": "`test_ac2_unlisted_metric_export` assertion is tautological: `metrics_text()` always contains the hardcoded `backlog_db_scope_unlisted_total` string, so it passes even if `_raise_unlisted` never increments; no counter value/reset check — violates the fail-able-test guardrail.",
+      "severity": "MAJOR",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "reproducer": "delivery review finding",
+      "regression_test": "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q",
+      "evidence": "engineering/evidence/BI-PF-1534/operator-recovery.md",
+      "files": [
+        "core/backlog.py",
+        "test-framework/tests/pipeline/test_backlog_db_cutover.py"
+      ],
+      "rollback": "No data change; guard is additive.",
       "artifacts_updated": [
         "affected_files",
         "tests",
@@ -1404,6 +1443,36 @@
         ]
       },
       "evidence": "BI-PF-1534-0ebb0a334d2a.json"
+    },
+    {
+      "mode": "design",
+      "candidate_sha": "9584b309b4e48bf9d89f2b45424a79ab87375ff5",
+      "review_sha": "83b1344fcea7",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-13T08:12:40.608105+00:00",
+      "review_scope": "delta",
+      "base_sha": "05fe4bd58674065133aa40b1123d8e017ae8ffb5",
+      "head_sha": "9584b309b4e48bf9d89f2b45424a79ab87375ff5",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [],
+        "MINOR": [
+          "Delta `design_pack.observability` defers cross-process metrics/alerting to an unnamed \"follow-up item\" with no owner/ID; guardrail 10/15 expects at least tracked alert ownership for fail-closed events emitted by workers/edpsvc.",
+          "AC-4 verification is fragmented across four artifacts with no stated authority: FR-4 `verification` = runbook, `design_pack.coverage` AC-4 `tests` = `pytest -k ac4`, `design_pack.test_matrix` AC-4 = runbook only, `ac_evidence.AC-4` = `AC-4.md`; unclear which one gates AC-4.",
+          "`design_pack.coverage` AC-4 lists `entrypoint: core/backlog.py` and `call_sites` in core even though `runtime_capability: false` (runbook adapter), so traceability points runtime code at a non-runtime AC.",
+          "Delta `functional_spec.traceability` AC-4 `evidence` still lists only `test-framework/tests/pipeline/test_backlog_db_cutover.py` while its `test` row points at `engineering/evidence/BI-PF-1534/operator-recovery.md`; the evidence array was not synced with the corrected test pointer."
+        ],
+        "NIT": [
+          "Delta `design_pack.code_guidelines` cites FastAPI/REST API guidelines although the spec marks `api` N/A and API changes are out of scope for this delta; harmless but signals applicability noise.",
+          "`config_contract.PF_BACKLOG_DB_SCOPES.startup_validation` is \"precheck + first operation\" while `empty_behavior` is \"fail when on\"; deferring to first operation means an unlisted/empty list fails only at runtime, not at startup precheck — worth an explicit note in the runbook."
+        ],
+        "SUMMARY": [
+          "Delta is substantively sound: prior findings are addressed (AC-2 `runtime_capability` now true, `-k acN` selectors added, `PF_BACKLOG_DB_SCOPES` now carries `BACKLOG_DB_SCOPE_UNLISTED`, AC-4 runbook pointer added), and the 1:1 AC/FR mapping plus on/dual/shadow/off operation matrix satisfy mode completeness and fail-closed intent.",
+          "Top risks: AC-4's proof is split across runbook/pytest/evidence artifacts without an authority, and deferred cross-process alerting leaves worker-side fail-closed events under-observable until a tracked follow-up exists.",
+          "No blocker; proceed once the AC-4 evidence authority and the observability deferral tracking are tightened in the design rows."
+        ]
+      },
+      "evidence": "BI-PF-1534-83b1344fcea7.json"
     }
   ],
   "review_dispositions": {
@@ -1569,6 +1638,42 @@
         "severity": "NIT",
         "origin_class": "DESIGN_GAP",
         "note": "Synced in final BI-PF-1534 spec; evidence: engineering/evidence/BI-PF-1534/operator-recovery.md."
+      },
+      "sig:e30b5d63091d73d3": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Synced in BI-PF-1534 spec; evidence: engineering/evidence/BI-PF-1534/operator-recovery.md."
+      },
+      "sig:e552ce3d98f0274c": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Synced in BI-PF-1534 spec; evidence: engineering/evidence/BI-PF-1534/operator-recovery.md."
+      },
+      "sig:633b155a20ba1e6b": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Synced in BI-PF-1534 spec; evidence: engineering/evidence/BI-PF-1534/operator-recovery.md."
+      },
+      "sig:dba1056e5138eba5": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Synced in BI-PF-1534 spec; evidence: engineering/evidence/BI-PF-1534/operator-recovery.md."
+      },
+      "sig:a6e5756cb26aa1ad": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "origin_class": "DESIGN_GAP",
+        "note": "Synced in BI-PF-1534 spec; evidence: engineering/evidence/BI-PF-1534/operator-recovery.md."
+      },
+      "sig:30b592b2d58575be": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "origin_class": "DESIGN_GAP",
+        "note": "Synced in BI-PF-1534 spec; evidence: engineering/evidence/BI-PF-1534/operator-recovery.md."
       }
     },
     "diff": {
@@ -2137,6 +2242,83 @@
       ],
       "result": "PASS",
       "evidence": "api/routers/health.py"
+    },
+    {
+      "finding_sig": "sig:2eb6bd17aa56049e",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "regression_test": "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q",
+      "controls_rerun": [
+        "tests",
+        "design_contract"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/evidence/BI-PF-1534/operator-recovery.md"
+    },
+    {
+      "finding_sig": "sig:2814c26f3c278f1f",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "regression_test": "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q",
+      "controls_rerun": [
+        "tests",
+        "design_contract"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/evidence/BI-PF-1534/operator-recovery.md"
+    },
+    {
+      "finding_sig": "sig:c56c81d49dde6ea8",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "regression_test": "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q",
+      "controls_rerun": [
+        "tests",
+        "design_contract"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/evidence/BI-PF-1534/operator-recovery.md"
+    },
+    {
+      "finding_sig": "sig:3e106c450de94486",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "regression_test": "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q",
+      "controls_rerun": [
+        "tests",
+        "design_contract"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/evidence/BI-PF-1534/operator-recovery.md"
+    },
+    {
+      "finding_sig": "sig:62458f4eb8d47704",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "regression_test": "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q",
+      "controls_rerun": [
+        "tests",
+        "design_contract"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/evidence/BI-PF-1534/operator-recovery.md"
+    },
+    {
+      "finding_sig": "sig:6902a32a60d55553",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "regression_test": "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q",
+      "controls_rerun": [
+        "tests",
+        "design_contract"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/evidence/BI-PF-1534/operator-recovery.md"
+    },
+    {
+      "finding_sig": "sig:342e3221a0f454da",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "regression_test": "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q",
+      "controls_rerun": [
+        "tests",
+        "design_contract"
+      ],
+      "result": "PASS",
+      "evidence": "engineering/evidence/BI-PF-1534/operator-recovery.md"
     }
   ]
 }
