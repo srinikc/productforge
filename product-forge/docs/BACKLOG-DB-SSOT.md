@@ -109,7 +109,7 @@ PF_DB_DSN="$PF_RUNTIME_DSN" PF_BACKUP_CONFIRMED=1 python scripts/dev/backlog_mig
 
 ## Generated-product tenants
 
-`PF_BACKLOG_DB_SCOPES` defaults to `product_forge` and `ProductForge-Dashboard`. Every additional PF-GP tenant must be added explicitly after parity is proven. An unlisted scope logs `BACKLOG_DB_SCOPE_UNLISTED` and stays file-authoritative; it is never silently promoted.
+`PF_BACKLOG_DB_SCOPES` defaults to `product_forge` and `ProductForge-Dashboard`. Every additional PF-GP tenant must be added explicitly after parity is proven. An unlisted scope raises `BACKLOG_DB_SCOPE_UNLISTED` in on/dual/shadow mode; it never falls back to files. Use explicit `PF_BACKLOG_DB=off` only for legacy file mode.
 
 ## Backfill sequencing
 

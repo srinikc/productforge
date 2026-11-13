@@ -311,3 +311,39 @@ def test_db_tenant_project_priority():
     from core import backlog
     assert backlog.db_tenant("product_forge", "ProductForge-Dashboard") == "ProductForge-Dashboard"
     assert backlog.db_tenant("portfolio", None) == "product_forge"
+
+
+def test_ac1_unlisted_read_fails_closed(monkeypatch):
+    import pytest
+    from core import backlog
+    monkeypatch.setenv("PF_BACKLOG_DB","on"); monkeypatch.setenv("PF_BACKLOG_DB_SCOPES","product_forge")
+    with pytest.raises(RuntimeError, match="BACKLOG_DB_SCOPE_UNLISTED"):
+        backlog._load_all("unlisted_ac1", None)
+
+
+def test_ac2_unlisted_write_delete_id_fails_closed(monkeypatch):
+    import pytest
+    from core import backlog, id_allocator
+    monkeypatch.setenv("PF_BACKLOG_DB","on"); monkeypatch.setenv("PF_BACKLOG_DB_SCOPES","product_forge")
+    with pytest.raises(RuntimeError, match="BACKLOG_DB_SCOPE_UNLISTED"):
+        backlog._save_item("ignored", {"id":"BI-PF-T","scope":"unlisted_ac2"})
+    with pytest.raises(RuntimeError, match="BACKLOG_DB_SCOPE_UNLISTED"):
+        backlog.delete("unlisted_ac2", None, "BI-PF-T")
+    with pytest.raises(RuntimeError, match="BACKLOG_DB_SCOPE_UNLISTED"):
+        id_allocator._db_enabled("unlisted_ac2")
+
+
+def test_ac3_off_mode_unlisted_file_authority(monkeypatch, tmp_path):
+    from core import backlog
+    monkeypatch.setenv("PF_BACKLOG_DB","off")
+    d=tmp_path/"backlog"; (d/"items").mkdir(parents=True)
+    backlog._save_item(str(d), {"id":"BI-PF-A3","scope":"unlisted_ac3","title":"x"})
+    assert (d/"items"/"BI-PF-A3.json").is_file()
+
+
+def test_ac4_operator_recovery_runbook():
+    from pathlib import Path
+    p=Path("engineering/evidence/BI-PF-1534/operator-recovery.md")
+    assert p.is_file()
+    text=p.read_text(encoding="utf-8")
+    assert "PF_BACKLOG_DB=off" in text and "PF_BACKLOG_DB_SCOPES" in text

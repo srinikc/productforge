@@ -286,7 +286,19 @@ def _backlog_db_scopes() -> set[str]:
     return scopes
 
 
-_DB_WARNED_SCOPES: set[str] = set()
+_DB_UNLISTED_COUNT = 0
+
+
+def scope_unlisted_count() -> int:
+    return _DB_UNLISTED_COUNT
+
+
+def _raise_unlisted(key: str):
+    global _DB_UNLISTED_COUNT
+    _DB_UNLISTED_COUNT += 1
+    import logging
+    logging.getLogger(__name__).error("BACKLOG_DB_SCOPE_UNLISTED code=BACKLOG_DB_SCOPE_UNLISTED scope=%s", key)
+    raise RuntimeError(f"BACKLOG_DB_SCOPE_UNLISTED: scope={key!r} is not in PF_BACKLOG_DB_SCOPES")
 
 
 def _db_for(scope: str | None) -> bool:
@@ -297,7 +309,7 @@ def _db_for(scope: str | None) -> bool:
     key = _scope_key(scope)
     if key in _backlog_db_scopes():
         return mode == "on"
-    raise RuntimeError(f"BACKLOG_DB_SCOPE_UNLISTED: scope={key!r} is not in PF_BACKLOG_DB_SCOPES")
+    _raise_unlisted(key)
 
 
 def db_tenant(scope: str | None, project: str | None = None) -> str:
@@ -313,7 +325,7 @@ def db_authority_enabled(scope: str | None, project: str | None = None) -> bool:
     key = _scope_key(str(project or scope or "product_forge"))
     if key in _backlog_db_scopes():
         return True
-    raise RuntimeError(f"BACKLOG_DB_SCOPE_UNLISTED: scope={key!r} is not in PF_BACKLOG_DB_SCOPES")
+    _raise_unlisted(key)
 
 
 def _mirror_item_to_db(item: dict) -> None:
