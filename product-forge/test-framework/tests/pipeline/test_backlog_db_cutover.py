@@ -322,12 +322,12 @@ def test_ac3_off_mode_unlisted_file_authority(monkeypatch, tmp_path):
     (d / "items").mkdir(parents=True)
     monkeypatch.setattr(backlog, "_dir", lambda *a: str(d))
     backlog._save_item(str(d), {"id": "BI-PF-A3", "scope": "unlisted_ac3", "title": "x"})
-    assert (d / "items" / "BI-PF-A3.json").is_file()
+    assert (d / "items" / ("BI-PF-A3" + _J)).is_file()
     assert backlog._db_for("unlisted_ac3") is False
     open_items, closed_items = backlog._load_all("unlisted_ac3", None)
     assert [item["id"] for item in open_items + closed_items] == ["BI-PF-A3"]
     backlog.delete("unlisted_ac3", None, "BI-PF-A3")
-    assert not (d / "items" / "BI-PF-A3.json").exists()
+    assert not (d / "items" / ("BI-PF-A3" + _J)).exists()
     assert id_allocator._db_enabled("unlisted_ac3") is False
 
 
