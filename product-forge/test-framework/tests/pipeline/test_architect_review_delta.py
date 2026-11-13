@@ -42,3 +42,8 @@ def test_design_delta_prompt_scopes_to_changed_fields(monkeypatch):
     assert "Changed design fields (authoritative delta)" in prompt
     assert "Do not re-review unchanged" in prompt
     assert "AC-2" in prompt and "AC-1" not in prompt.split("Changed design fields", 1)[1]
+
+def test_delta_review_is_exempt_from_full_review_budget():
+    assert ar.is_delta_review("diff", True, "abc123") is True
+    assert ar.is_delta_review("diff", False, "") is False
+    assert ar.is_delta_review("design", True, "abc123") is False

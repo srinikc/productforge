@@ -901,6 +901,11 @@ def reason_flag_error(rereview: bool, reason: str) -> str:
     return ""
 
 
+def is_delta_review(mode: str, rereview: bool, since: str) -> bool:
+    """Delta fix reviews are exempt from the full-review budget."""
+    return str(mode) == "diff" and bool(rereview) and bool(str(since or "").strip())
+
+
 def review_guard(item_id: str, item: dict, rereview: bool, reason: str) -> tuple[bool, str]:
     """Refuse an undispositioned re-review; a reasoned override must cite the prior sha."""
     verdict = churn_verdict(item_id, item)
@@ -1085,12 +1090,15 @@ def main(argv: list[str]) -> int:
                 for x in fix_bad:
                     print("  - " + x)
                 return 1
-    try:
-        import review_budget
-        budget_bad = review_budget.problems(item, a.mode)
-    except Exception as e:
-        print(f"review: review-budget check failed: {e}")
-        return 1
+    if is_delta_review(a.mode, a.rereview, a.since):
+        budget_bad = []
+    else:
+        try:
+            import review_budget
+            budget_bad = review_budget.problems(item, a.mode)
+        except Exception as e:
+            print(f"review: review-budget check failed: {e}")
+            return 1
     if budget_bad:
         print("review: budget exceeded; fix findings and let HIL decide, or record HIL MATERIAL_CHANGE")
         for b in budget_bad:
