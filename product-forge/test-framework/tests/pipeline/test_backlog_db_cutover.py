@@ -151,25 +151,6 @@ def test_rollback_off_writes_authoritative_file(monkeypatch):
     assert calls, "off mode did not write the file path"
 
 
-def test_unlisted_scope_fails_closed(monkeypatch):
-    import pytest
-    from core import backlog, id_allocator
-    monkeypatch.setenv("PF_BACKLOG_DB", "on")
-    monkeypatch.setenv("PF_BACKLOG_DB_SCOPES", "product_forge")
-    assert backlog._db_for("product_forge") is True
-    for scope in ("unverified_scope", "arbitrary_scope"):
-        with pytest.raises(RuntimeError, match="BACKLOG_DB_SCOPE_UNLISTED"):
-            backlog._db_for(scope)
-        with pytest.raises(RuntimeError, match="BACKLOG_DB_SCOPE_UNLISTED"):
-            backlog._load_all(scope, None)
-        with pytest.raises(RuntimeError, match="BACKLOG_DB_SCOPE_UNLISTED"):
-            backlog._save_item("ignored", {"id": "BI-PF-1", "scope": scope})
-        with pytest.raises(RuntimeError, match="BACKLOG_DB_SCOPE_UNLISTED"):
-            id_allocator._db_enabled(scope)
-    monkeypatch.setenv("PF_BACKLOG_DB", "off")
-    assert backlog._db_for("unverified_scope") is False
-
-
 def test_invalid_mode_fails_closed(monkeypatch):
     import pytest
     from core import backlog
@@ -195,16 +176,13 @@ def test_tenant_attribution_rejects_mismatch():
 
 
 def test_id_allocator_scope_gate(monkeypatch):
+    import pytest
     from core import id_allocator
     monkeypatch.setenv("PF_BACKLOG_DB", "on")
     monkeypatch.setenv("PF_BACKLOG_DB_SCOPES", "product_forge")
     assert id_allocator._db_enabled("product_forge") is True
-    try:
+    with pytest.raises(RuntimeError, match="BACKLOG_DB_SCOPE_UNLISTED"):
         id_allocator._db_enabled("unverified")
-    except RuntimeError as e:
-        assert "BACKLOG_DB_SCOPE_UNLISTED" in str(e)
-    else:
-        raise AssertionError("unlisted scope accepted")
 
 
 def test_parity_scans_products(monkeypatch, tmp_path):
@@ -316,7 +294,8 @@ def test_db_tenant_project_priority():
 def test_ac1_unlisted_read_fails_closed(monkeypatch):
     import pytest
     from core import backlog
-    monkeypatch.setenv("PF_BACKLOG_DB","on"); monkeypatch.setenv("PF_BACKLOG_DB_SCOPES","product_forge")
+    monkeypatch.setenv("PF_BACKLOG_DB", "on")
+    monkeypatch.setenv("PF_BACKLOG_DB_SCOPES", "product_forge")
     with pytest.raises(RuntimeError, match="BACKLOG_DB_SCOPE_UNLISTED"):
         backlog._load_all("unlisted_ac1", None)
 
@@ -324,9 +303,10 @@ def test_ac1_unlisted_read_fails_closed(monkeypatch):
 def test_ac2_unlisted_write_delete_id_fails_closed(monkeypatch):
     import pytest
     from core import backlog, id_allocator
-    monkeypatch.setenv("PF_BACKLOG_DB","on"); monkeypatch.setenv("PF_BACKLOG_DB_SCOPES","product_forge")
+    monkeypatch.setenv("PF_BACKLOG_DB", "on")
+    monkeypatch.setenv("PF_BACKLOG_DB_SCOPES", "product_forge")
     with pytest.raises(RuntimeError, match="BACKLOG_DB_SCOPE_UNLISTED"):
-        backlog._save_item("ignored", {"id":"BI-PF-T","scope":"unlisted_ac2"})
+        backlog._save_item("ignored", {"id": "BI-PF-T", "scope": "unlisted_ac2"})
     with pytest.raises(RuntimeError, match="BACKLOG_DB_SCOPE_UNLISTED"):
         backlog.delete("unlisted_ac2", None, "BI-PF-T")
     with pytest.raises(RuntimeError, match="BACKLOG_DB_SCOPE_UNLISTED"):
@@ -336,18 +316,26 @@ def test_ac2_unlisted_write_delete_id_fails_closed(monkeypatch):
 
 
 def test_ac3_off_mode_unlisted_file_authority(monkeypatch, tmp_path):
-    from core import backlog
-    monkeypatch.setenv("PF_BACKLOG_DB","off")
-    d=tmp_path/"backlog"; (d/"items").mkdir(parents=True)
-    backlog._save_item(str(d), {"id":"BI-PF-A3","scope":"unlisted_ac3","title":"x"})
-    assert (d/"items"/"BI-PF-A3.json").is_file()
+    from core import backlog, id_allocator
+    monkeypatch.setenv("PF_BACKLOG_DB", "off")
+    d = tmp_path / "backlog"
+    (d / "items").mkdir(parents=True)
+    monkeypatch.setattr(backlog, "_dir", lambda *a: str(d))
+    backlog._save_item(str(d), {"id": "BI-PF-A3", "scope": "unlisted_ac3", "title": "x"})
+    assert (d / "items" / "BI-PF-A3.json").is_file()
+    open_items, closed_items = backlog._load_all("unlisted_ac3", None)
+    assert [item["id"] for item in open_items + closed_items] == ["BI-PF-A3"]
+    backlog.delete("unlisted_ac3", None, "BI-PF-A3")
+    assert not (d / "items" / "BI-PF-A3.json").exists()
+    assert id_allocator._db_enabled("unlisted_ac3") is False
 
 
 def test_ac4_operator_recovery_runbook():
     from pathlib import Path
-    root=next(p for p in Path(__file__).resolve().parents if (p/"engineering"/"evidence"/"BI-PF-1534"/"operator-recovery.md").is_file())
-    p=root/"engineering"/"evidence"/"BI-PF-1534"/"operator-recovery.md"
-    text=p.read_text(encoding="utf-8").lower()
+    root = Path(__file__).resolve().parents[3]
+    p = root / "engineering" / "evidence" / "BI-PF-1534" / "operator-recovery.md"
+    assert p.is_file(), f"missing operator recovery runbook: {p}"
+    text = p.read_text(encoding="utf-8").lower()
     for token in ("- read:", "- write:", "- delete:", "- id:", "pf_backlog_db=off", "pf_backlog_db_scopes"):
         assert token in text
 
@@ -355,8 +343,8 @@ def test_ac4_operator_recovery_runbook():
 def test_ac2_unlisted_log(monkeypatch, caplog):
     import pytest
     from core import backlog
-    monkeypatch.setenv("PF_BACKLOG_DB","on")
-    monkeypatch.setenv("PF_BACKLOG_DB_SCOPES","product_forge")
+    monkeypatch.setenv("PF_BACKLOG_DB", "on")
+    monkeypatch.setenv("PF_BACKLOG_DB_SCOPES", "product_forge")
     with pytest.raises(RuntimeError, match="BACKLOG_DB_SCOPE_UNLISTED"):
         backlog._db_for("unlisted_log")
     assert "BACKLOG_DB_SCOPE_UNLISTED" in caplog.text

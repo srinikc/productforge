@@ -42,11 +42,12 @@ except ImportError:  # executed as a script: seed the repo root on sys.path, the
 
 import contextlib
 import json
+import logging
 import os
 import re
 import time
 from datetime import datetime, timedelta
-from typing import Any
+from typing import Any, NoReturn
 
 _REPO = str(_PF_ROOT)
 _PRODUCTS = os.path.join(_REPO, "products")
@@ -286,10 +287,20 @@ def _backlog_db_scopes() -> set[str]:
     return scopes
 
 
-def _raise_unlisted(key: str):
-    import logging
-    logging.getLogger(__name__).error("BACKLOG_DB_SCOPE_UNLISTED code=BACKLOG_DB_SCOPE_UNLISTED scope=%s", key)
-    raise RuntimeError(f"BACKLOG_DB_SCOPE_UNLISTED: scope={key!r} is not in PF_BACKLOG_DB_SCOPES")
+class BacklogScopeUnlisted(RuntimeError):
+    """DB-enabled mode rejected a scope absent from PF_BACKLOG_DB_SCOPES."""
+
+    code = "BACKLOG_DB_SCOPE_UNLISTED"
+
+    def __init__(self, scope: str):
+        self.scope = scope
+        super().__init__(f"{self.code}: scope={scope!r} is not in PF_BACKLOG_DB_SCOPES")
+
+
+def _raise_unlisted(key: str) -> NoReturn:
+    logging.getLogger(__name__).error("%s code=%s scope=%s",
+                                      BacklogScopeUnlisted.code, BacklogScopeUnlisted.code, key)
+    raise BacklogScopeUnlisted(key)
 
 
 def _db_for(scope: str | None) -> bool:

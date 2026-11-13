@@ -13,7 +13,7 @@
 - `edp_backlog_authority_success_timestamp_seconds` - last successful authority snapshot.
 
 A single admin probe 503 is not paged. The error-rate page requires the condition to persist for the
-10-minute alert window; it is not a one-shot probe alert. The rule file is loaded by
+5-minute alert window; it is not a one-shot probe alert. The rule file is loaded by
 `ops/prometheus/prometheus.yml`. `/ready` intentionally remains a DB-connectivity probe: making it
 fail on authority drift would cause restart storms; the startup check, periodic recheck, and the
 admin endpoint are the authority-specific signals.
