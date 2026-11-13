@@ -298,8 +298,8 @@ class BacklogScopeUnlisted(RuntimeError):
 
 
 def _raise_unlisted(key: str) -> NoReturn:
-    logging.getLogger(__name__).error("%s code=%s scope=%s",
-                                      BacklogScopeUnlisted.code, BacklogScopeUnlisted.code, key)
+    logging.getLogger(__name__).error("%s scope=%s", BacklogScopeUnlisted.code, key,
+                                      extra={"code": BacklogScopeUnlisted.code})
     raise BacklogScopeUnlisted(key)
 
 

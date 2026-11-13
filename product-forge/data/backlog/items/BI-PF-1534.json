@@ -169,7 +169,7 @@
     }
   },
   "verification": [
-    "Gate 2.5 architect review (mimo-v2.6-flash): {'BLOCKER': 0, 'MAJOR': 1, 'MINOR': 5, 'NIT': 4}"
+    "Gate 2.5 architect review (mimo-v2.6-flash): {'BLOCKER': 0, 'MAJOR': 0, 'MINOR': 3, 'NIT': 2}"
   ],
   "risks": [
     {
@@ -185,7 +185,8 @@
   "evidence": [
     "pending",
     "Design guardrails applied (BI-PF-1534): sig:b6ffb8f08cddbabc (20 lines)",
-    "Gate 2.5 architect review - model=mimo-v2.6-flash sha=8d37333870df\nBLOCKER:\n  - none\nMAJOR:\n  - Declared in-scope files `config/env-flags.json` and `docs/BACKLOG-DB-SSOT.md` are untouched: the flag registry still describes `PF_BACKLOG_DB=on` as \"DB for PF_BACKLOG_DB_SCOPES\" with no fail-closed/unlisted-raise semantics, and the SSOT authority section still implies scoped DB vs file selection without the new `BACKLOG_DB_SCOPE_UNLISTED` contract, leaving config/operator docs out of sync with shipped behavior.\nMINOR:\n  - `_raise_unlisted` raises a bare `RuntimeError`; no typed exception exists, so callers and tests must string-match the message — brittle for long-term error handling and observability correlation.\n  - AC-3 (`test_ac3_off_mode_unlisted_file_authority`) exercises only `_save_item`; off-mode read, delete, and ID allocation file authority named in FR-3/operation_matrix are not covered.\n  - `test_ac4_operator_recovery_runbook` locates the evidence file by walking parents and uses `next(...)` (StopIteration if absent); the referenced `engineering/evidence/.../operator-recovery.md` is not in the declared diff/file scope, making the test dependent on an out-of-scope artifact.\n  - Alert `for` windows shortened 10m→5m in `backlog-authority.rules.yml` without a runbook update; `docs/BACKLOG-AUTHORITY-RUNBOOK.md` still describes the 10-minute persistence window, leaving CL-014 alert lead-time documentation stale.\n  - Duplicate coverage: `test_unlisted_scope_fails_closed` overlaps `test_ac1_unlisted_read_fails_closed` / `test_ac2_unlisted_write_delete_id_fails_closed` (same assertions, same scopes pattern) — maintenance cost and divergence risk.\nNIT:\n  - `import logging` inside `_raise_unlisted` instead of module-level import; function lacks a return type annotation (`-> NoReturn`).\n  - `test_id_allocator_scope_gate` uses try/except/AssertionError instead of `pytest.raises` used elsewhere in the same file.\n  - Dense one-line statements with semicolons in new tests (`monkeypatch.setenv(...); monkeypatch.setenv(...)`) diverge from the Python style guide's one-statement-per-line norm.\n  - Prometheus `increase(...[10m]) >= 3` combined with `for: 5m` effectively pages on a 15m horizon; annotate the intended lead time in the rule or runbook.\nSUMMARY:\n  - Fail-closed behavior for unlisted scopes in on/dual/shadow and explicit off-mode file authority are implemented and exercised across read/write/delete/ID paths, matching the approved failure matrix with no file/DB access before the guard.\n  - Top risks: declared config/doc files (`env-flags.json`, `BACKLOG-DB-SSOT.md`) were not updated so the flag contract and SSOT no longer describe shipped semantics; message-based `RuntimeError` matching and thin AC-3/AC-4 coverage weaken long-term verifiability of the guard.\n  - No blocker; approve after syncing config/docs and closing the off-mode and runbook/alert-window documentation gaps.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)"
+    "Gate 2.5 architect review - model=mimo-v2.6-flash sha=8d37333870df\nBLOCKER:\n  - none\nMAJOR:\n  - Declared in-scope files `config/env-flags.json` and `docs/BACKLOG-DB-SSOT.md` are untouched: the flag registry still describes `PF_BACKLOG_DB=on` as \"DB for PF_BACKLOG_DB_SCOPES\" with no fail-closed/unlisted-raise semantics, and the SSOT authority section still implies scoped DB vs file selection without the new `BACKLOG_DB_SCOPE_UNLISTED` contract, leaving config/operator docs out of sync with shipped behavior.\nMINOR:\n  - `_raise_unlisted` raises a bare `RuntimeError`; no typed exception exists, so callers and tests must string-match the message — brittle for long-term error handling and observability correlation.\n  - AC-3 (`test_ac3_off_mode_unlisted_file_authority`) exercises only `_save_item`; off-mode read, delete, and ID allocation file authority named in FR-3/operation_matrix are not covered.\n  - `test_ac4_operator_recovery_runbook` locates the evidence file by walking parents and uses `next(...)` (StopIteration if absent); the referenced `engineering/evidence/.../operator-recovery.md` is not in the declared diff/file scope, making the test dependent on an out-of-scope artifact.\n  - Alert `for` windows shortened 10m→5m in `backlog-authority.rules.yml` without a runbook update; `docs/BACKLOG-AUTHORITY-RUNBOOK.md` still describes the 10-minute persistence window, leaving CL-014 alert lead-time documentation stale.\n  - Duplicate coverage: `test_unlisted_scope_fails_closed` overlaps `test_ac1_unlisted_read_fails_closed` / `test_ac2_unlisted_write_delete_id_fails_closed` (same assertions, same scopes pattern) — maintenance cost and divergence risk.\nNIT:\n  - `import logging` inside `_raise_unlisted` instead of module-level import; function lacks a return type annotation (`-> NoReturn`).\n  - `test_id_allocator_scope_gate` uses try/except/AssertionError instead of `pytest.raises` used elsewhere in the same file.\n  - Dense one-line statements with semicolons in new tests (`monkeypatch.setenv(...); monkeypatch.setenv(...)`) diverge from the Python style guide's one-statement-per-line norm.\n  - Prometheus `increase(...[10m]) >= 3` combined with `for: 5m` effectively pages on a 15m horizon; annotate the intended lead time in the rule or runbook.\nSUMMARY:\n  - Fail-closed behavior for unlisted scopes in on/dual/shadow and explicit off-mode file authority are implemented and exercised across read/write/delete/ID paths, matching the approved failure matrix with no file/DB access before the guard.\n  - Top risks: declared config/doc files (`env-flags.json`, `BACKLOG-DB-SSOT.md`) were not updated so the flag contract and SSOT no longer describe shipped semantics; message-based `RuntimeError` matching and thin AC-3/AC-4 coverage weaken long-term verifiability of the guard.\n  - No blocker; approve after syncing config/docs and closing the off-mode and runbook/alert-window documentation gaps.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)",
+    "Gate 2.5 architect review - model=mimo-v2.6-flash sha=b687ebc68337\nBLOCKER:\n  - none\nMAJOR:\n  - none\nMINOR:\n  - New `BacklogScopeUnlisted` is never asserted: every test still uses `pytest.raises(RuntimeError, match=...)`, so a regression to a bare `RuntimeError` or message-only string passes; assert the typed class to lock the contract.\n  - Removing `test_unlisted_scope_fails_closed` also dropped the explicit off-mode assertion `backlog._db_for(unlisted) is False`; AC-3 now proves off-mode only indirectly via file I/O and `id_allocator._db_enabled`.\n  - `test_ac4` pins the runbook root with hard-coded `Path(__file__).resolve().parents[3]`; relocating the test file silently shifts the depth and fails AC-4 on path plumbing rather than the behavior under test.\nNIT:\n  - `_raise_unlisted` log payload repeats the code token (`BACKLOG_DB_SCOPE_UNLISTED code=BACKLOG_DB_SCOPE_UNLISTED scope=...`); emit it once via a structured extra while keeping the grep-able token.\n  - `test_ac3` monkeypatches the private `_dir` helper, coupling the test to an internal signature; prefer deriving paths from the public call parameters where feasible.\nSUMMARY:\n  - Delta cleanly resolves the prior typed-exception, duplicate-test, `pytest.raises`, semicolon, `next()`/`StopIteration`, and AC-3 coverage findings; no blockers and no AC regression in this delta.\n  - Residual risk is test-contract depth: the new exception type is unasserted, the off-mode `_db_for` assertion was lost with the deleted duplicate test, and the runbook path depth is brittle.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)"
   ],
   "owner": "intake",
   "requester": "generic",
@@ -291,7 +292,7 @@
     "usage": {}
   },
   "created_at": "2026-11-12T23:03:36.490071",
-  "updated_at": "2026-11-13T21:44:23.851804",
+  "updated_at": "2026-11-13T22:16:40.867814",
   "score": 0.75,
   "_note": "BI-PF-1534: id_allocator delegates to the guarded backlog resolver and is a dependency, not a changed file.",
   "api_impact": {
@@ -1166,6 +1167,122 @@
         "evidence"
       ],
       "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:386a63165cf8c9fb",
+      "finding": "Evidence commands `pytest -k ac1/ac2/ac3/ac4` match no test names in the diff (`test_unlisted_scope_fails_closed`, `test_id_allocator_scope_gate`, etc.), so AC-1–AC-3 evidence is invalid (pytest deselects all → exit 5, not PASS); distinct AC-keyed tests are missing.",
+      "severity": "BLOCKER",
+      "origin_class": "VERIFICATION_GAP",
+      "reproducer": "delivery review finding",
+      "regression_test": "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q",
+      "evidence": "test-framework/tests/pipeline/test_backlog_db_cutover.py",
+      "files": [
+        "test-framework/tests/pipeline/test_backlog_db_cutover.py"
+      ],
+      "rollback": "No data change; guard and docs only.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:a0719903b9b42a0b",
+      "finding": "AC-4 runbook `engineering/evidence/BI-PF-1534/operator-recovery.md` is absent from the diff and evidence set; declared file `docs/BACKLOG-DB-SSOT.md` is unchanged, so operator recovery is not covered (Gate stop condition: \"Missing tests for read/write/delete/ID\" also unmet — no delete-path test).",
+      "severity": "BLOCKER",
+      "origin_class": "DESIGN_GAP",
+      "reproducer": "delivery review finding",
+      "regression_test": "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q",
+      "evidence": "engineering/evidence/BI-PF-1534/operator-recovery.md",
+      "files": [
+        "engineering/evidence/BI-PF-1534/operator-recovery.md"
+      ],
+      "rollback": "No data change; guard and docs only.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:0d7b788f8d9a8e5f",
+      "finding": "Declared files `config/env-flags.json` and `docs/BACKLOG-DB-SSOT.md` are not updated: `PF_BACKLOG_DB` purpose still says only \"on=DB for PF_BACKLOG_DB_SCOPES\" with no unlisted fail-closed contract, so operators get no discoverable recovery path.",
+      "severity": "BLOCKER",
+      "origin_class": "VERIFICATION_GAP",
+      "reproducer": "delivery review finding",
+      "regression_test": "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q",
+      "evidence": "config/env-flags.json",
+      "files": [
+        "config/env-flags.json",
+        "docs/BACKLOG-DB-SSOT.md"
+      ],
+      "rollback": "No data change; guard and docs only.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:26f33b9685afda60",
+      "finding": "Design observability contract unmet: no `backlog_db_scope_unlisted_total` counter or structured log; a bare `RuntimeError` string is thrown, giving no machine-readable metric/alert lead-time for sustained unlisted-scope failures.",
+      "severity": "MAJOR",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "reproducer": "delivery review finding",
+      "regression_test": "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q",
+      "evidence": "engineering/evidence/BI-PF-1534/operator-recovery.md",
+      "files": [
+        "core/backlog.py",
+        "engineering/evidence/BI-PF-1534/operator-recovery.md"
+      ],
+      "rollback": "No data change; guard and docs only.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:a7b5df8e37ba0b48",
+      "finding": "AC-3 only asserts `_db_for(...) is False` in off mode; no test proves off-mode unlisted read/write/delete actually performs file authority (write path untested for the off/unlisted case).",
+      "severity": "MAJOR",
+      "origin_class": "VERIFICATION_GAP",
+      "reproducer": "delivery review finding",
+      "regression_test": "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q",
+      "evidence": "test-framework/tests/pipeline/test_backlog_db_cutover.py",
+      "files": [
+        "test-framework/tests/pipeline/test_backlog_db_cutover.py"
+      ],
+      "rollback": "No data change; guard and docs only.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
+    },
+    {
+      "sig": "sig:bbc4c9f1859db7f2",
+      "finding": "`core/id_allocator.py` is a declared affected file but is unchanged; the test only exercises it transitively — if `_db_enabled` does not delegate to the guarded resolver, ID fail-closed is unproven at the ID layer itself.",
+      "severity": "MAJOR",
+      "origin_class": "VERIFICATION_GAP",
+      "reproducer": "delivery review finding",
+      "regression_test": "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q",
+      "evidence": "test-framework/tests/pipeline/test_backlog_db_cutover.py",
+      "files": [
+        "test-framework/tests/pipeline/test_backlog_db_cutover.py"
+      ],
+      "rollback": "No data change; guard and docs only.",
+      "artifacts_updated": [
+        "affected_files",
+        "tests",
+        "evidence"
+      ],
+      "status": "ACTIONED"
     }
   ],
   "review_ledger": [
@@ -1584,6 +1701,34 @@
         ]
       },
       "evidence": "BI-PF-1534-8d37333870df.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "5929435f7d547cf05634d54a6d8d06f4419c30df",
+      "review_sha": "b687ebc68337",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-13T16:46:39.207217+00:00",
+      "review_scope": "delta",
+      "base_sha": "585e5da2c511afbe30fe4a0d2f3643104473b1c6",
+      "head_sha": "5929435f7d547cf05634d54a6d8d06f4419c30df",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [],
+        "MINOR": [
+          "New `BacklogScopeUnlisted` is never asserted: every test still uses `pytest.raises(RuntimeError, match=...)`, so a regression to a bare `RuntimeError` or message-only string passes; assert the typed class to lock the contract.",
+          "Removing `test_unlisted_scope_fails_closed` also dropped the explicit off-mode assertion `backlog._db_for(unlisted) is False`; AC-3 now proves off-mode only indirectly via file I/O and `id_allocator._db_enabled`.",
+          "`test_ac4` pins the runbook root with hard-coded `Path(__file__).resolve().parents[3]`; relocating the test file silently shifts the depth and fails AC-4 on path plumbing rather than the behavior under test."
+        ],
+        "NIT": [
+          "`_raise_unlisted` log payload repeats the code token (`BACKLOG_DB_SCOPE_UNLISTED code=BACKLOG_DB_SCOPE_UNLISTED scope=...`); emit it once via a structured extra while keeping the grep-able token.",
+          "`test_ac3` monkeypatches the private `_dir` helper, coupling the test to an internal signature; prefer deriving paths from the public call parameters where feasible."
+        ],
+        "SUMMARY": [
+          "Delta cleanly resolves the prior typed-exception, duplicate-test, `pytest.raises`, semicolon, `next()`/`StopIteration`, and AC-3 coverage findings; no blockers and no AC regression in this delta.",
+          "Residual risk is test-contract depth: the new exception type is unasserted, the off-mode `_db_for` assertion was lost with the deleted duplicate test, and the runbook path depth is brittle."
+        ]
+      },
+      "evidence": "BI-PF-1534-b687ebc68337.json"
     }
   ],
   "review_dispositions": {
