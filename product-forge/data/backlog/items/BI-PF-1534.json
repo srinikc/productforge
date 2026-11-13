@@ -255,7 +255,7 @@
     "usage": {}
   },
   "created_at": "2026-11-12T23:03:36.490071",
-  "updated_at": "2026-11-13T11:11:36.109042",
+  "updated_at": "2026-11-13T11:13:32.587136",
   "score": 0.75,
   "_note": "readiness computed",
   "api_impact": {
@@ -1276,6 +1276,35 @@
         ]
       },
       "evidence": "BI-PF-1534-91e76a9251c4.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "9cbb89294453717e2036762309fab3c358cad26d",
+      "review_sha": "0bf4e80659ed",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-13T05:43:32.314340+00:00",
+      "review_scope": "delta",
+      "base_sha": "941400af4c1c41bb7f2061d13d9096b6b66898a6",
+      "head_sha": "9cbb89294453717e2036762309fab3c358cad26d",
+      "findings": {
+        "BLOCKER": [
+          "Delta hunk in `test_ac4_operator_recovery_runbook` anchors the runbook at `Path(__file__).resolve().parents[3]`, which resolves to `product-forge/`, but `engineering/` is repo-root (as the prior BLOCKER established); the correct ancestor is `parents[4]`. AC-4's `assert p.is_file()` will fail, so the delta regresses the prior BLOCKER instead of resolving it."
+        ],
+        "MAJOR": [
+          "AC-4 token check is trivially satisfiable: lowercase substring `id` matches almost any prose (`recovery`, `considered`) and `read` matches `already`, so a stub runbook still passes without proving per-path read/write/delete/ID coverage — prior MAJOR disposition not substantively resolved by the delta.",
+          "Design observability contract still unmet: the delta only adds a `scope_unlisted_count() > before` test assertion; no `backlog_db_scope_unlisted_total` export or sustained-failure alert exists, so `design_pack.observability` (metric + alert lead-time) remains unimplemented."
+        ],
+        "MINOR": [],
+        "NIT": [
+          "Runbook matching is whitespace-sensitive (`PF_BACKLOG_DB=off` fails on `PF_BACKLOG_DB = off`), making the AC-4 test brittle to benign runbook formatting.",
+          "`assert scope_unlisted_count() > before` couples the test to a monotonic process-global; asserting the exact delta caused by the guard under test would be tighter."
+        ],
+        "SUMMARY": [
+          "Verdict: delta is directionally right — it adds a real ID-allocation entrypoint test (`reserve_shared`) and a CWD-independent runbook path — but the path fix is off by one ancestor, breaking AC-4 outright.",
+          "Top risks: AC-4 test failure under the documented evidence command, weak runbook content verification, and the still-unimplemented metric/alert observability contract."
+        ]
+      },
+      "evidence": "BI-PF-1534-0bf4e80659ed.json"
     }
   ],
   "review_dispositions": {

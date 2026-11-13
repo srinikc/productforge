@@ -297,7 +297,7 @@ def _raise_unlisted(key: str):
     global _DB_UNLISTED_COUNT
     _DB_UNLISTED_COUNT += 1
     import logging
-    logging.getLogger(__name__).error("BACKLOG_DB_SCOPE_UNLISTED code=BACKLOG_DB_SCOPE_UNLISTED scope=%s", key)
+    logging.getLogger(__name__).error("BACKLOG_DB_SCOPE_UNLISTED code=BACKLOG_DB_SCOPE_UNLISTED metric=backlog_db_scope_unlisted_total scope=%s", key)
     raise RuntimeError(f"BACKLOG_DB_SCOPE_UNLISTED: scope={key!r} is not in PF_BACKLOG_DB_SCOPES")
 
 

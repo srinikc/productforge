@@ -332,7 +332,7 @@ def test_ac2_unlisted_write_delete_id_fails_closed(monkeypatch):
     before=backlog.scope_unlisted_count()
     with pytest.raises(RuntimeError, match="BACKLOG_DB_SCOPE_UNLISTED"):
         id_allocator._db_enabled("unlisted_ac2")
-    assert backlog.scope_unlisted_count() > before
+    assert backlog.scope_unlisted_count() == before + 1
     with pytest.raises(RuntimeError, match="BACKLOG_DB_SCOPE_UNLISTED"):
         id_allocator.reserve_shared("unlisted_ac2", None, 1)
 
@@ -347,9 +347,8 @@ def test_ac3_off_mode_unlisted_file_authority(monkeypatch, tmp_path):
 
 def test_ac4_operator_recovery_runbook():
     from pathlib import Path
-    root=Path(__file__).resolve().parents[3]
+    root=next(p for p in Path(__file__).resolve().parents if (p/"engineering"/"evidence"/"BI-PF-1534"/"operator-recovery.md").is_file())
     p=root/"engineering"/"evidence"/"BI-PF-1534"/"operator-recovery.md"
-    assert p.is_file()
     text=p.read_text(encoding="utf-8").lower()
-    for token in ("read", "write", "delete", "id", "pf_backlog_db=off", "pf_backlog_db_scopes"):
+    for token in ("- read:", "- write:", "- delete:", "- id:", "pf_backlog_db=off", "pf_backlog_db_scopes"):
         assert token in text
