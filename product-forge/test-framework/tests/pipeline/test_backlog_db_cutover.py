@@ -329,10 +329,8 @@ def test_ac2_unlisted_write_delete_id_fails_closed(monkeypatch):
         backlog._save_item("ignored", {"id":"BI-PF-T","scope":"unlisted_ac2"})
     with pytest.raises(RuntimeError, match="BACKLOG_DB_SCOPE_UNLISTED"):
         backlog.delete("unlisted_ac2", None, "BI-PF-T")
-    before=backlog.scope_unlisted_count()
     with pytest.raises(RuntimeError, match="BACKLOG_DB_SCOPE_UNLISTED"):
         id_allocator._db_enabled("unlisted_ac2")
-    assert backlog.scope_unlisted_count() == before + 1
     with pytest.raises(RuntimeError, match="BACKLOG_DB_SCOPE_UNLISTED"):
         id_allocator.reserve_shared("unlisted_ac2", None, 1)
 
@@ -354,11 +352,12 @@ def test_ac4_operator_recovery_runbook():
         assert token in text
 
 
-def test_ac2_unlisted_metric_export(monkeypatch):
+
+def test_ac2_unlisted_log(monkeypatch, caplog):
     import pytest
     from core import backlog
     monkeypatch.setenv("PF_BACKLOG_DB","on")
     monkeypatch.setenv("PF_BACKLOG_DB_SCOPES","product_forge")
     with pytest.raises(RuntimeError, match="BACKLOG_DB_SCOPE_UNLISTED"):
-        backlog._db_for("unlisted_metric")
-    assert "backlog_db_scope_unlisted_total" in backlog.metrics_text()
+        backlog._db_for("unlisted_log")
+    assert "BACKLOG_DB_SCOPE_UNLISTED" in caplog.text

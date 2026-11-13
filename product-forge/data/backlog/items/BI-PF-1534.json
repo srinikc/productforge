@@ -19,7 +19,11 @@
   "deps": [
     "BI-PF-1531"
   ],
-  "links": {},
+  "links": {
+    "follow_up": [
+      "product_forge:BI-PF-1535"
+    ]
+  },
   "decisions": [
     {
       "at": "2026-11-12T23:03:41.369704",
@@ -82,9 +86,7 @@
     "core/id_allocator.py",
     "config/env-flags.json",
     "docs/BACKLOG-DB-SSOT.md",
-    "test-framework/tests/pipeline/test_backlog_db_cutover.py",
-    "ops/prometheus/backlog-authority.rules.yml",
-    "api/routers/health.py"
+    "test-framework/tests/pipeline/test_backlog_db_cutover.py"
   ],
   "approach": "EDP: fail closed for unlisted backlog scopes when DB mode is on",
   "review": {
@@ -162,12 +164,12 @@
   "children": [],
   "epic": "BI-PF-1292",
   "parent": "BI-PF-1292",
-  "revision": 3,
+  "revision": 4,
   "priority_rank": 2,
   "priority_class": "P2",
   "analyze_mode": "on_entry",
   "analysis": {
-    "status": "COMPLETE",
+    "status": "STALE",
     "analyzed_at": "2026-11-12T23:03:41.082487",
     "analyzed_by": "system",
     "revision_analyzed": 3,
@@ -257,7 +259,7 @@
     "usage": {}
   },
   "created_at": "2026-11-12T23:03:36.490071",
-  "updated_at": "2026-11-13T11:32:21.962210",
+  "updated_at": "2026-11-13T13:41:06.926960",
   "score": 0.75,
   "_note": "readiness computed",
   "api_impact": {
@@ -344,9 +346,7 @@
       "Tenant scope must be explicit"
     ],
     "observability": [
-      "backlog_db_scope_unlisted_total exported by GET /metrics/backlog",
-      "ProductForgeBacklogScopeUnlisted sustained-failure alert",
-      "structured error log with metric/scope"
+      "Structured BACKLOG_DB_SCOPE_UNLISTED error log with code and scope. Cross-process metrics/alerting is deferred to a follow-up item."
     ],
     "performance": [
       "No hot-path regression for allowlisted scopes"
@@ -530,18 +530,6 @@
         "applies_to": "test-framework/tests/pipeline/test_backlog_db_cutover.py",
         "evidence": "test-framework/tests/pipeline/test_backlog_db_cutover.py",
         "check": "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q"
-      },
-      {
-        "guideline": "docs/guidelines/backend/fastapi.md",
-        "applies_to": "api/routers/health.py",
-        "evidence": "api/routers/health.py",
-        "check": "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q"
-      },
-      {
-        "guideline": "docs/guidelines/api/rest.md",
-        "applies_to": "api/routers/health.py",
-        "evidence": "api/routers/health.py",
-        "check": "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q"
       }
     ],
     "review_scope": {
@@ -550,9 +538,7 @@
         "core/id_allocator.py",
         "config/env-flags.json",
         "docs/BACKLOG-DB-SSOT.md",
-        "test-framework/tests/pipeline/test_backlog_db_cutover.py",
-        "ops/prometheus/backlog-authority.rules.yml",
-        "api/routers/health.py"
+        "test-framework/tests/pipeline/test_backlog_db_cutover.py"
       ],
       "ac_ids": [
         "AC-1",
@@ -1387,6 +1373,37 @@
         ]
       },
       "evidence": "BI-PF-1534-bb22696e8255.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "8208a79718fce32a44bb8c3cda61a23c1f501423",
+      "review_sha": "0ebb0a334d2a",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-13T06:09:41.350110+00:00",
+      "review_scope": "delta",
+      "base_sha": "2b16c28d16612f72f478bf2ecce5becb8b2bc048",
+      "head_sha": "8208a79718fce32a44bb8c3cda61a23c1f501423",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [
+          "`/metrics/backlog` reads only the API process's in-process `_DB_UNLISTED_COUNT`; unlisted raises in worker/CLI/pipeline processes (or sibling uvicorn workers) are never counted, so `ProductForgeBacklogScopeUnlisted` can stay silent — the prior \"alert-grade counter\" disposition is only partially ACTIONED.",
+          "`test_ac2_unlisted_metric_export` assertion is tautological: `metrics_text()` always contains the hardcoded `backlog_db_scope_unlisted_total` string, so it passes even if `_raise_unlisted` never increments; no counter value/reset check — violates the fail-able-test guardrail."
+        ],
+        "MINOR": [
+          "`ProductForgeBacklogScopeUnlisted` still lacks an `absent()`/scrape-coverage guard; the delta only shortened `for: 10m→5m`, so the prior disposition is only partially resolved.",
+          "AC-2 evidence (`-k ac2`) still resolves to a metric-export-only test; the delta removed the file assertion but added no write/delete/ID fail-closed assertion (unless another `-k ac2` test covers it).",
+          "`/metrics/backlog` bypasses the `from_request` envelope used by sibling health endpoints and defers `core.backlog` import to scrape time, so a broken core surfaces only as a scrape-time 500, not a startup/readiness failure."
+        ],
+        "NIT": [
+          "Chained `;`-separated `monkeypatch.setenv` one-liner persists in `test_ac2_unlisted_metric_export` despite its ACTIONED disposition.",
+          "Delta retunes unrelated alert `for:` thresholds (AuthorityUnavailable/Errors) alongside the item's alert with no stated rationale."
+        ],
+        "SUMMARY": [
+          "Delta correctly removes the AC-1-violating `PF_BACKLOG_METRICS_FILE` write, the dangling evidence runbook link, and the unregistered env flag — the core fail-closed ACs are not broken by this delta.",
+          "Top risks: the exported counter is process-local so the page alert may never fire, and the AC-2-tagged test assertion cannot fail."
+        ]
+      },
+      "evidence": "BI-PF-1534-0ebb0a334d2a.json"
     }
   ],
   "review_dispositions": {

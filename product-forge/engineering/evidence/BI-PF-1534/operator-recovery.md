@@ -16,4 +16,4 @@ path-specific recovery:
 
 test: python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q
 
-Metric: backlog_db_scope_unlisted_total via PF_BACKLOG_METRICS_FILE; alert ProductForgeBacklogScopeUnlisted.
+Metric infrastructure is not claimed; detect via structured BACKLOG_DB_SCOPE_UNLISTED logs.

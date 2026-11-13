@@ -52,6 +52,5 @@ TLS/certificate failures are reported as `db_unavailable`; use the error log to 
 
 ## Unlisted backlog scopes
 
-Metric: `backlog_db_scope_unlisted_total` from `GET /metrics/backlog`.
-Alert: `ProductForgeBacklogScopeUnlisted` (increase >=3 over 10m).
+Detect via structured `BACKLOG_DB_SCOPE_UNLISTED` logs until cross-process metrics infrastructure exists.
 Recovery: add verified scope to `PF_BACKLOG_DB_SCOPES` or set `PF_BACKLOG_DB=off` explicitly; never allow silent file fallback.
