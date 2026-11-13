@@ -49,3 +49,9 @@ TLS/certificate failures are reported as `db_unavailable`; use the error log to 
    skew is due to a concurrent write after the transaction, not a split read.
 8. The tenant item count is admin-only and bounded by the DB timeout; alert on repeated 503s, not a
    single probe.
+
+## Unlisted backlog scopes
+
+Metric: `backlog_db_scope_unlisted_total` from `GET /metrics/backlog`.
+Alert: `ProductForgeBacklogScopeUnlisted` (increase >=3 over 10m).
+Recovery: add verified scope to `PF_BACKLOG_DB_SCOPES` or set `PF_BACKLOG_DB=off` explicitly; never allow silent file fallback.

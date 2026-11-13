@@ -83,7 +83,8 @@
     "config/env-flags.json",
     "docs/BACKLOG-DB-SSOT.md",
     "test-framework/tests/pipeline/test_backlog_db_cutover.py",
-    "ops/prometheus/backlog-authority.rules.yml"
+    "ops/prometheus/backlog-authority.rules.yml",
+    "api/routers/health.py"
   ],
   "approach": "EDP: fail closed for unlisted backlog scopes when DB mode is on",
   "review": {
@@ -256,7 +257,7 @@
     "usage": {}
   },
   "created_at": "2026-11-12T23:03:36.490071",
-  "updated_at": "2026-11-13T11:17:20.268926",
+  "updated_at": "2026-11-13T11:32:21.962210",
   "score": 0.75,
   "_note": "readiness computed",
   "api_impact": {
@@ -343,7 +344,7 @@
       "Tenant scope must be explicit"
     ],
     "observability": [
-      "backlog_db_scope_unlisted_total textfile counter via PF_BACKLOG_METRICS_FILE",
+      "backlog_db_scope_unlisted_total exported by GET /metrics/backlog",
       "ProductForgeBacklogScopeUnlisted sustained-failure alert",
       "structured error log with metric/scope"
     ],
@@ -513,7 +514,9 @@
     ],
     "code_guidelines": [
       "docs/guidelines/coding/python/style-guide.md",
-      "docs/guidelines/testing/standards.md"
+      "docs/guidelines/testing/standards.md",
+      "docs/guidelines/backend/fastapi.md",
+      "docs/guidelines/api/rest.md"
     ],
     "guideline_coverage": [
       {
@@ -527,6 +530,18 @@
         "applies_to": "test-framework/tests/pipeline/test_backlog_db_cutover.py",
         "evidence": "test-framework/tests/pipeline/test_backlog_db_cutover.py",
         "check": "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q"
+      },
+      {
+        "guideline": "docs/guidelines/backend/fastapi.md",
+        "applies_to": "api/routers/health.py",
+        "evidence": "api/routers/health.py",
+        "check": "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q"
+      },
+      {
+        "guideline": "docs/guidelines/api/rest.md",
+        "applies_to": "api/routers/health.py",
+        "evidence": "api/routers/health.py",
+        "check": "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q"
       }
     ],
     "review_scope": {
@@ -536,7 +551,8 @@
         "config/env-flags.json",
         "docs/BACKLOG-DB-SSOT.md",
         "test-framework/tests/pipeline/test_backlog_db_cutover.py",
-        "ops/prometheus/backlog-authority.rules.yml"
+        "ops/prometheus/backlog-authority.rules.yml",
+        "api/routers/health.py"
       ],
       "ac_ids": [
         "AC-1",
@@ -1338,6 +1354,39 @@
         ]
       },
       "evidence": "BI-PF-1534-bf581f7e0d23.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "2b16c28d16612f72f478bf2ecce5becb8b2bc048",
+      "review_sha": "bb22696e8255",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-13T06:02:21.673892+00:00",
+      "review_scope": "delta",
+      "base_sha": "ad656c7db0b6c8d444122c8371185244c3db62d8",
+      "head_sha": "2b16c28d16612f72f478bf2ecce5becb8b2bc048",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [
+          "AC-1 tension: the delta makes the on-mode unlisted path open/write a file (`PF_BACKLOG_METRICS_FILE`) in `_raise_unlisted`, and `test_ac2_unlisted_metric_export` asserts that file write — contradicting AC-1 \"instead of reading or writing files\" and the design invariant \"On + unlisted never touches files\". Reconcile the contract (scope the invariant to backlog-authority files, or derive the counter from the existing structured log) so the shipped behavior and AC text agree.",
+          "Textfile counter semantics are not alert-grade: `_DB_UNLISTED_COUNT` is process-local, rewritten with mode `\"w\"` on every raise, so any second worker/instance sharing one path clobbers the value (count goes backwards) and restarts reset it; `increase(backlog_db_scope_unlisted_total[10m]) >= 3` then pages on noise or misses sustained failures. Needs monotonic, process-qualified export (or per-process metric names).",
+          "Design contract lists `config/env-flags.json` as an affected file, but neither the delta nor the full candidate registers the new `PF_BACKLOG_METRICS_FILE` switch, violating the env-flags registry discoverability standard and the approved design's file list."
+        ],
+        "MINOR": [
+          "Alert annotation runbook points at `engineering/evidence/BI-PF-1534/operator-recovery.md` while all sibling alerts use `docs/BACKLOG-AUTHORITY-RUNBOOK.md`; evidence artifacts are review deliverables, not shipped ops docs, so oncall gets a dangling runbook link.",
+          "The alert has no coverage when `PF_BACKLOG_METRICS_FILE` is unset (series absent, no `absent()` guard), and `for: 10m` plus a 10m increase window yields ~20m lead time, weakening CL-014 alert lead-time.",
+          "`except Exception: pass` around the metric write silently drops observability with no log line, and the sync open/write happens on every repeated raise (unbounded I/O on a failure path).",
+          "`test_ac2_unlisted_metric_export` is tagged `-k ac2` but asserts only metric export, not AC-2's write/delete/ID fail-closed contract, so the AC-2 evidence command now matches a test that does not exercise AC-2."
+        ],
+        "NIT": [
+          "Test uses chained `;`-separated one-liner `monkeypatch.setenv` calls, hard to read/diff and at odds with the Python style guide.",
+          "Test never asserts the negative side of fail-closed (no backlog item file created/touched), which would strengthen the AC-1 proof cheaply."
+        ],
+        "SUMMARY": [
+          "The delta substantively resolves the prior observability MAJOR by adding a real exported counter and a sustained-failure alert, but introduces a contract conflict (file write on the very path AC-1 says must not touch files) and a non-monotonic, clobber-prone textfile counter that undermines the new page alert.",
+          "Top risks: multi-process counter clobbering/reset making `ProductForgeBacklogScopeUnlisted` unreliable, undeclared `PF_BACKLOG_METRICS_FILE` flag, and alert runbook pointing at ephemeral evidence rather than shipped ops docs."
+        ]
+      },
+      "evidence": "BI-PF-1534-bb22696e8255.json"
     }
   ],
   "review_dispositions": {
@@ -1697,6 +1746,60 @@
         "severity": "NIT",
         "origin_class": "IMPLEMENTATION_GAP",
         "note": "Fixed in metric/test/runbook; evidence: engineering/evidence/BI-PF-1534/operator-recovery.md."
+      },
+      "sig:4050d6a57b626185": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed via health metrics endpoint/runbook/tests; evidence: api/routers/health.py."
+      },
+      "sig:688a41181dfb304d": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed via health metrics endpoint/runbook/tests; evidence: api/routers/health.py."
+      },
+      "sig:289291cb8f47dc0d": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed via health metrics endpoint/runbook/tests; evidence: api/routers/health.py."
+      },
+      "sig:d3a9539fff59db67": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed via health metrics endpoint/runbook/tests; evidence: api/routers/health.py."
+      },
+      "sig:ea5e93c779c9b233": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed via health metrics endpoint/runbook/tests; evidence: api/routers/health.py."
+      },
+      "sig:0a3ace79235a1ff0": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed via health metrics endpoint/runbook/tests; evidence: api/routers/health.py."
+      },
+      "sig:ae4b5b2def133f51": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed via health metrics endpoint/runbook/tests; evidence: api/routers/health.py."
+      },
+      "sig:6538f16f0e3a7f04": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed via health metrics endpoint/runbook/tests; evidence: api/routers/health.py."
+      },
+      "sig:31f424957b87d2d2": {
+        "status": "ACTIONED",
+        "severity": "NIT",
+        "origin_class": "IMPLEMENTATION_GAP",
+        "note": "Fixed via health metrics endpoint/runbook/tests; evidence: api/routers/health.py."
       }
     }
   },
@@ -1984,6 +2087,39 @@
       ],
       "result": "PASS",
       "evidence": "engineering/evidence/BI-PF-1534/operator-recovery.md"
+    },
+    {
+      "finding_sig": "sig:4050d6a57b626185",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "regression_test": "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q",
+      "controls_rerun": [
+        "tests",
+        "design_contract"
+      ],
+      "result": "PASS",
+      "evidence": "api/routers/health.py"
+    },
+    {
+      "finding_sig": "sig:688a41181dfb304d",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "regression_test": "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q",
+      "controls_rerun": [
+        "tests",
+        "design_contract"
+      ],
+      "result": "PASS",
+      "evidence": "api/routers/health.py"
+    },
+    {
+      "finding_sig": "sig:289291cb8f47dc0d",
+      "origin_class": "IMPLEMENTATION_GAP",
+      "regression_test": "python -m pytest test-framework/tests/pipeline/test_backlog_db_cutover.py -q",
+      "controls_rerun": [
+        "tests",
+        "design_contract"
+      ],
+      "result": "PASS",
+      "evidence": "api/routers/health.py"
     }
   ]
 }

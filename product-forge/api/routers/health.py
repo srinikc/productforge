@@ -1,6 +1,7 @@
 """Health / readiness endpoints (API-0.1 §1 public paths)."""
 
 from fastapi import APIRouter, Request
+from fastapi.responses import PlainTextResponse
 
 from ..envelope import from_request
 
@@ -47,3 +48,9 @@ def ready(request: Request):
         checks["code_fresh"] = f"error: {type(e).__name__}"
     return from_request(request, {"ready": ok, "checks": checks}, resource="readiness",
                         status="ok" if ok else "error")
+
+
+@router.get("/metrics/backlog")
+def metrics_backlog():
+    from core import backlog
+    return PlainTextResponse(backlog.metrics_text())
