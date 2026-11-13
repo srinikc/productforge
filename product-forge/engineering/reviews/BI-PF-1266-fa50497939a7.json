@@ -1,0 +1,34 @@
+{
+  "item": "BI-PF-1266",
+  "sha": "fa50497939a7",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-13T17:47:18.746853+00:00",
+  "review_scope": "delta",
+  "base_sha": "a9dca3813a9c767d530057cce638c83dfa7bc567",
+  "head_sha": "a9dca3813a9c767d530057cce638c83dfa7bc567",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "`spec_pack.config_contract` is N/A (\"no config file change\") yet `functional_spec.config_contract` defines EVENT_INLINE_PAYLOAD_LIMIT/EVENT_RETENTION with required startup validation and `contracts.files` lists `config/store-registry.json`; delta rows contradict within the same change."
+    ],
+    "MINOR": [
+      "Risk \"Retention deletion removes referenced payload\" is declared but has no matching failure-matrix/lifecycle control (e.g., delete object only when no live event row references it); \"deletion via store contract\" is not verifiable.",
+      "`traceability.test` for FR-1/2/3 is only \"design review\", omitting the BI-PF-1268/1269 tests named in FR `verification`; FR-2/FR-3 evidence omits `docs/ARCHITECTURE-DECISIONS.md` despite design ref citing ADR-0011.",
+      "`api_contract` marked N/A while `migration_matrix` retargets `api/routers/events.py` to cursor reads; confirm no request/response contract delta or mark CONDITIONAL with evidence.",
+      "Outbox-lag/DLQ SLOs are asserted while Q2 defers the dispatcher daemon; add a rollout/enablement note so thresholds do not page before the dispatcher item lands.",
+      "Prior CL-001 minor: single-writer ownership is now stated in `invariants`, but no registration evidence artifact (registry/config entry) is named for the facade seam; record where registration will be evidenced."
+    ],
+    "NIT": [
+      "`contracts.files` lists `core/events.py`, `core/event_bus.py`, `config/store-registry.json` which are absent from `affected_files`; label the list as future contract surface vs. files changed by this design-only item to avoid impact-review confusion."
+    ],
+    "SUMMARY": [
+      "Delta resolves the prior blockers (ownership/AC-2, resolved Q1-Q5/AC-1) and most guardrails (CL-008, BYPASSRLS, migration matrix, orphan GC, risks, rollback, SSOT).",
+      "Verdict: approvable once the config-contract contradiction is reconciled; remaining items are evidence/traceability hardening.",
+      "Top residual risks: config-contract row mismatch, retention/reference integrity control, and SLO enablement sequencing ahead of the dispatcher."
+    ]
+  },
+  "rereview_reason": "Delta design fixes for prior 886051fa010e findings",
+  "rereview_reason_sha256": "e1521b1976c37e5778c8d5ab6a982519d2b1a8fd047cd798c07c4d5dabd90f98"
+}
