@@ -7,6 +7,7 @@ ROOT=Path(__file__).resolve().parents[2]
 for p in (str(ROOT),str(ROOT/'scripts'/'dev')): sys.path.insert(0,p)
 from core import backlog
 from review_sig import digest
+from review_select import latest_review as _latest_review, is_closed
 CFG=ROOT/'config'/'fix-impact.json'
 
 def cfg(): return json.loads(CFG.read_text(encoding='utf-8-sig'))
@@ -16,23 +17,23 @@ def exp(v):
     try: return datetime.fromisoformat(s).date()
     except ValueError: return date.fromisoformat(s)
 def enforced(item,c):
+    if is_closed(item.get('status')):
+        return False
     if str(item.get('id')) in (c.get('enforce_items') or []): return True
     a,b=exp(item.get('created_at')),exp(c.get('enforce_from'))
     return bool(a and b and a>=b)
-def latest_review(iid):
-    files=sorted((ROOT/'engineering'/'reviews').glob(f'{iid}-*.json'),key=lambda p:p.stat().st_mtime)
-    for p in reversed(files):
-        try: d=json.loads(p.read_text(encoding='utf-8'))
-        except Exception: continue
-        if d.get('mode')=='diff': return d
-    return {}
-def problems(item,c=None):
+def latest_review(iid, meta=None):
+    return _latest_review(ROOT/'engineering'/'reviews', iid, 'diff', meta=meta)
+def problems(item,c=None,meta=None):
     c=c or cfg()
     if not enforced(item,c): return []
     rows=item.get('fix_impact')
+    rev=latest_review(str(item.get('id')), meta=meta)
+    required=[x for sev in ('BLOCKER','MAJOR') for x in ((rev.get('findings') or {}).get(sev) or []) if '[OUT_OF_SCOPE]' not in str(x)]
+    if not required:
+        return []  # no BLOCKER/MAJOR in the selected review => no fix-impact required
     if not isinstance(rows,list) or not rows: return ['fix_impact missing']
     bad=[]
-    rev=latest_review(str(item.get('id')))
     req=[x for sev in ('BLOCKER','MAJOR') for x in ((rev.get('findings') or {}).get(sev) or []) if '[OUT_OF_SCOPE]' not in str(x)]
     bysig={str(r.get('sig')):r for r in rows if isinstance(r,dict)}
     for text in req:
@@ -62,11 +63,22 @@ def main(argv=None):
     ap=argparse.ArgumentParser(); ap.add_argument('--item'); ap.add_argument('--all',action='store_true'); a=ap.parse_args(argv)
     c=cfg(); bad=[]
     if a.all:
+        skipped = fallback = 0
         for it in backlog.list_items('product_forge',None):
-            bad += [f"{it.get('id')}: {x}" for x in problems(it,c)]
+            if is_closed(it.get('status')):
+                skipped += 1
+                continue
+            meta = {}
+            bad += [f"{it.get('id')}: {x}" for x in problems(it,c,meta=meta)]
+            fallback += 1 if meta.get("mtime_fallback") else 0
+        print(f"fix-guard: status={'fail' if bad else 'ok'} skipped_closed={skipped} mtime_fallback={fallback}")
     elif a.item:
         it=backlog.get_epic('product_forge',None,a.item) or {}
-        bad += [f"{a.item}: {x}" for x in problems(it,c)]
+        skipped = 1 if is_closed(it.get('status')) else 0
+        meta={}
+        if not skipped:
+            bad += [f"{a.item}: {x}" for x in problems(it,c,meta=meta)]
+        print(f"fix-guard: item={a.item} status={'fail' if bad else 'ok'} skipped_closed={skipped} mtime_fallback={1 if meta.get('mtime_fallback') else 0}")
     else:
         print('fix-guard: --item or --all required',file=sys.stderr); return 2
     print('fix-guard: '+('OK' if not bad else 'FAIL'))
