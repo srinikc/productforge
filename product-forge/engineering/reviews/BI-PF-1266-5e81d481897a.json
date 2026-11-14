@@ -1,0 +1,32 @@
+{
+  "item": "BI-PF-1266",
+  "sha": "5e81d481897a",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-13T17:55:07.694394+00:00",
+  "review_scope": "delta",
+  "base_sha": "a9dca3813a9c767d530057cce638c83dfa7bc567",
+  "head_sha": "a9dca3813a9c767d530057cce638c83dfa7bc567",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "Outbox rows committed from BI-PF-1268 have no dispatcher until BI-PF-1269, yet decisions declare lag/DLQ alerts inactive in that window and no interim backlog bound, cleanup, or lead-time alert is defined \u2014 unbounded, unobservable growth contradicts the \"DB rows remain bounded\" NFR and guardrail-2 alert lead-time."
+    ],
+    "MINOR": [
+      "Rollback's critical step \"regenerate the projection with the Go tool\" maps to no artifact in `contracts.files`/`contract_surface_future`; the regeneration capability has no named owner/registration (CL-001).",
+      "`design_pack.decisions` depends on BI-PF-1274 (cursor reads) but BI-PF-1274 is absent from `functional_spec.dependencies`/`design_pack.dependencies`, while traceability routes cursor tests to BI-PF-1268 \u2014 test/implementation item mismatch.",
+      "`contracts.files` lists `config/store-registry.json` without the \"deferred\" qualifier now applied in `dependencies` and `contract_surface_future`; Gate 1.5 evidence readers may assume registration exists at Gate 1."
+    ],
+    "NIT": [
+      "`risks` delta is byte-identical to context despite being in `changed_fields`, extending the scope noise already flagged for `spec_pack`/`functional_spec`.",
+      "Prior PENDING dispositions (design_pack.version \u2192 2, deferred store-registry dependency, object-GC dry-run/bound) are satisfied by this delta; update the disposition ledger before Gate 1.5."
+    ],
+    "SUMMARY": [
+      "Verdict: AC-1/AC-2 met in delta; prior MAJORs verified ACTIONED (rollback freshness + regeneration source restored, frozen `contracts.files` repopulated).",
+      "Top risks: interim outbox backlog growth with explicitly inactive alerts between BI-PF-1268/1269; rollback's Go projection tool unnamed and unowned in the frozen contract surface."
+    ]
+  },
+  "rereview_reason": "Third design delta for prior 886051fa010e and 9ef3301bc1e6 findings",
+  "rereview_reason_sha256": "daae3dc57899498cf89adb5a4ca1dfac16e2aea428c248891150dd9e47b9c4dd"
+}

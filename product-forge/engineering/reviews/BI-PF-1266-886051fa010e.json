@@ -1,0 +1,38 @@
+{
+  "item": "BI-PF-1266",
+  "sha": "886051fa010e",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-13T17:43:56.959028+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "a9dca3813a9c767d530057cce638c83dfa7bc567",
+  "findings": {
+    "BLOCKER": [
+      "AC-2 not evidenced: design pack records \"Go core writes events/outbox\" but no explicit `events.jsonl` owner and no `event_bus` facade ownership entry in `contracts`/`invariants`.",
+      "AC-1 partially unmet: `open_questions: []` yet in_scope cites \"the five open decisions\"; no resolved-decision list with dispositions appears in affected files."
+    ],
+    "MAJOR": [
+      "CL-008 guardrails unanswered in design: backup/restore path, scheduler/DB-down availability + startup check/lead-time, dry-run bounds, and fail-able test definition are absent.",
+      "Runtime role authorization gap: RLS stated, but no statement that runtime roles are subject to RLS (no BYPASSRLS/superuser inheritance) per guardrail 3.",
+      "Migration matrix not traceable: `spec_pack.migration_backfill` cites design sections 9/10, but no consumer-by-consumer migration matrix is enumerated in the declared artifacts.",
+      "Object-store orphan risk: FR-2 puts object before event commit; no stated cleanup/GC if the DB commit fails after successful put."
+    ],
+    "MINOR": [
+      "`risks: ['Not specified.']` \u2014 risks for a cross-cutting event-authority migration are undeclared.",
+      "Rollback for this item is only \"Revert the change\"; migration-interrupted recovery and JSONL projection parity criteria are unspecified (guardrail 6).",
+      "Observability lists metric names but no thresholds/SLO or alert lead-time for outbox lag/DLQ depth (guardrail 2/10).",
+      "Ownership gate (CL-001) dependency noted as \"pending\"; no recorded single-writer registration evidence for the facade seam."
+    ],
+    "NIT": [
+      "Rollback wording differs between `functional_spec.rollback` and `design_pack.rollback`; align to one canonical phrasing.",
+      "Three parallel spec/design artifacts (design + spec + spec-pack) risk drift; designate one SSOT and reference the rest."
+    ],
+    "SUMMARY": [
+      "Verdict: not gate-ready; both acceptance criteria lack verifiable evidence in declared artifacts.",
+      "Top risks: missing ownership/facade records (AC-2), unresolved \"five open decisions\" (AC-1), and guardrail checklist (CL-008) items unanswered before Gate 1.5.",
+      "Re-review after design doc explicitly records owners, resolved decisions, migration matrix rows, and guardrail answers."
+    ]
+  }
+}
