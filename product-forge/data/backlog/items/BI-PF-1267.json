@@ -113,6 +113,17 @@
       "seq": 9,
       "hil_confirmed": true,
       "note": "HIL approved final full-candidate 1267 review after seq/version/auth fixes."
+    },
+    {
+      "at": "2026-11-14T13:16:16.484150+00:00",
+      "by": "hil:user",
+      "decision": "APPROVE",
+      "gate": 2,
+      "findings_sha": "ebb7ab0b5d44",
+      "findings_digest": "3023bf07e51a",
+      "seq": 10,
+      "note": "Gate 2 approved after 0B/0M full+delta review; HIL waived minors.",
+      "hil_confirmed": true
     }
   ],
   "follow_up": {},
@@ -216,7 +227,7 @@
     "at": "2026-10-12T23:41:03.472587"
   },
   "verification": [
-    "Gate 2.5 architect review (mimo-v2.6-flash): {'BLOCKER': 0, 'MAJOR': 2, 'MINOR': 6, 'NIT': 0}"
+    "Gate 2.5 architect review (mimo-v2.6-flash): {'BLOCKER': 0, 'MAJOR': 0, 'MINOR': 6, 'NIT': 2}"
   ],
   "risks": [
     "Python/Go contract drift",
@@ -233,7 +244,8 @@
     "Gate 2.5 architect review - model=mimo-v2.6-flash sha=9fd5ff8894f1\nBLOCKER:\n  - none\nMAJOR:\n  - none\nMINOR:\n  - none\nNIT:\n  - none\nSUMMARY:\n  - Delta correctly actioned the prior finding: the Go empty-secret test now computes a well-formed HMAC over the body with an empty key, matching the Python proof and genuinely exercising the fail-closed guard.\n  - Test-only change; language rule, contract parity, and AC-1 evidence are unaffected. Verdict: approve.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)",
     "Gate 2.5 architect review - model=mimo-v2.6-flash sha=21aa13c42cf1\nBLOCKER:\n  - none\nMAJOR:\n  - fix_guard.enforced() checks is_closed() BEFORE the explicit config `enforce_items` list, so config-enforced items (BI-PF-1531/1508) silently escape enforcement when marked closed — fail-open against config/fix-impact.json contract.\n  - fix_guard.problems() early-returns [] when no BLOCKER/MAJOR findings are present, so an absent/corrupt review artifact (latest_review -> {}) now passes where it previously reported 'fix_impact missing' — gate fails open on missing evidence.\n  - Delta ships unrelated BI-PF-1531 tooling (scripts/dev/architect_review.py, fix_guard.py, review_select.py, test_fix_guard.py); none are in the design's declared affected_files and no BI-PF-1267 design/AC covers these changes.\nMINOR:\n  - `required` and the later `req` list-comprehension in problems() are byte-identical; the second is dead duplication that will drift when severity filters change.\n  - review_select still uses p.stat().st_mtime as the tie-break key, so records with equal or missing `at` remain checkout-order dependent; only a log line mitigates the original BI-PF-1531 flake.\n  - is_closed() lazily imports core.backlog and calls backlog.section, coupling a pure selection helper to the backlog authority (env/DB side effects inside CI gates).\n  - architect_review defers `from review_select import latest_review` to the call site instead of module-level import, hiding the dependency from static analysis and inconsistent with the rest of the file.\n  - fix-guard --all/--item output gained a second summary line with different field order; strict parsers keyed on the single 'fix-guard: OK|FAIL' line may need updating.\nNIT:\n  - `_J = \".\" + \"json\"` filename-construction workaround in test_fix_guard.py is opaque and fragile against future store-contract changes.\n  - glob pattern f\"{item_id}-*.json\" does not escape glob metacharacters in item_id.\n  - review_select is_closed duplicates the closed-status vocabulary in the test, so config/status changes require two edits.\nSUMMARY:\n  - Delta is internally well-tested tooling refactor (shared deterministic selector is the right reuse), but it is out of BI-PF-1267 scope and weakens fix-guard into fail-open paths (closed-status short-circuit before enforce_items, empty-review early return).\n  - AC-1 (contract parity) is unaffected by this delta; top risks are gate-integrity regressions in fix-guard and unreviewed scope creep.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)",
     "Gate 2.5 architect review - model=mimo-v2.6-flash sha=c49b9aa83b0d\nBLOCKER:\n  - none\nMAJOR:\n  - Binding open-question parity obligation unmet: no tests (Go or Python) for invalid non-integer `seq`, unknown `event_version`, or cursor ordering (`seq > cursor`); only missing-seq, envelope unknown-field, and signature are covered.\n  - Unknown-field rejection parity is proven only for `event-envelope` in Python; subscription/alert-rule/webhook-delivery rejection is asserted in Go only, so cross-language shape parity for those three contracts is untested (AC risk).\n  - Design guardrail \"subscription contracts require tenant + auth_ref\" only half-implemented: `tenant_id` made required in both mirrors while `auth_ref` remains optional.\nMINOR:\n  - Go `ContractMetrics` is an exported mutable map while Python `CONTRACT_METRICS` is read-only; a silent mutation breaks metric-name parity with no Go-side assertion on `parity_failures` or labels.\n  - `webhook_headers` emits `X-PF-Signature` with an empty value when the secret is empty; receivers treating header presence as authenticated can mis-handle it — omit or fail instead of emitting an empty signature.\n  - Test names do not map to the design test_matrix names (`test_contracts_unknown_field_parity`, `test_contracts_seq_parity`, `test_contracts_subscription_alert_webhook_parity`, `test_webhook_hmac_constant_time`), weakening FR/traceability evidence.\nNIT:\n  - `containsField` linear-scans the allowlist for every payload field (O(n·m)); a set/map would satisfy the allocation-light performance NFR.\n  - `test_eventing_tenant_and_idempotency_contract` mixes tenant rejection, HMAC, and header assertions in one test, obscuring failure signals.\n  - Python `webhook_signature`/`verify_webhook_signature` coerce inputs via `str()`/`bytes()` silently; a non-bytes body type is coerced rather than rejected, unlike Go's typed `[]byte`.\nSUMMARY:\n  - Directionally correct: both Go mirrors updated in lockstep, constant-time fail-closed HMAC, extensions surface, and a named cross-language parity test exist. Top risks: approved binding test obligations (invalid seq, unknown version, cursor ordering) and the `auth_ref`-required invariant are not implemented, and unknown-field rejection parity is proven only for the event envelope.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)",
-    "Gate 2.5 architect review - model=mimo-v2.6-flash sha=aa6c871b510a\nBLOCKER:\n  - none\nMAJOR:\n  - Shape parity is only proven for field names and required sets (`test_pfcore_eventing_field_parity` compares `fields`/`required` only); no Go assertion covers field types/enums (`seq` integer, `payload`/`extensions` object, `severity`/`transport` enums), so \"Go and Python shape parity\" is only partially demonstrated against the AC.\n  - Go `Validate` accepts a non-string `event_version` (the `.(string)` type assertion falls through silently), while Python's `enum=(\"1\")` field rejects it — cross-language unknown-version rejection drifts on the exact invariant the design pins.\nMINOR:\n  - Cursor ordering invariant (`seq > cursor`) is tested only in Python (`test_event_cursor_ordering`); no Go mirror or Go test exists, despite the binding open question requiring Python/Go parity coverage of cursor ordering.\n  - Go `event_contracts_test.go` still lacks unknown-`event_version` and invalid non-integer `seq` cases; those are asserted only in Python, leaving the Go half of the version/seq parity obligation unverified.\n  - `events_after_cursor` filters with `int(r.get(\"seq\", 0))` but sorts with `int(r[\"seq\"])`: a row missing `seq` is silently coerced to 0 in the filter yet raises in the sort key — inconsistent malformed-row handling that can mask integrity errors.\n  - Go unknown-field errors are produced by iterating `eventContractFields` payload maps, so error ordering is nondeterministic, degrading stable diagnostics/observability for the same invalid payload.\n  - Public helpers `webhook_headers` and `events_after_cursor` are appended after the `if __name__ == \"__main__\"` entrypoint in `contracts.py`, harming discoverability and maintainability of the contract surface.\n  - `test_pfcore_eventing_field_parity` is skipped when the Go toolchain is absent, so the headline parity AC can pass green with zero Go evidence on that runner.\nNIT:\n  - none\nSUMMARY:\n  - Prior PENDING findings are addressed in this pass: invalid-seq/unknown-version/cursor tests added, subscription `auth_ref` now required in both mirrors, and Python unknown-field rejection now covers all four eventing contracts.\n  - Residual risk concentrates on type-level (not just name-level) Go/Python shape parity and the Go `event_version` string-assertion gap, both of which can let drifted validators pass CI.\n  - Overall the diff meets the AC directionally; tighten parity tests to cover Go-side version/seq cases and field types before treating the parity invariant as fully proven.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)"
+    "Gate 2.5 architect review - model=mimo-v2.6-flash sha=aa6c871b510a\nBLOCKER:\n  - none\nMAJOR:\n  - Shape parity is only proven for field names and required sets (`test_pfcore_eventing_field_parity` compares `fields`/`required` only); no Go assertion covers field types/enums (`seq` integer, `payload`/`extensions` object, `severity`/`transport` enums), so \"Go and Python shape parity\" is only partially demonstrated against the AC.\n  - Go `Validate` accepts a non-string `event_version` (the `.(string)` type assertion falls through silently), while Python's `enum=(\"1\")` field rejects it — cross-language unknown-version rejection drifts on the exact invariant the design pins.\nMINOR:\n  - Cursor ordering invariant (`seq > cursor`) is tested only in Python (`test_event_cursor_ordering`); no Go mirror or Go test exists, despite the binding open question requiring Python/Go parity coverage of cursor ordering.\n  - Go `event_contracts_test.go` still lacks unknown-`event_version` and invalid non-integer `seq` cases; those are asserted only in Python, leaving the Go half of the version/seq parity obligation unverified.\n  - `events_after_cursor` filters with `int(r.get(\"seq\", 0))` but sorts with `int(r[\"seq\"])`: a row missing `seq` is silently coerced to 0 in the filter yet raises in the sort key — inconsistent malformed-row handling that can mask integrity errors.\n  - Go unknown-field errors are produced by iterating `eventContractFields` payload maps, so error ordering is nondeterministic, degrading stable diagnostics/observability for the same invalid payload.\n  - Public helpers `webhook_headers` and `events_after_cursor` are appended after the `if __name__ == \"__main__\"` entrypoint in `contracts.py`, harming discoverability and maintainability of the contract surface.\n  - `test_pfcore_eventing_field_parity` is skipped when the Go toolchain is absent, so the headline parity AC can pass green with zero Go evidence on that runner.\nNIT:\n  - none\nSUMMARY:\n  - Prior PENDING findings are addressed in this pass: invalid-seq/unknown-version/cursor tests added, subscription `auth_ref` now required in both mirrors, and Python unknown-field rejection now covers all four eventing contracts.\n  - Residual risk concentrates on type-level (not just name-level) Go/Python shape parity and the Go `event_version` string-assertion gap, both of which can let drifted validators pass CI.\n  - Overall the diff meets the AC directionally; tighten parity tests to cover Go-side version/seq cases and field types before treating the parity invariant as fully proven.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)",
+    "Gate 2.5 architect review - model=mimo-v2.6-flash sha=ebb7ab0b5d44\nBLOCKER:\n  - none\nMAJOR:\n  - none\nMINOR:\n  - `validType` defaults to `return true` for any unrecognized `want` spec: a typo in `eventContractTypes` (e.g. `\"interger\"`) silently disables that check, failing open on the exact drift the map exists to prevent.\n  - Type/enum metadata is split into a new `eventContractTypes` map parallel to the existing `contractShapes` inside `pfcore.go`; two Go sources of truth for one contract invite intra-file drift — consider one canonical structure.\n  - New `for field, want := range types` in `Validate` iterates a map, so multi-error output ordering is nondeterministic — same diagnostics-stability class as the prior `eventContractFields` finding, newly introduced by this hunk.\n  - `TestEventingTypeAndEnumParity` exercises only 4 of the declared fields; the `object`/`array`/`boolean` branches (`payload`, `extensions`, `channels`, `filter`, `enabled`, `attempts`, `throttle_window`) are unexercised, so type parity for those shapes remains unproven in Go.\n  - Numeric check accepts only `int`/`float64`: a valid integer carried as `int64` (hand-built Go payloads) or `json.Number` (decoder with `UseNumber`) is falsely rejected as invalid — brittle for future callers.\n  - Non-string `event_version` now yields two errors for one defect (`\"must be string\"` from the envelope block and `\"invalid type\"` from the types loop), duplicating diagnostics.\nNIT:\n  - Test resolves the contract name via label-string equality (`if label == \"bad transport\"`); a label edit silently changes the contract under test — a small `label → name` table would be self-describing.\n  - `\"seq string\"` case name says \"string\" while asserting integer enforcement; pairing label with expected error message would make failures self-explanatory.\nSUMMARY:\n  - Delta correctly resolves both prior MAJORs: non-string `event_version` is now rejected, and Go type/enum validation plus a parity test were added — AC-1 evidence for this delta is sound and tests are fail-able.\n  - Remaining risk is fail-open validation semantics (unknown type spec passes, split metadata map) and partial branch coverage of `validType`, which leaves part of the shape-parity obligation unproven.\n  - No blockers; ship after hardening the default case and extending the parity test to object/array/boolean fields.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)"
   ],
   "owner": "agent",
   "requester": "design",
@@ -324,9 +336,9 @@
     "usage": {}
   },
   "created_at": "2026-10-12T22:54:03.939725",
-  "updated_at": "2026-11-14T18:42:11.969711",
+  "updated_at": "2026-11-14T18:46:17.158789",
   "score": 0.83,
-  "_note": "Final HIL material-change approval for 1267 full review.",
+  "_note": "final report persisted (BI-PF-1484)",
   "api_impact": {
     "needs_api": false,
     "reason": "Shared contract shapes only; no runtime API route change."
@@ -1176,6 +1188,38 @@
         ]
       },
       "evidence": "BI-PF-1267-aa6c871b510a.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "f3847eb1745d32c8527601ac531bf2809f9317b9",
+      "review_sha": "ebb7ab0b5d44",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-14T13:16:02.475850+00:00",
+      "review_scope": "delta",
+      "base_sha": "ac1eb39f73e42f967095c8d0d1ea3ef9e495ffff",
+      "head_sha": "f3847eb1745d32c8527601ac531bf2809f9317b9",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [],
+        "MINOR": [
+          "`validType` defaults to `return true` for any unrecognized `want` spec: a typo in `eventContractTypes` (e.g. `\"interger\"`) silently disables that check, failing open on the exact drift the map exists to prevent.",
+          "Type/enum metadata is split into a new `eventContractTypes` map parallel to the existing `contractShapes` inside `pfcore.go`; two Go sources of truth for one contract invite intra-file drift — consider one canonical structure.",
+          "New `for field, want := range types` in `Validate` iterates a map, so multi-error output ordering is nondeterministic — same diagnostics-stability class as the prior `eventContractFields` finding, newly introduced by this hunk.",
+          "`TestEventingTypeAndEnumParity` exercises only 4 of the declared fields; the `object`/`array`/`boolean` branches (`payload`, `extensions`, `channels`, `filter`, `enabled`, `attempts`, `throttle_window`) are unexercised, so type parity for those shapes remains unproven in Go.",
+          "Numeric check accepts only `int`/`float64`: a valid integer carried as `int64` (hand-built Go payloads) or `json.Number` (decoder with `UseNumber`) is falsely rejected as invalid — brittle for future callers.",
+          "Non-string `event_version` now yields two errors for one defect (`\"must be string\"` from the envelope block and `\"invalid type\"` from the types loop), duplicating diagnostics."
+        ],
+        "NIT": [
+          "Test resolves the contract name via label-string equality (`if label == \"bad transport\"`); a label edit silently changes the contract under test — a small `label → name` table would be self-describing.",
+          "`\"seq string\"` case name says \"string\" while asserting integer enforcement; pairing label with expected error message would make failures self-explanatory."
+        ],
+        "SUMMARY": [
+          "Delta correctly resolves both prior MAJORs: non-string `event_version` is now rejected, and Go type/enum validation plus a parity test were added — AC-1 evidence for this delta is sound and tests are fail-able.",
+          "Remaining risk is fail-open validation semantics (unknown type spec passes, split metadata map) and partial branch coverage of `validType`, which leaves part of the shape-parity obligation unproven.",
+          "No blockers; ship after hardening the default case and extending the parity test to object/array/boolean fields."
+        ]
+      },
+      "evidence": "BI-PF-1267-ebb7ab0b5d44.json"
     }
   ],
   "review_dispositions": {
@@ -1505,6 +1549,42 @@
         "severity": "MINOR",
         "origin_class": "VERIFICATION_GAP",
         "note": "Go test now uses well-formed empty-key HMAC; fail-closed parity proven."
+      },
+      "sig:16b2850fb41b4f3a": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "VERIFICATION_GAP",
+        "note": "HIL accepted remaining minor as non-blocking; contract code/tests pass."
+      },
+      "sig:a72fc42cd86ab683": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "VERIFICATION_GAP",
+        "note": "HIL accepted remaining minor as non-blocking; contract code/tests pass."
+      },
+      "sig:b3e725f52a73392d": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "VERIFICATION_GAP",
+        "note": "HIL accepted remaining minor as non-blocking; contract code/tests pass."
+      },
+      "sig:dc6591087c7759fc": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "VERIFICATION_GAP",
+        "note": "HIL accepted remaining minor as non-blocking; contract code/tests pass."
+      },
+      "sig:a8c1d76aa0efaced": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "VERIFICATION_GAP",
+        "note": "HIL accepted remaining minor as non-blocking; contract code/tests pass."
+      },
+      "sig:1521e6ae22fcd887": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "VERIFICATION_GAP",
+        "note": "HIL accepted remaining minor as non-blocking; contract code/tests pass."
       }
     }
   },
@@ -1656,12 +1736,12 @@
   "verified_by": "hil:user",
   "final_report": {
     "schema": "pf.final-report/2",
-    "ac_hash": "0eddd0e3edd9220e",
-    "total_time_ms": 18358855,
-    "sum_stage_ms": 1684693,
+    "ac_hash": "5d8ccaf0451d55d9",
+    "total_time_ms": 32073928,
+    "sum_stage_ms": 2407395,
     "clock_skew": false,
     "item": "BI-PF-1267",
-    "generated_at": "2026-11-14T09:27:41.995578+00:00",
+    "generated_at": "2026-11-14T13:16:17.068630+00:00",
     "item_revision": 6,
     "current_stage": "blocked at precheck",
     "acs": [
@@ -1994,19 +2074,69 @@
         "cached_tokens": null,
         "cost_usd": null,
         "cost_source": "n/a"
+      },
+      {
+        "stage": "diff_review",
+        "at": "2026-11-14T12:44:51.459774+00:00",
+        "duration_ms": 163974,
+        "input_tokens": 11213,
+        "output_tokens": 4140,
+        "cached_tokens": 0,
+        "cost_usd": 0.0,
+        "cost_source": "provider"
+      },
+      {
+        "stage": "diff_review",
+        "at": "2026-11-14T13:08:03.533223+00:00",
+        "duration_ms": 220183,
+        "input_tokens": 13287,
+        "output_tokens": 4885,
+        "cached_tokens": 0,
+        "cost_usd": 0.0,
+        "cost_source": "provider"
+      },
+      {
+        "stage": "diff_review",
+        "at": "2026-11-14T13:12:11.737255+00:00",
+        "duration_ms": 164317,
+        "input_tokens": 13889,
+        "output_tokens": 3715,
+        "cached_tokens": 0,
+        "cost_usd": 0.0,
+        "cost_source": "provider"
+      },
+      {
+        "stage": "diff_review",
+        "at": "2026-11-14T13:16:02.793698+00:00",
+        "duration_ms": 174228,
+        "input_tokens": 9315,
+        "output_tokens": 4095,
+        "cached_tokens": 0,
+        "cost_usd": 0.0,
+        "cost_source": "provider"
+      },
+      {
+        "stage": "gate2",
+        "at": "2026-11-14T13:16:16.600745+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
       }
     ],
     "usage": {
-      "input_tokens": 100350,
-      "output_tokens": 43843,
+      "input_tokens": 148054,
+      "output_tokens": 60678,
       "cached_tokens": 10688,
       "cost_usd": 0.0,
-      "captured": 12,
+      "captured": 16,
       "not_captured": 0,
       "unpriced": 0
     },
     "started_at": "2026-11-14T04:21:42.672521+00:00",
-    "finished_at": "2026-11-14T09:27:41.527650+00:00",
+    "finished_at": "2026-11-14T13:16:16.600745+00:00",
     "disposition_problems": [],
     "dispositions": {
       "design": {},
@@ -2051,6 +2181,17 @@
         "seq": 7,
         "note": "Gate 2 re-recorded after final clean review 9fd5ff8894f1.",
         "hil_confirmed": true
+      },
+      {
+        "at": "2026-11-14T13:16:16.484150+00:00",
+        "by": "hil:user",
+        "decision": "APPROVE",
+        "gate": 2,
+        "findings_sha": "ebb7ab0b5d44",
+        "findings_digest": "3023bf07e51a",
+        "seq": 10,
+        "note": "Gate 2 approved after 0B/0M full+delta review; HIL waived minors.",
+        "hil_confirmed": true
       }
     ],
     "other_decisions": [
@@ -2077,6 +2218,26 @@
         "seq": 6,
         "hil_confirmed": true,
         "note": "HIL acknowledged design correction from new go/pfcore/contracts.go to reuse of existing pfcore/contract mirrors; permits the second full design review."
+      },
+      {
+        "at": "2026-11-14T13:04:21.534531+00:00",
+        "by": "hil:user",
+        "decision": "MATERIAL_CHANGE",
+        "mode": "diff",
+        "scope": "review_budget",
+        "seq": 8,
+        "hil_confirmed": true,
+        "note": "HIL approved a full-candidate 1267 review after develop sync; tooling changes are in the base, not 1267."
+      },
+      {
+        "at": "2026-11-14T13:09:25.458500+00:00",
+        "by": "hil:user",
+        "decision": "MATERIAL_CHANGE",
+        "mode": "diff",
+        "scope": "review_budget",
+        "seq": 9,
+        "hil_confirmed": true,
+        "note": "HIL approved final full-candidate 1267 review after seq/version/auth fixes."
       }
     ]
   }
