@@ -1,0 +1,32 @@
+{
+  "item": "BI-PF-1267",
+  "sha": "c49b9aa83b0d",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-14T13:08:03.221778+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "67a7a3e6477b31cde21992490fa9a657e2c95534",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "Binding open-question parity obligation unmet: no tests (Go or Python) for invalid non-integer `seq`, unknown `event_version`, or cursor ordering (`seq > cursor`); only missing-seq, envelope unknown-field, and signature are covered.",
+      "Unknown-field rejection parity is proven only for `event-envelope` in Python; subscription/alert-rule/webhook-delivery rejection is asserted in Go only, so cross-language shape parity for those three contracts is untested (AC risk).",
+      "Design guardrail \"subscription contracts require tenant + auth_ref\" only half-implemented: `tenant_id` made required in both mirrors while `auth_ref` remains optional."
+    ],
+    "MINOR": [
+      "Go `ContractMetrics` is an exported mutable map while Python `CONTRACT_METRICS` is read-only; a silent mutation breaks metric-name parity with no Go-side assertion on `parity_failures` or labels.",
+      "`webhook_headers` emits `X-PF-Signature` with an empty value when the secret is empty; receivers treating header presence as authenticated can mis-handle it \u2014 omit or fail instead of emitting an empty signature.",
+      "Test names do not map to the design test_matrix names (`test_contracts_unknown_field_parity`, `test_contracts_seq_parity`, `test_contracts_subscription_alert_webhook_parity`, `test_webhook_hmac_constant_time`), weakening FR/traceability evidence."
+    ],
+    "NIT": [
+      "`containsField` linear-scans the allowlist for every payload field (O(n\u00b7m)); a set/map would satisfy the allocation-light performance NFR.",
+      "`test_eventing_tenant_and_idempotency_contract` mixes tenant rejection, HMAC, and header assertions in one test, obscuring failure signals.",
+      "Python `webhook_signature`/`verify_webhook_signature` coerce inputs via `str()`/`bytes()` silently; a non-bytes body type is coerced rather than rejected, unlike Go's typed `[]byte`."
+    ],
+    "SUMMARY": [
+      "Directionally correct: both Go mirrors updated in lockstep, constant-time fail-closed HMAC, extensions surface, and a named cross-language parity test exist. Top risks: approved binding test obligations (invalid seq, unknown version, cursor ordering) and the `auth_ref`-required invariant are not implemented, and unknown-field rejection parity is proven only for the event envelope."
+    ]
+  }
+}
