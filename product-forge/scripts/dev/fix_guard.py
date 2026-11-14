@@ -15,17 +15,26 @@ def exp(v):
     if not s: return None
     try: return datetime.fromisoformat(s).date()
     except ValueError: return date.fromisoformat(s)
+CLOSED_STATUSES = {"completed", "closed", "done", "delivered", "duplicate",
+                   "rejected", "wontfix", "archived"}
+
 def enforced(item,c):
+    if str(item.get('status') or '').lower() in CLOSED_STATUSES:
+        return False
     if str(item.get('id')) in (c.get('enforce_items') or []): return True
     a,b=exp(item.get('created_at')),exp(c.get('enforce_from'))
     return bool(a and b and a>=b)
 def latest_review(iid):
-    files=sorted((ROOT/'engineering'/'reviews').glob(f'{iid}-*.json'),key=lambda p:p.stat().st_mtime)
-    for p in reversed(files):
+    """Deterministic: newest review by recorded `at`, not checkout mtime."""
+    best, key = {}, None
+    for p in (ROOT/'engineering'/'reviews').glob(f'{iid}-*.json'):
         try: d=json.loads(p.read_text(encoding='utf-8'))
         except Exception: continue
-        if d.get('mode')=='diff': return d
-    return {}
+        if d.get('mode')!='diff': continue
+        k=(str(d.get('at') or ''), p.stat().st_mtime)
+        if key is None or k>key:
+            best,key=d,k
+    return best
 def problems(item,c=None):
     c=c or cfg()
     if not enforced(item,c): return []
