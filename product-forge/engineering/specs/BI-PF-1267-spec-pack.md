@@ -12,7 +12,7 @@ Every conditional spec is `APPLICABLE` with an artifact/sections/evidence, or `N
 | product_design_spec | APPLICABLE | architecture | Contract shapes are defined. | engineering/design/BI-PF-1267.md | 4 | core/contracts.py |
 | api_contract | N/A | architecture | No public runtime API shape change in this contract item. |  |  |  |
 | data_contract | APPLICABLE | architecture | Envelope/subscription/alert/webhook fields are defined. | engineering/design/BI-PF-1267.md | 4 | core/contracts.py |
-| config_contract | APPLICABLE | architecture | WEBHOOK_HMAC_KEY_REF is a required secret-reference contract. | engineering/design/BI-PF-1267.md | 4, 5 | core/contracts.py |
+| config_contract | APPLICABLE | platform (BI-PF-1270) | WEBHOOK_HMAC_KEY_REF is a required secret reference; runtime startup validation is owned by BI-PF-1270. | engineering/design/BI-PF-1267.md | 4, 5 | core/contracts.py |
 | nfr_slo | N/A | architecture | No runtime SLO in this contract-only item. |  |  |  |
 | security_threat_model | APPLICABLE | security | HMAC and tenant fields are security-relevant. | engineering/design/BI-PF-1267.md | 5 | core/contracts.py, go/pfcore/contracts.go, test-framework/tests/pipeline/test_contracts.py |
 | migration_backfill | N/A | architecture | No data migration in contract-only item. |  |  |  |
