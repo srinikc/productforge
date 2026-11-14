@@ -101,6 +101,18 @@ const (
 	WebhookHMACKeyRef        = "WEBHOOK_HMAC_KEY_REF"
 )
 
+// ContractMetrics mirrors core/contracts.py CONTRACT_METRICS names.
+var ContractMetrics = map[string]string{
+	"validation_failures": "contract_validation_failures_total",
+	"parity_failures":     "contract_parity_test_failures",
+}
+
+// WebhookHeaders returns canonical webhook headers; idempotency key is event_id.
+func WebhookHeaders(eventID string, body []byte, secret string) map[string]string {
+	return map[string]string{WebhookSignatureHeader: WebhookSignature(body, secret),
+		WebhookIdempotencyHeader: eventID}
+}
+
 // WebhookSignature returns the canonical HMAC-SHA256 header value.
 func WebhookSignature(body []byte, secret string) string {
 	if secret == "" {

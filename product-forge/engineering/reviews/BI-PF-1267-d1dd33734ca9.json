@@ -1,0 +1,33 @@
+{
+  "item": "BI-PF-1267",
+  "sha": "d1dd33734ca9",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-14T08:11:01.558678+00:00",
+  "review_scope": "delta",
+  "base_sha": "b283149c21b68624a7b1ec8d4d1ad81cb02a5895",
+  "head_sha": "2e91cf5da3d3258470ccbbf7c873ea33c16e1e62",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [],
+    "MINOR": [
+      "New test `test_eventing_tenant_and_idempotency_contract` asserts no idempotency-header behavior (no `X-PF-Idempotency-Key == event_id` check), so the prior FR-2 idempotency gap stays open while the test name falsely claims coverage.",
+      "Fail-closed signing now diverges across languages: Python `webhook_signature` raises `ValueError` on empty secret, Go `WebhookSignature` returns `\"\"`; `verify_*` converges to False, but the sign primitive is a new parity surface with no cross-language test.",
+      "Python `webhook_signature` gains a new raising path in shipped code; the diff shows no audit of existing callers that may pass an empty/unset secret and now hit a runtime exception.",
+      "`CONTRACT_METRICS` is defined only on the Python side; Go has no mirror, so the metric-name contract is another one-sided declaration (only names are pinned, no label/owner structure beyond the embedded `{code}` string)."
+    ],
+    "NIT": [
+      "`CONTRACT_METRICS` is a mutable module-level dict; a frozen mapping would match the \"constants\" intent.",
+      "New test uses manual `try/except/else raise AssertionError` instead of `pytest.raises`, inconsistent with the rest of the suite.",
+      "Metric value embeds the label template in the name string (`contract_validation_failures_total{code}`), which is awkward to consume programmatically by BI-PF-1270/1274."
+    ],
+    "SUMMARY": [
+      "Delta correctly closes prior findings on Go `tenant_id` drift, `WEBHOOK_HMAC_KEY_REF`, header constants, metric names, and empty-secret fail-closed on both sides; no AC regression introduced.",
+      "Top residual risks: the misleadingly named new test leaves FR-2 idempotency untested, and the Python/Go sign primitives now fail closed via different mechanisms without a parity test.",
+      "Overall acceptable for the delta scope; prior PENDING parity/coverage findings (cursor/unknown-version/unknown-field cross-language fixtures) remain open but unchanged."
+    ]
+  },
+  "rereview_reason": "Delta diff fixes for prior 0b854fbc08f1 findings",
+  "rereview_reason_sha256": "1c37acc6ad8ffe7f99ef15dfd2b603a2ac8b92300a44fd1013599bb58ef9957a"
+}

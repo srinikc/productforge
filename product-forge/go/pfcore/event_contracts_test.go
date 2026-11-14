@@ -66,3 +66,17 @@ func TestEventingContractsRejectUnknownFields(t *testing.T) {
 		}
 	}
 }
+
+func TestWebhookHeadersAndMetricsParity(t *testing.T) {
+	body := []byte(`{"event_id":"e1"}`)
+	h := WebhookHeaders("e1", body, "secret")
+	if h[WebhookIdempotencyHeader] != "e1" {
+		t.Fatal("idempotency header must equal event_id")
+	}
+	if !VerifyWebhookSignature(body, h[WebhookSignatureHeader], "secret") {
+		t.Fatal("canonical header signature rejected")
+	}
+	if ContractMetrics["validation_failures"] != "contract_validation_failures_total" {
+		t.Fatal("metric parity drift")
+	}
+}

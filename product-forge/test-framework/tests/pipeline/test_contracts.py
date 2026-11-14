@@ -214,9 +214,7 @@ def test_eventing_tenant_and_idempotency_contract():
     body = b'{"event_id":"e1"}'
     sig = contracts.webhook_signature(body, "secret")
     assert contracts.verify_webhook_signature(body, sig, "secret") is True
-    try:
-        contracts.webhook_signature(body, "")
-    except ValueError:
-        pass
-    else:
-        raise AssertionError("empty webhook secret accepted")
+    assert contracts.webhook_signature(body, "") == ""
+    headers = contracts.webhook_headers("e1", body, "secret")
+    assert headers[contracts.WEBHOOK_IDEMPOTENCY_HEADER] == "e1"
+    assert headers[contracts.WEBHOOK_SIGNATURE_HEADER] == sig

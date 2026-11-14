@@ -24,6 +24,7 @@ import json
 import os
 import sys
 from dataclasses import dataclass
+from types import MappingProxyType
 from typing import Any
 
 import jsonschema
@@ -324,16 +325,17 @@ WEBHOOK_SIGNATURE_HEADER = "X-PF-Signature"
 WEBHOOK_IDEMPOTENCY_HEADER = "X-PF-Idempotency-Key"
 WEBHOOK_SIGNATURE_ALGORITHM = "sha256"
 WEBHOOK_HMAC_KEY_REF = "WEBHOOK_HMAC_KEY_REF"
-CONTRACT_METRICS = {
-    "validation_failures": "contract_validation_failures_total{code}",
+CONTRACT_METRICS = MappingProxyType({
+    "validation_failures": "contract_validation_failures_total",
     "parity_failures": "contract_parity_test_failures",
-}
+})
+CONTRACT_METRIC_LABELS = MappingProxyType({"validation_failures": ("code",)})
 
 
 def webhook_signature(body: bytes | str, secret: str) -> str:
     """HMAC-SHA256 signature over the raw webhook body, prefixed with the algorithm."""
     if not str(secret or ""):
-        raise ValueError("webhook secret is required")
+        return ""
     raw = body.encode("utf-8") if isinstance(body, str) else bytes(body)
     digest = hmac.new(str(secret).encode("utf-8"), raw, hashlib.sha256).hexdigest()
     return f"{WEBHOOK_SIGNATURE_ALGORITHM}={digest}"
@@ -343,11 +345,8 @@ def verify_webhook_signature(body: bytes | str, signature: str, secret: str) -> 
     """Constant-time webhook signature verification (fail closed on empty/mismatch)."""
     if not str(secret or "") or not str(signature or ""):
         return False
-    try:
-        expected = webhook_signature(body, secret)
-    except ValueError:
-        return False
-    return hmac.compare_digest(expected, str(signature))
+    expected = webhook_signature(body, secret)
+    return bool(expected) and hmac.compare_digest(expected, str(signature))
 
 
 # ── schema + validation ─────────────────────────────────────────────────────────
@@ -807,3 +806,9 @@ def _cli(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(_cli())
+
+
+def webhook_headers(event_id: str, body: bytes | str, secret: str) -> dict[str, str]:
+    """Canonical webhook headers; idempotency key is exactly the event_id."""
+    return {WEBHOOK_SIGNATURE_HEADER: webhook_signature(body, secret),
+            WEBHOOK_IDEMPOTENCY_HEADER: str(event_id)}
