@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"runtime"
 	"sort"
+	"strings"
 )
 
 // WireVersion mirrors the A1 wire contract version (core/contracts.py WIRE_VERSION).
@@ -132,6 +133,52 @@ func VerifyWebhookSignature(body []byte, signature, secret string) bool {
 	return expected != "" && hmac.Equal([]byte(expected), []byte(signature))
 }
 
+// eventContractTypes pins the field types/enums that must agree with Python JSON Schema.
+var eventContractTypes = map[string]map[string]string{
+	"event-envelope":   {"event_version": "string", "seq": "integer", "payload": "object", "extensions": "object"},
+	"subscription":     {"id": "string", "tenant_id": "string", "transport": "enum:inproc,sse,webhook,notify,email", "types": "array", "filter": "object", "enabled": "boolean"},
+	"alert-rule":       {"event_type": "string", "severity": "enum:low,medium,high,critical", "channels": "array", "throttle_window": "integer", "escalate": "boolean", "enabled": "boolean"},
+	"webhook-delivery": {"delivery_id": "string", "event_id": "string", "subscription_id": "string", "target_url": "string", "payload": "object", "attempts": "integer"},
+}
+
+func validType(v any, want string) bool {
+	switch {
+	case want == "string":
+		_, ok := v.(string)
+		return ok
+	case want == "integer":
+		switch n := v.(type) {
+		case int:
+			return true
+		case float64:
+			return n == float64(int(n))
+		default:
+			return false
+		}
+	case want == "object":
+		_, ok := v.(map[string]any)
+		return ok
+	case want == "array":
+		_, ok := v.([]any)
+		return ok
+	case want == "boolean":
+		_, ok := v.(bool)
+		return ok
+	case strings.HasPrefix(want, "enum:"):
+		s, ok := v.(string)
+		if !ok {
+			return false
+		}
+		for _, e := range strings.Split(strings.TrimPrefix(want, "enum:"), ",") {
+			if s == e {
+				return true
+			}
+		}
+		return false
+	}
+	return true
+}
+
 // ContractNames returns the known contract names (sorted, deterministic describe output).
 func ContractNames() []string {
 	names := make([]string, 0, len(contractShapes))
@@ -185,8 +232,21 @@ func Validate(name string, payload map[string]any) (bool, []string) {
 		}
 	}
 	if name == "event-envelope" {
-		if v, ok := payload["event_version"].(string); ok && v != "1" {
-			errs = append(errs, "event_version: unsupported")
+		v, present := payload["event_version"]
+		if present {
+			s, ok := v.(string)
+			if !ok {
+				errs = append(errs, "event_version: must be string")
+			} else if s != "1" {
+				errs = append(errs, "event_version: unsupported")
+			}
+		}
+	}
+	if types, ok := eventContractTypes[name]; ok {
+		for field, want := range types {
+			if v, present := payload[field]; present && !validType(v, want) {
+				errs = append(errs, field+": invalid type")
+			}
 		}
 	}
 	return len(errs) == 0, errs

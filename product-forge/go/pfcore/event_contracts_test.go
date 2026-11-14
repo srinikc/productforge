@@ -91,3 +91,24 @@ func TestWebhookHeadersAndMetricsParity(t *testing.T) {
 		t.Fatal("metric parity drift")
 	}
 }
+
+func TestEventingTypeAndEnumParity(t *testing.T) {
+	cases := map[string]map[string]any{
+		"seq string":         {"schema": "product-forge/event-envelope@1", "event_id": "e", "event_type": "x", "event_version": "1", "occurred_at": "2026-01-01", "seq": "1"},
+		"version non-string": {"schema": "product-forge/event-envelope@1", "event_id": "e", "event_type": "x", "event_version": 1, "occurred_at": "2026-01-01", "seq": 1},
+		"bad transport":      {"schema": "product-forge/subscription@1", "id": "s", "tenant_id": "t", "transport": "bogus", "auth_ref": "x"},
+		"bad severity":       {"schema": "product-forge/alert-rule@1", "tenant_id": "t", "event_type": "x", "channels": []any{"email"}, "severity": "bogus"},
+	}
+	for label, payload := range cases {
+		name := "event-envelope"
+		if label == "bad transport" {
+			name = "subscription"
+		}
+		if label == "bad severity" {
+			name = "alert-rule"
+		}
+		if ok, _ := Validate(name, payload); ok {
+			t.Fatalf("%s accepted", label)
+		}
+	}
+}
