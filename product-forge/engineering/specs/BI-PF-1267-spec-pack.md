@@ -14,11 +14,11 @@ Every conditional spec is `APPLICABLE` with an artifact/sections/evidence, or `N
 | data_contract | APPLICABLE | architecture | Envelope/subscription/alert/webhook fields are defined. | engineering/design/BI-PF-1267.md | 4 | core/contracts.py |
 | config_contract | APPLICABLE | architecture | WEBHOOK_HMAC_KEY_REF is a required secret-reference contract. | engineering/design/BI-PF-1267.md | 4, 5 | core/contracts.py |
 | nfr_slo | N/A | architecture | No runtime SLO in this contract-only item. |  |  |  |
-| security_threat_model | APPLICABLE | security | HMAC and tenant fields are security-relevant. | engineering/design/BI-PF-1267.md | 5 | core/contracts.py |
+| security_threat_model | APPLICABLE | security | HMAC and tenant fields are security-relevant. | engineering/design/BI-PF-1267.md | 5 | core/contracts.py, go/pfcore/contracts.go, test-framework/tests/pipeline/test_contracts.py |
 | migration_backfill | N/A | architecture | No data migration in contract-only item. |  |  |  |
 | rollback_dr | N/A | architecture | Revert the code change; no data migration. |  |  |  |
 | observability_runbook | N/A | platform | No runtime component in this item. |  |  |  |
 | accessibility_i18n | N/A | product | No user-facing surface. |  |  |  |
 | privacy_compliance | N/A | security | No new personal data flow. |  |  |  |
-| implementation_plan | APPLICABLE | architecture | Python/Go parity implementation is defined. | engineering/design/BI-PF-1267.md | 4 | core/contracts.py |
+| implementation_plan | APPLICABLE | architecture | Python/Go parity implementation is defined. | engineering/design/BI-PF-1267.md | 4 | core/contracts.py, go/pfcore/contracts.go, test-framework/tests/pipeline/test_contracts.py |
 | release_verification | N/A | release | Contract parity is covered by CI tests. |  |  |  |
