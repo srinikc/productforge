@@ -234,7 +234,7 @@ _EVENT_ENVELOPE = ContractSpec(
         Field("schema", required=True),
         Field("event_id", required=True),
         Field("event_type", required=True),
-        Field("event_version", required=True),
+        Field("event_version", type="enum", required=True, enum=("1",)),
         Field("occurred_at", required=True),
         Field("seq", type="integer", required=True),
         Field("tenant_id"), Field("project_id"), Field("run_id"), Field("stage_id"),
@@ -258,7 +258,7 @@ _SUBSCRIPTION = ContractSpec(
         Field("transport", type="enum", required=True,
               enum=("inproc", "sse", "webhook", "notify", "email")),
         Field("target"),
-        Field("auth_ref"),
+        Field("auth_ref", required=True),
         Field("enabled", type="boolean"),
         Field("created_by"),
     ),
@@ -812,3 +812,9 @@ def webhook_headers(event_id: str, body: bytes | str, secret: str) -> dict[str, 
     """Canonical webhook headers; idempotency key is exactly the event_id."""
     return {WEBHOOK_SIGNATURE_HEADER: webhook_signature(body, secret),
             WEBHOOK_IDEMPOTENCY_HEADER: str(event_id)}
+
+
+def events_after_cursor(rows, cursor: int):
+    """Return events with seq strictly greater than cursor, in seq order."""
+    n = int(cursor)
+    return sorted((r for r in (rows or []) if int(r.get("seq", 0)) > n), key=lambda r: int(r["seq"]))

@@ -99,7 +99,7 @@ def test_eventing_contracts_present_and_validate():
     assert contracts.validate("event-envelope", env)["valid"]
     assert contracts.validate("subscription", {"schema": "product-forge/subscription@1",
                                                "id": "s1", "tenant_id": "t1",
-                                               "transport": "webhook"})["valid"]
+                                               "transport": "webhook", "auth_ref": "secret:1"})["valid"]
     assert contracts.validate("alert-rule", {"schema": "product-forge/alert-rule@1",
                                              "tenant_id": "t1", "event_type": "run_failed",
                                              "channels": ["email"]})["valid"]
@@ -242,3 +242,16 @@ def test_metric_and_empty_secret_contract():
     assert contracts.webhook_signature(b"x", "") == ""
     empty_key_sig = "sha256=" + hmac.new(b"", b"x", hashlib.sha256).hexdigest()
     assert contracts.verify_webhook_signature(b"x", empty_key_sig, "") is False
+
+
+def test_eventing_cross_language_unknown_field_and_version():
+    assert contracts.validate("subscription", {"schema": "product-forge/subscription@1", "id": "s1", "tenant_id": "t", "transport": "webhook", "auth_ref": "x", "unexpected": 1})["valid"] is False
+    assert contracts.validate("alert-rule", {"schema": "product-forge/alert-rule@1", "tenant_id": "t", "event_type": "run_failed", "channels": ["email"], "unexpected": 1})["valid"] is False
+    assert contracts.validate("webhook-delivery", {"schema": "product-forge/webhook-delivery@1", "delivery_id": "d", "event_id": "e", "subscription_id": "s", "target_url": "https://example.test", "unexpected": 1})["valid"] is False
+    assert contracts.validate("event-envelope", {"schema": "product-forge/event-envelope@1", "event_id": "e", "event_type": "x", "event_version": "2", "occurred_at": "2026-01-01", "seq": 1})["valid"] is False
+    assert contracts.validate("event-envelope", {"schema": "product-forge/event-envelope@1", "event_id": "e", "event_type": "x", "event_version": "1", "occurred_at": "2026-01-01", "seq": "1"})["valid"] is False
+
+
+def test_event_cursor_ordering():
+    rows = [{"seq": 3}, {"seq": 1}, {"seq": 2}]
+    assert [r["seq"] for r in contracts.events_after_cursor(rows, 1)] == [2, 3]
