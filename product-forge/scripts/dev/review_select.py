@@ -21,10 +21,11 @@ def _ts(value: str) -> datetime:
 
 
 def latest_review(reviews_dir: Path, item_id: str, mode: str = "diff",
-                  prefer_sha: str = "") -> dict:
+                  prefer_sha: str = "", meta: dict | None = None) -> dict:
     """Newest review by recorded `at`; mtime is only a legacy tie-breaker."""
     best: dict = {}
     best_key: tuple | None = None
+    used_fallback = False
     for p in Path(reviews_dir).glob(f"{item_id}-*.json"):
         try:
             d = json.loads(p.read_text(encoding="utf-8"))
@@ -33,12 +34,18 @@ def latest_review(reviews_dir: Path, item_id: str, mode: str = "diff",
         if (d.get("mode") or "diff") != mode:
             continue
         if prefer_sha and str(d.get("sha") or "") == prefer_sha:
+            if meta is not None:
+                meta["mtime_fallback"] = not bool(str(d.get("at") or "").strip())
             return d
         key = (_ts(d.get("at")), p.stat().st_mtime)
         if best_key is None or key > best_key:
             best, best_key = d, key
+            used_fallback = not bool(str(d.get("at") or "").strip())
+    if meta is not None:
+        meta["mtime_fallback"] = used_fallback
     return best
 
 
 def is_closed(status) -> bool:
-    return str(status or "").lower() in CLOSED_STATUSES
+    from core import backlog
+    return backlog.section({"status": str(status or "")}) == "done"

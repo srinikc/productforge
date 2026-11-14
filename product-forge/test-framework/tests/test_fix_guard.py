@@ -58,3 +58,14 @@ def test_selector_normalizes_timestamps_and_skips_malformed(tmp_path):
     _review(reviews / "BI-PF-4-a.json", "2026-01-01T00:00:00Z", "a")
     _review(reviews / "BI-PF-4-b.json", "2026-02-01T00:00:00+00:00", "b")
     assert review_select.latest_review(reviews, "BI-PF-4")["sha"] == "b"
+
+
+def test_missing_at_uses_mtime_and_reports_fallback(tmp_path):
+    reviews = tmp_path / "engineering" / "reviews"
+    reviews.mkdir(parents=True)
+    legacy = reviews / "BI-PF-5-legacy.json"
+    legacy.write_text(json.dumps({"mode": "diff", "sha": "legacy",
+                                  "findings": {"MAJOR": [], "BLOCKER": []}}), encoding="utf-8")
+    meta = {}
+    assert review_select.latest_review(reviews, "BI-PF-5", meta=meta)["sha"] == "legacy"
+    assert meta["mtime_fallback"] is True

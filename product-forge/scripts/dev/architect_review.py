@@ -555,8 +555,12 @@ def review_block(findings: dict, model: str, sha: str, mode: str) -> str:
 
 def _latest_review(item_id: str, mode: str, prefer_sha: str = ""):
     """Prefer the current review sha; otherwise newest by recorded `at`."""
+    import logging
     from review_select import latest_review
-    found = latest_review(EVID, item_id, mode, prefer_sha)
+    meta = {}
+    found = latest_review(EVID, item_id, mode, prefer_sha, meta=meta)
+    if meta.get("mtime_fallback"):
+        logging.getLogger(__name__).warning("review_order_mtime_fallback item=%s mode=%s", item_id, mode)
     return found or None
 
 

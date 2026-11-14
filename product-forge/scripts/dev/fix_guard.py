@@ -22,8 +22,8 @@ def enforced(item,c):
     if str(item.get('id')) in (c.get('enforce_items') or []): return True
     a,b=exp(item.get('created_at')),exp(c.get('enforce_from'))
     return bool(a and b and a>=b)
-def latest_review(iid):
-    return _latest_review(ROOT/'engineering'/'reviews', iid, 'diff')
+def latest_review(iid, meta=None):
+    return _latest_review(ROOT/'engineering'/'reviews', iid, 'diff', meta=meta)
 def problems(item,c=None):
     c=c or cfg()
     if not enforced(item,c): return []
@@ -31,7 +31,7 @@ def problems(item,c=None):
     rev=latest_review(str(item.get('id')))
     required=[x for sev in ('BLOCKER','MAJOR') for x in ((rev.get('findings') or {}).get(sev) or []) if '[OUT_OF_SCOPE]' not in str(x)]
     if not required:
-        return []
+        return []  # no BLOCKER/MAJOR in the selected review => no fix-impact required
     if not isinstance(rows,list) or not rows: return ['fix_impact missing']
     bad=[]
     req=[x for sev in ('BLOCKER','MAJOR') for x in ((rev.get('findings') or {}).get(sev) or []) if '[OUT_OF_SCOPE]' not in str(x)]
@@ -63,13 +63,16 @@ def main(argv=None):
     ap=argparse.ArgumentParser(); ap.add_argument('--item'); ap.add_argument('--all',action='store_true'); a=ap.parse_args(argv)
     c=cfg(); bad=[]
     if a.all:
-        skipped = 0
+        skipped = fallback = 0
         for it in backlog.list_items('product_forge',None):
             if is_closed(it.get('status')):
                 skipped += 1
                 continue
+            meta = {}
+            latest_review(str(it.get('id')), meta=meta)
+            fallback += 1 if meta.get("mtime_fallback") else 0
             bad += [f"{it.get('id')}: {x}" for x in problems(it,c)]
-        print(f"fix-guard: status=ok skipped_closed={skipped}")
+        print(f"fix-guard: status={'fail' if bad else 'ok'} skipped_closed={skipped} mtime_fallback={fallback}")
     elif a.item:
         it=backlog.get_epic('product_forge',None,a.item) or {}
         bad += [f"{a.item}: {x}" for x in problems(it,c)]

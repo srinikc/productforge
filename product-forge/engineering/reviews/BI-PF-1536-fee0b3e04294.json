@@ -1,0 +1,38 @@
+{
+  "item": "BI-PF-1536",
+  "sha": "fee0b3e04294",
+  "model": "mimo-v2.6-flash",
+  "mode": "diff",
+  "parsed_ok": true,
+  "at": "2026-11-14T10:54:46.639578+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "e817d4dc8cdaab5179d2f100f9caadef76d0f110",
+  "findings": {
+    "BLOCKER": [
+      "AC-3 unmet: `review_select.latest_review` applies the mtime tie-break/fallback silently \u2014 no log, counter, or marker when `at` is missing/degraded; design failure_matrix `REVIEW_ORDER_MTIME_FALLBACK` (\"log/record degraded ordering\") is not implemented.",
+      "mtime fallback is a silent gate-ordering path: a legacy review with no `at` can win selection with zero runtime evidence that degraded ordering was used (test coverage does not make it observable in CI output)."
+    ],
+    "MAJOR": [
+      "`fix_guard.problems` now returns `[]` before the `fix_impact missing` check whenever the selected review has no BLOCKER/MAJOR findings (or no review is found) \u2014 silently drops existing enforcement; behavior change not authorized by the approved contract (\"No change to review findings or dispositions\").",
+      "`status=ok` is printed unconditionally in the `--all` branch before `bad` is evaluated, so a failing gate still emits `status=ok` \u2014 misleading observability that undermines AC-3.",
+      "`CLOSED_STATUSES` is hardcoded in `review_select.py` instead of reusing the `core/backlog.py` status authority named in design dependencies; vocabulary drift risks wrongly enforcing (or skipping) items as backlog statuses evolve.",
+      "Design claims `test_selector_normalizes_timestamps_and_skips_malformed` covers the mtime fallback, but every fixture includes `at` \u2014 the legacy missing-`at` path is never exercised (FR-1 data_rules \"mtime is fallback only\" untested)."
+    ],
+    "MINOR": [
+      "Closed-item skip in `--item` mode is silent (no `skipped_closed` output); AC-3 observability only satisfied for `--all`.",
+      "`problems()` computes the identical `required`/`req` list twice \u2014 dead duplicated block left in the gate path.",
+      "No test asserts the `skipped_closed=<n>` output or count (FR-2 \"Skipped count\" acceptance), only `enforced()` returns False."
+    ],
+    "NIT": [
+      "`return found or None` is redundant (`latest_review` already returns `{}`/dict).",
+      "`tmp_path` fixture unused in `test_closed_item_is_not_enforced`.",
+      "Function-local `from review_select import ...` in `architect_review._latest_review` runs on every call; module-level import matches the `fix_guard` pattern."
+    ],
+    "SUMMARY": [
+      "Shared selector and closed-skip are directionally right, but AC-3 is not satisfied: mtime fallback is silent at runtime and its claimed test coverage does not exist.",
+      "Two gate-semantics/observability defects in `fix_guard` (early return bypassing `fix_impact missing`; unconditional `status=ok`) weaken CI enforcement credibility.",
+      "Top risks: unauthorized enforcement change, misleading gate output, and duplicated closed-status vocabulary drifting from the backlog authority."
+    ]
+  }
+}
