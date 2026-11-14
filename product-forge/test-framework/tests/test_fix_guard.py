@@ -6,6 +6,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "scripts" / "dev"))
 import fix_guard as fg  # noqa: E402
+import review_select  # noqa: E402
 
 
 def _review(path: Path, at: str, sha: str):
@@ -30,3 +31,11 @@ def test_latest_review_uses_recorded_at_not_mtime(tmp_path, monkeypatch):
     older.touch()
     monkeypatch.setattr(fg, "ROOT", tmp_path)
     assert fg.latest_review("BI-PF-1")["sha"] == "new"
+
+
+def test_shared_selector_used_for_reviews(tmp_path):
+    reviews = tmp_path / "engineering" / "reviews"
+    reviews.mkdir(parents=True)
+    _review(reviews / "BI-PF-2-a.json", "2026-01-01T00:00:00Z", "a")
+    _review(reviews / "BI-PF-2-b.json", "2026-02-01T00:00:00+00:00", "b")
+    assert review_select.latest_review(reviews, "BI-PF-2")["sha"] == "b"

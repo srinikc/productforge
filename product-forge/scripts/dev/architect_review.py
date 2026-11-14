@@ -554,27 +554,10 @@ def review_block(findings: dict, model: str, sha: str, mode: str) -> str:
 
 
 def _latest_review(item_id: str, mode: str, prefer_sha: str = ""):
-    """Prefer the review for the CURRENT design/diff sha; otherwise newest by recorded `at`.
-
-    Checkout mtimes are not stable (CI writes files in tree order), so never use mtime as the
-    primary ordering key.
-    """
-    if not EVID.is_dir():
-        return None
-    best, best_key = None, None
-    for fp in EVID.glob(f"{item_id}-*.json"):
-        try:
-            d = json.loads(fp.read_text(encoding="utf-8"))
-        except Exception:
-            continue
-        if (d.get("mode") or "diff") != mode:
-            continue
-        if prefer_sha and str(d.get("sha") or "") == prefer_sha:
-            return d
-        key = (str(d.get("at") or ""), fp.stat().st_mtime)
-        if best_key is None or key > best_key:
-            best, best_key = d, key
-    return best
+    """Prefer the current review sha; otherwise newest by recorded `at`."""
+    from review_select import latest_review
+    found = latest_review(EVID, item_id, mode, prefer_sha)
+    return found or None
 
 
 def _item_dispositions(item_id: str, mode: str) -> dict:

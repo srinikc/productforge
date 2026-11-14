@@ -7,6 +7,7 @@ ROOT=Path(__file__).resolve().parents[2]
 for p in (str(ROOT),str(ROOT/'scripts'/'dev')): sys.path.insert(0,p)
 from core import backlog
 from review_sig import digest
+from review_select import latest_review as _latest_review, is_closed
 CFG=ROOT/'config'/'fix-impact.json'
 
 def cfg(): return json.loads(CFG.read_text(encoding='utf-8-sig'))
@@ -15,33 +16,24 @@ def exp(v):
     if not s: return None
     try: return datetime.fromisoformat(s).date()
     except ValueError: return date.fromisoformat(s)
-CLOSED_STATUSES = {"completed", "closed", "done", "delivered", "duplicate",
-                   "rejected", "wontfix", "archived"}
-
 def enforced(item,c):
-    if str(item.get('status') or '').lower() in CLOSED_STATUSES:
+    if is_closed(item.get('status')):
         return False
     if str(item.get('id')) in (c.get('enforce_items') or []): return True
     a,b=exp(item.get('created_at')),exp(c.get('enforce_from'))
     return bool(a and b and a>=b)
 def latest_review(iid):
-    """Deterministic: newest review by recorded `at`, not checkout mtime."""
-    best, key = {}, None
-    for p in (ROOT/'engineering'/'reviews').glob(f'{iid}-*.json'):
-        try: d=json.loads(p.read_text(encoding='utf-8'))
-        except Exception: continue
-        if d.get('mode')!='diff': continue
-        k=(str(d.get('at') or ''), p.stat().st_mtime)
-        if key is None or k>key:
-            best,key=d,k
-    return best
+    return _latest_review(ROOT/'engineering'/'reviews', iid, 'diff')
 def problems(item,c=None):
     c=c or cfg()
     if not enforced(item,c): return []
     rows=item.get('fix_impact')
+    rev=latest_review(str(item.get('id')))
+    required=[x for sev in ('BLOCKER','MAJOR') for x in ((rev.get('findings') or {}).get(sev) or []) if '[OUT_OF_SCOPE]' not in str(x)]
+    if not required:
+        return []
     if not isinstance(rows,list) or not rows: return ['fix_impact missing']
     bad=[]
-    rev=latest_review(str(item.get('id')))
     req=[x for sev in ('BLOCKER','MAJOR') for x in ((rev.get('findings') or {}).get(sev) or []) if '[OUT_OF_SCOPE]' not in str(x)]
     bysig={str(r.get('sig')):r for r in rows if isinstance(r,dict)}
     for text in req:
@@ -71,8 +63,13 @@ def main(argv=None):
     ap=argparse.ArgumentParser(); ap.add_argument('--item'); ap.add_argument('--all',action='store_true'); a=ap.parse_args(argv)
     c=cfg(); bad=[]
     if a.all:
+        skipped = 0
         for it in backlog.list_items('product_forge',None):
+            if is_closed(it.get('status')):
+                skipped += 1
+                continue
             bad += [f"{it.get('id')}: {x}" for x in problems(it,c)]
+        print(f"fix-guard: skipped {skipped} closed item(s)")
     elif a.item:
         it=backlog.get_epic('product_forge',None,a.item) or {}
         bad += [f"{a.item}: {x}" for x in problems(it,c)]

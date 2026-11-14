@@ -57,14 +57,15 @@
     "at": ""
   },
   "verification": [
-    "Objective achieved: One place to understand and read (via API) how PF builds/verifies/ships and how generated products do:\nthe CI/CD SSOT doc, a read-only model, and the read API for the orchestrator/UI."
+    "Gate 2.5 architect review (mimo-v2.6-flash): {'BLOCKER': 1, 'MAJOR': 2, 'MINOR': 4, 'NIT': 2}"
   ],
   "risks": [
     "Not specified."
   ],
   "rollback": "Revert the change.",
   "evidence": [
-    "pending"
+    "pending",
+    "Gate 2.5 architect review - model=mimo-v2.6-flash sha=fc713aebf2a1\nBLOCKER:\n  - Diff delivers none of BI-PF-1243's AC: no CI/CD SSOT doc, no read-only model, no read/orchestrator API surface — only a flake fix for review-artifact ordering (test docstring even cites BI-PF-1531, not this item).\nMAJOR:\n  - `fix_guard.enforced` now silently skips enforcement for any item whose free-text `status` matches CLOSED_STATUSES, overriding an explicitly configured `enforce_items` entry — a gate-enforcement bypass with no validation, audit log, or entry in the approved design/contract.\n  - The \"newest review by `at`\" selection is implemented twice (architect_review.py and fix_guard.py) with divergent semantics (sha-preferring vs mode-filtering); no single owner/helper, contrary to CL-001 and reuse expectations.\nMINOR:\n  - `architect_review._latest_review` behavior change has no regression test; only `fix_guard.latest_review` is covered, so the parallel ordering fix can drift unnoticed.\n  - Lexicographic comparison of `at` strings misorders across formats (\"Z\" vs \"+00:00\", naive vs aware); records lacking `at` still fall back to mtime, so the original checkout-order flake persists for legacy artifacts.\n  - No log/metric emitted when an item is skipped as closed or when ordering degrades to mtime — gate skips and ordering anomalies are not observable in production/CI.\n  - Test IDs/docstring reference BI-PF-1531 rather than the reviewed item BI-PF-1243, weakening traceability.\nNIT:\n  - `tmp_path` fixture unused in `test_closed_item_is_not_enforced`.\n  - Sentinel/initialization style (`best={}`/`key=None` vs `best_key=None`) differs between the two otherwise-identical loops.\nSUMMARY:\n  - The diff is a well-scoped tooling fix for non-deterministic review selection but does not implement the item's stated AC (SSOT doc + read-only model + read API), so the objective is unmet as submitted.\n  - Top risks: status-based enforcement bypass not in the approved contract, duplicated ordering logic, and no coverage/observability for the architect_review path.\n  - Language rule and test placement are compliant; recommend re-scoping the item or delivering the AC artifacts before approval.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present"
   ],
   "owner": "agent",
   "requester": "user",
@@ -78,9 +79,8 @@
     "BI-PF-1247",
     "BI-PF-1259",
     "BI-PF-1374",
-    "BI-PF-1508",
     "BI-PF-1526",
-    "BI-PF-1532",
+    "BI-PF-1536",
     "BI-PF-1238",
     "BI-PF-1239",
     "BI-PF-1336",
@@ -94,13 +94,15 @@
     "BI-PF-1465",
     "BI-PF-1466",
     "BI-PF-1467",
+    "BI-PF-1508",
     "BI-PF-1509",
     "BI-PF-1510",
     "BI-PF-1511",
     "BI-PF-1522",
     "BI-PF-1523",
     "BI-PF-1524",
-    "BI-PF-1525"
+    "BI-PF-1525",
+    "BI-PF-1532"
   ],
   "epic": "",
   "parent": "",
@@ -183,9 +185,9 @@
     "usage": {}
   },
   "created_at": "2026-10-10T16:34:20.300433",
-  "updated_at": "2026-11-06T23:54:36.955888",
+  "updated_at": "2026-11-14T15:39:36.765751",
   "score": 1.0,
-  "_note": "epic execution order saved",
+  "_note": "epic children synced",
   "execution_order": [
     {
       "id": "BI-PF-1246",
@@ -233,5 +235,42 @@
     "needs_api": false,
     "reason": "retrofit assessment (ADR-0007): no external API consumer recorded; treated as internal until an API surface is required (then set needs_api=true with routes)",
     "routes": []
-  }
+  },
+  "review_ledger": [
+    {
+      "mode": "diff",
+      "candidate_sha": "12d74227538cad134d036991ebe9e65baba497f3",
+      "review_sha": "fc713aebf2a1",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-14T10:05:33.031344+00:00",
+      "review_scope": "full_candidate",
+      "base_sha": "",
+      "head_sha": "12d74227538cad134d036991ebe9e65baba497f3",
+      "findings": {
+        "BLOCKER": [
+          "Diff delivers none of BI-PF-1243's AC: no CI/CD SSOT doc, no read-only model, no read/orchestrator API surface — only a flake fix for review-artifact ordering (test docstring even cites BI-PF-1531, not this item)."
+        ],
+        "MAJOR": [
+          "`fix_guard.enforced` now silently skips enforcement for any item whose free-text `status` matches CLOSED_STATUSES, overriding an explicitly configured `enforce_items` entry — a gate-enforcement bypass with no validation, audit log, or entry in the approved design/contract.",
+          "The \"newest review by `at`\" selection is implemented twice (architect_review.py and fix_guard.py) with divergent semantics (sha-preferring vs mode-filtering); no single owner/helper, contrary to CL-001 and reuse expectations."
+        ],
+        "MINOR": [
+          "`architect_review._latest_review` behavior change has no regression test; only `fix_guard.latest_review` is covered, so the parallel ordering fix can drift unnoticed.",
+          "Lexicographic comparison of `at` strings misorders across formats (\"Z\" vs \"+00:00\", naive vs aware); records lacking `at` still fall back to mtime, so the original checkout-order flake persists for legacy artifacts.",
+          "No log/metric emitted when an item is skipped as closed or when ordering degrades to mtime — gate skips and ordering anomalies are not observable in production/CI.",
+          "Test IDs/docstring reference BI-PF-1531 rather than the reviewed item BI-PF-1243, weakening traceability."
+        ],
+        "NIT": [
+          "`tmp_path` fixture unused in `test_closed_item_is_not_enforced`.",
+          "Sentinel/initialization style (`best={}`/`key=None` vs `best_key=None`) differs between the two otherwise-identical loops."
+        ],
+        "SUMMARY": [
+          "The diff is a well-scoped tooling fix for non-deterministic review selection but does not implement the item's stated AC (SSOT doc + read-only model + read API), so the objective is unmet as submitted.",
+          "Top risks: status-based enforcement bypass not in the approved contract, duplicated ordering logic, and no coverage/observability for the architect_review path.",
+          "Language rule and test placement are compliant; recommend re-scoping the item or delivering the AC artifacts before approval."
+        ]
+      },
+      "evidence": "BI-PF-1243-fc713aebf2a1.json"
+    }
+  ]
 }
