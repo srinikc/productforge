@@ -41,6 +41,26 @@
       "decision": "APPROVE",
       "by": "cli",
       "note": ""
+    },
+    {
+      "at": "2026-11-14T05:33:20.929763+00:00",
+      "by": "hil:user",
+      "decision": "OPEN_QUESTION_RESOLUTION",
+      "scope": "design",
+      "seq": 3,
+      "hil_confirmed": true,
+      "note": "HIL approved the six BI-PF-1267 contract resolutions: unknown fields, seq, HMAC ownership, secret handling, dedupe ownership, parity tests."
+    },
+    {
+      "at": "2026-11-14T06:38:38.830626+00:00",
+      "by": "hil:user",
+      "decision": "APPROVE",
+      "gate": 1,
+      "findings_sha": "3b1aefec2eb0",
+      "findings_digest": "a34d62767099",
+      "seq": 4,
+      "note": "HIL approved Gate 1 for BI-PF-1267 after design/spec/conformance and no blocker/major pending.",
+      "hil_confirmed": true
     }
   ],
   "follow_up": {},
@@ -64,12 +84,14 @@
     "Breaking existing envelope fields; new Python modules under shipped roots."
   ],
   "affected_components": [
-    "core"
+    "core",
+    "go",
+    "test-framework"
   ],
   "affected_files": [
     "core/contracts.py",
-    "events.py",
-    "test_contracts.py"
+    "go/pfcore/contracts.go",
+    "test-framework/tests/pipeline/test_contracts.py"
   ],
   "approach": "- Parity test (mirrors test_contracts.py pattern); contract test pins events.py public symbols.",
   "review": {
@@ -82,7 +104,7 @@
       "existing_path": [
         "canonical contract surface + JSON Schema + validate/canonical -> core/contracts.py (_SPECS/CONTRACTS)",
         "wire envelope + handle_wire -> core/contracts.py:347-404",
-        "Go mirror required-field tables -> go/contract/contract.go, go/pfcore/pfcore.go contractShapes",
+        "Go contract parity surface -> go/pfcore/contracts.go (canonical); go/contract/contract.go and pfcore.contractShapes are read-only legacy",
         "parity test -> test-framework/tests/pipeline/test_contracts.py",
         "Go invocation seam -> core/go_host.py",
         "consumers of contracts -> core/bom.py:195,198; core/go_host.py"
@@ -90,59 +112,81 @@
       "assumptions": [
         "B1 adding contracts is additive; existing consumers (bom.py, go_host) unaffected",
         "B2 the Go mirror tables stay in lockstep, cross-checked by test_contracts.py",
-        "B3 event-envelope `seq` writer stays core/events.py (item 1268/1272); contracts define schemas only"
+        "B3 the Go/PostgreSQL event core owns seq; BI-PF-1267 defines schemas only and adds no Python writer"
       ],
       "divergences": [
         "none - additive; no prior decision contradicted"
       ],
       "open_questions": [
-        "Qa: model the event envelope as a first-class ContractSpec for Go parity (writer stays core/events.py)?",
-        "Qb: webhook signature = HMAC-SHA256, headers X-PF-Signature + X-PF-Idempotency-Key"
+        "Unknown top-level envelope fields are rejected; vendor data must use extensions{}; no silent coercion.",
+        "seq is assigned by the Go/PostgreSQL event core, never by producers; per-tenant monotonic increasing, gaps allowed, never reused; cursor uses seq > cursor, not occurred_at.",
+        "BI-PF-1267 owns webhook payload/header contract and constant-time verifier test; BI-PF-1270 owns runtime delivery and calls that verifier.",
+        "WEBHOOK_HMAC_KEY_REF is a secret reference, never the key; webhook-enabled startup fails closed when missing.",
+        "BI-PF-1267 guarantees event_id and idempotency header shape; runtime dedupe belongs to BI-PF-1270.",
+        "Python/Go parity tests must cover missing/invalid seq, cursor ordering, unknown version, and signature verification."
       ]
     },
     "impact_review": [
       {
-        "claim": "Add contract specs (subscription, alert-rule, webhook-delivery, event-envelope)",
+        "claim": "New Go contract mirror",
         "verdict": "aligned",
-        "evidence": "core/contracts.py:328-343 grow-by-need; _SPECS"
+        "evidence": "go/pfcore/contracts.go (BI-PF-1267)",
+        "recommendation": "implement under go/ and parity-test"
       },
       {
-        "claim": "Go mirror extended additively",
+        "claim": "Python shipped-surface change",
         "verdict": "aligned",
-        "evidence": "go/pfcore/pfcore.go contractShapes; go/contract/contract.go"
+        "evidence": "core/contracts.py edit only",
+        "recommendation": "no new Python module"
       },
       {
-        "claim": "Parity test extended",
+        "claim": "No new Python module in shipped roots",
         "verdict": "aligned",
-        "evidence": "test-framework/tests/pipeline/test_contracts.py"
-      },
-      {
-        "claim": "Existing consumers unaffected",
-        "verdict": "aligned",
-        "evidence": "core/bom.py:195,198; core/go_host.py"
-      },
-      {
-        "claim": "New Python module in shipped root",
-        "verdict": "violates",
         "evidence": "config/language-rule.json",
-        "recommendation": "not needed - edit core/contracts.py only"
+        "recommendation": "edit-only"
+      },
+      {
+        "claim": "No runtime API route change",
+        "verdict": "aligned",
+        "evidence": "contract shapes only",
+        "recommendation": "no API route in 1267"
+      },
+      {
+        "claim": "Webhook secret handling",
+        "verdict": "aligned",
+        "evidence": "WEBHOOK_HMAC_KEY_REF secret reference",
+        "recommendation": "fail closed at startup"
+      },
+      {
+        "claim": "Go/Python parity",
+        "verdict": "aligned",
+        "evidence": "test-framework/tests/pipeline/test_contracts.py",
+        "recommendation": "parity tests block CI"
       }
     ],
     "reviewed_by": "architect",
     "at": "2026-10-12T23:41:03.472587"
   },
   "verification": [
-    "Go and Python required-field/shape parity tests pass; existing test_api_events stays green."
+    "Gate 1.5 architect review (mimo-v2.6-flash): {'BLOCKER': 0, 'MAJOR': 0, 'MINOR': 4, 'NIT': 2}"
   ],
   "risks": [
-    "Not specified."
+    "Python/Go contract drift",
+    "Unknown-field mismatch across versions",
+    "Replay or signature bypass",
+    "Mixed-version consumers during rollout",
+    "Secret reference misconfiguration"
   ],
   "rollback": "Revert the change.",
   "evidence": [
     "test:test-framework/tests/pipeline/test_contracts.py",
     "file:core/contracts.py",
     "file:go/contract/contract.go",
-    "file:go/pfcore/pfcore.go"
+    "file:go/pfcore/pfcore.go",
+    "Gate 1.5 architect review - model=mimo-v2.6-flash sha=6996429ccf34\nBLOCKER:\n  - none\nMAJOR:\n  - FR-2 acceptance (\"webhook accepted and deduped by event_id\") requires runtime dispatch/dedup, explicitly a non-goal and absent from affected_files; declared tests cannot satisfy it.\n  - config_contract declares WEBHOOK_HMAC_KEY_REF (fail-closed, startup validation required) while spec_pack marks config_contract N/A \"no config file change\" — contradictory secret-handling contract for a security-relevant control.\n  - Invariant \"unknown fields rejected or preserved by explicit version policy\" is left undecided; without a pinned policy Python/Go parity tests can pass while runtime behaviors diverge.\n  - Monotonic `seq` invariant (assignment source, gap/ordering semantics vs occurred_at, cross-producer ordering) is not stated or tested despite checklist item 5.\n  - Design pack does not answer guardrail checklist items 1-6, 9-10 (CL-008): no authz/tenant-boundary statement, no invariant tests, no metrics/owners for CONTRACT_INVALID/WEBHOOK_SIGNATURE_INVALID.\n  - `risks: Not specified` for a security-bearing contract change; no identified parity-drift, replay, or versioning risks with mitigations.\n  - CL-013 constant-time HMAC comparison is asserted in design_pack.security but no test or file pins it among affected_files.\nMINOR:\n  - Observability says \"failures counted by code\" without metric names, labels, or alert owner (CL-014 lead-time not addressed).\n  - Rollback is \"Revert the change\" only; no statement on mixed-version consumers during rollout window despite additive-only claim.\n  - FR-2 verification points to test_contracts.py for signature tests, but signature verification is runtime logic not present in declared files.\nNIT:\n  - Traceability evidence for FR-1 lists core/contracts.py for both design and evidence lines; could cite the parity test explicitly.\n  - test_api_events greenness is an AC but no explicit CI job/test list is named to run it.\nSUMMARY:\n  - Design is structurally sound (additive, Go mirror, CI-blocking parity) and does not violate the language rule, but it is not ready for Gate 1.5: FR-2 acceptance exceeds declared scope, the HMAC secret contract is self-contradictory, and the unknown-field and `seq` invariants are unpinned — the top risks are contract drift that parity tests may not catch and unverifiable security acceptance criteria.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)",
+    "Gate 1.5 architect review - model=mimo-v2.6-flash sha=04038c3c0c10\nBLOCKER:\n  - review.impact_review records language-rule verdict \"violates\" (\"New Python module in shipped root\") while affected_files declare only an edit to core/contracts.py; unresolved contradiction — either an undeclared shipped-Python addition (language-rule violation) or an erroneous verdict — must be reconciled before Gate approval.\nMAJOR:\n  - Residual of prior config-contract finding with new evidence: delta design_pack.contracts.config states \"No new env flag in this item\" while functional_spec.config_contract declares WEBHOOK_HMAC_KEY_REF (required, fail-closed, env/secret precedence, startup validation); the delta spec_pack also silently dropped the config_contract applicability row entirely — a security-relevant control with no owning spec row and an explicit \"no config\" denial.\n  - test_matrix pins Go/Python parity only for the envelope (row 1); no named parity test covers subscription, alert-rule, or webhook payload/header shapes although in_scope puts them in the Go mirror, and webhook tests cite core/contracts.py only — AC \"Go and Python required-field/shape parity tests pass\" is not fully demonstrable for in-scope contracts.\n  - Rollback remains \"Revert the contract PR\" with no mixed-version consumer guidance beyond \"ship Python and Go mirrors together\"; prior MAJOR on guardrail answers is only partially closed (role posture and CL-011 runtime-role statement still absent even as N/A for a no-DB-change item).\nMINOR:\n  - CL-011 runtime role posture (NOSUPERUSER/NOBYPASSRLS) is never stated, not even declared N/A; tenant binding is now covered but guardrail 3 remains unanswered in the delta.\n  - design_pack.observability assigns contract_validation_failures_total{code} to platform, but no artifact in affected_files emits it; the emission point/deferred owner is unstated (guardrail 10).\n  - spec_pack security_threat_model and implementation_plan evidence cite only core/contracts.py although go/pfcore/contracts.go and the parity test are declared in-scope mirrors.\n  - review.impact_review mixes verdicts (\"violates\" with recommendation \"not needed\"); verdict/recommendation semantics for impact rows are ambiguous and weaken gate evidence.\nNIT:\n  - Impact-review evidence cites line numbers (core/bom.py:195,198) that will drift; prefer symbol/contract names for durable evidence.\nSUMMARY:\n  - Delta meaningfully closes several prior pendings (unknown-field policy, seq invariant, risks list, FR-2 runtime deferral, constant-time test pin, observability owners/thresholds), but three prior majors persist or evolved: config-contract contradiction (now worsened by a dropped spec_pack row and \"no new env flag\"), incomplete parity-test coverage for non-envelope contracts, and an unresolved language-rule \"violates\" verdict in the review record.\n  - Top risks before Gate: ship-scope ambiguity on the language rule, a fail-closed security config with no owning design row, and AC parity claimed for contracts with no pinned Go evidence.\nRECOMMENDATION: BLOCKED - objectively verifiable blocker(s) present",
+    "Gate 1.5 architect review - model=mimo-v2.6-flash sha=0003df332381\nBLOCKER:\n  - none\nMAJOR:\n  - review.reconciliation.assumptions B3 says the `seq` writer stays in `core/events.py`, contradicting the binding invariant/decision that seq is assigned by the Go/PostgreSQL event core; this also implies new shipped Python logic under the language rule.\n  - Three Go contract-shape surfaces are now in play (existing `go/contract/contract.go`, `go/pfcore/pfcore.go` contractShapes, new `go/pfcore/contracts.go`); no consolidation or statement of which surface parity tests pin vs. which runtime uses — drift risk defeats AC-1.\n  - `config_contract` mandates WEBHOOK_HMAC_KEY_REF startup validation fail-closed, but this item has no runtime component and, unlike metrics (deferred to BI-PF-1270/1274), no implementing artifact or deferred owner is named.\nMINOR:\n  - Open question requires parity coverage of cursor ordering, but test_matrix has no named cursor-ordering test.\n  - Row 3 (constant-time HMAC/idempotency) evidence omits `go/pfcore/contracts.go` despite the open question requiring signature-verification parity across Python/Go.\n  - design_pack.security repeats near-identical HMAC/tenant bullets (concatenated revisions), obscuring the actual control set.\nNIT:\n  - functional_spec.observability and design_pack.observability are verbatim duplicates; ADR-0005 (prior_decisions) and ADR-0011 (assumptions) are cited without cross-reference.\nSUMMARY:\n  - Delta closes the prior BLOCKER (impact verdict now \"aligned\") and the config-contract, rollback, CL-011, observability-owner, spec evidence, and webhook-parity-row findings; prior NIT unchanged and not reopened.\n  - Top residual risks: seq-writer contradiction on a P0 invariant, fragmented Go mirror surfaces vs. declared file, and unowned fail-closed startup validation.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)",
+    "Gate 1.5 architect review - model=mimo-v2.6-flash sha=500f6e048c48\nBLOCKER:\n  - none\nMAJOR:\n  - none\nMINOR:\n  - review.reconciliation.existing_path still labels `go/contract/contract.go` and `pfcore.contractShapes` as the \"Go mirror required-field tables\", contradicting the new delta decision that `go/pfcore/contracts.go` is canonical and the others legacy/not extended; stale row should be updated in the same delta to avoid implementers extending the wrong surface.\n  - test_matrix row 4 (`test_cursor_ordering_contract`) evidence lists only `core/contracts.py` and `go/pfcore/contracts.go`, omitting `test-framework/tests/pipeline/test_contracts.py` where the test itself lives, breaking the evidence-to-file traceability pattern used by the other rows.\n  - AC \"existing test_api_events stays green\" is not represented in test_matrix or traceability; add a regression row/evidence so the AC is fail-able in CI, not only implied.\n  - Delta does not explicitly answer the design guardrail checklist items (reversibility/backup, SPOF/startup check, blast-radius/dry-run, tenant isolation, reuse/observability owner) even where they are N/A for a contract-only item; CL-008 requires each item be answered in the design before Gate 1.5 (CL-011/CL-013 are only partially evidenced via security bullets).\nNIT:\n  - functional_spec.observability and design_pack.observability are no longer verbatim duplicates but remain near-duplicative; consider a single canonical row with the other referencing it.\n  - reconciliation.prior_decisions cites ADR-0005 while assumptions cite ADR-0011 with no cross-reference between the two rows.\nSUMMARY:\n  - Delta resolves the prior B3 `seq`-writer contradiction, names the canonical Go contract surface, adds the cursor-ordering test row, fixes the HMAC row evidence, and assigns a deferred owner for `WEBHOOK_HMAC_KEY_REF`; prior MAJORs 1-3 and MINORs 4-6 are adequately dispositioned. No blockers: language rule, additive-only invariants, and CI-blocking parity remain intact. Top residual risks are the stale `existing_path` reconciliation row (drift toward legacy Go surfaces) and incomplete guardrail-checklist/AC regression traceability before Gate 1.5.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)"
   ],
   "owner": "agent",
   "requester": "design",
@@ -233,17 +277,747 @@
     "usage": {}
   },
   "created_at": "2026-10-12T22:54:03.939725",
-  "updated_at": "2026-10-16T15:39:33.527625",
+  "updated_at": "2026-11-14T12:08:38.925854",
   "score": 0.83,
-  "_note": "dependencies set",
+  "_note": "Design minors fixed; prior findings dispositioned ACTIONED for Gate 1.",
   "api_impact": {
-    "needs_api": true,
-    "reason": "declared API surface (links.backend_capability)",
-    "routes": [
-      "file:core/contracts.py",
-      "file:go/contract/contract.go",
-      "file:go/pfcore/pfcore.go",
-      "test:test-framework/tests/pipeline/test_contracts.py"
+    "needs_api": false,
+    "reason": "Shared contract shapes only; no runtime API route change."
+  },
+  "design_pack": {
+    "version": 1,
+    "requirements": [
+      "Go and Python required-field/shape parity tests pass; existing test_api_events stays green."
+    ],
+    "invariants": [
+      "Wire contracts are versioned and additive.",
+      "Unknown top-level envelope fields are rejected; vendor data belongs only in extensions{}.",
+      "seq is assigned by the Go/PostgreSQL event core, never by producers; per-tenant monotonic, gaps allowed, never reused.",
+      "Cursor ordering uses seq only; occurred_at is not an ordering key.",
+      "Python and Go must agree on required fields and shapes.",
+      "Webhook signatures use constant-time HMAC over the raw body; idempotency key is event_id."
+    ],
+    "contracts": {
+      "api": [
+        "No public runtime API change; contract shapes are shared by event producers/consumers."
+      ],
+      "db": [
+        "No schema change in BI-PF-1267."
+      ],
+      "files": [
+        "core/contracts.py",
+        "go/pfcore/contracts.go",
+        "test-framework/tests/pipeline/test_contracts.py",
+        "legacy/read-only: go/contract/contract.go",
+        "legacy/read-only: go/pfcore/pfcore.go contractShapes"
+      ],
+      "config": [
+        "WEBHOOK_HMAC_KEY_REF is a secret reference (never the key); required and fail-closed at startup when webhook delivery is enabled."
+      ]
+    },
+    "failure_matrix": [
+      {
+        "case": "Required field missing",
+        "expected": "Reject with CONTRACT_INVALID",
+        "code": "CONTRACT_INVALID"
+      },
+      {
+        "case": "Unknown envelope version",
+        "expected": "Reject with CONTRACT_VERSION_UNSUPPORTED",
+        "code": "CONTRACT_VERSION_UNSUPPORTED"
+      },
+      {
+        "case": "Python/Go shape mismatch",
+        "expected": "Parity test fails CI",
+        "code": "CONTRACT_PARITY_MISMATCH"
+      },
+      {
+        "case": "Webhook signature mismatch",
+        "expected": "Reject delivery before processing",
+        "code": "WEBHOOK_SIGNATURE_INVALID"
+      }
+    ],
+    "dependencies": [
+      "BI-PF-1266 design (ADR-0011)",
+      "BI-PF-1292 EDP baseline",
+      "core/contracts.py A1 pattern"
+    ],
+    "security": [
+      "HMAC verification uses constant-time comparison; tenant/auth fields are required in subscription/replay contracts."
+    ],
+    "observability": [
+      "Contract metrics are defined but emitted by BI-PF-1270/1274, not this contract item: contract_validation_failures_total{code}, contract_parity_test_failures. Owner: platform + CI."
+    ],
+    "performance": [
+      "Envelope validation is bounded and allocation-light; no large payload copies (payload_ref contract)."
+    ],
+    "test_matrix": [
+      {
+        "ac": "AC-1",
+        "tests": [
+          "test_envelope_required_fields_parity",
+          "test_seq_contract_parity",
+          "test_unknown_fields_rejected"
+        ],
+        "evidence": [
+          "core/contracts.py",
+          "go/pfcore/contracts.go",
+          "test-framework/tests/pipeline/test_contracts.py"
+        ]
+      },
+      {
+        "ac": "AC-1",
+        "tests": [
+          "test_subscription_shape_parity",
+          "test_alert_rule_shape_parity",
+          "test_webhook_payload_header_parity"
+        ],
+        "evidence": [
+          "core/contracts.py",
+          "go/pfcore/contracts.go",
+          "test-framework/tests/pipeline/test_contracts.py"
+        ]
+      },
+      {
+        "ac": "AC-1",
+        "tests": [
+          "test_webhook_hmac_constant_time",
+          "test_webhook_idempotency_header"
+        ],
+        "evidence": [
+          "core/contracts.py",
+          "go/pfcore/contracts.go",
+          "test-framework/tests/pipeline/test_contracts.py"
+        ]
+      },
+      {
+        "ac": "AC-1",
+        "tests": [
+          "test_cursor_ordering_contract"
+        ],
+        "evidence": [
+          "core/contracts.py",
+          "go/pfcore/contracts.go",
+          "test-framework/tests/pipeline/test_contracts.py"
+        ]
+      },
+      {
+        "ac": "AC-1",
+        "tests": [
+          "test_api_events"
+        ],
+        "evidence": [
+          "test-framework/tests/pipeline/test_api_events.py"
+        ]
+      }
+    ],
+    "rollout": [
+      "Additive contract fields only; ship Python and Go mirrors together."
+    ],
+    "rollback": "Revert the contract PR. Mixed-version window: producers must keep legacy fields; consumers ignore unknown extensions and reject unknown top-level fields. Do not enable webhook delivery until BI-PF-1270 ships the verifier caller.",
+    "decisions": [
+      "Envelope v2 adds seq and payload reference fields additively.",
+      "Subscription/alert/webhook contracts are versioned and shared.",
+      "Go mirrors Python contracts; parity is CI-blocking.",
+      "Unknown top-level envelope fields are rejected; vendor data must use extensions{}; no silent coercion.",
+      "seq is assigned by the Go/PostgreSQL event core, never by producers; per-tenant monotonic increasing, gaps allowed, never reused; cursor uses seq > cursor, not occurred_at.",
+      "BI-PF-1267 owns webhook payload/header contract and constant-time verifier test; BI-PF-1270 owns runtime delivery and calls that verifier.",
+      "WEBHOOK_HMAC_KEY_REF is a secret reference, never the key; webhook-enabled startup fails closed when missing.",
+      "BI-PF-1267 guarantees event_id and idempotency header shape; runtime dedupe belongs to BI-PF-1270.",
+      "Python/Go parity tests must cover missing/invalid seq, cursor ordering, unknown version, and signature verification.",
+      "Go contract surface: go/pfcore/contracts.go is canonical for parity; go/contract/contract.go and pfcore.contractShapes are legacy, not extended."
+    ],
+    "guardrails": [
+      "No breaking envelope field removal.",
+      "No new Python module under shipped roots.",
+      "No secret in webhook payload.",
+      "HIL-approved open-question resolutions are binding; no unconfirmed assumption may be implemented.",
+      "Unknown top-level fields fail validation; extensions{} is the only vendor extension surface.",
+      "CL-008 authz/tenant: subscription/replay contracts require tenant + auth_ref.",
+      "Unknown-field and seq invariants have named parity tests.",
+      "No metric/alert is introduced without owner and threshold.",
+      "CL-008 reversibility: revert the contract PR; no data migration.",
+      "CL-008 SPOF/startup: no runtime component in this item; webhook startup validation is owned by BI-PF-1270.",
+      "CL-008 blast radius/dry-run: contract-only; no runtime rollout; parity tests are the dry-run proof.",
+      "CL-008 tenant isolation: tenant/auth fields are required contracts and tested.",
+      "CL-008 reuse/observability: reuse core/contracts.py and existing Go mirror; metric emission is owned by BI-PF-1270/1274."
+    ],
+    "learnings": [
+      "Contract drift is caught by required-field parity tests, not by prose."
     ]
+  },
+  "functional_spec": {
+    "version": 1,
+    "status": "APPROVED",
+    "owner": "architecture",
+    "source": "BI-PF-1267 event contracts",
+    "outcome": [
+      "Versioned event/subscription/alert/webhook contracts with Go-Python parity."
+    ],
+    "actors": [
+      "producer",
+      "consumer",
+      "dispatcher",
+      "operator"
+    ],
+    "scope": [
+      "envelope v2",
+      "subscription schema",
+      "alert-rule schema",
+      "webhook payload/signature",
+      "Go parity"
+    ],
+    "non_goals": [
+      "No runtime store/dispatcher implementation in this item."
+    ],
+    "assumptions": [
+      "BI-PF-1266 design and ADR-0011 are approved."
+    ],
+    "dependencies": [
+      "BI-PF-1266",
+      "BI-PF-1292"
+    ],
+    "domain": [
+      "eventing contracts"
+    ],
+    "requirements": [
+      {
+        "id": "FR-1",
+        "title": "Versioned event envelope with seq and payload reference",
+        "priority": "P0",
+        "source": "BI-PF-1267",
+        "preconditions": "A producer emits an event.",
+        "trigger": "Contract validation runs.",
+        "inputs": "Envelope fields.",
+        "outputs": "Validated envelope v2.",
+        "errors": "CONTRACT_INVALID; CONTRACT_VERSION_UNSUPPORTED.",
+        "auth": "Tenant/actor fields present.",
+        "idempotency": "event_id required.",
+        "data_rules": "Additive fields only.",
+        "edge_cases": "Unknown version and missing field.",
+        "acceptance": [
+          "Given an envelope When required fields are present Then Python and Go accept the same shape."
+        ],
+        "verification": "Contract parity tests in BI-PF-1267."
+      },
+      {
+        "id": "FR-2",
+        "title": "Subscription, alert-rule and webhook contracts",
+        "priority": "P0",
+        "source": "BI-PF-1267",
+        "preconditions": "Consumer or webhook is registered.",
+        "trigger": "Subscription/alert/webhook payload is validated.",
+        "inputs": "Target, filter, channels, body.",
+        "outputs": "Validated contract plus HMAC headers.",
+        "errors": "WEBHOOK_SIGNATURE_INVALID; CONTRACT_INVALID.",
+        "auth": "auth_ref and tenant context.",
+        "idempotency": "X-PF-Idempotency-Key = event_id.",
+        "data_rules": "No secrets in payload.",
+        "edge_cases": "Replay and signature mismatch.",
+        "acceptance": [
+          "Given a webhook contract When headers and body are validated Then signature and event_id idempotency headers are present; runtime delivery/dedupe belongs to BI-PF-1270."
+        ],
+        "verification": "Contract/header shape tests in BI-PF-1267; runtime delivery tests in BI-PF-1270."
+      }
+    ],
+    "operation_matrix": [
+      {
+        "mode": "validate",
+        "operation": "envelope",
+        "scope": "tenant",
+        "actor": "producer",
+        "expected": "accept/reject",
+        "error": "CONTRACT_INVALID"
+      },
+      {
+        "mode": "validate",
+        "operation": "webhook",
+        "scope": "tenant",
+        "actor": "dispatcher",
+        "expected": "HMAC verified",
+        "error": "WEBHOOK_SIGNATURE_INVALID"
+      }
+    ],
+    "config_contract": [
+      {
+        "name": "WEBHOOK_HMAC_KEY_REF",
+        "default": "secret ref required",
+        "precedence": "env/secret",
+        "valid_values": "secret reference",
+        "empty_behavior": "fail closed",
+        "invalid_behavior": "fail closed",
+        "startup_validation": "required"
+      }
+    ],
+    "nfr": [
+      "Parity tests are deterministic.",
+      "Validation does not mutate payloads."
+    ],
+    "data_lifecycle": [
+      "Contracts are code/config; no runtime data store."
+    ],
+    "compatibility": [
+      "Envelope fields are additive; legacy fields remain."
+    ],
+    "rollback": "Revert the contract PR. Mixed-version window: producers must keep legacy fields; consumers ignore unknown extensions and reject unknown top-level fields. Do not enable webhook delivery until BI-PF-1270 ships the verifier caller.",
+    "observability": [
+      "Contract metrics are emitted by BI-PF-1270/1274; BI-PF-1267 defines their names/labels only."
+    ],
+    "traceability": [
+      {
+        "fr": "FR-1",
+        "design": "engineering/design/BI-PF-1267.md#4",
+        "test": "test-framework/tests/pipeline/test_contracts.py",
+        "evidence": "core/contracts.py"
+      },
+      {
+        "fr": "FR-2",
+        "design": "engineering/design/BI-PF-1267.md#4",
+        "test": "test-framework/tests/pipeline/test_contracts.py",
+        "evidence": "go/pfcore/contracts.go"
+      }
+    ],
+    "open_questions": [
+      "Unknown top-level envelope fields are rejected; vendor data must use extensions{}; no silent coercion.",
+      "seq is assigned by the Go/PostgreSQL event core, never by producers; per-tenant monotonic increasing, gaps allowed, never reused; cursor uses seq > cursor, not occurred_at.",
+      "BI-PF-1267 owns webhook payload/header contract and constant-time verifier test; BI-PF-1270 owns runtime delivery and calls that verifier.",
+      "WEBHOOK_HMAC_KEY_REF is a secret reference, never the key; webhook-enabled startup fails closed when missing.",
+      "BI-PF-1267 guarantees event_id and idempotency header shape; runtime dedupe belongs to BI-PF-1270.",
+      "Python/Go parity tests must cover missing/invalid seq, cursor ordering, unknown version, and signature verification."
+    ],
+    "dod": [
+      "Gate 1.5 approved",
+      "Gate 1 HIL approved",
+      "Python/Go parity tests pass"
+    ],
+    "functional_sha": "349625045df7"
+  },
+  "spec_pack": {
+    "version": 1,
+    "status": "APPROVED",
+    "functional_ref": "engineering/specs/BI-PF-1267.md",
+    "design_ref": "engineering/design/BI-PF-1267.md",
+    "applicability": [
+      {
+        "spec": "product_design_spec",
+        "status": "APPLICABLE",
+        "owner": "architecture",
+        "reason": "Contract shapes are defined.",
+        "artifact": "engineering/design/BI-PF-1267.md",
+        "sections": [
+          "4"
+        ],
+        "evidence": [
+          "core/contracts.py"
+        ]
+      },
+      {
+        "spec": "api_contract",
+        "status": "N/A",
+        "owner": "architecture",
+        "reason": "No public runtime API shape change in this contract item."
+      },
+      {
+        "spec": "data_contract",
+        "status": "APPLICABLE",
+        "owner": "architecture",
+        "reason": "Envelope/subscription/alert/webhook fields are defined.",
+        "artifact": "engineering/design/BI-PF-1267.md",
+        "sections": [
+          "4"
+        ],
+        "evidence": [
+          "core/contracts.py"
+        ]
+      },
+      {
+        "spec": "config_contract",
+        "status": "APPLICABLE",
+        "owner": "platform (BI-PF-1270)",
+        "reason": "WEBHOOK_HMAC_KEY_REF is a required secret reference; runtime startup validation is owned by BI-PF-1270.",
+        "artifact": "engineering/design/BI-PF-1267.md",
+        "sections": [
+          "4",
+          "5"
+        ],
+        "evidence": [
+          "core/contracts.py"
+        ]
+      },
+      {
+        "spec": "nfr_slo",
+        "status": "N/A",
+        "owner": "architecture",
+        "reason": "No runtime SLO in this contract-only item."
+      },
+      {
+        "spec": "security_threat_model",
+        "status": "APPLICABLE",
+        "owner": "security",
+        "reason": "HMAC and tenant fields are security-relevant.",
+        "artifact": "engineering/design/BI-PF-1267.md",
+        "sections": [
+          "5"
+        ],
+        "evidence": [
+          "core/contracts.py",
+          "go/pfcore/contracts.go",
+          "test-framework/tests/pipeline/test_contracts.py"
+        ]
+      },
+      {
+        "spec": "migration_backfill",
+        "status": "N/A",
+        "owner": "architecture",
+        "reason": "No data migration in contract-only item."
+      },
+      {
+        "spec": "rollback_dr",
+        "status": "N/A",
+        "owner": "architecture",
+        "reason": "Revert the code change; no data migration."
+      },
+      {
+        "spec": "observability_runbook",
+        "status": "N/A",
+        "owner": "platform",
+        "reason": "No runtime component in this item."
+      },
+      {
+        "spec": "accessibility_i18n",
+        "status": "N/A",
+        "owner": "product",
+        "reason": "No user-facing surface."
+      },
+      {
+        "spec": "privacy_compliance",
+        "status": "N/A",
+        "owner": "security",
+        "reason": "No new personal data flow."
+      },
+      {
+        "spec": "implementation_plan",
+        "status": "APPLICABLE",
+        "owner": "architecture",
+        "reason": "Python/Go parity implementation is defined.",
+        "artifact": "engineering/design/BI-PF-1267.md",
+        "sections": [
+          "4"
+        ],
+        "evidence": [
+          "core/contracts.py",
+          "go/pfcore/contracts.go",
+          "test-framework/tests/pipeline/test_contracts.py"
+        ]
+      },
+      {
+        "spec": "release_verification",
+        "status": "N/A",
+        "owner": "release",
+        "reason": "Contract parity is covered by CI tests."
+      }
+    ]
+  },
+  "review_ledger": [
+    {
+      "mode": "design",
+      "candidate_sha": "d97bfd96668bd488a61b4a10e5d12026a70c4249",
+      "review_sha": "6996429ccf34",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-14T04:21:42.347695+00:00",
+      "review_scope": "full_candidate",
+      "base_sha": "",
+      "head_sha": "d97bfd96668bd488a61b4a10e5d12026a70c4249",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [
+          "FR-2 acceptance (\"webhook accepted and deduped by event_id\") requires runtime dispatch/dedup, explicitly a non-goal and absent from affected_files; declared tests cannot satisfy it.",
+          "config_contract declares WEBHOOK_HMAC_KEY_REF (fail-closed, startup validation required) while spec_pack marks config_contract N/A \"no config file change\" — contradictory secret-handling contract for a security-relevant control.",
+          "Invariant \"unknown fields rejected or preserved by explicit version policy\" is left undecided; without a pinned policy Python/Go parity tests can pass while runtime behaviors diverge.",
+          "Monotonic `seq` invariant (assignment source, gap/ordering semantics vs occurred_at, cross-producer ordering) is not stated or tested despite checklist item 5.",
+          "Design pack does not answer guardrail checklist items 1-6, 9-10 (CL-008): no authz/tenant-boundary statement, no invariant tests, no metrics/owners for CONTRACT_INVALID/WEBHOOK_SIGNATURE_INVALID.",
+          "`risks: Not specified` for a security-bearing contract change; no identified parity-drift, replay, or versioning risks with mitigations.",
+          "CL-013 constant-time HMAC comparison is asserted in design_pack.security but no test or file pins it among affected_files."
+        ],
+        "MINOR": [
+          "Observability says \"failures counted by code\" without metric names, labels, or alert owner (CL-014 lead-time not addressed).",
+          "Rollback is \"Revert the change\" only; no statement on mixed-version consumers during rollout window despite additive-only claim.",
+          "FR-2 verification points to test_contracts.py for signature tests, but signature verification is runtime logic not present in declared files."
+        ],
+        "NIT": [
+          "Traceability evidence for FR-1 lists core/contracts.py for both design and evidence lines; could cite the parity test explicitly.",
+          "test_api_events greenness is an AC but no explicit CI job/test list is named to run it."
+        ],
+        "SUMMARY": [
+          "Design is structurally sound (additive, Go mirror, CI-blocking parity) and does not violate the language rule, but it is not ready for Gate 1.5: FR-2 acceptance exceeds declared scope, the HMAC secret contract is self-contradictory, and the unknown-field and `seq` invariants are unpinned — the top risks are contract drift that parity tests may not catch and unverifiable security acceptance criteria."
+        ]
+      },
+      "evidence": "BI-PF-1267-6996429ccf34.json"
+    },
+    {
+      "mode": "design",
+      "candidate_sha": "b2032463d9d202e9b9543913687c8d76a76f2c3a",
+      "review_sha": "04038c3c0c10",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-14T05:37:42.156731+00:00",
+      "review_scope": "full_candidate",
+      "base_sha": "d97bfd96668bd488a61b4a10e5d12026a70c4249",
+      "head_sha": "b2032463d9d202e9b9543913687c8d76a76f2c3a",
+      "findings": {
+        "BLOCKER": [
+          "review.impact_review records language-rule verdict \"violates\" (\"New Python module in shipped root\") while affected_files declare only an edit to core/contracts.py; unresolved contradiction — either an undeclared shipped-Python addition (language-rule violation) or an erroneous verdict — must be reconciled before Gate approval."
+        ],
+        "MAJOR": [
+          "Residual of prior config-contract finding with new evidence: delta design_pack.contracts.config states \"No new env flag in this item\" while functional_spec.config_contract declares WEBHOOK_HMAC_KEY_REF (required, fail-closed, env/secret precedence, startup validation); the delta spec_pack also silently dropped the config_contract applicability row entirely — a security-relevant control with no owning spec row and an explicit \"no config\" denial.",
+          "test_matrix pins Go/Python parity only for the envelope (row 1); no named parity test covers subscription, alert-rule, or webhook payload/header shapes although in_scope puts them in the Go mirror, and webhook tests cite core/contracts.py only — AC \"Go and Python required-field/shape parity tests pass\" is not fully demonstrable for in-scope contracts.",
+          "Rollback remains \"Revert the contract PR\" with no mixed-version consumer guidance beyond \"ship Python and Go mirrors together\"; prior MAJOR on guardrail answers is only partially closed (role posture and CL-011 runtime-role statement still absent even as N/A for a no-DB-change item)."
+        ],
+        "MINOR": [
+          "CL-011 runtime role posture (NOSUPERUSER/NOBYPASSRLS) is never stated, not even declared N/A; tenant binding is now covered but guardrail 3 remains unanswered in the delta.",
+          "design_pack.observability assigns contract_validation_failures_total{code} to platform, but no artifact in affected_files emits it; the emission point/deferred owner is unstated (guardrail 10).",
+          "spec_pack security_threat_model and implementation_plan evidence cite only core/contracts.py although go/pfcore/contracts.go and the parity test are declared in-scope mirrors.",
+          "review.impact_review mixes verdicts (\"violates\" with recommendation \"not needed\"); verdict/recommendation semantics for impact rows are ambiguous and weaken gate evidence."
+        ],
+        "NIT": [
+          "Impact-review evidence cites line numbers (core/bom.py:195,198) that will drift; prefer symbol/contract names for durable evidence."
+        ],
+        "SUMMARY": [
+          "Delta meaningfully closes several prior pendings (unknown-field policy, seq invariant, risks list, FR-2 runtime deferral, constant-time test pin, observability owners/thresholds), but three prior majors persist or evolved: config-contract contradiction (now worsened by a dropped spec_pack row and \"no new env flag\"), incomplete parity-test coverage for non-envelope contracts, and an unresolved language-rule \"violates\" verdict in the review record.",
+          "Top risks before Gate: ship-scope ambiguity on the language rule, a fail-closed security config with no owning design row, and AC parity claimed for contracts with no pinned Go evidence."
+        ]
+      },
+      "evidence": "BI-PF-1267-04038c3c0c10.json"
+    },
+    {
+      "mode": "design",
+      "candidate_sha": "7358e25549d6dd45c336105e5f6a09cbda3651f3",
+      "review_sha": "0003df332381",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-14T05:40:30.216669+00:00",
+      "review_scope": "delta",
+      "base_sha": "b2032463d9d202e9b9543913687c8d76a76f2c3a",
+      "head_sha": "7358e25549d6dd45c336105e5f6a09cbda3651f3",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [
+          "review.reconciliation.assumptions B3 says the `seq` writer stays in `core/events.py`, contradicting the binding invariant/decision that seq is assigned by the Go/PostgreSQL event core; this also implies new shipped Python logic under the language rule.",
+          "Three Go contract-shape surfaces are now in play (existing `go/contract/contract.go`, `go/pfcore/pfcore.go` contractShapes, new `go/pfcore/contracts.go`); no consolidation or statement of which surface parity tests pin vs. which runtime uses — drift risk defeats AC-1.",
+          "`config_contract` mandates WEBHOOK_HMAC_KEY_REF startup validation fail-closed, but this item has no runtime component and, unlike metrics (deferred to BI-PF-1270/1274), no implementing artifact or deferred owner is named."
+        ],
+        "MINOR": [
+          "Open question requires parity coverage of cursor ordering, but test_matrix has no named cursor-ordering test.",
+          "Row 3 (constant-time HMAC/idempotency) evidence omits `go/pfcore/contracts.go` despite the open question requiring signature-verification parity across Python/Go.",
+          "design_pack.security repeats near-identical HMAC/tenant bullets (concatenated revisions), obscuring the actual control set."
+        ],
+        "NIT": [
+          "functional_spec.observability and design_pack.observability are verbatim duplicates; ADR-0005 (prior_decisions) and ADR-0011 (assumptions) are cited without cross-reference."
+        ],
+        "SUMMARY": [
+          "Delta closes the prior BLOCKER (impact verdict now \"aligned\") and the config-contract, rollback, CL-011, observability-owner, spec evidence, and webhook-parity-row findings; prior NIT unchanged and not reopened.",
+          "Top residual risks: seq-writer contradiction on a P0 invariant, fragmented Go mirror surfaces vs. declared file, and unowned fail-closed startup validation."
+        ]
+      },
+      "evidence": "BI-PF-1267-0003df332381.json"
+    },
+    {
+      "mode": "design",
+      "candidate_sha": "40e03d5f74cb411d0d00468925034de098f348d6",
+      "review_sha": "500f6e048c48",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-14T05:44:08.349094+00:00",
+      "review_scope": "delta",
+      "base_sha": "b2032463d9d202e9b9543913687c8d76a76f2c3a",
+      "head_sha": "40e03d5f74cb411d0d00468925034de098f348d6",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [],
+        "MINOR": [
+          "review.reconciliation.existing_path still labels `go/contract/contract.go` and `pfcore.contractShapes` as the \"Go mirror required-field tables\", contradicting the new delta decision that `go/pfcore/contracts.go` is canonical and the others legacy/not extended; stale row should be updated in the same delta to avoid implementers extending the wrong surface.",
+          "test_matrix row 4 (`test_cursor_ordering_contract`) evidence lists only `core/contracts.py` and `go/pfcore/contracts.go`, omitting `test-framework/tests/pipeline/test_contracts.py` where the test itself lives, breaking the evidence-to-file traceability pattern used by the other rows.",
+          "AC \"existing test_api_events stays green\" is not represented in test_matrix or traceability; add a regression row/evidence so the AC is fail-able in CI, not only implied.",
+          "Delta does not explicitly answer the design guardrail checklist items (reversibility/backup, SPOF/startup check, blast-radius/dry-run, tenant isolation, reuse/observability owner) even where they are N/A for a contract-only item; CL-008 requires each item be answered in the design before Gate 1.5 (CL-011/CL-013 are only partially evidenced via security bullets)."
+        ],
+        "NIT": [
+          "functional_spec.observability and design_pack.observability are no longer verbatim duplicates but remain near-duplicative; consider a single canonical row with the other referencing it.",
+          "reconciliation.prior_decisions cites ADR-0005 while assumptions cite ADR-0011 with no cross-reference between the two rows."
+        ],
+        "SUMMARY": [
+          "Delta resolves the prior B3 `seq`-writer contradiction, names the canonical Go contract surface, adds the cursor-ordering test row, fixes the HMAC row evidence, and assigns a deferred owner for `WEBHOOK_HMAC_KEY_REF`; prior MAJORs 1-3 and MINORs 4-6 are adequately dispositioned. No blockers: language rule, additive-only invariants, and CI-blocking parity remain intact. Top residual risks are the stale `existing_path` reconciliation row (drift toward legacy Go surfaces) and incomplete guardrail-checklist/AC regression traceability before Gate 1.5."
+        ]
+      },
+      "evidence": "BI-PF-1267-500f6e048c48.json"
+    }
+  ],
+  "review_dispositions": {
+    "design": {
+      "sig:55481efa8ee03cb8": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Addressed in BI-PF-1267 design v1.2; evidence: engineering/design/BI-PF-1267.md, engineering/specs/BI-PF-1267.md."
+      },
+      "sig:77d62299ce9fce89": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Addressed in BI-PF-1267 design v1.2; evidence: engineering/design/BI-PF-1267.md, engineering/specs/BI-PF-1267.md."
+      },
+      "sig:f24cd783fc794aff": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Addressed in BI-PF-1267 design v1.2; evidence: engineering/design/BI-PF-1267.md, engineering/specs/BI-PF-1267.md."
+      },
+      "sig:5a259ab57dd52cec": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Addressed in BI-PF-1267 design v1.2; evidence: engineering/design/BI-PF-1267.md, engineering/specs/BI-PF-1267.md."
+      },
+      "sig:24cb524a5ac88429": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Addressed in BI-PF-1267 design v1.2; evidence: engineering/design/BI-PF-1267.md, engineering/specs/BI-PF-1267.md."
+      },
+      "sig:e0621bb9511f3727": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Addressed in BI-PF-1267 design v1.2; evidence: engineering/design/BI-PF-1267.md, engineering/specs/BI-PF-1267.md."
+      },
+      "sig:6fabb5a9040b64bd": {
+        "status": "ACTIONED",
+        "severity": "BLOCKER",
+        "origin_class": "DESIGN_GAP",
+        "note": "Addressed in BI-PF-1267 design v1.2; evidence: engineering/design/BI-PF-1267.md, engineering/specs/BI-PF-1267.md."
+      },
+      "sig:62f55b5281a8402d": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Addressed in BI-PF-1267 design v1.2; evidence: engineering/design/BI-PF-1267.md, engineering/specs/BI-PF-1267.md."
+      },
+      "sig:db89e89c9fade7a6": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Addressed in BI-PF-1267 design v1.2; evidence: engineering/design/BI-PF-1267.md, engineering/specs/BI-PF-1267.md."
+      },
+      "sig:d42d956d569dc345": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Addressed in BI-PF-1267 design v1.2; evidence: engineering/design/BI-PF-1267.md, engineering/specs/BI-PF-1267.md."
+      },
+      "sig:a6831a6115540aa2": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Addressed in BI-PF-1267 design v1.2; evidence: engineering/design/BI-PF-1267.md, engineering/specs/BI-PF-1267.md."
+      },
+      "sig:6e8cb5468d3c7dd0": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Addressed in BI-PF-1267 design v1.2; evidence: engineering/design/BI-PF-1267.md, engineering/specs/BI-PF-1267.md."
+      },
+      "sig:23c989869cf9a147": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Addressed in BI-PF-1267 design v1.2; evidence: engineering/design/BI-PF-1267.md, engineering/specs/BI-PF-1267.md."
+      },
+      "sig:f8df81f319f36d67": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Addressed in BI-PF-1267 design v1.2; evidence: engineering/design/BI-PF-1267.md, engineering/specs/BI-PF-1267.md."
+      },
+      "sig:1481d716901bce80": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Addressed in BI-PF-1267 design v1.2; evidence: engineering/design/BI-PF-1267.md, engineering/specs/BI-PF-1267.md."
+      },
+      "sig:f7ea2f7942c34bc2": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Addressed in BI-PF-1267 design v1.2; evidence: engineering/design/BI-PF-1267.md, engineering/specs/BI-PF-1267.md."
+      },
+      "sig:5ef7525ca37f2425": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Addressed in BI-PF-1267 design v1.2; evidence: engineering/design/BI-PF-1267.md, engineering/specs/BI-PF-1267.md."
+      },
+      "sig:593d7df5c1a50a36": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Addressed in BI-PF-1267 design v1.2; evidence: engineering/design/BI-PF-1267.md, engineering/specs/BI-PF-1267.md."
+      },
+      "sig:84cc5a1ebca5894b": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Addressed in BI-PF-1267 design v1.2; evidence: engineering/design/BI-PF-1267.md, engineering/specs/BI-PF-1267.md."
+      },
+      "sig:de0dc6c3b2ff0854": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Addressed in BI-PF-1267 design v1.2; evidence: engineering/design/BI-PF-1267.md, engineering/specs/BI-PF-1267.md."
+      },
+      "sig:6ed2bb65f52e2e1f": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Addressed in BI-PF-1267 design v1.2; evidence: engineering/design/BI-PF-1267.md, engineering/specs/BI-PF-1267.md."
+      },
+      "sig:925546186eecc3f8": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Addressed in BI-PF-1267 design v1.2; evidence: engineering/design/BI-PF-1267.md, engineering/specs/BI-PF-1267.md."
+      },
+      "sig:8fda39c160a47a06": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Addressed in BI-PF-1267 design v1.2; evidence: engineering/design/BI-PF-1267.md, engineering/specs/BI-PF-1267.md."
+      },
+      "sig:8e6d95b7f36e1a68": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Addressed in BI-PF-1267 design v1.2; evidence: engineering/design/BI-PF-1267.md, engineering/specs/BI-PF-1267.md."
+      },
+      "sig:ca6fef16679c1304": {
+        "status": "ACTIONED",
+        "severity": "MAJOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Addressed in BI-PF-1267 design v1.2; evidence: engineering/design/BI-PF-1267.md, engineering/specs/BI-PF-1267.md."
+      },
+      "sig:cc6a20d6f9358119": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Addressed in BI-PF-1267 design v1.2; evidence: engineering/design/BI-PF-1267.md, engineering/specs/BI-PF-1267.md."
+      },
+      "sig:6bc05f2b6e9c6f39": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Addressed in BI-PF-1267 design v1.2; evidence: engineering/design/BI-PF-1267.md, engineering/specs/BI-PF-1267.md."
+      },
+      "sig:ec79a367c757c718": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "DESIGN_GAP",
+        "note": "Addressed in BI-PF-1267 design v1.2; evidence: engineering/design/BI-PF-1267.md, engineering/specs/BI-PF-1267.md."
+      }
+    }
   }
 }

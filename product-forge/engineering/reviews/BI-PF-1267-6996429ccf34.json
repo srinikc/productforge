@@ -1,0 +1,35 @@
+{
+  "item": "BI-PF-1267",
+  "sha": "6996429ccf34",
+  "model": "mimo-v2.6-flash",
+  "mode": "design",
+  "parsed_ok": true,
+  "at": "2026-11-14T04:21:42.347695+00:00",
+  "review_scope": "full_candidate",
+  "base_sha": "",
+  "head_sha": "d97bfd96668bd488a61b4a10e5d12026a70c4249",
+  "findings": {
+    "BLOCKER": [],
+    "MAJOR": [
+      "FR-2 acceptance (\"webhook accepted and deduped by event_id\") requires runtime dispatch/dedup, explicitly a non-goal and absent from affected_files; declared tests cannot satisfy it.",
+      "config_contract declares WEBHOOK_HMAC_KEY_REF (fail-closed, startup validation required) while spec_pack marks config_contract N/A \"no config file change\" \u2014 contradictory secret-handling contract for a security-relevant control.",
+      "Invariant \"unknown fields rejected or preserved by explicit version policy\" is left undecided; without a pinned policy Python/Go parity tests can pass while runtime behaviors diverge.",
+      "Monotonic `seq` invariant (assignment source, gap/ordering semantics vs occurred_at, cross-producer ordering) is not stated or tested despite checklist item 5.",
+      "Design pack does not answer guardrail checklist items 1-6, 9-10 (CL-008): no authz/tenant-boundary statement, no invariant tests, no metrics/owners for CONTRACT_INVALID/WEBHOOK_SIGNATURE_INVALID.",
+      "`risks: Not specified` for a security-bearing contract change; no identified parity-drift, replay, or versioning risks with mitigations.",
+      "CL-013 constant-time HMAC comparison is asserted in design_pack.security but no test or file pins it among affected_files."
+    ],
+    "MINOR": [
+      "Observability says \"failures counted by code\" without metric names, labels, or alert owner (CL-014 lead-time not addressed).",
+      "Rollback is \"Revert the change\" only; no statement on mixed-version consumers during rollout window despite additive-only claim.",
+      "FR-2 verification points to test_contracts.py for signature tests, but signature verification is runtime logic not present in declared files."
+    ],
+    "NIT": [
+      "Traceability evidence for FR-1 lists core/contracts.py for both design and evidence lines; could cite the parity test explicitly.",
+      "test_api_events greenness is an AC but no explicit CI job/test list is named to run it."
+    ],
+    "SUMMARY": [
+      "Design is structurally sound (additive, Go mirror, CI-blocking parity) and does not violate the language rule, but it is not ready for Gate 1.5: FR-2 acceptance exceeds declared scope, the HMAC secret contract is self-contradictory, and the unknown-field and `seq` invariants are unpinned \u2014 the top risks are contract drift that parity tests may not catch and unverifiable security acceptance criteria."
+    ]
+  }
+}
