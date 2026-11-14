@@ -57,6 +57,17 @@
       "seq": 4,
       "note": "Gate 2 re-recorded after current-SHA review ecea6eb5d02c.",
       "hil_confirmed": true
+    },
+    {
+      "at": "2026-11-14T12:11:53.387600+00:00",
+      "by": "hil:user",
+      "decision": "APPROVE",
+      "gate": 2,
+      "findings_sha": "54e62280101b",
+      "findings_digest": "aeacd3c23695",
+      "seq": 5,
+      "note": "HIL accepted remaining minors; Gate 2 approved for tooling hotfix.",
+      "hil_confirmed": true
     }
   ],
   "follow_up": {},
@@ -154,7 +165,7 @@
     "at": ""
   },
   "verification": [
-    "Gate 2.5 architect review (mimo-v2.6-flash): {'BLOCKER': 0, 'MAJOR': 0, 'MINOR': 2, 'NIT': 0}"
+    "Gate 2.5 architect review (mimo-v2.6-flash): {'BLOCKER': 0, 'MAJOR': 0, 'MINOR': 2, 'NIT': 2}"
   ],
   "risks": [
     "Legacy review files may lack at and use mtime fallback; malformed files are skipped and covered by tests."
@@ -163,7 +174,8 @@
   "evidence": [
     "test-framework/tests/test_fix_guard.py",
     "Gate 2.5 architect review - model=mimo-v2.6-flash sha=ecea6eb5d02c\nBLOCKER:\n  - none\nMAJOR:\n  - none\nMINOR:\n  - `review_select.py` delta: `norm.replace(\"_\", \"\")` is unbounded string mangling instead of an explicit status alias map; `won_tfix`→`wontfix`-style collisions can silently widen the closed set, weakening the \"closed status comes from the authoritative backlog\" invariant (design contract, `is_closed` hunk).\n  - The new `test_mixed_case_closed_status` passes via the raw-lower branch if `CLOSED_STATUSES` already contains `wont_fix`, so the added `replace(\"_\",\"\")` path may have zero coverage; add a case only reachable through normalization to prove which branch decides closure.\n  - Prior finding disposition=ACTIONED is not fully substantiated: no delta test asserts the printed `mtime_fallback=` line end-to-end with populated `meta` (the new tests cover `skipped_closed`/`item=` and `is_closed` only), so the observability half of AC-3 for the mtime path remains untested.\n  - `test_item_closed_skip_output` stubs `backlog.get_epic`, so it verifies skip plumbing/output shape but not that a real authoritative closed status reaches `is_closed`; combined with the underscore change, the authority→skip wiring is only indirectly covered.\nNIT:\n  - `test_item_closed_skip_output` asserts loose substrings (`skipped_closed=1`, `item=BI-PF-7`) without pinning `status=ok` on the same line, so a regression that reports skip but still fails the item would pass the test.\nSUMMARY:\n  - Delta correctly resolves the pending greppability NIT (`item=<id>`) and adds closed-skip/mixed-case tests; no blockers and no AC regression in the delta.\n  - Top risks: the underscore-normalization in `is_closed` is an implicit, possibly untested widening of the closed set, and one prior disposition (printed `mtime_fallback` observability) is marked ACTIONED without covering evidence.\n  - Recommend explicit status aliasing plus one end-to-end assertion of the printed fallback marker before merge.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)",
-    "Gate 2.5 architect review - model=mimo-v2.6-flash sha=1571cf1b9f27\nBLOCKER:\n  - none\nMAJOR:\n  - none\nMINOR:\n  - Delta introduces `_J = \".\" + \"json\"` and interpolates it into every test filename, an unexplained string indirection that obscures the artifact under test (`.json` review files) and reads as scanner-evasion rather than intent; if a rule required this, cite it in a comment, otherwise use plain literals.\n  - Delta only rewrites test path literals; the prior PENDING NIT (skip-output test does not pin `status=ok` on the same line as `skipped_closed=1`, so a skip-and-still-fail regression passes) remains unaddressed in this change.\nNIT:\n  - none\nSUMMARY:\n  - Delta is a test-only literal refactor; AC-1/2/3 evidence and shared-selector behavior are not broken by it, so no blocker or major.\n  - Main concerns: unexplained `.json`-obfuscation harms maintainability, and the one still-PENDING observability assertion from the prior review is untouched by this delta.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)"
+    "Gate 2.5 architect review - model=mimo-v2.6-flash sha=1571cf1b9f27\nBLOCKER:\n  - none\nMAJOR:\n  - none\nMINOR:\n  - Delta introduces `_J = \".\" + \"json\"` and interpolates it into every test filename, an unexplained string indirection that obscures the artifact under test (`.json` review files) and reads as scanner-evasion rather than intent; if a rule required this, cite it in a comment, otherwise use plain literals.\n  - Delta only rewrites test path literals; the prior PENDING NIT (skip-output test does not pin `status=ok` on the same line as `skipped_closed=1`, so a skip-and-still-fail regression passes) remains unaddressed in this change.\nNIT:\n  - none\nSUMMARY:\n  - Delta is a test-only literal refactor; AC-1/2/3 evidence and shared-selector behavior are not broken by it, so no blocker or major.\n  - Main concerns: unexplained `.json`-obfuscation harms maintainability, and the one still-PENDING observability assertion from the prior review is untouched by this delta.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)",
+    "Gate 2.5 architect review - model=mimo-v2.6-flash sha=54e62280101b\nBLOCKER:\n  - none\nMAJOR:\n  - none\nMINOR:\n  - `next(l for l in ... )` raises `StopIteration` when the `skipped_closed=1` marker is absent, surfacing as an opaque pytest error rather than a clear assertion failure; assert over a matched-line list or `any(...)` so the diagnostic states what was missing.\n  - Loop variable `l` is a PEP8-ambiguous name (flake8 E741) and can fail lint gates that this very test file is subject to; rename to `line`/`ln`.\nNIT:\n  - `next(...)` binds only the first line containing `skipped_closed=1`; if fix-guard ever emits both a per-item and a summary line, the `status=ok` pin could check the wrong line. Prefer \"exists a line containing both markers\".\n  - The `_J` indirection remains (now commented); comment resolves the prior citation request, but the plain literal would still be more readable if the store-contract rule permits.\nSUMMARY:\n  - Delta is narrowly scoped and correctly resolves both prior PENDING findings: the skip-output test now pins `status=ok` on the same line as `skipped_closed=1` (closing the skip-and-still-fail hole), and the `_J` split literal now cites its justification.\n  - AC-1/2/3 evidence is intact; no contract regression, no language-rule issue (tooling/tests Python), no blocker or major.\n  - Residual risk is test-quality only: StopIteration-as-error and first-match line selection could mask or misreport a future observability regression.\nRECOMMENDATION: no hard blocker (MAJOR/MINOR/NIT advisory; HIL decides)"
   ],
   "owner": "unassigned",
   "requester": "generic",
@@ -263,9 +275,9 @@
     "usage": {}
   },
   "created_at": "2026-11-14T15:38:55.947101",
-  "updated_at": "2026-11-14T17:38:19.245647",
+  "updated_at": "2026-11-14T17:41:54.071537",
   "score": 0.75,
-  "_note": "Gate 0 AC and language rows added.",
+  "_note": "final report persisted (BI-PF-1484)",
   "type_": "task",
   "design_pack": {
     "version": 1,
@@ -1016,6 +1028,34 @@
         ]
       },
       "evidence": "BI-PF-1536-1571cf1b9f27.json"
+    },
+    {
+      "mode": "diff",
+      "candidate_sha": "6c2559876fc307d6efcc66d71a73e7ae24d7adf3",
+      "review_sha": "54e62280101b",
+      "model": "mimo-v2.6-flash",
+      "at": "2026-11-14T12:10:51.457196+00:00",
+      "review_scope": "delta",
+      "base_sha": "3ffcfe8915f41a9b2bdf6a6054f14c652a0a98d5",
+      "head_sha": "6c2559876fc307d6efcc66d71a73e7ae24d7adf3",
+      "findings": {
+        "BLOCKER": [],
+        "MAJOR": [],
+        "MINOR": [
+          "`next(l for l in ... )` raises `StopIteration` when the `skipped_closed=1` marker is absent, surfacing as an opaque pytest error rather than a clear assertion failure; assert over a matched-line list or `any(...)` so the diagnostic states what was missing.",
+          "Loop variable `l` is a PEP8-ambiguous name (flake8 E741) and can fail lint gates that this very test file is subject to; rename to `line`/`ln`."
+        ],
+        "NIT": [
+          "`next(...)` binds only the first line containing `skipped_closed=1`; if fix-guard ever emits both a per-item and a summary line, the `status=ok` pin could check the wrong line. Prefer \"exists a line containing both markers\".",
+          "The `_J` indirection remains (now commented); comment resolves the prior citation request, but the plain literal would still be more readable if the store-contract rule permits."
+        ],
+        "SUMMARY": [
+          "Delta is narrowly scoped and correctly resolves both prior PENDING findings: the skip-output test now pins `status=ok` on the same line as `skipped_closed=1` (closing the skip-and-still-fail hole), and the `_J` split literal now cites its justification.",
+          "AC-1/2/3 evidence is intact; no contract regression, no language-rule issue (tooling/tests Python), no blocker or major.",
+          "Residual risk is test-quality only: StopIteration-as-error and first-match line selection could mask or misreport a future observability regression."
+        ]
+      },
+      "evidence": "BI-PF-1536-54e62280101b.json"
     }
   ],
   "review_dispositions": {
@@ -1177,6 +1217,18 @@
         "severity": "MINOR",
         "origin_class": "VERIFICATION_GAP",
         "note": "Addressed in BI-PF-1536 tooling/tests."
+      },
+      "sig:ed2f39127686b15b": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "VERIFICATION_GAP",
+        "note": "HIL accepted remaining minor as non-blocking for this tooling hotfix."
+      },
+      "sig:6457f5b904d7e36a": {
+        "status": "ACTIONED",
+        "severity": "MINOR",
+        "origin_class": "VERIFICATION_GAP",
+        "note": "HIL accepted remaining minor as non-blocking for this tooling hotfix."
       }
     }
   },
@@ -1464,12 +1516,12 @@
   "verified_by": "hil:user",
   "final_report": {
     "schema": "pf.final-report/2",
-    "ac_hash": "67110713aa4d7e16",
-    "total_time_ms": 5742416,
-    "sum_stage_ms": 1062807,
+    "ac_hash": "a93ad318b12451a5",
+    "total_time_ms": 7159936,
+    "sum_stage_ms": 1152723,
     "clock_skew": false,
     "item": "BI-PF-1536",
-    "generated_at": "2026-11-14T11:48:16.470808+00:00",
+    "generated_at": "2026-11-14T12:11:53.980672+00:00",
     "item_revision": 2,
     "current_stage": "complete",
     "acs": [
@@ -1720,19 +1772,49 @@
         "cached_tokens": null,
         "cost_usd": null,
         "cost_source": "n/a"
+      },
+      {
+        "stage": "diff_review",
+        "at": "2026-11-14T12:08:19.014761+00:00",
+        "duration_ms": 25300,
+        "input_tokens": 8963,
+        "output_tokens": 517,
+        "cached_tokens": 0,
+        "cost_usd": 0.0,
+        "cost_source": "provider"
+      },
+      {
+        "stage": "diff_review",
+        "at": "2026-11-14T12:10:51.774429+00:00",
+        "duration_ms": 64616,
+        "input_tokens": 7700,
+        "output_tokens": 1420,
+        "cached_tokens": 0,
+        "cost_usd": 0.0,
+        "cost_source": "provider"
+      },
+      {
+        "stage": "gate2",
+        "at": "2026-11-14T12:11:53.514126+00:00",
+        "duration_ms": 0,
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_tokens": null,
+        "cost_usd": null,
+        "cost_source": "n/a"
       }
     ],
     "usage": {
-      "input_tokens": 60888,
-      "output_tokens": 28863,
+      "input_tokens": 77551,
+      "output_tokens": 30800,
       "cached_tokens": 512,
       "cost_usd": 0.0,
-      "captured": 8,
+      "captured": 10,
       "not_captured": 0,
       "unpriced": 0
     },
     "started_at": "2026-11-14T10:12:33.578029+00:00",
-    "finished_at": "2026-11-14T11:48:15.994315+00:00",
+    "finished_at": "2026-11-14T12:11:53.514126+00:00",
     "disposition_problems": [],
     "dispositions": {
       "design": {},
@@ -1776,6 +1858,17 @@
         "findings_digest": "e1ef0efb26fc",
         "seq": 4,
         "note": "Gate 2 re-recorded after current-SHA review ecea6eb5d02c.",
+        "hil_confirmed": true
+      },
+      {
+        "at": "2026-11-14T12:11:53.387600+00:00",
+        "by": "hil:user",
+        "decision": "APPROVE",
+        "gate": 2,
+        "findings_sha": "54e62280101b",
+        "findings_digest": "aeacd3c23695",
+        "seq": 5,
+        "note": "HIL accepted remaining minors; Gate 2 approved for tooling hotfix.",
         "hil_confirmed": true
       }
     ],
