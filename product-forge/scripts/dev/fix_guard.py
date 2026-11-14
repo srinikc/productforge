@@ -78,7 +78,7 @@ def main(argv=None):
         meta={}
         if not skipped:
             bad += [f"{a.item}: {x}" for x in problems(it,c,meta=meta)]
-        print(f"fix-guard: status={'fail' if bad else 'ok'} skipped_closed={skipped} mtime_fallback={1 if meta.get('mtime_fallback') else 0}")
+        print(f"fix-guard: item={a.item} status={'fail' if bad else 'ok'} skipped_closed={skipped} mtime_fallback={1 if meta.get('mtime_fallback') else 0}")
     else:
         print('fix-guard: --item or --all required',file=sys.stderr); return 2
     print('fix-guard: '+('OK' if not bad else 'FAIL'))

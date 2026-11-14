@@ -49,4 +49,5 @@ def latest_review(reviews_dir: Path, item_id: str, mode: str = "diff",
 def is_closed(status) -> bool:
     from core import backlog
     value = str(status or "")
-    return value.lower() in CLOSED_STATUSES or backlog.section({"status": value}) == "done"
+    norm = value.lower()
+    return norm in CLOSED_STATUSES or norm.replace("_", "") in CLOSED_STATUSES or backlog.section({"status": value}) == "done"

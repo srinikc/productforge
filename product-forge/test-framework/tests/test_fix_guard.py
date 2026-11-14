@@ -88,3 +88,15 @@ def test_fix_guard_problems_threads_meta(monkeypatch):
     meta = {}
     assert fg.problems({"id": "BI-PF-6", "status": "new", "created_at": "2026-01-01"}, {"enforce_from": "2020-01-01"}, meta=meta) == []
     assert meta["mtime_fallback"] is True
+
+
+def test_item_closed_skip_output(monkeypatch, capsys):
+    monkeypatch.setattr(fg.backlog, "get_epic", lambda *a, **k: {"id": "BI-PF-7", "status": "completed"})
+    assert fg.main(["--item", "BI-PF-7"]) == 0
+    out = capsys.readouterr().out
+    assert "skipped_closed=1" in out and "item=BI-PF-7" in out
+
+
+def test_mixed_case_closed_status():
+    assert review_select.is_closed("WONT_FIX") is True
+    assert review_select.is_closed("Done") is True
