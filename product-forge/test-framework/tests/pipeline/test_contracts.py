@@ -218,3 +218,22 @@ def test_eventing_tenant_and_idempotency_contract():
     headers = contracts.webhook_headers("e1", body, "secret")
     assert headers[contracts.WEBHOOK_IDEMPOTENCY_HEADER] == "e1"
     assert headers[contracts.WEBHOOK_SIGNATURE_HEADER] == sig
+
+
+@pytest.mark.skipif(_go_bin() is None, reason="go toolchain not installed")
+def test_pfcore_eventing_field_parity(tmp_path):
+    go = _go_bin()
+    go_dir = ROOT / "go" / "pfcore"
+    host = tmp_path / ("pfcore-host" + (".exe" if os.name == "nt" else ""))
+    build = subprocess.run([go, "build", "-o", str(host), "."], cwd=str(go_dir),
+                           capture_output=True, text=True, timeout=300)
+    assert build.returncode == 0, build.stderr
+    for name in contracts.EVENTING_CONTRACTS:
+        desc = _go_call(host, contracts.wire_request("describe", name, id="d-" + name))
+        assert set(desc["result"]["fields"]) == set(contracts.CONTRACTS[name].field_names()), name
+
+
+def test_metric_and_empty_secret_contract():
+    assert contracts.CONTRACT_METRICS["validation_failures"] == "contract_validation_failures_total"
+    assert contracts.CONTRACT_METRIC_LABELS["validation_failures"] == ("code",)
+    assert contracts.webhook_signature(b"x", "") == ""
