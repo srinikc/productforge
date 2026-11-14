@@ -77,3 +77,14 @@ def test_closed_status_authority_covers_all_closed_values():
         assert review_select.is_closed(status) is True, status
     for status in ("new", "in_progress", "executing", "wait", "blocked"):
         assert review_select.is_closed(status) is False, status
+
+
+def test_fix_guard_problems_threads_meta(monkeypatch):
+    def fake(_iid, meta=None):
+        if meta is not None:
+            meta["mtime_fallback"] = True
+        return {"mode": "diff", "findings": {"BLOCKER": [], "MAJOR": []}}
+    monkeypatch.setattr(fg, "latest_review", fake)
+    meta = {}
+    assert fg.problems({"id": "BI-PF-6", "status": "new", "created_at": "2026-01-01"}, {"enforce_from": "2020-01-01"}, meta=meta) == []
+    assert meta["mtime_fallback"] is True

@@ -74,9 +74,11 @@ def main(argv=None):
         print(f"fix-guard: status={'fail' if bad else 'ok'} skipped_closed={skipped} mtime_fallback={fallback}")
     elif a.item:
         it=backlog.get_epic('product_forge',None,a.item) or {}
+        skipped = 1 if is_closed(it.get('status')) else 0
         meta={}
-        bad += [f"{a.item}: {x}" for x in problems(it,c,meta=meta)]
-        print(f"fix-guard: item={a.item} mtime_fallback={1 if meta.get('mtime_fallback') else 0}")
+        if not skipped:
+            bad += [f"{a.item}: {x}" for x in problems(it,c,meta=meta)]
+        print(f"fix-guard: status={'fail' if bad else 'ok'} skipped_closed={skipped} mtime_fallback={1 if meta.get('mtime_fallback') else 0}")
     else:
         print('fix-guard: --item or --all required',file=sys.stderr); return 2
     print('fix-guard: '+('OK' if not bad else 'FAIL'))
